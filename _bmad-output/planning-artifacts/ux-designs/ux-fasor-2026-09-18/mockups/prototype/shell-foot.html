@@ -21,6 +21,7 @@
       <li data-route="/project/porto-seguro"><a href="#/project/porto-seguro">/project/porto-seguro</a><small>Projeto · Porto Seguro › Torres A e B</small></li>
       <li data-route="/relatorio/porto-seguro"><a href="#/relatorio/porto-seguro">/relatorio/porto-seguro</a><small>Visão do relatório (árvore)</small></li>
       <li data-route="/relatorio/porto-seguro/setup"><a href="#/relatorio/porto-seguro/setup">/relatorio/porto-seguro/setup</a><small>Dados do relatório</small></li>
+      <li data-route="/relatorio/porto-seguro/secao/:n"><a href="#/relatorio/porto-seguro/secao/2">/relatorio/porto-seguro/secao/:n</a><small>Texto de uma seção (2, 4, 5, 6)</small></li>
       <li data-route="/relatorio/porto-seguro/fotos"><a href="#/relatorio/porto-seguro/fotos">/relatorio/porto-seguro/fotos</a><small>Fotos e galeria</small></li>
       <li data-route="/relatorio/porto-seguro/legenda"><a href="#/relatorio/porto-seguro/legenda">/relatorio/porto-seguro/legenda</a><small>Compositor de legenda</small></li>
       <li data-route="/relatorio/porto-seguro/pontos"><a href="#/relatorio/porto-seguro/pontos">/relatorio/porto-seguro/pontos</a><small>Pontos de atenção</small></li>
@@ -41,24 +42,7 @@
 <template id="rail-tree">
   <ul class="relatorio-tree" role="tree" aria-label="Árvore do relatório">
 
-    <!-- Seções -->
-    <li role="treeitem" aria-expanded="false">
-      <div class="tree-row" data-level="0">
-        <button class="tree-chevron" data-tree-toggle aria-label="Expandir ou recolher Seções"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button>
-        <div class="tree-body"><span class="tree-group">Seções</span><span class="tree-meta">9 blocos de texto</span></div>
-      </div>
-      <ul role="group" class="relatorio-tree">
-        <li role="treeitem"><div class="tree-row" data-level="1" data-go="#/relatorio/porto-seguro/secao/1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span><span class="tree-num">1</span>Objetivo</span></div></div></li>
-        <li role="treeitem"><div class="tree-row" data-level="1" data-go="#/relatorio/porto-seguro/secao/2"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span><span class="tree-num">2</span>Definições</span></div></div></li>
-        <li role="treeitem"><div class="tree-row" data-level="1" data-go="#/relatorio/porto-seguro/secao/3"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span><span class="tree-num">3</span>Limite de escopo</span></div></div></li>
-        <li role="treeitem"><div class="tree-row" data-level="1" data-go="#/relatorio/porto-seguro/secao/4"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span><span class="tree-num">4</span>Requisitos básicos</span></div></div></li>
-        <li role="treeitem"><div class="tree-row" data-level="1" data-go="#/relatorio/porto-seguro/secao/5"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span><span class="tree-num">5</span>Segurança (NR-10)</span></div></div></li>
-        <li role="treeitem"><div class="tree-row" data-level="1" data-go="#/relatorio/porto-seguro/secao/6"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span><span class="tree-num">6</span>Verificações aplicáveis</span></div></div></li>
-        <li role="treeitem"><div class="tree-row" data-level="1" data-go="#/relatorio/porto-seguro/pontos"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span><span class="tree-num">8</span>Pontos de atenção</span><span class="tree-meta">2 pontos · 1 não ensaiado</span></div></div></li>
-        <li role="treeitem"><div class="tree-row" data-level="1" data-go="#/relatorio/porto-seguro/secao/10"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span><span class="tree-num">10</span>Conclusão</span></div></div></li>
-        <li role="treeitem"><div class="tree-row" data-level="1" data-go="#/relatorio/porto-seguro/setup"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span><span class="tree-num">11</span>Certificados</span><span class="tree-meta">3 instrumentos</span></div></div></li>
-      </ul>
-    </li>
+    <!-- Rail = cabines e fichas only (decision 2026-09-21): sections live on the Sumário page, not here -->
 
     <!-- Cubículo Enel (expanded) -->
     <li role="treeitem" aria-expanded="true">

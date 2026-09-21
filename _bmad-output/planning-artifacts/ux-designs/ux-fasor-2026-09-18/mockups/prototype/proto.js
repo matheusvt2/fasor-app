@@ -189,7 +189,9 @@
       el.setAttribute('aria-checked', String(on));
       const word = $('.toggle-word', el); if (word) word.textContent = on ? 'Ativado' : 'Desativado';
     } else if ('toggleClass' in d) {   // on itself, on data-toggle-target="#id", or radio-like between .seg siblings
-      const target = d.toggleTarget ? find(d.toggleTarget) : el;
+      const target = !d.toggleTarget ? el
+        : d.toggleTarget.startsWith('closest:') ? el.closest(d.toggleTarget.slice(8))   // e.g. closest:.s9-cabine
+        : find(d.toggleTarget);
       if (!d.toggleTarget && el.matches('.seg')) $$('.seg', el.parentElement).forEach(s => s.classList.toggle(d.toggleClass, s === el));
       else if (target) target.classList.toggle(d.toggleClass);
     }

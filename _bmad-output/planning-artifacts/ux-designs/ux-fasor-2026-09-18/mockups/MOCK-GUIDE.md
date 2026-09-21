@@ -105,7 +105,7 @@ No protótipo navegável, o botão **Recorte do MVP** na barra de controles liga
 | --- | --- | --- |
 | "Ler visor" em toda tabela de medição | FR-36 | `60-ficha.html` (7) |
 | Botão de ditado | FR-40 | `60-ficha` (43), `50-relatorio-setup` (2), `72-pontos`, `key-equipment-sheet`, `key-relatorio-setup`. **Exceção desde 2026-09-21: o ditado da legenda entra no MVP** (compositor de legenda em `71-legenda` e o passo "De qual equipamento?" em `70-fotos`), por isso não leva marca ali. |
-| Legendas por visão e confirmação em lote | FR-39 | `70-fotos` (galeria), `73-exportar` (lista de pré-emissão) |
+| Legendas por visão e confirmação em lote | FR-39 | `70-fotos` (galeria); desde a v0.8 a lista de pré-emissão virou uma linha que aponta para o sumário |
 | "Fotografar equipamento" na paleta de campo | FR-38 | `40-relatorio-overview` |
 | Merge por sub-bloco e conflito | FR-58, FR-59 | `86-sync-conflito` (tela inteira) + rota no mapa |
 | Tela de status de sincronização | FR-60 | `85-sync` (tela inteira) + rota no mapa |
@@ -116,3 +116,17 @@ No protótipo navegável, o botão **Recorte do MVP** na barra de controles liga
 | Rascunho de observação de NC pela foto | FR-75 | **não marcado** — não tem elemento isolado no mock; a Observation field que o receberia é a mesma que entra no slice |
 
 **Ao editar um mock, mantenha a marcação.** Se um recurso entrar ou sair do slice, mude o `data-slice` aqui e nesta tabela — não apague o desenho.
+
+## v0.8 (2026-09-21) — o que o protótipo tem e os mocks estáticos não
+
+- **`screens/40-relatorio-overview.html` é o Sumário**: a tela do relatório virou o sumário numerado do FO.SERV-03, com o que falta em cada linha, menu de objeto e campo de posição em cada linha, seção 9 abrindo na árvore por local sem subnúmero, e "Pré-visualizar" + "Gerar relatório" no rodapé. O botão "Simular: Em revisão" mostra o comportamento que segue o status. **`key-relatorio-overview.html` é anterior e está superado** nessa tela; vale o protótipo.
+- **`screens/73-exportar.html`**: a lista de pré-emissão virou o item que bloqueia + uma linha "7 avisos — estão nas linhas do sumário", e entrou "Pré-visualizar". **`key-export.html` é anterior** nisso.
+- **Rail** (`shell-foot.html`): dentro da ficha, só cabines e fichas; o grupo "Seções" saiu.
+- **`components.css`**: `.pos-box` (campo de posição).
+
+## Varredura Playwright (2026-09-21)
+
+- **`screens/45-secao.html`** (novo): texto de uma seção (2, 4, 5, 6) — texto simples com chips de dados do relatório, salvamento automático, "Restaurar texto do template". As linhas 1 e 3 do sumário abrem os Dados do relatório (Etapa 2).
+- **Tema:** `tokens.css` declara os tokens de componente em `:root, [data-theme]` — obrigatório enquanto o tema for aplicado no `.frame`.
+- **Chips e abas quebram linha**, nunca rolam para o lado. **Tabelas** nunca cortam: caixa com rolagem como último recurso; a TTR usa `.is-wide` com colunas fixas. Os ensaios da ficha ficam empilhados em qualquer largura.
+- **Miniatura do recorte:** a área de toque vem de `.crop-thumb::before` — não volte a pôr `overflow: hidden` no `.crop-thumb`.

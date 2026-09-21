@@ -58,120 +58,231 @@
 [data-route="/relatorio/porto-seguro"] .detect-result .prov-list li { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
 [data-route="/relatorio/porto-seguro"] .detect-result .prov-list b { display: block; color: var(--ink-primary); font-weight: 600; }
 [data-route="/relatorio/porto-seguro"] .detect-result .chip-row { padding-top: var(--sp-1); }
+
+
+/* ---------- Sumário (v0.8, decisions 2026-09-21) ---------- */
+[data-route="/relatorio/porto-seguro"] .sum-summary { display: flex; flex-wrap: wrap; gap: 0 var(--sp-3); margin: var(--sp-2) 0 0; }
+[data-route="/relatorio/porto-seguro"] .sum-summary .btn-text { min-height: 36px; padding: 0; font-size: var(--t-meta-size); }
+[data-route="/relatorio/porto-seguro"] .sim-review { font-size: var(--t-meta-size); }
+[data-route="/relatorio/porto-seguro"] .sumario { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border-hairline); border-radius: var(--r-md); background: var(--surface-raised); }
+[data-route="/relatorio/porto-seguro"] .sum-row { display: flex; align-items: center; gap: var(--sp-2); min-height: 64px; padding: 0 var(--sp-3) 0 0; border-top: 1px solid var(--border-hairline); }
+[data-route="/relatorio/porto-seguro"] .sum-row:first-child { border-top: 0; }
+[data-route="/relatorio/porto-seguro"] .sum-open { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--sp-3); min-height: 64px; padding: var(--sp-2) var(--sp-3) var(--sp-2) var(--sp-1); text-align: left; cursor: pointer; }
+[data-route="/relatorio/porto-seguro"] .sum-open > .ico { color: var(--ink-secondary); flex: none; }
+[data-route="/relatorio/porto-seguro"] .sum-row > .sum-pos, [data-route="/relatorio/porto-seguro"] .sum-pos-empty { flex: none; margin-left: var(--sp-3); }
+[data-route="/relatorio/porto-seguro"] .sum-pos-empty { width: 56px; }
+.frame-phone [data-route="/relatorio/porto-seguro"] .sum-pos-empty { width: 48px; }
+[data-route="/relatorio/porto-seguro"] .sum-pos { border-color: transparent; background: transparent; color: var(--ink-secondary); }
+[data-route="/relatorio/porto-seguro"] .sum-pos:hover, [data-route="/relatorio/porto-seguro"] .sum-pos:focus { border-color: var(--border-strong); background: var(--surface-raised); color: var(--ink-primary); }
+[data-route="/relatorio/porto-seguro"] .sum-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+[data-route="/relatorio/porto-seguro"] .sum-title { font-size: var(--t-body-size); font-weight: 600; color: var(--ink-primary); }
+[data-route="/relatorio/porto-seguro"] .sum-status { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+[data-route="/relatorio/porto-seguro"] .sum-status.is-blocking { color: var(--nao-conforme); font-weight: 600; font-size: var(--t-body-size); }
+[data-route="/relatorio/porto-seguro"] .sum-ctrls { flex: none; display: flex; align-items: center; gap: var(--sp-1); }
+[data-route="/relatorio/porto-seguro"] .sum-ro { font-size: var(--t-meta-size); color: var(--ink-secondary); padding-right: var(--sp-2); }
+.frame-phone [data-route="/relatorio/porto-seguro"] .sum-ro { font-size: 12px; max-width: 72px; text-align: right; }
+/* section 9 */
+[data-route="/relatorio/porto-seguro"] .sum-s9 { flex-direction: column; align-items: stretch; padding: 0; }
+[data-route="/relatorio/porto-seguro"] .sum-s9-head { display: flex; align-items: center; gap: var(--sp-2); min-height: 64px; padding: var(--sp-2) var(--sp-3) var(--sp-2) 0; }
+[data-route="/relatorio/porto-seguro"] .sum-s9-head .tree-chevron { flex: none; }
+[data-route="/relatorio/porto-seguro"] .sum-s9 .tree-chevron .ico { transition: transform .15s; transform: rotate(-90deg); }
+[data-route="/relatorio/porto-seguro"] .sum-s9.is-open > .sum-s9-head .tree-chevron .ico,
+[data-route="/relatorio/porto-seguro"] .s9-cabine.is-open > .s9-cab-row .tree-chevron .ico { transform: none; }
+[data-route="/relatorio/porto-seguro"] .s9-cabine .tree-chevron .ico { transition: transform .15s; transform: rotate(-90deg); }
+[data-route="/relatorio/porto-seguro"] .s9-note, [data-route="/relatorio/porto-seguro"] .s9-tree { display: none; }
+[data-route="/relatorio/porto-seguro"] .sum-s9.is-open > .s9-note, [data-route="/relatorio/porto-seguro"] .sum-s9.is-open > .s9-tree { display: block; }
+[data-route="/relatorio/porto-seguro"] .s9-note { margin: 0 var(--sp-4) var(--sp-2) 104px; font-size: var(--t-meta-size); color: var(--ink-secondary); }
+[data-route="/relatorio/porto-seguro"] .s9-tree { list-style: none; margin: 0; padding: 0 0 var(--sp-2) 40px; }
+[data-route="/relatorio/porto-seguro"] .s9-cab-row { display: flex; align-items: center; gap: var(--sp-2); min-height: 56px; padding-right: var(--sp-3); border-top: 1px solid var(--border-hairline); }
+[data-route="/relatorio/porto-seguro"] .s9-cab-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+[data-route="/relatorio/porto-seguro"] .s9-cab-name { font-weight: 600; }
+[data-route="/relatorio/porto-seguro"] .s9-cab-meta { font-size: var(--t-meta-size); color: var(--ink-secondary); }
+[data-route="/relatorio/porto-seguro"] .s9-eqs, [data-route="/relatorio/porto-seguro"] .s9-add { display: none; }
+[data-route="/relatorio/porto-seguro"] .s9-cabine.is-open > .s9-eqs { display: block; }
+[data-route="/relatorio/porto-seguro"] .s9-cabine.is-open > .s9-add { display: inline-flex; margin: 0 0 var(--sp-2) 72px; }
+[data-route="/relatorio/porto-seguro"] .s9-eqs { list-style: none; margin: 0; padding: 0 var(--sp-3) 0 48px; }
+[data-route="/relatorio/porto-seguro"] .s9-col { padding: var(--sp-2) 0 var(--sp-1); font-size: var(--t-label-size); font-weight: 600; color: var(--ink-secondary); }
+[data-route="/relatorio/porto-seguro"] .s9-col-meta { font-weight: 400; margin-left: var(--sp-2); }
+[data-route="/relatorio/porto-seguro"] .s9-eq-open { display: flex; align-items: center; gap: var(--sp-3); width: 100%; min-height: 48px; padding: 0 var(--sp-2); text-align: left; border-radius: var(--r-sm); cursor: pointer; }
+[data-route="/relatorio/porto-seguro"] .s9-eq.is-current .s9-eq-open { background: var(--focus-fill); box-shadow: inset 4px 0 0 var(--primary); }
+[data-route="/relatorio/porto-seguro"] .s9-eq-name { flex: 1; min-width: 0; }
+[data-route="/relatorio/porto-seguro"] .sum-here { font-size: var(--t-meta-size); color: var(--primary); font-weight: 600; }
+[data-route="/relatorio/porto-seguro"] .s9-state { font-size: var(--t-meta-size); color: var(--ink-secondary); }
+[data-route="/relatorio/porto-seguro"] .s9-state[data-state="ok"] { color: var(--conforme); }
+[data-route="/relatorio/porto-seguro"] .s9-state[data-state="doing"] { color: var(--primary); }
+/* status-driven: Em revisão -> section 9 collapsed, rows with pendências lead the eye */
+[data-route="/relatorio/porto-seguro"] .sumario.is-review .sum-s9 > .s9-note,
+[data-route="/relatorio/porto-seguro"] .sumario.is-review .sum-s9 > .s9-tree { display: none; }
+[data-route="/relatorio/porto-seguro"] .sumario.is-review .sum-row:not(.has-pend) .sum-title { font-weight: 400; color: var(--ink-secondary); }
+[data-route="/relatorio/porto-seguro"] .sumario.is-review .sum-row.has-pend { background: var(--surface-base); }
+[data-route="/relatorio/porto-seguro"] .sumario.is-review .sum-s9 > .sum-s9-head .tree-chevron .ico { transform: rotate(-90deg); }
+/* Playwright sweep fixes (2026-09-21): hit areas and phone layout of the Sumário */
+[data-route="/relatorio/porto-seguro"] .sum-s9 .tree-chevron, [data-route="/relatorio/porto-seguro"] .s9-cabine .tree-chevron { width: var(--touch-min); height: 56px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+[data-route="/relatorio/porto-seguro"] .sum-summary .btn-text { min-height: 44px; }
+.frame-phone [data-route="/relatorio/porto-seguro"] .s9-tree { padding-left: 0; }
+.frame-phone [data-route="/relatorio/porto-seguro"] .s9-note { margin-left: var(--sp-4); }
+.frame-phone [data-route="/relatorio/porto-seguro"] .s9-cab-row { flex-wrap: wrap; padding-right: var(--sp-2); }
+.frame-phone [data-route="/relatorio/porto-seguro"] .s9-eqs { padding: 0 var(--sp-2) 0 var(--sp-4); }
+.frame-phone [data-route="/relatorio/porto-seguro"] .s9-eq-open { flex-wrap: wrap; gap: 2px var(--sp-2); padding: var(--sp-1) var(--sp-2); }
+.frame-phone [data-route="/relatorio/porto-seguro"] .s9-eq-name { flex: 1 1 60%; }
+.frame-phone [data-route="/relatorio/porto-seguro"] .sum-here { flex-basis: 100%; order: 9; }
+.frame-phone [data-route="/relatorio/porto-seguro"] .s9-cabine.is-open > .s9-add { margin-left: var(--sp-4); white-space: normal; text-align: left; }
+.frame-phone [data-route="/relatorio/porto-seguro"] .sum-open { gap: var(--sp-2); }
 </style>
-<section class="screen" data-route="/relatorio/porto-seguro" data-title="Porto Seguro · Torres A e B" data-shell="app" data-rail="true">
+<section class="screen" data-route="/relatorio/porto-seguro" data-title="Porto Seguro · Torres A e B" data-shell="app" data-rail="false">
 
   <div class="sheet-header">
     <div>
-      <h2 class="sheet-title">Cabine — <button class="tag-btn" data-toast="Renomear cabine — não prototipado" aria-label="Renomear cabine Cubículo Enel">Cubículo Enel<svg class="ico ico-sm" aria-hidden="true"><use href="#i-pencil"/></svg></button></h2>
-      <p class="sheet-meta">Seção 9: uma subseção "Cubículo Enel", fichas na ordem da árvore · todos os 94 blocos nasceram na sua coluna (template Porto Seguro — Torres A e B)</p>
-      <p class="sheet-meta">Dados da SE editados por Bruno em CB-ENT · 03/09 16:40</p>
+      <h2 class="sheet-title">Porto Seguro · Torres A e B</h2>
+      <p class="sheet-meta"><span class="status-pill" data-status="em-campo">Em campo</span> 06–08/09/2026 · template Porto Seguro — Torres A e B · responsável Rafael Lamonde</p>
+      <!-- S8: summary always visible in the header; each count opens its list -->
+      <p class="sum-summary" role="group" aria-label="Resumo do relatório">
+        <button class="btn btn-text" data-go="#/relatorio/porto-seguro">42 de 94 fichas concluídas</button>
+        <button class="btn btn-text" data-go="#/relatorio/porto-seguro/pontos">2 NC abertos</button>
+        <button class="btn btn-text" data-go="#/ficha/DJ-C14">1 não ensaiada</button>
+        <button class="btn btn-text" data-go="#/ficha/SEC-C05">12 sugestões por confirmar</button>
+      </p>
     </div>
     <div class="header-side">
-      <div class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>3 de 9 fichas concluídas</div>
-      <button class="btn btn-text" data-go="#/relatorio/porto-seguro/setup"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg>Dados do relatório</button>
+      <button class="overflow-trigger" data-open="#sum-menu-rel" aria-label="Mais opções do relatório"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+      <!-- prototype only: flips the status so the status-driven behavior can be seen -->
+      <button class="btn btn-text sim-review" data-toggle-class="is-review" data-toggle-target="#sumario" data-toast="Simulação: relatório Em revisão — seções recolhidas, pendências em destaque">Simular: Em revisão</button>
     </div>
   </div>
 
   <div class="overview-content">
 
-    <!-- ---------------- Cabine data: read-only here, edited only on the cabine's first sheet (Block Model › Location) ---------------- -->
-    <div class="da-cabine" role="note">
-      <span class="da-label">Da cabine</span>
-      <span>Somente leitura aqui — edite na primeira ficha (CB-ENT). Todas as fichas do Cubículo Enel mostram os mesmos valores.</span>
-      <a class="btn btn-text" href="#/ficha/CB-ENT">Abrir primeira ficha<svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></a>
-    </div>
+    <!-- ================= Sumário (decisions 2026-09-21, party review): the relatório's own table of contents, in the
+         FO.SERV-03 order; each row shows what is missing (same check as the Export) and is an editable object
+         (Overflow menu + Position box). Section 9 expands into the location tree, unnumbered. Behavior follows the
+         relatório status: Em campo -> section 9 open at the last sheet worked; otherwise collapsed. ================= -->
+    <ol class="sumario" id="sumario" aria-label="Sumário do relatório">
+      <li class="sum-row">
+        <span class="sum-pos-empty" aria-hidden="true"></span><button class="sum-open" data-go="#/relatorio/porto-seguro/setup"><span class="sum-body"><span class="sum-title">Capa e dados do relatório</span><span class="sum-status">Porto Seguro · 06 a 08/09/2026 · Rafael Lamonde · CREA SP</span></span><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+        <span class="sum-ctrls"><span class="sum-ro">sempre no início</span></span>
+      </li>
+      <li class="sum-row">
+        <span class="sum-pos-empty" aria-hidden="true"></span><button class="sum-open" data-go="#/relatorio/porto-seguro/exportar"><span class="sum-body"><span class="sum-title">Controle do documento</span><span class="sum-status">montado dos dados do relatório · Rev. 1 na primeira emissão</span></span><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+        <span class="sum-ctrls"><span class="sum-ro">montado sozinho</span></span>
+      </li>
+      <li class="sum-row">
+        <input class="pos-box sum-pos" type="text" inputmode="numeric" value="1" aria-label="Número de Objetivo — digite outro para mover" data-toast="Objetivo movida — numeração refeita — Desfazer"><button class="sum-open" data-go="#/relatorio/porto-seguro/setup"><span class="sum-body"><span class="sum-title">Objetivo</span><span class="sum-status">editado em Dados do relatório › Etapa 2 · 3 variáveis preenchidas</span></span><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+        <span class="sum-ctrls"><button class="overflow-trigger" data-open="#sum-menu" aria-label="Mais opções de Objetivo"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></span>
+      </li>
+      <li class="sum-row">
+        <input class="pos-box sum-pos" type="text" inputmode="numeric" value="2" aria-label="Número de Definições — digite outro para mover" data-toast="Definições movida — numeração refeita — Desfazer"><button class="sum-open" data-go="#/relatorio/porto-seguro/secao/2"><span class="sum-body"><span class="sum-title">Definições</span><span class="sum-status">texto padrão</span></span><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+        <span class="sum-ctrls"><button class="overflow-trigger" data-open="#sum-menu" aria-label="Mais opções de Definições"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></span>
+      </li>
+      <li class="sum-row">
+        <input class="pos-box sum-pos" type="text" inputmode="numeric" value="3" aria-label="Número de Limite de escopo — digite outro para mover" data-toast="Limite de escopo movida — numeração refeita — Desfazer"><button class="sum-open" data-go="#/relatorio/porto-seguro/setup"><span class="sum-body"><span class="sum-title">Limite de escopo</span><span class="sum-status">editado em Dados do relatório › Etapa 2 · 3 exclusões</span></span><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+        <span class="sum-ctrls"><button class="overflow-trigger" data-open="#sum-menu" aria-label="Mais opções de Limite de escopo"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></span>
+      </li>
+      <li class="sum-row">
+        <input class="pos-box sum-pos" type="text" inputmode="numeric" value="4" aria-label="Número de Requisitos básicos — digite outro para mover" data-toast="Requisitos básicos movida — numeração refeita — Desfazer"><button class="sum-open" data-go="#/relatorio/porto-seguro/secao/4"><span class="sum-body"><span class="sum-title">Requisitos básicos</span><span class="sum-status">texto padrão</span></span><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+        <span class="sum-ctrls"><button class="overflow-trigger" data-open="#sum-menu" aria-label="Mais opções de Requisitos básicos"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></span>
+      </li>
+      <li class="sum-row">
+        <input class="pos-box sum-pos" type="text" inputmode="numeric" value="5" aria-label="Número de Recomendações gerais (NR-10) — digite outro para mover" data-toast="Recomendações gerais (NR-10) movida — numeração refeita — Desfazer"><button class="sum-open" data-go="#/relatorio/porto-seguro/secao/5"><span class="sum-body"><span class="sum-title">Recomendações gerais (NR-10)</span><span class="sum-status">texto padrão</span></span><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+        <span class="sum-ctrls"><button class="overflow-trigger" data-open="#sum-menu" aria-label="Mais opções de Recomendações gerais (NR-10)"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></span>
+      </li>
+      <li class="sum-row">
+        <input class="pos-box sum-pos" type="text" inputmode="numeric" value="6" aria-label="Número de Verificações e ensaios aplicáveis — digite outro para mover" data-toast="Verificações e ensaios aplicáveis movida — numeração refeita — Desfazer"><button class="sum-open" data-go="#/relatorio/porto-seguro/secao/6"><span class="sum-body"><span class="sum-title">Verificações e ensaios aplicáveis</span><span class="sum-status">texto padrão</span></span><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+        <span class="sum-ctrls"><button class="overflow-trigger" data-open="#sum-menu" aria-label="Mais opções de Verificações e ensaios aplicáveis"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></span>
+      </li>
+      <li class="sum-row has-pend">
+        <input class="pos-box sum-pos" type="text" inputmode="numeric" value="7" aria-label="Número de Registro fotográfico — digite outro para mover" data-toast="Registro fotográfico movida — numeração refeita — Desfazer"><button class="sum-open" data-go="#/relatorio/porto-seguro/fotos"><span class="sum-body"><span class="sum-title">Registro fotográfico</span><span class="sum-status">82 fotos · 1 sem legenda · 12 legendas sugeridas</span></span><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+        <span class="sum-ctrls"><button class="overflow-trigger" data-open="#sum-menu" aria-label="Mais opções de Registro fotográfico"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></span>
+      </li>
+      <li class="sum-row has-pend">
+        <input class="pos-box sum-pos" type="text" inputmode="numeric" value="8" aria-label="Número de Pontos de atenção — digite outro para mover" data-toast="Pontos de atenção movida — numeração refeita — Desfazer"><button class="sum-open" data-go="#/relatorio/porto-seguro/pontos"><span class="sum-body"><span class="sum-title">Pontos de atenção</span><span class="sum-status">5 pontos · 1 sem ação</span></span><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+        <span class="sum-ctrls"><button class="overflow-trigger" data-open="#sum-menu" aria-label="Mais opções de Pontos de atenção"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></span>
+      </li>
 
-    <div class="cabine-grid">
-      <section class="section is-readonly" aria-labelledby="lo-h-se">
-        <div class="section-head"><h2 id="lo-h-se">Características da SE</h2></div>
-        <p class="section-note">Impressas na primeira ficha desta cabine.</p>
-        <div class="fields">
-          <div class="field"><span class="field-label">Tipo de SE</span><div class="input">Blindada</div></div>
-          <div class="field"><span class="field-label">Tensão primária</span><div class="measurement-field"><span class="mf-value">13,8</span><span class="mf-unit" aria-label="quilovolts">kV</span></div></div>
-          <div class="field"><span class="field-label">Tensão secundária</span><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit" aria-label="volts">V</span></div><span class="helper">Cubículo de entrada: sem secundário</span></div>
-          <div class="field"><span class="field-label">Potência instalada</span><div class="measurement-field"><span class="mf-value">10</span><span class="mf-unit" aria-label="quilovolt-ampères">kVA</span></div></div>
+      <li class="sum-row sum-s9 is-open has-pend">
+        <div class="sum-s9-head">
+          <button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.sum-s9" aria-label="Expandir ou recolher a seção 9"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button>
+          <input class="pos-box sum-pos" type="text" inputmode="numeric" value="9" aria-label="Número de Relatórios dos ensaios — digite outro para mover" data-toast="Relatórios dos ensaios movida — numeração refeita — Desfazer"><span class="sum-body"><span class="sum-title">Relatórios dos ensaios</span><span class="sum-status">42 de 94 · 1 não ensaiada · 2 fichas com sugestões</span></span>
+          <span class="sum-ctrls"><button class="overflow-trigger" data-open="#sum-menu" aria-label="Mais opções de Relatórios dos ensaios"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></span>
         </div>
-      </section>
-
-      <section class="section" aria-labelledby="lo-h-amb">
-        <div class="section-head"><h2 id="lo-h-amb">Ambiente de ensaio</h2></div>
-        <p class="section-note">Valem para todas as fichas da cabine.</p>
-        <div class="fields is-readonly">
-          <div class="field"><span class="field-label">Temperatura</span><div class="measurement-field"><span class="mf-value">19</span><span class="mf-unit" aria-label="graus Celsius">°C</span></div></div>
-          <div class="field"><span class="field-label">Umidade relativa do ar</span><div class="measurement-field"><span class="mf-value">67</span><span class="mf-unit" aria-label="por cento">%</span></div></div>
-          <div class="field"><span class="field-label">Altitude</span><div class="measurement-field"><span class="mf-value">&lt; 1.000</span><span class="mf-unit" aria-label="metros">m</span></div><span class="helper">760 m pelo GPS, confirmada no Relatório setup</span></div>
-        </div>
-        <div class="toggle-row" style="margin-top: var(--sp-4)">
-          <div><div class="toggle-label">Agrupar por tipo na seção 9</div><div class="toggle-sub">Desativado: "9.1 Cubículo Enel" com as 9 fichas na ordem da árvore</div></div>
-          <button class="toggle" role="switch" aria-checked="false" aria-label="Agrupar por tipo na seção 9"><span class="toggle-word">Desativado</span><span class="track" aria-hidden="true"><span class="knob"></span></span></button>
-        </div>
-      </section>
-    </div>
-
-    <!-- ---------------- Blocks of this cabine: each card opens its sheet ---------------- -->
-    <section class="section" aria-labelledby="lo-h-blocos">
-      <div class="section-head">
-        <h2 id="lo-h-blocos">Blocos desta cabine (9)</h2>
-        <button class="btn btn-secondary" data-open="#lo-palette"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar bloco</button>
-      </div>
-      <ul class="block-list" aria-label="Blocos de Cubículo Enel">
-        <li class="block-card" data-go="#/ficha/CB-ENT">
-          <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar CB-ENT"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
-          <div class="block-body"><div class="block-line"><span class="block-name">Cabos de entrada</span><span class="block-tag">CB-ENT</span></div><span class="block-sub">Concluída · 5 itens · Isolação · primeira ficha: "Da cabine" · Preenchido por Bruno · 06/09 09:41</span></div>
-          <button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de CB-ENT"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+        <p class="s9-note">Organizados por local aqui; no documento, agrupados como no FO.SERV-03.</p>
+        <ul class="s9-tree">
+        <li class="s9-cabine">
+          <div class="s9-cab-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-cabine" aria-label="Expandir Cubículo Enel"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-cab-body"><span class="s9-cab-name">Cubículo Enel</span><span class="s9-cab-meta">Blindada · 13,8 kV · 19 °C · 67 %</span></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>3 de 9</span><button class="overflow-trigger" data-open="#sum-menu-cabine" aria-label="Mais opções de Cubículo Enel"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
         </li>
-        <li class="block-card" data-go="#/ficha/SEC-C05">
-          <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar PR-ENT"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
-          <div class="block-body"><div class="block-line"><span class="block-name">Para-raio de entrada</span><span class="block-tag">PR-ENT</span></div><span class="block-sub">Concluída · 6 campos de placa · 5 itens · Isolação · Preenchido por Bruno · 06/09 10:05</span></div>
-          <button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de PR-ENT"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+        <li class="s9-cabine is-open">
+          <div class="s9-cab-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-cabine" aria-label="Expandir 1° Subsolo"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-cab-body"><span class="s9-cab-name">1° Subsolo</span><span class="s9-cab-meta">PTMT e IM · 13,8 kV · agrupar por tipo</span></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>39 de 55</span><button class="overflow-trigger" data-open="#sum-menu-cabine" aria-label="Mais opções de 1° Subsolo"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
+          <ul class="s9-eqs">
+            <li class="s9-col">Coluna 4 <span class="s9-col-meta">4 de 4</span></li>
+            <li class="s9-eq"><button class="s9-eq-open" data-go="#/ficha/SEC-C05"><span class="block-tag">SEC-C04</span><span class="s9-eq-name">Chave seccionadora</span><span class="s9-state" data-state="ok">Concluída</span></button></li>
+            <li class="s9-col">Coluna 5 <span class="s9-col-meta">2 de 4</span></li>
+            <li class="s9-eq is-current" aria-current="true"><button class="s9-eq-open" data-go="#/ficha/SEC-C05"><span class="block-tag">SEC-C05</span><span class="s9-eq-name">Chave seccionadora</span> <span class="sum-here">você parou aqui</span><span class="s9-state" data-state="doing">Em preenchimento</span></button></li>
+            <li class="s9-eq"><button class="s9-eq-open" data-go="#/ficha/DJ-C14"><span class="block-tag">DJ-C05</span><span class="s9-eq-name">Disjuntor MT</span><span class="s9-state" data-state="ok">Concluída</span></button></li>
+            <li class="s9-eq"><button class="s9-eq-open" data-go="#/ficha/TP-C16"><span class="block-tag">TP-C05</span><span class="s9-eq-name">TP — proteção</span><span class="s9-state" data-state="ok">Concluída</span></button></li>
+            <li class="s9-eq"><button class="s9-eq-open" data-go="#/ficha/TP-C16"><span class="block-tag">TC-C05</span><span class="s9-eq-name">TC — proteção</span><span class="s9-state" data-state="empty">Vazia</span></button></li>
+            <li class="s9-col">Colunas 6 a 17 <span class="s9-col-meta">33 de 47 · 1 não ensaiada</span></li>
+          </ul>
+          <button class="btn btn-text s9-add" data-open="#lo-palette"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar bloco em 1° Subsolo</button>
         </li>
-        <li class="block-card" data-go="#/ficha/SEC-ENT">
-          <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar SEC-ENT"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
-          <div class="block-body"><div class="block-line"><span class="block-name">Seccionadora de entrada</span><span class="block-tag">SEC-ENT</span></div><span class="block-sub">Em preenchimento · 3 obrigatórios faltando · Preenchido por Bruno · 06/09 10:32</span></div>
-          <button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de SEC-ENT"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+        <li class="s9-cabine">
+          <div class="s9-cab-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-cabine" aria-label="Expandir Oxigênio"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-cab-body"><span class="s9-cab-name">Oxigênio</span><span class="s9-cab-meta">Abrigada · 13,8 kV</span></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 8</span><button class="overflow-trigger" data-open="#sum-menu-cabine" aria-label="Mais opções de Oxigênio"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
         </li>
-        <li class="block-card" data-go="#/ficha/SEC-C05">
-          <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar SEC-SAI"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
-          <div class="block-body"><div class="block-line"><span class="block-name">Seccionadora de saída</span><span class="block-tag">SEC-SAI</span></div><span class="block-sub">Vazia · 9 campos de placa · 14 itens · Isolação aberto/fechado · Resistência de contato</span></div>
-          <button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de SEC-SAI"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+        <li class="s9-cabine">
+          <div class="s9-cab-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-cabine" aria-label="Expandir Cobertura Lado A"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-cab-body"><span class="s9-cab-name">Cobertura Lado A</span><span class="s9-cab-meta">Abrigada · 13,8 kV</span></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 7</span><button class="overflow-trigger" data-open="#sum-menu-cabine" aria-label="Mais opções de Cobertura Lado A"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
         </li>
-        <li class="block-card" data-go="#/ficha/TP-C16">
-          <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar TP-ENEL"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
-          <div class="block-body"><div class="block-line"><span class="block-name">TP — proteção</span><span class="block-tag">TP-ENEL</span></div><span class="block-sub">Vazia · 12 campos de placa · 15 itens · Isolação · Relação de transformação</span></div>
-          <button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de TP-ENEL"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+        <li class="s9-cabine">
+          <div class="s9-cab-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-cabine" aria-label="Expandir Cobertura Lado B"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-cab-body"><span class="s9-cab-name">Cobertura Lado B</span><span class="s9-cab-meta">Abrigada · 13,8 kV</span></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 7</span><button class="overflow-trigger" data-open="#sum-menu-cabine" aria-label="Mais opções de Cobertura Lado B"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
         </li>
-        <li class="block-card" data-go="#/ficha/TP-C16">
-          <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar TC-ENEL"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
-          <div class="block-body"><div class="block-line"><span class="block-name">TC — proteção</span><span class="block-tag">TC-ENEL</span></div><span class="block-sub">Vazia · 12 campos de placa · 15 itens · Isolação · Relação de transformação</span></div>
-          <button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de TC-ENEL"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+        <li class="s9-cabine">
+          <div class="s9-cab-row"><button class="tree-chevron" data-toggle-class="is-open" data-toggle-target="closest:.s9-cabine" aria-label="Expandir Geradores"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg></button><span class="s9-cab-body"><span class="s9-cab-name">Geradores</span><span class="s9-cab-meta">PTMG · 13,8 kV · agrupar por tipo</span></span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 8</span><button class="overflow-trigger" data-open="#sum-menu-cabine" aria-label="Mais opções de Geradores"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></div>
         </li>
-        <li class="block-card" data-go="#/ficha/DJ-C14">
-          <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar DJ-ENEL"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
-          <div class="block-body"><div class="block-line"><span class="block-name">Disjuntor MT</span><span class="block-tag">DJ-ENEL</span><span class="not-tested-chip">Não ensaiado</span></div><span class="block-sub">Motivo: sem desligamento autorizado pelo cliente · listado na seção 8 · Bruno · 06/09 11:10</span></div>
-          <button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de DJ-ENEL"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
-        </li>
-        <li class="block-card" data-go="#/ficha/SEC-C05">
-          <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar PR-SAI"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
-          <div class="block-body"><div class="block-line"><span class="block-name">Para-raio de saída</span><span class="block-tag">PR-SAI</span></div><span class="block-sub">Vazia · 6 campos de placa · 5 itens · Isolação</span></div>
-          <button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de PR-SAI"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
-        </li>
-        <li class="block-card" data-go="#/ficha/CB-ENT">
-          <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar CB-SAI"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
-          <div class="block-body"><div class="block-line"><span class="block-name">Cabos de saída</span><span class="block-tag">CB-SAI</span></div><span class="block-sub">Vazia · 5 itens · Isolação</span></div>
-          <button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de CB-SAI"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
-        </li>
-      </ul>
-    </section>
+        </ul>
+      </li>
+      <li class="sum-row has-pend">
+        <input class="pos-box sum-pos" type="text" inputmode="numeric" value="10" aria-label="Número de Conclusão e parecer — digite outro para mover" data-toast="Conclusão e parecer movida — numeração refeita — Desfazer"><button class="sum-open" data-go="#/relatorio/porto-seguro/setup"><span class="sum-body"><span class="sum-title">Conclusão e parecer</span><span class="sum-status is-blocking">parecer pendente — o único item que impede gerar</span></span><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+        <span class="sum-ctrls"><button class="overflow-trigger" data-open="#sum-menu" aria-label="Mais opções de Conclusão e parecer"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></span>
+      </li>
+      <li class="sum-row">
+        <input class="pos-box sum-pos" type="text" inputmode="numeric" value="11" aria-label="Número de Certificados — digite outro para mover" data-toast="Certificados movida — numeração refeita — Desfazer"><button class="sum-open" data-go="#/cadastros"><span class="sum-body"><span class="sum-title">Certificados</span><span class="sum-status">3 instrumentos · calibração do 1T vence em 20/08/2027</span></span><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+        <span class="sum-ctrls"><button class="overflow-trigger" data-open="#sum-menu" aria-label="Mais opções de Certificados"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></span>
+      </li>
+    </ol>
 
   </div><!-- /overview-content -->
 
   <div class="sticky-action-bar">
-    <span class="btn-reason" id="lo-gerar-reason">Gerar relatório: 3 de 94 fichas concluídas · 1 não ensaiado · 12 legendas sugeridas — a verificação antes de emitir lista tudo isso</span>
+    <span class="btn-reason" id="lo-gerar-reason">Só o parecer (linha 10) impede gerar. O resto está escrito em cada linha.</span>
     <div class="bar-buttons">
-      <button class="btn btn-secondary" data-go="#/relatorio/porto-seguro/fotos"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg>Fotos</button>
-      <button class="btn btn-secondary" data-go="#/relatorio/porto-seguro/pontos"><svg class="ico" aria-hidden="true"><use href="#i-flag"/></svg>Pontos de atenção</button>
+      <button class="btn btn-secondary" data-toast="Gerando rascunho… abre em uma nova aba, com RASCUNHO em cada página e sem número de revisão"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg>Pré-visualizar</button>
       <button class="btn btn-primary" data-go="#/relatorio/porto-seguro/exportar" aria-describedby="lo-gerar-reason"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg>Gerar relatório</button>
+    </div>
+  </div>
+
+  <!-- Overflow menu of a Sumário row (sections and section 9) -->
+  <div class="dialog-scrim" id="sum-menu" hidden>
+    <div class="overflow-menu" role="menu" aria-label="Opções da seção">
+      <button class="menu-item" role="menuitem" data-close data-toast="Nova seção adicionada abaixo — numeração refeita">Adicionar abaixo</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Seção movida uma posição acima — numeração refeita — Desfazer">Subir</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Seção movida uma posição abaixo — numeração refeita — Desfazer">Descer</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Seção duplicada abaixo">Duplicar</button>
+      <div class="menu-group"><button class="menu-item" role="menuitem" data-tone="red" data-close data-toast="Seção removida deste relatório — numeração refeita" data-toast-action="Desfazer">Remover</button></div>
+    </div>
+  </div>
+  <!-- Overflow menu of a cabine row inside section 9 -->
+  <div class="dialog-scrim" id="sum-menu-cabine" hidden>
+    <div class="overflow-menu" role="menu" aria-label="Opções da cabine">
+      <button class="menu-item" role="menuitem" data-close data-go="#/ficha/CB-ENT">Abrir primeira ficha (dados da cabine)</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Agrupar por tipo na seção 9: alternado">Agrupar por tipo na seção 9</button>
+      <button class="menu-item" role="menuitem" data-close data-open="#lo-palette">Adicionar bloco</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Cabine movida uma posição acima — Desfazer">Subir</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Cabine movida uma posição abaixo — Desfazer">Descer</button>
+      <div class="menu-group"><button class="menu-item" role="menuitem" data-tone="red" data-close data-toast="Cabine e suas fichas removidas — recuperável até a emissão" data-toast-action="Desfazer">Remover</button></div>
+    </div>
+  </div>
+  <!-- Overflow menu of the relatório (header) -->
+  <div class="dialog-scrim" id="sum-menu-rel" hidden>
+    <div class="overflow-menu" role="menu" aria-label="Opções do relatório">
+      <button class="menu-item" role="menuitem" data-close data-toast="Nenhuma ficha removida para restaurar">Restaurar ficha removida</button>
+      <button class="menu-item slice-inline" role="menuitem" data-close data-toast="Salvar como template — não prototipado" data-slice="out" data-slice-note=" · FR-14">Salvar como template</button>
     </div>
   </div>
 

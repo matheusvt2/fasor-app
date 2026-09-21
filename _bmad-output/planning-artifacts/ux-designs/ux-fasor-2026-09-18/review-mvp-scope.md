@@ -226,6 +226,13 @@ Revised 2026-09-21 after the decisions above. The old question 3 (templates) was
 | 3 | "O engenheiro decide." | **S4 confirmed and written into the spine.** Typing is the primary path for readings; "Ler visor", when it returns, fills instantly with signal and, without signal, only **checks** the typed value against the queued photo, never overwrites it. Interaction budget restated as a connectivity claim (≤ 20 taps / ≤ 15 keystrokes with signal; ~36 keystrokes offline). Flow 2 steps 3, 7 and the count rewritten. |
 | 4 | "Rodar em qualquer computador e como ela está estruturada pro usuário." | "Any computer" is already true and now stated in the Foundation (web page, nothing to install on the office side). **The structure answer is a proposal, not yet applied** — see the conversation of 2026-09-21: the Relatório overview becomes the report's own sumário, numbered in document order. |
 
+### Structure and isolation — decided in the party review (2026-09-21), applied in v0.8.0
+
+- **Structure:** the Relatório overview is now the **Sumário** — the report's own table of contents in FO.SERV-03 order, each row showing what is missing (one shared pre-issue check) and each row an editable object (Overflow menu; the section number is the Position box). Section 9 keeps the location tree, unnumbered. Behavior follows the relatório status. The footer buttons and the "Dados do relatório" link are gone.
+- **Review:** "Pré-visualizar" runs the same generator with a RASCUNHO watermark and no revision number. "Revisar em sequência" is post-MVP, with Sally's dissent on record.
+- **Rail inside a sheet:** cabines and fichas only.
+- **Isolation, after research:** one grid per sheet, 1 minuto only, one continuous typing run across the sheet's tables. The app computes no index — Fasor's Instrum DMG10Ki already computes IP and IA — and an optional template toggle "IA e IP lidos do visor" stays off for Fasor. Bluetooth import is the long-term format, out of the MVP.
+
 ## Notes
 
 - This review does not change the spines. Every finding is a proposal; nothing was applied.

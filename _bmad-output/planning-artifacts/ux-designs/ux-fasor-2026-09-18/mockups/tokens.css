@@ -136,7 +136,8 @@
    fallbacks are what tablets ship with. No webfont is loaded — the
    mocks render with whatever is installed (Inter if present).
    ===================================================================== */
-:root {
+:root,
+[data-theme] {   /* component tokens re-resolve wherever the theme is set (dark alias bug, 2026-09-21) */
   --font-ui: Inter, Roboto, 'Segoe UI', system-ui, sans-serif;
 
   --t-display-size: 28px;  --t-display-weight: 600; --t-display-lh: 1.2;  --t-display-ls: -0.01em;
@@ -177,7 +178,8 @@
 
 /* Typography roles as `font` shorthands (weight size / line-height family), for component tokens that
    reference a role ("typography: {typography.label}") */
-:root {
+:root,
+[data-theme] {   /* component tokens re-resolve wherever the theme is set (dark alias bug, 2026-09-21) */
   --font-display: var(--t-display-weight) var(--t-display-size) / var(--t-display-lh) var(--font-ui);
   --font-title:   var(--t-title-weight)   var(--t-title-size)   / var(--t-title-lh)   var(--font-ui);
   --font-heading: var(--t-heading-weight) var(--t-heading-size) / var(--t-heading-lh) var(--font-ui);
@@ -194,7 +196,8 @@
    dark resolve through the color variables above — no second copy.
    `suggestion-field` replaces `nameplate-extraction`.
    ===================================================================== */
-:root {
+:root,
+[data-theme] {   /* component tokens re-resolve wherever the theme is set (dark alias bug, 2026-09-21) */
   /* --- camera-capture-button --- */
   --camera-capture-button-size: var(--touch-field);
   --camera-capture-button-background: var(--primary);
@@ -264,7 +267,8 @@
    Criteria line, Parecer box, Photo stamp, Rich text editor. Aliases of
    the theme tokens above, so light and dark resolve without a second copy.
    ===================================================================== */
-:root {
+:root,
+[data-theme] {   /* component tokens re-resolve wherever the theme is set (dark alias bug, 2026-09-21) */
   /* --- priority-pill (P0 danger · P1 amber · P2–P4 neutral; the text carries the level) --- */
   --priority-pill-typography: var(--font-label);
   --priority-pill-radius: var(--r-full);

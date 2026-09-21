@@ -254,7 +254,8 @@
 
 /* ---------- Bulk action bar (head of the checklist; compact copy inside the Sticky action bar) ---------- */
 .bulk-action-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-4); min-height: var(--bulk-action-bar-min-height); padding: var(--sp-2) var(--sp-3); background: var(--bulk-action-bar-background); border: var(--bulk-action-bar-border); border-radius: var(--bulk-action-bar-radius); }
-.bulk-action-bar .bulk-action { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.bulk-action-bar .bulk-action { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; max-width: 100%; }
+.bulk-action-bar .bulk-action .btn-text { white-space: normal; text-align: left; }
 .bulk-action-bar .btn-text { font: var(--bulk-action-bar-action-typography); font-weight: 600; color: var(--bulk-action-bar-action-foreground); }
 .frame-phone .bulk-action-bar { flex-direction: column; align-items: stretch; }
 .bulk-action-bar.is-compact { background: none; border: 0; padding: 0; min-height: 0; margin: 0; }
@@ -397,9 +398,10 @@
 .confirm-btn { margin-left: auto; min-height: var(--suggestion-field-confirm-min-height); padding: 0 var(--sp-4); color: var(--primary); font-weight: 600; font-size: var(--t-body-size); border-left: 2px solid var(--fora-do-limite); align-self: stretch; display: inline-flex; align-items: center; flex: none; white-space: nowrap; }
 .suggestion-field[data-state="verify"] .confirm-btn { border-left-style: dashed; }
 /* Source crop: 48px thumbnail at the left of the value (tap → Photo viewer on the region) */
-.crop-thumb { position: relative; flex: none; width: var(--suggestion-field-crop-size); height: var(--suggestion-field-crop-size); border: var(--suggestion-field-crop-border); border-radius: var(--suggestion-field-crop-radius); overflow: hidden; margin: 2px var(--sp-1) 2px calc(-1 * var(--sp-2)); }
-.crop-thumb .thumb-fake { position: absolute; inset: 0; }
+.crop-thumb { position: relative; flex: none; width: var(--suggestion-field-crop-size); height: var(--suggestion-field-crop-size); border: var(--suggestion-field-crop-border); border-radius: var(--suggestion-field-crop-radius); margin: 2px var(--sp-1) 2px calc(-1 * var(--sp-2)); }   /* no overflow clip: the ::before hit area must reach 48px */
+.crop-thumb .thumb-fake { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; }
 .crop-thumb::after { content: ""; position: absolute; inset: 25%; border: 2px solid var(--fora-do-limite); border-radius: 2px; }
+.crop-thumb::before { content: ""; position: absolute; inset: -12px; }   /* hit area: ≥ 48px even when the thumbnail is drawn at 24px */
 .measurement-field .crop-thumb { margin: 2px 0 2px 2px; align-self: center; }
 /* Confirmed: neutral filled style, pill and Confirmar gone, the crop becomes a 24px glyph in the suffix slot */
 .suggestion-field[data-state="confirmed"] .suggested-pill, .suggestion-field[data-state="confirmed"] .verify-pill, .suggestion-field[data-state="confirmed"] .confirm-btn { display: none; }
@@ -486,6 +488,17 @@
 .measurement-table td.cell-point { font-weight: 600; white-space: nowrap; }
 .measurement-table td.cell-dim { color: var(--ink-secondary); }
 .measurement-table td.cell-value { width: 200px; padding: var(--sp-1); }
+.measurement-table.is-wide td.cell-value { width: auto; min-width: 128px; }   /* TTR: many columns, value cell shrinks instead of pushing the result off-screen */
+.measurement-table.is-wide th { white-space: normal; }
+.measurement-table.is-wide { table-layout: fixed; }   /* column widths fixed so the result columns always stay on screen */
+.measurement-table.is-wide th:nth-child(1) { width: 13%; } .measurement-table.is-wide th:nth-child(2), .measurement-table.is-wide th:nth-child(3) { width: 14%; }
+.measurement-table.is-wide th:nth-child(4) { width: 14%; } .measurement-table.is-wide th:nth-child(5) { width: 27%; } .measurement-table.is-wide th:nth-child(6) { width: 18%; }
+.measurement-table.is-wide td { overflow-wrap: anywhere; }
+.measurement-table.is-wide td.cell-value .suggestion-field > * { flex-wrap: wrap; max-width: 100%; }
+
+.measurement-table.is-wide td.cell-value .measurement-field, .measurement-table.is-wide td.cell-value .suggestion-field { flex-wrap: wrap; min-width: 0; }
+
+.ficha-mt { max-width: 100%; overflow-x: auto; }   /* last resort: a table that still does not fit scrolls inside its box, never clips */
 .measurement-table td.cell-value .measurement-field { border-color: transparent; }
 .measurement-table td.cell-value .measurement-field .mf-unit.is-control { border-left-color: var(--border-strong); }
 .measurement-table td.cell-value .measurement-field[data-state="out-of-limit"] { border-color: var(--fora-do-limite); }
@@ -548,7 +561,7 @@
 .observation-field.is-focus { border: 3px solid var(--focus); background: var(--focus-fill); }
 
 /* ---------- Chip (quick text shortcut, not a state) ---------- */
-.chip-row { display: flex; gap: var(--sp-2); overflow-x: auto; padding-bottom: var(--sp-1); scrollbar-width: none; }
+.chip-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); padding-bottom: var(--sp-1); }   /* wraps, never scrolls sideways: "Outro…" is always on screen (2026-09-21) */
 .chip-row::-webkit-scrollbar { display: none; }
 .chip { display: inline-flex; align-items: center; min-height: var(--touch-min); padding: 0 var(--sp-4); background: var(--surface-raised); border: 2px solid var(--border-strong); border-radius: var(--r-full); font-size: var(--t-label-size); font-weight: var(--t-label-weight); white-space: nowrap; flex: none; }
 /* Value chips on field surfaces: the 5 most recent values + "Outro…" (in `primary`) that opens the Combobox.
@@ -735,7 +748,7 @@
    ===================================================================== */
 
 /* ---------- Tabs (Registries) ---------- */
-.tabs { display: flex; gap: var(--sp-1); padding: 0 var(--gutter-desktop); background: var(--surface-raised); border-bottom: 1px solid var(--border-hairline); overflow-x: auto; scrollbar-width: none; }
+.tabs { display: flex; gap: var(--sp-1); padding: 0 var(--gutter-desktop); background: var(--surface-raised); border-bottom: 1px solid var(--border-hairline); flex-wrap: wrap; }   /* wraps: no tab hides off-screen (2026-09-21) */
 .frame-tablet .tabs { padding: 0 var(--gutter-tablet); }
 .frame-phone .tabs { padding: 0 var(--gutter-phone); }
 .tab { display: inline-flex; align-items: center; min-height: var(--touch-field); padding: 0 var(--sp-4); font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--ink-secondary); border-bottom: 3px solid transparent; white-space: nowrap; flex: none; }
@@ -942,6 +955,11 @@
 .browser-chrome .lights i { width: 12px; height: 12px; border-radius: 50%; background: #B8BEC7; }
 .browser-chrome .url { flex: 1; height: 28px; display: flex; align-items: center; padding: 0 12px; background: #FFFFFF; border: 1px solid #C9CED6; border-radius: 14px; color: #15181D; }
 .frame-desktop .screen { min-height: calc(800px - 44px); }
+
+/* ---------- Position box (Block card, Sumário rows): type a number to move the object there ---------- */
+.pos-box { width: 56px; height: var(--touch-min); padding: 0 var(--sp-2); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); background: var(--surface-raised); color: var(--ink-primary); font: inherit; font-size: var(--t-value-size); font-weight: 600; font-variant-numeric: tabular-nums; text-align: center; }
+.pos-box:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
+.frame-phone .pos-box { width: 48px; }
 
 /* ============================================================================
    Recorte do MVP (slice de 2026-10-03) — marcação, nunca remoção.

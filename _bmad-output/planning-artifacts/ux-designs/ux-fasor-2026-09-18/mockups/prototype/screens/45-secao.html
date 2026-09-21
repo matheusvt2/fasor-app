@@ -1,0 +1,82 @@
+<style data-screen="secao">
+/* Source: EXPERIENCE.md v0.8 § IA › Relatório overview — the Sumário (a row opens its section text); § Block Model › Section block
+   (text editable inside one relatório, never flowing back to the template; plain text with variables in the MVP, rich text is FR-12);
+   § Component Patterns › Rich text editor (inside a relatório: plain text + variable chips, no toolbar).
+   Serves sections 2, 4, 5 and 6. Sections 1 and 3 are edited in Relatório setup › Etapa 2 (their Sumário rows open it) — one home each.
+   Text: FO.SERV-03 as delivered (docs/context), first paragraphs. Variant content by data-param. */
+[data-route="/relatorio/porto-seguro/secao/:n"] .secao-content { flex: 1; min-width: 0; padding: var(--sp-5) var(--gutter-tablet); display: flex; flex-direction: column; gap: var(--sp-4); }
+.frame-phone [data-route="/relatorio/porto-seguro/secao/:n"] .secao-content { padding: var(--sp-4) var(--gutter-phone); }
+[data-route="/relatorio/porto-seguro/secao/:n"] [data-only-n] { display: none; }
+[data-route="/relatorio/porto-seguro/secao/:n"][data-param="2"] [data-only-n~="2"],
+[data-route="/relatorio/porto-seguro/secao/:n"][data-param="4"] [data-only-n~="4"],
+[data-route="/relatorio/porto-seguro/secao/:n"][data-param="5"] [data-only-n~="5"],
+[data-route="/relatorio/porto-seguro/secao/:n"][data-param="6"] [data-only-n~="6"] { display: revert; }
+[data-route="/relatorio/porto-seguro/secao/:n"] .secao-text { min-height: 280px; padding: var(--sp-3) var(--sp-4); border: 2px solid var(--border-strong); border-radius: var(--r-sm); background: var(--surface-raised); font-size: var(--t-body-size); line-height: 1.55; color: var(--ink-primary); white-space: pre-line; }
+[data-route="/relatorio/porto-seguro/secao/:n"] .secao-text:focus { outline: 3px solid var(--focus); outline-offset: 1px; }
+[data-route="/relatorio/porto-seguro/secao/:n"] .var-chip { display: inline-block; padding: 0 var(--sp-2); border-radius: 999px; background: var(--focus-fill); color: var(--primary); font-weight: 600; }
+[data-route="/relatorio/porto-seguro/secao/:n"] .secao-note { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-4); font-size: var(--t-meta-size); color: var(--ink-secondary); }
+[data-route="/relatorio/porto-seguro/secao/:n"] .secao-note .btn-text { margin-left: auto; }
+.frame-phone [data-route="/relatorio/porto-seguro/secao/:n"] .secao-note .btn-text { margin-left: 0; }
+</style>
+<section class="screen" data-route="/relatorio/porto-seguro/secao/:n" data-examples="2,4,5,6" data-title="Seção :n" data-shell="app" data-rail="false">
+
+  <div class="sheet-header">
+    <div>
+      <h2 class="sheet-title">Seção <span data-bind="n">2</span> —
+        <span data-only-n="2">Definições</span><span data-only-n="4">Requisitos básicos para execução</span><span data-only-n="5">Recomendações gerais técnicas e de segurança</span><span data-only-n="6">Verificações e ensaios aplicáveis</span></h2>
+      <p class="sheet-meta">Texto do template Porto Seguro — Torres A e B. <strong>O que você mudar aqui fica só neste relatório</strong>; o template e os próximos relatórios não mudam.</p>
+    </div>
+  </div>
+
+  <div class="secao-content">
+
+    <div>
+      <p class="field-label" id="secao-lbl">Texto da seção</p>
+      <div class="secao-text" role="textbox" aria-multiline="true" contenteditable="true" aria-labelledby="secao-lbl"><span data-only-n="2">A manutenção caracteriza-se como todo serviço de controle, conservação e restauração de um equipamento ou instalação, com o principal objetivo de mantê-lo em condições ótimas de uso e prevenir anomalias que possam torná-los indisponíveis.
+
+Manutenção Preventiva é um procedimento programado que tem como objetivo manter um equipamento ou instalação em condições satisfatórias de uso, protegendo-os contra ocorrências que possam aumentar sua indisponibilidade.
+
+Resistência de Isolação: medir e verificar a resistência de isolação dos principais equipamentos como transformadores, disjuntores, seccionadoras, cabos e isoladores, com o intuito de verificar a qualidade e a vida útil da isolação.
+
+Conforme determinação da NR-10, este relatório deve fazer parte do prontuário da instalação (PIE) de <span class="var-chip" contenteditable="false">cliente</span>.</span><span data-only-n="4">Documentação
+ART preenchida e recolhida por profissional legalmente habilitado;
+Manual de fabricantes dos equipamentos constantes na SE;
+Folha de registro do relatório da manutenção anterior;
+Procedimento de trabalho padronizado conforme NR-10.
+
+Equipamentos de Ensaio
+Megôhmetro; Microhmímetro; Medidor de relação de espiras TTR; Alicate amperímetro; Fasímetro; Mala de calibração de relés.</span><span data-only-n="5">Para execução de trabalhos de manutenção em subestações, os profissionais envolvidos devem ser qualificados e autorizados para a tarefa, bem como dispor dos equipamentos de proteção coletiva (EPC) e individual (EPI) necessários.
+
+Conforme NR-10, item 10.5.1, somente serão consideradas desenergizadas as instalações elétricas liberadas para trabalho mediante os procedimentos apropriados: seccionamento; impedimento de reenergização; constatação da ausência de tensão; instalação de aterramento temporário; proteção dos elementos energizados; sinalização de impedimento de reenergização.</span><span data-only-n="6">Cabos de Alimentação
+Inspecionar os cabos quanto a indícios de aquecimento, derretimento, condições de isolação e condição das terminações (muflas); ensaio de isolação.
+
+Chaves Seccionadoras
+Verificar simultaneidade da abertura e do fechamento das fases; verificar o estado dos contatos fixos e móveis; ensaio de isolação; ensaio de resistência de contato.</span></div>
+    </div>
+
+    <div>
+      <p class="field-label">Inserir dado do relatório</p>
+      <div class="chip-row">
+        <button class="chip" data-toast="Inserido: cliente — sai no documento como Porto Seguro Companhia de Seguros Gerais">cliente</button>
+        <button class="chip" data-toast="Inserido: obra — sai como Torres A e B">obra</button>
+        <button class="chip" data-toast="Inserido: datas — sai como 06, 07 e 08 de setembro de 2026">datas</button>
+        <button class="chip" data-toast="Inserido: empresa executora — sai como Fasor Engenharia">empresa executora</button>
+        <button class="chip" data-toast="Inserido: responsável — sai como Rafael Lamonde">responsável</button>
+      </div>
+    </div>
+
+    <div class="secao-note">
+      <span>Salvo automaticamente · 21/09 14:02 · Bruno</span>
+      <span>Texto simples; negrito e listas ficam para depois.</span>
+      <button class="btn btn-text" data-toast="Texto do template restaurado nesta seção" data-toast-action="Desfazer">Restaurar texto do template</button>
+    </div>
+
+  </div>
+
+  <div class="sticky-action-bar">
+    <div class="bar-buttons">
+      <button class="btn btn-primary" data-go="#/relatorio/porto-seguro">Voltar ao sumário</button>
+    </div>
+  </div>
+
+</section>

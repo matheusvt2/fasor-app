@@ -130,7 +130,7 @@ FRs are numbered globally so downstream artifacts keep stable references even if
 
 #### FR-1: Company profile and document identity
 
-An office user can record the company's razão social, CNPJ, address lines, telephone, e-mail, logo, optional cover background, optional watermark, and the form code and form revision, and see a live preview of the cover, header and footer as they type.
+An office user can record the company's razão social, CNPJ, address lines, telephone, e-mail, logo, optional cover background, and the form title, form code and form revision, and see a live preview of the cover, header and footer as they type. *(Updated 2026-09-21: the company watermark is out of the MVP by the scope rule; FO.SERV-03 carries none. The RASCUNHO preview watermark is a product mechanism and stays.)*
 
 **Consequences (testable):**
 - The generated document's header, footer and cover are composed from these values; no laudo and no export dialog asks for any of them.
@@ -289,7 +289,7 @@ An office user can record, in one scrolling page of numbered bands, the laudo's 
 **Consequences (testable):**
 - Client, site and responsável prefill from the registries and the user's account; only the ART or TRT number is typed.
 - Site altitude is asked once per laudo, prefilled from the device's geolocation and confirmed.
-- The laudo records a **next recommended intervention** as a date with the responsible professional's justification. It feeds the action plan's P4 deadline (FR-50) and the compliance schedule NR-10 item 10.7.11 asks for. It is never defaulted to a year.
+- The laudo records a **next recommended intervention** as a date with the responsible professional's justification. It is the compliance schedule NR-10 item 10.7.11 asks for and, when the priority scale ships (FR-50, post-MVP), the P4 deadline. It is never defaulted to a year.
 - **Substation characteristics and test environment are not on this surface** — they belong to each Cabine (FR-24).
 
 #### FR-17: The laudo tree
@@ -387,7 +387,7 @@ A user can set each checklist item to C, NC or NA and attach an observation to a
 - An observation is available on every row through the overflow menu and is required on NC.
 - Items are never pre-marked C silently; only a subtype's NA defaults are pre-set (FR-11).
 - Per-item chips offer the three or four phrases most used for that item, inserting plain text.
-- `[NOTE FOR PM]` **The chip phrases cannot be derived from the reference report.** Every C/NC/NA cell and every observation cell in all 94 sheets of the delivered instance is blank — the document was handed over unfinished. The only written observations that exist anywhere in the form are the five section 8 bullets. Ship the chips empty and let them fill from use: the chip row already shows the five most recent values for that item (§5.5), so after one real job it seeds itself. This removes the dependency on content nobody has yet.
+- **Decided 2026-09-21:** the chip phrases cannot be derived from the reference report (every observation cell in all 94 delivered sheets is blank), so the chips ship **pre-seeded with standard phrases per item describing that item's typical non-conformity**, authored at seed time and reviewed by Bruno before the first real job, and keep adding the five most recent values typed for that item.
 
 #### FR-26: Bulk checklist actions
 
@@ -542,7 +542,7 @@ A user can dictate into an observation field or a Measurement table using the de
 - On a Measurement table the utterance is parsed into row, value and unit ("Fase A, 147 giga" becomes Fase A: 147 GΩ); unparsed speech lands in the observation as text.
 - The result is always a Suggestion, never written until confirmed.
 - The control is **hidden, not disabled**, where the engine is unavailable; chips and keyboard remain.
-- `[ASSUMPTION: the field tablets carry an offline pt-BR speech pack; without it the microphone is hidden in the cubicle; §13 Q8]`
+- **Verified 2026-09-21:** no field platform offers offline pt-BR recognition today (Apple's on-device dictation lacks Portuguese (Brazil) until iPadOS 27; Chrome on Android is server-based). Dictation is online-only in the MVP and the control is hidden offline. All dictation is post-slice; caption dictation ships first.
 
 #### FR-41: The provenance-and-confirm contract
 
@@ -643,16 +643,16 @@ Photos are numbered automatically at generation in section 7 and referenced by t
 
 #### FR-49: Point of attention
 
-A user can record a finding with its text, linked photos, the equipment or TAG it concerns, a recommended corrective action, a priority, a deadline and an owner.
+A user can record a finding with its text, linked photos, the equipment or TAG it concerns and a recommended corrective action. *(Updated 2026-09-21: priority, deadline and owner are data-model fields with no surface in the MVP; FO.SERV-03 §8 carries none. See FR-50, FR-52.)*
 
 **Consequences (testable):**
 - A point is creatable in the field from an expanded NC checklist row, pre-linked to that row's photo and equipment.
 - A point is creatable in the office from the points-of-attention surface.
 - Photos are picked from the Laudo's gallery and print as resolved numbers (FR-48).
 
-#### FR-50: Priority suggests the deadline
+#### FR-50: Priority suggests the deadline — **post-MVP (decided 2026-09-21)**
 
-Choosing a priority writes the deadline as a Suggestion counted from the day the point was created.
+*Deferred by the scope rule: FO.SERV-03 §8 has no priority or deadline. Dated for NR-10 10.7.11 before 2027-06-01. The fields exist in the data model.* Choosing a priority writes the deadline as a Suggestion counted from the day the point was created.
 
 **Consequences (testable):**
 - P0 Imediata is that day; P1 Curto prazo is 30 days; P2 Médio prazo is 90 days; P3 Longo prazo is 180 days; P4 Próxima manutenção resolves to **the laudo's recorded next recommended intervention** (FR-16), not to a hard-coded year. No norm fixes a maintenance interval and the product must not imply one.
@@ -667,9 +667,9 @@ Every equipment marked Não ensaiado appears in the action plan automatically.
 - Automatic entries print after the manually written points and carry the recorded reason.
 - The engineer does not have to remember to write them. The source document's section 8 contains exactly these — untested disconnectors and a TIE breaker — written by hand.
 
-#### FR-52: The printed action-plan table
+#### FR-52: The printed action-plan table — **post-MVP (decided 2026-09-21)**
 
-Generated section 8 prints the findings as bullets and, beneath them, a table of the same rows.
+*Deferred with FR-50. In the MVP section 8 prints the findings as bullets in the source's prose form, followed by the derived untested entries (FR-51).* Generated section 8 prints the findings as bullets and, beneath them, a table of the same rows.
 
 **Consequences (testable):**
 - The table's columns are number, ponto de atenção, local or TAG, prioridade, prazo, ação recomendada, responsável, imagens.
@@ -958,6 +958,8 @@ Releng v1 is one report type done properly. It is not:
 | Vision proposing NC checklist rows from a sheet's photos | Deliberately excluded from the AI contract (FR-41). Revisit after the first real job. Distinct from FR-75, which drafts text for a row the engineer already marked. |
 | **Risk matrix** (categoria, risco, consequência) and an **NR-10 / NBR 5410 adequacy table** (tópico, requisito, referência, ação) as optional section blocks | The UX spines flag this as a PRD decision by name. **Declined for the MVP:** neither exists in FO.SERV-03; both come from the peer-built load-study tool, which is a different report type. The action plan (§5.7) already carries priority and deadline, which is what NR-10 item 10.7.11 actually asks for. Revisit if the design partner asks for them on a real job. |
 | PT and AR (permissão de trabalho, análise de risco) attachment with traceability | Required by the 2027 NR-10 text for non-routine work. Not in FO.SERV-03; no partner request. |
+| Priority scale, suggested deadlines, owner and the printed action-plan table on points of attention (FR-50, FR-52) | **Decided 2026-09-21 by the scope rule.** FO.SERV-03 §8 carries five free-text bullets and nothing else; the MVP prints section 8 the same way. Data-model fields stay; dated for NR-10 10.7.11 before 2027-06-01. |
+| Company watermark on the generated document; client logo on the cover | Same rule: neither exists in FO.SERV-03. The RASCUNHO preview watermark stays. |
 | Roles separating the PLH in charge from authorized executors | Every user sees everything in the MVP; sheets record who filled them (FR-32). Becomes relevant when NR-10 item 10.12.9 takes effect. |
 
 **Cut order.** The timeline has tightened — the date is 2026-10-03 — so this is no longer contingent. Report generation ships regardless. Among the assists the order of retreat is: NC observation draft (FR-75), then equipment identity from a photo (FR-38), then photo auto-caption (FR-39), then instrument display reading (FR-36). Nameplate capture (FR-33) is the last assist to go, because it saves the largest single block of typing per sheet. §7.3 applies this order to the two-week slice.
@@ -977,7 +979,7 @@ Releng v1 is one report type done properly. It is not:
 - Projects, laudos, the tree, field add and remove: FR-15 to FR-19, FR-21.
 - **The whole equipment sheet: FR-22 to FR-32.** This is the core and it is not cut anywhere.
 - Photos with captions from context, stamps and automatic numbering: FR-43 to FR-48.
-- Points of attention and the action plan: FR-49 to FR-53.
+- Points of attention as section 8 bullets: FR-49, FR-51, FR-53. FR-50 and FR-52 (priority, deadline, owner, table) wait — decided 2026-09-21 after checking FO.SERV-03 §8.
 - Offline capture on one device, durable, with draft recovery: FR-54, FR-55, FR-56, FR-57, FR-61.
 - **Generation as DOCX, with the table of contents, native test tables and both ordering schemes: FR-62 to FR-70, FR-74.**
 - Parecer and the pre-issue list: FR-71 to FR-73.
@@ -998,10 +1000,10 @@ Releng v1 is one report type done properly. It is not:
 
 - **The success metrics cannot be validated on 2026-10-03.** SM-1, SM-3 and SM-4 are all measured on a real cabine primária job, and no job is scheduled. What 3 October can produce is a generated document from real Porto Seguro data re-entered by hand, which tests SM-4 and nothing else.
 - **SM-3 will miss its target in the slice.** With only the nameplate assist, a sheet still costs the typed readings. The ≤ 20 taps and ≤ 15 keystrokes budget needs FR-36, which is first in the queue above.
-- **Q0 does not go away.** Two weeks is not enough to also prove iPadOS Safari storage behavior, and single-device offline with about 82 photographs is precisely where it bites. Prove it in the first two days or accept that the slice may be desktop-and-Android only on 3 October.
+- **Q0 is sequenced (2026-09-21).** The offline proof runs first on desktop Chrome or Firefox, then on iPadOS Safari; if Safari fails, the slice ships desktop-and-Android only on 3 October and the zero-loss guarantee stays unchanged.
 - **The seed data is the hidden cost.** The eight block types in `addendum.md` §9 are content, not code: field lists, five checklist item lists, four table grammars, seeded criteria, and the section boilerplate. It is a day's careful transcription that nothing else can start without, and it is the most likely thing to be underestimated.
 
-**The decision, taken 2026-09-21.** The slice keeps one assist and defers multi-device. The alternative is to keep two assists (nameplate and display reading, so SM-3 is testable) and defer something from the shipping list instead — realistically the action plan (FR-49 to FR-53) or the second section 9 ordering scheme. **Chosen: the slice as written.** Section 8 of FO.SERV-03 is part of the report, so the action plan stays by the slice's own principle; it is also the feature no competitor has and the one NR-10 names.
+**The decision, taken 2026-09-21.** The slice keeps one assist and defers multi-device. The alternative is to keep two assists (nameplate and display reading, so SM-3 is testable) and defer something from the shipping list instead — realistically the action plan (FR-49 to FR-53) or the second section 9 ordering scheme. **Chosen: the slice as written.** Section 8 of FO.SERV-03 is part of the report, so the points of attention stay by the slice's own principle. **Revised later on 2026-09-21:** section 8 in the reference carries five free-text bullets with no priority, deadline or owner, so the structured action plan (FR-50, FR-52) leaves the MVP and is dated for NR-10 10.7.11 before 2027-06-01.
 
 **NR-10 stays in the slice** (confirmed 2026-09-21): every NR-10 element the reference report carries ships — the PIE statement in section 2, the NR-10 procedure requirement in section 4, the quoted 10.5.1 de-energization sequence and re-energization checklist in section 5 — together with the action plan that item 10.7.11 names. Selecting the NR-10 text by execution date remains data-model only; the 2027-06-01 change is tracked in FR-66 and §13 Q10.
 
@@ -1072,7 +1074,7 @@ The generated document becomes part of the client's PIE and may be read in an au
 
 **Safety and professional responsibility.** The engineer is the professional in charge and the product never displaces that. It calculates, compares, highlights and suggests; the verdict is always a human tap (FR-29, FR-41, FR-71). One blocking pre-issue item, and only one (FR-73). An expired calibration warns and does not stop the work (FR-3), because stopping an engineer in a basement is a worse failure than issuing a warned document.
 
-**Privacy.** Photographs of a client's installation — nameplates, panels, and the shutdown team's people — are sent to a third-party AI provider in the backend. Under the LGPD this needs a consent basis, processing terms, and a decision on whether people must be excluded from vision captioning. **This is unresolved and is legal input, not a design choice** (§13 Q12). Photo coordinates identify client premises and print in the document; the location switch (FR-8) is the user-side control, but whether coordinates may print at all is part of the same question.
+**Privacy (decided 2026-09-21).** Photographs of a client's installation are sent to a third-party AI provider in the backend. For the POC this happens with no consent gate and no LGPD text; the design must keep the possibility of removing sensitive data later, so storage and data model never preclude purging originals, crops, suggestions and readings per photo or per laudo. A photo with people is never sent for vision captioning and still prints in section 7. Coordinates print: they identify the site, not a person. The AWS account carries the AI services opt-out policy. The LGPD basis is written when the product leaves the POC.
 
 **Cost.** Every AI call is an operating cost on a product built at no cost to test an idea. One job is roughly 94 nameplate reads, 1,100 display reads and 82 captions. The controls already in the design are: backend-only processing with a single queue, readings prioritized in upload order, context captions computed locally rather than by vision, and conclusion text composed on the device from values already present rather than generated. `[NOTE FOR PM]` Provider choice and cost per reading are architecture's, but the unit economics need a number before the first real job.
 
@@ -1096,25 +1098,25 @@ The generated document becomes part of the client's PIE and may be read in an au
 
 Ordered by how much they can change what gets built.
 
-0. **Can photo-safe offline capture actually be built on iPadOS Safari?** This gates everything else. Safari evicts script-writable storage after seven days without use unless the app is installed to the home screen — **which the web-only decision of 2026-09-21 rules out as a mitigation** — does not honor `persist()`, and runs background sync only while the tab is foregrounded — against §12's requirement to run on iPadOS Safari, FR-56's guarantee of zero photo loss, and a three-day offline job carrying about 82 photographs. **Prove this before anything is built on top of it.** Without home-screen install, the realistic mitigation is a short offline window: upload every photo and sheet at the first connectivity and keep a job's unsynced data measured in days, not weeks. If it cannot be proven, either the platform commitment or the zero-loss guarantee has to change, and both are load-bearing.
+0. ~~**Can photo-safe offline capture actually be built on iPadOS Safari?**~~ **Sequenced 2026-09-21: proven first on desktop Chrome or Firefox, then iPadOS Safari; failure branch is desktop-and-Android only.** Original text: this gates everything else. Safari evicts script-writable storage after seven days without use unless the app is installed to the home screen — **which the web-only decision of 2026-09-21 rules out as a mitigation** — does not honor `persist()`, and runs background sync only while the tab is foregrounded — against §12's requirement to run on iPadOS Safari, FR-56's guarantee of zero photo loss, and a three-day offline job carrying about 82 photographs. **Prove this before anything is built on top of it.** Without home-screen install, the realistic mitigation is a short offline window: upload every photo and sheet at the first connectivity and keep a job's unsynced data measured in days, not weeks. If it cannot be proven, either the platform commitment or the zero-loss guarantee has to change, and both are load-bearing.
 1. ~~**When does the MVP need to exist?**~~ **Answered 2026-09-19: 2026-10-03, two weeks.** See §2 and §7.3. The slice in §7.3 was approved on 2026-09-21.
-2. **Laudo status transitions.** The forward path is defined; exporting while Em campo, re-exporting after Emitido, and a manual move back to Rascunho followed by a sheet edit are not. Needed before FR-21 is built.
-3. **Sheet attribution semantics.** Attribution is currently overwritten on every save. Whether to keep first-filled-by, last-modified-by and concluded-by, and which of them prints, is undecided — today a one-tap correction by a second user re-attributes the whole sheet in a signed document. Needed before FR-32 is built.
-4. **Project, Client and Site.** Three names for two concepts. TAG uniqueness scope and copy-on-create both hang on which one is the stable entity. Needed before FR-7 and FR-15 are built.
-5. **What "Salvar como template" carries.** Locations, yes. TAGs, cabine flags and per-sheet sub-block overrides, undecided. Affects FR-14 only.
-6. **Will Fasor need to change an acceptance criterion or a checklist item before the first real job?** If yes, the data-model-only decision for criteria and checklist editing acquires a surface, and §7.1 changes.
-7. ~~**Content Bruno has to supply.**~~ **Mostly answered 2026-09-19: derive from the reference report.** Subtypes come from its nameplate fields and the Não ensaiado reasons from its section 8, both now in FR-11 and FR-31. **One part could not be answered from it:** the NC chip phrases, because every observation cell in the delivered instance is blank. FR-25 now ships them empty and lets them self-seed from use. Confirm that is acceptable rather than waiting on authored content.
-8. **Do the field tablets carry an offline pt-BR speech pack?** Without it the dictation control is hidden exactly where it is most useful. Affects FR-40.
-9. **The P0–P4 priority scale, its names and its day counts** come from the peer-built reference tool, not from Fasor's practice. Confirm or replace. Affects FR-50.
+2. ~~**Laudo status transitions.**~~ **Answered 2026-09-21: the architecture spine's AD-22 table is adopted for the MVP.** The forward path is defined; exporting while Em campo, re-exporting after Emitido, and a manual move back to Rascunho followed by a sheet edit are not. Needed before FR-21 is built.
+3. ~~**Sheet attribution semantics.**~~ **Answered 2026-09-21: created-by, last-modified-by and concluded-by are kept; the sheet prints concluded-by with its time, falling back to last-modified-by (AD-18).** Attribution was overwritten on every save. Whether to keep first-filled-by, last-modified-by and concluded-by, and which of them prints, is undecided — today a one-tap correction by a second user re-attributes the whole sheet in a signed document. Needed before FR-32 is built.
+4. ~~**Project, Client and Site.**~~ **Answered 2026-09-21: Site is collapsed into Project; TAG uniqueness and copy-on-create hang from Project (AD-5).** Three names for two concepts. TAG uniqueness scope and copy-on-create both hang on which one is the stable entity. Needed before FR-7 and FR-15 are built.
+5. ~~**What "Salvar como template" carries.**~~ **Answered 2026-09-21: locations, each cabine's Agrupar por tipo flag and each block's sub-block and subtype overrides; TAGs are regenerated, not carried.** Locations, yes. TAGs, cabine flags and per-sheet sub-block overrides, undecided. Affects FR-14 only.
+6. ~~**Will Fasor need to change an acceptance criterion or a checklist item before the first real job?**~~ **Answered 2026-09-21 by Matheus: no. Criteria and checklists stay read-only seed data.** If yes, the data-model-only decision for criteria and checklist editing acquires a surface, and §7.1 changes.
+7. ~~**Content Bruno has to supply.**~~ **Mostly answered 2026-09-19: derive from the reference report.** Subtypes come from its nameplate fields and the Não ensaiado reasons from its section 8, both now in FR-11 and FR-31. **The remaining part was answered 2026-09-21:** the NC chips ship pre-seeded with standard phrases per item describing the typical non-conformity, and self-seed from use on top (FR-25).
+8. ~~**Do the field tablets carry an offline pt-BR speech pack?**~~ **Answered 2026-09-21 by verification: no platform offers offline pt-BR recognition yet; dictation is online-only (FR-40).** Without it the dictation control is hidden exactly where it is most useful. Affects FR-40.
+9. ~~**The P0–P4 priority scale, its names and its day counts**~~ **Answered 2026-09-21 by Matheus ("use what Fasor already uses"): FO.SERV-03 §8 uses no priority, deadline or owner, so FR-50 and FR-52 leave the MVP; the scale is revisited when they ship for NR-10 10.7.11.**
 10. ~~**Grounding measurement, and the 2027-06-01 deadline.**~~ **Answered 2026-09-19 by the scope rule in §7.2: the MVP covers what the reference report covers, so grounding ships as checklist items only.** The part that does not go away:  from 2027-06-01 NR-10 item 10.15.3 requires every organization to document its grounding measurements, and item 10.7.11 changes the legal basis the action plan cites. **Commit the grounding sheet to a dated post-MVP release rather than a backlog**, and note that the reference report itself is inconsistent here: its section 2 defines *Resistência Ôhmica de Aterramento* as something measured, and no sheet records it.
 11. ~~**Field ergonomics have never been confirmed.**~~ **Answered 2026-09-19: full protective equipment including helmet, insulating gloves, lit work area, and a touch stylus as the preferred input.** Folded into §9. What remains open is narrower and now testable: whether the sheet layout and the measurement grid are actually good with a stylus, which the first mockup at real size answers.
-12. **LGPD basis for sending client installation photographs to an AI provider.** Consent wording, where it lives, whether people must be excluded from vision captions, and whether coordinates may print. Legal input first, then one line of microcopy.
-13. **Location depth.** Cabine › Coluna does not fit all the real data. See §12.
-14. **Who reviews in the office?** No reviewer role and no review surface are specified, yet the workflow has a review step and a status named Em revisão.
+12. ~~**LGPD basis for sending client installation photographs to an AI provider.**~~ **Answered 2026-09-21 by Matheus: the POC sends everything with no gate; the design keeps a path to remove sensitive data later; photos with people skip vision captioning; coordinates print. The legal basis is written when the product leaves the POC (§11).**
+13. ~~**Location depth.**~~ **Answered 2026-09-21: Location is a tree node, depth not enforced in code, UI renders two levels, a block may attach to any node (AD-6).** Cabine › Coluna did not fit all the real data. See §12.
+14. ~~**Who reviews in the office?**~~ **Answered 2026-09-21 from the transcript: Bruno reviews himself; the reviewer is whichever company user opens the laudo; Em revisão is a status, not a role; the review path is "Pré-visualizar" plus the Sumário rows.**
 15. ~~**Does Fasor perform load and demand studies?**~~ **Answered 2026-09-19: not a consideration — the focus is the reference report.** "Estudo de carga e demanda" is not a named future type anywhere in this PRD.
 16. **Competitive benchmark not run.** Research recommended subscribing to Mesh Labs and reproducing a real Fasor report on it before freezing scope; the team declined, to keep the product independent. Recorded as a divergence, not an omission — but it means the gap analysis behind §2 was never tested against the product itself.
-17. **Norm editions to re-verify before any criterion is encoded:** NETA MTS-2023, NBR 10576:2017, the announced NBR 14039 revision, and NR-10 itself — the last of these was given a revalidation date of **2026-12-01** by the upstream research, along with three competitive revalidation dates that the competitive claims in §2 silently depend on. They are listed in `addendum.md` §5.
-18. **Where para-raios and cabos print in a type-grouped cabine.** The source document has no example, and the seed template groups by type in exactly the two cabines that hold them. Affects FR-68 only, but it affects every generated document.
+17. ~~**Norm editions to re-verify before any criterion is encoded:**~~ **Verified 2026-09-21: ANSI/NETA MTS-2023 current; NBR 10576:2017 current; IEC 62271-1:2017+AMD1:2021 current; NBR 14039:2005 in force with its revision expected in the second half of 2026; NR-10 = Portaria MTE 737/2026 from 2027-06-01.** Original list: NETA MTS-2023, NBR 10576:2017, the announced NBR 14039 revision, and NR-10 itself — the last of these was given a revalidation date of **2026-12-01** by the upstream research, along with three competitive revalidation dates that the competitive claims in §2 silently depend on. They are listed in `addendum.md` §5.
+18. ~~**Where para-raios and cabos print in a type-grouped cabine.**~~ **Answered 2026-09-21 by evidence: the seed template sets Agrupar por tipo off for Cubículo Enel, Oxigênio, Cobertura A and B, the only cabines holding para-raios and cabos de entrada/saída, so the reference job never hits the case; AD-6's fallback (inside Seccionadoras in tree order) covers a user who toggles grouping on.** The earlier statement that the seed groups those cabines was wrong.
 
 ## 14. Assumptions Index
 
@@ -1122,14 +1124,19 @@ Every `[ASSUMPTION]` in this document, surfaced for confirmation.
 
 - **§2, §11 stakes** — calibrated as launch-grade rigor on an internal-first MVP: a real client deliverable in a regulated domain, one design partner, a SaaS-ready data model.
 - **FR-5** — Fasor will not need to change an acceptance criterion before the first real job, so criteria stay read-only.
-- **FR-14** — saving a Laudo as a Template carries TAGs, cabine flags and per-sheet sub-block overrides.
-- **FR-15** — Project, Client and Site resolve to two concepts; the stable one is unnamed.
-- **FR-21** — the laudo status transition table is incomplete.
-- **FR-32** — attribution is last-writer; which attribution prints is undecided.
-- **FR-40** — the field tablets have an offline pt-BR speech pack.
+- **FR-14** — saving a Laudo as a Template carries cabine flags and per-sheet sub-block overrides; TAGs are regenerated (decided 2026-09-21).
+- **FR-15** — Project, Client and Site resolve to two concepts; Site is collapsed into Project (2026-09-21).
+- **FR-21** — the laudo status transition table is the spine's AD-22 table (adopted 2026-09-21).
+- **FR-32** — the sheet prints concluded-by, falling back to last-modified-by (2026-09-21).
+- **FR-40** — withdrawn: no offline pt-BR speech pack exists on the field platforms (verified 2026-09-21).
 - **FR-45** — photo ordering uses EXIF capture time where present and device time otherwise, in America/Sao_Paulo.
-- **FR-50** — the P0–P4 scale, its five names and its day counts are inherited from the reference tool.
+- **FR-50** — post-MVP (2026-09-21); the P0–P4 scale is revisited when it ships.
 - **FR-62** — generation runs server-side, so export needs connectivity.
-- **§12** — location depth of exactly two levels fits the real data. It does not, in at least two known cabines.
-- **FR-68** — where para-raios and cabos print inside a type-grouped cabine is undefined; the source document has no example.
+- **§12** — location is a tree node with depth not enforced (2026-09-21).
+- **FR-68** — para-raios and cabos never print in a type-grouped cabine in the reference job; the fallback is inside Seccionadoras in tree order (2026-09-21).
 - **Roles** — the office assembler and the field engineer are the same people. The September job split photographs and test reports between Bruno and Eduardo, in the reverse of the direction the journeys illustrate.
+
+## 15. Decisions after finalization (2026-09-21)
+
+The spec at `_bmad-output/specs/spec-fasor/` is the contract downstream reads; its `source-deltas.md` lists every decision that overrides text in this PRD, including the ones applied inline above. Decisions recorded there and **not** rewritten into the FR text of this document, for traceability: the deliverable is a **relatório** (2026-09-19; "Laudo" in this document reads as relatório); FR-22 nameplate counts follow the decoded document (para-raio 5, seccionadora 10, disjuntor 13, TC 14); FR-27 insulation is captured at 1 minuto only, with 30 s, 10 min, absorção and polarização printing "-" and no computed index; FR-68/FR-72 expose no section 9 choice in the Export dialog; FR-21 has no Continue card, the laudo Em campo sorts first on Home; FR-17's overview is the Sumário in FO.SERV-03 order; FR-19 also reorders by a typed Position box; one device fills a laudo at a time and nothing captured is locked to the field; FR-36 typing is the primary path for readings; the section 9 scheme, "Igual à ⟨TAG⟩?" and FR-34 resolve per the architecture spine's Source deltas.
+
