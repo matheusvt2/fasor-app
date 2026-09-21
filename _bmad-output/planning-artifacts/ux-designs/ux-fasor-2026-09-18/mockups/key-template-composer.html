@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRODUTO — Compor template</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* Governs this mock:
+   DESIGN.md § Components › App bar, Sync badge, Block palette ("in the Template composer each equipment row carries a Quantity
+     stepper instead of the +"), Quantity stepper (count in value, "—" at zero), Block card (section number · quantity in value,
+     drag handle, Overflow menu), Combobox (subtipo padrão), Tri-state control (NA pre-marked, letters carry the state),
+     Checklist row, Button, Sticky action bar; § Layout & Spacing (desktop: palette + composition side by side).
+   EXPERIENCE.md § IA › Template composer; § Block Model › Template, Sub-block ownership ("the Template defines the defaults per
+     block type/subtype … checklist items are never removed: subtype NA defaults pre-mark rows and remain editable"),
+     8 equipment block types; § Component Patterns › Block palette (quantities → "Sem local"), Quantity stepper, Block card;
+     § Responsive & Platform › Desktop (side by side) · Tablet landscape; § Voice and Tone; Flow 1 step 4.
+   Added component (not in DESIGN.md § Components — logged in the report): Toggle (sub-block defaults on/off).
+   v0.6.0 [ASSUMPTION — reference tool 2026-09-18]: DESIGN.md § Components › Rich text editor (Template composer only; toolbar Negrito ·
+     Itálico · Lista · Numeração · Variável; {variável} chips), Overflow menu (section blocks: Adicionar abaixo · Subir · Descer · Duplicar ·
+     Remover); EXPERIENCE.md § IA › Template composer (boilerplate of section blocks); § Block Model › Template (fixed text + variables);
+     § Component Patterns › Rich text editor, Block card (reorder reachable without dragging), Overflow menu; § Interaction Primitives › Reorder.
+   Page-only layout below. */
+.composer-palette { width: 400px; border-left: 0; border-right: 1px solid var(--border-hairline); flex: none; }
+.frame-tablet-landscape .composer-palette { width: var(--rail-width); }
+.composer-main { flex: 1; min-width: 0; padding: var(--sp-5) var(--gutter-desktop); }
+.frame-tablet-landscape .composer-main { padding: var(--sp-5) var(--gutter-tablet); }
+.block-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.block-card { flex-wrap: wrap; }
+.block-card .block-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.block-card .block-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-1) var(--sp-3); }
+.block-card .block-expand { flex-basis: 100%; border-top: 1px solid var(--border-hairline); margin-top: var(--sp-3); padding: var(--sp-4) var(--sp-4) var(--sp-2) var(--touch-min); display: flex; flex-direction: column; gap: var(--sp-4); }
+.block-card.is-open { border-color: var(--primary); }
+.defaults-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 var(--sp-5); }
+.frame-tablet-landscape .defaults-grid { grid-template-columns: 1fr; }
+.items-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 var(--sp-5); }
+.frame-tablet-landscape .items-grid { grid-template-columns: 1fr; }
+.items-grid .checklist { border-top: 0; }
+.items-grid .checklist-row .row-main { min-height: var(--touch-min); }
+.items-grid .tri-state { grid-template-columns: repeat(3, 44px); }
+.items-grid .tri-state .seg { min-width: 44px; min-height: 40px; font-size: var(--t-label-size); }
+.table-title { font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--ink-primary); margin: 0 0 var(--sp-2); }
+.subtype-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); align-items: start; }
+.frame-tablet-landscape .subtype-row { grid-template-columns: 1fr; }
+</style>
+</head>
+<body class="mock-page">
+
+<!-- icon sprite (inline, currentColor) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-chev-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-chev-up" viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M6 21V4h11l-2 4 2 4H6"/></symbol>
+  <symbol id="i-block" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12h16"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.8" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+</svg>
+
+<h1 class="mock-title">Compor template — Porto Seguro — Torres A e B</h1>
+<p class="mock-sub">Superfície de escritório do PRODUTO (EXPERIENCE § IA › Template composer). Estado: Bruno, quarta-feira 02/09, acabou de ajustar as quantidades (94 blocos de equipamento) e abriu o bloco Chave seccionadora para definir o subtipo manual como padrão — "Motor" e "Fusíveis" ficam pré-marcados NA e continuam editáveis na ficha. Quadro 1: navegador 1280, paleta à esquerda e composição à direita; a seção "1 Objetivo" está aberta no editor de texto do template, com as variáveis do Relatório setup como fichas. Quadro 2: tablet paisagem, mesma composição com a paleta em 320px e o menu de uma seção aberto (Adicionar abaixo · Subir · Descer · Duplicar · Remover).</p>
+
+<div class="mock-row">
+
+<!-- =============================================================== FRAME 1 — DESKTOP BROWSER -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Compor template · Porto Seguro — Torres A e B</b><span class="sep">·</span>navegador 1280 · paleta com Quantity stepper à esquerda, composição em Block cards à direita, "1 Objetivo" aberto no Rich text editor (variáveis {executor} · {escopo} · {local}), seccionadora expandida (subtipo manual)<span class="sep">·</span>IA › Template composer · Block Model › Template, Sub-block ownership · Block palette · Quantity stepper · Block card · Rich text editor · Tri-state (NA padrão) · Sticky action bar · Flow 1 passo 4</p>
+
+  <div class="frame frame-desktop" data-theme="light">
+    <div class="browser-chrome"><span class="lights"><i></i><i></i><i></i></span><span class="url">PRODUTO — Templates › Porto Seguro — Torres A e B</span></div>
+
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">Compor template</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="ok" aria-label="Sincronização: sincronizado"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+
+    <div class="screen-body">
+
+      <!-- ---------------- Palette with quantities ---------------- -->
+      <aside class="block-palette composer-palette" aria-label="Paleta de blocos">
+        <div class="palette-head"><span>Blocos</span><span class="t-meta ink-secondary">94 equipamentos</span></div>
+        <p class="palette-group" style="padding-top: var(--sp-3)">Seções</p>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>1 Objetivo</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>2 Definições</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>3 Limite de escopo</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>4 Requisitos básicos</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>5 Segurança (NR-10)</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>6 Verificações aplicáveis</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-flag"/></svg><span class="pi-text"><span>8 Pontos de atenção</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>10 Conclusão</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>11 Certificados</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
+
+        <p class="palette-group" style="margin-top: var(--sp-3)">Equipamentos · quantidade no template</p>
+        <div class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Cabos de entrada</span><span class="pi-meta">1 por cabine</span></span><div class="quantity-stepper" role="group" aria-label="Cabos de entrada, 4"><button class="step" aria-label="Menos um">−</button><span class="count">4</span><button class="step" aria-label="Mais um">+</button></div></div>
+        <div class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Para-raio</span><span class="pi-meta">entrada / saída</span></span><div class="quantity-stepper" role="group" aria-label="Para-raios, 5"><button class="step" aria-label="Menos um">−</button><span class="count">5</span><button class="step" aria-label="Mais um">+</button></div></div>
+        <div class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Chave seccionadora</span><span class="pi-meta">Subtipo padrão: manual</span></span><div class="quantity-stepper" role="group" aria-label="Seccionadoras, 25"><button class="step" aria-label="Menos um">−</button><span class="count">25</span><button class="step" aria-label="Mais um">+</button></div></div>
+        <div class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Disjuntor MT</span></span><div class="quantity-stepper" role="group" aria-label="Disjuntores, 21"><button class="step" aria-label="Menos um">−</button><span class="count">21</span><button class="step" aria-label="Mais um">+</button></div></div>
+        <div class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>TP — proteção</span></span><div class="quantity-stepper" role="group" aria-label="TP, 11"><button class="step" aria-label="Menos um">−</button><span class="count">11</span><button class="step" aria-label="Mais um">+</button></div></div>
+        <div class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>TC — proteção</span></span><div class="quantity-stepper" role="group" aria-label="TC, 11"><button class="step" aria-label="Menos um">−</button><span class="count">11</span><button class="step" aria-label="Mais um">+</button></div></div>
+        <div class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Cabos de saída / alimentação TRn</span></span><div class="quantity-stepper" role="group" aria-label="Cabos de saída, 9"><button class="step" aria-label="Menos um">−</button><span class="count">9</span><button class="step" aria-label="Mais um">+</button></div></div>
+        <div class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Transformador de força</span><span class="pi-meta">Subtipo padrão: a seco</span></span><div class="quantity-stepper" role="group" aria-label="Transformadores, 8"><button class="step" aria-label="Menos um">−</button><span class="count">8</span><button class="step" aria-label="Mais um">+</button></div></div>
+        <p class="palette-group" style="margin-top: var(--sp-2)">Ao criar um relatório, as quantidades viram blocos em "Sem local", com TAG provisória (SEC-?), até serem colocados numa coluna.</p>
+      </aside>
+
+      <!-- ---------------- Composition ---------------- -->
+      <main class="screen">
+        <div class="composer-main">
+          <div class="field" style="max-width: 560px">
+            <span class="field-label">Nome do template</span>
+            <div class="input">Porto Seguro — Torres A e B</div>
+            <span class="echo">Duplicado de Cabine primária — padrão (FO.SERV-03) · 02/09 · Bruno</span>
+          </div>
+
+          <section class="section" aria-labelledby="h-comp">
+            <div class="section-head">
+              <h2 id="h-comp">Composição · 9 seções + 94 blocos de equipamento</h2>
+              <span class="section-note" style="margin:0">Ordem inicial da árvore; o engenheiro reordena no relatório</span>
+            </div>
+            <ul class="block-list" aria-label="Blocos do template">
+              <li class="block-card is-open">
+                <button class="drag-handle" aria-label="Reordenar 1 Objetivo"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="block-body"><div class="block-line"><span class="block-tag">1</span><span class="block-name">Objetivo</span></div><span class="block-sub">Texto fixo · 3 variáveis no Relatório setup</span></div>
+                <button class="icon-btn" aria-label="Recolher 1 Objetivo" aria-expanded="true"><svg class="ico"><use href="#i-chev-up"/></svg></button>
+                <button class="overflow-trigger" aria-label="Mais opções de 1 Objetivo"><svg class="ico"><use href="#i-dots"/></svg></button>
+
+                <div class="block-expand">
+                  <div class="field">
+                    <span class="field-label" id="rt-l">Texto da seção</span>
+                    <div class="rich-text is-focus">
+                      <div class="rt-toolbar" role="toolbar" aria-label="Formatação">
+                        <button class="rt-tool" aria-pressed="false">Negrito</button>
+                        <button class="rt-tool" aria-pressed="false">Itálico</button>
+                        <button class="rt-tool" aria-pressed="false">Lista</button>
+                        <button class="rt-tool" aria-pressed="false">Numeração</button>
+                        <button class="rt-tool rt-var" aria-haspopup="listbox"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Variável</button>
+                      </div>
+                      <div class="rt-area" role="textbox" aria-multiline="true" aria-labelledby="rt-l">
+                        <p>O presente relatório tem por objetivo apresentar, de forma clara e objetiva, as atividades realizadas pela <span class="var-chip">{executor}</span>, referentes à <span class="var-chip">{escopo}</span> <span class="var-chip">{local}</span>.</p>
+                      </div>
+                      <div class="rt-foot"><span>Variáveis preenchidas em Dados do relatório:</span><span class="var-chip">{executor}</span><span class="var-chip">{escopo}</span><span class="var-chip">{local}</span><span class="var-chip">{cliente}</span><span class="var-chip">{datas}</span></div>
+                    </div>
+                    <span class="helper">Vale para todo relatório criado deste template. Em campo o texto não aparece; só as variáveis, em Dados do relatório.</span>
+                  </div>
+                </div>
+              </li>
+              <li class="block-card"><button class="drag-handle" aria-label="Reordenar 2 Definições"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-tag">2</span><span class="block-name">Definições</span></div><span class="block-sub">Texto fixo</span></div><button class="overflow-trigger" aria-label="Mais opções de 2 Definições"><svg class="ico"><use href="#i-dots"/></svg></button></li>
+              <li class="block-card"><button class="drag-handle" aria-label="Reordenar 3 Limite de escopo"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-tag">3</span><span class="block-name">Limite de escopo</span></div><span class="block-sub">Texto fixo · exclusões editáveis por relatório</span></div><button class="overflow-trigger" aria-label="Mais opções de 3 Limite de escopo"><svg class="ico"><use href="#i-dots"/></svg></button></li>
+              <li class="block-card"><button class="drag-handle" aria-label="Reordenar 4 Requisitos"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-tag">4</span><span class="block-name">Requisitos básicos</span></div><span class="block-sub">Texto fixo</span></div><button class="overflow-trigger" aria-label="Mais opções de 4 Requisitos"><svg class="ico"><use href="#i-dots"/></svg></button></li>
+              <li class="block-card"><button class="drag-handle" aria-label="Reordenar 5 Segurança"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-tag">5</span><span class="block-name">Segurança (NR-10)</span></div><span class="block-sub">Texto fixo</span></div><button class="overflow-trigger" aria-label="Mais opções de 5 Segurança"><svg class="ico"><use href="#i-dots"/></svg></button></li>
+              <li class="block-card"><button class="drag-handle" aria-label="Reordenar 6 Verificações"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-tag">6</span><span class="block-name">Verificações aplicáveis</span></div><span class="block-sub">Texto fixo</span></div><button class="overflow-trigger" aria-label="Mais opções de 6 Verificações"><svg class="ico"><use href="#i-dots"/></svg></button></li>
+              <li class="block-card"><button class="drag-handle" aria-label="Reordenar 8 Pontos de atenção"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-tag">8</span><span class="block-name">Pontos de atenção</span></div><span class="block-sub">Preenchido em campo e no escritório · não ensaiados entram sozinhos</span></div><button class="overflow-trigger" aria-label="Mais opções de 8 Pontos de atenção"><svg class="ico"><use href="#i-dots"/></svg></button></li>
+              <li class="block-card"><button class="drag-handle" aria-label="Reordenar 10 Conclusão"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-tag">10</span><span class="block-name">Conclusão</span></div><span class="block-sub">Texto fixo · assinatura do Relatório setup</span></div><button class="overflow-trigger" aria-label="Mais opções de 10 Conclusão"><svg class="ico"><use href="#i-dots"/></svg></button></li>
+              <li class="block-card"><button class="drag-handle" aria-label="Reordenar 11 Certificados"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-tag">11</span><span class="block-name">Certificados</span></div><span class="block-sub">Instrumentos usados no relatório</span></div><button class="overflow-trigger" aria-label="Mais opções de 11 Certificados"><svg class="ico"><use href="#i-dots"/></svg></button></li>
+
+              <li class="block-card"><button class="drag-handle" aria-label="Reordenar Cabos de entrada"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-name">Cabos de entrada</span><span class="block-tag">× 4</span></div><span class="block-sub">5 itens · Isolação (A/B/C/Reserva × Massa) · primeira ficha da cabine imprime SE + ambiente</span></div><button class="icon-btn" aria-label="Expandir Cabos de entrada" aria-expanded="false"><svg class="ico"><use href="#i-chev-down"/></svg></button><button class="overflow-trigger" aria-label="Mais opções de Cabos de entrada"><svg class="ico"><use href="#i-dots"/></svg></button></li>
+              <li class="block-card"><button class="drag-handle" aria-label="Reordenar Para-raio"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-name">Para-raio (entrada / saída)</span><span class="block-tag">× 5</span></div><span class="block-sub">6 campos de placa · 5 itens · Isolação</span></div><button class="icon-btn" aria-label="Expandir Para-raio" aria-expanded="false"><svg class="ico"><use href="#i-chev-down"/></svg></button><button class="overflow-trigger" aria-label="Mais opções de Para-raio"><svg class="ico"><use href="#i-dots"/></svg></button></li>
+
+              <!-- Expanded equipment block: sub-block defaults -->
+              <li class="block-card is-open">
+                <button class="drag-handle" aria-label="Reordenar Chave seccionadora"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="block-body"><div class="block-line"><span class="block-name">Chave seccionadora</span><span class="block-tag">× 25</span></div><span class="block-sub">9 campos de placa · 14 itens · Isolação contato aberto/fechado · Resistência de contato · subtipo padrão: manual</span></div>
+                <button class="icon-btn" aria-label="Recolher Chave seccionadora" aria-expanded="true"><svg class="ico"><use href="#i-chev-up"/></svg></button>
+                <button class="overflow-trigger" aria-label="Mais opções de Chave seccionadora"><svg class="ico"><use href="#i-dots"/></svg></button>
+
+                <div class="block-expand">
+                  <div class="subtype-row">
+                    <div class="field combobox">
+                      <span class="field-label">Subtipo padrão</span>
+                      <div class="input">Manual</div>
+                      <span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+                      <span class="helper">Pré-marca NA em 9. Motor e 10. Fusíveis. Os itens continuam na ficha, editáveis.</span>
+                    </div>
+                    <p class="section-note" style="margin:0; align-self:end">Um sub-bloco desativado não é impresso na ficha — nunca sai vazio. Cada ficha pode sobrepor estes padrões pela paleta aberta de dentro dela.</p>
+                  </div>
+
+                  <div>
+                    <p class="table-title t-label">Sub-blocos padrão</p>
+                    <div class="defaults-grid">
+                      <div class="toggle-row"><div><div class="toggle-label">Dados de placa</div><div class="toggle-sub">9 campos · "Ler placa da foto"</div></div><button class="toggle" role="switch" aria-checked="true" aria-label="Dados de placa"><span class="toggle-word">Ativado</span><span class="track" aria-hidden="true"><span class="knob"></span></span></button></div>
+                      <div class="toggle-row"><div><div class="toggle-label">Verificações gerais</div><div class="toggle-sub">14 itens C · NC · NA</div></div><button class="toggle" role="switch" aria-checked="true" aria-label="Verificações gerais"><span class="toggle-word">Ativado</span><span class="track" aria-hidden="true"><span class="knob"></span></span></button></div>
+                      <div class="toggle-row"><div><div class="toggle-label">Isolação — contato aberto</div><div class="toggle-sub">T1/T2 · T3/T4 · T5/T6 × Massa · 10 kV · &gt;400 MΩ (aceitável na ficha)</div></div><button class="toggle" role="switch" aria-checked="true" aria-label="Isolação contato aberto"><span class="toggle-word">Ativado</span><span class="track" aria-hidden="true"><span class="knob"></span></span></button></div>
+                      <div class="toggle-row"><div><div class="toggle-label">Isolação — contato fechado</div><div class="toggle-sub">Fase A · B · C × Massa · 10 kV · &gt;400 MΩ</div></div><button class="toggle" role="switch" aria-checked="true" aria-label="Isolação contato fechado"><span class="toggle-word">Ativado</span><span class="track" aria-hidden="true"><span class="knob"></span></span></button></div>
+                      <div class="toggle-row"><div><div class="toggle-label">Resistência de contato</div><div class="toggle-sub">T1-T2 · T3-T4 · T5-T6 · 10 A · &lt;250 µΩ</div></div><button class="toggle" role="switch" aria-checked="true" aria-label="Resistência de contato"><span class="toggle-word">Ativado</span><span class="track" aria-hidden="true"><span class="knob"></span></span></button></div>
+                      <div class="toggle-row"><div><div class="toggle-label">Observações e conclusão</div><div class="toggle-sub">Sempre na ficha</div></div><button class="toggle" role="switch" aria-checked="true" aria-disabled="true" aria-label="Observações e conclusão, sempre ativado"><span class="toggle-word">Sempre</span><span class="track" aria-hidden="true"><span class="knob"></span></span></button></div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p class="table-title t-label">Itens do checklist · padrão para o subtipo manual</p>
+                    <p class="checklist-legend">C Conforme · NC Não conforme · NA Não se aplica · sem marca = decidido em campo</p>
+                    <div class="items-grid">
+                      <ul class="checklist">
+                        <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">1.</span>Abertura e fechamento manual</span><div class="tri-state" role="radiogroup" aria-label="1. padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div></div></li>
+                        <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">2.</span>Abertura e fechamento elétrico</span><div class="tri-state" role="radiogroup" aria-label="2. padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div></div></li>
+                        <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">3.</span>Mecanismo de acionamento</span><div class="tri-state" role="radiogroup" aria-label="3. padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div></div></li>
+                        <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">4.</span>Intertravamento elétrico</span><div class="tri-state" role="radiogroup" aria-label="4. padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div></div></li>
+                        <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">5.</span>Intertravamento mecânico</span><div class="tri-state" role="radiogroup" aria-label="5. padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div></div></li>
+                        <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">6.</span>Isoladores</span><div class="tri-state" role="radiogroup" aria-label="6. padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div></div></li>
+                        <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">7.</span>Conexões</span><div class="tri-state" role="radiogroup" aria-label="7. padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div></div></li>
+                      </ul>
+                      <ul class="checklist">
+                        <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">8.</span>Contatos</span><div class="tri-state" role="radiogroup" aria-label="8. padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div></div></li>
+                        <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">9.</span>Motor <span class="helper" data-tone="amber">NA padrão (manual)</span></span><div class="tri-state" role="radiogroup" aria-label="9. Motor, padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="true">NA</button></div></div></li>
+                        <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">10.</span>Fusíveis <span class="helper" data-tone="amber">NA padrão (manual)</span></span><div class="tri-state" role="radiogroup" aria-label="10. Fusíveis, padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="true">NA</button></div></div></li>
+                        <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">11.</span>Aterramento</span><div class="tri-state" role="radiogroup" aria-label="11. padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div></div></li>
+                        <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">12.</span>Simultaneidade</span><div class="tri-state" role="radiogroup" aria-label="12. padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div></div></li>
+                        <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">13.</span>Pintura, corrosão</span><div class="tri-state" role="radiogroup" aria-label="13. padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div></div></li>
+                        <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">14.</span>Limpeza e lubrificação</span><div class="tri-state" role="radiogroup" aria-label="14. padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div></div></li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </li>
+
+              <li class="block-card"><button class="drag-handle" aria-label="Reordenar Disjuntor MT"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-name">Disjuntor MT</span><span class="block-tag">× 21</span></div><span class="block-sub">12 campos de placa · 15 itens · Isolação aberto/fechado · Resistência de contato</span></div><button class="icon-btn" aria-label="Expandir Disjuntor MT" aria-expanded="false"><svg class="ico"><use href="#i-chev-down"/></svg></button><button class="overflow-trigger" aria-label="Mais opções de Disjuntor MT"><svg class="ico"><use href="#i-dots"/></svg></button></li>
+              <li class="block-card"><button class="drag-handle" aria-label="Reordenar TP"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-name">TP — proteção</span><span class="block-tag">× 11</span></div><span class="block-sub">12 campos de placa · 15 itens · Isolação (R/S/T) · Relação de transformação · subtipo padrão: a seco</span></div><button class="icon-btn" aria-label="Expandir TP" aria-expanded="false"><svg class="ico"><use href="#i-chev-down"/></svg></button><button class="overflow-trigger" aria-label="Mais opções de TP"><svg class="ico"><use href="#i-dots"/></svg></button></li>
+              <li class="block-card"><button class="drag-handle" aria-label="Reordenar TC"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-name">TC — proteção</span><span class="block-tag">× 11</span></div><span class="block-sub">12 campos de placa · 15 itens · Isolação (R/S/T) · Relação (P1-P2 / S1-S2) · subtipo padrão: a seco</span></div><button class="icon-btn" aria-label="Expandir TC" aria-expanded="false"><svg class="ico"><use href="#i-chev-down"/></svg></button><button class="overflow-trigger" aria-label="Mais opções de TC"><svg class="ico"><use href="#i-dots"/></svg></button></li>
+              <li class="block-card"><button class="drag-handle" aria-label="Reordenar Cabos de saída"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-name">Cabos de saída / alimentação TRn</span><span class="block-tag">× 9</span></div><span class="block-sub">5 itens · Isolação (A/B/C/Reserva)</span></div><button class="icon-btn" aria-label="Expandir Cabos de saída" aria-expanded="false"><svg class="ico"><use href="#i-chev-down"/></svg></button><button class="overflow-trigger" aria-label="Mais opções de Cabos de saída"><svg class="ico"><use href="#i-dots"/></svg></button></li>
+              <li class="block-card"><button class="drag-handle" aria-label="Reordenar Transformador de força"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-name">Transformador de força</span><span class="block-tag">× 8</span></div><span class="block-sub">12 campos de placa · 15 itens · Isolação (3 combinações) · Relação por TAP · Conclusão restaurada · subtipo padrão: a seco</span></div><button class="icon-btn" aria-label="Expandir Transformador de força" aria-expanded="false"><svg class="ico"><use href="#i-chev-down"/></svg></button><button class="overflow-trigger" aria-label="Mais opções de Transformador de força"><svg class="ico"><use href="#i-dots"/></svg></button></li>
+            </ul>
+          </section>
+        </div>
+
+        <div class="sticky-action-bar">
+          <span class="btn-reason">Salvar não altera o relatório Porto Seguro · Torres A e B já criado deste template</span>
+          <div class="bar-buttons">
+            <button class="btn btn-secondary">Cancelar</button>
+            <button class="btn btn-primary">Salvar template</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+</div><!-- /mock-row 1 -->
+
+<div class="mock-row">
+
+<!-- =============================================================== FRAME 2 — TABLET LANDSCAPE -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Compor template · Porto Seguro — Torres A e B</b><span class="sep">·</span>tablet paisagem 1024×768 · paleta em 320px, composição ao lado, menu da seção "2 Definições" aberto (reordenar sem arrastar), seccionadora expandida em uma coluna<span class="sep">·</span>Responsive & Platform › tablet landscape · Block palette · Quantity stepper · Block card · Overflow menu (Adicionar abaixo · Subir · Descer · Duplicar · Remover)</p>
+
+  <div class="frame frame-tablet-landscape" data-theme="light">
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">Compor template</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+
+    <div class="screen-body">
+      <aside class="block-palette composer-palette" aria-label="Paleta de blocos">
+        <div class="palette-head"><span>Blocos</span><span class="t-meta ink-secondary">94 equipamentos</span></div>
+        <p class="palette-group" style="padding-top: var(--sp-3)">Seções</p>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>1 Objetivo</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>2 Definições</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>3 Limite de escopo</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>4 Requisitos básicos</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>5 Segurança (NR-10)</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>6 Verificações aplicáveis</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-flag"/></svg><span class="pi-text"><span>8 Pontos de atenção</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>10 Conclusão</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>11 Certificados</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <p class="palette-group" style="margin-top: var(--sp-3)">Equipamentos · quantidade</p>
+        <div class="palette-item"><span class="pi-text"><span>Cabos de entrada</span></span><div class="quantity-stepper" role="group" aria-label="Cabos de entrada, 4"><button class="step" aria-label="Menos um">−</button><span class="count">4</span><button class="step" aria-label="Mais um">+</button></div></div>
+        <div class="palette-item"><span class="pi-text"><span>Para-raio</span></span><div class="quantity-stepper" role="group" aria-label="Para-raios, 5"><button class="step" aria-label="Menos um">−</button><span class="count">5</span><button class="step" aria-label="Mais um">+</button></div></div>
+        <div class="palette-item"><span class="pi-text"><span>Chave seccionadora</span><span class="pi-meta">manual</span></span><div class="quantity-stepper" role="group" aria-label="Seccionadoras, 25"><button class="step" aria-label="Menos um">−</button><span class="count">25</span><button class="step" aria-label="Mais um">+</button></div></div>
+        <div class="palette-item"><span class="pi-text"><span>Disjuntor MT</span></span><div class="quantity-stepper" role="group" aria-label="Disjuntores, 21"><button class="step" aria-label="Menos um">−</button><span class="count">21</span><button class="step" aria-label="Mais um">+</button></div></div>
+        <div class="palette-item"><span class="pi-text"><span>TP — proteção</span></span><div class="quantity-stepper" role="group" aria-label="TP, 11"><button class="step" aria-label="Menos um">−</button><span class="count">11</span><button class="step" aria-label="Mais um">+</button></div></div>
+        <div class="palette-item"><span class="pi-text"><span>TC — proteção</span></span><div class="quantity-stepper" role="group" aria-label="TC, 11"><button class="step" aria-label="Menos um">−</button><span class="count">11</span><button class="step" aria-label="Mais um">+</button></div></div>
+        <div class="palette-item"><span class="pi-text"><span>Cabos de saída / alim. TRn</span></span><div class="quantity-stepper" role="group" aria-label="Cabos de saída, 9"><button class="step" aria-label="Menos um">−</button><span class="count">9</span><button class="step" aria-label="Mais um">+</button></div></div>
+        <div class="palette-item"><span class="pi-text"><span>Transformador de força</span><span class="pi-meta">a seco</span></span><div class="quantity-stepper" role="group" aria-label="Transformadores, 8"><button class="step" aria-label="Menos um">−</button><span class="count">8</span><button class="step" aria-label="Mais um">+</button></div></div>
+      </aside>
+
+      <main class="screen">
+        <div class="composer-main">
+          <div class="field">
+            <span class="field-label">Nome do template</span>
+            <div class="input">Porto Seguro — Torres A e B</div>
+          </div>
+          <section class="section">
+            <div class="section-head"><h2>Composição · 9 seções + 94 blocos</h2></div>
+            <ul class="block-list">
+              <li class="block-card"><button class="drag-handle" aria-label="Reordenar 1 Objetivo"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-tag">1</span><span class="block-name">Objetivo</span></div><span class="block-sub">Texto fixo · 3 variáveis</span></div><button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></li>
+              <li class="block-card overflow-anchor"><button class="drag-handle" aria-label="Reordenar 2 Definições"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-tag">2</span><span class="block-name">Definições</span></div><span class="block-sub">Texto fixo</span></div><button class="overflow-trigger is-focus-ring" aria-label="Mais opções de 2 Definições" aria-haspopup="menu" aria-expanded="true"><svg class="ico"><use href="#i-dots"/></svg></button>
+                <div class="overflow-menu is-open" role="menu" aria-label="2 Definições">
+                  <button class="menu-item" role="menuitem"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar abaixo</button>
+                  <button class="menu-item" role="menuitem"><svg class="ico" aria-hidden="true"><use href="#i-chev-up"/></svg>Subir</button>
+                  <button class="menu-item" role="menuitem"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg>Descer</button>
+                  <button class="menu-item" role="menuitem"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg>Duplicar</button>
+                  <div class="menu-group"><button class="menu-item" role="menuitem" data-tone="red"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg>Remover</button></div>
+                </div>
+              </li>
+              <li class="block-card"><button class="drag-handle" aria-label="Reordenar 3 Limite de escopo"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-tag">3</span><span class="block-name">Limite de escopo</span></div><span class="block-sub">Texto fixo · exclusões por relatório</span></div><button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></li>
+              <li class="block-card"><button class="drag-handle" aria-label="Reordenar Cabos de entrada"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-name">Cabos de entrada</span><span class="block-tag">× 4</span></div><span class="block-sub">5 itens · Isolação</span></div><button class="icon-btn" aria-label="Expandir" aria-expanded="false"><svg class="ico"><use href="#i-chev-down"/></svg></button><button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></li>
+              <li class="block-card is-open">
+                <button class="drag-handle" aria-label="Reordenar Chave seccionadora"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="block-body"><div class="block-line"><span class="block-name">Chave seccionadora</span><span class="block-tag">× 25</span></div><span class="block-sub">9 campos · 14 itens · subtipo padrão: manual</span></div>
+                <button class="icon-btn" aria-label="Recolher" aria-expanded="true"><svg class="ico"><use href="#i-chev-up"/></svg></button>
+                <button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button>
+                <div class="block-expand">
+                  <div class="subtype-row">
+                    <div class="field combobox"><span class="field-label">Subtipo padrão</span><div class="input">Manual</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span><span class="helper">Pré-marca NA em 9. Motor e 10. Fusíveis. Os itens continuam na ficha, editáveis.</span></div>
+                  </div>
+                  <div>
+                    <p class="table-title t-label">Sub-blocos padrão</p>
+                    <div class="defaults-grid">
+                      <div class="toggle-row"><div><div class="toggle-label">Isolação — contato aberto</div><div class="toggle-sub">T1/T2 · T3/T4 · T5/T6 × Massa</div></div><button class="toggle" role="switch" aria-checked="true" aria-label="Isolação contato aberto"><span class="toggle-word">Ativado</span><span class="track" aria-hidden="true"><span class="knob"></span></span></button></div>
+                      <div class="toggle-row"><div><div class="toggle-label">Isolação — contato fechado</div><div class="toggle-sub">Fase A · B · C × Massa</div></div><button class="toggle" role="switch" aria-checked="true" aria-label="Isolação contato fechado"><span class="toggle-word">Ativado</span><span class="track" aria-hidden="true"><span class="knob"></span></span></button></div>
+                      <div class="toggle-row"><div><div class="toggle-label">Resistência de contato</div><div class="toggle-sub">T1-T2 · T3-T4 · T5-T6 · 10 A</div></div><button class="toggle" role="switch" aria-checked="true" aria-label="Resistência de contato"><span class="toggle-word">Ativado</span><span class="track" aria-hidden="true"><span class="knob"></span></span></button></div>
+                    </div>
+                  </div>
+                  <div>
+                    <p class="table-title t-label">Itens do checklist · padrão para o subtipo manual</p>
+                    <div class="items-grid">
+                      <ul class="checklist">
+                        <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">8.</span>Contatos</span><div class="tri-state" role="radiogroup" aria-label="8. padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div></div></li>
+                        <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">9.</span>Motor <span class="helper" data-tone="amber">NA padrão (manual)</span></span><div class="tri-state" role="radiogroup" aria-label="9. Motor, padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="true">NA</button></div></div></li>
+                        <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">10.</span>Fusíveis <span class="helper" data-tone="amber">NA padrão (manual)</span></span><div class="tri-state" role="radiogroup" aria-label="10. Fusíveis, padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="true">NA</button></div></div></li>
+                        <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">11.</span>Aterramento</span><div class="tri-state" role="radiogroup" aria-label="11. padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div></div></li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </li>
+              <li class="block-card"><button class="drag-handle" aria-label="Reordenar Disjuntor MT"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-name">Disjuntor MT</span><span class="block-tag">× 21</span></div><span class="block-sub">12 campos · 15 itens · 2 ensaios</span></div><button class="icon-btn" aria-label="Expandir" aria-expanded="false"><svg class="ico"><use href="#i-chev-down"/></svg></button><button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></li>
+            </ul>
+          </section>
+        </div>
+        <div class="sticky-action-bar">
+          <span class="btn-reason">Salvar não altera relatórios já criados deste template</span>
+          <div class="bar-buttons">
+            <button class="btn btn-secondary">Cancelar</button>
+            <button class="btn btn-primary">Salvar template</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+</div><!-- /mock-row 2 -->
+
+</body>
+</html>

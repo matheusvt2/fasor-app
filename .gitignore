@@ -1,0 +1,28 @@
+# Material bruto de cliente (fotos, áudios, vídeos, laudo original) - repo é público
+docs/context/
+docs/media/
+
+# Screenshots e logs de sessões do Playwright
+.playwright-mcp/
+
+# Config pessoal do BMAD (regenerada pelo installer)
+_bmad/config.user.toml
+_bmad/custom/config.user.toml
+
+# Claude Code local
+.claude/settings.local.json
+
+# Sistema / editores
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# Dependências e builds (para quando o app existir)
+node_modules/
+dist/
+build/
+.env
+.env.*
+!.env.example

@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRODUTO — Conta</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* Governs this mock:
+   DESIGN.md § Components › App bar, Sync badge, Banner (info variant: install prompt), Button (destructive = outline red, never a
+     fill; disabled/reasons as label text), Confirm dialog (referenced, not shown); § Brand & Style (theme: Sistema / Claro / Escuro,
+     manual override lives here); § Layout & Spacing (48px controls — office/settings surface, not glove-filled).
+   EXPERIENCE.md § IA › Account (name, theme, install on home screen when not installed, sign out, storage in use);
+     § Component Patterns › Banner (info), Button, Login form ("Sign out with pending sync warns via Confirm dialog");
+     § State Patterns › App not installed ("Instale PRODUTO na tela inicial para usar sem conexão" · Instalar / Agora não —
+     repeated from Account only), Photo pending upload (gallery/queue count), Storage low (referenced);
+     § Offline & Sync (visible state, never lose a photo); § Voice and Tone.
+   v0.6.0 [ASSUMPTION — reference tool 2026-09-18]: DESIGN.md § Components › Segmented control (Conselho: CREA · CRT), Toggle
+     (Localização nas fotos); EXPERIENCE.md § IA › Account › Registro profissional (council, number, title — prefill of Relatório setup ›
+     Responsável), › Localização nas fotos (default on; OS prompt at first capture; "Permissão negada no aparelho");
+     § Capture-to-Document › 7 (photo stamp), › 10 Conclusão (CREA/ART or CRT/TRT); § State Patterns › Location permission denied.
+   Page-only layout below (Segmented control and Settings row are in components.css — see report). */
+.account-name { display: flex; align-items: center; gap: var(--sp-4); margin-bottom: var(--sp-5); }
+.account-name .avatar { width: 56px; height: 56px; font-size: var(--t-title-size); }
+.account-name h2 { font-size: var(--t-title-size); font-weight: var(--t-title-weight); line-height: var(--t-title-lh); }
+.account-name p { font-size: var(--t-body-size); color: var(--ink-secondary); }
+.sign-out { display: flex; flex-direction: column; gap: var(--sp-2); align-items: flex-start; }
+.frame-phone .sign-out .btn { width: 100%; }
+.storage-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-1) var(--sp-3); }
+.reg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
+.reg-grid .span-2 { grid-column: 1 / -1; }
+.frame-phone .reg-grid { grid-template-columns: 1fr; }
+.frame-phone .reg-grid .span-2 { grid-column: auto; }
+.reg-grid .segmented { max-width: 320px; }
+</style>
+</head>
+<body class="mock-page">
+
+<!-- icon sprite (inline, currentColor) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
+  <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v12M6 10l6 6 6-6"/><path d="M4 20h16"/></symbol>
+</svg>
+
+<h1 class="mock-title">Conta — Bruno Matsui</h1>
+<p class="mock-sub">Superfície de configurações, sem fluxo próprio: nome e e-mail, registro profissional (Conselho CREA · CRT, número e título — preenche o responsável técnico do relatório com um toque), tema (Sistema / Claro / Escuro, controle segmentado), localização nas fotos (ligada por padrão; o aparelho pede permissão na primeira foto), "Instalar na tela inicial" (aparece só quando o app não está instalado, com o texto do Banner de State Patterns), armazenamento neste aparelho (1,2 GB · 31 fotos aguardando envio) e "Sair" em contorno vermelho com a nota sobre envios pendentes. Quadro 1: tablet retrato, 3 pendentes. Quadro 2: telefone, com a permissão de localização negada no aparelho.</p>
+
+<div class="mock-row">
+
+<!-- =============================================================== FRAME 1 — TABLET PORTRAIT, LIGHT -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Conta</b><span class="sep">·</span>tablet retrato 768×1024 · Bruno, app aberto no navegador (não instalado), 31 fotos aguardando envio · Registro profissional CREA · Localização nas fotos ligada<span class="sep">·</span>IA › Account · Segmented (Conselho: CREA · Tema: "Sistema") · Toggle (Localização nas fotos) · Banner info (App not installed) · Settings row · Button destructive + note · Photo pending upload (contagem)</p>
+
+  <div class="frame frame-tablet" data-theme="light">
+
+    <header class="app-bar">
+      <div class="app-bar-left">
+        <button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button>
+      </div>
+      <h1 class="app-bar-title">Conta</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="pending" aria-label="Sincronização: 3 pendentes. Abrir status"><span class="pill"><span class="dot" aria-hidden="true"></span>3 pendentes</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno" aria-current="page"><span class="avatar">B</span></button>
+      </div>
+    </header>
+
+    <main class="screen">
+      <div class="content">
+
+        <!-- Identity -->
+        <section class="section" aria-labelledby="h-id">
+          <h2 id="h-id" class="visually-hidden">Identificação</h2>
+          <div class="account-name">
+            <span class="avatar" aria-hidden="true">B</span>
+            <div>
+              <h2>Bruno Matsui</h2>
+              <p>bruno@fasor.eng.br</p>
+            </div>
+          </div>
+          <ul class="settings-list">
+            <li class="settings-row"><span class="grow"><span class="sr-label">Nome</span><br><span class="sr-value">Bruno Matsui</span></span><span class="btn-reason">Fornecido pela empresa</span></li>
+            <li class="settings-row"><span class="grow"><span class="sr-label">E-mail</span><br><span class="sr-value">bruno@fasor.eng.br</span></span><span class="btn-reason">Fornecido pela empresa</span></li>
+            <li class="settings-row"><span class="grow"><span class="sr-label">Empresa</span><br><span class="sr-value">Fasor Engenharia</span></span></li>
+          </ul>
+        </section>
+
+        <!-- Theme -->
+        <section class="section" aria-labelledby="h-tema">
+          <div class="section-head"><h2 id="h-tema">Tema</h2></div>
+          <p class="section-note">Segue a preferência do aparelho. Os dois temas mantêm o contraste para uso ao sol.</p>
+          <div class="segmented" role="radiogroup" aria-labelledby="h-tema">
+            <button class="seg" role="radio" aria-checked="true"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Sistema</button>
+            <button class="seg" role="radio" aria-checked="false"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Claro</button>
+            <button class="seg" role="radio" aria-checked="false"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Escuro</button>
+          </div>
+        </section>
+
+        <!-- Professional registration (prefills Relatório setup › Responsável técnico) -->
+        <section class="section" aria-labelledby="h-reg">
+          <div class="section-head"><h2 id="h-reg">Registro profissional</h2></div>
+          <p class="section-note">Preenche o responsável técnico ao criar um relatório — um toque em Dados do relatório. A ART ou TRT é por relatório.</p>
+          <div class="reg-grid">
+            <div class="field span-2">
+              <span class="field-label" id="reg-cons">Conselho</span>
+              <div class="segmented" role="radiogroup" aria-labelledby="reg-cons">
+                <button class="seg" role="radio" aria-checked="true"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>CREA</button>
+                <button class="seg" role="radio" aria-checked="false"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>CRT</button>
+              </div>
+            </div>
+            <div class="field">
+              <label class="field-label" for="reg-num">Número no CREA</label>
+              <div class="input tabular" id="reg-num">SP 0000000000</div>
+            </div>
+            <div class="field">
+              <label class="field-label" for="reg-tit">Título impresso</label>
+              <div class="input" id="reg-tit">Eng. Eletricista</div>
+              <span class="helper">Sugerido pelo conselho (CRT: Técnico(a) em Eletrotécnica); pode editar</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Location in photos -->
+        <section class="section" aria-labelledby="h-loc">
+          <div class="section-head"><h2 id="h-loc">Localização nas fotos</h2></div>
+          <div class="toggle-row">
+            <span><span class="toggle-label">Gravar a localização em cada foto</span><br><span class="toggle-sub">Data e hora são sempre gravadas</span></span>
+            <button class="toggle" role="switch" aria-checked="true" aria-label="Localização nas fotos" aria-describedby="loc-h"><span class="track" aria-hidden="true"><span class="knob"></span></span><span class="toggle-word">Ligada</span></button>
+          </div>
+          <p id="loc-h" style="margin-top: var(--sp-2)"><span class="helper">Grava as coordenadas na foto e imprime na seção 7 ("Imagem 5 · 06/09/2026 14:32 · −23,5505, −46,6333"). O aparelho pede permissão na primeira foto.</span></p>
+        </section>
+
+        <!-- Install (shown only when not installed) -->
+        <section class="section" aria-labelledby="h-instalar">
+          <div class="section-head"><h2 id="h-instalar">Instalar na tela inicial</h2></div>
+          <div class="banner" data-variant="info" role="region" aria-label="Instalação">
+            <span class="banner-text">Instale PRODUTO na tela inicial para usar sem conexão</span>
+            <span class="banner-actions">
+              <button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>Instalar</button>
+              <button class="btn btn-text">Agora não</button>
+            </span>
+          </div>
+          <p class="section-note" style="margin-top: var(--sp-2)">Instalado, o app abre e guarda os relatórios mesmo sem sinal dentro da cabine. Sem instalar, funciona enquanto houver conexão.</p>
+        </section>
+
+        <!-- Storage -->
+        <section class="section" aria-labelledby="h-storage">
+          <div class="section-head"><h2 id="h-storage">Armazenamento neste aparelho</h2></div>
+          <ul class="settings-list">
+            <li class="settings-row">
+              <span class="grow">
+                <span class="sr-label">Em uso</span><br>
+                <span class="storage-line"><span class="sr-value t-value">1,2 GB</span><span class="sr-value">· 2 relatórios · 118 fotos</span></span>
+              </span>
+            </li>
+            <li class="settings-row">
+              <span class="grow">
+                <span class="sr-label">Aguardando envio</span><br>
+                <span class="upload-pill" data-state="pending"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-up"/></svg>31 fotos aguardando envio</span>
+                <span class="sr-value" style="margin-left: var(--sp-2)">· 3 fichas</span>
+              </span>
+              <a class="btn btn-text" href="#">Ver status de sincronização<svg class="ico ico-sm" aria-hidden="true"><use href="#i-chev-right"/></svg></a>
+            </li>
+          </ul>
+          <p class="section-note" style="margin-top: var(--sp-2)">Fotos ficam neste aparelho até o servidor confirmar o recebimento. Relatórios emitidos são removidos daqui sozinhos.</p>
+        </section>
+
+        <!-- Sign out -->
+        <section class="section" aria-labelledby="h-sair">
+          <div class="section-head"><h2 id="h-sair">Sessão</h2></div>
+          <div class="sign-out">
+            <button class="btn btn-destructive" aria-describedby="sair-note">Sair</button>
+            <span class="btn-reason" id="sair-note">31 fotos e 3 fichas aguardando envio. Sair antes do envio pede confirmação; nada é apagado deste aparelho.</span>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- =============================================================== FRAME 2 — PHONE, LIGHT -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Conta</b><span class="sep">·</span>telefone 390 · mesmo estado, coluna única, botões na largura · Localização nas fotos: permissão negada no aparelho<span class="sep">·</span>Responsive & Platform › Phone · Segmented (Conselho) · Toggle + "Permissão negada no aparelho" · Banner info · Settings row · Button destructive</p>
+
+  <div class="frame frame-phone" data-theme="light">
+
+    <header class="app-bar">
+      <div class="app-bar-left">
+        <button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button>
+      </div>
+      <h1 class="app-bar-title">Conta</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="pending" aria-label="Sincronização: 3 pendentes. Abrir status"><span class="pill"><span class="dot" aria-hidden="true"></span>3 pendentes</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno" aria-current="page"><span class="avatar">B</span></button>
+      </div>
+    </header>
+
+    <main class="screen">
+      <div class="content">
+
+        <section class="section" aria-labelledby="h-id-p">
+          <h2 id="h-id-p" class="visually-hidden">Identificação</h2>
+          <div class="account-name">
+            <span class="avatar" aria-hidden="true">B</span>
+            <div>
+              <h2>Bruno Matsui</h2>
+              <p>bruno@fasor.eng.br</p>
+            </div>
+          </div>
+          <ul class="settings-list">
+            <li class="settings-row"><span class="grow"><span class="sr-label">Empresa</span><br><span class="sr-value">Fasor Engenharia</span></span><span class="btn-reason">Fornecido pela empresa</span></li>
+          </ul>
+        </section>
+
+        <section class="section" aria-labelledby="h-tema-p">
+          <div class="section-head"><h2 id="h-tema-p">Tema</h2></div>
+          <p class="section-note">Segue a preferência do aparelho.</p>
+          <div class="segmented" role="radiogroup" aria-labelledby="h-tema-p">
+            <button class="seg" role="radio" aria-checked="true"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Sistema</button>
+            <button class="seg" role="radio" aria-checked="false"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Claro</button>
+            <button class="seg" role="radio" aria-checked="false"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Escuro</button>
+          </div>
+        </section>
+
+        <!-- Professional registration (prefills Relatório setup › Responsável técnico) -->
+        <section class="section" aria-labelledby="h-reg-p">
+          <div class="section-head"><h2 id="h-reg-p">Registro profissional</h2></div>
+          <p class="section-note">Preenche o responsável técnico ao criar um relatório — um toque em Dados do relatório. A ART ou TRT é por relatório.</p>
+          <div class="reg-grid">
+            <div class="field span-2">
+              <span class="field-label" id="reg-cons-p">Conselho</span>
+              <div class="segmented" role="radiogroup" aria-labelledby="reg-cons-p">
+                <button class="seg" role="radio" aria-checked="true"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>CREA</button>
+                <button class="seg" role="radio" aria-checked="false"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>CRT</button>
+              </div>
+            </div>
+            <div class="field">
+              <label class="field-label" for="reg-num-p">Número no CREA</label>
+              <div class="input tabular" id="reg-num-p">SP 0000000000</div>
+            </div>
+            <div class="field">
+              <label class="field-label" for="reg-tit-p">Título impresso</label>
+              <div class="input" id="reg-tit-p">Eng. Eletricista</div>
+              <span class="helper">Sugerido pelo conselho (CRT: Técnico(a) em Eletrotécnica); pode editar</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Location in photos -->
+        <section class="section" aria-labelledby="h-loc-p">
+          <div class="section-head"><h2 id="h-loc-p">Localização nas fotos</h2></div>
+          <div class="toggle-row">
+            <span><span class="toggle-label">Gravar a localização em cada foto</span><br><span class="toggle-sub">Data e hora são sempre gravadas</span></span>
+            <button class="toggle" role="switch" aria-checked="true" aria-label="Localização nas fotos" aria-describedby="loc-h-p"><span class="track" aria-hidden="true"><span class="knob"></span></span><span class="toggle-word">Ligada</span></button>
+          </div>
+          <p id="loc-h-p" style="margin-top: var(--sp-2)"><span class="helper" data-tone="amber">Permissão negada no aparelho — as fotos saem sem coordenadas. Libere em Ajustes › Localização e o pino volta na próxima foto.</span></p>
+        </section>
+
+        <section class="section" aria-labelledby="h-instalar-p">
+          <div class="section-head"><h2 id="h-instalar-p">Instalar na tela inicial</h2></div>
+          <div class="banner" data-variant="info" role="region" aria-label="Instalação">
+            <span class="banner-text">Instale PRODUTO na tela inicial para usar sem conexão</span>
+            <span class="banner-actions">
+              <button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>Instalar</button>
+              <button class="btn btn-text">Agora não</button>
+            </span>
+          </div>
+        </section>
+
+        <section class="section" aria-labelledby="h-storage-p">
+          <div class="section-head"><h2 id="h-storage-p">Armazenamento neste aparelho</h2></div>
+          <ul class="settings-list">
+            <li class="settings-row">
+              <span class="grow">
+                <span class="sr-label">Em uso</span><br>
+                <span class="storage-line"><span class="sr-value t-value">1,2 GB</span><span class="sr-value">· 2 relatórios · 118 fotos</span></span>
+              </span>
+            </li>
+            <li class="settings-row">
+              <span class="grow">
+                <span class="sr-label">Aguardando envio</span><br>
+                <span class="upload-pill" data-state="pending"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-up"/></svg>31 fotos aguardando envio</span>
+                <span class="sr-value" style="margin-left: var(--sp-2)">· 3 fichas</span>
+              </span>
+            </li>
+          </ul>
+          <a class="btn btn-text" href="#" style="padding-left:0">Ver status de sincronização<svg class="ico ico-sm" aria-hidden="true"><use href="#i-chev-right"/></svg></a>
+        </section>
+
+        <section class="section" aria-labelledby="h-sair-p">
+          <div class="section-head"><h2 id="h-sair-p">Sessão</h2></div>
+          <div class="sign-out">
+            <button class="btn btn-destructive" aria-describedby="sair-note-p">Sair</button>
+            <span class="btn-reason" id="sair-note-p">31 fotos e 3 fichas aguardando envio. Sair antes do envio pede confirmação; nada é apagado deste aparelho.</span>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+</div><!-- /mock-row -->
+
+</body>
+</html>

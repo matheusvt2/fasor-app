@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRODUTO — Projeto (Porto Seguro)</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* Governs this mock:
+   DESIGN.md § Components › App bar, Sync badge, Status pill, Relatório card (as list row), Progress counter, Button, Combobox,
+     Confirm/Export dialog shell (reused as the "Novo relatório" form dialog), Sticky action bar (not used — dialog actions);
+     § Layout & Spacing (desktop gutter 32px, content-max 880px — the list takes the full width on desktop by decision, see report);
+     § Elevation (dialog is the only shadow); § Shapes.
+   EXPERIENCE.md § IA › Project ("Novo relatório a partir de template"; report-type slot with the single MVP option "Cabine primária"
+     pre-selected, no picker to build yet); § Component Patterns › Combobox, Status pill, Relatório card, Button (disabled + reason),
+     Confirm dialog (focus on Cancelar); § State Patterns › Empty Project (not shown); § Responsive & Platform (desktop = office
+     surface; tablet portrait stacks the row into the card layout); § Voice and Tone (placeholders with a real example);
+     § Inspiration › GroundPRO "Nova análise" (type slot kept, picker not built); Flow 1 step 5.
+   Page-only layout below (Relatório row and Form dialog are in components.css — see report). */
+.project-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-4); flex-wrap: wrap; margin-bottom: var(--sp-5); }
+.project-head h2 { font-size: var(--t-title-size); font-weight: var(--t-title-weight); line-height: var(--t-title-lh); }
+.project-head .crumbs { font-size: var(--t-meta-size); color: var(--ink-secondary); margin-bottom: var(--sp-1); display: flex; align-items: center; gap: var(--sp-1); flex-wrap: wrap; }
+.project-head .crumbs a { color: var(--primary); text-decoration: none; font-weight: 600; }
+.project-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--sp-3) var(--sp-5); margin-bottom: var(--sp-5); }
+.project-meta dt { font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--ink-secondary); }
+.project-meta dd { margin: 0; font-size: var(--t-body-size); }
+.frame-desktop .content { max-width: none; }
+.frame-tablet .project-head .btn { width: 100%; }
+.form-dialog .type-note { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+.form-dialog .option-row .radio { flex: none; }
+.form-dialog .combobox-list { list-style: none; margin: var(--sp-1) 0 0; padding: 0; }
+</style>
+</head>
+<body class="mock-page">
+
+<!-- icon sprite (inline, currentColor) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-chev-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20h4l11-11-4-4L4 16z"/><path d="M13 7l4 4"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M8 3v4M16 3v4"/></symbol>
+</svg>
+
+<h1 class="mock-title">Projeto — Porto Seguro Companhia de Seguros Gerais › Torres A e B</h1>
+<p class="mock-sub">Superfície de escritório: um cliente/obra e seus relatórios. Quadro 1: desktop 1280, lista de relatórios em linhas (status, datas, template, progresso) com o diálogo "Novo relatório" aberto por cima — o slot de tipo de relatório mostra "Cabine primária" pré-selecionado (única opção no MVP; a nota explica os tipos futuros), template em Combobox, datas. Quadro 2: tablet retrato, só a lista — as linhas empilham no layout do Relatório card.</p>
+
+<div class="mock-row">
+
+<!-- =============================================================== FRAME 1 — DESKTOP, LIGHT, DIALOG OPEN -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Projeto · Porto Seguro › Torres A e B</b><span class="sep">·</span>desktop 1280×800 · Bruno, notebook, semana anterior à parada · diálogo "Novo relatório" aberto sobre a lista<span class="sep">·</span>IA › Project · Relatório row · Status pill · Progress counter · Form dialog (tipo de relatório pré-selecionado · Combobox de template · datas) · Button + reason · Flow 1 passo 5</p>
+
+  <div class="frame frame-desktop frame--crop" data-theme="light">
+    <div class="browser-chrome"><span class="lights"><i></i><i></i><i></i></span><span class="url">PRODUTO</span></div>
+
+    <header class="app-bar">
+      <div class="app-bar-left">
+        <button class="icon-btn" aria-label="Voltar para Início"><svg class="ico"><use href="#i-back"/></svg></button>
+      </div>
+      <h1 class="app-bar-title">Porto Seguro Companhia de Seguros Gerais</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="ok" aria-label="Sincronização: sincronizado. Abrir status"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+
+    <main class="screen" aria-hidden="true"><!-- inert while the dialog is open -->
+      <div class="content">
+
+        <div class="project-head">
+          <div>
+            <p class="crumbs"><a href="#">Início</a><svg class="ico ico-sm" aria-hidden="true"><use href="#i-chev-right"/></svg><span>Porto Seguro Companhia de Seguros Gerais</span><svg class="ico ico-sm" aria-hidden="true"><use href="#i-chev-right"/></svg><span>Torres A e B</span></p>
+            <h2>Torres A e B</h2>
+          </div>
+          <button class="btn btn-primary"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Novo relatório a partir de template</button>
+        </div>
+
+        <dl class="project-meta">
+          <div><dt>Cliente</dt><dd>Porto Seguro Companhia de Seguros Gerais</dd></div>
+          <div><dt>Obra / local</dt><dd>Torres A e B — Alameda Barão de Piracicaba, 740 · São Paulo</dd></div>
+          <div><dt>Responsável</dt><dd>Rafael Lamonde</dd></div>
+          <div><dt>Relatórios</dt><dd>3 · último emitido em 24/03/2025</dd></div>
+        </dl>
+
+        <section class="section" aria-labelledby="h-relatórios">
+          <div class="section-head"><h2 id="h-relatórios">Relatórios desta obra</h2></div>
+          <div class="relatorio-list-head" aria-hidden="true"><span>Relatório</span><span>Status</span><span>Datas</span><span>Template</span><span>Progresso</span><span></span></div>
+          <ul class="relatorio-list">
+            <li><a class="relatorio-row" href="#">
+              <span class="lr-main"><span class="lr-title">Cabine primária — Torres A e B</span><span class="lr-sub">Rafael Lamonde · No aparelho · atualizado 21:40</span></span>
+              <span class="lr-state"><span class="status-pill" data-status="em-campo">Em campo</span></span>
+              <span class="lr-dates">06–08/09/2026</span>
+              <span class="lr-template lr-meta">Porto Seguro — Torres A e B</span>
+              <span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>42 de 94 fichas</span>
+              <span class="lr-chev"><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></span>
+            </a></li>
+            <li><a class="relatorio-row" href="#">
+              <span class="lr-main"><span class="lr-title">Cabine primária — Oxigênio</span><span class="lr-sub">Rafael Lamonde · No aparelho · atualizado 21:40</span></span>
+              <span class="lr-state"><span class="status-pill" data-status="rascunho">Rascunho</span></span>
+              <span class="lr-dates">10–11/09/2026</span>
+              <span class="lr-template lr-meta">Cabine primária — padrão</span>
+              <span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 12 fichas</span>
+              <span class="lr-chev"><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></span>
+            </a></li>
+            <li><a class="relatorio-row" href="#">
+              <span class="lr-main"><span class="lr-title">Cabine primária — Torres A e B</span><span class="lr-sub">Rafael Lamonde · Emitido em 24/03/2025 (revisão 1)</span></span>
+              <span class="lr-state"><span class="status-pill" data-status="emitido">Emitido</span></span>
+              <span class="lr-dates">12–14/03/2025</span>
+              <span class="lr-template lr-meta">Cabine primária — padrão</span>
+              <span class="progress-counter" data-state="complete"><span class="dot" aria-hidden="true"></span>88 de 88 fichas</span>
+              <span class="lr-chev"><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></span>
+            </a></li>
+          </ul>
+        </section>
+
+      </div>
+    </main>
+
+    <!-- ---------------- "Novo relatório" dialog ---------------- -->
+    <div class="dialog-scrim">
+      <div class="form-dialog" role="dialog" aria-modal="true" aria-labelledby="nl-title" aria-describedby="nl-desc">
+        <h2 class="dialog-title" id="nl-title">Novo relatório</h2>
+        <p class="t-body" id="nl-desc">Para <strong>Porto Seguro Companhia de Seguros Gerais · Torres A e B</strong>. Os dados da capa, os instrumentos e as exclusões vêm em seguida, em Dados do relatório.</p>
+
+        <!-- Report type slot: one option in the MVP, pre-selected; the slot exists for future types -->
+        <div class="field" role="radiogroup" aria-labelledby="nl-type-label" aria-describedby="nl-type-note">
+          <span class="field-label" id="nl-type-label">Tipo de relatório</span>
+          <div class="option-row is-selected" role="radio" aria-checked="true" tabindex="0">
+            <span class="radio is-on" aria-hidden="true"></span>
+            <span class="grow">Cabine primária<br><span class="lr-meta">Relatório de inspeção e ensaios em cabine primária de média tensão (FO.SERV-03)</span></span>
+          </div>
+          <span class="type-note" id="nl-type-note">Único tipo disponível nesta versão. Outros tipos (painel, SPDA) entram aqui quando existirem.</span>
+        </div>
+
+        <!-- Template combobox -->
+        <div class="field combobox is-open">
+          <span class="field-label" id="nl-tpl-label">Template</span>
+          <div class="input" role="combobox" aria-labelledby="nl-tpl-label" aria-expanded="true" aria-controls="nl-tpl-list">Porto Seguro — Torres A e B</div>
+          <span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+          <ul class="combobox-list" id="nl-tpl-list" role="listbox" aria-label="Templates">
+            <li class="combobox-option" role="option" aria-selected="true">Porto Seguro — Torres A e B<span class="option-meta">94 blocos</span></li>
+            <li class="combobox-option" role="option" aria-selected="false">Cabine primária — padrão<span class="option-meta">semente FO.SERV-03</span></li>
+          </ul>
+        </div>
+
+        <!-- Dates -->
+        <div class="field-pair">
+          <div class="field">
+            <span class="field-label" id="nl-d1-label">Início da parada</span>
+            <div class="input" role="textbox" aria-labelledby="nl-d1-label">06/09/2026<svg class="ico" aria-hidden="true" style="margin-left:auto;color:var(--ink-secondary)"><use href="#i-calendar"/></svg></div>
+          </div>
+          <div class="field">
+            <span class="field-label" id="nl-d2-label">Fim da parada</span>
+            <div class="input" role="textbox" aria-labelledby="nl-d2-label"><span class="placeholder">Ex: 08/09/2026</span><svg class="ico" aria-hidden="true" style="margin-left:auto;color:var(--ink-secondary)"><use href="#i-calendar"/></svg></div>
+          </div>
+        </div>
+
+        <div class="dialog-actions">
+          <span class="btn-reason" id="nl-reason" style="align-self:center;margin-right:auto">Criar relatório: falta a data de fim</span>
+          <button class="btn btn-secondary is-focus-ring">Cancelar</button>
+          <button class="btn btn-primary" aria-disabled="true" aria-describedby="nl-reason">Criar relatório</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</div><!-- /mock-row 1 -->
+
+<div class="mock-row">
+
+<!-- =============================================================== FRAME 2 — TABLET PORTRAIT, LIGHT, LIST ONLY -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Projeto · Porto Seguro › Torres A e B</b><span class="sep">·</span>tablet retrato 768×1024 · só a lista: cada linha empilha no layout do Relatório card, botão ocupa a largura<span class="sep">·</span>Responsive & Platform › Tablet · Relatório row (stacked) · Status pill · Progress counter · Button</p>
+
+  <div class="frame frame-tablet" data-theme="light">
+
+    <header class="app-bar">
+      <div class="app-bar-left">
+        <button class="icon-btn" aria-label="Voltar para Início"><svg class="ico"><use href="#i-back"/></svg></button>
+      </div>
+      <h1 class="app-bar-title">Porto Seguro Companhia de Seguros Gerais</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="ok" aria-label="Sincronização: sincronizado. Abrir status"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+
+    <main class="screen">
+      <div class="content">
+
+        <div class="project-head">
+          <div>
+            <p class="crumbs"><a href="#">Início</a><svg class="ico ico-sm" aria-hidden="true"><use href="#i-chev-right"/></svg><span>Porto Seguro Companhia de Seguros Gerais</span></p>
+            <h2>Torres A e B</h2>
+          </div>
+          <button class="btn btn-primary"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Novo relatório a partir de template</button>
+        </div>
+
+        <dl class="project-meta">
+          <div><dt>Cliente</dt><dd>Porto Seguro Companhia de Seguros Gerais</dd></div>
+          <div><dt>Obra / local</dt><dd>Torres A e B — Alameda Barão de Piracicaba, 740 · São Paulo</dd></div>
+          <div><dt>Responsável</dt><dd>Rafael Lamonde</dd></div>
+        </dl>
+
+        <section class="section" aria-labelledby="h-relatórios-t">
+          <div class="section-head"><h2 id="h-relatórios-t">Relatórios desta obra (3)</h2></div>
+          <ul class="relatorio-list">
+            <li><a class="relatorio-row" href="#">
+              <span class="lr-main"><span class="lr-title">Cabine primária — Torres A e B</span><span class="lr-sub">Template Porto Seguro — Torres A e B · Rafael Lamonde</span></span>
+              <span class="lr-dates">06–08/09/2026 · No aparelho · atualizado 21:40</span>
+              <span class="lr-state"><span class="status-pill" data-status="em-campo">Em campo</span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>42 de 94 fichas</span><span class="sync-badge is-compact" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></span></span>
+              <span class="lr-chev"><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></span>
+            </a></li>
+            <li><a class="relatorio-row" href="#">
+              <span class="lr-main"><span class="lr-title">Cabine primária — Oxigênio</span><span class="lr-sub">Template Cabine primária — padrão · Rafael Lamonde</span></span>
+              <span class="lr-dates">10–11/09/2026 · No aparelho · atualizado 21:40</span>
+              <span class="lr-state"><span class="status-pill" data-status="rascunho">Rascunho</span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 12 fichas</span><span class="sync-badge is-compact" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></span></span>
+              <span class="lr-chev"><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></span>
+            </a></li>
+            <li><a class="relatorio-row" href="#">
+              <span class="lr-main"><span class="lr-title">Cabine primária — Torres A e B</span><span class="lr-sub">Template Cabine primária — padrão · Rafael Lamonde</span></span>
+              <span class="lr-dates">12–14/03/2025 · Emitido em 24/03/2025 (revisão 1)</span>
+              <span class="lr-state"><span class="status-pill" data-status="emitido">Emitido</span><span class="progress-counter" data-state="complete"><span class="dot" aria-hidden="true"></span>88 de 88 fichas</span></span>
+              <span class="lr-chev"><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></span>
+            </a></li>
+          </ul>
+        </section>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+</div><!-- /mock-row 2 -->
+
+</body>
+</html>

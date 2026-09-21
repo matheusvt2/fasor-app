@@ -1,0 +1,141 @@
+<style data-screen="sync">
+/* Source: mockups/key-sync-status.html frame 1 (Sync status, tablet portrait) — reworked to v0.5.0.
+   Governs: EXPERIENCE.md § IA › Sync status; § Offline & Sync (visible state, "Último envio", conflict model per entity — sub-block merge
+   rules, reading queue); § Component Patterns › Sync status (headline + counts, "Como funciona" behind a link), Sync status row;
+   § State Patterns › Sync merge — sheet body, Sync conflict — cell contradiction, Sync conflict — structure, Reading arrived,
+   Sync error, Relatório downloading, Working (uploads); Flow 4 failure; Flow 6 steps 1–3. */
+[data-route="/sync"] .sync-headline { margin-bottom: var(--sp-4); }
+[data-route="/sync"] .sync-how { margin-top: var(--sp-1); }
+[data-route="/sync"] .sync-how > summary { display: inline-flex; align-items: center; gap: var(--sp-1); min-height: var(--touch-min); margin-left: calc(-1 * var(--sp-3)); padding: 0 var(--sp-3); cursor: pointer; list-style: none; color: var(--primary); font-size: var(--t-body-size); font-weight: 600; border-radius: var(--r-md); }
+[data-route="/sync"] .sync-how > summary::-webkit-details-marker { display: none; }
+[data-route="/sync"] .sync-how > summary .ico { width: 20px; height: 20px; transition: transform .15s; }
+[data-route="/sync"] .sync-how[open] > summary .ico { transform: rotate(180deg); }
+[data-route="/sync"] .sync-how .how-body { margin-top: var(--sp-2); padding: var(--sp-3) var(--sp-4); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); background: var(--surface-raised); font-size: var(--t-body-size); line-height: var(--t-body-lh); }
+[data-route="/sync"] .sync-how .how-body ul { margin: var(--sp-2) 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: var(--sp-1); }
+[data-route="/sync"] .sync-how .how-body p + p { margin-top: var(--sp-2); }
+[data-route="/sync"] .conflict-list { display: flex; flex-direction: column; gap: var(--sp-3); }
+[data-route="/sync"] .conflict-list .banner .banner-actions { flex-wrap: wrap; }
+[data-route="/sync"] .banner .banner-text .merged-word { display: block; font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--sync-ok); margin-bottom: 2px; }
+[data-route="/sync"] .sync-foot { margin-top: var(--sp-6); font-size: var(--t-meta-size); color: var(--ink-secondary); }
+[data-route="/sync"] .sync-row .photo-tile { flex: none; }
+[data-route="/sync"] .sync-row .sr-secondary .was { text-decoration: line-through; }
+[data-route="/sync"] .readings-banner > .ico { width: 24px; height: 24px; flex: none; }
+.frame-phone [data-route="/sync"] .sync-row { flex-wrap: wrap; }
+.frame-phone [data-route="/sync"] .sync-row .sr-body { flex-basis: calc(100% - var(--thumb-inline) - var(--sp-3)); }
+.frame-phone [data-route="/sync"] .sync-row .sr-state { align-items: flex-start; white-space: normal; }
+.frame-phone [data-route="/sync"] .sync-row .sr-state .progress-track { width: 160px; }
+.frame-phone [data-route="/sync"] .sync-headline .sh-counts { font-size: var(--t-meta-size); }
+</style>
+<section class="screen slice-screen" data-route="/sync" data-title="Sincronização" data-shell="app" data-rail="false" data-sync="conflict" data-sync-label="Conflito" data-slice="out" data-slice-note=" · FR-60">
+  <div class="content">
+
+    <!-- Headline + counts (G2): one line says what needs Bruno; details only below -->
+    <div class="sync-headline" data-tone="conflict" role="status">
+      <span class="sh-state"><span class="dot" aria-hidden="true"></span>Conflito</span>
+      <span class="sh-counts">1 contradição para resolver · 31 fotos enviando · 3 leituras prontas</span>
+      <details class="sync-how" id="sync-how">
+        <summary class="sh-how"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg>Como funciona a mesclagem</summary>
+        <div class="how-body">
+          <p>Dois aparelhos podem editar a mesma ficha. Na sincronização, cada sub-bloco é mesclado por regras fixas — nada é perguntado:</p>
+          <ul>
+            <li><strong>Preenchido vence vazio.</strong> Uma célula preenchida num aparelho completa a vazia no outro.</li>
+            <li><strong>NC vence C.</strong> Um item marcado Não conforme em qualquer aparelho fica Não conforme, com a observação e a foto dele.</li>
+            <li><strong>Fotos nunca se perdem.</strong> Vínculos de foto dos dois lados são mantidos; a galeria intercala por hora de captura.</li>
+            <li><strong>Texto: a edição mais recente vence.</strong> Observações, motivos e legendas; a outra versão continua legível aqui durante a sessão.</li>
+          </ul>
+          <p>Só uma <strong>contradição real</strong> — dois valores preenchidos e diferentes na mesma célula (duas leituras, duas conclusões, C contra NA) — pede decisão, célula a célula. Estrutura (blocos, ordem, legendas, pontos de atenção, dados do relatório) é mesclada sozinha; só remoção contra edição e TAG duplicada perguntam.</p>
+        </div>
+      </details>
+    </div>
+
+    <div class="sync-summary">
+      <span class="sync-badge is-compact" data-state="conflict"><span class="pill"><span class="dot" aria-hidden="true"></span>1 contradição · 2 de estrutura</span></span>
+      <span class="sync-badge is-compact" data-state="pending"><span class="pill"><span class="dot" aria-hidden="true"></span>3 fichas e 19 fotos aguardando envio</span></span>
+      <span class="sync-badge is-compact" data-state="error"><span class="pill"><span class="dot" aria-hidden="true"></span>1 erro</span></span>
+      <span class="sync-badge is-compact" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>3 leituras prontas · 2 na fila</span></span>
+    </div>
+
+    <!-- ---------------- Leituras prontas (State Patterns › Reading arrived) ---------------- -->
+    <section class="section" aria-labelledby="sync-h-leit">
+      <div class="section-head"><h2 id="sync-h-leit">Leituras</h2></div>
+      <div class="banner readings-banner" data-variant="info" role="status" id="sync-readings">
+        <svg class="ico" aria-hidden="true"><use href="#i-sparkles"/></svg>
+        <span class="banner-text"><strong>Leituras prontas: 3</strong> — placa da SEC-ENT (9 campos), visor da SEC-C05 (3 células), legenda da foto 20. Chegam como sugestões em âmbar; nada é gravado sem confirmação.</span>
+        <span class="banner-actions"><button class="btn btn-text" data-go="#/ficha/SEC-ENT"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Confirmar</button></span>
+      </div>
+      <ul class="sync-list" style="margin-top: var(--sp-3)">
+        <li class="sync-row"><span class="photo-tile is-inline" aria-hidden="true"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge">30</span></span></span><span class="sr-body"><span class="sr-primary">Placa de identificação — DJ-C13 · Coluna 13</span><span class="sr-secondary">Nº provisório 30 · 07/09 14:29 · Bruno · vai primeiro na fila de envio</span></span><span class="sr-state" data-tone="pending">Leitura na fila</span></li>
+        <li class="sync-row"><span class="photo-tile is-inline" aria-hidden="true"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge">29</span></span></span><span class="sr-body"><span class="sr-primary">Visor do microhmímetro — TC-C13 · resistência de contato</span><span class="sr-secondary">Nº provisório 29 · 07/09 14:21 · Bruno</span></span><span class="sr-state" data-tone="pending">Leitura na fila</span></li>
+      </ul>
+    </section>
+
+    <!-- ---------------- Enviando ---------------- -->
+    <section class="section" aria-labelledby="sync-h-env">
+      <div class="section-head"><h2 id="sync-h-env">Enviando</h2><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>12 de 31 fotos enviadas</span></div>
+      <p class="section-note">Fichas primeiro, fotos depois — fotos para leitura na frente. Continua sozinho quando houver sinal; nada sai deste aparelho até o servidor confirmar.</p>
+      <p class="field-label" style="margin-bottom: var(--sp-1)">Fichas (3)</p>
+      <ul class="sync-list">
+        <li class="sync-row"><span class="sr-body"><span class="sr-primary">DJ-C13 — Coluna 13 · Disjuntor MT</span><span class="sr-secondary">Alterada por Bruno · 07/09 14:31</span></span><span class="sr-state" data-tone="pending">Enviando…<span class="progress-track" aria-hidden="true"><i style="width:70%"></i></span></span></li>
+        <li class="sync-row"><span class="sr-body"><span class="sr-primary">TP-C13 — Coluna 13 · TP</span><span class="sr-secondary">Alterada por Bruno · 07/09 14:26</span></span><span class="sr-state" data-tone="pending">Aguardando envio</span></li>
+        <li class="sync-row"><span class="sr-body"><span class="sr-primary">TC-C13 — Coluna 13 · TC</span><span class="sr-secondary">Alterada por Bruno · 07/09 14:22</span></span><span class="sr-state" data-tone="pending">Aguardando envio</span></li>
+      </ul>
+      <p class="field-label" style="margin: var(--sp-4) 0 var(--sp-1)">Fotos (31)</p>
+      <ul class="sync-list">
+        <li class="sync-row"><span class="photo-tile is-inline" aria-hidden="true"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge">27</span></span></span><span class="sr-body"><span class="sr-primary">Detalhe dos contatos móvel e fixo do disjuntor DJ-C13 da Coluna 13 do 1° Subsolo</span><span class="sr-secondary">Nº provisório 27 · 07/09 14:30 · Bruno</span></span><span class="sr-state" data-tone="pending">Enviando… 62 %<span class="progress-track" aria-hidden="true"><i style="width:62%"></i></span></span></li>
+        <li class="sync-row"><span class="photo-tile is-inline" aria-hidden="true"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge">28</span></span></span><span class="sr-body"><span class="sr-primary">Detalhe do ensaio de resistência de contato realizado no disjuntor DJ-C13 da Coluna 13</span><span class="sr-secondary">Nº provisório 28 · 07/09 14:33 · Bruno</span></span><span class="upload-pill" data-state="pending"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-up"/></svg>Aguardando envio</span></li>
+        <li class="sync-row"><span class="photo-tile is-inline" aria-hidden="true"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge">18</span></span></span><span class="sr-body"><span class="sr-primary">Detalhe do ensaio de relação de transformação realizado no TP-C03 da Coluna 3</span><span class="sr-secondary">Nº provisório 18 · 06/09 14:40 · Bruno · rejeitada pelo servidor — a foto continua neste aparelho</span></span><button class="upload-pill" data-state="error" data-toast="Reenviando a foto 18 — o servidor confirma em instantes" aria-describedby="sync-ph18-why">Erro — Tentar novamente</button></li>
+        <li class="sync-row"><span class="sr-body"><span class="sr-secondary" id="sync-ph18-why">+ 16 fotos aguardando envio · 12 enviadas hoje</span></span></li>
+      </ul>
+    </section>
+
+    <!-- ---------------- Baixando ---------------- -->
+    <section class="section" aria-labelledby="sync-h-baix">
+      <div class="section-head"><h2 id="sync-h-baix">Baixando</h2></div>
+      <p class="section-note">Relatórios em Rascunho ou Em campo chegam sozinhos a este aparelho quando há conexão.</p>
+      <ul class="sync-list">
+        <li class="sync-row" data-go="#/project/porto-seguro"><span class="sr-body"><span class="sr-primary">Oxigênio — manutenção 2026</span><span class="sr-secondary">Porto Seguro · Torres A e B · Baixando… 12 de 30 fichas · 8 de 20 fotos</span></span><span class="sr-state" data-tone="pending">40 %<span class="progress-track" aria-hidden="true"><i style="width:40%"></i></span></span></li>
+      </ul>
+    </section>
+
+    <!-- ---------------- Último envio ---------------- -->
+    <section class="section" aria-labelledby="sync-h-ult">
+      <div class="section-head"><h2 id="sync-h-ult">Último envio</h2></div>
+      <p class="section-note">O servidor não sabe o que ainda está em outro aparelho; a hora do último envio é o sinal honesto.</p>
+      <ul class="sync-list">
+        <li class="sync-row"><span class="avatar" aria-hidden="true">B</span><span class="sr-body"><span class="sr-primary">Bruno</span><span class="sr-secondary">Este aparelho · tablet</span></span><span class="sr-state"><time datetime="2026-09-07T14:32">07/09 14:32</time></span></li>
+        <li class="sync-row"><span class="avatar" aria-hidden="true">E</span><span class="sr-body"><span class="sr-primary">Eduardo</span><span class="sr-secondary">Telefone</span></span><span class="sr-state"><time datetime="2026-09-06T18:10">06/09 18:10</time></span></li>
+      </ul>
+    </section>
+
+    <!-- ---------------- Decisões: the one cell contradiction opens the Conflict view; structure cases resolve in place ---------------- -->
+    <section class="section" aria-labelledby="sync-h-conf">
+      <div class="section-head"><h2 id="sync-h-conf">Decisões</h2><span class="sync-badge is-compact" data-state="conflict"><span class="pill"><span class="dot" aria-hidden="true"></span>3 aguardam decisão</span></span></div>
+      <p class="section-note">Fichas são mescladas por sub-bloco sozinhas (preenchido vence vazio · NC vence C · fotos nunca se perdem · texto: mais recente vence). Só contradições reais e dois casos de estrutura pedem decisão.</p>
+      <div class="conflict-list">
+        <div class="banner" data-variant="conflict" role="alert" id="sync-conf-sheet">
+          <span class="banner-text"><span class="merged-word">Mesclado automaticamente — 1 célula em contradição</span><strong>SEC-C12 · Coluna 12 · Seccionadora</strong> — Ensaio de isolação, Fase A a 1 minuto: <span class="tabular">3.300 MΩ</span> (você, Ler visor 14:05) · <span class="tabular">330 MΩ</span> (Eduardo, digitado 14:20). O resto da ficha já está mesclado.</span>
+          <span class="banner-actions"><button class="btn btn-text" data-go="#/sync/conflito">Resolver</button></span>
+        </div>
+        <div class="banner" data-variant="conflict" role="alert" id="sync-conf-struct">
+          <span class="banner-text"><strong>Remoção contra edição</strong> — DJ-C09 · Coluna 9 · Disjuntor MT: removido por você às 13:50, alterado por Eduardo às 14:12.</span>
+          <span class="banner-actions"><button class="btn btn-text" data-close="#sync-conf-struct" data-toast="DJ-C09 mantido na Coluna 9 com as alterações de Eduardo" data-toast-action="Desfazer">Manter</button><button class="btn btn-text" data-tone="red" data-close="#sync-conf-struct" data-toast="DJ-C09 removido — a edição de Eduardo fica recuperável" data-toast-action="Desfazer">Remover</button></span>
+        </div>
+        <div class="banner" data-variant="conflict" role="alert" id="sync-conf-tag">
+          <span class="banner-text"><strong>TAG duplicada</strong> — SEC-C09 foi criada em dois aparelhos (você às 11:40, Eduardo às 11:55). Manter as duas renomeia a mais recente para SEC-C09-2.</span>
+          <span class="banner-actions"><button class="btn btn-text" data-go="#/ficha/SEC-C05" data-toast="Renomeie a TAG na ficha — abrindo a mais recente">Renomear uma</button><button class="btn btn-text" data-close="#sync-conf-tag" data-toast="A ficha de Eduardo passou a SEC-C09-2" data-toast-action="Desfazer">Manter as duas</button></span>
+        </div>
+      </div>
+
+      <p class="field-label" style="margin: var(--sp-4) 0 var(--sp-1)">Mesclado automaticamente</p>
+      <ul class="sync-list">
+        <li class="sync-row"><span class="sr-body"><span class="sr-primary">SEC-C12: item 10 (Fusíveis) NC de Eduardo, com a foto 31, mesclado</span><span class="sr-secondary">07/09 14:20 · NC vence C — a sua marcação era C, sem foto</span></span><span class="sr-state" data-tone="ok">Mesclado</span></li>
+        <li class="sync-row"><span class="sr-body"><span class="sr-primary">SEC-C12: 5 leituras de Eduardo preencheram células vazias</span><span class="sr-secondary">Resistência de contato, fases A–C · preenchido vence vazio</span></span><span class="sr-state" data-tone="ok">Mesclado</span></li>
+        <li class="sync-row"><span class="sr-body"><span class="sr-primary">SEC-C12: observação do item 10 — versão de Eduardo, 14:20</span><span class="sr-secondary">A sua, 14:05: <span class="was">"Fusíveis sem sinais visíveis de aquecimento"</span> — legível aqui durante a sessão</span></span><span class="sr-state" data-tone="ok">Mesclado</span></li>
+        <li class="sync-row"><span class="sr-body"><span class="sr-primary">Eduardo adicionou TP-C09 em Coluna 9</span><span class="sr-secondary">07/09 14:18 · bloco novo, sem conflito</span></span><span class="sr-state" data-tone="ok">Mesclado</span></li>
+        <li class="sync-row"><span class="sr-body"><span class="sr-primary">Eduardo alterou a legenda da foto 22</span><span class="sr-secondary">07/09 14:15 · a edição mais recente prevalece</span></span><span class="sr-state" data-tone="ok">Mesclado</span></li>
+      </ul>
+    </section>
+
+    <p class="sync-foot">Última sincronização <time datetime="2026-09-07T14:35">07/09 14:35</time> · Tudo o que está neste aparelho fica salvo até o servidor confirmar. <button class="btn btn-text" data-toast="Sincronizando… fichas primeiro, fotos depois">Sincronizar agora</button></p>
+  </div>
+</section>

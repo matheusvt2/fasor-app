@@ -1,0 +1,103 @@
+<style data-screen="home">
+/* Source: mockups/key-home.html frame 1 (EXPERIENCE.md § Component Patterns › Relatório card, Status board; § IA › Home; Flow 1 step 7; Flow 2 "resume").
+   There is no hero component: the relatório *Em campo* on this device (Porto Seguro · Torres A e B) sorts first and carries
+   .is-current. The separate Continue card was removed on 2026-09-19 — review-mvp-scope S5. */
+[data-route="/home"] .home-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-4); }
+[data-route="/home"] .home-head h2 { font-size: var(--t-title-size); font-weight: var(--t-title-weight); line-height: var(--t-title-lh); }
+.frame-phone [data-route="/home"] .home-head .btn { width: 100%; }
+[data-route="/home"] .relatorio-cards { display: flex; flex-direction: column; gap: var(--sp-3); }
+[data-route="/home"] .relatorio-card { cursor: pointer; }
+[data-route="/home"] .relatorio-card .card-chev { color: var(--ink-secondary); flex: none; margin: -6px -6px 0 0; }
+[data-route="/home"] .section + .section { margin-top: var(--sp-5); }
+.frame-phone [data-route="/home"] .shortcut-row { grid-template-columns: 1fr; }
+[data-route="/home"] .shortcut-card { min-width: 0; }
+</style>
+<section class="screen" data-route="/home" data-title="Início" data-shell="app" data-rail="false">
+  <div class="content">
+
+    <!-- Status board -->
+    <section class="section" aria-labelledby="home-h-status">
+      <h2 id="home-h-status" class="visually-hidden">Relatórios por status</h2>
+      <div class="status-board" role="group" aria-label="Relatórios por status">
+        <button class="status-tile" data-go="#/relatorio/porto-seguro" aria-label="Rascunho, 1 relatório"><span class="tile-count">1</span><span class="status-pill" data-status="rascunho">Rascunho</span></button>
+        <button class="status-tile" data-go="#/relatorio/porto-seguro" aria-label="Em campo, 1 relatório"><span class="tile-count">1</span><span class="status-pill" data-status="em-campo">Em campo</span></button>
+        <button class="status-tile" data-go="#/relatorio/porto-seguro" aria-label="Em revisão, 1 relatório"><span class="tile-count">1</span><span class="status-pill" data-status="em-revisao">Em revisão</span></button>
+        <button class="status-tile" data-go="#/relatorio/porto-seguro" aria-label="Emitido, 5 relatórios"><span class="tile-count">5</span><span class="status-pill" data-status="emitido">Emitido</span></button>
+      </div>
+    </section>
+
+    <!-- Relatórios -->
+    <section class="section" aria-labelledby="home-h-relatórios">
+      <div class="home-head">
+        <h2 id="home-h-relatórios">Relatórios</h2>
+        <button class="btn btn-primary" data-go="#/project/porto-seguro"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Novo relatório</button>
+      </div>
+
+      <div class="relatorio-cards">
+
+        <!-- Em campo neste aparelho: sorts first and carries .is-current. This IS the hero — the separate
+             Continue card was removed on 2026-09-19 (review-mvp-scope S5) because it repeated this card
+             verbatim 700px above. One component, one place, still one tap to resume. -->
+        <div class="relatorio-card is-current" role="link" tabindex="0" data-go="#/relatorio/porto-seguro" aria-label="Porto Seguro Companhia de Seguros Gerais, Torres A e B, em campo, 42 de 94 fichas, abrir a árvore">
+          <div class="card-title"><span>Porto Seguro Companhia de Seguros Gerais · Torres A e B</span><svg class="ico card-chev" aria-hidden="true"><use href="#i-chev-right"/></svg></div>
+          <p class="card-meta">06–08/09/2026 · Template Porto Seguro — Torres A e B · 6 cabines</p>
+          <div class="card-state">
+            <span class="status-pill" data-status="em-campo">Em campo</span>
+            <span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>42 de 94 fichas</span>
+            <span class="sync-badge is-compact" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></span>
+          </div>
+          <div class="card-continue">
+            <button class="btn btn-primary" data-go="#/ficha/SEC-C05">Continuar: <span class="tabular">SEC-C05 · 42 de 94</span></button>
+            <button class="btn btn-text" data-go="#/relatorio/porto-seguro">Ver árvore</button>
+          </div>
+          <p class="card-device">No aparelho · atualizado <time datetime="2026-09-07T21:40">21:40</time></p>
+        </div>
+
+        <a class="relatorio-card" href="#/project/porto-seguro" aria-label="Porto Seguro Companhia de Seguros Gerais, Oxigênio, rascunho, 0 de 12 fichas, abrir o projeto">
+          <div class="card-title"><span>Porto Seguro Companhia de Seguros Gerais · Oxigênio</span><svg class="ico card-chev" aria-hidden="true"><use href="#i-chev-right"/></svg></div>
+          <p class="card-meta">10–11/09/2026 · Cabine primária — padrão</p>
+          <div class="card-state">
+            <span class="status-pill" data-status="rascunho">Rascunho</span>
+            <span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 12 fichas</span>
+            <span class="sync-badge is-compact" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></span>
+          </div>
+          <p class="card-device">No aparelho · atualizado <time datetime="2026-09-07T21:40">21:40</time></p>
+        </a>
+
+        <a class="relatorio-card" role="link" tabindex="0" data-toast="Só o relatório Porto Seguro · Torres A e B está prototipado" aria-label="Condomínio Edifício Alameda Jaú, Cabine 13,8 kV, em revisão, 38 de 38 fichas">
+          <div class="card-title"><span>Condomínio Edifício Alameda Jaú · Cabine 13,8 kV</span><svg class="ico card-chev" aria-hidden="true"><use href="#i-chev-right"/></svg></div>
+          <p class="card-meta">15–16/08/2026 · Cabine primária — padrão</p>
+          <div class="card-state">
+            <span class="status-pill" data-status="em-revisao">Em revisão</span>
+            <span class="progress-counter" data-state="complete"><span class="dot" aria-hidden="true"></span>38 de 38 fichas</span>
+            <span class="sync-badge is-compact" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></span>
+          </div>
+          <p class="card-device">Não está neste aparelho · baixa ao abrir</p>
+        </a>
+
+        <a class="relatorio-card" role="link" tabindex="0" data-toast="Só o relatório Porto Seguro · Torres A e B está prototipado" aria-label="Hospital Santa Clara, Subestação principal, emitido, revisão 2">
+          <div class="card-title"><span>Hospital Santa Clara · Subestação principal</span><svg class="ico card-chev" aria-hidden="true"><use href="#i-chev-right"/></svg></div>
+          <p class="card-meta">18–19/07/2026 · Cabine primária — padrão</p>
+          <div class="card-state">
+            <span class="status-pill" data-status="emitido">Emitido</span>
+            <span class="progress-counter" data-state="complete"><span class="dot" aria-hidden="true"></span>61 de 61 fichas</span>
+            <span class="sync-badge is-compact" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></span>
+          </div>
+          <p class="card-device">Emitido em <time datetime="2026-07-28">28/07</time> (revisão 2) · Não está neste aparelho · baixa ao abrir</p>
+        </a>
+
+      </div>
+      <p class="section-note" style="margin-top: var(--sp-3)">Mostrando 4 de 8 relatórios · <button class="btn btn-text" style="padding:0" data-toast="Lista completa — não prototipada">Ver todos</button></p>
+    </section>
+
+    <!-- Shortcuts -->
+    <section class="section" aria-labelledby="home-h-atalhos">
+      <h2 id="home-h-atalhos" class="visually-hidden">Atalhos</h2>
+      <div class="shortcut-row">
+        <a class="shortcut-card" href="#/templates"><svg class="ico" aria-hidden="true"><use href="#i-layers"/></svg><span>Templates<span class="shortcut-sub">2 templates · padrão FO.SERV-03</span></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev-right"/></svg></a>
+        <a class="shortcut-card" href="#/cadastros"><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg><span>Cadastros<span class="shortcut-sub">Clientes · Instrumentos · Fabricantes · Classes de tensão</span></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev-right"/></svg></a>
+      </div>
+    </section>
+
+  </div><!-- /content -->
+</section>

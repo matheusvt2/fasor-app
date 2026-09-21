@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRODUTO — Mocks</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* Gallery index — not product UI. Uses the mock canvas from components.css (.mock-page) plus a card grid.
+   Governs: nothing; it points at the files that illustrate DESIGN.md and EXPERIENCE.md. */
+.mock-page { max-width: 1400px; margin: 0 auto; }
+.idx-head { max-width: 900px; margin-bottom: var(--sp-6); }
+.idx-head h1 { font-size: 28px; font-weight: 600; line-height: 1.2; margin: 0 0 var(--sp-2); }
+.idx-head p { font-size: 15px; line-height: 1.5; color: #454B54; margin: 0 0 var(--sp-2); }
+.idx-head code { font-size: 14px; background: #EDEFF2; padding: 1px 5px; border-radius: 4px; }
+.idx-group { margin-bottom: var(--sp-7); }
+.idx-group h2 { font-size: 20px; font-weight: 600; margin: 0 0 var(--sp-1); }
+.idx-group .group-sub { font-size: 14px; color: #454B54; margin: 0 0 var(--sp-4); }
+.idx-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--sp-4); }
+.idx-card { display: flex; flex-direction: column; gap: var(--sp-3); background: #FFFFFF; border: 1px solid #C9CED6; border-radius: 12px; padding: var(--sp-4); color: #15181D; }
+.idx-card h3 { font-size: 18px; font-weight: 600; line-height: 1.3; margin: 0; }
+.idx-card h3 a { color: #1F4E79; text-decoration: none; }
+.idx-card h3 a:hover, .idx-card h3 a:focus-visible { text-decoration: underline; }
+.idx-card .file { font-size: 14px; color: #454B54; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.idx-card .frames { margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.45; color: #15181D; }
+.idx-card .frames li { margin-bottom: 4px; }
+.idx-card .frames li b { font-weight: 600; }
+.idx-card .spine { font-size: 14px; line-height: 1.45; color: #454B54; border-top: 1px solid #E3E6EA; padding-top: var(--sp-3); margin: 0; }
+.idx-card .spine b { color: #15181D; font-weight: 600; }
+.idx-card .open { margin-top: auto; display: inline-flex; align-items: center; min-height: 40px; padding: 0 14px; border: 2px solid #1F4E79; border-radius: 8px; color: #1F4E79; font-weight: 600; font-size: 15px; text-decoration: none; align-self: flex-start; }
+.idx-foot { font-size: 14px; color: #454B54; max-width: 900px; }
+.idx-foot code { font-size: 13px; background: #EDEFF2; padding: 1px 5px; border-radius: 4px; }
+</style>
+</head>
+<body class="mock-page">
+
+<header class="idx-head">
+  <h1>PRODUTO — mocks das superfícies</h1>
+  <p>Layouts estáticos de alta fidelidade (HTML + CSS, sem JS, sem rede) de todas as superfícies do spine de UX do <em>fasor</em>. O nome do produto ainda não foi confirmado; a UI mostra o placeholder literal <b>PRODUTO</b>.</p>
+  <p>Estes mocks <b>ilustram</b> <code>../DESIGN.md</code> (como parece) e <code>../EXPERIENCE.md</code> (como se comporta). Em qualquer conflito, os spines vencem e o mock é corrigido. Cada arquivo lista, no comentário de abertura do seu <code>&lt;style&gt;</code>, as seções que ele ilustra; cada quadro traz uma legenda com aparelho, estado e seções. Base compartilhada: <code>tokens.css</code> (frontmatter do DESIGN.md, temas claro e escuro) e <code>components.css</code> (um bloco por linha de § Components). Guia para renderizar novas telas: <code>MOCK-GUIDE.md</code>.</p>
+  <div class="slice-legend">
+    <b>Recorte do MVP.</b>
+    <span>Os mocks desenham o produto inteiro (PRD §7.1) e continuam completos — nada foi removido. O que <em>não</em> entra no slice de duas semanas (PRD §7.3) leva uma borda tracejada e a etiqueta <span class="slice-chip">pós-MVP</span> com o seu FR. No protótipo navegável o botão <b>Recorte do MVP</b> na barra de controles liga e desliga a marcação. Fora do slice hoje: FR-36 "Ler visor" · FR-40 ditado · FR-39 legendas por visão · FR-38 "Fotografar equipamento" · FR-75 rascunho de observação de NC · FR-58/59 merge e conflito · FR-60 tela de sincronização · PDF (o DOCX entra) · FR-14 salvar como template · FR-20 mover bloco · FR-12 editor de texto rico · FR-8 localização nas fotos. Detalhe em <code>MOCK-GUIDE.md</code> e em <code>../review-mvp-scope.md</code> (S2).</span>
+  </div>
+
+  <p>Dados de exemplo: cliente Porto Seguro Companhia de Seguros Gerais · Torres A e B · 06–08/09/2026 · instrumentos 2E / 3M / 1T (validades 28/08/2027 · 20/08/2027 · 20/08/2027) · usuários Bruno e Eduardo. Os demais clientes e o template arquivado são placeholders inventados pelos mocks (EXPERIENCE.md › Open Questions). CNPJs, endereço e números de registro no CRT são placeholders com zeros — nunca dados reais.</p>
+</header>
+
+<!-- ================================================================ OFFICE -->
+<section class="idx-group" aria-labelledby="g-office">
+  <h2 id="g-office">Superfícies de escritório</h2>
+  <p class="group-sub">Compor, preparar, revisar e emitir — desktop/notebook conectado; funcionam também no tablet.</p>
+  <div class="idx-grid">
+
+    <article class="idx-card">
+      <h3><a href="key-login.html">Login</a></h3>
+      <span class="file">key-login.html</span>
+      <ul class="frames">
+        <li><b>Login</b> · tablet retrato 768×1024 · sem sessão, com conexão, senha em foco</li>
+        <li><b>Login</b> · telefone 390 · senha incorreta: erro inline sob o campo, <code>role=alert</code></li>
+        <li><b>Login</b> · telefone 390 · abertura a frio sem sessão e sem conexão: linha explicativa, botão desabilitado com motivo</li>
+      </ul>
+      <p class="spine"><b>DESIGN</b> § Components › Login form, Button · <b>EXPERIENCE</b> § IA › Login · § State Patterns › Cold open (no session / offline) · § Accessibility Floor › errors associated · Flow 1 passo 1</p>
+      <a class="open" href="key-login.html">Abrir</a>
+    </article>
+
+    <article class="idx-card">
+      <h3><a href="key-home.html">Início (Home)</a></h3>
+      <span class="file">key-home.html</span>
+      <ul class="frames">
+        <li><b>Início</b> · tablet retrato 768×1024 · tema claro · Bruno, escritório, tudo sincronizado</li>
+        <li><b>Início</b> · tablet retrato · tema escuro (Conta › Tema › Escuro) · mesmo estado</li>
+        <li><b>Início</b> · telefone 390 · abertura a frio com sessão e sem conexão; relatório que não está no aparelho em cinza</li>
+      </ul>
+      <p class="spine"><b>DESIGN</b> § Brand &amp; Style · § Colors (pares -dark) · § Components › App bar, Sync badge, Status board, Relatório card, Status pill, Progress counter, Shortcut card, Toast · <b>EXPERIENCE</b> § IA › Home · § State Patterns › Cold open session offline, Relatório not on device · § Offline &amp; Sync · Flow 1 passo 7, Flow 2 passo 1</p>
+      <a class="open" href="key-home.html">Abrir</a>
+    </article>
+
+    <article class="idx-card">
+      <h3><a href="key-project.html">Projeto</a></h3>
+      <span class="file">key-project.html</span>
+      <ul class="frames">
+        <li><b>Projeto</b> · Porto Seguro › Torres A e B · desktop 1280×800 · diálogo "Novo relatório" aberto sobre a lista</li>
+        <li><b>Projeto</b> · tablet retrato 768×1024 · só a lista: cada linha empilha no layout do Relatório card</li>
+      </ul>
+      <p class="spine"><b>DESIGN</b> § Components › Relatório row, Form dialog, Status pill, Progress counter, Button + reason · <b>EXPERIENCE</b> § IA › Project (tipo de relatório pré-selecionado) · § Component Patterns › Relatório row, Form dialog · § Responsive › Tablet · Flow 1 passo 5</p>
+      <a class="open" href="key-project.html">Abrir</a>
+    </article>
+
+    <article class="idx-card">
+      <h3><a href="key-relatorio-setup.html">Dados do relatório (Relatório setup)</a></h3>
+      <span class="file">key-relatorio-setup.html</span>
+      <ul class="frames">
+        <li><b>Dados do relatório</b> · Etapas 1–5 · navegador 1280 · rascunho, salvo automaticamente · Conselho CREA (do perfil) · banda "Conclusão e parecer": Apto com restrições escolhido, resumo gerado a confirmar, como imprime na seção 10</li>
+        <li><b>Dados do relatório</b> · Etapas 1–2 · tablet retrato 768×1024 · mesma página, uma coluna, metade superior</li>
+        <li><b>Dados do relatório</b> · Responsável técnico · CRT · telefone 390 · rótulos CRT/TRT, título Técnico(a) em Eletrotécnica, echo "…acompanhada da TRT …"</li>
+      </ul>
+      <p class="spine"><b>DESIGN</b> § Components › Section band, Combobox, Segmented control (Conselho), Conclusion control (verdict), Suggestion field › Generated text + Criteria line, Parecer box, Checkbox, Registry row (Vencida), Sticky action bar · <b>EXPERIENCE</b> § IA › Relatório setup › Responsável, › Conclusão e parecer · § Smart Input › Generated conclusion text, › Parecer · § Capture-to-Document › Capa, 1 Objetivo, 3 Limite de escopo, 10 Conclusão (Parecer, ART/TRT), 11 Certificados, › Controle do documento · § State Patterns › Calibration expired · Flow 1 passo 5 · Flow 5 passo 0</p>
+      <a class="open" href="key-relatorio-setup.html">Abrir</a>
+    </article>
+
+    <article class="idx-card">
+      <h3><a href="key-templates.html">Templates</a></h3>
+      <span class="file">key-templates.html</span>
+      <ul class="frames">
+        <li><b>Templates</b> · lista · navegador 1280 · 2 ativos, 1 arquivado</li>
+        <li><b>Templates</b> · lista · tablet retrato 768 · mesma lista, ações abaixo do texto</li>
+      </ul>
+      <p class="spine"><b>DESIGN</b> § Components › Registry row, Button · <b>EXPERIENCE</b> § IA › Templates · § Block Model › Template · § State Patterns › Empty (Templates) · Flow 1 passo 3</p>
+      <a class="open" href="key-templates.html">Abrir</a>
+    </article>
+
+    <article class="idx-card">
+      <h3><a href="key-template-composer.html">Compor template</a></h3>
+      <span class="file">key-template-composer.html</span>
+      <ul class="frames">
+        <li><b>Compor template</b> · navegador 1280 · paleta com Quantity stepper à esquerda, composição em Block cards à direita, "1 Objetivo" aberto no Rich text editor (variáveis como fichas), seccionadora expandida</li>
+        <li><b>Compor template</b> · tablet paisagem 1024×768 · paleta em 320px, composição ao lado, menu da seção "2 Definições" aberto (Adicionar abaixo · Subir · Descer · Duplicar · Remover)</li>
+      </ul>
+      <p class="spine"><b>DESIGN</b> § Components › Block palette, Quantity stepper, Block card, Overflow menu (seções), Rich text editor, Toggle, Tri-state (NA padrão), Sticky action bar · <b>EXPERIENCE</b> § IA › Template composer · § Block Model › Template, Sub-block ownership · § Component Patterns › Rich text editor, Overflow menu · § Interaction Primitives › Reorder · § Responsive › tablet landscape / desktop · Flow 1 passo 4</p>
+      <a class="open" href="key-template-composer.html">Abrir</a>
+    </article>
+
+    <article class="idx-card">
+      <h3><a href="key-registries.html">Cadastros (Registries)</a></h3>
+      <span class="file">key-registries.html</span>
+      <ul class="frames">
+        <li><b>Cadastros</b> · Empresa · desktop 1280×800 · razão social, CNPJ, endereço, logo, fundo de capa, marca d'água, código e revisão do formulário · Brand preview à direita</li>
+        <li><b>Cadastros</b> · Instrumentos · 2E em edição · desktop 1280×800 · 4 instrumentos, 1 com calibração vencida (primeiro)</li>
+        <li><b>Cadastros</b> · Instrumentos no tablet · fabricante criado inline · tablet retrato 768 · sem conexão</li>
+        <li><b>Cadastros</b> · Critérios de aceitação · desktop 1280×800 · somente leitura no MVP</li>
+      </ul>
+      <p class="spine"><b>DESIGN</b> § Components › Tabs (Empresa primeira), Brand preview, Toggle, Registry row, Combobox, Measurement field, Data table (read-only), Button (destrutivo com motivo) · § Brand &amp; Style (a marca só dentro do documento) · <b>EXPERIENCE</b> § IA › Registries · § Registries › Empresa, Instruments, Manufacturers inline, Acceptance criteria · § Capture-to-Document › 0 Capa, Controle do documento · § State Patterns › Offline write, Calibration expired · Flow 1 passo 2 · Flow 5 passo 0</p>
+      <a class="open" href="key-registries.html">Abrir</a>
+    </article>
+
+    <article class="idx-card">
+      <h3><a href="key-export.html">Gerar relatório (Export)</a></h3>
+      <span class="file">key-export.html</span>
+      <ul class="frames">
+        <li><b>Gerar relatório</b> · desktop 1280×800 · pré-verificação informativa (parecer preenchido), Controle do documento com a Rev. 3 e "Editar em Dados do relatório", Seção 9 por local e tipo, Rev. 1 e Rev. 2 listadas</li>
+        <li><b>Gerar relatório</b> · diálogo · parecer não preenchido · tablet retrato 768 (quadro alto) · modal sobre a visão do relatório, item bloqueante, botão desabilitado com motivo, Controle do documento compacto</li>
+        <li><b>Gerar relatório</b> · falha na geração · tablet retrato · erro inline, nenhum número de revisão consumido</li>
+        <li><b>Gerar relatório</b> · gerando · tablet retrato · botões desabilitados com motivo, pode fechar</li>
+        <li><b>Gerar relatório</b> · resultado · telefone 390 · Export em tela cheia, revisão 3 pronta</li>
+      </ul>
+      <p class="spine"><b>DESIGN</b> § Components › Export dialog, Document control table, Button + reason, Relatório tree (rail), Toast · § Elevation (scrim) · <b>EXPERIENCE</b> § IA › Export · § Capture-to-Document › Controle do documento, Section 9, Export revisions, 10 Conclusão › Parecer · § Registries › Empresa (contratada) · § State Patterns › Working, Generation failed · § Accessibility Floor › dialogs · Flow 5</p>
+      <a class="open" href="key-export.html">Abrir</a>
+    </article>
+
+    <article class="idx-card">
+      <h3><a href="key-account.html">Conta (Account)</a></h3>
+      <span class="file">key-account.html</span>
+      <ul class="frames">
+        <li><b>Conta</b> · tablet retrato 768×1024 · app aberto no navegador (não instalado), 31 fotos aguardando envio · Registro profissional (CREA, número, título) · Localização nas fotos ligada</li>
+        <li><b>Conta</b> · telefone 390 · mesmo estado, coluna única · Localização nas fotos: "Permissão negada no aparelho"</li>
+      </ul>
+      <p class="spine"><b>DESIGN</b> § Components › Segmented control (Conselho · Tema), Toggle (Localização nas fotos), Settings row, Banner (info), Button destructive + note · <b>EXPERIENCE</b> § IA › Account › Registro profissional, › Localização nas fotos · § Foundation › Theme · § Capture-to-Document › 7 (photo stamp), 10 (CREA/ART · CRT/TRT) · § State Patterns › App not installed, Location permission denied · § Component Patterns › Login form (sign out with pending sync)</p>
+      <a class="open" href="key-account.html">Abrir</a>
+    </article>
+
+  </div>
+</section>
+
+<!-- ================================================================ FIELD -->
+<section class="idx-group" aria-labelledby="g-field">
+  <h2 id="g-field">Superfícies de campo</h2>
+  <p class="group-sub">Preencher, fotografar e ajustar — tablet (primário) e telefone, normalmente sem sinal.</p>
+  <div class="idx-grid">
+
+    <article class="idx-card">
+      <h3><a href="key-relatorio-overview.html">Relatório (árvore do relatório)</a></h3>
+      <span class="file">key-relatorio-overview.html</span>
+      <ul class="frames">
+        <li><b>Relatório</b> · árvore + cabine Cubículo Enel · tablet paisagem 1024×768 · trilho 320 com a árvore, dados da cabine e seus blocos</li>
+        <li><b>Relatório</b> · árvore + Paleta de blocos · tablet retrato 768 · trilho recolhido (faixa de 48px), paleta como gaveta à direita</li>
+        <li><b>Relatório</b> · árvore + Paleta de blocos · telefone 390 · árvore como superfície própria, paleta como folha inferior</li>
+      </ul>
+      <p class="spine"><b>DESIGN</b> § Layout &amp; Spacing (rail, collapsed rail) · § Components › Relatório tree, Block card, Block palette, Toggle, Not-tested chip, Progress counter · <b>EXPERIENCE</b> § IA › Relatório overview, Block palette · § Block Model › Location, 8 tipos · § Capture-to-Document › Agrupar por tipo · § Responsive › tablet portrait / phone · Flow 1 passos 6–7, Flow 3 passo 2</p>
+      <a class="open" href="key-relatorio-overview.html">Abrir</a>
+    </article>
+
+    <article class="idx-card">
+      <h3><a href="key-equipment-sheet.html">Ficha do equipamento — referência</a></h3>
+      <span class="file">key-equipment-sheet.html</span>
+      <ul class="frames">
+        <li><b>Ficha do equipamento</b> · SEC-C05 · tablet retrato 768×1024 · em preenchimento, 3 obrigatórios faltando, sem conexão · "Texto da conclusão" gerado da ficha (Sugerido, linha de critérios, Confirmar · Editar · Substituir · ditar) · fotos com hora e pino</li>
+        <li><b>Ficha do equipamento</b> · SEC-C05 · telefone 390 · checklist com controle abaixo do nome, ensaio como cartões empilhados</li>
+        <li><b>Ficha do equipamento</b> · SEC-C05 · tablet retrato, tema escuro, metade superior</li>
+      </ul>
+      <p class="spine"><b>DESIGN</b> § Components (rendering de referência: Sheet header, Nameplate extraction, Tri-state, Checklist row com NC expandido, Instrument picker, Measurement field/table, Conclusion control, Suggestion field › Generated text + Criteria line, Dictation button, Observation field, Chip, Photo tile + Photo stamp, Sticky action bar) · § Colors (frame escuro) · <b>EXPERIENCE</b> § IA › Equipment sheet · § Smart Input › Generated conclusion text · § Capture-to-Document › 9 (linha Conclusão da ficha) · § Component Patterns · § Responsive › Phone · Flow 2 passos 3–7, Flow 2b passo 3</p>
+      <a class="open" href="key-equipment-sheet.html">Abrir</a>
+    </article>
+
+    <article class="idx-card">
+      <h3><a href="key-photos.html">Fotos e legendas</a></h3>
+      <span class="file">key-photos.html</span>
+      <ul class="frames">
+        <li><b>Galeria de fotos</b> · tablet retrato 768×1024 · 12 fotos, 1 aguardando envio, 1 erro, 1 sem legenda, 1 sem localização · hora + pino em cada foto</li>
+        <li><b>Photo capture sheet</b> · sobre a galeria · telefone 390×844 · Eduardo, sem conexão</li>
+        <li><b>Caption composer</b> · foto 13 dos cabos de entrada · tablet retrato · Equipamento e Local pré-preenchidos</li>
+        <li><b>Photo viewer</b> · foto 9 · telefone 390×844 · foto aguardando envio, legenda editável, "Remover" recuperável · carimbo completo "Imagem 9 · 06/09/2026 14:05 · −23,5505, −46,6333"</li>
+        <li><b>Photo viewer</b> · foto 14 · vinculada ao item 8 · telefone 390×844 · carimbo completo + linha "Item 8 · Contatos · NC"</li>
+      </ul>
+      <p class="spine"><b>DESIGN</b> § Components › Photo tile, Photo stamp, Filter chip (selectable), Photo capture sheet, Caption composer, Photo viewer · § Elevation (única sombra) · <b>EXPERIENCE</b> § IA › Photo capture &amp; gallery · § Capture-to-Document › 7 Registro fotográfico (carimbo data/hora/GPS, status do item) · § State Patterns › Photo pending / rejected, Camera permission denied, Location permission denied · Flow 2 passo 5, Flow 4</p>
+      <a class="open" href="key-photos.html">Abrir</a>
+    </article>
+
+    <article class="idx-card">
+      <h3><a href="key-points-of-attention.html">Pontos de atenção</a></h3>
+      <span class="file">key-points-of-attention.html</span>
+      <ul class="frames">
+        <li><b>Pontos de atenção</b> · lista · tablet retrato 768×1024 · 3 pontos + 1 automático · Priority pills P2 · P3</li>
+        <li><b>Ponto de atenção</b> · em edição · telefone 390 · Priority picker aberto (P0–P4 com os dias sugeridos), Prazo sugerido pela prioridade</li>
+        <li><b>Pontos de atenção</b> · revisão no escritório · desktop 1280×800 · árvore do relatório persistente · "Como imprime na seção 8": tabela do plano de ação</li>
+      </ul>
+      <p class="spine"><b>DESIGN</b> § Components › Point of attention card, Priority pill, Priority picker, Suggestion field (Prazo), Drag handle, Overflow menu, Chip, Observation field, Photo tile 64px, Not-tested chip, Data table (plano de ação) · <b>EXPERIENCE</b> § IA › Points of attention · § Component Patterns › Priority picker · § Capture-to-Document › 8 Pontos de atenção (tabela do plano de ação) · § Interaction Primitives › Reorder · Flow 5 passo 3</p>
+      <a class="open" href="key-points-of-attention.html">Abrir</a>
+    </article>
+
+  </div>
+</section>
+
+<!-- ================================================================ OVERLAYS & STATES -->
+<section class="idx-group" aria-labelledby="g-states">
+  <h2 id="g-states">Sobreposições e estados</h2>
+  <p class="group-sub">Estados alternativos das superfícies acima, diálogos, toasts, sincronização e conflitos.</p>
+  <div class="idx-grid">
+
+    <article class="idx-card">
+      <h3><a href="key-sheet-states.html">Ficha do equipamento — estados</a></h3>
+      <span class="file">key-sheet-states.html</span>
+      <ul class="frames">
+        <li><b>(a) Ficha não ensaiada</b> · DJ-C14 · tablet retrato, recorte · faixa com o motivo, campos somente leitura, Desfazer</li>
+        <li><b>(b) Leitura de placa</b> · sugestões prontas · SEC-ENT · 5 campos sugeridos em âmbar, 2 digitados intactos, 1 não lido</li>
+        <li><b>(b′) Leitura de placa</b> · sem conexão · foto guardada e na fila, botão continua ativo</li>
+        <li><b>(b″) Leitura de placa</b> · falhou · foto mantida, nada gravado, dois caminhos</li>
+        <li><b>(c) Primeira ficha da cabine</b> · Cabos de entrada — Cubículo Enel · bloco da SE herdado da cabine</li>
+        <li><b>(d) Rascunho encontrado</b> · relatório já emitido · TP-C16 · Banner de aviso e Toast persistente</li>
+        <li><b>(e) Remover ficha</b> · confirmação · SEC-C09 · telefone 390 · Confirm dialog, foco inicial em Cancelar</li>
+        <li><b>(e′) Ficha removida</b> · Desfazer · telefone 390 · Toast de desfazer persistente</li>
+      </ul>
+      <p class="spine"><b>DESIGN</b> § Components › Not-tested chip, Read-only field, Nameplate extraction, Banner, Toast, Confirm dialog · <b>EXPERIENCE</b> § State Patterns › Not tested, Nameplate suggestions pending / offline / failed, Draft found, Relatório exported then edited · § Block Model › Location · § Interaction Primitives › Undo · Flow 2 passo 2, Flow 2b, Flow 3 failure, Flow 5 passo 2</p>
+      <a class="open" href="key-sheet-states.html">Abrir</a>
+    </article>
+
+    <article class="idx-card">
+      <h3><a href="key-sync-status.html">Sincronização e conflitos</a></h3>
+      <span class="file">key-sync-status.html</span>
+      <ul class="frames">
+        <li><b>Sincronização</b> · Sync status · tablet retrato 768×1024 · badge Conflito · 3 fichas e 31 fotos enviando (1 com erro), 1 relatório baixando, 3 conflitos</li>
+        <li><b>Conflict view</b> · Ver as duas · tablet paisagem 1024×768 · diálogo somente leitura sobre a ficha SEC-C12</li>
+        <li><b>Sync badge</b> · cinco estados + Banners globais · telefone 390 · Banner de espaço (warning) e de instalação (info)</li>
+      </ul>
+      <p class="spine"><b>DESIGN</b> § Colors › Sync states · § Components › Sync badge, Sync status row, Banner (conflict, warning, info), Conflict view, Photo tile (upload pill) · <b>EXPERIENCE</b> § IA › Sync status · § Offline &amp; Sync · § State Patterns › Sync error, Sync conflict (sheet, structure), Relatório downloading, Working, Storage low, App not installed · Flow 4 failure, Flow 6</p>
+      <a class="open" href="key-sync-status.html">Abrir</a>
+    </article>
+
+  </div>
+</section>
+
+<footer class="idx-foot">
+  <p>Renderiza a partir de <code>file://</code>. Sem webfonts: os quadros usam Inter se instalada, senão Roboto / Segoe UI / system-ui. Legendas no formato <i>Superfície — assunto · aparelho, estado · seções do spine</i>. Os quadros crescem com o conteúdo (estilo Figma); os recortados (<code>frame--crop</code>) mostram só a região relevante.</p>
+</footer>
+
+</body>
+</html>

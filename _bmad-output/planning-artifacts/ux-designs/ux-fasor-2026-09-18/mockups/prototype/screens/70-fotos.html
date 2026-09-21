@@ -1,0 +1,465 @@
+<style data-screen="fotos">
+/* Source: mockups/key-photos.html frame 1 (gallery), frame 2 (Photo capture sheet), frame 4 (Photo viewer) — reworked to v0.5.0.
+   Governs: EXPERIENCE.md § Smart Input › Photos (camera direct, silent context caption, LLM caption on sync, batch
+   "12 legendas sugeridas — Confirmar todas"); § Component Patterns › Camera capture button, Photo capture sheet (secondary),
+   Photo tile, Photo viewer, Suggestion field, Chip (filter); Transformation row 7; Flow 4 steps 2–4.
+   Suggested captions are Suggestion fields (block variant) on the tile; "Confirmar todas" toggles .is-all-confirmed on #fotos-sug
+   and confirms every "Sugerido" one, never the "Verificar" one (provenance rule). The shutter of the direct camera reveals a new
+   tile (#fotos-new) already carrying its context caption. */
+/* One column on phone and tablet portrait (the suggested caption + "Confirmar" needs the width); two on landscape/desktop */
+[data-route="/relatorio/porto-seguro/fotos"] .gallery-grid { display: grid; grid-template-columns: 1fr; gap: 0 var(--sp-5); margin-top: var(--sp-3); }
+.frame-tablet-landscape [data-route="/relatorio/porto-seguro/fotos"] .gallery-grid, .frame-desktop [data-route="/relatorio/porto-seguro/fotos"] .gallery-grid { grid-template-columns: 1fr 1fr; }
+[data-route="/relatorio/porto-seguro/fotos"] .gallery-grid .photo-row { min-width: 0; border-top: 0; border-bottom: 1px solid var(--border-hairline); }
+[data-route="/relatorio/porto-seguro/fotos"] .gallery-day { grid-column: 1 / -1; font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--ink-secondary); padding: var(--sp-4) 0 var(--sp-1); }
+[data-route="/relatorio/porto-seguro/fotos"] .gallery-day:first-child { padding-top: 0; }
+[data-route="/relatorio/porto-seguro/fotos"] #fotos-new { display: contents; }
+/* Filter chips are a radio group here: proto.js marks the chosen one aria-checked (same drawing as the selectable Filter chip) */
+[data-route="/relatorio/porto-seguro/fotos"] .chip[aria-checked="true"] { background: var(--focus-fill); border-color: var(--primary); color: var(--primary); }
+[data-route="/relatorio/porto-seguro/fotos"] .photo-tile { cursor: pointer; }
+/* D6 — Photo viewer shows the full stamp (date, time, coordinates) and the line printed under the image in section 7 */
+[data-route="/relatorio/porto-seguro/fotos"] .photo-viewer .viewer-stamp { display: inline-flex; align-items: center; gap: var(--sp-1); color: #FFFFFF; font-variant-numeric: tabular-nums; }
+[data-route="/relatorio/porto-seguro/fotos"] .photo-viewer .viewer-stamp .ico { width: 16px; height: 16px; }
+[data-route="/relatorio/porto-seguro/fotos"] .photo-viewer .viewer-print { flex-basis: 100%; color: #B6BCC6; }
+.frame-phone [data-route="/relatorio/porto-seguro/fotos"] .section-head .progress-counter { white-space: normal; }
+/* Suggestions banner (after sync): sparkles glyph + count + "Confirmar todas" */
+[data-route="/relatorio/porto-seguro/fotos"] .sug-banner { margin-top: var(--sp-3); }
+[data-route="/relatorio/porto-seguro/fotos"] .sug-banner > .ico { width: 24px; height: 24px; flex: none; }
+[data-route="/relatorio/porto-seguro/fotos"] .sug-banner .banner-actions { flex-wrap: wrap; }
+[data-route="/relatorio/porto-seguro/fotos"] #fotos-sug.is-all-confirmed .fotos-confirm-all { display: none; }
+/* Suggested caption on a tile: Suggestion field (block variant) filling the text column; pill straddles the block's top edge */
+[data-route="/relatorio/porto-seguro/fotos"] .photo-text .suggestion-field { align-self: stretch; }
+[data-route="/relatorio/porto-seguro/fotos"] .photo-text .suggestion-field > .suggestion-block ~ .suggested-pill,
+[data-route="/relatorio/porto-seguro/fotos"] .photo-text .suggestion-field > .suggestion-block ~ .verify-pill { top: -2px; }
+[data-route="/relatorio/porto-seguro/fotos"] .photo-text .suggestion-field .suggestion-block { padding-top: var(--sp-2); padding-bottom: var(--sp-2); }
+/* Confirmed — per tile ("Confirmar" toggles is-confirmed on itself) or in batch (.is-all-confirmed, "Sugerido" only): plain caption */
+[data-route="/relatorio/porto-seguro/fotos"] .suggestion-field:has(> .suggestion-block > .confirm-btn.is-confirmed) > .suggestion-block,
+[data-route="/relatorio/porto-seguro/fotos"] #fotos-sug.is-all-confirmed .suggestion-field[data-state="suggested"] > .suggestion-block { background: none; border: 0; padding: 0; min-height: 0; }
+[data-route="/relatorio/porto-seguro/fotos"] .suggestion-field:has(> .suggestion-block > .confirm-btn.is-confirmed) > .suggested-pill,
+[data-route="/relatorio/porto-seguro/fotos"] .suggestion-field:has(> .suggestion-block > .confirm-btn.is-confirmed) > .verify-pill,
+[data-route="/relatorio/porto-seguro/fotos"] .suggestion-field:has(> .suggestion-block > .confirm-btn.is-confirmed) .confirm-btn,
+[data-route="/relatorio/porto-seguro/fotos"] #fotos-sug.is-all-confirmed .suggestion-field[data-state="suggested"] > .suggested-pill,
+[data-route="/relatorio/porto-seguro/fotos"] #fotos-sug.is-all-confirmed .suggestion-field[data-state="suggested"] .confirm-btn { display: none; }
+[data-route="/relatorio/porto-seguro/fotos"] .photo-text .btn-text { margin-left: calc(-1 * var(--sp-3)); }
+/* Sticky bar: Camera capture button first, "Escolher da galeria" only as a text link */
+[data-route="/relatorio/porto-seguro/fotos"] .sticky-action-bar .bar-buttons.has-camera { align-items: center; }
+[data-route="/relatorio/porto-seguro/fotos"] .sticky-action-bar .bar-buttons.has-camera .btn-text { flex: 0 0 auto; }
+[data-route="/relatorio/porto-seguro/fotos"] .sticky-action-bar .cam-reason { flex: 1; min-width: 0; font-size: var(--t-meta-size); color: var(--ink-secondary); }
+.frame-phone [data-route="/relatorio/porto-seguro/fotos"] .sticky-action-bar .bar-buttons.has-camera { justify-content: space-between; }
+.frame-phone [data-route="/relatorio/porto-seguro/fotos"] .sticky-action-bar .bar-buttons.has-camera .btn-text { flex: 0 0 auto; }
+.frame-phone [data-route="/relatorio/porto-seguro/fotos"] .sticky-action-bar .cam-reason { display: none; }
+/* Direct camera (viewfinder) fills the device: dark surface, context line at the top, shutter row at the bottom */
+[data-route="/relatorio/porto-seguro/fotos"] .scrim-camera { padding: 0; align-items: stretch; justify-content: stretch; background: #15181D; }
+[data-route="/relatorio/porto-seguro/fotos"] .camera-view { width: 100%; display: flex; flex-direction: column; color: #FFFFFF; }
+[data-route="/relatorio/porto-seguro/fotos"] .camera-view .icon-btn { color: #FFFFFF; }
+[data-route="/relatorio/porto-seguro/fotos"] .cam-top { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); }
+[data-route="/relatorio/porto-seguro/fotos"] .cam-context { display: inline-flex; align-items: center; gap: var(--sp-2); min-height: var(--touch-min); padding: 0 var(--sp-3); border-radius: var(--r-full); background: rgba(255,255,255,.12); font-size: var(--t-label-size); font-weight: var(--t-label-weight); }
+[data-route="/relatorio/porto-seguro/fotos"] .cam-context .ico { width: 18px; height: 18px; }
+[data-route="/relatorio/porto-seguro/fotos"] .cam-finder { position: relative; flex: 1; min-height: 360px; }
+[data-route="/relatorio/porto-seguro/fotos"] .cam-finder .cam-corner { position: absolute; width: 28px; height: 28px; border: 3px solid #FFFFFF; opacity: .85; }
+[data-route="/relatorio/porto-seguro/fotos"] .cam-finder .cam-corner.tl { top: 24px; left: 24px; border-right: 0; border-bottom: 0; }
+[data-route="/relatorio/porto-seguro/fotos"] .cam-finder .cam-corner.tr { top: 24px; right: 24px; border-left: 0; border-bottom: 0; }
+[data-route="/relatorio/porto-seguro/fotos"] .cam-finder .cam-corner.bl { bottom: 24px; left: 24px; border-right: 0; border-top: 0; }
+[data-route="/relatorio/porto-seguro/fotos"] .cam-finder .cam-corner.br { bottom: 24px; right: 24px; border-left: 0; border-top: 0; }
+[data-route="/relatorio/porto-seguro/fotos"] .cam-hint { padding: var(--sp-2) var(--sp-4) 0; font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: #B6BCC6; text-align: center; }
+[data-route="/relatorio/porto-seguro/fotos"] .cam-bottom { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: var(--sp-3); padding: var(--sp-3) var(--sp-4); }
+[data-route="/relatorio/porto-seguro/fotos"] .cam-bottom .cam-link { color: #FFFFFF; justify-self: start; }
+[data-route="/relatorio/porto-seguro/fotos"] .cam-bottom .cam-done { justify-self: end; background: transparent; color: #FFFFFF; border-color: #FFFFFF; }
+[data-route="/relatorio/porto-seguro/fotos"] .cam-shutter { width: 76px; height: 76px; border-radius: 50%; border: 4px solid #FFFFFF; background: transparent; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+[data-route="/relatorio/porto-seguro/fotos"] .cam-shutter > span { width: 58px; height: 58px; border-radius: 50%; background: #FFFFFF; }
+[data-route="/relatorio/porto-seguro/fotos"] .cam-shutter:active > span { transform: scale(.9); }
+[data-route="/relatorio/porto-seguro/fotos"] .cam-count { padding: 0 var(--sp-4) var(--sp-4); font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: #B6BCC6; text-align: center; }
+/* Phone: shutter alone on the first row, the gallery link and "Concluir fotos" under it */
+.frame-phone [data-route="/relatorio/porto-seguro/fotos"] .cam-bottom { grid-template-columns: auto auto; grid-template-areas: "shutter shutter" "link done"; justify-content: space-between; justify-items: center; row-gap: var(--sp-2); }
+.frame-phone [data-route="/relatorio/porto-seguro/fotos"] .cam-bottom .cam-shutter { grid-area: shutter; }
+.frame-phone [data-route="/relatorio/porto-seguro/fotos"] .cam-bottom .cam-link { grid-area: link; justify-self: start; padding-left: 0; }
+.frame-phone [data-route="/relatorio/porto-seguro/fotos"] .cam-bottom .cam-done { grid-area: done; justify-self: end; padding: 0 var(--sp-3); font-size: var(--t-body-size); }
+.frame-phone [data-route="/relatorio/porto-seguro/fotos"] .cam-bottom .cam-link { font-size: var(--t-body-size); }
+.frame-phone [data-route="/relatorio/porto-seguro/fotos"] .cam-context { white-space: nowrap; font-size: 12px; }
+.frame-phone [data-route="/relatorio/porto-seguro/fotos"] .cam-finder { min-height: 300px; }
+/* Phone: "Confirmar" wraps under the suggested caption (full-width row, top rule) */
+.frame-phone [data-route="/relatorio/porto-seguro/fotos"] .photo-text .suggestion-block { flex-wrap: wrap; padding-bottom: 0; }
+.frame-phone [data-route="/relatorio/porto-seguro/fotos"] .photo-text .suggestion-block > .sv { flex: 1 1 100%; }
+.frame-phone [data-route="/relatorio/porto-seguro/fotos"] .photo-text .suggestion-block .confirm-btn { flex: 1 1 100%; margin-left: calc(-1 * var(--sp-4)); justify-content: center; border-left: 0; border-top: 2px solid var(--fora-do-limite); min-height: var(--touch-min); }
+.frame-phone [data-route="/relatorio/porto-seguro/fotos"] .photo-text .suggestion-field[data-state="verify"] .confirm-btn { border-top-style: dashed; }
+/* Capture sheet (secondary: only from "Escolher da galeria" or when the camera is unavailable) sits at the bottom */
+[data-route="/relatorio/porto-seguro/fotos"] .scrim-bottom { align-items: flex-end; padding: 0; }
+[data-route="/relatorio/porto-seguro/fotos"] .scrim-bottom .photo-capture-sheet { width: 100%; }
+[data-route="/relatorio/porto-seguro/fotos"] .photo-capture-sheet .capture-cancel { width: calc(100% - 2 * var(--sp-4)); }
+/* Photo viewer fills the device (dark surface): white glyphs, badge in the top bar, photo placeholder, edge navigation */
+[data-route="/relatorio/porto-seguro/fotos"] .scrim-viewer { padding: 0; align-items: stretch; justify-content: stretch; background: #15181D; }
+[data-route="/relatorio/porto-seguro/fotos"] .photo-viewer { width: 100%; }
+[data-route="/relatorio/porto-seguro/fotos"] .photo-viewer .icon-btn { color: #FFFFFF; }
+[data-route="/relatorio/porto-seguro/fotos"] .photo-viewer .viewer-top .number-badge { min-width: 28px; height: 28px; padding: 0 8px; border-radius: var(--r-full); background: #FFFFFF; color: #15181D; font-size: var(--t-label-size); font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
+[data-route="/relatorio/porto-seguro/fotos"] .photo-viewer .viewer-count { font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: #B6BCC6; margin-left: var(--sp-1); }
+[data-route="/relatorio/porto-seguro/fotos"] .photo-viewer .viewer-photo { position: relative; min-height: 380px; }
+[data-route="/relatorio/porto-seguro/fotos"] .photo-viewer .viewer-bottom { max-width: 640px; width: 100%; margin: 0 auto; }
+[data-route="/relatorio/porto-seguro/fotos"] .photo-viewer .viewer-caption { display: flex; align-items: flex-start; gap: var(--sp-2); }
+[data-route="/relatorio/porto-seguro/fotos"] .photo-viewer .viewer-caption .ico { width: 20px; height: 20px; flex: none; color: var(--fora-do-limite); margin-top: 2px; }
+[data-route="/relatorio/porto-seguro/fotos"] .photo-viewer .viewer-caption .sug-word { display: block; font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--fora-do-limite); }
+[data-route="/relatorio/porto-seguro/fotos"] .photo-viewer .viewer-meta { font-size: var(--t-meta-size); color: #B6BCC6; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); }
+[data-route="/relatorio/porto-seguro/fotos"] .photo-viewer .viewer-nav { display: flex; gap: var(--sp-3); }
+[data-route="/relatorio/porto-seguro/fotos"] .photo-viewer .viewer-nav .btn { flex: 1; }
+[data-route="/relatorio/porto-seguro/fotos"] .photo-viewer .viewer-actions { display: flex; flex-direction: column; gap: var(--sp-2); }
+</style>
+<section class="screen" data-route="/relatorio/porto-seguro/fotos" data-title="Fotos" data-shell="app" data-rail="false" data-sync="error" data-sync-label="Erro">
+  <div class="content">
+
+    <section class="section" aria-labelledby="fotos-h-gal">
+      <div class="section-head">
+        <h2 id="fotos-h-gal">Registro fotográfico (20)</h2>
+        <span class="progress-counter" data-state="pending" role="status" id="fotos-count"><span class="dot" aria-hidden="true"></span>1 aguardando envio · 1 com erro · 12 legendas sugeridas · 1 legenda ao sincronizar</span>
+      </div>
+      <p class="section-note">Ordem cronológica de captura. Os números são provisórios até a exportação (seção 7 do relatório). Fotos tiradas daqui já saem com a legenda do contexto; as demais recebem uma legenda sugerida na sincronização.</p>
+
+      <div class="chip-row" role="radiogroup" aria-label="Filtrar por cabine">
+        <button class="chip" role="radio" aria-checked="true">Todas</button>
+        <button class="chip" role="radio" aria-checked="false" data-toast="Filtro por cabine — a galeria não filtra no protótipo">Cubículo Enel</button>
+        <button class="chip" role="radio" aria-checked="false" data-toast="Filtro por cabine — a galeria não filtra no protótipo">1° Subsolo</button>
+        <button class="chip" role="radio" aria-checked="false" data-toast="Filtro por cabine — a galeria não filtra no protótipo">Oxigênio</button>
+        <button class="chip" role="radio" aria-checked="false" data-toast="Filtro por cabine — a galeria não filtra no protótipo">Cobertura A</button>
+        <button class="chip" role="radio" aria-checked="false" data-toast="Filtro por cabine — a galeria não filtra no protótipo">Cobertura B</button>
+        <button class="chip" role="radio" aria-checked="false" data-toast="Filtro por cabine — a galeria não filtra no protótipo">Geradores</button>
+      </div>
+
+      <div id="fotos-sug">
+
+        <!-- Suggestions banner (Flow 4 step 3): batch confirm of the "Sugerido" captions; the "Verificar" one stays -->
+        <div class="banner sug-banner" data-variant="info" role="status">
+          <svg class="ico" aria-hidden="true"><use href="#i-sparkles"/></svg>
+          <span class="banner-text" id="fotos-sug-text"><strong>12 legendas sugeridas</strong> pela leitura das fotos de Eduardo — 1 delas pede verificação (foto 5).</span>
+          <span class="banner-actions">
+            <button data-slice="out" data-slice-note=" · FR-39" class="slice-inline" class="btn btn-text fotos-confirm-all" data-toggle-class="is-all-confirmed" data-toggle-target="#fotos-sug" data-set-text="#fotos-sug-text|11 legendas confirmadas — a foto 5 continua para verificar: toque em Confirmar nela.||#fotos-count|1 aguardando envio · 1 com erro · 1 legenda para verificar · 1 legenda ao sincronizar" data-toast="11 legendas confirmadas — a foto 5 fica para verificar"><svg class="ico" aria-hidden="true"><use href="#i-check-all"/></svg>Confirmar todas</button>
+          </span>
+        </div>
+
+        <div class="gallery-grid">
+
+          <p class="gallery-day">Sábado 06/09</p>
+
+          <!-- 1–12: Eduardo's general shots (direct camera, burst) — Local from the gallery filter; atividade/equipamento read on sync -->
+          <div class="photo-row">
+            <button class="photo-tile" data-open="#fotos-dlg-viewer" aria-label="Foto 1, legenda sugerida, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">1</span><span class="photo-stamp" aria-hidden="true">08:12<svg class="ico pin" aria-hidden="true"><use href="#i-pin"/></svg></span></span></button>
+            <div class="photo-text">
+              <div class="field suggestion-field" data-state="suggested">
+                <div class="suggestion-block"><span class="sv">Equipe da concessionária no desligamento do Cubículo Enel</span><button class="confirm-btn" data-toggle-class="is-confirmed" data-toast="Legenda da foto 1 confirmada">Confirmar</button></div>
+                <span class="suggested-pill">Sugerido</span>
+              </div>
+              <p class="photo-meta">Nº provisório 1 · 08:12 · Eduardo · Enviada · legenda pela leitura da foto</p>
+            </div>
+          </div>
+
+          <div class="photo-row">
+            <button class="photo-tile" data-open="#fotos-dlg-viewer" aria-label="Foto 2, legenda sugerida, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">2</span><span class="photo-stamp" aria-hidden="true">08:20<svg class="ico pin" aria-hidden="true"><use href="#i-pin"/></svg></span></span></button>
+            <div class="photo-text">
+              <div class="field suggestion-field" data-state="suggested">
+                <div class="suggestion-block"><span class="sv">Detalhe da verificação de ausência de tensão realizada no cubículo de entrada do Cubículo Enel</span><button class="confirm-btn" data-toggle-class="is-confirmed" data-toast="Legenda da foto 2 confirmada">Confirmar</button></div>
+                <span class="suggested-pill">Sugerido</span>
+              </div>
+              <p class="photo-meta">Nº provisório 2 · 08:20 · Eduardo · Enviada</p>
+            </div>
+          </div>
+
+          <div class="photo-row">
+            <button class="photo-tile" data-open="#fotos-dlg-viewer" aria-label="Foto 3, legenda sugerida, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">3</span><span class="photo-stamp" aria-hidden="true">08:26<svg class="ico pin" aria-hidden="true"><use href="#i-pin"/></svg></span></span></button>
+            <div class="photo-text">
+              <div class="field suggestion-field" data-state="suggested">
+                <div class="suggestion-block"><span class="sv">Detalhe da instalação de aterramento temporário realizada no Cubículo Enel</span><button class="confirm-btn" data-toggle-class="is-confirmed" data-toast="Legenda da foto 3 confirmada">Confirmar</button></div>
+                <span class="suggested-pill">Sugerido</span>
+              </div>
+              <p class="photo-meta">Nº provisório 3 · 08:26 · Eduardo · Enviada</p>
+            </div>
+          </div>
+
+          <div class="photo-row">
+            <button class="photo-tile" data-open="#fotos-dlg-viewer" aria-label="Foto 4, legenda sugerida, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">4</span><span class="photo-stamp" aria-hidden="true">08:31<svg class="ico pin" aria-hidden="true"><use href="#i-pin"/></svg></span></span></button>
+            <div class="photo-text">
+              <div class="field suggestion-field" data-state="suggested">
+                <div class="suggestion-block"><span class="sv">Detalhe do bloqueio e etiquetagem (LOTO) realizado no cubículo de entrada do Cubículo Enel</span><button class="confirm-btn" data-toggle-class="is-confirmed" data-toast="Legenda da foto 4 confirmada">Confirmar</button></div>
+                <span class="suggested-pill">Sugerido</span>
+              </div>
+              <p class="photo-meta">Nº provisório 4 · 08:31 · Eduardo · Enviada</p>
+              <button class="btn btn-text" data-go="#/relatorio/porto-seguro/legenda"><svg class="ico" aria-hidden="true"><use href="#i-pencil"/></svg>Legendar</button>
+            </div>
+          </div>
+
+          <!-- 5: low-confidence guess — "Verificar", outside "Confirmar todas" -->
+          <div class="photo-row">
+            <button class="photo-tile" data-open="#fotos-dlg-viewer" aria-label="Foto 5, legenda a verificar, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">5</span><span class="photo-stamp" aria-hidden="true">08:34<svg class="ico pin" aria-hidden="true"><use href="#i-pin"/></svg></span></span></button>
+            <div class="photo-text">
+              <div class="field suggestion-field" data-state="verify">
+                <div class="suggestion-block"><span class="sv">Vista geral do painel de medição da concessionária no Cubículo Enel</span><button class="confirm-btn" data-toggle-class="is-confirmed" data-toast="Legenda da foto 5 confirmada">Confirmar</button></div>
+                <span class="verify-pill">Verificar</span>
+              </div>
+              <p class="photo-meta">Nº provisório 5 · 08:34 · Eduardo · Enviada · equipamento não identificado com segurança — fora de "Confirmar todas"</p>
+              <button class="btn btn-text" data-go="#/relatorio/porto-seguro/legenda"><svg class="ico" aria-hidden="true"><use href="#i-pencil"/></svg>Legendar</button>
+            </div>
+          </div>
+
+          <div class="photo-row">
+            <button class="photo-tile" data-open="#fotos-dlg-viewer" aria-label="Foto 6, legenda sugerida, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">6</span><span class="photo-stamp" aria-hidden="true">08:36<svg class="ico pin" aria-hidden="true"><use href="#i-pin"/></svg></span></span></button>
+            <div class="photo-text">
+              <div class="field suggestion-field" data-state="suggested">
+                <div class="suggestion-block"><span class="sv">Detalhe da sinalização de segurança instalada na porta do Cubículo Enel</span><button class="confirm-btn" data-toggle-class="is-confirmed" data-toast="Legenda da foto 6 confirmada">Confirmar</button></div>
+                <span class="suggested-pill">Sugerido</span>
+              </div>
+              <p class="photo-meta">Nº provisório 6 · 08:36 · Eduardo · Enviada</p>
+            </div>
+          </div>
+
+          <div class="photo-row">
+            <button class="photo-tile" data-open="#fotos-dlg-viewer" aria-label="Foto 7, legenda sugerida, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">7</span><span class="photo-stamp" aria-hidden="true">08:40<svg class="ico pin" aria-hidden="true"><use href="#i-pin"/></svg></span></span></button>
+            <div class="photo-text">
+              <div class="field suggestion-field" data-state="suggested">
+                <div class="suggestion-block"><span class="sv">Detalhe das travas de bloqueio aplicadas na seccionadora SEC-ENT do Cubículo Enel</span><button class="confirm-btn" data-toggle-class="is-confirmed" data-toast="Legenda da foto 7 confirmada">Confirmar</button></div>
+                <span class="suggested-pill">Sugerido</span>
+              </div>
+              <p class="photo-meta">Nº provisório 7 · 08:40 · Eduardo · Enviada</p>
+            </div>
+          </div>
+
+          <div class="photo-row">
+            <button class="photo-tile" data-open="#fotos-dlg-viewer" aria-label="Foto 8, legenda sugerida, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">8</span><span class="photo-stamp" aria-hidden="true">08:41<svg class="ico pin" aria-hidden="true"><use href="#i-pin"/></svg></span></span></button>
+            <div class="photo-text">
+              <div class="field suggestion-field" data-state="suggested">
+                <div class="suggestion-block"><span class="sv">Detalhe do cadeado de bloqueio no comando da seccionadora SEC-ENT</span><button class="confirm-btn" data-toggle-class="is-confirmed" data-toast="Legenda da foto 8 confirmada">Confirmar</button></div>
+                <span class="suggested-pill">Sugerido</span>
+              </div>
+              <p class="photo-meta">Nº provisório 8 · 08:41 · Eduardo · Enviada</p>
+            </div>
+          </div>
+
+          <div class="photo-row">
+            <button class="photo-tile" data-open="#fotos-dlg-viewer" aria-label="Foto 9, legenda sugerida, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">9</span><span class="photo-stamp" aria-hidden="true">08:44<svg class="ico pin" aria-hidden="true"><use href="#i-pin"/></svg></span></span></button>
+            <div class="photo-text">
+              <div class="field suggestion-field" data-state="suggested">
+                <div class="suggestion-block"><span class="sv">Detalhe do detector de tensão aplicado nos cabos de entrada do Cubículo Enel</span><button class="confirm-btn" data-toggle-class="is-confirmed" data-toast="Legenda da foto 9 confirmada">Confirmar</button></div>
+                <span class="suggested-pill">Sugerido</span>
+              </div>
+              <p class="photo-meta">Nº provisório 9 · 08:44 · Eduardo · Enviada</p>
+            </div>
+          </div>
+
+          <div class="photo-row">
+            <button class="photo-tile" data-open="#fotos-dlg-viewer" aria-label="Foto 10, legenda sugerida, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">10</span><span class="photo-stamp" aria-hidden="true">08:47<svg class="ico pin" aria-hidden="true"><use href="#i-pin"/></svg></span></span></button>
+            <div class="photo-text">
+              <div class="field suggestion-field" data-state="suggested">
+                <div class="suggestion-block"><span class="sv">Vista geral da equipe durante o desligamento no Cubículo Enel</span><button class="confirm-btn" data-toggle-class="is-confirmed" data-toast="Legenda da foto 10 confirmada">Confirmar</button></div>
+                <span class="suggested-pill">Sugerido</span>
+              </div>
+              <p class="photo-meta">Nº provisório 10 · 08:47 · Eduardo · Enviada</p>
+            </div>
+          </div>
+
+          <div class="photo-row">
+            <button class="photo-tile" data-open="#fotos-dlg-viewer" aria-label="Foto 11, legenda sugerida, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">11</span><span class="photo-stamp" aria-hidden="true">08:52<svg class="ico pin" aria-hidden="true"><use href="#i-pin"/></svg></span></span></button>
+            <div class="photo-text">
+              <div class="field suggestion-field" data-state="suggested">
+                <div class="suggestion-block"><span class="sv">Detalhe do aterramento temporário conectado ao barramento do Cubículo Enel</span><button class="confirm-btn" data-toggle-class="is-confirmed" data-toast="Legenda da foto 11 confirmada">Confirmar</button></div>
+                <span class="suggested-pill">Sugerido</span>
+              </div>
+              <p class="photo-meta">Nº provisório 11 · 08:52 · Eduardo · Enviada</p>
+            </div>
+          </div>
+
+          <div class="photo-row">
+            <button class="photo-tile" data-open="#fotos-dlg-viewer" aria-label="Foto 12, legenda sugerida, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">12</span><span class="photo-stamp" aria-hidden="true">08:55<svg class="ico pin" aria-hidden="true"><use href="#i-pin"/></svg></span></span></button>
+            <div class="photo-text">
+              <div class="field suggestion-field" data-state="suggested">
+                <div class="suggestion-block"><span class="sv">Detalhe da etiqueta de bloqueio fixada no disjuntor geral do Cubículo Enel</span><button class="confirm-btn" data-toggle-class="is-confirmed" data-toast="Legenda da foto 12 confirmada">Confirmar</button></div>
+                <span class="suggested-pill">Sugerido</span>
+              </div>
+              <p class="photo-meta">Nº provisório 12 · 08:55 · Eduardo · Enviada</p>
+            </div>
+          </div>
+
+          <!-- 13–18: photos taken from a sheet — context caption written silently (plain, editable) -->
+          <div class="photo-row">
+            <button class="photo-tile" data-open="#fotos-dlg-viewer" aria-label="Foto 13, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">13</span><span class="photo-stamp" aria-hidden="true">09:38<svg class="ico pin" aria-hidden="true"><use href="#i-pin"/></svg></span></span></button>
+            <div class="photo-text">
+              <p class="photo-caption">Detalhe do ensaio de resistência de isolação realizado nos cabos de entrada do Cubículo Enel</p>
+              <p class="photo-meta">Nº provisório 13 · 09:38 · Bruno · Enviada · legenda pelo contexto da ficha CB-ENT</p>
+            </div>
+          </div>
+
+          <div class="photo-row">
+            <button class="photo-tile" data-open="#fotos-dlg-viewer" aria-label="Foto 14, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">14</span><span class="photo-stamp" aria-hidden="true">09:52<svg class="ico pin" aria-hidden="true"><use href="#i-pin"/></svg></span></span></button>
+            <div class="photo-text">
+              <p class="photo-caption">Detalhe do ensaio de resistência de isolação realizado no para-raio de entrada do Cubículo Enel</p>
+              <p class="photo-meta">Nº provisório 14 · 09:52 · Bruno · Enviada</p>
+            </div>
+          </div>
+
+          <div class="photo-row">
+            <button class="photo-tile" data-open="#fotos-dlg-viewer" aria-label="Foto 15, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">15</span><span class="photo-stamp" aria-hidden="true">10:15<svg class="ico pin" aria-hidden="true"><use href="#i-pin"/></svg></span></span></button>
+            <div class="photo-text">
+              <p class="photo-caption">Detalhe do ensaio de resistência de contato realizado na seccionadora SEC-ENT do Cubículo Enel</p>
+              <p class="photo-meta">Nº provisório 15 · 10:15 · Bruno · Enviada</p>
+            </div>
+          </div>
+
+          <div class="photo-row">
+            <button class="photo-tile" data-open="#fotos-dlg-viewer" aria-label="Foto 16, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">16</span><span class="photo-stamp" aria-hidden="true">11:02<svg class="ico pin" aria-hidden="true"><use href="#i-pin"/></svg></span></span></button>
+            <div class="photo-text">
+              <p class="photo-caption">Detalhe da limpeza e reaperto realizados na seccionadora SEC-C01 da Coluna 1 do 1° Subsolo</p>
+              <p class="photo-meta">Nº provisório 16 · 11:02 · Eduardo · Enviada</p>
+            </div>
+          </div>
+
+          <div class="photo-row">
+            <button class="photo-tile" data-open="#fotos-dlg-viewer" aria-label="Foto 17, abrir" aria-describedby="fotos-g17-state"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">17</span><span class="photo-stamp" aria-hidden="true">14:05<svg class="ico pin" aria-hidden="true"><use href="#i-pin"/></svg></span></span></button>
+            <div class="photo-text">
+              <p class="photo-caption">Detalhe do ensaio de resistência de isolação realizado na seccionadora SEC-C05 da Coluna 5 do 1° Subsolo</p>
+              <p class="photo-meta">Nº provisório 17 · 14:05 · Bruno</p>
+              <span class="upload-pill" data-state="pending" id="fotos-g17-state"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-up"/></svg>Aguardando envio</span>
+            </div>
+          </div>
+
+          <div class="photo-row">
+            <button class="photo-tile" data-open="#fotos-dlg-viewer" aria-label="Foto 18, abrir" aria-describedby="fotos-g18-state"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">18</span><span class="photo-stamp" aria-hidden="true">14:40<svg class="ico pin" aria-hidden="true"><use href="#i-pin"/></svg></span></span></button>
+            <div class="photo-text">
+              <p class="photo-caption">Detalhe do ensaio de relação de transformação realizado no transformador de potencial TP-C03 da Coluna 3 do 1° Subsolo</p>
+              <p class="photo-meta">Nº provisório 18 · 14:40 · Bruno</p>
+              <button class="upload-pill" data-state="error" id="fotos-g18-state" data-toast="Reenviando a foto 18 — o servidor confirma em instantes" aria-label="Envio rejeitado. Tentar novamente"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-up"/></svg>Erro — Tentar novamente</button>
+            </div>
+          </div>
+
+          <p class="gallery-day">Domingo 07/09</p>
+
+          <div class="photo-row">
+            <button class="photo-tile" data-open="#fotos-dlg-viewer" aria-label="Foto 19, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">19</span><span class="photo-stamp" aria-hidden="true">09:10<svg class="ico pin" aria-hidden="true"><use href="#i-pin"/></svg></span></span></button>
+            <div class="photo-text">
+              <p class="photo-caption">Detalhe dos serviços e ensaios realizados no transformador TR1 do 1° Subsolo</p>
+              <p class="photo-meta">Nº provisório 19 · 09:10 · Eduardo · Enviada</p>
+            </div>
+          </div>
+
+          <!-- 20: gallery import without context, still on the device — the caption comes with the sync (never a "Sem legenda" to-do) -->
+          <div class="photo-row">
+            <button class="photo-tile" data-open="#fotos-dlg-viewer" aria-label="Foto 20, legenda ao sincronizar, sem localização, abrir" aria-describedby="fotos-g20-state"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">20</span><span class="photo-stamp" aria-hidden="true">09:32</span></span></button>
+            <div class="photo-text">
+              <span class="queued-banner" id="fotos-g20-state"><svg class="ico" aria-hidden="true"><use href="#i-sparkles"/></svg>Legenda ao sincronizar</span>
+              <p class="photo-meta">Nº provisório 20 · 09:32 · Bruno · importada da galeria do aparelho · sem localização</p>
+              <span class="upload-pill" data-state="pending"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-up"/></svg>Aguardando envio</span>
+              <button class="btn btn-text" data-go="#/relatorio/porto-seguro/legenda"><svg class="ico" aria-hidden="true"><use href="#i-pencil"/></svg>Legendar</button>
+            </div>
+          </div>
+
+          <!-- Revealed by the shutter of the direct camera: the new tile already carries its context caption -->
+          <div id="fotos-new" hidden>
+            <p class="gallery-day">Hoje · Segunda 08/09</p>
+            <div class="photo-row">
+              <button class="photo-tile" data-open="#fotos-dlg-viewer" aria-label="Foto 21, abrir" aria-describedby="fotos-g21-state"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">21</span><span class="photo-stamp" aria-hidden="true">agora<svg class="ico pin" aria-hidden="true"><use href="#i-pin"/></svg></span></span></button>
+              <div class="photo-text">
+                <p class="photo-caption">Detalhe geral do Cubículo Enel</p>
+                <p class="photo-meta">Nº provisório 21 · agora · Bruno · legenda pelo contexto (local do filtro) — atividade e equipamento na sincronização</p>
+                <span class="upload-pill" data-state="pending" id="fotos-g21-state"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-up"/></svg>Aguardando envio</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div><!-- /fotos-sug -->
+    </section>
+
+  </div><!-- /content -->
+
+  <div class="sticky-action-bar">
+    <div class="bar-buttons has-camera">
+      <button class="camera-capture-btn" data-open="#fotos-dlg-camera" aria-label="Tirar foto — abre a câmera diretamente"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg><span class="cam-word">Foto</span></button>
+      <span class="cam-reason">Abre a câmera direto; rajada até "Concluir fotos". A legenda nasce do contexto.</span>
+      <button class="btn btn-secondary" data-open="#fotos-dlg-capture"><svg class="ico" aria-hidden="true"><use href="#i-image"/></svg>Adicionar fotos</button><span class="btn-reason">ou arraste para cá</span>
+    </div>
+  </div>
+
+  <!-- ---------------- Direct camera (Camera capture button): viewfinder, shutter in burst, "Concluir fotos" — data-open="#fotos-dlg-camera" ---------------- -->
+  <div class="dialog-scrim scrim-camera" id="fotos-dlg-camera" hidden>
+    <div class="camera-view" role="dialog" aria-modal="true" aria-label="Câmera">
+      <div class="cam-top">
+        <button class="icon-btn" data-close aria-label="Fechar a câmera sem concluir"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg></button>
+        <span class="cam-context"><svg class="ico" aria-hidden="true"><use href="#i-layers"/></svg>Contexto: Cubículo Enel · foto geral</span>
+      </div>
+      <div class="cam-finder" role="img" aria-label="Visor da câmera">
+        <span class="thumb-fake"></span>
+        <span class="cam-corner tl" aria-hidden="true"></span><span class="cam-corner tr" aria-hidden="true"></span><span class="cam-corner bl" aria-hidden="true"></span><span class="cam-corner br" aria-hidden="true"></span>
+      </div>
+      <p class="cam-hint">Cada disparo é salvo neste aparelho com a legenda do contexto — o local vem do filtro da galeria; atividade e equipamento chegam com a leitura na sincronização.</p>
+      <div class="cam-bottom">
+        <button class="btn btn-secondary cam-link" data-close data-open="#fotos-dlg-capture">Adicionar fotos</button>
+        <button class="cam-shutter" data-open="#fotos-new" data-set-text="#fotos-cam-count|1 foto nesta rajada · salva neste aparelho com a legenda do contexto" data-toast="Foto 21 salva — legenda pelo contexto: Cubículo Enel" aria-label="Disparar"><span aria-hidden="true"></span></button>
+        <button class="btn btn-secondary cam-done" data-close data-toast="Fotos salvas neste aparelho — entram na fila de envio">Concluir fotos</button>
+      </div>
+      <p class="cam-count" id="fotos-cam-count" role="status">Rajada: toque no disparador quantas vezes precisar; nada pergunta entre as fotos</p>
+    </div>
+  </div>
+
+  <!-- ---------------- Photo capture sheet (secondary: only from "Escolher da galeria" or when the camera is unavailable) — data-open="#fotos-dlg-capture" ---------------- -->
+  <div class="dialog-scrim scrim-bottom" id="fotos-dlg-capture" hidden>
+    <div class="photo-capture-sheet" role="dialog" aria-modal="true" aria-label="Adicionar fotos">
+      <button class="capture-option" data-close data-open="#fotos-dlg-equip"><svg class="ico" aria-hidden="true"><use href="#i-image"/></svg>Escolher arquivos</button>
+      <p class="capture-reason">Várias de uma vez, durante a visita ou depois — inclusive fotos que outra pessoa mandou. No computador, dá para arrastar os arquivos direto para a galeria ou para uma ficha. A câmera não passa por aqui: o botão Foto abre o visor direto.</p>
+      <button class="btn btn-text btn-block capture-cancel" data-close>Cancelar</button>
+    </div>
+  </div>
+
+  <!-- "De qual equipamento?" — one step per batch, so imported photos get the context caption without typing
+       (EXPERIENCE.md § Smart Input › Photos; § Component Patterns › Photo capture sheet; decision 2026-09-21) -->
+  <div class="dialog-scrim scrim-bottom" id="fotos-dlg-equip" hidden>
+    <div class="photo-capture-sheet" role="dialog" aria-modal="true" aria-labelledby="fotos-equip-title">
+      <p class="field-label" id="fotos-equip-title">De qual equipamento? <span class="capture-reason">— vale para as 3 fotos</span></p>
+      <button class="capture-option" data-open="#fotos-equip-cap-wrap" data-set-text="#fotos-equip-cap|Detalhe dos serviços realizados na chave seccionadora SEC-C05 da Coluna 5 do 1° Subsolo">SEC-C05 · Chave seccionadora · 1° Subsolo › Coluna 5</button>
+      <button class="capture-option" data-open="#fotos-equip-cap-wrap" data-set-text="#fotos-equip-cap|Detalhe dos serviços realizados no disjuntor DJ-C05 da Coluna 5 do 1° Subsolo">DJ-C05 · Disjuntor MT · 1° Subsolo › Coluna 5</button>
+      <button class="capture-option" data-open="#fotos-equip-cap-wrap" data-set-text="#fotos-equip-cap|Detalhe dos serviços realizados no transformador TR1 do 1° Subsolo">TR1 · Transformador de força · 1° Subsolo</button>
+      <button class="capture-option" data-close data-go="#/relatorio/porto-seguro" data-toast="Escolha na árvore">Outro equipamento — abrir a árvore</button>
+      <button class="capture-option" data-open="#fotos-equip-cap-wrap" data-set-text="#fotos-equip-cap|">Geral (sem equipamento)</button>
+      <!-- caption for the whole batch: prefilled from the context, kept, typed over or spoken (decision 2026-09-21) -->
+      <div id="fotos-equip-cap-wrap" hidden>
+        <p class="field-label">Legenda das 3 fotos</p>
+        <div class="field suggestion-field"><div class="row-wrap">
+          <div class="input" id="fotos-equip-cap" role="textbox" contenteditable="true" aria-label="Legenda das 3 fotos"></div>
+          <span class="dictation"><button class="dictation-btn" aria-pressed="false" aria-label="Ditar a legenda" data-listen="#fotos-equip-cap|Detalhe da limpeza e reaperto realizados nos cubículos de média tensão do 1° Subsolo"><svg class="ico" aria-hidden="true"><use href="#i-mic"/></svg></button><span class="listening-word">Ouvindo…</span></span>
+        </div></div>
+        <p class="capture-reason">Digite ou fale para trocar. Fica igual para as 3 fotos; dá para mudar uma a uma depois em Legendar.</p>
+        <button class="btn btn-primary btn-block" data-close data-open="#fotos-new" data-toast="3 fotos adicionadas — legenda aplicada">Adicionar 3 fotos</button>
+      </div>
+      <button class="btn btn-text btn-block capture-cancel" data-close>Cancelar</button>
+    </div>
+  </div>
+
+  <!-- ---------------- Photo viewer (foto 4 de 20 — legenda sugerida) — data-open="#fotos-dlg-viewer" from any tile ---------------- -->
+  <div class="dialog-scrim scrim-viewer" id="fotos-dlg-viewer" hidden>
+    <div class="photo-viewer" role="dialog" aria-modal="true" aria-label="Foto 4 de 20">
+
+      <div class="viewer-top">
+        <button class="icon-btn" data-close aria-label="Fechar"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg></button>
+        <span class="number-badge" aria-hidden="true">4</span>
+        <span class="viewer-count">4 de 20 · nº provisório</span>
+        <span class="grow"></span>
+        <button class="icon-btn" data-close data-toast="Foto 4 removida do relatório" data-toast-action="Desfazer" aria-label="Remover foto 4"><svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg></button>
+      </div>
+
+      <div class="viewer-photo" role="img" aria-label="Bloqueio e etiquetagem no cubículo de entrada"><span class="thumb-fake"></span></div>
+
+      <div class="viewer-bottom">
+        <div class="viewer-caption">
+          <svg class="ico" aria-hidden="true"><use href="#i-sparkles"/></svg>
+          <p><span class="sug-word">Sugerida pela leitura da foto</span>Detalhe do bloqueio e etiquetagem (LOTO) realizado no cubículo de entrada do Cubículo Enel</p>
+        </div>
+        <div class="viewer-meta">
+          <span class="viewer-stamp"><svg class="ico pin" aria-hidden="true"><use href="#i-pin"/></svg>06/09/2026 08:31 · −23,5505, −46,6333</span>
+          <span>Eduardo · foto geral · Enviada</span>
+          <span class="viewer-print">Na seção 7: "Imagem 4 · 06/09/2026 08:31 · −23,5505, −46,6333" — fotos de item de verificação levam também "Item 8 · Contatos · NC"</span>
+        </div>
+        <div class="viewer-actions">
+          <button class="btn btn-primary btn-block" data-close data-toast="Legenda da foto 4 confirmada"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Confirmar legenda</button>
+          <button class="btn btn-secondary btn-block" data-close data-go="#/relatorio/porto-seguro/legenda"><svg class="ico" aria-hidden="true"><use href="#i-pencil"/></svg>Legendar</button>
+          <button class="btn btn-destructive btn-block" data-close data-toast="Foto 4 removida do relatório" data-toast-action="Desfazer"><svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg>Remover</button>
+        </div>
+        <div class="viewer-nav">
+          <button class="btn btn-secondary" data-toast="Foto 3 de 20 — só a foto 4 está prototipada"><svg class="ico" aria-hidden="true"><use href="#i-chev-left"/></svg>Anterior</button>
+          <button class="btn btn-secondary" data-toast="Foto 5 de 20 — só a foto 4 está prototipada">Próxima<svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>

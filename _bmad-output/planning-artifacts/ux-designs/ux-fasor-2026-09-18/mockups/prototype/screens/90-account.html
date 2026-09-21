@@ -1,0 +1,168 @@
+<style data-screen="account">
+/* Source: mockups/key-account.html frame 1. Governs: EXPERIENCE.md § IA › Account; Component Patterns › Banner (info), Segmented, Settings row, Confirm dialog. */
+[data-route="/account"] .account-name { display: flex; align-items: center; gap: var(--sp-4); margin-bottom: var(--sp-5); }
+[data-route="/account"] .account-name .avatar { width: 56px; height: 56px; font-size: var(--t-title-size); }
+[data-route="/account"] .account-name h2 { font-size: var(--t-title-size); font-weight: var(--t-title-weight); line-height: var(--t-title-lh); }
+[data-route="/account"] .account-name p { font-size: var(--t-body-size); color: var(--ink-secondary); }
+[data-route="/account"] .sign-out { display: flex; flex-direction: column; gap: var(--sp-2); align-items: flex-start; }
+.frame-phone [data-route="/account"] .sign-out .btn { width: 100%; }
+[data-route="/account"] .storage-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-1) var(--sp-3); }
+/* D2 — Registro profissional: Conselho segmented swaps the number label and the printed title (data-set-text); prefills the responsável of a new relatório */
+[data-route="/account"] .reg-grid { display: grid; grid-template-columns: 1fr; gap: var(--sp-4); max-width: 560px; }
+.frame-desktop [data-route="/account"] .reg-grid, .frame-tablet-landscape [data-route="/account"] .reg-grid { grid-template-columns: 1fr 1fr; }
+[data-route="/account"] .reg-grid .segmented { max-width: 240px; }
+[data-route="/account"] .seg { cursor: pointer; }
+/* D6 — Localização nas fotos: the switch drives which helper is visible (:has), no JS beyond the switch itself */
+[data-route="/account"] .toggle-row { border-top: 0; }
+[data-route="/account"] .toggle { cursor: pointer; }
+[data-route="/account"] #acc-loc-row .helper-off { display: none; }
+[data-route="/account"] #acc-loc-row:has(.toggle[aria-checked="false"]) .helper-on { display: none; }
+[data-route="/account"] #acc-loc-row:has(.toggle[aria-checked="false"]) .helper-off { display: block; }
+</style>
+<section class="screen" data-route="/account" data-title="Conta" data-shell="app" data-rail="false" data-sync="pending" data-sync-label="3 pendentes">
+  <div class="content">
+
+    <!-- Identity -->
+    <section class="section" aria-labelledby="acc-h-id">
+      <h2 id="acc-h-id" class="visually-hidden">Identificação</h2>
+      <div class="account-name">
+        <span class="avatar" aria-hidden="true">B</span>
+        <div>
+          <h2>Bruno Matsui</h2>
+          <p>bruno@fasor.eng.br</p>
+        </div>
+      </div>
+      <ul class="settings-list">
+        <li class="settings-row"><span class="grow"><span class="sr-label">Nome</span><br><span class="sr-value">Bruno Matsui</span></span><span class="btn-reason">Fornecido pela empresa</span></li>
+        <li class="settings-row"><span class="grow"><span class="sr-label">E-mail</span><br><span class="sr-value">bruno@fasor.eng.br</span></span><span class="btn-reason">Fornecido pela empresa</span></li>
+        <li class="settings-row"><span class="grow"><span class="sr-label">Empresa</span><br><span class="sr-value">Fasor Engenharia</span></span></li>
+      </ul>
+    </section>
+
+    <!-- Registro profissional (D2): council + number + printed title; prefill of Relatório setup › Responsável -->
+    <section class="section" aria-labelledby="acc-h-reg">
+      <div class="section-head"><h2 id="acc-h-reg">Registro profissional</h2></div>
+      <p class="section-note">Preenche o responsável técnico de um relatório novo com um toque. Aparece na assinatura da seção 10 e no controle do documento.</p>
+      <div class="reg-grid">
+        <div class="field">
+          <span class="field-label" id="acc-cons-l">Conselho</span>
+          <div class="segmented" role="radiogroup" aria-labelledby="acc-cons-l">
+            <button class="seg" role="radio" aria-checked="true" data-set-text="#acc-num-l|Número CREA||#acc-title-v|Engenheiro Eletricista||#acc-reg-echo|Na seção 10: Bruno Matsui · Engenheiro Eletricista · CREA SP 5069912345 · ART do relatório"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>CREA</button>
+            <button class="seg" role="radio" aria-checked="false" data-set-text="#acc-num-l|Número CRT||#acc-title-v|Técnico em Eletrotécnica||#acc-reg-echo|Na seção 10: Bruno Matsui · Técnico em Eletrotécnica · CRT SP 5069912345 · TRT do relatório"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>CRT</button>
+          </div>
+        </div>
+        <div class="field">
+          <span class="field-label" id="acc-num-l">Número CREA</span>
+          <div class="input tabular" role="textbox" aria-labelledby="acc-num-l" contenteditable="true">SP 5069912345</div>
+        </div>
+        <div class="field">
+          <span class="field-label">Título impresso</span>
+          <div class="input"><span id="acc-title-v">Engenheiro Eletricista</span></div>
+          <span class="helper">Segue o conselho; edite se o seu título for outro</span>
+        </div>
+      </div>
+      <p class="echo" id="acc-reg-echo" style="margin-top: var(--sp-2)">Na seção 10: Bruno Matsui · Engenheiro Eletricista · CREA SP 5069912345 · ART do relatório</p>
+    </section>
+
+    <!-- Localização nas fotos (D6): default on; the OS asks at the first capture; off = no coordinates in section 7 -->
+    <section class="section" aria-labelledby="acc-h-loc" data-slice="out" data-slice-note=" · FR-8">
+      <div class="section-head"><h2 id="acc-h-loc">Localização nas fotos</h2></div>
+      <div id="acc-loc-row">
+        <div class="toggle-row">
+          <span><span class="toggle-label" id="acc-loc-l">Gravar coordenadas em cada foto</span><br><span class="toggle-sub">Impressas na seção 7 com a data e a hora: "Imagem 5 · 06/09/2026 14:32 · −23,5505, −46,6333"</span></span>
+          <button class="toggle" role="switch" aria-checked="true" aria-labelledby="acc-loc-l"><span class="track" aria-hidden="true"><span class="knob"></span></span><span class="toggle-word">Ativado</span></button>
+        </div>
+        <span class="helper helper-on">O aparelho pede permissão na primeira foto. Se negar, as fotos ficam sem coordenadas e este ajuste mostra "Permissão negada no aparelho".</span>
+        <span class="helper helper-off">Fotos sem coordenadas — a seção 7 imprime só a data e a hora de cada imagem.</span>
+      </div>
+    </section>
+
+    <!-- Theme: wired to the shell (data-theme-set); the prototype bar mirrors the choice -->
+    <section class="section" aria-labelledby="acc-h-tema">
+      <div class="section-head"><h2 id="acc-h-tema">Tema</h2></div>
+      <p class="section-note">Segue a preferência do aparelho. Os dois temas mantêm o contraste para uso ao sol.</p>
+      <div class="segmented" role="radiogroup" aria-labelledby="acc-h-tema">
+        <button class="seg" role="radio" aria-checked="true" data-theme-set="system"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Sistema</button>
+        <button class="seg" role="radio" aria-checked="false" data-theme-set="light"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Claro</button>
+        <button class="seg" role="radio" aria-checked="false" data-theme-set="dark"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Escuro</button>
+      </div>
+    </section>
+
+    <!-- Install (shown only when not installed; "Agora não" hides it) -->
+    <section class="section" aria-labelledby="acc-h-instalar" id="acc-instalar">
+      <div class="section-head"><h2 id="acc-h-instalar">Instalar na tela inicial</h2></div>
+      <div class="banner" data-variant="info" role="region" aria-label="Instalação">
+        <span class="banner-text">Instale PRODUTO na tela inicial para usar sem conexão</span>
+        <span class="banner-actions">
+          <button class="btn btn-text" data-toast="O navegador pede a confirmação da instalação — não prototipado"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>Instalar</button>
+          <button class="btn btn-text" data-close="#acc-instalar">Agora não</button>
+        </span>
+      </div>
+      <p class="section-note" style="margin-top: var(--sp-2)">Instalado, o app abre e guarda os relatórios mesmo sem sinal dentro da cabine. Sem instalar, funciona enquanto houver conexão.</p>
+    </section>
+
+    <!-- Storage -->
+    <section class="section" aria-labelledby="acc-h-storage">
+      <div class="section-head"><h2 id="acc-h-storage">Armazenamento neste aparelho</h2></div>
+      <ul class="settings-list">
+        <li class="settings-row">
+          <span class="grow">
+            <span class="sr-label">Em uso</span><br>
+            <span class="storage-line"><span class="sr-value t-value">1,2 GB</span><span class="sr-value">· 2 relatórios · 118 fotos</span></span>
+          </span>
+        </li>
+        <li class="settings-row">
+          <span class="grow">
+            <span class="sr-label">Aguardando envio</span><br>
+            <span class="upload-pill" data-state="pending"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-up"/></svg>31 fotos aguardando envio</span>
+            <span class="sr-value" style="margin-left: var(--sp-2)">· 3 fichas</span>
+          </span>
+          <a class="btn btn-text" href="#/sync">Ver status de sincronização<svg class="ico ico-sm" aria-hidden="true"><use href="#i-chev-right"/></svg></a>
+        </li>
+      </ul>
+      <p class="section-note" style="margin-top: var(--sp-2)">Fotos ficam neste aparelho até o servidor confirmar o recebimento. Relatórios emitidos são removidos daqui sozinhos.</p>
+    </section>
+
+    <!-- AI readings: where they run and what leaves the device (memlog: all processing in the backend; Open Questions › LGPD) -->
+    <section class="section" aria-labelledby="acc-h-ia">
+      <div class="section-head"><h2 id="acc-h-ia">Leituras por IA</h2></div>
+      <ul class="settings-list">
+        <li class="settings-row">
+          <span class="grow">
+            <span class="sr-label">Onde rodam</span><br>
+            <span class="sr-value">Enviadas ao backend PRODUTO (SaaS) — nada roda neste aparelho. Sem sinal, a foto fica guardada e a leitura roda no primeiro sinal.</span>
+          </span>
+        </li>
+        <li class="settings-row">
+          <span class="grow">
+            <span class="sr-label">O que sai do aparelho</span><br>
+            <span class="sr-value">Fotos do cliente conforme os termos: placas de identificação, visores de instrumento, painéis e fotos gerais do registro fotográfico. Valores voltam como sugestões — nada é gravado sem a sua confirmação.</span>
+          </span>
+        </li>
+      </ul>
+      <p class="section-note lgpd-note" style="margin-top: var(--sp-2)"><strong>LGPD</strong> — o envio de fotos da instalação do cliente (placas, painéis, pessoas nas fotos de desligamento) a um provedor de IA depende do consentimento previsto no contrato; o texto e onde ele fica (contrato ou Dados do relatório), e se pessoas ficam fora das legendas automáticas, estão em definição jurídica (Perguntas abertas). Até lá, esta linha é o aviso.</p>
+    </section>
+
+    <!-- Sign out -->
+    <section class="section" aria-labelledby="acc-h-sair">
+      <div class="section-head"><h2 id="acc-h-sair">Sessão</h2></div>
+      <div class="sign-out">
+        <button class="btn btn-destructive" data-open="#acc-dlg-sair" aria-describedby="acc-sair-note">Sair</button>
+        <span class="btn-reason" id="acc-sair-note">31 fotos e 3 fichas aguardando envio. Sair antes do envio pede confirmação; nada é apagado deste aparelho.</span>
+      </div>
+    </section>
+
+  </div><!-- /content -->
+
+  <!-- ---------------- Confirm dialog: sign out with pending sync (data-open="#acc-dlg-sair") ---------------- -->
+  <div class="dialog-scrim" id="acc-dlg-sair" hidden>
+    <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="acc-sair-title" aria-describedby="acc-sair-desc">
+      <h2 class="dialog-title" id="acc-sair-title">Sair com envios pendentes?</h2>
+      <p class="t-body" id="acc-sair-desc">31 fotos e 3 fichas ainda não foram enviadas. Elas continuam neste aparelho e sobem quando você entrar de novo com conexão.</p>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary is-focus-ring" data-close>Cancelar</button>
+        <button class="btn btn-destructive" data-close data-go="#/login">Sair mesmo assim</button>
+      </div>
+    </div>
+  </div>
+</section>

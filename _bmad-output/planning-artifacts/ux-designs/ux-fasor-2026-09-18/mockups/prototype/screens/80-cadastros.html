@@ -1,0 +1,463 @@
+<style data-screen="cadastros">
+/* Source: mockups/key-registries.html frame 1 (Instrumentos + 2E edit panel), frame 2 (Combobox creating "Blutrafos" inline), frame 3 (Critérios, read-only).
+   Clientes and Classes de tensão panels are not in the mock: minimal Registry rows in the same shape.
+   Governs: EXPERIENCE.md § IA › Registries; § Registries table; § Component Patterns › Registry row, Combobox ("Criar “texto”" last), Instrument picker; § State Patterns › Calibration expired; Flow 1 step 2. */
+[data-route="/cadastros"] .cad-panels { flex: 1; display: flex; flex-direction: column; }
+[data-route="/cadastros"] .registry-layout { display: flex; flex: 1; align-items: stretch; }
+[data-route="/cadastros"] .registry-main { flex: 1; min-width: 0; padding: var(--sp-5) var(--gutter-tablet); }
+.frame-desktop [data-route="/cadastros"] .registry-main { padding: var(--sp-5) var(--gutter-desktop); }
+.frame-phone [data-route="/cadastros"] .registry-main { padding: var(--sp-4) var(--gutter-phone); }
+[data-route="/cadastros"] .registry-main.is-narrow { max-width: calc(var(--content-max) + 2 * var(--gutter-desktop)); }
+[data-route="/cadastros"] .registry-panel { width: 480px; flex: none; border-left: 1px solid var(--border-hairline); background: var(--surface-raised); display: flex; flex-direction: column; }
+.frame-tablet-landscape [data-route="/cadastros"] .registry-panel { width: 440px; }
+.frame-tablet [data-route="/cadastros"] .registry-layout,
+.frame-phone [data-route="/cadastros"] .registry-layout { flex-direction: column; }
+.frame-tablet [data-route="/cadastros"] .registry-panel,
+.frame-phone [data-route="/cadastros"] .registry-panel { width: 100%; border-left: 0; border-top: 2px solid var(--border-strong); }
+[data-route="/cadastros"] .registry-panel .panel-head { display: flex; align-items: flex-start; gap: var(--sp-3); padding: var(--sp-5) var(--gutter-desktop) 0; }
+[data-route="/cadastros"] .registry-panel .panel-body { padding: var(--sp-4) var(--gutter-desktop) var(--sp-5); display: flex; flex-direction: column; gap: var(--sp-4); flex: 1; }
+.frame-phone [data-route="/cadastros"] .registry-panel .panel-head { padding: var(--sp-4) var(--gutter-phone) 0; }
+.frame-phone [data-route="/cadastros"] .registry-panel .panel-body { padding: var(--sp-3) var(--gutter-phone) var(--sp-4); }
+[data-route="/cadastros"] .registry-panel .panel-title { font-size: var(--t-heading-size); font-weight: var(--t-heading-weight); line-height: var(--t-heading-lh); }
+[data-route="/cadastros"] .registry-panel .panel-meta { font-size: var(--t-meta-size); color: var(--ink-secondary); margin-top: var(--sp-1); }
+[data-route="/cadastros"] .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
+[data-route="/cadastros"] .field-grid .span-2 { grid-column: 1 / -1; }
+.frame-phone [data-route="/cadastros"] .field-grid { grid-template-columns: 1fr; }
+.frame-phone [data-route="/cadastros"] .field-grid .span-2 { grid-column: auto; }
+[data-route="/cadastros"] .registry-toolbar { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--sp-3); margin-bottom: var(--sp-4); }
+[data-route="/cadastros"] .registry-toolbar .field { flex: 1 1 280px; }
+.frame-phone [data-route="/cadastros"] .registry-toolbar .btn-primary { width: 100%; }
+[data-route="/cadastros"] .registry-row { padding-left: var(--sp-3); padding-right: var(--sp-2); }
+[data-route="/cadastros"] .registry-row .rr-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+[data-route="/cadastros"] .registry-row .rr-chevron { color: var(--ink-secondary); flex: none; }
+/* Selected row = the one open in the edit panel (mirrors the Relatório tree selection). Driven by the panel being visible. */
+[data-route="/cadastros"] .registry-layout:has(#cad-inst-panel:not([hidden])) #cad-row-2e { background: var(--focus-fill); box-shadow: inset 4px 0 0 var(--primary); font-weight: 600; }
+[data-route="/cadastros"] .registry-layout:has(#cad-inst-panel:not([hidden])) #cad-row-2e .rr-secondary { font-weight: 400; }
+[data-route="/cadastros"] .pager { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); margin-top: var(--sp-3); font-size: var(--t-meta-size); color: var(--ink-secondary); flex-wrap: wrap; }
+[data-route="/cadastros"] .pager .pager-btns { display: flex; gap: var(--sp-2); }
+[data-route="/cadastros"] .file-input .file-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-route="/cadastros"] .file-input .btn-text { margin-right: calc(-1 * var(--sp-3)); }
+/* Combobox list under the input (hidden ↔ data-open / data-close); chevron stays on the input */
+[data-route="/cadastros"] .combobox-list { list-style: none; margin: var(--sp-1) 0 0; padding: 0; }
+[data-route="/cadastros"] .combobox .combobox-chevron { bottom: auto; top: calc(var(--t-label-size) * var(--t-label-lh) + var(--sp-1)); height: var(--touch-field); }
+[data-route="/cadastros"] .combobox-option[role="option"]:not([aria-disabled="true"]) { cursor: pointer; }
+/* Read-only data table stacks into cards on the phone */
+.frame-phone [data-route="/cadastros"] .data-table,
+.frame-phone [data-route="/cadastros"] .data-table tbody,
+.frame-phone [data-route="/cadastros"] .data-table tr,
+.frame-phone [data-route="/cadastros"] .data-table td { display: block; }
+.frame-phone [data-route="/cadastros"] .data-table thead { display: none; }
+.frame-phone [data-route="/cadastros"] .data-table tr { padding: var(--sp-3); border-top: 1px solid var(--border-hairline); }
+.frame-phone [data-route="/cadastros"] .data-table tr:first-child { border-top: 0; }
+.frame-phone [data-route="/cadastros"] .data-table td { padding: 2px 0; border-top: 0; }
+.frame-phone [data-route="/cadastros"] .data-table td::before { content: attr(data-label); display: block; font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--ink-secondary); }
+.frame-phone [data-route="/cadastros"] .data-table td.cell-crit { white-space: normal; }
+.frame-phone [data-route="/cadastros"] .data-table td + td { margin-top: var(--sp-2); }
+/* Critérios: the source line per row ("Fonte: aceitável na ficha") — what the sheet shows behind the criterion's chevron */
+[data-route="/cadastros"] .data-table .cell-source { display: block; font-weight: 600; }
+[data-route="/cadastros"] .data-table .cell-source-meta { display: block; font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+/* D3 — Empresa: the only surface where the brand is edited (the app stays PRODUTO); fields at the left, document preview at the right */
+[data-route="/cadastros"] .empresa-layout { display: grid; grid-template-columns: 1fr; gap: var(--sp-5); align-items: start; }
+.frame-desktop [data-route="/cadastros"] .empresa-layout, .frame-tablet-landscape [data-route="/cadastros"] .empresa-layout { grid-template-columns: minmax(0, 1fr) 360px; }
+[data-route="/cadastros"] .brand-tiles { display: flex; flex-wrap: wrap; gap: var(--sp-4); }
+[data-route="/cadastros"] .brand-tile { display: flex; flex-direction: column; gap: var(--sp-1); width: 200px; max-width: 100%; }
+[data-route="/cadastros"] .brand-tile .thumb { position: relative; aspect-ratio: 16 / 9; border: 1px solid var(--border-strong); border-radius: var(--r-md); background: var(--surface-raised); overflow: hidden; }
+[data-route="/cadastros"] .brand-tile.is-logo .thumb { aspect-ratio: 16 / 9; background: var(--surface-base); }
+[data-route="/cadastros"] .brand-tile.is-logo .thumb-fake { inset: 22% 18%; background: var(--ink-secondary); opacity: .45; border-radius: 4px; }
+[data-route="/cadastros"] .brand-tile.is-logo .thumb-fake::after { display: none; }
+[data-route="/cadastros"] .brand-tile .tile-name { font-size: var(--t-meta-size); color: var(--ink-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-route="/cadastros"] .brand-tile .btn-text { align-self: flex-start; margin-left: calc(-1 * var(--sp-3)); }
+[data-route="/cadastros"] .toggle { cursor: pointer; }
+[data-route="/cadastros"] #cad-wm-field { display: none; }
+[data-route="/cadastros"] #cad-panel-empresa:has(#cad-wm-switch[aria-checked="true"]) #cad-wm-field { display: flex; }
+/* Page-only: the watermark line and its note follow the "Marca d'água" switch via :has() (components.css draws the watermark unconditionally) */
+[data-route="/cadastros"] .brand-preview .bp-watermark, [data-route="/cadastros"] .brand-preview .bp-wm-note { display: none; }
+[data-route="/cadastros"] #cad-panel-empresa:has(#cad-wm-switch[aria-checked="true"]) .brand-preview .bp-watermark { display: flex; }
+[data-route="/cadastros"] #cad-panel-empresa:has(#cad-wm-switch[aria-checked="true"]) .brand-preview .bp-wm-note { display: inline; }
+[data-route="/cadastros"] .brand-preview .bp-note { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+[data-route="/cadastros"] .empresa-save { margin-top: var(--sp-5); }
+</style>
+<section class="screen" data-route="/cadastros" data-title="Cadastros" data-shell="app" data-rail="false">
+
+  <nav class="tabs" role="tablist" aria-label="Cadastros">
+    <button class="tab" role="tab" aria-selected="false" data-tab="cad-panel-empresa">Empresa</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="cad-panel-clientes">Clientes</button>
+    <button class="tab" role="tab" aria-selected="true" data-tab="cad-panel-instrumentos">Instrumentos</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="cad-panel-fabricantes">Fabricantes</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="cad-panel-classes">Classes de tensão</button>
+    <button class="tab" role="tab" aria-selected="false" data-tab="cad-panel-criterios">Critérios de aceitação</button>
+  </nav>
+
+  <div class="cad-panels">
+
+    <!-- ================= Empresa (D3) — identity of the generated document; edited once per company ================= -->
+    <div class="registry-main" id="cad-panel-empresa" data-tab-panel role="tabpanel" aria-label="Empresa" hidden>
+      <p class="section-note">Identidade do documento gerado: logo, capa, marca d'água, cabeçalho e rodapé. Só aqui a marca é editada — o app continua PRODUTO. Vale para todos os relatórios emitidos daqui em diante.</p>
+      <div class="empresa-layout">
+        <div class="stack">
+          <div class="field-grid">
+            <div class="field span-2">
+              <span class="field-label">Razão social</span>
+              <div class="input">Fasor Engenharia</div>
+              <span class="helper">Cabeçalho, capa e "Contratada" no controle do documento</span>
+            </div>
+            <div class="field">
+              <span class="field-label">CNPJ</span>
+              <div class="input tabular">00.000.000/0001-00</div>
+            </div>
+            <div class="field">
+              <span class="field-label">Telefone · e-mail</span>
+              <div class="input">(11) 0000-0000 · contato@fasor.eng.br</div>
+            </div>
+            <div class="field span-2">
+              <span class="field-label">Endereço (linha do rodapé)</span>
+              <div class="input">Rua Exemplo, 100 · São Paulo/SP</div>
+            </div>
+            <div class="field span-2">
+              <span class="field-label">Título do formulário</span>
+              <div class="input">Relatório Técnico de Cabine Primária</div>
+              <span class="helper">Impresso no cabeçalho de toda página e no controle do documento</span>
+            </div>
+            <div class="field">
+              <span class="field-label">Código do formulário</span>
+              <div class="input tabular">FO.SERV-03</div>
+              <span class="helper">Cabeçalho e controle do documento</span>
+            </div>
+            <div class="field">
+              <span class="field-label">Revisão do formulário</span>
+              <div class="input tabular">Revisão 01</div>
+              <span class="helper">Rodapé · não é a revisão da emissão (Rev. 2)</span>
+            </div>
+          </div>
+
+          <div class="field">
+            <span class="field-label">Imagens do documento</span>
+            <div class="brand-tiles">
+              <div class="brand-tile is-logo">
+                <span class="thumb" role="img" aria-label="Logo atual, PNG"><span class="thumb-fake"></span></span>
+                <span class="tile-name">Logo · logo-fasor.png · 1200 × 480</span>
+                <button class="btn btn-text" data-toast="Substituir logo — PNG ou SVG; entra na fila de envio como uma foto"><svg class="ico" aria-hidden="true"><use href="#i-image"/></svg>Substituir logo</button>
+              </div>
+              <div class="brand-tile">
+                <span class="thumb" role="img" aria-label="Fundo de capa atual"><span class="thumb-fake"></span></span>
+                <span class="tile-name">Fundo de capa · capa-padrao.jpg · opcional</span>
+                <div class="row-wrap"><button class="btn btn-text" data-toast="Substituir fundo de capa — JPG ou PNG"><svg class="ico" aria-hidden="true"><use href="#i-image"/></svg>Substituir</button><button class="btn btn-text" data-tone="red" data-toast="Fundo de capa removido — a capa fica só com a foto do relatório" data-toast-action="Desfazer">Remover</button></div>
+              </div>
+            </div>
+            <span class="helper">A foto de capa de cada relatório vem de Dados do relatório; o fundo é o mesmo em todos.</span>
+          </div>
+
+          <div>
+            <div class="toggle-row">
+              <span><span class="toggle-label" id="cad-wm-l">Marca d'água em todas as páginas</span><br><span class="toggle-sub">Texto discreto atravessado na página, PDF e DOCX</span></span>
+              <button class="toggle" role="switch" id="cad-wm-switch" aria-checked="true" aria-labelledby="cad-wm-l"><span class="track" aria-hidden="true"><span class="knob"></span></span><span class="toggle-word">Ativado</span></button>
+            </div>
+            <div class="field" id="cad-wm-field">
+              <span class="field-label" id="cad-wm-t-l">Texto da marca d'água</span>
+              <div class="input" role="textbox" aria-labelledby="cad-wm-t-l" contenteditable="true">Fasor Engenharia</div>
+            </div>
+          </div>
+
+          <div class="row-wrap empresa-save"><span class="btn-reason">Salvo automaticamente · 18/09 10:02 · Bruno · vale para as próximas emissões, não muda revisões já geradas</span></div>
+        </div>
+
+        <!-- Brand preview: plain-CSS miniature (gray boxes, no real logo) -->
+        <aside class="brand-preview" aria-label="Pré-visualização do documento">
+          <p class="bp-label">Pré-visualização do documento</p>
+          <div class="bp-pages">
+            <figure class="bp-page bp-cover" aria-label="Capa">
+              <i class="bp-box bp-logo" aria-hidden="true"></i>
+              <span class="bp-title">Relatório de manutenção preventiva — Cabine primária</span>
+              <span>Porto Seguro Companhia de Seguros Gerais · Torres A e B · 06, 07 e 08 de setembro de 2026</span>
+              <i class="bp-box bp-cover-photo" aria-hidden="true"></i>
+              <span>Fasor Engenharia · CNPJ 00.000.000/0001-01</span>
+              <span class="bp-footer"><span>FO.SERV-03 · Revisão 01</span><span>Rev. 3</span></span>
+              <figcaption class="bp-caption">Capa</figcaption>
+            </figure>
+            <figure class="bp-page bp-inner" aria-label="Página interna">
+              <span class="bp-header"><i class="bp-box bp-logo" aria-hidden="true"></i><span>Relatório Técnico de Cabine Primária · FO.SERV-03 · Revisão 01</span></span>
+              <span class="bp-lines" aria-hidden="true"><i class="bp-line"></i><i class="bp-line"></i><i class="bp-line short"></i><i class="bp-line"></i><i class="bp-line"></i><i class="bp-line short"></i></span>
+              <span class="bp-watermark" aria-hidden="true">Fasor Engenharia</span>
+              <span class="bp-footer"><span>Rua Exemplo, 100 · São Paulo/SP · (11) 0000-0000 · contato@fasor.eng.br</span><span>12</span></span>
+              <figcaption class="bp-caption">Página interna</figcaption>
+            </figure>
+          </div>
+          <span class="bp-note">Capa, cabeçalho e rodapé com os valores atuais<span class="bp-wm-note"> · marca d'água ativa</span>. Depois da capa entra o controle do documento; a marca só aparece no documento, nunca no app.</span>
+        </aside>
+      </div>
+    </div>
+
+    <!-- ================= Clientes ================= -->
+    <div class="registry-main is-narrow" id="cad-panel-clientes" data-tab-panel role="tabpanel" aria-label="Clientes" hidden>
+      <div class="registry-toolbar">
+        <div class="field">
+          <span class="field-label visually-hidden">Buscar cliente</span>
+          <div class="input" data-toast="Busca — não prototipada"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><span class="placeholder">Ex: Porto Seguro</span></div>
+        </div>
+        <button class="btn btn-primary" data-toast="Novo cliente — não prototipado"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Novo cliente</button>
+      </div>
+      <p class="section-note">Cliente e obras alimentam a capa do relatório; o CNPJ (opcional) sai na linha "Contratante" do controle do documento. Um cliente com relatórios não pode ser excluído — só arquivado.</p>
+      <ul class="registry-list" aria-label="Clientes">
+        <li class="registry-row" tabindex="0" data-go="#/project/porto-seguro" aria-label="Porto Seguro Companhia de Seguros Gerais, abrir">
+          <div class="rr-text"><span class="rr-primary">Porto Seguro Companhia de Seguros Gerais</span><span class="rr-secondary">CNPJ 00.000.000/0001-00 · São Paulo/SP · 2 obras (Torres A e B · Oxigênio) · 3 relatórios</span></div>
+          <svg class="ico rr-chevron" aria-hidden="true"><use href="#i-chev-right"/></svg>
+        </li>
+        <li class="registry-row" tabindex="0" data-toast="Só o cliente Porto Seguro está prototipado" aria-label="Condomínio Edifício Alameda Jaú">
+          <div class="rr-text"><span class="rr-primary">Condomínio Edifício Alameda Jaú</span><span class="rr-secondary">CNPJ não informado · São Paulo/SP · 1 obra · 1 relatório</span></div>
+          <svg class="ico rr-chevron" aria-hidden="true"><use href="#i-chev-right"/></svg>
+        </li>
+        <li class="registry-row" tabindex="0" data-toast="Só o cliente Porto Seguro está prototipado" aria-label="Hospital Santa Clara">
+          <div class="rr-text"><span class="rr-primary">Hospital Santa Clara</span><span class="rr-secondary">Campinas/SP · 1 obra · 2 relatórios</span></div>
+          <svg class="ico rr-chevron" aria-hidden="true"><use href="#i-chev-right"/></svg>
+        </li>
+      </ul>
+      <div class="pager"><span>1–3 de 3 clientes</span></div>
+    </div>
+
+    <!-- ================= Instrumentos (default) ================= -->
+    <div class="registry-layout" id="cad-panel-instrumentos" data-tab-panel role="tabpanel" aria-label="Instrumentos">
+
+      <div class="registry-main">
+        <div class="registry-toolbar">
+          <div class="field">
+            <span class="field-label visually-hidden">Buscar instrumento</span>
+            <div class="input" data-toast="Busca — não prototipada"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><span class="placeholder">Ex: 2E ou megôhmetro</span></div>
+          </div>
+          <button class="btn btn-primary" data-toast="Novo instrumento — não prototipado; o Combobox de fabricante está em Fabricantes"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Novo instrumento</button>
+        </div>
+        <p class="section-note">Ordenados por validade da calibração — vencidos primeiro. Selecionar por código na ficha preenche série, RBC e tensão de ensaio.</p>
+
+        <ul class="registry-list" aria-label="Instrumentos">
+          <li class="registry-row" tabindex="0" data-toast="Só o instrumento 2E abre no painel de edição" aria-label="5A, Terrômetro digital MTD-20KWe, calibração vencida em 15/03/2026, editar">
+            <div class="rr-text">
+              <span class="rr-primary"><strong>5A</strong> — Terrômetro digital MTD-20KWe</span>
+              <span class="rr-secondary">Megabras · série TD1904102 · RBC 35102/25 · <span class="rr-expired">Vencida 15/03/2026</span> · 35102-25.pdf</span>
+            </div>
+            <svg class="ico rr-chevron" aria-hidden="true"><use href="#i-chev-right"/></svg>
+          </li>
+          <li class="registry-row" id="cad-row-2e" tabindex="0" data-open="#cad-inst-panel" aria-label="2E, Megôhmetro digital DMG10Ki, editar">
+            <div class="rr-text">
+              <span class="rr-primary"><strong>2E</strong> — Megôhmetro digital DMG10Ki</span>
+              <span class="rr-secondary">Instrum · série IN919021-25945 · RBC 37428/26 · Válida até 28/08/2027 · 37428-26.pdf</span>
+            </div>
+            <svg class="ico rr-chevron" aria-hidden="true"><use href="#i-chev-right"/></svg>
+          </li>
+          <li class="registry-row" tabindex="0" data-toast="Só o instrumento 2E abre no painel de edição" aria-label="3M, Microhmímetro HTMO-10, editar">
+            <div class="rr-text">
+              <span class="rr-primary"><strong>3M</strong> — Microhmímetro HTMO-10</span>
+              <span class="rr-secondary">Hi-Tech · série G282926 · RBC 37276/26 · Válida até 20/08/2027 · 37276-26.pdf</span>
+            </div>
+            <svg class="ico rr-chevron" aria-hidden="true"><use href="#i-chev-right"/></svg>
+          </li>
+          <li class="registry-row" tabindex="0" data-toast="Só o instrumento 2E abre no painel de edição" aria-label="1T, Medidor de relação HTRT-8K, editar">
+            <div class="rr-text">
+              <span class="rr-primary"><strong>1T</strong> — Medidor de relação HTRT-8K</span>
+              <span class="rr-secondary">Hi-Tech · série F277226 · RBC 37274/26 · Válida até 20/08/2027 · 37274-26.pdf</span>
+            </div>
+            <svg class="ico rr-chevron" aria-hidden="true"><use href="#i-chev-right"/></svg>
+          </li>
+        </ul>
+
+        <div class="pager">
+          <span>1–4 de 4 instrumentos</span>
+          <div class="pager-btns">
+            <button class="btn btn-text" aria-disabled="true" aria-label="Página anterior"><svg class="ico" aria-hidden="true"><use href="#i-chev-left"/></svg>Anterior</button>
+            <button class="btn btn-text" aria-disabled="true" aria-label="Próxima página">Próxima<svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Edit panel: opens from the 2E row (data-open), closes with the X, Arquivar or Salvar -->
+      <aside class="registry-panel" id="cad-inst-panel" aria-labelledby="cad-pan-title" hidden>
+        <div class="panel-head">
+          <div class="grow">
+            <h2 class="panel-title" id="cad-pan-title">2E — Megôhmetro digital DMG10Ki</h2>
+            <p class="panel-meta">Usado em 94 fichas deste relatório · certificado impresso na seção 11</p>
+          </div>
+          <button class="icon-btn" data-close="#cad-inst-panel" aria-label="Fechar edição"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg></button>
+        </div>
+        <div class="panel-body">
+          <div class="field-grid">
+            <div class="field">
+              <span class="field-label">Código</span>
+              <div class="input tabular">2E</div>
+            </div>
+            <div class="field combobox">
+              <span class="field-label" id="cad-f-fab-label">Fabricante</span>
+              <div class="input" role="combobox" aria-labelledby="cad-f-fab-label" aria-expanded="false" aria-controls="cad-f-fab-list" data-open="#cad-f-fab-list"><span id="cad-f-fab-value">Instrum</span></div>
+              <span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+              <ul class="combobox-list" id="cad-f-fab-list" role="listbox" aria-label="Fabricantes" hidden>
+                <li class="combobox-option" role="option" aria-selected="false" data-close="#cad-f-fab-list" data-set-text="#cad-f-fab-value|Hi-Tech">Hi-Tech<span class="option-meta">2 instrumentos</span></li>
+                <li class="combobox-option" role="option" aria-selected="true" data-close="#cad-f-fab-list" data-set-text="#cad-f-fab-value|Instrum">Instrum<span class="option-meta">1 instrumento</span></li>
+                <li class="combobox-option" role="option" aria-selected="false" data-close="#cad-f-fab-list" data-set-text="#cad-f-fab-value|Megabras">Megabras<span class="option-meta">1 instrumento</span></li>
+                <li class="combobox-option is-create" role="option" aria-selected="false" data-close="#cad-f-fab-list" data-toast="Fabricante criado no cadastro de Fabricantes"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Criar “Instrum”</li>
+              </ul>
+            </div>
+            <div class="field span-2">
+              <span class="field-label">Nome</span>
+              <div class="input">Megôhmetro digital DMG10Ki</div>
+            </div>
+            <div class="field">
+              <span class="field-label">Tipo / modelo</span>
+              <div class="input">DMG10Ki</div>
+            </div>
+            <div class="field">
+              <span class="field-label">Nº de série</span>
+              <div class="input tabular">IN919021-25945</div>
+            </div>
+            <div class="field">
+              <span class="field-label">Certificado RBC nº</span>
+              <div class="input tabular">37428/26</div>
+            </div>
+            <div class="field">
+              <span class="field-label">Data de calibração</span>
+              <div class="input tabular">28/08/2026</div>
+            </div>
+            <div class="field">
+              <span class="field-label">Validade</span>
+              <div class="input tabular">28/08/2027</div>
+              <span class="helper">Vencida = linha âmbar na ficha; nunca bloqueia</span>
+            </div>
+            <div class="field span-2">
+              <span class="field-label">Emissor do certificado</span>
+              <div class="input">Gama Instruments</div>
+            </div>
+            <div class="field span-2">
+              <span class="field-label">Arquivo do certificado</span>
+              <div class="input file-input">
+                <svg class="ico" aria-hidden="true"><use href="#i-file"/></svg>
+                <span class="file-name tabular">37428-26.pdf</span>
+                <span class="echo">Enviado</span>
+                <button class="btn btn-text" data-toast="Substituir certificado — entra na fila de envio como uma foto">Substituir</button>
+              </div>
+              <span class="helper">PDF ou imagem. Entra na fila de envio como uma foto — pode ser anexado sem conexão.</span>
+            </div>
+            <div class="field">
+              <span class="field-label">Tensão de ensaio padrão — Isolação</span>
+              <div class="measurement-field"><span class="mf-value">10</span><span class="mf-unit" aria-label="quilovolts">kV</span></div>
+              <span class="helper">Preenche a ficha ao escolher 2E; o aceitável (&gt;400 MΩ) vem do critério, não daqui</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="sticky-action-bar">
+          <span class="btn-reason" id="cad-arq-reason">Remover indisponível: referenciado em 94 fichas. Arquivar tira o 2E das listas e mantém as fichas.</span>
+          <div class="bar-buttons">
+            <button class="btn btn-destructive" data-close="#cad-inst-panel" data-toast="2E arquivado · fora das listas, fichas mantidas" data-toast-action="Desfazer" aria-describedby="cad-arq-reason"><svg class="ico" aria-hidden="true"><use href="#i-archive"/></svg>Arquivar</button>
+            <button class="btn btn-primary" data-close="#cad-inst-panel" data-toast="Instrumento 2E salvo">Salvar</button>
+          </div>
+        </div>
+      </aside>
+
+    </div>
+
+    <!-- ================= Fabricantes ================= -->
+    <div class="registry-main is-narrow" id="cad-panel-fabricantes" data-tab-panel role="tabpanel" aria-label="Fabricantes" hidden>
+      <p class="section-note">Usados na placa dos equipamentos e no cadastro de instrumentos. Na ficha, o campo Fabricante é a linha dos 5 mais recentes deste relatório + "Outro…"; a lista completa e o "Criar" ficam atrás de "Outro…". A leitura da placa cruza com este cadastro: um fabricante desconhecido pergunta "Criar Celtta?" na própria ficha.</p>
+
+      <!-- Field-surface pattern (Smart Input › Reasons and pick-lists): chips of the 5 most recent values; "Outro…" opens the Combobox with the full registry -->
+      <div class="field" style="max-width: 560px; margin-bottom: var(--sp-4)">
+        <span class="field-label" id="cad-fab-chips-label">Fabricante — como aparece na ficha</span>
+        <div class="chip-row chips-recent" role="group" aria-labelledby="cad-fab-chips-label">
+          <button class="chip" aria-pressed="true" data-close="#cad-fab-fallback" data-set-text="#cad-fab-chips-value|Schneider" data-toast="Fabricante: Schneider — um toque, sem digitar">Schneider</button>
+          <button class="chip" aria-pressed="false" data-close="#cad-fab-fallback" data-set-text="#cad-fab-chips-value|Siemens" data-toast="Fabricante: Siemens — um toque, sem digitar">Siemens</button>
+          <button class="chip" aria-pressed="false" data-close="#cad-fab-fallback" data-set-text="#cad-fab-chips-value|WEG" data-toast="Fabricante: WEG — um toque, sem digitar">WEG</button>
+          <button class="chip" aria-pressed="false" data-close="#cad-fab-fallback" data-set-text="#cad-fab-chips-value|ABB" data-toast="Fabricante: ABB — um toque, sem digitar">ABB</button>
+          <button class="chip" aria-pressed="false" data-close="#cad-fab-fallback" data-set-text="#cad-fab-chips-value|Hi-Tech" data-toast="Fabricante: Hi-Tech — um toque, sem digitar">Hi-Tech</button>
+          <button class="chip chip-other" aria-pressed="false" data-open="#cad-fab-fallback">Outro…</button>
+        </div>
+        <span class="helper">Valor: <span id="cad-fab-chips-value">Schneider</span> · os 5 mais usados neste relatório</span>
+      </div>
+
+      <!-- Fallback ("Outro…"): the Combobox with the full registry and "Criar" as the last option -->
+      <div class="field combobox is-open" id="cad-fab-fallback" style="max-width: 560px; margin-bottom: var(--sp-5)" hidden>
+        <span class="field-label" id="cad-fab-new-label">Outro fabricante — buscar ou criar</span>
+        <div class="input is-focus" role="combobox" aria-labelledby="cad-fab-new-label" aria-expanded="true" aria-autocomplete="list" aria-controls="cad-fab-new-list" data-open="#cad-fab-new-list">Blutrafos</div>
+        <span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+        <ul class="combobox-list" id="cad-fab-new-list" role="listbox" aria-label="Fabricantes">
+          <li class="combobox-option ink-secondary" aria-disabled="true">Nenhum fabricante com “Blutrafos”</li>
+          <li class="combobox-option is-create" role="option" aria-selected="true" data-close="#cad-fab-fallback" data-set-text="#cad-fab-chips-value|Blutrafos" data-toast="Fabricante “Blutrafos” criado · fica salvo neste aparelho e sobe quando houver sinal"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Criar “Blutrafos”</li>
+        </ul>
+        <span class="helper">Criado ao confirmar; se outro aparelho criar o mesmo nome, as entradas são unificadas na sincronização</span>
+      </div>
+
+      <ul class="registry-list" aria-label="Fabricantes">
+        <li class="registry-row" tabindex="0" data-toast="Editar fabricante — não prototipado"><div class="rr-text"><span class="rr-primary">Hi-Tech</span><span class="rr-secondary">2 instrumentos (3M · 1T)</span></div><svg class="ico rr-chevron" aria-hidden="true"><use href="#i-chev-right"/></svg></li>
+        <li class="registry-row" tabindex="0" data-toast="Editar fabricante — não prototipado"><div class="rr-text"><span class="rr-primary">Instrum</span><span class="rr-secondary">1 instrumento (2E)</span></div><svg class="ico rr-chevron" aria-hidden="true"><use href="#i-chev-right"/></svg></li>
+        <li class="registry-row" tabindex="0" data-toast="Editar fabricante — não prototipado"><div class="rr-text"><span class="rr-primary">Megabras</span><span class="rr-secondary">1 instrumento (5A)</span></div><svg class="ico rr-chevron" aria-hidden="true"><use href="#i-chev-right"/></svg></li>
+        <li class="registry-row" tabindex="0" data-toast="Editar fabricante — não prototipado"><div class="rr-text"><span class="rr-primary">Siemens</span><span class="rr-secondary">38 placas de equipamento · 4 relatórios</span></div><svg class="ico rr-chevron" aria-hidden="true"><use href="#i-chev-right"/></svg></li>
+        <li class="registry-row" tabindex="0" data-toast="Editar fabricante — não prototipado"><div class="rr-text"><span class="rr-primary">WEG</span><span class="rr-secondary">12 placas de equipamento · 3 relatórios</span></div><svg class="ico rr-chevron" aria-hidden="true"><use href="#i-chev-right"/></svg></li>
+        <li class="registry-row" tabindex="0" data-toast="Editar fabricante — não prototipado"><div class="rr-text"><span class="rr-primary">ABB</span><span class="rr-secondary">9 placas de equipamento · 2 relatórios</span></div><svg class="ico rr-chevron" aria-hidden="true"><use href="#i-chev-right"/></svg></li>
+      </ul>
+      <div class="pager"><span>1–6 de 6 fabricantes</span></div>
+    </div>
+
+    <!-- ================= Classes de tensão ================= -->
+    <div class="registry-main is-narrow" id="cad-panel-classes" data-tab-panel role="tabpanel" aria-label="Classes de tensão" hidden>
+      <div class="registry-toolbar">
+        <div class="field">
+          <span class="field-label visually-hidden">Buscar classe de tensão</span>
+          <div class="input" data-toast="Busca — não prototipada"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><span class="placeholder">Ex: 13,8</span></div>
+        </div>
+        <button class="btn btn-primary" data-toast="Nova classe de tensão — não prototipada"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Nova classe</button>
+      </div>
+      <p class="section-note">Opções do campo "Classe de tensão" na placa e "Tensão primária" da SE. Valores em kV, formato pt-BR.</p>
+      <ul class="registry-list" aria-label="Classes de tensão">
+        <li class="registry-row" tabindex="0" data-toast="Editar classe — não prototipado"><div class="rr-text"><span class="rr-primary tabular">13,8 kV</span><span class="rr-secondary">Classe 15 kV · usada em 6 relatórios · padrão da SE</span></div><svg class="ico rr-chevron" aria-hidden="true"><use href="#i-chev-right"/></svg></li>
+        <li class="registry-row" tabindex="0" data-toast="Editar classe — não prototipado"><div class="rr-text"><span class="rr-primary tabular">23 kV</span><span class="rr-secondary">Classe 24 kV · usada em 1 relatório</span></div><svg class="ico rr-chevron" aria-hidden="true"><use href="#i-chev-right"/></svg></li>
+        <li class="registry-row" tabindex="0" data-toast="Editar classe — não prototipado"><div class="rr-text"><span class="rr-primary tabular">34,5 kV</span><span class="rr-secondary">Classe 36 kV · usada em 1 relatório</span></div><svg class="ico rr-chevron" aria-hidden="true"><use href="#i-chev-right"/></svg></li>
+        <li class="registry-row" tabindex="0" data-toast="Editar classe — não prototipado"><div class="rr-text"><span class="rr-primary tabular">0,38 kV</span><span class="rr-secondary">Baixa tensão · secundário dos transformadores</span></div><svg class="ico rr-chevron" aria-hidden="true"><use href="#i-chev-right"/></svg></li>
+      </ul>
+      <div class="pager"><span>1–4 de 4 classes</span></div>
+    </div>
+
+    <!-- ================= Critérios de aceitação (read-only) ================= -->
+    <div class="registry-main is-narrow" id="cad-panel-criterios" data-tab-panel role="tabpanel" aria-label="Critérios de aceitação" hidden>
+      <div class="banner" data-variant="info" role="note">
+        <span class="banner-text">Somente leitura nesta versão. Os critérios vêm das fichas FO.SERV-03 e aparecem na legenda de cada tabela de ensaio com a fonte. Edição por empresa: estrutura pronta no modelo de dados.</span>
+      </div>
+
+      <section class="section" aria-labelledby="cad-h-crit">
+        <div class="section-head"><h2 id="cad-h-crit">Critérios por sub-bloco de ensaio</h2></div>
+        <p class="section-note">Operador + valor + unidade. O instrumento não define o critério — só a tensão ou corrente de ensaio. Cada linha guarda a própria fonte: é o que a ficha mostra ao tocar o chevron ao lado do critério.</p>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th scope="col">Sub-bloco de ensaio</th>
+              <th scope="col">Critério</th>
+              <th scope="col">Condição de ensaio</th>
+              <th scope="col">Fonte</th>
+              <th scope="col">Aplica-se a</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td data-label="Sub-bloco de ensaio">Ensaio de isolação</td>
+              <td class="cell-crit" data-label="Critério">&gt;400 MΩ</td>
+              <td class="cell-dim" data-label="Condição de ensaio">10 kV (megôhmetro)</td>
+              <td data-label=""><span class="cell-source">Fonte: aceitável na ficha</span><span class="cell-source-meta">FO.SERV-03 · na ficha, atrás do chevron</span></td>
+              <td class="cell-dim" data-label="Aplica-se a">Cabos de entrada e saída, para-raios, seccionadoras, disjuntores, TP, TC, transformadores</td>
+            </tr>
+            <tr>
+              <td data-label="Sub-bloco de ensaio">Resistência ôhmica de contato</td>
+              <td class="cell-crit" data-label="Critério">&lt;250 µΩ</td>
+              <td class="cell-dim" data-label="Condição de ensaio">10 A (microhmímetro)</td>
+              <td data-label=""><span class="cell-source">Fonte: aceitável na ficha</span><span class="cell-source-meta">FO.SERV-03 · na ficha, atrás do chevron</span></td>
+              <td class="cell-dim" data-label="Aplica-se a">Seccionadoras, disjuntores</td>
+            </tr>
+            <tr>
+              <td data-label="Sub-bloco de ensaio">Relação de transformação</td>
+              <td class="cell-crit" data-label="Critério">±0,5 %</td>
+              <td class="cell-dim" data-label="Condição de ensaio">Medidor de relação (TTR)</td>
+              <td data-label=""><span class="cell-source">Fonte: aceitável na ficha</span><span class="cell-source-meta">FO.SERV-03 · na ficha, atrás do chevron</span></td>
+              <td class="cell-dim" data-label="Aplica-se a">TP, TC, transformadores de força (por TAP)</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="section-note" style="margin-top: var(--sp-3)">Uma ficha pode sobrescrever o critério só para ela; a sobrescrita guarda a própria fonte e sai na legenda da tabela.</p>
+      </section>
+    </div>
+
+  </div><!-- /cad-panels -->
+</section>

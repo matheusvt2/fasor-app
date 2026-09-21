@@ -1,0 +1,101 @@
+<style data-screen="sync-conflito">
+/* Source: mockups/key-sync-status.html frame 2 (Conflict view, SEC-C12) — reworked to v0.5.0: per-cell pick.
+   Governs: EXPERIENCE.md § Component Patterns › Conflict view (opens only for a true contradiction; one row per contradicting cell
+   with a per-cell pick — two 56px options, the source crop beside an OCR'd value; everything else already merged); § Offline & Sync
+   › Conflict model; § State Patterns › Sync conflict — cell contradiction, Sync merge — sheet body; Flow 6 step 2.
+   Only the contradicting cell is a control (radiogroup "A minha / A de Eduardo"); the merged sub-blocks are listed grayed as "Mesclado". */
+[data-route="/sync/conflito"] .conflict-page { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+[data-route="/sync/conflito"] .conflict-head { display: flex; align-items: flex-start; gap: var(--sp-3); padding: var(--sp-3) var(--sp-2) var(--sp-3) var(--gutter-tablet); border-bottom: 1px solid var(--border-hairline); background: var(--surface-raised); }
+.frame-phone [data-route="/sync/conflito"] .conflict-head { padding-left: var(--gutter-phone); }
+[data-route="/sync/conflito"] .conflict-head .dialog-title { flex: 1; min-width: 0; }
+[data-route="/sync/conflito"] .conflict-head .cv-desc { display: block; font-weight: 400; margin-top: var(--sp-1); }
+[data-route="/sync/conflito"] .conflict-scroll { flex: 1; min-height: 0; padding: var(--sp-5) var(--gutter-tablet); display: flex; flex-direction: column; gap: var(--sp-5); max-width: calc(var(--content-max) + 2 * var(--gutter-tablet)); }
+.frame-phone [data-route="/sync/conflito"] .conflict-scroll { padding: var(--sp-4) var(--gutter-phone); }
+/* Contradiction row: cell name + the two options (radiogroup) */
+[data-route="/sync/conflito"] .cv-cell { padding: var(--sp-4); }
+[data-route="/sync/conflito"] .cv-cell .cc-label { font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--ink-secondary); }
+[data-route="/sync/conflito"] .cv-cell .cc-name { font-size: var(--t-heading-size); font-weight: var(--t-heading-weight); line-height: var(--t-heading-lh); margin-bottom: var(--sp-3); }
+[data-route="/sync/conflito"] .cv-pick { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
+.frame-phone [data-route="/sync/conflito"] .cv-pick { grid-template-columns: 1fr; }
+[data-route="/sync/conflito"] .cv-option { display: flex; align-items: center; gap: var(--sp-3); min-height: 56px; padding: var(--sp-2) var(--sp-3); border: 2px solid var(--border-strong); border-radius: var(--r-md); background: var(--surface-raised); text-align: left; cursor: pointer; }
+[data-route="/sync/conflito"] .cv-option[aria-checked="true"] { border-color: var(--primary); background: var(--focus-fill); box-shadow: inset 0 0 0 1px var(--primary); }
+[data-route="/sync/conflito"] .cv-option[aria-checked="true"] .radio { border-color: var(--primary); }
+[data-route="/sync/conflito"] .cv-option[aria-checked="true"] .radio::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--primary); }
+[data-route="/sync/conflito"] .cv-option .crop-thumb { margin: 0; }
+[data-route="/sync/conflito"] .cv-option .cvo-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+[data-route="/sync/conflito"] .cv-option .cvo-who { display: inline-flex; align-items: center; gap: var(--sp-1); font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--ink-secondary); }
+[data-route="/sync/conflito"] .cv-option .cvo-who .avatar { width: 24px; height: 24px; font-size: 11px; }
+[data-route="/sync/conflito"] .cv-option .cvo-value { font-size: var(--t-value-size); font-weight: var(--t-value-weight); font-variant-numeric: tabular-nums; }
+[data-route="/sync/conflito"] .cv-option .cvo-meta { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+[data-route="/sync/conflito"] .cv-cell .cc-hint { margin-top: var(--sp-3); font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+/* Merged sub-blocks: information only, grayed */
+[data-route="/sync/conflito"] .cv-merged .sync-row { opacity: .72; }
+[data-route="/sync/conflito"] .cv-merged .sync-row .sr-state[data-tone="ok"] { opacity: 1; }
+[data-route="/sync/conflito"] .cv-merged .section-head { margin-bottom: var(--sp-1); }
+[data-route="/sync/conflito"] .cv-merged .sync-row .sr-secondary .was { text-decoration: line-through; }
+.frame-phone [data-route="/sync/conflito"] .cv-merged .sync-row { flex-wrap: wrap; }
+.frame-phone [data-route="/sync/conflito"] .cv-merged .sync-row .sr-state { align-items: flex-start; white-space: normal; }
+</style>
+<section class="screen slice-screen" data-route="/sync/conflito" data-title="Contradição — SEC-C12" data-shell="app" data-rail="false" data-sync="conflict" data-sync-label="Conflito" data-slice="out" data-slice-note=" · FR-58, FR-59">
+
+  <div class="conflict-page" role="region" aria-labelledby="sync-conflito-title" aria-describedby="sync-conflito-desc">
+    <div class="conflict-head">
+      <div class="dialog-title" id="sync-conflito-title">SEC-C12 · Chave seccionadora · Coluna 12<span class="t-meta ink-secondary cv-desc" id="sync-conflito-desc">O resto da ficha já foi mesclado por sub-bloco. Escolha só na célula em contradição; nada mais muda.</span></div>
+      <button class="icon-btn" data-back aria-label="Voltar sem decidir"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg></button>
+    </div>
+
+    <div class="conflict-scroll">
+
+      <!-- The single true contradiction: two different filled values in the same cell -->
+      <div class="conflict-view">
+        <div class="cv-cell">
+          <p class="cc-label">1 célula em contradição · Ensaio de resistência de isolação · 2E — Megôhmetro · 10 kV</p>
+          <p class="cc-name">Fase A · 1 minuto</p>
+          <div class="cv-pick" role="radiogroup" aria-label="Fase A, 1 minuto: qual valor fica">
+            <button class="cv-option" role="radio" aria-checked="true">
+              <span class="radio" aria-hidden="true"></span>
+              <span class="crop-thumb" role="img" aria-label="Recorte do visor do megôhmetro"><i class="thumb-fake"></i></span>
+              <span class="cvo-text">
+                <span class="cvo-who"><span class="avatar" aria-hidden="true">B</span>A minha</span>
+                <span class="cvo-value">3.300 MΩ</span>
+                <span class="cvo-meta">Ler visor · confirmada com o recorte · 07/09 14:05 · este aparelho</span>
+              </span>
+            </button>
+            <button class="cv-option" role="radio" aria-checked="false">
+              <span class="radio" aria-hidden="true"></span>
+              <span class="cvo-text">
+                <span class="cvo-who"><span class="avatar" aria-hidden="true">E</span>A de Eduardo</span>
+                <span class="cvo-value">330 MΩ</span>
+                <span class="cvo-meta">Digitado · 07/09 14:20 · telefone · sem recorte</span>
+              </span>
+            </button>
+          </div>
+          <p class="cc-hint">O recorte do visor mostra 3.300 — ele ajuda a decidir. Fases B e C (1 minuto) e as leituras de 30 s e 10 min já estão iguais nas duas versões.</p>
+        </div>
+      </div>
+
+      <!-- Everything else: already merged by rule — information, not a decision -->
+      <section class="cv-merged" aria-labelledby="sync-conflito-h-merged">
+        <div class="section-head"><h2 id="sync-conflito-h-merged">Mesclado automaticamente</h2></div>
+        <p class="section-note">Preenchido vence vazio · NC vence C · fotos nunca se perdem · texto: a edição mais recente vence.</p>
+        <ul class="sync-list">
+          <li class="sync-row"><span class="sr-body"><span class="sr-primary">Dados de placa</span><span class="sr-secondary">Schneider · SU1241044 · 15 kV · 400 A — iguais nas duas versões</span></span><span class="sr-state" data-tone="ok">Mesclado</span></li>
+          <li class="sync-row"><span class="sr-body"><span class="sr-primary">Verificações 1 a 9 e 11 a 14</span><span class="sr-secondary">13 itens Conforme — iguais nas duas versões</span></span><span class="sr-state" data-tone="ok">Mesclado</span></li>
+          <li class="sync-row"><span class="sr-body"><span class="sr-primary">10. Fusíveis — Não conforme, de Eduardo, com a foto 31</span><span class="sr-secondary">NC vence C · a sua marcação era C, sem foto · observação: "Fusível da fase B com sinais de aquecimento na base"</span></span><span class="sr-state" data-tone="ok">Mesclado</span></li>
+          <li class="sync-row"><span class="sr-body"><span class="sr-primary">Observação do item 10 — versão de Eduardo, 14:20</span><span class="sr-secondary">A sua, 14:05: <span class="was">"Fusíveis sem sinais visíveis de aquecimento"</span> — legível na Sincronização durante a sessão</span></span><span class="sr-state" data-tone="ok">Mesclado</span></li>
+          <li class="sync-row"><span class="sr-body"><span class="sr-primary">Resistência de contato — fases A, B e C</span><span class="sr-secondary">5 leituras de Eduardo preencheram células que estavam vazias na sua versão</span></span><span class="sr-state" data-tone="ok">Mesclado</span></li>
+          <li class="sync-row"><span class="sr-body"><span class="sr-primary">Fotos da ficha — 24, 25 e 31</span><span class="sr-secondary">Vínculos dos dois aparelhos mantidos; nenhuma foto se perde</span></span><span class="sr-state" data-tone="ok">Mesclado</span></li>
+          <li class="sync-row"><span class="sr-body"><span class="sr-primary">Conclusão — Aprovado · Com restrições (Eduardo)</span><span class="sr-secondary">A sua estava vazia · preenchido vence vazio</span></span><span class="sr-state" data-tone="ok">Mesclado</span></li>
+        </ul>
+      </section>
+
+    </div>
+  </div>
+
+  <div class="sticky-action-bar">
+    <span class="btn-reason">Só a célula escolhida é gravada; o resto da ficha já está mesclado. Voltar sem resolver mantém a contradição listada.</span>
+    <div class="bar-buttons">
+      <button class="btn btn-primary" data-back data-toast="Contradição resolvida — ficha mesclada">Resolver</button>
+    </div>
+  </div>
+</section>

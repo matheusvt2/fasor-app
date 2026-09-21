@@ -1,0 +1,331 @@
+<style data-screen="pontos">
+/* Source: mockups/key-points-of-attention.html frame 1 (list, tablet) + frame 2 (card in edit mode) + frame 3 (desktop: 4 fields in a row) — reworked to v0.5.0.
+   Governs: EXPERIENCE.md § IA › Points of attention; § Smart Input › NC observation (LLM drafts one sentence from the row's photo on sync)
+   and › Reasons and pick-lists (chips instead of a mini-Combobox); Transformation row 8; § Component Patterns › Point of attention card,
+   Suggestion field (block variant), Dictation button, Chip, Not-tested chip, Photo tile; § State Patterns › Not tested; Flow 5 steps 2–3.
+   Card 4 was created from the NC row (item 10 of SEC-C12) with Eduardo's photo pre-linked; its text is a vision draft ("Rascunho pela foto")
+   to confirm or edit. The edit card holds the same point with the Dictation button and Prioridade as chips. */
+[data-route="/relatorio/porto-seguro/pontos"] .poa-list { display: flex; flex-direction: column; gap: var(--sp-4); }
+[data-route="/relatorio/porto-seguro/pontos"] .poa-list .point-of-attention-card .poa-fields { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
+.frame-desktop [data-route="/relatorio/porto-seguro/pontos"] .poa-list .point-of-attention-card .poa-fields { grid-template-columns: repeat(4, minmax(140px, 1fr)); }
+.frame-phone [data-route="/relatorio/porto-seguro/pontos"] .poa-list .point-of-attention-card .poa-fields { grid-template-columns: 1fr; }
+[data-route="/relatorio/porto-seguro/pontos"] .poa-order { font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--ink-secondary); }
+/* Photo reference token inside the text — resolved to "Imagem NN" at export */
+[data-route="/relatorio/porto-seguro/pontos"] .photo-ref { font-weight: 600; color: var(--primary); border-bottom: 2px solid var(--primary); white-space: nowrap; }
+[data-route="/relatorio/porto-seguro/pontos"] .poa-photos .photo-tile { cursor: pointer; }
+[data-route="/relatorio/porto-seguro/pontos"] .poa-photos .photo-tile .caption { display: none; }
+[data-route="/relatorio/porto-seguro/pontos"] .poa-photos-meta { font-size: var(--t-meta-size); color: var(--ink-secondary); margin-top: var(--sp-1); }
+/* Auto-listed "Não ensaiado" entry: not reorderable, violet dashed rule, no drag handle (a 48px spacer keeps alignment) */
+[data-route="/relatorio/porto-seguro/pontos"] .point-of-attention-card.is-auto { border-color: var(--nao-ensaiado); border-style: dashed; }
+[data-route="/relatorio/porto-seguro/pontos"] .point-of-attention-card.is-auto .handle-spacer { width: var(--touch-min); flex: none; }
+.frame-phone [data-route="/relatorio/porto-seguro/pontos"] .point-of-attention-card.is-auto .handle-spacer { width: var(--sp-2); }
+/* Vision draft (card 4): Suggestion field, block variant — sparkles glyph, kicker, "Confirmar"; is-confirmed on the card = plain text */
+[data-route="/relatorio/porto-seguro/pontos"] .poa-draft .suggestion-block { align-items: flex-start; }
+[data-route="/relatorio/porto-seguro/pontos"] .poa-draft .suggestion-block > .ico { width: 24px; height: 24px; flex: none; color: var(--fora-do-limite); margin-top: 2px; }
+[data-route="/relatorio/porto-seguro/pontos"] .poa-draft .sv-kicker { display: block; font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--fora-do-limite); margin-bottom: 2px; }
+[data-route="/relatorio/porto-seguro/pontos"] .poa-draft > .suggestion-block ~ .suggested-pill { top: -2px; }
+[data-route="/relatorio/porto-seguro/pontos"] .poa-draft-actions { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; }
+[data-route="/relatorio/porto-seguro/pontos"] .point-of-attention-card.is-confirmed .poa-draft > .suggestion-block { background: none; border: 0; padding: 0; min-height: 0; }
+[data-route="/relatorio/porto-seguro/pontos"] .point-of-attention-card.is-confirmed .poa-draft > .suggestion-block > .ico,
+[data-route="/relatorio/porto-seguro/pontos"] .point-of-attention-card.is-confirmed .poa-draft .sv-kicker,
+[data-route="/relatorio/porto-seguro/pontos"] .point-of-attention-card.is-confirmed .poa-draft > .suggested-pill,
+[data-route="/relatorio/porto-seguro/pontos"] .point-of-attention-card.is-confirmed .poa-draft-actions,
+[data-route="/relatorio/porto-seguro/pontos"] .point-of-attention-card.is-confirmed .poa-draft-meta { display: none; }
+[data-route="/relatorio/porto-seguro/pontos"] .point-of-attention-card.is-confirmed .poa-order-draft { display: none; }
+[data-route="/relatorio/porto-seguro/pontos"] .point-of-attention-card:not(.is-confirmed) .poa-order-done { display: none; }
+/* Edit mode (opened by "Editar" on the draft or "Criar ponto de atenção"): fields, photo picker row, its own action row */
+[data-route="/relatorio/porto-seguro/pontos"] .point-of-attention-card.is-editing { padding-right: var(--sp-4); padding-left: var(--sp-4); border-width: 2px; border-color: var(--primary); }
+[data-route="/relatorio/porto-seguro/pontos"] .point-of-attention-card.is-editing .poa-body { gap: var(--sp-4); }
+[data-route="/relatorio/porto-seguro/pontos"] .poa-photo-picker { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); }
+[data-route="/relatorio/porto-seguro/pontos"] .poa-fields-edit { display: flex; flex-direction: column; gap: var(--sp-4); }
+[data-route="/relatorio/porto-seguro/pontos"] .poa-edit-actions { display: flex; flex-wrap: wrap; gap: var(--sp-3); padding-top: var(--sp-2); border-top: 1px solid var(--border-hairline); }
+.frame-phone [data-route="/relatorio/porto-seguro/pontos"] .poa-edit-actions .btn { flex: 1 1 100%; }
+[data-route="/relatorio/porto-seguro/pontos"] .chip { cursor: pointer; }
+/* Text field head: label at the left, Dictation button at the right */
+[data-route="/relatorio/porto-seguro/pontos"] .poa-text-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+[data-route="/relatorio/porto-seguro/pontos"] .poa-text-sf > .observation-field ~ .suggested-pill { top: -2px; }
+[data-route="/relatorio/porto-seguro/pontos"] .poa-text-sf { margin-top: var(--sp-2); }
+/* Prazo as a Suggestion field filled by the Priority picker (D1): the picked priority writes the suggested date; the field stays editable */
+[data-route="/relatorio/porto-seguro/pontos"] .poa-prazo-sf > .input ~ .suggested-pill { top: calc(var(--t-label-size) * var(--t-label-lh) + var(--sp-1)); }
+[data-route="/relatorio/porto-seguro/pontos"] .poa-prazo-sf .input { padding-right: 96px; }
+/* Card overflow menu (D7: Adicionar abaixo · Subir · Descer · Duplicar · Remover) — one shared overlay, top right */
+[data-route="/relatorio/porto-seguro/pontos"] #pontos-dlg-menu { align-items: flex-start; justify-content: flex-end; padding: calc(var(--touch-field) + var(--sp-3)) var(--sp-3) 0; }
+[data-route="/relatorio/porto-seguro/pontos"] #pontos-dlg-menu .overflow-menu { box-shadow: var(--shadow-float); }
+[data-route="/relatorio/porto-seguro/pontos"] .overflow-menu .menu-item { cursor: pointer; }
+/* "Como imprime na seção 8": collapsed preview of the action-plan table printed after the bullets */
+[data-route="/relatorio/porto-seguro/pontos"] .poa-print { border: 1px solid var(--border-hairline); border-radius: var(--r-md); padding: var(--sp-3) var(--sp-4) var(--sp-4); background: var(--surface-raised); display: flex; flex-direction: column; gap: var(--sp-3); }
+[data-route="/relatorio/porto-seguro/pontos"] .poa-print-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; }
+[data-route="/relatorio/porto-seguro/pontos"] .poa-print .data-table td { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); }
+[data-route="/relatorio/porto-seguro/pontos"] .poa-print .data-table th { white-space: nowrap; }
+[data-route="/relatorio/porto-seguro/pontos"] .poa-print-wrap { overflow-x: auto; }
+[data-route="/relatorio/porto-seguro/pontos"] .poa-print .data-table { min-width: 720px; }
+[data-route="/relatorio/porto-seguro/pontos"] .poa-print .data-table td:nth-child(1), [data-route="/relatorio/porto-seguro/pontos"] .poa-print .data-table td:nth-child(4), [data-route="/relatorio/porto-seguro/pontos"] .poa-print .data-table td:nth-child(5) { width: 1%; white-space: nowrap; }
+/* Page-only: proto.js flips aria-checked on the radios (the static mock sets .radio.is-on by hand) */
+[data-route="/relatorio/porto-seguro/pontos"] .priority-picker .option-row { cursor: pointer; }
+[data-route="/relatorio/porto-seguro/pontos"] .priority-picker .option-row[aria-checked="true"] .radio { border-color: var(--primary); }
+[data-route="/relatorio/porto-seguro/pontos"] .priority-picker .option-row[aria-checked="true"] .radio::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--primary); }
+</style>
+<section class="screen" data-route="/relatorio/porto-seguro/pontos" data-title="Pontos de atenção" data-shell="app" data-rail="false" data-sync="pending" data-sync-label="3 pendentes">
+  <div class="content">
+
+    <section class="section" aria-labelledby="pontos-h">
+      <div class="section-head">
+        <h2 id="pontos-h">Pontos de atenção (4 + 1 automático)</h2>
+        <span class="progress-counter" data-state="pending" role="status"><span class="dot" aria-hidden="true"></span>1 rascunho pela foto para confirmar · sem ação</span>
+      </div>
+      <p class="section-note">A ordem aqui é a ordem da seção 8 do relatório. Reordene arrastando, pelo menu ⋯ ou com Alt+↑/↓. Um ponto criado de um item não conforme já traz a foto e o equipamento; o texto chega como rascunho na sincronização. Equipamentos marcados como Não ensaiado entram sozinhos ao final, com o motivo. A prioridade (P0 a P4) sugere o prazo; a seção 8 imprime, depois dos pontos, a tabela do plano de ação.</p>
+
+      <div class="poa-list">
+
+        <!-- 1 — recurring -->
+        <article class="point-of-attention-card" aria-labelledby="pontos-1-t">
+          <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Plaquetas de identificação"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+          <div class="poa-body">
+            <div>
+              <span class="poa-order">1 de 4</span>
+              <h3 class="poa-title" id="pontos-1-t">Plaquetas de identificação</h3>
+            </div>
+            <p>As duas cabines (Primária e Transformação) deverão passar por processo de identificação via plaquetas de segurança: função da cabine, tensão, potência, função dos transformadores etc.</p>
+            <dl class="poa-fields">
+              <div><dt>Ação</dt><dd>Instalar plaquetas de identificação nas cabines primária e de transformação</dd></div>
+              <div><dt>Prazo</dt><dd class="tabular">08/12/2026</dd></div>
+              <div><dt>Prioridade</dt><dd><span class="priority-pill" data-p="2">P2 · Médio prazo</span></dd></div>
+              <div><dt>Responsável</dt><dd>Porto Seguro — Manutenção predial</dd></div>
+            </dl>
+          </div>
+          <button class="overflow-trigger" data-open="#pontos-dlg-menu" aria-label="Mais opções de Plaquetas de identificação"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+        </article>
+
+        <!-- 2 — recurring -->
+        <article class="point-of-attention-card" aria-labelledby="pontos-2-t">
+          <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Diagrama unifilar (PIE)"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+          <div class="poa-body">
+            <div>
+              <span class="poa-order">2 de 4</span>
+              <h3 class="poa-title" id="pontos-2-t">Diagrama unifilar emoldurado (PIE)</h3>
+            </div>
+            <p>Emoldurar e pendurar nas cabines primária e de transformação o diagrama unifilar atualizado (faz parte do PIE).</p>
+            <dl class="poa-fields">
+              <div><dt>Ação</dt><dd>Atualizar, emoldurar e fixar o diagrama unifilar nas duas cabines</dd></div>
+              <div><dt>Prazo</dt><dd class="tabular">08/12/2026</dd></div>
+              <div><dt>Prioridade</dt><dd><span class="priority-pill" data-p="2">P2 · Médio prazo</span></dd></div>
+              <div><dt>Responsável</dt><dd>Porto Seguro — Manutenção predial</dd></div>
+            </dl>
+          </div>
+          <button class="overflow-trigger" data-open="#pontos-dlg-menu" aria-label="Mais opções de Diagrama unifilar"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+        </article>
+
+        <!-- 3 — this visit: insulation under rain, references photos 13 and 14 -->
+        <article class="point-of-attention-card" aria-labelledby="pontos-3-t">
+          <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Isolação abaixo de 400 MΩ sob chuva"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+          <div class="poa-body">
+            <div>
+              <span class="poa-order">3 de 4</span>
+              <h3 class="poa-title" id="pontos-3-t">Isolação abaixo de 400 MΩ sob chuva</h3>
+            </div>
+            <p>Recomenda-se o acompanhamento, nas próximas manutenções preventivas, dos resultados dos ensaios de resistência de isolação dos cabos de alimentação e dos para-raios, uma vez que ambos apresentaram valores inferiores ao valor de referência de 400 MΩ (conforme <span class="photo-ref">Imagem 13</span> e <span class="photo-ref">Imagem 14</span>). Ressalta-se que os ensaios foram realizados em condições climáticas de chuva e elevada umidade, fatores que podem influenciar negativamente os resultados.</p>
+            <div>
+              <div class="poa-photos">
+                <button class="photo-tile is-inline" data-go="#/relatorio/porto-seguro/fotos" aria-label="Imagem 13, cabos de entrada do Cubículo Enel, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">13</span></span></button>
+                <button class="photo-tile is-inline" data-go="#/relatorio/porto-seguro/fotos" aria-label="Imagem 14, para-raio de entrada do Cubículo Enel, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">14</span></span></button>
+              </div>
+              <p class="poa-photos-meta">Números provisórios — definidos na exportação</p>
+            </div>
+            <dl class="poa-fields">
+              <div><dt>Ação</dt><dd>Repetir os ensaios de isolação dos cabos de entrada e dos para-raios em condição seca e comparar com estes valores</dd></div>
+              <div><dt>Prazo</dt><dd class="tabular">06/03/2027</dd></div>
+              <div><dt>Prioridade</dt><dd><span class="priority-pill" data-p="3">P3 · Longo prazo</span></dd></div>
+              <div><dt>Responsável</dt><dd>Fasor Engenharia — Bruno</dd></div>
+            </dl>
+          </div>
+          <button class="overflow-trigger" data-open="#pontos-dlg-menu" aria-label="Mais opções de Isolação abaixo de 400 MΩ sob chuva"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+        </article>
+
+        <!-- 4 — created from the NC row (item 10 Fusíveis of SEC-C12, Eduardo's photo 31 pre-linked); text drafted by vision on sync -->
+        <article class="point-of-attention-card" id="pontos-draft" aria-labelledby="pontos-4-t">
+          <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Fusíveis com aquecimento — SEC-C12"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+          <div class="poa-body">
+            <div>
+              <span class="poa-order poa-order-draft">4 de 4 · criado do item 10 (Fusíveis) de SEC-C12 · rascunho pela foto</span>
+              <span class="poa-order poa-order-done">4 de 4 · criado do item 10 (Fusíveis) de SEC-C12</span>
+              <h3 class="poa-title" id="pontos-4-t">Fusíveis com aquecimento — SEC-C12</h3>
+            </div>
+
+            <div class="field suggestion-field poa-draft" data-state="suggested">
+              <div class="suggestion-block">
+                <svg class="ico" aria-hidden="true"><use href="#i-sparkles"/></svg>
+                <span class="sv"><span class="sv-kicker">Rascunho pela foto</span>O fusível da fase B da seccionadora SEC-C12 (Coluna 12, 1° Subsolo) apresenta sinais de aquecimento na base (conforme <span class="photo-ref">Imagem 31</span>). Recomenda-se a substituição do elemento fusível e a verificação do contato da base na próxima intervenção com desligamento.</span>
+              </div>
+              <span class="suggested-pill">Sugerido</span>
+            </div>
+            <p class="poa-photos-meta poa-draft-meta">Redigido pela leitura da foto 31 e da observação do item 10 — nada é gravado nem impresso até você confirmar.</p>
+            <div class="poa-draft-actions">
+              <button class="btn btn-secondary" data-toggle-class="is-confirmed" data-toggle-target="#pontos-draft" data-toast="Texto do ponto 4 confirmado — falta a ação"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Confirmar</button>
+              <button class="btn btn-text" data-close="#pontos-draft" data-open="#pontos-edit"><svg class="ico" aria-hidden="true"><use href="#i-pencil"/></svg>Editar</button>
+            </div>
+
+            <div>
+              <div class="poa-photos">
+                <button class="photo-tile is-inline" data-go="#/relatorio/porto-seguro/fotos" aria-label="Imagem 31, fusíveis da SEC-C12, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">31</span></span></button>
+              </div>
+              <p class="poa-photos-meta">Foto do item 10 (Eduardo, 07/09 14:19) — vinculada ao criar o ponto</p>
+            </div>
+            <dl class="poa-fields">
+              <div><dt>Ação</dt><dd>—</dd></div>
+              <div><dt>Prazo</dt><dd>—</dd></div>
+              <div><dt>Prioridade</dt><dd>—</dd></div>
+              <div><dt>Responsável</dt><dd>—</dd></div>
+            </dl>
+          </div>
+          <button class="overflow-trigger" data-open="#pontos-dlg-menu" aria-label="Mais opções de Fusíveis com aquecimento"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+        </article>
+
+        <!-- 4 in edit mode (frame 2): opened by "Editar" on the draft or by "Criar ponto de atenção" -->
+        <article class="point-of-attention-card is-editing" id="pontos-edit" aria-label="Ponto de atenção 4 em edição" hidden>
+          <div class="poa-body">
+            <div>
+              <span class="poa-order">4 de 4 · criado do item 10 de SEC-C12 · salvo automaticamente</span>
+            </div>
+
+            <div class="field">
+              <span class="field-label" id="pontos-ed-titulo-l">Título</span>
+              <div class="input is-focus" role="textbox" aria-labelledby="pontos-ed-titulo-l" contenteditable="true">Fusíveis com aquecimento — SEC-C12</div>
+            </div>
+
+            <div class="field">
+              <div class="poa-text-head">
+                <span class="field-label" id="pontos-ed-texto-l">Texto</span>
+                <span class="dictation">
+                  <button class="dictation-btn slice-inline" aria-pressed="false" aria-labelledby="pontos-ed-mic-l" data-listen="#pontos-ed-texto|Fusível da fase B da SEC-C12 com aquecimento na base. Substituir o fusível e verificar o contato da base na próxima parada." data-slice="out" data-slice-note=" · FR-40"><svg class="ico" aria-hidden="true"><use href="#i-mic"/></svg></button>
+                  <span class="visually-hidden" id="pontos-ed-mic-l">Ditar o texto</span>
+                  <span class="listening-word">Ouvindo…</span>
+                </span>
+              </div>
+              <p class="section-note" style="margin-bottom: var(--sp-1)">Textos rápidos</p>
+              <div class="chip-row">
+                <button class="chip" data-set-text="#pontos-ed-texto|Ressalta-se que os ensaios foram realizados em condições climáticas de chuva e elevada umidade, fatores que podem influenciar negativamente os resultados.">Chuva e umidade elevada</button>
+                <button class="chip" data-set-text="#pontos-ed-texto|As cabines deverão passar por processo de identificação via plaquetas de segurança: função da cabine, tensão, potência, função dos transformadores etc.">Plaquetas de identificação</button>
+                <button class="chip" data-set-text="#pontos-ed-texto|Emoldurar e pendurar nas cabines o diagrama unifilar atualizado (faz parte do PIE).">Diagrama unifilar (PIE)</button>
+                <button class="chip" data-set-text="#pontos-ed-texto|Programar os ensaios pendentes na próxima intervenção, com desligamento autorizado pelo cliente.">Ensaios pendentes</button>
+              </div>
+              <div class="field suggestion-field poa-text-sf" data-state="suggested">
+                <div class="observation-field" role="textbox" aria-multiline="true" aria-labelledby="pontos-ed-texto-l" id="pontos-ed-texto" contenteditable="true">O fusível da fase B da seccionadora SEC-C12 (Coluna 12, 1° Subsolo) apresenta sinais de aquecimento na base (conforme <span class="photo-ref">Imagem 31</span>). Recomenda-se a substituição do elemento fusível e a verificação do contato da base na próxima intervenção com desligamento.</div>
+                <span class="suggested-pill">Sugerido</span>
+              </div>
+              <span class="helper">Rascunho pela foto 31: edite, dite ou use um texto rápido — Concluir edição grava. Referências a fotos entram pela seleção abaixo; o número é definido na exportação.</span>
+            </div>
+
+            <div class="field">
+              <span class="field-label">Fotos referenciadas</span>
+              <div class="poa-photo-picker">
+                <button class="photo-tile is-inline" data-toast="Referência à Imagem 31 removida" data-toast-action="Desfazer" aria-label="Imagem 31, remover referência"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">31</span></span></button>
+                <button class="btn btn-secondary" data-go="#/relatorio/porto-seguro/fotos" data-toast="Toque nas fotos da galeria para referenciá-las — não prototipado"><svg class="ico" aria-hidden="true"><use href="#i-image"/></svg>Escolher fotos</button>
+              </div>
+            </div>
+
+            <div class="poa-fields-edit">
+              <div class="field">
+                <span class="field-label" id="pontos-ed-acao-l">Ação</span>
+                <div class="observation-field" role="textbox" aria-multiline="true" aria-labelledby="pontos-ed-acao-l" style="min-height: 72px" contenteditable="true">Substituir o fusível da fase B e verificar o contato da base na próxima intervenção com desligamento</div>
+              </div>
+
+              <div class="field">
+                <span class="field-label" id="pontos-ed-prio-l">Prioridade</span>
+                <div class="priority-picker" role="radiogroup" aria-labelledby="pontos-ed-prio-l">
+                  <button class="option-row" role="radio" aria-checked="false" data-set-text="#pontos-ed-prazo-v|08/09/2026 · sugerido por P0"><span class="radio" aria-hidden="true"></span><span class="pr-text"><span class="priority-pill" data-p="0">P0 · Imediata</span></span><span class="pr-hint">hoje</span></button>
+                  <button class="option-row is-selected" role="radio" aria-checked="true" data-set-text="#pontos-ed-prazo-v|08/10/2026 · sugerido por P1"><span class="radio is-on" aria-hidden="true"></span><span class="pr-text"><span class="priority-pill" data-p="1">P1 · Curto prazo</span></span><span class="pr-hint">30 dias</span></button>
+                  <button class="option-row" role="radio" aria-checked="false" data-set-text="#pontos-ed-prazo-v|08/12/2026 · sugerido por P2"><span class="radio" aria-hidden="true"></span><span class="pr-text"><span class="priority-pill" data-p="2">P2 · Médio prazo</span></span><span class="pr-hint">90 dias</span></button>
+                  <button class="option-row" role="radio" aria-checked="false" data-set-text="#pontos-ed-prazo-v|06/03/2027 · sugerido por P3"><span class="radio" aria-hidden="true"></span><span class="pr-text"><span class="priority-pill" data-p="3">P3 · Longo prazo</span></span><span class="pr-hint">180 dias</span></button>
+                  <button class="option-row" role="radio" aria-checked="false" data-set-text="#pontos-ed-prazo-v|08/09/2027 · sugerido por P4"><span class="radio" aria-hidden="true"></span><span class="pr-text"><span class="priority-pill" data-p="4">P4 · Próxima manutenção</span></span><span class="pr-hint">365 dias</span></button>
+                </div>
+                <span class="helper">Um toque: a prioridade preenche o prazo abaixo como sugestão a partir da data de criação do ponto (08/09/2026)</span>
+              </div>
+
+              <div class="field suggestion-field poa-prazo-sf" data-state="suggested">
+                <span class="field-label" id="pontos-ed-prazo-l">Prazo</span>
+                <div class="input tabular" role="textbox" aria-labelledby="pontos-ed-prazo-l" contenteditable="true"><span class="sv" id="pontos-ed-prazo-v">08/10/2026 · sugerido por P1</span></div>
+                <span class="suggested-pill">Sugerido</span>
+                <span class="helper">Edite a data se o combinado com o cliente for outro; imprime só a data</span>
+              </div>
+
+              <div class="field">
+                <span class="field-label" id="pontos-ed-resp-l">Responsável</span>
+                <div class="input" role="textbox" aria-labelledby="pontos-ed-resp-l" contenteditable="true">Porto Seguro — Manutenção predial</div>
+              </div>
+            </div>
+
+            <div class="poa-edit-actions">
+              <button class="btn btn-primary" data-close="#pontos-edit" data-open="#pontos-draft" data-toggle-class="is-confirmed" data-toggle-target="#pontos-draft" data-toast="Ponto de atenção salvo · 4 de 4 na seção 8">Concluir edição</button>
+              <button class="btn btn-destructive" data-close="#pontos-edit" data-open="#pontos-draft" data-toast="Ponto removido" data-toast-action="Desfazer">Remover ponto</button>
+            </div>
+          </div>
+        </article>
+
+        <!-- Auto-listed: Não ensaiado -->
+        <article class="point-of-attention-card is-auto" aria-labelledby="pontos-auto-t">
+          <span class="handle-spacer" aria-hidden="true"></span>
+          <div class="poa-body">
+            <div>
+              <span class="poa-order">Listado automaticamente · após os pontos manuais</span>
+              <h3 class="poa-title" id="pontos-auto-t">Disjuntor TIE — DJ-C14 · 1° Subsolo › Coluna 14</h3>
+            </div>
+            <div class="not-tested-band"><span class="not-tested-chip">Não ensaiado</span><span>Impossibilidade de desligamento — continuidade operacional, conforme solicitação do cliente</span></div>
+            <dl class="poa-fields">
+              <div><dt>Ação</dt><dd>Programar os ensaios pendentes na próxima intervenção</dd></div>
+              <div><dt>Prazo</dt><dd>—</dd></div>
+              <div><dt>Prioridade</dt><dd>—</dd></div>
+              <div><dt>Responsável</dt><dd>—</dd></div>
+            </dl>
+            <div class="row-wrap">
+              <button class="btn btn-text" style="margin-left: calc(-1 * var(--sp-3))" data-go="#/ficha/DJ-C14"><svg class="ico" aria-hidden="true"><use href="#i-open"/></svg>Abrir ficha DJ-C14</button>
+              <span class="btn-reason">O motivo é editado na ficha; o ponto sai daqui se a ficha voltar a ser ensaiada</span>
+            </div>
+          </div>
+          <button class="overflow-trigger" data-toast="Entrada automática: só a ficha muda este ponto" aria-label="Mais opções de Disjuntor TIE DJ-C14"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+        </article>
+
+      </div>
+
+      <div class="poa-print" style="margin-top: var(--sp-5)">
+        <div class="poa-print-head">
+          <span class="field-label">Como imprime na seção 8</span>
+          <button class="btn btn-text" data-open="#pontos-print" aria-controls="pontos-print"><svg class="ico" aria-hidden="true"><use href="#i-chev-down"/></svg>Ver tabela do plano de ação</button>
+        </div>
+        <div id="pontos-print" hidden>
+          <p class="section-note">Depois dos pontos em texto, a seção 8 fecha com esta tabela. Prazo e prioridade vêm de cada ponto; os números das imagens são definidos na exportação.</p>
+          <div class="poa-print-wrap">
+            <table class="data-table" aria-label="Plano de ação — seção 8">
+              <thead><tr><th scope="col">Nº</th><th scope="col">Ponto de atenção</th><th scope="col">Local/TAG</th><th scope="col">Prioridade</th><th scope="col">Prazo</th><th scope="col">Ação recomendada</th><th scope="col">Responsável</th><th scope="col">Imagens</th></tr></thead>
+              <tbody>
+                <tr><td data-label="Nº" class="tabular">1</td><td data-label="Ponto de atenção">Plaquetas de identificação</td><td data-label="Local/TAG">Cabines Primária e Transformação</td><td data-label="Prioridade"><span class="priority-pill" data-p="2">P2 · Médio prazo</span></td><td data-label="Prazo" class="tabular">08/12/2026</td><td data-label="Ação recomendada">Instalar plaquetas de identificação nas cabines primária e de transformação</td><td data-label="Responsável">Porto Seguro — Manutenção predial</td><td data-label="Imagens" class="cell-dim">—</td></tr>
+                <tr><td data-label="Nº" class="tabular">2</td><td data-label="Ponto de atenção">Diagrama unifilar emoldurado (PIE)</td><td data-label="Local/TAG">Cabines Primária e Transformação</td><td data-label="Prioridade"><span class="priority-pill" data-p="2">P2 · Médio prazo</span></td><td data-label="Prazo" class="tabular">08/12/2026</td><td data-label="Ação recomendada">Atualizar, emoldurar e fixar o diagrama unifilar nas duas cabines</td><td data-label="Responsável">Porto Seguro — Manutenção predial</td><td data-label="Imagens" class="cell-dim">—</td></tr>
+                <tr><td data-label="Nº" class="tabular">3</td><td data-label="Ponto de atenção">Isolação abaixo de 400 MΩ sob chuva</td><td data-label="Local/TAG">Cubículo Enel · CB-ENT, PR-ENT</td><td data-label="Prioridade"><span class="priority-pill" data-p="3">P3 · Longo prazo</span></td><td data-label="Prazo" class="tabular">06/03/2027</td><td data-label="Ação recomendada">Repetir os ensaios de isolação em condição seca e comparar com estes valores</td><td data-label="Responsável">Fasor Engenharia — Bruno</td><td data-label="Imagens" class="tabular">13, 14</td></tr>
+                <tr><td data-label="Nº" class="tabular">4</td><td data-label="Ponto de atenção">Fusíveis com aquecimento</td><td data-label="Local/TAG">1° Subsolo · Coluna 12 · SEC-C12</td><td data-label="Prioridade"><span class="priority-pill" data-p="1">P1 · Curto prazo</span></td><td data-label="Prazo" class="tabular">08/10/2026</td><td data-label="Ação recomendada">Substituir o fusível da fase B e verificar o contato da base na próxima intervenção com desligamento</td><td data-label="Responsável">Porto Seguro — Manutenção predial</td><td data-label="Imagens" class="tabular">31</td></tr>
+                <tr><td data-label="Nº" class="tabular">5</td><td data-label="Ponto de atenção">Disjuntor TIE não ensaiado</td><td data-label="Local/TAG">1° Subsolo · Coluna 14 · DJ-C14</td><td data-label="Prioridade"><span class="priority-pill" data-p="4">P4 · Próxima manutenção</span></td><td data-label="Prazo" class="tabular">08/09/2027</td><td data-label="Ação recomendada">Programar os ensaios pendentes na próxima intervenção</td><td data-label="Responsável">Fasor Engenharia — Bruno</td><td data-label="Imagens" class="cell-dim">—</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="row"><button class="btn btn-text" data-close="#pontos-print"><svg class="ico" aria-hidden="true"><use href="#i-chev-up"/></svg>Ocultar</button></div>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /content -->
+
+  <!-- Card overflow menu (D7): reorder without dragging; Remover undoes by Toast -->
+  <div class="dialog-scrim" id="pontos-dlg-menu" hidden>
+    <div class="overflow-menu" role="menu" aria-label="Opções do ponto de atenção">
+      <button class="menu-item" role="menuitem" data-close data-open="#pontos-edit" data-toast="Novo ponto abaixo — no protótipo, o card de edição mostra o ponto 4">Adicionar abaixo</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Ponto movido uma posição para cima — a seção 8 segue esta ordem">Subir</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Ponto movido uma posição para baixo — a seção 8 segue esta ordem">Descer</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Ponto duplicado abaixo, com as mesmas fotos — edite o título">Duplicar</button>
+      <div class="menu-group"><button class="menu-item" role="menuitem" data-tone="red" data-close data-toast="Bloco removido" data-toast-action="Desfazer">Remover</button></div>
+    </div>
+  </div>
+
+  <div class="sticky-action-bar">
+    <div class="bar-buttons">
+      <button class="btn btn-primary" data-close="#pontos-draft" data-open="#pontos-edit" data-toast="Novo ponto — no protótipo, o card de edição mostra o ponto 4"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Criar ponto de atenção</button>
+    </div>
+  </div>
+</section>

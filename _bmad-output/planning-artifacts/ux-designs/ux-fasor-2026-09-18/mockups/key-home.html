@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRODUTO — Início</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* Governs this mock:
+   DESIGN.md § Components › App bar (wordmark on Home), Sync badge (+ compact on card), Status pill, Relatório card (4 lines,
+     greyed when not on device + offline), Progress counter, Button, Toast; § Typography (display only on Home: the counts);
+     § Colors (theme follows device, manual override — frame 2 is data-theme="dark"); § Elevation (hairline cards, no shadow).
+   EXPERIENCE.md § IA › Home (relatórios by status with counts, "Novo relatório", shortcuts Templates / Registries; no rail outside a relatório);
+     § Component Patterns › App bar, Sync badge, Status pill, Relatório card, Toast; § State Patterns › Cold open session offline,
+     Relatório not on device offline, Relatório downloading; § Offline & Sync › Automatic availability ("No aparelho · atualizado 21:40");
+     § Voice and Tone; § Inspiration › GroundPRO status board; Flow 1 steps 1 and 7; Flow 5 step 6 (Emitido).
+   Page-only layout below (Status board, Shortcut card, Relatório row are in components.css — see report). */
+.home-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); flex-wrap: wrap; margin-bottom: var(--sp-4); }
+.home-head h2 { font-size: var(--t-title-size); font-weight: var(--t-title-weight); line-height: var(--t-title-lh); }
+.frame-phone .home-head .btn { width: 100%; }
+.relatorio-cards { display: flex; flex-direction: column; gap: var(--sp-3); }
+.relatorio-card .card-chev { color: var(--ink-secondary); flex: none; margin: -6px -6px 0 0; }
+</style>
+</head>
+<body class="mock-page">
+
+<!-- icon sprite (inline, currentColor) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 4l8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 16l8 4 8-4"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 0-3 3z"/><path d="M5 4v16a3 3 0 0 1 3-3h11"/></symbol>
+</svg>
+
+<h1 class="mock-title">Início — relatórios por status</h1>
+<p class="mock-sub">Home do PRODUTO: quadro de status com contagens, "Novo relatório", cartões de relatório (cliente · obra, datas · template, pill + progresso + sync compacto, disponibilidade no aparelho), atalhos para Templates e Cadastros. Quadro 1: tablet retrato, tema claro, conectado. Quadro 2: o mesmo em tema escuro (Conta › Tema › Escuro). Quadro 3: telefone, abertura a frio com sessão e sem conexão — toast "Sem conexão. Tudo fica salvo neste aparelho.", badge "Sem conexão", relatório que não está no aparelho aparece cinza com "Não está neste aparelho — conecte para baixar".</p>
+
+<div class="mock-row">
+
+<!-- =============================================================== FRAME 1 — TABLET PORTRAIT, LIGHT -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Início</b><span class="sep">·</span>tablet retrato 768×1024 · tema claro · Bruno, escritório, conectado, tudo sincronizado<span class="sep">·</span>App bar (wordmark) · Sync badge ok · Status board · Relatório card ×4 · Status pill · Progress counter · Shortcut cards · Flow 1 passo 7</p>
+
+  <div class="frame frame-tablet" data-theme="light">
+
+    <header class="app-bar">
+      <div class="app-bar-left">
+        <button class="wordmark" aria-label="PRODUTO — início" aria-current="page">PRODUTO</button>
+      </div>
+      <h1 class="app-bar-title visually-hidden">Início</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="ok" aria-label="Sincronização: sincronizado. Abrir status"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+
+    <main class="screen">
+      <div class="content">
+
+        <!-- Status board -->
+        <section class="section" aria-labelledby="h-status">
+          <h2 id="h-status" class="visually-hidden">Relatórios por status</h2>
+          <div class="status-board" role="group" aria-label="Relatórios por status">
+            <button class="status-tile" aria-label="Rascunho, 1 relatório"><span class="tile-count">1</span><span class="status-pill" data-status="rascunho">Rascunho</span></button>
+            <button class="status-tile" aria-label="Em campo, 1 relatório"><span class="tile-count">1</span><span class="status-pill" data-status="em-campo">Em campo</span></button>
+            <button class="status-tile" aria-label="Em revisão, 1 relatório"><span class="tile-count">1</span><span class="status-pill" data-status="em-revisao">Em revisão</span></button>
+            <button class="status-tile" aria-label="Emitido, 5 relatórios"><span class="tile-count">5</span><span class="status-pill" data-status="emitido">Emitido</span></button>
+          </div>
+        </section>
+
+        <!-- Relatórios -->
+        <section class="section" aria-labelledby="h-relatórios">
+          <div class="home-head">
+            <h2 id="h-relatórios">Relatórios</h2>
+            <button class="btn btn-primary"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Novo relatório</button>
+          </div>
+
+          <div class="relatorio-cards">
+
+            <!-- Em campo neste aparelho: ordena primeiro e leva .is-current — este card É o herói da Home.
+                 O Continue card separado foi removido em 2026-09-19 (review-mvp-scope S5). -->
+            <a class="relatorio-card is-current" href="#" aria-label="Porto Seguro Companhia de Seguros Gerais, Torres A e B, em campo, 42 de 94 fichas, abrir">
+              <div class="card-title"><span>Porto Seguro Companhia de Seguros Gerais · Torres A e B</span><svg class="ico card-chev" aria-hidden="true"><use href="#i-chev-right"/></svg></div>
+              <p class="card-meta">06–08/09/2026 · Cabine primária — Porto Seguro — Torres A e B</p>
+              <div class="card-state">
+                <span class="status-pill" data-status="em-campo">Em campo</span>
+                <span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>42 de 94 fichas</span>
+                <span class="sync-badge is-compact" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></span>
+              </div>
+              <p class="card-device">No aparelho · atualizado <time datetime="2026-09-07T21:40">21:40</time></p>
+            </a>
+
+            <a class="relatorio-card" href="#" aria-label="Porto Seguro Companhia de Seguros Gerais, Oxigênio, rascunho, 0 de 12 fichas, abrir">
+              <div class="card-title"><span>Porto Seguro Companhia de Seguros Gerais · Oxigênio</span><svg class="ico card-chev" aria-hidden="true"><use href="#i-chev-right"/></svg></div>
+              <p class="card-meta">10–11/09/2026 · Cabine primária — padrão</p>
+              <div class="card-state">
+                <span class="status-pill" data-status="rascunho">Rascunho</span>
+                <span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 12 fichas</span>
+                <span class="sync-badge is-compact" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></span>
+              </div>
+              <p class="card-device">No aparelho · atualizado <time datetime="2026-09-07T21:40">21:40</time></p>
+            </a>
+
+            <a class="relatorio-card" href="#" aria-label="Condomínio Edifício Alameda Jaú, Cabine 13,8 kV, em revisão, 38 de 38 fichas, abrir">
+              <div class="card-title"><span>Condomínio Edifício Alameda Jaú · Cabine 13,8 kV</span><svg class="ico card-chev" aria-hidden="true"><use href="#i-chev-right"/></svg></div>
+              <p class="card-meta">15–16/08/2026 · Cabine primária — padrão</p>
+              <div class="card-state">
+                <span class="status-pill" data-status="em-revisao">Em revisão</span>
+                <span class="progress-counter" data-state="complete"><span class="dot" aria-hidden="true"></span>38 de 38 fichas</span>
+                <span class="sync-badge is-compact" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></span>
+              </div>
+              <p class="card-device">Não está neste aparelho · baixa ao abrir</p>
+            </a>
+
+            <a class="relatorio-card" href="#" aria-label="Hospital Santa Clara, Subestação principal, emitido, revisão 2, abrir">
+              <div class="card-title"><span>Hospital Santa Clara · Subestação principal</span><svg class="ico card-chev" aria-hidden="true"><use href="#i-chev-right"/></svg></div>
+              <p class="card-meta">18–19/07/2026 · Cabine primária — padrão</p>
+              <div class="card-state">
+                <span class="status-pill" data-status="emitido">Emitido</span>
+                <span class="progress-counter" data-state="complete"><span class="dot" aria-hidden="true"></span>61 de 61 fichas</span>
+                <span class="sync-badge is-compact" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></span>
+              </div>
+              <p class="card-device">Emitido em <time datetime="2026-07-28">28/07</time> (revisão 2) · Não está neste aparelho · baixa ao abrir</p>
+            </a>
+
+          </div>
+          <p class="section-note" style="margin-top: var(--sp-3)">Mostrando 4 de 8 relatórios · <button class="btn btn-text" style="padding:0">Ver todos</button></p>
+        </section>
+
+        <!-- Shortcuts -->
+        <section class="section" aria-labelledby="h-atalhos">
+          <h2 id="h-atalhos" class="visually-hidden">Atalhos</h2>
+          <div class="shortcut-row">
+            <a class="shortcut-card" href="#"><svg class="ico" aria-hidden="true"><use href="#i-layers"/></svg><span>Templates<span class="shortcut-sub">2 templates · padrão FO.SERV-03</span></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev-right"/></svg></a>
+            <a class="shortcut-card" href="#"><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg><span>Cadastros<span class="shortcut-sub">Clientes · Instrumentos · Fabricantes · Classes de tensão</span></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev-right"/></svg></a>
+          </div>
+        </section>
+
+      </div><!-- /content -->
+    </main>
+  </div>
+</div>
+
+<!-- =============================================================== FRAME 2 — TABLET PORTRAIT, DARK -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Início</b><span class="sep">·</span>tablet retrato 768×1024 · tema escuro (Conta › Tema › Escuro) · mesmo estado<span class="sep">·</span>DESIGN § Colors (pares -dark, mesma barra de contraste ao sol) · Status board · Relatório card · Status pill · Sync badge</p>
+
+  <div class="frame frame-tablet" data-theme="dark">
+
+    <header class="app-bar">
+      <div class="app-bar-left">
+        <button class="wordmark" aria-label="PRODUTO — início" aria-current="page">PRODUTO</button>
+      </div>
+      <h1 class="app-bar-title visually-hidden">Início</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="ok" aria-label="Sincronização: sincronizado. Abrir status"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+
+    <main class="screen">
+      <div class="content">
+
+        <section class="section" aria-labelledby="h-status-d">
+          <h2 id="h-status-d" class="visually-hidden">Relatórios por status</h2>
+          <div class="status-board" role="group" aria-label="Relatórios por status">
+            <button class="status-tile" aria-label="Rascunho, 1 relatório"><span class="tile-count">1</span><span class="status-pill" data-status="rascunho">Rascunho</span></button>
+            <button class="status-tile" aria-label="Em campo, 1 relatório"><span class="tile-count">1</span><span class="status-pill" data-status="em-campo">Em campo</span></button>
+            <button class="status-tile" aria-label="Em revisão, 1 relatório"><span class="tile-count">1</span><span class="status-pill" data-status="em-revisao">Em revisão</span></button>
+            <button class="status-tile" aria-label="Emitido, 5 relatórios"><span class="tile-count">5</span><span class="status-pill" data-status="emitido">Emitido</span></button>
+          </div>
+        </section>
+
+        <section class="section" aria-labelledby="h-relatórios-d">
+          <div class="home-head">
+            <h2 id="h-relatórios-d">Relatórios</h2>
+            <button class="btn btn-primary"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Novo relatório</button>
+          </div>
+
+          <div class="relatorio-cards">
+
+            <a class="relatorio-card" href="#">
+              <div class="card-title"><span>Porto Seguro Companhia de Seguros Gerais · Torres A e B</span><svg class="ico card-chev" aria-hidden="true"><use href="#i-chev-right"/></svg></div>
+              <p class="card-meta">06–08/09/2026 · Cabine primária — Porto Seguro — Torres A e B</p>
+              <div class="card-state">
+                <span class="status-pill" data-status="em-campo">Em campo</span>
+                <span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>42 de 94 fichas</span>
+                <span class="sync-badge is-compact" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></span>
+              </div>
+              <p class="card-device">No aparelho · atualizado <time datetime="2026-09-07T21:40">21:40</time></p>
+            </a>
+
+            <a class="relatorio-card" href="#">
+              <div class="card-title"><span>Porto Seguro Companhia de Seguros Gerais · Oxigênio</span><svg class="ico card-chev" aria-hidden="true"><use href="#i-chev-right"/></svg></div>
+              <p class="card-meta">10–11/09/2026 · Cabine primária — padrão</p>
+              <div class="card-state">
+                <span class="status-pill" data-status="rascunho">Rascunho</span>
+                <span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 12 fichas</span>
+                <span class="sync-badge is-compact" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></span>
+              </div>
+              <p class="card-device">No aparelho · atualizado <time datetime="2026-09-07T21:40">21:40</time></p>
+            </a>
+
+            <a class="relatorio-card" href="#">
+              <div class="card-title"><span>Condomínio Edifício Alameda Jaú · Cabine 13,8 kV</span><svg class="ico card-chev" aria-hidden="true"><use href="#i-chev-right"/></svg></div>
+              <p class="card-meta">15–16/08/2026 · Cabine primária — padrão</p>
+              <div class="card-state">
+                <span class="status-pill" data-status="em-revisao">Em revisão</span>
+                <span class="progress-counter" data-state="complete"><span class="dot" aria-hidden="true"></span>38 de 38 fichas</span>
+                <span class="sync-badge is-compact" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></span>
+              </div>
+              <p class="card-device">Não está neste aparelho · baixa ao abrir</p>
+            </a>
+
+            <a class="relatorio-card" href="#">
+              <div class="card-title"><span>Hospital Santa Clara · Subestação principal</span><svg class="ico card-chev" aria-hidden="true"><use href="#i-chev-right"/></svg></div>
+              <p class="card-meta">18–19/07/2026 · Cabine primária — padrão</p>
+              <div class="card-state">
+                <span class="status-pill" data-status="emitido">Emitido</span>
+                <span class="progress-counter" data-state="complete"><span class="dot" aria-hidden="true"></span>61 de 61 fichas</span>
+                <span class="sync-badge is-compact" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></span>
+              </div>
+              <p class="card-device">Emitido em <time datetime="2026-07-28">28/07</time> (revisão 2) · Não está neste aparelho · baixa ao abrir</p>
+            </a>
+
+          </div>
+          <p class="section-note" style="margin-top: var(--sp-3)">Mostrando 4 de 8 relatórios · <button class="btn btn-text" style="padding:0">Ver todos</button></p>
+        </section>
+
+        <section class="section" aria-labelledby="h-atalhos-d">
+          <h2 id="h-atalhos-d" class="visually-hidden">Atalhos</h2>
+          <div class="shortcut-row">
+            <a class="shortcut-card" href="#"><svg class="ico" aria-hidden="true"><use href="#i-layers"/></svg><span>Templates<span class="shortcut-sub">2 templates · padrão FO.SERV-03</span></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev-right"/></svg></a>
+            <a class="shortcut-card" href="#"><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg><span>Cadastros<span class="shortcut-sub">Clientes · Instrumentos · Fabricantes · Classes de tensão</span></span><svg class="ico chev" aria-hidden="true"><use href="#i-chev-right"/></svg></a>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+</div><!-- /mock-row 1 -->
+
+<div class="mock-row">
+
+<!-- =============================================================== FRAME 3 — PHONE, LIGHT, SESSION + OFFLINE -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Início</b><span class="sep">·</span>telefone 390 · abertura a frio com sessão e sem conexão (sábado, dentro da cabine): toast uma vez por sessão, badge "Sem conexão", relatório em campo com 3 fichas pendentes, relatório que não está no aparelho em cinza<span class="sep">·</span>State Patterns › Cold open session offline · Relatório not on device offline · Sync badge offline/pending · Toast · Offline & Sync</p>
+
+  <div class="frame frame-phone frame--crop" data-theme="light">
+
+    <header class="app-bar">
+      <div class="app-bar-left">
+        <button class="wordmark" aria-label="PRODUTO — início" aria-current="page">PRODUTO</button>
+      </div>
+      <h1 class="app-bar-title visually-hidden">Início</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="offline" aria-label="Sincronização: sem conexão. Abrir status"><span class="pill"><span class="dot" aria-hidden="true"></span>Sem conexão</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+
+    <main class="screen">
+      <div class="content">
+
+        <section class="section" aria-labelledby="h-status-p">
+          <h2 id="h-status-p" class="visually-hidden">Relatórios por status</h2>
+          <div class="status-board" role="group" aria-label="Relatórios por status">
+            <button class="status-tile" aria-label="Rascunho, 1 relatório"><span class="tile-count">1</span><span class="status-pill" data-status="rascunho">Rascunho</span></button>
+            <button class="status-tile" aria-label="Em campo, 1 relatório"><span class="tile-count">1</span><span class="status-pill" data-status="em-campo">Em campo</span></button>
+            <button class="status-tile" aria-label="Em revisão, 1 relatório"><span class="tile-count">1</span><span class="status-pill" data-status="em-revisao">Em revisão</span></button>
+            <button class="status-tile" aria-label="Emitido, 5 relatórios"><span class="tile-count">5</span><span class="status-pill" data-status="emitido">Emitido</span></button>
+          </div>
+        </section>
+
+        <section class="section" aria-labelledby="h-relatórios-p">
+          <div class="home-head">
+            <h2 id="h-relatórios-p">Relatórios</h2>
+            <button class="btn btn-primary"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Novo relatório</button>
+          </div>
+
+          <div class="relatorio-cards">
+
+            <a class="relatorio-card" href="#" aria-label="Porto Seguro Companhia de Seguros Gerais, Torres A e B, em campo, 42 de 94 fichas, 3 pendentes, abrir">
+              <div class="card-title"><span>Porto Seguro Companhia de Seguros Gerais · Torres A e B</span><svg class="ico card-chev" aria-hidden="true"><use href="#i-chev-right"/></svg></div>
+              <p class="card-meta">06–08/09/2026 · Cabine primária — Porto Seguro — Torres A e B</p>
+              <div class="card-state">
+                <span class="status-pill" data-status="em-campo">Em campo</span>
+                <span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>42 de 94 fichas</span>
+                <span class="sync-badge is-compact" data-state="pending"><span class="pill"><span class="dot" aria-hidden="true"></span>3 pendentes</span></span>
+              </div>
+              <p class="card-device">No aparelho · atualizado <time datetime="2026-09-06T21:40">ontem 21:40</time></p>
+            </a>
+
+            <a class="relatorio-card" href="#" aria-label="Porto Seguro Companhia de Seguros Gerais, Oxigênio, rascunho, no aparelho, abrir">
+              <div class="card-title"><span>Porto Seguro Companhia de Seguros Gerais · Oxigênio</span><svg class="ico card-chev" aria-hidden="true"><use href="#i-chev-right"/></svg></div>
+              <p class="card-meta">10–11/09/2026 · Cabine primária — padrão</p>
+              <div class="card-state">
+                <span class="status-pill" data-status="rascunho">Rascunho</span>
+                <span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 12 fichas</span>
+                <span class="sync-badge is-compact" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></span>
+              </div>
+              <p class="card-device">No aparelho · atualizado <time datetime="2026-09-06T21:40">ontem 21:40</time></p>
+            </a>
+
+            <!-- Relatório not on device + offline: greyed, explains itself; tap shows the same text as a Toast and nothing else -->
+            <a class="relatorio-card is-unavailable" href="#" aria-label="Condomínio Edifício Alameda Jaú, Cabine 13,8 kV, em revisão. Não está neste aparelho — conecte para baixar" aria-describedby="card3-device">
+              <div class="card-title"><span>Condomínio Edifício Alameda Jaú · Cabine 13,8 kV</span><svg class="ico card-chev" aria-hidden="true"><use href="#i-chev-right"/></svg></div>
+              <p class="card-meta">15–16/08/2026 · Cabine primária — padrão</p>
+              <div class="card-state">
+                <span class="status-pill" data-status="em-revisao">Em revisão</span>
+                <span class="progress-counter" data-state="complete"><span class="dot" aria-hidden="true"></span>38 de 38 fichas</span>
+              </div>
+              <p class="card-device" id="card3-device">Não está neste aparelho — conecte para baixar</p>
+            </a>
+
+            <a class="relatorio-card is-unavailable" href="#" aria-label="Hospital Santa Clara, Subestação principal, emitido. Não está neste aparelho — conecte para baixar">
+              <div class="card-title"><span>Hospital Santa Clara · Subestação principal</span><svg class="ico card-chev" aria-hidden="true"><use href="#i-chev-right"/></svg></div>
+              <p class="card-meta">18–19/07/2026 · Cabine primária — padrão</p>
+              <div class="card-state">
+                <span class="status-pill" data-status="emitido">Emitido</span>
+                <span class="progress-counter" data-state="complete"><span class="dot" aria-hidden="true"></span>61 de 61 fichas</span>
+              </div>
+              <p class="card-device">Não está neste aparelho — conecte para baixar</p>
+            </a>
+
+          </div>
+        </section>
+
+        <section class="section" aria-labelledby="h-atalhos-p">
+          <h2 id="h-atalhos-p" class="visually-hidden">Atalhos</h2>
+          <div class="shortcut-row">
+            <a class="shortcut-card" href="#"><svg class="ico" aria-hidden="true"><use href="#i-layers"/></svg><span>Templates</span></a>
+            <a class="shortcut-card" href="#"><svg class="ico" aria-hidden="true"><use href="#i-book"/></svg><span>Cadastros</span></a>
+          </div>
+        </section>
+
+      </div>
+    </main>
+
+    <!-- Toast: once per session on cold open offline -->
+    <div class="toast" role="status">Sem conexão. Tudo fica salvo neste aparelho.</div>
+  </div>
+</div>
+
+</div><!-- /mock-row 2 -->
+
+</body>
+</html>

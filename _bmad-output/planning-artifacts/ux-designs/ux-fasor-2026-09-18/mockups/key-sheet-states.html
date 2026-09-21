@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRODUTO — Ficha do equipamento (estados)</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* Governs this mock (alternate states of the Equipment sheet — the base sheet is key-equipment-sheet.html):
+   DESIGN.md § Components › Sheet header, Not-tested chip (chip + band), Nameplate extraction (Sugerido pill, Confirmar, Confirmar todos,
+     info Banner), Banner (warning · info), Toast (persistent with action), Confirm dialog (destructive = outline red), Combobox,
+     Measurement field, Tri-state control, Checklist row, Photo tile, Relatório tree, Progress counter, Button; § Colors (amber = suggestion).
+   EXPERIENCE.md § IA › Equipment sheet (first sheet of a cabine shows the cabine's SE block); § Block Model › Location (the Cabine owns
+     SE characteristics + environment; "editing them edits the cabine"), › Cabos de entrada (5 items); § Component Patterns › Not-tested chip,
+     Nameplate extraction, Toast, Banner, Confirm dialog; § State Patterns › Not tested, Nameplate suggestions pending, Nameplate extraction
+     offline, Nameplate extraction failed, Draft found, Relatório exported then edited; § Interaction Primitives › Undo; § Voice and Tone
+     ("Não ensaiado — motivo", "Sugerido — Confirmar", "Sem conexão — a leitura fica disponível quando houver sinal", "Rascunho encontrado — Recuperar");
+     Flow 2 step 2; Flow 2b steps 1, 2, 4, 5 and failure; Flow 3 failure; Flow 5 step 2 and failure.
+   Page-only layout below. */
+.frame-tablet.frame--crop.frame--short { height: 720px; min-height: 0; }
+.frame-tablet.frame--crop.frame--mid { height: 860px; min-height: 0; }
+.nameplate-grid { display: flex; flex-direction: column; gap: var(--sp-3); }
+.not-tested-band .band-text { flex: 1 1 320px; }
+.not-tested-band .band-reason { font-weight: 600; }
+/* Not tested: fields stay visible and readable, only the affordance goes (hairline edge, page surface, no chevron) */
+.is-readonly .input, .is-readonly .measurement-field { border-color: var(--border-hairline); background: var(--surface-base); }
+.is-readonly .combobox-chevron { display: none; }
+.is-readonly .tri-state { border-color: var(--border-hairline); pointer-events: none; }
+.is-readonly .tri-state .seg { border-left-color: var(--border-hairline); }
+.is-readonly .overflow-trigger { display: none; }
+/* Nameplate extraction: suggested combobox fields drop the chevron — the Confirmar slot takes the right edge */
+.nameplate-extraction .field.is-suggested .combobox-chevron { display: none; }
+.nameplate-extraction .field.is-suggested .input > .sv { flex: 1; min-width: 0; }
+.nameplate-extraction .field.is-suggested .measurement-field { background: var(--fora-do-limite-fill); border: 2px solid var(--fora-do-limite); }
+.nameplate-extraction .field.is-suggested .measurement-field .confirm-btn { border-left-color: var(--fora-do-limite); }
+.se-block .section-note { display: flex; align-items: center; gap: var(--sp-2); }
+.dialog-scrim.is-bottom { align-items: flex-end; padding-bottom: var(--sp-6); }
+.frame-phone .confirm-dialog .dialog-actions { flex-direction: column-reverse; }
+.frame-phone .confirm-dialog .dialog-actions .btn { width: 100%; }
+</style>
+</head>
+<body class="mock-page">
+
+<!-- icon sprite (inline, currentColor) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-chev-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20h4l11-11-4-4L4 16z"/><path d="M13 7l4 4"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></symbol>
+  <symbol id="i-tree" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h13"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.8" fill="currentColor" stroke="none"/></symbol>
+</svg>
+
+<h1 class="mock-title">Ficha do equipamento — estados alternativos</h1>
+<p class="mock-sub">Complementa key-equipment-sheet.html (a ficha base). Quadros recortados na região relevante: (a) ficha não ensaiada — Disjuntor TIE, Coluna 14; (b) leitura de placa com sugestões, mais as variantes sem conexão e falha — SEC-ENT, Cubículo Enel; (c) primeira ficha de uma cabine com o bloco da SE herdado — Cabos de entrada, Cubículo Enel; (d) rascunho encontrado e relatório já emitido — TP-C16; (e) confirmação de remoção e Desfazer — SEC-C09, no telefone.</p>
+
+<div class="mock-row">
+
+<!-- =============================================================== (a) NOT TESTED -->
+<div class="mock-item">
+  <p class="mock-caption"><b>(a) Ficha não ensaiada · DJ-C14</b><span class="sep">·</span>tablet retrato, recorte superior · faixa com o motivo, chip no cabeçalho, campos somente leitura, Desfazer<span class="sep">·</span>Not-tested chip (chip + band) · Sheet header · Progress counter (Completa) · State Patterns › Not tested · Flow 5 step 2</p>
+
+  <div class="frame frame-tablet frame--crop frame--mid" data-theme="light">
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">DJ-C14</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="pending"><span class="pill"><span class="dot" aria-hidden="true"></span>2 pendentes</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+    <div class="screen-body">
+      <aside class="rail-collapsed" aria-label="Árvore do relatório (recolhida)"><button class="rail-toggle" aria-label="Abrir árvore do relatório"><svg class="ico"><use href="#i-tree"/></svg></button><span class="rail-vlabel" aria-hidden="true">Árvore do relatório</span></aside>
+      <main class="screen">
+        <div class="sheet-header">
+          <div>
+            <h2 class="sheet-title">Disjuntor MT — <button class="tag-btn" aria-label="Renomear TAG DJ-C14">DJ-C14<svg class="ico ico-sm" aria-hidden="true"><use href="#i-pencil"/></svg></button><span class="not-tested-chip">Não ensaiado</span></h2>
+            <p class="sheet-meta">Cubículo 1° Subsolo › Coluna 14 (TIE — interligação dos barramentos)</p>
+            <p class="sheet-meta">Marcado por Bruno · <time datetime="2026-09-07T11:48">07/09 11:48</time></p>
+          </div>
+          <div class="progress-counter" data-state="complete"><span class="dot" aria-hidden="true"></span>Completa</div>
+        </div>
+        <div class="content">
+          <div class="not-tested-band" role="status">
+            <span class="band-text">Não ensaiado — <span class="band-reason">Impossibilidade de desligamento</span>. Os campos ficam somente leitura; a ficha imprime com os dados de placa e o motivo, e entra na seção 8 automaticamente.</span>
+            <button class="btn btn-text">Desfazer</button>
+          </div>
+
+          <section class="section is-readonly" aria-labelledby="a-placa">
+            <div class="section-head"><h2 id="a-placa">Dados de placa</h2></div>
+            <div class="nameplate-grid">
+              <div class="field"><span class="field-label">Identificação</span><div class="input" aria-readonly="true">Coluna 14 — Disjuntor TIE / barramentos A e B</div></div>
+              <div class="field combobox"><span class="field-label">Fabricante</span><div class="input" aria-readonly="true">Schneider</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div>
+              <div class="field"><span class="field-label">Nº de série</span><div class="input" aria-readonly="true">SF1-22-08871</div></div>
+              <div class="field combobox"><span class="field-label">Tipo</span><div class="input" aria-readonly="true">SF1</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div>
+              <div class="field combobox"><span class="field-label">Meio de extinção</span><div class="input" aria-readonly="true">SF6</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div>
+              <div class="field"><span class="field-label">Corrente nominal</span><div class="measurement-field" aria-readonly="true"><span class="mf-value">630</span><span class="mf-unit" aria-label="ampères">A</span></div></div>
+            </div>
+          </section>
+
+          <section class="section is-readonly" aria-labelledby="a-verif">
+            <div class="section-head"><h2 id="a-verif">Verificações gerais</h2><span class="btn-reason">Somente leitura — equipamento não ensaiado</span></div>
+            <p class="checklist-legend">C Conforme · NC Não conforme · NA Não se aplica</p>
+            <ul class="checklist">
+              <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">1.</span>Limpeza e lubrificação</span><div class="tri-state" role="radiogroup" aria-label="1. Limpeza e lubrificação" aria-disabled="true"><span class="seg" role="radio" data-value="c" aria-checked="false">C</span><span class="seg" role="radio" data-value="nc" aria-checked="false">NC</span><span class="seg" role="radio" data-value="na" aria-checked="false">NA</span></div><button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+              <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">2.</span>Abertura e fechamento elétrico/remoto</span><div class="tri-state" role="radiogroup" aria-label="2. Abertura e fechamento elétrico/remoto" aria-disabled="true"><span class="seg" role="radio" data-value="c" aria-checked="false">C</span><span class="seg" role="radio" data-value="nc" aria-checked="false">NC</span><span class="seg" role="radio" data-value="na" aria-checked="false">NA</span></div><button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+              <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">3.</span>Abertura e fechamento mecânico</span><div class="tri-state" role="radiogroup" aria-label="3. Abertura e fechamento mecânico" aria-disabled="true"><span class="seg" role="radio" data-value="c" aria-checked="false">C</span><span class="seg" role="radio" data-value="nc" aria-checked="false">NC</span><span class="seg" role="radio" data-value="na" aria-checked="false">NA</span></div><button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================================== (b) NAMEPLATE EXTRACTION — SUGGESTIONS -->
+<div class="mock-item">
+  <p class="mock-caption"><b>(b) Leitura de placa · sugestões prontas · SEC-ENT</b><span class="sep">·</span>tablet retrato, recorte · segunda-feira, com sinal: 5 campos sugeridos em âmbar, 2 digitados no sábado intactos, 1 não lido<span class="sep">·</span>Nameplate extraction · Banner (info) · Combobox · Measurement field · State Patterns › Nameplate suggestions pending · Flow 2b steps 4–5</p>
+
+  <div class="frame frame-tablet frame--crop" data-theme="light">
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">SEC-ENT</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+    <div class="screen-body">
+      <aside class="rail-collapsed" aria-label="Árvore do relatório (recolhida)"><button class="rail-toggle" aria-label="Abrir árvore do relatório"><svg class="ico"><use href="#i-tree"/></svg></button><span class="rail-vlabel" aria-hidden="true">Árvore do relatório</span></aside>
+      <main class="screen">
+        <div class="sheet-header">
+          <div>
+            <h2 class="sheet-title">Chave seccionadora de entrada — <button class="tag-btn" aria-label="Renomear TAG SEC-ENT">SEC-ENT<svg class="ico ico-sm" aria-hidden="true"><use href="#i-pencil"/></svg></button></h2>
+            <p class="sheet-meta">Cubículo Enel</p>
+            <p class="sheet-meta">Preenchido por Bruno · <time datetime="2026-09-06T10:22">06/09 10:22</time></p>
+          </div>
+          <div class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>6 obrigatórios faltando</div>
+        </div>
+        <div class="content">
+          <div class="banner" data-variant="info" role="status">
+            <span class="banner-text">Sugestões da placa prontas — 5 campos lidos da foto 3. Nada foi gravado: confirme um a um ou todos.</span>
+            <span class="banner-actions"><button class="btn btn-text">Ver a foto</button></span>
+          </div>
+
+          <section class="section nameplate-extraction" aria-labelledby="b-placa">
+            <div class="section-head">
+              <h2 id="b-placa">Dados de placa</h2>
+              <div class="row"><button class="btn btn-secondary"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg>Ler placa da foto</button><button class="btn btn-secondary"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Confirmar todos (5)</button></div>
+            </div>
+            <div class="nameplate-grid">
+              <div class="field"><span class="field-label">Identificação</span><div class="input">Entrada — Cubículo Enel</div></div>
+
+              <div class="field combobox is-suggested"><span class="field-label">Fabricante</span><div class="input" aria-describedby="sug-fab"><span class="sv">Schneider</span><button class="confirm-btn">Confirmar</button></div><span class="suggested-pill" id="sug-fab">Sugerido</span><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div>
+
+              <div class="field is-suggested"><span class="field-label">Nº de série</span><div class="input" aria-describedby="sug-ser"><span class="sv">SU1240998</span><button class="confirm-btn">Confirmar</button></div><span class="suggested-pill" id="sug-ser">Sugerido</span></div>
+
+              <div class="field combobox is-suggested"><span class="field-label">Tipo</span><div class="input" aria-describedby="sug-tipo"><span class="sv">Manual</span><button class="confirm-btn">Confirmar</button></div><span class="suggested-pill" id="sug-tipo">Sugerido</span><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div>
+
+              <div class="field combobox is-suggested"><span class="field-label">Meio de extinção</span><div class="input" aria-describedby="sug-meio"><span class="sv">Ar</span><button class="confirm-btn">Confirmar</button></div><span class="suggested-pill" id="sug-meio">Sugerido</span><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div>
+
+              <div class="field combobox"><span class="field-label">Tensão de placa</span><div class="input">15 kV</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span><span class="helper">Digitado por você em 06/09 — a leitura não altera</span></div>
+
+              <div class="field"><span class="field-label">Corrente nominal</span><div class="measurement-field"><span class="mf-value">630</span><span class="mf-unit" aria-label="ampères">A</span></div><span class="helper">Digitado por você em 06/09 — a leitura não altera</span></div>
+
+              <div class="field is-suggested"><span class="field-label">Acionamento</span><div class="input" aria-describedby="sug-acio"><span class="sv">Manual / punho</span><button class="confirm-btn">Confirmar</button></div><span class="suggested-pill" id="sug-acio">Sugerido</span></div>
+
+              <div class="field"><span class="field-label">Data de fabricação</span><div class="input"><span class="placeholder">Ex: 03/2012</span></div><span class="helper">Não lido — preencher manualmente</span></div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+</div><!-- /mock-row 1 -->
+
+<div class="mock-row">
+
+<!-- =============================================================== (b') NAMEPLATE — OFFLINE -->
+<div class="mock-item">
+  <p class="mock-caption"><b>(b′) Leitura de placa · sem conexão</b><span class="sep">·</span>tablet, recorte · sábado no cubículo: foto da placa guardada e na fila, botão continua ativo<span class="sep">·</span>Nameplate extraction · Banner (info) · Photo tile (Aguardando envio) · State Patterns › Nameplate extraction offline · Flow 2b steps 1–2</p>
+
+  <div class="frame frame-tablet frame--crop frame--short" data-theme="light">
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">SEC-ENT</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="offline"><span class="pill"><span class="dot" aria-hidden="true"></span>Sem conexão</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+    <div class="screen-body">
+      <aside class="rail-collapsed" aria-label="Árvore do relatório (recolhida)"><button class="rail-toggle" aria-label="Abrir árvore do relatório"><svg class="ico"><use href="#i-tree"/></svg></button><span class="rail-vlabel" aria-hidden="true">Árvore do relatório</span></aside>
+      <main class="screen">
+        <div class="sheet-header">
+          <div>
+            <h2 class="sheet-title">Chave seccionadora de entrada — <button class="tag-btn">SEC-ENT<svg class="ico ico-sm" aria-hidden="true"><use href="#i-pencil"/></svg></button></h2>
+            <p class="sheet-meta">Cubículo Enel</p>
+            <p class="sheet-meta">Preenchido por Bruno · 06/09 10:22</p>
+          </div>
+          <div class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>11 obrigatórios faltando</div>
+        </div>
+        <div class="content">
+          <section class="section nameplate-extraction" aria-labelledby="bo-placa">
+            <div class="section-head">
+              <h2 id="bo-placa">Dados de placa</h2>
+              <button class="btn btn-secondary"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg>Ler placa da foto</button>
+            </div>
+            <div class="banner" data-variant="info" role="status" style="margin-bottom: var(--sp-3)"><span class="banner-text">Sem conexão — a leitura fica disponível quando houver sinal. A foto da placa está guardada; as sugestões aparecem na próxima abertura da ficha.</span></div>
+            <div class="photo-row">
+              <button class="photo-tile is-inline" aria-label="Foto 3, abrir" aria-describedby="ph3-state"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">3</span></span></button>
+              <div class="photo-text"><p class="photo-caption">Placa de identificação da seccionadora SEC-ENT do Cubículo Enel</p><p class="photo-meta">Nº provisório 3 · 06/09 10:20 · Bruno</p><span class="upload-pill" data-state="pending" id="ph3-state"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-up"/></svg>Aguardando envio</span></div>
+            </div>
+            <div class="nameplate-grid" style="margin-top: var(--sp-3)">
+              <div class="field combobox"><span class="field-label">Tensão de placa</span><div class="input is-focus">15 kV</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div>
+              <div class="field"><span class="field-label">Corrente nominal</span><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit" aria-label="ampères">A</span></div></div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================================== (b'') NAMEPLATE — FAILED -->
+<div class="mock-item">
+  <p class="mock-caption"><b>(b″) Leitura de placa · falhou</b><span class="sep">·</span>tablet, recorte · a leitura não deu certo: foto mantida, nada gravado, dois caminhos<span class="sep">·</span>Nameplate extraction · Banner (warning) · State Patterns › Nameplate extraction failed · Flow 2b failure</p>
+
+  <div class="frame frame-tablet frame--crop frame--short" data-theme="light">
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">SEC-ENT</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+    <div class="screen-body">
+      <aside class="rail-collapsed" aria-label="Árvore do relatório (recolhida)"><button class="rail-toggle" aria-label="Abrir árvore do relatório"><svg class="ico"><use href="#i-tree"/></svg></button><span class="rail-vlabel" aria-hidden="true">Árvore do relatório</span></aside>
+      <main class="screen">
+        <div class="sheet-header">
+          <div>
+            <h2 class="sheet-title">Chave seccionadora de entrada — <button class="tag-btn">SEC-ENT<svg class="ico ico-sm" aria-hidden="true"><use href="#i-pencil"/></svg></button></h2>
+            <p class="sheet-meta">Cubículo Enel</p>
+            <p class="sheet-meta">Preenchido por Bruno · 06/09 10:22</p>
+          </div>
+          <div class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>11 obrigatórios faltando</div>
+        </div>
+        <div class="content">
+          <section class="section nameplate-extraction" aria-labelledby="bf-placa">
+            <div class="section-head">
+              <h2 id="bf-placa">Dados de placa</h2>
+              <button class="btn btn-secondary"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg>Ler placa da foto</button>
+            </div>
+            <div class="banner" role="alert" style="margin-bottom: var(--sp-3)">
+              <span class="banner-text">Não foi possível ler a placa. A foto foi mantida e nada foi gravado.</span>
+              <span class="banner-actions"><button class="btn btn-text">Tentar novamente</button><button class="btn btn-text">Preencher manualmente</button></span>
+            </div>
+            <div class="photo-row">
+              <button class="photo-tile is-inline" aria-label="Foto 3, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">3</span></span></button>
+              <div class="photo-text"><p class="photo-caption">Placa de identificação da seccionadora SEC-ENT do Cubículo Enel</p><p class="photo-meta">Nº provisório 3 · 06/09 10:20 · Bruno · Enviada</p></div>
+            </div>
+            <div class="nameplate-grid" style="margin-top: var(--sp-3)">
+              <div class="field"><span class="field-label">Identificação</span><div class="input">Entrada — Cubículo Enel</div></div>
+              <div class="field combobox"><span class="field-label">Fabricante</span><div class="input"><span class="placeholder">Ex: Schneider</span></div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+</div><!-- /mock-row 2 -->
+
+<div class="mock-row">
+
+<!-- =============================================================== (c) FIRST SHEET OF A CABINE -->
+<div class="mock-item">
+  <p class="mock-caption"><b>(c) Primeira ficha da cabine · Cabos de entrada — Cubículo Enel</b><span class="sep">·</span>tablet retrato · bloco da SE herdado da cabine (editar aqui altera a cabine), ambiente de ensaio, checklist de 5 itens<span class="sep">·</span>IA › Equipment sheet · Block Model › Location, Cabos de entrada · Combobox · Measurement field · Checklist row · Flow 2 step 2</p>
+
+  <div class="frame frame-tablet" data-theme="light">
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">CB-ENT</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="offline"><span class="pill"><span class="dot" aria-hidden="true"></span>Sem conexão</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+    <div class="screen-body">
+      <aside class="rail-collapsed" aria-label="Árvore do relatório (recolhida)"><button class="rail-toggle" aria-label="Abrir árvore do relatório"><svg class="ico"><use href="#i-tree"/></svg></button><span class="rail-vlabel" aria-hidden="true">Árvore do relatório</span></aside>
+      <main class="screen">
+        <div class="sheet-header">
+          <div>
+            <h2 class="sheet-title">Cabos de entrada — <button class="tag-btn" aria-label="Renomear TAG CB-ENT">CB-ENT<svg class="ico ico-sm" aria-hidden="true"><use href="#i-pencil"/></svg></button></h2>
+            <p class="sheet-meta">Cubículo Enel · primeira ficha da cabine</p>
+            <p class="sheet-meta">Preenchido por Bruno · <time datetime="2026-09-06T09:41">06/09 09:41</time></p>
+          </div>
+          <div class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>1 obrigatório faltando</div>
+        </div>
+        <div class="content">
+
+          <section class="section se-block" aria-labelledby="c-se">
+            <div class="section-head"><h2 id="c-se">Características da SE</h2><span class="btn-reason">Cabine: Cubículo Enel</span></div>
+            <p class="section-note">Dados da cabine, impressos uma vez na primeira ficha. Editar aqui altera a cabine — todas as fichas do Cubículo Enel passam a mostrar o mesmo valor.</p>
+            <div class="nameplate-grid">
+              <div class="field combobox"><span class="field-label">Tipo de SE</span><div class="input">Blindada</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div>
+              <div class="field"><span class="field-label">Tensão primária</span><div class="measurement-field"><span class="mf-value">13,8</span><span class="mf-unit" aria-label="quilovolts">kV</span></div></div>
+              <div class="field"><span class="field-label">Tensão secundária</span><div class="measurement-field"><span class="mf-value">–</span><span class="mf-unit" aria-label="volts">V</span></div><span class="helper">Cubículo de entrada da concessionária — sem secundário; imprime "–"</span></div>
+              <div class="field"><span class="field-label">Potência instalada</span><div class="measurement-field" aria-invalid="true" aria-describedby="pot-why"><span class="mf-value is-empty">—</span><span class="mf-unit" aria-label="quilovolt-ampères">kVA</span></div><span class="helper" data-tone="red" id="pot-why">Obrigatória na cabine</span></div>
+            </div>
+          </section>
+
+          <section class="section se-block" aria-labelledby="c-amb">
+            <div class="section-head"><h2 id="c-amb">Ambiente de ensaio</h2><span class="btn-reason">Cabine: Cubículo Enel</span></div>
+            <p class="section-note">Também da cabine. Editar aqui altera a cabine.</p>
+            <div class="nameplate-grid">
+              <div class="field"><span class="field-label">Temperatura</span><div class="measurement-field"><span class="mf-value">19</span><span class="mf-unit" aria-label="graus Celsius">°C</span></div></div>
+              <div class="field"><span class="field-label">Umidade relativa do ar</span><div class="measurement-field"><span class="mf-value">67</span><span class="mf-unit" aria-label="por cento">%</span></div></div>
+              <div class="field"><span class="field-label">Altitude</span><div class="measurement-field"><span class="mf-value">&lt;1000</span><span class="mf-unit" aria-label="metros">m</span></div></div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="c-verif">
+            <div class="section-head"><h2 id="c-verif">Verificações gerais</h2></div>
+            <p class="checklist-legend">C Conforme · NC Não conforme · NA Não se aplica</p>
+            <ul class="checklist">
+              <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">1.</span>Limpeza</span><div class="tri-state" role="radiogroup" aria-label="1. Limpeza"><button class="seg" role="radio" data-value="c" aria-checked="true" aria-label="Conforme">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false" aria-label="Não conforme">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false" aria-label="Não se aplica">NA</button></div><button class="overflow-trigger" aria-label="Mais opções de Limpeza"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+              <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">2.</span>Mufla</span><div class="tri-state" role="radiogroup" aria-label="2. Mufla"><button class="seg" role="radio" data-value="c" aria-checked="true">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div><button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+              <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">3.</span>Conexões</span><div class="tri-state" role="radiogroup" aria-label="3. Conexões"><button class="seg" role="radio" data-value="c" aria-checked="true">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div><button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+              <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">4.</span>Aterramento das cordoalhas</span><div class="tri-state" role="radiogroup" aria-label="4. Aterramento das cordoalhas"><button class="seg" role="radio" data-value="c" aria-checked="true">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div><button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+              <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">5.</span>Fixação</span><div class="tri-state" role="radiogroup" aria-label="5. Fixação"><button class="seg" role="radio" data-value="c" aria-checked="true">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div><button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+            </ul>
+          </section>
+
+        </div>
+        <div class="sticky-action-bar">
+          <span class="btn-reason" id="c-reason">Concluir ficha: 1 obrigatório faltando (potência instalada da cabine)</span>
+          <div class="bar-buttons">
+            <button class="btn btn-secondary" aria-disabled="true" aria-describedby="c-reason">Concluir ficha</button>
+            <button class="btn btn-primary">Próxima ficha<svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================================== (d) DRAFT FOUND + RELATÓRIO EMITIDO -->
+<div class="mock-item">
+  <p class="mock-caption"><b>(d) Rascunho encontrado · relatório já emitido · TP-C16</b><span class="sep">·</span>tablet, recorte · Banner de aviso no topo da ficha e Toast persistente com ação<span class="sep">·</span>Banner (warning) · Toast (persistente) · State Patterns › Draft found, Relatório exported then edited · Flow 2 failure · Flow 5 failure</p>
+
+  <div class="frame frame-tablet frame--crop frame--mid" data-theme="light">
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">TP-C16</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+    <div class="screen-body">
+      <aside class="rail-collapsed" aria-label="Árvore do relatório (recolhida)"><button class="rail-toggle" aria-label="Abrir árvore do relatório"><svg class="ico"><use href="#i-tree"/></svg></button><span class="rail-vlabel" aria-hidden="true">Árvore do relatório</span></aside>
+      <main class="screen">
+        <div class="banner" role="status" style="border-radius:0">
+          <span class="banner-text">Relatório emitido em 10/09 (revisão 2). Alterações geram a revisão 3 — os números das fotos voltam a ser provisórios.</span>
+          <span class="banner-actions"><button class="btn btn-text">Ver revisões</button></span>
+        </div>
+        <div class="sheet-header">
+          <div>
+            <h2 class="sheet-title">TP — proteção — <button class="tag-btn" aria-label="Renomear TAG TP-C16">TP-C16<svg class="ico ico-sm" aria-hidden="true"><use href="#i-pencil"/></svg></button></h2>
+            <p class="sheet-meta">Cubículo 1° Subsolo › Coluna 16</p>
+            <p class="sheet-meta">Preenchido por Eduardo · <time datetime="2026-09-08T16:05">08/09 16:05</time></p>
+          </div>
+          <div class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>2 obrigatórios faltando</div>
+        </div>
+        <div class="content">
+          <section class="section nameplate-extraction" aria-labelledby="d-placa">
+            <div class="section-head"><h2 id="d-placa">Dados de placa</h2><button class="btn btn-secondary"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg>Ler placa da foto</button></div>
+            <div class="nameplate-grid">
+              <div class="field"><span class="field-label">Identificação</span><div class="input">Coluna 16 — TP de proteção</div></div>
+              <div class="field combobox"><span class="field-label">Fabricante</span><div class="input">Balteau</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div>
+              <div class="field"><span class="field-label">Nº de série</span><div class="input"><span class="placeholder">Ex: 224310</span></div></div>
+              <div class="field combobox"><span class="field-label">Tipo</span><div class="input">IPSB</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div>
+              <div class="field"><span class="field-label">Tensão nominal AT</span><div class="measurement-field"><span class="mf-value">13,8</span><span class="mf-unit" aria-label="quilovolts">kV</span></div></div>
+              <div class="field"><span class="field-label">Tensão nominal BT</span><div class="measurement-field"><span class="mf-value">115</span><span class="mf-unit" aria-label="volts">V</span></div></div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+    <div class="toast" role="status"><span>Rascunho encontrado</span><button class="toast-action">Recuperar</button></div>
+  </div>
+</div>
+
+</div><!-- /mock-row 3 -->
+
+<div class="mock-row">
+
+<!-- =============================================================== (e) CONFIRM DIALOG — PHONE -->
+<div class="mock-item">
+  <p class="mock-caption"><b>(e) Remover ficha · confirmação · SEC-C09</b><span class="sep">·</span>telefone 390 · Confirm dialog sobre a visão do relatório; foco inicial em Cancelar, ação destrutiva em contorno vermelho<span class="sep">·</span>Confirm dialog · Relatório tree (superfície no telefone) · Overflow menu › Remover · Flow 3 failure</p>
+
+  <div class="frame frame-phone frame--crop" data-theme="light">
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">Coluna 9</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="offline"><span class="pill"><span class="dot" aria-hidden="true"></span>Sem conexão</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+    <main class="screen" aria-hidden="true">
+      <div class="sheet-header">
+        <div><h2 class="sheet-title">Coluna 9</h2><p class="sheet-meta">Cubículo 1° Subsolo · 5 equipamentos</p></div>
+        <div class="progress-counter" data-state="pending"><span class="dot"></span>3 de 5 fichas</div>
+      </div>
+      <ul class="relatorio-tree">
+        <li class="tree-row" data-level="0"><span class="tree-chevron"></span><span class="tree-body">SEC-C09<span class="tree-meta">Chave seccionadora</span></span><span class="tree-state" data-state="em-preenchimento">● Em preenchimento</span><span class="overflow-trigger"><svg class="ico"><use href="#i-dots"/></svg></span></li>
+        <li class="tree-row" data-level="0"><span class="tree-chevron"></span><span class="tree-body">SEC-C09-2<span class="tree-meta">Chave seccionadora · duplicada</span></span><span class="tree-state" data-state="vazia">○ Vazia</span><span class="overflow-trigger"><svg class="ico"><use href="#i-dots"/></svg></span></li>
+        <li class="tree-row" data-level="0"><span class="tree-chevron"></span><span class="tree-body">DJ-C09<span class="tree-meta">Disjuntor MT</span></span><span class="tree-state" data-state="concluida">✓ Concluída</span><span class="overflow-trigger"><svg class="ico"><use href="#i-dots"/></svg></span></li>
+        <li class="tree-row" data-level="0"><span class="tree-chevron"></span><span class="tree-body">TP-C09<span class="tree-meta">TP — proteção</span></span><span class="tree-state" data-state="concluida">✓ Concluída</span><span class="overflow-trigger"><svg class="ico"><use href="#i-dots"/></svg></span></li>
+        <li class="tree-row" data-level="0"><span class="tree-chevron"></span><span class="tree-body">TC-C09<span class="tree-meta">TC — proteção</span></span><span class="tree-state" data-state="concluida">✓ Concluída</span><span class="overflow-trigger"><svg class="ico"><use href="#i-dots"/></svg></span></li>
+      </ul>
+    </main>
+    <div class="dialog-scrim">
+      <div class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="cd-title" aria-describedby="cd-desc">
+        <h2 class="dialog-title" id="cd-title">Remover ficha SEC-C09 e seus dados?</h2>
+        <p class="t-body" id="cd-desc">A ficha tem 6 itens marcados e 1 foto. Dá para desfazer em seguida e restaurar em "Restaurar ficha removida" até o relatório ser emitido.</p>
+        <div class="dialog-actions">
+          <button class="btn btn-secondary is-focus-ring">Cancelar</button>
+          <button class="btn btn-destructive">Remover ficha</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================================== (e') UNDO TOAST — PHONE -->
+<div class="mock-item">
+  <p class="mock-caption"><b>(e′) Ficha removida · Desfazer</b><span class="sep">·</span>telefone 390 · Toast de desfazer persistente (≥ 20 s, até a próxima navegação); depois, "Restaurar ficha removida" no menu do relatório<span class="sep">·</span>Toast (undo) · Interaction Primitives › Undo · Flow 3 failure</p>
+
+  <div class="frame frame-phone frame--crop" data-theme="light">
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">Coluna 9</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="offline"><span class="pill"><span class="dot" aria-hidden="true"></span>Sem conexão</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+    <main class="screen">
+      <div class="sheet-header">
+        <div><h2 class="sheet-title">Coluna 9</h2><p class="sheet-meta">Cubículo 1° Subsolo · 4 equipamentos</p></div>
+        <div class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>3 de 4 fichas</div>
+      </div>
+      <ul class="relatorio-tree">
+        <li class="tree-row" data-level="0"><span class="tree-chevron"></span><span class="tree-body">SEC-C09-2<span class="tree-meta">Chave seccionadora</span></span><span class="tree-state" data-state="vazia"><span aria-hidden="true">○</span>Vazia</span><button class="overflow-trigger" aria-label="Mais opções de SEC-C09-2"><svg class="ico"><use href="#i-dots"/></svg></button></li>
+        <li class="tree-row" data-level="0"><span class="tree-chevron"></span><span class="tree-body">DJ-C09<span class="tree-meta">Disjuntor MT</span></span><span class="tree-state" data-state="concluida"><span aria-hidden="true">✓</span>Concluída</span><button class="overflow-trigger" aria-label="Mais opções de DJ-C09"><svg class="ico"><use href="#i-dots"/></svg></button></li>
+        <li class="tree-row" data-level="0"><span class="tree-chevron"></span><span class="tree-body">TP-C09<span class="tree-meta">TP — proteção</span></span><span class="tree-state" data-state="concluida"><span aria-hidden="true">✓</span>Concluída</span><button class="overflow-trigger" aria-label="Mais opções de TP-C09"><svg class="ico"><use href="#i-dots"/></svg></button></li>
+        <li class="tree-row" data-level="0"><span class="tree-chevron"></span><span class="tree-body">TC-C09<span class="tree-meta">TC — proteção</span></span><span class="tree-state" data-state="concluida"><span aria-hidden="true">✓</span>Concluída</span><button class="overflow-trigger" aria-label="Mais opções de TC-C09"><svg class="ico"><use href="#i-dots"/></svg></button></li>
+      </ul>
+      <div class="content"><button class="btn btn-secondary btn-block"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar bloco</button></div>
+    </main>
+    <div class="toast" role="status"><span>Ficha removida</span><button class="toast-action">Desfazer</button></div>
+  </div>
+</div>
+
+</div><!-- /mock-row 4 -->
+
+</body>
+</html>

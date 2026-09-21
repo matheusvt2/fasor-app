@@ -1,0 +1,18 @@
+<style data-screen="placeholder">
+/* Fallback screen: shown when no fragment serves the route. data-bind="route" receives the path. */
+[data-route="*"] .ph-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: var(--sp-7) var(--gutter-tablet); text-align: center; }
+[data-route="*"] .ph-wrap code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: var(--t-heading-size); color: var(--primary); }
+[data-route="*"] .ph-actions { justify-content: center; }
+</style>
+<section class="screen" data-route="*" data-title="Em construção" data-shell="app" data-rail="false">
+  <div class="ph-wrap">
+    <div class="stack">
+      <h2 class="t-title">Tela em construção — <code data-bind="route">/</code></h2>
+      <p class="t-body ink-secondary">Esta rota ainda não tem um fragmento em <code>screens/</code>. O protótipo continua navegável.</p>
+      <div class="row ph-actions">
+        <button class="btn btn-secondary" data-back>Voltar</button>
+        <button class="btn btn-primary" data-go="#/home">Início</button>
+      </div>
+    </div>
+  </div>
+</section>

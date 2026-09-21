@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRODUTO — Dados do relatório</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* Governs this mock:
+   DESIGN.md § Components › App bar, Sync badge, Combobox, Button (+ text button), Sticky action bar,
+     Instrument picker (validity line), Registry row (Vencida), Photo tile, Observation field, Banner (warning);
+     § Layout & Spacing (office surface, content-max 880, 56px fields); § Elevation (borders only); § Colors (amber = warning, never red).
+   EXPERIENCE.md § IA › Relatório setup ("numbered section bands, one scrolling page, office surface");
+     § Capture-to-Document › 0 Capa, 1 Objetivo, 3 Limite de escopo, 10 Conclusão (CREA, ART), 11 Certificados;
+     § Registries › Clients, Instruments; § Component Patterns › Combobox, Instrument picker, Registry row;
+     § State Patterns › Calibration expired, Draft found (autosave); § Voice and Tone (placeholders with a real example);
+     § Responsive & Platform (office-shaped, still works on the tablet); Flow 1 step 5.
+   Added components (not in DESIGN.md § Components — logged in the report): Section band (Etapa n), Checkbox.
+   v0.6.0 [ASSUMPTION — reference tool 2026-09-18]: DESIGN.md § Components › Segmented control (Conselho: CREA · CRT), Conclusion control
+     (three-way verdict), Suggestion field › Generated text + Criteria line, Parecer box, Dictation button;
+     EXPERIENCE.md § IA › Relatório setup › Responsável, › Conclusão e parecer; § Smart Input › Generated conclusion text, › Parecer;
+     § Capture-to-Document › 10 Conclusão (Parecer block, ART/TRT echo), › Controle do documento (CREA/CRT source);
+     § Registries › Empresa (contratada); Account › Registro profissional (prefill).
+   Page-only layout below. */
+.setup-content { padding: var(--sp-6) var(--gutter-desktop); max-width: calc(var(--content-max) + 2 * var(--gutter-desktop)); margin: 0 auto; width: 100%; }
+.frame-tablet .setup-content { padding: var(--sp-5) var(--gutter-tablet); }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
+.form-grid .span-2 { grid-column: 1 / -1; }
+.frame-tablet .form-grid { grid-template-columns: 1fr; }
+.frame-tablet .form-grid .span-2 { grid-column: auto; }
+.dates-3 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
+.exclusion-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
+.exclusion-list li { display: flex; align-items: center; gap: var(--sp-2); }
+.exclusion-list .exclusion-num { width: 28px; color: var(--ink-secondary); font-variant-numeric: tabular-nums; flex: none; }
+.cover-row { display: flex; gap: var(--sp-5); align-items: flex-start; }
+.cover-row .photo-tile { width: 240px; }
+.cover-row .photo-tile .thumb { aspect-ratio: 4 / 3; }
+.frame-tablet .cover-row { flex-direction: column; }
+.instrument-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border-hairline); }
+.instrument-list li { border-bottom: 1px solid var(--border-hairline); padding: var(--sp-2) 0; }
+.instrument-list .checkbox .ip-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.instrument-list .cert-link { margin-left: auto; flex: none; }
+.frame-tablet .instrument-list .cert-link { display: none; }
+.preview-box { background: var(--surface-base); border-radius: var(--r-sm); padding: var(--sp-3) var(--sp-4); font-size: var(--t-body-size); line-height: var(--t-body-lh); }
+.preview-box .var { background: var(--focus-fill); border-radius: 2px; padding: 0 3px; }
+.responsavel-group { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); padding-top: var(--sp-4); border-top: 1px solid var(--border-hairline); }
+.responsavel-group .span-2 { grid-column: 1 / -1; }
+.frame-tablet .responsavel-group, .frame-phone .responsavel-group { grid-template-columns: 1fr; }
+.frame-tablet .responsavel-group .span-2, .frame-phone .responsavel-group .span-2 { grid-column: auto; }
+.responsavel-group .segmented { max-width: 320px; }
+.group-title { font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--ink-secondary); grid-column: 1 / -1; margin-bottom: calc(-1 * var(--sp-2)); }
+.frame-phone .setup-content { padding: var(--sp-4) var(--gutter-phone); }
+</style>
+</head>
+<body class="mock-page">
+
+<!-- icon sprite (inline, currentColor) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-chev-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.8" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8"/></symbol>
+</svg>
+
+<h1 class="mock-title">Dados do relatório — Porto Seguro · Torres A e B</h1>
+<p class="mock-sub">Superfície de escritório do PRODUTO (EXPERIENCE § IA › Relatório setup). Estado: Bruno, notebook, quinta-feira 03/09, preenchendo o relatório criado a partir do template "Porto Seguro — Torres A e B"; tudo salvo automaticamente. Quadro 1: navegador 1280, Etapas 1–5 — o responsável técnico com o Conselho (CREA · CRT) vindo do perfil, e a banda "Conclusão e parecer" (seção 10). Quadro 2: tablet retrato, as duas primeiras bandas. Quadro 3: telefone, o mesmo grupo Responsável com CRT: rótulos CRT/TRT e título Técnico(a) em Eletrotécnica.</p>
+
+<div class="mock-row">
+
+<!-- =============================================================== FRAME 1 — DESKTOP BROWSER -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Dados do relatório · Etapas 1–5</b><span class="sep">·</span>navegador 1280 · rascunho, salvo automaticamente, sincronizado · Conselho CREA (do perfil) · parecer "Apto com restrições" escolhido, resumo gerado a confirmar<span class="sep">·</span>IA › Relatório setup · Capture-to-Document › Capa, 1 Objetivo, 3 Limite de escopo, 10 Conclusão (Parecer), 11 Certificados · Segmented (Conselho) · Conclusion control (verdict) · Generated text + Criteria line · Parecer box · Combobox · Registry row (Vencida) · Calibration expired · Sticky action bar · Flow 1 passo 5 · Flow 5 passo 0</p>
+
+  <div class="frame frame-desktop" data-theme="light">
+    <div class="browser-chrome"><span class="lights"><i></i><i></i><i></i></span><span class="url">PRODUTO — Porto Seguro · Torres A e B · Dados do relatório</span></div>
+
+    <header class="app-bar">
+      <div class="app-bar-left">
+        <button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button>
+      </div>
+      <h1 class="app-bar-title">Dados do relatório</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="ok" aria-label="Sincronização: sincronizado"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+
+    <main class="screen">
+      <div class="setup-content">
+
+        <p class="section-note">Relatório de cabine primária · criado do template <b>Porto Seguro — Torres A e B</b> em 03/09 · as bandas abaixo alimentam a capa e as seções 1, 3, 10 e 11 do documento.</p>
+
+        <!-- ---------------- Etapa 1 ---------------- -->
+        <section class="section-band" aria-labelledby="e1">
+          <div class="band-head"><span class="band-num" aria-hidden="true">1</span><h2 class="band-title" id="e1">Etapa 1 — Dados do cliente</h2><span class="band-note">Capa do relatório</span></div>
+          <div class="band-body">
+            <div class="form-grid">
+              <div class="field combobox span-2">
+                <span class="field-label">Cliente</span>
+                <div class="input">Porto Seguro Companhia de Seguros Gerais</div>
+                <span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+              </div>
+              <div class="field combobox">
+                <span class="field-label">Local (obra)</span>
+                <div class="input">Torres A e B</div>
+                <span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+              </div>
+              <div class="field">
+                <span class="field-label">Cidade</span>
+                <div class="input">São Paulo/SP</div>
+              </div>
+              <div class="field">
+                <span class="field-label">Início da execução</span>
+                <div class="input"><span class="grow">06/09/2026</span><svg class="ico ink-secondary" aria-hidden="true"><use href="#i-calendar"/></svg></div>
+              </div>
+              <div class="field">
+                <span class="field-label">Fim da execução</span>
+                <div class="input"><span class="grow">08/09/2026</span><svg class="ico ink-secondary" aria-hidden="true"><use href="#i-calendar"/></svg></div>
+                <span class="echo">Na capa: 06, 07 e 08 de setembro de 2026</span>
+              </div>
+              <div class="field span-2">
+                <span class="field-label">Informações adicionais</span>
+                <div class="input">Manutenção Preventiva nas Cabines Primárias</div>
+              </div>
+              <div class="responsavel-group">
+                <p class="group-title">Responsável técnico</p>
+                <div class="field combobox">
+                  <span class="field-label">Responsável técnico</span>
+                  <div class="input">Rafael Lamonde</div>
+                  <span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+                  <span class="helper">Conselho e número vêm do perfil (Conta › Registro profissional). Assina a seção 10 como Eng. Eletricista.</span>
+                </div>
+                <div class="field">
+                  <span class="field-label" id="cons-l">Conselho</span>
+                  <div class="segmented" role="radiogroup" aria-labelledby="cons-l" aria-describedby="cons-h">
+                    <button class="seg" role="radio" aria-checked="true"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>CREA</button>
+                    <button class="seg" role="radio" aria-checked="false"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>CRT</button>
+                  </div>
+                  <span class="helper" id="cons-h">Define os rótulos CREA/ART ou CRT/TRT e o título impresso na assinatura, na capa e no controle do documento</span>
+                </div>
+                <div class="field">
+                  <span class="field-label">CREA</span>
+                  <div class="input tabular">SP 5063583141</div>
+                </div>
+                <div class="field">
+                  <span class="field-label">ART</span>
+                  <div class="input tabular">2620262602583</div>
+                  <span class="echo">Na seção 10: "Este relatório tem validade apenas acompanhada da ART 2620262602583"</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ---------------- Etapa 2 ---------------- -->
+        <section class="section-band" aria-labelledby="e2">
+          <div class="band-head"><span class="band-num" aria-hidden="true">2</span><h2 class="band-title" id="e2">Etapa 2 — Objetivo e escopo</h2><span class="band-note">Seções 1 e 3</span></div>
+          <div class="band-body">
+            <p class="section-note">Seção 1 — Objetivo: texto fixo com três variáveis.</p>
+            <div class="form-grid">
+              <div class="field">
+                <span class="field-label">Empresa executora</span>
+                <div class="input">Fasor Engenharia</div>
+              </div>
+              <div class="field">
+                <span class="field-label">Local</span>
+                <div class="input">das Torres A e B da Porto Seguro</div>
+              </div>
+              <div class="field span-2">
+                <span class="field-label">Escopo</span>
+                <div class="observation-field">manutenção preventiva e à execução de ensaios dielétricos nas Cabines Primárias de Proteção, Distribuição e Transformação</div>
+              </div>
+            </div>
+            <div class="preview-box" aria-label="Como fica na seção 1">O presente relatório tem por objetivo apresentar, de forma clara e objetiva, as atividades realizadas pela <span class="var">Fasor Engenharia</span>, referentes à <span class="var">manutenção preventiva e à execução de ensaios dielétricos nas Cabines Primárias de Proteção, Distribuição e Transformação</span> <span class="var">das Torres A e B da Porto Seguro</span>.</div>
+
+            <p class="section-note" style="margin-top: var(--sp-3)">Seção 3 — Limite de escopo: parágrafo fixo + exclusões deste contrato.</p>
+            <ul class="exclusion-list" aria-label="Exclusões">
+              <li><span class="exclusion-num" aria-hidden="true">1.</span><div class="input grow">Quadros elétricos terminais, localizados nos respectivos setores</div><button class="overflow-trigger" aria-label="Mais opções da exclusão 1"><svg class="ico"><use href="#i-dots"/></svg></button></li>
+              <li><span class="exclusion-num" aria-hidden="true">2.</span><div class="input grow">Painéis e transformadores de rede estabilizada (nobreak)</div><button class="overflow-trigger" aria-label="Mais opções da exclusão 2"><svg class="ico"><use href="#i-dots"/></svg></button></li>
+              <li><span class="exclusion-num" aria-hidden="true">3.</span><div class="input grow">Geradores e seus periféricos</div><button class="overflow-trigger" aria-label="Mais opções da exclusão 3"><svg class="ico"><use href="#i-dots"/></svg></button></li>
+            </ul>
+            <div class="row"><button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar exclusão</button></div>
+          </div>
+        </section>
+
+        <!-- ---------------- Etapa 3 ---------------- -->
+        <section class="section-band" aria-labelledby="e3">
+          <div class="band-head"><span class="band-num" aria-hidden="true">3</span><h2 class="band-title" id="e3">Etapa 3 — Foto de capa</h2><span class="band-note">Capa do relatório</span></div>
+          <div class="band-body">
+            <div class="cover-row">
+              <button class="photo-tile" aria-label="Foto de capa, abrir"><span class="thumb"><span class="thumb-fake"></span></span><span class="caption">Fachada das Torres A e B · 03/09 · Bruno</span></button>
+              <div class="stack">
+                <p class="section-note">Uma imagem grande na capa. Não entra no registro fotográfico (seção 7).</p>
+                <div class="row-wrap">
+                  <button class="btn btn-secondary"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg>Substituir foto</button>
+                  <button class="btn btn-text" data-tone="red">Remover</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ---------------- Etapa 4 ---------------- -->
+        <section class="section-band" aria-labelledby="e4">
+          <div class="band-head"><span class="band-num" aria-hidden="true">4</span><h2 class="band-title" id="e4">Etapa 4 — Instrumentos e certificados</h2><span class="band-note">Seção 11 · Instrument picker</span></div>
+          <div class="band-body">
+            <p class="section-note">Marque os instrumentos desta obra: o certificado de cada um entra na seção 11 e o seletor de instrumento das fichas já começa por eles. Em campo, o cadastro inteiro continua disponível.</p>
+            <ul class="instrument-list instrument-picker">
+              <li>
+                <button class="checkbox" role="checkbox" aria-checked="true" aria-describedby="i2e-cal">
+                  <span class="box"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg></span>
+                  <span class="ip-code">2E</span>
+                  <span class="ip-text">
+                    <span class="ip-name">Megôhmetro digital DMG10Ki</span>
+                    <span class="ip-detail">Instrum · série IN919021-25945 · RBC 37428/26 · <span class="ip-expired">Vencida em 28/08/2027</span> · certificado_37428-26.pdf</span>
+                  </span>
+                  <span class="cert-link btn btn-text" aria-hidden="true"><svg class="ico"><use href="#i-file"/></svg>Certificado</span>
+                </button>
+                <p class="ip-expired" id="i2e-cal" role="status">Calibração do 2E vencida em 28/08/2027. Pode continuar — listada na verificação antes de emitir.</p>
+              </li>
+              <li>
+                <button class="checkbox" role="checkbox" aria-checked="true">
+                  <span class="box"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg></span>
+                  <span class="ip-code">3M</span>
+                  <span class="ip-text">
+                    <span class="ip-name">Microhmímetro HTMO-10</span>
+                    <span class="ip-detail">Hi-Tech · série G282926 · RBC 37276/26 · válida até 22/01/2027 · certificado_37276-26.pdf</span>
+                  </span>
+                  <span class="cert-link btn btn-text" aria-hidden="true"><svg class="ico"><use href="#i-file"/></svg>Certificado</span>
+                </button>
+              </li>
+              <li>
+                <button class="checkbox" role="checkbox" aria-checked="true">
+                  <span class="box"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg></span>
+                  <span class="ip-code">1T</span>
+                  <span class="ip-text">
+                    <span class="ip-name">TTR HTRT-8K</span>
+                    <span class="ip-detail">Hi-Tech · série F277226 · RBC 37274/26 · válida até 20/08/2027 · certificado_37274-26.pdf</span>
+                  </span>
+                  <span class="cert-link btn btn-text" aria-hidden="true"><svg class="ico"><use href="#i-file"/></svg>Certificado</span>
+                </button>
+              </li>
+            </ul>
+            <div class="row"><button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Cadastrar instrumento</button><span class="btn-reason">Abre Cadastros › Instrumentos</span></div>
+          </div>
+        </section>
+
+        <!-- ---------------- Etapa 5 ---------------- -->
+        <section class="section-band" aria-labelledby="e5">
+          <div class="band-head"><span class="band-num" aria-hidden="true">5</span><h2 class="band-title" id="e5">Etapa 5 — Conclusão e parecer</h2><span class="band-note">Seção 10 · obrigatório para gerar o relatório</span></div>
+          <div class="band-body">
+            <p class="section-note">O app conta as fichas e sugere; o parecer é do engenheiro. Preenchido no escritório, depois das fichas — a verificação antes de emitir lista "Parecer não preenchido".</p>
+
+            <div class="conclusion-control">
+              <span class="field-label" id="par-l">Parecer</span>
+              <div class="conclusion-pair is-verdict" role="radiogroup" aria-labelledby="par-l" aria-describedby="par-hint">
+                <button class="seg" role="radio" data-value="apto" aria-checked="false"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Apto</button>
+                <button class="seg" role="radio" data-value="restricoes" aria-checked="true"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Apto com restrições</button>
+                <button class="seg" role="radio" data-value="nao-apto" aria-checked="false"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Não apto</button>
+              </div>
+              <span class="conclusion-hint" id="par-hint">Sugerido pelas contagens: Apto com restrições — 3 NC · 2 não ensaiadas. A escolha é do engenheiro.</span>
+            </div>
+
+            <div class="field suggestion-field is-generated" data-state="suggested">
+              <span class="field-label" id="res-l">Resumo do parecer</span>
+              <div class="generated-text" role="textbox" aria-multiline="true" aria-labelledby="res-l" aria-describedby="res-crit">Das 94 fichas deste relatório, 92 foram ensaiadas e 2 não foram ensaiadas por impossibilidade de desligamento. Foram registrados 3 itens não conformes, tratados na seção 8 com ação recomendada, prioridade e prazo. As cabines encontram-se aptas à operação, com restrições, condicionadas ao atendimento do plano de ação.</div>
+              <span class="suggested-pill">Sugerido</span>
+              <p class="criteria-line" id="res-crit"><span class="cl-label">Contagens usadas</span><span>94 fichas</span><span aria-hidden="true">·</span><span><span class="cl-nc">3 NC</span></span><span aria-hidden="true">·</span><span>2 não ensaiadas</span></p>
+              <div class="generated-actions">
+                <button class="btn btn-secondary confirm-action">Confirmar</button>
+                <button class="btn btn-text">Editar</button>
+                <button class="btn btn-text">Substituir</button>
+                <span class="dictation"><button class="dictation-btn slice-inline" aria-pressed="false" aria-label="Ditar o resumo" data-slice="out" data-slice-note=" · FR-40"><svg class="ico" aria-hidden="true"><use href="#i-mic"/></svg></button><span class="listening-word" aria-live="polite">Ouvindo…</span></span>
+              </div>
+              <span class="helper">Montado das contagens do relatório, sem IA. Editar no DOCX depois de gerar não volta para cá — edite aqui.</span>
+            </div>
+
+            <div>
+              <p class="section-note" style="margin-bottom: var(--sp-2)">Como imprime na seção 10, antes dos itens fixos:</p>
+              <div class="parecer-box" data-verdict="restricoes" aria-label="Parecer impresso">
+                <span class="pb-kicker">Parecer</span>
+                <p class="pb-verdict">Apto com restrições</p>
+                <p class="pb-text">Das 94 fichas deste relatório, 92 foram ensaiadas e 2 não foram ensaiadas por impossibilidade de desligamento. Foram registrados 3 itens não conformes, tratados na seção 8 com ação recomendada, prioridade e prazo. As cabines encontram-se aptas à operação, com restrições, condicionadas ao atendimento do plano de ação.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div><!-- /setup-content -->
+
+      <div class="sticky-action-bar">
+        <span class="btn-reason">Salvo automaticamente · 03/09 16:12 · Bruno</span>
+        <div class="bar-buttons">
+          <button class="btn btn-primary">Ir para o relatório<svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+</div><!-- /mock-row 1 -->
+
+<div class="mock-row">
+
+<!-- =============================================================== FRAME 2 — TABLET PORTRAIT, TOP TWO BANDS -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Dados do relatório · Etapas 1–2</b><span class="sep">·</span>tablet retrato 768×1024 · mesma página, uma coluna, metade superior<span class="sep">·</span>Responsive & Platform › office-shaped surface on the tablet · Section band · Combobox</p>
+
+  <div class="frame frame-tablet frame--crop" data-theme="light">
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">Dados do relatório</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+
+    <main class="screen">
+      <div class="setup-content">
+        <p class="section-note">Relatório de cabine primária · criado do template <b>Porto Seguro — Torres A e B</b> em 03/09.</p>
+
+        <section class="section-band">
+          <div class="band-head"><span class="band-num" aria-hidden="true">1</span><h2 class="band-title">Etapa 1 — Dados do cliente</h2><span class="band-note">Capa</span></div>
+          <div class="band-body">
+            <div class="form-grid">
+              <div class="field combobox"><span class="field-label">Cliente</span><div class="input">Porto Seguro Companhia de Seguros Gerais</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div>
+              <div class="field combobox"><span class="field-label">Local (obra)</span><div class="input">Torres A e B</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div>
+              <div class="dates-3">
+                <div class="field"><span class="field-label">Início da execução</span><div class="input"><span class="grow">06/09/2026</span><svg class="ico ink-secondary" aria-hidden="true"><use href="#i-calendar"/></svg></div></div>
+                <div class="field"><span class="field-label">Fim da execução</span><div class="input"><span class="grow">08/09/2026</span><svg class="ico ink-secondary" aria-hidden="true"><use href="#i-calendar"/></svg></div></div>
+              </div>
+              <span class="echo">Na capa: 06, 07 e 08 de setembro de 2026</span>
+              <div class="field"><span class="field-label">Informações adicionais</span><div class="input">Manutenção Preventiva nas Cabines Primárias</div></div>
+              <div class="field combobox"><span class="field-label">Responsável técnico</span><div class="input">Rafael Lamonde</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div>
+              <div class="field">
+                <span class="field-label" id="cons-l2">Conselho</span>
+                <div class="segmented" role="radiogroup" aria-labelledby="cons-l2" style="max-width: 320px">
+                  <button class="seg" role="radio" aria-checked="true"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>CREA</button>
+                  <button class="seg" role="radio" aria-checked="false"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>CRT</button>
+                </div>
+                <span class="helper">Do perfil de Rafael · assina como Eng. Eletricista</span>
+              </div>
+              <div class="dates-3">
+                <div class="field"><span class="field-label">CREA</span><div class="input tabular">SP 5063583141</div></div>
+                <div class="field"><span class="field-label">ART</span><div class="input tabular">2620262602583</div></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section-band">
+          <div class="band-head"><span class="band-num" aria-hidden="true">2</span><h2 class="band-title">Etapa 2 — Objetivo e escopo</h2><span class="band-note">Seções 1 e 3</span></div>
+          <div class="band-body">
+            <div class="form-grid">
+              <div class="field"><span class="field-label">Empresa executora</span><div class="input">Fasor Engenharia</div></div>
+              <div class="field"><span class="field-label">Local</span><div class="input">das Torres A e B da Porto Seguro</div></div>
+              <div class="field"><span class="field-label">Escopo</span><div class="observation-field">manutenção preventiva e à execução de ensaios dielétricos nas Cabines Primárias de Proteção, Distribuição e Transformação</div></div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="sticky-action-bar">
+        <span class="btn-reason">Salvo automaticamente · 03/09 16:12 · Bruno</span>
+        <div class="bar-buttons"><button class="btn btn-primary">Ir para o relatório<svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button></div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- =============================================================== FRAME 3 — PHONE, CONSELHO CRT -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Dados do relatório · Responsável técnico · CRT</b><span class="sep">·</span>telefone 390 · recorte · outro relatório, responsável Eduardo com registro no CRT: os rótulos viram CRT e TRT, o título Técnico(a) em Eletrotécnica<span class="sep">·</span>Segmented (Conselho: CRT) · Capture-to-Document › 10 Conclusão (echo "…acompanhada da TRT …") · Account › Registro profissional (prefill)</p>
+
+  <div class="frame frame-phone frame--crop" data-theme="light">
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">Dados do relatório</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span><span class="sync-long">Sincronizado</span><span class="sync-short">OK</span></span></button>
+        <button class="avatar-btn" aria-label="Conta de Eduardo"><span class="avatar">E</span></button>
+      </div>
+    </header>
+
+    <main class="screen">
+      <div class="setup-content">
+        <section class="section-band">
+          <div class="band-head"><span class="band-num" aria-hidden="true">1</span><h2 class="band-title">Etapa 1 — Dados do cliente</h2></div>
+          <div class="band-body">
+            <div class="responsavel-group" style="border-top: 0; padding-top: 0">
+              <p class="group-title">Responsável técnico</p>
+              <div class="field combobox">
+                <span class="field-label">Responsável técnico</span>
+                <div class="input">Eduardo</div>
+                <span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+                <span class="helper">Do perfil de Eduardo · assina a seção 10 como Técnico(a) em Eletrotécnica</span>
+              </div>
+              <div class="field">
+                <span class="field-label" id="cons-l3">Conselho</span>
+                <div class="segmented" role="radiogroup" aria-labelledby="cons-l3">
+                  <button class="seg" role="radio" aria-checked="false"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>CREA</button>
+                  <button class="seg" role="radio" aria-checked="true"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>CRT</button>
+                </div>
+              </div>
+              <div class="field">
+                <span class="field-label">CRT</span>
+                <div class="input tabular">SP 00000000</div>
+              </div>
+              <div class="field">
+                <span class="field-label">TRT</span>
+                <div class="input tabular">0000000000000</div>
+                <span class="echo">Na seção 10: "Este relatório tem validade apenas acompanhada da TRT 0000000000000"</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+
+</div><!-- /mock-row 2 -->
+
+</body>
+</html>

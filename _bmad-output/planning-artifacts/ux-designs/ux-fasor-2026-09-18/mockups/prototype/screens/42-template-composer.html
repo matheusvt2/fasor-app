@@ -1,0 +1,420 @@
+<style data-screen="template-composer">
+/* Source: mockups/key-template-composer.html frame 1 (desktop: palette 400 px + composition) + frame 2 (tablet landscape: palette 320 px, one-column grids).
+   Tablet portrait and phone are not in the mock: the palette stacks above the composition, collapsed behind its head (tap "Blocos" to open).
+   v0.5.0: the composition carries the LOCATION SKELETON — cabines › colunas with equipment quantities per column (Quantity steppers), so every block of a new relatório is born in its column with its final TAG; no "Sem local".
+   Governs: EXPERIENCE.md § IA › Template composer; § Block Model › Template, Location, Sub-block ownership; § Component Patterns › Block palette (office; Quantity stepper per column), Block card, Tri-state (NA padrão); Flow 1 step 4. */
+/* Location skeleton: cabine cards expand into their columns; the selected column shows its steppers */
+[data-route="/templates/porto-seguro"] .skeleton-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+[data-route="/templates/porto-seguro"] .cabine-card .block-expand { padding-left: var(--sp-4); min-width: 0; max-width: 100%; }
+[data-route="/templates/porto-seguro"] .cabine-card .block-line .cabine-flag { font-size: var(--t-label-size); font-weight: var(--t-label-weight); }
+[data-route="/templates/porto-seguro"] .column-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border-hairline); }
+[data-route="/templates/porto-seguro"] .column-row { border-bottom: 1px solid var(--border-hairline); }
+[data-route="/templates/porto-seguro"] .column-row .col-head { display: flex; align-items: center; gap: var(--sp-3); min-height: var(--touch-field); width: 100%; text-align: left; padding: 0 var(--sp-2) 0 0; cursor: pointer; }
+[data-route="/templates/porto-seguro"] .column-row .col-name { font-size: var(--t-body-size); font-weight: 600; min-width: 96px; }
+[data-route="/templates/porto-seguro"] .column-row .col-sum { flex: 1; min-width: 0; font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+[data-route="/templates/porto-seguro"] .column-row .col-chev .ico { transition: transform .12s ease; color: var(--ink-secondary); }
+[data-route="/templates/porto-seguro"] .column-row.is-open .col-chev .ico { transform: rotate(180deg); }
+[data-route="/templates/porto-seguro"] .column-row.is-open { background: var(--focus-fill); border-left: 4px solid var(--primary); }
+[data-route="/templates/porto-seguro"] .column-row.is-open .col-head { padding-left: var(--sp-2); }
+[data-route="/templates/porto-seguro"] .column-row .col-body { display: none; padding: 0 var(--sp-3) var(--sp-3) var(--sp-3); }
+[data-route="/templates/porto-seguro"] .column-row.is-open .col-body { display: block; }
+[data-route="/templates/porto-seguro"] .qty-grid { display: grid; grid-template-columns: 1fr; gap: 0 var(--sp-5); }
+.frame-desktop [data-route="/templates/porto-seguro"] .qty-grid { grid-template-columns: 1fr 1fr; }
+[data-route="/templates/porto-seguro"] .qty-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); min-height: var(--touch-field); border-top: 1px solid var(--border-hairline); }
+[data-route="/templates/porto-seguro"] .qty-row:first-child { border-top: 0; }
+[data-route="/templates/porto-seguro"] .qty-row .qty-name { font-size: var(--t-body-size); flex: 1; min-width: 0; }
+[data-route="/templates/porto-seguro"] .qty-row .quantity-stepper { flex: none; }
+[data-route="/templates/porto-seguro"] .column-row .col-body, [data-route="/templates/porto-seguro"] .column-row { min-width: 0; }
+[data-route="/templates/porto-seguro"] .qty-row .qty-tag { display: block; font-size: var(--t-meta-size); color: var(--ink-secondary); font-variant-numeric: tabular-nums; }
+[data-route="/templates/porto-seguro"] .qty-row .quantity-stepper .step { cursor: pointer; }
+[data-route="/templates/porto-seguro"] .col-body .chip-row { margin-top: var(--sp-3); }
+[data-route="/templates/porto-seguro"] .col-body .chip { cursor: pointer; }
+[data-route="/templates/porto-seguro"] .skeleton-actions { display: flex; flex-wrap: wrap; gap: var(--sp-3); margin-top: var(--sp-3); }
+[data-route="/templates/porto-seguro"] .cabine-card .cabine-flag { display: inline-flex; align-items: center; gap: var(--sp-1); font-size: var(--t-meta-size); color: var(--ink-secondary); }
+[data-route="/templates/porto-seguro"] .composer-layout { display: flex; align-items: stretch; flex: 1; }
+[data-route="/templates/porto-seguro"] .composer-palette { width: 400px; flex: none; border-left: 0; border-right: 1px solid var(--border-hairline); }
+.frame-tablet-landscape [data-route="/templates/porto-seguro"] .composer-palette { width: var(--rail-width); }
+[data-route="/templates/porto-seguro"] .composer-main { flex: 1; min-width: 0; padding: var(--sp-5) var(--gutter-desktop); }
+.frame-tablet-landscape [data-route="/templates/porto-seguro"] .composer-main,
+.frame-tablet [data-route="/templates/porto-seguro"] .composer-main { padding: var(--sp-5) var(--gutter-tablet); }
+.frame-phone [data-route="/templates/porto-seguro"] .composer-main { padding: var(--sp-4) var(--gutter-phone); }
+/* Palette head doubles as the collapse toggle on narrow devices (data-toggle-class="is-open" on .palette-collapse) */
+[data-route="/templates/porto-seguro"] .palette-collapse .palette-head { cursor: default; }
+[data-route="/templates/porto-seguro"] .palette-collapse .palette-chev { display: none; }
+[data-route="/templates/porto-seguro"] .palette-collapse .palette-head-meta { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: var(--t-meta-size); font-weight: var(--t-meta-weight); color: var(--ink-secondary); }
+.frame-tablet [data-route="/templates/porto-seguro"] .composer-layout,
+.frame-phone [data-route="/templates/porto-seguro"] .composer-layout { flex-direction: column; }
+.frame-tablet [data-route="/templates/porto-seguro"] .composer-palette,
+.frame-phone [data-route="/templates/porto-seguro"] .composer-palette { width: 100%; border-right: 0; border-bottom: 1px solid var(--border-hairline); padding-top: 0; padding-bottom: 0; }
+.frame-tablet [data-route="/templates/porto-seguro"] .palette-collapse .palette-head,
+.frame-phone [data-route="/templates/porto-seguro"] .palette-collapse .palette-head { cursor: pointer; }
+.frame-tablet [data-route="/templates/porto-seguro"] .palette-collapse .palette-chev,
+.frame-phone [data-route="/templates/porto-seguro"] .palette-collapse .palette-chev { display: inline-flex; color: var(--ink-primary); transition: transform .12s ease; }
+.frame-tablet [data-route="/templates/porto-seguro"] .palette-collapse.is-open .palette-chev,
+.frame-phone [data-route="/templates/porto-seguro"] .palette-collapse.is-open .palette-chev { transform: rotate(180deg); }
+.frame-tablet [data-route="/templates/porto-seguro"] .palette-collapse:not(.is-open) + .palette-items,
+.frame-phone [data-route="/templates/porto-seguro"] .palette-collapse:not(.is-open) + .palette-items { display: none; }
+.frame-tablet [data-route="/templates/porto-seguro"] .palette-collapse.is-open .palette-head,
+.frame-phone [data-route="/templates/porto-seguro"] .palette-collapse.is-open .palette-head { border-bottom-color: transparent; }
+.frame-tablet [data-route="/templates/porto-seguro"] .palette-items,
+.frame-phone [data-route="/templates/porto-seguro"] .palette-items { padding-bottom: var(--sp-3); }
+/* Composition */
+[data-route="/templates/porto-seguro"] .block-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+[data-route="/templates/porto-seguro"] .block-card { flex-wrap: wrap; }
+[data-route="/templates/porto-seguro"] .block-card[data-toggle-class], [data-route="/templates/porto-seguro"] .block-card[data-open] { cursor: pointer; }
+/* D7 — Block card overflow menu (shared overlay, top right) and the Rich text editor of section blocks with boilerplate (office only) */
+[data-route="/templates/porto-seguro"] #tc-dlg-menu { align-items: flex-start; justify-content: flex-end; padding: calc(var(--touch-field) + var(--sp-3)) var(--sp-3) 0; }
+[data-route="/templates/porto-seguro"] #tc-dlg-menu .overflow-menu { box-shadow: var(--shadow-float); }
+[data-route="/templates/porto-seguro"] .overflow-menu .menu-item { cursor: pointer; }
+[data-route="/templates/porto-seguro"] .rich-dialog { width: min(720px, 100%); max-height: 100%; overflow: auto; display: flex; flex-direction: column; gap: var(--sp-4); }
+[data-route="/templates/porto-seguro"] .rich-dialog .dialog-meta { font-size: var(--t-meta-size); color: var(--ink-secondary); }
+[data-route="/templates/porto-seguro"] .rich-dialog .var-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+[data-route="/templates/porto-seguro"] .rich-dialog .var-row .chip { cursor: pointer; }
+.frame-phone [data-route="/templates/porto-seguro"] .rich-dialog .dialog-actions { flex-direction: column-reverse; }
+.frame-phone [data-route="/templates/porto-seguro"] .rich-dialog .dialog-actions .btn { width: 100%; }
+/* Page-only: the variable chips of the insert row sit outside .rich-text (components.css styles .rich-text .var-chip only) */
+[data-route="/templates/porto-seguro"] .rich-text .rt-tool { cursor: pointer; }
+[data-route="/templates/porto-seguro"] .var-row .var-chip { display: inline-block; padding: 0 6px; border: 1px solid var(--rich-text-chip-foreground); border-radius: var(--rich-text-chip-radius); background: var(--rich-text-chip-background); color: var(--rich-text-chip-foreground); font-weight: 600; white-space: nowrap; }
+[data-route="/templates/porto-seguro"] .block-card .block-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+[data-route="/templates/porto-seguro"] .block-card .block-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-1) var(--sp-3); }
+[data-route="/templates/porto-seguro"] .block-card .block-expand { flex-basis: 100%; border-top: 1px solid var(--border-hairline); margin-top: var(--sp-3); padding: var(--sp-4) var(--sp-4) var(--sp-2) var(--touch-min); display: flex; flex-direction: column; gap: var(--sp-4); cursor: default; }
+.frame-phone [data-route="/templates/porto-seguro"] .block-card .block-expand { padding-left: var(--sp-3); padding-right: var(--sp-3); }
+[data-route="/templates/porto-seguro"] .block-card:not(.is-open) .block-expand { display: none; }
+[data-route="/templates/porto-seguro"] .block-card.is-open { border-color: var(--primary); }
+[data-route="/templates/porto-seguro"] .block-card .card-chev .ico { transition: transform .12s ease; }
+[data-route="/templates/porto-seguro"] .block-card.is-open .card-chev .ico { transform: rotate(180deg); }
+[data-route="/templates/porto-seguro"] .defaults-grid,
+[data-route="/templates/porto-seguro"] .items-grid,
+[data-route="/templates/porto-seguro"] .subtype-row { display: grid; grid-template-columns: 1fr; gap: 0 var(--sp-5); }
+[data-route="/templates/porto-seguro"] .subtype-row { gap: var(--sp-4); align-items: start; }
+.frame-desktop [data-route="/templates/porto-seguro"] .defaults-grid,
+.frame-desktop [data-route="/templates/porto-seguro"] .items-grid,
+.frame-desktop [data-route="/templates/porto-seguro"] .subtype-row { grid-template-columns: 1fr 1fr; }
+[data-route="/templates/porto-seguro"] .items-grid .checklist { border-top: 0; }
+[data-route="/templates/porto-seguro"] .items-grid .checklist-row .row-main { min-height: var(--touch-min); }
+[data-route="/templates/porto-seguro"] .items-grid .tri-state { grid-template-columns: repeat(3, 44px); }
+[data-route="/templates/porto-seguro"] .items-grid .tri-state .seg { min-width: 44px; min-height: 40px; font-size: var(--t-label-size); }
+.frame-phone [data-route="/templates/porto-seguro"] .items-grid .tri-state { grid-template-columns: repeat(3, 1fr); }
+[data-route="/templates/porto-seguro"] .table-title { font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--ink-primary); margin: 0 0 var(--sp-2); }
+[data-route="/templates/porto-seguro"] .name-field { max-width: 560px; margin-bottom: var(--sp-5); }
+/* Subtipo combobox list under the input (hidden ↔ data-open / data-close); chevron stays on the input */
+[data-route="/templates/porto-seguro"] .combobox-list { list-style: none; margin: var(--sp-1) 0 0; padding: 0; }
+[data-route="/templates/porto-seguro"] .combobox .combobox-chevron { bottom: auto; top: calc(var(--t-label-size) * var(--t-label-lh) + var(--sp-1)); height: var(--touch-field); }
+[data-route="/templates/porto-seguro"] .combobox-option[role="option"] { cursor: pointer; }
+/* Phone: the whole card is the tap target, so the decorative chevron gives its 48 px back to the text */
+.frame-phone [data-route="/templates/porto-seguro"] .block-card .card-chev { display: none; }
+[data-route="/templates/porto-seguro"] .composer-main .section-head .section-note { margin: 0; }
+</style>
+<section class="screen" data-route="/templates/porto-seguro" data-title="Porto Seguro — Torres A e B" data-shell="app" data-rail="false">
+
+  <div class="composer-layout">
+
+    <!-- ---------------- Palette with quantities (left column on desktop / tablet landscape; collapsible band on top elsewhere) ---------------- -->
+    <aside class="block-palette composer-palette" aria-label="Paleta de blocos">
+      <div class="palette-collapse" data-toggle-class="is-open">
+        <div class="palette-head"><span>Blocos</span><span class="palette-head-meta"><span>94 equipamentos</span><svg class="ico palette-chev" aria-hidden="true"><use href="#i-chev-down"/></svg></span></div>
+      </div>
+      <div class="palette-items">
+        <p class="palette-group" style="padding-top: var(--sp-3)">Seções</p>
+        <button class="palette-item" data-toast="1 Objetivo já está no template"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>1 Objetivo</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item" data-toast="2 Definições já está no template"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>2 Definições</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item" data-toast="3 Limite de escopo já está no template"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>3 Limite de escopo</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item" data-toast="4 Requisitos básicos já está no template"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>4 Requisitos básicos</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item" data-toast="5 Segurança (NR-10) já está no template"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>5 Segurança (NR-10)</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item" data-toast="6 Verificações aplicáveis já está no template"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>6 Verificações aplicáveis</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item" data-toast="8 Pontos de atenção já está no template"><svg class="ico" aria-hidden="true"><use href="#i-flag"/></svg><span class="pi-text"><span>8 Pontos de atenção</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item" data-toast="10 Conclusão já está no template"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>10 Conclusão</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item" data-toast="11 Certificados já está no template"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>11 Certificados</span><span class="pi-meta">No template</span></span><span class="plus" aria-hidden="true">+</span></button>
+
+        <p class="palette-group" style="margin-top: var(--sp-3)">Equipamentos · toque para adicionar à coluna selecionada (Coluna 5)</p>
+        <!-- Office palette: each row adds one block of the type to the selected column of the skeleton; the count shown is the template total.
+             The prototype cannot increment, so the tap sets the next fixed value on Coluna 5's stepper (data-set-text). -->
+        <button class="palette-item" data-set-text="#tc-c5-cbent|1" data-toast="Cabos de entrada adicionados à Coluna 5 · TAG CB-C05"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Cabos de entrada</span><span class="pi-meta">4 no template · 1 por cabine, na primeira coluna</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item" data-set-text="#tc-c5-pr|1" data-toast="Para-raio adicionado à Coluna 5 · TAG PR-C05"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Para-raio</span><span class="pi-meta">5 no template · entrada / saída</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item" data-set-text="#tc-c5-sec|2" data-toast="Seccionadora adicionada à Coluna 5 · TAG SEC-C05-2"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Chave seccionadora</span><span class="pi-meta">25 no template · subtipo padrão: manual</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item" data-set-text="#tc-c5-dj|2" data-toast="Disjuntor adicionado à Coluna 5 · TAG DJ-C05-2"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Disjuntor MT</span><span class="pi-meta">21 no template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item" data-set-text="#tc-c5-tp|2" data-toast="TP adicionado à Coluna 5 · TAG TP-C05-2"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>TP — proteção</span><span class="pi-meta">11 no template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item" data-set-text="#tc-c5-tc|2" data-toast="TC adicionado à Coluna 5 · TAG TC-C05-2"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>TC — proteção</span><span class="pi-meta">11 no template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item" data-set-text="#tc-c5-cbsai|1" data-toast="Cabos de saída adicionados à Coluna 5 · TAG CBS-C05"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Cabos de saída / alimentação TRn</span><span class="pi-meta">9 no template</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item" data-set-text="#tc-c5-tr|1" data-toast="Transformador adicionado à Coluna 5 · TAG TR-C05"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Transformador de força</span><span class="pi-meta">8 no template · subtipo padrão: a seco</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <p class="palette-group" style="margin-top: var(--sp-2)">Ao criar um relatório, cada bloco nasce na sua coluna com a TAG final sugerida (SEC-C05 na Coluna 5). Nada fica "sem local".</p>
+      </div>
+    </aside>
+
+    <!-- ---------------- Composition ---------------- -->
+    <div class="composer-main">
+      <div class="field name-field">
+        <span class="field-label">Nome do template</span>
+        <div class="input">Porto Seguro — Torres A e B</div>
+        <span class="echo">Duplicado de Cabine primária — padrão (FO.SERV-03) · 02/09 · Bruno</span>
+      </div>
+
+      <!-- ---------------- Location skeleton: cabines › colunas, quantities per column (Block Model › Template, Location; Flow 1 step 4) ---------------- -->
+      <section class="section" aria-labelledby="tc-h-locais">
+        <div class="section-head">
+          <h2 id="tc-h-locais">Esqueleto de locais · 6 cabines · 26 colunas · 94 blocos</h2>
+          <span class="section-note">Cada bloco do relatório nasce na sua coluna, com a TAG final (tipo + coluna)</span>
+        </div>
+        <ul class="skeleton-list block-list" aria-label="Cabines do template">
+
+          <li class="block-card cabine-card" data-toggle-class="is-open">
+            <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Cubículo Enel"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+            <div class="block-body"><div class="block-line"><span class="block-name">Cubículo Enel</span><span class="cabine-flag">1 coluna · 9 blocos</span></div><span class="block-sub">Entrada: cabos de entrada · para-raio (2) · seccionadora (2) · TP · TC · disjuntor · cabos de saída · <span class="cabine-flag">Agrupar por tipo: desativado</span></span></div>
+            <span class="icon-btn card-chev" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+            <button class="overflow-trigger" data-toast="Renomear · Agrupar por tipo · Remover cabine — não prototipado" aria-label="Mais opções de Cubículo Enel"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+            <div class="block-expand" data-toggle-class="is-touched">
+              <ul class="column-list" aria-label="Colunas de Cubículo Enel">
+                <li class="column-row"><button class="col-head" data-toast="Só a Coluna 5 do 1° Subsolo tem os steppers no protótipo"><span class="col-name">Entrada</span><span class="col-sum">1 cabos de entrada · 2 para-raios · 2 seccionadoras · 1 TP · 1 TC · 1 disjuntor · 1 cabos de saída</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
+              </ul>
+              <div class="skeleton-actions"><button class="btn btn-text" data-toast="Coluna 2 adicionada em Cubículo Enel — nomeie-a e ajuste as quantidades"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar coluna</button></div>
+            </div>
+          </li>
+
+          <li class="block-card cabine-card is-open" data-toggle-class="is-open" id="tc-cab-subsolo">
+            <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar 1° Subsolo"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+            <div class="block-body"><div class="block-line"><span class="block-name">1° Subsolo</span><span class="cabine-flag">17 colunas · 55 blocos</span></div><span class="block-sub">Cubículos de MT: 13 seccionadoras · 14 disjuntores · 6 TP · 6 TC · 5 trafos · 1 cabos de entrada · 6 cabos de saída · 4 para-raios · <span class="cabine-flag">Agrupar por tipo: ativado</span></span></div>
+            <span class="icon-btn card-chev" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+            <button class="overflow-trigger" data-toast="Renomear · Agrupar por tipo · Remover cabine — não prototipado" aria-label="Mais opções de 1° Subsolo"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+            <div class="block-expand" data-toggle-class="is-touched">
+              <ul class="column-list" aria-label="Colunas de 1° Subsolo">
+                <li class="column-row"><button class="col-head" data-toast="Só a Coluna 5 tem os steppers no protótipo"><span class="col-name">Coluna 1</span><span class="col-sum">1 cabos de entrada · 2 para-raios · 1 seccionadora</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
+                <li class="column-row"><button class="col-head" data-toast="Só a Coluna 5 tem os steppers no protótipo"><span class="col-name">Coluna 2</span><span class="col-sum">1 seccionadora · 1 disjuntor</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
+                <li class="column-row"><button class="col-head" data-toast="Só a Coluna 5 tem os steppers no protótipo"><span class="col-name">Coluna 3</span><span class="col-sum">1 TP · 1 TC · 1 disjuntor</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
+                <li class="column-row"><button class="col-head" data-toast="Só a Coluna 5 tem os steppers no protótipo"><span class="col-name">Coluna 4</span><span class="col-sum">1 seccionadora · 1 disjuntor · 1 trafo</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
+
+                <!-- Selected column: quantities per type with the Quantity stepper; TAGs are what the relatório will be born with -->
+                <li class="column-row is-open" id="tc-col-5">
+                  <button class="col-head" data-toggle-class="is-open" data-toggle-target="#tc-col-5" aria-expanded="true" aria-controls="tc-col-5-body"><span class="col-name">Coluna 5</span><span class="col-sum">Seccionadora 1 · Disjuntor 1 · TP 1 · TC 1 · selecionada: a paleta adiciona aqui</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button>
+                  <div class="col-body" id="tc-col-5-body">
+                    <div class="qty-grid">
+                      <div class="qty-row"><span class="qty-name">Chave seccionadora<span class="qty-tag">TAG ao criar: SEC-C05</span></span><div class="quantity-stepper" role="group" aria-label="Seccionadoras na Coluna 5, 1"><button class="step" data-set-text="#tc-c5-sec|0" aria-label="Menos um">−</button><span class="count" id="tc-c5-sec">1</span><button class="step" data-set-text="#tc-c5-sec|2" aria-label="Mais um">+</button></div></div>
+                      <div class="qty-row"><span class="qty-name">Disjuntor MT<span class="qty-tag">TAG ao criar: DJ-C05</span></span><div class="quantity-stepper" role="group" aria-label="Disjuntores na Coluna 5, 1"><button class="step" data-set-text="#tc-c5-dj|0" aria-label="Menos um">−</button><span class="count" id="tc-c5-dj">1</span><button class="step" data-set-text="#tc-c5-dj|2" aria-label="Mais um">+</button></div></div>
+                      <div class="qty-row"><span class="qty-name">TP — proteção<span class="qty-tag">TAG ao criar: TP-C05</span></span><div class="quantity-stepper" role="group" aria-label="TP na Coluna 5, 1"><button class="step" data-set-text="#tc-c5-tp|0" aria-label="Menos um">−</button><span class="count" id="tc-c5-tp">1</span><button class="step" data-set-text="#tc-c5-tp|2" aria-label="Mais um">+</button></div></div>
+                      <div class="qty-row"><span class="qty-name">TC — proteção<span class="qty-tag">TAG ao criar: TC-C05</span></span><div class="quantity-stepper" role="group" aria-label="TC na Coluna 5, 1"><button class="step" data-set-text="#tc-c5-tc|0" aria-label="Menos um">−</button><span class="count" id="tc-c5-tc">1</span><button class="step" data-set-text="#tc-c5-tc|2" aria-label="Mais um">+</button></div></div>
+                      <div class="qty-row"><span class="qty-name">Cabos de entrada<span class="qty-tag">TAG ao criar: CB-C05</span></span><div class="quantity-stepper" role="group" aria-label="Cabos de entrada na Coluna 5, 0"><button class="step" data-set-text="#tc-c5-cbent|0" aria-label="Menos um">−</button><span class="count is-zero" id="tc-c5-cbent">0</span><button class="step" data-set-text="#tc-c5-cbent|1" aria-label="Mais um">+</button></div></div>
+                      <div class="qty-row"><span class="qty-name">Para-raio<span class="qty-tag">TAG ao criar: PR-C05</span></span><div class="quantity-stepper" role="group" aria-label="Para-raios na Coluna 5, 0"><button class="step" data-set-text="#tc-c5-pr|0" aria-label="Menos um">−</button><span class="count is-zero" id="tc-c5-pr">0</span><button class="step" data-set-text="#tc-c5-pr|1" aria-label="Mais um">+</button></div></div>
+                      <div class="qty-row"><span class="qty-name">Cabos de saída / alimentação TRn<span class="qty-tag">TAG ao criar: CBS-C05</span></span><div class="quantity-stepper" role="group" aria-label="Cabos de saída na Coluna 5, 0"><button class="step" data-set-text="#tc-c5-cbsai|0" aria-label="Menos um">−</button><span class="count is-zero" id="tc-c5-cbsai">0</span><button class="step" data-set-text="#tc-c5-cbsai|1" aria-label="Mais um">+</button></div></div>
+                      <div class="qty-row"><span class="qty-name">Transformador de força<span class="qty-tag">TAG ao criar: TR-C05</span></span><div class="quantity-stepper" role="group" aria-label="Transformadores na Coluna 5, 0"><button class="step" data-set-text="#tc-c5-tr|0" aria-label="Menos um">−</button><span class="count is-zero" id="tc-c5-tr">0</span><button class="step" data-set-text="#tc-c5-tr|1" aria-label="Mais um">+</button></div></div>
+                    </div>
+                    <div class="chip-row" aria-label="Copiar composição">
+                      <button class="chip" data-toast="Composição da Coluna 5 copiada para as colunas 6–17"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg>Repetir nas colunas 6–17</button>
+                      <button class="chip" data-toast="Coluna 5 copiada da Coluna 4 · trafo incluído"><svg class="ico" aria-hidden="true"><use href="#i-repeat"/></svg>Igual à Coluna 4</button>
+                    </div>
+                  </div>
+                </li>
+
+                <li class="column-row"><button class="col-head" data-toast="Só a Coluna 5 tem os steppers no protótipo"><span class="col-name">Coluna 6</span><span class="col-sum">1 seccionadora · 1 disjuntor · 1 TP · 1 TC</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
+                <li class="column-row"><button class="col-head" data-toast="Colunas 7–17 — só a Coluna 5 tem os steppers no protótipo"><span class="col-name">Colunas 7–17</span><span class="col-sum">11 colunas · 8 seccionadoras · 9 disjuntores · 4 TP · 4 TC · 4 trafos · 6 cabos de saída · 2 para-raios</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
+              </ul>
+              <div class="skeleton-actions"><button class="btn btn-text" data-toast="Coluna 18 adicionada em 1° Subsolo — ajuste as quantidades"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar coluna</button></div>
+            </div>
+          </li>
+
+          <li class="block-card cabine-card" data-toggle-class="is-open">
+            <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Oxigênio"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+            <div class="block-body"><div class="block-line"><span class="block-name">Oxigênio</span><span class="cabine-flag">2 colunas · 8 blocos</span></div><span class="block-sub">1 cabos de entrada · 2 seccionadoras · 2 disjuntores · 1 TP · 1 TC · 1 trafo · <span class="cabine-flag">Agrupar por tipo: desativado</span></span></div>
+            <span class="icon-btn card-chev" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+            <button class="overflow-trigger" data-toast="Renomear · Agrupar por tipo · Remover cabine — não prototipado" aria-label="Mais opções de Oxigênio"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+            <div class="block-expand" data-toggle-class="is-touched">
+              <ul class="column-list" aria-label="Colunas de Oxigênio">
+                <li class="column-row"><button class="col-head" data-toast="Só a Coluna 5 do 1° Subsolo tem os steppers no protótipo"><span class="col-name">Coluna 1</span><span class="col-sum">1 cabos de entrada · 1 seccionadora · 1 disjuntor · 1 TP · 1 TC</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
+                <li class="column-row"><button class="col-head" data-toast="Só a Coluna 5 do 1° Subsolo tem os steppers no protótipo"><span class="col-name">Coluna 2</span><span class="col-sum">1 seccionadora · 1 disjuntor · 1 trafo</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
+              </ul>
+              <div class="skeleton-actions"><button class="btn btn-text" data-toast="Coluna 3 adicionada em Oxigênio — ajuste as quantidades"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar coluna</button></div>
+            </div>
+          </li>
+
+          <li class="block-card cabine-card" data-toggle-class="is-open">
+            <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Cobertura A"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+            <div class="block-body"><div class="block-line"><span class="block-name">Cobertura A</span><span class="cabine-flag">2 colunas · 7 blocos</span></div><span class="block-sub">2 seccionadoras · 2 disjuntores · 1 TP · 1 TC · 1 trafo · <span class="cabine-flag">Agrupar por tipo: desativado</span></span></div>
+            <span class="icon-btn card-chev" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+            <button class="overflow-trigger" data-toast="Renomear · Agrupar por tipo · Remover cabine — não prototipado" aria-label="Mais opções de Cobertura A"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+            <div class="block-expand" data-toggle-class="is-touched">
+              <ul class="column-list" aria-label="Colunas de Cobertura A">
+                <li class="column-row"><button class="col-head" data-toast="Só a Coluna 5 do 1° Subsolo tem os steppers no protótipo"><span class="col-name">Coluna 1</span><span class="col-sum">1 seccionadora · 1 disjuntor · 1 TP · 1 TC</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
+                <li class="column-row"><button class="col-head" data-toast="Só a Coluna 5 do 1° Subsolo tem os steppers no protótipo"><span class="col-name">Coluna 2</span><span class="col-sum">1 seccionadora · 1 disjuntor · 1 trafo</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
+              </ul>
+              <div class="skeleton-actions"><button class="btn btn-text" data-toast="Coluna 3 adicionada em Cobertura A — ajuste as quantidades"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar coluna</button></div>
+            </div>
+          </li>
+
+          <li class="block-card cabine-card" data-toggle-class="is-open">
+            <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Cobertura B"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+            <div class="block-body"><div class="block-line"><span class="block-name">Cobertura B</span><span class="cabine-flag">2 colunas · 7 blocos</span></div><span class="block-sub">2 seccionadoras · 2 disjuntores · 1 TP · 1 TC · 1 trafo · <span class="cabine-flag">Agrupar por tipo: desativado</span></span></div>
+            <span class="icon-btn card-chev" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+            <button class="overflow-trigger" data-toast="Renomear · Agrupar por tipo · Remover cabine — não prototipado" aria-label="Mais opções de Cobertura B"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+            <div class="block-expand" data-toggle-class="is-touched">
+              <ul class="column-list" aria-label="Colunas de Cobertura B">
+                <li class="column-row"><button class="col-head" data-toast="Só a Coluna 5 do 1° Subsolo tem os steppers no protótipo"><span class="col-name">Coluna 1</span><span class="col-sum">1 seccionadora · 1 disjuntor · 1 TP · 1 TC</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
+                <li class="column-row"><button class="col-head" data-toast="Só a Coluna 5 do 1° Subsolo tem os steppers no protótipo"><span class="col-name">Coluna 2</span><span class="col-sum">1 seccionadora · 1 disjuntor · 1 trafo</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
+              </ul>
+              <div class="skeleton-actions"><button class="btn btn-text" data-toast="Coluna 3 adicionada em Cobertura B — ajuste as quantidades"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar coluna</button></div>
+            </div>
+          </li>
+
+          <li class="block-card cabine-card" data-toggle-class="is-open">
+            <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Geradores"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+            <div class="block-body"><div class="block-line"><span class="block-name">Geradores</span><span class="cabine-flag">2 colunas · 8 blocos</span></div><span class="block-sub">1 cabos de entrada · 2 seccionadoras · 2 disjuntores · 1 TP · 1 TC · 1 cabos de saída · <span class="cabine-flag">Agrupar por tipo: ativado</span></span></div>
+            <span class="icon-btn card-chev" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+            <button class="overflow-trigger" data-toast="Renomear · Agrupar por tipo · Remover cabine — não prototipado" aria-label="Mais opções de Geradores"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+            <div class="block-expand" data-toggle-class="is-touched">
+              <ul class="column-list" aria-label="Colunas de Geradores">
+                <li class="column-row"><button class="col-head" data-toast="Só a Coluna 5 do 1° Subsolo tem os steppers no protótipo"><span class="col-name">Coluna 1</span><span class="col-sum">1 cabos de entrada · 1 seccionadora · 1 disjuntor · 1 TP · 1 TC</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
+                <li class="column-row"><button class="col-head" data-toast="Só a Coluna 5 do 1° Subsolo tem os steppers no protótipo"><span class="col-name">Coluna 2</span><span class="col-sum">1 seccionadora · 1 disjuntor · 1 cabos de saída</span><span class="col-chev icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></button></li>
+              </ul>
+              <div class="skeleton-actions"><button class="btn btn-text" data-toast="Coluna 3 adicionada em Geradores — ajuste as quantidades"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar coluna</button></div>
+            </div>
+          </li>
+        </ul>
+        <div class="skeleton-actions">
+          <button class="btn btn-secondary" data-toast="Cabine 7 adicionada ao esqueleto — nomeie-a e adicione colunas"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar cabine</button>
+          <span class="btn-reason">Cabines e colunas podem ser renomeadas depois, no relatório, pela árvore</span>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="tc-h-comp">
+        <div class="section-head">
+          <h2 id="tc-h-comp">Blocos · 9 seções + padrões dos 8 tipos de equipamento</h2>
+          <span class="section-note">Ordem inicial da árvore; o engenheiro reordena no relatório. Sub-blocos e itens padrão por tipo abaixo.</span>
+        </div>
+        <ul class="block-list" aria-label="Blocos do template">
+          <li class="block-card" data-open="#tc-dlg-rich"><button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar 1 Objetivo"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-tag">1</span><span class="block-name">Objetivo</span></div><span class="block-sub">Texto fixo · 3 variáveis no Relatório setup · toque para editar o texto</span></div><button class="overflow-trigger" data-open="#tc-dlg-menu" aria-label="Mais opções de 1 Objetivo"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          <li class="block-card" data-open="#tc-dlg-rich"><button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar 2 Definições"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-tag">2</span><span class="block-name">Definições</span></div><span class="block-sub">Texto fixo</span></div><button class="overflow-trigger" data-open="#tc-dlg-menu" aria-label="Mais opções de 2 Definições"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          <li class="block-card" data-open="#tc-dlg-rich"><button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar 3 Limite de escopo"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-tag">3</span><span class="block-name">Limite de escopo</span></div><span class="block-sub">Texto fixo · exclusões editáveis por relatório</span></div><button class="overflow-trigger" data-open="#tc-dlg-menu" aria-label="Mais opções de 3 Limite de escopo"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          <li class="block-card" data-open="#tc-dlg-rich"><button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar 4 Requisitos"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-tag">4</span><span class="block-name">Requisitos básicos</span></div><span class="block-sub">Texto fixo</span></div><button class="overflow-trigger" data-open="#tc-dlg-menu" aria-label="Mais opções de 4 Requisitos"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          <li class="block-card" data-open="#tc-dlg-rich"><button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar 5 Segurança"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-tag">5</span><span class="block-name">Segurança (NR-10)</span></div><span class="block-sub">Texto fixo</span></div><button class="overflow-trigger" data-open="#tc-dlg-menu" aria-label="Mais opções de 5 Segurança"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          <li class="block-card" data-open="#tc-dlg-rich"><button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar 6 Verificações"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-tag">6</span><span class="block-name">Verificações aplicáveis</span></div><span class="block-sub">Texto fixo</span></div><button class="overflow-trigger" data-open="#tc-dlg-menu" aria-label="Mais opções de 6 Verificações"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          <li class="block-card"><button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar 8 Pontos de atenção"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-tag">8</span><span class="block-name">Pontos de atenção</span></div><span class="block-sub">Preenchido em campo e no escritório · não ensaiados entram sozinhos</span></div><button class="overflow-trigger" data-open="#tc-dlg-menu" aria-label="Mais opções de 8 Pontos de atenção"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          <li class="block-card" data-open="#tc-dlg-rich"><button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar 10 Conclusão"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-tag">10</span><span class="block-name">Conclusão</span></div><span class="block-sub">Texto fixo · assinatura do Relatório setup</span></div><button class="overflow-trigger" data-open="#tc-dlg-menu" aria-label="Mais opções de 10 Conclusão"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          <li class="block-card"><button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar 11 Certificados"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-tag">11</span><span class="block-name">Certificados</span></div><span class="block-sub">Instrumentos usados no relatório</span></div><button class="overflow-trigger" data-open="#tc-dlg-menu" aria-label="Mais opções de 11 Certificados"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+
+          <li class="block-card" data-toast="Só a Chave seccionadora tem os padrões detalhados no protótipo"><button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Cabos de entrada"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-name">Cabos de entrada</span><span class="block-tag">× 4</span></div><span class="block-sub">5 itens · Isolação (A/B/C/Reserva × Massa) · primeira ficha da cabine imprime SE + ambiente</span></div><span class="icon-btn card-chev" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span><button class="overflow-trigger" data-open="#tc-dlg-menu" aria-label="Mais opções de Cabos de entrada"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          <li class="block-card" data-toast="Só a Chave seccionadora tem os padrões detalhados no protótipo"><button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Para-raio"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-name">Para-raio (entrada / saída)</span><span class="block-tag">× 5</span></div><span class="block-sub">6 campos de placa · 5 itens · Isolação</span></div><span class="icon-btn card-chev" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span><button class="overflow-trigger" data-open="#tc-dlg-menu" aria-label="Mais opções de Para-raio"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+
+          <!-- Expanded equipment block: sub-block defaults. Tapping the card header toggles it (data-toggle-class on the card); inner controls keep their own behavior -->
+          <li class="block-card is-open" data-toggle-class="is-open" id="tc-card-sec">
+            <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Chave seccionadora"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+            <div class="block-body"><div class="block-line"><span class="block-name">Chave seccionadora</span><span class="block-tag">× 25</span></div><span class="block-sub">9 campos de placa · 14 itens · Isolação contato aberto/fechado · Resistência de contato · subtipo padrão: manual</span></div>
+            <span class="icon-btn card-chev" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+            <button class="overflow-trigger" data-open="#tc-dlg-menu" aria-label="Mais opções de Chave seccionadora"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+
+            <div class="block-expand" data-toggle-class="is-touched">
+              <div class="subtype-row">
+                <div class="field combobox">
+                  <span class="field-label" id="tc-subtipo-label">Subtipo padrão</span>
+                  <div class="input" role="combobox" aria-labelledby="tc-subtipo-label" aria-expanded="false" aria-controls="tc-subtipo-list" data-open="#tc-subtipo-list"><span id="tc-subtipo-value">Manual</span></div>
+                  <span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+                  <ul class="combobox-list" id="tc-subtipo-list" role="listbox" aria-label="Subtipo padrão" hidden>
+                    <li class="combobox-option" role="option" aria-selected="true" data-close="#tc-subtipo-list" data-set-text="#tc-subtipo-value|Manual">Manual<span class="option-meta">NA em 9 e 10</span></li>
+                    <li class="combobox-option" role="option" aria-selected="false" data-close="#tc-subtipo-list" data-set-text="#tc-subtipo-value|Motorizada">Motorizada<span class="option-meta">sem NA padrão</span></li>
+                    <li class="combobox-option" role="option" aria-selected="false" data-close="#tc-subtipo-list" data-set-text="#tc-subtipo-value|Fusível">Fusível<span class="option-meta">NA em 9</span></li>
+                  </ul>
+                  <span class="helper">Pré-marca NA em 9. Motor e 10. Fusíveis. Os itens continuam na ficha, editáveis.</span>
+                </div>
+                <p class="section-note" style="margin:0; align-self:end">Um sub-bloco desativado não é impresso na ficha — nunca sai vazio. Cada ficha pode sobrepor estes padrões pela paleta aberta de dentro dela.</p>
+              </div>
+
+              <div>
+                <p class="table-title">Sub-blocos padrão</p>
+                <div class="defaults-grid">
+                  <div class="toggle-row"><div><div class="toggle-label">Dados de placa</div><div class="toggle-sub">9 campos · "Ler placa da foto"</div></div><button class="toggle" role="switch" aria-checked="true" aria-label="Dados de placa"><span class="toggle-word">Ativado</span><span class="track" aria-hidden="true"><span class="knob"></span></span></button></div>
+                  <div class="toggle-row"><div><div class="toggle-label">Verificações gerais</div><div class="toggle-sub">14 itens C · NC · NA</div></div><button class="toggle" role="switch" aria-checked="true" aria-label="Verificações gerais"><span class="toggle-word">Ativado</span><span class="track" aria-hidden="true"><span class="knob"></span></span></button></div>
+                  <div class="toggle-row"><div><div class="toggle-label">Isolação — contato aberto</div><div class="toggle-sub">T1/T2 · T3/T4 · T5/T6 × Massa · 10 kV · &gt;400 MΩ (aceitável na ficha)</div></div><button class="toggle" role="switch" aria-checked="true" aria-label="Isolação contato aberto"><span class="toggle-word">Ativado</span><span class="track" aria-hidden="true"><span class="knob"></span></span></button></div>
+                  <div class="toggle-row"><div><div class="toggle-label">Isolação — contato fechado</div><div class="toggle-sub">Fase A · B · C × Massa · 10 kV · &gt;400 MΩ</div></div><button class="toggle" role="switch" aria-checked="true" aria-label="Isolação contato fechado"><span class="toggle-word">Ativado</span><span class="track" aria-hidden="true"><span class="knob"></span></span></button></div>
+                  <div class="toggle-row"><div><div class="toggle-label">Resistência de contato</div><div class="toggle-sub">T1-T2 · T3-T4 · T5-T6 · 10 A · &lt;250 µΩ</div></div><button class="toggle" role="switch" aria-checked="true" aria-label="Resistência de contato"><span class="toggle-word">Ativado</span><span class="track" aria-hidden="true"><span class="knob"></span></span></button></div>
+                  <div class="toggle-row"><div><div class="toggle-label">Observações e conclusão</div><div class="toggle-sub">Sempre na ficha</div></div><button class="toggle" role="switch" aria-checked="true" aria-disabled="true" aria-label="Observações e conclusão, sempre ativado"><span class="toggle-word">Sempre</span><span class="track" aria-hidden="true"><span class="knob"></span></span></button></div>
+                </div>
+              </div>
+
+              <div>
+                <p class="table-title">Itens do checklist · padrão para o subtipo manual</p>
+                <p class="checklist-legend">C Conforme · NC Não conforme · NA Não se aplica · sem marca = decidido em campo</p>
+                <div class="items-grid">
+                  <ul class="checklist">
+                    <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">1.</span>Abertura e fechamento manual</span><div class="tri-state" role="radiogroup" aria-label="1. padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div></div></li>
+                    <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">2.</span>Abertura e fechamento elétrico</span><div class="tri-state" role="radiogroup" aria-label="2. padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div></div></li>
+                    <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">3.</span>Mecanismo de acionamento</span><div class="tri-state" role="radiogroup" aria-label="3. padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div></div></li>
+                    <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">4.</span>Intertravamento elétrico</span><div class="tri-state" role="radiogroup" aria-label="4. padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div></div></li>
+                    <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">5.</span>Intertravamento mecânico</span><div class="tri-state" role="radiogroup" aria-label="5. padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div></div></li>
+                    <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">6.</span>Isoladores</span><div class="tri-state" role="radiogroup" aria-label="6. padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div></div></li>
+                    <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">7.</span>Conexões</span><div class="tri-state" role="radiogroup" aria-label="7. padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div></div></li>
+                  </ul>
+                  <ul class="checklist">
+                    <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">8.</span>Contatos</span><div class="tri-state" role="radiogroup" aria-label="8. padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div></div></li>
+                    <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">9.</span>Motor <span class="helper" data-tone="amber">NA padrão (manual)</span></span><div class="tri-state" role="radiogroup" aria-label="9. Motor, padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="true">NA</button></div></div></li>
+                    <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">10.</span>Fusíveis <span class="helper" data-tone="amber">NA padrão (manual)</span></span><div class="tri-state" role="radiogroup" aria-label="10. Fusíveis, padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="true">NA</button></div></div></li>
+                    <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">11.</span>Aterramento</span><div class="tri-state" role="radiogroup" aria-label="11. padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div></div></li>
+                    <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">12.</span>Simultaneidade</span><div class="tri-state" role="radiogroup" aria-label="12. padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div></div></li>
+                    <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">13.</span>Pintura, corrosão</span><div class="tri-state" role="radiogroup" aria-label="13. padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div></div></li>
+                    <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">14.</span>Limpeza e lubrificação</span><div class="tri-state" role="radiogroup" aria-label="14. padrão"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div></div></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </li>
+
+          <li class="block-card" data-toast="Só a Chave seccionadora tem os padrões detalhados no protótipo"><button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Disjuntor MT"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-name">Disjuntor MT</span><span class="block-tag">× 21</span></div><span class="block-sub">12 campos de placa · 15 itens · Isolação aberto/fechado · Resistência de contato</span></div><span class="icon-btn card-chev" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span><button class="overflow-trigger" data-open="#tc-dlg-menu" aria-label="Mais opções de Disjuntor MT"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          <li class="block-card" data-toast="Só a Chave seccionadora tem os padrões detalhados no protótipo"><button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar TP"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-name">TP — proteção</span><span class="block-tag">× 11</span></div><span class="block-sub">12 campos de placa · 15 itens · Isolação (R/S/T) · Relação de transformação · subtipo padrão: a seco</span></div><span class="icon-btn card-chev" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span><button class="overflow-trigger" data-open="#tc-dlg-menu" aria-label="Mais opções de TP"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          <li class="block-card" data-toast="Só a Chave seccionadora tem os padrões detalhados no protótipo"><button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar TC"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-name">TC — proteção</span><span class="block-tag">× 11</span></div><span class="block-sub">12 campos de placa · 15 itens · Isolação (R/S/T) · Relação (P1-P2 / S1-S2) · subtipo padrão: a seco</span></div><span class="icon-btn card-chev" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span><button class="overflow-trigger" data-open="#tc-dlg-menu" aria-label="Mais opções de TC"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          <li class="block-card" data-toast="Só a Chave seccionadora tem os padrões detalhados no protótipo"><button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Cabos de saída"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-name">Cabos de saída / alimentação TRn</span><span class="block-tag">× 9</span></div><span class="block-sub">5 itens · Isolação (A/B/C/Reserva)</span></div><span class="icon-btn card-chev" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span><button class="overflow-trigger" data-open="#tc-dlg-menu" aria-label="Mais opções de Cabos de saída"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          <li class="block-card" data-toast="Só a Chave seccionadora tem os padrões detalhados no protótipo"><button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar Transformador de força"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button><div class="block-body"><div class="block-line"><span class="block-name">Transformador de força</span><span class="block-tag">× 8</span></div><span class="block-sub">12 campos de placa · 15 itens · Isolação (3 combinações) · Relação por TAP · Conclusão restaurada · subtipo padrão: a seco</span></div><span class="icon-btn card-chev" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span><button class="overflow-trigger" data-open="#tc-dlg-menu" aria-label="Mais opções de Transformador de força"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+        </ul>
+      </section>
+    </div><!-- /composer-main -->
+
+  </div><!-- /composer-layout -->
+
+  <!-- Block card overflow menu (D7): reorder reachable without dragging -->
+  <div class="dialog-scrim" id="tc-dlg-menu" hidden>
+    <div class="overflow-menu" role="menu" aria-label="Opções do bloco">
+      <button class="menu-item" role="menuitem" data-close data-toast="Bloco adicionado abaixo — escolha o tipo na paleta">Adicionar abaixo</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Bloco movido uma posição para cima">Subir</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Bloco movido uma posição para baixo">Descer</button>
+      <button class="menu-item" role="menuitem" data-close data-toast="Bloco duplicado abaixo, com os mesmos padrões">Duplicar</button>
+      <div class="menu-group"><button class="menu-item" role="menuitem" data-close data-open="#tc-dlg-rich">Editar texto</button></div>
+      <div class="menu-group"><button class="menu-item" role="menuitem" data-tone="red" data-close data-toast="Bloco removido" data-toast-action="Desfazer">Remover</button></div>
+    </div>
+  </div>
+
+  <!-- Rich text editor (D7): boilerplate of a section block; variables come from Dados do relatório -->
+  <div class="dialog-scrim" id="tc-dlg-rich" hidden>
+    <div class="form-dialog rich-dialog" role="dialog" aria-modal="true" aria-labelledby="tc-rich-title" aria-describedby="tc-rich-desc">
+      <div>
+        <h2 class="dialog-title" id="tc-rich-title">1 Objetivo — texto fixo</h2>
+        <p class="dialog-meta" id="tc-rich-desc">Vale para os próximos relatórios deste template. As variáveis são preenchidas em Dados do relatório; o texto nunca aparece em campo.</p>
+      </div>
+      <div class="rich-text" data-slice="out" data-slice-note=" · FR-12">
+        <div class="rt-toolbar" role="toolbar" aria-label="Formatação">
+          <button class="rt-tool" aria-pressed="false">Negrito</button>
+          <button class="rt-tool" aria-pressed="false">Itálico</button>
+          <button class="rt-tool" aria-pressed="false">Lista</button>
+          <button class="rt-tool" aria-pressed="false">Numeração</button>
+          <button class="rt-tool rt-var" data-open="#tc-rich-vars" aria-controls="tc-rich-vars"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Variável</button>
+        </div>
+        <div class="rt-area" role="textbox" aria-multiline="true" aria-label="Texto da seção 1" contenteditable="true">
+          <p>O presente relatório tem por objetivo apresentar, de forma clara e objetiva, as atividades realizadas pela <span class="var-chip" contenteditable="false">{executor}</span>, referentes à <span class="var-chip" contenteditable="false">{escopo}</span> <span class="var-chip" contenteditable="false">{local}</span>.</p>
+        </div>
+      </div>
+      <div class="var-row" id="tc-rich-vars" aria-label="Variáveis de Dados do relatório" hidden>
+        <span class="helper">Inserir no cursor:</span>
+        <button class="chip" data-toast="Variável {executor} inserida no cursor"><span class="var-chip">{executor}</span></button>
+        <button class="chip" data-toast="Variável {escopo} inserida no cursor"><span class="var-chip">{escopo}</span></button>
+        <button class="chip" data-toast="Variável {local} inserida no cursor"><span class="var-chip">{local}</span></button>
+        <button class="chip" data-toast="Variável {cliente} inserida no cursor"><span class="var-chip">{cliente}</span></button>
+        <button class="chip" data-toast="Variável {periodo} inserida no cursor"><span class="var-chip">{periodo}</span></button>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary" data-close>Cancelar</button>
+        <button class="btn btn-primary" data-close data-toast="Texto da seção 1 salvo no template">Salvar texto</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sticky-action-bar">
+    <span class="btn-reason">Salvar não altera o relatório Porto Seguro · Torres A e B já criado deste template</span>
+    <div class="bar-buttons">
+      <button class="btn btn-secondary" data-go="#/templates">Cancelar</button>
+      <button class="btn btn-primary" data-go="#/templates" data-toast="Template salvo">Salvar template</button>
+    </div>
+  </div>
+</section>

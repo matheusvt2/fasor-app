@@ -1,0 +1,329 @@
+<style data-screen="relatorio-setup">
+/* Source: mockups/key-relatorio-setup.html frame 1 (Etapas 1–4) + frame 2 (tablet stacking).
+   Governs: EXPERIENCE.md § IA › Relatório setup; § Capture-to-Document › Capa, 1 Objetivo, 3 Limite de escopo, 10 Conclusão, 11 Certificados;
+   § Smart Input › Environment (altitude from GPS), Reasons and pick-lists (chips of recent values); § Component Patterns › Combobox (create-new last, behind "Outro…"), Chip (value), Suggestion field, Instrument picker, Registry row (Vencida); § State Patterns › Calibration expired; Flow 1 step 5. */
+[data-route="/relatorio/porto-seguro/setup"] .setup-content { width: 100%; padding: var(--sp-5) var(--gutter-tablet); max-width: calc(var(--content-max) + 2 * var(--gutter-desktop)); margin: 0 auto; }
+.frame-desktop [data-route="/relatorio/porto-seguro/setup"] .setup-content { padding: var(--sp-6) var(--gutter-desktop); }
+.frame-phone [data-route="/relatorio/porto-seguro/setup"] .setup-content { padding: var(--sp-4) var(--gutter-phone); }
+[data-route="/relatorio/porto-seguro/setup"] .form-grid { display: grid; grid-template-columns: 1fr; gap: var(--sp-4); }
+.frame-desktop [data-route="/relatorio/porto-seguro/setup"] .form-grid,
+.frame-tablet-landscape [data-route="/relatorio/porto-seguro/setup"] .form-grid { grid-template-columns: 1fr 1fr; }
+.frame-desktop [data-route="/relatorio/porto-seguro/setup"] .form-grid .span-2,
+.frame-tablet-landscape [data-route="/relatorio/porto-seguro/setup"] .form-grid .span-2 { grid-column: 1 / -1; }
+[data-route="/relatorio/porto-seguro/setup"] .dates-3 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
+.frame-phone [data-route="/relatorio/porto-seguro/setup"] .dates-3 { grid-template-columns: 1fr; }
+[data-route="/relatorio/porto-seguro/setup"] .exclusion-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
+[data-route="/relatorio/porto-seguro/setup"] .exclusion-list li { display: flex; align-items: center; gap: var(--sp-2); }
+[data-route="/relatorio/porto-seguro/setup"] .exclusion-list .exclusion-num { width: 28px; color: var(--ink-secondary); font-variant-numeric: tabular-nums; flex: none; }
+[data-route="/relatorio/porto-seguro/setup"] .cover-row { display: flex; gap: var(--sp-5); align-items: flex-start; flex-direction: column; }
+.frame-desktop [data-route="/relatorio/porto-seguro/setup"] .cover-row,
+.frame-tablet-landscape [data-route="/relatorio/porto-seguro/setup"] .cover-row { flex-direction: row; }
+[data-route="/relatorio/porto-seguro/setup"] .cover-row .photo-tile { width: 240px; max-width: 100%; }
+[data-route="/relatorio/porto-seguro/setup"] .cover-row .photo-tile .thumb { aspect-ratio: 4 / 3; }
+[data-route="/relatorio/porto-seguro/setup"] .instrument-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border-hairline); }
+[data-route="/relatorio/porto-seguro/setup"] .instrument-list li { border-bottom: 1px solid var(--border-hairline); padding: var(--sp-2) 0; }
+[data-route="/relatorio/porto-seguro/setup"] .instrument-list .checkbox .ip-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+[data-route="/relatorio/porto-seguro/setup"] .instrument-list .cert-link { margin-left: auto; flex: none; }
+.frame-tablet [data-route="/relatorio/porto-seguro/setup"] .instrument-list .cert-link,
+.frame-phone [data-route="/relatorio/porto-seguro/setup"] .instrument-list .cert-link { display: none; }
+.frame-phone [data-route="/relatorio/porto-seguro/setup"] .instrument-list .ip-code { min-width: 32px; }
+[data-route="/relatorio/porto-seguro/setup"] .preview-box { background: var(--surface-base); border-radius: var(--r-sm); padding: var(--sp-3) var(--sp-4); font-size: var(--t-body-size); line-height: var(--t-body-lh); }
+[data-route="/relatorio/porto-seguro/setup"] .preview-box .var { background: var(--focus-fill); border-radius: 2px; padding: 0 3px; }
+/* Combobox list opens under the input (data-open); keep the chevron on the input while the list is visible */
+[data-route="/relatorio/porto-seguro/setup"] .combobox-list { list-style: none; margin: var(--sp-1) 0 0; padding: 0; }
+[data-route="/relatorio/porto-seguro/setup"] .combobox .combobox-chevron { bottom: auto; top: calc(var(--t-label-size) * var(--t-label-lh) + var(--sp-1)); height: var(--touch-field); }
+[data-route="/relatorio/porto-seguro/setup"] .combobox-option[role="option"] { cursor: pointer; }
+/* Smart Input: pick-lists as a chip row of recent values + "Outro…" (opens the Combobox); altitude prefilled from the device GPS as a Suggestion field */
+[data-route="/relatorio/porto-seguro/setup"] .chips-recent { margin-bottom: var(--sp-1); }
+[data-route="/relatorio/porto-seguro/setup"] .form-grid > .field { min-width: 0; }
+[data-route="/relatorio/porto-seguro/setup"] .combobox.has-chips .combobox-chevron { top: calc(var(--t-label-size) * var(--t-label-lh) + var(--sp-1) + var(--touch-min) + 3 * var(--sp-1)); }
+[data-route="/relatorio/porto-seguro/setup"] .chips-recent .chip { cursor: pointer; }
+[data-route="/relatorio/porto-seguro/setup"] .altitude-field .measurement-field { width: 100%; }
+[data-route="/relatorio/porto-seguro/setup"] .altitude-field .confirm-btn { cursor: pointer; }
+[data-route="/relatorio/porto-seguro/setup"] .altitude-field.is-confirmed > .measurement-field { background: var(--surface-raised); border: 2px solid var(--border-strong); }
+[data-route="/relatorio/porto-seguro/setup"] .altitude-field.is-confirmed .suggested-pill, [data-route="/relatorio/porto-seguro/setup"] .altitude-field.is-confirmed .confirm-btn { display: none; }
+[data-route="/relatorio/porto-seguro/setup"] .altitude-field .helper-ok { display: none; }
+[data-route="/relatorio/porto-seguro/setup"] .altitude-field.is-confirmed .helper-gps { display: none; }
+[data-route="/relatorio/porto-seguro/setup"] .altitude-field.is-confirmed .helper-ok { display: block; }
+.frame-phone [data-route="/relatorio/porto-seguro/setup"] .band-head { flex-wrap: wrap; }
+.frame-phone [data-route="/relatorio/porto-seguro/setup"] .band-note { margin-left: 44px; flex-basis: 100%; }
+.frame-phone [data-route="/relatorio/porto-seguro/setup"] .band-body .row { flex-wrap: wrap; }
+/* D2 — Conselho (CREA · CRT) as a Segmented control inside the Responsável field: the radios swap the labels, the title helper and the section-10 echo via data-set-text */
+[data-route="/relatorio/porto-seguro/setup"] .council-field .segmented { max-width: 240px; }
+[data-route="/relatorio/porto-seguro/setup"] .council-field .seg { cursor: pointer; }
+/* D5 — Etapa 5 "Conclusão e parecer" (seção 10): one three-segment Conclusion control (components.css .conclusion-pair.is-verdict), nothing preselected, the suggestion as the hint under it; the Parecer box preview appears once a verdict is picked (data-open) */
+[data-route="/relatorio/porto-seguro/setup"] .parecer-choice .seg { cursor: pointer; }
+/* Page-only: proto.js cannot set data-verdict on the box, so its tone follows the checked segment via :has() with the same tokens as components.css .parecer-box[data-verdict] */
+[data-route="/relatorio/porto-seguro/setup"] #setup-parecer:has(.seg[data-value="apto"][aria-checked="true"]) .parecer-box { border-left-color: var(--parecer-box-apto-foreground); background: var(--parecer-box-apto-background); }
+[data-route="/relatorio/porto-seguro/setup"] #setup-parecer:has(.seg[data-value="apto"][aria-checked="true"]) .parecer-box .pb-verdict { color: var(--parecer-box-apto-foreground); }
+[data-route="/relatorio/porto-seguro/setup"] #setup-parecer:has(.seg[data-value="restricoes"][aria-checked="true"]) .parecer-box { border-left-color: var(--parecer-box-restricoes-foreground); background: var(--parecer-box-restricoes-background); }
+[data-route="/relatorio/porto-seguro/setup"] #setup-parecer:has(.seg[data-value="restricoes"][aria-checked="true"]) .parecer-box .pb-verdict { color: var(--parecer-box-restricoes-foreground); }
+[data-route="/relatorio/porto-seguro/setup"] #setup-parecer:has(.seg[data-value="nao-apto"][aria-checked="true"]) .parecer-box { border-left-color: var(--parecer-box-nao-apto-foreground); background: var(--parecer-box-nao-apto-background); }
+[data-route="/relatorio/porto-seguro/setup"] #setup-parecer:has(.seg[data-value="nao-apto"][aria-checked="true"]) .parecer-box .pb-verdict { color: var(--parecer-box-nao-apto-foreground); }
+[data-route="/relatorio/porto-seguro/setup"] .generated-actions .btn { cursor: pointer; }
+/* Page-only: proto.js toggles .is-confirmed (mirror of data-state="confirmed" in components.css): neutral fill, hairline border, pill and Confirmar gone */
+[data-route="/relatorio/porto-seguro/setup"] #setup-parecer-gen.is-confirmed > .generated-text { background: var(--surface-base); border-color: var(--border-hairline); }
+[data-route="/relatorio/porto-seguro/setup"] #setup-parecer-gen.is-confirmed .suggested-pill, [data-route="/relatorio/porto-seguro/setup"] #setup-parecer-gen.is-confirmed .confirm-action, [data-route="/relatorio/porto-seguro/setup"] #setup-parecer-gen.is-confirmed .helper-sug { display: none; }
+[data-route="/relatorio/porto-seguro/setup"] #setup-parecer-gen .helper-ok { display: none; }
+[data-route="/relatorio/porto-seguro/setup"] #setup-parecer-gen.is-confirmed .helper-ok { display: block; }
+[data-route="/relatorio/porto-seguro/setup"] .parecer-own .poa-text-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+</style>
+<section class="screen" data-route="/relatorio/porto-seguro/setup" data-title="Dados do relatório" data-shell="app" data-rail="false">
+  <div class="setup-content">
+
+    <p class="section-note">Relatório de cabine primária · criado do template <b>Porto Seguro — Torres A e B</b> em 03/09 · as bandas abaixo alimentam a capa, o controle do documento e as seções 1, 3, 10 e 11.</p>
+
+    <!-- ---------------- Etapa 1 ---------------- -->
+    <section class="section-band" aria-labelledby="setup-e1">
+      <div class="band-head"><span class="band-num" aria-hidden="true">1</span><h2 class="band-title" id="setup-e1">Etapa 1 — Dados do cliente</h2><span class="band-note">Capa do relatório</span></div>
+      <div class="band-body">
+        <div class="form-grid">
+          <!-- Client: chips of the recent clients set the value (radio semantics in proto.js); "Outro…" opens the Combobox list with the full registry and "Criar" last -->
+          <div class="field combobox has-chips span-2">
+            <span class="field-label" id="setup-cliente-label">Cliente</span>
+            <div class="chip-row chips-recent" role="radiogroup" aria-label="Clientes recentes">
+              <button class="chip" aria-pressed="true" data-set-text="#setup-cliente-value|Porto Seguro Companhia de Seguros Gerais">Porto Seguro Companhia de Seguros Gerais</button>
+              <button class="chip" aria-pressed="false" data-set-text="#setup-cliente-value|Condomínio Edifício Alameda Jaú">Condomínio Edifício Alameda Jaú</button>
+              <button class="chip" aria-pressed="false" data-set-text="#setup-cliente-value|Hospital Santa Clara">Hospital Santa Clara</button>
+              <button class="chip" aria-pressed="false" data-set-text="#setup-cliente-value|Shopping Iguatemi Campinas">Shopping Iguatemi Campinas</button>
+              <button class="chip" aria-pressed="false" data-set-text="#setup-cliente-value|Indústria Química Sorocaba">Indústria Química Sorocaba</button>
+              <button class="chip chip-other" data-open="#setup-cliente-list">Outro…</button>
+            </div>
+            <div class="input" role="combobox" aria-labelledby="setup-cliente-label" aria-expanded="false" aria-controls="setup-cliente-list" data-open="#setup-cliente-list"><span id="setup-cliente-value">Porto Seguro Companhia de Seguros Gerais</span></div>
+            <span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+            <ul class="combobox-list" id="setup-cliente-list" role="listbox" aria-label="Clientes" hidden>
+              <li class="combobox-option" role="option" aria-selected="true" data-close="#setup-cliente-list" data-set-text="#setup-cliente-value|Porto Seguro Companhia de Seguros Gerais">Porto Seguro Companhia de Seguros Gerais<span class="option-meta">2 obras</span></li>
+              <li class="combobox-option" role="option" aria-selected="false" data-close="#setup-cliente-list" data-set-text="#setup-cliente-value|Condomínio Edifício Alameda Jaú">Condomínio Edifício Alameda Jaú<span class="option-meta">1 obra</span></li>
+              <li class="combobox-option" role="option" aria-selected="false" data-close="#setup-cliente-list" data-set-text="#setup-cliente-value|Hospital Santa Clara">Hospital Santa Clara<span class="option-meta">1 obra</span></li>
+              <li class="combobox-option" role="option" aria-selected="false" data-close="#setup-cliente-list" data-set-text="#setup-cliente-value|Shopping Iguatemi Campinas">Shopping Iguatemi Campinas<span class="option-meta">1 obra</span></li>
+              <li class="combobox-option" role="option" aria-selected="false" data-close="#setup-cliente-list" data-set-text="#setup-cliente-value|Indústria Química Sorocaba">Indústria Química Sorocaba<span class="option-meta">2 obras</span></li>
+              <li class="combobox-option" role="option" aria-selected="false" data-close="#setup-cliente-list" data-set-text="#setup-cliente-value|Metrô de São Paulo — Linha 4">Metrô de São Paulo — Linha 4<span class="option-meta">3 obras</span></li>
+              <li class="combobox-option is-create" role="option" aria-selected="false" data-close="#setup-cliente-list" data-toast="Cliente criado no cadastro de Clientes"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Criar “⟨texto digitado⟩”</li>
+            </ul>
+            <span class="helper">Cinco clientes mais recentes; o cadastro inteiro fica em "Outro…".</span>
+          </div>
+          <div class="field combobox">
+            <span class="field-label">Local (obra)</span>
+            <div class="input" data-toast="Locais da obra — só Torres A e B está prototipado">Torres A e B</div>
+            <span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+          </div>
+          <div class="field">
+            <span class="field-label">Cidade</span>
+            <div class="input">São Paulo/SP</div>
+          </div>
+          <!-- Site altitude: prefilled from the device geolocation, confirmed once per site; feeds "Ambiente de ensaio" of every cabine (Smart Input › Environment) -->
+          <div class="field suggestion-field altitude-field span-2" id="setup-alt" data-state="suggested">
+            <span class="field-label">Altitude do site</span>
+            <div class="measurement-field"><span class="mf-value">760</span><span class="mf-unit" aria-label="metros">m</span><button class="confirm-btn" data-toggle-class="is-confirmed" data-toggle-target="#setup-alt" data-toast="Altitude do site confirmada: 760 m (< 1.000 m nas fichas)">Confirmar</button></div>
+            <span class="suggested-pill">Sugerido</span>
+            <span class="helper helper-gps">Altitude do site: 760 m — obtida por GPS em 03/09 16:10, edite se necessário. Vale para o Ambiente de ensaio de todas as cabines (impressa como "&lt; 1.000 m").</span>
+            <span class="helper helper-ok">Altitude do site: 760 m — confirmada · pelo GPS em 03/09 · edite se necessário</span>
+          </div>
+          <div class="dates-3 span-2">
+            <div class="field">
+              <span class="field-label">Início da execução</span>
+              <div class="input" data-toast="Calendário — não prototipado"><span class="grow">06/09/2026</span><svg class="ico ink-secondary" aria-hidden="true"><use href="#i-calendar"/></svg></div>
+            </div>
+            <div class="field">
+              <span class="field-label">Fim da execução</span>
+              <div class="input" data-toast="Calendário — não prototipado"><span class="grow">08/09/2026</span><svg class="ico ink-secondary" aria-hidden="true"><use href="#i-calendar"/></svg></div>
+              <span class="echo">Na capa: 06, 07 e 08 de setembro de 2026</span>
+            </div>
+          </div>
+          <div class="field span-2">
+            <span class="field-label">Informações adicionais</span>
+            <div class="input">Manutenção Preventiva nas Cabines Primárias</div>
+          </div>
+          <div class="field combobox">
+            <span class="field-label">Responsável técnico</span>
+            <div class="input" data-toast="Responsáveis — só Rafael Lamonde está prototipado">Rafael Lamonde</div>
+            <span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+            <span class="helper">Assina a seção 10 como <span id="setup-resp-title">Engenheiro Eletricista</span> · conselho e número vêm do perfil (Conta › Registro profissional)</span>
+          </div>
+          <div class="field council-field">
+            <span class="field-label" id="setup-cons-l">Conselho</span>
+            <div class="segmented" role="radiogroup" aria-labelledby="setup-cons-l">
+              <button class="seg" role="radio" aria-checked="true" data-set-text="#setup-num-l|CREA||#setup-art-l|ART||#setup-resp-title|Engenheiro Eletricista||#setup-art-echo|Na seção 10: “Este relatório tem validade apenas acompanhada da ART 2620262602583”||#setup-art-word|ART"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>CREA</button>
+              <button class="seg" role="radio" aria-checked="false" data-set-text="#setup-num-l|CRT||#setup-art-l|TRT||#setup-resp-title|Técnico em Eletrotécnica||#setup-art-echo|Na seção 10: “Este relatório tem validade apenas acompanhada da TRT 2620262602583”||#setup-art-word|TRT"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>CRT</button>
+            </div>
+            <span class="helper">Decide os rótulos abaixo e o título impresso na assinatura e no controle do documento</span>
+          </div>
+          <div class="field">
+            <span class="field-label" id="setup-num-l">CREA</span>
+            <div class="input tabular">SP 5063583141</div>
+          </div>
+          <div class="field">
+            <span class="field-label" id="setup-art-l">ART</span>
+            <div class="input tabular">2620262602583</div>
+            <span class="echo" id="setup-art-echo">Na seção 10: “Este relatório tem validade apenas acompanhada da ART 2620262602583”</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- Etapa 2 ---------------- -->
+    <section class="section-band" aria-labelledby="setup-e2">
+      <div class="band-head"><span class="band-num" aria-hidden="true">2</span><h2 class="band-title" id="setup-e2">Etapa 2 — Objetivo e escopo</h2><span class="band-note">Seções 1 e 3</span></div>
+      <div class="band-body">
+        <p class="section-note">Seção 1 — Objetivo: texto fixo com três variáveis.</p>
+        <div class="form-grid">
+          <div class="field">
+            <span class="field-label">Empresa executora</span>
+            <div class="input">Fasor Engenharia</div>
+          </div>
+          <div class="field">
+            <span class="field-label">Local</span>
+            <div class="input">das Torres A e B da Porto Seguro</div>
+          </div>
+          <div class="field span-2">
+            <span class="field-label">Escopo</span>
+            <div class="observation-field">manutenção preventiva e à execução de ensaios dielétricos nas Cabines Primárias de Proteção, Distribuição e Transformação</div>
+          </div>
+        </div>
+        <div class="preview-box" aria-label="Como fica na seção 1">O presente relatório tem por objetivo apresentar, de forma clara e objetiva, as atividades realizadas pela <span class="var">Fasor Engenharia</span>, referentes à <span class="var">manutenção preventiva e à execução de ensaios dielétricos nas Cabines Primárias de Proteção, Distribuição e Transformação</span> <span class="var">das Torres A e B da Porto Seguro</span>.</div>
+
+        <p class="section-note" style="margin-top: var(--sp-3)">Seção 3 — Limite de escopo: parágrafo fixo + exclusões deste contrato.</p>
+        <ul class="exclusion-list" aria-label="Exclusões">
+          <li><span class="exclusion-num" aria-hidden="true">1.</span><div class="input grow">Quadros elétricos terminais, localizados nos respectivos setores</div><button class="overflow-trigger" data-toast="Mais opções da exclusão — não prototipado" aria-label="Mais opções da exclusão 1"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          <li><span class="exclusion-num" aria-hidden="true">2.</span><div class="input grow">Painéis e transformadores de rede estabilizada (nobreak)</div><button class="overflow-trigger" data-toast="Mais opções da exclusão — não prototipado" aria-label="Mais opções da exclusão 2"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+          <li><span class="exclusion-num" aria-hidden="true">3.</span><div class="input grow">Geradores e seus periféricos</div><button class="overflow-trigger" data-toast="Mais opções da exclusão — não prototipado" aria-label="Mais opções da exclusão 3"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button></li>
+        </ul>
+        <div class="row"><button class="btn btn-text" data-toast="Exclusão 4 adicionada — não prototipado"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar exclusão</button></div>
+      </div>
+    </section>
+
+    <!-- ---------------- Etapa 3 ---------------- -->
+    <section class="section-band" aria-labelledby="setup-e3">
+      <div class="band-head"><span class="band-num" aria-hidden="true">3</span><h2 class="band-title" id="setup-e3">Etapa 3 — Foto de capa</h2><span class="band-note">Capa do relatório</span></div>
+      <div class="band-body">
+        <div class="cover-row">
+          <button class="photo-tile" data-go="#/relatorio/porto-seguro/fotos" aria-label="Foto de capa, abrir"><span class="thumb"><span class="thumb-fake"></span></span><span class="caption">Fachada das Torres A e B · 03/09 · Bruno</span></button>
+          <div class="stack">
+            <p class="section-note">Uma imagem grande na capa. Não entra no registro fotográfico (seção 7).</p>
+            <div class="row-wrap">
+              <button class="btn btn-secondary" data-toast="Substituir foto de capa — não prototipado"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg>Substituir foto</button>
+              <button class="btn btn-text" data-tone="red" data-toast="Foto de capa removida" data-toast-action="Desfazer">Remover</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- Etapa 4 ---------------- -->
+    <section class="section-band" aria-labelledby="setup-e4">
+      <div class="band-head"><span class="band-num" aria-hidden="true">4</span><h2 class="band-title" id="setup-e4">Etapa 4 — Instrumentos e certificados</h2><span class="band-note">Seção 11 · Instrument picker</span></div>
+      <div class="band-body">
+        <p class="section-note">Marque os instrumentos desta obra: o certificado de cada um entra na seção 11 e o seletor de instrumento das fichas já começa por eles. Em campo, o cadastro inteiro continua disponível.</p>
+        <ul class="instrument-list instrument-picker">
+          <li>
+            <button class="checkbox" role="checkbox" aria-checked="true" aria-describedby="setup-i2e-cal">
+              <span class="box"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg></span>
+              <span class="ip-code">2E</span>
+              <span class="ip-text">
+                <span class="ip-name">Megôhmetro digital DMG10Ki</span>
+                <span class="ip-detail">Instrum · série IN919021-25945 · RBC 37428/26 · <span class="ip-expired">Vencida em 28/08/2027</span> · certificado_37428-26.pdf</span>
+              </span>
+              <span class="cert-link btn btn-text" aria-hidden="true"><svg class="ico"><use href="#i-file"/></svg>Certificado</span>
+            </button>
+            <p class="ip-expired" id="setup-i2e-cal" role="status">Calibração do 2E vencida em 28/08/2027. Pode continuar — listada na verificação antes de emitir.</p>
+          </li>
+          <li>
+            <button class="checkbox" role="checkbox" aria-checked="true">
+              <span class="box"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg></span>
+              <span class="ip-code">3M</span>
+              <span class="ip-text">
+                <span class="ip-name">Microhmímetro HTMO-10</span>
+                <span class="ip-detail">Hi-Tech · série G282926 · RBC 37276/26 · válida até 22/01/2027 · certificado_37276-26.pdf</span>
+              </span>
+              <span class="cert-link btn btn-text" aria-hidden="true"><svg class="ico"><use href="#i-file"/></svg>Certificado</span>
+            </button>
+          </li>
+          <li>
+            <button class="checkbox" role="checkbox" aria-checked="true">
+              <span class="box"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg></span>
+              <span class="ip-code">1T</span>
+              <span class="ip-text">
+                <span class="ip-name">TTR HTRT-8K</span>
+                <span class="ip-detail">Hi-Tech · série F277226 · RBC 37274/26 · válida até 20/08/2027 · certificado_37274-26.pdf</span>
+              </span>
+              <span class="cert-link btn btn-text" aria-hidden="true"><svg class="ico"><use href="#i-file"/></svg>Certificado</span>
+            </button>
+          </li>
+          <li>
+            <button class="checkbox" role="checkbox" aria-checked="false">
+              <span class="box"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg></span>
+              <span class="ip-code">5A</span>
+              <span class="ip-text">
+                <span class="ip-name">Terrômetro digital MTD-20KWe</span>
+                <span class="ip-detail">Megabras · série TD1904102 · RBC 35102/25 · <span class="ip-expired">Vencida em 15/03/2026</span> · 35102-25.pdf</span>
+              </span>
+              <span class="cert-link btn btn-text" aria-hidden="true"><svg class="ico"><use href="#i-file"/></svg>Certificado</span>
+            </button>
+          </li>
+        </ul>
+        <div class="row"><button class="btn btn-text" data-go="#/cadastros"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Cadastrar instrumento</button><span class="btn-reason">Abre Cadastros › Instrumentos</span></div>
+      </div>
+    </section>
+
+    <!-- ---------------- Etapa 5 (D5) ---------------- -->
+    <section class="section-band" aria-labelledby="setup-e5" id="setup-parecer">
+      <div class="band-head"><span class="band-num" aria-hidden="true">5</span><h2 class="band-title" id="setup-e5">Etapa 5 — Conclusão e parecer</h2><span class="band-note">Seção 10 · caixa de parecer antes dos itens fixos</span></div>
+      <div class="band-body">
+        <p class="section-note">O app conta fichas, restrições e não ensaiados e sugere; o parecer é escolha sua. Sem parecer, a emissão fica bloqueada em Gerar relatório.</p>
+
+        <div class="field">
+          <span class="field-label" id="setup-parecer-l">Parecer</span>
+          <div class="conclusion-pair is-verdict parecer-choice" role="radiogroup" aria-labelledby="setup-parecer-l" aria-describedby="setup-parecer-hint">
+            <button class="seg" role="radio" data-value="apto" aria-checked="false" data-open="#setup-parecer-box" data-set-text="#setup-parecer-verdict|Apto"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Apto</button>
+            <button class="seg" role="radio" data-value="restricoes" aria-checked="false" data-open="#setup-parecer-box" data-set-text="#setup-parecer-verdict|Apto com restrições"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Apto com restrições</button>
+            <button class="seg" role="radio" data-value="nao-apto" aria-checked="false" data-open="#setup-parecer-box" data-set-text="#setup-parecer-verdict|Não apto"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Não apto</button>
+          </div>
+          <span class="conclusion-hint" id="setup-parecer-hint">Sugerido pelas contagens: Apto com restrições — 93 de 94 fichas concluídas, 2 com restrições, 1 não ensaiada (DJ-C14). A escolha é sua: um toque.</span>
+        </div>
+
+        <div class="field suggestion-field is-generated" id="setup-parecer-gen" data-state="suggested">
+          <span class="field-label">Resumo do parecer</span>
+          <div class="generated-text" role="textbox" aria-multiline="true" aria-describedby="setup-parecer-crit">
+            <span class="sv" id="setup-parecer-text">As Cabines Primárias das Torres A e B da Porto Seguro foram submetidas à manutenção preventiva e aos ensaios dielétricos entre 06 e 08/09/2026. Das 94 fichas, 93 foram concluídas e 1 não foi ensaiada (DJ-C14, por impossibilidade de desligamento). Duas fichas apresentaram restrições (SEC-ENT e SEC-C05), tratadas nos pontos de atenção da seção 8. Não há condição que impeça a operação das instalações.</span>
+          </div>
+          <span class="suggested-pill">Sugerido</span>
+          <p class="criteria-line" id="setup-parecer-crit"><span class="cl-label">Critérios usados</span><span>94 fichas · 93 concluídas · 1 não ensaiada (DJ-C14) · 2 com restrições (SEC-ENT, SEC-C05) · 4 pontos de atenção · 1 P1</span></p>
+          <div class="generated-actions">
+            <button class="btn btn-secondary confirm-action" data-toggle-class="is-confirmed" data-toggle-target="#setup-parecer-gen" data-toast="Resumo do parecer confirmado — impresso na seção 10"><svg class="ico" aria-hidden="true"><use href="#i-check"/></svg>Confirmar</button>
+            <button class="btn btn-text" data-close="#setup-parecer-gen" data-open="#setup-parecer-own" data-set-text="#setup-parecer-own-t|As Cabines Primárias das Torres A e B da Porto Seguro foram submetidas à manutenção preventiva e aos ensaios dielétricos entre 06 e 08/09/2026. Das 94 fichas, 93 foram concluídas e 1 não foi ensaiada (DJ-C14, por impossibilidade de desligamento). Duas fichas apresentaram restrições (SEC-ENT e SEC-C05), tratadas nos pontos de atenção da seção 8. Não há condição que impeça a operação das instalações."><svg class="ico" aria-hidden="true"><use href="#i-pencil"/></svg>Editar</button>
+            <button class="btn btn-text" data-close="#setup-parecer-gen" data-open="#setup-parecer-own" data-set-text="#setup-parecer-own-t|" data-toast="Texto sugerido descartado — escreva ou dite o seu">Substituir</button>
+            <span class="dictation"><button class="dictation-btn slice-inline" aria-pressed="false" aria-label="Ditar o resumo do parecer" data-close="#setup-parecer-gen" data-open="#setup-parecer-own" data-listen="#setup-parecer-own-t|Instalações aptas à operação com restrições: substituir os contatos da SEC-C05 e acompanhar a isolação dos cabos de entrada na próxima manutenção." data-slice="out" data-slice-note=" · FR-40"><svg class="ico" aria-hidden="true"><use href="#i-mic"/></svg></button><span class="listening-word" aria-live="polite">Ouvindo…</span></span>
+          </div>
+          <span class="helper helper-sug">Montado no aparelho a partir das contagens do relatório — não é um veredito. Nada é impresso até você confirmar.</span>
+          <span class="helper helper-ok">Confirmado · impresso na caixa de parecer da seção 10</span>
+        </div>
+
+        <div class="field parecer-own" id="setup-parecer-own" hidden>
+          <div class="poa-text-head">
+            <span class="field-label" id="setup-parecer-own-l">Resumo do parecer</span>
+            <span class="dictation">
+              <button class="dictation-btn slice-inline" aria-pressed="false" aria-label="Ditar o resumo do parecer" data-listen="#setup-parecer-own-t|Instalações aptas à operação com restrições: substituir os contatos da SEC-C05 e acompanhar a isolação dos cabos de entrada na próxima manutenção." data-slice="out" data-slice-note=" · FR-40"><svg class="ico" aria-hidden="true"><use href="#i-mic"/></svg></button>
+              <span class="listening-word">Ouvindo…</span>
+            </span>
+          </div>
+          <div class="observation-field" role="textbox" aria-multiline="true" aria-labelledby="setup-parecer-own-l" id="setup-parecer-own-t" contenteditable="true"></div>
+          <span class="helper">Seu texto substitui o sugerido na seção 10 · salvo automaticamente</span>
+        </div>
+
+        <div class="parecer-box" id="setup-parecer-box" role="status" aria-live="polite" hidden>
+          <span class="pb-kicker">Como imprime na seção 10</span>
+          <span class="pb-verdict" id="setup-parecer-verdict">Apto com restrições</span>
+          <span class="pb-text">Seguido do resumo confirmado acima e, depois, dos itens fixos da conclusão e da assinatura de Rafael Lamonde (<span id="setup-art-word">ART</span> 2620262602583).</span>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /setup-content -->
+
+  <div class="sticky-action-bar">
+    <span class="btn-reason">Salvo automaticamente · 03/09 16:12 · Bruno</span>
+    <div class="bar-buttons">
+      <button class="btn btn-primary" data-go="#/relatorio/porto-seguro">Ir para o relatório<svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+    </div>
+  </div>
+</section>

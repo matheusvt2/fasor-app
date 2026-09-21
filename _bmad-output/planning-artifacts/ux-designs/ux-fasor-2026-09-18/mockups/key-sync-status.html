@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRODUTO — Sincronização (Sync status)</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* Governs this mock:
+   DESIGN.md § Components › App bar, Sync badge (5 states, compact never dot-only), Banner (warning · conflict · info),
+     Conflict view (two read-only columns, changed cells on nao-ensaiado-fill, sticky bar), Photo tile (upload pill pending/error),
+     Tri-state control (read-only inside the Conflict view), Relatório tree (rail on tablet landscape), Sheet header, Button;
+     § Colors › Sync states (always paired with a word); § Elevation (shadow only on the floating Conflict view).
+   EXPERIENCE.md § IA › Sync status; § Offline & Sync (visible state, "Último envio", conflict model per entity);
+     § Component Patterns › Sync badge, Banner, Conflict view, Photo tile; § State Patterns › Sync error,
+     Sync conflict — sheet body, Sync conflict — structure, Relatório downloading, Working (uploads), Storage low, App not installed;
+     § Accessibility Floor (role=alert on conflict/error Banners; live regions announce transitions only);
+     § Voice and Tone ("3 fotos aguardando envio"; "Esta ficha já foi alterada por Eduardo às 14:20…"); Flow 4 failure; Flow 6 steps 1–3.
+   Page-only layout below. NOTE: "Sync status row" and the thin progress line are not rows of DESIGN.md § Components —
+   drawn here as layout only (registry-row metrics: 56px, hairline divider, body + meta) and reported as a missing component. */
+.sync-summary { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); align-items: center; font-size: var(--t-body-size); }
+.sync-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border-hairline); }
+.sync-row { display: flex; align-items: center; gap: var(--sp-3); min-height: var(--touch-field); padding: var(--sp-2) 0; border-bottom: 1px solid var(--border-hairline); }
+.sync-row .sr-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sync-row .sr-primary { font-size: var(--t-body-size); line-height: var(--t-body-lh); }
+.sync-row .sr-secondary { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+.sync-row .sr-state { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-1); font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); white-space: nowrap; color: var(--ink-secondary); }
+.sync-row .sr-state[data-tone="pending"] { color: var(--sync-pending); }
+.sync-row .sr-state[data-tone="ok"] { color: var(--sync-ok); }
+.progress-track { display: block; height: 4px; width: 100%; background: var(--border-hairline); border-radius: var(--r-full); overflow: hidden; }
+.progress-track > i { display: block; height: 100%; background: var(--primary); }
+.sync-row .sr-state .progress-track { width: 120px; }
+.conflict-list { display: flex; flex-direction: column; gap: var(--sp-3); }
+.conflict-list .banner .banner-actions { flex-wrap: wrap; }
+.sync-foot { margin-top: var(--sp-6); font-size: var(--t-meta-size); color: var(--ink-secondary); }
+/* Conflict view as a tablet dialog */
+.frame-tablet-landscape .dialog-scrim { padding: var(--sp-3); }
+.conflict-view.conflict-dialog { width: min(980px, 100%); max-height: 100%; display: flex; flex-direction: column; box-shadow: var(--shadow-float); }
+.conflict-view .conflict-head { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-5); border-bottom: 1px solid var(--border-hairline); }
+.conflict-view .conflict-head .dialog-title { flex: 1; min-width: 0; }
+.conflict-view .conflict-scroll { overflow: hidden; flex: 1; min-height: 0; }
+/* cells laid straight into the grid so both sides of a row stay aligned; even cells = right column */
+.conflict-columns > .conflict-cell:nth-child(even), .conflict-columns > .conflict-column-title:nth-child(even) { border-left: 2px solid var(--border-strong); }
+.conflict-cell .cc-label { font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--ink-secondary); margin-bottom: var(--sp-1); }
+.conflict-cell .cc-value { font-size: var(--t-body-size); }
+.conflict-cell .cc-stack { display: flex; flex-direction: column; gap: var(--sp-2); }
+.conflict-cell .cc-same { font-size: var(--t-meta-size); color: var(--ink-secondary); }
+.conflict-cell .tri-state { pointer-events: none; }
+.conflict-view .sticky-action-bar { position: static; }
+/* Phone legend of the five badge states */
+.badge-legend { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border-hairline); }
+.badge-legend li { display: flex; align-items: center; gap: var(--sp-3); min-height: var(--touch-field); padding: var(--sp-2) 0; border-bottom: 1px solid var(--border-hairline); }
+.badge-legend .sync-badge { min-width: 150px; }
+.badge-legend .bl-text { flex: 1; min-width: 0; font-size: var(--t-meta-size); color: var(--ink-secondary); }
+.frame-phone .banner-stack { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-2) var(--gutter-phone) 0; }
+</style>
+</head>
+<body class="mock-page">
+
+<!-- icon sprite (inline, currentColor) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-chev-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-tree" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h13"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.8" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M5 12l7 7 7-7"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20h4l11-11-4-4L4 16z"/><path d="M13 7l4 4"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
+</svg>
+
+<h1 class="mock-title">Sincronização — Sync status e Conflict view</h1>
+<p class="mock-sub">Aparelho de Bruno, 07/09 à tarde (Flow 6). Quadro 1: tablet retrato, Sync status com envio em andamento, download de outro relatório, último envio por usuário e três conflitos aguardando decisão. Quadro 2: tablet paisagem, Conflict view "Ver as duas" da seccionadora da Coluna 12. Quadro 3: telefone, os cinco estados do Sync badge como legenda e os dois Banners globais (espaço e instalação).</p>
+
+<div class="mock-row">
+
+<!-- =============================================================== FRAME 1 — TABLET PORTRAIT, SYNC STATUS -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Sincronização · Sync status</b><span class="sep">·</span>tablet retrato 768×1024 · badge Conflito · 3 fichas e 31 fotos enviando (1 com erro), 1 relatório baixando, 3 conflitos<span class="sep">·</span>Sync badge · Banner (conflict) · Photo tile (upload pill) · Offline & Sync · State Patterns › Sync error, Sync conflict (sheet, structure), Relatório downloading, Working · Flow 6 step 1</p>
+
+  <div class="frame frame-tablet" data-theme="light">
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">Sincronização</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="conflict" aria-label="Sincronização: conflito"><span class="pill"><span class="dot" aria-hidden="true"></span>Conflito</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+
+    <main class="screen">
+      <div class="content">
+
+        <div class="sync-summary">
+          <span class="sync-badge is-compact" data-state="pending"><span class="pill"><span class="dot" aria-hidden="true"></span>3 fichas e 19 fotos aguardando envio</span></span>
+          <span class="sync-badge is-compact" data-state="error"><span class="pill"><span class="dot" aria-hidden="true"></span>1 erro</span></span>
+          <span class="sync-badge is-compact" data-state="conflict"><span class="pill"><span class="dot" aria-hidden="true"></span>3 conflitos</span></span>
+        </div>
+
+        <!-- ---------------- Enviando ---------------- -->
+        <section class="section" aria-labelledby="h-env">
+          <div class="section-head"><h2 id="h-env">Enviando</h2><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>12 de 31 fotos enviadas</span></div>
+          <p class="section-note">Fichas primeiro, fotos depois. Continua sozinho quando houver sinal; nada sai deste aparelho até o servidor confirmar.</p>
+          <p class="field-label" style="margin-bottom: var(--sp-1)">Fichas (3)</p>
+          <ul class="sync-list">
+            <li class="sync-row"><span class="sr-body"><span class="sr-primary">DJ-C13 — Coluna 13 · Disjuntor MT</span><span class="sr-secondary">Alterada por Bruno · 07/09 14:31</span></span><span class="sr-state" data-tone="pending">Enviando…<span class="progress-track" aria-hidden="true"><i style="width:70%"></i></span></span></li>
+            <li class="sync-row"><span class="sr-body"><span class="sr-primary">TP-C13 — Coluna 13 · TP</span><span class="sr-secondary">Alterada por Bruno · 07/09 14:26</span></span><span class="sr-state" data-tone="pending">Aguardando envio</span></li>
+            <li class="sync-row"><span class="sr-body"><span class="sr-primary">TC-C13 — Coluna 13 · TC</span><span class="sr-secondary">Alterada por Bruno · 07/09 14:22</span></span><span class="sr-state" data-tone="pending">Aguardando envio</span></li>
+          </ul>
+          <p class="field-label" style="margin: var(--sp-4) 0 var(--sp-1)">Fotos (31)</p>
+          <ul class="sync-list">
+            <li class="sync-row"><span class="photo-tile is-inline" aria-hidden="true"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge">27</span></span></span><span class="sr-body"><span class="sr-primary">Detalhe dos contatos móvel e fixo do disjuntor DJ-C13 da Coluna 13 do 1° Subsolo</span><span class="sr-secondary">Nº provisório 27 · 07/09 14:30 · Bruno</span></span><span class="sr-state" data-tone="pending">Enviando… 62 %<span class="progress-track" aria-hidden="true"><i style="width:62%"></i></span></span></li>
+            <li class="sync-row"><span class="photo-tile is-inline" aria-hidden="true"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge">28</span></span></span><span class="sr-body"><span class="sr-primary">Detalhe do ensaio de resistência de contato realizado no disjuntor DJ-C13 da Coluna 13</span><span class="sr-secondary">Nº provisório 28 · 07/09 14:33 · Bruno</span></span><span class="upload-pill" data-state="pending"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-up"/></svg>Aguardando envio</span></li>
+            <li class="sync-row"><span class="photo-tile is-inline" aria-hidden="true"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge">9</span></span></span><span class="sr-body"><span class="sr-primary">Detalhe do aterramento temporário realizado no Cubículo Enel</span><span class="sr-secondary">Nº provisório 9 · 06/09 09:12 · Bruno · rejeitada pelo servidor — a foto continua neste aparelho</span></span><button class="upload-pill" data-state="error" aria-describedby="ph9-why">Erro — Tentar novamente</button></li>
+            <li class="sync-row"><span class="sr-body"><span class="sr-secondary" id="ph9-why">+ 16 fotos aguardando envio · 12 enviadas hoje</span></span></li>
+          </ul>
+        </section>
+
+        <!-- ---------------- Baixando ---------------- -->
+        <section class="section" aria-labelledby="h-baix">
+          <div class="section-head"><h2 id="h-baix">Baixando</h2></div>
+          <p class="section-note">Relatórios em Rascunho ou Em campo chegam sozinhos a este aparelho quando há conexão.</p>
+          <ul class="sync-list">
+            <li class="sync-row"><span class="sr-body"><span class="sr-primary">Oxigênio — manutenção 2026</span><span class="sr-secondary">Porto Seguro · Torres A e B · Baixando… 12 de 30 fichas · 8 de 20 fotos</span></span><span class="sr-state" data-tone="pending">40 %<span class="progress-track" aria-hidden="true"><i style="width:40%"></i></span></span></li>
+          </ul>
+        </section>
+
+        <!-- ---------------- Último envio ---------------- -->
+        <section class="section" aria-labelledby="h-ult">
+          <div class="section-head"><h2 id="h-ult">Último envio</h2></div>
+          <p class="section-note">O servidor não sabe o que ainda está em outro aparelho; a hora do último envio é o sinal honesto.</p>
+          <ul class="sync-list">
+            <li class="sync-row"><span class="avatar" aria-hidden="true">B</span><span class="sr-body"><span class="sr-primary">Bruno</span><span class="sr-secondary">Este aparelho · tablet</span></span><span class="sr-state"><time datetime="2026-09-07T14:32">07/09 14:32</time></span></li>
+            <li class="sync-row"><span class="avatar" aria-hidden="true">E</span><span class="sr-body"><span class="sr-primary">Eduardo</span><span class="sr-secondary">Telefone</span></span><span class="sr-state"><time datetime="2026-09-06T18:10">06/09 18:10</time></span></li>
+          </ul>
+        </section>
+
+        <!-- ---------------- Conflitos ---------------- -->
+        <section class="section" aria-labelledby="h-conf">
+          <div class="section-head"><h2 id="h-conf">Conflitos</h2><span class="sync-badge is-compact" data-state="conflict"><span class="pill"><span class="dot" aria-hidden="true"></span>3 aguardam decisão</span></span></div>
+          <p class="section-note">Valores de ficha nunca são mesclados sozinhos. Estrutura (blocos, ordem, legendas, pontos de atenção) é mesclada e listada abaixo.</p>
+          <div class="conflict-list">
+            <div class="banner" data-variant="conflict" role="alert">
+              <span class="banner-text"><strong>Conflito de ficha</strong> — Coluna 12 · Seccionadora SEC-C12: alterada por Eduardo às 14:20. A sua versão é de 14:05.</span>
+              <span class="banner-actions"><button class="btn btn-text">Manter a minha</button><button class="btn btn-text">Manter a dele</button><button class="btn btn-text">Ver as duas</button></span>
+            </div>
+            <div class="banner" data-variant="conflict" role="alert">
+              <span class="banner-text"><strong>Conflito de estrutura</strong> — DJ-C09 · Coluna 9 · Disjuntor MT: removido por você às 13:50, alterado por Eduardo às 14:12.</span>
+              <span class="banner-actions"><button class="btn btn-text">Manter</button><button class="btn btn-text" data-tone="red">Remover</button></span>
+            </div>
+            <div class="banner" data-variant="conflict" role="alert">
+              <span class="banner-text"><strong>TAG duplicada</strong> — SEC-C09 foi criada em dois aparelhos (você às 11:40, Eduardo às 11:55). Manter as duas renomeia a mais recente para SEC-C09-2.</span>
+              <span class="banner-actions"><button class="btn btn-text">Renomear uma</button><button class="btn btn-text">Manter as duas</button></span>
+            </div>
+          </div>
+          <p class="field-label" style="margin: var(--sp-4) 0 var(--sp-1)">Mesclado automaticamente</p>
+          <ul class="sync-list">
+            <li class="sync-row"><span class="sr-body"><span class="sr-primary">Eduardo adicionou TP-C09 em Coluna 9</span><span class="sr-secondary">07/09 14:18 · bloco novo, sem conflito</span></span><span class="sr-state" data-tone="ok">Mesclado</span></li>
+            <li class="sync-row"><span class="sr-body"><span class="sr-primary">Eduardo alterou a legenda da foto 22</span><span class="sr-secondary">07/09 14:15 · a edição mais recente prevalece</span></span><span class="sr-state" data-tone="ok">Mesclado</span></li>
+          </ul>
+        </section>
+
+        <p class="sync-foot">Última sincronização <time datetime="2026-09-07T14:35">07/09 14:35</time> · Tudo o que está neste aparelho fica salvo até o servidor confirmar.</p>
+      </div>
+    </main>
+  </div>
+</div>
+
+</div><!-- /mock-row 1 -->
+
+<div class="mock-row">
+
+<!-- =============================================================== FRAME 2 — TABLET LANDSCAPE, CONFLICT VIEW -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Conflict view · Ver as duas</b><span class="sep">·</span>tablet paisagem 1024×768 · diálogo somente leitura sobre a ficha SEC-C12; item 10, conclusão e fotos diferem<span class="sep">·</span>Conflict view · Banner (conflict) na ficha · Relatório tree (rail persistente) · Tri-state (leitura) · Photo tile · Sticky action bar · Flow 6 step 2 · Flow 4 failure</p>
+
+  <div class="frame frame-tablet-landscape frame--crop" data-theme="light">
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">SEC-C12</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="conflict"><span class="pill"><span class="dot" aria-hidden="true"></span>Conflito</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+    <div class="screen-body" aria-hidden="true">
+      <aside class="rail">
+        <div class="rail-head">Árvore do relatório<span class="icon-btn"><svg class="ico"><use href="#i-tree"/></svg></span></div>
+        <ul class="relatorio-tree">
+          <li class="tree-row" data-level="0"><span class="tree-chevron"><svg class="ico"><use href="#i-chev-down"/></svg></span><span class="tree-body">1° Subsolo<span class="tree-meta">SE · Blindada · 13,8 kV · 21 °C · 64 %</span></span></li>
+          <li class="tree-row" data-level="1"><span class="tree-chevron"><svg class="ico"><use href="#i-chev-right"/></svg></span><span class="tree-body">Coluna 11</span><span class="tree-state" data-state="concluida">✓ 4 de 4</span></li>
+          <li class="tree-row" data-level="1"><span class="tree-chevron"><svg class="ico"><use href="#i-chev-down"/></svg></span><span class="tree-body">Coluna 12</span><span class="tree-state" data-state="em-preenchimento">● 3 de 4</span></li>
+          <li class="tree-row is-selected" data-level="2"><span class="tree-chevron"></span><span class="tree-body">SEC-C12<span class="tree-meta">Chave seccionadora · Conflito</span></span><span class="tree-state" data-state="em-preenchimento">● Em preenchimento</span></li>
+          <li class="tree-row" data-level="2"><span class="tree-chevron"></span><span class="tree-body">DJ-C12<span class="tree-meta">Disjuntor MT</span></span><span class="tree-state" data-state="concluida">✓ Concluída</span></li>
+          <li class="tree-row" data-level="2"><span class="tree-chevron"></span><span class="tree-body">TP-C12<span class="tree-meta">TP — proteção</span></span><span class="tree-state" data-state="concluida">✓ Concluída</span></li>
+          <li class="tree-row" data-level="2"><span class="tree-chevron"></span><span class="tree-body">TC-C12<span class="tree-meta">TC — proteção</span></span><span class="tree-state" data-state="concluida">✓ Concluída</span></li>
+          <li class="tree-row" data-level="1"><span class="tree-chevron"><svg class="ico"><use href="#i-chev-right"/></svg></span><span class="tree-body">Coluna 13</span><span class="tree-state" data-state="em-preenchimento">● 1 de 4</span></li>
+        </ul>
+      </aside>
+      <main class="screen">
+        <div class="banner" data-variant="conflict" style="border-radius:0">
+          <span class="banner-text"><strong>Conflito</strong> — Esta ficha já foi alterada por Eduardo às 14:20.</span>
+          <span class="banner-actions"><span class="btn btn-text">Manter a minha</span><span class="btn btn-text">Manter a dele</span><span class="btn btn-text">Ver as duas</span></span>
+        </div>
+        <div class="sheet-header">
+          <div>
+            <h2 class="sheet-title">Chave seccionadora — <span class="tag-btn">SEC-C12<svg class="ico ico-sm"><use href="#i-pencil"/></svg></span></h2>
+            <p class="sheet-meta">Cubículo 1° Subsolo › Coluna 12</p>
+            <p class="sheet-meta">Preenchido por Bruno · 07/09 14:05</p>
+          </div>
+          <div class="progress-counter" data-state="pending"><span class="dot"></span>1 obrigatório faltando</div>
+        </div>
+        <div class="content">
+          <section class="section"><div class="section-head"><h2>Dados de placa</h2></div>
+            <div class="field"><span class="field-label">Fabricante</span><div class="input">Schneider</div></div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <div class="dialog-scrim">
+      <div class="conflict-view conflict-dialog" role="dialog" aria-modal="true" aria-labelledby="cv-title" aria-describedby="cv-desc">
+        <div class="conflict-head">
+          <div class="dialog-title" id="cv-title">Ver as duas — SEC-C12 · Chave seccionadora<br><span class="t-meta ink-secondary" id="cv-desc" style="font-weight:400">Somente leitura. Escolha uma versão inteira; os valores não são mesclados campo a campo.</span></div>
+          <button class="icon-btn" aria-label="Voltar sem decidir"><svg class="ico"><use href="#i-close"/></svg></button>
+        </div>
+        <div class="conflict-scroll">
+          <div class="conflict-columns">
+            <div class="conflict-column-title">A minha — Bruno · <time datetime="2026-09-07T14:05">07/09 14:05</time> · este aparelho</div>
+            <div class="conflict-column-title">A de Eduardo — Eduardo · <time datetime="2026-09-07T14:20">07/09 14:20</time> · telefone</div>
+
+            <div class="conflict-cell"><p class="cc-label">Dados de placa · verificações 1 a 9 e 11 a 14 · ensaios</p><p class="cc-value">Schneider · SU1241044 · 15 kV · 400 A · 13 itens Conforme · 9 valores iguais</p><p class="cc-same">Igual nas duas</p></div>
+            <div class="conflict-cell"><p class="cc-label">Dados de placa · verificações 1 a 9 e 11 a 14 · ensaios</p><p class="cc-value">Schneider · SU1241044 · 15 kV · 400 A · 13 itens Conforme · 9 valores iguais</p><p class="cc-same">Igual nas duas</p></div>
+
+            <div class="conflict-cell is-changed">
+              <p class="cc-label">10. Fusíveis</p>
+              <div class="cc-stack">
+                <div class="tri-state" role="radiogroup" aria-label="10. Fusíveis, a minha" aria-disabled="true"><span class="seg" role="radio" data-value="c" aria-checked="true">C</span><span class="seg" role="radio" data-value="nc" aria-checked="false">NC</span><span class="seg" role="radio" data-value="na" aria-checked="false">NA</span></div>
+                <p class="cc-value">Conforme · sem observação · sem foto</p>
+              </div>
+            </div>
+            <div class="conflict-cell is-changed">
+              <p class="cc-label">10. Fusíveis</p>
+              <div class="cc-stack">
+                <div class="tri-state" role="radiogroup" aria-label="10. Fusíveis, a de Eduardo" aria-disabled="true"><span class="seg" role="radio" data-value="c" aria-checked="false">C</span><span class="seg" role="radio" data-value="nc" aria-checked="true">NC</span><span class="seg" role="radio" data-value="na" aria-checked="false">NA</span></div>
+                <p class="cc-value">Não conforme — "Fusível da fase B com sinais de aquecimento na base"</p>
+                <div class="photo-row" style="padding:0; border:0">
+                  <span class="photo-tile is-inline" aria-hidden="true"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge">31</span></span></span>
+                  <div class="photo-text"><p class="photo-caption">Detalhe dos fusíveis da seccionadora SEC-C12 da Coluna 12 do 1° Subsolo — item 10</p><p class="photo-meta">Nº provisório 31 · 07/09 14:19 · Eduardo · Enviada</p></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="conflict-cell is-changed"><p class="cc-label">Conclusão</p><p class="cc-value">Aprovado · Sem restrições</p></div>
+            <div class="conflict-cell is-changed"><p class="cc-label">Conclusão</p><p class="cc-value">Aprovado · Com restrições</p></div>
+
+            <div class="conflict-cell is-changed"><p class="cc-label">Fotos da ficha</p><p class="cc-value">2 fotos (nº provisórios 24 e 25)</p></div>
+            <div class="conflict-cell is-changed"><p class="cc-label">Fotos da ficha</p><p class="cc-value">3 fotos (24, 25 e 31 — a foto de Eduardo)</p></div>
+          </div>
+        </div>
+        <div class="sticky-action-bar">
+          <span class="btn-reason">Manter a dele guarda a foto 31 e a observação do item 10; manter a minha descarta-as nesta ficha (a foto continua na galeria).</span>
+          <div class="bar-buttons">
+            <button class="btn btn-secondary">Manter a minha</button>
+            <button class="btn btn-secondary">Manter a dele</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /mock-row 2 -->
+
+<div class="mock-row">
+
+<!-- =============================================================== FRAME 3 — PHONE, BADGE STATES + GLOBAL BANNERS -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Sync badge · cinco estados + Banners globais</b><span class="sep">·</span>telefone 390 · legenda dos estados ok / pendente / sem conexão / erro / conflito; Banner de espaço (warning) e de instalação (info) na Home<span class="sep">·</span>Sync badge · Banner (warning, info) · State Patterns › Storage low, App not installed · Colors › Sync states</p>
+
+  <div class="frame frame-phone" data-theme="light">
+    <header class="app-bar">
+      <div class="app-bar-left"><span class="wordmark">PRODUTO</span></div>
+      <h1 class="app-bar-title visually-hidden">Início</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="conflict" aria-label="Sincronização: conflito"><span class="pill"><span class="dot" aria-hidden="true"></span>Conflito</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+    <main class="screen">
+      <div class="banner-stack">
+        <div class="banner" role="status">
+          <span class="banner-text">Pouco espaço neste aparelho (180 MB). Sincronize para liberar.</span>
+          <span class="banner-actions"><button class="btn btn-text">Sincronizar</button></span>
+        </div>
+        <div class="banner" data-variant="info" role="status">
+          <span class="banner-text">Instale PRODUTO na tela inicial para usar sem conexão.</span>
+          <span class="banner-actions"><button class="btn btn-text">Instalar</button><button class="btn btn-text">Agora não</button></span>
+        </div>
+      </div>
+
+      <div class="content">
+        <section class="section" aria-labelledby="h-leg">
+          <div class="section-head"><h2 id="h-leg">Estados do Sync badge</h2></div>
+          <p class="section-note">Um ponto e sempre uma palavra. Toque abre a Sincronização. Anuncia só a mudança de estado, nunca a contagem.</p>
+          <ul class="badge-legend">
+            <li><span class="sync-badge" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></span><span class="bl-text">Nada pendente neste aparelho.</span></li>
+            <li><span class="sync-badge" data-state="pending"><span class="pill"><span class="dot" aria-hidden="true"></span>5 pendentes</span></span><span class="bl-text">Fichas ou fotos aguardando envio, ou um relatório ainda baixando.</span></li>
+            <li><span class="sync-badge" data-state="offline"><span class="pill"><span class="dot" aria-hidden="true"></span>Sem conexão</span></span><span class="bl-text">Sem sinal. Tudo fica salvo neste aparelho.</span></li>
+            <li><span class="sync-badge" data-state="error"><span class="pill"><span class="dot" aria-hidden="true"></span>Erro</span></span><span class="bl-text">Um envio foi rejeitado e precisa de atenção; os outros continuam.</span></li>
+            <li><span class="sync-badge" data-state="conflict"><span class="pill"><span class="dot" aria-hidden="true"></span>Conflito</span></span><span class="bl-text">Outra pessoa alterou a mesma ficha, ou a estrutura diverge — aguarda uma decisão.</span></li>
+          </ul>
+        </section>
+
+        <section class="section" aria-labelledby="h-comp">
+          <div class="section-head"><h2 id="h-comp">Variante compacta (Relatório card)</h2></div>
+          <div class="relatorio-card">
+            <div class="card-title"><span>Porto Seguro · Torres A e B</span><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></div>
+            <p class="card-meta">06–08/09/2026 · Cabine primária — Porto Seguro — Torres A e B</p>
+            <div class="card-state"><span class="status-pill" data-status="em-campo">Em campo</span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>64 de 94 fichas</span><span class="sync-badge is-compact" data-state="pending"><span class="pill"><span class="dot" aria-hidden="true"></span>5 pendentes</span></span></div>
+            <p class="card-device">No aparelho · atualizado 14:35</p>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+
+</div><!-- /mock-row 3 -->
+
+</body>
+</html>

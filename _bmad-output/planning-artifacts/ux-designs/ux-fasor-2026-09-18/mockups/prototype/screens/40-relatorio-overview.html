@@ -1,0 +1,328 @@
+<style data-screen="relatorio-overview">
+/* Source: mockups/key-relatorio-overview.html frame 1 (cabine column) + frames 2–3 (Block palette as drawer / bottom sheet), reworked to v0.5.0:
+   no "Sem local" group (blocks are born in their column — Block Model › Template), cabine data read-only ("Da cabine", edited on the first sheet),
+   and the FIELD Block palette: "Fotografar equipamento" first, then the 8 types with the TAG suggested inline (Smart Input › Equipment identity; Flow 3).
+   The Relatório tree itself lives in the shell rail (rail-tree template in shell-foot.html).
+   Governs: EXPERIENCE.md § IA › Relatório overview, Block palette; § Block Model › Location; § Component Patterns › Block palette (field), Suggestion field; Flow 1 steps 6–7, Flow 3 steps 2–3. */
+[data-route="/relatorio/porto-seguro"] .overview-content { flex: 1; min-width: 0; padding: var(--sp-5) var(--gutter-tablet); }
+.frame-phone [data-route="/relatorio/porto-seguro"] .overview-content { padding: var(--sp-4) var(--gutter-phone); }
+[data-route="/relatorio/porto-seguro"] .cabine-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-5); }
+.frame-phone [data-route="/relatorio/porto-seguro"] .cabine-grid { grid-template-columns: 1fr; }
+[data-route="/relatorio/porto-seguro"] .cabine-grid .fields { display: flex; flex-direction: column; gap: var(--sp-3); }
+[data-route="/relatorio/porto-seguro"] .cabine-grid .section { margin-top: 0; }
+/* "Da cabine" read-only band above the two groups: one line of text + the link into the first sheet */
+[data-route="/relatorio/porto-seguro"] .da-cabine { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-4); padding: var(--sp-2) var(--sp-4); background: var(--surface-base); border: 1px solid var(--border-hairline); border-radius: var(--r-md); font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+[data-route="/relatorio/porto-seguro"] .da-cabine .da-label { font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--ink-primary); }
+[data-route="/relatorio/porto-seguro"] .da-cabine .btn-text { margin-left: auto; }
+.frame-phone [data-route="/relatorio/porto-seguro"] .da-cabine .btn-text { margin-left: 0; }
+[data-route="/relatorio/porto-seguro"] .block-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+[data-route="/relatorio/porto-seguro"] .block-card { cursor: pointer; }
+[data-route="/relatorio/porto-seguro"] .block-card .block-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+[data-route="/relatorio/porto-seguro"] .block-card .block-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-1) var(--sp-3); }
+[data-route="/relatorio/porto-seguro"] .header-side { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-1); flex: none; }
+.frame-phone [data-route="/relatorio/porto-seguro"] .header-side { align-items: flex-start; }
+/* Field palette: the camera tile sits in the palette padding; a type row expands into its inline TAG confirm (data-toggle-target on the wrapper) */
+[data-route="/relatorio/porto-seguro"] .block-palette .pal-camera { padding: var(--sp-2) var(--sp-4) var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2); }
+[data-route="/relatorio/porto-seguro"] .block-palette .pal-camera .camera-capture-tile { cursor: pointer; }
+[data-route="/relatorio/porto-seguro"] .block-palette .pal-camera .camera-sub { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); text-align: center; }
+[data-route="/relatorio/porto-seguro"] .block-palette .palette-item { cursor: pointer; }
+[data-route="/relatorio/porto-seguro"] .lo-type.is-open > .palette-item { background: var(--focus-fill); }
+[data-route="/relatorio/porto-seguro"] .lo-type .type-confirm { display: none; padding: var(--sp-2) var(--sp-4) var(--sp-4); gap: var(--sp-2); flex-direction: column; background: var(--focus-fill); }
+[data-route="/relatorio/porto-seguro"] .lo-type.is-open .type-confirm { display: flex; }
+[data-route="/relatorio/porto-seguro"] .lo-type .type-confirm .confirm-row { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+[data-route="/relatorio/porto-seguro"] .lo-type .type-confirm .suggestion-field { flex: 1 1 100%; }
+[data-route="/relatorio/porto-seguro"] .lo-type .type-confirm .suggestion-field > .input { padding-left: var(--sp-3); }
+[data-route="/relatorio/porto-seguro"] .lo-type .type-confirm .sv { font-size: var(--t-body-size); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+[data-route="/relatorio/porto-seguro"] .lo-type .type-confirm .confirm-btn { cursor: pointer; }
+[data-route="/relatorio/porto-seguro"] .block-palette .office-note { padding: var(--sp-3) var(--sp-4) 0; font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); border-top: 1px solid var(--border-hairline); margin-top: var(--sp-2); }
+/* "Fotografar equipamento": simulated viewfinder (a dialog, not the OS camera) and the result card with the crop beside the suggestion */
+[data-route="/relatorio/porto-seguro"] .detect-dialog { width: min(560px, 100%); }
+.frame-phone [data-route="/relatorio/porto-seguro"] #relatorio-dlg-detect, .frame-phone [data-route="/relatorio/porto-seguro"] #relatorio-dlg-detect-result { padding: 0; align-items: flex-end; }
+.frame-phone [data-route="/relatorio/porto-seguro"] .detect-dialog { border-radius: var(--r-lg) var(--r-lg) 0 0; }
+[data-route="/relatorio/porto-seguro"] .viewfinder { position: relative; width: 100%; aspect-ratio: 4 / 3; border-radius: var(--r-md); overflow: hidden; background: #2A2F37; }
+[data-route="/relatorio/porto-seguro"] .viewfinder .thumb-fake { position: absolute; inset: 0; }
+[data-route="/relatorio/porto-seguro"] .viewfinder .vf-frame { position: absolute; inset: 12% 10%; border: 2px dashed rgba(255,255,255,.85); border-radius: var(--r-sm); }
+[data-route="/relatorio/porto-seguro"] .viewfinder .vf-label { position: absolute; left: 0; right: 0; bottom: var(--sp-3); text-align: center; color: #FFFFFF; font-size: var(--t-label-size); font-weight: var(--t-label-weight); text-shadow: 0 1px 2px rgba(0,0,0,.6); padding: 0 var(--sp-4); }
+[data-route="/relatorio/porto-seguro"] .viewfinder .vf-plate { position: absolute; left: 34%; top: 20%; width: 32%; height: 14%; border: 2px solid var(--fora-do-limite); border-radius: 2px; background: rgba(255,255,255,.12); }
+[data-route="/relatorio/porto-seguro"] .vf-actions { display: flex; align-items: center; justify-content: center; gap: var(--sp-5); }
+[data-route="/relatorio/porto-seguro"] .vf-actions .camera-capture-btn { cursor: pointer; }
+[data-route="/relatorio/porto-seguro"] .detect-result { display: flex; flex-direction: column; gap: var(--sp-3); }
+[data-route="/relatorio/porto-seguro"] .detect-result .suggestion-field > .input { min-height: var(--touch-field); padding-left: var(--sp-3); }
+[data-route="/relatorio/porto-seguro"] .detect-result .suggestion-field .sv { display: flex; flex-direction: column; gap: 2px; }
+[data-route="/relatorio/porto-seguro"] .detect-result .suggestion-field .sv-main { font-size: var(--t-value-size); font-weight: var(--t-value-weight); font-variant-numeric: tabular-nums; }
+[data-route="/relatorio/porto-seguro"] .detect-result .suggestion-field .sv-sub { font-size: var(--t-meta-size); color: var(--ink-secondary); }
+[data-route="/relatorio/porto-seguro"] .detect-result .confirm-btn { cursor: pointer; }
+[data-route="/relatorio/porto-seguro"] .detect-result .crop-thumb { margin-left: 0; }
+[data-route="/relatorio/porto-seguro"] .detect-result .prov-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--sp-2); }
+.frame-phone [data-route="/relatorio/porto-seguro"] .detect-result .prov-list { grid-template-columns: 1fr; }
+[data-route="/relatorio/porto-seguro"] .detect-result .prov-list li { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+[data-route="/relatorio/porto-seguro"] .detect-result .prov-list b { display: block; color: var(--ink-primary); font-weight: 600; }
+[data-route="/relatorio/porto-seguro"] .detect-result .chip-row { padding-top: var(--sp-1); }
+</style>
+<section class="screen" data-route="/relatorio/porto-seguro" data-title="Porto Seguro · Torres A e B" data-shell="app" data-rail="true">
+
+  <div class="sheet-header">
+    <div>
+      <h2 class="sheet-title">Cabine — <button class="tag-btn" data-toast="Renomear cabine — não prototipado" aria-label="Renomear cabine Cubículo Enel">Cubículo Enel<svg class="ico ico-sm" aria-hidden="true"><use href="#i-pencil"/></svg></button></h2>
+      <p class="sheet-meta">Seção 9: uma subseção "Cubículo Enel", fichas na ordem da árvore · todos os 94 blocos nasceram na sua coluna (template Porto Seguro — Torres A e B)</p>
+      <p class="sheet-meta">Dados da SE editados por Bruno em CB-ENT · 03/09 16:40</p>
+    </div>
+    <div class="header-side">
+      <div class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>3 de 9 fichas concluídas</div>
+      <button class="btn btn-text" data-go="#/relatorio/porto-seguro/setup"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg>Dados do relatório</button>
+    </div>
+  </div>
+
+  <div class="overview-content">
+
+    <!-- ---------------- Cabine data: read-only here, edited only on the cabine's first sheet (Block Model › Location) ---------------- -->
+    <div class="da-cabine" role="note">
+      <span class="da-label">Da cabine</span>
+      <span>Somente leitura aqui — edite na primeira ficha (CB-ENT). Todas as fichas do Cubículo Enel mostram os mesmos valores.</span>
+      <a class="btn btn-text" href="#/ficha/CB-ENT">Abrir primeira ficha<svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></a>
+    </div>
+
+    <div class="cabine-grid">
+      <section class="section is-readonly" aria-labelledby="lo-h-se">
+        <div class="section-head"><h2 id="lo-h-se">Características da SE</h2></div>
+        <p class="section-note">Impressas na primeira ficha desta cabine.</p>
+        <div class="fields">
+          <div class="field"><span class="field-label">Tipo de SE</span><div class="input">Blindada</div></div>
+          <div class="field"><span class="field-label">Tensão primária</span><div class="measurement-field"><span class="mf-value">13,8</span><span class="mf-unit" aria-label="quilovolts">kV</span></div></div>
+          <div class="field"><span class="field-label">Tensão secundária</span><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit" aria-label="volts">V</span></div><span class="helper">Cubículo de entrada: sem secundário</span></div>
+          <div class="field"><span class="field-label">Potência instalada</span><div class="measurement-field"><span class="mf-value">10</span><span class="mf-unit" aria-label="quilovolt-ampères">kVA</span></div></div>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="lo-h-amb">
+        <div class="section-head"><h2 id="lo-h-amb">Ambiente de ensaio</h2></div>
+        <p class="section-note">Valem para todas as fichas da cabine.</p>
+        <div class="fields is-readonly">
+          <div class="field"><span class="field-label">Temperatura</span><div class="measurement-field"><span class="mf-value">19</span><span class="mf-unit" aria-label="graus Celsius">°C</span></div></div>
+          <div class="field"><span class="field-label">Umidade relativa do ar</span><div class="measurement-field"><span class="mf-value">67</span><span class="mf-unit" aria-label="por cento">%</span></div></div>
+          <div class="field"><span class="field-label">Altitude</span><div class="measurement-field"><span class="mf-value">&lt; 1.000</span><span class="mf-unit" aria-label="metros">m</span></div><span class="helper">760 m pelo GPS, confirmada no Relatório setup</span></div>
+        </div>
+        <div class="toggle-row" style="margin-top: var(--sp-4)">
+          <div><div class="toggle-label">Agrupar por tipo na seção 9</div><div class="toggle-sub">Desativado: "9.1 Cubículo Enel" com as 9 fichas na ordem da árvore</div></div>
+          <button class="toggle" role="switch" aria-checked="false" aria-label="Agrupar por tipo na seção 9"><span class="toggle-word">Desativado</span><span class="track" aria-hidden="true"><span class="knob"></span></span></button>
+        </div>
+      </section>
+    </div>
+
+    <!-- ---------------- Blocks of this cabine: each card opens its sheet ---------------- -->
+    <section class="section" aria-labelledby="lo-h-blocos">
+      <div class="section-head">
+        <h2 id="lo-h-blocos">Blocos desta cabine (9)</h2>
+        <button class="btn btn-secondary" data-open="#lo-palette"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar bloco</button>
+      </div>
+      <ul class="block-list" aria-label="Blocos de Cubículo Enel">
+        <li class="block-card" data-go="#/ficha/CB-ENT">
+          <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar CB-ENT"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+          <div class="block-body"><div class="block-line"><span class="block-name">Cabos de entrada</span><span class="block-tag">CB-ENT</span></div><span class="block-sub">Concluída · 5 itens · Isolação · primeira ficha: "Da cabine" · Preenchido por Bruno · 06/09 09:41</span></div>
+          <button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de CB-ENT"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+        </li>
+        <li class="block-card" data-go="#/ficha/SEC-C05">
+          <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar PR-ENT"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+          <div class="block-body"><div class="block-line"><span class="block-name">Para-raio de entrada</span><span class="block-tag">PR-ENT</span></div><span class="block-sub">Concluída · 6 campos de placa · 5 itens · Isolação · Preenchido por Bruno · 06/09 10:05</span></div>
+          <button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de PR-ENT"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+        </li>
+        <li class="block-card" data-go="#/ficha/SEC-ENT">
+          <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar SEC-ENT"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+          <div class="block-body"><div class="block-line"><span class="block-name">Seccionadora de entrada</span><span class="block-tag">SEC-ENT</span></div><span class="block-sub">Em preenchimento · 3 obrigatórios faltando · Preenchido por Bruno · 06/09 10:32</span></div>
+          <button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de SEC-ENT"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+        </li>
+        <li class="block-card" data-go="#/ficha/SEC-C05">
+          <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar SEC-SAI"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+          <div class="block-body"><div class="block-line"><span class="block-name">Seccionadora de saída</span><span class="block-tag">SEC-SAI</span></div><span class="block-sub">Vazia · 9 campos de placa · 14 itens · Isolação aberto/fechado · Resistência de contato</span></div>
+          <button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de SEC-SAI"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+        </li>
+        <li class="block-card" data-go="#/ficha/TP-C16">
+          <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar TP-ENEL"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+          <div class="block-body"><div class="block-line"><span class="block-name">TP — proteção</span><span class="block-tag">TP-ENEL</span></div><span class="block-sub">Vazia · 12 campos de placa · 15 itens · Isolação · Relação de transformação</span></div>
+          <button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de TP-ENEL"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+        </li>
+        <li class="block-card" data-go="#/ficha/TP-C16">
+          <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar TC-ENEL"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+          <div class="block-body"><div class="block-line"><span class="block-name">TC — proteção</span><span class="block-tag">TC-ENEL</span></div><span class="block-sub">Vazia · 12 campos de placa · 15 itens · Isolação · Relação de transformação</span></div>
+          <button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de TC-ENEL"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+        </li>
+        <li class="block-card" data-go="#/ficha/DJ-C14">
+          <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar DJ-ENEL"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+          <div class="block-body"><div class="block-line"><span class="block-name">Disjuntor MT</span><span class="block-tag">DJ-ENEL</span><span class="not-tested-chip">Não ensaiado</span></div><span class="block-sub">Motivo: sem desligamento autorizado pelo cliente · listado na seção 8 · Bruno · 06/09 11:10</span></div>
+          <button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de DJ-ENEL"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+        </li>
+        <li class="block-card" data-go="#/ficha/SEC-C05">
+          <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar PR-SAI"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+          <div class="block-body"><div class="block-line"><span class="block-name">Para-raio de saída</span><span class="block-tag">PR-SAI</span></div><span class="block-sub">Vazia · 6 campos de placa · 5 itens · Isolação</span></div>
+          <button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de PR-SAI"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+        </li>
+        <li class="block-card" data-go="#/ficha/CB-ENT">
+          <button class="drag-handle" data-toast="Arraste para reordenar — não prototipado" aria-label="Reordenar CB-SAI"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+          <div class="block-body"><div class="block-line"><span class="block-name">Cabos de saída</span><span class="block-tag">CB-SAI</span></div><span class="block-sub">Vazia · 5 itens · Isolação</span></div>
+          <button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de CB-SAI"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+        </li>
+      </ul>
+    </section>
+
+  </div><!-- /overview-content -->
+
+  <div class="sticky-action-bar">
+    <span class="btn-reason" id="lo-gerar-reason">Gerar relatório: 3 de 94 fichas concluídas · 1 não ensaiado · 12 legendas sugeridas — a verificação antes de emitir lista tudo isso</span>
+    <div class="bar-buttons">
+      <button class="btn btn-secondary" data-go="#/relatorio/porto-seguro/fotos"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg>Fotos</button>
+      <button class="btn btn-secondary" data-go="#/relatorio/porto-seguro/pontos"><svg class="ico" aria-hidden="true"><use href="#i-flag"/></svg>Pontos de atenção</button>
+      <button class="btn btn-primary" data-go="#/relatorio/porto-seguro/exportar" aria-describedby="lo-gerar-reason"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg>Gerar relatório</button>
+    </div>
+  </div>
+
+  <!-- ---------------- FIELD Block palette: right drawer (tablet) or bottom sheet (phone) — data-open="#lo-palette" ----------------
+       First row "Fotografar equipamento" (→ #relatorio-dlg-detect), then the 8 equipment types; tapping a type opens its inline TAG confirm.
+       No section blocks, no sub-block toggles, no "Já no relatório" rows: those are office-only (Template composer / desktop). -->
+  <div class="dialog-scrim palette-scrim" id="lo-palette" hidden>
+    <aside class="block-palette" role="dialog" aria-modal="true" aria-label="Adicionar bloco">
+      <span class="sheet-grip" aria-hidden="true"></span>
+      <div class="palette-head"><span>Adicionar bloco</span><button class="icon-btn" data-close aria-label="Fechar"><svg class="ico" aria-hidden="true"><use href="#i-close"/></svg></button></div>
+      <p class="palette-group" style="padding-top: var(--sp-3)">Em: 1° Subsolo › Coluna 9 (última coluna aberta) · <button class="btn btn-text" style="padding:0; min-height:0" data-toast="Escolher outra coluna — não prototipado">Trocar</button></p>
+
+      <div class="pal-camera" data-slice="out" data-slice-note=" · FR-38">
+        <button class="camera-capture-tile" data-close data-open="#relatorio-dlg-detect" aria-describedby="lo-cam-sub"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg>Fotografar equipamento</button>
+        <p class="camera-sub" id="lo-cam-sub">Uma foto da frente do painel: tipo, coluna e TAG sugeridos; a mesma foto vira a placa da ficha.</p>
+      </div>
+
+      <p class="palette-group">Ou escolha o tipo · TAG sugerida por tipo + coluna</p>
+
+      <div class="lo-type" id="lo-type-cbent">
+        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-cbent" aria-expanded="false" aria-controls="lo-type-cbent-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Cabos de entrada</span><span class="pi-meta">5 itens · Isolação · CB-C09</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <div class="type-confirm" id="lo-type-cbent-confirm">
+          <div class="confirm-row">
+            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e coluna</span><div class="input"><span class="sv">CB-C09 · Coluna 9</span><button class="confirm-btn" data-close data-go="#/ficha/CB-ENT" data-toast="CB-C09 criada na Coluna 9">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
+            <button class="btn btn-text" data-toast="Editar TAG — o campo aceita outra TAG antes de confirmar">Editar</button>
+          </div>
+        </div>
+      </div>
+      <div class="lo-type" id="lo-type-pr">
+        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-pr" aria-expanded="false" aria-controls="lo-type-pr-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Para-raio (entrada / saída)</span><span class="pi-meta">6 campos de placa · 5 itens · PR-C09</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <div class="type-confirm" id="lo-type-pr-confirm">
+          <div class="confirm-row">
+            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e coluna</span><div class="input"><span class="sv">PR-C09 · Coluna 9</span><button class="confirm-btn" data-close data-go="#/ficha/SEC-C05" data-toast="PR-C09 criada na Coluna 9">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
+            <button class="btn btn-text" data-toast="Editar TAG — o campo aceita outra TAG antes de confirmar">Editar</button>
+          </div>
+        </div>
+      </div>
+      <div class="lo-type" id="lo-type-sec">
+        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-sec" aria-expanded="false" aria-controls="lo-type-sec-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Chave seccionadora</span><span class="pi-meta">9 campos · 14 itens · Isolação aberto/fechado · Contato · SEC-C09</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <div class="type-confirm" id="lo-type-sec-confirm">
+          <div class="confirm-row">
+            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e coluna</span><div class="input"><span class="sv">SEC-C09 · Coluna 9</span><button class="confirm-btn" data-close data-go="#/ficha/SEC-C05" data-toast="SEC-C09 criada na Coluna 9">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
+            <button class="btn btn-text" data-toast="Editar TAG — o campo aceita outra TAG antes de confirmar">Editar</button>
+          </div>
+          <span class="helper">Subtipo padrão do template: manual (NA em 9. Motor e 10. Fusíveis) · a ficha abre vazia, placa por foto.</span>
+        </div>
+      </div>
+      <div class="lo-type" id="lo-type-dj">
+        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-dj" aria-expanded="false" aria-controls="lo-type-dj-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Disjuntor MT</span><span class="pi-meta">12 campos · 15 itens · Isolação aberto/fechado · Contato · DJ-C09</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <div class="type-confirm" id="lo-type-dj-confirm">
+          <div class="confirm-row">
+            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e coluna</span><div class="input"><span class="sv">DJ-C09 · Coluna 9</span><button class="confirm-btn" data-close data-go="#/ficha/DJ-C14" data-toast="DJ-C09 criada na Coluna 9">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
+            <button class="btn btn-text" data-toast="Editar TAG — o campo aceita outra TAG antes de confirmar">Editar</button>
+          </div>
+        </div>
+      </div>
+      <div class="lo-type" id="lo-type-tp">
+        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-tp" aria-expanded="false" aria-controls="lo-type-tp-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>TP — proteção</span><span class="pi-meta">12 campos · 15 itens · Isolação · Relação de transformação · TP-C09</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <div class="type-confirm" id="lo-type-tp-confirm">
+          <div class="confirm-row">
+            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e coluna</span><div class="input"><span class="sv">TP-C09 · Coluna 9</span><button class="confirm-btn" data-close data-go="#/ficha/TP-C16" data-toast="TP-C09 criada na Coluna 9">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
+            <button class="btn btn-text" data-toast="Editar TAG — o campo aceita outra TAG antes de confirmar">Editar</button>
+          </div>
+        </div>
+      </div>
+      <div class="lo-type" id="lo-type-tc">
+        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-tc" aria-expanded="false" aria-controls="lo-type-tc-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>TC — proteção</span><span class="pi-meta">12 campos · 15 itens · Isolação · Relação · TC-C09</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <div class="type-confirm" id="lo-type-tc-confirm">
+          <div class="confirm-row">
+            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e coluna</span><div class="input"><span class="sv">TC-C09 · Coluna 9</span><button class="confirm-btn" data-close data-go="#/ficha/TP-C16" data-toast="TC-C09 criada na Coluna 9">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
+            <button class="btn btn-text" data-toast="Editar TAG — o campo aceita outra TAG antes de confirmar">Editar</button>
+          </div>
+        </div>
+      </div>
+      <div class="lo-type" id="lo-type-cbsai">
+        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-cbsai" aria-expanded="false" aria-controls="lo-type-cbsai-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Cabos de saída / alimentação TRn</span><span class="pi-meta">5 itens · Isolação · CBS-C09</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <div class="type-confirm" id="lo-type-cbsai-confirm">
+          <div class="confirm-row">
+            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e coluna</span><div class="input"><span class="sv">CBS-C09 · Coluna 9</span><button class="confirm-btn" data-close data-go="#/ficha/CB-ENT" data-toast="CBS-C09 criada na Coluna 9">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
+            <button class="btn btn-text" data-toast="Editar TAG — o campo aceita outra TAG antes de confirmar">Editar</button>
+          </div>
+        </div>
+      </div>
+      <div class="lo-type" id="lo-type-tr">
+        <button class="palette-item" data-toggle-class="is-open" data-toggle-target="#lo-type-tr" aria-expanded="false" aria-controls="lo-type-tr-confirm"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Transformador de força</span><span class="pi-meta">12 campos · 15 itens · Isolação · Relação por TAP · TR-C09</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <div class="type-confirm" id="lo-type-tr-confirm">
+          <div class="confirm-row">
+            <div class="field suggestion-field" data-state="suggested"><span class="field-label">TAG e coluna</span><div class="input"><span class="sv">TR-C09 · Coluna 9</span><button class="confirm-btn" data-close data-go="#/ficha/SEC-C05" data-toast="TR-C09 criada na Coluna 9">Confirmar</button></div><span class="suggested-pill">Sugerido</span></div>
+            <button class="btn btn-text" data-toast="Editar TAG — o campo aceita outra TAG antes de confirmar">Editar</button>
+          </div>
+        </div>
+      </div>
+
+      <p class="office-note">Seções de texto e sub-blocos (ensaios, placa, itens) são do escritório: Compositor de template e paleta aberta de dentro da ficha no desktop.</p>
+    </aside>
+  </div>
+
+  <!-- ---------------- "Fotografar equipamento" — simulated viewfinder (data-open="#relatorio-dlg-detect"); the shutter closes it and opens the result ---------------- -->
+  <div class="dialog-scrim" id="relatorio-dlg-detect" hidden>
+    <div class="form-dialog detect-dialog" role="dialog" aria-modal="true" aria-labelledby="relatorio-detect-title" aria-describedby="relatorio-detect-desc">
+      <h2 class="dialog-title" id="relatorio-detect-title">Fotografar equipamento</h2>
+      <p class="t-body" id="relatorio-detect-desc">Enquadre a frente do painel com a etiqueta da coluna. Uma foto basta.</p>
+      <div class="viewfinder" aria-hidden="true">
+        <span class="thumb-fake"></span>
+        <span class="vf-frame"></span>
+        <span class="vf-plate"></span>
+        <span class="vf-label">Etiqueta da coluna dentro da moldura</span>
+      </div>
+      <div class="vf-actions">
+        <button class="btn btn-text" data-close>Cancelar</button>
+        <button class="camera-capture-btn" data-close data-open="#relatorio-dlg-detect-result" aria-label="Tirar foto"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg><span class="cam-word">Foto</span></button>
+        <button class="btn btn-text" data-close data-open="#lo-palette">Escolher o tipo</button>
+      </div>
+      <span class="btn-reason">Sem sinal, a foto fica guardada: o bloco é criado pelo tipo e a foto já vira a placa dele.</span>
+    </div>
+  </div>
+
+  <!-- ---------------- Result: type, column and TAG suggested from the panel photo; one "Confirmar" creates the block ---------------- -->
+  <div class="dialog-scrim" id="relatorio-dlg-detect-result" hidden>
+    <div class="form-dialog detect-dialog" role="dialog" aria-modal="true" aria-labelledby="relatorio-detect-r-title" aria-describedby="relatorio-detect-r-desc">
+      <h2 class="dialog-title" id="relatorio-detect-r-title">Sugestão: Chave seccionadora · Coluna 9 · SEC-C09</h2>
+      <p class="t-body" id="relatorio-detect-r-desc">Lida da foto no servidor. Nada é criado sem a sua confirmação.</p>
+      <div class="detect-result">
+        <div class="field suggestion-field" data-state="suggested">
+          <span class="field-label">Novo bloco</span>
+          <div class="input">
+            <button class="crop-thumb" data-toast="Ampliar recorte da foto — não prototipado" aria-label="Ver recorte da etiqueta"><i class="thumb-fake"></i></button>
+            <span class="sv"><span class="sv-main">SEC-C09 · Coluna 9</span><span class="sv-sub">Chave seccionadora · 1° Subsolo</span></span>
+            <button class="confirm-btn" data-close data-go="#/ficha/SEC-C05" data-toast="SEC-C09 criada na Coluna 9">Confirmar</button>
+          </div>
+          <span class="suggested-pill">Sugerido</span>
+        </div>
+        <ul class="prov-list" aria-label="Origem de cada sugestão">
+          <li><b>Tipo</b>frente do painel</li>
+          <li><b>Coluna</b>etiqueta "C09" na foto</li>
+          <li><b>TAG</b>tipo + coluna · nenhuma SEC-C09 no relatório</li>
+        </ul>
+        <span class="field-label">Tipo errado? Toque no certo</span>
+        <div class="chip-row chips-recent" role="radiogroup" aria-label="Tipo do equipamento">
+          <button class="chip" aria-pressed="true">Chave seccionadora</button>
+          <button class="chip" aria-pressed="false" data-toast="Tipo trocado para Disjuntor MT · TAG passa a DJ-C09">Disjuntor MT</button>
+          <button class="chip" aria-pressed="false" data-toast="Tipo trocado para TP — proteção · TAG passa a TP-C09">TP — proteção</button>
+          <button class="chip" aria-pressed="false" data-toast="Tipo trocado para TC — proteção · TAG passa a TC-C09">TC — proteção</button>
+          <button class="chip chip-other" aria-pressed="false" data-close data-open="#lo-palette">Outro…</button>
+        </div>
+        <span class="helper">A foto entra na ficha como placa de identificação e na fila de leitura.</span>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn btn-text" data-close data-open="#relatorio-dlg-detect">Fotografar de novo</button>
+        <button class="btn btn-secondary" data-close>Cancelar</button>
+      </div>
+    </div>
+  </div>
+</section>

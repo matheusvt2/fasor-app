@@ -1,0 +1,510 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRODUTO — Pontos de atenção</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* Governs this mock:
+   DESIGN.md § Components › App bar, Sync badge, Point of attention card, Block card (drag handle), Overflow menu,
+     Photo tile (thumb-inline), Not-tested chip, Chip, Combobox, Observation field, Button, Sticky action bar, Relatório tree;
+     § Layout & Spacing (content-max 880, hit areas); § Elevation (borders only); § Colors (violet = não ensaiado).
+   EXPERIENCE.md § IA › Points of attention; § Capture-to-Document Transformation row 8 (bullets in card order, photo
+     references as tokens resolved at export, Não ensaiado listed automatically after the manual points);
+     § Component Patterns › Point of attention card, Chip, Combobox, Overflow menu, Not-tested chip, Photo tile;
+     § State Patterns › Not tested, Focus; § Interaction Primitives (reorder three ways); § Voice and Tone;
+     § Responsive & Platform (desktop rail); Flow 5 steps 2–3; Flow 2b (created from an NC row).
+   v0.6.0 [ASSUMPTION — reference tool 2026-09-18]: DESIGN.md § Components › Priority pill, Priority picker, Suggestion field (Prazo),
+     Overflow menu (Adicionar abaixo · Subir · Descer · Duplicar · Remover), Data table (action plan);
+     EXPERIENCE.md § Component Patterns › Priority picker, Point of attention card (P0–P4, suggested deadline);
+     § Capture-to-Document › 8 Pontos de atenção › action-plan table; § Smart Input › Suggestion field (Prazo suggested from the priority).
+   Page-only layout below. */
+.poa-list { display: flex; flex-direction: column; gap: var(--sp-4); }
+.poa-list .point-of-attention-card .poa-fields { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
+.frame-desktop .poa-list .point-of-attention-card .poa-fields { grid-template-columns: repeat(4, minmax(140px, 1fr)); }
+.frame-phone .poa-list .point-of-attention-card .poa-fields { grid-template-columns: 1fr; }
+.poa-order { font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--ink-secondary); }
+/* Photo reference token inside the text — resolved to "Imagem NN" at export; not a DESIGN.md component (logged) */
+.photo-ref { font-weight: 600; color: var(--primary); border-bottom: 2px solid var(--primary); white-space: nowrap; }
+.poa-photos .photo-tile .caption { display: none; }
+.poa-photos-meta { font-size: var(--t-meta-size); color: var(--ink-secondary); }
+/* Auto-listed "Não ensaiado" entry: not reorderable, violet rule, no drag handle (a 48px spacer keeps alignment) */
+.point-of-attention-card.is-auto { border-color: var(--nao-ensaiado); border-style: dashed; }
+.point-of-attention-card.is-auto .handle-spacer { width: var(--touch-min); flex: none; }
+/* Edit mode: the card holds fields; photo picker row */
+.point-of-attention-card.is-editing { padding-right: var(--sp-4); padding-left: var(--sp-4); border-width: 2px; }
+.point-of-attention-card.is-editing .poa-body { gap: var(--sp-4); }
+.poa-photo-picker { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); }
+.poa-fields-edit { display: flex; flex-direction: column; gap: var(--sp-4); }
+.combobox-option .check { margin-left: auto; color: var(--primary); }
+/* "Como imprime na seção 8": the action-plan table as a read-only Data table, meta-size cells so 8 columns fit in 880px */
+.action-plan th, .action-plan td { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); padding: var(--sp-2); }
+.action-plan td.cell-num { font-variant-numeric: tabular-nums; color: var(--ink-secondary); }
+.action-plan td.cell-date { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.action-plan .priority-pill { font-size: 12px; padding: 0 8px; }
+</style>
+</head>
+<body class="mock-page">
+
+<!-- icon sprite (inline, currentColor) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-chev-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="1.5"/><path d="M4 16l5-5 4 4 3-3 4 4"/><circle cx="15.5" cy="9.5" r="1.5"/></symbol>
+  <symbol id="i-tree" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h13"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.8" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-open" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/></symbol>
+</svg>
+
+<h1 class="mock-title">Pontos de atenção — Porto Seguro, Torres A e B</h1>
+<p class="mock-sub">Superfície "Points of attention" do PRODUTO (= seção 8 do relatório + plano de ação). Quadro 1: tablet retrato, três pontos manuais na ordem da seção 8 e o disjuntor TIE listado automaticamente como Não ensaiado. Quadro 2: telefone, o ponto da chuva em edição — Prioridade P0–P4 aberta e o Prazo sugerido pela prioridade. Quadro 3: desktop, mesma lista com a árvore do relatório à esquerda, para revisão no escritório (Flow 5), e abaixo o plano de ação como imprime na seção 8.</p>
+
+<div class="mock-row">
+
+<!-- =============================================================== FRAME 1 — TABLET PORTRAIT -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Pontos de atenção · lista</b><span class="sep">·</span>tablet retrato 768×1024 · 3 pontos + 1 automático · Bruno, sincronizado<span class="sep">·</span>Point of attention card · Priority pill (P2 · P3) · Drag handle · Overflow menu · Photo tile 64px · Not-tested chip · Sticky action bar · Transformation row 8 · Flow 5 step 3</p>
+
+  <div class="frame frame-tablet" data-theme="light">
+
+    <header class="app-bar">
+      <div class="app-bar-left">
+        <button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button>
+      </div>
+      <h1 class="app-bar-title">Pontos de atenção</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="ok" aria-label="Sincronização: sincronizado"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+
+    <div class="screen-body">
+
+      <aside class="rail-collapsed" aria-label="Árvore do relatório (recolhida)">
+        <button class="rail-toggle" aria-label="Abrir árvore do relatório" aria-expanded="false"><svg class="ico"><use href="#i-tree"/></svg></button>
+        <span class="rail-vlabel" aria-hidden="true">Árvore do relatório</span>
+      </aside>
+
+      <main class="screen">
+        <div class="content">
+
+          <section class="section" aria-labelledby="h-poa">
+            <div class="section-head">
+              <h2 id="h-poa">Pontos de atenção (3 + 1 automático)</h2>
+            </div>
+            <p class="section-note">A ordem aqui é a ordem da seção 8 do relatório. Equipamentos marcados como Não ensaiado entram sozinhos ao final, com o motivo.</p>
+
+            <div class="poa-list">
+
+              <!-- 1 — recurring -->
+              <article class="point-of-attention-card" aria-labelledby="poa1-t">
+                <button class="drag-handle" aria-label="Reordenar Plaquetas de identificação"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="poa-body">
+                  <div>
+                    <span class="poa-order">1 de 3</span>
+                    <h3 class="poa-title" id="poa1-t">Plaquetas de identificação</h3>
+                  </div>
+                  <p>As duas cabines (Primária e Transformação) deverão passar por processo de identificação via plaquetas de segurança: função da cabine, tensão, potência, função dos transformadores etc.</p>
+                  <dl class="poa-fields">
+                    <div><dt>Ação</dt><dd>Instalar plaquetas de identificação nas cabines primária e de transformação</dd></div>
+                    <div><dt>Prazo</dt><dd class="tabular">06/12/2026</dd></div>
+                    <div><dt>Prioridade</dt><dd><span class="priority-pill" data-p="2">P2 · Médio prazo</span></dd></div>
+                    <div><dt>Responsável</dt><dd>Porto Seguro — Manutenção predial</dd></div>
+                  </dl>
+                </div>
+                <button class="overflow-trigger" aria-label="Mais opções de Plaquetas de identificação"><svg class="ico"><use href="#i-dots"/></svg></button>
+              </article>
+
+              <!-- 2 — recurring -->
+              <article class="point-of-attention-card" aria-labelledby="poa2-t">
+                <button class="drag-handle" aria-label="Reordenar Diagrama unifilar (PIE)"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="poa-body">
+                  <div>
+                    <span class="poa-order">2 de 3</span>
+                    <h3 class="poa-title" id="poa2-t">Diagrama unifilar emoldurado (PIE)</h3>
+                  </div>
+                  <p>Emoldurar e pendurar nas cabines primária e de transformação o diagrama unifilar atualizado (faz parte do PIE).</p>
+                  <dl class="poa-fields">
+                    <div><dt>Ação</dt><dd>Atualizar, emoldurar e fixar o diagrama unifilar nas duas cabines</dd></div>
+                    <div><dt>Prazo</dt><dd class="tabular">06/12/2026</dd></div>
+                    <div><dt>Prioridade</dt><dd><span class="priority-pill" data-p="2">P2 · Médio prazo</span></dd></div>
+                    <div><dt>Responsável</dt><dd>Porto Seguro — Manutenção predial</dd></div>
+                  </dl>
+                </div>
+                <button class="overflow-trigger" aria-label="Mais opções de Diagrama unifilar"><svg class="ico"><use href="#i-dots"/></svg></button>
+              </article>
+
+              <!-- 3 — this visit: insulation under rain, references photos 5 and 6 -->
+              <article class="point-of-attention-card" aria-labelledby="poa3-t">
+                <button class="drag-handle" aria-label="Reordenar Isolação abaixo de 400 MΩ sob chuva"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="poa-body">
+                  <div>
+                    <span class="poa-order">3 de 3</span>
+                    <h3 class="poa-title" id="poa3-t">Isolação abaixo de 400 MΩ sob chuva</h3>
+                  </div>
+                  <p>Recomenda-se o acompanhamento, nas próximas manutenções preventivas, dos resultados dos ensaios de resistência de isolação dos cabos de alimentação e dos para-raios, uma vez que ambos apresentaram valores inferiores ao valor de referência de 400 MΩ (conforme <span class="photo-ref">Imagem 5</span> e <span class="photo-ref">Imagem 6</span>). Ressalta-se que os ensaios foram realizados em condições climáticas de chuva e elevada umidade, fatores que podem influenciar negativamente os resultados.</p>
+                  <div>
+                    <div class="poa-photos">
+                      <button class="photo-tile is-inline" aria-label="Imagem 5, cabos de entrada do Cubículo Enel, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">5</span></span></button>
+                      <button class="photo-tile is-inline" aria-label="Imagem 6, para-raio de entrada do Cubículo Enel, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">6</span></span></button>
+                    </div>
+                    <p class="poa-photos-meta">Números provisórios — definidos na exportação</p>
+                  </div>
+                  <dl class="poa-fields">
+                    <div><dt>Ação</dt><dd>Repetir os ensaios de isolação dos cabos de entrada e dos para-raios em condição seca e comparar com estes valores</dd></div>
+                    <div><dt>Prazo</dt><dd class="tabular">06/03/2027</dd></div>
+                    <div><dt>Prioridade</dt><dd><span class="priority-pill" data-p="3">P3 · Longo prazo</span></dd></div>
+                    <div><dt>Responsável</dt><dd>Fasor Engenharia — Bruno</dd></div>
+                  </dl>
+                </div>
+                <button class="overflow-trigger" aria-label="Mais opções de Isolação abaixo de 400 MΩ sob chuva"><svg class="ico"><use href="#i-dots"/></svg></button>
+              </article>
+
+              <!-- Auto-listed: Não ensaiado -->
+              <article class="point-of-attention-card is-auto" aria-labelledby="poa-auto-t">
+                <span class="handle-spacer" aria-hidden="true"></span>
+                <div class="poa-body">
+                  <div>
+                    <span class="poa-order">Listado automaticamente · após os pontos manuais</span>
+                    <h3 class="poa-title" id="poa-auto-t">Disjuntor TIE — DJ-C14 · 1° Subsolo › Coluna 14</h3>
+                  </div>
+                  <div class="not-tested-band"><span class="not-tested-chip">Não ensaiado</span><span>Impossibilidade de desligamento — continuidade operacional, conforme solicitação do cliente</span></div>
+                  <dl class="poa-fields">
+                    <div><dt>Ação</dt><dd>Programar os ensaios pendentes na próxima intervenção</dd></div>
+                    <div><dt>Prazo</dt><dd>—</dd></div>
+                    <div><dt>Prioridade</dt><dd>—</dd></div>
+                    <div><dt>Responsável</dt><dd>—</dd></div>
+                  </dl>
+                  <div class="row-wrap">
+                    <button class="btn btn-text" style="margin-left: calc(-1 * var(--sp-3))"><svg class="ico" aria-hidden="true"><use href="#i-open"/></svg>Abrir ficha DJ-C14</button>
+                    <span class="btn-reason">O motivo é editado na ficha; o ponto sai daqui se a ficha voltar a ser ensaiada</span>
+                  </div>
+                </div>
+                <button class="overflow-trigger" aria-label="Mais opções de Disjuntor TIE DJ-C14"><svg class="ico"><use href="#i-dots"/></svg></button>
+              </article>
+
+            </div>
+          </section>
+
+        </div><!-- /content -->
+
+        <div class="sticky-action-bar">
+          <div class="bar-buttons">
+            <button class="btn btn-primary"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Criar ponto de atenção</button>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================================== FRAME 2 — PHONE, ONE CARD IN EDIT MODE -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Ponto de atenção · em edição</b><span class="sep">·</span>telefone 390 · o ponto 3 aberto para edição, Priority picker aberto (P3 · Longo prazo) e Prazo sugerido pela prioridade<span class="sep">·</span>Point of attention card (edição) · Chip (textos rápidos) · Observation field · Priority picker · Suggestion field (Prazo) · Photo tile · Button · Sticky action bar</p>
+
+  <div class="frame frame-phone" data-theme="light">
+
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">Ponto de atenção</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="ok" aria-label="Sincronização: sincronizado"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+
+    <main class="screen">
+      <div class="content">
+
+        <p class="section-note">3 de 3 · salvo automaticamente</p>
+
+        <article class="point-of-attention-card is-editing" aria-label="Editar ponto de atenção 3">
+          <div class="poa-body">
+
+            <div class="field">
+              <label class="field-label" for="ed-titulo">Título</label>
+              <div class="input" id="ed-titulo">Isolação abaixo de 400 MΩ sob chuva</div>
+            </div>
+
+            <div class="field">
+              <span class="field-label">Texto</span>
+              <p class="section-note" style="margin-bottom: var(--sp-1)">Textos rápidos</p>
+              <div class="chip-row">
+                <button class="chip">Chuva e umidade elevada</button>
+                <button class="chip">Plaquetas de identificação</button>
+                <button class="chip">Diagrama unifilar (PIE)</button>
+                <button class="chip">Ensaios pendentes</button>
+              </div>
+              <div class="observation-field is-focus" role="textbox" aria-multiline="true" aria-label="Texto do ponto de atenção">Recomenda-se o acompanhamento, nas próximas manutenções preventivas, dos resultados dos ensaios de resistência de isolação dos cabos de alimentação e dos para-raios, uma vez que ambos apresentaram valores inferiores ao valor de referência de 400 MΩ (conforme <span class="photo-ref">Imagem 5</span> e <span class="photo-ref">Imagem 6</span>). Ressalta-se que os ensaios foram realizados em condições climáticas de chuva e elevada umidade.</div>
+              <span class="helper">Referências a fotos entram pela seleção abaixo — o número é definido na exportação</span>
+            </div>
+
+            <div class="field">
+              <span class="field-label">Fotos referenciadas</span>
+              <div class="poa-photo-picker">
+                <button class="photo-tile is-inline" aria-label="Imagem 5, remover referência"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">5</span></span></button>
+                <button class="photo-tile is-inline" aria-label="Imagem 6, remover referência"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">6</span></span></button>
+                <button class="btn btn-secondary"><svg class="ico" aria-hidden="true"><use href="#i-image"/></svg>Escolher fotos</button>
+              </div>
+            </div>
+
+            <div class="poa-fields-edit">
+              <div class="field">
+                <label class="field-label" for="ed-acao">Ação</label>
+                <div class="observation-field" id="ed-acao" style="min-height: 72px">Repetir os ensaios de isolação dos cabos de entrada e dos para-raios em condição seca e comparar com estes valores</div>
+              </div>
+
+              <div class="field">
+                <span class="field-label" id="ed-prio-l">Prioridade</span>
+                <div class="priority-picker" role="radiogroup" aria-labelledby="ed-prio-l" aria-describedby="ed-prio-h">
+                  <button class="option-row" role="radio" aria-checked="false"><span class="radio" aria-hidden="true"></span><span class="pr-text"><span class="priority-pill" data-p="0">P0 · Imediata</span></span><span class="pr-hint">hoje</span></button>
+                  <button class="option-row" role="radio" aria-checked="false"><span class="radio" aria-hidden="true"></span><span class="pr-text"><span class="priority-pill" data-p="1">P1 · Curto prazo</span></span><span class="pr-hint">30 dias</span></button>
+                  <button class="option-row" role="radio" aria-checked="false"><span class="radio" aria-hidden="true"></span><span class="pr-text"><span class="priority-pill" data-p="2">P2 · Médio prazo</span></span><span class="pr-hint">90 dias</span></button>
+                  <button class="option-row" role="radio" aria-checked="true"><span class="radio is-on" aria-hidden="true"></span><span class="pr-text"><span class="priority-pill" data-p="3">P3 · Longo prazo</span></span><span class="pr-hint">180 dias</span></button>
+                  <button class="option-row" role="radio" aria-checked="false"><span class="radio" aria-hidden="true"></span><span class="pr-text"><span class="priority-pill" data-p="4">P4 · Próxima manutenção</span></span><span class="pr-hint">365 dias</span></button>
+                </div>
+                <span class="helper" id="ed-prio-h">Os dias são o prazo sugerido — o Prazo abaixo pode ser ajustado.</span>
+              </div>
+
+              <div class="field suggestion-field" data-state="suggested">
+                <label class="field-label" for="ed-prazo">Prazo</label>
+                <div class="input tabular" id="ed-prazo"><span class="sv">06/03/2027</span><button class="confirm-btn">Confirmar</button></div>
+                <span class="suggested-pill">Sugerido</span>
+                <span class="echo">06/03/2027 · sugerido por P3 — 180 dias</span>
+              </div>
+
+              <div class="field">
+                <label class="field-label" for="ed-resp">Responsável</label>
+                <div class="input" id="ed-resp">Fasor Engenharia — Bruno</div>
+              </div>
+            </div>
+
+          </div>
+        </article>
+
+      </div>
+
+      <div class="sticky-action-bar">
+        <div class="bar-buttons">
+          <button class="btn btn-primary">Concluir edição</button>
+          <button class="btn btn-destructive">Remover ponto</button>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+</div><!-- /mock-row 1 -->
+
+<div class="mock-row">
+
+<!-- =============================================================== FRAME 3 — DESKTOP, OFFICE REVIEW -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Pontos de atenção · revisão no escritório</b><span class="sep">·</span>desktop 1280×800 · segunda-feira, Bruno revisa antes de gerar o relatório · árvore do relatório persistente · abaixo, o plano de ação como imprime na seção 8<span class="sep">·</span>Relatório tree (rail) · Point of attention card (4 campos em linha) · Priority pill · Data table (plano de ação) · Sticky action bar (alinhada à direita) · Responsive › Desktop · Flow 5 step 3</p>
+
+  <div class="frame frame-desktop" data-theme="light">
+    <div class="browser-chrome"><span class="lights"><i></i><i></i><i></i></span><span class="url">PRODUTO</span></div>
+
+    <header class="app-bar">
+      <div class="app-bar-left">
+        <button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button>
+      </div>
+      <h1 class="app-bar-title">Pontos de atenção</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="ok" aria-label="Sincronização: sincronizado"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+
+    <div class="screen-body">
+
+      <aside class="rail" aria-label="Árvore do relatório">
+        <div class="rail-head"><span>Porto Seguro · Torres A e B</span><button class="icon-btn" aria-label="Recolher árvore"><svg class="ico"><use href="#i-tree"/></svg></button></div>
+        <ul class="relatorio-tree">
+          <li class="tree-row" data-level="0"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body">1 Objetivo</div></li>
+          <li class="tree-row" data-level="0"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body">2 Definições</div></li>
+          <li class="tree-row" data-level="0"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body">3 Limite de escopo</div></li>
+          <li class="tree-row" data-level="0"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body">4–6 Requisitos, segurança, verificações</div></li>
+          <li class="tree-row" data-level="0"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body">7 Registro fotográfico<span class="tree-meta">12 fotos · 1 aguardando envio</span></div></li>
+          <li class="tree-row" data-level="0"><button class="tree-chevron" aria-label="Expandir Cubículo Enel" aria-expanded="false"><svg class="ico"><use href="#i-chev-right"/></svg></button><div class="tree-body">Cubículo Enel<span class="tree-meta">SE · 13,8 kV · 19 °C · 67 % · 5 fichas</span></div></li>
+          <li class="tree-row" data-level="0"><button class="tree-chevron" aria-label="Expandir 1° Subsolo" aria-expanded="false"><svg class="ico"><use href="#i-chev-right"/></svg></button><div class="tree-body">1° Subsolo<span class="tree-meta">Colunas 1–17 · 61 fichas · 1 não ensaiada</span></div></li>
+          <li class="tree-row" data-level="0"><button class="tree-chevron" aria-label="Expandir Oxigênio" aria-expanded="false"><svg class="ico"><use href="#i-chev-right"/></svg></button><div class="tree-body">Oxigênio<span class="tree-meta">5 fichas</span></div></li>
+          <li class="tree-row" data-level="0"><button class="tree-chevron" aria-label="Expandir Cobertura A" aria-expanded="false"><svg class="ico"><use href="#i-chev-right"/></svg></button><div class="tree-body">Cobertura A<span class="tree-meta">8 fichas</span></div></li>
+          <li class="tree-row" data-level="0"><button class="tree-chevron" aria-label="Expandir Cobertura B" aria-expanded="false"><svg class="ico"><use href="#i-chev-right"/></svg></button><div class="tree-body">Cobertura B<span class="tree-meta">8 fichas</span></div></li>
+          <li class="tree-row" data-level="0"><button class="tree-chevron" aria-label="Expandir Geradores" aria-expanded="false"><svg class="ico"><use href="#i-chev-right"/></svg></button><div class="tree-body">Geradores<span class="tree-meta">7 fichas</span></div></li>
+          <li class="tree-row is-selected" data-level="0" aria-current="page"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body">8 Pontos de atenção<span class="tree-meta">3 + 1 automático</span></div></li>
+          <li class="tree-row" data-level="0"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body">10 Conclusão</div></li>
+          <li class="tree-row" data-level="0"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body">11 Certificados<span class="tree-meta">2E · 3M · 1T</span></div></li>
+        </ul>
+      </aside>
+
+      <main class="screen">
+        <div class="content">
+
+          <section class="section" aria-labelledby="h-poa-d">
+            <div class="section-head">
+              <h2 id="h-poa-d">Pontos de atenção (3 + 1 automático)</h2>
+            </div>
+            <p class="section-note">A ordem aqui é a ordem da seção 8 do relatório. Reordene arrastando, pelo menu ⋯ ou com Alt+↑/↓.</p>
+
+            <div class="poa-list">
+
+              <article class="point-of-attention-card">
+                <button class="drag-handle" aria-label="Reordenar Plaquetas de identificação"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="poa-body">
+                  <div><span class="poa-order">1 de 3</span><h3 class="poa-title">Plaquetas de identificação</h3></div>
+                  <p>As duas cabines (Primária e Transformação) deverão passar por processo de identificação via plaquetas de segurança: função da cabine, tensão, potência, função dos transformadores etc.</p>
+                  <dl class="poa-fields">
+                    <div><dt>Ação</dt><dd>Instalar plaquetas de identificação nas cabines primária e de transformação</dd></div>
+                    <div><dt>Prazo</dt><dd class="tabular">06/12/2026</dd></div>
+                    <div><dt>Prioridade</dt><dd><span class="priority-pill" data-p="2">P2 · Médio prazo</span></dd></div>
+                    <div><dt>Responsável</dt><dd>Porto Seguro — Manutenção predial</dd></div>
+                  </dl>
+                </div>
+                <button class="overflow-trigger" aria-label="Mais opções de Plaquetas de identificação"><svg class="ico"><use href="#i-dots"/></svg></button>
+              </article>
+
+              <article class="point-of-attention-card">
+                <button class="drag-handle" aria-label="Reordenar Diagrama unifilar (PIE)"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="poa-body">
+                  <div><span class="poa-order">2 de 3</span><h3 class="poa-title">Diagrama unifilar emoldurado (PIE)</h3></div>
+                  <p>Emoldurar e pendurar nas cabines primária e de transformação o diagrama unifilar atualizado (faz parte do PIE).</p>
+                  <dl class="poa-fields">
+                    <div><dt>Ação</dt><dd>Atualizar, emoldurar e fixar o diagrama unifilar nas duas cabines</dd></div>
+                    <div><dt>Prazo</dt><dd class="tabular">06/12/2026</dd></div>
+                    <div><dt>Prioridade</dt><dd><span class="priority-pill" data-p="2">P2 · Médio prazo</span></dd></div>
+                    <div><dt>Responsável</dt><dd>Porto Seguro — Manutenção predial</dd></div>
+                  </dl>
+                </div>
+                <button class="overflow-trigger" aria-label="Mais opções de Diagrama unifilar"><svg class="ico"><use href="#i-dots"/></svg></button>
+              </article>
+
+              <article class="point-of-attention-card">
+                <button class="drag-handle" aria-label="Reordenar Isolação abaixo de 400 MΩ sob chuva"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="poa-body">
+                  <div><span class="poa-order">3 de 3</span><h3 class="poa-title">Isolação abaixo de 400 MΩ sob chuva</h3></div>
+                  <p>Recomenda-se o acompanhamento, nas próximas manutenções preventivas, dos resultados dos ensaios de resistência de isolação dos cabos de alimentação e dos para-raios, uma vez que ambos apresentaram valores inferiores ao valor de referência de 400 MΩ (conforme <span class="photo-ref">Imagem 5</span> e <span class="photo-ref">Imagem 6</span>). Ressalta-se que os ensaios foram realizados em condições climáticas de chuva e elevada umidade, fatores que podem influenciar negativamente os resultados.</p>
+                  <div>
+                    <div class="poa-photos">
+                      <button class="photo-tile is-inline" aria-label="Imagem 5, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">5</span></span></button>
+                      <button class="photo-tile is-inline" aria-label="Imagem 6, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">6</span></span></button>
+                    </div>
+                    <p class="poa-photos-meta">Números provisórios — definidos na exportação</p>
+                  </div>
+                  <dl class="poa-fields">
+                    <div><dt>Ação</dt><dd>Repetir os ensaios de isolação dos cabos de entrada e dos para-raios em condição seca e comparar com estes valores</dd></div>
+                    <div><dt>Prazo</dt><dd class="tabular">06/03/2027</dd></div>
+                    <div><dt>Prioridade</dt><dd><span class="priority-pill" data-p="3">P3 · Longo prazo</span></dd></div>
+                    <div><dt>Responsável</dt><dd>Fasor Engenharia — Bruno</dd></div>
+                  </dl>
+                </div>
+                <button class="overflow-trigger" aria-label="Mais opções de Isolação abaixo de 400 MΩ sob chuva"><svg class="ico"><use href="#i-dots"/></svg></button>
+              </article>
+
+              <article class="point-of-attention-card is-auto">
+                <span class="handle-spacer" aria-hidden="true"></span>
+                <div class="poa-body">
+                  <div><span class="poa-order">Listado automaticamente · após os pontos manuais</span><h3 class="poa-title">Disjuntor TIE — DJ-C14 · 1° Subsolo › Coluna 14</h3></div>
+                  <div class="not-tested-band"><span class="not-tested-chip">Não ensaiado</span><span>Impossibilidade de desligamento — continuidade operacional, conforme solicitação do cliente</span></div>
+                  <dl class="poa-fields">
+                    <div><dt>Ação</dt><dd>Programar os ensaios pendentes na próxima intervenção</dd></div>
+                    <div><dt>Prazo</dt><dd>—</dd></div>
+                    <div><dt>Prioridade</dt><dd>—</dd></div>
+                    <div><dt>Responsável</dt><dd>—</dd></div>
+                  </dl>
+                  <div class="row-wrap">
+                    <button class="btn btn-text" style="margin-left: calc(-1 * var(--sp-3))"><svg class="ico" aria-hidden="true"><use href="#i-open"/></svg>Abrir ficha DJ-C14</button>
+                    <span class="btn-reason">O motivo é editado na ficha</span>
+                  </div>
+                </div>
+                <button class="overflow-trigger" aria-label="Mais opções de Disjuntor TIE DJ-C14"><svg class="ico"><use href="#i-dots"/></svg></button>
+              </article>
+
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="h-plano">
+            <div class="section-head"><h2 id="h-plano">Como imprime na seção 8 — plano de ação</h2></div>
+            <p class="section-note">Depois dos itens em texto, a seção 8 fecha com esta tabela, na mesma ordem. Somente leitura: cada célula vem do cartão acima; as imagens recebem o número definitivo na exportação.</p>
+            <table class="data-table action-plan">
+              <thead>
+                <tr>
+                  <th scope="col">Nº</th>
+                  <th scope="col">Ponto de atenção</th>
+                  <th scope="col">Local/TAG</th>
+                  <th scope="col">Prioridade</th>
+                  <th scope="col">Prazo</th>
+                  <th scope="col">Ação recomendada</th>
+                  <th scope="col">Responsável</th>
+                  <th scope="col">Imagens</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="cell-num">1</td>
+                  <td>Plaquetas de identificação</td>
+                  <td class="cell-dim">Cabines primária e de transformação</td>
+                  <td><span class="priority-pill" data-p="2">P2 · Médio prazo</span></td>
+                  <td class="cell-date">06/12/2026</td>
+                  <td>Instalar plaquetas de identificação nas cabines primária e de transformação</td>
+                  <td>Porto Seguro — Manutenção predial</td>
+                  <td class="cell-dim">—</td>
+                </tr>
+                <tr>
+                  <td class="cell-num">2</td>
+                  <td>Diagrama unifilar emoldurado (PIE)</td>
+                  <td class="cell-dim">Cabines primária e de transformação</td>
+                  <td><span class="priority-pill" data-p="2">P2 · Médio prazo</span></td>
+                  <td class="cell-date">06/12/2026</td>
+                  <td>Atualizar, emoldurar e fixar o diagrama unifilar nas duas cabines</td>
+                  <td>Porto Seguro — Manutenção predial</td>
+                  <td class="cell-dim">—</td>
+                </tr>
+                <tr>
+                  <td class="cell-num">3</td>
+                  <td>Isolação abaixo de 400 MΩ sob chuva</td>
+                  <td class="cell-dim">Cubículo Enel · cabos de entrada e para-raios</td>
+                  <td><span class="priority-pill" data-p="3">P3 · Longo prazo</span></td>
+                  <td class="cell-date">06/03/2027</td>
+                  <td>Repetir os ensaios de isolação dos cabos de entrada e dos para-raios em condição seca e comparar com estes valores</td>
+                  <td>Fasor Engenharia — Bruno</td>
+                  <td class="cell-date">Imagens 5 e 6</td>
+                </tr>
+                <tr>
+                  <td class="cell-num">4</td>
+                  <td>Disjuntor TIE não ensaiado — impossibilidade de desligamento</td>
+                  <td class="cell-dim">1° Subsolo › Coluna 14 · DJ-C14</td>
+                  <td class="cell-dim">—</td>
+                  <td class="cell-dim">—</td>
+                  <td>Programar os ensaios pendentes na próxima intervenção</td>
+                  <td class="cell-dim">—</td>
+                  <td class="cell-dim">—</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+
+        </div><!-- /content -->
+
+        <div class="sticky-action-bar">
+          <div class="bar-buttons">
+            <button class="btn btn-secondary">Gerar relatório</button>
+            <button class="btn btn-primary"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Criar ponto de atenção</button>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+</div>
+
+</div><!-- /mock-row 2 -->
+
+</body>
+</html>

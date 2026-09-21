@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRODUTO — Login</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* Governs this mock:
+   DESIGN.md § Components › Login form, Button; § Typography (display only on Home/Login wordmark, field-input 18px);
+     § Layout & Spacing (56px inputs, 48px hit areas); § Brand & Style (PRODUTO placeholder, no imagery, no brand).
+   EXPERIENCE.md § IA › Login; § Component Patterns › Login form (inline error, role=alert; offline line, no spinner);
+     § State Patterns › Cold open no session · Cold open no session offline; § Accessibility Floor (errors associated by aria-describedby);
+     § Voice and Tone; Flow 1 step 1.
+   The third cold-open state (session present, offline → Home with the Toast) is rendered in key-home.html, frame 3.
+   Page-only layout below. */
+.login-screen { flex: 1; display: flex; align-items: center; justify-content: center; padding: var(--sp-7) var(--gutter-tablet); }
+.frame-phone .login-screen { align-items: flex-start; padding: var(--sp-7) var(--gutter-phone) var(--sp-6); }
+.login-form .btn-primary { margin-top: var(--sp-2); }
+.login-foot { margin-top: var(--sp-5); text-align: center; font-size: var(--t-meta-size); color: var(--ink-secondary); }
+</style>
+</head>
+<body class="mock-page">
+
+<!-- icon sprite (inline, currentColor) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
+</svg>
+
+<h1 class="mock-title">Login</h1>
+<p class="mock-sub">Superfície de entrada do PRODUTO. Quadro 1: tablet retrato, formulário limpo — e-mail preenchido, senha em foco. Quadro 2: telefone, erro inline sob a senha ("Senha incorreta"). Quadro 3: telefone, abertura a frio sem sessão e sem conexão — o formulário explica, não gira. A abertura a frio COM sessão e sem conexão (Home com o toast "Sem conexão. Tudo fica salvo neste aparelho.") está em key-home.html, quadro 3.</p>
+
+<div class="mock-row">
+
+<!-- =============================================================== FRAME 1 — TABLET PORTRAIT, LIGHT -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Login</b><span class="sep">·</span>tablet retrato 768×1024 · sem sessão, com conexão, senha em foco<span class="sep">·</span>Login form · Button · State Patterns › Cold open, no session · Flow 1 passo 1</p>
+
+  <div class="frame frame-tablet" data-theme="light">
+    <main class="screen">
+      <div class="login-screen">
+        <form class="login-form" aria-labelledby="login-title">
+          <h1 class="login-wordmark" id="login-title">PRODUTO</h1>
+
+          <div class="field">
+            <span class="field-label" id="l1-email-label">E-mail</span>
+            <div class="input" role="textbox" aria-labelledby="l1-email-label" id="l1-email">bruno@fasor.eng.br</div>
+          </div>
+
+          <div class="field">
+            <span class="field-label" id="l1-pass-label">Senha</span>
+            <div class="input is-focus">
+              <span class="grow" role="textbox" aria-labelledby="l1-pass-label" id="l1-pass" style="letter-spacing:2px">••••••••••</span>
+              <button type="button" class="input-suffix-btn" aria-pressed="false">Mostrar</button>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block">Entrar</button>
+
+          <p class="login-foot">Acesso fornecido pela sua empresa. Sem cadastro por aqui.</p>
+        </form>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- =============================================================== FRAME 2 — PHONE, LIGHT, INLINE ERROR -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Login</b><span class="sep">·</span>telefone 390 · senha incorreta: erro inline sob o campo, role=alert, campo com borda vermelha<span class="sep">·</span>Login form › error · Accessibility Floor › errors associated · Voice and Tone</p>
+
+  <div class="frame frame-phone" data-theme="light">
+    <main class="screen">
+      <div class="login-screen">
+        <form class="login-form" aria-labelledby="login-title-2">
+          <h1 class="login-wordmark" id="login-title-2">PRODUTO</h1>
+
+          <div class="field">
+            <span class="field-label" id="l2-email-label">E-mail</span>
+            <div class="input" role="textbox" aria-labelledby="l2-email-label" id="l2-email">bruno@fasor.eng.br</div>
+          </div>
+
+          <div class="field">
+            <span class="field-label" id="l2-pass-label">Senha</span>
+            <div class="input is-invalid">
+              <span class="grow" role="textbox" aria-labelledby="l2-pass-label" id="l2-pass" aria-invalid="true" aria-describedby="l2-error" style="letter-spacing:2px">••••••••</span>
+              <button type="button" class="input-suffix-btn" aria-pressed="false">Mostrar</button>
+            </div>
+            <span class="login-error" id="l2-error" role="alert">Senha incorreta</span>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block">Entrar</button>
+
+          <p class="login-foot">Acesso fornecido pela sua empresa. Sem cadastro por aqui.</p>
+        </form>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- =============================================================== FRAME 3 — PHONE, LIGHT, NO SESSION + OFFLINE -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Login</b><span class="sep">·</span>telefone 390 · abertura a frio sem sessão e sem conexão: linha explicativa, botão desabilitado com motivo, sem spinner<span class="sep">·</span>State Patterns › Cold open, no session, offline · Login form · Button (disabled + reason) · Offline & Sync</p>
+
+  <div class="frame frame-phone" data-theme="light">
+    <main class="screen">
+      <div class="login-screen">
+        <form class="login-form" aria-labelledby="login-title-3">
+          <h1 class="login-wordmark" id="login-title-3">PRODUTO</h1>
+
+          <p class="login-offline" role="status">Sem conexão — entre quando houver sinal; os relatórios já baixados neste aparelho continuam disponíveis após o login.</p>
+
+          <div class="field">
+            <span class="field-label" id="l3-email-label">E-mail</span>
+            <div class="input" role="textbox" aria-labelledby="l3-email-label" id="l3-email">eduardo@fasor.eng.br</div>
+          </div>
+
+          <div class="field">
+            <span class="field-label" id="l3-pass-label">Senha</span>
+            <div class="input">
+              <span class="grow" role="textbox" aria-labelledby="l3-pass-label" id="l3-pass" style="letter-spacing:2px">••••••••••</span>
+              <button type="button" class="input-suffix-btn" aria-pressed="false">Mostrar</button>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-block" aria-disabled="true" aria-describedby="l3-reason">Entrar</button>
+          <span class="btn-reason" id="l3-reason" style="text-align:center">Entrar precisa de conexão</span>
+        </form>
+      </div>
+    </main>
+  </div>
+</div>
+
+</div><!-- /mock-row -->
+
+</body>
+</html>

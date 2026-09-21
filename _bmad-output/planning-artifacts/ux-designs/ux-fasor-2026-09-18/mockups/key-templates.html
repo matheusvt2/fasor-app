@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRODUTO — Templates</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* Governs this mock:
+   DESIGN.md § Components › App bar, Sync badge, Registry row (list row: primary in body, secondary in meta), Button (primary,
+     secondary, text), Overflow menu, Status pill (not used — templates have no status; "Arquivado" is a word in meta);
+     § Layout & Spacing (office surface, content-max 880); § Elevation (borders only).
+   EXPERIENCE.md § IA › Templates ("List, duplicate, archive templates"); § Block Model › Template (reusable, not tied to a project;
+     editing a template does not touch relatórios already created); § State Patterns › Empty › Templates (seed template ships);
+     § Component Patterns › Registry row (Delete only when unreferenced; otherwise "Arquivar"); § Voice and Tone;
+     § Responsive & Platform (office-shaped, still works on the tablet); Flow 1 step 3.
+   Page-only layout below. */
+.tpl-content { padding: var(--sp-6) var(--gutter-desktop); max-width: calc(var(--content-max) + 2 * var(--gutter-desktop)); margin: 0 auto; width: 100%; }
+.frame-tablet .tpl-content { padding: var(--sp-5) var(--gutter-tablet); }
+.tpl-row .rr-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.tpl-row .rr-actions { display: flex; align-items: center; gap: var(--sp-1); flex: none; }
+.frame-tablet .tpl-row { flex-wrap: wrap; }
+.frame-tablet .tpl-row .rr-text { flex-basis: calc(100% - 48px - var(--sp-3)); }
+.frame-tablet .tpl-row .rr-actions { margin-left: calc(20px + var(--sp-3)); }
+.tpl-row.is-archived .rr-primary { color: var(--ink-secondary); }
+.tpl-group { margin-top: var(--sp-6); }
+</style>
+</head>
+<body class="mock-page">
+
+<!-- icon sprite (inline, currentColor) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a1 1 0 0 1 1-1h9"/></symbol>
+  <symbol id="i-archive" viewBox="0 0 24 24"><path d="M4 5h16v4H4z"/><path d="M6 9v11h12V9M10 13h4"/></symbol>
+  <symbol id="i-template" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M10 10v10"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.8" fill="currentColor" stroke="none"/></symbol>
+</svg>
+
+<h1 class="mock-title">Templates</h1>
+<p class="mock-sub">Lista de templates do PRODUTO (EXPERIENCE § IA › Templates). Estado: Bruno, escritório, quarta-feira 02/09 — o template semente "Cabine primária — padrão (FO.SERV-03)" já foi duplicado como "Porto Seguro — Torres A e B"; um template antigo está arquivado. Quadro 1: navegador 1280. Quadro 2: tablet retrato.</p>
+
+<div class="mock-row">
+
+<!-- =============================================================== FRAME 1 — DESKTOP BROWSER -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Templates · lista</b><span class="sep">·</span>navegador 1280 · 2 ativos, 1 arquivado · sincronizado<span class="sep">·</span>IA › Templates · Block Model › Template · Registry row · Button (Duplicar · Arquivar · Novo template) · Flow 1 passo 3</p>
+
+  <div class="frame frame-desktop" data-theme="light">
+    <div class="browser-chrome"><span class="lights"><i></i><i></i><i></i></span><span class="url">PRODUTO — Templates</span></div>
+
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">Templates</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="ok" aria-label="Sincronização: sincronizado"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+
+    <main class="screen">
+      <div class="tpl-content">
+
+        <section class="section" aria-labelledby="h-ativos">
+          <div class="section-head">
+            <h2 id="h-ativos">Templates (2)</h2>
+            <button class="btn btn-primary"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Novo template</button>
+          </div>
+          <p class="section-note">Um template é a composição de blocos que um relatório novo copia. Alterar um template não muda relatórios já criados a partir dele.</p>
+
+          <ul class="registry-list" aria-label="Templates ativos">
+            <li class="registry-row tpl-row">
+              <svg class="ico ink-secondary" aria-hidden="true"><use href="#i-template"/></svg>
+              <button class="rr-text" aria-label="Abrir template Cabine primária — padrão (FO.SERV-03)">
+                <span class="rr-primary">Cabine primária — padrão (FO.SERV-03)</span>
+                <span class="rr-secondary">Semente do PRODUTO · 9 seções · 8 tipos de equipamento (1 de cada) · Agrupar por tipo conforme o FO.SERV-03 · usado em 3 relatórios</span>
+              </button>
+              <div class="rr-actions">
+                <button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg>Duplicar</button>
+                <button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-archive"/></svg>Arquivar</button>
+                <button class="overflow-trigger" aria-label="Mais opções de Cabine primária — padrão"><svg class="ico"><use href="#i-dots"/></svg></button>
+              </div>
+            </li>
+            <li class="registry-row tpl-row">
+              <svg class="ico ink-secondary" aria-hidden="true"><use href="#i-template"/></svg>
+              <button class="rr-text" aria-label="Abrir template Porto Seguro — Torres A e B">
+                <span class="rr-primary">Porto Seguro — Torres A e B</span>
+                <span class="rr-secondary">Duplicado do padrão · 9 seções · 94 blocos de equipamento (25 seccionadoras · 21 disjuntores · 11 TP · 11 TC · 8 trafos · 4 cabos de entrada · 9 cabos de saída · 5 para-raios) · editado por Bruno · 02/09 11:20 · usado em 1 relatório</span>
+              </button>
+              <div class="rr-actions">
+                <button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg>Duplicar</button>
+                <button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-archive"/></svg>Arquivar</button>
+                <button class="overflow-trigger" aria-label="Mais opções de Porto Seguro — Torres A e B"><svg class="ico"><use href="#i-dots"/></svg></button>
+              </div>
+            </li>
+          </ul>
+        </section>
+
+        <section class="section tpl-group" aria-labelledby="h-arq">
+          <div class="section-head"><h2 id="h-arq">Arquivados (1)</h2></div>
+          <p class="section-note">Não aparecem em "Novo relatório a partir de template". Relatórios já criados continuam intactos.</p>
+          <ul class="registry-list" aria-label="Templates arquivados">
+            <li class="registry-row tpl-row is-archived">
+              <svg class="ico ink-secondary" aria-hidden="true"><use href="#i-template"/></svg>
+              <button class="rr-text" aria-label="Abrir template Cabine primária — padrão (revisão anterior)">
+                <span class="rr-primary">Cabine primária — padrão (revisão anterior)</span>
+                <span class="rr-secondary">Arquivado por Bruno · 28/08 · 9 seções · 8 tipos de equipamento · sem conclusão nas fichas de trafo · usado em 2 relatórios</span>
+              </button>
+              <div class="rr-actions">
+                <button class="btn btn-text">Restaurar</button>
+                <button class="overflow-trigger" aria-label="Mais opções de Cabine primária — padrão (revisão anterior)"><svg class="ico"><use href="#i-dots"/></svg></button>
+              </div>
+            </li>
+          </ul>
+        </section>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+</div><!-- /mock-row 1 -->
+
+<div class="mock-row">
+
+<!-- =============================================================== FRAME 2 — TABLET PORTRAIT -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Templates · lista</b><span class="sep">·</span>tablet retrato 768 · mesma lista, ações abaixo do texto<span class="sep">·</span>Responsive & Platform › office-shaped surface on the tablet · Registry row</p>
+
+  <div class="frame frame-tablet" data-theme="light">
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">Templates</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+
+    <main class="screen">
+      <div class="tpl-content">
+        <section class="section">
+          <div class="section-head">
+            <h2>Templates (2)</h2>
+            <button class="btn btn-primary"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Novo template</button>
+          </div>
+          <p class="section-note">Alterar um template não muda relatórios já criados a partir dele.</p>
+          <ul class="registry-list">
+            <li class="registry-row tpl-row">
+              <svg class="ico ink-secondary" aria-hidden="true"><use href="#i-template"/></svg>
+              <button class="rr-text"><span class="rr-primary">Cabine primária — padrão (FO.SERV-03)</span><span class="rr-secondary">Semente do PRODUTO · 9 seções · 8 tipos de equipamento · usado em 3 relatórios</span></button>
+              <button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button>
+              <div class="rr-actions">
+                <button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg>Duplicar</button>
+                <button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-archive"/></svg>Arquivar</button>
+              </div>
+            </li>
+            <li class="registry-row tpl-row">
+              <svg class="ico ink-secondary" aria-hidden="true"><use href="#i-template"/></svg>
+              <button class="rr-text"><span class="rr-primary">Porto Seguro — Torres A e B</span><span class="rr-secondary">Duplicado do padrão · 94 blocos de equipamento · editado por Bruno · 02/09 11:20 · usado em 1 relatório</span></button>
+              <button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button>
+              <div class="rr-actions">
+                <button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg>Duplicar</button>
+                <button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-archive"/></svg>Arquivar</button>
+              </div>
+            </li>
+          </ul>
+        </section>
+
+        <section class="section tpl-group">
+          <div class="section-head"><h2>Arquivados (1)</h2></div>
+          <ul class="registry-list">
+            <li class="registry-row tpl-row is-archived">
+              <svg class="ico ink-secondary" aria-hidden="true"><use href="#i-template"/></svg>
+              <button class="rr-text"><span class="rr-primary">Cabine primária — padrão (revisão anterior)</span><span class="rr-secondary">Arquivado por Bruno · 28/08 · usado em 2 relatórios</span></button>
+              <button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button>
+              <div class="rr-actions"><button class="btn btn-text">Restaurar</button></div>
+            </li>
+          </ul>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+
+</div><!-- /mock-row 2 -->
+
+</body>
+</html>

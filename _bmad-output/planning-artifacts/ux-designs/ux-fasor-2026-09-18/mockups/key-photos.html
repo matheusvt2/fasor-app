@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRODUTO — Fotos e legendas</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* Governs this mock:
+   DESIGN.md § Components › App bar, Sync badge, Chip, Photo tile, Photo capture sheet, Caption composer, Combobox,
+     Button (+ text), Sticky action bar, Photo viewer; § Layout & Spacing (48/56 hit areas, gutters);
+     § Elevation & Depth (shadow only on the capture sheet); § Colors (amber = pending upload, red = rejected upload).
+   EXPERIENCE.md § IA › Photo capture & gallery; § Capture-to-Document Transformation row 7 (chronological order,
+     provisional numbers, 2 per row as in section 7); § Component Patterns › Photo tile, Photo viewer, Photo capture sheet,
+     Caption composer, Chip, Combobox; § State Patterns › Photo pending upload, Photo upload rejected, Focus;
+     § Voice and Tone; § Responsive & Platform (phone: camera is the primary path); Flow 2 step 5; Flow 4 steps 2–4.
+   v0.6.0 [ASSUMPTION — reference tool 2026-09-18]: DESIGN.md § Components › Photo stamp (time + pin glyph on the tile; the full line and
+     the checklist status line in the Photo viewer); EXPERIENCE.md § Capture-to-Document › 7 Registro fotográfico (stamp "Imagem 5 ·
+     06/09/2026 14:32 · −23,5505, −46,6333", coordinates omitted when absent; "Item 8 · Contatos · NC" when linked); § Component Patterns ›
+     Photo tile, Photo viewer; Account › Localização nas fotos (permission denied = no coordinates).
+   Page-only layout below. */
+.gallery-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 var(--sp-5); }
+.frame-phone .gallery-grid { grid-template-columns: 1fr; }
+.gallery-grid .photo-row { border-top: 0; border-bottom: 1px solid var(--border-hairline); }
+.gallery-day { grid-column: 1 / -1; font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--ink-secondary); padding: var(--sp-4) 0 var(--sp-1); }
+.gallery-day:first-child { padding-top: 0; }
+/* Filter chip "selected" state — not in DESIGN.md (Chip is a shortcut, not a state). Logged in the report. */
+.chip[aria-pressed="true"] { background: var(--focus-fill); border-color: var(--primary); color: var(--primary); }
+/* Capture sheet sits at the bottom of the screen, over the scrim */
+.scrim-bottom { align-items: flex-end; padding: 0; }
+.scrim-bottom .photo-capture-sheet { width: 100%; }
+/* Caption composer: preview of the photo just taken */
+.capture-preview { position: relative; width: 100%; max-width: 480px; aspect-ratio: 4 / 3; border: 1px solid var(--border-strong); border-radius: var(--r-md); overflow: hidden; background: var(--surface-raised); }
+.capture-preview .thumb-fake::after { left: 12%; right: 12%; top: 22%; bottom: 22%; }
+.capture-preview .number-badge { position: absolute; top: 8px; left: 8px; min-width: 28px; height: 28px; padding: 0 8px; border-radius: var(--r-full); background: var(--ink-primary); color: var(--surface-raised); font-size: var(--t-label-size); font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
+.capture-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); margin-top: var(--sp-2); font-size: var(--t-meta-size); color: var(--ink-secondary); }
+.caption-composer .caption-actions { display: flex; align-items: center; gap: var(--sp-3); }
+/* Photo viewer (dark surface): white glyphs, badge in the top bar, photo placeholder, edge navigation */
+.photo-viewer .icon-btn { color: #FFFFFF; }
+.photo-viewer .viewer-top .number-badge { min-width: 28px; height: 28px; padding: 0 8px; border-radius: var(--r-full); background: #FFFFFF; color: #15181D; font-size: var(--t-label-size); font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
+.photo-viewer .viewer-count { font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: #B6BCC6; margin-left: var(--sp-1); }
+.photo-viewer .viewer-photo { position: relative; min-height: 380px; }
+.photo-viewer .viewer-meta { font-size: var(--t-meta-size); color: #B6BCC6; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); }
+.photo-viewer .viewer-nav { display: flex; gap: var(--sp-3); }
+.photo-viewer .viewer-nav .btn { flex: 1; }
+.photo-viewer .viewer-actions { display: flex; flex-direction: column; gap: var(--sp-2); }
+</style>
+</head>
+<body class="mock-page">
+
+<!-- icon sprite (inline, currentColor) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-chev-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="i-chev-left" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></symbol>
+  <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="1.5"/><path d="M4 16l5-5 4 4 3-3 4 4"/><circle cx="15.5" cy="9.5" r="1.5"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20h4l11-11-4-4L4 16z"/><path d="M13 7l4 4"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></symbol>
+  <symbol id="i-tree" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h13"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></symbol>
+</svg>
+
+<h1 class="mock-title">Fotos e legendas — Porto Seguro, Torres A e B</h1>
+<p class="mock-sub">Superfície "Photo capture &amp; gallery" do PRODUTO. Quadro 1: galeria cronológica do relatório no tablet retrato (2 por linha, como a seção 7 do FO.SERV-03), fotos de Bruno e Eduardo, uma aguardando envio, uma com erro de envio, uma sem legenda. Quadro 2: telefone, Photo capture sheet aberto sobre a galeria. Quadro 3: tablet, Caption composer logo após a captura. Quadro 4: telefone, Photo viewer da foto 9 com o carimbo completo (número, data, hora e coordenadas). Quadro 5: telefone, Photo viewer de uma foto vinculada a um item do checklist (Item 8 · Contatos · NC). Em todas as fotos, a hora traz o pino de localização quando o aparelho deu as coordenadas; a foto 11 saiu sem localização e mostra só a hora.</p>
+
+<div class="mock-row">
+
+<!-- =============================================================== FRAME 1 — TABLET PORTRAIT, GALLERY -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Galeria de fotos · relatório Porto Seguro</b><span class="sep">·</span>tablet retrato 768×1024 · 12 fotos, 1 aguardando envio, 1 erro, 1 sem legenda, 1 sem localização (foto 11) · conectado<span class="sep">·</span>Photo tile · Photo stamp (hora + pino) · Chip (filtro por cabine) · Sync badge (erro) · Sticky action bar · Transformation row 7 · Flow 4</p>
+
+  <div class="frame frame-tablet" data-theme="light">
+
+    <header class="app-bar">
+      <div class="app-bar-left">
+        <button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button>
+      </div>
+      <h1 class="app-bar-title">Fotos</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="error" aria-label="Sincronização: erro em 1 envio"><span class="pill"><span class="dot" aria-hidden="true"></span>Erro</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+
+    <div class="screen-body">
+
+      <aside class="rail-collapsed" aria-label="Árvore do relatório (recolhida)">
+        <button class="rail-toggle" aria-label="Abrir árvore do relatório" aria-expanded="false"><svg class="ico"><use href="#i-tree"/></svg></button>
+        <span class="rail-vlabel" aria-hidden="true">Árvore do relatório</span>
+      </aside>
+
+      <main class="screen">
+        <div class="content">
+
+          <section class="section" aria-labelledby="h-gal">
+            <div class="section-head">
+              <h2 id="h-gal">Registro fotográfico (12)</h2>
+              <span class="progress-counter" data-state="pending" role="status"><span class="dot" aria-hidden="true"></span>1 foto aguardando envio · 1 com erro · 1 sem legenda</span>
+            </div>
+            <p class="section-note">Ordem cronológica de captura. Os números são provisórios até a exportação (seção 7 do relatório). A hora e o pino vêm da captura; sem permissão de localização no aparelho, só a hora.</p>
+
+            <div class="chip-row" role="group" aria-label="Filtrar por cabine">
+              <button class="chip" aria-pressed="true">Todas</button>
+              <button class="chip" aria-pressed="false">Cubículo Enel</button>
+              <button class="chip" aria-pressed="false">1° Subsolo</button>
+              <button class="chip" aria-pressed="false">Oxigênio</button>
+              <button class="chip" aria-pressed="false">Cobertura A</button>
+              <button class="chip" aria-pressed="false">Cobertura B</button>
+              <button class="chip" aria-pressed="false">Geradores</button>
+            </div>
+
+            <div class="gallery-grid" style="margin-top: var(--sp-3)">
+
+              <p class="gallery-day">Sábado 06/09</p>
+
+              <div class="photo-row">
+                <button class="photo-tile" aria-label="Foto 1, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">1</span></span></button>
+                <div class="photo-text">
+                  <p class="photo-caption">Equipe da concessionária no desligamento do Cubículo Enel</p>
+                  <p class="photo-meta">Nº provisório 1 · <span class="photo-stamp">08:12<svg class="ico pin" role="img" aria-label="com localização"><use href="#i-pin"/></svg></span> · Eduardo · Enviada</p>
+                </div>
+              </div>
+
+              <div class="photo-row">
+                <button class="photo-tile" aria-label="Foto 2, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">2</span></span></button>
+                <div class="photo-text">
+                  <p class="photo-caption">Detalhe da verificação de ausência de tensão realizada no Cubículo Enel</p>
+                  <p class="photo-meta">Nº provisório 2 · <span class="photo-stamp">08:20<svg class="ico pin" role="img" aria-label="com localização"><use href="#i-pin"/></svg></span> · Eduardo · Enviada</p>
+                </div>
+              </div>
+
+              <div class="photo-row">
+                <button class="photo-tile" aria-label="Foto 3, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">3</span></span></button>
+                <div class="photo-text">
+                  <p class="photo-caption">Detalhe da instalação de aterramento temporário realizada no Cubículo Enel</p>
+                  <p class="photo-meta">Nº provisório 3 · <span class="photo-stamp">08:26<svg class="ico pin" role="img" aria-label="com localização"><use href="#i-pin"/></svg></span> · Eduardo · Enviada</p>
+                </div>
+              </div>
+
+              <div class="photo-row">
+                <button class="photo-tile" aria-label="Foto 4, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">4</span></span></button>
+                <div class="photo-text">
+                  <p class="photo-caption">Detalhe do bloqueio LOTO realizado no Cubículo Enel</p>
+                  <p class="photo-meta">Nº provisório 4 · <span class="photo-stamp">08:31<svg class="ico pin" role="img" aria-label="com localização"><use href="#i-pin"/></svg></span> · Eduardo · Enviada</p>
+                </div>
+              </div>
+
+              <div class="photo-row">
+                <button class="photo-tile" aria-label="Foto 5, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">5</span></span></button>
+                <div class="photo-text">
+                  <p class="photo-caption">Detalhe do ensaio de resistência de isolação realizado nos cabos de entrada do Cubículo Enel</p>
+                  <p class="photo-meta">Nº provisório 5 · <span class="photo-stamp">09:38<svg class="ico pin" role="img" aria-label="com localização"><use href="#i-pin"/></svg></span> · Bruno · Enviada</p>
+                </div>
+              </div>
+
+              <div class="photo-row">
+                <button class="photo-tile" aria-label="Foto 6, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">6</span></span></button>
+                <div class="photo-text">
+                  <p class="photo-caption">Detalhe do ensaio de resistência de isolação realizado no para-raio de entrada do Cubículo Enel</p>
+                  <p class="photo-meta">Nº provisório 6 · <span class="photo-stamp">09:52<svg class="ico pin" role="img" aria-label="com localização"><use href="#i-pin"/></svg></span> · Bruno · Enviada</p>
+                </div>
+              </div>
+
+              <div class="photo-row">
+                <button class="photo-tile" aria-label="Foto 7, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">7</span></span></button>
+                <div class="photo-text">
+                  <p class="photo-caption">Detalhe do ensaio de resistência de contato realizado na seccionadora SEC-ENT do Cubículo Enel</p>
+                  <p class="photo-meta">Nº provisório 7 · <span class="photo-stamp">10:15<svg class="ico pin" role="img" aria-label="com localização"><use href="#i-pin"/></svg></span> · Bruno · Enviada</p>
+                </div>
+              </div>
+
+              <div class="photo-row">
+                <button class="photo-tile" aria-label="Foto 8, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">8</span></span></button>
+                <div class="photo-text">
+                  <p class="photo-caption">Detalhe da limpeza e reaperto realizados na seccionadora SEC-C01 da Coluna 1 do 1° Subsolo</p>
+                  <p class="photo-meta">Nº provisório 8 · <span class="photo-stamp">11:02<svg class="ico pin" role="img" aria-label="com localização"><use href="#i-pin"/></svg></span> · Eduardo · Enviada</p>
+                </div>
+              </div>
+
+              <div class="photo-row">
+                <button class="photo-tile" aria-label="Foto 9, abrir" aria-describedby="g9-state"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">9</span></span></button>
+                <div class="photo-text">
+                  <p class="photo-caption">Detalhe do ensaio de resistência de isolação realizado na seccionadora SEC-C05 da Coluna 5 do 1° Subsolo</p>
+                  <p class="photo-meta">Nº provisório 9 · <span class="photo-stamp">14:05<svg class="ico pin" role="img" aria-label="com localização"><use href="#i-pin"/></svg></span> · Bruno</p>
+                  <span class="upload-pill" data-state="pending" id="g9-state"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-up"/></svg>Aguardando envio</span>
+                </div>
+              </div>
+
+              <div class="photo-row">
+                <button class="photo-tile" aria-label="Foto 10, abrir" aria-describedby="g10-state"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">10</span></span></button>
+                <div class="photo-text">
+                  <p class="photo-caption">Detalhe do ensaio de relação de transformação realizado no transformador de potencial TP-C03 da Coluna 3 do 1° Subsolo</p>
+                  <p class="photo-meta">Nº provisório 10 · <span class="photo-stamp">14:40<svg class="ico pin" role="img" aria-label="com localização"><use href="#i-pin"/></svg></span> · Bruno</p>
+                  <button class="upload-pill" data-state="error" id="g10-state" aria-label="Envio rejeitado. Tentar novamente"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-up"/></svg>Erro — Tentar novamente</button>
+                </div>
+              </div>
+
+              <p class="gallery-day">Domingo 07/09</p>
+
+              <div class="photo-row">
+                <button class="photo-tile" aria-label="Foto 11, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">11</span></span></button>
+                <div class="photo-text">
+                  <p class="photo-caption">Detalhe dos serviços e ensaios realizados no transformador TR1 do 1° Subsolo</p>
+                  <p class="photo-meta">Nº provisório 11 · <span class="photo-stamp">09:10</span> · Eduardo · Enviada · sem localização</p>
+                </div>
+              </div>
+
+              <div class="photo-row">
+                <button class="photo-tile" aria-label="Foto 12, sem legenda, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">12</span></span></button>
+                <div class="photo-text">
+                  <p class="photo-caption ink-secondary">Sem legenda</p>
+                  <p class="photo-meta">Nº provisório 12 · <span class="photo-stamp">09:32<svg class="ico pin" role="img" aria-label="com localização"><use href="#i-pin"/></svg></span> · Bruno · Enviada</p>
+                  <button class="btn btn-text" style="margin-left: calc(-1 * var(--sp-3))"><svg class="ico" aria-hidden="true"><use href="#i-pencil"/></svg>Adicionar legenda</button>
+                </div>
+              </div>
+
+            </div>
+          </section>
+
+        </div><!-- /content -->
+
+        <div class="sticky-action-bar">
+          <div class="bar-buttons">
+            <button class="btn btn-secondary"><svg class="ico" aria-hidden="true"><use href="#i-image"/></svg>Adicionar fotos</button>
+            <button class="btn btn-primary"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg>Tirar foto</button>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================================== FRAME 2 — PHONE, CAPTURE SHEET OPEN -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Photo capture sheet · sobre a galeria</b><span class="sep">·</span>telefone 390×844 · Eduardo, sem conexão · sheet aberto a partir de "Adicionar foto"<span class="sep">·</span>Photo capture sheet · Elevation (única sombra) · Responsive › Phone · Flow 4 step 2</p>
+
+  <div class="frame frame-phone frame--crop" data-theme="light">
+
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">Fotos</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="offline" aria-label="Sincronização: sem conexão"><span class="pill"><span class="dot" aria-hidden="true"></span>Sem conexão</span></button>
+        <button class="avatar-btn" aria-label="Conta de Eduardo"><span class="avatar">E</span></button>
+      </div>
+    </header>
+
+    <main class="screen" aria-hidden="true">
+      <div class="content">
+        <section class="section">
+          <div class="section-head"><h2>Registro fotográfico (12)</h2></div>
+          <p class="section-note">3 fotos aguardando envio</p>
+          <div class="chip-row">
+            <button class="chip" aria-pressed="true">Todas</button>
+            <button class="chip" aria-pressed="false">Cubículo Enel</button>
+            <button class="chip" aria-pressed="false">1° Subsolo</button>
+            <button class="chip" aria-pressed="false">Oxigênio</button>
+          </div>
+          <div class="gallery-grid" style="margin-top: var(--sp-3)">
+            <p class="gallery-day">Sábado 06/09</p>
+            <div class="photo-row">
+              <span class="photo-tile"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge">1</span></span></span>
+              <div class="photo-text"><p class="photo-caption">Equipe da concessionária no desligamento do Cubículo Enel</p><p class="photo-meta">Nº 1 · <span class="photo-stamp">08:12<svg class="ico pin" role="img" aria-label="com localização"><use href="#i-pin"/></svg></span> · Eduardo · Enviada</p></div>
+            </div>
+            <div class="photo-row">
+              <span class="photo-tile"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge">2</span></span></span>
+              <div class="photo-text"><p class="photo-caption">Detalhe da verificação de ausência de tensão realizada no Cubículo Enel</p><p class="photo-meta">Nº 2 · <span class="photo-stamp">08:20<svg class="ico pin" role="img" aria-label="com localização"><use href="#i-pin"/></svg></span> · Eduardo · Enviada</p></div>
+            </div>
+            <div class="photo-row">
+              <span class="photo-tile"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge">3</span></span></span>
+              <div class="photo-text"><p class="photo-caption">Detalhe da instalação de aterramento temporário realizada no Cubículo Enel</p><p class="photo-meta">Nº 3 · <span class="photo-stamp">08:26<svg class="ico pin" role="img" aria-label="com localização"><use href="#i-pin"/></svg></span> · Eduardo</p><span class="upload-pill" data-state="pending"><svg class="ico ico-sm"><use href="#i-up"/></svg>Aguardando envio</span></div>
+            </div>
+            <div class="photo-row">
+              <span class="photo-tile"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge">4</span></span></span>
+              <div class="photo-text"><p class="photo-caption">Detalhe do bloqueio LOTO realizado no Cubículo Enel</p><p class="photo-meta">Nº 4 · <span class="photo-stamp">08:31<svg class="ico pin" role="img" aria-label="com localização"><use href="#i-pin"/></svg></span> · Eduardo</p><span class="upload-pill" data-state="pending"><svg class="ico ico-sm"><use href="#i-up"/></svg>Aguardando envio</span></div>
+            </div>
+            <div class="photo-row">
+              <span class="photo-tile"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge">5</span></span></span>
+              <div class="photo-text"><p class="photo-caption">Detalhe do ensaio de resistência de isolação realizado nos cabos de entrada do Cubículo Enel</p><p class="photo-meta">Nº 5 · <span class="photo-stamp">09:38<svg class="ico pin" role="img" aria-label="com localização"><use href="#i-pin"/></svg></span> · Bruno · Enviada</p></div>
+            </div>
+          </div>
+        </section>
+      </div>
+      <div class="sticky-action-bar">
+        <div class="bar-buttons">
+          <button class="btn btn-primary"><svg class="ico"><use href="#i-camera"/></svg>Adicionar foto</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Bottom sheet over the dimmed gallery -->
+    <div class="dialog-scrim scrim-bottom">
+      <div class="photo-capture-sheet" role="dialog" aria-modal="true" aria-label="Adicionar foto">
+        <button class="capture-option"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg>Tirar foto</button>
+        <button class="capture-option"><svg class="ico" aria-hidden="true"><use href="#i-image"/></svg>Escolher arquivos</button>
+        <p class="capture-reason">A foto fica salva neste aparelho e entra na fila de envio.</p>
+        <button class="btn btn-text btn-block capture-cancel">Cancelar</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</div><!-- /mock-row 1 -->
+
+<div class="mock-row">
+
+<!-- =============================================================== FRAME 3 — TABLET PORTRAIT, CAPTION COMPOSER -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Caption composer · foto 13 dos cabos de entrada</b><span class="sep">·</span>tablet retrato · logo após "Tirar foto" na ficha Cabos de entrada, Cubículo Enel, sem conexão · Equipamento e Local pré-preenchidos<span class="sep">·</span>Caption composer · Combobox · Photo tile (pendente) · Sticky action bar · Flow 2 step 5</p>
+
+  <div class="frame frame-tablet" data-theme="light">
+
+    <header class="app-bar">
+      <div class="app-bar-left">
+        <button class="icon-btn" aria-label="Voltar para a ficha"><svg class="ico"><use href="#i-back"/></svg></button>
+      </div>
+      <h1 class="app-bar-title">Legenda da foto</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="offline" aria-label="Sincronização: sem conexão"><span class="pill"><span class="dot" aria-hidden="true"></span>Sem conexão</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+
+    <div class="screen-body">
+
+      <aside class="rail-collapsed" aria-label="Árvore do relatório (recolhida)">
+        <button class="rail-toggle" aria-label="Abrir árvore do relatório" aria-expanded="false"><svg class="ico"><use href="#i-tree"/></svg></button>
+        <span class="rail-vlabel" aria-hidden="true">Árvore do relatório</span>
+      </aside>
+
+      <main class="screen">
+        <div class="content">
+
+          <section class="section" aria-labelledby="h-prev">
+            <div class="section-head"><h2 id="h-prev">Foto salva neste aparelho</h2></div>
+            <div class="capture-preview" role="img" aria-label="Foto 13, terminação dos cabos de entrada">
+              <span class="thumb-fake"></span>
+              <span class="number-badge" aria-hidden="true">13</span>
+            </div>
+            <div class="capture-meta">
+              <span>Nº provisório 13 · <span class="photo-stamp">06/09 09:38<svg class="ico pin" role="img" aria-label="com localização"><use href="#i-pin"/></svg></span> · Bruno</span>
+              <span>Cabos de entrada · Cubículo Enel</span>
+              <span class="upload-pill" data-state="pending"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-up"/></svg>Aguardando envio</span>
+            </div>
+          </section>
+
+          <section class="section caption-composer" aria-labelledby="h-leg">
+            <div class="section-head"><h2 id="h-leg">Legenda</h2></div>
+            <p class="section-note">A legenda é montada com os três campos abaixo. Equipamento e Local vieram da ficha.</p>
+
+            <div class="field combobox">
+              <label class="field-label" for="cc-atividade">Atividade</label>
+              <div class="input" id="cc-atividade" role="combobox" aria-expanded="false">ensaio de resistência de isolação</div>
+              <span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+            </div>
+
+            <div class="field combobox">
+              <label class="field-label" for="cc-equip">Equipamento</label>
+              <div class="input" id="cc-equip" role="combobox" aria-expanded="false">Cabos de entrada</div>
+              <span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+              <span class="helper">Pré-preenchido da ficha · deixe vazio para foto geral</span>
+            </div>
+
+            <div class="field combobox">
+              <label class="field-label" for="cc-local">Local</label>
+              <div class="input" id="cc-local" role="combobox" aria-expanded="false">Cubículo Enel</div>
+              <span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+              <span class="helper">Pré-preenchido da ficha</span>
+            </div>
+
+            <div class="field">
+              <span class="field-label">Legenda gerada</span>
+              <p class="caption-preview" role="status">Detalhe do ensaio de resistência de isolação realizado nos cabos de entrada do Cubículo Enel</p>
+              <div class="caption-actions">
+                <button class="btn btn-text" style="margin-left: calc(-1 * var(--sp-3))"><svg class="ico" aria-hidden="true"><use href="#i-pencil"/></svg>Editar texto</button>
+                <span class="btn-reason">Ao editar, a legenda deixa de ser regenerada</span>
+              </div>
+            </div>
+          </section>
+
+        </div><!-- /content -->
+
+        <div class="sticky-action-bar">
+          <div class="bar-buttons">
+            <button class="btn btn-secondary">Legendar depois</button>
+            <button class="btn btn-primary">Salvar legenda</button>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================================== FRAME 4 — PHONE, PHOTO VIEWER -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Photo viewer · foto 9</b><span class="sep">·</span>telefone 390×844 · Bruno · foto aguardando envio, legenda editável, "Remover" recuperável · carimbo completo como imprime na seção 7<span class="sep">·</span>Photo viewer · Photo stamp (linha completa) · Button (secondary / destructive) · Photo pending upload · Transformation row 7</p>
+
+  <div class="frame frame-phone frame--crop" data-theme="light">
+    <div class="photo-viewer" role="dialog" aria-modal="true" aria-label="Foto 9 de 12">
+
+      <div class="viewer-top">
+        <button class="icon-btn" aria-label="Fechar"><svg class="ico"><use href="#i-close"/></svg></button>
+        <span class="number-badge" aria-hidden="true">9</span>
+        <span class="viewer-count">9 de 12 · nº provisório</span>
+        <span class="grow"></span>
+        <button class="icon-btn" aria-label="Mais opções da foto 9"><svg class="ico"><use href="#i-trash"/></svg></button>
+      </div>
+
+      <div class="viewer-photo" role="img" aria-label="Seccionadora SEC-C05, ensaio de isolação"><span class="thumb-fake"></span></div>
+
+      <div class="viewer-bottom">
+        <p>Detalhe do ensaio de resistência de isolação realizado na seccionadora SEC-C05 da Coluna 5 do 1° Subsolo</p>
+        <p class="photo-stamp is-full">Imagem 9 · 06/09/2026 14:05 · <svg class="ico pin" aria-hidden="true"><use href="#i-pin"/></svg>−23,5505, −46,6333</p>
+        <div class="viewer-meta">
+          <span>Bruno · ficha SEC-C05</span>
+          <span class="upload-pill" data-state="pending"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-up"/></svg>Aguardando envio</span>
+        </div>
+        <div class="viewer-actions">
+          <button class="btn btn-secondary btn-block"><svg class="ico" aria-hidden="true"><use href="#i-pencil"/></svg>Editar legenda</button>
+          <button class="btn btn-destructive btn-block"><svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg>Remover</button>
+        </div>
+        <div class="viewer-nav">
+          <button class="btn btn-secondary"><svg class="ico" aria-hidden="true"><use href="#i-chev-left"/></svg>Anterior</button>
+          <button class="btn btn-secondary">Próxima<svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- =============================================================== FRAME 5 — PHONE, PHOTO VIEWER, LINKED TO A CHECKLIST ITEM -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Photo viewer · foto 14 · vinculada ao item 8</b><span class="sep">·</span>telefone 390×844 · Bruno · foto tirada do item 8 (NC) da ficha SEC-C05: o carimbo completo e a linha de status do item, como imprimem na seção 7<span class="sep">·</span>Photo viewer · Photo stamp (linha completa + "Item 8 · Contatos · NC") · Checklist row (NC › Adicionar foto) · Transformation row 7</p>
+
+  <div class="frame frame-phone frame--crop" data-theme="light">
+    <div class="photo-viewer" role="dialog" aria-modal="true" aria-label="Foto 14 de 14">
+
+      <div class="viewer-top">
+        <button class="icon-btn" aria-label="Fechar"><svg class="ico"><use href="#i-close"/></svg></button>
+        <span class="number-badge" aria-hidden="true">14</span>
+        <span class="viewer-count">14 de 14 · nº provisório</span>
+        <span class="grow"></span>
+        <button class="icon-btn" aria-label="Mais opções da foto 14"><svg class="ico"><use href="#i-trash"/></svg></button>
+      </div>
+
+      <div class="viewer-photo" role="img" aria-label="Contatos fixos da seccionadora SEC-C05"><span class="thumb-fake"></span></div>
+
+      <div class="viewer-bottom">
+        <p>Detalhe dos contatos fixos da seccionadora SEC-C05 da Coluna 5 do 1° Subsolo — item 8</p>
+        <p class="photo-stamp is-full">Imagem 14 · 07/09/2026 14:28 · <svg class="ico pin" aria-hidden="true"><use href="#i-pin"/></svg>−23,5505, −46,6333</p>
+        <p class="photo-stamp is-full">Item 8 · Contatos · <span class="stamp-nc">NC</span></p>
+        <div class="viewer-meta">
+          <span>Bruno · ficha SEC-C05 · Enviada</span>
+        </div>
+        <div class="viewer-actions">
+          <button class="btn btn-secondary btn-block"><svg class="ico" aria-hidden="true"><use href="#i-pencil"/></svg>Editar legenda</button>
+          <button class="btn btn-destructive btn-block"><svg class="ico" aria-hidden="true"><use href="#i-trash"/></svg>Remover</button>
+        </div>
+        <div class="viewer-nav">
+          <button class="btn btn-secondary"><svg class="ico" aria-hidden="true"><use href="#i-chev-left"/></svg>Anterior</button>
+          <button class="btn btn-secondary" aria-disabled="true">Próxima<svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</div><!-- /mock-row 2 -->
+
+</body>
+</html>

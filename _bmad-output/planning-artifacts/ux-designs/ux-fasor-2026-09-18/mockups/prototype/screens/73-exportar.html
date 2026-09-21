@@ -1,0 +1,165 @@
+<style data-screen="exportar">
+/* Source: mockups/key-export.html frame 1 (Export as a page surface) + 3a (generation failed) + 3b (working) + 4 (result) — reworked to v0.5.0.
+   Governs: EXPERIENCE.md § IA › Export; § Component Patterns › Export dialog (pre-issue list with "12 legendas sugeridas — Confirmar todas",
+   unconfirmed suggestions per sheet; no Seção 9 choice — it prints in the FO.SERV-03 grouping, decision 2026-09-19, review-mvp-scope S6);
+   Transformation › Export revisions, › Section 9 scheme; § State Patterns › Working, Generation failed, Relatório exported then edited; § Offline & Sync; Flow 5 steps 1, 2, 4, 6 and failure.
+   State machine with data-open/data-close on four blocks: #exportar-main (form) ⇄ #exportar-result; inside main the generate
+   area swaps #exportar-gen-idle → #exportar-gen-working → (#exportar-gen-failed | result). */
+[data-route="/relatorio/porto-seguro/exportar"] .relatorio-head { padding: var(--sp-4) var(--gutter-tablet); background: var(--surface-base); border-bottom: 2px solid var(--border-strong); display: flex; justify-content: space-between; gap: var(--sp-4); align-items: flex-start; flex-wrap: wrap; }
+.frame-phone [data-route="/relatorio/porto-seguro/exportar"] .relatorio-head { padding: var(--sp-3) var(--gutter-phone); }
+.frame-desktop [data-route="/relatorio/porto-seguro/exportar"] .relatorio-head { padding-left: var(--gutter-desktop); padding-right: var(--gutter-desktop); }
+[data-route="/relatorio/porto-seguro/exportar"] .relatorio-head .lh-title { font-size: var(--t-title-size); font-weight: var(--t-title-weight); line-height: var(--t-title-lh); }
+[data-route="/relatorio/porto-seguro/exportar"] .relatorio-head .lh-meta { font-size: var(--t-meta-size); color: var(--ink-secondary); margin-top: var(--sp-1); }
+[data-route="/relatorio/porto-seguro/exportar"] .relatorio-head .lh-state { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+/* The Export dialog's content rendered as a surface (no float) */
+[data-route="/relatorio/porto-seguro/exportar"] .export-dialog.is-page { box-shadow: none; width: 100%; max-width: var(--content-max); border: 1px solid var(--border-hairline); }
+.frame-phone [data-route="/relatorio/porto-seguro/exportar"] .export-dialog.is-page { border: 0; padding: 0; }
+[data-route="/relatorio/porto-seguro/exportar"] .export-state { display: flex; flex-direction: column; gap: var(--sp-4); }
+[data-route="/relatorio/porto-seguro/exportar"] .precheck li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); min-height: var(--touch-min); }
+[data-route="/relatorio/porto-seguro/exportar"] .precheck li .pc-text { flex: 1; min-width: 0; }
+[data-route="/relatorio/porto-seguro/exportar"] .precheck li .pc-actions { display: flex; gap: var(--sp-1); flex: none; }
+[data-route="/relatorio/porto-seguro/exportar"] .precheck .pc-meta { color: var(--ink-secondary); font-size: var(--t-meta-size); }
+[data-route="/relatorio/porto-seguro/exportar"] .precheck .pc-sug { display: inline-flex; align-items: center; gap: var(--sp-1); color: var(--fora-do-limite); font-weight: 600; }
+[data-route="/relatorio/porto-seguro/exportar"] .precheck .pc-sug .ico { width: 18px; height: 18px; }
+[data-route="/relatorio/porto-seguro/exportar"] .precheck li.is-done .pc-sug { color: var(--conforme); }
+[data-route="/relatorio/porto-seguro/exportar"] .precheck li.is-done .pc-confirm { display: none; }
+/* Radio drawing driven by aria-checked (proto.js radio behavior) */
+[data-route="/relatorio/porto-seguro/exportar"] .generate-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-3) var(--sp-4); }
+[data-route="/relatorio/porto-seguro/exportar"] .revision-row .rev-text { flex: 1; min-width: 0; }
+[data-route="/relatorio/porto-seguro/exportar"] .revision-row .rev-files { display: flex; gap: var(--sp-1); }
+[data-route="/relatorio/porto-seguro/exportar"] .result-row .rr-text { flex: 1; min-width: 0; }
+[data-route="/relatorio/porto-seguro/exportar"] .result-row .rr-open { min-height: var(--touch-min); display: inline-flex; align-items: center; gap: var(--sp-3); flex: 1; min-width: 0; text-align: left; }
+[data-route="/relatorio/porto-seguro/exportar"] .result-block { border: 1px solid var(--border-strong); border-radius: var(--r-md); overflow: hidden; }
+[data-route="/relatorio/porto-seguro/exportar"] .result-block .result-row:first-child { border-top: 0; }
+[data-route="/relatorio/porto-seguro/exportar"] .gen-progress { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); font-size: var(--t-meta-size); color: var(--ink-secondary); }
+[data-route="/relatorio/porto-seguro/exportar"] .gen-error { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); font-size: var(--t-body-size); color: var(--nao-conforme); }
+/* Prototype-only simulation row (the real app resolves the async generation itself) */
+[data-route="/relatorio/porto-seguro/exportar"] .sim-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); padding: var(--sp-2) var(--sp-3); border: 1px dashed var(--border-strong); border-radius: var(--r-sm); font-size: var(--t-meta-size); color: var(--ink-secondary); }
+.frame-phone [data-route="/relatorio/porto-seguro/exportar"] .t-display { margin-bottom: var(--sp-1); }
+.frame-phone [data-route="/relatorio/porto-seguro/exportar"] .revision-row { flex-wrap: wrap; padding: var(--sp-2) 0; }
+.frame-phone [data-route="/relatorio/porto-seguro/exportar"] .revision-row .rev-text { flex-basis: 100%; }
+.frame-phone [data-route="/relatorio/porto-seguro/exportar"] .precheck li { flex-wrap: wrap; }
+.frame-phone [data-route="/relatorio/porto-seguro/exportar"] .precheck li .pc-actions { margin-left: calc(-1 * var(--sp-3)); }
+/* Blocking pre-check item (D5: "Parecer não preenchido") — red text; done = plain */
+[data-route="/relatorio/porto-seguro/exportar"] .precheck li.is-blocking .pc-block { color: var(--nao-conforme); font-weight: 600; }
+[data-route="/relatorio/porto-seguro/exportar"] .precheck li.is-blocking.is-done .pc-block { color: var(--conforme); font-weight: 600; }
+[data-route="/relatorio/porto-seguro/exportar"] .precheck li.is-blocking.is-done .pc-sim { display: none; }
+/* D4 — Controle do documento: compact read-only summary of the table printed after the cover */
+</style>
+<section class="screen" data-route="/relatorio/porto-seguro/exportar" data-title="Gerar relatório" data-shell="app" data-rail="false">
+
+  <div class="relatorio-head">
+    <div>
+      <h2 class="lh-title">Porto Seguro Companhia de Seguros Gerais · Torres A e B</h2>
+      <p class="lh-meta">06–08/09/2026 · Cabine primária — Porto Seguro — Torres A e B · Responsável Rafael Lamonde</p>
+    </div>
+    <div class="lh-state"><span class="status-pill" data-status="emitido">Emitido</span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>93 de 94 fichas concluídas</span></div>
+  </div>
+
+  <div class="content">
+    <section class="export-dialog is-page" role="region" aria-labelledby="exportar-title">
+
+      <!-- ================= Form · working · failed (same block; only the generate area swaps) ================= -->
+      <div class="export-state" id="exportar-main">
+        <h2 class="dialog-title" id="exportar-title">Gerar relatório</h2>
+
+        <div class="banner" role="status"><span class="banner-text">Relatório emitido em 10/09 (revisão 2). Alterações desde então geram a revisão 3 — as anteriores continuam disponíveis abaixo.</span></div>
+
+        <div>
+          <p class="field-label" style="margin-bottom: var(--sp-2)">Antes de emitir</p>
+          <p class="section-note">Só o parecer bloqueia a emissão; o resto é informativo. Sugestões não confirmadas não são impressas.</p>
+          <ul class="precheck">
+            <li class="is-blocking" id="exportar-pc-parecer"><span class="pc-text"><span class="pc-block" id="exportar-pc-parecer-t">Parecer não preenchido</span> — seção 10 <span class="pc-meta">(Apto · Apto com restrições · Não apto — escolha do engenheiro em Dados do relatório, obrigatória para emitir)</span></span><span class="pc-actions"><button class="btn btn-text" data-go="#/relatorio/porto-seguro/setup">Dados do relatório</button><button class="btn btn-text pc-sim" data-toggle-class="is-done" data-toggle-target="#exportar-pc-parecer" data-set-text="#exportar-pc-parecer-t|Parecer: Apto com restrições" data-close="#exportar-gen-blocked" data-open="#exportar-gen-idle" data-toast="Parecer preenchido — a emissão foi liberada">Simular preenchido</button></span></li>
+            <li><span class="pc-text">1 ficha não concluída — Coluna 16 · TP <span class="tabular">TP-C16</span> <span class="pc-meta">(em preenchimento)</span></span><span class="pc-actions"><button class="btn btn-text" data-go="#/ficha/TP-C16">Abrir ficha</button></span></li>
+            <li><span class="pc-text">1 ficha não ensaiada — Coluna 14 · Disjuntor TIE <span class="tabular">DJ-C14</span> <span class="pc-meta">(impossibilidade de desligamento · imprime com o motivo e entra na seção 8)</span></span><span class="pc-actions"><button class="btn btn-text" data-go="#/ficha/DJ-C14">Abrir ficha</button></span></li>
+            <li id="exportar-pc-legendas" data-slice="out" data-slice-note=" · FR-39"><span class="pc-text"><span class="pc-sug" id="exportar-pc-legendas-t"><svg class="ico" aria-hidden="true"><use href="#i-sparkles"/></svg>12 legendas sugeridas</span> <span class="pc-meta">(fotos 1–12 de Eduardo, lidas na sincronização · 1 pede verificação e fica de fora)</span></span><span class="pc-actions"><button class="btn btn-text pc-confirm" data-toggle-class="is-done" data-toggle-target="#exportar-pc-legendas" data-set-text="#exportar-pc-legendas-t|11 legendas confirmadas · 1 para verificar" data-toast="11 legendas confirmadas — a foto 5 fica para verificar na galeria"><svg class="ico" aria-hidden="true"><use href="#i-check-all"/></svg>Confirmar</button><button class="btn btn-text" data-go="#/relatorio/porto-seguro/fotos">Galeria</button></span></li>
+            <li><span class="pc-text"><span class="pc-sug"><svg class="ico" aria-hidden="true"><use href="#i-sparkles"/></svg>9 sugestões de placa</span> — Cubículo Enel · Seccionadora <span class="tabular">SEC-ENT</span> <span class="pc-meta">(lidas da foto da placa · confirme na ficha, com o recorte ao lado de cada valor)</span></span><span class="pc-actions"><button class="btn btn-text" data-go="#/ficha/SEC-ENT">Abrir ficha</button></span></li>
+            <li><span class="pc-text"><span class="pc-sug"><svg class="ico" aria-hidden="true"><use href="#i-sparkles"/></svg>3 leituras de visor</span> — Coluna 5 · Seccionadora <span class="tabular">SEC-C05</span> <span class="pc-meta">(ensaio de isolação · Fase A, B e C a 1 minuto)</span></span><span class="pc-actions"><button class="btn btn-text" data-go="#/ficha/SEC-C05">Abrir ficha</button></span></li>
+            <li><span class="pc-text">1 foto sem legenda <span class="pc-meta">(nº provisório 20 · Bruno · 07/09 09:32 · a leitura não identificou o conteúdo — nunca é adivinhada)</span></span><span class="pc-actions"><button class="btn btn-text" data-go="#/relatorio/porto-seguro/legenda">Legendar</button></span></li>
+            <li><span class="pc-text">1 ponto de atenção sem ação — Fusíveis com aquecimento · <span class="tabular">SEC-C12</span> <span class="pc-meta">(rascunho pela foto, por confirmar)</span></span><span class="pc-actions"><button class="btn btn-text" data-go="#/relatorio/porto-seguro/pontos">Pontos de atenção</button></span></li>
+            <li><span class="pc-text">Calibração do 1T vence em 20/08/2027 <span class="pc-meta">(TTR HTRT-8K · RBC 37274/26)</span></span><span class="pc-actions"><button class="btn btn-text" data-go="#/cadastros">Cadastros</button></span></li>
+            <li><span class="pc-text">Último envio de Eduardo: 06/09 18:10 <span class="pc-meta">· de Bruno: 07/09 14:32 (este aparelho)</span></span><span class="pc-actions"><button class="btn btn-text" data-go="#/sync">Sincronização</button></span></li>
+          </ul>
+        </div>
+
+        <!-- Controle do documento (D4): what prints between the cover and the index; read-only here, edited in Dados do relatório and Cadastros › Empresa -->
+        <div>
+          <div class="doc-control-head">
+            <p class="field-label">Controle do documento</p>
+            <button class="btn btn-text" data-go="#/relatorio/porto-seguro/setup">Editar em Dados do relatório<svg class="ico ico-sm" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+          </div>
+          <table class="doc-control" aria-label="Controle do documento — impresso após a capa">
+            <tbody>
+              <tr><th scope="row">Documento</th><td>Relatório de manutenção preventiva — Cabine primária <span class="dc-dim">· FO.SERV-03 · Revisão 01 do formulário no rodapé</span></td></tr>
+              <tr><th scope="row">Revisão do documento</th><td>Rev. 3 <span class="dc-dim">· Esta emissão · única menção à revisão no documento</span></td></tr>
+              <tr><th scope="row">Data de emissão</th><td>Data em que gerar</td></tr>
+              <tr><th scope="row">Contratante</th><td>Porto Seguro Companhia de Seguros Gerais <span class="dc-dim">· CNPJ 00.000.000/0001-00</span></td></tr>
+              <tr><th scope="row">Contratada</th><td>Fasor Engenharia <span class="dc-dim">· CNPJ 00.000.000/0001-01 · Cadastros › Empresa</span></td></tr>
+              <tr><th scope="row">Responsável técnico</th><td>Rafael Lamonde · CREA SP 5063583141</td></tr>
+              <tr><th scope="row">ART</th><td>2620262602583</td></tr>
+              <tr><th scope="row">Período do serviço</th><td>06 a 08/09/2026</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Seção 9: uma ordem só na interface (decisão 2026-09-19, S6). "Ordem de campo" continua existindo
+     como caso base do renderizador e rede de segurança, mas não é escolha do usuário — ver
+     EXPERIENCE.md § Capture-to-Document › Section 9. O bloco "Opções" saiu com ela. -->
+        <p class="pc-meta export-sec9-note">Seção 9 impressa no agrupamento do FO.SERV-03 (por local e tipo, com a flag <em>Agrupar por tipo</em> de cada cabine).</p>
+
+        <!-- blocked (D5): the parecer is missing — the button waits with its reason; the pre-check item links to Dados do relatório -->
+        <div class="generate-row" id="exportar-gen-blocked">
+          <button class="btn btn-primary" aria-disabled="true" aria-describedby="exportar-gen-blocked-reason">Gerar relatório</button>
+          <span class="btn-reason" id="exportar-gen-blocked-reason">Preencha o parecer (seção 10) em Dados do relatório para emitir a revisão 3.</span>
+        </div>
+
+        <!-- idle -->
+        <div class="generate-row" id="exportar-gen-idle" hidden>
+          <button class="btn btn-primary" data-close="#exportar-gen-idle" data-open="#exportar-gen-working">Gerar relatório</button>
+          <span class="btn-reason">Gera o DOCX e o PDF juntos, a partir dos dados do app, como a revisão 3. Precisa de conexão.</span>
+        </div>
+
+        <!-- working (State Patterns › Working): async, button disabled with reason, may leave — a Toast arrives when done -->
+        <div class="export-state" id="exportar-gen-working" hidden>
+          <div class="gen-progress" role="status"><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>Gerando revisão 3…</span><span>119 páginas · seção 9 montada, montando seção 7 · pode fechar — o aviso chega quando terminar</span></div>
+          <div class="generate-row">
+            <button class="btn btn-primary" aria-disabled="true" aria-describedby="exportar-gen-reason">Gerar relatório</button>
+            <span class="btn-reason" id="exportar-gen-reason">Gerando a revisão 3 — DOCX e PDF juntos</span>
+          </div>
+          <div class="sim-row" aria-label="Simulação do protótipo"><span>Simular:</span><button class="btn btn-text" data-close="#exportar-main" data-open="#exportar-result" data-toast="Revisão 3 pronta — DOCX e PDF">concluído</button><span>·</span><button class="btn btn-text" data-tone="red" data-close="#exportar-gen-working" data-open="#exportar-gen-failed">falha</button></div>
+        </div>
+
+        <!-- failed (State Patterns › Generation failed): inline error, data intact, no revision number consumed -->
+        <div class="export-state" id="exportar-gen-failed" hidden>
+          <div class="gen-error" role="alert"><span>Não foi possível gerar o relatório. Os dados não foram alterados e nenhuma revisão foi criada.</span><button class="btn btn-text" data-close="#exportar-gen-failed" data-open="#exportar-gen-working">Tentar novamente</button></div>
+          <div class="generate-row">
+            <button class="btn btn-primary" data-close="#exportar-gen-failed" data-open="#exportar-gen-working">Gerar relatório</button>
+            <span class="btn-reason">Gera o DOCX e o PDF juntos, como a revisão 3. Precisa de conexão.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= Result (frame 4): revisão 3 pronta ================= -->
+      <div class="export-state" id="exportar-result" hidden>
+        <h2 class="t-display">Revisão 3 pronta</h2>
+        <p class="t-meta ink-secondary"><time datetime="2026-09-10T11:03">10/09/2026 11:03</time> · Bruno · <span>Seção 9: Por local e tipo</span> · 119 páginas · 76 fotos · 94 fichas</p>
+
+        <div class="result-block">
+          <div class="result-row"><button class="rr-open" data-toast="Abrindo Rev. 3 no Word — não prototipado"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg><span class="rr-text">DOCX — abrir no Word</span></button><button class="icon-btn" data-toast="Compartilhar DOCX — folha do sistema, não prototipada" aria-label="Compartilhar DOCX"><svg class="ico" aria-hidden="true"><use href="#i-share"/></svg></button></div>
+          <div class="result-row"><button class="rr-open" data-toast="PDF da Rev. 3 pronto para enviar ao cliente — não prototipado"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg><span class="rr-text">PDF — enviar ao cliente</span></button><button class="icon-btn" data-toast="Compartilhar PDF — folha do sistema, não prototipada" aria-label="Compartilhar PDF"><svg class="ico" aria-hidden="true"><use href="#i-share"/></svg></button></div>
+        </div>
+
+        <div class="row-wrap"><span class="status-pill" data-status="emitido">Emitido</span><span class="t-meta ink-secondary">Qualquer alteração a partir de agora gera a revisão 4.</span></div>
+
+        <button class="btn btn-secondary btn-block" data-close="#exportar-result" data-open="#exportar-main">Gerar de novo</button>
+      </div>
+
+      <!-- ================= Revisions (all states) ================= -->
+      <div>
+        <p class="field-label" style="margin-bottom: var(--sp-2)">Revisões</p>
+        <div class="revision-row"><span class="rev-text">Rev. 2 — <time datetime="2026-09-10T08:47">10/09/2026 08:47</time> — Bruno — Por local e tipo</span><span class="rev-files"><button class="btn btn-text" data-toast="Baixando Rev. 2 — DOCX"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>DOCX</button><button class="btn btn-text slice-inline" data-toast="Baixando Rev. 2 — PDF" data-slice="out" data-slice-note=" · PDF" ><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>PDF</button></span></div>
+        <div class="revision-row"><span class="rev-text">Rev. 1 — <time datetime="2026-09-09T09:12">09/09/2026 09:12</time> — Bruno — Por local e tipo</span><span class="rev-files"><button class="btn btn-text" data-toast="Baixando Rev. 1 — DOCX"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>DOCX</button><button class="btn btn-text slice-inline" data-toast="Baixando Rev. 1 — PDF" data-slice="out" data-slice-note=" · PDF" ><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>PDF</button></span></div>
+      </div>
+    </section>
+  </div><!-- /content -->
+</section>

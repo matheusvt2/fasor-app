@@ -1,0 +1,79 @@
+<style data-screen="templates">
+/* Source: mockups/key-templates.html frame 1 (desktop list) + frame 2 (tablet: actions wrap under the text).
+   Governs: EXPERIENCE.md § IA › Templates; § Block Model › Template (carries the location skeleton — v0.5.0); § Component Patterns › Registry row (Arquivar when referenced); Flow 1 step 3. */
+[data-route="/templates"] .tpl-content { width: 100%; padding: var(--sp-5) var(--gutter-tablet); max-width: calc(var(--content-max) + 2 * var(--gutter-desktop)); margin: 0 auto; flex: 1; }
+.frame-desktop [data-route="/templates"] .tpl-content { padding: var(--sp-6) var(--gutter-desktop); }
+.frame-phone [data-route="/templates"] .tpl-content { padding: var(--sp-4) var(--gutter-phone); }
+[data-route="/templates"] .tpl-row { flex-wrap: wrap; }
+[data-route="/templates"] .tpl-row .rr-text { flex: 1 1 calc(100% - 20px - var(--touch-min) - 2 * var(--sp-3)); min-width: 0; display: flex; flex-direction: column; gap: 2px; cursor: pointer; }
+[data-route="/templates"] .tpl-row .rr-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-1); flex: none; margin-left: calc(20px + var(--sp-3)); }
+.frame-desktop [data-route="/templates"] .tpl-row,
+.frame-tablet-landscape [data-route="/templates"] .tpl-row { flex-wrap: nowrap; }
+.frame-desktop [data-route="/templates"] .tpl-row .rr-text,
+.frame-tablet-landscape [data-route="/templates"] .tpl-row .rr-text { flex: 1 1 auto; }
+.frame-desktop [data-route="/templates"] .tpl-row .rr-actions,
+.frame-tablet-landscape [data-route="/templates"] .tpl-row .rr-actions { margin-left: 0; }
+.frame-desktop [data-route="/templates"] .tpl-row .overflow-trigger,
+.frame-tablet-landscape [data-route="/templates"] .tpl-row .overflow-trigger { order: 4; }
+[data-route="/templates"] .tpl-row.is-archived .rr-primary { color: var(--ink-secondary); }
+[data-route="/templates"] .tpl-group { margin-top: var(--sp-6); }
+.frame-phone [data-route="/templates"] .section-head .btn-primary { width: 100%; }
+</style>
+<section class="screen" data-route="/templates" data-title="Templates" data-shell="app" data-rail="false">
+  <div class="tpl-content">
+
+    <section class="section" aria-labelledby="tpl-h-ativos">
+      <div class="section-head">
+        <h2 id="tpl-h-ativos">Templates (2)</h2>
+        <button class="btn btn-primary" data-go="#/templates/porto-seguro" data-toast="Template criado a partir de Cabine primária — padrão"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Novo template</button>
+      </div>
+      <p class="section-note">Um template é a composição de blocos que um relatório novo copia. Alterar um template não muda relatórios já criados a partir dele.</p>
+
+      <ul class="registry-list" aria-label="Templates ativos">
+        <li class="registry-row tpl-row">
+          <svg class="ico ink-secondary" aria-hidden="true"><use href="#i-template"/></svg>
+          <button class="rr-text" data-go="#/templates/porto-seguro" aria-label="Abrir template Cabine primária — padrão (FO.SERV-03)">
+            <span class="rr-primary">Cabine primária — padrão (FO.SERV-03)</span>
+            <span class="rr-secondary">Semente do PRODUTO · 9 seções · esqueleto de locais: 1 cabine › 1 coluna com os 8 tipos de equipamento (1 de cada) · Agrupar por tipo conforme o FO.SERV-03 · usado em 3 relatórios</span>
+          </button>
+          <button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de Cabine primária — padrão"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+          <div class="rr-actions">
+            <button class="btn btn-text" data-toast="Duplicado como “Cabine primária — padrão (cópia)”"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg>Duplicar</button>
+            <button class="btn btn-text" data-toast="Template arquivado · relatórios já criados continuam intactos" data-toast-action="Desfazer"><svg class="ico" aria-hidden="true"><use href="#i-archive"/></svg>Arquivar</button>
+          </div>
+        </li>
+        <li class="registry-row tpl-row">
+          <svg class="ico ink-secondary" aria-hidden="true"><use href="#i-template"/></svg>
+          <button class="rr-text" data-go="#/templates/porto-seguro" aria-label="Abrir template Porto Seguro — Torres A e B">
+            <span class="rr-primary">Porto Seguro — Torres A e B</span>
+            <span class="rr-secondary">Duplicado do padrão · 9 seções · 6 cabines · 26 colunas · 94 blocos de equipamento (25 seccionadoras · 21 disjuntores · 11 TP · 11 TC · 8 trafos · 4 cabos de entrada · 9 cabos de saída · 5 para-raios) · editado por Bruno · 02/09 11:20 · usado em 1 relatório</span>
+          </button>
+          <button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de Porto Seguro — Torres A e B"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+          <div class="rr-actions">
+            <button class="btn btn-text" data-toast="Duplicado como “Porto Seguro — Torres A e B (cópia)”"><svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg>Duplicar</button>
+            <button class="btn btn-text" data-toast="Template arquivado · relatórios já criados continuam intactos" data-toast-action="Desfazer"><svg class="ico" aria-hidden="true"><use href="#i-archive"/></svg>Arquivar</button>
+          </div>
+        </li>
+      </ul>
+    </section>
+
+    <section class="section tpl-group" aria-labelledby="tpl-h-arq">
+      <div class="section-head"><h2 id="tpl-h-arq">Arquivados (1)</h2></div>
+      <p class="section-note">Não aparecem em "Novo relatório a partir de template". Relatórios já criados continuam intactos.</p>
+      <ul class="registry-list" aria-label="Templates arquivados">
+        <li class="registry-row tpl-row is-archived">
+          <svg class="ico ink-secondary" aria-hidden="true"><use href="#i-template"/></svg>
+          <button class="rr-text" data-toast="Template arquivado — restaure para editar" aria-label="Abrir template Cabine primária — padrão (revisão anterior)">
+            <span class="rr-primary">Cabine primária — padrão (revisão anterior)</span>
+            <span class="rr-secondary">Arquivado por Bruno · 28/08 · 9 seções · 8 tipos de equipamento · sem conclusão nas fichas de trafo · usado em 2 relatórios</span>
+          </button>
+          <button class="overflow-trigger" data-toast="Mais opções — não prototipado" aria-label="Mais opções de Cabine primária — padrão (revisão anterior)"><svg class="ico" aria-hidden="true"><use href="#i-dots"/></svg></button>
+          <div class="rr-actions">
+            <button class="btn btn-text" data-toast="Template restaurado · volta para a lista de ativos">Restaurar</button>
+          </div>
+        </li>
+      </ul>
+    </section>
+
+  </div><!-- /tpl-content -->
+</section>

@@ -1,0 +1,89 @@
+/* =====================================================================
+   PRODUTO — proto.css
+   Prototype chrome only: the device chooser bar, the device frame with
+   internal scrolling, rail modes, screen show/hide, overlays, the map.
+   Product visuals stay in ../tokens.css and ../components.css.
+   ===================================================================== */
+
+[hidden] { display: none !important; }
+html { height: 100%; }
+body.proto { margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; background: #DFE2E6; color: #15181D; font-family: var(--font-ui); }
+
+/* ---------- Prototype bar ---------- */
+.proto-bar { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 8px 16px; background: #1C2027; color: #F3F4F6; font-size: 13px; z-index: 100; }
+.proto-brand { font-weight: 600; letter-spacing: .02em; }
+.proto-group { display: inline-flex; border: 1px solid #454B54; border-radius: 6px; overflow: hidden; }
+.proto-btn { font: inherit; color: inherit; background: none; border: 0; padding: 0 10px; min-height: 32px; cursor: pointer; white-space: nowrap; }
+.proto-btn:hover { background: #2A2F37; }
+.proto-btn:focus-visible { outline: 2px solid #86B6E8; outline-offset: -2px; }
+.proto-group .proto-btn + .proto-btn { border-left: 1px solid #454B54; }
+.proto-btn-outline { border: 1px solid #454B54; border-radius: 6px; }
+.proto-btn[aria-checked="true"], .proto-btn[aria-pressed="true"] { background: #86B6E8; color: #0B1B2B; }
+.proto-btn small { font-size: 11px; opacity: .75; margin-left: 4px; }
+.proto-route { margin-left: auto; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; opacity: .9; }
+.proto-taps { padding: 4px 10px; border: 1px solid #454B54; border-radius: 6px; white-space: nowrap; }   /* "Toques nesta ficha: N" — the ≤ 20 taps budget */
+.proto-taps b { color: #F2B85C; font-variant-numeric: tabular-nums; }
+
+/* ---------- Stage and device frame ---------- */
+.proto-stage { flex: 1; min-height: 0; overflow: auto; display: flex; justify-content: center; align-items: flex-start; padding: 24px; }
+.proto-device { position: relative; flex: none; }
+.proto-device .frame { transform-origin: top left; min-height: 0; }
+.proto-device .frame-tablet           { height: 1024px; }
+.proto-device .frame-tablet-landscape { height: 768px; }
+.proto-device .frame-phone            { height: 844px; }
+.proto-device .frame-desktop          { height: 800px; }
+.proto-device .frame-desktop .screen  { min-height: 0; }
+.frame:not(.frame-desktop) #browser-chrome { display: none; }
+.frame[data-shell="bare"] #app-bar, .frame[data-shell="bare"] #banner-slot { display: none; }
+#browser-chrome { flex: none; }
+#app-bar { flex: none; }
+#banner-slot { flex: none; }
+/* Phone App bar: left = back OR the wordmark (DESIGN.md › App bar), never both — with the compact badge the title fits */
+.frame-phone #app-bar:has(#bar-back:not([hidden])) #bar-wordmark { display: none; }
+.frame-phone #app-bar { grid-template-columns: auto minmax(0, 1fr) auto; }
+.frame-phone #app-bar .app-bar-title { min-width: 0; padding: 0 var(--sp-1); }   /* one Banner slot under the App bar; children start hidden and are opened per screen (proto.js) */
+
+/* Screens: one active at a time, scrolling inside the device */
+.proto-device .screen-body { flex: 1; min-height: 0; }
+.proto-device .screen-body > .screen { display: none; }
+.proto-device .screen-body > .screen.is-active { display: flex; overflow-y: auto; overflow-x: hidden; }
+.proto-device .screen > .sticky-action-bar { position: sticky; bottom: 0; z-index: 20; }
+.proto-device .sheet-header { flex: none; }
+[data-go], [data-open], [data-toast], [data-back] { cursor: pointer; }
+
+/* ---------- Rail modes (set on #frame by proto.js): off · inline · strip · none ---------- */
+#rail, #rail-strip, #rail-scrim, #bar-rail-btn { display: none; }
+.frame[data-rail-mode="inline"] #rail { display: flex; overflow-y: auto; }
+.frame[data-rail-mode="strip"] #rail-strip { display: flex; }
+.frame[data-rail-mode="none"] #bar-rail-btn { display: inline-flex; }
+.frame.is-rail-open #rail { display: flex; position: absolute; left: 0; top: var(--touch-field); bottom: 0; z-index: 36; overflow-y: auto; box-shadow: var(--shadow-float); width: min(var(--rail-width), 100%); }
+.frame-desktop.is-rail-open #rail { top: calc(var(--touch-field) + 44px); }
+.frame.is-rail-open #rail-scrim { display: block; position: absolute; inset: 0; z-index: 35; background: rgba(21, 24, 29, .45); }
+#rail-tree-slot { flex: 1; }
+/* Tree collapse: data-tree-toggle flips aria-expanded on the <li>; the chevron rotates, the group hides */
+.relatorio-tree li[aria-expanded="false"] > ul { display: none; }
+.relatorio-tree .tree-chevron .ico { transition: transform .12s ease; }
+.relatorio-tree li[aria-expanded="false"] > .tree-row > .tree-chevron .ico { transform: rotate(-90deg); }
+
+/* ---------- Overlays inside the device ---------- */
+.proto-device .dialog-scrim { overflow-y: auto; }
+.proto-device .palette-scrim { padding: 0; align-items: stretch; justify-content: flex-end; }
+.proto-device .palette-scrim .block-palette { overflow-y: auto; box-shadow: var(--shadow-float); max-height: 100%; }
+.frame-phone .palette-scrim { align-items: flex-end; justify-content: stretch; }
+.frame-phone .palette-scrim .block-palette { max-height: 80%; }
+.proto-device .toast { z-index: 50; }
+
+/* ---------- Screen map ---------- */
+.proto-map { position: fixed; inset: 0; z-index: 200; background: rgba(21, 24, 29, .6); display: flex; align-items: center; justify-content: center; padding: 24px; }
+.proto-map-panel { position: relative; background: #FFFFFF; color: #15181D; border-radius: 12px; width: min(800px, 100%); max-height: calc(100vh - 48px); overflow: auto; padding: 24px; font-size: 14px; line-height: 1.4; }
+.proto-map-panel h2 { margin: 0 0 6px; font-size: 18px; }
+.proto-map-sub { margin: 0 0 16px; color: #454B54; }
+.proto-map-sub code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.proto-map-close { position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; border: 0; border-radius: 6px; background: #E6E9ED; color: #15181D; font-size: 16px; cursor: pointer; }
+.proto-map-list { list-style: none; margin: 0; padding: 0; columns: 2; column-gap: 24px; }
+.proto-map-list li { break-inside: avoid; padding: 6px 0; border-bottom: 1px solid #E6E9ED; }
+.proto-map-list a { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #1F4E79; font-weight: 600; text-decoration: none; }
+.proto-map-list a:hover { text-decoration: underline; }
+.proto-map-list small { display: block; color: #454B54; }
+.proto-map-list small.is-missing { color: #8A4B00; }
+@media (max-width: 640px) { .proto-map-list { columns: 1; } }

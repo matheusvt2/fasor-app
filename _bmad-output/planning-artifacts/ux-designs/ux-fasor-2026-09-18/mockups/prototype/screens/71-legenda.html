@@ -1,0 +1,172 @@
+<style data-screen="legenda">
+/* Source: mockups/key-photos.html frame 3 (Caption composer) — reworked to v0.5.0: reached only via "Legendar" (tile, viewer,
+   gallery). Governs: EXPERIENCE.md § Smart Input › Photos; § Component Patterns › Caption composer, Suggestion field (block
+   variant: the vision caption above the rows), Dictation button, Combobox; Flow 4 step 4.
+   The generated caption is three spans (activity · equipment · place); each combobox option rewrites its own span with
+   data-set-text. The field shows the chosen option through :has() on the option's aria-checked state (proto.js radio behavior). */
+[data-route="/relatorio/porto-seguro/legenda"] .capture-preview { position: relative; width: 100%; max-width: 480px; aspect-ratio: 4 / 3; border: 1px solid var(--border-strong); border-radius: var(--r-md); overflow: hidden; background: var(--surface-raised); }
+[data-route="/relatorio/porto-seguro/legenda"] .capture-preview .thumb-fake::after { left: 12%; right: 12%; top: 22%; bottom: 22%; }
+[data-route="/relatorio/porto-seguro/legenda"] .capture-preview .number-badge { position: absolute; top: 8px; left: 8px; min-width: 28px; height: 28px; padding: 0 8px; border-radius: var(--r-full); background: var(--ink-primary); color: var(--surface-raised); font-size: var(--t-label-size); font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
+[data-route="/relatorio/porto-seguro/legenda"] .capture-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); margin-top: var(--sp-2); font-size: var(--t-meta-size); color: var(--ink-secondary); }
+[data-route="/relatorio/porto-seguro/legenda"] .caption-composer .caption-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); }
+/* Vision caption on top: Suggestion field (block variant) with "Confirmar"; confirmed = plain line, the composer below stays for changes */
+[data-route="/relatorio/porto-seguro/legenda"] .vision-line { margin-bottom: var(--sp-4); }
+[data-route="/relatorio/porto-seguro/legenda"] .vision-line .suggestion-block > .ico { width: 24px; height: 24px; flex: none; color: var(--fora-do-limite); }
+[data-route="/relatorio/porto-seguro/legenda"] .vision-line .sv-kicker { display: block; font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--fora-do-limite); }
+[data-route="/relatorio/porto-seguro/legenda"] .vision-line > .suggestion-block ~ .suggested-pill { top: -2px; }
+[data-route="/relatorio/porto-seguro/legenda"] .vision-line:has(.confirm-btn.is-confirmed) > .suggestion-block { background: var(--conforme-fill); border: 1px solid var(--conforme); }
+[data-route="/relatorio/porto-seguro/legenda"] .vision-line:has(.confirm-btn.is-confirmed) > .suggestion-block > .ico { color: var(--conforme); }
+[data-route="/relatorio/porto-seguro/legenda"] .vision-line:has(.confirm-btn.is-confirmed) .sv-kicker { color: var(--conforme); }
+[data-route="/relatorio/porto-seguro/legenda"] .vision-line:has(.confirm-btn.is-confirmed) > .suggested-pill, [data-route="/relatorio/porto-seguro/legenda"] .vision-line .confirm-btn.is-confirmed { display: none; }
+.frame-phone [data-route="/relatorio/porto-seguro/legenda"] .vision-line .suggestion-block { flex-wrap: wrap; padding-bottom: 0; }
+.frame-phone [data-route="/relatorio/porto-seguro/legenda"] .vision-line .suggestion-block > .sv { flex: 1 1 calc(100% - 24px - var(--sp-3)); }
+.frame-phone [data-route="/relatorio/porto-seguro/legenda"] .vision-line .suggestion-block .confirm-btn { flex: 1 1 100%; margin-left: calc(-1 * var(--sp-4)); justify-content: center; border-left: 0; border-top: 2px solid var(--fora-do-limite); min-height: var(--touch-min); }
+/* Combobox: the input opens its list (data-open); an option is a radio that closes the list and rewrites its span */
+[data-route="/relatorio/porto-seguro/legenda"] .combobox .input { cursor: pointer; }
+[data-route="/relatorio/porto-seguro/legenda"] .combobox-option { cursor: pointer; }
+[data-route="/relatorio/porto-seguro/legenda"] .combobox:has(.combobox-list:not([hidden])) .combobox-chevron { bottom: auto; top: calc(var(--t-label-size) * var(--t-label-lh) + var(--sp-1)); height: var(--touch-field); }
+[data-route="/relatorio/porto-seguro/legenda"] .combobox-option[aria-checked="true"] { background: var(--focus-fill); font-weight: 600; }
+[data-route="/relatorio/porto-seguro/legenda"] .combobox-option .check { margin-left: auto; color: var(--primary); display: none; }
+[data-route="/relatorio/porto-seguro/legenda"] .combobox-option[aria-checked="true"] .check { display: inline; }
+[data-route="/relatorio/porto-seguro/legenda"] .combobox .lg-val { display: none; }
+[data-route="/relatorio/porto-seguro/legenda"] .combobox:has(.combobox-option[data-val="a1"][aria-checked="true"]) .lg-val[data-val="a1"],
+[data-route="/relatorio/porto-seguro/legenda"] .combobox:has(.combobox-option[data-val="a2"][aria-checked="true"]) .lg-val[data-val="a2"],
+[data-route="/relatorio/porto-seguro/legenda"] .combobox:has(.combobox-option[data-val="a3"][aria-checked="true"]) .lg-val[data-val="a3"],
+[data-route="/relatorio/porto-seguro/legenda"] .combobox:has(.combobox-option[data-val="a4"][aria-checked="true"]) .lg-val[data-val="a4"],
+[data-route="/relatorio/porto-seguro/legenda"] .combobox:has(.combobox-option[data-val="a5"][aria-checked="true"]) .lg-val[data-val="a5"],
+[data-route="/relatorio/porto-seguro/legenda"] .combobox:has(.combobox-option[data-val="a6"][aria-checked="true"]) .lg-val[data-val="a6"],
+[data-route="/relatorio/porto-seguro/legenda"] .combobox:has(.combobox-option[data-val="e1"][aria-checked="true"]) .lg-val[data-val="e1"],
+[data-route="/relatorio/porto-seguro/legenda"] .combobox:has(.combobox-option[data-val="e2"][aria-checked="true"]) .lg-val[data-val="e2"],
+[data-route="/relatorio/porto-seguro/legenda"] .combobox:has(.combobox-option[data-val="e3"][aria-checked="true"]) .lg-val[data-val="e3"],
+[data-route="/relatorio/porto-seguro/legenda"] .combobox:has(.combobox-option[data-val="e4"][aria-checked="true"]) .lg-val[data-val="e4"],
+[data-route="/relatorio/porto-seguro/legenda"] .combobox:has(.combobox-option[data-val="l1"][aria-checked="true"]) .lg-val[data-val="l1"],
+[data-route="/relatorio/porto-seguro/legenda"] .combobox:has(.combobox-option[data-val="l2"][aria-checked="true"]) .lg-val[data-val="l2"],
+[data-route="/relatorio/porto-seguro/legenda"] .combobox:has(.combobox-option[data-val="l3"][aria-checked="true"]) .lg-val[data-val="l3"] { display: inline; }
+/* "Editar texto" (aria-pressed) swaps the generated preview for a free-text field with the Dictation button; the fields above stop regenerating */
+[data-route="/relatorio/porto-seguro/legenda"] .caption-edit { display: none; }
+[data-route="/relatorio/porto-seguro/legenda"] .caption-dictation { display: none; }
+[data-route="/relatorio/porto-seguro/legenda"] .caption-field:has(.btn[aria-pressed="true"]) .caption-preview { display: none; }
+[data-route="/relatorio/porto-seguro/legenda"] .caption-field:has(.btn[aria-pressed="true"]) .caption-edit { display: block; }
+[data-route="/relatorio/porto-seguro/legenda"] .caption-field:has(.btn[aria-pressed="true"]) .caption-dictation { display: inline-flex; }
+[data-route="/relatorio/porto-seguro/legenda"] .caption-field:has(.btn[aria-pressed="true"]) .btn-reason { color: var(--fora-do-limite); }
+[data-route="/relatorio/porto-seguro/legenda"] .caption-field .btn[aria-pressed="true"] { background: var(--focus-fill); border-radius: var(--r-md); }
+/* Dictated text arrives as a suggestion (proto.js data-listen sets data-state="suggested" on the closest Suggestion field) */
+[data-route="/relatorio/porto-seguro/legenda"] .caption-field:not([data-state="suggested"]) > .suggested-pill { display: none; }
+[data-route="/relatorio/porto-seguro/legenda"] .caption-field .dictated-note { display: none; }
+[data-route="/relatorio/porto-seguro/legenda"] .caption-field[data-state="suggested"] .dictated-note { display: inline; }
+</style>
+<section class="screen" data-route="/relatorio/porto-seguro/legenda" data-title="Legendar foto" data-shell="app" data-rail="false" data-sync="error" data-sync-label="Erro">
+  <div class="content">
+
+    <section class="section" aria-labelledby="legenda-h-prev">
+      <div class="section-head"><h2 id="legenda-h-prev">Foto 4 de 20</h2></div>
+      <div class="capture-preview" role="img" aria-label="Foto 4, bloqueio e etiquetagem no cubículo de entrada">
+        <span class="thumb-fake"></span>
+        <span class="number-badge" aria-hidden="true">4</span>
+      </div>
+      <div class="capture-meta">
+        <span>Nº provisório 4 · 06/09 08:31 · Eduardo</span>
+        <span>Foto geral · Cubículo Enel</span>
+        <span>Enviada</span>
+      </div>
+    </section>
+
+    <section class="section caption-composer" aria-labelledby="legenda-h-leg">
+      <div class="section-head"><h2 id="legenda-h-leg">Legenda</h2></div>
+
+      <!-- Vision caption (arrived on sync) — Suggestion field, block variant; "Confirmar" writes it as the caption -->
+      <div class="field suggestion-field vision-line" data-state="suggested" id="legenda-vision">
+        <div class="suggestion-block">
+          <svg class="ico" aria-hidden="true"><use href="#i-sparkles"/></svg>
+          <span class="sv"><span class="sv-kicker">Sugerida pela foto</span>Detalhe do bloqueio e etiquetagem (LOTO) realizado no cubículo de entrada do Cubículo Enel</span>
+          <button class="confirm-btn" data-toggle-class="is-confirmed" data-toast="Legenda confirmada — a foto 4 sai assim no relatório">Confirmar</button>
+        </div>
+        <span class="suggested-pill">Sugerido</span>
+      </div>
+
+      <p class="section-note">Para trocar, monte a legenda com os três campos abaixo. Local veio do filtro da galeria; atividade e equipamento vieram da leitura da foto.</p>
+
+      <!-- Atividade -->
+      <div class="field combobox">
+        <span class="field-label" id="legenda-lbl-atv">Atividade</span>
+        <div class="input" role="combobox" aria-labelledby="legenda-lbl-atv" aria-haspopup="listbox" data-open="#legenda-list-atv">
+          <span class="lg-val" data-val="a1">ensaio de resistência de isolação</span>
+          <span class="lg-val" data-val="a2">ensaio de resistência de contato</span>
+          <span class="lg-val" data-val="a3">ensaio de relação de transformação</span>
+          <span class="lg-val" data-val="a4">verificação de ausência de tensão</span>
+          <span class="lg-val" data-val="a5">limpeza e reaperto</span>
+          <span class="lg-val" data-val="a6">bloqueio e etiquetagem (LOTO)</span>
+        </div>
+        <span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+        <div class="combobox-list" id="legenda-list-atv" role="listbox" aria-label="Atividade" hidden>
+          <div class="combobox-option" role="radio" aria-checked="true"  data-val="a6" data-close="#legenda-list-atv" data-set-text="#legenda-prev-atv|do bloqueio e etiquetagem (LOTO) realizado">bloqueio e etiquetagem (LOTO)<span class="option-meta">lida da foto</span><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg></div>
+          <div class="combobox-option" role="radio" aria-checked="false" data-val="a4" data-close="#legenda-list-atv" data-set-text="#legenda-prev-atv|da verificação de ausência de tensão realizada">verificação de ausência de tensão<svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg></div>
+          <div class="combobox-option" role="radio" aria-checked="false" data-val="a1" data-close="#legenda-list-atv" data-set-text="#legenda-prev-atv|do ensaio de resistência de isolação realizado">ensaio de resistência de isolação<svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg></div>
+          <div class="combobox-option" role="radio" aria-checked="false" data-val="a2" data-close="#legenda-list-atv" data-set-text="#legenda-prev-atv|do ensaio de resistência de contato realizado">ensaio de resistência de contato<svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg></div>
+          <div class="combobox-option" role="radio" aria-checked="false" data-val="a3" data-close="#legenda-list-atv" data-set-text="#legenda-prev-atv|do ensaio de relação de transformação realizado">ensaio de relação de transformação<svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg></div>
+          <div class="combobox-option" role="radio" aria-checked="false" data-val="a5" data-close="#legenda-list-atv" data-set-text="#legenda-prev-atv|da limpeza e reaperto realizados">limpeza e reaperto<svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg></div>
+        </div>
+      </div>
+
+      <!-- Equipamento -->
+      <div class="field combobox">
+        <span class="field-label" id="legenda-lbl-eq">Equipamento</span>
+        <div class="input" role="combobox" aria-labelledby="legenda-lbl-eq" aria-haspopup="listbox" data-open="#legenda-list-eq">
+          <span class="lg-val" data-val="e1">Cabos de entrada</span>
+          <span class="lg-val" data-val="e2">Para-raio de entrada</span>
+          <span class="lg-val" data-val="e3">Seccionadora de entrada SEC-ENT</span>
+          <span class="lg-val placeholder" data-val="e4">Nenhum — foto geral</span>
+        </div>
+        <span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+        <span class="helper">Vazio em foto geral; preenchido da ficha quando a foto sai de uma</span>
+        <div class="combobox-list" id="legenda-list-eq" role="listbox" aria-label="Equipamento" hidden>
+          <div class="combobox-option" role="radio" aria-checked="true"  data-val="e4" data-close="#legenda-list-eq" data-set-text="#legenda-prev-eq|no cubículo de entrada">Nenhum — foto geral<svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg></div>
+          <div class="combobox-option" role="radio" aria-checked="false" data-val="e3" data-close="#legenda-list-eq" data-set-text="#legenda-prev-eq|na seccionadora SEC-ENT">Seccionadora de entrada<span class="option-meta">SEC-ENT</span><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg></div>
+          <div class="combobox-option" role="radio" aria-checked="false" data-val="e1" data-close="#legenda-list-eq" data-set-text="#legenda-prev-eq|nos cabos de entrada">Cabos de entrada<span class="option-meta">CB-ENT</span><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg></div>
+          <div class="combobox-option" role="radio" aria-checked="false" data-val="e2" data-close="#legenda-list-eq" data-set-text="#legenda-prev-eq|no para-raio de entrada">Para-raio de entrada<span class="option-meta">PR-ENT</span><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg></div>
+        </div>
+      </div>
+
+      <!-- Local -->
+      <div class="field combobox">
+        <span class="field-label" id="legenda-lbl-loc">Local</span>
+        <div class="input" role="combobox" aria-labelledby="legenda-lbl-loc" aria-haspopup="listbox" data-open="#legenda-list-loc">
+          <span class="lg-val" data-val="l1">Cubículo Enel</span>
+          <span class="lg-val" data-val="l2">1° Subsolo › Coluna 5</span>
+          <span class="lg-val" data-val="l3">Oxigênio</span>
+        </div>
+        <span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+        <span class="helper">Pré-preenchido pelo filtro da galeria</span>
+        <div class="combobox-list" id="legenda-list-loc" role="listbox" aria-label="Local" hidden>
+          <div class="combobox-option" role="radio" aria-checked="true"  data-val="l1" data-close="#legenda-list-loc" data-set-text="#legenda-prev-loc|do Cubículo Enel">Cubículo Enel<svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg></div>
+          <div class="combobox-option" role="radio" aria-checked="false" data-val="l2" data-close="#legenda-list-loc" data-set-text="#legenda-prev-loc|da Coluna 5 do 1° Subsolo">1° Subsolo › Coluna 5<svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg></div>
+          <div class="combobox-option" role="radio" aria-checked="false" data-val="l3" data-close="#legenda-list-loc" data-set-text="#legenda-prev-loc|da cabine Oxigênio">Oxigênio<svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg></div>
+        </div>
+      </div>
+
+      <!-- Generated caption: three spans, one per field; "Editar texto" swaps to free text with the Dictation button -->
+      <div class="field suggestion-field caption-field" id="legenda-cap-field">
+        <span class="field-label">Legenda gerada</span>
+        <p class="caption-preview" role="status" id="legenda-preview">Detalhe <span id="legenda-prev-atv">do bloqueio e etiquetagem (LOTO) realizado</span> <span id="legenda-prev-eq">no cubículo de entrada</span> <span id="legenda-prev-loc">do Cubículo Enel</span></p>
+        <div class="observation-field caption-edit" role="textbox" aria-multiline="true" aria-label="Texto da legenda" id="legenda-edit" contenteditable="true">Detalhe do bloqueio e etiquetagem (LOTO) realizado no cubículo de entrada do Cubículo Enel</div>
+        <span class="suggested-pill">Sugerido</span>
+        <div class="caption-actions">
+          <button class="btn btn-text" style="margin-left: calc(-1 * var(--sp-3))" aria-pressed="false"><svg class="ico" aria-hidden="true"><use href="#i-pencil"/></svg>Editar texto</button>
+          <span class="dictation caption-dictation">
+            <button class="dictation-btn" aria-pressed="false" aria-label="Ditar a legenda" data-listen="#legenda-edit|Detalhe do bloqueio e etiquetagem realizado nas travas do cubículo de entrada do Cubículo Enel, com a equipe da concessionária"><svg class="ico" aria-hidden="true"><use href="#i-mic"/></svg></button>
+            <span class="listening-word">Ouvindo…</span>
+          </span>
+          <span class="btn-reason">Ao editar, a legenda deixa de ser regenerada<span class="dictated-note"> · o ditado entrou como sugestão — Salvar confirma</span></span>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /content -->
+
+  <div class="sticky-action-bar">
+    <div class="bar-buttons">
+      <button class="btn btn-secondary" data-back>Voltar sem alterar</button>
+      <button class="btn btn-primary" data-back data-toast="Legenda da foto 4 salva">Salvar legenda</button>
+    </div>
+  </div>
+</section>

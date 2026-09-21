@@ -1,0 +1,357 @@
+/* =====================================================================
+   PRODUTO (fasor) — tokens.css
+   Source of truth: DESIGN.md frontmatter (colors, typography, rounded,
+   spacing). Every token below is a 1:1 copy; do not change hex or px
+   here — change DESIGN.md and re-derive.
+   Theme rule (DESIGN.md § Colors): follows the device preference,
+   manual override via [data-theme="light|dark"] on any ancestor
+   (the mock frames carry it; the real app sets it on <html>).
+   ===================================================================== */
+
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  /* --- Surfaces and ink --- */
+  --surface-base: #F4F5F7;
+  --surface-raised: #FFFFFF;
+  --surface-sunken: #E6E9ED;   /* [ASSUMPTION — reference tool 2026-09-18] neutral fill for P2–P4 pills, preview boxes */
+  --ink-primary: #15181D;
+  --ink-secondary: #454B54;
+  --border-strong: #5C6470;
+  --border-hairline: #C9CED6;
+
+  /* --- Action and focus --- */
+  --primary: #1F4E79;
+  --primary-foreground: #FFFFFF;
+  --focus: #1F4E79;
+  --focus-fill: #DCE8F5;
+
+  /* --- Checklist tri-state --- */
+  --conforme: #1B6B36;
+  --conforme-fill: #DDF3E4;
+  --nao-conforme: #B42318;
+  --nao-conforme-fill: #FBE3E0;
+  --nao-aplica: #5C6470;
+  --nao-aplica-fill: #E6E9ED;
+
+  /* --- Sheet conclusion --- */
+  --aprovado: #1B6B36;
+  --reprovado: #B42318;
+
+  /* --- Out of acceptance limit (suggestion, never a verdict) --- */
+  --fora-do-limite: #8A4B00;
+  --fora-do-limite-fill: #FDEBD0;
+
+  /* --- Exists but not tested --- */
+  --nao-ensaiado: #4A4374;
+  --nao-ensaiado-fill: #E9E6F5;
+
+  /* --- Sync states --- */
+  --sync-ok: #1B6B36;
+  --sync-pending: #8A4B00;
+  --sync-offline: #454B54;
+  --sync-error: #B42318;
+  --sync-conflict: #4A4374;
+
+  /* --- Toast action = the opposite theme's primary --- */
+  --toast-action: #86B6E8;
+
+  /* --- Elevation (DESIGN.md § Elevation & Depth): only floating things --- */
+  --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.24);
+}
+
+/* Dark values — device preference, unless an ancestor forces light */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface-base: #121417;
+    --surface-raised: #1C2027;
+    --surface-sunken: #2A2F37;
+    --ink-primary: #F3F4F6;
+    --ink-secondary: #B6BCC6;
+    --border-strong: #8A93A0;
+    --border-hairline: #343A44;
+    --primary: #86B6E8;
+    --primary-foreground: #0B1B2B;
+    --focus: #86B6E8;
+    --focus-fill: #203247;
+    --conforme: #6FD08F;
+    --conforme-fill: #173324;
+    --nao-conforme: #F59288;
+    --nao-conforme-fill: #3D1E1B;
+    --nao-aplica: #A9B1BC;
+    --nao-aplica-fill: #2A2F37;
+    --aprovado: #6FD08F;
+    --reprovado: #F59288;
+    --fora-do-limite: #F2B85C;
+    --fora-do-limite-fill: #3A2A10;
+    --nao-ensaiado: #BDB4E6;
+    --nao-ensaiado-fill: #2A2740;
+    --sync-ok: #6FD08F;
+    --sync-pending: #F2B85C;
+    --sync-offline: #B6BCC6;
+    --sync-error: #F59288;
+    --sync-conflict: #BDB4E6;
+    --toast-action: #1F4E79;
+  }
+}
+
+/* Dark values — manual override (Account › Tema › Escuro) */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-base: #121417;
+  --surface-raised: #1C2027;
+  --surface-sunken: #2A2F37;
+  --ink-primary: #F3F4F6;
+  --ink-secondary: #B6BCC6;
+  --border-strong: #8A93A0;
+  --border-hairline: #343A44;
+  --primary: #86B6E8;
+  --primary-foreground: #0B1B2B;
+  --focus: #86B6E8;
+  --focus-fill: #203247;
+  --conforme: #6FD08F;
+  --conforme-fill: #173324;
+  --nao-conforme: #F59288;
+  --nao-conforme-fill: #3D1E1B;
+  --nao-aplica: #A9B1BC;
+  --nao-aplica-fill: #2A2F37;
+  --aprovado: #6FD08F;
+  --reprovado: #F59288;
+  --fora-do-limite: #F2B85C;
+  --fora-do-limite-fill: #3A2A10;
+  --nao-ensaiado: #BDB4E6;
+  --nao-ensaiado-fill: #2A2740;
+  --sync-ok: #6FD08F;
+  --sync-pending: #F2B85C;
+  --sync-offline: #B6BCC6;
+  --sync-error: #F59288;
+  --sync-conflict: #BDB4E6;
+  --toast-action: #1F4E79;
+}
+
+/* =====================================================================
+   Typography (DESIGN.md frontmatter › typography). One family; the
+   fallbacks are what tablets ship with. No webfont is loaded — the
+   mocks render with whatever is installed (Inter if present).
+   ===================================================================== */
+:root {
+  --font-ui: Inter, Roboto, 'Segoe UI', system-ui, sans-serif;
+
+  --t-display-size: 28px;  --t-display-weight: 600; --t-display-lh: 1.2;  --t-display-ls: -0.01em;
+  --t-title-size: 22px;    --t-title-weight: 600;   --t-title-lh: 1.25;
+  --t-heading-size: 18px;  --t-heading-weight: 600; --t-heading-lh: 1.3;
+  --t-body-size: 16px;     --t-body-weight: 400;    --t-body-lh: 1.5;
+  --t-field-input-size: 18px; --t-field-input-weight: 400; --t-field-input-lh: 1.4;
+  --t-value-size: 20px;    --t-value-weight: 600;   --t-value-lh: 1.3;
+  --t-label-size: 14px;    --t-label-weight: 500;   --t-label-lh: 1.4;
+  --t-meta-size: 14px;     --t-meta-weight: 400;    --t-meta-lh: 1.4;
+
+  /* --- Rounded --- */
+  --r-sm: 4px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-full: 9999px;
+
+  /* --- Spacing (4px base) --- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+  --touch-min: 48px;
+  --touch-field: 56px;
+  --gutter-phone: 16px;
+  --gutter-tablet: 24px;
+  --gutter-desktop: 32px;
+  --content-max: 880px;
+  --bp-tablet: 768px;
+  --bp-desktop: 1280px;
+  --rail-width: 320px;
+  --thumb-inline: 64px;
+  --thumb-grid: 96px;
+}
+
+/* Typography roles as `font` shorthands (weight size / line-height family), for component tokens that
+   reference a role ("typography: {typography.label}") */
+:root {
+  --font-display: var(--t-display-weight) var(--t-display-size) / var(--t-display-lh) var(--font-ui);
+  --font-title:   var(--t-title-weight)   var(--t-title-size)   / var(--t-title-lh)   var(--font-ui);
+  --font-heading: var(--t-heading-weight) var(--t-heading-size) / var(--t-heading-lh) var(--font-ui);
+  --font-body:    var(--t-body-weight)    var(--t-body-size)    / var(--t-body-lh)    var(--font-ui);
+  --font-field-input: var(--t-field-input-weight) var(--t-field-input-size) / var(--t-field-input-lh) var(--font-ui);
+  --font-value:   var(--t-value-weight)   var(--t-value-size)   / var(--t-value-lh)   var(--font-ui);
+  --font-label:   var(--t-label-weight)   var(--t-label-size)   / var(--t-label-lh)   var(--font-ui);
+  --font-meta:    var(--t-meta-weight)    var(--t-meta-size)    / var(--t-meta-lh)    var(--font-ui);
+}
+
+/* =====================================================================
+   Component tokens added in DESIGN.md v0.5.0 (frontmatter › components).
+   Each is a 1:1 alias of the theme token it references, so light and
+   dark resolve through the color variables above — no second copy.
+   `suggestion-field` replaces `nameplate-extraction`.
+   ===================================================================== */
+:root {
+  /* --- camera-capture-button --- */
+  --camera-capture-button-size: var(--touch-field);
+  --camera-capture-button-background: var(--primary);
+  --camera-capture-button-foreground: var(--primary-foreground);
+  --camera-capture-button-radius: var(--r-md);
+  --camera-capture-button-glyph-size: 28px;
+  --camera-capture-button-tile-min-height: 96px;
+  --camera-capture-button-tile-border: 2px dashed var(--border-strong);
+  --camera-capture-button-tile-typography: var(--font-body);
+
+  /* --- dictation-button --- */
+  --dictation-button-size: var(--touch-min);
+  --dictation-button-foreground: var(--primary);
+  --dictation-button-border: 2px solid var(--primary);
+  --dictation-button-radius: var(--r-full);
+  --dictation-button-listening-background: var(--focus-fill);
+  --dictation-button-listening-typography: var(--font-label);
+
+
+  /* --- section-stepper --- */
+  --section-stepper-height: var(--touch-min);
+  --section-stepper-background: var(--surface-raised);
+  --section-stepper-step-typography: var(--font-label);
+  --section-stepper-step-foreground: var(--ink-secondary);
+  --section-stepper-current-foreground: var(--primary);
+  --section-stepper-current-rule: 3px solid var(--primary);
+  --section-stepper-missing-count-color: var(--fora-do-limite);
+  --section-stepper-complete-color: var(--conforme);
+
+  /* --- bulk-action-bar --- */
+  --bulk-action-bar-background: var(--surface-base);
+  --bulk-action-bar-border: 1px solid var(--border-hairline);
+  --bulk-action-bar-radius: var(--r-md);
+  --bulk-action-bar-min-height: var(--touch-field);
+  --bulk-action-bar-action-typography: var(--font-body);
+  --bulk-action-bar-action-foreground: var(--primary);
+
+  /* --- read-display-button --- */
+  --read-display-button-min-height: var(--touch-min);
+  --read-display-button-foreground: var(--primary);
+  --read-display-button-border: 2px solid var(--primary);
+  --read-display-button-radius: var(--r-md);
+  --read-display-button-typography: var(--font-label);
+
+  /* --- measurement-field (new keys) --- */
+  --measurement-field-unit-control-min-width: var(--touch-min);
+  --measurement-field-unit-control-divider: 2px solid var(--border-strong);
+  --measurement-field-outlier-helper-color: var(--fora-do-limite);
+
+  /* --- suggestion-field (replaces nameplate-extraction) --- */
+  --suggestion-field-suggested-background: var(--fora-do-limite-fill);
+  --suggestion-field-suggested-border: 2px solid var(--fora-do-limite);
+  --suggestion-field-verify-border: 2px dashed var(--fora-do-limite);
+  --suggestion-field-pill-typography: var(--font-label);
+  --suggestion-field-pill-color: var(--fora-do-limite);
+  --suggestion-field-crop-size: 48px;
+  --suggestion-field-crop-radius: var(--r-sm);
+  --suggestion-field-crop-border: 1px solid var(--border-strong);
+  --suggestion-field-confirm-min-height: var(--touch-min);
+  --suggestion-field-plate-crop-max-height: 160px;
+}
+
+/* =====================================================================
+   Component tokens added in DESIGN.md v0.6.0 ([ASSUMPTION — reference
+   tool 2026-09-18]): Priority pill, Priority picker, Brand preview,
+   Document control table, Generated text (Suggestion field variant),
+   Criteria line, Parecer box, Photo stamp, Rich text editor. Aliases of
+   the theme tokens above, so light and dark resolve without a second copy.
+   ===================================================================== */
+:root {
+  /* --- priority-pill (P0 danger · P1 amber · P2–P4 neutral; the text carries the level) --- */
+  --priority-pill-typography: var(--font-label);
+  --priority-pill-radius: var(--r-full);
+  --priority-pill-p0-foreground: var(--nao-conforme);
+  --priority-pill-p0-background: var(--nao-conforme-fill);
+  --priority-pill-p1-foreground: var(--fora-do-limite);
+  --priority-pill-p1-background: var(--fora-do-limite-fill);
+  --priority-pill-neutral-foreground: var(--ink-primary);
+  --priority-pill-neutral-background: var(--surface-sunken);
+
+  /* --- priority-picker (five option rows, day hint at right) --- */
+  --priority-picker-row-min-height: var(--touch-field);
+  --priority-picker-border: 2px solid var(--border-strong);
+  --priority-picker-radius: var(--r-md);
+  --priority-picker-selected-background: var(--focus-fill);
+  --priority-picker-selected-border: var(--primary);
+  --priority-picker-hint-typography: var(--font-meta);
+  --priority-picker-hint-foreground: var(--ink-secondary);
+
+  /* --- brand-preview (plain-CSS miniature: cover, header, footer) --- */
+  --brand-preview-background: var(--surface-base);
+  --brand-preview-border: 1px solid var(--border-hairline);
+  --brand-preview-radius: var(--r-md);
+  --brand-preview-page-background: var(--surface-raised);
+  --brand-preview-page-border: 1px solid var(--border-strong);
+  --brand-preview-box-background: var(--surface-sunken);
+  --brand-preview-label-typography: var(--font-label);
+  --brand-preview-watermark-opacity: .18;
+
+  /* --- doc-control (2-column key/value table) --- */
+  --doc-control-border: 1px solid var(--border-strong);
+  --doc-control-row-divider: 1px solid var(--border-hairline);
+  --doc-control-radius: var(--r-sm);
+  --doc-control-key-width: 200px;
+  --doc-control-key-background: var(--surface-base);
+  --doc-control-key-typography: var(--font-label);
+  --doc-control-key-foreground: var(--ink-secondary);
+  --doc-control-value-typography: var(--font-body);
+
+  /* --- suggestion-field › generated text (new keys) + criteria-line --- */
+  --suggestion-field-generated-background: var(--fora-do-limite-fill);
+  --suggestion-field-generated-border: 2px solid var(--fora-do-limite);
+  --suggestion-field-generated-min-height: 96px;
+  --suggestion-field-generated-typography: var(--font-field-input);
+  --criteria-line-typography: var(--font-meta);
+  --criteria-line-foreground: var(--ink-secondary);
+
+  /* --- parecer-box (section 10 verdict: apto · restricoes · nao-apto) --- */
+  --parecer-box-radius: var(--r-md);
+  --parecer-box-rule: 4px;
+  --parecer-box-verdict-typography: var(--font-heading);
+  --parecer-box-apto-foreground: var(--aprovado);
+  --parecer-box-apto-background: var(--conforme-fill);
+  --parecer-box-restricoes-foreground: var(--fora-do-limite);
+  --parecer-box-restricoes-background: var(--fora-do-limite-fill);
+  --parecer-box-nao-apto-foreground: var(--reprovado);
+  --parecer-box-nao-apto-background: var(--nao-conforme-fill);
+
+  /* --- photo-stamp (time + pin glyph; full line in the Photo viewer) --- */
+  --photo-stamp-typography: var(--font-meta);
+  --photo-stamp-foreground: var(--ink-secondary);
+  --photo-stamp-glyph-size: 14px;
+
+  /* --- rich-text (Template composer only) --- */
+  --rich-text-border: 2px solid var(--border-strong);
+  --rich-text-radius: var(--r-sm);
+  --rich-text-toolbar-background: var(--surface-base);
+  --rich-text-toolbar-min-height: var(--touch-min);
+  --rich-text-toolbar-divider: 1px solid var(--border-hairline);
+  --rich-text-area-min-height: 160px;
+  --rich-text-area-typography: var(--font-field-input);
+  --rich-text-chip-background: var(--focus-fill);
+  --rich-text-chip-foreground: var(--primary);
+  --rich-text-chip-radius: var(--r-sm);
+}
+
+/* Typography roles as utility classes */
+.t-display { font-family: var(--font-ui); font-size: var(--t-display-size); font-weight: var(--t-display-weight); line-height: var(--t-display-lh); letter-spacing: var(--t-display-ls); }
+.t-title   { font-family: var(--font-ui); font-size: var(--t-title-size);   font-weight: var(--t-title-weight);   line-height: var(--t-title-lh); }
+.t-heading { font-family: var(--font-ui); font-size: var(--t-heading-size); font-weight: var(--t-heading-weight); line-height: var(--t-heading-lh); }
+.t-body    { font-family: var(--font-ui); font-size: var(--t-body-size);    font-weight: var(--t-body-weight);    line-height: var(--t-body-lh); }
+.t-field-input { font-family: var(--font-ui); font-size: var(--t-field-input-size); font-weight: var(--t-field-input-weight); line-height: var(--t-field-input-lh); }
+.t-value   { font-family: var(--font-ui); font-size: var(--t-value-size);   font-weight: var(--t-value-weight);   line-height: var(--t-value-lh); font-variant-numeric: tabular-nums; }
+.t-label   { font-family: var(--font-ui); font-size: var(--t-label-size);   font-weight: var(--t-label-weight);   line-height: var(--t-label-lh); }
+.t-meta    { font-family: var(--font-ui); font-size: var(--t-meta-size);    font-weight: var(--t-meta-weight);    line-height: var(--t-meta-lh); }
+
+/* Ink helpers (never a lighter grey than ink-secondary for text) */
+.ink-secondary { color: var(--ink-secondary); }
+.ink-primary   { color: var(--ink-primary); }
+.tabular       { font-variant-numeric: tabular-nums; }

@@ -1,0 +1,31 @@
+<style data-screen="login">
+/* Source: mockups/key-login.html frame 1. Governs: EXPERIENCE.md § IA › Login; Component Patterns › Login form; Flow 1 step 1. */
+[data-route="/login"] .login-screen { flex: 1; display: flex; align-items: center; justify-content: center; padding: var(--sp-7) var(--gutter-tablet); }
+.frame-phone [data-route="/login"] .login-screen { align-items: flex-start; padding: var(--sp-7) var(--gutter-phone) var(--sp-6); }
+[data-route="/login"] .login-form .btn-primary { margin-top: var(--sp-2); }
+[data-route="/login"] .login-foot { margin-top: var(--sp-5); text-align: center; font-size: var(--t-meta-size); color: var(--ink-secondary); }
+</style>
+<section class="screen" data-route="/login" data-title="Login" data-shell="bare" data-rail="false">
+  <div class="login-screen">
+    <div class="login-form" role="form" aria-labelledby="login-title">
+      <h1 class="login-wordmark" id="login-title">PRODUTO</h1>
+
+      <div class="field">
+        <span class="field-label" id="login-email-label">E-mail</span>
+        <div class="input" role="textbox" aria-labelledby="login-email-label" id="login-email">bruno@fasor.eng.br</div>
+      </div>
+
+      <div class="field">
+        <span class="field-label" id="login-pass-label">Senha</span>
+        <div class="input is-focus">
+          <span class="grow" role="textbox" aria-labelledby="login-pass-label" id="login-pass" style="letter-spacing:2px">••••••••••</span>
+          <button type="button" class="input-suffix-btn" aria-pressed="false">Mostrar</button>
+        </div>
+      </div>
+
+      <button type="button" class="btn btn-primary btn-block" data-go="#/home">Entrar</button>
+
+      <p class="login-foot">Acesso fornecido pela sua empresa. Sem cadastro por aqui.</p>
+    </div>
+  </div>
+</section>

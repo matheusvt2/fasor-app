@@ -1,0 +1,1115 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>PRODUTO — Proposta de experiência para o relatório de cabine primária</title>
+<link rel="stylesheet" href="proposta.css">
+</head>
+<body>
+
+<!-- ===================== CAPA ===================== -->
+<section class="page cover">
+  <div class="brand">PRODUTO</div>
+  <div style="max-width:150mm">
+    <p class="kicker">Proposta de experiência · Fasor Engenharia</p>
+    <h1>O relatório de cabine primária pronto em um dia, sem papel e sem redigitar</h1>
+    <p class="sub">Como o Bruno e a equipe vão preencher as 94 fichas, as fotos e os pontos de atenção no tablet, dentro da cabine e sem sinal, e sair da obra com o FO.SERV-03 pronto para revisar e assinar.</p>
+  </div>
+  <div class="meta" style="flex-direction:column;gap:1.5mm;max-width:150mm">
+    <span>Preparado por Sally, UX Designer, para Bruno Matsui · Fasor Engenharia</span>
+    <span>18 de setembro de 2026 · base: spines de UX v0.5.0 (rascunho) e protótipo navegável</span>
+  </div>
+  <div class="shots-row">
+    <img src="assets/shots/home-phone.png" style="height:80mm">
+    <img src="assets/shots/ficha-sec.png" style="height:118mm">
+  </div>
+</section>
+
+<!-- ===================== SUMÁRIO ===================== -->
+<section class="page divider">
+  <p class="kicker">O que este documento mostra</p>
+  <h1>Do problema de hoje ao produto que vamos construir</h1>
+  <p class="lead">Este documento reúne o que definimos até agora: o problema como o Bruno o descreveu, quem vai usar, os princípios de design, as jornadas, cada tela do protótipo, as decisões tomadas e o que fica para depois. Serve de base para a conversa de validação e, em seguida, para a arquitetura e a implementação.</p>
+  <div class="toc">
+    <div><span>01</span> O problema hoje</div>
+    <div><span>08</span> Entrada inteligente: câmera e IA</div>
+    <div><span>02</span> Quem usa o produto</div>
+    <div><span>09</span> Sem sinal: offline e sincronização</div>
+    <div><span>03</span> A proposta em uma página</div>
+    <div><span>10</span> Do app ao relatório FO.SERV-03</div>
+    <div><span>04</span> Princípios de design</div>
+    <div><span>11</span> Identidade visual e acessibilidade</div>
+    <div><span>05</span> Modelo mental: as palavras do produto</div>
+    <div><span>12</span> Decisões registradas</div>
+    <div><span>06</span> Jornadas do Bruno e do Eduardo</div>
+    <div><span>13</span> Visão de futuro</div>
+    <div><span>07</span> As telas, uma a uma</div>
+    <div><span>14</span> O que precisamos validar com você</div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<!-- ===================== 01 PROBLEMA ===================== -->
+<section class="page">
+  <p class="kicker">01 · O problema hoje</p>
+  <h1>Um relatório escrito três vezes, entregue sete dias depois</h1>
+  <div class="body">
+    <div class="cols" style="grid-template-columns:1.15fr 1fr;flex:none;gap:10mm">
+      <div class="col">
+        <p class="lead" style="font-size:11.5pt">Hoje o FO.SERV-03 nasce à mão em folhas A4 impressas, uma por equipamento. Depois é redigitado no Excel, colado no Word como imagem e montado no escritório, muitas vezes duas semanas depois, a partir de anotações "no papel de pão".</p>
+        <p class="quote">"Eu preencho duas vezes."</p>
+        <p class="quote">"O tempo pra mandar pro cliente, o tempo pra fazer o faturamento, isso me atrasa muito."</p>
+        <p class="small muted">Falas do Bruno na reunião de planejamento. A meta combinada é o relatório pronto para assinar em até um dia útil depois do campo.</p>
+      </div>
+      <div class="cols cols-2" style="gap:4mm;align-content:start">
+        <div class="card"><div class="stat"><span class="v">119</span><span class="l">páginas no relatório da Porto Seguro (set/2026)</span></div></div>
+        <div class="card"><div class="stat"><span class="v">94</span><span class="l">fichas de ensaio, uma por equipamento</span></div></div>
+        <div class="card"><div class="stat"><span class="v">76</span><span class="l">fotos legendadas em grade de 2 colunas</span></div></div>
+        <div class="card"><div class="stat"><span class="v">7 dias</span><span class="l">em média até o relatório sair, e só então fatura</span></div></div>
+      </div>
+    </div>
+    <figure class="shot" style="margin-top:4mm">
+      <img src="assets/foserv-all-pages.png" style="width:100%;border-radius:6px;box-shadow:none;border:1px solid var(--hair)">
+      <figcaption>As 125 páginas do FO.SERV-03 da Porto Seguro, lado a lado: capa e índice, texto fixo, registro fotográfico, 94 fichas coladas como imagem e certificados de calibração.</figcaption>
+    </figure>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<section class="page">
+  <p class="kicker">01 · O problema hoje</p>
+  <h1>Onde o processo atual dói, e o que o formulário não consegue registrar</h1>
+  <div class="body">
+    <div class="cols" style="grid-template-columns:1fr 1fr 0.9fr">
+      <div class="col">
+        <h2>As cinco dores</h2>
+        <ol class="tight">
+          <li><b>Entrada em dobro (na verdade tripla).</b> À mão na folha A4, depois Excel, depois Word. Cerca de 60 a 120 caracteres digitados por ficha.</li>
+          <li><b>Entrega lenta, caixa lento.</b> Sete dias em média; o serviço de setembro atravessou o feriado e o relatório ainda não estava pronto.</li>
+          <li><b>Contexto perdido.</b> O trabalho é dividido entre Bruno e Eduardo e escrito cerca de 15 dias depois, de anotações soltas.</li>
+          <li><b>Ferramenta errada.</b> Laptop na cabine é um estorvo; a equipe já leva tablet.</li>
+          <li><b>Saída rígida.</b> As tabelas entram no Word como imagem do Excel, então a foto nunca fica ao lado do equipamento.</li>
+        </ol>
+        <h2 style="margin-top:3mm">Defeitos do formulário atual que o digital corrige</h2>
+        <ul class="tight small">
+          <li>Oito fichas de transformador sem a caixa de Conclusão (imagem recortada).</li>
+          <li>Critério ">400 MΩ" impresso como ">40"; unidade varia entre MΩ, GΩ e TΩ na mesma coluna.</li>
+          <li>Identificação livre: "CUBÍCULO ENEL" nomeia cinco equipamentos diferentes.</li>
+          <li>Numeração de foto duplicada; nenhuma ficha diz quem ensaiou nem quando.</li>
+          <li>Equipamento não ensaiado só existe em prosa na seção 8. Não há como marcá-lo na ficha.</li>
+        </ul>
+      </div>
+      <div class="col shot h-140">
+        <img src="assets/foserv/hi-26-026.png" style="border-radius:4px">
+        <figcaption>Uma ficha de hoje: tabela do Excel colada como imagem. Não dá para buscar, somar, comparar nem ligar à foto.</figcaption>
+      </div>
+      <div class="col shot h-140">
+        <img src="assets/foserv/hi-10-010.png" style="border-radius:4px">
+        <figcaption>Registro fotográfico: 76 fotos numeradas à mão, com legenda no padrão "Imagem NN: Detalhe de [atividade] no [equipamento] do [local]".</figcaption>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<!-- ===================== 02 PERSONAS ===================== -->
+<section class="page">
+  <p class="kicker">02 · Quem usa o produto</p>
+  <h1>Duas pessoas em campo, um escritório e um leitor exigente</h1>
+  <div class="body">
+    <div class="cols cols-2" style="gap:6mm">
+      <div class="card">
+        <div class="persona">
+          <div class="avatar">B</div>
+          <div>
+            <h3 style="margin:0">Bruno Matsui</h3>
+            <div class="role">Engenheiro eletricista, Fasor Engenharia · responsável técnico (CREA, ART) · parceiro de design e primeiro usuário</div>
+            <p class="small"><b>Contexto.</b> Vai a campo com o Eduardo, preenche as folhas impressas, redige o relatório dias depois e só fatura quando entrega. Conhece o GroundPRO e viu a ferramenta de um colega dos grupos de WhatsApp: <i>"a gente quer fazer um negócio mais top"</i>.</p>
+            <p class="small"><b>Quer.</b> Sair da obra com os dados completos e entregar sem um segundo turno na mesa. Relatório em um dia. Faturar mais cedo.</p>
+            <p class="small"><b>Não quer.</b> Papel de nenhum tipo (recusou digitalizar folhas manuscritas). Redigitar. Depender de sinal dentro da cabine.</p>
+            <p class="small" style="margin:0"><b>No produto.</b> Monta o template e o relatório no escritório; em campo preenche fichas quase sem digitar; revisa e gera o Word e o PDF; assina.</p>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="persona">
+          <div class="avatar alt">E</div>
+          <div>
+            <h3 style="margin:0">Eduardo</h3>
+            <div class="role">Engenheiro de campo, Fasor Engenharia · executa parte dos ensaios · segundo aparelho no mesmo relatório</div>
+            <p class="small"><b>Contexto.</b> Divide a cabine com o Bruno. Na obra de setembro os papéis se inverteram: Bruno fez as fotos e Eduardo as fichas. Suas anotações precisam chegar ao relatório sem perder o contexto.</p>
+            <p class="small"><b>Quer.</b> Preencher a ficha do equipamento na frente dele, com luva, e saber que nada se perde quando os dois aparelhos sincronizam.</p>
+            <p class="small"><b>No produto.</b> Usuário nomeado: cada ficha registra quem preencheu e quando. Trabalha em fichas diferentes das do Bruno; contradições reais entre os dois aparecem célula a célula.</p>
+            <p class="small note" style="margin:0"><b>A validar.</b> O brief cita o Eduardo só como colega de campo. Objetivos e frustrações dele ainda não foram ouvidos diretamente.</p>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="persona">
+          <div class="avatar alt2">F</div>
+          <div>
+            <h3 style="margin:0">O escritório da Fasor</h3>
+            <div class="role">Quem prepara e revisa o relatório · hoje, os mesmos engenheiros</div>
+            <p class="small"><b>Faz.</b> Cria o projeto e o relatório a partir de um template, cadastra instrumentos e clientes, pré-preenche o que já se sabe antes da visita e revisa o documento gerado no computador.</p>
+            <p class="small" style="margin:0"><b>Precisa.</b> Composição completa no desktop, com mouse; campo só faz "uma ou outra alteração".</p>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="persona">
+          <div class="avatar" style="background:var(--strong)">P</div>
+          <div>
+            <h3 style="margin:0">O cliente que lê o relatório</h3>
+            <div class="role">Ex.: Porto Seguro · alimenta o Prontuário das Instalações Elétricas (PIE)</div>
+            <p class="small"><b>Precisa.</b> Um documento claro, completo e assinado, no layout que já conhece, com plano de ação, prazo e responsável para cada ponto de atenção (NR-10 10.7.11).</p>
+            <p class="small" style="margin:0"><b>Amanhã.</b> Outras prestadoras de manutenção em média tensão, se o MVP provar o relatório em um dia.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<!-- ===================== 03 PROPOSTA ===================== -->
+<section class="page">
+  <p class="kicker">03 · A proposta em uma página</p>
+  <h1>Capturar em campo pela câmera, confirmar com um toque, gerar o relatório no seu layout</h1>
+  <div class="body">
+    <p class="lead">Um aplicativo web, feito para tablet e que também roda no celular e no computador, em que a equipe registra inspeções, ensaios e fotos na cabine, sem sinal, e transforma tudo no FO.SERV-03 pronto para assinar. Sem papel, sem redigitar.</p>
+    <div class="steps steps-5" style="margin:3mm 0 4mm">
+      <div class="step"><span class="who">Escritório · antes</span><h4>Preparar o relatório</h4><p>Projeto do cliente, relatório criado a partir de um template com cabines, colunas e equipamentos já no lugar, cada um com seu checklist e ensaios.</p></div>
+      <div class="step"><span class="who">Campo · tablet</span><h4>Preencher quase sem digitar</h4><p>Foto da placa vira dados de placa. Foto do visor vira medição. C / NC / NA com um toque. Instrumento escolhido pelo código traz série e certificado.</p></div>
+      <div class="step"><span class="who">Campo · câmera</span><h4>Fotos como dado</h4><p>Cada foto sabe a que equipamento e local pertence; a legenda é proposta automaticamente e o engenheiro só confirma.</p></div>
+      <div class="step"><span class="who">Campo ou escritório</span><h4>Achados viram plano de ação</h4><p>Cada ponto de atenção referencia as fotos e carrega ação corretiva, prazo, prioridade e responsável, como pede a NR-10 10.7.11.</p></div>
+      <div class="step"><span class="who">Escritório · depois</span><h4>Gerar o relatório</h4><p>Word para revisar e PDF para enviar, no layout FO.SERV-03 com sumário automático, fichas por local e tipo, fotos e certificados.</p></div>
+    </div>
+    <div class="cols cols-2" style="flex:none;gap:6mm">
+      <div class="card tint">
+        <h3>O mandato do produto</h3>
+        <p class="quote" style="margin:0 0 2mm">"Como é algo a ser usado no campo, quanto mais inteligente for, melhor. Quero que o usuário digite o menos possível. Aqui a usabilidade do usuário é chave."</p>
+        <p class="small" style="margin:0">Na prática: o app captura pela câmera e infere; o engenheiro confirma. Toda IA roda no servidor; sem sinal, a foto fica guardada e a leitura acontece no primeiro sinal.</p>
+      </div>
+      <div class="card">
+        <h3>Como vamos saber que deu certo</h3>
+        <table class="small">
+          <tr><td>Do fim do campo ao relatório pronto para assinar</td><td class="num"><b>≤ 1 dia útil</b></td></tr>
+          <tr><td>Dados de campo redigitados depois da visita</td><td class="num"><b>zero</b></td></tr>
+          <tr><td>Por ficha de seccionadora toda conforme, com placa copiada</td><td class="num"><b>≤ 20 toques · ≤ 15 teclas</b></td></tr>
+          <tr><td>Relatório gerado aceito pelo Bruno</td><td class="num"><b>só edições menores</b></td></tr>
+          <tr><td>Uso real</td><td class="num"><b>no próximo serviço de cabine</b></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<!-- ===================== 04 PRINCÍPIOS ===================== -->
+<section class="page">
+  <p class="kicker">04 · Princípios de design</p>
+  <h1>Seis regras que valem em todas as telas</h1>
+  <div class="body">
+    <div class="cols cols-3" style="gap:5mm">
+      <div class="card"><h3>1. Digitar o mínimo</h3><p>Qualquer campo que não possa ser preenchido por toque, foto, cópia ou padrão é uma exceção que precisa de justificativa. Orçamento de interação por ficha: até 20 toques e 15 teclas.</p></div>
+      <div class="card"><h3>2. A câmera lê, o engenheiro confirma</h3><p>Placa, visor do instrumento, etiqueta do cubículo e legenda de foto chegam como sugestões em âmbar, com o recorte da foto ao lado do valor. Nada é gravado sem um toque de confirmação. Sugestão sem base fica marcada "Verificar" e nunca vai para o relatório.</p></div>
+      <div class="card"><h3>3. Funciona sem sinal</h3><p>Relatórios em rascunho ou em campo baixam sozinhos para o aparelho. Dentro da cabine tudo é salvo localmente; fotos entram numa fila e nunca se perdem. Sincroniza quando aparece sinal, na van ou no hotspot.</p></div>
+      <div class="card"><h3>4. Preencher na ordem do corpo, imprimir na ordem do FO.SERV-03</h3><p>O técnico caminha por cabine e por coluna: seccionadora, disjuntor, TP e TC da mesma coluna, de uma vez. O app segue esse caminho. Na exportação o relatório é reorganizado por local e tipo, como o documento de hoje.</p></div>
+      <div class="card"><h3>5. Legível ao sol, tocável com luva</h3><p>Cores sóbrias e de alto contraste, nunca só cor para dizer estado (sempre palavra ou ícone junto), alvos de toque grandes, tema claro e escuro seguindo o aparelho. Rádios de C / NC / NA com nome completo para leitor de tela.</p></div>
+      <div class="card"><h3>6. Uma fonte da verdade</h3><p>Os dados do app geram o Word e o PDF como duas saídas do mesmo conteúdo. Correção de texto volta para o app e se exporta de novo; o Word é leitura e impressão, não fonte. Cada exportação fica registrada como uma revisão.</p></div>
+    </div>
+    <div class="note" style="flex:none;margin-top:4mm"><b>Onde estas regras nasceram.</b> Da transcrição da reunião, do FO.SERV-03 real (124 páginas inventariadas), das duas pesquisas de mercado e domínio, e de três rodadas de revisão do desenho (rubrica, acessibilidade e arquitetura) mais uma revisão adversarial focada em simplicidade no celular e no tablet. As premissas sobre o ambiente físico da cabine (luva, uma mão, luz, sujeira, sinal) ainda precisam da sua confirmação. Veja a seção 14.</div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+<!-- ===================== 05 MODELO MENTAL ===================== -->
+<section class="page">
+  <p class="kicker">05 · Modelo mental</p>
+  <h1>As palavras do produto: template, relatório, bloco, ficha, TAG</h1>
+  <div class="body">
+    <div class="cols" style="grid-template-columns:1.25fr 1fr;gap:8mm">
+      <div class="col">
+        <p class="small muted" style="margin-bottom:2mm">Você descreveu o relatório como "um draw.io com objetos prontos em que o usuário pode adicionar ou remover". Foi daí que saiu este modelo.</p>
+        <div class="table-card">
+        <table class="small">
+          <tr><td style="width:24mm"><b>Projeto</b></td><td>Um cliente e uma obra (Porto Seguro, Torres A e B). Reúne todos os relatórios daquele site ao longo dos anos.</td></tr>
+          <tr><td><b>Template</b></td><td>Composição reutilizável de blocos, com o esqueleto de locais (cabines e colunas) e as quantidades por coluna. Montado no escritório. Editar um template nunca altera relatórios já criados. Um template semente "Cabine primária, padrão FO.SERV-03" vem com o produto.</td></tr>
+          <tr><td><b>Relatório</b></td><td>Uma visita, criada a partir de um template dentro de um projeto. É dono dos dados preenchidos, das fotos, dos pontos de atenção e do histórico de exportações.</td></tr>
+          <tr><td><b>Bloco</b></td><td>Uma seção inteira do documento (Objetivo, Definições, Segurança…) ou uma ficha de equipamento inteira. Pode ser adicionado, removido e reordenado.</td></tr>
+          <tr><td><b>Sub-bloco</b></td><td>Uma parte do bloco: um ensaio (isolação, resistência de contato, relação de transformação), um item do checklist, o grupo de placa, a caixa de observações. Ligado ou desligado por tipo no template; desligado não imprime vazio.</td></tr>
+          <tr><td><b>Ficha</b></td><td>Um bloco de equipamento = uma ficha = um equipamento = uma TAG. Oito tipos: cabos de entrada, para-raio, seccionadora, disjuntor MT, TP, TC, cabos de saída e transformador de força.</td></tr>
+          <tr><td><b>Local</b></td><td>Cabine › Coluna (ou cubículo). A cabine é dona das características da SE e do ambiente de ensaio: editados uma vez, na primeira ficha ("Da cabine"), e herdados pelas demais.</td></tr>
+          <tr><td><b>TAG</b></td><td>Identidade estável do equipamento entre visitas (SEC-C05, DJ-C05, TP-C05). Obrigatória, sugerida por tipo + coluna, única dentro da obra. É o que permite "Copiar da última visita".</td></tr>
+          <tr><td><b>Cadastros</b></td><td>Empresa (identidade do documento), clientes, instrumentos (o código "2E" traz série e certificado), fabricantes, classes de tensão e critérios de aceitação com fonte.</td></tr>
+          <tr><td><b>Revisão</b></td><td>Uma exportação = o DOCX e o PDF do mesmo conteúdo, mais a escolha da seção 9. Rev. 1, Rev. 2… impressas só na tabela de controle do documento.</td></tr>
+        </table>
+        </div>
+      </div>
+      <div class="col shot" style="justify-content:flex-start">
+        <img src="assets/shots/relatorio-overview-landscape.png" style="width:100%">
+        <figcaption><b>A árvore do relatório</b> no tablet em paisagem: cabine › coluna › equipamento, na ordem em que o técnico caminha. Cada linha termina com o estado da ficha (Vazia, Em preenchimento, Concluída, Não ensaiada).</figcaption>
+        <div class="card tint" style="margin-top:4mm;width:100%">
+          <h3>A transformação captura → documento</h3>
+          <p class="small" style="margin:0">No app, a ordem é a do corpo: seccionadora, disjuntor, TP e TC da mesma coluna numa passada. Hoje a seção 9 é por tipo e o técnico passa três ou quatro vezes na mesma coluna. Na geração, a seção 9 é remontada "Por local e tipo (padrão FO.SERV-03)" ou em "Ordem de campo". As fotos são numeradas na geração; os pontos de atenção referenciam fotos por vínculo, nunca por número digitado.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<!-- ===================== 06 JORNADAS ===================== -->
+<section class="page divider">
+  <p class="kicker">06 · Jornadas</p>
+  <h1>Cinco jornadas, contadas com a obra da Porto Seguro</h1>
+  <p class="lead">Usamos o serviço real de 6 a 8 de setembro de 2026 (94 equipamentos, 6 cabines, 26 colunas) para percorrer o produto de ponta a ponta: preparar no escritório, preencher no cubículo sem sinal, o equipamento extra e as fotos do Eduardo, gerar e enviar no mesmo dia, e o que acontece quando algo dá errado.</p>
+  <div class="toc">
+    <div><span>J1</span> Escritório, semana anterior: preparar a obra</div>
+    <div><span>J4</span> Segunda de manhã: gerar, revisar e enviar</div>
+    <div><span>J2</span> Sábado, cubículo Enel, sem sinal: uma seccionadora em 19 toques</div>
+    <div><span>J5</span> Quando algo dá errado: conflito, espaço, calibração</div>
+    <div><span>J3</span> Um equipamento a mais e as fotos do Eduardo</div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<section class="page">
+  <p class="kicker">06 · Jornada 1 · Bruno · escritório, semana anterior à parada</p>
+  <h1>Preparar a obra Porto Seguro: 94 blocos nascem no lugar certo</h1>
+  <div class="body">
+    <div class="steps steps-6" style="flex:none">
+      <div class="step"><h4>Cadastra o instrumento novo</h4><p>Cadastros › Instrumentos: o TTR "1T" com série, certificado RBC e validade. Anexa o PDF do certificado na própria linha.</p></div>
+      <div class="step"><h4>Duplica o template padrão</h4><p>Templates: "Cabine primária, padrão" vira "Porto Seguro, Torres A e B".</p></div>
+      <div class="step"><h4>Monta o esqueleto</h4><p>No Compositor: Cubículo Enel, 1° Subsolo (17 colunas), Oxigênio, Coberturas e Geradores. Quantidades por coluna somam 94 equipamentos.</p></div>
+      <div class="step"><h4>Cria o relatório</h4><p>Projeto › "Novo relatório a partir de template". Os 94 blocos nascem nas suas colunas, já com a TAG sugerida.</p></div>
+      <div class="step"><h4>Preenche os dados do relatório</h4><p>Cliente e obra do cadastro, datas, responsável já preenchido (digita só a ART), exclusões, instrumentos e altitude confirmada.</p></div>
+      <div class="step"><h4>Confere a árvore</h4><p>Abre a primeira ficha de cada cabine e preenche "Da cabine" pelo diagrama unifilar. O tablet baixa o relatório sozinho no Wi-Fi.</p></div>
+    </div>
+    <div class="cols fill" style="grid-template-columns:1fr 1fr 0.9fr;gap:6mm;margin-top:4mm">
+      <figure class="shot"><img src="assets/shots/template-composer.png"><figcaption><b>Compositor de template.</b> Locais, quantidades por coluna e sub-blocos ligados por tipo.</figcaption></figure>
+      <figure class="shot"><img src="assets/shots/setup.png"><figcaption><b>Dados do relatório.</b> Bandas numeradas, tudo pré-preenchido do cadastro e da conta.</figcaption></figure>
+      <div>
+        <div class="card ok"><h3>Como termina</h3><p class="small" style="margin:0">"A árvore se lê como a caminhada que ele vai fazer no sábado." Status Rascunho, badge Sincronizado.</p></div>
+        <div class="card amber" style="margin-top:3mm"><h3>Se algo não bater</h3><p class="small" style="margin:0">Quantidade do template diferente da obra? Nada quebra: o bloco extra entra em campo com uma foto (Jornada 3). Instrumento esquecido? O seletor oferece o cadastro completo em campo.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<section class="page">
+  <p class="kicker">06 · Jornada 2 · Bruno · sábado, cubículo Enel, chuva, sem sinal</p>
+  <h1>Uma seccionadora inteira em 19 toques e zero teclas</h1>
+  <div class="body">
+    <div class="steps steps-6" style="flex:none">
+      <div class="step"><h4>Um toque para continuar</h4><p>Na entrada: "Sem conexão. Tudo fica salvo neste aparelho." O card "Continuar · CB-ENT · 0 de 94" abre a primeira ficha.</p></div>
+      <div class="step"><h4>Placa pela câmera</h4><p>Tile "Fotografar placa", um disparo. "Foto guardada, leitura quando houver sinal." Na ficha seguinte, "Igual à SEC-ENT?" copia a placa.</p></div>
+      <div class="step"><h4>Checklist em um toque</h4><p>Item 8 NC: toque, chip "oxidação", observação ditada, foto do contato. "Marcar os restantes como Conforme" fecha as outras 11 linhas (Motor e Fusíveis já vieram NA).</p></div>
+      <div class="step"><h4>Leituras pelo visor</h4><p>"Ler visor" em rajada nas três tabelas: nove disparos. As células continuam digitáveis, se ele preferir.</p></div>
+      <div class="step"><h4>No portão, uma barra de sinal</h4><p>"5 leituras prontas para confirmar". Cada valor chega em âmbar com o recorte da foto ao lado. Fase A 330 MΩ "abaixo do aceitável". "3,7 · Verificar", 1000× abaixo: o recorte mostra GΩ, um toque corrige.</p></div>
+      <div class="step"><h4>Conclusão sugerida</h4><p>"Aprovado · Com restrições?" em um toque. Texto da conclusão já composto, com a linha de critérios. "Confirmar". "Preenchido por Bruno · 06/09 09:41". "Próxima ficha".</p></div>
+    </div>
+    <div class="cols fill" style="grid-template-columns:1fr 1fr 1fr;gap:6mm;margin-top:4mm">
+      <figure class="shot"><img src="assets/shots/ficha-placa.png"><figcaption><b>Fotografar placa.</b> A câmera abre direto, com o quadro da placa. Nada de escolher arquivo.</figcaption></figure>
+      <figure class="shot"><img src="assets/shots/ficha-visor.png"><figcaption><b>Ler visor.</b> O megôhmetro é fotografado; o valor e a unidade viram sugestão na célula, com o recorte guardado.</figcaption></figure>
+      <div>
+        <div class="cols cols-3" style="gap:3mm;flex:none">
+          <div class="card"><div class="stat"><span class="v">19</span><span class="l">toques, 0 teclas: seccionadora toda conforme, placa copiada</span></div></div>
+          <div class="card"><div class="stat"><span class="v">30</span><span class="l">toques, 0 teclas: SEC-ENT com um NC, duas fotos e observação ditada</span></div></div>
+          <div class="card"><div class="stat"><span class="v">≈120</span><span class="l">caracteres digitados hoje por ficha (85 de placa, 35 de leituras)</span></div></div>
+        </div>
+        <div class="card amber" style="margin-top:3mm"><h3>Se algo der errado</h3><p class="small" style="margin:0">Fechou a aba? "Rascunho encontrado · Recuperar". Pouco espaço? O aviso vem antes de recusar a captura. Sem sinal até a van? As leituras chegam lá, com os recortes, e ele confirma ainda na obra.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<section class="page">
+  <p class="kicker">06 · Jornada 3 · Bruno e Eduardo · domingo, 1° Subsolo e Cubículo Enel</p>
+  <h1>Um equipamento a mais, e as fotos do Eduardo num segundo aparelho</h1>
+  <div class="body">
+    <div class="steps steps-6" style="flex:none">
+      <div class="step"><span class="who">Bruno</span><h4>Uma seccionadora fora do unifilar</h4><p>Na Coluna 9 há uma segunda seccionadora. Da linha da coluna: "+ Adicionar bloco" › "Fotografar equipamento". Uma foto da frente do painel.</p></div>
+      <div class="step"><span class="who">Bruno</span><h4>O app propõe, ele confirma</h4><p>Com sinal: "Criar SEC-C09-2 · Chave seccionadora · Coluna 9?" (tipo pelo painel, coluna pela etiqueta, sufixo -2 porque SEC-C09 existe). Um toque. A mesma foto vira a placa.</p></div>
+      <div class="step"><span class="who">Eduardo</span><h4>Entra no celular</h4><p>O relatório já estava no aparelho dele ("No aparelho · atualizado 21:40"). "Ver árvore" › Fotos.</p></div>
+      <div class="step"><span class="who">Eduardo</span><h4>Rajada de doze fotos</h4><p>Câmera direto, sem escolha modal: equipe da concessionária, cadeados LOTO, aterramento temporário. O filtro em Cubículo Enel dá o local; carimbo "06/09 09:12" com GPS.</p></div>
+      <div class="step"><span class="who">Eduardo</span><h4>Na van, as legendas chegam</h4><p>"12 legendas sugeridas · Confirmar todas". Ele lê as doze, corrige uma com "Legendar" e confirma.</p></div>
+      <div class="step"><span class="who">Os dois</span><h4>Os aparelhos se encontram</h4><p>A galeria intercala por hora de captura; o ponto de atenção do Bruno pode referenciar a foto do Eduardo. Se Eduardo marcou NC onde Bruno tinha C, ninguém é perguntado: NC vence C, a foto fica, e a mescla é registrada.</p></div>
+    </div>
+    <div class="cols cols-3 fill" style="gap:6mm;margin-top:4mm">
+      <figure class="shot"><img src="assets/shots/relatorio-detect.png"><figcaption><b>Fotografar equipamento.</b> Tipo, coluna e TAG sugeridos a partir da foto do painel; um confirm cria o bloco.</figcaption></figure>
+      <figure class="shot"><img src="assets/shots/fotos.png"><figcaption><b>Fotos.</b> Galeria cronológica, filtro por cabine, legendas sugeridas para confirmar, pill de envio em cada foto.</figcaption></figure>
+      <figure class="shot"><img src="assets/shots/legenda.png"><figcaption><b>Legendar.</b> Atividade, equipamento e local em chips de recentes; a frase no padrão do FO.SERV-03 se monta sozinha.</figcaption></figure>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<section class="page">
+  <p class="kicker">06 · Jornada 4 · Bruno · segunda de manhã, escritório</p>
+  <h1>Gerar, revisar e enviar no mesmo dia. Sete dias viraram um.</h1>
+  <div class="body">
+    <div class="steps steps-6" style="flex:none">
+      <div class="step"><h4>Pré-emissão</h4><p>"Gerar relatório" lista o que falta: "Parecer não preenchido" (o único item que bloqueia), 1 ficha não concluída, 1 não ensaiada, 1 foto sem legenda, 12 legendas e 2 fichas com sugestões por confirmar, calibração do 1T.</p></div>
+      <div class="step"><h4>Fecha as pendências no desktop</h4><p>Conclui o TP, confirma legendas e leituras contra os recortes. O disjuntor não ensaiado imprime com o motivo e entra na seção 8 sozinho.</p></div>
+      <div class="step"><h4>Pontos de atenção</h4><p>Os dois recorrentes (plaquetas de identificação, diagrama unifilar) por chips; foto escolhida da galeria; ação e responsável. "P1 · Curto prazo" preenche o prazo em 30 dias.</p></div>
+      <div class="step"><h4>Parecer</h4><p>"Apto com restrições?" sugerido (3 fichas com restrições, 1 não ensaiada). Um toque; resumo gerado com linha de critérios; "Confirmar". O controle do documento já está montado: Rev. 1, CNPJ, CREA, ART, período.</p></div>
+      <div class="step"><h4>Gera</h4><p>"Gerando revisão 1… pode fechar". Um minuto depois: "DOCX · abrir no Word" e "PDF · enviar ao cliente".</p></div>
+      <div class="step"><h4>Revisa e reemite</h4><p>No Word: 120 páginas, sumário, seção 9 por local e tipo, fichas como tabelas de verdade, plano de ação na seção 8. Duas observações ruins: corrige no app, gera a revisão 2 e envia o PDF na mesma manhã.</p></div>
+    </div>
+    <div class="cols cols-3 fill" style="gap:6mm;margin-top:4mm">
+      <figure class="shot"><img src="assets/shots/pontos.png"><figcaption><b>Pontos de atenção.</b> Texto, fotos vinculadas, ação recomendada, prioridade P0 a P4 com prazo sugerido, responsável.</figcaption></figure>
+      <figure class="shot"><img src="assets/shots/exportar.png"><figcaption><b>Gerar relatório.</b> Lista de pré-emissão com um só item bloqueante; controle do documento; opção da seção 9 escondida em "Opções".</figcaption></figure>
+      <figure class="shot"><img src="assets/shots/exportar-result.png"><figcaption><b>Resultado.</b> Word para revisar, PDF para enviar, revisões anteriores listadas e baixáveis.</figcaption></figure>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<section class="page">
+  <p class="kicker">06 · Jornada 5 · Bruno e Eduardo · meio da obra</p>
+  <h1>Quando algo dá errado: conflito, pouco espaço, calibração vencida</h1>
+  <div class="body">
+    <div class="steps steps-6" style="flex:none">
+      <div class="step"><h4>Os dois editaram a mesma ficha offline</h4><p>SEC-C12: Eduardo marcou o item 10 NC com foto e digitou leituras. Bruno tinha C e confirmou 3.300 MΩ pelo visor onde Eduardo digitou 330.</p></div>
+      <div class="step"><h4>A mescla resolve quase tudo sozinha</h4><p>Item 10 vira NC com a foto; as células do Eduardo preenchem as vazias do Bruno, e a tela de sincronização registra cada mescla.</p></div>
+      <div class="step"><h4>Só a contradição real pergunta</h4><p>Fase A, 1 minuto: "3.300 MΩ (você)" com o recorte ao lado e "330 MΩ (Eduardo)" digitado. Dois botões grandes, "Aplicar". SEC-C15, removida por um e alterada pelo outro: "Manter / Remover".</p></div>
+      <div class="step"><h4>Pouco espaço no tablet</h4><p>"Pouco espaço neste aparelho (180 MB). Sincronize para liberar." No hotspot da van: "12 de 31 fotos enviadas"; o badge volta a "Sincronizado".</p></div>
+      <div class="step"><h4>Calibração vencida</h4><p>O seletor do TTR mostra "Calibração do 1T vencida" em âmbar e deixa continuar. A pré-emissão vai lembrar.</p></div>
+      <div class="step"><h4>Uma foto rejeitada</h4><p>Pill "Erro · Tentar novamente" na própria foto; as outras seguem subindo. Nada fica travado.</p></div>
+    </div>
+    <div class="cols fill" style="grid-template-columns:1fr 1fr 0.9fr;gap:6mm;margin-top:4mm">
+      <figure class="shot"><img src="assets/shots/sync.png"><figcaption><b>Sincronização.</b> Manchete e contagens; mesclas como informação; só contradições pedem decisão.</figcaption></figure>
+      <figure class="shot"><img src="assets/shots/sync-conflito.png"><figcaption><b>Contradição.</b> Uma célula por linha, o recorte de quem leu pelo visor, dois botões de 56 px.</figcaption></figure>
+      <div>
+        <div class="card ok"><h3>A régua de aceitação</h3><p class="small" style="margin:0">"Nada se perdeu, nada foi decidido por ele." Nunca perder uma foto é o critério que a pesquisa mostrou ser eliminatório: apps genéricos de campo concentram queixas de sincronização instável e fotos perdidas.</p></div>
+        <div class="card violet" style="margin-top:3mm"><h3>Regras fixas de mescla</h3><p class="small" style="margin:0">Preenchido vence vazio. NC vence C. Vínculo de foto nunca cai. Texto livre: a edição mais recente vence e a outra fica legível no Sync status. Dois aparelhos em fichas diferentes nunca conflitam.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+<!-- ===================== 07 TELAS ===================== -->
+<section class="page">
+  <p class="kicker">07 · As telas, uma a uma</p>
+  <h1>Mapa das 17 telas do protótipo navegável</h1>
+  <div class="body">
+    <p class="small muted" style="margin-bottom:3mm">Todas as capturas deste documento vêm do protótipo HTML navegável, em tablet retrato (768 × 1024) e tema claro, salvo indicação. Os dados são os da obra Porto Seguro. As páginas seguintes mostram cada tela com o que ela faz e por quê.</p>
+    <div class="gallery" style="grid-template-columns:repeat(9,1fr);gap:3mm">
+      <figure class="shot"><img src="assets/shots/login.png"><figcaption>Login</figcaption></figure>
+      <figure class="shot"><img src="assets/shots/home.png"><figcaption>Início</figcaption></figure>
+      <figure class="shot"><img src="assets/shots/project.png"><figcaption>Projeto</figcaption></figure>
+      <figure class="shot"><img src="assets/shots/templates.png"><figcaption>Templates</figcaption></figure>
+      <figure class="shot"><img src="assets/shots/template-composer.png"><figcaption>Compositor de template</figcaption></figure>
+      <figure class="shot"><img src="assets/shots/setup.png"><figcaption>Dados do relatório</figcaption></figure>
+      <figure class="shot"><img src="assets/shots/relatorio-overview.png"><figcaption>Visão do relatório</figcaption></figure>
+      <figure class="shot"><img src="assets/shots/relatorio-palette.png"><figcaption>Paleta de blocos</figcaption></figure>
+      <figure class="shot"><img src="assets/shots/ficha-sec.png"><figcaption>Ficha de equipamento</figcaption></figure>
+      <figure class="shot"><img src="assets/shots/ficha-placa.png"><figcaption>Fotografar placa</figcaption></figure>
+      <figure class="shot"><img src="assets/shots/ficha-visor.png"><figcaption>Ler visor</figcaption></figure>
+      <figure class="shot"><img src="assets/shots/fotos.png"><figcaption>Fotos</figcaption></figure>
+      <figure class="shot"><img src="assets/shots/legenda.png"><figcaption>Legendar foto</figcaption></figure>
+      <figure class="shot"><img src="assets/shots/pontos.png"><figcaption>Pontos de atenção</figcaption></figure>
+      <figure class="shot"><img src="assets/shots/exportar.png"><figcaption>Gerar relatório</figcaption></figure>
+      <figure class="shot"><img src="assets/shots/cadastros.png"><figcaption>Cadastros</figcaption></figure>
+      <figure class="shot"><img src="assets/shots/sync.png"><figcaption>Sincronização</figcaption></figure>
+      <figure class="shot"><img src="assets/shots/account.png"><figcaption>Conta</figcaption></figure>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<section class="page">
+  <p class="kicker">07 · Telas · Login e Início</p>
+  <h1>Entrar é simples; começar é um toque</h1>
+  <div class="body">
+    <div class="cols" style="grid-template-columns:0.8fr 0.8fr 0.45fr 1fr;gap:5mm">
+      <figure class="shot h-120"><img src="assets/shots/login.png"><figcaption><b>Login.</b> E-mail e senha, nada mais.</figcaption></figure>
+      <figure class="shot h-120"><img src="assets/shots/home.png"><figcaption><b>Início</b> com um relatório em campo neste aparelho.</figcaption></figure>
+      <figure class="shot phone h-120"><img src="assets/shots/home-phone.png"><figcaption><b>No celular</b>, o card "Continuar" ocupa a largura.</figcaption></figure>
+      <div>
+        <ul class="annot">
+          <li><b class="n">1</b><span><b>Login obrigatório, "mesmo que simples".</b> Usuários nomeados: cada ficha registra quem preencheu e quando. A sessão fica no aparelho, para ninguém ser deslogado no cubículo.</span></li>
+          <li><b class="n">2</b><span><b>Sem conexão, sem drama.</b> "Sem conexão. Tudo fica salvo neste aparelho." aparece uma vez por sessão. Os relatórios já baixados continuam disponíveis após o login.</span></li>
+          <li><b class="n">3</b><span><b>"Continuar · SEC-C05 · 42 de 94".</b> Quando há relatório em campo, a Home abre com esse card: um toque leva à ficha onde ele parou, com cabine e coluna. No escritório, sem relatório em campo, a tela começa pelo painel de status.</span></li>
+          <li><b class="n">4</b><span><b>Painel de status.</b> Rascunho, Em campo, Em revisão e Emitido, com contagens; tocar num tile filtra a lista.</span></li>
+          <li><b class="n">5</b><span><b>Relatórios e atalhos.</b> "Novo relatório", a lista de relatórios com "No aparelho · atualizado 21:40", e atalhos para Templates e Cadastros.</span></li>
+          <li><b class="n">6</b><span><b>Instalar na tela inicial.</b> Um banner único convida a instalar o app para abrir sem sinal; pode ser repetido a partir da Conta.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<section class="page">
+  <p class="kicker">07 · Telas · Projeto</p>
+  <h1>Um cliente, uma obra, todos os seus relatórios</h1>
+  <div class="body">
+    <div class="cols" style="grid-template-columns:0.9fr 0.9fr 1fr;gap:6mm">
+      <figure class="shot h-120"><img src="assets/shots/project.png"><figcaption><b>Projeto Porto Seguro.</b> Relatórios do mais novo ao mais antigo, com status e disponibilidade no aparelho.</figcaption></figure>
+      <figure class="shot h-120"><img src="assets/shots/project-novo.png"><figcaption><b>Novo relatório a partir de template.</b> Tipo de relatório, template, datas. Só isso.</figcaption></figure>
+      <div>
+        <ul class="annot">
+          <li><b class="n">1</b><span><b>Projeto = cliente + obra.</b> Ao longo dos anos, os relatórios do mesmo site ficam juntos. É isso que dá à TAG a memória entre visitas ("Copiar da última visita").</span></li>
+          <li><b class="n">2</b><span><b>Tipo de relatório.</b> No MVP há só "Cabine primária", já selecionado. O campo existe para painel elétrico, SPDA e o que vier depois, como você pediu: "tem que ter tipo".</span></li>
+          <li><b class="n">3</b><span><b>Template.</b> O padrão é o último usado no projeto. A data de fim é igual à de início até você mudar.</span></li>
+          <li><b class="n">4</b><span><b>Nunca um botão cinza mudo.</b> "Criar relatório" fica desabilitado com o motivo escrito ao lado, até haver template e data. Ao criar, abre direto em Dados do relatório.</span></li>
+          <li><b class="n">5</b><span><b>Acesso no MVP.</b> Todos os usuários da empresa veem todos os projetos e relatórios. Sem papéis, sem compartilhamento por relatório.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<section class="page">
+  <p class="kicker">07 · Telas · Templates e Compositor</p>
+  <h1>O template carrega o esqueleto da obra, não só as quantidades</h1>
+  <div class="body">
+    <div class="cols" style="grid-template-columns:0.9fr 0.9fr 1fr;gap:6mm">
+      <figure class="shot h-120"><img src="assets/shots/templates.png"><figcaption><b>Templates.</b> Listar, duplicar, arquivar. Um template semente "padrão FO.SERV-03" vem com o produto.</figcaption></figure>
+      <figure class="shot h-120"><img src="assets/shots/template-composer.png"><figcaption><b>Compositor.</b> Cabines e colunas com quantidades por coluna; TAG sugerida já visível.</figcaption></figure>
+      <div>
+        <ul class="annot">
+          <li><b class="n">1</b><span><b>Template ≠ relatório.</b> O template é reutilizável entre obras; editá-lo nunca altera relatórios já criados. Composição é regra de escritório; em campo se faz "uma ou outra alteração".</span></li>
+          <li><b class="n">2</b><span><b>Esqueleto de locais.</b> Cubículo Enel, 1° Subsolo com 17 colunas, Oxigênio, Coberturas, Geradores. Cada bloco de um relatório novo nasce no lugar certo, com a TAG final sugerida. Acabou o grupo "Sem local" e o arrastar em campo.</span></li>
+          <li><b class="n">3</b><span><b>Quantidades por coluna</b> com stepper ("Seccionadoras, 25"). "Repetir nas colunas 6 a 17" e "Igual à Coluna 4" evitam repetir 17 vezes.</span></li>
+          <li><b class="n">4</b><span><b>Sub-blocos e subtipos.</b> Por tipo de equipamento: quais ensaios e campos entram, e o subtipo padrão (seccionadora manual pré-marca "Motor" e "Fusíveis" como NA; itens nunca somem, só vêm pré-marcados).</span></li>
+          <li><b class="n">5</b><span><b>Texto fixo das seções.</b> Objetivo, Definições, Escopo, Requisitos, Segurança e Conclusão são blocos de seção com variáveis. O único editor de texto rico do produto vive aqui.</span></li>
+          <li><b class="n">6</b><span><b>Agrupar por tipo</b> é uma bandeira por cabine: define como a seção 9 será remontada na exportação.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<section class="page">
+  <p class="kicker">07 · Telas · Compositor de template, desenrolado</p>
+  <h1>Toda a composição da obra Porto Seguro numa só rolagem</h1>
+  <div class="body">
+    <div class="cols cols-4" style="gap:4mm">
+      <figure class="shot h-120"><img src="assets/shots/split/template-composer-tall-1.png"><figcaption><b>Nome e esqueleto de locais.</b> Seis cabines, 26 colunas, 94 blocos. Coluna 5 expandida com os steppers de quantidade.</figcaption></figure>
+      <figure class="shot h-120"><img src="assets/shots/split/template-composer-tall-2.png"><figcaption><b>Demais cabines</b> com resumo de conteúdo por linha, "Adicionar coluna" e "Adicionar cabine".</figcaption></figure>
+      <figure class="shot h-120"><img src="assets/shots/split/template-composer-tall-3.png"><figcaption><b>Blocos de seção</b> (1 a 11) e padrões por tipo de equipamento: sub-blocos ligados ou não, subtipo padrão.</figcaption></figure>
+      <figure class="shot h-120"><img src="assets/shots/split/template-composer-tall-4.png"><figcaption><b>Checklist padrão</b> da seccionadora com os NA pré-marcados pelo subtipo; demais tipos; "Salvar template".</figcaption></figure>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<section class="page">
+  <p class="kicker">07 · Telas · Dados do relatório</p>
+  <h1>Cinco etapas numa página, quase tudo já preenchido</h1>
+  <div class="body">
+    <div class="cols" style="grid-template-columns:0.72fr 0.72fr 0.72fr 1fr;gap:4mm">
+      <figure class="shot h-120"><img src="assets/shots/split/setup-tall-1.png"><figcaption><b>Etapa 1 e 2.</b> Cliente do cadastro, obra, datas, altitude por GPS, responsável e conselho.</figcaption></figure>
+      <figure class="shot h-120"><img src="assets/shots/split/setup-tall-2.png"><figcaption><b>Etapas 2 a 4.</b> Variáveis do Objetivo, exclusões de escopo, foto de capa, instrumentos com validade.</figcaption></figure>
+      <figure class="shot h-120"><img src="assets/shots/split/setup-tall-3.png"><figcaption><b>Etapa 5.</b> Parecer (Apto, Apto com restrições, Não apto) e o resumo gerado para confirmar.</figcaption></figure>
+      <div>
+        <ul class="annot">
+          <li><b class="n">1</b><span><b>Bandas numeradas, não um wizard.</b> Uma página rolável, como no GroundPRO que você já usa. Nada impede de pular e voltar.</span></li>
+          <li><b class="n">2</b><span><b>Responsável técnico pré-preenchido</b> da Conta › Registro profissional, com o conselho (CREA ou CRT) e o título que vai impresso. Você digita só a ART.</span></li>
+          <li><b class="n">3</b><span><b>Altitude do site</b> vem da geolocalização ("760 m · Confirmar"), uma vez por site. Vale para o ambiente de ensaio de todas as cabines.</span></li>
+          <li><b class="n">4</b><span><b>Instrumentos usados</b> em linhas com caixa de seleção; um vencido continua selecionável, com aviso âmbar. "Cadastrar instrumento" leva a Cadastros sem perder a página.</span></li>
+          <li><b class="n">5</b><span><b>Parecer</b> é escolha do engenheiro: o app sugere "Apto com restrições?" pelo que já sabe das fichas e monta o resumo com a linha de critérios. Sem parecer, não há exportação.</span></li>
+          <li><b class="n">6</b><span><b>O que não está aqui.</b> Características da SE e ambiente de ensaio pertencem à cabine e são editados na primeira ficha dela.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<section class="page">
+  <p class="kicker">07 · Telas · Visão do relatório</p>
+  <h1>A árvore da obra: entrada para toda ficha, e o lugar de mexer na estrutura</h1>
+  <div class="body">
+    <div class="cols" style="grid-template-columns:0.9fr 0.9fr 1fr;gap:6mm">
+      <figure class="shot h-120"><img src="assets/shots/relatorio-overview.png"><figcaption><b>Visão do relatório</b> em tablet retrato: a árvore vira faixa de 48 px à esquerda; a cabine mostra seus dados; cada equipamento, seu estado.</figcaption></figure>
+      <figure class="shot h-120"><img src="assets/shots/relatorio-palette.png"><figcaption><b>Paleta de blocos em campo.</b> "Fotografar equipamento" primeiro, depois os oito tipos com a TAG sugerida.</figcaption></figure>
+      <div>
+        <ul class="annot">
+          <li><b class="n">1</b><span><b>Cabine › Coluna › Equipamento.</b> A linha da cabine traz "SE · 13,8 kV · 19 °C · 67 %" só para leitura; o menu dela abre a primeira ficha e a bandeira "Agrupar por tipo".</span></li>
+          <li><b class="n">2</b><span><b>Estado de cada ficha, sempre com palavra:</b> Vazia, Em preenchimento, Concluída, Não ensaiada. O cabeçalho conta "3 de 9 fichas concluídas".</span></li>
+          <li><b class="n">3</b><span><b>Mexer na estrutura</b> sem arrastar: menu com "Adicionar abaixo · Subir · Descer · Duplicar · Excluir", "Mover para…" e "Marcar não ensaiado". "Restaurar ficha removida" desfaz.</span></li>
+          <li><b class="n">4</b><span><b>Duas paletas.</b> Em campo: só equipamentos, nada de seções ou sub-blocos. No escritório: seções e equipamentos, com TAG e local pedidos.</span></li>
+          <li><b class="n">5</b><span><b>Saídas do relatório</b> ficam na barra fixa: Fotos, Pontos de atenção e Gerar relatório.</span></li>
+          <li><b class="n">6</b><span><b>Depois de emitido</b>, um banner avisa: "Relatório emitido em 09/09 (revisão 1). Alterações geram a revisão 2."</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<section class="page">
+  <p class="kicker">07 · Telas · Ficha de equipamento, desenrolada</p>
+  <h1>A ficha inteira da seccionadora SEC-C05, do cabeçalho às fotos</h1>
+  <div class="body">
+    <div class="cols cols-4" style="gap:4mm">
+      <figure class="shot h-118"><img src="assets/shots/split/ficha-sec-tall-1.png"><figcaption><b>Placa.</b> Lida da foto e confirmada; o recorte fica ao lado de cada valor até exportar. Início das verificações com a barra de ação em lote.</figcaption></figure>
+      <figure class="shot h-118"><img src="assets/shots/split/ficha-sec-tall-2.png"><figcaption><b>Verificações.</b> C · NC · NA de 56 px por linha; o item 8 NC expandido com chips, observação obrigatória, foto e "Criar ponto de atenção".</figcaption></figure>
+      <figure class="shot h-118"><img src="assets/shots/split/ficha-sec-tall-3.png"><figcaption><b>Ensaios.</b> Instrumento por código, critério no título, "Ler visor" e ditado por tabela, unidade em toggle, alerta âmbar fora do limite.</figcaption></figure>
+      <figure class="shot h-118"><img src="assets/shots/split/ficha-sec-tall-4.png"><figcaption><b>Observações, conclusão e fotos.</b> Chips e ditado; conclusão sugerida em âmbar; fotos da ficha com legenda automática e pill de envio.</figcaption></figure>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<section class="page">
+  <p class="kicker">07 · Telas · Ficha de equipamento</p>
+  <h1>Anatomia da ficha: o que cada parte faz por você</h1>
+  <div class="body">
+    <div class="cols" style="grid-template-columns:0.9fr 0.9fr 1.1fr;gap:6mm">
+      <figure class="shot h-120"><img src="assets/shots/ficha-sec.png"><figcaption><b>Ficha SEC-C05</b>, topo: cabeçalho, contador de obrigatórios, placa confirmada, barra fixa com stepper.</figcaption></figure>
+      <figure class="shot h-120"><img src="assets/shots/ficha-menu.png"><figcaption><b>Menu da ficha.</b> Renomear TAG, mover, duplicar, marcar não ensaiado, remover. Sem gestos escondidos.</figcaption></figure>
+      <div>
+        <ul class="annot">
+          <li><b class="n">1</b><span><b>Cabeçalho.</b> Tipo + TAG (a TAG é o botão de renomear), Cabine › Coluna, "Preenchido por Bruno · 07/09 14:32" e o contador "4 obrigatórios faltando" que vira "Completa".</span></li>
+          <li><b class="n">2</b><span><b>Stepper de seções na barra fixa:</b> Placa · Verificações · Ensaios · Conclusão, cada um com o número de faltantes. Toque rola até lá; seção concluída colapsa. "Concluir ficha" pula ao primeiro faltante.</span></li>
+          <li><b class="n">3</b><span><b>Tri-state C · NC · NA.</b> Nunca vem pré-marcado Conforme em silêncio. NC exige observação e oferece foto e ponto de atenção na própria linha. "Limpar" é ação explícita: retocar não desmarca (luva).</span></li>
+          <li><b class="n">4</b><span><b>Tabelas de ensaio.</b> "2E · Megôhmetro" com detalhes atrás de um chevron; critério ">400 MΩ" com a fonte atrás de outro; células calculadas (absorção, polarização) só leitura; fora do limite em âmbar sugere "Marcar Com restrições".</span></li>
+          <li><b class="n">5</b><span><b>Conclusão.</b> Aprovado/Reprovado × Sem/Com restrições. O app sugere em âmbar ("Aprovado · Com restrições?"); Reprovado nunca é sugerido. O texto da conclusão é composto no aparelho, sem IA, e você confirma, edita ou substitui.</span></li>
+          <li><b class="n">6</b><span><b>Não ensaiado.</b> Um chip e um motivo em quatro opções; a ficha fica só leitura, imprime com o motivo e entra sozinha na seção 8. Reversível.</span></li>
+          <li><b class="n">7</b><span><b>Sem botão Salvar.</b> Tudo grava no aparelho a cada toque.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<section class="page">
+  <p class="kicker">07 · Telas · Ficha de equipamento · a primeira ficha da cabine</p>
+  <h1>"Da cabine": dados da SE e ambiente editados uma vez, herdados por todas</h1>
+  <div class="body">
+    <div class="cols" style="grid-template-columns:0.72fr 0.72fr 0.72fr 1fr;gap:4mm">
+      <figure class="shot h-120"><img src="assets/shots/split/ficha-cb-tall-1.png"><figcaption><b>Cabos de entrada CB-ENT.</b> Bloco "Da cabine": tipo de SE, tensões, potência; ambiente com "Copiar da cabine anterior" e "Ler visor" no termo-higrômetro.</figcaption></figure>
+      <figure class="shot h-120"><img src="assets/shots/split/ficha-cb-tall-2.png"><figcaption><b>Verificações e isolação</b> dos cabos: tensão de ensaio, critério, fases e reserva, recorte por célula.</figcaption></figure>
+      <figure class="shot h-120"><img src="assets/shots/split/ficha-cb-tall-3.png"><figcaption><b>Observações, conclusão e fotos</b> com "Escolher da galeria" e legenda já escrita.</figcaption></figure>
+      <div>
+        <ul class="annot">
+          <li><b class="n">1</b><span><b>Um só lugar de edição.</b> Características da SE (tipo, tensões, potência) e ambiente de ensaio (temperatura, umidade, altitude) pertencem à cabine. Editam-se na primeira ficha; as outras mostram os valores só leitura, com o link "Da cabine".</span></li>
+          <li><b class="n">2</b><span><b>Impresso uma vez por cabine</b>, na primeira ficha, como no FO.SERV-03 de hoje.</span></li>
+          <li><b class="n">3</b><span><b>Ambiente sem digitar.</b> Altitude vem do GPS confirmado no setup; temperatura e umidade vêm do visor do termo-higrômetro ou copiadas da cabine anterior. Umidade alta oferece o chip de chuva/umidade na observação.</span></li>
+          <li><b class="n">4</b><span><b>Oito tipos, uma mesma gramática.</b> Cabos, para-raio, seccionadora, disjuntor, TP, TC, cabos de saída e transformador têm os mesmos blocos: cabeçalho, placa, verificações, ensaios com cabeçalho de instrumento, observações, conclusão. Muda só o conteúdo (ensaio aberto/fechado, TTR por TAP…).</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<section class="page">
+  <p class="kicker">07 · Telas · Ficha de equipamento · outros contextos</p>
+  <h1>A mesma ficha no escuro, no celular e num disjuntor</h1>
+  <div class="body">
+    <div class="cols" style="grid-template-columns:0.9fr 0.45fr 0.9fr 0.9fr;gap:5mm">
+      <figure class="shot h-120"><img src="assets/shots/ficha-sec-dark.png"><figcaption><b>Tema escuro.</b> Segue o sistema do aparelho, com troca manual na Conta. Mesmas regras de contraste para o sol.</figcaption></figure>
+      <figure class="shot phone h-120"><img src="assets/shots/ficha-sec-phone.png"><figcaption><b>Celular</b> (390 px): uma coluna, alvos de 56 px, "Próxima ficha" sempre à mão.</figcaption></figure>
+      <figure class="shot h-120"><img src="assets/shots/ficha-dj.png"><figcaption><b>Disjuntor DJ-C14</b>, marcado "Não ensaiado" por impossibilidade de desligamento: campos só leitura, fotos e observação seguem editáveis.</figcaption></figure>
+      <div>
+        <ul class="annot">
+          <li><b class="n">1</b><span><b>Tablet primeiro, celular sempre.</b> O que muda entre tamanhos é a disposição, não o que se pode fazer. A árvore vira faixa no tablet retrato e uma tela própria no celular.</span></li>
+          <li><b class="n">2</b><span><b>Dois temas, uma regra.</b> "Um tablet no escuro também vai para o sol": tinta sobre fundo mira 7:1 nos dois temas; estado nunca é só cor.</span></li>
+          <li><b class="n">3</b><span><b>Não ensaiado é um estado de verdade</b>, não uma frase na seção 8. Conta como concluída na exportação, imprime com o motivo e gera o ponto de atenção sozinho.</span></li>
+          <li><b class="n">4</b><span><b>Disjuntor MT:</b> 15 itens de verificação, isolação com contato aberto e fechado, resistência de contato, ajuste do relé 50/51, como na ficha de hoje.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<section class="page">
+  <p class="kicker">07 · Telas · Fotos</p>
+  <h1>A foto é um dado: sabe de que equipamento é, e a legenda vem junto</h1>
+  <div class="body">
+    <div class="cols" style="grid-template-columns:0.9fr 0.9fr 1fr;gap:6mm">
+      <figure class="shot h-120"><img src="assets/shots/fotos.png"><figcaption><b>Fotos do relatório.</b> Galeria cronológica que vira a seção 7; filtro por cabine; "12 legendas sugeridas · Confirmar todas".</figcaption></figure>
+      <figure class="shot h-120"><img src="assets/shots/fotos-viewer.png"><figcaption><b>Visualizador.</b> Tela cheia, carimbo de data e local, "Item 8 · Contatos · NC", editar legenda, anterior e próxima.</figcaption></figure>
+      <div>
+        <ul class="annot">
+          <li><b class="n">1</b><span><b>Câmera direto, em rajada.</b> O botão de câmera na barra fixa abre a câmera sem perguntar nada; fotografa até "Concluir fotos". "Escolher da galeria" fica como link de texto.</span></li>
+          <li><b class="n">2</b><span><b>Legenda silenciosa por contexto.</b> Foto tirada de dentro de uma ficha já sai "Detalhe da verificação dos contatos realizada na seccionadora SEC-C05 da Coluna 5". Sem contexto (fotos gerais), a legenda é proposta pela visão do servidor na sincronização.</span></li>
+          <li><b class="n">3</b><span><b>Nunca perder uma foto.</b> Cada foto mostra "Aguardando envio" ou "Erro · Tentar novamente" com palavra e cor; a pill é o botão. A foto só sai do aparelho depois que o servidor confirmou.</span></li>
+          <li><b class="n">4</b><span><b>Carimbo.</b> Data e hora sempre; coordenadas quando "Localização nas fotos" está ligado na Conta.</span></li>
+          <li><b class="n">5</b><span><b>Números provisórios</b> até a exportação; a numeração final da seção 7 é feita na geração, e os pontos de atenção referenciam a foto, não o número.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<section class="page">
+  <p class="kicker">07 · Telas · Legendar e Pontos de atenção</p>
+  <h1>Do achado ao plano de ação, com foto, prazo e responsável</h1>
+  <div class="body">
+    <div class="cols" style="grid-template-columns:0.8fr 0.8fr 0.8fr 1fr;gap:5mm">
+      <figure class="shot h-120"><img src="assets/shots/legenda.png"><figcaption><b>Legendar.</b> Atividade · Equipamento · Local em chips de recentes; preview no padrão do documento, com concordância automática.</figcaption></figure>
+      <figure class="shot h-120"><img src="assets/shots/pontos.png"><figcaption><b>Pontos de atenção.</b> Cards reordenáveis; a ordem aqui é a ordem da seção 8 e da tabela do plano de ação.</figcaption></figure>
+      <figure class="shot h-120"><img src="assets/shots/pontos-draft.png"><figcaption><b>Rascunho a partir do NC.</b> Ponto criado da linha não conforme, com foto e equipamento já vinculados e o texto proposto pela foto.</figcaption></figure>
+      <div>
+        <ul class="annot">
+          <li><b class="n">1</b><span><b>A legenda de hoje, sem digitar.</b> "Imagem NN: Detalhe d[o/a] [atividade] realizad[o/a] n[o/a] [equipamento] d[o/a] [local]" se monta com três toques. "Editar texto" libera texto livre.</span></li>
+          <li><b class="n">2</b><span><b>Prioridade sugere o prazo.</b> P0 · Imediata (hoje), P1 · Curto prazo (30 dias), P2 · Médio (90), P3 · Longo (180), P4 · Próxima manutenção (365). A data digitada por você nunca é sobrescrita.</span></li>
+          <li><b class="n">3</b><span><b>Ação recomendada e responsável</b> por ponto, como pede a NR-10 10.7.11 (plano de ação e cronograma). Nenhum concorrente analisado mostra isso na cabine.</span></li>
+          <li><b class="n">4</b><span><b>Três origens:</b> criado à mão, criado da linha NC de uma ficha (foto e equipamento já vinculados) ou gerado automaticamente por um equipamento não ensaiado, com o motivo.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<section class="page">
+  <p class="kicker">07 · Telas · Gerar relatório</p>
+  <h1>Uma lista honesta do que falta, e o documento em dois formatos</h1>
+  <div class="body">
+    <div class="cols" style="grid-template-columns:0.8fr 0.8fr 0.8fr 1fr;gap:5mm">
+      <figure class="shot h-120"><img src="assets/shots/split/exportar-tall-1.png"><figcaption><b>Pré-emissão.</b> Um só item bloqueia ("Parecer não preenchido"); o resto é informação com atalho para resolver.</figcaption></figure>
+      <figure class="shot h-120"><img src="assets/shots/split/exportar-tall-2.png"><figcaption><b>Controle do documento</b> só leitura, "Opções" com a ordem da seção 9, e as revisões anteriores.</figcaption></figure>
+      <figure class="shot h-120"><img src="assets/shots/exportar-result.png"><figcaption><b>Pronto.</b> "DOCX · abrir no Word" e "PDF · enviar ao cliente", a mesma revisão nos dois formatos.</figcaption></figure>
+      <div>
+        <ul class="annot">
+          <li><b class="n">1</b><span><b>Bloqueia só o que impede o documento:</b> parecer vazio e logo da empresa não cadastrado. Fichas não concluídas, legendas por confirmar, calibração vencida e "Último envio de Eduardo" são avisos, não travas.</span></li>
+          <li><b class="n">2</b><span><b>Controle do documento</b> montado sozinho: documento, revisão, data, contratante e contratada com CNPJ, responsável, ART/TRT, período.</span></li>
+          <li><b class="n">3</b><span><b>Seção 9:</b> "Por local e tipo (padrão FO.SERV-03)" ou "Ordem de campo". Lembrado por relatório, escondido em "Opções", gravado na revisão.</span></li>
+          <li><b class="n">4</b><span><b>Word e PDF do mesmo dado.</b> Correção de texto volta ao app e vira a revisão seguinte; o Word é para ler e imprimir, nunca para "subir de volta".</span></li>
+          <li><b class="n">5</b><span><b>Precisa de conexão</b> (a geração roda no servidor) e é assíncrona: "Gerando revisão 2… pode fechar". Se falhar, nenhum número de revisão é consumido.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<section class="page">
+  <p class="kicker">07 · Telas · Cadastros</p>
+  <h1>Cadastre uma vez, nunca mais digite</h1>
+  <div class="body">
+    <div class="cols" style="grid-template-columns:0.9fr 0.9fr 1fr;gap:6mm">
+      <figure class="shot h-120"><img src="assets/shots/cadastros.png"><figcaption><b>Instrumentos.</b> Código, tipo, série, certificado RBC e validade; vencidos primeiro, com "Vencida" em âmbar.</figcaption></figure>
+      <figure class="shot h-120"><img src="assets/shots/cadastros-inst.png"><figcaption><b>Ficha do instrumento.</b> O certificado é anexado na própria linha e viaja como uma foto (funciona offline).</figcaption></figure>
+      <div>
+        <ul class="annot">
+          <li><b class="n">1</b><span><b>Instrumento por código.</b> Escolher "2E" na ficha traz série, certificado e validade, como você pediu: "não quero digitar isso". A validade vencida avisa, não bloqueia.</span></li>
+          <li><b class="n">2</b><span><b>Empresa.</b> Razão social, CNPJ, endereço, logo, fundo de capa, marca d'água e a identidade do documento: título ("Relatório Técnico de Cabine Primária"), código ("FO.SERV-03") e revisão do formulário ("Revisão 01"), com uma pré-visualização de capa, cabeçalho e rodapé. É o único lugar em que a marca Fasor é editada: o app em si mostra PRODUTO.</span></li>
+          <li><b class="n">3</b><span><b>Clientes, fabricantes, classes de tensão.</b> Os seletores criam a entrada na hora ("Criar 'Celtta'"). Nada é apagado se estiver em uso: arquiva-se.</span></li>
+          <li><b class="n">4</b><span><b>Critérios de aceitação</b> como dado, com fonte: ">400 MΩ" deixa de ser um número impresso na ficha. No MVP, só leitura; edição por empresa vem depois.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<section class="page">
+  <p class="kicker">07 · Telas · Sincronização e Conta</p>
+  <h1>Estado sempre visível, e a conta que assina o relatório</h1>
+  <div class="body">
+    <div class="cols" style="grid-template-columns:0.8fr 0.8fr 0.8fr 1fr;gap:5mm">
+      <figure class="shot h-120"><img src="assets/shots/sync.png"><figcaption><b>Sincronização.</b> Manchete, contagens, fila de leitura, downloads, "Último envio de Eduardo", mesclas e contradições.</figcaption></figure>
+      <figure class="shot h-120"><img src="assets/shots/account.png"><figcaption><b>Conta.</b> Nome, registro profissional (CREA ou CRT), tema, localização nas fotos, instalar, armazenamento, sair.</figcaption></figure>
+      <figure class="shot h-120"><img src="assets/shots/account-dark.png"><figcaption><b>Conta no tema escuro.</b> A troca de tema aplica na hora.</figcaption></figure>
+      <div>
+        <ul class="annot">
+          <li><b class="n">1</b><span><b>O badge na barra do app</b> é sempre ponto + palavra: Sincronizado, 3 pendentes, Sem conexão, Erro, Conflito. Anuncia transições, nunca bloqueia a entrada.</span></li>
+          <li><b class="n">2</b><span><b>A verdade que o servidor conhece.</b> Ele não sabe o que ainda está no aparelho do outro; por isso a tela mostra "Último envio de Eduardo: 06/09 18:10".</span></li>
+          <li><b class="n">3</b><span><b>Explicações atrás de "Como funciona"</b>: a tela não vira documentação.</span></li>
+          <li><b class="n">4</b><span><b>Registro profissional</b> na Conta é o responsável padrão de todo relatório novo; mudar não reescreve relatórios já configurados.</span></li>
+          <li><b class="n">5</b><span><b>Sair</b> com sincronização pendente pede confirmação: nada some sem aviso.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+<!-- ===================== 08 SMART INPUT ===================== -->
+<section class="page">
+  <p class="kicker">08 · Entrada inteligente</p>
+  <h1>Cada grupo de campos tem um caminho sem teclado</h1>
+  <div class="body">
+    <div class="table-card" style="flex:1">
+    <table class="small" style="font-size:8.4pt">
+      <tr><th style="width:30mm">Grupo de campos</th><th>Sem digitar</th><th style="width:52mm">Se preferir</th><th style="width:60mm">Como confirma</th></tr>
+      <tr><td><b>Placa</b> (6 a 12 campos)</td><td>Câmera primeiro: "Fotografar placa", um disparo. A foto vira foto da ficha, entra na fila e é lida no servidor. Chips "Copiar da última visita (SEC-ENT)" e "Igual à SEC-C04?".</td><td>Link "Digitar". Digitar num campo descarta só a sugestão daquele campo.</td><td>Por campo ou "Confirmar todos". Classe de tensão precisa existir no cadastro; fabricante novo pergunta "Criar Celtta?".</td></tr>
+      <tr><td><b>Leituras de ensaio</b></td><td>"Ler visor" em toda tabela: a foto do visor devolve valor e unidade para as próximas células vazias (um visor com 30 s / 1 min / 10 min preenche a linha). Ditado: "Fase A, 147 giga".</td><td>Digitar com sufixo de unidade ("147G", "3.7T", "330M"); Enter desce a coluna.</td><td>Por célula ou "Confirmar todos" por tabela. O recorte da foto fica ao lado até exportar.</td></tr>
+      <tr><td><b>Unidades</b></td><td>Do visor, do sufixo digitado ou da linha anterior da mesma tabela.</td><td>Toggle de um toque MΩ → GΩ → TΩ.</td><td>Alerta de ordem de grandeza (≥ 100×) em âmbar, nunca bloqueio: "Fase C 1000× abaixo de A e B. Conferir?".</td></tr>
+      <tr><td><b>Checklist</b> (5 a 15 linhas)</td><td>Nunca pré-marcado Conforme em silêncio. "Marcar os restantes como Conforme" (só linhas vazias) e "Repetir da ficha anterior do mesmo tipo" (copia o padrão C/NC/NA, não as observações).</td><td>Tri-state por linha.</td><td>O toque em lote é a confirmação, com "Desfazer" no toast.</td></tr>
+      <tr><td><b>Observação de NC</b></td><td>Chips por item (item 8 Contatos: "sinais de aquecimento", "oxidação", "desgaste"); ditado; se a linha tem foto, o servidor rascunha uma frase na sincronização.</td><td>Digitar.</td><td>Chips inserem texto pleno; ditado e rascunho chegam como sugestão.</td></tr>
+      <tr><td><b>Conclusão da ficha</b></td><td>Tudo C/NA e leituras no limite: "Aprovado · Sem restrições?". Qualquer NC ou fora do limite: "Aprovado · Com restrições?". Reprovado nunca é sugerido.</td><td>Os dois pares de botões.</td><td>Um toque aplica os dois pares; nada é marcado sem toque.</td></tr>
+      <tr><td><b>Texto da conclusão</b></td><td>Parágrafo composto no aparelho por um modelo fixo por tipo, a partir dos valores da ficha, com a linha de critérios. Não é IA, funciona offline, nunca é veredito.</td><td>Digitar ou ditar.</td><td>"Confirmar", "Editar" ou "Substituir" quando os valores mudam. Texto não confirmado não imprime.</td></tr>
+      <tr><td><b>Prioridade → prazo</b></td><td>P0 a P4 gravam o prazo sugerido (hoje, +30, +90, +180, +365 dias).</td><td>Digitar a data.</td><td>Data digitada nunca é sobrescrita; sugestão diferente aparece ao lado com "Substituir".</td></tr>
+      <tr><td><b>Fotos e legendas</b></td><td>Câmera direta em rajada; legenda pelo contexto (ficha dá equipamento e local; a seção na tela dá a atividade). Sem contexto, legenda proposta pela visão na sincronização.</td><td>"Escolher da galeria"; "Legendar" abre o compositor.</td><td>Legendas de contexto são padrões editáveis; as da visão são sugestões, por foto ou "Confirmar todas".</td></tr>
+      <tr><td><b>Equipamento novo</b></td><td>"Fotografar equipamento": a foto do painel sugere tipo, coluna e TAG; a mesma foto vira a placa.</td><td>Lista de tipos e diálogo de TAG e local.</td><td>Um confirm: "Criar SEC-C09-2 em Coluna 9?".</td></tr>
+      <tr><td><b>Ambiente da cabine</b></td><td>Altitude por GPS (uma vez por site); "Copiar da cabine anterior"; "Ler visor" no termo-higrômetro.</td><td>Digitar.</td><td>Cópias são valores plenos com desfazer; leitura do visor é sugestão.</td></tr>
+      <tr><td><b>Listas e motivos</b></td><td>Em campo, os 5 recentes em chips + "Outro…" (fabricante, atividade, local). Motivo de "Não ensaiado" em 4 chips, com o último usado pré-selecionado.</td><td>"Outro…" abre a lista completa.</td><td>O toque no chip é o valor.</td></tr>
+    </table>
+    </div>
+    <p class="tiny muted" style="margin:2mm 0 0">Ainda exigem digitação: texto livre de NC quando nenhum chip serve e o ditado não está disponível; TAG diferente da sugerida; o nome de uma entrada nova de cadastro, uma vez.</p>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<section class="page">
+  <p class="kicker">08 · Entrada inteligente</p>
+  <h1>Sugerido, Verificar, Confirmar: o padrão que protege um relatório assinado</h1>
+  <div class="body">
+    <div class="cols" style="grid-template-columns:0.75fr 0.75fr 1.3fr;gap:6mm">
+      <figure class="shot h-120"><img src="assets/shots/split/ficha-sec-tall-1.png"><figcaption><b>Placa confirmada.</b> Cada valor guarda o recorte da foto de onde saiu, até a exportação.</figcaption></figure>
+      <figure class="shot h-120"><img src="assets/shots/ficha-visor.png"><figcaption><b>Ler visor.</b> A leitura só vale se os dígitos aparecem na camada de texto do recorte: nada de número inventado.</figcaption></figure>
+      <div>
+        <div class="card amber"><h3>Como uma sugestão se apresenta</h3>
+          <ul class="tight small" style="margin:0">
+            <li><span class="pill amber">Sugerido</span> fundo âmbar, pill com a palavra e, para leituras, o recorte de 48 px ao lado do valor. Tocar amplia a região na foto.</li>
+            <li><span class="pill amber" style="border-style:dashed">Verificar</span> palpite sem base ou de baixa confiança: mostrado em vez de vazio (uma olhada custa menos que digitar), com borda tracejada. Fica fora do "Confirmar todos".</li>
+            <li><b>Nada não confirmado é gravado, contado como preenchido ou impresso.</b></li>
+            <li>Campo já preenchido por você nunca é sobrescrito: a sugestão divergente aparece ao lado com "Substituir".</li>
+            <li>Cópias e padrões (visita anterior, cabine anterior, unidade da linha de cima, legenda de contexto) são valores plenos com "Desfazer", porque a fonte é uma entrada sua.</li>
+          </ul>
+        </div>
+        <div class="card" style="margin-top:3mm"><h3>Onde a IA roda</h3>
+          <p class="small" style="margin:0">Sempre no servidor; nada no aparelho. Sem sinal, "Foto guardada, leitura quando houver sinal". A leitura começa no primeiro sinal (portão, van, hotspot), com o app aberto, e o toast "3 leituras prontas para confirmar" abre a primeira ficha com pendências: quem tirou a foto ainda está na obra para conferir. Texto da conclusão e resumo do parecer não são IA.</p>
+        </div>
+        <div class="card tint" style="margin-top:3mm"><h3>Ordem de construção dos assistentes</h3>
+          <p class="small" style="margin:0">A geração do relatório vem primeiro. Depois: 1) placa pela câmera e "Copiar da última visita"; 2) "Ler visor"; 3) legendas (contexto, depois visão); 4) rascunho da observação de NC pela foto; 5) "Fotografar equipamento". Se o prazo apertar, cortam-se primeiro o 5 e o 3.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<!-- ===================== 09 OFFLINE ===================== -->
+<section class="page">
+  <p class="kicker">09 · Sem sinal</p>
+  <h1>Dentro da cabine, sem sinal é o caso normal, não a exceção</h1>
+  <div class="body">
+    <div class="cols" style="grid-template-columns:2fr 1fr;gap:6mm">
+      <div class="cols cols-3" style="gap:4mm;align-content:start">
+        <div class="card"><h3>Local primeiro</h3><p class="small" style="margin:0">Tudo grava no aparelho antes de qualquer coisa; a tela nunca espera a rede. Fotos ficam guardadas até o servidor confirmar o recebimento.</p></div>
+        <div class="card"><h3>Baixa sozinho</h3><p class="small" style="margin:0">Todo relatório em Rascunho ou Em campo é baixado para o aparelho quando há conexão, sem pedir: dados, template, cadastros e fotos. O card diz "No aparelho · atualizado 21:40". Relatório não baixado avisa: "conecte para baixar".</p></div>
+        <div class="card"><h3>Estado sempre visível</h3><p class="small" style="margin:0">Badge na barra do app e tela de Sincronização com uploads, downloads, último envio de cada pessoa, erros e conflitos.</p></div>
+        <div class="card"><h3>Sincroniza em segundo plano</h3><p class="small" style="margin:0">Assim que aparece conexão, com o app aberto: fichas primeiro, fotos depois, com nova tentativa automática.</p></div>
+        <div class="card"><h3>Fila de leitura</h3><p class="small" style="margin:0">Fotos de placa, visor e painel sobem primeiro; a leitura começa no primeiro sinal e as sugestões descem para as fichas, anunciadas uma vez.</p></div>
+        <div class="card"><h3>Mescla por sub-bloco</h3><p class="small" style="margin:0">Preenchido vence vazio. NC vence C. Foto nunca cai. Texto: a edição mais recente vence, a outra fica legível. Só contradição real (dois valores diferentes na mesma célula) pergunta.</p></div>
+        <div class="card"><h3>Exportar precisa de sinal</h3><p class="small" style="margin:0">A geração roda no servidor. Offline, o diálogo diz isso e mais nada trava.</p></div>
+        <div class="card"><h3>Instalar na tela inicial</h3><p class="small" style="margin:0">Para abrir sem sinal e ter armazenamento durável no iPad e no Android. Um convite único na Home, repetível pela Conta. Online funciona sem instalar.</p></div>
+        <div class="card"><h3>Sessão e espaço</h3><p class="small" style="margin:0">Sessão expirada offline continua trabalhando e reautentica antes de sincronizar. Pouco espaço avisa: "Sincronize para liberar", sem recusar captura até o navegador impedir.</p></div>
+      </div>
+      <div>
+        <div class="table-card">
+          <table class="small">
+            <tr><th colspan="2">Badge de sincronização</th></tr>
+            <tr><td><span class="pill ok">● Sincronizado</span></td><td>tudo enviado e baixado</td></tr>
+            <tr><td><span class="pill amber">● 3 pendentes</span></td><td>envios na fila ou relatório baixando</td></tr>
+            <tr><td><span class="pill na">● Sem conexão</span></td><td>continua salvando no aparelho</td></tr>
+            <tr><td><span class="pill nc">● Erro</span></td><td>um envio rejeitado; tentar de novo</td></tr>
+            <tr><td><span class="pill violet">● Conflito</span></td><td>contradição de célula ou estrutura</td></tr>
+          </table>
+        </div>
+        <div class="card violet" style="margin-top:4mm"><h3>Um aviso de cada vez</h3><p class="small" style="margin:0">Cada tela tem um único slot de banner, com prioridade fixa: conflito › rascunho encontrado › sugestões prontas › relatório emitido › sem conexão. O que sobra vira um chip "+2" que abre a Sincronização. O topo da ficha nunca vira uma pilha de avisos.</p></div>
+        <div class="card ok" style="margin-top:4mm"><h3>Régua de aceitação</h3><p class="small" style="margin:0">Nunca perder uma foto. A arquitetura precisa provar a captura offline segura de fotos antes de qualquer outra coisa ser construída sobre ela.</p></div>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<!-- ===================== 10 DO APP AO RELATÓRIO ===================== -->
+<section class="page">
+  <p class="kicker">10 · Do app ao relatório</p>
+  <h1>O resultado continua sendo o seu FO.SERV-03, seção por seção</h1>
+  <div class="body">
+    <div class="cols" style="grid-template-columns:1.5fr 0.5fr 0.5fr;gap:5mm">
+      <div class="table-card">
+        <table class="small table-tight" style="font-size:7.9pt">
+          <tr><th style="width:44mm">No documento</th><th>De onde vem no app</th></tr>
+          <tr><td><b>Capa e controle do documento</b></td><td>Cliente, obra e datas do Setup; foto de capa; logo, título, código e revisão do formulário vindos do cadastro da Empresa. Tabela de controle com Rev. N, contratante e contratada com CNPJ, responsável, ART/TRT, período. Sumário automático.</td></tr>
+          <tr><td><b>1 Objetivo · 2 Definições · 4 Requisitos · 6 Verificações</b></td><td>Blocos de seção com texto fixo do template; o Objetivo recebe três variáveis do Setup.</td></tr>
+          <tr><td><b>3 Limite de escopo</b></td><td>Texto fixo mais as exclusões editadas no Setup.</td></tr>
+          <tr><td><b>5 Segurança NR-10</b></td><td>Texto fixo. O modelo de dados guarda a data de execução para escolher o texto certo quando a nova NR-10 entrar em vigor (01/06/2027: 10.5.1 vira 10.13.1).</td></tr>
+          <tr><td><b>7 Registro fotográfico</b></td><td>Galeria em ordem cronológica, numerada na geração, legendas confirmadas, grade de duas colunas, carimbo de data (e local, se ligado).</td></tr>
+          <tr><td><b>8 Pontos de atenção</b></td><td>Cards na ordem da tela, com "conforme Imagem 5" resolvido na geração, mais a tabela do plano de ação (prioridade, prazo, responsável). Equipamentos não ensaiados entram sozinhos, com o motivo.</td></tr>
+          <tr><td><b>9 Relatórios dos ensaios</b></td><td>As fichas como tabelas de verdade, não imagens. Agrupadas "Por local e tipo" (subseções como "9.2 Seccionadoras dos Cubículos de MT do 1° Subsolo") ou em "Ordem de campo". Dados da cabine impressos uma vez por cabine. Cada ficha com quem preencheu e quando. Transformadores com conclusão.</td></tr>
+          <tr><td><b>10 Conclusão e assinatura</b></td><td>Parecer (Apto, Apto com restrições, Não apto), resumo confirmado, nome, título, CREA ou CRT e ART.</td></tr>
+          <tr><td><b>11 Certificados de calibração</b></td><td>Dos instrumentos usados no relatório, anexados no cadastro.</td></tr>
+        </table>
+      </div>
+      <figure class="shot h-105"><img src="assets/foserv/hi-1-001.png" style="border-radius:3px"><figcaption><b>Sua capa</b> e seu cabeçalho, como são hoje.</figcaption></figure>
+      <figure class="shot h-105"><img src="assets/foserv/hi-2-002.png" style="border-radius:3px"><figcaption><b>Seu sumário</b>, que passa a ser gerado sozinho.</figcaption></figure>
+    </div>
+    <div class="cols cols-2" style="flex:none;gap:5mm;margin-top:3mm">
+      <div class="card ok"><h3>O que o documento ganha de graça</h3><p class="small" style="margin:0">Fichas com conclusão em todos os tipos · rótulos inteiros em vez de "TENSÃO SECUNDÁ" · unidade por célula e critério com fonte · TAG única por equipamento · numeração de fotos sem repetição · quem preencheu e quando em cada ficha · equipamento não ensaiado com motivo · plano de ação com prazo e responsável · Word e PDF da mesma revisão.</p></div>
+      <div class="card amber"><h3>Uma correção no título do formulário</h3><p class="small" style="margin:0">O cabeçalho de hoje diz "Laudo Técnico", mas o corpo do documento se chama <b>relatório</b> oito vezes, e é o termo da NR-10 (10.2.4 g hoje, 10.7.11 a partir de 01/06/2027). Laudo é peça de perícia e da verificação final. O cabeçalho passa a <b>"Relatório Técnico de Cabine Primária · FO.SERV-03 · Revisão 01"</b>. O código não muda.</p></div>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<!-- ===================== 11 IDENTIDADE VISUAL ===================== -->
+<section class="page">
+  <p class="kicker">11 · Identidade visual e acessibilidade</p>
+  <h1>Sóbrio, legível ao sol, uma cor para cada coisa</h1>
+  <div class="body">
+    <p class="small muted" style="margin-bottom:2.5mm">"Uma ficha de ensaio bem impressa, não um app de consumo": papel branco, tinta preta, um azul profundo para ações e poucas cores semânticas que significam exatamente uma coisa cada. Sua restrição, cores sóbrias que não atrapalhem ao sol, virou regra. A marca Fasor (laranja) aparece só dentro do documento gerado, nunca no app.</p>
+    <div class="swatches" style="margin-bottom:3mm">
+      <div class="sw"><div class="c" style="background:#F4F5F7"></div><div class="n">Fundo da página<code>#F4F5F7</code></div></div>
+      <div class="sw"><div class="c" style="background:#FFFFFF"></div><div class="n">Cartões e campos<code>#FFFFFF</code></div></div>
+      <div class="sw"><div class="c" style="background:#15181D"></div><div class="n">Tinta principal<code>#15181D · 17,8:1</code></div></div>
+      <div class="sw"><div class="c" style="background:#454B54"></div><div class="n">Tinta secundária<code>#454B54 · 8,8:1</code></div></div>
+      <div class="sw"><div class="c" style="background:#5C6470"></div><div class="n">Bordas de campo<code>#5C6470 · 6,0:1</code></div></div>
+      <div class="sw"><div class="c" style="background:#1F4E79"></div><div class="n">Primária (ações)<code>#1F4E79 · 8,7:1</code></div></div>
+      <div class="sw"><div class="c" style="background:#DCE8F5;border:3px solid #1F4E79"></div><div class="n">Campo em foco<code>#DCE8F5 + borda 3 px</code></div></div>
+    </div>
+    <div class="swatches" style="grid-template-columns:repeat(5,1fr);margin-bottom:3mm">
+      <div class="sw"><div class="c" style="background:#DDF3E4;display:flex;align-items:center;justify-content:center;color:#1B6B36;font-weight:700">Conforme</div><div class="n">C · Aprovado · Apto · sync ok<code>#1B6B36 / #DDF3E4</code></div></div>
+      <div class="sw"><div class="c" style="background:#FBE3E0;display:flex;align-items:center;justify-content:center;color:#B42318;font-weight:700">Não conforme</div><div class="n">NC · Reprovado · Não apto · erro · P0<code>#B42318 / #FBE3E0</code></div></div>
+      <div class="sw"><div class="c" style="background:#E6E9ED;display:flex;align-items:center;justify-content:center;color:#5C6470;font-weight:700">Não se aplica</div><div class="n">NA neutro de propósito · Sem restrições<code>#5C6470 / #E6E9ED</code></div></div>
+      <div class="sw"><div class="c" style="background:#FDEBD0;display:flex;align-items:center;justify-content:center;color:#8A4B00;font-weight:700">Fora do limite · Sugerido</div><div class="n">Com restrições · pendente · P1 · tudo "proposto, não confirmado"<code>#8A4B00 / #FDEBD0</code></div></div>
+      <div class="sw"><div class="c" style="background:#E9E6F5;display:flex;align-items:center;justify-content:center;color:#4A4374;font-weight:700">Não ensaiado</div><div class="n">Conflito · visível sem parecer aprovado nem reprovado<code>#4A4374 / #E9E6F5</code></div></div>
+    </div>
+    <div class="cols cols-3" style="gap:5mm;flex:none">
+      <div class="card"><h3>Tipografia</h3><p class="small" style="margin:0">Uma família, Inter (x-height alto e dígitos inconfundíveis), com Roboto e Segoe UI como reserva. Nada abaixo de 14 px. Sem caixa alta: as fichas de hoje truncam "CAPACIDADE INTERRU". Valores de leitura em 20 px, negrito, algarismos tabulares. Unidade em slot próprio ao lado do número, nunca dentro do texto. Vírgula decimal, datas dd/mm.</p></div>
+      <div class="card"><h3>Forma</h3><p class="small" style="margin:0">Escala de 4 px. Cantos de 4 px em campos e células (parece formulário, não balão de chat), 8 px em botões e cartões, 12 px em diálogos. Profundidade por bordas, não sombras: "sob o sol uma sombra suave some, uma borda de 1 px não". Tema escuro com os mesmos papéis: fundo #121417, tinta #F3F4F6, primária #86B6E8.</p></div>
+      <div class="card"><h3>Acessibilidade como requisito de campo</h3><p class="small" style="margin:0">WCAG 2.2 AA, com tinta sobre fundo mirando 7:1 por causa do sol. Alvo mínimo de 48 px; 56 px no que se usa com luva (C/NC/NA, células de medida, conclusão, linhas da árvore). Estado nunca é só cor: sempre a letra, a palavra ou o ícone junto. Botão desabilitado com o motivo ao lado. Teclado completo, reordenar sem arrastar, texto a 200 % sem quebrar.</p></div>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<section class="page">
+  <p class="kicker">11 · Identidade visual · tamanhos de tela e voz</p>
+  <h1>Um app, quatro tamanhos de tela, uma só voz</h1>
+  <div class="body">
+    <div class="cols" style="grid-template-columns:1.6fr 0.75fr 0.4fr;gap:5mm;flex:none;align-items:start">
+      <figure class="shot"><img src="assets/shots/home-desktop.png" style="width:100%"><figcaption><b>Desktop (1280 px).</b> Escritório: compor, revisar, exportar. Mesmas telas, com a árvore fixa à esquerda.</figcaption></figure>
+      <figure class="shot h-90"><img src="assets/shots/home.png"><figcaption><b>Tablet retrato (768 px).</b> O padrão em campo.</figcaption></figure>
+      <figure class="shot phone h-90"><img src="assets/shots/home-phone.png"><figcaption><b>Celular (390 px).</b></figcaption></figure>
+    </div>
+    <div class="cols cols-2" style="gap:5mm;margin-top:3mm;flex:none">
+      <div class="card"><h3>A voz do produto</h3><p class="small" style="margin:0 0 1.5mm">A linguagem da própria ficha: curta, técnica, sem exclamação, sem incentivo. Placeholders com exemplo real ("Ex: 13,8 kV").</p>
+        <table class="small">
+          <tr><th>Escrevemos</th><th>Não escrevemos</th></tr>
+          <tr><td>Conforme / Não conforme / Não se aplica</td><td>OK / Falha</td></tr>
+          <tr><td>Sem conexão. Tudo fica salvo neste aparelho.</td><td>Erro de rede</td></tr>
+          <tr><td>Calibração do 2E vencida em 28/08/2027. Pode continuar.</td><td>Instrumento inválido (bloqueio)</td></tr>
+          <tr><td>Gerar relatório</td><td>Exportar relatório</td></tr>
+          <tr><td>Sugerido · Confirmar</td><td>Detectado automaticamente</td></tr>
+        </table>
+      </div>
+      <div class="card tint"><h3>Nome e marca</h3><p class="small" style="margin:0">As telas mostram o placeholder PRODUTO até o nome ser confirmado. "Releng" (relatório de engenharia) é o candidato escolhido, mas domínio, INPI e lojas ainda não foram verificados. A marca Fasor vive só no documento gerado; o app não usa laranja. O tema segue o sistema do aparelho, com troca manual na Conta. O sistema de componentes (biblioteca de UI) será escolhido na arquitetura; os tokens de cor e tipografia já estão definidos e independem dessa escolha.</p></div>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<!-- ===================== 12 DECISÕES ===================== -->
+<section class="page">
+  <p class="kicker">12 · Decisões registradas (1 de 2)</p>
+  <h1>O que já está decidido, e por quê</h1>
+  <div class="body">
+    <div class="table-card" style="flex:1">
+      <table class="small table-tight" style="font-size:7.9pt">
+        <tr><th style="width:30mm">Tema</th><th>Decisão</th><th style="width:80mm">O que resolve</th></tr>
+        <tr><td rowspan="4"><b>Composição e templates</b></td><td>Relatório = composição de blocos prontos, em dois níveis (bloco inteiro e sub-bloco), com ordem livre.</td><td>Seu modelo mental do draw.io; o FO.SERV-03 é ponto de partida, não ordem imposta.</td></tr>
+        <tr><td>Template é requisito: reutilizável entre obras; template ≠ relatório.</td><td>Montar uma vez, usar em toda obra parecida.</td></tr>
+        <tr><td>Escritório é a regra da composição; campo é a exceção ("uma ou outra alteração").</td><td>Nada de compor no cubículo.</td></tr>
+        <tr><td>O template carrega o esqueleto de locais (cabines e colunas) além das quantidades.</td><td>Blocos nascem no lugar certo; some o grupo "Sem local" e o arrastar em campo.</td></tr>
+        <tr><td rowspan="4"><b>Fichas e ensaios</b></td><td>Instrumento escolhido por código ("2E") preenche série e certificado.</td><td>"Não quero digitar isso."</td></tr>
+        <tr><td>Valor fora do aceitável destaca e sugere; nunca veredito automático. Critérios são dados com fonte.</td><td>">400 MΩ" deixa de ser um número sem origem impresso na ficha.</td></tr>
+        <tr><td>Estado "Não ensaiado + motivo" na ficha.</td><td>Hoje só existe em prosa na seção 8.</td></tr>
+        <tr><td>Calibração vencida avisa, não bloqueia. TAG obrigatória com sugestão automática, única na obra.</td><td>Identificação consistente ("CUBÍCULO ENEL" nomeava cinco equipamentos).</td></tr>
+        <tr><td rowspan="3"><b>Fotos e legendas</b></td><td>Foto é objeto de primeira classe: imagem + legenda, na galeria e como miniatura na ficha.</td><td>A foto ao lado do equipamento, o que o Word como imagem nunca permitiu.</td></tr>
+        <tr><td>Dois caminhos: câmera direto do navegador e anexar da galeria.</td><td>Seu pedido.</td></tr>
+        <tr><td>Pontos de atenção referenciam fotos por vínculo, resolvido em número na geração. Carimbo de data, hora e GPS com chave na Conta.</td><td>Fim da numeração duplicada.</td></tr>
+        <tr><td rowspan="4"><b>IA e OCR</b></td><td>Mandato: "quanto mais inteligente, melhor"; OCR e identificação por imagem incentivados.</td><td>Inverte o brief da manhã de 18/09, que tratava IA de placa como último da fila.</td></tr>
+        <tr><td>Toda leitura chega como sugestão confirmável; nada é gravado sem confirmação.</td><td>O relatório assinado nunca carrega um número que ninguém conferiu.</td></tr>
+        <tr><td>Todo processamento no servidor; sem camada no aparelho. Foto guardada e enfileirada, leitura no primeiro sinal.</td><td>Custo e complexidade fora do tablet; funciona no cubículo sem sinal.</td></tr>
+        <tr><td>Texto da conclusão e resumo do parecer gerados por modelo no aparelho, não por IA.</td><td>Funciona offline e nunca é veredito.</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<section class="page">
+  <p class="kicker">12 · Decisões registradas (2 de 2)</p>
+  <h1>O que já está decidido, e por quê</h1>
+  <div class="body">
+    <div class="table-card" style="flex:1">
+      <table class="small table-tight" style="font-size:7.9pt">
+        <tr><th style="width:30mm">Tema</th><th>Decisão</th><th style="width:80mm">O que resolve</th></tr>
+        <tr><td rowspan="2"><b>Offline e sincronização</b></td><td>Relatórios em Rascunho ou Em campo baixam sozinhos para o aparelho.</td><td>Ninguém entra na cabine sem o relatório no tablet.</td></tr>
+        <tr><td>Conflitos mesclados por sub-bloco com regras fixas; tela de conflito só para contradições reais.</td><td>Ninguém perde dados de campo numa escolha "a minha ou a dele" sob pressão.</td></tr>
+        <tr><td rowspan="5"><b>Exportação e documento</b></td><td>O documento é um <b>relatório</b>, não um laudo. O título do formulário passa a "Relatório Técnico de Cabine Primária", na Revisão 01; o código FO.SERV-03 fica.</td><td>O corpo do FO.SERV-03 já se chamava relatório oito vezes, e é o termo da NR-10 (10.2.4 g hoje, 10.7.11 a partir de 01/06/2027). Laudo é peça de perícia (CONFEA 345/1990) e da verificação final (NBR 14039 7.1.5).</td></tr>
+        <tr><td>Fim do fluxo: DOCX para revisar e PDF para enviar. Assinatura digital fora do MVP.</td><td>O PDF entra antes do que o brief previa.</td></tr>
+        <tr><td>PDF gerado dos dados do app, como o DOCX; sem "subir o Word revisado".</td><td>Uma só fonte da verdade; achado crítico da revisão de arquitetura.</td></tr>
+        <tr><td>Ordem da seção 9 escolhida na exportação (por local e tipo, ou ordem de campo), gravada na revisão.</td><td>Preencher pelo corpo, imprimir pelo formulário.</td></tr>
+        <tr><td>Número da revisão impresso só na tabela de controle do documento; "Revisão 01" do formulário fica no rodapé. Prioridade P0 a P4 com prazo sugerido e tabela do plano de ação na seção 8.</td><td>Controle de documento como o da ferramenta de referência; NR-10 10.7.11.</td></tr>
+        <tr><td rowspan="2"><b>Acesso e login</b></td><td>Login obrigatório, "mesmo que simples"; usuários nomeados; cada ficha registra quem e quando.</td><td>Rastreabilidade por ficha, que hoje não existe.</td></tr>
+        <tr><td>Todos os usuários da empresa veem tudo; sem papéis. Conselho CREA ou CRT no responsável, pré-preenchido da Conta.</td><td>Simplicidade no MVP; técnicos com TRT também assinam.</td></tr>
+        <tr><td rowspan="4"><b>Tema e identidade</b></td><td>Web app responsivo, tablet primeiro, celular e desktop. Sem apps nativos nem lojas.</td><td>"Quero tirar o computador do campo"; todos já têm tablet.</td></tr>
+        <tr><td>Cores sóbrias para o sol; GroundPRO é referência, não direção; marca Fasor só no documento; placeholder PRODUTO.</td><td>Sua restrição sobre cores; nome ainda não confirmado.</td></tr>
+        <tr><td>Tema segue o sistema, com troca manual na Conta. Biblioteca de UI decidida na arquitetura.</td><td>Tokens neutros já definidos.</td></tr>
+        <tr><td>Simplicidade acima de completude; mocks de alta fidelidade e protótipo navegável para todas as telas.</td><td>Seu mandato da tarde de 18/09.</td></tr>
+        <tr><td rowspan="2"><b>Locais e TAG</b></td><td>Cabine é dona da SE e do ambiente; edição só na primeira ficha ("Da cabine"); árvore mostra só leitura.</td><td>Sem dúvida sobre qual cópia vale.</td></tr>
+        <tr><td>Menu "Adicionar abaixo · Subir · Descer · Duplicar · Excluir"; editor de texto rico só no Compositor.</td><td>Reordenar sem arrastar; texto fixo fica no escritório.</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<section class="page">
+  <p class="kicker">12 · Revisões</p>
+  <h1>Quatro revisões endureceram o desenho antes de chegar a você</h1>
+  <div class="body">
+    <div class="cols" style="grid-template-columns:0.9fr 1.4fr;gap:8mm">
+      <div>
+        <div class="cols cols-2" style="gap:3mm;flex:none">
+          <div class="card"><div class="stat"><span class="v">76</span><span class="l">achados em três lentes: rubrica, acessibilidade e arquitetura (6 críticos, 14 altos, 33 médios, 23 leves)</span></div></div>
+          <div class="card"><div class="stat"><span class="v">64</span><span class="l">resolvidos nos spines; 7 viraram perguntas em aberto; 5 não aplicados</span></div></div>
+          <div class="card"><div class="stat"><span class="v">31</span><span class="l">achados da revisão adversarial de simplicidade no celular e no tablet, adotados</span></div></div>
+          <div class="card"><div class="stat"><span class="v">≤ 20</span><span class="l">toques por ficha virou teste de aceitação; o protótipo conta os toques</span></div></div>
+        </div>
+        <div class="card nc" style="margin-top:4mm"><h3>Exemplos de achados críticos corrigidos</h3>
+          <ul class="tight small" style="margin:0">
+            <li>Foto "aguardando envio" era só um ponto colorido, invisível ao sol: virou pill com palavra.</li>
+            <li>"Tocar de novo para desmarcar" desmarcava sem querer com luva: agora "Limpar" é ação explícita.</li>
+            <li>O PDF não tinha origem definida frente a um Word editável: decidido, os dois vêm dos dados do app.</li>
+            <li>A seção 9 não era derivável da árvore: definido o agrupamento por cabine e a escolha na exportação.</li>
+            <li>Offline no navegador não garantia as fotos: instalar na tela inicial e regras de armazenamento.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="card"><h3>O que a revisão adversarial mudou para você</h3>
+        <ul class="tight small" style="margin:0;columns:2;column-gap:6mm">
+          <li>Placa pela câmera primeiro; "Digitar" fica pequeno. Cerca de 800 campos de placa por obra deixam de ser digitados no escuro.</li>
+          <li>"Ler visor" em cada tabela, com o recorte guardado: cerca de 1.100 leituras por obra sem teclado numérico.</li>
+          <li>Unidade por sufixo ou pelo visor, com alerta de ordem de grandeza: some o erro histórico de unidade.</li>
+          <li>"Marcar os restantes como Conforme": o caso comum custa um toque, não 14.</li>
+          <li>Ditado e chips por item na observação de NC.</li>
+          <li>Stepper de seções na barra fixa, com os faltantes por seção: fim do rolar e caçar.</li>
+          <li>Texto repetido escondido atrás de chevrons; seletor de instrumento mostra só "2E · Megôhmetro".</li>
+          <li>Conclusão sugerida em âmbar, um toque; Reprovado nunca sugerido.</li>
+          <li>Câmera direta na barra fixa, legenda silenciosa por contexto: a foto deixa de ser um desvio de seis toques.</li>
+          <li>Ambiente da cabine por GPS, cópia da cabine anterior ou visor do termo-higrômetro.</li>
+          <li>Chips dos 5 recentes no lugar de listas com filtro por teclado.</li>
+          <li>Recorte da foto ao lado do valor e "Verificar" com palpite em vez de vazio: confirmar deixa de ser às cegas.</li>
+          <li>Leitura disparada no primeiro sinal com aviso: quem confirma ainda está na obra.</li>
+          <li>Um só slot de aviso por tela.</li>
+          <li>"Continuar · SEC-C06 · 42 de 94" como toque primário da Home.</li>
+          <li>Foto do painel sugere tipo, coluna e TAG do equipamento extra.</li>
+          <li>82 legendas por obra deixam de ser tarefa humana: propostas e confirmadas em lote.</li>
+          <li>Sincronização como manchete e contagens, não como documentação.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<!-- ===================== 13 FUTURO ===================== -->
+<section class="page">
+  <p class="kicker">13 · Visão de futuro</p>
+  <h1>Depois do MVP: do relatório em um dia ao catálogo de relatórios</h1>
+  <div class="body">
+    <div class="cols cols-3" style="gap:5mm;flex:none">
+      <div class="card tint"><h3>Agora · MVP</h3>
+        <ul class="tight small" style="margin:0">
+          <li>Um tipo de relatório: cabine primária, exatamente como o FO.SERV-03 é hoje, com os oito tipos de ficha.</li>
+          <li>Projeto › relatório; templates; cadastros de empresa, clientes, instrumentos, fabricantes e classes de tensão.</li>
+          <li>Fotos com legenda; pontos de atenção com ação, prazo, prioridade e responsável.</li>
+          <li>Word e PDF com sumário automático, em revisões numeradas.</li>
+          <li>Captura offline com sincronização e mescla; nunca perder uma foto.</li>
+          <li>Captura assistida: placa, visor, legendas, observação de NC, equipamento novo.</li>
+          <li>Preparado no modelo de dados, sem tela: vários tipos de relatório, várias empresas, critérios com fonte, TAG estável, texto NR-10 por data.</li>
+        </ul>
+      </div>
+      <div class="card"><h3>Logo depois</h3>
+        <ul class="tight small" style="margin:0">
+          <li>PDF lacrado pronto para o PIE: versão, hash, retenção de dez anos.</li>
+          <li>Fichas de aterramento (queda de potencial com curva, condição do solo, limite com fonte) e de relé 50/51 (pickup, dropout, dois pontos de curva).</li>
+          <li>Comparação com o relatório anterior por equipamento: a TAG estável já prepara isso desde o MVP.</li>
+          <li>Critérios de aceitação editáveis por empresa e por concessionária, com o item de norma que os sustenta.</li>
+          <li>Blocos candidatos: termografia antes do desligamento, anexo de laboratório de óleo, para-raios, muflas, ensaio de funcionamento.</li>
+          <li>Matriz de risco e tabela de adequação NR-10 / NBR 5410 como blocos de seção opcionais.</li>
+          <li>Logo do cliente na capa; marca d'água.</li>
+        </ul>
+      </div>
+      <div class="card"><h3>Mais adiante · SaaS</h3>
+        <ul class="tight small" style="margin:0">
+          <li>Catálogo de tipos de relatório sobre o mesmo modelo de blocos: painel elétrico, SPDA, aterramento e, talvez, estudo de carga e demanda.</li>
+          <li>Várias empresas na mesma plataforma, com preço público por empresa.</li>
+          <li>Cadastro por concessionária (limites de terra, antecedência de desligamento, lacres), começando pela CPFL.</li>
+          <li>Assinatura digital e integração com ART.</li>
+          <li>Canal: indicação nos grupos de WhatsApp de engenheiros, onde um depoimento rendeu seis usuários à ferramenta de referência.</li>
+          <li>Validação: medir horas economizadas e ouvir cinco a dez prestadoras de média tensão.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="cols cols-2" style="gap:5mm;margin-top:4mm;flex:none">
+      <div class="card amber"><h3>Por que o momento importa</h3><p class="small" style="margin:0">A NR-10 reescrita entra em vigor em 01/06/2027: o relatório de inspeção passa a exigir medidas de prevenção, plano de ação e cronograma (10.7.11); o PIE passa a ser exigido de toda organização que atua em média tensão; a sequência de desenergização muda do 10.5.1 para o 10.13.1. O FO.SERV-03 cita o 10.5.1 e ficará desatualizado; o produto guarda a data de execução para imprimir o texto certo. Argumento permitido: "relatório pronto para o PIE que a NR-10 exige de todo dono de cabine a partir de 01/06/2027". Argumentos a evitar: "exigido pela seguradora" e "a NBR 14039 exige manutenção anual".</p></div>
+      <div class="card"><h3>Fora do MVP, de propósito</h3><p class="small" style="margin:0">Digitalizar folhas manuscritas (você prefere abandonar o papel de vez) · integração Bluetooth com instrumentos · edição simultânea em tempo real · comparação com o relatório anterior · cobrança e cadastro público · apps nativos · outros tipos de relatório. O que fica pronto no modelo de dados fica sem tela até o MVP provar o relatório em um dia.</p></div>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<!-- ===================== 14 VALIDAR ===================== -->
+<section class="page">
+  <p class="kicker">14 · O que precisamos validar com você</p>
+  <h1>Antes da arquitetura: premissas, perguntas e próximos passos</h1>
+  <div class="body">
+    <div class="cols cols-3" style="gap:5mm">
+      <div class="card amber"><h3>Premissas sobre o campo, não confirmadas</h3>
+        <ul class="tight small" style="margin:0">
+          <li>Toque com luva de vaqueta é frequente? Por isso os controles de 56 px.</li>
+          <li>Uso com uma mão, segurando o tablet? Por isso a barra fixa embaixo.</li>
+          <li>Luz: cubículo escuro e sol direto no mesmo dia? Por isso os dois temas com contraste 7:1.</li>
+          <li>Zero sinal dentro da subestação, sinal no portão ou na van?</li>
+          <li>Um aparelho por relatório, com o Eduardo em outra ficha por outro aparelho?</li>
+          <li>Os tablets são iPad ou Android? O ditado funciona offline neles?</li>
+          <li>Nenhuma foto real de campo existe no material. Algumas ajudariam muito.</li>
+        </ul>
+      </div>
+      <div class="card"><h3>Perguntas de produto</h3>
+        <ul class="tight small" style="margin:0">
+          <li>Os quatro motivos de "Não ensaiado" bastam? (Impossibilidade de desligamento · Solicitação do cliente · Acesso · Outro)</li>
+          <li>Chips de NC por item: três ou quatro frases por item, tiradas das suas observações passadas. Você valida a lista?</li>
+          <li>Escala P0 a P4 e os prazos (hoje, 30, 90, 180, 365 dias).</li>
+          <li>Títulos impressos por conselho: "Eng. Eletricista" e "Técnico(a) em Eletrotécnica".</li>
+          <li>Linhas e rótulos da tabela de controle do documento; CNPJ opcional em clientes?</li>
+          <li>Redação do texto da conclusão por tipo de ficha.</li>
+          <li>Coordenadas GPS podem imprimir em instalações do cliente? Consentimento para enviar fotos ao provedor de IA (LGPD)?</li>
+          <li>Na seção 9 agrupada por tipo, onde entram para-raios e cabos?</li>
+          <li>Cabine sem coluna (Enel): a coluna é opcional?</li>
+          <li>Limiar de umidade para oferecer o chip de chuva.</li>
+        </ul>
+      </div>
+      <div class="card ok"><h3>Próximos passos</h3>
+        <ol class="tight small" style="margin:0">
+          <li><b>Esta conversa.</b> Percorrer o protótipo navegável com você, tela a tela, e registrar as respostas acima.</li>
+          <li><b>Medir a régua de hoje.</b> No próximo serviço, cronometrar tempo por ficha e contar caracteres digitados, para ter o baseline real.</li>
+          <li><b>Arquitetura.</b> Biblioteca de UI, offline seguro para fotos no iPad e no Android, provedor e custo da IA (94 placas, cerca de 1.100 fotos de visor e 82 legendas por obra), ditado, LGPD.</li>
+          <li><b>Ordem de construção.</b> Geração do relatório primeiro; depois placa, visor, legendas, observação de NC e detecção de equipamento.</li>
+          <li><b>Usar de verdade.</b> No próximo serviço de cabine primária da Fasor. Critério: relatório aceito com edições menores, sem reestruturar, em até um dia útil.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>PRODUTO · Proposta de experiência · Fasor Engenharia</span><span class="num"></span></div>
+</section>
+
+<script>
+const ps=[...document.querySelectorAll(".page")];
+ps.forEach((p,i)=>{const n=p.querySelector(".footer .num");if(n)n.textContent=(i+1)+" / "+ps.length;});
+</script>
+</body>
+</html>

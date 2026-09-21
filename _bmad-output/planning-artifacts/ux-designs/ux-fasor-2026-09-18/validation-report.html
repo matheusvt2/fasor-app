@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>UX Design Validation: fasor</title>
+<style>
+  :root {
+    --bg: #fafaf9;
+    --surface: #ffffff;
+    --border: #e7e5e4;
+    --text: #1c1917;
+    --muted: #78716c;
+
+    --verdict-strong: #16a34a;
+    --verdict-adequate: #65a30d;
+    --verdict-thin: #d97706;
+    --verdict-broken: #dc2626;
+
+    --sev-low: #64748b;
+    --sev-medium: #ca8a04;
+    --sev-high: #ea580c;
+    --sev-critical: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    font-size: 15px;
+  }
+  .container { max-width: 960px; margin: 0 auto; padding: 32px 24px 64px; }
+
+  header.report-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  .title h1 { margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+  .title .subtitle { color: var(--muted); font-size: 13px; margin-top: 4px; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+
+  .synthesis {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--muted);
+    border-radius: 8px;
+    padding: 18px 22px;
+    margin-bottom: 24px;
+    font-size: 15.5px;
+  }
+  .synthesis p { margin: 0 0 10px; }
+  .synthesis p:last-child { margin-bottom: 0; }
+
+  .dimension-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .dim-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+  .dim-card .dim-name { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  .dim-card .dim-verdict { font-size: 14px; font-weight: 600; }
+
+  section.dimension, section.reviewer-section { margin-bottom: 14px; }
+  section.dimension details, section.reviewer-section details {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  section summary {
+    padding: 14px 20px;
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  section summary::-webkit-details-marker { display: none; }
+  section summary::before {
+    content: "▸";
+    display: inline-block;
+    color: var(--muted);
+    transition: transform 0.15s ease;
+  }
+  section details[open] summary::before { transform: rotate(90deg); }
+  section summary h2 {
+    display: inline;
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    flex: 1;
+  }
+  .verdict-pill {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: white;
+  }
+  .verdict-strong { background: var(--verdict-strong); }
+  .verdict-adequate { background: var(--verdict-adequate); }
+  .verdict-thin { background: var(--verdict-thin); }
+  .verdict-broken { background: var(--verdict-broken); }
+
+  .dim-body { padding: 4px 20px 18px; }
+  .dim-judgment { color: var(--text); font-size: 14.5px; }
+  .dim-judgment p { margin: 0 0 10px; }
+
+  .findings-list { padding: 0 20px 4px; }
+  article.finding {
+    padding: 14px 0;
+    border-top: 1px solid var(--border);
+  }
+  article.finding:first-child { border-top: none; }
+  article.finding header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+  .badge {
+    font-size: 10.5px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    line-height: 1.4;
+  }
+  .badge-sev-low { background: rgba(100, 116, 139, 0.12); color: var(--sev-low); }
+  .badge-sev-medium { background: rgba(202, 138, 4, 0.14); color: var(--sev-medium); }
+  .badge-sev-high { background: rgba(234, 88, 12, 0.14); color: var(--sev-high); }
+  .badge-sev-critical { background: rgba(220, 38, 38, 0.14); color: var(--sev-critical); }
+  .finding-title { margin: 0; font-size: 15px; font-weight: 500; flex: 1; min-width: 200px; }
+  .finding-location { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; color: var(--muted); }
+  .finding-note, .finding-fix { margin-top: 6px; font-size: 14px; }
+  .finding-fix strong { color: var(--muted); font-weight: 500; }
+
+  .reviewer-source {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+
+  .mechanical {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-top: 24px;
+    font-size: 14px;
+  }
+  .mechanical h3 { margin: 0 0 10px; font-size: 14px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .mechanical ul { margin: 0; padding-left: 20px; }
+  .mechanical li { margin-bottom: 4px; color: var(--text); }
+
+  footer.report-footer {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  footer .meta { display: flex; gap: 24px; flex-wrap: wrap; }
+
+  .status {
+    font-size: 10.5px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1.4;
+    border: 1px solid currentColor;
+  }
+  .status-resolved { color: var(--verdict-strong); }
+  .status-open-question { color: var(--verdict-thin); }
+  .status-not-applied { color: var(--sev-low); }
+  .finding-status { margin-top: 6px; font-size: 14px; }
+  .finding-status strong { color: var(--muted); font-weight: 500; }
+  .status-summary { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin: -12px 0 24px; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.92em; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <header class="report-header">
+      <div class="title">
+        <h1>fasor — UX Design Validation Report</h1>
+        <div class="subtitle">DESIGN.md · EXPERIENCE.md (v0.2.0; reviews ran against v0.1.0)</div>
+      </div>
+    </header>
+
+    <div class="synthesis">
+      <p>Mechanically this pair is clean: every <code>{path.to.token}</code> reference in both files resolves (52 unique), all 27 light colors have a <code>-dark</code> pair with hex, the 14 contrast ratios claimed in DESIGN.md recompute exactly, 30/30 component names match between DESIGN.md § Components and EXPERIENCE.md § Component Patterns, all seven <code>sources</code> resolve, and every inline import link exists. Downstream consumers can source-extract without guesswork on the visual identity, the block model, or the capture-to-document transformation. Two high-impact gaps remain, both in the field-offline promise: the brief's MVP step "nameplate data read by AI from a photo, then confirmed" has no flow, component or state, and the spine never says how a laudo becomes available on a device before the engineer enters a no-signal substation, nor what happens when it is not. Both spines still carry <code>status: draft</code>; no key-screen mocks exist, so the two behavior-heavy surfaces (Equipment sheet, Laudo overview) will be built from tables alone.</p>
+      <p>The two extra lenses moved the picture from "clean, two gaps" to "clean palette, under-specified behavior and data model". Accessibility found nothing wrong with a single hex value — every claimed ratio recomputes — but found the product's acceptance bar broken where it matters: the photo pending-upload state was color-only at 2.6:1, the tri-state "retap to clear" contradicted the promised radio semantics and was a glove hazard, reorder had no non-drag path, a dozen tap targets had no size, and the decimal-dot rule could turn 3.700 MΩ into 3,7 MΩ. Architecture found four critical holes the rubric could not see from the spines alone: the conflict unit covered sheet bodies but not laudo structure, PDF provenance was undefined against an editable DOCX, section 9 regrouping was not derivable from the tree, and offline durability in a browser was under-specified for "never lose a photo". Neither lens asked for a palette change; both asked for sentences the spines did not yet have.</p>
+      <p>The reviews ran against v0.1.0. An update pass has since produced v0.2.0, and every finding below carries its status against the current spines: of 76 findings, 64 are resolved in v0.2.0, 7 were moved to the spines' Open Questions (location depth, status-pill transition table, sheet attribution, Project/Client/Site, "Salvar como template", Atividade/Local registries, Inter bundling), and 5 were not applied (key-screen mocks, sheet-PNG index, disabled-button opacity, DESIGN.md's ninth section, the mixed Open Questions list). Both spines remain <code>status: draft</code> until the mocks exist.</p>
+    </div>
+
+    <div class="status-summary">
+      <span>Findings: critical 6 · high 14 · medium 33 · low 23 (total 76)</span>
+      <span>Status in v0.2.0: Resolved in v0.2.0 64 · Open Question 7 · Not applied 5</span>
+    </div>
+
+    <div class="dimension-summary">
+      <div class="dim-card">
+        <div class="dim-name">1. Flow coverage</div>
+        <div class="dim-verdict" style="color: var(--verdict-adequate)">adequate</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">2. Token completeness</div>
+        <div class="dim-verdict" style="color: var(--verdict-adequate)">adequate</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">3. Component coverage</div>
+        <div class="dim-verdict" style="color: var(--verdict-adequate)">adequate</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">4. State coverage</div>
+        <div class="dim-verdict" style="color: var(--verdict-adequate)">adequate</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">5. Visual reference coverage</div>
+        <div class="dim-verdict" style="color: var(--verdict-adequate)">adequate</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">6. Bloat & overspecification</div>
+        <div class="dim-verdict" style="color: var(--verdict-adequate)">adequate</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">7. Inheritance discipline</div>
+        <div class="dim-verdict" style="color: var(--verdict-adequate)">adequate</div>
+      </div>
+      <div class="dim-card">
+        <div class="dim-name">8. Shape fit</div>
+        <div class="dim-verdict" style="color: var(--verdict-strong)">strong</div>
+      </div>
+    </div>
+
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>1. Flow coverage</h2>
+          <span class="verdict-pill verdict-adequate">adequate</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>Sources carry no named UJs or FR IDs (brief + addendum are prose; research is reference). Requirement names were extracted from the brief's "The Solution" (5 steps + offline + web) and "Scope › In (MVP)" (10 bullets), plus the addendum's "Discovery meeting ideas". All six Key Flows have a named protagonist (Bruno / Eduardo), numbered steps, an explicit Climax beat and a Failure paragraph (Flow 6 is itself a failure path with a nested failure). Coverage: setup before visit → Flow 1; fill on site → Flow 2; add missing equipment in the field → Flow 3; photos as first-class data → Flows 2, 4; findings become an action plan → Flow 5 step 3; generate DOCX with TOC → Flow 5; works without signal / no photo loss → Flows 2, 6; Project → report hierarchy → Flow 1 step 4. v0.2.0 adds Flow 2b (nameplate by photo, field point of attention) and a Registries step in Flow 1.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">Nameplate-by-AI has no flow, component or state</h3>
+              <span class="finding-location">EXPERIENCE.md § Key Flows; § Component Patterns; § State Patterns</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">The brief's MVP flow step 2 includes "nameplate data (read by AI from a photo, then confirmed)" and Scope lists it as in-MVP ("last in the MVP queue"). EXPERIENCE.md mentions it only as a one-line "Deferred" note in § Inspiration & Anti-patterns: no Key Flow step, no Component Pattern for the confirm-one-by-one review, no state for extraction running / needs connection / failed / low-confidence field, and no DESIGN.md visual for a suggested-vs-confirmed field. In a zero-signal field context the "needs connection" question alone is a design decision a story-dev cannot make.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add a Component Pattern "Nameplate extraction" (button in the nameplate sub-block; requires connection, says so when offline; returns proposed values rendered as suggestions in <code>{colors.fora-do-limite-fill}</code> until each is confirmed; nothing is written until confirmed), a State Patterns row (extracting / offline / failed), a DESIGN.md visual for the suggested field, and one step in Flow 2 (or a Flow 2b) exercising it.</div>
+            <div class="finding-status"><strong>Status:</strong> Nameplate extraction component in both tables, four State Patterns rows, <code>components.nameplate-extraction</code> tokens, Flow 2b (memlog decision).</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Surface closure claim wrong for Registries and Account; certificate upload unspecified</h3>
+              <span class="finding-location">EXPERIENCE.md § Information Architecture; § Registries; Flows 1–6</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">§ Information Architecture "Surface closure" claims every surface has a flow that lands there, but no flow lands on Registries or Account. Registries is where the calibration certificate file is uploaded — the input for section 11 of the output — and no flow, Component Pattern or state describes that upload (file types, size, offline behavior).</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add a short office flow or a Registries step inside Flow 1; specify certificate upload behavior in the Registry row pattern; correct the surface-closure sentence.</div>
+            <div class="finding-status"><strong>Status:</strong> Flow 1 step 2 registers instrument 1T and attaches its certificate; Registry row specifies the file picker + queued upload; surface-closure sentence corrected and Account declared a settings surface without a flow; file types/size parked as an Open Question.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Field path "NC › Criar ponto de atenção" never exercised</h3>
+              <span class="finding-location">EXPERIENCE.md § IA › Points of attention; Point of attention card; Flow 5</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">The field path "Checklist row NC › Criar ponto de atenção" is never exercised; Flow 5 creates points of attention in the office only.</div>
+            <div class="finding-fix"><strong>Fix:</strong> One step in Flow 2 after the NC observation, or drop the NC-row entry from IA if office-only is intended.</div>
+            <div class="finding-status"><strong>Status:</strong> Flow 2b step 3 creates the point from the NC row's Overflow menu.</div>
+          </article>
+        </div>
+      </details>
+    </section>
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>2. Token completeness</h2>
+          <span class="verdict-pill verdict-adequate">adequate</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>Frontmatter extracted by YAML parser: 54 colors (27 light + 27 <code>-dark</code>, all 6-digit hex), 8 typography roles, 4 <code>rounded</code>, 13 <code>spacing</code>, 32 <code>components</code>. Every <code>{…}</code> reference in DESIGN.md (45 unique, 141 total) and EXPERIENCE.md (7 unique) resolves; the two group references <code>{components.sync-badge}</code> and <code>{components.banner}</code> resolve to objects. All 14 contrast ratios stated in § Colors recompute to the stated value (±0.1). No color token is missing hex; no light token lacks a dark pair.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Self-imposed 7:1 target missed by the selected tri-state segment</h3>
+              <span class="finding-location">DESIGN.md § Do's and Don'ts row 1; § Components › Tri-state control; EXPERIENCE.md § Accessibility Floor</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">The spine's own rule is "load-bearing text ≥ 7:1", but the selected tri-state segment renders the state's ink on its own fill, and those pairs compute to 5.6:1 (conforme), 5.4:1 (não conforme), 4.9:1 (não se aplica), 5.8:1 (fora-do-limite on its fill). The C/NC/NA letter on the selected segment is the most load-bearing text in the product; a dev following the tokens ships AA-only there under sunlight.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Either darken the light fills until ink-on-fill ≥ 7:1, or state in § Colors that selected segments draw the letter in <code>ink-primary</code> and use the state ink only for the ring/glyph.</div>
+            <div class="finding-status"><strong>Status:</strong> § Colors now scopes the 7:1 bar to ink on surfaces and states the ≥ 4.5:1 figures for letters on fills, with the letter set in <code>heading</code> weight carrying the state; darkening the inks stays listed in DESIGN.md Open Questions.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Breakpoints, rail width and inline thumbnail have no tokens</h3>
+              <span class="finding-location">EXPERIENCE.md § Responsive & Platform; DESIGN.md § Layout & Spacing; § Components › Photo tile</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">Breakpoint values (768 / 1280) and the tablet rail width (320px) live only in EXPERIENCE.md; DESIGN.md names gutters without the breakpoints. The 64px inline photo thumbnail has no token beside <code>thumb-size: 96px</code>.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add <code>breakpoint-tablet</code>, <code>breakpoint-desktop</code>, <code>rail-width</code>, <code>thumb-inline</code> under <code>spacing</code> and cite them from both files.</div>
+            <div class="finding-status"><strong>Status:</strong> All four tokens exist under <code>spacing</code> and are cited from § Layout & Spacing, § Responsive & Platform and the Photo tile row.</div>
+          </article>
+        </div>
+      </details>
+    </section>
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>3. Component coverage</h2>
+          <span class="verdict-pill verdict-adequate">adequate</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>Script extracted the bold first-column names of both component tables: 30 rows each, identical names and order; the 32 frontmatter <code>components</code> keys map 1:1 (Button expands to primary/secondary/destructive). Every row carries real rules on both sides (visual anatomy/colors/sizes in DESIGN.md; use + behavioral rules in EXPERIENCE.md). Names used in prose outside the tables were grepped for parts that behave like components. v0.2.0 adds Conflict view, Quantity stepper, Photo viewer, Overflow menu, Chip and Nameplate extraction rows to both tables.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Conflict resolver, quantity stepper and photo full view have no component row</h3>
+              <span class="finding-location">EXPERIENCE.md § State Patterns › Sync conflict; Flow 4 failure; Flow 6; Block palette; Photo tile</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">Three behaviors used by flows have no row in either table: the conflict resolver (Banner "Manter a minha · Manter a dele · Ver as duas" plus the side-by-side read-only view) while DESIGN.md's Banner is amber-only; the quantity stepper in the Template composer; the photo full view ("Tap opens full view with caption edit and Remover").</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add Banner variants (warning / conflict / info) to <code>components.banner</code> and the DESIGN row; add rows "Conflict view", "Quantity stepper", "Photo viewer" to both tables.</div>
+            <div class="finding-status"><strong>Status:</strong> Banner has three variants; Conflict view, Quantity stepper and Photo viewer rows exist in both tables with tokens.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Avatar, overflow menu, quick chips and Sync status rows named but unspecified</h3>
+              <span class="finding-location">DESIGN.md § Components › App bar, Block card, Observation field; EXPERIENCE.md § IA › Sync status</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">"avatar initial" (App bar), "overflow menu" (Block card), "Observações rápidas" chips (Observation field) and the "Sync status" list rows are named but unspecified.</div>
+            <div class="finding-fix"><strong>Fix:</strong> One line each in the parent row (size, tokens, keyboard) or a shared "Chip" and "Menu" row.</div>
+            <div class="finding-status"><strong>Status:</strong> Overflow menu and Chip are full rows; the avatar has a 48px hit area; Sync status content is enumerated in IA and Offline & Sync.</div>
+          </article>
+        </div>
+      </details>
+    </section>
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>4. State coverage</h2>
+          <span class="verdict-pill verdict-adequate">adequate</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>Walked all 15 IA surfaces against § State Patterns (20 rows in v0.1.0) and per-component states. Covered: cold open (session/no session), offline cold open, empty (Home, Templates, Laudo overview, Gallery, Points of attention), draft found, focus, out of limit, required missing, not tested, offline write, photo pending, sync error, sync conflict, storage low, calibration expired, exported-then-edited, permission denied (project), generation failed, session expired offline. v0.2.0 grows the table to 35 rows (device availability, downloading, working, nameplate extraction, camera permission, structure conflict, app not installed).</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">No rule for laudo availability on the device before going offline</h3>
+              <span class="finding-location">EXPERIENCE.md § Offline & Sync; § State Patterns; § Sync status surface; Flow 4 step 1</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">Offline & Sync specifies writes, and State Patterns covers "Cold open, session, offline → cached laudos render", but nothing says when a laudo (and its registries, templates, photos) is downloaded, whether the engineer can see that it is complete on this device, or what a tap on a non-cached laudo does with no signal. Entering a basement with a laudo that is not on the tablet is the product's failure mode, and architecture needs the rule to design storage.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add an Offline & Sync bullet stating the download rule and an "available on this device" indicator, a State Patterns row "Laudo not on device, offline", and a Sync status section listing downloads as well as uploads.</div>
+            <div class="finding-status"><strong>Status:</strong> "Automatic availability" bullet (Rascunho/Em campo laudos download by themselves), Laudo card line "No aparelho · atualizado 21:40", State rows "Laudo not on device, offline" and "Laudo downloading", Sync status lists downloads (memlog decision).</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Camera / file permission denied is not a state</h3>
+              <span class="finding-location">EXPERIENCE.md § State Patterns › Permission denied; § Component Patterns › Photo capture sheet</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">The "Permission denied" row covers project sharing only. The Photo capture sheet depends on <code>getUserMedia</code>; iPadOS Safari and Android Chrome both surface a denial that leaves "Tirar foto" dead.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add a row: denied → inline message in the capture sheet with "Escolher da galeria" as the fallback and the OS path to re-enable; never silently no-op.</div>
+            <div class="finding-status"><strong>Status:</strong> State row "Camera / file permission denied" and the Photo capture sheet rule in both spines.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">No in-progress states for export, initial load and photo upload runs</h3>
+              <span class="finding-location">EXPERIENCE.md § State Patterns; § Component Patterns › Export dialog</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">Export generation on the server for a 119-page DOCX/PDF, initial data load of a 94-sheet laudo, and the photo upload run in Sync status have no visible progress treatment.</div>
+            <div class="finding-fix"><strong>Fix:</strong> One row "Working" (export generating / photos uploading / laudo loading) with copy, what stays interactive, and cancel rules.</div>
+            <div class="finding-status"><strong>Status:</strong> "Working" row covers all three with copy and interactivity; Export dialog runs asynchronously ("Gerando revisão 2… pode fechar").</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Cold open offline without session, empty Project, empty Instrument picker undefined</h3>
+              <span class="finding-location">EXPERIENCE.md § State Patterns; § Component Patterns › Login form</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">"Cold open, no session, offline" is undefined; Login form says session persists but not what the form does with no network. Project with no laudos and an empty Instruments registry have no empty state.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Three short rows.</div>
+            <div class="finding-status"><strong>Status:</strong> All three rows added; the Login form row states the offline copy.</div>
+          </article>
+        </div>
+      </details>
+    </section>
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>5. Visual reference coverage</h2>
+          <span class="verdict-pill verdict-adequate">adequate</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>Files: <code>imports/extract-fo-serv-03.md</code>, <code>docs/concorrentes/extract-fotos-whatsapp.md</code>, <code>imports/fichas-fo-serv-03/</code> (94 PNG), <code>.working/extract-research.md</code>. No <code>mockups/</code> or <code>wireframes/</code> exist. All four are linked inline in both spines with what they illustrate (DESIGN.md § Brand & Style; EXPERIENCE.md § Foundation) and section-level citations recur where used. "Spines win on conflict" is stated once per spine. Prior reconciliation findings (<code>reconcile-fo-serv-03.md</code>; <code>reconcile-transcript-and-screenshots.md</code>) were re-checked: all are applied or parked in Open Questions; none repeated here.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">No visual reference for the behavior-heavy surfaces</h3>
+              <span class="finding-location">DESIGN.md § Components › Checklist row / Measurement table; EXPERIENCE.md § IA; frontmatter status</span>
+              <span class="status status-not-applied">Not applied</span>
+            </header>
+            <div class="finding-note">No visual reference exists for the surfaces whose layout drives behavior — Equipment sheet (tri-state rows that expand on NC, measurement table with unit slot and calculated cells, sticky bar), Laudo overview (tree + block cards + palette), Export dialog. The Finalize step "Key-screen mocks rendered" has not run; story-dev will build the product's core screen from two tables.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Render key-screen HTML mocks for Equipment sheet (tablet portrait and phone) and Laudo overview into <code>.working/</code>, promote to <code>mockups/</code>, link at § Components and § IA.</div>
+            <div class="finding-status"><strong>Status:</strong> No <code>mockups/</code> exists; rendering mocks is a Finalize step, not a text edit. DESIGN.md Open Questions records it and both spines stay <code>status: draft</code>.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">90 of 94 sheet PNGs referenced only as a folder</h3>
+              <span class="finding-location">imports/extract-fo-serv-03.md § 2; DESIGN.md § Brand & Style</span>
+              <span class="status status-not-applied">Not applied</span>
+            </header>
+            <div class="finding-note">The extract's inventory lists sheets by subsection, not by image number, so a consumer cannot find "the TP sheet" without opening files.</div>
+            <div class="finding-fix"><strong>Fix:</strong> A 12-line index in <code>imports/extract-fo-serv-03.md</code> mapping image ranges to models (or the four named examples extended to one per model).</div>
+            <div class="finding-status"><strong>Status:</strong> The extract is unchanged since before the reviews and still names only four example PNGs; the update pass edited the spines only.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">WhatsApp reference screenshots absent from sources and imports</h3>
+              <span class="finding-location">DESIGN.md / EXPERIENCE.md frontmatter <code>sources</code></span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">The 11 reference screenshots in <code>docs/context/WhatsApp Image 2026-09-18 *.jpeg</code> are the raw source behind <code>docs/concorrentes/extract-fotos-whatsapp.md</code> and the memlog lists them as confirmed sources, but neither <code>sources</code> nor <code>imports/</code> holds them.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add the glob to <code>sources</code> in both files (or copy into <code>imports/fotos-whatsapp/</code>).</div>
+            <div class="finding-status"><strong>Status:</strong> The glob is the eighth <code>sources</code> entry in both spines.</div>
+          </article>
+        </div>
+      </details>
+    </section>
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>6. Bloat & overspecification</h2>
+          <span class="verdict-pill verdict-adequate">adequate</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>DESIGN.md prose is editorial but every paragraph lands on a decision; no pixel values duplicate tokens (the shadow literal is the only untokened value and the spec has no shadow key). EXPERIENCE.md's invented sections (Block Model, Capture-to-Document Transformation, Registries, Offline & Sync) are tables or rules a consumer reads; source content is inherited by reference, not restated (the 8-type table is a UX decision, not the import).</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Open Questions mixes UX questions with non-UX ones</h3>
+              <span class="finding-location">EXPERIENCE.md § Open Questions</span>
+              <span class="status status-not-applied">Not applied</span>
+            </header>
+            <div class="finding-note">§ Open Questions (24 bullets) mixes UX questions with non-UX ones ("Who signs", "Which norm item backs each acceptance criterion", partnership-adjacent items) and restates DESIGN.md's assumptions.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Keep UX-owned questions; move the rest to the memlog or the brief's Open Questions with a pointer.</div>
+            <div class="finding-status"><strong>Status:</strong> The list grew to 31 bullets in v0.2.0 because the update pass used it as the single parking place for every deferred decision; the non-UX items ("Who signs", norm items, billing signals) are still there.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Narrative in Flow 4 preamble and Inspiration bullets</h3>
+              <span class="finding-location">EXPERIENCE.md § Key Flows › Flow 4; § Inspiration & Anti-patterns</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">Flow 4's unnumbered preamble and the Inspiration bullets carry narrative ("Bruno said the older GroundPRO version was nicer…") that EXPERIENCE.md prose should not; the fact is already an Open Question.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Trim to the decision.</div>
+            <div class="finding-status"><strong>Status:</strong> Flow 4 preamble is one sentence stating the rule (either split must work); the GroundPRO remark is reduced to a pointer to the Open Question.</div>
+          </article>
+        </div>
+      </details>
+    </section>
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>7. Inheritance discipline</h2>
+          <span class="verdict-pill verdict-adequate">adequate</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>All seven <code>sources</code> paths resolve (both files list the same set; v0.2.0 adds the WhatsApp screenshot glob as an eighth); <code>design: ./DESIGN.md</code> resolves. Sources define no UJ/FR identifiers, so flow names are free; domain vocabulary (laudo, ficha, bloco, cabine/coluna/cubículo, C/NC/NA, Aprovado/Reprovado, Sem/Com restrições, TAG, ART, CREA, RBC, PIE, NR-10) is identical across spines and sources. Component names are identical across every section of both files. EXPERIENCE.md token references resolve by name. The 6-vs-8 sheet-type divergence and the PDF-in-MVP divergence are recorded with reasons.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Spines say "product name undecided" while the sources say Releng</h3>
+              <span class="finding-location">DESIGN.md frontmatter description; § Brand & Style; EXPERIENCE.md intro; § Open Questions</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">Both spines state "Product name undecided", but the brief's title is "Product Brief: Releng", the addendum records "Chosen: Releng, on 2026-09-18. Availability not yet checked", and the memlog's own second entry says "Produto: Releng (codinome fasor)". The later decision to show the literal PRODUTO placeholder is sound, but the wording contradicts its sources rather than recording a divergence; an architect reading the brief will name the system Releng.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Replace "undecided" with "Chosen as Releng in the brief (availability unchecked); the UI shows the placeholder PRODUTO until the name is confirmed (memlog decision)".</div>
+            <div class="finding-status"><strong>Status:</strong> Both spines now carry the exact wording in frontmatter, § Brand & Style, the EXPERIENCE.md intro and Open Questions.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Inline "(memlog)" citations point to a file not in sources</h3>
+              <span class="finding-location">DESIGN.md § Brand & Style and passim</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">DESIGN.md cites memlog decisions inline in several places; the memlog is not in <code>sources</code>. Harmless for humans, but a consumer resolving citations finds no target.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Cite <code>.memlog.md</code> once in § Brand & Style or drop the inline "(memlog)" tags.</div>
+            <div class="finding-status"><strong>Status:</strong> § Brand & Style and the EXPERIENCE.md intro name <code>.memlog.md</code> once as the decision log cited as "memlog".</div>
+          </article>
+        </div>
+      </details>
+    </section>
+    <section class="dimension">
+      <details>
+        <summary>
+          <h2>8. Shape fit</h2>
+          <span class="verdict-pill verdict-strong">strong</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>DESIGN.md sections are in canonical order: Brand & Style → Colors → Typography → Layout & Spacing → Elevation & Depth → Shapes → Components → Do's and Don'ts. EXPERIENCE.md has every required default (Foundation, Information Architecture, Voice and Tone, Component Patterns, State Patterns, Interaction Primitives, Accessibility Floor, Key Flows), both required-when-applicable sections are present and triggered (Inspiration & Anti-patterns; Responsive & Platform — three breakpoints), and the four invented sections each carry decisions no default section would hold. Frontmatter keys match the skill's examples plus <code>version</code>/<code>status</code>/<code>updated</code>, which Finalize expects.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">DESIGN.md carries a ninth section "Open Questions"</h3>
+              <span class="finding-location">DESIGN.md after § Do's and Don'ts</span>
+              <span class="status status-not-applied">Not applied</span>
+            </header>
+            <div class="finding-note">The spec's body is the eight sections only and neither example has it. Order is not broken, but a spec-driven parser drops it.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Keep <code>[ASSUMPTION]</code> tags inline in the relevant sections and move the list to EXPERIENCE.md § Open Questions (which already mirrors two of them) or the memlog.</div>
+            <div class="finding-status"><strong>Status:</strong> § Open Questions is still the ninth section of DESIGN.md (now eight bullets); the update pass added to it rather than moving it.</div>
+          </article>
+        </div>
+      </details>
+    </section>
+    <section class="reviewer-section">
+      <details>
+        <summary>
+          <h2>Accessibility review</h2>
+          <span class="reviewer-source">review-accessibility.md</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>Scope: DESIGN.md and EXPERIENCE.md (v0.1.0), reviewed against WCAG 2.2 AA plus field ergonomics (gloves, one hand, sunlight/dim cubicles, no signal, pt-BR). Contrast ratios recomputed from the frontmatter hex values; thresholds 4.5:1 for text, 3:1 for UI boundaries and state indicators. <strong>Verdict, in the reviewer's words:</strong> the palette is unusually solid — every ratio the prose claims is numerically correct, every semantic ink passes 4.5:1 on white, on its own fill, and in the dark theme, and the "word next to every color" rule is honoured by almost every component. The gaps are behavioral rather than chromatic: the photo pending-upload dot is color-only and fails 3:1, the tri-state "retap to clear" is incompatible with the radio semantics the spine promises (and is a glove hazard), reorder has no single-pointer alternative (WCAG 2.5.7), several tap targets have no size, and the decimal-dot conversion rule can silently turn "3.700" into 3,7 MΩ. None of these needs a palette change; all need a sentence or two in the spine before the components are built. Three computed failures drove the critical/high items: photo pending dot 2.62:1 light / 1.62:1 dark; dark-theme toast action 1.93:1; disabled primary button 1.36:1 (exempt, but invisible in sun). What is already strong: whole-field focus (8.66:1 border), 56px field controls, no swipe gestures, no hover-only affordances, and a non-blocking design that never stops navigation on expiry, out-of-limit or offline.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-critical">critical</span>
+              <h3 class="finding-title">F-01 Photo pending-upload state is color-only and fails 3:1 in both themes</h3>
+              <span class="finding-location">DESIGN.md § Components › Photo tile; EXPERIENCE.md § Component Patterns › Photo tile; § State Patterns › Photo pending upload; Flow 6 failure</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">The dot has no word, no glyph, and computes 2.62:1 (light) / 1.62:1 (dark) against the number badge — it disappears under sun, is indistinguishable for a deuteranope, and is silent to a screen reader. This is the one state the spine calls the acceptance bar ("never lose a photo"), yet it is the one state that breaks the "never color-only" rule. Flow 6 reuses the same amber dot for a rejected upload.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Render pending as a small pill with icon + word ("↑ Aguardando" / "Erro — Tentar novamente"), <code>fora-do-limite-fill</code> + <code>fora-do-limite</code> ink (5.82:1) for pending and <code>nao-conforme</code> outline for error; <code>aria-describedby</code> from the tile; state the pending count in the gallery header ("3 fotos aguardando envio").</div>
+            <div class="finding-status"><strong>Status:</strong> Photo tile renders word pills for pending and error (the error pill is the retry button), tokens added, gallery header count, <code>aria-describedby</code>; no dot remains.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-critical">critical</span>
+              <h3 class="finding-title">F-02 Tri-state "retap to clear" contradicts radio semantics and is a glove hazard</h3>
+              <span class="finding-location">EXPERIENCE.md § Component Patterns › Tri-state control; § Accessibility Floor; § Interaction Primitives</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">A native or ARIA radio cannot be unchecked by re-activating it, so keyboard and screen-reader users have no way to clear, while touch users clear by an undiscoverable gesture. In the field, a leather-glove double-registration on a 56px segment silently un-marks a row the engineer believes is marked; nothing is announced and the only trace is the Progress counter changing.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Keep <code>role="radiogroup"</code> per row with three radios named by the full words; expose "clear" as a real control — "Limpar" in the row's overflow menu and Delete/Backspace on the focused group — and drop retap-to-clear. Apply the same rule to the two Conclusion pairs.</div>
+            <div class="finding-status"><strong>Status:</strong> Tri-state and Conclusion control are radiogroups with full-word names; "Limpar" via Overflow menu and Delete/Backspace; retap does nothing; "clearing a selection by re-tapping it" is on the banned list.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">F-03 Reordering has no single-pointer, non-drag alternative (SC 2.5.7)</h3>
+              <span class="finding-location">EXPERIENCE.md § Interaction Primitives; § Component Patterns › Block card, Laudo tree, Point of attention card</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">Alt+↑/↓ is desktop-only by the spine's own wording; a tablet user with a screen reader, a tremor, or a stylus cannot reorder blocks, tree rows or points of attention, and Point of attention cards have no alternative at all.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add "Mover para cima · Mover para baixo · Mover para…" to every reorderable item's overflow menu, make Alt+↑/↓ work wherever a keyboard is attached, announce the result via a polite live region, document the drag handle's <code>aria-label</code>.</div>
+            <div class="finding-status"><strong>Status:</strong> "Reorder three ways, always" primitive; Overflow menu carries the Mover items for Block card, tree rows and Point of attention cards; moves announced; handle <code>aria-label</code> in DESIGN.md.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">F-04 Decimal-dot conversion can silently mis-scale a reading</h3>
+              <span class="finding-location">EXPERIENCE.md § Component Patterns › Measurement field; § Voice and Tone</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">In pt-BR the dot is the thousands separator. An engineer typing "3.700" (as the paper sheet shows 3.700 MΩ) gets 3,700 → 3,7 MΩ, which the app then flags amber against >400 MΩ and suggests Com restrições — a 1000× error dressed as a helpful hint.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Use <code>inputmode="decimal"</code> text input, accept both separators but treat a dot followed by exactly three digits and no comma as a thousands separator, echo the parsed value in pt-BR beside the field before blur-comparison, and make the unit slot the place to change scale.</div>
+            <div class="finding-status"><strong>Status:</strong> Measurement field row states the parsing rule, the echo line ("= 3.700 MΩ") and scale-by-unit; DESIGN.md adds the echo line.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">F-05 Toast action color undefined for dark theme, fails at 1.93:1</h3>
+              <span class="finding-location">DESIGN.md § Components › Toast; <code>components.toast</code></span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">In the dark theme the toast inverts to a light <code>#F3F4F6</code> background, and <code>primary-dark #86B6E8</code> on it is 1.93:1. The persistent "Rascunho encontrado — Recuperar" and "Ficha removida — Desfazer" actions become unreadable.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add <code>toast.action</code> = the opposite theme's primary and state the rule.</div>
+            <div class="finding-status"><strong>Status:</strong> <code>colors.toast-action</code> / <code>toast-action-dark</code> tokens, <code>components.toast.action</code>, and the rule in § Colors › Toast action.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">F-06 Interactive elements with no size, or a stated size below the tokens</h3>
+              <span class="finding-location">DESIGN.md § Components; EXPERIENCE.md § Component Patterns</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">Block card drag handle and overflow — no size, no <code>min-height</code> token; Block palette "small '+'"; tree chevrons; Sync badge as a tap target; App bar back and avatar; the unit control inside the 56px field; Checklist row overflow; quick chips; text buttons; Toast action; "Tap TAG to edit"; the rail toggle.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add <code>min-height</code> to <code>block-card</code> and make its handle and overflow 48×48; make the whole palette row the target; give tree chevrons a 48×56 hit area; give every text button a 48px hit area; size the unit control ≥ 48×56 with a 2px divider; chips 48px tall. Add one sentence to § Layout: any element with a tap behaviour has a ≥ 48px hit area.</div>
+            <div class="finding-status"><strong>Status:</strong> "Hit areas" paragraph in § Layout & Spacing lists every case; tokens <code>block-card.min-height/handle-hit-area</code>, <code>overflow-menu.trigger-hit-area</code>, <code>laudo-tree.chevron-hit-area</code>, <code>measurement-field.unit-control-*</code>, <code>chip.min-height</code>.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">F-07 Dialog and overlay semantics not specified beyond "Esc closes"</h3>
+              <span class="finding-location">EXPERIENCE.md § Component Patterns › Confirm dialog, Export dialog, Photo capture sheet, Block palette; § Accessibility Floor</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">No focus trap, initial focus, focus return, <code>role="dialog"</code>/<code>aria-modal</code>, <code>aria-labelledby</code> or <code>aria-describedby</code>. Confirm dialogs' default focus matters: with gloves, a mis-tap on "Remover ficha" as the initially focused button destroys data.</div>
+            <div class="finding-fix"><strong>Fix:</strong> One paragraph in § Accessibility Floor: all overlays are <code>role="dialog" aria-modal="true"</code>, labelled by title, initial focus on the least destructive control, focus trapped, Esc/system back closes, focus returns, background inert.</div>
+            <div class="finding-status"><strong>Status:</strong> "Dialogs and overlays" bullet in § Accessibility Floor; Confirm dialog initial focus on "Cancelar" in both spines.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">F-08 Interactive cards use the hairline as their only boundary</h3>
+              <span class="finding-location">DESIGN.md § Colors; § Components › Laudo card, Photo tile</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">Hairline is 1.58:1 on white, 1.43:1 in dark. WCAG 1.4.11 exempts boundaries not needed to identify the component, so this is a consistency finding rather than a failure — but under sun a Laudo card edge vanishes and adjacent cards merge.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Either promote Laudo card to <code>border-strong</code> or state that the card's affordance is its title + chevron and hairline is decorative; give Photo tile <code>border-strong</code>.</div>
+            <div class="finding-status"><strong>Status:</strong> Laudo card hairline declared decorative with title + trailing chevron as the affordance; Photo tile uses <code>border-strong</code>.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">F-09 Selected tree row is indicated by fill alone</h3>
+              <span class="finding-location">DESIGN.md § Components › Laudo tree; <code>laudo-tree.selected-background</code></span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">Focus-fill is 1.24:1 against white; under sun the current sheet is not findable in the rail.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add a 4px <code>primary</code> left rule and 600 weight to the selected row, <code>aria-current="page"</code>, and keep keyboard focus distinct from selection.</div>
+            <div class="finding-status"><strong>Status:</strong> <code>laudo-tree.selected-rule</code> token; row spec has the 4px rule, 600 weight, <code>aria-current</code>, and a distinct focus ring.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">F-10 Conclusion control has no selected state for "Sem restrições" and no inner ring</h3>
+              <span class="finding-location">DESIGN.md § Components › Conclusion control; <code>conclusion-control</code> tokens</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">A selected neutral segment on white may be indistinguishable from an unselected one; the "Obrigatório" hint and required-missing reason have no ARIA association.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Reuse <code>nao-aplica-fill</code> + <code>nao-aplica</code> ink for Sem restrições and copy the tri-state rule verbatim (fill + ink + 2px inner ring + ✓ glyph); <code>aria-describedby</code> and <code>aria-invalid</code> on both radiogroups.</div>
+            <div class="finding-status"><strong>Status:</strong> <code>sem-restricoes-selected/-foreground</code> tokens; selected = fill + ink + ring + ✓; ARIA association in the EXPERIENCE.md row.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">F-11 Disabled buttons at 40% opacity vanish in sunlight</h3>
+              <span class="finding-location">DESIGN.md § Components › Button; EXPERIENCE.md § Component Patterns › Button</span>
+              <span class="status status-not-applied">Not applied</span>
+            </header>
+            <div class="finding-note">The computed disabled primary button is a 2.04:1 pale block with 1.36:1 text — WCAG-exempt, but in the field the engineer cannot see that "Concluir ficha" exists, let alone why it is off, unless the reason text survives (its colour is unspecified).</div>
+            <div class="finding-fix"><strong>Fix:</strong> Disabled = <code>surface-raised</code> fill, 2px <code>border-strong</code> outline, <code>ink-secondary</code> label, <code>aria-disabled="true"</code> (focusable) and the reason in <code>ink-secondary</code> linked by <code>aria-describedby</code>. Never reduce opacity on a control that must be found outdoors.</div>
+            <div class="finding-status"><strong>Status:</strong> The 40% opacity treatment is kept; mitigated by making the reason text mandatory in <code>ink-secondary</code> (8.8:1), linked via <code>aria-describedby</code>, with the button staying focusable.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">F-12 Checklist row focus model is contradictory and yields 60+ tab stops per sheet</h3>
+              <span class="finding-location">EXPERIENCE.md § Component Patterns › Checklist row</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">"Row is a single focus stop, the segments are the tab stops inside" — a 15-item sheet would need 4 Tabs per row plus overflow.</div>
+            <div class="finding-fix"><strong>Fix:</strong> The row is not focusable; each row contributes one tab stop (the radiogroup) plus one for its overflow button; NC-expanded Observation and "Adicionar foto" follow in DOM order; use the group's accessible name so the announcement in § Accessibility Floor actually results.</div>
+            <div class="finding-status"><strong>Status:</strong> Checklist row states exactly this model.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">F-13 Self-imposed 7:1 target missed by the most load-bearing text</h3>
+              <span class="finding-location">DESIGN.md § Do's; EXPERIENCE.md § Accessibility Floor</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">The C / NC / NA letters on their fills are 5.62 / 5.37 / 4.91:1 and the out-of-limit helper on its fill is 5.82:1 — the exact text the engineer reads under glare. The tri-state letters' typography is absent.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Either soften the claim to "≥ 4.5:1 everywhere, ≥ 7:1 for ink on surfaces" or darken the three inks and lighten the fills; specify the tri-state letters' typography (<code>heading</code> 18px/600).</div>
+            <div class="finding-status"><strong>Status:</strong> Claim scoped to ink on surfaces in § Colors, § Do's and § Accessibility Floor; <code>tri-state-control.letter-typography</code> = <code>heading</code>; darkening the inks parked in DESIGN.md Open Questions.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">F-14 Live-region strategy will chatter or stay silent at the wrong moments</h3>
+              <span class="finding-location">EXPERIENCE.md § Accessibility Floor; § Interaction Primitives; § Component Patterns › Sheet header, Progress counter, Measurement field</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">A polite badge that counts down during a photo upload, plus a header timestamp rewritten on every keystroke burst, will interrupt a screen-reader user on every field, while nothing ever says "salvo".</div>
+            <div class="finding-fix"><strong>Fix:</strong> Announce badge state transitions only; keep Sheet header and Progress counter out of live regions; a debounced hidden "Salvo" status; announce the out-of-limit helper once on blur; Toasts <code>role="status"</code>, conflict/sync-error Banner <code>role="alert"</code>.</div>
+            <div class="finding-status"><strong>Status:</strong> "Live regions announce transitions, not counts" bullet; hidden "Salvo" in Interaction Primitives; roles on Toast and Banner rows.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">F-15 Focus style is only defined for inputs</h3>
+              <span class="finding-location">EXPERIENCE.md § State Patterns › Focus; DESIGN.md § Colors › Focus</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">Buttons, tree rows, Laudo cards, Photo tiles, chips, the Sync badge and dialog options have no focus indicator specified; browser defaults on a custom UI system are often clipped or removed. Nothing keeps the focused field out from under the Sticky action bar or the keypad (SC 2.4.11).</div>
+            <div class="finding-fix"><strong>Fix:</strong> Global rule: non-input focus = 3px <code>focus</code> ring with 2px offset on the full hit area; pair with scroll padding = Sticky action bar height + keyboard inset.</div>
+            <div class="finding-status"><strong>Status:</strong> Rule in § Colors and the Focus state row, including the scroll-padding clause.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">F-16 Sticky action bar reach and keypad interaction under-specified for one hand</h3>
+              <span class="finding-location">EXPERIENCE.md § Component Patterns › Sticky action bar; DESIGN.md § Components</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">Right-aligned favours a right-hand grip; a left-handed engineer, or one holding a probe in the right hand, reaches across a 10" tablet. Nothing says whether the bar sits above the on-screen keypad or is covered by it.</div>
+            <div class="finding-fix"><strong>Fix:</strong> On tablet portrait, buttons fill the width or honour a handedness preference; the bar sits above the virtual keyboard; Enter on the last cell of a table focuses "Próxima ficha".</div>
+            <div class="finding-status"><strong>Status:</strong> Buttons fill the width in tablet portrait, the bar sits above the keyboard, Enter on the last cell focuses "Próxima ficha".</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">F-17 Measurement table has no accessible-structure spec; phone cards lose the header relationship</h3>
+              <span class="finding-location">EXPERIENCE.md § Component Patterns › Measurement table; § Responsive</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">Enter-moves-down-the-column no longer holds when Fase A's three readings sit in one card; calculated cells have a visual "calc" mark only.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Real <code>&lt;table&gt;</code> with header cells at tablet/desktop; on phone each input named row + column; Enter moves to the same column of the next card; calculated cells read-only and announced "calculado"; acceptance value and source in the caption.</div>
+            <div class="finding-status"><strong>Status:</strong> Measurement table row and DESIGN.md spec carry the table, caption, per-field names, Enter rule and "calc." mark with announcement.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">F-18 Expired calibration in Registry rows conveyed by sort position and amber date only</h3>
+              <span class="finding-location">DESIGN.md § Components › Registry row; EXPERIENCE.md › Registry row</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">An amber date with no word is color-only for the state that decides whether section 11 is valid.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Prefix the word "Vencida" (or a chip "Calibração vencida") before the date.</div>
+            <div class="finding-status"><strong>Status:</strong> Both rows prefix "Vencida" before the date.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">F-19 Error association never made explicit</h3>
+              <span class="finding-location">EXPERIENCE.md § Component Patterns › Observation field, Login form, Measurement field; § State Patterns › Required missing</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">Helper, reason and error lines are adjacent to their controls but never associated, so assistive tech reads them as loose text.</div>
+            <div class="finding-fix"><strong>Fix:</strong> One rule in § Accessibility Floor: every helper, reason or error line is <code>aria-describedby</code> from its control; required-missing sets <code>aria-invalid="true"</code>; Login error additionally <code>role="alert"</code>.</div>
+            <div class="finding-status"><strong>Status:</strong> "Errors and helpers are associated" bullet; Required missing row and Login form row updated.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">F-20 Undo window and toast timing tight for gloves and screen readers</h3>
+              <span class="finding-location">EXPERIENCE.md § Interaction Primitives; › Toast</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">Ten seconds to find and hit a small text action, one-handed, after an accidental removal is short; a screen-reader user may not reach the toast in time.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Undo toasts persistent until dismissed or next navigation (min 20 s); "Restaurar ficha removida" in Laudo overview overflow until export.</div>
+            <div class="finding-status"><strong>Status:</strong> Undo toasts persist ≥ 20 s until dismissed/navigation; "Restaurar ficha removida" exists in the Laudo overview menu.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">F-21 State glyphs will be read literally by screen readers</h3>
+              <span class="finding-location">DESIGN.md § Components › Laudo tree; Progress counter; Sync badge</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">"●" reads as "círculo preto".</div>
+            <div class="finding-fix"><strong>Fix:</strong> Glyphs and dots <code>aria-hidden="true"</code>; the word is the accessible text.</div>
+            <div class="finding-status"><strong>Status:</strong> Stated in the Laudo tree and Sync badge rows and in § Accessibility Floor.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">F-22 Unit and date accessible names unspecified</h3>
+              <span class="finding-location">DESIGN.md § Typography; EXPERIENCE.md § Accessibility Floor</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">"MΩ" may be read as "M ómega"; "07/09 14:32" as "sete barra nove".</div>
+            <div class="finding-fix"><strong>Fix:</strong> Unit slot <code>aria-label</code> with the spoken unit; dates in <code>&lt;time datetime&gt;</code> with the year present.</div>
+            <div class="finding-status"><strong>Status:</strong> Spoken units and <code>&lt;time&gt;</code> elements in § Accessibility Floor.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">F-23 Abbreviations C / NC / NA have no visible expansion on tablet/desktop</h3>
+              <span class="finding-location">DESIGN.md § Components › Tri-state control</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">AAA in WCAG, but a new hire or the office reviewer benefits.</div>
+            <div class="finding-fix"><strong>Fix:</strong> A one-line legend at the top of each checklist and full-word <code>aria-label</code> on each segment.</div>
+            <div class="finding-status"><strong>Status:</strong> Legend "C Conforme · NC Não conforme · NA Não se aplica" heads each checklist in both spines.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">F-24 Reduced motion covers drag and toasts only</h3>
+              <span class="finding-location">EXPERIENCE.md § Accessibility Floor</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">Bottom-sheet/drawer slides, row expand on NC and the amber state transition on blur are still animated under <code>prefers-reduced-motion</code>.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Extend the rule to those cases: instant.</div>
+            <div class="finding-status"><strong>Status:</strong> Reduce-motion bullet lists drawer/bottom-sheet slides, NC row expansion and the out-of-limit color transition.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">F-25 Theme switch is buried for the dim-cubicle case</h3>
+              <span class="finding-location">EXPERIENCE.md § IA › Account</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">A light screen at full brightness in a dark cubicle is itself glare.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Honour <code>prefers-color-scheme</code> on first run and expose the toggle one tap from any sheet.</div>
+            <div class="finding-status"><strong>Status:</strong> Theme follows the system preference (memlog decision) with the manual override in Account, one tap from the App bar avatar.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">F-26 Sync badge "compact" variant on Laudo card undefined</h3>
+              <span class="finding-location">DESIGN.md § Components › Laudo card</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">If compact drops the word, it becomes color-only.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Define compact = same dot + word in <code>meta</code>, or icon-only with <code>aria-label</code> and a visible word.</div>
+            <div class="finding-status"><strong>Status:</strong> Compact = same dot + word in <code>meta</code>; never dot-only.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">F-27 Reflow at 400% / 320 CSS px leaves little content height</h3>
+              <span class="finding-location">EXPERIENCE.md § Accessibility Floor</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">App bar (56) + sticky bar (~72) + keypad can leave little content height (SC 1.4.10).</div>
+            <div class="finding-fix"><strong>Fix:</strong> Un-stick the action bar when viewport height < 480 CSS px.</div>
+            <div class="finding-status"><strong>Status:</strong> Stated in § Layout & Spacing and § Accessibility Floor.</div>
+          </article>
+        </div>
+      </details>
+    </section>
+    <section class="reviewer-section">
+      <details>
+        <summary>
+          <h2>Architecture-lens review</h2>
+          <span class="reviewer-source">review-architecture.md</span>
+        </summary>
+        <div class="dim-body">
+          <div class="dim-judgment">
+            <p>Reviewed: DESIGN.md, EXPERIENCE.md, <code>imports/extract-fo-serv-03.md</code>, the brief. <strong>Verdict, in the reviewer's words:</strong> the spine is implementable as a product and its Block Model, sheet behavior and registries are 80% specifiable; the seed template plus the extraction give the generator almost everything for sections 0–8, 10, 11. Three things will bite the architecture if built as written: the conflict model covers only sheet bodies while the laudo's structure (tree, blocks, order, photo links, points of attention, setup) can diverge across offline devices; section 9 regrouping and the SE/environment placement cannot be derived from what is written; and the export/revision story (Word-edited DOCX vs. PDF from app data, revision per format, numbering after post-export edits) is unresolved and sits on the critical path of "ready to sign". A fourth, offline-in-a-browser, is under-specified relative to the "never lose a photo" bar. The reviewer also listed what could be architecture's call (server-side generation, autosave debounce, photo compression, conflict detection mechanism, ToC engine, session lifetime, retention, sync trigger/PWA vehicle, registry replication) — v0.2.0 collects these under a new "Handed to architecture" section — and the missing inputs for architecture (photo size and retention, laudo size, concurrency, export time tolerance, timezone, provisioning), now phrased as questions in EXPERIENCE.md § Open Questions.</p>
+          </div>
+        </div>
+        <div class="findings-list">
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-critical">critical</span>
+              <h3 class="finding-title">Conflict unit is the sheet body only; laudo structure has no rule</h3>
+              <span class="finding-location">EXPERIENCE.md § Offline & Sync "Conflict rule"; § Block Model rules; Flow 3 failure; Flow 6</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">Two offline devices can add/remove/move/reorder blocks, edit setup, captions, points of attention, or delete a sheet the other is editing, and "Manter a minha / dele" does not cover any of it.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Define per entity: sheet body = person-resolved; structure = mergeable (add-only set + fractional order index, last-writer-wins on setup), delete-vs-edit = keep both and surface; state which fields are inside the sheet document.</div>
+            <div class="finding-status"><strong>Status:</strong> "Conflict model, per entity" bullet defines sheet body vs. structure, the two surfaced cases (deletion vs. edit, duplicate TAG), and what the sheet document contains; the Conflict view handles both.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-critical">critical</span>
+              <h3 class="finding-title">PDF provenance is undefined</h3>
+              <span class="finding-location">EXPERIENCE.md Flow 5; § Export dialog; brief § Solution 5</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">The brief sells an editable DOCX, but Flow 5 generates the PDF from app data after Bruno "changes nothing structural" in Word. Any Word edit is silently absent from the client-facing PDF, or the architecture needs DOCX re-upload and a DOCX→PDF converter.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Decide: PDF = render of app data (edits must be made in the app) or PDF = conversion of the uploaded, edited DOCX; the answer changes the export pipeline and the revision model.</div>
+            <div class="finding-status"><strong>Status:</strong> Decided (memlog): both formats render app data as one revision; Word is for reading and printing; edits go back into the app; the divergence from the brief is recorded in Open Questions.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-critical">critical</span>
+              <h3 class="finding-title">Section 9 regrouping is not derivable</h3>
+              <span class="finding-location">EXPERIENCE.md § Capture-to-Document, table row 9</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">The Template has no locations, yet the rule "is a property of the Template"; the real document uses two schemes (small cabines: one subsection in sheet order; large cabines: one subsection per type group, TP+TC and Cabos+Trafo paired) plus a subsection-title pattern, none of which is stated.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Specify per cabine a flag "agrupar por tipo" with fixed group order, ordering = tree order, and the title pattern; or accept one subsection per cabine and confirm with Bruno.</div>
+            <div class="finding-status"><strong>Status:</strong> "Section 9 default scheme" paragraph: per-cabine <em>Agrupar por tipo</em> flag, fixed group order, pairing, title pattern, plus the export-time choice (memlog); the para-raio placement inside grouped cabines is an Open Question.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-critical">critical</span>
+              <h3 class="finding-title">Offline durability in a browser is under-specified for "never lose a photo"</h3>
+              <span class="finding-location">EXPERIENCE.md § Responsive & Platform; § Offline & Sync; State Patterns "Cold open, session, offline"</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">Cold-open offline needs a service worker/PWA shell (not listed); iPadOS Safari evicts script-writable storage after 7 days without use unless installed to Home Screen; "background sync" only runs while the tab is foregrounded on iOS.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add an "Instalar na tela inicial" step/surface, accept "sync runs while the app is open", and state a maximum offline age before photos must be uploaded.</div>
+            <div class="finding-status"><strong>Status:</strong> "App not installed" state with the install Banner and Account entry; background sync scoped to "while the app is open"; eviction and maximum offline age named as architecture risks and listed under Open Questions.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">Template instantiation produces unplaced blocks with no state or surface</h3>
+              <span class="finding-location">EXPERIENCE.md § Block Model "quantities"; § Block palette; Flow 1 steps 3–5</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">"25 seccionadoras" from a template have neither TAG nor location; the model says equipment hangs off a location and TAG is mandatory at creation.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add a "Sem local" staging bucket in the tree, or make templates carry a location skeleton; state that TAG is optional until placement.</div>
+            <div class="finding-status"><strong>Status:</strong> "Sem local" staging group with provisional TAGs ("SEC-?") finalized on placement; Flow 1 steps 5–6 exercise it.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">Sub-block ownership and print effect are ambiguous</h3>
+              <span class="finding-location">EXPERIENCE.md § Block Model sub-block row; "Print spec for section 9"; Flow 1 step 3</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">Three mechanisms overlap (template toggle, in-sheet toggle, subtype NA pre-mark) and the print spec says checklist lists are fixed verbatim; toggling "Motor" off either changes the corporate layout or is just an NA.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Template holds defaults, Laudo snapshots them at creation, per-sheet toggles override; a toggled-off checklist item prints as NA; a toggled-off test sub-block is omitted (pick one); say where subtype is set.</div>
+            <div class="finding-status"><strong>Status:</strong> Sub-block row: Template defaults, per-sheet override, toggled-off test sub-blocks omitted from print, checklist items never removed (NA pre-mark stays editable); subtype set in the Template composer (Flow 1 step 4).</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">TAG identity scope is undefined</h3>
+              <span class="finding-location">EXPERIENCE.md § Registries "Equipment identity"; § Sheet header; § Block palette</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">Copy-on-create by TAG needs a site-scoped Equipment entity; uniqueness per site collides on "COLUNA 2" and on two offline devices adding "SEC-09"; editing a TAG is a rename or a re-link.</div>
+            <div class="finding-fix"><strong>Fix:</strong> TAG unique per (site, cabine), enforced softly; Equipment is an entity under Site; TAG edit = rename; duplicates across devices resolved by the server flagging, not merging.</div>
+            <div class="finding-status"><strong>Status:</strong> Unique within a client site with inline refusal, rename keeps identity, cross-device duplicates surfaced as a structure conflict; the Site/Project ambiguity is an Open Question.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">SE characteristics and environment: owner and print position contradict each other</h3>
+              <span class="finding-location">EXPERIENCE.md § Laudo setup; § Block Model Location row; § Capture-to-Document row 9; Flow 2 step 2</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">Only 4 of 6 cabines in the real laudo carry the SE + environment block; values are entered from inside a sheet but belong to the cabine, crossing the conflict unit.</div>
+            <div class="finding-fix"><strong>Fix:</strong> SE type/voltages/power and environment are Cabine attributes edited in the tree, printed only on the first sheet of the cabine; confirm whether environment is per cabine or per visit.</div>
+            <div class="finding-status"><strong>Status:</strong> The Cabine owns both; edited from the cabine row or the SE block on any sheet (the edit lands on the cabine); printed once per cabine on its first sheet; Laudo setup no longer holds them.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">Export revision semantics are incomplete</h3>
+              <span class="finding-location">EXPERIENCE.md § Export dialog; § Capture-to-Document row 7; State Patterns "Laudo exported, then edited"; Flow 5</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">DOCX then PDF of identical content would be revisions 1 and 2; the app does not say what photo numbers it shows after a post-export edit; no surface lists past revisions; the revision number is not printed anywhere.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Revision = content snapshot, formats are renderings, new revision only when content changed; numbers provisional again on any change; add a "Revisões" list; decide whether the revision prints on the cover.</div>
+            <div class="finding-status"><strong>Status:</strong> "Export revisions" paragraph and the Revisões list in the Export dialog; provisional numbering after edits; printing the revision number is an Open Question.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">Acceptance criteria hang off the Instrument</h3>
+              <span class="finding-location">EXPERIENCE.md § Registries Instruments; § Block Model</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">Contradicts the brief's "criteria as data with their source" and the SaaS story; a criterion is a property of test type/equipment/norm, not of the meter.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Criterion entity (operator, value, unit, source) referenced by the test sub-block definition in the Template; the instrument only supplies voltage/current defaults; per-sheet override keeps its source.</div>
+            <div class="finding-status"><strong>Status:</strong> Criteria belong to the test sub-block type with a source; an Acceptance criteria registry (read-only in the MVP); the Instrument supplies only voltage/current.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-high">high</span>
+              <h3 class="finding-title">Server cannot know another device's unsynced state; offline availability unspecified</h3>
+              <span class="finding-location">EXPERIENCE.md § Offline & Sync; Flow 4 step 1</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">"Waiting for Eduardo's sync" is only knowable from Eduardo's last heartbeat; nothing says which laudos, and whose photos, a device holds offline.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Downgrade to "Eduardo: última sincronização 14:20"; add an explicit availability rule (laudos opened while online, photos of other devices as thumbnails only).</div>
+            <div class="finding-status"><strong>Status:</strong> "Último envio de Eduardo" is the signal in Sync status and the pre-issue list; automatic availability rule for Rascunho/Em campo laudos; thumbnails-vs-full-size is an Open Question.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Tree "Order = capture order" is ambiguous</h3>
+              <span class="finding-location">EXPERIENCE.md § Laudo tree</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">Read as "sorted by fill time" the order changes under the user; read as "planned route" it is a stored per-laudo order, and the Template's "ordered composition" then has no location to order within.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Say "order is manual, per laudo, initially template order"; use a merge-friendly order key.</div>
+            <div class="finding-status"><strong>Status:</strong> "Order is manual and per laudo" in the Laudo tree row and Block Model rules; merge by position in the conflict model.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Location depth fixed at Cabine › Coluna but the data needs 1 or 3 levels</h3>
+              <span class="finding-location">EXPERIENCE.md § Block Model Location; Flow 2; extraction § 2</span>
+              <span class="status status-open-question">Open Question</span>
+            </header>
+            <div class="finding-note">Enel has equipment directly under the cabine; 1° Subsolo has two panels (PTMT, IM) each with a "COLUNA 2".</div>
+            <div class="finding-fix"><strong>Fix:</strong> Make Coluna optional and let the column name carry the panel, or allow a nested location.</div>
+            <div class="finding-status"><strong>Status:</strong> Listed verbatim in EXPERIENCE.md Open Questions; the model still reads Cabine › Coluna/Cubículo.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Status pill transitions are events without a full table</h3>
+              <span class="finding-location">EXPERIENCE.md § Status pill; State Patterns</span>
+              <span class="status status-open-question">Open Question</span>
+            </header>
+            <div class="finding-note">PDF-first export, DOCX re-export after Emitido, a manual move back to Rascunho followed by a sheet touch, are all undefined.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Provide (state, event) → state, marking automatic transitions and whether they override manual backwards moves.</div>
+            <div class="finding-status"><strong>Status:</strong> The Status pill row points to the Open Question; only the forward path and "backwards via Confirm dialog" are written.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Sheet state vs Progress counter is inconsistent</h3>
+              <span class="finding-location">EXPERIENCE.md § Conclusion control; State Patterns "Not tested"; Flow 5 step 1</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">The generator and the pre-issue list need one rule for "concluded".</div>
+            <div class="finding-fix"><strong>Fix:</strong> Concluída requires Progress = Completa; Não ensaiada is complete and not listed as "não concluída".</div>
+            <div class="finding-status"><strong>Status:</strong> Both rules stated; Flow 5 lists the not-tested breaker separately from the unfinished TP.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">"Preenchido por" is overwritten on every autosave</h3>
+              <span class="finding-location">EXPERIENCE.md § Sheet header; § Interaction Primitives</span>
+              <span class="status status-open-question">Open Question</span>
+            </header>
+            <div class="finding-note">A one-tap fix by Eduardo re-attributes Bruno's sheet on the printed document.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Store first-filled-by, last-modified-by and concluded-by; print concluded-by.</div>
+            <div class="finding-status"><strong>Status:</strong> Sheet header row and Open Questions record the question; the overwrite rule is unchanged.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Inline registry creation offline has no dedupe rule; Atividade and Local registries missing</h3>
+              <span class="finding-location">EXPERIENCE.md § Registries; § Combobox; § Caption composer</span>
+              <span class="status status-open-question">Open Question</span>
+            </header>
+            <div class="finding-note">Two devices creating "Schneider"/"SCHNEIDER" need server-side merge and client-side reference rewriting; the caption grammar needs gender/number fields on registries that are not listed.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Store Manufacturer, Voltage class, Atividade and Local by value on the sheet (registry = suggestion list, client UUID, server dedupe); reference by id only Instruments and Clients; add Atividade/Local registries with gender/number.</div>
+            <div class="finding-status"><strong>Status:</strong> The observable rule (one entry, every sheet still pointing at it) is stated and the mechanism handed to architecture; Atividade/Local seed lists and their registry rows remain in Open Questions.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Point-of-attention photo references under "Editar texto" go stale</h3>
+              <span class="finding-location">EXPERIENCE.md § Capture-to-Document row 8; § Point of attention card</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">A literal "Imagem 5" typed in free text goes stale when numbering changes between revisions.</div>
+            <div class="finding-fix"><strong>Fix:</strong> References are tokens resolved at generation; free text cannot embed numbers.</div>
+            <div class="finding-status"><strong>Status:</strong> Photo references are tokens picked from the gallery; free text never embeds a literal number.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">"Removed block data recoverable until export" has no UI and no conflict rule</h3>
+              <span class="finding-location">EXPERIENCE.md § Block Model rules; § Interaction Primitives Undo</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">After the 10 s toast nothing can recover it; purge "at export" is either rev-1 or every export; delete on device A vs edit on device B is unspecified.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Soft-delete with tombstone, purge policy = architecture; delete-vs-edit surfaces as a conflict.</div>
+            <div class="finding-status"><strong>Status:</strong> "Restaurar ficha removida" in the Laudo overview menu; deletion-vs-edit is a surfaced structure conflict; purge/retention handed to architecture.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Photo chronological order across devices undefined</h3>
+              <span class="finding-location">EXPERIENCE.md § Capture-to-Document row 7; Flow 4 step 4</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">Gallery picks carry EXIF time, not attach time; two devices need a deterministic tiebreak so re-exports never renumber.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Sort key = (capture time: EXIF if present else device time, device id, local sequence), in America/Sao_Paulo.</div>
+            <div class="finding-status"><strong>Status:</strong> Sort key stated in row 7; timezone assumption parked as an Open Question.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Export is shown as a synchronous download</h3>
+              <span class="finding-location">EXPERIENCE.md § Export dialog</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">120 pages + 80 photos + PDF layout will take tens of seconds to minutes; the dialog needs a progress/async pattern and a place for the finished file.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Add "Gerando… pode fechar" + notification/toast, and the Revisões list.</div>
+            <div class="finding-status"><strong>Status:</strong> Asynchronous generation with "Gerando revisão 2… pode fechar", Toast when ready, Revisões list.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Project vs Client vs Site overlap</h3>
+              <span class="finding-location">EXPERIENCE.md § IA Project; § Registries Clients</span>
+              <span class="status status-open-question">Open Question</span>
+            </header>
+            <div class="finding-note">Three entities for two concepts; TAG scope and copy-on-create depend on which one is stable.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Project ≡ Site of a Client, or drop Project.</div>
+            <div class="finding-status"><strong>Status:</strong> Listed in Open Questions with the TAG-scope dependency; the IA still has all three names.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">Two users on one device and user provisioning</h3>
+              <span class="finding-location">EXPERIENCE.md § Login form; § Foundation Identity</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">Local queue and cached laudos must be namespaced per user; no surface creates users or resets passwords.</div>
+            <div class="finding-fix"><strong>Fix:</strong> State one-user-per-device-session with per-user local store; users seeded by the developer for the MVP.</div>
+            <div class="finding-status"><strong>Status:</strong> Foundation states one user per device session and out-of-app provisioning; seeded users / password reset are an Open Question for architecture.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-medium">medium</span>
+              <h3 class="finding-title">"Salvar como template" from a laudo is undefined</h3>
+              <span class="finding-location">EXPERIENCE.md § IA Template composer</span>
+              <span class="status status-open-question">Open Question</span>
+            </header>
+            <div class="finding-note">Whether locations, TAGs and sub-block overrides are carried decides whether templates can hold a location skeleton.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Define what is copied.</div>
+            <div class="finding-status"><strong>Status:</strong> Listed in Open Questions with the link to the "Sem local" mechanism.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Not-tested sheets: what prints and where</h3>
+              <span class="finding-location">EXPERIENCE.md § Capture-to-Document rows 8–9</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">Print nameplate and checklist or only the reason band? Position among manual points in section 8?</div>
+            <div class="finding-fix"><strong>Fix:</strong> Print nameplate + reason band, no tables; list after manual points.</div>
+            <div class="finding-status"><strong>Status:</strong> Row 8 states both.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Section 11 sources: setup list vs instruments referenced by sheets</h3>
+              <span class="finding-location">EXPERIENCE.md § IA Laudo setup; § Capture-to-Document row 11</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">"Instruments checked as used" in Laudo setup vs "every instrument referenced by any sheet".</div>
+            <div class="finding-fix"><strong>Fix:</strong> Union, with the setup list only pre-selecting the picker.</div>
+            <div class="finding-status"><strong>Status:</strong> Row 11 states the union and the pre-selection.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Storage-low detection and "photo kept in memory for one retry"</h3>
+              <span class="finding-location">EXPERIENCE.md State Patterns "Storage low"</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">Safari quota estimates are coarse; an in-memory photo dies with the tab.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Keep the UX, let architecture pick the signal; on refusal try an immediate upload if online.</div>
+            <div class="finding-status"><strong>Status:</strong> Threshold and mechanism marked architecture's call; immediate upload when online on refusal.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Photo link target: sheet vs checklist row</h3>
+              <span class="finding-location">EXPERIENCE.md § Checklist row; § Point of attention</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">The photo affordance on a row and the pre-link from a point of attention imply two different targets.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Photo has laudo + optional sheet + optional row.</div>
+            <div class="finding-status"><strong>Status:</strong> Stated in the Photo tile row.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">"Duplicar" a block with data and a TAG</h3>
+              <span class="finding-location">EXPERIENCE.md § Block card</span>
+              <span class="status status-resolved">Resolved in v0.2.0</span>
+            </header>
+            <div class="finding-note">Duplicating a filled block with its TAG would create a second identity with copied data.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Duplicate structure only, TAG blank.</div>
+            <div class="finding-status"><strong>Status:</strong> Block Model rules: structure only, asks for a new TAG.</div>
+          </article>
+          <article class="finding">
+            <header>
+              <span class="badge badge-sev-low">low</span>
+              <h3 class="finding-title">Inter must be bundled for offline use</h3>
+              <span class="finding-location">DESIGN.md § Typography</span>
+              <span class="status status-open-question">Open Question</span>
+            </header>
+            <div class="finding-note">A font loaded from the network is absent on a cold offline open.</div>
+            <div class="finding-fix"><strong>Fix:</strong> Self-host or accept the fallback stack offline.</div>
+            <div class="finding-status"><strong>Status:</strong> DESIGN.md Open Questions leaves the choice (bundle vs. fallback) to architecture.</div>
+          </article>
+        </div>
+      </details>
+    </section>
+    <div class="mechanical">
+      <h3>Mechanical notes</h3>
+      <ul>
+        <li>Token references: 141 brace references in DESIGN.md and 7 in EXPERIENCE.md all resolve; <code>{components.sync-badge}</code> and <code>{components.banner}</code> are object references and resolve.</li>
+        <li>Non-brace token mentions: DESIGN.md's slash form (<code>rounded/sm</code>) is normalized to <code>{rounded.sm}</code> in v0.2.0; EXPERIENCE.md still uses backtick names (<code>label</code>, <code>ok</code>/<code>pending</code>/<code>offline</code>/<code>error</code>/<code>conflict</code>) that a brace-only resolver will not check.</li>
+        <li>Colors: 27 light + 27 <code>-dark</code>, all 6-digit hex, no orphan dark tokens; v0.2.0 adds <code>toast-action</code>/<code>toast-action-dark</code>. <code>typography.value.note</code> is the only non-spec typography key (allowed). <code>letterSpacing</code> is now quoted.</li>
+        <li>Component parity: DESIGN.md § Components and EXPERIENCE.md § Component Patterns keep the same names and order (36 rows each in v0.2.0); frontmatter keys map 1:1.</li>
+        <li>Name consistency: the feminine/masculine agreement ("Não ensaiada" in tree rows, "Não ensaiado" on the chip) is now stated once in § Block Model so devs do not "fix" it. Laudo statuses identical across IA, Status pill and flows.</li>
+        <li>Cross-references: all inline paths (<code>imports/…</code>, <code>.working/extract-research.md</code>, <code>reconcile-*.md</code>, four named PNGs) exist; section citations into the extracts match existing headings.</li>
+        <li>Frontmatter: both files <code>version: 0.2.0</code>, <code>status: draft</code>, <code>updated: 2026-09-18</code>, identical eight-entry <code>sources</code> lists (the WhatsApp glob added); <code>design: ./DESIGN.md</code> resolves. Mermaid: none.</li>
+        <li>Severity tally across the three reviews: critical 6 · high 14 · medium 33 · low 23 (76). Status in v0.2.0: 64 resolved · 7 open questions · 5 not applied.</li>
+      </ul>
+    </div>
+
+    <footer class="report-footer">
+      <div class="meta">
+        <span>Rubric: review-rubric.md</span>
+        <span>Reviewers: review-accessibility.md · review-architecture.md</span>
+        <span>Spines: DESIGN.md · EXPERIENCE.md</span>
+        <span>Generated: 2026-09-18T14:15:11-03:00</span>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>

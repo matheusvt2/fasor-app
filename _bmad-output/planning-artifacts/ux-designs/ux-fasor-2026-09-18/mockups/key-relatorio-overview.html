@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRODUTO — Relatório (árvore)</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* Governs this mock:
+   DESIGN.md § Components › App bar, Sync badge, Relatório tree (rail, "Sem local", cabine meta, state glyph + word, selected row),
+     Sheet header (cabine variant), Progress counter, Block card (TAG in value, Not-tested chip), Overflow menu, Block palette
+     (right drawer · bottom sheet), Combobox, Measurement field, Button, Sticky action bar, Not-tested chip;
+     § Layout & Spacing (rail 320px, 24px indent, 56px rows); § Elevation (drawer = border, bottom sheet = shadow).
+   EXPERIENCE.md § IA › Relatório overview, Block palette; § Block Model › Location (the Cabine owns SE characteristics, environment,
+     "Agrupar por tipo"), "Sem local" staging, 8 equipment block types; § Capture-to-Document › section 9 flag per cabine;
+     § Component Patterns › Relatório tree, Block card, Block palette, Overflow menu; § State Patterns › Not tested;
+     § Responsive & Platform (landscape rail + column · portrait 48px strip + right drawer · phone tree surface + bottom sheet);
+     § Voice and Tone; Flow 1 steps 5–7, Flow 3 steps 2–3.
+   Added component (not in DESIGN.md § Components — logged in the report): Toggle ("Agrupar por tipo").
+   Page-only layout below. */
+.overview-content { flex: 1; min-width: 0; padding: var(--sp-5) var(--gutter-tablet); }
+.cabine-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-5); }
+.cabine-grid .fields { display: flex; flex-direction: column; gap: var(--sp-3); }
+.block-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.block-card .block-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.block-card .block-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-1) var(--sp-3); }
+.tree-surface { flex: 1; min-width: 0; background: var(--surface-raised); }
+.palette-drawer { flex: none; }
+.palette-scrim { align-items: flex-end; padding: 0; }
+.palette-sheet { padding-bottom: 0; }
+.palette-sheet .sheet-scroll { height: 500px; overflow: hidden; }
+.palette-sheet .sheet-inner { margin-top: -232px; }   /* static "scrolled to Equipamentos" state (Seções above the fold) */
+</style>
+</head>
+<body class="mock-page">
+
+<!-- icon sprite (inline, currentColor) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-chev-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20h4l11-11-4-4L4 16z"/><path d="M13 7l4 4"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-tree" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h13"/></symbol>
+  <symbol id="i-flag" viewBox="0 0 24 24"><path d="M6 21V4h11l-2 4 2 4H6"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></symbol>
+  <symbol id="i-block" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12h16"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.8" fill="currentColor" stroke="none"/></symbol>
+</svg>
+
+<h1 class="mock-title">Relatório — Porto Seguro · Torres A e B (árvore do relatório)</h1>
+<p class="mock-sub">Superfície central do PRODUTO (EXPERIENCE § IA › Relatório overview). Estado: Bruno, sábado 06/09, Cubículo Enel com 3 de 9 fichas concluídas, 2 blocos ainda em "Sem local", disjuntor marcado não ensaiado. Quadro 1: tablet paisagem — trilho persistente (árvore) + coluna da cabine. Quadro 2: tablet retrato — trilho recolhido, árvore como superfície, paleta de blocos aberta como gaveta à direita. Quadro 3: telefone — árvore como superfície, paleta como folha inferior.</p>
+
+<div class="mock-row">
+
+<!-- =============================================================== FRAME 1 — TABLET LANDSCAPE: RAIL + CABINE COLUMN -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Relatório · árvore + cabine Cubículo Enel</b><span class="sep">·</span>tablet paisagem 1024×768 · trilho 320 com a árvore, coluna com os dados da cabine e seus blocos · sincronizado<span class="sep">·</span>Relatório tree ("Sem local", estados por linha) · Sheet header · Progress counter · Block card · Not-tested chip · Block Model › Location · Capture-to-Document › Agrupar por tipo · Flow 1 passos 6–7</p>
+
+  <div class="frame frame-tablet-landscape" data-theme="light">
+
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">Porto Seguro · Torres A e B</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="ok" aria-label="Sincronização: sincronizado"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+
+    <div class="screen-body">
+
+      <!-- ---------------- Persistent rail: the Relatório tree ---------------- -->
+      <aside class="rail" aria-label="Árvore do relatório">
+        <div class="rail-head"><span>Árvore do relatório · 96 blocos</span><button class="icon-btn" aria-label="Recolher árvore"><svg class="ico"><use href="#i-back"/></svg></button></div>
+        <ul class="relatorio-tree" role="tree">
+
+          <!-- Seções -->
+          <li role="treeitem" aria-expanded="true">
+            <div class="tree-row" data-level="0">
+              <button class="tree-chevron" aria-label="Recolher Seções"><svg class="ico"><use href="#i-chev-down"/></svg></button>
+              <div class="tree-body"><span class="tree-group">Seções</span><span class="tree-meta">9 blocos de texto</span></div>
+            </div>
+            <ul role="group" class="relatorio-tree">
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span><span class="tree-num">1</span>Objetivo</span></div></div></li>
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span><span class="tree-num">2</span>Definições</span></div></div></li>
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span><span class="tree-num">3</span>Limite de escopo</span></div></div></li>
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span><span class="tree-num">4</span>Requisitos básicos</span></div></div></li>
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span><span class="tree-num">5</span>Segurança (NR-10)</span></div></div></li>
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span><span class="tree-num">6</span>Verificações aplicáveis</span></div></div></li>
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span><span class="tree-num">8</span>Pontos de atenção</span><span class="tree-meta">2 pontos · 1 não ensaiado</span></div></div></li>
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span><span class="tree-num">10</span>Conclusão</span></div></div></li>
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span><span class="tree-num">11</span>Certificados</span><span class="tree-meta">3 instrumentos</span></div></div></li>
+            </ul>
+          </li>
+
+          <!-- Sem local (staging) -->
+          <li role="treeitem" aria-expanded="true">
+            <div class="tree-row" data-level="0">
+              <button class="tree-chevron" aria-label="Recolher Sem local"><svg class="ico"><use href="#i-chev-down"/></svg></button>
+              <div class="tree-body"><span class="tree-group">Sem local</span><span class="tree-meta">2 blocos aguardando local</span></div>
+            </div>
+            <ul role="group" class="relatorio-tree">
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span>Chave seccionadora</span><span class="tree-meta">SEC-? · TAG provisória</span></div><span class="tree-state" data-state="vazia"><span aria-hidden="true">○</span>Vazia</span><button class="overflow-trigger" aria-label="Mais opções de SEC-?"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span>Disjuntor MT</span><span class="tree-meta">DJ-? · TAG provisória</span></div><span class="tree-state" data-state="vazia"><span aria-hidden="true">○</span>Vazia</span><button class="overflow-trigger" aria-label="Mais opções de DJ-?"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+            </ul>
+          </li>
+
+          <!-- Cubículo Enel (selected, expanded) -->
+          <li role="treeitem" aria-expanded="true">
+            <div class="tree-row is-selected" data-level="0" aria-current="true">
+              <button class="tree-chevron" aria-label="Recolher Cubículo Enel"><svg class="ico"><use href="#i-chev-down"/></svg></button>
+              <div class="tree-body"><span>Cubículo Enel</span><span class="tree-meta">SE blindada · 13,8 kV · 19 °C · 67 %</span></div>
+              <button class="overflow-trigger" aria-label="Mais opções de Cubículo Enel"><svg class="ico"><use href="#i-dots"/></svg></button>
+            </div>
+            <ul role="group" class="relatorio-tree">
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span>Cabos de entrada</span><span class="tree-meta">CB-ENT</span></div><span class="tree-state" data-state="concluida"><span aria-hidden="true">✓</span>Concluída</span></div></li>
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span>Para-raio de entrada</span><span class="tree-meta">PR-ENT</span></div><span class="tree-state" data-state="concluida"><span aria-hidden="true">✓</span>Concluída</span></div></li>
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span>Seccionadora de entrada</span><span class="tree-meta">SEC-ENT</span></div><span class="tree-state" data-state="em-preenchimento"><span aria-hidden="true">●</span>Em preenchimento</span></div></li>
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span>Seccionadora de saída</span><span class="tree-meta">SEC-SAI</span></div><span class="tree-state" data-state="vazia"><span aria-hidden="true">○</span>Vazia</span></div></li>
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span>TP — proteção</span><span class="tree-meta">TP-ENEL</span></div><span class="tree-state" data-state="vazia"><span aria-hidden="true">○</span>Vazia</span></div></li>
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span>TC — proteção</span><span class="tree-meta">TC-ENEL</span></div><span class="tree-state" data-state="vazia"><span aria-hidden="true">○</span>Vazia</span></div></li>
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span>Disjuntor MT</span><span class="tree-meta">DJ-ENEL</span></div><span class="tree-state" data-state="nao-ensaiada"><span aria-hidden="true">⊘</span>Não ensaiada</span></div></li>
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span>Para-raio de saída</span><span class="tree-meta">PR-SAI</span></div><span class="tree-state" data-state="vazia"><span aria-hidden="true">○</span>Vazia</span></div></li>
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span>Cabos de saída</span><span class="tree-meta">CB-SAI</span></div><span class="tree-state" data-state="vazia"><span aria-hidden="true">○</span>Vazia</span></div></li>
+            </ul>
+          </li>
+
+          <!-- Other cabines (collapsed) -->
+          <li role="treeitem" aria-expanded="false"><div class="tree-row" data-level="0"><button class="tree-chevron" aria-label="Expandir 1° Subsolo"><svg class="ico"><use href="#i-chev-right"/></svg></button><div class="tree-body"><span>1° Subsolo</span><span class="tree-meta">13 seccionadoras · 14 disjuntores · 6 TP/TC · 5 trafos</span></div><button class="overflow-trigger" aria-label="Mais opções de 1° Subsolo"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+          <li role="treeitem" aria-expanded="false"><div class="tree-row" data-level="0"><button class="tree-chevron" aria-label="Expandir Oxigênio"><svg class="ico"><use href="#i-chev-right"/></svg></button><div class="tree-body"><span>Oxigênio</span><span class="tree-meta">SE alvenaria · 13,8 kV · 5 fichas</span></div><button class="overflow-trigger" aria-label="Mais opções de Oxigênio"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+          <li role="treeitem" aria-expanded="false"><div class="tree-row" data-level="0"><button class="tree-chevron" aria-label="Expandir Cobertura A"><svg class="ico"><use href="#i-chev-right"/></svg></button><div class="tree-body"><span>Cobertura A</span><span class="tree-meta">SE alvenaria · 1.000 kVA · 6 fichas</span></div><button class="overflow-trigger" aria-label="Mais opções de Cobertura A"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+          <li role="treeitem" aria-expanded="false"><div class="tree-row" data-level="0"><button class="tree-chevron" aria-label="Expandir Cobertura B"><svg class="ico"><use href="#i-chev-right"/></svg></button><div class="tree-body"><span>Cobertura B</span><span class="tree-meta">SE alvenaria · 1.000 kVA · 6 fichas</span></div><button class="overflow-trigger" aria-label="Mais opções de Cobertura B"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+          <li role="treeitem" aria-expanded="false"><div class="tree-row" data-level="0"><button class="tree-chevron" aria-label="Expandir Geradores"><svg class="ico"><use href="#i-chev-right"/></svg></button><div class="tree-body"><span>Geradores</span><span class="tree-meta">7 seccionadoras · 4 disjuntores · 4 TP/TC</span></div><button class="overflow-trigger" aria-label="Mais opções de Geradores"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+        </ul>
+      </aside>
+
+      <!-- ---------------- Column: the selected cabine ---------------- -->
+      <main class="screen">
+        <div class="sheet-header">
+          <div>
+            <h2 class="sheet-title">Cabine — <button class="tag-btn" aria-label="Renomear cabine Cubículo Enel">Cubículo Enel<svg class="ico ico-sm" aria-hidden="true"><use href="#i-pencil"/></svg></button></h2>
+            <p class="sheet-meta">Seção 9: uma subseção "Cubículo Enel", fichas na ordem da árvore</p>
+            <p class="sheet-meta">Dados da SE editados por Bruno · 03/09 16:40</p>
+          </div>
+          <div class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>3 de 9 fichas concluídas</div>
+        </div>
+
+        <div class="overview-content">
+
+          <div class="cabine-grid">
+            <section class="section" aria-labelledby="h-se">
+              <div class="section-head"><h2 id="h-se">Características da SE</h2></div>
+              <p class="section-note">Impressas na primeira ficha desta cabine.</p>
+              <div class="fields">
+                <div class="field combobox"><span class="field-label">Tipo de SE</span><div class="input">Blindada</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div>
+                <div class="field"><span class="field-label">Tensão primária</span><div class="measurement-field"><span class="mf-value">13,8</span><span class="mf-unit" aria-label="quilovolts">kV</span></div></div>
+                <div class="field"><span class="field-label">Tensão secundária</span><div class="measurement-field"><span class="mf-value is-empty">—</span><span class="mf-unit" aria-label="volts">V</span></div><span class="helper">Cubículo de entrada: sem secundário</span></div>
+                <div class="field"><span class="field-label">Potência instalada</span><div class="measurement-field"><span class="mf-value">10</span><span class="mf-unit" aria-label="quilovolt-ampères">kVA</span></div></div>
+              </div>
+            </section>
+
+            <section class="section" aria-labelledby="h-amb">
+              <div class="section-head"><h2 id="h-amb">Ambiente de ensaio</h2></div>
+              <p class="section-note">Valem para todas as fichas da cabine.</p>
+              <div class="fields">
+                <div class="field"><span class="field-label">Temperatura</span><div class="measurement-field"><span class="mf-value">19</span><span class="mf-unit" aria-label="graus Celsius">°C</span></div></div>
+                <div class="field"><span class="field-label">Umidade relativa do ar</span><div class="measurement-field"><span class="mf-value">67</span><span class="mf-unit" aria-label="por cento">%</span></div></div>
+                <div class="field"><span class="field-label">Altitude</span><div class="measurement-field"><span class="mf-value">&lt; 1.000</span><span class="mf-unit" aria-label="metros">m</span></div></div>
+              </div>
+              <div class="toggle-row" style="margin-top: var(--sp-4)">
+                <div><div class="toggle-label">Agrupar por tipo na seção 9</div><div class="toggle-sub">Desativado: "9.1 Cubículo Enel" com as 9 fichas na ordem da árvore</div></div>
+                <button class="toggle" role="switch" aria-checked="false" aria-label="Agrupar por tipo na seção 9"><span class="toggle-word">Desativado</span><span class="track" aria-hidden="true"><span class="knob"></span></span></button>
+              </div>
+            </section>
+          </div>
+
+          <!-- ---------------- Blocks of this cabine ---------------- -->
+          <section class="section" aria-labelledby="h-blocos">
+            <div class="section-head">
+              <h2 id="h-blocos">Blocos desta cabine (9)</h2>
+              <button class="btn btn-secondary"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Adicionar bloco</button>
+            </div>
+            <ul class="block-list" aria-label="Blocos de Cubículo Enel">
+              <li class="block-card">
+                <button class="drag-handle" aria-label="Reordenar CB-ENT"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="block-body"><div class="block-line"><span class="block-name">Cabos de entrada</span><span class="block-tag">CB-ENT</span></div><span class="block-sub">Concluída · 5 itens · Isolação · Preenchido por Bruno · 06/09 09:41</span></div>
+                <button class="overflow-trigger" aria-label="Mais opções de CB-ENT"><svg class="ico"><use href="#i-dots"/></svg></button>
+              </li>
+              <li class="block-card">
+                <button class="drag-handle" aria-label="Reordenar PR-ENT"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="block-body"><div class="block-line"><span class="block-name">Para-raio de entrada</span><span class="block-tag">PR-ENT</span></div><span class="block-sub">Concluída · 6 campos de placa · 5 itens · Isolação · Preenchido por Bruno · 06/09 10:05</span></div>
+                <button class="overflow-trigger" aria-label="Mais opções de PR-ENT"><svg class="ico"><use href="#i-dots"/></svg></button>
+              </li>
+              <li class="block-card">
+                <button class="drag-handle" aria-label="Reordenar SEC-ENT"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="block-body"><div class="block-line"><span class="block-name">Seccionadora de entrada</span><span class="block-tag">SEC-ENT</span></div><span class="block-sub">Em preenchimento · 3 obrigatórios faltando · Preenchido por Bruno · 06/09 10:32</span></div>
+                <button class="overflow-trigger" aria-label="Mais opções de SEC-ENT"><svg class="ico"><use href="#i-dots"/></svg></button>
+              </li>
+              <li class="block-card">
+                <button class="drag-handle" aria-label="Reordenar SEC-SAI"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="block-body"><div class="block-line"><span class="block-name">Seccionadora de saída</span><span class="block-tag">SEC-SAI</span></div><span class="block-sub">Vazia · 9 campos de placa · 14 itens · Isolação aberto/fechado · Resistência de contato</span></div>
+                <button class="overflow-trigger" aria-label="Mais opções de SEC-SAI"><svg class="ico"><use href="#i-dots"/></svg></button>
+              </li>
+              <li class="block-card">
+                <button class="drag-handle" aria-label="Reordenar TP-ENEL"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="block-body"><div class="block-line"><span class="block-name">TP — proteção</span><span class="block-tag">TP-ENEL</span></div><span class="block-sub">Vazia · 12 campos de placa · 15 itens · Isolação · Relação de transformação</span></div>
+                <button class="overflow-trigger" aria-label="Mais opções de TP-ENEL"><svg class="ico"><use href="#i-dots"/></svg></button>
+              </li>
+              <li class="block-card">
+                <button class="drag-handle" aria-label="Reordenar TC-ENEL"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="block-body"><div class="block-line"><span class="block-name">TC — proteção</span><span class="block-tag">TC-ENEL</span></div><span class="block-sub">Vazia · 12 campos de placa · 15 itens · Isolação · Relação de transformação</span></div>
+                <button class="overflow-trigger" aria-label="Mais opções de TC-ENEL"><svg class="ico"><use href="#i-dots"/></svg></button>
+              </li>
+              <li class="block-card">
+                <button class="drag-handle" aria-label="Reordenar DJ-ENEL"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="block-body"><div class="block-line"><span class="block-name">Disjuntor MT</span><span class="block-tag">DJ-ENEL</span><span class="not-tested-chip">Não ensaiado</span></div><span class="block-sub">Motivo: sem desligamento autorizado pelo cliente · listado na seção 8 · Bruno · 06/09 11:10</span></div>
+                <button class="overflow-trigger" aria-label="Mais opções de DJ-ENEL"><svg class="ico"><use href="#i-dots"/></svg></button>
+              </li>
+              <li class="block-card">
+                <button class="drag-handle" aria-label="Reordenar PR-SAI"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="block-body"><div class="block-line"><span class="block-name">Para-raio de saída</span><span class="block-tag">PR-SAI</span></div><span class="block-sub">Vazia · 6 campos de placa · 5 itens · Isolação</span></div>
+                <button class="overflow-trigger" aria-label="Mais opções de PR-SAI"><svg class="ico"><use href="#i-dots"/></svg></button>
+              </li>
+              <li class="block-card">
+                <button class="drag-handle" aria-label="Reordenar CB-SAI"><span class="dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span></button>
+                <div class="block-body"><div class="block-line"><span class="block-name">Cabos de saída</span><span class="block-tag">CB-SAI</span></div><span class="block-sub">Vazia · 5 itens · Isolação</span></div>
+                <button class="overflow-trigger" aria-label="Mais opções de CB-SAI"><svg class="ico"><use href="#i-dots"/></svg></button>
+              </li>
+            </ul>
+          </section>
+
+        </div><!-- /overview-content -->
+
+        <div class="sticky-action-bar">
+          <span class="btn-reason" id="gerar-reason">Gerar relatório: 3 de 94 fichas concluídas · 2 blocos sem local · 1 não ensaiado — a verificação antes de emitir lista tudo isso</span>
+          <div class="bar-buttons">
+            <button class="btn btn-secondary"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg>Fotos</button>
+            <button class="btn btn-secondary"><svg class="ico" aria-hidden="true"><use href="#i-flag"/></svg>Pontos de atenção</button>
+            <button class="btn btn-primary" aria-describedby="gerar-reason"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg>Gerar relatório</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+</div><!-- /mock-row 1 -->
+
+<div class="mock-row">
+
+<!-- =============================================================== FRAME 2 — TABLET PORTRAIT: TREE AS SURFACE + PALETTE DRAWER -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Relatório · árvore + Paleta de blocos</b><span class="sep">·</span>tablet retrato 768 · trilho recolhido (faixa de 48px), árvore como superfície, paleta aberta como gaveta à direita após "+ Adicionar bloco" em Cubículo Enel<span class="sep">·</span>IA › Block palette · Block Model › 8 tipos de equipamento · Responsive › tablet portrait · Flow 3 passo 2</p>
+
+  <div class="frame frame-tablet" data-theme="light">
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">Porto Seguro · Torres A e B</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+
+    <div class="screen-body">
+      <aside class="rail-collapsed" aria-label="Árvore do relatório (recolhida)">
+        <button class="rail-toggle" aria-label="Abrir árvore do relatório" aria-expanded="false"><svg class="ico"><use href="#i-tree"/></svg></button>
+        <span class="rail-vlabel" aria-hidden="true">Árvore do relatório</span>
+      </aside>
+
+      <main class="screen tree-surface">
+        <div class="rail-head"><span>Árvore do relatório · 96 blocos</span><div class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>3 de 94 fichas</div></div>
+        <ul class="relatorio-tree" role="tree">
+          <li role="treeitem" aria-expanded="false"><div class="tree-row" data-level="0"><button class="tree-chevron" aria-label="Expandir Seções"><svg class="ico"><use href="#i-chev-right"/></svg></button><div class="tree-body"><span class="tree-group">Seções</span><span class="tree-meta">9 blocos de texto</span></div></div></li>
+
+          <li role="treeitem" aria-expanded="true">
+            <div class="tree-row" data-level="0"><button class="tree-chevron" aria-label="Recolher Sem local"><svg class="ico"><use href="#i-chev-down"/></svg></button><div class="tree-body"><span class="tree-group">Sem local</span><span class="tree-meta">2 blocos aguardando local</span></div></div>
+            <ul role="group" class="relatorio-tree">
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span>Chave seccionadora</span><span class="tree-meta">SEC-? · TAG provisória</span></div><span class="tree-state" data-state="vazia"><span aria-hidden="true">○</span>Vazia</span><button class="overflow-trigger" aria-label="Mais opções de SEC-?"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span>Disjuntor MT</span><span class="tree-meta">DJ-? · TAG provisória</span></div><span class="tree-state" data-state="vazia"><span aria-hidden="true">○</span>Vazia</span><button class="overflow-trigger" aria-label="Mais opções de DJ-?"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+            </ul>
+          </li>
+
+          <li role="treeitem" aria-expanded="true">
+            <div class="tree-row is-selected" data-level="0" aria-current="true"><button class="tree-chevron" aria-label="Recolher Cubículo Enel"><svg class="ico"><use href="#i-chev-down"/></svg></button><div class="tree-body"><span>Cubículo Enel</span><span class="tree-meta">SE blindada · 13,8 kV · 19 °C · 67 %</span></div><button class="overflow-trigger" aria-label="Mais opções de Cubículo Enel"><svg class="ico"><use href="#i-dots"/></svg></button></div>
+            <ul role="group" class="relatorio-tree">
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span>Cabos de entrada</span><span class="tree-meta">CB-ENT</span></div><span class="tree-state" data-state="concluida"><span aria-hidden="true">✓</span>Concluída</span></div></li>
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span>Para-raio de entrada</span><span class="tree-meta">PR-ENT</span></div><span class="tree-state" data-state="concluida"><span aria-hidden="true">✓</span>Concluída</span></div></li>
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span>Seccionadora de entrada</span><span class="tree-meta">SEC-ENT</span></div><span class="tree-state" data-state="em-preenchimento"><span aria-hidden="true">●</span>Em preenchimento</span></div></li>
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span>Seccionadora de saída</span><span class="tree-meta">SEC-SAI</span></div><span class="tree-state" data-state="vazia"><span aria-hidden="true">○</span>Vazia</span></div></li>
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span>TP — proteção</span><span class="tree-meta">TP-ENEL</span></div><span class="tree-state" data-state="vazia"><span aria-hidden="true">○</span>Vazia</span></div></li>
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span>TC — proteção</span><span class="tree-meta">TC-ENEL</span></div><span class="tree-state" data-state="vazia"><span aria-hidden="true">○</span>Vazia</span></div></li>
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span>Disjuntor MT</span><span class="tree-meta">DJ-ENEL</span></div><span class="tree-state" data-state="nao-ensaiada"><span aria-hidden="true">⊘</span>Não ensaiada</span></div></li>
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span>Para-raio de saída</span><span class="tree-meta">PR-SAI</span></div><span class="tree-state" data-state="vazia"><span aria-hidden="true">○</span>Vazia</span></div></li>
+              <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span>Cabos de saída</span><span class="tree-meta">CB-SAI</span></div><span class="tree-state" data-state="vazia"><span aria-hidden="true">○</span>Vazia</span></div></li>
+            </ul>
+          </li>
+
+          <li role="treeitem" aria-expanded="false"><div class="tree-row" data-level="0"><button class="tree-chevron" aria-label="Expandir 1° Subsolo"><svg class="ico"><use href="#i-chev-right"/></svg></button><div class="tree-body"><span>1° Subsolo</span><span class="tree-meta">13 seccionadoras · 14 disjuntores · 6 TP/TC · 5 trafos</span></div><button class="overflow-trigger" aria-label="Mais opções de 1° Subsolo"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+          <li role="treeitem" aria-expanded="false"><div class="tree-row" data-level="0"><button class="tree-chevron" aria-label="Expandir Oxigênio"><svg class="ico"><use href="#i-chev-right"/></svg></button><div class="tree-body"><span>Oxigênio</span><span class="tree-meta">SE alvenaria · 13,8 kV · 5 fichas</span></div><button class="overflow-trigger" aria-label="Mais opções de Oxigênio"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+          <li role="treeitem" aria-expanded="false"><div class="tree-row" data-level="0"><button class="tree-chevron" aria-label="Expandir Cobertura A"><svg class="ico"><use href="#i-chev-right"/></svg></button><div class="tree-body"><span>Cobertura A</span><span class="tree-meta">SE alvenaria · 1.000 kVA · 6 fichas</span></div><button class="overflow-trigger" aria-label="Mais opções de Cobertura A"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+          <li role="treeitem" aria-expanded="false"><div class="tree-row" data-level="0"><button class="tree-chevron" aria-label="Expandir Cobertura B"><svg class="ico"><use href="#i-chev-right"/></svg></button><div class="tree-body"><span>Cobertura B</span><span class="tree-meta">SE alvenaria · 1.000 kVA · 6 fichas</span></div><button class="overflow-trigger" aria-label="Mais opções de Cobertura B"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+          <li role="treeitem" aria-expanded="false"><div class="tree-row" data-level="0"><button class="tree-chevron" aria-label="Expandir Geradores"><svg class="ico"><use href="#i-chev-right"/></svg></button><div class="tree-body"><span>Geradores</span><span class="tree-meta">7 seccionadoras · 4 disjuntores · 4 TP/TC</span></div><button class="overflow-trigger" aria-label="Mais opções de Geradores"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+        </ul>
+      </main>
+
+      <!-- Block palette — right drawer -->
+      <aside class="block-palette palette-drawer" role="dialog" aria-label="Adicionar bloco em Cubículo Enel">
+        <div class="palette-head"><span>Adicionar bloco</span><button class="icon-btn" aria-label="Fechar"><svg class="ico"><use href="#i-close"/></svg></button></div>
+        <p class="palette-group" style="padding-top: var(--sp-3)">Em: Cubículo Enel · novo bloco entra no fim da cabine</p>
+        <p class="palette-group">Seções</p>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>Seção de texto fixo</span><span class="pi-meta">1 Objetivo · 2 Definições · 3 Limite de escopo · 4 Requisitos · 5 Segurança · 6 Verificações · 10 Conclusão</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-flag"/></svg><span class="pi-text"><span>8 Pontos de atenção</span><span class="pi-meta">Já no relatório</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>11 Certificados</span><span class="pi-meta">Já no relatório</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <p class="palette-group" style="margin-top: var(--sp-3)">Equipamentos</p>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Cabos de entrada</span><span class="pi-meta">5 itens · Isolação · TAG sugerida CB-ENT</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Para-raio (entrada / saída)</span><span class="pi-meta">6 campos de placa · 5 itens · Isolação</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Chave seccionadora</span><span class="pi-meta">9 campos · 14 itens · Isolação aberto/fechado · Contato</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Disjuntor MT</span><span class="pi-meta">12 campos · 15 itens · Isolação aberto/fechado · Contato</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>TP — proteção</span><span class="pi-meta">12 campos · 15 itens · Isolação · Relação de transformação</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>TC — proteção</span><span class="pi-meta">12 campos · 15 itens · Isolação · Relação</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Cabos de saída / alimentação TRn</span><span class="pi-meta">5 itens · Isolação</span></span><span class="plus" aria-hidden="true">+</span></button>
+        <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Transformador de força</span><span class="pi-meta">12 campos · 15 itens · Isolação · Relação por TAP</span></span><span class="plus" aria-hidden="true">+</span></button>
+      </aside>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================================== FRAME 3 — PHONE: TREE SURFACE + PALETTE BOTTOM SHEET -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Relatório · árvore + Paleta de blocos</b><span class="sep">·</span>telefone 390 · árvore como superfície própria (sem trilho), paleta como folha inferior, rolada até "Equipamentos"<span class="sep">·</span>Responsive › Phone · Block palette (bottom sheet) · Flow 3 passo 2</p>
+
+  <div class="frame frame-phone frame--crop" data-theme="light">
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">Relatório</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+
+    <main class="screen tree-surface">
+      <div class="rail-head"><span>Porto Seguro · Torres A e B</span><div class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>3 de 94 fichas</div></div>
+      <ul class="relatorio-tree" role="tree">
+        <li role="treeitem" aria-expanded="false"><div class="tree-row" data-level="0"><button class="tree-chevron" aria-label="Expandir Seções"><svg class="ico"><use href="#i-chev-right"/></svg></button><div class="tree-body"><span class="tree-group">Seções</span><span class="tree-meta">9 blocos de texto</span></div></div></li>
+        <li role="treeitem" aria-expanded="false"><div class="tree-row" data-level="0"><button class="tree-chevron" aria-label="Expandir Sem local"><svg class="ico"><use href="#i-chev-right"/></svg></button><div class="tree-body"><span class="tree-group">Sem local</span><span class="tree-meta">2 blocos aguardando local</span></div></div></li>
+        <li role="treeitem" aria-expanded="true">
+          <div class="tree-row is-selected" data-level="0" aria-current="true"><button class="tree-chevron" aria-label="Recolher Cubículo Enel"><svg class="ico"><use href="#i-chev-down"/></svg></button><div class="tree-body"><span>Cubículo Enel</span><span class="tree-meta">SE blindada · 13,8 kV · 19 °C · 67 %</span></div><button class="overflow-trigger" aria-label="Mais opções de Cubículo Enel"><svg class="ico"><use href="#i-dots"/></svg></button></div>
+          <ul role="group" class="relatorio-tree">
+            <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span>Cabos de entrada</span><span class="tree-meta">CB-ENT</span></div><span class="tree-state" data-state="concluida"><span aria-hidden="true">✓</span>Concluída</span></div></li>
+            <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span>Para-raio de entrada</span><span class="tree-meta">PR-ENT</span></div><span class="tree-state" data-state="concluida"><span aria-hidden="true">✓</span>Concluída</span></div></li>
+            <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span>Seccionadora de entrada</span><span class="tree-meta">SEC-ENT</span></div><span class="tree-state" data-state="em-preenchimento"><span aria-hidden="true">●</span>Em preench.</span></div></li>
+            <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span>Seccionadora de saída</span><span class="tree-meta">SEC-SAI</span></div><span class="tree-state" data-state="vazia"><span aria-hidden="true">○</span>Vazia</span></div></li>
+            <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span>TP — proteção</span><span class="tree-meta">TP-ENEL</span></div><span class="tree-state" data-state="vazia"><span aria-hidden="true">○</span>Vazia</span></div></li>
+            <li role="treeitem"><div class="tree-row" data-level="1"><span class="tree-chevron" aria-hidden="true"></span><div class="tree-body"><span>Disjuntor MT</span><span class="tree-meta">DJ-ENEL</span></div><span class="tree-state" data-state="nao-ensaiada"><span aria-hidden="true">⊘</span>Não ensaiada</span></div></li>
+          </ul>
+        </li>
+      </ul>
+
+      <!-- Block palette — bottom sheet over a scrim -->
+      <div class="dialog-scrim palette-scrim">
+        <div class="block-palette palette-sheet" role="dialog" aria-label="Adicionar bloco em Cubículo Enel">
+          <span class="sheet-grip" aria-hidden="true"></span>
+          <div class="palette-head"><span>Adicionar bloco · Cubículo Enel</span><button class="icon-btn" aria-label="Fechar"><svg class="ico"><use href="#i-close"/></svg></button></div>
+          <div class="sheet-scroll"><div class="sheet-inner">
+            <p class="palette-group">Seções</p>
+            <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>Seção de texto fixo</span><span class="pi-meta">1 · 2 · 3 · 4 · 5 · 6 · 10</span></span><span class="plus" aria-hidden="true">+</span></button>
+            <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-flag"/></svg><span class="pi-text"><span>8 Pontos de atenção</span><span class="pi-meta">Já no relatório</span></span><span class="plus" aria-hidden="true">+</span></button>
+            <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-doc"/></svg><span class="pi-text"><span>11 Certificados</span><span class="pi-meta">Já no relatório</span></span><span class="plus" aria-hidden="true">+</span></button>
+            <p class="palette-group">Equipamentos</p>
+            <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Cabos de entrada</span><span class="pi-meta">5 itens · Isolação</span></span><span class="plus" aria-hidden="true">+</span></button>
+            <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Para-raio (entrada / saída)</span><span class="pi-meta">6 campos · 5 itens · Isolação</span></span><span class="plus" aria-hidden="true">+</span></button>
+            <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Chave seccionadora</span><span class="pi-meta">9 campos · 14 itens · 2 ensaios</span></span><span class="plus" aria-hidden="true">+</span></button>
+            <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Disjuntor MT</span><span class="pi-meta">12 campos · 15 itens · 2 ensaios</span></span><span class="plus" aria-hidden="true">+</span></button>
+            <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>TP — proteção</span><span class="pi-meta">12 campos · 15 itens · Isolação · Relação</span></span><span class="plus" aria-hidden="true">+</span></button>
+            <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>TC — proteção</span><span class="pi-meta">12 campos · 15 itens · Isolação · Relação</span></span><span class="plus" aria-hidden="true">+</span></button>
+            <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Cabos de saída / alimentação TRn</span><span class="pi-meta">5 itens · Isolação</span></span><span class="plus" aria-hidden="true">+</span></button>
+            <button class="palette-item"><svg class="ico" aria-hidden="true"><use href="#i-block"/></svg><span class="pi-text"><span>Transformador de força</span><span class="pi-meta">12 campos · 15 itens · Isolação · Relação por TAP</span></span><span class="plus" aria-hidden="true">+</span></button>
+          </div></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+</div><!-- /mock-row 2 -->
+
+</body>
+</html>

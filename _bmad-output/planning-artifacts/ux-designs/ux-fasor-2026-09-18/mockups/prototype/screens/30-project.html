@@ -1,0 +1,126 @@
+<style data-screen="project">
+/* Source: mockups/key-project.html (desktop rows + tablet stacking come from components.css; the "Novo relatório" Form dialog opens on demand).
+   Governs: EXPERIENCE.md § IA › Project; Component Patterns › Relatório card (row), Chip (value), Combobox (behind "Outro…"), Form dialog; § Smart Input › Reasons and pick-lists; Flow 1 step 5. */
+[data-route="/project/porto-seguro"] .project-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-4); flex-wrap: wrap; margin-bottom: var(--sp-5); }
+[data-route="/project/porto-seguro"] .project-head h2 { font-size: var(--t-title-size); font-weight: var(--t-title-weight); line-height: var(--t-title-lh); }
+[data-route="/project/porto-seguro"] .crumbs { font-size: var(--t-meta-size); color: var(--ink-secondary); margin-bottom: var(--sp-1); display: flex; align-items: center; gap: var(--sp-1); flex-wrap: wrap; }
+[data-route="/project/porto-seguro"] .crumbs a { color: var(--primary); text-decoration: none; font-weight: 600; }
+[data-route="/project/porto-seguro"] .project-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--sp-3) var(--sp-5); margin-bottom: var(--sp-5); }
+[data-route="/project/porto-seguro"] .project-meta dt { font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--ink-secondary); }
+[data-route="/project/porto-seguro"] .project-meta dd { margin: 0; font-size: var(--t-body-size); }
+.frame-desktop [data-route="/project/porto-seguro"] .content { max-width: none; }
+.frame-tablet [data-route="/project/porto-seguro"] .project-head .btn, .frame-phone [data-route="/project/porto-seguro"] .project-head .btn { width: 100%; }
+[data-route="/project/porto-seguro"] .form-dialog .type-note { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+[data-route="/project/porto-seguro"] .form-dialog .option-row .radio { flex: none; }
+[data-route="/project/porto-seguro"] .form-dialog .combobox-list { list-style: none; margin: var(--sp-1) 0 0; padding: 0; }
+[data-route="/project/porto-seguro"] .form-dialog .combobox .combobox-chevron { bottom: auto; top: calc(var(--t-label-size) * var(--t-label-lh) + var(--sp-1)); height: var(--touch-field); }
+/* Template as a chip row of recent values (last used first) + "Outro…" → the Combobox list (Smart Input › Reasons and pick-lists) */
+[data-route="/project/porto-seguro"] .form-dialog .chips-recent .chip { cursor: pointer; }
+[data-route="/project/porto-seguro"] .form-dialog .field { min-width: 0; }
+[data-route="/project/porto-seguro"] .form-dialog .combobox.has-chips .combobox-chevron { top: calc(var(--t-label-size) * var(--t-label-lh) + var(--sp-1) + var(--touch-min) + 3 * var(--sp-1)); }
+[data-route="/project/porto-seguro"] .form-dialog .chip-meta { font-weight: 400; color: var(--ink-secondary); margin-left: var(--sp-1); }
+[data-route="/project/porto-seguro"] .form-dialog .chips-recent .chip[aria-pressed="true"] .chip-meta { color: inherit; }
+</style>
+<section class="screen" data-route="/project/porto-seguro" data-title="Porto Seguro Companhia de Seguros Gerais" data-shell="app" data-rail="false">
+  <div class="content">
+
+    <div class="project-head">
+      <div>
+        <p class="crumbs"><a href="#/home">Início</a><svg class="ico ico-sm" aria-hidden="true"><use href="#i-chev-right"/></svg><span>Porto Seguro Companhia de Seguros Gerais</span><svg class="ico ico-sm" aria-hidden="true"><use href="#i-chev-right"/></svg><span>Torres A e B</span></p>
+        <h2>Torres A e B</h2>
+      </div>
+      <button class="btn btn-primary" data-open="#proj-dlg-novo"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Novo relatório a partir de template</button>
+    </div>
+
+    <dl class="project-meta">
+      <div><dt>Cliente</dt><dd>Porto Seguro Companhia de Seguros Gerais</dd></div>
+      <div><dt>Obra / local</dt><dd>Torres A e B — Alameda Barão de Piracicaba, 740 · São Paulo</dd></div>
+      <div><dt>Responsável</dt><dd>Rafael Lamonde</dd></div>
+      <div><dt>Relatórios</dt><dd>3 · último emitido em 24/03/2025</dd></div>
+    </dl>
+
+    <section class="section" aria-labelledby="proj-h-relatórios">
+      <div class="section-head"><h2 id="proj-h-relatórios">Relatórios desta obra (3)</h2></div>
+      <div class="relatorio-list-head" aria-hidden="true"><span>Relatório</span><span>Status</span><span>Datas</span><span>Template</span><span>Progresso</span><span></span></div>
+      <ul class="relatorio-list">
+        <li><a class="relatorio-row" href="#/relatorio/porto-seguro">
+          <span class="lr-main"><span class="lr-title">Cabine primária — Torres A e B</span><span class="lr-sub">Rafael Lamonde · No aparelho · atualizado 21:40</span></span>
+          <span class="lr-state"><span class="status-pill" data-status="em-campo">Em campo</span></span>
+          <span class="lr-dates">06–08/09/2026</span>
+          <span class="lr-template lr-meta">Porto Seguro — Torres A e B</span>
+          <span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>42 de 94 fichas</span>
+          <span class="lr-chev"><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></span>
+        </a></li>
+        <li><a class="relatorio-row" role="link" tabindex="0" data-toast="Só o relatório Torres A e B (Em campo) está prototipado">
+          <span class="lr-main"><span class="lr-title">Cabine primária — Oxigênio</span><span class="lr-sub">Rafael Lamonde · No aparelho · atualizado 21:40</span></span>
+          <span class="lr-state"><span class="status-pill" data-status="rascunho">Rascunho</span></span>
+          <span class="lr-dates">10–11/09/2026</span>
+          <span class="lr-template lr-meta">Cabine primária — padrão</span>
+          <span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>0 de 12 fichas</span>
+          <span class="lr-chev"><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></span>
+        </a></li>
+        <li><a class="relatorio-row" role="link" tabindex="0" data-toast="Só o relatório Torres A e B (Em campo) está prototipado">
+          <span class="lr-main"><span class="lr-title">Cabine primária — Torres A e B</span><span class="lr-sub">Rafael Lamonde · Emitido em 24/03/2025 (revisão 1)</span></span>
+          <span class="lr-state"><span class="status-pill" data-status="emitido">Emitido</span></span>
+          <span class="lr-dates">12–14/03/2025</span>
+          <span class="lr-template lr-meta">Cabine primária — padrão</span>
+          <span class="progress-counter" data-state="complete"><span class="dot" aria-hidden="true"></span>88 de 88 fichas</span>
+          <span class="lr-chev"><svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></span>
+        </a></li>
+      </ul>
+    </section>
+
+  </div><!-- /content -->
+
+  <!-- ---------------- "Novo relatório" Form dialog (data-open="#proj-dlg-novo") ---------------- -->
+  <div class="dialog-scrim" id="proj-dlg-novo" hidden>
+    <div class="form-dialog" role="dialog" aria-modal="true" aria-labelledby="proj-nl-title" aria-describedby="proj-nl-desc">
+      <h2 class="dialog-title" id="proj-nl-title">Novo relatório</h2>
+      <p class="t-body" id="proj-nl-desc">Para <strong>Porto Seguro Companhia de Seguros Gerais · Torres A e B</strong>. Os dados da capa, os instrumentos e as exclusões vêm em seguida, em Dados do relatório.</p>
+
+      <!-- Report type slot: one option in the MVP, pre-selected -->
+      <div class="field" role="radiogroup" aria-labelledby="proj-nl-type-label" aria-describedby="proj-nl-type-note">
+        <span class="field-label" id="proj-nl-type-label">Tipo de relatório</span>
+        <div class="option-row is-selected" role="radio" aria-checked="true" tabindex="0">
+          <span class="radio is-on" aria-hidden="true"></span>
+          <span class="grow">Cabine primária<br><span class="lr-meta">Relatório de inspeção e ensaios em cabine primária de média tensão (FO.SERV-03)</span></span>
+        </div>
+        <span class="type-note" id="proj-nl-type-note">Único tipo disponível nesta versão. Outros tipos (painel, SPDA) entram aqui quando existirem.</span>
+      </div>
+
+      <!-- Template: chips of recent templates, the last used in this project first (pressed); "Outro…" opens the Combobox list with every active template -->
+      <div class="field combobox has-chips">
+        <span class="field-label" id="proj-nl-tpl-label">Template</span>
+        <div class="chip-row chips-recent" role="radiogroup" aria-label="Templates recentes">
+          <button class="chip" aria-pressed="true" data-set-text="#proj-nl-tpl-value|Porto Seguro — Torres A e B">Porto Seguro — Torres A e B<span class="chip-meta">último nesta obra</span></button>
+          <button class="chip" aria-pressed="false" data-set-text="#proj-nl-tpl-value|Cabine primária — padrão">Cabine primária — padrão<span class="chip-meta">FO.SERV-03</span></button>
+          <button class="chip chip-other" data-open="#proj-nl-tpl-list">Outro…</button>
+        </div>
+        <div class="input" role="combobox" aria-labelledby="proj-nl-tpl-label" aria-expanded="false" aria-controls="proj-nl-tpl-list" data-open="#proj-nl-tpl-list"><span id="proj-nl-tpl-value">Porto Seguro — Torres A e B</span></div>
+        <span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+        <ul class="combobox-list" id="proj-nl-tpl-list" role="listbox" aria-label="Templates" hidden>
+          <li class="combobox-option" role="option" aria-selected="true" data-close="#proj-nl-tpl-list" data-set-text="#proj-nl-tpl-value|Porto Seguro — Torres A e B">Porto Seguro — Torres A e B<span class="option-meta">94 blocos</span></li>
+          <li class="combobox-option" role="option" aria-selected="false" data-close="#proj-nl-tpl-list" data-set-text="#proj-nl-tpl-value|Cabine primária — padrão">Cabine primária — padrão<span class="option-meta">semente FO.SERV-03</span></li>
+        </ul>
+        <span class="helper">Os 94 blocos nascem nas cabines e colunas do template, com a TAG final. Arquivados não aparecem.</span>
+      </div>
+
+      <!-- Dates -->
+      <div class="field-pair">
+        <div class="field">
+          <span class="field-label" id="proj-nl-d1-label">Início da parada</span>
+          <div class="input" role="textbox" aria-labelledby="proj-nl-d1-label">06/09/2026<svg class="ico" aria-hidden="true" style="margin-left:auto;color:var(--ink-secondary)"><use href="#i-calendar"/></svg></div>
+        </div>
+        <div class="field">
+          <span class="field-label" id="proj-nl-d2-label">Fim da parada</span>
+          <div class="input" role="textbox" aria-labelledby="proj-nl-d2-label">08/09/2026<svg class="ico" aria-hidden="true" style="margin-left:auto;color:var(--ink-secondary)"><use href="#i-calendar"/></svg></div>
+        </div>
+      </div>
+
+      <div class="dialog-actions">
+        <button class="btn btn-secondary" data-close>Cancelar</button>
+        <button class="btn btn-primary" data-close data-go="#/relatorio/porto-seguro/setup">Criar relatório</button>
+      </div>
+    </div>
+  </div>
+</section>

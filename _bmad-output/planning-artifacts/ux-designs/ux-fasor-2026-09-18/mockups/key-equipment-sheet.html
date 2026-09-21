@@ -1,0 +1,508 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRODUTO — Ficha do equipamento (SEC-C05)</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* Governs this mock:
+   DESIGN.md § Components › App bar, Sync badge, Sheet header, Progress counter, Nameplate extraction,
+     Combobox, Tri-state control, Checklist row, Observation field, Chip, Button, Instrument picker,
+     Measurement field, Measurement table, Conclusion control, Photo tile, Sticky action bar;
+     § Layout & Spacing (single column, 56px controls, hit areas); § Elevation (borders only); § Colors (amber vs red).
+   EXPERIENCE.md § IA › Equipment sheet; § Block Model › Chave seccionadora (9 fields · 14 items · aberto/fechado + contato);
+     § Component Patterns › same rows; § State Patterns › Out of limit, Required missing, Photo pending upload, Offline write;
+     § Responsive & Platform (tablet portrait rail collapsed; phone stacked cards); § Voice and Tone;
+     Flow 2 steps 3–7, Flow 2b steps 1 and 3.
+   v0.6.0 [ASSUMPTION — reference tool 2026-09-18]: DESIGN.md § Components › Suggestion field › Generated text, Criteria line, Dictation
+     button, Photo stamp; EXPERIENCE.md § Smart Input › Generated conclusion text ("Texto da conclusão": composed on the device from the
+     sheet's values, confirmed by the engineer, criteria shown); § Capture-to-Document › 9 (sheet "Conclusão" row), › 7 (photo stamp);
+     § Component Patterns › Conclusion control (text below the pairs), Photo tile (stamp).
+   Page-only layout below. */
+.nameplate-grid { display: flex; flex-direction: column; gap: var(--sp-3); }
+.tests-two { display: flex; flex-direction: column; gap: var(--sp-5); }
+.frame-tablet-landscape .tests-two, .frame-desktop .tests-two { flex-direction: row; }
+.frame-tablet-landscape .tests-two > *, .frame-desktop .tests-two > * { flex: 1; }
+.table-title { font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--ink-primary); margin: var(--sp-3) 0 var(--sp-2); }
+.photo-list { border-top: 1px solid var(--border-hairline); }
+.photo-list .photo-row { border-top: 0; border-bottom: 1px solid var(--border-hairline); }
+</style>
+</head>
+<body class="mock-page">
+
+<!-- icon sprite (inline, currentColor) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-chev-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20h4l11-11-4-4L4 16z"/><path d="M13 7l4 4"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></symbol>
+  <symbol id="i-tree" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h13"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.8" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></symbol>
+</svg>
+
+<h1 class="mock-title">Ficha do equipamento — Chave seccionadora SEC-C05</h1>
+<p class="mock-sub">Tela de referência do PRODUTO. Estado: em preenchimento por Bruno, domingo 07/09, 1° Subsolo › Coluna 5, sem conexão. Quadro 1: tablet retrato (primário) — na Conclusão, abaixo do controle, o "Texto da conclusão" montado da própria ficha (sugestão a confirmar, com a linha de critérios) e, nas fotos, a hora com o pino de localização. Quadro 2: telefone, mesmo conteúdo — checklist e ensaio empilhados em cartões. Quadro 3: tablet, tema escuro, metade superior.</p>
+
+<div class="mock-row">
+
+<!-- =============================================================== FRAME 1 — TABLET PORTRAIT, LIGHT -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Ficha do equipamento · SEC-C05</b><span class="sep">·</span>tablet retrato 768×1024 · em preenchimento, 3 obrigatórios faltando, sem conexão<span class="sep">·</span>Sheet header · Nameplate extraction · Tri-state · Checklist row (NC expandido) · Instrument picker · Measurement table (fora do limite) · Conclusion control · Generated text + Criteria line · Dictation · Photo tile (Photo stamp) · Sticky action bar · Flow 2 / 2b</p>
+
+  <div class="frame frame-tablet" data-theme="light">
+
+    <header class="app-bar">
+      <div class="app-bar-left">
+        <button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button>
+      </div>
+      <h1 class="app-bar-title">SEC-C05</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="offline" aria-label="Sincronização: sem conexão"><span class="pill"><span class="dot" aria-hidden="true"></span>Sem conexão</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+
+    <div class="screen-body">
+
+      <!-- Tablet portrait: the persistent Relatório tree rail collapses to a 48px toggle -->
+      <aside class="rail-collapsed" aria-label="Árvore do relatório (recolhida)">
+        <button class="rail-toggle" aria-label="Abrir árvore do relatório" aria-expanded="false"><svg class="ico"><use href="#i-tree"/></svg></button>
+        <span class="rail-vlabel" aria-hidden="true">Árvore do relatório</span>
+      </aside>
+
+      <main class="screen">
+
+        <div class="sheet-header">
+          <div>
+            <h2 class="sheet-title">Chave seccionadora — <button class="tag-btn" aria-label="Renomear TAG SEC-C05">SEC-C05<svg class="ico ico-sm" aria-hidden="true"><use href="#i-pencil"/></svg></button></h2>
+            <p class="sheet-meta">Cubículo 1° Subsolo › Coluna 5</p>
+            <p class="sheet-meta">Preenchido por Bruno · <time datetime="2026-09-07T14:32">07/09 14:32</time></p>
+          </div>
+          <div class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>3 obrigatórios faltando</div>
+        </div>
+
+        <div class="content">
+
+          <!-- ---------------- Nameplate sub-block ---------------- -->
+          <section class="section nameplate-extraction" aria-labelledby="h-placa">
+            <div class="section-head">
+              <h2 id="h-placa">Dados de placa</h2>
+              <button class="btn btn-secondary"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg>Ler placa da foto</button>
+            </div>
+            <div class="nameplate-grid">
+              <div class="field"><span class="field-label">Identificação</span><div class="input">Coluna 5 — PTMT / alimentador TR1</div></div>
+              <div class="field combobox"><span class="field-label">Fabricante</span><div class="input">Schneider</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div>
+              <div class="field"><span class="field-label">Nº de série</span><div class="input">SU1241044</div></div>
+              <div class="field combobox"><span class="field-label">Tipo</span><div class="input">Manual</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div>
+              <div class="field combobox"><span class="field-label">Meio de extinção</span><div class="input">Ar</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div>
+              <div class="field combobox"><span class="field-label">Tensão de placa</span><div class="input">15 kV</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div>
+              <div class="field"><span class="field-label">Corrente nominal</span><div class="measurement-field"><span class="mf-value">400</span><span class="mf-unit" aria-label="ampères">A</span></div></div>
+              <div class="field"><span class="field-label">Acionamento</span><div class="input">Manual / punho</div></div>
+              <div class="field"><span class="field-label">Data de fabricação</span><div class="input"><span class="placeholder">Ex: 03/2012</span></div></div>
+            </div>
+          </section>
+
+          <!-- ---------------- Checklist ---------------- -->
+          <section class="section" aria-labelledby="h-verif">
+            <div class="section-head"><h2 id="h-verif">Verificações gerais</h2></div>
+            <p class="checklist-legend">C Conforme · NC Não conforme · NA Não se aplica</p>
+            <ul class="checklist">
+
+              <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">1.</span>Abertura e fechamento manual</span>
+                <div class="tri-state" role="radiogroup" aria-label="1. Abertura e fechamento manual"><button class="seg" role="radio" data-value="c" aria-checked="true" aria-label="Conforme">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false" aria-label="Não conforme">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false" aria-label="Não se aplica">NA</button></div>
+                <button class="overflow-trigger" aria-label="Mais opções de Abertura e fechamento manual"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+
+              <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">2.</span>Abertura e fechamento elétrico</span>
+                <div class="tri-state" role="radiogroup" aria-label="2. Abertura e fechamento elétrico"><button class="seg" role="radio" data-value="c" aria-checked="true">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div>
+                <button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+
+              <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">3.</span>Mecanismo de acionamento</span>
+                <div class="tri-state" role="radiogroup" aria-label="3. Mecanismo de acionamento"><button class="seg" role="radio" data-value="c" aria-checked="true">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div>
+                <button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+
+              <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">4.</span>Intertravamento elétrico</span>
+                <div class="tri-state" role="radiogroup" aria-label="4. Intertravamento elétrico"><button class="seg" role="radio" data-value="c" aria-checked="true">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div>
+                <button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+
+              <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">5.</span>Intertravamento mecânico</span>
+                <div class="tri-state" role="radiogroup" aria-label="5. Intertravamento mecânico"><button class="seg" role="radio" data-value="c" aria-checked="true">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div>
+                <button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+
+              <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">6.</span>Isoladores</span>
+                <div class="tri-state" role="radiogroup" aria-label="6. Isoladores"><button class="seg" role="radio" data-value="c" aria-checked="true">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div>
+                <button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+
+              <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">7.</span>Conexões</span>
+                <div class="tri-state" role="radiogroup" aria-label="7. Conexões"><button class="seg" role="radio" data-value="c" aria-checked="true">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div>
+                <button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+
+              <!-- Item 8 = NC → row expands: required Observation + photo affordance + point of attention -->
+              <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">8.</span>Contatos</span>
+                <div class="tri-state" role="radiogroup" aria-label="8. Contatos"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="true">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div>
+                <button class="overflow-trigger" aria-label="Mais opções de Contatos"><svg class="ico"><use href="#i-dots"/></svg></button></div>
+                <div class="row-expand">
+                  <div class="field">
+                    <span class="field-label">Observação do item 8</span>
+                    <div class="observation-field" data-required aria-invalid="true" aria-describedby="obs8-reason"><span class="placeholder">Ex: contatos fixos com sinais de aquecimento</span></div>
+                    <span class="helper" data-tone="red" id="obs8-reason">Obrigatória em item não conforme</span>
+                  </div>
+                  <div class="row-wrap">
+                    <button class="btn btn-secondary"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg>Adicionar foto</button>
+                    <span class="btn-reason">Recomendada para não conforme</span>
+                    <button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Criar ponto de atenção</button>
+                  </div>
+                </div></li>
+
+              <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">9.</span>Motor</span>
+                <div class="tri-state" role="radiogroup" aria-label="9. Motor"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="true">NA</button></div>
+                <button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+
+              <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">10.</span>Fusíveis</span>
+                <div class="tri-state" role="radiogroup" aria-label="10. Fusíveis"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="true">NA</button></div>
+                <button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+
+              <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">11.</span>Aterramento</span>
+                <div class="tri-state" role="radiogroup" aria-label="11. Aterramento"><button class="seg" role="radio" data-value="c" aria-checked="true">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div>
+                <button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+
+              <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">12.</span>Simultaneidade</span>
+                <div class="tri-state" role="radiogroup" aria-label="12. Simultaneidade"><button class="seg" role="radio" data-value="c" aria-checked="true">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div>
+                <button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+
+              <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">13.</span>Pintura, corrosão</span>
+                <div class="tri-state" role="radiogroup" aria-label="13. Pintura, corrosão"><button class="seg" role="radio" data-value="c" aria-checked="true">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div>
+                <button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+
+              <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">14.</span>Limpeza e lubrificação</span>
+                <div class="tri-state" role="radiogroup" aria-label="14. Limpeza e lubrificação"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div>
+                <button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+            </ul>
+          </section>
+
+          <!-- ---------------- Ensaio de isolação ---------------- -->
+          <section class="section" aria-labelledby="h-iso">
+            <div class="section-head"><h2 id="h-iso">Ensaio de isolação</h2></div>
+            <div class="field combobox instrument-picker">
+              <span class="field-label">Instrumento</span>
+              <div class="input">
+                <span class="ip-code">2E</span>
+                <span class="grow"><span class="ip-name">Megôhmetro digital DMG10Ki</span><br><span class="ip-detail">Instrum · série IN919021-25945 · RBC 37428/26 · válida até 28/08/2027</span></span>
+              </div>
+              <span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+            </div>
+
+            <div class="tests-two">
+              <div>
+                <table class="measurement-table">
+                  <caption><strong>Contato aberto</strong> · Tensão de ensaio 10 kV · Aceitável &gt;400 MΩ — aceitável na ficha</caption>
+                  <thead><tr><th scope="col">Linha</th><th scope="col">Terra</th><th scope="col">Guard</th><th scope="col" class="col-value">Valor</th></tr></thead>
+                  <tbody>
+                    <tr><td class="cell-point">T1</td><td class="cell-dim">T2</td><td class="cell-dim">Massa</td><td class="cell-value"><div class="measurement-field"><span class="mf-value">147</span><button class="mf-unit is-control" aria-label="unidade: gigaohms">GΩ<svg class="ico ico-sm" aria-hidden="true"><use href="#i-chev-down"/></svg></button></div></td></tr>
+                    <tr><td class="cell-point">T3</td><td class="cell-dim">T4</td><td class="cell-dim">Massa</td><td class="cell-value"><div class="measurement-field"><span class="mf-value">168</span><button class="mf-unit is-control" aria-label="unidade: gigaohms">GΩ<svg class="ico ico-sm" aria-hidden="true"><use href="#i-chev-down"/></svg></button></div></td></tr>
+                    <tr><td class="cell-point">T5</td><td class="cell-dim">T6</td><td class="cell-dim">Massa</td><td class="cell-value"><div class="measurement-field"><span class="mf-value">179</span><button class="mf-unit is-control" aria-label="unidade: gigaohms">GΩ<svg class="ico ico-sm" aria-hidden="true"><use href="#i-chev-down"/></svg></button></div></td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div>
+                <table class="measurement-table">
+                  <caption><strong>Contato fechado</strong> · Tensão de ensaio 10 kV · Aceitável &gt;400 MΩ — aceitável na ficha</caption>
+                  <thead><tr><th scope="col">Linha</th><th scope="col">Terra</th><th scope="col">Guard</th><th scope="col" class="col-value">Valor</th></tr></thead>
+                  <tbody>
+                    <tr><td class="cell-point">Fase A</td><td class="cell-dim">Massa</td><td class="cell-dim">—</td><td class="cell-value"><div class="measurement-field"><span class="mf-value">147</span><button class="mf-unit is-control" aria-label="unidade: gigaohms">GΩ<svg class="ico ico-sm" aria-hidden="true"><use href="#i-chev-down"/></svg></button></div></td></tr>
+                    <tr><td class="cell-point">Fase B</td><td class="cell-dim">Massa</td><td class="cell-dim">—</td><td class="cell-value"><div class="measurement-field"><span class="mf-value">168</span><button class="mf-unit is-control" aria-label="unidade: gigaohms">GΩ<svg class="ico ico-sm" aria-hidden="true"><use href="#i-chev-down"/></svg></button></div></td></tr>
+                    <tr><td class="cell-point">Fase C</td><td class="cell-dim">Massa</td><td class="cell-dim">—</td><td class="cell-value"><div class="measurement-field" data-state="out-of-limit" aria-describedby="fc-helper"><span class="mf-value">330</span><button class="mf-unit is-control" aria-label="unidade: megaohms">MΩ<svg class="ico ico-sm" aria-hidden="true"><use href="#i-chev-down"/></svg></button></div></td></tr>
+                    <tr><td class="cell-helper" colspan="4"><div class="mf-helper" id="fc-helper" role="status">Abaixo do aceitável (&gt;400 MΩ · aceitável na ficha) — Marcar Com restrições?<button class="btn btn-text">Marcar Com restrições</button></div></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- ---------------- Resistência de contato ---------------- -->
+          <section class="section" aria-labelledby="h-rc">
+            <div class="section-head"><h2 id="h-rc">Resistência ôhmica de contato</h2></div>
+            <div class="field combobox instrument-picker">
+              <span class="field-label">Instrumento</span>
+              <div class="input">
+                <span class="ip-code">3M</span>
+                <span class="grow"><span class="ip-name">Microhmímetro HTMO-10</span><br><span class="ip-detail">Hi-Tech · série G282926 · RBC 37276/26 · válida até 22/01/2027</span></span>
+              </div>
+              <span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+            </div>
+            <table class="measurement-table">
+              <caption><strong>Contato fechado</strong> · Corrente de ensaio 10 A · Aceitável &lt;250 µΩ — aceitável na ficha</caption>
+              <thead><tr><th scope="col">Linha</th><th scope="col">Terra</th><th scope="col">Guard</th><th scope="col" class="col-value">Valor</th></tr></thead>
+              <tbody>
+                <tr><td class="cell-point">T1-T2</td><td class="cell-dim">Fase A</td><td class="cell-dim">Massa</td><td class="cell-value"><div class="measurement-field"><span class="mf-value">145</span><span class="mf-unit" aria-label="microohms">µΩ</span></div></td></tr>
+                <tr><td class="cell-point">T3-T4</td><td class="cell-dim">Fase B</td><td class="cell-dim">Massa</td><td class="cell-value"><div class="measurement-field"><span class="mf-value">198</span><span class="mf-unit" aria-label="microohms">µΩ</span></div></td></tr>
+                <tr><td class="cell-point">T5-T6</td><td class="cell-dim">Fase C</td><td class="cell-dim">Massa</td><td class="cell-value"><div class="measurement-field"><span class="mf-value">182</span><span class="mf-unit" aria-label="microohms">µΩ</span></div></td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <!-- ---------------- Observações ---------------- -->
+          <section class="section" aria-labelledby="h-obs">
+            <div class="section-head"><h2 id="h-obs">Observações</h2></div>
+            <p class="section-note">Observações rápidas</p>
+            <div class="chip-row">
+              <button class="chip">Chuva e umidade elevada</button>
+              <button class="chip">Plaquetas de identificação</button>
+              <button class="chip">Diagrama unifilar</button>
+            </div>
+            <div class="field" style="margin-top: var(--sp-2)">
+              <div class="observation-field">Ensaio realizado sob chuva e umidade relativa elevada (67 %), fatores que podem influenciar os valores de isolação. Contatos fixos com sinais de aquecimento — ver item 8.</div>
+            </div>
+          </section>
+
+          <!-- ---------------- Conclusão ---------------- -->
+          <section class="section" aria-labelledby="h-conc">
+            <div class="section-head"><h2 id="h-conc">Conclusão</h2></div>
+            <div class="conclusion-control">
+              <div class="conclusion-pair" role="radiogroup" aria-label="Resultado">
+                <button class="seg" role="radio" data-value="aprovado" aria-checked="true"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Aprovado</button>
+                <button class="seg" role="radio" data-value="reprovado" aria-checked="false"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Reprovado</button>
+              </div>
+              <div class="conclusion-pair" role="radiogroup" aria-label="Restrições" aria-describedby="conc-hint" aria-invalid="true">
+                <button class="seg" role="radio" data-value="sem-restricoes" aria-checked="false"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Sem restrições</button>
+                <button class="seg" role="radio" data-value="com-restricoes" aria-checked="false"><svg class="ico check" aria-hidden="true"><use href="#i-check"/></svg>Com restrições</button>
+              </div>
+              <span class="conclusion-hint" id="conc-hint">Obrigatório</span>
+            </div>
+
+            <div class="field suggestion-field is-generated" data-state="suggested" style="margin-top: var(--sp-4)">
+              <span class="field-label" id="tc-l">Texto da conclusão</span>
+              <div class="generated-text" role="textbox" aria-multiline="true" aria-labelledby="tc-l" aria-describedby="tc-crit">A seccionadora SEC-C05 (Celtta, 15 kV, 630 A) apresentou resistência de isolação mínima de 330 MΩ entre fases (critério: ≥ 400 MΩ, aceitável na ficha) e contatos com desgaste (item 8, NC). Recomenda-se a substituição dos contatos antes da próxima manutenção.</div>
+              <span class="suggested-pill">Sugerido</span>
+              <p class="criteria-line" id="tc-crit"><span class="cl-label">Critérios usados</span><span>R_iso A–B 330 MΩ</span><span aria-hidden="true">·</span><span>critério ≥ 400 MΩ</span><span aria-hidden="true">·</span><span>item 8 <span class="cl-nc">NC</span></span></p>
+              <div class="generated-actions">
+                <button class="btn btn-secondary confirm-action">Confirmar</button>
+                <button class="btn btn-text">Editar</button>
+                <button class="btn btn-text">Substituir</button>
+                <span class="dictation"><button class="dictation-btn slice-inline" aria-pressed="false" aria-label="Ditar a conclusão" data-slice="out" data-slice-note=" · FR-40"><svg class="ico" aria-hidden="true"><use href="#i-mic"/></svg></button><span class="listening-word" aria-live="polite">Ouvindo…</span></span>
+              </div>
+              <span class="helper">Montado neste aparelho com os valores da ficha, sem conexão. Imprime na linha "Conclusão" da ficha, na seção 9.</span>
+            </div>
+          </section>
+
+          <!-- ---------------- Fotos ---------------- -->
+          <section class="section" aria-labelledby="h-fotos">
+            <div class="section-head">
+              <h2 id="h-fotos">Fotos da ficha (2)</h2>
+              <button class="btn btn-secondary"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg>Adicionar foto</button>
+            </div>
+            <div class="photo-list">
+              <div class="photo-row">
+                <button class="photo-tile" aria-label="Foto 1, abrir"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">1</span></span></button>
+                <div class="photo-text">
+                  <p class="photo-caption">Detalhe do ensaio de resistência de isolação realizado na seccionadora SEC-C05 da Coluna 5 do 1° Subsolo</p>
+                  <p class="photo-meta">Nº provisório 1 · <span class="photo-stamp">06/09 17:05<svg class="ico pin" role="img" aria-label="com localização"><use href="#i-pin"/></svg></span> · Bruno · Enviada</p>
+                </div>
+              </div>
+              <div class="photo-row">
+                <button class="photo-tile" aria-label="Foto 2, abrir" aria-describedby="ph2-state"><span class="thumb"><span class="thumb-fake"></span><span class="number-badge" aria-hidden="true">2</span></span></button>
+                <div class="photo-text">
+                  <p class="photo-caption">Detalhe dos contatos fixos da seccionadora SEC-C05 da Coluna 5 do 1° Subsolo — item 8</p>
+                  <p class="photo-meta">Nº provisório 2 · <span class="photo-stamp">07/09 14:28<svg class="ico pin" role="img" aria-label="com localização"><use href="#i-pin"/></svg></span> · Bruno</p>
+                  <span class="upload-pill" data-state="pending" id="ph2-state"><svg class="ico ico-sm" aria-hidden="true"><use href="#i-up"/></svg>Aguardando envio</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+        </div><!-- /content -->
+
+        <div class="sticky-action-bar">
+          <span class="btn-reason" id="concluir-reason">Concluir ficha: 3 obrigatórios faltando</span>
+          <div class="bar-buttons">
+            <button class="btn btn-secondary" aria-disabled="true" aria-describedby="concluir-reason">Concluir ficha</button>
+            <button class="btn btn-primary">Próxima ficha<svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+          </div>
+        </div>
+
+      </main>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================================== FRAME 2 — PHONE, LIGHT -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Ficha do equipamento · SEC-C05</b><span class="sep">·</span>telefone 390 · mesma ficha: checklist com controle abaixo do nome, ensaio como cartões empilhados<span class="sep">·</span>Responsive & Platform › Phone · Checklist row · Measurement table (cartões) · Sticky action bar</p>
+
+  <div class="frame frame-phone" data-theme="light">
+
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">SEC-C05</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="offline" aria-label="Sincronização: sem conexão"><span class="pill"><span class="dot" aria-hidden="true"></span>Sem conexão</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+
+    <main class="screen">
+      <div class="sheet-header">
+        <div>
+          <h2 class="sheet-title">Chave seccionadora — <button class="tag-btn">SEC-C05<svg class="ico ico-sm" aria-hidden="true"><use href="#i-pencil"/></svg></button></h2>
+          <p class="sheet-meta">Cubículo 1° Subsolo › Coluna 5</p>
+          <p class="sheet-meta">Preenchido por Bruno · 07/09 14:32</p>
+        </div>
+        <div class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>3 obrigatórios faltando</div>
+      </div>
+
+      <div class="content">
+
+        <section class="section" aria-labelledby="ph-verif">
+          <div class="section-head"><h2 id="ph-verif">Verificações gerais</h2></div>
+          <p class="checklist-legend">C Conforme · NC Não conforme · NA Não se aplica</p>
+          <ul class="checklist">
+            <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">7.</span>Conexões</span>
+              <button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button>
+              <div class="tri-state" role="radiogroup" aria-label="7. Conexões"><button class="seg" role="radio" data-value="c" aria-checked="true">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div></div></li>
+
+            <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">8.</span>Contatos</span>
+              <button class="overflow-trigger" aria-label="Mais opções de Contatos"><svg class="ico"><use href="#i-dots"/></svg></button>
+              <div class="tri-state" role="radiogroup" aria-label="8. Contatos"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="true">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div></div>
+              <div class="row-expand">
+                <div class="field">
+                  <span class="field-label">Observação do item 8</span>
+                  <div class="observation-field" data-required aria-invalid="true"><span class="placeholder">Ex: contatos fixos com sinais de aquecimento</span></div>
+                  <span class="helper" data-tone="red">Obrigatória em item não conforme</span>
+                </div>
+                <button class="btn btn-secondary btn-block"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg>Adicionar foto</button>
+                <button class="btn btn-text" style="align-self:flex-start"><svg class="ico" aria-hidden="true"><use href="#i-plus"/></svg>Criar ponto de atenção</button>
+              </div></li>
+
+            <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">9.</span>Motor</span>
+              <button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button>
+              <div class="tri-state" role="radiogroup" aria-label="9. Motor"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="true">NA</button></div></div></li>
+
+            <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">10.</span>Fusíveis</span>
+              <button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button>
+              <div class="tri-state" role="radiogroup" aria-label="10. Fusíveis"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="true">NA</button></div></div></li>
+          </ul>
+        </section>
+
+        <section class="section" aria-labelledby="ph-iso">
+          <div class="section-head"><h2 id="ph-iso">Ensaio de isolação</h2></div>
+          <div class="field combobox instrument-picker">
+            <span class="field-label">Instrumento</span>
+            <div class="input"><span class="ip-code">2E</span><span class="grow"><span class="ip-name">Megôhmetro DMG10Ki</span><br><span class="ip-detail">RBC 37428/26 · válida até 28/08/2027</span></span></div>
+            <span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span>
+          </div>
+          <p class="table-title">Contato fechado</p>
+          <p class="section-note">Tensão de ensaio 10 kV · Aceitável &gt;400 MΩ — aceitável na ficha</p>
+          <div class="measurement-cards">
+            <div class="measurement-card">
+              <p class="card-point">Fase A</p>
+              <p class="card-dims">Terra: Massa · Guard: —</p>
+              <div class="field"><span class="field-label">Valor</span><div class="measurement-field" aria-label="Fase A, valor"><span class="mf-value">147</span><button class="mf-unit is-control" aria-label="unidade: gigaohms">GΩ<svg class="ico ico-sm" aria-hidden="true"><use href="#i-chev-down"/></svg></button></div></div>
+            </div>
+            <div class="measurement-card">
+              <p class="card-point">Fase B</p>
+              <p class="card-dims">Terra: Massa · Guard: —</p>
+              <div class="field"><span class="field-label">Valor</span><div class="measurement-field" aria-label="Fase B, valor"><span class="mf-value">168</span><button class="mf-unit is-control" aria-label="unidade: gigaohms">GΩ<svg class="ico ico-sm" aria-hidden="true"><use href="#i-chev-down"/></svg></button></div></div>
+            </div>
+            <div class="measurement-card">
+              <p class="card-point">Fase C</p>
+              <p class="card-dims">Terra: Massa · Guard: —</p>
+              <div class="field"><span class="field-label">Valor</span><div class="measurement-field" data-state="out-of-limit" aria-label="Fase C, valor"><span class="mf-value">330</span><button class="mf-unit is-control" aria-label="unidade: megaohms">MΩ<svg class="ico ico-sm" aria-hidden="true"><use href="#i-chev-down"/></svg></button></div>
+                <div class="mf-helper" role="status">Abaixo do aceitável (&gt;400 MΩ · aceitável na ficha) — Marcar Com restrições?<button class="btn btn-text">Marcar Com restrições</button></div></div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <div class="sticky-action-bar">
+        <span class="btn-reason">Concluir ficha: 3 obrigatórios faltando</span>
+        <div class="bar-buttons">
+          <button class="btn btn-primary">Próxima ficha<svg class="ico" aria-hidden="true"><use href="#i-chev-right"/></svg></button>
+          <button class="btn btn-secondary" aria-disabled="true">Concluir ficha</button>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+</div><!-- /mock-row 1 -->
+
+<div class="mock-row">
+
+<!-- =============================================================== FRAME 3 — TABLET PORTRAIT, DARK, TOP HALF -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Ficha do equipamento · SEC-C05</b><span class="sep">·</span>tablet retrato, tema escuro (Conta › Tema › Escuro), metade superior<span class="sep">·</span>DESIGN § Colors (pares -dark, mesmas regras de contraste ao sol) · Sheet header · Nameplate extraction</p>
+
+  <div class="frame frame-tablet frame--crop" data-theme="dark">
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">SEC-C05</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="offline"><span class="pill"><span class="dot" aria-hidden="true"></span>Sem conexão</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+    <div class="screen-body">
+      <aside class="rail-collapsed" aria-label="Árvore do relatório (recolhida)">
+        <button class="rail-toggle" aria-label="Abrir árvore do relatório"><svg class="ico"><use href="#i-tree"/></svg></button>
+        <span class="rail-vlabel" aria-hidden="true">Árvore do relatório</span>
+      </aside>
+      <main class="screen">
+        <div class="sheet-header">
+          <div>
+            <h2 class="sheet-title">Chave seccionadora — <button class="tag-btn">SEC-C05<svg class="ico ico-sm" aria-hidden="true"><use href="#i-pencil"/></svg></button></h2>
+            <p class="sheet-meta">Cubículo 1° Subsolo › Coluna 5</p>
+            <p class="sheet-meta">Preenchido por Bruno · 07/09 14:32</p>
+          </div>
+          <div class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>3 obrigatórios faltando</div>
+        </div>
+        <div class="content">
+          <section class="section nameplate-extraction">
+            <div class="section-head">
+              <h2>Dados de placa</h2>
+              <button class="btn btn-secondary"><svg class="ico" aria-hidden="true"><use href="#i-camera"/></svg>Ler placa da foto</button>
+            </div>
+            <div class="nameplate-grid">
+              <div class="field"><span class="field-label">Identificação</span><div class="input">Coluna 5 — PTMT / alimentador TR1</div></div>
+              <div class="field combobox"><span class="field-label">Fabricante</span><div class="input">Schneider</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div>
+              <div class="field"><span class="field-label">Nº de série</span><div class="input is-focus">SU1241044</div></div>
+              <div class="field combobox"><span class="field-label">Tipo</span><div class="input">Manual</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div>
+              <div class="field combobox"><span class="field-label">Meio de extinção</span><div class="input">Ar</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div>
+              <div class="field combobox"><span class="field-label">Tensão de placa</span><div class="input">15 kV</div><span class="combobox-chevron" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span></div>
+              <div class="field"><span class="field-label">Corrente nominal</span><div class="measurement-field"><span class="mf-value">400</span><span class="mf-unit">A</span></div></div>
+              <div class="field"><span class="field-label">Acionamento</span><div class="input">Manual / punho</div></div>
+              <div class="field"><span class="field-label">Data de fabricação</span><div class="input"><span class="placeholder">Ex: 03/2012</span></div></div>
+            </div>
+          </section>
+          <section class="section">
+            <div class="section-head"><h2>Verificações gerais</h2></div>
+            <p class="checklist-legend">C Conforme · NC Não conforme · NA Não se aplica</p>
+            <ul class="checklist">
+              <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">1.</span>Abertura e fechamento manual</span>
+                <div class="tri-state" role="radiogroup"><button class="seg" role="radio" data-value="c" aria-checked="true">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div>
+                <button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+              <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">8.</span>Contatos</span>
+                <div class="tri-state" role="radiogroup"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="true">NC</button><button class="seg" role="radio" data-value="na" aria-checked="false">NA</button></div>
+                <button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+              <li class="checklist-row"><div class="row-main"><span class="row-label"><span class="row-num">10.</span>Fusíveis</span>
+                <div class="tri-state" role="radiogroup"><button class="seg" role="radio" data-value="c" aria-checked="false">C</button><button class="seg" role="radio" data-value="nc" aria-checked="false">NC</button><button class="seg" role="radio" data-value="na" aria-checked="true">NA</button></div>
+                <button class="overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></div></li>
+            </ul>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+</div><!-- /mock-row 2 -->
+
+</body>
+</html>

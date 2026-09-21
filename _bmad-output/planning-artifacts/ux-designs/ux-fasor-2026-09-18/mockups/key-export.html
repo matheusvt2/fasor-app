@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRODUTO — Gerar relatório (Export)</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<style>
+/* Governs this mock:
+   DESIGN.md § Components › App bar, Sync badge, Relatório tree (rail), Status pill, Progress counter, Export dialog,
+     Button (primary / secondary / text, disabled + reason), Toast, Banner (warning);
+     § Typography (display only on Home and the export result); § Elevation (shadow only on the floating dialog);
+     § Layout & Spacing (desktop gutter 32px, content-max 880px).
+   EXPERIENCE.md § IA › Export, › Relatório overview; § Capture-to-Document Transformation › Export revisions, › Section 9 scheme;
+     § Component Patterns › Export dialog, Status pill, Button; § State Patterns › Working, Generation failed,
+     Calibration expired, Relatório exported then edited; § Offline & Sync (export needs connection; "Último envio");
+     § Responsive & Platform (Export is office-shaped: desktop full surface, tablet dialog, phone full-screen);
+     § Voice and Tone ("Gerar relatório" · "DOCX — abrir no Word" · "PDF — enviar ao cliente"); Flow 5 steps 1, 4, 6 and failure.
+   v0.6.0 [ASSUMPTION — reference tool 2026-09-18]: DESIGN.md § Components › Document control table (Export summary), Export dialog
+     (pre-check: "Parecer não preenchido" blocks); EXPERIENCE.md § Capture-to-Document › Controle do documento (printed after the cover;
+     export revision printed there and nowhere else), › 10 Conclusão › Parecer; § Registries › Empresa (contratada, CNPJ), Clients (CNPJ);
+     § Component Patterns › Export dialog ("Controle do documento" summary, "Editar em Dados do relatório").
+   Page-only layout below. */
+/* Desktop and phone: the Export dialog's content rendered as a surface (no float) */
+.export-dialog.is-page { box-shadow: none; width: 100%; max-width: var(--content-max); border: 1px solid var(--border-hairline); }
+.frame-phone .export-dialog.is-page { border: 0; padding: 0; }
+.export-dialog .precheck li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); min-height: var(--touch-min); }
+.export-dialog .precheck li .pc-text { flex: 1; min-width: 0; }
+.export-dialog .precheck .pc-meta { color: var(--ink-secondary); font-size: var(--t-meta-size); }
+.export-dialog .option-group { display: flex; flex-direction: column; gap: var(--sp-2); }
+.export-dialog .generate-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-3) var(--sp-4); }
+.export-dialog .revision-row .rev-text { flex: 1; min-width: 0; }
+.export-dialog .revision-row .rev-files { display: flex; gap: var(--sp-1); }
+.export-dialog .result-row .rr-text { flex: 1; min-width: 0; }
+.export-dialog .result-block { border: 1px solid var(--border-strong); border-radius: var(--r-md); overflow: hidden; }
+.export-dialog .result-block .result-row:first-child { border-top: 0; }
+.export-dialog .gen-progress { display: flex; align-items: center; gap: var(--sp-3); font-size: var(--t-meta-size); color: var(--ink-secondary); }
+.export-dialog .gen-error { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); font-size: var(--t-body-size); color: var(--nao-conforme); }
+.relatorio-head { padding: var(--sp-4) var(--gutter-tablet); background: var(--surface-base); border-bottom: 2px solid var(--border-strong); display: flex; justify-content: space-between; gap: var(--sp-4); align-items: flex-start; flex-wrap: wrap; }
+.relatorio-head .lh-title { font-size: var(--t-title-size); font-weight: var(--t-title-weight); line-height: var(--t-title-lh); }
+.relatorio-head .lh-meta { font-size: var(--t-meta-size); color: var(--ink-secondary); margin-top: var(--sp-1); }
+.relatorio-head .lh-state { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+.frame-phone .content .t-display { margin-bottom: var(--sp-1); }
+.frame-phone .export-dialog .revision-row { flex-wrap: wrap; padding: var(--sp-2) 0; }
+.frame-phone .export-dialog .revision-row .rev-text { flex-basis: 100%; }
+/* Blocking pre-check item (the only red in the dialog: the engineer has not written the parecer) */
+.export-dialog .precheck .pc-block { color: var(--nao-conforme); font-weight: 600; }
+/* Tall tablet frame: the dialog with the document-control summary is taller than the device — it scrolls on the tablet; the
+   mock grows instead (MOCK-GUIDE: frames grow with content) */
+.frame-tablet.is-tall { min-height: 1280px; }
+.frame-tablet.is-tall .dialog-scrim { align-items: flex-start; }
+</style>
+</head>
+<body class="mock-page">
+
+<!-- icon sprite (inline, currentColor) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-chev-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-tree" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h13"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.8" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M4 19h16"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 15V4M8 8l4-4 4 4M5 12v7h14v-7"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
+</svg>
+
+<h1 class="mock-title">Gerar relatório — Export</h1>
+<p class="mock-sub">Relatório Porto Seguro · Torres A e B, 06–08/09/2026, já emitido duas vezes (Rev. 1 e Rev. 2). Quadro 1: desktop, superfície completa com a árvore do relatório à esquerda e o resumo "Controle do documento" (o que vai imprimir depois da capa, com a Rev. 3 que está prestes a ser gerada). Quadro 2: tablet retrato, o mesmo conteúdo como diálogo sobre a visão do relatório — aqui o parecer da seção 10 ainda não foi preenchido e bloqueia a emissão. Quadros 3a/3b: falha na geração e geração em andamento. Quadro 4: telefone, resultado pronto com download e compartilhar.</p>
+
+<div class="mock-row">
+
+<!-- =============================================================== FRAME 1 — DESKTOP, LIGHT -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Gerar relatório · superfície Export</b><span class="sep">·</span>desktop 1280×800 · sincronizado · pré-verificação informativa (parecer preenchido), Controle do documento com a Rev. 3, Seção 9 por local e tipo, Rev. 1 e Rev. 2 listadas<span class="sep">·</span>Export dialog · Document control table · Relatório tree (rail) · Button + btn-reason · Flow 5 step 1, 4 · Capture-to-Document › Controle do documento, Export revisions</p>
+
+  <div class="frame frame-desktop" data-theme="light">
+    <div class="browser-chrome"><span class="lights"><i></i><i></i><i></i></span><span class="url">PRODUTO</span></div>
+
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">Gerar relatório</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="ok" aria-label="Sincronização: sincronizado"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+
+    <div class="screen-body">
+      <aside class="rail" aria-label="Árvore do relatório">
+        <div class="rail-head">Árvore do relatório<button class="icon-btn" aria-label="Recolher árvore"><svg class="ico"><use href="#i-tree"/></svg></button></div>
+        <ul class="relatorio-tree">
+          <li class="tree-row" data-level="0"><button class="tree-chevron" aria-label="Recolher Cubículo Enel" aria-expanded="true"><svg class="ico"><use href="#i-chev-down"/></svg></button><span class="tree-body">Cubículo Enel<span class="tree-meta">SE · Blindada · 13,8 kV · 19 °C · 67 %</span></span><span class="tree-state" data-state="concluida"><span aria-hidden="true">✓</span>5 de 5</span></li>
+          <li class="tree-row" data-level="0"><button class="tree-chevron" aria-label="Expandir 1° Subsolo" aria-expanded="false"><svg class="ico"><use href="#i-chev-right"/></svg></button><span class="tree-body">1° Subsolo<span class="tree-meta">SE · Blindada · 13,8 kV · 21 °C · 64 % · agrupar por tipo</span></span><span class="tree-state" data-state="em-preenchimento"><span aria-hidden="true">●</span>64 de 66</span></li>
+          <li class="tree-row" data-level="0"><button class="tree-chevron" aria-label="Expandir Oxigênio" aria-expanded="false"><svg class="ico"><use href="#i-chev-right"/></svg></button><span class="tree-body">Oxigênio<span class="tree-meta">SE · Alvenaria · 13,8 kV · 380/220 V · 300 kVA</span></span><span class="tree-state" data-state="concluida"><span aria-hidden="true">✓</span>5 de 5</span></li>
+          <li class="tree-row" data-level="0"><button class="tree-chevron" aria-label="Expandir Cobertura A" aria-expanded="false"><svg class="ico"><use href="#i-chev-right"/></svg></button><span class="tree-body">Cobertura A<span class="tree-meta">SE · Blindada · 13,8 kV · 380/220 V</span></span><span class="tree-state" data-state="concluida"><span aria-hidden="true">✓</span>5 de 5</span></li>
+          <li class="tree-row" data-level="0"><button class="tree-chevron" aria-label="Expandir Cobertura B" aria-expanded="false"><svg class="ico"><use href="#i-chev-right"/></svg></button><span class="tree-body">Cobertura B<span class="tree-meta">SE · Blindada · 13,8 kV · 380/220 V</span></span><span class="tree-state" data-state="concluida"><span aria-hidden="true">✓</span>5 de 5</span></li>
+          <li class="tree-row" data-level="0"><button class="tree-chevron" aria-label="Expandir Geradores" aria-expanded="false"><svg class="ico"><use href="#i-chev-right"/></svg></button><span class="tree-body">Geradores<span class="tree-meta">SE · Blindada · 13,8 kV · agrupar por tipo</span></span><span class="tree-state" data-state="concluida"><span aria-hidden="true">✓</span>8 de 8</span></li>
+        </ul>
+      </aside>
+
+      <main class="screen">
+        <div class="relatorio-head">
+          <div>
+            <h2 class="lh-title">Porto Seguro Companhia de Seguros Gerais · Torres A e B</h2>
+            <p class="lh-meta">06–08/09/2026 · Cabine primária — Porto Seguro — Torres A e B · Responsável Rafael Lamonde</p>
+          </div>
+          <div class="lh-state"><span class="status-pill" data-status="emitido">Emitido</span><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>93 de 94 fichas concluídas</span></div>
+        </div>
+
+        <div class="content">
+          <section class="export-dialog is-page" role="region" aria-labelledby="exp-title">
+            <h2 class="dialog-title" id="exp-title">Gerar relatório</h2>
+
+            <div class="banner" role="status"><span class="banner-text">Relatório emitido em 10/09 (revisão 2). Alterações desde então geram a revisão 3 — as anteriores continuam disponíveis abaixo.</span></div>
+
+            <div>
+              <p class="field-label" style="margin-bottom: var(--sp-2)">Antes de emitir</p>
+              <ul class="precheck">
+                <li><span class="pc-text">Parecer preenchido — Apto com restrições <span class="pc-meta">(seção 10 · confirmado por Rafael em 09/09)</span></span></li>
+                <li><span class="pc-text">1 ficha não concluída — Coluna 16 · TP <span class="tabular">TP-C16</span> <span class="pc-meta">(em preenchimento)</span></span><button class="btn btn-text">Abrir ficha</button></li>
+                <li><span class="pc-text">1 ficha não ensaiada — Coluna 14 · Disjuntor TIE <span class="tabular">DJ-C14</span> <span class="pc-meta">(impossibilidade de desligamento · imprime com o motivo e entra na seção 8)</span></span></li>
+                <li><span class="pc-text">1 foto sem legenda <span class="pc-meta">(nº provisório 41 · Eduardo · 06/09 17:52)</span></span><button class="btn btn-text">Abrir galeria</button></li>
+                <li><span class="pc-text">Calibração do 1T vence em 20/08/2027 <span class="pc-meta">(TTR HTRT-8K · RBC 37274/26)</span></span></li>
+                <li><span class="pc-text">Último envio de Eduardo: 06/09 18:10 <span class="pc-meta">· de Bruno: 07/09 14:32 (este aparelho)</span></span></li>
+              </ul>
+            </div>
+
+            <div>
+              <div class="doc-control-head">
+                <span class="field-label">Controle do documento</span>
+                <a class="btn btn-text" href="key-relatorio-setup.html">Editar em Dados do relatório<svg class="ico ico-sm" aria-hidden="true"><use href="#i-chev-right"/></svg></a>
+              </div>
+              <table class="doc-control" aria-label="Controle do documento — como vai imprimir depois da capa">
+                <tr><th scope="row">Documento</th><td>Relatório de manutenção preventiva — cabine primária <span class="dc-dim">· FO.SERV-03</span></td></tr>
+                <tr><th scope="row">Revisão do documento</th><td>Rev. 3 <span class="dc-dim">· a gerar agora · Revisão 01 do formulário fica no rodapé</span></td></tr>
+                <tr><th scope="row">Data de emissão</th><td>10/09/2026</td></tr>
+                <tr><th scope="row">Contratante</th><td>Porto Seguro Companhia de Seguros Gerais <span class="dc-dim">· CNPJ 00.000.000/0001-00</span></td></tr>
+                <tr><th scope="row">Contratada</th><td>Fasor Engenharia <span class="dc-dim">· CNPJ 00.000.000/0001-01</span></td></tr>
+                <tr><th scope="row">Responsável técnico</th><td>Rafael Lamonde <span class="dc-dim">· Eng. Eletricista · CREA SP 5063583141</span></td></tr>
+                <tr><th scope="row">ART</th><td>2620262602583</td></tr>
+                <tr><th scope="row">Período do serviço</th><td>06/09/2026 a 08/09/2026</td></tr>
+              </table>
+              <span class="helper">Imprime entre a capa e o índice. Contratada e CNPJ vêm de Cadastros › Empresa; o restante, de Dados do relatório.</span>
+            </div>
+
+            <p class="helper">Seção 9 impressa no agrupamento do FO.SERV-03 (por local e tipo, com a flag <em>Agrupar por tipo</em> de cada cabine). Uma ordem só na interface — decisão 2026-09-19, review-mvp-scope S6.</p>
+
+            <div class="generate-row">
+              <button class="btn btn-primary">Gerar relatório</button>
+              <span class="btn-reason">Gera o DOCX e o PDF juntos, a partir dos dados do app, como a revisão 3. Precisa de conexão.</span>
+            </div>
+
+            <div>
+              <p class="field-label" style="margin-bottom: var(--sp-2)">Revisões</p>
+              <div class="revision-row"><span class="rev-text">Rev. 2 — <time datetime="2026-09-10T08:47">10/09/2026 08:47</time> — Bruno — Por local e tipo</span><span class="rev-files"><button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>DOCX</button><button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>PDF</button></span></div>
+              <div class="revision-row"><span class="rev-text">Rev. 1 — <time datetime="2026-09-09T09:12">09/09/2026 09:12</time> — Bruno — Por local e tipo</span><span class="rev-files"><button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>DOCX</button><button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>PDF</button></span></div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+</div><!-- /mock-row 1 -->
+
+<div class="mock-row">
+
+<!-- =============================================================== FRAME 2 — TABLET PORTRAIT, DIALOG OVER RELATÓRIO OVERVIEW -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Gerar relatório · diálogo · parecer não preenchido</b><span class="sep">·</span>tablet retrato 768 (quadro alto: o diálogo rola no aparelho) · modal sobre a visão do relatório · "Parecer não preenchido" bloqueia, botão desabilitado com motivo · Controle do documento compacto<span class="sep">·</span>Export dialog (role=dialog, scrim) · Document control table (is-compact) · Button disabled + reason · Relatório tree · Accessibility Floor › dialogs · Flow 5 step 1</p>
+
+  <div class="frame frame-tablet is-tall" data-theme="light">
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">Relatório</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+    <div class="screen-body" aria-hidden="true">
+      <aside class="rail-collapsed"><button class="rail-toggle"><svg class="ico"><use href="#i-tree"/></svg></button><span class="rail-vlabel">Árvore do relatório</span></aside>
+      <main class="screen">
+        <div class="relatorio-head">
+          <div>
+            <h2 class="lh-title">Porto Seguro · Torres A e B</h2>
+            <p class="lh-meta">06–08/09/2026 · Cabine primária — Porto Seguro — Torres A e B</p>
+          </div>
+          <div class="lh-state"><span class="status-pill" data-status="emitido">Emitido</span><span class="progress-counter" data-state="pending"><span class="dot"></span>93 de 94 fichas</span></div>
+        </div>
+        <ul class="relatorio-tree">
+          <li class="tree-row" data-level="0"><span class="tree-chevron"><svg class="ico"><use href="#i-chev-right"/></svg></span><span class="tree-body">Cubículo Enel<span class="tree-meta">SE · Blindada · 13,8 kV · 19 °C · 67 %</span></span><span class="tree-state" data-state="concluida">✓ 5 de 5</span><span class="overflow-trigger"><svg class="ico"><use href="#i-dots"/></svg></span></li>
+          <li class="tree-row" data-level="0"><span class="tree-chevron"><svg class="ico"><use href="#i-chev-down"/></svg></span><span class="tree-body">1° Subsolo<span class="tree-meta">SE · Blindada · 13,8 kV · 21 °C · 64 % · agrupar por tipo</span></span><span class="tree-state" data-state="em-preenchimento">● 64 de 66</span><span class="overflow-trigger"><svg class="ico"><use href="#i-dots"/></svg></span></li>
+          <li class="tree-row" data-level="1"><span class="tree-chevron"><svg class="ico"><use href="#i-chev-right"/></svg></span><span class="tree-body">Coluna 14<span class="tree-meta">Disjuntor TIE</span></span><span class="tree-state" data-state="nao-ensaiada">⊘ Não ensaiada</span></li>
+          <li class="tree-row" data-level="1"><span class="tree-chevron"><svg class="ico"><use href="#i-chev-right"/></svg></span><span class="tree-body">Coluna 16<span class="tree-meta">4 equipamentos</span></span><span class="tree-state" data-state="em-preenchimento">● 3 de 4</span></li>
+          <li class="tree-row" data-level="0"><span class="tree-chevron"><svg class="ico"><use href="#i-chev-right"/></svg></span><span class="tree-body">Oxigênio<span class="tree-meta">SE · Alvenaria · 13,8 kV · 380/220 V · 300 kVA</span></span><span class="tree-state" data-state="concluida">✓ 5 de 5</span></li>
+          <li class="tree-row" data-level="0"><span class="tree-chevron"><svg class="ico"><use href="#i-chev-right"/></svg></span><span class="tree-body">Cobertura A</span><span class="tree-state" data-state="concluida">✓ 5 de 5</span></li>
+          <li class="tree-row" data-level="0"><span class="tree-chevron"><svg class="ico"><use href="#i-chev-right"/></svg></span><span class="tree-body">Cobertura B</span><span class="tree-state" data-state="concluida">✓ 5 de 5</span></li>
+          <li class="tree-row" data-level="0"><span class="tree-chevron"><svg class="ico"><use href="#i-chev-right"/></svg></span><span class="tree-body">Geradores</span><span class="tree-state" data-state="concluida">✓ 8 de 8</span></li>
+        </ul>
+      </main>
+    </div>
+
+    <div class="dialog-scrim">
+      <div class="export-dialog" role="dialog" aria-modal="true" aria-labelledby="exp2-title">
+        <div class="row"><h2 class="dialog-title grow" id="exp2-title">Gerar relatório</h2><button class="icon-btn" aria-label="Fechar"><svg class="ico"><use href="#i-close"/></svg></button></div>
+        <div>
+          <p class="field-label" style="margin-bottom: var(--sp-2)">Antes de emitir</p>
+          <ul class="precheck">
+            <li><span class="pc-text"><span class="pc-block">Parecer não preenchido</span> — seção 10 <span class="pc-meta">(bloqueia a emissão)</span></span><button class="btn btn-text">Preencher</button></li>
+            <li><span class="pc-text">1 ficha não concluída — Coluna 16 · TP TP-C16 <span class="pc-meta">(em preenchimento)</span></span><button class="btn btn-text">Abrir</button></li>
+            <li><span class="pc-text">1 ficha não ensaiada — Coluna 14 · Disjuntor TIE DJ-C14 <span class="pc-meta">(impossibilidade de desligamento)</span></span></li>
+            <li><span class="pc-text">1 foto sem legenda</span><button class="btn btn-text">Abrir</button></li>
+            <li><span class="pc-text">Calibração do 1T vence em 20/08/2027</span></li>
+            <li><span class="pc-text">Último envio de Eduardo: 06/09 18:10</span></li>
+          </ul>
+        </div>
+        <div>
+          <div class="doc-control-head">
+            <span class="field-label">Controle do documento</span>
+            <a class="btn btn-text" href="key-relatorio-setup.html">Editar em Dados do relatório<svg class="ico ico-sm" aria-hidden="true"><use href="#i-chev-right"/></svg></a>
+          </div>
+          <table class="doc-control is-compact" aria-label="Controle do documento — como vai imprimir depois da capa">
+            <tr><th scope="row">Documento</th><td>Relatório de manutenção preventiva — cabine primária <span class="dc-dim">· FO.SERV-03</span></td></tr>
+            <tr><th scope="row">Revisão do documento</th><td>Rev. 3 <span class="dc-dim">· a gerar agora · Revisão 01 do formulário fica no rodapé</span></td></tr>
+            <tr><th scope="row">Data de emissão</th><td>10/09/2026</td></tr>
+            <tr><th scope="row">Contratante</th><td>Porto Seguro Companhia de Seguros Gerais <span class="dc-dim">· CNPJ 00.000.000/0001-00</span></td></tr>
+            <tr><th scope="row">Contratada</th><td>Fasor Engenharia <span class="dc-dim">· CNPJ 00.000.000/0001-01</span></td></tr>
+            <tr><th scope="row">Responsável técnico</th><td>Rafael Lamonde <span class="dc-dim">· CREA SP 5063583141</span></td></tr>
+            <tr><th scope="row">ART</th><td>2620262602583</td></tr>
+            <tr><th scope="row">Período do serviço</th><td>06/09/2026 a 08/09/2026</td></tr>
+          </table>
+        </div>
+
+          <p class="helper">Seção 9 impressa no agrupamento do FO.SERV-03 (por local e tipo, com a flag <em>Agrupar por tipo</em> de cada cabine). Uma ordem só na interface — decisão 2026-09-19, review-mvp-scope S6.</p>
+        <div class="generate-row">
+          <button class="btn btn-primary" aria-disabled="true" aria-describedby="exp2-reason">Gerar relatório</button>
+          <span class="btn-reason" id="exp2-reason">Gerar relatório: preencha o parecer em Dados do relatório › Conclusão e parecer. DOCX e PDF juntos, como a revisão 3.</span>
+        </div>
+        <div>
+          <p class="field-label" style="margin-bottom: var(--sp-2)">Revisões</p>
+          <div class="revision-row"><span class="rev-text">Rev. 2 — 10/09/2026 08:47 — Bruno — Por local e tipo</span><span class="rev-files"><button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>DOCX</button><button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>PDF</button></span></div>
+          <div class="revision-row"><span class="rev-text">Rev. 1 — 09/09/2026 09:12 — Bruno — Por local e tipo</span><span class="rev-files"><button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>DOCX</button><button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>PDF</button></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /mock-row 2 -->
+
+<div class="mock-row">
+
+<!-- =============================================================== FRAME 3a — TABLET, GENERATION FAILED -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Gerar relatório · falha na geração</b><span class="sep">·</span>tablet retrato · erro inline, dados intactos, nenhum número de revisão consumido<span class="sep">·</span>State Patterns › Generation failed · Flow 5 failure</p>
+
+  <div class="frame frame-tablet frame--crop" data-theme="light">
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">Relatório</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+    <div class="screen-body" aria-hidden="true">
+      <aside class="rail-collapsed"><button class="rail-toggle"><svg class="ico"><use href="#i-tree"/></svg></button><span class="rail-vlabel">Árvore do relatório</span></aside>
+      <main class="screen">
+        <div class="relatorio-head">
+          <div><h2 class="lh-title">Porto Seguro · Torres A e B</h2><p class="lh-meta">06–08/09/2026 · Cabine primária — Porto Seguro — Torres A e B</p></div>
+          <div class="lh-state"><span class="status-pill" data-status="emitido">Emitido</span><span class="progress-counter" data-state="pending"><span class="dot"></span>93 de 94 fichas</span></div>
+        </div>
+        <ul class="relatorio-tree">
+          <li class="tree-row" data-level="0"><span class="tree-chevron"><svg class="ico"><use href="#i-chev-right"/></svg></span><span class="tree-body">Cubículo Enel<span class="tree-meta">SE · Blindada · 13,8 kV · 19 °C · 67 %</span></span><span class="tree-state" data-state="concluida">✓ 5 de 5</span></li>
+          <li class="tree-row" data-level="0"><span class="tree-chevron"><svg class="ico"><use href="#i-chev-right"/></svg></span><span class="tree-body">1° Subsolo<span class="tree-meta">SE · Blindada · 13,8 kV · agrupar por tipo</span></span><span class="tree-state" data-state="em-preenchimento">● 64 de 66</span></li>
+          <li class="tree-row" data-level="0"><span class="tree-chevron"><svg class="ico"><use href="#i-chev-right"/></svg></span><span class="tree-body">Oxigênio</span><span class="tree-state" data-state="concluida">✓ 5 de 5</span></li>
+          <li class="tree-row" data-level="0"><span class="tree-chevron"><svg class="ico"><use href="#i-chev-right"/></svg></span><span class="tree-body">Cobertura A</span><span class="tree-state" data-state="concluida">✓ 5 de 5</span></li>
+          <li class="tree-row" data-level="0"><span class="tree-chevron"><svg class="ico"><use href="#i-chev-right"/></svg></span><span class="tree-body">Cobertura B</span><span class="tree-state" data-state="concluida">✓ 5 de 5</span></li>
+          <li class="tree-row" data-level="0"><span class="tree-chevron"><svg class="ico"><use href="#i-chev-right"/></svg></span><span class="tree-body">Geradores</span><span class="tree-state" data-state="concluida">✓ 8 de 8</span></li>
+        </ul>
+      </main>
+    </div>
+
+    <div class="dialog-scrim">
+      <div class="export-dialog" role="dialog" aria-modal="true" aria-labelledby="exp3-title" aria-describedby="exp3-err">
+        <div class="row"><h2 class="dialog-title grow" id="exp3-title">Gerar relatório</h2><button class="icon-btn" aria-label="Fechar"><svg class="ico"><use href="#i-close"/></svg></button></div>
+        <div>
+          <p class="field-label" style="margin-bottom: var(--sp-2)">Antes de emitir</p>
+          <ul class="precheck">
+            <li><span class="pc-text">1 ficha não ensaiada — Coluna 14 · Disjuntor TIE DJ-C14 <span class="pc-meta">(impossibilidade de desligamento)</span></span></li>
+            <li><span class="pc-text">Calibração do 1T vence em 20/08/2027</span></li>
+            <li><span class="pc-text">Último envio de Eduardo: 06/09 18:10</span></li>
+          </ul>
+        </div>
+          <p class="helper">Seção 9 impressa no agrupamento do FO.SERV-03 (por local e tipo, com a flag <em>Agrupar por tipo</em> de cada cabine). Uma ordem só na interface — decisão 2026-09-19, review-mvp-scope S6.</p>
+        <div class="gen-error" role="alert" id="exp3-err"><span>Não foi possível gerar o relatório. Os dados não foram alterados e nenhuma revisão foi criada.</span><button class="btn btn-text">Tentar novamente</button></div>
+        <div class="generate-row">
+          <button class="btn btn-primary">Gerar relatório</button>
+          <span class="btn-reason">DOCX e PDF juntos, como a revisão 3. Precisa de conexão.</span>
+        </div>
+        <div>
+          <p class="field-label" style="margin-bottom: var(--sp-2)">Revisões</p>
+          <div class="revision-row"><span class="rev-text">Rev. 2 — 10/09/2026 08:47 — Bruno — Por local e tipo</span><span class="rev-files"><button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>DOCX</button><button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>PDF</button></span></div>
+          <div class="revision-row"><span class="rev-text">Rev. 1 — 09/09/2026 09:12 — Bruno — Por local e tipo</span><span class="rev-files"><button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>DOCX</button><button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>PDF</button></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =============================================================== FRAME 3b — TABLET, WORKING -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Gerar relatório · gerando</b><span class="sep">·</span>tablet retrato · geração assíncrona, botões desabilitados com motivo, pode fechar (Toast avisa ao terminar)<span class="sep">·</span>State Patterns › Working · Button (disabled + reason) · Flow 5 step 4</p>
+
+  <div class="frame frame-tablet frame--crop" data-theme="light">
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">Relatório</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="pending"><span class="pill"><span class="dot" aria-hidden="true"></span>Gerando revisão 3</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+    <div class="screen-body" aria-hidden="true">
+      <aside class="rail-collapsed"><button class="rail-toggle"><svg class="ico"><use href="#i-tree"/></svg></button><span class="rail-vlabel">Árvore do relatório</span></aside>
+      <main class="screen">
+        <div class="relatorio-head">
+          <div><h2 class="lh-title">Porto Seguro · Torres A e B</h2><p class="lh-meta">06–08/09/2026 · Cabine primária — Porto Seguro — Torres A e B</p></div>
+          <div class="lh-state"><span class="status-pill" data-status="emitido">Emitido</span><span class="progress-counter" data-state="pending"><span class="dot"></span>93 de 94 fichas</span></div>
+        </div>
+        <ul class="relatorio-tree">
+          <li class="tree-row" data-level="0"><span class="tree-chevron"><svg class="ico"><use href="#i-chev-right"/></svg></span><span class="tree-body">Cubículo Enel<span class="tree-meta">SE · Blindada · 13,8 kV · 19 °C · 67 %</span></span><span class="tree-state" data-state="concluida">✓ 5 de 5</span></li>
+          <li class="tree-row" data-level="0"><span class="tree-chevron"><svg class="ico"><use href="#i-chev-right"/></svg></span><span class="tree-body">1° Subsolo<span class="tree-meta">SE · Blindada · 13,8 kV · agrupar por tipo</span></span><span class="tree-state" data-state="em-preenchimento">● 64 de 66</span></li>
+          <li class="tree-row" data-level="0"><span class="tree-chevron"><svg class="ico"><use href="#i-chev-right"/></svg></span><span class="tree-body">Oxigênio</span><span class="tree-state" data-state="concluida">✓ 5 de 5</span></li>
+          <li class="tree-row" data-level="0"><span class="tree-chevron"><svg class="ico"><use href="#i-chev-right"/></svg></span><span class="tree-body">Cobertura A</span><span class="tree-state" data-state="concluida">✓ 5 de 5</span></li>
+          <li class="tree-row" data-level="0"><span class="tree-chevron"><svg class="ico"><use href="#i-chev-right"/></svg></span><span class="tree-body">Cobertura B</span><span class="tree-state" data-state="concluida">✓ 5 de 5</span></li>
+          <li class="tree-row" data-level="0"><span class="tree-chevron"><svg class="ico"><use href="#i-chev-right"/></svg></span><span class="tree-body">Geradores</span><span class="tree-state" data-state="concluida">✓ 8 de 8</span></li>
+        </ul>
+      </main>
+    </div>
+
+    <div class="dialog-scrim">
+      <div class="export-dialog" role="dialog" aria-modal="true" aria-labelledby="exp4-title" aria-describedby="exp4-prog">
+        <div class="row"><h2 class="dialog-title grow" id="exp4-title">Gerar relatório</h2><button class="icon-btn" aria-label="Fechar"><svg class="ico"><use href="#i-close"/></svg></button></div>
+        <div>
+          <p class="field-label" style="margin-bottom: var(--sp-2)">Antes de emitir</p>
+          <ul class="precheck">
+            <li><span class="pc-text">1 ficha não ensaiada — Coluna 14 · Disjuntor TIE DJ-C14 <span class="pc-meta">(impossibilidade de desligamento)</span></span></li>
+            <li><span class="pc-text">Calibração do 1T vence em 20/08/2027</span></li>
+            <li><span class="pc-text">Último envio de Eduardo: 06/09 18:10</span></li>
+          </ul>
+        </div>
+          <p class="helper">Seção 9 impressa no agrupamento do FO.SERV-03 (por local e tipo, com a flag <em>Agrupar por tipo</em> de cada cabine). Uma ordem só na interface — decisão 2026-09-19, review-mvp-scope S6.</p>
+        <div class="gen-progress" role="status" id="exp4-prog"><span class="progress-counter" data-state="pending"><span class="dot" aria-hidden="true"></span>Gerando revisão 3…</span><span>119 páginas · seção 9 montada, montando seção 7 · pode fechar — o aviso chega quando terminar</span></div>
+        <div class="generate-row">
+          <button class="btn btn-primary" aria-disabled="true" aria-describedby="exp4-reason">Gerar relatório</button>
+          <span class="btn-reason" id="exp4-reason">Gerando a revisão 3 — DOCX e PDF juntos</span>
+        </div>
+        <div>
+          <p class="field-label" style="margin-bottom: var(--sp-2)">Revisões</p>
+          <div class="revision-row"><span class="rev-text">Rev. 2 — 10/09/2026 08:47 — Bruno — Por local e tipo</span><span class="rev-files"><button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>DOCX</button><button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>PDF</button></span></div>
+          <div class="revision-row"><span class="rev-text">Rev. 1 — 09/09/2026 09:12 — Bruno — Por local e tipo</span><span class="rev-files"><button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>DOCX</button><button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>PDF</button></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /mock-row 3 -->
+
+<div class="mock-row">
+
+<!-- =============================================================== FRAME 4 — PHONE, RESULT -->
+<div class="mock-item">
+  <p class="mock-caption"><b>Gerar relatório · resultado</b><span class="sep">·</span>telefone 390 · Export em tela cheia, revisão 3 pronta, download e compartilhar por arquivo<span class="sep">·</span>Export dialog › result rows · Typography (display) · Status pill Emitido · Toast · Flow 5 step 4, 6</p>
+
+  <div class="frame frame-phone" data-theme="light">
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">Gerar relatório</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="ok"><span class="pill"><span class="dot" aria-hidden="true"></span>Sincronizado</span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+    <main class="screen">
+      <div class="content">
+        <section class="export-dialog is-page" role="region" aria-labelledby="exp5-title">
+          <h2 class="t-display" id="exp5-title">Revisão 3 pronta</h2>
+          <p class="t-meta ink-secondary"><time datetime="2026-09-10T11:03">10/09/2026 11:03</time> · Bruno · Por local e tipo (padrão FO.SERV-03) · 119 páginas · 76 fotos · 94 fichas</p>
+
+          <div class="result-block">
+            <div class="result-row"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg><span class="rr-text">DOCX — abrir no Word</span><button class="icon-btn" aria-label="Compartilhar DOCX"><svg class="ico"><use href="#i-share"/></svg></button></div>
+            <div class="result-row"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg><span class="rr-text">PDF — enviar ao cliente</span><button class="icon-btn" aria-label="Compartilhar PDF"><svg class="ico"><use href="#i-share"/></svg></button></div>
+          </div>
+
+          <div class="row-wrap"><span class="status-pill" data-status="emitido">Emitido</span><span class="t-meta ink-secondary">Qualquer alteração a partir de agora gera a revisão 4.</span></div>
+
+          <button class="btn btn-secondary btn-block">Gerar de novo</button>
+
+          <div>
+            <p class="field-label" style="margin-bottom: var(--sp-2)">Revisões</p>
+            <div class="revision-row"><span class="rev-text">Rev. 2 — 10/09 08:47 — Bruno — Por local e tipo</span><span class="rev-files"><button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>DOCX</button><button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>PDF</button></span></div>
+            <div class="revision-row"><span class="rev-text">Rev. 1 — 09/09 09:12 — Bruno — Por local e tipo</span><span class="rev-files"><button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>DOCX</button><button class="btn btn-text"><svg class="ico" aria-hidden="true"><use href="#i-download"/></svg>PDF</button></span></div>
+          </div>
+        </section>
+      </div>
+    </main>
+    <div class="toast" role="status"><span>Revisão 3 pronta — DOCX e PDF</span></div>
+  </div>
+</div>
+
+</div><!-- /mock-row 4 -->
+
+</body>
+</html>
