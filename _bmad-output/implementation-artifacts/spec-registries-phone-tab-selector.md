@@ -91,7 +91,7 @@ The phone selector deliberately reuses `MenuTrigger`/`Menu`/`Popover` (the exact
 **Commands:**
 - `docker compose --profile tools run --rm tools pnpm --filter @app/web test -- tabs` -- expected: new/updated `tabs.test.tsx` cases pass.
 - `docker compose --profile tools run --rm tools pnpm verify` -- expected: green (lint, typecheck, unit, build).
-- `docker compose --profile tools run --rm tools pnpm --filter @app/web exec playwright test cadastros` -- expected: all `cadastros.spec.ts` tests, including the new phone/768 ones, pass.
+- `docker compose --profile tools run --rm tools pnpm exec playwright test cadastros --project desktop-chrome` (run from the repo root -- `playwright.config.ts`/`e2e/` live there, not under `apps/web`) -- expected: all `cadastros.spec.ts` tests, including the new phone/768 ones, pass.
 
 **Manual checks (if no CLI):**
 - Real-browser pass at 390, 768, 1280px, light and dark, keyboard-only: confirm one-row selector on phone, unchanged tablist at 768/1280, visible focus throughout, no sideways overflow, helper paragraph position per AC5.
