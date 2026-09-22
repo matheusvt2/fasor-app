@@ -1,5 +1,5 @@
 import { themePreferenceSchema, type ThemePreference } from '@app/domain';
-import { RECOVERY_NOTICE_PREF, THEME_PREF, type AppDatabase } from './schema.ts';
+import { RECOVERY_NOTICE_PREF, REGISTRY_TAB_PREF, THEME_PREF, type AppDatabase } from './schema.ts';
 
 /*
  * AR-27: device-local preferences live in `local_prefs`. This is the only access to
@@ -79,4 +79,20 @@ export async function readRecoveryNotice(db: AppDatabase): Promise<RecoveryNotic
 
 export async function writeRecoveryNotice(db: AppDatabase, notice: RecoveryNotice): Promise<void> {
   await db.local_prefs.put({ key: RECOVERY_NOTICE_PREF, value: notice });
+}
+
+/**
+ * AR-27: the last selected Cadastros tab, device-local (Story 2.1 AC1 "remembered per
+ * session" — a session here means this device's own database, the same durability every
+ * other `local_prefs` entry gets, not a `sessionStorage` window that a reload would
+ * forget). `null` when nothing is stored or the stored value is not a string; the
+ * caller (which knows the valid tab ids) decides what to do with an unrecognized one.
+ */
+export async function readRegistryTab(db: AppDatabase): Promise<string | null> {
+  const row = await db.local_prefs.get(REGISTRY_TAB_PREF);
+  return typeof row?.value === 'string' ? row.value : null;
+}
+
+export async function writeRegistryTab(db: AppDatabase, tabId: string): Promise<void> {
+  await db.local_prefs.put({ key: REGISTRY_TAB_PREF, value: tabId });
 }

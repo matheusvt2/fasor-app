@@ -163,6 +163,35 @@ function clientCreate(ids: Ids, clientId: string): Op {
   });
 }
 
+/** Story 2.1: an instrument row, minimal but schema-valid (`registryRowSchemas.instrument`). */
+function instrumentCreate(ids: Ids, instrumentId: string): Op {
+  written.entityIds.add(instrumentId);
+  return op(ids, {
+    kind: 'create',
+    scope: 'company',
+    path: `registry/instrument/${instrumentId}`,
+    value: {
+      id: instrumentId,
+      kind: 'instrument',
+      code: 'T-01',
+      name: 'Instrumento de Teste',
+      manufacturer: null,
+      model: null,
+      serial: null,
+      cert_number: null,
+      laboratory: null,
+      calibrated_at: null,
+      calibration_interval_months: null,
+      rbc_accredited: null,
+      test_isolacao: null,
+      test_resistencia_contato: null,
+      test_relacao_transformacao: null,
+      certificate_file_id: null,
+      removed_at: null,
+    },
+  });
+}
+
 function relatorioCreate(ids: Ids, relatorioId: string, projectId: string): Op {
   written.entityIds.add(relatorioId);
   return op(ids, {
@@ -475,6 +504,18 @@ describe('1.5-API-004 pulls', () => {
     expect(streamB.some((o) => o.path === `user/${companyB.userId}`)).toBe(true);
     expect(streamB.some((o) => o.path.startsWith(`user/${companyA.userId}`))).toBe(false);
     expect(streamB.every((o) => o.company_id === companyB.companyId)).toBe(true);
+  });
+
+  it('a registry/instrument create is tenant-scoped like any other company-scope op', async () => {
+    const instrumentId = newId();
+    const pushed = await pushOk(companyA, [instrumentCreate(idsA, instrumentId)]);
+    const seq = pushed.applied[0]!.seq;
+
+    const pageA = await pullOk(companyA, `/api/sync/company?since=${seq - 1}`);
+    expect((pageA.ops as Op[]).some((o) => o.path === `registry/instrument/${instrumentId}`)).toBe(true);
+
+    const streamB = await pullOk(companyB, '/api/sync/company?since=0');
+    expect((streamB.ops as Op[]).some((o) => o.path === `registry/instrument/${instrumentId}`)).toBe(false);
   });
 
   it('the relatorio stream unites its ops with older project-scope ops, in seq order, with the head', async () => {

@@ -67,6 +67,12 @@ function formatDate(parts: DateParts): string {
  * `06–08/09/2026` when both dates fall in one month, `28/07/2026 – 02/08/2026`
  * otherwise, the single date when only one is present, `''` when neither is.
  */
+/** `dd/mm/aaaa` (or `mm/aaaa`) of a `date` value, or `''` when null/unparseable. */
+export function formatCalendarDate(value: string | null): string {
+  const parts = splitDate(value);
+  return parts === null ? '' : formatDate(parts);
+}
+
 export function formatServiceDates(start: string | null, end: string | null): string {
   const from = splitDate(start);
   const to = splitDate(end);

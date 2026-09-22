@@ -13,6 +13,7 @@ import { EvictionRecoverySurface } from './surfaces/eviction-recovery-surface.ts
 import { FieldFixtureSurface } from './surfaces/fixtures/field-fixture-surface.tsx';
 import { HomeSurface } from './surfaces/home/home-surface.tsx';
 import { LoginSurface } from './surfaces/login/login-surface.tsx';
+import { RegistriesSurface } from './surfaces/registries/registries-surface.tsx';
 import { SyncStatusSurface } from './surfaces/sync/sync-status-surface.tsx';
 
 /** While the cookie is being read, render nothing decisive: never flash Login. */
@@ -101,6 +102,7 @@ const router = createBrowserRouter([
           { path: '/', element: <HomeSurface />, handle: { title: copy.home.title, titleHidden: true } },
           { path: '/account', element: <AccountSurface />, handle: { title: copy.account.title } },
           { path: '/sync', element: <SyncStatusSurface />, handle: { title: copy.sync.title } },
+          { path: '/cadastros', element: <RegistriesSurface />, handle: { title: copy.registries.title } },
           ...fixtureRoutes,
         ],
       },

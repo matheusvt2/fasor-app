@@ -72,7 +72,7 @@ export interface SyncStateRow {
 
 /**
  * Device-local, never-synced state (Conventions).
- * Keys: `db_version`, `device_id`, `theme`, `recovery_notice_dismissed`.
+ * Keys: `db_version`, `device_id`, `theme`, `recovery_notice_dismissed`, `registry_tab`.
  */
 export interface LocalPrefRow {
   key: string;
@@ -84,6 +84,8 @@ export const DEVICE_ID_PREF = 'device_id';
 export const THEME_PREF = 'theme';
 /** AD-8: the eviction-recovery screen is shown once per database, not once per launch. */
 export const RECOVERY_NOTICE_PREF = 'recovery_notice_dismissed';
+/** AR-27: the last selected Cadastros tab (Story 2.1 AC1), device-local like every other UI preference. */
+export const REGISTRY_TAB_PREF = 'registry_tab';
 
 interface VersionDef {
   version: number;

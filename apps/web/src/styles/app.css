@@ -161,6 +161,17 @@ body {
   .doc-control th { width: 128px; }
   /* `.frame-phone .pos-box` */
   .pos-box { width: 48px; }
+  /* `.frame-phone [data-route="/cadastros"] .registry-main` (80-cadastros.html) */
+  .registry-main { padding: var(--sp-4) var(--gutter-phone); }
+  /* `.frame-phone [data-route="/cadastros"] .registry-panel .panel-head` */
+  .registry-panel .panel-head { padding: var(--sp-4) var(--gutter-phone) 0; }
+  /* `.frame-phone [data-route="/cadastros"] .registry-panel .panel-body` */
+  .registry-panel .panel-body { padding: var(--sp-3) var(--gutter-phone) var(--sp-4); }
+  /* `.frame-phone [data-route="/cadastros"] .field-grid` (+ `.span-2`) */
+  .field-grid { grid-template-columns: 1fr; }
+  .field-grid .span-2 { grid-column: auto; }
+  /* `.frame-phone [data-route="/cadastros"] .registry-toolbar .btn-primary` */
+  .registry-toolbar .btn-primary { width: 100%; }
 }
 
 /* ---------- Phone and tablet: `.frame-tablet X, .frame-phone X` -> below 1280px ----------
@@ -175,6 +186,10 @@ body {
   .relatorio-row .lr-template { display: none; }
   .relatorio-row .lr-state { grid-area: state; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); margin-top: var(--sp-1); }
   .relatorio-row .lr-chev { grid-area: chev; }
+  /* `.frame-tablet, .frame-phone [data-route="/cadastros"] .registry-layout` (80-cadastros.html) */
+  .registry-layout { flex-direction: column; }
+  /* `.frame-tablet, .frame-phone [data-route="/cadastros"] .registry-panel` */
+  .registry-panel { width: 100%; border-left: 0; border-top: 2px solid var(--border-strong); }
 }
 
 /* ---------- Tablet: `.frame-tablet X` -> 768px to 1279px ---------- */
@@ -189,6 +204,10 @@ body {
   /* `.frame-tablet-landscape .sticky-action-bar .bar-buttons` (+ `.btn`) */
   .sticky-action-bar .bar-buttons { justify-content: flex-end; }
   .sticky-action-bar .bar-buttons .btn { flex: 0 0 auto; min-width: 200px; }
+  /* `.frame-tablet-landscape [data-route="/cadastros"] .registry-panel { width: 440px }` is not
+     translated: in the mock's own cascade it is declared before the later `.frame-tablet,
+     .frame-phone .registry-panel { width: 100% }` rule (below, same specificity), which
+     wins on the overlapping 1024-1279.98px range — so 440px never actually renders there. */
 }
 
 /* ---------- Desktop: `.frame-desktop X` -> 1280px and up ----------
@@ -200,6 +219,8 @@ body {
   /* `.frame-desktop .sticky-action-bar .bar-buttons` (+ `.btn`) */
   .sticky-action-bar .bar-buttons { justify-content: flex-end; }
   .sticky-action-bar .bar-buttons .btn { flex: 0 0 auto; min-width: 200px; }
+  /* `.frame-desktop [data-route="/cadastros"] .registry-main` (80-cadastros.html) */
+  .registry-main { padding: var(--sp-5) var(--gutter-desktop); }
 }
 
 /* ---------- On-state aliases (the pattern proven on SegmentedControl) ----------

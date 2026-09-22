@@ -362,10 +362,13 @@ describe('Home: empty state and shortcuts', () => {
     const row = container.querySelector('.shortcut-row')!;
     expect(row.querySelectorAll('.shortcut-card')).toHaveLength(2);
     expect(row.querySelectorAll('.sync-badge')).toHaveLength(0);
-    for (const card of row.querySelectorAll('.shortcut-card')) {
-      expect(card).toHaveAttribute('aria-disabled', 'true');
-      expect(card).toHaveAccessibleDescription('Disponível em uma próxima etapa');
-    }
+    // Templates still belongs to Epic 3; Cadastros opens the Registries surface (Story 2.1).
+    const templates = screen.getByText('Templates').closest('.shortcut-card')!;
+    expect(templates).toHaveAttribute('aria-disabled', 'true');
+    expect(templates).toHaveAccessibleDescription('Disponível em uma próxima etapa');
+    const cadastros = screen.getByText('Cadastros').closest('.shortcut-card')!;
+    expect(cadastros).not.toHaveAttribute('aria-disabled');
+    expect(cadastros).toHaveAttribute('href', '/cadastros');
   });
 });
 
