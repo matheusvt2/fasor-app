@@ -47,12 +47,12 @@ development_status:
   epic-1-retrospective: done
 
   epic-2: in-progress
-  2-1-register-a-test-instrument-with-its-calibration-record: in-progress
-  2-2-attach-a-certificate-file-that-reaches-the-server-by-itself: backlog
-  2-3-set-the-company-s-document-identity-once-with-a-live-brand-p: backlog
-  2-4-register-clients-and-their-sites: backlog
-  2-5-pick-manufacturers-and-voltage-classes-or-create-one-from-th: backlog
-  2-6-see-the-acceptance-criteria-as-sourced-data: backlog
+  2-1-register-a-test-instrument-with-its-calibration-record: done
+  2-2-attach-a-certificate-file-that-reaches-the-server-by-itself: in-progress
+  2-3-set-the-company-s-document-identity-once-with-a-live-brand-p: in-progress
+  2-4-register-clients-and-their-sites: in-progress
+  2-5-pick-manufacturers-and-voltage-classes-or-create-one-from-th: in-progress
+  2-6-see-the-acceptance-criteria-as-sourced-data: in-progress
   epic-2-retrospective: optional
 
   epic-3: backlog
