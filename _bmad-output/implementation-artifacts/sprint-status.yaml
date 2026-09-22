@@ -46,10 +46,10 @@ development_status:
   1-8-nothing-captured-is-lost-when-the-tab-closes-the-network-dro: done
   epic-1-retrospective: done
 
-  epic-2: in-progress
+  epic-2: done
   2-1-register-a-test-instrument-with-its-calibration-record: done
-  2-2-attach-a-certificate-file-that-reaches-the-server-by-itself: in-progress
-  2-3-set-the-company-s-document-identity-once-with-a-live-brand-p: in-progress
+  2-2-attach-a-certificate-file-that-reaches-the-server-by-itself: done
+  2-3-set-the-company-s-document-identity-once-with-a-live-brand-p: done
   2-4-register-clients-and-their-sites: done
   2-5-pick-manufacturers-and-voltage-classes-or-create-one-from-th: done
   2-6-see-the-acceptance-criteria-as-sourced-data: done
