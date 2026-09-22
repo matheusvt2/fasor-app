@@ -43,6 +43,28 @@ deferred:
     location: >-
       apps/api/src/db/seed.ts (projectUser); apps/api/src/db/seed.integration.test.ts
     severity: low
+  - summary: >-
+      commitBatch looks up prev_op_id outside the commit transaction and with per-op sequential queries.
+    evidence: |-
+      Independent fix review (PR #9): two overlapping commitBatch calls on one path, or a pull landing between
+      lookup and commit, can name a stale prev_op_id and show a false "mescladas" row; each lookup reads the
+      whole path history (tables never pruned). Harmless at MVP volume and for one-click registration saves;
+      revisit with the first debounced field emitter (Epic 2+). Also: byClientTsThenOpId is defined twice
+      (commit.ts and sync-store.ts), and a batch mixing relatorio and non-relatorio ops on one path chains
+      differently from the server (unreachable: families fix relatorio_id).
+    location: >-
+      apps/web/src/db/commit.ts (lastAppliedOpId, commitBatch)
+    severity: low
+  - summary: >-
+      Api integration files re-seed the shared test users in parallel beforeAll hooks, and a re-seed revokes the
+      user's sessions, so a push in another file can get a 401 mid-test.
+    evidence: |-
+      Seen once in pnpm verify (sync.integration 1.5-API-002, 401 unauthenticated); the re-run was green.
+      Session revocation on re-seed predates this change; the projection makes seeding slower and widens the
+      window. Belongs with retro A6 (gate stabilization).
+    location: >-
+      apps/api/src/db/seed.ts (revokeSessions); apps/api/src/**/*.integration.test.ts beforeAll
+    severity: low
 ---
 
 <intent-contract>
@@ -210,5 +232,7 @@ Status: done
 **Follow-up review recommended:** true. More than two medium entries were patched (re-seed puts, name ownership, commitOps stamping, optimistic session update, dismiss flag, CLI company mint); the unverified risk is the re-seed put path interacting with concurrent test seeds.
 
 **Verification:** `docker compose --profile tools run --rm tools pnpm verify` EXIT 0: domain 288, web 326, scripts 17, api 66, e2e 21 passed.
+
+**Independent review (PR #9):** changes-requested with 2 medium (every registration save reported superseded because prev_op_id was null; a CLI re-seed reverted user registration edits, introduced by a review-layer patch) and 5 low. Fixed: commitBatch fills prev_op_id and the registration writes only changed fields; a re-seed puts only a changed name; contract version 2; stronger GET /api/account cross-tenant test. A second short review of the fix diff approved it with three lows, deferred above. Final `pnpm verify` EXIT 0 (domain 289, web 327, scripts 17, api 66, e2e 21); one earlier run hit a pre-existing cross-file session-revocation flake, deferred.
 
 **Residual risks:** see `deferred`.
