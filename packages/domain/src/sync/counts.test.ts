@@ -28,7 +28,7 @@ describe('syncCounts', () => {
       row(`block/${BLOCK_B}/order_key`, 'pending'),
       row(`block/${BLOCK_B}`, 'acked', { kind: 'create' }),
       row(`sheet/${BLOCK_A}/observations`, 'dead'),
-      row(`registry/client/${CLIENT}/address`, 'pending'),
+      row(`registry/client/${CLIENT}/contact_name`, 'pending'),
     ]);
     expect(counts).toEqual({ pending: 3, sent: 1, dead: 1, sheets_pending: 2, photos_pending: 0 });
   });

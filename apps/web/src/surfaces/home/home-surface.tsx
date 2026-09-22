@@ -1,9 +1,9 @@
 import {
   homeCards,
   statusBoardCounts,
+  type ClientRow,
   type HomeCard,
   type ProjectRow,
-  type RegistryRow,
   type RelatorioRow,
   type RelatorioStatus,
   type TemplateRow,
@@ -33,7 +33,7 @@ import './home.css';
 
 const NO_RELATORIOS: RelatorioRow[] = [];
 const NO_PROJECTS: ProjectRow[] = [];
-const NO_CLIENTS: RegistryRow[] = [];
+const NO_CLIENTS: ClientRow[] = [];
 const NO_TEMPLATES: TemplateRow[] = [];
 const NO_OUTBOX: OutboxRow[] = [];
 const NO_STATES: SyncStateRow[] = [];

@@ -27,6 +27,7 @@ export const COMPANY_ID = fixedId(1);
 export const USER_ID = fixedId(2);
 export const DEVICE_ID = 'tablet-a';
 export const CLIENT_ID = fixedId(3);
+export const CLIENT_SITE_ID = fixedId(9);
 export const EMPRESA_ID = fixedId(4);
 export const INSTRUMENT_ID = fixedId(5);
 export const TEMPLATE_ID = fixedId(6);
@@ -107,9 +108,23 @@ const steps: Step[] = [
     kind: 'create',
     scope: 'company',
     path: `registry/client/${CLIENT_ID}`,
-    value: { id: CLIENT_ID, kind: 'client', name: 'Cliente Exemplo S.A.', cnpj: null, address: null, removed_at: null },
+    value: {
+      id: CLIENT_ID,
+      kind: 'client',
+      name: 'Cliente Exemplo S.A.',
+      cnpj: null,
+      contact_name: null,
+      contact_phone: null,
+      sites: [],
+      removed_at: null,
+    },
   },
-  { kind: 'put', scope: 'company', path: `registry/client/${CLIENT_ID}/address`, value: 'Rua Um, 100' },
+  {
+    kind: 'put',
+    scope: 'company',
+    path: `registry/client/${CLIENT_ID}/sites`,
+    value: [{ id: CLIENT_SITE_ID, address: 'Rua Um, 100' }],
+  },
   {
     kind: 'create',
     scope: 'company',

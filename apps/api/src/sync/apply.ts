@@ -1,7 +1,9 @@
 import {
   applyOp,
   entityKey,
+  formatPath,
   isServerOnly,
+  normalizeRegistryName,
   opSchema,
   parsePath,
   PathError,
@@ -17,8 +19,9 @@ import {
   type EntityRow,
   type Op,
   type OpRejectCode,
+  type RegistryRow,
 } from '@app/domain';
-import { and, desc, eq, or, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, or, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
 import type { Db } from '../db/client.ts';
 import type { CompanyId } from '../db/repositories/company-id.ts';
@@ -94,7 +97,33 @@ interface Applied {
   supersededOver: string | null;
 }
 
-async function applyOne(db: Db, companyId: CompanyId, op: Op, receivedAt: string): Promise<Applied> {
+/**
+ * Rewrites a put/remove (or a second create) that targets a manufacturer/voltage_class id
+ * already merged earlier in this `applyOps` request onto the row it merged into. Without
+ * this, a put/remove on the now-vanished local id would resolve to a missing entity and
+ * `applyOp` would silently no-op it (AD-3): the normal flow commits the name as a `create`
+ * and other fields as separate `put`s in the same batch, right after.
+ */
+function redirectOp(op: Op, idRedirects: ReadonlyMap<string, string>): Op {
+  const path = parsePath(op.path);
+  if (path.family !== 'registry' && path.family !== 'registry/field') return op;
+  const redirected = idRedirects.get(`${path.kind}:${path.id}`);
+  if (redirected === undefined) return op;
+  const newPath = formatPath({ ...path, id: redirected });
+  const value =
+    op.kind === 'create' && op.value !== null && typeof op.value === 'object' && !Array.isArray(op.value)
+      ? { ...(op.value as Record<string, unknown>), id: redirected }
+      : op.value;
+  return { ...op, path: newPath, value };
+}
+
+async function applyOne(
+  db: Db,
+  companyId: CompanyId,
+  op: Op,
+  receivedAt: string,
+  idRedirects: Map<string, string>,
+): Promise<Applied> {
   return db.transaction(async (tx) => {
     // Applies serialize per company: no lost update on a shared row, and seq order equals commit order.
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${companyId}))`);
@@ -149,7 +178,54 @@ async function applyOne(db: Db, companyId: CompanyId, op: Op, receivedAt: string
       return { seq: existing.seq, supersededOver: null };
     }
 
-    const refs = targetsOf(op);
+    // AR-18 / Design Notes "Server merge scope": manufacturer/voltage_class are stored by
+    // value on sheets, so the only thing to prevent is two live registry rows with the same
+    // normalized name after both ops land. A create whose name normalizes to an existing
+    // live row of the same kind+company is rewritten onto that row's id before the rest of
+    // this function runs, so it merges (a duplicate create is a no-op, AD-3) instead of
+    // minting a second row. `op` (not yet redirected) was already inserted into `ops` above
+    // as received, so the client's own history is untouched; only materialization onto
+    // `entities` redirects. A later put/remove in the same `applyOps` request against the
+    // same now-merged-away local id is redirected too, via `redirectOp` above (AD-19: these
+    // kinds are referenced by value on sheets, never by id, so no other id-reference rewrite
+    // is needed).
+    let mergedOp = redirectOp(op, idRedirects);
+    if (op.kind === 'create') {
+      const mergePath = parsePath(mergedOp.path);
+      if (mergePath.family === 'registry' && (mergePath.kind === 'manufacturer' || mergePath.kind === 'voltage_class')) {
+        const incomingName = (mergedOp.value as { name?: unknown } | null)?.name;
+        const normalized = typeof incomingName === 'string' ? normalizeRegistryName(incomingName) : '';
+        // An empty/blank name never merges: normalizeRegistryName('') === '' would otherwise
+        // collide every blank-name row into one, silently dropping whichever fields (gender,
+        // number) a later create's non-name-first field commit carried (independent review,
+        // PR #14 finding 1 — reproduced via two blank-name creates colliding server-side).
+        if (typeof incomingName === 'string' && normalized !== '') {
+          const candidates = await tx
+            .select({ id: entities.id, row: entities.row })
+            .from(entities)
+            .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'registry'), isNull(entities.removed_at)));
+          const match = candidates.find((c) => {
+            const row = c.row as RegistryRow;
+            return (
+              c.id !== mergePath.id &&
+              (row.kind === 'manufacturer' || row.kind === 'voltage_class') &&
+              row.kind === mergePath.kind &&
+              normalizeRegistryName(row.name) === normalized
+            );
+          });
+          if (match) {
+            idRedirects.set(`${mergePath.kind}:${mergePath.id}`, match.id);
+            mergedOp = {
+              ...mergedOp,
+              path: `registry/${mergePath.kind}/${match.id}`,
+              value: { ...(mergedOp.value as object), id: match.id },
+            };
+          }
+        }
+      }
+    }
+
+    const refs = targetsOf(mergedOp);
     const rows = await tx
       .select()
       .from(entities)
@@ -161,7 +237,7 @@ async function applyOne(db: Db, companyId: CompanyId, op: Op, receivedAt: string
       );
     const state = new Map<EntityKey, EntityRow>();
     for (const row of rows) state.set(entityKey(row.entity as Entity, row.id), row.row);
-    const next = applyOp(state, { ...op, seq });
+    const next = applyOp(state, { ...mergedOp, seq });
     for (const [key, row] of next) {
       if (row === state.get(key)) continue;
       const { entity, id } = splitEntityKey(key);
@@ -184,6 +260,9 @@ export async function applyOps(
   deps: ApplyDeps,
 ): Promise<ApplyResult> {
   const result: ApplyResult = { applied: [], rejected: [], superseded: [] };
+  // Scoped to this request only: an id merged away by a create earlier in the batch is
+  // redirected for every later op in the same batch, never across separate `applyOps` calls.
+  const idRedirects = new Map<string, string>();
   for (const raw of rawOps) {
     const rawId = (raw as { op_id?: unknown } | null)?.op_id;
     const opId = typeof rawId === 'string' ? rawId : '';
@@ -193,7 +272,7 @@ export async function applyOps(
       continue;
     }
     try {
-      const { seq, supersededOver } = await applyOne(db, companyId, validation.op, toIso(deps.now()));
+      const { seq, supersededOver } = await applyOne(db, companyId, validation.op, toIso(deps.now()), idRedirects);
       result.applied.push({ op_id: validation.op.op_id, seq });
       if (supersededOver !== null) result.superseded.push({ op_id: validation.op.op_id, over_op_id: supersededOver });
     } catch (error) {

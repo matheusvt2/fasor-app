@@ -48,6 +48,10 @@ export const ui = {
     /** Trailing "Criar" option template/text, e.g. `Criar "Blutrafos"`. */
     create: (query: string) => `Criar “${query}”`,
   },
+  registryPicker: {
+    /** Trailing chip of `RegistryPickerField`'s chip row: opens the full Combobox (2.4, 2.5). */
+    other: 'Outro…',
+  },
   // authored: shared by every Registries tab that is a placeholder for a later story
   // (Empresa, Clientes, Fabricantes, Classes de tensão, Critérios), so each stub file
   // says the same true thing rather than inventing its own wording.
