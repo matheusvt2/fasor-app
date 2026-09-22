@@ -1,13 +1,17 @@
 import { z } from 'zod';
+import { uuidV7Schema } from './ids.ts';
+import type { OpDraft } from './ops/op.ts';
+import { formatPath } from './ops/path.ts';
+import { councilSchema, type Council } from './schemas/council.ts';
+import type { UserRow } from './schemas/entities.ts';
+
+export { councilSchema, type Council };
 
 /**
  * Professional registration of the signed-in user (Account > "Registro profissional").
  * Every label and every composed string lives here, so the web app and the document
  * renderer read the same text (AD-1, AD-2).
  */
-
-export const councilSchema = z.enum(['crea', 'crt']);
-export type Council = z.infer<typeof councilSchema>;
 
 const COUNCIL_LABEL: Record<Council, string> = { crea: 'CREA', crt: 'CRT' };
 
@@ -42,11 +46,15 @@ export const registrationSchema = z.object({
 });
 export type Registration = z.infer<typeof registrationSchema>;
 
+/**
+ * The signed-in user as `GET /api/account` composes it: identity (name, e-mail, company)
+ * from the identity tables, the registration fields from the kernel `user` entity.
+ */
 export const userProfileSchema = z.object({
-  id: z.string().min(1),
+  id: uuidV7Schema,
   name: z.string().min(1),
   email: z.string().min(3),
-  companyId: z.string().min(1),
+  companyId: uuidV7Schema,
   companyName: z.string().min(1),
   council: councilSchema.nullable(),
   registrationNumber: z.string().nullable(),
@@ -63,6 +71,44 @@ export function registrationRowText(user: RegistrationRowSource): string {
   const head = number === '' ? councilLabel(user.council) : `${councilLabel(user.council)} ${number}`;
   const title = user.title?.trim() ?? '';
   return `${head} · ${title === '' ? defaultTitleForCouncil(user.council) : title}`;
+}
+
+/** The kernel `user` row's registration fields, in the shape the row text reads. */
+export function registrationOfUserRow(row: Pick<UserRow, 'council' | 'registration_number' | 'title'>): RegistrationRowSource {
+  return { council: row.council, registrationNumber: row.registration_number, title: row.title };
+}
+
+/**
+ * A saved "Registro profissional" as the three `user/{id}/{field}` puts the device
+ * commits (AD-1, AD-3): one op per field, written by the user about their own row.
+ * The device stamps `device_id` and fills `prev_op_id` when it commits them (`commitBatch`).
+ */
+export function registrationPuts(input: {
+  userId: string;
+  companyId: string;
+  registration: Registration;
+  /** What the device shows now; a field equal to it is not written, so a save with no change commits nothing. */
+  current?: RegistrationRowSource | null;
+}): OpDraft[] {
+  const { userId, companyId, registration, current } = input;
+  const fields: ReadonlyArray<readonly [string, string, string | null | undefined]> = [
+    ['council', registration.council, current?.council],
+    ['registration_number', registration.registrationNumber, current?.registrationNumber],
+    ['title', registration.title, current?.title],
+  ];
+  return fields.filter(([, value, now]) => current == null || value !== now).map(([field, value]) => ({
+    kind: 'put',
+    scope: 'company',
+    company_id: companyId,
+    project_id: null,
+    relatorio_id: null,
+    path: formatPath({ family: 'user/field', id: userId, field }),
+    value,
+    prev_op_id: null,
+    batch_id: null,
+    meta: null,
+    actor_id: userId,
+  }));
 }
 
 /** First letter of the name, for the app-bar avatar. */

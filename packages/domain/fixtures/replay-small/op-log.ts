@@ -375,8 +375,9 @@ const steps: Step[] = [
     server: true,
     actor: 'system:generate',
   },
-  // A user field edit (company scope; users are provisioned, never created by an op).
-  { kind: 'put', scope: 'company', path: `user/${USER_ID}/professional_registration`, value: 'CREA-SP 000000' },
+  // A user field edit (company scope). The user row is born by the provisioning projection
+  // (`user/{id}` create, `system:identity`), which this log leaves out, so the put is a no-op here.
+  { kind: 'put', scope: 'company', path: `user/${USER_ID}/registration_number`, value: 'SP 000000' },
 ];
 
 const DEAD_STEP_INDEX = steps.findIndex((s) => s.value === 'MUST NOT APPEAR');

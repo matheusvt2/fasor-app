@@ -1,10 +1,12 @@
 import {
+  accountResponseSchema,
   CONTRACT_VERSION,
   CONTRACT_VERSION_HEADER,
   errorResponseSchema,
   makeOp,
   syncPullResponseSchema,
   syncPushResponseSchema,
+  userRowSchema,
   type Op,
   type OpInput,
   type SyncPullResponse,
@@ -17,6 +19,8 @@ import { parseTrustedOrigins } from '../auth/trusted-origins.ts';
 import { now } from '../clock.ts';
 import { loadConfig } from '../config.ts';
 import { createDb } from '../db/client.ts';
+import { asCompanyId } from '../db/repositories/company-id.ts';
+import { findUserProfile } from '../db/repositories/users.ts';
 import { seedTestCompanies, TEST_SEED } from '../db/seed.ts';
 import { entities, ops, syncDevicePush } from '../db/schema.ts';
 import { newId } from '../ids.ts';
@@ -454,6 +458,23 @@ describe('1.5-API-004 pulls', () => {
     });
     // No row of company B.
     expect(summary.last_push_at.some((p) => p.user_id === companyB.userId)).toBe(false);
+
+    // Each company's stream carries its own `user/{id}` create and never the other's.
+    const whole = async (company: Company) => {
+      const all: { path: string; company_id: string }[] = [];
+      for (let since = 0; ; ) {
+        const next = await pullOk(company, `/api/sync/company?since=${since}`);
+        all.push(...(next.ops as { path: string; company_id: string; seq: number }[]));
+        const last = (next.ops.at(-1) as { seq?: number } | undefined)?.seq;
+        if (last === undefined || last >= next.seq) break;
+        since = last;
+      }
+      return all;
+    };
+    const streamB = await whole(companyB);
+    expect(streamB.some((o) => o.path === `user/${companyB.userId}`)).toBe(true);
+    expect(streamB.some((o) => o.path.startsWith(`user/${companyA.userId}`))).toBe(false);
+    expect(streamB.every((o) => o.company_id === companyB.companyId)).toBe(true);
   });
 
   it('the relatorio stream unites its ops with older project-scope ops, in seq order, with the head', async () => {
@@ -510,6 +531,128 @@ describe('1.5-API-004 pulls', () => {
   });
 });
 
+describe('the registration as user ops (retro A2)', () => {
+  function userPut(ids: Ids, userId: string, field: string, value: string, extra: Partial<OpInput> = {}): Op {
+    return op(ids, { kind: 'put', scope: 'company', path: `user/${userId}/${field}`, value, ...extra });
+  }
+
+  async function account(company: Company) {
+    const res = await authed(company, '/api/account');
+    expect(res.status).toBe(200);
+    return accountResponseSchema.parse(await res.json()).user;
+  }
+
+  async function userEntity(company: Company) {
+    const [row] = await db
+      .select({ row: entities.row })
+      .from(entities)
+      .where(and(eq(entities.company_id, company.companyId), eq(entities.entity, 'user'), eq(entities.id, company.userId)));
+    return row?.row as { council: string | null; registration_number: string | null; title: string | null } | undefined;
+  }
+
+  // These ops stay in the log (they are not added to `written`): the entity they leave
+  // behind is the seeded registration again, and the log must keep explaining it.
+  async function pushKept(company: Company, batch: Op[]): Promise<SyncPushResponse> {
+    const res = await push(company, { ops: batch });
+    expect(res.status, await res.clone().text()).toBe(200);
+    return syncPushResponseSchema.parse(await res.json());
+  }
+
+  // Company B's user, so the title this test moves for a moment is never the one
+  // `auth.integration.test.ts` compares across a re-seed of company A, in parallel.
+  it('an own-user put reaches the entity, and GET /api/account composes it', async () => {
+    const before = await account(companyB);
+    expect(before.id).toBe(companyB.userId);
+    const title = `Técnico ${newId().slice(-4)}`;
+    const result = await pushKept(companyB, [userPut(idsB, companyB.userId, 'title', title)]);
+    expect(result.rejected).toEqual([]);
+    expect((await userEntity(companyB))?.title).toBe(title);
+    expect((await account(companyB)).title).toBe(title);
+
+    // Back to the seeded title, through the same path.
+    const seeded = before.title ?? 'Técnico(a) em Eletrotécnica';
+    await pushKept(companyB, [userPut(idsB, companyB.userId, 'title', seeded)]);
+    expect((await account(companyB)).title).toBe(seeded);
+  });
+
+  it("refuses a write to anyone else's user row per op, in this company or another, and never a create", async () => {
+    const bBefore = await userEntity(companyB);
+    expect(bBefore).toBeDefined();
+    const colleague = userPut(idsA, newId(), 'title', 'Colega');
+    const ownName = userPut(idsA, companyA.userId, 'name', 'Outro Nome');
+    const otherCompanysUser = userPut(idsA, companyB.userId, 'title', 'Intruso');
+    const otherTenant = userPut(idsA, companyB.userId, 'title', 'Intruso', { company_id: companyB.companyId });
+    const create = op(idsA, {
+      kind: 'create',
+      scope: 'company',
+      path: `user/${companyA.userId}`,
+      value: {
+        id: companyA.userId,
+        name: 'Outra Ana',
+        email: 'x@teste.local',
+        council: null,
+        registration_number: null,
+        title: null,
+        photo_location_enabled: false,
+      },
+    });
+    const fine = clientCreate(idsA, newId());
+    const result = await pushOk(companyA, [colleague, ownName, otherCompanysUser, otherTenant, create, fine]);
+    expect(result.rejected).toEqual([
+      { op_id: colleague.op_id, code: 'op_forbidden' },
+      { op_id: ownName.op_id, code: 'op_forbidden' },
+      { op_id: otherCompanysUser.op_id, code: 'op_forbidden' },
+      { op_id: otherTenant.op_id, code: 'op_tenant_mismatch' },
+      { op_id: create.op_id, code: 'op_server_only' },
+    ]);
+    expect(result.applied.map((a) => a.op_id)).toEqual([fine.op_id]);
+    expect(await userEntity(companyB)).toEqual(bBefore);
+  });
+
+  it('never lets company B read company A through GET /api/account', async () => {
+    const b = await account(companyB);
+    expect(b).toMatchObject({ id: companyB.userId, companyId: companyB.companyId, email: companyB.email });
+    expect(b.id).not.toBe(companyA.userId);
+    expect(b.companyId).not.toBe(companyA.companyId);
+
+    // The repository never answers company B's user under company A.
+    expect(await findUserProfile(db, asCompanyId(companyA.companyId), companyB.userId)).toBeUndefined();
+
+    // A user row with B's id planted under company A is never composed into B's profile:
+    // the registration comes from B's own tenant.
+    const planted = {
+      id: companyB.userId,
+      name: 'Plantado',
+      email: companyB.email,
+      council: 'crea',
+      registration_number: 'SP PLANTADO',
+      title: 'Plantado',
+      photo_location_enabled: false,
+    };
+    await db
+      .insert(entities)
+      .values({ company_id: companyA.companyId, entity: 'user', id: companyB.userId, row: userRowSchema.parse(planted), updated_seq: 0 });
+    try {
+      const again = await account(companyB);
+      expect(again.registrationNumber).toBe(b.registrationNumber);
+      expect(again.registrationNumber).not.toBe('SP PLANTADO');
+      expect(await findUserProfile(db, asCompanyId(companyA.companyId), companyB.userId)).toBeUndefined();
+    } finally {
+      await db
+        .delete(entities)
+        .where(and(eq(entities.company_id, companyA.companyId), eq(entities.entity, 'user'), eq(entities.id, companyB.userId)));
+    }
+  });
+
+  it('the old registration write route is gone', async () => {
+    const res = await authed(companyA, '/api/account/registration', {
+      method: 'PUT',
+      body: JSON.stringify({ council: 'crea', registrationNumber: 'SP 1', title: 'Eng.' }),
+    });
+    expect(res.status).toBe(404);
+  });
+});
+
 describe('1.5-API-005 contract skew', () => {
   it('answers 426 on pulls below the minimum or without the header, and still accepts the push', async () => {
     for (const path of ['/api/sync/company?since=0', `/api/sync/relatorios/${newId()}?since=0`]) {
@@ -517,6 +660,8 @@ describe('1.5-API-005 contract skew', () => {
       expect(res.status).toBe(426);
       expect(errorResponseSchema.parse(await res.json()).code).toBe('contract_outdated');
     }
+    // A version-1 bundle cannot parse the `user/{id}` creates the company stream carries.
+    expect((await pull(companyA, '/api/sync/company?since=0', '1')).status).toBe(426);
     const missing = await pull(companyA, '/api/sync/company?since=0', null);
     expect(missing.status).toBe(426);
     expect(errorResponseSchema.parse(await missing.json()).code).toBe('contract_outdated');

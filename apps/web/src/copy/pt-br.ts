@@ -40,8 +40,8 @@ export const copy = {
     cancel: 'Cancelar',
     save: 'Salvar',
     // authored: the mock renders these fields inline, so it has no dialog save button
-    // and no offline or failure state for one.
-    saveOfflineReason: 'Salvar precisa de conexão',
+    // and no failure state for one. The save is a local commit (user ops), so it works
+    // offline and only a refused device write can fail it.
     saveFailed: 'Não foi possível salvar. Tente de novo.',
     registrationIncomplete: 'Informe o número do registro e o título impresso.',
     pendingLabel: 'Aguardando envio',
@@ -61,11 +61,7 @@ export const copy = {
     signOutDialogBody:
       'Nada é apagado deste aparelho. O que estiver aqui continua aqui e sobe quando você entrar de novo com conexão.',
     signOutPendingDialogTitle: 'Sair com envios pendentes?',
-    // The mock's plural sentence; the singular is authored for "1 ficha".
-    signOutPendingDialogBody: (pending: string, count: number) =>
-      count === 1
-        ? `${pending} ainda não foi enviada. Ela continua neste aparelho e sobe quando você entrar de novo com conexão.`
-        : `${pending} ainda não foram enviadas. Elas continuam neste aparelho e sobem quando você entrar de novo com conexão.`,
+    // The dialog body agrees with its count, so the kernel writes it (`pendingNotSentText`).
     signOutConfirm: 'Sair mesmo assim',
     // authored: the mock has no offline or failure state for "Sair".
     signOutOfflineReason: 'Sair precisa de conexão',
@@ -135,12 +131,9 @@ export const copy = {
     syncNow: 'Sincronizar agora',
     syncing: 'Sincronizando…',
     offlineReason: 'Sem conexão',
-    // authored: the dead-op row lives here until the Sumário pre-issue list of Epic 5.
-    rejected: (count: number) => (count === 1 ? '1 alteração rejeitada' : `${count} alterações rejeitadas`),
+    // The dead-op row ("3 alterações rejeitadas") and the server's `superseded` row are
+    // counts, so the kernel writes them (`rejectedText`, `supersededText`).
     resend: 'Reenviar',
-    // authored: the mock has no line for the server's `superseded` signal.
-    superseded: (count: number) =>
-      count === 1 ? '1 alteração mesclada pelo servidor' : `${count} alterações mescladas pelo servidor`,
     lastPushHeading: 'Último envio',
     lastPushNote: 'O servidor não sabe o que ainda está em outro aparelho; a hora do último envio é o sinal honesto.',
     thisDevice: 'Este aparelho',
@@ -181,12 +174,8 @@ export const copy = {
     title: 'Dados deste aparelho foram apagados',
     body: (produto: string) =>
       `O navegador liberou o espaço que o ${produto} usava neste aparelho. Sua conta continua ativa e o servidor guarda o trabalho que já foi enviado.`,
-    /** "O servidor tem 3 relatórios e 2 pessoas da equipe." — built from the company pull. */
-    holds: (relatorios: number, users: number) => {
-      const r = relatorios === 1 ? '1 relatório' : `${relatorios} relatórios`;
-      const u = users === 1 ? '1 pessoa da equipe' : `${users} pessoas da equipe`;
-      return `O servidor tem ${r} e ${u}.`;
-    },
+    // "O servidor tem 3 relatórios e 2 pessoas da equipe." is a count, written by the
+    // kernel (`serverHoldsText`) from the company pull.
     /** Before the first company pull there is nothing to count yet. */
     holdsUnknown: 'Ainda não sabemos o que o servidor tem; baixe para descobrir.',
     action: 'Baixar do servidor',

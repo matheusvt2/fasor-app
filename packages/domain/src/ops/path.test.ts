@@ -20,6 +20,10 @@ const EXTRA_PATHS = [
   `registry/manufacturer/${ID}/gender`,
   `template/${ID}/blocks`,
   `user/${ID}/photo_location_enabled`,
+  `user/${ID}/council`,
+  `user/${ID}/registration_number`,
+  `user/${ID}/title`,
+  `user/${ID}`,
   `generation_job/${ID}/error`,
 ];
 
@@ -36,7 +40,7 @@ describe('1.4-UNIT-001 path round trip', () => {
     const seen = new Set(paths.map((p) => parsePath(p).family));
     const missing = FAMILIES.map((f) => f.family).filter((f) => !seen.has(f));
     expect(missing).toEqual([]);
-    expect(FAMILIES.length).toBe(38);
+    expect(FAMILIES.length).toBe(39);
   });
 
   it('returns typed segments', () => {
@@ -72,6 +76,7 @@ describe('1.4-UNIT-001 path round trip', () => {
 
   it('rejects identity and derived keys as put fields', () => {
     expect(() => parsePath(`user/${ID}/email`)).toThrow(/unknown field "email" for user/);
+    expect(() => parsePath(`user/${ID}/professional_registration`)).toThrow(/unknown field "professional_registration" for user/);
     expect(() => parsePath(`point/${ID}/origin`)).toThrow(/unknown field "origin" for point/);
     expect(() => parsePath(`template/${ID}/version`)).toThrow(/unknown field "version" for template/);
     expect(() => parsePath(`template/${ID}/seed_version`)).toThrow(/unknown field "seed_version" for template/);
@@ -103,10 +108,17 @@ describe('1.4-UNIT-001 path round trip', () => {
       `generation_job/${ID}/status`,
       `revision/${ID}`,
       'relatorio/preview_file_id',
+      `user/${ID}`,
     ]) {
       expect(isServerOnly(p)).toBe(true);
     }
-    for (const p of [`file/${ID}/caption`, `suggestion/${ID}/status`, `equipment/${ID}/tag`, 'relatorio/status']) {
+    for (const p of [
+      `file/${ID}/caption`,
+      `suggestion/${ID}/status`,
+      `equipment/${ID}/tag`,
+      'relatorio/status',
+      `user/${ID}/title`,
+    ]) {
       expect(isServerOnly(p)).toBe(false);
     }
   });

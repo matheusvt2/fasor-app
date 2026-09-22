@@ -1,8 +1,7 @@
-import { SYNC_PUSH_MAX_OPS, toIso, type Clock, type NewId, type Op, type SyncSummary } from '@app/domain';
+import { isAutoPulled, SYNC_PUSH_MAX_OPS, toIso, type Clock, type NewId, type Op, type SyncSummary } from '@app/domain';
 import { COMPANY_STREAM, type AppDatabase, type SyncStateRow } from '../db/schema.ts';
 import {
   applyPulled,
-  deviceId,
   markAcked,
   markDead,
   markSent,
@@ -150,9 +149,9 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
   async function pushPhase(): Promise<void> {
     const rows = await takePending(deps.db);
     if (rows.length === 0) return;
-    const device = await deviceId(deps.db, deps.newId);
+    // Every outbox row already carries this device's id: `commitBatch` stamps it (AD-3).
     for (const batch of batches(rows, SYNC_PUSH_MAX_OPS)) {
-      const ops: Op[] = batch.map((row) => ({ ...opOf(row), device_id: row.device_id || device }));
+      const ops: Op[] = batch.map(opOf);
       await markSent(
         deps.db,
         ops.map((op) => op.op_id),
@@ -211,7 +210,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     if (status.outdated) return;
     const summary = await pullStream(COMPANY_STREAM, (since) => deps.client.pullCompany(since));
     const wanted = new Set<string>();
-    for (const r of summary?.relatorios ?? []) if (r.status === 'rascunho' || r.status === 'em_campo') wanted.add(r.id);
+    for (const r of summary?.relatorios ?? []) if (isAutoPulled(r.status)) wanted.add(r.id);
     // Relatorios opened before keep following their stream whatever their status now.
     for (const row of await deps.db.sync_state.toArray()) if (row.id !== COMPANY_STREAM) wanted.add(row.id);
     for (const id of wanted) {

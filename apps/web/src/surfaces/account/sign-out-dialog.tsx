@@ -1,3 +1,4 @@
+import { pendingNotSentText } from '@app/domain';
 import { useId } from 'react';
 import { Dialog, Modal, ModalOverlay } from 'react-aria-components';
 import { copy } from '../../copy/pt-br.ts';
@@ -28,7 +29,7 @@ export function SignOutDialog(props: SignOutDialogProps) {
   const body =
     props.pending === null
       ? copy.account.signOutDialogBody
-      : copy.account.signOutPendingDialogBody(props.pending.text, props.pending.count);
+      : pendingNotSentText(props.pending.text, props.pending.count);
 
   return (
     <ModalOverlay className="dialog-scrim" isOpen isDismissable onOpenChange={props.onCancel}>

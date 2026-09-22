@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { isoTimestampSchema } from '../clock.ts';
 import { actorIdSchema, uuidV7Schema } from '../ids.ts';
+import { councilSchema } from './council.ts';
 
 /*
  * Row schemas for every entity the op log materializes (AD-5, AD-10, AD-18).
@@ -138,11 +139,19 @@ export const templateRowSchema = z.object({
   removed_at: nullableIso,
 });
 
+/**
+ * A company user as the op log knows it. The row is born by the server-only
+ * `user/{id}` create that provisioning projects into the company stream (AD-9);
+ * the CAP-6 registration fields (council, number, printed title) live here and
+ * nowhere else, written by the user's own `user/{id}/{field}` puts.
+ */
 export const userRowSchema = z.object({
   id: uuidV7Schema,
   name: z.string(),
   email: z.string(),
-  professional_registration: nullableString,
+  council: councilSchema.nullable(),
+  registration_number: nullableString,
+  title: nullableString,
   photo_location_enabled: z.boolean(),
 });
 

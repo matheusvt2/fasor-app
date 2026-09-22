@@ -81,10 +81,12 @@ test('@p0 1.5-E2E-001 work done offline reaches the server on "Sincronizar agora
       { timeout: 20_000 },
     )
     .toBe(true);
-  // The device's own push is an "Último envio" row: this device, named by the user id until
-  // the company's user rows reach the device (a later story emits them).
-  const mine = page.locator('.sync-row', { hasText: user.userId }).filter({ hasText: 'Este aparelho' });
+  // The device's own push is an "Último envio" row: this device, named by the user's name
+  // from the `user/{id}` row the company stream carries (retro A2), never by a raw id.
+  const mine = page.locator('.sync-row', { hasText: user.name }).filter({ hasText: 'Este aparelho' });
   await expect(mine).toHaveCount(1);
+  await expect(mine.locator('.sr-primary')).toHaveText(user.name);
+  await expect(page.locator('.sync-row', { hasText: user.userId })).toHaveCount(0);
   await expect(mine.locator('time')).toHaveAttribute('datetime', /^\d{4}-\d{2}-\d{2}T/);
 
   // The server holds both ops in their streams, through the contract.

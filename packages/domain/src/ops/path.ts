@@ -122,6 +122,8 @@ export const opPathSchema = z.discriminatedUnion('family', [
   z.object({ family: z.literal('template/field'), id: uuidV7Schema, field: fieldOf(TEMPLATE_FIELDS) }),
   z.object({ family: z.literal('user/field'), id: uuidV7Schema, field: fieldOf(USER_FIELDS) }),
   z.object({ family: z.literal('generation_job'), id: uuidV7Schema }),
+  // Appended (the family list is append-only): the provisioning projection of an identity user.
+  z.object({ family: z.literal('user'), id: uuidV7Schema }),
   z.object({ family: z.literal('generation_job/field'), id: uuidV7Schema, field: z.enum(GENERATION_JOB_FIELDS) }),
   z.object({ family: z.literal('revision'), id: uuidV7Schema }),
   z.object({ family: z.literal('relatorio/preview_file_id') }),
@@ -261,6 +263,9 @@ export const FAMILIES: readonly FamilyDef[] = [
     serverOnly: true,
     segments: [lit('relatorio'), lit('preview_file_id')],
   },
+  // Users are provisioned, never created by a device (AD-9): the seed projects each
+  // identity user into the company stream as this `system:identity` create.
+  { family: 'user', entity: 'user', create: true, serverOnly: true, segments: [lit('user'), id()] },
 ];
 
 const BY_FAMILY: ReadonlyMap<PathFamily, FamilyDef> = new Map(FAMILIES.map((f) => [f.family, f]));

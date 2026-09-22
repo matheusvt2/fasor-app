@@ -54,3 +54,11 @@ Releng (codename fasor): a tablet-first, offline-first web app that captures med
 - 2026-09-21, Matheus: waiver of test-design risk R-023. The Porto Seguro fixture and golden documents use the real client material of the delivered relatório without restriction; the public exposure is accepted consciously. Source: `_bmad-output/test-artifacts/test-design-architecture.md`.
 - 2026-09-21, Matheus: `pnpm verify` is the merge gate (R-011); CI stays out of the MVP.
 - 2026-09-21, Matheus: Sync status gains a visible "Sincronizar agora" action (C-4); tests use it instead of the 60 s timer.
+
+## Where a new user-facing string goes (kept outside the managed block)
+
+Decided 2026-09-22 (Epic 1 retro A7). pt-BR copy has three homes, and each string lives in exactly one:
+
+- **Derived text goes in `packages/domain`.** This means anything computed from data: status words (`statusLabel`), counts and plurals (`plural`, `relatoriosCount`, `pendingSummaryText`, `rejectedText`), and composed rows (`registrationRowText`, `storageLine`, `serverHoldsText`). `apps/web` never writes a singular-or-plural choice, a status word or a rule such as "which statuses are pulled" (`isAutoPulled`) of its own.
+- **Static surface copy goes in `apps/web/src/copy/pt-br.ts`.** These are headings, labels, notes, button words and fixed sentences of one surface, verbatim from the mocks or marked `// authored:`.
+- **Component chrome goes in `apps/web/src/copy/ui.ts`.** These are the words a shared component owns whatever screen it is on ("Ativado", "Cancelar", the overflow trigger's label template).

@@ -239,6 +239,9 @@ test('@p0 1.8-E2E-004 an evicted origin with a live cookie gets the one-time rec
   const heading = page.getByRole('heading', { level: 1, name: 'Dados deste aparelho foram apagados' });
   await expect(heading).toBeVisible();
   await expect(page.getByTestId('recovery-holds')).toBeVisible();
+  // What the server holds is counted from the company pull, which carries the company's
+  // `user/{id}` rows: company A has exactly one person, never "0 pessoas da equipe".
+  await expect(page.getByTestId('recovery-holds')).toContainText('1 pessoa da equipe', { timeout: 20_000 });
   // The sign-in form is never involved: the cookie alone brought the user here.
   await expect(page.locator('.login-form')).toHaveCount(0);
   // And the screen is not a dead end: `navigator.onLine` can be true with the API down,
