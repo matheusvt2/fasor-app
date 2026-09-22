@@ -219,7 +219,7 @@ test('@p0 1.8-E2E-003 a refused write names itself and the value is not lost', a
   await expect(page.getByTestId('fixture-committed')).toHaveText('Valor que o aparelho recusa');
 });
 
-test('@p0 1.8-E2E-004 an evicted origin with a live cookie gets the one-time recovery screen', async ({
+test('@p1 1.8-E2E-004 an evicted origin with a live cookie gets the one-time recovery screen', async ({
   page,
   context,
   seed,
@@ -254,7 +254,7 @@ test('@p0 1.8-E2E-004 an evicted origin with a live cookie gets the one-time rec
   await expect(heading).toHaveCount(0);
 });
 
-test('@p0 1.8-E2E-005 work older than five days raises the banner, and a new shell waits for an empty outbox', async ({
+test('@p1 1.8-E2E-005 work older than five days raises the banner, and a new shell waits for an empty outbox', async ({
   page,
   context,
   seed,

@@ -51,7 +51,7 @@ async function syncNow(page: Page): Promise<void> {
   await expect(button).not.toHaveAttribute('aria-disabled', 'true', { timeout: 30_000 });
 }
 
-test('@p0 1.6-E2E-001 Home shows the status board, the current relatório first and the three device states', async ({
+test('@p1 1.6-E2E-001 Home shows the status board, the current relatório first and the three device states', async ({
   page,
   seed,
 }) => {
@@ -173,7 +173,7 @@ test('@p0 1.6-E2E-001 Home shows the status board, the current relatório first 
   await expect(page.locator('.shortcut-card .sync-badge')).toHaveCount(0);
 });
 
-test('@p0 1.6-E2E-002 a device with nothing on it says so and offers a disabled "Novo relatório"', async ({
+test('@p1 1.6-E2E-002 a device with nothing on it says so and offers a disabled "Novo relatório"', async ({
   page,
   seed,
 }) => {
@@ -186,7 +186,7 @@ test('@p0 1.6-E2E-002 a device with nothing on it says so and offers a disabled 
   await expect(page.locator('.btn-reason', { hasText: 'Disponível em uma próxima etapa' }).first()).toBeVisible();
 });
 
-test('@p0 1.6-E2E-003 a cold open with a session and no connection renders from the device', async ({ page, seed }) => {
+test('@p1 1.6-E2E-003 a cold open with a session and no connection renders from the device', async ({ page, seed }) => {
   const account = seed.companies[0];
   await signIn(page, account.email);
 
