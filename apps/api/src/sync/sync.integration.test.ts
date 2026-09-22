@@ -660,6 +660,42 @@ describe('2.5-API-004 manufacturer/voltage_class normalized-name merge', () => {
     expect(live[0]?.id).toBe(existingId);
     expect((live[0]?.row as { gender: string | null }).gender).toBe('m');
   });
+
+  it('never merges across companies: two companies with the same normalized name each keep their own row (AD-10)', async () => {
+    const idA = newId();
+    const idB = newId();
+    await pushOk(companyA, [manufacturerCreate(idsA, idA, 'CrossTenantProbe')]);
+    await pushOk(companyB, [manufacturerCreate(idsB, idB, 'CROSSTENANTPROBE')]);
+
+    const rows = await db
+      .select({ id: entities.id, company_id: entities.company_id, removed_at: entities.removed_at, row: entities.row })
+      .from(entities)
+      .where(and(eq(entities.entity, 'registry'), inArray(entities.id, [idA, idB])));
+    const live = rows.filter((r) => r.removed_at === null && (r.row as { kind: string }).kind === 'manufacturer');
+    expect(live).toHaveLength(2);
+    expect(live.find((r) => r.id === idA)?.company_id).toBe(companyA.companyId);
+    expect(live.find((r) => r.id === idB)?.company_id).toBe(companyB.companyId);
+  });
+
+  it('never merges two blank-name creates: an empty/unset name is never treated as a duplicate (independent review, PR #14 finding 1)', async () => {
+    const id1 = newId();
+    const id2 = newId();
+    written.entityIds.add(id1);
+    written.entityIds.add(id2);
+    const create1 = manufacturerCreate(idsA, id1, '');
+    const create2 = manufacturerCreate(idsA, id2, '');
+    const put2 = op(idsA, { kind: 'put', scope: 'company', path: `registry/manufacturer/${id2}/gender`, value: 'f' });
+    const result = await pushOk(companyA, [create1, create2, put2]);
+    expect(result.rejected).toEqual([]);
+
+    const rows = await db
+      .select({ id: entities.id, removed_at: entities.removed_at, row: entities.row })
+      .from(entities)
+      .where(and(eq(entities.company_id, companyA.companyId), eq(entities.entity, 'registry'), inArray(entities.id, [id1, id2])));
+    const live = rows.filter((r) => r.removed_at === null && (r.row as { kind: string }).kind === 'manufacturer');
+    expect(live).toHaveLength(2);
+    expect((live.find((r) => r.id === id2)?.row as { gender: string | null } | undefined)?.gender).toBe('f');
+  });
 });
 
 describe('the registration as user ops (retro A2)', () => {

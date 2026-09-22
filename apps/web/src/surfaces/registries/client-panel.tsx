@@ -1,5 +1,5 @@
 import { formatCnpj, isValidCnpjFormat, type ClientRow, type OpDraft } from '@app/domain';
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Button, ConfirmDialog, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { now } from '../../clock.ts';
@@ -272,6 +272,26 @@ interface SitesFieldProps {
 function SitesField({ sites, label, addLabel, removeLabel, onCommit }: SitesFieldProps) {
   const [rows, setRows] = useState<Site[]>([...sites]);
   const committer = useFieldCommit<Site[]>({ commit: onCommit });
+  const containerRef = useRef<HTMLDivElement>(null);
+  // Independent review, PR #14 finding 3: removing a site row (especially the only one) left
+  // the removed button's focus falling back to <body>. Set on removal, consumed by the effect
+  // below once the DOM reflects the shorter `rows` array, moving focus to the remove button now
+  // at the same index (clamped) or, once the list is empty, to the "Adicionar" button.
+  const pendingFocusIndex = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (pendingFocusIndex.current === null) return;
+    const index = pendingFocusIndex.current;
+    pendingFocusIndex.current = null;
+    const container = containerRef.current;
+    if (container === null) return;
+    const removeButtons = container.querySelectorAll<HTMLButtonElement>('.site-row .icon-btn');
+    if (removeButtons.length > 0) {
+      removeButtons[Math.min(index, removeButtons.length - 1)]?.focus();
+    } else {
+      container.querySelector<HTMLButtonElement>('.btn-text')?.focus();
+    }
+  }, [rows]);
 
   function typed(next: Site[]): void {
     setRows(next);
@@ -283,8 +303,13 @@ function SitesField({ sites, label, addLabel, removeLabel, onCommit }: SitesFiel
     committer.immediate(next);
   }
 
+  function removeSite(index: number, id: string): void {
+    discrete(rows.filter((row) => row.id !== id));
+    pendingFocusIndex.current = index;
+  }
+
   return (
-    <div className="field span-2">
+    <div className="field span-2" ref={containerRef}>
       <span className="field-label">{label}</span>
       <div className="site-list">
         {rows.map((site, index) => (
@@ -307,7 +332,7 @@ function SitesField({ sites, label, addLabel, removeLabel, onCommit }: SitesFiel
               type="button"
               className="icon-btn"
               aria-label={removeLabel(index + 1)}
-              onClick={() => discrete(rows.filter((row) => row.id !== site.id))}
+              onClick={() => removeSite(index, site.id)}
             >
               <svg className="ico" aria-hidden="true">
                 <use href="/sprite.svg#i-close" />

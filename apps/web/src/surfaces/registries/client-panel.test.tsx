@@ -110,4 +110,26 @@ describe('ClientPanel — sites sub-list', () => {
     await user.click(screen.getByRole('button', { name: 'Remover obra 1' }));
     expect(screen.queryByRole('button', { name: 'Remover obra 1' })).not.toBeInTheDocument();
   });
+
+  // Independent review, PR #14 finding 3: removing the only site row left focus falling back
+  // to <body>. The removal now moves focus to "Adicionar obra" instead.
+  it('moves focus to "Adicionar obra" after removing the only site row', async () => {
+    const user = userEvent.setup();
+    renderPanel(false);
+    await user.click(screen.getByRole('button', { name: 'Adicionar obra' }));
+    await user.click(screen.getByRole('button', { name: 'Remover obra 1' }));
+    expect(screen.getByRole('button', { name: 'Adicionar obra' })).toHaveFocus();
+  });
+
+  // Removing one row out of several moves focus to the remove button now at the same index,
+  // not to <body>.
+  it('moves focus to the next remove button after removing a middle site row', async () => {
+    const user = userEvent.setup();
+    renderPanel(false);
+    await user.click(screen.getByRole('button', { name: 'Adicionar obra' }));
+    await user.click(screen.getByRole('button', { name: 'Adicionar obra' }));
+    await user.click(screen.getByRole('button', { name: 'Adicionar obra' }));
+    await user.click(screen.getByRole('button', { name: 'Remover obra 1' }));
+    expect(screen.getByRole('button', { name: 'Remover obra 1' })).toHaveFocus();
+  });
 });

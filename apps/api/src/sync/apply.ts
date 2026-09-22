@@ -194,8 +194,12 @@ async function applyOne(
       const mergePath = parsePath(mergedOp.path);
       if (mergePath.family === 'registry' && (mergePath.kind === 'manufacturer' || mergePath.kind === 'voltage_class')) {
         const incomingName = (mergedOp.value as { name?: unknown } | null)?.name;
-        if (typeof incomingName === 'string') {
-          const normalized = normalizeRegistryName(incomingName);
+        const normalized = typeof incomingName === 'string' ? normalizeRegistryName(incomingName) : '';
+        // An empty/blank name never merges: normalizeRegistryName('') === '' would otherwise
+        // collide every blank-name row into one, silently dropping whichever fields (gender,
+        // number) a later create's non-name-first field commit carried (independent review,
+        // PR #14 finding 1 — reproduced via two blank-name creates colliding server-side).
+        if (typeof incomingName === 'string' && normalized !== '') {
           const candidates = await tx
             .select({ id: entities.id, row: entities.row })
             .from(entities)
