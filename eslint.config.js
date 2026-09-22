@@ -88,4 +88,22 @@ export default tseslint.config(
     ignores: ['apps/web/src/{sync,files,api}/**'],
     rules: { 'no-restricted-syntax': ['error', ...fetchSelectors] },
   },
+  // Store boundary (AD-1, AD-3): raw Dexie tables and useLiveQuery are reached only through src/db.
+  {
+    files: ['apps/web/src/**/*.{ts,tsx}'],
+    ignores: ['apps/web/src/db/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            bannedImport(['@app/api', '@app/api/*'], 'apps/web must not import apps/api.'),
+            { regex: '(^|/)apps/api(/|$)', message: 'apps/web must not import apps/api.' },
+            { regex: '^(\\.\\./){3,}api(/|$)', message: 'apps/web must not import apps/api.' },
+            bannedImport(['dexie', 'dexie/*', 'dexie-react-hooks'], 'dexie is imported only in apps/web/src/db.'),
+          ],
+        },
+      ],
+    },
+  },
 );

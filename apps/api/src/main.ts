@@ -1,6 +1,7 @@
 import { serve } from '@hono/node-server';
 import { loadConfigOrExit } from './config.ts';
 import { createDb } from './db/client.ts';
+import { migrate } from './db/migrate.ts';
 import { createApp } from './http/app.ts';
 import { probeLibreOffice } from './jobs/generate/libreoffice.ts';
 import { startQueue } from './jobs/queue.ts';
@@ -9,7 +10,7 @@ import { createS3, ensureBucket, probeStorage } from './storage/s3.ts';
 
 const config = loadConfigOrExit();
 
-const db = createDb(config.DATABASE_URL);
+const { sql, db } = createDb(config.DATABASE_URL);
 const s3 = createS3(config);
 
 async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
@@ -24,11 +25,13 @@ async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
   }
 }
 
+await withRetry('database', () => migrate(db));
+log('migrations applied');
 await withRetry('storage', () => ensureBucket(s3, config.S3_BUCKET));
 const boss = await withRetry('queue', () => startQueue(config.DATABASE_URL));
 
 const app = createApp({
-  db: () => db`select 1`,
+  db: () => sql`select 1`,
   queue: () => boss.getQueues(),
   storage: () => probeStorage(s3, config.S3_BUCKET),
   libreoffice: probeLibreOffice,
