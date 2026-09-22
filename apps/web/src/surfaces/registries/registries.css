@@ -1,0 +1,85 @@
+/*
+ * Page-only layout of the Registries surface's Instrumentos tab, copied from
+ * `80-cadastros.html`'s own `<style data-screen="cadastros">` block (screen-scoped in
+ * the mock too, not part of components.css) — same pattern as `account.css`. The
+ * `.frame-*` breakpoint variants of these same rules live in `app.css` instead, per
+ * AGENTS.md "Mock container selectors" (every `.frame-*` translation goes there);
+ * these are the base (always-on) declarations only.
+ *
+ * The Empresa/Fabricantes/Clientes/Classes/Critérios rules the mock's block also
+ * carries are not translated here — their stories add them when they build the real tab.
+ */
+
+.registry-layout {
+  display: flex;
+  flex: 1;
+  align-items: stretch;
+}
+
+.registry-main {
+  flex: 1;
+  min-width: 0;
+  padding: var(--sp-5) var(--gutter-tablet);
+}
+
+.registry-main.is-narrow {
+  max-width: calc(var(--content-max) + 2 * var(--gutter-desktop));
+}
+
+.registry-panel {
+  width: 480px;
+  flex: none;
+  border-left: 1px solid var(--border-hairline);
+  background: var(--surface-raised);
+  display: flex;
+  flex-direction: column;
+}
+
+.registry-panel .panel-head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-5) var(--gutter-desktop) 0;
+}
+
+.registry-panel .panel-body {
+  padding: var(--sp-4) var(--gutter-desktop) var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  flex: 1;
+}
+
+.registry-panel .panel-title {
+  font-size: var(--t-heading-size);
+  font-weight: var(--t-heading-weight);
+  line-height: var(--t-heading-lh);
+}
+
+.registry-panel .panel-meta {
+  font-size: var(--t-meta-size);
+  color: var(--ink-secondary);
+  margin-top: var(--sp-1);
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-4);
+}
+
+.field-grid .span-2 {
+  grid-column: 1 / -1;
+}
+
+.registry-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+
+.registry-toolbar .field {
+  flex: 1 1 280px;
+}

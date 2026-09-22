@@ -200,4 +200,73 @@ export const copy = {
     back: 'Voltar',
     loading: 'Carregando…',
   },
+  // Registries (`80-cadastros.html`, `key-registries.html`). Instrumentos is the only
+  // real tab this story ships; the other five are placeholders (Stories 2.2-2.6), whose
+  // one shared sentence lives in `ui.ts` (component chrome, reused verbatim by each).
+  registries: {
+    title: 'Cadastros',
+    tabsLabel: 'Cadastros',
+    tabEmpresa: 'Empresa',
+    tabClientes: 'Clientes',
+    tabInstrumentos: 'Instrumentos',
+    tabFabricantes: 'Fabricantes',
+    tabClassesTensao: 'Classes de tensão',
+    tabCriterios: 'Critérios de aceitação',
+    instrumentos: {
+      newInstrument: 'Novo instrumento',
+      // authored: the mock's empty state for a fresh registry is not drawn; the label
+      // doubles as the empty-state action per Story 2.1's AC.
+      empty: 'Cadastrar instrumento',
+      note: 'Ordenados por validade da calibração — vencidos primeiro. Selecionar por código na ficha preenche série, RBC e tensão de ensaio.',
+      close: 'Fechar edição',
+      // authored: AC2 drops the mock's "Salvar" button (every field autosaves); the
+      // panel needs a close action in its place.
+      panelClose: 'Fechar',
+      codeLabel: 'Código',
+      manufacturerLabel: 'Fabricante',
+      nameLabel: 'Nome',
+      modelLabel: 'Tipo / modelo',
+      serialLabel: 'Nº de série',
+      certNumberLabel: 'Certificado RBC nº',
+      // authored: `rbc_accredited` is a schema field the mock does not draw a control
+      // for; placed beside "Certificado RBC nº" since both describe the RBC certificate.
+      rbcAccreditedLabel: 'Acreditado pela RBC',
+      calibratedAtLabel: 'Data de calibração',
+      // authored: the interval that feeds Validade is a schema field the mock's single
+      // frame does not draw a control for (it only shows the computed result).
+      calibrationIntervalLabel: 'Intervalo de calibração (meses)',
+      // authored: worded to never repeat "Data de calibração" as a substring — the
+      // helper sits inside this field's own <label>, which would otherwise fold that
+      // text into its accessible name and collide with the other field's.
+      calibrationIntervalHelper: 'Some-se à calibração para calcular a validade',
+      validityLabel: 'Validade',
+      validityHelper: 'Vencida = linha âmbar na ficha; nunca bloqueia',
+      laboratoryLabel: 'Emissor do certificado',
+      certificateLabel: 'Arquivo do certificado',
+      // authored: Story 2.2 owns the upload; this story draws the tile disabled.
+      certificateHelper: 'PDF ou imagem. Anexado na Story 2.2 — indisponível aqui.',
+      certificatePlaceholder: 'Nenhum arquivo',
+      // authored: one label per test type, reused for the three independent defaults
+      // (AR-18 extends the mock's single "Isolação" row to the other two test types).
+      testDefaultLabel: (testName: string) => `Padrão de ensaio — ${testName}`,
+      testDefaultHelper: 'Preenche a ficha ao escolher o instrumento; o aceitável vem do critério, não daqui',
+      testIsolacao: 'Isolação',
+      testResistenciaContato: 'Resistência de contato',
+      testRelacaoTransformacao: 'Relação de transformação',
+      valueLabel: 'Valor',
+      unitLabel: 'Unidade',
+      archive: 'Arquivar',
+      remove: 'Remover',
+      // authored: no mock draws the referenced-instrument reason with real numbers (no
+      // block exists before Epic 5); this states the true rule without inventing a count.
+      archiveOnlyReason: (code: string) =>
+        `Remover indisponível: ${code} está referenciado em fichas. Arquivar tira o ${code} das listas e mantém as fichas.`,
+      archived: (code: string) => `${code} arquivado`,
+      removeConfirmTitle: (code: string) => `Remover ${code}?`,
+      removeConfirmBody: 'O instrumento sai do cadastro; nada referencia ele hoje.',
+      removed: (code: string) => `${code} removido`,
+      undo: 'Desfazer',
+      cancel: 'Cancelar',
+    },
+  },
 } as const;

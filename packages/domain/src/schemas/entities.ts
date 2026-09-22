@@ -31,6 +31,9 @@ export const dateValueSchema = z.string().regex(/^\d{4}-\d{2}(-\d{2})?$/);
 /** A field whose definition (AD-11) resolves through the seed: any JSON until Story 3.1. */
 export const fieldValueSchema = jsonValueSchema;
 
+/** AR-18: an instrument's default test voltage/current for one test type, or unset. */
+export const instrumentTestDefaultSchema = z.object({ raw: nullableString, unit: nullableString }).nullable();
+
 /** Every sheet cell carries its provenance (AD-12). */
 export const cellSchema = z.object({
   value: fieldValueSchema,
@@ -94,13 +97,20 @@ export const registryRowSchemas = {
     ...registryBase,
     kind: z.literal('instrument'),
     code: z.string(),
+    name: z.string(),
     manufacturer: nullableString,
     model: nullableString,
     serial: nullableString,
     cert_number: nullableString,
+    laboratory: nullableString,
     calibrated_at: dateValueSchema.nullable(),
-    valid_until: dateValueSchema.nullable(),
-    test_parameter: nullableString,
+    calibration_interval_months: z.number().int().positive().nullable(),
+    rbc_accredited: z.boolean().nullable(),
+    // AR-18: independent per-test-type default; `valid_until` was never stored (Story
+    // 2.1) — it is computed-only from `calibrated_at` + `calibration_interval_months`.
+    test_isolacao: instrumentTestDefaultSchema,
+    test_resistencia_contato: instrumentTestDefaultSchema,
+    test_relacao_transformacao: instrumentTestDefaultSchema,
     certificate_file_id: nullableId,
   }),
   manufacturer: z.object({ ...registryBase, kind: z.literal('manufacturer'), ...wordMetadata }),

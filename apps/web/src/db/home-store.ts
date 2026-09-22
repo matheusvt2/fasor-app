@@ -1,4 +1,12 @@
-import { entityRowSchemas, type ProjectRow, type RegistryRow, type RelatorioRow, type TemplateRow } from '@app/domain';
+import {
+  entityRowSchemas,
+  type BlockRow,
+  type InstrumentRow,
+  type ProjectRow,
+  type RegistryRow,
+  type RelatorioRow,
+  type TemplateRow,
+} from '@app/domain';
 import { type AppDatabase, type EntityRecord } from './schema.ts';
 
 /*
@@ -32,6 +40,17 @@ export function projectRows(db: AppDatabase): Promise<ProjectRow[]> {
 export async function clientRows(db: AppDatabase): Promise<RegistryRow[]> {
   const registries = await rows<RegistryRow>(db, 'registry');
   return registries.filter((row) => row.kind === 'client');
+}
+
+/** The `instrument` registry rows, for the Instrumentos tab (Story 2.1). */
+export async function instrumentRows(db: AppDatabase): Promise<InstrumentRow[]> {
+  const registries = await rows<RegistryRow>(db, 'registry');
+  return registries.filter((row): row is InstrumentRow => row.kind === 'instrument');
+}
+
+/** Every block on this device, for `isInstrumentReferenced` (AC4). */
+export function blockRows(db: AppDatabase): Promise<BlockRow[]> {
+  return rows<BlockRow>(db, 'block');
 }
 
 export function templateRows(db: AppDatabase): Promise<TemplateRow[]> {
