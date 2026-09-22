@@ -41,7 +41,7 @@ development_status:
   1-3-sign-in-and-hold-a-session-that-survives-offline: done
   1-4-every-change-is-an-operation-applied-locally-first: done
   1-5-what-i-did-on-the-tablet-reaches-the-office-by-itself: done
-  1-6-home-and-account-show-what-is-on-this-device: review
+  1-6-home-and-account-show-what-is-on-this-device: done
   1-7-reach-the-local-stack-from-a-tablet-over-https: done
   1-8-nothing-captured-is-lost-when-the-tab-closes-the-network-dro: backlog
   epic-1-retrospective: optional
