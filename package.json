@@ -1,0 +1,29 @@
+{
+  "name": "@app/root",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.5.1",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "lint": "eslint .",
+    "static": "pnpm -r --workspace-concurrency=1 run typecheck && tsc -p tsconfig.json",
+    "test:unit": "pnpm --filter @app/domain --filter @app/web run test && vitest run",
+    "test:api": "pnpm --filter @app/api run test:fast",
+    "test:e2e": "playwright test --grep @p0",
+    "test:reset": "tsx scripts/test-reset.ts",
+    "verify": "pnpm lint && pnpm static && pnpm test:unit && pnpm test:api && pnpm test:e2e"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-s3": "3.1134.0",
+    "@eslint/js": "^10.0.0",
+    "@playwright/test": "1.63.0",
+    "@types/node": "^24.0.0",
+    "eslint": "^10.11.0",
+    "globals": "^16.0.0",
+    "postgres": "^3.4.9",
+    "tsx": "^4.23.0",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "~8.70.1",
+    "vitest": "^5.0.1"
+  }
+}
