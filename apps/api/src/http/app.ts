@@ -1,6 +1,7 @@
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, resolve, sep } from 'node:path';
 import type { Clock, ErrorResponse } from '@app/domain';
+import type { S3Client } from '@aws-sdk/client-s3';
 import { Hono } from 'hono';
 import type { Auth } from '../auth/auth.ts';
 import { now as clock } from '../clock.ts';
@@ -8,6 +9,7 @@ import type { Db } from '../db/client.ts';
 import { log, logError } from '../log.ts';
 import { createSyncRoutes } from '../sync/routes.ts';
 import { createAccountRoutes } from './account.ts';
+import { createFileRoutes } from './files.ts';
 import { createHealthRoutes, type HealthProbes } from './health.ts';
 import { type AppEnv, sessionMiddleware, UnauthenticatedError, unauthenticatedError } from './session.ts';
 
@@ -69,6 +71,9 @@ export interface AppOptions {
   probes: HealthProbes;
   auth: Auth;
   db: Db;
+  /** The object store the file routes read and write (AD-7). */
+  s3: S3Client;
+  bucket: string;
   /** Overridable for tests; defaults to the bind-mounted `apps/web/dist`. */
   staticDir?: string;
   /** Overridable for tests; defaults to the process clock. */
@@ -116,6 +121,9 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
   app.use('/api/*', sessionMiddleware(options.auth));
   app.route('/', createAccountRoutes(options.db));
   app.route('/', createSyncRoutes(options.db, { now: options.now ?? clock }));
+  // AD-7: mounted after the sync routes so it sits behind the same `/api/*` session
+  // middleware; every handler resolves its company from the session (AD-10).
+  app.route('/', createFileRoutes(options.db, options.s3, options.bucket, { now: options.now ?? clock }));
 
   // Every /api answer, including "no such route", is the ErrorResponse envelope.
   app.notFound((c) =>

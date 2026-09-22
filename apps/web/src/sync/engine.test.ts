@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { makeOp, type Op, type OpInput, type SyncPullResponse, type SyncPushResponse } from '@app/domain';
+import { makeOp, type FilePutResponse, type FileVariantName, type Op, type OpInput, type SyncPullResponse, type SyncPushResponse } from '@app/domain';
 import { BLOCK_1_ID, COMPANY_ID, EQUIPMENT_1_ID, PROJECT_ID, RELATORIO_ID, replaySmall, USER_ID } from '@app/domain/fixtures/replay-small';
 import { describe, expect, it, vi } from 'vitest';
 import { commitOps } from '../db/commit.ts';
@@ -76,6 +76,48 @@ class FakeServer implements SyncClient {
         relatorios: this.relatorios.map((r) => ({ ...r, template_id: null, seed_version: 'v1', updated_seq: 1 })),
       },
     };
+  }
+
+  /** `PUT /api/files/{id}`: stores the bytes and appends the `uploaded_at` server op. */
+  uploads: string[] = [];
+  fetches: string[] = [];
+  private serverOpSeq = 0;
+  uploadsInFlight = 0;
+  maxUploadsInFlight = 0;
+  failUpload: (id: string) => SyncFailure | null = () => null;
+
+  async uploadFile(id: string, blob: Blob, sha256: string): Promise<FilePutResponse> {
+    this.uploads.push(id);
+    this.uploadsInFlight += 1;
+    this.maxUploadsInFlight = Math.max(this.maxUploadsInFlight, this.uploadsInFlight);
+    try {
+      await Promise.resolve();
+      const failure = this.failUpload(id);
+      if (failure) throw new SyncRequestError(failure);
+      const uploaded_at = '2026-09-21T16:05:00.000Z';
+      const row = this.log.find((op) => op.path === `file/${id}`);
+      if (!row) throw new SyncRequestError({ kind: 'http', status: 409, code: 'file_row_missing' });
+      void blob;
+      void sha256;
+      this.log.push({
+        ...row,
+        op_id: `019966b0-00ff-7000-8000-${String(++this.serverOpSeq).padStart(12, '0')}`,
+        kind: 'put',
+        path: `file/${id}/uploaded_at`,
+        value: uploaded_at,
+        actor_id: 'system:files',
+        device_id: 'server',
+        seq: this.log.length + 1,
+      });
+      return { id, uploaded_at, variants: null };
+    } finally {
+      this.uploadsInFlight -= 1;
+    }
+  }
+
+  async fetchFile(id: string, variant: FileVariantName): Promise<Blob> {
+    this.fetches.push(id);
+    return new Blob([`${id}:${variant}`]);
   }
 
   async pullRelatorio(id: string, since: number): Promise<SyncPullResponse> {
@@ -719,6 +761,140 @@ describe('sync engine', () => {
     expect(h.engine.status().supersededCount).toBe(1);
     const block = (await h.db.entities.get(['block', BLOCK_1_ID]))!.row as { sheet: { nameplate: Record<string, { value: unknown }> } };
     expect(block.sheet.nameplate.fabricante?.value).toBe('GOOD');
+    h.db.close();
+  });
+});
+
+describe('2.2 upload phase', () => {
+  /** A `file/{id}` create op plus its Blob, committed the way `commitFileBatch` does. */
+  async function pickFile(h: Harness, id: string, sha = 'abc123'): Promise<void> {
+    const op = makeOp(
+      {
+        kind: 'create',
+        scope: 'company',
+        company_id: COMPANY_ID,
+        relatorio_id: null,
+        project_id: null,
+        prev_op_id: null,
+        batch_id: null,
+        meta: null,
+        path: `file/${id}`,
+        value: {
+          id,
+          company_id: COMPANY_ID,
+          relatorio_id: null,
+          kind: 'certificate',
+          sha256: sha,
+          mime: 'application/pdf',
+          size: 4,
+          uploaded_at: null,
+          variants: null,
+          removed_at: null,
+        },
+        actor_id: USER_ID,
+        device_id: 'tablet-a',
+      },
+      { newId: ids(`019966b0-00${id.slice(-2)}-7000-8000-`), now: new Date('2026-09-21T16:30:00.000Z') },
+    );
+    await commitOps(h.db, [op]);
+    await h.db.files.put({ id, variant: 'original', blob: new Blob(['abcd']), acked: false, created_at: '2026-09-21T16:30:00.000Z' });
+  }
+
+  const FILE_A = '019966b0-0000-7000-8000-0000000000a1';
+  const FILE_B = '019966b0-0000-7000-8000-0000000000b2';
+  const FILE_C = '019966b0-0000-7000-8000-0000000000c3';
+
+  it('uploads after the push and before the pull, and the row carries uploaded_at afterwards', async () => {
+    const h = await harness();
+    await pickFile(h, FILE_A);
+    expect(await h.engine.runCycle()).toBe('ran');
+
+    expect(h.server.uploads).toEqual([FILE_A]);
+    // The pull ran after the upload, so the server op came back in the same cycle.
+    const row = (await h.db.entities.get(['file', FILE_A]))!.row as { uploaded_at: string | null };
+    expect(row.uploaded_at).toBe('2026-09-21T16:05:00.000Z');
+    expect((await h.db.files.get(FILE_A))!.acked).toBe(true);
+    expect((await h.db.sync_state.get('company'))!.files_pending).toBe(0);
+    h.db.close();
+  });
+
+  it('does not upload before the create op is acked, and never prefetches an original', async () => {
+    const h = await harness();
+    await pickFile(h, FILE_A);
+    // A push the server accepts but does not ack: the outbox row stays `sent`, so the
+    // route's precondition is not met and the uploader leaves the file alone.
+    const real = h.server.pushOps.bind(h.server);
+    h.server.pushOps = async () => ({ applied: [], rejected: [], superseded: [] });
+    await h.engine.runCycle();
+    expect(h.server.uploads).toEqual([]);
+
+    h.server.pushOps = real;
+    await h.engine.runCycle();
+    expect(h.server.uploads).toEqual([FILE_A]);
+    // AC 2.2-3: a full cycle downloads no file bytes, ever.
+    expect(h.server.fetches).toEqual([]);
+    h.db.close();
+  });
+
+  it('keeps two uploads in flight and isolates one failure from the rest', async () => {
+    const h = await harness();
+    await pickFile(h, FILE_A);
+    await pickFile(h, FILE_B);
+    await pickFile(h, FILE_C);
+    // The middle file answers a permanent verdict; the other two still upload.
+    h.server.failUpload = (id) => (id === FILE_B ? { kind: 'http', status: 409, code: 'file_sha_mismatch' } : null);
+
+    expect(await h.engine.runCycle()).toBe('ran');
+    expect(h.server.maxUploadsInFlight).toBeLessThanOrEqual(2);
+    expect((await h.db.files.get(FILE_A))!.acked).toBe(true);
+    expect((await h.db.files.get(FILE_C))!.acked).toBe(true);
+    expect((await h.db.files.get(FILE_B))!.acked).toBe(false);
+    expect((await h.db.sync_state.get('company'))!.files_pending).toBe(1);
+    // One unusable file is not a verdict on the cycle: the push and the pull both
+    // finished, so nothing may claim the server was unreachable (the eviction-recovery
+    // screen dismisses on exactly this).
+    expect(h.engine.status().lastFailure).toBeNull();
+
+    // Permanent: the next cycle does not try it again, but its blob is still unacked
+    // work on the device, so it stays counted.
+    const before = h.server.uploads.length;
+    await h.engine.runCycle();
+    expect(h.server.uploads.slice(before)).toEqual([]);
+    expect((await h.db.sync_state.get('company'))!.files_pending).toBe(1);
+    h.db.close();
+  });
+
+  it('counts the files it never reached when the phase is cut short by a 401', async () => {
+    const h = await harness();
+    await pickFile(h, FILE_A);
+    await pickFile(h, FILE_B);
+    await pickFile(h, FILE_C);
+    // Every upload answers 401, so the first two workers end the phase at once and the
+    // third file is never attempted at all -- it is still waiting, and must be counted.
+    h.server.failUpload = () => ({ kind: 'http', status: 401 });
+
+    await h.engine.runCycle();
+    expect(h.onReAuth).toHaveBeenCalled();
+    expect((await h.db.sync_state.get('company'))!.files_pending).toBe(3);
+    h.db.close();
+  });
+
+  it('leaves a file pending on 409 file_row_missing and retries it next cycle', async () => {
+    const h = await harness();
+    await pickFile(h, FILE_A);
+    let missing = true;
+    h.server.failUpload = () => (missing ? { kind: 'http', status: 409, code: 'file_row_missing' } : null);
+
+    await h.engine.runCycle();
+    expect(h.server.uploads).toEqual([FILE_A]);
+    expect((await h.db.files.get(FILE_A))!.acked).toBe(false);
+    // Retryable: nothing is recorded as a server failure.
+    expect(h.engine.status().lastFailure).toBeNull();
+
+    missing = false;
+    await h.engine.runCycle();
+    expect(h.server.uploads).toEqual([FILE_A, FILE_A]);
+    expect((await h.db.files.get(FILE_A))!.acked).toBe(true);
     h.db.close();
   });
 });

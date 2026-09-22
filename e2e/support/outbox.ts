@@ -195,6 +195,43 @@ export async function readStore<T = unknown>(page: Page, database: string, store
   return rows as T[];
 }
 
+export interface FileBlobSummary {
+  id: string;
+  variant: string;
+  acked: boolean;
+  name: string | null;
+  size: number;
+}
+
+/**
+ * The `files` store without the Blobs: a Blob cannot cross `page.evaluate`, so the rows
+ * are projected in the browser and only their summary comes back.
+ */
+export async function readFileBlobs(page: Page, database: string): Promise<FileBlobSummary[]> {
+  return page.evaluate(async (name: string) => {
+    const open = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open(name);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const all = await new Promise<{ id: string; variant: string; acked: boolean; name?: string; blob: Blob }[]>(
+      (resolve, reject) => {
+        const request = open.transaction('files', 'readonly').objectStore('files').getAll();
+        request.onsuccess = () => resolve(request.result as never);
+        request.onerror = () => reject(request.error);
+      },
+    );
+    open.close();
+    return all.map((row) => ({
+      id: row.id,
+      variant: row.variant,
+      acked: row.acked,
+      name: row.name ?? null,
+      size: row.blob?.size ?? 0,
+    }));
+  }, database);
+}
+
 /** Pulls one stream to its head through the contract, page by page, and returns every op. */
 export async function pullAll(request: APIRequestContext, path: string): Promise<{ ops: Op[]; seq: number }> {
   const ops: Op[] = [];

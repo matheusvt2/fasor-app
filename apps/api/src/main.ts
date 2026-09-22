@@ -44,6 +44,8 @@ const auth = createAuth({
 const app = createApp({
   auth,
   db,
+  s3,
+  bucket: config.S3_BUCKET,
   probes: {
     db: () => sql`select 1`,
     queue: () => boss.getQueues(),

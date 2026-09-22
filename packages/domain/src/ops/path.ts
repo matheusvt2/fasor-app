@@ -41,26 +41,19 @@ export const FILE_SERVER_FIELDS = ['uploaded_at', 'variants', 'reading_status'] 
 export const GENERATION_JOB_FIELDS = ['status', 'error', 'result_file_id'] as const;
 
 /** Keys a `{field}` segment may never name: identity, ownership and derived values are set at create. */
-const IMMUTABLE_KEYS = new Set([
-  'id',
-  'kind',
-  'company_id',
-  'relatorio_id',
-  'project_id',
-  'email',
-  'origin',
-  'version',
-  'seed_version',
-]);
+const IMMUTABLE_KEYS = new Set(['id', 'kind', 'company_id', 'relatorio_id', 'project_id', 'origin', 'version', 'seed_version']);
 
-function mutableKeys(keys: readonly string[]): readonly string[] {
-  return keys.filter((k) => !IMMUTABLE_KEYS.has(k));
+function mutableKeys(keys: readonly string[], alsoImmutable: readonly string[] = []): readonly string[] {
+  return keys.filter((k) => !IMMUTABLE_KEYS.has(k) && !alsoImmutable.includes(k));
 }
 
 const PROJECT_FIELDS = mutableKeys(entityKeys('project'));
 const POINT_FIELDS = mutableKeys(entityKeys('point'));
 const TEMPLATE_FIELDS = mutableKeys(entityKeys('template'));
-const USER_FIELDS = mutableKeys(entityKeys('user'));
+// `user.email` is identity-owned: better-auth writes it, never an op (AD-9). It is
+// immutable for the `user` entity alone -- the Empresa registry's own `email` is a
+// contact field a device edits like any other (Story 2.3).
+const USER_FIELDS = mutableKeys(entityKeys('user'), ['email']);
 
 const fieldOf = (keys: readonly string[]) => z.string().refine((f) => keys.includes(f));
 

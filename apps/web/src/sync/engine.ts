@@ -10,9 +10,19 @@ import {
   writeSyncState,
 } from '../db/sync-store.ts';
 import { opOf } from '../db/commit.ts';
+import { markBlobAcked, pendingUploads, type PendingUpload } from '../db/file-store.ts';
 import type { Timers } from '../input/field-commit.ts';
 import { SyncRequestError, type SyncClient, type SyncFailure } from './client.ts';
-import { backoffMs, batches, classifyFailure, isUnreachableFailure, MAX_ATTEMPTS, parsePulled, type FailureAction } from './policy.ts';
+import {
+  backoffMs,
+  batches,
+  classifyFailure,
+  classifyUploadFailure,
+  isUnreachableFailure,
+  MAX_ATTEMPTS,
+  parsePulled,
+  type FailureAction,
+} from './policy.ts';
 
 /*
  * AD-8, AD-24: one fixed cycle, push -> pull company -> pull each relatorio, run
@@ -195,6 +205,97 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     }
   }
 
+  /** AD-7: two uploads at a time, so one big certificate never holds the queue. */
+  const UPLOAD_CONCURRENCY = 2;
+
+  /**
+   * Files this session will not try again: the server gave a verdict no retry can change
+   * (`file_sha_mismatch`, `413`). Kept in memory, not in Dexie — a reload is a new
+   * session and may well be a new (fixed) state.
+   */
+  const permanentlyFailed = new Set<string>();
+
+  /** One file, with the upload retry table; throws PhaseEnd only for re-auth and outdated. */
+  async function uploadOne(item: PendingUpload): Promise<'uploaded' | 'deferred' | 'failed'> {
+    for (let attempt = 1; ; attempt++) {
+      if (stopped || !deps.isOnline()) {
+        cycleWentOffline = true;
+        return 'deferred';
+      }
+      try {
+        await deps.client.uploadFile(item.id, item.blob, item.sha256);
+        // The bytes are on the server: AD-7's first eviction candidate. `uploaded_at`
+        // itself comes back with the next pull, as a `system:files` op.
+        await markBlobAcked(deps.db, item.id);
+        return 'uploaded';
+      } catch (error) {
+        if (!(error instanceof SyncRequestError)) throw error;
+        const action = classifyUploadFailure(error.failure);
+        // The create op has not been applied yet: nothing failed, the next cycle retries.
+        if (action === 'defer') return 'deferred';
+        if (action === 'reauth' || action === 'outdated') throw new PhaseEnd(action, error.failure);
+        if (action === 'permanent') {
+          // Not recorded as a cycle failure: the server answered, the push and the pull
+          // are unaffected, and `lastFailure` is what the badge and the eviction-recovery
+          // screen read as "the server could not be reached". One unusable file is a
+          // per-file verdict, not a verdict on the cycle.
+          permanentlyFailed.add(item.id);
+          console.error('file upload refused permanently', { id: item.id, failure: error.failure });
+          return 'failed';
+        }
+        if (attempt >= MAX_ATTEMPTS) {
+          recordFailure(error.failure);
+          return 'failed';
+        }
+        await sleep(backoffMs(attempt, deps.random));
+      }
+    }
+  }
+
+  /**
+   * AD-7: runs after the push and before the pull, so a file whose create op was just
+   * acked uploads in the same cycle and its `uploaded_at` comes back in that cycle's pull
+   * (AC 2.2-2). One file's failure is recorded and skipped; the queue never blocks.
+   */
+  async function uploadPhase(): Promise<void> {
+    const pending = await pendingUploads(deps.db);
+    const queue = pending.filter((item) => !permanentlyFailed.has(item.id));
+    // A file this session gave up on is still unacked work on the device, so it stays in
+    // the count even though no cycle will try it again.
+    const givenUp = pending.length - queue.length;
+    if (queue.length === 0) {
+      await setFilesPending(givenUp);
+      return;
+    }
+    let cursor = 0;
+    let uploaded = 0;
+    const worker = async (): Promise<void> => {
+      for (;;) {
+        const item = queue[cursor++];
+        if (item === undefined) return;
+        const result = await uploadOne(item);
+        if (result === 'uploaded') uploaded += 1;
+      }
+    };
+    const workers = Array.from({ length: Math.min(UPLOAD_CONCURRENCY, queue.length) }, worker);
+    // A re-auth or outdated verdict from any worker ends the phase; the others finish
+    // the file they are on, so nothing is left half-written.
+    const settled = await Promise.allSettled(workers);
+    // Counted by subtraction, so a phase cut short (re-auth, outdated, going offline)
+    // still counts the files the workers never reached, not only the ones they tried.
+    await setFilesPending(givenUp + queue.length - uploaded);
+    for (const outcome of settled) {
+      if (outcome.status === 'rejected') throw outcome.reason;
+    }
+  }
+
+  /** AD-8: how much file work is still waiting, kept on the company stream's row. */
+  async function setFilesPending(count: number): Promise<void> {
+    const state = (await readSyncState(deps.db, COMPANY_STREAM)) ?? emptyState(COMPANY_STREAM);
+    if (state.files_pending === count) return;
+    await writeSyncState(deps.db, { ...state, files_pending: count });
+  }
+
   /** Pulls one stream to its head, page by page; the cursor never passes an op the device cannot parse. */
   async function pullStream(
     id: string,
@@ -277,6 +378,9 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     emit();
     try {
       await runPhase(pushPhase);
+      // AD-7: the upload sits between the push and the pull, so a file whose create op
+      // this cycle just acked is uploaded now and its `uploaded_at` arrives below.
+      if (!status.paused && !stopped) await runPhase(uploadPhase);
       // A 401 during the push pauses the engine: nothing else runs until sign-in.
       if (!status.paused && !stopped) await runPhase(pullPhase);
     } finally {

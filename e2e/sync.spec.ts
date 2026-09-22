@@ -211,7 +211,10 @@ test('@p1 1.5-E2E-002 a rejected op is dead, excluded from state and listed with
   const dead = outbox.find((r) => r.op_id === rejected.op_id);
   expect(dead).toMatchObject({ status: 'dead', error_code: 'op_server_only', value: rejected.value });
   const entities = await readStore<{ entity: string; id: string }>(page, database, 'entities');
-  expect(entities.some((e) => e.entity === 'file')).toBe(false);
+  // Only *this* op's file: the company stream also carries the `file` rows Story 2.2's
+  // specs uploaded for the same seeded company, and those are legitimately materialized.
+  const rejectedFileId = rejected.path.split('/')[1];
+  expect(entities.some((e) => e.entity === 'file' && e.id === rejectedFileId)).toBe(false);
 
   // Reenviar returns it to pending and runs a cycle; the same rejection makes it dead again.
   await page.unroute((url) => url.pathname === '/api/sync/ops');

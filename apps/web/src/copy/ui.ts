@@ -55,6 +55,15 @@ export const ui = {
   // authored: shared by every Registries tab that is a placeholder for a later story
   // (Empresa, Clientes, Fabricantes, Classes de tensão, Critérios), so each stub file
   // says the same true thing rather than inventing its own wording.
+  // The words the shared upload tile owns, whatever surface it is on (AD-7).
+  uploadTile: {
+    // authored: the mocks draw "Escolher" on an empty tile and "Substituir" on a full one.
+    choose: 'Escolher',
+    replace: 'Substituir',
+    // authored: no mock draws a failed attach. The device refused the write (a full
+    // quota is the realistic case), so the file is not attached and the pick is the retry.
+    commitFailed: 'Não foi possível anexar o arquivo. Libere espaço no aparelho e escolha de novo.',
+  },
   registryTabPlaceholder: {
     text: 'Disponível em uma próxima etapa.',
   },

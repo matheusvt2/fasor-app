@@ -139,3 +139,25 @@ describe('1.4-UNIT-001 path round trip', () => {
     expect(opPathSchema.safeParse({ ...bogus, field: 'id' }).success).toBe(false);
   });
 });
+
+describe('2.3-UNIT-005 field immutability is per entity, not global', () => {
+  const EMPRESA = '019966b0-0000-7000-8000-000000000004';
+
+  it('accepts the Empresa contact e-mail as a field, and still refuses the user one', () => {
+    expect(parsePath(`registry/empresa/${EMPRESA}/email`)).toEqual({
+      family: 'registry/field',
+      kind: 'empresa',
+      id: EMPRESA,
+      field: 'email',
+    });
+    expect(parsePath(`registry/empresa/${EMPRESA}/phone`).family).toBe('registry/field');
+    expect(parsePath(`registry/empresa/${EMPRESA}/form_code`).family).toBe('registry/field');
+    // `user.email` is identity-owned and stays unwritable by any op (AD-9).
+    expect(() => parsePath(`user/${EMPRESA}/email`)).toThrow(PathError);
+  });
+
+  it('still refuses identity and ownership keys everywhere', () => {
+    expect(() => parsePath(`registry/empresa/${EMPRESA}/id`)).toThrow(PathError);
+    expect(() => parsePath(`registry/empresa/${EMPRESA}/kind`)).toThrow(PathError);
+  });
+});
