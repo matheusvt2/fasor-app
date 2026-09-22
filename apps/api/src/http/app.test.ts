@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { Auth } from '../auth/auth.ts';
+import type { S3Client } from '@aws-sdk/client-s3';
 import type { Db } from '../db/client.ts';
 import { createApp, resolveStaticTarget } from './app.ts';
 
@@ -14,7 +15,9 @@ const auth = {
   api: { getSession: async () => null },
 } as unknown as Auth;
 const db = {} as Db;
-const makeApp = (staticDir: string) => createApp({ probes, auth, db, staticDir });
+// Static serving never reaches the file routes either.
+const s3 = {} as S3Client;
+const makeApp = (staticDir: string) => createApp({ probes, auth, db, s3, bucket: 'test', staticDir });
 
 describe('static bundle serving + SPA fallback', () => {
   let staticDir: string;

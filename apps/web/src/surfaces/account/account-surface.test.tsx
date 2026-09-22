@@ -68,6 +68,7 @@ function syncState(pendingText: string, pendingCount: number): SyncState {
     syncNow: vi.fn(async () => 'ran' as const),
     syncRelatorio: vi.fn(async () => 'ran' as const),
     resendDead: vi.fn(async () => {}),
+    fetchFile: vi.fn(async () => new Blob()),
   };
 }
 

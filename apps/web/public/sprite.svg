@@ -37,4 +37,9 @@
     <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12" />
     <path d="M10 12h4" />
   </symbol>
+  <symbol id="i-image" viewBox="0 0 24 24">
+    <rect x="4" y="5" width="16" height="14" rx="1.5" />
+    <path d="M4 16l5-5 4 4 3-3 4 4" />
+    <circle cx="15.5" cy="9.5" r="1.5" />
+  </symbol>
 </svg>

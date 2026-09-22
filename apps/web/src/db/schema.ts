@@ -51,6 +51,12 @@ export interface FileBlobRow {
   blob: Blob;
   acked: boolean;
   created_at: string;
+  /**
+   * The name the file had on the device that picked it. Device-local and not indexed
+   * (so no new Dexie version): the kernel `file` row has no name column, and the tile
+   * falls back to the format and size on every other device (`fileTileLine`).
+   */
+  name?: string;
 }
 
 /** AD-8: one row per stream (`company` or a relatorio id). */

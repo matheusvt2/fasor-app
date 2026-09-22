@@ -8,6 +8,7 @@ import {
   rowRemovedAt,
   splitEntityKey,
   targetsOf,
+  toIso,
   type Clock,
   type EntityKey,
   type EntityRow,
@@ -139,6 +140,16 @@ export async function commitBatch(
   inputs: readonly OpDraft[],
   deps: CommitDeps,
 ): Promise<{ batch_id: string; ops: Op[] }> {
+  const { batch_id, ops } = await buildBatch(db, inputs, deps);
+  return { batch_id, ops: await commitOps(db, ops, deps) };
+}
+
+/** The ops of a batch, chained and stamped, before anything is written. */
+async function buildBatch(
+  db: AppDatabase,
+  inputs: readonly OpDraft[],
+  deps: CommitDeps,
+): Promise<{ batch_id: string; ops: Op[] }> {
   const device_id = await deviceId(db, deps.newId);
   const batch_id = deps.newId();
   const now = deps.now();
@@ -154,7 +165,46 @@ export async function commitBatch(
     lastInBatch.set(slot, chained.op_id);
     ops.push(chained);
   }
-  return { batch_id, ops: await commitOps(db, ops, deps) };
+  return { batch_id, ops };
+}
+
+export interface FileBatchInput {
+  /** The `file/{id}` create op and the owner's `_file_id` op, in that order. */
+  ops: readonly OpDraft[];
+  /** The bytes, written to `files` in the same transaction as the ops. */
+  blob: Blob;
+  fileId: string;
+  /** The picked file's name, kept device-locally for the tile line. */
+  fileName?: string;
+}
+
+/**
+ * AR-6, AD-7: a file batch is one transaction over `entities`, `outbox` **and** `files`.
+ * The `file/{id}` create op, the owner's `_file_id` op and the Blob land together or not
+ * at all -- an op without its bytes would upload nothing forever, and bytes without an op
+ * would never be uploaded at all.
+ */
+export async function commitFileBatch(
+  db: AppDatabase,
+  input: FileBatchInput,
+  deps: CommitDeps,
+): Promise<{ batch_id: string; ops: Op[] }> {
+  const { batch_id, ops } = await buildBatch(db, input.ops, deps);
+  const device_id = await deviceId(db, deps.newId);
+  const stamped = ops.map((op) => ({ ...op, device_id }));
+  const created_at = toIso(deps.now());
+  await db.transaction('rw', db.entities, db.outbox, db.files, async () => {
+    for (const op of stamped) await applyOne(db, op);
+    await db.files.put({
+      id: input.fileId,
+      variant: 'original',
+      blob: input.blob,
+      acked: false,
+      created_at,
+      ...(input.fileName === undefined ? {} : { name: input.fileName }),
+    });
+  });
+  return { batch_id, ops: stamped };
 }
 
 /** Undo: N inverse ops in a new batch, built from the outbox rows of the batch (dead rows never applied, AD-24). */

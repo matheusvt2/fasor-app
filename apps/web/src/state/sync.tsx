@@ -6,6 +6,7 @@ import {
   type LastPushAt,
   type RelatorioSummary,
   type SyncBadgeState,
+  type FileVariantName,
   type SyncCounts,
   type UserRow,
 } from '@app/domain';
@@ -16,7 +17,7 @@ import { COMPANY_STREAM, type OutboxRow, type SyncStateRow } from '../db/schema.
 import { deviceId, localUsers, outboxRows, resendDead as resendDeadRows, syncStateRows } from '../db/sync-store.ts';
 import { now } from '../clock.ts';
 import { newId } from '../ids.ts';
-import { createBrowserSyncClient } from '../sync/client.ts';
+import { createBrowserSyncClient, type SyncClient } from '../sync/client.ts';
 import type { SyncFailure } from '../sync/client.ts';
 import { unreachableCause } from '../sync/policy.ts';
 import { createSyncEngine, type CycleResult, type EngineStatus, type SyncEngine } from '../sync/engine.ts';
@@ -65,6 +66,12 @@ export interface SyncState {
   /** Starts following one relatório's stream and pulls it now (AD-8, "pulled on open"). */
   syncRelatorio: (relatorioId: string) => Promise<CycleResult>;
   resendDead: () => Promise<void>;
+  /**
+   * AD-7: the on-demand file read, handed to the surfaces so a tile can fill its
+   * thumbnail. It is the engine's own client, so `src/sync` stays the only caller of the
+   * network (AD-1); the cycle itself never fetches a file.
+   */
+  fetchFile: (id: string, variant: FileVariantName) => Promise<Blob>;
 }
 
 export const SyncContext = createContext<SyncState | null>(null);
@@ -94,6 +101,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<EngineStatus>(IDLE);
   const [device, setDevice] = useState<string | null>(null);
   const engineRef = useRef<SyncEngine | null>(null);
+  const clientRef = useRef<SyncClient | null>(null);
   // What the engine reads. The events write it directly (`followOnlineEvents`): the
   // session's state re-renders only after every listener of an `online` event has run,
   // the engine's included. The session's value is copied in only when it changes, never
@@ -107,9 +115,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     if (db === null) return;
     // Registered before `engine.start()` subscribes its own `online` listener.
     const stopFollowing = followOnlineEvents(onlineRef);
+    const client = createBrowserSyncClient();
+    clientRef.current = client;
     const engine = createSyncEngine({
       db,
-      client: createBrowserSyncClient(),
+      client,
       timers: browserTimers,
       random: Math.random,
       now,
@@ -126,6 +136,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       engine.stop();
       stopFollowing();
       engineRef.current = null;
+      clientRef.current = null;
       setStatus(IDLE);
     };
   }, [db]);
@@ -157,6 +168,13 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     await engineRef.current?.runCycle();
   }, [db]);
 
+  /** Stable across renders, so a tile's effect does not re-fetch on every parent render. */
+  const fetchFile = useCallback(async (id: string, variant: FileVariantName): Promise<Blob> => {
+    const client = clientRef.current;
+    if (client === null) throw new Error('sync client is not running');
+    return client.fetchFile(id, variant);
+  }, []);
+
   const unreachable = unreachableCause({ reAuthRequired: session.reAuthRequired, lastFailure: status.lastFailure });
 
   const value = useMemo<SyncState>(
@@ -180,8 +198,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       syncNow,
       syncRelatorio,
       resendDead,
+      fetchFile,
     }),
-    [counts, session.online, unreachable, status, company, device, userNames, syncNow, syncRelatorio, resendDead],
+    [counts, session.online, unreachable, status, company, device, userNames, syncNow, syncRelatorio, resendDead, fetchFile],
   );
 
   return <SyncContext value={value}>{children}</SyncContext>;

@@ -1,6 +1,7 @@
 import {
   entityRowSchemas,
   type BlockRow,
+  type EmpresaRow,
   type InstrumentRow,
   type ProjectRow,
   type RegistryRow,
@@ -40,6 +41,12 @@ export function projectRows(db: AppDatabase): Promise<ProjectRow[]> {
 export async function clientRows(db: AppDatabase): Promise<RegistryRow[]> {
   const registries = await rows<RegistryRow>(db, 'registry');
   return registries.filter((row) => row.kind === 'client');
+}
+
+/** The company's Empresa row (Story 2.3), or null until a field has been committed. */
+export async function empresaRow(db: AppDatabase): Promise<EmpresaRow | null> {
+  const registries = await rows<RegistryRow>(db, 'registry');
+  return registries.find((row): row is EmpresaRow => row.kind === 'empresa') ?? null;
 }
 
 /** The `instrument` registry rows, for the Instrumentos tab (Story 2.1). */

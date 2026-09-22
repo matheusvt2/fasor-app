@@ -2,7 +2,7 @@ import { makeOp, type Op } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, signIn, test } from './support/merged-fixtures.ts';
-import { readDeviceId, readStore, seedOutbox, type SeedUser } from './support/outbox.ts';
+import { readDeviceId, readFileBlobs, readStore, seedOutbox, type SeedUser } from './support/outbox.ts';
 
 /*
  * 2.1-E2E. The Registries surface's Instrumentos tab: the six-tab shell (AC1), the
@@ -211,4 +211,137 @@ test('@p2 2.1-E2E-005 paired fields in the same field-grid row keep the same con
   expect(certNumberBox).not.toBeNull();
   expect(rbcToggleBox).not.toBeNull();
   expect(Math.abs(rbcToggleBox!.y - certNumberBox!.y)).toBeLessThanOrEqual(1);
+});
+
+test('@p1 2.3-E2E-001 Empresa: every field autosaves its own op and the preview follows', async ({ page, seed }) => {
+  const account = seed.companies[0];
+  const database = deviceDatabaseName(account.userId);
+  await signIn(page, account.email);
+  await page.getByRole('link', { name: /Cadastros/ }).click();
+  await page.getByRole('tab', { name: 'Empresa' }).click();
+
+  const form = page.locator('.empresa-form');
+  await expect(form).toBeVisible();
+  // AC 2.3-1: no Save button anywhere on the surface.
+  await expect(page.getByRole('button', { name: 'Salvar' })).toHaveCount(0);
+  // The three FO.SERV-03 defaults are already in the box before anything is typed
+  // (they arrive with the row the first committed field creates).
+  await form.getByLabel('Razão social').fill('Empresa E2E');
+  await form.getByLabel('CNPJ').click();
+  await expect(form.getByLabel('Título do formulário')).toHaveValue('Relatório Técnico de Cabine Primária');
+  await expect(form.getByLabel('Código do formulário')).toHaveValue('FO.SERV-03');
+  await expect(form.getByLabel('Revisão do formulário')).toHaveValue('Revisão 01');
+
+  await form.getByLabel('Telefone').fill('(11) 0000-0000');
+  await form.getByLabel('E-mail').fill('contato@exemplo.local');
+  await form.getByLabel('Endereço').fill('Rua Um, 100');
+  await form.getByLabel('Código do formulário').click();
+
+  // AC 2.3-2: the preview re-renders from the current values and is out of the a11y tree.
+  const preview = page.locator('.brand-preview');
+  await expect(preview).toHaveAttribute('aria-hidden', 'true');
+  await expect(preview).toContainText('Empresa E2E');
+  await expect(preview).toContainText('Rua Um, 100 · (11) 0000-0000 · contato@exemplo.local');
+  await expect(preview.locator('.bp-page')).toHaveCount(3);
+  // The assets are missing, so both slots draw their placeholder.
+  await expect(preview.locator('.bp-logo.bp-empty').first()).toBeVisible();
+
+  // AC 2.3-4: the app chrome still reads PRODUTO, never the company name.
+  await expect(page.locator('.app-bar')).not.toContainText('Empresa E2E');
+
+  // One op per field, and no Save ever pressed.
+  await expect
+    .poll(async () => {
+      const outbox = await readStore<{ path: string; kind: string }>(page, database, 'outbox');
+      return outbox.filter((row) => row.path.startsWith('registry/empresa/')).map((row) => row.path.split('/').pop());
+    })
+    .toEqual(expect.arrayContaining(['phone', 'email', 'address']));
+
+  // Reopening the tab shows the stored values (AC 2.3-1). The reload lands back on
+  // /cadastros, which remembers Empresa as the selected tab.
+  await page.reload();
+  await expect(page.getByRole('tab', { name: 'Empresa' })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('.empresa-form').getByLabel('Razão social')).toHaveValue('Empresa E2E');
+  await expect(page.locator('.empresa-form').getByLabel('Endereço')).toHaveValue('Rua Um, 100');
+});
+
+test('@p2 2.3-E2E-002 a logo picked on Empresa reaches the preview and uploads with its variants', async ({ page, seed }) => {
+  const account = seed.companies[0];
+  const database = deviceDatabaseName(account.userId);
+  await signIn(page, account.email);
+  await page.getByRole('link', { name: /Cadastros/ }).click();
+  await page.getByRole('tab', { name: 'Empresa' }).click();
+
+  // A 1x1 PNG: the smallest thing sharp can make a thumb and a print of.
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64',
+  );
+  await page.locator('.brand-tile.is-logo input[type="file"]').setInputFiles({
+    name: 'logo-e2e.png',
+    mimeType: 'image/png',
+    buffer: png,
+  });
+
+  await expect(page.locator('.brand-tile.is-logo .tile-name')).toContainText('logo-e2e.png');
+  // The picked bytes are drawn straight away, before any upload: the server has no thumb
+  // to give yet, so the preview has to be reading this device's own original.
+  await expect(page.locator('.brand-tile.is-logo img.thumb-image')).toBeVisible();
+  await expect(page.locator('.brand-preview img.bp-image').first()).toBeVisible();
+  const blobs = await readFileBlobs(page, database);
+  expect(blobs).toHaveLength(1);
+
+  await syncNow(page);
+  await expect.poll(async () => (await readFileBlobs(page, database))[0]?.acked, { timeout: 20_000 }).toBe(true);
+  // `syncNow` leaves the Sync status surface open; the Empresa tab is remembered.
+  await page.goto('/cadastros');
+  await expect(page.locator('.brand-tile.is-logo .tile-name')).toContainText('Enviado');
+});
+
+test('@p1 2.3-E2E-003 the Empresa tab fits 390, 768 and 1280 px in both themes, and the app bar stays PRODUTO', async ({
+  page,
+  seed,
+}) => {
+  const account = seed.companies[0];
+  await signIn(page, account.email);
+  await page.goto('/cadastros');
+  await page.getByRole('tab', { name: 'Empresa' }).click();
+  await page.locator('.empresa-form').getByLabel('Razão social').fill('Empresa Larga de Teste S.A.');
+  await page.locator('.empresa-form').getByLabel('CNPJ').click();
+
+  for (const theme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: theme });
+    for (const [width, height] of [
+      [390, 844],
+      [768, 1024],
+      [1280, 800],
+    ] as const) {
+      await page.setViewportSize({ width, height });
+      await expect(page.locator('.empresa-form')).toBeVisible();
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(overflow, `Empresa at ${width}px (${theme})`).toBeLessThanOrEqual(0);
+      // AC 2.3-4 / NFR-15: no company brand in the chrome, on this surface or any other.
+      await expect(page.locator('.app-bar')).not.toContainText('Empresa Larga');
+      // AC 2.3-2: the preview is out of the accessibility tree at every width.
+      await expect(page.locator('.brand-preview')).toHaveAttribute('aria-hidden', 'true');
+    }
+  }
+  await page.emulateMedia({ colorScheme: null });
+
+  // AC 2.3-4: with a company name set, the surface that draws a wordmark still draws
+  // `PRODUTO` -- the brand lives only in the Empresa preview.
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto('/');
+  await expect(page.locator('.app-bar .wordmark')).toHaveText('PRODUTO');
+  await page.goto('/cadastros');
+  await page.getByRole('tab', { name: 'Empresa' }).click();
+
+  // Both brand tiles are operable from the keyboard: the visible button is the one tab
+  // stop and it opens the native picker.
+  for (const tile of ['.brand-tile.is-logo', '.brand-tile:not(.is-logo)']) {
+    const button = page.locator(`${tile} button.btn-text`);
+    await expect(button).toBeVisible();
+    await button.focus();
+    await expect(button).toBeFocused();
+  }
 });

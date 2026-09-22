@@ -30,6 +30,13 @@ export const errorCodeSchema = z.enum([
   'sync_batch_invalid',
   'contract_outdated',
   'relatorio_not_found',
+  // AD-7 file routes: the create op has not been applied yet (retryable), the body's
+  // hash is not the row's, the body is over the 25 MB limit, or the row's kind/mime pair
+  // is not one this route stores.
+  'file_row_missing',
+  'file_sha_mismatch',
+  'file_too_large',
+  'file_kind_invalid',
   ...opRejectCodeSchema.options,
 ]);
 export type ErrorCode = z.infer<typeof errorCodeSchema>;

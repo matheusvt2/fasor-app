@@ -120,3 +120,151 @@
 .registry-toolbar .field {
   flex: 1 1 280px;
 }
+
+/* ---------- Empresa tab (Story 2.3) ----------
+   Base rules of `80-cadastros.html`'s `[data-route="/cadastros"]` block and of
+   `key-registries.html`'s own `<style>` block; the `.frame-*` breakpoint variants
+   (`.empresa-layout` two-column) live in `app.css`, per AGENTS.md. The watermark rules
+   of both mocks are not translated: the toggle and the field are cut by source-deltas. */
+
+/* `[data-route="/cadastros"] .empresa-layout` */
+.empresa-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-5);
+  align-items: start;
+}
+
+/* `key-registries.html`: `.empresa-form` and its group heading */
+.empresa-form {
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+
+.empresa-form .group-title {
+  font-size: var(--t-label-size);
+  font-weight: var(--t-label-weight);
+  color: var(--ink-secondary);
+  margin-bottom: var(--sp-3);
+}
+
+/* `key-registries.html`: `.brand-panel .panel-body` and `.brand-panel .brand-preview` */
+.brand-panel .panel-body {
+  gap: var(--sp-4);
+}
+
+.brand-panel .brand-preview {
+  flex: none;
+}
+
+/* The Empresa preview panel sits inside the grid, not beside the whole surface, so it
+   carries neither the surface panel's fixed width nor its left border. */
+.empresa-layout .registry-panel {
+  width: auto;
+  border-left: 0;
+  border-top: 0;
+}
+
+.empresa-layout .registry-panel .panel-body {
+  padding: 0;
+}
+
+/* `key-registries.html`: `.file-input .file-name` and `.file-input .btn-text` */
+.file-input .file-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-input .btn-text {
+  margin-right: calc(-1 * var(--sp-3));
+}
+
+/* `[data-route="/cadastros"] .brand-tiles` and `.brand-tile` (80-cadastros.html) */
+.brand-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+}
+
+.brand-tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  width: 200px;
+  max-width: 100%;
+}
+
+.brand-tile .thumb {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  background: var(--surface-raised);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.brand-tile.is-logo .thumb {
+  background: var(--surface-base);
+}
+
+.brand-tile .tile-name {
+  font-size: var(--t-meta-size);
+  color: var(--ink-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.brand-tile .btn-text {
+  align-self: flex-start;
+  margin-left: calc(-1 * var(--sp-3));
+}
+
+/* The mock's `.thumb-fake` is a grey block standing in for an image; the app draws the
+   real image when it has one and, when it does not, names what is missing instead. */
+.brand-tile .thumb-empty {
+  font-size: var(--t-meta-size);
+  color: var(--ink-secondary);
+}
+
+.brand-tile .thumb-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* The preview's own slots: an image when the asset is here, a `border-hairline`
+   placeholder naming it when it is not (AC 2.3-2). */
+.brand-preview .bp-empty {
+  border: 1px dashed var(--border-hairline);
+  background: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  color: var(--ink-secondary);
+}
+
+.brand-preview .bp-image {
+  object-fit: contain;
+}
+
+/* The header and footer strips are two of the three pages AC 2.3-2 names; they use the
+   same page box as the cover, kept short so all three read as one row. */
+.brand-preview .bp-strip {
+  aspect-ratio: 210 / 120;
+}
+
+.brand-preview .bp-note {
+  font-size: var(--t-meta-size);
+  line-height: var(--t-meta-lh);
+  color: var(--ink-secondary);
+}

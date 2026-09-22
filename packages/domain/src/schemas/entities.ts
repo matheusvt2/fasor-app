@@ -82,7 +82,15 @@ export const registryRowSchemas = {
     name: z.string(),
     cnpj: nullableString,
     address: nullableString,
+    phone: nullableString,
+    email: nullableString,
+    // FO.SERV-03's own identity, printed on the header, the footer and the document
+    // control (Story 2.3); defaults in `registry/empresa.ts`, never invented per surface.
+    form_title: nullableString,
+    form_code: nullableString,
+    form_revision: nullableString,
     logo_file_id: nullableId,
+    // Cut by source-deltas (no watermark toggle): the column stays, unused and undrawn.
     watermark_file_id: nullableId,
     cover_background_file_id: nullableId,
   }),

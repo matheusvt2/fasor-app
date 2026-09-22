@@ -1,9 +1,10 @@
 import { calibrationValidUntil, formatCalendarDate, type InstrumentRow, type OpDraft } from '@app/domain';
 import { useId, useRef, useState } from 'react';
-import { Button, ConfirmDialog, TextButton, Toggle } from '../../components/index.ts';
+import { Button, ConfirmDialog, TextButton, Toggle, UploadTile, type PickedFile } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { now } from '../../clock.ts';
 import { commitBatch, undoBatch } from '../../db/commit.ts';
+import { commitFilePick, useAttachedFile } from '../../db/file-commit.ts';
 import { newId } from '../../ids.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { useSession } from '../../state/session.tsx';
@@ -60,6 +61,7 @@ export function InstrumentPanel({ instrumentId, instrument, referenced, onClose 
   const [confirmingRemove, setConfirmingRemove] = useState(false);
   const t = copy.registries.instrumentos;
   const titleId = useId();
+  const certificate = useAttachedFile(db, instrument?.certificate_file_id ?? null);
 
   async function commitField(field: string, value: unknown): Promise<void> {
     if (db === null || user === null) return;
@@ -110,6 +112,64 @@ export function InstrumentPanel({ instrumentId, instrument, referenced, onClose 
       action: { label: t.undo, onPress: () => void undoBatch(db, batch_id, { newId, now }) },
     });
     onClose();
+  }
+
+  /**
+   * Story 2.2: the certificate is one file batch — the `file/{id}` create, the
+   * `certificate_file_id` put and the Blob together (AR-6). An instrument that does not
+   * exist yet is created first by the same rule every other field follows.
+   */
+  async function attachCertificate(picked: PickedFile): Promise<void> {
+    if (db === null || user === null) return;
+    if (!created.current) {
+      created.current = true;
+      await commitBatch(
+        db,
+        [
+          {
+            kind: 'create',
+            scope: 'company',
+            company_id: user.companyId,
+            project_id: null,
+            relatorio_id: null,
+            prev_op_id: null,
+            batch_id: null,
+            meta: null,
+            actor_id: user.id,
+            path: `registry/instrument/${instrumentId}`,
+            value: defaultRow(instrumentId) as never,
+          },
+        ],
+        { newId, now },
+      );
+    }
+    const fileId = newId();
+    await commitFilePick(
+      db,
+      {
+        companyId: user.companyId,
+        actorId: user.id,
+        fileId,
+        kind: 'certificate',
+        picked,
+        ownerOps: [
+          {
+            kind: 'put',
+            scope: 'company',
+            company_id: user.companyId,
+            project_id: null,
+            relatorio_id: null,
+            prev_op_id: null,
+            batch_id: null,
+            meta: null,
+            actor_id: user.id,
+            path: `registry/instrument/${instrumentId}/certificate_file_id`,
+            value: fileId as never,
+          },
+        ],
+      },
+      { newId, now },
+    );
   }
 
   const validUntil = instrument === null ? null : calibrationValidUntil(instrument.calibrated_at, instrument.calibration_interval_months);
@@ -194,13 +254,14 @@ export function InstrumentPanel({ instrumentId, instrument, referenced, onClose 
             value={instrument?.laboratory ?? ''}
             onCommit={(v) => commitField('laboratory', v)}
           />
-          <div className="field span-2">
-            <span className="field-label">{t.certificateLabel}</span>
-            <div className="input file-input" aria-disabled="true">
-              <span className="file-name">{t.certificatePlaceholder}</span>
-            </div>
-            <span className="helper">{t.certificateHelper}</span>
-          </div>
+          <UploadTile
+            className="span-2"
+            kind="certificate"
+            label={t.certificateLabel}
+            helper={t.certificateHelper}
+            file={certificate}
+            onPick={(picked) => attachCertificate(picked)}
+          />
           <TestDefaultField
             label={t.testDefaultLabel(t.testIsolacao)}
             helper={t.testDefaultHelper}

@@ -42,3 +42,6 @@ export type { TabsProps, TabItem } from './tabs.tsx';
 
 export { Combobox } from './combobox.tsx';
 export type { ComboboxProps, ComboboxOption } from './combobox.tsx';
+
+export { UploadTile } from './upload-tile.tsx';
+export type { AttachedFile, PickedFile, UploadTileProps } from './upload-tile.tsx';

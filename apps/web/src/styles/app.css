@@ -204,6 +204,8 @@ body {
   /* `.frame-tablet-landscape .sticky-action-bar .bar-buttons` (+ `.btn`) */
   .sticky-action-bar .bar-buttons { justify-content: flex-end; }
   .sticky-action-bar .bar-buttons .btn { flex: 0 0 auto; min-width: 200px; }
+  /* `.frame-tablet-landscape [data-route="/cadastros"] .empresa-layout` (80-cadastros.html) */
+  .empresa-layout { grid-template-columns: minmax(0, 1fr) 360px; }
   /* `.frame-tablet-landscape [data-route="/cadastros"] .registry-panel { width: 440px }` is not
      translated: in the mock's own cascade it is declared before the later `.frame-tablet,
      .frame-phone .registry-panel { width: 100% }` rule (below, same specificity), which
@@ -221,6 +223,8 @@ body {
   .sticky-action-bar .bar-buttons .btn { flex: 0 0 auto; min-width: 200px; }
   /* `.frame-desktop [data-route="/cadastros"] .registry-main` (80-cadastros.html) */
   .registry-main { padding: var(--sp-5) var(--gutter-desktop); }
+  /* `.frame-desktop [data-route="/cadastros"] .empresa-layout` (80-cadastros.html) */
+  .empresa-layout { grid-template-columns: minmax(0, 1fr) 360px; }
 }
 
 /* ---------- On-state aliases (the pattern proven on SegmentedControl) ----------

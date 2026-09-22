@@ -18,6 +18,26 @@ export function classifyFailure(failure: SyncFailure): FailureAction {
 }
 
 /**
+ * What the uploader does with a failed `PUT /api/files/{id}` (AD-7).
+ *
+ * `defer` is the one rule that differs from the sync table: `409 file_row_missing` says
+ * the device's own create op has not been applied yet, which the next cycle fixes by
+ * itself — the file stays pending and nothing is recorded as a server failure.
+ * `permanent` is a verdict no retry can change (the body does not hash to the row, or the
+ * body is over the limit); everything else follows `classifyFailure`.
+ */
+export type UploadAction = 'retry' | 'defer' | 'permanent' | 'reauth' | 'outdated';
+
+export function classifyUploadFailure(failure: SyncFailure): UploadAction {
+  if (failure.kind === 'http' && failure.status === 409) {
+    return failure.code === 'file_row_missing' ? 'defer' : 'permanent';
+  }
+  if (failure.kind === 'http' && failure.status === 413) return 'permanent';
+  const action = classifyFailure(failure);
+  return action === 'stop' ? 'permanent' : action;
+}
+
+/**
  * True when the failure means the server could not be reached or could not serve: the
  * request never completed, or it answered 5xx. A 4xx, a 426 or a page the device could
  * not apply is the server answering, so the device is not cut off from it.

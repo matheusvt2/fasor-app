@@ -89,3 +89,36 @@ export const SYNC_ROUTES = {
   pullCompany: { method: 'GET', path: '/api/sync/company' } as SyncRoute,
   pullRelatorio: (id: string): SyncRoute => ({ method: 'GET', path: `/api/sync/relatorios/${id}` }),
 } as const;
+
+/*
+ * AD-7: the two file routes. `PUT` is the uploader's only write and is idempotent on
+ * `(id, sha256)`; `GET` is the only read, served on demand — the sync engine never
+ * prefetches originals.
+ */
+
+export interface FileRoute {
+  method: 'GET' | 'PUT';
+  path: string;
+}
+
+export const fileVariantSchema = z.enum(['original', 'thumb', 'print']);
+export type FileVariantName = z.infer<typeof fileVariantSchema>;
+
+/** The hash the device computed over the body, checked against the row's `sha256`. */
+export const FILE_SHA256_HEADER = 'x-file-sha256';
+
+export const FILE_ROUTES = {
+  put: (id: string): FileRoute => ({ method: 'PUT', path: `/api/files/${id}` }),
+  get: (id: string, variant: FileVariantName): FileRoute => ({ method: 'GET', path: `/api/files/${id}/${variant}` }),
+} as const;
+
+/**
+ * Answer of a stored (or already-stored) upload. `variants` is null while sharp has not
+ * run or could not run; the object and `uploaded_at` stand either way.
+ */
+export const filePutResponseSchema = z.object({
+  id: z.string().min(1),
+  uploaded_at: isoTimestampSchema,
+  variants: z.object({ thumb: z.string(), print: z.string() }).nullable(),
+});
+export type FilePutResponse = z.infer<typeof filePutResponseSchema>;

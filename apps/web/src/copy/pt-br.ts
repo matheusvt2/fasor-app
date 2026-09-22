@@ -200,9 +200,9 @@ export const copy = {
     back: 'Voltar',
     loading: 'Carregando…',
   },
-  // Registries (`80-cadastros.html`, `key-registries.html`). Instrumentos is the only
-  // real tab this story ships; the other five are placeholders (Stories 2.2-2.6), whose
-  // one shared sentence lives in `ui.ts` (component chrome, reused verbatim by each).
+  // Registries (`80-cadastros.html`, `key-registries.html`). Empresa and Instrumentos are
+  // the real tabs; the other four are placeholders (Stories 2.4-2.6), whose one shared
+  // sentence lives in `ui.ts` (component chrome, reused verbatim by each).
   registries: {
     title: 'Cadastros',
     tabsLabel: 'Cadastros',
@@ -212,6 +212,47 @@ export const copy = {
     tabFabricantes: 'Fabricantes',
     tabClassesTensao: 'Classes de tensão',
     tabCriterios: 'Critérios de aceitação',
+    // Empresa (`key-registries.html` frame 0, `80-cadastros.html` Empresa panel): the
+    // company's document identity, the only surface where the brand is edited.
+    empresa: {
+      note: 'Identidade do documento gerado: capa, cabeçalho, rodapé e a linha "Contratada" do controle do documento. Só aqui a marca é editada — o app continua PRODUTO.',
+      // authored: the mock's "Salvar" button is dropped (every field autosaves), so the
+      // sentence that used to sit beside it carries the rule on its own.
+      autosaveNote: 'Salvo automaticamente. Vale para os relatórios gerados daqui em diante; revisões já emitidas não mudam.',
+      groupIdentity: 'Empresa',
+      groupBrand: 'Marca no documento',
+      groupForm: 'Formulário',
+      nameLabel: 'Razão social',
+      nameHelper: 'Cabeçalho, capa e "Contratada" no controle do documento',
+      cnpjLabel: 'CNPJ',
+      phoneLabel: 'Telefone',
+      emailLabel: 'E-mail',
+      addressLabel: 'Endereço',
+      addressHelper: 'Rodapé de todas as páginas, com o telefone e o e-mail',
+      imagesLabel: 'Imagens do documento',
+      logoLabel: 'Logo',
+      logoHelper: 'PNG ou SVG · capa e cabeçalho',
+      logoPlaceholder: 'Logo',
+      coverLabel: 'Fundo de capa',
+      coverHelper: 'Opcional · JPG ou PNG · atrás da capa',
+      coverPlaceholder: 'Fundo',
+      imagesHelper: 'A foto de capa de cada relatório vem de Dados do relatório; o fundo é o mesmo em todos.',
+      formTitleLabel: 'Título do formulário',
+      formTitleHelper: 'Impresso no cabeçalho de toda página e no controle do documento.',
+      formCodeLabel: 'Código do formulário',
+      formRevisionLabel: 'Revisão do formulário',
+      formRevisionHelper: 'Vai no rodapé. A revisão do documento (Rev. n) é a da exportação e sai no controle do documento.',
+      previewTitle: 'Pré-visualização do documento',
+      previewMeta: 'Miniatura com os valores atuais · o PDF e o DOCX usam os mesmos dados',
+      // authored: the three pages AC 2.3-2 names; the mock draws two.
+      previewCover: 'Capa',
+      previewHeader: 'Cabeçalho',
+      previewFooter: 'Rodapé',
+      previewNote: 'Sem logo, a capa e o cabeçalho mostram só a razão social.',
+      // authored: the preview's own sample lines, so the miniature reads as a page.
+      previewSampleTitle: 'Relatório de manutenção preventiva — cabine primária',
+      previewPageNumber: 'Página X de Y',
+    },
     instrumentos: {
       newInstrument: 'Novo instrumento',
       // authored: the mock's empty state for a fresh registry is not drawn; the label
@@ -243,9 +284,9 @@ export const copy = {
       validityHelper: 'Vencida = linha âmbar na ficha; nunca bloqueia',
       laboratoryLabel: 'Emissor do certificado',
       certificateLabel: 'Arquivo do certificado',
-      // authored: Story 2.2 owns the upload; this story draws the tile disabled.
-      certificateHelper: 'PDF ou imagem. Anexado na Story 2.2 — indisponível aqui.',
-      certificatePlaceholder: 'Nenhum arquivo',
+      // `key-registries.html` L154-172: the formats the tile takes. The file itself is
+      // named by the kernel's tile line, not here.
+      certificateHelper: 'PDF, JPG ou PNG · até 25 MB · enviado sozinho na próxima sincronização',
       // authored: one label per test type, reused for the three independent defaults
       // (AR-18 extends the mock's single "Isolação" row to the other two test types).
       testDefaultLabel: (testName: string) => `Padrão de ensaio — ${testName}`,

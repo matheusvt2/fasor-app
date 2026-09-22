@@ -1,6 +1,15 @@
 import { opLog } from '@app/domain/fixtures/replay-small';
 import { describe, expect, it } from 'vitest';
-import { backoffMs, batches, classifyFailure, isUnreachableFailure, MAX_ATTEMPTS, parsePulled, unreachableCause } from './policy.ts';
+import {
+  backoffMs,
+  batches,
+  classifyFailure,
+  classifyUploadFailure,
+  isUnreachableFailure,
+  MAX_ATTEMPTS,
+  parsePulled,
+  unreachableCause,
+} from './policy.ts';
 
 describe('1.5-UNIT-002 retry classification', () => {
   it('retries network and 5xx with backoff and jitter', () => {
@@ -74,5 +83,24 @@ describe('1.5-UNIT-004 pull parsing', () => {
     const clean = parsePulled([ok1, ok2]);
     expect(clean.stoppedAt).toBeUndefined();
     expect(clean.ops).toHaveLength(2);
+  });
+});
+
+describe('2.2-UNIT-004 upload retry classification', () => {
+  it('defers 409 file_row_missing to the next cycle instead of killing the file', () => {
+    expect(classifyUploadFailure({ kind: 'http', status: 409, code: 'file_row_missing' })).toBe('defer');
+  });
+
+  it('never retries a verdict no retry can change', () => {
+    expect(classifyUploadFailure({ kind: 'http', status: 409, code: 'file_sha_mismatch' })).toBe('permanent');
+    expect(classifyUploadFailure({ kind: 'http', status: 413, code: 'file_too_large' })).toBe('permanent');
+    expect(classifyUploadFailure({ kind: 'http', status: 400, code: 'file_kind_invalid' })).toBe('permanent');
+  });
+
+  it('follows the sync table everywhere else', () => {
+    expect(classifyUploadFailure({ kind: 'network' })).toBe('retry');
+    expect(classifyUploadFailure({ kind: 'http', status: 503 })).toBe('retry');
+    expect(classifyUploadFailure({ kind: 'http', status: 401 })).toBe('reauth');
+    expect(classifyUploadFailure({ kind: 'http', status: 426 })).toBe('outdated');
   });
 });

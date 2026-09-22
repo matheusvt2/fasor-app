@@ -3,6 +3,7 @@ packages:
   - apps/*
 allowBuilds:
   esbuild: true
+  sharp: true
 minimumReleaseAgeExclude:
   - '@typescript-eslint/eslint-plugin@8.70.1'
   - '@typescript-eslint/parser@8.70.1'
