@@ -53,25 +53,53 @@ export async function unregisterServiceWorkers(deps: RegisterDeps = {}): Promise
 export type PromoteResult = 'promoted' | 'held-back' | 'nothing-waiting';
 
 /**
- * AD-8, the other half of the activation rule: while a new shell waits and work is still
- * on its way to the server, the *active* shell must keep answering navigations from its
- * own cache, or the network would hand the tab the new document and its new hashed assets
- * long before the swap is allowed to happen.
+ * AD-8, the other half of the activation rule: while work is still on its way to the
+ * server, the active worker must keep answering navigations from the shell the job
+ * started on, or the network would hand the tab the new document and its new hashed
+ * assets long before the swap is allowed to happen.
  *
- * Nothing to wait for, or nothing pending, and the hold is released: navigation goes back
- * to network-first, which is how the next build is discovered at all.
+ * The hold is the backlog alone, whether or not a new shell is waiting right now. Once
+ * every tab closes the browser activates a waiting worker by itself, and after that
+ * nothing is waiting any more — yet the job must stay on its shell. The worker records
+ * the hold as a pin in Cache Storage (`public/sw.js`), which every worker generation
+ * reads; the page only has to keep reporting the backlog.
+ *
+ * Backlog zero releases the pin: navigation goes back to network-first, which is how the
+ * next build is served on the next launch.
  */
-export function shouldHoldShell(registration: ServiceWorkerRegistration | null, backlog: number): boolean {
-  if (registration?.waiting == null && registration?.installing == null) return false;
+export function shouldHoldShell(backlog: number): boolean {
   return backlog > 0;
 }
 
-/** Tells the active worker whether to hold. Returns what was sent, or null when nobody heard. */
-export function holdShell(registration: ServiceWorkerRegistration | null, backlog: number): boolean | null {
+/**
+ * Which build this page is running: the same-origin path of the hashed chunk this code
+ * was loaded from. In a build that is one of the precached `/assets/*` files, so the
+ * worker can pin the cache holding it — which may be newer than the worker itself, when
+ * this launch's document came from the network. Undefined outside http(s) (tests).
+ */
+export function currentShellEntry(moduleUrl: string = import.meta.url): string | undefined {
+  try {
+    const url = new URL(moduleUrl);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.pathname : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Tells the active worker whether to hold, and which build this page runs (`shell`,
+ * omitted when unknown; an older worker ignores it). Returns what was sent, or null when
+ * nobody heard.
+ */
+export function holdShell(
+  registration: ServiceWorkerRegistration | null,
+  backlog: number,
+  shell: string | undefined = currentShellEntry(),
+): boolean | null {
   const active = registration?.active;
   if (!active) return null;
-  const hold = shouldHoldShell(registration, backlog);
-  active.postMessage({ type: 'hold-shell', hold });
+  const hold = shouldHoldShell(backlog);
+  active.postMessage(shell === undefined ? { type: 'hold-shell', hold } : { type: 'hold-shell', hold, shell });
   return hold;
 }
 

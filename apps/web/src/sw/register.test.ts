@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  currentShellEntry,
   holdShell,
   promoteWaitingShell,
   registerServiceWorker,
@@ -75,26 +76,18 @@ describe('promoteWaitingShell', () => {
 /*
  * The other half of AD-8's rule: promoting the waiting worker only delays the *cache*
  * swap, and navigation is network-first, so while online the new build would be served
- * from the network anyway. The hold is what keeps a job on one shell version.
+ * from the network anyway. The hold is what keeps a job on one shell version, and it is
+ * the backlog alone: after the browser activates a new worker by itself (every tab
+ * closed) nothing is waiting any more, and the job must still stay pinned.
  */
 describe('shouldHoldShell', () => {
-  const worker = (): Worker => ({ postMessage: vi.fn() });
-
-  it('holds while a new shell waits and work is still on its way to the server', () => {
-    expect(shouldHoldShell(registration(worker()), 1)).toBe(true);
-    expect(shouldHoldShell(registration(worker()), 42)).toBe(true);
-    // A shell still downloading counts too: it will be waiting in a moment.
-    expect(shouldHoldShell(registration(null, { installing: worker() }), 3)).toBe(true);
+  it('holds while work is still on its way to the server', () => {
+    expect(shouldHoldShell(1)).toBe(true);
+    expect(shouldHoldShell(42)).toBe(true);
   });
 
   it('releases the hold as soon as the backlog reaches zero', () => {
-    expect(shouldHoldShell(registration(worker()), 0)).toBe(false);
-  });
-
-  it('never holds when there is no new shell to swap to', () => {
-    expect(shouldHoldShell(registration(null), 0)).toBe(false);
-    expect(shouldHoldShell(registration(null), 9)).toBe(false);
-    expect(shouldHoldShell(null, 9)).toBe(false);
+    expect(shouldHoldShell(0)).toBe(false);
   });
 });
 
@@ -110,9 +103,39 @@ describe('holdShell', () => {
     expect(active.postMessage).toHaveBeenLastCalledWith({ type: 'hold-shell', hold: false });
   });
 
+  it('keeps holding with nothing waiting, as after the browser activated the new shell itself', () => {
+    const active = { postMessage: vi.fn() };
+    expect(holdShell(registration(null, { active }), 3)).toBe(true);
+    expect(active.postMessage).toHaveBeenLastCalledWith({ type: 'hold-shell', hold: true });
+    expect(holdShell(registration(null, { active }), 0)).toBe(false);
+    expect(active.postMessage).toHaveBeenLastCalledWith({ type: 'hold-shell', hold: false });
+  });
+
+  it('names the build the page runs, so the worker pins that one and not its own', () => {
+    const active = { postMessage: vi.fn() };
+    expect(holdShell(registration(null, { active }), 1, '/assets/index-C.js')).toBe(true);
+    expect(active.postMessage).toHaveBeenLastCalledWith({ type: 'hold-shell', hold: true, shell: '/assets/index-C.js' });
+    expect(holdShell(registration(null, { active }), 0, '/assets/index-C.js')).toBe(false);
+    expect(active.postMessage).toHaveBeenLastCalledWith({ type: 'hold-shell', hold: false, shell: '/assets/index-C.js' });
+  });
+
   it('says nothing when there is no active worker to say it to', () => {
     expect(holdShell(registration({ postMessage: vi.fn() }), 2)).toBeNull();
     expect(holdShell(null, 2)).toBeNull();
+  });
+});
+
+describe('currentShellEntry', () => {
+  it('is the path of the chunk running the code, which names the build', () => {
+    expect(currentShellEntry('https://tablet.local:8443/assets/index-Ab12Cd.js')).toBe('/assets/index-Ab12Cd.js');
+    expect(currentShellEntry('http://localhost:5200/assets/index-X.js')).toBe('/assets/index-X.js');
+  });
+
+  it('is unknown outside a served page', () => {
+    expect(currentShellEntry('file:///workspace/apps/web/src/sw/register.ts')).toBeUndefined();
+    expect(currentShellEntry('not a url')).toBeUndefined();
+    // Under vitest the module is a file, so the default sends no `shell`.
+    expect(currentShellEntry()).toBeUndefined();
   });
 });
 

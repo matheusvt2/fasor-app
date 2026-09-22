@@ -164,7 +164,7 @@ action_items:
       or IndexedDB), test the worker-restart lifecycle and re-run QA D-1 in a real
       browser (blocking before Epics 5 and 6)"
     owner: "Follow-up story (opus/high)"
-    status: open
+    status: done  # PR #11, 6a746d50b0ac48f31de2474d802555d57f5a5ab5
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-4-a4-stamp-the-minted-device_id-in-commitd"
     epic: 1
