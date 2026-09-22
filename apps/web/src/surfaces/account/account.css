@@ -55,3 +55,17 @@
 .reg-grid .segmented {
   max-width: 240px;
 }
+
+/* Tema: the mock draws the segmented control at the width of its three labels, not the
+   width of the page. */
+.theme-choice .segmented {
+  max-width: 360px;
+}
+
+/* Armazenamento: the mock's `.storage-line` is screen-scoped there too. */
+.storage-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-1) var(--sp-3);
+}

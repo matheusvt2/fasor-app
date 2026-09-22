@@ -1,4 +1,4 @@
-import { expect, test as base, type Page } from '@playwright/test';
+import { expect, test as base, type Locator, type Page } from '@playwright/test';
 import { TEST_SEED } from '../../apps/api/src/db/test-seed.ts';
 
 /**
@@ -23,7 +23,22 @@ export async function signIn(page: Page, email: string): Promise<void> {
   await page.getByLabel('E-mail').fill(email);
   await page.getByLabel('Senha').fill(TEST_SEED.password);
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Início' })).toBeVisible();
+  // Home's own <h1> now lives in the App bar and is visually-hidden there
+  // (`key-home.html`), so the marker that Home has painted is the status board.
+  await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
+}
+
+/**
+ * The App bar's Sync badge. Story 1.6 put a compact badge on every relatório card too,
+ * so the shell's one is addressed through the App bar.
+ */
+export function syncBadge(page: Page): Locator {
+  return page.locator('.app-bar [data-testid="sync-badge"]');
+}
+
+/** The badge's long word ("Sincronizado", "3 pendentes", ...); the short one is decoration. */
+export function syncWord(page: Page): Locator {
+  return syncBadge(page).locator('.sync-long');
 }
 
 /** The name of this user's device database, exactly `releng-{user_id}`. */

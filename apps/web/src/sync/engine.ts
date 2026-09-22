@@ -54,6 +54,13 @@ export interface SyncEngineDeps {
 
 export interface SyncEngine {
   runCycle(): Promise<CycleResult>;
+  /**
+   * AD-8's "Em revisão and Emitido relatórios are pulled on open": creates the stream's
+   * `sync_state` row and runs one cycle. From then on the existing pull rule — every
+   * relatório that already holds a `sync_state` row — keeps it fresh, so no new route
+   * and no new phase is needed.
+   */
+  syncRelatorio(relatorioId: string): Promise<CycleResult>;
   start(): void;
   /** Final: ends the in-flight cycle at its next step and silences the engine (a new session builds a new engine). */
   stop(): void;
@@ -189,6 +196,9 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
         downloaded_at: complete ? (state.downloaded_at ?? nowIso) : state.downloaded_at,
         last_sync_at: nowIso,
         last_push_at: page.summary?.last_push_at ?? state.last_push_at,
+        // AD-8: the company summary is the only place a relatório the device never
+        // downloaded appears. Story 1.5 read it and dropped it; Home needs it kept.
+        relatorios: id === COMPANY_STREAM ? (page.summary?.relatorios ?? state.relatorios) : state.relatorios,
       };
       await writeSyncState(deps.db, state);
       // Stop on a bad op, at the head, on an empty page, or when the cursor did not move (a defensive guard).
@@ -276,8 +286,15 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     }, intervalMs);
   };
 
+  async function syncRelatorio(relatorioId: string): Promise<CycleResult> {
+    const existing = await readSyncState(deps.db, relatorioId);
+    if (existing === undefined) await writeSyncState(deps.db, emptyState(relatorioId));
+    return runCycle();
+  }
+
   return {
     runCycle,
+    syncRelatorio,
     start() {
       if (started) return;
       started = true;

@@ -4,6 +4,7 @@ import {
   syncBadgeState,
   syncCounts,
   type LastPushAt,
+  type RelatorioSummary,
   type SyncBadgeState,
   type SyncCounts,
   type UserRow,
@@ -42,7 +43,11 @@ export interface SyncState {
   deviceId: string | null;
   /** User names known on this device, by user id, for "Último envio". */
   userNames: Readonly<Record<string, string>>;
+  /** AD-8: the company's relatórios as the server summarised them, including the ones never pulled. */
+  summaryRelatorios: readonly RelatorioSummary[];
   syncNow: () => Promise<CycleResult>;
+  /** Starts following one relatório's stream and pulls it now (AD-8, "pulled on open"). */
+  syncRelatorio: (relatorioId: string) => Promise<CycleResult>;
   resendDead: () => Promise<void>;
 }
 
@@ -60,6 +65,7 @@ const IDLE: EngineStatus = {
 const NO_ROWS: OutboxRow[] = [];
 const NO_STATES: SyncStateRow[] = [];
 const NO_USERS: UserRow[] = [];
+const NO_SUMMARY: RelatorioSummary[] = [];
 
 const browserTimers = {
   setTimeout: (callback: () => void, ms: number) => globalThis.setTimeout(callback, ms),
@@ -116,6 +122,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const userNames = useMemo(() => Object.fromEntries(users.map((u) => [u.id, u.name])), [users]);
 
   const syncNow = useCallback(async () => engineRef.current?.runCycle() ?? 'paused', []);
+  const syncRelatorio = useCallback(
+    async (relatorioId: string) => (await engineRef.current?.syncRelatorio(relatorioId)) ?? 'paused',
+    [],
+  );
   const resendDead = useCallback(async () => {
     if (db === null) return;
     await resendDeadRows(db);
@@ -137,10 +147,12 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       supersededCount: status.supersededCount,
       deviceId: device,
       userNames,
+      summaryRelatorios: company?.relatorios ?? NO_SUMMARY,
       syncNow,
+      syncRelatorio,
       resendDead,
     }),
-    [counts, session.online, status, company, device, userNames, syncNow, resendDead],
+    [counts, session.online, status, company, device, userNames, syncNow, syncRelatorio, resendDead],
   );
 
   return <SyncContext value={value}>{children}</SyncContext>;

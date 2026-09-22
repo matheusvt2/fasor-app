@@ -1,7 +1,9 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { axe } from 'jest-axe';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ThemeProvider } from '../../state/theme.tsx';
 import type { SessionState } from '../../state/session.tsx';
 import { SyncContext, type SyncState } from '../../state/sync.tsx';
 import { AccountSurface } from './account-surface.tsx';
@@ -51,7 +53,9 @@ function syncState(pendingText: string, pendingCount: number): SyncState {
     supersededCount: 0,
     deviceId: 'tablet-1',
     userNames: {},
+    summaryRelatorios: [],
     syncNow: vi.fn(async () => 'ran' as const),
+    syncRelatorio: vi.fn(async () => 'ran' as const),
     resendDead: vi.fn(async () => {}),
   };
 }
@@ -60,10 +64,29 @@ const renderAccount = (sync: SyncState) =>
   render(
     <MemoryRouter>
       <SyncContext value={sync}>
-        <AccountSurface />
+        <ThemeProvider>
+          <AccountSurface />
+        </ThemeProvider>
       </SyncContext>
     </MemoryRouter>,
   );
+
+/** Replaces `navigator.storage` for one test; returns the undo. */
+function stubStorage(estimate: (() => Promise<StorageEstimate>) | null): () => void {
+  const original = Object.getOwnPropertyDescriptor(navigator, 'storage');
+  Object.defineProperty(navigator, 'storage', {
+    configurable: true,
+    value: estimate === null ? undefined : { estimate },
+  });
+  return () => {
+    if (original === undefined) Reflect.deleteProperty(navigator, 'storage');
+    else Object.defineProperty(navigator, 'storage', original);
+  };
+}
+
+afterEach(() => {
+  document.documentElement.removeAttribute('data-theme');
+});
 
 describe('Account: sign out with pending work', () => {
   it('with 3 fichas pending, the Sair reason and the Confirm dialog carry the pending summary', async () => {
@@ -110,5 +133,75 @@ describe('Account: sign out with pending work', () => {
     expect(screen.getByRole('dialog')).toHaveAccessibleDescription(
       '1 ficha ainda não foi enviada. Ela continua neste aparelho e sobe quando você entrar de novo com conexão.',
     );
+  });
+});
+
+describe('Account: Tema', () => {
+  it('the visible .seg button carries aria-checked and the root element follows at once', async () => {
+    const { container } = renderAccount(syncState('', 0));
+
+    const group = screen.getByRole('radiogroup', { name: 'Tema' });
+    expect(group).toHaveClass('segmented');
+    expect(screen.getByRole('radio', { name: 'Sistema' })).toHaveAttribute('aria-checked', 'true');
+    expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Escuro' }));
+    const dark = screen.getByRole('radio', { name: 'Escuro' });
+    expect(dark).toHaveClass('seg');
+    // The selector `components.css` styles is `.segmented .seg[aria-checked="true"]`.
+    expect(container.querySelectorAll('.segmented .seg[aria-checked="true"]')).toHaveLength(1);
+    expect(dark).toHaveAttribute('aria-checked', 'true');
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Sistema' }));
+    // "Sistema" removes the attribute so prefers-color-scheme decides again.
+    expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
+  });
+
+  it('has no axe violations', async () => {
+    const { container } = renderAccount(syncState('', 0));
+    expect(await axe(container)).toHaveNoViolations();
+  });
+});
+
+describe('Account: Armazenamento', () => {
+  it('renders the kernel storage line when the browser has an estimate', async () => {
+    const undo = stubStorage(async () => ({ usage: 1_288_490_188 }));
+    try {
+      renderAccount(syncState('', 0));
+      await waitFor(() =>
+        expect(screen.getByTestId('storage-value')).toHaveTextContent('1,2 GB· 0 relatórios · 0 fotos'),
+      );
+      expect(screen.getByTestId('storage-value').querySelector('.sr-value.t-value')).toHaveTextContent('1,2 GB');
+    } finally {
+      undo();
+    }
+  });
+
+  it('says so and does not throw when navigator.storage is absent', async () => {
+    const undo = stubStorage(null);
+    try {
+      renderAccount(syncState('', 0));
+      await waitFor(() =>
+        expect(screen.getByTestId('storage-value')).toHaveTextContent('Indisponível neste navegador'),
+      );
+      expect(screen.getByRole('link', { name: 'Ver status de sincronização' })).toHaveAttribute('href', '/sync');
+    } finally {
+      undo();
+    }
+  });
+
+  it('survives an estimate that rejects', async () => {
+    const undo = stubStorage(async () => {
+      throw new Error('denied');
+    });
+    try {
+      renderAccount(syncState('', 0));
+      await waitFor(() =>
+        expect(screen.getByTestId('storage-value')).toHaveTextContent('Indisponível neste navegador'),
+      );
+    } finally {
+      undo();
+    }
   });
 });

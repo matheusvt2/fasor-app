@@ -43,7 +43,7 @@ test('@p0 1.3-E2E-001 signs in, keeps working with the API down, and signs out w
   // database, with no sign-in prompt and no network wait.
   await page.route(isApiRequest, (route) => route.abort('internetdisconnected'));
   await page.reload();
-  await expect(page.getByRole('heading', { level: 1, name: 'Início' })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
   await expect(page.locator('.login-form')).toHaveCount(0);
   expect(await readLocalMarker(page, database, MARKER)).toMatchObject({ kind: 'relatorio' });
   await page.unroute(isApiRequest);
@@ -140,7 +140,7 @@ test('@p0 1.3-E2E-002 a 401 mid-call raises the re-auth banner, leaves local dat
   await page.getByLabel('Senha').fill(seed.password);
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
 
-  await expect(page.getByRole('heading', { level: 1, name: 'Início' })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
   await expect(page.locator('.banner[data-banner="re-auth"]')).toHaveCount(0);
   expect(await readLocalMarker(page, database, MARKER)).toMatchObject({ kind: 'relatorio' });
 });
@@ -161,7 +161,7 @@ test('@p0 1.3-E2E-002b a cold open whose cookie is gone stays on Home with the r
   await context.clearCookies();
   await page.reload();
 
-  await expect(page.getByRole('heading', { level: 1, name: 'Início' })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
   await expect(page.locator('.login-form')).toHaveCount(0);
   const banner = page.locator('.banner[data-banner="re-auth"]');
   await expect(banner).toBeVisible();

@@ -30,6 +30,21 @@ export const ui = {
       emitido: 'Emitido',
     },
   },
+  statusTile: {
+    // authored: the mock hard-codes "Rascunho, 1 relatório" per tile; the template is
+    // the same sentence with the live count, plus the singular the mock happens to show.
+    label: (status: string, count: number) =>
+      `${status}, ${count === 1 ? '1 relatório' : `${count} relatórios`}`,
+  },
+  syncBadge: {
+    /**
+     * `.sync-long` or `.sync-short` shows depending on the viewport, so the badge names
+     * itself. "Sincronização. Abrir status" is the mock's label; the state is added
+     * because the badge's whole job is to carry one.
+     */
+    label: (state: string) => `Sincronização: ${state.toLocaleLowerCase('pt-BR')}`,
+    pressableLabel: (state: string) => `Sincronização: ${state.toLocaleLowerCase('pt-BR')}. Abrir status`,
+  },
   combobox: {
     /** `aria-label` for the chevron button that opens the option list. */
     openList: 'Abrir lista',

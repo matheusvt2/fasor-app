@@ -22,18 +22,31 @@ describe('SyncBadge', () => {
     expect(badge).toHaveAttribute('data-pending', '0');
     expect(badge).toHaveAttribute('data-dead', '0');
     expect(badge.querySelector('.pill .dot')).toHaveAttribute('aria-hidden', 'true');
-    expect(badge).toHaveTextContent('Sincronizado');
+    // Both words are always in the DOM; `components.css` decides which one shows.
+    expect(badge.querySelector('.sync-long')).toHaveTextContent('Sincronizado');
+    expect(badge.querySelector('.sync-short')).toHaveTextContent('OK');
+    expect(badge.querySelector('.sync-short')).toHaveAttribute('aria-hidden', 'true');
 
-    rerender(<SyncBadge state="pending" counts={counts({ pending: 4, sent: 1 })} />);
-    expect(screen.getByTestId('sync-badge')).toHaveTextContent('5 pendentes');
+    rerender(<SyncBadge state="pending" counts={counts({ pending: 4, sent: 1, sheets_pending: 5 })} />);
+    expect(screen.getByTestId('sync-badge').querySelector('.sync-long')).toHaveTextContent('5 pendentes');
+    expect(screen.getByTestId('sync-badge').querySelector('.sync-short')).toHaveTextContent('5');
     expect(screen.getByTestId('sync-badge')).toHaveAttribute('data-pending', '5');
 
     rerender(<SyncBadge state="offline" counts={counts({ pending: 2 })} />);
-    expect(screen.getByTestId('sync-badge')).toHaveTextContent('Sem conexão');
+    expect(screen.getByTestId('sync-badge').querySelector('.sync-long')).toHaveTextContent('Sem conexão');
+    expect(screen.getByTestId('sync-badge').querySelector('.sync-short')).toHaveTextContent('Off');
 
     rerender(<SyncBadge state="error" counts={counts({ dead: 1 })} />);
-    expect(screen.getByTestId('sync-badge')).toHaveTextContent('Erro');
+    expect(screen.getByTestId('sync-badge').querySelector('.sync-long')).toHaveTextContent('Erro');
     expect(screen.getByTestId('sync-badge')).toHaveAttribute('data-dead', '1');
+  });
+
+  it('names the state whichever word the viewport shows', () => {
+    const { rerender } = render(<SyncBadge state="offline" counts={counts()} />);
+    // Not pressable: the span itself carries the name.
+    expect(screen.getByRole('img', { name: 'Sincronização: sem conexão' })).toHaveAttribute('data-state', 'offline');
+    rerender(<SyncBadge state="ok" counts={counts()} onPress={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Sincronização: sincronizado. Abrir status' })).toBeInTheDocument();
   });
 
   it('takes the compact class for cards and stays a plain span without onPress', () => {
@@ -47,7 +60,7 @@ describe('SyncBadge', () => {
   it('is a button that opens Sync status when onPress is given, and has no live region', async () => {
     const onPress = vi.fn();
     const { container } = render(<SyncBadge state="ok" counts={counts()} onPress={onPress} />);
-    const button = screen.getByRole('button', { name: 'Sincronizado' });
+    const button = screen.getByRole('button', { name: 'Sincronização: sincronizado. Abrir status' });
     expect(button).toHaveClass('sync-badge-btn');
     const badge = screen.getByTestId('sync-badge');
     expect(button).toContainElement(badge);

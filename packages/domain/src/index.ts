@@ -14,3 +14,8 @@ export * from './ops/materialize.ts';
 export * from './checks/unsynced.ts';
 export * from './sync/counts.ts';
 export * from './format/datetime.ts';
+export * from './status/table.ts';
+export * from './status/edited-since.ts';
+export * from './prefs/theme.ts';
+export * from './device/storage.ts';
+export * from './home/cards.ts';

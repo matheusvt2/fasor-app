@@ -42,7 +42,28 @@ export function clientCreateOp(user: SeedUser, clientId = newId()): Op {
   });
 }
 
-export function relatorioCreateOp(user: SeedUser, relatorioId = newId(), projectId = newId()): Op {
+export function projectCreateOp(user: SeedUser, projectId = newId(), clientId: string | null = null): Op {
+  return op(user, {
+    kind: 'create',
+    scope: 'company',
+    path: `project/${projectId}`,
+    value: { id: projectId, client_id: clientId, name: 'Projeto E2E', site: null, removed_at: null },
+  });
+}
+
+export interface RelatorioSeed {
+  status?: 'rascunho' | 'em_campo' | 'em_revisao' | 'emitido';
+  local?: string | null;
+  serviceStart?: string | null;
+  serviceEnd?: string | null;
+}
+
+export function relatorioCreateOp(
+  user: SeedUser,
+  relatorioId = newId(),
+  projectId = newId(),
+  seed: RelatorioSeed = {},
+): Op {
   return op(user, {
     kind: 'create',
     scope: 'relatorio',
@@ -54,12 +75,12 @@ export function relatorioCreateOp(user: SeedUser, relatorioId = newId(), project
       template_id: null,
       template_version: null,
       seed_version: 'v1',
-      status: 'rascunho',
+      status: seed.status ?? 'rascunho',
       setup: {
-        service_start: null,
-        service_end: null,
+        service_start: seed.serviceStart ?? null,
+        service_end: seed.serviceEnd ?? null,
         atividade: null,
-        local: null,
+        local: seed.local ?? null,
         responsible_user_id: null,
         cover_photo_file_id: null,
       },

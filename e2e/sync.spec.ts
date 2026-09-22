@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { deviceDatabaseName, expect, signIn, test } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, signIn, syncBadge, syncWord, test } from './support/merged-fixtures.ts';
 import {
   clientCreateOp,
   pullAll,
@@ -31,14 +31,14 @@ interface OutboxRecord {
 async function openSyncStatusWithRowsWaiting(page: Page, expectedBadge: string): Promise<void> {
   await page.route(isApiRequest, (route) => route.abort('internetdisconnected'));
   await page.reload();
-  await expect(page.getByRole('heading', { level: 1, name: 'Início' })).toBeVisible();
-  const badge = page.getByTestId('sync-badge');
-  await expect(badge).toHaveText(expectedBadge);
+  await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
+  const badge = syncBadge(page);
+  await expect(syncWord(page)).toHaveText(expectedBadge);
   await badge.click();
   await expect(page.getByRole('heading', { level: 1, name: 'Sincronização' })).toBeVisible();
   const button = page.getByRole('button', { name: 'Sincronizar agora' });
   await expect(button).not.toHaveAttribute('aria-disabled', 'true', { timeout: 30_000 });
-  await expect(badge).toHaveText(expectedBadge);
+  await expect(syncWord(page)).toHaveText(expectedBadge);
   await page.unroute(isApiRequest);
 }
 
@@ -49,7 +49,7 @@ test('@p0 1.5-E2E-001 work done offline reaches the server on "Sincronizar agora
   const account = seed.companies[0];
   const database = deviceDatabaseName(account.userId);
   await signIn(page, account.email);
-  await expect(page.getByTestId('sync-badge')).toHaveText('Sincronizado');
+  await expect(syncWord(page)).toHaveText('Sincronizado');
   const user = { ...account, deviceId: await readDeviceId(page, database) };
 
   const client = clientCreateOp(user);
@@ -58,13 +58,13 @@ test('@p0 1.5-E2E-001 work done offline reaches the server on "Sincronizar agora
   await seedOutbox(page, database, [client, relatorio]);
 
   await openSyncStatusWithRowsWaiting(page, '2 pendentes');
-  await expect(page.getByTestId('sync-badge')).toHaveAttribute('data-pending', '2');
+  await expect(syncBadge(page)).toHaveAttribute('data-pending', '2');
 
   const button = page.getByRole('button', { name: 'Sincronizar agora' });
   await button.click();
-  const badge = page.getByTestId('sync-badge');
+  const badge = syncBadge(page);
   await expect(badge).toHaveAttribute('data-pending', '0', { timeout: 20_000 });
-  await expect(badge).toHaveText('Sincronizado');
+  await expect(syncWord(page)).toHaveText('Sincronizado');
   await expect(badge).toHaveAttribute('data-state', 'ok');
   await expect(page.locator('.sync-headline')).toHaveAttribute('data-tone', 'ok');
   await expect(page.locator('.sync-foot')).toContainText('Última sincronização');
@@ -142,7 +142,7 @@ test('@p0 1.5-E2E-003 a pull answering 426 replaces the shell with "Atualizar" w
   await expect(page.getByRole('heading', { level: 1, name: 'Atualização necessária' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Atualizar' })).toBeVisible();
   await expect(page.locator('.app-bar')).toHaveCount(0);
-  await expect(page.getByTestId('sync-badge')).toHaveCount(0);
+  await expect(syncBadge(page)).toHaveCount(0);
 
   // The launch cycle pushed before it pulled: the op reached the server and is acked on the device.
   await expect.poll(() => pushes.length, { timeout: 20_000 }).toBeGreaterThan(0);
@@ -185,8 +185,8 @@ test('@p0 1.5-E2E-002 a rejected op is dead, excluded from state and listed with
   // A second tap during the cycle is a no-op: one push request only.
   await button.click({ force: true });
 
-  const badge = page.getByTestId('sync-badge');
-  await expect(badge).toHaveText('Erro', { timeout: 20_000 });
+  const badge = syncBadge(page);
+  await expect(syncWord(page)).toHaveText('Erro', { timeout: 20_000 });
   await expect(badge).toHaveAttribute('data-dead', '1');
   // The pulls that follow the push are still running; wait for the cycle to end before
   // reading the stores.
@@ -221,6 +221,6 @@ test('@p0 1.5-E2E-002 a rejected op is dead, excluded from state and listed with
     .toBe('dead');
   const again = await readStore<OutboxRecord>(page, database, 'outbox');
   expect(again.find((r) => r.op_id === rejected.op_id)).toMatchObject({ status: 'dead', error_code: 'op_server_only' });
-  await expect(badge).toHaveText('Erro');
+  await expect(syncWord(page)).toHaveText('Erro');
   await expect(row).toContainText('1 alteração rejeitada');
 });

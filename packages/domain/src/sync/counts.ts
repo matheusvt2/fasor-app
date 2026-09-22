@@ -103,3 +103,28 @@ export function syncBadgeLabel(state: SyncBadgeState, counts: SyncCounts): strin
       return 'Conflito';
   }
 }
+
+/**
+ * The narrow-viewport word of the same badge (`.sync-short`, `MOCK-GUIDE.md`):
+ * "OK" · "Off" · ⟨n⟩ · "Erro" · "Confl.". Both words are always in the DOM; the
+ * stylesheet decides which one shows, and the badge's accessible name says the
+ * state either way.
+ *
+ * The pending number counts exactly what `syncBadgeLabel` counts (unsent ops, not the
+ * sheets-and-photos summary): the two words describe one queue, so a narrow viewport
+ * must never show "3" where a wide one shows "5 pendentes".
+ */
+export function syncBadgeShortLabel(state: SyncBadgeState, counts: SyncCounts): string {
+  switch (state) {
+    case 'ok':
+      return 'OK';
+    case 'pending':
+      return String(counts.pending + counts.sent);
+    case 'offline':
+      return 'Off';
+    case 'error':
+      return 'Erro';
+    case 'conflict':
+      return 'Confl.';
+  }
+}

@@ -2,6 +2,8 @@ import { createBrowserRouter, Navigate, Outlet, RouterProvider } from 'react-rou
 import { copy } from './copy/pt-br.ts';
 import { SessionProvider, useSession } from './state/session.tsx';
 import { SyncProvider, useSync } from './state/sync.tsx';
+import { ThemeProvider } from './state/theme.tsx';
+import { ToastProvider } from './state/toast.tsx';
 import { AppShell } from './surfaces/app-shell.tsx';
 import { AccountSurface } from './surfaces/account/account-surface.tsx';
 import { ContractOutdatedSurface } from './surfaces/contract-outdated-surface.tsx';
@@ -36,7 +38,11 @@ function RequireSession() {
   if (session.status === 'signed-out') return <Navigate to="/login" replace />;
   return (
     <SyncProvider>
-      <SessionShell />
+      <ThemeProvider>
+        <ToastProvider>
+          <SessionShell />
+        </ToastProvider>
+      </ThemeProvider>
     </SyncProvider>
   );
 }
@@ -67,9 +73,11 @@ const router = createBrowserRouter([
       {
         element: <RequireSession />,
         children: [
-          { path: '/', element: <HomeSurface /> },
-          { path: '/account', element: <AccountSurface /> },
-          { path: '/sync', element: <SyncStatusSurface /> },
+          // `handle.title` is the App bar's <h1>; Home hides it because the wordmark
+          // already names the page (`key-home.html`).
+          { path: '/', element: <HomeSurface />, handle: { title: copy.home.title, titleHidden: true } },
+          { path: '/account', element: <AccountSurface />, handle: { title: copy.account.title } },
+          { path: '/sync', element: <SyncStatusSurface />, handle: { title: copy.sync.title } },
         ],
       },
       { path: '*', element: <Navigate to="/" replace /> },
