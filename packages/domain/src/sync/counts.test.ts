@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { pendingSummaryCount, pendingSummaryText, syncBadgeLabel, syncBadgeState, syncCounts, type OutboxLike } from './counts.ts';
+import {
+  pendingSummaryCount,
+  pendingSummaryText,
+  syncBadgeLabel,
+  syncBadgeShortLabel,
+  syncBadgeState,
+  syncCounts,
+  type OutboxLike,
+} from './counts.ts';
 
 const BLOCK_A = '019966b0-0000-7000-8000-000000000050';
 const BLOCK_B = '019966b0-0000-7000-8000-000000000051';
@@ -81,5 +89,21 @@ describe('pendingSummaryText and syncBadgeLabel', () => {
     expect(syncBadgeLabel('offline', base)).toBe('Sem conexão');
     expect(syncBadgeLabel('error', base)).toBe('Erro');
     expect(syncBadgeLabel('conflict', base)).toBe('Conflito');
+  });
+
+  it('gives the narrow-viewport words of MOCK-GUIDE.md', () => {
+    expect(syncBadgeShortLabel('ok', base)).toBe('OK');
+    expect(syncBadgeShortLabel('pending', { ...base, pending: 3, sheets_pending: 3 })).toBe('3');
+    expect(syncBadgeShortLabel('offline', base)).toBe('Off');
+    expect(syncBadgeShortLabel('error', base)).toBe('Erro');
+    expect(syncBadgeShortLabel('conflict', base)).toBe('Confl.');
+  });
+
+  it('the short and long pending words count the same queue', () => {
+    // Five unsent ops touching one sheet: the summary count is 1, the badge's is 5.
+    const counts = { ...base, pending: 4, sent: 1, sheets_pending: 1 };
+    expect(syncBadgeLabel('pending', counts)).toBe('5 pendentes');
+    expect(syncBadgeShortLabel('pending', counts)).toBe('5');
+    expect(pendingSummaryCount(counts)).toBe(1);
   });
 });

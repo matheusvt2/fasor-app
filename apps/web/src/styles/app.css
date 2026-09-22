@@ -89,6 +89,27 @@ body {
   border-radius: var(--r-md);
 }
 
+/* The status board tile is a filter, not a link (UX-DR63, EXPERIENCE.md › Home), so it
+   carries `aria-pressed`. `components.css` has `.status-board`, `.status-tile` and
+   `.tile-count.is-zero` and no pressed state at all — the mock's tiles only navigate.
+   The pressed look is therefore authored here (precedent: `.sync-badge-btn`), reusing
+   the segmented control's selected treatment and existing tokens so the two read as one
+   system. `components.css` stays byte-identical. */
+.status-tile[aria-pressed='true'] {
+  background: var(--focus-fill);
+  color: var(--primary);
+  box-shadow: inset 0 0 0 2px currentColor;
+}
+
+/* Home with nothing on the device: the mock draws no empty state, and the sentence plus
+   its disabled action need a column with the section's own rhythm. */
+.home-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
+}
+
 /* ---------- Dialogs: the two app-wide adjustments the real app needs ----------
    Both are here rather than in a surface stylesheet because they apply to every dialog
    in the app, and they adjust rules that live in the locked `components.css`.

@@ -173,6 +173,7 @@ export const equipmentRowSchema = z.object({
 // --- relatorio scope -------------------------------------------------------
 
 export const relatorioStatusSchema = z.enum(['rascunho', 'em_campo', 'em_revisao', 'emitido']);
+export type RelatorioStatus = z.infer<typeof relatorioStatusSchema>;
 export const exportSchemeSchema = z.enum(['por_local_e_tipo', 'ordem_de_campo']);
 
 export const relatorioSetupSchema = z.object({

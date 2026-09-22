@@ -37,7 +37,8 @@ export function SyncStatusSurface() {
       <div className="content">
         <section className="section" aria-labelledby={titleId}>
           <div className="section-head">
-            <h1 id={titleId}>{copy.sync.title}</h1>
+            {/* The surface title is the App bar's <h1> (`shell-head.html`); the section keeps its own heading. */}
+            <h2 id={titleId}>{copy.sync.title}</h2>
           </div>
           <div className="sync-headline" data-tone={sync.badgeState} role="status">
             <span className="sh-state">

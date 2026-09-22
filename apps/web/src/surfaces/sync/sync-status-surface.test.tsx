@@ -25,7 +25,9 @@ function state(over: Overrides = {}): SyncState {
     supersededCount: 0,
     deviceId: 'tablet-1',
     userNames: { 'u-bruno': 'Bruno' },
+    summaryRelatorios: [],
     syncNow: vi.fn(async () => 'ran' as const),
+    syncRelatorio: vi.fn(async () => 'ran' as const),
     resendDead: vi.fn(async () => {}),
     ...over,
     counts,
@@ -43,7 +45,7 @@ describe('Sync status surface', () => {
   it('renders the headline, the primary button and the mock sections when idle', async () => {
     const value = state();
     const { container } = renderWith(value);
-    expect(screen.getByRole('heading', { level: 1, name: 'Sincronização' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Sincronização' })).toBeInTheDocument();
     const headline = container.querySelector('.sync-headline')!;
     expect(headline).toHaveAttribute('data-tone', 'ok');
     expect(headline.querySelector('.sh-state')).toHaveTextContent('Sincronizado');

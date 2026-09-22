@@ -486,6 +486,50 @@ describe('sync engine', () => {
     h.db.close();
   });
 
+  it('keeps the company summary on the company sync_state row (AD-8)', async () => {
+    const h = await harness();
+    h.server.relatorios.push({ id: RELATORIO_ID, project_id: PROJECT_ID, status: 'emitido' });
+    expect(await h.engine.runCycle()).toBe('ran');
+
+    const company = (await h.db.sync_state.get('company'))!;
+    expect(company.relatorios).toEqual([
+      { id: RELATORIO_ID, project_id: PROJECT_ID, status: 'emitido', template_id: null, seed_version: 'v1', updated_seq: 1 },
+    ]);
+    // Only the company row carries it: a relatorio stream has no summary of its own.
+    await h.engine.syncRelatorio(RELATORIO_ID);
+    expect((await h.db.sync_state.get(RELATORIO_ID))!.relatorios).toBeUndefined();
+    h.db.close();
+  });
+
+  it('syncRelatorio starts following an Emitido relatorio and pulls it now (AD-8, "pulled on open")', async () => {
+    const h = await harness();
+    h.server.relatorios.push({ id: RELATORIO_ID, project_id: PROJECT_ID, status: 'emitido' });
+    expect(await h.engine.runCycle()).toBe('ran');
+    // Not Rascunho or Em campo, so the automatic rule left it alone.
+    expect(h.server.pulls.some((p) => p.startsWith(`${RELATORIO_ID}:`))).toBe(false);
+
+    expect(await h.engine.syncRelatorio(RELATORIO_ID)).toBe('ran');
+    expect(h.server.pulls).toContain(`${RELATORIO_ID}:0`);
+    expect(await h.db.sync_state.get(RELATORIO_ID)).toMatchObject({ complete: true });
+
+    // From then on the existing "already holds a sync_state row" rule keeps it fresh.
+    const before = h.server.pulls.length;
+    expect(await h.engine.runCycle()).toBe('ran');
+    expect(h.server.pulls.slice(before).some((p) => p.startsWith(`${RELATORIO_ID}:`))).toBe(true);
+    h.db.close();
+  });
+
+  it('syncRelatorio does not reset the cursor of a relatorio already followed', async () => {
+    const h = await harness();
+    await commitOps(h.db, seedLog());
+    expect(await h.engine.runCycle()).toBe('ran');
+    const cursor = (await h.db.sync_state.get(RELATORIO_ID))!.cursor_seq;
+    expect(cursor).toBeGreaterThan(0);
+    await h.engine.syncRelatorio(RELATORIO_ID);
+    expect((await h.db.sync_state.get(RELATORIO_ID))!.cursor_seq).toBe(cursor);
+    h.db.close();
+  });
+
   it('pages a long stream and advances the cursor each page', async () => {
     const h = await harness();
     const base = replaySmall.log.find((op) => op.scope === 'company')!;

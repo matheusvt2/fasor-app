@@ -7,6 +7,15 @@ export type { RelatorioStatus, StatusPillProps } from './status-pill.tsx';
 export { SyncBadge } from './sync-badge.tsx';
 export type { SyncBadgeProps } from './sync-badge.tsx';
 
+export { SyncAnnouncer } from './sync-announcer.tsx';
+export type { SyncAnnouncerProps } from './sync-announcer.tsx';
+
+export { StatusTile } from './status-tile.tsx';
+export type { StatusTileProps } from './status-tile.tsx';
+
+export { Toast } from './toast.tsx';
+export type { ToastAction, ToastMessage } from './toast.tsx';
+
 export { OverflowMenu } from './overflow-menu.tsx';
 export type { OverflowMenuAction, OverflowMenuProps } from './overflow-menu.tsx';
 

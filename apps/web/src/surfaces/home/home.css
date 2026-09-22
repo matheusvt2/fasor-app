@@ -1,0 +1,63 @@
+/* Page-only layout of Home, copied from the `<style data-screen="home">` block of
+   `mockups/prototype/screens/20-home.html`, where it is scoped to `[data-route="/home"]`.
+   A stylesheet imported by a module is not scoped by itself, so `.home-screen` on the
+   surface's root plays the part `[data-route]` plays in the prototype (same arrangement
+   as account.css). */
+
+.home-screen .home-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-4);
+}
+
+.home-screen .home-head h2 {
+  font-size: var(--t-title-size);
+  font-weight: var(--t-title-weight);
+  line-height: var(--t-title-lh);
+}
+
+@media (max-width: 480px) {
+  .home-screen .home-head .btn {
+    width: 100%;
+  }
+
+  .home-screen .shortcut-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.home-screen .relatorio-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.home-screen .relatorio-card {
+  cursor: pointer;
+}
+
+/* The mock makes the whole card the interactive element; here the title row is the
+   button, so it has to span the card and clear the 48px hit-area floor — otherwise the
+   chevron drifts inward (nothing for `justify-content: space-between` to distribute) and
+   the target is the height of one line of text. */
+.home-screen .card-title {
+  width: 100%;
+  min-height: var(--touch-min);
+}
+
+.home-screen .relatorio-card .card-chev {
+  color: var(--ink-secondary);
+  flex: none;
+  margin: -6px -6px 0 0;
+}
+
+.home-screen .shortcut-card {
+  min-width: 0;
+}
+
+.home-screen .section + .section {
+  margin-top: var(--sp-5);
+}

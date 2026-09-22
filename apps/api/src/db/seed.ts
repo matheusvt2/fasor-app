@@ -159,6 +159,25 @@ export async function removeLegacyTestCompanies(db: Db): Promise<number> {
   return ids.length;
 }
 
+/**
+ * Empties the op log, the materialized entities and the push register of the test
+ * companies, keeping the companies and their users. The Playwright suite asserts counts
+ * on surfaces that read the whole company (the Home status board), so its run has to
+ * start from the same state; the Postgres volume itself is long-lived.
+ *
+ * It is called by the Playwright global setup only, never by `seedTestCompanies`: the
+ * api integration files each seed in their own `beforeAll` and run side by side, so a
+ * reset there would wipe rows a neighbouring file had just written.
+ */
+export async function resetTestCompanyData(db: Db): Promise<void> {
+  const ids = TEST_SEED.companies.map((c) => c.companyId);
+  await db.transaction(async (tx) => {
+    await tx.delete(ops).where(inArray(ops.company_id, ids));
+    await tx.delete(entities).where(inArray(entities.company_id, ids));
+    await tx.delete(syncDevicePush).where(inArray(syncDevicePush.company_id, ids));
+  });
+}
+
 export async function seedTestCompanies(db: Db, auth: Auth): Promise<SeedUserResult[]> {
   await removeLegacyTestCompanies(db);
   const results: SeedUserResult[] = [];

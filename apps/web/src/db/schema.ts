@@ -1,4 +1,4 @@
-import { targetsOf, type Entity, type EntityRow, type Op } from '@app/domain';
+import { targetsOf, type Entity, type EntityRow, type Op, type RelatorioSummary } from '@app/domain';
 import Dexie, { type Table, type Transaction } from 'dexie';
 
 /*
@@ -62,9 +62,18 @@ export interface SyncStateRow {
   downloaded_at: string | null;
   last_sync_at: string | null;
   last_push_at: { user_id: string; device_id: string; at: string }[];
+  /**
+   * AD-8: the company pull's per-relatório summary, kept on the `company` row only.
+   * It is the only place a relatório the device never downloaded appears, so Home can
+   * draw its "Não está neste aparelho" card. Not indexed, so no new Dexie version.
+   */
+  relatorios?: RelatorioSummary[];
 }
 
-/** Device-local, never-synced state (Conventions). Keys: `db_version`, `device_id`, ... */
+/**
+ * Device-local, never-synced state (Conventions).
+ * Keys: `db_version`, `device_id`, `theme`.
+ */
 export interface LocalPrefRow {
   key: string;
   value: unknown;
@@ -72,6 +81,7 @@ export interface LocalPrefRow {
 
 export const COMPANY_STREAM = 'company';
 export const DEVICE_ID_PREF = 'device_id';
+export const THEME_PREF = 'theme';
 
 interface VersionDef {
   version: number;

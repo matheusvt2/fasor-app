@@ -3,7 +3,7 @@
  *
  * Most are verbatim from `mockups/prototype/screens/10-login.html`, `key-login.html` and
  * `90-account.html`. The rest cover states the mocks do not draw — a save in flight, a
- * failed request, the placeholder Home, the re-auth banner — and each of those carries an
+ * failed request, an empty Home, the re-auth banner — and each of those carries an
  * `// authored:` note saying why it had to be written here. When a mock later gains the
  * state, its wording wins over the authored line.
  *
@@ -44,9 +44,6 @@ export const copy = {
     saveOfflineReason: 'Salvar precisa de conexão',
     saveFailed: 'Não foi possível salvar. Tente de novo.',
     registrationIncomplete: 'Informe o número do registro e o título impresso.',
-    // authored: the mock groups the pending-upload row under its storage section, which
-    // Story 1.6 builds; until then the row has a heading of its own.
-    syncHeading: 'Sincronização',
     pendingLabel: 'Aguardando envio',
     // authored: the mock only draws the row with something pending.
     nothingPending: 'Nada aguardando envio',
@@ -73,19 +70,53 @@ export const copy = {
     // authored: the mock has no offline or failure state for "Sair".
     signOutOfflineReason: 'Sair precisa de conexão',
     signOutFailed: 'Não foi possível sair. Tente de novo.',
+    // Tema and Armazenamento from `mockups/prototype/screens/90-account.html`.
+    themeHeading: 'Tema',
+    themeNote: 'Segue a preferência do aparelho. Os dois temas mantêm o contraste para uso ao sol.',
+    themeSystem: 'Sistema',
+    themeLight: 'Claro',
+    themeDark: 'Escuro',
+    storageHeading: 'Armazenamento neste aparelho',
+    storageInUse: 'Em uso',
+    storageNote:
+      'Fotos ficam neste aparelho até o servidor confirmar o recebimento. Relatórios emitidos são removidos daqui sozinhos.',
   },
-  // authored: Home is a placeholder until Story 1.6 builds the status board from
-  // `key-home.html`, so none of this comes from a mock.
+  // Home from `mockups/prototype/screens/20-home.html` and `key-home.html`. Every card
+  // line, the board counts and the shortcut sub-lines come from the kernel
+  // (`homeCards`, `statusBoardCounts`, `templatesSubline`), never from here.
   home: {
     title: 'Início',
     accountLink: 'Conta',
-    placeholder: 'Seus relatórios aparecem aqui.',
+    wordmarkLabel: (produto: string) => `${produto} — início`,
+    statusHeading: 'Relatórios por status',
+    relatoriosHeading: 'Relatórios',
+    newRelatorio: 'Novo relatório',
+    continue: 'Continuar',
+    openSummary: 'Ver sumário',
+    shortcutsHeading: 'Atalhos',
+    templates: 'Templates',
+    cadastros: 'Cadastros',
+    // authored: one reason shared by every affordance whose destination belongs to a
+    // later epic (Sumário, Templates, Cadastros, relatório creation), so the screen
+    // never argues with itself about what is missing.
+    notAvailableYet: 'Disponível em uma próxima etapa',
+    // authored: the mock draws no empty Home; a device with nothing on it still needs a sentence.
+    empty: 'Nenhum relatório ainda.',
+    // authored: a tile that reads zero is still pressable, and an empty list under it is
+    // not an empty device — the two cases have to say different things.
+    noneForFilter: 'Nenhum relatório neste status.',
+    // Verbatim from `key-home.html` frame 3.
+    offlineToast: 'Sem conexão. Tudo fica salvo neste aparelho.',
   },
   // authored: `source-deltas.md` gave the re-auth banner the slot the removed install
   // banner had, so no mock draws it yet.
   banner: {
     reAuthText: 'Sua sessão expirou. Nada foi apagado deste aparelho.',
     reAuthAction: 'Entrar de novo',
+    // Verbatim from the prototype's `#slot-offline` banner text.
+    offlineText: 'Sem conexão. Tudo fica salvo neste aparelho.',
+    // Verbatim from the prototype's `.banner-more` aria-label.
+    moreLabel: 'Outras condições — abrir status de sincronização',
   },
   // Sync status from `mockups/prototype/screens/85-sync.html` and `key-sync-status.html`.
   // The badge words and the pending summary come from the kernel (`syncBadgeLabel`,
