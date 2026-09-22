@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import {
   buildSnapshot,
   emptySheet,
+  entityKey,
   makeOp,
   relatorioSnapshotSchema,
   replay,
@@ -10,7 +11,15 @@ import {
   type Op,
   type OpInput,
 } from '@app/domain';
-import { BLOCK_1_ID, CABINE_ID, COMPANY_ID, RELATORIO_ID, replaySmall, USER_ID } from '@app/domain/fixtures/replay-small';
+import {
+  BLOCK_1_ID,
+  CABINE_ID,
+  COMPANY_ID,
+  fixedTs,
+  RELATORIO_ID,
+  replaySmall,
+  USER_ID,
+} from '@app/domain/fixtures/replay-small';
 import { describe, expect, it } from 'vitest';
 import { commitBatch, commitOps, oldestPendingClientTs, undoBatch } from './commit.ts';
 import { openDatabase, type AppDatabase } from './schema.ts';
@@ -244,6 +253,39 @@ describe('batch and undo', () => {
     const inverses = await undoBatch(db, batch_id, d);
     expect(inverses).toHaveLength(1);
     expect(inverses[0]!.path).toBe(`block/${BLOCK_1_ID}/order_key`);
+    db.close();
+  });
+});
+
+describe('coalescing vs first_edited_at (deferred hand-off)', () => {
+  // Pins the divergence recorded in the spec's deferred list: AD-3 coalescing keeps the last client_ts,
+  // AD-18 materializes first_edited_at from the first op applied on the device, so a server that only
+  // sees the merged op materializes a later value. Whichever option the architect picks (no coalescing
+  // when last.client_ts equals first_edited_at, or re-materialization on pull) must flip these assertions.
+  it('the server fold of the pushed outbox differs from the device row on first_edited_at only', async () => {
+    const db = await freshDb();
+    const dead = new Set(replaySmall.deadOpIds);
+    const live = replaySmall.log.filter((op) => !dead.has(op.op_id));
+    await commitOps(db, live);
+
+    const outbox = await db.outbox.orderBy('client_ts').toArray();
+    expect(live).toHaveLength(64);
+    expect(outbox).toHaveLength(63);
+
+    const pushed: Op[] = outbox.map((row) => {
+      const op: Partial<typeof row> = { ...row };
+      delete op.status;
+      delete op.error_code;
+      delete op.prev_value;
+      return op as Op;
+    });
+    const server = replay(pushed).get(entityKey('block', BLOCK_1_ID)) as BlockRow;
+    const device = (await db.entities.get(['block', BLOCK_1_ID]))!.row as BlockRow;
+
+    expect(device.first_edited_at).toBe(fixedTs(26));
+    expect(server.first_edited_at).toBe(fixedTs(27));
+    expect(server.last_modified_at).toBe(device.last_modified_at);
+    expect(server.sheet).toEqual(device.sheet);
     db.close();
   });
 });

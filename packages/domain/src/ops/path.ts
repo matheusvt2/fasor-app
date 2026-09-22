@@ -111,7 +111,13 @@ export const opPathSchema = z.discriminatedUnion('family', [
   z.object({ family: z.literal('suggestion'), id: uuidV7Schema }),
   z.object({ family: z.literal('suggestion/status'), id: uuidV7Schema }),
   z.object({ family: z.literal('registry'), kind: registryKindSchema, id: uuidV7Schema }),
-  z.object({ family: z.literal('registry/field'), kind: registryKindSchema, id: uuidV7Schema, field: z.string() }),
+  z
+    .object({ family: z.literal('registry/field'), kind: registryKindSchema, id: uuidV7Schema, field: z.string() })
+    // The field set depends on the kind, so a hand-built path is checked here, not only in matchFamily.
+    .refine((p) => mutableKeys(registryKeys(p.kind)).includes(p.field), {
+      path: ['field'],
+      message: 'unknown field for this registry kind',
+    }),
   z.object({ family: z.literal('template'), id: uuidV7Schema }),
   z.object({ family: z.literal('template/field'), id: uuidV7Schema, field: fieldOf(TEMPLATE_FIELDS) }),
   z.object({ family: z.literal('user/field'), id: uuidV7Schema, field: fieldOf(USER_FIELDS) }),

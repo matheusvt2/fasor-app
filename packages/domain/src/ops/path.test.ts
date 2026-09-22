@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { opLog } from '../../fixtures/replay-small/op-log.ts';
-import { FAMILIES, formatPath, isServerOnly, parsePath, PathError, targetOf } from './path.ts';
+import { FAMILIES, formatPath, isServerOnly, opPathSchema, parsePath, PathError, targetOf, type OpPath } from './path.ts';
 
 const ID = '019966b0-0000-7000-8000-0000000000aa';
 const BLOCK = '019966b0-0000-7000-8000-0000000000bb';
@@ -115,5 +115,15 @@ describe('1.4-UNIT-001 path round trip', () => {
     expect(targetOf(parsePath(`sheet/${BLOCK}/observations`))).toEqual({ entity: 'block', id: BLOCK });
     expect(targetOf(parsePath(`registry/client/${ID}/name`))).toEqual({ entity: 'registry', id: ID });
     expect(targetOf(parsePath('relatorio/status'))).toEqual({ entity: 'relatorio', id: null });
+  });
+
+  it('rejects a hand-built registry/field path whose field is not a key of that kind', () => {
+    const bogus = { family: 'registry/field', kind: 'client', id: ID, field: 'serial' } as const;
+    const parsed = opPathSchema.safeParse(bogus);
+    expect(parsed.success).toBe(false);
+    if (!parsed.success) expect(parsed.error.issues[0]?.path).toEqual(['field']);
+    expect(() => parsePath(formatPath(bogus as unknown as OpPath))).toThrow(/unknown field "serial" for registry client/);
+    expect(opPathSchema.safeParse({ ...bogus, field: 'name' }).success).toBe(true);
+    expect(opPathSchema.safeParse({ ...bogus, field: 'id' }).success).toBe(false);
   });
 });

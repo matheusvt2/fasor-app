@@ -36,6 +36,13 @@ deferred:
     location: >-
       apps/web/src/db/commit.ts
     severity: medium
+  - summary: >-
+      Architect decision: coalescing keeps the last client_ts, so a server that only sees the merged op materializes a later first_edited_at than the device; choose (a) or (b) below.
+    evidence: |-
+      Confirmed empirically on the full small fixture through commitOps: the device block holds first_edited_at 2026-09-20T10:26:00.000Z while a replay of the pushed (coalesced) outbox yields 10:27:00.000Z; 64 live ops become 63 outbox rows. The AD-3 coalescing rule and the AD-18 materialization rule are each followed and disagree by construction. Options: (a) do not coalesce when last.client_ts equals the block's first_edited_at (one condition in apps/web/src/db/commit.ts, needs a source-deltas.md row); (b) re-materialize the block on pull in Story 1.5. The test "coalescing vs first_edited_at (deferred hand-off)" in apps/web/src/db/commit.test.ts pins the current divergence so it cannot change silently; whichever option lands flips that assertion.
+    location: >-
+      packages/domain/src/ops/outbox.ts:25; apps/web/src/db/commit.ts:57-63
+    severity: medium
 dev_model: 'fable'
 dev_effort: 'high'
 ---
