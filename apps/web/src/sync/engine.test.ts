@@ -638,12 +638,12 @@ describe('sync engine', () => {
     expect(await h.engine.runCycle()).toBe('ran');
     expect(await h.db.sync_state.get('company')).toMatchObject({ cursor_seq: 1, complete: true });
 
-    // `address` is `string | null`: applyOp refuses the row, materialization throws.
+    // `contact_name` is `string | null`: applyOp refuses the row, materialization throws.
     h.server.log.push({
       ...create,
       op_id: '019966b0-0014-7000-8000-000000000001',
       kind: 'put',
-      path: `registry/client/${clientId}/address`,
+      path: `registry/client/${clientId}/contact_name`,
       value: 42,
       seq: 2,
     });
@@ -730,8 +730,8 @@ describe('sync engine', () => {
       ...base,
       op_id: `019966b0-0013-7000-8000-${(i + 1).toString(16).padStart(12, '0')}`,
       kind: 'put' as const,
-      path: `registry/client/${clientId}/address`,
-      value: `Rua ${i}`,
+      path: `registry/client/${clientId}/contact_name`,
+      value: `Contato ${i}`,
       seq: i + 1,
     }));
     expect(await h.engine.runCycle()).toBe('ran');

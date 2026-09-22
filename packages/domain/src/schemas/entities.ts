@@ -99,7 +99,10 @@ export const registryRowSchemas = {
     kind: z.literal('client'),
     name: z.string(),
     cnpj: nullableString,
-    address: nullableString,
+    contact_name: nullableString,
+    contact_phone: nullableString,
+    /** One or more sites (AR-19 addresses the client is billed/served at). */
+    sites: z.array(z.object({ id: uuidV7Schema, address: z.string() })),
   }),
   instrument: z.object({
     ...registryBase,

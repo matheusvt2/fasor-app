@@ -45,3 +45,5 @@ export type { ComboboxProps, ComboboxOption } from './combobox.tsx';
 
 export { UploadTile } from './upload-tile.tsx';
 export type { AttachedFile, PickedFile, UploadTileProps } from './upload-tile.tsx';
+export { RegistryPickerField } from './registry-picker-field.tsx';
+export type { RegistryPickerFieldProps } from './registry-picker-field.tsx';

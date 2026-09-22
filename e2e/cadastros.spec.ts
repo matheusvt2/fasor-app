@@ -1,8 +1,8 @@
-import { makeOp, type Op } from '@app/domain';
+import { formatCriterionValue, makeOp, SEEDED_CRITERIA, type Op } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, signIn, test } from './support/merged-fixtures.ts';
-import { readDeviceId, readFileBlobs, readStore, seedOutbox, type SeedUser } from './support/outbox.ts';
+import { projectCreateOp, readDeviceId, readFileBlobs, readStore, seedOutbox, type SeedUser } from './support/outbox.ts';
 
 /*
  * 2.1-E2E. The Registries surface's Instrumentos tab: the six-tab shell (AC1), the
@@ -49,6 +49,76 @@ function instrumentOp(user: SeedUser, fields: Record<string, unknown>, id = newI
         removed_at: null,
         ...fields,
       },
+    },
+    { newId, now: new Date() },
+  );
+}
+
+function clientOp(user: SeedUser, fields: Record<string, unknown>, id = newId()): Op {
+  return makeOp(
+    {
+      kind: 'create',
+      scope: 'company',
+      company_id: user.companyId,
+      project_id: null,
+      relatorio_id: null,
+      prev_op_id: null,
+      batch_id: null,
+      meta: null,
+      actor_id: user.userId,
+      device_id: user.deviceId,
+      path: `registry/client/${id}`,
+      value: {
+        id,
+        kind: 'client',
+        name: 'Cliente seed',
+        cnpj: null,
+        contact_name: null,
+        contact_phone: null,
+        sites: [],
+        removed_at: null,
+        ...fields,
+      },
+    },
+    { newId, now: new Date() },
+  );
+}
+
+function manufacturerOp(user: SeedUser, fields: Record<string, unknown>, id = newId()): Op {
+  return makeOp(
+    {
+      kind: 'create',
+      scope: 'company',
+      company_id: user.companyId,
+      project_id: null,
+      relatorio_id: null,
+      prev_op_id: null,
+      batch_id: null,
+      meta: null,
+      actor_id: user.userId,
+      device_id: user.deviceId,
+      path: `registry/manufacturer/${id}`,
+      value: { id, kind: 'manufacturer', name: 'Fabricante seed', gender: null, number: null, removed_at: null, ...fields },
+    },
+    { newId, now: new Date() },
+  );
+}
+
+function voltageClassOp(user: SeedUser, fields: Record<string, unknown>, id = newId()): Op {
+  return makeOp(
+    {
+      kind: 'create',
+      scope: 'company',
+      company_id: user.companyId,
+      project_id: null,
+      relatorio_id: null,
+      prev_op_id: null,
+      batch_id: null,
+      meta: null,
+      actor_id: user.userId,
+      device_id: user.deviceId,
+      path: `registry/voltage_class/${id}`,
+      value: { id, kind: 'voltage_class', name: '13,8 kV', gender: null, number: null, removed_at: null, ...fields },
     },
     { newId, now: new Date() },
   );
@@ -211,6 +281,198 @@ test('@p2 2.1-E2E-005 paired fields in the same field-grid row keep the same con
   expect(certNumberBox).not.toBeNull();
   expect(rbcToggleBox).not.toBeNull();
   expect(Math.abs(rbcToggleBox!.y - certNumberBox!.y)).toBeLessThanOrEqual(1);
+});
+
+/*
+ * 2.4-E2E. Clientes: create with name/CNPJ/site/contact (AC1), CNPJ validation (I/O
+ * matrix), a referenced client offers only Arquivar (AC1), and offline create.
+ */
+
+test('@p0 2.4-E2E-001 Clientes: a new client autosaves field by field and the row shows name + CNPJ', async ({ page, seed }) => {
+  const account = seed.companies[0];
+  await signIn(page, account.email);
+  await page.getByRole('link', { name: /Cadastros/ }).click();
+  await page.getByRole('tab', { name: 'Clientes' }).click();
+
+  await page.getByRole('button', { name: 'Novo cliente' }).click();
+  const panel = page.locator('.registry-panel');
+  await expect(panel).toBeVisible();
+  await expect(panel.getByRole('button', { name: 'Salvar' })).toHaveCount(0);
+
+  await panel.getByLabel('Nome').fill('Cliente E2E Ltda');
+  await panel.getByLabel('CNPJ').fill('00000000000100');
+  await panel.getByRole('button', { name: 'Fechar edição' }).click();
+
+  const row = page.getByRole('button', { name: /Cliente E2E Ltda/ });
+  await expect(row).toContainText('Cliente E2E Ltda');
+  await expect(row).toContainText('CNPJ 00.000.000/0001-00');
+});
+
+test('@p1 2.4-E2E-002 a non-14-digit CNPJ shows an inline error and never autosaves', async ({ page, seed }) => {
+  const account = seed.companies[0];
+  await signIn(page, account.email);
+  await page.getByRole('link', { name: /Cadastros/ }).click();
+  await page.getByRole('tab', { name: 'Clientes' }).click();
+
+  await page.getByRole('button', { name: 'Novo cliente' }).click();
+  const panel = page.locator('.registry-panel');
+  await panel.getByLabel('Nome').fill('Cliente CNPJ inválido');
+  await panel.getByLabel('CNPJ').fill('123');
+  await expect(panel.getByText('CNPJ inválido')).toBeVisible();
+  await panel.getByRole('button', { name: 'Fechar edição' }).click();
+
+  await page.getByRole('button', { name: /Cliente CNPJ inválido/ }).click();
+  await expect(page.locator('.registry-panel').getByLabel('CNPJ')).toHaveValue('');
+});
+
+test('@p1 2.4-E2E-003 a client referenced by a Project offers only Arquivar', async ({ page, seed }) => {
+  const account = seed.companies[0];
+  const database = deviceDatabaseName(account.userId);
+  await signIn(page, account.email);
+  const user = await seedUser(page, account, database);
+
+  const clientId = newId();
+  await seedOutbox(page, database, [
+    clientOp(user, { name: 'Cliente Referenciado' }, clientId),
+    projectCreateOp(user, newId(), clientId),
+  ]);
+  await page.reload();
+  await page.getByRole('link', { name: /Cadastros/ }).click();
+  await page.getByRole('tab', { name: 'Clientes' }).click();
+
+  await page.getByRole('button', { name: /Cliente Referenciado/ }).click();
+  const panel = page.locator('.registry-panel');
+  await expect(panel.getByRole('button', { name: 'Arquivar' })).toBeVisible();
+  await expect(panel.getByRole('button', { name: /^Remover$/ })).toHaveCount(0);
+});
+
+test('@p2 2.4-E2E-004 a client created offline lands in the outbox at once and pushes on reconnect', async ({
+  page,
+  context,
+  seed,
+}) => {
+  const account = seed.companies[0];
+  const database = deviceDatabaseName(account.userId);
+  await signIn(page, account.email);
+  await page.getByRole('link', { name: /Cadastros/ }).click();
+  await page.getByRole('tab', { name: 'Clientes' }).click();
+
+  await context.setOffline(true);
+  await page.getByRole('button', { name: 'Novo cliente' }).click();
+  const panel = page.locator('.registry-panel');
+  await panel.getByLabel('Nome').fill('Cliente Offline');
+  await panel.getByRole('button', { name: 'Fechar edição' }).click();
+
+  await expect(page.getByRole('button', { name: /Cliente Offline/ })).toBeVisible();
+  const pending = await readStore<{ status: string; path: string }>(page, database, 'outbox');
+  expect(pending.some((row) => row.status === 'pending' && row.path.startsWith('registry/client/'))).toBe(true);
+
+  await context.setOffline(false);
+  await syncNow(page);
+  const afterSync = await readStore<{ status: string; path: string }>(page, database, 'outbox');
+  expect(afterSync.every((row) => row.status !== 'pending' || !row.path.startsWith('registry/client/'))).toBe(true);
+});
+
+/*
+ * 2.5-E2E. Fabricantes and Classes de tensão: create autosaves and is queryable at once
+ * (AC1), and an offline create pushes on reconnect (AC4).
+ */
+
+test('@p0 2.5-E2E-001 Fabricantes: a new manufacturer autosaves and a seeded one is queryable at once', async ({ page, seed }) => {
+  const account = seed.companies[0];
+  const database = deviceDatabaseName(account.userId);
+  await signIn(page, account.email);
+  const user = await seedUser(page, account, database);
+
+  // Queryable at once (AC1): a manufacturer another device already synced renders with no further action.
+  await seedOutbox(page, database, [manufacturerOp(user, { name: 'Megabras seed' })]);
+  await page.reload();
+  await page.getByRole('link', { name: /Cadastros/ }).click();
+  await page.getByRole('tab', { name: 'Fabricantes' }).click();
+  await expect(page.getByRole('button', { name: /Megabras seed/ })).toBeVisible();
+
+  // Autosaves field by field, no Save button.
+  await page.getByRole('button', { name: 'Novo fabricante' }).click();
+  const panel = page.locator('.registry-panel');
+  await expect(panel.getByRole('button', { name: 'Salvar' })).toHaveCount(0);
+  await panel.getByLabel('Nome').fill('Schneider E2E');
+  await panel.getByRole('button', { name: 'Fechar', exact: true }).click();
+
+  await expect(page.getByRole('button', { name: /Schneider E2E/ })).toBeVisible();
+});
+
+test('@p0 2.5-E2E-002 Classes de tensão: a new voltage class autosaves and a seeded one is queryable at once', async ({
+  page,
+  seed,
+}) => {
+  const account = seed.companies[0];
+  const database = deviceDatabaseName(account.userId);
+  await signIn(page, account.email);
+  const user = await seedUser(page, account, database);
+
+  await seedOutbox(page, database, [voltageClassOp(user, { name: '34,5 kV seed' })]);
+  await page.reload();
+  await page.getByRole('link', { name: /Cadastros/ }).click();
+  await page.getByRole('tab', { name: 'Classes de tensão' }).click();
+  await expect(page.getByRole('button', { name: /34,5 kV seed/ })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Nova classe' }).click();
+  const panel = page.locator('.registry-panel');
+  await panel.getByLabel('Nome').fill('23 kV E2E');
+  await panel.getByRole('button', { name: 'Fechar', exact: true }).click();
+
+  await expect(page.getByRole('button', { name: /23 kV E2E/ })).toBeVisible();
+});
+
+test('@p2 2.5-E2E-003 a manufacturer created offline lands in the outbox at once and pushes on reconnect', async ({
+  page,
+  context,
+  seed,
+}) => {
+  const account = seed.companies[0];
+  const database = deviceDatabaseName(account.userId);
+  await signIn(page, account.email);
+  await page.getByRole('link', { name: /Cadastros/ }).click();
+  await page.getByRole('tab', { name: 'Fabricantes' }).click();
+
+  await context.setOffline(true);
+  await page.getByRole('button', { name: 'Novo fabricante' }).click();
+  const panel = page.locator('.registry-panel');
+  await panel.getByLabel('Nome').fill('Fabricante Offline');
+  await panel.getByRole('button', { name: 'Fechar', exact: true }).click();
+
+  await expect(page.getByRole('button', { name: /Fabricante Offline/ })).toBeVisible();
+  const pending = await readStore<{ status: string; path: string }>(page, database, 'outbox');
+  expect(pending.some((row) => row.status === 'pending' && row.path.startsWith('registry/manufacturer/'))).toBe(true);
+
+  await context.setOffline(false);
+  await syncNow(page);
+  const afterSync = await readStore<{ status: string; path: string }>(page, database, 'outbox');
+  expect(afterSync.every((row) => row.status !== 'pending' || !row.path.startsWith('registry/manufacturer/'))).toBe(true);
+});
+
+/* 2.6-E2E. Critérios de aceitação: a read-only table with no row actions (AC3). */
+
+test('@p0 2.6-E2E-001 Critérios de aceitação renders the seeded criteria as a read-only table', async ({ page, seed }) => {
+  const account = seed.companies[0];
+  await signIn(page, account.email);
+  await page.getByRole('link', { name: /Cadastros/ }).click();
+  await page.getByRole('tab', { name: 'Critérios de aceitação' }).click();
+
+  const table = page.getByRole('table');
+  await expect(table).toBeVisible();
+  for (const criterion of SEEDED_CRITERIA) {
+    await expect(table).toContainText(criterion.label);
+    await expect(table).toContainText(formatCriterionValue(criterion));
+  }
+  await expect(table.getByRole('button')).toHaveCount(0);
+
+  // Card-stacked at phone width (`app.css`'s `.data-table` phone rule): the long "used by"
+  // free text must never push the page wider than the viewport.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(table).toBeVisible();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  expect(overflow).toBeLessThanOrEqual(0);
 });
 
 test('@p1 2.3-E2E-001 Empresa: every field autosaves its own op and the preview follows', async ({ page, seed }) => {

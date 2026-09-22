@@ -126,7 +126,9 @@ async function seedCompany(db: AppDatabase) {
       kind: 'client',
       name: 'Porto Seguro',
       cnpj: null,
-      address: null,
+      contact_name: null,
+      contact_phone: null,
+      sites: [],
       removed_at: null,
     }),
     toRecord(`template:${TEMPLATE}`, {

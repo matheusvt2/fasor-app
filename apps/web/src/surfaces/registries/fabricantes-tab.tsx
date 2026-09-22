@@ -1,7 +1,17 @@
 import { copy } from '../../copy/pt-br.ts';
-import { RegistryTabPlaceholder } from './registry-tab-placeholder.tsx';
+import { WordRegistryTab } from './word-registry-tab.tsx';
 
-/** Fabricantes — Story 2.5 owns the real tab (manufacturer/voltage-class pick-lists). */
+/** Fabricantes (Story 2.5): a thin wrapper around the shared `WordRegistryTab`. */
 export function FabricantesTab() {
-  return <RegistryTabPlaceholder heading={copy.registries.tabFabricantes} />;
+  const t = copy.registries.fabricantes;
+  return (
+    <WordRegistryTab
+      kind="manufacturer"
+      listLabel={copy.registries.tabFabricantes}
+      newRowButton={t.newRow}
+      empty={t.empty}
+      note={t.note}
+      copy={t.panel}
+    />
+  );
 }

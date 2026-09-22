@@ -267,4 +267,33 @@
   font-size: var(--t-meta-size);
   line-height: var(--t-meta-lh);
   color: var(--ink-secondary);
+/*
+ * `RegistryPickerField` (Stories 2.4/2.5): chip row + Combobox, following
+ * `80-cadastros.html` L358-382's "Fabricante — como aparece na ficha" pattern. Base rule
+ * only: the tablet/phone-vs-desktop switch (chip row shown vs the Combobox shown) lives
+ * in `app.css`'s `.frame-*` translation, per this file's own header comment.
+ */
+.rpf-combobox {
+  max-width: 560px;
+}
+
+/*
+ * Story 2.4: one site row of a client's sub-list editor (add/remove address rows,
+ * Code Map). `.registry-toolbar`-style flex row so the remove `icon-btn` sits flush right
+ * of the address `TextField`, both sharing the row's vertical center.
+ */
+.site-row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-2);
+}
+
+.site-row .field {
+  flex: 1;
+}
+
+.site-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
 }

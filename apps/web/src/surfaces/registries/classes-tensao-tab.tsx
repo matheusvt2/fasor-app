@@ -1,7 +1,17 @@
 import { copy } from '../../copy/pt-br.ts';
-import { RegistryTabPlaceholder } from './registry-tab-placeholder.tsx';
+import { WordRegistryTab } from './word-registry-tab.tsx';
 
-/** Classes de tensão — Story 2.5 owns the real tab. */
+/** Classes de tensão (Story 2.5): a thin wrapper around the shared `WordRegistryTab`. */
 export function ClassesTensaoTab() {
-  return <RegistryTabPlaceholder heading={copy.registries.tabClassesTensao} />;
+  const t = copy.registries.classesTensao;
+  return (
+    <WordRegistryTab
+      kind="voltage_class"
+      listLabel={copy.registries.tabClassesTensao}
+      newRowButton={t.newRow}
+      empty={t.empty}
+      note={t.note}
+      copy={t.panel}
+    />
+  );
 }

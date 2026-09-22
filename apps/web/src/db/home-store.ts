@@ -2,11 +2,13 @@ import {
   entityRowSchemas,
   type BlockRow,
   type EmpresaRow,
+  type ClientRow,
   type InstrumentRow,
   type ProjectRow,
   type RegistryRow,
   type RelatorioRow,
   type TemplateRow,
+  type WordRow,
 } from '@app/domain';
 import { type AppDatabase, type EntityRecord } from './schema.ts';
 
@@ -37,10 +39,10 @@ export function projectRows(db: AppDatabase): Promise<ProjectRow[]> {
   return rows<ProjectRow>(db, 'project');
 }
 
-/** The `client` registry rows: the only registry kind a Home card title needs. */
-export async function clientRows(db: AppDatabase): Promise<RegistryRow[]> {
+/** The `client` registry rows, for the Home card title and the Clientes tab (Story 2.4). */
+export async function clientRows(db: AppDatabase): Promise<ClientRow[]> {
   const registries = await rows<RegistryRow>(db, 'registry');
-  return registries.filter((row) => row.kind === 'client');
+  return registries.filter((row): row is ClientRow => row.kind === 'client');
 }
 
 /** The company's Empresa row (Story 2.3), or null until a field has been committed. */
@@ -53,6 +55,18 @@ export async function empresaRow(db: AppDatabase): Promise<EmpresaRow | null> {
 export async function instrumentRows(db: AppDatabase): Promise<InstrumentRow[]> {
   const registries = await rows<RegistryRow>(db, 'registry');
   return registries.filter((row): row is InstrumentRow => row.kind === 'instrument');
+}
+
+/** The `manufacturer` registry rows, for the Fabricantes tab (Story 2.5). */
+export async function manufacturerRows(db: AppDatabase): Promise<WordRow[]> {
+  const registries = await rows<RegistryRow>(db, 'registry');
+  return registries.filter((row): row is Extract<WordRow, { kind: 'manufacturer' }> => row.kind === 'manufacturer');
+}
+
+/** The `voltage_class` registry rows, for the Classes de tensão tab (Story 2.5). */
+export async function voltageClassRows(db: AppDatabase): Promise<WordRow[]> {
+  const registries = await rows<RegistryRow>(db, 'registry');
+  return registries.filter((row): row is Extract<WordRow, { kind: 'voltage_class' }> => row.kind === 'voltage_class');
 }
 
 /** Every block on this device, for `isInstrumentReferenced` (AC4). */

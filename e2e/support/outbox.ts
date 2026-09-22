@@ -38,7 +38,34 @@ export function clientCreateOp(user: SeedUser, clientId = newId()): Op {
     kind: 'create',
     scope: 'company',
     path: `registry/client/${clientId}`,
-    value: { id: clientId, kind: 'client', name: 'Cliente E2E', cnpj: null, address: null, removed_at: null },
+    value: {
+      id: clientId,
+      kind: 'client',
+      name: 'Cliente E2E',
+      cnpj: null,
+      contact_name: null,
+      contact_phone: null,
+      sites: [],
+      removed_at: null,
+    },
+  });
+}
+
+export function manufacturerCreateOp(user: SeedUser, manufacturerId = newId(), name = 'Fabricante E2E'): Op {
+  return op(user, {
+    kind: 'create',
+    scope: 'company',
+    path: `registry/manufacturer/${manufacturerId}`,
+    value: { id: manufacturerId, kind: 'manufacturer', name, gender: null, number: null, removed_at: null },
+  });
+}
+
+export function voltageClassCreateOp(user: SeedUser, voltageClassId = newId(), name = '13,8 kV'): Op {
+  return op(user, {
+    kind: 'create',
+    scope: 'company',
+    path: `registry/voltage_class/${voltageClassId}`,
+    value: { id: voltageClassId, kind: 'voltage_class', name, gender: null, number: null, removed_at: null },
   });
 }
 
