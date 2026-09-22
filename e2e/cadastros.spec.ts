@@ -180,6 +180,79 @@ test('@p0 2.1-E2E-001 Cadastros: tabs render with Instrumentos default and remem
   await expect(row).toContainText('Instrumento de teste E2E');
 });
 
+test('@p2 tabs-phone-selector-001 Cadastros: a one-row selector replaces the tablist below 768px', async ({ page, seed }) => {
+  const account = seed.companies[0];
+  await signIn(page, account.email);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('link', { name: /Cadastros/ }).click();
+
+  await expect(page.getByRole('tablist')).toHaveCount(0);
+  const trigger = page.getByRole('button', { name: 'Instrumentos' });
+  await expect(trigger).toBeVisible();
+
+  await trigger.click();
+  // React Aria labels the menu by its trigger (the current tab's name), not by a
+  // separate `aria-label` -- same as `tabs.test.tsx`.
+  const menu = page.getByRole('menu', { name: 'Instrumentos' });
+  await expect(menu).toBeVisible();
+  await expect(menu.getByRole('menuitemradio')).toHaveCount(6);
+
+  await menu.getByRole('menuitemradio', { name: 'Clientes' }).click();
+  await expect(page.getByRole('button', { name: 'Clientes', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Novo cliente' })).toBeVisible();
+
+  // AC5: the toolbar button is followed directly by the list/empty state, with the
+  // helper paragraph after it -- not between the button and the list.
+  const newClientBox = await page.getByRole('button', { name: 'Novo cliente' }).boundingBox();
+  const listOrEmptyBox = await page.locator('.registry-list, .home-empty').first().boundingBox();
+  const noteBox = await page.locator('.section-note').first().boundingBox();
+  expect(newClientBox).not.toBeNull();
+  expect(listOrEmptyBox).not.toBeNull();
+  expect(noteBox).not.toBeNull();
+  expect(newClientBox!.y).toBeLessThan(listOrEmptyBox!.y);
+  expect(listOrEmptyBox!.y).toBeLessThan(noteBox!.y);
+
+  // AC3: the selection persists through Dexie `local_prefs`, same as the desktop tablist
+  // (`2.1-E2E-001`) -- a reload still shows Clientes, not the default Instrumentos.
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Clientes', exact: true })).toBeVisible();
+});
+
+test('@p2 tabs-phone-selector-003 Cadastros: Critérios de aceitação keeps its note-above-table order at 390px', async ({
+  page,
+  seed,
+}) => {
+  // Critérios has no toolbar/list, so the phone `.registry-main` reorder rule (AC5) must
+  // not touch it: the note stays directly above the table, not pushed after it.
+  const account = seed.companies[0];
+  await signIn(page, account.email);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole('link', { name: /Cadastros/ }).click();
+  await page.getByRole('button', { name: 'Instrumentos' }).click();
+  await page.getByRole('menuitemradio', { name: 'Critérios de aceitação' }).click();
+
+  const noteBox = await page.locator('.section-note').first().boundingBox();
+  const tableBox = await page.getByRole('table').boundingBox();
+  expect(noteBox).not.toBeNull();
+  expect(tableBox).not.toBeNull();
+  expect(noteBox!.y).toBeLessThan(tableBox!.y);
+});
+
+test('@p2 tabs-phone-selector-002 Cadastros: the six-tab tablist is exposed at 768px and up', async ({ page, seed }) => {
+  const account = seed.companies[0];
+  await signIn(page, account.email);
+
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.getByRole('link', { name: /Cadastros/ }).click();
+
+  const tablist = page.getByRole('tablist', { name: 'Cadastros' });
+  await expect(tablist).toBeVisible();
+  await expect(tablist.getByRole('tab')).toHaveCount(6);
+  await expect(page.getByRole('button', { name: 'Instrumentos', exact: true })).toHaveCount(0);
+});
+
 test('@p1 2.1-E2E-002 an expired instrument sorts first and reads amber, never disabled', async ({ page, seed }) => {
   const account = seed.companies[0];
   const database = deviceDatabaseName(account.userId);

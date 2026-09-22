@@ -278,6 +278,7 @@ describe('component gallery', () => {
       'menu-item', // .overflow-menu .menu-item: min-height touch-min
       'input', // .input (combobox field): min-height touch-field
       'combobox-chevron', // .combobox-chevron: width touch-min
+      'tab-select-trigger', // .tab-select-trigger (app.css, Tabs' phone selector): min-height touch-field
     ];
     const hitAreaSelector = sufficientHitAreaClasses.map((c) => `.${c}`).join(', ');
     const roles = ['button', 'switch', 'checkbox', 'radio', 'tab', 'combobox', 'menuitem'] as const;
