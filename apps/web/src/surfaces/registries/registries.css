@@ -62,14 +62,51 @@
   margin-top: var(--sp-1);
 }
 
+/*
+ * Two fields side by side must line up label-to-label, control-to-control and
+ * helper-to-helper even when one label wraps to two lines or one field has no
+ * helper — the classic "form grid" alignment problem a plain flex `.field` (its
+ * own column, sized only by its own content) cannot solve on its own. Each row
+ * band gets 4 subgrid tracks (label, control, helper, a fixed breathing-room
+ * gap); every `.field` becomes a 4-row subgrid item sharing those exact tracks
+ * with its row neighbour, so a taller label in one column pushes both controls
+ * down together instead of only its own. The 4th track is a fixed-size spacer
+ * row deliberately left empty by every field, giving between-row spacing that
+ * does not vary with row-gap between label/control/helper (kept tight via
+ * `row-gap` on the field's own subgrid). One column on `.frame-phone` (`app.css`)
+ * degrades this to the plain flex `.field` stack — nothing to line up there.
+ */
 .field-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--sp-4);
+  grid-auto-rows: auto auto auto var(--sp-4);
+  column-gap: var(--sp-4);
+  row-gap: 0;
 }
 
 .field-grid .span-2 {
   grid-column: 1 / -1;
+}
+
+.field-grid > .field {
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span 4;
+  row-gap: var(--sp-1);
+}
+
+.field-grid > .field > .field-label {
+  grid-row: 1;
+}
+
+.field-grid > .field > .input,
+.field-grid > .field > .toggle,
+.field-grid > .field > .measurement-field {
+  grid-row: 2;
+}
+
+.field-grid > .field > .helper {
+  grid-row: 3;
 }
 
 .registry-toolbar {

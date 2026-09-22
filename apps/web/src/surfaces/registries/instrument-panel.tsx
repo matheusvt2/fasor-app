@@ -371,7 +371,7 @@ function TestDefaultField({ label, helper, value, onCommit }: TestDefaultFieldPr
       <div className="measurement-field">
         <input
           className="mf-value"
-          aria-label={copy.registries.instrumentos.valueLabel}
+          aria-label={`${label} — ${copy.registries.instrumentos.valueLabel}`}
           value={raw}
           onChange={(event) => {
             setRaw(event.target.value);
@@ -384,7 +384,7 @@ function TestDefaultField({ label, helper, value, onCommit }: TestDefaultFieldPr
         />
         <input
           className="mf-unit"
-          aria-label={copy.registries.instrumentos.unitLabel}
+          aria-label={`${label} — ${copy.registries.instrumentos.unitLabel}`}
           value={unit}
           onChange={(event) => {
             setUnit(event.target.value);

@@ -182,3 +182,33 @@ test('@p2 2.1-E2E-004 an instrument created offline lands in the outbox at once 
   const afterSync = await readStore<{ status: string; path: string }>(page, database, 'outbox');
   expect(afterSync.every((row) => row.status !== 'pending' || !row.path.startsWith('registry/instrument/'))).toBe(true);
 });
+
+test('@p2 2.1-E2E-005 paired fields in the same field-grid row keep the same control top, even when one label wraps', async ({
+  page,
+  seed,
+}) => {
+  // Tablet width, where "Intervalo de calibração (meses)" wraps to two lines beside
+  // the single-line "Data de calibração" — the exact row a real-browser review found
+  // misaligned before the `.field-grid` subgrid fix (registries.css).
+  await page.setViewportSize({ width: 768, height: 1024 });
+  const account = seed.companies[0];
+  await signIn(page, account.email);
+  await page.getByRole('link', { name: /Cadastros/ }).click();
+  await page.getByRole('button', { name: 'Novo instrumento' }).click();
+  const panel = page.locator('.registry-panel');
+  await expect(panel).toBeVisible();
+
+  const calibratedAtBox = await panel.getByLabel('Data de calibração').boundingBox();
+  const intervalBox = await panel.getByLabel('Intervalo de calibração (meses)').boundingBox();
+  expect(calibratedAtBox).not.toBeNull();
+  expect(intervalBox).not.toBeNull();
+  expect(Math.abs(intervalBox!.y - calibratedAtBox!.y)).toBeLessThanOrEqual(1);
+
+  // The RBC toggle stretches to the same row height as "Certificado RBC nº" and its
+  // control (the toggle button) starts at the same top as that input.
+  const certNumberBox = await panel.getByLabel('Certificado RBC nº').boundingBox();
+  const rbcToggleBox = await panel.getByRole('switch', { name: 'Acreditado pela RBC' }).boundingBox();
+  expect(certNumberBox).not.toBeNull();
+  expect(rbcToggleBox).not.toBeNull();
+  expect(Math.abs(rbcToggleBox!.y - certNumberBox!.y)).toBeLessThanOrEqual(1);
+});
