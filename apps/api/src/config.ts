@@ -16,6 +16,12 @@ export const configSchema = z.object({
    * itself. Same origin in production, so this stays a local-development list.
    */
   TRUSTED_ORIGINS: z.string().min(1),
+  /**
+   * The origin better-auth treats as its own. Optional: when unset, the first entry of
+   * TRUSTED_ORIGINS is used. Never derived from the request, so a forged Host header
+   * cannot widen the allowlist.
+   */
+  AUTH_BASE_URL: z.string().url().optional(),
   LLM_PROVIDER: z.enum(['fake', 'anthropic', 'bedrock']).default('fake'),
   OCR_PROVIDER: z.enum(['fake', 'textract', 'ocr-svc']).default('fake'),
 });

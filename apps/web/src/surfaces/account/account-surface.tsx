@@ -129,7 +129,10 @@ export function AccountSurface() {
             <button
               type="button"
               className="btn btn-destructive"
-              aria-describedby={session.online ? signOutNoteId : signOutReasonId}
+              // Offline, both the reason and the data-safety note are announced.
+              aria-describedby={
+                session.online ? signOutNoteId : `${signOutNoteId} ${signOutReasonId}`
+              }
               aria-disabled={session.online ? undefined : true}
               onClick={() => {
                 if (session.online) setConfirmingSignOut(true);

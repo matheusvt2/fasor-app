@@ -37,6 +37,7 @@ const boss = await withRetry('queue', () => startQueue(config.DATABASE_URL));
 const auth = createAuth({
   db,
   secret: config.SESSION_SECRET,
+  baseURL: config.AUTH_BASE_URL,
   trustedOrigins: parseTrustedOrigins(config.TRUSTED_ORIGINS),
 });
 

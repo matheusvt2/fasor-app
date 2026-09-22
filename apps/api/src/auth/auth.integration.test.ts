@@ -22,6 +22,7 @@ const { sql, db } = createDb(config.DATABASE_URL);
 const auth = createAuth({
   db,
   secret: config.SESSION_SECRET,
+  baseURL: config.AUTH_BASE_URL,
   trustedOrigins: parseTrustedOrigins(config.TRUSTED_ORIGINS),
 });
 
@@ -79,6 +80,31 @@ describe('1.3-API-001 session, cookie and provisioning', () => {
     const maxAge = /Max-Age=(\d+)/i.exec(sessionCookie ?? '');
     expect(maxAge).not.toBeNull();
     expect(Number(maxAge?.[1])).toBe(60 * 60 * 24 * 30);
+  });
+
+  it('does not let a forged Host header widen the trusted origins', async () => {
+    const res = await fetch(`${apiUrl}/api/auth/sign-in/email`, {
+      method: 'POST',
+      redirect: 'manual',
+      headers: {
+        'content-type': 'application/json',
+        host: 'evil.example',
+        origin: 'http://evil.example',
+      },
+      body: JSON.stringify({ email: companyA.email, password: TEST_SEED.password }),
+    });
+    expect(res.status).toBe(403);
+    expect(res.headers.getSetCookie().join('\n')).not.toContain('session_token');
+  });
+
+  it('accepts a dev server on any localhost port (worktrees use different host ports)', async () => {
+    const res = await fetch(`${apiUrl}/api/auth/sign-in/email`, {
+      method: 'POST',
+      redirect: 'manual',
+      headers: { 'content-type': 'application/json', origin: 'http://localhost:25173' },
+      body: JSON.stringify({ email: companyA.email, password: TEST_SEED.password }),
+    });
+    expect(res.status, await res.text()).toBe(200);
   });
 
   it('refuses a bad password without saying which field failed', async () => {

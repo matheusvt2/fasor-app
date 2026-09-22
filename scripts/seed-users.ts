@@ -68,6 +68,7 @@ async function main(): Promise<void> {
     const auth = createAuth({
       db,
       secret: config.SESSION_SECRET,
+      baseURL: config.AUTH_BASE_URL,
       trustedOrigins: parseTrustedOrigins(config.TRUSTED_ORIGINS),
     });
 

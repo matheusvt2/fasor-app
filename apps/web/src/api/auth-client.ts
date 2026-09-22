@@ -70,6 +70,11 @@ const serverUnreachable = {
   message: copy.login.offline,
 };
 
+/** True for a 4xx: the server answered and refused the request itself. */
+export function isClientRejection(status: unknown): boolean {
+  return typeof status === 'number' && status >= 400 && status < 500;
+}
+
 /**
  * Signs in. A credential rejection maps to the one message the mock shows, so the form
  * never leaks which of the two fields was wrong; a transport failure says so instead of
@@ -85,8 +90,10 @@ export async function signIn(email: string, password: string): Promise<SignInRes
   }
   const error = result.error;
   if (error !== null && error !== undefined) {
-    // better-auth reports a transport failure as an error with no HTTP status.
-    return typeof error.status === 'number' ? credentialsRejected : serverUnreachable;
+    // Only a 4xx is the server rejecting what was typed (401 for the pair, 400 for a
+    // malformed e-mail). A 5xx (database down) or no status at all (transport failure)
+    // is the server being unreachable, and must never read as a wrong password.
+    return isClientRejection(error.status) ? credentialsRejected : serverUnreachable;
   }
   try {
     const user = await readAccount();

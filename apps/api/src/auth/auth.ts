@@ -12,7 +12,13 @@ const SESSION_UPDATE_AGE_SECONDS = 60 * 60 * 24;
 export interface AuthOptions {
   db: Db;
   secret: string;
-  /** Origins allowed to post to /api/auth/* besides the request's own. */
+  /**
+   * The origin better-auth considers its own (AUTH_BASE_URL). Pinned, never derived
+   * from the request's Host header, so the trusted-origin allowlist cannot float with
+   * whatever Host a client sends. Defaults to the first trusted origin.
+   */
+  baseURL?: string | undefined;
+  /** Origins allowed to post to /api/auth/*; wildcards such as `http://localhost:*` are accepted. */
   trustedOrigins: string[];
 }
 
@@ -26,8 +32,11 @@ export interface AuthOptions {
  * (Chromium treats localhost as a secure context). Story 1.7 puts it behind HTTPS.
  */
 export function createAuth(options: AuthOptions) {
+  const baseURL = options.baseURL ?? options.trustedOrigins[0];
+  if (baseURL === undefined) throw new Error('auth needs AUTH_BASE_URL or one trusted origin');
   return betterAuth({
     appName: 'PRODUTO',
+    baseURL,
     basePath: '/api/auth',
     secret: options.secret,
     trustedOrigins: options.trustedOrigins,

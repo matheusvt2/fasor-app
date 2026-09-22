@@ -20,7 +20,11 @@ x-app-env: &app-env
   S3_BUCKET: ${S3_BUCKET:-app-files}
   PORT: ${PORT:-3000}
   SESSION_SECRET: ${SESSION_SECRET:-change-me-change-me-change-me-32ch}
-  TRUSTED_ORIGINS: ${TRUSTED_ORIGINS:-http://localhost:5173,http://localhost:5199,http://localhost:3000,http://api:3000,http://web:5173,https://${TABLET_HOST:-localhost},https://${TABLET_HOST:-localhost}:${CADDY_HTTPS_PORT:-443}}
+  # better-auth's own origin (never derived from the request Host) and its CSRF allowlist:
+  # the Vite dev servers on any localhost port (worktrees use different host ports), the
+  # api itself, and the Caddy https origin of Story 1.7.
+  AUTH_BASE_URL: ${AUTH_BASE_URL:-http://localhost:5173}
+  TRUSTED_ORIGINS: ${TRUSTED_ORIGINS:-http://localhost:5173,http://localhost:*,http://127.0.0.1:*,http://api:3000,http://web:5173,https://${TABLET_HOST:-localhost},https://${TABLET_HOST:-localhost}:${CADDY_HTTPS_PORT:-443}}
   LLM_PROVIDER: ${LLM_PROVIDER:-fake}
   OCR_PROVIDER: ${OCR_PROVIDER:-fake}
   npm_config_store_dir: /pnpm-store
