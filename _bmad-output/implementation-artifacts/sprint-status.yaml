@@ -46,8 +46,8 @@ development_status:
   1-8-nothing-captured-is-lost-when-the-tab-closes-the-network-dro: done
   epic-1-retrospective: done
 
-  epic-2: backlog
-  2-1-register-a-test-instrument-with-its-calibration-record: backlog
+  epic-2: in-progress
+  2-1-register-a-test-instrument-with-its-calibration-record: in-progress
   2-2-attach-a-certificate-file-that-reaches-the-server-by-itself: backlog
   2-3-set-the-company-s-document-identity-once-with-a-live-brand-p: backlog
   2-4-register-clients-and-their-sites: backlog
@@ -182,7 +182,7 @@ action_items:
       draft toast dismiss, badge when server unreachable, back chevron, per-route
       title, favicon"
     owner: "Next story (opus/high)"
-    status: open
+    status: done  # PR #12, 1f61c3e09382e19247ba084133ded2cb255e73e9
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-6-a6-stabilize-and-widen-the-gate-testtime"
     epic: 1
