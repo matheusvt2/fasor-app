@@ -1,4 +1,6 @@
-import { expect, type BrowserContext, type Page } from '@playwright/test';
+import { copyFile, readFile, rm, writeFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import { expect, type BrowserContext, type Page, type Route } from '@playwright/test';
 import { TEST_SEED } from './merged-fixtures.ts';
 
 /**
@@ -245,4 +247,167 @@ export async function withoutPageErrors(page: Page, run: () => Promise<void>): P
     page.off('pageerror', listener);
   }
   expect(errors, `the page raised ${errors.join(', ')}`).toEqual([]);
+}
+
+/**
+ * The shell pin the worker keeps in Cache Storage (`public/sw.js`): the entry chunk of the
+ * pinned build (or, from a page that did not name it, a cache name), or null when nothing
+ * is held.
+ */
+export async function readShellPin(page: Page): Promise<string | null> {
+  return page.evaluate(async () => {
+    const response = await caches.match('/__shell-hold', { cacheName: 'releng-hold' });
+    if (response === undefined) return null;
+    const body = (await response.json()) as { entry?: unknown; shell?: unknown };
+    if (typeof body.entry === 'string') return body.entry;
+    return typeof body.shell === 'string' ? body.shell : null;
+  });
+}
+
+/** The `releng-shell-*` caches on this origin, in creation order. */
+export async function shellCacheNames(page: Page): Promise<string[]> {
+  return page.evaluate(async () => (await caches.keys()).filter((name) => name.startsWith('releng-shell-')));
+}
+
+/** Whether the registration has a worker installed and waiting. */
+export async function hasWaitingShell(page: Page): Promise<boolean> {
+  return page.evaluate(async () => (await navigator.serviceWorker.getRegistration())?.waiting != null);
+}
+
+/** Marks the document the "new build" serves, so a test can tell the two shells apart. */
+export const NEXT_BUILD_MARKER = '<meta name="shell-build" content="next">';
+
+/** The built worker `vite preview` serves; the test and the preview server share the disk. */
+const BUILT_WORKER = fileURLToPath(new URL('../../apps/web/dist/sw.js', import.meta.url));
+const BUILT_DOCUMENT = fileURLToPath(new URL('../../apps/web/dist/index.html', import.meta.url));
+
+/**
+ * Simulates a deploy without a second build: from now on the server hands out a `sw.js`
+ * whose stamped `SHELL_VERSION` differs (a new cache name) and whose precache list names a
+ * distinct entry chunk (`index-<hash>-next.js`, a copy of the current one), and a
+ * document carrying `NEXT_BUILD_MARKER` that loads that entry. Returns the undo, which
+ * the test must run.
+ *
+ * The worker script is rewritten on disk rather than routed: the browser's update check
+ * for a worker's main script never reaches Playwright's routing (no request event, no
+ * route), while `vite preview` serves `dist/` with a fresh stat on every request. The
+ * document is routed on the context, which on Chromium also covers the requests the
+ * worker makes itself (its precache and its network-first navigations).
+ */
+export async function serveNextBuild(context: BrowserContext): Promise<() => Promise<void>> {
+  // A distinct entry chunk, as a real build has: a copy of the current one under a new
+  // name, named by the next worker's precache list and by the next document.
+  const entry = /src="(\/assets\/index-[^"]+\.js)"/.exec(await readFile(BUILT_DOCUMENT, 'utf8'))?.[1];
+  if (entry === undefined) throw new Error(`${BUILT_DOCUMENT} references no entry chunk`);
+  const nextEntry = entry.replace(/\.js$/, '-next.js');
+  const nextEntryFile = fileURLToPath(new URL(`../../apps/web/dist${nextEntry}`, import.meta.url));
+  await copyFile(fileURLToPath(new URL(`../../apps/web/dist${entry}`, import.meta.url)), nextEntryFile);
+
+  const original = await readFile(BUILT_WORKER, 'utf8');
+  const next = original
+    .replace(/const SHELL_VERSION = "([0-9a-f]+)";/, (_match, version: string) => `const SHELL_VERSION = "${version}-next";`)
+    .replaceAll(`"${entry}"`, `"${nextEntry}"`);
+  if (!next.includes('-next";') || !next.includes(`"${nextEntry}"`)) {
+    throw new Error(`${BUILT_WORKER} carries no stamped SHELL_VERSION or entry to change`);
+  }
+  await writeFile(BUILT_WORKER, next);
+  const isDocument = (url: URL) => url.pathname === '/';
+  const markDocument = async (route: Route) => {
+    const response = await route.fetch();
+    const body = (await response.text())
+      .replace('<head>', `<head>${NEXT_BUILD_MARKER}`)
+      .replaceAll(entry, nextEntry);
+    await route.fulfill({ response, body });
+  };
+  await context.route(isDocument, markDocument);
+  return async () => {
+    await context.unroute(isDocument, markDocument);
+    await writeFile(BUILT_WORKER, original);
+    await rm(nextEntryFile, { force: true });
+  };
+}
+
+/** The entry chunk the page is running, as the worker's pin names it. */
+export async function runningEntry(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const src = document.querySelector('script[type="module"][src]')?.getAttribute('src');
+    if (src == null) throw new Error('the document loads no module script');
+    return new URL(src, location.href).pathname;
+  });
+}
+
+/** Asks the browser to look for a new `sw.js` now and waits until one is installed and waiting. */
+export async function installNextShell(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const registration = await navigator.serviceWorker.getRegistration();
+    await registration?.update();
+  });
+  await expect.poll(() => hasWaitingShell(page), { timeout: 30_000 }).toBe(true);
+}
+
+/**
+ * Stops every service worker the browser runs, as it does to an idle one whenever it
+ * likes: the next event starts the script again in a fresh global scope. Chromium only.
+ */
+export async function stopServiceWorkers(page: Page): Promise<void> {
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    await cdp.send('ServiceWorker.enable');
+    await cdp.send('ServiceWorker.stopAllWorkers');
+  } finally {
+    await cdp.detach();
+  }
+}
+
+/**
+ * Closes every tab of the context and opens a fresh, blank one. With no client left the
+ * browser activates a waiting worker on its own, whatever the page said — Chromium does
+ * it when the next navigation into the scope arrives (CDP shows the version still
+ * `installed` while no tab is open), so follow this with a navigation and
+ * `waitForSettledShell`.
+ *
+ * Returns only once CDP reports that no worker version controls a client any more: a
+ * navigation that started while a closed tab was still counted would become the old
+ * worker's client and hold the activation back. Chromium only.
+ */
+export async function closeEveryTab(context: BrowserContext): Promise<Page> {
+  for (const open of context.pages()) await open.close();
+  const fresh = await context.newPage();
+  const cdp = await context.newCDPSession(fresh);
+  const controlled = new Map<string, number>();
+  cdp.on('ServiceWorker.workerVersionUpdated', ({ versions }) => {
+    for (const version of versions) controlled.set(version.versionId, version.controlledClients?.length ?? 0);
+  });
+  try {
+    await cdp.send('ServiceWorker.enable');
+    await expect
+      .poll(() => controlled.size > 0 && [...controlled.values()].every((count) => count === 0), { timeout: 15_000 })
+      .toBe(true);
+  } finally {
+    await cdp.detach();
+  }
+  return fresh;
+}
+
+/**
+ * Waits until the worker lifecycle has settled: nothing installing or waiting, and an
+ * activated worker. Proves a waiting worker was really taken over by the browser rather
+ * than merely not reported.
+ */
+export async function waitForSettledShell(page: Page): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(async () => {
+          const registration = await navigator.serviceWorker.getRegistration();
+          return (
+            registration !== undefined &&
+            registration.installing === null &&
+            registration.waiting === null &&
+            registration.active?.state === 'activated'
+          );
+        }),
+      { timeout: 15_000 },
+    )
+    .toBe(true);
 }

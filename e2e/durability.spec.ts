@@ -2,17 +2,25 @@ import type { Op } from '@app/domain';
 import { deviceDatabaseName, expect, test } from './support/merged-fixtures.ts';
 import {
   clearSessionPointer,
+  closeEveryTab,
   deleteDeviceDatabase,
   fixturePath,
   goToNeutralDocument,
   hideTab,
+  installNextShell,
   installRefusedWrites,
   installWaitingShell,
   isApiRequest,
+  readShellPin,
+  runningEntry,
+  serveNextBuild,
   setWritesRefused,
+  shellCacheNames,
   shellGateRuns,
   shellMessages,
   signInForDurability,
+  stopServiceWorkers,
+  waitForSettledShell,
   waitForShellCache,
   withoutPageErrors,
   withoutServiceWorker,
@@ -287,4 +295,92 @@ test('@p1 1.8-E2E-005 work older than five days raises the banner, and a new she
   await expect.poll(async () => shellGateRuns(page), { timeout: 15_000 }).toBeGreaterThan(0);
   await page.waitForTimeout(1_000);
   expect(await shellMessages(page)).toEqual([]);
+});
+
+test('@p0 1.8-E2E-006 a pending job keeps its shell through a worker restart and every tab closing, and the new shell arrives once the outbox drains', async ({
+  page,
+  context,
+  seed,
+  browserName,
+}) => {
+  // Stopping a worker needs CDP, and Playwright only routes the requests a worker makes
+  // itself (the update check, its precache) on Chromium; the rule under test is the same
+  // `public/sw.js` everywhere, and its lifecycle is also run in `sw-lifecycle.test.ts`.
+  test.skip(browserName !== 'chromium', 'needs CDP to stop the worker and service-worker request routing (Chromium only)');
+  test.setTimeout(120_000);
+
+  const account = seed.companies[0];
+  const database = deviceDatabaseName(account.userId);
+  await signInForDurability(page, context, account.email);
+  const shells = await waitForShellCache(page);
+  expect(shells).toContain('/');
+  const [original] = await shellCacheNames(page);
+  expect(original).toBeDefined();
+
+  // One op that cannot reach the server: the job is not over.
+  let pushBlocked = true;
+  await context.route(
+    (url) => url.pathname === '/api/sync/ops',
+    (route) => (pushBlocked ? route.abort('internetdisconnected') : route.continue()),
+  );
+  const user = { ...account, deviceId: await readDeviceId(page, database) };
+  await seedOutbox(page, database, [clientCreateOp(user)]);
+  await page.reload();
+  await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
+  // The page reported the backlog, and the worker pinned the build the job runs on: the
+  // entry chunk of this document.
+  const entry = await runningEntry(page);
+  expect(entry).toMatch(/^\/assets\/index-.+\.js$/);
+  await expect.poll(() => readShellPin(page), { timeout: 15_000 }).toBe(entry);
+
+  // A new build is deployed and its worker installs and waits.
+  const restoreBuild = await serveNextBuild(context);
+  try {
+    await installNextShell(page);
+    expect(await shellCacheNames(page)).toHaveLength(2);
+
+    // D-1, first half: the browser stops the worker, the tab is reopened. The restarted
+    // worker has a fresh scope and no message, and must still serve the old shell.
+    await stopServiceWorkers(page);
+    await page.reload();
+    await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
+    await expect(page.locator('meta[name="shell-build"]')).toHaveCount(0);
+
+    // D-1, second half: every tab closes, so the browser activates the new worker by
+    // itself. The app reopens on the old shell anyway, from the cache that is still kept.
+    let tab = await closeEveryTab(context);
+    await tab.goto('/');
+    await expect(tab.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
+    await expect(tab.locator('meta[name="shell-build"]')).toHaveCount(0);
+    // The new worker really took over (not discarded, not still waiting): the lifecycle
+    // settled on an activated worker, and its cache is there beside the pinned one.
+    await waitForSettledShell(tab);
+    expect(await shellCacheNames(tab)).toEqual([original, `${original}-next`]);
+    expect(await readShellPin(tab)).toBe(entry);
+    expect(await runningEntry(tab)).toBe(entry);
+
+    // The job finishes: the push goes through and the outbox drains.
+    pushBlocked = false;
+    await tab.goto('/sync');
+    const syncNow = tab.getByRole('button', { name: 'Sincronizar agora' });
+    await expect(syncNow).not.toHaveAttribute('aria-disabled', 'true', { timeout: 30_000 });
+    await syncNow.click();
+    await expect
+      .poll(async () => (await readStore<OutboxRecord>(tab, database, 'outbox')).every((row) => row.status === 'acked'), {
+        timeout: 30_000,
+      })
+      .toBe(true);
+    await expect.poll(() => readShellPin(tab), { timeout: 15_000 }).toBeNull();
+
+    // The next launch takes the new shell, and the old cache goes.
+    tab = await closeEveryTab(context);
+    await tab.goto('/');
+    await expect(tab.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
+    await expect(tab.locator('meta[name="shell-build"]')).toHaveCount(1);
+    expect(await runningEntry(tab)).toBe(entry.replace(/\.js$/, '-next.js'));
+    await waitForSettledShell(tab);
+    await expect.poll(() => shellCacheNames(tab), { timeout: 15_000 }).toEqual([`${original}-next`]);
+  } finally {
+    await restoreBuild();
+  }
 });
