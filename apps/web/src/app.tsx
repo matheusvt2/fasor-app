@@ -1,10 +1,13 @@
 import { createBrowserRouter, Navigate, Outlet, RouterProvider } from 'react-router';
 import { copy } from './copy/pt-br.ts';
 import { SessionProvider, useSession } from './state/session.tsx';
+import { SyncProvider, useSync } from './state/sync.tsx';
 import { AppShell } from './surfaces/app-shell.tsx';
 import { AccountSurface } from './surfaces/account/account-surface.tsx';
+import { ContractOutdatedSurface } from './surfaces/contract-outdated-surface.tsx';
 import { HomeSurface } from './surfaces/home/home-surface.tsx';
 import { LoginSurface } from './surfaces/login/login-surface.tsx';
+import { SyncStatusSurface } from './surfaces/sync/sync-status-surface.tsx';
 
 /** While the cookie is being read, render nothing decisive: never flash Login. */
 function Booting() {
@@ -19,12 +22,23 @@ function Booting() {
   );
 }
 
-/** Unauthenticated routes redirect to /login. */
+/** The shell, or the full-screen "Atualizar" state while a pull answered 426 (AD-13). */
+function SessionShell() {
+  const sync = useSync();
+  if (sync.outdated) return <ContractOutdatedSurface />;
+  return <AppShell />;
+}
+
+/** Unauthenticated routes redirect to /login; a session gets the sync engine and the shell. */
 function RequireSession() {
   const session = useSession();
   if (session.status === 'booting') return <Booting />;
   if (session.status === 'signed-out') return <Navigate to="/login" replace />;
-  return <AppShell />;
+  return (
+    <SyncProvider>
+      <SessionShell />
+    </SyncProvider>
+  );
 }
 
 /**
@@ -55,6 +69,7 @@ const router = createBrowserRouter([
         children: [
           { path: '/', element: <HomeSurface /> },
           { path: '/account', element: <AccountSurface /> },
+          { path: '/sync', element: <SyncStatusSurface /> },
         ],
       },
       { path: '*', element: <Navigate to="/" replace /> },

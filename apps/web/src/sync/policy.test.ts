@@ -1,0 +1,60 @@
+import { opLog } from '@app/domain/fixtures/replay-small';
+import { describe, expect, it } from 'vitest';
+import { backoffMs, batches, classifyFailure, MAX_ATTEMPTS, parsePulled } from './policy.ts';
+
+describe('1.5-UNIT-002 retry classification', () => {
+  it('retries network and 5xx with backoff and jitter', () => {
+    expect(classifyFailure({ kind: 'network' })).toBe('retry');
+    expect(classifyFailure({ kind: 'http', status: 500, code: 'internal_error' })).toBe('retry');
+    expect(classifyFailure({ kind: 'http', status: 503 })).toBe('retry');
+    expect(MAX_ATTEMPTS).toBe(3);
+    expect(backoffMs(1, () => 0)).toBe(1000);
+    expect(backoffMs(2, () => 0)).toBe(2000);
+    expect(backoffMs(3, () => 0)).toBe(4000);
+    expect(backoffMs(1, () => 1)).toBe(1250);
+    expect(backoffMs(3, () => 0.5)).toBe(4500);
+  });
+
+  it('never retries a 4xx, except 401 (re-auth) and 426 (outdated)', () => {
+    expect(classifyFailure({ kind: 'http', status: 400, code: 'sync_batch_invalid' })).toBe('stop');
+    expect(classifyFailure({ kind: 'http', status: 403 })).toBe('stop');
+    expect(classifyFailure({ kind: 'http', status: 404, code: 'relatorio_not_found' })).toBe('stop');
+    expect(classifyFailure({ kind: 'http', status: 401, code: 'unauthenticated' })).toBe('reauth');
+    expect(classifyFailure({ kind: 'http', status: 426, code: 'contract_outdated' })).toBe('outdated');
+    expect(classifyFailure({ kind: 'http', status: 200, code: 'invalid_response' })).toBe('stop');
+  });
+
+  it('stops on a page the device could not apply (no retry against the same page)', () => {
+    expect(classifyFailure({ kind: 'apply' })).toBe('stop');
+  });
+});
+
+describe('1.5-UNIT-003 push batching', () => {
+  it('splits 501 ops into two requests in apply order', () => {
+    const ops = Array.from({ length: 501 }, (_, i) => i);
+    const split = batches(ops, 500);
+    expect(split.map((b) => b.length)).toEqual([500, 1]);
+    expect(split[0]![0]).toBe(0);
+    expect(split[0]![499]).toBe(499);
+    expect(split[1]![0]).toBe(500);
+    expect(batches([], 500)).toEqual([]);
+  });
+});
+
+describe('1.5-UNIT-004 pull parsing', () => {
+  it('stops before the first op it cannot parse and keeps the ones before it', () => {
+    const [ok1, ok2, ok3] = opLog;
+    const bad = { ...ok3!, path: 'nonsense/family' };
+    const parsed = parsePulled([ok1, ok2, bad, ok3]);
+    expect(parsed.ops.map((o) => o.op_id)).toEqual([ok1!.op_id, ok2!.op_id]);
+    expect(parsed.stoppedAt).toBe(2);
+  });
+
+  it('treats an op without seq as unparseable and parses a clean page whole', () => {
+    const [ok1, ok2] = opLog;
+    expect(parsePulled([{ ...ok1!, seq: undefined }])).toEqual({ ops: [], stoppedAt: 0 });
+    const clean = parsePulled([ok1, ok2]);
+    expect(clean.stoppedAt).toBeUndefined();
+    expect(clean.ops).toHaveLength(2);
+  });
+});

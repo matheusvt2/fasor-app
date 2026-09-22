@@ -12,7 +12,7 @@ const profile = {
   id: 'u-1',
   name: 'Ana Alves',
   email: 'a@teste.local',
-  companyId: '0a000000-0000-4000-8000-00000000000a',
+  companyId: '0a000000-0000-7000-8000-00000000000a',
   companyName: 'Empresa A de Teste',
   council: 'crea',
   registrationNumber: 'SP 1',

@@ -4,6 +4,8 @@ import { copy } from '../../copy/pt-br.ts';
 import { useAriaModal, useInitialFocus } from '../use-aria-modal.ts';
 
 export interface SignOutDialogProps {
+  /** The kernel's pending summary ("3 fichas") and its count, or null when nothing waits. */
+  pending: { text: string; count: number } | null;
   onCancel: () => void;
   onConfirm: () => void;
 }
@@ -12,15 +14,21 @@ export interface SignOutDialogProps {
  * Confirm dialog of the destructive "Sair" (mock: `#acc-dlg-sair`). The initial focus is
  * on "Cancelar", never on the destructive action (DESIGN.md).
  *
- * The mock's pending-sync wording ("31 fotos e 3 fichas ainda nao foram enviadas") needs
- * the sync counts of Story 1.5; until then the dialog says what is true today, which is
- * that nothing on this device is deleted.
+ * With pending work the dialog is the mock's "Sair com envios pendentes?" with the
+ * kernel's summary in its sentence; with nothing pending it says what is true today,
+ * which is that nothing on this device is deleted.
  */
 export function SignOutDialog(props: SignOutDialogProps) {
   const dialogRef = useAriaModal<HTMLElement>();
   const cancelRef = useInitialFocus<HTMLButtonElement>();
   const titleId = useId();
   const descriptionId = useId();
+
+  const title = props.pending === null ? copy.account.signOutDialogTitle : copy.account.signOutPendingDialogTitle;
+  const body =
+    props.pending === null
+      ? copy.account.signOutDialogBody
+      : copy.account.signOutPendingDialogBody(props.pending.text, props.pending.count);
 
   return (
     <ModalOverlay className="dialog-scrim" isOpen isDismissable onOpenChange={props.onCancel}>
@@ -32,10 +40,10 @@ export function SignOutDialog(props: SignOutDialogProps) {
           ref={dialogRef}
         >
           <h2 className="dialog-title" id={titleId}>
-            {copy.account.signOutDialogTitle}
+            {title}
           </h2>
           <p className="t-body" id={descriptionId}>
-            {copy.account.signOutDialogBody}
+            {body}
           </p>
           <div className="dialog-actions">
             <button

@@ -1,10 +1,12 @@
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, resolve, sep } from 'node:path';
-import type { ErrorResponse } from '@app/domain';
+import type { Clock, ErrorResponse } from '@app/domain';
 import { Hono } from 'hono';
 import type { Auth } from '../auth/auth.ts';
+import { now as clock } from '../clock.ts';
 import type { Db } from '../db/client.ts';
 import { log, logError } from '../log.ts';
+import { createSyncRoutes } from '../sync/routes.ts';
 import { createAccountRoutes } from './account.ts';
 import { createHealthRoutes, type HealthProbes } from './health.ts';
 import { type AppEnv, sessionMiddleware, UnauthenticatedError, unauthenticatedError } from './session.ts';
@@ -66,6 +68,8 @@ export interface AppOptions {
   db: Db;
   /** Overridable for tests; defaults to the bind-mounted `apps/web/dist`. */
   staticDir?: string;
+  /** Overridable for tests; defaults to the process clock. */
+  now?: Clock;
 }
 
 const notFoundBody: ErrorResponse = { code: 'not_found', message: 'No such route.' };
@@ -87,7 +91,8 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
         duration_ms: Date.now() - start,
         // Resolved by the session middleware for authenticated /api routes; null elsewhere.
         company_id: c.get('session')?.companyId ?? null,
-        relatorio_id: null,
+        // Filled by the relatorio stream route; null elsewhere.
+        relatorio_id: c.get('relatorioId') ?? null,
       });
     }
   });
@@ -107,6 +112,7 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
 
   app.use('/api/*', sessionMiddleware(options.auth));
   app.route('/', createAccountRoutes(options.db));
+  app.route('/', createSyncRoutes(options.db, { now: options.now ?? clock }));
 
   // Every /api answer, including "no such route", is the ErrorResponse envelope.
   app.notFound((c) =>

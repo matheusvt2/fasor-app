@@ -72,6 +72,23 @@ body {
   text-decoration: none;
 }
 
+/* The App bar Sync badge sits inside a React Aria Button so a tap opens Sync status. The
+   button itself is invisible chrome around the mock's `.sync-badge` span: no UA border,
+   background or padding, and the 48 px hit area of AD-23. */
+.sync-badge-btn {
+  display: inline-flex;
+  align-items: center;
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: var(--r-md);
+}
+
 /* ---------- Dialogs: the two app-wide adjustments the real app needs ----------
    Both are here rather than in a surface stylesheet because they apply to every dialog
    in the app, and they adjust rules that live in the locked `components.css`.

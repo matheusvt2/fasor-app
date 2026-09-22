@@ -1,5 +1,16 @@
 import { z } from 'zod';
-import { registrationSchema, userProfileSchema } from './registration.ts';
+import { registrationSchema, userProfileSchema } from '../registration.ts';
+
+/*
+ * AD-13: the typed API contract. The web calls the server only through the
+ * routes defined here, with `CONTRACT_VERSION` in the `x-contract-version`
+ * header; every error body is the envelope of `./errors.ts`.
+ */
+
+export * from './version.ts';
+export * from './errors.ts';
+export * from './sync.ts';
+export * from './examples.ts';
 
 export const componentStatusSchema = z.enum(['up', 'down']);
 
@@ -13,15 +24,6 @@ export const healthResponseSchema = z.object({
 });
 
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
-
-/** Error envelope of every /api route (AD-13). */
-export const errorResponseSchema = z.object({
-  code: z.string().min(1),
-  message: z.string().min(1),
-  details: z.unknown().optional(),
-});
-
-export type ErrorResponse = z.infer<typeof errorResponseSchema>;
 
 /** Response of GET /api/account and of PUT /api/account/registration. */
 export const accountResponseSchema = z.object({ user: userProfileSchema });

@@ -33,6 +33,7 @@ test('@p0 1.3-E2E-001 signs in, keeps working with the API down, and signs out w
     'files',
     'local_prefs',
     'outbox',
+    'remote_ops',
     'sync_state',
   ]);
 
@@ -238,9 +239,10 @@ test('@p0 1.3-E2E-003b offline, the dialog Salvar is disabled with the reason be
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('Número CREA').fill('SP 8888');
 
+  // Only the account routes matter here: the sync engine of Story 1.5 has its own requests.
   const requests: string[] = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).pathname.startsWith('/api/')) requests.push(request.url());
+    if (new URL(request.url()).pathname.startsWith('/api/account')) requests.push(request.url());
   });
   await context.setOffline(true);
 

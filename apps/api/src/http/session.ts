@@ -10,7 +10,11 @@ export interface SessionContext {
 }
 
 export interface AppEnv {
-  Variables: { session: SessionContext | null };
+  Variables: {
+    session: SessionContext | null;
+    /** Set by the relatorio stream route so the request log carries `relatorio_id` (NFR-18). */
+    relatorioId?: string;
+  };
 }
 
 /**

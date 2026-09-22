@@ -1,6 +1,6 @@
 export * from './product.ts';
 export * from './registration.ts';
-export * from './contract.ts';
+export * from './contract/index.ts';
 export * from './ids.ts';
 export * from './clock.ts';
 export * from './schemas/entities.ts';
@@ -10,4 +10,7 @@ export * from './ops/op.ts';
 export * from './ops/apply.ts';
 export * from './ops/outbox.ts';
 export * from './ops/replay.ts';
+export * from './ops/materialize.ts';
 export * from './checks/unsynced.ts';
+export * from './sync/counts.ts';
+export * from './format/datetime.ts';

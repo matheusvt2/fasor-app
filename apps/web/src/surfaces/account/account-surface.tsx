@@ -5,25 +5,30 @@ import {
   type Registration,
 } from '@app/domain';
 import { useId, useState } from 'react';
+import { Link } from 'react-router';
 import { copy } from '../../copy/pt-br.ts';
 import { useSession } from '../../state/session.tsx';
+import { useSync } from '../../state/sync.tsx';
 import { RegistrationDialog } from './registration-dialog.tsx';
 import { SignOutDialog } from './sign-out-dialog.tsx';
 import './account.css';
 
 /**
  * Account (UX-DR22, UX-DR65) from `mockups/key-account.html`: identity rows, the
- * "Registro profissional" settings row with its Form dialog, and the destructive "Sair"
- * with its Confirm dialog.
+ * "Registro profissional" settings row with its Form dialog, the "Aguardando envio" row
+ * that opens Sync status, and the destructive "Sair" with its Confirm dialog, whose
+ * wording carries the kernel's pending summary when something waits to be sent.
  *
  * There is no "Instalar na tela inicial" row: `source-deltas.md` removed it (web only,
- * no install), even though the mock still draws it. Theme, storage and sync rows belong
- * to Story 1.6.
+ * no install), even though the mock still draws it. Theme and storage rows belong to
+ * Story 1.6.
  */
 export function AccountSurface() {
   const session = useSession();
+  const sync = useSync();
   const identityHeadingId = useId();
   const registrationHeadingId = useId();
+  const syncHeadingId = useId();
   const sessionHeadingId = useId();
   const signOutNoteId = useId();
   const signOutReasonId = useId();
@@ -34,6 +39,9 @@ export function AccountSurface() {
 
   const user = session.user;
   if (user === null) return null;
+
+  const pending = sync.pendingText;
+  const signOutNote = pending === '' ? copy.account.signOutNote : copy.account.signOutNotePending(pending);
 
   const council = user.council ?? 'crea';
   const initial: Registration = {
@@ -121,6 +129,26 @@ export function AccountSurface() {
           </ul>
         </section>
 
+        <section className="section" aria-labelledby={syncHeadingId}>
+          <div className="section-head">
+            <h2 id={syncHeadingId}>{copy.account.syncHeading}</h2>
+          </div>
+          <ul className="settings-list">
+            <li className="settings-row">
+              <span className="grow">
+                <span className="sr-label">{copy.account.pendingLabel}</span>
+                <br />
+                <span className="sr-value" data-testid="account-pending-value">
+                  {pending === '' ? copy.account.nothingPending : copy.sync.waiting(pending)}
+                </span>
+              </span>
+              <Link className="btn btn-text" to="/sync">
+                {copy.account.syncStatusLink}
+              </Link>
+            </li>
+          </ul>
+        </section>
+
         <section className="section" aria-labelledby={sessionHeadingId}>
           <div className="section-head">
             <h2 id={sessionHeadingId}>{copy.account.sessionHeading}</h2>
@@ -141,7 +169,7 @@ export function AccountSurface() {
               {copy.account.signOut}
             </button>
             <span className="btn-reason" id={signOutNoteId}>
-              {copy.account.signOutNote}
+              {signOutNote}
             </span>
             {session.online ? null : (
               <span className="btn-reason" id={signOutReasonId}>
@@ -168,6 +196,7 @@ export function AccountSurface() {
 
       {confirmingSignOut ? (
         <SignOutDialog
+          pending={pending === '' ? null : { text: pending, count: sync.pendingCount }}
           onCancel={() => setConfirmingSignOut(false)}
           onConfirm={() => {
             setConfirmingSignOut(false);

@@ -1,8 +1,10 @@
 import { avatarInitial, PRODUTO } from '@app/domain';
 import { Link, Outlet, useNavigate } from 'react-router';
+import { SyncBadge } from '../components/index.ts';
 import { copy } from '../copy/pt-br.ts';
 import { BannerSlot, type Banner } from '../state/banner-slot.tsx';
 import { useSession } from '../state/session.tsx';
+import { useSync } from '../state/sync.tsx';
 
 /** The one inline sprite the surfaces of this story need. Story 1.2 owns the real one. */
 function IconSprite() {
@@ -21,6 +23,7 @@ function IconSprite() {
  */
 export function AppShell() {
   const session = useSession();
+  const sync = useSync();
   const navigate = useNavigate();
 
   const banners: Banner[] = [];
@@ -55,6 +58,7 @@ export function AppShell() {
         </span>
         <span className="app-bar-title" />
         <span className="app-bar-right">
+          <SyncBadge state={sync.badgeState} counts={sync.counts} onPress={() => void navigate('/sync')} />
           <Link className="avatar-btn" to="/account" aria-label={copy.home.accountLink}>
             <span className="avatar" aria-hidden="true">
               {avatarInitial(session.user?.name ?? '')}
