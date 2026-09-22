@@ -1,5 +1,6 @@
 import { GetBucketVersioningCommand, S3Client } from '@aws-sdk/client-s3';
 import { healthResponseSchema } from '@app/domain';
+import postgres from 'postgres';
 import { describe, expect, it } from 'vitest';
 
 const apiUrl = process.env.API_URL ?? 'http://api:3000';
@@ -15,6 +16,17 @@ describe('clean boot against the compose stack', () => {
       storage: 'up',
       libreoffice: 'up',
     });
+  });
+
+  it('ran the migrations at boot', async () => {
+    const sql = postgres(process.env.DATABASE_URL ?? 'postgres://app:app@postgres:5432/app', { max: 1 });
+    try {
+      const [row] = await sql`select to_regclass('public.ops') as ops, to_regclass('public.entities') as entities`;
+      expect(row?.ops).toBe('ops');
+      expect(row?.entities).toBe('entities');
+    } finally {
+      await sql.end();
+    }
   });
 
   it('keeps bucket versioning enabled', async () => {
