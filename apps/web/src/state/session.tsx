@@ -1,4 +1,4 @@
-import type { Registration, UserProfile } from '@app/domain';
+import { registrationPuts, type Registration, type UserProfile } from '@app/domain';
 import {
   createContext,
   useCallback,
@@ -10,16 +10,27 @@ import {
   type ReactNode,
 } from 'react';
 import * as authClient from '../api/auth-client.ts';
+import { now } from '../clock.ts';
+import { commitBatch } from '../db/commit.ts';
 import { readRecoveryNotice, writeRecoveryNotice } from '../db/prefs.ts';
 import { databaseName, openDatabase, type AppDatabase } from '../db/schema.ts';
-import { clearLastSession, readLastSession, writeLastSession } from './last-session.ts';
+import { newId } from '../ids.ts';
+import {
+  clearLastSession,
+  readLastSession,
+  readReAuthRequired,
+  writeLastSession,
+  writeReAuthRequired,
+} from './last-session.ts';
 
 /**
  * Session context (AD-8, AD-9). Boots from the cookie, holds the signed-in user, the
  * online flag and the re-auth flag, and owns the handle to this user's Dexie database.
  *
  * A 401 mid-use raises `reAuthRequired` and nothing else: the database and every store
- * stay exactly as they are.
+ * stay exactly as they are. A 401 at boot does the same when this device knows who was
+ * signed in: the last-session pointer is kept, so the next cold open, even offline,
+ * reaches the local data again behind the re-auth banner (retro A8).
  */
 
 export type SessionStatus = 'booting' | 'signed-out' | 'signed-in';
@@ -38,6 +49,11 @@ export interface SessionState {
   database: AppDatabase | null;
   signIn: (email: string, password: string) => Promise<authClient.SignInResult>;
   signOut: () => Promise<void>;
+  /**
+   * Commits the registration as the user's own `user/{id}/{field}` ops (AD-1): local and
+   * immediate, online or not; the sync engine pushes them. Throws only when the device
+   * refuses the write.
+   */
   saveRegistration: (registration: Registration) => Promise<void>;
   dismissReAuth: () => void;
   /** Hides the recovery screen and remembers it in `local_prefs`, so it is one-time. */
@@ -101,6 +117,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const cached = readLastSession();
       if (cached !== null) {
         setUser(cached);
+        // A 401 seen before this open still stands until a session is confirmed, so an
+        // offline open after it shows the banner too.
+        setReAuthRequired(readReAuthRequired());
         await attachDatabase(cached.id);
         if (cancelled) return;
         setStatus('signed-in');
@@ -122,18 +141,23 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
 
       if (fresh === null) {
-        // The server dropped the session. Local data is untouched either way.
-        clearLastSession();
+        // The server dropped the session. Local data is untouched either way, and so is
+        // the pointer: like a 401 mid-use, this only asks for a new sign-in. Clearing it
+        // here would send the next offline cold open to Login, away from work that is
+        // still on this device.
         if (cached === null) {
           setUser(null);
           setStatus('signed-out');
           return;
         }
+        writeReAuthRequired(true);
         setReAuthRequired(true);
         return;
       }
 
       writeLastSession(fresh);
+      writeReAuthRequired(false);
+      setReAuthRequired(false);
       setUser(fresh);
       const createdFresh = await attachDatabase(fresh.id);
       if (cancelled) return;
@@ -168,7 +192,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  useEffect(() => authClient.onReAuthRequired(() => setReAuthRequired(true)), []);
+  useEffect(
+    () =>
+      authClient.onReAuthRequired(() => {
+        writeReAuthRequired(true);
+        setReAuthRequired(true);
+      }),
+    [],
+  );
 
   const doSignIn = useCallback(
     async (email: string, password: string) => {
@@ -179,6 +210,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         // The form path never raises the recovery screen: a first sign-in always comes
         // through here, and a fresh database is then exactly what is expected.
         await attachDatabase(result.user.id);
+        writeReAuthRequired(false);
         setReAuthRequired(false);
         setStatus('signed-in');
       }
@@ -205,11 +237,27 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setStatus('signed-out');
   }, []);
 
-  const doSaveRegistration = useCallback(async (registration: Registration) => {
-    const updated = await authClient.saveRegistration(registration);
-    writeLastSession(updated);
-    setUser(updated);
-  }, []);
+  const doSaveRegistration = useCallback(
+    async (registration: Registration) => {
+      const db = databaseRef.current;
+      if (db === null || user === null) throw new Error('no device database to commit the registration to');
+      await commitBatch(db, registrationPuts({ userId: user.id, companyId: user.companyId, registration }), {
+        newId,
+        now,
+      });
+      // Optimistic, same shape as the server's profile: until the company pull brings the
+      // user row, the Account row and the next offline boot read these values.
+      const updated: UserProfile = {
+        ...user,
+        council: registration.council,
+        registrationNumber: registration.registrationNumber,
+        title: registration.title,
+      };
+      writeLastSession(updated);
+      setUser(updated);
+    },
+    [user],
+  );
 
   const value = useMemo<SessionState>(
     () => ({
@@ -222,6 +270,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       signIn: doSignIn,
       signOut: doSignOut,
       saveRegistration: doSaveRegistration,
+      // Hides the banner for now only: the session is still gone, so the persisted flag
+      // stays and the next cold open shows the banner again.
       dismissReAuth: () => setReAuthRequired(false),
       dismissRecovery,
     }),

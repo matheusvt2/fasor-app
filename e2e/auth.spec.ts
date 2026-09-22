@@ -1,12 +1,15 @@
+import type { Page } from '@playwright/test';
 import {
   deviceDatabaseName,
   expect,
   readLocalMarker,
   readStoreNames,
   signIn,
+  syncBadge,
   test,
   writeLocalMarker,
 } from './support/merged-fixtures.ts';
+import { readDeviceId, readStore } from './support/outbox.ts';
 
 const MARKER = 'e2e-local-marker';
 
@@ -15,6 +18,35 @@ const MARKER = 'e2e-local-marker';
  * dev server's own `/src/api/auth-client.ts` module, and the bundle would never load.
  */
 const isApiRequest = (url: URL) => url.pathname.startsWith('/api/');
+
+/** The last-session pointer the cold open boots from (`apps/web/src/state/last-session.ts`). */
+const readPointer = (page: Page) => page.evaluate(() => window.localStorage.getItem('releng.last-session'));
+
+/**
+ * Waits until the company pull has brought this user's kernel row (the `user/{id}` create
+ * provisioning projects), so the Account row reads the device and a save lands on it.
+ */
+async function waitForUserRow(page: Page, database: string, userId: string): Promise<void> {
+  await expect
+    .poll(
+      async () =>
+        (await readStore<{ entity: string; id: string }>(page, database, 'entities')).some(
+          (e) => e.entity === 'user' && e.id === userId,
+        ),
+      { timeout: 20_000 },
+    )
+    .toBe(true);
+}
+
+/** Opens Sync status from the badge and runs one cycle through "Sincronizar agora". */
+async function syncNow(page: Page): Promise<void> {
+  await syncBadge(page).click();
+  const button = page.getByRole('button', { name: 'Sincronizar agora' });
+  await expect(button).not.toHaveAttribute('aria-disabled', 'true', { timeout: 20_000 });
+  await button.click();
+  await expect(syncBadge(page)).toHaveAttribute('data-pending', '0', { timeout: 20_000 });
+  await expect(button).not.toHaveAttribute('aria-disabled', 'true', { timeout: 20_000 });
+}
 
 test('@p0 1.3-E2E-001 signs in, keeps working with the API down, and signs out without dropping the local database', async ({
   page,
@@ -114,25 +146,23 @@ test('@p0 1.3-E2E-002 a 401 mid-call raises the re-auth banner, leaves local dat
   // The session expires mid-use: the cookie is gone but the tab is still open.
   await context.clearCookies();
 
-  // Client-side navigation, so nothing reloads and the 401 really happens mid-use.
-  await page.getByRole('link', { name: 'Conta' }).click();
-  await page.getByRole('button', { name: 'Editar' }).click();
-  const dialog = page.getByRole('dialog');
-  await dialog.getByLabel('Número CREA').fill('SP 4242');
-  await dialog.getByRole('button', { name: 'Salvar' }).click();
-  // Server failure keeps the dialog open with its error; the banner is behind it.
-  await expect(dialog.getByRole('alert')).toHaveText('Não foi possível salvar. Tente de novo.');
-  await dialog.getByRole('button', { name: 'Cancelar' }).click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+  // Client-side navigation, so nothing reloads and the 401 really happens mid-use: the
+  // sync cycle "Sincronizar agora" runs is the call the server refuses. (The registration
+  // save no longer calls the server at all: it is committed on the device as user ops.)
+  await syncBadge(page).click();
+  const button = page.getByRole('button', { name: 'Sincronizar agora' });
+  await expect(button).not.toHaveAttribute('aria-disabled', 'true', { timeout: 20_000 });
+  await button.click();
 
   const banner = page.locator('.banner[data-banner="re-auth"]');
-  await expect(banner).toBeVisible();
+  await expect(banner).toBeVisible({ timeout: 20_000 });
   await expect(banner.locator('.banner-text')).toHaveText(
     'Sua sessão expirou. Nada foi apagado deste aparelho.',
   );
   await expect(banner).toHaveAttribute('role', 'alert');
   expect(await readLocalMarker(page, database, MARKER)).toMatchObject({ kind: 'relatorio' });
   expect(await readStoreNames(page, database)).toContain('outbox');
+  expect(await readPointer(page)).not.toBeNull();
 
   await banner.getByRole('button', { name: 'Entrar de novo' }).click();
   await expect(page.locator('.login-wordmark')).toBeVisible();
@@ -145,7 +175,7 @@ test('@p0 1.3-E2E-002 a 401 mid-call raises the re-auth banner, leaves local dat
   expect(await readLocalMarker(page, database, MARKER)).toMatchObject({ kind: 'relatorio' });
 });
 
-test('@p0 1.3-E2E-002b a cold open whose cookie is gone stays on Home with the re-auth banner', async ({
+test('@p0 1.3-E2E-002b a cold open whose cookie is gone stays on Home with the re-auth banner, twice, the second time offline', async ({
   page,
   context,
   seed,
@@ -170,6 +200,24 @@ test('@p0 1.3-E2E-002b a cold open whose cookie is gone stays on Home with the r
   );
   expect(await readLocalMarker(page, database, MARKER)).toMatchObject({ kind: 'relatorio' });
   expect(await readStoreNames(page, database)).toContain('outbox');
+  // Retro A8: the boot-time 401 keeps the pointer, exactly like a 401 mid-use.
+  expect(await readPointer(page)).not.toBeNull();
+
+  // A second cold open with no connection at all. The document still comes from the dev
+  // server (the service worker is the durability project's), so "no connection" is the
+  // API unreachable plus the browser reporting itself offline, as in 1.6-E2E-003. The
+  // pointer brings Home back from the device, and the banner still stands.
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false });
+  });
+  await page.route(isApiRequest, (route) => route.abort('internetdisconnected'));
+  await page.reload();
+  await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
+  await expect(page.locator('.login-form')).toHaveCount(0);
+  await expect(page.locator('.banner[data-banner="re-auth"]')).toBeVisible();
+  expect(await readLocalMarker(page, database, MARKER)).toMatchObject({ kind: 'relatorio' });
+  expect(await readPointer(page)).not.toBeNull();
+  await page.unroute(isApiRequest);
 });
 
 test('@p0 1.3-E2E-003 the Registro profissional dialog follows the council and the row re-reads', async ({
@@ -178,7 +226,8 @@ test('@p0 1.3-E2E-003 the Registro profissional dialog follows the council and t
 }) => {
   const user = seed.companies[0];
   await signIn(page, user.email);
-  await page.goto('/account');
+  await waitForUserRow(page, deviceDatabaseName(user.userId), user.userId);
+  await page.getByRole('link', { name: 'Conta' }).click();
 
   const row = page.getByTestId('registration-row-value');
   await expect(row).toHaveText(`CREA ${user.registrationNumber} · Eng. Eletricista`);
@@ -223,46 +272,79 @@ test('@p0 1.3-E2E-003 the Registro profissional dialog follows the council and t
   await expect(row).toHaveText(`CREA ${user.registrationNumber} · Eng. Eletricista`);
 });
 
-test('@p0 1.3-E2E-003b offline, the dialog Salvar is disabled with the reason beside it', async ({
+test('@p0 1.3-E2E-003b offline, Salvar commits the registration on the device and it reaches the server on reconnect', async ({
   page,
   context,
   seed,
 }) => {
-  const user = seed.companies[0];
+  // Company B's user, so this test's server round trip never touches the row the other
+  // registration test reads.
+  const user = seed.companies[1];
+  const database = deviceDatabaseName(user.userId);
+  const seededRow = `CRT ${user.registrationNumber} · Técnico(a) em Eletrotécnica`;
   await signIn(page, user.email);
-  await page.goto('/account');
+  await waitForUserRow(page, database, user.userId);
+  const device = await readDeviceId(page, database);
+  await page.getByRole('link', { name: 'Conta' }).click();
 
   const row = page.getByTestId('registration-row-value');
-  const before = await row.textContent();
+  await expect(row).toHaveText(seededRow);
 
+  // The old named action must never be called again.
+  const registrationRequests: string[] = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).pathname === '/api/account/registration') registrationRequests.push(request.url());
+  });
+
+  await context.setOffline(true);
   await page.getByRole('button', { name: 'Editar' }).click();
   const dialog = page.getByRole('dialog');
-  await dialog.getByLabel('Número CREA').fill('SP 8888');
-
-  // Only the account routes matter here: the sync engine of Story 1.5 has its own requests.
-  const requests: string[] = [];
-  page.on('request', (request) => {
-    if (new URL(request.url()).pathname.startsWith('/api/account')) requests.push(request.url());
-  });
-  await context.setOffline(true);
-
+  await dialog.getByLabel('Número CRT').fill('SP 8888');
+  await dialog.getByLabel('Título impresso').fill('Técnico em Eletrotécnica Sênior');
   const save = dialog.getByRole('button', { name: 'Salvar' });
-  await expect(save).toHaveAttribute('aria-disabled', 'true');
-  const reason = dialog.locator('.btn-reason');
-  await expect(reason).toHaveText('Salvar precisa de conexão');
-  expect(await save.getAttribute('aria-describedby')).toBe(await reason.getAttribute('id'));
-
-  // `force` because the button is `aria-disabled` and still focusable by design (AD-23),
-  // which Playwright reads as "not enabled".
-  await save.click({ force: true });
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole('alert')).toHaveCount(0);
-  expect(requests).toEqual([]);
-
-  await context.setOffline(false);
+  // Offline is no reason to refuse: the save is a local commit.
   await expect(save).not.toHaveAttribute('aria-disabled', 'true');
-  await dialog.getByRole('button', { name: 'Cancelar' }).click();
+  await expect(dialog.locator('.btn-reason')).toHaveCount(0);
+  await save.click();
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  // Nothing was saved while offline.
-  await expect(row).toHaveText(before ?? '');
+  // The row re-reads the device at once.
+  await expect(row).toHaveText('CRT SP 8888 · Técnico em Eletrotécnica Sênior');
+
+  // Three user ops wait in the outbox, stamped with this device's id.
+  const waiting = (
+    await readStore<{ path: string; value: unknown; status: string; device_id: string }>(page, database, 'outbox')
+  ).filter((r) => r.path.startsWith(`user/${user.userId}/`));
+  expect(waiting.map((r) => [r.path, r.value]).sort()).toEqual(
+    [
+      [`user/${user.userId}/council`, 'crt'],
+      [`user/${user.userId}/registration_number`, 'SP 8888'],
+      [`user/${user.userId}/title`, 'Técnico em Eletrotécnica Sênior'],
+    ].sort(),
+  );
+  for (const r of waiting) expect(r).toMatchObject({ status: 'pending', device_id: device });
+
+  // Back online: one cycle pushes them, and the server's entity and account read agree.
+  await context.setOffline(false);
+  await syncNow(page);
+  await expect
+    .poll(async () => (await (await page.request.get('/api/account')).json()).user, { timeout: 20_000 })
+    .toMatchObject({ council: 'crt', registrationNumber: 'SP 8888', title: 'Técnico em Eletrotécnica Sênior' });
+  const gone = await page.request.put('/api/account/registration', {
+    data: { council: 'crea', registrationNumber: 'SP 1', title: 'Eng.' },
+  });
+  expect(gone.status()).toBe(404);
+  expect(registrationRequests).toEqual([]);
+
+  // Put the seeded values back through the same path, so the suite ends where it began.
+  await page.getByRole('link', { name: 'Conta' }).click();
+  await page.getByRole('button', { name: 'Editar' }).click();
+  const restore = page.getByRole('dialog');
+  await restore.getByLabel('Número CRT').fill(user.registrationNumber);
+  await restore.getByLabel('Título impresso').fill('Técnico(a) em Eletrotécnica');
+  await restore.getByRole('button', { name: 'Salvar' }).click();
+  await expect(row).toHaveText(seededRow);
+  await syncNow(page);
+  await expect
+    .poll(async () => (await (await page.request.get('/api/account')).json()).user, { timeout: 20_000 })
+    .toMatchObject({ registrationNumber: user.registrationNumber, title: 'Técnico(a) em Eletrotécnica' });
 });

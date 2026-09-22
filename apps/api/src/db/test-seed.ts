@@ -27,8 +27,8 @@ export const TEST_SEED = {
       name: 'Ana Alves',
       council: 'crea',
       registrationNumber: 'SP 1000000001',
-      /** Deterministic: `seed-user-` plus the slug of the e-mail (see `seed.ts`). */
-      userId: 'seed-user-a-teste-local',
+      /** Fixed uuidv7 (AD-4), so every suite and the device database name `releng-{user_id}` agree. */
+      userId: '0a000000-0000-7000-8000-0000000000a1',
     },
     {
       companyId: '0b000000-0000-7000-8000-00000000000b',
@@ -37,7 +37,7 @@ export const TEST_SEED = {
       name: 'Bento Braga',
       council: 'crt',
       registrationNumber: 'SP 2000000002',
-      userId: 'seed-user-b-teste-local',
+      userId: '0b000000-0000-7000-8000-0000000000b1',
     },
   ],
 } as const;

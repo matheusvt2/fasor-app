@@ -21,14 +21,15 @@ import {
 import { and, desc, eq, or, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
 import type { Db } from '../db/client.ts';
+import type { CompanyId } from '../db/repositories/company-id.ts';
 import { entities, ops } from '../db/schema.ts';
 
 /*
  * AD-3, AD-4, AD-24: the server materializer. Per-op transaction: insert the
  * op (an existing `op_id` returns its `seq`), load the target rows, call the
  * same `applyOp`, upsert `entities`. Rejected only for shape, unknown path,
- * origin (a server-only family, a spoofed device or actor) or tenant; never
- * for a domain rule.
+ * origin (a server-only family, a spoofed device or actor), ownership (a user
+ * row written by anyone but that user) or tenant; never for a domain rule.
  */
 
 export interface ApplyResult {
@@ -40,14 +41,14 @@ export interface ApplyResult {
 
 /**
  * `origin` is required so every emitter states who it is: a route passes `client` with
- * the session's user id, the server's own jobs (Epic 6 files, reading, generate) pass
- * `server`. No caller passes `server` yet.
+ * the session's user id; the server's own emitters pass `server` (provisioning's
+ * `user/{id}` projection today, the Epic 6 files, reading and generate jobs later).
  */
 export type ApplyDeps = { now: Clock } & ({ origin: 'client'; actorId: string } | { origin: 'server' });
 
 type Validation = { ok: true; op: Op } | { ok: false; code: OpRejectCode };
 
-function validate(raw: unknown, companyId: string, deps: ApplyDeps): Validation {
+function validate(raw: unknown, companyId: CompanyId, deps: ApplyDeps): Validation {
   const path = (raw as { path?: unknown } | null)?.path;
   if (typeof path === 'string') {
     try {
@@ -68,6 +69,13 @@ function validate(raw: unknown, companyId: string, deps: ApplyDeps): Validation 
     if (op.actor_id.startsWith('system:')) return { ok: false, code: 'op_server_only' };
     // A forged attribution is a shape error, not a tenant one.
     if (op.actor_id !== deps.actorId) return { ok: false, code: 'op_invalid' };
+    // A user row is written only by that user (CAP-6): the registration of a colleague,
+    // in this company or any other, is refused per op. The name is identity-owned
+    // (provisioning writes it), so no client may write it, not even its own.
+    const path = parsePath(op.path);
+    if (path.family === 'user/field' && (path.id !== deps.actorId || path.field === 'name')) {
+      return { ok: false, code: 'op_forbidden' };
+    }
   }
   return { ok: true, op };
 }
@@ -86,7 +94,7 @@ interface Applied {
   supersededOver: string | null;
 }
 
-async function applyOne(db: Db, companyId: string, op: Op, receivedAt: string): Promise<Applied> {
+async function applyOne(db: Db, companyId: CompanyId, op: Op, receivedAt: string): Promise<Applied> {
   return db.transaction(async (tx) => {
     // Applies serialize per company: no lost update on a shared row, and seq order equals commit order.
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${companyId}))`);
@@ -171,7 +179,7 @@ async function applyOne(db: Db, companyId: string, op: Op, receivedAt: string): 
 /** Applies ops in array order for one tenant; one rejected op never blocks the rest. */
 export async function applyOps(
   db: Db,
-  companyId: string,
+  companyId: CompanyId,
   rawOps: readonly unknown[],
   deps: ApplyDeps,
 ): Promise<ApplyResult> {

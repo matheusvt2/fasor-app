@@ -22,3 +22,4 @@ export * from './status/edited-since.ts';
 export * from './prefs/theme.ts';
 export * from './device/storage.ts';
 export * from './home/cards.ts';
+export * from './text/plural.ts';

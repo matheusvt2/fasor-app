@@ -9,7 +9,6 @@ import {
 } from '@app/domain';
 import { useId, useState } from 'react';
 import { Dialog, Modal, ModalOverlay } from 'react-aria-components';
-import { ApiError } from '../../api/auth-client.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { useAriaModal } from '../use-aria-modal.ts';
 
@@ -17,7 +16,6 @@ const COUNCILS: readonly Council[] = councilSchema.options;
 
 export interface RegistrationDialogProps {
   initial: Registration;
-  online: boolean;
   onCancel: () => void;
   onSave: (registration: Registration) => Promise<void>;
 }
@@ -30,6 +28,9 @@ export interface RegistrationDialogProps {
  *
  * Changing the Conselho swaps the number label and the printed title, and never clears
  * a number the user already typed.
+ *
+ * "Salvar" commits `user/{id}/{field}` ops on this device (AD-1), so it works offline
+ * exactly as online; the sync engine sends them when there is a connection.
  */
 export function RegistrationDialog(props: RegistrationDialogProps) {
   const dialogRef = useAriaModal<HTMLElement>();
@@ -38,7 +39,6 @@ export function RegistrationDialog(props: RegistrationDialogProps) {
   const numberLabelId = useId();
   const printedTitleLabelId = useId();
   const helperId = useId();
-  const reasonId = useId();
   const errorId = useId();
 
   const [council, setCouncil] = useState<Council>(props.initial.council);
@@ -59,10 +59,10 @@ export function RegistrationDialog(props: RegistrationDialogProps) {
   }
 
   async function save() {
-    if (!props.online || saving) return;
+    if (saving) return;
     setError(null);
     // A user with no registration yet starts with two empty fields. Say so here instead
-    // of sending a body the server can only refuse.
+    // of committing a registration with nothing in it.
     const parsed = registrationSchema.safeParse({
       council,
       registrationNumber,
@@ -75,13 +75,10 @@ export function RegistrationDialog(props: RegistrationDialogProps) {
     setSaving(true);
     try {
       await props.onSave(parsed.data);
-    } catch (cause) {
-      // A 400 means the same thing the local check means; anything else is worth a retry.
-      setError(
-        cause instanceof ApiError && cause.status === 400
-          ? copy.account.registrationIncomplete
-          : copy.account.saveFailed,
-      );
+    } catch {
+      // Only a device write can fail here (a full or blocked store); the values stay in
+      // the dialog for another try.
+      setError(copy.account.saveFailed);
     } finally {
       setSaving(false);
     }
@@ -167,20 +164,9 @@ export function RegistrationDialog(props: RegistrationDialogProps) {
             <button type="button" className="btn btn-secondary" onClick={props.onCancel}>
               {copy.account.cancel}
             </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              aria-disabled={props.online ? undefined : true}
-              aria-describedby={props.online ? undefined : reasonId}
-              onClick={save}
-            >
+            <button type="button" className="btn btn-primary" onClick={save}>
               {copy.account.save}
             </button>
-            {props.online ? null : (
-              <span className="btn-reason" id={reasonId}>
-                {copy.account.saveOfflineReason}
-              </span>
-            )}
           </div>
         </Dialog>
       </Modal>

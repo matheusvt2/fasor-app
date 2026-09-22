@@ -249,6 +249,29 @@ describe('batch and undo', () => {
     db.close();
   });
 
+  it("stamps this device's minted id on every op, whatever the caller passed (retro A4)", async () => {
+    const db = await freshDb();
+    await seed(db);
+    const d = deps();
+    const { device_id: _ignored, ...withoutDevice } = put(FIELD, 'ABB');
+    void _ignored;
+    // A caller outside the type (JavaScript, a cast) that still sends a device id is overwritten.
+    const spoofed = { ...put(`block/${BLOCK_1_ID}/order_key`, 'a9'), device_id: 'someone-else' };
+    const first = await commitBatch(db, [withoutDevice, spoofed], d);
+    const second = await commitBatch(db, [put(FIELD, 'WEG')], d);
+    // commitOps, the lower write path, stamps too.
+    const direct = makeOp(put(FIELD, 'Siemens', { device_id: 'hand-set' }), { newId: d.newId, now: d.now() });
+    const third = await commitOps(db, [direct], d);
+    const minted = (await db.local_prefs.get('device_id'))?.value;
+    expect(typeof minted).toBe('string');
+    for (const op of [...first.ops, ...second.ops, ...third]) expect(op.device_id).toBe(minted);
+    expect((await db.outbox.get(direct.op_id))?.device_id).toBe(minted);
+    const rows = await db.outbox.where('batch_id').anyOf([first.batch_id, second.batch_id]).toArray();
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) expect(row.device_id).toBe(minted);
+    db.close();
+  });
+
   it('skips dead rows of the batch: the server never applied them', async () => {
     const db = await freshDb();
     await seed(db);

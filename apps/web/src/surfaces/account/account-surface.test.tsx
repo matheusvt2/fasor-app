@@ -1,8 +1,12 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import 'fake-indexeddb/auto';
+import { entityKey, type UserRow } from '@app/domain';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { toRecord } from '../../db/commit.ts';
+import { openDatabase } from '../../db/schema.ts';
 import { ThemeProvider } from '../../state/theme.tsx';
 import type { SessionState } from '../../state/session.tsx';
 import { SyncContext, type SyncState } from '../../state/sync.tsx';
@@ -18,7 +22,7 @@ import { AccountSurface } from './account-surface.tsx';
 const signedIn: SessionState = {
   status: 'signed-in',
   user: {
-    id: 'seed-user-a-teste-local',
+    id: '0a000000-0000-7000-8000-0000000000a1',
     name: 'Ana Alves',
     email: 'a@teste.local',
     companyId: '0a000000-0000-7000-8000-00000000000a',
@@ -38,7 +42,10 @@ const signedIn: SessionState = {
   dismissRecovery: vi.fn(),
 };
 
-vi.mock('../../state/session.tsx', () => ({ useSession: () => signedIn }));
+/** The session the surface reads; a test that needs another one builds its own object. */
+let session: SessionState = signedIn;
+
+vi.mock('../../state/session.tsx', () => ({ useSession: () => session }));
 
 function syncState(pendingText: string, pendingCount: number): SyncState {
   return {
@@ -205,6 +212,41 @@ describe('Account: Armazenamento', () => {
       );
     } finally {
       undo();
+    }
+  });
+});
+
+describe('Account: Registro profissional reads the device (retro A2)', () => {
+  it('shows the kernel user row once the company pull has brought it, and the session profile until then', async () => {
+    renderAccount(syncState('', 0));
+    expect(screen.getByTestId('registration-row-value')).toHaveTextContent('CREA SP 1000000001 · Eng. Eletricista');
+    cleanup();
+
+    const db = openDatabase(signedIn.user!.id);
+    await db.open();
+    const row: UserRow = {
+      id: signedIn.user!.id,
+      name: 'Ana Alves',
+      email: 'a@teste.local',
+      council: 'crt',
+      registration_number: 'SP 7777',
+      title: 'Técnico(a) em Eletrotécnica',
+      photo_location_enabled: false,
+    };
+    await db.entities.put(toRecord(entityKey('user', row.id), row));
+    session = { ...signedIn, database: db };
+    try {
+      renderAccount(syncState('', 0));
+      await waitFor(() =>
+        expect(screen.getByTestId('registration-row-value')).toHaveTextContent('CRT SP 7777 · Técnico(a) em Eletrotécnica'),
+      );
+      // The dialog opens on what the row shows.
+      await userEvent.click(screen.getByRole('button', { name: 'Editar' }));
+      expect(screen.getByLabelText('Número CRT')).toHaveValue('SP 7777');
+    } finally {
+      session = signedIn;
+      db.close();
+      await db.delete();
     }
   });
 });

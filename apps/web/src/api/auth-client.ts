@@ -1,16 +1,18 @@
-import { accountResponseSchema, type Registration, type UserProfile } from '@app/domain';
+import { ACCOUNT_ROUTES, accountResponseSchema, type UserProfile } from '@app/domain';
 import { createAuthClient } from 'better-auth/client';
 import { copy } from '../copy/pt-br.ts';
 
 /**
  * The only module that talks to the network for identity (AR-1, AD-9): sign-in,
- * sign-out, the session read at boot and the professional-registration save. Every
- * other `fetch` in `apps/web` is forbidden by lint outside `src/{sync,files,api}`.
+ * sign-out and the account read at boot and after sign-in. Every other `fetch` in
+ * `apps/web` is forbidden by lint outside `src/{sync,files,api}`. The professional
+ * registration is not saved here: it is committed as `user/{id}/{field}` ops and travels
+ * with the sync push (AD-1).
  *
- * Only `saveRegistration` publishes a re-auth event on a 401, which the banner slot
- * turns into "Entrar de novo". The session read at boot and the one right after sign-in
- * never do: there a 401 means "no session yet", which is Login's job, not a banner's.
- * Nothing here touches the local database.
+ * The session read at boot and the one right after sign-in never raise the re-auth
+ * banner: there a 401 means "no session yet", which is Login's job, not a banner's. The
+ * sync engine publishes it on a 401 mid-use (`publishReAuth`). Nothing here touches the
+ * local database.
  */
 
 const client = createAuthClient({ basePath: '/api/auth' });
@@ -26,7 +28,7 @@ export function onReAuthRequired(listener: ReAuthListener): () => void {
   };
 }
 
-/** Raises the re-auth banner. Called here on a 401 and by the sync engine (AD-9). */
+/** Raises the re-auth banner. Called by the sync engine on a 401 mid-use (AD-9). */
 export function publishReAuth(): void {
   for (const listener of reAuthListeners) listener();
 }
@@ -41,12 +43,14 @@ export type SignInResult =
   | { ok: false; reason: 'credentials' | 'network'; message: string };
 
 async function readAccount(): Promise<UserProfile | null> {
-  const response = await fetch('/api/account', {
+  const route = ACCOUNT_ROUTES.read;
+  const response = await fetch(route.path, {
+    method: route.method,
     credentials: 'same-origin',
     headers: { accept: 'application/json' },
   });
   if (response.status === 401) return null;
-  if (!response.ok) throw new Error(`GET /api/account failed with ${response.status}`);
+  if (!response.ok) throw new Error(`${route.method} ${route.path} failed with ${response.status}`);
   return accountResponseSchema.parse(await response.json()).user;
 }
 
@@ -130,28 +134,4 @@ export class ApiError extends Error {
     this.name = 'ApiError';
     this.status = status;
   }
-}
-
-/**
- * Named server action for the professional registration (AD-9). Converting it to a
- * `user/{id}/{field}` op is deferred to Story 1.4.
- */
-export async function saveRegistration(registration: Registration): Promise<UserProfile> {
-  const response = await fetch('/api/account/registration', {
-    method: 'PUT',
-    credentials: 'same-origin',
-    headers: { 'content-type': 'application/json', accept: 'application/json' },
-    body: JSON.stringify(registration),
-  });
-  if (response.status === 401) {
-    publishReAuth();
-    throw new ApiError('unauthenticated', 401);
-  }
-  if (!response.ok) {
-    throw new ApiError(
-      `PUT /api/account/registration failed with ${response.status}`,
-      response.status,
-    );
-  }
-  return accountResponseSchema.parse(await response.json()).user;
 }

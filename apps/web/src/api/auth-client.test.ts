@@ -9,7 +9,7 @@ vi.mock('better-auth/client', () => ({
 const { isClientRejection, signIn } = await import('./auth-client.ts');
 
 const profile = {
-  id: 'u-1',
+  id: '0a000000-0000-7000-8000-0000000000a1',
   name: 'Ana Alves',
   email: 'a@teste.local',
   companyId: '0a000000-0000-7000-8000-00000000000a',
@@ -56,7 +56,7 @@ describe('signIn classifies failures', () => {
   });
 
   it('returns the profile after an accepted pair', async () => {
-    signInEmail.mockResolvedValue({ data: { user: { id: 'u-1' } }, error: null });
+    signInEmail.mockResolvedValue({ data: { user: { id: profile.id } }, error: null });
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ user: profile }), {
         status: 200,
@@ -64,7 +64,9 @@ describe('signIn classifies failures', () => {
       }),
     );
     const result = await signIn('a@teste.local', 'right');
-    expect(result).toMatchObject({ ok: true, user: { id: 'u-1', council: 'crea' } });
+    expect(result).toMatchObject({ ok: true, user: { id: profile.id, council: 'crea' } });
+    // The account read goes through the contract route (AD-13), not a literal of its own.
+    expect(fetchMock).toHaveBeenCalledWith('/api/account', expect.objectContaining({ method: 'GET' }));
   });
 
   it('isClientRejection is true only for 4xx', () => {

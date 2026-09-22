@@ -13,9 +13,11 @@ import {
   type EntityRow,
   type NewId,
   type Op,
-  type OpInput,
+  type OpDraft,
 } from '@app/domain';
 import { targetKeysOf, type AppDatabase, type EntityRecord, type OutboxRow } from './schema.ts';
+import { newId as mintId } from '../ids.ts';
+import { deviceId } from './device-id.ts';
 
 /*
  * AD-1, AD-3: the only write path of apps/web for user changes. Every op is
@@ -81,24 +83,39 @@ async function applyOne(db: AppDatabase, op: Op): Promise<void> {
   });
 }
 
-/** Commits ops in order: outbox append (or coalesce) plus `applyOp`, atomically. */
-export async function commitOps(db: AppDatabase, ops: readonly Op[]): Promise<void> {
+/**
+ * Commits ops in order: outbox append (or coalesce) plus `applyOp`, atomically. Every op
+ * is stamped with this device's minted id first (AD-3), whatever `device_id` the caller
+ * built it with, so no write path of apps/web chooses it. Returns the ops as committed.
+ */
+export async function commitOps(
+  db: AppDatabase,
+  ops: readonly Op[],
+  deps: { newId: NewId } = { newId: mintId },
+): Promise<Op[]> {
+  const device_id = await deviceId(db, deps.newId);
+  const stamped = ops.map((op) => ({ ...op, device_id }));
   await db.transaction('rw', db.entities, db.outbox, async () => {
-    for (const op of ops) await applyOne(db, op);
+    for (const op of stamped) await applyOne(db, op);
   });
+  return stamped;
 }
 
-/** FR-32: N changes as one batch sharing a `batch_id` minted here. */
+/**
+ * FR-32: N changes as one batch sharing a `batch_id` minted here. Every op carries this
+ * device's minted id (AD-3): callers never choose `device_id`, and one passed anyway at
+ * runtime is overwritten.
+ */
 export async function commitBatch(
   db: AppDatabase,
-  inputs: readonly OpInput[],
+  inputs: readonly OpDraft[],
   deps: CommitDeps,
 ): Promise<{ batch_id: string; ops: Op[] }> {
+  const device_id = await deviceId(db, deps.newId);
   const batch_id = deps.newId();
   const now = deps.now();
-  const ops = inputs.map((input) => makeOp({ ...input, batch_id }, { newId: deps.newId, now }));
-  await commitOps(db, ops);
-  return { batch_id, ops };
+  const ops = inputs.map((input) => makeOp({ ...input, batch_id, device_id }, { newId: deps.newId, now }));
+  return { batch_id, ops: await commitOps(db, ops, deps) };
 }
 
 /** Undo: N inverse ops in a new batch, built from the outbox rows of the batch (dead rows never applied, AD-24). */
@@ -106,8 +123,7 @@ export async function undoBatch(db: AppDatabase, batchId: string, deps: CommitDe
   const rows = (await db.outbox.where('batch_id').equals(batchId).sortBy('client_ts')).filter((row) => row.status !== 'dead');
   const before = new Map<string, unknown>(rows.map((row) => [row.op_id, row.prev_value]));
   const inverses = invertBatch(rows.map(opOf), before, { newId: deps.newId, now: deps.now() });
-  await commitOps(db, inverses);
-  return inverses;
+  return commitOps(db, inverses, deps);
 }
 
 /**

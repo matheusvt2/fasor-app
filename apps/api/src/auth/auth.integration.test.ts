@@ -122,51 +122,27 @@ describe('1.3-API-001 session, cookie and provisioning', () => {
     expect(await res.json()).toMatchObject({ code: 'unauthenticated' });
   });
 
-  it('serves the signed-in profile and saves the professional registration', async () => {
+  it('serves the signed-in profile, with the registration composed from the user entity', async () => {
     const { cookie } = await signIn(companyA.email);
     const read = await call('/api/account', { headers: { cookie } });
     expect(read.status).toBe(200);
     const profile = accountResponseSchema.parse(await read.json()).user;
+    expect(profile.id).toBe(companyA.userId);
     expect(profile.email).toBe(companyA.email);
     expect(profile.companyId).toBe(companyA.companyId);
-
-    const saved = await call('/api/account/registration', {
-      method: 'PUT',
-      headers: { cookie },
-      body: JSON.stringify({
-        council: 'crt',
-        registrationNumber: 'SP 9999',
-        title: 'Técnico(a) em Eletrotécnica',
-      }),
-    });
-    expect(saved.status).toBe(200);
-    expect(accountResponseSchema.parse(await saved.json()).user).toMatchObject({
-      council: 'crt',
-      registrationNumber: 'SP 9999',
-    });
-
-    // Put the seeded value back so the e2e suite starts from a known state.
-    const restored = await call('/api/account/registration', {
-      method: 'PUT',
-      headers: { cookie },
-      body: JSON.stringify({
-        council: companyA.council,
-        registrationNumber: companyA.registrationNumber,
-        title: 'Eng. Eletricista',
-      }),
-    });
-    expect(restored.status).toBe(200);
+    // The seeded council comes from the kernel `user` entity, the only home of the
+    // registration; the identity table has no registration column any more.
+    expect(profile.council).toBe(companyA.council);
   });
 
-  it('rejects an invalid registration body', async () => {
+  it('has no registration write route: the registration is written as user ops', async () => {
     const { cookie } = await signIn(companyA.email);
     const res = await call('/api/account/registration', {
       method: 'PUT',
       headers: { cookie },
-      body: JSON.stringify({ council: 'cau', registrationNumber: '', title: '' }),
+      body: JSON.stringify({ council: 'crt', registrationNumber: 'SP 9999', title: 'Técnico(a) em Eletrotécnica' }),
     });
-    expect(res.status).toBe(400);
-    expect(await res.json()).toMatchObject({ code: 'registration_invalid' });
+    expect(res.status).toBe(404);
   });
 
   it('clears the session on sign-out', async () => {
@@ -220,29 +196,15 @@ describe('1.3-API-002 two companies, no cross-read', () => {
   it('never returns a row of the other company from any route this story ships', async () => {
     const { cookie } = await signIn(companyA.email);
 
-    // Every authenticated route of this story, called by a user of company A.
+    // Every authenticated account route, called by a user of company A.
     const account = accountResponseSchema.parse(
       await (await call('/api/account', { headers: { cookie } })).json(),
     ).user;
     expect(account.companyId).toBe(companyA.companyId);
+    expect(account.id).toBe(companyA.userId);
     expect(account.email).not.toBe(companyB.email);
 
-    const written = accountResponseSchema.parse(
-      await (
-        await call('/api/account/registration', {
-          method: 'PUT',
-          headers: { cookie },
-          body: JSON.stringify({
-            council: 'crea',
-            registrationNumber: companyA.registrationNumber,
-            title: 'Eng. Eletricista',
-          }),
-        })
-      ).json(),
-    ).user;
-    expect(written.companyId).toBe(companyA.companyId);
-
-    // The other company's user is untouched by company A's write.
+    // The other company's user is still there, readable only under its own tenant.
     const otherUsers = await listUserProfiles(db, asCompanyId(companyB.companyId));
     expect(otherUsers).toHaveLength(1);
     expect(otherUsers[0]?.email).toBe(companyB.email);

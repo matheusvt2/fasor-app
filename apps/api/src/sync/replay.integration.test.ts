@@ -4,13 +4,14 @@ import { eq } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
 import { now } from '../clock.ts';
 import { createDb } from '../db/client.ts';
+import { asCompanyId } from '../db/repositories/company-id.ts';
 import { entities, ops } from '../db/schema.ts';
 import { newId } from '../ids.ts';
 import { applyOps } from './apply.ts';
 import { toSnapshot } from './snapshot.ts';
 
 const databaseUrl = process.env.DATABASE_URL ?? 'postgres://app:app@postgres:5432/app';
-const companyId = newId();
+const companyId = asCompanyId(newId());
 const dead = new Set(replaySmall.deadOpIds);
 
 /** The fixture log for this test's fresh tenant (file rows carry company_id in their value). */
@@ -92,5 +93,17 @@ describe('1.4-INT-001 replay byte-equality (Drizzle layer)', () => {
     const ids = new Set(stored.map((s) => s.op_id));
     for (const rejected of result.rejected) expect(ids.has(rejected.op_id)).toBe(false);
     expect(ids.has(fine.op_id)).toBe(true);
+  });
+
+  it('takes the tenant only as a branded CompanyId (AD-10)', () => {
+    // Declared and never called: `pnpm static` fails if either line ever typechecks,
+    // because each @ts-expect-error would then be unused.
+    const plainStringMustNotCompile = () => {
+      // @ts-expect-error applyOps needs the CompanyId the session resolved, not a string
+      void applyOps(db, String(companyId), [], deps);
+      // @ts-expect-error toSnapshot is tenant-scoped the same way
+      void toSnapshot(db, String(companyId), replaySmall.relatorioId);
+    };
+    void plainStringMustNotCompile;
   });
 });

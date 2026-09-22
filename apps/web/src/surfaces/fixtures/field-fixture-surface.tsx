@@ -1,13 +1,11 @@
-import { makeOp } from '@app/domain';
 import { useCallback, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
 import { now } from '../../clock.ts';
-import { commitOps } from '../../db/commit.ts';
+import { commitBatch } from '../../db/commit.ts';
 import { newId } from '../../ids.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { useDraftSource } from '../../state/drafts.tsx';
 import { useSession } from '../../state/session.tsx';
-import { useSync } from '../../state/sync.tsx';
 
 /*
  * DEV ONLY. The route that mounts this is guarded by `import.meta.env.DEV`, so the
@@ -16,7 +14,7 @@ import { useSync } from '../../state/sync.tsx';
  * FR-54's first scenario is "the tab closed mid-sheet", and no sheet, dialog or field
  * surface exists before Epic 5. Rather than invent product scope this story does not
  * own, the three durability scenarios drive the machinery they are actually about: one
- * input on the `createFieldCommitter` -> `commitOps` path, registered as a draft source.
+ * input on the `createFieldCommitter` -> `commitBatch` path, registered as a draft source.
  * Epic 5 replaces this with real surfaces by registering their own sources; nothing in
  * `src/state/drafts.tsx` or `src/db/drafts.ts` changes when it does.
  */
@@ -28,7 +26,6 @@ const FIELD = 'local';
 
 export function FieldFixtureSurface() {
   const session = useSession();
-  const sync = useSync();
   const db = session.database;
   const [text, setText] = useState('');
   const [committed, setCommitted] = useState('');
@@ -42,27 +39,29 @@ export function FieldFixtureSurface() {
     async (value: string) => {
       const user = session.user;
       if (db === null || user === null) return;
-      const op = makeOp(
-        {
-          kind: 'put',
-          scope: 'relatorio',
-          company_id: user.companyId,
-          project_id: null,
-          relatorio_id: FIXTURE_RELATORIO_ID,
-          path: `relatorio/setup/${FIELD}`,
-          value,
-          prev_op_id: null,
-          batch_id: null,
-          meta: null,
-          actor_id: user.id,
-          device_id: sync.deviceId ?? user.id,
-        },
-        { newId, now: now() },
+      // `commitBatch` stamps this device's minted id on the op (AD-3).
+      await commitBatch(
+        db,
+        [
+          {
+            kind: 'put',
+            scope: 'relatorio',
+            company_id: user.companyId,
+            project_id: null,
+            relatorio_id: FIXTURE_RELATORIO_ID,
+            path: `relatorio/setup/${FIELD}`,
+            value,
+            prev_op_id: null,
+            batch_id: null,
+            meta: null,
+            actor_id: user.id,
+          },
+        ],
+        { newId, now },
       );
-      await commitOps(db, [op]);
       setCommitted(value);
     },
-    [db, session.user, sync.deviceId],
+    [db, session.user],
   );
 
   // `?idle=` overrides the 500 ms field-commit timer. A draft is text that has *not*

@@ -1,7 +1,6 @@
-import { materializeEntity, splitEntityKey, type EntityKey, type NewId, type Op, type UserRow } from '@app/domain';
+import { materializeEntity, splitEntityKey, userRowSchema, type EntityKey, type Op, type UserRow } from '@app/domain';
 import { opOf, toRecord } from './commit.ts';
 import {
-  DEVICE_ID_PREF,
   targetKeysOf,
   type AppDatabase,
   type OutboxRow,
@@ -18,16 +17,7 @@ import {
  * one function.
  */
 
-/** This device's id, minted once and kept in `local_prefs`. */
-export async function deviceId(db: AppDatabase, newId: NewId): Promise<string> {
-  return db.transaction('rw', db.local_prefs, async () => {
-    const existing = await db.local_prefs.get(DEVICE_ID_PREF);
-    if (typeof existing?.value === 'string' && existing.value !== '') return existing.value;
-    const minted = newId();
-    await db.local_prefs.put({ key: DEVICE_ID_PREF, value: minted });
-    return minted;
-  });
-}
+export { deviceId } from './device-id.ts';
 
 const byClientTsThenOpId = (a: OutboxRow, b: OutboxRow) =>
   a.client_ts < b.client_ts ? -1 : a.client_ts > b.client_ts ? 1 : a.op_id < b.op_id ? -1 : a.op_id > b.op_id ? 1 : 0;
@@ -165,6 +155,17 @@ export function syncStateRows(db: AppDatabase): Promise<SyncStateRow[]> {
 export async function localUsers(db: AppDatabase): Promise<UserRow[]> {
   const records = await db.entities.where('entity').equals('user').toArray();
   return records.map((record) => record.row as UserRow);
+}
+
+/**
+ * One user's kernel row on this device (the Account "Registro profissional" row), or null
+ * until the company pull has brought it.
+ */
+export async function localUser(db: AppDatabase, userId: string): Promise<UserRow | null> {
+  const record = await db.entities.get(['user', userId]);
+  if (record === undefined) return null;
+  const parsed = userRowSchema.safeParse(record.row);
+  return parsed.success ? parsed.data : null;
 }
 
 export async function remoteOpRows(db: AppDatabase): Promise<RemoteOpRow[]> {

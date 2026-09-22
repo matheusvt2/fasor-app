@@ -1,4 +1,4 @@
-import { avatarInitial, formatShortDateTime, syncBadgeLabel } from '@app/domain';
+import { avatarInitial, formatShortDateTime, rejectedText, supersededText, syncBadgeLabel } from '@app/domain';
 import { useId, useState } from 'react';
 import { Button, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -63,7 +63,7 @@ export function SyncStatusSurface() {
               {sync.counts.dead > 0 ? (
                 <li className="sync-row" data-testid="sync-rejected-row">
                   <span className="sr-body">
-                    <span className="sr-primary">{copy.sync.rejected(sync.counts.dead)}</span>
+                    <span className="sr-primary">{rejectedText(sync.counts.dead)}</span>
                   </span>
                   <span className="sr-state">
                     <TextButton
@@ -79,7 +79,7 @@ export function SyncStatusSurface() {
               {sync.supersededCount > 0 ? (
                 <li className="sync-row" data-testid="sync-superseded-row">
                   <span className="sr-body">
-                    <span className="sr-primary">{copy.sync.superseded(sync.supersededCount)}</span>
+                    <span className="sr-primary">{supersededText(sync.supersededCount)}</span>
                   </span>
                   <span className="sr-state" data-tone="ok" />
                 </li>
