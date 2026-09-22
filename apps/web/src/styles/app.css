@@ -155,6 +155,24 @@ body {
   .section-band .band-head, .section-band .band-body { padding-left: var(--sp-4); padding-right: var(--sp-4); }
   /* `.frame-phone .tabs` */
   .tabs { padding: 0 var(--gutter-phone); }
+  /* App-only: `Tabs`' phone selector (`tabs.tsx`) replaces the wrapping tablist below
+     768px -- the CSS-only half of the switch (Boundaries: no JS `matchMedia`), mirrored by
+     the `.tabs-phone { display: none }` rule at 768px+ below. Sized and styled with the
+     same tokens as `.tab`/`.overflow-trigger`, not new ones. */
+  .tabs-desktop { display: none; }
+  .tabs-phone { padding: 0 var(--gutter-phone); background: var(--surface-raised); border-bottom: 1px solid var(--border-hairline); }
+  .tab-select-trigger { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); width: 100%; min-height: var(--touch-field); padding: 0 var(--sp-2); font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--ink-primary); white-space: nowrap; }
+  .tab-select-trigger .ico { color: var(--ink-secondary); }
+  /* `.frame-phone [data-route="/cadastros"] .registry-main`: the "Novo X" button is
+     followed directly by the list/empty state, with `.section-note` moved after it (AC5).
+     `:has()` scopes the note's reorder to a tab that actually has a list/empty state, so
+     Critérios (note above a `<table>`, no toolbar/list) and the placeholder tab (heading +
+     note only) keep their current note-first order untouched -- both stay at the default
+     `order: 0` on every child, which preserves DOM order. */
+  .registry-main { display: flex; flex-direction: column; }
+  .registry-main > .registry-toolbar { order: 1; }
+  .registry-main > .registry-list, .registry-main > .home-empty { order: 2; }
+  .registry-main:has(.registry-list, .home-empty) > .section-note { order: 3; }
   /* `.frame-phone .brand-preview .bp-pages` */
   .brand-preview .bp-pages { grid-template-columns: 1fr; }
   /* `.frame-phone .doc-control th` */
@@ -183,6 +201,11 @@ body {
   .data-table tbody tr:first-child { border-top: 0; }
   .data-table td { border-top: 0; padding: var(--sp-1) var(--sp-3); }
   .data-table td::before { content: attr(data-label); display: block; font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--ink-secondary); margin-bottom: 2px; }
+}
+
+/* ---------- Tabs: `Tabs`' phone selector only shows below 768px ---------- */
+@media (min-width: 768px) {
+  .tabs-phone { display: none; }
 }
 
 /* ---------- Phone and tablet: `.frame-tablet X, .frame-phone X` -> below 1280px ----------
