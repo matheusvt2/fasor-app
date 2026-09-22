@@ -123,4 +123,15 @@ describe('usePressAndHold', () => {
     expect(target.releasePointerCapture).toHaveBeenCalledWith(7);
     expect(result.current.isHolding).toBe(false);
   });
+
+  it('clears the pending timer on unmount, so onHold never fires afterward', () => {
+    const onHold = vi.fn();
+    const { result, unmount } = renderHook(() => usePressAndHold({ onHold }));
+
+    act(() => result.current.onPointerDown(pointerEvent()));
+    unmount();
+
+    act(() => vi.advanceTimersByTime(PRESS_AND_HOLD_MS + 50));
+    expect(onHold).not.toHaveBeenCalled();
+  });
 });

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 /** Interaction Primitives: "press and hold 300 ms + drag". */
 export const PRESS_AND_HOLD_MS = 300;
@@ -47,6 +47,12 @@ export function usePressAndHold({ onHold, onCancel, thresholdMs = PRESS_AND_HOLD
       timerRef.current = null;
     }
   }, []);
+
+  // If the component unmounts mid-press (e.g. the row it lives on is removed), the pending
+  // timer must never fire afterward: `setIsHolding`/`onHold` on an unmounted component is a
+  // real bug (state update on a dead component, and a caller-owned side effect firing with no
+  // element left to act on).
+  useEffect(() => clearTimer, [clearTimer]);
 
   const releaseCapture = useCallback(() => {
     const start = startRef.current;

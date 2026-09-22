@@ -55,7 +55,6 @@ export function Combobox({
     <>
       <ComboBox
         className="field combobox"
-        aria-disabled={isDisabled || undefined}
         selectedKey={selectedKey}
         onSelectionChange={(key) => {
           if (isDisabled) return;
@@ -73,7 +72,12 @@ export function Combobox({
         allowsCustomValue={Boolean(onCreate)}
       >
         <Label className="field-label">{label}</Label>
-        <Input className="input" placeholder={placeholder} aria-describedby={isDisabled && disabledReason ? reasonId : undefined} />
+        <Input
+          className="input"
+          placeholder={placeholder}
+          aria-disabled={isDisabled || undefined}
+          aria-describedby={isDisabled && disabledReason ? reasonId : undefined}
+        />
         <Button className="combobox-chevron" aria-label={ui.combobox.openList}>
           <svg className="ico" viewBox="0 0 24 24" aria-hidden="true">
             <polyline points="6 9 12 15 18 9" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />

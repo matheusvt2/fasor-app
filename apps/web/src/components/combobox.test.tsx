@@ -81,6 +81,7 @@ describe('Combobox', () => {
       />,
     );
     const input = screen.getByRole('combobox', { name: 'Fabricante' });
+    expect(input).toHaveAttribute('aria-disabled', 'true');
 
     input.focus();
     expect(input).toHaveFocus();
