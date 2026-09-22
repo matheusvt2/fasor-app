@@ -49,9 +49,28 @@ class Network {
     this.files = new Map(Object.entries(files));
   }
 
+  readonly gates = new Map<string, Promise<void>>();
+
+  /** Holds every fetch of `path` until the returned release is called. */
+  gate(path: string): () => void {
+    let release = () => {};
+    this.gates.set(
+      path,
+      new Promise<void>((resolve) => {
+        release = () => {
+          this.gates.delete(path);
+          resolve();
+        };
+      }),
+    );
+    return release;
+  }
+
   async fetch(request: FakeRequest | string): Promise<Response> {
     const path = pathOf(request);
     this.asked.push(path);
+    const gate = this.gates.get(path);
+    if (gate !== undefined) await gate;
     if (!this.online) throw new TypeError('Failed to fetch');
     const body = this.files.get(path);
     return body === undefined ? new Response('not found', { status: 404 }) : new Response(body, { status: 200 });
@@ -506,11 +525,10 @@ describe('a stale or unreadable pin', () => {
     expect(next.warnings.length).toBeGreaterThan(0);
     // Unheld at activation (today's behavior: cache A went), but the next request reads
     // the sentinel again instead of trusting a remembered "unheld". Cache A is back, so
-    // the pin is live, and the held navigation is cache-first (falling through to B's copy)
-    // rather than network-first.
-    await caches.open(A);
+    // the pin is live, and the held navigation is cache-first rather than network-first.
+    await (await caches.open(A)).put('/', new Response('document A, restored'));
     network.deploy({ ...BUILD_B.files, '/': 'document B, from the network' });
-    expect(await next.navigate()).toBe('document B');
+    expect(await next.navigate()).toBe('document A, restored');
   });
 
   it('replaces a stale pin with its own on the next hold', async () => {
@@ -550,5 +568,122 @@ describe('install never takes the pinned cache', () => {
     await deployAndInstall(BUILD_B);
     await deployAndInstall(BUILD_C);
     expect(await shellCaches()).toEqual([A, C]);
+  });
+});
+
+/*
+ * The pin follows the build the *page* runs, not the worker that hears the message. The
+ * order the review reproduced: worker B active, build C deployed, the first launch gets
+ * C's document from the network under B, then work is captured. Pinning B's own, older
+ * cache would flip the job back to B on the next navigation, and — with a newer Dexie
+ * schema in C — leave B's shell unable to open the database and release the pin.
+ */
+describe('the pin names the build the page runs', () => {
+  const ENTRY_C = '/assets/index-c.js';
+
+  async function untilCached(cacheName: string, path: string): Promise<void> {
+    for (let turn = 0; turn < 200 && caches.store.get(cacheName)?.entries.has(path) !== true; turn++) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    expect(caches.store.get(cacheName)?.entries.has(path)).toBe(true);
+  }
+
+  /** B active; C deployed; the page's document came from the network, so it runs C. */
+  async function pageOnNewerBuild(): Promise<Worker> {
+    const b = await firstVisit(BUILD_B);
+    network.deploy(BUILD_C.files);
+    expect(await b.navigate()).toBe('document C');
+    return b;
+  }
+
+  it('serves C while C installs, waits, and after the browser activates it; B never deletes C', async () => {
+    const b = await pageOnNewerBuild();
+
+    // C's worker is installing: its cache holds the entry, not yet the document.
+    const releaseDocument = network.gate('/');
+    const c = startWorker(caches, network, BUILD_C);
+    const installing = c.install();
+    await untilCached(C, ENTRY_C);
+
+    await b.message({ type: 'hold-shell', hold: true, shell: ENTRY_C });
+    expect(await caches.pin()).toEqual({ entry: ENTRY_C });
+    // Nothing of C's document is cached yet, and B's own document is another build: the
+    // network, where C came from, answers. C's assets come from C's cache.
+    const navigating = b.navigate();
+    releaseDocument();
+    expect(await navigating).toBe('document C');
+    await installing;
+    expect(await b.request(ENTRY_C)).toBe('script C');
+
+    // C waiting. A later deploy on the server changes nothing: the job stays on C.
+    network.deploy({ '/': 'document D', '/assets/index-d.js': 'script D', '/sprite.svg': 'sprite D' });
+    expect(await b.navigate()).toBe('document C');
+    expect(await b.request('/sprite.svg')).toBe('sprite C');
+    expect(await startWorker(caches, network, BUILD_B).navigate()).toBe('document C');
+
+    // B's own lifecycle and cleanup never take the pinned C.
+    await b.activate();
+    const later = network.files;
+    network.deploy(BUILD_B.files);
+    await startWorker(caches, network, BUILD_B).install();
+    network.files = later;
+    expect(await shellCaches()).toContain(C);
+
+    // Every tab closes: the browser activates C. Still C, and B's cache may go.
+    await c.activate();
+    expect(await c.navigate()).toBe('document C');
+    expect(await shellCaches()).toEqual([C]);
+
+    // Drained: network-first again.
+    await c.message({ type: 'hold-shell', hold: false, shell: ENTRY_C });
+    expect(await c.navigate()).toBe('document D');
+  });
+
+  it('keeps an unresolved pin: network-first until a cache holding the entry appears', async () => {
+    const b = await pageOnNewerBuild();
+    await b.message({ type: 'hold-shell', hold: true, shell: ENTRY_C });
+
+    // No worker has precached C: not held, and the sentinel is not treated as stale.
+    expect(await b.navigate()).toBe('document C');
+    expect(await startWorker(caches, network, BUILD_B).navigate()).toBe('document C');
+    expect(await caches.pin()).toEqual({ entry: ENTRY_C });
+    expect(await shellCaches()).toEqual([B]);
+
+    // A later hold does not replace it: write-if-absent.
+    await b.message({ type: 'hold-shell', hold: true, shell: '/assets/index-b.js' });
+    expect(await caches.pin()).toEqual({ entry: ENTRY_C });
+
+    // C's worker installs: resolved at the next read, with no new message.
+    const c = startWorker(caches, network, BUILD_C);
+    await c.install();
+    network.deploy({ '/': 'document D', '/assets/index-d.js': 'script D', '/sprite.svg': 'sprite D' });
+    expect(await b.navigate()).toBe('document C');
+
+    await b.message({ type: 'hold-shell', hold: false });
+    expect(await caches.pin()).toBeNull();
+    expect(await b.navigate()).toBe('document D');
+  });
+
+  it('pins the page build even when it is older than the receiving worker', async () => {
+    const a = await firstVisit(BUILD_A);
+    await deployAndInstall(BUILD_B);
+    await a.message({ type: 'hold-shell', hold: true, shell: '/assets/index-a.js' });
+    const b = startWorker(caches, network, BUILD_B);
+    await b.activate();
+    expect(await b.navigate()).toBe('document A');
+    expect(await shellCaches()).toEqual([A, B]);
+  });
+
+  it('pins the receiving worker own cache for a page that does not name its build', async () => {
+    const b = await pageOnNewerBuild();
+    await b.message({ type: 'hold-shell', hold: true });
+    expect(await caches.pin()).toEqual({ shell: B });
+    expect(await b.navigate()).toBe('document B');
+  });
+
+  it('ignores a shell that is not a same-origin path', async () => {
+    const b = await firstVisit(BUILD_B);
+    await b.message({ type: 'hold-shell', hold: true, shell: 'https://elsewhere.test/x.js' });
+    expect(await caches.pin()).toEqual({ shell: B });
   });
 });

@@ -1,4 +1,4 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { copyFile, readFile, rm, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { expect, type BrowserContext, type Page, type Route } from '@playwright/test';
 import { TEST_SEED } from './merged-fixtures.ts';
@@ -249,12 +249,17 @@ export async function withoutPageErrors(page: Page, run: () => Promise<void>): P
   expect(errors, `the page raised ${errors.join(', ')}`).toEqual([]);
 }
 
-/** The shell pin the worker keeps in Cache Storage (`public/sw.js`), or null when nothing is held. */
+/**
+ * The shell pin the worker keeps in Cache Storage (`public/sw.js`): the entry chunk of the
+ * pinned build (or, from a page that did not name it, a cache name), or null when nothing
+ * is held.
+ */
 export async function readShellPin(page: Page): Promise<string | null> {
   return page.evaluate(async () => {
     const response = await caches.match('/__shell-hold', { cacheName: 'releng-hold' });
     if (response === undefined) return null;
-    const body = (await response.json()) as { shell?: unknown };
+    const body = (await response.json()) as { entry?: unknown; shell?: unknown };
+    if (typeof body.entry === 'string') return body.entry;
     return typeof body.shell === 'string' ? body.shell : null;
   });
 }
@@ -274,11 +279,14 @@ export const NEXT_BUILD_MARKER = '<meta name="shell-build" content="next">';
 
 /** The built worker `vite preview` serves; the test and the preview server share the disk. */
 const BUILT_WORKER = fileURLToPath(new URL('../../apps/web/dist/sw.js', import.meta.url));
+const BUILT_DOCUMENT = fileURLToPath(new URL('../../apps/web/dist/index.html', import.meta.url));
 
 /**
  * Simulates a deploy without a second build: from now on the server hands out a `sw.js`
- * whose stamped `SHELL_VERSION` differs (a new cache name, the same precache list) and a
- * document carrying `NEXT_BUILD_MARKER`. Returns the undo, which the test must run.
+ * whose stamped `SHELL_VERSION` differs (a new cache name) and whose precache list names a
+ * distinct entry chunk (`index-<hash>-next.js`, a copy of the current one), and a
+ * document carrying `NEXT_BUILD_MARKER` that loads that entry. Returns the undo, which
+ * the test must run.
  *
  * The worker script is rewritten on disk rather than routed: the browser's update check
  * for a worker's main script never reaches Playwright's routing (no request event, no
@@ -287,24 +295,45 @@ const BUILT_WORKER = fileURLToPath(new URL('../../apps/web/dist/sw.js', import.m
  * worker makes itself (its precache and its network-first navigations).
  */
 export async function serveNextBuild(context: BrowserContext): Promise<() => Promise<void>> {
+  // A distinct entry chunk, as a real build has: a copy of the current one under a new
+  // name, named by the next worker's precache list and by the next document.
+  const entry = /src="(\/assets\/index-[^"]+\.js)"/.exec(await readFile(BUILT_DOCUMENT, 'utf8'))?.[1];
+  if (entry === undefined) throw new Error(`${BUILT_DOCUMENT} references no entry chunk`);
+  const nextEntry = entry.replace(/\.js$/, '-next.js');
+  const nextEntryFile = fileURLToPath(new URL(`../../apps/web/dist${nextEntry}`, import.meta.url));
+  await copyFile(fileURLToPath(new URL(`../../apps/web/dist${entry}`, import.meta.url)), nextEntryFile);
+
   const original = await readFile(BUILT_WORKER, 'utf8');
-  const next = original.replace(
-    /const SHELL_VERSION = "([0-9a-f]+)";/,
-    (_match, version: string) => `const SHELL_VERSION = "${version}-next";`,
-  );
-  if (next === original) throw new Error(`${BUILT_WORKER} carries no stamped SHELL_VERSION to change`);
+  const next = original
+    .replace(/const SHELL_VERSION = "([0-9a-f]+)";/, (_match, version: string) => `const SHELL_VERSION = "${version}-next";`)
+    .replaceAll(`"${entry}"`, `"${nextEntry}"`);
+  if (!next.includes('-next";') || !next.includes(`"${nextEntry}"`)) {
+    throw new Error(`${BUILT_WORKER} carries no stamped SHELL_VERSION or entry to change`);
+  }
   await writeFile(BUILT_WORKER, next);
   const isDocument = (url: URL) => url.pathname === '/';
   const markDocument = async (route: Route) => {
     const response = await route.fetch();
-    const body = (await response.text()).replace('<head>', `<head>${NEXT_BUILD_MARKER}`);
+    const body = (await response.text())
+      .replace('<head>', `<head>${NEXT_BUILD_MARKER}`)
+      .replaceAll(entry, nextEntry);
     await route.fulfill({ response, body });
   };
   await context.route(isDocument, markDocument);
   return async () => {
     await context.unroute(isDocument, markDocument);
     await writeFile(BUILT_WORKER, original);
+    await rm(nextEntryFile, { force: true });
   };
+}
+
+/** The entry chunk the page is running, as the worker's pin names it. */
+export async function runningEntry(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const src = document.querySelector('script[type="module"][src]')?.getAttribute('src');
+    if (src == null) throw new Error('the document loads no module script');
+    return new URL(src, location.href).pathname;
+  });
 }
 
 /** Asks the browser to look for a new `sw.js` now and waits until one is installed and waiting. */

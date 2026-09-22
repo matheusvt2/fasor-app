@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  currentShellEntry,
   holdShell,
   promoteWaitingShell,
   registerServiceWorker,
@@ -110,9 +111,31 @@ describe('holdShell', () => {
     expect(active.postMessage).toHaveBeenLastCalledWith({ type: 'hold-shell', hold: false });
   });
 
+  it('names the build the page runs, so the worker pins that one and not its own', () => {
+    const active = { postMessage: vi.fn() };
+    expect(holdShell(registration(null, { active }), 1, '/assets/index-C.js')).toBe(true);
+    expect(active.postMessage).toHaveBeenLastCalledWith({ type: 'hold-shell', hold: true, shell: '/assets/index-C.js' });
+    expect(holdShell(registration(null, { active }), 0, '/assets/index-C.js')).toBe(false);
+    expect(active.postMessage).toHaveBeenLastCalledWith({ type: 'hold-shell', hold: false, shell: '/assets/index-C.js' });
+  });
+
   it('says nothing when there is no active worker to say it to', () => {
     expect(holdShell(registration({ postMessage: vi.fn() }), 2)).toBeNull();
     expect(holdShell(null, 2)).toBeNull();
+  });
+});
+
+describe('currentShellEntry', () => {
+  it('is the path of the chunk running the code, which names the build', () => {
+    expect(currentShellEntry('https://tablet.local:8443/assets/index-Ab12Cd.js')).toBe('/assets/index-Ab12Cd.js');
+    expect(currentShellEntry('http://localhost:5200/assets/index-X.js')).toBe('/assets/index-X.js');
+  });
+
+  it('is unknown outside a served page', () => {
+    expect(currentShellEntry('file:///workspace/apps/web/src/sw/register.ts')).toBeUndefined();
+    expect(currentShellEntry('not a url')).toBeUndefined();
+    // Under vitest the module is a file, so the default sends no `shell`.
+    expect(currentShellEntry()).toBeUndefined();
   });
 });
 

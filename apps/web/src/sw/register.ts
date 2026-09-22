@@ -71,12 +71,35 @@ export function shouldHoldShell(backlog: number): boolean {
   return backlog > 0;
 }
 
-/** Tells the active worker whether to hold. Returns what was sent, or null when nobody heard. */
-export function holdShell(registration: ServiceWorkerRegistration | null, backlog: number): boolean | null {
+/**
+ * Which build this page is running: the same-origin path of the hashed chunk this code
+ * was loaded from. In a build that is one of the precached `/assets/*` files, so the
+ * worker can pin the cache holding it — which may be newer than the worker itself, when
+ * this launch's document came from the network. Undefined outside http(s) (tests).
+ */
+export function currentShellEntry(moduleUrl: string = import.meta.url): string | undefined {
+  try {
+    const url = new URL(moduleUrl);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.pathname : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Tells the active worker whether to hold, and which build this page runs (`shell`,
+ * omitted when unknown; an older worker ignores it). Returns what was sent, or null when
+ * nobody heard.
+ */
+export function holdShell(
+  registration: ServiceWorkerRegistration | null,
+  backlog: number,
+  shell: string | undefined = currentShellEntry(),
+): boolean | null {
   const active = registration?.active;
   if (!active) return null;
   const hold = shouldHoldShell(backlog);
-  active.postMessage({ type: 'hold-shell', hold });
+  active.postMessage(shell === undefined ? { type: 'hold-shell', hold } : { type: 'hold-shell', hold, shell });
   return hold;
 }
 

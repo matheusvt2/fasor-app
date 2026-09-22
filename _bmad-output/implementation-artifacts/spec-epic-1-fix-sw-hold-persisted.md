@@ -14,13 +14,6 @@ context:
 warnings: [oversized]
 deferred:
   - summary: >-
-      The pin names the receiving worker's shell, not the shell the page runs.
-    evidence: |-
-      pinIfAbsent writes the receiving worker's CACHE_NAME; a tab that loaded a new build from the network, or an old tab under a browser-activated worker after a drain, can pin the other shell. Pre-existing in PR #8's design; needs the page to report its shell identity in hold-shell.
-    location: >-
-      apps/web/public/sw.js pinIfAbsent
-    severity: medium
-  - summary: >-
       The pin is device-wide while the backlog is per user.
     evidence: |-
       User B with an empty outbox posts hold:false and releases user A's pin; PR #8's page promotion already did the same. Needs per-user pins or a hold while any user has a backlog.
@@ -165,6 +158,8 @@ Status: done
 - `pnpm exec playwright test e2e/durability.spec.ts`: 20 passed, 1 skipped (E2E-006 on WebKit, by design).
 - QA D-1 re-run on the prod profile in a real browser (Chromium via Playwright MCP, api-prod on :12001), twice. With "1 pendente", a new build installed and waiting, a CDP worker stop and every app tab closed: on reopen the new worker is active yet the old `index-*.js` is served and the old cache survives. After the outbox drains the pin is gone, and the next launch serves the new `index-*.js` with only the new shell cache left. Evidence: `reviews/epic-1-fix-sw-hold-persisted/`.
 
-**Follow-up review recommended:** false (patched: 0 high, 1 medium).
+**Independent review (PR #11), fix applied.** The reviewer reproduced on the prod profile that the pin could name an older shell than the page ran (B active, C opened from the network, work captured: B pinned, a reload served B mid-job, and a Dexie version bump in C would strand the outbox). Raised from the deferred medium to high and fixed: the page now sends `shell` (the pathname of its own hashed chunk, `import.meta.url`) in `hold-shell`, the sentinel stores `{"entry": ...}`, and every worker resolves it at read time to the shell cache that holds that entry (installing, waiting or active); unresolved entries stay network-first and are kept; a message with no `shell` keeps the old own-cache pin. Lifecycle tests 28, E2E-006 now gives the next build a distinct entry chunk and asserts the pin equals the running entry.
+
+**Follow-up review recommended:** false (patched: 0 high, 1 medium in the internal pass; the independent review's high was fixed and re-reviewed).
 
 **Residual risks.** WebKit is covered by the `vm` lifecycle tests only; iPad behavior still needs the manual device pass (retro A1). The two deferred medium items above.
