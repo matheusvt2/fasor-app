@@ -9,7 +9,8 @@ import { copy } from '../copy/pt-br.ts';
  *   > unsynced > 5 days
  *
  * Only `re-auth` and `offline` have a publisher today; the other five kinds are
- * declared here and published by the story that owns them — `draft-found` by Story 1.8,
+ * declared here and published by the story that owns them — `draft-found` by none today
+ * (the persistent toast is the offer, retro U7),
  * `suggestions-ready` by Epic 8, `relatorio-exported` by Epic 7, `unsynced-5-days` by
  * Story 1.8 (`unsyncedForDays` is already in the kernel) and `conflict` by Epic 10's
  * merge policy.
@@ -60,10 +61,6 @@ export interface BannerConditions {
   reAuthAction?: ReactNode;
   /** AD-8: the outbox has held work for five days or more (`unsyncedForDays`). */
   unsyncedForDays?: boolean;
-  /** FR-61: a `drafts` row is waiting. The offer itself is the persistent toast. */
-  draftFound?: boolean;
-  /** Optional action for the draft-found candidate; the toast carries the real one. */
-  draftAction?: ReactNode;
   /** Everything a surface contributes on its own (none of them exist yet). */
   extra?: readonly Banner[];
 }
@@ -87,18 +84,9 @@ export function bannerCandidates(conditions: BannerConditions): Banner[] {
       actions: conditions.reAuthAction,
     });
   }
-  // FR-61: the offer is the persistent toast (`key-sheet-states.html`). This candidate
-  // exists so the condition is counted by the "+N" chip when something above it holds
-  // the slot; its text never carries the recovery action.
-  if (conditions.draftFound === true) {
-    candidates.push({
-      kind: 'draft-found',
-      variant: 'info',
-      role: 'region',
-      text: copy.banner.draftFoundText,
-      actions: conditions.draftAction,
-    });
-  }
+  // FR-61: a waiting draft is offered by the persistent toast (`key-sheet-states.html`)
+  // and by nothing else. A banner beside it said the same thing twice (retro U7), so the
+  // `draft-found` kind keeps its rank for a later publisher and gets no candidate here.
   // AD-8, last in the priority: work has waited in the outbox for five days. Pushed
   // before the offline check, so that a tablet that is both offline and long-unsynced
   // shows one of them and counts the other.

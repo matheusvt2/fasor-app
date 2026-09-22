@@ -1,6 +1,5 @@
-import { statusLabel, statusPillId, type RelatorioStatus } from '@app/domain';
+import { statusTileLabel, type RelatorioStatus } from '@app/domain';
 import { ToggleButton } from 'react-aria-components';
-import { ui } from '../copy/ui.ts';
 import { StatusPill } from './status-pill.tsx';
 
 export interface StatusTileProps {
@@ -23,13 +22,13 @@ export function StatusTile({ status, count, isPressed, onPress }: StatusTileProp
       className="status-tile"
       isSelected={isPressed}
       onChange={onPress}
-      aria-label={ui.statusTile.label(statusLabel(status), count)}
+      aria-label={statusTileLabel(status, count)}
       data-status={status}
     >
       <span className={count === 0 ? 'tile-count is-zero' : 'tile-count'} aria-hidden="true">
         {count}
       </span>
-      <StatusPill status={statusPillId(status)} />
+      <StatusPill status={status} />
     </ToggleButton>
   );
 }

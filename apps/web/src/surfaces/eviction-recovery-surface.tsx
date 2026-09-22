@@ -1,4 +1,4 @@
-import { PRODUTO } from '@app/domain';
+import { PRODUTO, serverHoldsText } from '@app/domain';
 import { useEffect, useId, useState } from 'react';
 import { Button, TextButton } from '../components/index.ts';
 import { copy } from '../copy/pt-br.ts';
@@ -51,9 +51,11 @@ export function EvictionRecoverySurface() {
   useEffect(() => {
     if (!awaitingOutcome) return;
     setAwaitingOutcome(false);
-    if (sync.lastFailure === null) session.dismissRecovery();
+    // A device that went offline mid-cycle records no failure (it is not the server's),
+    // but the pull did not finish either.
+    if (sync.lastFailure === null && sync.online) session.dismissRecovery();
     else setFailed(true);
-  }, [awaitingOutcome, sync.lastFailure, session]);
+  }, [awaitingOutcome, sync.lastFailure, sync.online, session]);
 
   return (
     <main className="screen" data-route="/recovery">
@@ -64,7 +66,7 @@ export function EvictionRecoverySurface() {
           </div>
           <p className="t-body">{copy.recovery.body(PRODUTO)}</p>
           <p className="t-body" data-testid="recovery-holds">
-            {known ? copy.recovery.holds(relatorios, users) : copy.recovery.holdsUnknown}
+            {known ? serverHoldsText(relatorios, users) : copy.recovery.holdsUnknown}
           </p>
           {failed ? (
             <p className="section-note" role="alert">

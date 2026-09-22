@@ -6,6 +6,7 @@ import { commitOps } from '../db/commit.ts';
 import { openDatabase, type AppDatabase } from '../db/schema.ts';
 import type { Timers } from '../input/field-commit.ts';
 import { SyncRequestError, type SyncClient, type SyncFailure } from './client.ts';
+import { followOnlineEvents } from './online.ts';
 import { createSyncEngine, type EngineStatus, type SyncEngine, type SyncEngineDeps } from './engine.ts';
 
 /*
@@ -279,6 +280,152 @@ describe('sync engine', () => {
     h.db.close();
   });
 
+  it('the online event pushes at once even when the app flag had not caught up yet (retro U3)', async () => {
+    // The browser shape of the bug: one event target, the app's flag still false when the
+    // engine's listener runs. `followOnlineEvents` is registered first, as SyncProvider does.
+    const target = new EventTarget();
+    const flag = { current: false };
+    const stopFollowing = followOnlineEvents(flag, target);
+    const h = await harness({
+      isOnline: () => flag.current,
+      subscribeOnline: (listener) => {
+        target.addEventListener('online', listener);
+        return () => target.removeEventListener('online', listener);
+      },
+    });
+    await commitOps(h.db, seedLog());
+    h.engine.start();
+    await waitFor(() => h.engine.status().lastResult === 'offline', 'offline result');
+    expect(h.server.pushAttempts).toBe(0);
+
+    target.dispatchEvent(new Event('online'));
+    await waitFor(() => h.server.pushes.length === 1, 'the push on the online event');
+    await waitFor(() => !h.engine.status().running, 'the cycle to end');
+    expect(await h.db.outbox.where('status').equals('pending').count()).toBe(0);
+    // The event did it, not the 60 s timer: no fake time has passed.
+    expect(h.clock.now()).toBe(0);
+
+    target.dispatchEvent(new Event('offline'));
+    expect(flag.current).toBe(false);
+    stopFollowing();
+    h.engine.stop();
+    h.db.close();
+  });
+
+  it('an online event during a running cycle runs one more cycle as soon as it ends (retro U3)', async () => {
+    const h = await harness();
+    h.engine.start();
+    await waitFor(() => !h.engine.status().running, 'the launch cycle');
+    // The next cycle is past its (empty) push and waiting out a pull retry...
+    h.server.failNext.pulls = [{ kind: 'network' }];
+    const cycle = h.engine.runCycle();
+    await waitFor(() => h.server.pulls.length >= 2, 'the failed pull');
+    expect(h.engine.status().running).toBe(true);
+    // ...when work is committed and the online event arrives.
+    await commitOps(h.db, seedLog());
+    h.fireOnline();
+    await h.clock.advance(1_000);
+    expect(await cycle).toBe('ran');
+    expect(h.server.pushes).toHaveLength(0);
+    await h.clock.advance(0);
+    await waitFor(() => h.server.pushes.length === 1, 'the follow-up push');
+    await waitFor(() => !h.engine.status().running, 'the follow-up cycle');
+    h.engine.stop();
+    h.db.close();
+  });
+
+  it('a push that hit 503 stays the cycle failure when a later relatório pull answers 404', async () => {
+    const h = await harness();
+    await commitOps(h.db, seedLog());
+    // A relatório this device follows and the server no longer knows.
+    const gone = '019966b0-0099-7000-8000-000000000001';
+    await h.engine.syncRelatorio(gone);
+    await commitOps(h.db, [localPut(ids('019966b0-0013-7000-8000-'), 'depois')]);
+    const unavailable: SyncFailure = { kind: 'http', status: 503 };
+    h.server.failNext.pushes = [unavailable, unavailable, unavailable];
+    const base = h.server.pushAttempts;
+    const cycle = h.engine.runCycle();
+    await waitFor(() => h.server.pushAttempts === base + 1, 'the first attempt');
+    await h.clock.advance(1_000);
+    await waitFor(() => h.server.pushAttempts === base + 2, 'the second attempt');
+    await h.clock.advance(2_000);
+    expect(await cycle).toBe('ran');
+    expect(h.server.pulls.some((p) => p.startsWith(`${gone}:`))).toBe(true);
+    expect(h.engine.status().lastFailure).toEqual(unavailable);
+    h.db.close();
+  });
+
+  it('a cycle cut by going offline keeps the previous unreachable verdict', async () => {
+    const h = await harness();
+    await commitOps(h.db, seedLog());
+    const unavailable: SyncFailure = { kind: 'http', status: 503 };
+    h.server.failNext.pushes = [unavailable, unavailable, unavailable];
+    const first = h.engine.runCycle();
+    await waitFor(() => h.server.pushAttempts === 1, 'the first attempt');
+    await h.clock.advance(1_000);
+    await waitFor(() => h.server.pushAttempts === 2, 'the second attempt');
+    await h.clock.advance(2_000);
+    await first;
+    expect(h.engine.status().lastFailure).toEqual(unavailable);
+
+    // The next cycle fails once more, then the device goes offline before the retry.
+    h.server.failNext.pushes = [{ kind: 'network' }];
+    const second = h.engine.runCycle();
+    await waitFor(() => h.server.pushAttempts === 4, 'the next cycle attempt');
+    h.online.value = false;
+    await h.clock.advance(10_000);
+    expect(await second).toBe('ran');
+    // Nothing in it said the server answered, so the badge must not turn "Sincronizado".
+    expect(h.engine.status().lastFailure).toEqual(unavailable);
+
+    // Back online, a clean cycle clears it.
+    h.online.value = true;
+    expect(await h.engine.runCycle()).toBe('ran');
+    expect(h.engine.status().lastFailure).toBeNull();
+    h.db.close();
+  });
+
+  it('stop drops a follow-up cycle an online event asked for while a cycle ran', async () => {
+    const h = await harness();
+    h.engine.start();
+    await waitFor(() => !h.engine.status().running, 'the launch cycle');
+    h.server.failNext.pulls = [{ kind: 'network' }];
+    const cycle = h.engine.runCycle();
+    await waitFor(() => h.server.pulls.length >= 2, 'the failed pull');
+    h.fireOnline();
+    h.engine.stop();
+    await h.clock.advance(1_000);
+    await cycle;
+    const pulls = h.server.pulls.length;
+    await h.clock.advance(0);
+    await settle();
+    expect(h.server.pulls.length).toBe(pulls);
+    h.db.close();
+  });
+
+  it('a cycle that could not reach the server keeps its failure until a later cycle runs clean', async () => {
+    const h = await harness();
+    await commitOps(h.db, seedLog());
+    const unavailable: SyncFailure = { kind: 'http', status: 503 };
+    h.server.failNext.pushes = [unavailable, unavailable, unavailable];
+    const first = h.engine.runCycle();
+    await waitFor(() => h.server.pushAttempts === 1, 'the first attempt');
+    await h.clock.advance(1_000);
+    await waitFor(() => h.server.pushAttempts === 2, 'the second attempt');
+    await h.clock.advance(2_000);
+    expect(await first).toBe('ran');
+    expect(h.engine.status().lastFailure).toEqual(unavailable);
+
+    // While the next cycle runs, the last finished cycle's failure stands: the badge must
+    // not flash back to ok before the server has answered.
+    const second = h.engine.runCycle();
+    expect(h.engine.status().running).toBe(true);
+    expect(h.engine.status().lastFailure).toEqual(unavailable);
+    expect(await second).toBe('ran');
+    expect(h.engine.status().lastFailure).toBeNull();
+    h.db.close();
+  });
+
   it('start runs a cycle at once and every 60 s after, until stop', async () => {
     const h = await harness();
     h.engine.start();
@@ -308,6 +455,9 @@ describe('sync engine', () => {
     expect(await cycle).toBe('ran');
     expect(h.server.pushAttempts).toBe(1);
     expect(h.server.pulls).toEqual([]);
+    // Going offline is the device, not the server: nothing may say the server failed once
+    // the connection is back (retro U5).
+    expect(h.engine.status().lastFailure).toBeNull();
     expect(await h.db.outbox.where('status').equals('sent').count()).toBe(seedLog().length);
 
     h.engine.start();

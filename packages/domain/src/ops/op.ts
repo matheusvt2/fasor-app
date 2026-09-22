@@ -106,6 +106,9 @@ export type Op = z.infer<typeof opSchema>;
 
 export type OpInput = Omit<Op, 'op_id' | 'client_ts' | 'seq'>;
 
+/** An op input before the device commits it: the device stamps its own `device_id` (AD-3). */
+export type OpDraft = Omit<OpInput, 'device_id'>;
+
 /** Builds and validates an op; the id and the timestamp come from the caller (TC-1, TC-2). */
 export function makeOp(input: OpInput, deps: { newId: NewId; now: Date }): Op {
   return opSchema.parse({ ...input, op_id: deps.newId(), client_ts: toIso(deps.now) });

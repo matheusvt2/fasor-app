@@ -121,9 +121,8 @@ export const user = pgTable(
     email: text('email').notNull(),
     emailVerified: boolean('email_verified').notNull().default(false),
     image: text('image'),
-    council: text('council'),
-    registrationNumber: text('registration_number'),
-    title: text('title'),
+    // The CAP-6 registration (council, number, printed title) is not here: it lives on the
+    // kernel `user` entity, written by `user/{id}/{field}` ops (retro A2).
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

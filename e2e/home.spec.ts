@@ -51,7 +51,7 @@ async function syncNow(page: Page): Promise<void> {
   await expect(button).not.toHaveAttribute('aria-disabled', 'true', { timeout: 30_000 });
 }
 
-test('@p0 1.6-E2E-001 Home shows the status board, the current relatório first and the three device states', async ({
+test('@p1 1.6-E2E-001 Home shows the status board, the current relatório first and the three device states', async ({
   page,
   seed,
 }) => {
@@ -93,7 +93,7 @@ test('@p0 1.6-E2E-001 Home shows the status board, the current relatório first 
     )
     .toBe(true);
 
-  await page.getByRole('link', { name: /início/ }).click();
+  await page.getByRole('button', { name: 'Voltar' }).click();
   await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
 
   // The board counts every relatório the device knows of, the Emitido one included.
@@ -173,7 +173,7 @@ test('@p0 1.6-E2E-001 Home shows the status board, the current relatório first 
   await expect(page.locator('.shortcut-card .sync-badge')).toHaveCount(0);
 });
 
-test('@p0 1.6-E2E-002 a device with nothing on it says so and offers a disabled "Novo relatório"', async ({
+test('@p1 1.6-E2E-002 a device with nothing on it says so and offers a disabled "Novo relatório"', async ({
   page,
   seed,
 }) => {
@@ -186,7 +186,7 @@ test('@p0 1.6-E2E-002 a device with nothing on it says so and offers a disabled 
   await expect(page.locator('.btn-reason', { hasText: 'Disponível em uma próxima etapa' }).first()).toBeVisible();
 });
 
-test('@p0 1.6-E2E-003 a cold open with a session and no connection renders from the device', async ({ page, seed }) => {
+test('@p1 1.6-E2E-003 a cold open with a session and no connection renders from the device', async ({ page, seed }) => {
   const account = seed.companies[0];
   await signIn(page, account.email);
 
@@ -212,7 +212,7 @@ test('@p0 1.6-E2E-003 a cold open with a session and no connection renders from 
   await expect(toast).toHaveCount(0, { timeout: 15_000 });
   await page.getByRole('link', { name: 'Conta' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Conta' })).toBeVisible();
-  await page.getByRole('link', { name: /início/ }).click();
+  await page.getByRole('button', { name: 'Voltar' }).click();
   await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
   await expect(page.getByTestId('toast')).toHaveCount(0);
   await page.unroute(isApiRequest);

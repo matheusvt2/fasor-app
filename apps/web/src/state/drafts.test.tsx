@@ -210,6 +210,39 @@ describe('offering a draft on reopen', () => {
     expect(await screen.findByTestId('toast')).toHaveTextContent('Rascunho encontrado');
   });
 
+  it('the toast has a dismiss control: dismissing keeps the row and is not re-offered this session (retro U7)', async () => {
+    await saveDraft(database!, TARGET, 'guardado', new Date('2026-09-21T10:00:00.000Z'));
+    render(<Field withOtherToast />, { wrapper: Wrapper });
+    await screen.findByTestId('toast');
+
+    const close = screen.getByRole('button', { name: 'Fechar' });
+    expect(close).toHaveClass('toast-action');
+    await userEvent.click(close);
+    expect(screen.queryByTestId('toast')).toBeNull();
+    expect(screen.getByTestId('draft-found')).toHaveTextContent('false');
+    expect(await listDrafts(database!)).toHaveLength(1);
+    expect(screen.getByLabelText('texto')).toHaveValue('');
+
+    // The slot frees again after another toast: the declined offer stays away.
+    await userEvent.click(screen.getByRole('button', { name: 'outro aviso' }));
+    await userEvent.click(screen.getByRole('button', { name: 'dispensar' }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.queryByTestId('toast')).toBeNull();
+  });
+
+  it('Esc on the focused toast dismisses it and keeps the row', async () => {
+    await saveDraft(database!, TARGET, 'guardado', new Date('2026-09-21T10:00:00.000Z'));
+    render(<Field />, { wrapper: Wrapper });
+    await screen.findByTestId('toast');
+    screen.getByRole('button', { name: 'Recuperar' }).focus();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByTestId('toast')).toBeNull();
+    expect(await listDrafts(database!)).toHaveLength(1);
+    expect(screen.getByLabelText('texto')).toHaveValue('');
+  });
+
   it('keeps the row and the offer when the owning surface is not mounted', async () => {
     await saveDraft(database!, { surface: 'outra', entity_id: ENTITY }, 'de outra tela', new Date());
     render(<Field />, { wrapper: Wrapper });
@@ -263,8 +296,8 @@ describe('offering a draft on reopen', () => {
     expect(screen.getByTestId('toast')).toHaveTextContent('Outra mensagem');
     expect(screen.queryByRole('button', { name: 'Recuperar' })).toBeNull();
 
-    // When the slot frees, the offer is raised again: the draft-found banner carries no
-    // action, so this is the only way back to "Recuperar" short of a reload.
+    // When the slot frees, the offer is raised again: no banner repeats it, so this is the
+    // only way back to "Recuperar" short of a reload.
     await userEvent.click(screen.getByRole('button', { name: 'dispensar' }));
     expect(await screen.findByTestId('toast')).toHaveTextContent('Rascunho encontrado');
     expect(screen.getByRole('button', { name: 'Recuperar' })).toBeVisible();

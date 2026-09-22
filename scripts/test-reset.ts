@@ -5,10 +5,9 @@ import {
   ListObjectVersionsCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
-import postgres from 'postgres';
-
-/** Company-scoped tables holding ops, materialized entities, files, jobs and revisions. Missing tables are skipped. */
-const TABLES = ['ops', 'entities', 'files', 'revisions', 'generation_jobs', 'reading_runs'];
+import { createDb } from '../apps/api/src/db/client.ts';
+import { resetTestCompanyData } from '../apps/api/src/db/seed.ts';
+import { TEST_SEED } from '../apps/api/src/db/test-seed.ts';
 
 export function assertInCompose(
   env: Record<string, string | undefined> = process.env,
@@ -34,6 +33,16 @@ async function main(): Promise<void> {
     console.error('usage: test-reset <company-id>');
     process.exit(1);
   }
+  // `resetTestCompanyData` only ever clears the two hardcoded `TEST_SEED` companies (it takes
+  // no company argument); passing anything else would silently leave that company's ops/
+  // entities/sync_device_push rows untouched while this script still logged success and still
+  // cleared its pgboss/S3 state. Fail loudly instead of half-resetting.
+  if (!TEST_SEED.companies.some((c) => c.companyId === companyId)) {
+    console.error(
+      `test-reset only resets the seeded test companies; ${companyId} is not one of ${TEST_SEED.companies.map((c) => c.companyId).join(', ')}.`,
+    );
+    process.exit(1);
+  }
   const need = (name: string): string => {
     const value = process.env[name];
     if (!value) {
@@ -43,13 +52,15 @@ async function main(): Promise<void> {
     return value;
   };
 
-  const sql = postgres(need('DATABASE_URL'), { max: 1 });
+  // The `ops`/`entities`/`sync_device_push` reset is the same mechanism `apps/api/src/db/seed.ts`
+  // (`resetTestCompanyData`) uses to clean up between the two seeded `TEST_SEED` companies
+  // (F-DUP-3): one reset mechanism instead of a guessed, partly-nonexistent table list. It
+  // always clears both `TEST_SEED` companies in one transaction, independent of the
+  // `company-id` argument below, which still scopes the pgboss queue and object storage
+  // cleanup that `resetTestCompanyData` does not cover.
+  const { sql, db } = createDb(need('DATABASE_URL'));
   try {
-    for (const table of TABLES) {
-      const [found] = await sql`select to_regclass(${`public.${table}`}) as name`;
-      if (!found?.name) continue;
-      await sql`delete from ${sql(table)} where company_id = ${companyId}`;
-    }
+    await resetTestCompanyData(db);
     const [queue] = await sql`select to_regclass('pgboss.job') as name`;
     if (queue?.name) await sql`delete from pgboss.job where data->>'companyId' = ${companyId}`;
   } finally {

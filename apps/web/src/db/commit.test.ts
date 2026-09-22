@@ -22,6 +22,7 @@ import {
 import { describe, expect, it } from 'vitest';
 import { commitBatch, commitOps, oldestPendingClientTs, undoBatch } from './commit.ts';
 import { openDatabase, type AppDatabase } from './schema.ts';
+import { applyPulled } from './sync-store.ts';
 import { toSnapshot } from './snapshot.ts';
 
 let userCounter = 0;
@@ -246,6 +247,51 @@ describe('batch and undo', () => {
     expect((block.row as BlockRow).sheet.nameplate.fabricante?.value).toBeNull();
     const created = (await db.entities.get(['block', NEW_BLOCK]))!;
     expect(created.removed_at).not.toBeNull();
+    db.close();
+  });
+
+  it("stamps this device's minted id on every op, whatever the caller passed (retro A4)", async () => {
+    const db = await freshDb();
+    await seed(db);
+    const d = deps();
+    const { device_id: _ignored, ...withoutDevice } = put(FIELD, 'ABB');
+    void _ignored;
+    // A caller outside the type (JavaScript, a cast) that still sends a device id is overwritten.
+    const spoofed = { ...put(`block/${BLOCK_1_ID}/order_key`, 'a9'), device_id: 'someone-else' };
+    const first = await commitBatch(db, [withoutDevice, spoofed], d);
+    const second = await commitBatch(db, [put(FIELD, 'WEG')], d);
+    // commitOps, the lower write path, stamps too.
+    const direct = makeOp(put(FIELD, 'Siemens', { device_id: 'hand-set' }), { newId: d.newId, now: d.now() });
+    const third = await commitOps(db, [direct], d);
+    const minted = (await db.local_prefs.get('device_id'))?.value;
+    expect(typeof minted).toBe('string');
+    for (const op of [...first.ops, ...second.ops, ...third]) expect(op.device_id).toBe(minted);
+    expect((await db.outbox.get(direct.op_id))?.device_id).toBe(minted);
+    const rows = await db.outbox.where('batch_id').anyOf([first.batch_id, second.batch_id]).toArray();
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) expect(row.device_id).toBe(minted);
+    db.close();
+  });
+
+  it('fills prev_op_id with the last op this device applied on the path (AD-3)', async () => {
+    const db = await freshDb();
+    const d = deps();
+    // Nothing on the path yet, then the earlier op of the same batch.
+    const first = await commitBatch(db, [put(FIELD, 'a'), put(FIELD, 'b')], d);
+    expect(first.ops[0]!.prev_op_id).toBeNull();
+    expect(first.ops[1]!.prev_op_id).toBe(first.ops[0]!.op_id);
+    // The device's own op the server has not sent back yet.
+    const second = await commitBatch(db, [put(FIELD, 'c')], d);
+    expect(second.ops[0]!.prev_op_id).toBe(first.ops[1]!.op_id);
+    // A pulled op on a path this device never wrote.
+    const ORDER = `block/${BLOCK_1_ID}/order_key`;
+    const pulled = { ...makeOp({ ...put(ORDER, 'a5'), device_id: 'other-tablet' }, { newId: d.newId, now: d.now() }), seq: 7 };
+    await applyPulled(db, [pulled]);
+    const third = await commitBatch(db, [put(ORDER, 'a6')], d);
+    expect(third.ops[0]!.prev_op_id).toBe(pulled.op_id);
+    // A caller that sets it keeps its own value.
+    const fourth = await commitBatch(db, [put(ORDER, 'a7', { prev_op_id: pulled.op_id })], d);
+    expect(fourth.ops[0]!.prev_op_id).toBe(pulled.op_id);
     db.close();
   });
 

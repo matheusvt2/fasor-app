@@ -46,8 +46,8 @@ development_status:
   1-8-nothing-captured-is-lost-when-the-tab-closes-the-network-dro: done
   epic-1-retrospective: done
 
-  epic-2: backlog
-  2-1-register-a-test-instrument-with-its-calibration-record: backlog
+  epic-2: in-progress
+  2-1-register-a-test-instrument-with-its-calibration-record: in-progress
   2-2-attach-a-certificate-file-that-reaches-the-server-by-itself: backlog
   2-3-set-the-company-s-document-identity-once-with-a-live-brand-p: backlog
   2-4-register-clients-and-their-sites: backlog
@@ -156,7 +156,7 @@ action_items:
       validated by the seed CLI, user rows projected to the company stream, registration
       save as user/{id}/{field} ops, account reads through the contract"
     owner: "Architecture, then first Epic 2 story"
-    status: open
+    status: done  # PR #9, 66fa41c59fd04b7c0ff92dda8ea412047a38caae
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-3-a3-persist-the-service-worker-hold-shell"
     epic: 1
@@ -171,7 +171,7 @@ action_items:
     action: "A4 Stamp the minted device_id in CommitDeps/commitBatch and drop the
       user-id fallback in the fixture before any Epic 2 op emitter"
     owner: "Next story"
-    status: open
+    status: done  # PR #9, 66fa41c59fd04b7c0ff92dda8ea412047a38caae
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-5-a5-ui-hygiene-story-checked-in-a-real-br"
     epic: 1
@@ -182,7 +182,7 @@ action_items:
       draft toast dismiss, badge when server unreachable, back chevron, per-route
       title, favicon"
     owner: "Next story (opus/high)"
-    status: open
+    status: done  # PR #12, 1f61c3e09382e19247ba084133ded2cb255e73e9
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-6-a6-stabilize-and-widen-the-gate-testtime"
     epic: 1
@@ -190,7 +190,7 @@ action_items:
       DB-touching tests out of test:unit, retag e2e by priority, add emoji/laudo scans
       and pnpm audit, rebuild the tools image, keep one reset mechanism"
     owner: "Process"
-    status: open
+    status: done  # PR #10, 947b17e4cd5ea9a32bad3fc30ae2ef4736eabe29
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-7-a7-move-status-words-plurals-counts-and"
     epic: 1
@@ -198,14 +198,14 @@ action_items:
       kernel; brand applyOps and toSnapshot with CompanyId; document where a new string
       goes"
     owner: "Architecture"
-    status: open
+    status: done  # PR #9, 66fa41c59fd04b7c0ff92dda8ea412047a38caae
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-8-a8-keep-the-last-session-pointer-on-a-bo"
     epic: 1
     action: "A8 Keep the last-session pointer on a boot-time 401 so offline cold opens
       reach local data behind the re-auth banner"
     owner: "Next story"
-    status: open
+    status: done  # PR #9, 66fa41c59fd04b7c0ff92dda8ea412047a38caae
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-9-a9-refresh-readme-agents-md-running-and"
     epic: 1
@@ -213,14 +213,14 @@ action_items:
       doc, dist build before Caddy, desktop CA, seed usage and a sample-relatorio
       seed flag; strike Story 1.7 CI AC through"
     owner: "Process (bmad-project-context)"
-    status: open
+    status: done  # PR #10, 947b17e4cd5ea9a32bad3fc30ae2ef4736eabe29
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-10-a10-merge-every-spec-deferred-item-into"
     epic: 1
     action: "A10 Merge every spec deferred item into deferred-work.md with a class,
       close resolved ones, add a cross-tenant case per new route to the DoD"
     owner: "Process"
-    status: open
+    status: done  # PR #10, 947b17e4cd5ea9a32bad3fc30ae2ef4736eabe29
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-11-a11-pipeline-independent-review-on-every"
     epic: 1
@@ -229,7 +229,7 @@ action_items:
       stories, smaller specs with ACs only against existing artifacts, epic-close
       gate checks manual ACs, parallel-story start checklist"
     owner: "Process (bmad-build.toml, model guide)"
-    status: open
+    status: done  # PR #10, 947b17e4cd5ea9a32bad3fc30ae2ef4736eabe29
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-12-a12-before-any-exposure-beyond-the-offic"
     epic: 1

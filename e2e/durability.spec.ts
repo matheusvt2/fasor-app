@@ -227,7 +227,7 @@ test('@p0 1.8-E2E-003 a refused write names itself and the value is not lost', a
   await expect(page.getByTestId('fixture-committed')).toHaveText('Valor que o aparelho recusa');
 });
 
-test('@p0 1.8-E2E-004 an evicted origin with a live cookie gets the one-time recovery screen', async ({
+test('@p1 1.8-E2E-004 an evicted origin with a live cookie gets the one-time recovery screen', async ({
   page,
   context,
   seed,
@@ -247,6 +247,9 @@ test('@p0 1.8-E2E-004 an evicted origin with a live cookie gets the one-time rec
   const heading = page.getByRole('heading', { level: 1, name: 'Dados deste aparelho foram apagados' });
   await expect(heading).toBeVisible();
   await expect(page.getByTestId('recovery-holds')).toBeVisible();
+  // What the server holds is counted from the company pull, which carries the company's
+  // `user/{id}` rows: company A has exactly one person, never "0 pessoas da equipe".
+  await expect(page.getByTestId('recovery-holds')).toContainText('1 pessoa da equipe', { timeout: 20_000 });
   // The sign-in form is never involved: the cookie alone brought the user here.
   await expect(page.locator('.login-form')).toHaveCount(0);
   // And the screen is not a dead end: `navigator.onLine` can be true with the API down,
@@ -262,7 +265,7 @@ test('@p0 1.8-E2E-004 an evicted origin with a live cookie gets the one-time rec
   await expect(heading).toHaveCount(0);
 });
 
-test('@p0 1.8-E2E-005 work older than five days raises the banner, and a new shell waits for an empty outbox', async ({
+test('@p1 1.8-E2E-005 work older than five days raises the banner, and a new shell waits for an empty outbox', async ({
   page,
   context,
   seed,

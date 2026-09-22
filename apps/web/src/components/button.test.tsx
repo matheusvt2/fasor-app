@@ -81,4 +81,29 @@ describe('TextButton', () => {
     expect(() => render(<TextButton isDisabled>Remover ficha</TextButton>)).toThrow(/disabledReason/);
     spy.mockRestore();
   });
+
+  it('two controls can share one reason already on the page, rendering no copy of it', async () => {
+    const onPress = vi.fn();
+    const { container } = render(
+      <div>
+        <Button isDisabled disabledReasonId="shared" onPress={onPress}>
+          Continuar
+        </Button>
+        <TextButton isDisabled disabledReasonId="shared">
+          Ver sumário
+        </TextButton>
+        <span className="btn-reason" id="shared">
+          Disponível em uma próxima etapa
+        </span>
+      </div>,
+    );
+    for (const name of ['Continuar', 'Ver sumário']) {
+      const button = screen.getByRole('button', { name });
+      expect(button).toHaveAttribute('aria-disabled', 'true');
+      expect(button).toHaveAccessibleDescription('Disponível em uma próxima etapa');
+    }
+    expect(container.querySelectorAll('.btn-reason')).toHaveLength(1);
+    await userEvent.click(screen.getByRole('button', { name: 'Continuar' }));
+    expect(onPress).not.toHaveBeenCalled();
+  });
 });

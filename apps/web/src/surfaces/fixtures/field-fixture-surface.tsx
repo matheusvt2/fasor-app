@@ -1,13 +1,12 @@
-import { makeOp } from '@app/domain';
 import { useCallback, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
+import { Checkbox, FilterChipGroup, Toggle } from '../../components/index.ts';
 import { now } from '../../clock.ts';
-import { commitOps } from '../../db/commit.ts';
+import { commitBatch } from '../../db/commit.ts';
 import { newId } from '../../ids.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { useDraftSource } from '../../state/drafts.tsx';
 import { useSession } from '../../state/session.tsx';
-import { useSync } from '../../state/sync.tsx';
 
 /*
  * DEV ONLY. The route that mounts this is guarded by `import.meta.env.DEV`, so the
@@ -16,7 +15,7 @@ import { useSync } from '../../state/sync.tsx';
  * FR-54's first scenario is "the tab closed mid-sheet", and no sheet, dialog or field
  * surface exists before Epic 5. Rather than invent product scope this story does not
  * own, the three durability scenarios drive the machinery they are actually about: one
- * input on the `createFieldCommitter` -> `commitOps` path, registered as a draft source.
+ * input on the `createFieldCommitter` -> `commitBatch` path, registered as a draft source.
  * Epic 5 replaces this with real surfaces by registering their own sources; nothing in
  * `src/state/drafts.tsx` or `src/db/drafts.ts` changes when it does.
  */
@@ -28,7 +27,6 @@ const FIELD = 'local';
 
 export function FieldFixtureSurface() {
   const session = useSession();
-  const sync = useSync();
   const db = session.database;
   const [text, setText] = useState('');
   const [committed, setCommitted] = useState('');
@@ -42,27 +40,29 @@ export function FieldFixtureSurface() {
     async (value: string) => {
       const user = session.user;
       if (db === null || user === null) return;
-      const op = makeOp(
-        {
-          kind: 'put',
-          scope: 'relatorio',
-          company_id: user.companyId,
-          project_id: null,
-          relatorio_id: FIXTURE_RELATORIO_ID,
-          path: `relatorio/setup/${FIELD}`,
-          value,
-          prev_op_id: null,
-          batch_id: null,
-          meta: null,
-          actor_id: user.id,
-          device_id: sync.deviceId ?? user.id,
-        },
-        { newId, now: now() },
+      // `commitBatch` stamps this device's minted id on the op (AD-3).
+      await commitBatch(
+        db,
+        [
+          {
+            kind: 'put',
+            scope: 'relatorio',
+            company_id: user.companyId,
+            project_id: null,
+            relatorio_id: FIXTURE_RELATORIO_ID,
+            path: `relatorio/setup/${FIELD}`,
+            value,
+            prev_op_id: null,
+            batch_id: null,
+            meta: null,
+            actor_id: user.id,
+          },
+        ],
+        { newId, now },
       );
-      await commitOps(db, [op]);
       setCommitted(value);
     },
-    [db, session.user, sync.deviceId],
+    [db, session.user],
   );
 
   // `?idle=` overrides the 500 ms field-commit timer. A draft is text that has *not*
@@ -115,7 +115,48 @@ export function FieldFixtureSurface() {
             {committed}
           </p>
         </section>
+        <OnStateSection />
       </div>
     </main>
+  );
+}
+
+/**
+ * Toggle, Checkbox and a grouped filter chip, one on and one off each, so the on states
+ * of `components.css` (and the chip alias in `app.css`) can be checked in a real browser
+ * before a product surface renders them (retro F-SPEC-6). Dev-only, like the rest of this
+ * route.
+ */
+function OnStateSection() {
+  const [toggleOn, setToggleOn] = useState(true);
+  const [toggleOff, setToggleOff] = useState(false);
+  const [checkOn, setCheckOn] = useState(true);
+  const [checkOff, setCheckOff] = useState(false);
+  const [chip, setChip] = useState('a');
+  return (
+    <section className="section" data-testid="fixture-on-states">
+      <div className="section-head">
+        <h2>Estados ligados</h2>
+      </div>
+      <div className="stack">
+        <Toggle isSelected={toggleOn} onChange={setToggleOn} aria-label="Alternador ligado" />
+        <Toggle isSelected={toggleOff} onChange={setToggleOff} aria-label="Alternador desligado" />
+        <Checkbox isSelected={checkOn} onChange={setCheckOn}>
+          Caixa marcada
+        </Checkbox>
+        <Checkbox isSelected={checkOff} onChange={setCheckOff}>
+          Caixa desmarcada
+        </Checkbox>
+        <FilterChipGroup
+          options={[
+            { id: 'a', label: 'Opção A' },
+            { id: 'b', label: 'Opção B' },
+          ]}
+          selectedId={chip}
+          onChange={setChip}
+          aria-label="Filtro de teste"
+        />
+      </div>
+    </section>
   );
 }

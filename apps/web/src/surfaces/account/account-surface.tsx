@@ -1,6 +1,8 @@
 import {
   avatarInitial,
   defaultTitleForCouncil,
+  pendingNotSentText,
+  registrationOfUserRow,
   registrationRowText,
   storageLine,
   type Registration,
@@ -8,16 +10,16 @@ import {
 } from '@app/domain';
 import { useEffect, useId, useState } from 'react';
 import { Link } from 'react-router';
-import { Button, SegmentedControl, TextButton } from '../../components/index.ts';
+import { Button, ConfirmDialog, SegmentedControl, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { relatorioRows, originalFileCount } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
+import { localUser } from '../../db/sync-store.ts';
 import { estimateStorageUsage } from '../../device/storage-estimate.ts';
 import { useSession } from '../../state/session.tsx';
 import { useSync } from '../../state/sync.tsx';
 import { useTheme } from '../../state/theme.tsx';
 import { RegistrationDialog } from './registration-dialog.tsx';
-import { SignOutDialog } from './sign-out-dialog.tsx';
 import './account.css';
 
 /**
@@ -56,6 +58,15 @@ export function AccountSurface() {
 
   const relatorios = useLiveQuery(() => (db === null ? Promise.resolve([]) : relatorioRows(db)), [db], []);
   const photos = useLiveQuery(() => (db === null ? Promise.resolve(0) : originalFileCount(db)), [db], 0);
+  // AD-1: the registration is read from this user's kernel row on the device, so a save
+  // (offline or not) shows at once. Until the company pull brings the row, the profile
+  // the session read from the server stands in.
+  const userId = session.user?.id ?? null;
+  const userRow = useLiveQuery(
+    () => (db === null || userId === null ? Promise.resolve(null) : localUser(db, userId)),
+    [db, userId],
+    null,
+  );
 
   // One measurement per visit; `estimateStorageUsage` never throws, so a browser
   // without the API simply leaves the value null and the kernel writes the sentence.
@@ -81,11 +92,12 @@ export function AccountSurface() {
   const pending = sync.pendingText;
   const signOutNote = pending === '' ? copy.account.signOutNote : copy.account.signOutNotePending(pending);
 
-  const council = user.council ?? 'crea';
+  const registration = userRow === null ? user : registrationOfUserRow(userRow);
+  const council = registration.council ?? 'crea';
   const initial: Registration = {
     council,
-    registrationNumber: user.registrationNumber ?? '',
-    title: user.title ?? defaultTitleForCouncil(council),
+    registrationNumber: registration.registrationNumber ?? '',
+    title: registration.title ?? defaultTitleForCouncil(council),
   };
 
   async function save(registration: Registration) {
@@ -157,7 +169,7 @@ export function AccountSurface() {
                 <span className="sr-label">{copy.account.registrationHeading}</span>
                 <br />
                 <span className="sr-value" data-testid="registration-row-value">
-                  {registrationRowText(user)}
+                  {registrationRowText(registration)}
                 </span>
               </span>
               <TextButton onPress={() => setEditing(true)}>{copy.account.edit}</TextButton>
@@ -246,22 +258,24 @@ export function AccountSurface() {
       {editing ? (
         <RegistrationDialog
           initial={initial}
-          online={session.online}
           onCancel={() => setEditing(false)}
           onSave={save}
         />
       ) : null}
 
-      {confirmingSignOut ? (
-        <SignOutDialog
-          pending={pending === '' ? null : { text: pending, count: sync.pendingCount }}
-          onCancel={() => setConfirmingSignOut(false)}
-          onConfirm={() => {
-            setConfirmingSignOut(false);
-            void signOut();
-          }}
-        />
-      ) : null}
+      {/* Confirm dialog of the destructive "Sair" (mock: `#acc-dlg-sair`). With pending work
+          it is the mock's "Sair com envios pendentes?" with the kernel's sentence; with
+          nothing pending it says what is true today: nothing on this device is deleted. */}
+      <ConfirmDialog
+        isOpen={confirmingSignOut}
+        onOpenChange={setConfirmingSignOut}
+        title={pending === '' ? copy.account.signOutDialogTitle : copy.account.signOutPendingDialogTitle}
+        description={pending === '' ? copy.account.signOutDialogBody : pendingNotSentText(pending, sync.pendingCount)}
+        confirmLabel={copy.account.signOutConfirm}
+        cancelLabel={copy.account.cancel}
+        isDestructive
+        onConfirm={() => void signOut()}
+      />
     </main>
   );
 }

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { applyOp, entityKey, type EntityState } from './ops/apply.ts';
+import { makeOp } from './ops/op.ts';
+import { userRowSchema, type UserRow } from './schemas/entities.ts';
 import {
   avatarInitial,
+  registrationOfUserRow,
+  registrationPuts,
+  userProfileSchema,
   councilLabel,
   defaultTitleForCouncil,
   registrationNumberLabel,
@@ -72,6 +78,82 @@ describe('registrationSchema', () => {
   it('rejects an unknown council and an empty number', () => {
     expect(registrationSchema.safeParse({ council: 'cau', registrationNumber: '1', title: 'x' }).success).toBe(false);
     expect(registrationSchema.safeParse({ council: 'crea', registrationNumber: '  ', title: 'x' }).success).toBe(false);
+  });
+});
+
+describe('registration as user ops (retro A2)', () => {
+  const USER = '019966b0-0000-7000-8000-0000000000a1';
+  const COMPANY = '019966b0-0000-7000-8000-0000000000a2';
+  const row: UserRow = userRowSchema.parse({
+    id: USER,
+    name: 'Ana Alves',
+    email: 'a@teste.local',
+    council: 'crea',
+    registration_number: 'SP 1',
+    title: 'Eng. Eletricista',
+    photo_location_enabled: false,
+  });
+
+  it('writes one user/{id}/{field} put per registration field, as the user about their own row', () => {
+    const puts = registrationPuts({
+      userId: USER,
+      companyId: COMPANY,
+      registration: { council: 'crt', registrationNumber: 'SP 7777', title: 'Técnico(a) em Eletrotécnica' },
+    });
+    expect(puts.map((p) => [p.path, p.value])).toEqual([
+      [`user/${USER}/council`, 'crt'],
+      [`user/${USER}/registration_number`, 'SP 7777'],
+      [`user/${USER}/title`, 'Técnico(a) em Eletrotécnica'],
+    ]);
+    for (const put of puts) {
+      expect(put).toMatchObject({ kind: 'put', scope: 'company', company_id: COMPANY, actor_id: USER });
+      expect('device_id' in put).toBe(false);
+    }
+  });
+
+  it('writes only the fields that differ from what the device shows, and nothing for an unchanged save', () => {
+    const registration = { council: 'crea' as const, registrationNumber: 'SP 2', title: 'Eng. Eletricista' };
+    const changed = registrationPuts({ userId: USER, companyId: COMPANY, registration, current: registrationOfUserRow(row) });
+    expect(changed.map((p) => p.path)).toEqual([`user/${USER}/registration_number`]);
+    const same = registrationPuts({
+      userId: USER,
+      companyId: COMPANY,
+      registration: { council: 'crea', registrationNumber: 'SP 1', title: 'Eng. Eletricista' },
+      current: registrationOfUserRow(row),
+    });
+    expect(same).toEqual([]);
+  });
+
+  it('round-trips through applyOp into the kernel user row, and reads back as the row text source', () => {
+    let state: EntityState = new Map([[entityKey('user', USER), row]]);
+    let n = 0;
+    const newId = () => `019966b0-0001-7000-8000-${String(++n).padStart(12, '0')}`;
+    const puts = registrationPuts({
+      userId: USER,
+      companyId: COMPANY,
+      registration: { council: 'crt', registrationNumber: 'SP 7777', title: 'Téc.' },
+    });
+    for (const put of puts) {
+      state = applyOp(state, makeOp({ ...put, device_id: 'tablet-a' }, { newId, now: new Date('2026-09-22T12:00:00Z') }));
+    }
+    const next = state.get(entityKey('user', USER)) as UserRow;
+    expect(registrationOfUserRow(next)).toEqual({ council: 'crt', registrationNumber: 'SP 7777', title: 'Téc.' });
+    expect(registrationRowText(registrationOfUserRow(next))).toBe('CRT SP 7777 · Téc.');
+  });
+
+  it('carries uuidv7 identity ids on the profile', () => {
+    const profile = {
+      id: USER,
+      name: 'Ana Alves',
+      email: 'a@teste.local',
+      companyId: COMPANY,
+      companyName: 'Empresa A',
+      council: null,
+      registrationNumber: null,
+      title: null,
+    };
+    expect(userProfileSchema.safeParse(profile).success).toBe(true);
+    expect(userProfileSchema.safeParse({ ...profile, id: 'seed-user-a-teste-local' }).success).toBe(false);
   });
 });
 

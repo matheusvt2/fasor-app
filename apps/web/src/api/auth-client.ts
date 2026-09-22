@@ -1,16 +1,18 @@
-import { accountResponseSchema, type Registration, type UserProfile } from '@app/domain';
+import { ACCOUNT_ROUTES, accountResponseSchema, type UserProfile } from '@app/domain';
 import { createAuthClient } from 'better-auth/client';
 import { copy } from '../copy/pt-br.ts';
 
 /**
  * The only module that talks to the network for identity (AR-1, AD-9): sign-in,
- * sign-out, the session read at boot and the professional-registration save. Every
- * other `fetch` in `apps/web` is forbidden by lint outside `src/{sync,files,api}`.
+ * sign-out and the account read at boot and after sign-in. Every other `fetch` in
+ * `apps/web` is forbidden by lint outside `src/{sync,files,api}`. The professional
+ * registration is not saved here: it is committed as `user/{id}/{field}` ops and travels
+ * with the sync push (AD-1).
  *
- * Only `saveRegistration` publishes a re-auth event on a 401, which the banner slot
- * turns into "Entrar de novo". The session read at boot and the one right after sign-in
- * never do: there a 401 means "no session yet", which is Login's job, not a banner's.
- * Nothing here touches the local database.
+ * The session read at boot and the one right after sign-in never raise the re-auth
+ * banner: there a 401 means "no session yet", which is Login's job, not a banner's. The
+ * sync engine publishes it on a 401 mid-use (`publishReAuth`). Nothing here touches the
+ * local database.
  */
 
 const client = createAuthClient({ basePath: '/api/auth' });
@@ -26,27 +28,33 @@ export function onReAuthRequired(listener: ReAuthListener): () => void {
   };
 }
 
-/** Raises the re-auth banner. Called here on a 401 and by the sync engine (AD-9). */
+/** Raises the re-auth banner. Called by the sync engine on a 401 mid-use (AD-9). */
 export function publishReAuth(): void {
   for (const listener of reAuthListeners) listener();
 }
 
 /**
- * A failed sign-in is one of two different things and the form says so differently:
- * `credentials` is the server rejecting the pair, `network` is not reaching the server
- * at all. Only `credentials` may mark a field invalid.
+ * A failed sign-in is one of three different things and the form says so differently:
+ * `credentials` is the server rejecting the pair, `server` is a device that is online but
+ * could not get an answer (no response, or a 5xx such as the database being down), and
+ * `offline` is a device with no network at all. Only `credentials` may mark a field
+ * invalid, and only `offline` may say "Sem conexão".
  */
+export type SignInFailure = 'credentials' | 'server' | 'offline';
+
 export type SignInResult =
   | { ok: true; user: UserProfile }
-  | { ok: false; reason: 'credentials' | 'network'; message: string };
+  | { ok: false; reason: SignInFailure; message: string };
 
 async function readAccount(): Promise<UserProfile | null> {
-  const response = await fetch('/api/account', {
+  const route = ACCOUNT_ROUTES.read;
+  const response = await fetch(route.path, {
+    method: route.method,
     credentials: 'same-origin',
     headers: { accept: 'application/json' },
   });
   if (response.status === 401) return null;
-  if (!response.ok) throw new Error(`GET /api/account failed with ${response.status}`);
+  if (!response.ok) throw new Error(`${route.method} ${route.path} failed with ${response.status}`);
   return accountResponseSchema.parse(await response.json()).user;
 }
 
@@ -65,11 +73,26 @@ const credentialsRejected = {
   message: copy.login.wrongPassword,
 };
 
-const serverUnreachable = {
+const serverUnavailable = {
   ok: false as const,
-  reason: 'network' as const,
+  reason: 'server' as const,
+  message: copy.login.serverUnavailable,
+};
+
+const deviceOffline = {
+  ok: false as const,
+  reason: 'offline' as const,
   message: copy.login.offline,
 };
+
+function isDeviceOnline(): boolean {
+  return typeof navigator === 'undefined' ? true : navigator.onLine;
+}
+
+/** A request that never completed: the device's own network, or the server's. */
+function unreachable(): SignInResult {
+  return isDeviceOnline() ? serverUnavailable : deviceOffline;
+}
 
 /** True for a 4xx: the server answered and refused the request itself. */
 export function isClientRejection(status: unknown): boolean {
@@ -78,8 +101,8 @@ export function isClientRejection(status: unknown): boolean {
 
 /**
  * Signs in. A credential rejection maps to the one message the mock shows, so the form
- * never leaks which of the two fields was wrong; a transport failure says so instead of
- * blaming the password.
+ * never leaks which of the two fields was wrong; a failure to reach the server says so
+ * instead of blaming the password, and only a device with no network says "Sem conexão".
  */
 export async function signIn(email: string, password: string): Promise<SignInResult> {
   let result: Awaited<ReturnType<typeof client.signIn.email>>;
@@ -87,21 +110,21 @@ export async function signIn(email: string, password: string): Promise<SignInRes
     result = await client.signIn.email({ email, password });
   } catch {
     // The request never completed: no HTTP status, so nothing was rejected.
-    return serverUnreachable;
+    return unreachable();
   }
   const error = result.error;
   if (error !== null && error !== undefined) {
     // Only a 4xx is the server rejecting what was typed (401 for the pair, 400 for a
     // malformed e-mail). A 5xx (database down) or no status at all (transport failure)
-    // is the server being unreachable, and must never read as a wrong password.
-    return isClientRejection(error.status) ? credentialsRejected : serverUnreachable;
+    // is the server not answering, and must never read as a wrong password.
+    return isClientRejection(error.status) ? credentialsRejected : unreachable();
   }
   try {
     const user = await readAccount();
     if (user === null) return credentialsRejected;
     return { ok: true, user };
   } catch {
-    return serverUnreachable;
+    return unreachable();
   }
 }
 
@@ -130,28 +153,4 @@ export class ApiError extends Error {
     this.name = 'ApiError';
     this.status = status;
   }
-}
-
-/**
- * Named server action for the professional registration (AD-9). Converting it to a
- * `user/{id}/{field}` op is deferred to Story 1.4.
- */
-export async function saveRegistration(registration: Registration): Promise<UserProfile> {
-  const response = await fetch('/api/account/registration', {
-    method: 'PUT',
-    credentials: 'same-origin',
-    headers: { 'content-type': 'application/json', accept: 'application/json' },
-    body: JSON.stringify(registration),
-  });
-  if (response.status === 401) {
-    publishReAuth();
-    throw new ApiError('unauthenticated', 401);
-  }
-  if (!response.ok) {
-    throw new ApiError(
-      `PUT /api/account/registration failed with ${response.status}`,
-      response.status,
-    );
-  }
-  return accountResponseSchema.parse(await response.json()).user;
 }

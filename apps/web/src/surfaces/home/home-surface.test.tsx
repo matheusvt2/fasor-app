@@ -64,6 +64,7 @@ function syncState(over: Partial<SyncState> = {}): SyncState {
     outdated: false,
     lastResult: 'ran',
     lastFailure: null,
+    unreachable: null,
     lastSyncAt: null,
     lastPushAt: [],
     supersededCount: 0,
@@ -301,6 +302,19 @@ describe('Home: relatório cards', () => {
     expect(card.querySelector('.card-device')).toHaveTextContent('Não está neste aparelho · baixa ao abrir');
     await userEvent.click(within(card).getByRole('button'));
     expect(syncRelatorio).toHaveBeenCalledWith(R_ISSUED);
+  });
+
+  it('online but with the server unreachable, every card badge reads offline and the device words stay online (retro U5)', async () => {
+    database = await freshDb();
+    await seedCompany(database);
+    renderHome(syncState({ unreachable: 'server', badgeState: 'offline', summaryRelatorios: [summary(R_ISSUED, 'emitido')] }));
+
+    await waitFor(() => expect(cards().length).toBeGreaterThan(0));
+    for (const card of cards()) {
+      expect(card.querySelector('[data-testid="sync-badge"]')).toHaveAttribute('data-state', 'offline');
+    }
+    const issued = cards().find((card) => card.getAttribute('data-relatorio') === R_ISSUED)!;
+    expect(issued.querySelector('.card-device')).toHaveTextContent('Não está neste aparelho · baixa ao abrir');
   });
 
   it('offline, the same card is unavailable and every tap repeats the sentence', async () => {

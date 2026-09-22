@@ -64,6 +64,8 @@ export interface HomeCardsInput {
   /** One status tile pressed, or null for the whole list. Never changes the board counts. */
   filter: RelatorioStatus | null;
   online: boolean;
+  /** The server answered the last finished cycle (`syncBadgeState`); omitted means true. */
+  reachable?: boolean;
   /** Injected, never read from a clock here (TC-1): decides whether a card's stamp needs its date. */
   now: Date;
 }
@@ -205,7 +207,7 @@ export function homeCards(input: HomeCardsInput): HomeCard[] {
       title,
       meta,
       device,
-      badgeState: syncBadgeState(counts, { online: input.online }),
+      badgeState: syncBadgeState(counts, { online: input.online, reachable: input.reachable }),
       badgeCounts: counts,
       isCurrent: false,
       isUnavailable: device.kind === 'absent-offline',

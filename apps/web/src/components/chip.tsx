@@ -48,13 +48,13 @@ export interface FilterChipGroupProps {
  * (Design Notes) as a real, valid `radiogroup`/`radio` (a button with its role reassigned,
  * fully valid — unlike Switch/Checkbox/Radio, no hidden input is involved here).
  *
- * Design Notes gap: `components.css` styles the selected look as `.chip[aria-pressed="true"]`;
- * a grouped filter chip's real, correct state is `role="radio" aria-checked` (verified with
+ * On state: `components.css` styles the selected look as `.chip[aria-pressed="true"]`; a
+ * grouped filter chip's real, correct state is `role="radio" aria-checked` (verified with
  * axe: `aria-pressed` is not an allowed attribute once the role is `radio`, so stacking it on
- * top — even to match the CSS — is a violation and was rejected). The standalone value `Chip`
- * above is unaffected: an ungrouped `ToggleButton` keeps `aria-pressed` natively and gets the
- * `.chip[aria-pressed="true"]` look correctly. Only the *grouped* filter case does not
- * visually engage until `components.css` gains a selector this DOM shape can satisfy.
+ * top — even to match the CSS — is a violation and was rejected). `app.css` therefore
+ * mirrors that rule's declarations verbatim for `.chip[role="radio"][aria-checked="true"]`,
+ * the on-state alias pattern of AGENTS.md (retro F-SPEC-6). The standalone value `Chip`
+ * above keeps `aria-pressed` natively and gets the mock rule directly.
  */
 export function FilterChipGroup({ options, selectedId, onChange, ...rest }: FilterChipGroupProps) {
   return (

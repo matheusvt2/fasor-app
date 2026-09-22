@@ -9,7 +9,7 @@ vi.mock('better-auth/client', () => ({
 const { isClientRejection, signIn } = await import('./auth-client.ts');
 
 const profile = {
-  id: 'u-1',
+  id: '0a000000-0000-7000-8000-0000000000a1',
   name: 'Ana Alves',
   email: 'a@teste.local',
   companyId: '0a000000-0000-7000-8000-00000000000a',
@@ -30,6 +30,7 @@ describe('signIn classifies failures', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it('reads a 401 as a credential rejection', async () => {
@@ -39,24 +40,42 @@ describe('signIn classifies failures', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('reads a 500 as the server being unreachable, never as a wrong password', async () => {
+  it('reads a 500 as the server being unavailable, never as a wrong password or no connection', async () => {
     signInEmail.mockResolvedValue({ data: null, error: { status: 500, message: 'db down' } });
     const result = await signIn('a@teste.local', 'right');
-    expect(result).toMatchObject({ ok: false, reason: 'network' });
+    expect(result).toEqual({
+      ok: false,
+      reason: 'server',
+      message: 'Não foi possível falar com o servidor. Tente de novo em instantes.',
+    });
   });
 
-  it('reads an error without a status (transport failure) as unreachable', async () => {
+  it('reads an error without a status (transport failure) while online as the server', async () => {
     signInEmail.mockResolvedValue({ data: null, error: { message: 'Failed to fetch' } });
-    expect(await signIn('a@teste.local', 'right')).toMatchObject({ ok: false, reason: 'network' });
+    expect(await signIn('a@teste.local', 'right')).toMatchObject({ ok: false, reason: 'server' });
   });
 
-  it('reads a thrown request as unreachable', async () => {
+  it('reads a thrown request while online as the server', async () => {
     signInEmail.mockRejectedValue(new TypeError('Failed to fetch'));
-    expect(await signIn('a@teste.local', 'right')).toMatchObject({ ok: false, reason: 'network' });
+    expect(await signIn('a@teste.local', 'right')).toMatchObject({ ok: false, reason: 'server' });
+  });
+
+  it('reads a thrown request with no network as offline, with the offline sentence', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    signInEmail.mockRejectedValue(new TypeError('Failed to fetch'));
+    const result = await signIn('a@teste.local', 'right');
+    expect(result).toMatchObject({ ok: false, reason: 'offline' });
+    expect(result.ok ? '' : result.message).toMatch(/^Sem conexão/);
+  });
+
+  it('reads a failed account read after an accepted pair as the server', async () => {
+    signInEmail.mockResolvedValue({ data: { user: { id: profile.id } }, error: null });
+    fetchMock.mockResolvedValue(new Response('{}', { status: 503 }));
+    expect(await signIn('a@teste.local', 'right')).toMatchObject({ ok: false, reason: 'server' });
   });
 
   it('returns the profile after an accepted pair', async () => {
-    signInEmail.mockResolvedValue({ data: { user: { id: 'u-1' } }, error: null });
+    signInEmail.mockResolvedValue({ data: { user: { id: profile.id } }, error: null });
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ user: profile }), {
         status: 200,
@@ -64,7 +83,9 @@ describe('signIn classifies failures', () => {
       }),
     );
     const result = await signIn('a@teste.local', 'right');
-    expect(result).toMatchObject({ ok: true, user: { id: 'u-1', council: 'crea' } });
+    expect(result).toMatchObject({ ok: true, user: { id: profile.id, council: 'crea' } });
+    // The account read goes through the contract route (AD-13), not a literal of its own.
+    expect(fetchMock).toHaveBeenCalledWith('/api/account', expect.objectContaining({ method: 'GET' }));
   });
 
   it('isClientRejection is true only for 4xx', () => {

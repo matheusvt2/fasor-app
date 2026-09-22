@@ -1,5 +1,6 @@
 import type { Op } from '../ops/op.ts';
 import { safeParsePath } from '../ops/path.ts';
+import { peopleCount, plural, relatoriosCount } from '../text/plural.ts';
 
 /*
  * AD-2, UX-DR10: the sync counts, the badge state and every text derived from
@@ -58,15 +59,29 @@ export function syncCounts(outbox: readonly OutboxLike[]): SyncCounts {
 /** The five badge states of `key-sync-status.html`; `conflict` waits for the deferred merge policy. */
 export type SyncBadgeState = 'ok' | 'pending' | 'offline' | 'error' | 'conflict';
 
-/** Error before offline before pending: a rejected op needs attention wherever the device is. */
-export function syncBadgeState(counts: SyncCounts, deps: { online: boolean }): Exclude<SyncBadgeState, 'conflict'> {
+export interface SyncBadgeInputs {
+  /** The browser says it has a network. */
+  online: boolean;
+  /**
+   * The server answered the last finished cycle. False while that cycle ended in a
+   * network or 5xx failure, or while the session needs a new sign-in: the device then
+   * cannot send anything either, so it must not read "Sincronizado". Omitted means true.
+   */
+  reachable?: boolean;
+}
+
+/**
+ * Error before offline before pending: a rejected op needs attention wherever the device is.
+ * An unreachable server reads as `offline` ("Sem conexão"): EXPERIENCE.md has five badge
+ * states and no sixth for it, and "no connection; still saving locally" is exactly what
+ * the user needs to know then. Sync status names the actual cause.
+ */
+export function syncBadgeState(counts: SyncCounts, deps: SyncBadgeInputs): Exclude<SyncBadgeState, 'conflict'> {
   if (counts.dead > 0) return 'error';
-  if (!deps.online) return 'offline';
+  if (!deps.online || deps.reachable === false) return 'offline';
   if (counts.pending + counts.sent > 0) return 'pending';
   return 'ok';
 }
-
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /**
  * "3 fichas", "1 ficha e 2 fotos", "5 alterações" (ops that are neither a sheet nor a
@@ -86,6 +101,31 @@ export function pendingSummaryText(counts: SyncCounts): string {
 export function pendingSummaryCount(counts: SyncCounts): number {
   if (counts.sheets_pending + counts.photos_pending > 0) return counts.sheets_pending + counts.photos_pending;
   return counts.pending + counts.sent;
+}
+
+/**
+ * The sign-out confirm sentence around a pending summary, in agreement with its count:
+ * "1 ficha ainda não foi enviada. Ela continua ..." / "3 fichas ainda não foram enviadas. Elas continuam ...".
+ */
+export function pendingNotSentText(summary: string, count: number): string {
+  return count === 1
+    ? `${summary} ainda não foi enviada. Ela continua neste aparelho e sobe quando você entrar de novo com conexão.`
+    : `${summary} ainda não foram enviadas. Elas continuam neste aparelho e sobem quando você entrar de novo com conexão.`;
+}
+
+/** Sync status: "1 alteração rejeitada" / "3 alterações rejeitadas". */
+export function rejectedText(count: number): string {
+  return plural(count, 'alteração rejeitada', 'alterações rejeitadas');
+}
+
+/** Sync status, the server's `superseded` signal: "1 alteração mesclada pelo servidor". */
+export function supersededText(count: number): string {
+  return plural(count, 'alteração mesclada pelo servidor', 'alterações mescladas pelo servidor');
+}
+
+/** AD-8 eviction screen, from the company pull: "O servidor tem 3 relatórios e 2 pessoas da equipe." */
+export function serverHoldsText(relatorios: number, users: number): string {
+  return `O servidor tem ${relatoriosCount(relatorios)} e ${peopleCount(users)}.`;
 }
 
 /** The badge word, always visible beside the dot (`key-sync-status.html` lines 308-315). */

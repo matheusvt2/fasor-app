@@ -13,6 +13,15 @@ export const ui = {
     /** `.toggle-word` for a locked sub-block (checklist, conclusion): not a control. */
     locked: 'Sempre',
   },
+  toast: {
+    // authored: the mock's persistent toast (`key-sheet-states.html`) draws only its
+    // action; a toast that does not expire also needs a way to put it away.
+    dismiss: 'Fechar',
+  },
+  appBar: {
+    // Verbatim from `key-account.html`: the App bar's back `.icon-btn`.
+    back: 'Voltar',
+  },
   confirmDialog: {
     /** Default label for the non-destructive action; initial focus lands here. */
     cancel: 'Cancelar',
@@ -21,21 +30,9 @@ export const ui = {
     /** `aria-label` template for the trigger button, e.g. "Mais opções de SEC-C09". */
     triggerLabel: (name: string) => `Mais opções de ${name}`,
   },
-  statusPill: {
-    /** `.status-pill` label per `RelatorioStatus`. */
-    label: {
-      rascunho: 'Rascunho',
-      'em-campo': 'Em campo',
-      'em-revisao': 'Em revisão',
-      emitido: 'Emitido',
-    },
-  },
-  statusTile: {
-    // authored: the mock hard-codes "Rascunho, 1 relatório" per tile; the template is
-    // the same sentence with the live count, plus the singular the mock happens to show.
-    label: (status: string, count: number) =>
-      `${status}, ${count === 1 ? '1 relatório' : `${count} relatórios`}`,
-  },
+  // The four status words and the status tile's accessible name ("<status>, 1 relatório")
+  // are derived text: the kernel writes them (`statusLabel`, `statusTileLabel`), never
+  // this module.
   syncBadge: {
     /**
      * `.sync-long` or `.sync-short` shows depending on the viewport, so the badge names

@@ -38,7 +38,16 @@ async function openSyncStatusWithRowsWaiting(page: Page, expectedBadge: string):
   await expect(page.getByRole('heading', { level: 1, name: 'Sincronização' })).toBeVisible();
   const button = page.getByRole('button', { name: 'Sincronizar agora' });
   await expect(button).not.toHaveAttribute('aria-disabled', 'true', { timeout: 30_000 });
-  await expect(syncWord(page)).toHaveText(expectedBadge);
+  // The cycle could not reach the server, so the badge no longer claims the rows are on
+  // their way: it reads "Sem conexão" and Sync status names the cause (retro U5), while
+  // the pending count stays on the badge's data and in the headline.
+  await expect(syncWord(page)).toHaveText('Sem conexão');
+  await expect(page.getByTestId('sync-unreachable')).toHaveText(
+    'Não foi possível falar com o servidor. Tudo fica salvo neste aparelho.',
+  );
+  await expect(page.locator('.sync-headline .sh-counts')).toContainText('aguardando envio');
+  // The same count the badge read before the cycle ("2 pendentes") is still on it.
+  await expect(syncBadge(page)).toHaveAttribute('data-pending', expectedBadge.split(' ')[0]!);
   await page.unroute(isApiRequest);
 }
 
@@ -81,10 +90,12 @@ test('@p0 1.5-E2E-001 work done offline reaches the server on "Sincronizar agora
       { timeout: 20_000 },
     )
     .toBe(true);
-  // The device's own push is an "Último envio" row: this device, named by the user id until
-  // the company's user rows reach the device (a later story emits them).
-  const mine = page.locator('.sync-row', { hasText: user.userId }).filter({ hasText: 'Este aparelho' });
+  // The device's own push is an "Último envio" row: this device, named by the user's name
+  // from the `user/{id}` row the company stream carries (retro A2), never by a raw id.
+  const mine = page.locator('.sync-row', { hasText: user.name }).filter({ hasText: 'Este aparelho' });
   await expect(mine).toHaveCount(1);
+  await expect(mine.locator('.sr-primary')).toHaveText(user.name);
+  await expect(page.locator('.sync-row', { hasText: user.userId })).toHaveCount(0);
   await expect(mine.locator('time')).toHaveAttribute('datetime', /^\d{4}-\d{2}-\d{2}T/);
 
   // The server holds both ops in their streams, through the contract.
@@ -111,7 +122,7 @@ test('@p0 1.5-E2E-001 work done offline reaches the server on "Sincronizar agora
   expect(states.find((s) => s.id === relatorioId)?.complete).toBe(true);
 });
 
-test('@p0 1.5-E2E-003 a pull answering 426 replaces the shell with "Atualizar" while the push still goes through', async ({
+test('@p2 1.5-E2E-003 a pull answering 426 replaces the shell with "Atualizar" while the push still goes through', async ({
   page,
   seed,
 }) => {
@@ -155,7 +166,7 @@ test('@p0 1.5-E2E-003 a pull answering 426 replaces the shell with "Atualizar" w
   expect(company.ops.some((o) => o.op_id === pending.op_id)).toBe(true);
 });
 
-test('@p0 1.5-E2E-002 a rejected op is dead, excluded from state and listed with "Reenviar"; the button shows its reason while a cycle runs', async ({
+test('@p1 1.5-E2E-002 a rejected op is dead, excluded from state and listed with "Reenviar"; the button shows its reason while a cycle runs', async ({
   page,
   seed,
 }) => {

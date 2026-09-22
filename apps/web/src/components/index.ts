@@ -2,7 +2,7 @@ export { Button, TextButton } from './button.tsx';
 export type { ButtonProps, ButtonVariant, TextButtonProps } from './button.tsx';
 
 export { StatusPill } from './status-pill.tsx';
-export type { RelatorioStatus, StatusPillProps } from './status-pill.tsx';
+export type { StatusPillProps } from './status-pill.tsx';
 
 export { SyncBadge } from './sync-badge.tsx';
 export type { SyncBadgeProps } from './sync-badge.tsx';
@@ -21,6 +21,9 @@ export type { OverflowMenuAction, OverflowMenuProps } from './overflow-menu.tsx'
 
 export { ConfirmDialog } from './confirm-dialog.tsx';
 export type { ConfirmDialogProps } from './confirm-dialog.tsx';
+
+export { FormDialog } from './form-dialog.tsx';
+export type { FormDialogProps } from './form-dialog.tsx';
 
 export { Chip, FilterChipGroup } from './chip.tsx';
 export type { ChipProps, FilterChipGroupProps, FilterChipOption } from './chip.tsx';

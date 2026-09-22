@@ -1,8 +1,7 @@
-import { SYNC_PUSH_MAX_OPS, toIso, type Clock, type NewId, type Op, type SyncSummary } from '@app/domain';
+import { isAutoPulled, SYNC_PUSH_MAX_OPS, toIso, type Clock, type NewId, type Op, type SyncSummary } from '@app/domain';
 import { COMPANY_STREAM, type AppDatabase, type SyncStateRow } from '../db/schema.ts';
 import {
   applyPulled,
-  deviceId,
   markAcked,
   markDead,
   markSent,
@@ -13,7 +12,7 @@ import {
 import { opOf } from '../db/commit.ts';
 import type { Timers } from '../input/field-commit.ts';
 import { SyncRequestError, type SyncClient, type SyncFailure } from './client.ts';
-import { backoffMs, batches, classifyFailure, MAX_ATTEMPTS, parsePulled, type FailureAction } from './policy.ts';
+import { backoffMs, batches, classifyFailure, isUnreachableFailure, MAX_ATTEMPTS, parsePulled, type FailureAction } from './policy.ts';
 
 /*
  * AD-8, AD-24: one fixed cycle, push -> pull company -> pull each relatorio, run
@@ -30,7 +29,12 @@ export interface EngineStatus {
   /** A pull answered 426: pulls stop, pushes continue, the app shows "Atualizar". */
   outdated: boolean;
   lastResult: CycleResult | null;
-  /** The last failure that ended a phase early, for diagnostics. */
+  /**
+   * The failure that ended a phase of the last finished cycle, or null when it ran clean.
+   * Published when the cycle ends, never cleared when the next one starts: the badge reads
+   * it (an unreachable server is not "Sincronizado"), and a retry in flight must not make
+   * it flash back to ok before the server has actually answered.
+   */
   lastFailure: SyncFailure | null;
   /** `superseded` entries reported since the tab opened (shown, never persisted). */
   supersededCount: number;
@@ -115,6 +119,16 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
   let started = false;
   /** Set by `stop()`: the in-flight cycle ends at its next step and reports nothing more. */
   let stopped = false;
+  /** The failure of the cycle in flight; copied to `status.lastFailure` when it ends. */
+  let cycleFailure: SyncFailure | null = null;
+  /** The cycle in flight was cut by the device going offline. */
+  let cycleWentOffline = false;
+  /**
+   * An `online` event arrived while a cycle was running. That cycle may already be past
+   * its push, or ending on the offline check, so one more cycle runs as soon as it ends:
+   * work committed offline must not wait for the 60 s tick (retro U3).
+   */
+  let onlineWhileRunning = false;
 
   const emit = () => {
     if (!stopped) deps.onChange({ ...status });
@@ -125,7 +139,23 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       deps.timers.setTimeout(resolve, ms);
     });
 
+  /** The phase end of a device that went offline: the next `online` event resumes, and it is no server verdict. */
   const OFFLINE: SyncFailure = { kind: 'network' };
+
+  /**
+   * Records a phase failure for this cycle. The device going offline is not recorded (the
+   * badge says offline on its own, and after reconnecting nothing says the server failed),
+   * and a failure that says the server was unreachable is never replaced by a later one
+   * that does not (a push that hit 503, then a relatório pull that answered 404).
+   */
+  function recordFailure(failure: SyncFailure): void {
+    if (failure === OFFLINE) {
+      cycleWentOffline = true;
+      return;
+    }
+    if (cycleFailure !== null && isUnreachableFailure(cycleFailure) && !isUnreachableFailure(failure)) return;
+    cycleFailure = failure;
+  }
 
   /**
    * Runs a request with the retry table; throws PhaseEnd when the phase must end. Going
@@ -150,9 +180,9 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
   async function pushPhase(): Promise<void> {
     const rows = await takePending(deps.db);
     if (rows.length === 0) return;
-    const device = await deviceId(deps.db, deps.newId);
+    // Every outbox row already carries this device's id: `commitBatch` stamps it (AD-3).
     for (const batch of batches(rows, SYNC_PUSH_MAX_OPS)) {
-      const ops: Op[] = batch.map((row) => ({ ...opOf(row), device_id: row.device_id || device }));
+      const ops: Op[] = batch.map(opOf);
       await markSent(
         deps.db,
         ops.map((op) => op.op_id),
@@ -211,17 +241,20 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     if (status.outdated) return;
     const summary = await pullStream(COMPANY_STREAM, (since) => deps.client.pullCompany(since));
     const wanted = new Set<string>();
-    for (const r of summary?.relatorios ?? []) if (r.status === 'rascunho' || r.status === 'em_campo') wanted.add(r.id);
+    for (const r of summary?.relatorios ?? []) if (isAutoPulled(r.status)) wanted.add(r.id);
     // Relatorios opened before keep following their stream whatever their status now.
     for (const row of await deps.db.sync_state.toArray()) if (row.id !== COMPANY_STREAM) wanted.add(row.id);
     for (const id of wanted) {
-      if (stopped || !deps.isOnline()) return;
+      if (stopped || !deps.isOnline()) {
+        if (!stopped) cycleWentOffline = true;
+        return;
+      }
       try {
         await pullStream(id, (since) => deps.client.pullRelatorio(id, since));
       } catch (error) {
         // A stream the server no longer knows (404) is skipped; anything else ends the phase.
         if (error instanceof PhaseEnd && error.action === 'stop') {
-          status.lastFailure = error.failure;
+          recordFailure(error.failure);
           continue;
         }
         throw error;
@@ -239,7 +272,8 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     }
     status.running = true;
     status.lastResult = null;
-    status.lastFailure = null;
+    cycleFailure = null;
+    cycleWentOffline = false;
     emit();
     try {
       await runPhase(pushPhase);
@@ -248,7 +282,14 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     } finally {
       status.running = false;
       status.lastResult = 'ran';
+      // A cycle cut by going offline, with no failure of its own, proved nothing about
+      // the server: the previous verdict stands. A cycle that ran clean clears it.
+      if (cycleFailure !== null || !cycleWentOffline) status.lastFailure = cycleFailure;
       emit();
+      if (onlineWhileRunning && !stopped) {
+        onlineWhileRunning = false;
+        deps.timers.setTimeout(() => void fireCycle(), 0);
+      }
     }
     return 'ran';
   }
@@ -259,7 +300,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       await phase();
     } catch (error) {
       if (!(error instanceof PhaseEnd)) throw error;
-      status.lastFailure = error.failure;
+      recordFailure(error.failure);
       if (error.action === 'reauth') {
         status.paused = true;
         deps.onReAuth();
@@ -298,13 +339,17 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     start() {
       if (started) return;
       started = true;
-      unsubscribe = subscribeOnline(() => void fireCycle());
+      unsubscribe = subscribeOnline(() => {
+        if (status.running) onlineWhileRunning = true;
+        else void fireCycle();
+      });
       void fireCycle();
       schedule();
     },
     stop() {
       started = false;
       stopped = true;
+      onlineWhileRunning = false;
       if (timer !== null) deps.timers.clearTimeout(timer);
       timer = null;
       unsubscribe?.();

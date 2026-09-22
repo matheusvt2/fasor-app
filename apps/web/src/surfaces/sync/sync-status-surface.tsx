@@ -1,4 +1,4 @@
-import { avatarInitial, formatShortDateTime, syncBadgeLabel } from '@app/domain';
+import { avatarInitial, formatShortDateTime, rejectedText, supersededText, syncBadgeLabel } from '@app/domain';
 import { useId, useState } from 'react';
 import { Button, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -47,6 +47,12 @@ export function SyncStatusSurface() {
             </span>
             <span className="sh-counts">{counts}</span>
           </div>
+          {/* The badge reads "Sem conexão" for both causes (kernel); this line names the real one. */}
+          {sync.online && sync.unreachable !== null ? (
+            <p className="section-note sync-cause" data-testid="sync-unreachable">
+              {sync.unreachable === 'session' ? copy.sync.sessionExpired : copy.sync.serverUnreachable}
+            </p>
+          ) : null}
 
           <div className="sync-actions">
             <Button
@@ -63,7 +69,7 @@ export function SyncStatusSurface() {
               {sync.counts.dead > 0 ? (
                 <li className="sync-row" data-testid="sync-rejected-row">
                   <span className="sr-body">
-                    <span className="sr-primary">{copy.sync.rejected(sync.counts.dead)}</span>
+                    <span className="sr-primary">{rejectedText(sync.counts.dead)}</span>
                   </span>
                   <span className="sr-state">
                     <TextButton
@@ -79,7 +85,7 @@ export function SyncStatusSurface() {
               {sync.supersededCount > 0 ? (
                 <li className="sync-row" data-testid="sync-superseded-row">
                   <span className="sr-body">
-                    <span className="sr-primary">{copy.sync.superseded(sync.supersededCount)}</span>
+                    <span className="sr-primary">{supersededText(sync.supersededCount)}</span>
                   </span>
                   <span className="sr-state" data-tone="ok" />
                 </li>

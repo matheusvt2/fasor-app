@@ -27,8 +27,9 @@ Releng (codename fasor): a tablet-first, offline-first web app that captures med
 
 ## Running and verifying
 
-- TODO until Story 1.1 lands: `docker compose up` starts web (Vite), api (Hono on Node 24), PostgreSQL 18 and MinIO; `pnpm lint` and `pnpm test` run at the workspace root. Verify on the first refresh after code exists.
-- Decided tool versions until manifests exist: Node 24 LTS, pnpm 12, TypeScript 6.0, Vitest 5, Playwright 1.63 (spine § Stack).
+- `docker compose up -d` starts web (Vite, `:5173`), api (Hono on Node 24, `:3000`), PostgreSQL 18 (`:5432`) and MinIO (`:9000`/`:9001`), plus the one-shot `install` and the `mkcert`/`caddy` services (HTTPS origin for tablets, `docs/tablet-https-setup.md`). `GET /api/health` returns `{status, db, queue, storage, libreoffice}`.
+- The merge gate is `docker compose --profile tools run --rm tools pnpm verify`, run inside the `tools` container, never on the host; its output is pasted in every PR. `verify` runs `lint`, `static` (typecheck), `test:unit` (kernel and web Vitest, plus this repo's own tooling tests, no database access), `test:api` (the api's Vitest suite including `*.integration.test.ts`, against the compose Postgres and MinIO) and `test:e2e` (Playwright tagged `@p0` on `desktop-chrome` and `durability-desktop-chrome`). Each can also run alone the same way, e.g. `docker compose --profile tools run --rm tools pnpm test:unit`. `pnpm test:e2e:full` (every `desktop-chrome`/`durability-desktop-chrome` test regardless of tag, so it also runs the `@p1`/`@p2` tests `--grep @p0` skips) and `pnpm test:e2e:matrix` (the full durability suite across desktop Chrome, Android Chrome emulation and WebKit) are not part of `verify`; the epic retrospective runs them for the P1 coverage check (DoD clause 3). `pnpm audit --prod` is not part of `verify`: it runs reliably in the `tools` container, but currently reports one moderate advisory in a transitive dev-only dependency chain (`better-auth > drizzle-kit > ... > esbuild`) unrelated to this epic's scope, tracked instead in `_bmad-output/implementation-artifacts/deferred-work.md` so it does not silently fail every merge.
+- Tool versions: Node 24 LTS, pnpm 12, TypeScript 6.0, Vitest 5, Playwright 1.63 (spine § Stack).
 - Nothing ships untested: every implemented feature is exercised end to end, and a feature with a front end runs through Playwright as a human would, covering the whole feature, not a sample.
 
 ## Conventions that differ from defaults
@@ -54,3 +55,26 @@ Releng (codename fasor): a tablet-first, offline-first web app that captures med
 - 2026-09-21, Matheus: waiver of test-design risk R-023. The Porto Seguro fixture and golden documents use the real client material of the delivered relatório without restriction; the public exposure is accepted consciously. Source: `_bmad-output/test-artifacts/test-design-architecture.md`.
 - 2026-09-21, Matheus: `pnpm verify` is the merge gate (R-011); CI stays out of the MVP.
 - 2026-09-21, Matheus: Sync status gains a visible "Sincronizar agora" action (C-4); tests use it instead of the 60 s timer.
+
+## Where a new user-facing string goes (kept outside the managed block)
+
+Decided 2026-09-22 (Epic 1 retro A7). pt-BR copy has three homes, and each string lives in exactly one:
+
+- **Derived text goes in `packages/domain`.** This means anything computed from data: status words (`statusLabel`), counts and plurals (`plural`, `relatoriosCount`, `pendingSummaryText`, `rejectedText`), and composed rows (`registrationRowText`, `storageLine`, `serverHoldsText`). `apps/web` never writes a singular-or-plural choice, a status word or a rule such as "which statuses are pulled" (`isAutoPulled`) of its own.
+- **Static surface copy goes in `apps/web/src/copy/pt-br.ts`.** These are headings, labels, notes, button words and fixed sentences of one surface, verbatim from the mocks or marked `// authored:`.
+- **Component chrome goes in `apps/web/src/copy/ui.ts`.** These are the words a shared component owns whatever screen it is on ("Ativado", "Cancelar", the overflow trigger's label template).
+
+## Mock container selectors (kept outside the managed block)
+
+Decided 2026-09-22 (Epic 1 retro A5, F-PAT-2). This extends "Conventions that differ from defaults". The mocks draw every screen inside a device bezel, so `components.css` encodes the base scope and the viewport as container classes that the app never renders. `tokens.css` and `components.css` stay byte-identical; each translation goes in `apps/web/src/styles/app.css` with a comment naming the mock rule it mirrors, declarations copied verbatim:
+
+- `.frame, .frame *` and `.frame X` base rules become `:root` scope (`:root`, `:root *`, or the bare element), so React Aria overlays portaled to the end of `<body>` inherit them.
+- `.frame-phone X` becomes `@media (max-width: 767.98px) { X }`, below DESIGN.md `breakpoint-tablet` (768px).
+- `.frame-tablet X` becomes `@media (min-width: 768px) and (max-width: 1279.98px) { X }`.
+- `.frame-tablet-landscape X` becomes `@media (min-width: 1024px) and (max-width: 1279.98px) { X }`.
+- `.frame-desktop X` becomes `@media (min-width: 1280px) { X }`.
+- `.frame--crop`, `.mock-*`, the bezel sizes, `.browser-chrome` (and `.frame-desktop .screen`, which sizes to it) and the static `.is-focus-ring` are mock-only and never translated.
+- Media queries already inside `components.css` (the 480px Sync badge rule) apply as they are and are not repeated.
+- On states: the ARIA state lives on the element the mock CSS styles. When a valid ARIA shape cannot carry the mock's attribute (a `role="radio"` cannot carry `aria-pressed`), `app.css` mirrors the mock rule's declarations for the attribute it does carry. No invented look.
+
+A new mock rule with a `.frame-*` selector gets its translation in the same change that first renders it, and the real-browser pass checks 390, 768 and 1280 px plus a dialog.
