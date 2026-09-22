@@ -37,9 +37,9 @@ describe('contract examples (ADR readiness 1.4)', () => {
 });
 
 describe('contract constants', () => {
-  it('speaks version 1 and accepts version 1', () => {
-    expect(CONTRACT_VERSION).toBe(1);
-    expect(MIN_CONTRACT_VERSION).toBe(1);
+  it('speaks version 2 and accepts only version 2 (the user row and family changed)', () => {
+    expect(CONTRACT_VERSION).toBe(2);
+    expect(MIN_CONTRACT_VERSION).toBe(2);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');
   });
 

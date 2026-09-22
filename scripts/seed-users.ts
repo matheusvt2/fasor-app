@@ -28,12 +28,17 @@ import { assertInCompose } from './test-reset.ts';
  * the company's next users; a supplied id that is not a uuidv7 is refused before the
  * database is touched, with a freshly minted example. User ids are always minted here
  * (uuidv7), never typed.
+ *
+ * The registration flags (`--council`, `--number`, `--title`) seed a new user's initial
+ * values only. Re-running for an existing e-mail resets the password and updates the name,
+ * never the registration: from then on it belongs to the user, who edits it in Account.
  */
 
 const USAGE = `usage:
   seed-users --test
   seed-users [--company-id <uuidv7>] --company <name> --email <email> --password <password> \\
-             --name <full name> --council <crea|crt> --number <registration number> [--title <printed title>]`;
+             --name <full name> --council <crea|crt> --number <registration number> [--title <printed title>]
+  (the registration flags set a new user's initial values; a re-run resets the password and the name only)`;
 
 export function parseArgs(argv: string[]): Record<string, string | true> {
   const out: Record<string, string | true> = {};

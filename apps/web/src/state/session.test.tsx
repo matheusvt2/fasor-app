@@ -191,9 +191,20 @@ describe('saveRegistration (retro A2)', () => {
       }
       expect(fetchSpy).not.toHaveBeenCalled();
       // Optimistic: the session profile and the pointer carry the saved values at once.
-      const saved = { council: 'crt', registrationNumber: 'SP 7777', title: 'Técnico(a) em Eletrotécnica' };
+      const saved = { council: 'crt' as const, registrationNumber: 'SP 7777', title: 'Técnico(a) em Eletrotécnica' };
       expect(current!.user).toMatchObject(saved);
       expect(readLastSession()).toMatchObject(saved);
+
+      // The same values again commit nothing; one changed field commits one op, chained
+      // to this device's earlier op on that path (AD-3 prev_op_id).
+      await act(() => current!.saveRegistration(saved));
+      expect(await db.outbox.count()).toBe(3);
+      await act(() => current!.saveRegistration({ ...saved, registrationNumber: 'SP 8888' }));
+      const after = await db.outbox.toArray();
+      expect(after).toHaveLength(4);
+      const earlier = outbox.find((row) => row.path === `user/${profile.id}/registration_number`)!;
+      const latest = after.find((row) => row.value === 'SP 8888')!;
+      expect(latest.prev_op_id).toBe(earlier.op_id);
     } finally {
       vi.unstubAllGlobals();
     }

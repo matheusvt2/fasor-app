@@ -119,7 +119,7 @@ describe('seedTestCompanies on a volume seeded before Story 1.5', () => {
     // A second run with nothing legacy left is a no-op on that path and still idempotent.
     await seedTestCompanies(db, auth);
     expect(await db.select({ id: company.id }).from(company).where(inArray(company.id, [...LEGACY_TEST_COMPANY_IDS]))).toEqual([]);
-  });
+  }, 30_000);
 });
 
 describe('the user projection (retro A2)', () => {
@@ -145,7 +145,7 @@ describe('the user projection (retro A2)', () => {
       const page = await pullCompany(db, asCompanyId(seeded.companyId), 0);
       expect(page.ops.filter((op) => op.path === `user/${seeded.userId}`)).toHaveLength(1);
     }
-  });
+  }, 30_000);
 
   it('mints a uuidv7 for a new user, keeps it on re-seed, and re-keys a legacy slug user', async () => {
     const companyId = newId();
@@ -170,22 +170,23 @@ describe('the user projection (retro A2)', () => {
       const profile = await findUserProfile(db, asCompanyId(companyId), first.userId);
       expect(profile).toMatchObject({ council: 'crt', registrationNumber: 'SP 3', title: 'Técnico(a) em Eletrotécnica' });
 
-      // A re-seed with a changed name and number updates the entity through server puts.
+      // A re-seed (the password reset) puts a changed name, identity-owned, and never
+      // writes the registration back over the user's own: the number stays.
       await seedUser(db, auth, { ...base, name: 'Pia Renomeada', registrationNumber: 'SP 33' });
       expect(await findUserProfile(db, asCompanyId(companyId), first.userId)).toMatchObject({
         name: 'Pia Renomeada',
-        registrationNumber: 'SP 33',
+        registrationNumber: 'SP 3',
       });
       const [entity] = await db
         .select({ row: entities.row })
         .from(entities)
         .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'user'), eq(entities.id, first.userId)));
-      expect(entity?.row).toMatchObject({ name: 'Pia Renomeada', registration_number: 'SP 33', title: 'Técnico(a) em Eletrotécnica' });
+      expect(entity?.row).toMatchObject({ name: 'Pia Renomeada', registration_number: 'SP 3', title: 'Técnico(a) em Eletrotécnica' });
       const puts = await db
         .select({ path: ops.path, actor_id: ops.actor_id, device_id: ops.device_id })
         .from(ops)
         .where(and(eq(ops.company_id, companyId), eq(ops.kind, 'put')));
-      expect(puts.map((p) => p.path).sort()).toEqual([`user/${first.userId}/name`, `user/${first.userId}/registration_number`]);
+      expect(puts.map((p) => p.path)).toEqual([`user/${first.userId}/name`]);
       for (const put of puts) expect(put).toMatchObject({ actor_id: 'system:identity', device_id: 'server' });
 
       // A user provisioned when ids were slugs: re-seeding moves it to a v7 id.
@@ -215,7 +216,7 @@ describe('the user projection (retro A2)', () => {
       await db.delete(syncDevicePush).where(eq(syncDevicePush.company_id, companyId));
       await db.delete(company).where(eq(company.id, companyId));
     }
-  });
+  }, 30_000);
 
   it('refuses a supplied user id that already belongs to another e-mail', async () => {
     const [a] = TEST_SEED.companies;

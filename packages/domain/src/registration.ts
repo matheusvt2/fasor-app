@@ -81,16 +81,22 @@ export function registrationOfUserRow(row: Pick<UserRow, 'council' | 'registrati
 /**
  * A saved "Registro profissional" as the three `user/{id}/{field}` puts the device
  * commits (AD-1, AD-3): one op per field, written by the user about their own row.
- * The device stamps `device_id` when it commits them.
+ * The device stamps `device_id` and fills `prev_op_id` when it commits them (`commitBatch`).
  */
-export function registrationPuts(input: { userId: string; companyId: string; registration: Registration }): OpDraft[] {
-  const { userId, companyId, registration } = input;
-  const fields: ReadonlyArray<readonly [string, string]> = [
-    ['council', registration.council],
-    ['registration_number', registration.registrationNumber],
-    ['title', registration.title],
+export function registrationPuts(input: {
+  userId: string;
+  companyId: string;
+  registration: Registration;
+  /** What the device shows now; a field equal to it is not written, so a save with no change commits nothing. */
+  current?: RegistrationRowSource | null;
+}): OpDraft[] {
+  const { userId, companyId, registration, current } = input;
+  const fields: ReadonlyArray<readonly [string, string, string | null | undefined]> = [
+    ['council', registration.council, current?.council],
+    ['registration_number', registration.registrationNumber, current?.registrationNumber],
+    ['title', registration.title, current?.title],
   ];
-  return fields.map(([field, value]) => ({
+  return fields.filter(([, value, now]) => current == null || value !== now).map(([field, value]) => ({
     kind: 'put',
     scope: 'company',
     company_id: companyId,

@@ -111,6 +111,19 @@ describe('registration as user ops (retro A2)', () => {
     }
   });
 
+  it('writes only the fields that differ from what the device shows, and nothing for an unchanged save', () => {
+    const registration = { council: 'crea' as const, registrationNumber: 'SP 2', title: 'Eng. Eletricista' };
+    const changed = registrationPuts({ userId: USER, companyId: COMPANY, registration, current: registrationOfUserRow(row) });
+    expect(changed.map((p) => p.path)).toEqual([`user/${USER}/registration_number`]);
+    const same = registrationPuts({
+      userId: USER,
+      companyId: COMPANY,
+      registration: { council: 'crea', registrationNumber: 'SP 1', title: 'Eng. Eletricista' },
+      current: registrationOfUserRow(row),
+    });
+    expect(same).toEqual([]);
+  });
+
   it('round-trips through applyOp into the kernel user row, and reads back as the row text source', () => {
     let state: EntityState = new Map([[entityKey('user', USER), row]]);
     let n = 0;

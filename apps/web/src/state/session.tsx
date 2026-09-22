@@ -1,4 +1,4 @@
-import { registrationPuts, type Registration, type UserProfile } from '@app/domain';
+import { registrationOfUserRow, registrationPuts, type Registration, type UserProfile } from '@app/domain';
 import {
   createContext,
   useCallback,
@@ -13,6 +13,7 @@ import * as authClient from '../api/auth-client.ts';
 import { now } from '../clock.ts';
 import { commitBatch } from '../db/commit.ts';
 import { readRecoveryNotice, writeRecoveryNotice } from '../db/prefs.ts';
+import { localUser } from '../db/sync-store.ts';
 import { databaseName, openDatabase, type AppDatabase } from '../db/schema.ts';
 import { newId } from '../ids.ts';
 import {
@@ -241,10 +242,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     async (registration: Registration) => {
       const db = databaseRef.current;
       if (db === null || user === null) throw new Error('no device database to commit the registration to');
-      await commitBatch(db, registrationPuts({ userId: user.id, companyId: user.companyId, registration }), {
-        newId,
-        now,
+      // Only the fields that changed from what Account shows (the kernel row, or the
+      // profile until the pull brings it) are written; an unchanged save commits nothing.
+      const row = await localUser(db, user.id);
+      const puts = registrationPuts({
+        userId: user.id,
+        companyId: user.companyId,
+        registration,
+        current: row === null ? user : registrationOfUserRow(row),
       });
+      if (puts.length > 0) await commitBatch(db, puts, { newId, now });
       // Optimistic, same shape as the server's profile: until the company pull brings the
       // user row, the Account row and the next offline boot read these values.
       const updated: UserProfile = {

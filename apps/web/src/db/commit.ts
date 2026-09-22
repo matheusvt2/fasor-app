@@ -101,10 +101,38 @@ export async function commitOps(
   return stamped;
 }
 
+const byClientTsThenOpId = (a: OutboxRow, b: OutboxRow) =>
+  a.client_ts < b.client_ts ? -1 : a.client_ts > b.client_ts ? 1 : a.op_id < b.op_id ? -1 : a.op_id > b.op_id ? 1 : 0;
+
+/**
+ * AD-3's `prev_op_id`: the last op this device applied on the op's path, or null when
+ * none. The device's own ops the server log does not hold yet (pending, sent, or acked but
+ * not pulled back) were applied on top of that log, so the newest of them wins; otherwise
+ * the pulled op with the highest `seq`. Dead ops were never applied (AD-24). Like the
+ * server's check, an op that names a relatorio compares only ops of that relatorio, since
+ * the implicit-relatorio families share one path string.
+ */
+export async function lastAppliedOpId(db: AppDatabase, op: Op): Promise<string | null> {
+  const sameSlot = (other: { path: string; relatorio_id?: string | null }) =>
+    other.path === op.path && (!op.relatorio_id || other.relatorio_id === op.relatorio_id);
+  const key = targetKeysOf(op)[0];
+  const remote = key === undefined ? [] : (await db.remote_ops.where('targets').equals(key).toArray()).filter(sameSlot);
+  const pulled = new Set(remote.map((row) => row.op_id));
+  const local = (await db.outbox.where('path').equals(op.path).toArray()).filter(
+    (row) => row.status !== 'dead' && sameSlot(row) && !pulled.has(row.op_id),
+  );
+  if (local.length > 0) return local.sort(byClientTsThenOpId).at(-1)!.op_id;
+  if (remote.length > 0) return remote.sort((a, b) => a.seq - b.seq).at(-1)!.op_id;
+  return null;
+}
+
 /**
  * FR-32: N changes as one batch sharing a `batch_id` minted here. Every op carries this
  * device's minted id (AD-3): callers never choose `device_id`, and one passed anyway at
- * runtime is overwritten.
+ * runtime is overwritten. A put or remove the caller left without `prev_op_id` gets the
+ * last op this device applied on its path (`lastAppliedOpId`, or the earlier op of this
+ * batch on the same path), so the server reports `superseded` only when another device
+ * really wrote in between (AD-24).
  */
 export async function commitBatch(
   db: AppDatabase,
@@ -114,7 +142,18 @@ export async function commitBatch(
   const device_id = await deviceId(db, deps.newId);
   const batch_id = deps.newId();
   const now = deps.now();
-  const ops = inputs.map((input) => makeOp({ ...input, batch_id, device_id }, { newId: deps.newId, now }));
+  const built = inputs.map((input) => makeOp({ ...input, batch_id, device_id }, { newId: deps.newId, now }));
+  const ops: Op[] = [];
+  const lastInBatch = new Map<string, string>();
+  for (const op of built) {
+    const slot = `${op.relatorio_id ?? ''}|${op.path}`;
+    const chained =
+      op.kind === 'create' || op.prev_op_id != null
+        ? op
+        : { ...op, prev_op_id: lastInBatch.get(slot) ?? (await lastAppliedOpId(db, op)) };
+    lastInBatch.set(slot, chained.op_id);
+    ops.push(chained);
+  }
   return { batch_id, ops: await commitOps(db, ops, deps) };
 }
 

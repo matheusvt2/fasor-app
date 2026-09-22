@@ -22,6 +22,7 @@ import {
 import { describe, expect, it } from 'vitest';
 import { commitBatch, commitOps, oldestPendingClientTs, undoBatch } from './commit.ts';
 import { openDatabase, type AppDatabase } from './schema.ts';
+import { applyPulled } from './sync-store.ts';
 import { toSnapshot } from './snapshot.ts';
 
 let userCounter = 0;
@@ -269,6 +270,28 @@ describe('batch and undo', () => {
     const rows = await db.outbox.where('batch_id').anyOf([first.batch_id, second.batch_id]).toArray();
     expect(rows.length).toBeGreaterThan(0);
     for (const row of rows) expect(row.device_id).toBe(minted);
+    db.close();
+  });
+
+  it('fills prev_op_id with the last op this device applied on the path (AD-3)', async () => {
+    const db = await freshDb();
+    const d = deps();
+    // Nothing on the path yet, then the earlier op of the same batch.
+    const first = await commitBatch(db, [put(FIELD, 'a'), put(FIELD, 'b')], d);
+    expect(first.ops[0]!.prev_op_id).toBeNull();
+    expect(first.ops[1]!.prev_op_id).toBe(first.ops[0]!.op_id);
+    // The device's own op the server has not sent back yet.
+    const second = await commitBatch(db, [put(FIELD, 'c')], d);
+    expect(second.ops[0]!.prev_op_id).toBe(first.ops[1]!.op_id);
+    // A pulled op on a path this device never wrote.
+    const ORDER = `block/${BLOCK_1_ID}/order_key`;
+    const pulled = { ...makeOp({ ...put(ORDER, 'a5'), device_id: 'other-tablet' }, { newId: d.newId, now: d.now() }), seq: 7 };
+    await applyPulled(db, [pulled]);
+    const third = await commitBatch(db, [put(ORDER, 'a6')], d);
+    expect(third.ops[0]!.prev_op_id).toBe(pulled.op_id);
+    // A caller that sets it keeps its own value.
+    const fourth = await commitBatch(db, [put(ORDER, 'a7', { prev_op_id: pulled.op_id })], d);
+    expect(fourth.ops[0]!.prev_op_id).toBe(pulled.op_id);
     db.close();
   });
 

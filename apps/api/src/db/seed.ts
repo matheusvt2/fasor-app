@@ -74,15 +74,14 @@ async function dropLegacyUser(db: Db, companyId: CompanyId, userId: string): Pro
   });
 }
 
-/** The identity-owned and registration fields a re-seed keeps in step with the input. */
-const RESEEDED_FIELDS = ['name', 'council', 'registration_number', 'title'] as const;
-
 /**
  * Projects one identity user into the company stream. The first run applies one
- * `user/{id}` create; a later run (a re-seed) applies one `put` per field whose value the
- * input changed, so the entity stays the only home of the registration. Every op is a
- * server op (`system:identity`, device `server`) with a fresh id; a second create racing
- * the first is a no-op (AD-3).
+ * `user/{id}` create, whose registration fields are the user's initial values. A later
+ * run (a re-seed, which is also the password reset) puts only the identity-owned `name`,
+ * and only when it changed: after the first projection the registration belongs to the
+ * user, who edits it through their own ops, so a re-seed never writes it back. Every op
+ * is a server op (`system:identity`, device `server`) with a fresh id; a second create
+ * racing the first is a no-op (AD-3).
  */
 async function projectUser(db: Db, companyId: CompanyId, row: UserRow): Promise<void> {
   const [existing] = await db
@@ -107,9 +106,8 @@ async function projectUser(db: Db, companyId: CompanyId, row: UserRow): Promise<
     ops.push({ ...envelope, op_id: newId(), kind: 'create', path: `user/${row.id}`, value: row });
   } else {
     const current = existing.row as Partial<UserRow>;
-    for (const field of RESEEDED_FIELDS) {
-      if (current[field] === row[field]) continue;
-      ops.push({ ...envelope, op_id: newId(), kind: 'put', path: `user/${row.id}/${field}`, value: row[field] });
+    if (current.name !== row.name) {
+      ops.push({ ...envelope, op_id: newId(), kind: 'put', path: `user/${row.id}/name`, value: row.name });
     }
   }
   if (ops.length === 0) return;
@@ -122,7 +120,8 @@ async function projectUser(db: Db, companyId: CompanyId, row: UserRow): Promise<
  * Creates or updates one company and one user with an email+password account, and
  * projects the user into the company stream. Idempotent: running it twice with the same
  * input leaves one company row, one user row and one `user/{id}` create; a re-seed with
- * a changed name or registration adds one put per changed field.
+ * a changed name adds one `name` put. The registration fields of the input seed only a new
+ * user's initial values.
  */
 export async function seedUser(
   db: Db,

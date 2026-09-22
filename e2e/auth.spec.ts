@@ -310,13 +310,13 @@ test('@p0 1.3-E2E-003b offline, Salvar commits the registration on the device an
   // The row re-reads the device at once.
   await expect(row).toHaveText('CRT SP 8888 · Técnico em Eletrotécnica Sênior');
 
-  // Three user ops wait in the outbox, stamped with this device's id.
+  // One user op per changed field waits in the outbox (the council did not change), stamped
+  // with this device's id.
   const waiting = (
     await readStore<{ path: string; value: unknown; status: string; device_id: string }>(page, database, 'outbox')
   ).filter((r) => r.path.startsWith(`user/${user.userId}/`));
   expect(waiting.map((r) => [r.path, r.value]).sort()).toEqual(
     [
-      [`user/${user.userId}/council`, 'crt'],
       [`user/${user.userId}/registration_number`, 'SP 8888'],
       [`user/${user.userId}/title`, 'Técnico em Eletrotécnica Sênior'],
     ].sort(),
@@ -344,6 +344,9 @@ test('@p0 1.3-E2E-003b offline, Salvar commits the registration on the device an
   await restore.getByRole('button', { name: 'Salvar' }).click();
   await expect(row).toHaveText(seededRow);
   await syncNow(page);
+  // Two saves from this device, each chained to its own previous op (AD-3 prev_op_id):
+  // the server merged nothing, so Sync status shows no "mescladas" row.
+  await expect(page.getByTestId('sync-superseded-row')).toHaveCount(0);
   await expect
     .poll(async () => (await (await page.request.get('/api/account')).json()).user, { timeout: 20_000 })
     .toMatchObject({ registrationNumber: user.registrationNumber, title: 'Técnico(a) em Eletrotécnica' });

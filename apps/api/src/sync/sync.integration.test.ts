@@ -6,6 +6,7 @@ import {
   makeOp,
   syncPullResponseSchema,
   syncPushResponseSchema,
+  userRowSchema,
   type Op,
   type OpInput,
   type SyncPullResponse,
@@ -18,6 +19,8 @@ import { parseTrustedOrigins } from '../auth/trusted-origins.ts';
 import { now } from '../clock.ts';
 import { loadConfig } from '../config.ts';
 import { createDb } from '../db/client.ts';
+import { asCompanyId } from '../db/repositories/company-id.ts';
+import { findUserProfile } from '../db/repositories/users.ts';
 import { seedTestCompanies, TEST_SEED } from '../db/seed.ts';
 import { entities, ops, syncDevicePush } from '../db/schema.ts';
 import { newId } from '../ids.ts';
@@ -611,6 +614,34 @@ describe('the registration as user ops (retro A2)', () => {
     expect(b).toMatchObject({ id: companyB.userId, companyId: companyB.companyId, email: companyB.email });
     expect(b.id).not.toBe(companyA.userId);
     expect(b.companyId).not.toBe(companyA.companyId);
+
+    // The repository never answers company B's user under company A.
+    expect(await findUserProfile(db, asCompanyId(companyA.companyId), companyB.userId)).toBeUndefined();
+
+    // A user row with B's id planted under company A is never composed into B's profile:
+    // the registration comes from B's own tenant.
+    const planted = {
+      id: companyB.userId,
+      name: 'Plantado',
+      email: companyB.email,
+      council: 'crea',
+      registration_number: 'SP PLANTADO',
+      title: 'Plantado',
+      photo_location_enabled: false,
+    };
+    await db
+      .insert(entities)
+      .values({ company_id: companyA.companyId, entity: 'user', id: companyB.userId, row: userRowSchema.parse(planted), updated_seq: 0 });
+    try {
+      const again = await account(companyB);
+      expect(again.registrationNumber).toBe(b.registrationNumber);
+      expect(again.registrationNumber).not.toBe('SP PLANTADO');
+      expect(await findUserProfile(db, asCompanyId(companyA.companyId), companyB.userId)).toBeUndefined();
+    } finally {
+      await db
+        .delete(entities)
+        .where(and(eq(entities.company_id, companyA.companyId), eq(entities.entity, 'user'), eq(entities.id, companyB.userId)));
+    }
   });
 
   it('the old registration write route is gone', async () => {
@@ -629,6 +660,8 @@ describe('1.5-API-005 contract skew', () => {
       expect(res.status).toBe(426);
       expect(errorResponseSchema.parse(await res.json()).code).toBe('contract_outdated');
     }
+    // A version-1 bundle cannot parse the `user/{id}` creates the company stream carries.
+    expect((await pull(companyA, '/api/sync/company?since=0', '1')).status).toBe(426);
     const missing = await pull(companyA, '/api/sync/company?since=0', null);
     expect(missing.status).toBe(426);
     expect(errorResponseSchema.parse(await missing.json()).code).toBe('contract_outdated');
