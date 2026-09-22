@@ -97,6 +97,70 @@ services:
       install: { condition: service_completed_successfully }
       api: { condition: service_started }
 
+  # One-shot: generates the local CA + a leaf cert for $TABLET_HOST under
+  # ./certs, which Caddy below mounts. No `image:` tag, so this never
+  # collides with another worktree's compose project.
+  mkcert:
+    build: ./docker/mkcert
+    environment:
+      TABLET_HOST: ${TABLET_HOST:-localhost}
+    volumes:
+      - ./certs:/certs
+
+  # Always-on TLS termination for tablets on the LAN: one secure-context
+  # origin serving web + /api/* from the api container, no CORS.
+  caddy:
+    image: caddy:2-alpine
+    environment:
+      TABLET_HOST: ${TABLET_HOST:-localhost}
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./certs:/certs:ro
+    ports:
+      - '${CADDY_HTTP_PORT:-80}:80'
+      - '${CADDY_HTTPS_PORT:-443}:443'
+    depends_on:
+      mkcert: { condition: service_completed_successfully }
+      api: { condition: service_started }
+
+  # `prod` profile only -- forward-only Drizzle migrations as a one-shot
+  # container before the prod api starts. `api-prod` below depends on this
+  # completing successfully; both are `profiles: ['prod']`-only, so this
+  # never affects the unprofiled default services.
+  migrate:
+    profiles: ['prod']
+    build: ./apps/api
+    <<: *workspace
+    environment: *app-env
+    command: pnpm --filter @app/api run migrate
+    depends_on:
+      install: { condition: service_completed_successfully }
+      postgres: { condition: service_healthy }
+
+  # `prod` profile only -- approximates the future cloud image: serves the
+  # built web bundle + /api/* from one container, JSON logs to stdout.
+  # Reuses the bind-mounted dev image/workspace (no separate COPY-based
+  # build stage needed); requires `pnpm --filter @app/web build` to have
+  # run first so `apps/web/dist` exists.
+  api-prod:
+    profiles: ['prod']
+    build: ./apps/api
+    <<: *workspace
+    environment: *app-env
+    command: pnpm --filter @app/api start
+    ports:
+      - '127.0.0.1:${API_PROD_PORT:-3001}:3000'
+    depends_on:
+      install: { condition: service_completed_successfully }
+      postgres: { condition: service_healthy }
+      minio: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
   # Runs the merge gate: docker compose run --rm tools pnpm verify
   tools:
     profiles: ['tools']

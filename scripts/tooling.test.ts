@@ -44,6 +44,19 @@ describe('fetch-location lint rule', () => {
   });
 });
 
+describe('store-boundary lint rule', () => {
+  it('fails a dexie import outside src/db and keeps the api ban there', async () => {
+    expect(await violations('apps/web/src/surfaces/probe.ts', "import Dexie from 'dexie';\nexport { Dexie };\n")).toContain('no-restricted-imports');
+    expect(await violations('apps/web/src/state/probe.ts', "import { useLiveQuery } from 'dexie-react-hooks';\nexport { useLiveQuery };\n")).toContain('no-restricted-imports');
+    expect(await violations('apps/web/src/state/probe.ts', "import x from '@app/api';\nexport { x };\n")).toContain('no-restricted-imports');
+  });
+
+  it('passes a dexie import inside src/db', async () => {
+    expect(await violations('apps/web/src/db/probe.ts', "import Dexie from 'dexie';\nexport { Dexie };\n")).toEqual([]);
+    expect(await violations('apps/web/src/db/probe.ts', "import { useLiveQuery } from 'dexie-react-hooks';\nexport { useLiveQuery };\n")).toEqual([]);
+  });
+});
+
 describe('test-reset guard', () => {
   it('refuses outside docker-compose', () => {
     expect(() => assertInCompose({}, () => true)).toThrow(/docker-compose/);

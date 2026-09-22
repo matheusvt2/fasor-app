@@ -11,6 +11,7 @@
     "test:api": "pnpm --filter @app/api run test:fast",
     "test:e2e": "playwright test --grep @p0",
     "test:reset": "tsx scripts/test-reset.ts",
+    "build:image": "bash scripts/build-tagged-image.sh",
     "verify": "pnpm lint && pnpm static && pnpm test:unit && pnpm test:api && pnpm test:e2e"
   },
   "devDependencies": {

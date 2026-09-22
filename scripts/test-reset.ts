@@ -7,8 +7,8 @@ import {
 } from '@aws-sdk/client-s3';
 import postgres from 'postgres';
 
-/** Company-scoped tables holding ops, files, jobs and revisions. Missing tables are skipped. */
-const TABLES = ['ops', 'files', 'revisions', 'generation_jobs', 'reading_runs'];
+/** Company-scoped tables holding ops, materialized entities, files, jobs and revisions. Missing tables are skipped. */
+const TABLES = ['ops', 'entities', 'files', 'revisions', 'generation_jobs', 'reading_runs'];
 
 export function assertInCompose(
   env: Record<string, string | undefined> = process.env,
