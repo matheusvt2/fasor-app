@@ -159,7 +159,38 @@ function clientCreate(ids: Ids, clientId: string): Op {
     kind: 'create',
     scope: 'company',
     path: `registry/client/${clientId}`,
-    value: { id: clientId, kind: 'client', name: 'Cliente de Teste', cnpj: null, address: null, removed_at: null },
+    value: {
+      id: clientId,
+      kind: 'client',
+      name: 'Cliente de Teste',
+      cnpj: null,
+      contact_name: null,
+      contact_phone: null,
+      sites: [],
+      removed_at: null,
+    },
+  });
+}
+
+/** Story 2.5: a manufacturer row, minimal but schema-valid (`registryRowSchemas.manufacturer`). */
+function manufacturerCreate(ids: Ids, manufacturerId: string, name: string): Op {
+  written.entityIds.add(manufacturerId);
+  return op(ids, {
+    kind: 'create',
+    scope: 'company',
+    path: `registry/manufacturer/${manufacturerId}`,
+    value: { id: manufacturerId, kind: 'manufacturer', name, gender: null, number: null, removed_at: null },
+  });
+}
+
+/** Story 2.5: a voltage_class row, minimal but schema-valid (`registryRowSchemas.voltage_class`). */
+function voltageClassCreate(ids: Ids, voltageClassId: string, name: string): Op {
+  written.entityIds.add(voltageClassId);
+  return op(ids, {
+    kind: 'create',
+    scope: 'company',
+    path: `registry/voltage_class/${voltageClassId}`,
+    value: { id: voltageClassId, kind: 'voltage_class', name, gender: null, number: null, removed_at: null },
   });
 }
 
@@ -569,6 +600,65 @@ describe('1.5-API-004 pulls', () => {
     const res = await pull(companyA, '/api/sync/company?since=-3');
     expect(res.status).toBe(400);
     expect(errorResponseSchema.parse(await res.json()).code).toBe('sync_batch_invalid');
+  });
+});
+
+describe('2.5-API-004 manufacturer/voltage_class normalized-name merge', () => {
+  it('materializes exactly one live manufacturer when two devices create near-duplicate names offline', async () => {
+    const id1 = newId();
+    const id2 = newId();
+    const first = await pushOk(companyA, [manufacturerCreate(idsA, id1, 'Schneider')]);
+    expect(first.rejected).toEqual([]);
+    const idsA2: Ids = { company: companyA.companyId, actor: companyA.userId, device: 'tablet-test-a2' };
+    const second = await pushOk(companyA, [manufacturerCreate(idsA2, id2, 'SCHNEIDER')]);
+    // Neither op is rejected: the second op is applied, merged onto the first's row (AC4).
+    expect(second.rejected).toEqual([]);
+
+    const rows = await db
+      .select({ id: entities.id, removed_at: entities.removed_at, row: entities.row })
+      .from(entities)
+      .where(and(eq(entities.company_id, companyA.companyId), eq(entities.entity, 'registry'), inArray(entities.id, [id1, id2])));
+    const live = rows.filter((r) => r.removed_at === null && (r.row as { kind: string }).kind === 'manufacturer');
+    expect(live).toHaveLength(1);
+  });
+
+  it('materializes exactly one live voltage_class the same way', async () => {
+    const id1 = newId();
+    const id2 = newId();
+    await pushOk(companyA, [voltageClassCreate(idsA, id1, '13.8 kV')]);
+    await pushOk(companyA, [voltageClassCreate(idsA, id2, '13.8 KV')]);
+
+    const rows = await db
+      .select({ id: entities.id, removed_at: entities.removed_at, row: entities.row })
+      .from(entities)
+      .where(and(eq(entities.company_id, companyA.companyId), eq(entities.entity, 'registry'), inArray(entities.id, [id1, id2])));
+    const live = rows.filter((r) => r.removed_at === null && (r.row as { kind: string }).kind === 'voltage_class');
+    expect(live).toHaveLength(1);
+  });
+
+  it('redirects a put on the same locally-minted id when it merges earlier in the same request', async () => {
+    // The normal flow: name commits as create, gender/number as separate puts in the same
+    // batch, right after. If the create's redirect onto another device's existing row isn't
+    // carried to the later put in this request, the put resolves against the now-missing
+    // local id and `applyOp` silently no-ops it (AD-3) instead of landing on the merged row.
+    const existingId = newId();
+    await pushOk(companyA, [manufacturerCreate(idsA, existingId, 'Siemens')]);
+
+    const localId = newId();
+    written.entityIds.add(localId);
+    const create = manufacturerCreate(idsA, localId, 'SIEMENS');
+    const put = op(idsA, { kind: 'put', scope: 'company', path: `registry/manufacturer/${localId}/gender`, value: 'm' });
+    const result = await pushOk(companyA, [create, put]);
+    expect(result.rejected).toEqual([]);
+
+    const rows = await db
+      .select({ id: entities.id, removed_at: entities.removed_at, row: entities.row })
+      .from(entities)
+      .where(and(eq(entities.company_id, companyA.companyId), eq(entities.entity, 'registry'), inArray(entities.id, [existingId, localId])));
+    const live = rows.filter((r) => r.removed_at === null && (r.row as { kind: string }).kind === 'manufacturer');
+    expect(live).toHaveLength(1);
+    expect(live[0]?.id).toBe(existingId);
+    expect((live[0]?.row as { gender: string | null }).gender).toBe('m');
   });
 });
 

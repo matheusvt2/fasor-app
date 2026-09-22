@@ -42,3 +42,6 @@ export type { TabsProps, TabItem } from './tabs.tsx';
 
 export { Combobox } from './combobox.tsx';
 export type { ComboboxProps, ComboboxOption } from './combobox.tsx';
+
+export { RegistryPickerField } from './registry-picker-field.tsx';
+export type { RegistryPickerFieldProps } from './registry-picker-field.tsx';
