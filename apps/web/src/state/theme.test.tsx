@@ -90,8 +90,13 @@ describe('ThemeProvider', () => {
     database = await freshDb();
     await writeTheme(database, 'dark');
     renderTheme();
-    await waitFor(() => expect(document.documentElement.getAttribute('data-theme')).toBe('dark'));
-    expect(screen.getByTestId('theme')).toHaveTextContent('dark');
+    // Both assertions sit inside the same `waitFor`: `applyTheme` writes the attribute
+    // synchronously inside the `.then()`, before React flushes `setThemeState`, so an
+    // assertion on the rendered value outside the wait is a race.
+    await waitFor(() => {
+      expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+      expect(screen.getByTestId('theme')).toHaveTextContent('dark');
+    });
   });
 
   it('falls back to "system" for a value it cannot parse', async () => {

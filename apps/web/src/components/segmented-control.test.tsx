@@ -63,6 +63,20 @@ describe('SegmentedControl', () => {
     expect(screen.getByRole('radio', { name: 'Escuro' })).toHaveAttribute('aria-checked', 'true');
   });
 
+  it('gives the tab stop to the checked segment and takes it back on a change', async () => {
+    const { rerender } = render(
+      <SegmentedControl value="dark" onChange={vi.fn()} options={THEME_OPTIONS} aria-label="Tema" />,
+    );
+    // Roving tabindex (APG radiogroup): Tab reaches the checked segment and no other.
+    expect(screen.getByRole('radio', { name: 'Escuro' })).toHaveAttribute('tabindex', '0');
+    expect(screen.getByRole('radio', { name: 'Sistema' })).toHaveAttribute('tabindex', '-1');
+    expect(screen.getByRole('radio', { name: 'Claro' })).toHaveAttribute('tabindex', '-1');
+
+    rerender(<SegmentedControl value="light" onChange={vi.fn()} options={THEME_OPTIONS} aria-label="Tema" />);
+    expect(screen.getByRole('radio', { name: 'Claro' })).toHaveAttribute('tabindex', '0');
+    expect(screen.getByRole('radio', { name: 'Escuro' })).toHaveAttribute('tabindex', '-1');
+  });
+
   it('keeps the choice when focus leaves the group and comes back', async () => {
     const onChange = vi.fn();
     render(<Controlled onChange={onChange} withNeighbour />);
@@ -70,26 +84,79 @@ describe('SegmentedControl', () => {
     await userEvent.click(screen.getByRole('radio', { name: 'Escuro' }));
     expect(onChange).toHaveBeenCalledTimes(1);
 
-    // Tab away and shift-tab back: wherever React Aria parks the roving tab stop,
-    // arriving by focus must not rewrite the preference.
+    // Tab away and shift-tab back: the tab stop is the checked segment, and arriving by
+    // focus must not rewrite the preference.
     await userEvent.tab();
     expect(screen.getByTestId('depois')).toHaveFocus();
     await userEvent.tab({ shift: true });
+    expect(screen.getByRole('radio', { name: 'Escuro' })).toHaveFocus();
 
     expect(screen.getByRole('radio', { name: 'Escuro' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('radio', { name: 'Sistema' })).toHaveAttribute('aria-checked', 'false');
     expect(onChange).toHaveBeenCalledTimes(1);
   });
 
-  it('moves the selection with the arrow keys', async () => {
+  it('moves focus and selection together with the arrow keys, wrapping at the ends', async () => {
     render(<Controlled />);
     await userEvent.tab();
     expect(screen.getByRole('radio', { name: 'Sistema' })).toHaveFocus();
     await userEvent.keyboard('{ArrowRight}');
     expect(screen.getByRole('radio', { name: 'Claro' })).toHaveFocus();
-    await userEvent.keyboard('{ArrowRight}');
+    await userEvent.keyboard('{ArrowDown}');
     expect(screen.getByRole('radio', { name: 'Escuro' })).toHaveFocus();
     expect(screen.getByRole('radio', { name: 'Escuro' })).toHaveAttribute('aria-checked', 'true');
+    // Past the last segment the selection wraps to the first, as a radiogroup does.
+    await userEvent.keyboard('{ArrowRight}');
+    expect(screen.getByRole('radio', { name: 'Sistema' })).toHaveFocus();
+    expect(screen.getByRole('radio', { name: 'Sistema' })).toHaveAttribute('aria-checked', 'true');
+    await userEvent.keyboard('{ArrowUp}');
+    expect(screen.getByRole('radio', { name: 'Escuro' })).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('Home and End move focus and selection to the ends, never to the focused segment alone', async () => {
+    const onChange = vi.fn();
+    render(<Controlled onChange={onChange} />);
+    await userEvent.tab();
+    expect(screen.getByRole('radio', { name: 'Sistema' })).toHaveFocus();
+
+    await userEvent.keyboard('{End}');
+    expect(screen.getByRole('radio', { name: 'Escuro' })).toHaveFocus();
+    expect(screen.getByRole('radio', { name: 'Escuro' })).toHaveAttribute('aria-checked', 'true');
+
+    await userEvent.keyboard('{Home}');
+    expect(screen.getByRole('radio', { name: 'Sistema' })).toHaveFocus();
+    expect(screen.getByRole('radio', { name: 'Sistema' })).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('does not commit a key that moved no focus', async () => {
+    const onChange = vi.fn();
+    render(<Controlled onChange={onChange} />);
+    // "Escuro" chosen, then focus parked on it by the roving tab stop.
+    await userEvent.click(screen.getByRole('radio', { name: 'Escuro' }));
+    onChange.mockClear();
+
+    // The regression this guards: Home, End, ArrowUp and ArrowDown used to commit the
+    // segment that happened to hold focus, because the commit hung off a keyup whether
+    // or not the key had moved anything.
+    for (const key of ['{Escape}', '{Shift}', 'a', '{PageDown}']) {
+      await userEvent.keyboard(key);
+      expect(onChange).not.toHaveBeenCalled();
+    }
+    expect(screen.getByRole('radio', { name: 'Escuro' })).toHaveAttribute('aria-checked', 'true');
+  });
+
+  it('selects the focused segment with Space and with Enter', async () => {
+    const onChange = vi.fn();
+    render(<Controlled onChange={onChange} />);
+    await userEvent.tab();
+    await userEvent.keyboard('{ArrowRight}');
+    onChange.mockClear();
+    // Focus is on "Claro" and it is already checked, so Space and Enter are no-ops that
+    // must not throw or double-commit.
+    await userEvent.keyboard(' ');
+    await userEvent.keyboard('{Enter}');
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('radio', { name: 'Claro' })).toHaveAttribute('aria-checked', 'true');
   });
 
   it('has no axe violations in either state', async () => {

@@ -78,16 +78,22 @@ describe('BannerSlot', () => {
     );
     expect(document.querySelectorAll('.banner-slot > .banner')).toHaveLength(1);
     expect(document.querySelector('.banner')).toHaveAttribute('data-banner', 're-auth');
-    const more = screen.getByRole('button', { name: 'Outras condições — abrir status de sincronização' });
+    // WCAG 2.5.3: the accessible name begins with the visible "+1".
+    const more = screen.getByRole('button', { name: '+1, outras condições — abrir status de sincronização' });
     expect(more).toHaveClass('banner-more');
     expect(more).toHaveTextContent('+1');
     await userEvent.click(more);
     expect(onOpenSync).toHaveBeenCalledTimes(1);
   });
 
-  it('has no chip with a single candidate', () => {
+  it('has no chip with a single candidate, and the region is named by its own text', () => {
     render(<BannerSlot banners={[banner('re-auth')]} onOpenSync={vi.fn()} />);
     expect(document.querySelector('.banner-more')).toBeNull();
+    // Named through `aria-labelledby` on the visible sentence, never by a copy of it
+    // in an `aria-label` that would replace what the region shows.
+    const region = screen.getByRole('region');
+    expect(region).not.toHaveAttribute('aria-label');
+    expect(region).toHaveAccessibleName('re-auth');
   });
 
   it('renders nothing when there is no candidate', () => {

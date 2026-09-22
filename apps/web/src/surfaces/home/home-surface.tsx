@@ -88,15 +88,12 @@ export function HomeSurface() {
     [relatorios, sync.summaryRelatorios, projects, clients, templates, syncStates, outbox, sync.online],
   );
 
-  // The board counts every relatório the device knows of, whatever the tile filter says.
-  // The filtered list is derived from that one result: `homeCards` rebuilds every lookup
-  // map on each call, and the filter only ever narrows what it already returned.
+  // The board counts every relatório the device knows of, whatever the tile filter says;
+  // the list below is the same call with the filter, because AD-2 puts the ordering and
+  // the filtering in the kernel and not in this component.
   const allCards = useMemo(() => homeCards({ ...base, filter: null }), [base]);
   const counts = useMemo(() => statusBoardCounts(allCards), [allCards]);
-  const cards = useMemo(
-    () => (filter === null ? allCards : allCards.filter((card) => card.status === filter)),
-    [allCards, filter],
-  );
+  const cards = useMemo(() => homeCards({ ...base, filter }), [base, filter]);
 
   // Cold open with a session and no connection: the one sentence EXPERIENCE.md asks for,
   // once for this page session — not again after navigating away and back.

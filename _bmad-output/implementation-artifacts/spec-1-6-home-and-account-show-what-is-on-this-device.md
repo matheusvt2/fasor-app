@@ -56,13 +56,15 @@ deferred:
       Apply the stored theme before the first paint instead of after the user database opens.
     evidence: |-
       `local_prefs` is the per-user Dexie store the acceptance criteria name, so `ThemeProvider`
-      can only read it once the session resolves: a user on "Escuro" sees one light frame on
-      every cold open. The choice applies with no reload and survives a reload, which is what
-      the AC requires, so this is a polish item, not a defect. A pre-paint theme needs a
-      synchronous per-device store (a `localStorage` mirror or an inline boot script), which
-      this story's Boundaries excluded; the natural moment is Story 1.8's boot work.
+      can only read it once the session resolves: a user on "Escuro" sees a light frame on
+      every cold open. Measured in the independent review of PR #7 at 121-145 ms of the wrong
+      palette before `data-theme` is applied. The choice applies with no reload and survives a
+      reload, which is what the AC requires, so this is a polish item, not a defect. The
+      smallest fix is a `localStorage` mirror written by `writeTheme` plus a blocking inline
+      script in `index.html` that applies it before first paint; this story's Boundaries
+      excluded a `localStorage` mirror, so the natural moment is Story 1.8's boot work.
     location: >-
-      apps/web/src/state/theme.tsx; apps/web/src/app.tsx (RequireSession)
+      apps/web/src/state/theme.tsx; apps/web/src/app.tsx (RequireSession); apps/web/index.html
     severity: low
   - summary: >-
       Publish the remaining five banner kinds as their conditions become real.

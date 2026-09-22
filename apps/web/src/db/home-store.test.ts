@@ -2,15 +2,8 @@ import 'fake-indexeddb/auto';
 import type { RelatorioRow } from '@app/domain';
 import { describe, expect, it } from 'vitest';
 import { toRecord } from './commit.ts';
-import {
-  clientRows,
-  companySummaryRelatorios,
-  originalFileCount,
-  projectRows,
-  relatorioRows,
-  templateRows,
-} from './home-store.ts';
-import { COMPANY_STREAM, openDatabase, type AppDatabase } from './schema.ts';
+import { clientRows, originalFileCount, projectRows, relatorioRows, templateRows } from './home-store.ts';
+import { openDatabase, type AppDatabase } from './schema.ts';
 
 let counter = 0;
 async function freshDb(): Promise<AppDatabase> {
@@ -143,22 +136,4 @@ describe('home-store', () => {
     db.close();
   });
 
-  it('reads the company summary from the company sync_state row', async () => {
-    const db = await seeded();
-    expect(await companySummaryRelatorios(db)).toEqual([]);
-    await db.sync_state.put({
-      id: COMPANY_STREAM,
-      cursor_seq: 12,
-      complete: true,
-      files_pending: 0,
-      downloaded_at: null,
-      last_sync_at: null,
-      last_push_at: [],
-      relatorios: [
-        { id: RELATORIO, project_id: PROJECT, status: 'emitido', template_id: TEMPLATE, seed_version: 'v1', updated_seq: 12 },
-      ],
-    });
-    expect((await companySummaryRelatorios(db)).map((r) => r.status)).toEqual(['emitido']);
-    db.close();
-  });
 });

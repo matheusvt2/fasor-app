@@ -1,12 +1,9 @@
-import { ToggleButton, ToggleButtonGroup } from 'react-aria-components';
+import { useRef, type KeyboardEvent } from 'react';
 
 export interface SegmentedOption<Value extends string> {
   value: Value;
   label: string;
 }
-
-/** The keys React Aria's group uses to move focus between segments. */
-const MOVE_KEYS = new Set(['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']);
 
 export interface SegmentedControlProps<Value extends string> {
   value: Value;
@@ -18,16 +15,28 @@ export interface SegmentedControlProps<Value extends string> {
 }
 
 /**
- * A `radiogroup`; arrow keys move between segments and the change applies immediately
- * (Component Patterns › Segmented control) — Account › Tema, "Conselho".
+ * A `radiogroup` whose change applies immediately (Component Patterns › Segmented
+ * control) — Account › Tema, "Conselho".
  *
- * Built on `ToggleButtonGroup` in single-selection mode, which renders each segment as a
- * real `<button role="radio" aria-checked>` — the mock's own markup, and exactly what
- * `components.css`'s `.segmented .seg[aria-checked="true"]` reads, so the selected fill
- * and its `.check` glyph engage with no change to that stylesheet. Story 1.2 built this
- * on `RadioGroup`/`Radio`, whose real state sits on a hidden native `<input>` the
- * selector cannot reach; the test below asserts the attribute on the visible element so
- * that gap cannot come back unnoticed.
+ * This is the mock's markup verbatim: `<div class="segmented" role="radiogroup">` around
+ * `<button class="seg" role="radio" aria-checked>`. The state therefore sits on the
+ * element `components.css` styles (`.segmented .seg[aria-checked="true"]`), so the
+ * selected fill and its `.check` glyph engage with no change to that stylesheet — the
+ * Story 1.2 gap, where React Aria's `RadioGroup` put the state on a hidden native input
+ * the selector could not reach.
+ *
+ * It is hand-rolled rather than built on `ToggleButtonGroup` because that component is a
+ * toolbar, not a radiogroup: it gives every segment `tabindex="0"` instead of a roving
+ * tab stop, and it moves focus only on ArrowLeft/ArrowRight. Committing from a keyup
+ * therefore fired on whatever segment happened to be focused, so Home, End, ArrowUp or
+ * ArrowDown silently changed the choice without focus having moved at all. The keyboard
+ * contract below is the APG radiogroup one, which is what the pattern actually needs:
+ *
+ * - Tab lands on the checked segment and nowhere else in the group (roving tabindex).
+ * - ArrowLeft/ArrowUp and ArrowRight/ArrowDown move focus and selection together, wrapping.
+ * - Home and End move focus and selection to the first and last segment.
+ * - Space and Enter select the focused segment (a `<button>` raises `click` for both).
+ * - No other key changes anything, and focus alone never commits.
  */
 export function SegmentedControl<Value extends string>({
   value,
@@ -35,35 +44,63 @@ export function SegmentedControl<Value extends string>({
   options,
   ...rest
 }: SegmentedControlProps<Value>) {
+  const segments = useRef(new Map<Value, HTMLButtonElement | null>());
+
+  // With a value outside the options nothing would be tabbable, which would trap Tab
+  // before the group; the first segment takes the tab stop until a real choice exists.
+  const selectedIndex = options.findIndex((option) => option.value === value);
+  const tabbableIndex = selectedIndex === -1 ? 0 : selectedIndex;
+
+  function moveTo(index: number) {
+    const target = options[(index + options.length) % options.length];
+    if (target === undefined) return;
+    segments.current.get(target.value)?.focus();
+    if (target.value !== value) onChange(target.value);
+  }
+
+  function onKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    switch (event.key) {
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        event.preventDefault();
+        moveTo(index - 1);
+        return;
+      case 'ArrowRight':
+      case 'ArrowDown':
+        event.preventDefault();
+        moveTo(index + 1);
+        return;
+      case 'Home':
+        event.preventDefault();
+        moveTo(0);
+        return;
+      case 'End':
+        event.preventDefault();
+        moveTo(options.length - 1);
+        return;
+      default:
+        return;
+    }
+  }
+
   return (
-    <ToggleButtonGroup
-      className="segmented"
-      selectionMode="single"
-      disallowEmptySelection
-      selectedKeys={[value]}
-      onSelectionChange={(keys) => {
-        const next = [...keys][0];
-        if (typeof next === 'string' && next !== value) onChange(next as Value);
-      }}
-      {...rest}
-    >
-      {options.map((option) => (
-        <ToggleButton
+    <div className="segmented" role="radiogroup" {...rest}>
+      {options.map((option, index) => (
+        <button
           key={option.value}
-          id={option.value}
+          type="button"
+          role="radio"
+          aria-checked={option.value === value}
+          tabIndex={index === tabbableIndex ? 0 : -1}
           className="seg"
-          // Selection follows the arrow keys, the way a radiogroup behaves: React Aria's
-          // ToggleButtonGroup moves focus with them but leaves selection to a press, and
-          // "the change applies immediately" is the pattern's whole point. The commit
-          // hangs off the keypress, never off focus itself — Tabbing into the group must
-          // not rewrite the choice, and a click must not commit twice (once from focus,
-          // once from `onSelectionChange`). React Aria moves focus on keydown, so the
-          // keyup of a move key lands on the segment that is now focused: this handler
-          // fires on the new selection without duplicating any key logic.
-          onKeyUp={(event) => {
-            if (!MOVE_KEYS.has(event.key)) return;
+          data-value={option.value}
+          ref={(element) => {
+            segments.current.set(option.value, element);
+          }}
+          onClick={() => {
             if (option.value !== value) onChange(option.value);
           }}
+          onKeyDown={(event) => onKeyDown(event, index)}
         >
           <svg className="ico check" viewBox="0 0 24 24" aria-hidden="true">
             <polyline
@@ -76,8 +113,8 @@ export function SegmentedControl<Value extends string>({
             />
           </svg>
           {option.label}
-        </ToggleButton>
+        </button>
       ))}
-    </ToggleButtonGroup>
+    </div>
   );
 }

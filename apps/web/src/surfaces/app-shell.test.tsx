@@ -138,7 +138,9 @@ describe('AppShell banner slot, live region and toast', () => {
       const { container } = renderShell(syncState({ online: false, badgeState: 'offline' }));
       expect(container.querySelectorAll('.banner')).toHaveLength(1);
       expect(container.querySelector('.banner')).toHaveAttribute('data-banner', 're-auth');
-      expect(screen.getByRole('button', { name: 'Outras condições — abrir status de sincronização' })).toHaveTextContent(
+      expect(
+        screen.getByRole('button', { name: '+1, outras condições — abrir status de sincronização' }),
+      ).toHaveTextContent(
         '+1',
       );
       await userEvent.click(screen.getByRole('button', { name: 'Entrar de novo' }));

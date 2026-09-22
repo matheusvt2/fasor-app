@@ -1,12 +1,5 @@
-import {
-  entityRowSchemas,
-  type ProjectRow,
-  type RegistryRow,
-  type RelatorioRow,
-  type RelatorioSummary,
-  type TemplateRow,
-} from '@app/domain';
-import { COMPANY_STREAM, type AppDatabase, type EntityRecord } from './schema.ts';
+import { entityRowSchemas, type ProjectRow, type RegistryRow, type RelatorioRow, type TemplateRow } from '@app/domain';
+import { type AppDatabase, type EntityRecord } from './schema.ts';
 
 /*
  * AD-1: the live-query sources Home and Account read. Dexie stays inside `src/db`;
@@ -57,10 +50,4 @@ export function templateRows(db: AppDatabase): Promise<TemplateRow[]> {
  */
 export async function originalFileCount(db: AppDatabase): Promise<number> {
   return db.files.filter((row) => row.variant === 'original').count();
-}
-
-/** AD-8: the relatórios the company knows about, from the `company` sync_state row. */
-export async function companySummaryRelatorios(db: AppDatabase): Promise<RelatorioSummary[]> {
-  const row = await db.sync_state.get(COMPANY_STREAM);
-  return row?.relatorios ?? [];
 }

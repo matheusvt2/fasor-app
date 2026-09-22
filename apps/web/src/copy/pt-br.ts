@@ -115,8 +115,9 @@ export const copy = {
     reAuthAction: 'Entrar de novo',
     // Verbatim from the prototype's `#slot-offline` banner text.
     offlineText: 'Sem conexão. Tudo fica salvo neste aparelho.',
-    // Verbatim from the prototype's `.banner-more` aria-label.
-    moreLabel: 'Outras condições — abrir status de sincronização',
+    // authored: WCAG 2.5.3 wants the accessible name to start with the visible label,
+    // which is the "+N" the chip prints.
+    moreLabel: (count: number) => `+${count}, outras condições — abrir status de sincronização`,
   },
   // Sync status from `mockups/prototype/screens/85-sync.html` and `key-sync-status.html`.
   // The badge words and the pending summary come from the kernel (`syncBadgeLabel`,

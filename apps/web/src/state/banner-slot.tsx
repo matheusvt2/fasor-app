@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import { copy } from '../copy/pt-br.ts';
 
 /**
@@ -99,6 +99,7 @@ export function BannerSlot({
   banners: readonly Banner[];
   onOpenSync?: () => void;
 }) {
+  const textId = useId();
   const banner = pickBanner(banners);
   if (banner === null) return null;
   const folded = banners.filter((b) => BANNER_PRIORITY.includes(b.kind)).length - 1;
@@ -108,16 +109,22 @@ export function BannerSlot({
         className="banner"
         data-variant={banner.variant}
         role={banner.role ?? 'region'}
-        aria-label={banner.role === 'alert' ? undefined : banner.text}
+        // The region is named by the sentence it already shows, not by a copy of it:
+        // an `aria-label` here would replace the visible text rather than point at it.
+        aria-labelledby={banner.role === 'alert' ? undefined : textId}
         data-banner={banner.kind}
       >
-        <span className="banner-text">{banner.text}</span>
+        <span className="banner-text" id={textId}>
+          {banner.text}
+        </span>
         {banner.actions === undefined ? null : <span className="banner-actions">{banner.actions}</span>}
         {folded > 0 && onOpenSync !== undefined ? (
           <button
             type="button"
             className="banner-more"
-            aria-label={copy.banner.moreLabel}
+            // WCAG 2.5.3 Label in Name: the accessible name starts with the visible
+            // "+N" so speech input can reach the control by what it reads.
+            aria-label={copy.banner.moreLabel(folded)}
             onClick={onOpenSync}
           >
             {`+${folded}`}

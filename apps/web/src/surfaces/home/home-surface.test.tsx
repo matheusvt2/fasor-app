@@ -259,10 +259,16 @@ describe('Home: relatório cards', () => {
     await database.sync_state.put(onDevice(R_FIELD_HERE));
 
     renderHome();
-    await waitFor(() => expect(cards()).toHaveLength(1));
+    // The lines come from separate live queries (relatórios, projects, clients,
+    // templates), which do not resolve in the same tick: a card can be on screen with
+    // its title before the template name arrives, so the two joined lines are awaited
+    // rather than read once the card exists.
+    await waitFor(() => {
+      expect(cards()).toHaveLength(1);
+      expect(cards()[0]?.querySelector('.card-title')).toHaveTextContent('Porto Seguro · Torres A e B');
+      expect(cards()[0]?.querySelector('.card-meta')).toHaveTextContent('06–08/09/2026 · Cabine primária — padrão');
+    });
     const card = cards()[0]!;
-    expect(card.querySelector('.card-title')).toHaveTextContent('Porto Seguro · Torres A e B');
-    expect(card.querySelector('.card-meta')).toHaveTextContent('06–08/09/2026 · Cabine primária — padrão');
     expect(card.querySelector('.card-state .status-pill')).toHaveAttribute('data-status', 'em-campo');
     expect(card.querySelector('.card-state .sync-badge')).toHaveClass('is-compact');
     // The stamp is from 07/09; the suite runs on a later day, so the kernel dates it.
