@@ -168,6 +168,27 @@ export async function localUser(db: AppDatabase, userId: string): Promise<UserRo
   return parsed.success ? parsed.data : null;
 }
 
+/** The registration fields of the Account row, by their `user/{id}/{field}` names. */
+export type UnsentRegistration = Partial<Record<'council' | 'registration_number' | 'title', unknown>>;
+
+const REGISTRATION_FIELDS = new Set(['council', 'registration_number', 'title']);
+
+/**
+ * The registration values this device committed for the user and the server has not
+ * acknowledged yet (`pending` or `sent`), the newest per field. A profile the server
+ * returns at boot predates them, so they must stand over it until the push lands.
+ */
+export async function unsentRegistration(db: AppDatabase, userId: string): Promise<UnsentRegistration> {
+  const prefix = `user/${userId}/`;
+  const rows = await db.outbox.where('path').startsWith(prefix).toArray();
+  const out: UnsentRegistration = {};
+  for (const row of rows.filter((r) => r.status === 'pending' || r.status === 'sent').sort(byClientTsThenOpId)) {
+    const field = row.path.slice(prefix.length);
+    if (row.kind === 'put' && REGISTRATION_FIELDS.has(field)) out[field as keyof UnsentRegistration] = row.value;
+  }
+  return out;
+}
+
 export async function remoteOpRows(db: AppDatabase): Promise<RemoteOpRow[]> {
   return db.remote_ops.toArray();
 }

@@ -68,6 +68,17 @@ describe('syncBadgeState', () => {
   it('is error when any op is dead, wherever the device is', () => {
     expect(syncBadgeState({ ...base, dead: 1, pending: 3 }, { online: false })).toBe('error');
   });
+  it('is offline while online but the server is unreachable, pending or not', () => {
+    expect(syncBadgeState(base, { online: true, reachable: false })).toBe('offline');
+    expect(syncBadgeState({ ...base, pending: 2 }, { online: true, reachable: false })).toBe('offline');
+  });
+  it('keeps error ahead of an unreachable server', () => {
+    expect(syncBadgeState({ ...base, dead: 1 }, { online: true, reachable: false })).toBe('error');
+  });
+  it('returns to ok or pending once the server answers again', () => {
+    expect(syncBadgeState(base, { online: true, reachable: true })).toBe('ok');
+    expect(syncBadgeState({ ...base, pending: 1 }, { online: true, reachable: true })).toBe('pending');
+  });
 });
 
 describe('pendingSummaryText and syncBadgeLabel', () => {

@@ -6,6 +6,7 @@ import {
   readStoreNames,
   signIn,
   syncBadge,
+  syncWord,
   test,
   writeLocalMarker,
 } from './support/merged-fixtures.ts';
@@ -160,6 +161,10 @@ test('@p0 1.3-E2E-002 a 401 mid-call raises the re-auth banner, leaves local dat
     'Sua sessão expirou. Nada foi apagado deste aparelho.',
   );
   await expect(banner).toHaveAttribute('role', 'alert');
+  // Nothing can be sent until a new sign-in, so the badge no longer says "Sincronizado",
+  // and Sync status (the page this tab is on) names the cause (retro U5).
+  await expect(syncWord(page)).toHaveText('Sem conexão');
+  await expect(page.getByTestId('sync-unreachable')).toHaveText('Sua sessão expirou. Entre de novo para enviar.');
   expect(await readLocalMarker(page, database, MARKER)).toMatchObject({ kind: 'relatorio' });
   expect(await readStoreNames(page, database)).toContain('outbox');
   expect(await readPointer(page)).not.toBeNull();

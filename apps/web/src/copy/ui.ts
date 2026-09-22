@@ -13,6 +13,15 @@ export const ui = {
     /** `.toggle-word` for a locked sub-block (checklist, conclusion): not a control. */
     locked: 'Sempre',
   },
+  toast: {
+    // authored: the mock's persistent toast (`key-sheet-states.html`) draws only its
+    // action; a toast that does not expire also needs a way to put it away.
+    dismiss: 'Fechar',
+  },
+  appBar: {
+    // Verbatim from `key-account.html`: the App bar's back `.icon-btn`.
+    back: 'Voltar',
+  },
   confirmDialog: {
     /** Default label for the non-destructive action; initial focus lands here. */
     cancel: 'Cancelar',

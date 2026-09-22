@@ -93,7 +93,7 @@ test('@p1 1.6-E2E-001 Home shows the status board, the current relatório first 
     )
     .toBe(true);
 
-  await page.getByRole('link', { name: /início/ }).click();
+  await page.getByRole('button', { name: 'Voltar' }).click();
   await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
 
   // The board counts every relatório the device knows of, the Emitido one included.
@@ -212,7 +212,7 @@ test('@p1 1.6-E2E-003 a cold open with a session and no connection renders from 
   await expect(toast).toHaveCount(0, { timeout: 15_000 });
   await page.getByRole('link', { name: 'Conta' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Conta' })).toBeVisible();
-  await page.getByRole('link', { name: /início/ }).click();
+  await page.getByRole('button', { name: 'Voltar' }).click();
   await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
   await expect(page.getByTestId('toast')).toHaveCount(0);
   await page.unroute(isApiRequest);

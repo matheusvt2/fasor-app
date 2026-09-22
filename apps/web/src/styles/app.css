@@ -1,12 +1,32 @@
 /* =====================================================================
-   App root — the product's own copy of the base layer.
+   App layer: how the real app applies the mock stylesheets.
 
-   `components.css` is byte-identical to the mockups, and there its base
-   reset is scoped to `.frame`, the mock's device bezel. The real app has
-   no bezel, so the same declarations are repeated here for `.app-root`.
-   Nothing new is introduced: every rule below mirrors a `.frame` rule of
-   `components.css` (Base section), and no component is restyled.
+   `tokens.css` and `components.css` are byte-identical to the mockups
+   (`styles.test.ts`). The mocks draw every screen inside a device bezel,
+   so `components.css` encodes two things as container classes that the
+   real app never renders: the base scope (`.frame`, `.frame *`) and the
+   viewport (`.frame-phone`, `.frame-tablet`, `.frame-tablet-landscape`,
+   `.frame-desktop`). This file translates them, following the rule
+   written in AGENTS.md ("Mock container selectors"):
+
+   - `.frame, .frame *` and `.frame X` base rules  -> `:root` scope, so the
+     React Aria overlays portaled to the end of `<body>` inherit them too.
+   - `.frame-phone X`             -> @media (max-width: 767.98px)
+   - `.frame-tablet X`            -> @media (min-width: 768px) and (max-width: 1279.98px)
+   - `.frame-tablet-landscape X`  -> @media (min-width: 1024px) and (max-width: 1279.98px)
+   - `.frame-desktop X`           -> @media (min-width: 1280px)
+   - `.frame--crop`, `.mock-*`, the bezel sizes, `.browser-chrome` and the
+     static `.is-focus-ring` are mock-only and never translated.
+   - Media queries inside `components.css` (the 480px Sync badge rule)
+     already apply and are not repeated.
+
+   Breakpoints are DESIGN.md's `breakpoint-tablet` (768px) and
+   `breakpoint-desktop` (1280px). Every translated block names the
+   `components.css` rule it mirrors; declarations are copied verbatim.
+   Anything else here is an app-only adjustment with its own comment.
    ===================================================================== */
+
+/* ---------- Base (components.css › Base, `.frame` rules) ---------- */
 
 html,
 body,
@@ -14,16 +34,14 @@ body,
   height: 100%;
 }
 
-body {
-  margin: 0;
-  background: var(--surface-base);
+/* mirrors `.frame, .frame * { font-family }` */
+:root,
+:root * {
+  font-family: var(--font-ui);
 }
 
-.app-root {
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
-  font-family: var(--font-ui);
+/* mirrors `.frame { color; background; font-size; line-height; smoothing }` */
+:root {
   color: var(--ink-primary);
   background: var(--surface-base);
   font-size: var(--t-body-size);
@@ -31,15 +49,18 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-.app-root * {
-  font-family: var(--font-ui);
+body {
+  margin: 0;
+  background: var(--surface-base);
 }
 
-:where(.app-root h1, .app-root h2, .app-root h3, .app-root p) {
+/* mirrors `:where(.frame h1, .frame h2, .frame h3, .frame p) { margin: 0 }` */
+:where(h1, h2, h3, p) {
   margin: 0;
 }
 
-:where(.app-root button) {
+/* mirrors `:where(.frame button) { … }` */
+:where(button) {
   font: inherit;
   color: inherit;
   background: none;
@@ -49,7 +70,11 @@ body {
   text-align: inherit;
 }
 
-:where(.app-root input, .app-root textarea, .app-root select) {
+/* mirrors `:where(.frame input, .frame textarea, .frame select) { font: inherit; color: inherit }`.
+   App-only additions: the mocks draw a field's box with `.input` and put text inside it,
+   while the app puts a real control there, so the control itself loses the UA border,
+   background and padding and fills the box. */
+:where(input, textarea, select) {
   font: inherit;
   color: inherit;
   background: none;
@@ -59,16 +84,146 @@ body {
   min-width: 0;
 }
 
-.app-root :focus-visible {
+/* The `.input` box shows focus with its own `:focus-within` border and fill; the control
+   inside it would otherwise add the global ring on top of that. */
+.input :where(input, textarea, select):focus-visible {
+  outline: none;
+}
+
+/* mirrors `.frame :focus-visible { … }` */
+:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
 
-.app-root [aria-hidden='true'] {
+/* mirrors `.frame [aria-hidden="true"] { pointer-events: none }` */
+[aria-hidden='true'] {
   pointer-events: none;
 }
 
-:where(.app-root a.btn) {
+/* mirrors `:where(.frame a.relatorio-card, .frame a.shortcut-card, .frame a.relatorio-row, .frame a.btn)` */
+:where(a.relatorio-card, a.shortcut-card, a.relatorio-row, a.btn) {
+  text-decoration: none;
+}
+
+/* App-only: the router root. The mock's `.frame` is also a flex column. */
+.app-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+/* ---------- Phone: `.frame-phone X` -> below 768px ---------- */
+@media (max-width: 767.98px) {
+  /* `.frame-phone .content` */
+  .content { padding: var(--sp-4) var(--gutter-phone); }
+  /* `.frame-phone .app-bar .sync-badge` (+ `.sync-long`, `.sync-short`) */
+  .app-bar .sync-badge { padding: 0 var(--sp-1); }
+  .app-bar .sync-badge .sync-long { display: none; }
+  .app-bar .sync-badge .sync-short { display: inline; }
+  /* `.frame-phone .sticky-action-bar .bar-buttons` (+ `.has-camera`) */
+  .sticky-action-bar .bar-buttons { flex-direction: column; }
+  .sticky-action-bar .bar-buttons.has-camera { flex-direction: row; flex-wrap: wrap; }
+  .sticky-action-bar .bar-buttons.has-camera .btn { flex: 1 1 160px; }
+  /* `.frame-phone .section-stepper …` */
+  .section-stepper .step-name .long { display: none; }
+  .section-stepper .step-name .short { display: inline; }
+  .section-stepper .step { padding: 0 var(--sp-1); }
+  /* `.frame-phone .bulk-action-bar` */
+  .bulk-action-bar { flex-direction: column; align-items: stretch; }
+  /* `.frame-phone .relatorio-card .card-continue` (+ `.btn-primary`) */
+  .relatorio-card .card-continue { flex-wrap: wrap; }
+  .relatorio-card .card-continue .btn-primary { flex-basis: 100%; }
+  /* `.frame-phone .block-palette` */
+  .block-palette { width: 100%; border-left: 0; border-radius: var(--r-lg) var(--r-lg) 0 0; box-shadow: var(--shadow-float); }
+  /* `.frame-phone .sheet-header` */
+  .sheet-header { padding: var(--sp-3) var(--gutter-phone); flex-direction: column; gap: var(--sp-2); }
+  /* `.frame-phone .checklist-row …` */
+  .checklist-row .row-main { flex-wrap: wrap; }
+  .checklist-row .row-label { flex-basis: calc(100% - var(--touch-min) - var(--sp-3)); }
+  .checklist-row .tri-state { width: 100%; display: grid; order: 3; }
+  /* `.frame-phone .mt-title-row .mt-actions` */
+  .mt-title-row .mt-actions { margin-left: 0; flex-basis: 100%; }
+  /* `.frame-phone .conclusion-pair.is-verdict` (+ `.seg + .seg`) */
+  .conclusion-pair.is-verdict { grid-template-columns: 1fr; }
+  .conclusion-pair.is-verdict .seg + .seg { border-left: 0; border-top: 2px solid var(--border-strong); }
+  /* `.frame-phone .form-dialog .field-pair` */
+  .form-dialog .field-pair { grid-template-columns: 1fr; }
+  /* `.frame-phone .status-board` */
+  .status-board { grid-template-columns: repeat(2, 1fr); }
+  /* `.frame-phone .section-band .band-head, .frame-phone .section-band .band-body` */
+  .section-band .band-head, .section-band .band-body { padding-left: var(--sp-4); padding-right: var(--sp-4); }
+  /* `.frame-phone .tabs` */
+  .tabs { padding: 0 var(--gutter-phone); }
+  /* `.frame-phone .brand-preview .bp-pages` */
+  .brand-preview .bp-pages { grid-template-columns: 1fr; }
+  /* `.frame-phone .doc-control th` */
+  .doc-control th { width: 128px; }
+  /* `.frame-phone .pos-box` */
+  .pos-box { width: 48px; }
+}
+
+/* ---------- Phone and tablet: `.frame-tablet X, .frame-phone X` -> below 1280px ----------
+   The two frames share these rules in `components.css`, so one query covers both. */
+@media (max-width: 1279.98px) {
+  /* `.frame-tablet .relatorio-list-head, .frame-phone .relatorio-list-head` */
+  .relatorio-list-head { display: none; }
+  /* `.frame-tablet .relatorio-row, .frame-phone .relatorio-row` and its cells */
+  .relatorio-row { grid-template-columns: 1fr 48px; grid-template-areas: "title chev" "dates chev" "state chev"; row-gap: var(--sp-1); }
+  .relatorio-row .lr-main { grid-area: title; }
+  .relatorio-row .lr-dates { grid-area: dates; font-size: var(--t-meta-size); color: var(--ink-secondary); }
+  .relatorio-row .lr-template { display: none; }
+  .relatorio-row .lr-state { grid-area: state; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); margin-top: var(--sp-1); }
+  .relatorio-row .lr-chev { grid-area: chev; }
+}
+
+/* ---------- Tablet: `.frame-tablet X` -> 768px to 1279px ---------- */
+@media (min-width: 768px) and (max-width: 1279.98px) {
+  /* `.frame-tablet .tabs` */
+  .tabs { padding: 0 var(--gutter-tablet); }
+}
+
+/* ---------- Tablet landscape and desktop share the Sticky action bar rule ---------- */
+/* `.frame-tablet-landscape X` -> 1024px to 1279px */
+@media (min-width: 1024px) and (max-width: 1279.98px) {
+  /* `.frame-tablet-landscape .sticky-action-bar .bar-buttons` (+ `.btn`) */
+  .sticky-action-bar .bar-buttons { justify-content: flex-end; }
+  .sticky-action-bar .bar-buttons .btn { flex: 0 0 auto; min-width: 200px; }
+}
+
+/* ---------- Desktop: `.frame-desktop X` -> 1280px and up ----------
+   `.frame-desktop .screen { min-height: calc(800px - 44px) }` is not translated: it sizes
+   the screen to the mock's 800px bezel minus its fake browser chrome. */
+@media (min-width: 1280px) {
+  /* `.frame-desktop .content` */
+  .content { padding: var(--sp-6) var(--gutter-desktop); }
+  /* `.frame-desktop .sticky-action-bar .bar-buttons` (+ `.btn`) */
+  .sticky-action-bar .bar-buttons { justify-content: flex-end; }
+  .sticky-action-bar .bar-buttons .btn { flex: 0 0 auto; min-width: 200px; }
+}
+
+/* ---------- On-state aliases (the pattern proven on SegmentedControl) ----------
+   The ARIA state lives on the element the mock CSS styles. Where a valid ARIA shape cannot
+   carry the mock's attribute, the mock rule's declarations are mirrored verbatim for the
+   attribute it does carry. */
+
+/* mirrors `.chip[aria-pressed="true"]`: a chip inside a single-selection group is a
+   `role="radio"`, which may not carry `aria-pressed`; its state is `aria-checked`. */
+.chip[role='radio'][aria-checked='true'] {
+  background: var(--focus-fill);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* ---------- App bar ----------
+   The mock's wordmark and avatar are `<button>`s (ink text via the `.frame button` reset);
+   in the app they navigate, so they are links, and a link would otherwise take the UA's
+   blue or visited purple and its underline. Same look as the mock in every link state. */
+.app-bar a.wordmark,
+.app-bar a.wordmark:visited,
+.app-bar a.avatar-btn,
+.app-bar a.avatar-btn:visited {
+  color: var(--ink-primary);
   text-decoration: none;
 }
 

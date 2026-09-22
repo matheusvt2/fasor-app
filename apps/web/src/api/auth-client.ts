@@ -34,13 +34,17 @@ export function publishReAuth(): void {
 }
 
 /**
- * A failed sign-in is one of two different things and the form says so differently:
- * `credentials` is the server rejecting the pair, `network` is not reaching the server
- * at all. Only `credentials` may mark a field invalid.
+ * A failed sign-in is one of three different things and the form says so differently:
+ * `credentials` is the server rejecting the pair, `server` is a device that is online but
+ * could not get an answer (no response, or a 5xx such as the database being down), and
+ * `offline` is a device with no network at all. Only `credentials` may mark a field
+ * invalid, and only `offline` may say "Sem conexão".
  */
+export type SignInFailure = 'credentials' | 'server' | 'offline';
+
 export type SignInResult =
   | { ok: true; user: UserProfile }
-  | { ok: false; reason: 'credentials' | 'network'; message: string };
+  | { ok: false; reason: SignInFailure; message: string };
 
 async function readAccount(): Promise<UserProfile | null> {
   const route = ACCOUNT_ROUTES.read;
@@ -69,11 +73,26 @@ const credentialsRejected = {
   message: copy.login.wrongPassword,
 };
 
-const serverUnreachable = {
+const serverUnavailable = {
   ok: false as const,
-  reason: 'network' as const,
+  reason: 'server' as const,
+  message: copy.login.serverUnavailable,
+};
+
+const deviceOffline = {
+  ok: false as const,
+  reason: 'offline' as const,
   message: copy.login.offline,
 };
+
+function isDeviceOnline(): boolean {
+  return typeof navigator === 'undefined' ? true : navigator.onLine;
+}
+
+/** A request that never completed: the device's own network, or the server's. */
+function unreachable(): SignInResult {
+  return isDeviceOnline() ? serverUnavailable : deviceOffline;
+}
 
 /** True for a 4xx: the server answered and refused the request itself. */
 export function isClientRejection(status: unknown): boolean {
@@ -82,8 +101,8 @@ export function isClientRejection(status: unknown): boolean {
 
 /**
  * Signs in. A credential rejection maps to the one message the mock shows, so the form
- * never leaks which of the two fields was wrong; a transport failure says so instead of
- * blaming the password.
+ * never leaks which of the two fields was wrong; a failure to reach the server says so
+ * instead of blaming the password, and only a device with no network says "Sem conexão".
  */
 export async function signIn(email: string, password: string): Promise<SignInResult> {
   let result: Awaited<ReturnType<typeof client.signIn.email>>;
@@ -91,21 +110,21 @@ export async function signIn(email: string, password: string): Promise<SignInRes
     result = await client.signIn.email({ email, password });
   } catch {
     // The request never completed: no HTTP status, so nothing was rejected.
-    return serverUnreachable;
+    return unreachable();
   }
   const error = result.error;
   if (error !== null && error !== undefined) {
     // Only a 4xx is the server rejecting what was typed (401 for the pair, 400 for a
     // malformed e-mail). A 5xx (database down) or no status at all (transport failure)
-    // is the server being unreachable, and must never read as a wrong password.
-    return isClientRejection(error.status) ? credentialsRejected : serverUnreachable;
+    // is the server not answering, and must never read as a wrong password.
+    return isClientRejection(error.status) ? credentialsRejected : unreachable();
   }
   try {
     const user = await readAccount();
     if (user === null) return credentialsRejected;
     return { ok: true, user };
   } catch {
-    return serverUnreachable;
+    return unreachable();
   }
 }
 

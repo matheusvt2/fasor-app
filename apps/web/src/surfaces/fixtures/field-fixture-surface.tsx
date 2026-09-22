@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
+import { Checkbox, FilterChipGroup, Toggle } from '../../components/index.ts';
 import { now } from '../../clock.ts';
 import { commitBatch } from '../../db/commit.ts';
 import { newId } from '../../ids.ts';
@@ -114,7 +115,48 @@ export function FieldFixtureSurface() {
             {committed}
           </p>
         </section>
+        <OnStateSection />
       </div>
     </main>
+  );
+}
+
+/**
+ * Toggle, Checkbox and a grouped filter chip, one on and one off each, so the on states
+ * of `components.css` (and the chip alias in `app.css`) can be checked in a real browser
+ * before a product surface renders them (retro F-SPEC-6). Dev-only, like the rest of this
+ * route.
+ */
+function OnStateSection() {
+  const [toggleOn, setToggleOn] = useState(true);
+  const [toggleOff, setToggleOff] = useState(false);
+  const [checkOn, setCheckOn] = useState(true);
+  const [checkOff, setCheckOff] = useState(false);
+  const [chip, setChip] = useState('a');
+  return (
+    <section className="section" data-testid="fixture-on-states">
+      <div className="section-head">
+        <h2>Estados ligados</h2>
+      </div>
+      <div className="stack">
+        <Toggle isSelected={toggleOn} onChange={setToggleOn} aria-label="Alternador ligado" />
+        <Toggle isSelected={toggleOff} onChange={setToggleOff} aria-label="Alternador desligado" />
+        <Checkbox isSelected={checkOn} onChange={setCheckOn}>
+          Caixa marcada
+        </Checkbox>
+        <Checkbox isSelected={checkOff} onChange={setCheckOff}>
+          Caixa desmarcada
+        </Checkbox>
+        <FilterChipGroup
+          options={[
+            { id: 'a', label: 'Opção A' },
+            { id: 'b', label: 'Opção B' },
+          ]}
+          selectedId={chip}
+          onChange={setChip}
+          aria-label="Filtro de teste"
+        />
+      </div>
+    </section>
   );
 }

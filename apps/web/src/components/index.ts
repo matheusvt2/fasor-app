@@ -22,6 +22,9 @@ export type { OverflowMenuAction, OverflowMenuProps } from './overflow-menu.tsx'
 export { ConfirmDialog } from './confirm-dialog.tsx';
 export type { ConfirmDialogProps } from './confirm-dialog.tsx';
 
+export { FormDialog } from './form-dialog.tsx';
+export type { FormDialogProps } from './form-dialog.tsx';
+
 export { Chip, FilterChipGroup } from './chip.tsx';
 export type { ChipProps, FilterChipGroupProps, FilterChipOption } from './chip.tsx';
 

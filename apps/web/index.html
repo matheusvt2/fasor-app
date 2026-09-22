@@ -4,6 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PRODUTO</title>
+    <!-- Inline so the browser asks for no /favicon.ico and the service worker precache is untouched. -->
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231F4E79'/%3E%3Cpath d='M12 25V8h5.5a4.5 4.5 0 0 1 0 9H12' fill='none' stroke='%23FFFFFF' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
+    />
     <script>
       // The theme override lives in Dexie, which cannot be read before the first paint.
       // This mirrors `themeAttribute()` over the `releng.theme` mirror written by

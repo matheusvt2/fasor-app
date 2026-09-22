@@ -83,9 +83,10 @@ export function HomeSurface() {
       syncStates,
       outbox,
       online: sync.online,
+      reachable: sync.unreachable === null,
       now: now(),
     }),
-    [relatorios, sync.summaryRelatorios, projects, clients, templates, syncStates, outbox, sync.online],
+    [relatorios, sync.summaryRelatorios, projects, clients, templates, syncStates, outbox, sync.online, sync.unreachable],
   );
 
   // The board counts every relatório the device knows of, whatever the tile filter says;

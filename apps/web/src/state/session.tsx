@@ -1,4 +1,4 @@
-import { registrationOfUserRow, registrationPuts, type Registration, type UserProfile } from '@app/domain';
+import { councilSchema, registrationOfUserRow, registrationPuts, type Registration, type UserProfile } from '@app/domain';
 import {
   createContext,
   useCallback,
@@ -13,7 +13,7 @@ import * as authClient from '../api/auth-client.ts';
 import { now } from '../clock.ts';
 import { commitBatch } from '../db/commit.ts';
 import { readRecoveryNotice, writeRecoveryNotice } from '../db/prefs.ts';
-import { localUser } from '../db/sync-store.ts';
+import { localUser, unsentRegistration, type UnsentRegistration } from '../db/sync-store.ts';
 import { databaseName, openDatabase, type AppDatabase } from '../db/schema.ts';
 import { newId } from '../ids.ts';
 import {
@@ -62,6 +62,20 @@ export interface SessionState {
 }
 
 const SessionContext = createContext<SessionState | null>(null);
+
+/**
+ * The server's profile with the registration fields this device committed and has not
+ * pushed yet laid over it: until the push lands, the device's own values are the newer
+ * ones (item 8a of retro A5). Anything that does not parse is ignored.
+ */
+export function withUnsentRegistration(profile: UserProfile, unsent: UnsentRegistration): UserProfile {
+  const next = { ...profile };
+  const council = councilSchema.safeParse(unsent.council);
+  if (council.success) next.council = council.data;
+  if (typeof unsent.registration_number === 'string') next.registrationNumber = unsent.registration_number;
+  if (typeof unsent.title === 'string') next.title = unsent.title;
+  return next;
+}
 
 function readOnline(): boolean {
   return typeof navigator === 'undefined' ? true : navigator.onLine;
@@ -156,12 +170,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      writeLastSession(fresh);
       writeReAuthRequired(false);
       setReAuthRequired(false);
-      setUser(fresh);
       const createdFresh = await attachDatabase(fresh.id);
       if (cancelled) return;
+      // A registration saved on this device and not pushed yet is newer than what the
+      // server just returned: it stays, in the session and in the pointer, until the push.
+      const opened = databaseRef.current;
+      const unsent = opened === null ? {} : await unsentRegistration(opened, fresh.id).catch(() => ({}));
+      if (cancelled) return;
+      const confirmed = withUnsentRegistration(fresh, unsent);
+      writeLastSession(confirmed);
+      setUser(confirmed);
       // AD-8: "session cookie present, database absent". Reaching this line means the
       // server confirmed a session; `createdFresh` means the store did not exist a
       // moment ago. Together that is an evicted origin — never a first sign-in, which
@@ -206,11 +226,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     async (email: string, password: string) => {
       const result = await authClient.signIn(email, password);
       if (result.ok) {
-        writeLastSession(result.user);
-        setUser(result.user);
         // The form path never raises the recovery screen: a first sign-in always comes
         // through here, and a fresh database is then exactly what is expected.
         await attachDatabase(result.user.id);
+        // A re-auth sign-in may find a registration saved here and not pushed yet: it is
+        // newer than the profile the server just returned (same rule as the boot).
+        const opened = databaseRef.current;
+        const unsent = opened === null ? {} : await unsentRegistration(opened, result.user.id).catch(() => ({}));
+        const user = withUnsentRegistration(result.user, unsent);
+        writeLastSession(user);
+        setUser(user);
         writeReAuthRequired(false);
         setReAuthRequired(false);
         setStatus('signed-in');

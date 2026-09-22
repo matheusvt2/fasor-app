@@ -22,6 +22,13 @@ export const copy = {
     offlineReason: 'Entrar precisa de conexão',
     // authored: the mocks draw no in-flight state for "Entrar".
     signingIn: 'Entrando…',
+    // authored: online, but the server did not answer or answered 5xx (database down).
+    // Not the offline sentence (the device has a network) and never the password.
+    serverUnavailable: 'Não foi possível falar com o servidor. Tente de novo em instantes.',
+    // authored: checked on the device before any request is sent.
+    emailRequired: 'Informe o e-mail',
+    emailInvalid: 'E-mail inválido',
+    passwordRequired: 'Informe a senha',
   },
   account: {
     title: 'Conta',
@@ -113,10 +120,6 @@ export const copy = {
     offlineText: 'Sem conexão. Tudo fica salvo neste aparelho.',
     // Verbatim from Story 1.8's acceptance criterion (AD-8's 5-day rule).
     unsyncedText: 'Alterações sem envio há 5 dias',
-    // authored: the recovery action is the persistent toast of `key-sheet-states.html`;
-    // this candidate exists only so the "+N" chip counts the condition when something of
-    // higher priority already holds the slot, so it carries no action of its own.
-    draftFoundText: 'Há um rascunho para recuperar neste aparelho.',
     // authored: WCAG 2.5.3 wants the accessible name to start with the visible label,
     // which is the "+N" the chip prints.
     moreLabel: (count: number) => `+${count}, outras condições — abrir status de sincronização`,
@@ -131,6 +134,10 @@ export const copy = {
     syncNow: 'Sincronizar agora',
     syncing: 'Sincronizando…',
     offlineReason: 'Sem conexão',
+    // authored: the badge has five states and says "Sem conexão" when the office cannot be
+    // reached although the device is online; these lines say which cause it is.
+    serverUnreachable: 'Não foi possível falar com o servidor. Tudo fica salvo neste aparelho.',
+    sessionExpired: 'Sua sessão expirou. Entre de novo para enviar.',
     // The dead-op row ("3 alterações rejeitadas") and the server's `superseded` row are
     // counts, so the kernel writes them (`rejectedText`, `supersededText`).
     resend: 'Reenviar',

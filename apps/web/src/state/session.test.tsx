@@ -4,7 +4,7 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { databaseName, openDatabase } from '../db/schema.ts';
 import { readLastSession, readReAuthRequired, writeLastSession, writeReAuthRequired } from './last-session.ts';
-import { SessionProvider, useSession, type SessionState } from './session.tsx';
+import { SessionProvider, useSession, withUnsentRegistration, type SessionState } from './session.tsx';
 
 /*
  * The session's two contracts with the device (retro A2, A8): a 401 at boot keeps the
@@ -160,6 +160,59 @@ describe('the remembered 401 (retro A8)', () => {
     expect(readReAuthRequired()).toBe(true);
     await offlineReopen(view);
     await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('signed-in|re-auth'));
+  });
+});
+
+describe('boot with a registration saved offline and not pushed yet (retro A5 item 8a)', () => {
+  it('keeps the device values over the older server profile until the push lands', async () => {
+    writeLastSession(profile);
+    readSession.mockRejectedValue(new TypeError('Failed to fetch'));
+    const first = renderSession();
+    await waitFor(() => expect(current?.database).not.toBeNull());
+    const saved = { council: 'crt' as const, registrationNumber: 'SP 7777', title: 'Técnico(a) em Eletrotécnica' };
+    await act(() => current!.saveRegistration(saved));
+    current?.database?.close();
+    first.unmount();
+
+    // Reload online: the server answers with the profile it had before the save, and the
+    // company pull has not brought the user row yet.
+    readSession.mockResolvedValue(profile);
+    const second = renderSession();
+    await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent(`signed-in|ok|${profile.id}`));
+    await waitFor(() => expect(current!.user).toMatchObject(saved));
+    expect(readLastSession()).toMatchObject(saved);
+
+    // Once the ops are acknowledged, the server's profile is the truth again.
+    const db = current!.database!;
+    await db.outbox.toCollection().modify({ status: 'acked' });
+    db.close();
+    second.unmount();
+    renderSession();
+    await waitFor(() => expect(current!.user).toMatchObject({ council: 'crea', registrationNumber: 'SP 1000000001' }));
+  });
+
+  it('a re-auth sign-in through the form keeps them too', async () => {
+    writeLastSession(profile);
+    readSession.mockRejectedValue(new TypeError('Failed to fetch'));
+    renderSession();
+    await waitFor(() => expect(current?.database).not.toBeNull());
+    const saved = { council: 'crt' as const, registrationNumber: 'SP 7777', title: 'Técnico(a) em Eletrotécnica' };
+    await act(() => current!.saveRegistration(saved));
+
+    // The server answers the sign-in with the profile it had before the save.
+    signIn.mockResolvedValue({ ok: true, user: profile });
+    await act(async () => {
+      await current!.signIn(profile.email, 'senha');
+    });
+    expect(current!.user).toMatchObject(saved);
+    expect(readLastSession()).toMatchObject(saved);
+  });
+
+  it('withUnsentRegistration ignores values that do not parse', () => {
+    expect(withUnsentRegistration(profile, { council: 'oab', registration_number: 7, title: 'X' })).toEqual({
+      ...profile,
+      title: 'X',
+    });
   });
 });
 

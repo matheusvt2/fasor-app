@@ -1,4 +1,3 @@
-import { Switch } from 'react-aria-components';
 import { ui } from '../copy/ui';
 
 export interface ToggleProps {
@@ -7,34 +6,38 @@ export interface ToggleProps {
   /** Accessible name; the visible `.toggle-word` carries the state, not the identity. */
   'aria-label'?: string;
   'aria-labelledby'?: string;
+  'aria-describedby'?: string;
 }
 
 /**
- * `role="switch"` with `aria-checked`; the word beside it is the accessible state
+ * `role="switch"` with `aria-checked`; the word beside it is the visible state
  * (Component Patterns › Toggle). Tapping the whole element toggles.
  *
- * Design Notes gap: `components.css` styles the "on" fill with `.toggle[aria-checked="true"]
- * .track`, which assumes the mockups' hand-rolled `<button role="switch" aria-checked>`.
- * React Aria's `Switch` puts the real, valid `role="switch"`/`aria-checked` on a visually
- * hidden native `<input>` inside this label (a correct, standard accessible pattern) and its
- * `filterDOMProps` refuses to also place `aria-checked` on the styled label — verified: doing
- * it anyway (even via an imperative `setAttribute`, bypassing React) makes axe fail
- * `aria-allowed-attr`, because a `<label>` has no role that permits `aria-checked`. There is
- * no `.is-*`/`[data-state]` alternative for this row in `components.css` either. So this
- * control is fully functional and keyboard/screen-reader correct (the real state is on the
- * input, `isSelected` is reflected as `data-selected` on the label), but the `.track`/`.knob`
- * "on" fill does not visually engage until `components.css` grows a selector this DOM shape
- * can satisfy (e.g. a `:has()` rule, or a `data-selected` alias) — the closest existing
- * selector is used (`.toggle`), the gap is this note, not an invented rule.
+ * This is the mock's markup verbatim: `<button class="toggle" role="switch"
+ * aria-checked>`. The state therefore sits on the element `components.css` styles
+ * (`.toggle[aria-checked="true"] .track | .knob | .toggle-word`), so the on fill engages
+ * with no change to that stylesheet — the pattern proven on `SegmentedControl`. React
+ * Aria's `Switch` kept the state on a visually hidden native input the selector could not
+ * reach, and a `<label>` may not carry `aria-checked` (retro F-SPEC-6).
+ *
+ * Keyboard (APG switch): Tab reaches it; Space and Enter toggle it (a `<button>` raises
+ * `click` for both).
  */
 export function Toggle({ isSelected, onChange, ...rest }: ToggleProps) {
   return (
-    <Switch isSelected={isSelected} onChange={onChange} className="toggle" {...rest}>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={isSelected}
+      className="toggle"
+      onClick={() => onChange?.(!isSelected)}
+      {...rest}
+    >
       <span className="track" aria-hidden="true">
         <span className="knob" />
       </span>
       <span className="toggle-word">{isSelected ? ui.toggle.on : ui.toggle.off}</span>
-    </Switch>
+    </button>
   );
 }
 
