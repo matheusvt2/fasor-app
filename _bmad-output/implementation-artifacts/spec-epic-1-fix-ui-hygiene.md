@@ -16,7 +16,24 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/reviews/epic-1-qa-playwright.md'
   - '{project-root}/_bmad-output/planning-artifacts/ux-designs/ux-fasor-2026-09-18/mockups/MOCK-GUIDE.md'
 warnings: ['multiple-goals', 'oversized']
-deferred: []
+deferred:
+  - summary: >-
+      Grouped FilterChipGroup arrow keys move focus but not the selection.
+    evidence: |-
+      Independent review of PR #12: aria-checked unchanged after ArrowRight. Pre-existing (React Aria
+      ToggleButtonGroup); no production caller yet. Reuse the SegmentedControl keyboard contract with the
+      first surface that renders filter chips.
+    location: >-
+      apps/web/src/components/chip.tsx
+    severity: low
+  - summary: >-
+      Esc on the draft toast leaves focus on body; on a cold load with the api down the badge reads "Sincronizado" for about 2 s.
+    evidence: |-
+      Independent review of PR #12. The toast has no opener to return focus to; the first-cycle window needs a
+      "not yet confirmed" badge input the kernel does not have.
+    location: >-
+      apps/web/src/components/toast.tsx; apps/web/src/state/sync.tsx
+    severity: low
 ---
 
 <intent-contract>

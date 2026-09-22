@@ -105,6 +105,20 @@ describe('Login surface', () => {
     expect(signIn).not.toHaveBeenCalled();
   });
 
+  it('going offline after "Senha incorreta" shows the offline sentence alone', async () => {
+    signIn.mockResolvedValue({ ok: false, reason: 'credentials', message: 'Senha incorreta' });
+    const { container, rerender } = render(<LoginSurface />);
+    await fillAndSubmit('a@teste.local', 'errada');
+    expect(screen.getByLabelText('Senha')).toHaveAccessibleDescription('Senha incorreta');
+
+    session = { ...session, online: false };
+    rerender(<LoginSurface />);
+    expect(screen.getByRole('status')).toHaveTextContent(/^Sem conexão/);
+    expect(container).not.toHaveTextContent('Senha incorreta');
+    expect(screen.getByLabelText('Senha')).not.toHaveAttribute('aria-invalid');
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('the page title is the product name', () => {
     render(<LoginSurface />);
     expect(document.title).toBe('PRODUTO');

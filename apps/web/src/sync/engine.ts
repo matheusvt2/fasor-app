@@ -121,6 +121,8 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
   let stopped = false;
   /** The failure of the cycle in flight; copied to `status.lastFailure` when it ends. */
   let cycleFailure: SyncFailure | null = null;
+  /** The cycle in flight was cut by the device going offline. */
+  let cycleWentOffline = false;
   /**
    * An `online` event arrived while a cycle was running. That cycle may already be past
    * its push, or ending on the offline check, so one more cycle runs as soon as it ends:
@@ -147,7 +149,10 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
    * that does not (a push that hit 503, then a relatório pull that answered 404).
    */
   function recordFailure(failure: SyncFailure): void {
-    if (failure === OFFLINE) return;
+    if (failure === OFFLINE) {
+      cycleWentOffline = true;
+      return;
+    }
     if (cycleFailure !== null && isUnreachableFailure(cycleFailure) && !isUnreachableFailure(failure)) return;
     cycleFailure = failure;
   }
@@ -240,7 +245,10 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     // Relatorios opened before keep following their stream whatever their status now.
     for (const row of await deps.db.sync_state.toArray()) if (row.id !== COMPANY_STREAM) wanted.add(row.id);
     for (const id of wanted) {
-      if (stopped || !deps.isOnline()) return;
+      if (stopped || !deps.isOnline()) {
+        if (!stopped) cycleWentOffline = true;
+        return;
+      }
       try {
         await pullStream(id, (since) => deps.client.pullRelatorio(id, since));
       } catch (error) {
@@ -265,6 +273,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     status.running = true;
     status.lastResult = null;
     cycleFailure = null;
+    cycleWentOffline = false;
     emit();
     try {
       await runPhase(pushPhase);
@@ -273,7 +282,9 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     } finally {
       status.running = false;
       status.lastResult = 'ran';
-      status.lastFailure = cycleFailure;
+      // A cycle cut by going offline, with no failure of its own, proved nothing about
+      // the server: the previous verdict stands. A cycle that ran clean clears it.
+      if (cycleFailure !== null || !cycleWentOffline) status.lastFailure = cycleFailure;
       emit();
       if (onlineWhileRunning && !stopped) {
         onlineWhileRunning = false;

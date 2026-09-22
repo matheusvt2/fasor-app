@@ -60,9 +60,12 @@ export function LoginSurface() {
   }, []);
 
   const offline = !session.online;
-  const wrongPair = failure?.reason === 'credentials';
-  const passwordMessage = fieldErrors.password ?? (wrongPair ? failure.message : null);
-  const formMessage = failure !== null && !wrongPair ? failure.message : null;
+  // Offline, the offline sentence is the whole story: an earlier server answer ("Senha
+  // incorreta", the server being down) is not shown beside it.
+  const shownFailure = offline ? null : failure;
+  const wrongPair = shownFailure?.reason === 'credentials';
+  const passwordMessage = fieldErrors.password ?? (wrongPair ? shownFailure.message : null);
+  const formMessage = shownFailure !== null && !wrongPair ? shownFailure.message : null;
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
