@@ -1,0 +1,98 @@
+import { describe, expect, it } from 'vitest';
+import { emptySheet } from '../schemas/entities.ts';
+import { opFactory, TEST_COMPANY, TEST_PROJECT, TEST_RELATORIO } from '../test-support.ts';
+import { opSchema } from './op.ts';
+
+const B1 = '019966b0-000e-7000-8000-000000000001';
+const LOC = '019966b0-000e-7000-8000-000000000002';
+const FOREIGN = '019966b0-000e-7000-8000-0000000000ff';
+
+const block = (relatorio_id: string) => ({
+  id: B1,
+  relatorio_id,
+  location_id: LOC,
+  equipment_id: null,
+  block_type: 'tc',
+  config: {},
+  seed_version: 'v1',
+  order_key: 'a0',
+  feeds_block_id: null,
+  not_tested: null,
+  concluded_by: null,
+  sheet: emptySheet(),
+  created_by: null,
+  first_edited_at: null,
+  last_modified_by: null,
+  last_modified_at: null,
+  removed_at: null,
+});
+
+const logo = (company_id: string) => ({
+  id: B1,
+  company_id,
+  relatorio_id: null,
+  kind: 'logo',
+  sha256: 'd'.repeat(64),
+  mime: 'image/png',
+  size: 1,
+  uploaded_at: null,
+  variants: null,
+  removed_at: null,
+});
+
+describe('opSchema envelope checks', () => {
+  it('accepts a create whose row ids match the envelope', () => {
+    const f = opFactory();
+    expect(() => f.op({ kind: 'create', path: `block/${B1}`, value: block(TEST_RELATORIO) })).not.toThrow();
+    expect(() => f.op({ kind: 'create', scope: 'company', path: `file/${B1}`, value: logo(TEST_COMPANY) })).not.toThrow();
+  });
+
+  it('rejects a block create carrying a foreign relatorio_id', () => {
+    const f = opFactory();
+    expect(() => f.op({ kind: 'create', path: `block/${B1}`, value: block(FOREIGN) })).toThrow(/must equal the op relatorio_id/);
+  });
+
+  it('lets a relatorio create name its owner project when the envelope has no project_id', () => {
+    const f = opFactory();
+    const relatorio = {
+      id: TEST_RELATORIO,
+      project_id: FOREIGN,
+      template_id: null,
+      template_version: null,
+      seed_version: 'v1',
+      status: 'rascunho',
+      setup: { service_start: null, service_end: null, atividade: null, local: null, responsible_user_id: null, cover_photo_file_id: null },
+      export: { scheme: 'por_local_e_tipo' },
+      preview_file_id: null,
+      removed_at: null,
+    };
+    expect(() => f.op({ kind: 'create', path: `relatorio/${TEST_RELATORIO}`, value: relatorio })).not.toThrow();
+    expect(() =>
+      f.op({ kind: 'create', path: `relatorio/${TEST_RELATORIO}`, value: relatorio, project_id: TEST_PROJECT }),
+    ).toThrow(/must equal the op project_id/);
+  });
+
+  it('rejects a company-scope file create that claims a relatorio', () => {
+    const f = opFactory();
+    expect(() =>
+      f.op({ kind: 'create', scope: 'company', path: `file/${B1}`, value: { ...logo(TEST_COMPANY), relatorio_id: FOREIGN } }),
+    ).toThrow(/must equal the op relatorio_id/);
+  });
+
+  it('rejects a file create carrying a foreign company_id', () => {
+    const f = opFactory();
+    expect(() => f.op({ kind: 'create', scope: 'company', path: `file/${B1}`, value: logo(FOREIGN) })).toThrow(
+      /must equal the op company_id/,
+    );
+  });
+
+  it('rejects a value containing U+0000 anywhere', () => {
+    const f = opFactory();
+    const base = f.op({ path: `block/${B1}/order_key`, value: 'a1' });
+    expect(opSchema.safeParse({ ...base, value: 'a\u0000b' }).success).toBe(false);
+    const nested = opSchema.safeParse({ ...base, path: `block/${B1}/config`, value: { note: ['x', 'y\u0000'] } });
+    expect(nested.success).toBe(false);
+    if (!nested.success) expect(nested.error.issues[0]?.path).toEqual(['value']);
+    expect(opSchema.safeParse({ ...base, value: 'plain' }).success).toBe(true);
+  });
+});

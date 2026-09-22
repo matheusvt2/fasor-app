@@ -1,18 +1,18 @@
 import { serve } from '@hono/node-server';
 import { createAuth } from './auth/auth.ts';
+import { parseTrustedOrigins } from './auth/trusted-origins.ts';
 import { loadConfigOrExit } from './config.ts';
-import { createDb, createSql } from './db/client.ts';
-import { runMigrations } from './db/migrate.ts';
+import { createDb } from './db/client.ts';
+import { migrate } from './db/migrate.ts';
 import { createApp } from './http/app.ts';
 import { probeLibreOffice } from './jobs/generate/libreoffice.ts';
 import { startQueue } from './jobs/queue.ts';
+import { log, logError } from './log.ts';
 import { createS3, ensureBucket, probeStorage } from './storage/s3.ts';
-import { parseTrustedOrigins } from './auth/trusted-origins.ts';
 
 const config = loadConfigOrExit();
 
-const sql = createSql(config.DATABASE_URL);
-const db = createDb(sql);
+const { sql, db } = createDb(config.DATABASE_URL);
 const s3 = createS3(config);
 
 async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
@@ -21,19 +21,18 @@ async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
       return await fn();
     } catch (error) {
       if (attempt >= 30) throw error;
-      console.error(`${label} not ready (attempt ${attempt}), retrying`);
+      logError(`${label} not ready, retrying`, { attempt });
       await new Promise((resolve) => setTimeout(resolve, 2000));
     }
   }
 }
 
+// Forward-only migrations run first, so `docker compose up` stays one command and
+// nothing below (queue, auth) sees a database without its tables.
+await withRetry('database', () => migrate(db));
+log('migrations applied');
 await withRetry('storage', () => ensureBucket(s3, config.S3_BUCKET));
 const boss = await withRetry('queue', () => startQueue(config.DATABASE_URL));
-
-// Forward-only migrations run here, after the db is reachable and before the server
-// accepts a request, so `docker compose up` stays one command.
-await withRetry('migrations', () => runMigrations(db));
-console.log(JSON.stringify({ msg: 'migrations applied' }));
 
 const auth = createAuth({
   db,
@@ -53,5 +52,5 @@ const app = createApp({
 });
 
 serve({ fetch: app.fetch, port: config.PORT }, (info) => {
-  console.log(JSON.stringify({ msg: 'api listening', port: info.port }));
+  log('api listening', { port: info.port });
 });

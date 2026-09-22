@@ -1,6 +1,6 @@
 CREATE TABLE "account" (
 	"id" text PRIMARY KEY NOT NULL,
-	"company_id" text,
+	"company_id" uuid,
 	"user_id" text NOT NULL,
 	"account_id" text NOT NULL,
 	"provider_id" text NOT NULL,
@@ -16,7 +16,7 @@ CREATE TABLE "account" (
 );
 --> statement-breakpoint
 CREATE TABLE "company" (
-	"id" text PRIMARY KEY NOT NULL,
+	"id" uuid PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
@@ -24,7 +24,7 @@ CREATE TABLE "company" (
 --> statement-breakpoint
 CREATE TABLE "session" (
 	"id" text PRIMARY KEY NOT NULL,
-	"company_id" text,
+	"company_id" uuid,
 	"user_id" text NOT NULL,
 	"token" text NOT NULL,
 	"expires_at" timestamp with time zone NOT NULL,
@@ -36,7 +36,7 @@ CREATE TABLE "session" (
 --> statement-breakpoint
 CREATE TABLE "user" (
 	"id" text PRIMARY KEY NOT NULL,
-	"company_id" text NOT NULL,
+	"company_id" uuid NOT NULL,
 	"name" text NOT NULL,
 	"email" text NOT NULL,
 	"email_verified" boolean DEFAULT false NOT NULL,
@@ -50,7 +50,7 @@ CREATE TABLE "user" (
 --> statement-breakpoint
 CREATE TABLE "verification" (
 	"id" text PRIMARY KEY NOT NULL,
-	"company_id" text,
+	"company_id" uuid,
 	"identifier" text NOT NULL,
 	"value" text NOT NULL,
 	"expires_at" timestamp with time zone NOT NULL,

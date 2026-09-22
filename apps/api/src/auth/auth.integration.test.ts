@@ -1,7 +1,7 @@
 import { accountResponseSchema } from '@app/domain';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadConfig } from '../config.ts';
-import { createDb, createSql } from '../db/client.ts';
+import { createDb } from '../db/client.ts';
 import { findUserProfile, listUserProfiles } from '../db/repositories/users.ts';
 import { asCompanyId } from '../db/repositories/company-id.ts';
 import { seedTestCompanies, TEST_SEED } from '../db/seed.ts';
@@ -18,8 +18,7 @@ const companyA = TEST_SEED.companies[0];
 const companyB = TEST_SEED.companies[1];
 
 const config = loadConfig();
-const sql = createSql(config.DATABASE_URL);
-const db = createDb(sql);
+const { sql, db } = createDb(config.DATABASE_URL);
 const auth = createAuth({
   db,
   secret: config.SESSION_SECRET,

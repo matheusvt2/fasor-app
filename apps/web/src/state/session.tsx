@@ -10,12 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 import * as authClient from '../api/auth-client.ts';
-import {
-  closeDeviceDatabase,
-  deviceDatabaseName,
-  openDeviceDatabase,
-  type DeviceDatabase,
-} from '../db/database.ts';
+import { databaseName, openDatabase, type AppDatabase } from '../db/schema.ts';
 import { clearLastSession, readLastSession, writeLastSession } from './last-session.ts';
 
 /**
@@ -33,7 +28,7 @@ export interface SessionState {
   user: UserProfile | null;
   online: boolean;
   reAuthRequired: boolean;
-  database: DeviceDatabase | null;
+  database: AppDatabase | null;
   signIn: (email: string, password: string) => Promise<authClient.SignInResult>;
   signOut: () => Promise<void>;
   saveRegistration: (registration: Registration) => Promise<void>;
@@ -51,8 +46,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [online, setOnline] = useState<boolean>(readOnline);
   const [reAuthRequired, setReAuthRequired] = useState(false);
-  const [database, setDatabase] = useState<DeviceDatabase | null>(null);
-  const databaseRef = useRef<DeviceDatabase | null>(null);
+  const [database, setDatabase] = useState<AppDatabase | null>(null);
+  const databaseRef = useRef<AppDatabase | null>(null);
 
   /**
    * Opening IndexedDB can be refused outright (private mode, blocked site data). That
@@ -60,12 +55,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
    * the app signs in anyway. Story 1.8 owns what a missing store means for capture.
    */
   const attachDatabase = useCallback(async (userId: string) => {
-    if (databaseRef.current?.name === deviceDatabaseName(userId)) return;
-    if (databaseRef.current !== null) closeDeviceDatabase(databaseRef.current);
+    if (databaseRef.current?.name === databaseName(userId)) return;
+    databaseRef.current?.close();
     databaseRef.current = null;
     setDatabase(null);
     try {
-      const opened = await openDeviceDatabase(userId);
+      const opened = openDatabase(userId);
+      await opened.open();
       databaseRef.current = opened;
       setDatabase(opened);
     } catch (error) {
@@ -161,7 +157,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     await authClient.signOut();
     clearLastSession();
     // The handle is closed, the database is kept: `Dexie.delete` is never called.
-    if (databaseRef.current !== null) closeDeviceDatabase(databaseRef.current);
+    databaseRef.current?.close();
     databaseRef.current = null;
     setDatabase(null);
     setUser(null);

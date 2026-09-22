@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import type { Database } from '../client.ts';
+import type { Db } from '../client.ts';
 import { company } from '../schema.ts';
 import type { CompanyId } from './company-id.ts';
 
@@ -10,7 +10,7 @@ export interface CompanyRow {
 
 /** The tenant itself. Takes the same required typed argument as every other repository call. */
 export async function findCompany(
-  db: Database,
+  db: Db,
   companyId: CompanyId,
 ): Promise<CompanyRow | undefined> {
   const rows = await db
@@ -23,7 +23,7 @@ export async function findCompany(
 
 /** Provisioning only (seed CLI): creates the tenant row if it is not there yet. */
 export async function ensureCompany(
-  db: Database,
+  db: Db,
   companyId: CompanyId,
   name: string,
 ): Promise<CompanyRow> {

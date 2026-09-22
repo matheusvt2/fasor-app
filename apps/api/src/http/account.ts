@@ -1,6 +1,6 @@
 import { registrationRequestSchema } from '@app/domain';
 import { Hono } from 'hono';
-import type { Database } from '../db/client.ts';
+import type { Db } from '../db/client.ts';
 import { findUserProfile, updateUserRegistration } from '../db/repositories/users.ts';
 import { type AppEnv, requireSession } from './session.ts';
 
@@ -9,7 +9,7 @@ import { type AppEnv, requireSession } from './session.ts';
  * exist beside the op log (AD-9); the professional registration is one of them until the
  * `user/{id}/{field}` op family lands with Story 1.4.
  */
-export function createAccountRoutes(db: Database): Hono<AppEnv> {
+export function createAccountRoutes(db: Db): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
 
   routes.get('/api/account', async (c) => {

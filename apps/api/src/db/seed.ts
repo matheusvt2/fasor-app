@@ -1,7 +1,7 @@
 import { councilSchema, defaultTitleForCouncil, type Council } from '@app/domain';
 import { and, eq } from 'drizzle-orm';
 import type { Auth } from '../auth/auth.ts';
-import type { Database } from './client.ts';
+import type { Db } from './client.ts';
 import { ensureCompany } from './repositories/companies.ts';
 import { asCompanyId, type CompanyId } from './repositories/company-id.ts';
 import { account, session, user } from './schema.ts';
@@ -44,7 +44,7 @@ function idFor(kind: string, key: string): string {
  * Idempotent: running it twice leaves exactly one company row and one user row.
  */
 export async function seedUser(
-  db: Database,
+  db: Db,
   auth: Auth,
   input: SeedUserInput,
 ): Promise<SeedUserResult> {
@@ -124,14 +124,14 @@ export async function seedUser(
 
 /** Removes every session of one user of this company, so a password reset takes effect. */
 export async function revokeSessions(
-  db: Database,
+  db: Db,
   companyId: CompanyId,
   userId: string,
 ): Promise<void> {
   await db.delete(session).where(and(eq(session.companyId, companyId), eq(session.userId, userId)));
 }
 
-export async function seedTestCompanies(db: Database, auth: Auth): Promise<SeedUserResult[]> {
+export async function seedTestCompanies(db: Db, auth: Auth): Promise<SeedUserResult[]> {
   const results: SeedUserResult[] = [];
   for (const company of TEST_SEED.companies) {
     results.push(

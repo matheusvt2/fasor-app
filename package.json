@@ -15,6 +15,7 @@
     "test:reset": "tsx scripts/test-reset.ts",
     "db:generate": "pnpm --filter @app/api exec drizzle-kit generate",
     "seed:users": "tsx scripts/seed-users.ts",
+    "build:image": "bash scripts/build-tagged-image.sh",
     "verify": "pnpm lint && pnpm static && pnpm test:unit && pnpm test:api && pnpm test:e2e"
   },
   "devDependencies": {

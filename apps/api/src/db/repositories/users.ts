@@ -1,6 +1,6 @@
 import { councilSchema, type Registration, type UserProfile } from '@app/domain';
 import { and, eq } from 'drizzle-orm';
-import type { Database } from '../client.ts';
+import type { Db } from '../client.ts';
 import { company, user } from '../schema.ts';
 import type { CompanyId } from './company-id.ts';
 
@@ -45,7 +45,7 @@ const profileColumns = {
 
 /** The signed-in user's profile, scoped to the company the session resolved. */
 export async function findUserProfile(
-  db: Database,
+  db: Db,
   companyId: CompanyId,
   userId: string,
 ): Promise<UserProfile | undefined> {
@@ -61,7 +61,7 @@ export async function findUserProfile(
 
 /** Every user of one company. Used by the cross-tenant test and by provisioning. */
 export async function listUserProfiles(
-  db: Database,
+  db: Db,
   companyId: CompanyId,
 ): Promise<UserProfile[]> {
   const rows = await db
@@ -74,7 +74,7 @@ export async function listUserProfiles(
 
 /** Writes the professional registration of one user of this company. */
 export async function updateUserRegistration(
-  db: Database,
+  db: Db,
   companyId: CompanyId,
   userId: string,
   registration: Registration,

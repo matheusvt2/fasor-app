@@ -3,8 +3,8 @@ import { councilSchema } from '@app/domain';
 import { parseTrustedOrigins } from '../apps/api/src/auth/trusted-origins.ts';
 import { createAuth } from '../apps/api/src/auth/auth.ts';
 import { loadConfig } from '../apps/api/src/config.ts';
-import { createDb, createSql } from '../apps/api/src/db/client.ts';
-import { runMigrations } from '../apps/api/src/db/migrate.ts';
+import { createDb } from '../apps/api/src/db/client.ts';
+import { migrate } from '../apps/api/src/db/migrate.ts';
 import { seedTestCompanies, seedUser, TEST_SEED } from '../apps/api/src/db/seed.ts';
 import { assertInCompose } from './test-reset.ts';
 
@@ -18,13 +18,13 @@ import { assertInCompose } from './test-reset.ts';
  *
  *   docker compose run --rm tools pnpm exec tsx scripts/seed-users.ts --test
  *   docker compose run --rm tools pnpm exec tsx scripts/seed-users.ts \
- *     --company-id acme --company "Acme Engenharia" --email a@acme.com \
+ *     --company-id 8f3a2c1e-5b6d-4e7f-9a0b-1c2d3e4f5a6b --company "Acme Engenharia" --email a@acme.com \
  *     --password "..." --name "Ana Alves" --council crea --number "SP 1234" [--title "..."]
  */
 
 const USAGE = `usage:
   seed-users --test
-  seed-users --company-id <id> --company <name> --email <email> --password <password> \\
+  seed-users --company-id <uuid> --company <name> --email <email> --password <password> \\
              --name <full name> --council <crea|crt> --number <registration number> [--title <printed title>]`;
 
 export function parseArgs(argv: string[]): Record<string, string | true> {
@@ -62,10 +62,9 @@ async function main(): Promise<void> {
 
   const args = parseArgs(process.argv.slice(2));
   const config = loadConfig();
-  const sql = createSql(config.DATABASE_URL);
-  const db = createDb(sql);
+  const { sql, db } = createDb(config.DATABASE_URL);
   try {
-    await runMigrations(db);
+    await migrate(db);
     const auth = createAuth({
       db,
       secret: config.SESSION_SECRET,

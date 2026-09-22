@@ -31,7 +31,7 @@ export function deviceDatabaseName(userId: string): string {
   return `releng-${userId}`;
 }
 
-/** Writes one marker row into the device database, to prove it survives later. */
+/** Writes one marker row (a local pref) into the device database, to prove it survives later. */
 export async function writeLocalMarker(page: Page, database: string, id: string): Promise<void> {
   await page.evaluate(
     async ([name, key]) => {
@@ -41,8 +41,8 @@ export async function writeLocalMarker(page: Page, database: string, id: string)
         request.onerror = () => reject(request.error);
       });
       await new Promise<void>((resolve, reject) => {
-        const tx = open.transaction('entities', 'readwrite');
-        tx.objectStore('entities').put({ id: key, kind: 'relatorio' });
+        const tx = open.transaction('local_prefs', 'readwrite');
+        tx.objectStore('local_prefs').put({ key, value: { kind: 'relatorio' } });
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
       });
@@ -67,13 +67,14 @@ export async function readLocalMarker(
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
       });
-      if (!open.objectStoreNames.contains('entities')) {
+      if (!open.objectStoreNames.contains('local_prefs')) {
         open.close();
         return null;
       }
       const row = await new Promise<unknown>((resolve, reject) => {
-        const request = open.transaction('entities', 'readonly').objectStore('entities').get(key as string);
-        request.onsuccess = () => resolve(request.result ?? null);
+        const request = open.transaction('local_prefs', 'readonly').objectStore('local_prefs').get(key as string);
+        request.onsuccess = () =>
+          resolve((request.result as { value?: unknown } | undefined)?.value ?? null);
         request.onerror = () => reject(request.error);
       });
       open.close();

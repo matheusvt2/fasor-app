@@ -1,7 +1,7 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { eq } from 'drizzle-orm';
-import type { Database } from '../db/client.ts';
+import type { Db } from '../db/client.ts';
 import { schema, user } from '../db/schema.ts';
 
 /** 30-day sliding session (AD-9). */
@@ -10,7 +10,7 @@ export const SESSION_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 30;
 const SESSION_UPDATE_AGE_SECONDS = 60 * 60 * 24;
 
 export interface AuthOptions {
-  db: Database;
+  db: Db;
   secret: string;
   /** Origins allowed to post to /api/auth/* besides the request's own. */
   trustedOrigins: string[];

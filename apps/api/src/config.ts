@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { logError } from './log.ts';
 
 export const configSchema = z.object({
   DATABASE_URL: z.string().url(),
@@ -47,7 +48,7 @@ export function loadConfigOrExit(env: Record<string, string | undefined> = proce
     return loadConfig(env);
   } catch (error) {
     if (error instanceof ConfigError) {
-      console.error(error.message);
+      logError(error.message, { variables: error.variables });
       process.exit(1);
     }
     throw error;

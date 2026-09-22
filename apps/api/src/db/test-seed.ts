@@ -8,7 +8,7 @@ export const TEST_SEED = {
   password: 'senha-de-teste-123456',
   companies: [
     {
-      companyId: 'test-company-a',
+      companyId: '0a000000-0000-4000-8000-00000000000a',
       companyName: 'Empresa A de Teste',
       email: 'a@teste.local',
       name: 'Ana Alves',
@@ -18,7 +18,7 @@ export const TEST_SEED = {
       userId: 'seed-user-a-teste-local',
     },
     {
-      companyId: 'test-company-b',
+      companyId: '0b000000-0000-4000-8000-00000000000b',
       companyName: 'Empresa B de Teste',
       email: 'b@teste.local',
       name: 'Bento Braga',
