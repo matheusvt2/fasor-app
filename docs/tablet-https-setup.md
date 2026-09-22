@@ -60,6 +60,14 @@ transfer works) and install it as a trusted root:
 - **Android:** open the file (or copy it into `Settings > Security > Encryption
   & credentials > Install a certificate > CA certificate`) and confirm the
   security warning.
+- **Desktop (Linux/macOS/Windows):** import `./certs/ca/rootCA.pem` into the OS
+  trust store so a desktop browser also opens `https://$TABLET_HOST` with no
+  warning -- on Linux, most distributions add it with `sudo cp certs/ca/rootCA.pem
+  /usr/local/share/ca-certificates/fasor-mkcert.crt && sudo update-ca-certificates`
+  (browsers that keep their own store, such as Firefox, also need it imported
+  there); on macOS, open the file in Keychain Access and set it to "Always
+  Trust"; on Windows, open the file and install it into "Trusted Root
+  Certification Authorities" for the current user.
 
 This is a one-time step per device.
 
@@ -88,7 +96,7 @@ serves the built web bundle and `/api/*`, migrations run forward-only
 before it starts, and logs are JSON lines on stdout.
 
 ```
-pnpm --filter @app/web build
+docker compose --profile tools run --rm tools pnpm --filter @app/web build
 docker compose --profile prod up migrate
 docker compose --profile prod up -d
 ```

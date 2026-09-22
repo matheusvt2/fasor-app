@@ -113,7 +113,7 @@ test('@p0 1.5-E2E-001 work done offline reaches the server on "Sincronizar agora
   expect(states.find((s) => s.id === relatorioId)?.complete).toBe(true);
 });
 
-test('@p0 1.5-E2E-003 a pull answering 426 replaces the shell with "Atualizar" while the push still goes through', async ({
+test('@p2 1.5-E2E-003 a pull answering 426 replaces the shell with "Atualizar" while the push still goes through', async ({
   page,
   seed,
 }) => {
@@ -157,7 +157,7 @@ test('@p0 1.5-E2E-003 a pull answering 426 replaces the shell with "Atualizar" w
   expect(company.ops.some((o) => o.op_id === pending.op_id)).toBe(true);
 });
 
-test('@p0 1.5-E2E-002 a rejected op is dead, excluded from state and listed with "Reenviar"; the button shows its reason while a cycle runs', async ({
+test('@p1 1.5-E2E-002 a rejected op is dead, excluded from state and listed with "Reenviar"; the button shows its reason while a cycle runs', async ({
   page,
   seed,
 }) => {

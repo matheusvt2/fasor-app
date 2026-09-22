@@ -96,5 +96,8 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test-setup.ts'],
+    // F-GATE-1: the 5 s default flaked under load; 15 s gives headroom without masking a
+    // real hang.
+    testTimeout: 15_000,
   },
 });

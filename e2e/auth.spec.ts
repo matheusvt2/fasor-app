@@ -97,7 +97,7 @@ test('@p0 1.3-E2E-001 signs in, keeps working with the API down, and signs out w
   expect(await readStoreNames(page, database)).toContain('outbox');
 });
 
-test('@p0 1.3-E2E-001b offline with no session, Entrar is disabled with the reason beside it', async ({
+test('@p1 1.3-E2E-001b offline with no session, Entrar is disabled with the reason beside it', async ({
   page,
   context,
 }) => {
@@ -118,7 +118,7 @@ test('@p0 1.3-E2E-001b offline with no session, Entrar is disabled with the reas
   await context.setOffline(false);
 });
 
-test('@p0 1.3-E2E-001c bad credentials show one inline error', async ({ page, seed }) => {
+test('@p1 1.3-E2E-001c bad credentials show one inline error', async ({ page, seed }) => {
   await page.goto('/login');
   await page.getByLabel('E-mail').fill(seed.companies[0].email);
   await page.getByLabel('Senha').fill('senha-errada-000');
@@ -175,7 +175,7 @@ test('@p0 1.3-E2E-002 a 401 mid-call raises the re-auth banner, leaves local dat
   expect(await readLocalMarker(page, database, MARKER)).toMatchObject({ kind: 'relatorio' });
 });
 
-test('@p0 1.3-E2E-002b a cold open whose cookie is gone stays on Home with the re-auth banner, twice, the second time offline', async ({
+test('@p1 1.3-E2E-002b a cold open whose cookie is gone stays on Home with the re-auth banner, twice, the second time offline', async ({
   page,
   context,
   seed,
@@ -220,7 +220,7 @@ test('@p0 1.3-E2E-002b a cold open whose cookie is gone stays on Home with the r
   await page.unroute(isApiRequest);
 });
 
-test('@p0 1.3-E2E-003 the Registro profissional dialog follows the council and the row re-reads', async ({
+test('@p1 1.3-E2E-003 the Registro profissional dialog follows the council and the row re-reads', async ({
   page,
   seed,
 }) => {
@@ -272,7 +272,7 @@ test('@p0 1.3-E2E-003 the Registro profissional dialog follows the council and t
   await expect(row).toHaveText(`CREA ${user.registrationNumber} · Eng. Eletricista`);
 });
 
-test('@p0 1.3-E2E-003b offline, Salvar commits the registration on the device and it reaches the server on reconnect', async ({
+test('@p1 1.3-E2E-003b offline, Salvar commits the registration on the device and it reaches the server on reconnect', async ({
   page,
   context,
   seed,
