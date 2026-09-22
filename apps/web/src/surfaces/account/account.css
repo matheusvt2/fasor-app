@@ -1,0 +1,57 @@
+/* Page-only layout of the Account surface, copied from
+   `mockups/prototype/screens/90-account.html`. `.reg-grid` and `.account-name` are
+   screen-scoped in the mock too, not part of components.css. */
+
+.account-name {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-5);
+}
+
+.account-name .avatar {
+  width: 56px;
+  height: 56px;
+  font-size: var(--t-title-size);
+}
+
+.account-name h2 {
+  font-size: var(--t-title-size);
+  font-weight: var(--t-title-weight);
+  line-height: var(--t-title-lh);
+}
+
+.account-name p {
+  font-size: var(--t-body-size);
+  color: var(--ink-secondary);
+}
+
+.sign-out {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  align-items: flex-start;
+}
+
+@media (max-width: 480px) {
+  .sign-out .btn {
+    width: 100%;
+  }
+}
+
+.reg-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--sp-4);
+  max-width: 560px;
+}
+
+@media (min-width: 1024px) {
+  .reg-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.reg-grid .segmented {
+  max-width: 240px;
+}

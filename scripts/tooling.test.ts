@@ -3,6 +3,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { ESLint } from 'eslint';
 import { describe, expect, it } from 'vitest';
+import { parseArgs } from './seed-users.ts';
 import { assertInCompose } from './test-reset.ts';
 
 const root = resolve(import.meta.dirname, '..');
@@ -59,6 +60,38 @@ describe('test-reset guard', () => {
     });
     expect(result.status).not.toBe(0);
     expect(result.stderr).toMatch(/docker-compose/);
+  });
+});
+
+describe('seed-users CLI', () => {
+  it('refuses outside docker-compose and names the requirement', () => {
+    const result = spawnSync('pnpm', ['exec', 'tsx', 'scripts/seed-users.ts', '--test'], {
+      cwd: root,
+      env: { ...process.env, RUNNING_IN_COMPOSE: '' },
+      encoding: 'utf8',
+    });
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toMatch(/docker-compose/);
+    expect(result.stderr).toMatch(/seed-users/);
+  });
+
+  it('provisions the two test companies through the CLI', () => {
+    const result = spawnSync('pnpm', ['exec', 'tsx', 'scripts/seed-users.ts', '--test'], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+    expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+    expect(result.stdout).toContain('seeded a@teste.local');
+    expect(result.stdout).toContain('seeded b@teste.local');
+  }, 120_000);
+
+  it('parses long flags and bare switches', () => {
+    expect(parseArgs(['--test'])).toEqual({ test: true });
+    expect(parseArgs(['--email', 'a@b.c', '--council', 'crea', '--test'])).toEqual({
+      email: 'a@b.c',
+      council: 'crea',
+      test: true,
+    });
   });
 });
 

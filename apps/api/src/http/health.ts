@@ -1,4 +1,5 @@
 import type { HealthResponse } from '@app/domain';
+import { Hono } from 'hono';
 
 export type Probe = () => Promise<unknown>;
 
@@ -37,4 +38,14 @@ export async function getHealth(probes: HealthProbes): Promise<HealthResponse> {
   ]);
   const allUp = [db, queue, storage, libreoffice].every((value) => value === 'up');
   return { status: allUp ? 'up' : 'degraded', db, queue, storage, libreoffice };
+}
+
+/** Public route: no session, no tenant. */
+export function createHealthRoutes(probes: HealthProbes): Hono {
+  const routes = new Hono();
+  routes.get('/api/health', async (c) => {
+    const health = await getHealth(probes);
+    return c.json(health, health.status === 'up' ? 200 : 503);
+  });
+  return routes;
 }

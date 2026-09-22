@@ -1,0 +1,33 @@
+/* Page-only layout of the Login surface, copied from
+   `mockups/prototype/screens/10-login.html` (the same rules the mock keeps outside
+   components.css). Component styling comes from `.login-form` and friends. */
+
+.login-screen {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-7) var(--gutter-tablet);
+}
+
+@media (max-width: 480px) {
+  .login-screen {
+    align-items: flex-start;
+    padding: var(--sp-7) var(--gutter-phone) var(--sp-6);
+  }
+}
+
+.login-form .btn-primary {
+  margin-top: var(--sp-2);
+}
+
+.login-foot {
+  margin-top: var(--sp-5);
+  text-align: center;
+  font-size: var(--t-meta-size);
+  color: var(--ink-secondary);
+}
+
+.login-form .btn-reason {
+  text-align: center;
+}

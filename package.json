@@ -3,7 +3,9 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@12.5.1",
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "lint": "eslint .",
     "static": "pnpm -r --workspace-concurrency=1 run typecheck && tsc -p tsconfig.json",
@@ -11,9 +13,12 @@
     "test:api": "pnpm --filter @app/api run test:fast",
     "test:e2e": "playwright test --grep @p0",
     "test:reset": "tsx scripts/test-reset.ts",
+    "db:generate": "pnpm --filter @app/api exec drizzle-kit generate",
+    "seed:users": "tsx scripts/seed-users.ts",
     "verify": "pnpm lint && pnpm static && pnpm test:unit && pnpm test:api && pnpm test:e2e"
   },
   "devDependencies": {
+    "@app/domain": "workspace:*",
     "@aws-sdk/client-s3": "3.1134.0",
     "@eslint/js": "^10.0.0",
     "@playwright/test": "1.63.0",
