@@ -190,7 +190,7 @@ action_items:
       DB-touching tests out of test:unit, retag e2e by priority, add emoji/laudo scans
       and pnpm audit, rebuild the tools image, keep one reset mechanism"
     owner: "Process"
-    status: open
+    status: done  # PR #10, 947b17e4cd5ea9a32bad3fc30ae2ef4736eabe29
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-7-a7-move-status-words-plurals-counts-and"
     epic: 1
@@ -213,14 +213,14 @@ action_items:
       doc, dist build before Caddy, desktop CA, seed usage and a sample-relatorio
       seed flag; strike Story 1.7 CI AC through"
     owner: "Process (bmad-project-context)"
-    status: open
+    status: done  # PR #10, 947b17e4cd5ea9a32bad3fc30ae2ef4736eabe29
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-10-a10-merge-every-spec-deferred-item-into"
     epic: 1
     action: "A10 Merge every spec deferred item into deferred-work.md with a class,
       close resolved ones, add a cross-tenant case per new route to the DoD"
     owner: "Process"
-    status: open
+    status: done  # PR #10, 947b17e4cd5ea9a32bad3fc30ae2ef4736eabe29
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-11-a11-pipeline-independent-review-on-every"
     epic: 1
@@ -229,7 +229,7 @@ action_items:
       stories, smaller specs with ACs only against existing artifacts, epic-close
       gate checks manual ACs, parallel-story start checklist"
     owner: "Process (bmad-build.toml, model guide)"
-    status: open
+    status: done  # PR #10, 947b17e4cd5ea9a32bad3fc30ae2ef4736eabe29
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-12-a12-before-any-exposure-beyond-the-offic"
     epic: 1
