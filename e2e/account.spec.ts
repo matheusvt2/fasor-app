@@ -7,7 +7,7 @@ import { expect, signIn, test } from './support/merged-fixtures.ts';
  * the attribute again. Plus the storage row and the link to Sync status.
  */
 
-test('@p0 1.6-E2E-004 Account: Tema applies at once, survives a reload, and Armazenamento reads a value', async ({
+test('@p1 1.6-E2E-004 Account: Tema applies at once, survives a reload, and Armazenamento reads a value', async ({
   page,
   seed,
 }) => {

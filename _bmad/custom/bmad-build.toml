@@ -16,19 +16,62 @@ Model ladder, lowest to highest: sonnet < opus < fable.
 1. As soon as the story is identified (step 1, story-key resolution or the epic story path), read that line and hold
    {dev_model} and {dev_effort} for the whole run. If the intent is not an epic story, use dev_model = opus and
    dev_effort = medium unless the user says otherwise.
-2. Session check, done once right after the story is identified and before any planning work: compare the model this
+2. Floor check (Epic 1 retrospective P3, A11), done right after step 1 and before the session check: if the story's
+   title or acceptance criteria are component-library, a11y-keyboard, or security-adjacent work (shared component
+   states, ARIA/keyboard behavior, auth, sessions, tenant isolation, secrets, or anything else with security weight),
+   raise {dev_model} to opus and {dev_effort} to high for this run only, unless the `epics.md` `Dev model` line
+   already names fable (fable is above opus on the model ladder regardless of its effort, so it already meets or
+   exceeds the floor). The model ladder above ranks models only, not effort, so an `epics.md` line naming opus at
+   any effort below high, or sonnet at any effort, is below the floor and gets raised. Do not edit the `epics.md`
+   line. Say once, in one line, that the floor was applied and why.
+3. Session check, done once right after the floor check and before any planning work: compare the model this
    session itself is running on with {dev_model}. If the session is BELOW {dev_model} on the ladder, HALT and tell the
    user in one line, in Portuguese: "Esta story pede {dev_model}; a sessão está em <session model>. Rode `/model
    {dev_model}` e invoque o bmad-build de novo para continuar." Do not plan or implement until the user does so.
    If the session is ABOVE {dev_model}, continue, and mention once that `/model {dev_model}` would be cheaper for the
    planning and review steps. If equal, say nothing.
-3. When writing the spec in step 2, add `dev_model: '<model>'` and `dev_effort: '<effort>'` to its frontmatter so a
+4. When writing the spec in step 2, add `dev_model: '<model>'` and `dev_effort: '<effort>'` to its frontmatter so a
    resumed run reads them from the spec without reopening epics.md.
-4. Investigation subagents in step 2 and the epic-context compile subagent in step 1 are launched with model sonnet.
-5. The implementation subagent (step 3) is launched with `subagent_type` = `bmad-dev-{dev_model}-{dev_effort}` and
+5. Investigation subagents in step 2 and the epic-context compile subagent in step 1 are launched with model sonnet.
+6. The implementation subagent (step 3) is launched with `subagent_type` = `bmad-dev-{dev_model}-{dev_effort}` and
    `model` = {dev_model}, as the implementation handoff below says. If that agent definition does not exist for the
    pair, use `bmad-dev-{dev_model}-medium` for opus or sonnet and `bmad-dev-fable-high` for fable, and say so.
-6. Review layer subagents (step 4) are launched with `model` = {dev_model}. Their effort inherits the session.
+7. Review layer subagents (step 4) are launched with `model` = {dev_model}. Their effort inherits the session.
+""",
+  """
+PROCESS LESSONS (Epic 1 retrospective, A11). Five lessons from the Epic 1 retrospective
+(`_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md`, findings P1-P6), binding on every run of this
+workflow:
+
+(a) Re-examine the patch, not only the diff (P1). The independent review that runs after this workflow completes
+    must re-examine this workflow's own review-layer patches, not only the story's original diff — in Epic 1, every
+    PR with UI or security weight had a medium or high issue the internal 4-layer review missed or, twice, introduced
+    itself while patching. Tell whoever runs that independent review to diff against this workflow's own commits, not
+    only against the pre-story baseline.
+
+(b) A mandatory hands-on real-browser pass (P2). Any story touching UI or the service worker needs a real, hands-on
+    browser pass before it is called done: 390/768/1280 px, light and dark themes, keyboard-only navigation, and
+    offline. Library and platform semantics (React Aria's DOM shapes and portals, service worker lifecycle, event
+    ordering) must be probed in a real browser, not assumed from documentation or from a jsdom test — Epic 1's own
+    F-SPEC-2 (a service worker hold flag lost on worker restart) survived an internal review and an independent
+    review and was only caught by this pass. See memory `human-style-e2e-testing`.
+
+(c) Write ACs only against artifacts that already exist (P4). Do not write a story's acceptance criteria against a
+    kernel function, a fixture, or a surface a later epic will add. Seven of Epic 1's eight specs carried the
+    `oversized` warning partly because ACs depended on `progress(snapshot)`, the Porto Seguro fixture and sheet
+    surfaces that did not exist yet, forcing deferrals by construction. Recalibrate story size at spec time instead.
+
+(d) The epic-close gate checks every AC, manual ones included (P5). An epic is not `done` in `sprint-status.yaml`
+    until every one of its acceptance criteria has evidence — including a criterion that needs a physical device.
+    Epic 1 was marked `done` with its own device-proof AC still pending. Do not mark an epic done on automated
+    coverage alone.
+
+(e) A parallel-story checklist before work starts (P6). Before starting a story in a parallel worktree, confirm and
+    record: a host port below 65535 unique to that worktree (not reused from another active worktree); every shared
+    component the story stubs rather than finishing, listed as a tracked item with a named owner for removing the
+    stub; and a stated plan for merging back (rebase vs. merge, who resolves conflicts) agreed before work starts.
+    Epic 1 hit all three: a worktree given a port above 65535, an unfinished shared-component stub whose removal
+    slipped a story, and merges that needed unplanned conflict resolution. See memory `story-delivery-pipeline`.
 """,
 ]
 

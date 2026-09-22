@@ -257,9 +257,13 @@ export async function removeLegacyTestCompanies(db: Db): Promise<number> {
  * `user/{id}` projection goes with the log, so the caller seeds again afterwards
  * (`seedTestCompanies` re-projects every user whose entity is missing).
  *
- * It is called by the Playwright global setup only, never by `seedTestCompanies`: the
- * api integration files each seed in their own `beforeAll` and run side by side, so a
- * reset there would wipe rows a neighbouring file had just written.
+ * It is called by the Playwright global setup, `scripts/test-reset.ts` (guarded to only
+ * ever pass a `TEST_SEED` company id, F-DUP-3), and this file's own sibling
+ * `test-reset.integration.test.ts` — never by `seedTestCompanies`: the api integration
+ * files each seed in their own `beforeAll` and normally run side by side, which would let
+ * a reset here wipe rows a neighbouring file had just written. `apps/api/vitest.config.ts`
+ * sets `fileParallelism: false` specifically so `test-reset.integration.test.ts` can call
+ * this safely; do not re-enable file parallelism there without re-solving this race first.
  */
 export async function resetTestCompanyData(db: Db): Promise<void> {
   const ids = TEST_SEED.companies.map((c) => c.companyId);

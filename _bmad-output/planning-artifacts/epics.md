@@ -409,14 +409,15 @@ A story may enter `bmad-build` only when all of the following hold:
 A story is done when all of the following hold and the pull request is merged:
 
 1. Every acceptance criterion is exercised by an automated test: kernel and api behavior by Vitest, and any feature with a front end by a Playwright test that walks the whole feature as a human would, not a sample. The one exception is a criterion that needs a physical device (the iPad and Android checks of Stories 1.7 and 1.8, repeated at the close of Epics 5, 6 and 8 per TC-12): it is run by hand and its evidence (date, device, OS version, outcome) is recorded in `_bmad-output/test-artifacts/manual/` and linked from the PR.
-2. `pnpm verify` is green (lint, unit, api, Playwright `@p0`, under 15 minutes) with every P0 test passing, its output is pasted in the PR, and any deviation from the playwright-utils conventions is listed in the PR (handoff, Implementation gate). The epic-level gate (P1 coverage at or above 95 %, manual evidence where required) is checked by the epic retrospective, not by each story.
-3. The whole stack still starts with `docker compose up`; nothing was installed or run natively.
-4. Ownership rules hold: statuses, counts, texts, orders and verdicts are computed in `packages/domain` only; `apps/web` renders from IndexedDB and writes only ops; `apps/api` applies ops and renders documents; `applyOp` is the only reducer.
-5. UI stories match their mockup frames in light and dark at the breakpoints the mock has, use the mock's class names, and take strings from the pt-BR copy module; no emoji, no Fasor branding, product name from the `PRODUTO` constant.
-6. Code, comments, commit messages and new documents are English, with the domain words and pt-BR UI copy as the only exceptions; routes and identifiers say `relatorio`, never `laudo`.
-7. No client material from `docs/context/`, `docs/media/` or third-party names from `docs/concorrentes/` entered a tracked file, except inside the Porto Seguro fixture and its golden documents (waiver of 2026-09-21).
-8. One branch and one PR for the story, self-approved and merged by the author; `sprint-status.yaml` moves the story to `done`.
-9. Anything left incomplete or risky is written in the PR and, if it changes scope, raised through `bmad-correct-course` rather than absorbed silently.
+2. Every new API route is exercised by a cross-tenant test: a request from company A can never read or write company B's data. (2026-09-22, Epic 1 retrospective A10.)
+3. `pnpm verify` is green (lint, unit, api, Playwright `@p0`, under 15 minutes) with every P0 test passing, its output is pasted in the PR, and any deviation from the playwright-utils conventions is listed in the PR (handoff, Implementation gate). The epic-level gate (P1 coverage at or above 95 %, manual evidence where required) is checked by the epic retrospective, not by each story.
+4. The whole stack still starts with `docker compose up`; nothing was installed or run natively.
+5. Ownership rules hold: statuses, counts, texts, orders and verdicts are computed in `packages/domain` only; `apps/web` renders from IndexedDB and writes only ops; `apps/api` applies ops and renders documents; `applyOp` is the only reducer.
+6. UI stories match their mockup frames in light and dark at the breakpoints the mock has, use the mock's class names, and take strings from the pt-BR copy module; no emoji, no Fasor branding, product name from the `PRODUTO` constant.
+7. Code, comments, commit messages and new documents are English, with the domain words and pt-BR UI copy as the only exceptions; routes and identifiers say `relatorio`, never `laudo`.
+8. No client material from `docs/context/`, `docs/media/` or third-party names from `docs/concorrentes/` entered a tracked file, except inside the Porto Seguro fixture and its golden documents (waiver of 2026-09-21).
+9. One branch and one PR for the story, self-approved and merged by the author; `sprint-status.yaml` moves the story to `done`.
+10. Anything left incomplete or risky is written in the PR and, if it changes scope, raised through `bmad-correct-course` rather than absorbed silently.
 
 ## Epic List
 
@@ -717,9 +718,9 @@ So that the offline proof and every later field test run on a real device withou
 **When** a seeded user opens it on an iPad and on an Android phone
 **Then** they can sign in, see Home, and the app serves its shell with `lang="pt-BR"`, both themes and the self-hosted Inter (FR-54 proof precondition, NFR-9)
 
-**Given** CI on the main branch
+~~**Given** CI on the main branch
 **When** a commit lands
-**Then** the api image is built once and tagged with the commit (kept in the local registry or the CI cache; no push to a cloud registry until Epic 11), lint and tests gate the build
+**Then** the api image is built once and tagged with the commit (kept in the local registry or the CI cache; no push to a cloud registry until Epic 11), lint and tests gate the build~~ (2026-09-21: no CI in the MVP; `pnpm verify` run locally is the merge gate, AGENTS.md)
 
 ### Story 1.8: Nothing captured is lost when the tab closes, the network drops or storage is scarce
 
