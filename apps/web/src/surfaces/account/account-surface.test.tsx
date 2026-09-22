@@ -34,6 +34,8 @@ const signedIn: SessionState = {
   signOut: vi.fn(async () => {}),
   saveRegistration: vi.fn(async () => {}),
   dismissReAuth: vi.fn(),
+  recoveryNeeded: false,
+  dismissRecovery: vi.fn(),
 };
 
 vi.mock('../../state/session.tsx', () => ({ useSession: () => signedIn }));
@@ -48,6 +50,7 @@ function syncState(pendingText: string, pendingCount: number): SyncState {
     running: false,
     outdated: false,
     lastResult: 'ran',
+    lastFailure: null,
     lastSyncAt: null,
     lastPushAt: [],
     supersededCount: 0,

@@ -1,12 +1,16 @@
-import { createBrowserRouter, Navigate, Outlet, RouterProvider } from 'react-router';
+import { createBrowserRouter, Navigate, Outlet, RouterProvider, type RouteObject } from 'react-router';
 import { copy } from './copy/pt-br.ts';
+import { DraftProvider } from './state/drafts.tsx';
 import { SessionProvider, useSession } from './state/session.tsx';
 import { SyncProvider, useSync } from './state/sync.tsx';
 import { ThemeProvider } from './state/theme.tsx';
 import { ToastProvider } from './state/toast.tsx';
+import { useShellUpdate } from './sw/use-shell-update.ts';
 import { AppShell } from './surfaces/app-shell.tsx';
 import { AccountSurface } from './surfaces/account/account-surface.tsx';
 import { ContractOutdatedSurface } from './surfaces/contract-outdated-surface.tsx';
+import { EvictionRecoverySurface } from './surfaces/eviction-recovery-surface.tsx';
+import { FieldFixtureSurface } from './surfaces/fixtures/field-fixture-surface.tsx';
 import { HomeSurface } from './surfaces/home/home-surface.tsx';
 import { LoginSurface } from './surfaces/login/login-surface.tsx';
 import { SyncStatusSurface } from './surfaces/sync/sync-status-surface.tsx';
@@ -24,10 +28,18 @@ function Booting() {
   );
 }
 
-/** The shell, or the full-screen "Atualizar" state while a pull answered 426 (AD-13). */
+/**
+ * The shell, or one of the two full-surface states that replace it: the "Atualizar"
+ * screen while a pull answered 426 (AD-13), and the one-time eviction recovery when the
+ * cookie outlived the device store (AD-8). This is also the launch that promotes a
+ * waiting shell when the outbox is empty.
+ */
 function SessionShell() {
+  const session = useSession();
   const sync = useSync();
+  useShellUpdate(session.database);
   if (sync.outdated) return <ContractOutdatedSurface />;
+  if (session.recoveryNeeded) return <EvictionRecoverySurface />;
   return <AppShell />;
 }
 
@@ -40,7 +52,9 @@ function RequireSession() {
     <SyncProvider>
       <ThemeProvider>
         <ToastProvider>
-          <SessionShell />
+          <DraftProvider>
+            <SessionShell />
+          </DraftProvider>
         </ToastProvider>
       </ThemeProvider>
     </SyncProvider>
@@ -58,6 +72,15 @@ function LoginRoute() {
   if (session.status === 'signed-in' && !session.reAuthRequired) return <Navigate to="/" replace />;
   return <LoginSurface />;
 }
+
+/**
+ * The dev-only field fixture the durability scenarios drive (no sheet surface exists
+ * before Epic 5). `import.meta.env.DEV` is statically replaced at build time, so the
+ * route and the surface are tree-shaken out of a production bundle.
+ */
+const fixtureRoutes: RouteObject[] = import.meta.env.DEV
+  ? [{ path: '/__fixture/field', element: <FieldFixtureSurface />, handle: { title: 'Campo de teste' } }]
+  : [];
 
 const router = createBrowserRouter([
   {
@@ -78,6 +101,7 @@ const router = createBrowserRouter([
           { path: '/', element: <HomeSurface />, handle: { title: copy.home.title, titleHidden: true } },
           { path: '/account', element: <AccountSurface />, handle: { title: copy.account.title } },
           { path: '/sync', element: <SyncStatusSurface />, handle: { title: copy.sync.title } },
+          ...fixtureRoutes,
         ],
       },
       { path: '*', element: <Navigate to="/" replace /> },

@@ -110,8 +110,12 @@ export async function undoBatch(db: AppDatabase, batchId: string, deps: CommitDe
   return inverses;
 }
 
-/** The `client_ts` of the oldest pending op, for the unsynced-for-days check. */
+/**
+ * The `client_ts` of the oldest op still on its way to the server, for the
+ * unsynced-for-days check (AD-8). `pending` and `sent` only: an `acked` op has arrived
+ * and a `dead` one was refused, and neither is work waiting to be sent.
+ */
 export async function oldestPendingClientTs(db: AppDatabase): Promise<string | null> {
-  const first = await db.outbox.where('status').equals('pending').sortBy('client_ts');
-  return first[0]?.client_ts ?? null;
+  const waiting = await db.outbox.where('status').anyOf(['pending', 'sent']).sortBy('client_ts');
+  return waiting[0]?.client_ts ?? null;
 }

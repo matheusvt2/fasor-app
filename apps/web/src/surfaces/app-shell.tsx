@@ -1,9 +1,13 @@
-import { avatarInitial, PRODUTO } from '@app/domain';
+import { avatarInitial, PRODUTO, unsyncedForDays } from '@app/domain';
 import { Link, Outlet, useMatches, useNavigate } from 'react-router';
+import { now } from '../clock.ts';
 import { SyncAnnouncer } from '../components/sync-announcer.tsx';
 import { SyncBadge } from '../components/index.ts';
 import { copy } from '../copy/pt-br.ts';
+import { oldestPendingClientTs } from '../db/commit.ts';
+import { useLiveQuery } from '../db/live.ts';
 import { BannerSlot, bannerCandidates } from '../state/banner-slot.tsx';
+import { useDrafts } from '../state/drafts.tsx';
 import { useSession } from '../state/session.tsx';
 import { useSync } from '../state/sync.tsx';
 import { ToastOutlet } from '../state/toast.tsx';
@@ -12,29 +16,6 @@ import { ToastOutlet } from '../state/toast.tsx';
 export interface RouteTitle {
   title: string;
   titleHidden?: boolean;
-}
-
-/** The inline sprite of the symbols this story's markup uses. */
-function IconSprite() {
-  return (
-    <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
-      <symbol id="i-check" viewBox="0 0 24 24">
-        <path d="M5 12l5 5 9-10" />
-      </symbol>
-      <symbol id="i-chev-right" viewBox="0 0 24 24">
-        <path d="M9 6l6 6-6 6" />
-      </symbol>
-      <symbol id="i-layers" viewBox="0 0 24 24">
-        <path d="M12 4l8 4-8 4-8-4z" />
-        <path d="M4 12l8 4 8-4" />
-        <path d="M4 16l8 4 8-4" />
-      </symbol>
-      <symbol id="i-book" viewBox="0 0 24 24">
-        <path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 0-3 3z" />
-        <path d="M5 4v16a3 3 0 0 1 3-3h11" />
-      </symbol>
-    </svg>
-  );
 }
 
 /**
@@ -48,8 +29,18 @@ function IconSprite() {
 export function AppShell() {
   const session = useSession();
   const sync = useSync();
+  const drafts = useDrafts();
   const navigate = useNavigate();
   const matches = useMatches();
+  const db = session.database;
+
+  // AD-8: the oldest op still on its way to the server. The kernel decides whether five
+  // days have passed; the shell only reads the store and renders the answer.
+  const oldest = useLiveQuery(
+    () => (db === null ? Promise.resolve(null) : oldestPendingClientTs(db)),
+    [db],
+    null,
+  );
 
   const handle = [...matches].reverse().find((match) => match.handle !== undefined)?.handle as
     | RouteTitle
@@ -59,6 +50,8 @@ export function AppShell() {
   const banners = bannerCandidates({
     reAuthRequired: session.reAuthRequired,
     online: sync.online,
+    unsyncedForDays: unsyncedForDays(oldest, now()),
+    draftFound: drafts.draftFound,
     reAuthAction: (
       <button
         type="button"
@@ -74,7 +67,6 @@ export function AppShell() {
 
   return (
     <>
-      <IconSprite />
       <header className="app-bar">
         <span className="app-bar-left">
           <Link className="wordmark" to="/" aria-label={copy.home.wordmarkLabel(PRODUTO)}>

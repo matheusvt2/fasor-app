@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 import * as authClient from '../api/auth-client.ts';
+import { readRecoveryNotice, writeRecoveryNotice } from '../db/prefs.ts';
 import { databaseName, openDatabase, type AppDatabase } from '../db/schema.ts';
 import { clearLastSession, readLastSession, writeLastSession } from './last-session.ts';
 
@@ -28,11 +29,19 @@ export interface SessionState {
   user: UserProfile | null;
   online: boolean;
   reAuthRequired: boolean;
+  /**
+   * AD-8: the cookie survived but the store did not. Set only on the cold-open branch
+   * that had no local pointer, was confirmed by the server, and opened a database that
+   * did not exist a moment ago.
+   */
+  recoveryNeeded: boolean;
   database: AppDatabase | null;
   signIn: (email: string, password: string) => Promise<authClient.SignInResult>;
   signOut: () => Promise<void>;
   saveRegistration: (registration: Registration) => Promise<void>;
   dismissReAuth: () => void;
+  /** Hides the recovery screen and remembers it in `local_prefs`, so it is one-time. */
+  dismissRecovery: () => void;
 }
 
 const SessionContext = createContext<SessionState | null>(null);
@@ -46,16 +55,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [online, setOnline] = useState<boolean>(readOnline);
   const [reAuthRequired, setReAuthRequired] = useState(false);
+  const [recoveryNeeded, setRecoveryNeeded] = useState(false);
   const [database, setDatabase] = useState<AppDatabase | null>(null);
   const databaseRef = useRef<AppDatabase | null>(null);
 
   /**
    * Opening IndexedDB can be refused outright (private mode, blocked site data). That
    * must never hold up the session: the handle stays null, the failure is logged, and
-   * the app signs in anyway. Story 1.8 owns what a missing store means for capture.
+   * the app signs in anyway.
+   *
+   * Answers whether this open is the one that created the store (AD-8's eviction
+   * signal), which only the cold-open branch below acts on; a refused open answers
+   * false, because nothing can be said about a store that never opened.
    */
-  const attachDatabase = useCallback(async (userId: string) => {
-    if (databaseRef.current?.name === databaseName(userId)) return;
+  const attachDatabase = useCallback(async (userId: string): Promise<boolean> => {
+    if (databaseRef.current?.name === databaseName(userId)) return databaseRef.current.createdFresh;
     databaseRef.current?.close();
     databaseRef.current = null;
     setDatabase(null);
@@ -64,9 +78,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       await opened.open();
       databaseRef.current = opened;
       setDatabase(opened);
+      return opened.createdFresh;
     } catch (error) {
       console.warn('could not open the device database', error);
+      return false;
     }
+  }, []);
+
+  /** Hides the screen for good on this database (AD-8's "one-time"). */
+  const dismissRecovery = useCallback(() => {
+    setRecoveryNeeded(false);
+    const db = databaseRef.current;
+    if (db !== null) void writeRecoveryNotice(db, 'dismissed').catch(() => {});
   }, []);
 
   // Cold open. The cached pointer decides first, so a tab reopened days later with the
@@ -112,8 +135,22 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
       writeLastSession(fresh);
       setUser(fresh);
-      await attachDatabase(fresh.id);
+      const createdFresh = await attachDatabase(fresh.id);
       if (cancelled) return;
+      // AD-8: "session cookie present, database absent". Reaching this line means the
+      // server confirmed a session; `createdFresh` means the store did not exist a
+      // moment ago. Together that is an evicted origin — never a first sign-in, which
+      // always goes through the form and never runs this effect.
+      //
+      // The screen must survive a reload the user makes before pressing its action, so
+      // the condition is recorded in `local_prefs` and every boot reads it back.
+      const db = databaseRef.current;
+      if (db !== null) {
+        if (createdFresh) await writeRecoveryNotice(db, 'pending').catch(() => {});
+        const notice = await readRecoveryNotice(db);
+        if (cancelled) return;
+        setRecoveryNeeded(notice === 'pending');
+      }
       setStatus('signed-in');
     })();
     return () => {
@@ -139,6 +176,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (result.ok) {
         writeLastSession(result.user);
         setUser(result.user);
+        // The form path never raises the recovery screen: a first sign-in always comes
+        // through here, and a fresh database is then exactly what is expected.
         await attachDatabase(result.user.id);
         setReAuthRequired(false);
         setStatus('signed-in');
@@ -162,6 +201,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setDatabase(null);
     setUser(null);
     setReAuthRequired(false);
+    setRecoveryNeeded(false);
     setStatus('signed-out');
   }, []);
 
@@ -177,13 +217,26 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       user,
       online,
       reAuthRequired,
+      recoveryNeeded,
       database,
       signIn: doSignIn,
       signOut: doSignOut,
       saveRegistration: doSaveRegistration,
       dismissReAuth: () => setReAuthRequired(false),
+      dismissRecovery,
     }),
-    [status, user, online, reAuthRequired, database, doSignIn, doSignOut, doSaveRegistration],
+    [
+      status,
+      user,
+      online,
+      reAuthRequired,
+      recoveryNeeded,
+      database,
+      doSignIn,
+      doSignOut,
+      doSaveRegistration,
+      dismissRecovery,
+    ],
   );
 
   return <SessionContext value={value}>{children}</SessionContext>;

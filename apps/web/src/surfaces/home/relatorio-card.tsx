@@ -39,7 +39,7 @@ export function RelatorioCard({ card, onPress }: RelatorioCardProps) {
       >
         <span>{card.title}</span>
         <svg className="ico card-chev" aria-hidden="true">
-          <use href="#i-chev-right" />
+          <use href="/sprite.svg#i-chev-right" />
         </svg>
       </button>
       {card.meta === '' ? null : <p className="card-meta">{card.meta}</p>}

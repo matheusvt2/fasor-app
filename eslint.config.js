@@ -36,6 +36,12 @@ export default tseslint.config(
     files: ['apps/web/**/*.{ts,tsx}'],
     languageOptions: { globals: { ...globals.browser } },
   },
+  // The app-shell service worker (AD-8): plain JS, copied verbatim into the bundle, and
+  // running in a worker global where `self`, `caches` and `clients` are the vocabulary.
+  {
+    files: ['apps/web/public/**/*.js'],
+    languageOptions: { sourceType: 'script', globals: { ...globals.serviceworker } },
+  },
   // Import direction (AR-1, AR-12): domain imports no app; web and api never import each other.
   {
     files: ['packages/domain/**/*.ts'],

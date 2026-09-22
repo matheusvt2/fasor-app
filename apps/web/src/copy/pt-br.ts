@@ -115,6 +115,12 @@ export const copy = {
     reAuthAction: 'Entrar de novo',
     // Verbatim from the prototype's `#slot-offline` banner text.
     offlineText: 'Sem conexão. Tudo fica salvo neste aparelho.',
+    // Verbatim from Story 1.8's acceptance criterion (AD-8's 5-day rule).
+    unsyncedText: 'Alterações sem envio há 5 dias',
+    // authored: the recovery action is the persistent toast of `key-sheet-states.html`;
+    // this candidate exists only so the "+N" chip counts the condition when something of
+    // higher priority already holds the slot, so it carries no action of its own.
+    draftFoundText: 'Há um rascunho para recuperar neste aparelho.',
     // authored: WCAG 2.5.3 wants the accessible name to start with the visible label,
     // which is the "+N" the chip prints.
     moreLabel: (count: number) => `+${count}, outras condições — abrir status de sincronização`,
@@ -153,6 +159,45 @@ export const copy = {
     body: (produto: string) =>
       `Este aparelho está com uma versão antiga do ${produto}. O que você fez continua salvo e será enviado; para receber as alterações da equipe, atualize a página.`,
     action: 'Atualizar',
+  },
+  // Verbatim from `mockups/key-sheet-states.html` frame (d): the persistent toast that
+  // offers an uncommitted value back. `prototype/screens/60-ficha.html` draws the same
+  // condition as a dismissible banner and is stale (EXPERIENCE.md, MOCK-GUIDE.md and the
+  // story AC all say toast).
+  draft: {
+    foundText: 'Rascunho encontrado',
+    recoverAction: 'Recuperar',
+  },
+  // authored: AD-8 says a refused write is never silent, and no mock draws the state.
+  // Two sentences, because "libere espaço" is only true of the quota refusal.
+  write: {
+    quotaError: 'Não foi possível salvar neste aparelho. Libere espaço e tente de novo.',
+    unknownError: 'Não foi possível salvar. Tente de novo.',
+  },
+  // authored: AD-8's "one-time screen naming what the server holds"; there is no mock,
+  // so this follows `contract-outdated-surface`'s wording — say what is true, say what
+  // the single action does, never blame the device.
+  recovery: {
+    title: 'Dados deste aparelho foram apagados',
+    body: (produto: string) =>
+      `O navegador liberou o espaço que o ${produto} usava neste aparelho. Sua conta continua ativa e o servidor guarda o trabalho que já foi enviado.`,
+    /** "O servidor tem 3 relatórios e 2 pessoas da equipe." — built from the company pull. */
+    holds: (relatorios: number, users: number) => {
+      const r = relatorios === 1 ? '1 relatório' : `${relatorios} relatórios`;
+      const u = users === 1 ? '1 pessoa da equipe' : `${users} pessoas da equipe`;
+      return `O servidor tem ${r} e ${u}.`;
+    },
+    /** Before the first company pull there is nothing to count yet. */
+    holdsUnknown: 'Ainda não sabemos o que o servidor tem; baixe para descobrir.',
+    action: 'Baixar do servidor',
+    running: 'Baixando…',
+    failed: 'Não foi possível baixar agora. Verifique a conexão e tente de novo.',
+    offlineReason: 'Baixar precisa de conexão',
+    // authored: a screen with one action that needs the server is a dead end when the
+    // server is the thing that is down. This is the way out, and it says what is true —
+    // nothing is lost by taking it, the pull happens on the next sync anyway.
+    skipAction: 'Continuar sem baixar',
+    skipNote: 'Você pode seguir agora; o que está no servidor desce sozinho na próxima sincronização.',
   },
   // authored: the mocks are static frames and draw no boot state.
   common: {

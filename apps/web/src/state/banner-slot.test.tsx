@@ -68,6 +68,38 @@ describe('bannerCandidates', () => {
     expect(candidates.map((b) => b.kind).sort()).toEqual(['offline', 're-auth']);
     expect(pickBanner(candidates)?.kind).toBe('re-auth');
   });
+
+  // AD-8: the two kinds Story 1.6 declared and left without a publisher.
+  it('publishes the 5-day warning with the acceptance criterion wording', () => {
+    const candidates = bannerCandidates({ reAuthRequired: false, online: true, unsyncedForDays: true });
+    expect(candidates).toEqual([
+      { kind: 'unsynced-5-days', variant: 'warning', role: 'region', text: 'Alterações sem envio há 5 dias' },
+    ]);
+  });
+
+  it('publishes draft-found without the recovery action (the toast carries it)', () => {
+    const candidates = bannerCandidates({ reAuthRequired: false, online: true, draftFound: true });
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0]).toMatchObject({ kind: 'draft-found', variant: 'info', role: 'region' });
+    expect(candidates[0]!.actions).toBeUndefined();
+  });
+
+  it('offline takes the slot over the 5-day warning and the warning is counted', () => {
+    const candidates = bannerCandidates({ reAuthRequired: false, online: false, unsyncedForDays: true });
+    expect(candidates.map((b) => b.kind).sort()).toEqual(['offline', 'unsynced-5-days']);
+    expect(pickBanner(candidates)?.kind).toBe('offline');
+  });
+
+  it('draft-found outranks the 5-day warning, which folds into the chip', () => {
+    const candidates = bannerCandidates({
+      reAuthRequired: false,
+      online: true,
+      draftFound: true,
+      unsyncedForDays: true,
+    });
+    expect(pickBanner(candidates)?.kind).toBe('draft-found');
+    expect(candidates).toHaveLength(2);
+  });
 });
 
 describe('BannerSlot', () => {

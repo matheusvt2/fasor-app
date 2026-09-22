@@ -17,6 +17,7 @@ import { deviceId, localUsers, outboxRows, resendDead as resendDeadRows, syncSta
 import { now } from '../clock.ts';
 import { newId } from '../ids.ts';
 import { createBrowserSyncClient } from '../sync/client.ts';
+import type { SyncFailure } from '../sync/client.ts';
 import { createSyncEngine, type CycleResult, type EngineStatus, type SyncEngine } from '../sync/engine.ts';
 import { useSession } from './session.tsx';
 
@@ -37,6 +38,12 @@ export interface SyncState {
   running: boolean;
   outdated: boolean;
   lastResult: CycleResult | null;
+  /**
+   * The failure that ended a phase of the last cycle, or null when it ran clean.
+   * `runCycle` answers `'ran'` even when both phases ended in a swallowed failure, so
+   * this is the only way a caller can tell a cycle that worked from one that did not.
+   */
+  lastFailure: SyncFailure | null;
   lastSyncAt: string | null;
   lastPushAt: LastPushAt[];
   supersededCount: number;
@@ -142,6 +149,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       running: status.running,
       outdated: status.outdated,
       lastResult: status.lastResult,
+      lastFailure: status.lastFailure,
       lastSyncAt: company?.last_sync_at ?? null,
       lastPushAt: company?.last_push_at ?? [],
       supersededCount: status.supersededCount,

@@ -2,7 +2,7 @@
 FROM node:24-bookworm
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 RUN corepack enable \
- && npx --yes playwright@1.63.0 install --with-deps chromium
+ && npx --yes playwright@1.63.0 install --with-deps chromium webkit
 WORKDIR /workspace
 RUN mkdir -p /pnpm-store /workspace/node_modules /workspace/packages/domain/node_modules \
       /workspace/apps/api/node_modules /workspace/apps/web/node_modules \

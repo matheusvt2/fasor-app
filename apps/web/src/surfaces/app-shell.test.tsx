@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
+import { DraftsContext, type DraftsState } from '../state/drafts.tsx';
 import type { SessionState } from '../state/session.tsx';
 import { SyncContext, type SyncState } from '../state/sync.tsx';
 import { ToastProvider, useToast } from '../state/toast.tsx';
@@ -24,6 +25,8 @@ let sessionState: SessionState = {
   signOut: vi.fn(async () => {}),
   saveRegistration: vi.fn(async () => {}),
   dismissReAuth: vi.fn(),
+  recoveryNeeded: false,
+  dismissRecovery: vi.fn(),
 };
 
 vi.mock('../state/session.tsx', () => ({ useSession: () => sessionState }));
@@ -38,6 +41,7 @@ function syncState(over: Partial<SyncState> = {}): SyncState {
     running: false,
     outdated: false,
     lastResult: 'ran',
+    lastFailure: null,
     lastSyncAt: null,
     lastPushAt: [],
     supersededCount: 0,
@@ -63,14 +67,22 @@ function Screen({ label }: { label: string }) {
   );
 }
 
-function renderShell(sync: SyncState = syncState(), path = '/') {
+const draftsState = (draftFound = false): DraftsState => ({
+  draftFound,
+  register: vi.fn(() => () => {}),
+  persistAll: vi.fn(async () => {}),
+});
+
+function renderShell(sync: SyncState = syncState(), path = '/', drafts: DraftsState = draftsState()) {
   const router = createMemoryRouter(
     [
       {
         element: (
           <SyncContext value={sync}>
             <ToastProvider>
-              <AppShell />
+              <DraftsContext value={drafts}>
+                <AppShell />
+              </DraftsContext>
             </ToastProvider>
           </SyncContext>
         ),
@@ -153,5 +165,23 @@ describe('AppShell banner slot, live region and toast', () => {
     renderShell();
     await userEvent.click(screen.getByRole('button', { name: 'avisar' }));
     expect(screen.getByTestId('toast')).toHaveTextContent('Uma mensagem');
+  });
+
+  // FR-61: the offer itself is the persistent toast; this candidate exists so the
+  // condition is counted when something above it holds the slot.
+  it('a waiting draft is a banner condition, below re-auth', async () => {
+    const { container } = renderShell(syncState(), '/', draftsState(true));
+    expect(container.querySelector('.banner')).toHaveAttribute('data-banner', 'draft-found');
+
+    sessionState = { ...sessionState, reAuthRequired: true };
+    try {
+      const withReAuth = renderShell(syncState(), '/', draftsState(true));
+      expect(withReAuth.container.querySelector('.banner')).toHaveAttribute('data-banner', 're-auth');
+      expect(
+        withReAuth.getByRole('button', { name: '+1, outras condições — abrir status de sincronização' }),
+      ).toHaveTextContent('+1');
+    } finally {
+      sessionState = { ...sessionState, reAuthRequired: false };
+    }
   });
 });
