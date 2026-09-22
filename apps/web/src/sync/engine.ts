@@ -268,20 +268,22 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       return;
     }
     let cursor = 0;
-    let waiting = givenUp;
+    let uploaded = 0;
     const worker = async (): Promise<void> => {
       for (;;) {
         const item = queue[cursor++];
         if (item === undefined) return;
         const result = await uploadOne(item);
-        if (result !== 'uploaded') waiting += 1;
+        if (result === 'uploaded') uploaded += 1;
       }
     };
     const workers = Array.from({ length: Math.min(UPLOAD_CONCURRENCY, queue.length) }, worker);
     // A re-auth or outdated verdict from any worker ends the phase; the others finish
     // the file they are on, so nothing is left half-written.
     const settled = await Promise.allSettled(workers);
-    await setFilesPending(waiting);
+    // Counted by subtraction, so a phase cut short (re-auth, outdated, going offline)
+    // still counts the files the workers never reached, not only the ones they tried.
+    await setFilesPending(givenUp + queue.length - uploaded);
     for (const outcome of settled) {
       if (outcome.status === 'rejected') throw outcome.reason;
     }

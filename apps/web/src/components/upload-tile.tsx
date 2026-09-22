@@ -106,11 +106,14 @@ export function UploadTile({
       className="visually-hidden"
       type="file"
       accept={fileKindAccept(kind)}
-      aria-label={label}
-      // The visible button is the one tab stop; the native input is opened through it,
-      // so the control is not reached twice by keyboard. The formats and the refusal are
-      // described on that button, which is the control a screen-reader user lands on.
+      // Out of the accessibility tree entirely: it is a mechanism, not a control. The
+      // visible button is the tile's one control and its one tab stop -- the input is
+      // opened only by that button's `click()`, so an element-by-element screen-reader
+      // pass hears each tile once instead of twice. The formats and the refusal are
+      // described on that button, which is what a screen-reader user lands on.
+      aria-hidden="true"
       tabIndex={-1}
+      data-testid={`upload-input-${kind}`}
       onChange={(event) => void handleChange(event.target.files?.[0])}
     />
   );

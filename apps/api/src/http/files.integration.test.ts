@@ -98,6 +98,7 @@ interface Ids {
 }
 
 const idsA: Ids = { company: companyA.companyId, actor: companyA.userId, device: 'tablet-files-a' };
+const idsB: Ids = { company: companyB.companyId, actor: companyB.userId, device: 'tablet-files-b' };
 
 function op(ids: Ids, input: Omit<OpInput, 'company_id' | 'actor_id' | 'device_id'> & Partial<OpInput>): Op {
   return makeOp(
@@ -268,6 +269,19 @@ describe('2.2-API-002 refusals', () => {
     const res = await put(companyA, id, big);
     expect(res.status).toBe(413);
     expect(errorResponseSchema.parse(await res.json()).code).toBe('file_too_large');
+    expect(await getObject(s3, config.S3_BUCKET, objectKey(companyA.companyId, 'certificate', id))).toBeNull();
+  });
+
+  it('answers 409 file_sha_mismatch when the body length is not the size the row declares', async () => {
+    const bytes = PDF_BYTES;
+    const { id, op: createOp } = fileCreate(idsA, 'certificate', 'application/pdf', bytes);
+    // A row that understates its size would have every storage and quota reader believe it.
+    const forged = { ...createOp, value: { ...(createOp.value as object), size: 1 } };
+    await pushOk(companyA, [forged as Op]);
+
+    const res = await put(companyA, id, bytes);
+    expect(res.status).toBe(409);
+    expect(errorResponseSchema.parse(await res.json()).code).toBe('file_sha_mismatch');
     expect(await getObject(s3, config.S3_BUCKET, objectKey(companyA.companyId, 'certificate', id))).toBeNull();
   });
 
@@ -460,6 +474,126 @@ describe('2.2-API-003 variants', () => {
     const body = filePutResponseSchema.parse(await (await put(companyA, id, PDF_BYTES)).json());
     expect(body.variants).toBeNull();
     expect((await authed(companyA, `/api/files/${id}/thumb`)).status).toBe(404);
+  });
+});
+
+describe('2.2-API-007 no object key ever comes out of the row', () => {
+  it('a forged `variants` map naming another company\'s keys serves nothing', async () => {
+    // Company A uploads a real logo, so its original, thumb and print all exist.
+    const png = await pngBytes();
+    const victim = fileCreate(idsA, 'logo', 'image/png', png);
+    await pushOk(companyA, [victim.op]);
+    const victimBody = filePutResponseSchema.parse(await (await put(companyA, victim.id, png)).json());
+    expect(victimBody.variants).not.toBeNull();
+
+    // Company B creates its own file whose row points `thumb`/`print` at A's keys.
+    const bBytes = await pngBytes();
+    const attacker = fileCreate(idsB, 'logo', 'image/png', bBytes);
+    const forged = {
+      ...attacker.op,
+      value: {
+        ...(attacker.op.value as object),
+        variants: {
+          thumb: objectKey(companyA.companyId, 'logo', victim.id, 'thumb'),
+          print: objectKey(companyA.companyId, 'logo', victim.id),
+        },
+      },
+    };
+    written.opIds.add(forged.op_id);
+    const pushed = await authed(companyB, '/api/sync/ops', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ops: [forged] }),
+    });
+    const pushResult = syncPushResponseSchema.parse(await pushed.json());
+
+    // First layer: a create carrying server-owned fields is refused outright.
+    expect(pushResult.rejected).toEqual([{ op_id: forged.op_id, code: 'op_invalid' }]);
+
+    // Second layer: the route does not rely on that. Written straight into `entities`,
+    // the same row still serves nothing -- every key is derived, never read back.
+    written.entityIds.add(attacker.id);
+    await db.insert(entities).values({
+      company_id: companyB.companyId,
+      entity: 'file',
+      id: attacker.id,
+      relatorio_id: null,
+      project_id: null,
+      row: { ...(forged.value as object), uploaded_at: '2026-09-22T12:00:00.000Z' } as never,
+      removed_at: null,
+      updated_seq: 0,
+    });
+
+    for (const variant of ['thumb', 'print'] as const) {
+      const res = await authed(companyB, `/api/files/${attacker.id}/${variant}`);
+      expect(res.status, `${variant} must not serve A's bytes`).toBe(404);
+      expect(errorResponseSchema.parse(await res.json()).code).toBe('not_found');
+    }
+    // A's own file is untouched and still readable by A.
+    expect((await authed(companyA, `/api/files/${victim.id}/thumb`)).status).toBe(200);
+  });
+
+  it('a key shaped like a path escape is a 404, never a 500 from the store', async () => {
+    const bytes = await pngBytes();
+    const { id } = fileCreate(idsA, 'logo', 'image/png', bytes);
+    written.entityIds.add(id);
+    await db.insert(entities).values({
+      company_id: companyA.companyId,
+      entity: 'file',
+      id,
+      relatorio_id: null,
+      project_id: null,
+      row: {
+        id,
+        company_id: companyA.companyId,
+        relatorio_id: null,
+        kind: 'logo',
+        sha256: sha256(bytes),
+        mime: 'image/png',
+        size: bytes.byteLength,
+        uploaded_at: '2026-09-22T12:00:00.000Z',
+        variants: { thumb: '../../../etc/passwd', print: '../../../etc/passwd' },
+        // Part of the row JSON, not only the column: `fileBase.removed_at` is nullable,
+        // not optional, so leaving it out would make the row unparseable and the route
+        // would answer 404 before ever building a key -- the case would pass vacuously.
+        removed_at: null,
+      } as never,
+      removed_at: null,
+      updated_seq: 0,
+    });
+
+    for (const variant of ['thumb', 'print'] as const) {
+      const res = await authed(companyA, `/api/files/${id}/${variant}`);
+      expect(res.status, 'a name the store would refuse must not surface as a 500').toBe(404);
+      expect(errorResponseSchema.parse(await res.json()).code).toBe('not_found');
+    }
+  });
+});
+
+describe('2.2-API-008 server-owned fields may not ride in on a create', () => {
+  it('rejects a client create claiming uploaded_at or variants, and applies a clean one', async () => {
+    const bytes = new TextEncoder().encode('%PDF-1.4\nnever uploaded\n%%EOF\n');
+
+    for (const server of [{ uploaded_at: '2026-09-22T12:00:00.000Z' }, { variants: { thumb: 'a', print: 'b' } }]) {
+      const honest = fileCreate(idsA, 'certificate', 'application/pdf', bytes);
+      const forged = { ...honest.op, value: { ...(honest.op.value as object), ...server } };
+      written.opIds.add(forged.op_id);
+      const res = await authed(companyA, '/api/sync/ops', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ops: [forged] }),
+      });
+      expect(syncPushResponseSchema.parse(await res.json()).rejected).toEqual([
+        { op_id: forged.op_id, code: 'op_invalid' },
+      ]);
+      // Nothing was materialized, so the id is not "attached but missing" either.
+      expect((await authed(companyA, `/api/files/${honest.id}/original`)).status).toBe(404);
+    }
+
+    // The same create without those fields still applies and still uploads.
+    const clean = fileCreate(idsA, 'certificate', 'application/pdf', bytes);
+    await pushOk(companyA, [clean.op]);
+    expect((await put(companyA, clean.id, bytes)).status).toBe(200);
   });
 });
 

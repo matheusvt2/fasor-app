@@ -1,6 +1,7 @@
 import {
   applyOp,
   entityKey,
+  FILE_SERVER_FIELDS,
   isServerOnly,
   opSchema,
   parsePath,
@@ -48,6 +49,23 @@ export type ApplyDeps = { now: Clock } & ({ origin: 'client'; actorId: string } 
 
 type Validation = { ok: true; op: Op } | { ok: false; code: OpRejectCode };
 
+/**
+ * The `file/server` fields a create may not carry a value for. `reading_status` is left
+ * out on purpose: it is a required, non-null enum on a photo row that a create has to
+ * set (`'none'`), so it cannot be checked the same way -- Epic 6 owns its rule.
+ */
+const CREATE_FORBIDDEN_FILE_FIELDS = FILE_SERVER_FIELDS.filter((field) => field !== 'reading_status');
+
+/**
+ * True when a `file` create leaves the server-owned fields unset. Only the server may
+ * fill them, and only once it has actually stored the bytes.
+ */
+function serverFileFieldsAreEmpty(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null) return true;
+  const row = value as Record<string, unknown>;
+  return CREATE_FORBIDDEN_FILE_FIELDS.every((field) => row[field] === null || row[field] === undefined);
+}
+
 function validate(raw: unknown, companyId: CompanyId, deps: ApplyDeps): Validation {
   const path = (raw as { path?: unknown } | null)?.path;
   if (typeof path === 'string') {
@@ -75,6 +93,13 @@ function validate(raw: unknown, companyId: CompanyId, deps: ApplyDeps): Validati
     const path = parsePath(op.path);
     if (path.family === 'user/field' && (path.id !== deps.actorId || path.field === 'name')) {
       return { ok: false, code: 'op_forbidden' };
+    }
+    // `file/server` blocks the *puts* to `uploaded_at`, `variants` and `reading_status`,
+    // but a create carries the whole row, so the same server-owned fields could ride in
+    // on it. A file that says it is uploaded when no bytes exist is unrecoverable: the
+    // device's `pendingUploads` skips it forever and every read of it 404s (AD-7).
+    if (path.family === 'file' && !serverFileFieldsAreEmpty(op.value)) {
+      return { ok: false, code: 'op_invalid' };
     }
   }
   return { ok: true, op };

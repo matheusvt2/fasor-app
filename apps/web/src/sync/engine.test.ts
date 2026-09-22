@@ -864,6 +864,21 @@ describe('2.2 upload phase', () => {
     h.db.close();
   });
 
+  it('counts the files it never reached when the phase is cut short by a 401', async () => {
+    const h = await harness();
+    await pickFile(h, FILE_A);
+    await pickFile(h, FILE_B);
+    await pickFile(h, FILE_C);
+    // Every upload answers 401, so the first two workers end the phase at once and the
+    // third file is never attempted at all -- it is still waiting, and must be counted.
+    h.server.failUpload = () => ({ kind: 'http', status: 401 });
+
+    await h.engine.runCycle();
+    expect(h.onReAuth).toHaveBeenCalled();
+    expect((await h.db.sync_state.get('company'))!.files_pending).toBe(3);
+    h.db.close();
+  });
+
   it('leaves a file pending on 409 file_row_missing and retries it next cycle', async () => {
     const h = await harness();
     await pickFile(h, FILE_A);

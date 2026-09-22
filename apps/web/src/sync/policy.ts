@@ -29,6 +29,9 @@ export function classifyFailure(failure: SyncFailure): FailureAction {
 export type UploadAction = 'retry' | 'defer' | 'permanent' | 'reauth' | 'outdated';
 
 export function classifyUploadFailure(failure: SyncFailure): UploadAction {
+  // A 2xx whose body is not the contract shape says nothing about the file: a mangled
+  // proxy response must not burn it for the rest of the session.
+  if (failure.kind === 'http' && failure.code === 'invalid_response') return 'retry';
   if (failure.kind === 'http' && failure.status === 409) {
     return failure.code === 'file_row_missing' ? 'defer' : 'permanent';
   }

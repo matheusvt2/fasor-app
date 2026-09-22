@@ -17,6 +17,7 @@ import {
   type FilePutResponse,
   type FileRow,
   type FileVariantName,
+  type FileVariants,
 } from '@app/domain';
 import type { S3Client } from '@aws-sdk/client-s3';
 import { and, eq } from 'drizzle-orm';
@@ -27,7 +28,7 @@ import { entities } from '../db/schema.ts';
 import { newId } from '../ids.ts';
 import { logError } from '../log.ts';
 import { getObject, headObject, putObject } from '../storage/s3.ts';
-import { renderVariants } from '../storage/variants.ts';
+import { hasVariants, renderVariants } from '../storage/variants.ts';
 import { applyOps } from '../sync/apply.ts';
 import { type AppEnv, requireSession } from './session.ts';
 
@@ -208,6 +209,12 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
 
     const digest = sha256Of(body);
     const claimed = c.req.header(FILE_SHA256_HEADER);
+    // The row's `size` is what every storage and quota reader believes, so the bytes have
+    // to be that many. Same permanent verdict as the hash: neither can be retried into
+    // agreement, and the device fixes both by writing a row that matches its file.
+    if (body.byteLength !== row.size) {
+      return c.json(fail('file_sha_mismatch', 'The body length is not the size the row declares.'), 409);
+    }
     if (digest !== row.sha256 || (claimed !== undefined && claimed !== row.sha256)) {
       return c.json(fail('file_sha_mismatch', 'The body does not hash to the row sha256.'), 409);
     }
@@ -226,16 +233,28 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
     const uploadedAt = alreadyUploadedAt ?? toIso(deps.now());
     if (alreadyUploadedAt === null) await emitServerOp(session.companyId, lookup, 'uploaded_at', uploadedAt);
 
-    let variants = stored?.row.variants ?? row.variants;
-    if (variants === null) {
+    // The keys are derived, never read back from the row, and whether they hold anything
+    // is answered by the store: a `variants` map on the row is only ever a record of what
+    // this route already wrote.
+    const derived = {
+      thumb: objectKey(session.companyId, row.kind, id, 'thumb'),
+      print: objectKey(session.companyId, row.kind, id, 'print'),
+    };
+    let variants: FileVariants | null = null;
+    if (hasVariants(row.mime)) {
       try {
-        const rendered = await renderVariants(body, row.mime);
-        if (rendered !== null) {
-          const thumbKey = objectKey(session.companyId, row.kind, id, 'thumb');
-          const printKey = objectKey(session.companyId, row.kind, id, 'print');
-          await putObject(s3, bucket, thumbKey, rendered.thumb.bytes, rendered.thumb.contentType);
-          await putObject(s3, bucket, printKey, rendered.print.bytes, rendered.print.contentType);
-          variants = { thumb: thumbKey, print: printKey };
+        if (await headObject(s3, bucket, derived.thumb)) {
+          // Already rendered by an earlier PUT of this same file: the retry is a no-op.
+          variants = derived;
+        } else {
+          const rendered = await renderVariants(body, row.mime);
+          if (rendered !== null) {
+            await putObject(s3, bucket, derived.thumb, rendered.thumb.bytes, rendered.thumb.contentType);
+            await putObject(s3, bucket, derived.print, rendered.print.bytes, rendered.print.contentType);
+            variants = derived;
+          }
+        }
+        if (variants !== null && stored?.row.variants == null) {
           await emitServerOp(session.companyId, lookup, 'variants', variants);
         }
       } catch (error) {
@@ -261,8 +280,12 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
     const { row } = lookup;
     if (row.uploaded_at === null) return c.json(notFound, 404);
 
-    const key = variant === 'original' ? objectKey(session.companyId, row.kind, id) : (row.variants?.[variant] ?? null);
-    if (key === null) return c.json(notFound, 404);
+    // Every key is derived exactly as the PUT writes it, from the session's company, the
+    // row's kind and the id the row is filed under. `row.variants` is client-supplied
+    // JSON on a client create family, so a key read out of it would let a company name
+    // another company's object (a cross-tenant read) or a path S3 refuses outright.
+    // Whether a variant exists is answered by the store, not by the row.
+    const key = objectKey(session.companyId, row.kind, id, variant);
 
     const stored = await getObject(s3, bucket, key);
     if (stored === null) return c.json(notFound, 404);

@@ -97,6 +97,11 @@ describe('2.2-UNIT-004 upload retry classification', () => {
     expect(classifyUploadFailure({ kind: 'http', status: 400, code: 'file_kind_invalid' })).toBe('permanent');
   });
 
+  it('retries a 200 whose body is not the contract shape', () => {
+    // A mangled proxy response is not a verdict on the file.
+    expect(classifyUploadFailure({ kind: 'http', status: 200, code: 'invalid_response' })).toBe('retry');
+  });
+
   it('follows the sync table everywhere else', () => {
     expect(classifyUploadFailure({ kind: 'network' })).toBe('retry');
     expect(classifyUploadFailure({ kind: 'http', status: 503 })).toBe('retry');

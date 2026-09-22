@@ -21,11 +21,18 @@ const huge = () => {
  * component sees it; the point of these cases is the kernel's refusal, not the picker's. */
 const anyFile = userEvent.setup({ applyAccept: false });
 
+/*
+ * The native inputs are `aria-hidden` mechanisms, not controls, so they are reached by
+ * test id -- exactly as the tile itself reaches them, through the visible button.
+ */
+const certificateInput = () => screen.getByTestId('upload-input-certificate');
+const logoInput = () => screen.getByTestId('upload-input-logo');
+
 describe('UploadTile', () => {
   it('accepts a candidate the kernel allows and hands back its sha256', async () => {
     const onPick = vi.fn();
     render(<UploadTile kind="certificate" label="Arquivo do certificado" file={null} onPick={onPick} />);
-    const input = screen.getByLabelText('Arquivo do certificado');
+    const input = certificateInput();
     expect(input).toHaveAttribute('accept', 'application/pdf,image/jpeg,image/png');
 
     await userEvent.upload(input, pdf());
@@ -39,7 +46,7 @@ describe('UploadTile', () => {
   it('refuses a mime the kind does not take, inline and without calling onPick', async () => {
     const onPick = vi.fn();
     render(<UploadTile kind="certificate" label="Arquivo do certificado" file={null} onPick={onPick} />);
-    await anyFile.upload(screen.getByLabelText('Arquivo do certificado'), gif());
+    await anyFile.upload(certificateInput(), gif());
     expect(onPick).not.toHaveBeenCalled();
     expect(screen.getByRole('alert')).toHaveTextContent('Formato não aceito');
   });
@@ -47,7 +54,7 @@ describe('UploadTile', () => {
   it('refuses a file over 25 MB, inline and without calling onPick', async () => {
     const onPick = vi.fn();
     render(<UploadTile kind="certificate" label="Arquivo do certificado" file={null} onPick={onPick} />);
-    await userEvent.upload(screen.getByLabelText('Arquivo do certificado'), huge());
+    await userEvent.upload(certificateInput(), huge());
     expect(onPick).not.toHaveBeenCalled();
     expect(screen.getByRole('alert')).toHaveTextContent('25 MB');
   });
@@ -84,14 +91,14 @@ describe('UploadTile', () => {
       throw Object.assign(new Error('quota'), { name: 'QuotaExceededError' });
     });
     render(<UploadTile kind="certificate" label="Arquivo do certificado" file={null} onPick={onPick} />);
-    await userEvent.upload(screen.getByLabelText('Arquivo do certificado'), pdf());
+    await userEvent.upload(certificateInput(), pdf());
     await waitFor(() => expect(onPick).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Não foi possível anexar'));
     // The button is usable again: picking is the retry.
     expect(screen.getByRole('button', { name: 'Escolher — Arquivo do certificado' })).toBeEnabled();
   });
 
-  it('is operable from the keyboard, is a single tab stop, and has no axe violations', async () => {
+  it('is one control and one tab stop, with the formats on it, and no axe violations', async () => {
     const { container } = render(
       <UploadTile kind="logo" label="Logo" helper="PNG ou SVG" file={null} onPick={vi.fn()} />,
     );
@@ -100,8 +107,13 @@ describe('UploadTile', () => {
     // One tab stop for the tile: the hidden native input is opened through the button.
     expect(button).toHaveFocus();
     await userEvent.tab();
-    expect(screen.getByLabelText('Logo')).not.toHaveFocus();
+    expect(logoInput()).not.toHaveFocus();
     expect(document.activeElement).toBe(document.body);
+
+    // One control in the accessibility tree, not a phantom second one for the input.
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+    expect(screen.queryByLabelText('Logo')).toBeNull();
+    expect(logoInput()).toHaveAttribute('aria-hidden', 'true');
 
     // The formats are described on the control a screen-reader user actually lands on.
     expect(button).toHaveAccessibleDescription('PNG ou SVG');
@@ -110,7 +122,7 @@ describe('UploadTile', () => {
 
   it('describes the visible button with the refusal reason, not only the hidden input', async () => {
     render(<UploadTile kind="logo" label="Logo" helper="PNG ou SVG" file={null} onPick={vi.fn()} />);
-    await anyFile.upload(screen.getByLabelText('Logo'), pdf());
+    await anyFile.upload(logoInput(), pdf());
     const button = screen.getByRole('button', { name: 'Escolher — Logo' });
     await waitFor(() => expect(button).toHaveAccessibleDescription(/Formato não aceito/));
     expect(button).toHaveAccessibleDescription(/PNG ou SVG/);

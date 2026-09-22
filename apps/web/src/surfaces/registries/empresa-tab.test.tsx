@@ -127,10 +127,16 @@ describe('2.3-UNIT-003 Empresa tab', () => {
     expect(screen.getByLabelText('Título do formulário')).toHaveValue('Relatório Técnico de Cabine Primária');
   });
 
-  it('draws both brand tiles and no watermark control', async () => {
+  it('draws both brand tiles, one control each, and no watermark control', async () => {
     const { container } = renderTab();
-    expect(screen.getByLabelText('Logo')).toBeInTheDocument();
-    expect(screen.getByLabelText('Fundo de capa')).toBeInTheDocument();
+    // The native inputs are `aria-hidden` mechanisms; the visible buttons are the
+    // controls, one per tile and not a phantom second one each.
+    expect(screen.getByTestId('upload-input-logo')).toBeInTheDocument();
+    expect(screen.getByTestId('upload-input-cover_background')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Escolher logo' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Escolher fundo de capa' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Logo')).toBeNull();
+    expect(screen.queryByLabelText('Fundo de capa')).toBeNull();
     // Cut by source-deltas: no toggle, no watermark field, nothing named "Marca d'água".
     expect(screen.queryByRole('switch')).toBeNull();
     expect(container.textContent).not.toContain("Marca d'água");

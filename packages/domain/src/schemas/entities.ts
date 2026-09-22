@@ -323,6 +323,7 @@ export const blockRowSchema = z.object({
 });
 
 export const fileVariantsSchema = z.object({ thumb: z.string(), print: z.string() });
+export type FileVariants = z.infer<typeof fileVariantsSchema>;
 export const readingStatusSchema = z.enum(['none', 'queued', 'running', 'done', 'failed']);
 
 const fileBase = {
