@@ -20,6 +20,20 @@ deferred:
     location: >-
       apps/web/src/sw/use-shell-update.ts
     severity: medium
+  - summary: >-
+      Identify the build by a version stamped into index.html, not only by the entry chunk name.
+    evidence: |-
+      cacheHolding picks the oldest cache holding the entry; a deploy changing only index.html, CSS or public/ keeps the entry name and can serve the older document after a reload (PR #11 review 2, L-1).
+    location: >-
+      apps/web/public/sw.js cacheHolding
+    severity: low
+  - summary: >-
+      Build identity depends on register.ts living in the entry chunk.
+    evidence: |-
+      currentShellEntry uses import.meta.url; true today because the build emits one JS chunk. Code splitting into a shared chunk would reintroduce the wrong-shell pin (PR #11 review 2, L-2).
+    location: >-
+      apps/web/src/sw/register.ts currentShellEntry
+    severity: low
 ---
 
 <intent-contract>
@@ -159,6 +173,8 @@ Status: done
 - QA D-1 re-run on the prod profile in a real browser (Chromium via Playwright MCP, api-prod on :12001), twice. With "1 pendente", a new build installed and waiting, a CDP worker stop and every app tab closed: on reopen the new worker is active yet the old `index-*.js` is served and the old cache survives. After the outbox drains the pin is gone, and the next launch serves the new `index-*.js` with only the new shell cache left. Evidence: `reviews/epic-1-fix-sw-hold-persisted/`.
 
 **Independent review (PR #11), fix applied.** The reviewer reproduced on the prod profile that the pin could name an older shell than the page ran (B active, C opened from the network, work captured: B pinned, a reload served B mid-job, and a Dexie version bump in C would strand the outbox). Raised from the deferred medium to high and fixed: the page now sends `shell` (the pathname of its own hashed chunk, `import.meta.url`) in `hold-shell`, the sentinel stores `{"entry": ...}`, and every worker resolves it at read time to the shell cache that holds that entry (installing, waiting or active); unresolved entries stay network-first and are kept; a message with no `shell` keeps the old own-cache pin. Lifecycle tests 28, E2E-006 now gives the next build a distinct entry chunk and asserts the pin equals the running entry.
+
+**Second independent review (fix diff).** Confirmed the high fixed and D-1 intact in the browser; raised M-1: an `{entry}` pin whose build no cache holds any more was never replaced, so the job ran unheld until drain. Fixed: `pinIfAbsent` lets a hold that resolves (the page's cached entry, or the own cache for a legacy message) replace an unresolvable entry pin; a hold naming an equally unresolved build keeps the existing pin (it may still be installing). L-1 (same-entry deploys resolve to the oldest cache) and L-2 (entry identity relies on a single JS chunk) deferred as low.
 
 **Follow-up review recommended:** false (patched: 0 high, 1 medium in the internal pass; the independent review's high was fixed and re-reviewed).
 

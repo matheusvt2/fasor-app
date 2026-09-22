@@ -649,8 +649,9 @@ describe('the pin names the build the page runs', () => {
     expect(await caches.pin()).toEqual({ entry: ENTRY_C });
     expect(await shellCaches()).toEqual([B]);
 
-    // A later hold does not replace it: write-if-absent.
-    await b.message({ type: 'hold-shell', hold: true, shell: '/assets/index-b.js' });
+    // A later hold for a build no cache holds either does not replace it (one that a cache
+    // does hold would: see "replaces a pin whose build is gone").
+    await b.message({ type: 'hold-shell', hold: true, shell: '/assets/index-other.js' });
     expect(await caches.pin()).toEqual({ entry: ENTRY_C });
 
     // C's worker installs: resolved at the next read, with no new message.
@@ -679,6 +680,51 @@ describe('the pin names the build the page runs', () => {
     await b.message({ type: 'hold-shell', hold: true });
     expect(await caches.pin()).toEqual({ shell: B });
     expect(await b.navigate()).toBe('document B');
+  });
+
+  it('replaces a pin whose build is gone with the next hold that resolves', async () => {
+    const ENTRY_A = '/assets/index-a.js';
+    // A tab runs build A. The outbox drained while C waited, so the page promoted C,
+    // which took over and deleted A's cache — but the open tab still runs A.
+    const a = await firstVisit(BUILD_A);
+    const c = await deployAndInstall(BUILD_C);
+    await c.message({ type: 'activate-shell' });
+    await c.activate();
+    expect(await shellCaches()).toEqual([C]);
+
+    // New work in that tab pins A, which nothing can resolve: unheld, network-first.
+    await c.message({ type: 'hold-shell', hold: true, shell: ENTRY_A });
+    expect(await caches.pin()).toEqual({ entry: ENTRY_A });
+    expect(await c.navigate()).toBe('document C');
+
+    // The same tab reporting the same unresolved build keeps the pin.
+    await c.message({ type: 'hold-shell', hold: true, shell: ENTRY_A });
+    expect(await caches.pin()).toEqual({ entry: ENTRY_A });
+
+    // A reload moved the job to C, which a cache holds: the pin follows it.
+    await c.message({ type: 'hold-shell', hold: true, shell: ENTRY_C });
+    expect(await caches.pin()).toEqual({ entry: ENTRY_C });
+
+    // And a later deploy no longer moves it again.
+    const later = await deployAndInstall(BUILD_B);
+    await later.activate();
+    expect(await later.navigate()).toBe('document C');
+    expect(await shellCaches()).toEqual([C, B]);
+    expect(a.calls.skipWaiting).toBe(0);
+  });
+
+  it('replaces an unresolved pin from a page that does not name its build with the own cache', async () => {
+    const b = await firstVisit(BUILD_B);
+    await b.message({ type: 'hold-shell', hold: true, shell: '/assets/index-gone.js' });
+    await b.message({ type: 'hold-shell', hold: true });
+    expect(await caches.pin()).toEqual({ shell: B });
+  });
+
+  it('keeps an unresolved pin when the incoming build is unresolved too', async () => {
+    const b = await firstVisit(BUILD_B);
+    await b.message({ type: 'hold-shell', hold: true, shell: ENTRY_C });
+    await b.message({ type: 'hold-shell', hold: true, shell: '/assets/index-other.js' });
+    expect(await caches.pin()).toEqual({ entry: ENTRY_C });
   });
 
   it('ignores a shell that is not a same-origin path', async () => {

@@ -207,7 +207,15 @@ function queueHoldWrite(write) {
  */
 async function pinIfAbsent(entry) {
   const existing = await readSentinel();
-  if (existing.present && !(await isStale(existing))) return existing;
+  if (existing.present && !(await isStale(existing))) {
+    // An entry pin that no cache holds (its build was deleted under a tab that kept
+    // running it, or has not been precached yet) gives way to a hold that does resolve:
+    // the page's entry when a cache holds it, or — from a page that does not name its
+    // build — this worker's own cache. A hold naming a build no cache holds either keeps
+    // the existing pin: that build may still be installing.
+    if (existing.entry === null || (await cacheHolding(existing.entry)) !== null) return existing;
+    if (entry !== null && (await cacheHolding(entry)) === null) return existing;
+  }
   const sentinel = entry !== null ? { present: true, entry, shell: null } : { present: true, entry: null, shell: CACHE_NAME };
   const body = entry !== null ? { entry } : { shell: CACHE_NAME };
   const cache = await caches.open(HOLD_CACHE);
