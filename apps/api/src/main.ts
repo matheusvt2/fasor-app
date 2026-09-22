@@ -1,4 +1,6 @@
 import { serve } from '@hono/node-server';
+import { createAuth } from './auth/auth.ts';
+import { parseTrustedOrigins } from './auth/trusted-origins.ts';
 import { loadConfigOrExit } from './config.ts';
 import { createDb } from './db/client.ts';
 import { migrate } from './db/migrate.ts';
@@ -25,16 +27,29 @@ async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
   }
 }
 
+// Forward-only migrations run first, so `docker compose up` stays one command and
+// nothing below (queue, auth) sees a database without its tables.
 await withRetry('database', () => migrate(db));
 log('migrations applied');
 await withRetry('storage', () => ensureBucket(s3, config.S3_BUCKET));
 const boss = await withRetry('queue', () => startQueue(config.DATABASE_URL));
 
+const auth = createAuth({
+  db,
+  secret: config.SESSION_SECRET,
+  baseURL: config.AUTH_BASE_URL,
+  trustedOrigins: parseTrustedOrigins(config.TRUSTED_ORIGINS),
+});
+
 const app = createApp({
-  db: () => sql`select 1`,
-  queue: () => boss.getQueues(),
-  storage: () => probeStorage(s3, config.S3_BUCKET),
-  libreoffice: probeLibreOffice,
+  auth,
+  db,
+  probes: {
+    db: () => sql`select 1`,
+    queue: () => boss.getQueues(),
+    storage: () => probeStorage(s3, config.S3_BUCKET),
+    libreoffice: probeLibreOffice,
+  },
 });
 
 serve({ fetch: app.fetch, port: config.PORT }, (info) => {

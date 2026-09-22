@@ -10,6 +10,7 @@ const valid = {
   S3_BUCKET: 'app-files',
   PORT: '3000',
   SESSION_SECRET: 'x'.repeat(32),
+  TRUSTED_ORIGINS: 'http://localhost:5173',
 };
 
 describe('config', () => {
@@ -30,5 +31,10 @@ describe('config', () => {
   it('names a malformed variable', () => {
     expect(() => loadConfig({ ...valid, PORT: 'abc' })).toThrow(/PORT/);
     expect(() => loadConfig({ ...valid, SESSION_SECRET: 'short' })).toThrow(/SESSION_SECRET/);
+    expect(() => loadConfig({ ...valid, TRUSTED_ORIGINS: '' })).toThrow(/TRUSTED_ORIGINS/);
+    expect(() => loadConfig({ ...valid, AUTH_BASE_URL: 'not-a-url' })).toThrow(/AUTH_BASE_URL/);
+    expect(loadConfig({ ...valid, AUTH_BASE_URL: 'http://localhost:5173' }).AUTH_BASE_URL).toBe(
+      'http://localhost:5173',
+    );
   });
 });

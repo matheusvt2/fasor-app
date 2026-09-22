@@ -13,10 +13,11 @@ const TABLES = ['ops', 'entities', 'files', 'revisions', 'generation_jobs', 'rea
 export function assertInCompose(
   env: Record<string, string | undefined> = process.env,
   exists: (path: string) => boolean = existsSync,
+  command = 'pnpm test:reset <company-id>',
 ): void {
   if (env.RUNNING_IN_COMPOSE !== '1' || !exists('/.dockerenv')) {
     throw new Error(
-      'test-reset must run inside docker-compose: use "docker compose run --rm tools pnpm test:reset <company-id>".',
+      `this script must run inside docker-compose (RUNNING_IN_COMPOSE=1 in a container): use "docker compose run --rm tools ${command}".`,
     );
   }
 }

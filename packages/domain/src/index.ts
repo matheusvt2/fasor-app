@@ -1,4 +1,5 @@
 export * from './product.ts';
+export * from './registration.ts';
 export * from './contract.ts';
 export * from './ids.ts';
 export * from './clock.ts';

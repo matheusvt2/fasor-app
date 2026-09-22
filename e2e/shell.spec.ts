@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './support/merged-fixtures.ts';
 
 test('@p0 the web shell renders the product name', async ({ page }) => {
   await page.goto('/');

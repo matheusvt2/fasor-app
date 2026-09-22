@@ -1,6 +1,6 @@
 import { healthResponseSchema } from '@app/domain';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createApp } from './app.ts';
+import { createHealthRoutes } from './health.ts';
 
 const up = async () => undefined;
 const down = async () => {
@@ -11,7 +11,7 @@ describe('GET /api/health', () => {
   afterEach(() => vi.useRealTimers());
 
   it('reports every component up with 200', async () => {
-    const app = createApp({ db: up, queue: up, storage: up, libreoffice: up });
+    const app = createHealthRoutes({ db: up, queue: up, storage: up, libreoffice: up });
     const res = await app.request('/api/health');
     expect(res.status).toBe(200);
     expect(healthResponseSchema.parse(await res.json())).toEqual({
@@ -24,7 +24,7 @@ describe('GET /api/health', () => {
   });
 
   it('reports a failing component down with 503', async () => {
-    const app = createApp({ db: down, queue: up, storage: up, libreoffice: up });
+    const app = createHealthRoutes({ db: down, queue: up, storage: up, libreoffice: up });
     const res = await app.request('/api/health');
     expect(res.status).toBe(503);
     expect(await res.json()).toMatchObject({ status: 'degraded', db: 'down', queue: 'up' });
@@ -34,7 +34,7 @@ describe('GET /api/health', () => {
     vi.useFakeTimers();
     try {
       const hang = () => new Promise<never>(() => {});
-      const app = createApp({ db: up, queue: up, storage: hang, libreoffice: up });
+      const app = createHealthRoutes({ db: up, queue: up, storage: hang, libreoffice: up });
       const pending = app.request('/api/health');
       await vi.advanceTimersByTimeAsync(3000);
       const res = await pending;

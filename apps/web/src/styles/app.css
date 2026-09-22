@@ -1,0 +1,94 @@
+/* =====================================================================
+   App root — the product's own copy of the base layer.
+
+   `components.css` is byte-identical to the mockups, and there its base
+   reset is scoped to `.frame`, the mock's device bezel. The real app has
+   no bezel, so the same declarations are repeated here for `.app-root`.
+   Nothing new is introduced: every rule below mirrors a `.frame` rule of
+   `components.css` (Base section), and no component is restyled.
+   ===================================================================== */
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--surface-base);
+}
+
+.app-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  font-family: var(--font-ui);
+  color: var(--ink-primary);
+  background: var(--surface-base);
+  font-size: var(--t-body-size);
+  line-height: var(--t-body-lh);
+  -webkit-font-smoothing: antialiased;
+}
+
+.app-root * {
+  font-family: var(--font-ui);
+}
+
+:where(.app-root h1, .app-root h2, .app-root h3, .app-root p) {
+  margin: 0;
+}
+
+:where(.app-root button) {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: inherit;
+}
+
+:where(.app-root input, .app-root textarea, .app-root select) {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  width: 100%;
+  min-width: 0;
+}
+
+.app-root :focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.app-root [aria-hidden='true'] {
+  pointer-events: none;
+}
+
+:where(.app-root a.btn) {
+  text-decoration: none;
+}
+
+/* ---------- Dialogs: the two app-wide adjustments the real app needs ----------
+   Both are here rather than in a surface stylesheet because they apply to every dialog
+   in the app, and they adjust rules that live in the locked `components.css`.
+
+   `.dialog-scrim` is `position: absolute; inset: 0` there, which is right inside the
+   mock's `.frame` bezel (a positioned ancestor). The real app has no bezel and React
+   Aria renders the overlay in a portal at the end of `<body>`, so the scrim has to be
+   `fixed` to cover the viewport.
+
+   `.dialog-modal` is the React Aria `Modal` wrapper that sits between the scrim and the
+   dialog. `display: contents` takes it out of the scrim's flex box so
+   `.dialog-scrim > .confirm-dialog | .form-dialog` sizes exactly as it does in the
+   mock. */
+.dialog-scrim {
+  position: fixed;
+}
+
+.dialog-modal {
+  display: contents;
+}

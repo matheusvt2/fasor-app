@@ -2,10 +2,19 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { Auth } from '../auth/auth.ts';
+import type { Db } from '../db/client.ts';
 import { createApp, resolveStaticTarget } from './app.ts';
 
 const up = async () => undefined;
 const probes = { db: up, queue: up, storage: up, libreoffice: up };
+// Static serving needs neither a session nor the database: stub both.
+const auth = {
+  handler: async () => new Response(null, { status: 404 }),
+  api: { getSession: async () => null },
+} as unknown as Auth;
+const db = {} as Db;
+const makeApp = (staticDir: string) => createApp({ probes, auth, db, staticDir });
 
 describe('static bundle serving + SPA fallback', () => {
   let staticDir: string;
@@ -21,27 +30,27 @@ describe('static bundle serving + SPA fallback', () => {
   });
 
   it('falls back to index.html for an unknown non-API path', async () => {
-    const app = createApp(probes, { staticDir });
+    const app = makeApp(staticDir);
     const res = await app.request('/some/client/route');
     expect(res.status).toBe(200);
     expect(await res.text()).toContain('shell');
   });
 
   it('serves an existing static file as-is', async () => {
-    const app = createApp(probes, { staticDir });
+    const app = makeApp(staticDir);
     const res = await app.request('/app.js');
     expect(res.status).toBe(200);
     expect(await res.text()).toBe('console.log("hi")');
   });
 
   it('404s an unknown /api/* path instead of falling back to the SPA shell', async () => {
-    const app = createApp(probes, { staticDir });
+    const app = makeApp(staticDir);
     const res = await app.request('/api/unknown-route');
     expect(res.status).toBe(404);
   });
 
   it('404s the bare /api path', async () => {
-    const app = createApp(probes, { staticDir });
+    const app = makeApp(staticDir);
     const res = await app.request('/api');
     expect(res.status).toBe(404);
   });
@@ -49,7 +58,7 @@ describe('static bundle serving + SPA fallback', () => {
   it('404s gracefully when the static dir has no index.html (partial build)', async () => {
     const emptyDir = await mkdtemp(join(tmpdir(), 'app-static-empty-'));
     try {
-      const app = createApp(probes, { staticDir: emptyDir });
+      const app = makeApp(emptyDir);
       const res = await app.request('/');
       expect(res.status).toBe(404);
     } finally {
@@ -59,7 +68,7 @@ describe('static bundle serving + SPA fallback', () => {
 
   it('picks up a static dir that starts existing only after createApp runs', async () => {
     const lateDir = join(tmpdir(), `app-static-late-${Date.now()}`);
-    const app = createApp(probes, { staticDir: lateDir });
+    const app = makeApp(lateDir);
 
     const before = await app.request('/');
     expect(before.status).toBe(404);

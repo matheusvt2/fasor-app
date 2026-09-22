@@ -35,3 +35,6 @@ certs/
 _bmad/render/
 playwright-report/
 test-results/
+
+# Scratch folder of the "migrations match schema.ts" test (drizzle-kit needs a relative --out)
+apps/api/.drizzle-check/

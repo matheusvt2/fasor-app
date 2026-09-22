@@ -38,7 +38,7 @@ development_status:
   epic-1: in-progress
   1-1-run-the-whole-stack-with-one-command: done
   1-2-build-the-shared-components-from-the-mockups-css: done
-  1-3-sign-in-and-hold-a-session-that-survives-offline: backlog
+  1-3-sign-in-and-hold-a-session-that-survives-offline: review
   1-4-every-change-is-an-operation-applied-locally-first: done
   1-5-what-i-did-on-the-tablet-reaches-the-office-by-itself: backlog
   1-6-home-and-account-show-what-is-on-this-device: backlog

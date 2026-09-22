@@ -2,8 +2,9 @@
  * Structured JSON stdout logging (one line per event).
  *
  * `company_id` and `relatorio_id` are carried on every line, `null` when not
- * yet known -- no auth exists yet (Story 1.3+), so request-scoped logging
- * always passes `null` for now. `job_id` is optional and only set by job
+ * known: the request logger in `http/app.ts` fills `company_id` from the
+ * session the middleware resolved (Story 1.3), and `relatorio_id` stays `null`
+ * until the sync routes carry one. `job_id` is optional and only set by job
  * code once background jobs exist.
  */
 

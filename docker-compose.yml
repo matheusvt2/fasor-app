@@ -20,6 +20,11 @@ x-app-env: &app-env
   S3_BUCKET: ${S3_BUCKET:-app-files}
   PORT: ${PORT:-3000}
   SESSION_SECRET: ${SESSION_SECRET:-change-me-change-me-change-me-32ch}
+  # better-auth's own origin (never derived from the request Host) and its CSRF allowlist:
+  # the Vite dev servers on any localhost port (worktrees use different host ports), the
+  # api itself, and the Caddy https origin of Story 1.7.
+  AUTH_BASE_URL: ${AUTH_BASE_URL:-http://localhost:5173}
+  TRUSTED_ORIGINS: ${TRUSTED_ORIGINS:-http://localhost:5173,http://localhost:*,http://127.0.0.1:*,http://api:3000,http://web:5173,https://${TABLET_HOST:-localhost},https://${TABLET_HOST:-localhost}:${CADDY_HTTPS_PORT:-443}}
   LLM_PROVIDER: ${LLM_PROVIDER:-fake}
   OCR_PROVIDER: ${OCR_PROVIDER:-fake}
   npm_config_store_dir: /pnpm-store
@@ -169,7 +174,10 @@ services:
       dockerfile: Dockerfile.tools
     image: app-tools
     <<: *workspace
-    environment: *app-env
+    environment:
+      <<: *app-env
+      # The Playwright-started Vite on 5199 proxies /api through this, exactly as `web` does.
+      API_PROXY_TARGET: http://api:3000
     depends_on:
       install: { condition: service_completed_successfully }
       postgres: { condition: service_healthy }

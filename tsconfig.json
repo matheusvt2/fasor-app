@@ -1,5 +1,9 @@
 {
   "extends": "./tsconfig.base.json",
-  "compilerOptions": { "types": ["node"] },
+  "compilerOptions": {
+    "types": ["node"],
+    // Playwright `page.evaluate` bodies are browser code typechecked in this program.
+    "lib": ["ES2023", "DOM", "DOM.Iterable"]
+  },
   "include": ["scripts", "e2e", "*.config.ts"]
 }
