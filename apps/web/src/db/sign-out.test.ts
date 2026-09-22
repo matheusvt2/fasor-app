@@ -39,6 +39,7 @@ describe('sign-out and the device database', () => {
         'files',
         'local_prefs',
         'outbox',
+        'remote_ops',
         'sync_state',
       ]);
       expect(await reopened.local_prefs.get('theme')).toMatchObject({ value: 'dark' });

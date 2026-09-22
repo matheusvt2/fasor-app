@@ -26,6 +26,11 @@ const live = log.filter((op) => !dead.has(op.op_id));
 // The schema comes from the api's boot-time migrate(): the tools service starts only after api is healthy.
 const { sql, db } = createDb(databaseUrl);
 
+// The fixture log carries server-only ops (`device_id = server`, `system:*` actors), so it
+// is applied as the server's own jobs would apply it; the client origin is covered by
+// `sync.integration.test.ts`.
+const deps = { now, origin: 'server' as const };
+
 describe('1.4-INT-001 replay byte-equality (Drizzle layer)', () => {
   afterAll(async () => {
     await db.delete(entities).where(eq(entities.company_id, companyId));
@@ -34,7 +39,7 @@ describe('1.4-INT-001 replay byte-equality (Drizzle layer)', () => {
   });
 
   it('applies the small fixture in order and materializes the golden snapshot', async () => {
-    const result = await applyOps(db, companyId, live, { now });
+    const result = await applyOps(db, companyId, live, deps);
     expect(result.rejected).toEqual([]);
     expect(result.applied.map((a) => a.op_id)).toEqual(live.map((op) => op.op_id));
     const seqs = result.applied.map((a) => a.seq);
@@ -55,7 +60,7 @@ describe('1.4-INT-001 replay byte-equality (Drizzle layer)', () => {
 
   it('returns the existing seq for a duplicate op_id and leaves the state unchanged', async () => {
     const before = serializeSnapshot(await toSnapshot(db, companyId, replaySmall.relatorioId));
-    const first = await applyOps(db, companyId, live.slice(0, 3), { now });
+    const first = await applyOps(db, companyId, live.slice(0, 3), deps);
     expect(first.rejected).toEqual([]);
     const original = await db.select({ seq: ops.seq, op_id: ops.op_id }).from(ops).where(eq(ops.company_id, companyId));
     for (const { op_id, seq } of first.applied) {
@@ -74,12 +79,12 @@ describe('1.4-INT-001 replay byte-equality (Drizzle layer)', () => {
     const badValue = { ...template, op_id: newId(), path: `block/${BLOCK_1_ID}/order_key`, value: 42 };
     const fine = { ...template, op_id: newId(), value: 'Placa do disjuntor' };
 
-    const result = await applyOps(db, companyId, [unknownPath, serverOnly, malformed, otherTenant, badValue, fine], { now });
+    const result = await applyOps(db, companyId, [unknownPath, serverOnly, malformed, otherTenant, badValue, fine], deps);
     expect(result.rejected).toEqual([
       { op_id: unknownPath.op_id, code: 'op_path_unknown' },
       { op_id: serverOnly.op_id, code: 'op_server_only' },
       { op_id: malformed.op_id, code: 'op_invalid' },
-      { op_id: otherTenant.op_id, code: 'op_invalid' },
+      { op_id: otherTenant.op_id, code: 'op_tenant_mismatch' },
       { op_id: badValue.op_id, code: 'op_invalid' },
     ]);
     expect(result.applied.map((a) => a.op_id)).toEqual([fine.op_id]);

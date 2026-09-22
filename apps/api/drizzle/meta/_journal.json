@@ -15,6 +15,13 @@
       "when": 1790046104738,
       "tag": "0001_identity",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790049921935,
+      "tag": "0002_sync_device_push",
+      "breakpoints": true
     }
   ]
 }

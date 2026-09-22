@@ -52,7 +52,21 @@ export const ops = pgTable(
     index('ops_company_seq_idx').on(t.company_id, t.seq),
     index('ops_company_relatorio_seq_idx').on(t.company_id, t.relatorio_id, t.seq),
     index('ops_company_project_seq_idx').on(t.company_id, t.project_id, t.seq),
+    // AD-24 `superseded`: the latest op on a path, read inside the per-company transaction.
+    index('ops_company_path_seq_idx').on(t.company_id, t.path, t.seq),
   ],
+);
+
+/** AD-24: `last_push_at` per `(user_id, device_id)`, returned in the company pull summary. */
+export const syncDevicePush = pgTable(
+  'sync_device_push',
+  {
+    company_id: uuid('company_id').notNull(),
+    user_id: text('user_id').notNull(),
+    device_id: text('device_id').notNull(),
+    last_push_at: timestamptz('last_push_at').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.company_id, t.user_id, t.device_id] })],
 );
 
 export const entities = pgTable(
@@ -180,4 +194,4 @@ export const verification = pgTable(
   (table) => [index('verification_identifier_idx').on(table.identifier)],
 );
 
-export const schema = { ops, entities, company, user, session, account, verification };
+export const schema = { ops, entities, syncDevicePush, company, user, session, account, verification };

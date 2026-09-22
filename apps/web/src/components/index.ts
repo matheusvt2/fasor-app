@@ -4,6 +4,9 @@ export type { ButtonProps, ButtonVariant, TextButtonProps } from './button.tsx';
 export { StatusPill } from './status-pill.tsx';
 export type { RelatorioStatus, StatusPillProps } from './status-pill.tsx';
 
+export { SyncBadge } from './sync-badge.tsx';
+export type { SyncBadgeProps } from './sync-badge.tsx';
+
 export { OverflowMenu } from './overflow-menu.tsx';
 export type { OverflowMenuAction, OverflowMenuProps } from './overflow-menu.tsx';
 

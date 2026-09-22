@@ -1,0 +1,21 @@
+/* Page-only layout of the Sync status surface, copied from the screen-scoped block of
+   `mockups/prototype/screens/85-sync.html`. Everything else comes from components.css. */
+
+[data-route='/sync'] .sync-headline {
+  margin-bottom: var(--sp-4);
+}
+
+[data-route='/sync'] .sync-foot {
+  margin-top: var(--sp-6);
+  font-size: var(--t-meta-size);
+  color: var(--ink-secondary);
+}
+
+/* The primary action at the top of the surface (decision C-4), with its reason beside it. */
+[data-route='/sync'] .sync-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-5);
+}

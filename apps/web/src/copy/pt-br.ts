@@ -44,18 +44,31 @@ export const copy = {
     saveOfflineReason: 'Salvar precisa de conexão',
     saveFailed: 'Não foi possível salvar. Tente de novo.',
     registrationIncomplete: 'Informe o número do registro e o título impresso.',
+    // authored: the mock groups the pending-upload row under its storage section, which
+    // Story 1.6 builds; until then the row has a heading of its own.
+    syncHeading: 'Sincronização',
+    pendingLabel: 'Aguardando envio',
+    // authored: the mock only draws the row with something pending.
+    nothingPending: 'Nada aguardando envio',
+    syncStatusLink: 'Ver status de sincronização',
     sessionHeading: 'Sessão',
     signOut: 'Sair',
-    // The mock's note is "31 fotos e 3 fichas aguardando envio. Sair antes do envio pede
-    // confirmação; nada é apagado deste aparelho." Only the second sentence is kept: the
-    // counts need the sync state of Story 1.5.
+    // With nothing pending only the second sentence of the mock's note applies; with
+    // pending work the kernel's summary text ("31 fotos e 3 fichas") leads it.
     signOutNote: 'Sair antes do envio pede confirmação; nada é apagado deste aparelho.',
-    // authored: the mock's Confirm dialog is the pending-sync variant ("Sair com envios
-    // pendentes?" / "31 fotos e 3 fichas ainda não foram enviadas"), which would be false
-    // until Story 1.5 counts them. Its action labels are the mock's.
+    signOutNotePending: (pending: string) =>
+      `${pending} aguardando envio. Sair antes do envio pede confirmação; nada é apagado deste aparelho.`,
+    // authored: the mock's Confirm dialog is the pending-sync variant; with nothing
+    // pending the dialog says what is true, which is that nothing on this device is deleted.
     signOutDialogTitle: 'Sair desta conta?',
     signOutDialogBody:
       'Nada é apagado deste aparelho. O que estiver aqui continua aqui e sobe quando você entrar de novo com conexão.',
+    signOutPendingDialogTitle: 'Sair com envios pendentes?',
+    // The mock's plural sentence; the singular is authored for "1 ficha".
+    signOutPendingDialogBody: (pending: string, count: number) =>
+      count === 1
+        ? `${pending} ainda não foi enviada. Ela continua neste aparelho e sobe quando você entrar de novo com conexão.`
+        : `${pending} ainda não foram enviadas. Elas continuam neste aparelho e sobem quando você entrar de novo com conexão.`,
     signOutConfirm: 'Sair mesmo assim',
     // authored: the mock has no offline or failure state for "Sair".
     signOutOfflineReason: 'Sair precisa de conexão',
@@ -73,6 +86,41 @@ export const copy = {
   banner: {
     reAuthText: 'Sua sessão expirou. Nada foi apagado deste aparelho.',
     reAuthAction: 'Entrar de novo',
+  },
+  // Sync status from `mockups/prototype/screens/85-sync.html` and `key-sync-status.html`.
+  // The badge words and the pending summary come from the kernel (`syncBadgeLabel`,
+  // `pendingSummaryText`), never from here.
+  sync: {
+    title: 'Sincronização',
+    nothingPending: 'Nada pendente neste aparelho.',
+    waiting: (pending: string) => `${pending} aguardando envio`,
+    syncNow: 'Sincronizar agora',
+    syncing: 'Sincronizando…',
+    offlineReason: 'Sem conexão',
+    // authored: the dead-op row lives here until the Sumário pre-issue list of Epic 5.
+    rejected: (count: number) => (count === 1 ? '1 alteração rejeitada' : `${count} alterações rejeitadas`),
+    resend: 'Reenviar',
+    // authored: the mock has no line for the server's `superseded` signal.
+    superseded: (count: number) =>
+      count === 1 ? '1 alteração mesclada pelo servidor' : `${count} alterações mescladas pelo servidor`,
+    lastPushHeading: 'Último envio',
+    lastPushNote: 'O servidor não sabe o que ainda está em outro aparelho; a hora do último envio é o sinal honesto.',
+    thisDevice: 'Este aparelho',
+    // authored: the mock names the other device's kind ("Telefone"), which the server does not know.
+    otherDevice: 'Outro aparelho',
+    // authored: the mock always has a push to show.
+    noPushYet: 'Nenhum envio registrado ainda.',
+    lastSync: 'Última sincronização',
+    // authored: the mock always has a sync to show.
+    neverSynced: 'Ainda não sincronizado',
+  },
+  // authored: there is no mock for the 426 state (AR-12); a UX pass may replace these
+  // strings without touching behavior.
+  outdated: {
+    title: 'Atualização necessária',
+    body: (produto: string) =>
+      `Este aparelho está com uma versão antiga do ${produto}. O que você fez continua salvo e será enviado; para receber as alterações da equipe, atualize a página.`,
+    action: 'Atualizar',
   },
   // authored: the mocks are static frames and draw no boot state.
   common: {

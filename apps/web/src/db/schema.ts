@@ -1,10 +1,11 @@
-import type { Entity, EntityRow, Op } from '@app/domain';
+import { targetsOf, type Entity, type EntityRow, type Op } from '@app/domain';
 import Dexie, { type Table, type Transaction } from 'dexie';
 
 /*
  * AD-9: one Dexie database per user, `releng-{user_id}`, never dropped on
  * sign-out. Versions are append-only, each with an `upgrade()` (Conventions).
- * Writes go only through `commit.ts`; reads only through `useLiveQuery`.
+ * Writes go only through `commit.ts` and `sync-store.ts`; reads only through
+ * `useLiveQuery`.
  */
 
 export interface EntityRecord {
@@ -24,6 +25,14 @@ export interface OutboxRow extends Op {
   error_code: string | null;
   /** The value the op replaced, for `undoBatch`; absent for creates. */
   prev_value?: unknown;
+  /** Entity keys (`entity:id`) of `targetsOf(op)`: the multi-entry index re-materialization reads. */
+  targets: string[];
+}
+
+/** AD-24: one pulled op, kept so an entity can always be re-materialized from the server log. */
+export interface RemoteOpRow extends Op {
+  seq: number;
+  targets: string[];
 }
 
 /** AD-1: uncommitted field text and unsaved dialog state, keyed by surface and entity. */
@@ -55,11 +64,14 @@ export interface SyncStateRow {
   last_push_at: { user_id: string; device_id: string; at: string }[];
 }
 
-/** Device-local, never-synced state (Conventions). */
+/** Device-local, never-synced state (Conventions). Keys: `db_version`, `device_id`, ... */
 export interface LocalPrefRow {
   key: string;
   value: unknown;
 }
+
+export const COMPANY_STREAM = 'company';
+export const DEVICE_ID_PREF = 'device_id';
 
 interface VersionDef {
   version: number;
@@ -70,6 +82,15 @@ interface VersionDef {
 const stamp = (version: number) => async (tx: Transaction) => {
   await tx.table('local_prefs').put({ key: 'db_version', value: version });
 };
+
+/** The entity keys an op targets; empty when the stored row no longer parses (nothing to index). */
+export function targetKeysOf(op: Op): string[] {
+  try {
+    return targetsOf(op).map((ref) => ref.key);
+  } catch {
+    return [];
+  }
+}
 
 /** Append-only. A new version adds an entry; it never edits an older one. */
 export const VERSIONS: readonly VersionDef[] = [
@@ -91,6 +112,23 @@ export const VERSIONS: readonly VersionDef[] = [
     stores: { outbox: 'op_id, status, path, client_ts, batch_id' },
     upgrade: stamp(2),
   },
+  {
+    // Story 1.5: the server log per entity, and the outbox indexed by target for re-materialization.
+    version: 3,
+    stores: {
+      outbox: 'op_id, status, path, client_ts, batch_id, *targets, seq',
+      remote_ops: 'op_id, seq, *targets, relatorio_id, project_id',
+    },
+    upgrade: async (tx) => {
+      await tx
+        .table('outbox')
+        .toCollection()
+        .modify((row: OutboxRow) => {
+          row.targets = targetKeysOf(row);
+        });
+      await stamp(3)(tx);
+    },
+  },
 ];
 
 export const LATEST_VERSION = VERSIONS[VERSIONS.length - 1]!.version;
@@ -98,6 +136,7 @@ export const LATEST_VERSION = VERSIONS[VERSIONS.length - 1]!.version;
 export class AppDatabase extends Dexie {
   entities!: Table<EntityRecord, [Entity, string]>;
   outbox!: Table<OutboxRow, string>;
+  remote_ops!: Table<RemoteOpRow, string>;
   drafts!: Table<DraftRow, string>;
   files!: Table<FileBlobRow, string>;
   sync_state!: Table<SyncStateRow, string>;

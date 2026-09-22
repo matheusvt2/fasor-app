@@ -15,12 +15,13 @@ import {
   type Op,
   type OpInput,
 } from '@app/domain';
-import type { AppDatabase, EntityRecord, OutboxRow } from './schema.ts';
+import { targetKeysOf, type AppDatabase, type EntityRecord, type OutboxRow } from './schema.ts';
 
 /*
- * AD-1, AD-3: the only write path of apps/web. Every op is appended to the
- * outbox and applied through `applyOp` in one `rw` transaction over
- * `entities` and `outbox`; a failure leaves both untouched.
+ * AD-1, AD-3: the only write path of apps/web for user changes. Every op is
+ * appended to the outbox and applied through `applyOp` in one `rw` transaction
+ * over `entities` and `outbox`; a failure leaves both untouched. Pulled ops
+ * arrive through `sync-store.ts`.
  */
 
 export interface CommitDeps {
@@ -28,14 +29,15 @@ export interface CommitDeps {
   now: Clock;
 }
 
-function toRecord(key: EntityKey, row: EntityRow): EntityRecord {
+export function toRecord(key: EntityKey, row: EntityRow): EntityRecord {
   const { entity, id } = splitEntityKey(key);
   return { entity, id, ...rowIndexColumns(entity, row), removed_at: rowRemovedAt(row), row };
 }
 
-const OUTBOX_ONLY_KEYS = ['status', 'error_code', 'prev_value'] as const;
+const OUTBOX_ONLY_KEYS = ['status', 'error_code', 'prev_value', 'targets'] as const;
 
-function opOf(row: OutboxRow): Op {
+/** The op an outbox row carries, without the outbox-only columns. */
+export function opOf(row: OutboxRow): Op {
   const op: Partial<OutboxRow> = { ...row };
   for (const key of OUTBOX_ONLY_KEYS) delete op[key];
   return op as Op;
@@ -54,16 +56,29 @@ async function applyOne(db: AppDatabase, op: Op): Promise<void> {
   for (const [key, row] of next) if (row !== state.get(key)) changed.push(toRecord(key, row));
   if (changed.length > 0) await db.entities.bulkPut(changed);
 
+  const targets = refs.map((r) => r.key);
   const last = await db.outbox.orderBy('client_ts').last();
   if (last?.status === 'pending') {
     const merged = coalesce(opOf(last), op);
     if (merged) {
       await db.outbox.delete(last.op_id);
-      await db.outbox.put({ ...merged, status: 'pending', error_code: null, ...('prev_value' in last ? { prev_value: last.prev_value } : {}) });
+      await db.outbox.put({
+        ...merged,
+        status: 'pending',
+        error_code: null,
+        targets: targetKeysOf(merged),
+        ...('prev_value' in last ? { prev_value: last.prev_value } : {}),
+      });
       return;
     }
   }
-  await db.outbox.put({ ...op, status: 'pending', error_code: null, ...(prev_value === undefined ? {} : { prev_value }) });
+  await db.outbox.put({
+    ...op,
+    status: 'pending',
+    error_code: null,
+    targets,
+    ...(prev_value === undefined ? {} : { prev_value }),
+  });
 }
 
 /** Commits ops in order: outbox append (or coalesce) plus `applyOp`, atomically. */

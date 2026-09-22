@@ -26,7 +26,8 @@ export function onReAuthRequired(listener: ReAuthListener): () => void {
   };
 }
 
-function publishReAuth(): void {
+/** Raises the re-auth banner. Called here on a 401 and by the sync engine (AD-9). */
+export function publishReAuth(): void {
   for (const listener of reAuthListeners) listener();
 }
 

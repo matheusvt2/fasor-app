@@ -1,13 +1,13 @@
 import { councilSchema, defaultTitleForCouncil, type Council } from '@app/domain';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import type { Auth } from '../auth/auth.ts';
 import type { Db } from './client.ts';
 import { ensureCompany } from './repositories/companies.ts';
 import { asCompanyId, type CompanyId } from './repositories/company-id.ts';
-import { account, session, user } from './schema.ts';
-import { TEST_SEED } from './test-seed.ts';
+import { account, company, entities, ops, session, syncDevicePush, user } from './schema.ts';
+import { LEGACY_TEST_COMPANY_IDS, TEST_SEED } from './test-seed.ts';
 
-export { TEST_SEED };
+export { LEGACY_TEST_COMPANY_IDS, TEST_SEED };
 
 /**
  * Provisioning library behind `scripts/seed-users.ts`. There is no signup route and no
@@ -131,7 +131,36 @@ export async function revokeSessions(
   await db.delete(session).where(and(eq(session.companyId, companyId), eq(session.userId, userId)));
 }
 
+/**
+ * Drops the pre-1.5 test companies (v4-shaped ids) when a volume still holds them, so the
+ * seeded e-mails are free for the v7 companies. Only ever touches those two ids; every
+ * other e-mail keeps `seedUser`'s collision guard. One transaction, FK order.
+ */
+export async function removeLegacyTestCompanies(db: Db): Promise<number> {
+  const legacy = [...LEGACY_TEST_COMPANY_IDS];
+  const present = await db.select({ id: company.id }).from(company).where(inArray(company.id, legacy));
+  if (present.length === 0) return 0;
+  const ids = present.map((row) => row.id);
+  await db.transaction(async (tx) => {
+    const users = await tx.select({ id: user.id }).from(user).where(inArray(user.companyId, ids));
+    const userIds = users.map((row) => row.id);
+    if (userIds.length > 0) {
+      await tx.delete(session).where(inArray(session.userId, userIds));
+      await tx.delete(account).where(inArray(account.userId, userIds));
+    }
+    await tx.delete(session).where(inArray(session.companyId, ids));
+    await tx.delete(account).where(inArray(account.companyId, ids));
+    await tx.delete(user).where(inArray(user.companyId, ids));
+    await tx.delete(ops).where(inArray(ops.company_id, ids));
+    await tx.delete(entities).where(inArray(entities.company_id, ids));
+    await tx.delete(syncDevicePush).where(inArray(syncDevicePush.company_id, ids));
+    await tx.delete(company).where(inArray(company.id, ids));
+  });
+  return ids.length;
+}
+
 export async function seedTestCompanies(db: Db, auth: Auth): Promise<SeedUserResult[]> {
+  await removeLegacyTestCompanies(db);
   const results: SeedUserResult[] = [];
   for (const company of TEST_SEED.companies) {
     results.push(
