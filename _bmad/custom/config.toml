@@ -5,3 +5,14 @@
 #
 # [agents.bmad-agent-pm]
 # description = "Prefers short, bulleted PRDs over narrative drafts."
+
+# _bmad/config.toml's [core] table lacks communication_language, which the
+# bmad-build-auto skill (and others) require. Pinned here to match the
+# per-module config.yaml files (e.g. _bmad/core/config.yaml).
+[core]
+communication_language = "Portugues-BR"
+
+# Likewise, user_skill_level is set in _bmad/bmm/config.yaml but missing
+# from _bmad/config.toml. Pinned here for skills that read it centrally.
+[modules.bmm]
+user_skill_level = "intermediate"
