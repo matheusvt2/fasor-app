@@ -1,7 +1,7 @@
 import { buildSnapshot, relatorioSnapshotSchema, replay, serializeSnapshot, type Op } from '@app/domain';
 import { BLOCK_1_ID, PHOTO_ID, replaySmall } from '@app/domain/fixtures/replay-small';
-import { eq } from 'drizzle-orm';
-import { afterAll, describe, expect, it } from 'vitest';
+import { eq, inArray } from 'drizzle-orm';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { now } from '../clock.ts';
 import { createDb } from '../db/client.ts';
 import { asCompanyId } from '../db/repositories/company-id.ts';
@@ -33,6 +33,18 @@ const { sql, db } = createDb(databaseUrl);
 const deps = { now, origin: 'server' as const };
 
 describe('1.4-INT-001 replay byte-equality (Drizzle layer)', () => {
+  beforeAll(async () => {
+    // `op_id` is globally unique (`apply.ts`'s `ForeignOpIdError`: "an op_id that exists
+    // under another company can never be inserted"), and this fixture reuses the same
+    // fixed op_ids on every run (by design, for a deterministic golden snapshot). A
+    // previous run of this exact test that was killed before its own `afterAll` -- a
+    // network interruption, a container restart -- leaves those op_ids permanently owned
+    // by an abandoned company, which would reject every future run's inserts as
+    // `op_invalid` even though nothing is actually wrong with this run's ops. Reclaim the
+    // fixture's own op_ids from wherever they currently are before this run claims them.
+    await db.delete(ops).where(inArray(ops.op_id, log.map((op) => op.op_id)));
+  });
+
   afterAll(async () => {
     await db.delete(entities).where(eq(entities.company_id, companyId));
     await db.delete(ops).where(eq(ops.company_id, companyId));
