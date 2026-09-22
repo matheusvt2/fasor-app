@@ -1,0 +1,122 @@
+name: fasor
+
+x-workspace: &workspace
+  working_dir: /workspace
+  volumes:
+    - .:/workspace
+    - node_modules_root:/workspace/node_modules
+    - node_modules_domain:/workspace/packages/domain/node_modules
+    - node_modules_api:/workspace/apps/api/node_modules
+    - node_modules_web:/workspace/apps/web/node_modules
+    - pnpm_store:/pnpm-store
+
+x-app-env: &app-env
+  RUNNING_IN_COMPOSE: '1'
+  DATABASE_URL: ${DATABASE_URL:-postgres://app:app@postgres:5432/app}
+  S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
+  S3_REGION: ${S3_REGION:-us-east-1}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-minioadmin}
+  S3_BUCKET: ${S3_BUCKET:-app-files}
+  PORT: ${PORT:-3000}
+  SESSION_SECRET: ${SESSION_SECRET:-change-me-change-me-change-me-32ch}
+  LLM_PROVIDER: ${LLM_PROVIDER:-fake}
+  OCR_PROVIDER: ${OCR_PROVIDER:-fake}
+  npm_config_store_dir: /pnpm-store
+
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    volumes:
+      - pgdata:/var/lib/postgresql
+    ports:
+      - '127.0.0.1:5432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U app -d app']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ':9001'
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-minioadmin}
+    volumes:
+      - miniodata:/data
+    ports:
+      - '127.0.0.1:9000:9000'
+      - '127.0.0.1:9001:9001'
+    healthcheck:
+      test: ['CMD', 'mc', 'ready', 'local']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # One-shot dependency install shared by web, api and tools.
+  install:
+    build: ./apps/api
+    image: app-api
+    <<: *workspace
+    environment: *app-env
+    command: pnpm install --frozen-lockfile
+
+  api:
+    build: ./apps/api
+    image: app-api
+    <<: *workspace
+    environment: *app-env
+    command: pnpm --filter @app/api dev
+    ports:
+      - '127.0.0.1:3000:3000'
+    depends_on:
+      install: { condition: service_completed_successfully }
+      postgres: { condition: service_healthy }
+      minio: { condition: service_healthy }
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  web:
+    image: app-api
+    <<: *workspace
+    environment:
+      <<: *app-env
+      API_PROXY_TARGET: http://api:3000
+    command: pnpm --filter @app/web dev
+    ports:
+      - '5173:5173'
+    depends_on:
+      install: { condition: service_completed_successfully }
+      api: { condition: service_started }
+
+  # Runs the merge gate: docker compose run --rm tools pnpm verify
+  tools:
+    profiles: ['tools']
+    build:
+      context: .
+      dockerfile: Dockerfile.tools
+    image: app-tools
+    <<: *workspace
+    environment: *app-env
+    depends_on:
+      install: { condition: service_completed_successfully }
+      postgres: { condition: service_healthy }
+      minio: { condition: service_healthy }
+      api: { condition: service_healthy }
+
+volumes:
+  pgdata:
+  miniodata:
+  pnpm_store:
+  node_modules_root:
+  node_modules_domain:
+  node_modules_api:
+  node_modules_web:

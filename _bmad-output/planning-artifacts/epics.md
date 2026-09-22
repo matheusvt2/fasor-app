@@ -388,6 +388,36 @@ Rule of thumb used: `fable` for kernel invariants and the renderer, where a wron
 | opus | 1.3, 1.6, 1.8, 2.2, 3.1, 3.2, 3.4, 4.3, 4.4, 4.5, 5.6, 6.1, 6.2, 6.6, 7.2, 7.3, 7.4, 8.2, 8.3, 8.5, 8.6, 9.1, 9.2, 10.2, 10.3, 11.6, 11.8 |
 | sonnet | 1.1, 1.2, 1.7, 2.1, 2.3, 2.4, 2.5, 2.6, 3.3, 3.5, 3.6, 3.7, 4.2, 4.6, 4.7, 5.1, 5.2, 5.3, 5.4, 5.7, 5.9, 6.3, 6.4, 6.5, 9.3, 9.4, 9.5, 10.4, 11.1, 11.2, 11.3, 11.4, 11.5, 11.7, 11.9, 11.10 |
 
+## Definition of Ready and Definition of Done
+
+Added 2026-09-21 (sprint planning). AGENTS.md requires every story to carry acceptance criteria, a definition of ready and a definition of done written in this file. The acceptance criteria are per story; the two definitions below apply to every story in this document unless a story states an addition under its own heading. They restate the decisions of record in AGENTS.md and the merge gate of `_bmad-output/test-artifacts/test-design/fasor-handoff.md`; when those documents change, this section changes with them.
+
+### Definition of Ready (every story)
+
+A story may enter `bmad-build` only when all of the following hold:
+
+1. Its `**Dev model:** … · **Effort:** …` line is present and names one of the seven `.claude/agents/bmad-dev-*.md` combinations.
+2. Its acceptance criteria are written as Given/When/Then and each criterion cites the FR, AR, NFR or UX-DR it satisfies.
+3. Every earlier story it builds on is merged to `main` (stories inside an epic are ordered; Epic 3's seed stories may run in parallel with Epic 1 from day one, per the Epic 3 decision).
+4. For a story with a user interface: the mockup file(s) under `mockups/` it must match are named in the story or its epic preamble, and the mockup exists.
+5. `source-deltas.md` has been checked for rows that override any sentence the story relies on; the story text does not contradict a row.
+6. For a story reading seed content: the corresponding part of `addendum.md` §9 (or the decoded FO.SERV-03 extraction) is available on the developer's machine.
+7. The story depends on no cloud account or paid API key (Epic 11 stories excepted, after the MVP).
+
+### Definition of Done (every story)
+
+A story is done when all of the following hold and the pull request is merged:
+
+1. Every acceptance criterion is exercised by an automated test: kernel and api behavior by Vitest, and any feature with a front end by a Playwright test that walks the whole feature as a human would, not a sample. The one exception is a criterion that needs a physical device (the iPad and Android checks of Stories 1.7 and 1.8, repeated at the close of Epics 5, 6 and 8 per TC-12): it is run by hand and its evidence (date, device, OS version, outcome) is recorded in `_bmad-output/test-artifacts/manual/` and linked from the PR.
+2. `pnpm verify` is green (lint, unit, api, Playwright `@p0`, under 15 minutes) with every P0 test passing, its output is pasted in the PR, and any deviation from the playwright-utils conventions is listed in the PR (handoff, Implementation gate). The epic-level gate (P1 coverage at or above 95 %, manual evidence where required) is checked by the epic retrospective, not by each story.
+3. The whole stack still starts with `docker compose up`; nothing was installed or run natively.
+4. Ownership rules hold: statuses, counts, texts, orders and verdicts are computed in `packages/domain` only; `apps/web` renders from IndexedDB and writes only ops; `apps/api` applies ops and renders documents; `applyOp` is the only reducer.
+5. UI stories match their mockup frames in light and dark at the breakpoints the mock has, use the mock's class names, and take strings from the pt-BR copy module; no emoji, no Fasor branding, product name from the `PRODUTO` constant.
+6. Code, comments, commit messages and new documents are English, with the domain words and pt-BR UI copy as the only exceptions; routes and identifiers say `relatorio`, never `laudo`.
+7. No client material from `docs/context/`, `docs/media/` or third-party names from `docs/concorrentes/` entered a tracked file, except inside the Porto Seguro fixture and its golden documents (waiver of 2026-09-21).
+8. One branch and one PR for the story, self-approved and merged by the author; `sprint-status.yaml` moves the story to `done`.
+9. Anything left incomplete or risky is written in the PR and, if it changes scope, raised through `bmad-correct-course` rather than absorbed silently.
+
 ## Epic List
 
 ### Epic 1: Sign in and work on the device (offline-first foundation)
@@ -469,12 +499,12 @@ So that every environment is identical and the first feature story starts on the
 
 **Given** a clean checkout with Docker and pnpm 12 installed
 **When** the developer runs `docker compose up`
-**Then** the web dev server (Vite 8), the api (Hono 4 on Node 24), PostgreSQL 18 and MinIO start, the api serves `GET /api/health` with `{ok: true}`, and the web app is reachable through the Vite proxy on the same origin paths (AR-8, AR-26)
+**Then** the web dev server (Vite 8), the api (Hono 4 on Node 24), PostgreSQL 18 and MinIO start, the api serves `GET /api/health` with ~~`{ok: true}`~~ `{status, db, queue, storage, libreoffice}` (2026-09-21, test design TC-6), and the web app is reachable through the Vite proxy on the same origin paths (AR-8, AR-26)
 **And** no service is expected to run natively on the developer machine (NFR-18; enables FR-54)
 
 **Given** the workspace `packages/domain`, `apps/web`, `apps/api` (plus empty `services/ocr` and `infra/` folders with a README each)
 **When** `pnpm lint` and `pnpm test` run
-**Then** `eslint no-restricted-imports` fails any import of `apps/*` from `packages/domain` and any import of `apps/api` from `apps/web` (AR-12), a lint rule fails any `fetch` outside `apps/web/src/sync`, `src/files` and `src/api` (AR-1), and Vitest 5 and Playwright 1.63 run an example test each in CI
+**Then** `eslint no-restricted-imports` fails any import of `apps/*` from `packages/domain` and any import of `apps/api` from `apps/web` (AR-12), a lint rule fails any `fetch` outside `apps/web/src/sync`, `src/files` and `src/api` (AR-1), and Vitest 5 and Playwright 1.63 run an example test each ~~in CI~~ through `pnpm verify` (2026-09-21: no CI in the MVP; `pnpm verify` run locally is the merge gate, AGENTS.md)
 
 **Given** the api boots
 **When** an environment variable required by the zod config schema is missing or malformed
@@ -484,6 +514,11 @@ So that every environment is identical and the first feature story starts on the
 **When** code is written
 **Then** identifiers follow the naming table (TS camelCase, DB snake_case via Drizzle, files kebab-case, block type keys `cabos_entrada, para_raio, chave_seccionadora, disjuntor_mt, tp, tc, cabos_saida, transformador_forca`) and the user-visible product name comes from one constant reading `PRODUTO` (NFR-15)
 **And** the `tokens.css` and `components.css` from the mockups are copied into `apps/web/src/styles` unchanged, Inter is self-hosted, and React Aria Components is the only behavior library (AR-22)
+
+**Given** the quality gate *(added 2026-09-21, system-level test design; see `_bmad-output/test-artifacts/test-design/fasor-handoff.md`)*
+**When** the developer runs `pnpm verify`
+**Then** it runs lint and the static tests, every Vitest unit and integration test, the api tests except `@slow`, and Playwright `@p0` on the desktop Chrome project in under 15 minutes, and AGENTS.md names it as the condition for merging a story PR with its output pasted in the PR (R-011)
+**And** a docker-compose-only script resets one company's ops, files, jobs and revisions between test suites and refuses to run outside docker-compose (TC-9)
 
 ### Story 1.2: Build the shared components from the mockups' CSS
 
@@ -551,6 +586,10 @@ So that I can open PRODUTO in a basement with no signal and keep working under m
 **When** a user of one company calls any API route
 **Then** no row of the other company is ever returned (one automated test, NFR-13)
 
+**Given** the seed CLI *(added 2026-09-21, system-level test design; see `_bmad-output/test-artifacts/test-design/fasor-handoff.md`)*
+**When** `scripts/seed-users.ts` runs with the test flag
+**Then** it provisions two companies with one user each in one call, so the cross-tenant test and the API suites seed themselves without manual steps (TC-9, B-6)
+
 ### Story 1.4: Every change is an operation applied locally first
 
 **Dev model:** fable · **Effort:** high · the operation log and applyOp are the architecture's core invariant; every later story depends on getting it right
@@ -582,6 +621,11 @@ So that nothing I capture depends on a network that is not there.
 **When** it is replayed in `seq` order through the Dexie layer and through a Drizzle materializer against Postgres
 **Then** the two `toSnapshot()` results are byte-equal (the AD-3 replay test), and an "outbox survives upgrade" test passes across two Dexie versions
 
+**Given** determinism for tests *(added 2026-09-21, system-level test design; see `_bmad-output/test-artifacts/test-design/fasor-handoff.md`)*
+**When** a kernel function reads the current time (`calibrationCheck`, the 5-day unsynced check, `deadlineFromPriority`, `captured_at` fallback) or mints an id
+**Then** it takes `now: Date` as an explicit argument, or calls one injectable `newId()`, and `apps/web` and `apps/api` each pass them from one clock and id module; a kernel test calls every time-reading function with two fixed dates and gets the expected different results (TC-1, TC-2, R-014)
+**And** the replay byte-equality test runs on the Porto Seguro fixture (Story 3.7) with fixed ids and timestamps and on the small fixture
+
 ### Story 1.5: What I did on the tablet reaches the office by itself
 
 **Dev model:** fable · **Effort:** high · sync push, pull, rebase and rejection semantics; subtle concurrency and idempotency
@@ -610,6 +654,11 @@ So that the office and the field see the same relatório without anyone pressing
 **Given** the error envelope `{code, message, details?}` with codes enumerated in `packages/domain/contract`
 **When** any route fails
 **Then** the client receives that shape and the typed route definitions in the contract are the only way `apps/web` calls `apps/api`
+
+**Given** the Sync status surface *(added 2026-09-21, system-level test design; see `_bmad-output/test-artifacts/test-design/fasor-handoff.md`)*
+**When** the user taps "Sincronizar agora" (a primary Button at the top of Sync status; decision C-4, 2026-09-21)
+**Then** one full sync cycle runs immediately with the same code path as the timer, the badge reflects the result, and tapping while a cycle runs is a no-op with the reason beside the button; tests use this action instead of waiting for the 60 s tick (TC-4)
+**And** `packages/domain/contract` ships one valid and one invalid example per route (op batches, pull responses, error envelopes) reused as test fixtures (ADR readiness 1.4)
 
 ### Story 1.6: Home and Account show what is on this device
 
@@ -700,7 +749,7 @@ So that a three-day job in a basement never loses a value.
 
 **Given** the local HTTPS address from Story 1.7 on an iPad running Safari and on an Android tablet running Chrome
 **When** a tester follows the written manual script (sign in, go offline, commit values, close Safari, wait, reopen; leave the tab unused for the eviction window; open the camera from a page)
-**Then** the results are recorded in `docs/` as the PRD Q0 proof with the date, device and iPadOS version, and the outcome selects the platform line for the slice (all three browsers, or Android Chrome and desktop only with FR-56 unchanged)
+**Then** the results are recorded in ~~`docs/`~~ `_bmad-output/test-artifacts/manual/` as the PRD Q0 proof with the date, device and iPadOS version (path changed 2026-09-21, test design TC-12), and the same script is repeated by Matheus at the close of every epic that touches capture or sync (Epics 5, 6 and 8; decision 7 of 2026-09-21), and the outcome selects the platform line for the slice (all three browsers, or Android Chrome and desktop only with FR-56 unchanged)
 
 ## Epic 2: Registries and company identity
 
@@ -897,6 +946,10 @@ So that the generated document is the one I sign today and I type only what is s
 **When** a definition changes
 **Then** it is added as a new version and every previous version still resolves (AR-20)
 
+**Given** the R-009 seed gate *(added 2026-09-21, system-level test design; see `_bmad-output/test-artifacts/test-design/fasor-handoff.md`)*
+**When** the seed tests pass
+**Then** Matheus reviews the resolved definitions against the decoded FO.SERV-03 in `docs/context/` (labels, counts, criteria and sources) and records the review with the date in this story before Story 4.1 starts; Bruno's review happens on the first generated DOCX in Story 4.8 (decision 4 of 2026-09-21)
+
 ### Story 3.2: Seed the section boilerplate and the "Cabine primária — padrão" template
 
 **Dev model:** opus · **Effort:** medium · boilerplate with variables, BlockConfig schema and the seeded template skeleton
@@ -1029,12 +1082,16 @@ So that the renderer snapshot tests, the Sumário and pre-issue identity test an
 
 **Given** the seed of Stories 3.1 and 3.2 and the decoded sheets in `.working/extract-raw-sources.md` §2
 **When** the fixture is authored as an op log under `packages/domain/fixtures/porto-seguro/` (a script generating `project`, `relatorio`, `location`, `equipment`, `block` and `sheet/*` ops from a typed data file)
-**Then** it holds the six cabines with their columns, the 94 equipment blocks with their TAGs, the reference nameplates, the C/NC/NA patterns and the measured values of the delivered document (including the five contact-resistance readings above `< 250 µΩ` and the untested disconnectors and TIE breaker with their section 8 reasons), the cover data with placeholder people and CNPJs, and the instruments 2E, 3M and 1T with their certificate numbers
+**Then** it holds the six cabines with their columns, the 94 equipment blocks with their TAGs, the reference nameplates, the C/NC/NA patterns and the measured values of the delivered document (including the five contact-resistance readings above `< 250 µΩ` and the untested disconnectors and TIE breaker with their section 8 reasons), the cover data ~~with placeholder people and CNPJs~~ with the real client, site, people and CNPJs of the delivered document (waiver R-023 signed by Matheus on 2026-09-21; AGENTS.md updated), and the instruments 2E, 3M and 1T with their certificate numbers
 **And** the fixture is parallelizable with Epic 1 and loads into both the Dexie store and Postgres through `applyOp` for every test that names "the Porto Seguro fixture" (FR-22, FR-68, NFR-17)
 
 **Given** no photographs are available for the fixture
 **When** tests need section 7
 **Then** a small set of placeholder photos with captions and stamps from the delivered caption list is included, numbered 01 to 76 to reproduce the source's numbering defect for the renderer to correct
+
+**Given** determinism and scale *(added 2026-09-21, system-level test design; see `_bmad-output/test-artifacts/test-design/fasor-handoff.md`)*
+**When** the fixture generator runs
+**Then** every op carries a fixed id and timestamp from the typed data file so the replay and golden tests are byte-stable (TC-2), and a second, small fixture relatório (one cabine, three blocks) exists under the same folder for every generation test that does not need the full document (TC-8)
 
 ## Epic 4: Projects, relatório setup, the Sumário and the tree
 
@@ -1263,6 +1320,12 @@ So that the one renderer, LibreOffice in the container and the page-numbered con
 **Given** the renderer snapshot test
 **When** the seeded template's skeleton is generated for the Porto Seguro fixture (Story 3.7)
 **Then** the DOCX structure (headings, tables, header and footer text) matches the stored snapshot and the job records its duration in the structured log (NFR-17, AR-28)
+
+**Given** testability of the generate job *(added 2026-09-21, system-level test design; see `_bmad-output/test-artifacts/test-design/fasor-handoff.md`)*
+**When** the api image runs in docker-compose with `GENERATE_FAULT=libreoffice_timeout` (a flag read only when `NODE_ENV !== 'production'`)
+**Then** the job fails at the conversion step, emits `generation_job/{id}/error`, allocates no revision and stores no file, and the next generate without the flag succeeds (TC-3, R-005)
+**And** the job records the TOC pass count and whether pass-2 pages equalled pass-1 in the `generation_job` result so a test can assert it; the layout spec confines generation dates to named fields (revision line, Data de emissão) so the golden comparison can mask them (TC-7)
+**And** Bruno reads the first generated skeleton DOCX and his remarks are recorded in this story (R-009, decision 4 of 2026-09-21)
 
 ## Epic 5: Fill the equipment sheet offline
 
@@ -1833,7 +1896,7 @@ So that nameplates are read for real with no cloud account and the same contract
 **Then** `POST /read` returns tokens with boxes in the pixel space of the bytes it received (internal deskew or crop mapped back, or `preprocessing_applied: false`), one token per word, and the sidecar holds no state (FR-33, FR-37, AR-13, NFR-18)
 
 **Given** the `ocr` service image (python:3.13, uv, FastAPI, PaddleOCR, PaddlePaddle CPU, opencv-python, onnxruntime)
-**When** it is built in CI
+**When** it is built ~~in CI~~ by `docker compose build ocr` (2026-09-21: no CI in the MVP; the build runs locally as part of `pnpm verify` for stories touching `services/ocr`)
 **Then** it starts under the `ocr` profile of docker-compose, answers `GET /health`, and a fixture plate photo returns tokens whose text and boxes match the stored expectation within tolerance (NFR-17, NFR-18)
 
 ### Story 8.4: Run the reading job end to end with fixture-driven structuring
@@ -1858,6 +1921,10 @@ So that the whole assist is testable with no cloud account and swapping in a pai
 **Given** the `anthropic` and `bedrock` provider slots
 **When** the code is inspected
 **Then** they exist as the same interface behind the config switch but are not implemented in this epic, and no code path reads a personal subscription credential (NFR-12)
+
+**Given** the `fake` providers *(added 2026-09-21, system-level test design; see `_bmad-output/test-artifacts/test-design/fasor-handoff.md`)*
+**When** a fixture file declares `outcome: ok | error | timeout` for a photo sha256
+**Then** the job behaves accordingly: `error` and `timeout` exhaust the three attempts and end in `failed` with `reading_status = failed`, `ok` replays the stored tokens and structured values; the outcome field defaults to `ok` (TC-3, R-007)
 
 ### Story 8.5: Accept a digit only when the OCR saw it, and check names against the registries
 

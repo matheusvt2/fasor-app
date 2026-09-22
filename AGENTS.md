@@ -7,7 +7,8 @@ Releng (codename fasor): a tablet-first, offline-first web app that captures med
 
 ## Policy
 
-- The repository is public. Never copy client material from `docs/context/` or `docs/media/` (gitignored) or the third-party names, CNPJs and coordinates in `docs/concorrentes/` into tracked files; cite by path.
+- The repository is public. Never copy client material from `docs/context/` or `docs/media/` (gitignored) or the third-party names, CNPJs and coordinates in `docs/concorrentes/` into tracked files; cite by path. One exception, decided by Matheus on 2026-09-21: the Porto Seguro test fixture (`packages/domain/fixtures/porto-seguro/`) and its golden documents may carry the delivered relatório's data as is (client, CNPJ, site, people, serials, coordinates, photos). See "Decisions of record" below.
+- Merging a story requires `pnpm verify` green with its output pasted in the PR (lint, unit, api, Playwright `@p0`; under 15 minutes). Decided 2026-09-21.
 - Everything runs in Docker through docker-compose; never install or run a service natively on the machine. The whole MVP runs locally; AWS comes only after the MVP (Epic 11).
 - No story before the AWS deploy may depend on a cloud account or a paid API key; `LLM_PROVIDER` and `OCR_PROVIDER` default to `fake`. The backend never uses a personal Claude subscription.
 - No emoji anywhere: UI strings, documents, mocks, code, commit messages, chat replies and agent persona prefixes. Icons are SVG sprite symbols or CSS glyphs.
@@ -47,3 +48,9 @@ Releng (codename fasor): a tablet-first, offline-first web app that captures med
 - BMAD agent personas carry an emoji icon in `_bmad/config.toml`; drop it from message prefixes and from anything written to the repo.
 
 <!-- /bmad:context -->
+
+## Decisions of record (kept outside the managed block)
+
+- 2026-09-21, Matheus: waiver of test-design risk R-023. The Porto Seguro fixture and golden documents use the real client material of the delivered relatório without restriction; the public exposure is accepted consciously. Source: `_bmad-output/test-artifacts/test-design-architecture.md`.
+- 2026-09-21, Matheus: `pnpm verify` is the merge gate (R-011); CI stays out of the MVP.
+- 2026-09-21, Matheus: Sync status gains a visible "Sincronizar agora" action (C-4); tests use it instead of the 60 s timer.

@@ -1,0 +1,143 @@
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created, ready for development
+#   - in-progress: Developer actively working on implementation
+#   - review: Implementation complete, ready for review
+#   - done: Story completed
+
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+
+# Action Item Status:
+#   - open: Committed during a retrospective, not yet addressed
+#   - in-progress: Actively being worked on
+#   - done: Completed
+
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when its first story starts (via build's sprint sync)
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates the next story after the previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+# - Retrospective appends its action items to action_items; the status view surfaces open ones
+generated: 09-21-2026 18:00
+last_updated: 09-21-2026 21:40
+project: fasor
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+development_status:
+  epic-1: in-progress
+  1-1-run-the-whole-stack-with-one-command: review
+  1-2-build-the-shared-components-from-the-mockups-css: backlog
+  1-3-sign-in-and-hold-a-session-that-survives-offline: backlog
+  1-4-every-change-is-an-operation-applied-locally-first: backlog
+  1-5-what-i-did-on-the-tablet-reaches-the-office-by-itself: backlog
+  1-6-home-and-account-show-what-is-on-this-device: backlog
+  1-7-reach-the-local-stack-from-a-tablet-over-https: backlog
+  1-8-nothing-captured-is-lost-when-the-tab-closes-the-network-dro: backlog
+  epic-1-retrospective: optional
+
+  epic-2: backlog
+  2-1-register-a-test-instrument-with-its-calibration-record: backlog
+  2-2-attach-a-certificate-file-that-reaches-the-server-by-itself: backlog
+  2-3-set-the-company-s-document-identity-once-with-a-live-brand-p: backlog
+  2-4-register-clients-and-their-sites: backlog
+  2-5-pick-manufacturers-and-voltage-classes-or-create-one-from-th: backlog
+  2-6-see-the-acceptance-criteria-as-sourced-data: backlog
+  epic-2-retrospective: optional
+
+  epic-3: backlog
+  3-1-seed-the-eight-equipment-block-types-from-the-decoded-fo-ser: backlog
+  3-2-seed-the-section-boilerplate-and-the-cabine-primária-padrão: backlog
+  3-3-list-duplicate-and-archive-templates: backlog
+  3-4-compose-a-template-with-its-location-skeleton-and-quantities: backlog
+  3-5-set-sub-block-defaults-and-subtypes-per-block-type: backlog
+  3-6-edit-the-section-boilerplate-as-plain-text-with-variables: backlog
+  3-7-build-the-porto-seguro-fixture-relatório: backlog
+  epic-3-retrospective: optional
+
+  epic-4: backlog
+  4-1-create-a-project-and-a-relatório-whose-blocks-are-born-in-pl: backlog
+  4-2-fill-the-relatório-setup-page: backlog
+  4-3-see-the-relatório-as-its-own-table-of-contents-the-sumário: backlog
+  4-4-walk-the-location-tree: backlog
+  4-5-add-remove-restore-duplicate-and-reorder-equipment-blocks: backlog
+  4-6-status-transitions-and-the-relatório-emitido-warning: backlog
+  4-7-edit-a-section-s-text-inside-one-relatório: backlog
+  4-8-generate-the-document-skeleton-as-a-numbered-docx-revision: backlog
+  epic-4-retrospective: optional
+
+  epic-5: backlog
+  5-1-open-a-sheet-and-move-through-its-four-steps: backlog
+  5-2-record-the-cabine-s-characteristics-and-test-environment-onc: backlog
+  5-3-fill-the-nameplate-by-copy-or-by-typing: backlog
+  5-4-mark-the-checklist-with-taps-not-typing: backlog
+  5-5-type-a-reading-with-its-unit-and-see-it-judged-against-the-c: backlog
+  5-6-type-all-of-a-sheet-s-readings-in-one-continuous-run: backlog
+  5-7-pick-the-instrument-by-its-code: backlog
+  5-8-conclude-the-sheet-with-one-tap-and-a-text-the-app-wrote-fro: backlog
+  5-9-mark-an-equipment-as-not-tested: backlog
+  epic-5-retrospective: optional
+
+  epic-6: backlog
+  6-1-shoot-photos-in-a-burst-from-any-surface-captioned-from-wher: backlog
+  6-2-no-photo-is-ever-lost: backlog
+  6-3-see-every-photo-in-one-chronological-gallery-with-its-stamp: backlog
+  6-4-add-photos-after-the-visit-or-from-someone-else-s-phone: backlog
+  6-5-change-a-caption-from-chips-or-free-text: backlog
+  6-6-record-findings-that-print-as-section-8-with-untested-equipm: backlog
+  epic-6-retrospective: optional
+
+  epic-7: backlog
+  7-1-print-the-equipment-sheets-as-native-tables-grouped-as-fo-se: backlog
+  7-2-print-the-photo-record-and-the-photos-beside-their-equipment: backlog
+  7-3-print-the-points-of-attention-and-the-certificates: backlog
+  7-4-set-the-parecer-and-print-section-10-with-the-signature-bloc: backlog
+  7-5-see-what-is-outstanding-preview-as-rascunho-and-issue-the-re: backlog
+  epic-7-retrospective: optional
+
+  epic-8: backlog
+  8-1-a-suggestion-is-an-entity-nobody-can-write-without-a-tap: backlog
+  8-2-photograph-the-plate-and-keep-the-photo-until-there-is-signa: backlog
+  8-3-run-a-local-ocr-service-in-docker-behind-the-ocrprovider-con: backlog
+  8-4-run-the-reading-job-end-to-end-with-fixture-driven-structuri: backlog
+  8-5-accept-a-digit-only-when-the-ocr-saw-it-and-check-names-agai: backlog
+  8-6-confirm-the-plate-in-one-tap-with-the-crop-in-view: backlog
+  epic-8-retrospective: optional
+
+  epic-9: backlog
+  9-1-read-the-instrument-display-with-ler-visor: backlog
+  9-2-create-a-block-by-photographing-the-equipment: backlog
+  9-3-caption-context-less-photos-by-vision-confirmed-in-batch: backlog
+  9-4-dictate-a-caption-an-observation-or-a-reading: backlog
+  9-5-draft-the-nc-observation-from-the-row-s-photo: backlog
+  epic-9-retrospective: optional
+
+  epic-10: backlog
+  10-1-merge-the-same-sheet-from-two-devices-by-rule: backlog
+  10-2-decide-a-true-cell-contradiction-and-nothing-else: backlog
+  10-3-resolve-a-removed-versus-edited-block-and-a-duplicate-tag: backlog
+  10-4-see-everything-the-sync-did-or-is-waiting-to-do: backlog
+  epic-10-retrospective: optional
+
+  epic-11: backlog
+  11-1-download-the-pdf-beside-the-docx: backlog
+  11-2-move-a-block-to-another-location: backlog
+  11-3-save-a-relatório-as-a-template: backlog
+  11-4-edit-section-boilerplate-in-a-rich-text-editor: backlog
+  11-5-turn-the-photo-location-stamp-on-or-off: backlog
+  11-6-structure-readings-with-claude-through-a-paid-api-key: backlog
+  11-7-use-amazon-textract-as-the-cloud-ocr: backlog
+  11-8-deploy-the-same-images-to-aws: backlog
+  11-9-let-the-priority-suggest-the-deadline-on-a-point-of-attentio: backlog
+  11-10-print-the-action-plan-table-in-section-8-post-mvp-before-202: backlog
+  epic-11-retrospective: optional
