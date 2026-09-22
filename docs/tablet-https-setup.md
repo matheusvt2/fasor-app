@@ -24,6 +24,14 @@ TABLET_HOST=192.168.1.42
 If `TABLET_HOST` is left unset it defaults to `localhost`, which only works
 from the same machine.
 
+`caddy`'s host ports (`CADDY_HTTP_PORT`/`CADDY_HTTPS_PORT`, default `80`/`443`)
+and the `prod` profile's `api-prod` port (`API_PROD_PORT`, default `3001`) are
+also set through `.env`, the same pattern as the other services. Running more
+than one checkout or worktree of this stack on one machine at the same time
+requires giving each its own values for these three variables (and the other
+already-parameterized ports), or the second one to start fails with "address
+already in use".
+
 ## 2. Start the stack
 
 ```
