@@ -10,8 +10,11 @@ import { holdShell, promoteWaitingShell } from './register.ts';
  * can read the user's per-user Dexie database:
  *
  *   - the waiting worker is promoted when the backlog is zero;
- *   - until then the active worker is told to hold, so navigations keep coming from the
- *     shell the job started on instead of the network serving the new build's document.
+ *   - on every backlog change the active worker is told whether to hold (backlog above
+ *     zero), whether or not a new shell is waiting: the worker keeps the hold as a pin
+ *     in Cache Storage, so navigations keep coming from the shell the job started on even
+ *     after the browser activates the new worker on its own, and the pin is released the
+ *     moment the backlog reaches zero.
  *
  * The backlog is a live query rather than a single read, because the hold has to be
  * released the moment the last op is acked, not on the next launch.

@@ -51,31 +51,39 @@ describe('the fetch rule in public/sw.js', () => {
     expect(plan({ isShellPath: true, hold: true })).toBe('cache-first');
   });
 
-  // The matrix the rule exists for: (a shell waiting?, the backlog, the request mode).
-  // The page turns the first two into `hold` (`shouldHoldShell` in src/sw/register.ts).
-  it('answers navigations network-first while nothing is being held back', () => {
-    // No waiting shell, any backlog: hold is false.
+  // The matrix the rule exists for: (the backlog, the request mode). The page turns the
+  // backlog into `hold` (`shouldHoldShell` in src/sw/register.ts), and the worker keeps it
+  // as a pin in Cache Storage; `hold` here is "a shell is pinned".
+  it('answers navigations network-first while nothing is pinned', () => {
     expect(plan({ mode: 'navigate', hold: false })).toBe('network-first');
   });
 
-  it('answers navigations from the cache while a waiting shell is held back', () => {
-    // A waiting shell plus a non-empty outbox: the job stays on the version it started
-    // on, instead of the network handing it the new document mid-job.
+  it('answers navigations from the cache while a shell is pinned', () => {
+    // A non-empty outbox: the job stays on the version it started on, instead of the
+    // network handing it the new document mid-job.
     expect(plan({ mode: 'navigate', hold: true })).toBe('cache-first');
-  });
-
-  it('goes back to network-first the moment the backlog reaches zero', () => {
-    // A waiting shell and an empty outbox: hold is released, the page promotes the
-    // worker, and the next navigation may discover the new build.
-    expect(plan({ mode: 'navigate', hold: false })).toBe('network-first');
   });
 });
 
-describe('the worker keeps the hold flag where the page can set it', () => {
-  it('reads it from a hold-shell message and nowhere else', () => {
-    expect(source).toMatch(/data\.type === 'hold-shell'/);
-    expect(source).toMatch(/holdShell = data\.hold === true/);
-    // The flag is only ever read through the pure rule.
-    expect(source.match(/hold: holdShell/g)).toHaveLength(1);
+/*
+ * The hold's lifecycle across worker restarts and a browser-driven activation is run
+ * against the real file in `sw-lifecycle.test.ts`. Here only the wiring is pinned: the
+ * hold reaches the pure rule from the Cache Storage pin, never from a module flag that a
+ * stopped worker would lose.
+ */
+describe('the worker derives the hold from the pin', () => {
+  it('keeps no module-level hold flag', () => {
+    expect(source).not.toMatch(/let holdShell/);
+    expect(source).toMatch(/hold: pin !== null/);
+  });
+
+  it('writes the pin from a hold-shell message, inside waitUntil', () => {
+    expect(source).toMatch(/data\.type === 'hold-shell'\) event\.waitUntil\(setHold\(data\.hold === true\)\)/);
+  });
+
+  it('keeps the sentinel out of the shell cache namespace', () => {
+    const name = /const HOLD_CACHE = '([^']+)'/.exec(source)?.[1];
+    expect(name).toBeDefined();
+    expect(name!.startsWith('releng-shell-')).toBe(false);
   });
 });
