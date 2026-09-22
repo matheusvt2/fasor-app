@@ -35,7 +35,7 @@ export interface DraftSource extends DraftTarget {
 }
 
 export interface DraftsState {
-  /** True while at least one `drafts` row from an earlier launch is still on offer. */
+  /** True while at least one `drafts` row from an earlier launch is still on offer and not dismissed. */
   draftFound: boolean;
   /** Registers one source; the returned function unregisters it. */
   register: (source: DraftSource) => () => void;
@@ -59,6 +59,12 @@ export function DraftProvider({ children }: { children: ReactNode }) {
   const { toast, showToast } = useToast();
   const sources = useRef<Map<string, DraftSource>>(new Map());
   const [offer, setOffer] = useState<Offer | null>(null);
+  /**
+   * The user put the offer away (the toast's close control or Esc). The rows stay in the
+   * store, and the offer is not raised again for the rest of this page session: the next
+   * launch offers it again.
+   */
+  const [declined, setDeclined] = useState(false);
   // `recover` is called from a toast button, outside a render: it reads the current
   // offer through a ref so its identity stays stable and no side effect runs inside a
   // state updater (which React invokes twice under StrictMode).
@@ -166,17 +172,19 @@ export function DraftProvider({ children }: { children: ReactNode }) {
   // The offer is the persistent toast of `key-sheet-states.html`: it carries an action,
   // so `showToast` sets no timer. It is raised again whenever the single toast slot
   // frees while the offer still stands, so a "Sem conexão" line or a refused-write
-  // error cannot take "Recuperar" away for the rest of the page session.
+  // error cannot take "Recuperar" away for the rest of the page session. Only the user
+  // dismissing it ends that, and dismissing never drops a row (retro U7).
   useEffect(() => {
-    if (offer === null || toast !== null) return;
+    if (offer === null || declined || toast !== null) return;
     showToast(copy.draft.foundText, {
       action: { label: copy.draft.recoverAction, onPress: recover },
+      onDismiss: () => setDeclined(true),
     });
-  }, [offer, toast, showToast, recover]);
+  }, [offer, declined, toast, showToast, recover]);
 
   const value = useMemo<DraftsState>(
-    () => ({ draftFound: offer !== null, register, persistAll }),
-    [offer, register, persistAll],
+    () => ({ draftFound: offer !== null && !declined, register, persistAll }),
+    [offer, declined, register, persistAll],
   );
 
   return <DraftsContext value={value}>{children}</DraftsContext>;

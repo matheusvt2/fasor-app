@@ -1,7 +1,6 @@
 import { statusLabel, type HomeCard } from '@app/domain';
 import { useId } from 'react';
-import { Button as AriaButton } from 'react-aria-components';
-import { StatusPill, SyncBadge } from '../../components/index.ts';
+import { Button, StatusPill, SyncBadge, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 
 export interface RelatorioCardProps {
@@ -50,12 +49,12 @@ export function RelatorioCard({ card, onPress }: RelatorioCardProps) {
       {card.isCurrent ? (
         <>
           <div className="card-continue">
-            <AriaButton className="btn btn-primary" aria-disabled aria-describedby={reasonId}>
+            <Button variant="primary" isDisabled disabledReasonId={reasonId}>
               {copy.home.continue}
-            </AriaButton>
-            <AriaButton className="btn btn-text" aria-disabled aria-describedby={reasonId}>
+            </Button>
+            <TextButton isDisabled disabledReasonId={reasonId}>
               {copy.home.openSummary}
-            </AriaButton>
+            </TextButton>
           </div>
           <span className="btn-reason" id={reasonId}>
             {copy.home.notAvailableYet}

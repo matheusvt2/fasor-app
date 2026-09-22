@@ -18,7 +18,9 @@ import { now } from '../clock.ts';
 import { newId } from '../ids.ts';
 import { createBrowserSyncClient } from '../sync/client.ts';
 import type { SyncFailure } from '../sync/client.ts';
+import { unreachableCause } from '../sync/policy.ts';
 import { createSyncEngine, type CycleResult, type EngineStatus, type SyncEngine } from '../sync/engine.ts';
+import { followOnlineEvents } from '../sync/online.ts';
 import { useSession } from './session.tsx';
 
 /*
@@ -35,6 +37,13 @@ export interface SyncState {
   pendingText: string;
   pendingCount: number;
   online: boolean;
+  /**
+   * Why the server cannot be reached although the browser is online, or null when it
+   * answered the last finished cycle: `server` after a network or 5xx failure, `session`
+   * while a new sign-in is required. The badge reads `offline` then (kernel), and Sync
+   * status says which of the two it is.
+   */
+  unreachable: 'server' | 'session' | null;
   running: boolean;
   outdated: boolean;
   lastResult: CycleResult | null;
@@ -85,11 +94,19 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<EngineStatus>(IDLE);
   const [device, setDevice] = useState<string | null>(null);
   const engineRef = useRef<SyncEngine | null>(null);
+  // What the engine reads. The events write it directly (`followOnlineEvents`): the
+  // session's state re-renders only after every listener of an `online` event has run,
+  // the engine's included. The session's value is copied in only when it changes, never
+  // on every render, so a render that still carries the old value cannot undo the event.
   const onlineRef = useRef(session.online);
-  onlineRef.current = session.online;
+  useEffect(() => {
+    onlineRef.current = session.online;
+  }, [session.online]);
 
   useEffect(() => {
     if (db === null) return;
+    // Registered before `engine.start()` subscribes its own `online` listener.
+    const stopFollowing = followOnlineEvents(onlineRef);
     const engine = createSyncEngine({
       db,
       client: createBrowserSyncClient(),
@@ -107,6 +124,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     engine.start();
     return () => {
       engine.stop();
+      stopFollowing();
       engineRef.current = null;
       setStatus(IDLE);
     };
@@ -139,13 +157,16 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     await engineRef.current?.runCycle();
   }, [db]);
 
+  const unreachable = unreachableCause({ reAuthRequired: session.reAuthRequired, lastFailure: status.lastFailure });
+
   const value = useMemo<SyncState>(
     () => ({
       counts,
-      badgeState: syncBadgeState(counts, { online: session.online }),
+      badgeState: syncBadgeState(counts, { online: session.online, reachable: unreachable === null }),
       pendingText: pendingSummaryText(counts),
       pendingCount: pendingSummaryCount(counts),
       online: session.online,
+      unreachable,
       running: status.running,
       outdated: status.outdated,
       lastResult: status.lastResult,
@@ -160,7 +181,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       syncRelatorio,
       resendDead,
     }),
-    [counts, session.online, status, company, device, userNames, syncNow, syncRelatorio, resendDead],
+    [counts, session.online, unreachable, status, company, device, userNames, syncNow, syncRelatorio, resendDead],
   );
 
   return <SyncContext value={value}>{children}</SyncContext>;

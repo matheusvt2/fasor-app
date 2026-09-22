@@ -51,9 +51,11 @@ export function EvictionRecoverySurface() {
   useEffect(() => {
     if (!awaitingOutcome) return;
     setAwaitingOutcome(false);
-    if (sync.lastFailure === null) session.dismissRecovery();
+    // A device that went offline mid-cycle records no failure (it is not the server's),
+    // but the pull did not finish either.
+    if (sync.lastFailure === null && sync.online) session.dismissRecovery();
     else setFailed(true);
-  }, [awaitingOutcome, sync.lastFailure, session]);
+  }, [awaitingOutcome, sync.lastFailure, sync.online, session]);
 
   return (
     <main className="screen" data-route="/recovery">

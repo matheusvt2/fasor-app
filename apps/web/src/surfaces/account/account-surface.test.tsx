@@ -58,6 +58,7 @@ function syncState(pendingText: string, pendingCount: number): SyncState {
     outdated: false,
     lastResult: 'ran',
     lastFailure: null,
+    unreachable: null,
     lastSyncAt: null,
     lastPushAt: [],
     supersededCount: 0,
@@ -248,5 +249,70 @@ describe('Account: Registro profissional reads the device (retro A2)', () => {
       db.close();
       await db.delete();
     }
+  });
+});
+
+describe('Account: the two dialogs share one modal shell (retro F-DUP-1, F-UNVERIFIED-1)', () => {
+  it('Sair: aria-modal on the dialog, focus on Cancelar, back on Sair after Cancelar and after Esc', async () => {
+    const { baseElement } = renderAccount(syncState('', 0));
+    const sair = screen.getByRole('button', { name: 'Sair' });
+
+    await userEvent.click(sair);
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(dialog).toHaveClass('confirm-dialog');
+    expect(dialog.closest('.dialog-modal')).not.toBeNull();
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Cancelar' })).toHaveFocus());
+    expect(await axe(baseElement)).toHaveNoViolations();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(sair).toHaveFocus());
+
+    await userEvent.click(sair);
+    await screen.findByRole('dialog');
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(sair).toHaveFocus());
+    expect(signedIn.signOut).not.toHaveBeenCalled();
+  });
+
+  it('Editar: a Form dialog whose Conselho is one Tab stop driven by arrows; focus returns to Editar', async () => {
+    renderAccount(syncState('', 0));
+    const editar = screen.getByRole('button', { name: 'Editar' });
+
+    await userEvent.click(editar);
+    const dialog = screen.getByRole('dialog', { name: 'Registro profissional' });
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(dialog).toHaveClass('form-dialog');
+
+    // Initial focus on the first field: the checked Conselho segment, the group's only stop.
+    const group = screen.getByRole('radiogroup', { name: 'Conselho' });
+    const crea = screen.getByRole('radio', { name: 'CREA' });
+    const crt = screen.getByRole('radio', { name: 'CRT' });
+    await waitFor(() => expect(crea).toHaveFocus());
+    expect(group.querySelectorAll('[tabindex="0"]')).toHaveLength(1);
+    expect(crt).toHaveAttribute('tabindex', '-1');
+    await userEvent.keyboard('{ArrowRight}');
+    expect(crt).toHaveFocus();
+    expect(crt).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByLabelText('Título impresso')).toHaveValue('Técnico(a) em Eletrotécnica');
+    // One Tab leaves the group for the number field.
+    await userEvent.tab();
+    expect(screen.getByLabelText('Número CRT')).toHaveFocus();
+
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(editar).toHaveFocus());
+
+    await userEvent.click(editar);
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    await waitFor(() => expect(editar).toHaveFocus());
+
+    await userEvent.click(editar);
+    await userEvent.click(screen.getByRole('button', { name: 'Salvar' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(signedIn.saveRegistration).toHaveBeenCalled();
+    await waitFor(() => expect(editar).toHaveFocus());
   });
 });

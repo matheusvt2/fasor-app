@@ -12,12 +12,25 @@ interface DisabledReasonProps {
    */
   isDisabled?: boolean;
   disabledReason?: string;
+  /**
+   * The id of a reason already on the page, for several controls that share one sentence
+   * (the mock's single `.btn-reason` under "Continuar" and "Ver sumário"). The control
+   * points at it instead of rendering a copy of its own.
+   */
+  disabledReasonId?: string;
 }
 
-function assertReason({ isDisabled, disabledReason }: DisabledReasonProps, componentName: string): void {
-  if (isDisabled && !disabledReason) {
+function assertReason({ isDisabled, disabledReason, disabledReasonId }: DisabledReasonProps, componentName: string): void {
+  if (isDisabled && !disabledReason && !disabledReasonId) {
     throw new Error(`${componentName}: isDisabled requires a disabledReason shown beside the control (aria-describedby).`);
   }
+}
+
+/** The reason a disabled control points at: a shared one on the page, or the one it renders. */
+function reasonTarget({ isDisabled, disabledReason, disabledReasonId }: DisabledReasonProps, ownId: string): string | null {
+  if (!isDisabled) return null;
+  if (disabledReasonId) return disabledReasonId;
+  return disabledReason ? ownId : null;
 }
 
 function mergeDescribedBy(existing: string | undefined, reasonId: string | null): string | undefined {
@@ -37,8 +50,17 @@ export interface ButtonProps
  * Primary / secondary / destructive action button. Destructive actions are always the
  * outline-red `.btn-destructive` style, never a red fill (Boundaries & Constraints).
  */
-export function Button({ variant = 'primary', block, isDisabled = false, disabledReason, onPress, children, ...rest }: ButtonProps) {
-  assertReason({ isDisabled, disabledReason }, 'Button');
+export function Button({
+  variant = 'primary',
+  block,
+  isDisabled = false,
+  disabledReason,
+  disabledReasonId,
+  onPress,
+  children,
+  ...rest
+}: ButtonProps) {
+  assertReason({ isDisabled, disabledReason, disabledReasonId }, 'Button');
   const reasonId = useId();
   const className = ['btn', `btn-${variant}`, block && 'btn-block'].filter(Boolean).join(' ');
 
@@ -48,7 +70,10 @@ export function Button({ variant = 'primary', block, isDisabled = false, disable
         {...rest}
         className={className}
         aria-disabled={isDisabled || undefined}
-        aria-describedby={mergeDescribedBy(rest['aria-describedby'], isDisabled && disabledReason ? reasonId : null)}
+        aria-describedby={mergeDescribedBy(
+          rest['aria-describedby'],
+          reasonTarget({ isDisabled, disabledReason, disabledReasonId }, reasonId),
+        )}
         onPress={(event) => {
           if (isDisabled) return;
           onPress?.(event);
@@ -56,7 +81,7 @@ export function Button({ variant = 'primary', block, isDisabled = false, disable
       >
         {children}
       </AriaButton>
-      {isDisabled && disabledReason ? (
+      {isDisabled && disabledReason && !disabledReasonId ? (
         <span className="btn-reason" id={reasonId}>
           {disabledReason}
         </span>
@@ -77,8 +102,16 @@ export interface TextButtonProps
  * A secondary action that must not compete with the surface's primary Button
  * (Component Patterns › Text button). Same disabled + reason contract as Button.
  */
-export function TextButton({ tone, isDisabled = false, disabledReason, onPress, children, ...rest }: TextButtonProps) {
-  assertReason({ isDisabled, disabledReason }, 'TextButton');
+export function TextButton({
+  tone,
+  isDisabled = false,
+  disabledReason,
+  disabledReasonId,
+  onPress,
+  children,
+  ...rest
+}: TextButtonProps) {
+  assertReason({ isDisabled, disabledReason, disabledReasonId }, 'TextButton');
   const reasonId = useId();
   const className = ['btn', 'btn-text'].join(' ');
 
@@ -89,7 +122,10 @@ export function TextButton({ tone, isDisabled = false, disabledReason, onPress, 
         className={className}
         data-tone={tone}
         aria-disabled={isDisabled || undefined}
-        aria-describedby={mergeDescribedBy(rest['aria-describedby'], isDisabled && disabledReason ? reasonId : null)}
+        aria-describedby={mergeDescribedBy(
+          rest['aria-describedby'],
+          reasonTarget({ isDisabled, disabledReason, disabledReasonId }, reasonId),
+        )}
         onPress={(event) => {
           if (isDisabled) return;
           onPress?.(event);
@@ -97,7 +133,7 @@ export function TextButton({ tone, isDisabled = false, disabledReason, onPress, 
       >
         {children}
       </AriaButton>
-      {isDisabled && disabledReason ? (
+      {isDisabled && disabledReason && !disabledReasonId ? (
         <span className="btn-reason" id={reasonId}>
           {disabledReason}
         </span>

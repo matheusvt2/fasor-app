@@ -312,6 +312,13 @@ describe('homeCards: filter and badge', () => {
     const cards = homeCards(input({ ...all, online: false }));
     expect(cards.every((c) => c.badgeState === 'offline')).toBe(true);
   });
+
+  it('an unreachable server reads offline on every card too, and nothing changes the device words', () => {
+    const reachable = homeCards(input({ ...all, online: true }));
+    const cards = homeCards(input({ ...all, online: true, reachable: false }));
+    expect(cards.every((c) => c.badgeState === 'offline')).toBe(true);
+    expect(cards.map((c) => c.device)).toEqual(reachable.map((c) => c.device));
+  });
 });
 
 describe('homeCards: empty input', () => {

@@ -40,6 +40,7 @@ function syncState(over: Partial<SyncState> = {}): SyncState {
     outdated: false,
     lastResult: null,
     lastFailure: null,
+    unreachable: null,
     lastSyncAt: null,
     lastPushAt: [],
     supersededCount: 0,

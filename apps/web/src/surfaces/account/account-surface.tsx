@@ -1,6 +1,7 @@
 import {
   avatarInitial,
   defaultTitleForCouncil,
+  pendingNotSentText,
   registrationOfUserRow,
   registrationRowText,
   storageLine,
@@ -9,7 +10,7 @@ import {
 } from '@app/domain';
 import { useEffect, useId, useState } from 'react';
 import { Link } from 'react-router';
-import { Button, SegmentedControl, TextButton } from '../../components/index.ts';
+import { Button, ConfirmDialog, SegmentedControl, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { relatorioRows, originalFileCount } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
@@ -19,7 +20,6 @@ import { useSession } from '../../state/session.tsx';
 import { useSync } from '../../state/sync.tsx';
 import { useTheme } from '../../state/theme.tsx';
 import { RegistrationDialog } from './registration-dialog.tsx';
-import { SignOutDialog } from './sign-out-dialog.tsx';
 import './account.css';
 
 /**
@@ -263,16 +263,19 @@ export function AccountSurface() {
         />
       ) : null}
 
-      {confirmingSignOut ? (
-        <SignOutDialog
-          pending={pending === '' ? null : { text: pending, count: sync.pendingCount }}
-          onCancel={() => setConfirmingSignOut(false)}
-          onConfirm={() => {
-            setConfirmingSignOut(false);
-            void signOut();
-          }}
-        />
-      ) : null}
+      {/* Confirm dialog of the destructive "Sair" (mock: `#acc-dlg-sair`). With pending work
+          it is the mock's "Sair com envios pendentes?" with the kernel's sentence; with
+          nothing pending it says what is true today: nothing on this device is deleted. */}
+      <ConfirmDialog
+        isOpen={confirmingSignOut}
+        onOpenChange={setConfirmingSignOut}
+        title={pending === '' ? copy.account.signOutDialogTitle : copy.account.signOutPendingDialogTitle}
+        description={pending === '' ? copy.account.signOutDialogBody : pendingNotSentText(pending, sync.pendingCount)}
+        confirmLabel={copy.account.signOutConfirm}
+        cancelLabel={copy.account.cancel}
+        isDestructive
+        onConfirm={() => void signOut()}
+      />
     </main>
   );
 }

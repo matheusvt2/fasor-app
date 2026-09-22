@@ -38,7 +38,16 @@ async function openSyncStatusWithRowsWaiting(page: Page, expectedBadge: string):
   await expect(page.getByRole('heading', { level: 1, name: 'Sincronização' })).toBeVisible();
   const button = page.getByRole('button', { name: 'Sincronizar agora' });
   await expect(button).not.toHaveAttribute('aria-disabled', 'true', { timeout: 30_000 });
-  await expect(syncWord(page)).toHaveText(expectedBadge);
+  // The cycle could not reach the server, so the badge no longer claims the rows are on
+  // their way: it reads "Sem conexão" and Sync status names the cause (retro U5), while
+  // the pending count stays on the badge's data and in the headline.
+  await expect(syncWord(page)).toHaveText('Sem conexão');
+  await expect(page.getByTestId('sync-unreachable')).toHaveText(
+    'Não foi possível falar com o servidor. Tudo fica salvo neste aparelho.',
+  );
+  await expect(page.locator('.sync-headline .sh-counts')).toContainText('aguardando envio');
+  // The same count the badge read before the cycle ("2 pendentes") is still on it.
+  await expect(syncBadge(page)).toHaveAttribute('data-pending', expectedBadge.split(' ')[0]!);
   await page.unroute(isApiRequest);
 }
 

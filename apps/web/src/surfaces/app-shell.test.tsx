@@ -42,6 +42,7 @@ function syncState(over: Partial<SyncState> = {}): SyncState {
     outdated: false,
     lastResult: 'ran',
     lastFailure: null,
+    unreachable: null,
     lastSyncAt: null,
     lastPushAt: [],
     supersededCount: 0,
@@ -123,6 +124,39 @@ describe('AppShell app bar', () => {
     expect(container.querySelectorAll('.sync-badge')).toHaveLength(1);
   });
 
+  it('names the browser tab per route (WCAG 2.4.2): the product alone on Home (retro U8)', () => {
+    const home = renderShell();
+    expect(document.title).toBe('PRODUTO');
+    home.unmount();
+    const account = renderShell(syncState(), '/account');
+    expect(document.title).toBe('Conta · PRODUTO');
+    account.unmount();
+    renderShell(syncState(), '/sync');
+    expect(document.title).toBe('Sincronização · PRODUTO');
+  });
+
+  it('Home has the wordmark and no back button; Account and Sync have "Voltar", which goes Home (retro U8)', async () => {
+    const home = renderShell();
+    expect(screen.queryByRole('button', { name: 'Voltar' })).toBeNull();
+    expect(screen.getByRole('link', { name: `${PRODUTO} — início` })).toHaveAttribute('aria-current', 'page');
+    home.unmount();
+
+    for (const path of ['/account', '/sync']) {
+      const view = renderShell(syncState(), path);
+      const back = screen.getByRole('button', { name: 'Voltar' });
+      expect(back).toHaveClass('icon-btn');
+      expect(back.querySelector('use')).toHaveAttribute('href', '/sprite.svg#i-back');
+      await userEvent.click(back);
+      expect(screen.getByText('home')).toBeVisible();
+      view.unmount();
+    }
+  });
+
+  it('the avatar marks Account as the current page there', () => {
+    renderShell(syncState(), '/account');
+    expect(screen.getByRole('link', { name: 'Conta' })).toHaveAttribute('aria-current', 'page');
+  });
+
   it('the badge opens Sync status', async () => {
     renderShell();
     await userEvent.click(screen.getByRole('button', { name: 'Sincronização: sincronizado. Abrir status' }));
@@ -167,21 +201,9 @@ describe('AppShell banner slot, live region and toast', () => {
     expect(screen.getByTestId('toast')).toHaveTextContent('Uma mensagem');
   });
 
-  // FR-61: the offer itself is the persistent toast; this candidate exists so the
-  // condition is counted when something above it holds the slot.
-  it('a waiting draft is a banner condition, below re-auth', async () => {
+  // FR-61, retro U7: the offer is the persistent toast alone; no banner repeats it.
+  it('a waiting draft raises no banner', () => {
     const { container } = renderShell(syncState(), '/', draftsState(true));
-    expect(container.querySelector('.banner')).toHaveAttribute('data-banner', 'draft-found');
-
-    sessionState = { ...sessionState, reAuthRequired: true };
-    try {
-      const withReAuth = renderShell(syncState(), '/', draftsState(true));
-      expect(withReAuth.container.querySelector('.banner')).toHaveAttribute('data-banner', 're-auth');
-      expect(
-        withReAuth.getByRole('button', { name: '+1, outras condições — abrir status de sincronização' }),
-      ).toHaveTextContent('+1');
-    } finally {
-      sessionState = { ...sessionState, reAuthRequired: false };
-    }
+    expect(container.querySelector('.banner')).toBeNull();
   });
 });

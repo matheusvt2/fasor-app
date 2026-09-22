@@ -62,3 +62,18 @@ Decided 2026-09-22 (Epic 1 retro A7). pt-BR copy has three homes, and each strin
 - **Derived text goes in `packages/domain`.** This means anything computed from data: status words (`statusLabel`), counts and plurals (`plural`, `relatoriosCount`, `pendingSummaryText`, `rejectedText`), and composed rows (`registrationRowText`, `storageLine`, `serverHoldsText`). `apps/web` never writes a singular-or-plural choice, a status word or a rule such as "which statuses are pulled" (`isAutoPulled`) of its own.
 - **Static surface copy goes in `apps/web/src/copy/pt-br.ts`.** These are headings, labels, notes, button words and fixed sentences of one surface, verbatim from the mocks or marked `// authored:`.
 - **Component chrome goes in `apps/web/src/copy/ui.ts`.** These are the words a shared component owns whatever screen it is on ("Ativado", "Cancelar", the overflow trigger's label template).
+
+## Mock container selectors (kept outside the managed block)
+
+Decided 2026-09-22 (Epic 1 retro A5, F-PAT-2). This extends "Conventions that differ from defaults". The mocks draw every screen inside a device bezel, so `components.css` encodes the base scope and the viewport as container classes that the app never renders. `tokens.css` and `components.css` stay byte-identical; each translation goes in `apps/web/src/styles/app.css` with a comment naming the mock rule it mirrors, declarations copied verbatim:
+
+- `.frame, .frame *` and `.frame X` base rules become `:root` scope (`:root`, `:root *`, or the bare element), so React Aria overlays portaled to the end of `<body>` inherit them.
+- `.frame-phone X` becomes `@media (max-width: 767.98px) { X }`, below DESIGN.md `breakpoint-tablet` (768px).
+- `.frame-tablet X` becomes `@media (min-width: 768px) and (max-width: 1279.98px) { X }`.
+- `.frame-tablet-landscape X` becomes `@media (min-width: 1024px) and (max-width: 1279.98px) { X }`.
+- `.frame-desktop X` becomes `@media (min-width: 1280px) { X }`.
+- `.frame--crop`, `.mock-*`, the bezel sizes, `.browser-chrome` (and `.frame-desktop .screen`, which sizes to it) and the static `.is-focus-ring` are mock-only and never translated.
+- Media queries already inside `components.css` (the 480px Sync badge rule) apply as they are and are not repeated.
+- On states: the ARIA state lives on the element the mock CSS styles. When a valid ARIA shape cannot carry the mock's attribute (a `role="radio"` cannot carry `aria-pressed`), `app.css` mirrors the mock rule's declarations for the attribute it does carry. No invented look.
+
+A new mock rule with a `.frame-*` selector gets its translation in the same change that first renders it, and the real-browser pass checks 390, 768 and 1280 px plus a dialog.

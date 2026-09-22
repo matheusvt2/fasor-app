@@ -59,10 +59,26 @@ export function syncCounts(outbox: readonly OutboxLike[]): SyncCounts {
 /** The five badge states of `key-sync-status.html`; `conflict` waits for the deferred merge policy. */
 export type SyncBadgeState = 'ok' | 'pending' | 'offline' | 'error' | 'conflict';
 
-/** Error before offline before pending: a rejected op needs attention wherever the device is. */
-export function syncBadgeState(counts: SyncCounts, deps: { online: boolean }): Exclude<SyncBadgeState, 'conflict'> {
+export interface SyncBadgeInputs {
+  /** The browser says it has a network. */
+  online: boolean;
+  /**
+   * The server answered the last finished cycle. False while that cycle ended in a
+   * network or 5xx failure, or while the session needs a new sign-in: the device then
+   * cannot send anything either, so it must not read "Sincronizado". Omitted means true.
+   */
+  reachable?: boolean;
+}
+
+/**
+ * Error before offline before pending: a rejected op needs attention wherever the device is.
+ * An unreachable server reads as `offline` ("Sem conexão"): EXPERIENCE.md has five badge
+ * states and no sixth for it, and "no connection; still saving locally" is exactly what
+ * the user needs to know then. Sync status names the actual cause.
+ */
+export function syncBadgeState(counts: SyncCounts, deps: SyncBadgeInputs): Exclude<SyncBadgeState, 'conflict'> {
   if (counts.dead > 0) return 'error';
-  if (!deps.online) return 'offline';
+  if (!deps.online || deps.reachable === false) return 'offline';
   if (counts.pending + counts.sent > 0) return 'pending';
   return 'ok';
 }

@@ -1,35 +1,52 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { axe } from 'jest-axe';
 import { describe, expect, it, vi } from 'vitest';
 import { LockedToggle, Toggle } from './toggle.tsx';
 
 describe('Toggle', () => {
-  it('is a switch whose word carries the accessible state', async () => {
+  it('is a switch whose word carries the visible state', async () => {
     const onChange = vi.fn();
-    const { container } = render(<Toggle isSelected={false} onChange={onChange} aria-label="Localização nas fotos" />);
-    const input = screen.getByRole('switch', { name: 'Localização nas fotos' });
-    expect(input).not.toBeChecked();
+    render(<Toggle isSelected={false} onChange={onChange} aria-label="Localização nas fotos" />);
+    const toggle = screen.getByRole('switch', { name: 'Localização nas fotos' });
+    expect(toggle).not.toBeChecked();
+    expect(toggle).toHaveTextContent('Desativado');
 
-    const styledRoot = container.querySelector('.toggle');
-    expect(styledRoot).not.toBeNull();
-    expect(styledRoot).not.toHaveAttribute('data-selected');
-    expect(styledRoot).toHaveTextContent('Desativado');
-
-    await userEvent.click(input);
+    await userEvent.click(toggle);
     expect(onChange).toHaveBeenCalledWith(true);
   });
 
-  it('reflects the selected state on the input and the "Ativado" word on the label', () => {
+  it('carries the on state on the styled element itself, so the mock rule engages (retro F-SPEC-6)', () => {
     const { container } = render(<Toggle isSelected aria-label="Marca d'água" />);
-    expect(screen.getByRole('switch')).toBeChecked();
-    const styledRoot = container.querySelector('.toggle');
-    expect(styledRoot).toHaveAttribute('data-selected', 'true');
-    expect(styledRoot).toHaveTextContent('Ativado');
+    const toggle = screen.getByRole('switch');
+    // `components.css`: `.toggle[aria-checked="true"] .track | .knob | .toggle-word`.
+    expect(toggle).toHaveClass('toggle');
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
+    expect(container.querySelector('.toggle[aria-checked="true"] .track')).not.toBeNull();
+    expect(container.querySelector('.toggle[aria-checked="true"] .knob')).not.toBeNull();
+    expect(toggle).toHaveTextContent('Ativado');
   });
 
-  it('has a 48px hit area via the .toggle class the CSS keys off', () => {
-    const { container } = render(<Toggle isSelected={false} aria-label="x" />);
-    expect(container.querySelector('.toggle')).not.toBeNull();
+  it('toggles from the keyboard: Space and Enter', async () => {
+    const onChange = vi.fn();
+    const { rerender } = render(<Toggle isSelected={false} onChange={onChange} aria-label="x" />);
+    await userEvent.tab();
+    expect(screen.getByRole('switch')).toHaveFocus();
+    await userEvent.keyboard(' ');
+    expect(onChange).toHaveBeenLastCalledWith(true);
+    rerender(<Toggle isSelected onChange={onChange} aria-label="x" />);
+    await userEvent.keyboard('{Enter}');
+    expect(onChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it('has no axe violations on or off', async () => {
+    const { container } = render(
+      <div>
+        <Toggle isSelected aria-label="Ligado" />
+        <Toggle isSelected={false} aria-label="Desligado" />
+      </div>,
+    );
+    expect(await axe(container)).toHaveNoViolations();
   });
 });
 

@@ -12,6 +12,8 @@ export const TOAST_TIMEOUT_MS = 6_000;
 
 export interface ShowToastOptions {
   action?: ToastAction;
+  /** Called when the user dismisses this toast (close control or Esc). */
+  onDismiss?: () => void;
 }
 
 export interface ToastState {
@@ -54,7 +56,7 @@ export function ToastProvider({ children, timers = browserTimers }: { children: 
     (text: string, options: ShowToastOptions = {}) => {
       clearTimer();
       const id = ++nextId.current;
-      setToast({ id, text, action: options.action });
+      setToast({ id, text, action: options.action, onDismiss: options.onDismiss });
       // A toast with an action is a thing to act on; only a plain one expires by itself.
       if (options.action === undefined) {
         handle.current = timers.setTimeout(() => {
@@ -93,5 +95,14 @@ export function useToast(): ToastState {
 export function ToastOutlet() {
   const { toast, dismissToast } = useToast();
   if (toast === null) return null;
-  return <Toast toast={toast} onDismiss={dismissToast} />;
+  return (
+    <Toast
+      toast={toast}
+      onClose={dismissToast}
+      onDismiss={() => {
+        toast.onDismiss?.();
+        dismissToast();
+      }}
+    />
+  );
 }

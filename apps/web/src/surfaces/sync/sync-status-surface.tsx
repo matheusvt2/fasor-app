@@ -47,6 +47,12 @@ export function SyncStatusSurface() {
             </span>
             <span className="sh-counts">{counts}</span>
           </div>
+          {/* The badge reads "Sem conexão" for both causes (kernel); this line names the real one. */}
+          {sync.online && sync.unreachable !== null ? (
+            <p className="section-note sync-cause" data-testid="sync-unreachable">
+              {sync.unreachable === 'session' ? copy.sync.sessionExpired : copy.sync.serverUnreachable}
+            </p>
+          ) : null}
 
           <div className="sync-actions">
             <Button

@@ -1,6 +1,6 @@
 import { opLog } from '@app/domain/fixtures/replay-small';
 import { describe, expect, it } from 'vitest';
-import { backoffMs, batches, classifyFailure, MAX_ATTEMPTS, parsePulled } from './policy.ts';
+import { backoffMs, batches, classifyFailure, isUnreachableFailure, MAX_ATTEMPTS, parsePulled, unreachableCause } from './policy.ts';
 
 describe('1.5-UNIT-002 retry classification', () => {
   it('retries network and 5xx with backoff and jitter', () => {
@@ -13,6 +13,24 @@ describe('1.5-UNIT-002 retry classification', () => {
     expect(backoffMs(3, () => 0)).toBe(4000);
     expect(backoffMs(1, () => 1)).toBe(1250);
     expect(backoffMs(3, () => 0.5)).toBe(4500);
+  });
+
+  it('calls the server unreachable only for a transport failure or a 5xx (retro U5)', () => {
+    expect(isUnreachableFailure({ kind: 'network' })).toBe(true);
+    expect(isUnreachableFailure({ kind: 'http', status: 502 })).toBe(true);
+    expect(isUnreachableFailure({ kind: 'http', status: 503 })).toBe(true);
+    expect(isUnreachableFailure({ kind: 'http', status: 404, code: 'relatorio_not_found' })).toBe(false);
+    expect(isUnreachableFailure({ kind: 'http', status: 426 })).toBe(false);
+    expect(isUnreachableFailure({ kind: 'apply' })).toBe(false);
+  });
+
+  it('names the cause the badge and Sync status report: session first, then the server', () => {
+    expect(unreachableCause({ reAuthRequired: false, lastFailure: null })).toBeNull();
+    expect(unreachableCause({ reAuthRequired: false, lastFailure: { kind: 'network' } })).toBe('server');
+    expect(unreachableCause({ reAuthRequired: false, lastFailure: { kind: 'http', status: 503 } })).toBe('server');
+    expect(unreachableCause({ reAuthRequired: false, lastFailure: { kind: 'http', status: 404 } })).toBeNull();
+    expect(unreachableCause({ reAuthRequired: true, lastFailure: null })).toBe('session');
+    expect(unreachableCause({ reAuthRequired: true, lastFailure: { kind: 'network' } })).toBe('session');
   });
 
   it('never retries a 4xx, except 401 (re-auth) and 426 (outdated)', () => {

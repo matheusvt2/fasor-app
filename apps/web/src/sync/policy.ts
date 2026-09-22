@@ -17,6 +17,30 @@ export function classifyFailure(failure: SyncFailure): FailureAction {
   return 'stop';
 }
 
+/**
+ * True when the failure means the server could not be reached or could not serve: the
+ * request never completed, or it answered 5xx. A 4xx, a 426 or a page the device could
+ * not apply is the server answering, so the device is not cut off from it.
+ */
+export function isUnreachableFailure(failure: SyncFailure): boolean {
+  if (failure.kind === 'network') return true;
+  return failure.kind === 'http' && failure.status >= 500;
+}
+
+/**
+ * Why the server cannot be reached although the browser may be online: `session` while a
+ * new sign-in is required, `server` while the last finished cycle ended unreachable, or
+ * null when the server answered. `syncBadgeState` gets `reachable: cause === null`.
+ */
+export function unreachableCause(input: {
+  reAuthRequired: boolean;
+  lastFailure: SyncFailure | null;
+}): 'server' | 'session' | null {
+  if (input.reAuthRequired) return 'session';
+  if (input.lastFailure !== null && isUnreachableFailure(input.lastFailure)) return 'server';
+  return null;
+}
+
 export const MAX_ATTEMPTS = 3;
 export const BACKOFF_BASE_MS = 1000;
 export const BACKOFF_JITTER = 0.25;
