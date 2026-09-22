@@ -1,0 +1,11 @@
+{
+	# The leaf cert below is issued by mkcert, not a public CA -- no ACME,
+	# no attempt to reach the internet for certificates.
+	auto_https off
+}
+
+{$TABLET_HOST:localhost}, localhost, 127.0.0.1 {
+	tls /certs/leaf/cert.pem /certs/leaf/key.pem
+
+	reverse_proxy api:3000
+}
