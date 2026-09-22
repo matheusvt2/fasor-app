@@ -267,6 +267,8 @@
   font-size: var(--t-meta-size);
   line-height: var(--t-meta-lh);
   color: var(--ink-secondary);
+}
+
 /*
  * `RegistryPickerField` (Stories 2.4/2.5): chip row + Combobox, following
  * `80-cadastros.html` L358-382's "Fabricante — como aparece na ficha" pattern. Base rule
