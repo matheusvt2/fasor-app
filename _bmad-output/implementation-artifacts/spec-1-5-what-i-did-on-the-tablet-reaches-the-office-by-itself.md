@@ -64,6 +64,20 @@ deferred:
     location: >-
       apps/web/src/state/sync.tsx (reAuthRequired effect); apps/web/src/sync/engine.ts (resume)
     severity: low
+  - summary: >-
+      Define retention and compaction for remote_ops: the device's copy of the server log grows without bound and rematerialize re-reads the whole remote log of a target on every page.
+    evidence: |-
+      applyPulled puts every pulled op into remote_ops (primary key op_id) and rematerialize reads `remote_ops.where('targets').equals(key)` for each touched entity on every page. Ops are small JSON, so one relatorio costs a few MB, but nothing prunes the table and a long-lived block replays its whole history on each pull that touches it. The outbox retention item above does not cover this table. Options when the spine's purge/retention decision lands: keep a materialized "remote" shadow row per entity plus updated_seq and prune ops below it, or evict the log of a relatorio that leaves Rascunho/Em campo on this device (AD-7 already evicts its originals then).
+    location: >-
+      apps/web/src/db/sync-store.ts (applyPulled, rematerialize); apps/web/src/db/schema.ts (remote_ops, version 3)
+    severity: low
+  - summary: >-
+      Decide whether "Reenviar" of a dead create must re-send the entity's later puts that were acked meanwhile.
+    evidence: |-
+      With Story 1.4 semantics a put on a row that does not exist is applied as a no-op. If a create is rejected (dead) while later puts on the same entity are acked, the server stored those puts without a row; resendDead re-sends only the create, so the entity reappears on the server without those values. Not reachable today: the only client rejections are shape, origin and tenant, which reject the create and every dependent op of the same batch alike, and nothing in this story acks a put whose create is dead in the same cycle. Settle when the capture stories emit multi-op batches: either resendDead also returns the acked ops of the same targets to pending (server dedupes by op_id, so re-sending is safe) or the push route rejects puts whose create is unknown.
+    location: >-
+      apps/web/src/db/sync-store.ts (resendDead); packages/domain/src/ops/apply.ts (put on an absent row)
+    severity: low
 dev_model: 'fable'
 dev_effort: 'high'
 ---
@@ -249,6 +263,10 @@ Layers: BH = Blind Hunter, EC = Edge Case Hunter, VG = Verification Gap, IA = In
 **Which relatórios are pulled.** The company summary lists the company's relatório rows (from `entities`), which is the "minimal relatório row needed to scope a stream" of the AC; no `title` exists on the row and none is added. The engine pulls every relatório in `rascunho` or `em_campo` and every relatório that already has a `sync_state` row (opened before); Story 1.6 adds pull-on-open for the other statuses and the card states.
 
 **Sync status is the headline of Epic 10's surface.** Story 1.6 says "rows beyond the headline arrive in Epic 10"; this story renders the headline, the primary "Sincronizar agora" (the AC's placement wins over the mock's foot text button), the dead-op row with "Reenviar" (the AC keeps the value "for Reenviar" and E2E-002 needs a visible place before the Sumário exists), "Último envio" and the foot. The badge announces nothing yet; Story 1.6 owns the live region and the tap-to-open polish beyond the link.
+
+**`x-contract-version` is required on pull, only sent on push.** The AC reads "426 contract_outdated on pull stops pulling, keeps pushing": a pull without the header or below `MIN_CONTRACT_VERSION` answers 426; a push carries the header (the client always sends it) but the server never enforces it, because families and routes are append-only (AD-13) and an outdated client's ops are still valid ops. Enforcing it on push would break "keeps pushing" and leave work stranded on the device. 1.5-API-005 pins both halves.
+
+**Tenant-scoped op_id dedupe.** `op_id` is globally unique in `ops`, so the dedupe lookup after a no-op insert is scoped by `company_id` (AD-10): an op whose id already exists under another company is rejected `op_invalid` (it can never be inserted), instead of answering the other tenant's `seq`, which would have made the device mark it `acked` and lose it silently.
 
 **The 426 state has no mock.** It is rendered like `Booting`: a full-surface replacement of the shell, plain elements, `.btn` primary "Atualizar" that reloads. Copy is authored and marked as such; a UX pass may replace the strings without touching behavior.
 

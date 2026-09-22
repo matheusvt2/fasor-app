@@ -343,6 +343,29 @@ describe('1.5-API-002 idempotency and monotonic seq', () => {
     expect(row?.updated_seq).toBe(first.applied[1]!.seq);
   });
 
+  it('rejects an op_id already applied for another company instead of answering that seq', async () => {
+    const clientId = newId();
+    const original = clientCreate(idsA, clientId);
+    const applied = await pushOk(companyA, [original]);
+    expect(applied.applied).toHaveLength(1);
+
+    // Company B reuses A's op_id on a well-formed op of its own: the global unique on op_id means
+    // the insert can never succeed, so the answer is a rejection, never A's seq (which the device
+    // would have marked acked and lost).
+    const reused = { ...clientCreate(idsB, newId()), op_id: original.op_id };
+    const result = await pushOk(companyB, [reused]);
+    expect(result.applied).toEqual([]);
+    expect(result.rejected).toEqual([{ op_id: original.op_id, code: 'op_invalid' }]);
+
+    const rows = await db.select({ company_id: ops.company_id }).from(ops).where(eq(ops.op_id, original.op_id));
+    expect(rows).toEqual([{ company_id: companyA.companyId }]);
+    const bEntities = await db
+      .select({ id: entities.id })
+      .from(entities)
+      .where(and(eq(entities.company_id, companyB.companyId), eq(entities.id, (reused.value as { id: string }).id)));
+    expect(bEntities).toEqual([]);
+  });
+
   it('keeps seq monotonic per company while the two companies push interleaved', async () => {
     const a1 = await pushOk(companyA, [clientCreate(idsA, newId())]);
     const b1 = await pushOk(companyB, [clientCreate(idsB, newId())]);

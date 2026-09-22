@@ -72,6 +72,14 @@ function validate(raw: unknown, companyId: string, deps: ApplyDeps): Validation 
   return { ok: true, op };
 }
 
+/** The op_id is already taken by another company's op: the insert can never succeed. */
+class ForeignOpIdError extends Error {
+  constructor(opId: string) {
+    super(`op ${opId} belongs to another company`);
+    this.name = 'ForeignOpIdError';
+  }
+}
+
 interface Applied {
   seq: number;
   /** The latest op on the path before this one, when it differs from `prev_op_id`. */
@@ -122,9 +130,14 @@ async function applyOne(db: Db, companyId: string, op: Op, receivedAt: string): 
       .returning({ seq: ops.seq });
     const seq = inserted[0]?.seq;
     if (seq === undefined) {
-      // A dedupe hit: the op was applied before and is never superseded again.
-      const [existing] = await tx.select({ seq: ops.seq }).from(ops).where(eq(ops.op_id, op.op_id));
-      if (!existing) throw new Error(`op ${op.op_id} neither inserted nor found`);
+      // A dedupe hit: the op was applied before and is never superseded again. The lookup is
+      // tenant-scoped (AD-10): an op_id that exists under another company can never be inserted
+      // (global unique), so it is a shape rejection, never that company's seq.
+      const [existing] = await tx
+        .select({ seq: ops.seq })
+        .from(ops)
+        .where(and(eq(ops.op_id, op.op_id), eq(ops.company_id, companyId)));
+      if (!existing) throw new ForeignOpIdError(op.op_id);
       return { seq: existing.seq, supersededOver: null };
     }
 
@@ -176,9 +189,10 @@ export async function applyOps(
       result.applied.push({ op_id: validation.op.op_id, seq });
       if (supersededOver !== null) result.superseded.push({ op_id: validation.op.op_id, over_op_id: supersededOver });
     } catch (error) {
-      // Only a row-schema refusal by applyOp is a permanent rejection; anything else (connection, lock,
-      // pool) propagates so the caller retries instead of marking the op dead.
-      if (!(error instanceof ZodError)) throw error;
+      // Only a row-schema refusal by applyOp or an op_id taken by another company is a permanent
+      // rejection; anything else (connection, lock, pool) propagates so the caller retries instead
+      // of marking the op dead.
+      if (!(error instanceof ZodError) && !(error instanceof ForeignOpIdError)) throw error;
       result.rejected.push({ op_id: validation.op.op_id, code: 'op_invalid' });
     }
   }
