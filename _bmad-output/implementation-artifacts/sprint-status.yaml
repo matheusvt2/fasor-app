@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 09-22-2026 08:37
+last_updated: 09-22-2026 20:16
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -53,7 +53,7 @@ development_status:
   2-4-register-clients-and-their-sites: done
   2-5-pick-manufacturers-and-voltage-classes-or-create-one-from-th: done
   2-6-see-the-acceptance-criteria-as-sourced-data: done
-  epic-2-retrospective: optional
+  epic-2-retrospective: done
 
   epic-3: backlog
   3-1-seed-the-eight-equipment-block-types-from-the-decoded-fo-ser: backlog
@@ -239,3 +239,39 @@ action_items:
     owner: "Architecture (Epic 11 checklist)"
     status: open
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
+  - id: "epic-2-retro-item-13-e2-a1-fix-d-1-server-merge-of-manufactur"
+    epic: 2
+    action: "E2-A1 Fix D-1: server merge of manufacturer/voltage_class emits a system
+      op retiring the merged-away id on the originating device, redirect persisted,
+      two-cycle convergence test"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-22.md"
+  - id: "epic-2-retro-item-14-e2-a2-fix-d-2-wire-registrypickerfield-i"
+    epic: 2
+    action: "E2-A2 Fix D-2: wire RegistryPickerField into the instrument Fabricante
+      field with an offline Criar e2e; move AC 2.4-2 to Epic 4 in epics.md"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-22.md"
+  - id: "epic-2-retro-item-15-e2-a3-fix-d-3-d-8-open-certificate-empre"
+    epic: 2
+    action: "E2-A3 Fix D-3..D-8 (open certificate, Empresa @p0, visible defaults,
+      voltage-class kV form, phone full-screen form, polish)"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-22.md"
+  - id: "epic-2-retro-item-16-e2-a4-dod-every-user-facing-ac-exercised"
+    epic: 2
+    action: "E2-A4 DoD: every user-facing AC exercised through a mounted screen or
+      moved in epics.md with a date; at least one @p0 per story"
+    owner: "Matheus"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-22.md"
+  - id: "epic-2-retro-item-17-e2-a5-human-style-pass-covers-each-form"
+    epic: 2
+    action: "E2-A5 Human-style pass covers each form at 390 and one second-cycle or
+      second-device scenario"
+    owner: "dev and reviewers"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-22.md"
