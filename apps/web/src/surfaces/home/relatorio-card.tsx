@@ -44,7 +44,7 @@ export function RelatorioCard({ card, onPress }: RelatorioCardProps) {
       </button>
       {card.meta === '' ? null : <p className="card-meta">{card.meta}</p>}
       <div className="card-state">
-        <StatusPill status={card.statusPillId} />
+        <StatusPill status={card.status} />
         <SyncBadge state={card.badgeState} counts={card.badgeCounts} compact />
       </div>
       {card.isCurrent ? (

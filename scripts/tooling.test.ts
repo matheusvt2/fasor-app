@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { ESLint } from 'eslint';
 import { describe, expect, it } from 'vitest';
-import { parseArgs } from './seed-users.ts';
+import { parseArgs, resolveCompanyId, validateCompanyId } from './seed-users.ts';
 import { assertInCompose } from './test-reset.ts';
 
 const root = resolve(import.meta.dirname, '..');
@@ -92,6 +92,54 @@ describe('seed-users CLI', () => {
   // companies) moved to `apps/api/src/db/seed-cli.integration.test.ts` (F-GATE-2): this
   // file runs under `test:unit`, which must never open a database connection.
 
+  it('accepts only a uuidv7 company id and shows a v7 example otherwise', () => {
+    const v7 = '019966b0-5b6d-7e7f-9a0b-1c2d3e4f5a6b';
+    expect(validateCompanyId(v7)).toBe(v7);
+    const example = '019966b0-0000-7000-8000-00000000abcd';
+    expect(() => validateCompanyId('8f3a2c1e-5b6d-4e7f-8a9b-0c1d2e3f4a5b', () => example)).toThrow(/uuidv7/);
+    expect(() => validateCompanyId('8f3a2c1e-5b6d-4e7f-8a9b-0c1d2e3f4a5b', () => example)).toThrow(example);
+    expect(() => validateCompanyId('acme')).toThrow(/uuidv7/);
+  });
+
+  it('mints a uuidv7 company id when --company-id is left out, and validates a supplied one', () => {
+    const example = '019966b0-0000-7000-8000-00000000abcd';
+    expect(resolveCompanyId({ company: 'Acme' }, () => example)).toEqual({ companyId: example, minted: true });
+    const v7 = '019966b0-5b6d-7e7f-9a0b-1c2d3e4f5a6b';
+    expect(resolveCompanyId({ 'company-id': v7 })).toEqual({ companyId: v7, minted: false });
+    expect(() => resolveCompanyId({ 'company-id': '8f3a2c1e-5b6d-4e7f-8a9b-0c1d2e3f4a5b' })).toThrow(/uuidv7/);
+    expect(() => resolveCompanyId({ 'company-id': true })).toThrow(/missing --company-id/);
+  });
+
+  it('exits non-zero on a v4 company id before touching the database', () => {
+    const result = spawnSync(
+      'pnpm',
+      [
+        'exec',
+        'tsx',
+        'scripts/seed-users.ts',
+        '--company-id',
+        '8f3a2c1e-5b6d-4e7f-8a9b-0c1d2e3f4a5b',
+        '--company',
+        'Acme',
+        '--email',
+        'v4@acme.test',
+        '--password',
+        'uma-senha-qualquer-1',
+        '--name',
+        'Ana',
+        '--council',
+        'crea',
+        '--number',
+        'SP 1',
+      ],
+      // An unreachable database: the refusal must come before any connection is attempted.
+      { cwd: root, env: { ...process.env, DATABASE_URL: 'postgres://nobody@127.0.0.1:1/none' }, encoding: 'utf8' },
+    );
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toMatch(/uuidv7/);
+    expect(result.stderr).toMatch(/--company-id [0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/);
+  });
+
   it('parses long flags and bare switches', () => {
     expect(parseArgs(['--test'])).toEqual({ test: true });
     expect(parseArgs(['--email', 'a@b.c', '--council', 'crea', '--test'])).toEqual({
@@ -99,6 +147,32 @@ describe('seed-users CLI', () => {
       council: 'crea',
       test: true,
     });
+  });
+});
+
+describe('A7: derived text lives in the kernel', () => {
+  it('apps/web writes no pt-BR status word and no singular-or-plural ternary of its own', () => {
+    const files: string[] = [];
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        const path = join(dir, name);
+        if (statSync(path).isDirectory()) walk(path);
+        else if (/\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name)) files.push(path);
+      }
+    };
+    walk(join(root, 'apps/web/src'));
+    // A status word as a whole string literal ("Rascunho encontrado" is another string).
+    const statusWord = /(['"`])(Rascunho|Em campo|Em revisão|Emitido)\1/;
+    const pluralTernary = /===\s*1\s*\?/;
+    const offenders: string[] = [];
+    for (const file of files) {
+      readFileSync(file, 'utf8')
+        .split('\n')
+        .forEach((line, i) => {
+          if (statusWord.test(line) || pluralTernary.test(line)) offenders.push(`${file}:${i + 1}: ${line.trim()}`);
+        });
+    }
+    expect(offenders).toEqual([]);
   });
 });
 

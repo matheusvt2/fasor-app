@@ -9,10 +9,11 @@ import {
 } from '@app/domain';
 import { and, eq, or } from 'drizzle-orm';
 import type { Db } from '../db/client.ts';
+import type { CompanyId } from '../db/repositories/company-id.ts';
 import { entities } from '../db/schema.ts';
 
 /** AD-15: the server-side `toSnapshot()`, byte-equal to the device's for one log. */
-export async function toSnapshot(db: Db, companyId: string, relatorioId: string): Promise<RelatorioSnapshot> {
+export async function toSnapshot(db: Db, companyId: CompanyId, relatorioId: string): Promise<RelatorioSnapshot> {
   const [relatorio] = await db
     .select()
     .from(entities)

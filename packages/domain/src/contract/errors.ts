@@ -6,8 +6,18 @@ import { z } from 'zod';
  * English and for logs.
  */
 
-/** Per-op rejection codes of `POST /api/sync/ops` (AD-24): shape, path, origin, tenant. Never a domain rule. */
-export const opRejectCodeSchema = z.enum(['op_invalid', 'op_path_unknown', 'op_server_only', 'op_tenant_mismatch']);
+/**
+ * Per-op rejection codes of `POST /api/sync/ops` (AD-24): shape, path, origin, tenant, and
+ * `op_forbidden` for a write to a row only its owner may write (another user's
+ * `user/{id}/{field}`). Never a domain rule. Append-only.
+ */
+export const opRejectCodeSchema = z.enum([
+  'op_invalid',
+  'op_path_unknown',
+  'op_server_only',
+  'op_tenant_mismatch',
+  'op_forbidden',
+]);
 export type OpRejectCode = z.infer<typeof opRejectCodeSchema>;
 export const OP_REJECT_CODES = opRejectCodeSchema.options;
 

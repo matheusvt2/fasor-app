@@ -2,7 +2,7 @@ export { Button, TextButton } from './button.tsx';
 export type { ButtonProps, ButtonVariant, TextButtonProps } from './button.tsx';
 
 export { StatusPill } from './status-pill.tsx';
-export type { RelatorioStatus, StatusPillProps } from './status-pill.tsx';
+export type { StatusPillProps } from './status-pill.tsx';
 
 export { SyncBadge } from './sync-badge.tsx';
 export type { SyncBadgeProps } from './sync-badge.tsx';

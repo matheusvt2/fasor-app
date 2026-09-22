@@ -94,7 +94,7 @@ function Gallery() {
         </Button>
         <TextButton tone="red">Remover ficha</TextButton>
 
-        <StatusPill status="em-campo" />
+        <StatusPill status="em_campo" />
 
         <OverflowMenu
           name="SEC-C09"

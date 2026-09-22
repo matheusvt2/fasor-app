@@ -58,9 +58,6 @@ export function createAuth(options: AuthOptions) {
     user: {
       additionalFields: {
         companyId: { type: 'string', required: true, input: false },
-        council: { type: 'string', required: false, input: false },
-        registrationNumber: { type: 'string', required: false, input: false },
-        title: { type: 'string', required: false, input: false },
       },
     },
     databaseHooks: {

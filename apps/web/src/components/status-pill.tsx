@@ -1,19 +1,18 @@
-import { ui } from '../copy/ui';
-
-export type RelatorioStatus = 'rascunho' | 'em-campo' | 'em-revisao' | 'emitido';
+import { statusLabel, statusPillId, type RelatorioStatus } from '@app/domain';
 
 export interface StatusPillProps {
   status: RelatorioStatus;
 }
 
 /**
- * `.status-pill[data-status]`. `status` is a TypeScript union, so a status outside the four
- * known values fails to compile — there is no runtime fallback ink to silently pick.
+ * `.status-pill[data-status]`. The status is the kernel's (`RelatorioStatus`), and both the
+ * `data-status` spelling and the pt-BR word come from the kernel (`statusPillId`,
+ * `statusLabel`), so no component keeps a second copy of the four words.
  */
 export function StatusPill({ status }: StatusPillProps) {
   return (
-    <span className="status-pill" data-status={status}>
-      {ui.statusPill.label[status]}
+    <span className="status-pill" data-status={statusPillId(status)}>
+      {statusLabel(status)}
     </span>
   );
 }

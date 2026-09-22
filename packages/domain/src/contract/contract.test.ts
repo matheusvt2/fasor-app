@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { ACCOUNT_ROUTES, accountResponseSchema } from './index.ts';
 import { contractExamples } from './examples.ts';
 import { errorCodeSchema, errorResponseSchema, OP_REJECT_CODES } from './errors.ts';
 import {
@@ -36,9 +37,9 @@ describe('contract examples (ADR readiness 1.4)', () => {
 });
 
 describe('contract constants', () => {
-  it('speaks version 1 and accepts version 1', () => {
-    expect(CONTRACT_VERSION).toBe(1);
-    expect(MIN_CONTRACT_VERSION).toBe(1);
+  it('speaks version 2 and accepts only version 2 (the user row and family changed)', () => {
+    expect(CONTRACT_VERSION).toBe(2);
+    expect(MIN_CONTRACT_VERSION).toBe(2);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');
   });
 
@@ -48,8 +49,25 @@ describe('contract constants', () => {
     expect(SYNC_ROUTES.pullRelatorio('abc')).toEqual({ method: 'GET', path: '/api/sync/relatorios/abc' });
   });
 
+  it('names the account read, the only account route, and types its answer', () => {
+    expect(ACCOUNT_ROUTES).toEqual({ read: { method: 'GET', path: '/api/account' } });
+    const user = {
+      id: '019966b0-0003-7000-8000-000000000002',
+      name: 'Ana Alves',
+      email: 'a@teste.local',
+      companyId: '019966b0-0003-7000-8000-000000000001',
+      companyName: 'Empresa A de Teste',
+      council: 'crea',
+      registrationNumber: 'SP 1',
+      title: 'Eng. Eletricista',
+    };
+    expect(accountResponseSchema.safeParse({ user }).success).toBe(true);
+    // Identity user ids are uuidv7 like every other kernel id (AD-4): a slug is refused.
+    expect(accountResponseSchema.safeParse({ user: { ...user, id: 'seed-user-a-teste-local' } }).success).toBe(false);
+  });
+
   it('enumerates the per-op rejection codes inside the error codes', () => {
-    expect([...OP_REJECT_CODES]).toEqual(['op_invalid', 'op_path_unknown', 'op_server_only', 'op_tenant_mismatch']);
+    expect([...OP_REJECT_CODES]).toEqual(['op_invalid', 'op_path_unknown', 'op_server_only', 'op_tenant_mismatch', 'op_forbidden']);
     for (const code of OP_REJECT_CODES) expect(errorCodeSchema.safeParse(code).success).toBe(true);
     expect(errorCodeSchema.safeParse('contract_outdated').success).toBe(true);
     expect(errorCodeSchema.safeParse('duplicate_tag').success).toBe(false);

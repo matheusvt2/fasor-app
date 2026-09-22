@@ -1,3 +1,5 @@
+import { plural, relatoriosCount } from '../text/plural.ts';
+
 /*
  * UX-DR65, AD-2: the Account "Em uso" row. The device measures (one
  * `navigator.storage.estimate()` call in `apps/web/src/device`), the kernel writes
@@ -46,8 +48,6 @@ export interface StorageLine {
   detail: string;
 }
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-
 /** The two spans of `90-account.html`'s `.storage-line`. */
 export function storageLine(usage: StorageUsage): StorageLine {
   // authored: the mock always has an estimate; a browser that refuses one needs a
@@ -55,6 +55,6 @@ export function storageLine(usage: StorageUsage): StorageLine {
   if (usage.usage_bytes === null) return { value: 'Indisponível neste navegador', detail: '' };
   return {
     value: formatBytes(usage.usage_bytes),
-    detail: `· ${plural(usage.relatorios, 'relatório', 'relatórios')} · ${plural(usage.photos, 'foto', 'fotos')}`,
+    detail: `· ${relatoriosCount(usage.relatorios)} · ${plural(usage.photos, 'foto', 'fotos')}`,
   };
 }

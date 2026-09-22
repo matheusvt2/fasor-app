@@ -1,4 +1,5 @@
 import type { RelatorioStatus } from '../schemas/entities.ts';
+import { relatoriosCount } from '../text/plural.ts';
 
 /*
  * AD-22: `packages/domain/status` is the one home of the relatório status table.
@@ -22,6 +23,22 @@ const STATUS_LABELS: Readonly<Record<RelatorioStatus, string>> = {
 
 export function statusLabel(status: RelatorioStatus): string {
   return STATUS_LABELS[status] ?? status;
+}
+
+/**
+ * The accessible name of one Home status tile: "Rascunho, 1 relatório". The mock
+ * hard-codes that sentence per tile; this is the same sentence with the live count.
+ */
+export function statusTileLabel(status: RelatorioStatus, count: number): string {
+  return `${statusLabel(status)}, ${relatoriosCount(count)}`;
+}
+
+/**
+ * AD-8: a relatório in Rascunho or Em campo is pulled automatically; Em revisão and
+ * Emitido are pulled only when opened on this device.
+ */
+export function isAutoPulled(status: RelatorioStatus): boolean {
+  return status === 'rascunho' || status === 'em_campo';
 }
 
 /**

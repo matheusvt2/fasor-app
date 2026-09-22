@@ -156,7 +156,7 @@ action_items:
       validated by the seed CLI, user rows projected to the company stream, registration
       save as user/{id}/{field} ops, account reads through the contract"
     owner: "Architecture, then first Epic 2 story"
-    status: open
+    status: done  # PR #9, 66fa41c59fd04b7c0ff92dda8ea412047a38caae
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-3-a3-persist-the-service-worker-hold-shell"
     epic: 1
@@ -171,7 +171,7 @@ action_items:
     action: "A4 Stamp the minted device_id in CommitDeps/commitBatch and drop the
       user-id fallback in the fixture before any Epic 2 op emitter"
     owner: "Next story"
-    status: open
+    status: done  # PR #9, 66fa41c59fd04b7c0ff92dda8ea412047a38caae
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-5-a5-ui-hygiene-story-checked-in-a-real-br"
     epic: 1
@@ -198,14 +198,14 @@ action_items:
       kernel; brand applyOps and toSnapshot with CompanyId; document where a new string
       goes"
     owner: "Architecture"
-    status: open
+    status: done  # PR #9, 66fa41c59fd04b7c0ff92dda8ea412047a38caae
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-8-a8-keep-the-last-session-pointer-on-a-bo"
     epic: 1
     action: "A8 Keep the last-session pointer on a boot-time 401 so offline cold opens
       reach local data behind the re-auth banner"
     owner: "Next story"
-    status: open
+    status: done  # PR #9, 66fa41c59fd04b7c0ff92dda8ea412047a38caae
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-9-a9-refresh-readme-agents-md-running-and"
     epic: 1

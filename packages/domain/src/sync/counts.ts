@@ -1,5 +1,6 @@
 import type { Op } from '../ops/op.ts';
 import { safeParsePath } from '../ops/path.ts';
+import { peopleCount, plural, relatoriosCount } from '../text/plural.ts';
 
 /*
  * AD-2, UX-DR10: the sync counts, the badge state and every text derived from
@@ -66,8 +67,6 @@ export function syncBadgeState(counts: SyncCounts, deps: { online: boolean }): E
   return 'ok';
 }
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-
 /**
  * "3 fichas", "1 ficha e 2 fotos", "5 alterações" (ops that are neither a sheet nor a
  * photo) or '' when nothing waits. Feeds the Sync status headline and the sign-out
@@ -86,6 +85,31 @@ export function pendingSummaryText(counts: SyncCounts): string {
 export function pendingSummaryCount(counts: SyncCounts): number {
   if (counts.sheets_pending + counts.photos_pending > 0) return counts.sheets_pending + counts.photos_pending;
   return counts.pending + counts.sent;
+}
+
+/**
+ * The sign-out confirm sentence around a pending summary, in agreement with its count:
+ * "1 ficha ainda não foi enviada. Ela continua ..." / "3 fichas ainda não foram enviadas. Elas continuam ...".
+ */
+export function pendingNotSentText(summary: string, count: number): string {
+  return count === 1
+    ? `${summary} ainda não foi enviada. Ela continua neste aparelho e sobe quando você entrar de novo com conexão.`
+    : `${summary} ainda não foram enviadas. Elas continuam neste aparelho e sobem quando você entrar de novo com conexão.`;
+}
+
+/** Sync status: "1 alteração rejeitada" / "3 alterações rejeitadas". */
+export function rejectedText(count: number): string {
+  return plural(count, 'alteração rejeitada', 'alterações rejeitadas');
+}
+
+/** Sync status, the server's `superseded` signal: "1 alteração mesclada pelo servidor". */
+export function supersededText(count: number): string {
+  return plural(count, 'alteração mesclada pelo servidor', 'alterações mescladas pelo servidor');
+}
+
+/** AD-8 eviction screen, from the company pull: "O servidor tem 3 relatórios e 2 pessoas da equipe." */
+export function serverHoldsText(relatorios: number, users: number): string {
+  return `O servidor tem ${relatoriosCount(relatorios)} e ${peopleCount(users)}.`;
 }
 
 /** The badge word, always visible beside the dot (`key-sync-status.html` lines 308-315). */
