@@ -14,8 +14,8 @@ describe('Dexie store', () => {
   });
 
   it('declares append-only versions, each with an upgrade()', () => {
-    expect(VERSIONS.map((v) => v.version)).toEqual([1, 2, 3]);
-    expect(LATEST_VERSION).toBe(3);
+    expect(VERSIONS.map((v) => v.version)).toEqual([1, 2, 3, 4]);
+    expect(LATEST_VERSION).toBe(4);
     for (const v of VERSIONS) expect(typeof v.upgrade).toBe('function');
   });
 
@@ -26,7 +26,7 @@ describe('Dexie store', () => {
     await v2.table('outbox').bulkAdd(rows);
     v2.close();
 
-    const v3 = openDatabase(user);
+    const v3 = openDatabase(user, { upToVersion: 3 });
     await v3.open();
     expect(v3.verno).toBe(3);
     expect(v3.tables.map((t) => t.name)).toContain('remote_ops');
@@ -36,6 +36,40 @@ describe('Dexie store', () => {
     expect(await v3.outbox.where('targets').equals(kept[0]!.targets[0]!).count()).toBe(1);
     expect(await v3.local_prefs.get('db_version')).toEqual({ key: 'db_version', value: 3 });
     v3.close();
+  });
+
+  it('a version 3 store gains the drafts [surface+entity_id] index at version 4, outbox intact', async () => {
+    const user = '019966b0-0009-7000-8000-000000000005';
+    const v3 = openDatabase(user, { upToVersion: 3 });
+    const rows = opLog.slice(0, 2).map((op) => ({ ...op, status: 'pending' as const, error_code: null, targets: [] }));
+    await v3.outbox.bulkAdd(rows);
+    await v3.drafts.put({ key: 'ficha/a1', surface: 'ficha', entity_id: 'a1', value: 'texto', saved_at: '2026-09-22T12:00:00.000Z' });
+    v3.close();
+
+    const v4 = openDatabase(user);
+    await v4.open();
+    expect(v4.verno).toBe(4);
+    expect(await v4.outbox.count()).toBe(2);
+    // The row written before the index existed is reachable through it.
+    expect(await v4.drafts.where('[surface+entity_id]').equals(['ficha', 'a1']).count()).toBe(1);
+    expect(await v4.local_prefs.get('db_version')).toEqual({ key: 'db_version', value: 4 });
+    v4.close();
+  });
+
+  // AD-8's eviction signal: only the open that brings the store into existence says so.
+  it('reports createdFresh on the open that created the store, and not afterwards', async () => {
+    const user = '019966b0-0009-7000-8000-000000000006';
+    const first = openDatabase(user);
+    await first.delete();
+    const born = openDatabase(user);
+    await born.open();
+    expect(born.createdFresh).toBe(true);
+    born.close();
+
+    const again = openDatabase(user);
+    await again.open();
+    expect(again.createdFresh).toBe(false);
+    again.close();
   });
 
   it('stamps a freshly opened database with the latest version', async () => {

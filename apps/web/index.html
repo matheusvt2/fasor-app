@@ -4,6 +4,25 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>PRODUTO</title>
+    <script>
+      // The theme override lives in Dexie, which cannot be read before the first paint.
+      // This mirrors `themeAttribute()` over the `releng.theme` mirror written by
+      // `src/db/prefs.ts`, so a device pinned to light or dark never flashes the other
+      // one. Anything missing or malformed leaves the element exactly as it is, which
+      // means following `prefers-color-scheme`.
+      (function () {
+        try {
+          var stored = window.localStorage.getItem('releng.theme');
+          if (stored === 'light' || stored === 'dark') {
+            document.documentElement.setAttribute('data-theme', stored);
+          } else if (stored === 'system') {
+            document.documentElement.removeAttribute('data-theme');
+          }
+        } catch (e) {
+          /* no site data on this origin */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

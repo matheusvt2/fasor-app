@@ -80,13 +80,19 @@ describe('1.4-INT-001 Dexie replay', () => {
 });
 
 describe('commitOps', () => {
-  it('oldestPendingClientTs looks at pending rows only', async () => {
+  it('oldestPendingClientTs looks at the rows still on their way to the server', async () => {
     const db = await freshDb();
     const d = deps();
     const a = makeOp(put(`location/${CABINE_ID}/name`, 'a'), { newId: d.newId, now: d.now() });
     await commitOps(db, [a]);
     expect(await oldestPendingClientTs(db)).toBe(a.client_ts);
+    // A request that was sent and never answered is still unsynced work (AD-8).
+    await db.outbox.update(a.op_id, { status: 'sent' });
+    expect(await oldestPendingClientTs(db)).toBe(a.client_ts);
     await db.outbox.update(a.op_id, { status: 'acked' });
+    expect(await oldestPendingClientTs(db)).toBeNull();
+    // A refused op is not waiting to be sent: it waits for "Reenviar".
+    await db.outbox.update(a.op_id, { status: 'dead', error_code: 'op_server_only' });
     expect(await oldestPendingClientTs(db)).toBeNull();
     const b = makeOp(put(`location/${CABINE_ID}/name`, 'b'), { newId: d.newId, now: d.now() });
     await commitOps(db, [b]);

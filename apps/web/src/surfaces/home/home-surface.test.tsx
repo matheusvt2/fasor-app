@@ -45,6 +45,8 @@ const session = (): SessionState => ({
   signOut: vi.fn(async () => {}),
   saveRegistration: vi.fn(async () => {}),
   dismissReAuth: vi.fn(),
+  recoveryNeeded: false,
+  dismissRecovery: vi.fn(),
 });
 
 vi.mock('../../state/session.tsx', () => ({ useSession: () => session() }));
@@ -61,6 +63,7 @@ function syncState(over: Partial<SyncState> = {}): SyncState {
     running: false,
     outdated: false,
     lastResult: 'ran',
+    lastFailure: null,
     lastSyncAt: null,
     lastPushAt: [],
     supersededCount: 0,

@@ -72,7 +72,7 @@ export interface SyncStateRow {
 
 /**
  * Device-local, never-synced state (Conventions).
- * Keys: `db_version`, `device_id`, `theme`.
+ * Keys: `db_version`, `device_id`, `theme`, `recovery_notice_dismissed`.
  */
 export interface LocalPrefRow {
   key: string;
@@ -82,6 +82,8 @@ export interface LocalPrefRow {
 export const COMPANY_STREAM = 'company';
 export const DEVICE_ID_PREF = 'device_id';
 export const THEME_PREF = 'theme';
+/** AD-8: the eviction-recovery screen is shown once per database, not once per launch. */
+export const RECOVERY_NOTICE_PREF = 'recovery_notice_dismissed';
 
 interface VersionDef {
   version: number;
@@ -139,11 +141,26 @@ export const VERSIONS: readonly VersionDef[] = [
       await stamp(3)(tx);
     },
   },
+  {
+    // Story 1.8: drafts are looked up by their owning surface and entity when a
+    // surface mounts, so the pair is indexed; no row changes shape.
+    version: 4,
+    stores: { drafts: 'key, surface, [surface+entity_id]' },
+    upgrade: stamp(4),
+  },
 ];
 
 export const LATEST_VERSION = VERSIONS[VERSIONS.length - 1]!.version;
 
 export class AppDatabase extends Dexie {
+  /**
+   * AD-8 eviction signal: true when this handle is the one that created the store.
+   * The `populate` hook runs exactly once per database, on the open that brings it into
+   * existence, so a session that resolves from the server cookie and finds this flag set
+   * is looking at an origin whose storage was evicted (or at a device it never used).
+   */
+  createdFresh = false;
+
   entities!: Table<EntityRecord, [Entity, string]>;
   outbox!: Table<OutboxRow, string>;
   remote_ops!: Table<RemoteOpRow, string>;
@@ -158,8 +175,10 @@ export class AppDatabase extends Dexie {
       if (def.version > upToVersion) break;
       this.version(def.version).stores(def.stores).upgrade(def.upgrade);
     }
-    // A fresh database runs no upgrade(); populate stamps the version it was born at.
+    // A fresh database runs no upgrade(); populate stamps the version it was born at,
+    // and records that this open is the one that created the store (AD-8).
     this.on('populate', (tx) => {
+      this.createdFresh = true;
       void tx.table('local_prefs').put({ key: 'db_version', value: upToVersion });
     });
   }

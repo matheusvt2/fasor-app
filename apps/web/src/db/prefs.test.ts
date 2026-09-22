@@ -1,7 +1,14 @@
 import 'fake-indexeddb/auto';
-import { describe, expect, it } from 'vitest';
-import { readTheme, writeTheme } from './prefs.ts';
-import { openDatabase, THEME_PREF, type AppDatabase } from './schema.ts';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  readRecoveryNotice,
+  readTheme,
+  readThemeMirror,
+  THEME_MIRROR_KEY,
+  writeRecoveryNotice,
+  writeTheme,
+} from './prefs.ts';
+import { openDatabase, RECOVERY_NOTICE_PREF, THEME_PREF, type AppDatabase } from './schema.ts';
 
 let counter = 0;
 async function freshDb(): Promise<AppDatabase> {
@@ -41,6 +48,102 @@ describe('theme preference in local_prefs', () => {
     await db.local_prefs.put({ key: 'device_id', value: 'tablet-1' });
     await writeTheme(db, 'light');
     expect(await db.local_prefs.get('device_id')).toEqual({ key: 'device_id', value: 'tablet-1' });
+    db.close();
+  });
+});
+
+/*
+ * AD-8's one-time eviction screen. `createdFresh` is true for exactly one launch, so the
+ * durable state is what actually decides: a reload made before the user presses the
+ * screen's action must still show it.
+ */
+describe('eviction-recovery notice in local_prefs', () => {
+  it('is null on a database that never saw an eviction', async () => {
+    const db = await freshDb();
+    expect(await readRecoveryNotice(db)).toBeNull();
+    db.close();
+  });
+
+  it('survives a reopen while it is pending, and stops once dismissed', async () => {
+    const user = `019966b0-0021-7000-8000-${(++counter).toString(16).padStart(12, '0')}`;
+    await openDatabase(user).delete();
+
+    // The launch that found the store missing: `createdFresh`, and it records the debt.
+    const born = openDatabase(user);
+    await born.open();
+    expect(born.createdFresh).toBe(true);
+    await writeRecoveryNotice(born, 'pending');
+    expect(await born.local_prefs.get(RECOVERY_NOTICE_PREF)).toEqual({ key: RECOVERY_NOTICE_PREF, value: 'pending' });
+    born.close();
+
+    // The reload the user makes before pressing the action: no longer `createdFresh`,
+    // and the screen is still owed to them.
+    const reopened = openDatabase(user);
+    await reopened.open();
+    expect(reopened.createdFresh).toBe(false);
+    expect(await readRecoveryNotice(reopened)).toBe('pending');
+
+    await writeRecoveryNotice(reopened, 'dismissed');
+    expect(await readRecoveryNotice(reopened)).toBe('dismissed');
+    reopened.close();
+  });
+
+  it('is null for a stored value that is neither state', async () => {
+    const db = await freshDb();
+    await db.local_prefs.put({ key: RECOVERY_NOTICE_PREF, value: true });
+    expect(await readRecoveryNotice(db)).toBeNull();
+    db.close();
+  });
+
+  it('leaves the other preference keys alone', async () => {
+    const db = await freshDb();
+    await writeTheme(db, 'dark');
+    await writeRecoveryNotice(db, 'pending');
+    expect(await readTheme(db)).toBe('dark');
+    db.close();
+  });
+});
+
+/*
+ * Story 1.6 left the theme flash open: `ThemeProvider` mounts inside `RequireSession`,
+ * so `data-theme` landed after the first paint. The mirror is what `index.html`'s
+ * blocking boot script reads; Dexie stays the source of truth.
+ */
+describe('theme mirror for the boot script', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    vi.restoreAllMocks();
+  });
+
+  it('is written beside the Dexie row and read back', async () => {
+    const db = await freshDb();
+    await writeTheme(db, 'dark');
+    expect(localStorage.getItem(THEME_MIRROR_KEY)).toBe('dark');
+    expect(readThemeMirror()).toBe('dark');
+    await writeTheme(db, 'system');
+    expect(localStorage.getItem(THEME_MIRROR_KEY)).toBe('system');
+    expect(readThemeMirror()).toBe('system');
+    db.close();
+  });
+
+  it('reads null when nothing is mirrored or the value does not parse', () => {
+    expect(readThemeMirror()).toBeNull();
+    localStorage.setItem(THEME_MIRROR_KEY, 'sepia');
+    expect(readThemeMirror()).toBeNull();
+  });
+
+  it('never throws when the origin refuses site data', async () => {
+    const db = await freshDb();
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('SecurityError');
+    });
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('SecurityError');
+    });
+    await expect(writeTheme(db, 'light')).resolves.toBeUndefined();
+    // Dexie still holds the choice: only the pre-paint shortcut is lost.
+    expect(await db.local_prefs.get(THEME_PREF)).toEqual({ key: THEME_PREF, value: 'light' });
+    expect(readThemeMirror()).toBeNull();
     db.close();
   });
 });

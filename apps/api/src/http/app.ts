@@ -35,6 +35,9 @@ const MIME_TYPES: Record<string, string> = {
   '.avif': 'image/avif',
 };
 
+/** The app-shell service worker (AD-8); it is the only response that gets a cache header. */
+const SERVICE_WORKER_PATH = '/sw.js';
+
 async function fileExists(path: string): Promise<boolean> {
   try {
     return (await stat(path)).isFile();
@@ -133,7 +136,13 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
     const target = await resolveStaticTarget(staticDir, c.req.path);
     const body = await readFile(target);
     const contentType = MIME_TYPES[extname(target)] ?? 'application/octet-stream';
-    return c.body(body, 200, { 'content-type': contentType });
+    return c.body(body, 200, {
+      'content-type': contentType,
+      // AD-8: the shell activates a new version on the next launch, which only happens
+      // if the browser notices there is one. A cached worker script would pin the old
+      // shell; every other response keeps its default caching.
+      ...(c.req.path === SERVICE_WORKER_PATH ? { 'cache-control': 'no-cache' } : {}),
+    });
   });
 
   return app;

@@ -84,6 +84,23 @@ describe('static bundle serving + SPA fallback', () => {
     }
   });
 
+  // AD-8: the shell activates a new version only on a launch that discovers one.
+  it('serves /sw.js as a script the browser must revalidate', async () => {
+    await writeFile(join(staticDir, 'sw.js'), 'self.addEventListener("install", () => {})');
+    const app = makeApp(staticDir);
+    const res = await app.request('/sw.js');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('text/javascript; charset=utf-8');
+    expect(res.headers.get('cache-control')).toBe('no-cache');
+    expect(await res.text()).toContain('install');
+  });
+
+  it('adds no cache header to any other response', async () => {
+    const app = makeApp(staticDir);
+    expect((await app.request('/app.js')).headers.get('cache-control')).toBeNull();
+    expect((await app.request('/')).headers.get('cache-control')).toBeNull();
+  });
+
   it('resolveStaticTarget does not escape the static dir on a traversal attempt', async () => {
     const target = await resolveStaticTarget(staticDir, '/../../../../../../../../etc/passwd');
     expect(target).toBe(join(staticDir, 'index.html'));

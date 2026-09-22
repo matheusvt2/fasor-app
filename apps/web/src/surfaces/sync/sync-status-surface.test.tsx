@@ -17,6 +17,7 @@ function state(over: Overrides = {}): SyncState {
     running: false,
     outdated: false,
     lastResult: 'ran',
+    lastFailure: null,
     lastSyncAt: '2026-09-07T17:35:00.000Z',
     lastPushAt: [
       { user_id: 'u-bruno', device_id: 'tablet-1', at: '2026-09-07T17:32:00.000Z' },

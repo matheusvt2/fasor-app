@@ -111,7 +111,7 @@ export function RegistrationDialog(props: RegistrationDialogProps) {
                     onClick={() => chooseCouncil(option)}
                   >
                     <svg className="ico check" aria-hidden="true">
-                      <use href="#i-check" />
+                      <use href="/sprite.svg#i-check" />
                     </svg>
                     {councilLabel(option)}
                   </button>

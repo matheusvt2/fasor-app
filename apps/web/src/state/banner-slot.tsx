@@ -58,6 +58,12 @@ export interface BannerConditions {
   online: boolean;
   /** "Entrar de novo": the shell owns the navigation, the candidate owns the wording. */
   reAuthAction?: ReactNode;
+  /** AD-8: the outbox has held work for five days or more (`unsyncedForDays`). */
+  unsyncedForDays?: boolean;
+  /** FR-61: a `drafts` row is waiting. The offer itself is the persistent toast. */
+  draftFound?: boolean;
+  /** Optional action for the draft-found candidate; the toast carries the real one. */
+  draftAction?: ReactNode;
   /** Everything a surface contributes on its own (none of them exist yet). */
   extra?: readonly Banner[];
 }
@@ -79,6 +85,29 @@ export function bannerCandidates(conditions: BannerConditions): Banner[] {
       role: 'alert',
       text: copy.banner.reAuthText,
       actions: conditions.reAuthAction,
+    });
+  }
+  // FR-61: the offer is the persistent toast (`key-sheet-states.html`). This candidate
+  // exists so the condition is counted by the "+N" chip when something above it holds
+  // the slot; its text never carries the recovery action.
+  if (conditions.draftFound === true) {
+    candidates.push({
+      kind: 'draft-found',
+      variant: 'info',
+      role: 'region',
+      text: copy.banner.draftFoundText,
+      actions: conditions.draftAction,
+    });
+  }
+  // AD-8, last in the priority: work has waited in the outbox for five days. Pushed
+  // before the offline check, so that a tablet that is both offline and long-unsynced
+  // shows one of them and counts the other.
+  if (conditions.unsyncedForDays === true) {
+    candidates.push({
+      kind: 'unsynced-5-days',
+      variant: 'warning',
+      role: 'region',
+      text: copy.banner.unsyncedText,
     });
   }
   if (!conditions.online && candidates.length > 0) {

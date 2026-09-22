@@ -147,6 +147,16 @@ export function outboxRows(db: AppDatabase): Promise<OutboxRow[]> {
   return db.outbox.toArray();
 }
 
+/**
+ * AD-8 activation rule: how much work is still on its way to the server. `pending` plus
+ * `sent` is exactly `takePending`'s set — the rows a push would carry — counted through
+ * the `status` index rather than by reading the table, because the service-worker gate
+ * asks for it on every launch.
+ */
+export function outboxBacklog(db: AppDatabase): Promise<number> {
+  return db.outbox.where('status').anyOf(['pending', 'sent']).count();
+}
+
 export function syncStateRows(db: AppDatabase): Promise<SyncStateRow[]> {
   return db.sync_state.toArray();
 }
