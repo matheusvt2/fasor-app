@@ -137,7 +137,16 @@ export async function installRefusedWrites(page: Page): Promise<void> {
       }
       return realPut.apply(this, args) as IDBRequest<IDBValidKey>;
     };
-    // AD-8's storage reading, from a device with nothing left.
+    // AD-8's storage reading, from a device with nothing left — 100 MB free, well under
+    // the provisional 500 MB threshold.
+    //
+    // PLACEHOLDER: nothing in the app reads this yet. `storageHeadroom()` and the kernel's
+    // `storageLow()` ship and are unit-tested, but no surface calls them, because AD-8
+    // marks the 500 MB `[ASSUMPTION]` until the manual iPad check returns a real number
+    // and the spine's banner priority has no eighth slot for a storage-low kind. The
+    // scenario that will read it is the storage-low banner of Epic 6, once Matheus files
+    // `test-artifacts/manual/ipad-YYYY-MM-DD.md`. Until then the refusal path — the
+    // `QuotaExceededError` above and the toast it raises — is the whole of 1.8-E2E-003.
     if (navigator.storage !== undefined) {
       navigator.storage.estimate = async () => ({ usage: 1_900_000_000, quota: 2_000_000_000 });
     }

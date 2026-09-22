@@ -29,6 +29,26 @@ export async function saveDraft(
   await db.drafts.put(row);
 }
 
+/** One target and the value its surface currently holds, for `saveDrafts`. */
+export interface DraftWrite {
+  target: DraftTarget;
+  value: unknown;
+}
+
+/**
+ * Every source of a tab-hide in one transaction (FR-61). A loop of awaited `saveDraft`
+ * calls is one IndexedDB transaction per source: an iOS tab discarded after the first one
+ * commits keeps the first draft and loses the rest, which is the exact failure this table
+ * exists to prevent. Here the writes are all queued inside one `rw` transaction, so the
+ * tab either takes them all or none.
+ */
+export async function saveDrafts(db: AppDatabase, writes: readonly DraftWrite[], now: Date): Promise<void> {
+  if (writes.length === 0) return;
+  await db.transaction('rw', db.drafts, async () => {
+    await Promise.all(writes.map(({ target, value }) => saveDraft(db, target, value, now)));
+  });
+}
+
 export async function readDraft(db: AppDatabase, target: DraftTarget): Promise<DraftRow | undefined> {
   return db.drafts.get(draftKey(target));
 }

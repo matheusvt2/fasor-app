@@ -92,6 +92,29 @@ function Field({ committed = '', withOtherToast = false }: { committed?: string;
   );
 }
 
+/** One registered source, so a test can mount several of them side by side. */
+function OneField({ label, field }: { label: string; field: string }) {
+  const [text, setText] = useState('');
+  useDraftSource({
+    surface: TARGET.surface,
+    entityId: TARGET.entity_id,
+    field,
+    read: () => (text === '' ? null : text),
+    apply: (value) => setText(String(value)),
+  });
+  return <input aria-label={label} value={text} onChange={(e) => setText(e.target.value)} />;
+}
+
+function ThreeFields() {
+  return (
+    <>
+      <OneField label="um" field="a" />
+      <OneField label="dois" field="b" />
+      <OneField label="tres" field="c" />
+    </>
+  );
+}
+
 async function hide(): Promise<void> {
   await act(async () => {
     Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
@@ -121,6 +144,24 @@ describe('persisting on tab hide', () => {
       await Promise.resolve();
     });
     expect(await listDrafts(database!)).toHaveLength(0);
+  });
+
+  // The failure this table exists to prevent: an iOS tab discarded part-way through the
+  // hide keeping the first draft and losing the rest.
+  it('writes every registered source of one pagehide, not just the first', async () => {
+    render(<ThreeFields />, { wrapper: Wrapper });
+    for (const label of ['um', 'dois', 'tres']) {
+      await userEvent.type(screen.getByLabelText(label), `texto ${label}`);
+    }
+    await act(async () => {
+      window.dispatchEvent(new Event('pagehide'));
+      await Promise.resolve();
+    });
+    await waitFor(async () => {
+      expect(await listDrafts(database!)).toHaveLength(3);
+    });
+    const rows = await listDrafts(database!);
+    expect(rows.map((row) => row.value).sort()).toEqual(['texto dois', 'texto tres', 'texto um']);
   });
 
   it('also persists on pagehide, the event iOS Safari fires when it discards the tab', async () => {

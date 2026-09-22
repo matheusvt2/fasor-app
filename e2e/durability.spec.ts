@@ -241,6 +241,9 @@ test('@p0 1.8-E2E-004 an evicted origin with a live cookie gets the one-time rec
   await expect(page.getByTestId('recovery-holds')).toBeVisible();
   // The sign-in form is never involved: the cookie alone brought the user here.
   await expect(page.locator('.login-form')).toHaveCount(0);
+  // And the screen is not a dead end: `navigator.onLine` can be true with the API down,
+  // so there is always a way through without downloading.
+  await expect(page.getByRole('button', { name: 'Continuar sem baixar' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Baixar do servidor' }).click();
   await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible({ timeout: 30_000 });

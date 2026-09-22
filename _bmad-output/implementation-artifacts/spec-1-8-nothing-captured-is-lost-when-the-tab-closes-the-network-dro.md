@@ -34,15 +34,30 @@ deferred:
     location: 'e2e/durability.spec.ts (1.8-E2E-002); apps/web/src/files/'
     severity: 'medium'
   - summary: >-
-      The 500 MB storage-low banner of AD-8 is not published; only the refusal path (error
-      toast on a rejected write) ships here.
+      The 500 MB storage-low banner of AD-8 has no publisher. What is missing is only the
+      publisher: the measurement and the verdict ship and are tested, and nothing calls
+      them. Only the refusal path (an error toast on a rejected write) is wired.
     evidence: |-
-      AD-8's threshold is marked provisional and "the number is set after the iPadOS test"
-      (ARCHITECTURE-SPINE.md:413), which is this story's manual script and has not run. The
-      banner has a mock (`mockups/key-sync-status.html:294`) but no slot in the seven-kind
-      `BANNER_PRIORITY`, so publishing it would need a spine change. `storageHeadroom()` and
-      its kernel check ship and are unit-tested, so the banner is one candidate away.
-    location: 'apps/web/src/device/storage-estimate.ts; apps/web/src/state/banner-slot.tsx'
+      Deliberate, and a planning decision rather than a story one. Two things would have to
+      be guessed to publish it now: the spine enumerates exactly seven banner kinds
+      (ARCHITECTURE-SPINE.md:231) with no storage-low slot, so a priority position would be
+      invented; and AD-8 marks the 500 MB `[ASSUMPTION]` with "the number is set after the
+      iPadOS test" (:413), which is this story's manual script and has not run, so the
+      threshold would be a guess the same story is meant to calibrate.
+      What exists: `storageLow(reading, freeBytes)` and `STORAGE_LOW_FREE_BYTES` in
+      `packages/domain/src/checks/storage.ts` (unit-tested at and around the boundary), and
+      `storageHeadroom()` in `apps/web/src/device/storage-estimate.ts` (unit-tested,
+      including every way a browser can answer nothing). Neither has a caller.
+      What does not exist anywhere in the app: the banner copy. `mockups/key-sync-status.html:294`
+      draws it as "Pouco espaço neste aparelho (⟨n⟩ MB). Sincronize para liberar." and that
+      string is in no copy module — a deliberate absence, so nothing looks half-wired.
+      `installRefusedWrites` in `e2e/support/durability.ts` mocks `storage.estimate` low; a
+      comment there marks it a placeholder that nothing reads yet.
+      To close it: Matheus files `test-artifacts/manual/ipad-YYYY-MM-DD.md` with the real
+      `storage.estimate()` figures (step 6), the threshold is set from them, the spine gains
+      the eighth banner kind, and Epic 6 adds one `bannerCandidates` candidate plus the
+      mock's copy.
+    location: 'packages/domain/src/checks/storage.ts; apps/web/src/device/storage-estimate.ts; apps/web/src/state/banner-slot.tsx'
     severity: 'medium'
   - summary: >-
       Draft sources are registered per surface by the capture screens; only the fixture route
@@ -97,19 +112,6 @@ deferred:
       interception.
     location: 'e2e/support/durability.ts (withoutServiceWorker)'
     severity: 'low'
-  - summary: >-
-      `persistAll` writes one draft per source with a sequential `await`; an iOS tab
-      discarded mid-`pagehide` could drop the later sources of the loop.
-    evidence: |-
-      The sequential-await pattern is in `state/drafts.tsx` and is real, but whether iOS
-      Safari freezes the page before those writes commit cannot be decided from the code or
-      from Playwright — WebKit desktop does not evict or discard the way the device does.
-      What would settle it: step 4 of the pending manual iPad script, with more than one
-      registered draft source on the page. If it does drop them, the fix is one `bulkPut`
-      inside a single transaction (a new `saveDrafts` in `db/drafts.ts`). Only one source
-      exists today, so nothing is reachable before Epic 5.
-    location: 'apps/web/src/state/drafts.tsx (persistAll); apps/web/src/db/drafts.ts'
-    severity: medium (unverified)
 dev_model: 'opus'
 dev_effort: 'high'
 ---
@@ -309,6 +311,8 @@ Planning anchors (quoted where the wording is contractual):
 
 **The precache list is stamped into `dist/sw.js` at `closeBundle`, not generated at runtime.** Vite copies `public/sw.js` verbatim, so the plugin rewrites the copy in `dist/` after the bundle is emitted, replacing two quoted tokens. A file that still carries the token is the dev copy, and the worker detects that by `typeof PRECACHE === 'string'` and falls back to `['/', '/sprite.svg']`, which keeps the dev server usable without a second code path. The cache name carries the hash of the list, so a new build is a new cache and the old one is deleted on activate — no manual version bump to forget.
 
+**Holding the shell is the other half of the activation rule, and navigation is where it bites.** Promoting the waiting worker only delays the *cache* swap. Navigation is network-first — that is how a new build is ever discovered — so while the tablet is online a deploy serves the new `index.html` and its new hashed assets straight from the network, whatever the outbox holds; the tab then runs a shell whose assets the active cache does not have, and the first moment it goes offline it falls back to the old cached `/`. That is a version flip in the middle of a job, which is exactly what AD-8's rule exists to prevent. So the rule is stated twice, from the same fact: while a new shell is installed *and* the backlog is above zero, the active worker answers navigations cache-first; when the backlog reaches zero the hold is released, the page promotes the waiting worker, and navigations go back to network-first so the next build can be found. The page owns both, because only the page can read the per-user Dexie database: it posts `{type: 'activate-shell'}` to the waiting worker and `{type: 'hold-shell', hold}` to the active one, from a live query on `outboxBacklog` so the hold lifts the moment the last op is acked rather than on the next launch. The worker's half is one pure function, `shellPlan({isApi, mode, isShellPath, hold})`, which `src/sw/sw-plan.test.ts` pulls out of the real `public/sw.js` and runs over the matrix; the page's half is `shouldHoldShell(registration, backlog)` in `src/sw/register.ts`. There is no end-to-end case for it: installing a genuinely different second shell mid-test needs either a second build or interception of the worker-script request, which Playwright does not do outside Chromium, and neither is cheap.
+
 **Activation is gated in the page, not in the worker.** A worker cannot read the user's Dexie database (it is per-user and opened by the page), and AD-8's rule is about the user's pending work, not about the worker's lifecycle. So `install` deliberately omits `skipWaiting()`, the page resolves `navigator.serviceWorker.ready`, counts the backlog through the `status` index and posts one message when it is zero. "On the next launch" falls out of this for free: a worker that waits through a session is promoted by the first launch that finds an empty outbox.
 
 **The sprite becomes a real file because the AC precaches it.** It is inline JSX today, which makes "precaches the SVG icon sprite" unsatisfiable as written — an inline sprite is already inside the hashed JS. Moving the four symbols to `public/sprite.svg` and switching to `<use href="/sprite.svg#id">` gives the worker something to cache, keeps the markup the mocks use, and is same-origin so WebKit resolves it. A unit test pins the referenced ids against the file so a new icon cannot be referenced without being added.
@@ -366,7 +370,23 @@ took IndexedDB and left `localStorage` showed nothing.
 **A shell precache is all or nothing.** `install` lets a failed URL fail the install and
 throws the partial cache away, rather than swallowing it per URL: a cached `/` whose hashed
 JS is missing boots into an empty page offline, which is worse than no cache at all. The
-previously installed worker keeps serving until the next attempt.
+previously installed worker keeps serving until the next attempt. `install` also prunes
+orphan `releng-shell-*` caches, which accumulate one per deploy on a device whose outbox
+never drains: a worker that installs while another waits replaces that waiting one, and the
+browser discards it without ever running its `activate`. Because `activate` deletes every
+shell cache but its own, the oldest surviving cache is always the active worker's, so
+`install` keeps that one and its own and deletes what is in between.
+
+**The worker is registered by a build, never by the dev server.** Under `vite dev` the
+document references `/src/main.tsx` and an unbounded module graph, so a precached `/` is a
+shell that cannot boot: with the dev server down the worker would serve a blank page
+instead of the browser's own error. `import.meta.env.DEV` cannot express that, because it
+is also true for the `build:e2e` bundle the durability projects run against, which is a
+real build and does need the worker. The guard is `import.meta.hot`, which the dev server
+injects and no build of any mode ever does — checked against both build outputs, each of
+which keeps exactly one `/sw.js` reference and tree-shakes the other branch away. The dev
+server additionally unregisters any worker an earlier dev session left behind, so a
+developer who already has one does not keep hitting the blank page.
 
 **`oldestPendingClientTs` now reads `pending` and `sent`.** The I/O matrix says so, and it
 is the honest input for the 5-day check: an op that was sent and never answered is still

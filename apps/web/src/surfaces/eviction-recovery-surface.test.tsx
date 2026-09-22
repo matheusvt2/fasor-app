@@ -130,6 +130,30 @@ describe('EvictionRecoverySurface', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
+  // `navigator.onLine` can be true with the API unreachable, and then the primary action
+  // fails every time: the screen must not be a dead end.
+  it('offers a way out that dismisses the screen without downloading', async () => {
+    dismissRecovery.mockClear();
+    const syncNow = vi.fn(async () => 'ran' as const);
+    renderSurface(syncState({ syncNow }));
+    await userEvent.click(screen.getByRole('button', { name: 'Continuar sem baixar' }));
+    expect(dismissRecovery).toHaveBeenCalledTimes(1);
+    expect(syncNow).not.toHaveBeenCalled();
+    // And it says what taking it costs, which is nothing.
+    expect(
+      screen.getByText('Você pode seguir agora; o que está no servidor desce sozinho na próxima sincronização.'),
+    ).toBeVisible();
+  });
+
+  it('keeps the way out available when the download has already failed', async () => {
+    dismissRecovery.mockClear();
+    renderSurface(syncState({ syncNow: vi.fn(async () => 'ran' as const), lastFailure: { kind: 'network' } }));
+    await userEvent.click(screen.getByRole('button', { name: 'Baixar do servidor' }));
+    expect(screen.getByRole('alert')).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Continuar sem baixar' }));
+    expect(dismissRecovery).toHaveBeenCalledTimes(1);
+  });
+
   it('states why the action is unavailable offline', () => {
     renderSurface(syncState({ online: false }));
     const action = screen.getByRole('button', { name: 'Baixar do servidor' });

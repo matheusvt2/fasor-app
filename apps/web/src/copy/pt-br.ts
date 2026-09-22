@@ -193,6 +193,11 @@ export const copy = {
     running: 'Baixando…',
     failed: 'Não foi possível baixar agora. Verifique a conexão e tente de novo.',
     offlineReason: 'Baixar precisa de conexão',
+    // authored: a screen with one action that needs the server is a dead end when the
+    // server is the thing that is down. This is the way out, and it says what is true —
+    // nothing is lost by taking it, the pull happens on the next sync anyway.
+    skipAction: 'Continuar sem baixar',
+    skipNote: 'Você pode seguir agora; o que está no servidor desce sozinho na próxima sincronização.',
   },
   // authored: the mocks are static frames and draw no boot state.
   common: {

@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { draftKey } from '@app/domain';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { dropAllDrafts, dropDraft, listDrafts, readDraft, saveDraft } from './drafts.ts';
+import { dropAllDrafts, dropDraft, listDrafts, readDraft, saveDraft, saveDrafts } from './drafts.ts';
 import { openDatabase, type AppDatabase } from './schema.ts';
 
 /* FR-61: the per-user drafts table, keyed by surface and entity (AD-2). */
@@ -74,6 +74,38 @@ describe('drafts store', () => {
 
   it('dropping a target that has no row is not an error', async () => {
     await expect(dropDraft(db, { surface: 'ficha', entity_id: ENTITY })).resolves.toBeUndefined();
+  });
+
+  // A tab-hide writes every registered source at once: one transaction, so a discarded
+  // tab cannot keep the first draft and lose the rest.
+  it('writes every source of one tab-hide in a single transaction', async () => {
+    await saveDrafts(
+      db,
+      [
+        { target: { surface: 'ficha', entity_id: ENTITY, field: 'a' }, value: 'um' },
+        { target: { surface: 'ficha', entity_id: ENTITY, field: 'b' }, value: 'dois' },
+        { target: { surface: 'dialogo', entity_id: OTHER }, value: { aberto: true } },
+      ],
+      T0,
+    );
+    const rows = await listDrafts(db);
+    expect(rows).toHaveLength(3);
+    expect(rows.map((row) => row.saved_at)).toEqual([T0.toISOString(), T0.toISOString(), T0.toISOString()]);
+  });
+
+  it('drops and writes in the same batch, and writing none is not an error', async () => {
+    await saveDraft(db, { surface: 'ficha', entity_id: ENTITY }, 'para apagar', T0);
+    await saveDrafts(
+      db,
+      [
+        { target: { surface: 'ficha', entity_id: ENTITY }, value: null },
+        { target: { surface: 'ficha', entity_id: OTHER }, value: 'para manter' },
+      ],
+      T0,
+    );
+    expect(await readDraft(db, { surface: 'ficha', entity_id: ENTITY })).toBeUndefined();
+    expect((await readDraft(db, { surface: 'ficha', entity_id: OTHER }))?.value).toBe('para manter');
+    await expect(saveDrafts(db, [], T0)).resolves.toBeUndefined();
   });
 
   it('is reachable through the version 4 [surface+entity_id] index', async () => {

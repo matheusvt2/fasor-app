@@ -1,6 +1,6 @@
 import { PRODUTO } from '@app/domain';
 import { useEffect, useId, useState } from 'react';
-import { Button } from '../components/index.ts';
+import { Button, TextButton } from '../components/index.ts';
 import { copy } from '../copy/pt-br.ts';
 import { useSession } from '../state/session.tsx';
 import { useSync } from '../state/sync.tsx';
@@ -79,6 +79,15 @@ export function EvictionRecoverySurface() {
             >
               {copy.recovery.action}
             </Button>
+          </p>
+          {/*
+            The way out. `navigator.onLine` can be true with the server unreachable, and
+            then the primary action fails every time: without this the user is held on a
+            screen whose only action cannot succeed, with no path to Home.
+          */}
+          <p className="section-note">{copy.recovery.skipNote}</p>
+          <p>
+            <TextButton onPress={() => session.dismissRecovery()}>{copy.recovery.skipAction}</TextButton>
           </p>
         </section>
       </div>

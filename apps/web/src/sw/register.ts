@@ -35,8 +35,45 @@ export async function registerServiceWorker(deps: RegisterDeps = {}): Promise<Se
   }
 }
 
+/** Unregisters every worker on this origin, swallowing every failure. */
+export async function unregisterServiceWorkers(deps: RegisterDeps = {}): Promise<number> {
+  const container = deps.container ?? defaultContainer();
+  if (container === undefined || typeof container.getRegistrations !== 'function') return 0;
+  try {
+    const registrations = await container.getRegistrations();
+    await Promise.all(registrations.map((registration) => registration.unregister()));
+    return registrations.length;
+  } catch (error) {
+    (deps.log ?? warn)('could not unregister a service worker', error);
+    return 0;
+  }
+}
+
 /** What the gate did, so a caller (and the test) can tell the three outcomes apart. */
 export type PromoteResult = 'promoted' | 'held-back' | 'nothing-waiting';
+
+/**
+ * AD-8, the other half of the activation rule: while a new shell waits and work is still
+ * on its way to the server, the *active* shell must keep answering navigations from its
+ * own cache, or the network would hand the tab the new document and its new hashed assets
+ * long before the swap is allowed to happen.
+ *
+ * Nothing to wait for, or nothing pending, and the hold is released: navigation goes back
+ * to network-first, which is how the next build is discovered at all.
+ */
+export function shouldHoldShell(registration: ServiceWorkerRegistration | null, backlog: number): boolean {
+  if (registration?.waiting == null && registration?.installing == null) return false;
+  return backlog > 0;
+}
+
+/** Tells the active worker whether to hold. Returns what was sent, or null when nobody heard. */
+export function holdShell(registration: ServiceWorkerRegistration | null, backlog: number): boolean | null {
+  const active = registration?.active;
+  if (!active) return null;
+  const hold = shouldHoldShell(registration, backlog);
+  active.postMessage({ type: 'hold-shell', hold });
+  return hold;
+}
 
 /**
  * AD-8: "the service worker activates a new shell on the next launch only when the

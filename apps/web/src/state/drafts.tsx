@@ -11,7 +11,7 @@ import {
 } from 'react';
 import { now } from '../clock.ts';
 import { copy } from '../copy/pt-br.ts';
-import { dropDraft, listDrafts, readDraft, saveDraft } from '../db/drafts.ts';
+import { dropDraft, listDrafts, readDraft, saveDrafts, type DraftWrite } from '../db/drafts.ts';
 import { useSession } from './session.tsx';
 import { useToast } from './toast.tsx';
 
@@ -78,23 +78,29 @@ export function DraftProvider({ children }: { children: ReactNode }) {
     if (db === null) return;
     const at = now();
     const offered = new Set(offerRef.current ?? []);
-    for (const [key, source] of [...sources.current.entries()]) {
-      try {
-        const value = source.read();
-        // A source holding nothing uncommitted reads null, and `saveDraft` then drops
-        // whatever row was there: a draft equal to the committed value is not a draft.
-        //
-        // Except while that row is the one on offer. Backgrounding the app — switching
-        // to the camera, which is what `visibilitychange` is here for — must not delete
-        // the draft the toast is still offering: the surface is showing the committed
-        // value precisely because the user has not pressed "Recuperar" yet.
-        if (offered.has(key) && (value === null || value === undefined || value === '')) continue;
-        await saveDraft(db, source, value, at);
-      } catch (error) {
-        // The page is going away and there is nobody left to tell; logged once so a
-        // refused write is still visible in a field trial's console.
-        console.warn('could not persist a draft', error);
-      }
+    // Every value is read in this tick, before anything is awaited: the tab is going
+    // away, and a source read after the first await may already be gone.
+    const writes: DraftWrite[] = [];
+    for (const [key, source] of sources.current.entries()) {
+      const value = source.read();
+      // A source holding nothing uncommitted reads null, and `saveDraft` then drops
+      // whatever row was there: a draft equal to the committed value is not a draft.
+      //
+      // Except while that row is the one on offer. Backgrounding the app — switching to
+      // the camera, which is what `visibilitychange` is here for — must not delete the
+      // draft the toast is still offering: the surface is showing the committed value
+      // precisely because the user has not pressed "Recuperar" yet.
+      if (offered.has(key) && (value === null || value === undefined || value === '')) continue;
+      writes.push({ target: source, value });
+    }
+    try {
+      // One transaction for all of them, so a discarded tab cannot keep the first draft
+      // and lose the rest.
+      await saveDrafts(db, writes, at);
+    } catch (error) {
+      // The page is going away and there is nobody left to tell; logged once so a
+      // refused write is still visible in a field trial's console.
+      console.warn('could not persist the drafts', error);
     }
   }, [db]);
 
