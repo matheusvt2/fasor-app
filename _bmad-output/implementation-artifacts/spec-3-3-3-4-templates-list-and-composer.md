@@ -2,7 +2,7 @@
 title: 'Stories 3.3 and 3.4: list, duplicate and archive templates; compose the location skeleton and quantities per column'
 type: 'feature'
 created: '2026-09-22'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'b6e9dbf2197c5cc8b80ad9f33424ce66b2ad8431'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -177,7 +177,7 @@ deferred: []
 - `_bmad-output/implementation-artifacts/deferred-work.md` -- set the line-406 entry to `state: closed (branch story/3-3-3-4-templates-list-and-composer: cross-field ref rule moved out of parsing, orphan blocks ignored by the view; 3.4-API-001, 3.4-E2E-005)`.
 
 **Acceptance Criteria (each automated; e2e IDs in parentheses):**
-- Given Empresa A with the standard template, when `/templates` renders from the Home shortcut, then the list shows `Templates (1)`, its secondary line `Semente v1 · 9 seções · 6 cabines · 26 colunas · 94 blocos de equipamento`, `Novo template`, `Duplicar` and `Arquivar` (`@p0 3.3-E2E-001`).
+- Given Empresa A with the standard template, when `/templates` renders from the Home shortcut, then the list shows `Templates (1)`, its secondary line `Semente v1 · 9 seções · 6 cabines · 17 colunas · 94 blocos de equipamento` (the standard template has 17 colunas; the 133 and 135 examples are format samples from the mock), `Novo template`, `Duplicar` and `Arquivar` (`@p0 3.3-E2E-001`).
 - Given a template, when the user duplicates it, then a `⟨nome⟩ — cópia` row appears. When opened in the composer, its skeleton heading and totals equal the source's, and the op in the outbox is a single `template/{id}` create (`@p0 3.3-E2E-002`).
 - Given an unreferenced template, when archived, then it moves under `Arquivados (1)`. `Restaurar` brings it back. Overflow `Remover` opens a Confirm dialog whose focus starts on `Cancelar`; confirming hides the template, and `Desfazer` restores it. This holds after reload (`@p0 3.3-E2E-003`). Given a template referenced in the company summary, the Overflow has no `Remover` (web component test). `pickableTemplates` excludes archived and removed templates (kernel test).
 - Given `Novo template`, when the user adds a cabine and three colunas and renames Coluna 3 to `Coluna 5`, then moves it with Alt+↑ to position 1, with Overflow `Descer`, with the Position box, and with a mouse drag, then each move reorders the list and the live region reads the `moveAnnouncement` text. The reload keeps the order (`@p0 3.4-E2E-001`).
@@ -222,5 +222,7 @@ deferred: []
 - Two layout fixes came out of the pass: a cabine card with no coluna and no own blocks open no longer draws an empty `.block-expand`, and below 768 px a coluna row's `.col-sum` wraps under its name.
 
 ## Spec Change Log
+
+- 2026-09-23, planning correction (no loopback): the 3.3-E2E-001 AC quoted the mock's `26 colunas`; the Story 3.2 standard template has 17 colunas (only 1° Subsolo holds colunas). The AC now reads `17 colunas`; code and tests already computed 17. KEEP: the kernel-computed text.
 
 ## Review Triage Log
