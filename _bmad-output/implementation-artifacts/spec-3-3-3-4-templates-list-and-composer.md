@@ -2,10 +2,10 @@
 title: 'Stories 3.3 and 3.4: list, duplicate and archive templates; compose the location skeleton and quantities per column'
 type: 'feature'
 created: '2026-09-22'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'b6e9dbf2197c5cc8b80ad9f33424ce66b2ad8431'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: 'opus'
 dev_effort: 'high'
 context:
@@ -226,3 +226,54 @@ deferred: []
 - 2026-09-23, planning correction (no loopback): the 3.3-E2E-001 AC quoted the mock's `26 colunas`; the Story 3.2 standard template has 17 colunas (only 1° Subsolo holds colunas). The AC now reads `17 colunas`; code and tests already computed 17. KEEP: the kernel-computed text.
 
 ## Review Triage Log
+
+### 2026-09-23 — Review pass
+- verdicts: 37 findings — high 0, medium 13, low 24, false 0, maybe-false 0 (intent-alignment layer descriptive; its one actionable divergence is logged as the last row)
+- findings:
+  - `[low]` `[patch]` Blind: `moveAnnouncement`/removal toast always feminine ("Cubículo Enel movida", "2 Definições movida") — announcements name the kind noun (Coluna/Cabine/Seção) unless the name already starts with it; kernel owns the removal text.
+  - `[medium]` `[patch]` Blind: stepper steps on pointerdown (a touch meant to scroll changes the count) and a press drifting off before 300 ms leaves `holding` set, so the step is never committed and pulls are ignored — tap steps on release, hold commits on release, early leave/cancel resets; tests added.
+  - `[medium]` `[patch]` Blind: Alt+Arrow in a stepper count also moves the enclosing row — stepper ignores Alt+Arrow and stops propagation of the arrows it handles.
+  - `[medium]` `[patch]` Blind: "Remover" offered before the first company download (summaries empty) — gated on `companyDownloaded`, use count re-checked in remove().
+  - `[low]` `[patch]` Blind: "Duplicar" has no double-press guard — routed through the in-flight guard.
+  - `[low]` `[reject]` Blind: no empty sentence when every template is archived — the heading "Templates (0)" and the archived group with "Restaurar" already say it; an extra branch for a rare state.
+  - `[low]` `[patch]` Blind: new section blocks use the global `SEED_VERSION` — the row's `seed_version` is passed through.
+  - `[medium]` `[patch]` Blind: `edit()` swallows every build exception and the stepper announces a quantity never written — a `TemplateTargetGoneError` is the only swallowed error; others toast and reject; a null batch rejects the stepper commit.
+  - `[low]` `[patch]` Blind: `Desfazer` failures are unhandled rejections — caught and toasted with `writeErrorText`.
+  - `[medium]` `[patch]` Blind: 3.4-E2E-005 never creates an orphan (the remover's `blocks` write lands last) — reordered: remover syncs first, stale device last, both sync again; asserts identical views with the orphan absent.
+  - `[low]` `[patch]` Blind: kernel convergence test weaker than its names — asserts deep-equal rows on both devices folding the server order, and parse of every intermediate fold in both local orders.
+  - `[low]` `[reject]` Blind: "Adicionar abaixo" keeps a section index that a concurrent pull can make stale — needs a pull to reorder sections while the palette is open on an office-only surface; undo covers a misplacement; resolving by stable identity adds machinery.
+  - `[low]` `[reject]` Blind: drag cannot auto-scroll a long list — Position box, Alt+Arrow and Overflow reach any position; auto-scroll adds complexity.
+  - `[low]` `[patch]` Blind: doc comments still say "26 colunas" — marked as mock format samples.
+  - `[low]` `[reject]` Edge: stale section index between render and action (same as the Blind stale-index row).
+  - `[low]` `[reject]` Edge: Confirm dialog open while a pull reorders sections — same root cause and reasoning; undo restores.
+  - `[medium]` `[patch]` Edge: Remover before first download (grouped with the Blind row).
+  - `[low]` `[reject]` Edge: a reference appears in the summary while the Remover dialog is open — the re-check inside remove() added for the grouped row covers it.
+  - `[low]` `[patch]` Edge: Duplicar double tap (grouped with the Blind row).
+  - `[low]` `[patch]` Edge: undo failure unhandled (grouped with the Blind row).
+  - `[medium]` `[patch]` Edge: a whole-field undo pressed after later edits silently discards them — the composer dismisses its undo toast when any later edit commits; test added.
+  - `[medium]` `[patch]` Edge: Alt+Arrow in stepper (grouped with the Blind row).
+  - `[medium]` `[patch]` Edge: "−" to 0 in an open node's qty-grid unmounts the focused stepper and focus drops to body — focus moves to the node head; test added.
+  - `[medium]` `[patch]` Edge: `edit()` swallowing (grouped with the Blind row).
+  - `[low]` `[reject]` Edge: an archived template is editable by direct navigation — the spec does not forbid it and nothing breaks; the list's non-link row is a cue, not a rule.
+  - `[low]` `[patch]` Edge: template name stored untrimmed — trimmed; empty or unchanged writes nothing.
+  - `[low]` `[patch]` Edge: no `lostpointercapture` reset in `use-reorder` — reset added.
+  - `[low]` `[reject]` Edge: a pull during a drag uses stale centres — needs a pull mid-drag on an office surface; the drop still lands on a valid index.
+  - `[low]` `[reject]` Edge: a future reader could skip `withoutOrphans` — the design choice is documented in `template-rules.ts`, `entities.ts` and the Design Notes; `instantiateTemplate` (Epic 4) must read them.
+  - `[medium]` `[patch]` Verification gap: Alt+Arrow on a coluna with sibling cabines is untested (single-cabine tests cannot fail) — component test on `standardTemplate`.
+  - `[medium]` `[patch]` Verification gap: touch press-and-hold drag never exercised — component tests with fake timers for arm-and-move and cancel-below-threshold.
+  - `[low]` `[patch]` Verification gap: composer not-found for a removed template untested — case added.
+  - `[low]` `[patch]` Verification gap: stepper ArrowUp/ArrowDown untested — case added with clamps.
+  - `[low]` `[reject]` Verification gap: palette drawer/sheet layout covered only by `@p1` 3.4-E2E-006 — the spec tagged it `@p1` on purpose; the epic retrospective's full run covers it, and the real-browser pass checked it.
+  - `[medium]` `[patch]` Verification gap (other): 3.4-E2E-005 orphan (grouped with the Blind row).
+  - `[low]` `[patch]` Verification gap (other): section blocks seed version (grouped with the Blind row).
+  - `[low]` `[patch]` Intent alignment: the palette is headed "Blocos" while the story and DESIGN.md head it with the current node ("Coluna 5") — the heading shows the current node's name, "Blocos" when none.
+- patch round: all patch rows fixed in commit `c92dd71` (dev subagent re-engaged); full `pnpm verify` rerun green afterwards.
+
+## Auto Run Result
+
+- Summary: Templates list per `41-templates.html` (secondary line with seed version, Novo template, Duplicar, Arquivar/Restaurar, archived group, Remover only when unreferenced with Confirm and undo); Template composer at `/templates/:id` (skeleton of cabines and colunas with four reorder paths and announcements, Agrupar por tipo, per-node Quantity stepper, per-type totals, section blocks with Overflow, palette side by side / drawer / sheet); kernel `archived_at`, edit functions, view model and derived text; concurrent `blocks`/`skeleton` edits no longer make `applyOp` throw (cross-field ref rule moved out of parsing, orphans ignored), proven by kernel, api and two-context e2e tests; deferred-work entry closed.
+- Files: kernel `packages/domain/src/templates/{compose,list,text}.ts` (+ tests, `convergence.test.ts`), `schemas/entities.ts`, `seed/template-rules.ts`, `seed/template.ts`; web `components/quantity-stepper.tsx`, `surfaces/templates/*` (list, composer, skeleton-list, section-list, block-palette, use-reorder, reorder-controls, template-ops), `copy/*`, `styles/app.css`, `app.tsx`, `app-shell.tsx`, `dialog-shell.tsx`, `db/home-store.ts`, `db/sync-store.ts`, `public/sprite.svg`; api `sync/template-convergence.integration.test.ts`; `e2e/templates.spec.ts`; `deferred-work.md`; screenshots under `reviews/3-3-3-4-templates-list-and-composer/`.
+- Review: 37 findings; patched 13 medium and 14 low (grouped); rejected 10 low as logged above; deferred 0.
+- Follow-up review recommended: true — 13 medium entries patched, including the stepper press model and the undo-toast retirement written during the patch round; the unverified risk is touch behaviour of the new stepper and drag on a real tablet (covered by the independent review and the real-browser pass).
+- Verification: `pnpm verify` green before review (kernel 476, web 532, tooling 20, api 103, e2e @p0 33) and after patches (kernel 478, web 548, tooling 20, api 103, e2e @p0 33); `e2e/templates.spec.ts` full 10/10 on desktop-chrome.
+- Residual risks: two devices editing the same template field lose one edit (last writer wins, accepted); `templateUseCount` does not see a relatório created on this device and not yet synced (Epic 4); Home's template count still includes archived templates.
