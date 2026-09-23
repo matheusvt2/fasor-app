@@ -214,6 +214,13 @@ deferred: []
   - an offline edit, then a reload.
 - Screenshots go in `_bmad-output/implementation-artifacts/reviews/3-3-3-4-templates-list-and-composer/`, and the pass is recorded in this section.
 
+**Real-browser pass, 2026-09-23** (Playwright chromium script in the `tools` container, Empresa B reset with the standard template):
+- `a-list-*`, `b-composer-*` (1280, 1024, 768, 390), `c-drawer-768-*`, `c-sheet-390-*`, `d-confirm-768-*`, light and dark: no horizontal overflow at any width (every screenshot measured 0 px). The palette sits beside the composition at 1280 and 1024 px, opens as a right drawer at 768 px and as a bottom sheet at 390 px.
+- The Confirm dialog opens with the focus on "Cancelar" in both themes.
+- Keyboard only (`e-keyboard-*`): Tab on the list reaches Novo template, the row's "Abrir template", its Overflow, Duplicar and Arquivar in order. In the composer, Alt+Up on the focused coluna row moves it, announces "Coluna 5 movida para a posição 4 de 17" and keeps the focus on the row. Enter on the stepper's "Mais um" and ArrowUp in its count step and commit ("Seccionadoras, 3"). The Position box moves on Enter.
+- An offline edit (`f-offline-edit-*`): "Disjuntores, 1" to "Disjuntores, 2" with the context offline; after going back online and reloading (before any sync), the count still reads "Disjuntores, 2" (`f-after-reload-*`).
+- Two layout fixes came out of the pass: a cabine card with no coluna and no own blocks open no longer draws an empty `.block-expand`, and below 768 px a coluna row's `.col-sum` wraps under its name.
+
 ## Spec Change Log
 
 ## Review Triage Log

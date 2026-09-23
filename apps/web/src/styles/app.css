@@ -210,6 +210,11 @@ body {
   [data-route="/templates/:id"] .composer-main { padding: var(--sp-4) var(--gutter-phone); }
   /* `.frame-phone [data-route="/templates/porto-seguro"] .block-card .block-expand` (42-template-composer.html) */
   [data-route="/templates/:id"] .block-card .block-expand { padding-left: var(--sp-3); padding-right: var(--sp-3); }
+  /* authored: the app's coluna row adds a drag handle and a Position box beside the mock's
+     `.col-head`, so on a phone its `.col-sum` goes under the name instead of into a
+     one-word-wide column. */
+  [data-route="/templates/:id"] .column-row .col-head { flex-wrap: wrap; row-gap: 0; padding-top: var(--sp-2); padding-bottom: var(--sp-2); }
+  [data-route="/templates/:id"] .column-row .col-sum { flex-basis: 100%; }
   /* `.data-table` (Critérios de aceitação, `criterios-tab.tsx`): not mock-derived — the mock
      never shows this table at phone width, and `components.css` has no responsive handling
      for it, so a long "used by" cell would overflow the frame sideways. Card-stacks each row

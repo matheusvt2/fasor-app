@@ -119,6 +119,7 @@ function CabineCard({ cabine, ...props }: SkeletonListProps & { cabine: Composer
   const toggleLabelId = useId();
   const summary = nodeSummaryText(cabine);
   const isCurrent = currentRef === cabine.ref;
+  const showOwn = isCurrent && cabine.blockCount > 0;
   const menu = nodeMenu(cabine, reorder, props);
   const className = ['block-card', 'cabine-card', isCurrent && 'is-open', reorder.dragging && 'is-dragging'].filter(Boolean).join(' ');
   return (
@@ -145,20 +146,23 @@ function CabineCard({ cabine, ...props }: SkeletonListProps & { cabine: Composer
         />
       </span>
       <OverflowMenu name={cabine.name} items={menu.items} destructiveItems={menu.destructiveItems} />
-      <div className="block-expand">
-        {isCurrent ? (
-          <div className="col-body">
-            <QtyGrid node={cabine} onSetQuantity={onSetQuantity} />
-          </div>
-        ) : null}
-        {cabine.colunas.length === 0 ? null : (
-          <ul className="column-list" aria-label={copy.composer.columnListLabel(cabine.name)}>
-            {cabine.colunas.map((coluna) => (
-              <ColunaRow key={coluna.ref} coluna={coluna} {...props} />
-            ))}
-          </ul>
-        )}
-      </div>
+      {/* Drawn only with something in it: a cabine with no coluna and no own blocks open has none. */}
+      {showOwn || cabine.colunas.length > 0 ? (
+        <div className="block-expand">
+          {showOwn ? (
+            <div className="col-body">
+              <QtyGrid node={cabine} onSetQuantity={onSetQuantity} />
+            </div>
+          ) : null}
+          {cabine.colunas.length === 0 ? null : (
+            <ul className="column-list" aria-label={copy.composer.columnListLabel(cabine.name)}>
+              {cabine.colunas.map((coluna) => (
+                <ColunaRow key={coluna.ref} coluna={coluna} {...props} />
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : null}
     </li>
   );
 }
