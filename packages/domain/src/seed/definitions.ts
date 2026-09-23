@@ -54,6 +54,16 @@ export const SEED_VERSIONS: Readonly<Record<string, SeedBundle>> = deepFreeze({
   v1: bundle('v1', CABINE_PRIMARIA_V1),
 });
 
+/**
+ * Every `not_tested_reasons` key any shipped seed version offers, in first-seen order: the
+ * values `block.not_tested.reason` may hold (keys are append-only across versions).
+ */
+export const NOT_TESTED_REASON_KEYS = [
+  ...new Set(
+    Object.values(SEED_VERSIONS).flatMap((b) => Object.values(b.report_types).flatMap((seed) => seed.not_tested_reasons.map((r) => r.key))),
+  ),
+] as [string, ...string[]];
+
 /** One version's seed for one report type; throws naming the argument a caller got wrong. */
 export function getSeed(seedVersion: string, reportType: string): ReportSeed {
   const seed = Object.hasOwn(SEED_VERSIONS, seedVersion) ? SEED_VERSIONS[seedVersion] : undefined;

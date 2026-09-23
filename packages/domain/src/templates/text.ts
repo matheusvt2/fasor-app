@@ -19,8 +19,8 @@ interface TypeNouns {
 }
 
 /**
- * The mock's nouns per type. The cable sets keep one form ("1 cabos de entrada", as
- * `42-template-composer.html` writes it): the block is the three-phase set, not a cable.
+ * The mock's nouns per type. The cable sets read "1 cabo de entrada" at one and "4 cabos de
+ * entrada" at many (Epic 3 review K6: the mock's "1 cabos de entrada" read as a plural bug).
  */
 const NOUNS: Readonly<Record<EquipmentBlockType, TypeNouns>> = {
   chave_seccionadora: { one: 'seccionadora', many: 'seccionadoras', label: 'Seccionadoras' },
@@ -28,8 +28,8 @@ const NOUNS: Readonly<Record<EquipmentBlockType, TypeNouns>> = {
   tp: { one: 'TP', many: 'TP', label: 'TP' },
   tc: { one: 'TC', many: 'TC', label: 'TC' },
   transformador_forca: { one: 'trafo', many: 'trafos', label: 'Transformadores' },
-  cabos_entrada: { one: 'cabos de entrada', many: 'cabos de entrada', label: 'Cabos de entrada' },
-  cabos_saida: { one: 'cabos de saída', many: 'cabos de saída', label: 'Cabos de saída' },
+  cabos_entrada: { one: 'cabo de entrada', many: 'cabos de entrada', label: 'Cabos de entrada' },
+  cabos_saida: { one: 'cabo de saída', many: 'cabos de saída', label: 'Cabos de saída' },
   para_raio: { one: 'para-raio', many: 'para-raios', label: 'Para-raios' },
 };
 

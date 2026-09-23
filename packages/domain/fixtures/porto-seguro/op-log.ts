@@ -29,6 +29,7 @@ import {
   NOT_TESTED_REASON,
   OXIGENIO,
   SECTION_7_PHOTOS,
+  SECTION_8_NOT_TESTED_AT,
   SECTION_8_POINTS,
   SUBSOLO_CABLES,
   SUBSOLO_COLUMNS,
@@ -215,11 +216,29 @@ const template = standardTemplate({ id: fixedId(10), seedVersion: SEED_VERSION }
 const locationIdOf = new Map<string, string>();
 for (const node of template.skeleton) locationIdOf.set(node.ref, newId());
 
+/** A sibling-ordered key: `a0`, `a1`, ... `a9`, `aa`, ... (base 36), sorting as the index does. */
+const siblingOrderKey = (n: number): string => `a${n.toString(36)}`;
+
+/**
+ * Each node's `order_key` among its siblings, in `standardTemplate()`'s skeleton order, which
+ * is the delivered document's: Cubículo Enel, 1° Subsolo (Coluna 1 to 17), Oxigênio,
+ * Cobertura A, Cobertura B, Geradores.
+ */
+const locationOrderKeyOf = new Map<string, string>();
+{
+  const siblingCount = new Map<string | null, number>();
+  for (const node of template.skeleton) {
+    const n = siblingCount.get(node.parent_ref) ?? 0;
+    siblingCount.set(node.parent_ref, n + 1);
+    locationOrderKeyOf.set(node.ref, siblingOrderKey(n));
+  }
+}
+
 function locationRow(node: SkeletonNode) {
   const id = locationIdOf.get(node.ref)!;
   const parent_id = node.parent_ref ? locationIdOf.get(node.parent_ref)! : null;
   if (node.kind === 'coluna') {
-    return { id, relatorio_id: RELATORIO_ID, parent_id, kind: 'coluna' as const, name: node.name, order_key: node.ref, removed_at: null };
+    return { id, relatorio_id: RELATORIO_ID, parent_id, kind: 'coluna' as const, name: node.name, order_key: locationOrderKeyOf.get(node.ref)!, removed_at: null };
   }
   const cabine = CABINE_DATA[node.ref];
   return {
@@ -228,7 +247,7 @@ function locationRow(node: SkeletonNode) {
     parent_id,
     kind: 'cabine' as const,
     name: node.name,
-    order_key: node.ref,
+    order_key: locationOrderKeyOf.get(node.ref)!,
     se: {
       type: cabine?.type ?? null,
       primary_kv: cabine ? measured(cabine.primaryKv, 'kV') : null,
@@ -406,7 +425,7 @@ const locationCounter = new Map<string, number>();
 function nextOrderKey(locationId: string): string {
   const n = locationCounter.get(locationId) ?? 0;
   locationCounter.set(locationId, n + 1);
-  return `a${n.toString(36)}`;
+  return siblingOrderKey(n);
 }
 
 let equipmentInstanceIndex = 0;
@@ -500,10 +519,13 @@ export const NOT_TESTED_DISJUNTOR_BLOCK_ID = notTested[1]!.blockId;
 export const NOT_TESTED_BLOCK_IDS: readonly string[] = notTested.map((n) => n.blockId);
 
 // --- section 8: general points, plus one `origin: 'not_tested'` point per not-tested block --
+// In the delivered document's order: manual bullets 1 to 3, then the not-tested points where
+// bullet 4 stands, then bullet 5. `order_key` is the point's position among all of them.
 
 SECTION_8_POINTS.forEach((text, i) => {
   const id = fixedId(50 + i);
-  push({ kind: 'create', scope: 'relatorio', path: `point/${id}`, value: { id, relatorio_id: RELATORIO_ID, text, equipment_id: null, origin: 'manual', order_key: `p${i}`, removed_at: null } });
+  const position = i < SECTION_8_NOT_TESTED_AT ? i : i + notTested.length;
+  push({ kind: 'create', scope: 'relatorio', path: `point/${id}`, value: { id, relatorio_id: RELATORIO_ID, text, equipment_id: null, origin: 'manual', order_key: siblingOrderKey(position), removed_at: null } });
 });
 
 notTested.forEach((entry, i) => {
@@ -513,11 +535,17 @@ notTested.forEach((entry, i) => {
     kind: 'create',
     scope: 'relatorio',
     path: `point/${id}`,
-    value: { id, relatorio_id: RELATORIO_ID, text: notTestedText(subject), equipment_id: entry.equipmentId, origin: 'not_tested', order_key: `nt${i}`, removed_at: null },
+    value: { id, relatorio_id: RELATORIO_ID, text: notTestedText(subject), equipment_id: entry.equipmentId, origin: 'not_tested', order_key: siblingOrderKey(SECTION_8_NOT_TESTED_AT + i), removed_at: null },
   });
 });
 
 // --- section 7: 82 placeholder photos, metadata only, reproducing the 75/76-x4 defect ----
+// `caption` holds the caption text only; the printed "Imagem NN" number belongs to the
+// renderer. The source's own numbers, defect included, are kept apart in
+// `SECTION_7_PHOTO_NUMBERS` (same order as the file rows) for the numbering-defect test.
+
+/** The source's "Imagem NN" numbers, one per photo in `local_seq` order: 1 to 74, then 75, 76 four times. */
+export const SECTION_7_PHOTO_NUMBERS: readonly number[] = SECTION_7_PHOTOS.map((photo) => photo.number);
 
 SECTION_7_PHOTOS.forEach((photo, i) => {
   const id = fixedId(10000 + i);
@@ -542,7 +570,7 @@ SECTION_7_PHOTOS.forEach((photo, i) => {
       local_seq: i + 1,
       block_id: null,
       item_key: null,
-      caption: `Imagem ${String(photo.number).padStart(2, '0')}: ${photo.caption}`,
+      caption: photo.caption,
       reading_kind: null,
       reading_target: null,
       reading_status: 'none',
