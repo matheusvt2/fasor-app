@@ -1,6 +1,8 @@
 import { ui } from '../copy/ui';
 
 export interface ToggleProps {
+  /** For a row's `<label htmlFor>`: tapping the row label toggles too (EXPERIENCE.md › Toggle). */
+  id?: string;
   isSelected: boolean;
   onChange?: (isSelected: boolean) => void;
   /** Accessible name; the visible `.toggle-word` carries the state, not the identity. */
@@ -42,23 +44,27 @@ export function Toggle({ isSelected, onChange, ...rest }: ToggleProps) {
 }
 
 export interface LockedToggleProps {
-  /** Accessible name for the read-only switch (e.g. "Lista de verificação"). */
-  'aria-label'?: string;
+  /** For a row's `<label htmlFor>` (a press on it does nothing, as on the switch). */
+  id?: string;
+  /** The sub-block's name (e.g. "Lista de verificação"); the accessible name adds ", sempre ativado". */
+  'aria-label': string;
 }
 
 /**
  * A locked sub-block (checklist, conclusion): always on, shown for information, not a
- * control (Component Patterns › Toggle). Read-only rather than disabled: the state is
- * still meant to be perceived, just never changed here. Plain markup (not React Aria): a
- * static, non-interactive element may legitimately carry `role`/`aria-checked` directly.
+ * control (Component Patterns › Toggle). The mock's markup verbatim
+ * (`42-template-composer.html`, the "Observações e conclusão" row): a `.toggle` switch that
+ * is `aria-checked="true" aria-disabled="true"`, named "⟨sub-block⟩, sempre ativado", with
+ * "Sempre" as its word. `aria-disabled` rather than `disabled`, so it stays perceivable and
+ * reachable by keyboard; a press does nothing.
  */
-export function LockedToggle({ 'aria-label': ariaLabel }: LockedToggleProps) {
+export function LockedToggle({ id, 'aria-label': ariaLabel }: LockedToggleProps) {
   return (
-    <span className="toggle" role="switch" aria-checked="true" aria-readonly="true" aria-label={ariaLabel} tabIndex={0}>
+    <button id={id} type="button" className="toggle" role="switch" aria-checked="true" aria-disabled="true" aria-label={ui.toggle.lockedLabel(ariaLabel)}>
       <span className="track" aria-hidden="true">
         <span className="knob" />
       </span>
       <span className="toggle-word">{ui.toggle.locked}</span>
-    </span>
+    </button>
   );
 }

@@ -8,6 +8,7 @@ import {
   type SubBlockKey,
   type TypeConfig,
 } from '@app/domain';
+import { useId } from 'react';
 import { Button, Combobox, FormDialog, LockedToggle, Toggle } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 
@@ -35,6 +36,7 @@ export interface TypeDefaultsDialogProps {
 export function TypeDefaultsDialog({ type, seedVersion, config, onChange, onClose }: TypeDefaultsDialogProps) {
   const definition = getDefinition(seedVersion, 'cabine_primaria', type);
   const typeName = copy.composer.equipmentNames[type];
+  const rowIdPrefix = useId();
 
   const setEnabled = (key: SubBlockKey, enabled: boolean) =>
     onChange((current) => ({ ...current, sub_blocks: { ...current.sub_blocks, [key]: { ...current.sub_blocks[key], enabled } } }));
@@ -76,13 +78,22 @@ export function TypeDefaultsDialog({ type, seedVersion, config, onChange, onClos
         <p className="table-title">{copy.composer.subBlocksTitle}</p>
         {definition.sub_blocks.map((key) => {
           const label = copy.composer.subBlockLabels[key];
+          const locked = LOCKED_SUB_BLOCKS.includes(key);
+          const toggleId = `${rowIdPrefix}-${key}`;
           return (
             <div className="toggle-row" key={key}>
-              <div className="toggle-label">{label}</div>
-              {LOCKED_SUB_BLOCKS.includes(key) ? (
-                <LockedToggle aria-label={label} />
+              <div>
+                {/* Tapping the row label toggles too (EXPERIENCE.md › Toggle). */}
+                <label className="toggle-label" htmlFor={toggleId}>
+                  {label}
+                </label>
+                {locked ? <div className="toggle-sub">{copy.composer.alwaysOnSheet}</div> : null}
+              </div>
+              {locked ? (
+                <LockedToggle id={toggleId} aria-label={label} />
               ) : (
                 <Toggle
+                  id={toggleId}
                   isSelected={config.sub_blocks[key]?.enabled === true}
                   aria-label={label}
                   onChange={(enabled) => setEnabled(key, enabled)}

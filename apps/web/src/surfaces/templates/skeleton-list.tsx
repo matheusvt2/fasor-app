@@ -43,11 +43,14 @@ export function SkeletonList(props: SkeletonListProps) {
   return (
     <section className="section" aria-labelledby={headingId}>
       <div className="section-head">
-        <h2 id={headingId}>{skeletonHeading(view)}</h2>
+        {/* tabIndex -1: the focus lands here when a removal empties the skeleton. */}
+        <h2 id={headingId} tabIndex={-1}>
+          {skeletonHeading(view)}
+        </h2>
         <span className="section-note">{copy.composer.skeletonNote}</span>
       </div>
       {view.cabines.length === 0 ? null : (
-        <ul className="skeleton-list block-list" aria-label={copy.composer.skeletonListLabel}>
+        <ul className="skeleton-list block-list" aria-label={copy.composer.skeletonListLabel} data-composer-list="skeleton">
           {view.cabines.map((cabine) => (
             <CabineCard key={cabine.ref} cabine={cabine} {...props} />
           ))}
@@ -133,6 +136,7 @@ function CabineCard({ cabine, ...props }: SkeletonListProps & { cabine: Composer
   });
   const nameId = useId();
   const toggleLabelId = useId();
+  const toggleId = useId();
   const bodyButton = useRef<HTMLButtonElement>(null);
   const summary = nodeSummaryText(cabine);
   const isCurrent = currentRef === cabine.ref;
@@ -159,10 +163,12 @@ function CabineCard({ cabine, ...props }: SkeletonListProps & { cabine: Composer
         <span className="block-sub">{summary.sum}</span>
       </button>
       <span className="cabine-toggle">
-        <span className="cabine-flag" id={toggleLabelId}>
+        {/* Tapping the row label toggles too (EXPERIENCE.md › Toggle). */}
+        <label className="cabine-flag" id={toggleLabelId} htmlFor={toggleId}>
           {copy.composer.agruparPorTipo}
-        </span>
+        </label>
         <Toggle
+          id={toggleId}
           isSelected={cabine.agrupar_por_tipo}
           aria-labelledby={`${toggleLabelId} ${nameId}`}
           onChange={(value) => onToggleAgrupar(cabine.ref, value)}

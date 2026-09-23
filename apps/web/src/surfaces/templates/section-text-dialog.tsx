@@ -81,6 +81,12 @@ export function SectionTextDialog({ sectionTitle, sectionNumber, text, onCommit,
         insertLineBreak(element, currentRange());
         changed();
       } else if (
+        // The browser's undo history never saw the editor's own DOM edits (chips, line
+        // breaks, pastes, a chip removed whole), so its undo would take back the wrong thing
+        // -- earlier typing instead of the chip. "Restaurar texto padrão" + "Desfazer" is the
+        // undo path here.
+        event.inputType === 'historyUndo' ||
+        event.inputType === 'historyRedo' ||
         event.inputType === 'insertFromDrop' ||
         event.inputType === 'deleteByDrag' ||
         event.inputType === 'formatBold' ||
@@ -106,6 +112,12 @@ export function SectionTextDialog({ sectionTitle, sectionNumber, text, onCommit,
   }, []);
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    // Ctrl/Cmd+Z, Ctrl/Cmd+Y and Ctrl/Cmd+Shift+Z: the browser's undo and redo, stopped
+    // before a browser that raises no `historyUndo` beforeinput for them acts (see above).
+    if ((event.ctrlKey || event.metaKey) && !event.altKey && ['z', 'y'].includes(event.key.toLowerCase())) {
+      event.preventDefault();
+      return;
+    }
     const element = area.current;
     const range = currentRange();
     if (element === null || range === null) return;

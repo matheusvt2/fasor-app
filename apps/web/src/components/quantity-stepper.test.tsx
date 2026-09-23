@@ -72,6 +72,40 @@ describe('QuantityStepper (UX-DR30)', () => {
     expect(onCommit.mock.calls).toEqual([[1], [2]]);
   });
 
+  it('a held Enter on "+" (key auto-repeat) steps per repeat and commits once, on key release', async () => {
+    const onCommit = vi.fn();
+    render(<Harness onCommit={onCommit} />);
+    screen.getByRole('button', { name: 'Mais um' }).focus();
+    // Four keydowns (the first plus three auto-repeats), then one keyup.
+    await userEvent.keyboard('{Enter>4/}');
+    await waitFor(() => expect(count()).toHaveValue('4'));
+    expect(onCommit.mock.calls).toEqual([[4]]);
+  });
+
+  it('a held ArrowUp or ArrowDown in the count (key auto-repeat) commits once, on key release', async () => {
+    const onCommit = vi.fn();
+    render(<Harness initial={10} onCommit={onCommit} />);
+    await userEvent.click(count());
+    await userEvent.keyboard('{ArrowUp>5/}');
+    await waitFor(() => expect(group()).toHaveAccessibleName('Seccionadoras, 15'));
+    expect(onCommit.mock.calls).toEqual([[15]]);
+    await userEvent.keyboard('{ArrowDown>3/}');
+    await waitFor(() => expect(group()).toHaveAccessibleName('Seccionadoras, 12'));
+    expect(onCommit.mock.calls).toEqual([[15], [12]]);
+  });
+
+  it('a held arrow that loses the focus before its key is released still commits what it reached', async () => {
+    const onCommit = vi.fn();
+    render(<Harness initial={2} onCommit={onCommit} />);
+    await userEvent.click(count());
+    await userEvent.keyboard('{ArrowUp>3}');
+    expect(onCommit).not.toHaveBeenCalled();
+    act(() => count().blur());
+    await waitFor(() => expect(onCommit.mock.calls).toEqual([[5]]));
+    await userEvent.keyboard('{/ArrowUp}');
+    expect(onCommit.mock.calls).toEqual([[5]]);
+  });
+
   it('commits a typed number on blur or Enter, clamped to 99; anything else restores with no commit', async () => {
     const onCommit = vi.fn();
     render(<Harness initial={4} onCommit={onCommit} />);

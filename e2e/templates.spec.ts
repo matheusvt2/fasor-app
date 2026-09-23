@@ -241,12 +241,15 @@ test('@p0 3.3-E2E-003 archive, restore, remove with confirm and undo, all kept o
   await expect(page.getByRole('heading', { level: 2, name: 'Arquivados (1)' })).toBeVisible();
   await expect(names(archivedList(page))).toHaveText([STANDARD_TEMPLATE_NAME]);
   await expect(page.getByRole('heading', { level: 2, name: 'Templates (0)' })).toBeVisible();
+  // The row moved to the other group and kept the focus, on its "Restaurar".
+  await expect(archivedList(page).getByRole('button', { name: 'Restaurar' })).toBeFocused();
   await page.reload();
   await expect(names(archivedList(page))).toHaveText([STANDARD_TEMPLATE_NAME]);
 
   await archivedList(page).getByRole('button', { name: 'Restaurar' }).click();
   await expect(names(activeList(page))).toHaveText([STANDARD_TEMPLATE_NAME]);
   await expect(archivedList(page)).toHaveCount(0);
+  await expect(activeList(page).getByRole('button', { name: 'Arquivar' })).toBeFocused();
 
   await activeList(page).getByRole('button', { name: `Mais opções de ${STANDARD_TEMPLATE_NAME}` }).click();
   await page.getByRole('menuitem', { name: 'Remover' }).click();
@@ -255,12 +258,26 @@ test('@p0 3.3-E2E-003 archive, restore, remove with confirm and undo, all kept o
   await dialog.getByRole('button', { name: 'Remover' }).click();
   await expect(activeList(page)).toHaveCount(0);
   await expect(page.getByText(`${STANDARD_TEMPLATE_NAME} removido`)).toBeVisible();
+  // The only row left: the list's heading takes the focus, never <body>.
+  await expect(page.getByRole('heading', { level: 2, name: 'Templates (0)' })).toBeFocused();
 
   await page.getByRole('button', { name: 'Desfazer' }).click();
   await expect(names(activeList(page))).toHaveText([STANDARD_TEMPLATE_NAME]);
+  await expect(page.getByRole('button', { name: `Abrir template ${STANDARD_TEMPLATE_NAME}`, exact: true })).toBeFocused();
+
   await page.reload();
   await expect(names(activeList(page))).toHaveText([STANDARD_TEMPLATE_NAME]);
   expect((await outboxPaths(page, account.userId)).every((path) => path.startsWith('template/'))).toBe(true);
+
+  // The list's undo toast never follows into a composer, where its "Desfazer" would act on
+  // a template that screen is not about.
+  const copyName = `${STANDARD_TEMPLATE_NAME} — cópia`;
+  await activeList(page).getByRole('button', { name: 'Duplicar' }).click();
+  await expect(names(activeList(page))).toHaveText([STANDARD_TEMPLATE_NAME, copyName]);
+  await activeList(page).getByRole('listitem').filter({ hasText: copyName }).getByRole('button', { name: 'Arquivar' }).click();
+  await expect(page.getByTestId('toast').getByRole('button', { name: 'Desfazer' })).toBeVisible();
+  await openComposer(page, STANDARD_TEMPLATE_NAME);
+  await expect(page.getByTestId('toast')).toHaveCount(0);
 });
 
 // --- Story 3.4 -------------------------------------------------------------------------
@@ -441,6 +458,8 @@ test('@p0 3.4-E2E-003 section blocks reorder, duplicate and remove with undo; Ag
   await expect(dialog.getByRole('button', { name: 'Cancelar' })).toBeFocused();
   await dialog.getByRole('button', { name: 'Remover' }).click();
   await expect(tags).toHaveText(['2', '1', '4', '3', '5', '6', '10', '10', '11', '5']);
+  // The Overflow that opened the dialog left with its card: the next card's takes the focus.
+  await expect(page.getByRole('button', { name: 'Mais opções de 10 Conclusão' }).first()).toBeFocused();
   await page.getByRole('button', { name: 'Desfazer' }).click();
   await expect(tags).toHaveText(['2', '1', '4', '3', '5', '6', '8', '10', '10', '11', '5']);
 
@@ -448,6 +467,12 @@ test('@p0 3.4-E2E-003 section blocks reorder, duplicate and remove with undo; Ag
   const toggle = page.getByRole('switch', { name: 'Agrupar por tipo Cubículo Enel' });
   await expect(toggle).toHaveAttribute('aria-checked', 'false');
   await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-checked', 'true');
+  // Tapping the row label toggles too: off, then on again.
+  const enelLabel = page.locator('li').filter({ has: toggle }).locator('label', { hasText: 'Agrupar por tipo' });
+  await enelLabel.click();
+  await expect(toggle).toHaveAttribute('aria-checked', 'false');
+  await enelLabel.click();
   await expect(toggle).toHaveAttribute('aria-checked', 'true');
   await page.reload();
   await expect(page.getByRole('switch', { name: 'Agrupar por tipo Cubículo Enel' })).toHaveAttribute('aria-checked', 'true');
@@ -572,6 +597,12 @@ test('@p1 3.4-E2E-006 the palette sits beside the composition from 1024px, in a 
 
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await horizontalOverflow(page), 'composer at 390px').toBeLessThanOrEqual(0);
+  // "Agrupar por tipo" wraps to its own line on a phone, inset from the card's border.
+  const card = page.locator('.cabine-card').first();
+  const cardBox = (await card.boundingBox())!;
+  const agruparBox = (await card.locator('.cabine-toggle label').boundingBox())!;
+  expect(agruparBox.y, 'Agrupar por tipo on its own line at 390px').toBeGreaterThan(cardBox.y + 40);
+  expect(agruparBox.x - cardBox.x, 'Agrupar por tipo inset at 390px').toBeGreaterThanOrEqual(12);
   await blocos.click();
   const sheet = page.getByRole('dialog', { name: 'Blocos' });
   await expect(sheet).toBeVisible();
@@ -628,13 +659,20 @@ test('@p0 3.5-E2E-001 per-type sub-block defaults: toggles, "Sempre", subtype NA
   await expect(contato).toHaveAttribute('aria-checked', 'true');
   await expect(contato).toContainText('Ativado');
   for (const locked of ['Verificações gerais', 'Conclusão']) {
-    const toggle = dialog.getByRole('switch', { name: locked });
+    // The mock's locked row: aria-disabled, named ", sempre ativado", "Sempre na ficha" under it.
+    const toggle = dialog.getByRole('switch', { name: `${locked}, sempre ativado` });
     await expect(toggle).toContainText('Sempre');
-    await expect(toggle).toHaveAttribute('aria-readonly', 'true');
-    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-disabled', 'true');
+    await expect(dialog.locator('.toggle-row').filter({ has: page.getByRole('switch', { name: `${locked}, sempre ativado` }) }).locator('.toggle-sub')).toHaveText('Sempre na ficha');
+    // Playwright waits for an aria-disabled control to become enabled; the press is forced
+    // to show it does nothing.
+    await toggle.click({ force: true });
+    await expect(toggle).toHaveAttribute('aria-checked', 'true');
+    await dialog.locator('label', { hasText: locked }).click({ force: true });
     await expect(toggle).toHaveAttribute('aria-checked', 'true');
   }
-  await contato.click();
+  // Tapping the row label toggles too (EXPERIENCE.md › Toggle).
+  await dialog.locator('label', { hasText: 'Resistência de contato' }).click();
   await expect(contato).toHaveAttribute('aria-checked', 'false');
   await expect(contato).toContainText('Desativado');
 
@@ -814,4 +852,52 @@ test('@p1 3.6-E2E-002 "Restaurar texto padrão" puts the seed text back and "Des
     .toMatch(/Texto próprio\.$/);
   await expect(await openText()).toBeVisible();
   await expect(area).toContainText('Texto próprio.');
+});
+
+test('@p0 3.6-E2E-003 section text: browser undo cannot corrupt the text, and spaces typed in it show as typed on reopen', async ({
+  page,
+  seed,
+}) => {
+  await resetEmpresaB({ standard: true });
+  const account = seed.companies[1];
+  await signIn(page, account.email);
+  await openTemplates(page);
+  await expect(names(activeList(page))).toHaveText([STANDARD_TEMPLATE_NAME], { timeout: 30_000 });
+  await openComposer(page, STANDARD_TEMPLATE_NAME);
+  const templateId = page.url().split('/').at(-1)!;
+  const openText = async () => {
+    await page.getByRole('button', { name: 'Mais opções de 1 Objetivo' }).click();
+    await page.getByRole('menuitem', { name: 'Editar texto' }).click();
+    return page.getByRole('dialog', { name: '1 Objetivo — texto fixo' });
+  };
+
+  const dialog = await openText();
+  const area = dialog.getByRole('textbox', { name: 'Texto da seção 1' });
+  const chips = area.locator('.var-chip');
+  await expect(area).toBeFocused();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type(' Texto A    B');
+  await dialog.getByRole('button', { name: 'datas', exact: true }).click();
+  await expect(chips).toHaveText(['{empresa_executora}', '{obra}', '{cliente}', '{datas}']);
+  await page.keyboard.press('Backspace');
+  await expect(chips).toHaveCount(3);
+
+  // The browser's undo never saw the chip go in or out: it would take back the typing
+  // instead. It is stopped, by every shortcut, and the text stays as it is.
+  const before = await area.innerText();
+  for (const shortcut of ['Control+z', 'Control+Shift+z', 'Control+y']) {
+    await page.keyboard.press(shortcut);
+    await expect(chips).toHaveCount(3);
+    expect(await area.innerText(), `${shortcut} leaves the text alone`).toBe(before);
+  }
+  await expect
+    .poll(async () => (await deviceTemplate(page, account.userId, templateId)).blocks[0]!.section_text, { timeout: 10_000 })
+    .toMatch(/ Texto A {4}B$/);
+  await dialog.getByRole('button', { name: 'Fechar' }).click();
+  await expect(dialog).toBeHidden();
+
+  // Reopened, the four spaces show as four, not collapsed into one.
+  await expect(await openText()).toBeVisible();
+  await expect(chips).toHaveText(['{empresa_executora}', '{obra}', '{cliente}']);
+  expect(await area.innerText()).toMatch(/ Texto A {4}B\s*$/);
 });

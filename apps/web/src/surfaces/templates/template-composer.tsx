@@ -53,6 +53,7 @@ import { SectionTextDialog } from './section-text-dialog.tsx';
 import { SkeletonList } from './skeleton-list.tsx';
 import { putTemplateOp, writeErrorText, type TemplateField } from './template-ops.ts';
 import { TypeDefaultsDialog } from './type-defaults-dialog.tsx';
+import { LIST_FOCUS_WATCH_FRAMES, restoreFocus } from './use-reorder.ts';
 import './templates.css';
 
 /**
@@ -84,6 +85,33 @@ export function TemplateComposerSurface() {
 }
 
 type Confirming = { title: string; body: string; run: () => Promise<void> };
+
+/** A reorderable row's Overflow trigger (a cabine card's, a coluna row's, a section card's). */
+const overflowOf = (row: Element | undefined): HTMLElement | null =>
+  row?.querySelector<HTMLElement>(':scope > .overflow-trigger, :scope > .col-line > .overflow-trigger') ?? null;
+
+/**
+ * Names where the focus goes once the row `li` has left its list: the Overflow the Confirm
+ * dialog returned the focus to leaves with it, which would drop the focus to `<body>`. The
+ * row now at its place takes it, else the one before it, else `fallback` (the list's
+ * heading, or the cabine a coluna belonged to). Called with the row as drawn before the
+ * removal was written.
+ */
+function focusAfterRemoval(li: HTMLElement | null, fallback: HTMLElement | null): void {
+  const list = li?.parentElement ?? null;
+  if (li === null || list === null) return;
+  const count = list.children.length;
+  const index = [...list.children].indexOf(li);
+  restoreFocus(
+    () => {
+      const rows = list.isConnected ? [...list.children] : [];
+      // Not re-rendered yet: the row is still counted in its list.
+      if (list.isConnected && rows.length >= count) return null;
+      return overflowOf(rows[index]) ?? overflowOf(rows[index - 1]) ?? fallback;
+    },
+    { frames: LIST_FOCUS_WATCH_FRAMES, once: true },
+  );
+}
 
 /**
  * The Template composer (`42-template-composer.html`, Story 3.4). Every edit autosaves as
@@ -125,6 +153,7 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
   const [editingText, setEditingText] = useState<ComposerSection | null>(null);
   const [announcement, setAnnouncement] = useState('');
   const firstSection = useRef<HTMLButtonElement>(null);
+  const mainRef = useRef<HTMLDivElement>(null);
   const queue = useRef<Promise<unknown>>(Promise.resolve());
   const id = row.id;
 
@@ -252,6 +281,13 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
       title: copy.composer.removeConfirmTitle(node.name),
       body: node.kind === 'cabine' ? copy.composer.removeCabineBody : copy.composer.removeColunaBody,
       run: async () => {
+        const li =
+          mainRef.current?.querySelector<HTMLElement>(`[data-composer-list="skeleton"] [data-reorder-key="${CSS.escape(node.ref)}"]`) ?? null;
+        // A cabine's list is the skeleton (its heading last); a coluna's is its cabine's.
+        const fallback =
+          node.kind === 'cabine'
+            ? (li?.closest('section')?.querySelector<HTMLElement>('h2') ?? null)
+            : (li?.closest('.cabine-card')?.querySelector<HTMLElement>(':scope > .block-body') ?? null);
         const batch = await edit((fresh) => {
           const next = removeNode(fresh, node.ref);
           return [
@@ -259,6 +295,7 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
             ['blocks', next.blocks],
           ];
         }).catch(() => null);
+        if (batch !== null) focusAfterRemoval(li, fallback);
         undoable(removedText(node.kind, node.name), batch);
       },
     });
@@ -309,7 +346,11 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
       title: copy.composer.removeConfirmTitle(title),
       body: copy.composer.removeSectionBody,
       run: async () => {
+        const list = mainRef.current?.querySelector<HTMLElement>('[data-composer-list="sections"]') ?? null;
+        const li = (list?.children[section.position - 1] as HTMLElement | undefined) ?? null;
+        const heading = list?.closest('section')?.querySelector<HTMLElement>('h2') ?? null;
         const batch = await edit((fresh) => [['blocks', removeSection(withoutOrphans(fresh), section.index)]]).catch(() => null);
+        if (batch !== null) focusAfterRemoval(li, heading);
         undoable(removedText('section', String(section.number)), batch);
       },
     });
@@ -406,7 +447,7 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
           <BlockPaletteContent {...paletteProps} firstSectionRef={firstSection} />
         </aside>
 
-        <div className="composer-main">
+        <div className="composer-main" ref={mainRef}>
           <div className="composer-head">
             <label className="field name-field">
               <span className="field-label">{copy.composer.nameLabel}</span>

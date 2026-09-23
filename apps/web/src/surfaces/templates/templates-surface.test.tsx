@@ -385,6 +385,67 @@ describe('3.3 Templates: actions', () => {
     expect(paths.every((path) => path.startsWith('template/'))).toBe(true);
   });
 
+  it('keeps the focus on the row it moved: "Restaurar" after "Arquivar", "Arquivar" after "Restaurar"', async () => {
+    database = await freshDb();
+    await seed(database, [template(A, 'Cabine primária — padrão'), template(B, 'Outro')]);
+    renderSurface();
+    const list = await screen.findByRole('list', { name: 'Templates ativos' });
+    const outro = () => within(screen.getByRole('list', { name: 'Templates ativos' })).getAllByRole('listitem')[1]!;
+    await waitFor(() => expect(primaries(list)).toEqual(['Cabine primária — padrão', 'Outro']));
+    await userEvent.click(within(outro()).getByRole('button', { name: 'Arquivar' }));
+
+    const archived = await screen.findByRole('list', { name: 'Templates arquivados' });
+    await waitFor(() => expect(within(archived).getByRole('button', { name: 'Restaurar' })).toHaveFocus());
+
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() => expect(within(outro()).getByRole('button', { name: 'Arquivar' })).toHaveFocus());
+    expect(screen.queryByRole('list', { name: 'Templates arquivados' })).toBeNull();
+  });
+
+  it('after a removal the focus goes to the next row, else the previous, else the heading; after "Desfazer" to the row', async () => {
+    database = await freshDb();
+    await seed(database, [template(A, 'Cabine primária — padrão'), template(B, 'Outro')]);
+    renderSurface();
+    const list = await screen.findByRole('list', { name: 'Templates ativos' });
+    await waitFor(() => expect(primaries(list)).toEqual(['Cabine primária — padrão', 'Outro']));
+    const remove = async (name: string) => {
+      await userEvent.click(screen.getByRole('button', { name: `Mais opções de ${name}` }));
+      await userEvent.click(await screen.findByRole('menuitem', { name: 'Remover' }));
+      const dialog = await screen.findByRole('dialog', { name: `Remover ${name}?` });
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Remover' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    };
+
+    // The first row: the next one takes the focus.
+    await remove('Cabine primária — padrão');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Abrir template Outro' })).toHaveFocus());
+    // "Desfazer" brings the row back and gives it the focus.
+    await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Abrir template Cabine primária — padrão' })).toHaveFocus());
+
+    // The last row: the previous one.
+    await remove('Outro');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Abrir template Cabine primária — padrão' })).toHaveFocus());
+
+    // The only row: the list's heading.
+    await remove('Cabine primária — padrão');
+    await waitFor(() => expect(screen.getByRole('heading', { level: 2, name: 'Templates (0)' })).toHaveFocus());
+  });
+
+  it('retires its undo toast when the list is left, so its "Desfazer" never acts from another screen', async () => {
+    database = await freshDb();
+    await seed(database, [template(A, 'Cabine primária — padrão'), template(B, 'Outro')]);
+    renderSurface();
+    const list = await screen.findByRole('list', { name: 'Templates ativos' });
+    await waitFor(() => expect(primaries(list)).toEqual(['Cabine primária — padrão', 'Outro']));
+    await userEvent.click(within(list).getAllByRole('button', { name: 'Arquivar' })[0]!);
+    expect(await screen.findByText('Template arquivado · relatórios já criados continuam intactos')).toBeVisible();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir template Outro' }));
+    expect(await screen.findByTestId('where')).toHaveTextContent(`/templates/${B}`);
+    expect(screen.queryByTestId('toast')).toBeNull();
+  });
+
   it('"Novo template" creates an empty composition and opens it', async () => {
     database = await freshDb();
     await seed(database, [template(A, 'Cabine primária — padrão')]);

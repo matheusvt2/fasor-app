@@ -12,6 +12,8 @@ export const ui = {
     off: 'Desativado',
     /** `.toggle-word` for a locked sub-block (checklist, conclusion): not a control. */
     locked: 'Sempre',
+    /** Verbatim from `42-template-composer.html`: a locked switch's name, "Observações e conclusão, sempre ativado". */
+    lockedLabel: (name: string) => `${name}, sempre ativado`,
   },
   toast: {
     // authored: the mock's persistent toast (`key-sheet-states.html`) draws only its

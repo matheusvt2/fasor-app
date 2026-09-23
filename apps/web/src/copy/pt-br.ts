@@ -292,6 +292,8 @@ export const copy = {
     // Verbatim from the mock's `.block-expand`.
     subtypeLabel: 'Subtipo padrão',
     subBlocksTitle: 'Sub-blocos padrão',
+    // Verbatim from the mock's locked "Observações e conclusão" row, its `.toggle-sub`.
+    alwaysOnSheet: 'Sempre na ficha',
     defaultsNote:
       'Um sub-bloco desativado não é impresso na ficha — nunca sai vazio. Cada ficha pode sobrepor estes padrões pela paleta aberta de dentro dela.',
     // authored: the select's option for a type used with no subtype.

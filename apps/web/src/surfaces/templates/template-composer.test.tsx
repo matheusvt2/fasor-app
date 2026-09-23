@@ -132,7 +132,9 @@ describe('3.4 composer: address', () => {
     // No Save bar: every edit saves itself.
     expect(screen.queryByRole('button', { name: 'Salvar template' })).toBeNull();
     expect(await axe(container)).toHaveNoViolations();
-  });
+    // axe over the whole standard template (94 blocks, 17 colunas) takes several seconds on
+    // its own and outlasted the 15 s default under a loaded full `pnpm verify` run.
+  }, 60_000);
 });
 
 describe('3.4 composer: skeleton', () => {
@@ -277,6 +279,35 @@ describe('3.4 composer: skeleton', () => {
     const row = await templateRow(database, ID);
     expect(row!.skeleton.find((n) => n.ref === 'enel')).toMatchObject({ agrupar_por_tipo: true });
     expect(await outboxPaths()).toEqual([`template/${ID}/skeleton`]);
+
+    // Tapping the row label toggles too (EXPERIENCE.md › Toggle).
+    const enel = toggle.closest('li')!;
+    await userEvent.click(within(enel).getByText('Agrupar por tipo'));
+    await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'false'));
+    expect(await outboxPaths()).toEqual([`template/${ID}/skeleton`, `template/${ID}/skeleton`]);
+  });
+
+  it('after a removal the focus goes to the next row\'s Overflow, else the previous one\'s, else the heading', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    renderComposer();
+    const removeVia = async (trigger: string, title: string) => {
+      await userEvent.click(await screen.findByRole('button', { name: trigger }));
+      await userEvent.click(await screen.findByRole('menuitem', { name: 'Remover' }));
+      const dialog = await screen.findByRole('dialog', { name: `Remover ${title}?` });
+      await userEvent.click(within(dialog).getByRole('button', { name: 'Remover' }));
+    };
+
+    // A coluna in the middle of its cabine: the coluna after it.
+    const coluna3 = (await screen.findByRole('button', { name: 'Mais opções de Coluna 3' })).closest('li')!;
+    const after = (coluna3.nextElementSibling as HTMLElement).querySelector('.col-name')!.textContent!;
+    await removeVia('Mais opções de Coluna 3', 'Coluna 3');
+    await waitFor(() => expect(screen.getByRole('button', { name: `Mais opções de ${after}` })).toHaveFocus());
+
+    // The last section: the one before it.
+    const sections = screen.getByRole('list', { name: 'Blocos do template' });
+    await removeVia('Mais opções de 11 Certificados', '11 Certificados');
+    await waitFor(() => expect(within(sections).getAllByRole('listitem')).toHaveLength(8));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Mais opções de 10 Conclusão' })).toHaveFocus());
   });
 
   it('removes a coluna with its blocks after a Confirm dialog, in one batch, and "Desfazer" restores both fields', async () => {
@@ -486,18 +517,23 @@ describe('3.5 composer: sub-block defaults per type', () => {
     expect(plate).toHaveAttribute('aria-checked', 'true');
     expect(plate).toHaveTextContent('Ativado');
     for (const locked of ['Verificações gerais', 'Conclusão']) {
-      const toggle = within(dialog).getByRole('switch', { name: locked });
-      expect(toggle.tagName).toBe('SPAN');
-      expect(toggle).toHaveAttribute('aria-readonly', 'true');
+      // The mock's locked row: aria-disabled, ", sempre ativado", and "Sempre na ficha" under it.
+      const toggle = within(dialog).getByRole('switch', { name: `${locked}, sempre ativado` });
+      expect(toggle).toHaveAttribute('aria-disabled', 'true');
+      expect(toggle).toHaveAttribute('aria-checked', 'true');
       expect(toggle).toHaveTextContent('Sempre');
+      expect(toggle.closest('.toggle-row')!.querySelector('.toggle-sub')).toHaveTextContent('Sempre na ficha');
+      await userEvent.click(within(dialog).getByText(locked, { selector: 'label' }));
+      expect(toggle).toHaveAttribute('aria-checked', 'true');
     }
+    expect(dialog.querySelectorAll('.toggle-sub')).toHaveLength(2);
     const subtype = within(dialog).getByRole('combobox', { name: 'Subtipo padrão' });
     expect(subtype).toHaveValue('MANUAL');
     expect(within(dialog).getByText('2 itens marcados NA por padrão')).toBeVisible();
     expect(await axe(dialog)).toHaveNoViolations();
 
-    // Off, on every placement, as one blocks put.
-    await userEvent.click(within(dialog).getByRole('switch', { name: 'Resistência de contato' }));
+    // Off, on every placement, as one blocks put -- from a tap on the row's label.
+    await userEvent.click(within(dialog).getByText('Resistência de contato', { selector: 'label' }));
     await waitFor(async () => {
       const blocks = (await templateRow(database!, ID))!.blocks.filter((b) => b.block_type === 'chave_seccionadora');
       expect(blocks.every((b) => b.sub_blocks.resistencia_contato?.enabled === false)).toBe(true);

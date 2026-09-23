@@ -210,6 +210,12 @@ body {
   [data-route="/templates/:id"] .composer-main { padding: var(--sp-4) var(--gutter-phone); }
   /* `.frame-phone [data-route="/templates/porto-seguro"] .block-card .block-expand` (42-template-composer.html) */
   [data-route="/templates/:id"] .block-card .block-expand { padding-left: var(--sp-3); padding-right: var(--sp-3); }
+  /* authored: the app's cabine card draws "Agrupar por tipo" and its switch beside the card
+     body (the mock shows it only as a flag in the sub line). On a phone that pair wraps to a
+     line of its own, where `.block-card`'s zero left padding (its drag handle stands in for
+     it) left it flush against the border; it takes the inset the mock's phone
+     `.block-expand` rule above gives the card's other full-width line. */
+  [data-route="/templates/:id"] .cabine-card > .cabine-toggle { padding-left: var(--sp-3); }
   /* authored: the app's coluna row adds a drag handle and a Position box beside the mock's
      `.col-head`, so on a phone its `.col-sum` goes under the name instead of into a
      one-word-wide column. */

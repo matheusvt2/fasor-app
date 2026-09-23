@@ -37,6 +37,9 @@ type Delta = -1 | 1;
  * - The count is an input: a typed number commits on blur or Enter, clamped to 0..99;
  *   anything else ("abc", "-3") puts the previous value back and writes nothing. Arrow
  *   up/down in it step too.
+ * - A held key is coalesced like a held pointer: every auto-repeat of Enter on a button or
+ *   of an arrow in the count steps the shown count, and one commit happens when the key is
+ *   released (or the focus leaves first), so a held key is one op, not one per repeat.
  * - After each commit the new label is announced politely ("Seccionadoras, 25").
  */
 export function QuantityStepper({ value, label, onCommit, isDisabled = false, disabledReasonId }: QuantityStepperProps) {
@@ -52,6 +55,9 @@ export function QuantityStepper({ value, label, onCommit, isDisabled = false, di
   /** The last quantity sent to `onCommit`, and how many of those writes are still in flight. */
   const target = useRef<number | null>(null);
   const inFlight = useRef(0);
+  /** A stepping key (Enter, Space, an arrow) is down: its steps wait for the key's release. */
+  const keyHeld = useRef(false);
+  const keyPending = useRef(false);
 
   const show = useCallback((n: number) => {
     localRef.current = n;
@@ -98,6 +104,31 @@ export function QuantityStepper({ value, label, onCommit, isDisabled = false, di
   );
 
   const step = useCallback((delta: Delta) => show(clampQuantity(localRef.current + delta)), [show]);
+
+  /** Commits a keyboard step now, or once the key that is still down is released. */
+  const keyCommit = () => {
+    if (keyHeld.current) {
+      keyPending.current = true;
+      return;
+    }
+    keyPending.current = false;
+    commit(localRef.current);
+  };
+
+  const onStepKeyDown = (event: { key: string }) => {
+    if (event.key === 'Enter' || event.key === ' ') keyHeld.current = true;
+  };
+
+  /** The key went up, or the focus left while it was down: what the repeats reached is written once. */
+  const releaseKey = () => {
+    keyHeld.current = false;
+    if (keyPending.current) keyCommit();
+  };
+
+  // A stepper that unmounts mid-hold still writes what its held key reached.
+  const releaseRef = useRef(releaseKey);
+  releaseRef.current = releaseKey;
+  useEffect(() => () => releaseRef.current(), []);
 
   const stopRepeat = () => {
     if (repeat.current !== null) clearInterval(repeat.current);
@@ -165,12 +196,15 @@ export function QuantityStepper({ value, label, onCommit, isDisabled = false, di
           hold.onPointerCancel(event);
         }}
         onPointerLeave={hold.onPointerLeave}
+        onKeyDown={onStepKeyDown}
+        onKeyUp={releaseKey}
+        onBlur={releaseKey}
         onClick={(event) => {
           // A pointer press was handled on pointerdown/up; a click with no pointer detail
-          // is the keyboard's Enter or Space.
+          // is the keyboard's Enter (once per auto-repeat) or Space (after its release).
           if (isDisabled || event.detail !== 0) return;
           step(delta);
-          commit(localRef.current);
+          keyCommit();
         }}
       >
         {delta === -1 ? '−' : '+'}
@@ -210,7 +244,11 @@ export function QuantityStepper({ value, label, onCommit, isDisabled = false, di
         onChange={(event) => {
           if (!isDisabled) setText(event.target.value);
         }}
-        onBlur={finishTyping}
+        onBlur={() => {
+          releaseKey();
+          finishTyping();
+        }}
+        onKeyUp={releaseKey}
         onKeyDown={(event) => {
           // Alt+Arrow belongs to the row the stepper sits in (reorder), never to the count.
           if (isDisabled || event.altKey) return;
@@ -224,7 +262,8 @@ export function QuantityStepper({ value, label, onCommit, isDisabled = false, di
             const next = clampQuantity(typed + (event.key === 'ArrowUp' ? 1 : -1));
             setText(next === 0 ? '' : String(next));
             show(next);
-            commit(next);
+            keyHeld.current = true;
+            keyCommit();
           }
         }}
       />
