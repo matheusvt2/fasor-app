@@ -1,0 +1,14 @@
+/*
+ * Page-only layout of the Templates surface, copied from `41-templates.html`'s own
+ * `<style data-screen="templates">` block (screen-scoped in the mock too, not part of
+ * components.css) -- the same pattern as `registries.css`. The `.frame-*` variants of these
+ * rules live in `app.css` (AGENTS.md "Mock container selectors"); these are the base
+ * declarations only.
+ *
+ * Story 3.2 renders the list rows with their name alone. The mock's `.tpl-row .rr-text`
+ * (a pressable button sized around the row actions), `.rr-actions`, `.overflow-trigger`,
+ * `.is-archived` and `.tpl-group` rules arrive with Story 3.3, which renders those parts.
+ */
+
+[data-route="/templates"] .tpl-content { width: 100%; padding: var(--sp-5) var(--gutter-tablet); max-width: calc(var(--content-max) + 2 * var(--gutter-desktop)); margin: 0 auto; flex: 1; }
+[data-route="/templates"] .tpl-row { flex-wrap: wrap; }

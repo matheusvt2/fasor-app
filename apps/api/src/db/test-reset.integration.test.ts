@@ -75,4 +75,19 @@ describe('resetTestCompanyData', () => {
       await db.delete(syncDevicePush).where(eq(syncDevicePush.company_id, OTHER_COMPANY_ID));
     }
   });
+
+  it('narrows to the named test companies and refuses any other company', async () => {
+    const now = new Date().toISOString();
+    const [a, b] = TEST_SEED.companies;
+    for (const company of TEST_SEED.companies) await plantRows(company.companyId, now);
+
+    await resetTestCompanyData(db, [b.companyId]);
+
+    expect(await db.select().from(ops).where(eq(ops.company_id, b.companyId))).toEqual([]);
+    expect(await db.select().from(entities).where(eq(entities.company_id, b.companyId))).toEqual([]);
+    expect((await db.select().from(ops).where(eq(ops.company_id, a.companyId))).length).toBeGreaterThan(0);
+    await expect(resetTestCompanyData(db, [OTHER_COMPANY_ID])).rejects.toThrow(/only the test companies/);
+
+    await resetTestCompanyData(db);
+  });
 });

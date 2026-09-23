@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { ESLint } from 'eslint';
 import { describe, expect, it } from 'vitest';
-import { parseArgs, resolveCompanyId, validateCompanyId } from './seed-users.ts';
+import { parseArgs, resolveCompanyId, validateCompanyId, wantsStandardTemplate } from './seed-users.ts';
 import { assertInCompose } from './test-reset.ts';
 
 const root = resolve(import.meta.dirname, '..');
@@ -142,6 +142,10 @@ describe('seed-users CLI', () => {
 
   it('parses long flags and bare switches', () => {
     expect(parseArgs(['--test'])).toEqual({ test: true });
+    // `--standard-template` is a bare switch; a value on it is a usage error (Story 3.2).
+    expect(wantsStandardTemplate(parseArgs(['--standard-template']))).toBe(true);
+    expect(wantsStandardTemplate(parseArgs(['--email', 'a@b.c']))).toBe(false);
+    expect(() => wantsStandardTemplate(parseArgs(['--standard-template', 'yes']))).toThrow(/takes no value, got "yes"/);
     expect(parseArgs(['--email', 'a@b.c', '--council', 'crea', '--test'])).toEqual({
       email: 'a@b.c',
       council: 'crea',

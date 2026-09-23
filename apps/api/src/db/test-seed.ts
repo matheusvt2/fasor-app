@@ -29,6 +29,8 @@ export const TEST_SEED = {
       registrationNumber: 'SP 1000000001',
       /** Fixed uuidv7 (AD-4), so every suite and the device database name `releng-{user_id}` agree. */
       userId: '0a000000-0000-7000-8000-0000000000a1',
+      /** Seeded with the "Cabine primária — padrão" template, as `--standard-template` does. */
+      standardTemplate: true,
     },
     {
       companyId: '0b000000-0000-7000-8000-00000000000b',
@@ -38,6 +40,8 @@ export const TEST_SEED = {
       council: 'crt',
       registrationNumber: 'SP 2000000002',
       userId: '0b000000-0000-7000-8000-0000000000b1',
+      /** No template: the Templates surface's empty state is exercised on this company. */
+      standardTemplate: false,
     },
   ],
 } as const;

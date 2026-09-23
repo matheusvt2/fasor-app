@@ -158,7 +158,7 @@ const steps: Step[] = [
     kind: 'create',
     scope: 'company',
     path: `template/${TEMPLATE_ID}`,
-    value: { id: TEMPLATE_ID, name: 'Cabine primaria', version: 1, seed_version: SEED_VERSION, blocks: [], removed_at: null },
+    value: { id: TEMPLATE_ID, name: 'Cabine primaria', version: 1, seed_version: SEED_VERSION, blocks: [], skeleton: [], removed_at: null },
   },
   { kind: 'put', scope: 'company', path: `template/${TEMPLATE_ID}/name`, value: 'Cabine primaria padrao' },
   {

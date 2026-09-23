@@ -5,7 +5,7 @@ import { createAuth } from '../apps/api/src/auth/auth.ts';
 import { loadConfig } from '../apps/api/src/config.ts';
 import { createDb } from '../apps/api/src/db/client.ts';
 import { migrate } from '../apps/api/src/db/migrate.ts';
-import { seedTestCompanies, seedUser, TEST_SEED } from '../apps/api/src/db/seed.ts';
+import { seedStandardTemplate, seedTestCompanies, seedUser, TEST_SEED } from '../apps/api/src/db/seed.ts';
 import { newId } from '../apps/api/src/ids.ts';
 import { assertInCompose } from './test-reset.ts';
 
@@ -20,7 +20,8 @@ import { assertInCompose } from './test-reset.ts';
  *   docker compose run --rm tools pnpm exec tsx scripts/seed-users.ts --test
  *   docker compose run --rm tools pnpm exec tsx scripts/seed-users.ts \
  *     --company-id 019966b0-5b6d-7e7f-9a0b-1c2d3e4f5a6b --company "Acme Engenharia" --email a@acme.com \
- *     --password "..." --name "Ana Alves" --council crea --number "SP 1234" [--title "..."]
+ *     --password "..." --name "Ana Alves" --council crea --number "SP 1234" [--title "..."] \
+ *     [--standard-template]
  *
  * The company id is a uuidv7 (AD-4): every op carries it, and the op schema accepts no
  * other shape, so a company provisioned under a v4 id could never sync. Leave
@@ -32,13 +33,19 @@ import { assertInCompose } from './test-reset.ts';
  * The registration flags (`--council`, `--number`, `--title`) seed a new user's initial
  * values only. Re-running for an existing e-mail resets the password and updates the name,
  * never the registration: from then on it belongs to the user, who edits it in Account.
+ *
+ * `--standard-template` also gives the company the seeded "Cabine primária — padrão"
+ * template (Story 3.2), through one server op; a company that already holds it gets
+ * nothing, so the flag is safe on every run. `--test` gives it to Empresa A only.
  */
 
 const USAGE = `usage:
   seed-users --test
   seed-users [--company-id <uuidv7>] --company <name> --email <email> --password <password> \\
-             --name <full name> --council <crea|crt> --number <registration number> [--title <printed title>]
-  (the registration flags set a new user's initial values; a re-run resets the password and the name only)`;
+             --name <full name> --council <crea|crt> --number <registration number> [--title <printed title>] \\
+             [--standard-template]
+  (the registration flags set a new user's initial values; a re-run resets the password and the name only;
+   --standard-template also seeds the company's "Cabine primária — padrão" template once)`;
 
 export function parseArgs(argv: string[]): Record<string, string | true> {
   const out: Record<string, string | true> = {};
@@ -90,6 +97,18 @@ export function resolveCompanyId(
   return { companyId: validateCompanyId(required(args, 'company-id'), mint), minted: false };
 }
 
+/**
+ * Whether `--standard-template` was given. It is a bare switch: a value after it
+ * (`--standard-template yes`) is a usage error, never silently read as "off". Checked
+ * before the database is opened.
+ */
+export function wantsStandardTemplate(args: Record<string, string | true>): boolean {
+  const value = args['standard-template'];
+  if (value === undefined) return false;
+  if (value === true) return true;
+  throw new Error(`--standard-template takes no value, got "${value}"\n${USAGE}`);
+}
+
 async function main(): Promise<void> {
   try {
     assertInCompose(process.env, undefined, 'pnpm exec tsx scripts/seed-users.ts --test');
@@ -101,6 +120,7 @@ async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   // Checked before the database is opened: a refused company id writes nothing.
   const company = args.test === true ? null : resolveCompanyId(args);
+  const standardTemplate = wantsStandardTemplate(args);
   const config = loadConfig();
   const { sql, db } = createDb(config.DATABASE_URL);
   try {
@@ -134,6 +154,14 @@ async function main(): Promise<void> {
       title: typeof title === 'string' ? title : undefined,
     });
     console.log(`seeded ${result.email} as user ${result.userId} in company ${result.companyId}`);
+    if (standardTemplate) {
+      const templateId = await seedStandardTemplate(db, result.companyId);
+      console.log(
+        templateId === null
+          ? `company ${result.companyId} already has the standard template`
+          : `seeded the standard template ${templateId} in company ${result.companyId}`,
+      );
+    }
     if (company.minted) {
       console.log(`new company id ${result.companyId}: pass --company-id ${result.companyId} to add its next users`);
     }

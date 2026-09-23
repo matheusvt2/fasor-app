@@ -137,6 +137,7 @@ async function seedCompany(db: AppDatabase) {
       version: 1,
       seed_version: 'v1',
       blocks: [],
+      skeleton: [],
       removed_at: null,
     }),
   ]);
@@ -365,10 +366,10 @@ describe('Home: empty state and shortcuts', () => {
     const row = container.querySelector('.shortcut-row')!;
     expect(row.querySelectorAll('.shortcut-card')).toHaveLength(2);
     expect(row.querySelectorAll('.sync-badge')).toHaveLength(0);
-    // Templates still belongs to Epic 3; Cadastros opens the Registries surface (Story 2.1).
+    // Templates opens the Templates surface (Story 3.2); Cadastros the Registries surface (Story 2.1).
     const templates = screen.getByText('Templates').closest('.shortcut-card')!;
-    expect(templates).toHaveAttribute('aria-disabled', 'true');
-    expect(templates).toHaveAccessibleDescription('Disponível em uma próxima etapa');
+    expect(templates).not.toHaveAttribute('aria-disabled');
+    expect(templates).toHaveAttribute('href', '/templates');
     const cadastros = screen.getByText('Cadastros').closest('.shortcut-card')!;
     expect(cadastros).not.toHaveAttribute('aria-disabled');
     expect(cadastros).toHaveAttribute('href', '/cadastros');

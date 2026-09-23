@@ -1,6 +1,7 @@
 import { materializeEntity, splitEntityKey, userRowSchema, type EntityKey, type Op, type UserRow } from '@app/domain';
 import { opOf, toRecord } from './commit.ts';
 import {
+  COMPANY_STREAM,
   targetKeysOf,
   type AppDatabase,
   type OutboxRow,
@@ -161,6 +162,15 @@ export function outboxBacklog(db: AppDatabase): Promise<number> {
 
 export function syncStateRows(db: AppDatabase): Promise<SyncStateRow[]> {
   return db.sync_state.toArray();
+}
+
+/**
+ * True once the company stream has been pulled to the end at least once on this device:
+ * before that, an empty company table here says nothing about what the company holds.
+ */
+export async function companyDownloaded(db: AppDatabase): Promise<boolean> {
+  const row = await db.sync_state.get(COMPANY_STREAM);
+  return row !== undefined && row.downloaded_at !== null;
 }
 
 /** The company's user rows on this device, for names on Sync status. */

@@ -42,4 +42,8 @@
     <path d="M4 16l5-5 4 4 3-3 4 4" />
     <circle cx="15.5" cy="9.5" r="1.5" />
   </symbol>
+  <symbol id="i-template" viewBox="0 0 24 24">
+    <rect x="4" y="4" width="16" height="16" rx="2" />
+    <path d="M4 10h16M10 10v10" />
+  </symbol>
 </svg>

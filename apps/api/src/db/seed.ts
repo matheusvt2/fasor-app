@@ -2,13 +2,15 @@ import {
   councilSchema,
   defaultTitleForCouncil,
   SERVER_DEVICE_ID,
+  STANDARD_TEMPLATE_NAME,
+  standardTemplate,
   SYSTEM_IDENTITY_ACTOR,
   toIso,
   uuidV7Schema,
   type Council,
   type UserRow,
 } from '@app/domain';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Auth } from '../auth/auth.ts';
 import { now } from '../clock.ts';
 import { newId } from '../ids.ts';
@@ -74,6 +76,22 @@ async function dropLegacyUser(db: Db, companyId: CompanyId, userId: string): Pro
   });
 }
 
+/** The envelope of a provisioning op in the company stream: server device, `system:identity`. */
+function provisioningEnvelope(companyId: CompanyId) {
+  return {
+    scope: 'company',
+    company_id: companyId,
+    project_id: null,
+    relatorio_id: null,
+    prev_op_id: null,
+    batch_id: null,
+    meta: null,
+    actor_id: SYSTEM_IDENTITY_ACTOR,
+    device_id: SERVER_DEVICE_ID,
+    client_ts: toIso(now()),
+  } as const;
+}
+
 /**
  * Projects one identity user into the company stream. The first run applies one
  * `user/{id}` create, whose registration fields are the user's initial values. A later
@@ -89,18 +107,7 @@ async function projectUser(db: Db, companyId: CompanyId, row: UserRow): Promise<
     .from(entities)
     .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'user'), eq(entities.id, row.id)))
     .limit(1);
-  const envelope = {
-    scope: 'company',
-    company_id: companyId,
-    project_id: null,
-    relatorio_id: null,
-    prev_op_id: null,
-    batch_id: null,
-    meta: null,
-    actor_id: SYSTEM_IDENTITY_ACTOR,
-    device_id: SERVER_DEVICE_ID,
-    client_ts: toIso(now()),
-  };
+  const envelope = provisioningEnvelope(companyId);
   const ops: unknown[] = [];
   if (existing === undefined) {
     ops.push({ ...envelope, op_id: newId(), kind: 'create', path: `user/${row.id}`, value: row });
@@ -212,6 +219,42 @@ export async function seedUser(
   return { companyId, userId, email, created: found === undefined };
 }
 
+/**
+ * Story 3.2: gives a company the seeded "Cabine primária — padrão" template, through the
+ * op log like every other row -- one server `template/{id}` create (`system:identity`)
+ * whose value is the kernel's `standardTemplate`, the same builder the Templates
+ * surface's empty state commits from a device. Idempotent: a company that already holds
+ * a live template of that name gets nothing, so a second run adds no op. Returns the id
+ * of the template it created, or null.
+ */
+export async function seedStandardTemplate(db: Db, companyId: CompanyId): Promise<string | null> {
+  const [existing] = await db
+    .select({ id: entities.id })
+    .from(entities)
+    .where(
+      and(
+        eq(entities.company_id, companyId),
+        eq(entities.entity, 'template'),
+        isNull(entities.removed_at),
+        sql`${entities.row}->>'name' = ${STANDARD_TEMPLATE_NAME}`,
+      ),
+    )
+    .limit(1);
+  if (existing !== undefined) return null;
+  const id = newId();
+  const op = {
+    ...provisioningEnvelope(companyId),
+    op_id: newId(),
+    kind: 'create',
+    path: `template/${id}`,
+    value: standardTemplate({ id }),
+  };
+  const result = await applyOps(db, companyId, [op], { now, origin: 'server' });
+  const rejected = result.rejected[0];
+  if (rejected !== undefined) throw new Error(`could not seed the standard template: ${rejected.code}`);
+  return id;
+}
+
 /** Removes every session of one user of this company, so a password reset takes effect. */
 export async function revokeSessions(
   db: Db,
@@ -265,8 +308,17 @@ export async function removeLegacyTestCompanies(db: Db): Promise<number> {
  * sets `fileParallelism: false` specifically so `test-reset.integration.test.ts` can call
  * this safely; do not re-enable file parallelism there without re-solving this race first.
  */
-export async function resetTestCompanyData(db: Db): Promise<void> {
-  const ids = TEST_SEED.companies.map((c) => c.companyId);
+export async function resetTestCompanyData(
+  db: Db,
+  only: readonly string[] = TEST_SEED.companies.map((c) => c.companyId),
+): Promise<void> {
+  // `only` narrows the reset to some of the test companies (the Templates empty-state spec
+  // resets Empresa B alone); it can never name any other company.
+  const testIds: readonly string[] = TEST_SEED.companies.map((c) => c.companyId);
+  const foreign = only.filter((id) => !testIds.includes(id));
+  if (foreign.length > 0) throw new Error(`resetTestCompanyData resets only the test companies, not ${foreign.join(', ')}`);
+  const ids = [...only];
+  if (ids.length === 0) return;
   await db.transaction(async (tx) => {
     await tx.delete(ops).where(inArray(ops.company_id, ids));
     await tx.delete(entities).where(inArray(entities.company_id, ids));
@@ -274,22 +326,27 @@ export async function resetTestCompanyData(db: Db): Promise<void> {
   });
 }
 
+/**
+ * Provisions the two test companies. Empresa A also gets the standard template, as a
+ * company seeded with `--standard-template` would; Empresa B is left without one, so the
+ * Templates surface's empty state has a company to be tested on (Story 3.2).
+ */
 export async function seedTestCompanies(db: Db, auth: Auth): Promise<SeedUserResult[]> {
   await removeLegacyTestCompanies(db);
   const results: SeedUserResult[] = [];
   for (const company of TEST_SEED.companies) {
-    results.push(
-      await seedUser(db, auth, {
-        companyId: company.companyId,
-        companyName: company.companyName,
-        email: company.email,
-        password: TEST_SEED.password,
-        name: company.name,
-        council: company.council,
-        registrationNumber: company.registrationNumber,
-        userId: company.userId,
-      }),
-    );
+    const result = await seedUser(db, auth, {
+      companyId: company.companyId,
+      companyName: company.companyName,
+      email: company.email,
+      password: TEST_SEED.password,
+      name: company.name,
+      council: company.council,
+      registrationNumber: company.registrationNumber,
+      userId: company.userId,
+    });
+    if (company.standardTemplate) await seedStandardTemplate(db, result.companyId);
+    results.push(result);
   }
   return results;
 }

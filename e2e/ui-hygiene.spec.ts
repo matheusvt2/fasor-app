@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { fixturePath, hideTab } from './support/durability.ts';
-import { deviceDatabaseName, expect, signIn, syncWord, test } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, horizontalOverflow, signIn, syncWord, test } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 
 /*
@@ -9,10 +9,6 @@ import { readStore } from './support/outbox.ts';
  * Login naming the failure it actually had (U4) and the draft toast that can be put away
  * without losing the draft (U7).
  */
-
-async function horizontalOverflow(page: Page): Promise<number> {
-  return page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-}
 
 /** The distinct rows the four status tiles sit on. */
 async function boardRows(page: Page): Promise<number> {
@@ -64,6 +60,11 @@ test('@p0 A5-E2E-001 no surface scrolls sideways at 390, 384 (768 at 200 %), 768
       { color: true, decoration: 'none' },
       { color: true, decoration: 'none' },
     ]);
+
+    await page.getByRole('link', { name: /^Templates/ }).click();
+    // Empresa A's template arrives by the company pull.
+    await expect(page.getByRole('list', { name: 'Templates ativos' })).toBeVisible({ timeout: 30_000 });
+    expect(await horizontalOverflow(page), `Templates at ${width}px`).toBeLessThanOrEqual(0);
 
     await page.getByRole('link', { name: 'Conta' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Conta' })).toBeVisible();
