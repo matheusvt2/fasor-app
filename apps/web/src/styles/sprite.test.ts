@@ -26,7 +26,7 @@ function sourceFiles(dir: string): string[] {
 const declared = new Set([...sprite.matchAll(/<symbol\s+id="([^"]+)"/g)].map((m) => m[1]!));
 
 describe('icon sprite', () => {
-  it('declares the four symbols the shell used to inline, plus the App bar back chevron, the Registries icons and the upload tile image glyph', () => {
+  it('declares the four symbols the shell used to inline, plus the App bar back chevron, the Registries icons, the upload tile image glyph and the Templates row icon', () => {
     expect([...declared].sort()).toEqual([
       'i-archive',
       'i-back',
@@ -37,6 +37,7 @@ describe('icon sprite', () => {
       'i-image',
       'i-layers',
       'i-plus',
+      'i-template',
     ]);
   });
 

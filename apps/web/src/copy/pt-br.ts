@@ -100,7 +100,7 @@ export const copy = {
     templates: 'Templates',
     cadastros: 'Cadastros',
     // authored: one reason shared by every affordance whose destination belongs to a
-    // later epic (Sumário, Templates, Cadastros, relatório creation), so the screen
+    // later epic (Sumário, relatório creation), so the screen
     // never argues with itself about what is missing.
     notAvailableYet: 'Disponível em uma próxima etapa',
     // authored: the mock draws no empty Home; a device with nothing on it still needs a sentence.
@@ -194,6 +194,22 @@ export const copy = {
     // nothing is lost by taking it, the pull happens on the next sync anyway.
     skipAction: 'Continuar sem baixar',
     skipNote: 'Você pode seguir agora; o que está no servidor desce sozinho na próxima sincronização.',
+  },
+  // Templates (`41-templates.html`, Story 3.2). The heading's count is the kernel's
+  // (`templatesHeading`); the list's rows, actions and archived group are Story 3.3's.
+  templates: {
+    title: 'Templates',
+    note: 'Um template é a composição de blocos que um relatório novo copia. Alterar um template não muda relatórios já criados a partir dele.',
+    listLabel: 'Templates ativos',
+    // Verbatim from EXPERIENCE.md State Patterns › Empty (UX-DR70).
+    empty: 'Nenhum template. Crie um a partir do relatório padrão FO.SERV-03.',
+    // authored: no mock draws the empty state, so its one action is named here.
+    createStandard: 'Criar template padrão',
+    // authored: the reason beside the action while its create is being written.
+    creating: 'Criando o template…',
+    // authored: before the first complete company download this device cannot know
+    // whether the company already has the standard template, so the action waits.
+    awaitingDownload: 'Aguardando o primeiro download da empresa',
   },
   // authored: the mocks are static frames and draw no boot state.
   common: {

@@ -28,6 +28,11 @@ export async function signIn(page: Page, email: string): Promise<void> {
   await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
 }
 
+/** How far the page scrolls sideways, in CSS px; 0 or less means it does not (retro A5). */
+export async function horizontalOverflow(page: Page): Promise<number> {
+  return page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+}
+
 /**
  * The App bar's Sync badge. Story 1.6 put a compact badge on every relatório card too,
  * so the shell's one is addressed through the App bar.

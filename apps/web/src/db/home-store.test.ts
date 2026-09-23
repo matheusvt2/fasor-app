@@ -83,6 +83,7 @@ async function seeded(): Promise<AppDatabase> {
       version: 1,
       seed_version: 'v1',
       blocks: [],
+      skeleton: [],
       removed_at: null,
     }),
   ]);

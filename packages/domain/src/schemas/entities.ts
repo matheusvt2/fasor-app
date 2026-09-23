@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { isoTimestampSchema } from '../clock.ts';
 import { actorIdSchema, uuidV7Schema } from '../ids.ts';
+import { checkTemplateRow } from '../seed/template-rules.ts';
+import { skeletonNodeSchema, templateBlockSchema } from './block-config.ts';
 import { councilSchema } from './council.ts';
 
 /*
@@ -151,14 +153,23 @@ export const registryRowSchema = z.discriminatedUnion('kind', [
   registryRowSchemas.criterion,
 ]);
 
-export const templateRowSchema = z.object({
-  id: uuidV7Schema,
-  name: z.string(),
-  version: z.number().int().nonnegative(),
-  seed_version: z.string(),
-  blocks: jsonValueSchema,
-  removed_at: nullableIso,
-});
+/**
+ * AD-21: a Template's blocks are `BlockConfig`s placed with a quantity at a skeleton node
+ * (Story 3.2); the skeleton is its cabines and columns. Both are copied into a relatório
+ * at creation (`instantiateTemplate`, Epic 4), never followed by reference. The rules that
+ * tie a block to its type's seed definition and to the skeleton are `checkTemplateRow`'s.
+ */
+export const templateRowSchema = z
+  .object({
+    id: uuidV7Schema,
+    name: z.string(),
+    version: z.number().int().nonnegative(),
+    seed_version: z.string(),
+    blocks: z.array(templateBlockSchema),
+    skeleton: z.array(skeletonNodeSchema),
+    removed_at: nullableIso,
+  })
+  .superRefine(checkTemplateRow);
 
 /**
  * A company user as the op log knows it. The row is born by the server-only

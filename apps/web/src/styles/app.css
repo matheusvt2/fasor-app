@@ -202,6 +202,8 @@ body {
   .field-grid .span-2 { grid-column: auto; }
   /* `.frame-phone [data-route="/cadastros"] .registry-toolbar .btn-primary` */
   .registry-toolbar .btn-primary { width: 100%; }
+  /* `.frame-phone [data-route="/templates"] .tpl-content` (41-templates.html) */
+  [data-route="/templates"] .tpl-content { padding: var(--sp-4) var(--gutter-phone); }
   /* `.data-table` (Critérios de aceitação, `criterios-tab.tsx`): not mock-derived — the mock
      never shows this table at phone width, and `components.css` has no responsive handling
      for it, so a long "used by" cell would overflow the frame sideways. Card-stacks each row
@@ -252,6 +254,8 @@ body {
   .sticky-action-bar .bar-buttons .btn { flex: 0 0 auto; min-width: 200px; }
   /* `.frame-tablet-landscape [data-route="/cadastros"] .empresa-layout` (80-cadastros.html) */
   .empresa-layout { grid-template-columns: minmax(0, 1fr) 360px; }
+  /* `.frame-tablet-landscape [data-route="/templates"] .tpl-row` (41-templates.html) */
+  [data-route="/templates"] .tpl-row { flex-wrap: nowrap; }
   /* `.frame-tablet-landscape [data-route="/cadastros"] .registry-panel { width: 440px }` is not
      translated: in the mock's own cascade it is declared before the later `.frame-tablet,
      .frame-phone .registry-panel { width: 100% }` rule (below, same specificity), which
@@ -271,6 +275,10 @@ body {
   .registry-main { padding: var(--sp-5) var(--gutter-desktop); }
   /* `.frame-desktop [data-route="/cadastros"] .empresa-layout` (80-cadastros.html) */
   .empresa-layout { grid-template-columns: minmax(0, 1fr) 360px; }
+  /* `.frame-desktop [data-route="/templates"] .tpl-content` (41-templates.html) */
+  [data-route="/templates"] .tpl-content { padding: var(--sp-6) var(--gutter-desktop); }
+  /* `.frame-desktop [data-route="/templates"] .tpl-row` (41-templates.html) */
+  [data-route="/templates"] .tpl-row { flex-wrap: nowrap; }
   /* `RegistryPickerField` (Stories 2.4/2.5): desktop shows the Combobox directly and
      never the chip row (UX & Interaction Patterns "Manufacturer/voltage-class field"). */
   .rpf-chip-row { display: none; }
