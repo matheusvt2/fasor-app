@@ -27,11 +27,14 @@ export function SectionList({ sections, ...props }: SectionListProps) {
   return (
     <section className="section" aria-labelledby={headingId}>
       <div className="section-head">
-        <h2 id={headingId}>{sectionsHeading(sections.length)}</h2>
+        {/* tabIndex -1: the focus lands here when a removal empties the list. */}
+        <h2 id={headingId} tabIndex={-1}>
+          {sectionsHeading(sections.length)}
+        </h2>
         <span className="section-note">{copy.composer.sectionsNote}</span>
       </div>
       {sections.length === 0 ? null : (
-        <ul className="block-list" aria-label={copy.composer.sectionsListLabel}>
+        <ul className="block-list" aria-label={copy.composer.sectionsListLabel} data-composer-list="sections">
           {sections.map((section) => {
             // A section has no id of its own: "the nth section_2" is stable while sections of
             // other types move around it, so a moved card keeps its DOM node (and the focus).

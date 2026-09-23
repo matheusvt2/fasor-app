@@ -51,11 +51,17 @@ describe('Toggle', () => {
 });
 
 describe('LockedToggle', () => {
-  it('reads "Sempre" and is read-only, not a control', () => {
-    render(<LockedToggle aria-label="Lista de verificação" />);
-    const el = screen.getByRole('switch', { name: 'Lista de verificação' });
+  it('reads "Sempre", is aria-disabled and named ", sempre ativado", as the mock draws it', async () => {
+    const { container } = render(<LockedToggle aria-label="Lista de verificação" />);
+    const el = screen.getByRole('switch', { name: 'Lista de verificação, sempre ativado' });
     expect(el).toHaveTextContent('Sempre');
+    expect(el).toHaveClass('toggle');
     expect(el).toHaveAttribute('aria-checked', 'true');
-    expect(el).toHaveAttribute('aria-readonly', 'true');
+    expect(el).toHaveAttribute('aria-disabled', 'true');
+    expect(el).not.toHaveAttribute('aria-readonly');
+    // A press changes nothing: it stays on.
+    await userEvent.click(el);
+    expect(el).toHaveAttribute('aria-checked', 'true');
+    expect(await axe(container)).toHaveNoViolations();
   });
 });

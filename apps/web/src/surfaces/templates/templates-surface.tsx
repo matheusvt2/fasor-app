@@ -5,6 +5,7 @@ import {
   duplicateTemplate,
   emptyTemplate,
   SEED_VERSION,
+  sortTemplates,
   standardTemplate,
   templatesHeading,
   templateSummaryText,
@@ -13,7 +14,7 @@ import {
   type RelatorioSummary,
   type TemplateRow,
 } from '@app/domain';
-import { useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Button, ConfirmDialog, OverflowMenu, TextButton } from '../../components/index.ts';
 import { now } from '../../clock.ts';
@@ -26,10 +27,22 @@ import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { createTemplateOp, putTemplateOp, removeTemplateOp, writeErrorText } from './template-ops.ts';
+import { LIST_FOCUS_WATCH_FRAMES, restoreFocus } from './use-reorder.ts';
 import './templates.css';
 
 const NO_SUMMARIES: RelatorioSummary[] = [];
 const noBusy = () => undefined;
+
+/** The two lists a template row can be in. */
+type Group = 'active' | 'archived';
+const groupOf = (row: TemplateRow): Group => (row.archived_at === null ? 'active' : 'archived');
+
+/** A row's primary control: its "Abrir template" button, or on an archived row its first control. */
+const primaryOf = (li: HTMLElement | null): HTMLElement | null =>
+  li === null ? null : (li.querySelector<HTMLElement>('button.rr-text') ?? li.querySelector<HTMLElement>('button'));
+/** A row's last action: "Arquivar" on an active row, "Restaurar" on an archived one. */
+const lastActionOf = (li: HTMLElement | null): HTMLElement | null =>
+  li === null ? null : ([...li.querySelectorAll<HTMLElement>('.rr-actions button')].at(-1) ?? null);
 
 /**
  * Templates (`41-templates.html`, Stories 3.2 and 3.3): "Templates (n)" with "Novo
@@ -46,7 +59,7 @@ export function TemplatesSurface() {
   const session = useSession();
   const db = session.database;
   const user = session.user;
-  const { showToast } = useToast();
+  const { showToast: showAnyToast, dismissToast, toast } = useToast();
   const navigate = useNavigate();
   const headingId = useId();
   const archivedHeadingId = useId();
@@ -56,6 +69,37 @@ export function TemplatesSurface() {
   // A second press landing before the re-render that disables a button must not write a
   // second template.
   const inFlight = useRef(false);
+  const mainRef = useRef<HTMLElement>(null);
+
+  // The list's toasts, by their text. The toast is the shell's and an action toast never
+  // expires, so leaving the list takes its toast away: its "Desfazer" would otherwise act
+  // from another screen (the composer), on a template that screen is not about.
+  const listToast = useRef<string | null>(null);
+  const shownToast = useRef(toast);
+  shownToast.current = toast;
+  const dismissRef = useRef(dismissToast);
+  dismissRef.current = dismissToast;
+  useEffect(
+    () => () => {
+      if (listToast.current !== null && shownToast.current?.text === listToast.current) dismissRef.current();
+    },
+    [],
+  );
+  const showToast: typeof showAnyToast = (text, options) => {
+    listToast.current = text;
+    showAnyToast(text, options);
+  };
+
+  /*
+   * Every action that moves or removes a row names where the focus goes, since the element
+   * that held it (the row's button, or the Overflow the Confirm dialog returns to) is gone
+   * once the row re-renders: the same row in its new group after Arquivar and Restaurar, the
+   * next row (else the previous, else the group's heading) after a removal, and the row
+   * itself after "Desfazer".
+   */
+  const rowIn = (group: Group, id: string): HTMLElement | null =>
+    mainRef.current?.querySelector<HTMLElement>(`ul[data-group="${group}"] > li[data-template-id="${id}"]`) ?? null;
+  const focusLater = (target: () => HTMLElement | null) => restoreFocus(target, { frames: LIST_FOCUS_WATCH_FRAMES, once: true });
 
   // `undefined` until the first read lands, so the empty state never flashes (and never
   // offers its action) over a device that does hold templates.
@@ -111,14 +155,15 @@ export function TemplatesSurface() {
     if (user === null) return;
     // The same in-flight guard as the creates: two quick taps make one copy.
     void once(noBusy, async () => {
-      const copyRow = duplicateTemplate(row, newId());
+      const copyRow = duplicateTemplate(row, newId(), sortTemplates(rows ?? []).map((r) => r.name));
       if ((await commit([createTemplateOp(user, copyRow)])) !== null) showToast(copy.templates.duplicated(copyRow.name));
     });
   }
 
   /** "Desfazer" of a batch; a refused write says why instead of failing silently. */
-  function undo(batchId: string): void {
+  function undo(batchId: string, focus: () => HTMLElement | null): void {
     if (db === null) return;
+    focusLater(focus);
     undoBatch(db, batchId, { newId, now }).catch((error: unknown) => showToast(writeErrorText(error)));
   }
 
@@ -126,9 +171,10 @@ export function TemplatesSurface() {
     if (user === null || db === null) return;
     const batchId = await commit([putTemplateOp(user, row.id, 'archived_at', archive ? toIso(now()) : null)]);
     if (batchId === null) return;
+    focusLater(() => lastActionOf(rowIn(archive ? 'archived' : 'active', row.id)));
     if (archive) {
       showToast(copy.templates.archived, {
-        action: { label: copy.templates.undo, onPress: () => undo(batchId) },
+        action: { label: copy.templates.undo, onPress: () => undo(batchId, () => primaryOf(rowIn('active', row.id))) },
       });
     } else {
       showToast(copy.templates.restored);
@@ -137,6 +183,12 @@ export function TemplatesSurface() {
 
   async function remove(row: TemplateRow): Promise<void> {
     if (user === null || db === null) return;
+    // Where the focus goes once the row is gone, from the group as it is drawn now.
+    const group = groupOf(row);
+    const siblings = (group === 'active' ? active : archived) ?? [];
+    const at = siblings.findIndex((r) => r.id === row.id);
+    const neighbours = [siblings[at + 1], siblings[at - 1]].flatMap((r) => (r === undefined ? [] : [r.id]));
+    const headingOf = (g: Group) => document.getElementById(g === 'active' ? headingId : archivedHeadingId);
     // Checked again at the moment of the write: the company summary may have moved since
     // the menu was drawn, and a referenced template is only ever archived (FR-9).
     if (!(await companyDownloaded(db))) {
@@ -149,15 +201,24 @@ export function TemplatesSurface() {
     }
     const batchId = await commit([removeTemplateOp(user, row.id)]);
     if (batchId === null) return;
+    focusLater(() => {
+      if (rowIn(group, row.id) !== null) return null;
+      for (const id of neighbours) {
+        const target = primaryOf(rowIn(group, id));
+        if (target !== null) return target;
+      }
+      // The archived group leaves with its last row: the list's own heading then.
+      return headingOf(group) ?? headingOf('active');
+    });
     showToast(copy.templates.removed(row.name), {
-      action: { label: copy.templates.undo, onPress: () => undo(batchId) },
+      action: { label: copy.templates.undo, onPress: () => undo(batchId, () => primaryOf(rowIn(group, row.id))) },
     });
   }
 
   const empty = active !== undefined && active.length === 0 && archived.length === 0;
 
   return (
-    <main className="screen" data-route="/templates">
+    <main className="screen" data-route="/templates" ref={mainRef}>
       <div className="tpl-content">
         {active === undefined ? (
           <p className="section-note" role="status">
@@ -168,7 +229,10 @@ export function TemplatesSurface() {
             <section className="section" aria-labelledby={headingId}>
               <div className="section-head">
                 {/* The surface title is the App bar's <h1>; the section keeps its own heading. */}
-                <h2 id={headingId}>{templatesHeading(active.length)}</h2>
+                {/* tabIndex -1: the focus lands here when a removal empties the list. */}
+                <h2 id={headingId} tabIndex={-1}>
+                  {templatesHeading(active.length)}
+                </h2>
                 <Button
                   isDisabled={newing}
                   disabledReason={newing ? copy.templates.creating : undefined}
@@ -190,7 +254,7 @@ export function TemplatesSurface() {
                   </Button>
                 </div>
               ) : active.length > 0 ? (
-                <ul className="registry-list" aria-label={copy.templates.listLabel}>
+                <ul className="registry-list" aria-label={copy.templates.listLabel} data-group="active">
                   {active.map((row) => (
                     <TemplateListRow
                       key={row.id}
@@ -224,10 +288,12 @@ export function TemplatesSurface() {
             {archived.length > 0 ? (
               <section className="section tpl-group" aria-labelledby={archivedHeadingId}>
                 <div className="section-head">
-                  <h2 id={archivedHeadingId}>{archivedHeading(archived.length)}</h2>
+                  <h2 id={archivedHeadingId} tabIndex={-1}>
+                    {archivedHeading(archived.length)}
+                  </h2>
                 </div>
                 <p className="section-note">{copy.templates.archivedNote}</p>
-                <ul className="registry-list" aria-label={copy.templates.archivedListLabel}>
+                <ul className="registry-list" aria-label={copy.templates.archivedListLabel} data-group="archived">
                   {archived.map((row) => (
                     <TemplateListRow
                       key={row.id}
@@ -293,7 +359,7 @@ function TemplateListRow({ row, archived = false, useCount, removable, onOpen, o
     </>
   );
   return (
-    <li className={archived ? 'registry-row tpl-row is-archived' : 'registry-row tpl-row'}>
+    <li className={archived ? 'registry-row tpl-row is-archived' : 'registry-row tpl-row'} data-template-id={row.id}>
       <svg className="ico ink-secondary" aria-hidden="true">
         <use href="/sprite.svg#i-template" />
       </svg>

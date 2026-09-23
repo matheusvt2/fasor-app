@@ -73,18 +73,34 @@ const FOCUS_WATCH_FRAMES = 30;
 /**
  * Gives the focus to `target()` once the element that held it is gone (a re-render moved or
  * removed it), watching a few frames because the live query re-renders after the write.
+ * `target()` may return null until the change it waits for has rendered. `frames` is how
+ * long to watch; with `once`, the watch ends as soon as the target took the focus, so a
+ * later click on the page's background keeps its usual effect.
  */
-export function restoreFocus(target: () => HTMLElement | null): void {
-  let frames = 0;
+export function restoreFocus(
+  target: () => HTMLElement | null,
+  { frames = FOCUS_WATCH_FRAMES, once = false }: { frames?: number; once?: boolean } = {},
+): void {
+  let watched = 0;
   const tick = () => {
     const element = target();
     const active = document.activeElement;
     const lost = active === null || active === document.body || !active.isConnected;
-    if (element !== null && element.isConnected && lost) element.focus();
-    if (++frames < FOCUS_WATCH_FRAMES) requestAnimationFrame(tick);
+    if (element !== null && element.isConnected && lost) {
+      element.focus();
+      if (once) return;
+    }
+    if (++watched < frames) requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
 }
+
+/**
+ * How many frames a focus target is watched for after a write that re-renders a list: a
+ * removal or an undo lands only after the Confirm dialog or the toast has closed and the
+ * live query has re-read the rows, which on a loaded device takes more than half a second.
+ */
+export const LIST_FOCUS_WATCH_FRAMES = 180;
 
 function siblingRows(row: HTMLElement): HTMLElement[] {
   const parent = row.parentElement;

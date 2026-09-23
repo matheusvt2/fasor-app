@@ -106,6 +106,11 @@
    and a text taller than the room the dialog leaves it scrolls inside its own box, so the
    chip row and the actions stay in view (the mock's dialog holds one short paragraph). */
 .rich-dialog .rich-text .rt-area { overflow-wrap: anywhere; overflow-y: auto; flex: 1 1 auto; }
+/* authored: the stored text is plain text, shown as it will print. Under the default
+   `white-space: normal` a stored "A    B" collapsed to "A B" on reopen (and what the
+   browser then typed there differed from what was saved); `pre-wrap` keeps every space
+   while still wrapping. Line breaks stay the editor's `<br>`s and chips are unaffected. */
+.rich-dialog .rich-text .rt-area { white-space: pre-wrap; }
 
 /* The type defaults panel: the mock draws it inside an expanded equipment `.block-card`;
    here it is a Form dialog, so the card's page rules are scoped to `.defaults-dialog`. */
