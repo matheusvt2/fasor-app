@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 09-22-2026 20:16
+last_updated: 09-22-2026 21:11
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -245,21 +245,21 @@ action_items:
       op retiring the merged-away id on the originating device, redirect persisted,
       two-cycle convergence test"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-22.md"
   - id: "epic-2-retro-item-14-e2-a2-fix-d-2-wire-registrypickerfield-i"
     epic: 2
     action: "E2-A2 Fix D-2: wire RegistryPickerField into the instrument Fabricante
       field with an offline Criar e2e; move AC 2.4-2 to Epic 4 in epics.md"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-22.md"
   - id: "epic-2-retro-item-15-e2-a3-fix-d-3-d-8-open-certificate-empre"
     epic: 2
     action: "E2-A3 Fix D-3..D-8 (open certificate, Empresa @p0, visible defaults,
       voltage-class kV form, phone full-screen form, polish)"
     owner: "dev"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-22.md"
   - id: "epic-2-retro-item-16-e2-a4-dod-every-user-facing-ac-exercised"
     epic: 2
