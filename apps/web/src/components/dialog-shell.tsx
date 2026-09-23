@@ -5,6 +5,11 @@ export interface DialogShellProps {
   /** The mock's dialog class: `confirm-dialog` or `form-dialog`. */
   className: string;
   /**
+   * A modifier on the `.dialog-scrim`, for a dialog placed at an edge rather than centred
+   * (the Template composer's Block palette drawer and sheet).
+   */
+  overlayClassName?: string;
+  /**
    * Controlled open state. Leave both undefined inside a `DialogTrigger`, which then owns
    * the state and the focus return.
    */
@@ -45,7 +50,7 @@ const TABBABLE = [
  *   when the dialog closes from inside (a save that re-renders the surface) and the focus
  *   ends on `<body>` instead, the opener recorded here takes it back.
  */
-export function DialogShell({ className, isOpen, onOpenChange, children, ...aria }: DialogShellProps) {
+export function DialogShell({ className, overlayClassName, isOpen, onOpenChange, children, ...aria }: DialogShellProps) {
   useReturnFocus(isOpen);
 
   const markModal = useCallback((element: HTMLElement | null) => {
@@ -60,7 +65,12 @@ export function DialogShell({ className, isOpen, onOpenChange, children, ...aria
   }, []);
 
   return (
-    <ModalOverlay className="dialog-scrim" isDismissable isOpen={isOpen} onOpenChange={onOpenChange}>
+    <ModalOverlay
+      className={overlayClassName === undefined ? 'dialog-scrim' : `dialog-scrim ${overlayClassName}`}
+      isDismissable
+      isOpen={isOpen}
+      onOpenChange={onOpenChange}
+    >
       <Modal className="dialog-modal">
         <Dialog className={className} {...aria} ref={markModal}>
           {children}

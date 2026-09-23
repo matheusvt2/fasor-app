@@ -195,8 +195,9 @@ export const copy = {
     skipAction: 'Continuar sem baixar',
     skipNote: 'Você pode seguir agora; o que está no servidor desce sozinho na próxima sincronização.',
   },
-  // Templates (`41-templates.html`, Story 3.2). The heading's count is the kernel's
-  // (`templatesHeading`); the list's rows, actions and archived group are Story 3.3's.
+  // Templates (`41-templates.html`, Stories 3.2 and 3.3). The headings' counts and the
+  // row's secondary line are the kernel's (`templatesHeading`, `archivedHeading`,
+  // `templateSummaryText`), and so is the name a duplicate or a new template gets.
   templates: {
     title: 'Templates',
     note: 'Um template é a composição de blocos que um relatório novo copia. Alterar um template não muda relatórios já criados a partir dele.',
@@ -210,6 +211,105 @@ export const copy = {
     // authored: before the first complete company download this device cannot know
     // whether the company already has the standard template, so the action waits.
     awaitingDownload: 'Aguardando o primeiro download da empresa',
+    newTemplate: 'Novo template',
+    openRow: (name: string) => `Abrir template ${name}`,
+    duplicate: 'Duplicar',
+    // The mock's toast, with the story's "— cópia" name (Story 3.3 AC wins over "(cópia)").
+    duplicated: (name: string) => `Duplicado como “${name}”`,
+    archive: 'Arquivar',
+    archived: 'Template arquivado · relatórios já criados continuam intactos',
+    restore: 'Restaurar',
+    restored: 'Template restaurado · volta para a lista de ativos',
+    archivedListLabel: 'Templates arquivados',
+    archivedNote: 'Não aparecem em "Novo relatório a partir de template". Relatórios já criados continuam intactos.',
+    remove: 'Remover',
+    // authored: the mock's Overflow is "não prototipado"; the Confirm dialog follows the
+    // registries' wording (a sentence naming the consequence).
+    removeConfirmTitle: (name: string) => `Remover ${name}?`,
+    removeConfirmBody: 'O template sai da lista; nenhum relatório foi criado a partir dele.',
+    removed: (name: string) => `${name} removido`,
+    undo: 'Desfazer',
+    cancel: 'Cancelar',
+  },
+  // Template composer (`42-template-composer.html`, Story 3.4). Every count, total,
+  // heading with a count and move announcement is the kernel's (`totalsText`,
+  // `skeletonHeading`, `sectionsHeading`, `nodeSummaryText`, `quantityLabel`,
+  // `moveAnnouncement`).
+  composer: {
+    title: 'Template',
+    nameLabel: 'Nome do template',
+    // authored: EXPERIENCE.md autosave wins over the mock's "Salvar template / Cancelar"
+    // sticky bar, so the sentence that sat beside it carries the rule on its own.
+    autosaveNote: 'Alterações são salvas automaticamente e não alteram relatórios já criados deste template.',
+    // authored: an address that names no template on this device.
+    notFound: 'Template não encontrado.',
+    // authored: the way back from the not-found sentence.
+    backToList: 'Voltar para Templates',
+    skeletonNote: 'Cada bloco do relatório nasce na sua coluna, com a TAG final (tipo + coluna)',
+    skeletonListLabel: 'Cabines do template',
+    columnListLabel: (cabine: string) => `Colunas de ${cabine}`,
+    agruparPorTipo: 'Agrupar por tipo',
+    addColuna: 'Adicionar coluna',
+    addCabine: 'Adicionar cabine',
+    // authored: the reasons beside "Adicionar coluna" when it has no cabine to add to.
+    addColunaNoCabine: 'Adicione uma cabine primeiro.',
+    selectNode: 'Selecione uma cabine ou coluna.',
+    sectionsNote: 'Ordem inicial da árvore; o engenheiro reordena no relatório.',
+    sectionsListLabel: 'Blocos do template',
+    // The palette (`aside.block-palette.composer-palette`).
+    paletteLabel: 'Paleta de blocos',
+    paletteTitle: 'Blocos',
+    paletteSections: 'Seções',
+    // authored: the mock's "Equipamentos · toque para adicionar à coluna selecionada
+    // (Coluna 5)", adapted to the stepper rows that set the quantity at the current node.
+    paletteEquipment: (node: string) => `Equipamentos · quantidade em ${node}`,
+    paletteEquipmentNone: 'Equipamentos',
+    // authored: "Adicionar abaixo" places the next section tapped in the palette under
+    // the card it was chosen on (EXPERIENCE.md › Block card).
+    paletteInsertBelow: (section: string) => `A próxima seção tocada entra abaixo de ${section}.`,
+    closePalette: 'Fechar',
+    // Overflow items (EXPERIENCE.md › Block card, in this order).
+    rename: 'Renomear',
+    moveUp: 'Subir',
+    moveDown: 'Descer',
+    addBelow: 'Adicionar abaixo',
+    duplicate: 'Duplicar',
+    remove: 'Remover',
+    // authored: the rename Form dialog.
+    renameTitle: (name: string) => `Renomear ${name}`,
+    renameLabel: 'Nome',
+    save: 'Salvar',
+    cancel: 'Cancelar',
+    // authored: the Confirm dialogs of a removal, one sentence of consequence each.
+    removeConfirmTitle: (name: string) => `Remover ${name}?`,
+    removeCabineBody: 'A cabine, as colunas dela e os equipamentos que elas levam saem do template.',
+    removeColunaBody: 'A coluna e os equipamentos que ela leva saem do template.',
+    removeSectionBody: 'A seção sai do template.',
+    removed: (name: string) => `${name} removida`,
+    undo: 'Desfazer',
+    // Section block titles, verbatim from the mock's palette and block cards.
+    sectionTitles: {
+      section_1: 'Objetivo',
+      section_2: 'Definições',
+      section_3: 'Limite de escopo',
+      section_4: 'Requisitos básicos',
+      section_5: 'Segurança (NR-10)',
+      section_6: 'Verificações aplicáveis',
+      section_8: 'Pontos de atenção',
+      section_10: 'Conclusão',
+      section_11: 'Certificados',
+    },
+    // Equipment row names, verbatim from the mock's palette and `.qty-name`.
+    equipmentNames: {
+      cabos_entrada: 'Cabos de entrada',
+      para_raio: 'Para-raio',
+      chave_seccionadora: 'Chave seccionadora',
+      disjuntor_mt: 'Disjuntor MT',
+      tp: 'TP — proteção',
+      tc: 'TC — proteção',
+      cabos_saida: 'Cabos de saída / alimentação TRn',
+      transformador_forca: 'Transformador de força',
+    },
   },
   // authored: the mocks are static frames and draw no boot state.
   common: {

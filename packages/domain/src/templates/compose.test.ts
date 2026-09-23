@@ -13,6 +13,7 @@ import {
   findComposerNode,
   moveNode,
   moveSection,
+  parsePositionInput,
   parseQuantityInput,
   quantityAt,
   removeNode,
@@ -171,6 +172,14 @@ describe('3.4-UNIT quantities per node', () => {
     expect(parseQuantityInput('0')).toBe(0);
     for (const bad of ['abc', '-3', '2,5', '2.5', '', '—']) expect(parseQuantityInput(bad)).toBeNull();
     expect(clampQuantity(Number.NaN)).toBe(0);
+  });
+
+  it('parses a typed position: 1-based digits to a 0-based index, clamped to the ends', () => {
+    expect(parsePositionInput('3', 17)).toBe(2);
+    expect(parsePositionInput('0', 17)).toBe(0);
+    expect(parsePositionInput('40', 17)).toBe(16);
+    for (const bad of ['', 'x', '-1', '1.5']) expect(parsePositionInput(bad, 17)).toBeNull();
+    expect(parsePositionInput('1', 0)).toBeNull();
   });
 
   it('17 colunas with 1 seccionadora, 1 disjuntor, 1 TP and 1 TC each total 17 of each', () => {

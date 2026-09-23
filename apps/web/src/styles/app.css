@@ -204,6 +204,12 @@ body {
   .registry-toolbar .btn-primary { width: 100%; }
   /* `.frame-phone [data-route="/templates"] .tpl-content` (41-templates.html) */
   [data-route="/templates"] .tpl-content { padding: var(--sp-4) var(--gutter-phone); }
+  /* `.frame-phone [data-route="/templates"] .section-head .btn-primary` (41-templates.html) */
+  [data-route="/templates"] .section-head .btn-primary { width: 100%; }
+  /* `.frame-phone [data-route="/templates/porto-seguro"] .composer-main` (42-template-composer.html) */
+  [data-route="/templates/:id"] .composer-main { padding: var(--sp-4) var(--gutter-phone); }
+  /* `.frame-phone [data-route="/templates/porto-seguro"] .block-card .block-expand` (42-template-composer.html) */
+  [data-route="/templates/:id"] .block-card .block-expand { padding-left: var(--sp-3); padding-right: var(--sp-3); }
   /* `.data-table` (Critérios de aceitação, `criterios-tab.tsx`): not mock-derived — the mock
      never shows this table at phone width, and `components.css` has no responsive handling
      for it, so a long "used by" cell would overflow the frame sideways. Card-stacks each row
@@ -244,6 +250,15 @@ body {
 @media (min-width: 768px) and (max-width: 1279.98px) {
   /* `.frame-tablet .tabs` */
   .tabs { padding: 0 var(--gutter-tablet); }
+  /* `.frame-tablet-landscape, .frame-tablet [data-route="/templates/porto-seguro"] .composer-main`
+     (42-template-composer.html; the two frames together are this range). */
+  [data-route="/templates/:id"] .composer-main { padding: var(--sp-5) var(--gutter-tablet); }
+  /* The mock's other `.frame-tablet`/`.frame-phone` composer rules (`.composer-layout` in a
+     column, `.composer-palette` full width, the `.palette-collapse` band and its
+     `.palette-items`) draw the palette as a collapsible band above the composition. That
+     band is not built: DESIGN.md › Block palette wins with a drawer and a sheet, and
+     Story 3.4 keeps the palette side by side from 1024 px, so those rules are not
+     translated (the drawer and sheet placement is below, under "Block palette"). */
 }
 
 /* ---------- Tablet landscape and desktop share the Sticky action bar rule ---------- */
@@ -256,6 +271,14 @@ body {
   .empresa-layout { grid-template-columns: minmax(0, 1fr) 360px; }
   /* `.frame-tablet-landscape [data-route="/templates"] .tpl-row` (41-templates.html) */
   [data-route="/templates"] .tpl-row { flex-wrap: nowrap; }
+  /* `.frame-tablet-landscape [data-route="/templates"] .tpl-row .rr-text` (41-templates.html) */
+  [data-route="/templates"] .tpl-row .rr-text { flex: 1 1 auto; }
+  /* `.frame-tablet-landscape [data-route="/templates"] .tpl-row .rr-actions` (41-templates.html) */
+  [data-route="/templates"] .tpl-row .rr-actions { margin-left: 0; }
+  /* `.frame-tablet-landscape [data-route="/templates"] .tpl-row .overflow-trigger` (41-templates.html) */
+  [data-route="/templates"] .tpl-row .overflow-trigger { order: 4; }
+  /* `.frame-tablet-landscape [data-route="/templates/porto-seguro"] .composer-palette` (42-template-composer.html) */
+  [data-route="/templates/:id"] .composer-palette { width: var(--rail-width); }
   /* `.frame-tablet-landscape [data-route="/cadastros"] .registry-panel { width: 440px }` is not
      translated: in the mock's own cascade it is declared before the later `.frame-tablet,
      .frame-phone .registry-panel { width: 100% }` rule (below, same specificity), which
@@ -279,6 +302,14 @@ body {
   [data-route="/templates"] .tpl-content { padding: var(--sp-6) var(--gutter-desktop); }
   /* `.frame-desktop [data-route="/templates"] .tpl-row` (41-templates.html) */
   [data-route="/templates"] .tpl-row { flex-wrap: nowrap; }
+  /* `.frame-desktop [data-route="/templates"] .tpl-row .rr-text` (41-templates.html) */
+  [data-route="/templates"] .tpl-row .rr-text { flex: 1 1 auto; }
+  /* `.frame-desktop [data-route="/templates"] .tpl-row .rr-actions` (41-templates.html) */
+  [data-route="/templates"] .tpl-row .rr-actions { margin-left: 0; }
+  /* `.frame-desktop [data-route="/templates"] .tpl-row .overflow-trigger` (41-templates.html) */
+  [data-route="/templates"] .tpl-row .overflow-trigger { order: 4; }
+  /* `.frame-desktop [data-route="/templates/porto-seguro"] .qty-grid` (42-template-composer.html) */
+  [data-route="/templates/:id"] .qty-grid { grid-template-columns: 1fr 1fr; }
   /* `RegistryPickerField` (Stories 2.4/2.5): desktop shows the Combobox directly and
      never the chip row (UX & Interaction Patterns "Manufacturer/voltage-class field"). */
   .rpf-chip-row { display: none; }
@@ -368,3 +399,24 @@ body {
 .dialog-modal {
   display: contents;
 }
+
+/* ---------- Block palette as a drawer or a sheet (Template composer, below 1024px) ----------
+   authored: DESIGN.md › Block palette draws a right drawer on a tablet and a bottom sheet on
+   a phone; no mock frame draws either. The drawer is the `.block-palette` at the rail width
+   against the right edge, full height; the sheet is the same palette across the bottom,
+   with the phone rule above (`.frame-phone .block-palette`) giving its top radius and
+   shadow, and the mock's `.sheet-grip` on top. Both scroll inside themselves. */
+.dialog-scrim.palette-drawer { justify-content: flex-end; align-items: stretch; padding: 0; }
+.dialog-scrim.palette-drawer .block-palette { width: var(--rail-width); max-width: 100%; height: 100%; overflow-y: auto; }
+.dialog-scrim.palette-drawer .sheet-grip { display: none; }
+@media (max-width: 767.98px) {
+  .dialog-scrim.palette-drawer { align-items: flex-end; justify-content: stretch; }
+  .dialog-scrim.palette-drawer .block-palette { width: 100%; height: auto; max-height: 85dvh; }
+  .dialog-scrim.palette-drawer .sheet-grip { display: block; }
+}
+
+/* ---------- Quantity stepper: the typeable count ----------
+   authored: the mock draws `.count` as a `<span>`; the stepper's count is typeable
+   (EXPERIENCE.md › Quantity stepper), so it is an `<input class="count">` that keeps the
+   span's look -- `components.css` sets its type, weight and minimum width. */
+input.count { width: 40px; padding: 0; border: 0; background: transparent; color: inherit; font-family: inherit; }

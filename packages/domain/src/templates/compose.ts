@@ -55,6 +55,17 @@ export function parseQuantityInput(text: string): number | null {
   return clampQuantity(Number(trimmed));
 }
 
+/**
+ * A position typed in a Position box (EXPERIENCE.md › Block card): 1-based, digits only,
+ * out-of-range clamped to the ends. Returns the 0-based index to move to, or `null` for
+ * anything that is not a number (the box then shows its position again, with no op).
+ */
+export function parsePositionInput(text: string, siblings: number): number | null {
+  const trimmed = text.trim();
+  if (!/^\d+$/.test(trimmed) || siblings < 1) return null;
+  return Math.min(siblings, Math.max(1, Number(trimmed))) - 1;
+}
+
 // --- skeleton ----------------------------------------------------------------
 
 function cabinesOf(skeleton: readonly SkeletonNode[]): CabineNode[] {

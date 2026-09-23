@@ -18,6 +18,8 @@ import { ToastOutlet } from '../state/toast.tsx';
 export interface RouteTitle {
   title: string;
   titleHidden?: boolean;
+  /** Where the App bar's back button goes: one level up (Home when omitted). */
+  back?: string;
 }
 
 /** The document title of a route: "Conta · PRODUTO", or the product name alone on Home. */
@@ -87,7 +89,7 @@ export function AppShell() {
               {PRODUTO}
             </Link>
           ) : (
-            <AriaButton className="icon-btn" aria-label={ui.appBar.back} onPress={() => void navigate('/')}>
+            <AriaButton className="icon-btn" aria-label={ui.appBar.back} onPress={() => void navigate(handle?.back ?? '/')}>
               <svg className="ico" aria-hidden="true">
                 <use href="/sprite.svg#i-back" />
               </svg>

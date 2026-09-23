@@ -1,4 +1,12 @@
-import { materializeEntity, splitEntityKey, userRowSchema, type EntityKey, type Op, type UserRow } from '@app/domain';
+import {
+  materializeEntity,
+  splitEntityKey,
+  userRowSchema,
+  type EntityKey,
+  type Op,
+  type RelatorioSummary,
+  type UserRow,
+} from '@app/domain';
 import { opOf, toRecord } from './commit.ts';
 import {
   COMPANY_STREAM,
@@ -171,6 +179,15 @@ export function syncStateRows(db: AppDatabase): Promise<SyncStateRow[]> {
 export async function companyDownloaded(db: AppDatabase): Promise<boolean> {
   const row = await db.sync_state.get(COMPANY_STREAM);
   return row !== undefined && row.downloaded_at !== null;
+}
+
+/**
+ * The company pull's per-relatório summary kept on the `company` sync row (AD-8): every
+ * relatório of the company, downloaded here or not. Empty before the first company pull.
+ */
+export async function companySummaries(db: AppDatabase): Promise<RelatorioSummary[]> {
+  const row = await db.sync_state.get(COMPANY_STREAM);
+  return row?.relatorios ?? [];
 }
 
 /** The company's user rows on this device, for names on Sync status. */

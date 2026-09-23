@@ -1,14 +1,91 @@
 /*
- * Page-only layout of the Templates surface, copied from `41-templates.html`'s own
- * `<style data-screen="templates">` block (screen-scoped in the mock too, not part of
- * components.css) -- the same pattern as `registries.css`. The `.frame-*` variants of these
- * rules live in `app.css` (AGENTS.md "Mock container selectors"); these are the base
- * declarations only.
+ * Page-only layout of the Templates surface and the Template composer, copied from the
+ * mocks' own `<style data-screen="templates">` (`41-templates.html`) and
+ * `<style data-screen="template-composer">` (`42-template-composer.html`) blocks --
+ * screen-scoped in the mocks too, not part of components.css -- the same pattern as
+ * `registries.css`. The `.frame-*` variants of these rules live in `app.css` (AGENTS.md
+ * "Mock container selectors"); these are the base declarations only.
  *
- * Story 3.2 renders the list rows with their name alone. The mock's `.tpl-row .rr-text`
- * (a pressable button sized around the row actions), `.rr-actions`, `.overflow-trigger`,
- * `.is-archived` and `.tpl-group` rules arrive with Story 3.3, which renders those parts.
+ * The mock scopes the composer to its prototype route `/templates/porto-seguro`; the app
+ * renders it on `/templates/:id`, so `[data-route="/templates/:id"]` stands for it. Rules
+ * for parts this story does not render (the Rich text dialog, the sub-block defaults
+ * grid, the subtype combobox, the "Repetir nas colunas" chips) are left out.
  */
 
+/* ---------- 41-templates.html ---------- */
 [data-route="/templates"] .tpl-content { width: 100%; padding: var(--sp-5) var(--gutter-tablet); max-width: calc(var(--content-max) + 2 * var(--gutter-desktop)); margin: 0 auto; flex: 1; }
 [data-route="/templates"] .tpl-row { flex-wrap: wrap; }
+[data-route="/templates"] .tpl-row .rr-text { flex: 1 1 calc(100% - 20px - var(--touch-min) - 2 * var(--sp-3)); min-width: 0; display: flex; flex-direction: column; gap: 2px; cursor: pointer; }
+[data-route="/templates"] .tpl-row .rr-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-1); flex: none; margin-left: calc(20px + var(--sp-3)); }
+[data-route="/templates"] .tpl-row.is-archived .rr-primary { color: var(--ink-secondary); }
+[data-route="/templates"] .tpl-group { margin-top: var(--sp-6); }
+/* authored: the archived row's text is not a button (restore it to edit), so it takes no pointer. */
+[data-route="/templates"] .tpl-row div.rr-text { cursor: default; }
+/* authored: a `<button class="rr-text">` resets the UA button look so it reads as the row text. */
+[data-route="/templates"] .tpl-row button.rr-text { text-align: left; }
+
+/* ---------- 42-template-composer.html ---------- */
+[data-route="/templates/:id"] .skeleton-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+[data-route="/templates/:id"] .cabine-card .block-expand { padding-left: var(--sp-4); min-width: 0; max-width: 100%; }
+[data-route="/templates/:id"] .cabine-card .block-line .cabine-flag { font-size: var(--t-label-size); font-weight: var(--t-label-weight); }
+[data-route="/templates/:id"] .column-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border-hairline); }
+[data-route="/templates/:id"] .column-row { border-bottom: 1px solid var(--border-hairline); }
+[data-route="/templates/:id"] .column-row .col-head { display: flex; align-items: center; gap: var(--sp-3); min-height: var(--touch-field); width: 100%; text-align: left; padding: 0 var(--sp-2) 0 0; cursor: pointer; }
+[data-route="/templates/:id"] .column-row .col-name { font-size: var(--t-body-size); font-weight: 600; min-width: 96px; }
+[data-route="/templates/:id"] .column-row .col-sum { flex: 1; min-width: 0; font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+[data-route="/templates/:id"] .column-row.is-open { background: var(--focus-fill); border-left: 4px solid var(--primary); }
+[data-route="/templates/:id"] .column-row.is-open .col-head { padding-left: var(--sp-2); }
+[data-route="/templates/:id"] .column-row .col-body { display: none; padding: 0 var(--sp-3) var(--sp-3) var(--sp-3); }
+[data-route="/templates/:id"] .column-row.is-open .col-body { display: block; }
+[data-route="/templates/:id"] .qty-grid { display: grid; grid-template-columns: 1fr; gap: 0 var(--sp-5); }
+[data-route="/templates/:id"] .qty-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); min-height: var(--touch-field); border-top: 1px solid var(--border-hairline); }
+[data-route="/templates/:id"] .qty-row:first-child { border-top: 0; }
+[data-route="/templates/:id"] .qty-row .qty-name { font-size: var(--t-body-size); flex: 1; min-width: 0; }
+[data-route="/templates/:id"] .qty-row .quantity-stepper { flex: none; }
+[data-route="/templates/:id"] .column-row .col-body, [data-route="/templates/:id"] .column-row { min-width: 0; }
+[data-route="/templates/:id"] .qty-row .quantity-stepper .step { cursor: pointer; }
+[data-route="/templates/:id"] .skeleton-actions { display: flex; flex-wrap: wrap; gap: var(--sp-3); margin-top: var(--sp-3); }
+[data-route="/templates/:id"] .cabine-card .cabine-flag { display: inline-flex; align-items: center; gap: var(--sp-1); font-size: var(--t-meta-size); color: var(--ink-secondary); }
+[data-route="/templates/:id"] .composer-layout { display: flex; align-items: stretch; flex: 1; }
+[data-route="/templates/:id"] .composer-palette { width: 400px; flex: none; border-left: 0; border-right: 1px solid var(--border-hairline); }
+[data-route="/templates/:id"] .composer-main { flex: 1; min-width: 0; padding: var(--sp-5) var(--gutter-desktop); }
+[data-route="/templates/:id"] .block-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+[data-route="/templates/:id"] .block-card { flex-wrap: wrap; }
+[data-route="/templates/:id"] .overflow-menu .menu-item { cursor: pointer; }
+[data-route="/templates/:id"] .block-card .block-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+[data-route="/templates/:id"] .block-card .block-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-1) var(--sp-3); }
+[data-route="/templates/:id"] .block-card .block-expand { flex-basis: 100%; border-top: 1px solid var(--border-hairline); margin-top: var(--sp-3); padding: var(--sp-4) var(--sp-4) var(--sp-2) var(--touch-min); display: flex; flex-direction: column; gap: var(--sp-4); cursor: default; }
+[data-route="/templates/:id"] .block-card.is-open { border-color: var(--primary); }
+[data-route="/templates/:id"] .name-field { max-width: 560px; margin-bottom: var(--sp-5); }
+[data-route="/templates/:id"] .composer-main .section-head .section-note { margin: 0; }
+
+/* ---------- composer parts the mock does not draw (authored, from the mock's own rules) ---------- */
+
+/* The composer head: the name field, the totals meta line (`.palette-head-meta`'s type) and,
+   below 1024 px, the "Blocos" button that opens the palette as a drawer or a sheet. */
+[data-route="/templates/:id"] .composer-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--sp-2) var(--sp-4); margin-bottom: var(--sp-4); }
+[data-route="/templates/:id"] .composer-head .name-field { flex: 1 1 320px; margin-bottom: 0; }
+[data-route="/templates/:id"] .composer-meta { flex-basis: 100%; margin: 0; font-size: var(--t-meta-size); color: var(--ink-secondary); }
+
+/* A cabine card's parts beside its body: the Agrupar por tipo label and toggle. */
+[data-route="/templates/:id"] .cabine-toggle { display: inline-flex; align-items: center; gap: var(--sp-2); flex: none; }
+/* The block body of a cabine is its "make current" button: it keeps the mock's column layout. */
+[data-route="/templates/:id"] .block-card button.block-body { text-align: left; cursor: pointer; align-items: stretch; }
+
+/* A coluna row: the drag handle and the Position box before the mock's `.col-head` button,
+   the Overflow after it. */
+[data-route="/templates/:id"] .column-row .col-line { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+[data-route="/templates/:id"] .column-row .col-line .col-head { flex: 1; min-width: 0; }
+/* The current cabine's own quantities (blocks placed on the cabine with no coluna). */
+[data-route="/templates/:id"] .cabine-card > .block-expand > .col-body { padding: 0; }
+
+/* A row being dragged rises above its siblings while it follows the pointer. */
+[data-route="/templates/:id"] [data-reorder-key].is-dragging { position: relative; z-index: 2; box-shadow: var(--shadow-float); }
+[data-route="/templates/:id"] .drag-handle { cursor: grab; }
+
+/* The palette beside the composition stays in view while the long skeleton scrolls. */
+[data-route="/templates/:id"] .composer-layout > .composer-palette { align-self: flex-start; position: sticky; top: 0; max-height: 100dvh; overflow-y: auto; }
+/* The palette's equipment rows hold a stepper, not a "+": the row is not itself a button. */
+.composer-palette .palette-item.is-stepper { cursor: default; }
+.composer-palette .palette-note { padding: var(--sp-2) var(--sp-4); margin: 0; font-size: var(--t-meta-size); color: var(--ink-secondary); }
+.composer-palette .palette-head .icon-btn { margin-left: auto; }

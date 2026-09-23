@@ -118,7 +118,8 @@ describe('3.3-UNIT emptyTemplate', () => {
   });
 
   it('a row written before archived_at existed parses with archived_at null', () => {
-    const { archived_at: _, ...legacy } = emptyTemplate(C, 'v1');
+    const legacy: Partial<TemplateRow> = { ...emptyTemplate(C, 'v1') };
+    delete legacy.archived_at;
     expect(templateRowSchema.parse(legacy).archived_at).toBeNull();
   });
 });
