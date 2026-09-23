@@ -263,8 +263,16 @@ describe('3.3 Templates: list', () => {
     expect(within(used!).getByRole('button', { name: 'Duplicar' })).toBeVisible();
 
     await userEvent.click(within(free!).getByRole('button', { name: 'Mais opções de Livre' }));
-    expect(await screen.findByRole('menuitem', { name: 'Remover' })).toBeVisible();
-    await userEvent.keyboard('{Escape}');
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Remover' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Remover Livre?' });
+    // A relatório from "Livre" arrives with the company pull while the dialog is open: the
+    // write-time re-check refuses, and says why.
+    const second = { ...summary(A), id: '019966b0-0033-7000-8000-0000000000f3' };
+    await database.sync_state.update(COMPANY_STREAM, { relatorios: [summary(B), second] });
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Remover' }));
+    expect(await screen.findByText('Este template já foi usado em relatórios; arquive-o.')).toBeVisible();
+    expect(await database.outbox.count()).toBe(0);
+    await waitFor(() => expect(primaries(list)).toEqual(['Livre', 'Usado']));
 
     // An archived template follows the same rule: referenced, so no Overflow at all.
     await database.sync_state.update(COMPANY_STREAM, { relatorios: [summary(B), summary(OLD)] });

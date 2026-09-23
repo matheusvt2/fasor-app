@@ -228,6 +228,9 @@ export const copy = {
     removeConfirmTitle: (name: string) => `Remover ${name}?`,
     removeConfirmBody: 'O template sai da lista; nenhum relatório foi criado a partir dele.',
     removed: (name: string) => `${name} removido`,
+    // authored: the remove re-check at the moment of the write found a relatório created
+    // from the template since the menu was drawn (FR-9: a referenced template is archived).
+    removeReferenced: 'Este template já foi usado em relatórios; arquive-o.',
     undo: 'Desfazer',
     cancel: 'Cancelar',
   },

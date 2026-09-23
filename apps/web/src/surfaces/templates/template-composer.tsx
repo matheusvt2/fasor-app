@@ -93,6 +93,17 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
   const undoToast = useRef<string | null>(null);
   const shownToast = useRef(toast);
   shownToast.current = toast;
+  // The toast outlives the composer (it is the shell's, and an action toast never expires):
+  // leaving the composer takes its own undo toast away, since no later edit here could
+  // retire it any more.
+  const dismissRef = useRef(dismissToast);
+  dismissRef.current = dismissToast;
+  useEffect(
+    () => () => {
+      if (undoToast.current !== null && shownToast.current?.text === undoToast.current) dismissRef.current();
+    },
+    [],
+  );
   const view = useMemo(() => composerView(row), [row]);
   const [currentRef, setCurrentRef] = useState<string | null>(null);
   const current = findComposerNode(view, currentRef);
@@ -161,7 +172,12 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
           label: copy.composer.undo,
           onPress: () => {
             undoToast.current = null;
-            undoBatch(db, batchId, { newId, now }).catch((error: unknown) => showToast(writeErrorText(error)));
+            // In the edit queue: an undo pressed while a quantity commit is queued runs after
+            // it, never racing it on `blocks`.
+            const run = () => undoBatch(db, batchId, { newId, now });
+            const next = queue.current.then(run, run);
+            queue.current = next.catch(() => undefined);
+            next.catch((error: unknown) => showToast(writeErrorText(error)));
           },
         },
       });

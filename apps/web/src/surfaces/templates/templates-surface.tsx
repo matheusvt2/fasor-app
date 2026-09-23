@@ -139,7 +139,14 @@ export function TemplatesSurface() {
     if (user === null || db === null) return;
     // Checked again at the moment of the write: the company summary may have moved since
     // the menu was drawn, and a referenced template is only ever archived (FR-9).
-    if (!(await companyDownloaded(db)) || templateUseCount(row.id, await companySummaries(db)) > 0) return;
+    if (!(await companyDownloaded(db))) {
+      showToast(copy.templates.awaitingDownload);
+      return;
+    }
+    if (templateUseCount(row.id, await companySummaries(db)) > 0) {
+      showToast(copy.templates.removeReferenced);
+      return;
+    }
     const batchId = await commit([removeTemplateOp(user, row.id)]);
     if (batchId === null) return;
     showToast(copy.templates.removed(row.name), {

@@ -3,7 +3,7 @@ import { emptyTemplate, removeNode, standardTemplate, templateRowSchema, type Te
 import { act, cleanup, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { Link, MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { toRecord } from '../../db/commit.ts';
 import { templateRow } from '../../db/home-store.ts';
@@ -72,6 +72,8 @@ function renderComposer(id = ID) {
   return render(
     <MemoryRouter initialEntries={[`/templates/${id}`]}>
       <ToastProvider>
+        {/* Stands in for the App bar's back button, which the shell draws. */}
+        <Link to="/templates">Sair do composer</Link>
         <Routes>
           <Route path="/templates/:id" element={<TemplateComposerSurface />} />
           <Route path="/templates" element={<p>Lista</p>} />
@@ -217,6 +219,52 @@ describe('3.4 composer: skeleton', () => {
     await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'true'));
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Desfazer' })).toBeNull());
     expect(screen.queryByText('Coluna 3 removida')).toBeNull();
+  });
+
+  it('leaving the composer takes its removal undo away, so a later visit\'s edits can never be discarded by it', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    renderComposer();
+    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de Coluna 2' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Remover' }));
+    await userEvent.click(within(await screen.findByRole('dialog', { name: 'Remover Coluna 2?' })).getByRole('button', { name: 'Remover' }));
+    expect(await screen.findByRole('button', { name: 'Desfazer' })).toBeVisible();
+
+    await userEvent.click(screen.getByRole('link', { name: 'Sair do composer' }));
+    expect(await screen.findByText('Lista')).toBeVisible();
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Desfazer' })).toBeNull());
+    expect(screen.queryByText('Coluna 2 removida')).toBeNull();
+  });
+
+  it('an undo pressed while an edit is queued runs after it, never racing it', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    renderComposer();
+    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de Coluna 2' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Remover' }));
+    await userEvent.click(within(await screen.findByRole('dialog', { name: 'Remover Coluna 2?' })).getByRole('button', { name: 'Remover' }));
+    const undo = await screen.findByRole('button', { name: 'Desfazer' });
+    await screen.findByRole('heading', { level: 2, name: 'Esqueleto de locais · 6 cabines · 16 colunas · 89 blocos' });
+    // Hold the next edit's read of the row, so the edit sits in the queue.
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const actual = vi.mocked(templateRow).getMockImplementation()!;
+    vi.mocked(templateRow).mockImplementationOnce(async (db, id) => {
+      await gate;
+      return actual(db, id);
+    });
+    const toggle = screen.getByRole('switch', { name: 'Agrupar por tipo Cubículo Enel' });
+    await userEvent.click(toggle);
+    await userEvent.click(undo);
+    // Nothing of the undo lands before the queued edit.
+    expect((await database.outbox.toArray()).filter((op) => op.path.endsWith('/skeleton'))).toHaveLength(1);
+    release();
+    await waitFor(async () => expect(await database!.outbox.count()).toBe(5));
+    const ops = (await database.outbox.toArray()).sort((a, b) => (a.client_ts < b.client_ts ? -1 : a.client_ts > b.client_ts ? 1 : a.op_id < b.op_id ? -1 : 1));
+    // removal (skeleton, blocks), the toggle (skeleton), then the undo (blocks, skeleton).
+    expect(ops[2]!.batch_id).not.toBe(ops[3]!.batch_id);
+    expect(ops[2]!.path).toBe(`template/${ID}/skeleton`);
+    expect(ops[2]!.value).toEqual(expect.arrayContaining([expect.objectContaining({ ref: 'enel', agrupar_por_tipo: true })]));
   });
 
   it('stores Agrupar por tipo on the skeleton cabine', async () => {
