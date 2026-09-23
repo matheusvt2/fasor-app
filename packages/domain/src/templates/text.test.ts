@@ -6,6 +6,7 @@ import {
   defaultCabineName,
   defaultColunaName,
   moveAnnouncement,
+  naDefaultsCountText,
   nodeSummaryText,
   quantityLabel,
   removedText,
@@ -84,5 +85,14 @@ describe('3.4-UNIT composer headings and node summaries', () => {
     expect(removedText('section', '8')).toBe('Seção 8 removida');
     expect(defaultCabineName(1)).toBe('Cabine 1');
     expect(defaultColunaName(3)).toBe('Coluna 3');
+  });
+});
+
+describe('3.5-UNIT naDefaultsCountText', () => {
+  it('reads the NA pre-marks of a subtype, singular at one and a sentence of its own at zero', () => {
+    expect(naDefaultsCountText(2)).toBe('2 itens marcados NA por padrão');
+    expect(naDefaultsCountText(8)).toBe('8 itens marcados NA por padrão');
+    expect(naDefaultsCountText(1)).toBe('1 item marcado NA por padrão');
+    expect(naDefaultsCountText(0)).toBe('Nenhum item marcado NA por padrão');
   });
 });

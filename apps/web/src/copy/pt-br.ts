@@ -283,6 +283,51 @@ export const copy = {
     renameLabel: 'Nome',
     save: 'Salvar',
     cancel: 'Cancelar',
+    // Story 3.5: the per-type sub-block defaults, a Form dialog opened from the palette's
+    // equipment row. The mock draws them in an expanded equipment `.block-card`; the
+    // composer lists no equipment cards, so they open from the row instead.
+    // authored: the icon button's name on the row, and the dialog's title.
+    editDefaults: (type: string) => `Editar padrões de ${type}`,
+    defaultsTitle: (type: string) => `Padrões de ${type}`,
+    // Verbatim from the mock's `.block-expand`.
+    subtypeLabel: 'Subtipo padrão',
+    subBlocksTitle: 'Sub-blocos padrão',
+    defaultsNote:
+      'Um sub-bloco desativado não é impresso na ficha — nunca sai vazio. Cada ficha pode sobrepor estes padrões pela paleta aberta de dentro dela.',
+    // authored: the select's option for a type used with no subtype.
+    noSubtype: 'Sem subtipo',
+    // authored: every placement of the type follows one config (Story 3.5 Design Notes).
+    defaultsScope: 'Vale para todos os equipamentos deste tipo no template.',
+    // The sub-blocks' labels: the mock's "Dados de placa" and "Verificações gerais", the
+    // story's "IA e IP lidos do visor", the rest authored from the seed's test names.
+    subBlockLabels: {
+      nameplate: 'Dados de placa',
+      checklist: 'Verificações gerais',
+      isolacao: 'Ensaio de isolação',
+      ia_ip_display: 'IA e IP lidos do visor',
+      resistencia_contato: 'Resistência de contato',
+      relacao_transformacao: 'Relação de transformação',
+      observations: 'Observações',
+      conclusion: 'Conclusão',
+    },
+    // Story 3.6: the section text editor, a Form dialog from the section card's Overflow.
+    editText: 'Editar texto',
+    // Verbatim from the mock's `#tc-dlg-rich` title and meta.
+    textTitle: (section: string) => `${section} — texto fixo`,
+    textNote: 'Vale para os próximos relatórios deste template. As variáveis são preenchidas em Dados do relatório; o texto nunca aparece em campo.',
+    // Verbatim from the mock's `.rt-area` `aria-label` ("Texto da seção 1").
+    sectionTextLabel: (n: number) => `Texto da seção ${n}`,
+    // Verbatim from `45-secao.html`'s chip row and the story AC.
+    insertVariable: 'Inserir dado do relatório',
+    // authored: the story AC's "Restaurar texto padrão" (the relatório copy reads "do template").
+    restoreDefaultText: 'Restaurar texto padrão',
+    // authored: the toast of that restore.
+    textRestored: 'Texto padrão restaurado',
+    // authored: the section the editor was opened on was moved or removed on another device.
+    textGone: 'A seção mudou em outro aparelho; o texto não foi salvo.',
+    // authored: autosave replaces the mock's "Salvar texto / Cancelar" pair (EXPERIENCE.md).
+    textAutosave: 'Salvo automaticamente. Texto simples; negrito e listas ficam para depois.',
+    close: 'Fechar',
     // authored: the Confirm dialogs of a removal, one sentence of consequence each.
     removeConfirmTitle: (name: string) => `Remover ${name}?`,
     removeCabineBody: 'A cabine, as colunas dela e os equipamentos que elas levam saem do template.',

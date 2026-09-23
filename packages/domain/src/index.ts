@@ -32,6 +32,7 @@ export * from './seed/template.ts';
 export * from './templates/list.ts';
 export * from './templates/compose.ts';
 export * from './templates/text.ts';
+export * from './templates/section-text.ts';
 export * from './files/candidate.ts';
 export * from './files/tile.ts';
 export * from './drafts/key.ts';

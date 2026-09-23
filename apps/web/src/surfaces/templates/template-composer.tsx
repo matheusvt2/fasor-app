@@ -6,7 +6,9 @@ import {
   composerView,
   defaultCabineName,
   defaultColunaName,
+  defaultSectionText,
   duplicateSection,
+  EQUIPMENT_BLOCK_TYPES,
   findComposerNode,
   moveAnnouncement,
   moveNode,
@@ -15,10 +17,15 @@ import {
   removeNode,
   removeSection,
   renameNode,
+  isSectionBlockType,
+  SECTION_BLOCK_TYPES,
   setAgruparPorTipo,
   setQuantity,
+  setSectionText,
+  setTypeDefaults,
   TemplateTargetGoneError,
   totalsText,
+  typeConfigFor,
   withoutOrphans,
   type ComposerNode,
   type ComposerSection,
@@ -26,6 +33,7 @@ import {
   type OpDraft,
   type SectionBlockType,
   type TemplateRow,
+  type TypeConfig,
 } from '@app/domain';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
@@ -41,8 +49,10 @@ import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { BlockPaletteContent, PaletteDrawer, sectionName } from './block-palette.tsx';
 import { SectionList } from './section-list.tsx';
+import { SectionTextDialog } from './section-text-dialog.tsx';
 import { SkeletonList } from './skeleton-list.tsx';
 import { putTemplateOp, writeErrorText, type TemplateField } from './template-ops.ts';
+import { TypeDefaultsDialog } from './type-defaults-dialog.tsx';
 import './templates.css';
 
 /**
@@ -111,6 +121,8 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
   const [insertBelow, setInsertBelow] = useState<ComposerSection | null>(null);
   const [confirming, setConfirming] = useState<Confirming | null>(null);
   const [renaming, setRenaming] = useState<ComposerNode | null>(null);
+  const [editingType, setEditingType] = useState<EquipmentBlockType | null>(null);
+  const [editingText, setEditingText] = useState<ComposerSection | null>(null);
   const [announcement, setAnnouncement] = useState('');
   const firstSection = useRef<HTMLButtonElement>(null);
   const queue = useRef<Promise<unknown>>(Promise.resolve());
@@ -303,8 +315,83 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
     });
   }
 
+  // --- sub-block defaults per type (Story 3.5) -----------------------------------
+  const liveBlocks = useMemo(() => withoutOrphans(row), [row]);
+  const placedTypes = useMemo(
+    () => new Set(EQUIPMENT_BLOCK_TYPES.filter((type) => typeConfigFor(liveBlocks, type) !== null)),
+    [liveBlocks],
+  );
+  const editingConfig = editingType === null ? null : typeConfigFor(liveBlocks, editingType);
+  // The type left the template (its last placement went to zero, here or on another device):
+  // its panel closes rather than reopening by itself when the type comes back.
+  useEffect(() => {
+    if (editingType !== null && editingConfig === null) setEditingType(null);
+  }, [editingType, editingConfig]);
+
+  /** One change to a type's defaults, applied to its config as the freshest row holds it. */
+  function onEditTypeDefaults(type: EquipmentBlockType, update: (current: TypeConfig) => TypeConfig): void {
+    void edit((fresh) => {
+      const blocks = withoutOrphans(fresh);
+      const config = typeConfigFor(blocks, type);
+      return config === null ? null : [['blocks', setTypeDefaults(blocks, type, update(config))]];
+    }).catch(() => undefined);
+  }
+
+  // --- section text (Story 3.6) --------------------------------------------------
+  // The seed's text in force today, per section type; null for 8 and 11, which carry none.
+  const seedTexts = useMemo(() => {
+    const today = now();
+    return new Map(SECTION_BLOCK_TYPES.map((type) => [type, defaultSectionText(row.seed_version, type, today)]));
+  }, [row.seed_version]);
+  const seedTextOf = (section: ComposerSection) => seedTexts.get(section.block_type) ?? null;
+
+  /**
+   * Writes the text of the section the dialog was opened on, as the freshest row holds it.
+   * An empty text, or one equal to the seed's text in force, is written as null, so the
+   * section keeps following the seed. `gone` is true when nothing was written because that
+   * section is no longer at its index (another device moved, retyped or removed it); an
+   * unchanged text writes nothing and is not `gone`.
+   */
+  async function writeSectionText(section: ComposerSection, text: string | null): Promise<{ batch: string | null; gone: boolean }> {
+    const value = text === null || text.trim() === '' || text === seedTextOf(section) ? null : text;
+    let gone = false;
+    const batch = await edit((fresh) => {
+      const blocks = withoutOrphans(fresh);
+      const current = blocks.filter((block) => isSectionBlockType(block.block_type))[section.index];
+      if (current === undefined || current.block_type !== section.block_type) {
+        gone = true;
+        return null;
+      }
+      if (current.section_text === value) return null;
+      return [['blocks', setSectionText(blocks, section.index, value)]];
+    });
+    return { batch, gone };
+  }
+
+  async function onCommitText(section: ComposerSection, text: string): Promise<void> {
+    const { gone } = await writeSectionText(section, text);
+    if (!gone) return;
+    // The section is not where the dialog was opened any more: it closes, so the toast is
+    // shown once rather than on every later autosave.
+    showToast(copy.composer.textGone);
+    setEditingText(null);
+  }
+
+  function onRestoreText(section: ComposerSection): void {
+    setEditingText(null);
+    void writeSectionText(section, null)
+      .then(({ batch, gone }) => {
+        if (gone) showToast(copy.composer.textGone);
+        else if (batch === null) showToast(copy.composer.textRestored);
+        else undoable(copy.composer.textRestored, batch);
+      })
+      .catch(() => undefined);
+  }
+
   const paletteProps = {
     current,
+    placedTypes,
+    onEditDefaults: setEditingType,
     onAddSection,
     onSetQuantity: (type: EquipmentBlockType, n: number) =>
       current === null ? Promise.resolve() : onSetQuantity(current.ref, type, n),
@@ -374,6 +461,8 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
             onAddBelow={onAddBelow}
             onDuplicate={onDuplicateSection}
             onRemove={onRemoveSection}
+            canEditText={(section) => section.section_text !== null || seedTextOf(section) !== null}
+            onEditText={setEditingText}
           />
         </div>
       </div>
@@ -403,6 +492,27 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
           cancelLabel={copy.composer.cancel}
           isDestructive
           onConfirm={() => void confirming.run()}
+        />
+      )}
+
+      {editingType === null || editingConfig === null ? null : (
+        <TypeDefaultsDialog
+          type={editingType}
+          seedVersion={row.seed_version}
+          config={editingConfig}
+          onChange={(update) => onEditTypeDefaults(editingType, update)}
+          onClose={() => setEditingType(null)}
+        />
+      )}
+
+      {editingText === null ? null : (
+        <SectionTextDialog
+          sectionTitle={sectionName(editingText.block_type)}
+          sectionNumber={editingText.number}
+          text={editingText.section_text ?? seedTextOf(editingText) ?? ''}
+          onCommit={(text) => onCommitText(editingText, text)}
+          onRestore={() => onRestoreText(editingText)}
+          onClose={() => setEditingText(null)}
         />
       )}
 

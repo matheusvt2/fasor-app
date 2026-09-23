@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { SkeletonNode, TemplateBlock } from '../schemas/block-config.ts';
 import { templateRowSchema, type TemplateRow } from '../schemas/entities.ts';
-import { defaultBlockConfig, standardTemplate, templateTotals } from '../seed/template.ts';
+import { naDefaultsFor } from '../seed/definitions.ts';
+import { defaultBlockConfig, LOCKED_SUB_BLOCKS, standardTemplate, templateTotals } from '../seed/template.ts';
+import { applyOp, entityKey, type EntityState } from '../ops/apply.ts';
+import { opFactory } from '../test-support.ts';
 import {
   addCabine,
   addColuna,
@@ -21,7 +24,11 @@ import {
   renameNode,
   setAgruparPorTipo,
   setQuantity,
+  setSectionText,
+  setTypeDefaults,
   TemplateTargetGoneError,
+  typeConfigFor,
+  enabledSubBlocks,
   withoutOrphans,
 } from './compose.ts';
 import { emptyTemplate } from './list.ts';
@@ -156,7 +163,12 @@ describe('3.4-UNIT quantities per node', () => {
       ['k1', 'disjuntor_mt', 1],
       ['k2', 'tp', 2],
     ]);
-    expect(blocks[0]).toEqual({ ...defaultBlockConfig('v1', 'chave_seccionadora'), quantity: 1, skeleton_location_ref: 'k1' });
+    expect(blocks[0]).toEqual({
+      ...defaultBlockConfig('v1', 'chave_seccionadora'),
+      quantity: 1,
+      skeleton_location_ref: 'k1',
+      section_text: null,
+    });
     valid({ ...template, blocks });
   });
 
@@ -247,7 +259,9 @@ describe('3.4-UNIT section blocks', () => {
   });
 
   it('adds the first section to an empty composition', () => {
-    expect(addSection([], 'section_1', 'v1')).toEqual([{ block_type: 'section_1', sub_blocks: {}, na_defaults: [], quantity: 1, skeleton_location_ref: null }]);
+    expect(addSection([], 'section_1', 'v1')).toEqual([
+      { block_type: 'section_1', sub_blocks: {}, na_defaults: [], quantity: 1, skeleton_location_ref: null, section_text: null },
+    ]);
   });
 });
 
@@ -277,5 +291,160 @@ describe('3.4-UNIT composerView', () => {
     expect(withoutOrphans(template)).toEqual(standard.blocks);
     expect(setQuantity(template, 'enel', 'tp', 1)).toEqual(standard.blocks);
     expect(removeNode(template, 'geradores').blocks.some((b) => b.skeleton_location_ref === 'gone')).toBe(false);
+  });
+});
+
+describe('3.5-UNIT sub-block defaults per equipment type', () => {
+  const secc = (blocks: readonly TemplateBlock[]) => blocks.filter((b) => b.block_type === 'chave_seccionadora');
+
+  it('typeConfigFor reads the one config of a placed type, and null for a type the template does not hold', () => {
+    expect(typeConfigFor(standard.blocks, 'chave_seccionadora')).toEqual({
+      subtype: 'manual',
+      sub_blocks: defaultBlockConfig('v1', 'chave_seccionadora').sub_blocks,
+      na_defaults: ['motor', 'fusiveis'],
+    });
+    expect(typeConfigFor(standard.blocks, 'tp')).toEqual({ sub_blocks: defaultBlockConfig('v1', 'tp').sub_blocks, na_defaults: [] });
+    expect(typeConfigFor(withColunas(1).blocks, 'tp')).toBeNull();
+  });
+
+  it('toggling a sub-block off reaches every placement of the type in one blocks value, never mutating the input', () => {
+    const template = frozen(structuredClone(standard));
+    const placements = secc(template.blocks);
+    expect(placements.length).toBeGreaterThanOrEqual(5);
+    const config = typeConfigFor(template.blocks, 'chave_seccionadora')!;
+    const blocks = setTypeDefaults(template.blocks, 'chave_seccionadora', {
+      ...config,
+      sub_blocks: { ...config.sub_blocks, resistencia_contato: { enabled: false } },
+    });
+    for (const block of secc(blocks)) expect(block.sub_blocks.resistencia_contato).toEqual({ enabled: false });
+    // Quantities, refs and roles stay; other types are the very same objects.
+    expect(secc(blocks).map((b) => [b.skeleton_location_ref, b.quantity, b.role])).toEqual(
+      placements.map((b) => [b.skeleton_location_ref, b.quantity, b.role]),
+    );
+    blocks.forEach((block, i) => {
+      if (block.block_type !== 'chave_seccionadora') expect(block).toBe(template.blocks[i]);
+    });
+    valid({ ...standard, blocks });
+  });
+
+  it('a subtype sets the seed\'s NA list for it and removes no item; no subtype clears it', () => {
+    const template = withColunas(2);
+    let blocks = setQuantity(template, 'k1', 'tp', 1);
+    blocks = setQuantity({ ...template, blocks }, 'k2', 'tp', 2);
+    const config = typeConfigFor(blocks, 'tp')!;
+    const dry = setTypeDefaults(blocks, 'tp', { ...config, subtype: 'a_seco', na_defaults: naDefaultsFor('v1', 'tp', 'a_seco') });
+    for (const block of dry) {
+      expect(block.subtype).toBe('a_seco');
+      expect(block.na_defaults).toHaveLength(8);
+      expect(block.sub_blocks).toEqual(config.sub_blocks);
+    }
+    valid({ ...template, blocks: dry });
+    const none = setTypeDefaults(dry, 'tp', { sub_blocks: config.sub_blocks, na_defaults: [] });
+    for (const block of none) {
+      expect('subtype' in block).toBe(false);
+      expect(block.na_defaults).toEqual([]);
+    }
+    valid({ ...template, blocks: none });
+  });
+
+  it('a new placement of a type the template already holds starts from that type\'s config, not the seed default', () => {
+    const template = withColunas(2);
+    let blocks = setQuantity(template, 'k1', 'chave_seccionadora', 1);
+    const config = typeConfigFor(blocks, 'chave_seccionadora')!;
+    blocks = setTypeDefaults(blocks, 'chave_seccionadora', {
+      subtype: 'manual',
+      sub_blocks: { ...config.sub_blocks, nameplate: { enabled: false } },
+      na_defaults: naDefaultsFor('v1', 'chave_seccionadora', 'manual'),
+    });
+    blocks = setQuantity({ ...template, blocks }, 'k2', 'chave_seccionadora', 1);
+    const [first, second] = secc(blocks);
+    expect(second).toEqual({ ...first, skeleton_location_ref: 'k2' });
+    expect(second!.sub_blocks.nameplate).toEqual({ enabled: false });
+    // A type new to the whole template still starts from the seed default.
+    blocks = setQuantity({ ...template, blocks }, 'k2', 'tc', 1);
+    expect(blocks.find((b) => b.block_type === 'tc')).toEqual({
+      ...defaultBlockConfig('v1', 'tc'),
+      quantity: 1,
+      skeleton_location_ref: 'k2',
+      section_text: null,
+    });
+    valid({ ...template, blocks });
+  });
+
+  it('enabledSubBlocks omits a switched-off sub-block and always keeps checklist and conclusion', () => {
+    const config = defaultBlockConfig('v1', 'chave_seccionadora', { subtype: 'manual' });
+    expect(enabledSubBlocks(config)).toEqual(['nameplate', 'checklist', 'isolacao', 'resistencia_contato', 'observations', 'conclusion']);
+    const off = {
+      ...config,
+      sub_blocks: { ...config.sub_blocks, isolacao: { enabled: false }, observations: { enabled: false } },
+    };
+    expect(enabledSubBlocks(off)).toEqual(['nameplate', 'checklist', 'resistencia_contato', 'conclusion']);
+    // The locked pair is in, whatever its entry says (or lacks).
+    const rest = Object.fromEntries(Object.entries(config.sub_blocks).filter(([key]) => key !== 'checklist' && key !== 'conclusion'));
+    expect(enabledSubBlocks({ ...config, sub_blocks: { ...rest, conclusion: { enabled: false } } })).toEqual(
+      expect.arrayContaining([...LOCKED_SUB_BLOCKS]),
+    );
+    // "IA e IP lidos do visor" ships off, so a new TP sheet omits it until switched on.
+    const tp = defaultBlockConfig('v1', 'tp');
+    expect(enabledSubBlocks(tp)).not.toContain('ia_ip_display');
+    expect(enabledSubBlocks({ ...tp, sub_blocks: { ...tp.sub_blocks, ia_ip_display: { enabled: true } } })).toContain('ia_ip_display');
+    expect(enabledSubBlocks(defaultBlockConfig('v1', 'section_1'))).toEqual([]);
+  });
+});
+
+describe('3.6-UNIT section text', () => {
+  it('sets and clears the text of the section at an index, touching no other block', () => {
+    const template = frozen(structuredClone(standard));
+    const blocks = setSectionText(template.blocks, 0, 'Texto da {empresa_executora} para {cliente}.');
+    expect(blocks[0]!.section_text).toBe('Texto da {empresa_executora} para {cliente}.');
+    blocks.slice(1).forEach((block, i) => expect(block).toBe(template.blocks[i + 1]));
+    valid({ ...standard, blocks });
+    expect(setSectionText(blocks, 0, null)[0]!.section_text).toBeNull();
+    expect(() => setSectionText(template.blocks, 42, 'x')).toThrow(TemplateTargetGoneError);
+  });
+
+  it('an equipment block carrying section text is refused by the row schema', () => {
+    const blocks = standard.blocks.map((b) => (b.block_type === 'tp' ? { ...b, section_text: 'x' } : b));
+    expect(templateRowSchema.safeParse({ ...standard, blocks }).success).toBe(false);
+  });
+
+  it('a row written before section_text existed parses with the seed text in force (null)', () => {
+    const legacy = JSON.parse(JSON.stringify(standard)) as Record<string, unknown> & { blocks: Record<string, unknown>[] };
+    for (const block of legacy.blocks) delete block.section_text;
+    const parsed = templateRowSchema.parse(legacy);
+    expect(parsed.blocks.every((b) => b.section_text === null)).toBe(true);
+  });
+});
+
+describe('3.5/3.6-UNIT a template edit never touches a relatório made from it (FR-13)', () => {
+  it('the defaults and text puts change the template row only; the relatório row is the very same value', () => {
+    const f = opFactory();
+    const RELATORIO = '019966b0-0003-7000-8000-000000000003';
+    const relatorio = {
+      id: RELATORIO,
+      project_id: '019966b0-0003-7000-8000-000000000004',
+      template_id: ID,
+      template_version: 1,
+      seed_version: 'v1',
+      status: 'rascunho',
+      setup: { service_start: null, service_end: null, atividade: null, local: null, responsible_user_id: null, cover_photo_file_id: null },
+      export: { scheme: 'por_local_e_tipo' },
+      preview_file_id: null,
+      removed_at: null,
+    };
+    let state: EntityState = new Map();
+    state = applyOp(state, f.op({ kind: 'create', scope: 'company', path: `template/${ID}`, value: standard }));
+    state = applyOp(state, f.op({ kind: 'create', path: `relatorio/${RELATORIO}`, value: relatorio }));
+    const before = new Map(state);
+
+    const config = typeConfigFor(standard.blocks, 'chave_seccionadora')!;
+    let blocks = setTypeDefaults(standard.blocks, 'chave_seccionadora', { sub_blocks: config.sub_blocks, na_defaults: [] });
+    blocks = setSectionText(blocks, 0, 'Outro objetivo para {cliente}.');
+    state = applyOp(state, f.op({ scope: 'company', path: `template/${ID}/blocks`, value: blocks }));
+
+    const changed = [...state.keys()].filter((key) => state.get(key) !== before.get(key));
+    expect(changed).toEqual([entityKey('template', ID)]);
+    expect(state.get(entityKey('relatorio', RELATORIO))).toBe(before.get(entityKey('relatorio', RELATORIO)));
+    expect(templateRowSchema.parse(state.get(entityKey('template', ID))).blocks[0]!.section_text).toBe('Outro objetivo para {cliente}.');
   });
 });
