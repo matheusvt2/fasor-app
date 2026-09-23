@@ -15,8 +15,10 @@ import {
  * AD-3: `OpPath` is a discriminated union of families, read and written only
  * through `parsePath` and `formatPath`. The family list is append-only.
  * Seed-defined segments (nameplate `field_key`, checklist `item_key`,
- * `test_key`, cell `row`/`col`) are validated structurally until Story 3.1
- * ships the seed; `{field}` segments are keys of the target entity's schema.
+ * `test_key`, cell `row`/`col`) are validated structurally only; checking
+ * them against `getDefinition` is the open deferred-work item "Validate
+ * seed-defined path segments against `getDefinition`", due before Epic 4
+ * writes sheet values. `{field}` segments are keys of the target entity's schema.
  */
 
 const seedKey = z.string().regex(/^[a-z0-9_]+$/);

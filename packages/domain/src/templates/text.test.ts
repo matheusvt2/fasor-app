@@ -42,9 +42,26 @@ describe('3.4-UNIT totalsText and quantityLabel', () => {
 
   it('omits zeros, uses the singular at one, and names an empty composition', () => {
     expect(totalsText({ ...zeroTotals(), chave_seccionadora: 1, transformador_forca: 1, para_raio: 1, cabos_entrada: 1 })).toBe(
-      '1 seccionadora · 1 trafo · 1 cabos de entrada · 1 para-raio',
+      '1 seccionadora · 1 trafo · 1 cabo de entrada · 1 para-raio',
     );
     expect(totalsText(zeroTotals())).toBe('Nenhum equipamento');
+  });
+
+  it('reads every type in the singular at one and the plural at two', () => {
+    const expected: Record<string, [string, string]> = {
+      chave_seccionadora: ['1 seccionadora', '2 seccionadoras'],
+      disjuntor_mt: ['1 disjuntor', '2 disjuntores'],
+      tp: ['1 TP', '2 TP'],
+      tc: ['1 TC', '2 TC'],
+      transformador_forca: ['1 trafo', '2 trafos'],
+      cabos_entrada: ['1 cabo de entrada', '2 cabos de entrada'],
+      cabos_saida: ['1 cabo de saída', '2 cabos de saída'],
+      para_raio: ['1 para-raio', '2 para-raios'],
+    };
+    for (const [type, [one, two]] of Object.entries(expected)) {
+      expect(totalsText({ ...zeroTotals(), [type]: 1 })).toBe(one);
+      expect(totalsText({ ...zeroTotals(), [type]: 2 })).toBe(two);
+    }
   });
 
   it('names the stepper "Seccionadoras, 25"', () => {
@@ -66,7 +83,7 @@ describe('3.4-UNIT composer headings and node summaries', () => {
     const view = composerView(standard);
     expect(nodeSummaryText(view.cabines[0]!)).toEqual({
       flag: '9 blocos',
-      sum: '2 seccionadoras · 1 disjuntor · 1 TP · 1 TC · 1 cabos de entrada · 1 cabos de saída · 2 para-raios',
+      sum: '2 seccionadoras · 1 disjuntor · 1 TP · 1 TC · 1 cabo de entrada · 1 cabo de saída · 2 para-raios',
     });
     expect(nodeSummaryText(view.cabines[1]!).flag).toBe('17 colunas · 49 blocos');
     expect(nodeSummaryText(view.cabines[1]!.colunas[3]!)).toEqual({ flag: '3 blocos', sum: '1 disjuntor · 1 TP · 1 TC' });

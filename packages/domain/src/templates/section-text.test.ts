@@ -14,7 +14,7 @@ const TODAY = new Date('2026-09-23T15:00:00.000Z');
 const INPUTS = {
   empresa_executora: 'Empresa Executora Ltda.',
   cliente: 'Cliente S.A.',
-  obra: 'Torres A e B',
+  obra: 'Bloco Norte',
   escopo: 'manutenção preventiva',
   datas: '06, 07 e 08 de setembro de 2026',
   responsavel: 'Responsável Técnico',
@@ -81,19 +81,27 @@ describe('3.6-UNIT resolveSectionText', () => {
     expect(unresolved).toEqual([]);
     expect(resolved).not.toMatch(/\{[a-z_]+\}/);
     expect(resolved).toContain('realizadas pela Empresa Executora Ltda., referentes');
-    expect(resolved).toContain('de Torres A e B da Cliente S.A.');
+    expect(resolved).toContain('de Bloco Norte da Cliente S.A.');
   });
 
   it('prints an unresolved variable as its label in brackets and lists it once, in order of first appearance', () => {
     const text = 'Por {responsavel} em {obra}; assina {responsavel}; {datas}.';
-    const { resolved, unresolved } = resolveSectionText(text, { obra: 'Torres A e B', datas: '  ' });
-    expect(resolved).toBe('Por [Responsável] em Torres A e B; assina [Responsável]; [Datas].');
+    const { resolved, unresolved } = resolveSectionText(text, { obra: 'Bloco Norte', datas: '  ' });
+    expect(resolved).toBe('Por [Responsável] em Bloco Norte; assina [Responsável]; [Datas].');
     expect(unresolved).toEqual(['responsavel', 'datas']);
   });
 
   it('leaves an unknown token as it is and never throws', () => {
-    expect(resolveSectionText('A {foo} e {cliente}', {})).toEqual({ resolved: 'A {foo} e [Cliente]', unresolved: ['cliente'] });
-    expect(resolveSectionText('', {})).toEqual({ resolved: '', unresolved: [] });
+    expect(resolveSectionText('A {foo} e {cliente}', {})).toEqual({ resolved: 'A {foo} e [Cliente]', unresolved: ['cliente'], unknown: ['foo'] });
+    expect(resolveSectionText('', {})).toEqual({ resolved: '', unresolved: [], unknown: [] });
+  });
+
+  it('lists every brace token that is not a known variable in `unknown`, once each, in order, printed as it is', () => {
+    const text = 'De {clente} e {Cliente} para {cliente}; {foo}, {clente} e {Cliente} de novo; {obra}.';
+    const { resolved, unresolved, unknown } = resolveSectionText(text, { cliente: 'Cliente S.A.' });
+    expect(resolved).toBe('De {clente} e {Cliente} para Cliente S.A.; {foo}, {clente} e {Cliente} de novo; [Obra].');
+    expect(unresolved).toEqual(['obra']);
+    expect(unknown).toEqual(['clente', 'Cliente', 'foo']);
   });
 
   it('labels every variable and offers the five of the story for insertion, in order', () => {

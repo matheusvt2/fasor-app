@@ -156,9 +156,13 @@ export const blockConfigSchema = z.object({
   subtype: subtypeSchema.optional(),
   role: roleSchema.optional(),
   sub_blocks: z.partialRecord(subBlockKeySchema, subBlockConfigSchema),
-  na_defaults: z.array(itemKeySchema),
+  /** Each item once: a repeat would pre-mark nothing new and only hide a writer's bug. */
+  na_defaults: z.array(itemKeySchema).refine((keys) => new Set(keys).size === keys.length, { message: 'na_defaults repeats an item' }),
 });
 export type BlockConfig = z.infer<typeof blockConfigSchema>;
+
+/** UX-DR30: the Quantity stepper counts 0 to 99 of one type at one node; a Template block holds 1 to 99. */
+export const MAX_QUANTITY = 99;
 
 /**
  * A Template block: a `BlockConfig` plus how many of it the template places at one
@@ -170,11 +174,14 @@ export type BlockConfig = z.infer<typeof blockConfigSchema>;
  * written before the field existed still parses.
  */
 export const templateBlockSchema = blockConfigSchema.extend({
-  quantity: z.number().int().min(1),
+  quantity: z.number().int().min(1).max(MAX_QUANTITY),
   skeleton_location_ref: z.string().min(1).nullable(),
   section_text: z.string().nullable().default(null),
 });
 export type TemplateBlock = z.infer<typeof templateBlockSchema>;
+
+/** A cabine, coluna or location name: any text, but never empty or blank (kept as written, not trimmed). */
+export const nodeNameSchema = z.string().refine((name) => name.trim().length > 0, { message: 'name is blank' });
 
 /**
  * One node of a Template's location skeleton: a `cabine` root or a `coluna` under one.
@@ -186,14 +193,14 @@ export const skeletonNodeSchema = z.discriminatedUnion('kind', [
     ref: z.string().min(1),
     kind: z.literal('cabine'),
     parent_ref: z.null(),
-    name: z.string(),
+    name: nodeNameSchema,
     agrupar_por_tipo: z.boolean(),
   }),
   z.object({
     ref: z.string().min(1),
     kind: z.literal('coluna'),
     parent_ref: z.string().min(1),
-    name: z.string(),
+    name: nodeNameSchema,
   }),
 ]);
 export type SkeletonNode = z.infer<typeof skeletonNodeSchema>;

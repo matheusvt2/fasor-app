@@ -236,7 +236,7 @@ push({
   value: blockRow(BLOCK_DISJUNTOR_ID, 'disjuntor_mt', EQUIPMENT_DISJUNTOR_ID, { block_type: 'disjuntor_mt', sub_blocks: {}, na_defaults: [] }, 'a1'),
 });
 nameplateSteps(BLOCK_DISJUNTOR_ID, 'disjuntor_mt', DISJUNTOR_DATA.np);
-push({ kind: 'put', scope: 'relatorio', path: `block/${BLOCK_DISJUNTOR_ID}/not_tested`, value: { reason: 'Solicitação do cliente', text: 'Ensaio não realizado nesta fixture reduzida (dado sintético).', at: fixedTs(30), by: USER_ID } });
+push({ kind: 'put', scope: 'relatorio', path: `block/${BLOCK_DISJUNTOR_ID}/not_tested`, value: { reason: 'solicitacao_cliente', text: 'Ensaio não realizado nesta fixture reduzida (dado sintético).', at: fixedTs(30), by: USER_ID } });
 
 // --- transformador_forca ---------------------------------------------------------------------
 

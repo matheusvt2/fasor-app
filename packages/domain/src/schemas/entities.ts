@@ -1,8 +1,9 @@
 import { z } from 'zod';
 import { isoTimestampSchema } from '../clock.ts';
 import { actorIdSchema, uuidV7Schema } from '../ids.ts';
+import { NOT_TESTED_REASON_KEYS } from '../seed/definitions.ts';
 import { checkTemplateRow } from '../seed/template-rules.ts';
-import { skeletonNodeSchema, templateBlockSchema } from './block-config.ts';
+import { nodeNameSchema, skeletonNodeSchema, templateBlockSchema } from './block-config.ts';
 import { councilSchema } from './council.ts';
 
 /*
@@ -262,7 +263,7 @@ const locationBase = {
   id: uuidV7Schema,
   relatorio_id: uuidV7Schema,
   parent_id: nullableId,
-  name: z.string(),
+  name: nodeNameSchema,
   order_key: z.string(),
   removed_at: nullableIso,
 };
@@ -279,8 +280,9 @@ export const locationRowSchema = z.discriminatedUnion('kind', [
   z.object({ ...locationBase, kind: z.literal('coluna') }),
 ]);
 
+/** FR-31: `reason` is a seed `not_tested_reasons` key, never its pt-BR label (which the seed resolves). */
 export const notTestedSchema = z.object({
-  reason: z.string(),
+  reason: z.enum(NOT_TESTED_REASON_KEYS),
   text: nullableString,
   at: isoTimestampSchema,
   by: actorIdSchema,

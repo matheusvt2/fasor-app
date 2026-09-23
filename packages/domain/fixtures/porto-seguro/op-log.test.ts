@@ -1,10 +1,17 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { buildSnapshot, relatorioSnapshotSchema, replay, serializeSnapshot, standardTemplate, templateTotals } from '../../src/index.ts';
 import type { EquipmentBlockType } from '../../src/schemas/block-config.ts';
-import { NA_ITEMS_BY_TYPE } from './data.ts';
-import { NOT_TESTED_BLOCK_IDS, NOT_TESTED_DISJUNTOR_BLOCK_ID, NOT_TESTED_SECCIONADORA_1_BLOCK_ID, NOT_TESTED_SECCIONADORA_2_BLOCK_ID, portoSeguro } from './op-log.ts';
+import { NA_ITEMS_BY_TYPE, SECTION_7_PHOTOS, SECTION_8_POINTS, notTestedText } from './data.ts';
+import {
+  NOT_TESTED_BLOCK_IDS,
+  NOT_TESTED_DISJUNTOR_BLOCK_ID,
+  NOT_TESTED_SECCIONADORA_1_BLOCK_ID,
+  NOT_TESTED_SECCIONADORA_2_BLOCK_ID,
+  SECTION_7_PHOTO_NUMBERS,
+  portoSeguro,
+} from './op-log.ts';
 import { portoSeguroSmall } from './small/op-log.ts';
 
 /*
@@ -66,7 +73,8 @@ describe('3.7-UNIT-001 Porto Seguro fixture: full log', () => {
     expect(notTested.filter((b) => b.block_type === 'disjuntor_mt')).toHaveLength(1);
     for (const block of notTested) {
       expect(block.not_tested).not.toBeNull();
-      expect(block.not_tested?.reason).toBe('Solicitação do cliente');
+      // A seed `not_tested_reasons` key, never its pt-BR label (Epic 3 review K4).
+      expect(block.not_tested?.reason).toBe('solicitacao_cliente');
       expect(Object.keys(block.sheet.test)).toHaveLength(0);
       expect(Object.keys(block.sheet.checklist)).toHaveLength(0);
     }
@@ -123,11 +131,56 @@ describe('3.7-UNIT-001 Porto Seguro fixture: full log', () => {
   it('carries 82 section 7 photo placeholders, reproducing the 75/76-repeated-4x numbering defect', () => {
     const snapshot = snapshotOf(portoSeguro.log, portoSeguro.deadOpIds);
     expect(snapshot.files).toHaveLength(82);
+    // The source's own numbers, kept apart from the captions: 01 to 74, then 75, 76 four times.
+    const oneTo74 = Array.from({ length: 74 }, (_, i) => i + 1);
+    expect(SECTION_7_PHOTO_NUMBERS).toEqual([...oneTo74, 75, 76, 75, 76, 75, 76, 75, 76]);
+  });
+
+  it('stores only the caption text on each photo, in the source order (no baked "Imagem NN: " prefix)', () => {
+    const snapshot = snapshotOf(portoSeguro.log, portoSeguro.deadOpIds);
+    // File rows carry no order_key, so the snapshot lists them by id: the fixture's ids follow the source order.
     const photos = snapshot.files.filter((f) => f.kind === 'photo');
-    const captions75 = photos.filter((f) => f.caption?.startsWith('Imagem 75:'));
-    const captions76 = photos.filter((f) => f.caption?.startsWith('Imagem 76:'));
-    expect(captions75).toHaveLength(4);
-    expect(captions76).toHaveLength(4);
+    expect(photos).toHaveLength(SECTION_7_PHOTOS.length);
+    expect(photos.map((f) => f.caption)).toEqual(SECTION_7_PHOTOS.map((p) => p.caption));
+    for (const photo of photos) expect(photo.caption).not.toMatch(/^Imagem \d/);
+  });
+
+  it('lists the cabines in the delivered document order', () => {
+    const snapshot = snapshotOf(portoSeguro.log, portoSeguro.deadOpIds);
+    expect(snapshot.locations.filter((l) => l.kind === 'cabine').map((l) => l.name)).toEqual([
+      'Cubículo Enel',
+      '1° Subsolo',
+      'Oxigênio',
+      'Cobertura A',
+      'Cobertura B',
+      'Geradores',
+    ]);
+  });
+
+  it('lists the 1° Subsolo colunas in numeric order, Coluna 1 to Coluna 17', () => {
+    const snapshot = snapshotOf(portoSeguro.log, portoSeguro.deadOpIds);
+    const subsolo = snapshot.locations.find((l) => l.kind === 'cabine' && l.name === '1° Subsolo')!;
+    const colunas = snapshot.locations.filter((l) => l.kind === 'coluna' && l.parent_id === subsolo.id).map((l) => l.name);
+    expect(colunas).toEqual(Array.from({ length: 17 }, (_, i) => `Coluna ${i + 1}`));
+  });
+
+  it('orders section 8 as the delivered document: bullets 1 to 3, the not-tested points, then bullet 5, text verbatim', () => {
+    const snapshot = snapshotOf(portoSeguro.log, portoSeguro.deadOpIds);
+    expect(snapshot.points.map((p) => p.origin)).toEqual(['manual', 'manual', 'manual', 'not_tested', 'not_tested', 'not_tested', 'manual']);
+    expect(snapshot.points.map((p) => p.text)).toEqual([
+      SECTION_8_POINTS[0],
+      SECTION_8_POINTS[1],
+      SECTION_8_POINTS[2],
+      notTestedText('esta seccionadora'),
+      notTestedText('este disjuntor (TIE)'),
+      notTestedText('esta seccionadora'),
+      SECTION_8_POINTS[3],
+    ]);
+    // The source's punctuation: bullets 1 to 3 end with ";", the last bullet with ".".
+    expect(snapshot.points[0]?.text).toMatch(/^As duas cabines .*Função dos Transformadores, etc\.;$/);
+    expect(snapshot.points[1]?.text).toMatch(/^Emoldurar .*\(faz parte do PIE\);$/);
+    expect(snapshot.points[2]?.text).toMatch(/^Recomenda-se o acompanhamento .*resistência de isolamento;$/);
+    expect(snapshot.points[6]?.text).toMatch(/^Conforme orientação do cliente, .*anomalia térmica\.$/);
   });
 
   it('carries the cover client, site, dates, responsible person under this fixture only', () => {
@@ -153,11 +206,14 @@ describe('3.7-UNIT-002 determinism: no wall-clock or random source', () => {
     });
   }
 
-  it('every op carries a fixed op_id and client_ts (re-running replay is byte-stable)', () => {
-    const a = serializeSnapshot(snapshotOf(portoSeguro.log, portoSeguro.deadOpIds));
-    const b = serializeSnapshot(snapshotOf(portoSeguro.log, portoSeguro.deadOpIds));
-    expect(a).toBe(b);
-    expect(portoSeguro.log.every((op) => typeof op.op_id === 'string' && typeof op.client_ts === 'string')).toBe(true);
+  it('generating each op log again, in a fresh module evaluation, yields the same log byte for byte', async () => {
+    vi.resetModules();
+    const fresh = await import('./op-log.ts');
+    const freshSmall = await import('./small/op-log.ts');
+    expect(fresh.portoSeguro.log).not.toBe(portoSeguro.log);
+    expect(JSON.stringify(fresh.portoSeguro.log)).toBe(JSON.stringify(portoSeguro.log));
+    expect(freshSmall.portoSeguroSmall.log).not.toBe(portoSeguroSmall.log);
+    expect(JSON.stringify(freshSmall.portoSeguroSmall.log)).toBe(JSON.stringify(portoSeguroSmall.log));
   });
 
   it('the full and small fixtures use distinct id prefixes (no collision when both are imported)', () => {
