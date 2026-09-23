@@ -1,14 +1,39 @@
-import { calibrationValidUntil, formatCalendarDate, type InstrumentRow, type OpDraft } from '@app/domain';
+import {
+  calibrationValidUntil,
+  formatCalendarDate,
+  instrumentManufacturerRecents,
+  toIso,
+  wordRowByName,
+  type InstrumentRow,
+  type OpDraft,
+  type WordRow,
+} from '@app/domain';
 import { useId, useRef, useState } from 'react';
-import { Button, ConfirmDialog, TextButton, Toggle, UploadTile, type PickedFile } from '../../components/index.ts';
+import {
+  Button,
+  ConfirmDialog,
+  RegistryPickerField,
+  TextButton,
+  Toggle,
+  UploadTile,
+  type PickedFile,
+} from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { now } from '../../clock.ts';
 import { commitBatch, undoBatch } from '../../db/commit.ts';
 import { commitFilePick, useAttachedFile } from '../../db/file-commit.ts';
+import { ensureLocalBlob } from '../../db/file-store.ts';
+import { instrumentRows, manufacturerRows } from '../../db/home-store.ts';
+import { useLiveQuery } from '../../db/live.ts';
 import { newId } from '../../ids.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { useSession } from '../../state/session.tsx';
+import { useSync } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
+import { sameFieldValue } from './field-value.ts';
+
+const NO_WORDS: WordRow[] = [];
+const NO_INSTRUMENTS: InstrumentRow[] = [];
 
 export interface InstrumentPanelProps {
   /** The id this panel edits: minted locally for "Novo instrumento" before it exists. */
@@ -46,8 +71,8 @@ function defaultRow(id: string): InstrumentRow {
 
 /**
  * The Instrumentos edit panel (`80-cadastros.html` L271-350): a persistent side panel
- * (full-width on phone/tablet through `.registry-layout{flex-direction:column}`), never
- * a `FormDialog` (Design Notes). Every field autosaves on its own op (AC2, no Save
+ * (full-width under the list on tablet through `.registry-layout{flex-direction:column}`,
+ * full-screen on phone through `app.css`, AC 2.1), never a `FormDialog` (Design Notes). Every field autosaves on its own op (AC2, no Save
  * button); the very first field of a new instrument carries a `create` op with the rest
  * of the row defaulted (AD-3, the Code Map's call-site model), every field after that —
  * on this or any existing instrument — is a `registry/instrument/{id}/{field}` put.
@@ -62,10 +87,18 @@ export function InstrumentPanel({ instrumentId, instrument, referenced, onClose 
   const t = copy.registries.instrumentos;
   const titleId = useId();
   const certificate = useAttachedFile(db, instrument?.certificate_file_id ?? null);
+  const { fetchFile } = useSync();
 
-  async function commitField(field: string, value: unknown): Promise<void> {
-    if (db === null || user === null) return;
-    const base: Omit<OpDraft, 'kind' | 'path' | 'value'> = {
+  const manufacturers = useLiveQuery(() => (db === null ? Promise.resolve(NO_WORDS) : manufacturerRows(db)), [db], NO_WORDS);
+  const instruments = useLiveQuery(
+    () => (db === null ? Promise.resolve(NO_INSTRUMENTS) : instrumentRows(db)),
+    [db],
+    NO_INSTRUMENTS,
+  );
+
+  function opBase(): Omit<OpDraft, 'kind' | 'path' | 'value'> | null {
+    if (user === null) return null;
+    return {
       scope: 'company',
       company_id: user.companyId,
       project_id: null,
@@ -75,15 +108,57 @@ export function InstrumentPanel({ instrumentId, instrument, referenced, onClose 
       meta: null,
       actor_id: user.id,
     };
+  }
+
+  /**
+   * One op per field. `before` rides in the same batch ahead of it: the manufacturer a
+   * "Criar “…”" creates lands with the instrument field that names it (Story 2.5 AC3).
+   */
+  async function commitField(field: string, value: unknown, before: readonly OpDraft[] = []): Promise<void> {
+    const base = opBase();
+    if (db === null || base === null) return;
+    // Nothing to say when the value is the one the row already holds (Epic 2 retro D-8).
+    if (instrument !== null && before.length === 0 && sameFieldValue((instrument as Record<string, unknown>)[field], value)) return;
     if (!created.current) {
       created.current = true;
       const row = { ...defaultRow(instrumentId), [field]: value };
       const op: OpDraft = { ...base, kind: 'create', path: `registry/instrument/${instrumentId}`, value: row as never };
-      await commitBatch(db, [op], { newId, now });
+      await commitBatch(db, [...before, op], { newId, now });
       return;
     }
     const op: OpDraft = { ...base, kind: 'put', path: `registry/instrument/${instrumentId}/${field}`, value: value as never };
-    await commitBatch(db, [op], { newId, now });
+    await commitBatch(db, [...before, op], { newId, now });
+  }
+
+  /** "Criar “Celtta”": a new Fabricantes entry, offline, taken by this field at once. */
+  async function createManufacturer(name: string): Promise<void> {
+    const base = opBase();
+    if (base === null || name === '') return;
+    const id = newId();
+    const row = { id, kind: 'manufacturer', name, gender: null, number: null, removed_at: null };
+    await commitField('manufacturer', name, [{ ...base, kind: 'create', path: `registry/manufacturer/${id}`, value: row as never }]);
+  }
+
+  /**
+   * AC 2.2-3: the certificate opens from the row, from this device's own copy when it
+   * holds one, otherwise fetched from the server on demand and kept here (Epic 2 retro
+   * D-3). The tab is opened inside the tap, before any await, so no popup blocker eats it.
+   */
+  async function openCertificate(): Promise<void> {
+    const fileId = instrument?.certificate_file_id ?? null;
+    if (db === null || fileId === null) return;
+    const opened = window.open('', '_blank');
+    const blob = await ensureLocalBlob(db, fileId, 'original', { fetchFile, nowIso: toIso(now()) });
+    if (blob === null) {
+      opened?.close();
+      showToast(t.certificateUnavailable);
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    if (opened === null) window.open(url, '_blank');
+    else opened.location.href = url;
+    // The new tab has loaded the bytes by then; the URL only has to outlive that.
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
   }
 
   async function archiveOrRemove(): Promise<void> {
@@ -190,24 +265,23 @@ export function InstrumentPanel({ instrumentId, instrument, referenced, onClose 
       </div>
       <div className="panel-body">
         <div className="field-grid">
-          {instrument === null ? (
-            <TextField label={t.codeLabel} value="" onCommit={(v) => commitField('code', v)} />
-          ) : (
-            // The mock (`80-cadastros.html` L278-280) draws Código as a static, non-input
-            // element once an instrument exists: the code is set at creation and never
-            // renamed afterward, so a later sheet selection and this row always agree.
-            <div className="field">
-              <span className="field-label">{t.codeLabel}</span>
-              <div className="input tabular" aria-readonly="true">
-                {instrument.code}
-              </div>
-            </div>
-          )}
-          <TextField
-            label={t.manufacturerLabel}
-            value={instrument?.manufacturer ?? ''}
-            onCommit={(v) => commitField('manufacturer', v)}
-          />
+          {/* Editable after creation too (Epic 2 retro D-8): a typo in the code must be
+              fixable. Sheets keep the instrument by id, so a renamed code never orphans one. */}
+          <TextField label={t.codeLabel} value={instrument?.code ?? ''} onCommit={(v) => commitField('code', v)} />
+          <div className="field span-2">
+            <RegistryPickerField
+              label={t.manufacturerLabel}
+              options={manufacturers.map((row) => ({ id: row.id, label: row.name }))}
+              recentIds={instrumentManufacturerRecents(instrument?.manufacturer ?? null, instruments, manufacturers)}
+              value={wordRowByName(instrument?.manufacturer ?? null, manufacturers)?.id ?? null}
+              initialText={instrument?.manufacturer ?? ''}
+              onChange={(id) => {
+                const chosen = manufacturers.find((row) => row.id === id);
+                void commitField('manufacturer', chosen === undefined ? null : chosen.name);
+              }}
+              onCreate={(text) => void createManufacturer(text)}
+            />
+          </div>
           <TextField
             className="span-2"
             label={t.nameLabel}
@@ -261,6 +335,7 @@ export function InstrumentPanel({ instrumentId, instrument, referenced, onClose 
             helper={t.certificateHelper}
             file={certificate}
             onPick={(picked) => attachCertificate(picked)}
+            onOpen={() => void openCertificate()}
           />
           <TestDefaultField
             label={t.testDefaultLabel(t.testIsolacao)}

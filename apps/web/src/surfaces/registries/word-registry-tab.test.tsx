@@ -44,15 +44,19 @@ describe('WordRegistryTab', () => {
           listLabel={copy.registries.tabFabricantes}
           newRowButton={t.newRow}
           empty={t.empty}
+          emptyText={t.emptyText}
           note={t.note}
           copy={t.panel}
         />
       </ToastProvider>,
     );
+    // One action on an empty registry, under its sentence (Epic 2 retro D-8).
+    expect(screen.getByText(t.emptyText)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: t.empty })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: t.newRow })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: t.panel.newRow })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: t.newRow }));
+    await user.click(screen.getByRole('button', { name: t.empty }));
     expect(screen.getByRole('heading', { name: t.panel.newRow })).toBeInTheDocument();
   });
 });

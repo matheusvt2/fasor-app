@@ -1,6 +1,8 @@
 import { calibrationCheck, calibrationValidUntil, type CalibrationStatus } from '../checks/calibration.ts';
 import { formatCalendarDate } from '../format/datetime.ts';
 import type { RegistryRow } from '../schemas/entities.ts';
+import { normalizeRegistryName } from '../text/normalize-name.ts';
+import type { WordRow } from './word-row.ts';
 
 /*
  * AD-2, AGENTS.md "composed row": the Instrumentos row text and its sort order are
@@ -55,6 +57,45 @@ export function instrumentRegistryRowText(instrument: InstrumentRow, status: Cal
 
 function formatCalendarDateOrNull(value: string | null): string | null {
   return value === null ? null : formatCalendarDate(value);
+}
+
+/**
+ * The manufacturer entry a by-value name stands for (AD-19: an instrument keeps the
+ * manufacturer's name, not its id), by the normalized comparison the server merge uses.
+ */
+export function wordRowByName<T extends WordRow>(name: string | null, rows: readonly T[]): T | null {
+  if (name === null) return null;
+  const wanted = normalizeRegistryName(name);
+  if (wanted === '') return null;
+  return rows.find((row) => normalizeRegistryName(row.name) === wanted) ?? null;
+}
+
+/**
+ * The Fabricante chips of the instrument form (Story 2.5 AC2 on the only surface that
+ * has the field before Epic 4): the current value first, then the manufacturers the
+ * other instruments use most (ties by name), up to 5. The registry form has no
+ * relatório, so "recent in this relatório" reads as "in use in this registry".
+ */
+export function instrumentManufacturerRecents(
+  current: string | null,
+  instruments: readonly InstrumentRow[],
+  manufacturers: readonly WordRow[],
+  limit = 5,
+): string[] {
+  const uses = new Map<string, number>();
+  for (const instrument of instruments) {
+    const row = wordRowByName(instrument.manufacturer, manufacturers);
+    if (row !== null) uses.set(row.id, (uses.get(row.id) ?? 0) + 1);
+  }
+  const ranked = [...uses.keys()].sort((a, b) => {
+    const byUses = (uses.get(b) ?? 0) - (uses.get(a) ?? 0);
+    if (byUses !== 0) return byUses;
+    const nameOf = (id: string) => manufacturers.find((row) => row.id === id)?.name ?? '';
+    return nameOf(a).localeCompare(nameOf(b), 'pt-BR');
+  });
+  const first = wordRowByName(current, manufacturers)?.id;
+  const ids = first === undefined ? ranked : [first, ...ranked.filter((id) => id !== first)];
+  return ids.slice(0, limit);
 }
 
 export interface InstrumentRowStatus {

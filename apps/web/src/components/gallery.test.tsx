@@ -288,8 +288,9 @@ describe('component gallery', () => {
         .flatMap((role) => screen.queryAllByRole(role))
         // React Aria's Modal/Popover inject an invisible `aria-label="Dismiss"` button for
         // screen-reader-only "click outside to close": it has no visual box and is never a
-        // tappable affordance, so the 48px hit-area floor does not apply to it.
-        .filter((el) => el.getAttribute('aria-label') !== 'Dismiss');
+        // tappable affordance, so the 48px hit-area floor does not apply to it. A Popover
+        // renames it "Fechar" (`relabelDismissButtons`); it stays out of the tab order.
+        .filter((el) => !(el.getAttribute('tabindex') === '-1' && ['Dismiss', 'Fechar'].includes(el.getAttribute('aria-label') ?? '')));
       for (const el of interactive) {
         // React Aria's Switch/Checkbox/Radio put the accessible role on a visually hidden
         // native input nested inside the styled `.toggle`/`.checkbox`/`.seg` label, so the

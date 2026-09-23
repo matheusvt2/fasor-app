@@ -75,6 +75,20 @@ describe('UploadTile', () => {
     );
     expect(container.querySelector('.helper')).toHaveTextContent('PDF ou imagem');
     expect(screen.getByRole('button', { name: 'Substituir — Arquivo do certificado' })).toBeInTheDocument();
+    // No "Abrir" unless the surface can open the file.
+    expect(screen.queryByRole('button', { name: /Abrir/ })).not.toBeInTheDocument();
+  });
+
+  it('offers "Abrir" on an attached file when the surface can open it (Epic 2 retro D-3)', async () => {
+    const onOpen = vi.fn();
+    const file = { name: '35102-25.pdf', mime: 'application/pdf', size: 1024, uploaded_at: '2026-09-22T10:00:00.000Z' };
+    const { rerender } = render(
+      <UploadTile kind="certificate" label="Arquivo do certificado" file={null} onPick={vi.fn()} onOpen={onOpen} />,
+    );
+    expect(screen.queryByRole('button', { name: /Abrir/ })).not.toBeInTheDocument();
+    rerender(<UploadTile kind="certificate" label="Arquivo do certificado" file={file} onPick={vi.fn()} onOpen={onOpen} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir — Arquivo do certificado' }));
+    expect(onOpen).toHaveBeenCalledTimes(1);
   });
 
   it('draws the brand-tile layout with its placeholder while the asset is missing', () => {

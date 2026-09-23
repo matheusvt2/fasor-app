@@ -661,6 +661,51 @@ describe('2.5-API-004 manufacturer/voltage_class normalized-name merge', () => {
     expect((live[0]?.row as { gender: string | null }).gender).toBe('m');
   });
 
+  it('converges on the originating device over two cycles: the merged-away id is retired and a later put on it lands on the survivor (Epic 2 retro D-1)', async () => {
+    const survivorId = newId();
+    const ghostId = newId();
+    written.entityIds.add(ghostId);
+    await pushOk(companyA, [manufacturerCreate(idsA, survivorId, 'Legrand')]);
+    const { seq: cursor } = await pullOk(companyA, '/api/sync/company?since=0');
+
+    // Cycle 1: the device pushes its own near-duplicate and a field on it, then pulls.
+    const ghostCreate = manufacturerCreate(idsA, ghostId, 'LEGRAND ');
+    const ghostGender = op(idsA, { kind: 'put', scope: 'company', path: `registry/manufacturer/${ghostId}/gender`, value: 'f' });
+    const first = await pushOk(companyA, [ghostCreate, ghostGender]);
+    expect(first.rejected).toEqual([]);
+    const page1 = await pullOk(companyA, `/api/sync/company?since=${cursor}`);
+    const cycle1 = page1.ops as Op[];
+    // The log holds what was applied: both ops on the survivor, under the device's own op ids.
+    expect(cycle1.find((o) => o.op_id === ghostCreate.op_id)?.path).toBe(`registry/manufacturer/${survivorId}`);
+    expect(cycle1.find((o) => o.op_id === ghostGender.op_id)?.path).toBe(`registry/manufacturer/${survivorId}/gender`);
+    // And one system op retires the merged-away id on every device, naming the survivor.
+    const retire = cycle1.filter((o) => o.path === `registry/manufacturer/${ghostId}/removed_at`);
+    expect(retire).toHaveLength(1);
+    expect(retire[0]).toMatchObject({ kind: 'remove', actor_id: 'system:registry', device_id: 'server', meta: { merged_into: survivorId } });
+    written.opIds.add(retire[0]!.op_id);
+
+    // Cycle 2: an edit made on the ghost before the pull reached the device arrives in a later request.
+    const ghostNumber = op(idsA, { kind: 'put', scope: 'company', path: `registry/manufacturer/${ghostId}/number`, value: 'singular' });
+    const second = await pushOk(companyA, [ghostNumber]);
+    expect(second.rejected).toEqual([]);
+    // Other suites write to the same company stream in parallel, so only this op is looked at.
+    const cycle2 = (await pullOk(companyA, `/api/sync/company?since=${page1.seq}`)).ops as Op[];
+    expect(cycle2.find((o) => o.op_id === ghostNumber.op_id)?.path).toBe(`registry/manufacturer/${survivorId}/number`);
+    expect(cycle2.filter((o) => o.path.startsWith(`registry/manufacturer/${ghostId}`))).toEqual([]);
+
+    const rows = await db
+      .select({ id: entities.id, removed_at: entities.removed_at, row: entities.row })
+      .from(entities)
+      .where(and(eq(entities.company_id, companyA.companyId), eq(entities.entity, 'registry'), inArray(entities.id, [survivorId, ghostId])));
+    expect(rows.map((r) => r.id)).toEqual([survivorId]);
+    expect(rows[0]!.row).toMatchObject({ name: 'Legrand', gender: 'f', number: 'singular' });
+
+    // A resend of the merged create is a dedupe hit: no second system op.
+    await pushOk(companyA, [ghostCreate]);
+    const again = (await pullOk(companyA, `/api/sync/company?since=${cursor}`)).ops as Op[];
+    expect(again.filter((o) => o.path === `registry/manufacturer/${ghostId}/removed_at`)).toHaveLength(1);
+  });
+
   it('never merges across companies: two companies with the same normalized name each keep their own row (AD-10)', async () => {
     const idA = newId();
     const idB = newId();

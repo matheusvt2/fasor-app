@@ -212,6 +212,9 @@ export const copy = {
     tabFabricantes: 'Fabricantes',
     tabClassesTensao: 'Classes de tensão',
     tabCriterios: 'Critérios de aceitação',
+    // authored: Story 2.4 AC1's literal "14 digits when present" length check (Boundaries),
+    // no mock draws the error state. Shared by Clientes and, since Epic 2 retro D-8, Empresa.
+    cnpjInvalid: 'CNPJ inválido — informe 14 dígitos',
     // Empresa (`key-registries.html` frame 0, `80-cadastros.html` Empresa panel): the
     // company's document identity, the only surface where the brand is edited.
     empresa: {
@@ -258,6 +261,8 @@ export const copy = {
       // authored: the mock's empty state for a fresh registry is not drawn; the label
       // doubles as the empty-state action per Story 2.1's AC.
       empty: 'Cadastrar instrumento',
+      // authored: the sentence above the empty state's one action (Epic 2 retro D-8).
+      emptyText: 'Nenhum instrumento cadastrado.',
       note: 'Ordenados por validade da calibração — vencidos primeiro. Selecionar por código na ficha preenche série, RBC e tensão de ensaio.',
       close: 'Fechar edição',
       // authored: AC2 drops the mock's "Salvar" button (every field autosaves); the
@@ -304,7 +309,10 @@ export const copy = {
         `Remover indisponível: ${code} está referenciado em fichas. Arquivar tira o ${code} das listas e mantém as fichas.`,
       archived: (code: string) => `${code} arquivado`,
       removeConfirmTitle: (code: string) => `Remover ${code}?`,
-      removeConfirmBody: 'O instrumento sai do cadastro; nada referencia ele hoje.',
+      removeConfirmBody: 'O instrumento sai do cadastro; nada o referencia hoje.',
+      // authored: no mock draws the certificate file failing to open; offline on a device
+      // that never held the file is the realistic case (AC 2.2-3, Epic 2 retro D-3).
+      certificateUnavailable: 'Não foi possível abrir o certificado. Conecte-se e tente de novo.',
       removed: (code: string) => `${code} removido`,
       undo: 'Desfazer',
       cancel: 'Cancelar',
@@ -315,13 +323,13 @@ export const copy = {
       // authored: the mock's empty state for a fresh registry is not drawn; the label
       // doubles as the empty-state action per the Instrumentos tab's own convention.
       empty: 'Cadastrar cliente',
+      // authored: the sentence above the empty state's one action (Epic 2 retro D-8).
+      emptyText: 'Nenhum cliente cadastrado.',
       note: 'Cliente e obras alimentam a capa do relatório; o CNPJ (opcional) sai na linha "Contratante" do controle do documento. Um cliente com relatórios não pode ser excluído — só arquivado.',
       close: 'Fechar edição',
       panelClose: 'Fechar',
       nameLabel: 'Nome',
       cnpjLabel: 'CNPJ',
-      // authored: AC1's literal "14 digits when present" length check (Boundaries), no mock draws the error state.
-      cnpjInvalid: 'CNPJ inválido — informe 14 dígitos',
       contactNameLabel: 'Contato',
       contactPhoneLabel: 'Telefone do contato',
       sitesLabel: 'Obras',
@@ -333,7 +341,7 @@ export const copy = {
         `Remover indisponível: ${name} está referenciado em projetos. Arquivar tira o cliente das listas e mantém os projetos.`,
       archived: (name: string) => `${name} arquivado`,
       removeConfirmTitle: (name: string) => `Remover ${name}?`,
-      removeConfirmBody: 'O cliente sai do cadastro; nada referencia ele hoje.',
+      removeConfirmBody: 'O cliente sai do cadastro; nada o referencia hoje.',
       removed: (name: string) => `${name} removido`,
       undo: 'Desfazer',
       cancel: 'Cancelar',
@@ -342,6 +350,8 @@ export const copy = {
     fabricantes: {
       newRow: 'Novo fabricante',
       empty: 'Cadastrar fabricante',
+      // authored: the sentence above the empty state's one action (Epic 2 retro D-8).
+      emptyText: 'Nenhum fabricante cadastrado.',
       note: 'Fabricantes alimentam a legenda das placas de equipamento e o campo de fabricante do instrumento. Crie um novo a qualquer momento, mesmo offline.',
       panel: {
         newRow: 'Novo fabricante',
@@ -368,20 +378,20 @@ export const copy = {
     classesTensao: {
       newRow: 'Nova classe',
       empty: 'Cadastrar classe de tensão',
+      // authored: the sentence above the empty state's one action (Epic 2 retro D-8).
+      emptyText: 'Nenhuma classe de tensão cadastrada.',
       note: 'Classes de tensão alimentam a legenda das placas de equipamento. Crie uma nova a qualquer momento, mesmo offline.',
       panel: {
         newRow: 'Nova classe',
         close: 'Fechar edição',
         panelClose: 'Fechar',
-        nameLabel: 'Nome',
-        genderLabel: 'Gênero gramatical',
-        genderMasculine: 'Masculino',
-        genderFeminine: 'Feminino',
-        genderUnset: 'Não definido',
-        numberLabel: 'Número gramatical',
-        numberSingular: 'Singular',
-        numberPlural: 'Plural',
-        numberUnset: 'Não definido',
+        // authored: Story 2.5 AC1 "value in kV"; the unit and its spoken name follow the
+        // mock's `.measurement-field` (`80-cadastros.html` L337).
+        valueLabel: 'Valor em kV',
+        valueUnit: 'kV',
+        valueUnitName: 'quilovolts',
+        // authored: no mock draws the refused value (Epic 2 retro D-6).
+        valueInvalid: 'Informe só o número, por exemplo 15 ou 17,5',
         remove: 'Remover',
         removeConfirmTitle: (name: string) => `Remover ${name}?`,
         removeConfirmBody: 'A classe de tensão sai do cadastro; ela não é referenciada por id em nenhuma ficha.',

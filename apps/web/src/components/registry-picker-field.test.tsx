@@ -70,9 +70,36 @@ describe('RegistryPickerField', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Outro…' }));
     const input = screen.getByRole('combobox', { name: 'Fabricante' });
     await userEvent.type(input, '  Blutrafos  ');
-    await userEvent.click(screen.getByRole('button', { name: /Abrir lista/ }));
-    await userEvent.click(screen.getByRole('option', { name: 'Criar “Blutrafos”' }));
+    // Typing alone opens the list, "Criar" and all: no option matches, and the list still
+    // opens for it (Epic 2 retro D-2).
+    await userEvent.click(await screen.findByRole('option', { name: 'Criar “Blutrafos”' }));
     expect(onCreate).toHaveBeenCalledWith('Blutrafos');
+  });
+
+  it('offers no "Criar" for a name the registry already holds, whatever its case or accents', async () => {
+    render(
+      <RegistryPickerField label="Fabricante" options={OPTIONS} recentIds={[]} value={null} onChange={vi.fn()} onCreate={vi.fn()} />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Outro…' }));
+    await userEvent.type(screen.getByRole('combobox', { name: 'Fabricante' }), ' SCHNEIDER ');
+    // The entry matches the trimmed text and is offered; "Criar" is not.
+    expect(await screen.findByRole('option', { name: 'Schneider' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /Criar/ })).not.toBeInTheDocument();
+  });
+
+  it('shows the stored by-value text in the Combobox from the first render', () => {
+    render(
+      <RegistryPickerField
+        label="Fabricante"
+        options={OPTIONS}
+        recentIds={[]}
+        value={null}
+        initialText="Instrum"
+        onChange={vi.fn()}
+        onCreate={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('combobox', { name: 'Fabricante', hidden: true })).toHaveValue('Instrum');
   });
 
   it('once the caller adds the created entry to options, it renders selectable at once', () => {

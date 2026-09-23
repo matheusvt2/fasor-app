@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RegistryRow } from '../schemas/entities.ts';
-import { compareWordRows, sortWordRegistryRows, wordRegistryRowText, type WordRow } from './word-row.ts';
+import { compareWordRows, parseVoltageClassKv, sortWordRegistryRows, wordRegistryRowText, type WordRow } from './word-row.ts';
 
 function manufacturer(overrides: Partial<WordRow> = {}): WordRow {
   return {
@@ -14,9 +14,32 @@ function manufacturer(overrides: Partial<WordRow> = {}): WordRow {
   } as Extract<RegistryRow, { kind: 'manufacturer' }>;
 }
 
+describe('parseVoltageClassKv (Epic 2 retro D-6)', () => {
+  it.each([
+    ['15', '15'],
+    ['17,5', '17,5'],
+    ['23', '23'],
+    [' 13.8 ', '13,8'],
+    ['34,5 kV', '34,5'],
+    ['0,38kV', '0,38'],
+  ])('accepts %j as %j', (text, stored) => {
+    expect(parseVoltageClassKv(text)).toBe(stored);
+  });
+
+  it.each(['abc', '', '15,', ',5', '17,5,1', '-15', '15 V', '1 5'])('refuses %j', (text) => {
+    expect(parseVoltageClassKv(text)).toBeNull();
+  });
+});
+
 describe('wordRegistryRowText', () => {
   it('shows the name', () => {
     expect(wordRegistryRowText(manufacturer({ name: 'WEG' }))).toEqual({ primary: 'WEG' });
+  });
+
+  it('reads a voltage class with its unit, and a legacy non-numeric name as it is', () => {
+    const voltage = (name: string) => ({ ...manufacturer({ name }), kind: 'voltage_class' }) as WordRow;
+    expect(wordRegistryRowText(voltage('17,5'))).toEqual({ primary: '17,5 kV' });
+    expect(wordRegistryRowText(voltage('Baixa tensão'))).toEqual({ primary: 'Baixa tensão' });
   });
 });
 

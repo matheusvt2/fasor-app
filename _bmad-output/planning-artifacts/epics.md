@@ -854,9 +854,11 @@ So that creating a relatório fills the cover and the document control table fro
 **When** the user adds a client with name, CNPJ (optional, validated as 14 digits when present), one or more sites each with an address, and a contact name and phone
 **Then** the rows autosave as `registry/client/{id}` ops, the list shows name and CNPJ in `meta`, and a client referenced by a Project offers only "Arquivar" (FR-2)
 
-**Given** the client Combobox used later by "Novo relatório" and Relatório setup
-**When** the user types a name that does not exist
-**Then** the last option reads "Criar “⟨texto⟩”" and creates the client inline, offline, from the cached registry (UX-DR19)
+~~**Given** the client Combobox used later by "Novo relatório" and Relatório setup~~
+~~**When** the user types a name that does not exist~~
+~~**Then** the last option reads "Criar “⟨texto⟩”" and creates the client inline, offline, from the cached registry (UX-DR19)~~
+
+2026-09-22, decided by Matheus (Epic 2 retro D-2, action E2-A2): the AC above has no screen to close on in Epic 2, because the client Combobox belongs to "Novo relatório" and Relatório setup. It moves to Story 4.1, where that Combobox is built, and closes there with an e2e test through the mounted screen. Story 2.4 keeps the shared `RegistryPickerField`/`Combobox` behavior it already ships.
 
 **Given** a client with a CNPJ
 **When** the kernel composes the document control table (Epic 7)
@@ -1115,6 +1117,10 @@ So that every equipment block exists in its column with its TAG before anyone wa
 **Given** the "Novo relatório" Form dialog
 **When** it opens
 **Then** the report type radio shows the single option "Cabine primária" preselected, the template Combobox defaults to the last used in this project, the two date fields default end to start, and "Criar relatório" stays `aria-disabled` with the reason beside it until template and start date exist (FR-15, UX-DR60)
+
+**Given** the client Combobox of "Novo relatório" and of Relatório setup (moved here from Story 2.4 on 2026-09-22, decided by Matheus, Epic 2 retro D-2)
+**When** the user types a name that does not exist
+**Then** the last option reads "Criar “⟨texto⟩”" and creates the client inline, offline, from the cached registry, and an e2e test drives it through the mounted dialog (UX-DR19)
 
 **Given** the kernel `instantiateTemplate(template, project, inputs)` and the `equipment` table `{id, project_id, tag, type, last_nameplate?, removed_at?}` (scope project)
 **When** the user taps "Criar relatório"

@@ -185,6 +185,18 @@ body {
   .registry-panel .panel-head { padding: var(--sp-4) var(--gutter-phone) 0; }
   /* `.frame-phone [data-route="/cadastros"] .registry-panel .panel-body` */
   .registry-panel .panel-body { padding: var(--sp-3) var(--gutter-phone) var(--sp-4); }
+  /* authored, no mock rule: AC 2.1 "Form dialog on desktop, full-screen on phone" and
+     DESIGN.md Form dialog "Full-screen on phone" win over `80-cadastros.html`, which stacks
+     the edit panel under the list at every width below desktop (Epic 2 retro D-7). On the
+     phone a registry's edit panel covers the screen, above the sticky bars (20) and below
+     the toast (30) and the dialog scrim (40); the surface under it leaves the page, so
+     neither the eye nor the keyboard reaches a list it cannot see. The Empresa preview
+     panel (`.empresa-layout`) is not an edit form and stays in the flow. */
+  .registry-layout > .registry-panel {
+    position: fixed; inset: 0; z-index: 25;
+    overflow-y: auto; border-top: 0;
+  }
+  .registry-layout:has(> .registry-panel) > .registry-main { display: none; }
   /* `.frame-phone [data-route="/cadastros"] .field-grid` (+ `.span-2`) */
   .field-grid { grid-template-columns: 1fr; }
   .field-grid .span-2 { grid-column: auto; }

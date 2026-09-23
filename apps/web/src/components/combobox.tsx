@@ -70,6 +70,13 @@ export function Combobox({
           onInputChange?.(value);
         }}
         allowsCustomValue={Boolean(onCreate)}
+        // Typing a name no option matches must still open the list: React Aria decides
+        // whether to open before the "Criar" option for the new text exists, and would
+        // otherwise keep it closed until the chevron is pressed (Epic 2 retro D-2).
+        allowsEmptyCollection={Boolean(onCreate)}
+        // The typed text is matched trimmed, as "Criar" names it: a trailing space must not
+        // hide the "Criar" option or an entry that matches.
+        defaultFilter={(textValue, typed) => textValue.toLocaleLowerCase('pt-BR').includes(typed.trim().toLocaleLowerCase('pt-BR'))}
       >
         <Label className="field-label">{label}</Label>
         <Input

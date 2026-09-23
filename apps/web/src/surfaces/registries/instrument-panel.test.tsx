@@ -39,6 +39,7 @@ const session: SessionState = {
 };
 
 vi.mock('../../state/session.tsx', () => ({ useSession: () => session }));
+vi.mock('../../state/sync.tsx', () => ({ useSync: () => ({ fetchFile: vi.fn() }) }));
 
 const instrument: InstrumentRow = {
   id: '0a000000-0000-7000-8000-0000000000b1',

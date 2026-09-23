@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest';
 import type { CalibrationStatus } from '../checks/calibration.ts';
 import {
   compareInstrumentRows,
+  instrumentManufacturerRecents,
   instrumentRegistryRowText,
   sortInstrumentRegistryRows,
   type InstrumentRow,
+  wordRowByName,
 } from './instrument-row.ts';
+import type { WordRow } from './word-row.ts';
 
 function instrument(overrides: Partial<InstrumentRow> = {}): InstrumentRow {
   return {
@@ -78,5 +81,29 @@ describe('compareInstrumentRows', () => {
       { instrument: instrument({ code: 'A' }), status: 'expired' },
     ];
     expect([...rows].sort(compareInstrumentRows).map((r) => r.instrument.code)).toEqual(['A', 'B']);
+  });
+});
+
+describe('instrumentManufacturerRecents (Epic 2 retro D-2)', () => {
+  const maker = (id: string, name: string) =>
+    ({ id, kind: 'manufacturer', name, gender: null, number: null, removed_at: null }) as WordRow;
+  const makers = [maker('m-hitech', 'Hi-Tech'), maker('m-instrum', 'Instrum'), maker('m-megabras', 'Megabras'), maker('m-weg', 'WEG')];
+
+  it('puts the current value first, then the most used, ties by name', () => {
+    const instruments = [
+      instrument({ manufacturer: 'hi-tech' }),
+      instrument({ manufacturer: 'Hi-Tech' }),
+      instrument({ manufacturer: 'Megabras' }),
+      instrument({ manufacturer: 'Instrum' }),
+      instrument({ manufacturer: 'Sem cadastro' }),
+    ];
+    expect(instrumentManufacturerRecents('WEG', instruments, makers)).toEqual(['m-weg', 'm-hitech', 'm-instrum', 'm-megabras']);
+    expect(instrumentManufacturerRecents(null, instruments, makers, 2)).toEqual(['m-hitech', 'm-instrum']);
+  });
+
+  it('finds an entry by its normalized name, never a blank one', () => {
+    expect(wordRowByName(' MEGABRAS ', makers)?.id).toBe('m-megabras');
+    expect(wordRowByName('', makers)).toBeNull();
+    expect(wordRowByName(null, makers)).toBeNull();
   });
 });

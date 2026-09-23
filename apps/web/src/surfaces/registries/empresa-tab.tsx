@@ -20,6 +20,8 @@ import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { useSession } from '../../state/session.tsx';
 import { useSync } from '../../state/sync.tsx';
 import { BrandPreview } from './brand-preview.tsx';
+import { CnpjField } from './cnpj-field.tsx';
+import { sameFieldValue } from './field-value.ts';
 
 /*
  * Empresa (`key-registries.html` frame 0, `80-cadastros.html` Empresa panel): the
@@ -46,6 +48,10 @@ export function EmpresaTab() {
   const empresaId = empresa?.id ?? mintedId;
   const created = useRef(false);
   if (empresa !== null) created.current = true;
+  // What the form and the preview show: the stored row, or the row the first commit will
+  // create, so the kernel's form defaults read in the fields from the first visit
+  // (AC 2.3-1, Epic 2 retro D-5) instead of only in the preview.
+  const shown: EmpresaRow = empresa ?? defaultEmpresaRow(empresaId);
 
   const opBase = (): Omit<OpDraft, 'kind' | 'path' | 'value'> | null =>
     user === null
@@ -66,6 +72,9 @@ export function EmpresaTab() {
     const base = opBase();
     if (db === null || base === null) return;
     const next = value.trim() === '' ? null : value;
+    // Nothing to say when the value is the one shown already, a kernel default included
+    // (Epic 2 retro D-5, D-8): leaving an untouched field never writes.
+    if (sameFieldValue(shown[field], field === 'name' ? value : next)) return;
     if (!created.current) {
       created.current = true;
       const row: EmpresaRow = { ...defaultEmpresaRow(empresaId), [field]: field === 'name' ? value : next };
@@ -135,23 +144,23 @@ export function EmpresaTab() {
                 className="span-2"
                 label={t.nameLabel}
                 helper={t.nameHelper}
-                value={empresa?.name ?? ''}
+                value={shown.name ?? ''}
                 onCommit={(v) => commitField('name', v)}
               />
-              <EmpresaField label={t.cnpjLabel} tabular value={empresa?.cnpj ?? ''} onCommit={(v) => commitField('cnpj', v)} />
-              <EmpresaField label={t.phoneLabel} tabular value={empresa?.phone ?? ''} onCommit={(v) => commitField('phone', v)} />
+              <CnpjField value={shown.cnpj ?? ''} label={t.cnpjLabel} invalidText={copy.registries.cnpjInvalid} onCommit={(v) => commitField('cnpj', v ?? '')} />
+              <EmpresaField label={t.phoneLabel} tabular value={shown.phone ?? ''} onCommit={(v) => commitField('phone', v)} />
               <EmpresaField
                 className="span-2"
                 label={t.emailLabel}
                 type="email"
-                value={empresa?.email ?? ''}
+                value={shown.email ?? ''}
                 onCommit={(v) => commitField('email', v)}
               />
               <EmpresaField
                 className="span-2"
                 label={t.addressLabel}
                 helper={t.addressHelper}
-                value={empresa?.address ?? ''}
+                value={shown.address ?? ''}
                 onCommit={(v) => commitField('address', v)}
               />
             </div>
@@ -195,20 +204,20 @@ export function EmpresaTab() {
                 className="span-2"
                 label={t.formTitleLabel}
                 helper={t.formTitleHelper}
-                value={empresa?.form_title ?? ''}
+                value={shown.form_title ?? ''}
                 onCommit={(v) => commitField('form_title', v)}
               />
               <EmpresaField
                 label={t.formCodeLabel}
                 tabular
-                value={empresa?.form_code ?? ''}
+                value={shown.form_code ?? ''}
                 onCommit={(v) => commitField('form_code', v)}
               />
               <EmpresaField
                 label={t.formRevisionLabel}
                 helper={t.formRevisionHelper}
                 tabular
-                value={empresa?.form_revision ?? ''}
+                value={shown.form_revision ?? ''}
                 onCommit={(v) => commitField('form_revision', v)}
               />
             </div>
@@ -223,7 +232,7 @@ export function EmpresaTab() {
               <h2 className="panel-title">{t.previewTitle}</h2>
               <p className="panel-meta">{t.previewMeta}</p>
             </div>
-            <BrandPreview empresa={empresa} logoSrc={logoSrc} coverSrc={coverSrc} />
+            <BrandPreview empresa={shown} logoSrc={logoSrc} coverSrc={coverSrc} />
           </div>
         </aside>
       </div>

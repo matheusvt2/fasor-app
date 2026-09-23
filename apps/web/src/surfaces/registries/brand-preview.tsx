@@ -82,7 +82,8 @@ export function BrandPreview({ empresa, logoSrc = null, coverSrc = null }: Brand
           <figcaption className="bp-caption">{t.previewFooter}</figcaption>
         </figure>
       </div>
-      <p className="bp-note">{t.previewNote}</p>
+      {/* The note describes the no-logo print; with a logo it would contradict the preview (Epic 2 retro D-8). */}
+      {empresa?.logo_file_id == null ? <p className="bp-note">{t.previewNote}</p> : null}
     </div>
   );
 }

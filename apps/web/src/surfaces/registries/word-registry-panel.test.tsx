@@ -73,3 +73,36 @@ describe('WordRegistryPanel', () => {
     expect(screen.getByRole('radiogroup', { name: 'Número gramatical' })).toBeInTheDocument();
   });
 });
+
+describe('WordRegistryPanel for a voltage class (Epic 2 retro D-6)', () => {
+  const voltage: WordRow = { ...manufacturer, kind: 'voltage_class', name: '17,5' };
+  const t = copy.registries.classesTensao.panel;
+
+  function renderVoltage(row: WordRow | null) {
+    return render(
+      <ToastProvider>
+        <WordRegistryPanel kind="voltage_class" rowId={voltage.id} row={row} onClose={vi.fn()} copy={t} />
+      </ToastProvider>,
+    );
+  }
+
+  it('asks for a value in kV and has no grammar fields', () => {
+    renderVoltage(voltage);
+    expect(screen.getByRole('heading', { name: '17,5 kV' })).toBeInTheDocument();
+    expect(screen.getByLabelText(t.valueLabel)).toHaveValue('17,5');
+    expect(screen.getByLabelText(t.valueUnitName)).toHaveTextContent('kV');
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Nome')).not.toBeInTheDocument();
+  });
+
+  it('refuses a non-numeric value inline, on blur', async () => {
+    const user = userEvent.setup();
+    renderVoltage(null);
+    const field = screen.getByLabelText(t.valueLabel);
+    await user.type(field, 'abc');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    await user.tab();
+    expect(screen.getByRole('alert')).toHaveTextContent(t.valueInvalid);
+    expect(field).toHaveAttribute('aria-invalid', 'true');
+  });
+});

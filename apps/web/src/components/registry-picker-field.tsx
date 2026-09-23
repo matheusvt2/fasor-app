@@ -1,3 +1,4 @@
+import { normalizeRegistryName } from '@app/domain';
 import { useId, useState } from 'react';
 import { ui } from '../copy/ui.ts';
 import { Chip } from './chip.tsx';
@@ -13,6 +14,12 @@ export interface RegistryPickerFieldProps {
   onChange: (id: string | null) => void;
   /** Fires with the trimmed typed text when "Criar '…'" is chosen (Story 2.4 AC2, 2.5 AC3). */
   onCreate: (text: string) => void;
+  /**
+   * The text the Combobox shows on the first render: the chosen option's label, or the
+   * stored by-value text when it matches no registry entry (a free-text manufacturer
+   * typed before the picker existed). Defaults to the selected option's label.
+   */
+  initialText?: string;
 }
 
 /**
@@ -21,12 +28,30 @@ export interface RegistryPickerFieldProps {
  * a trailing "Outro…" that reveals the Combobox; desktop shows the Combobox directly — a
  * pure CSS breakpoint switch (`registries.css`/`app.css`), never a JS `matchMedia` (Boundaries).
  */
-export function RegistryPickerField({ label, options, recentIds, value, onChange, onCreate }: RegistryPickerFieldProps) {
-  const [showCombobox, setShowCombobox] = useState(false);
-  const [inputValue, setInputValue] = useState('');
-  const chipsLabelId = useId();
-
+export function RegistryPickerField({
+  label,
+  options,
+  recentIds,
+  value,
+  onChange,
+  onCreate,
+  initialText,
+}: RegistryPickerFieldProps) {
   const byId = new Map(options.map((option) => [option.id, option] as const));
+  const [showCombobox, setShowCombobox] = useState(false);
+  const [inputValue, setInputValue] = useState(
+    () => initialText ?? (value === null ? '' : (byId.get(value)?.label ?? '')),
+  );
+  const chipsLabelId = useId();
+  // "Criar" only for a name the registry does not hold yet, by the same normalized
+  // comparison the server merges on (case and accents folded, trimmed; AR-18).
+  const typed = normalizeRegistryName(inputValue);
+  const exists = typed === '' || options.some((option) => normalizeRegistryName(option.label) === typed);
+
+  const choose = (id: string | null) => {
+    if (id !== null) setInputValue(byId.get(id)?.label ?? '');
+    onChange(id);
+  };
   const recentOptions = recentIds
     .map((id) => byId.get(id))
     .filter((option): option is ComboboxOption => option !== undefined)
@@ -41,7 +66,7 @@ export function RegistryPickerField({ label, options, recentIds, value, onChange
           </span>
           <div className="chip-row chips-recent" role="group" aria-labelledby={chipsLabelId}>
             {recentOptions.map((option) => (
-              <Chip key={option.id} isSelected={value === option.id} onSelectedChange={() => onChange(option.id)}>
+              <Chip key={option.id} isSelected={value === option.id} onSelectedChange={() => choose(option.id)}>
                 {option.label}
               </Chip>
             ))}
@@ -54,10 +79,17 @@ export function RegistryPickerField({ label, options, recentIds, value, onChange
           label={label}
           options={options}
           selectedKey={value}
-          onSelectionChange={onChange}
+          onSelectionChange={choose}
           inputValue={inputValue}
           onInputChange={setInputValue}
-          onCreate={(text) => onCreate(text.trim())}
+          {...(exists
+            ? {}
+            : {
+                onCreate: (text: string) => {
+                  setInputValue(text.trim());
+                  onCreate(text.trim());
+                },
+              })}
         />
       </div>
     </div>
