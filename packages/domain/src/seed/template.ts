@@ -229,15 +229,28 @@ export function standardTemplate({ id, seedVersion = SEED_VERSION }: StandardTem
     seed_version: seedVersion,
     blocks,
     skeleton,
+    archived_at: null,
     removed_at: null,
   };
 }
 
-/** Per-type totals of a template's equipment blocks, e.g. 25 chave_seccionadora. */
-export function templateTotals(template: Pick<TemplateRow, 'blocks'>): Record<EquipmentBlockType, number> {
-  const totals = Object.fromEntries(EQUIPMENT_BLOCK_TYPES.map((type) => [type, 0])) as Record<EquipmentBlockType, number>;
+/** Zero of every equipment block type, in `EQUIPMENT_BLOCK_TYPES` order. */
+export function zeroTotals(): Record<EquipmentBlockType, number> {
+  return Object.fromEntries(EQUIPMENT_BLOCK_TYPES.map((type) => [type, 0])) as Record<EquipmentBlockType, number>;
+}
+
+/**
+ * Per-type totals of a template's equipment blocks, e.g. 25 chave_seccionadora. A block
+ * whose node is gone from the skeleton (an orphan two devices folded into, Story 3.4) is
+ * not counted: it is not part of the composition any reader shows or instantiates.
+ */
+export function templateTotals(template: Pick<TemplateRow, 'blocks' | 'skeleton'>): Record<EquipmentBlockType, number> {
+  const nodes = new Set(template.skeleton.map((node) => node.ref));
+  const totals = zeroTotals();
   for (const block of template.blocks) {
-    if (isEquipmentBlockType(block.block_type)) totals[block.block_type] += block.quantity;
+    if (!isEquipmentBlockType(block.block_type)) continue;
+    if (block.skeleton_location_ref === null || !nodes.has(block.skeleton_location_ref)) continue;
+    totals[block.block_type] += block.quantity;
   }
   return totals;
 }
