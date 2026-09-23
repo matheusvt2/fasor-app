@@ -29,6 +29,7 @@ import { createTemplateOp, putTemplateOp, removeTemplateOp, writeErrorText } fro
 import './templates.css';
 
 const NO_SUMMARIES: RelatorioSummary[] = [];
+const noBusy = () => undefined;
 
 /**
  * Templates (`41-templates.html`, Stories 3.2 and 3.3): "Templates (n)" with "Novo
@@ -106,10 +107,19 @@ export function TemplatesSurface() {
     });
   }
 
-  async function duplicate(row: TemplateRow): Promise<void> {
+  function duplicate(row: TemplateRow): void {
     if (user === null) return;
-    const copyRow = duplicateTemplate(row, newId());
-    if ((await commit([createTemplateOp(user, copyRow)])) !== null) showToast(copy.templates.duplicated(copyRow.name));
+    // The same in-flight guard as the creates: two quick taps make one copy.
+    void once(noBusy, async () => {
+      const copyRow = duplicateTemplate(row, newId());
+      if ((await commit([createTemplateOp(user, copyRow)])) !== null) showToast(copy.templates.duplicated(copyRow.name));
+    });
+  }
+
+  /** "Desfazer" of a batch; a refused write says why instead of failing silently. */
+  function undo(batchId: string): void {
+    if (db === null) return;
+    undoBatch(db, batchId, { newId, now }).catch((error: unknown) => showToast(writeErrorText(error)));
   }
 
   async function setArchived(row: TemplateRow, archive: boolean): Promise<void> {
@@ -118,7 +128,7 @@ export function TemplatesSurface() {
     if (batchId === null) return;
     if (archive) {
       showToast(copy.templates.archived, {
-        action: { label: copy.templates.undo, onPress: () => void undoBatch(db, batchId, { newId, now }) },
+        action: { label: copy.templates.undo, onPress: () => undo(batchId) },
       });
     } else {
       showToast(copy.templates.restored);
@@ -127,10 +137,13 @@ export function TemplatesSurface() {
 
   async function remove(row: TemplateRow): Promise<void> {
     if (user === null || db === null) return;
+    // Checked again at the moment of the write: the company summary may have moved since
+    // the menu was drawn, and a referenced template is only ever archived (FR-9).
+    if (!(await companyDownloaded(db)) || templateUseCount(row.id, await companySummaries(db)) > 0) return;
     const batchId = await commit([removeTemplateOp(user, row.id)]);
     if (batchId === null) return;
     showToast(copy.templates.removed(row.name), {
-      action: { label: copy.templates.undo, onPress: () => void undoBatch(db, batchId, { newId, now }) },
+      action: { label: copy.templates.undo, onPress: () => undo(batchId) },
     });
   }
 
@@ -176,11 +189,12 @@ export function TemplatesSurface() {
                       key={row.id}
                       row={row}
                       useCount={templateUseCount(row.id, summaries)}
+                      removable={downloaded}
                       onOpen={() => navigate(`/templates/${row.id}`)}
                       onRemove={() => setRemoving(row)}
                       actions={
                         <>
-                          <TextButton onPress={() => void duplicate(row)}>
+                          <TextButton onPress={() => duplicate(row)}>
                             <svg className="ico" aria-hidden="true">
                               <use href="/sprite.svg#i-copy" />
                             </svg>
@@ -213,6 +227,7 @@ export function TemplatesSurface() {
                       row={row}
                       archived
                       useCount={templateUseCount(row.id, summaries)}
+                      removable={downloaded}
                       onRemove={() => setRemoving(row)}
                       actions={<TextButton onPress={() => void setArchived(row, false)}>{copy.templates.restore}</TextButton>}
                     />
@@ -246,6 +261,11 @@ interface TemplateListRowProps {
   row: TemplateRow;
   archived?: boolean;
   useCount: number;
+  /**
+   * False before the first company download: until then the company summary is empty
+   * here, so a template relatórios were created from would look unreferenced.
+   */
+  removable: boolean;
   /** Omitted on an archived row: restore it to edit it (the mock's archived row). */
   onOpen?: () => void;
   onRemove: () => void;
@@ -255,10 +275,10 @@ interface TemplateListRowProps {
 /**
  * `.registry-row.tpl-row`: the icon, the name and summary line (a button that opens the
  * composer), the Overflow and the row actions. The Overflow carries "Remover" alone and
- * only while no relatório was created from the template (FR-9); with nothing to offer it
- * is not drawn at all.
+ * only while no relatório was created from the template (FR-9) and the company summary
+ * that says so has been downloaded; with nothing to offer it is not drawn at all.
  */
-function TemplateListRow({ row, archived = false, useCount, onOpen, onRemove, actions }: TemplateListRowProps) {
+function TemplateListRow({ row, archived = false, useCount, removable, onOpen, onRemove, actions }: TemplateListRowProps) {
   const text = (
     <>
       <span className="rr-primary">{row.name}</span>
@@ -277,7 +297,7 @@ function TemplateListRow({ row, archived = false, useCount, onOpen, onRemove, ac
           {text}
         </button>
       )}
-      {useCount === 0 ? (
+      {removable && useCount === 0 ? (
         <OverflowMenu name={row.name} items={[]} destructiveItems={[{ id: 'remove', label: copy.templates.remove, onAction: onRemove }]} />
       ) : null}
       <div className="rr-actions">{actions}</div>

@@ -21,6 +21,7 @@ import {
   renameNode,
   setAgruparPorTipo,
   setQuantity,
+  TemplateTargetGoneError,
   withoutOrphans,
 } from './compose.ts';
 import { emptyTemplate } from './list.ts';
@@ -65,7 +66,10 @@ describe('3.4-UNIT skeleton edits', () => {
     const skeleton = addColuna(addCabine([], 'a', 'A'), 'a', 'a1', 'Coluna 1');
     expect(() => addCabine(skeleton, 'a', 'Outra')).toThrow(/already has a node "a"/);
     expect(() => addColuna(skeleton, 'a1', 'x', 'X')).toThrow(/not a cabine/);
+    expect(() => addColuna(skeleton, 'nowhere', 'x', 'X')).toThrow(TemplateTargetGoneError);
     expect(() => addColuna(skeleton, 'nowhere', 'x', 'X')).toThrow(/no node "nowhere"/);
+    // A bug (a coluna named as a cabine) is a plain error, never "the target is gone".
+    expect(() => addColuna(skeleton, 'a1', 'x', 'X')).not.toThrow(TemplateTargetGoneError);
   });
 
   it('renames a node and sets Agrupar por tipo on a cabine only', () => {
@@ -219,7 +223,7 @@ describe('3.4-UNIT section blocks', () => {
 
   it('appends, inserts below, moves, duplicates and removes among the sections only', () => {
     const template = frozen(structuredClone(standard));
-    let blocks = addSection(template.blocks, 'section_2');
+    let blocks = addSection(template.blocks, 'section_2', 'v1');
     expect(types(blocks).at(-1)).toBe('section_2');
     // The equipment blocks stay after the sections, in their order.
     expect(blocks.slice(10)).toEqual(standard.blocks.slice(9));
@@ -231,18 +235,19 @@ describe('3.4-UNIT section blocks', () => {
     blocks = duplicateSection(template.blocks, 1);
     expect(types(blocks).slice(0, 4)).toEqual(['section_1', 'section_2', 'section_2', 'section_3']);
 
-    blocks = addSectionBelow(template.blocks, 0, 'section_10');
+    blocks = addSectionBelow(template.blocks, 0, 'section_10', 'v1');
     expect(types(blocks).slice(0, 3)).toEqual(['section_1', 'section_10', 'section_2']);
 
     blocks = removeSection(template.blocks, 6);
     expect(types(blocks)).not.toContain('section_8');
     valid({ ...standard, blocks });
 
+    expect(() => removeSection(template.blocks, 42)).toThrow(TemplateTargetGoneError);
     expect(() => removeSection(template.blocks, 42)).toThrow(/no section block at index 42/);
   });
 
   it('adds the first section to an empty composition', () => {
-    expect(addSection([], 'section_1')).toEqual([{ block_type: 'section_1', sub_blocks: {}, na_defaults: [], quantity: 1, skeleton_location_ref: null }]);
+    expect(addSection([], 'section_1', 'v1')).toEqual([{ block_type: 'section_1', sub_blocks: {}, na_defaults: [], quantity: 1, skeleton_location_ref: null }]);
   });
 });
 

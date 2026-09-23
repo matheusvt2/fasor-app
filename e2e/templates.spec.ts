@@ -1,4 +1,4 @@
-import { STANDARD_TEMPLATE_NAME, templateRowSchema } from '@app/domain';
+import { materializeEntity, STANDARD_TEMPLATE_NAME, templateRowSchema } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { createAuth } from '../apps/api/src/auth/auth.ts';
 import { parseTrustedOrigins } from '../apps/api/src/auth/trusted-origins.ts';
@@ -99,6 +99,8 @@ const announcer = (page: Page) => page.getByTestId('composer-announcer');
 const colunaNames = (page: Page, cabine: string) => page.getByRole('list', { name: `Colunas de ${cabine}` }).locator('.col-name');
 const skeletonHeading = (page: Page) => page.locator('.composer-main h2').first();
 
+/** The standard template's Coluna 9 of 1° Subsolo, which holds no equipment. */
+const ORPHAN_REF = 'subsolo-1/coluna-9';
 const EMPTY = 'Nenhum template. Crie um a partir do relatório padrão FO.SERV-03.';
 const STANDARD_SUMMARY = 'Semente v1 · 9 seções · 6 cabines · 17 colunas · 94 blocos de equipamento';
 const STANDARD_TOTALS =
@@ -420,7 +422,7 @@ test('@p0 3.4-E2E-003 section blocks reorder, duplicate and remove with undo; Ag
   await page.getByRole('button', { name: 'Mais opções de 2 Definições' }).click();
   await page.getByRole('menuitem', { name: 'Subir' }).click();
   await expect(tags).toHaveText(['2', '1', '3', '4', '5', '6', '8', '10', '11']);
-  await expect(announcer(page)).toHaveText('2 Definições movida para a posição 1 de 9');
+  await expect(announcer(page)).toHaveText('Seção 2 movida para a posição 1 de 9');
   await page.getByRole('button', { name: 'Mais opções de 3 Limite de escopo' }).click();
   await page.getByRole('menuitem', { name: 'Descer' }).click();
   await expect(tags).toHaveText(['2', '1', '4', '3', '5', '6', '8', '10', '11']);
@@ -471,7 +473,7 @@ test('@p0 3.4-E2E-003 section blocks reorder, duplicate and remove with undo; Ag
   }
 });
 
-test('@p0 3.4-E2E-005 an offline coluna removal and quantities set on it elsewhere converge with no sync failure', async ({
+test('@p0 3.4-E2E-005 a coluna removed on one device while a stale device sets quantities on it converges, the orphan unseen', async ({
   page,
   browser,
   seed,
@@ -479,11 +481,12 @@ test('@p0 3.4-E2E-005 an offline coluna removal and quantities set on it elsewhe
   await resetEmpresaB({ standard: true });
   const account = seed.companies[1];
 
-  // Context 1 (this page) and context 2 both open the standard template.
+  // Context 1 (the remover, this page) and context 2 (the stale device) open the standard template.
   await signIn(page, account.email);
   await openTemplates(page);
   await expect(names(activeList(page))).toHaveText([STANDARD_TEMPLATE_NAME], { timeout: 30_000 });
   await openComposer(page, STANDARD_TEMPLATE_NAME);
+  const templateId = page.url().split('/').at(-1)!;
   const other = await browser.newContext();
   try {
     const second = await other.newPage();
@@ -492,27 +495,38 @@ test('@p0 3.4-E2E-005 an offline coluna removal and quantities set on it elsewhe
     await expect(names(activeList(second))).toHaveText([STANDARD_TEMPLATE_NAME], { timeout: 30_000 });
     await openComposer(second, STANDARD_TEMPLATE_NAME);
 
-    // Context 1 goes offline and removes Coluna 9.
-    await page.context().setOffline(true);
+    // Context 2 goes offline and, on the old row, sets quantities on Coluna 9.
+    await other.setOffline(true);
+    await second.getByRole('button', { name: /^Coluna 9/ }).click();
+    await palette(second).getByRole('group', { name: 'Seccionadoras, 0' }).getByRole('button', { name: 'Mais um' }).click();
+    await expect(palette(second).getByRole('group', { name: 'Seccionadoras, 1' })).toBeVisible();
+    await palette(second).getByRole('group', { name: 'Disjuntores, 0' }).getByRole('button', { name: 'Mais um' }).click();
+    await expect(second.locator('.composer-meta')).toHaveText(/^26 seccionadoras · 22 disjuntores/);
+
+    // Context 1 removes Coluna 9 and syncs FIRST.
     await page.getByRole('button', { name: 'Mais opções de Coluna 9' }).click();
     await page.getByRole('menuitem', { name: 'Remover' }).click();
     await page.getByRole('dialog', { name: 'Remover Coluna 9?' }).getByRole('button', { name: 'Remover' }).click();
     await expect(skeletonHeading(page)).toHaveText('Esqueleto de locais · 6 cabines · 16 colunas · 94 blocos');
+    await syncNow(page);
 
-    // Context 2 sets quantities on Coluna 9 and syncs.
-    await second.getByRole('button', { name: /^Coluna 9/ }).click();
-    await palette(second).getByRole('group', { name: 'Seccionadoras, 0' }).getByRole('button', { name: 'Mais um' }).click();
-    await palette(second).getByRole('group', { name: 'Disjuntores, 0' }).getByRole('button', { name: 'Mais um' }).click();
-    await expect(second.locator('.composer-meta')).toHaveText(/^26 seccionadoras · 22 disjuntores/);
+    // Context 2 comes back and syncs LAST: its blocks, built on the old row, win on the server.
+    await other.setOffline(false);
     await syncNow(second);
 
-    // Context 1 comes back online and syncs; context 2 syncs again to pull it.
-    await page.context().setOffline(false);
+    // The server now holds an orphan: blocks on a coluna its skeleton no longer has.
+    const log = (await pullAll(page.request, '/api/sync/company')).ops.filter((op) => op.path.startsWith(`template/${templateId}`));
+    const server = templateRowSchema.parse(materializeEntity({ entity: 'template', id: templateId }, log, []));
+    expect(server.skeleton.some((n) => n.ref === ORPHAN_REF)).toBe(false);
+    expect(server.blocks.filter((b) => b.skeleton_location_ref === ORPHAN_REF).map((b) => b.block_type).sort()).toEqual([
+      'chave_seccionadora',
+      'disjuntor_mt',
+    ]);
+
+    // Both sync once more; neither shows a failure, and both composers show one skeleton
+    // and one set of totals, with the orphan quantities nowhere.
     await syncNow(page);
     await syncNow(second);
-
-    // Neither shows a failure, and both composers show one skeleton and one set of totals,
-    // with no trace of the quantities placed on the removed coluna.
     for (const p of [page, second]) {
       await expect(syncBadge(p)).toHaveAttribute('data-state', 'ok');
       await expect(skeletonHeading(p)).toHaveText('Esqueleto de locais · 6 cabines · 16 colunas · 94 blocos');

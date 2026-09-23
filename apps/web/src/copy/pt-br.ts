@@ -234,7 +234,7 @@ export const copy = {
   // Template composer (`42-template-composer.html`, Story 3.4). Every count, total,
   // heading with a count and move announcement is the kernel's (`totalsText`,
   // `skeletonHeading`, `sectionsHeading`, `nodeSummaryText`, `quantityLabel`,
-  // `moveAnnouncement`).
+  // `moveAnnouncement`, `removedText`).
   composer: {
     title: 'Template',
     nameLabel: 'Nome do template',
@@ -285,7 +285,6 @@ export const copy = {
     removeCabineBody: 'A cabine, as colunas dela e os equipamentos que elas levam saem do template.',
     removeColunaBody: 'A coluna e os equipamentos que ela leva saem do template.',
     removeSectionBody: 'A seção sai do template.',
-    removed: (name: string) => `${name} removida`,
     undo: 'Desfazer',
     // Section block titles, verbatim from the mock's palette and block cards.
     sectionTitles: {

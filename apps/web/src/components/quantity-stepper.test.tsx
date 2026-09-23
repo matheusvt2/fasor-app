@@ -98,14 +98,27 @@ describe('QuantityStepper (UX-DR30)', () => {
     }
   });
 
-  it('holding "+" steps once, repeats every 100 ms after 300 ms, and commits once on release', async () => {
+  it('a touch tap on "+" steps once on release and commits once', async () => {
+    const onCommit = vi.fn();
+    render(<Harness onCommit={onCommit} />);
+    const plus = screen.getByRole('button', { name: 'Mais um' });
+    fireEvent.pointerDown(plus, { button: 0, pointerId: 1, pointerType: 'touch' });
+    // Nothing moves on the press itself: it may still turn into a scroll.
+    expect(count()).toHaveValue('—');
+    fireEvent.pointerUp(plus, { button: 0, pointerId: 1, pointerType: 'touch' });
+    await waitFor(() => expect(count()).toHaveValue('1'));
+    expect(onCommit.mock.calls).toEqual([[1]]);
+  });
+
+  it('holding "+" steps at 300 ms, repeats every 100 ms, and commits once on release', async () => {
     vi.useFakeTimers();
     const onCommit = vi.fn();
     render(<Harness onCommit={onCommit} />);
     const plus = screen.getByRole('button', { name: 'Mais um' });
     fireEvent.pointerDown(plus, { button: 0, pointerId: 1, pointerType: 'touch' });
-    expect(count()).toHaveValue('1');
-    act(() => vi.advanceTimersByTime(PRESS_AND_HOLD_MS + STEP_REPEAT_MS * 5));
+    act(() => vi.advanceTimersByTime(PRESS_AND_HOLD_MS - 1));
+    expect(count()).toHaveValue('—');
+    act(() => vi.advanceTimersByTime(1 + STEP_REPEAT_MS * 5));
     expect(count()).toHaveValue('6');
     expect(onCommit).not.toHaveBeenCalled();
     fireEvent.pointerUp(plus, { button: 0, pointerId: 1, pointerType: 'touch' });
@@ -116,6 +129,68 @@ describe('QuantityStepper (UX-DR30)', () => {
     // The release is not followed by another step.
     act(() => vi.advanceTimersByTime(STEP_REPEAT_MS * 5));
     expect(count()).toHaveValue('6');
+  });
+
+  it('a press that drifts off before 300 ms changes nothing, and a later value from the row still shows', async () => {
+    vi.useFakeTimers();
+    const onCommit = vi.fn();
+    const { rerender } = render(<QuantityStepper value={2} label={label} onCommit={onCommit} />);
+    const plus = screen.getByRole('button', { name: 'Mais um' });
+    fireEvent.pointerDown(plus, { button: 0, pointerId: 1, pointerType: 'touch', clientX: 0, clientY: 0 });
+    fireEvent.pointerMove(plus, { pointerId: 1, pointerType: 'touch', clientX: 0, clientY: 40 });
+    fireEvent.pointerLeave(plus, { pointerId: 1, pointerType: 'touch' });
+    act(() => vi.advanceTimersByTime(PRESS_AND_HOLD_MS * 3));
+    fireEvent.pointerUp(plus, { button: 0, pointerId: 1, pointerType: 'touch' });
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+    });
+    expect(count()).toHaveValue('2');
+    expect(onCommit).not.toHaveBeenCalled();
+    // The stepper is not stuck in a press: a pulled value reaches the count.
+    rerender(<QuantityStepper value={5} label={label} onCommit={onCommit} />);
+    expect(count()).toHaveValue('5');
+  });
+
+  it('ArrowUp and ArrowDown in the count step and commit, clamped to 0 and 99', async () => {
+    const onCommit = vi.fn();
+    render(<Harness initial={98} onCommit={onCommit} />);
+    await userEvent.click(count());
+    await userEvent.keyboard('{ArrowUp}');
+    await waitFor(() => expect(group()).toHaveAccessibleName('Seccionadoras, 99'));
+    await userEvent.keyboard('{ArrowUp}');
+    await userEvent.keyboard('{ArrowDown}');
+    await waitFor(() => expect(group()).toHaveAccessibleName('Seccionadoras, 98'));
+    expect(onCommit.mock.calls).toEqual([[99], [98]]);
+
+    onCommit.mockClear();
+    await userEvent.clear(count());
+    await userEvent.type(count(), '1{Enter}');
+    await waitFor(() => expect(group()).toHaveAccessibleName('Seccionadoras, 1'));
+    await userEvent.click(count());
+    await userEvent.keyboard('{ArrowDown}');
+    await waitFor(() => expect(group()).toHaveAccessibleName('Seccionadoras, 0'));
+    await userEvent.keyboard('{ArrowDown}');
+    expect(onCommit.mock.calls).toEqual([[1], [0]]);
+    await userEvent.tab();
+    expect(count()).toHaveValue('—');
+  });
+
+  it('leaves Alt+Arrow to the row it sits in, and keeps the arrows it handles to itself', async () => {
+    const onCommit = vi.fn();
+    const onRowKey = vi.fn();
+    render(
+      <div onKeyDown={(event) => onRowKey(event.key, event.altKey)}>
+        <Harness initial={3} onCommit={onCommit} />
+      </div>,
+    );
+    await userEvent.click(count());
+    await userEvent.keyboard('{Alt>}{ArrowUp}{/Alt}');
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(onRowKey).toHaveBeenCalledWith('ArrowUp', true);
+    onRowKey.mockClear();
+    await userEvent.keyboard('{ArrowUp}');
+    await waitFor(() => expect(onCommit).toHaveBeenCalledWith(4));
+    expect(onRowKey).not.toHaveBeenCalledWith('ArrowUp', false);
   });
 
   it('puts the committed value back when the write is refused', async () => {

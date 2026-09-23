@@ -10,12 +10,14 @@ import {
   findComposerNode,
   moveAnnouncement,
   moveNode,
+  removedText,
   moveSection,
   removeNode,
   removeSection,
   renameNode,
   setAgruparPorTipo,
   setQuantity,
+  TemplateTargetGoneError,
   totalsText,
   withoutOrphans,
   type ComposerNode,
@@ -84,7 +86,13 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
   const session = useSession();
   const db = session.database;
   const user = session.user;
-  const { showToast } = useToast();
+  const { showToast, dismissToast, toast } = useToast();
+  // The composer's live undo toast, by its text: once any later edit is written, an undo of
+  // a whole-field removal would put the old `blocks`/`skeleton` back over that edit, so the
+  // toast goes away instead.
+  const undoToast = useRef<string | null>(null);
+  const shownToast = useRef(toast);
+  shownToast.current = toast;
   const view = useMemo(() => composerView(row), [row]);
   const [currentRef, setCurrentRef] = useState<string | null>(null);
   const current = findComposerNode(view, currentRef);
@@ -99,8 +107,10 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
 
   /**
    * Runs one edit: reads the row as this device holds it now, asks `build` for the puts
-   * and commits them as one batch. Resolves to the batch id (null when there was nothing
-   * to write); a refused write is toasted and rejects.
+   * and commits them as one batch. Resolves to the batch id, or null when nothing was
+   * written: the row or the node or section the edit names is gone (another device removed
+   * it), or there was nothing to change. A refused write, or any other error, is toasted
+   * and rejects.
    */
   const edit = useCallback(
     (build: (fresh: TemplateRow) => Array<[TemplateField, unknown]> | null): Promise<string | null> => {
@@ -111,25 +121,29 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
         let puts: Array<[TemplateField, unknown]> | null;
         try {
           puts = build(fresh);
-        } catch {
-          // The node or section this edit names is gone (another device removed it).
-          return null;
+        } catch (error) {
+          if (error instanceof TemplateTargetGoneError) return null;
+          showToast(writeErrorText(error));
+          throw error;
         }
         if (puts === null || puts.length === 0) return null;
         const drafts: OpDraft[] = puts.map(([field, value]) => putTemplateOp(user, id, field, value));
+        let batchId: string;
         try {
-          const { batch_id } = await commitBatch(db, drafts, { newId, now });
-          return batch_id;
+          batchId = (await commitBatch(db, drafts, { newId, now })).batch_id;
         } catch (error) {
           showToast(writeErrorText(error));
           throw error;
         }
+        if (undoToast.current !== null && shownToast.current?.text === undoToast.current) dismissToast();
+        undoToast.current = null;
+        return batchId;
       };
       const next = queue.current.then(run, run);
       queue.current = next.catch(() => undefined);
       return next;
     },
-    [db, user, id, showToast],
+    [db, user, id, showToast, dismissToast],
   );
 
   const announce = useCallback((text: string) => {
@@ -141,7 +155,16 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
   const undoable = useCallback(
     (text: string, batchId: string | null) => {
       if (batchId === null || db === null) return;
-      showToast(text, { action: { label: copy.composer.undo, onPress: () => void undoBatch(db, batchId, { newId, now }) } });
+      undoToast.current = text;
+      showToast(text, {
+        action: {
+          label: copy.composer.undo,
+          onPress: () => {
+            undoToast.current = null;
+            undoBatch(db, batchId, { newId, now }).catch((error: unknown) => showToast(writeErrorText(error)));
+          },
+        },
+      });
     },
     [db, showToast],
   );
@@ -153,7 +176,12 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
     if (!nameFocused.current) setName(row.name);
   }, [row.name]);
   const nameCommitter = useFieldCommit<string>({
-    commit: (value) => edit((fresh) => (value.trim() === '' || fresh.name === value ? null : [['name', value]])).then(() => undefined),
+    // Stored trimmed; nothing is written for an empty or unchanged name.
+    commit: (value) =>
+      edit((fresh) => {
+        const trimmed = value.trim();
+        return trimmed === '' || fresh.name === trimmed ? null : [['name', trimmed]];
+      }).then(() => undefined),
   });
 
   // --- skeleton ----------------------------------------------------------------------
@@ -188,7 +216,7 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
 
   async function onMoveNode(node: ComposerNode, toIndex: number): Promise<void> {
     const batch = await edit((fresh) => [['skeleton', moveNode(fresh.skeleton, node.ref, toIndex)]]).catch(() => null);
-    if (batch !== null) announce(moveAnnouncement(node.name, toIndex + 1, node.siblings));
+    if (batch !== null) announce(moveAnnouncement(node.kind, node.name, toIndex + 1, node.siblings));
   }
 
   function onRemoveNode(node: ComposerNode): void {
@@ -203,13 +231,16 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
             ['blocks', next.blocks],
           ];
         }).catch(() => null);
-        undoable(copy.composer.removed(node.name), batch);
+        undoable(removedText(node.kind, node.name), batch);
       },
     });
   }
 
+  /** Rejects when nothing was written (the node is gone), so the stepper puts its count back. */
   function onSetQuantity(ref: string, type: EquipmentBlockType, n: number): Promise<void> {
-    return edit((fresh) => [['blocks', setQuantity(fresh, ref, type, n)]]).then(() => undefined);
+    return edit((fresh) => [['blocks', setQuantity(fresh, ref, type, n)]]).then((batch) => {
+      if (batch === null) throw new TemplateTargetGoneError(`quantity not written: node "${ref}" is gone`);
+    });
   }
 
   // --- sections -------------------------------------------------------------------
@@ -217,13 +248,18 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
     const below = insertBelow;
     setInsertBelow(null);
     void edit((fresh) => [
-      ['blocks', below === null ? addSection(withoutOrphans(fresh), type) : addSectionBelow(withoutOrphans(fresh), below.index, type)],
+      [
+        'blocks',
+        below === null
+          ? addSection(withoutOrphans(fresh), type, fresh.seed_version)
+          : addSectionBelow(withoutOrphans(fresh), below.index, type, fresh.seed_version),
+      ],
     ]).catch(() => undefined);
   }
 
   async function onMoveSection(section: ComposerSection, toIndex: number): Promise<void> {
     const batch = await edit((fresh) => [['blocks', moveSection(withoutOrphans(fresh), section.index, toIndex)]]).catch(() => null);
-    if (batch !== null) announce(moveAnnouncement(sectionName(section.block_type), toIndex + 1, section.siblings));
+    if (batch !== null) announce(moveAnnouncement('section', String(section.number), toIndex + 1, section.siblings));
   }
 
   function onAddBelow(section: ComposerSection): void {
@@ -246,7 +282,7 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
       body: copy.composer.removeSectionBody,
       run: async () => {
         const batch = await edit((fresh) => [['blocks', removeSection(withoutOrphans(fresh), section.index)]]).catch(() => null);
-        undoable(copy.composer.removed(title), batch);
+        undoable(removedText('section', String(section.number)), batch);
       },
     });
   }

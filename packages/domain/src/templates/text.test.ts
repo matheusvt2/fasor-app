@@ -8,6 +8,7 @@ import {
   moveAnnouncement,
   nodeSummaryText,
   quantityLabel,
+  removedText,
   sectionsHeading,
   skeletonHeading,
   templateSummaryText,
@@ -73,7 +74,14 @@ describe('3.4-UNIT composer headings and node summaries', () => {
   });
 
   it('announces a move and names new nodes', () => {
-    expect(moveAnnouncement('Coluna 5', 3, 17)).toBe('Coluna 5 movida para a posição 3 de 17');
+    expect(moveAnnouncement('coluna', 'Coluna 5', 3, 17)).toBe('Coluna 5 movida para a posição 3 de 17');
+    expect(moveAnnouncement('coluna', 'Entrada', 1, 2)).toBe('Coluna Entrada movida para a posição 1 de 2');
+    expect(moveAnnouncement('cabine', 'Cubículo Enel', 1, 6)).toBe('Cabine Cubículo Enel movida para a posição 1 de 6');
+    expect(moveAnnouncement('cabine', 'Cabine 2', 1, 6)).toBe('Cabine 2 movida para a posição 1 de 6');
+    expect(moveAnnouncement('section', '2', 1, 9)).toBe('Seção 2 movida para a posição 1 de 9');
+    expect(removedText('coluna', 'Coluna 3')).toBe('Coluna 3 removida');
+    expect(removedText('cabine', 'Geradores')).toBe('Cabine Geradores removida');
+    expect(removedText('section', '8')).toBe('Seção 8 removida');
     expect(defaultCabineName(1)).toBe('Cabine 1');
     expect(defaultColunaName(3)).toBe('Coluna 3');
   });

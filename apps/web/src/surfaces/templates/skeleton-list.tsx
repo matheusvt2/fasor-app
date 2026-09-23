@@ -9,11 +9,11 @@ import {
   type ComposerView,
   type EquipmentBlockType,
 } from '@app/domain';
-import { useId } from 'react';
+import { useId, useRef } from 'react';
 import { Button, OverflowMenu, QuantityStepper, TextButton, Toggle, type OverflowMenuAction } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { DragHandle, PositionBox } from './reorder-controls.tsx';
-import { useReorder } from './use-reorder.ts';
+import { restoreFocus, useReorder } from './use-reorder.ts';
 
 export interface SkeletonListProps {
   view: ComposerView;
@@ -88,18 +88,34 @@ function nodeMenu(
   return { items, destructiveItems: [{ id: 'remove', label: copy.composer.remove, onAction: () => props.onRemove(node) }] };
 }
 
-function QtyGrid({ node, onSetQuantity }: { node: ComposerNode; onSetQuantity: SkeletonListProps['onSetQuantity'] }) {
+interface QtyGridProps {
+  node: ComposerNode;
+  onSetQuantity: SkeletonListProps['onSetQuantity'];
+  /** The node's head (the coluna's `.col-head`, the cabine's body button). */
+  head: () => HTMLElement | null;
+}
+
+/**
+ * The open node's quantities. A row leaves when its count reaches zero; if it held the
+ * keyboard focus, the focus goes to the node's head instead of falling to the page.
+ */
+function QtyGrid({ node, onSetQuantity, head }: QtyGridProps) {
   const types = TOTALS_ORDER.filter((type) => node.quantities[type] > 0);
   if (types.length === 0) return null;
   return (
     <div className="qty-grid">
       {types.map((type) => (
-        <div className="qty-row" key={type}>
+        <div className="qty-row" key={type} data-type={type}>
           <span className="qty-name">{copy.composer.equipmentNames[type]}</span>
           <QuantityStepper
             value={node.quantities[type]}
             label={(n) => quantityLabel(type, n)}
-            onCommit={(n) => onSetQuantity(node.ref, type, n)}
+            onCommit={async (n) => {
+              const row = document.activeElement?.closest('.qty-row') ?? null;
+              const leaving = n === 0 && row !== null && (row as HTMLElement).dataset.type === type;
+              await onSetQuantity(node.ref, type, n);
+              if (leaving) restoreFocus(head);
+            }}
           />
         </div>
       ))}
@@ -117,6 +133,7 @@ function CabineCard({ cabine, ...props }: SkeletonListProps & { cabine: Composer
   });
   const nameId = useId();
   const toggleLabelId = useId();
+  const bodyButton = useRef<HTMLButtonElement>(null);
   const summary = nodeSummaryText(cabine);
   const isCurrent = currentRef === cabine.ref;
   const showOwn = isCurrent && cabine.blockCount > 0;
@@ -126,7 +143,13 @@ function CabineCard({ cabine, ...props }: SkeletonListProps & { cabine: Composer
     <li className={className} {...reorder.rowProps}>
       <DragHandle name={cabine.name} reorder={reorder} />
       <PositionBox name={cabine.name} position={cabine.position} siblings={cabine.siblings} reorder={reorder} />
-      <button type="button" className="block-body" aria-current={isCurrent || undefined} onClick={() => onSelect(cabine.ref)}>
+      <button
+        ref={bodyButton}
+        type="button"
+        className="block-body"
+        aria-current={isCurrent || undefined}
+        onClick={() => onSelect(cabine.ref)}
+      >
         <span className="block-line">
           <span className="block-name" id={nameId}>
             {cabine.name}
@@ -151,7 +174,7 @@ function CabineCard({ cabine, ...props }: SkeletonListProps & { cabine: Composer
         <div className="block-expand">
           {showOwn ? (
             <div className="col-body">
-              <QtyGrid node={cabine} onSetQuantity={onSetQuantity} />
+              <QtyGrid node={cabine} onSetQuantity={onSetQuantity} head={() => bodyButton.current} />
             </div>
           ) : null}
           {cabine.colunas.length === 0 ? null : (
@@ -176,6 +199,7 @@ function ColunaRow({ coluna, ...props }: SkeletonListProps & { coluna: ComposerC
     onMove: (to) => onMove(coluna, to),
   });
   const bodyId = useId();
+  const headButton = useRef<HTMLButtonElement>(null);
   const isOpen = currentRef === coluna.ref;
   const menu = nodeMenu(coluna, reorder, props);
   const className = ['column-row', isOpen && 'is-open', reorder.dragging && 'is-dragging'].filter(Boolean).join(' ');
@@ -185,6 +209,7 @@ function ColunaRow({ coluna, ...props }: SkeletonListProps & { coluna: ComposerC
         <DragHandle name={coluna.name} reorder={reorder} />
         <PositionBox name={coluna.name} position={coluna.position} siblings={coluna.siblings} reorder={reorder} />
         <button
+          ref={headButton}
           type="button"
           className="col-head"
           aria-expanded={isOpen}
@@ -198,7 +223,7 @@ function ColunaRow({ coluna, ...props }: SkeletonListProps & { coluna: ComposerC
       </div>
       {isOpen ? (
         <div className="col-body" id={bodyId}>
-          <QtyGrid node={coluna} onSetQuantity={onSetQuantity} />
+          <QtyGrid node={coluna} onSetQuantity={onSetQuantity} head={() => headButton.current} />
         </div>
       ) : null}
     </li>

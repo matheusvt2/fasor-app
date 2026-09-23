@@ -33,8 +33,8 @@ export interface BlockPaletteProps {
 
 /**
  * The office Block palette of the Template composer (DESIGN.md › Block palette, office
- * variant; `42-template-composer.html` `aside.block-palette.composer-palette`): headed
- * "Blocos", a "Seções" group whose tap adds one section block, and an "Equipamentos"
+ * variant; `42-template-composer.html` `aside.block-palette.composer-palette`): headed by
+ * the current node ("Coluna 5", "Blocos" when none is current), a "Seções" group whose tap adds one section block, and an "Equipamentos"
  * group headed by the current node, one row per equipment type with a Quantity stepper
  * for that node. With no current node the steppers are disabled and say why.
  */
@@ -52,7 +52,8 @@ export function BlockPaletteContent({
     <>
       {onClose === undefined ? null : <div className="sheet-grip" aria-hidden="true" />}
       <div className="palette-head">
-        <span id={headingId}>{copy.composer.paletteTitle}</span>
+        {/* DESIGN.md › Block palette: headed by the node it fills ("Coluna 5"); "Blocos" with none. */}
+        <span id={headingId}>{current === null ? copy.composer.paletteTitle : current.name}</span>
         {onClose === undefined ? null : (
           <button type="button" className="icon-btn" aria-label={copy.composer.closePalette} onClick={onClose}>
             <svg className="ico" aria-hidden="true">

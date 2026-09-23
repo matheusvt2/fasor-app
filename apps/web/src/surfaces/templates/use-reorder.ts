@@ -46,6 +46,7 @@ export interface Reorder {
     onPointerUp: (event: PointerEvent<HTMLElement>) => void;
     onPointerCancel: (event: PointerEvent<HTMLElement>) => void;
     onPointerLeave: (event: PointerEvent<HTMLElement>) => void;
+    onLostPointerCapture: (event: PointerEvent<HTMLElement>) => void;
     style: CSSProperties;
   };
   /**
@@ -69,7 +70,11 @@ interface DragState {
 /** How many frames the focus is watched for after a move lands (the live query re-renders late). */
 const FOCUS_WATCH_FRAMES = 30;
 
-function restoreFocus(target: () => HTMLElement | null): void {
+/**
+ * Gives the focus to `target()` once the element that held it is gone (a re-render moved or
+ * removed it), watching a few frames because the live query re-renders after the write.
+ */
+export function restoreFocus(target: () => HTMLElement | null): void {
   let frames = 0;
   const tick = () => {
     const element = target();
@@ -180,6 +185,14 @@ export function useReorder({ itemKey, position, siblings, onMove }: ReorderOptio
     },
     onPointerLeave: (event) => {
       hold.onPointerLeave(event);
+    },
+    // The browser took the pointer away mid-drag (a system gesture, the handle unmounting):
+    // the drag ends where it started, with no move.
+    onLostPointerCapture: (event) => {
+      const state = drag.current;
+      if (state === null || event.pointerId !== state.pointerId) return;
+      hold.onPointerCancel(event);
+      reset();
     },
   };
 

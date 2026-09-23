@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { commitBatch, toRecord } from '../../db/commit.ts';
+import { commitBatch, toRecord, undoBatch } from '../../db/commit.ts';
 import { COMPANY_STREAM, openDatabase, type AppDatabase } from '../../db/schema.ts';
 import type { SessionState } from '../../state/session.tsx';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
@@ -55,7 +55,7 @@ configure({ asyncUtilTimeout: 5000 });
 // The real commit path, wrapped so one test can make the device write fail.
 vi.mock('../../db/commit.ts', async (original) => {
   const actual = await original<typeof import('../../db/commit.ts')>();
-  return { ...actual, commitBatch: vi.fn(actual.commitBatch) };
+  return { ...actual, commitBatch: vi.fn(actual.commitBatch), undoBatch: vi.fn(actual.undoBatch) };
 });
 
 /** A device database; `downloaded` says whether the company stream was pulled to the end once. */
@@ -273,7 +273,45 @@ describe('3.3 Templates: list', () => {
   });
 });
 
+describe('3.3 Templates: before the first company download', () => {
+  it('offers no "Remover" while the company summary has not been downloaded yet', async () => {
+    database = await freshDb(false);
+    await seed(database, [template(A, 'Cabine primária — padrão')]);
+    renderSurface();
+    const list = await screen.findByRole('list', { name: 'Templates ativos' });
+    await waitFor(() => expect(primaries(list)).toEqual(['Cabine primária — padrão']));
+    expect(within(list).queryByRole('button', { name: /^Mais opções/ })).toBeNull();
+    await markDownloaded(database);
+    expect(await within(list).findByRole('button', { name: 'Mais opções de Cabine primária — padrão' })).toBeVisible();
+  });
+});
+
 describe('3.3 Templates: actions', () => {
+  it('"Duplicar" pressed twice quickly makes one copy', async () => {
+    database = await freshDb();
+    await seed(database, [template(A, 'Cabine primária — padrão')]);
+    renderSurface();
+    const list = await screen.findByRole('list', { name: 'Templates ativos' });
+    const duplicate = await within(list).findByRole('button', { name: 'Duplicar' });
+    const user = userEvent.setup();
+    await Promise.all([user.click(duplicate), user.click(duplicate)]);
+    await waitFor(() => expect(primaries(list)).toEqual(['Cabine primária — padrão', 'Cabine primária — padrão — cópia']));
+    expect(await database.outbox.count()).toBe(1);
+  });
+
+  it('"Desfazer" whose write is refused says why', async () => {
+    database = await freshDb();
+    await seed(database, [template(A, 'Cabine primária — padrão')]);
+    renderSurface();
+    const list = await screen.findByRole('list', { name: 'Templates ativos' });
+    await userEvent.click(await within(list).findByRole('button', { name: 'Arquivar' }));
+    await screen.findByRole('list', { name: 'Templates arquivados' });
+    // The undo's device write is refused.
+    vi.mocked(undoBatch).mockRejectedValueOnce(Object.assign(new Error('quota'), { name: 'QuotaExceededError' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
+    expect(await screen.findByText('Não foi possível salvar neste aparelho. Libere espaço e tente de novo.')).toBeVisible();
+  });
+
   it('"Duplicar" writes one template/{id} create named "⟨nome⟩ — cópia" with the same composition', async () => {
     database = await freshDb();
     await seed(database, [template(A, 'Cabine primária — padrão')]);

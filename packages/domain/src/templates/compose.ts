@@ -8,7 +8,6 @@ import {
   type TemplateBlock,
 } from '../schemas/block-config.ts';
 import type { TemplateRow } from '../schemas/entities.ts';
-import { SEED_VERSION } from '../seed/definitions.ts';
 import { defaultBlockConfig, zeroTotals } from '../seed/template.ts';
 
 /*
@@ -83,9 +82,21 @@ function canonical(cabines: readonly CabineNode[], colunasOfCabine: (ref: string
   return out;
 }
 
+/**
+ * The node or section an edit names is no longer in the composition: another device
+ * removed it and the pull brought that here between the tap and the write. The composer
+ * writes nothing then; any other error from an edit function is a bug and surfaces.
+ */
+export class TemplateTargetGoneError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TemplateTargetGoneError';
+  }
+}
+
 function nodeOf(skeleton: readonly SkeletonNode[], ref: string): SkeletonNode {
   const node = skeleton.find((n) => n.ref === ref);
-  if (node === undefined) throw new Error(`template skeleton has no node "${ref}"`);
+  if (node === undefined) throw new TemplateTargetGoneError(`template skeleton has no node "${ref}"`);
   return node;
 }
 
@@ -224,8 +235,8 @@ export function sectionNumber(type: SectionBlockType): number {
   return Number(type.slice('section_'.length));
 }
 
-function sectionBlock(type: SectionBlockType): TemplateBlock {
-  return { ...defaultBlockConfig(SEED_VERSION, type), quantity: 1, skeleton_location_ref: null };
+function sectionBlock(type: SectionBlockType, seedVersion: string): TemplateBlock {
+  return { ...defaultBlockConfig(seedVersion, type), quantity: 1, skeleton_location_ref: null };
 }
 
 /** Where each section block sits in `blocks`, in section order. */
@@ -235,22 +246,27 @@ function sectionSlots(blocks: readonly TemplateBlock[]): number[] {
 
 function slotOf(blocks: readonly TemplateBlock[], index: number): number {
   const slot = sectionSlots(blocks)[index];
-  if (slot === undefined) throw new Error(`template has no section block at index ${index}`);
+  if (slot === undefined) throw new TemplateTargetGoneError(`template has no section block at index ${index}`);
   return slot;
 }
 
-/** Appends a section block after every other section (the palette's "Seções" tap). */
-export function addSection(blocks: readonly TemplateBlock[], type: SectionBlockType): TemplateBlock[] {
+/** Appends a section block after every other section (the palette's "Seções" tap), under the row's seed version. */
+export function addSection(blocks: readonly TemplateBlock[], type: SectionBlockType, seedVersion: string): TemplateBlock[] {
   const slots = sectionSlots(blocks);
   const out = [...blocks];
-  out.splice(slots.length === 0 ? out.length : slots.at(-1)! + 1, 0, sectionBlock(type));
+  out.splice(slots.length === 0 ? out.length : slots.at(-1)! + 1, 0, sectionBlock(type, seedVersion));
   return out;
 }
 
 /** Inserts a section block right below the section at `index` ("Adicionar abaixo"). */
-export function addSectionBelow(blocks: readonly TemplateBlock[], index: number, type: SectionBlockType): TemplateBlock[] {
+export function addSectionBelow(
+  blocks: readonly TemplateBlock[],
+  index: number,
+  type: SectionBlockType,
+  seedVersion: string,
+): TemplateBlock[] {
   const out = [...blocks];
-  out.splice(slotOf(blocks, index) + 1, 0, sectionBlock(type));
+  out.splice(slotOf(blocks, index) + 1, 0, sectionBlock(type, seedVersion));
   return out;
 }
 

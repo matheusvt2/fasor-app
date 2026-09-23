@@ -67,9 +67,10 @@ export function quantityLabel(type: EquipmentBlockType, n: number): string {
 }
 
 /**
- * The Templates row's `.rr-secondary`: "Semente v1 · 9 seções · 6 cabines · 26 colunas ·
- * 94 blocos de equipamento · usado em 3 relatórios". Every zero part is omitted except the
- * sections; the use part is omitted at zero.
+ * The Templates row's `.rr-secondary`, e.g. for the standard template used by three
+ * relatórios: "Semente v1 · 9 seções · 6 cabines · 17 colunas · 94 blocos de equipamento ·
+ * usado em 3 relatórios". Every zero part is omitted except the sections; the use part is
+ * omitted at zero.
  */
 export function templateSummaryText(row: Pick<TemplateRow, 'seed_version' | 'blocks' | 'skeleton'>, useCount: number): string {
   const view = composerView(row);
@@ -81,7 +82,7 @@ export function templateSummaryText(row: Pick<TemplateRow, 'seed_version' | 'blo
   return parts.join(SEP);
 }
 
-/** The composer's skeleton heading: "Esqueleto de locais · 6 cabines · 26 colunas · 94 blocos". */
+/** The composer's skeleton heading: "Esqueleto de locais · 6 cabines · 17 colunas · 94 blocos" (the standard template). */
 export function skeletonHeading(view: ComposerView): string {
   const parts = ['Esqueleto de locais'];
   if (view.cabineCount > 0) parts.push(plural(view.cabineCount, 'cabine', 'cabines'));
@@ -116,12 +117,34 @@ export function nodeSummaryText(node: ComposerNode): NodeSummary {
   return { flag: parts.join(SEP), sum: totalsText(node.totals) };
 }
 
+/** What a composer announcement or toast names: a cabine, a coluna or a section block. */
+export type ComposerItemKind = 'cabine' | 'coluna' | 'section';
+
+const KIND_NOUN: Readonly<Record<ComposerItemKind, string>> = { cabine: 'Cabine', coluna: 'Coluna', section: 'Seção' };
+
 /**
- * Every reorder's polite announcement: "Coluna 5 movida para a posição 3 de 17". Cabines,
- * colunas and seções are all feminine, hence "movida".
+ * The item as a feminine noun phrase, so "movida" and "removida" always agree: "Coluna 5"
+ * stays as it is, "Cubículo Enel" reads "Cabine Cubículo Enel", a free coluna name "Entrada"
+ * reads "Coluna Entrada", and a section is "Seção" plus its FO.SERV-03 number ("Seção 2").
  */
-export function moveAnnouncement(name: string, position: number, total: number): string {
-  return `${name} movida para a posição ${position} de ${total}`;
+function itemPhrase(kind: ComposerItemKind, name: string): string {
+  const noun = KIND_NOUN[kind];
+  const lead = name.trim().split(/\s+/)[0] ?? '';
+  return lead.localeCompare(noun, 'pt-BR', { sensitivity: 'base' }) === 0 ? name.trim() : `${noun} ${name.trim()}`;
+}
+
+/**
+ * Every reorder's polite announcement: "Coluna 5 movida para a posição 3 de 17",
+ * "Cabine Cubículo Enel movida para a posição 1 de 6", "Seção 2 movida para a posição 1
+ * de 9". For a section, `name` is its FO.SERV-03 number.
+ */
+export function moveAnnouncement(kind: ComposerItemKind, name: string, position: number, total: number): string {
+  return `${itemPhrase(kind, name)} movida para a posição ${position} de ${total}`;
+}
+
+/** The toast of a composer removal: "Coluna 3 removida", "Cabine Geradores removida", "Seção 8 removida". */
+export function removedText(kind: ComposerItemKind, name: string): string {
+  return `${itemPhrase(kind, name)} removida`;
 }
 
 /** The name a new cabine gets: "Cabine 7" when six exist. */

@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { emptyTemplate, standardTemplate, templateRowSchema, type TemplateRow } from '@app/domain';
+import { emptyTemplate, removeNode, standardTemplate, templateRowSchema, type TemplateRow } from '@app/domain';
 import { act, cleanup, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
@@ -49,6 +49,11 @@ const session = (): SessionState => ({
 });
 
 vi.mock('../../state/session.tsx', () => ({ useSession: () => session() }));
+// The real reader, wrapped so one test can hand an edit a row another device already changed.
+vi.mock('../../db/home-store.ts', async (original) => {
+  const actual = await original<typeof import('../../db/home-store.ts')>();
+  return { ...actual, templateRow: vi.fn(actual.templateRow) };
+});
 
 // Each edit is an IndexedDB write plus a live-query round trip; under a full parallel run
 // that can outlast the one-second default.
@@ -100,6 +105,13 @@ describe('3.4 composer: address', () => {
     renderComposer('019966b0-0037-7000-8000-0000000000ff');
     expect(await screen.findByText('Template não encontrado.')).toBeVisible();
     expect(screen.getByRole('link', { name: 'Voltar para Templates' })).toHaveAttribute('href', '/templates');
+  });
+
+  it('says so for a removed template too', async () => {
+    database = await freshDb({ ...standardTemplate({ id: ID }), removed_at: '2026-09-22T10:00:00.000Z' });
+    renderComposer();
+    expect(await screen.findByText('Template não encontrado.')).toBeVisible();
+    expect(screen.queryByRole('textbox', { name: 'Nome do template' })).toBeNull();
   });
 
   it('draws the standard template: name, totals, skeleton heading, sections and the autosave note, with no violations', async () => {
@@ -166,10 +178,45 @@ describe('3.4 composer: skeleton', () => {
     await waitFor(() => expect(colunaNames('Cabine 1')).toEqual(['Coluna 1', 'Coluna 5', 'Coluna 2']));
     await waitFor(() => expect(announcer()).toHaveTextContent('Coluna 5 movida para a posição 2 de 3'));
 
-    // Alt+Down on a coluna never moves its cabine.
     const row = await templateRow(database, ID);
     expect(row!.skeleton.map((n) => n.name)).toEqual(['Cabine 1', 'Coluna 1', 'Coluna 5', 'Coluna 2']);
     expect((await outboxPaths()).every((path) => path === `template/${ID}/skeleton`)).toBe(true);
+  });
+
+  it('Alt+ArrowUp on a coluna moves the coluna only, never its cabine', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    renderComposer();
+    const cabines = () =>
+      [...screen.getByRole('list', { name: 'Cabines do template' }).querySelectorAll(':scope > li .block-name')].map((el) => el.textContent);
+    const before = await waitFor(() => {
+      const names = cabines();
+      expect(names).toHaveLength(6);
+      return names;
+    });
+    fireEvent.keyDown(screen.getByRole('button', { name: /^Coluna 3/ }), { key: 'ArrowUp', altKey: true });
+    await waitFor(() => expect(colunaNames('1° Subsolo').slice(0, 3)).toEqual(['Coluna 1', 'Coluna 3', 'Coluna 2']));
+    expect(cabines()).toEqual(before);
+    expect(announcer()).toHaveTextContent('Coluna 3 movida para a posição 2 de 17');
+    const row = await templateRow(database, ID);
+    expect(row!.skeleton.filter((n) => n.kind === 'cabine').map((n) => n.ref)).toEqual(
+      standardTemplate({ id: ID }).skeleton.filter((n) => n.kind === 'cabine').map((n) => n.ref),
+    );
+  });
+
+  it('a later edit takes the undo of a removal away, so "Desfazer" can never discard it', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    renderComposer();
+    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de Coluna 3' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Remover' }));
+    await userEvent.click(within(await screen.findByRole('dialog', { name: 'Remover Coluna 3?' })).getByRole('button', { name: 'Remover' }));
+    expect(await screen.findByText('Coluna 3 removida')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Desfazer' })).toBeVisible();
+
+    const toggle = screen.getByRole('switch', { name: 'Agrupar por tipo Cubículo Enel' });
+    await userEvent.click(toggle);
+    await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'true'));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Desfazer' })).toBeNull());
+    expect(screen.queryByText('Coluna 3 removida')).toBeNull();
   });
 
   it('stores Agrupar por tipo on the skeleton cabine', async () => {
@@ -232,6 +279,46 @@ describe('3.4 composer: quantities per node', () => {
     expect((await outboxPaths()).every((path) => path === `template/${ID}/blocks`)).toBe(true);
   });
 
+  it('heads the palette with the current node', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    const { container } = renderComposer();
+    await screen.findByRole('complementary', { name: 'Paleta de blocos' });
+    expect(container.querySelector('.composer-palette .palette-head')).toHaveTextContent('Blocos');
+    await userEvent.click(screen.getByRole('button', { name: /^Coluna 9/ }));
+    await waitFor(() => expect(container.querySelector('.composer-palette .palette-head')).toHaveTextContent('Coluna 9'));
+  });
+
+  it('"−" to zero from the keyboard in the open coluna moves the focus to its head', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    const { container } = renderComposer();
+    const head = await screen.findByRole('button', { name: /^Coluna 5/ });
+    await userEvent.click(head);
+    const body = await waitFor(() => {
+      const el = container.querySelector('.column-row.is-open .col-body');
+      expect(el).not.toBeNull();
+      return el as HTMLElement;
+    });
+    const minus = within(within(body).getByRole('group', { name: 'Seccionadoras, 1' })).getByRole('button', { name: 'Menos um' });
+    minus.focus();
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() => expect(within(body).queryByRole('group', { name: /^Seccionadoras/ })).toBeNull());
+    await waitFor(() => expect(head).toHaveFocus());
+  });
+
+  it('writes nothing when the node was removed elsewhere before the write, and the stepper keeps its count', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    renderComposer();
+    await userEvent.click(await screen.findByRole('button', { name: /^Coluna 9/ }));
+    const stepper = within(palette()).getByRole('group', { name: 'Seccionadoras, 0' });
+    // The row this device reads at the moment of the write no longer has Coluna 9.
+    const stale = standardTemplate({ id: ID });
+    vi.mocked(templateRow).mockImplementationOnce(async () => ({ ...stale, ...removeNode(stale, 'subsolo-1/coluna-9') }));
+    await userEvent.click(within(stepper).getByRole('button', { name: 'Mais um' }));
+    await waitFor(() => expect(within(stepper).getByRole('textbox')).toHaveValue('—'));
+    expect(await outboxPaths()).toEqual([]);
+    expect(screen.queryByText('Não foi possível salvar. Tente de novo.')).toBeNull();
+  });
+
   it('a cabine made current holds blocks with no coluna, and lists them', async () => {
     database = await freshDb(standardTemplate({ id: ID }));
     const { container } = renderComposer();
@@ -260,7 +347,7 @@ describe('3.4 composer: section blocks', () => {
     ]);
     await userEvent.click(within(menu).getByRole('menuitem', { name: 'Descer' }));
     await waitFor(() => expect(tags(container)).toEqual(['2', '1', '3', '4', '5', '6', '8', '10', '11']));
-    await waitFor(() => expect(announcer()).toHaveTextContent('1 Objetivo movida para a posição 2 de 9'));
+    await waitFor(() => expect(announcer()).toHaveTextContent('Seção 1 movida para a posição 2 de 9'));
 
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de 3 Limite de escopo' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Duplicar' }));
@@ -315,7 +402,7 @@ describe('3.4 composer: name', () => {
     renderComposer();
     const name = await screen.findByRole('textbox', { name: 'Nome do template' });
     await userEvent.clear(name);
-    await userEvent.type(name, 'Porto Seguro — Torres A e B');
+    await userEvent.type(name, '  Porto Seguro — Torres A e B  ');
     await act(async () => {
       name.blur();
     });
