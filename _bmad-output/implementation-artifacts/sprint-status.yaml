@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 09-22-2026 21:11
+last_updated: 09-23-2026 09:11
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -63,7 +63,7 @@ development_status:
   3-5-set-sub-block-defaults-and-subtypes-per-block-type: done
   3-6-edit-the-section-boilerplate-as-plain-text-with-variables: done
   3-7-build-the-porto-seguro-fixture-relatório: done
-  epic-3-retrospective: optional
+  epic-3-retrospective: done
 
   epic-4: backlog
   4-1-create-a-project-and-a-relatório-whose-blocks-are-born-in-pl: backlog
@@ -275,3 +275,76 @@ action_items:
     owner: "dev and reviewers"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-22.md"
+  - id: "epic-3-retro-item-18-e3-a1-record-the-r-009-seed-review-under"
+    epic: 3
+    action: "E3-A1 Record the R-009 seed review under Story 3.1 and decide D-2 ({obra}),
+      D-3 (NA defaults, subtypes) and D-6 (roles), as seed v2 or a deliberate v1 unfreeze
+      (blocks Story 4.1)"
+    owner: "Matheus"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+  - id: "epic-3-retro-item-19-e3-a2-decide-the-not_tested_reason-for-t"
+    epic: 3
+    action: "E3-A2 Decide the not_tested_reason for the Porto Seguro untested blocks
+      (solicitacao_cliente vs impossibilidade_desligamento)"
+    owner: "Matheus"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+  - id: "epic-3-retro-item-20-e3-a3-validate-sheet-path-segments-again"
+    epic: 3
+    action: "E3-A3 Validate sheet/* path segments against getDefinition in applyOp
+      before Epic 4 writes sheet values"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+  - id: "epic-3-retro-item-21-e3-a4-stabilize-the-gate-templates-list"
+    epic: 3
+    action: "E3-A4 Stabilize the gate: Templates list empty for 30 s after sign-in
+      under load (3.6-E2E-001), and cut unit-suite jsdom/axe cost"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+  - id: "epic-3-retro-item-22-e3-a5-decide-d-4-template-version-d-5-co"
+    epic: 3
+    action: "E3-A5 Decide D-4 template.version, D-5 contact-insulation row offset
+      in the kernel, D-7 array last-writer-wins, before instantiateTemplate and the
+      renderer"
+    owner: "Winston + Matheus"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+  - id: "epic-3-retro-item-23-e3-a6-process-a-seed-fixture-freeze-requ"
+    epic: 3
+    action: "E3-A6 Process: a seed/fixture freeze requires the human review record
+      first; goldens get an explicit assertion against the source document"
+    owner: "Matheus / SM"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+  - id: "epic-3-retro-item-24-e3-a7-process-one-story-per-pr-or-a-reco"
+    epic: 3
+    action: "E3-A7 Process: one story per PR or a recorded exception; Dev model changes
+      noted in epics.md with a date"
+    owner: "Matheus / SM"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+  - id: "epic-3-retro-item-25-e3-a8-process-focus-asserted-after-every"
+    epic: 3
+    action: "E3-A8 Process: focus asserted after every destructive action; contenteditable
+      and touch ACs run once on Android Chrome or WebKit before close"
+    owner: "dev + reviewers"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+  - id: "epic-3-retro-item-26-e3-a9-deferred-polish-toggle-sub-lines-f"
+    epic: 3
+    action: "E3-A9 Deferred polish: toggle-sub lines from kernel text, one bullet
+      4 in section 8, synthetic names in remaining tests, blank-rename message, open
+      Editar texto from the card"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+  - id: "epic-3-retro-item-27-e3-a10-tooling-remove-stale-worktrees-re"
+    epic: 3
+    action: "E3-A10 Tooling: remove stale worktrees, require the worktree .env before
+      the first compose command, drop the emoji from the PR attribution line"
+    owner: "Matheus"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
