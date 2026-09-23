@@ -162,17 +162,29 @@ export const INSTRUMENTS = {
 } as const;
 
 // --- Section 8 (verbatim bullets 1, 2, 3, 5; bullet 4 drives the not-tested wiring) ------
+// Punctuation as the source prints it: bullets 1 to 4 end with ";", bullet 5 with ".".
 
 export const SECTION_8_POINTS = [
-  'As duas cabines (Primária e Transformação) deverão passar por processo de identificação via plaquetas de segurança: Função da Cabine, Tensão, Potência, Função dos Transformadores, etc.',
-  'Emoldurar e pendurar nas cabines primária e de transformação diagrama unifilar atualizado (faz parte do PIE).',
-  'Recomenda-se o acompanhamento nas próximas manutenções preventivas os resultados dos ensaios de resistência de isolação dos cabos de alimentação e dos para-raios, uma vez que ambos apresentaram valores inferiores ao valor de referência de 400 MΩ. Ressalta-se que os ensaios foram realizados em condições climáticas de chuva e elevada umidade, fatores que podem influenciar negativamente os resultados dos ensaios de resistência de isolamento.',
+  'As duas cabines (Primária e Transformação) deverão passar por processo de identificação via plaquetas de segurança: Função da Cabine, Tensão, Potência, Função dos Transformadores, etc.;',
+  'Emoldurar e pendurar nas cabines primária e de transformação diagrama unifilar atualizado (faz parte do PIE);',
+  'Recomenda-se o acompanhamento nas próximas manutenções preventivas os resultados dos ensaios de resistência de isolação dos cabos de alimentação e dos para-raios, uma vez que ambos apresentaram valores inferiores ao valor de referência de 400 MΩ. Ressalta-se que os ensaios foram realizados em condições climáticas de chuva e elevada umidade, fatores que podem influenciar negativamente os resultados dos ensaios de resistência de isolamento;',
   'Conforme orientação do cliente, não foram realizados os serviços de reaperto das conexões e limpeza interna nos QGBT’s das Torres A e B, em razão da impossibilidade de desenergização dos equipamentos e da necessidade de continuidade operacional da edificação. Ressalta-se que, conforme informado pelo cliente, os QGBT’s foram submetidos previamente à inspeção termográfica por empresa terceira, não tendo sido identificados pontos de anomalia térmica.',
 ] as const;
 
-export const NOT_TESTED_REASON = 'Solicitação do cliente';
+/**
+ * Where the not-tested bullet (source bullet 4) sits among `SECTION_8_POINTS`: after the
+ * first three, before the last. The op log orders section 8 points this way.
+ */
+export const SECTION_8_NOT_TESTED_AT = 3;
+
+/**
+ * The seed `not_tested_reasons` key (never its label, "Solicitação do cliente"). Bullet 4's
+ * own wording ("impossibilidade de realizar a desenergização ... conforme solicitação do
+ * cliente") matches `impossibilidade_desligamento` as well; which key is right is Matheus's call.
+ */
+export const NOT_TESTED_REASON = 'solicitacao_cliente';
 const NOT_TESTED_BULLET =
-  'Não foi possível realizar os ensaios elétricos em algumas seccionadoras específicas e no disjuntor TIE, responsável pela interligação dos barramentos de média tensão, devido à impossibilidade de realizar a desenergização completa da edificação, em razão da necessidade de continuidade operacional das instalações, conforme solicitação do cliente. Recomenda-se que os ensaios pendentes sejam programados e realizados na próxima intervenção.';
+  'Não foi possível realizar os ensaios elétricos em algumas seccionadoras específicas e no disjuntor TIE, responsável pela interligação dos barramentos de média tensão, devido à impossibilidade de realizar a desenergização completa da edificação, em razão da necessidade de continuidade operacional das instalações, conforme solicitação do cliente. Recomenda-se que os ensaios pendentes sejam programados e realizados na próxima intervenção;';
 
 export const notTestedText = (subject: string): string =>
   `Não foi possível realizar os ensaios elétricos n${subject} devido à impossibilidade de realizar a desenergização completa da edificação, em razão da necessidade de continuidade operacional das instalações, conforme solicitação do cliente. Recomenda-se que os ensaios pendentes sejam programados e realizados na próxima intervenção.`;

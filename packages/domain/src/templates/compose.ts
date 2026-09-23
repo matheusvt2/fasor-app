@@ -2,6 +2,7 @@ import {
   EQUIPMENT_BLOCK_TYPES,
   isEquipmentBlockType,
   isSectionBlockType,
+  MAX_QUANTITY,
   SUB_BLOCK_KEYS,
   type BlockConfig,
   type EquipmentBlockType,
@@ -36,9 +37,6 @@ export type SeededComposition = Pick<TemplateRow, 'blocks' | 'skeleton' | 'seed_
 
 type CabineNode = Extract<SkeletonNode, { kind: 'cabine' }>;
 type ColunaNode = Extract<SkeletonNode, { kind: 'coluna' }>;
-
-/** UX-DR30: the Quantity stepper counts 0 to 99 of one type at one node. */
-export const MAX_QUANTITY = 99;
 
 /** A requested quantity brought into 0..MAX_QUANTITY (a fraction is floored). */
 export function clampQuantity(n: number): number {

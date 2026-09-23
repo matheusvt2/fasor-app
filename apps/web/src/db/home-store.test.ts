@@ -62,7 +62,7 @@ async function seeded(): Promise<AppDatabase> {
     toRecord(`registry:${CLIENT}`, {
       id: CLIENT,
       kind: 'client',
-      name: 'Porto Seguro Companhia de Seguros Gerais',
+      name: 'Seguradora Exemplo S.A.',
       cnpj: null,
       contact_name: null,
       contact_phone: null,

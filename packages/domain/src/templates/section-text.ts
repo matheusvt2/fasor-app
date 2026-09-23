@@ -107,7 +107,16 @@ export interface ResolvedSectionText {
   resolved: string;
   /** The variables with no value, once each, in order of first appearance. */
   unresolved: SectionVariable[];
+  /**
+   * The brace tokens that name no section variable (a typo such as `{clente}`, a wrong case
+   * such as `{Cliente}`, or `{foo}`), by the name inside the braces, once each, in order of
+   * first appearance. They print as they are; the list lets a caller warn about them.
+   */
+  unknown: string[];
 }
+
+/** Any brace token with no space or brace inside, so a typo or a capital is caught too. */
+const ANY_BRACE_TOKEN = /\{([^{}\s]+)\}/g;
 
 /**
  * A section text with every variable replaced by the relatório's value. A variable with
@@ -127,5 +136,10 @@ export function resolveSectionText(
     if (!unresolved.includes(name)) unresolved.push(name);
     return `[${SECTION_VARIABLE_LABELS[name]}]`;
   });
-  return { resolved, unresolved };
+  const unknown: string[] = [];
+  for (const match of text.matchAll(ANY_BRACE_TOKEN)) {
+    const name = match[1]!;
+    if (!isSectionVariable(name) && !unknown.includes(name)) unknown.push(name);
+  }
+  return { resolved, unresolved, unknown };
 }

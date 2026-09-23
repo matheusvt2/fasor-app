@@ -415,7 +415,7 @@ test('@p0 3.4-E2E-002 sets quantities per node with the palette stepper; the col
   await expect(palette(page).getByText('Equipamentos · quantidade em Cabine 1')).toBeVisible();
   await palette(page).getByRole('group', { name: 'Cabos de entrada, 0' }).getByRole('button', { name: 'Mais um' }).click();
   await expect(page.locator('.cabine-card.is-open > .block-expand > .col-body').getByRole('group', { name: 'Cabos de entrada, 1' })).toBeVisible();
-  await expect(page.locator('.composer-meta')).toHaveText('1 disjuntor · 1 cabos de entrada');
+  await expect(page.locator('.composer-meta')).toHaveText('1 disjuntor · 1 cabo de entrada');
   await expect(skeletonHeading(page)).toHaveText('Esqueleto de locais · 1 cabine · 1 coluna · 2 blocos');
 
   const paths = await outboxPaths(page, account.userId);

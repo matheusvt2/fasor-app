@@ -44,7 +44,7 @@ describe('templatesHeading and archivedHeading', () => {
 
 describe('sortTemplates', () => {
   it('lists live templates by pt-BR name, ties by id, and never a removed one', () => {
-    const rows = [row(C, 'Porto Seguro'), row(B, 'Cabine primária — padrão'), row(A, 'Cabine primária — padrão'), row(D, 'Antigo', AT)];
+    const rows = [row(C, 'Edifício Aurora'), row(B, 'Cabine primária — padrão'), row(A, 'Cabine primária — padrão'), row(D, 'Antigo', AT)];
     expect(ids(sortTemplates(rows))).toEqual([A, B, C]);
   });
 });
