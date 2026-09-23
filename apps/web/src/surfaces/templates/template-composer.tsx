@@ -370,7 +370,11 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
 
   async function onCommitText(section: ComposerSection, text: string): Promise<void> {
     const { gone } = await writeSectionText(section, text);
-    if (gone) showToast(copy.composer.textGone);
+    if (!gone) return;
+    // The section is not where the dialog was opened any more: it closes, so the toast is
+    // shown once rather than on every later autosave.
+    showToast(copy.composer.textGone);
+    setEditingText(null);
   }
 
   function onRestoreText(section: ComposerSection): void {

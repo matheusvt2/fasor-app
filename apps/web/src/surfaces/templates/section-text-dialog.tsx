@@ -84,7 +84,9 @@ export function SectionTextDialog({ sectionTitle, sectionNumber, text, onCommit,
         event.inputType === 'insertFromDrop' ||
         event.inputType === 'deleteByDrag' ||
         event.inputType === 'formatBold' ||
-        event.inputType === 'formatItalic'
+        event.inputType === 'formatItalic' ||
+        event.inputType === 'formatUnderline' ||
+        event.inputType === 'formatStrikeThrough'
       ) {
         event.preventDefault();
       }

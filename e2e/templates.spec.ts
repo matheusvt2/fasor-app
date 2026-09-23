@@ -599,6 +599,13 @@ async function deviceTemplate(page: Page, userId: string, id: string): Promise<T
   return templateRowSchema.parse(record!.row);
 }
 
+/** Picks a subtype in the defaults dialog's Combobox: its chevron opens the list. */
+async function pickSubtype(page: Page, dialog: Locator, label: string): Promise<void> {
+  await dialog.getByRole('button', { name: /Abrir lista/ }).click();
+  await page.getByRole('option', { name: label, exact: true }).click();
+  await expect(dialog.getByRole('combobox', { name: 'Subtipo padrão' })).toHaveValue(label);
+}
+
 test('@p0 3.5-E2E-001 per-type sub-block defaults: toggles, "Sempre", subtype NA count, shared by every placement, kept on reload', async ({
   page,
   seed,
@@ -633,11 +640,11 @@ test('@p0 3.5-E2E-001 per-type sub-block defaults: toggles, "Sempre", subtype NA
 
   // The subtype: none clears the NA pre-marks; "MANUAL" pre-marks the seed's two.
   const subtype = dialog.getByRole('combobox', { name: 'Subtipo padrão' });
-  await expect(subtype).toHaveValue('manual');
+  await expect(subtype).toHaveValue('MANUAL');
   await expect(dialog.getByText('2 itens marcados NA por padrão')).toBeVisible();
-  await subtype.selectOption('');
+  await pickSubtype(page, dialog, 'Sem subtipo');
   await expect(dialog.getByText('Nenhum item marcado NA por padrão')).toBeVisible();
-  await subtype.selectOption({ label: 'MANUAL' });
+  await pickSubtype(page, dialog, 'MANUAL');
   await expect(dialog.getByText('2 itens marcados NA por padrão')).toBeVisible();
   await dialog.getByRole('button', { name: 'Fechar' }).click();
   await expect(dialog).toBeHidden();
@@ -645,7 +652,7 @@ test('@p0 3.5-E2E-001 per-type sub-block defaults: toggles, "Sempre", subtype NA
   // "Á SECO" on the TP pre-marks eight.
   await palette(page).getByRole('button', { name: 'Editar padrões de TP — proteção' }).click();
   dialog = page.getByRole('dialog', { name: 'Padrões de TP — proteção' });
-  await dialog.getByRole('combobox', { name: 'Subtipo padrão' }).selectOption({ label: 'Á SECO' });
+  await pickSubtype(page, dialog, 'Á SECO');
   await expect(dialog.getByText('8 itens marcados NA por padrão')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
@@ -669,7 +676,7 @@ test('@p0 3.5-E2E-001 per-type sub-block defaults: toggles, "Sempre", subtype NA
   await palette(page).getByRole('button', { name: 'Editar padrões de Chave seccionadora' }).click();
   dialog = page.getByRole('dialog', { name: 'Padrões de Chave seccionadora' });
   await expect(dialog.getByRole('switch', { name: 'Resistência de contato' })).toHaveAttribute('aria-checked', 'false');
-  await expect(dialog.getByRole('combobox', { name: 'Subtipo padrão' })).toHaveValue('manual');
+  await expect(dialog.getByRole('combobox', { name: 'Subtipo padrão' })).toHaveValue('MANUAL');
   await expect(dialog.getByText('2 itens marcados NA por padrão')).toBeVisible();
 
   expect((await outboxPaths(page, account.userId)).every((path) => path === `template/${templateId}/blocks`)).toBe(true);

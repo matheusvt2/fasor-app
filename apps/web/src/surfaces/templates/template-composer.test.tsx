@@ -492,7 +492,7 @@ describe('3.5 composer: sub-block defaults per type', () => {
       expect(toggle).toHaveTextContent('Sempre');
     }
     const subtype = within(dialog).getByRole('combobox', { name: 'Subtipo padrão' });
-    expect(subtype).toHaveValue('manual');
+    expect(subtype).toHaveValue('MANUAL');
     expect(within(dialog).getByText('2 itens marcados NA por padrão')).toBeVisible();
     expect(await axe(dialog)).toHaveNoViolations();
 
@@ -505,8 +505,10 @@ describe('3.5 composer: sub-block defaults per type', () => {
     await waitFor(() => expect(within(dialog).getByRole('switch', { name: 'Resistência de contato' })).toHaveTextContent('Desativado'));
 
     // No subtype: no NA pre-mark, every item still on the list.
-    await userEvent.selectOptions(subtype, '');
+    await userEvent.click(within(dialog).getByRole('button', { name: /Abrir lista/ }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Sem subtipo' }));
     await waitFor(() => expect(within(dialog).getByText('Nenhum item marcado NA por padrão')).toBeVisible());
+    expect(subtype).toHaveValue('Sem subtipo');
     const blocks = (await templateRow(database!, ID))!.blocks.filter((b) => b.block_type === 'chave_seccionadora');
     expect(blocks.every((b) => b.subtype === undefined && b.na_defaults.length === 0)).toBe(true);
     expect(await outboxPaths()).toEqual([`template/${ID}/blocks`, `template/${ID}/blocks`]);
@@ -518,9 +520,10 @@ describe('3.5 composer: sub-block defaults per type', () => {
     await screen.findByRole('complementary', { name: 'Paleta de blocos' });
     await userEvent.click(within(palette()).getByRole('button', { name: 'Editar padrões de TP — proteção' }));
     const dialog = await screen.findByRole('dialog', { name: 'Padrões de TP — proteção' });
-    const subtype = within(dialog).getByRole('combobox', { name: 'Subtipo padrão' });
-    expect(within(subtype).getAllByRole('option').map((o) => o.textContent)).toEqual(['Sem subtipo', 'EPÓXI', 'Á SECO']);
-    await userEvent.selectOptions(subtype, 'a_seco');
+    expect(within(dialog).getByRole('combobox', { name: 'Subtipo padrão' })).toHaveValue('Sem subtipo');
+    await userEvent.click(within(dialog).getByRole('button', { name: /Abrir lista/ }));
+    expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual(['Sem subtipo', 'EPÓXI', 'Á SECO']);
+    await userEvent.click(screen.getByRole('option', { name: 'Á SECO' }));
     await waitFor(() => expect(within(dialog).getByText('8 itens marcados NA por padrão')).toBeVisible());
     // "IA e IP lidos do visor" ships off and can be switched on.
     expect(within(dialog).getByRole('switch', { name: 'IA e IP lidos do visor' })).toHaveAttribute('aria-checked', 'false');
@@ -570,8 +573,35 @@ describe('3.6 composer: section text', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'cliente' }));
     await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
     expect(await screen.findByText('A seção mudou em outro aparelho; o texto não foi salvo.')).toBeVisible();
+    // The dialog closes, so later autosaves cannot repeat the toast.
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(await outboxPaths()).toEqual([]);
     expect((await templateRow(database!, ID))!.blocks.every((b) => b.section_text === null)).toBe(true);
+  });
+
+  it('"Restaurar texto padrão" right after typing writes the typed text first, so "Desfazer" brings it back', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    renderComposer();
+    const open = async () => {
+      await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de 1 Objetivo' }));
+      await userEvent.click(await screen.findByRole('menuitem', { name: 'Editar texto' }));
+      return screen.findByRole('dialog', { name: '1 Objetivo — texto fixo' });
+    };
+    // An older committed text: the seed text with a chip in front.
+    let dialog = await open();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'cliente' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
+    await waitFor(async () => expect((await templateRow(database!, ID))!.blocks[0]!.section_text).toMatch(/^\{cliente\}O presente/));
+
+    // Typed, and restored at once, well inside the 500 ms autosave idle.
+    dialog = await open();
+    const textbox = area(dialog);
+    textbox.append(document.createTextNode(' Recém digitado.'));
+    fireEvent.input(textbox);
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Restaurar texto padrão' }));
+    await waitFor(async () => expect((await templateRow(database!, ID))!.blocks[0]!.section_text).toBeNull());
+    await userEvent.click(await screen.findByRole('button', { name: 'Desfazer' }));
+    await waitFor(async () => expect((await templateRow(database!, ID))!.blocks[0]!.section_text).toMatch(/ Recém digitado\.$/));
   });
 
   it('an emptied text, or one typed back to the seed text, is stored as null: the seed text stays in force', async () => {

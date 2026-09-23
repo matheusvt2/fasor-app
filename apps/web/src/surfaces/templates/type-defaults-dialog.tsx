@@ -8,9 +8,11 @@ import {
   type SubBlockKey,
   type TypeConfig,
 } from '@app/domain';
-import { useId } from 'react';
-import { Button, FormDialog, LockedToggle, Toggle } from '../../components/index.ts';
+import { Button, Combobox, FormDialog, LockedToggle, Toggle } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
+
+/** The option for a type used with no subtype (a React Aria key cannot be empty). */
+const NO_SUBTYPE = 'sem_subtipo';
 
 export interface TypeDefaultsDialogProps {
   type: EquipmentBlockType;
@@ -32,8 +34,6 @@ export interface TypeDefaultsDialogProps {
  */
 export function TypeDefaultsDialog({ type, seedVersion, config, onChange, onClose }: TypeDefaultsDialogProps) {
   const definition = getDefinition(seedVersion, 'cabine_primaria', type);
-  const subtypeId = useId();
-  const countId = useId();
   const typeName = copy.composer.equipmentNames[type];
 
   const setEnabled = (key: SubBlockKey, enabled: boolean) =>
@@ -59,27 +59,17 @@ export function TypeDefaultsDialog({ type, seedVersion, config, onChange, onClos
     >
       <p className="dialog-meta">{copy.composer.defaultsScope}</p>
       {definition.subtypes.length === 0 ? null : (
-        <div className="field">
-          <label className="field-label" htmlFor={subtypeId}>
-            {copy.composer.subtypeLabel}
-          </label>
-          <select
-            id={subtypeId}
-            className="input"
-            value={config.subtype ?? ''}
-            aria-describedby={countId}
-            onChange={(event) => setSubtype(event.target.value)}
-          >
-            <option value="">{copy.composer.noSubtype}</option>
-            {definition.subtypes.map((subtype) => (
-              <option key={subtype.key} value={subtype.key}>
-                {subtype.label}
-              </option>
-            ))}
-          </select>
-          <span className="helper" id={countId}>
-            {naDefaultsCountText(config.na_defaults.length)}
-          </span>
+        <div>
+          <Combobox
+            label={copy.composer.subtypeLabel}
+            options={[
+              { id: NO_SUBTYPE, label: copy.composer.noSubtype },
+              ...definition.subtypes.map((subtype) => ({ id: subtype.key, label: subtype.label })),
+            ]}
+            selectedKey={config.subtype ?? NO_SUBTYPE}
+            onSelectionChange={(key) => setSubtype(key ?? NO_SUBTYPE)}
+          />
+          <span className="helper">{naDefaultsCountText(config.na_defaults.length)}</span>
         </div>
       )}
       <div>
