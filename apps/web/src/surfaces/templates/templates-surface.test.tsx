@@ -338,6 +338,18 @@ describe('3.3 Templates: actions', () => {
     expect(created.skeleton).toEqual(standardTemplate({ id: A }).skeleton);
   });
 
+  it('a second "Duplicar" of the same template is named "⟨nome⟩ — cópia 2", not a second identical name', async () => {
+    database = await freshDb();
+    await seed(database, [template(A, 'Cabine primária — padrão'), template(B, 'Cabine primária — padrão — cópia')]);
+    renderSurface();
+    const list = await screen.findByRole('list', { name: 'Templates ativos' });
+    await waitFor(() => expect(primaries(list)).toHaveLength(2));
+    await userEvent.click(within(list).getAllByRole('button', { name: 'Duplicar' })[0]!);
+
+    expect(await screen.findByText('Duplicado como “Cabine primária — padrão — cópia 2”')).toBeVisible();
+    await waitFor(() => expect(primaries(list)).toContain('Cabine primária — padrão — cópia 2'));
+  });
+
   it('"Arquivar" moves the row under "Arquivados (1)", "Restaurar" brings it back, both one put of archived_at', async () => {
     database = await freshDb();
     await seed(database, [template(A, 'Cabine primária — padrão')]);

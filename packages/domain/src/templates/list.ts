@@ -55,9 +55,18 @@ export function templateUseCount(templateId: string, summaries: readonly Relator
   return summaries.filter((summary) => summary.template_id === templateId).length;
 }
 
-/** The name a duplicate gets: "⟨nome⟩ — cópia" (Story 3.3 AC). */
-export function duplicateName(name: string): string {
-  return `${name} — cópia`;
+/**
+ * The name a duplicate gets: "⟨nome⟩ — cópia" (Story 3.3 AC), numbered "— cópia 2",
+ * "— cópia 3"... when a live template already holds that name, so two copies of one
+ * template can be told apart in the list.
+ */
+export function duplicateName(name: string, takenNames: readonly string[] = []): string {
+  const base = `${name} — cópia`;
+  const taken = new Set(takenNames);
+  if (!taken.has(base)) return base;
+  let n = 2;
+  while (taken.has(`${base} ${n}`)) n += 1;
+  return `${base} ${n}`;
 }
 
 /**
@@ -65,9 +74,9 @@ export function duplicateName(name: string): string {
  * `BlockConfig` defaults under a new id and name, back at version 1, live and not
  * archived. No relatório data is involved (a template holds none).
  */
-export function duplicateTemplate(row: TemplateRow, id: string): TemplateRow {
+export function duplicateTemplate(row: TemplateRow, id: string, takenNames: readonly string[] = []): TemplateRow {
   const copy = JSON.parse(JSON.stringify(row)) as TemplateRow;
-  return { ...copy, id, name: duplicateName(row.name), version: 1, archived_at: null, removed_at: null };
+  return { ...copy, id, name: duplicateName(row.name, takenNames), version: 1, archived_at: null, removed_at: null };
 }
 
 /** The name "Novo template" gives the empty composition it creates. */

@@ -5,6 +5,7 @@ import {
   duplicateTemplate,
   emptyTemplate,
   SEED_VERSION,
+  sortTemplates,
   standardTemplate,
   templatesHeading,
   templateSummaryText,
@@ -154,7 +155,7 @@ export function TemplatesSurface() {
     if (user === null) return;
     // The same in-flight guard as the creates: two quick taps make one copy.
     void once(noBusy, async () => {
-      const copyRow = duplicateTemplate(row, newId());
+      const copyRow = duplicateTemplate(row, newId(), sortTemplates(rows ?? []).map((r) => r.name));
       if ((await commit([createTemplateOp(user, copyRow)])) !== null) showToast(copy.templates.duplicated(copyRow.name));
     });
   }

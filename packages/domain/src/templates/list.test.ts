@@ -6,6 +6,7 @@ import {
   activeTemplates,
   archivedHeading,
   archivedTemplates,
+  duplicateName,
   duplicateTemplate,
   emptyTemplate,
   pickableTemplates,
@@ -87,7 +88,21 @@ describe('3.3-UNIT templateUseCount', () => {
   });
 });
 
+describe('3.3-UNIT duplicateName', () => {
+  it('numbers a copy whose name is already taken, so two copies can be told apart', () => {
+    expect(duplicateName('X', [])).toBe('X — cópia');
+    expect(duplicateName('X', ['X', 'X — cópia'])).toBe('X — cópia 2');
+    expect(duplicateName('X', ['X — cópia', 'X — cópia 2', 'X — cópia 3'])).toBe('X — cópia 4');
+    expect(duplicateName('X', ['X — cópia 2'])).toBe('X — cópia');
+  });
+});
+
 describe('3.3-UNIT duplicateTemplate', () => {
+  it('takes the next free copy name from the names given', () => {
+    const source = standardTemplate({ id: A });
+    expect(duplicateTemplate(source, B, ['Cabine primária — padrão — cópia']).name).toBe('Cabine primária — padrão — cópia 2');
+  });
+
   it('copies blocks, skeleton and seed version deep under a new id named "⟨nome⟩ — cópia"', () => {
     const source = { ...standardTemplate({ id: A }), version: 4, archived_at: AT };
     const copy = duplicateTemplate(source, B);
