@@ -4,7 +4,9 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./fixtures/replay-small": "./fixtures/replay-small/op-log.ts"
+    "./fixtures/replay-small": "./fixtures/replay-small/op-log.ts",
+    "./fixtures/porto-seguro": "./fixtures/porto-seguro/op-log.ts",
+    "./fixtures/porto-seguro/small": "./fixtures/porto-seguro/small/op-log.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
