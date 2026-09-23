@@ -55,9 +55,9 @@ development_status:
   2-6-see-the-acceptance-criteria-as-sourced-data: done
   epic-2-retrospective: done
 
-  epic-3: backlog
-  3-1-seed-the-eight-equipment-block-types-from-the-decoded-fo-ser: backlog
-  3-2-seed-the-section-boilerplate-and-the-cabine-primária-padrão: backlog
+  epic-3: in-progress
+  3-1-seed-the-eight-equipment-block-types-from-the-decoded-fo-ser: in-progress
+  3-2-seed-the-section-boilerplate-and-the-cabine-primária-padrão: in-progress
   3-3-list-duplicate-and-archive-templates: backlog
   3-4-compose-a-template-with-its-location-skeleton-and-quantities: backlog
   3-5-set-sub-block-defaults-and-subtypes-per-block-type: backlog
