@@ -9,6 +9,8 @@ export interface FormDialogProps {
   title: string;
   /** Fields, then the surface's own `.dialog-actions` row. */
   children: ReactNode;
+  /** A modifier beside `.form-dialog` (the mock's `.rich-dialog`, for instance). */
+  className?: string;
 }
 
 /**
@@ -17,10 +19,15 @@ export interface FormDialogProps {
  * cancel or a save. The surface owns the fields, the validation and the actions; this
  * component owns the modal behavior, through the same shell as the Confirm dialog.
  */
-export function FormDialog({ isOpen, onOpenChange, title, children }: FormDialogProps) {
+export function FormDialog({ isOpen, onOpenChange, title, children, className }: FormDialogProps) {
   const titleId = useId();
   return (
-    <DialogShell className="form-dialog" isOpen={isOpen} onOpenChange={onOpenChange} aria-labelledby={titleId}>
+    <DialogShell
+      className={className === undefined ? 'form-dialog' : `form-dialog ${className}`}
+      isOpen={isOpen}
+      onOpenChange={onOpenChange}
+      aria-labelledby={titleId}
+    >
       <h2 className="dialog-title" id={titleId}>
         {title}
       </h2>

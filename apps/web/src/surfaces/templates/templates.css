@@ -89,3 +89,30 @@
 .composer-palette .palette-item.is-stepper { cursor: default; }
 .composer-palette .palette-note { padding: var(--sp-2) var(--sp-4); margin: 0; font-size: var(--t-meta-size); color: var(--ink-secondary); }
 .composer-palette .palette-head .icon-btn { margin-left: auto; }
+
+/* ---------- Story 3.5 and 3.6 dialogs (42-template-composer.html) ----------
+   A dialog renders in a portal at the end of `<body>`, outside `[data-route]`, so these
+   rules are scoped by the dialog's own class instead of the mock's route. */
+
+/* The section text editor: the mock's `#tc-dlg-rich` `.form-dialog.rich-dialog`, verbatim
+   (its route scope outranked `.form-dialog`; the doubled class does the same here). */
+.form-dialog.rich-dialog { width: min(720px, 100%); max-height: 100%; overflow: auto; display: flex; flex-direction: column; gap: var(--sp-4); }
+.rich-dialog .dialog-meta { font-size: var(--t-meta-size); color: var(--ink-secondary); }
+/* The mock's `.rich-dialog .var-row .chip` pointer, on the "Inserir dado do relatório" row. */
+.rich-dialog .chip-row .chip { cursor: pointer; }
+/* authored: the dialog's gap spaces its parts, as the mock's composer head note does. */
+.rich-dialog .section-note { margin: 0; }
+/* authored: a long word (a variable token on a phone) wraps instead of widening the dialog,
+   and a text taller than the room the dialog leaves it scrolls inside its own box, so the
+   chip row and the actions stay in view (the mock's dialog holds one short paragraph). */
+.rich-dialog .rich-text .rt-area { overflow-wrap: anywhere; overflow-y: auto; flex: 1 1 auto; }
+
+/* The type defaults panel: the mock draws it inside an expanded equipment `.block-card`;
+   here it is a Form dialog, so the card's page rules are scoped to `.defaults-dialog`. */
+.defaults-dialog { max-height: 100%; overflow: auto; }
+.defaults-dialog .dialog-meta { font-size: var(--t-meta-size); color: var(--ink-secondary); }
+.defaults-dialog .table-title { font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--ink-primary); margin: 0 0 var(--sp-2); }
+.defaults-dialog .section-note { margin: 0; }
+
+/* The palette's equipment row: its "Editar padrões" icon button sits before the stepper. */
+.composer-palette .palette-item.is-stepper .icon-btn { flex: none; }

@@ -54,6 +54,8 @@ export function checkTemplateRow(row: TemplateShape, ctx: z.RefinementCtx): void
       return;
     }
 
+    if (block.section_text !== null) issue(at('section_text'), 'an equipment block has no section text');
+
     if (block.skeleton_location_ref === null) {
       issue(at('skeleton_location_ref'), `${block.block_type} must sit on a node of the skeleton`);
     }

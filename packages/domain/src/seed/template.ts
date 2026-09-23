@@ -182,7 +182,7 @@ function placed(seedVersion: string, placement: Placement, ref: string): Templat
     ...(subtype === undefined ? {} : { subtype }),
     ...(placement.role === undefined ? {} : { role: placement.role }),
   });
-  return { ...config, quantity: placement.quantity, skeleton_location_ref: ref };
+  return { ...config, quantity: placement.quantity, skeleton_location_ref: ref, section_text: null };
 }
 
 export interface StandardTemplateInput {
@@ -203,6 +203,7 @@ export function standardTemplate({ id, seedVersion = SEED_VERSION }: StandardTem
     ...defaultBlockConfig(seedVersion, type),
     quantity: 1,
     skeleton_location_ref: null,
+    section_text: null,
   }));
 
   for (const cabine of CABINES) {

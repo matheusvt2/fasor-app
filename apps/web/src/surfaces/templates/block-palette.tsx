@@ -29,6 +29,10 @@ export interface BlockPaletteProps {
   /** Present when the palette is a drawer or a sheet: its head closes it. */
   onClose?: () => void;
   headingId?: string;
+  /** The equipment types the template places somewhere: only those have defaults to edit. */
+  placedTypes: ReadonlySet<EquipmentBlockType>;
+  /** Opens the sub-block defaults of a type (Story 3.5). */
+  onEditDefaults: (type: EquipmentBlockType) => void;
 }
 
 /**
@@ -46,6 +50,8 @@ export function BlockPaletteContent({
   firstSectionRef,
   onClose,
   headingId,
+  placedTypes,
+  onEditDefaults,
 }: BlockPaletteProps) {
   const reasonId = useId();
   return (
@@ -102,6 +108,7 @@ export function BlockPaletteContent({
             isDisabled={current === null}
             disabledReasonId={reasonId}
             onCommit={(n) => onSetQuantity(type, n)}
+            {...(placedTypes.has(type) ? { onEditDefaults: () => onEditDefaults(type) } : {})}
           />
         ))}
       </div>
@@ -115,21 +122,31 @@ export interface PaletteEquipmentRowProps {
   isDisabled: boolean;
   disabledReasonId: string;
   onCommit: (n: number) => Promise<void>;
+  /** Present when the template holds the type: the row's button opens its sub-block defaults. */
+  onEditDefaults?: () => void;
 }
 
 /**
- * One equipment type of the palette with its stepper. Its own component so Story 3.5 can
- * open the per-type defaults from it.
+ * One equipment type of the palette with its stepper and, once the template holds the type,
+ * the "Editar padrões" icon button that opens its sub-block defaults (Story 3.5).
  */
-export function PaletteEquipmentRow({ type, value, isDisabled, disabledReasonId, onCommit }: PaletteEquipmentRowProps) {
+export function PaletteEquipmentRow({ type, value, isDisabled, disabledReasonId, onCommit, onEditDefaults }: PaletteEquipmentRowProps) {
+  const name = copy.composer.equipmentNames[type];
   return (
     <div className="palette-item is-stepper">
       <svg className="ico" aria-hidden="true">
         <use href="/sprite.svg#i-block" />
       </svg>
       <span className="pi-text">
-        <span>{copy.composer.equipmentNames[type]}</span>
+        <span>{name}</span>
       </span>
+      {onEditDefaults === undefined ? null : (
+        <button type="button" className="icon-btn" aria-label={copy.composer.editDefaults(name)} onClick={onEditDefaults}>
+          <svg className="ico" aria-hidden="true">
+            <use href="/sprite.svg#i-layers" />
+          </svg>
+        </button>
+      )}
       <QuantityStepper
         value={value}
         label={(n) => quantityLabel(type, n)}

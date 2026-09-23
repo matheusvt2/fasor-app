@@ -156,3 +156,13 @@ export function defaultCabineName(n: number): string {
 export function defaultColunaName(n: number): string {
   return `Coluna ${n}`;
 }
+
+/**
+ * The NA pre-marks of a subtype in the type defaults panel (Story 3.5): "2 itens marcados
+ * NA por padrão", "1 item marcado NA por padrão", and "Nenhum item marcado NA por padrão"
+ * without a subtype.
+ */
+export function naDefaultsCountText(n: number): string {
+  if (n === 0) return 'Nenhum item marcado NA por padrão';
+  return `${plural(n, 'item marcado', 'itens marcados')} NA por padrão`;
+}

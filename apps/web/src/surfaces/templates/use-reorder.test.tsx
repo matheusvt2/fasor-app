@@ -14,7 +14,17 @@ const sections = composerView(standardTemplate({ id: '019966b0-0039-7000-8000-00
 const ROW = 60;
 
 function renderList(onMove = vi.fn(async () => undefined)) {
-  render(<SectionList sections={sections} onMove={onMove} onAddBelow={vi.fn()} onDuplicate={vi.fn()} onRemove={vi.fn()} />);
+  render(
+    <SectionList
+      sections={sections}
+      onMove={onMove}
+      onAddBelow={vi.fn()}
+      onDuplicate={vi.fn()}
+      onRemove={vi.fn()}
+      canEditText={() => false}
+      onEditText={vi.fn()}
+    />,
+  );
   // jsdom lays nothing out: give each card the box a real list would have.
   screen
     .getByRole('list', { name: 'Blocos do template' })

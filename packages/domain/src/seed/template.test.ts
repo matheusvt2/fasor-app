@@ -41,7 +41,14 @@ describe('standardTemplate', () => {
     ]);
     expect(template.blocks.slice(0, 9)).toEqual(sections);
     for (const block of sections) {
-      expect(block).toEqual({ block_type: block.block_type, sub_blocks: {}, na_defaults: [], quantity: 1, skeleton_location_ref: null });
+      expect(block).toEqual({
+        block_type: block.block_type,
+        sub_blocks: {},
+        na_defaults: [],
+        quantity: 1,
+        skeleton_location_ref: null,
+        section_text: null,
+      });
     }
   });
 

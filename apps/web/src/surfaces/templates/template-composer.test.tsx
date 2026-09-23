@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { emptyTemplate, removeNode, standardTemplate, templateRowSchema, type TemplateRow } from '@app/domain';
+import { emptyTemplate, moveSection, removeNode, standardTemplate, templateRowSchema, type TemplateRow } from '@app/domain';
 import { act, cleanup, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
@@ -391,6 +391,7 @@ describe('3.4 composer: section blocks', () => {
       'Adicionar abaixo',
       'Descer',
       'Duplicar',
+      'Editar texto',
       'Remover',
     ]);
     await userEvent.click(within(menu).getByRole('menuitem', { name: 'Descer' }));
@@ -456,5 +457,218 @@ describe('3.4 composer: name', () => {
     });
     await waitFor(async () => expect((await templateRow(database!, ID))!.name).toBe('Porto Seguro — Torres A e B'));
     expect(await outboxPaths()).toEqual([`template/${ID}/name`]);
+  });
+});
+
+describe('3.5 composer: sub-block defaults per type', () => {
+  it('offers "Editar padrões" only for a type the template holds', async () => {
+    database = await freshDb(emptyTemplate(ID, 'v1'));
+    renderComposer();
+    await screen.findByRole('complementary', { name: 'Paleta de blocos' });
+    expect(within(palette()).queryByRole('button', { name: /^Editar padrões/ })).toBeNull();
+    cleanup();
+    database.close();
+
+    database = await freshDb(standardTemplate({ id: ID }));
+    renderComposer();
+    await screen.findByRole('complementary', { name: 'Paleta de blocos' });
+    expect(within(palette()).getAllByRole('button', { name: /^Editar padrões de / })).toHaveLength(8);
+  });
+
+  it('shows Toggle rows with the state word, "Sempre" for checklist and conclusion, and the subtype NA count', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    renderComposer();
+    await screen.findByRole('complementary', { name: 'Paleta de blocos' });
+    await userEvent.click(within(palette()).getByRole('button', { name: 'Editar padrões de Chave seccionadora' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Padrões de Chave seccionadora' });
+
+    const plate = within(dialog).getByRole('switch', { name: 'Dados de placa' });
+    expect(plate).toHaveAttribute('aria-checked', 'true');
+    expect(plate).toHaveTextContent('Ativado');
+    for (const locked of ['Verificações gerais', 'Conclusão']) {
+      const toggle = within(dialog).getByRole('switch', { name: locked });
+      expect(toggle.tagName).toBe('SPAN');
+      expect(toggle).toHaveAttribute('aria-readonly', 'true');
+      expect(toggle).toHaveTextContent('Sempre');
+    }
+    const subtype = within(dialog).getByRole('combobox', { name: 'Subtipo padrão' });
+    expect(subtype).toHaveValue('manual');
+    expect(within(dialog).getByText('2 itens marcados NA por padrão')).toBeVisible();
+    expect(await axe(dialog)).toHaveNoViolations();
+
+    // Off, on every placement, as one blocks put.
+    await userEvent.click(within(dialog).getByRole('switch', { name: 'Resistência de contato' }));
+    await waitFor(async () => {
+      const blocks = (await templateRow(database!, ID))!.blocks.filter((b) => b.block_type === 'chave_seccionadora');
+      expect(blocks.every((b) => b.sub_blocks.resistencia_contato?.enabled === false)).toBe(true);
+    });
+    await waitFor(() => expect(within(dialog).getByRole('switch', { name: 'Resistência de contato' })).toHaveTextContent('Desativado'));
+
+    // No subtype: no NA pre-mark, every item still on the list.
+    await userEvent.selectOptions(subtype, '');
+    await waitFor(() => expect(within(dialog).getByText('Nenhum item marcado NA por padrão')).toBeVisible());
+    const blocks = (await templateRow(database!, ID))!.blocks.filter((b) => b.block_type === 'chave_seccionadora');
+    expect(blocks.every((b) => b.subtype === undefined && b.na_defaults.length === 0)).toBe(true);
+    expect(await outboxPaths()).toEqual([`template/${ID}/blocks`, `template/${ID}/blocks`]);
+  });
+
+  it('"Á SECO" on the TP pre-marks the seed\'s 8 items, and a new TP placement follows the type', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    renderComposer();
+    await screen.findByRole('complementary', { name: 'Paleta de blocos' });
+    await userEvent.click(within(palette()).getByRole('button', { name: 'Editar padrões de TP — proteção' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Padrões de TP — proteção' });
+    const subtype = within(dialog).getByRole('combobox', { name: 'Subtipo padrão' });
+    expect(within(subtype).getAllByRole('option').map((o) => o.textContent)).toEqual(['Sem subtipo', 'EPÓXI', 'Á SECO']);
+    await userEvent.selectOptions(subtype, 'a_seco');
+    await waitFor(() => expect(within(dialog).getByText('8 itens marcados NA por padrão')).toBeVisible());
+    // "IA e IP lidos do visor" ships off and can be switched on.
+    expect(within(dialog).getByRole('switch', { name: 'IA e IP lidos do visor' })).toHaveAttribute('aria-checked', 'false');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+    // A TP placed on a coluna that had none starts with the type's config.
+    await userEvent.click(screen.getByRole('button', { name: /^Coluna 9/ }));
+    await userEvent.click(within(within(palette()).getByRole('group', { name: 'TP, 0' })).getByRole('button', { name: 'Mais um' }));
+    await waitFor(async () => {
+      const tps = (await templateRow(database!, ID))!.blocks.filter((b) => b.block_type === 'tp');
+      expect(tps.reduce((sum, b) => sum + b.quantity, 0)).toBe(12);
+      expect(tps.find((b) => b.skeleton_location_ref === 'subsolo-1/coluna-9')).toBeDefined();
+      expect(tps.every((b) => b.subtype === 'a_seco' && b.na_defaults.length === 8)).toBe(true);
+    });
+  });
+
+  it('two toggles pressed back to back both land: each change applies to the freshest row, in order', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    renderComposer();
+    await screen.findByRole('complementary', { name: 'Paleta de blocos' });
+    await userEvent.click(within(palette()).getByRole('button', { name: 'Editar padrões de Chave seccionadora' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Padrões de Chave seccionadora' });
+    // No await between them: the second change is queued while the first is still writing.
+    fireEvent.click(within(dialog).getByRole('switch', { name: 'Dados de placa' }));
+    fireEvent.click(within(dialog).getByRole('switch', { name: 'Observações' }));
+    await waitFor(async () => {
+      const blocks = (await templateRow(database!, ID))!.blocks.filter((b) => b.block_type === 'chave_seccionadora');
+      expect(blocks.every((b) => b.sub_blocks.nameplate?.enabled === false && b.sub_blocks.observations?.enabled === false)).toBe(true);
+    });
+    expect(await outboxPaths()).toEqual([`template/${ID}/blocks`, `template/${ID}/blocks`]);
+  });
+});
+
+describe('3.6 composer: section text', () => {
+  const area = (dialog: HTMLElement) => within(dialog).getByRole('textbox', { name: 'Texto da seção 1' });
+
+  it('writes nothing onto another section when the one it was opened on moved elsewhere, and says so', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    renderComposer();
+    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de 1 Objetivo' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Editar texto' }));
+    const dialog = await screen.findByRole('dialog', { name: '1 Objetivo — texto fixo' });
+    // The row this device reads at the moment of the write has section 2 at index 0.
+    const stale = standardTemplate({ id: ID });
+    vi.mocked(templateRow).mockImplementationOnce(async () => ({ ...stale, blocks: moveSection(stale.blocks, 0, 1) }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'cliente' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
+    expect(await screen.findByText('A seção mudou em outro aparelho; o texto não foi salvo.')).toBeVisible();
+    expect(await outboxPaths()).toEqual([]);
+    expect((await templateRow(database!, ID))!.blocks.every((b) => b.section_text === null)).toBe(true);
+  });
+
+  it('an emptied text, or one typed back to the seed text, is stored as null: the seed text stays in force', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    renderComposer();
+    const open = async () => {
+      await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de 1 Objetivo' }));
+      await userEvent.click(await screen.findByRole('menuitem', { name: 'Editar texto' }));
+      return screen.findByRole('dialog', { name: '1 Objetivo — texto fixo' });
+    };
+    let dialog = await open();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'cliente' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
+    await waitFor(async () => expect((await templateRow(database!, ID))!.blocks[0]!.section_text).toMatch(/^\{cliente\}O presente/));
+
+    // Back to the seed text: the chip removed with Backspace right after it.
+    dialog = await open();
+    const textbox = area(dialog);
+    const chip = textbox.querySelector('.var-chip')!;
+    const range = document.createRange();
+    range.setStartAfter(chip);
+    range.collapse(true);
+    document.getSelection()!.removeAllRanges();
+    document.getSelection()!.addRange(range);
+    fireEvent.keyDown(textbox, { key: 'Backspace' });
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
+    await waitFor(async () => expect((await templateRow(database!, ID))!.blocks[0]!.section_text).toBeNull());
+
+    // Emptied: the whole text removed.
+    dialog = await open();
+    area(dialog).replaceChildren();
+    fireEvent.input(area(dialog));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect((await templateRow(database!, ID))!.blocks[0]!.section_text).toBeNull();
+    // Two writes only: the chip, then null; the emptied text found null already stored.
+    expect(await outboxPaths()).toEqual([`template/${ID}/blocks`, `template/${ID}/blocks`]);
+
+    // Restoring what is already the seed text writes nothing, and still says it is restored.
+    dialog = await open();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Restaurar texto padrão' }));
+    expect(await screen.findByText('Texto padrão restaurado')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Desfazer' })).toBeNull();
+    expect(await outboxPaths()).toHaveLength(2);
+  });
+
+  it('offers "Editar texto" only on a section with text, opening the seed\'s text with its variables as chips', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    renderComposer();
+    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de 8 Pontos de atenção' }));
+    expect(within(await screen.findByRole('menu')).queryByRole('menuitem', { name: 'Editar texto' })).toBeNull();
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull());
+
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de 1 Objetivo' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Editar texto' }));
+    const dialog = await screen.findByRole('dialog', { name: '1 Objetivo — texto fixo' });
+    const textbox = area(dialog);
+    expect(textbox).toHaveAttribute('contenteditable', 'true');
+    expect(textbox).toHaveAttribute('aria-multiline', 'true');
+    expect([...textbox.querySelectorAll('.var-chip')].map((c) => c.textContent)).toEqual(['{empresa_executora}', '{obra}', '{cliente}']);
+    expect(dialog.querySelector('.rt-toolbar')).toBeNull();
+    const row = within(dialog).getByRole('group', { name: 'Inserir dado do relatório' });
+    expect(within(row).getAllByRole('button').map((b) => b.textContent)).toEqual([
+      'cliente',
+      'obra',
+      'datas',
+      'empresa executora',
+      'responsável',
+    ]);
+    expect(await axe(dialog)).toHaveNoViolations();
+  });
+
+  it('inserts a chip, autosaves the text on close, and "Restaurar texto padrão" puts the seed back with "Desfazer"', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    renderComposer();
+    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de 1 Objetivo' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Editar texto' }));
+    let dialog = await screen.findByRole('dialog', { name: '1 Objetivo — texto fixo' });
+    // The dialog opens with the focus, and so the caret, at the start of the text: the chip goes there.
+    await userEvent.click(within(dialog).getByRole('button', { name: 'responsável' }));
+    expect(area(dialog).querySelectorAll('.var-chip')).toHaveLength(4);
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
+    await waitFor(async () => expect((await templateRow(database!, ID))!.blocks[0]!.section_text).toMatch(/^\{responsavel\}O presente/));
+    expect(await outboxPaths()).toEqual([`template/${ID}/blocks`]);
+
+    // Reopened, it shows the template's own text.
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de 1 Objetivo' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Editar texto' }));
+    dialog = await screen.findByRole('dialog', { name: '1 Objetivo — texto fixo' });
+    expect(area(dialog).querySelectorAll('.var-chip')).toHaveLength(4);
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Restaurar texto padrão' }));
+    await waitFor(async () => expect((await templateRow(database!, ID))!.blocks[0]!.section_text).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(await screen.findByText('Texto padrão restaurado')).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
+    await waitFor(async () => expect((await templateRow(database!, ID))!.blocks[0]!.section_text).toMatch(/^\{responsavel\}O presente/));
   });
 });

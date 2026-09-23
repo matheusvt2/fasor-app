@@ -215,6 +215,11 @@ body {
      one-word-wide column. */
   [data-route="/templates/:id"] .column-row .col-head { flex-wrap: wrap; row-gap: 0; padding-top: var(--sp-2); padding-bottom: var(--sp-2); }
   [data-route="/templates/:id"] .column-row .col-sum { flex-basis: 100%; }
+  /* `.frame-phone [data-route="/templates/porto-seguro"] .rich-dialog .dialog-actions` and
+     `... .dialog-actions .btn` (42-template-composer.html); the dialog is portaled out of
+     the route, so the route scope is dropped. */
+  .rich-dialog .dialog-actions { flex-direction: column-reverse; }
+  .rich-dialog .dialog-actions .btn { width: 100%; }
   /* `.data-table` (Critérios de aceitação, `criterios-tab.tsx`): not mock-derived — the mock
      never shows this table at phone width, and `components.css` has no responsive handling
      for it, so a long "used by" cell would overflow the frame sideways. Card-stacks each row

@@ -163,10 +163,16 @@ export type BlockConfig = z.infer<typeof blockConfigSchema>;
 /**
  * A Template block: a `BlockConfig` plus how many of it the template places at one
  * skeleton node. Section blocks sit outside the skeleton (`skeleton_location_ref: null`).
+ *
+ * `section_text` (Story 3.6) is a section block's own plain-text boilerplate with `{name}`
+ * variable tokens. `null` means the seed's text is in force (`sectionText`, resolved and
+ * never copied, AD-21); an equipment block always holds `null`. Defaulted, so a row
+ * written before the field existed still parses.
  */
 export const templateBlockSchema = blockConfigSchema.extend({
   quantity: z.number().int().min(1),
   skeleton_location_ref: z.string().min(1).nullable(),
+  section_text: z.string().nullable().default(null),
 });
 export type TemplateBlock = z.infer<typeof templateBlockSchema>;
 

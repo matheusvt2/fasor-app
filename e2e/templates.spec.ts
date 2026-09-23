@@ -1,4 +1,4 @@
-import { materializeEntity, STANDARD_TEMPLATE_NAME, templateRowSchema } from '@app/domain';
+import { materializeEntity, STANDARD_TEMPLATE_NAME, standardTemplate, templateRowSchema, type TemplateRow } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { createAuth } from '../apps/api/src/auth/auth.ts';
 import { parseTrustedOrigins } from '../apps/api/src/auth/trusted-origins.ts';
@@ -587,4 +587,224 @@ test('@p1 3.4-E2E-006 the palette sits beside the composition from 1024px, in a 
     await expect(names(activeList(page))).toHaveText([STANDARD_TEMPLATE_NAME]);
     expect(await horizontalOverflow(page), `Templates list at ${width}px`).toBeLessThanOrEqual(0);
   }
+});
+
+// --- Stories 3.5 and 3.6 ------------------------------------------------------------------
+
+/** The template row this device holds, read from its IndexedDB as the composer does. */
+async function deviceTemplate(page: Page, userId: string, id: string): Promise<TemplateRow> {
+  const records = await readStore<{ entity: string; id: string; row: unknown }>(page, deviceDatabaseName(userId), 'entities');
+  const record = records.find((r) => r.entity === 'template' && r.id === id);
+  expect(record, `device holds template ${id}`).toBeDefined();
+  return templateRowSchema.parse(record!.row);
+}
+
+test('@p0 3.5-E2E-001 per-type sub-block defaults: toggles, "Sempre", subtype NA count, shared by every placement, kept on reload', async ({
+  page,
+  seed,
+}) => {
+  await resetEmpresaB({ standard: true });
+  const account = seed.companies[1];
+  await signIn(page, account.email);
+  await openTemplates(page);
+  await expect(names(activeList(page))).toHaveText([STANDARD_TEMPLATE_NAME], { timeout: 30_000 });
+  await openComposer(page, STANDARD_TEMPLATE_NAME);
+  const templateId = page.url().split('/').at(-1)!;
+
+  await palette(page).getByRole('button', { name: 'Editar padrões de Chave seccionadora' }).click();
+  let dialog = page.getByRole('dialog', { name: 'Padrões de Chave seccionadora' });
+  await expect(dialog).toBeVisible();
+
+  // Non-locked sub-blocks are Toggle rows with the state word; checklist and conclusion read
+  // "Sempre" and are not controls.
+  const contato = dialog.getByRole('switch', { name: 'Resistência de contato' });
+  await expect(contato).toHaveAttribute('aria-checked', 'true');
+  await expect(contato).toContainText('Ativado');
+  for (const locked of ['Verificações gerais', 'Conclusão']) {
+    const toggle = dialog.getByRole('switch', { name: locked });
+    await expect(toggle).toContainText('Sempre');
+    await expect(toggle).toHaveAttribute('aria-readonly', 'true');
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-checked', 'true');
+  }
+  await contato.click();
+  await expect(contato).toHaveAttribute('aria-checked', 'false');
+  await expect(contato).toContainText('Desativado');
+
+  // The subtype: none clears the NA pre-marks; "MANUAL" pre-marks the seed's two.
+  const subtype = dialog.getByRole('combobox', { name: 'Subtipo padrão' });
+  await expect(subtype).toHaveValue('manual');
+  await expect(dialog.getByText('2 itens marcados NA por padrão')).toBeVisible();
+  await subtype.selectOption('');
+  await expect(dialog.getByText('Nenhum item marcado NA por padrão')).toBeVisible();
+  await subtype.selectOption({ label: 'MANUAL' });
+  await expect(dialog.getByText('2 itens marcados NA por padrão')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Fechar' }).click();
+  await expect(dialog).toBeHidden();
+
+  // "Á SECO" on the TP pre-marks eight.
+  await palette(page).getByRole('button', { name: 'Editar padrões de TP — proteção' }).click();
+  dialog = page.getByRole('dialog', { name: 'Padrões de TP — proteção' });
+  await dialog.getByRole('combobox', { name: 'Subtipo padrão' }).selectOption({ label: 'Á SECO' });
+  await expect(dialog.getByText('8 itens marcados NA por padrão')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+
+  // Every placement of each type shares the one config, and no item left any list.
+  await expect
+    .poll(async () => (await deviceTemplate(page, account.userId, templateId)).blocks.filter((b) => b.block_type === 'tp').map((b) => b.subtype))
+    .toEqual(standardTemplate({ id: templateId }).blocks.filter((b) => b.block_type === 'tp').map(() => 'a_seco'));
+  const row = await deviceTemplate(page, account.userId, templateId);
+  const seccionadoras = row.blocks.filter((b) => b.block_type === 'chave_seccionadora');
+  expect(seccionadoras.length).toBeGreaterThanOrEqual(5);
+  for (const block of seccionadoras) {
+    expect(block.sub_blocks.resistencia_contato).toEqual({ enabled: false });
+    expect(block.subtype).toBe('manual');
+    expect(block.na_defaults).toEqual(['motor', 'fusiveis']);
+  }
+  for (const block of row.blocks.filter((b) => b.block_type === 'tp')) expect(block.na_defaults).toHaveLength(8);
+
+  // Kept on reload.
+  await page.reload();
+  await palette(page).getByRole('button', { name: 'Editar padrões de Chave seccionadora' }).click();
+  dialog = page.getByRole('dialog', { name: 'Padrões de Chave seccionadora' });
+  await expect(dialog.getByRole('switch', { name: 'Resistência de contato' })).toHaveAttribute('aria-checked', 'false');
+  await expect(dialog.getByRole('combobox', { name: 'Subtipo padrão' })).toHaveValue('manual');
+  await expect(dialog.getByText('2 itens marcados NA por padrão')).toBeVisible();
+
+  expect((await outboxPaths(page, account.userId)).every((path) => path === `template/${templateId}/blocks`)).toBe(true);
+});
+
+test('@p0 3.6-E2E-001 section text: a chip inserted at the caret is one atomic token, removed whole by Backspace, autosaved and kept on reload', async ({
+  page,
+  seed,
+}) => {
+  await resetEmpresaB({ standard: true });
+  const account = seed.companies[1];
+  await signIn(page, account.email);
+  await openTemplates(page);
+  await expect(names(activeList(page))).toHaveText([STANDARD_TEMPLATE_NAME], { timeout: 30_000 });
+  await openComposer(page, STANDARD_TEMPLATE_NAME);
+  const templateId = page.url().split('/').at(-1)!;
+
+  // Sections 8 and 11 carry no fixed text, so they offer no "Editar texto".
+  await page.getByRole('button', { name: 'Mais opções de 8 Pontos de atenção' }).click();
+  await expect(page.getByRole('menuitem', { name: 'Duplicar' })).toBeVisible();
+  await expect(page.getByRole('menuitem', { name: 'Editar texto' })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+
+  await page.getByRole('button', { name: 'Mais opções de 1 Objetivo' }).click();
+  await expect(page.getByRole('menu').getByRole('menuitem')).toHaveText([
+    'Adicionar abaixo',
+    'Descer',
+    'Duplicar',
+    'Editar texto',
+    'Remover',
+  ]);
+  await page.getByRole('menuitem', { name: 'Editar texto' }).click();
+  const dialog = page.getByRole('dialog', { name: '1 Objetivo — texto fixo' });
+  const area = dialog.getByRole('textbox', { name: 'Texto da seção 1' });
+  const chips = area.locator('.var-chip');
+  await expect(area).toBeFocused();
+  await expect(chips).toHaveText(['{empresa_executora}', '{obra}', '{cliente}']);
+  await expect(dialog.locator('.rt-toolbar')).toHaveCount(0);
+  await expect(dialog.getByRole('group', { name: 'Inserir dado do relatório' }).getByRole('button')).toHaveText([
+    'cliente',
+    'obra',
+    'datas',
+    'empresa executora',
+    'responsável',
+  ]);
+
+  // The caret at the end of the text (the second paragraph); "datas" inserts there, and
+  // typing goes on beside it.
+  await page.keyboard.press('Control+End');
+  await dialog.getByRole('button', { name: 'datas', exact: true }).click();
+  await expect(chips).toHaveText(['{empresa_executora}', '{obra}', '{cliente}', '{datas}']);
+  await expect(area).toBeFocused();
+  await page.keyboard.type(' fim');
+  await expect(area).toContainText('{datas} fim');
+
+  // Backspace takes the four typed characters one by one, then the whole chip in one keystroke.
+  for (let i = 0; i < 4; i++) await page.keyboard.press('Backspace');
+  await expect(chips).toHaveCount(4);
+  await page.keyboard.press('Backspace');
+  await expect(chips).toHaveText(['{empresa_executora}', '{obra}', '{cliente}']);
+  expect((await area.innerText()).trimEnd()).toMatch(/atividades realizadas\.$/);
+
+  // Keyboard only: Tab to a chip, Enter inserts it at the caret left in the text.
+  await page.keyboard.press('Tab');
+  await expect(dialog.getByRole('button', { name: 'cliente', exact: true })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(chips).toHaveText(['{empresa_executora}', '{obra}', '{cliente}', '{cliente}']);
+  await page.keyboard.type(' e mais');
+
+  // The chip cannot be edited character by character: its text is not editable.
+  await expect(chips.last()).toHaveAttribute('contenteditable', 'false');
+
+  // Enter makes exactly one line break; a paste from the clipboard lands as plain text, its
+  // Windows line ending as one break and its `{name}` token as a chip.
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Linha ');
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.evaluate(() => navigator.clipboard.writeText('colada da {obra}\r\nfim'));
+  await page.keyboard.press('Control+V');
+  await expect(chips).toHaveText(['{empresa_executora}', '{obra}', '{cliente}', '{cliente}', '{obra}']);
+
+  // Autosave (500 ms idle), then a reload keeps it.
+  await expect
+    .poll(async () => (await deviceTemplate(page, account.userId, templateId)).blocks[0]!.section_text, { timeout: 10_000 })
+    .toMatch(/atividades realizadas\.\{cliente\} e mais\nLinha colada da \{obra\}\nfim$/);
+  await page.reload();
+  await page.getByRole('button', { name: 'Mais opções de 1 Objetivo' }).click();
+  await page.getByRole('menuitem', { name: 'Editar texto' }).click();
+  await expect(chips).toHaveText(['{empresa_executora}', '{obra}', '{cliente}', '{cliente}', '{obra}']);
+  await expect(area).toContainText('{cliente} e mais');
+  await expect(area).toContainText('Linha colada da {obra}');
+
+  expect((await outboxPaths(page, account.userId)).every((path) => path === `template/${templateId}/blocks`)).toBe(true);
+});
+
+test('@p1 3.6-E2E-002 "Restaurar texto padrão" puts the seed text back and "Desfazer" restores the template\'s own', async ({
+  page,
+  seed,
+}) => {
+  await resetEmpresaB({ standard: true });
+  const account = seed.companies[1];
+  await signIn(page, account.email);
+  await openTemplates(page);
+  await expect(names(activeList(page))).toHaveText([STANDARD_TEMPLATE_NAME], { timeout: 30_000 });
+  await openComposer(page, STANDARD_TEMPLATE_NAME);
+  const templateId = page.url().split('/').at(-1)!;
+  const openText = async () => {
+    await page.getByRole('button', { name: 'Mais opções de 10 Conclusão' }).click();
+    await page.getByRole('menuitem', { name: 'Editar texto' }).click();
+    return page.getByRole('dialog', { name: '10 Conclusão — texto fixo' });
+  };
+
+  let dialog = await openText();
+  const area = dialog.getByRole('textbox', { name: 'Texto da seção 10' });
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type(' Texto próprio.');
+  await dialog.getByRole('button', { name: 'Fechar' }).click();
+  await expect(dialog).toBeHidden();
+  await expect
+    .poll(async () => (await deviceTemplate(page, account.userId, templateId)).blocks.find((b) => b.block_type === 'section_10')!.section_text)
+    .toMatch(/Texto próprio\.$/);
+
+  dialog = await openText();
+  await expect(area).toContainText('Texto próprio.');
+  await dialog.getByRole('button', { name: 'Restaurar texto padrão' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByTestId('toast')).toContainText('Texto padrão restaurado');
+  await expect
+    .poll(async () => (await deviceTemplate(page, account.userId, templateId)).blocks.find((b) => b.block_type === 'section_10')!.section_text)
+    .toBeNull();
+
+  await page.getByTestId('toast').getByRole('button', { name: 'Desfazer' }).click();
+  await expect
+    .poll(async () => (await deviceTemplate(page, account.userId, templateId)).blocks.find((b) => b.block_type === 'section_10')!.section_text)
+    .toMatch(/Texto próprio\.$/);
+  await expect(await openText()).toBeVisible();
+  await expect(area).toContainText('Texto próprio.');
 });

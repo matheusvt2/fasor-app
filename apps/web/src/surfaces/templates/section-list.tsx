@@ -12,6 +12,9 @@ export interface SectionListProps {
   onAddBelow: (section: ComposerSection) => void;
   onDuplicate: (section: ComposerSection) => void;
   onRemove: (section: ComposerSection) => void;
+  /** Whether the section has text to edit: the template's own, or the seed's (not 8 or 11). */
+  canEditText: (section: ComposerSection) => boolean;
+  onEditText: (section: ComposerSection) => void;
 }
 
 /**
@@ -42,9 +45,9 @@ export function SectionList({ sections, ...props }: SectionListProps) {
 }
 
 /**
- * The Overflow of a section card, in EXPERIENCE.md's order: Adicionar abaixo · Subir ·
- * Descer · Duplicar, then Remover in its red group. Built from an array so Story 3.6's
- * "Editar texto" is one more entry; a move off either end is not offered.
+ * The Overflow of a section card, in the mock's order: Adicionar abaixo · Subir · Descer ·
+ * Duplicar · Editar texto (Story 3.6, only for a section with text), then Remover in its
+ * red group. A move off either end is not offered.
  */
 export function sectionMenu(section: ComposerSection, reorder: Reorder, props: Omit<SectionListProps, 'sections'>) {
   const trigger = () => reorder.row()?.querySelector<HTMLElement>(':scope > .overflow-trigger') ?? null;
@@ -56,6 +59,9 @@ export function sectionMenu(section: ComposerSection, reorder: Reorder, props: O
     items.push({ id: 'down', label: copy.composer.moveDown, onAction: () => void reorder.moveTo(section.position, trigger) });
   }
   items.push({ id: 'duplicate', label: copy.composer.duplicate, onAction: () => props.onDuplicate(section) });
+  if (props.canEditText(section)) {
+    items.push({ id: 'edit-text', label: copy.composer.editText, onAction: () => props.onEditText(section) });
+  }
   const destructiveItems: OverflowMenuAction[] = [{ id: 'remove', label: copy.composer.remove, onAction: () => props.onRemove(section) }];
   return { items, destructiveItems };
 }
