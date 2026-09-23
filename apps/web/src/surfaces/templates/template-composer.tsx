@@ -25,7 +25,7 @@ import {
   type SectionBlockType,
   type TemplateRow,
 } from '@app/domain';
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { Button, ConfirmDialog, FormDialog } from '../../components/index.ts';
 import { now } from '../../clock.ts';
@@ -42,21 +42,6 @@ import { SectionList } from './section-list.tsx';
 import { SkeletonList } from './skeleton-list.tsx';
 import { putTemplateOp, writeErrorText, type TemplateField } from './template-ops.ts';
 import './templates.css';
-
-/** DESIGN.md › Block palette: side by side from 1024 px, a drawer or a sheet below. */
-const WIDE_QUERY = '(min-width: 1024px)';
-
-function useMediaQuery(query: string): boolean {
-  return useSyncExternalStore(
-    (onChange) => {
-      const list = window.matchMedia(query);
-      list.addEventListener('change', onChange);
-      return () => list.removeEventListener('change', onChange);
-    },
-    () => window.matchMedia(query).matches,
-    () => true,
-  );
-}
 
 /**
  * `/templates/:id`: the Template composer of the template the address names, or the
@@ -100,7 +85,6 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
   const db = session.database;
   const user = session.user;
   const { showToast } = useToast();
-  const wide = useMediaQuery(WIDE_QUERY);
   const view = useMemo(() => composerView(row), [row]);
   const [currentRef, setCurrentRef] = useState<string | null>(null);
   const current = findComposerNode(view, currentRef);
@@ -244,7 +228,10 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
 
   function onAddBelow(section: ComposerSection): void {
     setInsertBelow(section);
-    if (wide) requestAnimationFrame(() => firstSection.current?.focus());
+    // From 1024 px the palette sits beside the composition (CSS alone decides, never a JS
+    // breakpoint): the focus moves into it. Below, it is hidden, so the drawer opens.
+    const first = firstSection.current;
+    if (first !== null && first.offsetParent !== null) requestAnimationFrame(() => first.focus());
     else setPaletteOpen(true);
   }
 
@@ -275,11 +262,10 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
   return (
     <>
       <div className="composer-layout">
-        {wide ? (
-          <aside className="block-palette composer-palette" aria-label={copy.composer.paletteLabel}>
-            <BlockPaletteContent {...paletteProps} firstSectionRef={firstSection} />
-          </aside>
-        ) : null}
+        {/* Side by side from 1024 px; below, CSS hides it and "Blocos" opens the drawer or sheet. */}
+        <aside className="block-palette composer-palette" aria-label={copy.composer.paletteLabel}>
+          <BlockPaletteContent {...paletteProps} firstSectionRef={firstSection} />
+        </aside>
 
         <div className="composer-main">
           <div className="composer-head">
@@ -305,11 +291,11 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
                 }}
               />
             </label>
-            {wide ? null : (
+            <span className="composer-blocos">
               <Button variant="secondary" onPress={() => setPaletteOpen(true)}>
                 {copy.composer.paletteTitle}
               </Button>
-            )}
+            </span>
             <p className="composer-meta">{totalsText(view.totals)}</p>
           </div>
           <p className="section-note">{copy.composer.autosaveNote}</p>
@@ -344,16 +330,14 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
         {announcement}
       </p>
 
-      {wide ? null : (
-        <PaletteDrawer
-          {...paletteProps}
-          isOpen={paletteOpen}
-          onOpenChange={(open) => {
-            setPaletteOpen(open);
-            if (!open) setInsertBelow(null);
-          }}
-        />
-      )}
+      <PaletteDrawer
+        {...paletteProps}
+        isOpen={paletteOpen}
+        onOpenChange={(open) => {
+          setPaletteOpen(open);
+          if (!open) setInsertBelow(null);
+        }}
+      />
 
       {confirming === null ? null : (
         <ConfirmDialog

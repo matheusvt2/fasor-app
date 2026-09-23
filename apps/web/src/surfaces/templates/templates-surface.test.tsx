@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { standardTemplate, templateRowSchema, type RelatorioSummary, type TemplateRow } from '@app/domain';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, configure, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
@@ -48,6 +48,10 @@ const session = (): SessionState => ({
 });
 
 vi.mock('../../state/session.tsx', () => ({ useSession: () => session() }));
+
+// Each edit is an IndexedDB write plus a live-query round trip; under a full parallel run
+// that can outlast the one-second default.
+configure({ asyncUtilTimeout: 5000 });
 // The real commit path, wrapped so one test can make the device write fail.
 vi.mock('../../db/commit.ts', async (original) => {
   const actual = await original<typeof import('../../db/commit.ts')>();

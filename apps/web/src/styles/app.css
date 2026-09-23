@@ -400,6 +400,17 @@ body {
   display: contents;
 }
 
+/* ---------- Template composer: which palette shows (CSS alone, never a JS `matchMedia`) ----------
+   authored: Story 3.4 keeps the Block palette beside the composition from 1024px, as the
+   mock's desktop and tablet-landscape frames draw it; below, the inline palette is hidden
+   and the composer head's "Blocos" button opens it as a drawer or a sheet. */
+@media (min-width: 1024px) {
+  [data-route="/templates/:id"] .composer-blocos { display: none; }
+}
+@media (max-width: 1023.98px) {
+  [data-route="/templates/:id"] .composer-layout > .composer-palette { display: none; }
+}
+
 /* ---------- Block palette as a drawer or a sheet (Template composer, below 1024px) ----------
    authored: DESIGN.md › Block palette draws a right drawer on a tablet and a bottom sheet on
    a phone; no mock frame draws either. The drawer is the `.block-palette` at the rail width
