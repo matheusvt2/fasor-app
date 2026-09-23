@@ -73,7 +73,13 @@ export async function applyPulled(db: AppDatabase, pulled: readonly Op[]): Promi
     await db.remote_ops.bulkPut(rows);
     const own = await db.outbox.bulkGet(rows.map((r) => r.op_id));
     for (const row of own) {
-      if (!row || row.status === 'acked') continue;
+      if (!row) continue;
+      // The server may have logged this device's op on another row than the one it was
+      // written against (a manufacturer/voltage_class create merged by name, and every
+      // later op on the merged-away id, Epic 2 retro D-1). The row it was applied to here
+      // is rebuilt too, so the pulled version replaces the local one (`rematerialize`).
+      for (const key of row.targets) refs.add(key);
+      if (row.status === 'acked') continue;
       const seq = rows.find((r) => r.op_id === row.op_id)!.seq;
       await db.outbox.update(row.op_id, { status: 'acked', seq, error_code: null });
     }
@@ -96,10 +102,16 @@ export async function rematerialize(db: AppDatabase, keys: readonly string[]): P
         db.remote_ops.where('targets').equals(key).toArray(),
         db.outbox.where('targets').equals(key).toArray(),
       ]);
+      // An outbox op the server log already holds is represented by the pulled version,
+      // wherever the server applied it: usually the same row (`materializeEntity` drops it
+      // by id), but a server merge logs it on the surviving row, and then the local copy
+      // must stop resurrecting the merged-away one (Epic 2 retro D-1).
+      const live = local.filter((r) => r.status !== 'dead');
+      const pulled = await db.remote_ops.bulkGet(live.map((r) => r.op_id));
       const row = materializeEntity(
         ref,
         remote.sort(bySeq),
-        local.filter((r) => r.status !== 'dead').map(opOf),
+        live.filter((_, i) => pulled[i] === undefined).map(opOf),
       );
       if (row === null) await db.entities.delete([ref.entity, ref.id]);
       else await db.entities.put(toRecord(key as EntityKey, row));

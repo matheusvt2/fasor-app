@@ -38,6 +38,8 @@ export interface UploadTileProps {
   helper?: string;
   file: AttachedFile | null;
   onPick: (picked: PickedFile) => void | Promise<void>;
+  /** When given, an attached file offers "Abrir" beside "Substituir" (AC 2.2-3, `input` layout). */
+  onOpen?: () => void;
   /** `input` is the field-row look; `tile` is the Empresa brand tile with a thumbnail. */
   layout?: 'input' | 'tile';
   /** Object URL of the attached image, for the `tile` layout's thumbnail. */
@@ -58,6 +60,7 @@ export function UploadTile({
   helper,
   file,
   onPick,
+  onOpen,
   layout = 'input',
   previewSrc = null,
   placeholder,
@@ -170,6 +173,11 @@ export function UploadTile({
           <use href="/sprite.svg#i-image" />
         </svg>
         <span className={file === null ? 'file-name placeholder' : 'file-name'}>{line}</span>
+        {file === null || onOpen === undefined ? null : (
+          <button type="button" className="btn btn-text" aria-label={`${ui.uploadTile.open} — ${label}`} onClick={onOpen}>
+            {ui.uploadTile.open}
+          </button>
+        )}
         <button
           type="button"
           className="btn btn-text"

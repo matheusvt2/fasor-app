@@ -243,5 +243,9 @@ export function templatesSubline(count: number): string {
   return count === 1 ? '1 template' : `${count} templates`;
 }
 
-/** `.shortcut-sub` of the Cadastros card, verbatim from `20-home.html`. */
-export const CADASTROS_SUBLINE = 'Clientes · Instrumentos · Fabricantes · Classes de tensão';
+/**
+ * `.shortcut-sub` of the Cadastros card. authored: `20-home.html` draws the four registries
+ * that existed then; Empresa and Critérios de aceitação are tabs of the same surface since
+ * Epic 2, so the line names all six (Epic 2 retro D-8).
+ */
+export const CADASTROS_SUBLINE = 'Empresa · Clientes · Instrumentos · Fabricantes · Classes de tensão · Critérios';

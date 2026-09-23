@@ -127,6 +127,24 @@ describe('2.3-UNIT-003 Empresa tab', () => {
     expect(screen.getByLabelText('Título do formulário')).toHaveValue('Relatório Técnico de Cabine Primária');
   });
 
+  it('shows the form defaults before any field is committed, and leaving them untouched writes nothing (Epic 2 retro D-5)', async () => {
+    renderTab();
+    expect(screen.getByLabelText('Título do formulário')).toHaveValue('Relatório Técnico de Cabine Primária');
+    expect(screen.getByLabelText('Código do formulário')).toHaveValue('FO.SERV-03');
+    expect(screen.getByLabelText('Revisão do formulário')).toHaveValue('Revisão 01');
+    await userEvent.click(screen.getByLabelText('Código do formulário'));
+    await userEvent.tab();
+    expect(await outboxPaths()).toEqual([]);
+  });
+
+  it('refuses a CNPJ that is not 14 digits, inline, and never commits it (Epic 2 retro D-8)', async () => {
+    renderTab();
+    await userEvent.type(screen.getByLabelText('CNPJ'), '0000000000001');
+    await userEvent.tab();
+    expect(screen.getByRole('alert')).toHaveTextContent('CNPJ inválido — informe 14 dígitos');
+    expect(await outboxPaths()).toEqual([]);
+  });
+
   it('draws both brand tiles, one control each, and no watermark control', async () => {
     const { container } = renderTab();
     // The native inputs are `aria-hidden` mechanisms; the visible buttons are the
@@ -174,6 +192,15 @@ describe('2.3-UNIT-004 BrandPreview', () => {
 
     rerender(<BrandPreview empresa={{ ...empresa, form_revision: 'Revisão 02' }} />);
     expect(container.textContent).toContain('FO.SERV-03 · Revisão 02');
+  });
+
+  it('says "Sem logo" only while no logo is registered (Epic 2 retro D-8)', () => {
+    const empresa = defaultEmpresaRow('0a000000-0000-7000-8000-0000000000e3');
+    const note = 'Sem logo, a capa e o cabeçalho mostram só a razão social.';
+    const { container, rerender } = render(<BrandPreview empresa={empresa} />);
+    expect(container.textContent).toContain(note);
+    rerender(<BrandPreview empresa={{ ...empresa, logo_file_id: '0a000000-0000-7000-8000-0000000000f1' }} />);
+    expect(container.textContent).not.toContain(note);
   });
 
   it('draws the assets when this device holds them', () => {

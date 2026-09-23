@@ -10,6 +10,7 @@ export function ClassesTensaoTab() {
       listLabel={copy.registries.tabClassesTensao}
       newRowButton={t.newRow}
       empty={t.empty}
+      emptyText={t.emptyText}
       note={t.note}
       copy={t.panel}
     />

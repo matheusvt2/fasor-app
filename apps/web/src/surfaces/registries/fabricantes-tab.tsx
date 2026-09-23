@@ -10,6 +10,7 @@ export function FabricantesTab() {
       listLabel={copy.registries.tabFabricantes}
       newRowButton={t.newRow}
       empty={t.empty}
+      emptyText={t.emptyText}
       note={t.note}
       copy={t.panel}
     />

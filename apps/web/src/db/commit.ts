@@ -189,12 +189,11 @@ export async function commitFileBatch(
   input: FileBatchInput,
   deps: CommitDeps,
 ): Promise<{ batch_id: string; ops: Op[] }> {
+  // `buildBatch` already stamped every op with this device's id (Epic 2 retro D-8).
   const { batch_id, ops } = await buildBatch(db, input.ops, deps);
-  const device_id = await deviceId(db, deps.newId);
-  const stamped = ops.map((op) => ({ ...op, device_id }));
   const created_at = toIso(deps.now());
   await db.transaction('rw', db.entities, db.outbox, db.files, async () => {
-    for (const op of stamped) await applyOne(db, op);
+    for (const op of ops) await applyOne(db, op);
     await db.files.put({
       id: input.fileId,
       variant: 'original',
@@ -204,7 +203,7 @@ export async function commitFileBatch(
       ...(input.fileName === undefined ? {} : { name: input.fileName }),
     });
   });
-  return { batch_id, ops: stamped };
+  return { batch_id, ops };
 }
 
 /** Undo: N inverse ops in a new batch, built from the outbox rows of the batch (dead rows never applied, AD-24). */

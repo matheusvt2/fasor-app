@@ -18,6 +18,11 @@ export const ui = {
     // action; a toast that does not expire also needs a way to put it away.
     dismiss: 'Fechar',
   },
+  overlay: {
+    // authored: the hidden dismiss buttons React Aria puts around a menu popover; the
+    // library's own pt-BR word is "Descartar" (Epic 2 retro D-8).
+    dismiss: 'Fechar',
+  },
   appBar: {
     // Verbatim from `key-account.html`: the App bar's back `.icon-btn`.
     back: 'Voltar',
@@ -60,6 +65,9 @@ export const ui = {
     // authored: the mocks draw "Escolher" on an empty tile and "Substituir" on a full one.
     choose: 'Escolher',
     replace: 'Substituir',
+    // authored: AC 2.2-3 "the office opens the certificate from the row"; no mock draws
+    // the action (Epic 2 retro D-3).
+    open: 'Abrir',
     // authored: no mock draws a failed attach. The device refused the write (a full
     // quota is the realistic case), so the file is not attached and the pick is the retry.
     commitFailed: 'Não foi possível anexar o arquivo. Libere espaço no aparelho e escolha de novo.',

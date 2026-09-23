@@ -1,4 +1,5 @@
 import { Button, Menu, MenuItem, MenuSection, MenuTrigger, Popover } from 'react-aria-components';
+import { relabelDismissButtons } from './dismiss-label.ts';
 import { ui } from '../copy/ui';
 
 export interface OverflowMenuAction {
@@ -31,7 +32,7 @@ export function OverflowMenu({ name, items, destructiveItems = [] }: OverflowMen
           <circle cx="19" cy="12" r="2" fill="currentColor" stroke="none" />
         </svg>
       </Button>
-      <Popover>
+      <Popover ref={relabelDismissButtons}>
         <Menu
           className="overflow-menu"
           onAction={(key) => actionsById.get(String(key))?.onAction()}

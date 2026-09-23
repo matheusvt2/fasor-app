@@ -1,4 +1,5 @@
 import { Button, Menu, MenuItem, MenuTrigger, Popover, Tab, TabList, TabPanel, Tabs as AriaTabs } from 'react-aria-components';
+import { relabelDismissButtons } from './dismiss-label.ts';
 
 export interface TabItem {
   id: string;
@@ -47,7 +48,7 @@ export function Tabs({ items, selectedId, onSelectionChange, 'aria-label': ariaL
               <polyline points="6 9 12 15 18 9" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </Button>
-          <Popover>
+          <Popover ref={relabelDismissButtons}>
             {/* React Aria labels the menu by its trigger (the current tab's name)
                 automatically, the same as `OverflowMenu`'s Popover -- no extra `aria-label`. */}
             <Menu

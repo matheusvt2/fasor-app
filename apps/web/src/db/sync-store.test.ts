@@ -257,3 +257,77 @@ describe('convergence after the pull-back (replaces the 1.4 first_edited_at pin)
     db.close();
   });
 });
+
+describe('a server merge converges on the device that sent the merged ops (Epic 2 retro D-1)', () => {
+  const SURVIVOR = '019966b0-00d1-7000-8000-000000000001';
+  const GHOST = '019966b0-00d1-7000-8000-000000000002';
+
+  function registryOp(input: Omit<OpInput, 'scope' | 'company_id' | 'actor_id' | 'device_id'>, n: number): Op {
+    return makeOp(
+      { scope: 'company', company_id: COMPANY_ID, actor_id: USER_ID, device_id: 'tablet-a', ...input },
+      {
+        newId: () => `019966b0-00d2-7000-8000-${n.toString(16).padStart(12, '0')}`,
+        now: new Date(Date.parse('2026-09-22T10:00:00.000Z') + n * 1000),
+      },
+    );
+  }
+
+  function manufacturer(id: string, name: string) {
+    return { id, kind: 'manufacturer', name, gender: null, number: null, removed_at: null } as const;
+  }
+
+  it('retires the merged-away row and lands its later edits on the survivor, across two cycles', async () => {
+    const db = await freshDb();
+    // The survivor is already on the server and pulled here.
+    const survivorCreate = registryOp(
+      { kind: 'create', path: `registry/manufacturer/${SURVIVOR}`, value: manufacturer(SURVIVOR, 'Schneider') },
+      1,
+    );
+    await applyPulled(db, [{ ...survivorCreate, seq: 1 }]);
+
+    // This device creates "SCHNEIDER " and gives it a gender, offline.
+    const ghostCreate = registryOp(
+      { kind: 'create', path: `registry/manufacturer/${GHOST}`, value: manufacturer(GHOST, 'SCHNEIDER ') },
+      2,
+    );
+    const ghostGender = registryOp({ kind: 'put', path: `registry/manufacturer/${GHOST}/gender`, value: 'f' }, 3);
+    await commitOps(db, [ghostCreate, ghostGender]);
+    expect(await db.entities.get(['registry', GHOST])).toBeDefined();
+
+    // Cycle 1: the server logged both ops on the survivor and retired the ghost id.
+    await markAcked(db, [
+      { op_id: ghostCreate.op_id, seq: 2 },
+      { op_id: ghostGender.op_id, seq: 4 },
+    ]);
+    // Between the push and the pull the ghost is still on screen and gets one more edit.
+    const ghostNumber = registryOp({ kind: 'put', path: `registry/manufacturer/${GHOST}/number`, value: 'singular' }, 5);
+    await commitOps(db, [ghostNumber]);
+    const retire: Op = {
+      ...registryOp(
+        { kind: 'remove', path: `registry/manufacturer/${GHOST}/removed_at`, value: null, meta: { merged_into: SURVIVOR } },
+        4,
+      ),
+      actor_id: 'system:registry',
+      device_id: 'server',
+      seq: 3,
+    };
+    await applyPulled(db, [
+      { ...ghostCreate, path: `registry/manufacturer/${SURVIVOR}`, value: manufacturer(SURVIVOR, 'SCHNEIDER '), seq: 2 },
+      retire,
+      { ...ghostGender, path: `registry/manufacturer/${SURVIVOR}/gender`, seq: 4 },
+    ]);
+    expect(await db.entities.get(['registry', GHOST])).toBeUndefined();
+    expect((await db.entities.get(['registry', SURVIVOR]))!.row).toMatchObject({ name: 'Schneider', gender: 'f', number: null });
+
+    // Cycle 2: the later edit is redirected by the persisted merge and pulled back on the survivor.
+    await markAcked(db, [{ op_id: ghostNumber.op_id, seq: 5 }]);
+    await applyPulled(db, [{ ...ghostNumber, path: `registry/manufacturer/${SURVIVOR}/number`, seq: 5 }]);
+    expect(await db.entities.get(['registry', GHOST])).toBeUndefined();
+    expect((await db.entities.get(['registry', SURVIVOR]))!.row).toMatchObject({
+      name: 'Schneider',
+      gender: 'f',
+      number: 'singular',
+    });
+    db.close();
+  });
+});

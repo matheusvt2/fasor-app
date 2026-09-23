@@ -9,6 +9,7 @@ import type { Locator, Page } from '@playwright/test';
  */
 
 const PDF = Buffer.from('%PDF-1.4\ncertificado de teste E2E\n%%EOF\n');
+const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 
 async function syncNow(page: Page): Promise<void> {
   const badge = page.locator('.app-bar [data-testid="sync-badge"]');
@@ -23,7 +24,7 @@ async function syncNow(page: Page): Promise<void> {
 async function newInstrument(page: Page, code: string): Promise<void> {
   await page.getByRole('link', { name: /Cadastros/ }).click();
   await page.getByRole('tab', { name: 'Instrumentos' }).click();
-  await page.getByRole('button', { name: 'Novo instrumento' }).click();
+  await page.getByRole('button', { name: /^(Novo|Cadastrar) instrumento$/ }).click();
   const panel = page.locator('.registry-panel');
   await panel.getByLabel('Código').fill(code);
   await panel.getByLabel('Nome').fill('Instrumento com certificado');
@@ -127,4 +128,51 @@ test('@p2 2.2-E2E-003 a certificate attached offline queues and uploads on recon
   await expect
     .poll(async () => (await readFileBlobs(page, database))[0]?.acked, { timeout: 20_000 })
     .toBe(true);
+});
+
+test('@p1 2.2-E2E-004 the certificate opens from the row, here and on another device (Epic 2 retro D-3)', async ({
+  page,
+  browser,
+  seed,
+}) => {
+  const account = seed.companies[0];
+  const database = deviceDatabaseName(account.userId);
+  const code = `A${Date.now().toString(36).slice(-4).toUpperCase()}`;
+  await signIn(page, account.email);
+  await newInstrument(page, code);
+
+  const panel = page.locator('.registry-panel');
+  // An image, not a PDF: headless Chromium downloads a PDF instead of showing it, and the
+  // point here is the tab the tap opens, not the viewer.
+  await certificateInput(panel).setInputFiles({ name: 'abrir.png', mimeType: 'image/png', buffer: PNG });
+  await expect(panel.locator('.file-input .file-name')).toContainText('abrir.png');
+
+  // On the device that picked it, before any upload: the local Blob opens in a new tab.
+  const localTab = page.waitForEvent('popup');
+  await panel.getByRole('button', { name: 'Abrir — Arquivo do certificado' }).click();
+  await expect.poll(async () => (await localTab).url()).toMatch(/^blob:/);
+  await (await localTab).close();
+
+  await syncNow(page);
+  await expect
+    .poll(async () => (await readFileBlobs(page, database))[0]?.acked, { timeout: 20_000 })
+    .toBe(true);
+
+  // Another device of the office: nothing prefetched, the original is fetched on demand and kept.
+  const office = await browser.newContext();
+  try {
+    const other = await office.newPage();
+    await signIn(other, account.email);
+    await other.getByRole('link', { name: /Cadastros/ }).click();
+    await other.getByRole('tab', { name: 'Instrumentos' }).click();
+    await other.getByRole('button', { name: new RegExp(`^${code} `) }).click();
+    const otherPanel = other.locator('.registry-panel');
+    expect(await readFileBlobs(other, database)).toHaveLength(0);
+    const fetchedTab = other.waitForEvent('popup');
+    await otherPanel.getByRole('button', { name: 'Abrir — Arquivo do certificado' }).click();
+    await expect.poll(async () => (await fetchedTab).url()).toMatch(/^blob:/);
+    await expect.poll(async () => (await readFileBlobs(other, database)).length).toBe(1);
+  } finally {
+    await office.close();
+  }
 });

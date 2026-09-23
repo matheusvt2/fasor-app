@@ -1,4 +1,4 @@
-import { formatCnpj, isValidCnpjFormat, type ClientRow, type OpDraft } from '@app/domain';
+import { type ClientRow, type OpDraft } from '@app/domain';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Button, ConfirmDialog, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -8,6 +8,8 @@ import { newId } from '../../ids.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
+import { CnpjField } from './cnpj-field.tsx';
+import { sameFieldValue } from './field-value.ts';
 
 export interface ClientPanelProps {
   /** The id this panel edits: minted locally for "Novo cliente" before it exists. */
@@ -52,6 +54,8 @@ export function ClientPanel({ clientId, client, referenced, onClose }: ClientPan
 
   async function commitField(field: string, value: unknown): Promise<void> {
     if (db === null || user === null) return;
+    // Nothing to say when the value is the one the row already holds (Epic 2 retro D-8).
+    if (client !== null && sameFieldValue((client as Record<string, unknown>)[field], value)) return;
     const base: Omit<OpDraft, 'kind' | 'path' | 'value'> = {
       scope: 'company',
       company_id: user.companyId,
@@ -118,7 +122,7 @@ export function ClientPanel({ clientId, client, referenced, onClose }: ClientPan
       <div className="panel-body">
         <div className="field-grid">
           <TextField className="span-2" label={t.nameLabel} value={client?.name ?? ''} onCommit={(v) => commitField('name', v)} />
-          <CnpjField value={client?.cnpj ?? ''} label={t.cnpjLabel} invalidText={t.cnpjInvalid} onCommit={(v) => commitField('cnpj', v)} />
+          <CnpjField value={client?.cnpj ?? ''} label={t.cnpjLabel} invalidText={copy.registries.cnpjInvalid} onCommit={(v) => commitField('cnpj', v)} />
           <TextField
             label={t.contactNameLabel}
             value={client?.contact_name ?? ''}
@@ -201,61 +205,6 @@ function TextField({ label, value, onCommit, className }: TextFieldProps) {
           if (event.key === 'Enter') committer.enter();
         }}
       />
-    </label>
-  );
-}
-
-interface CnpjFieldProps {
-  value: string;
-  label: string;
-  invalidText: string;
-  onCommit: (value: string | null) => void | Promise<void>;
-}
-
-/**
- * Story 2.4 AC1's "optional CNPJ (14 digits when present)" (I/O matrix): a non-14-digit
- * input never commits; blank commits `null`. A valid value canonicalizes to the standard
- * punctuated form (`00.000.000/0001-00`) at commit time, so two differently-punctuated
- * entries of the same CNPJ never coexist. The inline error is validated and announced only
- * on blur, not on every keystroke — a screen reader would otherwise re-announce it while
- * the user is still mid-typing a valid CNPJ.
- */
-function CnpjField({ value, label, invalidText, onCommit }: CnpjFieldProps) {
-  const [text, setText] = useState(value);
-  const [invalid, setInvalid] = useState(false);
-  const committer = useFieldCommit<string | null>({ commit: onCommit });
-  const helperId = useId();
-  return (
-    <label className="field">
-      <span className="field-label">{label}</span>
-      <input
-        className="input"
-        value={text}
-        aria-invalid={invalid || undefined}
-        aria-describedby={invalid ? helperId : undefined}
-        onChange={(event) => {
-          const raw = event.target.value;
-          setText(raw);
-          setInvalid(false);
-          if (raw.trim() === '') {
-            committer.change(null);
-            return;
-          }
-          if (isValidCnpjFormat(raw)) committer.change(formatCnpj(raw));
-        }}
-        onBlur={() => {
-          setInvalid(text.trim() !== '' && !isValidCnpjFormat(text));
-          committer.blur();
-        }}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') committer.enter();
-        }}
-      />
-      {invalid ? (
-        <span className="helper" id={helperId} role="alert">
-          {invalidText}
-        </span>
-      ) : null}
     </label>
   );
 }

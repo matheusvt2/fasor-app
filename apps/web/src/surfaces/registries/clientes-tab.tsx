@@ -68,13 +68,17 @@ export function ClientesTab() {
   return (
     <div className="registry-layout">
       <div className="registry-main">
-        <div className="registry-toolbar">
-          <Button onPress={() => setOpenId(newId())}>{t.newClient}</Button>
-        </div>
+        {sorted.length === 0 ? null : (
+          <div className="registry-toolbar">
+            <Button onPress={() => setOpenId(newId())}>{t.newClient}</Button>
+          </div>
+        )}
         <p className="section-note">{t.note}</p>
 
         {sorted.length === 0 ? (
+          // One action only on an empty registry (Epic 2 retro D-8): the empty state's.
           <div className="home-empty">
+            <p className="section-note">{t.emptyText}</p>
             <Button onPress={() => setOpenId(newId())}>{t.empty}</Button>
           </div>
         ) : (

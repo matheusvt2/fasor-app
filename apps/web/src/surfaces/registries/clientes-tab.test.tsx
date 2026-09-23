@@ -34,7 +34,7 @@ vi.mock('../../state/session.tsx', () => ({ useSession: () => session }));
 afterEach(cleanup);
 
 describe('ClientesTab', () => {
-  it('shows the empty state and opens the panel for a new client on "Novo cliente"', async () => {
+  it('shows the empty state with one action and opens the panel for a new client from it', async () => {
     const user = userEvent.setup();
     const t = copy.registries.clientes;
     render(
@@ -42,10 +42,13 @@ describe('ClientesTab', () => {
         <ClientesTab />
       </ToastProvider>,
     );
+    // One action on an empty registry, under its sentence (Epic 2 retro D-8).
+    expect(screen.getByText(t.emptyText)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: t.empty })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: t.newClient })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: t.newClient })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: t.newClient }));
+    await user.click(screen.getByRole('button', { name: t.empty }));
     expect(screen.getByRole('heading', { name: t.newClient })).toBeInTheDocument();
   });
 });

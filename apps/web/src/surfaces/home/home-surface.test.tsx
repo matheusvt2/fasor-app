@@ -361,7 +361,7 @@ describe('Home: empty state and shortcuts', () => {
     const { container } = renderHome();
 
     await waitFor(() => expect(screen.getByText('1 template')).toBeVisible());
-    expect(screen.getByText('Clientes · Instrumentos · Fabricantes · Classes de tensão')).toBeVisible();
+    expect(screen.getByText('Empresa · Clientes · Instrumentos · Fabricantes · Classes de tensão · Critérios')).toBeVisible();
     const row = container.querySelector('.shortcut-row')!;
     expect(row.querySelectorAll('.shortcut-card')).toHaveLength(2);
     expect(row.querySelectorAll('.sync-badge')).toHaveLength(0);
