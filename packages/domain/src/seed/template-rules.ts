@@ -4,11 +4,20 @@ import { getDefinition, SEED_VERSIONS } from './definitions.ts';
 import { LOCKED_SUB_BLOCKS } from './template.ts';
 
 /*
- * The cross-field rules of a Template row (AD-21), run by `templateRowSchema`'s
- * `superRefine`: what a block's `BlockConfig` may hold depends on its block type's
- * definition under the row's own `seed_version`, and every equipment block must sit on a
- * node of the row's skeleton. Kept out of `schemas/entities.ts` so the seed stays a leaf
- * that entities imports, never the other way round.
+ * The rules of a Template row (AD-21), run by `templateRowSchema`'s `superRefine`: what a
+ * block's `BlockConfig` may hold depends on its block type's definition under the row's
+ * own `seed_version`, the skeleton's refs are unique and every coluna sits under a
+ * cabine. Kept out of `schemas/entities.ts` so the seed stays a leaf that entities
+ * imports, never the other way round.
+ *
+ * Every rule here is judged within one field's value -- `blocks` alone or `skeleton`
+ * alone -- which a single device always writes whole, so a last-writer-wins fold of the
+ * two fields can never break one (Story 3.4). The one rule that ties the two fields
+ * together, "an equipment block's ref names a node of the skeleton", is deliberately not
+ * here: device 1 removing a coluna while device 2 places a block on it would otherwise
+ * make `applyOp` throw and stop the company pull. Such an orphan block parses, and every
+ * reader ignores it (`composerView`, `templateTotals`, later `instantiateTemplate`); the
+ * composer's next `blocks` write drops it.
  */
 
 interface TemplateShape {
@@ -45,7 +54,7 @@ export function checkTemplateRow(row: TemplateShape, ctx: z.RefinementCtx): void
       return;
     }
 
-    if (block.skeleton_location_ref === null || !nodes.has(block.skeleton_location_ref)) {
+    if (block.skeleton_location_ref === null) {
       issue(at('skeleton_location_ref'), `${block.block_type} must sit on a node of the skeleton`);
     }
     if (!knownVersion) return;

@@ -48,6 +48,7 @@ const template: TemplateRow = {
   seed_version: 'v1',
   blocks: [],
   skeleton: [],
+  archived_at: null,
   removed_at: null,
 };
 

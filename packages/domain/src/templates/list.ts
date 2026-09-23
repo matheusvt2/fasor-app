@@ -1,9 +1,12 @@
+import type { RelatorioSummary } from '../contract/sync.ts';
 import type { TemplateRow } from '../schemas/entities.ts';
 
 /*
- * The Templates surface's derived text and order (AGENTS.md: counts and orders are the
- * kernel's). Story 3.2 lists only the live templates by name; the archived group, the
- * block count and the seed version line arrive with Story 3.3.
+ * The Templates surface's derived text, order and rules (AGENTS.md: counts, orders and
+ * "which templates are pickable" are the kernel's). Story 3.2 listed the live templates by
+ * name; Story 3.3 splits them into the active and archived groups and adds the row
+ * actions' builders (duplicate, new) and the rule the relatório creation picker (Epic 4)
+ * reads.
  */
 
 /** `41-templates.html` `.section-head h2`: "Templates (2)". */
@@ -11,9 +14,75 @@ export function templatesHeading(count: number): string {
   return `Templates (${count})`;
 }
 
+/** `41-templates.html` archived group heading: "Arquivados (1)". */
+export function archivedHeading(count: number): string {
+  return `Arquivados (${count})`;
+}
+
+const byName = (a: TemplateRow, b: TemplateRow) =>
+  a.name.localeCompare(b.name, 'pt-BR') || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
 /** The live templates, in pt-BR name order (removed ones never list). */
 export function sortTemplates(rows: readonly TemplateRow[]): TemplateRow[] {
-  return rows
-    .filter((row) => row.removed_at === null)
-    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR') || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return rows.filter((row) => row.removed_at === null).sort(byName);
+}
+
+/** The live, not archived templates, by name: the list's first group. */
+export function activeTemplates(rows: readonly TemplateRow[]): TemplateRow[] {
+  return sortTemplates(rows).filter((row) => row.archived_at === null);
+}
+
+/** The live, archived templates, by name: the "Arquivados (n)" group. */
+export function archivedTemplates(rows: readonly TemplateRow[]): TemplateRow[] {
+  return sortTemplates(rows).filter((row) => row.archived_at !== null);
+}
+
+/**
+ * The templates a new relatório may be created from (Epic 4's picker): live and not
+ * archived. An archived template leaves the picker; the relatórios created from it keep
+ * everything, since creation copies and never references (FR-13).
+ */
+export function pickableTemplates(rows: readonly TemplateRow[]): TemplateRow[] {
+  return activeTemplates(rows);
+}
+
+/**
+ * How many of the company's relatórios were created from this template, read from the
+ * company pull's summary (AD-8). A template with any is only ever archived, never
+ * removed (FR-9).
+ */
+export function templateUseCount(templateId: string, summaries: readonly RelatorioSummary[]): number {
+  return summaries.filter((summary) => summary.template_id === templateId).length;
+}
+
+/** The name a duplicate gets: "⟨nome⟩ — cópia" (Story 3.3 AC). */
+export function duplicateName(name: string): string {
+  return `${name} — cópia`;
+}
+
+/**
+ * The row "Duplicar" creates: the source's structure, skeleton, quantities and
+ * `BlockConfig` defaults under a new id and name, back at version 1, live and not
+ * archived. No relatório data is involved (a template holds none).
+ */
+export function duplicateTemplate(row: TemplateRow, id: string): TemplateRow {
+  const copy = JSON.parse(JSON.stringify(row)) as TemplateRow;
+  return { ...copy, id, name: duplicateName(row.name), version: 1, archived_at: null, removed_at: null };
+}
+
+/** The name "Novo template" gives the empty composition it creates. */
+export const NEW_TEMPLATE_NAME = 'Novo template';
+
+/** The row "Novo template" creates: an empty composition on the current seed. */
+export function emptyTemplate(id: string, seedVersion: string): TemplateRow {
+  return {
+    id,
+    name: NEW_TEMPLATE_NAME,
+    version: 1,
+    seed_version: seedVersion,
+    blocks: [],
+    skeleton: [],
+    archived_at: null,
+    removed_at: null,
+  };
 }

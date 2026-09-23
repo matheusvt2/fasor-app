@@ -58,10 +58,10 @@ development_status:
   epic-3: in-progress
   3-1-seed-the-eight-equipment-block-types-from-the-decoded-fo-ser: done
   3-2-seed-the-section-boilerplate-and-the-cabine-primária-padrão: done
-  3-3-list-duplicate-and-archive-templates: in-progress
-  3-4-compose-a-template-with-its-location-skeleton-and-quantities: in-progress
-  3-5-set-sub-block-defaults-and-subtypes-per-block-type: backlog
-  3-6-edit-the-section-boilerplate-as-plain-text-with-variables: backlog
+  3-3-list-duplicate-and-archive-templates: done
+  3-4-compose-a-template-with-its-location-skeleton-and-quantities: done
+  3-5-set-sub-block-defaults-and-subtypes-per-block-type: in-progress
+  3-6-edit-the-section-boilerplate-as-plain-text-with-variables: in-progress
   3-7-build-the-porto-seguro-fixture-relatório: in-progress
   epic-3-retrospective: optional
 

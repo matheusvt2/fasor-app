@@ -84,6 +84,7 @@ async function seeded(): Promise<AppDatabase> {
       seed_version: 'v1',
       blocks: [],
       skeleton: [],
+      archived_at: null,
       removed_at: null,
     }),
   ]);

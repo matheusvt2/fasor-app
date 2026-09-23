@@ -79,6 +79,17 @@ export function templateRows(db: AppDatabase): Promise<TemplateRow[]> {
 }
 
 /**
+ * One live template (the composer's row, Story 3.4), or null when this device holds no
+ * live template of that id -- never there, removed, or a record that no longer parses.
+ */
+export async function templateRow(db: AppDatabase, id: string): Promise<TemplateRow | null> {
+  const record = await db.entities.get(['template', id]);
+  if (record === undefined || record.removed_at !== null) return null;
+  const parsed = entityRowSchemas.template.safeParse(record.row);
+  return parsed.success ? (parsed.data as TemplateRow) : null;
+}
+
+/**
  * Files held on this device, for the Account storage line: one per file, not one per
  * stored blob.
  *

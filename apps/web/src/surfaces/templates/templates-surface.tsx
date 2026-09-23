@@ -1,117 +1,313 @@
-import { sortTemplates, standardTemplate, templatesHeading, writeErrorKind, type OpDraft, type TemplateRow } from '@app/domain';
+import {
+  activeTemplates,
+  archivedHeading,
+  archivedTemplates,
+  duplicateTemplate,
+  emptyTemplate,
+  SEED_VERSION,
+  standardTemplate,
+  templatesHeading,
+  templateSummaryText,
+  templateUseCount,
+  toIso,
+  type RelatorioSummary,
+  type TemplateRow,
+} from '@app/domain';
 import { useId, useMemo, useRef, useState } from 'react';
-import { Button } from '../../components/index.ts';
+import { useNavigate } from 'react-router';
+import { Button, ConfirmDialog, OverflowMenu, TextButton } from '../../components/index.ts';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
-import { commitBatch } from '../../db/commit.ts';
+import { commitBatch, undoBatch } from '../../db/commit.ts';
 import { templateRows } from '../../db/home-store.ts';
-import { companyDownloaded } from '../../db/sync-store.ts';
+import { companyDownloaded, companySummaries } from '../../db/sync-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
+import { createTemplateOp, putTemplateOp, removeTemplateOp, writeErrorText } from './template-ops.ts';
 import './templates.css';
 
+const NO_SUMMARIES: RelatorioSummary[] = [];
+const noBusy = () => undefined;
+
 /**
- * Templates (`41-templates.html`), Story 3.2's minimal surface: the heading with its
- * count, the mock's note, and the live templates by name. With none, the empty state
- * (UX-DR70) offers the one action that seeds the standard FO.SERV-03 template from this
- * device -- one `template/{id}` create built by the kernel's `standardTemplate`, the same
- * row the provisioning CLI writes. Row actions, the secondary line and the archived group
- * are Story 3.3's.
+ * Templates (`41-templates.html`, Stories 3.2 and 3.3): "Templates (n)" with "Novo
+ * template", the active templates by name with their summary line, "Duplicar", "Arquivar"
+ * and an Overflow that offers "Remover" only while no relatório was created from the
+ * template; then "Arquivados (n)" with "Restaurar". With no template at all, the empty
+ * state (UX-DR70) offers the standard FO.SERV-03 template (Story 3.2).
+ *
+ * Every action is one batch of `template/{id}` ops on this device (AD-1); the kernel builds
+ * the rows (`duplicateTemplate`, `emptyTemplate`, `standardTemplate`), orders and counts
+ * them, and says which template is still referenced (`templateUseCount`).
  */
 export function TemplatesSurface() {
   const session = useSession();
   const db = session.database;
   const user = session.user;
   const { showToast } = useToast();
+  const navigate = useNavigate();
   const headingId = useId();
+  const archivedHeadingId = useId();
   const [creating, setCreating] = useState(false);
-  // A second press landing before the re-render that disables the button must not write
-  // a second template.
+  const [newing, setNewing] = useState(false);
+  const [removing, setRemoving] = useState<TemplateRow | null>(null);
+  // A second press landing before the re-render that disables a button must not write a
+  // second template.
   const inFlight = useRef(false);
 
   // `undefined` until the first read lands, so the empty state never flashes (and never
   // offers its action) over a device that does hold templates.
   const rows: TemplateRow[] | undefined = useLiveQuery(() => (db === null ? undefined : templateRows(db)), [db]);
-  const templates = useMemo(() => (rows === undefined ? undefined : sortTemplates(rows)), [rows]);
+  const active = useMemo(() => (rows === undefined ? undefined : activeTemplates(rows)), [rows]);
+  const archived = useMemo(() => (rows === undefined ? [] : archivedTemplates(rows)), [rows]);
+  const summaries = useLiveQuery(() => (db === null ? NO_SUMMARIES : companySummaries(db)), [db]) ?? NO_SUMMARIES;
   // A fresh device of a company that already holds templates shows none until its first
   // company pull completes; creating the standard one then would push a duplicate.
   const downloaded = useLiveQuery(() => (db === null ? false : companyDownloaded(db)), [db]) ?? false;
   const disabledReason = creating ? copy.templates.creating : !downloaded ? copy.templates.awaitingDownload : undefined;
 
-  async function createStandard(): Promise<void> {
-    if (db === null || user === null || inFlight.current || !downloaded) return;
-    inFlight.current = true;
-    setCreating(true);
-    const id = newId();
-    const op: OpDraft = {
-      kind: 'create',
-      scope: 'company',
-      company_id: user.companyId,
-      project_id: null,
-      relatorio_id: null,
-      prev_op_id: null,
-      batch_id: null,
-      meta: null,
-      actor_id: user.id,
-      path: `template/${id}`,
-      value: standardTemplate({ id }) as never,
-    };
+  /** Commits one batch; a refused write says why and returns null. */
+  async function commit(drafts: Parameters<typeof commitBatch>[1]): Promise<string | null> {
+    if (db === null) return null;
     try {
-      await commitBatch(db, [op], { newId, now });
+      const { batch_id } = await commitBatch(db, drafts, { newId, now });
+      return batch_id;
     } catch (error) {
-      const name = (error as { name?: unknown } | null)?.name;
-      showToast(writeErrorKind(typeof name === 'string' ? name : null) === 'quota' ? copy.write.quotaError : copy.write.unknownError);
-    } finally {
-      inFlight.current = false;
-      setCreating(false);
+      showToast(writeErrorText(error));
+      return null;
     }
   }
+
+  async function once(setBusy: (busy: boolean) => void, run: () => Promise<void>): Promise<void> {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setBusy(true);
+    try {
+      await run();
+    } finally {
+      inFlight.current = false;
+      setBusy(false);
+    }
+  }
+
+  function createStandard(): void {
+    if (user === null || !downloaded) return;
+    void once(setCreating, async () => {
+      await commit([createTemplateOp(user, standardTemplate({ id: newId() }))]);
+    });
+  }
+
+  function createEmpty(): void {
+    if (user === null) return;
+    void once(setNewing, async () => {
+      const row = emptyTemplate(newId(), SEED_VERSION);
+      if ((await commit([createTemplateOp(user, row)])) !== null) navigate(`/templates/${row.id}`);
+    });
+  }
+
+  function duplicate(row: TemplateRow): void {
+    if (user === null) return;
+    // The same in-flight guard as the creates: two quick taps make one copy.
+    void once(noBusy, async () => {
+      const copyRow = duplicateTemplate(row, newId());
+      if ((await commit([createTemplateOp(user, copyRow)])) !== null) showToast(copy.templates.duplicated(copyRow.name));
+    });
+  }
+
+  /** "Desfazer" of a batch; a refused write says why instead of failing silently. */
+  function undo(batchId: string): void {
+    if (db === null) return;
+    undoBatch(db, batchId, { newId, now }).catch((error: unknown) => showToast(writeErrorText(error)));
+  }
+
+  async function setArchived(row: TemplateRow, archive: boolean): Promise<void> {
+    if (user === null || db === null) return;
+    const batchId = await commit([putTemplateOp(user, row.id, 'archived_at', archive ? toIso(now()) : null)]);
+    if (batchId === null) return;
+    if (archive) {
+      showToast(copy.templates.archived, {
+        action: { label: copy.templates.undo, onPress: () => undo(batchId) },
+      });
+    } else {
+      showToast(copy.templates.restored);
+    }
+  }
+
+  async function remove(row: TemplateRow): Promise<void> {
+    if (user === null || db === null) return;
+    // Checked again at the moment of the write: the company summary may have moved since
+    // the menu was drawn, and a referenced template is only ever archived (FR-9).
+    if (!(await companyDownloaded(db))) {
+      showToast(copy.templates.awaitingDownload);
+      return;
+    }
+    if (templateUseCount(row.id, await companySummaries(db)) > 0) {
+      showToast(copy.templates.removeReferenced);
+      return;
+    }
+    const batchId = await commit([removeTemplateOp(user, row.id)]);
+    if (batchId === null) return;
+    showToast(copy.templates.removed(row.name), {
+      action: { label: copy.templates.undo, onPress: () => undo(batchId) },
+    });
+  }
+
+  const empty = active !== undefined && active.length === 0 && archived.length === 0;
 
   return (
     <main className="screen" data-route="/templates">
       <div className="tpl-content">
-        {templates === undefined ? (
+        {active === undefined ? (
           <p className="section-note" role="status">
             {copy.common.loading}
           </p>
         ) : (
-          <section className="section" aria-labelledby={headingId}>
-            <div className="section-head">
-              {/* The surface title is the App bar's <h1>; the section keeps its own heading. */}
-              <h2 id={headingId}>{templatesHeading(templates.length)}</h2>
-            </div>
-            <p className="section-note">{copy.templates.note}</p>
-
-            {templates.length === 0 ? (
-              <div className="home-empty">
-                <p className="section-note">{copy.templates.empty}</p>
+          <>
+            <section className="section" aria-labelledby={headingId}>
+              <div className="section-head">
+                {/* The surface title is the App bar's <h1>; the section keeps its own heading. */}
+                <h2 id={headingId}>{templatesHeading(active.length)}</h2>
                 <Button
-                  isDisabled={disabledReason !== undefined}
-                  disabledReason={disabledReason}
-                  onPress={() => void createStandard()}
+                  isDisabled={newing}
+                  disabledReason={newing ? copy.templates.creating : undefined}
+                  onPress={createEmpty}
                 >
-                  {copy.templates.createStandard}
+                  <svg className="ico" aria-hidden="true">
+                    <use href="/sprite.svg#i-plus" />
+                  </svg>
+                  {copy.templates.newTemplate}
                 </Button>
               </div>
-            ) : (
-              <ul className="registry-list" aria-label={copy.templates.listLabel}>
-                {templates.map((template) => (
-                  <li key={template.id} className="registry-row tpl-row">
-                    <svg className="ico ink-secondary" aria-hidden="true">
-                      <use href="/sprite.svg#i-template" />
-                    </svg>
-                    <div className="rr-text">
-                      <span className="rr-primary">{template.name}</span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+              <p className="section-note">{copy.templates.note}</p>
+
+              {empty ? (
+                <div className="home-empty">
+                  <p className="section-note">{copy.templates.empty}</p>
+                  <Button isDisabled={disabledReason !== undefined} disabledReason={disabledReason} onPress={createStandard}>
+                    {copy.templates.createStandard}
+                  </Button>
+                </div>
+              ) : active.length > 0 ? (
+                <ul className="registry-list" aria-label={copy.templates.listLabel}>
+                  {active.map((row) => (
+                    <TemplateListRow
+                      key={row.id}
+                      row={row}
+                      useCount={templateUseCount(row.id, summaries)}
+                      removable={downloaded}
+                      onOpen={() => navigate(`/templates/${row.id}`)}
+                      onRemove={() => setRemoving(row)}
+                      actions={
+                        <>
+                          <TextButton onPress={() => duplicate(row)}>
+                            <svg className="ico" aria-hidden="true">
+                              <use href="/sprite.svg#i-copy" />
+                            </svg>
+                            {copy.templates.duplicate}
+                          </TextButton>
+                          <TextButton onPress={() => void setArchived(row, true)}>
+                            <svg className="ico" aria-hidden="true">
+                              <use href="/sprite.svg#i-archive" />
+                            </svg>
+                            {copy.templates.archive}
+                          </TextButton>
+                        </>
+                      }
+                    />
+                  ))}
+                </ul>
+              ) : null}
+            </section>
+
+            {archived.length > 0 ? (
+              <section className="section tpl-group" aria-labelledby={archivedHeadingId}>
+                <div className="section-head">
+                  <h2 id={archivedHeadingId}>{archivedHeading(archived.length)}</h2>
+                </div>
+                <p className="section-note">{copy.templates.archivedNote}</p>
+                <ul className="registry-list" aria-label={copy.templates.archivedListLabel}>
+                  {archived.map((row) => (
+                    <TemplateListRow
+                      key={row.id}
+                      row={row}
+                      archived
+                      useCount={templateUseCount(row.id, summaries)}
+                      removable={downloaded}
+                      onRemove={() => setRemoving(row)}
+                      actions={<TextButton onPress={() => void setArchived(row, false)}>{copy.templates.restore}</TextButton>}
+                    />
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+          </>
         )}
       </div>
+
+      {removing === null ? null : (
+        <ConfirmDialog
+          isOpen
+          onOpenChange={(open) => {
+            if (!open) setRemoving(null);
+          }}
+          title={copy.templates.removeConfirmTitle(removing.name)}
+          description={copy.templates.removeConfirmBody}
+          confirmLabel={copy.templates.remove}
+          cancelLabel={copy.templates.cancel}
+          isDestructive
+          onConfirm={() => void remove(removing)}
+        />
+      )}
     </main>
+  );
+}
+
+interface TemplateListRowProps {
+  row: TemplateRow;
+  archived?: boolean;
+  useCount: number;
+  /**
+   * False before the first company download: until then the company summary is empty
+   * here, so a template relatórios were created from would look unreferenced.
+   */
+  removable: boolean;
+  /** Omitted on an archived row: restore it to edit it (the mock's archived row). */
+  onOpen?: () => void;
+  onRemove: () => void;
+  actions: React.ReactNode;
+}
+
+/**
+ * `.registry-row.tpl-row`: the icon, the name and summary line (a button that opens the
+ * composer), the Overflow and the row actions. The Overflow carries "Remover" alone and
+ * only while no relatório was created from the template (FR-9) and the company summary
+ * that says so has been downloaded; with nothing to offer it is not drawn at all.
+ */
+function TemplateListRow({ row, archived = false, useCount, removable, onOpen, onRemove, actions }: TemplateListRowProps) {
+  const text = (
+    <>
+      <span className="rr-primary">{row.name}</span>
+      <span className="rr-secondary">{templateSummaryText(row, useCount)}</span>
+    </>
+  );
+  return (
+    <li className={archived ? 'registry-row tpl-row is-archived' : 'registry-row tpl-row'}>
+      <svg className="ico ink-secondary" aria-hidden="true">
+        <use href="/sprite.svg#i-template" />
+      </svg>
+      {onOpen === undefined ? (
+        <div className="rr-text">{text}</div>
+      ) : (
+        <button type="button" className="rr-text" aria-label={copy.templates.openRow(row.name)} onClick={onOpen}>
+          {text}
+        </button>
+      )}
+      {removable && useCount === 0 ? (
+        <OverflowMenu name={row.name} items={[]} destructiveItems={[{ id: 'remove', label: copy.templates.remove, onAction: onRemove }]} />
+      ) : null}
+      <div className="rr-actions">{actions}</div>
+    </li>
   );
 }
