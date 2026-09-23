@@ -263,13 +263,18 @@ describe('templateRowSchema cross-field rules', () => {
     rejects(row, /"motor" is not an item of disjuntor_mt/);
   });
 
-  it('refuses an equipment block with no skeleton ref or a dangling one', () => {
-    let row = clone();
+  it('refuses an equipment block with no skeleton ref', () => {
+    const row = clone();
     firstOf(row, 'tp').skeleton_location_ref = null;
     rejects(row, /tp must sit on a node of the skeleton/);
-    row = clone();
+  });
+
+  it('accepts an equipment block whose node is gone from the skeleton: an orphan two devices can fold into (Story 3.4)', () => {
+    const row = clone();
     firstOf(row, 'tp').skeleton_location_ref = 'nowhere';
-    rejects(row, /tp must sit on a node of the skeleton/);
+    expect(templateRowSchema.safeParse(row).success).toBe(true);
+    // Every reader ignores it: the totals count only blocks that sit on a live node.
+    expect(templateTotals(row).tp).toBe(templateTotals(template).tp - 1);
   });
 
   it('refuses duplicate skeleton refs and a coluna not under a cabine', () => {

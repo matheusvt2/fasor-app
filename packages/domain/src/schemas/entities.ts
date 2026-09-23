@@ -157,7 +157,9 @@ export const registryRowSchema = z.discriminatedUnion('kind', [
  * AD-21: a Template's blocks are `BlockConfig`s placed with a quantity at a skeleton node
  * (Story 3.2); the skeleton is its cabines and columns. Both are copied into a relatório
  * at creation (`instantiateTemplate`, Epic 4), never followed by reference. The rules that
- * tie a block to its type's seed definition and to the skeleton are `checkTemplateRow`'s.
+ * tie a block to its type's seed definition are `checkTemplateRow`'s; a block whose node
+ * is missing from the skeleton parses (two devices may write the two fields apart) and is
+ * ignored by every reader (Story 3.4, `composerView`).
  */
 export const templateRowSchema = z
   .object({
@@ -167,6 +169,10 @@ export const templateRowSchema = z
     seed_version: z.string(),
     blocks: z.array(templateBlockSchema),
     skeleton: z.array(skeletonNodeSchema),
+    // Story 3.3: an archived template leaves the relatório creation picker and keeps
+    // everything else. Defaulted, so a row or a create written before the field existed
+    // (the `replay-small` fixture, Story 3.2 rows) still parses.
+    archived_at: nullableIso.default(null),
     removed_at: nullableIso,
   })
   .superRefine(checkTemplateRow);

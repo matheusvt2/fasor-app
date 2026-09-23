@@ -72,6 +72,21 @@ export const ui = {
     // quota is the realistic case), so the file is not attached and the pick is the retry.
     commitFailed: 'Não foi possível anexar o arquivo. Libere espaço no aparelho e escolha de novo.',
   },
+  quantityStepper: {
+    // Verbatim from `42-template-composer.html`'s `.step` buttons.
+    decrement: 'Menos um',
+    increment: 'Mais um',
+    // authored: the typeable count's own name; the group carries "Seccionadoras, 25".
+    count: 'Quantidade',
+    // `.count` at zero (DESIGN.md › Quantity stepper wins over the mock's "0").
+    zero: '—',
+  },
+  reorder: {
+    // Verbatim from the mocks' drag handles ("Reordenar 1 Objetivo").
+    handle: (name: string) => `Reordenar ${name}`,
+    // authored: the Position box's name (EXPERIENCE.md › Block card).
+    position: (name: string) => `Posição de ${name}`,
+  },
   registryTabPlaceholder: {
     text: 'Disponível em uma próxima etapa.',
   },

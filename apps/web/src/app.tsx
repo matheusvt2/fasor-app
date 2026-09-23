@@ -15,6 +15,7 @@ import { HomeSurface } from './surfaces/home/home-surface.tsx';
 import { LoginSurface } from './surfaces/login/login-surface.tsx';
 import { RegistriesSurface } from './surfaces/registries/registries-surface.tsx';
 import { SyncStatusSurface } from './surfaces/sync/sync-status-surface.tsx';
+import { TemplateComposerSurface } from './surfaces/templates/template-composer.tsx';
 import { TemplatesSurface } from './surfaces/templates/templates-surface.tsx';
 
 /** While the cookie is being read, render nothing decisive: never flash Login. */
@@ -105,6 +106,11 @@ const router = createBrowserRouter([
           { path: '/sync', element: <SyncStatusSurface />, handle: { title: copy.sync.title } },
           { path: '/cadastros', element: <RegistriesSurface />, handle: { title: copy.registries.title } },
           { path: '/templates', element: <TemplatesSurface />, handle: { title: copy.templates.title } },
+          {
+            path: '/templates/:id',
+            element: <TemplateComposerSurface />,
+            handle: { title: copy.composer.title, back: '/templates' },
+          },
           ...fixtureRoutes,
         ],
       },
