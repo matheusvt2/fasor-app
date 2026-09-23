@@ -62,7 +62,7 @@ development_status:
   3-4-compose-a-template-with-its-location-skeleton-and-quantities: done
   3-5-set-sub-block-defaults-and-subtypes-per-block-type: in-progress
   3-6-edit-the-section-boilerplate-as-plain-text-with-variables: in-progress
-  3-7-build-the-porto-seguro-fixture-relatório: in-progress
+  3-7-build-the-porto-seguro-fixture-relatório: done
   epic-3-retrospective: optional
 
   epic-4: backlog
