@@ -60,6 +60,11 @@ export function checkTemplateRow(row: TemplateShape, ctx: z.RefinementCtx): void
         issue(['blocks', i, 'sub_blocks', key], `"${key}" is always on`);
       }
     }
+    for (const key of LOCKED_SUB_BLOCKS) {
+      if (definition.sub_blocks.includes(key) && block.sub_blocks[key] === undefined) {
+        issue(['blocks', i, 'sub_blocks', key], `"${key}" is always on and must be present`);
+      }
+    }
     const items = new Set((definition.checklist ?? []).map((item) => item.key));
     block.na_defaults.forEach((key, j) => {
       if (!items.has(key)) issue(['blocks', i, 'na_defaults', j], `"${key}" is not an item of ${block.block_type}`);

@@ -252,6 +252,9 @@ describe('templateRowSchema cross-field rules', () => {
     row = clone();
     firstOf(row, 'tp').sub_blocks.conclusion = { enabled: false };
     rejects(row, /"conclusion" is always on/);
+    row = clone();
+    delete firstOf(row, 'tp').sub_blocks.checklist;
+    rejects(row, /"checklist" is always on and must be present/);
   });
 
   it('refuses an NA default that is not an item of the block type', () => {

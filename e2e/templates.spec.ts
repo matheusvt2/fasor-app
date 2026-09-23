@@ -18,7 +18,8 @@ import { expect, horizontalOverflow, signIn, syncBadge, test, TEST_SEED } from '
 /**
  * Empresa B back to "no template": its log and rows are emptied and its user projected
  * again, so 3.2-E2E-001 starts from the empty state on every run and every retry. Only
- * Empresa B is touched, and only through the test-company reset.
+ * Empresa B is touched, and only through the test-company reset. Safe mid-run only because
+ * the suite runs with `workers: 1` and no later spec needs data Empresa B held before.
  */
 async function resetEmpresaB(): Promise<void> {
   const b = TEST_SEED.companies[1];

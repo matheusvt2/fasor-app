@@ -69,7 +69,7 @@ deferred: []
 - `apps/web/src/db/commit.ts` -- `commitBatch(db, ops, { newId, now })`; pattern in `apps/web/src/surfaces/registries/word-registry-panel.tsx:~100`.
 - `apps/web/src/copy/pt-br.ts` -- add a `templates:` block; `apps/web/src/styles/app.css` -- translate the `41-templates.html` `.frame-*` rules actually rendered.
 - `e2e/support/merged-fixtures.ts` -- `test`, `expect`, `TEST_SEED`, `signIn(page, email)`; `e2e/support/global-setup.ts` resets and seeds; `scripts/test-reset.ts` exists for resetting test companies.
-- Source text for boilerplate and captions: the FO.SERV-03 DOCX in `docs/context/` (gitignored, main checkout only); a plain-text extraction of it is at `/tmp/claude-1000/-home-matheus-Documentos-fasor/06651bd2-7d6b-480e-8349-67c72ac50f1c/scratchpad/e3a/fo-serv-03.txt` (section 7 captions are lines ~168-320; section 8 ~325-331). Never commit that file.
+- Source text for boilerplate and captions: the FO.SERV-03 DOCX in `docs/context/` (gitignored, main checkout only); a plain-text extraction of it was made in the session scratchpad (never committed).
 
 ## Tasks & Acceptance
 
