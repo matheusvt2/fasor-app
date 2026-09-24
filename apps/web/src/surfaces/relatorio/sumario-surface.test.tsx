@@ -13,6 +13,7 @@ import { BackTargetProvider } from '../../state/back-target.tsx';
 import type { SessionState } from '../../state/session.tsx';
 import { SyncContext, type SyncState } from '../../state/sync.tsx';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
+import { GenerateAction } from './generate-action.tsx';
 import { RowBody } from './sumario-row.tsx';
 import { SumarioSurface } from './sumario-surface.tsx';
 
@@ -69,6 +70,7 @@ const syncState = (over: Partial<SyncState> = {}): SyncState => ({
   syncRelatorio,
   resendDead: vi.fn(async () => {}),
   fetchFile: vi.fn(async () => new Blob()),
+  generate: vi.fn(async () => ({ outcome: 'queued' as const, job_id: 'job', revision_number: 1 })),
   ...over,
 });
 
@@ -478,5 +480,39 @@ describe('4.3 SumarioSurface', () => {
     renderSumario(id, syncState({ syncRelatorio: pull }));
     expect(await screen.findByText('Relatório não encontrado neste aparelho.')).toBeVisible();
     expect(pull).toHaveBeenCalledTimes(2);
+  });
+
+  it('4.8: "Gerar relatório" opens the Export dialog, and Esc returns the focus to it', async () => {
+    database = await seeded();
+    renderSumario();
+    await waitFor(() => expect(rows()).toHaveLength(13));
+    const trigger = screen.getByRole('button', { name: 'Gerar relatório' });
+    await userEvent.click(trigger);
+    const dialog = await screen.findByRole('dialog', { name: 'Gerar relatório' });
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(dialog.closest('.export-dialog') ?? dialog.querySelector('.export-dialog')).not.toBeNull();
+    expect(within(dialog).getByText('Nenhuma revisão gerada ainda.')).toBeVisible();
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Gerar relatório' })).toBeNull());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Gerar relatório' })).toHaveFocus());
+  });
+
+  it('4.8: while a blocking row stands, "Gerar relatório" is aria-disabled with the foot reason and opens nothing', async () => {
+    database = await seeded();
+    render(
+      <MemoryRouter>
+        <SyncContext value={syncState()}>
+          <ToastProvider>
+            <p id="reason">Parecer não preenchido impede gerar.</p>
+            <GenerateAction relatorioId={RELATORIO} reasonId="reason" blocked />
+          </ToastProvider>
+        </SyncContext>
+      </MemoryRouter>,
+    );
+    const button = screen.getByRole('button', { name: 'Gerar relatório' });
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).toHaveAccessibleDescription('Parecer não preenchido impede gerar.');
+    await userEvent.click(button);
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });

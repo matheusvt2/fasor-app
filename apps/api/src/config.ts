@@ -24,6 +24,14 @@ export const configSchema = z.object({
   AUTH_BASE_URL: z.string().url().optional(),
   LLM_PROVIDER: z.enum(['fake', 'anthropic', 'bedrock']).default('fake'),
   OCR_PROVIDER: z.enum(['fake', 'textract', 'ocr-svc']).default('fake'),
+  /** Story 4.8: `1` registers the pg-boss generate worker in this process (the compose default). */
+  WORKER: z.enum(['0', '1']).default('1'),
+  NODE_ENV: z.string().optional(),
+  /**
+   * TC-3: a fault the generate job injects at its conversion step, honoured only when
+   * `NODE_ENV !== 'production'` (`main.ts` drops it otherwise). An empty value is unset.
+   */
+  GENERATE_FAULT: z.preprocess((value) => (value === '' ? undefined : value), z.enum(['libreoffice_timeout']).optional()),
 });
 
 export type Config = z.infer<typeof configSchema>;
