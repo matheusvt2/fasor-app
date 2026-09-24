@@ -46,6 +46,16 @@ describe('TriStateControl (UX-DR37)', () => {
     expect(onChange).toHaveBeenCalledTimes(1);
   });
 
+  it('committed=false (an na_defaults display default): tapping the pre-shown segment still commits a real cell', async () => {
+    const onChange = vi.fn();
+    render(
+      <TriStateControl value="NA" committed={false} onChange={onChange} aria-label="1. Motor" />,
+    );
+    expect(screen.getByRole('radio', { name: 'Não se aplica' })).toHaveAttribute('aria-checked', 'true');
+    await userEvent.click(screen.getByRole('radio', { name: 'Não se aplica' }));
+    expect(onChange).toHaveBeenCalledWith('NA');
+  });
+
   it('roving tab stop, arrows move and wrap, Home/End, Delete and Backspace clear', async () => {
     const onChange = vi.fn();
     render(<Controlled onChange={onChange} />);

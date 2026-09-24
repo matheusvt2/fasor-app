@@ -40,6 +40,13 @@ export interface RelatorioEditor {
   /** A toast with "Desfazer"; `focus` names where the focus goes once the undo has landed, `onUndo` runs as it starts. */
   undoable: (text: string, batchId: string | null, focus?: () => HTMLElement | null, onUndo?: () => void) => void;
   /**
+   * Dismisses a live "Desfazer" toast, the same way `edit` does after every commit of its
+   * own: a caller that commits outside `edit` (a typed field's direct `commitBatch`, Story
+   * 5.1's `FichaApi.commit`) must retire it too, or the toast's undo would put a value the
+   * engineer already corrected back to what a copy or bulk action left behind.
+   */
+  retireUndo: () => void;
+  /**
    * Says `text` (when given) and runs `then` in the render that draws the edit, the first
    * one where `drawn()` holds, so the announcement, the toast and the moved row reach the
    * screen in the same frame (Epic 4 QA Q7); after `SETTLE_TIMEOUT_MS` at the latest.
@@ -90,6 +97,11 @@ export function useRelatorioEditor(relatorioId: string, projectId: string): Rela
 
   const author = useMemo<Author | null>(() => (user === null ? null : { id: user.id, companyId: user.companyId }), [user]);
 
+  const retireUndo = useCallback(() => {
+    if (undoToast.current !== null && shownToast.current?.text === undoToast.current) dismissToast();
+    undoToast.current = null;
+  }, [dismissToast]);
+
   const edit = useCallback(
     (build: Build): Promise<string | null> => {
       const run = async (): Promise<string | null> => {
@@ -111,15 +123,14 @@ export function useRelatorioEditor(relatorioId: string, projectId: string): Rela
           showToast(writeErrorText(error));
           throw error;
         }
-        if (undoToast.current !== null && shownToast.current?.text === undoToast.current) dismissToast();
-        undoToast.current = null;
+        retireUndo();
         return batchId;
       };
       const next = queue.current.then(run, run);
       queue.current = next.catch(() => undefined);
       return next;
     },
-    [db, author, relatorioId, projectId, showToast, dismissToast],
+    [db, author, relatorioId, projectId, showToast, retireUndo],
   );
 
   // `settle`: one edit waits to be drawn at a time; a newer one says the older at once.
@@ -192,7 +203,7 @@ export function useRelatorioEditor(relatorioId: string, projectId: string): Rela
   // One object while its members hold, so the tree's context and its action callbacks keep
   // their identity between renders.
   return useMemo(
-    () => ({ author, edit, announce, announcement, undoable, settle, settleCheck }),
-    [author, edit, announce, announcement, undoable, settle, settleCheck],
+    () => ({ author, edit, announce, announcement, undoable, settle, settleCheck, retireUndo }),
+    [author, edit, announce, announcement, undoable, settle, settleCheck, retireUndo],
   );
 }

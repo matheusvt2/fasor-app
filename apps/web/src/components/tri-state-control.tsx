@@ -9,6 +9,14 @@ export interface TriStateControlProps {
   onChange: (value: TriStateValue | null) => void;
   /** The group's accessible name: item number + text ("1. Limpeza"). */
   'aria-label': string;
+  /**
+   * False when `value` is shown pre-selected but was never actually committed (a
+   * checklist row's `na_defaults` NA with no cell of its own): the re-tap no-op that
+   * protects a real choice from a glove double-tap must not also block the first real
+   * commit of a row that only ever looked selected. Defaults to true (an ordinary,
+   * already-committed selection, where re-tapping the same segment does nothing).
+   */
+  committed?: boolean;
 }
 
 const SEGMENTS: readonly { value: TriStateValue; attr: 'c' | 'nc' | 'na' }[] = [
@@ -28,7 +36,7 @@ const SEGMENTS: readonly { value: TriStateValue; attr: 'c' | 'nc' | 'na' }[] = [
  * Re-tapping the selected segment does nothing: a glove double-tap must not un-mark a row.
  * With nothing chosen, the first segment holds the tab stop and focus alone never commits.
  */
-export function TriStateControl({ value, onChange, ...rest }: TriStateControlProps) {
+export function TriStateControl({ value, onChange, committed = true, ...rest }: TriStateControlProps) {
   const segments = useRef(new Map<TriStateValue, HTMLButtonElement | null>());
   const selectedIndex = SEGMENTS.findIndex((segment) => segment.value === value);
   const tabbableIndex = selectedIndex === -1 ? 0 : selectedIndex;
@@ -85,7 +93,7 @@ export function TriStateControl({ value, onChange, ...rest }: TriStateControlPro
             segments.current.set(segment.value, element);
           }}
           onClick={() => {
-            if (segment.value !== value) onChange(segment.value);
+            if (segment.value !== value || !committed) onChange(segment.value);
           }}
           onKeyDown={(event) => onKeyDown(event, index)}
         >

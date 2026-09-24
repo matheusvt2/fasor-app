@@ -13,6 +13,12 @@ describe('5.3-UNIT parseDecimalPtBr (EXPERIENCE.md › Measurement field, Parsin
     expect(parseDecimalPtBr('0.0045')).toBe('0.0045');
   });
 
+  it('a leading zero group is never a thousands separator (nobody writes "0.500" for five hundred)', () => {
+    expect(parseDecimalPtBr('0.500')).toBe('0.500');
+    expect(parseDecimalPtBr('0.025')).toBe('0.025');
+    expect(parseDecimalPtBr('00.500')).toBe('00.500');
+  });
+
   it('the comma is the decimal separator', () => {
     expect(parseDecimalPtBr('13,8')).toBe('13.8');
     expect(parseDecimalPtBr('1.234,5')).toBe('1234.5');

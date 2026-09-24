@@ -11,7 +11,9 @@
  * No unit suffix is read here: that is Story 5.5's own extension of this module.
  */
 
-const THOUSANDS_ONLY = /^\d{1,3}(\.\d{3})+$/;
+// The leading group never starts with 0: nobody writes "0.500" to mean five hundred, so a
+// leading zero falls through to PLAIN below and reads as the decimal it looks like (0,5).
+const THOUSANDS_ONLY = /^[1-9]\d{0,2}(\.\d{3})+$/;
 const PLAIN = /^\d+(\.\d+)?$/;
 
 /** The dot-decimal string of a pt-BR typed number, or null when the text holds no number. */

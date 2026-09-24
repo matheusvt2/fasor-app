@@ -194,6 +194,10 @@ function FichaBody({
       commit: async (drafts: OpDraft[]) => {
         if (db === null) return;
         await commitBatch(db, drafts, { newId, now });
+        // A typed field's commit bypasses the edit queue, so it must retire a stale
+        // undo toast itself, or "Desfazer" on an earlier copy/bulk action would put
+        // this newer value back (Batch A review finding).
+        editor.retireUndo();
         saved();
       },
       edit: (build: Build) =>

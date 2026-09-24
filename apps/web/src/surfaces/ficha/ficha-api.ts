@@ -6,8 +6,9 @@ import type { Author } from '../relatorio/relatorio-ops.ts';
  * What every section of the sheet writes through (Story 5.1: "every committed field value
  * is an op, no Save button"). Typed fields commit through `commit`, the field-commit path
  * (`useFieldCommit` reports a refused write); taps, chips and bulk actions go through the
- * relatório's one edit queue (`edit`), which retires a stale undo toast. Both announce the
- * throttled "Salvo".
+ * relatório's one edit queue (`edit`). Both retire a stale undo toast on success (a typed
+ * correction after a copy or bulk action must not be lost to that toast's "Desfazer") and
+ * announce the throttled "Salvo".
  */
 export interface FichaApi {
   relatorioId: string;

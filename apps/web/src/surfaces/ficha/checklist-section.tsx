@@ -179,6 +179,9 @@ export function ChecklistSection({
 function ChecklistRow({ api, block, item, number, recents }: { api: FichaApi; block: BlockRow; item: ChecklistItem; number: number; recents: readonly string[] }) {
   const t = copy.ficha.checklist;
   const result = checklistResultOf(block, item.key);
+  // A `na_defaults` row shows NA with no cell of its own (checklistResultOf's display
+  // default) -- the first tap on it must still commit a real cell (spec Design Notes).
+  const resultCommitted = block.sheet.checklist[item.key]?.result !== undefined;
   const observationCell = block.sheet.checklist[item.key]?.observation;
   const stored = typeof observationCell?.value === 'string' ? observationCell.value : '';
   const [observationOpen, setObservationOpen] = useState(false);
@@ -231,7 +234,7 @@ function ChecklistRow({ api, block, item, number, recents }: { api: FichaApi; bl
           <span className="row-num">{number}.</span>
           {item.label}
         </span>
-        <TriStateControl value={result} onChange={choose} aria-label={name} />
+        <TriStateControl value={result} onChange={choose} committed={resultCommitted} aria-label={name} />
         <OverflowMenu name={item.label} items={menu} />
       </div>
       {expanded ? (
