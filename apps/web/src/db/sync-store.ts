@@ -1,5 +1,6 @@
 import {
   materializeEntity,
+  newRelatorioEquipmentReady,
   splitEntityKey,
   userRowSchema,
   type EntityKey,
@@ -188,6 +189,21 @@ export async function companyDownloaded(db: AppDatabase): Promise<boolean> {
 export async function companySummaries(db: AppDatabase): Promise<RelatorioSummary[]> {
   const row = await db.sync_state.get(COMPANY_STREAM);
   return row?.relatorios ?? [];
+}
+
+/**
+ * Epic 4 retro item 17: whether this device holds enough of the obra's equipment to create
+ * another relatório of it. The kernel decides (`newRelatorioEquipmentReady`) from the
+ * company summary, the relatórios this device holds and the streams it downloaded.
+ */
+export async function equipmentReadyFor(db: AppDatabase, projectId: string): Promise<boolean> {
+  const [states, relatorios] = await Promise.all([db.sync_state.toArray(), db.entities.where('entity').equals('relatorio').primaryKeys()]);
+  return newRelatorioEquipmentReady({
+    projectId,
+    summaries: states.find((row) => row.id === COMPANY_STREAM)?.relatorios ?? [],
+    heldRelatorioIds: relatorios.map(([, id]) => id),
+    downloadedStreamIds: states.filter((row) => row.downloaded_at !== null).map((row) => row.id),
+  });
 }
 
 /** The company's user rows on this device, for names on Sync status. */

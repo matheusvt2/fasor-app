@@ -2,9 +2,11 @@ import {
   expectedFileIds,
   idleRevisionNumber,
   isJobActive,
+  issueOnRevision,
   jobExpiresAt,
   latestRevision,
   nextRevisionNumber,
+  putRelatorioStatusOp,
   readyToast,
   statusTable,
   toIso,
@@ -18,7 +20,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { now } from '../../clock.ts';
 import { commitBatch } from '../../db/commit.ts';
 import { pendingUploadCount } from '../../db/file-store.ts';
-import { lastOpIdFor, relatorioRow, useEditedSince, useLatestGenerationJob, useRelatorio, useRevisions } from '../../db/generate-store.ts';
+import {
+  editedSinceSnapshot,
+  lastOpIdFor,
+  relatorioRow,
+  revisionRows,
+  useEditedSince,
+  useLatestGenerationJob,
+  useRelatorio,
+  useRevisions,
+} from '../../db/generate-store.ts';
 import { clearGenerateAwaiting, readGenerateAwaiting, writeGenerateAwaiting } from '../../db/prefs.ts';
 import { toSnapshot } from '../../db/snapshot.ts';
 import { newId } from '../../ids.ts';
@@ -149,30 +160,33 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
       if (current === null) return;
       const next = statusTable(current.status, event);
       if (next === null) return;
-      await commitBatch(
-        db,
-        [
-          {
-            kind: 'put',
-            scope: 'relatorio',
-            company_id: user.companyId,
-            project_id: null,
-            relatorio_id: relatorioId,
-            path: 'relatorio/status',
-            value: next,
-            prev_op_id: null,
-            batch_id: null,
-            meta: null,
-            actor_id: user.id,
-          },
-        ],
-        { newId, now },
-      );
+      await commitBatch(db, [putRelatorioStatusOp({ id: user.id, companyId: user.companyId }, relatorioId, next)], { newId, now });
     },
     [db, user, relatorioId],
   );
   const emitStatusRef = useRef(emitStatus);
   emitStatusRef.current = emitStatus;
+
+  /**
+   * Epic 4 retro items 19, 20: the `issue` op for a revision that arrived (or an
+   * `unchanged` answer naming one), decided by the kernel at the moment of the write:
+   * `issueOnRevision` gives no status when anything of the relatório's stream was edited
+   * after the revision's snapshot (the revision lacks that edit, so the relatório stays
+   * Em revisão and the next press allocates a new number).
+   */
+  const emitIssue = useCallback(
+    async (revision: Pick<RevisionRow, 'snapshot_seq'>) => {
+      if (db === null || user === null) return;
+      const current = await relatorioRow(db, relatorioId);
+      if (current === null) return;
+      const next = issueOnRevision(current.status, await editedSinceSnapshot(db, relatorioId, revision.snapshot_seq));
+      if (next === null) return;
+      await commitBatch(db, [putRelatorioStatusOp({ id: user.id, companyId: user.companyId }, relatorioId, next)], { newId, now });
+    },
+    [db, user, relatorioId],
+  );
+  const emitIssueRef = useRef(emitIssue);
+  emitIssueRef.current = emitIssue;
 
   /**
    * The revision arrived: the `issue` op first, then the ready state and the toast, then
@@ -201,8 +215,8 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
         showToast(readyToast(revision.number));
         if (db !== null) void clearGenerateAwaiting(db, relatorioId).catch(() => undefined);
       };
-      void emitStatusRef
-        .current('issue')
+      void emitIssueRef
+        .current(revision)
         .catch((error: unknown) => console.error('issue status op failed', error))
         .then(ready);
     },
@@ -269,8 +283,37 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
               }
             }
             if (mounted.current) setPhase({ kind: 'working', number: answer.revision_number, jobId: answer.job_id });
-          } else if (mounted.current) {
-            setPhase({ kind: 'ready', number: answer.revision_number, revisionId: answer.revision_id, unchanged: true });
+          } else {
+            // `unchanged` (item 20): the same `issue` path as an arrived revision, so a
+            // relatório moved back to Em revisão with nothing edited is Emitido again. The
+            // revision row is pulled first when this device does not hold it yet.
+            const answered = async () => (await revisionRows(db, relatorioId)).find((row) => row.id === answer.revision_id);
+            let revision = await answered();
+            if (revision === undefined) {
+              await sync.syncRelatorio(relatorioId).catch(() => undefined);
+              revision = await answered();
+            }
+            if (revision !== undefined) {
+              // The same table path as a queued press then an arrived revision: an Em campo
+              // relatório (moved back past Em revisão) takes `generate` first, then `issue`.
+              try {
+                await emitStatusRef.current('generate');
+              } catch (error) {
+                console.error('generate status op failed', error);
+              }
+              await emitIssueRef.current(revision).catch((error: unknown) => console.error('issue status op failed', error));
+            }
+            const stored = await relatorioRow(db, relatorioId).catch(() => null);
+            if (mounted.current) {
+              readyBasis.current = renderedRelatorio.current;
+              setPhase({
+                kind: 'ready',
+                number: answer.revision_number,
+                revisionId: answer.revision_id,
+                unchanged: true,
+                ...(stored === null ? {} : { status: stored.status }),
+              });
+            }
           }
           return;
         } catch (error) {

@@ -14,7 +14,9 @@ import {
   BLOCK_1_ID,
   CABINE_ID,
   COMPANY_ID,
+  EQUIPMENT_1_ID,
   fixedTs,
+  PROJECT_ID,
   RELATORIO_ID,
   replaySmall,
   USER_ID,
@@ -414,6 +416,38 @@ describe('4.6-INT advanceOnEdit wiring in buildBatch/commitBatch', () => {
     );
     expect(ops).toHaveLength(2);
     expect(ops.filter((op) => op.path === 'relatorio/status')).toHaveLength(1);
+    db.close();
+  });
+
+  it('E4 retro Q15: a TAG rename of an equipment the Emitido relatório references moves it to Em revisão in the same batch', async () => {
+    const db = await freshDb();
+    await seed(db);
+    const d = deps();
+    await commitOps(db, [makeOp(put('relatorio/status', 'emitido'), { newId: d.newId, now: d.now() })]);
+    const rename = put(`equipment/${EQUIPMENT_1_ID}/tag`, 'TR-01B', { scope: 'project', project_id: PROJECT_ID, relatorio_id: null });
+    const { batch_id, ops } = await commitBatch(db, [rename], deps());
+    expect(ops.map((op) => op.path)).toEqual([`equipment/${EQUIPMENT_1_ID}/tag`, 'relatorio/status']);
+    expect(ops[1]).toMatchObject({ relatorio_id: RELATORIO_ID, value: 'em_revisao', batch_id });
+    expect(await statusOf(db)).toBe('em_revisao');
+    db.close();
+  });
+
+  it('E4 retro item 18: an equipment of the obra the relatório does not reference is no edit of it', async () => {
+    const db = await freshDb();
+    await seed(db);
+    const d = deps();
+    await commitOps(db, [makeOp(put('relatorio/status', 'emitido'), { newId: d.newId, now: d.now() })]);
+    const other = '019966b0-000c-7000-8000-000000000001';
+    const create: OpInput = {
+      ...put(`equipment/${other}`, { id: other, project_id: PROJECT_ID, tag: 'TR-99', type: 'transformador_forca', last_nameplate: null, removed_at: null }),
+      kind: 'create',
+      scope: 'project',
+      project_id: PROJECT_ID,
+      relatorio_id: null,
+    };
+    const { ops } = await commitBatch(db, [create], deps());
+    expect(ops).toHaveLength(1);
+    expect(await statusOf(db)).toBe('emitido');
     db.close();
   });
 

@@ -66,6 +66,8 @@ export interface SyncClient {
   pushOps(ops: readonly Op[]): Promise<SyncPushResponse>;
   pullCompany(since: number): Promise<SyncPullResponse>;
   pullRelatorio(id: string, since: number): Promise<SyncPullResponse>;
+  /** Epic 4 retro item 17: a project's own stream (its project-scope ops). */
+  pullProject(id: string, since: number): Promise<SyncPullResponse>;
   /** AD-7: the uploader's only write; idempotent on `(id, sha256)` server-side. */
   uploadFile(id: string, blob: Blob, sha256: string): Promise<FilePutResponse>;
   /** AD-7: the only read, asked for by a surface — never by the cycle (AC 2.2-3). */
@@ -160,6 +162,7 @@ export function createSyncClient(deps: { fetch: FetchLike }): SyncClient {
     pushOps: (ops) => request(SYNC_ROUTES.pushOps, syncPushResponseSchema, undefined, { ops }),
     pullCompany: (since) => request(SYNC_ROUTES.pullCompany, syncPullResponseSchema, `since=${since}`),
     pullRelatorio: (id, since) => request(SYNC_ROUTES.pullRelatorio(id), syncPullResponseSchema, `since=${since}`),
+    pullProject: (id, since) => request(SYNC_ROUTES.pullProject(id), syncPullResponseSchema, `since=${since}`),
     async uploadFile(id, blob, sha256) {
       const route = FILE_ROUTES.put(id);
       const response = await send(route.path, route.method, {

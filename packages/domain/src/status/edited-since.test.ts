@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { idSequence, TEST_USER } from '../test-support.ts';
-import { countsAsEdit, editedOnDevice, editedSince, EDITED_SINCE_FAMILIES, type EditCandidate } from './edited-since.ts';
+import {
+  countsAsEdit,
+  editedOnDevice,
+  editedSince,
+  EDITED_SINCE_FAMILIES,
+  inRelatorioStream,
+  issueOnRevision,
+  referencedEquipmentIds,
+  relatorioEditedSince,
+  type EditCandidate,
+  type StreamCandidate,
+} from './edited-since.ts';
 
 /*
  * Test 1.6-UNIT-001, second half (P1, risk R-015): AD-15's family set. Each excluded
@@ -109,5 +120,68 @@ describe('Epic 4 QA Q11 editedOnDevice', () => {
 
   it('is true for an unsent edit of this device, which carries no seq yet', () => {
     expect(editedOnDevice([], [op('relatorio/setup/local')], 10)).toBe(true);
+  });
+});
+
+describe('E4 retro items 18, Q15: the relatório stream', () => {
+  const R1 = ids();
+  const R2 = ids();
+  const E_R1 = ids();
+  const E_R2 = ids();
+  const stream = { relatorioId: R1, equipmentIds: new Set([E_R1]) };
+  const projectOp = (path: string, seq?: number): StreamCandidate => ({ ...op(path), scope: 'project', relatorio_id: null, ...(seq === undefined ? {} : { seq }) });
+  const relatorioOp = (relatorioId: string, path: string, seq?: number): StreamCandidate => ({
+    ...op(path),
+    scope: 'relatorio',
+    relatorio_id: relatorioId,
+    ...(seq === undefined ? {} : { seq }),
+  });
+
+  it('referencedEquipmentIds reads the live blocks only, and skips a block with no equipment', () => {
+    const referenced = referencedEquipmentIds([
+      { equipment_id: E_R1, removed_at: null },
+      { equipment_id: E_R2, removed_at: '2026-09-24T10:00:00.000Z' },
+      { equipment_id: null, removed_at: null },
+    ]);
+    expect([...referenced]).toEqual([E_R1]);
+  });
+
+  it('holds the relatório own ops and the ops of the equipment it references, nothing else', () => {
+    expect(inRelatorioStream(relatorioOp(R1, `block/${BLOCK}/order_key`, 1), stream)).toBe(true);
+    expect(inRelatorioStream(relatorioOp(R2, `block/${BLOCK}/order_key`, 1), stream)).toBe(false);
+    expect(inRelatorioStream(projectOp(`equipment/${E_R1}/tag`, 1), stream)).toBe(true);
+    expect(inRelatorioStream(projectOp(`equipment/${E_R2}`, 1), stream)).toBe(false);
+    expect(inRelatorioStream(projectOp(`equipment/${E_R2}/tag`, 1), stream)).toBe(false);
+  });
+
+  it('item 18: another relatório of the obra adding an equipment and a block does not edit R1', () => {
+    const log = [projectOp(`equipment/${E_R2}`, 11), relatorioOp(R2, `block/${BLOCK}`, 12)];
+    expect(relatorioEditedSince(log, 10, stream)).toBe(false);
+    expect(editedOnDevice(log, [], 10, stream)).toBe(false);
+  });
+
+  it('Q15: a rename of an equipment R1 references edits R1, pulled or unsent', () => {
+    expect(relatorioEditedSince([projectOp(`equipment/${E_R1}/tag`, 11)], 10, stream)).toBe(true);
+    expect(editedOnDevice([], [projectOp(`equipment/${E_R1}/tag`)], 10, stream)).toBe(true);
+  });
+
+  it('an unsent edit of another relatório does not edit this one', () => {
+    expect(editedOnDevice([], [relatorioOp(R2, 'relatorio/setup/local')], 10, stream)).toBe(false);
+  });
+});
+
+describe('E4 retro items 19, 20: issueOnRevision', () => {
+  it('item 20: nothing edited after the snapshot, Em revisão issues to Emitido', () => {
+    expect(issueOnRevision('em_revisao', false)).toBe('emitido');
+  });
+
+  it('item 19: an edit after the snapshot keeps Em revisão (no issue)', () => {
+    expect(issueOnRevision('em_revisao', true)).toBeNull();
+  });
+
+  it('only the table row issues: Rascunho, Em campo and Emitido give no status', () => {
+    expect(issueOnRevision('rascunho', false)).toBeNull();
+    expect(issueOnRevision('em_campo', false)).toBeNull();
+    expect(issueOnRevision('emitido', false)).toBeNull();
   });
 });

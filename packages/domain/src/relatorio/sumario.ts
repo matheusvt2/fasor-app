@@ -2,11 +2,14 @@ import { dateRangeText, formatDateOfInstant, uuidV7Instant } from '../format/dat
 import { sortByOrderKey } from '../ops/order-key.ts';
 import type { BlockRow, EquipmentRow, LocationRow, ProjectRow, RelatorioRow, RelatorioStatus, TemplateRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
+import type { RelatorioSummary } from '../contract/sync.ts';
+import { projectStreamId } from '../sync/streams.ts';
 import { pickableTemplates } from '../templates/list.ts';
 import { normalizeRegistryName } from '../text/normalize-name.ts';
 import { isRelatorioSectionType, relatorioSectionNumber, type RelatorioSectionType } from './instantiate.ts';
 import { blockingRows, preIssueRowsFor, type PreIssueRow, type SumarioRowKey } from './pre-issue.ts';
 import { progressCounterText, type Progress } from './progress.ts';
+import { sectionTextEdited } from './section-variables.ts';
 import { locationPathText } from './location-path.ts';
 import { isEquipmentBlock } from './sheet-state.ts';
 
@@ -121,9 +124,11 @@ const META = {
   controle: 'montado dos dados do relatório · Rev. 1 na primeira emissão',
   setup: 'editado em Dados do relatório › Etapa 2',
   textDefault: 'texto padrão',
-  // authored: the block carries the template's own boilerplate; Story 4.7 refines the word once
-  // a relatório edits its text.
+  // authored: the block carries the template's own boilerplate.
   textFromTemplate: 'texto do template',
+  // authored (Epic 4 retro item 22): the relatório's own text, edited in the section text
+  // editor (`config.section_text_edited`); no mock covers an edited section row.
+  textEdited: 'texto editado',
   // authored: rows whose epic has not landed.
   pendingEpic: 'disponível em uma próxima etapa',
 } as const;
@@ -150,6 +155,7 @@ function metaOfSection(block: BlockRow, issues: readonly PreIssueRow[], computed
   if (own.length > 0) return join(own);
   if (kind === 'setup') return META.setup;
   if (kind === 'text') {
+    if (sectionTextEdited(block.config)) return META.textEdited;
     const config = block.config as { section_text?: unknown } | null;
     return typeof config?.section_text === 'string' ? META.textFromTemplate : META.textDefault;
   }
@@ -295,7 +301,7 @@ export function relatorioTitle(project: Pick<ProjectRow, 'name' | 'site'> | null
 
 /** `.sheet-title`: "⟨cliente⟩ · ⟨site⟩". */
 export function sumarioTitle(client: { name: string } | null, project: Pick<ProjectRow, 'name' | 'site'> | null): string {
-  return join([client?.name ?? null, project?.site ?? project?.name ?? null]) || relatorioTitle(project);
+  return join([client?.name ?? null, project === null ? null : projectLabel(project)]) || relatorioTitle(project);
 }
 
 /** `.sheet-meta` after the status pill: "06–08/09/2026 · template ⟨nome⟩ · responsável ⟨nome⟩", the parts that exist. */
@@ -367,6 +373,36 @@ export function newRelatorioReason(input: { templateId: string | null; start: st
   if (input.start === null || input.start === '') return 'Criar relatório: falta a data de início';
   if (endBeforeStart(input.start, input.end)) return 'Criar relatório: o fim é anterior ao início';
   return null;
+}
+
+/**
+ * Epic 4 retro item 17: whether this device holds enough of the obra's equipment to create
+ * another relatório of it. A new relatório reuses the obra's equipment by base TAG and type
+ * (Epic 4 QA Q4), so creating one from a device that never pulled an earlier relatório of
+ * the obra would mint a second row for every TAG, and the sync would report each as "TAG
+ * duplicada". Ready when the company summary lists no relatório of the project this device
+ * does not hold (a first relatório, or every earlier one is here), or when the project's own
+ * stream (`project:{id}`) or the stream of a held relatório of the project was downloaded
+ * (either carries every project-scope op of the obra).
+ */
+export function newRelatorioEquipmentReady(input: {
+  projectId: string;
+  summaries: readonly Pick<RelatorioSummary, 'id' | 'project_id'>[];
+  heldRelatorioIds: ReadonlySet<string> | readonly string[];
+  downloadedStreamIds: ReadonlySet<string> | readonly string[];
+}): boolean {
+  const held = new Set(input.heldRelatorioIds);
+  const downloaded = new Set(input.downloadedStreamIds);
+  const ofProject = input.summaries.filter((row) => row.project_id === input.projectId).map((row) => row.id);
+  if (ofProject.every((id) => held.has(id))) return true;
+  if (downloaded.has(projectStreamId(input.projectId))) return true;
+  return ofProject.some((id) => held.has(id) && downloaded.has(id));
+}
+
+/** "Criar relatório"'s refusal while `newRelatorioEquipmentReady` is false. */
+export function newRelatorioEquipmentReason(): string {
+  // authored: no mock covers a device that holds too little of the obra to create offline.
+  return 'Criar relatório: conecte-se para baixar os equipamentos desta obra';
 }
 
 /** The template the project's newest relatório was created from, or null. */

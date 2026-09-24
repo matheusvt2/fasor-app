@@ -12,6 +12,7 @@ import { applyPulled } from '../../db/sync-store.ts';
 import { newId } from '../../ids.ts';
 import type { SessionState } from '../../state/session.tsx';
 import { SyncContext, type SyncState } from '../../state/sync.tsx';
+import { makeSyncState, type SyncStateOverrides } from '../../test/sync-state.ts';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
 import { SyncRequestError } from '../../sync/client.ts';
 import { ExportDialog } from './export-dialog.tsx';
@@ -69,35 +70,8 @@ async function freshDb(): Promise<AppDatabase> {
   return fresh;
 }
 
-type Overrides = Partial<Omit<SyncState, 'counts'>> & { counts?: Partial<SyncState['counts']> };
-
-function syncState(over: Overrides = {}): SyncState {
-  const counts = { pending: 0, sent: 0, dead: 0, sheets_pending: 0, photos_pending: 0, ...over.counts };
-  return {
-    badgeState: 'ok',
-    pendingText: '',
-    pendingCount: 0,
-    online: true,
-    running: false,
-    outdated: false,
-    lastResult: 'ran',
-    lastFailure: null,
-    unreachable: null,
-    lastSyncAt: null,
-    lastPushAt: [],
-    supersededCount: 0,
-    deviceId: 'tablet-1',
-    userNames: { [USER]: 'Bento Braga' },
-    summaryRelatorios: [],
-    syncNow: vi.fn(async () => 'ran' as const),
-    syncRelatorio: vi.fn(async () => 'ran' as const),
-    resendDead: vi.fn(async () => {}),
-    fetchFile: vi.fn(async () => new Blob()),
-    generate: vi.fn(async () => ({ outcome: 'queued' as const, job_id: JOB_ID, revision_number: 1 })),
-    ...over,
-    counts,
-  };
-}
+const syncState = (over: SyncStateOverrides = {}): SyncState =>
+  makeSyncState({ userNames: { [USER]: 'Bento Braga' }, generate: vi.fn(async () => ({ outcome: 'queued' as const, job_id: JOB_ID, revision_number: 1 })), ...over });
 
 function Harness({ sync, open = true }: { sync: SyncState; open?: boolean }) {
   return (
@@ -317,6 +291,47 @@ describe('Export dialog (Story 4.8)', () => {
     await waitFor(() => expect(within(modal).getByText('Gera o DOCX e o PDF juntos, a partir dos dados do app, como a revisão 2. Precisa de conexão.')).toBeInTheDocument());
   });
 
+  it('E4 retro item 19: an edit made while the job runs keeps the relatório Em revisão; revision 1 is ready and the idle line names revision 2', async () => {
+    database = await freshDb();
+    render(<Harness sync={syncState()} />);
+    await userEvent.click(generateButton());
+    await waitFor(() => expect(within(dialog()).getByRole('status')).toHaveTextContent('Gerando revisão 1…'));
+    await waitFor(async () => expect(await statusOps(database!)).toEqual(['em_revisao']));
+
+    // The revision's snapshot is cut now; a setup edit lands after it, before the revision arrives.
+    const { op } = revisionOf(1);
+    await act(async () => {
+      await commitBatch(
+        database!,
+        [
+          {
+            kind: 'put',
+            scope: 'relatorio',
+            company_id: COMPANY,
+            project_id: null,
+            relatorio_id: REL,
+            path: 'relatorio/setup/local',
+            value: 'Local editado durante a geração',
+            prev_op_id: null,
+            batch_id: null,
+            meta: null,
+            actor_id: USER,
+          },
+        ],
+        { newId, now: () => new Date() },
+      );
+      await applyPulled(database!, [...jobOps('done'), op]);
+    });
+
+    const modal = dialog();
+    await waitFor(() => expect(within(modal).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeInTheDocument());
+    // No `issue` op: the revision lacks the edit.
+    await waitFor(() => expect(modal.querySelector('.row-wrap .status-pill')).toHaveTextContent('Em revisão'));
+    expect(await statusOps(database!)).toEqual(['em_revisao']);
+    await userEvent.click(within(modal).getByRole('button', { name: 'Gerar de novo' }));
+    await waitFor(() => expect(within(modal).getByText('Gera o DOCX e o PDF juntos, a partir dos dados do app, como a revisão 2. Precisa de conexão.')).toBeInTheDocument());
+  });
+
   /** Revision 1 generated and pulled, then "Gerar de novo": the idle line names revision 1. */
   async function afterRevisionOne(): Promise<HTMLElement> {
     database = await freshDb();
@@ -421,7 +436,7 @@ describe('Export dialog (Story 4.8)', () => {
     await waitFor(async () => expect(await readGenerateAwaiting(database!, REL)).toBeNull());
   });
 
-  it('answers "unchanged" with the existing revision, no op and no toast', async () => {
+  it('E4 retro item 20 (was: no op): "unchanged" answers the existing revision with no toast, and an Em campo relatório takes generate then issue, Emitido', async () => {
     database = await freshDb();
     const { row, op } = revisionOf(1);
     await applyPulled(database, [...jobOps('done'), op]);
@@ -432,7 +447,10 @@ describe('Export dialog (Story 4.8)', () => {
     const modal = dialog();
     await waitFor(() => expect(within(modal).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeInTheDocument());
     expect(screen.queryByTestId('toast')).toBeNull();
-    expect(await statusOps(database!)).toEqual([]);
+    // The fixture is Em campo (moved back past Em revisão after an issue): the same table
+    // path as an arrived revision, Em campo --generate--> Em revisão --issue--> Emitido.
+    await waitFor(async () => expect(await statusOps(database!)).toEqual(['em_revisao', 'emitido']));
+    await waitFor(() => expect(modal.querySelector('.row-wrap .status-pill')).toHaveTextContent('Emitido'));
     expect(modal.querySelectorAll('.revision-row')).toHaveLength(1);
   });
 

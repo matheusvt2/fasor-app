@@ -1,42 +1,21 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { SyncContext, type SyncState } from '../../state/sync.tsx';
+import { makeSyncState, type SyncStateOverrides } from '../../test/sync-state.ts';
 import { SyncStatusSurface } from './sync-status-surface.tsx';
 
-type Overrides = Partial<Omit<SyncState, 'counts'>> & { counts?: Partial<SyncState['counts']> };
-
-function state(over: Overrides = {}): SyncState {
-  const counts = { pending: 0, sent: 0, dead: 0, sheets_pending: 0, photos_pending: 0, ...over.counts };
-  return {
-    badgeState: 'ok',
-    pendingText: '',
-    pendingCount: 0,
-    online: true,
-    running: false,
-    outdated: false,
-    lastResult: 'ran',
-    lastFailure: null,
-    unreachable: null,
+const state = (over: SyncStateOverrides = {}): SyncState =>
+  makeSyncState({
     lastSyncAt: '2026-09-07T17:35:00.000Z',
     lastPushAt: [
       { user_id: 'u-bruno', device_id: 'tablet-1', at: '2026-09-07T17:32:00.000Z' },
       { user_id: 'u-eduardo', device_id: 'phone-2', at: '2026-09-06T21:10:00.000Z' },
     ],
-    supersededCount: 0,
-    deviceId: 'tablet-1',
     userNames: { 'u-bruno': 'Bruno' },
-    summaryRelatorios: [],
-    syncNow: vi.fn(async () => 'ran' as const),
-    syncRelatorio: vi.fn(async () => 'ran' as const),
-    resendDead: vi.fn(async () => {}),
-    fetchFile: vi.fn(async () => new Blob()),
-    generate: vi.fn(async () => ({ outcome: 'queued' as const, job_id: '019966b0-0000-7000-8000-0000000000e1', revision_number: 1 })),
     ...over,
-    counts,
-  };
-}
+  });
 
 const renderWith = (value: SyncState) =>
   render(

@@ -2,9 +2,12 @@ import {
   advanceOnEdit,
   applyOp,
   coalesce,
+  inRelatorioStream,
   invertBatch,
   makeOp,
+  putRelatorioStatusOp,
   readPath,
+  referencedEquipmentIds,
   rowIndexColumns,
   rowRemovedAt,
   splitEntityKey,
@@ -18,6 +21,7 @@ import {
   type OpDraft,
   type RelatorioRow,
 } from '@app/domain';
+import { blockRowsOf, relatoriosOfProject } from './home-store.ts';
 import { targetKeysOf, type AppDatabase, type EntityRecord, type OutboxRow } from './schema.ts';
 import { newId as mintId } from '../ids.ts';
 import { deviceId } from './device-id.ts';
@@ -160,13 +164,24 @@ async function buildBatch(
   // AD-22: append the Emitido→Em revisão transition once per relatório this batch touches
   // (`advanceOnEdit`), computed here and nowhere else -- the one place every relatório-scoped
   // write path (setup fields, the Sumário's reorders, the tree, sheets) gets covered without
-  // any surface deciding a status transition of its own (AD-1, AD-13).
+  // any surface deciding a status transition of its own (AD-1, AD-13). A project-scope
+  // equipment op (a TAG rename, Epic 4 retro Q15) also touches every relatório of this device
+  // whose live blocks reference that equipment: the kernel's stream rule (`inRelatorioStream`)
+  // says which, the same one the generate barrier reads.
   const byRelatorio = new Map<string, Op[]>();
-  for (const op of built) {
-    if (op.relatorio_id == null) continue;
-    const list = byRelatorio.get(op.relatorio_id);
+  const touch = (relatorioId: string, op: Op) => {
+    const list = byRelatorio.get(relatorioId);
     if (list) list.push(op);
-    else byRelatorio.set(op.relatorio_id, [op]);
+    else byRelatorio.set(relatorioId, [op]);
+  };
+  for (const op of built) if (op.relatorio_id != null) touch(op.relatorio_id, op);
+  // Only equipment lives in project scope (AD-5), so the scan runs only for a batch that writes one.
+  const equipmentOps = built.filter((op) => op.scope === 'project' && op.project_id != null);
+  for (const projectId of new Set(equipmentOps.map((op) => op.project_id!))) {
+    for (const relatorio of await relatoriosOfProject(db, projectId)) {
+      const stream = { relatorioId: relatorio.id, equipmentIds: referencedEquipmentIds(await blockRowsOf(db, relatorio.id)) };
+      for (const op of equipmentOps) if (op.project_id === projectId && inRelatorioStream(op, stream)) touch(relatorio.id, op);
+    }
   }
   for (const [relatorioId, relatorioOps] of byRelatorio) {
     if (relatorioOps.some((op) => op.path === 'relatorio/status')) continue;
@@ -176,25 +191,8 @@ async function buildBatch(
     const next = advanceOnEdit(row.status, relatorioOps);
     if (next === null) continue;
     const trigger = relatorioOps[0]!;
-    built.push(
-      makeOp(
-        {
-          kind: 'put',
-          scope: 'relatorio',
-          company_id: trigger.company_id,
-          project_id: null,
-          relatorio_id: relatorioId,
-          device_id,
-          prev_op_id: null,
-          batch_id,
-          meta: null,
-          actor_id: trigger.actor_id,
-          path: 'relatorio/status',
-          value: next,
-        },
-        { newId: deps.newId, now },
-      ),
-    );
+    const draft = putRelatorioStatusOp({ id: trigger.actor_id, companyId: trigger.company_id }, relatorioId, next);
+    built.push(makeOp({ ...draft, device_id, batch_id }, { newId: deps.newId, now }));
   }
 
   const ops: Op[] = [];

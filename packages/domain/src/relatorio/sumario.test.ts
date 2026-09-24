@@ -17,6 +17,8 @@ import {
   fixedRowNote,
   generateReason,
   lastTemplateUsed,
+  newRelatorioEquipmentReady,
+  newRelatorioEquipmentReason,
   newRelatorioReason,
   numberedSiblings,
   projectLabel,
@@ -112,6 +114,15 @@ describe('4.3-UNIT sumarioRows', () => {
     expect(rows.every((r) => !r.blocking)).toBe(true);
     expect(rows.filter((r) => r.pending).map((r) => r.rowKey)).toEqual(['capa', 'section_9']);
     expect(generateReason(rows)).toBe('Nada impede gerar.');
+  });
+
+  it('E4 retro item 22: an edited section reads "texto editado"; the template text alone reads "texto do template"', () => {
+    const section2 = snapshot.blocks.find((b) => b.block_type === 'section_2')!;
+    const withConfig = (config: unknown) => ({ ...snapshot, blocks: snapshot.blocks.map((b) => (b.id === section2.id ? { ...b, config: config as never } : b)) });
+    const metaOf = (s: RelatorioSnapshot) => rowsOf(s).find((r) => r.rowKey === 'section_2')!.meta;
+    expect(metaOf(withConfig({ ...(section2.config as object), section_text: 'do template' }))).toBe('texto do template');
+    expect(metaOf(withConfig({ ...(section2.config as object), section_text: 'editado', section_text_edited: true }))).toBe('texto editado');
+    expect(metaOf(withConfig({ ...(section2.config as object), section_text: null, section_text_edited: false }))).toBe('texto padrão');
   });
 
   it('numbers by position after a removal and a move', () => {
@@ -278,6 +289,37 @@ describe('4.1-UNIT project and relatório texts', () => {
     expect(newRelatorioReason({ templateId: 't', start: '2026-09-06', end: '2026-09-05' })).toBe('Criar relatório: o fim é anterior ao início');
     expect(newRelatorioReason({ templateId: 't', start: '2026-09-06', end: '2026-09-06' })).toBeNull();
     expect(newRelatorioReason({ templateId: 't', start: '2026-09-06', end: null })).toBeNull();
+  });
+
+  describe('E4 retro item 17: newRelatorioEquipmentReady', () => {
+    const P = TEST_PROJECT;
+    const OTHER_P = '019966b0-0058-7000-8000-0000000000a1';
+    const R1 = '019966b0-0058-7000-8000-0000000000b1';
+    const R2 = '019966b0-0058-7000-8000-0000000000b2';
+    const summaries = [
+      { id: R1, project_id: P },
+      { id: R2, project_id: OTHER_P },
+    ];
+
+    it('a first relatório of the obra (the summary lists none of it) is ready, offline or with no summary', () => {
+      expect(newRelatorioEquipmentReady({ projectId: P, summaries: [], heldRelatorioIds: [], downloadedStreamIds: [] })).toBe(true);
+      expect(newRelatorioEquipmentReady({ projectId: P, summaries: [{ id: R2, project_id: OTHER_P }], heldRelatorioIds: [], downloadedStreamIds: [] })).toBe(true);
+    });
+
+    it('a relatório of the obra this device never pulled makes it not ready', () => {
+      expect(newRelatorioEquipmentReady({ projectId: P, summaries, heldRelatorioIds: [], downloadedStreamIds: ['company'] })).toBe(false);
+      expect(newRelatorioEquipmentReason()).toBe('Criar relatório: conecte-se para baixar os equipamentos desta obra');
+    });
+
+    it('ready once every relatório of the obra is held, or the project stream or a held relatório stream of it was downloaded', () => {
+      expect(newRelatorioEquipmentReady({ projectId: P, summaries, heldRelatorioIds: [R1], downloadedStreamIds: [] })).toBe(true);
+      expect(newRelatorioEquipmentReady({ projectId: P, summaries, heldRelatorioIds: [], downloadedStreamIds: [`project:${P}`] })).toBe(true);
+      expect(newRelatorioEquipmentReady({ projectId: P, summaries, heldRelatorioIds: [], downloadedStreamIds: [`project:${OTHER_P}`] })).toBe(false);
+      const R3 = '019966b0-0058-7000-8000-0000000000b3';
+      const two = [...summaries, { id: R3, project_id: P }];
+      expect(newRelatorioEquipmentReady({ projectId: P, summaries: two, heldRelatorioIds: [R3], downloadedStreamIds: [R3] })).toBe(true);
+      expect(newRelatorioEquipmentReady({ projectId: P, summaries: two, heldRelatorioIds: [R3], downloadedStreamIds: [] })).toBe(false);
+    });
   });
 
   it('picks the default template: last used, else the only pickable one, else null', () => {

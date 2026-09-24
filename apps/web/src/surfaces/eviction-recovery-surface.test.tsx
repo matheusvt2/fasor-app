@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { SessionState } from '../state/session.tsx';
 import { SyncContext, type SyncState } from '../state/sync.tsx';
+import { makeSyncState } from '../test/sync-state.ts';
 import { EvictionRecoverySurface } from './eviction-recovery-surface.tsx';
 
 /*
@@ -29,32 +30,7 @@ const sessionState: SessionState = {
 
 vi.mock('../state/session.tsx', () => ({ useSession: () => sessionState }));
 
-function syncState(over: Partial<SyncState> = {}): SyncState {
-  return {
-    counts: { pending: 0, sent: 0, dead: 0, sheets_pending: 0, photos_pending: 0 },
-    badgeState: 'ok',
-    pendingText: '',
-    pendingCount: 0,
-    online: true,
-    running: false,
-    outdated: false,
-    lastResult: null,
-    lastFailure: null,
-    unreachable: null,
-    lastSyncAt: null,
-    lastPushAt: [],
-    supersededCount: 0,
-    deviceId: 'tablet-1',
-    userNames: {},
-    summaryRelatorios: [],
-    syncNow: vi.fn(async () => 'ran' as const),
-    syncRelatorio: vi.fn(async () => 'ran' as const),
-    resendDead: vi.fn(async () => {}),
-    fetchFile: vi.fn(async () => new Blob()),
-    generate: vi.fn(async () => ({ outcome: 'queued' as const, job_id: '019966b0-0000-7000-8000-0000000000e1', revision_number: 1 })),
-    ...over,
-  };
-}
+const syncState = (over: Partial<SyncState> = {}): SyncState => makeSyncState({ lastResult: null, ...over });
 
 const summary = (n: number) =>
   Array.from({ length: n }, (_, i) => ({

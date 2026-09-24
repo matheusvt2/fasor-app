@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { defaultExclusions, section3Text, sectionVariables } from './section-variables.ts';
+import {
+  defaultExclusions,
+  editedSectionTextConfig,
+  printedExclusions,
+  restoredSectionTextConfig,
+  section3Blocks,
+  section3Text,
+  sectionTextEdited,
+  sectionVariables,
+  withoutExclusion,
+} from './section-variables.ts';
 
 const TODAY = '2026-09-24';
 
@@ -115,5 +125,33 @@ describe('4.2-UNIT section3Text / defaultExclusions', () => {
 
   it('round-trips: section3Text with defaultExclusions flattens identically to null', () => {
     expect(section3Text('v1', TODAY, defaultExclusions('v1', TODAY))).toBe(section3Text('v1', TODAY, null));
+  });
+
+  it('E4 retro item 24: a blank or whitespace-only exclusion never prints, the filled one does', () => {
+    expect(printedExclusions(['A', '  ', ''])).toEqual(['A']);
+    const items = section3Blocks('v1', TODAY, ['A', '  ', '']).filter((block) => block.kind === 'item');
+    expect(items).toEqual([{ kind: 'item', text: 'A' }]);
+    expect(section3Text('v1', TODAY, ['A', '  ', ''])).toBe(section3Text('v1', TODAY, ['A']));
+  });
+
+  it('E4 retro item 24: withoutExclusion drops the entry at the index and keeps the order', () => {
+    expect(withoutExclusion(['A', 'B', 'C'], 1)).toEqual(['A', 'C']);
+    expect(withoutExclusion(['A'], 0)).toEqual([]);
+  });
+});
+
+describe('E4 retro item 22: the section text edited marker', () => {
+  it('an edit writes the text with the marker, keeping the rest of the config', () => {
+    const config = { block_type: 'section_2', sub_blocks: {}, na_defaults: [], section_text: null };
+    const edited = editedSectionTextConfig(config, 'Texto novo');
+    expect(edited).toEqual({ ...config, section_text: 'Texto novo', section_text_edited: true });
+    expect(sectionTextEdited(edited)).toBe(true);
+  });
+
+  it('a restore clears both the text and the marker', () => {
+    const restored = restoredSectionTextConfig({ block_type: 'section_2', section_text: 'x', section_text_edited: true });
+    expect(restored).toEqual({ block_type: 'section_2', section_text: null, section_text_edited: false });
+    expect(sectionTextEdited(restored)).toBe(false);
+    expect(sectionTextEdited(null)).toBe(false);
   });
 });

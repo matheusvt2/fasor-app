@@ -10,6 +10,7 @@ import { openDatabase } from '../../db/schema.ts';
 import { ThemeProvider } from '../../state/theme.tsx';
 import type { SessionState } from '../../state/session.tsx';
 import { SyncContext, type SyncState } from '../../state/sync.tsx';
+import { makeSyncState } from '../../test/sync-state.ts';
 import { AccountSurface } from './account-surface.tsx';
 
 /*
@@ -47,31 +48,13 @@ let session: SessionState = signedIn;
 
 vi.mock('../../state/session.tsx', () => ({ useSession: () => session }));
 
-function syncState(pendingText: string, pendingCount: number): SyncState {
-  return {
-    counts: { pending: pendingCount, sent: 0, dead: 0, sheets_pending: pendingCount, photos_pending: 0 },
+const syncState = (pendingText: string, pendingCount: number): SyncState =>
+  makeSyncState({
+    counts: { pending: pendingCount, sheets_pending: pendingCount },
     badgeState: pendingCount > 0 ? 'pending' : 'ok',
     pendingText,
     pendingCount,
-    online: true,
-    running: false,
-    outdated: false,
-    lastResult: 'ran',
-    lastFailure: null,
-    unreachable: null,
-    lastSyncAt: null,
-    lastPushAt: [],
-    supersededCount: 0,
-    deviceId: 'tablet-1',
-    userNames: {},
-    summaryRelatorios: [],
-    syncNow: vi.fn(async () => 'ran' as const),
-    syncRelatorio: vi.fn(async () => 'ran' as const),
-    resendDead: vi.fn(async () => {}),
-    fetchFile: vi.fn(async () => new Blob()),
-    generate: vi.fn(async () => ({ outcome: 'queued' as const, job_id: '019966b0-0000-7000-8000-0000000000e1', revision_number: 1 })),
-  };
-}
+  });
 
 const renderAccount = (sync: SyncState) =>
   render(

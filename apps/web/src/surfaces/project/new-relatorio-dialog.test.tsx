@@ -9,6 +9,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { toRecord } from '../../db/commit.ts';
 import { openDatabase, type AppDatabase } from '../../db/schema.ts';
 import type { SessionState } from '../../state/session.tsx';
+import type { SyncState } from '../../state/sync.tsx';
+import { makeSyncState } from '../../test/sync-state.ts';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
 import { NewRelatorioDialog } from './new-relatorio-dialog.tsx';
 
@@ -43,6 +45,9 @@ const session = (): SessionState => ({
 });
 
 vi.mock('../../state/session.tsx', () => ({ useSession: () => session() }));
+
+let sync: SyncState = makeSyncState();
+vi.mock('../../state/sync.tsx', () => ({ useSync: () => sync }));
 
 configure({ asyncUtilTimeout: 5000 });
 
@@ -88,6 +93,7 @@ async function typeDate(label: string, digits: string) {
 afterEach(() => {
   database?.close();
   database = null;
+  sync = makeSyncState();
   registration = { council: null, registrationNumber: null };
 });
 
@@ -197,5 +203,62 @@ describe('4.1 NewRelatorioDialog', () => {
     expect(tags).toContain('SEC-C05-2');
     expect(tags).not.toContain('SEC-C05');
     expect(tags.filter((tag) => tag.startsWith('SEC-C05'))).toEqual(['SEC-C05-2']);
+  });
+
+  describe('E4 retro item 17: another relatório of the obra this device never pulled', () => {
+    const OTHER = '019966b0-0060-7000-8000-000000000009';
+    const summary = { id: OTHER, project_id: PROJECT, status: 'emitido' as const, template_id: TEMPLATE, seed_version: 'v1', updated_seq: 9 };
+    const EQUIPMENT = '019966b0-0060-7000-8000-000000000004';
+    const pulled: EquipmentRow = { id: EQUIPMENT, project_id: PROJECT, tag: 'SEC-C05', type: 'chave_seccionadora', last_nameplate: null, removed_at: null };
+
+    async function deviceThatNeverPulledIt(): Promise<AppDatabase> {
+      const db = await freshDb();
+      await db.entities.put(toRecord(`template:${TEMPLATE}`, template()));
+      await db.sync_state.put({ id: 'company', cursor_seq: 9, complete: true, files_pending: 0, downloaded_at: '2026-09-24T10:00:00.000Z', last_sync_at: null, last_push_at: [], relatorios: [summary] });
+      return db;
+    }
+
+    it('offline: "Criar relatório" gives the kernel reason and nothing is written', async () => {
+      database = await deviceThatNeverPulledIt();
+      sync = makeSyncState({ online: false });
+      renderDialog();
+      await typeDate('Início da parada', '06092026');
+      await waitFor(() => expect(create()).toHaveAccessibleDescription('Criar relatório: conecte-se para baixar os equipamentos desta obra'));
+      expect(create()).toHaveAttribute('aria-disabled', 'true');
+      await userEvent.click(create());
+      expect(screen.queryByTestId('setup-route')).toBeNull();
+      expect(await database.outbox.count()).toBe(0);
+    });
+
+    it('online: the project stream is pulled first and its equipment is reused (no suffixed TAG)', async () => {
+      database = await deviceThatNeverPulledIt();
+      const db = database;
+      const syncProject = vi.fn(async (projectId: string) => {
+        // What the engine's pull leaves on the device: the obra's equipment and the downloaded stream.
+        await db.entities.put(toRecord(`equipment:${EQUIPMENT}`, pulled));
+        await db.sync_state.put({ id: `project:${projectId}`, cursor_seq: 9, complete: true, files_pending: 0, downloaded_at: '2026-09-24T10:01:00.000Z', last_sync_at: null, last_push_at: [] });
+        return 'ran' as const;
+      });
+      sync = makeSyncState({ syncProject });
+      renderDialog();
+      await typeDate('Início da parada', '06092026');
+      await userEvent.click(create());
+      await screen.findByTestId('setup-route');
+      expect(syncProject).toHaveBeenCalledWith(PROJECT);
+      const tags = (await db.outbox.toArray()).filter((op) => op.path.startsWith('equipment/')).map((op) => (op.value as { tag: string }).tag);
+      expect(tags).toHaveLength(93);
+      expect(tags.filter((tag) => tag.startsWith('SEC-C05'))).toEqual([]);
+    });
+
+    it('online with a failed pull: refused with the same reason, nothing written', async () => {
+      database = await deviceThatNeverPulledIt();
+      sync = makeSyncState({ syncProject: vi.fn(async () => 'ran' as const) });
+      renderDialog();
+      await typeDate('Início da parada', '06092026');
+      await userEvent.click(create());
+      expect(await screen.findByText('Criar relatório: conecte-se para baixar os equipamentos desta obra')).toBeInTheDocument();
+      expect(screen.queryByTestId('setup-route')).toBeNull();
+      expect(await database.outbox.count()).toBe(0);
+    });
   });
 });

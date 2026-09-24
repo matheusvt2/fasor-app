@@ -41,6 +41,17 @@ const session = (): SessionState => ({
 
 vi.mock('../../state/session.tsx', () => ({ useSession: () => session() }));
 
+/** Epic 4 retro item 21: a write the device refuses, for the next `commitBatch` calls while set. */
+const refuse = vi.hoisted(() => ({ writes: false }));
+vi.mock('../../db/commit.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../db/commit.ts')>();
+  return {
+    ...actual,
+    commitBatch: (...args: Parameters<typeof actual.commitBatch>) =>
+      refuse.writes ? Promise.reject(Object.assign(new Error('refused'), { name: 'UnknownError' })) : actual.commitBatch(...args),
+  };
+});
+
 async function freshDb(): Promise<AppDatabase> {
   const user = `019966c1-0010-7000-8000-${(++counter).toString(16).padStart(12, '0')}`;
   const db = openDatabase(user);
@@ -89,6 +100,7 @@ function tree(id: string, blockId: string) {
 afterEach(() => {
   database?.close();
   database = null;
+  refuse.writes = false;
 });
 
 describe('4.7 SectionTextSurface', () => {
@@ -149,6 +161,54 @@ describe('4.7 SectionTextSurface', () => {
     });
     // E3-A8: the toast that carried "Desfazer" closes; focus does not fall to <body>.
     expect(screen.getByRole('textbox', { name: 'Texto da seção' })).toHaveFocus();
+  });
+
+  it('E4 retro item 22: an edit writes the edited marker beside the text; "Restaurar" clears it', async () => {
+    const seed = await seeded();
+    database = seed.db;
+    render(tree(RELATORIO, seed.section2.id));
+    const area = await screen.findByRole('textbox', { name: 'Texto da seção' });
+    area.focus();
+    await userEvent.type(area, ' Nota.');
+    await userEvent.tab();
+    const configOf = async () => ((await database!.entities.get(['block', seed.section2.id]))!.row as BlockRow).config as { section_text?: unknown; section_text_edited?: unknown };
+    await waitFor(async () => expect((await configOf()).section_text_edited).toBe(true));
+    await userEvent.click(screen.getByRole('button', { name: 'Restaurar texto do template' }));
+    await waitFor(async () => expect(await configOf()).toMatchObject({ section_text: null, section_text_edited: false }));
+  });
+
+  it('E4 retro item 21: a refused autosave is toasted, not swallowed', async () => {
+    const seed = await seeded();
+    database = seed.db;
+    render(tree(RELATORIO, seed.section2.id));
+    const area = await screen.findByRole('textbox', { name: 'Texto da seção' });
+    refuse.writes = true;
+    area.focus();
+    await userEvent.type(area, ' Nota.');
+    await userEvent.tab();
+    expect(await screen.findByText('Não foi possível salvar. Tente de novo.')).toBeVisible();
+    const row = await database.entities.get(['block', seed.section2.id]);
+    expect(((row!.row as BlockRow).config as { section_text?: unknown }).section_text ?? null).toBeNull();
+  });
+
+  it('E4 retro item 21: typing after "Restaurar" retires its "Desfazer", so no undo can overwrite the newer text', async () => {
+    const seed = await seeded();
+    database = seed.db;
+    await database.entities.put(
+      toRecord(`block:${seed.section2.id}`, { ...seed.section2, config: { ...(seed.section2.config as object), section_text: 'Texto próprio deste relatório.' } } as never),
+    );
+    render(tree(RELATORIO, seed.section2.id));
+    await userEvent.click(await screen.findByRole('button', { name: 'Restaurar texto do template' }));
+    expect(await screen.findByText('Texto do template restaurado nesta seção')).toBeVisible();
+    const area = screen.getByRole('textbox', { name: 'Texto da seção' });
+    area.focus();
+    await userEvent.type(area, ' Mais.');
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Desfazer' })).toBeNull());
+    await userEvent.tab();
+    await waitFor(async () => {
+      const row = await database!.entities.get(['block', seed.section2.id]);
+      expect(((row!.row as BlockRow).config as { section_text: string }).section_text).toContain('Mais.');
+    });
   });
 
   it('shows the not-found copy for a stale link naming a non-editable block type', async () => {

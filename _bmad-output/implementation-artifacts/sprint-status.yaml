@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 09-24-2026 13:08
+last_updated: 09-24-2026 18:00
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -355,14 +355,14 @@ action_items:
       snapshot_seq, issue on unchanged, setup asks statusTable(status); add a @p0
       generate-edit-regenerate e2e (before Epic 5)"
     owner: "dev (opus)"
-    status: open
+    status: done  # PR #29, bc20c98 (item 23 and Q15 product choice stay open questions)
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
   - id: "epic-4-retro-item-29-e4-a2-q4-across-devices-pull-the-project"
     epic: 4
     action: "E4-A2 Q4 across devices: pull the project equipment before Criar relatorio
       (or refuse offline) so reuse never mints duplicates; add a two-device test"
     owner: "dev"
-    status: open
+    status: done  # PR #29, bc20c98 (item 23 and Q15 product choice stay open questions)
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
   - id: "epic-4-retro-item-30-e4-a3-section-text-and-exclusions-one-sh"
     epic: 4
@@ -370,14 +370,14 @@ action_items:
       (stale Desfazer, swallowed errors), Sumario meta for an edited text, blank exclusions
       filtered and removable, decide template section 3 vs setup exclusions"
     owner: "dev"
-    status: open
+    status: done  # PR #29, bc20c98 (item 23 and Q15 product choice stay open questions)
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
   - id: "epic-4-retro-item-31-e4-a4-small-fixes-one-putrelatoriostatus"
     epic: 4
     action: "E4-A4 Small fixes: one putRelatorioStatusOp/putBlockOp for every write,
       web uses the kernel projectLabel, drop the stale ART comment in document-control.ts"
     owner: "dev"
-    status: open
+    status: done  # PR #29, bc20c98 (item 23 and Q15 product choice stay open questions)
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
   - id: "epic-4-retro-item-32-e4-a5-spec-reconciliation-dated-narrowin"
     epic: 4

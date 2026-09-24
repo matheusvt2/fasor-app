@@ -61,7 +61,12 @@ describe('sync client requests', () => {
     const client = createSyncClient({ fetch });
     expect(await client.pullCompany(41)).toEqual(contractExamples.pullResponse.valid);
     expect(await client.pullRelatorio('abc', 7)).toEqual(contractExamples.pullResponse.valid);
-    expect(calls.map((c) => c.input)).toEqual([`${SYNC_ROUTES.pullCompany.path}?since=41`, `${SYNC_ROUTES.pullRelatorio('abc').path}?since=7`]);
+    expect(await client.pullProject('def', 3)).toEqual(contractExamples.pullResponse.valid);
+    expect(calls.map((c) => c.input)).toEqual([
+      `${SYNC_ROUTES.pullCompany.path}?since=41`,
+      `${SYNC_ROUTES.pullRelatorio('abc').path}?since=7`,
+      `${SYNC_ROUTES.pullProject('def').path}?since=3`,
+    ]);
     for (const { init } of calls) {
       expect(init.method).toBe('GET');
       expect(init.credentials).toBe('same-origin');

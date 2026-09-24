@@ -4,6 +4,7 @@ import {
   progress,
   progressCounterState,
   projectRelatoriosHeading,
+  projectLabel,
   projectRelatoriosMeta,
   relatoriosOfProject as orderRelatorios,
   relatorioSubText,
@@ -99,7 +100,7 @@ export function ProjectSurface() {
     );
   }
 
-  const site = project.site ?? project.name;
+  const site = projectLabel(project);
   const newButton = (
     <Button onPress={() => setDialogOpen(true)}>
       <svg className="ico" aria-hidden="true">

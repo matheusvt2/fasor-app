@@ -691,6 +691,13 @@ export const copy = {
     addExclusion: 'Adicionar exclusão',
     // authored: the accessible name of one exclusion's typed field.
     exclusionFieldLabel: (n: number) => `Exclusão ${n}`,
+    // Verbatim from `50-relatorio-setup.html`: one exclusion's `.overflow-trigger`.
+    exclusionMenuLabel: (n: number) => `Mais opções da exclusão ${n}`,
+    // authored: the mock marks the exclusion menu "não prototipado"; its one item.
+    removeExclusion: 'Remover',
+    // authored: the toast after "Remover", with "Desfazer".
+    exclusionRemoved: (n: number) => `Exclusão ${n} removida`,
+    undo: 'Desfazer',
     // Etapa 3 — Responsável.
     etapa3Title: 'Etapa 3 — Responsável',
     etapa3Note: 'Seção 10',
