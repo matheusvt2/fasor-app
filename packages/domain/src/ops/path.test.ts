@@ -25,6 +25,7 @@ const EXTRA_PATHS = [
   `user/${ID}/title`,
   `user/${ID}`,
   `generation_job/${ID}/error`,
+  `generation_job/${ID}/result`,
 ];
 
 describe('1.4-UNIT-001 path round trip', () => {

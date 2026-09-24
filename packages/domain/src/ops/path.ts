@@ -40,7 +40,7 @@ export const CONCLUSION_FIELDS = ['result', 'restriction', 'text', 'text_status'
 export const EQUIPMENT_FIELDS = ['tag', 'removed_at'] as const;
 export const FILE_FIELDS = ['caption', 'block_id', 'item_key', 'removed_at'] as const;
 export const FILE_SERVER_FIELDS = ['uploaded_at', 'variants', 'reading_status'] as const;
-export const GENERATION_JOB_FIELDS = ['status', 'error', 'result_file_id'] as const;
+export const GENERATION_JOB_FIELDS = ['status', 'error', 'result_file_id', 'result'] as const;
 
 /** Keys a `{field}` segment may never name: identity, ownership and derived values are set at create. */
 const IMMUTABLE_KEYS = new Set(['id', 'kind', 'company_id', 'relatorio_id', 'project_id', 'origin', 'version', 'seed_version']);

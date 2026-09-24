@@ -12,6 +12,35 @@ import {
   syncPushResponseSchema,
 } from './sync.ts';
 import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, MIN_CONTRACT_VERSION } from './version.ts';
+import { DOCX_MIME, GENERATE_ROUTES, generateRequestSchema, generateResponseSchema, notCaughtUpDetailsSchema } from './generate.ts';
+
+describe('generate contract (Story 4.8)', () => {
+  const id = '019966c1-0000-7000-8000-000000000007';
+
+  it('names the generate barrier and the DOCX download', () => {
+    expect(GENERATE_ROUTES.generate(id)).toEqual({ method: 'POST', path: `/api/relatorios/${id}/generate` });
+    expect(GENERATE_ROUTES.revisionDocx(id)).toEqual({ method: 'GET', path: `/api/revisions/${id}/docx` });
+    expect(DOCX_MIME).toBe('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+  });
+
+  it('types the request: a nullable op id and the expected file ids', () => {
+    expect(generateRequestSchema.safeParse({ last_op_id: null, file_ids_expected: [] }).success).toBe(true);
+    expect(generateRequestSchema.safeParse({ last_op_id: id, file_ids_expected: [id] }).success).toBe(true);
+    expect(generateRequestSchema.safeParse({ last_op_id: 'x', file_ids_expected: [] }).success).toBe(false);
+    expect(generateRequestSchema.safeParse({ file_ids_expected: [] }).success).toBe(false);
+  });
+
+  it('types the three outcomes and the 409 details', () => {
+    expect(generateResponseSchema.safeParse({ outcome: 'queued', job_id: id, revision_number: 1 }).success).toBe(true);
+    expect(generateResponseSchema.safeParse({ outcome: 'running', job_id: id, revision_number: 2 }).success).toBe(true);
+    expect(generateResponseSchema.safeParse({ outcome: 'unchanged', revision_id: id, revision_number: 1 }).success).toBe(true);
+    expect(generateResponseSchema.safeParse({ outcome: 'queued', revision_id: id, revision_number: 1 }).success).toBe(false);
+    expect(generateResponseSchema.safeParse({ outcome: 'done' }).success).toBe(false);
+    expect(notCaughtUpDetailsSchema.safeParse({ missing_op: true, missing_files: [id] }).success).toBe(true);
+    expect(errorCodeSchema.safeParse('not_caught_up').success).toBe(true);
+    expect(errorCodeSchema.safeParse('invalid_request').success).toBe(true);
+  });
+});
 
 describe('contract examples (ADR readiness 1.4)', () => {
   const routes = [

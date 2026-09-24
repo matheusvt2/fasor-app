@@ -12,6 +12,7 @@ import {
   relatorioRowSchema,
   rowRemovedAt,
   suggestionRowSchema,
+  userRowSchema,
   type BlockRow,
   type Entity,
   type EntityRow,
@@ -19,6 +20,7 @@ import {
   type ProjectRow,
   type RegistryRow,
   type RelatorioRow,
+  type UserRow,
 } from './entities.ts';
 
 /*
@@ -44,6 +46,8 @@ export const relatorioSnapshotSchema = z.object({
   files: z.array(snapshotFileSchema),
   points: z.array(pointRowSchema),
   suggestions: z.array(suggestionRowSchema),
+  /** Story 4.8: the `user` row `setup.responsible_user_id` names, for the cover, the document control and section text; null when unset or not in the state. */
+  responsible: userRowSchema.nullable(),
 });
 
 export type RelatorioSnapshot = z.infer<typeof relatorioSnapshotSchema>;
@@ -124,6 +128,9 @@ export function buildSnapshot(state: EntityState, relatorioId: string): Relatori
   const client = pick('client').find((c) => c.id === project?.client_id) ?? null;
   const instruments = pick('instrument').filter((i) => instrumentIds.has(i.id));
 
+  const responsibleId = relatorio.setup.responsible_user_id;
+  const responsible = responsibleId === null ? null : ((state.get(entityKey('user', responsibleId)) as UserRow | undefined) ?? null);
+
   return relatorioSnapshotSchema.parse({
     relatorio,
     project,
@@ -136,6 +143,7 @@ export function buildSnapshot(state: EntityState, relatorioId: string): Relatori
     files,
     points,
     suggestions,
+    responsible,
   });
 }
 

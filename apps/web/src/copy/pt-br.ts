@@ -360,6 +360,34 @@ export const copy = {
       transformador_forca: 'Transformador de força',
     },
   },
+  // Export dialog (`73-exportar.html`, Story 4.8). Every sentence that carries a revision
+  // number is the kernel's (`idleReason`, `generatingText`, `generatingReason`,
+  // `readyTitle`, `readyToast`, `nextEditNote`, `revisionRowSegments`); only the static
+  // words live here. The pre-issue list, the document control summary, "Pré-visualizar",
+  // the share buttons and the PDF row are out of this story's slice.
+  export: {
+    title: 'Gerar relatório',
+    generate: 'Gerar relatório',
+    // The working line's second sentence, verbatim from the mock's `.gen-progress`.
+    canClose: 'pode fechar — o aviso chega quando terminar',
+    failed: 'Não foi possível gerar o relatório. Os dados não foram alterados e nenhuma revisão foi criada.',
+    retry: 'Tentar novamente',
+    openDocx: 'DOCX — abrir no Word',
+    generateAgain: 'Gerar de novo',
+    revisionsLabel: 'Revisões',
+    revisionDocx: 'DOCX',
+    // authored: UX-DR58, the reason while the outbox is drained before the request.
+    flushing: 'Enviando…',
+    // authored: generation needs a connection and says so (EXPERIENCE.md › Export dialog).
+    offlineReason: 'Gerar relatório precisa de conexão. Conecte e tente de novo.',
+    // authored: a dead op can never reach the server, so the barrier would never pass.
+    deadOpsReason: 'Há alterações rejeitadas — resolva em Sincronização antes de gerar.',
+    // authored: the mock always has a revision to list.
+    noRevisions: 'Nenhuma revisão gerada ainda.',
+    // authored: the server answered with a revision this device has not pulled yet; the
+    // download row waits for it (the stream is being asked for).
+    downloadingRevision: 'Baixando a revisão…',
+  },
   // authored: the mocks are static frames and draw no boot state.
   common: {
     back: 'Voltar',

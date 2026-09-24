@@ -1,5 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { formatServiceDates, formatShortDateTime, formatTimeOfDay } from './datetime.ts';
+import { formatDateTime, formatIssueDate, formatServiceDates, formatShortDateTime, formatTimeOfDay } from './datetime.ts';
+
+describe('formatDateTime and formatIssueDate (Story 4.8)', () => {
+  it('render dd/mm/aaaa HH:mm and dd/mm/aaaa in America/Sao_Paulo', () => {
+    expect(formatDateTime('2026-09-10T11:47:00.000Z')).toBe('10/09/2026 08:47');
+    expect(formatDateTime('2026-09-24T01:30:00.000Z')).toBe('23/09/2026 22:30');
+    expect(formatIssueDate('2026-09-24T01:30:00.000Z')).toBe('23/09/2026');
+    expect(formatIssueDate('2026-09-23T12:00:00.000Z')).toBe('23/09/2026');
+  });
+
+  it('return an empty string for garbage', () => {
+    expect(formatDateTime('yesterday')).toBe('');
+    expect(formatIssueDate('')).toBe('');
+  });
+});
 
 describe('formatShortDateTime', () => {
   it('renders dd/mm HH:mm in America/Sao_Paulo', () => {

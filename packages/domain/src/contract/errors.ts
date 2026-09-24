@@ -37,6 +37,11 @@ export const errorCodeSchema = z.enum([
   'file_sha_mismatch',
   'file_too_large',
   'file_kind_invalid',
+  // Story 4.8 generate route: the body is not `{last_op_id, file_ids_expected}`, or the
+  // server has not applied the op or stored a file the device says it should hold yet
+  // (retryable after a sync, AD-15's flush barrier).
+  'invalid_request',
+  'not_caught_up',
   ...opRejectCodeSchema.options,
 ]);
 export type ErrorCode = z.infer<typeof errorCodeSchema>;

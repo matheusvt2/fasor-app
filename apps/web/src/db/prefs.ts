@@ -96,3 +96,30 @@ export async function readRegistryTab(db: AppDatabase): Promise<string | null> {
 export async function writeRegistryTab(db: AppDatabase, tabId: string): Promise<void> {
   await db.local_prefs.put({ key: REGISTRY_TAB_PREF, value: tabId });
 }
+
+/**
+ * Story 4.8, "pode fechar": the generate this device asked for and still waits on, kept
+ * device-locally so a dialog closed, a navigation or a reload does not lose the toast and
+ * the `issue` status op when the revision arrives. Keyed per relatório; cleared once the
+ * dialog has finished with it.
+ */
+export interface GenerateAwaiting {
+  number: number;
+  job_id: string;
+}
+
+const generateAwaitingKey = (relatorioId: string) => `generate_awaiting:${relatorioId}`;
+
+export async function readGenerateAwaiting(db: AppDatabase, relatorioId: string): Promise<GenerateAwaiting | null> {
+  const value = (await db.local_prefs.get(generateAwaitingKey(relatorioId)))?.value as Partial<GenerateAwaiting> | undefined;
+  if (typeof value?.number !== 'number' || typeof value.job_id !== 'string') return null;
+  return { number: value.number, job_id: value.job_id };
+}
+
+export async function writeGenerateAwaiting(db: AppDatabase, relatorioId: string, awaiting: GenerateAwaiting): Promise<void> {
+  await db.local_prefs.put({ key: generateAwaitingKey(relatorioId), value: awaiting });
+}
+
+export async function clearGenerateAwaiting(db: AppDatabase, relatorioId: string): Promise<void> {
+  await db.local_prefs.delete(generateAwaitingKey(relatorioId));
+}

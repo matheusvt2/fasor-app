@@ -5,7 +5,10 @@ import { loadConfigOrExit } from './config.ts';
 import { createDb } from './db/client.ts';
 import { migrate } from './db/migrate.ts';
 import { createApp } from './http/app.ts';
+import { now } from './clock.ts';
+import { newId } from './ids.ts';
 import { probeLibreOffice } from './jobs/generate/libreoffice.ts';
+import { registerGenerateWorker } from './jobs/generate/worker.ts';
 import { startQueue } from './jobs/queue.ts';
 import { log, logError } from './log.ts';
 import { createS3, ensureBucket, probeStorage } from './storage/s3.ts';
@@ -34,6 +37,20 @@ log('migrations applied');
 await withRetry('storage', () => ensureBucket(s3, config.S3_BUCKET));
 const boss = await withRetry('queue', () => startQueue(config.DATABASE_URL));
 
+// AD-15: the generate worker runs in this process (`WORKER=1`, the compose default). The
+// TC-3 fault flag is honoured only outside production.
+if (config.WORKER === '1') {
+  await registerGenerateWorker(boss, {
+    db,
+    s3,
+    bucket: config.S3_BUCKET,
+    now,
+    newId,
+    fault: config.NODE_ENV === 'production' ? undefined : config.GENERATE_FAULT,
+  });
+  log('generate worker registered', { fault: config.NODE_ENV === 'production' ? null : (config.GENERATE_FAULT ?? null) });
+}
+
 const auth = createAuth({
   db,
   secret: config.SESSION_SECRET,
@@ -46,6 +63,7 @@ const app = createApp({
   db,
   s3,
   bucket: config.S3_BUCKET,
+  boss,
   probes: {
     db: () => sql`select 1`,
     queue: () => boss.getQueues(),

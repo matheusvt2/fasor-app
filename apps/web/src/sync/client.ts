@@ -5,11 +5,15 @@ import {
   FILE_ROUTES,
   FILE_SHA256_HEADER,
   filePutResponseSchema,
+  GENERATE_ROUTES,
+  generateResponseSchema,
   SYNC_ROUTES,
   syncPullResponseSchema,
   syncPushResponseSchema,
   type FilePutResponse,
   type FileVariantName,
+  type GenerateRequest,
+  type GenerateResponse,
   type Op,
   type SyncPullResponse,
   type SyncPushResponse,
@@ -66,6 +70,16 @@ export interface SyncClient {
   uploadFile(id: string, blob: Blob, sha256: string): Promise<FilePutResponse>;
   /** AD-7: the only read, asked for by a surface — never by the cycle (AC 2.2-3). */
   fetchFile(id: string, variant: FileVariantName): Promise<Blob>;
+  /**
+   * AD-15: the generate barrier. A `409` comes back as `SyncRequestError` with
+   * `code: 'not_caught_up'`, which the Export dialog answers with a sync and a retry.
+   */
+  generate(relatorioId: string, body: GenerateRequest): Promise<GenerateResponse>;
+}
+
+/** Where the browser opens a revision's DOCX (a new tab; the server answers it as a download). */
+export function revisionDocxUrl(revisionId: string): string {
+  return GENERATE_ROUTES.revisionDocx(revisionId).path;
 }
 
 export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
@@ -171,5 +185,6 @@ export function createSyncClient(deps: { fetch: FetchLike }): SyncClient {
       const response = await send(route.path, route.method, { headers: { accept: '*/*' } });
       return response.blob();
     },
+    generate: (relatorioId, body) => request(GENERATE_ROUTES.generate(relatorioId), generateResponseSchema, undefined, body),
   };
 }

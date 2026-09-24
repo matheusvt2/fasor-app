@@ -24,6 +24,37 @@ export function formatShortDateTime(iso: string): string {
   return shortDateTime.format(new Date(time)).replace(',', '');
 }
 
+const longDateTime = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: DISPLAY_TIME_ZONE,
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+/** `dd/mm/aaaa HH:mm` in America/Sao_Paulo (the Export dialog's revision lines), or '' for an unparseable timestamp. */
+export function formatDateTime(iso: string): string {
+  const time = Date.parse(iso);
+  if (Number.isNaN(time)) return '';
+  return longDateTime.format(new Date(time)).replace(',', '');
+}
+
+const issueDate = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: DISPLAY_TIME_ZONE,
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+});
+
+/** `dd/mm/aaaa` in America/Sao_Paulo: the document control's "Data de emissão", or '' for an unparseable timestamp. */
+export function formatIssueDate(iso: string): string {
+  const time = Date.parse(iso);
+  if (Number.isNaN(time)) return '';
+  return issueDate.format(new Date(time));
+}
+
 const timeOfDay = new Intl.DateTimeFormat('pt-BR', {
   timeZone: DISPLAY_TIME_ZONE,
   hour: '2-digit',

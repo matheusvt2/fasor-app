@@ -10,6 +10,7 @@ import { userProfileSchema } from '../registration.ts';
 export * from './version.ts';
 export * from './errors.ts';
 export * from './sync.ts';
+export * from './generate.ts';
 export * from './examples.ts';
 
 export const componentStatusSchema = z.enum(['up', 'down']);

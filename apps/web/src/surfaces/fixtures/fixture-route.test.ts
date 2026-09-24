@@ -34,13 +34,16 @@ describe('the dev-only field fixture cannot reach a production bundle', () => {
       appSource,
     );
     expect(declaration, 'app.tsx must declare `const fixtureRoutes = import.meta.env.DEV ? [...] : []`').not.toBeNull();
-    // The surface is named inside that ternary and nowhere else, so dropping the branch
-    // drops the only reference to it.
+    // The surfaces are named inside that ternary and nowhere else, so dropping the branch
+    // drops the only reference to them.
     expect(declaration![1]).toContain('FieldFixtureSurface');
+    // Story 4.8: the export fixture that mounts the Export dialog until the Sumário does.
+    expect(declaration![1]).toContain('ExportFixtureSurface');
   });
 
-  it('names the surface exactly twice in app.tsx: the import and that one branch', () => {
+  it('names each surface exactly twice in app.tsx: the import and that one branch', () => {
     expect(appSource.match(/FieldFixtureSurface/g)).toHaveLength(2);
+    expect(appSource.match(/ExportFixtureSurface/g)).toHaveLength(2);
   });
 
   it('is not reached at render time, where the bundler could not fold the branch away', () => {
