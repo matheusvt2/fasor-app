@@ -65,7 +65,7 @@ development_status:
   3-7-build-the-porto-seguro-fixture-relatório: done
   epic-3-retrospective: done
 
-  epic-4: in-progress
+  epic-4: in-progress  # all 8 stories merged (PRs #24-#28); open: Bruno reading of the skeleton DOCX (4.8, R-009), R-009 seed review before Epic 5, Q15 shared-TAG rename vs Emitido (deferred-work)
   4-1-create-a-project-and-a-relatório-whose-blocks-are-born-in-pl: done
   4-2-fill-the-relatório-setup-page: done
   4-3-see-the-relatório-as-its-own-table-of-contents-the-sumário: done
