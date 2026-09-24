@@ -44,6 +44,7 @@ import { readLastSheet } from '../../db/prefs.ts';
 import { localUsers } from '../../db/sync-store.ts';
 import { newId } from '../../ids.ts';
 import { useBackTarget } from '../../state/back-target.tsx';
+import { useExtraBanner } from '../../state/extra-banner.tsx';
 import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { AddSectionDialog } from './add-section-dialog.tsx';
@@ -117,7 +118,12 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const [adding, setAdding] = useState<SumarioRow | null>(null);
   const [restoring, setRestoring] = useState(false);
   const [confirmingBack, setConfirmingBack] = useState(false);
-  const banner = useMemo(() => issuedBannerText(latestRevision(revisions)), [revisions]);
+  const bannerText = useMemo(() => issuedBannerText(relatorio.status, latestRevision(revisions)), [relatorio.status, revisions]);
+  const banner = useMemo(
+    () => (bannerText === null ? null : { kind: 'relatorio-exported' as const, variant: 'warning' as const, role: 'region' as const, text: bannerText }),
+    [bannerText],
+  );
+  useExtraBanner(banner);
   const backMove = useMemo(() => backwardMoveLabel(relatorio.status), [relatorio.status]);
   const listRef = useRef<HTMLOListElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -306,7 +312,6 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
             <StatusPill status={relatorio.status} />{' '}
             {sumarioMetaText({ start: relatorio.setup.service_start, end: relatorio.setup.service_end, templateName, responsibleName })}
           </p>
-          {banner === null ? null : <p className="section-note">{banner}</p>}
           <p className="sum-summary" role="group" aria-label={t.summaryLabel}>
             <TextButton onPress={openSection9}>{fichasConcluidasText(computed)}</TextButton>
             <TextButton onPress={openSection9}>{ncAbertosText(computed.nc_open)}</TextButton>

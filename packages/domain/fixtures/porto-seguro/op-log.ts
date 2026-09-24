@@ -202,7 +202,10 @@ push({
       local: COVER.obra,
       responsible_user_id: USER_ID,
       cover_photo_file_id: null,
-      escopo: null,
+      // The delivered relatório's own "Informações adicionais"/`{escopo}` text (Story 4.2
+      // added this field; `atividade` above is its now-unread predecessor, left in place
+      // only because the schema still carries it).
+      escopo: 'Manutenção preventiva',
       exclusions: null,
       additional_info: null,
       art_trt_number: null,

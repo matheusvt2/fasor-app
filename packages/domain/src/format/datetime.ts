@@ -150,6 +150,19 @@ export function formatDateOfInstant(iso: string): string {
   return calendarDate.format(new Date(time));
 }
 
+const dayMonth = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: DISPLAY_TIME_ZONE,
+  day: '2-digit',
+  month: '2-digit',
+});
+
+/** `dd/mm` in America/Sao_Paulo of an instant (UX-DR11's issued banner, no year), or '' for an unparseable timestamp. */
+export function formatDayMonthOfInstant(iso: string): string {
+  const time = Date.parse(iso);
+  if (Number.isNaN(time)) return '';
+  return dayMonth.format(new Date(time));
+}
+
 /**
  * The instant a UUIDv7 was minted (AD-4: its first 48 bits are Unix milliseconds), as ISO,
  * or null for anything else. A row with no `created_at` column (a relatório) still knows

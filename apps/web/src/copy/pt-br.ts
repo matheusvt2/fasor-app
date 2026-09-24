@@ -574,9 +574,7 @@ export const copy = {
   // the mock where it draws the same field; the rest is `// authored:`.
   setup: {
     heading: 'Dados do relatório',
-    backToSumario: 'Voltar para o sumário',
     notFound: 'Relatório não encontrado.',
-    autosaveNote: 'Salvo automaticamente',
     // Etapa 1 — Capa.
     etapa1Title: 'Etapa 1 — Capa',
     // authored: this batch's own band note, since the mock's Etapa 1 covers a superset.
@@ -607,6 +605,12 @@ export const copy = {
     councilLabel: 'Conselho',
     // authored: the ART/TRT field's fallback label before the responsible's council is known.
     artTrtFallbackLabel: 'Número ART/TRT',
+    // authored: the registration-number field's fallback label before the council is known.
+    registrationNumberFallbackLabel: 'Número de registro',
+    // authored: the council is read-only here (it lives on the responsible's own account
+    // profile, epics.md Story 4.2's 2026-09-24 narrowing), so this helper names where it
+    // comes from and what it signs, in place of an editable Conselho segmented control.
+    councilHelper: (title: string) => `Assina a seção 10 como ${title} · conselho e número vêm do perfil`,
     // Etapa 4 — Instrumentos e certificados.
     etapa4Title: 'Etapa 4 — Instrumentos e certificados',
     etapa4Note: 'Seção 11',
@@ -614,12 +618,12 @@ export const copy = {
     instrumentsNote: 'Marque os instrumentos desta obra: o certificado de cada um entra na seção 11.',
     // authored: the inline note beside an instrument a sheet still references.
     instrumentReferenced: 'Continua na seção 11 porque uma ficha usa este instrumento',
+    // authored: the accessible name of the "m" unit suffix beside the altitude value.
+    altitudeUnit: 'metros',
     // Etapa 5 — Local.
     etapa5Title: 'Etapa 5 — Local',
     etapa5Note: 'Ambiente de ensaio',
     altitudeLabel: 'Altitude do site',
-    // authored: FR-16's own wording for a value under 1000 m.
-    altitudeUnder1000: '< 1000 m',
     // Verbatim from `50-relatorio-setup.html`'s `.suggested-pill`.
     altitudeSuggestedPill: 'Sugerido',
     altitudeConfirm: 'Confirmar',

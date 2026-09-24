@@ -1,4 +1,4 @@
-import { formatDateOfInstant } from '../format/datetime.ts';
+import { formatDayMonthOfInstant } from '../format/datetime.ts';
 import { countsAsEdit, type EditCandidate } from '../status/edited-since.ts';
 import { manualMove, RELATORIO_STATUSES, statusLabel, statusTable } from '../status/table.ts';
 import type { RelatorioStatus, RevisionRow } from '../schemas/entities.ts';
@@ -24,13 +24,17 @@ export function advanceOnEdit(status: RelatorioStatus, drafts: readonly EditCand
 }
 
 /**
- * The Sumário's issued banner: "Relatório emitido em 10/09/2026 (revisão 2). Alterações
- * geram a revisão 3." Null with no revision yet (an ordinary first Em campo → Em revisão
- * pass, never issued).
+ * The Sumário's issued banner: "Relatório emitido em 09/09 (revisão 2). Alterações geram
+ * a revisão 3." (UX-DR11, EXPERIENCE.md l.389/579 -- "dd/mm", no year). Null with no
+ * revision yet (an ordinary first Em campo → Em revisão pass, never issued), and null once
+ * the status has been backed all the way to Em campo or Rascunho (the AC scopes the banner
+ * to "Emitido or Em revisão after an issue"; a manual backward move that far means the
+ * relatório is being redone, not merely revised, and the earlier issue no longer applies).
  */
-export function issuedBannerText(revision: Pick<RevisionRow, 'number' | 'created_at'> | null): string | null {
+export function issuedBannerText(status: RelatorioStatus, revision: Pick<RevisionRow, 'number' | 'created_at'> | null): string | null {
   if (revision === null) return null;
-  const date = formatDateOfInstant(revision.created_at);
+  if (status !== 'emitido' && status !== 'em_revisao') return null;
+  const date = formatDayMonthOfInstant(revision.created_at);
   return `Relatório emitido em ${date} (revisão ${revision.number}). Alterações geram a revisão ${revision.number + 1}.`;
 }
 

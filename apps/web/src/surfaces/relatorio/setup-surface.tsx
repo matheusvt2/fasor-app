@@ -7,10 +7,13 @@ import {
   councilLabel,
   dateRangeText,
   defaultExclusions,
+  instrumentDetailSeparator,
+  instrumentExpiredNoteText,
   instrumentRegistryRowText,
   isInstrumentReferenced,
   registrationNumberLabel,
   setupIncompleteReason,
+  siteAltitudeText,
   statusTable,
   type BlockRow,
   type InstrumentRow,
@@ -219,14 +222,8 @@ function Etapa1Capa({
   const additionalInfo = useTextField(setup.additional_info ?? '', (v) => onCommit('additional_info', v === '' ? null : v));
   const cover = useAttachedFile(db, setup.cover_photo_file_id);
   const additionalInfoId = useId();
-  const datesEcho = dateRangeText(setup.service_start, setup.service_end);
-
-  /** End follows the start only while it was still empty or equal to the previous start (new-relatorio-dialog's own rule). */
-  function onStartChange(value: string | null): void {
-    const followsEnd = setup.service_end === null || setup.service_end === setup.service_start;
-    if (followsEnd) void onCommitFields([['service_start', value], ['service_end', value]]);
-    else void onCommit('service_start', value);
-  }
+  const period = useServicePeriod(setup.service_start, setup.service_end, onCommitFields);
+  const datesEcho = dateRangeText(period.start, period.end);
 
   async function attachCover(picked: { file: File; sha256: string }): Promise<void> {
     if (db === null || user === null) return;
@@ -281,9 +278,15 @@ function Etapa1Capa({
             <div className="input">{snapshot.project?.site ?? snapshot.project?.name ?? ''}</div>
           </div>
           <div className="dates-3 span-2">
-            <DateField label={t.startLabel} value={setup.service_start} onChange={onStartChange} />
+            {/* Wrapped like the end field's own div (not a bare grid child): the end
+                cell is taller because of its "Na capa" echo, and an unwrapped start
+                field would stretch to match under the grid's default `align-items:
+                stretch`, drifting its absolutely-positioned calendar glyph low. */}
             <div>
-              <DateField label={t.endLabel} value={setup.service_end} onChange={(value) => void onCommit('service_end', value)} />
+              <DateField label={t.startLabel} value={period.start} onChange={period.onStartChange} onBlur={period.blur} />
+            </div>
+            <div>
+              <DateField label={t.endLabel} value={period.end} onChange={period.onEndChange} onBlur={period.blur} />
               {datesEcho === '' ? null : <span className="echo">{t.datesEcho(datesEcho)}</span>}
             </div>
           </div>
@@ -330,10 +333,14 @@ function Etapa2Escopo({
   const seedExclusions = useMemo(() => defaultExclusions(snapshot.relatorio.seed_version, today), [snapshot.relatorio.seed_version, today]);
   const [exclusions, setExclusions] = useState<string[]>(() => setup.exclusions ?? seedExclusions);
   // Resync when another device (or an undo) changes `setup.exclusions` while this page stays
-  // open, mirroring `useTextField`'s committed-ref pattern below.
-  const committedExclusions = useRef(setup.exclusions);
-  if (setup.exclusions !== committedExclusions.current) {
-    committedExclusions.current = setup.exclusions;
+  // open, mirroring `useTextField`'s committed-ref pattern below -- by content, not by
+  // reference: `relatorioState`'s live query rebuilds a fresh array on every refresh (an
+  // unrelated field's commit, a sync pull), so comparing `!==` on the array itself would
+  // treat every such refresh as an external change and reset an in-progress edit.
+  const committedExclusions = useRef(exclusionsKey(setup.exclusions));
+  const nextKey = exclusionsKey(setup.exclusions);
+  if (nextKey !== committedExclusions.current) {
+    committedExclusions.current = nextKey;
     setExclusions(setup.exclusions ?? seedExclusions);
   }
   const exclusionsCommitter = useFieldCommit<string[]>({ commit: (value) => onCommit('exclusions', value) });
@@ -425,12 +432,16 @@ function Etapa3Responsavel({
   onCommit: (field: string, value: unknown) => Promise<void>;
   bandRef: (el: HTMLElement | null) => void;
 }) {
-  const session = useSession();
   const t = copy.setup;
   const setup = snapshot.relatorio.setup;
   const selected = users.find((row) => row.id === setup.responsible_user_id) ?? null;
   const selectedName = selected?.name ?? null;
-  const [text, setText] = useState(() => selectedName ?? users.find((row) => row.id === session.user?.id)?.name ?? '');
+  // Empty, never the session user's name, while `responsible_user_id` is still null: the
+  // AC's "prefilled from the account" is read literally by the Combobox's own default
+  // selection (whatever the caller passes for `selectedKey`), not by echoing a name here
+  // with nothing actually committed -- a screen that looks filled while it is not
+  // (review finding 3).
+  const [text, setText] = useState(() => selectedName ?? '');
   // Resync `text` to `selected?.name` whenever `selected` changes (another device picks or
   // clears the responsible, or `users` finishes loading after this page's first paint), while
   // still letting the user free-type to search: mirrors `useTextField`'s committed-ref pattern.
@@ -477,7 +488,7 @@ function Etapa3Responsavel({
                 <div className="input">{selected.council === null ? '' : councilLabel(selected.council)}</div>
               </div>
               <div className="field">
-                <span className="field-label">{selected.council === null ? '' : registrationNumberLabel(selected.council)}</span>
+                <span className="field-label">{selected.council === null ? t.registrationNumberFallbackLabel : registrationNumberLabel(selected.council)}</span>
                 <div className="input tabular">{selected.registration_number ?? ''}</div>
               </div>
               <div className="field">
@@ -496,6 +507,11 @@ function Etapa3Responsavel({
                   return echo === null ? null : <span className="echo">{echo}</span>;
                 })()}
               </div>
+              {selected.title === null ? null : (
+                <div className="field span-2">
+                  <span className="helper">{t.councilHelper(selected.title)}</span>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -557,21 +573,30 @@ function Etapa4Instrumentos({
           {rows.map(({ instrument, status }) => {
             const text = instrumentRegistryRowText(instrument, status);
             const isSelected = setup.instrument_ids.includes(instrument.id);
-            const noteId = refusedNote === instrument.id ? `instrument-note-${instrument.id}` : undefined;
+            const refusedId = refusedNote === instrument.id ? `instrument-note-${instrument.id}` : undefined;
+            const expiredNote = instrumentExpiredNoteText(text);
+            const expiredId = expiredNote === null ? undefined : `instrument-expired-${instrument.id}`;
+            const describedBy = [expiredId, refusedId].filter((id): id is string => id !== undefined).join(' ') || undefined;
             return (
               <li key={instrument.id}>
-                <Checkbox isSelected={isSelected} onChange={(checked) => onToggle(instrument.id, checked)} aria-describedby={noteId}>
+                <Checkbox isSelected={isSelected} onChange={(checked) => onToggle(instrument.id, checked)} aria-describedby={describedBy}>
                   <span className="ip-code">{text.code}</span>
                   <span className="ip-text">
                     <span className="ip-name">{text.primaryRest}</span>
                     <span className="ip-detail">
                       {text.secondaryLead}
-                      {text.validity === null ? null : ` · ${text.validity.text}`}
+                      {instrumentDetailSeparator(text)}
+                      {text.validity === null ? null : text.validity.expired ? <span className="ip-expired">{text.validity.text}</span> : text.validity.text}
                     </span>
                   </span>
                 </Checkbox>
-                {noteId === undefined ? null : (
-                  <p className="ip-expired" id={noteId} role="status">
+                {expiredId === undefined ? null : (
+                  <p className="ip-expired" id={expiredId} role="status">
+                    {expiredNote}
+                  </p>
+                )}
+                {refusedId === undefined ? null : (
+                  <p className="ip-expired" id={refusedId} role="status">
                     {t.instrumentReferenced}
                   </p>
                 )}
@@ -602,6 +627,7 @@ function Etapa5Local({
   const justification = useTextField(setup.next_intervention_justification ?? '', (v) => onCommit('next_intervention_justification', v === '' ? null : v));
   const justificationId = useId();
   const altitudeId = useId();
+  const nextInterventionDate = useDateField(setup.next_intervention_date, (v) => onCommit('next_intervention_date', v));
 
   // The altitude is always a plain typeable numeric field: geolocation, when it succeeds
   // with a real reading, only pre-fills it once (never overwriting a value the user already
@@ -626,7 +652,7 @@ function Etapa5Local({
 
   const parsedAltitude = altitudeText.trim() === '' ? null : Number(altitudeText);
   const shownAltitude = parsedAltitude !== null && Number.isFinite(parsedAltitude) ? parsedAltitude : null;
-  const confirmedText = setup.site_altitude_m === null ? '' : setup.site_altitude_m < 1000 ? t.altitudeUnder1000 : `${setup.site_altitude_m} m`;
+  const confirmedText = setup.site_altitude_m === null ? '' : siteAltitudeText(setup.site_altitude_m);
 
   async function onConfirmAltitude(): Promise<void> {
     if (shownAltitude === null) return;
@@ -651,9 +677,13 @@ function Etapa5Local({
       <div className="band-body">
         <div className="form-grid">
           <div className="field suggestion-field altitude-field span-2" data-state={setup.site_altitude_confirmed ? undefined : 'suggested'}>
-            <label className="field-label" htmlFor={altitudeId}>
-              {t.altitudeLabel}
-            </label>
+            {setup.site_altitude_confirmed ? (
+              <span className="field-label">{t.altitudeLabel}</span>
+            ) : (
+              <label className="field-label" htmlFor={altitudeId}>
+                {t.altitudeLabel}
+              </label>
+            )}
             {setup.site_altitude_confirmed ? (
               <span className="helper helper-ok">{t.altitudeConfirmed(confirmedText)}</span>
             ) : (
@@ -669,7 +699,7 @@ function Etapa5Local({
                       setAltitudeText(event.target.value);
                     }}
                   />
-                  <span className="mf-unit" aria-label="metros">
+                  <span className="mf-unit" aria-label={t.altitudeUnit}>
                     m
                   </span>
                   {shownAltitude === null ? null : (
@@ -682,11 +712,7 @@ function Etapa5Local({
               </>
             )}
           </div>
-          <DateField
-            label={t.nextInterventionDateLabel}
-            value={setup.next_intervention_date}
-            onChange={(value) => void onCommit('next_intervention_date', value)}
-          />
+          <DateField label={t.nextInterventionDateLabel} value={nextInterventionDate.date} onChange={nextInterventionDate.change} onBlur={nextInterventionDate.blur} />
           <div className="field">
             <label className="field-label" htmlFor={justificationId}>
               {t.nextInterventionJustificationLabel}
@@ -703,6 +729,11 @@ function Etapa5Local({
       </div>
     </section>
   );
+}
+
+/** A content key for `setup.exclusions` (null vs. an array, and the array's own values), so a resync compares what changed, not which object it lives in. */
+function exclusionsKey(value: readonly string[] | null): string {
+  return value === null ? '\u0000' : JSON.stringify(value);
 }
 
 // --- shared field helper -----------------------------------------------------------------
@@ -722,6 +753,75 @@ function useTextField(value: string, commit: (value: string) => void | Promise<v
       setText(next);
       committer.change(next);
     },
+    blur: () => committer.blur(),
+  };
+}
+
+/**
+ * A locally-echoed, debounced `DateField` (the same `useTextField` shape, for a single
+ * ISO date): the segment buffer React Aria types into lives in local state, resynced from
+ * the committed value only when it actually changed (a real external write, not this
+ * field's own round trip through Dexie's live query), so a live-query re-render mid-typing
+ * never resets the segments a keystroke is still building (review finding 1).
+ */
+function useDateField(value: string | null, commit: (value: string | null) => void | Promise<void>) {
+  const [date, setDate] = useState(value);
+  const committed = useRef(value);
+  const committer = useFieldCommit<string | null>({ commit });
+  if (value !== committed.current) {
+    committed.current = value;
+    if (value !== date) setDate(value);
+  }
+  return {
+    date,
+    change: (next: string | null) => {
+      setDate(next);
+      committer.change(next);
+    },
+    // Focus leaving the field settles the pending commit now, matching `useTextField`'s own
+    // blur wiring: without it, a debounced date typed right before the user navigates away
+    // (e.g. "Concluir dados do relatório" then "Voltar") can still be mid-idle-wait when the
+    // page unmounts, and `useFieldCommit`'s own unmount cleanup drops a pending commit rather
+    // than writing behind the user's back -- losing the very last thing typed.
+    blur: () => committer.blur(),
+  };
+}
+
+/**
+ * Etapa 1's two dates, local-echoed like `useDateField`, with "end follows start" (ported
+ * from `new-relatorio-dialog.tsx`) and one debounced batch of both fields when it does.
+ */
+function useServicePeriod(serviceStart: string | null, serviceEnd: string | null, onCommitFields: (fields: ReadonlyArray<readonly [string, unknown]>) => Promise<void>) {
+  const [start, setStart] = useState(serviceStart);
+  const [end, setEnd] = useState(serviceEnd);
+  const committedStart = useRef(serviceStart);
+  const committedEnd = useRef(serviceEnd);
+  if (serviceStart !== committedStart.current) {
+    committedStart.current = serviceStart;
+    if (serviceStart !== start) setStart(serviceStart);
+  }
+  if (serviceEnd !== committedEnd.current) {
+    committedEnd.current = serviceEnd;
+    if (serviceEnd !== end) setEnd(serviceEnd);
+  }
+  const committer = useFieldCommit<ReadonlyArray<readonly [string, unknown]>>({ commit: onCommitFields });
+
+  return {
+    start,
+    end,
+    onStartChange: (next: string | null) => {
+      const followsEnd = end === null || end === start;
+      const nextEnd = followsEnd ? next : end;
+      setStart(next);
+      if (followsEnd) setEnd(nextEnd);
+      committer.change(followsEnd ? [['service_start', next], ['service_end', nextEnd]] : [['service_start', next]]);
+    },
+    onEndChange: (next: string | null) => {
+      setEnd(next);
+      committer.change([['service_end', next]]);
+    },
+    // See `useDateField`'s own comment: flush a pending debounced commit when focus leaves
+    // either date, so navigating away right after typing never drops the last one typed.
     blur: () => committer.blur(),
   };
 }

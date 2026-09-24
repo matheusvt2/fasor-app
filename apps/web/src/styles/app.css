@@ -208,6 +208,14 @@ body {
   [data-route="/relatorio/:id/setup"] .setup-content { padding: var(--sp-4) var(--gutter-phone); }
   /* `.frame-phone [data-route="/relatorio/porto-seguro/setup"] .dates-3` */
   [data-route="/relatorio/:id/setup"] .dates-3 { grid-template-columns: 1fr; }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro/setup"] .band-head` (50-relatorio-setup.html:48) */
+  [data-route="/relatorio/:id/setup"] .band-head { flex-wrap: wrap; }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro/setup"] .band-note` (50-relatorio-setup.html:49) */
+  [data-route="/relatorio/:id/setup"] .band-note { margin-left: 44px; flex-basis: 100%; }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro/setup"] .band-body .row` (50-relatorio-setup.html:50) */
+  [data-route="/relatorio/:id/setup"] .band-body .row { flex-wrap: wrap; }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro/setup"] .instrument-list .ip-code` (50-relatorio-setup.html:29) */
+  [data-route="/relatorio/:id/setup"] .instrument-list .ip-code { min-width: 32px; }
   /* `.frame-phone [data-route="/relatorio/porto-seguro/secao/:n"] .secao-content` (45-secao.html) */
   [data-route="/relatorio/:id/secao/:blockId"] .secao-content { padding: var(--sp-4) var(--gutter-phone); }
   /* `.frame-phone [data-route="/relatorio/porto-seguro/secao/:n"] .secao-note .btn-text` */

@@ -257,7 +257,7 @@ test('@p0 4.3-E2E-001 the Sumário: order, rows that open, the Position box, Ove
   await page.getByRole('button', { name: 'Voltar' }).click();
   await rows.nth(3).getByRole('button', { name: /^Definições/ }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/secao/[0-9a-f-]{36}$`));
-  await expect(page.locator('.section-text-title')).toHaveText('2 Definições');
+  await expect(page.locator('.section-text-title')).toHaveText('Seção 2 — Definições');
   await expect(page.getByRole('textbox', { name: 'Texto da seção' })).not.toBeEmpty();
   await page.getByRole('button', { name: 'Voltar ao sumário' }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
@@ -490,8 +490,14 @@ test('@p0 4.2-E2E-001 Relatório setup: the five Etapa bands, autosave, geolocat
   await expect(page.getByText(CLIENT)).toBeVisible();
   await expect(page.getByText(SITE)).toBeVisible();
   const setupRoot = page.locator('.setup-content');
+  // Typed at keyboard speed (`typeDate`'s own `page.keyboard.type`, no per-key delay): the
+  // regression this batch's review caught corrupted the year or dropped the date entirely
+  // when the field's `value` came straight off the live query with no debounce (finding 1).
+  // Reading the rendered segments back, not just the input's own echo, proves the fix.
   await typeDate(setupRoot, 'Início da execução', '01102026');
+  await expect(setupRoot.getByRole('group', { name: 'Início da execução' }).getByRole('spinbutton')).toHaveText(['01', '10', '2026']);
   await typeDate(setupRoot, 'Fim da execução', '03102026');
+  await expect(setupRoot.getByRole('group', { name: 'Fim da execução' }).getByRole('spinbutton')).toHaveText(['03', '10', '2026']);
   await page.getByLabel('Informações adicionais').fill('Acesso pela portaria 2');
   await page.getByTestId('upload-input-cover_photo').setInputFiles({ name: 'capa.png', mimeType: 'image/png', buffer: COVER_PHOTO });
   await expect(page.locator('.tile-name')).toContainText('capa.png');
@@ -531,6 +537,7 @@ test('@p0 4.2-E2E-001 Relatório setup: the five Etapa bands, autosave, geolocat
   await page.getByRole('button', { name: 'Confirmar' }).click();
   await expect(page.getByText('Altitude do site: < 1000 m — confirmada')).toBeVisible();
   await typeDate(setupRoot, 'Próxima intervenção recomendada', '15092027');
+  await expect(setupRoot.getByRole('group', { name: 'Próxima intervenção recomendada' }).getByRole('spinbutton')).toHaveText(['15', '09', '2027']);
   await page.getByLabel('Justificativa').fill('Manutenção anual programada');
 
   // "Concluir dados do relatório": every gap closed, one Rascunho → Em campo status put.
@@ -541,6 +548,18 @@ test('@p0 4.2-E2E-001 Relatório setup: the five Etapa bands, autosave, geolocat
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
   await expect(page.locator('.sheet-meta .status-pill')).toHaveText('Em campo');
   await expect(rows.nth(0).locator('.sum-status')).not.toContainText('Responsável técnico em branco');
+
+  // The stored value, not just the segments: all three dates committed with the right
+  // year (finding 1's "0202" / dropped-date failure mode would show up here too).
+  const entities = await readStore<{ entity: string; id: string; row: { setup?: { service_start?: string; service_end?: string; next_intervention_date?: string } } }>(
+    page,
+    database,
+    'entities',
+  );
+  const relatorioRow = entities.find((r) => r.entity === 'relatorio' && r.id === relatorioId)!;
+  expect(relatorioRow.row.setup?.service_start).toBe('2026-10-01');
+  expect(relatorioRow.row.setup?.service_end).toBe('2026-10-03');
+  expect(relatorioRow.row.setup?.next_intervention_date).toBe('2027-09-15');
 });
 
 test('@p1 4.2-E2E-002 an instrument still referenced by a sheet cannot be unchecked', async ({ page }) => {
@@ -608,14 +627,25 @@ test('@p0 4.6-E2E-001 Emitido shows the issued banner; moving a numbered row adv
 
   await expect(sumarioTitles(page)).toHaveText(TITLES);
   await expect(page.locator('.sheet-meta .status-pill')).toHaveText('Emitido');
-  const banner = issuedBannerText({ number: 2, created_at: createdAt.toISOString() });
-  await expect(page.getByText(banner!)).toBeVisible();
+  const banner = issuedBannerText('emitido', { number: 2, created_at: createdAt.toISOString() });
+  // Through the real Banner component (UX-DR11), not a plain paragraph.
+  await expect(page.locator('.banner-slot .banner')).toHaveText(banner!);
 
   // Moving a numbered row is an `editedSince`-family op (`block/{id}/order_key`); the
   // status advances on its own, in the same batch, with no separate issue action.
   await page.getByRole('button', { name: 'Mais opções de Definições' }).click();
   await page.getByRole('menuitem', { name: 'Descer' }).click();
   await expect(page.locator('.sheet-meta .status-pill')).toHaveText('Em revisão');
+  // Still Emitido-derived (Em revisão after an issue), so the banner stays.
+  await expect(page.locator('.banner-slot .banner')).toBeVisible();
+
+  // Backed all the way to Em campo: the AC scopes the banner to "Emitido or Em revisão
+  // after an issue", so it disappears even though the revision row is still on record.
+  await page.getByRole('button', { name: 'Mais opções do relatório' }).click();
+  await page.getByRole('menuitem', { name: 'Voltar para Em campo' }).click();
+  await page.getByRole('dialog', { name: 'Voltar para Em campo' }).getByRole('button', { name: 'Voltar para Em campo' }).click();
+  await expect(page.locator('.sheet-meta .status-pill')).toHaveText('Em campo');
+  await expect(page.locator('.banner-slot .banner')).toHaveCount(0);
 });
 
 test('@p1 4.6-E2E-002 the header Overflow\'s backward-move item: a Confirm dialog states the consequence, the pill updates and focus returns to the trigger', async ({
@@ -662,7 +692,7 @@ test('@p0 4.7-E2E-001 section text: edited text, a chip inserted by mouse and re
     .nth(3)
     .getByRole('button', { name: /^Definições/ })
     .click();
-  await expect(page.locator('.section-text-title')).toHaveText('2 Definições');
+  await expect(page.locator('.section-text-title')).toHaveText('Seção 2 — Definições');
   const area = page.getByRole('textbox', { name: 'Texto da seção' });
   const chips = area.locator('.var-chip');
   await expect(area).not.toBeEmpty();

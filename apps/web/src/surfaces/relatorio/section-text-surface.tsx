@@ -117,7 +117,7 @@ function SectionTextEditor({ relatorioId, block, seedVersion, templateName }: Se
 
   const committer = useFieldCommit<string>({ commit: (text) => void commitConfig(text) });
 
-  const { areaProps, insert, setText } = useSectionTextArea({
+  const { areaRef, areaProps, insert, setText } = useSectionTextArea({
     initialText,
     onChange: (text) => committer.change(text),
     onBlur: () => committer.blur(),
@@ -140,6 +140,10 @@ function SectionTextEditor({ relatorioId, block, seedVersion, templateName }: Se
           if (db === null) return;
           void undoBatch(db, batch.batch_id, { newId, now });
           setText(editedText);
+          // E3-A8: the toast that held focus is about to close; without this the undone
+          // edit would leave focus stranded on `<body>`. The text area is what the undo
+          // actually changed, so it gets focus back.
+          areaRef.current?.focus();
         },
       },
     });
@@ -152,7 +156,7 @@ function SectionTextEditor({ relatorioId, block, seedVersion, templateName }: Se
       <div className="sheet-header">
         <div>
           <h2 className="section-text-title">
-            {number} {sectionRowTitle(block.block_type)}
+            {t.title} {number} — {sectionRowTitle(block.block_type)}
           </h2>
           <p className="sheet-meta">
             {t.metaLead(templateName)}

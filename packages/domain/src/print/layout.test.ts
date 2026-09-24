@@ -4,11 +4,12 @@ import { portoSeguroSmall } from '../../fixtures/porto-seguro/small/op-log.ts';
 import { orderKeyBetween } from '../ops/order-key.ts';
 import { replay } from '../ops/replay.ts';
 import { instantiateTemplate } from '../relatorio/instantiate.ts';
+import { sectionVariables } from '../relatorio/section-variables.ts';
 import type { BlockRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { SECTION_TITLES_V1 } from '../seed/sections-v1.ts';
 import { standardTemplate } from '../seed/template.ts';
-import { EMPTY_SECTION_NOTE, layoutSpec, sectionHeading, sectionInputs } from './layout.ts';
+import { EMPTY_SECTION_NOTE, layoutSpec, sectionHeading } from './layout.ts';
 
 /*
  * Story 4.8: the layout spec over the Porto Seguro fixtures. The kernel data is asserted
@@ -132,16 +133,16 @@ describe('4.8-UNIT-002 layoutSpec edge cases', () => {
     expect(first.paragraphs[0]!.text).toContain('pela [Empresa executora]');
   });
 
-  it('reads the responsible, the site fallback and the escopo through sectionInputs', () => {
+  it('reads the responsible, the site fallback and the escopo through the one kernel mapping (sectionVariables)', () => {
     const small = smallSnapshot();
-    expect(sectionInputs(small)).toEqual({ cliente: 'Cliente de Testes Ltda', obra: 'Local de Testes', datas: '06/09/2026' });
+    expect(sectionVariables(small, small.responsible?.name ?? null)).toEqual({ cliente: 'Cliente de Testes Ltda', obra: 'Local de Testes', datas: '06/09/2026' });
     // A blank `local` is as good as none: the project's site stands in.
     const blankLocal: RelatorioSnapshot = { ...small, relatorio: { ...small.relatorio, setup: { ...small.relatorio.setup, local: '   ' } } };
-    expect(sectionInputs(blankLocal).obra).toBe('Local de Testes');
+    expect(sectionVariables(blankLocal, null).obra).toBe('Local de Testes');
     expect(layoutSpec(blankLocal, { revisionNumber: 1, issuedAt: ISSUED_AT }).cover.table.rows[1]).toEqual({ label: 'Cidade/local', value: 'Local de Testes' });
     const withUser: RelatorioSnapshot = {
       ...small,
-      relatorio: { ...small.relatorio, setup: { ...small.relatorio.setup, atividade: 'Manutenção', local: 'Torre X' } },
+      relatorio: { ...small.relatorio, setup: { ...small.relatorio.setup, escopo: 'Manutenção', local: 'Torre X' } },
       responsible: {
         id: portoSeguroSmall.userId,
         name: 'Ana Alves',
@@ -153,7 +154,7 @@ describe('4.8-UNIT-002 layoutSpec edge cases', () => {
       },
       empresa: { ...fullSnapshot().empresa!, name: 'Empresa X' },
     };
-    expect(sectionInputs(withUser)).toEqual({
+    expect(sectionVariables(withUser, withUser.responsible?.name ?? null)).toEqual({
       cliente: 'Cliente de Testes Ltda',
       obra: 'Torre X',
       datas: '06/09/2026',
@@ -161,6 +162,26 @@ describe('4.8-UNIT-002 layoutSpec edge cases', () => {
       responsavel: 'Ana Alves',
       empresa_executora: 'Empresa X',
     });
+  });
+
+  it('prints setup.escopo in the cover\'s "Informações adicionais" row and setup.exclusions as section 3\'s items', () => {
+    const small = smallSnapshot();
+    const withEscopoAndExclusions: RelatorioSnapshot = {
+      ...small,
+      relatorio: {
+        ...small.relatorio,
+        setup: { ...small.relatorio.setup, escopo: 'Ensaios de comissionamento da cabine primária', exclusions: ['Exclusão A', 'Exclusão B'] },
+      },
+    };
+    const layout = layoutSpec(withEscopoAndExclusions, { revisionNumber: 1, issuedAt: ISSUED_AT });
+    expect(layout.cover.table.rows.find((r) => r.label === 'Informações adicionais')).toEqual({
+      label: 'Informações adicionais',
+      value: 'Ensaios de comissionamento da cabine primária',
+    });
+    const third = layout.sections[2]!;
+    if (third.kind !== 'text') throw new Error('section 3 is text');
+    expect(third.paragraphs.map((p) => p.kind)).toEqual(['paragraph', 'paragraph', 'item', 'item']);
+    expect(third.paragraphs.slice(2).map((p) => p.text)).toEqual(['Exclusão A', 'Exclusão B']);
   });
 
   it('chooses the seed text in force on sectionTextAt when given', () => {

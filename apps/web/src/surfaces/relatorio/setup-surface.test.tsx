@@ -1,9 +1,10 @@
 import 'fake-indexeddb/auto';
 import type { RelatorioRow, UserRow } from '@app/domain';
 import { INSTRUMENT_MEGOHMETRO_ID, portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
+import { I18nProvider } from 'react-aria-components';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { toRecord } from '../../db/commit.ts';
@@ -78,14 +79,20 @@ async function seeded(): Promise<AppDatabase> {
 
 function tree(id: string) {
   return (
-    <MemoryRouter initialEntries={[`/relatorio/${id}/setup`]}>
-      <ToastProvider>
-        <Routes>
-          <Route path="/relatorio/:id/setup" element={<SetupSurface />} />
-        </Routes>
-        <ToastOutlet />
-      </ToastProvider>
-    </MemoryRouter>
+    // pt-BR orders the DateField segments day/month/year, as `app.tsx`'s own root
+    // `I18nProvider` does for the real app; without it jsdom's default locale would
+    // order them month/day/year, and the date-typing tests below would type into the
+    // wrong segment.
+    <I18nProvider locale="pt-BR">
+      <MemoryRouter initialEntries={[`/relatorio/${id}/setup`]}>
+        <ToastProvider>
+          <Routes>
+            <Route path="/relatorio/:id/setup" element={<SetupSurface />} />
+          </Routes>
+          <ToastOutlet />
+        </ToastProvider>
+      </MemoryRouter>
+    </I18nProvider>
   );
 }
 
@@ -121,6 +128,23 @@ describe('4.2 SetupSurface', () => {
     await waitFor(async () => {
       const row = await database!.entities.get(['relatorio', RELATORIO]);
       expect((row!.row as RelatorioRow).setup.additional_info).toBe('Manutenção preventiva');
+    });
+  });
+
+  it('typing a date at keyboard speed stores the full year, not a truncated one (review finding 1)', async () => {
+    database = await seeded();
+    renderSetup();
+    const group = await screen.findByRole('group', { name: 'Início da execução' });
+    const [day] = within(group).getAllByRole('spinbutton');
+    await userEvent.click(day!);
+    // No `{delay:}`, matching `date-field.test.tsx`'s own probe and the e2e helper
+    // `typeDate`: the live query's own round trip through Dexie must never reset the
+    // segments a keystroke is still building.
+    await userEvent.keyboard('01102026');
+    await waitFor(() => expect(within(group).getAllByRole('spinbutton').map((el) => el.textContent)).toEqual(['01', '10', '2026']));
+    await waitFor(async () => {
+      const row = await database!.entities.get(['relatorio', RELATORIO]);
+      expect((row!.row as RelatorioRow).setup.service_start).toBe('2026-10-01');
     });
   });
 
@@ -181,6 +205,24 @@ describe('4.2 SetupSurface', () => {
     await waitFor(() => expect(screen.getByRole('combobox', { name: 'Responsável técnico' })).toHaveValue('Bento Braga'));
   });
 
+  it('shows an empty Combobox, not the signed-in account\'s name, while no responsible is set yet (review finding 3)', async () => {
+    database = await seeded();
+    const relatorioRecord = await database.entities.get(['relatorio', RELATORIO]);
+    await database.entities.put({
+      ...relatorioRecord!,
+      row: { ...(relatorioRecord!.row as RelatorioRow), setup: { ...(relatorioRecord!.row as RelatorioRow).setup, responsible_user_id: null } },
+    });
+    renderSetup();
+    await waitFor(() => expect(screen.getByRole('heading', { level: 2, name: 'Etapa 3 — Responsável' })).toBeVisible());
+    // The screen must not look filled while `responsible_user_id` is still null: an empty
+    // input (never the session user's name echoed with nothing actually committed), and no
+    // council/number/ART fields (they only ever show once `selected` is a real picked row).
+    expect(screen.getByRole('combobox', { name: 'Responsável técnico' })).toHaveValue('');
+    expect(screen.queryByText('CREA', { exact: true })).toBeNull();
+    const row = await database.entities.get(['relatorio', RELATORIO]);
+    expect((row!.row as RelatorioRow).setup.responsible_user_id).toBeNull();
+  });
+
   it('the ART/TRT label and echo text follow the council of whichever responsible is picked', async () => {
     database = await seeded();
     await database.entities.put(toRecord(`user:${OTHER_ID}`, OTHER_RESPONSIBLE));
@@ -200,6 +242,38 @@ describe('4.2 SetupSurface', () => {
     expect(screen.getByRole('textbox', { name: 'TRT' })).toBeVisible();
     await userEvent.type(screen.getByRole('textbox', { name: 'TRT' }), '123');
     await waitFor(() => expect(screen.getByText(/Na seção 10: "Este relatório tem validade apenas acompanhada da TRT/)).toBeVisible());
+  });
+
+  it('shows an expired instrument\'s amber clause and a role="status" note the checkbox is described by (review finding 5)', async () => {
+    database = await seeded();
+    const EXPIRED_ID = '019966c1-000f-7000-8000-00000000ee01';
+    await database.entities.put(
+      toRecord(`registry:${EXPIRED_ID}`, {
+        id: EXPIRED_ID,
+        kind: 'instrument',
+        code: 'X1',
+        name: 'Instrumento vencido E2E',
+        manufacturer: null,
+        model: null,
+        serial: null,
+        cert_number: null,
+        laboratory: null,
+        calibrated_at: '2020-01-01',
+        calibration_interval_months: 12,
+        rbc_accredited: false,
+        test_isolacao: null,
+        test_resistencia_contato: null,
+        test_relacao_transformacao: null,
+        certificate_file_id: null,
+        removed_at: null,
+      } as never),
+    );
+    renderSetup();
+    const checkbox = await screen.findByRole('checkbox', { name: /^X1/ });
+    const note = screen.getByText(/Calibração do X1 vencida em/);
+    expect(note).toHaveAttribute('role', 'status');
+    expect(checkbox).toHaveAccessibleDescription(note.textContent!);
+    expect(screen.getByText(/Vencida em/)).toHaveClass('ip-expired');
   });
 
   it('shows the altitude as "N m" for a value at or above 1000 m, before and after confirming', async () => {

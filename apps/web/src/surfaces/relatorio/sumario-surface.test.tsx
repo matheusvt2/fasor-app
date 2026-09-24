@@ -10,6 +10,8 @@ import { toRecord } from '../../db/commit.ts';
 import { LAST_SHEET_PREF, openDatabase, type AppDatabase } from '../../db/schema.ts';
 import { applyPulled } from '../../db/sync-store.ts';
 import { BackTargetProvider } from '../../state/back-target.tsx';
+import { BannerSlot } from '../../state/banner-slot.tsx';
+import { ExtraBannerProvider, useExtraBannerValue } from '../../state/extra-banner.tsx';
 import type { SessionState } from '../../state/session.tsx';
 import { SyncContext, type SyncState } from '../../state/sync.tsx';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
@@ -113,6 +115,12 @@ function SetupProbe() {
   return <p data-testid="setup-route">Setup {params.get('etapa')}</p>;
 }
 
+/** Stands in for `AppShell`'s one banner slot, which a route cannot render itself (`extra-banner.tsx`). */
+function BannerSlotProbe() {
+  const banner = useExtraBannerValue();
+  return <BannerSlot banners={banner === null ? [] : [banner]} />;
+}
+
 /** The tree the surface renders for `id` under `sync`; `rerender` swaps the sync state in place. */
 function tree(id: string, sync: SyncState) {
   return (
@@ -120,12 +128,15 @@ function tree(id: string, sync: SyncState) {
       <SyncContext value={sync}>
         <ToastProvider>
           <BackTargetProvider>
-            <Routes>
-              <Route path="/relatorio/:id" element={<SumarioSurface />} />
-              <Route path="/relatorio/:id/setup" element={<SetupProbe />} />
-              <Route path="/relatorio/:id/secao/:blockId" element={<p data-testid="secao-route">Seção</p>} />
-            </Routes>
-            <ToastOutlet />
+            <ExtraBannerProvider>
+              <BannerSlotProbe />
+              <Routes>
+                <Route path="/relatorio/:id" element={<SumarioSurface />} />
+                <Route path="/relatorio/:id/setup" element={<SetupProbe />} />
+                <Route path="/relatorio/:id/secao/:blockId" element={<p data-testid="secao-route">Seção</p>} />
+              </Routes>
+              <ToastOutlet />
+            </ExtraBannerProvider>
           </BackTargetProvider>
         </ToastProvider>
       </SyncContext>
@@ -570,6 +581,29 @@ describe('4.6 SumarioSurface: status transitions and the issued banner', () => {
       } as never),
     );
     renderSumario();
-    expect(await screen.findByText('Relatório emitido em 10/09/2026 (revisão 2). Alterações geram a revisão 3.')).toBeVisible();
+    expect(await screen.findByText('Relatório emitido em 10/09 (revisão 2). Alterações geram a revisão 3.')).toBeVisible();
+    // Through the real Banner component (UX-DR11), not a plain paragraph.
+    expect(screen.getByText('Relatório emitido em 10/09 (revisão 2). Alterações geram a revisão 3.').closest('.banner')).not.toBeNull();
+  });
+
+  it('hides the issued banner once backed all the way to Em campo, even though the revision row is still on record', async () => {
+    database = await seeded();
+    const relatorioRecord = await database.entities.get(['relatorio', RELATORIO]);
+    await database.entities.put({ ...relatorioRecord!, row: { ...(relatorioRecord!.row as RelatorioRow), status: 'em_campo' } });
+    await database.entities.put(
+      toRecord(`revision:019966c1-000f-7000-8000-000000000001`, {
+        id: '019966c1-000f-7000-8000-000000000001',
+        relatorio_id: RELATORIO,
+        number: 2,
+        snapshot_seq: 10,
+        created_by: USER,
+        docx_file_id: '019966c1-000f-7000-8000-000000000002',
+        pdf_file_id: '019966c1-000f-7000-8000-000000000003',
+        created_at: '2026-09-10T12:00:00.000Z',
+      } as never),
+    );
+    renderSumario();
+    await waitFor(() => expect(rows()).toHaveLength(13));
+    expect(screen.queryByText(/Relatório emitido em/)).toBeNull();
   });
 });

@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate, Outlet, RouterProvider, type RouteObject
 import { copy } from './copy/pt-br.ts';
 import { BackTargetProvider } from './state/back-target.tsx';
 import { DraftProvider } from './state/drafts.tsx';
+import { ExtraBannerProvider } from './state/extra-banner.tsx';
 import { SessionProvider, useSession } from './state/session.tsx';
 import { SyncProvider, useSync } from './state/sync.tsx';
 import { ThemeProvider } from './state/theme.tsx';
@@ -64,7 +65,9 @@ function RequireSession() {
         <ToastProvider>
           <DraftProvider>
             <BackTargetProvider>
-              <SessionShell />
+              <ExtraBannerProvider>
+                <SessionShell />
+              </ExtraBannerProvider>
             </BackTargetProvider>
           </DraftProvider>
         </ToastProvider>

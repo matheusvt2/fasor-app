@@ -38,6 +38,15 @@ export function isSetupComplete(snapshot: RelatorioSnapshot, responsible: UserRo
   return firstSetupGap(snapshot, responsible) === null;
 }
 
+/**
+ * FR-16: the site altitude as it prints/displays, "< 1000 m" below the threshold, else
+ * "⟨m⟩ m" -- the one place this rule decides, so the Setup page (Etapa 5) and Epic 5's
+ * Ambiente de ensaio show the same text for the same altitude (AD-1: never decided twice).
+ */
+export function siteAltitudeText(m: number): string {
+  return m < 1000 ? '< 1000 m' : `${m} m`;
+}
+
 /** "Concluir dados do relatório: falta ⟨o quê⟩", or null once every gap is closed. */
 export function setupIncompleteReason(snapshot: RelatorioSnapshot, responsible: UserRow | null): string | null {
   const gap = firstSetupGap(snapshot, responsible);

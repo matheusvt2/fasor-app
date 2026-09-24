@@ -60,6 +60,28 @@ function formatCalendarDateOrNull(value: string | null): string | null {
 }
 
 /**
+ * The separator between `secondaryLead` and the validity clause: " · " when both are
+ * present, empty otherwise (never a leading/orphan separator). The one join rule for
+ * every caller of `instrumentRegistryRowText` (the registry's own row and the relatório
+ * setup page's instrument picker), so neither composes it inline on its own.
+ */
+export function instrumentDetailSeparator(text: InstrumentRowText): string {
+  return text.secondaryLead === '' || text.validity === null ? '' : ' · ';
+}
+
+/**
+ * The `role="status"` note under an expired-but-selectable instrument row
+ * (`50-relatorio-setup.html:227`): "Calibração do ⟨code⟩ vencida em ⟨date⟩. Pode
+ * continuar — listada na verificação antes de emitir." `null` when the instrument is not
+ * expired (nothing to say beyond the row's own amber clause).
+ */
+export function instrumentExpiredNoteText(text: InstrumentRowText): string | null {
+  if (text.validity === null || !text.validity.expired) return null;
+  const date = text.validity.text.slice('Vencida em '.length);
+  return `Calibração do ${text.code} vencida em ${date}. Pode continuar — listada na verificação antes de emitir.`;
+}
+
+/**
  * The manufacturer entry a by-value name stands for (AD-19: an instrument keeps the
  * manufacturer's name, not its id), by the normalized comparison the server merge uses.
  */

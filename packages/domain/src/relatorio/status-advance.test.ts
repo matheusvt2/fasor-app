@@ -32,14 +32,23 @@ describe('4.6-UNIT advanceOnEdit', () => {
 });
 
 describe('4.6-UNIT issuedBannerText / latestRevision', () => {
-  it('names the issue date and the next revision number', () => {
-    expect(issuedBannerText({ number: 2, created_at: '2026-09-10T12:00:00Z' })).toBe(
-      'Relatório emitido em 10/09/2026 (revisão 2). Alterações geram a revisão 3.',
+  it('names the issue date (dd/mm, no year, UX-DR11) and the next revision number', () => {
+    expect(issuedBannerText('emitido', { number: 2, created_at: '2026-09-10T12:00:00Z' })).toBe(
+      'Relatório emitido em 10/09 (revisão 2). Alterações geram a revisão 3.',
+    );
+    expect(issuedBannerText('em_revisao', { number: 2, created_at: '2026-09-10T12:00:00Z' })).toBe(
+      'Relatório emitido em 10/09 (revisão 2). Alterações geram a revisão 3.',
     );
   });
 
   it('is null with no revision (an ordinary first Em campo → Em revisão pass)', () => {
-    expect(issuedBannerText(null)).toBeNull();
+    expect(issuedBannerText('em_revisao', null)).toBeNull();
+  });
+
+  it('is null once backed all the way to Em campo or Rascunho, even with a revision on record', () => {
+    const revision = { number: 2, created_at: '2026-09-10T12:00:00Z' };
+    expect(issuedBannerText('em_campo', revision)).toBeNull();
+    expect(issuedBannerText('rascunho', revision)).toBeNull();
   });
 
   it('latestRevision picks the highest number', () => {

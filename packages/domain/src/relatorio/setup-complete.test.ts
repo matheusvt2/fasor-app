@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import type { RelatorioSetup, UserRow } from '../schemas/entities.ts';
-import { firstSetupGap, isSetupComplete, setupIncompleteReason } from './setup-complete.ts';
+import { firstSetupGap, isSetupComplete, setupIncompleteReason, siteAltitudeText } from './setup-complete.ts';
 
 const RESPONSIBLE: UserRow = {
   id: '019966b0-0061-7000-8000-000000000003',
@@ -79,5 +79,17 @@ describe('4.2-UNIT isSetupComplete / setupIncompleteReason', () => {
     expect(setupIncompleteReason(snapshotWith({ setup: { art_trt_number: null } }), RESPONSIBLE)).toBe(
       'Concluir dados do relatório: falta o número do ART/TRT',
     );
+  });
+});
+
+describe('siteAltitudeText (FR-16)', () => {
+  it('is "< 1000 m" below the threshold', () => {
+    expect(siteAltitudeText(0)).toBe('< 1000 m');
+    expect(siteAltitudeText(999)).toBe('< 1000 m');
+  });
+
+  it('is "⟨m⟩ m" at or above the threshold', () => {
+    expect(siteAltitudeText(1000)).toBe('1000 m');
+    expect(siteAltitudeText(1200)).toBe('1200 m');
   });
 });

@@ -1,6 +1,43 @@
-import { useId } from 'react';
+import { useEffect, useId, useRef } from 'react';
 import { Button, ComboBox, Input, Label, ListBox, ListBoxItem, Popover } from 'react-aria-components';
 import { ui } from '../copy/ui';
+
+/**
+ * React Aria's `usePopover` closes a non-modal popover (ours: `isNonModal` is implicit for
+ * `ComboBox`) on *any* scroll of an ancestor that contains the trigger — including the page
+ * itself — because it has no cheaper way to keep an absolutely positioned popover from
+ * drifting out of place. It arms this the instant the popover opens (`useCloseOnScroll`,
+ * `@react-aria/overlays`), with no prop to scope it to "later" scrolls only.
+ *
+ * That collides with the ordinary act of *reaching* a field that needs scrolling into view:
+ * opening the list is the same gesture as the scroll that revealed its own chevron button, and
+ * the trailing scroll event — Playwright's own scroll-into-view settling a beat after the
+ * click, or, for a real user, momentum still bleeding off a touch scroll on the tablet this
+ * app targets — can land a few dozen milliseconds *after* the popover has already opened.
+ * React Aria cannot tell that apart from a deliberate "scroll the page away" dismissal, so it
+ * closes the list before anything can be selected from it.
+ *
+ * A short grace window after opening, during which a scroll event on the page is intercepted
+ * before React Aria's own window-capture listener ever sees it, keeps the guard for a real,
+ * later scroll-away while not punishing the popover for the scroll that brought its trigger
+ * into view. Registered once per mount (well before any open), so it always runs first on the
+ * same node and phase as React Aria's own listener (attached only once open, and later).
+ */
+const SCROLL_GRACE_MS = 400;
+
+function useIgnoreScrollRightAfterOpen(): (open: boolean) => void {
+  const openedAtRef = useRef(0);
+  useEffect(() => {
+    const onScroll = (event: Event) => {
+      if (Date.now() - openedAtRef.current < SCROLL_GRACE_MS) event.stopImmediatePropagation();
+    };
+    window.addEventListener('scroll', onScroll, true);
+    return () => window.removeEventListener('scroll', onScroll, true);
+  }, []);
+  return (open) => {
+    if (open) openedAtRef.current = Date.now();
+  };
+}
 
 export interface ComboboxOption {
   id: string;
@@ -52,12 +89,14 @@ export function Combobox({
   const reasonId = useId();
   const trimmed = inputValue?.trim() ?? '';
   const showCreate = Boolean(onCreate) && trimmed.length > 0;
+  const noteOpenChange = useIgnoreScrollRightAfterOpen();
 
   return (
     <>
       <ComboBox
         className="field combobox"
         selectedKey={selectedKey}
+        onOpenChange={noteOpenChange}
         onSelectionChange={(key) => {
           if (isDisabled) return;
           if (key === CREATE_KEY) {

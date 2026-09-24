@@ -139,6 +139,8 @@ describe('4.7 SectionTextSurface', () => {
       const row = await database!.entities.get(['block', seed.section2.id]);
       expect(((row!.row as BlockRow).config as { section_text: unknown }).section_text).toBe('Texto próprio deste relatório.');
     });
+    // E3-A8: the toast that carried "Desfazer" closes; focus does not fall to <body>.
+    expect(screen.getByRole('textbox', { name: 'Texto da seção' })).toHaveFocus();
   });
 
   it('shows the not-found copy for a stale link naming a non-editable block type', async () => {
