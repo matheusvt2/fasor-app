@@ -24,7 +24,8 @@ const row = (id: string, tag: string, removed_at: string | null = null): Equipme
 describe('4.5-UNIT block texts', () => {
   it('writes the move, creation, TAG and remove sentences', () => {
     expect(blockMovedText('SEC-C09', 3, 5)).toBe('SEC-C09 movido para a posição 3 de 5');
-    expect(blockCreatedText('SEC-C09', 'Coluna 9')).toBe('SEC-C09 criada na Coluna 9');
+    expect(blockCreatedText('SEC-C09', { kind: 'coluna', name: 'Coluna 9' })).toBe('SEC-C09 criada na Coluna 9');
+    expect(blockCreatedText('DJ-OXIGENIO', { kind: 'cabine', name: 'Oxigênio' })).toBe('DJ-OXIGENIO criada em Oxigênio');
     expect(tagTakenText('SEC-C05', '1° Subsolo › Coluna 5')).toBe('TAG já existe nesta obra — SEC-C05 em 1° Subsolo › Coluna 5');
     expect(tagTakenText('SEC-C05', null)).toBe('TAG já existe nesta obra — SEC-C05');
     expect(duplicateTagText('SEC-C05')).toBe('TAG SEC-C05 duplicada');

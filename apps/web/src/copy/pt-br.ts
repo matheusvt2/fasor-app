@@ -481,14 +481,12 @@ export const copy = {
       // authored: Story 4.4 adds a coluna and renames a location from the tree.
       addColuna: 'Adicionar coluna',
       // A location's Overflow item and the duplicate line's action (`key-sheet-states.html` duplicated row).
+      // Subir, Descer, Adicionar abaixo, Duplicar and Remover are the Sumário's own keys above.
       rename: 'Renomear',
-      moveUp: 'Subir',
-      moveDown: 'Descer',
-      // The equipment row Overflow (DESIGN.md › Overflow menu order); "Renomear TAG" is authored.
-      addBelow: 'Adicionar abaixo',
-      duplicate: 'Duplicar',
+      // authored: the equipment row Overflow's rename.
       renameTag: 'Renomear TAG',
-      remove: 'Remover',
+      // authored: the duplicate line's "Renomear" named with its row, so two duplicated rows never read alike.
+      renameDuplicateLabel: (tag: string, path: string) => `Renomear TAG ${tag} em ${path}`,
       // `40-relatorio-overview.html` `.s9-add`.
       addBlockIn: (name: string) => `Adicionar bloco em ${name}`,
       // authored: the foot of section 9's tree.
@@ -509,7 +507,6 @@ export const copy = {
     // Equipment identity and Form dialog).
     tagDialogs: {
       duplicateTitle: (tag: string) => `Duplicar ${tag}`,
-      duplicate: 'Duplicar',
       renameTagTitle: (tag: string) => `Renomear TAG ${tag}`,
       renameTitle: (name: string) => `Renomear ${name}`,
       tagLabel: 'TAG',
@@ -525,13 +522,12 @@ export const copy = {
     // The field Block palette (`40-relatorio-overview.html` `#lo-palette`).
     palette: {
       title: 'Adicionar bloco',
-      close: 'Fechar',
       where: (path: string) => `Em: ${path}`,
       // authored from the mock's "Ou escolha o tipo · …": the camera tile above it is out of the slice.
       chooseType: 'Escolha o tipo · TAG sugerida por tipo + coluna',
       officeNote: 'Seções de texto e sub-blocos (ensaios, placa, itens) são do escritório: Compositor de template e paleta aberta de dentro da ficha no desktop.',
-      // The office confirm (EXPERIENCE.md › Block palette, office variant: TAG and location, prefilled).
-      tagLabel: 'TAG',
+      // The office confirm (EXPERIENCE.md › Block palette, office variant: TAG and location, prefilled);
+      // its "TAG" is the dialogs' `tagDialogs.tagLabel`.
       localLabel: 'Local',
       confirm: 'Confirmar',
     },

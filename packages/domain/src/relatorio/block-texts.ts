@@ -12,9 +12,13 @@ export function blockMovedText(tag: string, position: number, total: number): st
   return `${tag} movido para a posição ${position} de ${total}`;
 }
 
-/** The toast of a block created from the palette or by "Duplicar": "SEC-C09 criada na Coluna 9" (`40-relatorio-overview.html`). */
-export function blockCreatedText(tag: string, locationName: string): string {
-  return `${tag} criada na ${locationName}`;
+/**
+ * The toast of a block created from the palette or by "Duplicar": "SEC-C09 criada na Coluna 9"
+ * (`40-relatorio-overview.html`) for a coluna; a cabine's name takes no article, "DJ-OXIGENIO
+ * criada em Oxigênio" (authored: "na Geradores", "na 1° Subsolo" do not read).
+ */
+export function blockCreatedText(tag: string, location: { kind: 'cabine' | 'coluna'; name: string }): string {
+  return location.kind === 'coluna' ? `${tag} criada na ${location.name}` : `${tag} criada em ${location.name}`;
 }
 
 /**

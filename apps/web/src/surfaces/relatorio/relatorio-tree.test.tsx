@@ -388,7 +388,8 @@ describe('4.4 location tree (Sumário presentation)', () => {
     await openCabine();
     const line = eqRow(DJ_TEST).querySelector('.s9-dup')!;
     expect(line).toHaveTextContent('TAG DJ-TEST duplicada');
-    await userEvent.click(within(line as HTMLElement).getByRole('button', { name: 'Renomear' }));
+    // Review F-6: the line's button is named with its row.
+    await userEvent.click(within(line as HTMLElement).getByRole('button', { name: 'Renomear TAG DJ-TEST em Cabine de Testes' }));
     const dialog = await screen.findByRole('dialog', { name: 'Renomear TAG DJ-TEST' });
     const field = within(dialog).getByRole('textbox', { name: 'TAG' });
     expect(field).toHaveValue('DJ-TEST');
@@ -530,17 +531,60 @@ describe('4.4/4.5 tree edge paths', () => {
     await waitFor(() => expect(eqRow(SEC_TEST).querySelector('.s9-eq-open')).toHaveFocus());
   });
 
-  it('".s9-add" opens the palette on its cabine; "Desfazer" of a creation with no anchor focuses the location chevron', async () => {
+  it('".s9-add" opens the palette on the cabine\'s current coluna and creates there; the palette opens on its first type; "Desfazer" focuses the coluna chevron', async () => {
     database = await seeded();
     await openCabine();
     await userEvent.click(screen.getByRole('button', { name: 'Adicionar bloco em Cabine de Testes' }));
     const palette = await screen.findByRole('dialog', { name: 'Adicionar bloco' });
-    expect(within(palette).getByText('Em: Cabine de Testes')).toBeInTheDocument();
+    // Review F-3: the cabine's last coluna (no last sheet under it), as the mock's "Em: 1° Subsolo › Coluna 9".
+    expect(within(palette).getByText('Em: Cabine de Testes › Coluna 1')).toBeInTheDocument();
+    // Review F-9: the first type row takes the focus, not "Fechar".
+    await waitFor(() => expect(palette.querySelector('.pf-field')).toHaveFocus());
     await userEvent.click([...palette.querySelectorAll<HTMLElement>('.pf-field')][1]!);
-    await waitFor(() => expect(tags(tree().querySelector('li.s9-cabine')!)).toEqual(['SEC-TEST', 'DJ-TEST', 'TR-TEST', 'PR-TESTES']));
+    const coluna = () => tree().querySelector('li.s9-coluna')!;
+    await waitFor(() => expect(tags(coluna())).toEqual(['SEC-C01', 'PR-C01']));
+    expect(tags(tree().querySelector('li.s9-cabine')!)).toEqual(['SEC-TEST', 'DJ-TEST', 'TR-TEST']);
+    await waitFor(() => expect(document.querySelector('.toast')).toHaveTextContent('PR-C01 criada na Coluna 1'));
     await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
-    await waitFor(() => expect(tags(tree().querySelector('li.s9-cabine')!)).toEqual(['SEC-TEST', 'DJ-TEST', 'TR-TEST']));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Recolher Cabine de Testes' })).toHaveFocus());
+    await waitFor(() => expect(tags(coluna())).toEqual(['SEC-C01']));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Recolher Coluna 1' })).toHaveFocus());
+  });
+
+  it('the cabine\'s "Adicionar bloco" follows the last sheet\'s coluna; a cabine with no coluna takes the block itself, "criada em ⟨cabine⟩"', async () => {
+    // Rascunho: section 9 opens collapsed, so nothing is expanded for the last sheet.
+    database = await seeded({ status: 'rascunho' });
+    const coluna2: LocationRow = { id: id(20), relatorio_id: RELATORIO, parent_id: CABINE, kind: 'coluna', name: 'Coluna 2', order_key: 'a1', removed_at: null };
+    await database.entities.put(toRecord(`location:${coluna2.id}`, coluna2));
+    await database.local_prefs.put({ key: LAST_SHEET_PREF(RELATORIO), value: SEC_C01 });
+    await openCabine();
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Cabine de Testes' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Adicionar bloco' }));
+    let palette = await screen.findByRole('dialog', { name: 'Adicionar bloco' });
+    expect(within(palette).getByText('Em: Cabine de Testes › Coluna 1')).toBeInTheDocument();
+    await userEvent.click(within(palette).getByRole('button', { name: 'Fechar' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await userEvent.click(screen.getByRole('button', { name: 'Expandir Cabine Vazia' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Adicionar bloco em Cabine Vazia' }));
+    palette = await screen.findByRole('dialog', { name: 'Adicionar bloco' });
+    expect(within(palette).getByText('Em: Cabine Vazia')).toBeInTheDocument();
+    await userEvent.click([...palette.querySelectorAll<HTMLElement>('.pf-field')][3]!);
+    await waitFor(() => expect(document.querySelector('.toast')).toHaveTextContent('DJ-VAZIA criada em Cabine Vazia'));
+  });
+
+  it('"Desfazer" of a Restaurar hands the focus back to the header\'s "Mais opções do relatório"', async () => {
+    database = await seeded();
+    await openCabine();
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de SEC-C01' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Remover' }));
+    await waitFor(() => expect(document.querySelector(`li[data-block-id="${SEC_C01}"]`)).toBeNull());
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções do relatório' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Restaurar ficha removida' }));
+    const restore = await screen.findByRole('dialog', { name: 'Restaurar ficha removida' });
+    await userEvent.click(within(restore).getByRole('button', { name: 'Restaurar SEC-C01 — Cabine de Testes › Coluna 1' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Mais opções de SEC-C01' })).toHaveFocus());
+    await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
+    await waitFor(() => expect(document.querySelector(`li[data-block-id="${SEC_C01}"]`)).toBeNull());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Mais opções do relatório' })).toHaveFocus());
   });
 
   it('"Desfazer" after a move focuses the row\'s Position box; after "Adicionar coluna" the cabine\'s chevron', async () => {

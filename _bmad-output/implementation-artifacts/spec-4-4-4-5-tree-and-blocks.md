@@ -13,7 +13,39 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-4-context.md'
   - '{project-root}/_bmad-output/implementation-artifacts/spec-4-1-4-3-project-relatorio-and-sumario.md'
 warnings: ['batched', 'oversized']
-deferred: []
+deferred:
+  - summary: >-
+      Narrowings of Stories 4.4/4.5 recorded in this spec but not yet struck through with the
+      date beside the ACs in epics.md.
+    evidence: |-
+      Office palette sub-block toggles inside a sheet deferred to Epic 5; phone rows indented
+      16 px per the mock's .frame-phone rule; Confirm title "Remover ficha SEC-C05?" (the AC)
+      where EXPERIENCE.md Flow 3 adds "e seus dados"; "Agrupar por tipo" as a menuitemcheckbox
+      in the cabine Overflow; /relatorio/:id/arvore reachable by address only until Epic 5; the
+      portrait rail opens inline rather than as an overlay; the field palette creates on one tap
+      and "Adicionar bloco em cabine" targets the current coluna without the mock's "Trocar".
+      Planning documents are the coordinator's in this parallel run (independent review F-12).
+    location: >-
+      _bmad-output/planning-artifacts/epics.md (Stories 4.4 and 4.5)
+    severity: low
+  - summary: >-
+      The office palette's "Local" is a native select, not a React Aria Select.
+    evidence: |-
+      Accessible and axe clean; no mock draws the office confirm; a shared React Aria Select is
+      a component-library change outside this story (independent review F-8).
+    location: >-
+      apps/web/src/surfaces/relatorio/block-palette-field.tsx
+    severity: low
+  - summary: >-
+      An undone creation (palette tap or Duplicar, then Desfazer) is listed by "Restaurar ficha
+      removida".
+    evidence: |-
+      undoBatch tombstones the created block and equipment, so the restore list offers them,
+      as it does for batch A's sections; restoring brings a valid empty sheet back
+      (independent review F-11).
+    location: >-
+      packages/domain/src/relatorio/sumario.ts (restorableBlocks)
+    severity: low
 ---
 
 <intent-contract>
@@ -207,4 +239,11 @@ Status: done (branch `story/4-4-4-5-tree-and-blocks`; the batch orchestrator ope
 **Verification:** `docker compose --profile tools run --rm tools pnpm verify` green after the patches: lint clean; static clean; unit kernel 54 files / 628 tests, web 74 files / 645 tests, tooling 2 / 20; api 18 files / 107 tests; Playwright `@p0` 43 passed (`desktop-chrome` + `durability-desktop-chrome`). Then `e2e/tree.spec.ts` + `e2e/relatorio.spec.ts` on `desktop-chrome`: 9 passed (`@p1` included); `4.5-E2E-004` on `durability-android-chrome`: passed; `tree-actions.test.ts` 2 passed, `pnpm lint` and `pnpm static` clean after it. The human-style browser pass is the orchestrator's (section 4), recorded in `reviews/epic-4-B-review.md`.
 
 **Residual risks:** the Sumário and tree rebuild `locationTree` over the whole snapshot on each live-query tick (fine at 94 sheets); the `/relatorio/:id/arvore` route is reachable by address only until Epic 5 links it from the sheet; phone rows indent 16 px per the mock's `.frame-phone` rule while DESIGN.md says 24 px.
+
+### 2026-09-24 — Independent review pass (PR #26, fresh context, model opus)
+- verdict: changes-requested (0 must-fix, 3 should-fix, 6 nits, 4 notes); every should-fix and five nits fixed and re-verified; F-8 left and F-11/F-12 recorded in `deferred`; the record is `reviews/epic-4-B-review.md`.
+- F-1: the rail's "Não ensaiada · ⟨reason⟩" overflowed the 320 px rail — reason moved to the rail meta line (`railMetaText`), rail width asserted in `4.4-E2E-002`.
+- F-2: focus after "Desfazer" of a Restaurar fell to `<body>` — the header Overflow trigger takes it.
+- F-3: "Adicionar bloco em ⟨cabine⟩" created on the cabine — kernel `paletteLocationFor` targets the current coluna.
+- Nits fixed: creation toast article per location kind, duplicated copy keys, the duplicate line's "Renomear" named with TAG and place, the landing index clamp moved into the kernel (`moveLandingIndex`), the palette's initial focus on the first type row.
 

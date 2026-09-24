@@ -104,6 +104,11 @@ test('@p0 4.4-E2E-001 section 9 at 1280: chevrons and Left/Right, coluna and equ
   await sec.locator('.s9-eq-open').focus();
   await page.keyboard.press('ArrowLeft');
   await expect(page.getByRole('button', { name: 'Recolher Coluna 1', exact: true })).toBeFocused();
+  // Review F-3: "Adicionar bloco em ⟨cabine⟩" opens on the cabine's current coluna (its last, no sheet worked yet).
+  await page.getByRole('button', { name: 'Adicionar bloco em 1° Subsolo' }).click();
+  await expect(page.getByRole('dialog', { name: 'Adicionar bloco' }).getByText('Em: 1° Subsolo › Coluna 17')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   // "Mover para…" is hidden until Epic 11: absent from an open equipment Overflow.
   await menuOf(page, 'SEC-C01').click();
   await expect(page.getByRole('menu')).toBeVisible();
@@ -348,7 +353,7 @@ test('@p1 4.5-E2E-003 a TAG duplicated by sync reads "TAG ⟨TAG⟩ duplicada" a
   await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
   const line = eqRow(page, 'SEC-C01').locator('.s9-dup');
   await expect(line).toContainText('TAG SEC-C01 duplicada');
-  await line.getByRole('button', { name: 'Renomear' }).click();
+  await line.getByRole('button', { name: 'Renomear TAG SEC-C01 em 1° Subsolo › Coluna 1' }).click();
   const dialog = page.getByRole('dialog', { name: 'Renomear TAG SEC-C01' });
   await dialog.getByRole('textbox', { name: 'TAG' }).fill('SEC-C01-A');
   await dialog.getByRole('button', { name: 'Salvar' }).click();
@@ -362,6 +367,11 @@ test('@p0 4.4-E2E-002 /relatorio/:id/arvore: the tree as a surface at 390, the s
   await page.getByRole('button', { name: 'Expandir Geradores' }).click();
   const geradoresFirst = (await tagsIn(cabine(page, 'Geradores')).first().textContent())!;
   const lastSheet = await blockIdOf(page, geradoresFirst);
+  // Review F-1: the last sheet is not tested (made so on another device), the longest state the rail draws.
+  await pushDrafts(page, database, [
+    officeDraft(account, { relatorioId }, `block/${lastSheet}/not_tested`, { reason: 'solicitacao_cliente', text: null, at: new Date().toISOString(), by: account.userId }),
+  ]);
+  await syncNow(page);
   await page.evaluate(
     async ([name, key, value]) => {
       const open = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -400,6 +410,9 @@ test('@p0 4.4-E2E-002 /relatorio/:id/arvore: the tree as a surface at 390, the s
   await toggle.click();
   await expect(rail).toBeVisible();
   expect(Math.round((await page.locator('aside.rail').boundingBox())!.width)).toBe(320);
+  // Nothing in the rail scrolls sideways, the not-tested row included.
+  await expect(rail.locator('.tree-row[aria-current="true"]')).toBeVisible();
+  expect(await page.locator('aside.rail').evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
   await page.getByRole('button', { name: 'Recolher árvore' }).click();
   await expect(rail).toBeHidden();
   await expect(toggle).toBeFocused();
@@ -411,9 +424,12 @@ test('@p0 4.4-E2E-002 /relatorio/:id/arvore: the tree as a surface at 390, the s
   const current = rail.locator('.tree-row[aria-current="true"]');
   await expect(current).toHaveCount(1);
   await expect(current).toHaveClass(/is-selected/);
-  await expect(current.locator('.tree-meta')).toHaveText(geradoresFirst);
-  await expect(current.locator('.tree-state')).toContainText('Vazia');
-  await expect(current.locator('.tree-state [aria-hidden="true"]')).toHaveText('○');
+  // The state keeps its word; the reason is on the meta line (review F-1).
+  await expect(current.locator('.tree-state')).toHaveText('⊘Não ensaiada');
+  await expect(current.locator('.tree-state [aria-hidden="true"]')).toHaveText('⊘');
+  await expect(current.locator('.tree-meta')).toHaveText(`${geradoresFirst} · Solicitação do cliente`);
+  expect(await page.locator('aside.rail').evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(0);
+  expect((await current.locator('.tree-body').boundingBox())!.width).toBeGreaterThan(120);
   // Cabines and fichas only: no section, no Position box.
   await expect(rail.getByText('Objetivo')).toHaveCount(0);
   await expect(rail.locator('.pos-box')).toHaveCount(0);

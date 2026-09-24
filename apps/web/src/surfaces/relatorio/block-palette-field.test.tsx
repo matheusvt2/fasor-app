@@ -52,6 +52,8 @@ describe('4.5 FieldPalette', () => {
     const { onCreate } = renderPalette();
     const palette = screen.getByRole('dialog', { name: 'Adicionar bloco' });
     expect(within(palette).getByText('Em: 1° Subsolo › Coluna 9')).toHaveClass('palette-group');
+    // Review F-9: the palette opens on its first type row (jsdom draws both variants; the field row comes first).
+    await waitFor(() => expect(palette.querySelector('.pf-field')).toHaveFocus());
     expect(within(palette).getByText('Escolha o tipo · TAG sugerida por tipo + coluna')).toBeInTheDocument();
     const rows = [...palette.querySelectorAll<HTMLElement>('.pf-field')];
     expect(rows.map((row) => row.querySelector('.pi-text > span:first-child')?.textContent)).toEqual([

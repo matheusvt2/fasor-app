@@ -79,6 +79,8 @@ export interface TreeEquipmentNode {
   stateWord: string;
   /** The word, and for a sheet not tested its reason: "Não ensaiada · Solicitação do cliente". */
   stateText: string;
+  /** The rail row's `.tree-meta`: the TAG, and for a sheet not tested its reason ("SEC-C05 · Solicitação do cliente"); the rail's state keeps the word alone. */
+  railMetaText: string;
   /** 1-based position among the live blocks of the same location, and how many there are. */
   position: number;
   siblings: number;
@@ -193,6 +195,7 @@ export function locationTree(
       glyph: SHEET_STATE_GLYPH[state],
       stateWord: word,
       stateText: reason === null ? word : `${word}${SEP}${reason}`,
+      railMetaText: [tag, reason].filter((part): part is string => part !== null && part !== '').join(SEP),
       position,
       siblings,
       duplicate: block.equipment_id !== null && duplicated.has(block.equipment_id),
@@ -282,6 +285,23 @@ export function duplicateTagSuggestion(
   const location = locations.find((row) => row.id === block.locationId);
   if (location === undefined || !isEquipmentBlockType(block.blockType)) return block.tag;
   return suggestTag(block.blockType, { kind: location.kind, name: location.name }, equipment);
+}
+
+/**
+ * Where the palette opened from a cabine ("Adicionar bloco em ⟨cabine⟩", the cabine's
+ * "Adicionar bloco") puts the block, EXPERIENCE.md's "current column": the coluna under
+ * that cabine holding the last sheet worked on this device, else the cabine's last live
+ * coluna, else the cabine itself (one with no colunas, as Cubículo Enel).
+ */
+export function paletteLocationFor(
+  snapshot: Pick<RelatorioSnapshot, 'locations' | 'blocks'>,
+  cabineId: string,
+  lastSheetId: string | null,
+): string {
+  const colunas = siblingLocations(snapshot.locations, cabineId);
+  const last = lastSheetId === null ? undefined : snapshot.blocks.find((block) => block.id === lastSheetId && block.removed_at === null);
+  if (last?.location_id != null && colunas.some((coluna) => coluna.id === last.location_id)) return last.location_id;
+  return colunas.at(-1)?.id ?? cabineId;
 }
 
 /** The rail head: "Árvore do relatório · 94 blocos", "Árvore do relatório · 1 bloco". */

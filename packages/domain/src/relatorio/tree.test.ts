@@ -17,6 +17,7 @@ import {
   newLocation,
   notTestedReasonText,
   paletteItems,
+  paletteLocationFor,
   railHeadText,
   SHEET_STATE_GLYPH,
   siblingLocations,
@@ -146,6 +147,9 @@ describe('4.4-UNIT locationTree', () => {
     expect(byTag.get('DJ-C05')).toMatchObject({ sumarioStateAttr: 'ok', holdsData: true });
     expect(byTag.get('SEC-C04')).toMatchObject({ sumarioStateAttr: 'doing', holdsData: true });
     expect(byTag.get('CE-B')).toMatchObject({ sumarioStateAttr: 'empty', holdsData: false });
+    // The rail keeps the word alone in its state and puts the reason on the meta line (review F-1).
+    expect(byTag.get('SEC-C05')!.railMetaText).toBe('SEC-C05 · Solicitação do cliente');
+    expect(byTag.get('DJ-C05')!.railMetaText).toBe('DJ-C05');
     expect(SHEET_STATE_GLYPH).toEqual({ concluida: '✓', em_preenchimento: '●', vazia: '○', nao_ensaiada: '⊘' });
   });
 
@@ -224,6 +228,18 @@ describe('4.4/4.5-UNIT tree texts and writes', () => {
     expect(duplicateTagSuggestion({ blockType: 'chave_seccionadora', locationId: id(3), tag: 'SEC-C05' }, snapshot.locations, snapshot.equipment)).toBe('SEC-C05-2');
     expect(duplicateTagSuggestion({ blockType: 'chave_seccionadora', locationId: 'nope', tag: 'SEC-C05' }, snapshot.locations, snapshot.equipment)).toBe('SEC-C05');
     expect(duplicateTagSuggestion({ blockType: 'section_2', locationId: id(3), tag: 'X' }, snapshot.locations, snapshot.equipment)).toBe('X');
+  });
+
+  it('paletteLocationFor: the coluna of the last sheet under the cabine, else its last coluna, else the cabine', () => {
+    const snapshot = relatorio();
+    expect(paletteLocationFor(snapshot, id(2), id(1004))).toBe(id(4));
+    expect(paletteLocationFor(snapshot, id(2), id(1002))).toBe(id(3));
+    expect(paletteLocationFor(snapshot, id(2), null)).toBe(id(3));
+    // A last sheet elsewhere, or deeper than a coluna, does not choose.
+    expect(paletteLocationFor(snapshot, id(2), id(1006))).toBe(id(3));
+    expect(paletteLocationFor(snapshot, id(2), id(1005))).toBe(id(3));
+    // A cabine with no coluna takes the block itself.
+    expect(paletteLocationFor(snapshot, id(1), null)).toBe(id(1));
   });
 
   it('railHeadText', () => {

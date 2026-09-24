@@ -6,6 +6,7 @@ import {
   isEquipmentBlockType,
   locationBlocks,
   moveAnnouncement,
+  moveLandingIndex,
   newBlockOrderKey,
   newEquipmentBlock,
   newLocation,
@@ -143,7 +144,7 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
         if (!present) showToast(t.gone);
         return;
       }
-      const to = Math.min(total - 1, Math.max(0, toIndex));
+      const to = moveLandingIndex(total, toIndex);
       const text = blockMovedText(node.name, to + 1, total);
       announce(text);
       // "Desfazer" hands the focus back to the row's Position box once it is in its old slot.
@@ -175,7 +176,7 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
         if (!present) showToast(t.locationGone);
         return;
       }
-      const to = Math.min(total - 1, Math.max(0, toIndex));
+      const to = moveLandingIndex(total, toIndex);
       const text = moveAnnouncement(node.kind === 'cabine' ? 'cabine' : 'coluna', node.name, to + 1, total);
       announce(text);
       undoable(text, batch, () => locationChevron(host.root(), node.id));
@@ -186,7 +187,7 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
   /** One equipment + block pair, as the palette or "Duplicar" asks for it; `copyFrom` names the block whose config is copied. */
   const createPair = useCallback(
     (input: { type: string; locationId: string; anchorBlockId: string | null; tag: string | null; copyFrom?: string }) => {
-      const out: { refusal: string | null; created: { tag: string; blockId: string; locationName: string } | null } = { refusal: null, created: null };
+      const out: { refusal: string | null; created: { tag: string; blockId: string; location: { kind: 'cabine' | 'coluna'; name: string } } | null } = { refusal: null, created: null };
       void edit((blocks, by, fresh) => {
         const location = fresh.locations.find((row) => row.id === input.locationId);
         if (location === undefined || !isEquipmentBlockType(input.type)) {
@@ -217,7 +218,7 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
           // "Duplicar" copies the structure (sub-blocks, subtype), never the data (EXPERIENCE.md › Block Model).
           ...(source === undefined ? {} : { config: source.config }),
         });
-        out.created = { tag: pair.equipment.tag, blockId: pair.block.id, locationName: location.name };
+        out.created = { tag: pair.equipment.tag, blockId: pair.block.id, location: { kind: location.kind, name: location.name } };
         return [createEquipmentOp(by, pair.equipment), createBlockOp(by, relatorioId, pair.block)];
       })
         .then((batch) => {
@@ -230,7 +231,7 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
           focusWhenRendered(() => blockOpen(host.root(), made.blockId));
           // "Desfazer" removes the new row: the focus goes back to the row it went under, else the location's chevron.
           const anchor = input.anchorBlockId;
-          undoable(blockCreatedText(made.tag, made.locationName), batch, () =>
+          undoable(blockCreatedText(made.tag, made.location), batch, () =>
             anchor !== null && blockOpen(host.root(), anchor) !== null
               ? blockOpen(host.root(), anchor)
               : blockOpen(host.root(), made.blockId) === null

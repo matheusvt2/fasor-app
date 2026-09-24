@@ -109,6 +109,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const [restoring, setRestoring] = useState(false);
   const listRef = useRef<HTMLOListElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const headerMenuRef = useRef<HTMLDivElement>(null);
   const reasonId = useId();
 
   // One write path for the rows and the tree: the serialised edit queue, the announcer and
@@ -227,6 +228,13 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
     insertBelow(below, () => ({ type, config: { ...defaultBlockConfig(relatorio.seed_version, type), section_text: null } }), t.added);
   }
 
+  /**
+   * "Desfazer" of a Restaurar tombstones the row again: the focus goes back to where the
+   * restore came from, the header's "Mais opções do relatório", once the row is gone (E3-A8).
+   */
+  const undoneRestoreFocus = (blockId: string) => () =>
+    listRef.current?.querySelector(`[data-block-id="${CSS.escape(blockId)}"]`) != null ? null : headerMenuRef.current?.querySelector<HTMLElement>('.overflow-trigger') ?? null;
+
   function onRestore(block: RestorableBlock): void {
     setRestoring(false);
     const locationId = allBlocks.find((row) => row.id === block.id)?.location_id ?? null;
@@ -247,11 +255,11 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
           setExpanded(true);
           treeRef.current?.reveal(locationId);
           focusWhenRendered(() => blockTrigger(listRef.current?.querySelector(`li.s9-eq[data-block-id="${CSS.escape(block.id)}"]`)));
-          undoable(t.tree.restored, batch);
+          undoable(t.tree.restored, batch, undoneRestoreFocus(block.id));
           return;
         }
         focusWhenRendered(() => rowFocusTarget(rowLi(block.id)));
-        undoable(t.restored, batch);
+        undoable(t.restored, batch, undoneRestoreFocus(block.id));
       })
       .catch(() => undefined);
   }
@@ -281,7 +289,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
             <TextButton onPress={openSection9}>{sugestoesText(computed.suggestions_pending)}</TextButton>
           </p>
         </div>
-        <div className="header-side">
+        <div className="header-side" ref={headerMenuRef}>
           <OverflowMenu name="" label={t.headerMenu} items={[{ id: 'restore', label: t.restore, onAction: () => setRestoring(true) }]} />
         </div>
       </div>

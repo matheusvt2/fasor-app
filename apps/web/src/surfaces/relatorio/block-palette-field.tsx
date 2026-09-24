@@ -10,7 +10,7 @@ import {
   type LocationRow,
   type PaletteItem,
 } from '@app/domain';
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from '../../components/index.ts';
 import { DialogShell } from '../../components/dialog-shell.tsx';
 import { copy } from '../../copy/pt-br.ts';
@@ -59,6 +59,21 @@ export interface FieldPaletteProps {
 export function FieldPalette({ target, seedVersion, locations, blocks, equipment, onCreate, onClose }: FieldPaletteProps) {
   const t = copy.sumario.palette;
   const headingId = useId();
+  // EXPERIENCE.md › Accessibility: a palette opens on its first option, not on "Fechar" (review
+  // F-9). The shell focuses the first reachable control a frame after mounting; this takes the
+  // focus to the first type row the width shows (the field row below 1280 px, the office row
+  // from 1280 px, whichever one CSS draws).
+  const itemsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => {
+        const rows = itemsRef.current?.querySelectorAll<HTMLElement>('.pf-field, .pf-office > .palette-item') ?? [];
+        const shown = [...rows].find((row) => row.getClientRects().length > 0) ?? rows[0];
+        shown?.focus();
+      });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
   const location = locations.find((row) => row.id === target.locationId) ?? null;
   const [openType, setOpenType] = useState<EquipmentBlockType | null>(null);
   if (location === null) return null;
@@ -76,13 +91,13 @@ export function FieldPalette({ target, seedVersion, locations, blocks, equipment
       <div className="sheet-grip" aria-hidden="true" />
       <div className="palette-head">
         <span id={headingId}>{t.title}</span>
-        <button type="button" className="icon-btn" aria-label={t.close} onClick={onClose}>
+        <button type="button" className="icon-btn" aria-label={copy.sumario.close} onClick={onClose}>
           <svg className="ico" aria-hidden="true">
             <use href="/sprite.svg#i-close" />
           </svg>
         </button>
       </div>
-      <div className="palette-items">
+      <div className="palette-items" ref={itemsRef}>
         <p className="palette-group palette-where">{t.where(locationPathText(locations, location.id))}</p>
         <p className="palette-group">{t.chooseType}</p>
         {items.map((item) => (
@@ -174,7 +189,7 @@ function OfficeType({ item, isOpen, onToggle, target, locations, blocks, equipme
       {isOpen ? (
         <div className="type-confirm" id={confirmId}>
           <TagField
-            label={t.tagLabel}
+            label={copy.sumario.tagDialogs.tagLabel}
             value={tag}
             onChange={(value) => {
               setEdited(true);

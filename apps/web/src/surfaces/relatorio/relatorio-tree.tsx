@@ -1,7 +1,9 @@
 import {
   duplicateTagSuggestion,
   duplicateTagText,
+  locationPathText,
   locationTree,
+  paletteLocationFor,
   removeBlockTitle,
   treePathTo,
   type EquipmentRow,
@@ -75,6 +77,10 @@ interface Shared {
   currentPath: ReadonlySet<string>;
   actions: TreeActions;
   openPalette: (target: PaletteTarget) => void;
+  /** Where the palette opened on a location puts the block: a cabine's current coluna (kernel `paletteLocationFor`), else the location itself. */
+  paletteLocation: (node: TreeLocationNode) => string;
+  /** "1° Subsolo › Coluna 5": a location's path (the duplicate line's accessible name). */
+  pathOf: (locationId: string) => string;
   openDialog: (dialog: Dialog) => void;
   requestRemove: (node: TreeEquipmentNode) => void;
 }
@@ -190,6 +196,8 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
     currentPath,
     actions,
     openPalette: setPalette,
+    paletteLocation: (node) => (node.kind === 'cabine' ? paletteLocationFor(snapshot, node.id, lastSheetId) : node.id),
+    pathOf: (locationId) => locationPathText(snapshot.locations, locationId),
     openDialog: setDialog,
     requestRemove: (node) => {
       // EXPERIENCE.md › Block Model: only a sheet holding data asks first (the kernel's `holdsData`).
@@ -265,7 +273,7 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
       {dialog?.kind === 'duplicate' ? (
         <TagDialog
           title={copy.sumario.tagDialogs.duplicateTitle(dialog.node.name)}
-          action={copy.sumario.tagDialogs.duplicate}
+          action={copy.sumario.duplicate}
           initial={duplicateTagSuggestion(dialog.node, snapshot.locations, equipment)}
           equipment={equipment}
           blocks={snapshot.blocks}
@@ -324,11 +332,11 @@ function locationMenu(node: TreeLocationNode, shared: Shared, reorder: Reorder |
     items.push({ id: 'agrupar', label: t.agrupar, checked: node.agruparPorTipo === true, onAction: () => shared.actions.toggleAgrupar(node) });
   }
   if (shared.presentation === 'rail') return items;
-  items.push({ id: 'add-block', label: t.addBlock, onAction: () => shared.openPalette({ locationId: node.id, anchorBlockId: null }) });
+  items.push({ id: 'add-block', label: t.addBlock, onAction: () => shared.openPalette({ locationId: shared.paletteLocation(node), anchorBlockId: null }) });
   if (node.kind === 'cabine') items.push({ id: 'add-coluna', label: t.addColuna, onAction: () => shared.actions.addLocation(node) });
   items.push({ id: 'rename', label: t.rename, onAction: () => shared.openDialog({ kind: 'rename-location', node }) });
-  if (reorder !== null && node.position > 1) items.push({ id: 'up', label: t.moveUp, onAction: () => void reorder.moveTo(node.position - 2, trigger) });
-  if (reorder !== null && node.position < node.siblings) items.push({ id: 'down', label: t.moveDown, onAction: () => void reorder.moveTo(node.position, trigger) });
+  if (reorder !== null && node.position > 1) items.push({ id: 'up', label: copy.sumario.moveUp, onAction: () => void reorder.moveTo(node.position - 2, trigger) });
+  if (reorder !== null && node.position < node.siblings) items.push({ id: 'down', label: copy.sumario.moveDown, onAction: () => void reorder.moveTo(node.position, trigger) });
   return items;
 }
 
@@ -406,7 +414,7 @@ function SumarioLocation({ node, shared }: { node: TreeLocationNode; shared: Sha
         </div>
         {children}
         {open ? (
-          <AriaButton className="btn btn-text s9-add" onPress={() => shared.openPalette({ locationId: node.id, anchorBlockId: null })}>
+          <AriaButton className="btn btn-text s9-add" onPress={() => shared.openPalette({ locationId: shared.paletteLocation(node), anchorBlockId: null })}>
             <svg className="ico" aria-hidden="true">
               <use href="/sprite.svg#i-plus" />
             </svg>
@@ -431,12 +439,13 @@ function SumarioLocation({ node, shared }: { node: TreeLocationNode; shared: Sha
 
 function equipmentMenu(node: TreeEquipmentNode, shared: Shared, reorder: Reorder, trigger: () => HTMLElement | null) {
   const t = copy.sumario.tree;
-  const items: OverflowMenuAction[] = [{ id: 'add-below', label: t.addBelow, onAction: () => shared.openPalette({ locationId: node.locationId, anchorBlockId: node.blockId }) }];
-  if (node.position > 1) items.push({ id: 'up', label: t.moveUp, onAction: () => void reorder.moveTo(node.position - 2, trigger) });
-  if (node.position < node.siblings) items.push({ id: 'down', label: t.moveDown, onAction: () => void reorder.moveTo(node.position, trigger) });
-  items.push({ id: 'duplicate', label: t.duplicate, onAction: () => shared.openDialog({ kind: 'duplicate', node }) });
+  const s = copy.sumario;
+  const items: OverflowMenuAction[] = [{ id: 'add-below', label: s.addBelow, onAction: () => shared.openPalette({ locationId: node.locationId, anchorBlockId: node.blockId }) }];
+  if (node.position > 1) items.push({ id: 'up', label: s.moveUp, onAction: () => void reorder.moveTo(node.position - 2, trigger) });
+  if (node.position < node.siblings) items.push({ id: 'down', label: s.moveDown, onAction: () => void reorder.moveTo(node.position, trigger) });
+  items.push({ id: 'duplicate', label: s.duplicate, onAction: () => shared.openDialog({ kind: 'duplicate', node }) });
   if (node.equipmentId !== null) items.push({ id: 'rename-tag', label: t.renameTag, onAction: () => shared.openDialog({ kind: 'rename-tag', node }) });
-  const destructiveItems: OverflowMenuAction[] = [{ id: 'remove', label: t.remove, onAction: () => shared.requestRemove(node) }];
+  const destructiveItems: OverflowMenuAction[] = [{ id: 'remove', label: s.remove, onAction: () => shared.requestRemove(node) }];
   return { items, destructiveItems };
 }
 
@@ -480,7 +489,9 @@ function SumarioEquipment({ node, shared }: { node: TreeEquipmentNode; shared: S
       {node.duplicate ? (
         <p className="s9-dup">
           <span>{duplicateTagText(node.tag)}</span>
-          <TextButton onPress={() => shared.openDialog({ kind: 'rename-tag', node })}>{t.rename}</TextButton>
+          <TextButton aria-label={t.renameDuplicateLabel(node.tag, shared.pathOf(node.locationId))} onPress={() => shared.openDialog({ kind: 'rename-tag', node })}>
+            {t.rename}
+          </TextButton>
         </p>
       ) : null}
     </li>
@@ -547,11 +558,12 @@ function RailEquipment({ node, shared }: { node: TreeEquipmentNode; shared: Shar
         <span className="tree-chevron" aria-hidden="true" />
         <button type="button" className="tree-body" data-tree-open onClick={() => shared.actions.openSheet(node.blockId)}>
           <span>{node.typeLabel}</span>
-          <span className="tree-meta">{node.tag}</span>
+          <span className="tree-meta">{node.railMetaText}</span>
         </button>
+        {/* The 320 px rail keeps the state to its word; a not-tested sheet's reason is on the meta line (review F-1). */}
         <span className="tree-state" data-state={node.stateAttr}>
           <span aria-hidden="true">{node.glyph}</span>
-          {node.stateText}
+          {node.stateWord}
         </span>
       </div>
     </li>
