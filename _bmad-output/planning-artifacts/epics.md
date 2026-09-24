@@ -1263,6 +1263,8 @@ So that the tree matches the substation and the document still prints as FO.SERV
 **Then** a `block/{id}/order_key` op (fractional-indexing) is emitted, out-of-range numbers clamp, and "SEC-C09 movido para a posição 3 de 5 — Desfazer" is announced and offered (FR-19); no swipe performs any action
 **And** "Duplicar" copies the `BlockConfig` (not data) and asks a new TAG; "Mover para…" is not shown until Epic 11 (hidden, never disabled)
 
+*2026-09-24, narrowed in PR #26 (Stories 4.4 and 4.5): the office palette's sub-block toggles "inside a sheet" move to Epic 5, which builds the sheet; phone rows indent 16 px per level, following the mock's `.frame-phone` rule; the Confirm title is "Remover ficha ⟨TAG⟩?" as this AC says (EXPERIENCE.md Flow 3 adds "e seus dados"); "Agrupar por tipo" is a checkbox item in the cabine Overflow; the standalone tree route `/relatorio/:id/arvore` is reachable by address only until Epic 5 mounts the rail in a sheet; the portrait rail opens inline, not as an overlay; the field palette creates on one tap, and "Adicionar bloco em ⟨cabine⟩" targets the current coluna, without the mock's "Trocar". Opening a sheet from the tree is a stub until Story 5.1.*
+
 ### Story 4.6: Status transitions and the "relatório emitido" warning
 
 **Dev model:** sonnet · **Effort:** medium · status transitions and a banner
@@ -1341,6 +1343,8 @@ So that the one renderer, LibreOffice in the container and the page-numbered con
 **Then** the job fails at the conversion step, emits `generation_job/{id}/error`, allocates no revision and stores no file, and the next generate without the flag succeeds (TC-3, R-005)
 **And** the job records the TOC pass count and whether pass-2 pages equalled pass-1 in the `generation_job` result so a test can assert it; the layout spec confines generation dates to named fields (revision line, Data de emissão) so the golden comparison can mask them (TC-7)
 **And** Bruno reads the first generated skeleton DOCX and his remarks are recorded in this story (R-009, decision 4 of 2026-09-21)
+
+*2026-09-24, PR #24: the skeleton DOCX and PDF of the Porto Seguro fixture for Bruno's reading are `_bmad-output/implementation-artifacts/reviews/qa-epic-4-D/porto-seguro-skeleton-rev1.docx` and `.pdf`. His remarks are pending (Matheus to collect). The "with a warning" on `generate` from Em campo is Story 4.6's banner.*
 
 ## Epic 5: Fill the equipment sheet offline
 
