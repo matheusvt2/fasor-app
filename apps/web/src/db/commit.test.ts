@@ -78,6 +78,43 @@ describe('1.4-INT-001 Dexie replay', () => {
     expect(await db.outbox.count()).toBeGreaterThan(0);
     db.close();
   });
+
+  it('resolves the responsible from a pulled user row, byte-equal to the pure replay (Story 4.8)', async () => {
+    const db = await freshDb();
+    const dead = new Set(replaySmall.deadOpIds);
+    const live = replaySmall.log.filter((op) => !dead.has(op.op_id));
+    await commitOps(db, live);
+    // Provisioning's projection of the fixture's user, as the company pull brings it. It
+    // precedes every fixture op (`seq: 0`): the fixture's own `user/{id}/{field}` puts are
+    // this device's outbox ops, applied after the pulled rows, so the pure replay lists
+    // the create first too and the two orders agree.
+    const userOp: Op = {
+      op_id: '019966b0-0001-7000-8000-00000000f001',
+      kind: 'create',
+      scope: 'company',
+      company_id: COMPANY_ID,
+      project_id: null,
+      relatorio_id: null,
+      path: `user/${USER_ID}`,
+      value: { id: USER_ID, name: 'Ana Alves', email: 'a@teste.local', council: 'crea', registration_number: '5063583141', title: 'Eng. Eletricista', photo_location_enabled: true },
+      prev_op_id: null,
+      batch_id: null,
+      meta: null,
+      actor_id: 'system:identity',
+      device_id: 'server',
+      client_ts: fixedTs(0),
+      seq: 0,
+    };
+    await applyPulled(db, [userOp]);
+    const snapshot = await toSnapshot(db, replaySmall.relatorioId);
+    expect(snapshot.relatorio.setup.responsible_user_id).toBe(USER_ID);
+    // The fixture's own registration puts landed on the projected row.
+    expect(snapshot.responsible).toMatchObject({ id: USER_ID, name: 'Ana Alves', council: 'crea', title: 'Eng. Eletricista' });
+    const pure = buildSnapshot(replay([userOp, ...replaySmall.log], { deadOpIds: dead }), replaySmall.relatorioId);
+    expect(pure.responsible).not.toBeNull();
+    expect(serializeSnapshot(snapshot)).toBe(serializeSnapshot(pure));
+    db.close();
+  });
 });
 
 describe('commitOps', () => {

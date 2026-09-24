@@ -52,6 +52,7 @@ function baseSnapshot(overrides: Partial<RelatorioSnapshot> = {}): RelatorioSnap
       removed_at: null,
     },
     client: { id: 'c1', kind: 'client', name: 'Porto Seguro Companhia de Seguros Gerais', cnpj: null, contact_name: null, contact_phone: null, sites: [], removed_at: null },
+    responsible: null,
     instruments: [],
     equipment: [],
     locations: [],

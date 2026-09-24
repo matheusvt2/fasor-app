@@ -26,8 +26,6 @@ import {
   sumarioTitle,
   type BlockRow,
   type EntityState,
-  type EquipmentRow,
-  type OpDraft,
   type RelatorioSnapshot,
   type RestorableBlock,
   type RevisionRow,
@@ -36,29 +34,28 @@ import {
   type TemplateRow,
   type UserRow,
 } from '@app/domain';
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { useId, useMemo, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router';
 import { Button, ConfirmDialog, OverflowMenu, StatusPill, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
-import { now } from '../../clock.ts';
-import { commitBatch, undoBatch } from '../../db/commit.ts';
-import { blockRowsOf, relatorioState, templateRows } from '../../db/home-store.ts';
+import { templateRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { readLastSheet } from '../../db/prefs.ts';
 import { localUsers } from '../../db/sync-store.ts';
 import { newId } from '../../ids.ts';
 import { useBackTarget } from '../../state/back-target.tsx';
 import { useSession } from '../../state/session.tsx';
-import { useSync } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
-import { writeErrorText } from '../templates/template-ops.ts';
-import { LIST_FOCUS_WATCH_FRAMES, restoreFocus } from '../templates/use-reorder.ts';
 import { AddSectionDialog } from './add-section-dialog.tsx';
 import { GenerateAction } from './generate-action.tsx';
-import { createBlockOp, putBlockOp, putRelatorioStatusOp, removeBlockOp, type Author } from './relatorio-ops.ts';
+import { useProjectEquipment, useRelatorioEditor } from './relatorio-editor.ts';
+import { RelatorioGate } from './relatorio-gate.tsx';
+import { focusAfterRemoval, focusWhenRendered } from './relatorio-focus.ts';
+import { createBlockOp, putBlockOp, putRelatorioStatusOp, removeBlockOp } from './relatorio-ops.ts';
+import { RelatorioTree, type RelatorioTreeHandle } from './relatorio-tree.tsx';
 import { RestoreDialog } from './restore-dialog.tsx';
-import { Section9Tree } from './section-9.tsx';
 import { FixedRow, NumberedRow, Section9Row, type RowActions } from './sumario-row.tsx';
+import { blockTrigger, restoreSheetOps } from './tree-actions.ts';
 import './relatorio.css';
 
 const NO_TEMPLATES: TemplateRow[] = [];
@@ -66,123 +63,36 @@ const NO_USERS: UserRow[] = [];
 
 /**
  * `/relatorio/:id` (`40-relatorio-overview.html`, Story 4.3): the Sumário of the relatório
- * the address names, or, when this device holds no such row, one pull of its stream
- * (AD-8, "pulled on open") and then either the not-found sentence or, for a relatório the
- * company summary lists, the download sentence with "Tentar de novo".
+ * the address names, once `RelatorioGate` has it on this device.
  */
 export function SumarioSurface() {
   const { id = '' } = useParams();
-  const session = useSession();
-  const sync = useSync();
-  const db = session.database;
-  const state = useLiveQuery(() => (db === null ? undefined : relatorioState(db, id)), [db, id]);
-  // The pull is per address: Back or Forward to another absent relatório starts its own.
-  // `attempt` makes a retry a state of its own, so an answer that lands in the same render
-  // as the start (React batches both) still re-runs the effect.
-  const [pull, setPull] = useState<{ id: string; phase: 'idle' | 'running' | 'done'; attempt: number }>({ id, phase: 'idle', attempt: 0 });
-  const { phase, attempt } = pull.id === id ? pull : { phase: 'idle' as const, attempt: 0 };
-  useEffect(() => {
-    // A cycle already running (Home's absent-online tap starts one just before navigating)
-    // answers `busy` without pulling: wait for it to end, then pull once.
-    if (state !== null || phase !== 'idle' || sync.running) return;
-    const next = attempt + 1;
-    setPull({ id, phase: 'running', attempt: next });
-    void sync.syncRelatorio(id).then(
-      (result) => setPull({ id, phase: result === 'busy' ? 'idle' : 'done', attempt: next }),
-      () => setPull({ id, phase: 'done', attempt: next }),
-    );
-  }, [state, phase, attempt, sync, id]);
-
   return (
     <main className="screen" data-route="/relatorio/:id">
-      {state === undefined || (state === null && phase !== 'done') ? (
-        <div className="overview-content">
-          <p className="section-note" role="status">
-            {state === null ? copy.sumario.loading : copy.common.loading}
-          </p>
-        </div>
-      ) : state === null ? (
-        <div className="overview-content">
-          {sync.summaryRelatorios.some((row) => row.id === id) ? (
-            // The company knows the relatório but the pull left no row here (a page this
-            // device could not apply, an interrupted download): say so and offer the pull again.
-            <>
-              <p className="section-note">{copy.sumario.downloadFailed}</p>
-              <p>
-                <Button variant="secondary" onPress={() => setPull({ id, phase: 'idle', attempt })}>
-                  {copy.sumario.retry}
-                </Button>
-              </p>
-            </>
-          ) : (
-            <p className="section-note">{copy.sumario.notFound}</p>
-          )}
-          <Link to="/">{copy.sumario.backHome}</Link>
-        </div>
-      ) : (
-        <Sumario key={id} relatorioId={id} state={state} />
-      )}
+      <RelatorioGate id={id}>{(state) => <Sumario key={id} relatorioId={id} state={state} />}</RelatorioGate>
     </main>
   );
 }
 
-/** The `li` of a numbered row, and the control the focus goes to on it. */
+/** The control the focus goes to on a numbered row `li`. */
 const rowFocusTarget = (li: Element | null | undefined): HTMLElement | null =>
   li?.querySelector<HTMLElement>('.sum-ctrls .overflow-trigger') ?? null;
-
-/**
- * Where the focus goes once a row `li` has left the list (E3-A8): the row now at its
- * place, else the one before it, else the list's heading. Called with the row as drawn
- * before the removal was written.
- */
-function focusAfterRemoval(li: HTMLElement | null, fallback: HTMLElement | null): void {
-  const list = li?.parentElement ?? null;
-  if (li === null || list === null) return;
-  const count = list.children.length;
-  const index = [...list.children].indexOf(li);
-  restoreFocus(
-    () => {
-      const rows = list.isConnected ? [...list.children] : [];
-      if (list.isConnected && rows.length >= count) return null;
-      return rowFocusTarget(rows[index]) ?? rowFocusTarget(rows[index - 1]) ?? fallback;
-    },
-    { frames: LIST_FOCUS_WATCH_FRAMES, once: true },
-  );
-}
-
-/**
- * Gives the focus to `target()` once it is rendered and no dialog is open, whatever holds
- * the focus then (E3-A8: after "Restaurar" and "Desfazer" the row that came back takes
- * it, although the dialog or the toast returned the focus to a live control).
- */
-function focusWhenRendered(target: () => HTMLElement | null, frames = LIST_FOCUS_WATCH_FRAMES): void {
-  let watched = 0;
-  const tick = () => {
-    const element = target();
-    if (element !== null && element.isConnected && document.querySelector('.dialog-scrim') === null) {
-      element.focus();
-      return;
-    }
-    if (++watched < frames) requestAnimationFrame(tick);
-  };
-  requestAnimationFrame(tick);
-}
 
 function Sumario({ relatorioId, state }: { relatorioId: string; state: EntityState }) {
   const session = useSession();
   const db = session.database;
-  const user = session.user;
   const navigate = useNavigate();
-  const { showToast, dismissToast, toast } = useToast();
+  const { showToast } = useToast();
   const t = copy.sumario;
 
   const snapshot: RelatorioSnapshot = useMemo(() => buildSnapshot(state, relatorioId), [state, relatorioId]);
   const allBlocks = useMemo(() => [...state.values()].filter((row): row is BlockRow => 'sheet' in row && (row as BlockRow).relatorio_id === relatorioId), [state, relatorioId]);
   // Every equipment row of the project, removed sheets' included: the snapshot keeps only
   // the equipment of live blocks, and "Restaurar ficha removida" names a sheet by its TAG.
-  const equipment = useMemo(() => [...state.entries()].filter(([key]) => key.startsWith('equipment:')).map(([, row]) => row as EquipmentRow), [state]);
-  // Story 4.6: revisions read straight off `EntityState`, the same way `equipment` is
-  // above -- `RelatorioSnapshot` is not extended by this batch (batch D/4.8 owns it).
+  const equipment = useProjectEquipment(state, snapshot.relatorio.project_id);
+  // Story 4.6: revisions read straight off `EntityState`, the same way `equipment` was
+  // before batch B's `useProjectEquipment` extraction -- `RelatorioSnapshot` is not
+  // extended by this batch (batch D/4.8 owns it).
   const revisions = useMemo(() => [...state.entries()].filter(([key]) => key.startsWith('revision:')).map(([, row]) => row as RevisionRow), [state]);
   const templates = useLiveQuery(() => (db === null ? Promise.resolve(NO_TEMPLATES) : templateRows(db)), [db], NO_TEMPLATES);
   const users = useLiveQuery(() => (db === null ? Promise.resolve(NO_USERS) : localUsers(db)), [db], NO_USERS);
@@ -191,118 +101,36 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const computed = useMemo(() => progress(snapshot), [snapshot]);
   const issues = useMemo(() => preIssue(snapshot, computed), [snapshot, computed]);
   const rows = useMemo(() => sumarioRows(snapshot, issues, computed), [snapshot, issues, computed]);
-  const removable = useMemo(() => restorableBlocks(allBlocks, equipment), [allBlocks, equipment]);
+  const removable = useMemo(() => restorableBlocks(allBlocks, equipment, snapshot.locations), [allBlocks, equipment, snapshot.locations]);
   const relatorio = snapshot.relatorio;
   const templateName = templates.find((row) => row.id === relatorio.template_id)?.name ?? null;
   const responsibleName = users.find((row) => row.id === relatorio.setup.responsible_user_id)?.name ?? null;
 
   useBackTarget(`/project/${relatorio.project_id}`);
 
-  // Section 9 opens expanded on an Em campo relatório, collapsed otherwise (EXPERIENCE.md).
+  // Section 9 opens expanded on an Em campo relatório, collapsed otherwise (EXPERIENCE.md);
+  // opened that way, the tree opens the path to the last sheet and scrolls it into view.
   const [expanded, setExpanded] = useState(() => sumarioOpensExpanded(relatorio.status));
+  const [openedByStatus] = useState(expanded);
   const chevron = useRef<HTMLButtonElement | null>(null);
+  const treeRef = useRef<RelatorioTreeHandle>(null);
   const [adding, setAdding] = useState<SumarioRow | null>(null);
   const [restoring, setRestoring] = useState(false);
   const [confirmingBack, setConfirmingBack] = useState(false);
   const banner = useMemo(() => issuedBannerText(latestRevision(revisions)), [revisions]);
   const backMove = useMemo(() => backwardMoveLabel(relatorio.status), [relatorio.status]);
-  const [announcement, setAnnouncement] = useState('');
   const listRef = useRef<HTMLOListElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const headerSide = useRef<HTMLDivElement>(null);
+  const headerMenuRef = useRef<HTMLDivElement>(null);
   const reasonId = useId();
-  const queue = useRef<Promise<unknown>>(Promise.resolve());
 
-  // The live undo toast, by its text: any later edit retires it (a stale undo would put an
-  // old order back over the newer change), and leaving the Sumário takes it away.
-  const undoToast = useRef<string | null>(null);
-  const shownToast = useRef(toast);
-  shownToast.current = toast;
-  const dismissRef = useRef(dismissToast);
-  dismissRef.current = dismissToast;
-  useEffect(
-    () => () => {
-      if (undoToast.current !== null && shownToast.current?.text === undoToast.current) dismissRef.current();
-    },
-    [],
-  );
-
-  // AC 3: a Sumário that opened expanded is scrolled to the last sheet's cabine, once; the
-  // last-sheet pref is its own live query, so the row is waited for rather than read at mount.
-  const scrollToCurrent = useRef(expanded);
-  useEffect(() => {
-    if (!scrollToCurrent.current || !expanded || lastSheet === null) return;
-    const current = listRef.current?.querySelector<HTMLElement>('.s9-cabine.is-current') ?? null;
-    if (current === null) return;
-    scrollToCurrent.current = false;
-    // jsdom draws no layout and has no `scrollIntoView`.
-    current.scrollIntoView?.({ block: 'center' });
-  }, [expanded, lastSheet]);
-
-  const author = useMemo<Author | null>(() => (user === null ? null : { id: user.id, companyId: user.companyId }), [user]);
-
-  /**
-   * Runs one edit: reads the relatório's blocks as this device holds them now, asks
-   * `build` for the ops and commits them as one batch. Null when nothing was written (the
-   * row the edit names is gone); a refused write is toasted and rejects.
-   */
-  const edit = useCallback(
-    (build: (fresh: BlockRow[], author: Author) => OpDraft[] | null): Promise<string | null> => {
-      const run = async (): Promise<string | null> => {
-        if (db === null || author === null) return null;
-        const fresh = await blockRowsOf(db, relatorioId);
-        let drafts: OpDraft[] | null;
-        try {
-          drafts = build(fresh, author);
-        } catch (error) {
-          if (error instanceof RangeError) return null;
-          showToast(writeErrorText(error));
-          throw error;
-        }
-        if (drafts === null || drafts.length === 0) return null;
-        let batchId: string;
-        try {
-          batchId = (await commitBatch(db, drafts, { newId, now })).batch_id;
-        } catch (error) {
-          showToast(writeErrorText(error));
-          throw error;
-        }
-        if (undoToast.current !== null && shownToast.current?.text === undoToast.current) dismissToast();
-        undoToast.current = null;
-        return batchId;
-      };
-      const next = queue.current.then(run, run);
-      queue.current = next.catch(() => undefined);
-      return next;
-    },
-    [db, author, relatorioId, showToast, dismissToast],
-  );
-
-  const announce = useCallback((text: string) => {
-    setAnnouncement('');
-    requestAnimationFrame(() => setAnnouncement(text));
-  }, []);
-
-  /** A toast with "Desfazer"; `focus` names where the focus goes once the undo has landed. */
-  const undoable = useCallback(
-    (text: string, batchId: string | null, focus?: () => HTMLElement | null) => {
-      if (batchId === null || db === null) return;
-      undoToast.current = text;
-      showToast(text, {
-        action: {
-          label: t.undo,
-          onPress: () => {
-            undoToast.current = null;
-            if (focus !== undefined) focusWhenRendered(focus);
-            const run = () => undoBatch(db, batchId, { newId, now });
-            const next = queue.current.then(run, run);
-            queue.current = next.catch(() => undefined);
-            next.catch((error: unknown) => showToast(writeErrorText(error)));
-          },
-        },
-      });
-    },
-    [db, showToast, t.undo],
+  // One write path for the rows and the tree: the serialised edit queue, the announcer and
+  // the undo toast that any later edit or leaving the Sumário retires.
+  const editor = useRelatorioEditor(relatorioId, relatorio.project_id);
+  const { edit, announce, announcement, undoable } = editor;
+  const treeContext = useMemo(
+    () => ({ relatorioId, projectId: relatorio.project_id, seedVersion: relatorio.seed_version, editor }),
+    [relatorioId, relatorio.project_id, relatorio.seed_version, editor],
   );
 
   const rowLi = (blockId: string | null): HTMLElement | null =>
@@ -398,7 +226,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
             showToast(t.gone);
             return;
           }
-          focusAfterRemoval(li, headingRef.current);
+          focusAfterRemoval(li, (list) => [...list.children] as HTMLElement[], rowFocusTarget, () => headingRef.current);
           undoable(t.removed, batch, () => rowFocusTarget(rowLi(blockId)));
         })
         .catch(() => undefined);
@@ -412,16 +240,38 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
     insertBelow(below, () => ({ type, config: { ...defaultBlockConfig(relatorio.seed_version, type), section_text: null } }), t.added);
   }
 
+  /**
+   * "Desfazer" of a Restaurar tombstones the row again: the focus goes back to where the
+   * restore came from, the header's "Mais opções do relatório", once the row is gone (E3-A8).
+   */
+  const undoneRestoreFocus = (blockId: string) => () =>
+    listRef.current?.querySelector(`[data-block-id="${CSS.escape(blockId)}"]`) != null ? null : headerMenuRef.current?.querySelector<HTMLElement>('.overflow-trigger') ?? null;
+
   function onRestore(block: RestorableBlock): void {
     setRestoring(false);
-    void edit((fresh, by) => (fresh.some((row) => row.id === block.id && row.removed_at !== null) ? [putBlockOp(by, relatorioId, block.id, 'removed_at', null)] : null))
+    const locationId = allBlocks.find((row) => row.id === block.id)?.location_id ?? null;
+    void edit((fresh, by) =>
+      locationId === null
+        ? fresh.some((row) => row.id === block.id && row.removed_at !== null)
+          ? [putBlockOp(by, relatorioId, block.id, 'removed_at', null)]
+          : null
+        : restoreSheetOps(by, relatorioId, relatorio.project_id, fresh, block.id, block.equipmentId),
+    )
       .then((batch) => {
         if (batch === null) {
           showToast(t.gone);
           return;
         }
+        if (locationId !== null) {
+          // An equipment sheet comes back in section 9: it opens, with the path down to the row.
+          setExpanded(true);
+          treeRef.current?.reveal(locationId);
+          focusWhenRendered(() => blockTrigger(listRef.current?.querySelector(`li.s9-eq[data-block-id="${CSS.escape(block.id)}"]`)));
+          undoable(t.tree.restored, batch, undoneRestoreFocus(block.id));
+          return;
+        }
         focusWhenRendered(() => rowFocusTarget(rowLi(block.id)));
-        undoable(t.restored, batch);
+        undoable(t.restored, batch, undoneRestoreFocus(block.id));
       })
       .catch(() => undefined);
   }
@@ -439,7 +289,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
     void edit((_fresh, by) => [putRelatorioStatusOp(by, relatorioId, to)])
       .then((batch) => {
         if (batch === null) return;
-        focusWhenRendered(() => headerSide.current?.querySelector<HTMLElement>('.overflow-trigger') ?? null);
+        focusWhenRendered(() => headerMenuRef.current?.querySelector<HTMLElement>('.overflow-trigger') ?? null);
       })
       .catch(() => undefined);
   }
@@ -464,7 +314,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
             <TextButton onPress={openSection9}>{sugestoesText(computed.suggestions_pending)}</TextButton>
           </p>
         </div>
-        <div className="header-side" ref={headerSide}>
+        <div className="header-side" ref={headerMenuRef}>
           <OverflowMenu
             name=""
             label={t.headerMenu}
@@ -501,7 +351,18 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
                   chevron.current = element;
                 }}
               >
-                {(treeId) => <Section9Tree snapshot={snapshot} lastSheetId={lastSheet} id={treeId} />}
+                {(treeId) => (
+                  <RelatorioTree
+                    presentation="sumario"
+                    snapshot={snapshot}
+                    equipment={equipment}
+                    lastSheetId={lastSheet}
+                    id={treeId}
+                    expandToLastSheet={openedByStatus}
+                    context={treeContext}
+                    ref={treeRef}
+                  />
+                )}
               </Section9Row>
             ) : (
               <NumberedRow key={row.key} row={row} actions={actions} openable={openable(row)} />
@@ -521,7 +382,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
             </svg>
             {t.preview}
           </Button>
-          <GenerateAction reasonId={reasonId} blocked={blocked} />
+          <GenerateAction relatorioId={relatorioId} reasonId={reasonId} blocked={blocked} />
         </div>
       </div>
 

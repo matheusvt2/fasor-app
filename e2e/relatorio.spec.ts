@@ -9,12 +9,13 @@ import {
   registrationNumberLabel,
   STANDARD_TEMPLATE_NAME,
 } from '@app/domain';
-import type { Locator, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, signIn, syncBadge, test, TEST_SEED } from './support/merged-fixtures.ts';
 import { readDeviceId, readStore } from './support/outbox.ts';
 import { pushRevision } from './support/push-server-ops.ts';
 import { resetEmpresaB as resetCompany } from './support/reset-empresa-b.ts';
+import { CLIENT, createProjectFromHome, createRelatorio, SITE, typeDate } from './support/relatorio-flow.ts';
 
 /*
  * 4.1-E2E and 4.3-E2E. A relatório is born from Home ("Novo relatório" › client and obra
@@ -88,8 +89,6 @@ async function newInstrument(page: Page, code: string, name: string): Promise<vo
   await expect(page.getByRole('button', { name: new RegExp(code) })).toBeVisible();
 }
 
-const CLIENT = 'Condomínio Teste';
-const SITE = 'Torre Norte';
 const TITLES = [
   'Capa e dados do relatório',
   'Controle do documento',
@@ -110,49 +109,6 @@ const sumario = (page: Page) => page.getByRole('list', { name: 'Sumário do rela
 const sumarioTitles = (page: Page) => sumario(page).locator('.sum-title');
 const posBox = (page: Page, title: string) => page.getByRole('textbox', { name: `Número de ${title} — digite outro para mover` });
 const announcer = (page: Page) => page.getByTestId('sumario-announcer');
-
-/** Types a date into a React Aria date field: click its day segment, then the eight digits. */
-async function typeDate(dialog: Locator, label: string, digits: string): Promise<void> {
-  await dialog.getByRole('group', { name: label }).getByRole('spinbutton').first().click();
-  await dialog.page().keyboard.type(digits);
-}
-
-/** Home › "Novo relatório": creates the client and the obra inline and continues to the Project. */
-async function createProjectFromHome(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Novo relatório' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Novo relatório' });
-  await expect(dialog.getByRole('button', { name: 'Continuar' })).toHaveAttribute('aria-disabled', 'true');
-  await dialog.getByRole('combobox', { name: 'Cliente' }).fill(CLIENT);
-  await page.getByRole('option', { name: `Criar “${CLIENT}”` }).click();
-  await expect(page.getByText('Cliente criado no cadastro de Clientes')).toBeVisible();
-  await expect(dialog.getByRole('combobox', { name: 'Cliente' })).toHaveValue(CLIENT);
-  await dialog.getByRole('combobox', { name: 'Local (obra)' }).fill(SITE);
-  await page.getByRole('option', { name: `Criar “${SITE}”` }).click();
-  await expect(dialog.getByRole('combobox', { name: 'Local (obra)' })).toHaveValue(SITE);
-  await dialog.getByRole('button', { name: 'Continuar' }).click();
-  await expect(page).toHaveURL(/\/project\/[0-9a-f-]{36}$/);
-  await expect(page.locator('.app-bar h1')).toHaveText('Obra');
-}
-
-/** The Project's "Novo relatório" dialog, already open for a project born on Home: dates typed, Criar. */
-async function createRelatorio(page: Page): Promise<string> {
-  const dialog = page.getByRole('dialog', { name: 'Novo relatório' });
-  await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole('radio', { name: /Cabine primária/ })).toHaveAttribute('aria-checked', 'true');
-  await expect(dialog.getByRole('combobox', { name: 'Template' })).toHaveValue(STANDARD_TEMPLATE_NAME);
-  const create = dialog.getByRole('button', { name: 'Criar relatório' });
-  await expect(create).toHaveAttribute('aria-disabled', 'true');
-  await expect(create).toHaveAccessibleDescription('Criar relatório: falta a data de início');
-  await typeDate(dialog, 'Início da parada', '06092026');
-  // The end follows the start.
-  await expect(dialog.getByRole('group', { name: 'Fim da parada' }).getByRole('spinbutton')).toHaveText(['06', '09', '2026']);
-  await expect(create).not.toHaveAttribute('aria-disabled', 'true');
-  await typeDate(dialog, 'Fim da parada', '08092026');
-  await create.click();
-  await expect(page).toHaveURL(/\/relatorio\/[0-9a-f-]{36}$/, { timeout: 30_000 });
-  await expect(page.locator('.app-bar h1')).toHaveText('Sumário');
-  return page.url().split('/').at(-1)!;
-}
 
 // --- Story 4.1 -------------------------------------------------------------------------
 
@@ -307,9 +263,13 @@ test('@p0 4.3-E2E-001 the Sumário: order, rows that open, the Position box, Ove
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
   for (const i of [8, 9, 11, 12]) await expect(rows.nth(i).locator('button.sum-open')).toHaveCount(0);
 
-  // "Gerar relatório" is this batch's stub.
+  // "Gerar relatório" opens the Export dialog (Story 4.8, `e2e/export.spec.ts`); Esc closes it
+  // and the focus returns to the foot's button.
   await page.getByRole('button', { name: 'Gerar relatório' }).click();
-  await expect(page.getByText('Gerar relatório: disponível na próxima etapa')).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Gerar relatório' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Gerar relatório' })).toBeHidden();
+  await expect(page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' })).toBeFocused();
 
   // Position box "4" on row 2: announced, toasted, renumbered; Desfazer restores.
   await posBox(page, 'Definições').click();
@@ -469,17 +429,21 @@ test('@p1 4.3-E2E-002 Em campo opens section 9 expanded at the last sheet cabine
   await expect(chevron).toHaveAttribute('aria-expanded', 'true');
   const tree = page.getByRole('list', { name: 'Locais do relatório' });
   await expect(tree).toBeVisible();
-  await expect(tree.getByRole('listitem')).toHaveCount(6);
+  // Story 4.4: the six cabine rows; the path to the last sheet is open and its row says so.
+  await expect(tree.locator(':scope > li.s9-cabine')).toHaveCount(6);
   const current = tree.locator('.s9-cabine.is-current');
   await expect(current).toHaveCount(1);
   await expect(current.locator('.s9-cab-name')).toContainText('Geradores');
   await expect(current.locator('.sum-here')).toHaveText('você parou aqui');
-  await expect(current.locator('.progress-counter')).toHaveText('0 de 19');
+  await expect(current.locator('.s9-cab-row .progress-counter')).toHaveText('0 de 19');
+  const currentRow = tree.locator('li.s9-eq.is-current');
+  await expect(currentRow).toHaveAttribute('data-block-id', block.id);
+  await expect(currentRow).toHaveAttribute('aria-current', 'true');
   await expect(page.getByText('Organizados por local aqui; no documento, agrupados como no FO.SERV-03.')).toBeVisible();
   // AC 3 "scrolled to the last sheet": the current row's box lies inside the 600 px viewport.
   await expect
     .poll(async () => {
-      const box = await current.boundingBox();
+      const box = await currentRow.boundingBox();
       return box !== null && box.y >= 0 && box.y + box.height <= 600;
     })
     .toBe(true);

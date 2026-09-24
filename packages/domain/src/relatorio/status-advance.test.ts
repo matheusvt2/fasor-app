@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { latestRevision } from '../print/revisions.ts';
 import type { EditCandidate } from '../status/edited-since.ts';
-import { advanceOnEdit, backwardMoveConsequenceText, backwardMoveLabel, issuedBannerText, latestRevision } from './status-advance.ts';
+import { advanceOnEdit, backwardMoveConsequenceText, backwardMoveLabel, issuedBannerText } from './status-advance.ts';
 
 const BLOCK_ID = '019966b0-0080-7000-8000-000000000001';
 const USER = '019966b0-0080-7000-8000-000000000002';

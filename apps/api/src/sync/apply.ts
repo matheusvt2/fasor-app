@@ -126,8 +126,14 @@ interface Applied {
 /** The actor of the server's merge ops (Story 2.5 AC4, Epic 2 retro D-1). */
 export const REGISTRY_MERGE_ACTOR = 'system:registry';
 
-type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
+/** The transaction handle drizzle hands a `db.transaction` callback; `applyOneIn` and `freezeSnapshot` run inside one. */
+export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 type MergeKind = 'manufacturer' | 'voltage_class';
+
+/** Takes the per-company advisory lock every apply and every snapshot freeze serialize on (AD-3). */
+export async function lockCompany(tx: Tx, companyId: CompanyId): Promise<void> {
+  await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${companyId}))`);
+}
 
 function isMergeKind(kind: string): kind is MergeKind {
   return kind === 'manufacturer' || kind === 'voltage_class';
@@ -244,100 +250,178 @@ async function insertOp(tx: Tx, companyId: CompanyId, op: Op, receivedAt: string
 async function applyOne(db: Db, companyId: CompanyId, received: Op, receivedAt: string): Promise<Applied> {
   return db.transaction(async (tx) => {
     // Applies serialize per company: no lost update on a shared row, and seq order equals commit order.
-    await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${companyId}))`);
-
-    // Epic 2 retro D-1: an op on a merged-away id is rewritten onto the survivor, and a
-    // create that merges is rewritten onto the row it merges into, *before* the op is
-    // logged. The log then holds what was applied, so every device that pulls it (the one
-    // that sent it included) converges on the survivor. The op keeps its `op_id`, so the
-    // ack and the dedupe still work, and the device's `rematerialize` lets the pulled
-    // version stand in for its own outbox copy (`sync-store.ts`).
-    const redirected = await redirectOp(tx, companyId, received);
-    const merge = await mergeTarget(tx, companyId, redirected);
-    const op = merge === null ? redirected : retarget(redirected, merge.into);
-
-    // The server's current op on this path, read before the insert. Implicit-relatorio
-    // families (`relatorio/status`, `relatorio/setup/*`) share one path across relatorios,
-    // so the relatorio id narrows the lookup whenever the op carries one.
-    const [latest] = await tx
-      .select({ op_id: ops.op_id })
-      .from(ops)
-      .where(
-        and(
-          eq(ops.company_id, companyId),
-          eq(ops.path, op.path),
-          op.relatorio_id ? eq(ops.relatorio_id, op.relatorio_id) : undefined,
-        ),
-      )
-      .orderBy(desc(ops.seq))
-      .limit(1);
-
-    const seq = await insertOp(tx, companyId, op, receivedAt);
-    if (seq === undefined) {
-      // A dedupe hit: the op was applied before and is never superseded again. The lookup is
-      // tenant-scoped (AD-10): an op_id that exists under another company can never be inserted
-      // (global unique), so it is a shape rejection, never that company's seq.
-      const [existing] = await tx
-        .select({ seq: ops.seq })
-        .from(ops)
-        .where(and(eq(ops.op_id, op.op_id), eq(ops.company_id, companyId)));
-      if (!existing) throw new ForeignOpIdError(op.op_id);
-      return { seq: existing.seq, supersededOver: null };
-    }
-
-    const refs = targetsOf(op);
-    const rows = await tx
-      .select()
-      .from(entities)
-      .where(
-        and(
-          eq(entities.company_id, companyId),
-          or(...refs.map((r) => and(eq(entities.entity, r.entity), eq(entities.id, r.id)))),
-        ),
-      );
-    const state = new Map<EntityKey, EntityRow>();
-    for (const row of rows) state.set(entityKey(row.entity as Entity, row.id), row.row);
-    const next = applyOp(state, { ...op, seq });
-    for (const [key, row] of next) {
-      if (row === state.get(key)) continue;
-      const { entity, id } = splitEntityKey(key);
-      const columns = { ...rowIndexColumns(entity, row), removed_at: rowRemovedAt(row), row, updated_seq: seq };
-      await tx
-        .insert(entities)
-        .values({ company_id: companyId, entity, id, ...columns })
-        .onConflictDoUpdate({ target: [entities.company_id, entities.entity, entities.id], set: columns });
-    }
-
-    if (merge !== null) {
-      // The system op that retires the merged-away id on every device and persists the
-      // redirect (`mergedInto`). The id never had a row on the server, so the op applies
-      // to nothing here; on the device that minted the id it is what tombstones the row.
-      await insertOp(
-        tx,
-        companyId,
-        {
-          op_id: newId(),
-          company_id: companyId,
-          scope: 'company',
-          project_id: null,
-          relatorio_id: null,
-          kind: 'remove',
-          path: `registry/${merge.kind}/${merge.from}/removed_at`,
-          value: null,
-          prev_op_id: null,
-          batch_id: null,
-          meta: { merged_into: merge.into },
-          actor_id: REGISTRY_MERGE_ACTOR,
-          device_id: SERVER_DEVICE_ID,
-          client_ts: receivedAt,
-        },
-        receivedAt,
-      );
-    }
-
-    const supersededOver = latest !== undefined && latest.op_id !== (op.prev_op_id ?? null) ? latest.op_id : null;
-    return { seq, supersededOver };
+    await lockCompany(tx, companyId);
+    return applyOneIn(tx, companyId, received, receivedAt);
   });
+}
+
+/**
+ * The body of one apply, inside a transaction the caller opened and locked (`lockCompany`).
+ * `applyOne` wraps it per op; `applyServerBatch` runs several under one lock so they land
+ * together or not at all.
+ */
+async function applyOneIn(tx: Tx, companyId: CompanyId, received: Op, receivedAt: string): Promise<Applied> {
+  // Epic 2 retro D-1: an op on a merged-away id is rewritten onto the survivor, and a
+  // create that merges is rewritten onto the row it merges into, *before* the op is
+  // logged. The log then holds what was applied, so every device that pulls it (the one
+  // that sent it included) converges on the survivor. The op keeps its `op_id`, so the
+  // ack and the dedupe still work, and the device's `rematerialize` lets the pulled
+  // version stand in for its own outbox copy (`sync-store.ts`).
+  const redirected = await redirectOp(tx, companyId, received);
+  const merge = await mergeTarget(tx, companyId, redirected);
+  const op = merge === null ? redirected : retarget(redirected, merge.into);
+
+  // The server's current op on this path, read before the insert. Implicit-relatorio
+  // families (`relatorio/status`, `relatorio/setup/*`) share one path across relatorios,
+  // so the relatorio id narrows the lookup whenever the op carries one.
+  const [latest] = await tx
+    .select({ op_id: ops.op_id })
+    .from(ops)
+    .where(
+      and(
+        eq(ops.company_id, companyId),
+        eq(ops.path, op.path),
+        op.relatorio_id ? eq(ops.relatorio_id, op.relatorio_id) : undefined,
+      ),
+    )
+    .orderBy(desc(ops.seq))
+    .limit(1);
+
+  const seq = await insertOp(tx, companyId, op, receivedAt);
+  if (seq === undefined) {
+    // A dedupe hit: the op was applied before and is never superseded again. The lookup is
+    // tenant-scoped (AD-10): an op_id that exists under another company can never be inserted
+    // (global unique), so it is a shape rejection, never that company's seq.
+    const [existing] = await tx
+      .select({ seq: ops.seq })
+      .from(ops)
+      .where(and(eq(ops.op_id, op.op_id), eq(ops.company_id, companyId)));
+    if (!existing) throw new ForeignOpIdError(op.op_id);
+    return { seq: existing.seq, supersededOver: null };
+  }
+
+  const refs = targetsOf(op);
+  const rows = await tx
+    .select()
+    .from(entities)
+    .where(
+      and(
+        eq(entities.company_id, companyId),
+        or(...refs.map((r) => and(eq(entities.entity, r.entity), eq(entities.id, r.id)))),
+      ),
+    );
+  const state = new Map<EntityKey, EntityRow>();
+  for (const row of rows) state.set(entityKey(row.entity as Entity, row.id), row.row);
+  const next = applyOp(state, { ...op, seq });
+  for (const [key, row] of next) {
+    if (row === state.get(key)) continue;
+    const { entity, id } = splitEntityKey(key);
+    const columns = { ...rowIndexColumns(entity, row), removed_at: rowRemovedAt(row), row, updated_seq: seq };
+    await tx
+      .insert(entities)
+      .values({ company_id: companyId, entity, id, ...columns })
+      .onConflictDoUpdate({ target: [entities.company_id, entities.entity, entities.id], set: columns });
+  }
+
+  if (merge !== null) {
+    // The system op that retires the merged-away id on every device and persists the
+    // redirect (`mergedInto`). The id never had a row on the server, so the op applies
+    // to nothing here; on the device that minted the id it is what tombstones the row.
+    await insertOp(
+      tx,
+      companyId,
+      {
+        op_id: newId(),
+        company_id: companyId,
+        scope: 'company',
+        project_id: null,
+        relatorio_id: null,
+        kind: 'remove',
+        path: `registry/${merge.kind}/${merge.from}/removed_at`,
+        value: null,
+        prev_op_id: null,
+        batch_id: null,
+        meta: { merged_into: merge.into },
+        actor_id: REGISTRY_MERGE_ACTOR,
+        device_id: SERVER_DEVICE_ID,
+        client_ts: receivedAt,
+      },
+      receivedAt,
+    );
+  }
+
+  const supersededOver = latest !== undefined && latest.op_id !== (op.prev_op_id ?? null) ? latest.op_id : null;
+  return { seq, supersededOver };
+}
+
+/** A server batch was refused because an op of it was rejected: nothing of it was applied. */
+export class ServerBatchRejectedError extends Error {
+  readonly rejected: { op_id: string; code: OpRejectCode }[];
+  constructor(rejected: { op_id: string; code: OpRejectCode }[], options?: { cause?: unknown }) {
+    super(`server batch rejected: ${rejected.map((r) => `${r.op_id} ${r.code}`).join(', ')}`, options);
+    this.name = 'ServerBatchRejectedError';
+    this.rejected = rejected;
+  }
+}
+
+export interface ServerBatchDeps {
+  now: Clock;
+  /**
+   * Runs inside the transaction, right after the company lock and before the first op:
+   * the place for a check that must share the writes' transaction (the generate job's
+   * revision number, the route's "no job already running"). Whatever it throws rolls
+   * the batch back and propagates as is.
+   */
+  before?: (tx: Tx) => Promise<void>;
+}
+
+/**
+ * Story 4.8: the server's own ops applied as ONE transaction under the company lock —
+ * the generate job's two `file` creates, the `revision` create and the job's `status`
+ * and `result` puts land together, so a failed job allocates no revision number and
+ * stores no file row (AD-15). Every op is validated first; a rejected op, or a row schema
+ * refusal by `applyOp` mid-batch, throws `ServerBatchRejectedError` and rolls the whole
+ * batch back.
+ */
+export async function applyServerBatch(
+  db: Db,
+  companyId: CompanyId,
+  rawOps: readonly unknown[],
+  deps: ServerBatchDeps,
+): Promise<ApplyResult> {
+  const validated: Op[] = [];
+  const rejected: { op_id: string; code: OpRejectCode }[] = [];
+  for (const raw of rawOps) {
+    const validation = validate(raw, companyId, { now: deps.now, origin: 'server' });
+    if (validation.ok) validated.push(validation.op);
+    else {
+      const rawId = (raw as { op_id?: unknown } | null)?.op_id;
+      rejected.push({ op_id: typeof rawId === 'string' ? rawId : '', code: validation.code });
+    }
+  }
+  if (rejected.length > 0) throw new ServerBatchRejectedError(rejected);
+  const receivedAt = toIso(deps.now());
+  const result: ApplyResult = { applied: [], rejected: [], superseded: [] };
+  let applying: Op | null = null;
+  try {
+    await db.transaction(async (tx) => {
+      await lockCompany(tx, companyId);
+      if (deps.before !== undefined) await deps.before(tx);
+      for (const op of validated) {
+        applying = op;
+        const { seq, supersededOver } = await applyOneIn(tx, companyId, op, receivedAt);
+        result.applied.push({ op_id: op.op_id, seq });
+        if (supersededOver !== null) result.superseded.push({ op_id: op.op_id, over_op_id: supersededOver });
+      }
+    });
+  } catch (error) {
+    if (error instanceof ZodError || error instanceof ForeignOpIdError) {
+      const opId = (applying as Op | null)?.op_id ?? '';
+      throw new ServerBatchRejectedError([{ op_id: opId, code: 'op_invalid' }], { cause: error });
+    }
+    throw error;
+  }
+  return result;
 }
 
 /** Applies ops in array order for one tenant; one rejected op never blocks the rest. */

@@ -61,11 +61,19 @@
     <rect x="4" y="4" width="16" height="16" rx="2" />
     <path d="M4 12h16" />
   </symbol>
+  <symbol id="i-download" viewBox="0 0 24 24">
+    <path d="M12 4v11" />
+    <path d="M7 10l5 5 5-5" />
+    <path d="M5 20h14" />
+  </symbol>
   <symbol id="i-calendar" viewBox="0 0 24 24">
     <rect x="4" y="5" width="16" height="15" rx="2" />
     <path d="M4 10h16M8 3v4M16 3v4" />
   </symbol>
   <symbol id="i-chev-down" viewBox="0 0 24 24">
     <path d="M6 9l6 6 6-6" />
+  </symbol>
+  <symbol id="i-tree" viewBox="0 0 24 24">
+    <path d="M4 6h16M4 12h10M4 18h13" />
   </symbol>
 </svg>

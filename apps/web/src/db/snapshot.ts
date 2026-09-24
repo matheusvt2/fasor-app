@@ -13,12 +13,16 @@ export async function toSnapshot(db: AppDatabase, relatorioId: string): Promise<
   return db.transaction('r', db.entities, async () => {
     const relatorio = await db.entities.get(['relatorio', relatorioId]);
     if (!relatorio) throw new Error(`relatorio ${relatorioId} is not on this device`);
-    const projectId = (relatorio.row as RelatorioRow).project_id;
-    const [scoped, project, equipment, registry] = await Promise.all([
+    const row = relatorio.row as RelatorioRow;
+    const projectId = row.project_id;
+    const responsibleId = row.setup.responsible_user_id;
+    const [scoped, project, equipment, registry, responsible] = await Promise.all([
       db.entities.where('relatorio_id').equals(relatorioId).toArray(),
       db.entities.get(['project', projectId]),
       db.entities.where('project_id').equals(projectId).toArray(),
       db.entities.where('entity').equals('registry').toArray(),
+      // Story 4.8: the responsible's `user` row, for the cover and the document control.
+      responsibleId === null ? Promise.resolve(undefined) : db.entities.get(['user', responsibleId]),
     ]);
     const state = new Map<EntityKey, EntityRow>();
     const add = (record: EntityRecord | undefined) => {
@@ -26,6 +30,7 @@ export async function toSnapshot(db: AppDatabase, relatorioId: string): Promise<
     };
     add(relatorio);
     add(project);
+    add(responsible);
     for (const list of [scoped, equipment, registry]) list.forEach(add);
     return buildSnapshot(state, relatorioId);
   });

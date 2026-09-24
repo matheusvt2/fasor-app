@@ -67,13 +67,13 @@ development_status:
 
   epic-4: in-progress
   4-1-create-a-project-and-a-relatório-whose-blocks-are-born-in-pl: done
-  4-2-fill-the-relatório-setup-page: backlog
+  4-2-fill-the-relatório-setup-page: in-progress
   4-3-see-the-relatório-as-its-own-table-of-contents-the-sumário: done
-  4-4-walk-the-location-tree: backlog
-  4-5-add-remove-restore-duplicate-and-reorder-equipment-blocks: backlog
-  4-6-status-transitions-and-the-relatório-emitido-warning: backlog
-  4-7-edit-a-section-s-text-inside-one-relatório: backlog
-  4-8-generate-the-document-skeleton-as-a-numbered-docx-revision: in-progress
+  4-4-walk-the-location-tree: done
+  4-5-add-remove-restore-duplicate-and-reorder-equipment-blocks: done
+  4-6-status-transitions-and-the-relatório-emitido-warning: in-progress
+  4-7-edit-a-section-s-text-inside-one-relatório: in-progress
+  4-8-generate-the-document-skeleton-as-a-numbered-docx-revision: done  # PR #24; Bruno reading of the skeleton DOCX pending (R-009)
   epic-4-retrospective: optional
 
   epic-5: backlog

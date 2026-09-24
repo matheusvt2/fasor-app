@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { initialOrderKey, orderKeyAfter, orderKeyBetween, orderKeyForMove, sortByOrderKey } from './order-key.ts';
+import { initialOrderKey, moveLandingIndex, orderKeyAfter, orderKeyBetween, orderKeyForMove, sortByOrderKey } from './order-key.ts';
 
 describe('4.1-UNIT orderKeyBetween', () => {
   it('lands strictly between its two neighbours in plain string order', () => {
@@ -112,6 +112,15 @@ describe('4.1-UNIT initialOrderKey', () => {
     const keys = Array.from({ length: 200 }, (_, n) => initialOrderKey(n));
     for (let j = 1; j < keys.length; j++) expect(keys[j - 1]! < keys[j]!, `${keys[j - 1]} < ${keys[j]}`).toBe(true);
     expect(() => initialOrderKey(-1)).toThrow(RangeError);
+  });
+});
+
+describe('4.5-UNIT moveLandingIndex', () => {
+  it('clamps a move to the ends and drops fractions: the slot the key and the announcement both name', () => {
+    expect(moveLandingIndex(5, 8)).toBe(4);
+    expect(moveLandingIndex(5, -2)).toBe(0);
+    expect(moveLandingIndex(5, 2.7)).toBe(2);
+    expect(moveLandingIndex(1, 3)).toBe(0);
   });
 });
 

@@ -49,6 +49,7 @@ function snapshotWith(overrides: { client?: RelatorioSnapshot['client']; setup?:
     project: null,
     empresa: null,
     client: overrides.client === undefined ? { id: 'c1', kind: 'client', name: 'Porto Seguro', cnpj: null, contact_name: null, contact_phone: null, sites: [], removed_at: null } : overrides.client,
+    responsible: null,
     instruments: [],
     equipment: [],
     locations: [],

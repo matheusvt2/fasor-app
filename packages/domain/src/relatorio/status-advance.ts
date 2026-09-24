@@ -34,11 +34,6 @@ export function issuedBannerText(revision: Pick<RevisionRow, 'number' | 'created
   return `Relatório emitido em ${date} (revisão ${revision.number}). Alterações geram a revisão ${revision.number + 1}.`;
 }
 
-/** The most recent revision by number, or null with none. */
-export function latestRevision(revisions: readonly RevisionRow[]): RevisionRow | null {
-  return revisions.reduce<RevisionRow | null>((latest, row) => (latest === null || row.number > latest.number ? row : latest), null);
-}
-
 /** The header Overflow's backward-move item: the immediate previous status, or null at Rascunho. */
 export function backwardMoveLabel(from: RelatorioStatus): { to: RelatorioStatus; label: string } | null {
   const index = RELATORIO_STATUSES.indexOf(from);
