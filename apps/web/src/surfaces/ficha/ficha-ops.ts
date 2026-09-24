@@ -1,26 +1,15 @@
-import type { JsonValue, OpDraft } from '@app/domain';
-import type { Author } from '../relatorio/relatorio-ops.ts';
+import { relatorioOpEnvelope, type Author, type JsonValue, type OpDraft } from '@app/domain';
 
 /*
  * The ops the equipment sheet writes (Stories 5.1-5.4): `sheet/{blockId}/nameplate/{key}`,
  * `sheet/{blockId}/checklist/{item}/{result|observation}`, `sheet/{blockId}/observations`,
  * the cabine's `location/{id}/se/{field}` and `location/{id}/env/{field}` (never on the
  * sheet, AR-5) and `block/{id}/concluded_by`. All relatório scope, one op per committed
- * value (AD-1); `applyOp` validates the seed-defined keys (E3-A3).
+ * value (AD-1); `applyOp` validates the seed-defined keys (E3-A3). The envelope is the
+ * kernel's `relatorioOpEnvelope` (Epic 4 retro item 7), the same one `relatorio-ops.ts` uses.
  */
 
-function envelope(author: Author, relatorioId: string): Omit<OpDraft, 'kind' | 'path' | 'value'> {
-  return {
-    scope: 'relatorio',
-    company_id: author.companyId,
-    project_id: null,
-    relatorio_id: relatorioId,
-    prev_op_id: null,
-    batch_id: null,
-    meta: null,
-    actor_id: author.id,
-  };
-}
+const envelope = relatorioOpEnvelope;
 
 function put(author: Author, relatorioId: string, path: string, value: unknown): OpDraft {
   return { ...envelope(author, relatorioId), kind: 'put', path, value: (value ?? null) as JsonValue };
