@@ -16,6 +16,7 @@ import type { SessionState } from '../../state/session.tsx';
 import { SyncContext, type SyncState } from '../../state/sync.tsx';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
 import { GenerateAction } from './generate-action.tsx';
+import { SETTLE_TIMEOUT_MS } from './relatorio-editor.ts';
 import { RowBody } from './sumario-row.tsx';
 import { SumarioSurface } from './sumario-surface.tsx';
 
@@ -92,7 +93,7 @@ function sectionBlocksFor(relatorioId: string): BlockRow[] {
   const { drafts } = instantiateTemplate(
     standardTemplate({ id: '019966c1-000d-7000-8000-000000000001' }),
     { id: portoSeguroSmall.projectId },
-    { service_start: null, service_end: null, existingEquipment: [] },
+    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null },
     { newId, actorId: USER, companyId: COMPANY },
   );
   return drafts
@@ -261,6 +262,18 @@ describe('4.3 SumarioSurface', () => {
     await waitFor(async () => expect((await titles()).slice(2, 4)).toEqual(['Objetivo', 'Definições']));
     // E3-A8: the toast is gone, so the row that came back takes the focus, on its Position box.
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Número de Definições — digite outro para mover' })).toHaveFocus());
+  });
+
+  it('Q7: a section move is announced, with its toast, in the render that draws it, well before the settle fallback', async () => {
+    database = await seeded();
+    renderSumario();
+    await waitFor(() => expect(rows()).toHaveLength(13));
+    const box = screen.getByRole('textbox', { name: 'Número de Definições — digite outro para mover' });
+    await userEvent.click(box);
+    await userEvent.keyboard('{Control>}a{/Control}4{Enter}');
+    await waitFor(() => expect(screen.getByTestId('sumario-announcer')).toHaveTextContent('Seção 2 movida para a posição 4 de 11'), { timeout: SETTLE_TIMEOUT_MS / 2 });
+    expect((await titles()).slice(2, 6)).toEqual(['Objetivo', 'Limite de escopo', 'Requisitos básicos', 'Definições']);
+    expect(screen.getByText('Definições movida — numeração refeita')).toBeVisible();
   });
 
   it('Remover tombstones the row, moves the focus to the row now in its slot and "Restaurar ficha removida" brings it back', async () => {

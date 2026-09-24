@@ -1,5 +1,5 @@
 import type { BlockRow, EntityState, EquipmentRow, LocationRow, OpDraft } from '@app/domain';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { commitBatch, undoBatch } from '../../db/commit.ts';
@@ -39,7 +39,21 @@ export interface RelatorioEditor {
   announcement: string;
   /** A toast with "Desfazer"; `focus` names where the focus goes once the undo has landed, `onUndo` runs as it starts. */
   undoable: (text: string, batchId: string | null, focus?: () => HTMLElement | null, onUndo?: () => void) => void;
+  /**
+   * Says `text` (when given) and runs `then` in the render that draws the edit, the first
+   * one where `drawn()` holds, so the announcement, the toast and the moved row reach the
+   * screen in the same frame (Epic 4 QA Q7); after `SETTLE_TIMEOUT_MS` at the latest.
+   */
+  settle: (drawn: () => boolean, text: string | null, then?: () => void) => void;
+  /**
+   * Fires a pending `settle` whose edit is drawn now: for a component that draws edits in
+   * renders of its own (the tree revealing a collapsed location), from its layout effect.
+   */
+  settleCheck: () => void;
 }
+
+/** How long `settle` waits for the edit to be drawn before it speaks anyway. */
+export const SETTLE_TIMEOUT_MS = 1000;
 
 /**
  * Every equipment row of the project, removed ones included, kept live on its own: the
@@ -108,13 +122,53 @@ export function useRelatorioEditor(relatorioId: string, projectId: string): Rela
     [db, author, relatorioId, projectId, showToast, dismissToast],
   );
 
+  // `settle`: one edit waits to be drawn at a time; a newer one says the older at once.
+  const pending = useRef<{ drawn: () => boolean; text: string | null; then?: () => void; timer: ReturnType<typeof setTimeout> } | null>(null);
+  const fire = useCallback(() => {
+    const due = pending.current;
+    if (due === null) return;
+    pending.current = null;
+    clearTimeout(due.timer);
+    if (due.text !== null) setAnnouncement(due.text);
+    due.then?.();
+  }, []);
+
+  // A pending settle speaks first, so nothing it says or toasts lands after a newer edit's.
   const announce = useCallback((text: string) => {
+    fire();
     setAnnouncement('');
     requestAnimationFrame(() => setAnnouncement(text));
-  }, []);
+  }, [fire]);
+
+  const settle = useCallback(
+    (drawn: () => boolean, text: string | null, then?: () => void) => {
+      fire();
+      // Emptied now, so the same sentence said twice is still a change the region announces.
+      if (text !== null) setAnnouncement('');
+      pending.current = { drawn, text, ...(then === undefined ? {} : { then }), timer: setTimeout(fire, SETTLE_TIMEOUT_MS) };
+      // Already drawn and nothing to empty first: no render is coming to say it.
+      if (text === null && drawn()) fire();
+    },
+    [fire],
+  );
+  const settleCheck = useCallback(() => {
+    if (pending.current?.drawn() === true) fire();
+  }, [fire]);
+  // After every render of the surface, before the browser paints: the render that draws the
+  // edit also says it (a state update here is flushed before paint).
+  useLayoutEffect(() => settleCheck());
+  useEffect(
+    () => () => {
+      if (pending.current !== null) clearTimeout(pending.current.timer);
+      pending.current = null;
+    },
+    [],
+  );
 
   const undoable = useCallback(
     (text: string, batchId: string | null, focus?: () => HTMLElement | null, onUndo?: () => void) => {
+      // An older move's pending toast first, so this one's "Desfazer" is the one left standing.
+      fire();
       if (batchId === null || db === null) return;
       undoToast.current = text;
       showToast(text, {
@@ -132,10 +186,13 @@ export function useRelatorioEditor(relatorioId: string, projectId: string): Rela
         },
       });
     },
-    [db, showToast],
+    [db, showToast, fire],
   );
 
   // One object while its members hold, so the tree's context and its action callbacks keep
   // their identity between renders.
-  return useMemo(() => ({ author, edit, announce, announcement, undoable }), [author, edit, announce, announcement, undoable]);
+  return useMemo(
+    () => ({ author, edit, announce, announcement, undoable, settle, settleCheck }),
+    [author, edit, announce, announcement, undoable, settle, settleCheck],
+  );
 }

@@ -3,6 +3,7 @@ import {
   agruparToggledText,
   blockCreatedText,
   blockMovedText,
+  equipmentSharedElsewhere,
   isEquipmentBlockType,
   locationBlocks,
   moveAnnouncement,
@@ -18,12 +19,14 @@ import {
   tagTakenText,
   tagVerdict,
   type BlockRow,
+  type EquipmentRow,
   type OpDraft,
   type TreeEquipmentNode,
   type TreeLocationNode,
 } from '@app/domain';
 import { useCallback, useMemo } from 'react';
 import { copy } from '../../copy/pt-br.ts';
+import { projectBlockRows } from '../../db/home-store.ts';
 import { writeLastSheet } from '../../db/prefs.ts';
 import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
@@ -109,7 +112,7 @@ export function locationChevron(root: HTMLElement | null, locationId: string): H
 
 export function useTreeActions(context: TreeContext, host: TreeHost): TreeActions {
   const { relatorioId, projectId, seedVersion, editor } = context;
-  const { edit, announce, undoable } = editor;
+  const { edit, announce, undoable, settle } = editor;
   const db = useSession().database;
   const { showToast } = useToast();
   const t = copy.sumario.tree;
@@ -146,16 +149,24 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
       }
       const to = moveLandingIndex(total, toIndex);
       const text = blockMovedText(node.name, to + 1, total);
-      announce(text);
-      // "Desfazer" hands the focus back to the row's Position box once it is in its old slot.
-      undoable(text, batch, () => {
-        const back = blockRow(host.root(), node.blockId);
-        const list = back?.parentElement ?? null;
-        if (back === null || list === null || [...list.children].indexOf(back) !== fromIndex) return null;
-        return back.querySelector<HTMLElement>('.pos-box');
-      });
+      // Said, and the toast shown, in the render that draws the row in its new slot (Q7).
+      settle(
+        () => {
+          const row = blockRow(host.root(), node.blockId);
+          return row === null || row.parentElement === null || [...row.parentElement.children].indexOf(row) === to;
+        },
+        text,
+        // "Desfazer" hands the focus back to the row's Position box once it is in its old slot.
+        () =>
+          undoable(text, batch, () => {
+            const back = blockRow(host.root(), node.blockId);
+            const list = back?.parentElement ?? null;
+            if (back === null || list === null || [...list.children].indexOf(back) !== fromIndex) return null;
+            return back.querySelector<HTMLElement>('.pos-box');
+          }),
+      );
     },
-    [host, edit, relatorioId, showToast, t.gone, announce, undoable],
+    [host, edit, relatorioId, showToast, t.gone, settle, undoable],
   );
 
   const moveLocation = useCallback(
@@ -178,10 +189,16 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
       }
       const to = moveLandingIndex(total, toIndex);
       const text = moveAnnouncement(node.kind === 'cabine' ? 'cabine' : 'coluna', node.name, to + 1, total);
-      announce(text);
-      undoable(text, batch, () => locationChevron(host.root(), node.id));
+      settle(
+        () => {
+          const row = host.root()?.querySelector<HTMLElement>(`li[data-location-id="${esc(node.id)}"]`) ?? null;
+          return row === null || row.parentElement === null || [...row.parentElement.children].indexOf(row) === to;
+        },
+        text,
+        () => undoable(text, batch, () => locationChevron(host.root(), node.id)),
+      );
     },
-    [edit, relatorioId, showToast, t.locationGone, announce, undoable, host],
+    [edit, relatorioId, showToast, t.locationGone, settle, undoable, host],
   );
 
   /** One equipment + block pair, as the palette or "Duplicar" asks for it; `copyFrom` names the block whose config is copied. */
@@ -231,17 +248,23 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
           focusWhenRendered(() => blockOpen(host.root(), made.blockId));
           // "Desfazer" removes the new row: the focus goes back to the row it went under, else the location's chevron.
           const anchor = input.anchorBlockId;
-          undoable(blockCreatedText(made.tag, made.location), batch, () =>
-            anchor !== null && blockOpen(host.root(), anchor) !== null
-              ? blockOpen(host.root(), anchor)
-              : blockOpen(host.root(), made.blockId) === null
-                ? locationChevron(host.root(), input.locationId)
-                : null,
+          // The toast comes with the new row, never before it (Q7).
+          settle(
+            () => blockOpen(host.root(), made.blockId) !== null,
+            null,
+            () =>
+              undoable(blockCreatedText(made.tag, made.location), batch, () =>
+                anchor !== null && blockOpen(host.root(), anchor) !== null
+                  ? blockOpen(host.root(), anchor)
+                  : blockOpen(host.root(), made.blockId) === null
+                    ? locationChevron(host.root(), input.locationId)
+                    : null,
+              ),
           );
         })
         .catch(() => undefined);
     },
-    [edit, relatorioId, projectId, seedVersion, showToast, t.locationGone, t.gone, host, undoable],
+    [edit, relatorioId, projectId, seedVersion, showToast, t.locationGone, t.gone, host, undoable, settle],
   );
 
   const createBlock = useCallback((input: PaletteCreate) => createPair(input), [createPair]);
@@ -257,14 +280,17 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
       const root = host.root();
       const li = blockRow(root, node.blockId);
       const parentId = node.locationId;
-      void edit((blocks, by) => {
-        const block = blocks.find((row) => row.id === node.blockId && row.removed_at === null);
-        if (block === undefined) return null;
-        const ops: OpDraft[] = [removeBlockOp(by, relatorioId, block.id)];
-        // One equipment per block in this MVP: its TAG is freed with the sheet (Design Notes).
-        if (block.equipment_id !== null) ops.push(equipmentRemovedOp(by, projectId, block.equipment_id, true));
-        return ops;
-      })
+      // The obra's other relatórios on this device: a later relatório reuses the project's
+      // equipment (Q4), so a sheet's TAG is freed only when no other live block holds it.
+      const elsewhere = db === null ? Promise.resolve([]) : projectBlockRows(db, projectId).then((rows) => rows.filter((row) => row.relatorio_id !== relatorioId));
+      void elsewhere
+        .then((others) =>
+          edit((blocks, by) => {
+            const block = blocks.find((row) => row.id === node.blockId && row.removed_at === null);
+            if (block === undefined) return null;
+            return removeSheetOps(by, relatorioId, projectId, [...blocks, ...others], block);
+          }),
+        )
         .then((batch) => {
           if (batch === null) {
             showToast(t.gone);
@@ -285,7 +311,7 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
         })
         .catch(() => undefined);
     },
-    [host, edit, relatorioId, projectId, showToast, t.gone, t.removed, undoable],
+    [host, db, edit, relatorioId, projectId, showToast, t.gone, t.removed, undoable],
   );
 
   const renameTag = useCallback(
@@ -401,10 +427,36 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
   );
 }
 
-/** "Restaurar" of an equipment sheet: the block and its equipment row come back in one batch. */
-export function restoreSheetOps(author: Author, relatorioId: string, projectId: string, blocks: readonly BlockRow[], blockId: string, equipmentId: string | null): OpDraft[] | null {
+/**
+ * "Remover" of an equipment sheet: the block's tombstone, plus its equipment's when no
+ * other live block in `blocks` (this relatório's and the obra's other relatórios on this
+ * device) references that equipment (Q4, `equipmentSharedElsewhere`).
+ */
+export function removeSheetOps(author: Author, relatorioId: string, projectId: string, blocks: readonly BlockRow[], block: Pick<BlockRow, 'id' | 'equipment_id'>): OpDraft[] {
+  const ops: OpDraft[] = [removeBlockOp(author, relatorioId, block.id)];
+  if (block.equipment_id !== null && !equipmentSharedElsewhere(blocks, block.equipment_id, block.id)) {
+    ops.push(equipmentRemovedOp(author, projectId, block.equipment_id, true));
+  }
+  return ops;
+}
+
+/**
+ * "Restaurar" of an equipment sheet: the block and, when its removal freed it, its
+ * equipment row come back in one batch. An equipment another sheet kept live (Q4) is left
+ * as it is.
+ */
+export function restoreSheetOps(
+  author: Author,
+  relatorioId: string,
+  projectId: string,
+  blocks: readonly BlockRow[],
+  blockId: string,
+  equipmentId: string | null,
+  equipment: readonly Pick<EquipmentRow, 'id' | 'removed_at'>[],
+): OpDraft[] | null {
   if (!blocks.some((row) => row.id === blockId && row.removed_at !== null)) return null;
   const ops: OpDraft[] = [putBlockOp(author, relatorioId, blockId, 'removed_at', null)];
-  if (equipmentId !== null) ops.push(equipmentRemovedOp(author, projectId, equipmentId, false));
+  const live = equipment.some((row) => row.id === equipmentId && row.removed_at === null);
+  if (equipmentId !== null && !live) ops.push(equipmentRemovedOp(author, projectId, equipmentId, false));
   return ops;
 }

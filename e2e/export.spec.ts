@@ -3,6 +3,7 @@ import type { BrowserContext, Download, Page } from '@playwright/test';
 import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-fixture.ts';
 import { expect, signIn, test, TEST_SEED } from './support/merged-fixtures.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
+import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.ts';
 import { createProjectFromHome, createRelatorio } from './support/relatorio-flow.ts';
 
 /*
@@ -25,8 +26,8 @@ const reason = (page: Page) => dialog(page).locator('.generate-row .btn-reason')
 const headerPill = (page: Page) => page.locator('.sheet-meta .status-pill');
 
 const IDLE_1 = 'Gera o DOCX e o PDF juntos, a partir dos dados do app, como a revisão 1. Precisa de conexão.';
-const IDLE_2 = 'Gera o DOCX e o PDF juntos, a partir dos dados do app, como a revisão 2. Precisa de conexão.';
 const OFFLINE = 'Gerar relatório precisa de conexão. Conecte e tente de novo.';
+const ADDITIONAL_INFO = 'Parada programada de 36 horas';
 const FAILED = 'Não foi possível gerar o relatório. Os dados não foram alterados e nenhuma revisão foi criada.';
 /** The job's own time: flush, queue pick-up, two LibreOffice passes. */
 const JOB_TIMEOUT = 150_000;
@@ -69,7 +70,12 @@ test('@p0 4.8-E2E-001 a relatório born on Home: the Sumário\'s "Gerar relatór
   await signIn(page, account.email);
   await expect(page.locator('.shortcut-sub', { hasText: '1 template' })).toBeVisible({ timeout: 30_000 });
   await createProjectFromHome(page);
-  await createRelatorio(page);
+  // Q3: what Etapa 1's "Informações adicionais" says is what the cover prints.
+  await createRelatorio(page, {
+    whileOnSetup: async () => {
+      await page.getByLabel('Informações adicionais').fill(ADDITIONAL_INFO);
+    },
+  });
   await expect(headerPill(page)).toHaveText('Rascunho');
 
   // The foot's button opens the dialog: modal, labelled by its title, idle with no revision.
@@ -115,7 +121,10 @@ test('@p0 4.8-E2E-001 a relatório born on Home: the Sumário\'s "Gerar relatór
   const response = await page.request.get(download.url());
   expect(response.status()).toBe(200);
   expect(response.headers()['content-type']).toBe(DOCX_MIME);
-  expect((await response.body()).byteLength).toBeGreaterThan(1000);
+  const bytes = await response.body();
+  expect(bytes.byteLength).toBeGreaterThan(1000);
+  const cover = extractStructure(Buffer.from(bytes)).tables[0]!;
+  expect(cover.find((row) => row[0] === 'Informações adicionais')).toEqual(['Informações adicionais', ADDITIONAL_INFO]);
   // The Revisões row's own "DOCX" is the same file.
   const again = await downloadFrom(page, context, () => row.locator('.rev-files').getByRole('button', { name: 'DOCX' }).click());
   expect(again.url()).toBe(download.url());
@@ -125,10 +134,11 @@ test('@p0 4.8-E2E-001 a relatório born on Home: the Sumário\'s "Gerar relatór
   await expect(modal).toBeHidden();
   await expect(footButton(page)).toBeFocused();
 
-  // Nothing was edited since: a second generation answers revision 1 again, with no second row.
+  // Nothing was edited since: the idle line names revision 1 (Q11), and a second
+  // generation answers revision 1 again, with no second row.
   await footButton(page).click();
   await dialog(page).getByRole('button', { name: 'Gerar de novo' }).click();
-  await expect(reason(page)).toHaveText(IDLE_2);
+  await expect(reason(page)).toHaveText(IDLE_1);
   await generateButton(page).click();
   await expect(dialog(page).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeVisible({ timeout: 30_000 });
   await expect(dialog(page).locator('.revision-row')).toHaveCount(1);
@@ -162,6 +172,9 @@ test('@p0 4.8-E2E-004 an Em campo relatório: generate moves it to Em revisão, 
   await expect(dialog(page).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeVisible();
   await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Emitido');
   await expect(dialog(page).locator('.revision-row')).toHaveCount(1);
+  // Nothing edited since: "Gerar de novo" promises revision 1 again (Q11).
+  await dialog(page).getByRole('button', { name: 'Gerar de novo' }).click();
+  await expect(reason(page)).toHaveText(IDLE_1);
 });
 
 test('@p1 4.8-E2E-002 offline, "Gerar relatório" waits with its reason and calls nothing', async ({ page, context }) => {
@@ -209,4 +222,9 @@ test('@p1 4.8-E2E-005 a failed request says nothing changed and no revision was 
   await alert.getByRole('button', { name: 'Tentar novamente' }).click();
   await expect(dialog(page).locator('.gen-progress')).toContainText('Gerando revisão 1…', { timeout: 60_000 });
   await expect(dialog(page).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeVisible({ timeout: JOB_TIMEOUT });
+  // Q11: the job landed with the dialog open on an Em campo relatório: the ready block's
+  // pill reads the status after the issue op, Emitido, never the Em revisão before it.
+  const pill = dialog(page).locator('.row-wrap .status-pill');
+  expect(await pill.textContent()).not.toBe('Em revisão');
+  await expect(pill).toHaveText('Emitido');
 });

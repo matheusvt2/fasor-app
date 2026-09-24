@@ -9,6 +9,7 @@ import {
   issuedBannerText,
   latestRevision,
   moveAnnouncement,
+  moveLandingIndex,
   naoEnsaiadasText,
   ncAbertosText,
   orderKeyAfter,
@@ -133,7 +134,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   // One write path for the rows and the tree: the serialised edit queue, the announcer and
   // the undo toast that any later edit or leaving the Sumário retires.
   const editor = useRelatorioEditor(relatorioId, relatorio.project_id);
-  const { edit, announce, announcement, undoable } = editor;
+  const { edit, announcement, undoable, settle } = editor;
   const treeContext = useMemo(
     () => ({ relatorioId, projectId: relatorio.project_id, seedVersion: relatorio.seed_version, editor }),
     [relatorioId, relatorio.project_id, relatorio.seed_version, editor],
@@ -204,13 +205,23 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
         if (!present) showToast(t.gone);
         return;
       }
-      announce(moveAnnouncement('section', String(row.number), toIndex + 1, row.siblings));
-      undoable(sectionMovedText(row.title), batch, () => {
-        const back = rowLi(blockId);
-        const list = back?.parentElement ?? null;
-        if (back === null || list === null || [...list.children].indexOf(back) !== fromIndex) return null;
-        return back.querySelector<HTMLElement>('.pos-box');
-      });
+      // Said, and the toast shown, in the render that draws the row in its new slot (Q7).
+      const to = moveLandingIndex(row.siblings, toIndex);
+      settle(
+        () => {
+          const li = rowLi(blockId);
+          if (li === null || li.parentElement === null) return true;
+          return [...li.parentElement.children].filter((el) => el.hasAttribute('data-block-id')).indexOf(li) === to;
+        },
+        moveAnnouncement('section', String(row.number), toIndex + 1, row.siblings),
+        () =>
+          undoable(sectionMovedText(row.title), batch, () => {
+            const back = rowLi(blockId);
+            const list = back?.parentElement ?? null;
+            if (back === null || list === null || [...list.children].indexOf(back) !== fromIndex) return null;
+            return back.querySelector<HTMLElement>('.pos-box');
+          }),
+      );
     },
     onOpen: (row) => {
       if (row.kind === 'setup') void navigate(`/relatorio/${relatorioId}/setup?etapa=2`);
@@ -256,12 +267,12 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   function onRestore(block: RestorableBlock): void {
     setRestoring(false);
     const locationId = allBlocks.find((row) => row.id === block.id)?.location_id ?? null;
-    void edit((fresh, by) =>
+    void edit((fresh, by, rows) =>
       locationId === null
         ? fresh.some((row) => row.id === block.id && row.removed_at !== null)
           ? [putBlockOp(by, relatorioId, block.id, 'removed_at', null)]
           : null
-        : restoreSheetOps(by, relatorioId, relatorio.project_id, fresh, block.id, block.equipmentId),
+        : restoreSheetOps(by, relatorioId, relatorio.project_id, fresh, block.id, block.equipmentId, rows.equipment),
     )
       .then((batch) => {
         if (batch === null) {

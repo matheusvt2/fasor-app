@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { RelatorioSummary } from '../contract/sync.ts';
 import type { ProjectRow, RegistryRow, RelatorioRow, RelatorioStatus, TemplateRow } from '../schemas/entities.ts';
+import { sumarioTitle } from '../relatorio/sumario.ts';
 import { idSequence } from '../test-support.ts';
 import {
   CADASTROS_SUBLINE,
@@ -134,30 +135,39 @@ describe('statusBoardCounts', () => {
 });
 
 describe('homeCards: the four lines of a card', () => {
-  it('joins the client and the local, the dates and the template', () => {
+  it('names the client and the obra exactly as the Sumário header does, whatever the setup Local says (Q5)', () => {
     const [card] = homeCards(
       input({
         relatorios: [
           relatorio(R_FIELD_HERE, 'em_campo', {
-            local: 'Torres A e B',
+            local: 'das Torres A e B da Porto Seguro',
             service_start: '2026-09-06',
             service_end: '2026-09-08',
           }),
         ],
+        projects: [{ ...project, site: 'Torres A e B' }],
         syncStates: [onDevice(R_FIELD_HERE)],
       }),
     );
     expect(card!.title).toBe('Porto Seguro Companhia de Seguros Gerais · Torres A e B');
+    expect(card!.title).toBe(sumarioTitle(client as { name: string }, { ...project, site: 'Torres A e B' }));
     expect(card!.meta).toBe('06–08/09/2026 · Cabine primária — padrão');
     expect(card!.statusPillId).toBe('em-campo');
     expect(card!.device).toEqual({ kind: 'on-device', text: 'No aparelho · atualizado 21:40' });
   });
 
-  it('drops a missing part from its line and falls back when the title is empty', () => {
+  it('a project with no site names the obra by the project name, as the Sumário header does', () => {
+    const [card] = homeCards(input({ relatorios: [relatorio(R_DRAFT, 'rascunho', { local: 'Outro texto' })] }));
+    expect(card!.title).toBe('Porto Seguro Companhia de Seguros Gerais · Porto Seguro');
+  });
+
+  it('without the project row, joins the client and the local, and falls back when the title is empty', () => {
+    const [withLocal] = homeCards(input({ relatorios: [relatorio(R_DRAFT, 'rascunho', { local: 'Torres A e B' })], projects: [] }));
+    expect(withLocal!.title).toBe('Torres A e B');
     const [card] = homeCards(
       input({
         relatorios: [relatorio(R_DRAFT, 'rascunho')],
-        projects: [{ ...project, client_id: null }],
+        projects: [],
         templates: [],
       }),
     );

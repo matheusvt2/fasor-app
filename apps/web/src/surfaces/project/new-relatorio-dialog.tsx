@@ -1,4 +1,5 @@
 import {
+  defaultResponsibleId,
   defaultTemplateFor,
   endBeforeStart,
   instantiateTemplate,
@@ -39,7 +40,7 @@ export interface NewRelatorioDialogProps {
  * one report type preselected, the template (the project's last used one, or the only
  * pickable one), the two dates with the end following the start, and "Criar relatório",
  * disabled with its reason until a template and a start exist. Criar is ONE batch of
- * every create `instantiateTemplate` produces (FR-13, AR-5), then the Sumário opens.
+ * every create `instantiateTemplate` produces (FR-13, AR-5), then Relatório setup opens.
  */
 export function NewRelatorioDialog({ project, client, relatorios, templates, onClose }: NewRelatorioDialogProps) {
   const session = useSession();
@@ -80,12 +81,14 @@ export function NewRelatorioDialog({ project, client, relatorios, templates, onC
       const { relatorioId, drafts } = instantiateTemplate(
         template,
         project,
-        { service_start: start, service_end: end, existingEquipment },
+        { service_start: start, service_end: end, existingEquipment, responsible_user_id: defaultResponsibleId(user) },
         { newId, actorId: user.id, companyId: user.companyId },
       );
       await commitBatch(db, drafts, { newId, now });
       onClose();
-      void navigate(`/relatorio/${relatorioId}`);
+      // EXPERIENCE.md › Form dialog: "on create it opens Relatório setup" (Q1), at Etapa 1,
+      // whose band heading takes the focus.
+      void navigate(`/relatorio/${relatorioId}/setup?etapa=1`);
     } catch (error) {
       showToast(writeErrorText(error));
     } finally {

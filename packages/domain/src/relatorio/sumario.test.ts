@@ -45,7 +45,7 @@ function fresh(): RelatorioSnapshot {
   const { relatorioId, drafts } = instantiateTemplate(
     standardTemplate({ id: TEMPLATE_ID }),
     { id: TEST_PROJECT },
-    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [] },
+    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
     { newId: idSequence('019966b0-0055-7000-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },
   );
   const ops = drafts.map((d, i) => ({ ...makeOp({ ...d, device_id: 'tablet-test' }, { newId: idSequence('019966b0-0056-7000-8000-'), now: T0 }), seq: i + 1 }));

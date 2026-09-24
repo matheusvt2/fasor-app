@@ -13,6 +13,7 @@ import { BackTargetProvider } from '../../state/back-target.tsx';
 import type { SessionState } from '../../state/session.tsx';
 import { SyncContext, type SyncState } from '../../state/sync.tsx';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
+import { SETTLE_TIMEOUT_MS } from './relatorio-editor.ts';
 import { SumarioSurface } from './sumario-surface.tsx';
 import { TreeSurface } from './tree-surface.tsx';
 
@@ -94,7 +95,7 @@ function sectionBlocksFor(relatorioId: string): BlockRow[] {
   const { drafts } = instantiateTemplate(
     standardTemplate({ id: '019966c1-0023-7000-8000-000000000001' }),
     { id: PROJECT },
-    { service_start: null, service_end: null, existingEquipment: [] },
+    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null },
     { newId, actorId: USER, companyId: COMPANY },
   );
   return drafts
@@ -330,6 +331,16 @@ describe('4.4 location tree (Sumário presentation)', () => {
     expect(ops.some((op) => op.path.includes('location_id'))).toBe(false);
   });
 
+  it('Q7: a move is announced, with its toast, in the render that draws it, well before the settle fallback', async () => {
+    database = await seeded();
+    await openCabine();
+    eqRow(SEC_TEST).querySelector<HTMLElement>('.s9-eq-open')!.focus();
+    await userEvent.keyboard('{Alt>}{ArrowDown}{/Alt}');
+    await waitFor(() => expect(announcer()).toHaveTextContent('SEC-TEST movido para a posição 2 de 3'), { timeout: SETTLE_TIMEOUT_MS / 2 });
+    expect(tags(tree().querySelector('li.s9-cabine')!)).toEqual(['DJ-TEST', 'SEC-TEST', 'TR-TEST']);
+    expect(document.querySelector('.toast')).toHaveTextContent('SEC-TEST movido para a posição 2 de 3');
+  });
+
   it('removes an empty block without asking; the focus goes to the parent chevron; Desfazer brings it back and focuses its Overflow', async () => {
     database = await seeded();
     await openCabine();
@@ -348,6 +359,31 @@ describe('4.4 location tree (Sumário presentation)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
     await waitFor(() => expect(eqRow(SEC_C01)).not.toBeNull());
     await waitFor(() => expect(screen.getByRole('button', { name: 'Mais opções de SEC-C01' })).toHaveFocus());
+  });
+
+  it('Q4: removing a block whose equipment another relatório of the obra holds writes only the block tombstone', async () => {
+    database = await seeded();
+    // A second live relatório of the same project on this device, whose live block holds SEC-C01's equipment.
+    const OTHER = id(50);
+    const relatorio = (await database.entities.get(['relatorio', RELATORIO]))!.row as { id: string };
+    const other = newEquipmentBlock({
+      blockId: id(51),
+      equipmentId: id(4),
+      relatorioId: OTHER,
+      projectId: PROJECT,
+      locationId: id(52),
+      type: 'chave_seccionadora',
+      tag: 'SEC-C01',
+      seedVersion: 'v1',
+      orderKey: 'a0',
+    });
+    await database.entities.bulkPut([toRecord(`relatorio:${OTHER}`, { ...relatorio, id: OTHER } as never), toRecord(`block:${other.block.id}`, other.block)]);
+    await openCabine();
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de SEC-C01' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Remover' }));
+    await waitFor(() => expect(document.querySelector(`li[data-block-id="${SEC_C01}"]`)).toBeNull());
+    expect((await outbox()).map((op) => [op.path, op.kind])).toEqual([[`block/${SEC_C01}/removed_at`, 'remove']]);
+    expect(((await database.entities.get(['equipment', id(4)]))!.row as EquipmentRow).removed_at).toBeNull();
   });
 
   it('asks before removing a block with data; Cancelar returns to the trigger; Remover moves the focus to the row in the slot; Restaurar brings it back', async () => {

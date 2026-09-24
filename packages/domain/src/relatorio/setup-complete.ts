@@ -1,3 +1,4 @@
+import { artOrTrtLabel } from '../registration.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import type { UserRow } from '../schemas/entities.ts';
 
@@ -47,8 +48,15 @@ export function siteAltitudeText(m: number): string {
   return m < 1000 ? '< 1000 m' : `${m} m`;
 }
 
-/** "Concluir dados do relatório: falta ⟨o quê⟩", or null once every gap is closed. */
+/**
+ * "Concluir dados do relatório: falta ⟨o quê⟩", or null once every gap is closed. The
+ * ART/TRT gap names the responsible's own document once their council is known (Epic 4 QA
+ * Q12): "o número da ART" (CREA) or "o número da TRT" (CRT), both feminine; "o número do
+ * ART/TRT" only while the council is unknown.
+ */
 export function setupIncompleteReason(snapshot: RelatorioSnapshot, responsible: UserRow | null): string | null {
   const gap = firstSetupGap(snapshot, responsible);
-  return gap === null ? null : `Concluir dados do relatório: falta ${GAP_TEXTS[gap]}`;
+  if (gap === null) return null;
+  const text = gap === 'art_trt_number' && responsible?.council != null ? `o número da ${artOrTrtLabel(responsible.council)}` : GAP_TEXTS[gap];
+  return `Concluir dados do relatório: falta ${text}`;
 }

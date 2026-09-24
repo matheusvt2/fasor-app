@@ -8,6 +8,7 @@ import {
   blockTypeLabel,
   duplicateTagSuggestion,
   equipmentPathText,
+  equipmentSharedElsewhere,
   firstInTree,
   locationBlocks,
   locationChoices,
@@ -312,5 +313,19 @@ describe('4.4/4.5-UNIT tree texts and writes', () => {
       'Cabine A',
       'Cabine Vazia',
     ]);
+  });
+});
+
+describe('Epic 4 QA Q4 equipmentSharedElsewhere', () => {
+  const EQ = id(7001);
+  const ref = (n: number, equipment_id: string | null, removed_at: string | null = null) => ({ id: id(7100 + n), equipment_id, removed_at });
+
+  it('is true when another live block (any relatório) references the equipment', () => {
+    expect(equipmentSharedElsewhere([ref(1, EQ), ref(2, EQ)], EQ, id(7101))).toBe(true);
+  });
+
+  it('is false when the block is its only live holder: removed and unrelated blocks do not count', () => {
+    const blocks = [ref(1, EQ), ref(2, EQ, '2026-09-24T10:00:00.000Z'), ref(3, id(7002)), ref(4, null)];
+    expect(equipmentSharedElsewhere(blocks, EQ, id(7101))).toBe(false);
   });
 });

@@ -130,6 +130,16 @@ export function blockRowsOf(db: AppDatabase, relatorioId: string): Promise<Block
   return rowsWhere<BlockRow>(db, 'block', 'relatorio_id', relatorioId);
 }
 
+/**
+ * Every block this device holds of the project's live relatórios, removed ones included
+ * (Epic 4 QA Q4: a sheet's removal frees its equipment only when no other live block of
+ * the obra references it).
+ */
+export async function projectBlockRows(db: AppDatabase, projectId: string): Promise<BlockRow[]> {
+  const relatorios = await relatoriosOfProject(db, projectId);
+  return (await Promise.all(relatorios.map((row) => blockRowsOf(db, row.id)))).flat();
+}
+
 /** Every equipment row of one project, removed ones included (`suggestTag` and `isTagTaken` read `removed_at`). */
 export function equipmentRows(db: AppDatabase, projectId: string): Promise<EquipmentRow[]> {
   return rowsWhere<EquipmentRow>(db, 'equipment', 'project_id', projectId);

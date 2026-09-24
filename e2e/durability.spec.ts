@@ -392,8 +392,10 @@ test('@p0 1.8-E2E-006 a pending job keeps its shell through a worker restart and
  * reorder path that costs one tap and a number; typed by touch, it moves the row like the
  * desktop path does. Runs against the built bundle like every scenario here.
  */
-test('@p1 4.3-E2E-003 the Position box typed by touch moves a Sumário row', async ({ page, context, browserName }) => {
-  test.skip(browserName === 'webkit', 'the touch rule is asserted on the Android emulation; WebKit runs the desktop spec');
+test('@p1 4.3-E2E-003 the Position box typed by touch moves a Sumário row', async ({ page, context }) => {
+  // A tap needs a touch screen: only the Android emulation has one (Q6); the desktop
+  // projects run the same flows by pointer in their own specs.
+  test.skip(!test.info().project.use.hasTouch, 'the touch rule is asserted on a project with a touch screen (the Android emulation)');
   await resetEmpresaB({ standard: true });
   const account = TEST_SEED.companies[1];
   await signInForDurability(page, context, account.email);
@@ -416,6 +418,10 @@ test('@p1 4.3-E2E-003 the Position box typed by touch moves a Sumário row', asy
   await create.getByRole('group', { name: 'Início da parada' }).getByRole('spinbutton').first().tap();
   await page.keyboard.type('06092026');
   await create.getByRole('button', { name: 'Criar relatório' }).tap();
+  // Criar opens Relatório setup at Etapa 1 (Q1); "Voltar" leads to the Sumário.
+  await expect(page).toHaveURL(/\/relatorio\/[0-9a-f-]{36}\/setup\?etapa=1$/, { timeout: 30_000 });
+  await expect(page.getByRole('heading', { level: 2, name: 'Etapa 1 — Capa' })).toBeFocused();
+  await page.getByRole('button', { name: 'Voltar' }).tap();
   await expect(page).toHaveURL(/\/relatorio\/[0-9a-f-]{36}$/, { timeout: 30_000 });
   const titles = page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title');
   await expect(titles.nth(3)).toHaveText('Definições');
@@ -437,8 +443,10 @@ test('@p1 4.3-E2E-003 the Position box typed by touch moves a Sumário row', asy
  * every surface, so the same insert-by-tap, remove-by-Backspace pass `3.6-E2E-001` runs on
  * desktop Chrome runs here by touch. Runs against the built bundle like every scenario here.
  */
-test('@p1 4.7-E2E-003 section text: a chip inserted by tap is removed whole by Backspace', async ({ page, context, browserName }) => {
-  test.skip(browserName === 'webkit', 'the touch rule is asserted on the Android emulation; WebKit runs the desktop spec');
+test('@p1 4.7-E2E-003 section text: a chip inserted by tap is removed whole by Backspace', async ({ page, context }) => {
+  // A tap needs a touch screen: only the Android emulation has one (Q6); the desktop
+  // projects run the same flows by pointer in their own specs.
+  test.skip(!test.info().project.use.hasTouch, 'the touch rule is asserted on a project with a touch screen (the Android emulation)');
   await resetEmpresaB({ standard: true });
   const account = TEST_SEED.companies[1];
   await signInForDurability(page, context, account.email);
@@ -461,6 +469,10 @@ test('@p1 4.7-E2E-003 section text: a chip inserted by tap is removed whole by B
   await create.getByRole('group', { name: 'Início da parada' }).getByRole('spinbutton').first().tap();
   await page.keyboard.type('06092026');
   await create.getByRole('button', { name: 'Criar relatório' }).tap();
+  // Criar opens Relatório setup at Etapa 1 (Q1); "Voltar" leads to the Sumário.
+  await expect(page).toHaveURL(/\/relatorio\/[0-9a-f-]{36}\/setup\?etapa=1$/, { timeout: 30_000 });
+  await expect(page.getByRole('heading', { level: 2, name: 'Etapa 1 — Capa' })).toBeFocused();
+  await page.getByRole('button', { name: 'Voltar' }).tap();
   await expect(page).toHaveURL(/\/relatorio\/[0-9a-f-]{36}$/, { timeout: 30_000 });
 
   // Row 2 ("Definições") opens the section text.
@@ -470,7 +482,7 @@ test('@p1 4.7-E2E-003 section text: a chip inserted by tap is removed whole by B
     .nth(3)
     .getByRole('button', { name: /^Definições/ })
     .tap();
-  await expect(page.locator('.section-text-title')).toHaveText('2 Definições');
+  await expect(page.locator('.section-text-title')).toHaveText('Seção 2 — Definições');
 
   const area = page.getByRole('textbox', { name: 'Texto da seção' });
   const chips = area.locator('.var-chip');
@@ -491,8 +503,10 @@ test('@p1 4.7-E2E-003 section text: a chip inserted by tap is removed whole by B
  * palette opens as a bottom sheet and one tap creates a block; a press and hold of 300 ms
  * on a row's handle (CDP touch events, the way a finger does it) then a drag moves it.
  */
-test('@p1 4.5-E2E-004 phone width: the palette is a bottom sheet, a tap creates a block, and a press-and-hold drag moves it', async ({ page, context, browserName }) => {
-  test.skip(browserName === 'webkit', 'the touch rule is asserted on the Android emulation; WebKit runs the desktop spec');
+test('@p1 4.5-E2E-004 phone width: the palette is a bottom sheet, a tap creates a block, and a press-and-hold drag moves it', async ({ page, context }) => {
+  // A tap needs a touch screen: only the Android emulation has one (Q6); the desktop
+  // projects run the same flows by pointer in their own specs.
+  test.skip(!test.info().project.use.hasTouch, 'the touch rule is asserted on a project with a touch screen (the Android emulation)');
   await resetEmpresaB({ standard: true });
   const account = TEST_SEED.companies[1];
   await signInForDurability(page, context, account.email);

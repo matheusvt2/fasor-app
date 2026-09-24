@@ -1,6 +1,7 @@
 import { clientPreIssueRows } from '../checks/pre-issue-client.ts';
 import { companyPreIssues } from '../checks/pre-issue.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
+import { normalizeRegistryName } from '../text/normalize-name.ts';
 import type { RelatorioSectionType } from './instantiate.ts';
 import { cabineLocationIds, naoEnsaiadasText, progress, progressCounterText, type Progress } from './progress.ts';
 import { isEquipmentBlock } from './sheet-state.ts';
@@ -41,9 +42,15 @@ const SETUP_TEXTS = {
   responsible_user_id: 'Responsável técnico em branco',
 } as const;
 
-/** "Cabine ⟨nome⟩ sem equipamento". */
+/**
+ * "Cabine ⟨nome⟩ sem equipamento", or "⟨nome⟩ sem equipamento" when the name already says
+ * Cabine ("Cabine 7", "Cabine-7", "CABINE QA", "Cabíne A"): never "Cabine Cabine QA" (Epic 4 QA Q9).
+ */
 export function cabineSemEquipamentoText(name: string): string {
-  return `Cabine ${name} sem equipamento`;
+  const trimmed = name.trim();
+  // "Cabine" as a word at the start ("Cabine 7", "Cabine-7", "Cabine7"), never "Cabinet".
+  const saysCabine = /^cabine(?![a-z])/.test(normalizeRegistryName(trimmed));
+  return saysCabine ? `${trimmed} sem equipamento` : `Cabine ${trimmed} sem equipamento`;
 }
 
 /** Every pre-issue row of a relatório, in reading order: the cover, the control, then section 9. */

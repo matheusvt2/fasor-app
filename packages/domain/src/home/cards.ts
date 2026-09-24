@@ -1,6 +1,7 @@
 import type { RelatorioSummary } from '../contract/sync.ts';
 import { formatServiceDates, formatShortDateTime, formatTimeOfDay } from '../format/datetime.ts';
 import type { Op } from '../ops/op.ts';
+import { sumarioTitle } from '../relatorio/sumario.ts';
 import type { ProjectRow, RegistryRow, RelatorioRow, RelatorioStatus, TemplateRow } from '../schemas/entities.ts';
 import { RELATORIO_STATUSES, statusPillId, type StatusPillId } from '../status/table.ts';
 import {
@@ -193,7 +194,11 @@ export function homeCards(input: HomeCardsInput): HomeCard[] {
   for (const source of sources.values()) {
     const project = projects.get(source.project_id);
     const clientName = project?.client_id === null || project === undefined ? null : (clients.get(project.client_id) ?? null);
-    const title = join([clientName, source.local]) || UNTITLED;
+    // Epic 4 QA Q5: with the project row known, the card names the relatório exactly as the
+    // Sumário header does (`sumarioTitle`: client · obra); the setup's "Local" is the
+    // section 1 phrase, never the card title. Without it, the older fallback stands.
+    const title =
+      project === undefined ? join([clientName, source.local]) || UNTITLED : sumarioTitle(clientName === null ? null : { name: clientName }, project);
     const meta = join([
       formatServiceDates(source.service_start, source.service_end),
       source.template_id === null ? null : (templates.get(source.template_id) ?? null),

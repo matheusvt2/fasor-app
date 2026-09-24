@@ -231,9 +231,11 @@ export const relatorioSetupSchema = z.object({
   local: nullableString,
   responsible_user_id: nullableId,
   cover_photo_file_id: nullableId,
-  // Story 4.2 (Etapa 2, section 1/3): `escopo` is section 1's `{escopo}` variable;
-  // `exclusions` null means the seed's own section-3 items are in force (AD-21), a string
-  // array is the relatório's own override list.
+  // Story 4.2 (Etapa 2, section 3): `escopo` is unread in seed v1 (Epic 4 QA Q3: the v1
+  // `{escopo}` is the cover's "Informações adicionais", resolved from `additional_info`); the
+  // key stays for a seed v2 whose section 1 carries the variable. `exclusions` null means
+  // the seed's own section-3 items are in force (AD-21), a string array is the relatório's
+  // own override list.
   escopo: nullableString.default(null),
   exclusions: z.array(z.string()).nullable().default(null),
   additional_info: nullableString.default(null),

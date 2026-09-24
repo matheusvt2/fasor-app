@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { idSequence, TEST_USER } from '../test-support.ts';
-import { countsAsEdit, editedSince, EDITED_SINCE_FAMILIES, type EditCandidate } from './edited-since.ts';
+import { countsAsEdit, editedOnDevice, editedSince, EDITED_SINCE_FAMILIES, type EditCandidate } from './edited-since.ts';
 
 /*
  * Test 1.6-UNIT-001, second half (P1, risk R-015): AD-15's family set. Each excluded
@@ -93,5 +93,21 @@ describe('editedSince', () => {
 
   it('is false for an empty log', () => {
     expect(editedSince([], 0)).toBe(false);
+  });
+});
+
+describe('Epic 4 QA Q11 editedOnDevice', () => {
+  const pulled = (seq: number, path = `block/${BLOCK}/order_key`) => ({ ...op(path), seq });
+
+  it('is false with nothing edited past the snapshot and nothing unsent: the status and system ops of a generation do not count', () => {
+    expect(editedOnDevice([pulled(10), pulled(11, 'relatorio/status'), { ...pulled(12), actor_id: 'system:generate' }], [op('relatorio/status', { value: 'emitido' })], 10)).toBe(false);
+  });
+
+  it('is true for a pulled edit past the snapshot', () => {
+    expect(editedOnDevice([pulled(11)], [], 10)).toBe(true);
+  });
+
+  it('is true for an unsent edit of this device, which carries no seq yet', () => {
+    expect(editedOnDevice([], [op('relatorio/setup/local')], 10)).toBe(true);
   });
 });

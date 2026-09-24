@@ -13,7 +13,7 @@ import {
   type TemplateRow,
 } from '../schemas/entities.ts';
 import { sectionNumber, withoutOrphans } from '../templates/compose.ts';
-import { suggestTag, type TagEquipment } from './tag.ts';
+import { normalizeTag, suggestTag, type TagEquipment } from './tag.ts';
 
 /*
  * Story 4.1 (FR-13, AR-5): a relatório is born as ONE client batch — the `relatorio`
@@ -21,7 +21,17 @@ import { suggestTag, type TagEquipment } from './tag.ts';
  * and blocks produce. Everything is copied, nothing is referenced: a template edited
  * afterwards (D-4 bumps its `version`) never touches a relatório made from it, and the
  * server copies nothing. Ids come from the caller's `newId` in a fixed order (TC-2), so
- * two runs over the same sequence build the same drafts.
+ * two runs over the same sequence build the same drafts. The responsável técnico is
+ * written in the same batch (Epic 4 QA Q2), so nothing looks filled without an op.
+ *
+ * Equipment (Epic 4 QA Q4, 2026-09-24, AD-24/AD-25, glossary "TAG is the equipment's
+ * stable identity, unique within the Project"): a later relatório of the same obra reuses
+ * the project's live equipment instead of minting rows. Each position gets the base TAG it
+ * would get with no prior equipment (`suggestTag` over only the TAGs this run has already
+ * produced or bound); a live prior row with that TAG and the same type, not yet bound in
+ * this run, gives the block its `equipment_id` and no `equipment` create is emitted.
+ * Otherwise the equipment is created as before, its TAG free among the prior rows and this
+ * run's. Removed rows are never reused and never count as taken.
  *
  * Section blocks (Story 4.3): the template's section blocks plus the two the template
  * never carries, 7 (photos) and 9 (equipment sheets), which the renderer generates; all
@@ -57,11 +67,20 @@ export function relatorioSectionNumber(type: string): number | null {
   return isRelatorioSectionType(type) ? Number(type.slice('section_'.length)) : null;
 }
 
+/** What the creation reads of the project's equipment: enough to bind a block to a live row and keep new TAGs unique. */
+export type PriorEquipment = Pick<EquipmentRow, 'id' | 'tag' | 'type' | 'removed_at'>;
+
 export interface InstantiateInputs {
   service_start: string | null;
   service_end: string | null;
-  /** The project's equipment as this device holds it, so the new tags stay unique among the live ones. */
-  existingEquipment: readonly TagEquipment[];
+  /**
+   * The project's equipment as this device holds it, removed rows included: a live row
+   * whose base TAG and type match a position is reused (Q4), and new TAGs stay unique
+   * among the live ones.
+   */
+  existingEquipment: readonly PriorEquipment[];
+  /** The responsável técnico of the new relatório (Q2): the signed-in user when they carry a registration, else null. */
+  responsible_user_id: string | null;
 }
 
 export interface InstantiateDeps {
@@ -119,10 +138,11 @@ function blockRow(id: string, relatorioId: string, seedVersion: string, fields: 
  * The drafts of one relatório created from `template` in `project`: the `relatorio`
  * create, one `location` per skeleton node (cabines then their colunas, `order_key` per
  * sibling), the section blocks in FO.SERV-03 number order (the template's, plus 7 and 9
- * synthesized with `section_text: null`), then per template block in skeleton order one
- * `equipment` create (project scope, tag from `suggestTag` over the project's equipment
- * and the ones born before it) and its `block` create in its column. An orphan template
- * block (a node the skeleton lacks) is skipped, as every other reader skips it.
+ * synthesized with `section_text: null`), then per template block in skeleton order its
+ * `block` create in its column: bound to the project's live equipment of the same base TAG
+ * and type when one is free, else preceded by one `equipment` create (project scope, tag
+ * from `suggestTag` over the project's equipment and the ones born before it). An orphan
+ * template block (a node the skeleton lacks) is skipped, as every other reader skips it.
  */
 export function instantiateTemplate(
   template: TemplateRow,
@@ -157,7 +177,7 @@ export function instantiateTemplate(
       service_end: inputs.service_end,
       atividade: null,
       local: null,
-      responsible_user_id: null,
+      responsible_user_id: inputs.responsible_user_id,
       cover_photo_file_id: null,
       escopo: null,
       exclusions: null,
@@ -220,21 +240,38 @@ export function instantiateTemplate(
   });
 
   // Equipment and its blocks, per node in skeleton order, per template block on that node.
-  const equipment: TagEquipment[] = [...inputs.existingEquipment];
+  // `produced` holds the TAGs this run has created or bound: a position's base TAG is
+  // computed over it alone, so a second relatório of the obra asks for the TAGs the first
+  // one got (Q4). `taken` adds the prior rows, so a created TAG stays free project-wide.
+  const prior = inputs.existingEquipment.filter((row) => row.removed_at === null);
+  const bound = new Set<string>();
+  const produced: TagEquipment[] = [];
+  const taken: TagEquipment[] = [...inputs.existingEquipment];
   const blockCount = new Map<string, number>();
   for (const node of nodes) {
     const locationId = locationIdOf.get(node.ref)!;
+    const location = { kind: node.kind, name: node.name };
     for (const block of liveBlocks) {
       if (!isEquipmentBlockType(block.block_type) || block.skeleton_location_ref !== node.ref) continue;
       for (let i = 0; i < block.quantity; i++) {
-        const equipmentId = deps.newId();
-        const blockId = deps.newId();
         const n = blockCount.get(locationId) ?? 0;
         blockCount.set(locationId, n + 1);
-        const tag = suggestTag(block.block_type, { kind: node.kind, name: node.name }, equipment);
-        const equipmentRow: EquipmentRow = { id: equipmentId, project_id: project.id, tag, type: block.block_type, last_nameplate: null, removed_at: null };
-        equipment.push(equipmentRow);
-        drafts.push({ ...projectScope, kind: 'create', path: `equipment/${equipmentId}`, value: equipmentRow as unknown as JsonValue });
+        const base = normalizeTag(suggestTag(block.block_type, location, produced));
+        const match = prior.find((row) => !bound.has(row.id) && row.type === block.block_type && normalizeTag(row.tag) === base);
+        let equipmentId: string;
+        if (match !== undefined) {
+          equipmentId = match.id;
+          bound.add(match.id);
+          produced.push({ tag: match.tag, removed_at: null });
+        } else {
+          equipmentId = deps.newId();
+          const tag = suggestTag(block.block_type, location, taken);
+          const equipmentRow: EquipmentRow = { id: equipmentId, project_id: project.id, tag, type: block.block_type, last_nameplate: null, removed_at: null };
+          produced.push(equipmentRow);
+          taken.push(equipmentRow);
+          drafts.push({ ...projectScope, kind: 'create', path: `equipment/${equipmentId}`, value: equipmentRow as unknown as JsonValue });
+        }
+        const blockId = deps.newId();
         const row = blockRow(blockId, relatorioId, seedVersion, {
           location_id: locationId,
           equipment_id: equipmentId,

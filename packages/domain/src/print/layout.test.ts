@@ -46,7 +46,7 @@ describe('4.8-UNIT-001 layoutSpec on the full fixture', () => {
       { label: 'Cliente', value: 'Porto Seguro Companhia de Seguros Gerais' },
       { label: 'Cidade/local', value: 'São Paulo/SP' },
       { label: 'Data da execução do serviço', value: '06–08/09/2026' },
-      { label: 'Informações adicionais', value: 'Manutenção preventiva' },
+      { label: 'Informações adicionais', value: 'Manutenção Preventiva nas Cabines Primárias' },
       { label: 'Responsável', value: '[Responsável]' },
     ]);
   });
@@ -142,7 +142,7 @@ describe('4.8-UNIT-002 layoutSpec edge cases', () => {
     expect(layoutSpec(blankLocal, { revisionNumber: 1, issuedAt: ISSUED_AT }).cover.table.rows[1]).toEqual({ label: 'Cidade/local', value: 'Local de Testes' });
     const withUser: RelatorioSnapshot = {
       ...small,
-      relatorio: { ...small.relatorio, setup: { ...small.relatorio.setup, escopo: 'Manutenção', local: 'Torre X' } },
+      relatorio: { ...small.relatorio, setup: { ...small.relatorio.setup, additional_info: 'Manutenção', escopo: 'Nunca impresso', local: 'Torre X' } },
       responsible: {
         id: portoSeguroSmall.userId,
         name: 'Ana Alves',
@@ -164,24 +164,28 @@ describe('4.8-UNIT-002 layoutSpec edge cases', () => {
     });
   });
 
-  it('prints setup.escopo in the cover\'s "Informações adicionais" row and setup.exclusions as section 3\'s items', () => {
+  it('Q3: prints setup.additional_info in the cover\'s "Informações adicionais" row (never setup.escopo) and setup.exclusions as section 3\'s items', () => {
     const small = smallSnapshot();
-    const withEscopoAndExclusions: RelatorioSnapshot = {
+    const withInfoAndExclusions: RelatorioSnapshot = {
       ...small,
       relatorio: {
         ...small.relatorio,
-        setup: { ...small.relatorio.setup, escopo: 'Ensaios de comissionamento da cabine primária', exclusions: ['Exclusão A', 'Exclusão B'] },
+        setup: { ...small.relatorio.setup, additional_info: 'Parada programada', escopo: 'x', exclusions: ['Exclusão A', 'Exclusão B'] },
       },
     };
-    const layout = layoutSpec(withEscopoAndExclusions, { revisionNumber: 1, issuedAt: ISSUED_AT });
-    expect(layout.cover.table.rows.find((r) => r.label === 'Informações adicionais')).toEqual({
-      label: 'Informações adicionais',
-      value: 'Ensaios de comissionamento da cabine primária',
-    });
+    const layout = layoutSpec(withInfoAndExclusions, { revisionNumber: 1, issuedAt: ISSUED_AT });
+    expect(layout.cover.table.rows.find((r) => r.label === 'Informações adicionais')).toEqual({ label: 'Informações adicionais', value: 'Parada programada' });
+    expect(JSON.stringify(layout)).not.toContain('"x"');
     const third = layout.sections[2]!;
     if (third.kind !== 'text') throw new Error('section 3 is text');
     expect(third.paragraphs.map((p) => p.kind)).toEqual(['paragraph', 'paragraph', 'item', 'item']);
     expect(third.paragraphs.slice(2).map((p) => p.text)).toEqual(['Exclusão A', 'Exclusão B']);
+
+    // setup.escopo alone never reaches the cover: the row prints the missing-variable placeholder.
+    const escopoOnly: RelatorioSnapshot = { ...small, relatorio: { ...small.relatorio, setup: { ...small.relatorio.setup, additional_info: null, escopo: 'Somente escopo' } } };
+    const row = layoutSpec(escopoOnly, { revisionNumber: 1, issuedAt: ISSUED_AT }).cover.table.rows.find((r) => r.label === 'Informações adicionais');
+    // A blank additional_info prints the missing-variable placeholder, named after the field.
+    expect(row?.value).toBe('[Informações adicionais]');
   });
 
   it('chooses the seed text in force on sectionTextAt when given', () => {
@@ -202,7 +206,7 @@ describe('4.8-UNIT-007 layoutSpec follows the relatório\'s section blocks (Sum�
     const { drafts } = instantiateTemplate(
       standardTemplate({ id: '019966c1-00f1-7000-8000-000000000001' }),
       { id: small.project!.id },
-      { service_start: null, service_end: null, existingEquipment: [] },
+      { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null },
       { newId, actorId: portoSeguroSmall.userId, companyId: portoSeguroSmall.companyId },
     );
     const blocks = drafts

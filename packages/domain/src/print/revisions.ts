@@ -26,6 +26,17 @@ export function nextRevisionNumber(rows: readonly RevisionRow[]): number {
   return (latestRevision(rows)?.number ?? 0) + 1;
 }
 
+/**
+ * The number the Export dialog's idle line promises (Epic 4 QA Q11): 1 before any
+ * revision; the latest revision's own number while nothing was edited since its snapshot
+ * (AD-15: a second "Gerar relatório" then answers that revision); the next one otherwise.
+ */
+export function idleRevisionNumber(rows: readonly RevisionRow[], edited: boolean): number {
+  const latest = latestRevision(rows);
+  if (latest === null) return 1;
+  return edited ? latest.number + 1 : latest.number;
+}
+
 /** "Rev. 2": the document control's "Revisão do documento" and the head of a revision row. */
 export function revisionTitle(number: number): string {
   return `Rev. ${number}`;

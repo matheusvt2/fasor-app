@@ -1131,8 +1131,10 @@ So that every equipment block exists in its column with its TAG before anyone wa
 
 **Given** the kernel `instantiateTemplate(template, project, inputs)` and the `equipment` table `{id, project_id, tag, type, last_nameplate?, removed_at?}` (scope project)
 **When** the user taps "Criar relatório"
-**Then** one client batch is emitted: the `relatorio/{id}` create (with `template_id`, `template_version`, `seed_version`, status Rascunho), the `location/{id}` creates for every cabine and column of the skeleton with `order_key`, `se`, `env` and `agrupar_por_tipo` on cabine nodes, one `equipment/{id}` create per block, and one `block/{id}` create per block carrying its copied `BlockConfig`, `location_id`, `order_key` and `equipment_id`; the server never copies anything (AR-5)
+**Then** one client batch is emitted: the `relatorio/{id}` create (with `template_id`, `template_version`, `seed_version`, status Rascunho), the `location/{id}` creates for every cabine and column of the skeleton with `order_key`, `se`, `env` and `agrupar_por_tipo` on cabine nodes, ~~one `equipment/{id}` create per block~~ *(2026-09-24, Epic 4 QA Q4: one `equipment/{id}` create per block with no live project equipment of the same base TAG and type; a match is reused)*, and one `block/{id}` create per block carrying its copied `BlockConfig`, `location_id`, `order_key` and `equipment_id`; the server never copies anything (AR-5)
 **And** for the seeded template the batch yields 94 equipment blocks with the reference distribution, each in its column
+
+*2026-09-24, coordinator (Epic 4 QA Q4, AD-24/AD-25, glossary TAG): a later relatório of the same obra reuses the project's live equipment by base TAG and type; `equipment` is created only for positions with no live match.*
 
 **Given** the kernel `suggestTag(type, location, existingEquipment)`
 **When** blocks are instantiated or later added
@@ -1168,6 +1170,8 @@ So that the office part of the relatório is done before the field day and nothi
 **Given** an instrument unchecked while a sheet references it (checked by `integrity`)
 **When** the user unchecks it
 **Then** an inline note says it stays in section 11 because a sheet uses it (UX-DR21)
+
+*2026-09-24, Epic 4 QA Q3: the Etapa 2 "Escopo" field is removed because seed v1's `{escopo}` prints only on the cover's "Informações adicionais", which resolves from Etapa 1's field of that label; section 1's text has no escopo variable in v1.*
 
 ### Story 4.3: See the relatório as its own table of contents (the Sumário)
 
@@ -1264,6 +1268,8 @@ So that the tree matches the substation and the document still prints as FO.SERV
 **And** "Duplicar" copies the `BlockConfig` (not data) and asks a new TAG; "Mover para…" is not shown until Epic 11 (hidden, never disabled)
 
 *2026-09-24, narrowed in PR #26 (Stories 4.4 and 4.5): the office palette's sub-block toggles "inside a sheet" move to Epic 5, which builds the sheet; phone rows indent 16 px per level, following the mock's `.frame-phone` rule; the Confirm title is "Remover ficha ⟨TAG⟩?" as this AC says (EXPERIENCE.md Flow 3 adds "e seus dados"); "Agrupar por tipo" is a checkbox item in the cabine Overflow; the standalone tree route `/relatorio/:id/arvore` is reachable by address only until Epic 5 mounts the rail in a sheet; the portrait rail opens inline, not as an overlay; the field palette creates on one tap, and "Adicionar bloco em ⟨cabine⟩" targets the current coluna, without the mock's "Trocar". Opening a sheet from the tree is a stub until Story 5.1.*
+
+*2026-09-24, Epic 4 QA Q4: "Remover" tombstones the equipment only when no other live block this device holds references it; Restaurar restores it only when it was freed.*
 
 ### Story 4.6: Status transitions and the "relatório emitido" warning
 

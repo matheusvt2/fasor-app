@@ -76,9 +76,13 @@ describe('4.2-UNIT isSetupComplete / setupIncompleteReason', () => {
     expect(firstSetupGap(snapshotWith({}), null)).toBe('registration_number');
     expect(firstSetupGap(snapshotWith({ setup: { art_trt_number: null } }), RESPONSIBLE)).toBe('art_trt_number');
     expect(firstSetupGap(snapshotWith({ setup: { instrument_ids: [] } }), RESPONSIBLE)).toBe('instruments');
-    expect(setupIncompleteReason(snapshotWith({ setup: { art_trt_number: null } }), RESPONSIBLE)).toBe(
-      'Concluir dados do relatório: falta o número do ART/TRT',
-    );
+  });
+
+  it('Q12: the ART/TRT gap names the council\'s own document, the article agreed, and the generic words only with no council', () => {
+    const gap = snapshotWith({ setup: { art_trt_number: null } });
+    expect(setupIncompleteReason(gap, RESPONSIBLE)).toBe('Concluir dados do relatório: falta o número da ART');
+    expect(setupIncompleteReason(gap, { ...RESPONSIBLE, council: 'crt' })).toBe('Concluir dados do relatório: falta o número da TRT');
+    expect(setupIncompleteReason(gap, { ...RESPONSIBLE, council: null })).toBe('Concluir dados do relatório: falta o número do ART/TRT');
   });
 });
 

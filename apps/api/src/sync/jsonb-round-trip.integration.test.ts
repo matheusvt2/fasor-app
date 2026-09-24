@@ -125,7 +125,7 @@ describe('F-1 jsonb round trip', () => {
       const { relatorioId, drafts } = instantiateTemplate(
         template,
         { id: projectId },
-        { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [] },
+        { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
         { newId, actorId: company.userId, companyId: company.companyId },
       );
       const at = now();
