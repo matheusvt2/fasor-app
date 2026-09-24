@@ -1,12 +1,13 @@
 import {
   defaultTemplateFor,
+  endBeforeStart,
   instantiateTemplate,
   newRelatorioReason,
   newRelatorioSubject,
   pickableTemplates,
   templateBlocksText,
+  templateBlockTotal,
   templateHelperText,
-  templateTotals,
   type ClientRow,
   type ProjectRow,
   type RelatorioRow,
@@ -33,8 +34,6 @@ export interface NewRelatorioDialogProps {
   onClose: () => void;
 }
 
-const blockTotal = (template: TemplateRow) => Object.values(templateTotals(template)).reduce((a, b) => a + b, 0);
-
 /**
  * The "Novo relatório" Form dialog (`30-project.html` `#proj-dlg-novo`, Story 4.1): the
  * one report type preselected, the template (the project's last used one, or the only
@@ -55,7 +54,7 @@ export function NewRelatorioDialog({ project, client, relatorios, templates, onC
   const helperId = useId();
 
   const pickable = useMemo(() => pickableTemplates(templates), [templates]);
-  const options = useMemo(() => pickable.map((row) => ({ id: row.id, label: row.name, meta: templateBlocksText(blockTotal(row)) })), [pickable]);
+  const options = useMemo(() => pickable.map((row) => ({ id: row.id, label: row.name, meta: templateBlocksText(templateBlockTotal(row)) })), [pickable]);
   const [templateId, setTemplateId] = useState<string | null>(() => defaultTemplateFor(relatorios, templates));
   const [templateText, setTemplateText] = useState(() => pickable.find((row) => row.id === templateId)?.name ?? '');
   const [start, setStart] = useState<string | null>(null);
@@ -143,13 +142,13 @@ export function NewRelatorioDialog({ project, client, relatorios, templates, onC
           }}
         />
         <span className="helper" id={helperId}>
-          {templateHelperText(template === null ? null : blockTotal(template))}
+          {templateHelperText(template === null ? null : templateBlockTotal(template))}
         </span>
       </div>
 
       <div className="field-pair">
         <DateField label={t.startLabel} value={start} onChange={onStart} />
-        <DateField label={t.endLabel} value={end} onChange={setEnd} isInvalid={end !== null && start !== null && end < start} />
+        <DateField label={t.endLabel} value={end} onChange={setEnd} isInvalid={endBeforeStart(start, end)} />
       </div>
 
       <div className="dialog-actions">

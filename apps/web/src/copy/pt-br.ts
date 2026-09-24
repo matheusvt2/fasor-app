@@ -460,6 +460,9 @@ export const copy = {
     // authored: an address that names no relatório on this device, and the way back.
     notFound: 'Relatório não encontrado neste aparelho.',
     backHome: 'Voltar para o início',
+    // authored: the company summary lists the relatório but its pull left no row on this device.
+    downloadFailed: 'Não foi possível baixar o relatório neste aparelho.',
+    retry: 'Tentar de novo',
     // authored: while `syncRelatorio` brings a relatório opened from its Home card down.
     loading: 'Baixando o relatório…',
     // authored: the section the action names is no longer in the relatório (another device removed it).

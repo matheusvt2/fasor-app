@@ -45,15 +45,34 @@ function between(a: string, b: string | null): string {
 }
 
 /**
+ * True when `text` is valid JSON on its own: an all-digit run (`4`, `2026`, `1e5`), `true`,
+ * `false` or `null`. A key like that is never minted: a layer that parses a stored string
+ * a second time (the api read path had one, Epic 4 review F-1) would hand it back as a
+ * number, a boolean or null and the receiving `applyOp` would refuse the row.
+ */
+function isJsonText(text: string): boolean {
+  try {
+    JSON.parse(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * A key strictly between two sibling keys (`null` at either end means no neighbour). A
- * `before` that is not below `after` is a caller's bug and throws `RangeError`.
+ * `before` that is not below `after` is a caller's bug and throws `RangeError`. Never a key
+ * that reads as JSON text (see `isJsonText`).
  */
 export function orderKeyBetween(before: string | null, after: string | null): string {
   if (before === null && after === null) return initialOrderKey(0);
   if (before !== null && after !== null && before >= after) {
     throw new RangeError(`order key "${before}" is not below "${after}"`);
   }
-  return between(before ?? '', after);
+  const key = between(before ?? '', after);
+  // A longer key still sorts above `before`, and below `after` because `between` never
+  // returns a prefix of `after` (it differs from `after` at the first free position).
+  return isJsonText(key) ? `${key}m` : key;
 }
 
 /**

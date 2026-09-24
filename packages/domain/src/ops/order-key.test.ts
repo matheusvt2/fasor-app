@@ -62,6 +62,47 @@ describe('4.1-UNIT orderKeyBetween', () => {
   });
 });
 
+describe('4.1-UNIT orderKeyBetween never mints JSON text', () => {
+  const parsesAsJson = (key: string) => {
+    try {
+      JSON.parse(key);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  it('a move to the first slot no longer yields a bare digit', () => {
+    const key = orderKeyBetween(null, 'a0');
+    expect(key < 'a0').toBe(true);
+    expect(parsesAsJson(key)).toBe(false);
+    expect(Number.isNaN(Number(key))).toBe(true);
+  });
+
+  it('no key of 300 random insertions, nor of 80 insertions at the very top, parses as JSON', () => {
+    let seed = 20260924;
+    const random = () => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed / 2147483648;
+    };
+    const keys = [initialOrderKey(0)];
+    for (let i = 0; i < 300; i++) {
+      const at = Math.floor(random() * (keys.length + 1));
+      const key = orderKeyBetween(keys[at - 1] ?? null, keys[at] ?? null);
+      expect(parsesAsJson(key), `${key} between ${keys[at - 1] ?? null} and ${keys[at] ?? null}`).toBe(false);
+      keys.splice(at, 0, key);
+    }
+    for (let j = 1; j < keys.length; j++) expect(keys[j - 1]! < keys[j]!, `${keys[j - 1]} < ${keys[j]}`).toBe(true);
+    let top = [initialOrderKey(0)];
+    for (let i = 0; i < 80; i++) {
+      const key = orderKeyBetween(null, top[0]!);
+      expect(parsesAsJson(key), `${key} above ${top[0]}`).toBe(false);
+      top = [key, ...top];
+    }
+    for (let j = 1; j < top.length; j++) expect(top[j - 1]! < top[j]!).toBe(true);
+  });
+});
+
 describe('4.1-UNIT initialOrderKey', () => {
   it('is the fixture scheme for the first 36 siblings and keeps sorting beyond them', () => {
     expect(initialOrderKey(0)).toBe('a0');

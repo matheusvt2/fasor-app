@@ -16,6 +16,8 @@ import {
   sectionMovedText,
   sugestoesText,
   sumarioMetaText,
+  sumarioOpensExpanded,
+  sumarioReadingMode,
   sumarioRows,
   sumarioTitle,
   type BlockRow,
@@ -60,7 +62,8 @@ const NO_USERS: UserRow[] = [];
 /**
  * `/relatorio/:id` (`40-relatorio-overview.html`, Story 4.3): the Sumário of the relatório
  * the address names, or, when this device holds no such row, one pull of its stream
- * (AD-8, "pulled on open") and then the not-found sentence.
+ * (AD-8, "pulled on open") and then either the not-found sentence or, for a relatório the
+ * company summary lists, the download sentence with "Tentar de novo".
  */
 export function SumarioSurface() {
   const { id = '' } = useParams();
@@ -95,7 +98,20 @@ export function SumarioSurface() {
         </div>
       ) : state === null ? (
         <div className="overview-content">
-          <p className="section-note">{copy.sumario.notFound}</p>
+          {sync.summaryRelatorios.some((row) => row.id === id) ? (
+            // The company knows the relatório but the pull left no row here (a page this
+            // device could not apply, an interrupted download): say so and offer the pull again.
+            <>
+              <p className="section-note">{copy.sumario.downloadFailed}</p>
+              <p>
+                <Button variant="secondary" onPress={() => setPull({ id, phase: 'idle', attempt })}>
+                  {copy.sumario.retry}
+                </Button>
+              </p>
+            </>
+          ) : (
+            <p className="section-note">{copy.sumario.notFound}</p>
+          )}
           <Link to="/">{copy.sumario.backHome}</Link>
         </div>
       ) : (
@@ -175,7 +191,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   useBackTarget(`/project/${relatorio.project_id}`);
 
   // Section 9 opens expanded on an Em campo relatório, collapsed otherwise (EXPERIENCE.md).
-  const [expanded, setExpanded] = useState(relatorio.status === 'em_campo');
+  const [expanded, setExpanded] = useState(() => sumarioOpensExpanded(relatorio.status));
   const chevron = useRef<HTMLButtonElement | null>(null);
   const [adding, setAdding] = useState<SumarioRow | null>(null);
   const [restoring, setRestoring] = useState(false);
@@ -198,6 +214,18 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
     },
     [],
   );
+
+  // AC 3: a Sumário that opened expanded is scrolled to the last sheet's cabine, once; the
+  // last-sheet pref is its own live query, so the row is waited for rather than read at mount.
+  const scrollToCurrent = useRef(expanded);
+  useEffect(() => {
+    if (!scrollToCurrent.current || !expanded || lastSheet === null) return;
+    const current = listRef.current?.querySelector<HTMLElement>('.s9-cabine.is-current') ?? null;
+    if (current === null) return;
+    scrollToCurrent.current = false;
+    // jsdom draws no layout and has no `scrollIntoView`.
+    current.scrollIntoView?.({ block: 'center' });
+  }, [expanded, lastSheet]);
 
   const author = useMemo<Author | null>(() => (user === null ? null : { id: user.id, companyId: user.companyId }), [user]);
 
@@ -422,7 +450,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
           {t.listLabel}
         </h2>
         <ol
-          className={relatorio.status === 'em_revisao' ? 'sumario is-review' : 'sumario'}
+          className={['sumario', sumarioReadingMode(relatorio.status)].filter(Boolean).join(' ')}
           aria-label={t.listLabel}
           data-status={relatorio.status}
           ref={listRef}

@@ -9,16 +9,21 @@ import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-s
 import { instantiateTemplate } from './instantiate.ts';
 import { preIssue } from './pre-issue.ts';
 import { progress } from './progress.ts';
+import type { ProjectRow } from '../schemas/entities.ts';
 import {
   cabineMetaText,
   defaultTemplateFor,
+  endBeforeStart,
   fixedRowNote,
   generateReason,
   lastTemplateUsed,
   newRelatorioReason,
   numberedSiblings,
+  projectLabel,
+  projectNamed,
   projectRelatoriosHeading,
   projectRelatoriosMeta,
+  projectsOfClient,
   relatoriosOfProject,
   relatorioSubText,
   relatorioTitle,
@@ -26,6 +31,8 @@ import {
   sectionMovedText,
   SUMARIO_TITLES,
   sumarioMetaText,
+  sumarioOpensExpanded,
+  sumarioReadingMode,
   sumarioRows,
   sumarioTitle,
   templateBlocksText,
@@ -196,6 +203,42 @@ describe('4.1-UNIT project and relatório texts', () => {
     const text = relatorioSubText({ id: '019966b0-0057-7000-8000-000000000001' }, 'Cabine primária — padrão');
     expect(text).toMatch(/^criado em \d{2}\/\d{2}\/\d{4} · Cabine primária — padrão$/);
     expect(relatorioSubText({ id: 'not-a-uuid' }, null)).toBe('');
+  });
+
+  it('lists a client\'s live obras by label in pt-BR order and finds one by a name typed like it', () => {
+    const rows = [
+      { id: 'p1', client_id: 'c', name: 'Obra Z', site: 'Zona Sul', removed_at: null },
+      { id: 'p2', client_id: 'c', name: 'Obra A', site: null, removed_at: null },
+      { id: 'p3', client_id: 'c', name: 'Obra E', site: 'Água Branca', removed_at: null },
+      { id: 'p4', client_id: 'c', name: 'Removida', site: 'Aaa', removed_at: '2026-09-08T10:00:00.000Z' },
+      { id: 'p5', client_id: 'd', name: 'Outra', site: 'Aab', removed_at: null },
+    ] as ProjectRow[];
+    expect(projectLabel(rows[0]!)).toBe('Zona Sul');
+    expect(projectLabel(rows[1]!)).toBe('Obra A');
+    expect(projectsOfClient(rows, 'c').map((r) => r.id)).toEqual(['p3', 'p2', 'p1']);
+    expect(projectsOfClient(rows, null)).toEqual([]);
+    expect(projectsOfClient(rows, 'x')).toEqual([]);
+    const ofC = projectsOfClient(rows, 'c');
+    expect(projectNamed(ofC, '  zona   SUL ')?.id).toBe('p1');
+    expect(projectNamed(ofC, 'agua branca')?.id).toBe('p3');
+    expect(projectNamed(ofC, 'obra a')?.id).toBe('p2');
+    expect(projectNamed(ofC, 'Zona Norte')).toBeNull();
+  });
+
+  it('end before start: both dates present and the end earlier', () => {
+    expect(endBeforeStart('2026-09-06', '2026-09-05')).toBe(true);
+    expect(endBeforeStart('2026-09-06', '2026-09-06')).toBe(false);
+    expect(endBeforeStart('2026-09-06', '2026-09-07')).toBe(false);
+    expect(endBeforeStart('2026-09-06', null)).toBe(false);
+    expect(endBeforeStart(null, '2026-09-05')).toBe(false);
+    expect(endBeforeStart('', '2026-09-05')).toBe(false);
+  });
+
+  it('section 9 opens expanded on Em campo only; the list reads as is-review on Em revisão only', () => {
+    expect(sumarioOpensExpanded('em_campo')).toBe(true);
+    for (const status of ['rascunho', 'em_revisao', 'emitido'] as const) expect(sumarioOpensExpanded(status), status).toBe(false);
+    expect(sumarioReadingMode('em_revisao')).toBe('is-review');
+    for (const status of ['rascunho', 'em_campo', 'emitido'] as const) expect(sumarioReadingMode(status), status).toBeNull();
   });
 
   it('the dialog reason, in order: template, start, end before start', () => {

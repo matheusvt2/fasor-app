@@ -1,8 +1,9 @@
 import { dateRangeText, formatDateOfInstant, uuidV7Instant } from '../format/datetime.ts';
 import { sortByOrderKey } from '../ops/order-key.ts';
-import type { BlockRow, EquipmentRow, LocationRow, ProjectRow, RelatorioRow, TemplateRow } from '../schemas/entities.ts';
+import type { BlockRow, EquipmentRow, LocationRow, ProjectRow, RelatorioRow, RelatorioStatus, TemplateRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { pickableTemplates } from '../templates/list.ts';
+import { normalizeRegistryName } from '../text/normalize-name.ts';
 import { isRelatorioSectionType, relatorioSectionNumber, type RelatorioSectionType } from './instantiate.ts';
 import { blockingRows, preIssueRowsFor, type PreIssueRow, type SumarioRowKey } from './pre-issue.ts';
 import { progressCounterText, type Progress } from './progress.ts';
@@ -286,6 +287,27 @@ export function relatoriosOfProject(rows: readonly RelatorioRow[], projectId: st
     .sort((a, b) => (a.id < b.id ? 1 : a.id > b.id ? -1 : 0));
 }
 
+/** What an obra is called wherever it is listed: its site, else its name. */
+export function projectLabel(row: Pick<ProjectRow, 'name' | 'site'>): string {
+  return row.site ?? row.name;
+}
+
+/** The live obras of one client, alphabetical by label (pt-BR collation); none for no client. */
+export function projectsOfClient(rows: readonly ProjectRow[], clientId: string | null): ProjectRow[] {
+  if (clientId === null) return [];
+  return rows.filter((row) => row.client_id === clientId && row.removed_at === null).sort((a, b) => projectLabel(a).localeCompare(projectLabel(b), 'pt-BR'));
+}
+
+/**
+ * The obra among `rows` whose label reads like `name` (the registry rule: trimmed, inner
+ * whitespace collapsed, case- and accent-insensitive), or null: a name typed like an
+ * existing obra is that obra, not a second `project` row.
+ */
+export function projectNamed(rows: readonly ProjectRow[], name: string): ProjectRow | null {
+  const wanted = normalizeRegistryName(name);
+  return rows.find((row) => normalizeRegistryName(projectLabel(row)) === wanted) ?? null;
+}
+
 /** `.lr-sub`: "criado em 23/09/2026 · ⟨template⟩" (the parts it has). */
 export function relatorioSubText(row: Pick<RelatorioRow, 'id'>, templateName: string | null): string {
   const born = uuidV7Instant(row.id);
@@ -293,12 +315,17 @@ export function relatorioSubText(row: Pick<RelatorioRow, 'id'>, templateName: st
   return join([created === '' ? null : `criado em ${created}`, templateName]);
 }
 
+/** True when both dates exist and the end lies before the start (ISO dates compare as strings). */
+export function endBeforeStart(start: string | null, end: string | null): boolean {
+  return start !== null && start !== '' && end !== null && end !== '' && end < start;
+}
+
 /** The "Novo relatório" dialog's reason beside "Criar relatório", or null when it can create. */
 export function newRelatorioReason(input: { templateId: string | null; start: string | null; end: string | null }): string | null {
   // authored: EXPERIENCE.md › Form dialog names the two required fields; the order rule is this story's.
   if (input.templateId === null) return 'Criar relatório: falta o template';
   if (input.start === null || input.start === '') return 'Criar relatório: falta a data de início';
-  if (input.end !== null && input.end !== '' && input.end < input.start) return 'Criar relatório: o fim é anterior ao início';
+  if (endBeforeStart(input.start, input.end)) return 'Criar relatório: o fim é anterior ao início';
   return null;
 }
 
@@ -336,6 +363,19 @@ export function templateHelperText(total: number | null): string {
 /** The dialog's description: "Para ⟨cliente⟩ · ⟨obra⟩." (the bold part; the sentence after it is the surface's). */
 export function newRelatorioSubject(client: { name: string } | null, project: Pick<ProjectRow, 'name' | 'site'>): string {
   return sumarioTitle(client, project);
+}
+
+/** EXPERIENCE.md: section 9 opens expanded on an Em campo relatório and collapsed on every other status. */
+export function sumarioOpensExpanded(status: RelatorioStatus): boolean {
+  return status === 'em_campo';
+}
+
+/**
+ * The `.sumario` modifier of a status that reads the list without editing it
+ * (`40-relatorio-overview.html` `.sumario.is-review`): `is-review` on Em revisão, none otherwise.
+ */
+export function sumarioReadingMode(status: RelatorioStatus): 'is-review' | null {
+  return status === 'em_revisao' ? 'is-review' : null;
 }
 
 /** The toast of a Sumário move: "Objetivo movida — numeração refeita" (verbatim mock). */

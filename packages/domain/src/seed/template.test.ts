@@ -3,7 +3,7 @@ import { makeOp } from '../ops/op.ts';
 import { applyOp } from '../ops/apply.ts';
 import { templateRowSchema } from '../schemas/entities.ts';
 import { blockConfigSchema } from '../schemas/block-config.ts';
-import { defaultBlockConfig, STANDARD_TEMPLATE_NAME, standardTemplate, templateTotals } from './template.ts';
+import { defaultBlockConfig, STANDARD_TEMPLATE_NAME, standardTemplate, templateBlockTotal, templateTotals } from './template.ts';
 
 const ID = '019966b0-0000-7000-8000-0000000000f1';
 const template = standardTemplate({ id: ID });
@@ -84,6 +84,10 @@ describe('standardTemplate', () => {
       cabos_saida: 9,
       para_raio: 5,
     });
+    expect(templateBlockTotal(template)).toBe(94);
+    // A block whose node left the skeleton is not counted, in the total either.
+    expect(templateBlockTotal({ ...template, skeleton: template.skeleton.slice(1) })).toBeLessThan(94);
+    expect(templateBlockTotal({ ...template, blocks: [] })).toBe(0);
   });
 
   it('places the per-location quantities of the Design Notes', () => {

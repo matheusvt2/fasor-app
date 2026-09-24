@@ -272,10 +272,13 @@ describe('4.3 SumarioSurface', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Mais opções de Recomendações gerais (NR-10)' })).toHaveFocus());
   });
 
-  it('Em campo opens section 9 expanded with the last sheet cabine marked; Rascunho opens it collapsed', async () => {
+  it('Em campo opens section 9 expanded, scrolled once to the last sheet cabine; Rascunho opens it collapsed', async () => {
     database = await seeded();
     const chaveBlockId = portoSeguroSmall.log.find((op) => op.path.startsWith('block/'))!.path.split('/')[1]!;
     await database.local_prefs.put({ key: LAST_SHEET_PREF(RELATORIO), value: chaveBlockId });
+    // jsdom has no `scrollIntoView`; the surface must call it on the current cabine, once.
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
     const { container } = renderSumario();
     await waitFor(() => expect(rows()).toHaveLength(13));
     // The fixture is Em campo: section 9 opens expanded, on the cabine of the last sheet.
@@ -289,6 +292,9 @@ describe('4.3 SumarioSurface', () => {
     // The last-sheet pref is its own live query and lands a tick after the rows.
     await waitFor(() => expect(within(tree).getByRole('listitem')).toHaveClass('is-current'));
     expect(within(tree).getByText('você parou aqui')).toHaveClass('sum-here');
+    await waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(1));
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'center' });
+    expect(scrollIntoView.mock.instances[0]).toBe(within(tree).getByRole('listitem'));
     expect(within(tree).getByRole('listitem').querySelector('.progress-counter')).toHaveTextContent('1 de 3');
     expect(within(tree).getByRole('listitem').querySelector('.s9-cab-name')).toHaveTextContent('Cabine de Testes');
     // The chevron collapses it; a header count opens it again and moves the focus to the chevron.
@@ -307,6 +313,29 @@ describe('4.3 SumarioSurface', () => {
     await waitFor(() => expect(rows()).toHaveLength(13));
     expect(second.container.querySelector('.sum-s9')).not.toHaveClass('is-open');
     expect(screen.getByRole('button', { name: 'Expandir ou recolher a seção 9' })).toHaveAttribute('aria-expanded', 'false');
+    // Opened collapsed: nothing scrolls, not even after an expand by hand.
+    await userEvent.click(screen.getByRole('button', { name: 'Expandir ou recolher a seção 9' }));
+    await waitFor(() => expect(second.container.querySelector('.s9-cabine.is-current')).not.toBeNull());
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    // @ts-expect-error jsdom's Element has no scrollIntoView; the mock above added it.
+    delete Element.prototype.scrollIntoView;
+  });
+
+  it('"Desfazer" after Remover brings the row back and hands the focus to its Overflow trigger', async () => {
+    database = await seeded();
+    renderSumario();
+    await waitFor(() => expect(rows()).toHaveLength(13));
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Recomendações gerais (NR-10)' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Remover' }));
+    await waitFor(() => expect(rows()).toHaveLength(12));
+    expect(await screen.findByText('Seção removida deste relatório — numeração refeita')).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
+    await waitFor(() => expect(rows()).toHaveLength(13));
+    expect((await titles())[6]).toBe('Recomendações gerais (NR-10)');
+    expect((rows()[6]!.querySelector('.pos-box') as HTMLInputElement).value).toBe('5');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Mais opções de Recomendações gerais (NR-10)' })).toHaveFocus());
+    const ops = await database.outbox.toArray();
+    expect(ops.map((op) => op.kind)).toEqual(['remove', 'put']);
   });
 
   it('Em revisão draws the list read-only (`is-review`) and opens section 9 collapsed', async () => {
@@ -389,6 +418,22 @@ describe('4.3 SumarioSurface', () => {
     renderSumario('019966c1-000e-7000-8000-000000000001');
     expect(await screen.findByText('Relatório não encontrado neste aparelho.')).toBeVisible();
     expect(syncRelatorio).toHaveBeenCalledWith('019966c1-000e-7000-8000-000000000001');
+  });
+
+  it('says the download did not complete, with "Tentar de novo", when the company summary lists a relatório the pull left absent', async () => {
+    database = await freshDb();
+    const id = '019966c1-000e-7000-8000-000000000004';
+    const summary = { id, project_id: portoSeguroSmall.projectId, status: 'em_campo' as const, template_id: null, seed_version: 'v1', updated_seq: 7 };
+    renderSumario(id, syncState({ summaryRelatorios: [summary] }));
+    expect(await screen.findByText('Não foi possível baixar o relatório neste aparelho.')).toBeVisible();
+    expect(screen.queryByText('Relatório não encontrado neste aparelho.')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Voltar para o início' })).toBeVisible();
+    expect(syncRelatorio).toHaveBeenCalledTimes(1);
+    await userEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
+    await waitFor(() => expect(syncRelatorio).toHaveBeenCalledTimes(2));
+    expect(syncRelatorio).toHaveBeenLastCalledWith(id);
+    expect(await screen.findByText('Não foi possível baixar o relatório neste aparelho.')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Tentar de novo' })).toBeVisible();
   });
 
   it('keeps the loading sentence while a cycle already runs (its pull would answer busy), then pulls once it ends', async () => {

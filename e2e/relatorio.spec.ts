@@ -406,6 +406,8 @@ test('@p1 4.3-E2E-002 Em campo opens section 9 expanded at the last sheet cabine
   });
   expect(pushed.ok(), await pushed.text()).toBe(true);
   await syncNow(page);
+  // A short viewport: the Geradores row would sit below the fold unless the Sumário scrolls to it.
+  await page.setViewportSize({ width: 1280, height: 600 });
   await page.reload();
 
   await expect(sumarioTitles(page)).toHaveText(TITLES);
@@ -420,4 +422,11 @@ test('@p1 4.3-E2E-002 Em campo opens section 9 expanded at the last sheet cabine
   await expect(current.locator('.sum-here')).toHaveText('você parou aqui');
   await expect(current.locator('.progress-counter')).toHaveText('0 de 19');
   await expect(page.getByText('Organizados por local aqui; no documento, agrupados como no FO.SERV-03.')).toBeVisible();
+  // AC 3 "scrolled to the last sheet": the current row's box lies inside the 600 px viewport.
+  await expect
+    .poll(async () => {
+      const box = await current.boundingBox();
+      return box !== null && box.y >= 0 && box.y + box.height <= 600;
+    })
+    .toBe(true);
 });

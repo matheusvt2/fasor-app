@@ -1,4 +1,4 @@
-import { normalizeRegistryName, sortClientRegistryRows, type ClientRow, type OpDraft, type ProjectRow } from '@app/domain';
+import { normalizeRegistryName, projectLabel, projectNamed, projectsOfClient, sortClientRegistryRows, type ClientRow, type OpDraft, type ProjectRow } from '@app/domain';
 import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Button, Combobox, FormDialog } from '../../components/index.ts';
@@ -38,14 +38,8 @@ export function NewProjectDialog({ clients, projects, onClose }: NewProjectDialo
   const [created, setCreated] = useState<string | null>(null);
 
   const clientOptions = useMemo(() => sortClientRegistryRows(clients).map((row) => ({ id: row.id, label: row.name })), [clients]);
-  const projectOptions = useMemo(
-    () =>
-      projects
-        .filter((row) => row.client_id === clientId && row.removed_at === null)
-        .sort((a, b) => (a.site ?? a.name).localeCompare(b.site ?? b.name, 'pt-BR'))
-        .map((row) => ({ id: row.id, label: row.site ?? row.name })),
-    [projects, clientId],
-  );
+  const clientProjects = useMemo(() => projectsOfClient(projects, clientId), [projects, clientId]);
+  const projectOptions = useMemo(() => clientProjects.map((row) => ({ id: row.id, label: projectLabel(row) })), [clientProjects]);
 
   const author = (): Omit<OpDraft, 'kind' | 'path' | 'value'> | null =>
     user === null
@@ -100,12 +94,11 @@ export function NewProjectDialog({ clients, projects, onClose }: NewProjectDialo
   }
 
   async function createProject(site: string): Promise<void> {
-    // The same for an obra of this client, compared trimmed and case-insensitively.
-    const wanted = site.trim().toLocaleLowerCase('pt-BR');
-    const existing = projectOptions.find((option) => option.label.trim().toLocaleLowerCase('pt-BR') === wanted);
-    if (existing !== undefined) {
+    // The same for an obra of this client (the kernel's name rule).
+    const existing = projectNamed(clientProjects, site);
+    if (existing !== null) {
       setProjectId(existing.id);
-      setProjectText(existing.label);
+      setProjectText(projectLabel(existing));
       return;
     }
     const base = author();
