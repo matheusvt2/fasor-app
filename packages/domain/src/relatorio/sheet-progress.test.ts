@@ -158,6 +158,15 @@ describe('5.1-UNIT sheetProgress', () => {
     expect(sheetProgressState(p)).toBe('complete');
   });
 
+  it('a not-tested block is complete with every step at zero, even fully empty', () => {
+    const b = block({}, { not_tested: { reason: 'solicitacao_cliente', text: null, at: '2026-09-24T10:00:00.000Z', by: 'u1' } });
+    const p = progressOf(b);
+    expect(p.steps).toEqual({ placa: { missing: 0 }, verificacoes: { missing: 0 }, ensaios: { missing: 0 }, conclusao: { missing: 0 } });
+    expect(p.complete).toBe(true);
+    expect(p.firstIncompleteStep).toBeNull();
+    expect(sheetProgressText(p)).toBe('Completa');
+  });
+
   it('the first incomplete step follows the stepper order', () => {
     const b = block({ nameplate: fullNameplate(), checklist: allChecklist('C'), conclusion: PAIR });
     expect(progressOf(b).firstIncompleteStep).toBe('ensaios');

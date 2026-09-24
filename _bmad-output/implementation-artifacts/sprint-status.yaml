@@ -85,7 +85,7 @@ development_status:
   5-6-type-all-of-a-sheet-s-readings-in-one-continuous-run: backlog
   5-7-pick-the-instrument-by-its-code: backlog
   5-8-conclude-the-sheet-with-one-tap-and-a-text-the-app-wrote-fro: backlog
-  5-9-mark-an-equipment-as-not-tested: backlog
+  5-9-mark-an-equipment-as-not-tested: done  # PR #31
   epic-5-retrospective: optional
 
   epic-6: backlog

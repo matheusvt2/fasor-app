@@ -119,6 +119,12 @@ export function sheetProgress(snapshot: Pick<RelatorioSnapshot, 'blocks'>, block
     ensaios: { missing: 0 },
     conclusao: { missing: 0 },
   };
+  // Story 5.9 / AR-17: a sheet marked not tested prints from its plate and its reason
+  // alone (section 8); its nameplate/checklist/tests/conclusion go read-only and never
+  // block "Concluir ficha" or the stepper on their own account.
+  if (block !== undefined && block.not_tested !== null) {
+    return { steps, complete: true, firstIncompleteStep: null };
+  }
   if (block !== undefined && definition !== null) {
     const enabled = enabledSubBlocksOf(block);
     steps.placa.missing = placaMissing(block, definition, enabled);

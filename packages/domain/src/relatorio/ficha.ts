@@ -145,9 +145,11 @@ export function repeatChecklistSource(snapshot: Pick<RelatorioSnapshot, 'blocks'
 }
 
 /**
- * The tri-state pattern "Repetir" writes onto `target`: every item of the target's
- * checklist whose result on `source` differs from what the target shows now (an NA
- * default already showing NA is left alone). Never an observation or a photo.
+ * The tri-state pattern "Repetir" writes onto `target`: every item still unset on the
+ * target (neither answered nor an `na_defaults` display default -- the same rule as
+ * "Marcar os restantes como Conforme", `checklistUnsetItems`) whose source holds a
+ * result. An item the target already answered, however it reads, is never touched.
+ * Never an observation or a photo.
  */
 export function repeatChecklistPattern(
   source: Pick<BlockRow, 'config' | 'sheet'>,
@@ -157,12 +159,24 @@ export function repeatChecklistPattern(
   if (definition === null || definition.checklist === null) return [];
   const out: { itemKey: string; value: 'C' | 'NC' | 'NA' }[] = [];
   for (const item of definition.checklist) {
+    if (checklistResultOf(target, item.key) !== null) continue;
     const value = checklistResultOf(source, item.key);
     if (value === null) continue;
-    if (checklistResultOf(target, item.key) === value) continue;
     out.push({ itemKey: item.key, value });
   }
   return out;
+}
+
+/**
+ * "Marcar não ensaiado": the reason the seed offers by default -- the latest
+ * `not_tested.at` among the relatório's live blocks that carry one, or null when none
+ * does. Used to pre-select the picker's chip the next time it opens (a repeated visit's
+ * most likely reason).
+ */
+export function lastNotTestedReason(blocks: readonly Pick<BlockRow, 'not_tested' | 'removed_at'>[]): string | null {
+  const marked = blocks.filter((block): block is Pick<BlockRow, 'not_tested' | 'removed_at'> & { not_tested: NonNullable<BlockRow['not_tested']> } => block.removed_at === null && block.not_tested !== null);
+  marked.sort((a, b) => (a.not_tested.at < b.not_tested.at ? 1 : a.not_tested.at > b.not_tested.at ? -1 : 0));
+  return marked[0]?.not_tested.reason ?? null;
 }
 
 /**

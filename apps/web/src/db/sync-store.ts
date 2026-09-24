@@ -247,3 +247,16 @@ export async function unsentRegistration(db: AppDatabase, userId: string): Promi
 export async function remoteOpRows(db: AppDatabase): Promise<RemoteOpRow[]> {
   return db.remote_ops.toArray();
 }
+
+/**
+ * Story 5.9's Desfazer gate: whether the sheet's own `block/{id}/not_tested` write is
+ * synced (Design Notes: a per-write gate, not the whole relatório's backlog). True with
+ * nothing local to wait on (no outbox row of this path at all) or once the latest one
+ * (by `client_ts`) reads `acked`; false while it is still `pending`, `sent` or `dead`.
+ */
+export async function notTestedSynced(db: AppDatabase, blockId: string): Promise<boolean> {
+  const rows = await db.outbox.where('path').equals(`block/${blockId}/not_tested`).toArray();
+  if (rows.length === 0) return true;
+  const latest = rows.sort(byClientTsThenOpId).at(-1)!;
+  return latest.status === 'acked';
+}

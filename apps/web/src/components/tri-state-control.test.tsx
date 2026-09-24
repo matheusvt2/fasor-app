@@ -56,6 +56,19 @@ describe('TriStateControl (UX-DR37)', () => {
     expect(onChange).toHaveBeenCalledWith('NA');
   });
 
+  it('readOnly (Story 5.9, a not-tested sheet): aria-disabled, and onChange never fires by click, arrows or Delete', async () => {
+    const onChange = vi.fn();
+    render(<TriStateControl value="C" readOnly onChange={onChange} aria-label="1. Limpeza" />);
+    const group = screen.getByRole('radiogroup', { name: '1. Limpeza' });
+    expect(group).toHaveAttribute('aria-disabled', 'true');
+    await userEvent.click(screen.getByRole('radio', { name: 'Não conforme' }));
+    expect(onChange).not.toHaveBeenCalled();
+    screen.getByRole('radio', { name: 'Conforme' }).focus();
+    await userEvent.keyboard('{ArrowRight}');
+    await userEvent.keyboard('{Delete}');
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it('roving tab stop, arrows move and wrap, Home/End, Delete and Backspace clear', async () => {
     const onChange = vi.fn();
     render(<Controlled onChange={onChange} />);

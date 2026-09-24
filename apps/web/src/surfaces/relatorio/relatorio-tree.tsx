@@ -1,6 +1,7 @@
 import {
   duplicateTagSuggestion,
   duplicateTagText,
+  lastNotTestedReason,
   locationPathText,
   locationTree,
   paletteLocationFor,
@@ -21,6 +22,7 @@ import { LIST_FOCUS_WATCH_FRAMES, useReorder, type Reorder } from '../templates/
 import { FieldPalette, type PaletteTarget } from './block-palette-field.tsx';
 import { blockRow, blockTrigger, locationChevron, useTreeActions, type TreeActions, type TreeContext } from './tree-actions.ts';
 import { NameDialog, TagDialog } from './tag-dialogs.tsx';
+import { NotTestedDialog } from './not-tested-dialog.tsx';
 
 /*
  * Stories 4.4 and 4.5: the location tree, ONE component in two presentations
@@ -72,6 +74,7 @@ type Dialog =
   | { kind: 'remove'; node: TreeEquipmentNode }
   | { kind: 'duplicate'; node: TreeEquipmentNode }
   | { kind: 'rename-tag'; node: TreeEquipmentNode }
+  | { kind: 'not-tested'; node: TreeEquipmentNode }
   | { kind: 'rename-location'; node: TreeLocationNode };
 
 /** What every row of one render shares. */
@@ -351,6 +354,18 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
           }}
         />
       ) : null}
+      {dialog?.kind === 'not-tested' ? (
+        <NotTestedDialog
+          seedVersion={context.seedVersion}
+          lastReason={lastNotTestedReason(snapshot.blocks)}
+          onClose={() => closeDialog(() => blockTrigger(blockRow(rootRef.current, dialog.node.blockId)))}
+          onSubmit={(reason, text) => {
+            const node = dialog.node;
+            setDialog(null);
+            actions.markNotTested(node, reason, text);
+          }}
+        />
+      ) : null}
       {dialog?.kind === 'rename-location' ? (
         <NameDialog
           title={copy.sumario.tagDialogs.renameTitle(dialog.node.name)}
@@ -492,6 +507,10 @@ function equipmentMenu(node: TreeEquipmentNode, shared: Shared, reorder: Reorder
   if (node.position > 1) items.push({ id: 'up', label: s.moveUp, onAction: () => void reorder.moveTo(node.position - 2, trigger) });
   if (node.position < node.siblings) items.push({ id: 'down', label: s.moveDown, onAction: () => void reorder.moveTo(node.position, trigger) });
   items.push({ id: 'duplicate', label: s.duplicate, onAction: () => shared.openDialog({ kind: 'duplicate', node }) });
+  // DESIGN.md Block card row: "Marcar não ensaiado" right after "Duplicar"; kept available
+  // whatever `concluded_by` holds (AR-17 precedence lets not_tested override it), hidden
+  // only once the sheet is already not tested (spec OPEN QUESTION, the literal AC reading).
+  if (node.state !== 'nao_ensaiada') items.push({ id: 'not-tested', label: t.markNotTested, onAction: () => shared.openDialog({ kind: 'not-tested', node }) });
   if (node.equipmentId !== null) items.push({ id: 'rename-tag', label: t.renameTag, onAction: () => shared.openDialog({ kind: 'rename-tag', node }) });
   const destructiveItems: OverflowMenuAction[] = [{ id: 'remove', label: s.remove, onAction: () => shared.requestRemove(node) }];
   return { items, destructiveItems };
