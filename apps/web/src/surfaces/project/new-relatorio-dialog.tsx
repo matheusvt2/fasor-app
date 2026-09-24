@@ -3,6 +3,7 @@ import {
   defaultTemplateFor,
   endBeforeStart,
   instantiateTemplate,
+  newRelatorioEquipmentReason,
   newRelatorioReason,
   newRelatorioSubject,
   pickableTemplates,
@@ -21,8 +22,11 @@ import { copy } from '../../copy/pt-br.ts';
 import { now } from '../../clock.ts';
 import { commitBatch } from '../../db/commit.ts';
 import { equipmentRows } from '../../db/home-store.ts';
+import { useLiveQuery } from '../../db/live.ts';
+import { equipmentReadyFor } from '../../db/sync-store.ts';
 import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
+import { useSync } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { writeErrorText } from '../templates/template-ops.ts';
 
@@ -41,11 +45,14 @@ export interface NewRelatorioDialogProps {
  * pickable one), the two dates with the end following the start, and "Criar relatório",
  * disabled with its reason until a template and a start exist. Criar is ONE batch of
  * every create `instantiateTemplate` produces (FR-13, AR-5), then Relatório setup opens.
+ * The obra's equipment is pulled first when online, and creation is refused while the
+ * device holds too little of it (`newRelatorioEquipmentReady`, Epic 4 retro item 17).
  */
 export function NewRelatorioDialog({ project, client, relatorios, templates, onClose }: NewRelatorioDialogProps) {
   const session = useSession();
   const db = session.database;
   const user = session.user;
+  const sync = useSync();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const t = copy.newRelatorio;
@@ -64,7 +71,12 @@ export function NewRelatorioDialog({ project, client, relatorios, templates, onC
   const inFlight = useRef(false);
 
   const template = pickable.find((row) => row.id === templateId) ?? null;
-  const reason = creating ? t.creating : (newRelatorioReason({ templateId, start, end }) ?? undefined);
+  // Epic 4 retro item 17: offline, a device that holds too little of the obra's equipment
+  // says so beside the button instead of minting a second row for every TAG. Online, Criar
+  // pulls the obra's equipment first and asks again.
+  const equipmentReady = useLiveQuery(() => (db === null ? Promise.resolve(true) : equipmentReadyFor(db, project.id)), [db, project.id], true);
+  const offlineReason = !sync.online && !equipmentReady ? newRelatorioEquipmentReason() : null;
+  const reason = creating ? t.creating : (newRelatorioReason({ templateId, start, end }) ?? offlineReason ?? undefined);
 
   function onStart(next: string | null): void {
     // The end follows the start until the user types an end of their own.
@@ -77,6 +89,13 @@ export function NewRelatorioDialog({ project, client, relatorios, templates, onC
     inFlight.current = true;
     setCreating(true);
     try {
+      // The obra's equipment as the server holds it (item 17): a failed pull leaves the
+      // device's own view, which the kernel then judges as it would offline.
+      if (sync.online) await sync.syncProject?.(project.id).catch(() => undefined);
+      if (!(await equipmentReadyFor(db, project.id))) {
+        showToast(newRelatorioEquipmentReason());
+        return;
+      }
       const existingEquipment = await equipmentRows(db, project.id);
       const { relatorioId, drafts } = instantiateTemplate(
         template,

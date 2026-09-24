@@ -1,7 +1,7 @@
 import { Readable } from 'node:stream';
 import {
+  blockRowSchema,
   DOCX_MIME,
-  editedSince,
   fileRowSchema,
   generateRequestSchema,
   generationJobRowSchema,
@@ -9,6 +9,8 @@ import {
   latestRevision,
   nextRevisionNumber,
   objectKey,
+  referencedEquipmentIds,
+  relatorioEditedSince,
   relatorioRowSchema,
   revisionRowSchema,
   SERVER_DEVICE_ID,
@@ -136,21 +138,44 @@ export function createGenerateRoutes(db: Db, s3: S3Client, bucket: string, deps:
     return { missing_op: missingOp, missing_files: fileIds.filter((id) => !stored.has(id)) };
   }
 
-  /** AD-15: exists an op of the relatório's stream after the snapshot that counts as an edit. */
+  /**
+   * AD-15: exists an op of the relatório's stream after the snapshot that counts as an edit.
+   * The stream is the relatório's own ops plus the project-scope ops of the equipment its
+   * live blocks reference (Epic 4 retro items 18, Q15): the kernel decides both.
+   */
   async function editedAfter(companyId: CompanyId, relatorioId: string, projectId: string, snapshotSeq: number): Promise<boolean> {
-    const rows = await db
-      .select({ path: ops.path, actor_id: ops.actor_id, kind: ops.kind, value: ops.value, seq: ops.seq })
-      .from(ops)
-      .where(
-        and(
-          eq(ops.company_id, companyId),
-          gt(ops.seq, snapshotSeq),
-          or(eq(ops.relatorio_id, relatorioId), and(eq(ops.scope, 'project'), eq(ops.project_id, projectId))),
+    const [blockRows, rows] = await Promise.all([
+      db
+        .select({ row: entities.row })
+        .from(entities)
+        .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'block'), eq(entities.relatorio_id, relatorioId), isNull(entities.removed_at))),
+      db
+        .select({ path: ops.path, actor_id: ops.actor_id, kind: ops.kind, value: ops.value, seq: ops.seq, scope: ops.scope, relatorio_id: ops.relatorio_id })
+        .from(ops)
+        .where(
+          and(
+            eq(ops.company_id, companyId),
+            gt(ops.seq, snapshotSeq),
+            or(eq(ops.relatorio_id, relatorioId), and(eq(ops.scope, 'project'), eq(ops.project_id, projectId))),
+          ),
         ),
-      );
-    return editedSince(
-      rows.map((r) => ({ path: r.path, actor_id: r.actor_id, kind: r.kind as Op['kind'], value: r.value, seq: r.seq })),
+    ]);
+    const blocks = blockRows.flatMap((r) => {
+      const parsed = blockRowSchema.safeParse(r.row);
+      return parsed.success ? [parsed.data] : [];
+    });
+    return relatorioEditedSince(
+      rows.map((r) => ({
+        path: r.path,
+        actor_id: r.actor_id,
+        kind: r.kind as Op['kind'],
+        value: r.value,
+        seq: r.seq,
+        scope: r.scope as Op['scope'],
+        relatorio_id: r.relatorio_id,
+      })),
       snapshotSeq,
+      { relatorioId, equipmentIds: referencedEquipmentIds(blocks) },
     );
   }
 

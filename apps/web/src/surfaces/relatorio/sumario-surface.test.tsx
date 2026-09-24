@@ -14,6 +14,7 @@ import { BannerSlot } from '../../state/banner-slot.tsx';
 import { ExtraBannerProvider, useExtraBannerValue } from '../../state/extra-banner.tsx';
 import type { SessionState } from '../../state/session.tsx';
 import { SyncContext, type SyncState } from '../../state/sync.tsx';
+import { makeSyncState } from '../../test/sync-state.ts';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
 import { GenerateAction } from './generate-action.tsx';
 import { SETTLE_TIMEOUT_MS } from './relatorio-editor.ts';
@@ -52,30 +53,8 @@ vi.mock('../../state/session.tsx', () => ({ useSession: () => session() }));
 
 const syncRelatorio = vi.fn(async () => 'ran' as const);
 
-const syncState = (over: Partial<SyncState> = {}): SyncState => ({
-  counts: { pending: 0, sent: 0, dead: 0, sheets_pending: 0, photos_pending: 0 },
-  badgeState: 'ok',
-  pendingText: '',
-  pendingCount: 0,
-  online: true,
-  running: false,
-  outdated: false,
-  lastResult: 'ran',
-  lastFailure: null,
-  unreachable: null,
-  lastSyncAt: null,
-  lastPushAt: [],
-  supersededCount: 0,
-  deviceId: 'tablet-1',
-  userNames: {},
-  summaryRelatorios: [],
-  syncNow: vi.fn(async () => 'ran' as const),
-  syncRelatorio,
-  resendDead: vi.fn(async () => {}),
-  fetchFile: vi.fn(async () => new Blob()),
-  generate: vi.fn(async () => ({ outcome: 'queued' as const, job_id: 'job', revision_number: 1 })),
-  ...over,
-});
+const syncState = (over: Partial<SyncState> = {}): SyncState =>
+  makeSyncState({ syncRelatorio, generate: vi.fn(async () => ({ outcome: 'queued' as const, job_id: 'job', revision_number: 1 })), ...over });
 
 configure({ asyncUtilTimeout: 5000 });
 

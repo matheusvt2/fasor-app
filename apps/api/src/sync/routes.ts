@@ -14,10 +14,10 @@ import { z } from 'zod';
 import type { Db } from '../db/client.ts';
 import { type AppEnv, requireSession } from '../http/session.ts';
 import { applyOps } from './apply.ts';
-import { companySummary, pullCompany, pullRelatorio, recordPush } from './pull.ts';
+import { companySummary, pullCompany, pullProject, pullRelatorio, recordPush } from './pull.ts';
 
 /*
- * AD-13, AD-24: the three sync routes of `packages/domain/contract`. A push is
+ * AD-13, AD-24: the sync routes of `packages/domain/contract`. A push is
  * accepted from any client (families are append-only); only a pull checks the
  * contract header and answers `426 contract_outdated`.
  */
@@ -39,6 +39,11 @@ const outdated: ErrorResponse = {
 const relatorioNotFound: ErrorResponse = {
   code: 'relatorio_not_found',
   message: 'No such relatorio in this company.',
+};
+
+const projectNotFound: ErrorResponse = {
+  code: 'not_found',
+  message: 'No such project in this company.',
 };
 
 /** The client's contract version, or null when the header is missing or not an integer. */
@@ -117,6 +122,21 @@ export function createSyncRoutes(db: Db, deps: SyncRouteDeps): Hono<AppEnv> {
 
     const page = await pullRelatorio(db, session.companyId, id, since.data);
     if (page === null) return c.json(relatorioNotFound, 404);
+    const response: SyncPullResponse = { ops: page.ops, seq: page.head };
+    return c.json(response, 200);
+  });
+
+  // Epic 4 retro item 17: the project's own stream (its project-scope ops), same page shape.
+  routes.get('/api/sync/projects/:id', async (c) => {
+    const session = requireSession(c);
+    const id = c.req.param('id');
+    if (isOutdated(c)) return c.json(outdated, 426);
+    const since = sinceQuerySchema.safeParse(c.req.query('since'));
+    if (!since.success) return c.json(batchInvalid, 400);
+    if (!relatorioIdSchema.safeParse(id).success) return c.json(projectNotFound, 404);
+
+    const page = await pullProject(db, session.companyId, id, since.data);
+    if (page === null) return c.json(projectNotFound, 404);
     const response: SyncPullResponse = { ops: page.ops, seq: page.head };
     return c.json(response, 200);
   });

@@ -15,19 +15,19 @@ import {
   type RelatorioSummary,
   type TemplateRow,
 } from '@app/domain';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Button, ConfirmDialog, OverflowMenu, TextButton } from '../../components/index.ts';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
-import { commitBatch, undoBatch } from '../../db/commit.ts';
+import { commitBatch } from '../../db/commit.ts';
 import { relatorioRows, templateRows } from '../../db/home-store.ts';
 import { companyDownloaded, companySummaries } from '../../db/sync-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
-import { useToast } from '../../state/toast.tsx';
-import { createTemplateOp, putTemplateOp, removeTemplateOp, writeErrorText } from './template-ops.ts';
+import { useUndoableEdits } from '../../state/use-undoable-edits.ts';
+import { createTemplateOp, putTemplateOp, removeTemplateOp } from './template-ops.ts';
 import { LIST_FOCUS_WATCH_FRAMES, restoreFocus } from './use-reorder.ts';
 import './templates.css';
 
@@ -61,7 +61,6 @@ export function TemplatesSurface() {
   const session = useSession();
   const db = session.database;
   const user = session.user;
-  const { showToast: showAnyToast, dismissToast, toast } = useToast();
   const navigate = useNavigate();
   const headingId = useId();
   const archivedHeadingId = useId();
@@ -73,24 +72,11 @@ export function TemplatesSurface() {
   const inFlight = useRef(false);
   const mainRef = useRef<HTMLElement>(null);
 
-  // The list's toasts, by their text. The toast is the shell's and an action toast never
-  // expires, so leaving the list takes its toast away: its "Desfazer" would otherwise act
-  // from another screen (the composer), on a template that screen is not about.
-  const listToast = useRef<string | null>(null);
-  const shownToast = useRef(toast);
-  shownToast.current = toast;
-  const dismissRef = useRef(dismissToast);
-  dismissRef.current = dismissToast;
-  useEffect(
-    () => () => {
-      if (listToast.current !== null && shownToast.current?.text === listToast.current) dismissRef.current();
-    },
-    [],
-  );
-  const showToast: typeof showAnyToast = (text, options) => {
-    listToast.current = text;
-    showAnyToast(text, options);
-  };
+  // The list's edit queue and toasts (Epic 4 retro item 5). Leaving the list takes its toast
+  // away: its "Desfazer" would otherwise act from another screen (the composer), on a
+  // template that screen is not about; a later write retires a live "Desfazer".
+  const edits = useUndoableEdits();
+  const showToast = edits.notify;
 
   /*
    * Every action that moves or removes a row names where the focus goes, since the element
@@ -119,13 +105,8 @@ export function TemplatesSurface() {
   /** Commits one batch; a refused write says why and returns null. */
   async function commit(drafts: Parameters<typeof commitBatch>[1]): Promise<string | null> {
     if (db === null) return null;
-    try {
-      const { batch_id } = await commitBatch(db, drafts, { newId, now });
-      return batch_id;
-    } catch (error) {
-      showToast(writeErrorText(error));
-      return null;
-    }
+    // A refused write is toasted by the queue; here it only means nothing was written.
+    return edits.write(async () => (await commitBatch(db, drafts, { newId, now })).batch_id).catch(() => null);
   }
 
   async function once(setBusy: (busy: boolean) => void, run: () => Promise<void>): Promise<void> {
@@ -164,11 +145,9 @@ export function TemplatesSurface() {
     });
   }
 
-  /** "Desfazer" of a batch; a refused write says why instead of failing silently. */
-  function undo(batchId: string, focus: () => HTMLElement | null): void {
-    if (db === null) return;
-    focusLater(focus);
-    undoBatch(db, batchId, { newId, now }).catch((error: unknown) => showToast(writeErrorText(error)));
+  /** "Desfazer" of a batch, in the edit queue; a refused undo says why instead of failing silently. */
+  function undoable(text: string, batchId: string, focus: () => HTMLElement | null): void {
+    edits.undoable(text, batchId, { label: copy.templates.undo, onUndo: () => focusLater(focus) });
   }
 
   async function setArchived(row: TemplateRow, archive: boolean): Promise<void> {
@@ -177,9 +156,7 @@ export function TemplatesSurface() {
     if (batchId === null) return;
     focusLater(() => lastActionOf(rowIn(archive ? 'archived' : 'active', row.id)));
     if (archive) {
-      showToast(copy.templates.archived, {
-        action: { label: copy.templates.undo, onPress: () => undo(batchId, () => primaryOf(rowIn('active', row.id))) },
-      });
+      undoable(copy.templates.archived, batchId, () => primaryOf(rowIn('active', row.id)));
     } else {
       showToast(copy.templates.restored);
     }
@@ -214,9 +191,7 @@ export function TemplatesSurface() {
       // The archived group leaves with its last row: the list's own heading then.
       return headingOf(group) ?? headingOf('active');
     });
-    showToast(copy.templates.removed(row.name), {
-      action: { label: copy.templates.undo, onPress: () => undo(batchId, () => primaryOf(rowIn(group, row.id))) },
-    });
+    undoable(copy.templates.removed(row.name), batchId, () => primaryOf(rowIn(group, row.id)));
   }
 
   const empty = active !== undefined && active.length === 0 && archived.length === 0;

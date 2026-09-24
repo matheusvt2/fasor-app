@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { toRecord } from '../../db/commit.ts';
 import { openDatabase, type AppDatabase } from '../../db/schema.ts';
 import type { SessionState } from '../../state/session.tsx';
+import { makeSyncState } from '../../test/sync-state.ts';
 import { ToastProvider } from '../../state/toast.tsx';
 import { ProjectSurface } from './project-surface.tsx';
 
@@ -44,6 +45,7 @@ const session = (): SessionState => ({
 });
 
 vi.mock('../../state/session.tsx', () => ({ useSession: () => session() }));
+vi.mock('../../state/sync.tsx', () => ({ useSync: () => makeSyncState() }));
 
 configure({ asyncUtilTimeout: 5000 });
 

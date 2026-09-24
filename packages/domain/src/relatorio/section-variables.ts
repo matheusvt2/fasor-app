@@ -57,7 +57,7 @@ export function section3Blocks(seedVersion: string, date: string, exclusions: re
   const blocks = sectionText(seedVersion, 3, date);
   if (exclusions === null) return blocks;
   const kept = blocks.filter((block) => block.kind !== 'item');
-  const items: TextBlock[] = exclusions.map((text) => ({ kind: 'item', text }));
+  const items: TextBlock[] = printedExclusions(exclusions).map((text) => ({ kind: 'item', text }));
   // The seed's items sit after its fixed paragraphs and "Exclusões:" line, so the override
   // items take the same trailing position.
   return [...kept, ...items];
@@ -66,6 +66,43 @@ export function section3Blocks(seedVersion: string, date: string, exclusions: re
 /** `section3Blocks`, flattened to one plain text (the section text editor's own shape, FR-13). */
 export function section3Text(seedVersion: string, date: string, exclusions: readonly string[] | null): string {
   return flattenSectionText(section3Blocks(seedVersion, date, exclusions));
+}
+
+/**
+ * Epic 4 retro item 24: the exclusions that print and count. A blank or whitespace-only
+ * entry (the empty row "Adicionar exclusão" appends before anything is typed) is dropped
+ * here, the one place, so the DOCX, the preview, section 3's text and any count agree.
+ */
+export function printedExclusions(exclusions: readonly string[]): string[] {
+  return exclusions.filter((text) => present(text) !== undefined);
+}
+
+/** The setup list without the entry at `index` ("Remover" of an exclusion's overflow menu). */
+export function withoutExclusion(exclusions: readonly string[], index: number): string[] {
+  return exclusions.filter((_, i) => i !== index);
+}
+
+/**
+ * Epic 4 retro item 22: a section block's config after the section text editor wrote
+ * `text` -- the text itself plus the marker that the relatório's own text was edited, which
+ * the Sumário meta reads ("texto editado").
+ */
+export function editedSectionTextConfig(config: unknown, text: string): Record<string, unknown> {
+  return { ...asObject(config), section_text: text, section_text_edited: true };
+}
+
+/** A section block's config after "Restaurar texto do template": the seed text in force again, the marker cleared. */
+export function restoredSectionTextConfig(config: unknown): Record<string, unknown> {
+  return { ...asObject(config), section_text: null, section_text_edited: false };
+}
+
+/** True when the relatório's own text of this section block was edited (and not restored since). */
+export function sectionTextEdited(config: unknown): boolean {
+  return asObject(config).section_text_edited === true;
+}
+
+function asObject(config: unknown): Record<string, unknown> {
+  return typeof config === 'object' && config !== null && !Array.isArray(config) ? (config as Record<string, unknown>) : {};
 }
 
 /** The seed's own section-3 exclusion items, for the setup page's initial list and "restore". */

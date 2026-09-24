@@ -1,10 +1,13 @@
-import { DOCX_MIME } from '@app/domain';
+import { DOCX_MIME, instantiateTemplate, standardTemplate, type OpDraft } from '@app/domain';
 import type { BrowserContext, Download, Page } from '@playwright/test';
+import { newId } from '../apps/api/src/ids.ts';
 import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-fixture.ts';
-import { expect, signIn, test, TEST_SEED } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, signIn, syncBadge, test, TEST_SEED } from './support/merged-fixtures.ts';
+import { readStore } from './support/outbox.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.ts';
 import { createProjectFromHome, createRelatorio } from './support/relatorio-flow.ts';
+import { pushDrafts } from './support/relatorio-seed.ts';
 
 /*
  * 4.8-E2E: "Gerar relatório" driven as a person would, from the Sumário's foot button
@@ -227,4 +230,215 @@ test('@p1 4.8-E2E-005 a failed request says nothing changed and no revision was 
   const pill = dialog(page).locator('.row-wrap .status-pill');
   expect(await pill.textContent()).not.toBe('Em revisão');
   await expect(pill).toHaveText('Emitido');
+});
+
+// --- Epic 4 carry-over (E4-A1, E4-A2, E4-A3) -------------------------------------------
+
+const IDLE_2 = 'Gera o DOCX e o PDF juntos, a partir dos dados do app, como a revisão 2. Precisa de conexão.';
+const database = deviceDatabaseName(account.userId);
+const sumarioList = (page: Page) => page.getByRole('list', { name: 'Sumário do relatório' });
+const banner = (page: Page) => page.locator('.banner-slot .banner');
+
+/** Opens the header Overflow and confirms the one-step backward move to `to`. */
+async function moveBackTo(page: Page, to: string): Promise<void> {
+  await page.getByRole('button', { name: 'Mais opções do relatório' }).click();
+  await page.getByRole('menuitem', { name: `Voltar para ${to}` }).click();
+  await page.getByRole('dialog', { name: `Voltar para ${to}` }).getByRole('button', { name: `Voltar para ${to}` }).click();
+  await expect(headerPill(page)).toHaveText(to);
+}
+
+test('@p0 E4-E2E-001 generate, edit, Em revisão, generate revision 2: listed and Emitido; moved back with no edit, Gerar answers revision 2 and Emitido again', async ({
+  page,
+}) => {
+  test.setTimeout(480_000);
+  await resetEmpresaBWithFixture();
+  await signIn(page, account.email);
+  await openFixtureSumario(page);
+
+  // Revision 1 from Em campo: the relatório is issued.
+  await footButton(page).click();
+  await expect(reason(page)).toHaveText(IDLE_1);
+  await generateButton(page).click();
+  await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX', { timeout: JOB_TIMEOUT });
+  await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Emitido');
+  await page.keyboard.press('Escape');
+  await expect(dialog(page)).toBeHidden();
+  await expect(headerPill(page)).toHaveText('Emitido');
+
+  // An edit in the setup, typed as a person would: the status advances to Em revisão and
+  // the Sumário's banner promises revision 2.
+  await sumarioList(page).getByRole('button', { name: /^Capa e dados do relatório/ }).click();
+  await expect(page.getByRole('heading', { level: 2, name: 'Etapa 1 — Capa' })).toBeFocused();
+  const info = page.getByLabel('Informações adicionais');
+  await info.click();
+  await info.pressSequentially('Parada de 12 horas');
+  await page.keyboard.press('Tab');
+  await page.getByRole('button', { name: 'Voltar' }).click();
+  await expect(page.locator('.app-bar h1')).toHaveText('Sumário');
+  await expect(headerPill(page)).toHaveText('Em revisão');
+  await expect(banner(page)).toContainText('(revisão 1). Alterações geram a revisão 2.');
+  await page.reload();
+  await expect(page.locator('.app-bar h1')).toHaveText('Sumário', { timeout: 30_000 });
+  await expect(headerPill(page)).toHaveText('Em revisão');
+
+  // Revision 2: listed with revision 1, and the relatório is Emitido again.
+  await footButton(page).click();
+  await expect(reason(page)).toHaveText(IDLE_2);
+  await generateButton(page).click();
+  await expect(page.getByTestId('toast')).toHaveText('Revisão 2 pronta — DOCX', { timeout: JOB_TIMEOUT });
+  await expect(dialog(page).getByRole('heading', { level: 2, name: 'Revisão 2 pronta' })).toBeVisible();
+  await expect(dialog(page).locator('.revision-row')).toHaveCount(2);
+  await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Emitido');
+  await page.keyboard.press('Escape');
+  await expect(headerPill(page)).toHaveText('Emitido');
+
+  // Item 20: moved back to Em revisão with nothing edited, "Gerar relatório" answers the
+  // same revision and issues it again.
+  await moveBackTo(page, 'Em revisão');
+  await footButton(page).click();
+  const again = dialog(page).getByRole('button', { name: 'Gerar de novo' });
+  if (await again.isVisible()) await again.click();
+  await expect(reason(page)).toHaveText(IDLE_2);
+  await generateButton(page).click();
+  await expect(dialog(page).getByRole('heading', { level: 2, name: 'Revisão 2 pronta' })).toBeVisible({ timeout: 30_000 });
+  await expect(dialog(page).locator('.revision-row')).toHaveCount(2);
+  await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Emitido');
+  await page.keyboard.press('Escape');
+  await expect(headerPill(page)).toHaveText('Emitido');
+});
+
+test('@p0 E4-E2E-002 a second relatório of an obra whose Emitido relatório this device never pulled reuses its equipment: no suffixed TAG, no "TAG duplicada"', async ({
+  page,
+}) => {
+  test.setTimeout(300_000);
+  await resetEmpresaB({ standard: true });
+  await signIn(page, account.email);
+  await expect(page.locator('.shortcut-sub', { hasText: '1 template' })).toBeVisible({ timeout: 30_000 });
+
+  // R1, born and issued on another device: the project and the 223 creation ops, the
+  // relatório already Emitido (so never pulled here automatically, AD-8).
+  const projectId = newId();
+  const project: OpDraft = {
+    kind: 'create',
+    scope: 'company',
+    company_id: account.companyId,
+    project_id: null,
+    relatorio_id: null,
+    path: `project/${projectId}`,
+    value: { id: projectId, client_id: null, name: 'Obra reaberta', site: 'Obra reaberta', removed_at: null },
+    prev_op_id: null,
+    batch_id: null,
+    meta: null,
+    actor_id: account.userId,
+  };
+  const r1 = instantiateTemplate(
+    standardTemplate({ id: newId() }),
+    { id: projectId },
+    { service_start: '2026-03-02', service_end: '2026-03-03', existingEquipment: [], responsible_user_id: null },
+    { newId, actorId: account.userId, companyId: account.companyId },
+  );
+  const issued = r1.drafts.map((draft) =>
+    draft.kind === 'create' && draft.path === `relatorio/${r1.relatorioId}` ? { ...draft, value: { ...(draft.value as object), status: 'emitido' } as never } : draft,
+  );
+  const r1Tags = r1.drafts.filter((draft) => draft.path.startsWith('equipment/')).map((draft) => (draft.value as { tag: string }).tag);
+  expect(r1Tags).toHaveLength(94);
+  await pushDrafts(page, database, [project, ...issued]);
+
+  // This device knows the obra (company stream) and holds none of R1.
+  await page.goto(`/project/${projectId}`);
+  await expect(page.locator('.app-bar h1')).toHaveText('Obra', { timeout: 30_000 });
+  expect((await readStore<{ entity: string }>(page, database, 'entities')).filter((row) => row.entity === 'equipment')).toHaveLength(0);
+
+  // Online, "Criar relatório" pulls the obra's equipment first and reuses it by base TAG and type.
+  await page.getByRole('button', { name: 'Novo relatório a partir de template' }).first().click();
+  const r2 = await createRelatorio(page);
+  const outbox = await readStore<{ path: string; kind: string; relatorio_id: string | null }>(page, database, 'outbox');
+  expect(outbox.filter((row) => row.kind === 'create' && row.path.startsWith('equipment/'))).toHaveLength(0);
+  expect(outbox.filter((row) => row.kind === 'create' && row.path.startsWith('block/') && row.relatorio_id === r2)).toHaveLength(105);
+
+  // After "Sincronizar agora", nothing is duplicated: not on Sync status, not in R2's tree.
+  await syncBadge(page).click();
+  const syncButton = page.getByRole('button', { name: 'Sincronizar agora' });
+  await expect(syncButton).not.toHaveAttribute('aria-disabled', 'true', { timeout: 30_000 });
+  await syncButton.click();
+  await expect(syncBadge(page)).toHaveAttribute('data-pending', '0', { timeout: 60_000 });
+  await expect(page.getByText(/duplicada/)).toHaveCount(0);
+  await page.goto(`/relatorio/${r2}`);
+  await expect(page.locator('.app-bar h1')).toHaveText('Sumário', { timeout: 30_000 });
+  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
+  await expect(page.getByRole('list', { name: 'Locais do relatório' })).toBeVisible();
+  await expect(page.getByText(/duplicada/)).toHaveCount(0);
+  // The device holds R1's 94 equipment rows and no other; R2's sheets point at them.
+  const entities = await readStore<{ entity: string; id: string; row: { tag?: string; equipment_id?: string | null; relatorio_id?: string } }>(page, database, 'entities');
+  const equipment = entities.filter((record) => record.entity === 'equipment');
+  expect(equipment.map((record) => record.row.tag).sort()).toEqual([...r1Tags].sort());
+  const held = new Set(equipment.map((record) => record.id));
+  const r2Equipment = entities.filter((record) => record.entity === 'block' && record.row.relatorio_id === r2).flatMap((record) => (record.row.equipment_id == null ? [] : [record.row.equipment_id]));
+  expect(r2Equipment).toHaveLength(94);
+  for (const id of r2Equipment) expect(held.has(id)).toBe(true);
+});
+
+test('@p1 E4-E2E-003 an edited section text reads "texto editado" on its Sumário row', async ({ page }) => {
+  test.setTimeout(120_000);
+  await resetEmpresaB({ standard: true });
+  await signIn(page, account.email);
+  await expect(page.locator('.shortcut-sub', { hasText: '1 template' })).toBeVisible({ timeout: 30_000 });
+  await createProjectFromHome(page);
+  await createRelatorio(page);
+  const rows = sumarioList(page).getByRole('listitem');
+  await expect(rows.nth(3).locator('.sum-status')).toHaveText('texto padrão', { timeout: 30_000 });
+  await rows.nth(3).getByRole('button', { name: /^Definições/ }).click();
+  const area = page.getByRole('textbox', { name: 'Texto da seção' });
+  await area.click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' Nota deste relatório.');
+  await page.getByRole('button', { name: 'Voltar ao sumário' }).click();
+  await expect(rows.nth(3).locator('.sum-status')).toHaveText('texto editado');
+});
+
+test('@p1 E4-E2E-004 Etapa 2: an exclusion removed from its menu comes back with "Desfazer", and a blank exclusion never prints', async ({ page }) => {
+  test.setTimeout(300_000);
+  await resetEmpresaBWithFixture();
+  await signIn(page, account.email);
+  await openFixtureSumario(page);
+  await sumarioList(page).getByRole('button', { name: /^Capa e dados do relatório/ }).click();
+  await expect(page.getByRole('heading', { level: 2, name: 'Etapa 1 — Capa' })).toBeFocused();
+
+  // The three seeded exclusions and a blank row, added and never typed.
+  const exclusions = page.getByRole('list', { name: 'Exclusões' });
+  await expect(exclusions.getByRole('textbox')).toHaveCount(3);
+  await page.getByRole('button', { name: 'Adicionar exclusão' }).click();
+  await expect(exclusions.getByRole('textbox')).toHaveCount(4);
+  const first = await page.getByRole('textbox', { name: 'Exclusão 1' }).inputValue();
+
+  // "Remover" of the filled first one, then "Desfazer".
+  await page.getByRole('button', { name: 'Mais opções da exclusão 1' }).click();
+  await page.getByRole('menuitem', { name: 'Remover' }).click();
+  await expect(exclusions.getByRole('textbox')).toHaveCount(3);
+  await expect(page.getByTestId('toast')).toContainText('Exclusão 1 removida');
+  await expect(page.getByRole('textbox', { name: 'Exclusão 1' })).not.toHaveValue(first);
+  await page.getByTestId('toast').getByRole('button', { name: 'Desfazer' }).click();
+  await expect(exclusions.getByRole('textbox')).toHaveCount(4);
+  await expect(page.getByRole('textbox', { name: 'Exclusão 1' })).toHaveValue(first);
+  await expect(page.getByRole('button', { name: 'Mais opções da exclusão 1' })).toBeFocused();
+  await expect(page.getByRole('textbox', { name: 'Exclusão 4' })).toHaveValue('');
+
+  // The generated document lists the three filled exclusions and no empty bullet.
+  await page.getByRole('button', { name: 'Voltar' }).click();
+  await expect(page.locator('.app-bar h1')).toHaveText('Sumário');
+  await footButton(page).click();
+  await generateButton(page).click();
+  await expect(dialog(page).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeVisible({ timeout: JOB_TIMEOUT });
+  const revision = (await readStore<{ entity: string; id: string }>(page, database, 'entities')).find((row) => row.entity === 'revision')!;
+  const response = await page.request.get(`/api/revisions/${revision.id}/docx`);
+  expect(response.status()).toBe(200);
+  const { paragraphs, headings } = extractStructure(Buffer.from(await response.body()));
+  const at = paragraphs.findIndex((text) => text.startsWith('Exclusões'));
+  expect(at).toBeGreaterThan(-1);
+  const headingTexts = new Set(headings.map((heading) => heading.text));
+  const items: string[] = [];
+  for (let i = at + 1; i < paragraphs.length && !headingTexts.has(paragraphs[i]!); i++) items.push(paragraphs[i]!);
+  expect(items.filter((text) => text.trim() !== '')).toHaveLength(3);
+  expect(items.some((text) => text.trim() === '')).toBe(false);
 });

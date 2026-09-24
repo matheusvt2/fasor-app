@@ -11,10 +11,14 @@ import {
   instrumentExpiredNoteText,
   instrumentRegistryRowText,
   isInstrumentReferenced,
+  projectLabel,
+  putRelatorioStatusOp,
   registrationNumberLabel,
+  relatorioOpEnvelope,
   setupIncompleteReason,
   siteAltitudeText,
   statusTable,
+  withoutExclusion,
   type BlockRow,
   type InstrumentRow,
   type RelatorioSnapshot,
@@ -22,11 +26,12 @@ import {
 } from '@app/domain';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams, useParams } from 'react-router';
-import { Button, Checkbox, Combobox, DateField, TextButton, UploadTile } from '../../components/index.ts';
+import { Button, Checkbox, Combobox, DateField, OverflowMenu, TextButton, UploadTile } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { now } from '../../clock.ts';
 import { commitBatch } from '../../db/commit.ts';
 import { commitFilePick, useAttachedFile } from '../../db/file-commit.ts';
+import { relatorioRow } from '../../db/generate-store.ts';
 import { blockRowsOf, relatorioState } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { instrumentRows } from '../../db/home-store.ts';
@@ -34,6 +39,7 @@ import { localUsers } from '../../db/sync-store.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
+import { useUndoableEdits, type UndoableEdits } from '../../state/use-undoable-edits.ts';
 import { focusWhenRendered } from './relatorio-focus.ts';
 import './relatorio.css';
 
@@ -106,26 +112,33 @@ function SetupContent({ relatorioId, snapshot, users, instruments, blocks }: Set
     // Once per mount.
   }, []);
 
-  /** One or more `relatorio/setup/{field}` puts, all in the same batch. */
-  async function commitFields(fields: ReadonlyArray<readonly [string, unknown]>): Promise<void> {
-    if (db === null || author === null) return;
-    await commitBatch(
-      db,
-      fields.map(([field, value]) => ({
-        scope: 'relatorio' as const,
-        company_id: author.companyId,
-        project_id: null,
-        relatorio_id: relatorioId,
-        prev_op_id: null,
-        batch_id: null,
-        meta: null,
-        actor_id: author.id,
-        kind: 'put' as const,
-        path: `relatorio/setup/${field}`,
-        value: value as never,
-      })),
-      { newId, now },
+  // The page's edit queue and undo toast (Epic 4 retro items 5, 24): every setup write runs
+  // in it, so an exclusion's "Desfazer" is retired by any later write of the page.
+  const edits = useUndoableEdits();
+
+  /**
+   * One or more `relatorio/setup/{field}` puts, all in the same batch; resolves to the batch
+   * id. A refused write is toasted by the field that asked for it (`useFieldCommit`), or by
+   * the queue when `loud`.
+   */
+  async function writeFields(fields: ReadonlyArray<readonly [string, unknown]>, loud = false): Promise<string | null> {
+    return edits.write(
+      async () => {
+        if (db === null || author === null) return null;
+        const drafts = fields.map(([field, value]) => ({
+          ...relatorioOpEnvelope(author, relatorioId),
+          kind: 'put' as const,
+          path: `relatorio/setup/${field}`,
+          value: value as never,
+        }));
+        return (await commitBatch(db, drafts, { newId, now })).batch_id;
+      },
+      { quiet: !loud },
     );
+  }
+
+  async function commitFields(fields: ReadonlyArray<readonly [string, unknown]>): Promise<void> {
+    await writeFields(fields);
   }
 
   async function commitField(field: string, value: unknown): Promise<void> {
@@ -133,31 +146,20 @@ function SetupContent({ relatorioId, snapshot, users, instruments, blocks }: Set
   }
 
   const gapReason = setupIncompleteReason(snapshot, responsible);
-  const canComplete = relatorio.status === 'rascunho';
+  // AD-22 (Epic 4 retro item 12): the kernel's table says whether this status completes setup.
+  const canComplete = statusTable(relatorio.status, 'setup_complete') !== null;
 
   async function onComplete(): Promise<void> {
     if (gapReason !== null || db === null || author === null) return;
-    const next = statusTable('rascunho', 'setup_complete');
-    if (next === null) return;
-    await commitBatch(
-      db,
-      [
-        {
-          scope: 'relatorio',
-          company_id: author.companyId,
-          project_id: null,
-          relatorio_id: relatorioId,
-          prev_op_id: null,
-          batch_id: null,
-          meta: null,
-          actor_id: author.id,
-          kind: 'put',
-          path: 'relatorio/status',
-          value: next,
-        },
-      ],
-      { newId, now },
-    );
+    await edits
+      .write(async () => {
+        // The status as the store holds it at the moment of the write, never the render's.
+        const current = await relatorioRow(db, relatorioId);
+        const next = current === null ? null : statusTable(current.status, 'setup_complete');
+        if (next === null) return null;
+        return (await commitBatch(db, [putRelatorioStatusOp(author, relatorioId, next)], { newId, now })).batch_id;
+      })
+      .catch(() => undefined);
   }
 
   return (
@@ -171,7 +173,13 @@ function SetupContent({ relatorioId, snapshot, users, instruments, blocks }: Set
         onCommitFields={commitFields}
         bandRef={(el) => (bandRefs.current[1] = el)}
       />
-      <Etapa2Escopo snapshot={snapshot} onCommit={commitField} bandRef={(el) => (bandRefs.current[2] = el)} />
+      <Etapa2Escopo
+        snapshot={snapshot}
+        onCommit={commitField}
+        onWriteExclusions={(value) => writeFields([['exclusions', value]], true)}
+        undoable={edits.undoable}
+        bandRef={(el) => (bandRefs.current[2] = el)}
+      />
       <Etapa3Responsavel snapshot={snapshot} users={users} onCommit={commitField} bandRef={(el) => (bandRefs.current[3] = el)} />
       <Etapa4Instrumentos snapshot={snapshot} instruments={instruments} blocks={blocks} onCommit={commitField} bandRef={(el) => (bandRefs.current[4] = el)} />
       <Etapa5Local snapshot={snapshot} onCommit={commitField} onCommitFields={commitFields} bandRef={(el) => (bandRefs.current[5] = el)} />
@@ -276,7 +284,7 @@ function Etapa1Capa({
           </div>
           <div className="field">
             <span className="field-label">{t.obraLabel}</span>
-            <div className="input">{snapshot.project?.site ?? snapshot.project?.name ?? ''}</div>
+            <div className="input">{snapshot.project === null ? '' : projectLabel(snapshot.project)}</div>
           </div>
           <div className="dates-3 span-2">
             {/* Wrapped like the end field's own div (not a bare grid child): the end
@@ -322,10 +330,15 @@ function Etapa1Capa({
 function Etapa2Escopo({
   snapshot,
   onCommit,
+  onWriteExclusions,
+  undoable,
   bandRef,
 }: {
   snapshot: RelatorioSnapshot;
   onCommit: (field: string, value: unknown) => Promise<void>;
+  /** Writes the whole list now, as its own batch; resolves to the batch id. */
+  onWriteExclusions: (value: string[]) => Promise<string | null>;
+  undoable: UndoableEdits['undoable'];
   bandRef: (el: HTMLElement | null) => void;
 }) {
   const t = copy.setup;
@@ -364,6 +377,37 @@ function Etapa2Escopo({
     exclusionsCommitter.change(next);
   }
 
+  // Epic 4 retro item 24: "Remover" of an exclusion's overflow menu writes the list without
+  // it at once (what was typed is flushed first, so the undo puts exactly that back), with
+  // "Desfazer" in the toast. The focus goes to the row now at its place, else the one before,
+  // else "Adicionar exclusão"; after "Desfazer", to the restored row's menu.
+  const listRef = useRef<HTMLUListElement>(null);
+  const addButton = (): HTMLElement | null => listRef.current?.parentElement?.querySelector<HTMLElement>(':scope > .row > .btn') ?? null;
+  const triggerAt = (index: number): HTMLElement | null =>
+    listRef.current?.querySelectorAll<HTMLElement>(':scope > li .overflow-trigger')[index] ?? null;
+
+  async function onRemoveExclusion(index: number): Promise<void> {
+    exclusionsCommitter.flush();
+    const before = exclusions.length;
+    const next = withoutExclusion(exclusions, index);
+    setExclusions(next);
+    const batchId = await onWriteExclusions(next).catch(() => null);
+    if (batchId === null) {
+      // Nothing was written: the store still holds the row, so the view shows it again
+      // (a later autosave of the list must not drop it silently).
+      setExclusions(exclusions);
+      return;
+    }
+    focusWhenRendered(() => {
+      if ((listRef.current?.children.length ?? 0) >= before) return null;
+      return triggerAt(index) ?? triggerAt(index - 1) ?? addButton();
+    });
+    undoable(t.exclusionRemoved(index + 1), batchId, {
+      label: t.undo,
+      onUndo: () => focusWhenRendered(() => ((listRef.current?.children.length ?? 0) >= before ? triggerAt(index) : null)),
+    });
+  }
+
   return (
     <section className="section-band" aria-labelledby="setup-e2" ref={(el) => bandRef(el)}>
       <div className="band-head">
@@ -388,7 +432,7 @@ function Etapa2Escopo({
             <input id={localId} className="input" value={local.text} onChange={(event) => local.change(event.target.value)} onBlur={local.blur} />
           </div>
         </div>
-        <ul className="exclusion-list" aria-label={t.exclusionsLabel}>
+        <ul className="exclusion-list" aria-label={t.exclusionsLabel} ref={listRef}>
           {exclusions.map((text, i) => (
             <li key={i}>
               <span className="exclusion-num" aria-hidden="true">
@@ -400,6 +444,12 @@ function Etapa2Escopo({
                 value={text}
                 onChange={(event) => onExclusionChange(i, event.target.value)}
                 onBlur={() => exclusionsCommitter.blur()}
+              />
+              <OverflowMenu
+                name={t.exclusionFieldLabel(i + 1)}
+                label={t.exclusionMenuLabel(i + 1)}
+                items={[]}
+                destructiveItems={[{ id: 'remove', label: t.removeExclusion, onAction: () => void onRemoveExclusion(i) }]}
               />
             </li>
           ))}

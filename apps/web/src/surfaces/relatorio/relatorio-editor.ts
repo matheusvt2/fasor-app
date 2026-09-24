@@ -2,13 +2,12 @@ import type { BlockRow, EntityState, EquipmentRow, LocationRow, OpDraft } from '
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
-import { commitBatch, undoBatch } from '../../db/commit.ts';
+import { commitBatch } from '../../db/commit.ts';
 import { blockRowsOf, equipmentRows, locationRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
-import { useToast } from '../../state/toast.tsx';
-import { writeErrorText } from '../templates/template-ops.ts';
+import { useUndoableEdits } from '../../state/use-undoable-edits.ts';
 import { focusWhenRendered } from './relatorio-focus.ts';
 import type { Author } from './relatorio-ops.ts';
 
@@ -72,54 +71,29 @@ export function useRelatorioEditor(relatorioId: string, projectId: string): Rela
   const session = useSession();
   const db = session.database;
   const user = session.user;
-  const { showToast, dismissToast, toast } = useToast();
+  const edits = useUndoableEdits();
   const [announcement, setAnnouncement] = useState('');
-  const queue = useRef<Promise<unknown>>(Promise.resolve());
-
-  const undoToast = useRef<string | null>(null);
-  const shownToast = useRef(toast);
-  shownToast.current = toast;
-  const dismissRef = useRef(dismissToast);
-  dismissRef.current = dismissToast;
-  useEffect(
-    () => () => {
-      if (undoToast.current !== null && shownToast.current?.text === undoToast.current) dismissRef.current();
-    },
-    [],
-  );
 
   const author = useMemo<Author | null>(() => (user === null ? null : { id: user.id, companyId: user.companyId }), [user]);
 
+  const { write } = edits;
   const edit = useCallback(
-    (build: Build): Promise<string | null> => {
-      const run = async (): Promise<string | null> => {
+    (build: Build): Promise<string | null> =>
+      write(async () => {
         if (db === null || author === null) return null;
         const [blocks, locations, equipment] = await Promise.all([blockRowsOf(db, relatorioId), locationRows(db, relatorioId), equipmentRows(db, projectId)]);
         let drafts: OpDraft[] | null;
         try {
           drafts = build(blocks, author, { blocks, locations, equipment });
         } catch (error) {
+          // The row the edit names is gone: nothing to write, nothing to say.
           if (error instanceof RangeError) return null;
-          showToast(writeErrorText(error));
           throw error;
         }
         if (drafts === null || drafts.length === 0) return null;
-        let batchId: string;
-        try {
-          batchId = (await commitBatch(db, drafts, { newId, now })).batch_id;
-        } catch (error) {
-          showToast(writeErrorText(error));
-          throw error;
-        }
-        if (undoToast.current !== null && shownToast.current?.text === undoToast.current) dismissToast();
-        undoToast.current = null;
-        return batchId;
-      };
-      const next = queue.current.then(run, run);
-      queue.current = next.catch(() => undefined);
-      return next;
-    },
-    [db, author, relatorioId, projectId, showToast, dismissToast],
+        return (await commitBatch(db, drafts, { newId, now })).batch_id;
+      }),
+    [write, db, author, relatorioId, projectId],
   );
 
   // `settle`: one edit waits to be drawn at a time; a newer one says the older at once.
@@ -165,28 +139,20 @@ export function useRelatorioEditor(relatorioId: string, projectId: string): Rela
     [],
   );
 
+  const { undoable: showUndo } = edits;
   const undoable = useCallback(
     (text: string, batchId: string | null, focus?: () => HTMLElement | null, onUndo?: () => void) => {
       // An older move's pending toast first, so this one's "Desfazer" is the one left standing.
       fire();
-      if (batchId === null || db === null) return;
-      undoToast.current = text;
-      showToast(text, {
-        action: {
-          label: copy.sumario.undo,
-          onPress: () => {
-            undoToast.current = null;
-            onUndo?.();
-            if (focus !== undefined) focusWhenRendered(focus);
-            const run = () => undoBatch(db, batchId, { newId, now });
-            const next = queue.current.then(run, run);
-            queue.current = next.catch(() => undefined);
-            next.catch((error: unknown) => showToast(writeErrorText(error)));
-          },
+      showUndo(text, batchId, {
+        label: copy.sumario.undo,
+        onUndo: () => {
+          onUndo?.();
+          if (focus !== undefined) focusWhenRendered(focus);
         },
       });
     },
-    [db, showToast, fire],
+    [showUndo, fire],
   );
 
   // One object while its members hold, so the tree's context and its action callbacks keep

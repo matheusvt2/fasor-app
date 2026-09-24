@@ -40,18 +40,19 @@ import { Link, useParams } from 'react-router';
 import { Button, ConfirmDialog, FormDialog } from '../../components/index.ts';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
-import { commitBatch, undoBatch } from '../../db/commit.ts';
+import { commitBatch } from '../../db/commit.ts';
 import { templateRow } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { newId } from '../../ids.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
+import { useUndoableEdits } from '../../state/use-undoable-edits.ts';
 import { BlockPaletteContent, PaletteDrawer, sectionName } from './block-palette.tsx';
 import { SectionList } from './section-list.tsx';
 import { SectionTextDialog } from './section-text-dialog.tsx';
 import { SkeletonList } from './skeleton-list.tsx';
-import { putTemplateOp, writeErrorText, type TemplateField } from './template-ops.ts';
+import { putTemplateOp, type TemplateField } from './template-ops.ts';
 import { TypeDefaultsDialog } from './type-defaults-dialog.tsx';
 import { LIST_FOCUS_WATCH_FRAMES, restoreFocus } from './use-reorder.ts';
 import './templates.css';
@@ -124,24 +125,11 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
   const session = useSession();
   const db = session.database;
   const user = session.user;
-  const { showToast, dismissToast, toast } = useToast();
-  // The composer's live undo toast, by its text: once any later edit is written, an undo of
-  // a whole-field removal would put the old `blocks`/`skeleton` back over that edit, so the
-  // toast goes away instead.
-  const undoToast = useRef<string | null>(null);
-  const shownToast = useRef(toast);
-  shownToast.current = toast;
-  // The toast outlives the composer (it is the shell's, and an action toast never expires):
-  // leaving the composer takes its own undo toast away, since no later edit here could
-  // retire it any more.
-  const dismissRef = useRef(dismissToast);
-  dismissRef.current = dismissToast;
-  useEffect(
-    () => () => {
-      if (undoToast.current !== null && shownToast.current?.text === undoToast.current) dismissRef.current();
-    },
-    [],
-  );
+  const { showToast } = useToast();
+  // The composer's edit queue and undo toast (Epic 4 retro item 5): once any later edit is
+  // written, an undo of a whole-field removal would put the old `blocks`/`skeleton` back
+  // over that edit, so the toast goes away instead; leaving the composer takes it away too.
+  const edits = useUndoableEdits();
   const view = useMemo(() => composerView(row), [row]);
   const [currentRef, setCurrentRef] = useState<string | null>(null);
   const current = findComposerNode(view, currentRef);
@@ -154,7 +142,6 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
   const [announcement, setAnnouncement] = useState('');
   const firstSection = useRef<HTMLButtonElement>(null);
   const mainRef = useRef<HTMLDivElement>(null);
-  const queue = useRef<Promise<unknown>>(Promise.resolve());
   const id = row.id;
 
   /**
@@ -164,9 +151,10 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
    * it), or there was nothing to change. A refused write, or any other error, is toasted
    * and rejects.
    */
+  const { write } = edits;
   const edit = useCallback(
-    (build: (fresh: TemplateRow) => Array<[TemplateField, unknown]> | null): Promise<string | null> => {
-      const run = async (): Promise<string | null> => {
+    (build: (fresh: TemplateRow) => Array<[TemplateField, unknown]> | null): Promise<string | null> =>
+      write(async () => {
         if (db === null || user === null) return null;
         const fresh = await templateRow(db, id);
         if (fresh === null) return null;
@@ -175,27 +163,13 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
           puts = build(fresh);
         } catch (error) {
           if (error instanceof TemplateTargetGoneError) return null;
-          showToast(writeErrorText(error));
           throw error;
         }
         if (puts === null || puts.length === 0) return null;
         const drafts: OpDraft[] = puts.map(([field, value]) => putTemplateOp(user, id, field, value));
-        let batchId: string;
-        try {
-          batchId = (await commitBatch(db, drafts, { newId, now })).batch_id;
-        } catch (error) {
-          showToast(writeErrorText(error));
-          throw error;
-        }
-        if (undoToast.current !== null && shownToast.current?.text === undoToast.current) dismissToast();
-        undoToast.current = null;
-        return batchId;
-      };
-      const next = queue.current.then(run, run);
-      queue.current = next.catch(() => undefined);
-      return next;
-    },
-    [db, user, id, showToast, dismissToast],
+        return (await commitBatch(db, drafts, { newId, now })).batch_id;
+      }),
+    [write, db, user, id],
   );
 
   const announce = useCallback((text: string) => {
@@ -204,26 +178,12 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
     requestAnimationFrame(() => setAnnouncement(text));
   }, []);
 
+  const { undoable: showUndo } = edits;
+  // In the edit queue: an undo pressed while a quantity commit is queued runs after it,
+  // never racing it on `blocks`.
   const undoable = useCallback(
-    (text: string, batchId: string | null) => {
-      if (batchId === null || db === null) return;
-      undoToast.current = text;
-      showToast(text, {
-        action: {
-          label: copy.composer.undo,
-          onPress: () => {
-            undoToast.current = null;
-            // In the edit queue: an undo pressed while a quantity commit is queued runs after
-            // it, never racing it on `blocks`.
-            const run = () => undoBatch(db, batchId, { newId, now });
-            const next = queue.current.then(run, run);
-            queue.current = next.catch(() => undefined);
-            next.catch((error: unknown) => showToast(writeErrorText(error)));
-          },
-        },
-      });
-    },
-    [db, showToast],
+    (text: string, batchId: string | null) => showUndo(text, batchId, { label: copy.composer.undo }),
+    [showUndo],
   );
 
   // --- the template's name -------------------------------------------------------

@@ -10,6 +10,7 @@ import { toRecord } from '../../db/commit.ts';
 import { openDatabase, type AppDatabase } from '../../db/schema.ts';
 import type { SessionState } from '../../state/session.tsx';
 import { SyncContext, type SyncState } from '../../state/sync.tsx';
+import { makeSyncState } from '../../test/sync-state.ts';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
 import { HomeSurface } from './home-surface.tsx';
 
@@ -53,32 +54,7 @@ vi.mock('../../state/session.tsx', () => ({ useSession: () => session() }));
 
 const syncRelatorio = vi.fn(async () => 'ran' as const);
 
-function syncState(over: Partial<SyncState> = {}): SyncState {
-  return {
-    counts: { pending: 0, sent: 0, dead: 0, sheets_pending: 0, photos_pending: 0 },
-    badgeState: 'ok',
-    pendingText: '',
-    pendingCount: 0,
-    online: true,
-    running: false,
-    outdated: false,
-    lastResult: 'ran',
-    lastFailure: null,
-    unreachable: null,
-    lastSyncAt: null,
-    lastPushAt: [],
-    supersededCount: 0,
-    deviceId: 'tablet-1',
-    userNames: {},
-    summaryRelatorios: [],
-    syncNow: vi.fn(async () => 'ran' as const),
-    syncRelatorio,
-    resendDead: vi.fn(async () => {}),
-    fetchFile: vi.fn(async () => new Blob()),
-    generate: vi.fn(async () => ({ outcome: 'queued' as const, job_id: '019966b0-0000-7000-8000-0000000000e1', revision_number: 1 })),
-    ...over,
-  };
-}
+const syncState = (over: Partial<SyncState> = {}): SyncState => makeSyncState({ syncRelatorio, ...over });
 
 function relatorio(id: string, status: RelatorioStatus, local: string, start: string | null): RelatorioRow {
   return {

@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { DraftsContext, type DraftsState } from '../state/drafts.tsx';
 import type { SessionState } from '../state/session.tsx';
 import { SyncContext, type SyncState } from '../state/sync.tsx';
+import { makeSyncState } from '../test/sync-state.ts';
 import { ToastProvider, useToast } from '../state/toast.tsx';
 import { AppShell } from './app-shell.tsx';
 
@@ -31,32 +32,7 @@ let sessionState: SessionState = {
 
 vi.mock('../state/session.tsx', () => ({ useSession: () => sessionState }));
 
-function syncState(over: Partial<SyncState> = {}): SyncState {
-  return {
-    counts: { pending: 0, sent: 0, dead: 0, sheets_pending: 0, photos_pending: 0 },
-    badgeState: 'ok',
-    pendingText: '',
-    pendingCount: 0,
-    online: true,
-    running: false,
-    outdated: false,
-    lastResult: 'ran',
-    lastFailure: null,
-    unreachable: null,
-    lastSyncAt: null,
-    lastPushAt: [],
-    supersededCount: 0,
-    deviceId: 'tablet-1',
-    userNames: {},
-    summaryRelatorios: [],
-    syncNow: vi.fn(async () => 'ran' as const),
-    syncRelatorio: vi.fn(async () => 'ran' as const),
-    resendDead: vi.fn(async () => {}),
-    fetchFile: vi.fn(async () => new Blob()),
-    generate: vi.fn(async () => ({ outcome: 'queued' as const, job_id: '019966b0-0000-7000-8000-0000000000e1', revision_number: 1 })),
-    ...over,
-  };
-}
+const syncState = (over: Partial<SyncState> = {}): SyncState => makeSyncState(over);
 
 function Screen({ label }: { label: string }) {
   const { showToast } = useToast();

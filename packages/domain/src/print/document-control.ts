@@ -24,10 +24,7 @@ export interface DocumentControlInputs {
   revisionNumber: number;
   /** The generation instant (UTC ISO); printed as a São Paulo calendar date. */
   issuedAt: string;
-  /**
-   * The ART/TRT number. `relatorioSetupSchema` carries no such field yet (Story 4.2 adds
-   * the typed number), so every caller passes null today and the row prints `—`.
-   */
+  /** The ART/TRT number (`setup.art_trt_number`, typed in Etapa 3); `—` prints when it is null or blank. */
   art?: string | null;
 }
 

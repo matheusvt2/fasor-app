@@ -157,6 +157,7 @@ afterAll(async () => {
 
 describe('4.8-INT-002 POST /api/relatorios/:id/generate and GET /api/revisions/:id/docx', () => {
   let firstRevision: RevisionRow;
+  let thirdRevision: RevisionRow;
   let photoFileId: string;
 
   it('answers 409 not_caught_up naming the missing op and files, and creates no job', async () => {
@@ -420,10 +421,48 @@ describe('4.8-INT-002 POST /api/relatorios/:id/generate and GET /api/revisions/:
       if (answer.outcome !== 'queued') throw new Error(`expected queued, got ${answer.outcome}`);
       expect(answer.revision_number).toBe(3);
       // Waited for, so the suite ends with no job running against rows the cleanup removes.
-      expect((await waitForRevision(answer.job_id, 3)).revision.number).toBe(3);
+      const third = await waitForRevision(answer.job_id, 3);
+      expect(third.revision.number).toBe(3);
+      thirdRevision = third.revision;
     },
     180_000,
   );
+
+  it('E4 retro item 18: an equipment of the obra this relatório does not reference is no edit of it: unchanged', async () => {
+    // What a second relatório of the same obra writes: a new equipment row and its rename.
+    const equipmentId = newId();
+    const envelope = {
+      scope: 'project' as const,
+      company_id: companyA.companyId,
+      project_id: SMALL_FIXTURE_PROJECT_ID,
+      relatorio_id: null,
+      prev_op_id: null,
+      batch_id: null,
+      meta: null,
+      actor_id: companyA.userId,
+      device_id: 'tablet-generate-b',
+    };
+    const create = makeOp(
+      {
+        ...envelope,
+        kind: 'create',
+        path: `equipment/${equipmentId}`,
+        value: { id: equipmentId, project_id: SMALL_FIXTURE_PROJECT_ID, tag: 'SEC-R2', type: 'chave_seccionadora', last_nameplate: null, removed_at: null },
+      },
+      { newId, now: now() },
+    );
+    const rename = makeOp({ ...envelope, kind: 'put', path: `equipment/${equipmentId}/tag`, value: 'SEC-R2-B' }, { newId, now: now() });
+    const pushed = await authed(companyA, '/api/sync/ops', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ops: [create, rename] }),
+    });
+    expect(syncPushResponseSchema.parse(await pushed.json()).rejected).toEqual([]);
+
+    const res = await generate(companyA, { last_op_id: rename.op_id, file_ids_expected: [] });
+    expect(res.status, await res.clone().text()).toBe(200);
+    expect(generateResponseSchema.parse(await res.json())).toEqual({ outcome: 'unchanged', revision_id: thirdRevision.id, revision_number: 3 });
+  });
 
   it('answers 404 to another company and 401 without a session', async () => {
     const other = await authed(companyB, `/api/revisions/${firstRevision.id}/docx`);

@@ -88,6 +88,8 @@ export const SYNC_ROUTES = {
   pushOps: { method: 'POST', path: '/api/sync/ops' } as SyncRoute,
   pullCompany: { method: 'GET', path: '/api/sync/company' } as SyncRoute,
   pullRelatorio: (id: string): SyncRoute => ({ method: 'GET', path: `/api/sync/relatorios/${id}` }),
+  /** Epic 4 retro item 17: a project's own stream, its project-scope ops (the obra's equipment). */
+  pullProject: (id: string): SyncRoute => ({ method: 'GET', path: `/api/sync/projects/${id}` }),
 } as const;
 
 /*

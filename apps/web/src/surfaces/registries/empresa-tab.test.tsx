@@ -6,7 +6,7 @@ import { axe } from 'jest-axe';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '../../state/toast.tsx';
 import type { SessionState } from '../../state/session.tsx';
-import type { SyncState } from '../../state/sync.tsx';
+import { makeSyncState } from '../../test/sync-state.ts';
 import { openDatabase, type AppDatabase } from '../../db/schema.ts';
 import { BrandPreview } from './brand-preview.tsx';
 import { EmpresaTab } from './empresa-tab.tsx';
@@ -47,7 +47,7 @@ const session = {
   dismissRecovery: vi.fn(),
 } as unknown as SessionState;
 
-const sync = { fetchFile: vi.fn(async () => new Blob()) } as unknown as SyncState;
+const sync = makeSyncState();
 
 vi.mock('../../state/session.tsx', () => ({ useSession: () => session }));
 vi.mock('../../state/sync.tsx', () => ({ useSync: () => sync }));

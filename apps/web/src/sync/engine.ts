@@ -1,4 +1,4 @@
-import { isAutoPulled, SYNC_PUSH_MAX_OPS, toIso, type Clock, type NewId, type Op, type SyncSummary } from '@app/domain';
+import { isAutoPulled, projectIdOfStream, projectStreamId, SYNC_PUSH_MAX_OPS, toIso, type Clock, type NewId, type Op, type SyncSummary } from '@app/domain';
 import { COMPANY_STREAM, type AppDatabase, type SyncStateRow } from '../db/schema.ts';
 import {
   applyPulled,
@@ -25,8 +25,9 @@ import {
 } from './policy.ts';
 
 /*
- * AD-8, AD-24: one fixed cycle, push -> pull company -> pull each relatorio, run
- * on launch, on `online`, every 60 s and on "Sincronizar agora". The timer, the
+ * AD-8, AD-24: one fixed cycle, push -> pull company -> pull each relatorio (and each
+ * followed project stream, Epic 4 retro item 17), run on launch, on `online`, every
+ * 60 s and on "Sincronizar agora". The timer, the
  * button and the events all call the same `runCycle()`; a mutex makes a
  * concurrent call a no-op.
  */
@@ -75,6 +76,11 @@ export interface SyncEngine {
    * and no new phase is needed.
    */
   syncRelatorio(relatorioId: string): Promise<CycleResult>;
+  /**
+   * Epic 4 retro item 17: creates the `project:{id}` stream's `sync_state` row and pulls it
+   * (its project-scope ops, the obra's equipment); every later cycle keeps it fresh.
+   */
+  syncProject(projectId: string): Promise<CycleResult>;
   start(): void;
   /** Final: ends the in-flight cycle at its next step and silences the engine (a new session builds a new engine). */
   stop(): void;
@@ -139,6 +145,8 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
    * work committed offline must not wait for the 60 s tick (retro U3).
    */
   let onlineWhileRunning = false;
+  /** Resolves when the cycle in flight ends (resolved while none runs). */
+  let cycleEnded: Promise<void> = Promise.resolve();
 
   const emit = () => {
     if (!stopped) deps.onChange({ ...status });
@@ -343,15 +351,17 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     const summary = await pullStream(COMPANY_STREAM, (since) => deps.client.pullCompany(since));
     const wanted = new Set<string>();
     for (const r of summary?.relatorios ?? []) if (isAutoPulled(r.status)) wanted.add(r.id);
-    // Relatorios opened before keep following their stream whatever their status now.
+    // Relatorios opened before keep following their stream whatever their status now, and
+    // a project stream (`project:{id}`, item 17) keeps following its project's route.
     for (const row of await deps.db.sync_state.toArray()) if (row.id !== COMPANY_STREAM) wanted.add(row.id);
     for (const id of wanted) {
       if (stopped || !deps.isOnline()) {
         if (!stopped) cycleWentOffline = true;
         return;
       }
+      const projectId = projectIdOfStream(id);
       try {
-        await pullStream(id, (since) => deps.client.pullRelatorio(id, since));
+        await pullStream(id, (since) => (projectId === null ? deps.client.pullRelatorio(id, since) : deps.client.pullProject(projectId, since)));
       } catch (error) {
         // A stream the server no longer knows (404) is skipped; anything else ends the phase.
         if (error instanceof PhaseEnd && error.action === 'stop') {
@@ -375,6 +385,10 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     status.lastResult = null;
     cycleFailure = null;
     cycleWentOffline = false;
+    let endCycle = () => {};
+    cycleEnded = new Promise<void>((resolve) => {
+      endCycle = resolve;
+    });
     emit();
     try {
       await runPhase(pushPhase);
@@ -385,6 +399,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       if (!status.paused && !stopped) await runPhase(pullPhase);
     } finally {
       status.running = false;
+      endCycle();
       status.lastResult = 'ran';
       // A cycle cut by going offline, with no failure of its own, proved nothing about
       // the server: the previous verdict stands. A cycle that ran clean clears it.
@@ -437,9 +452,29 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     return runCycle();
   }
 
+  /**
+   * Epic 4 retro item 17: starts following a project's own stream and pulls it now. A
+   * cycle already running may have read the streams to pull before this one was added, so
+   * one more cycle runs after it: the caller (the "Novo relatório" dialog) reads the obra's
+   * equipment right after this resolves.
+   */
+  async function syncProject(projectId: string): Promise<CycleResult> {
+    const id = projectStreamId(projectId);
+    const existing = await readSyncState(deps.db, id);
+    if (existing === undefined) await writeSyncState(deps.db, emptyState(id));
+    let result = await runCycle();
+    // Another cycle (a timer, an `online` event) may take the mutex first each time.
+    while (result === 'busy') {
+      await cycleEnded;
+      result = await runCycle();
+    }
+    return result;
+  }
+
   return {
     runCycle,
     syncRelatorio,
+    syncProject,
     start() {
       if (started) return;
       started = true;

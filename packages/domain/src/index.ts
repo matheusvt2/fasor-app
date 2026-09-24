@@ -44,6 +44,8 @@ export * from './relatorio/sumario.ts';
 export * from './relatorio/setup-complete.ts';
 export * from './relatorio/section-variables.ts';
 export * from './relatorio/status-advance.ts';
+export * from './relatorio/ops.ts';
+export * from './sync/streams.ts';
 export * from './relatorio/location-path.ts';
 export * from './relatorio/tree.ts';
 export * from './relatorio/block-texts.ts';
