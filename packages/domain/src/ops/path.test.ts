@@ -78,7 +78,8 @@ describe('1.4-UNIT-001 path round trip', () => {
     expect(() => parsePath(`user/${ID}/email`)).toThrow(/unknown field "email" for user/);
     expect(() => parsePath(`user/${ID}/professional_registration`)).toThrow(/unknown field "professional_registration" for user/);
     expect(() => parsePath(`point/${ID}/origin`)).toThrow(/unknown field "origin" for point/);
-    expect(() => parsePath(`template/${ID}/version`)).toThrow(/unknown field "version" for template/);
+    // D-4: `version` is mutable since 2026-09-23 (the reducer bumps it on content edits).
+    expect(parsePath(`template/${ID}/version`)).toEqual({ family: 'template/field', id: ID, field: 'version' });
     expect(() => parsePath(`template/${ID}/seed_version`)).toThrow(/unknown field "seed_version" for template/);
   });
 

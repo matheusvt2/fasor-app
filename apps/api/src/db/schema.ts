@@ -5,7 +5,6 @@ import {
   boolean,
   customType,
   index,
-  jsonb,
   pgTable,
   primaryKey,
   text,
@@ -28,6 +27,22 @@ const timestamptz = customType<{ data: string; driverData: string }>({
   fromDriver: (value) => new Date(value).toISOString(),
 });
 
+/**
+ * `jsonb` without a second parse. postgres.js already decodes `json`/`jsonb` (oids 114
+ * and 3802) with `JSON.parse`, while drizzle's own `jsonb()` column runs `JSON.parse`
+ * again over any string it receives, so a stored JSON string that is itself JSON text
+ * (`"4"`, an `order_key`; `"2026"`, `"true"`, `"null"` typed into a setup field) came back
+ * type-changed (a number, a boolean, null) and a device's `applyOp` refused the page. The
+ * invariant is "what was written comes back identical": `toDriver` serializes, `fromDriver`
+ * returns the driver's decoded value as is. A raw string can only reach `fromDriver` when
+ * the stored value is that string, because the driver's parser decodes every jsonb column.
+ */
+const json = customType<{ data: unknown; driverData: unknown }>({
+  dataType: () => 'jsonb',
+  toDriver: (value) => JSON.stringify(value),
+  fromDriver: (value) => value,
+});
+
 export const ops = pgTable(
   'ops',
   {
@@ -39,10 +54,10 @@ export const ops = pgTable(
     relatorio_id: uuid('relatorio_id'),
     kind: text('kind').notNull(),
     path: text('path').notNull(),
-    value: jsonb('value'),
+    value: json('value'),
     prev_op_id: uuid('prev_op_id'),
     batch_id: uuid('batch_id'),
-    meta: jsonb('meta'),
+    meta: json('meta'),
     actor_id: text('actor_id').notNull(),
     device_id: text('device_id').notNull(),
     client_ts: timestamptz('client_ts').notNull(),
@@ -77,7 +92,7 @@ export const entities = pgTable(
     id: uuid('id').notNull(),
     relatorio_id: uuid('relatorio_id'),
     project_id: uuid('project_id'),
-    row: jsonb('row').$type<EntityRow>().notNull(),
+    row: json('row').$type<EntityRow>().notNull(),
     removed_at: timestamptz('removed_at'),
     updated_seq: bigint('updated_seq', { mode: 'number' }).notNull(),
   },

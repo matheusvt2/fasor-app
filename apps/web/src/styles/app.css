@@ -179,6 +179,30 @@ body {
   .doc-control th { width: 128px; }
   /* `.frame-phone .pos-box` */
   .pos-box { width: 48px; }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro"] .overview-content` (40-relatorio-overview.html) */
+  [data-route="/relatorio/:id"] .overview-content { padding: var(--sp-4) var(--gutter-phone); }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro"] .header-side` */
+  [data-route="/relatorio/:id"] .header-side { align-items: flex-start; }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro"] .sum-pos-empty` */
+  [data-route="/relatorio/:id"] .sum-pos-empty { width: 48px; }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro"] .sum-ro` */
+  [data-route="/relatorio/:id"] .sum-ro { font-size: 12px; max-width: 72px; text-align: right; }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro"] .s9-tree` (Playwright sweep 2026-09-21) */
+  [data-route="/relatorio/:id"] .s9-tree { padding-left: 0; }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro"] .s9-note` */
+  [data-route="/relatorio/:id"] .s9-note { margin-left: var(--sp-4); }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro"] .s9-cab-row` */
+  [data-route="/relatorio/:id"] .s9-cab-row { flex-wrap: wrap; padding-right: var(--sp-2); }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro"] .sum-here` */
+  [data-route="/relatorio/:id"] .sum-here { flex-basis: 100%; order: 9; }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro"] .sum-open` */
+  [data-route="/relatorio/:id"] .sum-open { gap: var(--sp-2); }
+  /* `.frame-tablet [data-route="/project/porto-seguro"] .project-head .btn, .frame-phone ... .btn`
+     (30-project.html); the tablet half is under "Tablet" below. authored: `.btn` is
+     `white-space: nowrap`, and "Novo relatório a partir de template" is wider than a 390px
+     column, so on the phone the label wraps instead of spilling 5px past the viewport (the
+     real-browser pass of 2026-09-23); the empty state's copy of the button follows. */
+  [data-route="/project/:id"] .project-head .btn, [data-route="/project/:id"] .home-empty .btn { width: 100%; white-space: normal; }
   /* `.frame-phone [data-route="/cadastros"] .registry-main` (80-cadastros.html) */
   .registry-main { padding: var(--sp-4) var(--gutter-phone); }
   /* `.frame-phone [data-route="/cadastros"] .registry-panel .panel-head` */
@@ -266,6 +290,8 @@ body {
 @media (min-width: 768px) and (max-width: 1279.98px) {
   /* `.frame-tablet .tabs` */
   .tabs { padding: 0 var(--gutter-tablet); }
+  /* `.frame-tablet [data-route="/project/porto-seguro"] .project-head .btn` (30-project.html) */
+  [data-route="/project/:id"] .project-head .btn { width: 100%; }
   /* `.frame-tablet-landscape, .frame-tablet [data-route="/templates/porto-seguro"] .composer-main`
      (42-template-composer.html; the two frames together are this range). */
   [data-route="/templates/:id"] .composer-main { padding: var(--sp-5) var(--gutter-tablet); }
@@ -316,6 +342,8 @@ body {
   .empresa-layout { grid-template-columns: minmax(0, 1fr) 360px; }
   /* `.frame-desktop [data-route="/templates"] .tpl-content` (41-templates.html) */
   [data-route="/templates"] .tpl-content { padding: var(--sp-6) var(--gutter-desktop); }
+  /* `.frame-desktop [data-route="/project/porto-seguro"] .content` (30-project.html) */
+  [data-route="/project/:id"] .content { max-width: none; }
   /* `.frame-desktop [data-route="/templates"] .tpl-row` (41-templates.html) */
   [data-route="/templates"] .tpl-row { flex-wrap: nowrap; }
   /* `.frame-desktop [data-route="/templates"] .tpl-row .rr-text` (41-templates.html) */
@@ -441,6 +469,17 @@ body {
   .dialog-scrim.palette-drawer .block-palette { width: 100%; height: auto; max-height: 85dvh; }
   .dialog-scrim.palette-drawer .sheet-grip { display: block; }
 }
+
+/* ---------- Date field: React Aria's segments inside the mock's `.input` box ----------
+   authored: the mock (`30-project.html`) draws the date as text in the `.input` with the
+   calendar glyph at its right; the app puts `DateInput`'s segments there. Each segment is
+   a spinbutton; its focus shows as the segment's own fill, the box keeps its
+   `:focus-within` border. */
+.field .date-input { padding-right: var(--touch-min); }
+.date-segment { padding: 0 1px; border-radius: 2px; font-variant-numeric: tabular-nums; }
+.date-segment[data-placeholder] { color: var(--ink-secondary); }
+.date-segment:focus { outline: none; background: var(--primary); color: var(--primary-foreground); }
+.field .date-ico { position: absolute; right: var(--sp-3); bottom: calc((var(--touch-field) - 24px) / 2); color: var(--ink-secondary); pointer-events: none; }
 
 /* ---------- Quantity stepper: the typeable count ----------
    authored: the mock draws `.count` as a `<span>`; the stepper's count is typeable

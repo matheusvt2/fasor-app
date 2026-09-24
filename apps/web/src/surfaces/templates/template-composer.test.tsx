@@ -326,7 +326,8 @@ describe('3.4 composer: skeleton', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: 'Desfazer' }));
     await screen.findByRole('heading', { level: 2, name: 'Esqueleto de locais · 6 cabines · 17 colunas · 94 blocos' });
-    expect(await templateRow(database, ID)).toEqual(standardTemplate({ id: ID }));
+    // D-4: the two puts of the removal and the two of the undo each bumped the version.
+    expect(await templateRow(database, ID)).toEqual({ ...standardTemplate({ id: ID }), version: 5 });
   });
 });
 
@@ -354,7 +355,9 @@ describe('3.4 composer: quantities per node', () => {
     await waitFor(() => expect(within(palette()).getByRole('group', { name: 'Seccionadoras, 0' })).toBeVisible());
     expect(within(within(palette()).getByRole('group', { name: 'Seccionadoras, 0' })).getByRole('textbox')).toHaveValue('—');
     await waitFor(() => expect(container.querySelector('.column-row.is-open .qty-row')).toBeNull());
-    expect(await templateRow(database, ID)).toEqual(standardTemplate({ id: ID }));
+    // D-4: every `blocks` put bumped the version; the composition itself is back where it was.
+    expect(await templateRow(database, ID)).toEqual({ ...standardTemplate({ id: ID }), version: expect.any(Number) });
+    expect((await templateRow(database, ID))!.version).toBeGreaterThan(1);
     expect((await outboxPaths()).every((path) => path === `template/${ID}/blocks`)).toBe(true);
   });
 
@@ -488,6 +491,8 @@ describe('3.4 composer: name', () => {
     });
     await waitFor(async () => expect((await templateRow(database!, ID))!.name).toBe('Porto Seguro — Torres A e B'));
     expect(await outboxPaths()).toEqual([`template/${ID}/name`]);
+    // D-4: a rename is a content edit, so the row's version is bumped on this device too.
+    expect((await templateRow(database!, ID))!.version).toBe(2);
   });
 });
 

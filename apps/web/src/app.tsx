@@ -1,5 +1,7 @@
+import { I18nProvider } from 'react-aria-components';
 import { createBrowserRouter, Navigate, Outlet, RouterProvider, type RouteObject } from 'react-router';
 import { copy } from './copy/pt-br.ts';
+import { BackTargetProvider } from './state/back-target.tsx';
 import { DraftProvider } from './state/drafts.tsx';
 import { SessionProvider, useSession } from './state/session.tsx';
 import { SyncProvider, useSync } from './state/sync.tsx';
@@ -13,6 +15,10 @@ import { EvictionRecoverySurface } from './surfaces/eviction-recovery-surface.ts
 import { FieldFixtureSurface } from './surfaces/fixtures/field-fixture-surface.tsx';
 import { HomeSurface } from './surfaces/home/home-surface.tsx';
 import { LoginSurface } from './surfaces/login/login-surface.tsx';
+import { ProjectSurface } from './surfaces/project/project-surface.tsx';
+import { SectionTextSurface } from './surfaces/relatorio/section-text-surface.tsx';
+import { SetupStubSurface } from './surfaces/relatorio/setup-stub-surface.tsx';
+import { SumarioSurface } from './surfaces/relatorio/sumario-surface.tsx';
 import { RegistriesSurface } from './surfaces/registries/registries-surface.tsx';
 import { SyncStatusSurface } from './surfaces/sync/sync-status-surface.tsx';
 import { TemplateComposerSurface } from './surfaces/templates/template-composer.tsx';
@@ -56,7 +62,9 @@ function RequireSession() {
       <ThemeProvider>
         <ToastProvider>
           <DraftProvider>
-            <SessionShell />
+            <BackTargetProvider>
+              <SessionShell />
+            </BackTargetProvider>
           </DraftProvider>
         </ToastProvider>
       </ThemeProvider>
@@ -111,6 +119,20 @@ const router = createBrowserRouter([
             element: <TemplateComposerSurface />,
             handle: { title: copy.composer.title, back: '/templates' },
           },
+          // Story 4.1 and 4.3: the Project, the Sumário and the two routes the Sumário
+          // opens (batch C's setup page and section text keep these paths).
+          { path: '/project/:id', element: <ProjectSurface />, handle: { title: copy.project.title, back: '/' } },
+          { path: '/relatorio/:id', element: <SumarioSurface />, handle: { title: copy.sumario.title } },
+          {
+            path: '/relatorio/:id/setup',
+            element: <SetupStubSurface />,
+            handle: { title: copy.setupStub.title, back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}` },
+          },
+          {
+            path: '/relatorio/:id/secao/:blockId',
+            element: <SectionTextSurface />,
+            handle: { title: copy.sectionText.title, back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}` },
+          },
           ...fixtureRoutes,
         ],
       },
@@ -119,6 +141,11 @@ const router = createBrowserRouter([
   },
 ]);
 
+/** pt-BR orders the date field's segments (day, month, year) and names them. */
 export function App() {
-  return <RouterProvider router={router} />;
+  return (
+    <I18nProvider locale="pt-BR">
+      <RouterProvider router={router} />
+    </I18nProvider>
+  );
 }

@@ -42,8 +42,12 @@ export const FILE_FIELDS = ['caption', 'block_id', 'item_key', 'removed_at'] as 
 export const FILE_SERVER_FIELDS = ['uploaded_at', 'variants', 'reading_status'] as const;
 export const GENERATION_JOB_FIELDS = ['status', 'error', 'result_file_id'] as const;
 
-/** Keys a `{field}` segment may never name: identity, ownership and derived values are set at create. */
-const IMMUTABLE_KEYS = new Set(['id', 'kind', 'company_id', 'relatorio_id', 'project_id', 'origin', 'version', 'seed_version']);
+/**
+ * Keys a `{field}` segment may never name: identity, ownership and derived values are set
+ * at create. `template.version` is not among them (D-4, 2026-09-23): the reducer bumps it
+ * on every content edit and a `template/{id}/version` put sets it explicitly.
+ */
+const IMMUTABLE_KEYS = new Set(['id', 'kind', 'company_id', 'relatorio_id', 'project_id', 'origin', 'seed_version']);
 
 function mutableKeys(keys: readonly string[], alsoImmutable: readonly string[] = []): readonly string[] {
   return keys.filter((k) => !IMMUTABLE_KEYS.has(k) && !alsoImmutable.includes(k));

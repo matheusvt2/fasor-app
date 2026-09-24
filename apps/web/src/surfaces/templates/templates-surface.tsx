@@ -11,6 +11,7 @@ import {
   templateSummaryText,
   templateUseCount,
   toIso,
+  type RelatorioRow,
   type RelatorioSummary,
   type TemplateRow,
 } from '@app/domain';
@@ -20,7 +21,7 @@ import { Button, ConfirmDialog, OverflowMenu, TextButton } from '../../component
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { commitBatch, undoBatch } from '../../db/commit.ts';
-import { templateRows } from '../../db/home-store.ts';
+import { relatorioRows, templateRows } from '../../db/home-store.ts';
 import { companyDownloaded, companySummaries } from '../../db/sync-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { newId } from '../../ids.ts';
@@ -31,6 +32,7 @@ import { LIST_FOCUS_WATCH_FRAMES, restoreFocus } from './use-reorder.ts';
 import './templates.css';
 
 const NO_SUMMARIES: RelatorioSummary[] = [];
+const NO_RELATORIOS: RelatorioRow[] = [];
 const noBusy = () => undefined;
 
 /** The two lists a template row can be in. */
@@ -107,6 +109,8 @@ export function TemplatesSurface() {
   const active = useMemo(() => (rows === undefined ? undefined : activeTemplates(rows)), [rows]);
   const archived = useMemo(() => (rows === undefined ? [] : archivedTemplates(rows)), [rows]);
   const summaries = useLiveQuery(() => (db === null ? NO_SUMMARIES : companySummaries(db)), [db]) ?? NO_SUMMARIES;
+  // A relatório created on this device and not yet synced already references its template (Story 4.1).
+  const localRelatorios = useLiveQuery(() => (db === null ? NO_RELATORIOS : relatorioRows(db)), [db]) ?? NO_RELATORIOS;
   // A fresh device of a company that already holds templates shows none until its first
   // company pull completes; creating the standard one then would push a duplicate.
   const downloaded = useLiveQuery(() => (db === null ? false : companyDownloaded(db)), [db]) ?? false;
@@ -195,7 +199,7 @@ export function TemplatesSurface() {
       showToast(copy.templates.awaitingDownload);
       return;
     }
-    if (templateUseCount(row.id, await companySummaries(db)) > 0) {
+    if (templateUseCount(row.id, await companySummaries(db), await relatorioRows(db)) > 0) {
       showToast(copy.templates.removeReferenced);
       return;
     }
@@ -259,7 +263,7 @@ export function TemplatesSurface() {
                     <TemplateListRow
                       key={row.id}
                       row={row}
-                      useCount={templateUseCount(row.id, summaries)}
+                      useCount={templateUseCount(row.id, summaries, localRelatorios)}
                       removable={downloaded}
                       onOpen={() => navigate(`/templates/${row.id}`)}
                       onRemove={() => setRemoving(row)}
@@ -299,7 +303,7 @@ export function TemplatesSurface() {
                       key={row.id}
                       row={row}
                       archived
-                      useCount={templateUseCount(row.id, summaries)}
+                      useCount={templateUseCount(row.id, summaries, localRelatorios)}
                       removable={downloaded}
                       onRemove={() => setRemoving(row)}
                       actions={<TextButton onPress={() => void setArchived(row, false)}>{copy.templates.restore}</TextButton>}

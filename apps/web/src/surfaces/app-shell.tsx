@@ -1,7 +1,7 @@
 import { avatarInitial, PRODUTO, unsyncedForDays } from '@app/domain';
 import { useEffect } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
-import { Link, Outlet, useLocation, useMatches, useNavigate } from 'react-router';
+import { Link, Outlet, useLocation, useMatches, useNavigate, useParams } from 'react-router';
 import { now } from '../clock.ts';
 import { SyncAnnouncer } from '../components/sync-announcer.tsx';
 import { SyncBadge, TextButton } from '../components/index.ts';
@@ -9,6 +9,7 @@ import { copy } from '../copy/pt-br.ts';
 import { ui } from '../copy/ui.ts';
 import { oldestPendingClientTs } from '../db/commit.ts';
 import { useLiveQuery } from '../db/live.ts';
+import { useBackTargetValue } from '../state/back-target.tsx';
 import { BannerSlot, bannerCandidates } from '../state/banner-slot.tsx';
 import { useSession } from '../state/session.tsx';
 import { useSync } from '../state/sync.tsx';
@@ -18,8 +19,13 @@ import { ToastOutlet } from '../state/toast.tsx';
 export interface RouteTitle {
   title: string;
   titleHidden?: boolean;
-  /** Where the App bar's back button goes: one level up (Home when omitted). */
-  back?: string;
+  /**
+   * Where the App bar's back button goes: one level up (Home when omitted), as a route or
+   * as a function of the route params (`/relatorio/:id/setup` goes back to `/relatorio/:id`).
+   * A surface whose parent only its data names (the Sumário's project) sets it through
+   * `useBackTarget` instead.
+   */
+  back?: string | ((params: Record<string, string | undefined>) => string);
 }
 
 /** The document title of a route: "Conta · PRODUTO", or the product name alone on Home. */
@@ -48,6 +54,8 @@ export function AppShell() {
   const navigate = useNavigate();
   const matches = useMatches();
   const location = useLocation();
+  const params = useParams();
+  const backTarget = useBackTargetValue();
   const isHome = location.pathname === '/';
   const db = session.database;
 
@@ -64,6 +72,8 @@ export function AppShell() {
     | undefined;
   const title = handle?.title ?? '';
   const tabTitle = documentTitle(handle);
+  const routeBack = typeof handle?.back === 'function' ? handle.back(params) : handle?.back;
+  const back = backTarget ?? routeBack ?? '/';
 
   useEffect(() => {
     document.title = tabTitle;
@@ -89,7 +99,7 @@ export function AppShell() {
               {PRODUTO}
             </Link>
           ) : (
-            <AriaButton className="icon-btn" aria-label={ui.appBar.back} onPress={() => void navigate(handle?.back ?? '/')}>
+            <AriaButton className="icon-btn" aria-label={ui.appBar.back} onPress={() => void navigate(back)}>
               <svg className="ico" aria-hidden="true">
                 <use href="/sprite.svg#i-back" />
               </svg>

@@ -14,18 +14,20 @@ export interface OverflowMenuProps {
   items: ReadonlyArray<OverflowMenuAction>;
   /** Rendered last, inside their own `.menu-group` (Boundaries: destructive is always last). */
   destructiveItems?: ReadonlyArray<OverflowMenuAction>;
+  /** The trigger's whole accessible name, when the "Mais opções de ⟨nome⟩" template does not fit ("Mais opções do relatório"). */
+  label?: string;
 }
 
 /**
  * Opens on tap or Enter; arrow keys move, Esc closes and returns focus to the trigger
  * (Component Patterns › Overflow menu) — all built into `MenuTrigger`/`Menu`.
  */
-export function OverflowMenu({ name, items, destructiveItems = [] }: OverflowMenuProps) {
+export function OverflowMenu({ name, items, destructiveItems = [], label }: OverflowMenuProps) {
   const actionsById = new Map([...items, ...destructiveItems].map((item) => [item.id, item]));
 
   return (
     <MenuTrigger>
-      <Button className="overflow-trigger" aria-label={ui.overflowMenu.triggerLabel(name)}>
+      <Button className="overflow-trigger" aria-label={label ?? ui.overflowMenu.triggerLabel(name)}>
         <svg className="ico" viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="5" cy="12" r="2" fill="currentColor" stroke="none" />
           <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" />

@@ -1,0 +1,103 @@
+/*
+ * Page-only layout of the Project surface and the Sumário, copied from the mocks' own
+ * `<style data-screen="project">` (`30-project.html`) and `<style data-screen=
+ * "relatorio-overview">` (`40-relatorio-overview.html`, its Sumário block) -- screen-scoped
+ * in the mocks too, not part of components.css -- the same pattern as `templates.css`.
+ * The `.frame-*` variants of these rules live in `app.css` (AGENTS.md "Mock container
+ * selectors"); these are the base declarations only.
+ *
+ * The mocks scope the screens to their prototype routes `/project/porto-seguro` and
+ * `/relatorio/porto-seguro`; the app renders them on `/project/:id` and `/relatorio/:id`,
+ * so those `[data-route]` values stand for them. The "Novo relatório" Form dialog is
+ * portaled out of the route, so its rules are scoped to `.new-relatorio-dialog` instead.
+ * Rules for parts this story does not render (the cabine grid, the field palette, the
+ * viewfinder, the equipment rows of section 9) are left out.
+ */
+
+/* ---------- 30-project.html ---------- */
+[data-route="/project/:id"] .project-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-4); flex-wrap: wrap; margin-bottom: var(--sp-5); }
+[data-route="/project/:id"] .project-head h2 { font-size: var(--t-title-size); font-weight: var(--t-title-weight); line-height: var(--t-title-lh); }
+[data-route="/project/:id"] .crumbs { font-size: var(--t-meta-size); color: var(--ink-secondary); margin-bottom: var(--sp-1); display: flex; align-items: center; gap: var(--sp-1); flex-wrap: wrap; }
+[data-route="/project/:id"] .crumbs a { color: var(--primary); text-decoration: none; font-weight: 600; }
+[data-route="/project/:id"] .project-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--sp-3) var(--sp-5); margin-bottom: var(--sp-5); }
+[data-route="/project/:id"] .project-meta dt { font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--ink-secondary); }
+[data-route="/project/:id"] .project-meta dd { margin: 0; font-size: var(--t-body-size); }
+/* touch target (the mock's Playwright sweep, 2026-09-21) */
+[data-route="/project/:id"] .crumbs a { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; padding: 0 var(--sp-1); }
+.new-relatorio-dialog .type-note { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+.new-relatorio-dialog .option-row .radio { flex: none; }
+.new-relatorio-dialog .field { min-width: 0; }
+/* authored: the mock draws the row's meta inside `.grow`; a `.lr-meta` outside `.relatorio-row` has no rule of its own. */
+.new-relatorio-dialog .option-row .lr-meta { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+/* authored: the template Combobox and its helper stack like one `.field`. */
+.new-relatorio-dialog .field-stack { display: flex; flex-direction: column; gap: var(--sp-1); }
+/* authored: the mock's project meta `dl` and the empty state need a vertical rhythm the
+   `dl`'s UA margin would otherwise set. */
+[data-route="/project/:id"] .project-meta { margin-top: 0; }
+
+/* ---------- 40-relatorio-overview.html (Sumário, v0.8) ---------- */
+[data-route="/relatorio/:id"] .overview-content { flex: 1; min-width: 0; padding: var(--sp-5) var(--gutter-tablet); }
+[data-route="/relatorio/:id"] .header-side { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-1); flex: none; }
+[data-route="/relatorio/:id"] .sum-summary { display: flex; flex-wrap: wrap; gap: 0 var(--sp-3); margin: var(--sp-2) 0 0; }
+[data-route="/relatorio/:id"] .sum-summary .btn-text { min-height: 36px; padding: 0; font-size: var(--t-meta-size); }
+[data-route="/relatorio/:id"] .sumario { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border-hairline); border-radius: var(--r-md); background: var(--surface-raised); }
+[data-route="/relatorio/:id"] .sum-row { display: flex; align-items: center; gap: var(--sp-2); min-height: 64px; padding: 0 var(--sp-3) 0 0; border-top: 1px solid var(--border-hairline); }
+[data-route="/relatorio/:id"] .sum-row:first-child { border-top: 0; }
+[data-route="/relatorio/:id"] .sum-open { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--sp-3); min-height: 64px; padding: var(--sp-2) var(--sp-3) var(--sp-2) var(--sp-1); text-align: left; cursor: pointer; }
+[data-route="/relatorio/:id"] .sum-open > .ico { color: var(--ink-secondary); flex: none; }
+[data-route="/relatorio/:id"] .sum-row > .sum-pos, [data-route="/relatorio/:id"] .sum-pos-empty { flex: none; margin-left: var(--sp-3); }
+[data-route="/relatorio/:id"] .sum-pos-empty { width: 56px; }
+[data-route="/relatorio/:id"] .sum-pos { border-color: transparent; background: transparent; color: var(--ink-secondary); }
+[data-route="/relatorio/:id"] .sum-pos:hover, [data-route="/relatorio/:id"] .sum-pos:focus { border-color: var(--border-strong); background: var(--surface-raised); color: var(--ink-primary); }
+[data-route="/relatorio/:id"] .sum-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+[data-route="/relatorio/:id"] .sum-title { font-size: var(--t-body-size); font-weight: 600; color: var(--ink-primary); }
+[data-route="/relatorio/:id"] .sum-status { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+[data-route="/relatorio/:id"] .sum-status.is-blocking { color: var(--nao-conforme); font-weight: 600; font-size: var(--t-body-size); }
+[data-route="/relatorio/:id"] .sum-ctrls { flex: none; display: flex; align-items: center; gap: var(--sp-1); }
+[data-route="/relatorio/:id"] .sum-ro { font-size: var(--t-meta-size); color: var(--ink-secondary); padding-right: var(--sp-2); }
+/* section 9 */
+[data-route="/relatorio/:id"] .sum-s9 { flex-direction: column; align-items: stretch; padding: 0; }
+[data-route="/relatorio/:id"] .sum-s9-head { display: flex; align-items: center; gap: var(--sp-2); min-height: 64px; padding: var(--sp-2) var(--sp-3) var(--sp-2) 0; }
+[data-route="/relatorio/:id"] .sum-s9-head .tree-chevron { flex: none; }
+[data-route="/relatorio/:id"] .sum-s9 .tree-chevron .ico { transition: transform .15s; transform: rotate(-90deg); }
+[data-route="/relatorio/:id"] .sum-s9.is-open > .sum-s9-head .tree-chevron .ico,
+[data-route="/relatorio/:id"] .s9-cabine.is-open > .s9-cab-row .tree-chevron .ico { transform: none; }
+[data-route="/relatorio/:id"] .s9-cabine .tree-chevron .ico { transition: transform .15s; transform: rotate(-90deg); }
+[data-route="/relatorio/:id"] .s9-note, [data-route="/relatorio/:id"] .s9-tree { display: none; }
+[data-route="/relatorio/:id"] .sum-s9.is-open > .s9-note, [data-route="/relatorio/:id"] .sum-s9.is-open > .s9-tree { display: block; }
+[data-route="/relatorio/:id"] .s9-note { margin: 0 var(--sp-4) var(--sp-2) 104px; font-size: var(--t-meta-size); color: var(--ink-secondary); }
+[data-route="/relatorio/:id"] .s9-tree { list-style: none; margin: 0; padding: 0 0 var(--sp-2) 40px; }
+[data-route="/relatorio/:id"] .s9-cab-row { display: flex; align-items: center; gap: var(--sp-2); min-height: 56px; padding-right: var(--sp-3); border-top: 1px solid var(--border-hairline); }
+[data-route="/relatorio/:id"] .s9-cab-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+[data-route="/relatorio/:id"] .s9-cab-name { font-weight: 600; }
+[data-route="/relatorio/:id"] .s9-cab-meta { font-size: var(--t-meta-size); color: var(--ink-secondary); }
+[data-route="/relatorio/:id"] .sum-here { font-size: var(--t-meta-size); color: var(--primary); font-weight: 600; }
+/* status-driven: Em revisão -> section 9 collapsed, rows with pendências lead the eye */
+[data-route="/relatorio/:id"] .sumario.is-review .sum-row:not(.has-pend) .sum-title { font-weight: 400; color: var(--ink-secondary); }
+[data-route="/relatorio/:id"] .sumario.is-review .sum-row.has-pend { background: var(--surface-base); }
+/* Playwright sweep fixes (2026-09-21): hit areas and phone layout of the Sumário */
+[data-route="/relatorio/:id"] .sum-s9 .tree-chevron, [data-route="/relatorio/:id"] .s9-cabine .tree-chevron { width: var(--touch-min); height: 56px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+[data-route="/relatorio/:id"] .sum-summary .btn-text { min-height: 44px; }
+/* authored: the mock's `.s9-cabine` row carries a chevron in front; this batch draws no
+   children yet (Story 4.4), so the cabine name takes the chevron's inset. */
+[data-route="/relatorio/:id"] .s9-cab-row { padding-left: var(--sp-3); }
+/* authored: the current cabine takes the mock's `.s9-eq.is-current` look until the equipment rows exist (Story 4.4). */
+[data-route="/relatorio/:id"] .s9-cabine.is-current > .s9-cab-row { background: var(--focus-fill); box-shadow: inset 4px 0 0 var(--primary); }
+/* authored: the mock's row is an `<li>` with the number as `<input>`; the App bar's back
+   `.icon-btn` reset does not reach a plain `<div class="sum-open">`, which reads as the button does. */
+[data-route="/relatorio/:id"] div.sum-open { cursor: default; }
+/* authored: the mock's `.sum-row` has no `data-status`; the sticky bar sits after the content. */
+[data-route="/relatorio/:id"] .sticky-action-bar { margin-top: auto; }
+
+/* ---------- the section text (Story 4.7's read-only stand-in) ---------- */
+/* authored: `45-secao.html` is batch C's; the resolved text reads as body copy until then. */
+[data-route="/relatorio/:id/secao/:blockId"] .section-text-title { font-size: var(--t-title-size); font-weight: var(--t-title-weight); line-height: var(--t-title-lh); margin-bottom: var(--sp-4); }
+[data-route="/relatorio/:id/secao/:blockId"] .section-text { display: flex; flex-direction: column; gap: var(--sp-3); margin-bottom: var(--sp-5); max-width: 72ch; }
+
+/* ---------- the "Adicionar abaixo" and "Restaurar" dialogs ---------- */
+/* authored: a ListBox of `.registry-row`s inside a Form dialog; the mock draws the palette instead. */
+.section-picker .section-option { cursor: pointer; padding-left: var(--sp-2); }
+.section-picker .section-option[data-focused] { background: var(--focus-fill); }
+.section-picker .section-option .rr-text { flex: 1; min-width: 0; }
+.restore-list .rr-text { flex: 1; min-width: 0; }
+.restore-list .rr-actions { flex: none; }

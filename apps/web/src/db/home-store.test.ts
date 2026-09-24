@@ -2,7 +2,20 @@ import 'fake-indexeddb/auto';
 import type { RelatorioRow } from '@app/domain';
 import { describe, expect, it } from 'vitest';
 import { toRecord } from './commit.ts';
-import { clientRows, originalFileCount, projectRows, relatorioRows, templateRows } from './home-store.ts';
+import {
+  blockRowsOf,
+  clientRows,
+  equipmentRows,
+  locationRows,
+  originalFileCount,
+  projectRow,
+  projectRows,
+  relatorioRow,
+  relatorioRows,
+  relatoriosOfProject,
+  relatorioState,
+  templateRows,
+} from './home-store.ts';
 import { openDatabase, type AppDatabase } from './schema.ts';
 
 let counter = 0;
@@ -140,4 +153,84 @@ describe('home-store', () => {
     db.close();
   });
 
+});
+
+describe('home-store: the Project and Sumário readers (Story 4.1, 4.3)', () => {
+  const LOCATION = ids();
+  const BLOCK = ids();
+  const REMOVED_BLOCK = ids();
+  const EQUIPMENT = ids();
+
+  async function withRelatorioRows(db: AppDatabase) {
+    await db.entities.bulkPut([
+      toRecord(`location:${LOCATION}`, {
+        id: LOCATION,
+        relatorio_id: RELATORIO,
+        parent_id: null,
+        kind: 'cabine',
+        name: 'Cabine',
+        order_key: 'a0',
+        se: { type: null, primary_kv: null, secondary_kv: null, installed_kva: null },
+        env: { altitude_m: null, temperature_c: null, humidity_pct: null },
+        agrupar_por_tipo: false,
+        removed_at: null,
+      }),
+      toRecord(`block:${BLOCK}`, block(BLOCK, null)),
+      toRecord(`block:${REMOVED_BLOCK}`, block(REMOVED_BLOCK, '2026-09-09T10:00:00.000Z')),
+      toRecord(`equipment:${EQUIPMENT}`, { id: EQUIPMENT, project_id: PROJECT, tag: 'SEC-C01', type: 'chave_seccionadora', last_nameplate: null, removed_at: null }),
+    ]);
+  }
+
+  function block(id: string, removed_at: string | null) {
+    return {
+      id,
+      relatorio_id: RELATORIO,
+      location_id: LOCATION,
+      equipment_id: EQUIPMENT,
+      block_type: 'chave_seccionadora',
+      config: {},
+      seed_version: 'v1',
+      order_key: 'a0',
+      feeds_block_id: null,
+      not_tested: null,
+      concluded_by: null,
+      sheet: { nameplate: {}, checklist: {}, test: {}, conclusion: {}, observations: null },
+      created_by: null,
+      first_edited_at: null,
+      last_modified_by: null,
+      last_modified_at: null,
+      removed_at,
+    };
+  }
+
+  it('reads one live project and relatório by id, null for a tombstone or an unknown id', async () => {
+    const db = await seeded();
+    expect((await projectRow(db, PROJECT))?.name).toBe('Porto Seguro');
+    expect((await relatorioRow(db, RELATORIO))?.id).toBe(RELATORIO);
+    expect(await relatorioRow(db, TOMBSTONED)).toBeNull();
+    expect(await projectRow(db, ids())).toBeNull();
+    db.close();
+  });
+
+  it('reads the live relatórios of a project, the locations, every block (tombstones included) and the equipment', async () => {
+    const db = await seeded();
+    await withRelatorioRows(db);
+    expect((await relatoriosOfProject(db, PROJECT)).map((r) => r.id)).toEqual([RELATORIO]);
+    expect((await locationRows(db, RELATORIO)).map((l) => l.name)).toEqual(['Cabine']);
+    expect((await blockRowsOf(db, RELATORIO)).map((b) => b.id).sort()).toEqual([BLOCK, REMOVED_BLOCK].sort());
+    expect((await equipmentRows(db, PROJECT)).map((e) => e.tag)).toEqual(['SEC-C01']);
+    expect(await blockRowsOf(db, ids())).toEqual([]);
+    db.close();
+  });
+
+  it('assembles the snapshot state of one relatório, null when this device holds none', async () => {
+    const db = await seeded();
+    await withRelatorioRows(db);
+    const state = (await relatorioState(db, RELATORIO))!;
+    expect([...state.keys()].sort()).toEqual(
+      [`relatorio:${RELATORIO}`, `project:${PROJECT}`, `location:${LOCATION}`, `block:${BLOCK}`, `block:${REMOVED_BLOCK}`, `equipment:${EQUIPMENT}`, `registry:${CLIENT}`, `registry:${MANUFACTURER}`].sort(),
+    );
+    expect(await relatorioState(db, TOMBSTONED)).toBeNull();
+    db.close();
+  });
 });

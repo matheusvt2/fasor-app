@@ -255,3 +255,8 @@ export function templateTotals(template: Pick<TemplateRow, 'blocks' | 'skeleton'
   }
   return totals;
 }
+
+/** The template's equipment blocks across every type: the "94 blocos" of the "Novo relatório" dialog. */
+export function templateBlockTotal(template: Pick<TemplateRow, 'blocks' | 'skeleton'>): number {
+  return Object.values(templateTotals(template)).reduce((sum, count) => sum + count, 0);
+}

@@ -73,6 +73,9 @@ function cellOf(op: Op): Cell {
   return { value: op.value, source_suggestion_id: op.meta?.source_suggestion_id ?? null, op_id: op.op_id };
 }
 
+/** The template fields whose put is a content edit (D-4): every relatório copies these at creation. */
+const TEMPLATE_CONTENT_FIELDS: ReadonlySet<string> = new Set(['name', 'blocks', 'skeleton']);
+
 function attributed(block: BlockRow, op: Op): BlockRow {
   return {
     ...block,
@@ -228,6 +231,13 @@ function writeRow(row: EntityRow, op: Op, path: OpPath): EntityRow {
     case 'block/field': {
       const block = { ...(row as BlockRow), [path.field]: value } as BlockRow;
       return path.field === 'not_tested' ? attributed(block, op) : block;
+    }
+    case 'template/field': {
+      // D-4 (2026-09-23): a content edit bumps `version` here, on the device and on the
+      // server alike, so both agree without a second op; archive, restore and remove do
+      // not, and a `version` put sets the value explicitly.
+      const bump = TEMPLATE_CONTENT_FIELDS.has(path.field) ? { version: ((r.version as number) ?? 0) + 1 } : {};
+      return { ...r, ...bump, [path.field]: value } as EntityRow;
     }
     default: {
       const field = (path as { field?: string }).field;

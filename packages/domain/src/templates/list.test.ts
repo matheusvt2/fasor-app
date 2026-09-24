@@ -138,3 +138,21 @@ describe('3.3-UNIT emptyTemplate', () => {
     expect(templateRowSchema.parse(legacy).archived_at).toBeNull();
   });
 });
+
+describe("4.1-UNIT templateUseCount counts this device's unsynced relatórios too", () => {
+  const summaries: RelatorioSummary[] = [
+    { id: '019966b0-0033-7000-8000-000000000011', project_id: 'p', status: 'rascunho', template_id: A, seed_version: 'v1', updated_seq: 1 },
+  ];
+
+  it('unites the summary with the local rows by id, ignoring tombstones', () => {
+    const local = [
+      { id: '019966b0-0033-7000-8000-000000000011', template_id: A, removed_at: null },
+      { id: '019966b0-0033-7000-8000-000000000012', template_id: A, removed_at: null },
+      { id: '019966b0-0033-7000-8000-000000000013', template_id: A, removed_at: '2026-09-22T10:00:00.000Z' },
+      { id: '019966b0-0033-7000-8000-000000000014', template_id: B, removed_at: null },
+    ];
+    expect(templateUseCount(A, summaries, local)).toBe(2);
+    expect(templateUseCount(B, [], local)).toBe(1);
+    expect(templateUseCount(A, summaries)).toBe(1);
+  });
+});
