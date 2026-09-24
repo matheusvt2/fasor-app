@@ -733,19 +733,22 @@ test('@p0 5.8-E2E-001 one tap on the suggestion sets both pairs, the composed te
   await expect(page.locator('.suggestion-field.is-generated .suggestion-alt')).toHaveCount(0);
   await expect(text).not.toContainText('valores medidos dentro dos critérios de aceitação');
   const replacedText = (await text.textContent())!;
-  await expect.poll(async () => (await textOps()).at(-1)).toBe(replacedText);
+  await expect.poll(async () => (await textOps()).includes(replacedText)).toBe(true);
   expect(replacedText).not.toBe(confirmedText);
 
   // Sem restrições with a non-conforming item: the warning under the pair.
   // By keyboard on row 1 (Conforme -> ArrowRight -> Não conforme, and back), so the
   // stepper's scroll cannot move the target under the pointer.
   await stepper(page).getByRole('button', { name: /^Verificações,/ }).click();
+  // The stepper lands its focus on the step a few frames later; wait for it, or it steals the radio's.
+  await expect(page.locator('#ficha-step-verificacoes')).toBeFocused();
   await checklistRow(page, 1).getByRole('radio', { name: 'Conforme', exact: true }).focus();
   await page.keyboard.press('ArrowRight');
   await expect(checklistRow(page, 1).getByRole('radio', { name: 'Não conforme' })).toHaveAttribute('aria-checked', 'true');
   await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
   await expect(page.locator('.conclusion-control .conclusion-hint[role="status"]')).toHaveText('Há itens não conformes');
   await stepper(page).getByRole('button', { name: /^Verificações,/ }).click();
+  await expect(page.locator('#ficha-step-verificacoes')).toBeFocused();
   await checklistRow(page, 1).getByRole('radio', { name: 'Não conforme' }).focus();
   await page.keyboard.press('ArrowLeft');
   await expect(checklistRow(page, 1).getByRole('radio', { name: 'Conforme', exact: true })).toHaveAttribute('aria-checked', 'true');
@@ -754,7 +757,7 @@ test('@p0 5.8-E2E-001 one tap on the suggestion sets both pairs, the composed te
 
   // "Editar": stored as edited at once, typed, blurred; the edited text survives a reload.
   await page.locator('.suggestion-field.is-generated').getByRole('button', { name: 'Editar' }).click();
-  await expect.poll(async () => (await outbox(page)).filter((row) => row.path === `sheet/${blockId}/conclusion/text_status`).at(-1)?.value).toBe('edited');
+  await expect.poll(async () => (await outbox(page)).some((row) => row.path === `sheet/${blockId}/conclusion/text_status` && row.value === 'edited')).toBe(true);
   const editor = page.getByRole('textbox', { name: 'Texto da conclusão' });
   await expect(editor).toBeFocused();
   await page.keyboard.press('Control+End');

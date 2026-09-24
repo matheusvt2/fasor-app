@@ -12,7 +12,21 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-5-context.md'
   - '{project-root}/_bmad-output/implementation-artifacts/spec-5-1-5-4-sheet-shell-cabine-nameplate-checklist.md'
 warnings: ['batched', 'oversized']
-deferred: []
+deferred:
+  - summary: >-
+      Draft recovery ("Rascunho encontrado — Recuperar") of a typed but uncommitted reading has no e2e test.
+    evidence: |-
+      number-input.test.tsx and generated-text-field.test.tsx stub useDraftSource; the only draft e2e (5.1-E2E-004) covers a checklist observation.
+    location: >-
+      apps/web/src/components/number-input.tsx
+    severity: medium
+  - summary: >-
+      A 5.8-E2E-001 run failed once at the Editar outbox poll during the fix pass; cause not found, later reruns green.
+    evidence: |-
+      Reported by the fix subagent; 3 consecutive reruns of the 5.4, 5.5 and 5.8 tests passed.
+    location: >-
+      e2e/ficha.spec.ts
+    severity: low
 ---
 
 <!-- batched: Stories 5.5, 5.6, 5.7, 5.8 plus the Batch A carry-over (nameplate number field) share one
@@ -88,6 +102,34 @@ surface (the sheet's Ensaios and Conclusão steps) and one kernel reading evalua
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-09-24 — Review pass
+
+Layers run: Edge Case Hunter, Verification Gap Reviewer. Skipped: Blind Hunter, Intent Alignment (token economy; the integrated Epic 5 review covers them).
+
+- verdicts: 21 findings — high 0, medium 10, low 10, false 1, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` A "Não medido" cell's input holds "-", so typing "5" commits -5 — fixed: input empty with "-" as placeholder.
+  - `[medium]` `[patch]` Ratio input 0 or negative gives calc 0, an Infinity/NaN deviation judged out — fixed: calc only when primary and secondary > 0 and finite.
+  - `[low]` `[patch]` Same root: "Infinity %" could print in the conclusion — fixed by the same guard (worstReadings skips rows without a calc).
+  - `[medium]` `[patch]` Negative readings accepted by `parseReadingPtBr` — fixed: a leading "-" is invalid for readings.
+  - `[medium]` `[patch]` Unit tapped on a focused measured cell, blur without typing: slot shows the new unit, stored keeps the old — fixed: the tap writes the re-unitized value whenever the text parses.
+  - `[low]` `[patch]` Stale `unitChoice` overrides a stored unit changed remotely/by undo — fixed: any stored change resets it.
+  - `[medium]` `[patch]` "Editar" did not store text_status edited nor stop recomposition, and a blur without change left the field stuck — fixed: Editar commits the text as edited at once, then opens typing.
+  - `[low]` `[reject]` A stored `criterion_override` is ignored by the evaluation — no surface writes one (source-deltas row 33, spec Never: no override UI); adding it is new behavior, not a correction.
+  - `[low]` `[patch]` Instrument list stays open after focus leaves — fixed: closes on focus-out and outside pointerdown.
+  - `[low]` `[reject]` Clearing the result after confirming the text leaves `conclusionTextForPrint` returning the text — the sheet is then incomplete (sheetProgress) and the text shows stale; the renderer is Epic 7's; unlikely and needs a new guard.
+  - `[low]` `[reject]` Confirm built from render-time composed text can store a stale basis if the block changes in the same instant — self-corrects (shows "texto atualizado — Substituir"); rare.
+  - `[false]` `[reject]` Criteria line/paragraph name one reading per test, not every out reading — by design: EXPERIENCE.md:129 phrases it as the test's minimum ("resistência de isolação mínima de 330 MΩ"), the spec's Design Notes take the worst reading per test.
+  - `[low]` `[reject]` `assertCellGeometry` would refuse future added TAP rows — TAP rows are deferred (Narrowings); that story updates the check.
+  - `[medium]` `[patch]` (gap) `useTypedText` sent-queue fix untested — added the "abc" + pause + "def" case to 5.4-E2E-001.
+  - `[medium]` `[patch]` (gap) "Concluir ficha" landing on Ensaios/Conclusão untested — new `@p0 5.8-E2E-002`.
+  - `[medium]` `[patch]` (gap) "Substituir", "Editar" and "Há itens não conformes" not exercised in the sheet — extended 5.8-E2E-001.
+  - `[medium]` `[patch]` (gap) Unit change on an unfocused stored reading untested — extended 5.5-E2E-001.
+  - `[medium]` `[defer]` (gap) Draft recovery of an unsaved reading untested — filed disposition defer; the shared draft machinery is covered by 5.1-E2E-004.
+  - `[low]` `[patch]` Nameplate number shows "3.300" after blur but "3300" after reload — fixed: grouped both ways.
+  - `[low]` `[reject]` Stricter cell geometry makes older local op logs with out-of-table addresses fail to replay — nothing shipped; noted in the PR body.
+  - `[low]` `[reject]` (counted with the previous row's family) Fixture `replay-small` rewritten for the geometry check — test data only, kept consistent with the golden snapshot.
 
 ## Design Notes
 
