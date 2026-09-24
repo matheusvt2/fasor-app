@@ -953,6 +953,8 @@ So that the generated document is the one I sign today and I type only what is s
 **When** the seed tests pass
 **Then** Matheus reviews the resolved definitions against the decoded FO.SERV-03 in `docs/context/` (labels, counts, criteria and sources) and records the review with the date in this story before Story 4.1 starts; Bruno's review happens on the first generated DOCX in Story 4.8 (decision 4 of 2026-09-21)
 
+*2026-09-23, Matheus (Epic 3 retro E3-A1): the R-009 review is deferred; Epic 4 starts without it. The review is recorded here before Epic 5 starts, and it decides D-2 (`{obra}` split and article), D-3 (NA defaults and subtypes) and D-6 (roles). Any correction ships as seed v2 (append-only, AR-20), so relatórios created on v1 keep resolving.*
+
 ### Story 3.2: Seed the section boilerplate and the "Cabine primária — padrão" template
 
 **Dev model:** opus · **Effort:** medium · boilerplate with variables, BlockConfig schema and the seeded template skeleton
@@ -1103,6 +1105,8 @@ A user creates the Porto Seguro project and a relatório from the template: all 
 ### Story 4.1: Create a project and a relatório whose blocks are born in place
 
 **Dev model:** fable · **Effort:** high · instantiateTemplate, the equipment table, TAG suggestion and the creation batch shape the whole data model
+
+*2026-09-23, Matheus (Epic 3 retro D-4): `template.version` is no longer immutable. Every template edit increments it, and `instantiateTemplate` records the template's current version in `relatorio.template_version`. D-2 (`{obra}`) stays on seed v1 until the R-009 review (see Story 3.1).*
 
 As an office user,
 I want to open a project for a client and site and create a relatório from a template,
