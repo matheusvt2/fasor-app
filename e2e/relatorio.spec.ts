@@ -308,6 +308,16 @@ test('@p0 4.3-E2E-001 the Sumário: order, rows that open, the Position box, Ove
   await expect(sumarioTitles(page)).toHaveCount(15);
   await expect(sumarioTitles(page).nth(6)).toHaveText('Definições');
 
+  // A Position box move committed with Enter keeps the focus on the box; the removal that
+  // follows at once must still send the focus to its own target (a watch left by the move
+  // once stole it, real-browser pass 2026-09-24).
+  await posBox(page, 'Objetivo').click();
+  await page.keyboard.press('Control+a');
+  await page.keyboard.type('2');
+  await page.keyboard.press('Enter');
+  await expect(sumarioTitles(page).nth(3)).toHaveText('Objetivo');
+  await expect(posBox(page, 'Objetivo')).toBeFocused();
+
   // Remover row 5 (now "Definições", the added one): the row now at 5 takes the focus.
   await expect(posBox(page, 'Requisitos básicos')).toHaveValue('6');
   await page.getByRole('button', { name: 'Mais opções de Definições' }).nth(2).click();

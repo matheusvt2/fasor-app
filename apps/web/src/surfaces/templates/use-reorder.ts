@@ -92,8 +92,12 @@ export function restoreFocus(
     const element = target();
     const active = document.activeElement;
     const lost = active === null || active === document.body || !active.isConnected;
-    if (element !== null && element.isConnected && lost) {
-      element.focus();
+    if (element !== null && element.isConnected) {
+      if (lost) element.focus();
+      // With `once`, the watch ends as soon as the target is there: it took the focus now,
+      // or it already held it (a Position box committed with Enter), or something else holds
+      // it on purpose. A watch that outlived its move once stole the focus from the next
+      // removal's own target (batch A real-browser pass, 2026-09-24).
       if (once) return;
     }
     if (++watched < frames) requestAnimationFrame(tick);

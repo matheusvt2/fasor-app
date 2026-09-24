@@ -66,6 +66,9 @@ export function NewProjectDialog({ clients, projects, onClose }: NewProjectDialo
   const createdLabels = useRef(new Map<string, string>());
   const labelOf = (options: readonly { id: string; label: string }[], id: string): string | undefined =>
     options.find((option) => option.id === id)?.label ?? createdLabels.current.get(id);
+  /** True for a row created in this dialog that the live query has not listed yet. */
+  const stillLanding = (options: readonly { id: string }[], id: string): boolean =>
+    createdLabels.current.has(id) && !options.some((option) => option.id === id);
 
   function pickClient(id: string, label: string): void {
     setClientId(id);
@@ -154,6 +157,9 @@ export function NewProjectDialog({ clients, projects, onClose }: NewProjectDialo
           }
         }}
         onSelectionChange={(key) => {
+          // On blur React Aria clears a selection whose text it cannot match to an option; a
+          // row created here is not listed until the live query lands, so that null is kept out.
+          if (key === null && clientId !== null && stillLanding(clientOptions, clientId)) return;
           setClientId(key);
           setClientText(clientOptions.find((o) => o.id === key)?.label ?? clientText);
           setProjectId(null);
@@ -172,6 +178,7 @@ export function NewProjectDialog({ clients, projects, onClose }: NewProjectDialo
           if (projectId !== null && label !== undefined && label !== text) setProjectId(null);
         }}
         onSelectionChange={(key) => {
+          if (key === null && projectId !== null && stillLanding(projectOptions, projectId)) return;
           setProjectId(key);
           setProjectText(projectOptions.find((o) => o.id === key)?.label ?? projectText);
         }}
