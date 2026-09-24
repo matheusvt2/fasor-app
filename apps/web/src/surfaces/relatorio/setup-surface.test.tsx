@@ -377,6 +377,35 @@ describe('4.2 SetupSurface', () => {
     });
   });
 
+  it('E4 retro item 24: "Remover" in an exclusion\'s menu writes the list without it; "Desfazer" puts it back', async () => {
+    database = await seeded();
+    const record = await database.entities.get(['relatorio', RELATORIO]);
+    const row = record!.row as RelatorioRow;
+    await database.entities.put({ ...record!, row: { ...row, setup: { ...row.setup, exclusions: ['Item A', '  ', 'Item C'] } } });
+    renderSetup();
+    const exclusionsOf = async () => ((await database!.entities.get(['relatorio', RELATORIO]))!.row as RelatorioRow).setup.exclusions;
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções da exclusão 1' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Remover' }));
+    await waitFor(async () => expect(await exclusionsOf()).toEqual(['  ', 'Item C']));
+    expect(screen.getAllByRole('textbox', { name: /^Exclusão \d$/ })).toHaveLength(2);
+    expect(await screen.findByText('Exclusão 1 removida')).toBeVisible();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
+    await waitFor(async () => expect(await exclusionsOf()).toEqual(['Item A', '  ', 'Item C']));
+    await waitFor(() => expect(screen.getByRole('textbox', { name: 'Exclusão 1' })).toHaveValue('Item A'));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Mais opções da exclusão 1' })).toHaveFocus());
+  });
+
+  it('E4 retro item 12: "Concluir" follows the kernel table: offered on Rascunho only, "Dados salvos" otherwise', async () => {
+    database = await seeded();
+    const record = await database.entities.get(['relatorio', RELATORIO]);
+    await database.entities.put({ ...record!, row: { ...(record!.row as RelatorioRow), status: 'emitido' } });
+    renderSetup();
+    expect(await screen.findByText('Dados salvos')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Concluir dados do relatório' })).toBeNull();
+  });
+
   it('?etapa= scrolls to and focuses the named band\'s heading, once on mount', async () => {
     const scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;

@@ -134,6 +134,14 @@ class FakeServer implements SyncClient {
     throw new Error('the sync engine never generates');
   }
 
+  /** Epic 4 retro item 17: the project's own stream, its project-scope ops only. */
+  async pullProject(id: string, since: number): Promise<SyncPullResponse> {
+    this.pulls.push(`project:${id}:${since}`);
+    this.fail('pulls');
+    if (!this.log.some((op) => op.kind === 'create' && op.path === `project/${id}`)) throw new SyncRequestError({ kind: 'http', status: 404, code: 'not_found' });
+    return this.stream((op) => op.scope === 'project' && op.project_id === id, since);
+  }
+
   async pullRelatorio(id: string, since: number): Promise<SyncPullResponse> {
     this.pulls.push(`${id}:${since}`);
     this.fail('pulls');
@@ -722,6 +730,44 @@ describe('sync engine', () => {
     const before = h.server.pulls.length;
     expect(await h.engine.runCycle()).toBe('ran');
     expect(h.server.pulls.slice(before).some((p) => p.startsWith(`${RELATORIO_ID}:`))).toBe(true);
+    h.db.close();
+  });
+
+  it('E4 retro item 17: syncProject follows the project stream through the project route, never as a relatório', async () => {
+    // Another device wrote the relatório (Emitido, so no automatic pull) and its equipment.
+    const other = await harness();
+    await commitOps(other.db, seedLog());
+    expect(await other.engine.runCycle()).toBe('ran');
+    other.db.close();
+    const fresh = await harness();
+    fresh.server.log = other.server.log;
+    fresh.server.relatorios = [{ id: RELATORIO_ID, project_id: PROJECT_ID, status: 'emitido' }];
+    expect(await fresh.engine.runCycle()).toBe('ran');
+    expect(await fresh.db.entities.get(['equipment', EQUIPMENT_1_ID])).toBeUndefined();
+
+    expect(await fresh.engine.syncProject(PROJECT_ID)).toBe('ran');
+    expect(fresh.server.pulls).toContain(`project:${PROJECT_ID}:0`);
+    // The project's equipment is here, the relatório's own rows are not.
+    expect(await fresh.db.entities.get(['equipment', EQUIPMENT_1_ID])).toBeDefined();
+    expect(await fresh.db.entities.get(['relatorio', RELATORIO_ID])).toBeUndefined();
+    expect(await fresh.db.sync_state.get(`project:${PROJECT_ID}`)).toMatchObject({ complete: true });
+    expect(fresh.server.pulls.some((p) => p.startsWith(`${RELATORIO_ID}:`))).toBe(false);
+
+    // Every later cycle keeps following it.
+    const before = fresh.server.pulls.length;
+    expect(await fresh.engine.runCycle()).toBe('ran');
+    expect(fresh.server.pulls.slice(before).some((p) => p.startsWith(`project:${PROJECT_ID}:`))).toBe(true);
+    fresh.db.close();
+  });
+
+  it('E4 retro item 17: syncProject asked during a running cycle runs one more cycle after it', async () => {
+    const h = await harness();
+    await commitOps(h.db, seedLog());
+    const running = h.engine.runCycle();
+    const project = h.engine.syncProject(PROJECT_ID);
+    expect(await running).toBe('ran');
+    expect(await project).toBe('ran');
+    expect(await h.db.sync_state.get(`project:${PROJECT_ID}`)).toMatchObject({ complete: true });
     h.db.close();
   });
 

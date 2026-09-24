@@ -67,6 +67,12 @@ export interface SyncState {
   syncNow: () => Promise<CycleResult>;
   /** Starts following one relatório's stream and pulls it now (AD-8, "pulled on open"). */
   syncRelatorio: (relatorioId: string) => Promise<CycleResult>;
+  /**
+   * Starts following one project's own stream and pulls it now (Epic 4 retro item 17). The
+   * provider always supplies it; it is optional in the type only so a test double built
+   * before it existed (the tree's, owned by another batch) still type-checks.
+   */
+  syncProject?: (projectId: string) => Promise<CycleResult>;
   resendDead: () => Promise<void>;
   /**
    * AD-7: the on-demand file read, handed to the surfaces so a tile can fill its
@@ -170,6 +176,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     async (relatorioId: string) => (await engineRef.current?.syncRelatorio(relatorioId)) ?? 'paused',
     [],
   );
+  const syncProject = useCallback(
+    async (projectId: string) => (await engineRef.current?.syncProject(projectId)) ?? 'paused',
+    [],
+  );
   const resendDead = useCallback(async () => {
     if (db === null) return;
     await resendDeadRows(db);
@@ -211,11 +221,12 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       summaryRelatorios: company?.relatorios ?? NO_SUMMARY,
       syncNow,
       syncRelatorio,
+      syncProject,
       resendDead,
       fetchFile,
       generate,
     }),
-    [counts, session.online, unreachable, status, company, device, userNames, syncNow, syncRelatorio, resendDead, fetchFile, generate],
+    [counts, session.online, unreachable, status, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, fetchFile, generate],
   );
 
   return <SyncContext value={value}>{children}</SyncContext>;

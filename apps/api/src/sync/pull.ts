@@ -77,6 +77,28 @@ export async function pullRelatorio(
   return page(db, filter, since, limit);
 }
 
+/**
+ * Epic 4 retro item 17: a project's own stream, its project-scope ops only (the obra's
+ * equipment), so a device can reuse the equipment of relatórios it never pulled before it
+ * creates another relatório of the obra. `null` when the project is unknown to this
+ * company (the route answers 404).
+ */
+export async function pullProject(
+  db: Db,
+  companyId: CompanyId,
+  projectId: string,
+  since: number,
+  limit: number = SYNC_PULL_PAGE,
+): Promise<PulledPage | null> {
+  const [project] = await db
+    .select({ id: entities.id })
+    .from(entities)
+    .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'project'), eq(entities.id, projectId)));
+  if (!project) return null;
+  const filter = and(eq(ops.company_id, companyId), eq(ops.scope, 'project'), eq(ops.project_id, projectId));
+  return page(db, filter, since, limit);
+}
+
 /** AD-8: `last_push_at` rows plus the company's live relatorio rows in the summary shape. */
 export async function companySummary(db: Db, companyId: CompanyId): Promise<SyncSummary> {
   const [pushes, relatorios] = await Promise.all([

@@ -252,6 +252,16 @@ function relatorioCreate(ids: Ids, relatorioId: string, projectId: string): Op {
   });
 }
 
+function projectCreate(ids: Ids, projectId: string): Op {
+  written.entityIds.add(projectId);
+  return op(ids, {
+    kind: 'create',
+    scope: 'company',
+    path: `project/${projectId}`,
+    value: { id: projectId, client_id: null, name: 'Obra de Teste', site: null, removed_at: null },
+  });
+}
+
 function equipmentCreate(ids: Ids, equipmentId: string, projectId: string): Op {
   written.entityIds.add(equipmentId);
   return op(ids, {
@@ -571,6 +581,40 @@ describe('1.5-API-004 pulls', () => {
     expect(tail.seq).toBe(page.seq);
   });
 
+  it('E4 retro item 17: the project stream holds its own project-scope ops only, in seq order, with the head', async () => {
+    const projectId = newId();
+    const otherProjectId = newId();
+    const relatorioId = newId();
+    const equipmentId = newId();
+    const created = await pushOk(companyA, [projectCreate(idsA, projectId), projectCreate(idsA, otherProjectId)]);
+    expect(created.rejected).toEqual([]);
+    const equipment = equipmentCreate(idsA, equipmentId, projectId);
+    const rename = op(idsA, { kind: 'put', scope: 'project', project_id: projectId, path: `equipment/${equipmentId}/tag`, value: 'TR-01A' });
+    const elsewhere = equipmentCreate(idsA, newId(), otherProjectId);
+    const own = await pushOk(companyA, [equipment, relatorioCreate(idsA, relatorioId, projectId), setupPut(idsA, relatorioId, 'local', 'Torre A'), elsewhere, rename]);
+    expect(own.rejected).toEqual([]);
+
+    const page = await pullOk(companyA, `/api/sync/projects/${projectId}?since=0`);
+    expect(Object.keys(page).sort()).toEqual(['ops', 'seq']);
+    const pulled = page.ops as Op[];
+    expect(pulled.map((o) => o.op_id)).toEqual([equipment.op_id, rename.op_id]);
+    expect(page.seq).toBe(pulled.at(-1)!.seq);
+
+    const tail = await pullOk(companyA, `/api/sync/projects/${projectId}?since=${pulled[0]!.seq}`);
+    expect((tail.ops as Op[]).map((o) => o.op_id)).toEqual([rename.op_id]);
+  });
+
+  it('E4 retro item 17: answers 404 for an unknown, foreign or malformed project id', async () => {
+    const foreignProject = newId();
+    await pushOk(companyB, [projectCreate(idsB, foreignProject)]);
+    for (const id of [foreignProject, newId(), 'abc']) {
+      const res = await pull(companyA, `/api/sync/projects/${id}?since=0`);
+      expect(res.status).toBe(404);
+      expect(errorResponseSchema.parse(await res.json()).code).toBe('not_found');
+    }
+    expect((await pull(companyB, `/api/sync/projects/${foreignProject}?since=0`)).status).toBe(200);
+  });
+
   it('records one last_push_at row per (user, device) and moves it forward on every push', async () => {
     await pushOk(companyA, [clientCreate(idsA, newId())]);
     const [first] = await pushRowsOf(companyA.userId, DEVICE_A);
@@ -867,7 +911,7 @@ describe('the registration as user ops (retro A2)', () => {
 
 describe('1.5-API-005 contract skew', () => {
   it('answers 426 on pulls below the minimum or without the header, and still accepts the push', async () => {
-    for (const path of ['/api/sync/company?since=0', `/api/sync/relatorios/${newId()}?since=0`]) {
+    for (const path of ['/api/sync/company?since=0', `/api/sync/relatorios/${newId()}?since=0`, `/api/sync/projects/${newId()}?since=0`]) {
       const res = await pull(companyA, path, '0');
       expect(res.status).toBe(426);
       expect(errorResponseSchema.parse(await res.json()).code).toBe('contract_outdated');

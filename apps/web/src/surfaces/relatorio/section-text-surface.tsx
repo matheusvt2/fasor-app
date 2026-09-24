@@ -1,6 +1,9 @@
 import {
   buildSnapshot,
   defaultSectionText,
+  editedSectionTextConfig,
+  putBlockOp,
+  restoredSectionTextConfig,
   INSERTABLE_SECTION_VARIABLES,
   isSectionBlockType,
   relatorioSectionNumber,
@@ -14,14 +17,14 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { Button, Chip, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { now } from '../../clock.ts';
-import { commitBatch, undoBatch } from '../../db/commit.ts';
-import { relatorioState, templateRows } from '../../db/home-store.ts';
+import { commitBatch } from '../../db/commit.ts';
+import { blockRowsOf, relatorioState, templateRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { useSectionTextArea } from '../../input/use-section-text-area.ts';
 import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
-import { useToast } from '../../state/toast.tsx';
+import { useUndoableEdits } from '../../state/use-undoable-edits.ts';
 import './relatorio.css';
 
 /** The section types this surface ever opens for; 1 and 3 route to Etapa 2 of the setup page instead. */
@@ -81,7 +84,7 @@ function SectionTextEditor({ relatorioId, block, seedVersion, templateName }: Se
   const db = useSession().database;
   const user = useSession().user;
   const navigate = useNavigate();
-  const { showToast } = useToast();
+  const edits = useUndoableEdits();
   const t = copy.sectionText;
 
   const config = block.config as { section_text?: unknown } | null;
@@ -91,35 +94,32 @@ function SectionTextEditor({ relatorioId, block, seedVersion, templateName }: Se
 
   const author = user === null ? null : { id: user.id, companyId: user.companyId };
 
-  async function commitConfig(section_text: string | null): Promise<{ batch_id: string } | null> {
+  /**
+   * One `block/{id}/config` put built from the block's config as this device holds it at the
+   * moment of the write (never the render's, which a quick second autosave would read
+   * stale), in the surface's edit queue (Epic 4 retro item 21). Resolves to the batch id,
+   * or null when nothing was written (the block is gone).
+   */
+  async function writeConfig(next: (config: unknown) => Record<string, unknown>): Promise<string | null> {
     if (db === null || author === null) return null;
-    const result = await commitBatch(
-      db,
-      [
-        {
-          scope: 'relatorio',
-          company_id: author.companyId,
-          project_id: null,
-          relatorio_id: relatorioId,
-          prev_op_id: null,
-          batch_id: null,
-          meta: null,
-          actor_id: author.id,
-          kind: 'put',
-          path: `block/${block.id}/config`,
-          value: { ...(block.config as object), section_text } as never,
-        },
-      ],
-      { newId, now },
-    );
-    return { batch_id: result.batch_id };
+    const fresh = (await blockRowsOf(db, relatorioId)).find((row) => row.id === block.id);
+    if (fresh === undefined || fresh.removed_at !== null) return null;
+    return (await commitBatch(db, [putBlockOp(author, relatorioId, block.id, 'config', next(fresh.config))], { newId, now })).batch_id;
   }
 
-  const committer = useFieldCommit<string>({ commit: (text) => void commitConfig(text) });
+  // A refused autosave is said once, by `useFieldCommit`, which keeps the text for the next blur.
+  const committer = useFieldCommit<string>({
+    commit: (text) => edits.write(() => writeConfig((current) => editedSectionTextConfig(current, text)), { quiet: true }).then(() => undefined),
+  });
 
   const { areaRef, areaProps, insert, setText } = useSectionTextArea({
     initialText,
-    onChange: (text) => committer.change(text),
+    onChange: (text) => {
+      // Typing over a restore takes its "Desfazer" away at once: an undo now would put the
+      // old text back over what is being typed.
+      edits.retire();
+      committer.change(text);
+    },
     onBlur: () => committer.blur(),
   });
 
@@ -127,24 +127,20 @@ function SectionTextEditor({ relatorioId, block, seedVersion, templateName }: Se
     if (own === null) return;
     const editedText = own;
     committer.flush();
-    const batch = await commitConfig(null);
+    const batch = await edits.write(() => writeConfig(restoredSectionTextConfig)).catch(() => null);
     if (batch === null) return;
     // The area is uncontrolled (Story 3.6): a restore/undo changes what is shown for a
     // reason other than typing in it, so the visible text is set here rather than relying
     // on a remount, which would also fire on every ordinary autosave (`own` changes then too).
     setText(seeded ?? '');
-    showToast(t.restored, {
-      action: {
-        label: t.undo,
-        onPress: () => {
-          if (db === null) return;
-          void undoBatch(db, batch.batch_id, { newId, now });
-          setText(editedText);
-          // E3-A8: the toast that held focus is about to close; without this the undone
-          // edit would leave focus stranded on `<body>`. The text area is what the undo
-          // actually changed, so it gets focus back.
-          areaRef.current?.focus();
-        },
+    edits.undoable(t.restored, batch, {
+      label: t.undo,
+      onUndo: () => {
+        setText(editedText);
+        // E3-A8: the toast that held focus is about to close; without this the undone
+        // edit would leave focus stranded on `<body>`. The text area is what the undo
+        // actually changed, so it gets focus back.
+        areaRef.current?.focus();
       },
     });
   }

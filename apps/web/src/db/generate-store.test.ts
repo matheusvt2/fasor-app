@@ -3,7 +3,7 @@ import { makeOp, SERVER_DEVICE_ID, type Op, type RevisionRow } from '@app/domain
 import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { describe, expect, it } from 'vitest';
 import { commitBatch } from './commit.ts';
-import { lastOpIdFor, latestGenerationJob, relatorioRow, revisionRows } from './generate-store.ts';
+import { editedSinceSnapshot, lastOpIdFor, latestGenerationJob, relatorioRow, revisionRows } from './generate-store.ts';
 import { newId } from '../ids.ts';
 import { openDatabase, type AppDatabase } from './schema.ts';
 import { applyPulled, markDead } from './sync-store.ts';
@@ -90,6 +90,35 @@ describe('generate-store reads', () => {
     const db = await freshDb();
     expect(await relatorioRow(db, newId())).toBeNull();
     expect(await lastOpIdFor(db, newId())).toBeNull();
+  });
+});
+
+describe('E4 retro item 18: editedSinceSnapshot reads the relatório stream', () => {
+  function projectOp(path: string, value: unknown, seqOf: number, kind: Op['kind'] = 'put'): Op {
+    return {
+      ...serverOp({ kind, path, value, client_ts: '2026-09-11T10:00:00.000Z' }),
+      scope: 'project',
+      project_id: portoSeguroSmall.projectId,
+      relatorio_id: null,
+      actor_id: USER,
+      device_id: 'tablet-office',
+      seq: seqOf,
+    };
+  }
+
+  it('an equipment the relatório does not reference is no edit; a rename of one it references is', async () => {
+    const db = await freshDb();
+    const snapshot = 50_000;
+    const other = newId();
+    await applyPulled(db, [
+      projectOp(`equipment/${other}`, { id: other, project_id: portoSeguroSmall.projectId, tag: 'SEC-R2', type: 'chave_seccionadora', last_nameplate: null, removed_at: null }, snapshot + 1, 'create'),
+      projectOp(`equipment/${other}/tag`, 'SEC-R2-B', snapshot + 2),
+    ]);
+    expect(await editedSinceSnapshot(db, REL, snapshot)).toBe(false);
+
+    const referenced = portoSeguroSmall.log.find((op) => op.path.startsWith('equipment/') && op.kind === 'create')!;
+    await applyPulled(db, [projectOp(`equipment/${(referenced.value as { id: string }).id}/tag`, 'SEC-RENOMEADA', snapshot + 3)]);
+    expect(await editedSinceSnapshot(db, REL, snapshot)).toBe(true);
   });
 });
 

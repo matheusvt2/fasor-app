@@ -79,6 +79,8 @@ describe('contract constants', () => {
     expect(SYNC_ROUTES.pushOps).toEqual({ method: 'POST', path: '/api/sync/ops' });
     expect(SYNC_ROUTES.pullCompany).toEqual({ method: 'GET', path: '/api/sync/company' });
     expect(SYNC_ROUTES.pullRelatorio('abc')).toEqual({ method: 'GET', path: '/api/sync/relatorios/abc' });
+    // E4 retro item 17: a project's own stream.
+    expect(SYNC_ROUTES.pullProject('abc')).toEqual({ method: 'GET', path: '/api/sync/projects/abc' });
   });
 
   it('names the account read, the only account route, and types its answer', () => {

@@ -1,5 +1,6 @@
 import {
   homeCards,
+  isProjectStreamId,
   statusBoardCounts,
   type ClientRow,
   type HomeCard,
@@ -73,7 +74,8 @@ export function HomeSurface() {
 
   const states = useLiveQuery(() => (db === null ? Promise.resolve(NO_STATES) : syncStateRows(db)), [db], NO_STATES);
   const syncStates = useMemo(
-    () => states.map((row) => ({ id: row.id, complete: row.complete, last_sync_at: row.last_sync_at })),
+    // A project stream (`project:{id}`, Epic 4 retro item 17) is no relatório's.
+    () => states.filter((row) => !isProjectStreamId(row.id)).map((row) => ({ id: row.id, complete: row.complete, last_sync_at: row.last_sync_at })),
     [states],
   );
 

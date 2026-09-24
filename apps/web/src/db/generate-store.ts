@@ -1,5 +1,6 @@
 import {
   editedOnDevice,
+  referencedEquipmentIds,
   generationJobRowSchema,
   relatorioRowSchema,
   revisionRowSchema,
@@ -8,6 +9,7 @@ import {
   type RelatorioRow,
   type RevisionRow,
 } from '@app/domain';
+import { blockRowsOf } from './home-store.ts';
 import { useLiveQuery } from './live.ts';
 import type { AppDatabase, OutboxRow } from './schema.ts';
 
@@ -55,20 +57,19 @@ export async function latestGenerationJob(db: AppDatabase, relatorioId: string):
 
 /**
  * Epic 4 QA Q11: whether the relatório was edited on this device's view since the
- * snapshot at `snapshotSeq` — the pulled ops of its stream (its own and its project's)
- * past that seq, plus this device's ops of the same stream the server has not applied yet
- * (pending or sent). The kernel decides what an edit is (`editedOnDevice`).
+ * snapshot at `snapshotSeq` — the pulled ops of its stream past that seq, plus this
+ * device's ops of the same stream the server has not applied yet (pending or sent). The
+ * stream is the kernel's (Epic 4 retro item 18): the relatório's own ops plus the ops of
+ * the equipment its live blocks reference, the same rule the api's generate barrier reads.
  */
 export async function editedSinceSnapshot(db: AppDatabase, relatorioId: string, snapshotSeq: number): Promise<boolean> {
-  const relatorio = await relatorioRow(db, relatorioId);
-  const projectId = relatorio?.project_id ?? null;
-  const inStream = (op: { relatorio_id?: string | null; project_id?: string | null; scope: string }) =>
-    op.relatorio_id === relatorioId || (projectId !== null && op.scope === 'project' && op.project_id === projectId);
-  const pulled = (await db.remote_ops.where('seq').above(snapshotSeq).toArray()).filter(inStream);
+  const blocks = await blockRowsOf(db, relatorioId);
+  const stream = { relatorioId, equipmentIds: referencedEquipmentIds(blocks) };
+  const pulled = await db.remote_ops.where('seq').above(snapshotSeq).toArray();
   // An op of this device the server acked (its `seq` known) before the pull brought it back.
-  const acked = (await db.outbox.where('seq').above(snapshotSeq).toArray()).filter((op) => op.status === 'acked' && inStream(op));
-  const unsent = (await db.outbox.where('status').anyOf('pending', 'sent').toArray()).filter(inStream);
-  return editedOnDevice([...pulled, ...acked], unsent, snapshotSeq);
+  const acked = (await db.outbox.where('seq').above(snapshotSeq).toArray()).filter((op) => op.status === 'acked');
+  const unsent = await db.outbox.where('status').anyOf('pending', 'sent').toArray();
+  return editedOnDevice([...pulled, ...acked], unsent, snapshotSeq, stream);
 }
 
 /** `editedSinceSnapshot`, live; true (the next number) until the first read lands or with no snapshot. */

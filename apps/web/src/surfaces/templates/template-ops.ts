@@ -1,5 +1,4 @@
-import { writeErrorKind, type JsonValue, type OpDraft, type TemplateRow } from '@app/domain';
-import { copy } from '../../copy/pt-br.ts';
+import type { JsonValue, OpDraft, TemplateRow } from '@app/domain';
 
 /*
  * The only ops the Templates surfaces write (Story 3.4 AC, FR-13): a `template/{id}`
@@ -43,8 +42,5 @@ export function removeTemplateOp(author: Author, id: string): OpDraft {
   return { ...envelope(author), kind: 'remove', path: `template/${id}/removed_at`, value: null };
 }
 
-/** The toast for a refused device write (AD-8, FR-54): the quota one or the generic one. */
-export function writeErrorText(error: unknown): string {
-  const name = (error as { name?: unknown } | null)?.name;
-  return writeErrorKind(typeof name === 'string' ? name : null) === 'quota' ? copy.write.quotaError : copy.write.unknownError;
-}
+/** The toast for a refused device write (AD-8, FR-54), kept where the edit queue raises it. */
+export { writeErrorText } from '../../state/use-undoable-edits.ts';
