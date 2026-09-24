@@ -81,10 +81,10 @@ development_status:
   5-2-record-the-cabine-s-characteristics-and-test-environment-onc: done  # PR #30
   5-3-fill-the-nameplate-by-copy-or-by-typing: done  # PR #30
   5-4-mark-the-checklist-with-taps-not-typing: done  # PR #30
-  5-5-type-a-reading-with-its-unit-and-see-it-judged-against-the-c: backlog
-  5-6-type-all-of-a-sheet-s-readings-in-one-continuous-run: backlog
-  5-7-pick-the-instrument-by-its-code: backlog
-  5-8-conclude-the-sheet-with-one-tap-and-a-text-the-app-wrote-fro: backlog
+  5-5-type-a-reading-with-its-unit-and-see-it-judged-against-the-c: done  # PR #32
+  5-6-type-all-of-a-sheet-s-readings-in-one-continuous-run: done  # PR #32
+  5-7-pick-the-instrument-by-its-code: done  # PR #32
+  5-8-conclude-the-sheet-with-one-tap-and-a-text-the-app-wrote-fro: done  # PR #32
   5-9-mark-an-equipment-as-not-tested: done  # PR #31
   epic-5-retrospective: optional
 
