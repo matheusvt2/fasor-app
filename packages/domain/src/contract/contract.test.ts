@@ -12,7 +12,7 @@ import {
   syncPushResponseSchema,
 } from './sync.ts';
 import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, MIN_CONTRACT_VERSION } from './version.ts';
-import { DOCX_MIME, GENERATE_ROUTES, generateRequestSchema, generateResponseSchema, notCaughtUpDetailsSchema } from './generate.ts';
+import { DOCX_MIME, GENERATE_MAX_EXPECTED_FILES, GENERATE_ROUTES, generateRequestSchema, generateResponseSchema, notCaughtUpDetailsSchema } from './generate.ts';
 
 describe('generate contract (Story 4.8)', () => {
   const id = '019966c1-0000-7000-8000-000000000007';
@@ -28,6 +28,9 @@ describe('generate contract (Story 4.8)', () => {
     expect(generateRequestSchema.safeParse({ last_op_id: id, file_ids_expected: [id] }).success).toBe(true);
     expect(generateRequestSchema.safeParse({ last_op_id: 'x', file_ids_expected: [] }).success).toBe(false);
     expect(generateRequestSchema.safeParse({ file_ids_expected: [] }).success).toBe(false);
+    // A runaway list is a 400, never one query past Postgres's parameter limit.
+    expect(generateRequestSchema.safeParse({ last_op_id: null, file_ids_expected: Array(GENERATE_MAX_EXPECTED_FILES).fill(id) }).success).toBe(true);
+    expect(generateRequestSchema.safeParse({ last_op_id: null, file_ids_expected: Array(GENERATE_MAX_EXPECTED_FILES + 1).fill(id) }).success).toBe(false);
   });
 
   it('types the three outcomes and the 409 details', () => {

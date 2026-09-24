@@ -6,7 +6,7 @@ status: 'done'
 baseline_revision: '960363549cf0046c9d2ab52e7c411ef9fbcd438b'
 review_loop_iteration: 0
 followup_review_recommended: true
-dev_model: 'fable'
+dev_model: 'opus'
 dev_effort: 'high'
 context:
   - '{project-root}/AGENTS.md'
@@ -23,16 +23,6 @@ deferred:
     location: >-
       packages/domain/src/print/document-control.ts
     severity: low
-  - summary: >-
-      The Export dialog is mounted by the dev-only `/__fixture/export` route, not by the Sumário's
-      "Gerar relatório" (Story 4.3, another batch); the two e2e specs drive that route.
-    evidence: |-
-      Batch D merge-back plan: after `git merge origin/main` brings Story 4.3, wire `ExportDialog` to the
-      Sumário button and re-point `e2e/export.spec.ts` and `e2e/export-visual.spec.ts`. Owner: this batch,
-      on resume. Ledger entry 2.
-    location: >-
-      apps/web/src/surfaces/fixtures/export-fixture-surface.tsx
-    severity: medium
   - summary: >-
       `expectedFileIds(snapshot)` lists every snapshot file, so a photo row another device pushed but never
       uploaded makes the generate barrier answer 409 for every device.
@@ -75,6 +65,30 @@ deferred:
       Ledger entry 7. Edge Case Hunter, maybe-false rendered as low.
     location: >-
       apps/api/src/jobs/generate/docx.ts
+    severity: low
+  - summary: >-
+      "pode fechar" holds while the user stays on that relatório's Sumário: the toast and the `issue`
+      op arrive when they come back to it (reload included), not on Home or another relatório.
+    evidence: |-
+      `use-generate.ts` resume effect inside the Sumário's `ExportDialog`; an app-level watcher belongs
+      with Epic 7's `relatorio-exported` notification. Independent review R4. Ledger, Story 4.8.
+    location: >-
+      apps/web/src/surfaces/export/use-generate.ts
+    severity: medium
+  - summary: >-
+      Job expiry counts from `created_at` (queue time) while pg-boss counts from the job's start; a job
+      queued more than 15 minutes could let a second press queue a duplicate.
+    evidence: |-
+      `isJobActive`/`jobExpiresAt` in `print/revisions.ts`. Independent review R7. Ledger, Story 4.8.
+    location: >-
+      packages/domain/src/print/revisions.ts
+    severity: low
+  - summary: >-
+      A pg-boss payload that fails the worker's schema leaves its `generation_job` row `queued` until expiry.
+    evidence: |-
+      `registerGenerateWorker` in `apps/api/src/jobs/generate/worker.ts`. Independent review R9. Ledger, Story 4.8.
+    location: >-
+      apps/api/src/jobs/generate/worker.ts
     severity: low
 ---
 
@@ -240,9 +254,18 @@ Mock and rules: `73-exportar.html` (classes and verbatim strings listed under De
 - Known-bad state avoided: a relatório left in `em_revisao` with a finished revision and no toast, because the only emitter of the `issue` op lived in a mounted effect.
 - KEEP: the kernel owns every numbered sentence (`print/revisions.ts`); `apps/web` writes only ops and device-local prefs; the dialog's phases and copy stay as implemented.
 
+### 2026-09-24 — Resume after Stories 4.1/4.3 merged, and the independent review
+
+- Merge-back: `git merge origin/main` (PR #25 and the coordinator commits); six conflicts resolved as unions (`pt-br.ts`, `prefs.ts`, `sprite.svg`, `sprite.test.ts`, `datetime.test.ts`, `deferred-work.md`). `buildSnapshot` and the fixtures were unchanged on main, so the goldens needed no regeneration (the snapshot tests passed as they were).
+- Task 15 amended: the dev-only `/__fixture/export` route and its surface are removed; the Sumário's foot button (`surfaces/relatorio/generate-action.tsx`, batch A's stub) opens `ExportDialog`, `aria-disabled` with `generateReason` while a `blocking` pre-issue row stands. Task 16 amended: `e2e/export.spec.ts` drives the real UI (4.8-E2E-001 `@p0` a relatório born on Home; 4.8-E2E-004 `@p0` the Em campo fixture with a reload before the revision lands; 4.8-E2E-002 `@p1` offline; 4.8-E2E-005 `@p1` a failed request and "Tentar novamente"); the relatório creation helpers moved to `e2e/support/relatorio-flow.ts`.
+- Task 7 amended (review R1): `NODE_ENV` is not in the shared `x-app-env` anchor (it turned Vitest's `test` mode and `vite build`'s production mode off in the `tools` container); only `api-prod` sets it. The `Element.prototype.scrollTo` jsdom shim it had required is removed.
+- Task 5 amended (review R3): `layoutSpec` prints the relatório's live section blocks in `order_key` order, numbered by position, a block's own `config.section_text` first; a snapshot without section blocks prints the seed's eleven sections. Story 4.7 (batch C) writes `config.section_text`; the flat text prints as paragraphs with the lines under a chunk's first line as items.
+- Review R2/R6/R8/R10: the working state fails at the job's expiry (`jobExpiresAt`, `GENERATE_JOB_EXPIRE_S` in the kernel), the request body caps `file_ids_expected`, the failed state shows the mock's shorter reason (`failedReason`).
+- The build ran on fable up to the checkpoint; fable was retired on 2026-09-24 and the resume ran on opus (frontmatter `dev_model`).
+
 ## Design Notes
 
-**Parallel-story checklist (P6), batch D.** Compose project `fasor-e4d`; host ports 15030 (api), 15073 (web), 15032 (postgres), 15090/15091 (minio), 15080/15443 (caddy), 15001 (api-prod). Stub: the Sumário's "Gerar relatório" button (Story 4.3, batch A) is not built here; the dialog is mounted by the dev-only fixture route and the `@p0` e2e drives that route; owner of removing the interim: this batch, after `git merge origin/main` once 4.1/4.3 land (wire `ExportDialog` to the Sumário button, re-point `e2e/export.spec.ts`, keep the fixture route only if the durability projects still need it). Merge-back plan: `git merge origin/main` into `story/4-8-docx-skeleton-renderer`, conflicts resolved here, `pnpm verify` re-run. Snapshot schema change (`responsible`) and golden regeneration are the only shared-file edits likely to collide with batch A; re-run the golden regeneration after the merge if `buildSnapshot` changed there.
+**Parallel-story checklist (P6), batch D.** Compose project `fasor-e4d`; host ports 15030 (api), 15073 (web), 15032 (postgres), 15090/15091 (minio), 15080/15443 (caddy), 15001 (api-prod). Stub: the Sumário's "Gerar relatório" button (Story 4.3, batch A) was not built here; ~~the dialog is mounted by the dev-only fixture route and the `@p0` e2e drives that route~~ (2026-09-24: resolved after the merge-back, the Sumário opens the dialog and the fixture route is removed; Spec Change Log). Merge-back plan: `git merge origin/main` into `story/4-8-docx-skeleton-renderer`, conflicts resolved here, `pnpm verify` re-run. Snapshot schema change (`responsible`) and golden regeneration are the only shared-file edits likely to collide with batch A; re-run the golden regeneration after the merge if `buildSnapshot` changed there.
 
 **Why the fault test runs in-process.** `Dockerfile.tools` carries no LibreOffice (by design: the api image owns it). The `libreoffice_timeout` fault short-circuits before `soffice` spawns, so `runGenerateJob` can run inside the tools container's vitest against the compose Postgres and MinIO; the success path always goes through the api container over HTTP. `GENERATE_FAULT` in `config.ts` feeds the same `deps.fault` the test injects, so the compose flag and the test exercise one code path.
 

@@ -9,7 +9,10 @@ import {
   generatingReason,
   generatingText,
   idleReason,
+  failedReason,
+  GENERATE_JOB_EXPIRE_S,
   isJobActive,
+  jobExpiresAt,
   latestRevision,
   nextEditNote,
   nextRevisionNumber,
@@ -80,10 +83,21 @@ describe('4.8-UNIT-004 revision numbering and rows', () => {
     expect(isJobActive(job('failed', '2026-09-23T12:14:00.000Z'), now, 900)).toBe(false);
     expect(isJobActive(job('running', 'garbage'), now, 900)).toBe(false);
     expect(isJobActive(job('running', '2026-09-23T12:14:00.000Z'), 'garbage', 900)).toBe(false);
+    // The default is the queue's expiry, one value for the api and the dialog.
+    expect(GENERATE_JOB_EXPIRE_S).toBe(900);
+    expect(isJobActive(job('running', '2026-09-23T12:00:01.000Z'), now)).toBe(true);
+    expect(isJobActive(job('running', '2026-09-23T12:00:00.000Z'), now)).toBe(false);
+  });
+
+  it('names the instant a job stops counting as running', () => {
+    expect(jobExpiresAt({ created_at: '2026-09-23T12:00:00.000Z' })).toBe(Date.parse('2026-09-23T12:15:00.000Z'));
+    expect(jobExpiresAt({ created_at: '2026-09-23T12:00:00.000Z' }, 60)).toBe(Date.parse('2026-09-23T12:01:00.000Z'));
+    expect(jobExpiresAt({ created_at: 'garbage' })).toBeNull();
   });
 
   it('composes every sentence that carries the number', () => {
     expect(idleReason(3)).toBe('Gera o DOCX e o PDF juntos, a partir dos dados do app, como a revisão 3. Precisa de conexão.');
+    expect(failedReason(3)).toBe('Gera o DOCX e o PDF juntos, como a revisão 3. Precisa de conexão.');
     expect(generatingText(3)).toBe('Gerando revisão 3…');
     expect(generatingReason(3)).toBe('Gerando a revisão 3 — DOCX e PDF juntos');
     expect(readyTitle(3)).toBe('Revisão 3 pronta');

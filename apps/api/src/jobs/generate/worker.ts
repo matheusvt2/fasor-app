@@ -1,4 +1,4 @@
-import { uuidV7Schema } from '@app/domain';
+import { GENERATE_JOB_EXPIRE_S, uuidV7Schema } from '@app/domain';
 import type { PgBoss } from 'pg-boss';
 import { z } from 'zod';
 import { logError } from '../../log.ts';
@@ -13,13 +13,7 @@ import { runGenerateJob, type GenerateJobDeps, type GeneratePayload } from './jo
 
 export const GENERATE_QUEUE = 'generate';
 
-/**
- * Seconds pg-boss lets a job stay active before it expires it. The route and the Export
- * dialog treat a `queued`/`running` job older than this as dead (`isJobActive`), so a
- * worker that died mid-job never blocks the next generate forever.
- */
-export const GENERATE_JOB_EXPIRE_S = 900;
-
+/** `expireInSeconds` is the kernel's `GENERATE_JOB_EXPIRE_S`, the age `isJobActive` reads. */
 const QUEUE_OPTIONS = { retryLimit: 0, expireInSeconds: GENERATE_JOB_EXPIRE_S } as const;
 
 const payloadSchema = z.object({

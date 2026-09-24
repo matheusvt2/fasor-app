@@ -2,6 +2,8 @@ import { DISPLAY_TIME_ZONE, formatServiceDates } from '../format/datetime.ts';
 import { empresaFooterLine, empresaFormLine } from '../registry/empresa.ts';
 import { SECTION_BLOCK_TYPES, type SectionBlockType } from '../schemas/block-config.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
+import { relatorioSectionNumber } from '../relatorio/instantiate.ts';
+import { sectionBlocks } from '../relatorio/sumario.ts';
 import { getSeed, sectionText, type SectionVariable } from '../seed/definitions.ts';
 import type { TextBlock } from '../seed/schema.ts';
 import { sectionNumber } from '../templates/compose.ts';
@@ -16,10 +18,14 @@ import { documentControlRows, type DocumentControlRow } from './document-control
  * generation dates live only in `documentControl` ("Data de emissão") and the revision
  * line, so a golden comparison can mask them (TC-7).
  *
- * Section text is the seed default at the relatório's `seed_version`, resolved per
- * `TextBlock` so paragraphs, items and headings keep their kind. Story 4.7's per-relatório
- * override (a section `block` row with `config.section_text`) is read first once it
- * lands; until then sections 7, 8, 9 and 11 print only their heading and a note.
+ * The sections are the relatório's live section blocks in `order_key` order, numbered by
+ * position, exactly as the Sumário lists them (Stories 4.1/4.3: removed, moved, duplicated
+ * and added sections print as the Sumário shows them). A snapshot without section blocks
+ * (a relatório older than them, the fixtures) prints the seed's eleven sections in
+ * FO.SERV-03 order. A block's own `config.section_text` (the template's text, later Story
+ * 4.7's per-relatório edit) wins over the seed default at the relatório's `seed_version`,
+ * which is resolved per `TextBlock` so paragraphs, items and headings keep their kind.
+ * Sections 7, 8, 9 and 11 print only their heading and a note until Epics 6 and 7.
  */
 
 /** What sections 7, 8, 9 and 11 print under their heading until Epics 6 and 7 fill them. */
@@ -138,6 +144,36 @@ function sectionNumbers(seedVersion: string): number[] {
 }
 
 /**
+ * A section's own flat text (`config.section_text`, the shape `flattenSectionText`
+ * writes) as printable paragraphs: blank-line-separated chunks, the first line of a chunk
+ * a paragraph, the lines under it items. The flat text cannot say whether a chunk's first
+ * line was an item; it prints as a paragraph.
+ */
+function ownParagraphs(text: string): { kind: TextBlock['kind']; text: string }[] {
+  const out: { kind: TextBlock['kind']; text: string }[] = [];
+  for (const chunk of text.split(/\n{2,}/)) {
+    chunk
+      .split('\n')
+      .filter((line) => line.trim() !== '')
+      .forEach((line, index) => out.push({ kind: index === 0 ? 'paragraph' : 'item', text: line }));
+  }
+  return out;
+}
+
+/** The printed sections as (FO.SERV-03 section, own text) pairs: the live section blocks, else the seed's eleven. */
+function printedSections(snapshot: RelatorioSnapshot): { section: number; ownText: string | null }[] {
+  const live = sectionBlocks(snapshot.blocks)
+    .map((block) => {
+      const section = relatorioSectionNumber(block.block_type);
+      const own = (block.config as { section_text?: unknown } | null)?.section_text;
+      return section === null ? null : { section, ownText: typeof own === 'string' ? own : null };
+    })
+    .filter((entry): entry is { section: number; ownText: string | null } => entry !== null);
+  if (live.length > 0) return live;
+  return sectionNumbers(snapshot.relatorio.seed_version).map((section) => ({ section, ownText: null }));
+}
+
+/**
  * The printed document's data for one frozen snapshot. Never throws for a snapshot the
  * schema accepts: a null Empresa prints empty header and footer lines, a missing value
  * prints `—` in the document control and `[Label]` in a section body.
@@ -155,10 +191,12 @@ export function layoutSpec(snapshot: RelatorioSnapshot, inputs: LayoutInputs): D
     value: resolveSectionText(row.value, variables).resolved,
   }));
 
-  const sections: LayoutSection[] = sectionNumbers(seedVersion).map((number) => {
-    const title = seed.section_titles[String(number)] ?? '';
-    const blocks = sectionType(number) === null ? null : seededBlocks(seedVersion, number, textDate);
-    if (blocks === null) return { number, title, kind: 'empty', note: EMPTY_SECTION_NOTE };
+  const sections: LayoutSection[] = printedSections(snapshot).map(({ section, ownText }, index) => {
+    const number = index + 1;
+    const title = seed.section_titles[String(section)] ?? '';
+    const composed = sectionType(section) !== null;
+    const blocks = !composed ? null : ownText !== null ? ownParagraphs(ownText) : seededBlocks(seedVersion, section, textDate);
+    if (blocks === null || blocks.length === 0) return { number, title, kind: 'empty', note: EMPTY_SECTION_NOTE };
     return {
       number,
       title,

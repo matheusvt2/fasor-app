@@ -1,4 +1,5 @@
 import {
+  failedReason,
   generatingReason,
   generatingText,
   idleReason,
@@ -123,7 +124,8 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, timing = DEFAU
       : phase.kind === 'flushing' || phase.kind === 'requesting'
         ? copy.export.flushing
         : undefined;
-    const reason = phase.kind === 'blocked' ? copy.export.deadOpsReason : idleReason(nextNumber);
+    const reason =
+      phase.kind === 'blocked' ? copy.export.deadOpsReason : phase.kind === 'failed' ? failedReason(nextNumber) : idleReason(nextNumber);
     body = (
       <>
         {phase.kind === 'failed' ? (

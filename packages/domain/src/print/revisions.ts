@@ -85,23 +85,48 @@ export function revisionMetaText(row: RevisionRow, whoName: string | null): stri
 }
 
 /**
+ * Seconds pg-boss lets a generate job stay active before it expires it (the api's queue
+ * options), and so the age past which a `queued`/`running` row no longer counts as
+ * running. One value for the queue, the route and the Export dialog.
+ */
+export const GENERATE_JOB_EXPIRE_S = 900;
+
+/**
+ * The instant (ms since the epoch) after which a job no longer counts as running, or
+ * null when its `created_at` does not parse.
+ */
+export function jobExpiresAt(job: Pick<GenerationJobRow, 'created_at'>, expireS: number = GENERATE_JOB_EXPIRE_S): number | null {
+  const created = Date.parse(job.created_at);
+  return Number.isNaN(created) ? null : created + expireS * 1000;
+}
+
+/**
  * AD-15: a generate job still counts as running only while it is `queued` or `running`
  * and younger than the queue's expiry (pg-boss gives up on it after `expireS` seconds,
  * and a worker that died after `status: running` never writes `failed`). The route and
  * the Export dialog read this one rule, so neither waits forever on a dead job. A job
  * whose `created_at` does not parse is treated as expired.
  */
-export function isJobActive(job: Pick<GenerationJobRow, 'status' | 'created_at'>, nowIso: string, expireS: number): boolean {
+export function isJobActive(
+  job: Pick<GenerationJobRow, 'status' | 'created_at'>,
+  nowIso: string,
+  expireS: number = GENERATE_JOB_EXPIRE_S,
+): boolean {
   if (job.status !== 'queued' && job.status !== 'running') return false;
-  const created = Date.parse(job.created_at);
+  const expires = jobExpiresAt(job, expireS);
   const now = Date.parse(nowIso);
-  if (Number.isNaN(created) || Number.isNaN(now)) return false;
-  return now - created < expireS * 1000;
+  if (expires === null || Number.isNaN(now)) return false;
+  return now < expires;
 }
 
 /** The idle reason beside "Gerar relatório" (mock, with the number live). */
 export function idleReason(number: number): string {
   return `Gera o DOCX e o PDF juntos, a partir dos dados do app, como a revisão ${number}. Precisa de conexão.`;
+}
+
+/** The reason beside "Gerar relatório" under the failed line (mock, with the number live). */
+export function failedReason(number: number): string {
+  return `Gera o DOCX e o PDF juntos, como a revisão ${number}. Precisa de conexão.`;
 }
 
 /** The progress counter's text while a job runs. */

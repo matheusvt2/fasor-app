@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { portoSeguro } from '../../fixtures/porto-seguro/op-log.ts';
 import { portoSeguroSmall } from '../../fixtures/porto-seguro/small/op-log.ts';
+import { orderKeyBetween } from '../ops/order-key.ts';
 import { replay } from '../ops/replay.ts';
+import { instantiateTemplate } from '../relatorio/instantiate.ts';
+import type { BlockRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { SECTION_TITLES_V1 } from '../seed/sections-v1.ts';
+import { standardTemplate } from '../seed/template.ts';
 import { EMPTY_SECTION_NOTE, layoutSpec, sectionHeading, sectionInputs } from './layout.ts';
 
 /*
@@ -165,5 +169,78 @@ describe('4.8-UNIT-002 layoutSpec edge cases', () => {
     const b = layoutSpec(small, { revisionNumber: 1, issuedAt: ISSUED_AT, sectionTextAt: '2028-01-01T12:00:00.000Z' });
     // The 2027 NR-10 slot is empty, so the v1 text stays in force after it.
     expect(b.sections).toEqual(a.sections);
+  });
+});
+
+describe('4.8-UNIT-007 layoutSpec follows the relatório\'s section blocks (Sumário order)', () => {
+  /** The small fixture with the eleven section blocks a relatório born from the standard template carries. */
+  function withSectionBlocks(): { snapshot: RelatorioSnapshot; blocks: BlockRow[] } {
+    const small = smallSnapshot();
+    let n = 0;
+    const newId = () => `019966c1-00f0-7000-8000-${(++n).toString(16).padStart(12, '0')}`;
+    const { drafts } = instantiateTemplate(
+      standardTemplate({ id: '019966c1-00f1-7000-8000-000000000001' }),
+      { id: small.project!.id },
+      { service_start: null, service_end: null, existingEquipment: [] },
+      { newId, actorId: portoSeguroSmall.userId, companyId: portoSeguroSmall.companyId },
+    );
+    const blocks = drafts
+      .filter((d) => d.path.startsWith('block/'))
+      .map((d) => d.value as unknown as BlockRow)
+      .filter((b) => b.location_id === null)
+      .map((b) => ({ ...b, relatorio_id: small.relatorio.id }));
+    return { snapshot: { ...small, blocks: [...small.blocks, ...blocks] }, blocks };
+  }
+  const byType = (blocks: BlockRow[], type: string) => blocks.find((b) => b.block_type === type)!;
+
+  it('prints the eleven sections in FO.SERV-03 order when the blocks are untouched', () => {
+    const { snapshot } = withSectionBlocks();
+    const layout = layoutSpec(snapshot, { revisionNumber: 1, issuedAt: ISSUED_AT });
+    expect(layout.toc).toEqual(layoutSpec(smallSnapshot(), { revisionNumber: 1, issuedAt: ISSUED_AT }).toc);
+  });
+
+  it('drops a removed section, follows a move and prints a duplicate, numbered by position', () => {
+    const { snapshot, blocks } = withSectionBlocks();
+    const s5 = byType(blocks, 'section_5');
+    const s6 = byType(blocks, 'section_6');
+    const s8 = byType(blocks, 'section_8');
+    const s2 = byType(blocks, 'section_2');
+    const s3 = byType(blocks, 'section_3');
+    const edited = snapshot.blocks.map((b) => {
+      if (b.id === s5.id) return { ...b, removed_at: '2026-09-24T00:00:00.000Z' };
+      // 8 moves between 4 and 6 (5 is gone).
+      if (b.id === s8.id) return { ...b, order_key: orderKeyBetween(byType(blocks, 'section_4').order_key, s6.order_key) };
+      return b;
+    });
+    // A duplicate of 2 right under it, carrying its own text.
+    const duplicate: BlockRow = { ...s2, id: '019966c1-00f2-7000-8000-000000000001', order_key: orderKeyBetween(s2.order_key, s3.order_key), config: { ...(s2.config as object), section_text: 'Texto próprio de {cliente}.\n\nExclusões:\nitem a\nitem b' } };
+    const layout = layoutSpec({ ...snapshot, blocks: [...edited, duplicate] }, { revisionNumber: 1, issuedAt: ISSUED_AT });
+    expect(layout.toc.map(sectionHeading)).toEqual([
+      '1 OBJETIVO',
+      `2 ${SECTION_TITLES_V1['2']}`,
+      `3 ${SECTION_TITLES_V1['2']}`,
+      `4 ${SECTION_TITLES_V1['3']}`,
+      `5 ${SECTION_TITLES_V1['4']}`,
+      `6 ${SECTION_TITLES_V1['8']}`,
+      `7 ${SECTION_TITLES_V1['6']}`,
+      `8 ${SECTION_TITLES_V1['7']}`,
+      `9 ${SECTION_TITLES_V1['9']}`,
+      `10 ${SECTION_TITLES_V1['10']}`,
+      `11 ${SECTION_TITLES_V1['11']}`,
+    ]);
+    // The duplicate prints its own text, resolved, with its list as items.
+    const third = layout.sections[2]!;
+    expect(third.kind).toBe('text');
+    if (third.kind === 'text') {
+      expect(third.paragraphs).toEqual([
+        { kind: 'paragraph', text: 'Texto próprio de Cliente de Testes Ltda.' },
+        { kind: 'paragraph', text: 'Exclusões:' },
+        { kind: 'item', text: 'item a' },
+        { kind: 'item', text: 'item b' },
+      ]);
+    }
+    // The moved 8 is still empty; the sections the seed fills stay text.
+    expect(layout.sections[5]!.kind).toBe('empty');
+    expect(layout.sections[1]!.kind).toBe('text');
   });
 });

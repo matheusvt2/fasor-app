@@ -1,6 +1,7 @@
 import {
   expectedFileIds,
   isJobActive,
+  jobExpiresAt,
   latestRevision,
   nextRevisionNumber,
   readyToast,
@@ -55,9 +56,6 @@ export interface GenerateTiming {
 
 export const DEFAULT_TIMING: GenerateTiming = { pollMs: 3000, retryMs: 2000 };
 
-/** Seconds after which a queued/running job no longer counts as running; the same value the queue expires it at. */
-export const GENERATE_JOB_EXPIRE_S = 900;
-
 const MAX_NOT_CAUGHT_UP_RETRIES = 10;
 const MAX_FLUSH_ROUNDS = 10;
 
@@ -76,7 +74,7 @@ export interface GenerateState {
 }
 
 const jobIsActive = (job: GenerationJobRow | null): job is GenerationJobRow =>
-  job !== null && isJobActive(job, toIso(now()), GENERATE_JOB_EXPIRE_S);
+  job !== null && isJobActive(job, toIso(now()));
 
 export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAULT_TIMING): GenerateState {
   const session = useSession();
@@ -316,6 +314,26 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
       }
     }
   }, [phase, revisions, latestJob, db, relatorioId, finishReady]);
+
+  // Working past the queue's expiry with no revision: the worker died mid-job (an api
+  // restart), pg-boss dropped the job and nobody will write `failed`. The dialog stops
+  // waiting at the instant the kernel stops counting the job as running.
+  const workingJob = phase.kind === 'working' && latestJob?.id === phase.jobId ? latestJob : null;
+  const expiresAt = workingJob === null ? null : jobExpiresAt(workingJob);
+  useEffect(() => {
+    if (expiresAt === null) return;
+    const giveUp = () => {
+      setPhase({ kind: 'failed' });
+      if (db !== null) void clearGenerateAwaiting(db, relatorioId).catch(() => undefined);
+    };
+    const remaining = expiresAt - now().getTime();
+    if (remaining <= 0) {
+      giveUp();
+      return;
+    }
+    const timer = setTimeout(giveUp, remaining);
+    return () => clearTimeout(timer);
+  }, [expiresAt, db, relatorioId]);
 
   // Ready with a revision this device has not pulled (an `unchanged` answer on a fresh
   // device): ask for the stream once, so the row and its download appear.

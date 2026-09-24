@@ -19,10 +19,14 @@ export const GENERATE_ROUTES = {
   revisionDocx: (revisionId: string): GenerateRoute => ({ method: 'GET', path: `/api/revisions/${revisionId}/docx` }),
 } as const;
 
+/** The most files one generate request may name (a relatório's photos, certificates and brand images stay far below). */
+export const GENERATE_MAX_EXPECTED_FILES = 10_000;
+
 /** Body of the generate request: the device's newest op (null on a device that wrote nothing) and the files it expects stored. */
 export const generateRequestSchema = z.object({
   last_op_id: uuidV7Schema.nullable(),
-  file_ids_expected: z.array(uuidV7Schema),
+  // Bounded so a runaway body answers 400, not one query past Postgres's parameter limit.
+  file_ids_expected: z.array(uuidV7Schema).max(GENERATE_MAX_EXPECTED_FILES),
 });
 export type GenerateRequest = z.infer<typeof generateRequestSchema>;
 

@@ -132,12 +132,12 @@ function serverOp(input: { kind: Op['kind']; path: string; value: unknown; clien
   };
 }
 
-const jobOps = (status: 'queued' | 'running' | 'done' | 'failed', jobId = JOB_ID): Op[] => [
+const jobOps = (status: 'queued' | 'running' | 'done' | 'failed', jobId = JOB_ID, createdAt = new Date().toISOString()): Op[] => [
   serverOp({
     kind: 'create',
     path: `generation_job/${jobId}`,
-    // Created "now": a job older than the queue expiry no longer counts as running (`isJobActive`).
-    value: { id: jobId, relatorio_id: REL, kind: 'issue', status: 'queued', error: null, result_file_id: null, result: null, created_at: new Date().toISOString() },
+    // Created "now" by default: a job older than the queue expiry no longer counts as running (`isJobActive`).
+    value: { id: jobId, relatorio_id: REL, kind: 'issue', status: 'queued', error: null, result_file_id: null, result: null, created_at: createdAt },
     client_ts: '2026-09-23T12:00:00.000Z',
   }),
   ...(status === 'queued' ? [] : [serverOp({ kind: 'put', path: `generation_job/${jobId}/status`, value: status, client_ts: '2026-09-23T12:00:01.000Z' })]),
@@ -305,6 +305,8 @@ describe('Export dialog (Story 4.8)', () => {
     await waitFor(() => expect(within(modal).getByRole('alert')).toHaveTextContent('Não foi possível gerar o relatório. Os dados não foram alterados e nenhuma revisão foi criada.'));
     expect(within(modal).getByRole('button', { name: 'Tentar novamente' })).toBeInTheDocument();
     expect(generateButton()).not.toHaveAttribute('aria-disabled');
+    // The mock's shorter reason under the failed line.
+    expect(within(modal).getByText('Gera o DOCX e o PDF juntos, como a revisão 1. Precisa de conexão.')).toHaveClass('btn-reason');
     expect(await statusOps(database!)).toEqual(['em_revisao']);
 
     // "Tentar novamente" asks again; a request that never completes fails inline too.
@@ -312,6 +314,21 @@ describe('Export dialog (Story 4.8)', () => {
     await userEvent.click(within(modal).getByRole('button', { name: 'Tentar novamente' }));
     await waitFor(() => expect(sync.generate).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(within(modal).getByRole('alert')).toBeInTheDocument());
+  });
+
+  it('stops waiting when the running job outlives the queue expiry (a worker that died never writes failed)', async () => {
+    database = await freshDb();
+    render(<Harness sync={syncState()} />);
+    await userEvent.click(generateButton());
+    await waitFor(() => expect(within(dialog()).getByRole('status')).toHaveTextContent('Gerando revisão 1…'));
+    expect(await readGenerateAwaiting(database, REL)).not.toBeNull();
+    // The pulled job row: running, created 900 s minus 300 ms ago, so it expires almost at once.
+    await act(async () => {
+      await applyPulled(database!, jobOps('running', JOB_ID, new Date(Date.now() - 900_000 + 300).toISOString()));
+    });
+    await waitFor(() => expect(within(dialog()).getByRole('alert')).toHaveTextContent('Não foi possível gerar o relatório.'), { timeout: 3000 });
+    expect(generateButton()).not.toHaveAttribute('aria-disabled');
+    await waitFor(async () => expect(await readGenerateAwaiting(database!, REL)).toBeNull());
   });
 
   it('answers "unchanged" with the existing revision, no op and no toast', async () => {

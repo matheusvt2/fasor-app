@@ -29,9 +29,11 @@ x-app-env: &app-env
   OCR_PROVIDER: ${OCR_PROVIDER:-fake}
   # Story 4.8: the generate worker runs in the api process; GENERATE_FAULT (TC-3) is
   # read only outside production and injects a LibreOffice timeout at the conversion step.
+  # NODE_ENV stays unset here on purpose: the tools container inherits this anchor, and a
+  # set NODE_ENV would turn Vitest's `test` mode and `vite build`'s production mode off.
+  # An unset NODE_ENV is non-production for config.ts; only `api-prod` sets it.
   WORKER: ${WORKER:-1}
   GENERATE_FAULT: ${GENERATE_FAULT:-}
-  NODE_ENV: ${NODE_ENV:-development}
   npm_config_store_dir: /pnpm-store
 
 services:

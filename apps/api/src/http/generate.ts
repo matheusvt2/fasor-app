@@ -31,7 +31,6 @@ import type { Db } from '../db/client.ts';
 import type { CompanyId } from '../db/repositories/company-id.ts';
 import { entities, ops } from '../db/schema.ts';
 import { GENERATE_ACTOR, type GeneratePayload } from '../jobs/generate/job.ts';
-import { GENERATE_JOB_EXPIRE_S } from '../jobs/generate/worker.ts';
 import { logError } from '../log.ts';
 import { getObject } from '../storage/s3.ts';
 import { applyOps, applyServerBatch, type Tx } from '../sync/apply.ts';
@@ -96,7 +95,7 @@ export function createGenerateRoutes(db: Db, s3: S3Client, bucket: string, deps:
     const nowIso = toIso(deps.now());
     for (const r of rows) {
       const parsed = generationJobRowSchema.safeParse(r.row);
-      if (parsed.success && isJobActive(parsed.data, nowIso, GENERATE_JOB_EXPIRE_S)) return parsed.data;
+      if (parsed.success && isJobActive(parsed.data, nowIso)) return parsed.data;
     }
     return null;
   }
