@@ -1,3 +1,4 @@
+import { getDefinition } from '../seed/definitions.ts';
 import {
   emptySheet,
   entityRowSchemas,
@@ -87,6 +88,44 @@ function attributed(block: BlockRow, op: Op): BlockRow {
 
 function withSheet(block: BlockRow, update: (sheet: Sheet) => Sheet): BlockRow {
   return { ...block, sheet: update(block.sheet) };
+}
+
+/**
+ * E3-A3 (Epic 3 retro G-2): rejects a `sheet/*` write whose seed-defined key -- nameplate
+ * `field_key`, checklist `item_key`, `test_key` -- is not present in the block's own
+ * definition at its `seed_version`. `parsePath` checks these segments structurally only
+ * (`seedKey`, a bare `[a-z0-9_]+`); it has no block state to check them against
+ * `getDefinition`, so the check runs here, where the target block is already loaded.
+ * `sheet/conclusion` and `sheet/observations` carry no seed-defined key and are not checked.
+ */
+function assertSeedPath(block: BlockRow, path: OpPath): void {
+  if (
+    path.family !== 'sheet/nameplate' &&
+    path.family !== 'sheet/checklist' &&
+    path.family !== 'sheet/test' &&
+    path.family !== 'sheet/test/cell'
+  ) {
+    return;
+  }
+  let definition;
+  try {
+    definition = getDefinition(block.seed_version, 'cabine_primaria', block.block_type);
+  } catch {
+    throw new Error(
+      `${path.family}: block ${block.id} has no equipment definition for block_type "${block.block_type}" at seed_version "${block.seed_version}"`,
+    );
+  }
+  if (path.family === 'sheet/nameplate') {
+    if (!definition.nameplate.some((f) => f.key === path.field_key)) {
+      throw new Error(`sheet/nameplate: "${path.field_key}" is not a nameplate field of ${block.block_type}`);
+    }
+  } else if (path.family === 'sheet/checklist') {
+    if (!(definition.checklist ?? []).some((c) => c.key === path.item_key)) {
+      throw new Error(`sheet/checklist: "${path.item_key}" is not a checklist item of ${block.block_type}`);
+    }
+  } else if (!definition.tests.some((t) => t.key === path.test_key)) {
+    throw new Error(`${path.family}: "${path.test_key}" is not a test of ${block.block_type}`);
+  }
 }
 
 function putSheet(block: BlockRow, path: OpPath, cell: Cell): BlockRow {
@@ -227,6 +266,7 @@ function writeRow(row: EntityRow, op: Op, path: OpPath): EntityRow {
     case 'sheet/test/cell':
     case 'sheet/conclusion':
     case 'sheet/observations':
+      assertSeedPath(row as BlockRow, path);
       return attributed(putSheet(row as BlockRow, path, cellOf(op)), op);
     case 'block/field': {
       const block = { ...(row as BlockRow), [path.field]: value } as BlockRow;

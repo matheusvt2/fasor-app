@@ -55,6 +55,12 @@ export const ui = {
     /** Trailing "Criar" option template/text, e.g. `Criar "Blutrafos"`. */
     create: (query: string) => `Criar “${query}”`,
   },
+  // Verbatim from `60-ficha.html`: the Tri-state control's full-word segment names.
+  triState: {
+    C: 'Conforme',
+    NC: 'Não conforme',
+    NA: 'Não se aplica',
+  },
   registryPicker: {
     /** Trailing chip of `RegistryPickerField`'s chip row: opens the full Combobox (2.4, 2.5). */
     other: 'Outro…',

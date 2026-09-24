@@ -12,6 +12,7 @@ import { useLiveQuery } from '../db/live.ts';
 import { useBackTargetValue } from '../state/back-target.tsx';
 import { BannerSlot, bannerCandidates } from '../state/banner-slot.tsx';
 import { useExtraBannerValue } from '../state/extra-banner.tsx';
+import { usePageTitleValue } from '../state/page-title.tsx';
 import { useSession } from '../state/session.tsx';
 import { useSync } from '../state/sync.tsx';
 import { ToastOutlet } from '../state/toast.tsx';
@@ -57,6 +58,7 @@ export function AppShell() {
   const location = useLocation();
   const params = useParams();
   const backTarget = useBackTargetValue();
+  const titleOverride = usePageTitleValue();
   const extraBanner = useExtraBannerValue();
   const isHome = location.pathname === '/';
   const db = session.database;
@@ -72,8 +74,10 @@ export function AppShell() {
   const handle = [...matches].reverse().find((match) => match.handle !== undefined)?.handle as
     | RouteTitle
     | undefined;
-  const title = handle?.title ?? '';
-  const tabTitle = documentTitle(handle);
+  // A surface's own title (a sheet's TAG, `usePageTitle`) wins over the route's, as `back` does.
+  const titled: RouteTitle | undefined = titleOverride === null ? handle : { ...handle, title: titleOverride };
+  const title = titled?.title ?? '';
+  const tabTitle = documentTitle(titled);
   const routeBack = typeof handle?.back === 'function' ? handle.back(params) : handle?.back;
   const back = backTarget ?? routeBack ?? '/';
 

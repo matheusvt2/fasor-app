@@ -15,10 +15,13 @@ import {
  * AD-3: `OpPath` is a discriminated union of families, read and written only
  * through `parsePath` and `formatPath`. The family list is append-only.
  * Seed-defined segments (nameplate `field_key`, checklist `item_key`,
- * `test_key`, cell `row`/`col`) are validated structurally only; checking
- * them against `getDefinition` is the open deferred-work item "Validate
- * seed-defined path segments against `getDefinition`", due before Epic 4
- * writes sheet values. `{field}` segments are keys of the target entity's schema.
+ * `test_key`) are validated structurally only here (`seedKey`); `parsePath`
+ * has no block state to check them against the block's own definition. That
+ * check is `assertSeedPath` in `ops/apply.ts` (E3-A3), which runs in
+ * `applyOp` where the target block is loaded. Cell `row`/`col` stay
+ * structural (`cellIndex`): a table's row/column geometry is not addressable
+ * from the path alone and is Epic 5's measurement stories' concern.
+ * `{field}` segments are keys of the target entity's schema.
  */
 
 const seedKey = z.string().regex(/^[a-z0-9_]+$/);

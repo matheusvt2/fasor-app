@@ -12,7 +12,7 @@ const BATCH = '019966b0-0005-7000-8000-000000000003';
 const PREV = '019966b0-0005-7000-8000-000000000004';
 
 describe('1.4-UNIT-003 coalescing', () => {
-  const path = `sheet/${B1}/nameplate/fabricante`;
+  const path = `sheet/${B1}/nameplate/fabricacao`;
 
   it('merges two plain puts on one path from one device keeping last op_id, value, client_ts and first prev_op_id', () => {
     const f = opFactory();
@@ -81,7 +81,7 @@ describe('1.4-UNIT-002 batch and undo', () => {
     const initial: EntityState = new Map([[key, block()]]);
     const batch = [
       f.op({ path: `block/${B1}/order_key`, value: 'a5', batch_id: BATCH }),
-      f.op({ path: `sheet/${B1}/nameplate/fabricante`, value: 'WEG', batch_id: BATCH }),
+      f.op({ path: `sheet/${B1}/nameplate/fabricacao`, value: 'WEG', batch_id: BATCH }),
       f.op({ kind: 'remove', path: `block/${B1}/removed_at`, value: null, batch_id: BATCH }),
     ];
     expect(new Set(batch.map((op) => op.batch_id)).size).toBe(1);
@@ -100,7 +100,7 @@ describe('1.4-UNIT-002 batch and undo', () => {
     expect(undone.removed_at).toBeNull();
     expect(undone.order_key).toBe('a0');
     // A cell never set before is undone to a null value; attribution stays (AD-18 is append-only).
-    expect(undone.sheet.nameplate.fabricante?.value).toBeNull();
+    expect(undone.sheet.nameplate.fabricacao?.value).toBeNull();
   });
 
   it('undoes a create with a remove and skips a relatorio create', () => {

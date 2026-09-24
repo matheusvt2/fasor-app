@@ -523,8 +523,6 @@ export const copy = {
       removed: 'Ficha removida',
       // authored: the toast after an equipment sheet is restored.
       restored: 'Ficha restaurada',
-      // authored: tracked stub, owner Epic 5 Story 5.1 (the sheet surface).
-      openStub: 'Abrir a ficha: disponível na próxima etapa',
       // authored: the sheet or the location the action names changed on another device.
       gone: 'A ficha mudou em outro aparelho; nada foi alterado.',
       locationGone: 'O local mudou em outro aparelho; nada foi alterado.',
@@ -566,6 +564,102 @@ export const copy = {
       stripLabel: 'Árvore do relatório (recolhida)',
       // authored: tracked stub, owner Epic 5 (the sheet column beside the rail).
       note: 'Abra uma ficha na árvore.',
+    },
+  },
+  // The equipment sheet (`60-ficha.html`, `key-equipment-sheet.html`, `key-sheet-states.html`,
+  // Stories 5.1-5.4). Every count, state, attribution line, missing count and copied-field
+  // sentence is the kernel's (`sheetProgress` and its texts, `nameplate-copy.ts`,
+  // `ficha.ts`); field and item labels are the seed's own (they print).
+  ficha: {
+    // authored: an address naming no equipment sheet of this relatório on this device.
+    notFound: 'Ficha não encontrada neste relatório.',
+    // `60-ficha.html` "Mais opções da ficha CB-ENT".
+    headerMenu: (tag: string) => `Mais opções da ficha ${tag}`,
+    // authored: the TAG button renames (the mock's prototype opens the relatório instead).
+    tagLabel: (tag: string) => `TAG ${tag} — renomear`,
+    // `60-ficha.html` sheet header: "Cabos de entrada — CB-ENT".
+    titleSeparator: ' — ',
+    // The Sticky action bar's primary, verbatim from `60-ficha.html` and EXPERIENCE.md.
+    concluir: 'Concluir ficha',
+    proximaFicha: 'Próxima ficha',
+    proximaColuna: 'Próxima coluna',
+    voltarRelatorio: 'Voltar ao relatório',
+    // `60-ficha.html` header Overflow (only the items this story's surface works).
+    menuConcluir: 'Concluir ficha',
+    menuRenameTag: 'Renomear TAG',
+    // The Section stepper (`60-ficha.html` `.section-stepper`).
+    stepperLabel: 'Seções da ficha — toque para ir à seção',
+    steps: {
+      placa: { long: 'Placa', short: 'Placa' },
+      verificacoes: { long: 'Verificações', short: 'Verif.' },
+      ensaios: { long: 'Ensaios', short: 'Ensaios' },
+      conclusao: { long: 'Conclusão', short: 'Concl.' },
+    },
+    // EXPERIENCE.md › Autosave: the visually hidden status.
+    saved: 'Salvo',
+    // authored: the toast after "Concluir ficha" at Progress = Completa.
+    concluded: 'Ficha concluída',
+    // `60-ficha.html` "Concluir ficha: faltam obrigatórios — vai para o primeiro campo faltando" (announced).
+    incomplete: 'Faltam obrigatórios — indo para o primeiro campo faltando',
+    // authored: the TAG rename toast.
+    renamed: 'TAG renomeada',
+    // The rail beside the sheet (`shell-head.html`): the Sumário's `rail` words are reused.
+    cabine: {
+      seTitle: 'Características da SE',
+      envTitle: 'Ambiente de ensaio',
+      daCabine: (name: string) => `Da cabine · ${name}`,
+      // `60-ficha.html` CB-ENT, shown on the cabine's first sheet only.
+      seNote: 'Impressas uma vez, na primeira ficha da cabine. Editar aqui altera a cabine — todas as fichas da cabine passam a mostrar o mesmo valor.',
+      // authored: the altitude is confirmed once in the relatório setup (Etapa 5).
+      altitudeHelper: 'Do setup do relatório',
+      copyPrevious: 'Copiar da cabine anterior',
+      // "Copiado de ⟨cabine⟩ — Desfazer" (Story 5.2 AC 3); "Desfazer" is the toast action.
+      copiedFrom: (name: string) => `Copiado de ${name}`,
+      // authored: the select's empty option.
+      selectEmpty: 'Selecione',
+      // authored: a number the field cannot read (kept typed, not committed).
+      invalidNumber: 'Número não reconhecido',
+      quickNotesTitle: 'Observações rápidas',
+      // `60-ficha.html` `.chips-recent` "Chuva e umidade elevada".
+      rainNote: 'Chuva e umidade elevada',
+      // authored: the toast after a quick note lands in the sheet observation.
+      noteAdded: 'Observação adicionada à ficha',
+    },
+    nameplate: {
+      title: 'Dados de placa',
+      // `60-ficha.html` empty group: the text link that reveals the fields.
+      digitar: 'Digitar',
+      // authored: the chip row's name.
+      chipsLabel: 'Copiar dados de placa',
+      // FR-34 chips (`60-ficha.html`, epics.md Story 5.3).
+      igualA: (tag: string) => `Igual à ${tag}?`,
+      lastVisit: (tag: string) => `Copiar da última visita (${tag})`,
+      copiedFrom: (tag: string) => `Copiado de ${tag}`,
+      invalidNumber: 'Número não reconhecido',
+      selectEmpty: 'Selecione',
+    },
+    checklist: {
+      title: 'Verificações gerais',
+      bulkLabel: 'Ações em lote da verificação',
+      markRest: 'Marcar os restantes como Conforme',
+      repeat: 'Repetir da ficha anterior do mesmo tipo',
+      // EXPERIENCE.md › Bulk action bar: the reasons beside a disabled action.
+      allMarked: 'Todos os itens já estão marcados',
+      noConcluded: 'Nenhuma ficha deste tipo concluída',
+      legend: 'Legenda',
+      legendText: 'C Conforme · NC Não conforme · NA Não se aplica',
+      // `60-ficha.html` NC row: the Observation field and its required reason.
+      observationLabel: (n: number) => `Observação do item ${n}`,
+      observationRequired: 'Obrigatória em item não conforme',
+      // authored: the NC chip row's name.
+      chipsLabel: (n: number) => `Observações sugeridas do item ${n}`,
+      // The row Overflow (`60-ficha.html` "Opções do item 1: Limpar · Observação").
+      clear: 'Limpar',
+      observation: 'Observação',
+      // authored: the toast after "Repetir da ficha anterior do mesmo tipo".
+      repeated: (tag: string) => `Padrão de ${tag} repetido`,
+      // authored: nothing to repeat (the pattern already matches).
+      repeatNothing: 'O padrão já é o mesmo desta ficha',
     },
   },
   // Relatório setup (`50-relatorio-setup.html`, Story 4.2): the five Etapa bands plus the

@@ -43,7 +43,7 @@ function deps(prefix = '019966b0-000b-7000-8000-') {
   };
 }
 
-const FIELD = `sheet/${BLOCK_1_ID}/nameplate/fabricante`;
+const FIELD = `sheet/${BLOCK_1_ID}/nameplate/fabricacao`;
 
 function put(path: string, value: OpInput['value'], extra: Partial<OpInput> = {}): OpInput {
   return {
@@ -147,7 +147,7 @@ describe('commitOps', () => {
     const row = await db.outbox.get(op.op_id);
     expect(row).toMatchObject({ status: 'pending', error_code: null, path: FIELD, value: 'WEG' });
     const block = (await db.entities.get(['block', BLOCK_1_ID]))!.row as BlockRow;
-    expect(block.sheet.nameplate.fabricante).toEqual({ value: 'WEG', source_suggestion_id: null, op_id: op.op_id });
+    expect(block.sheet.nameplate.fabricacao).toEqual({ value: 'WEG', source_suggestion_id: null, op_id: op.op_id });
     expect(block.last_modified_at).toBe(op.client_ts);
     expect(await oldestPendingClientTs(db)).toBe(replaySmall.log[0]!.client_ts);
     db.close();
@@ -185,7 +185,7 @@ describe('1.4-UNIT-003 outbox coalescing in the store', () => {
     // prev_value is the value before the first put (the cell did not exist), so undo restores that.
     expect(row?.prev_value).toBeUndefined();
     const block = (await db.entities.get(['block', BLOCK_1_ID]))!.row as BlockRow;
-    expect(block.sheet.nameplate.fabricante?.op_id).toBe(second.op_id);
+    expect(block.sheet.nameplate.fabricacao?.op_id).toBe(second.op_id);
     db.close();
   });
 
@@ -281,7 +281,7 @@ describe('batch and undo', () => {
     block = (await db.entities.get(['block', BLOCK_1_ID]))!;
     expect(block.removed_at).toBeNull();
     expect((block.row as BlockRow).order_key).toBe('a0');
-    expect((block.row as BlockRow).sheet.nameplate.fabricante?.value).toBeNull();
+    expect((block.row as BlockRow).sheet.nameplate.fabricacao?.value).toBeNull();
     const created = (await db.entities.get(['block', NEW_BLOCK]))!;
     expect(created.removed_at).not.toBeNull();
     db.close();
@@ -364,7 +364,7 @@ describe('coalescing vs first_edited_at (option b: re-materialization on pull)',
 
     const device = (await db.entities.get(['block', BLOCK_1_ID]))!.row as BlockRow;
     expect(device.first_edited_at).toBe(fixedTs(26));
-    expect(device.sheet.nameplate.fabricante?.op_id).toBe(merged.op_id);
+    expect(device.sheet.nameplate.fabricacao?.op_id).toBe(merged.op_id);
     db.close();
   });
 });
