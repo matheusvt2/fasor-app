@@ -17,7 +17,7 @@ import { HomeSurface } from './surfaces/home/home-surface.tsx';
 import { LoginSurface } from './surfaces/login/login-surface.tsx';
 import { ProjectSurface } from './surfaces/project/project-surface.tsx';
 import { SectionTextSurface } from './surfaces/relatorio/section-text-surface.tsx';
-import { SetupStubSurface } from './surfaces/relatorio/setup-stub-surface.tsx';
+import { SetupSurface } from './surfaces/relatorio/setup-surface.tsx';
 import { SumarioSurface } from './surfaces/relatorio/sumario-surface.tsx';
 import { RegistriesSurface } from './surfaces/registries/registries-surface.tsx';
 import { SyncStatusSurface } from './surfaces/sync/sync-status-surface.tsx';
@@ -125,8 +125,8 @@ const router = createBrowserRouter([
           { path: '/relatorio/:id', element: <SumarioSurface />, handle: { title: copy.sumario.title } },
           {
             path: '/relatorio/:id/setup',
-            element: <SetupStubSurface />,
-            handle: { title: copy.setupStub.title, back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}` },
+            element: <SetupSurface />,
+            handle: { title: copy.setup.heading, back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}` },
           },
           {
             path: '/relatorio/:id/secao/:blockId',

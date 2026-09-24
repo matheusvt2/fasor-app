@@ -89,10 +89,28 @@
 /* authored: the mock's `.sum-row` has no `data-status`; the sticky bar sits after the content. */
 [data-route="/relatorio/:id"] .sticky-action-bar { margin-top: auto; }
 
-/* ---------- the section text (Story 4.7's read-only stand-in) ---------- */
-/* authored: `45-secao.html` is batch C's; the resolved text reads as body copy until then. */
+/* ---------- 45-secao.html (Story 4.7's editor) ---------- */
 [data-route="/relatorio/:id/secao/:blockId"] .section-text-title { font-size: var(--t-title-size); font-weight: var(--t-title-weight); line-height: var(--t-title-lh); margin-bottom: var(--sp-4); }
-[data-route="/relatorio/:id/secao/:blockId"] .section-text { display: flex; flex-direction: column; gap: var(--sp-3); margin-bottom: var(--sp-5); max-width: 72ch; }
+[data-route="/relatorio/:id/secao/:blockId"] .secao-content { flex: 1; min-width: 0; padding: var(--sp-5) var(--gutter-tablet); display: flex; flex-direction: column; gap: var(--sp-4); }
+[data-route="/relatorio/:id/secao/:blockId"] .secao-text { min-height: 280px; padding: var(--sp-3) var(--sp-4); border: 2px solid var(--border-strong); border-radius: var(--r-sm); background: var(--surface-raised); font-size: var(--t-body-size); line-height: 1.55; color: var(--ink-primary); white-space: pre-line; }
+[data-route="/relatorio/:id/secao/:blockId"] .secao-text:focus { outline: 3px solid var(--focus); outline-offset: 1px; }
+[data-route="/relatorio/:id/secao/:blockId"] .var-chip { display: inline-block; padding: 0 var(--sp-2); border-radius: 999px; background: var(--focus-fill); color: var(--primary); font-weight: 600; }
+[data-route="/relatorio/:id/secao/:blockId"] .secao-note { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-4); font-size: var(--t-meta-size); color: var(--ink-secondary); }
+[data-route="/relatorio/:id/secao/:blockId"] .secao-note .btn-text { margin-left: auto; }
+
+/* ---------- 50-relatorio-setup.html (Story 4.2) ---------- */
+[data-route="/relatorio/:id/setup"] .setup-content { width: 100%; padding: var(--sp-5) var(--gutter-tablet); max-width: calc(var(--content-max) + 2 * var(--gutter-desktop)); margin: 0 auto; }
+[data-route="/relatorio/:id/setup"] .form-grid { display: grid; grid-template-columns: 1fr; gap: var(--sp-4); }
+[data-route="/relatorio/:id/setup"] .form-grid > .field { min-width: 0; }
+[data-route="/relatorio/:id/setup"] .dates-3 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-4); }
+[data-route="/relatorio/:id/setup"] .exclusion-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); }
+[data-route="/relatorio/:id/setup"] .exclusion-list li { display: flex; align-items: center; gap: var(--sp-2); }
+[data-route="/relatorio/:id/setup"] .exclusion-list .exclusion-num { width: 28px; color: var(--ink-secondary); font-variant-numeric: tabular-nums; flex: none; }
+[data-route="/relatorio/:id/setup"] .instrument-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border-hairline); }
+[data-route="/relatorio/:id/setup"] .instrument-list li { border-bottom: 1px solid var(--border-hairline); padding: var(--sp-2) 0; }
+[data-route="/relatorio/:id/setup"] .instrument-list .checkbox .ip-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+[data-route="/relatorio/:id/setup"] .altitude-field .measurement-field { width: 100%; }
+[data-route="/relatorio/:id/setup"] .altitude-field .confirm-btn { cursor: pointer; }
 
 /* ---------- the "Adicionar abaixo" and "Restaurar" dialogs ---------- */
 /* authored: a ListBox of `.registry-row`s inside a Form dialog; the mock draws the palette instead. */

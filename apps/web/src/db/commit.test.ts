@@ -331,3 +331,64 @@ describe('coalescing vs first_edited_at (option b: re-materialization on pull)',
     db.close();
   });
 });
+
+describe('4.6-INT advanceOnEdit wiring in buildBatch/commitBatch', () => {
+  async function statusOf(db: AppDatabase): Promise<string> {
+    const record = await db.entities.get(['relatorio', RELATORIO_ID]);
+    return (record!.row as { status: string }).status;
+  }
+
+  it('an edit on an Emitido relatório gets the Em revisão transition appended, in the same batch', async () => {
+    const db = await freshDb();
+    await seed(db);
+    const d = deps();
+    await commitOps(db, [makeOp(put('relatorio/status', 'emitido'), { newId: d.newId, now: d.now() })]);
+    expect(await statusOf(db)).toBe('emitido');
+
+    const { batch_id, ops } = await commitBatch(db, [put(`block/${BLOCK_1_ID}/order_key`, 'a7')], deps());
+    expect(ops.map((op) => op.path)).toEqual([`block/${BLOCK_1_ID}/order_key`, 'relatorio/status']);
+    expect(ops[1]!.value).toBe('em_revisao');
+    expect(ops.every((op) => op.batch_id === batch_id)).toBe(true);
+    expect(await statusOf(db)).toBe('em_revisao');
+    db.close();
+  });
+
+  it('an edit on a relatório not Emitido gets no extra op', async () => {
+    const db = await freshDb();
+    await seed(db);
+    expect(await statusOf(db)).toBe('em_campo');
+
+    const { ops } = await commitBatch(db, [put(`block/${BLOCK_1_ID}/order_key`, 'a7')], deps());
+    expect(ops).toHaveLength(1);
+    expect(await statusOf(db)).toBe('em_campo');
+    db.close();
+  });
+
+  it('a batch that already writes relatorio/status itself gets no second one', async () => {
+    const db = await freshDb();
+    await seed(db);
+    const d = deps();
+    await commitOps(db, [makeOp(put('relatorio/status', 'emitido'), { newId: d.newId, now: d.now() })]);
+
+    const { ops } = await commitBatch(
+      db,
+      [put(`block/${BLOCK_1_ID}/order_key`, 'a7'), put('relatorio/status', 'em_revisao')],
+      deps(),
+    );
+    expect(ops).toHaveLength(2);
+    expect(ops.filter((op) => op.path === 'relatorio/status')).toHaveLength(1);
+    db.close();
+  });
+
+  it('a non-edit op (suggestion/status, export scheme) never triggers the transition', async () => {
+    const db = await freshDb();
+    await seed(db);
+    const d = deps();
+    await commitOps(db, [makeOp(put('relatorio/status', 'emitido'), { newId: d.newId, now: d.now() })]);
+
+    const { ops } = await commitBatch(db, [put('relatorio/export/scheme', 'ordem_de_campo')], deps());
+    expect(ops).toHaveLength(1);
+    expect(await statusOf(db)).toBe('emitido');
+    db.close();
+  });
+});

@@ -1,9 +1,13 @@
 import {
+  backwardMoveConsequenceText,
+  backwardMoveLabel,
   buildSnapshot,
   defaultBlockConfig,
   emptySheet,
   fichasConcluidasText,
   generateReason,
+  issuedBannerText,
+  latestRevision,
   moveAnnouncement,
   naoEnsaiadasText,
   ncAbertosText,
@@ -26,6 +30,7 @@ import {
   type OpDraft,
   type RelatorioSnapshot,
   type RestorableBlock,
+  type RevisionRow,
   type SectionBlockType,
   type SumarioRow,
   type TemplateRow,
@@ -33,7 +38,7 @@ import {
 } from '@app/domain';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { Button, OverflowMenu, StatusPill, TextButton } from '../../components/index.ts';
+import { Button, ConfirmDialog, OverflowMenu, StatusPill, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { now } from '../../clock.ts';
 import { commitBatch, undoBatch } from '../../db/commit.ts';
@@ -50,7 +55,7 @@ import { writeErrorText } from '../templates/template-ops.ts';
 import { LIST_FOCUS_WATCH_FRAMES, restoreFocus } from '../templates/use-reorder.ts';
 import { AddSectionDialog } from './add-section-dialog.tsx';
 import { GenerateAction } from './generate-action.tsx';
-import { createBlockOp, putBlockOp, removeBlockOp, type Author } from './relatorio-ops.ts';
+import { createBlockOp, putBlockOp, putRelatorioStatusOp, removeBlockOp, type Author } from './relatorio-ops.ts';
 import { RestoreDialog } from './restore-dialog.tsx';
 import { Section9Tree } from './section-9.tsx';
 import { FixedRow, NumberedRow, Section9Row, type RowActions } from './sumario-row.tsx';
@@ -176,6 +181,9 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   // Every equipment row of the project, removed sheets' included: the snapshot keeps only
   // the equipment of live blocks, and "Restaurar ficha removida" names a sheet by its TAG.
   const equipment = useMemo(() => [...state.entries()].filter(([key]) => key.startsWith('equipment:')).map(([, row]) => row as EquipmentRow), [state]);
+  // Story 4.6: revisions read straight off `EntityState`, the same way `equipment` is
+  // above -- `RelatorioSnapshot` is not extended by this batch (batch D/4.8 owns it).
+  const revisions = useMemo(() => [...state.entries()].filter(([key]) => key.startsWith('revision:')).map(([, row]) => row as RevisionRow), [state]);
   const templates = useLiveQuery(() => (db === null ? Promise.resolve(NO_TEMPLATES) : templateRows(db)), [db], NO_TEMPLATES);
   const users = useLiveQuery(() => (db === null ? Promise.resolve(NO_USERS) : localUsers(db)), [db], NO_USERS);
   const lastSheet = useLiveQuery(() => (db === null ? Promise.resolve(null) : readLastSheet(db, relatorioId)), [db, relatorioId], null);
@@ -195,9 +203,13 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const chevron = useRef<HTMLButtonElement | null>(null);
   const [adding, setAdding] = useState<SumarioRow | null>(null);
   const [restoring, setRestoring] = useState(false);
+  const [confirmingBack, setConfirmingBack] = useState(false);
+  const banner = useMemo(() => issuedBannerText(latestRevision(revisions)), [revisions]);
+  const backMove = useMemo(() => backwardMoveLabel(relatorio.status), [relatorio.status]);
   const [announcement, setAnnouncement] = useState('');
   const listRef = useRef<HTMLOListElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const headerSide = useRef<HTMLDivElement>(null);
   const reasonId = useId();
   const queue = useRef<Promise<unknown>>(Promise.resolve());
 
@@ -420,6 +432,18 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
     requestAnimationFrame(() => chevron.current?.focus());
   }
 
+  /** The header Overflow's backward-move Confirm: one `relatorio/status` put, focus back on the trigger. */
+  function onConfirmBack(): void {
+    if (backMove === null) return;
+    const to = backMove.to;
+    void edit((_fresh, by) => [putRelatorioStatusOp(by, relatorioId, to)])
+      .then((batch) => {
+        if (batch === null) return;
+        focusWhenRendered(() => headerSide.current?.querySelector<HTMLElement>('.overflow-trigger') ?? null);
+      })
+      .catch(() => undefined);
+  }
+
   const blocked = rows.some((row) => row.blocking);
   const openable = (row: SumarioRow) => row.kind === 'setup' || row.kind === 'text';
 
@@ -432,6 +456,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
             <StatusPill status={relatorio.status} />{' '}
             {sumarioMetaText({ start: relatorio.setup.service_start, end: relatorio.setup.service_end, templateName, responsibleName })}
           </p>
+          {banner === null ? null : <p className="section-note">{banner}</p>}
           <p className="sum-summary" role="group" aria-label={t.summaryLabel}>
             <TextButton onPress={openSection9}>{fichasConcluidasText(computed)}</TextButton>
             <TextButton onPress={openSection9}>{ncAbertosText(computed.nc_open)}</TextButton>
@@ -439,8 +464,15 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
             <TextButton onPress={openSection9}>{sugestoesText(computed.suggestions_pending)}</TextButton>
           </p>
         </div>
-        <div className="header-side">
-          <OverflowMenu name="" label={t.headerMenu} items={[{ id: 'restore', label: t.restore, onAction: () => setRestoring(true) }]} />
+        <div className="header-side" ref={headerSide}>
+          <OverflowMenu
+            name=""
+            label={t.headerMenu}
+            items={[
+              { id: 'restore', label: t.restore, onAction: () => setRestoring(true) },
+              ...(backMove === null ? [] : [{ id: 'back', label: backMove.label, onAction: () => setConfirmingBack(true) }]),
+            ]}
+          />
         </div>
       </div>
 
@@ -499,6 +531,16 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
 
       {adding === null ? null : <AddSectionDialog below={adding.title} onPick={onPickSection} onClose={() => setAdding(null)} />}
       {restoring ? <RestoreDialog blocks={removable} onRestore={onRestore} onClose={() => setRestoring(false)} /> : null}
+      {backMove === null ? null : (
+        <ConfirmDialog
+          isOpen={confirmingBack}
+          onOpenChange={setConfirmingBack}
+          title={backMove.label}
+          description={backwardMoveConsequenceText(relatorio.status, backMove.to)}
+          confirmLabel={backMove.label}
+          onConfirm={onConfirmBack}
+        />
+      )}
     </>
   );
 }

@@ -1,8 +1,19 @@
-import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, makeOp, STANDARD_TEMPLATE_NAME } from '@app/domain';
+import {
+  artOrTrtLabel,
+  artTrtEchoText,
+  backwardMoveConsequenceText,
+  CONTRACT_VERSION,
+  CONTRACT_VERSION_HEADER,
+  issuedBannerText,
+  makeOp,
+  registrationNumberLabel,
+  STANDARD_TEMPLATE_NAME,
+} from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, signIn, syncBadge, test, TEST_SEED } from './support/merged-fixtures.ts';
 import { readDeviceId, readStore } from './support/outbox.ts';
+import { pushRevision } from './support/push-server-ops.ts';
 import { resetEmpresaB as resetCompany } from './support/reset-empresa-b.ts';
 
 /*
@@ -32,6 +43,49 @@ async function syncNow(page: Page): Promise<void> {
   await expect(button).not.toHaveAttribute('aria-disabled', 'true', { timeout: 30_000 });
   await expect(syncBadge(page)).toHaveAttribute('data-state', 'ok');
   await page.goto(back);
+}
+
+/** A client-authored op, pushed straight to the server the way `4.3-E2E-002` does. */
+async function pushOp(page: Page, relatorioId: string, deviceId: string, path: string, value: unknown): Promise<void> {
+  const op = makeOp(
+    {
+      kind: 'put',
+      scope: 'relatorio',
+      company_id: account.companyId,
+      project_id: null,
+      relatorio_id: relatorioId,
+      path,
+      value: value as never,
+      prev_op_id: null,
+      batch_id: null,
+      meta: null,
+      actor_id: account.userId,
+      device_id: `${deviceId}-office`,
+    },
+    { newId, now: new Date() },
+  );
+  const pushed = await page.request.post('/api/sync/ops', {
+    headers: { [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION) },
+    data: { ops: [op] },
+  });
+  expect(pushed.ok(), await pushed.text()).toBe(true);
+}
+
+/** Cadastros › Instrumentos: a new instrument named by its own Código. The main nav (and
+ * so "Cadastros") shows only on the shell's own top-level screens: a relatório detail
+ * page's App bar carries only "Voltar", so this goes to Home first. */
+async function newInstrument(page: Page, code: string, name: string): Promise<void> {
+  await page.goto('/');
+  await page.getByRole('link', { name: /Cadastros/ }).click();
+  await page.getByRole('tab', { name: 'Instrumentos' }).click();
+  await page.getByRole('button', { name: /^(Novo|Cadastrar) instrumento$/ }).click();
+  const panel = page.locator('.registry-panel');
+  await expect(panel).toBeVisible();
+  await panel.getByLabel('Código').fill(code);
+  await panel.getByLabel('Nome').fill(name);
+  await panel.getByRole('button', { name: 'Fechar edição' }).click();
+  await expect(panel).toBeHidden();
+  await expect(page.getByRole('button', { name: new RegExp(code) })).toBeVisible();
 }
 
 const CLIENT = 'Condomínio Teste';
@@ -239,17 +293,17 @@ test('@p0 4.3-E2E-001 the Sumário: order, rows that open, the Position box, Ove
   // Rows 1 and 3 open the setup at Etapa 2; row 2 opens the section text; 7, 8, 10, 11 have no control.
   await rows.nth(2).getByRole('button', { name: /^Objetivo/ }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/setup\\?etapa=2$`));
-  await expect(page.getByTestId('setup-stub-note')).toHaveText('Etapa 2 — disponível na próxima etapa deste épico');
+  await expect(page.getByRole('heading', { level: 2, name: 'Etapa 2 — Objetivo e escopo' })).toBeVisible();
   await page.getByRole('button', { name: 'Voltar' }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
   await rows.nth(4).getByRole('button', { name: /^Limite de escopo/ }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/setup\\?etapa=2$`));
-  await page.getByRole('link', { name: 'Voltar para o sumário' }).click();
+  await page.getByRole('button', { name: 'Voltar' }).click();
   await rows.nth(3).getByRole('button', { name: /^Definições/ }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/secao/[0-9a-f-]{36}$`));
   await expect(page.locator('.section-text-title')).toHaveText('2 Definições');
-  await expect(page.getByTestId('section-text').locator('p').first()).not.toBeEmpty();
-  await page.getByRole('button', { name: 'Voltar' }).click();
+  await expect(page.getByRole('textbox', { name: 'Texto da seção' })).not.toBeEmpty();
+  await page.getByRole('button', { name: 'Voltar ao sumário' }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
   for (const i of [8, 9, 11, 12]) await expect(rows.nth(i).locator('button.sum-open')).toHaveCount(0);
 
@@ -429,4 +483,280 @@ test('@p1 4.3-E2E-002 Em campo opens section 9 expanded at the last sheet cabine
       return box !== null && box.y >= 0 && box.y + box.height <= 600;
     })
     .toBe(true);
+});
+
+// --- Story 4.2 -------------------------------------------------------------------------
+
+// A one-pixel PNG, the same fixture buffer `e2e/files.spec.ts` already uses for a picked file.
+const COVER_PHOTO = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+
+test('@p0 4.2-E2E-001 Relatório setup: the five Etapa bands, autosave, geolocation altitude, and Concluir dados do relatório', async ({
+  page,
+  context,
+}) => {
+  await resetEmpresaB();
+  await signIn(page, account.email);
+  await expect(page.locator('.shortcut-sub', { hasText: '1 template' })).toBeVisible({ timeout: 30_000 });
+  await createProjectFromHome(page);
+  const relatorioId = await createRelatorio(page);
+
+  await newInstrument(page, 'M1', 'Multímetro E2E');
+  await newInstrument(page, 'M2', 'Megôhmetro E2E');
+  await page.goto(`/relatorio/${relatorioId}`);
+  await expect(sumarioTitles(page)).toHaveText(TITLES);
+  const rows = sumario(page).getByRole('listitem');
+  await expect(rows.nth(0).locator('.sum-status')).toContainText('Responsável técnico em branco');
+
+  // Geolocation stubbed before the setup page mounts Etapa 5's effect. Chromium's emulated
+  // position carries no altitude (Playwright's `setGeolocation` has no such field), so the
+  // field is correctly left empty and typeable by hand (a real GPS reading is not exercised
+  // here; the field's own always-typeable behavior is what this test proves).
+  await context.grantPermissions(['geolocation'], { origin: new URL(page.url()).origin });
+  await context.setGeolocation({ latitude: -23.561, longitude: -46.656 });
+
+  await rows
+    .nth(0)
+    .getByRole('button', { name: /^Capa e dados do relatório/ })
+    .click();
+  await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/setup\\?etapa=1$`));
+  await expect(page.getByRole('heading', { level: 2, name: 'Etapa 1 — Capa' })).toBeFocused();
+
+  // Etapa 1 — Capa: client and obra are read-only display; dates, additional info and the
+  // cover photo autosave.
+  await expect(page.getByText(CLIENT)).toBeVisible();
+  await expect(page.getByText(SITE)).toBeVisible();
+  const setupRoot = page.locator('.setup-content');
+  await typeDate(setupRoot, 'Início da execução', '01102026');
+  await typeDate(setupRoot, 'Fim da execução', '03102026');
+  await page.getByLabel('Informações adicionais').fill('Acesso pela portaria 2');
+  await page.getByTestId('upload-input-cover_photo').setInputFiles({ name: 'capa.png', mimeType: 'image/png', buffer: COVER_PHOTO });
+  await expect(page.locator('.tile-name')).toContainText('capa.png');
+
+  // Etapa 2 — Objetivo e escopo: Local/Escopo autosave; one exclusion added, one edited.
+  await page.getByLabel('Local', { exact: true }).fill('das Torres A e B');
+  await page.getByLabel('Escopo', { exact: true }).fill('Ensaios de comissionamento da cabine primária.');
+  await expect(page.getByRole('textbox', { name: 'Exclusão 1' })).not.toHaveValue('');
+  await page.getByRole('button', { name: 'Adicionar exclusão' }).click();
+  await page.getByRole('textbox', { name: 'Exclusão 4' }).fill('Exclusão nova E2E');
+  await page.getByRole('textbox', { name: 'Exclusão 1' }).fill('Exclusão editada E2E');
+
+  // Etapa 3 — Responsável: the one seeded user (Empresa B, council CRT) relabels the field TRT.
+  await page.getByRole('button', { name: 'Abrir lista' }).click();
+  await page.getByRole('option', { name: account.name }).click();
+  await expect(page.getByText('CRT', { exact: true })).toBeVisible();
+  await expect(page.getByText(registrationNumberLabel('crt'))).toBeVisible();
+  await page.getByLabel(artOrTrtLabel('crt'), { exact: true }).fill('2620262602583');
+  await expect(page.getByText(artTrtEchoText(artOrTrtLabel('crt'), '2620262602583')!)).toBeVisible();
+
+  // Etapa 4 — Instrumentos: two checked, one unchecked back.
+  const m1 = page.getByRole('checkbox', { name: /^M1/ });
+  const m2 = page.getByRole('checkbox', { name: /^M2/ });
+  await m1.click();
+  await expect(m1).toHaveAttribute('aria-checked', 'true');
+  await m2.click();
+  await expect(m2).toHaveAttribute('aria-checked', 'true');
+  await m2.click();
+  await expect(m2).toHaveAttribute('aria-checked', 'false');
+
+  // Etapa 5 — Local: the altitude field is always typeable (geolocation here carries no
+  // altitude, so the field stays empty rather than a false "0 m" reading); typed by hand and
+  // confirmed once.
+  const altitudeInput = page.getByLabel('Altitude do site');
+  await expect(altitudeInput).toHaveValue('');
+  await altitudeInput.fill('800');
+  await page.getByRole('button', { name: 'Confirmar' }).click();
+  await expect(page.getByText('Altitude do site: < 1000 m — confirmada')).toBeVisible();
+  await typeDate(setupRoot, 'Próxima intervenção recomendada', '15092027');
+  await page.getByLabel('Justificativa').fill('Manutenção anual programada');
+
+  // "Concluir dados do relatório": every gap closed, one Rascunho → Em campo status put.
+  const complete = page.getByRole('button', { name: 'Concluir dados do relatório' });
+  await expect(complete).not.toHaveAttribute('aria-disabled', 'true');
+  await complete.click();
+  await page.getByRole('button', { name: 'Voltar' }).click();
+  await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
+  await expect(page.locator('.sheet-meta .status-pill')).toHaveText('Em campo');
+  await expect(rows.nth(0).locator('.sum-status')).not.toContainText('Responsável técnico em branco');
+});
+
+test('@p1 4.2-E2E-002 an instrument still referenced by a sheet cannot be unchecked', async ({ page }) => {
+  await resetEmpresaB();
+  await signIn(page, account.email);
+  await expect(page.locator('.shortcut-sub', { hasText: '1 template' })).toBeVisible({ timeout: 30_000 });
+  await createProjectFromHome(page);
+  const relatorioId = await createRelatorio(page);
+  await newInstrument(page, 'R1', 'Instrumento referenciado E2E');
+  await page.goto(`/relatorio/${relatorioId}`);
+  await expect(sumarioTitles(page)).toHaveText(TITLES);
+
+  // The relatório (and its blocks) must exist server-side before a `sheet/test` put on one
+  // of them can materialize; the instrument itself never needs to sync (its id is carried
+  // by value in the cell, the same way `isInstrumentReferenced` reads it).
+  await syncNow(page);
+  const entities = await readStore<{ entity: string; id: string; row: { code?: string; kind?: string } }>(page, database, 'entities');
+  const instrument = entities.find((r) => r.entity === 'registry' && r.row.kind === 'instrument' && r.row.code === 'R1')!;
+  const block = entities.find((r) => r.entity === 'block')!;
+  const deviceId = await readDeviceId(page, database);
+  await pushOp(page, relatorioId, deviceId, `sheet/${block.id}/test/t1/instrument`, { instrument_id: instrument.id });
+  await syncNow(page);
+  await page.reload();
+
+  await expect(sumarioTitles(page)).toHaveText(TITLES);
+  await sumario(page)
+    .getByRole('listitem')
+    .nth(0)
+    .getByRole('button', { name: /^Capa e dados do relatório/ })
+    .click();
+  await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/setup\\?etapa=1$`));
+
+  const checkbox = page.getByRole('checkbox', { name: /^R1/ });
+  await checkbox.click();
+  await expect(checkbox).toHaveAttribute('aria-checked', 'true');
+  await checkbox.click();
+  // Refused, not a throw: the row stays checked, the inline note explains why.
+  await expect(checkbox).toHaveAttribute('aria-checked', 'true');
+  await expect(page.getByText('Continua na seção 11 porque uma ficha usa este instrumento')).toBeVisible();
+});
+
+// --- Story 4.6 -------------------------------------------------------------------------
+
+test('@p0 4.6-E2E-001 Emitido shows the issued banner; moving a numbered row advances the pill to Em revisão with no separate issue action', async ({
+  page,
+}) => {
+  await resetEmpresaB();
+  await signIn(page, account.email);
+  await expect(page.locator('.shortcut-sub', { hasText: '1 template' })).toBeVisible({ timeout: 30_000 });
+  await createProjectFromHome(page);
+  const relatorioId = await createRelatorio(page);
+  await expect(sumarioTitles(page)).toHaveText(TITLES);
+  const deviceId = await readDeviceId(page, database);
+
+  // The relatório must exist server-side before the direct `revision` create below can
+  // target it; the status put goes through the ordinary client op push (`4.3-E2E-002`'s
+  // pattern), the `revision` row through `pushRevision` (its own family is `serverOnly`,
+  // refused on `/api/sync/ops` the way `file/server`/`suggestion` are).
+  await syncNow(page);
+  await pushOp(page, relatorioId, deviceId, 'relatorio/status', 'emitido');
+  const createdAt = new Date('2026-09-10T12:00:00.000Z');
+  await pushRevision(account.companyId, relatorioId, { number: 2, createdBy: account.userId, createdAt });
+  await syncNow(page);
+  await page.reload();
+
+  await expect(sumarioTitles(page)).toHaveText(TITLES);
+  await expect(page.locator('.sheet-meta .status-pill')).toHaveText('Emitido');
+  const banner = issuedBannerText({ number: 2, created_at: createdAt.toISOString() });
+  await expect(page.getByText(banner!)).toBeVisible();
+
+  // Moving a numbered row is an `editedSince`-family op (`block/{id}/order_key`); the
+  // status advances on its own, in the same batch, with no separate issue action.
+  await page.getByRole('button', { name: 'Mais opções de Definições' }).click();
+  await page.getByRole('menuitem', { name: 'Descer' }).click();
+  await expect(page.locator('.sheet-meta .status-pill')).toHaveText('Em revisão');
+});
+
+test('@p1 4.6-E2E-002 the header Overflow\'s backward-move item: a Confirm dialog states the consequence, the pill updates and focus returns to the trigger', async ({
+  page,
+}) => {
+  await resetEmpresaB();
+  await signIn(page, account.email);
+  await expect(page.locator('.shortcut-sub', { hasText: '1 template' })).toBeVisible({ timeout: 30_000 });
+  await createProjectFromHome(page);
+  const relatorioId = await createRelatorio(page);
+  const deviceId = await readDeviceId(page, database);
+  await syncNow(page);
+  await pushOp(page, relatorioId, deviceId, 'relatorio/status', 'em_campo');
+  await syncNow(page);
+  await page.reload();
+  await expect(sumarioTitles(page)).toHaveText(TITLES);
+  await expect(page.locator('.sheet-meta .status-pill')).toHaveText('Em campo');
+
+  const trigger = page.getByRole('button', { name: 'Mais opções do relatório' });
+  await trigger.click();
+  await page.getByRole('menuitem', { name: 'Voltar para Rascunho' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Voltar para Rascunho' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText(backwardMoveConsequenceText('em_campo', 'rascunho'));
+  await dialog.getByRole('button', { name: 'Voltar para Rascunho' }).click();
+  await expect(page.locator('.sheet-meta .status-pill')).toHaveText('Rascunho');
+  // The server never wrote this: the client op is the only author of a backward move.
+  await expect(trigger).toBeFocused();
+});
+
+// --- Story 4.7 -------------------------------------------------------------------------
+
+test('@p0 4.7-E2E-001 section text: edited text, a chip inserted by mouse and removed by keyboard Backspace, autosaved and kept on reload', async ({
+  page,
+}) => {
+  await resetEmpresaB();
+  await signIn(page, account.email);
+  await expect(page.locator('.shortcut-sub', { hasText: '1 template' })).toBeVisible({ timeout: 30_000 });
+  await createProjectFromHome(page);
+  await createRelatorio(page);
+
+  const rows = sumario(page).getByRole('listitem');
+  await rows
+    .nth(3)
+    .getByRole('button', { name: /^Definições/ })
+    .click();
+  await expect(page.locator('.section-text-title')).toHaveText('2 Definições');
+  const area = page.getByRole('textbox', { name: 'Texto da seção' });
+  const chips = area.locator('.var-chip');
+  await expect(area).not.toBeEmpty();
+
+  await area.click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type(' Texto do relatório E2E.');
+  await page.getByRole('group', { name: 'Inserir dado do relatório' }).getByRole('button', { name: 'obra', exact: true }).click();
+  await expect(chips).toHaveCount(1);
+  await expect(chips).toHaveText(['{obra}']);
+  await expect(area).toBeFocused();
+  await page.keyboard.press('Backspace');
+  await expect(chips).toHaveCount(0);
+
+  // Tab away: blur flushes the autosave at once.
+  await page.keyboard.press('Tab');
+  await expect
+    .poll(async () => {
+      const rowsData = await readStore<{ entity: string; row: { config?: { section_text?: string } | null } }>(page, database, 'entities');
+      return rowsData.some((r) => r.entity === 'block' && (r.row.config?.section_text ?? '').includes('Texto do relatório E2E.'));
+    })
+    .toBe(true);
+
+  await page.reload();
+  const areaAfter = page.getByRole('textbox', { name: 'Texto da seção' });
+  await expect(areaAfter).toContainText('Texto do relatório E2E.');
+  await expect(areaAfter.locator('.var-chip')).toHaveCount(0);
+});
+
+test('@p1 4.7-E2E-002 "Restaurar texto do template" then "Desfazer" restores the just-edited text', async ({ page }) => {
+  await resetEmpresaB();
+  await signIn(page, account.email);
+  await expect(page.locator('.shortcut-sub', { hasText: '1 template' })).toBeVisible({ timeout: 30_000 });
+  await createProjectFromHome(page);
+  await createRelatorio(page);
+
+  const rows = sumario(page).getByRole('listitem');
+  await rows
+    .nth(3)
+    .getByRole('button', { name: /^Definições/ })
+    .click();
+  const area = page.getByRole('textbox', { name: 'Texto da seção' });
+  const restore = page.getByRole('button', { name: 'Restaurar texto do template' });
+  await expect(restore).toHaveAttribute('aria-disabled', 'true');
+
+  await area.click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type(' Texto próprio E2E.');
+  const edited = (await area.innerText()).trim();
+  await page.keyboard.press('Tab');
+  await expect(restore).not.toHaveAttribute('aria-disabled', 'true');
+
+  await restore.click();
+  await expect(page.getByText('Texto do template restaurado nesta seção')).toBeVisible();
+  await expect(area).not.toContainText('Texto próprio E2E.');
+  await expect(restore).toHaveAttribute('aria-disabled', 'true');
+
+  await page.getByRole('button', { name: 'Desfazer' }).click();
+  await expect(area).toContainText('Texto próprio E2E.');
+  expect((await area.innerText()).trim()).toBe(edited);
 });

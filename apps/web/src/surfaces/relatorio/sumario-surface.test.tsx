@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { instantiateTemplate, standardTemplate, type BlockRow, type LocationRow, type SumarioRow } from '@app/domain';
+import { instantiateTemplate, standardTemplate, type BlockRow, type LocationRow, type RelatorioRow, type SumarioRow } from '@app/domain';
 import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { cleanup, configure, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -457,5 +457,62 @@ describe('4.3 SumarioSurface', () => {
     renderSumario(id, syncState({ syncRelatorio: pull }));
     expect(await screen.findByText('Relatório não encontrado neste aparelho.')).toBeVisible();
     expect(pull).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('4.6 SumarioSurface: status transitions and the issued banner', () => {
+  it('has no banner on a fresh Em campo relatório with no revision', async () => {
+    database = await seeded();
+    renderSumario();
+    await waitFor(() => expect(rows()).toHaveLength(13));
+    expect(screen.queryByText(/Relatório emitido em/)).toBeNull();
+  });
+
+  it('carries no backward-move item at Rascunho (nothing to move back to)', async () => {
+    database = await seeded();
+    const relatorioRecord = await database.entities.get(['relatorio', RELATORIO]);
+    await database.entities.put({ ...relatorioRecord!, row: { ...(relatorioRecord!.row as RelatorioRow), status: 'rascunho' } });
+    renderSumario();
+    await waitFor(() => expect(rows()).toHaveLength(13));
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções do relatório' }));
+    expect(within(await screen.findByRole('menu')).queryByRole('menuitem', { name: /Voltar para/ })).toBeNull();
+  });
+
+  it('the header Overflow offers "Voltar para Rascunho" from Em campo; confirming writes the put and returns focus to the trigger', async () => {
+    database = await seeded();
+    renderSumario();
+    await waitFor(() => expect(rows()).toHaveLength(13));
+    const trigger = screen.getByRole('button', { name: 'Mais opções do relatório' });
+    await userEvent.click(trigger);
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Voltar para Rascunho' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Voltar para Rascunho' });
+    expect(dialog).toHaveTextContent('O relatório volta de Em campo para Rascunho.');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Voltar para Rascunho' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(async () => {
+      const row = await database!.entities.get(['relatorio', RELATORIO]);
+      expect((row!.row as { status: string }).status).toBe('rascunho');
+    });
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+  });
+
+  it('shows the issued banner with the issue date and revision numbers once a revision exists', async () => {
+    database = await seeded();
+    const relatorioRecord = await database.entities.get(['relatorio', RELATORIO]);
+    await database.entities.put({ ...relatorioRecord!, row: { ...(relatorioRecord!.row as RelatorioRow), status: 'emitido' } });
+    await database.entities.put(
+      toRecord(`revision:019966c1-000f-7000-8000-000000000001`, {
+        id: '019966c1-000f-7000-8000-000000000001',
+        relatorio_id: RELATORIO,
+        number: 2,
+        snapshot_seq: 10,
+        created_by: USER,
+        docx_file_id: '019966c1-000f-7000-8000-000000000002',
+        pdf_file_id: '019966c1-000f-7000-8000-000000000003',
+        created_at: '2026-09-10T12:00:00.000Z',
+      } as never),
+    );
+    renderSumario();
+    expect(await screen.findByText('Relatório emitido em 10/09/2026 (revisão 2). Alterações geram a revisão 3.')).toBeVisible();
   });
 });

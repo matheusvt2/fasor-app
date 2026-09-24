@@ -430,3 +430,57 @@ test('@p1 4.3-E2E-003 the Position box typed by touch moves a Sumário row', asy
   await expect(box).toHaveValue('4');
   await expect(page.getByText('Definições movida — numeração refeita')).toBeVisible();
 });
+
+/*
+ * 4.7-E2E-003 (E3-A8's touch rule): the section text editor's chip is an atomic token on
+ * every surface, so the same insert-by-tap, remove-by-Backspace pass `3.6-E2E-001` runs on
+ * desktop Chrome runs here by touch. Runs against the built bundle like every scenario here.
+ */
+test('@p1 4.7-E2E-003 section text: a chip inserted by tap is removed whole by Backspace', async ({ page, context, browserName }) => {
+  test.skip(browserName === 'webkit', 'the touch rule is asserted on the Android emulation; WebKit runs the desktop spec');
+  await resetEmpresaB({ standard: true });
+  const account = TEST_SEED.companies[1];
+  await signInForDurability(page, context, account.email);
+  await expect(page.locator('.shortcut-sub', { hasText: '1 template' })).toBeVisible({ timeout: 30_000 });
+
+  // Home › Novo relatório › client and obra created inline › Continuar.
+  await page.getByRole('button', { name: 'Novo relatório' }).tap();
+  const dialog = page.getByRole('dialog', { name: 'Novo relatório' });
+  await dialog.getByRole('combobox', { name: 'Cliente' }).fill('Cliente texto por toque');
+  await page.getByRole('option', { name: 'Criar “Cliente texto por toque”' }).tap();
+  await expect(dialog.getByRole('combobox', { name: 'Cliente' })).toHaveValue('Cliente texto por toque');
+  await dialog.getByRole('combobox', { name: 'Local (obra)' }).fill('Obra texto por toque');
+  await page.getByRole('option', { name: 'Criar “Obra texto por toque”' }).tap();
+  await expect(dialog.getByRole('combobox', { name: 'Local (obra)' })).toHaveValue('Obra texto por toque');
+  await dialog.getByRole('button', { name: 'Continuar' }).tap();
+  await expect(page).toHaveURL(/\/project\/[0-9a-f-]{36}$/);
+
+  // The Project's dialog: the start date by touch and keyboard, then Criar.
+  const create = page.getByRole('dialog', { name: 'Novo relatório' });
+  await create.getByRole('group', { name: 'Início da parada' }).getByRole('spinbutton').first().tap();
+  await page.keyboard.type('06092026');
+  await create.getByRole('button', { name: 'Criar relatório' }).tap();
+  await expect(page).toHaveURL(/\/relatorio\/[0-9a-f-]{36}$/, { timeout: 30_000 });
+
+  // Row 2 ("Definições") opens the section text.
+  const rows = page.getByRole('list', { name: 'Sumário do relatório' }).getByRole('listitem');
+  await expect(rows.locator('.sum-title').nth(3)).toHaveText('Definições');
+  await rows
+    .nth(3)
+    .getByRole('button', { name: /^Definições/ })
+    .tap();
+  await expect(page.locator('.section-text-title')).toHaveText('2 Definições');
+
+  const area = page.getByRole('textbox', { name: 'Texto da seção' });
+  const chips = area.locator('.var-chip');
+  await area.tap();
+  await page.keyboard.press('Control+End');
+  await page.getByRole('group', { name: 'Inserir dado do relatório' }).getByRole('button', { name: 'obra', exact: true }).tap();
+  await expect(chips).toHaveCount(1);
+  await expect(chips).toHaveText(['{obra}']);
+  await expect(area).toBeFocused();
+
+  // A chip goes whole in one keystroke, never one character at a time, by touch too.
+  await page.keyboard.press('Backspace');
+  await expect(chips).toHaveCount(0);
+});

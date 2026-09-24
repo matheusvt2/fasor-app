@@ -13,7 +13,7 @@ export { councilSchema, type Council };
  * renderer read the same text (AD-1, AD-2).
  */
 
-const COUNCIL_LABEL: Record<Council, string> = { crea: 'CREA', crt: 'CRT' };
+const COUNCIL_LABEL: Record<Council, 'CREA' | 'CRT'> = { crea: 'CREA', crt: 'CRT' };
 
 /**
  * Printed title suggested by the council. EXPERIENCE.md, Segmented control row:
@@ -25,7 +25,7 @@ const COUNCIL_DEFAULT_TITLE: Record<Council, string> = {
 };
 
 /** "CREA" / "CRT". */
-export function councilLabel(council: Council): string {
+export function councilLabel(council: Council): 'CREA' | 'CRT' {
   return COUNCIL_LABEL[council];
 }
 
@@ -37,6 +37,23 @@ export function registrationNumberLabel(council: Council): string {
 /** The title the council defaults to; the user may type another one. */
 export function defaultTitleForCouncil(council: Council): string {
   return COUNCIL_DEFAULT_TITLE[council];
+}
+
+const ART_OR_TRT: Record<Council, 'ART' | 'TRT'> = { crea: 'ART', crt: 'TRT' };
+
+/** The document number a council's holder signs with: "ART" for CREA, "TRT" for CRT. */
+export function artOrTrtLabel(council: Council): 'ART' | 'TRT' {
+  return ART_OR_TRT[council];
+}
+
+/**
+ * Relatório setup (Story 4.2, Etapa 3): "Na seção 10: 'Este relatório tem validade apenas
+ * acompanhada da ART 2620262602583'", null until both the council's label and a number
+ * exist.
+ */
+export function artTrtEchoText(label: 'ART' | 'TRT' | null, number: string | null): string | null {
+  if (label === null || number === null || number.trim() === '') return null;
+  return `Na seção 10: "Este relatório tem validade apenas acompanhada da ${label} ${number}"`;
 }
 
 export const registrationSchema = z.object({

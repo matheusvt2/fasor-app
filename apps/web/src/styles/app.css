@@ -197,6 +197,14 @@ body {
   [data-route="/relatorio/:id"] .sum-here { flex-basis: 100%; order: 9; }
   /* `.frame-phone [data-route="/relatorio/porto-seguro"] .sum-open` */
   [data-route="/relatorio/:id"] .sum-open { gap: var(--sp-2); }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro/setup"] .setup-content` (50-relatorio-setup.html) */
+  [data-route="/relatorio/:id/setup"] .setup-content { padding: var(--sp-4) var(--gutter-phone); }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro/setup"] .dates-3` */
+  [data-route="/relatorio/:id/setup"] .dates-3 { grid-template-columns: 1fr; }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro/secao/:n"] .secao-content` (45-secao.html) */
+  [data-route="/relatorio/:id/secao/:blockId"] .secao-content { padding: var(--sp-4) var(--gutter-phone); }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro/secao/:n"] .secao-note .btn-text` */
+  [data-route="/relatorio/:id/secao/:blockId"] .secao-note .btn-text { margin-left: 0; }
   /* `.frame-tablet [data-route="/project/porto-seguro"] .project-head .btn, .frame-phone ... .btn`
      (30-project.html); the tablet half is under "Tablet" below. authored: `.btn` is
      `white-space: nowrap`, and "Novo relatório a partir de template" is wider than a 390px
@@ -321,6 +329,9 @@ body {
   [data-route="/templates"] .tpl-row .overflow-trigger { order: 4; }
   /* `.frame-tablet-landscape [data-route="/templates/porto-seguro"] .composer-palette` (42-template-composer.html) */
   [data-route="/templates/:id"] .composer-palette { width: var(--rail-width); }
+  /* `.frame-tablet-landscape [data-route="/relatorio/porto-seguro/setup"] .form-grid` (+ `.span-2`) (50-relatorio-setup.html) */
+  [data-route="/relatorio/:id/setup"] .form-grid { grid-template-columns: 1fr 1fr; }
+  [data-route="/relatorio/:id/setup"] .form-grid .span-2 { grid-column: 1 / -1; }
   /* `.frame-tablet-landscape [data-route="/cadastros"] .registry-panel { width: 440px }` is not
      translated: in the mock's own cascade it is declared before the later `.frame-tablet,
      .frame-phone .registry-panel { width: 100% }` rule (below, same specificity), which
@@ -344,6 +355,11 @@ body {
   [data-route="/templates"] .tpl-content { padding: var(--sp-6) var(--gutter-desktop); }
   /* `.frame-desktop [data-route="/project/porto-seguro"] .content` (30-project.html) */
   [data-route="/project/:id"] .content { max-width: none; }
+  /* `.frame-desktop [data-route="/relatorio/porto-seguro/setup"] .setup-content` (50-relatorio-setup.html) */
+  [data-route="/relatorio/:id/setup"] .setup-content { padding: var(--sp-6) var(--gutter-desktop); }
+  /* `.frame-desktop [data-route="/relatorio/porto-seguro/setup"] .form-grid` (+ `.span-2`) */
+  [data-route="/relatorio/:id/setup"] .form-grid { grid-template-columns: 1fr 1fr; }
+  [data-route="/relatorio/:id/setup"] .form-grid .span-2 { grid-column: 1 / -1; }
   /* `.frame-desktop [data-route="/templates"] .tpl-row` (41-templates.html) */
   [data-route="/templates"] .tpl-row { flex-wrap: nowrap; }
   /* `.frame-desktop [data-route="/templates"] .tpl-row .rr-text` (41-templates.html) */

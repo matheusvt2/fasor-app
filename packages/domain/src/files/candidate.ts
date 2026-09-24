@@ -10,13 +10,15 @@ export const MAX_FILE_BYTES = 25 * 1024 * 1024;
 
 /**
  * The kinds this story uploads and the mime types each accepts (Epic 2 context:
- * certificate pdf/jpeg/png, logo png/svg, cover_background jpeg/png). `photo` and the
- * render outputs are not here: Epic 6 and Epic 7 own their own routes.
+ * certificate pdf/jpeg/png, logo png/svg, cover_background jpeg/png; Story 4.2 adds the
+ * relatório's own cover_photo jpeg/png). `photo` and the render outputs are not here:
+ * Epic 6 and Epic 7 own their own routes.
  */
 export const FILE_KIND_MIME = {
   certificate: ['application/pdf', 'image/jpeg', 'image/png'],
   logo: ['image/png', 'image/svg+xml'],
   cover_background: ['image/jpeg', 'image/png'],
+  cover_photo: ['image/jpeg', 'image/png'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type UploadFileKind = keyof typeof FILE_KIND_MIME;
@@ -47,6 +49,7 @@ const MIME_REFUSAL: Record<UploadFileKind, string> = {
   certificate: 'Formato não aceito. Envie PDF, JPG ou PNG.',
   logo: 'Formato não aceito. Envie PNG ou SVG.',
   cover_background: 'Formato não aceito. Envie JPG ou PNG.',
+  cover_photo: 'Formato não aceito. Envie JPG ou PNG.',
 };
 
 const TOO_LARGE_TEXT = 'Arquivo acima de 25 MB. Escolha um menor.';

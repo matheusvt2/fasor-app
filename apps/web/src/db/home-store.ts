@@ -13,6 +13,7 @@ import {
   type ProjectRow,
   type RegistryRow,
   type RelatorioRow,
+  type RevisionRow,
   type TemplateRow,
   type WordRow,
 } from '@app/domain';
@@ -152,6 +153,10 @@ export async function relatorioState(db: AppDatabase, relatorioId: string): Prom
   for (const row of await blockRowsOf(db, relatorioId)) put('block', row);
   for (const row of await equipmentRows(db, relatorio.project_id)) put('equipment', row);
   for (const row of await rows<RegistryRow>(db, 'registry')) put('registry', row);
+  // Story 4.6: the Sumário's issued banner reads the relatório's revisions straight off
+  // this state, the same way it already reads `equipment` -- `RelatorioSnapshot` is not
+  // extended for revisions by this batch (batch D/4.8 owns that).
+  for (const row of await rowsWhere<RevisionRow>(db, 'revision', 'relatorio_id', relatorioId)) put('revision', row);
   return state;
 }
 

@@ -3,6 +3,8 @@ import { applyOp, entityKey, type EntityState } from './ops/apply.ts';
 import { makeOp } from './ops/op.ts';
 import { userRowSchema, type UserRow } from './schemas/entities.ts';
 import {
+  artOrTrtLabel,
+  artTrtEchoText,
   avatarInitial,
   registrationOfUserRow,
   registrationPuts,
@@ -25,6 +27,25 @@ describe('defaultTitleForCouncil', () => {
     expect(councilLabel('crt')).toBe('CRT');
     expect(registrationNumberLabel('crea')).toBe('Número CREA');
     expect(registrationNumberLabel('crt')).toBe('Número CRT');
+  });
+});
+
+describe('4.2-UNIT artOrTrtLabel / artTrtEchoText', () => {
+  it('relabels ART/TRT by council', () => {
+    expect(artOrTrtLabel('crea')).toBe('ART');
+    expect(artOrTrtLabel('crt')).toBe('TRT');
+  });
+
+  it('is null until both the label and the number exist', () => {
+    expect(artTrtEchoText(null, '2620262602583')).toBeNull();
+    expect(artTrtEchoText('ART', null)).toBeNull();
+    expect(artTrtEchoText('ART', '')).toBeNull();
+  });
+
+  it('echoes the seção 10 sentence once both exist', () => {
+    expect(artTrtEchoText('ART', '2620262602583')).toBe(
+      'Na seção 10: "Este relatório tem validade apenas acompanhada da ART 2620262602583"',
+    );
   });
 });
 
