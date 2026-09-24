@@ -235,6 +235,30 @@ describe('5.5-UNIT evaluateSheetReadings', () => {
     expect(evaluateSheetReadings(bad, TC)[1]!.tables[0]!.rows[0]!.calculated).toBeNull();
   });
 
+  it('a zero or negative primário or secundário computes no VAL CALCULADO, no verdict and no worst deviation', () => {
+    for (const [primary, secondary] of [
+      ['0', '115'],
+      ['-13800', '115'],
+      ['13800', '0'],
+      ['13800', '-115'],
+    ] as const) {
+      const b = block(
+        'tp',
+        test('relacao_transformacao', [
+          [0, 0, measured(primary, 'V')],
+          [0, 1, measured(secondary, 'V')],
+          [0, 3, measured('120', null)],
+        ]),
+      );
+      const evaluations = evaluateSheetReadings(b, TP);
+      const row = evaluations[1]!.tables[0]!.rows[0]!;
+      expect(row.calculated).toBeNull();
+      expect(row.cells[2]!.verdict).toBeNull();
+      expect(row.condicao).toBeNull();
+      expect(worstReadings(evaluations).some((w) => w.testKey === 'relacao_transformacao' || w.valueText.includes('Infinity'))).toBe(false);
+    }
+  });
+
   it('a disabled test is not evaluated', () => {
     const config = defaultBlockConfig('v1', 'chave_seccionadora', { subtype: 'manual' });
     const off = block('chave_seccionadora', {}, { ...config, sub_blocks: { ...config.sub_blocks, isolacao: { enabled: false } } });

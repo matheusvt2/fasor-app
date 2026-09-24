@@ -95,11 +95,13 @@ export function isInsulationFamily(units: readonly string[]): boolean {
  * Story 5.5: a typed reading. `null` for an empty field, `'invalid'` for text that is no
  * number. On the insulation family a trailing M, G or T (any case, an optional space, an
  * optional "Ω" or "ohm") sets the unit ("147G" -> 147 GΩ, "3.7T" -> 3,7 TΩ, "147 g"); a
- * suffix on any other field is invalid, since its unit is fixed.
+ * suffix on any other field is invalid, since its unit is fixed. A reading is never
+ * negative: a leading "-" (also "-5" typed over a "Não medido" dash) is invalid.
  */
 export function parseReadingPtBr(input: string, options: ParseReadingOptions): ParsedReading | null | 'invalid' {
   const text = input.trim();
   if (text === '') return null;
+  if (text.startsWith('-')) return 'invalid';
   const insulation = isInsulationFamily(options.units);
   const suffix = /^(.*\d)\s*([mgt])\s*(?:Ω|ohms?)?$/i.exec(text);
   if (suffix !== null) {

@@ -345,9 +345,12 @@ function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestD
     }
     if (ratio && inputs.length === 2) {
       const [primary, secondary] = effective;
-      if (primary !== null && primary !== undefined && secondary !== null && secondary !== undefined && secondary !== 0 && Number.isFinite(primary / secondary)) {
+      // VAL CALCULADO exists only for a positive primário and secundário: a zero or negative
+      // side would give a zero ratio and an infinite deviation.
+      if (primary !== null && primary !== undefined && secondary !== null && secondary !== undefined && primary > 0 && secondary > 0) {
         const value = primary / secondary;
-        calculated = { raw: canonicalDecimal(value.toFixed(6)), text: formatCalculated(value) };
+        const raw = canonicalDecimal(value.toFixed(6));
+        if (Number.isFinite(value) && Number(raw) > 0) calculated = { raw, text: formatCalculated(value) };
       }
     }
     // The verdicts: every measured capture against the criterion.

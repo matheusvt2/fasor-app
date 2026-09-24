@@ -11,7 +11,7 @@ import {
   type InstrumentRow,
   type TestKey,
 } from '@app/domain';
-import { useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FocusEvent, type KeyboardEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { Button } from '../../components/index.ts';
 import { now } from '../../clock.ts';
@@ -53,6 +53,7 @@ export function InstrumentPicker({
   const expiredId = useId();
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement | null>(null);
+  const host = useRef<HTMLDivElement | null>(null);
   const options = useRef(new Map<string, HTMLButtonElement | null>());
 
   const header = storedInstrumentHeader(block.sheet.test[testKey]?.instrument?.value);
@@ -79,6 +80,22 @@ export function InstrumentPicker({
     setOpen(false);
     requestAnimationFrame(() => trigger.current?.focus());
   };
+
+  // The list closes when the focus leaves the picker (Tab out) or a pointer goes down
+  // outside it (a tap elsewhere that moves no focus).
+  const onHostBlur = (event: FocusEvent<HTMLDivElement>) => {
+    const next = event.relatedTarget;
+    if (open && !(next instanceof Node && event.currentTarget.contains(next))) setOpen(false);
+  };
+  useEffect(() => {
+    if (!open) return undefined;
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.target instanceof Node && host.current?.contains(event.target)) return;
+      setOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () => document.removeEventListener('pointerdown', onPointerDown, true);
+  }, [open]);
 
   const pick = (id: string) => {
     close();
@@ -119,7 +136,7 @@ export function InstrumentPicker({
   const fieldText = header === null ? t.instrumentEmpty : instrumentFieldText(header, registryRow?.name ?? null);
 
   return (
-    <div className="instrument-picker-host">
+    <div className="instrument-picker-host" ref={host} onBlur={onHostBlur}>
       <div className="field combobox instrument-picker">
         <span className="field-label" id={labelId}>
           {t.instrumentLabel}

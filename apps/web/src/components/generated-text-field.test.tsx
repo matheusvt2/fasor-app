@@ -46,11 +46,13 @@ describe('GeneratedTextField (UX-DR46/47)', () => {
     expect(onReplace).toHaveBeenCalledTimes(1);
   });
 
-  it('"Editar" opens typing; a typed text is committed on blur', async () => {
+  it('"Editar" stores the current text as edited at once and opens typing; a typed text is committed on blur', async () => {
     const user = userEvent.setup();
     const onEdit = vi.fn();
-    renderField('confirmed', { onEdit });
+    renderField('unconfirmed', { onEdit });
     await user.click(screen.getByRole('button', { name: 'Editar' }));
+    expect(onEdit).toHaveBeenCalledTimes(1);
+    expect(onEdit).toHaveBeenCalledWith('A seccionadora SEC-C05 apresentou valores medidos dentro dos critérios de aceitação.');
     const area = screen.getByRole('textbox', { name: 'Texto da conclusão' });
     await user.clear(area);
     await user.type(area, 'Meu texto');

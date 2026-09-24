@@ -2,7 +2,7 @@
 title: 'Stories 5.5-5.8: readings judged against the criterion, the continuous run, the instrument and the conclusion'
 type: 'feature'
 created: '2026-09-24'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'b6511e3b423f38207bf56fb7f0a38722b7f7f16c'
 review_loop_iteration: 0
 followup_review_recommended: false

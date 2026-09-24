@@ -1,5 +1,6 @@
 import {
   fieldValueText,
+  formatDecimalGroupedPtBr,
   nameplateWordRecents,
   numberEchoText,
   numberFieldValue,
@@ -171,11 +172,13 @@ function NumberField({ field, value, commit, draft, missing, label, invalidText 
   const unit = field.unit ?? null;
   const storedRaw = typeof value === 'object' && value !== null && 'raw' in value && (value as { state?: string }).state === 'measured' ? (value as { raw: string }).raw : null;
   const number = useNumberInput({
-    storedText: fieldValueText(field, value),
+    // At rest a stored number reads grouped ("3.300"), the same after a blur and a reload.
+    storedText: storedRaw === null ? fieldValueText(field, value) : formatDecimalGroupedPtBr(storedRaw),
     storedRaw,
     parse: (text) => numberFieldValue(text, unit),
     commit: (parsed) => commit(parsed === null ? null : { raw: parsed.raw, unit, state: 'measured' }),
     echo: (parsed) => numberEchoText(parsed.raw, unit),
+    format: (parsed) => formatDecimalGroupedPtBr(parsed.raw),
     draft: { surface: DRAFT_SURFACE, entityId: draft.entityId, field: draft.field },
   });
   const describedBy = [number.invalid ? helperId : null, number.echo === null ? null : `${helperId}-echo`].filter(Boolean).join(' ') || undefined;

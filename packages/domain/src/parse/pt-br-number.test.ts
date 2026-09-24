@@ -77,6 +77,11 @@ describe('5.5-UNIT parseReadingPtBr, formatDecimalGroupedPtBr, numberEchoText', 
     expect(parseReadingPtBr('abc', insulation)).toBe('invalid');
     expect(parseReadingPtBr('G', insulation)).toBe('invalid');
     expect(parseReadingPtBr('-', insulation)).toBe('invalid');
+    expect(parseReadingPtBr('-330', insulation)).toBe('invalid');
+    expect(parseReadingPtBr('-5', micro)).toBe('invalid');
+    expect(parseReadingPtBr(' -1,5 ', { units: [], defaultUnit: null })).toBe('invalid');
+    expect(parseReadingPtBr('-147G', insulation)).toBe('invalid');
+    expect(parseDecimalPtBr('-5')).toBe('-5');
   });
 
   it('groups thousands and echoes', () => {

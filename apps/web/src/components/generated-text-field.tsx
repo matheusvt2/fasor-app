@@ -16,7 +16,7 @@ export interface GeneratedTextFieldProps {
   onConfirm: () => void;
   /** "Substituir" under a stale text: the recomposed text replaces the stored one. */
   onReplace: () => void;
-  /** A text typed after "Editar", committed on blur. */
+  /** "Editar" (the current text, at once) and a text typed after it (on blur): stored as edited. */
   onEdit: (text: string) => void | Promise<void>;
   draft: { surface: string; entityId: string; field: string };
   /** The line under a suggested text, and under a confirmed one. */
@@ -28,9 +28,10 @@ export interface GeneratedTextFieldProps {
  * The Generated text field (UX-DR46/47, `components.css` Generated text field; built in
  * Story 5.8 as the shared component): a paragraph composed on the device, in the Suggestion
  * field's amber state with its "Sugerido" pill until "Confirmar", with the Criteria line as
- * its description. "Editar" opens it for typing and stops the recomposition; a confirmed
- * text whose values changed since shows "Sugerido: texto atualizado — Substituir" beneath
- * and is never overwritten on its own. The texts are the caller's (the kernel's).
+ * its description. "Editar" stores the current text as edited at once, which stops the
+ * recomposition, then opens it for typing; a confirmed text whose values changed since
+ * shows "Sugerido: texto atualizado — Substituir" beneath and is never overwritten on its
+ * own. The texts are the caller's (the kernel's).
  */
 export function GeneratedTextField({ label, text, criteriaItems, state, onConfirm, onReplace, onEdit, draft, helper, confirmedHelper }: GeneratedTextFieldProps) {
   const t = ui.generatedText;
@@ -130,6 +131,8 @@ export function GeneratedTextField({ label, text, criteriaItems, state, onConfir
             className="btn btn-text"
             onClick={() => {
               setValue(text);
+              dirty.current = false;
+              committer.immediate(text);
               setEditing(true);
               requestAnimationFrame(() => area.current?.focus());
             }}

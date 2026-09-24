@@ -243,6 +243,20 @@ test('@p0 5.4-E2E-001 the checklist by mouse and keyboard: C/NC/NA, Delete clear
   await checklistRow(page, 1).getByRole('button', { name: `Mais opções de ${items[0]!.label}` }).click();
   await page.getByRole('menuitem', { name: 'Limpar' }).click();
   await expect(checklistRow(page, 1).locator('.seg[aria-checked="true"]')).toHaveCount(0);
+
+  // Row 4's observation typed across the idle commit: "abc", a pause past it, "def", blur.
+  const observation4 = page.getByLabel('Observação do item 4', { exact: true });
+  await observation4.click();
+  await page.keyboard.type('abc');
+  await page.waitForTimeout(1000);
+  await page.keyboard.type('def');
+  await expect(observation4).toHaveValue('abcdef');
+  await observation4.blur();
+  await expect(observation4).toHaveValue('abcdef');
+  const observationPath = `sheet/${blockId}/checklist/${items[3]!.key}/observation`;
+  await expect.poll(async () => (await outbox(page)).filter((row) => row.path === observationPath).at(-1)?.value).toBe('abcdef');
+  await page.reload();
+  await expect(page.getByLabel('Observação do item 4', { exact: true })).toHaveValue('abcdef');
 });
 
 test('@p0 5.2-E2E-001 the cabine block: edited on the cabine first sheet as location ops, read-only on the next sheet, the humidity note, "Copiar da cabine anterior" with undo', async ({ page }) => {
@@ -532,9 +546,25 @@ test('@p0 5.5-E2E-001 a reading typed the Brazilian way: echo while typing, a su
   const faseC = cellBox(page, 'isolacao:5:0');
   await expect(faseC.locator('.outlier-helper[role="status"]')).toHaveText('Fase C 1000× abaixo de A e B. Conferir?');
 
+  // A stored reading's unit slot rewrites it at once: T3 147 GΩ -> TΩ untouched, then -> MΩ
+  // with the input focused and blurred without typing; the verdict follows the unit.
+  const t3Unit = cellBox(page, 'isolacao:1:0').locator('.unit-cycle');
+  await t3Unit.click();
+  await expect(t3Unit).toHaveAccessibleName('teraohms, toque para alternar');
+  await expect.poll(async () => (await outbox(page)).filter((row) => row.path === `sheet/${blockId}/test/isolacao/cell/1/0`).at(-1)?.value).toEqual({ raw: '147', unit: 'TΩ', state: 'measured' });
+  await cellInput(page, 'T3, Valor').click();
+  await t3Unit.click();
+  await expect(t3Unit).toHaveAccessibleName('megaohms, toque para alternar');
+  await cellInput(page, 'T3, Valor').blur();
+  await expect(t3Unit).toHaveAccessibleName('megaohms, toque para alternar');
+  await expect.poll(async () => (await outbox(page)).filter((row) => row.path === `sheet/${blockId}/test/isolacao/cell/1/0`).at(-1)?.value).toEqual({ raw: '147', unit: 'MΩ', state: 'measured' });
+  await expect(cellBox(page, 'isolacao:1:0').locator('.measurement-field')).toHaveAttribute('data-state', 'out-of-limit');
+
   await page.reload();
   await expect(cellInput(page, 'T1, Valor')).toHaveValue('3.300');
   await expect(cellInput(page, 'T3, Valor')).toHaveValue('147');
+  await expect(cellBox(page, 'isolacao:1:0').locator('.unit-cycle')).toHaveAccessibleName('megaohms, toque para alternar');
+  await expect(cellBox(page, 'isolacao:1:0').locator('.measurement-field')).toHaveAttribute('data-state', 'out-of-limit');
   await expect(cellInput(page, 'T5, Valor')).toHaveValue('330');
   await expect(cellBox(page, 'isolacao:2:0').locator('.unit-cycle')).toHaveAccessibleName('megaohms, toque para alternar');
   await expect(cellBox(page, 'isolacao:2:0').locator('.measurement-field')).toHaveAttribute('data-state', 'out-of-limit');
@@ -560,7 +590,8 @@ test('@p0 5.6-E2E-001 nine seccionadora readings with Enter only, the run ends o
   // "Não medido" from the cell's Overflow: stored not_measured, shown "-".
   await page.getByRole('button', { name: 'Mais opções de T1, Valor' }).click();
   await page.getByRole('menuitem', { name: 'Não medido' }).click();
-  await expect(cellInput(page, 'T1, Valor')).toHaveValue('-');
+  await expect(cellInput(page, 'T1, Valor')).toHaveValue('');
+  await expect(cellInput(page, 'T1, Valor')).toHaveAttribute('placeholder', '-');
   await expect.poll(async () => (await outbox(page)).filter((row) => row.path === `sheet/${blockId}/test/isolacao/cell/0/0`).at(-1)?.value).toEqual({ raw: '', unit: 'GΩ', state: 'not_measured' });
 
   // The TP: the ratio row computes from the typed voltages, live, never typed itself.
@@ -694,6 +725,45 @@ test('@p0 5.8-E2E-001 one tap on the suggestion sets both pairs, the composed te
   await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
   await expect(page.locator('.suggestion-field.is-generated .suggestion-alt')).toHaveText('Sugerido: texto atualizado — Substituir');
   await expect(text).toContainText('valores medidos dentro dos critérios de aceitação');
+  const textOps = async () => (await outbox(page)).filter((row) => row.path === `sheet/${blockId}/conclusion/text`).map((row) => String(row.value));
+  const confirmedText = (await textOps()).at(-1)!;
+
+  // "Substituir": the recomposed text replaces the stored one and the stale line goes.
+  await page.locator('.suggestion-field.is-generated .suggestion-alt').getByRole('button', { name: 'Substituir' }).click();
+  await expect(page.locator('.suggestion-field.is-generated .suggestion-alt')).toHaveCount(0);
+  await expect(text).not.toContainText('valores medidos dentro dos critérios de aceitação');
+  const replacedText = (await text.textContent())!;
+  await expect.poll(async () => (await textOps()).at(-1)).toBe(replacedText);
+  expect(replacedText).not.toBe(confirmedText);
+
+  // Sem restrições with a non-conforming item: the warning under the pair.
+  // By keyboard on row 1 (Conforme -> ArrowRight -> Não conforme, and back), so the
+  // stepper's scroll cannot move the target under the pointer.
+  await stepper(page).getByRole('button', { name: /^Verificações,/ }).click();
+  await checklistRow(page, 1).getByRole('radio', { name: 'Conforme', exact: true }).focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(checklistRow(page, 1).getByRole('radio', { name: 'Não conforme' })).toHaveAttribute('aria-checked', 'true');
+  await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
+  await expect(page.locator('.conclusion-control .conclusion-hint[role="status"]')).toHaveText('Há itens não conformes');
+  await stepper(page).getByRole('button', { name: /^Verificações,/ }).click();
+  await checklistRow(page, 1).getByRole('radio', { name: 'Não conforme' }).focus();
+  await page.keyboard.press('ArrowLeft');
+  await expect(checklistRow(page, 1).getByRole('radio', { name: 'Conforme', exact: true })).toHaveAttribute('aria-checked', 'true');
+  await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
+  await expect(page.locator('.conclusion-control .conclusion-hint')).toHaveCount(0);
+
+  // "Editar": stored as edited at once, typed, blurred; the edited text survives a reload.
+  await page.locator('.suggestion-field.is-generated').getByRole('button', { name: 'Editar' }).click();
+  await expect.poll(async () => (await outbox(page)).filter((row) => row.path === `sheet/${blockId}/conclusion/text_status`).at(-1)?.value).toBe('edited');
+  const editor = page.getByRole('textbox', { name: 'Texto da conclusão' });
+  await expect(editor).toBeFocused();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.type(' Texto revisado.');
+  await editor.blur();
+  await expect.poll(async () => (await textOps()).at(-1)).toBe(`${replacedText} Texto revisado.`);
+  await page.reload();
+  await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
+  await expect(page.getByRole('textbox', { name: 'Texto da conclusão' })).toHaveValue(`${replacedText} Texto revisado.`);
 
   // Com restrições: the observation is required, then written; "Concluir ficha" concludes.
   await restrictionGroup(page).getByRole('radio', { name: 'Com restrições' }).click();
@@ -709,7 +779,50 @@ test('@p0 5.8-E2E-001 one tap on the suggestion sets both pairs, the composed te
   await expect.poll(async () => (await outbox(page)).some((row) => row.path === `block/${blockId}/concluded_by`)).toBe(true);
 });
 
-test('@p0 5.3-E2E-002 carry-over: "3.3", a pause, "00" in a nameplate number reads 3.300 while focused and 3300 after a reload', async ({ page }) => {
+test('@p0 5.8-E2E-002 "Concluir ficha" lands on the first empty reading, then on the first Resultado radio, then on the observation Com restrições requires', async ({ page }) => {
+  test.setTimeout(180_000);
+  const { relatorioId } = await openRelatorio(page, 1280);
+  await openEnel(page);
+  const target = await rowIds(rowOfType(page, 'Chave seccionadora'));
+  // Plate and checklist complete from the office; readings and pair empty.
+  await pushDrafts(page, database, [
+    ...SECCIONADORA.nameplate.map((f) =>
+      officeDraft(account, { relatorioId }, `sheet/${target.blockId}/nameplate/${f.key}`, f.kind === 'number' ? { raw: '630', unit: f.unit ?? null, state: 'measured' } : f.kind === 'date' ? '2020-01-01' : f.kind === 'select' ? f.options![0] : 'X'),
+    ),
+    ...SECCIONADORA.checklist!.map((item) => officeDraft(account, { relatorioId }, `sheet/${target.blockId}/checklist/${item.key}/result`, 'C')),
+  ]);
+  await syncNow(page);
+  await openEnel(page);
+  const { blockId, tag } = await openSheet(page, rowOfType(page, 'Chave seccionadora'));
+  const concluir = async () => {
+    await page.getByRole('button', { name: `Mais opções da ficha ${tag}` }).click();
+    await page.getByRole('menuitem', { name: 'Concluir ficha' }).click();
+    await expect(page.getByTestId('ficha-announcer')).toHaveText('Faltam obrigatórios — indo para o primeiro campo faltando');
+  };
+  await expect(stepper(page).getByRole('button', { name: 'Placa, 0 faltando' })).toBeVisible();
+  await expect(stepper(page).getByRole('button', { name: 'Verificações, 0 faltando' })).toBeVisible();
+
+  // A reading empty: the Ensaios step, the first empty cell focused.
+  await concluir();
+  await expect(stepper(page).getByRole('button', { name: /^Ensaios,/ })).toHaveAttribute('aria-current', 'step');
+  await expect(cellInput(page, 'T1, Valor')).toBeFocused();
+  for (const value of ['150', '160', '170', '180', '190', '200', '100', '110', '120']) await typeAndEnter(page, value);
+  await expect(stepper(page).getByRole('button', { name: 'Ensaios, 0 faltando' })).toBeVisible();
+
+  // Readings complete, the pair unset: the Conclusão step, its first Resultado radio.
+  await concluir();
+  await expect(stepper(page).getByRole('button', { name: /^Conclusão,/ })).toHaveAttribute('aria-current', 'step');
+  await expect(resultGroup(page).getByRole('radio').first()).toBeFocused();
+
+  // Com restrições with no observation: the observation field.
+  await resultGroup(page).getByRole('radio', { name: 'Aprovado' }).click();
+  await restrictionGroup(page).getByRole('radio', { name: 'Com restrições' }).click();
+  await concluir();
+  await expect(page.getByLabel('Observações da ficha')).toBeFocused();
+  expect((await outbox(page)).some((row) => row.path === `block/${blockId}/concluded_by`)).toBe(false);
+});
+
+test('@p0 5.3-E2E-002 carry-over: "3.3", a pause, "00" in a nameplate number reads 3.300 while focused, after the blur and after a reload', async ({ page }) => {
   test.setTimeout(120_000);
   await openRelatorio(page, 1280);
   await openEnel(page);
@@ -726,8 +839,9 @@ test('@p0 5.3-E2E-002 carry-over: "3.3", a pause, "00" in a nameplate number rea
   await expect.poll(async () => (await outbox(page)).filter((row) => row.path === `sheet/${blockId}/nameplate/corrente_nominal`).map((row) => row.value)).toEqual([
     { raw: '3300', unit: 'kA', state: 'measured' },
   ]);
+  await expect(corrente).toHaveValue('3.300');
   await page.reload();
-  await expect(page.getByLabel('CORRENTE NOMINAL', { exact: true })).toHaveValue('3300');
+  await expect(page.getByLabel('CORRENTE NOMINAL', { exact: true })).toHaveValue('3.300');
 });
 
 test('@p1 5.5-E2E-002 phone 390: the TTR stacks into cards, the plain tables stay tables, the M · G · T chips set the unit; Shift+Enter goes back; Delete clears a conclusion pair', async ({ page }) => {

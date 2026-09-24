@@ -49,13 +49,15 @@ export function MeasurementField({
   const helperId = useId();
   const { address } = cell;
   const insulation = isInsulationFamily(cell.units);
-  // The unit chosen on the slot before a value holds it (the tap-cycle or a chip).
+  // The unit chosen on the slot before a value holds it (the tap-cycle or a chip). Any
+  // change of the stored value (a commit, a remote edit, an undo) drops it, so the slot
+  // shows the stored unit again.
   const [unitChoice, setUnitChoice] = useState<string | null>(null);
   const storedKey = `${cell.state}:${cell.raw}:${cell.unit ?? ''}`;
   const seen = useRef(storedKey);
   if (seen.current !== storedKey) {
     seen.current = storedKey;
-    if (unitChoice !== null && unitChoice === cell.unit) setUnitChoice(null);
+    if (unitChoice !== null) setUnitChoice(null);
   }
   const slotUnit = unitChoice ?? cell.unit;
 
@@ -65,7 +67,9 @@ export function MeasurementField({
   };
 
   const number = useNumberInput({
-    storedText: cell.state === 'empty' ? '' : cell.displayText,
+    // "Não medido" keeps the input empty and prints its "-" as the placeholder, so a value
+    // typed over it is not read as "-5".
+    storedText: cell.state === 'empty' || cell.state === 'not_measured' ? '' : cell.displayText,
     storedRaw: cell.state === 'measured' ? cell.raw : null,
     parse: (text) => parseReadingPtBr(text, { units: cell.units, defaultUnit: slotUnit }),
     commit: (value) => {
@@ -98,10 +102,9 @@ export function MeasurementField({
   const shownUnit = number.focused && number.parsed !== null && number.parsed !== 'invalid' ? number.parsed.unit : slotUnit;
   const out = cell.verdict === 'out';
 
-  /** The unit slot changed: a value already there is rewritten in the new unit at once. */
+  /** The unit slot changed: a value already there (stored or typed) is rewritten in the new unit at once. */
   const chooseUnit = (unit: string | null) => {
     setUnitChoice(unit);
-    if (number.focused) return; // the typed text commits on blur, in the chosen unit
     const parsed = number.parsed;
     if (parsed !== null && parsed !== 'invalid') void write({ raw: parsed.raw, unit, state: 'measured' });
   };
@@ -133,7 +136,7 @@ export function MeasurementField({
           aria-label={label}
           aria-invalid={number.invalid || undefined}
           aria-describedby={describedBy}
-          placeholder={cell.fallback?.text}
+          placeholder={cell.state === 'not_measured' ? cell.displayText : cell.fallback?.text}
           data-cell-input={cellKey(address)}
           data-missing-field={missing ? '' : undefined}
         />
