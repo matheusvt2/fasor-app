@@ -1,5 +1,5 @@
 import type { Op } from '@app/domain';
-import { deviceDatabaseName, expect, test } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, test, TEST_SEED } from './support/merged-fixtures.ts';
 import {
   clearSessionPointer,
   closeEveryTab,
@@ -26,6 +26,7 @@ import {
   withoutServiceWorker,
 } from './support/durability.ts';
 import { clientCreateOp, pullAll, readDeviceId, readStore, seedOutbox } from './support/outbox.ts';
+import { resetEmpresaB } from './support/reset-empresa-b.ts';
 
 /**
  * FR-54 / NFR-17: "the tab closed mid-sheet, the network dropped mid-push, the quota
@@ -383,4 +384,49 @@ test('@p0 1.8-E2E-006 a pending job keeps its shell through a worker restart and
   } finally {
     await restoreBuild();
   }
+});
+
+/*
+ * 4.3-E2E-003 (E3-A8's touch rule): on the Android emulation the Position box is the
+ * reorder path that costs one tap and a number; typed by touch, it moves the row like the
+ * desktop path does. Runs against the built bundle like every scenario here.
+ */
+test('@p1 4.3-E2E-003 the Position box typed by touch moves a Sumário row', async ({ page, context, browserName }) => {
+  test.skip(browserName === 'webkit', 'the touch rule is asserted on the Android emulation; WebKit runs the desktop spec');
+  await resetEmpresaB({ standard: true });
+  const account = TEST_SEED.companies[1];
+  await signInForDurability(page, context, account.email);
+  await expect(page.locator('.shortcut-sub', { hasText: '1 template' })).toBeVisible({ timeout: 30_000 });
+
+  // Home › Novo relatório › client and obra created inline › Continuar.
+  await page.getByRole('button', { name: 'Novo relatório' }).tap();
+  const dialog = page.getByRole('dialog', { name: 'Novo relatório' });
+  await dialog.getByRole('combobox', { name: 'Cliente' }).fill('Cliente por toque');
+  await page.getByRole('option', { name: 'Criar “Cliente por toque”' }).tap();
+  await expect(dialog.getByRole('combobox', { name: 'Cliente' })).toHaveValue('Cliente por toque');
+  await dialog.getByRole('combobox', { name: 'Local (obra)' }).fill('Obra por toque');
+  await page.getByRole('option', { name: 'Criar “Obra por toque”' }).tap();
+  await expect(dialog.getByRole('combobox', { name: 'Local (obra)' })).toHaveValue('Obra por toque');
+  await dialog.getByRole('button', { name: 'Continuar' }).tap();
+  await expect(page).toHaveURL(/\/project\/[0-9a-f-]{36}$/);
+
+  // The Project's dialog: the start date by touch and keyboard, then Criar.
+  const create = page.getByRole('dialog', { name: 'Novo relatório' });
+  await create.getByRole('group', { name: 'Início da parada' }).getByRole('spinbutton').first().tap();
+  await page.keyboard.type('06092026');
+  await create.getByRole('button', { name: 'Criar relatório' }).tap();
+  await expect(page).toHaveURL(/\/relatorio\/[0-9a-f-]{36}$/, { timeout: 30_000 });
+  const titles = page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title');
+  await expect(titles.nth(3)).toHaveText('Definições');
+
+  // The Position box of row 2, tapped and typed: the row lands at 4 and the move is announced.
+  const box = page.getByRole('textbox', { name: 'Número de Definições — digite outro para mover' });
+  await box.tap();
+  await page.keyboard.press('Control+a');
+  await page.keyboard.type('4');
+  await page.keyboard.press('Enter');
+  await expect(titles.nth(5)).toHaveText('Definições');
+  await expect(page.getByTestId('sumario-announcer')).toHaveText('Seção 2 movida para a posição 4 de 11');
+  await expect(box).toHaveValue('4');
+  await expect(page.getByText('Definições movida — numeração refeita')).toBeVisible();
 });

@@ -1,14 +1,16 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  readLastSheet,
   readRecoveryNotice,
   readTheme,
   readThemeMirror,
   THEME_MIRROR_KEY,
+  writeLastSheet,
   writeRecoveryNotice,
   writeTheme,
 } from './prefs.ts';
-import { openDatabase, RECOVERY_NOTICE_PREF, THEME_PREF, type AppDatabase } from './schema.ts';
+import { LAST_SHEET_PREF, openDatabase, RECOVERY_NOTICE_PREF, THEME_PREF, type AppDatabase } from './schema.ts';
 
 let counter = 0;
 async function freshDb(): Promise<AppDatabase> {
@@ -144,6 +146,28 @@ describe('theme mirror for the boot script', () => {
     // Dexie still holds the choice: only the pre-paint shortcut is lost.
     expect(await db.local_prefs.get(THEME_PREF)).toEqual({ key: THEME_PREF, value: 'light' });
     expect(readThemeMirror()).toBeNull();
+    db.close();
+  });
+});
+
+describe('last sheet per relatório in local_prefs (Story 4.3)', () => {
+  const RELATORIO = '019966b0-0020-7000-8000-0000000000aa';
+  const BLOCK = '019966b0-0020-7000-8000-0000000000bb';
+
+  it('is null until written, then round-trips under its own key', async () => {
+    const db = await freshDb();
+    expect(await readLastSheet(db, RELATORIO)).toBeNull();
+    await writeLastSheet(db, RELATORIO, BLOCK);
+    expect(await readLastSheet(db, RELATORIO)).toBe(BLOCK);
+    expect(await db.local_prefs.get(LAST_SHEET_PREF(RELATORIO))).toEqual({ key: `last_sheet:${RELATORIO}`, value: BLOCK });
+    expect(await readLastSheet(db, '019966b0-0020-7000-8000-0000000000cc')).toBeNull();
+    db.close();
+  });
+
+  it('ignores a stored value that is not a string', async () => {
+    const db = await freshDb();
+    await db.local_prefs.put({ key: LAST_SHEET_PREF(RELATORIO), value: { kind: 'relatorio' } });
+    expect(await readLastSheet(db, RELATORIO)).toBeNull();
     db.close();
   });
 });

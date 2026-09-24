@@ -12,12 +12,11 @@ export interface RelatorioCardProps {
  * `.relatorio-card` from `20-home.html`. Every line is a string the kernel already
  * wrote (`homeCards`): the surface only places it.
  *
- * "Continuar" and "Ver sumário" point at the relatório tree and the Sumário, which
- * Epics 2 and 5 own, so they render `aria-disabled` and stay focusable with one shared
- * reason beside them (AD-23) instead of vanishing. The reason is written once for both,
- * as the mock's `.btn-reason` is: two copies of the same sentence would be the screen
- * arguing with itself. There is no `.progress-counter` either — its "n de N fichas"
- * needs `progress(snapshot)`, which does not exist yet (AD-8, Design Notes).
+ * "Ver sumário" opens the Sumário like the card's own tap (Story 4.3). "Continuar" points
+ * at the last sheet, which Epic 5 owns, so it renders `aria-disabled` and stays focusable
+ * with its reason beside it (AD-23) instead of vanishing. There is no `.progress-counter`
+ * on the card yet: the Home card reads relatórios it may not hold, and the counter of a
+ * relatório on this device is the Project row's (Story 4.1).
  */
 export function RelatorioCard({ card, onPress }: RelatorioCardProps) {
   const reasonId = useId();
@@ -52,9 +51,7 @@ export function RelatorioCard({ card, onPress }: RelatorioCardProps) {
             <Button variant="primary" isDisabled disabledReasonId={reasonId}>
               {copy.home.continue}
             </Button>
-            <TextButton isDisabled disabledReasonId={reasonId}>
-              {copy.home.openSummary}
-            </TextButton>
+            <TextButton onPress={() => onPress(card)}>{copy.home.openSummary}</TextButton>
           </div>
           <span className="btn-reason" id={reasonId}>
             {copy.home.notAvailableYet}

@@ -1,9 +1,15 @@
 import {
+  entityKey,
   entityRowSchemas,
   type BlockRow,
   type EmpresaRow,
   type ClientRow,
+  type EntityKey,
+  type EntityRow,
+  type EntityState,
+  type EquipmentRow,
   type InstrumentRow,
+  type LocationRow,
   type ProjectRow,
   type RegistryRow,
   type RelatorioRow,
@@ -76,6 +82,77 @@ export function blockRows(db: AppDatabase): Promise<BlockRow[]> {
 
 export function templateRows(db: AppDatabase): Promise<TemplateRow[]> {
   return rows<TemplateRow>(db, 'template');
+}
+
+/** One live row of an entity by id, or null: absent, removed, or no longer parsing. */
+async function liveRow<T>(db: AppDatabase, entity: keyof typeof entityRowSchemas, id: string): Promise<T | null> {
+  const record = await db.entities.get([entity, id]);
+  if (record === undefined || record.removed_at !== null) return null;
+  const parsed = entityRowSchemas[entity].safeParse(record.row);
+  return parsed.success ? (parsed.data as T) : null;
+}
+
+/** Every row of an entity in one relatório or project, tombstones included (the caller filters). */
+async function rowsWhere<T>(db: AppDatabase, entity: keyof typeof entityRowSchemas, index: 'relatorio_id' | 'project_id', id: string): Promise<T[]> {
+  const records = await db.entities.where(index).equals(id).toArray();
+  const parsed: T[] = [];
+  for (const record of records) {
+    if (record.entity !== entity) continue;
+    const result = entityRowSchemas[entity].safeParse(record.row);
+    if (result.success) parsed.push(result.data as T);
+  }
+  return parsed;
+}
+
+/** One live project (Story 4.1, the Project surface), or null. */
+export function projectRow(db: AppDatabase, id: string): Promise<ProjectRow | null> {
+  return liveRow<ProjectRow>(db, 'project', id);
+}
+
+/** One live relatório (the Sumário's row), or null. */
+export function relatorioRow(db: AppDatabase, id: string): Promise<RelatorioRow | null> {
+  return liveRow<RelatorioRow>(db, 'relatorio', id);
+}
+
+/** The live relatórios of one project, in store order (the kernel orders them). */
+export async function relatoriosOfProject(db: AppDatabase, projectId: string): Promise<RelatorioRow[]> {
+  return (await rowsWhere<RelatorioRow>(db, 'relatorio', 'project_id', projectId)).filter((row) => row.removed_at === null);
+}
+
+/** The live locations of one relatório. */
+export async function locationRows(db: AppDatabase, relatorioId: string): Promise<LocationRow[]> {
+  return (await rowsWhere<LocationRow>(db, 'location', 'relatorio_id', relatorioId)).filter((row) => row.removed_at === null);
+}
+
+/** Every block of one relatório, removed ones included ("Restaurar ficha removida" lists them). */
+export function blockRowsOf(db: AppDatabase, relatorioId: string): Promise<BlockRow[]> {
+  return rowsWhere<BlockRow>(db, 'block', 'relatorio_id', relatorioId);
+}
+
+/** Every equipment row of one project, removed ones included (`suggestTag` and `isTagTaken` read `removed_at`). */
+export function equipmentRows(db: AppDatabase, projectId: string): Promise<EquipmentRow[]> {
+  return rowsWhere<EquipmentRow>(db, 'equipment', 'project_id', projectId);
+}
+
+/**
+ * The rows `buildSnapshot(state, relatorioId)` needs, as an `EntityState`: the relatório,
+ * its project, its locations and blocks, the project's equipment and the company registry
+ * rows. Null when this device holds no live relatório of that id. Read in one place so the
+ * Sumário renders exactly what the kernel's snapshot says (AD-1, AD-15).
+ */
+export async function relatorioState(db: AppDatabase, relatorioId: string): Promise<EntityState | null> {
+  const relatorio = await relatorioRow(db, relatorioId);
+  if (relatorio === null) return null;
+  const state = new Map<EntityKey, EntityRow>();
+  const put = (entity: keyof typeof entityRowSchemas, row: { id: string }) => state.set(entityKey(entity, row.id), row as EntityRow);
+  put('relatorio', relatorio);
+  const project = await projectRow(db, relatorio.project_id);
+  if (project !== null) put('project', project);
+  for (const row of await locationRows(db, relatorioId)) put('location', row);
+  for (const row of await blockRowsOf(db, relatorioId)) put('block', row);
+  for (const row of await equipmentRows(db, relatorio.project_id)) put('equipment', row);
+  for (const row of await rows<RegistryRow>(db, 'registry')) put('registry', row);
+  return state;
 }
 
 /**

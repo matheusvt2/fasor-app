@@ -92,4 +92,6 @@ export const ui = {
   registryTabPlaceholder: {
     text: 'Disponível em uma próxima etapa.',
   },
+  // authored: the segments of a date field name themselves (React Aria's own pt-BR words
+  // are used); this is the group's spoken suffix nothing else needs.
 } as const;

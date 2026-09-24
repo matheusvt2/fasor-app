@@ -24,6 +24,10 @@ export interface PositionBoxProps {
   position: number;
   siblings: number;
   reorder: Reorder;
+  /** Classes beside `.pos-box` (the Sumário's `.sum-pos`). */
+  className?: string;
+  /** The accessible name; defaults to "Posição de ⟨nome⟩". */
+  label?: string;
 }
 
 /**
@@ -31,7 +35,7 @@ export interface PositionBoxProps {
  * typed and committed on blur or Enter moves the row there, clamped to the ends. Anything
  * else puts the position back with no op (`parsePositionInput`).
  */
-export function PositionBox({ name, position, siblings, reorder }: PositionBoxProps) {
+export function PositionBox({ name, position, siblings, reorder, className, label }: PositionBoxProps) {
   const [text, setText] = useState<string | null>(null);
 
   function commit(keepFocus: boolean, input: HTMLInputElement) {
@@ -44,12 +48,14 @@ export function PositionBox({ name, position, siblings, reorder }: PositionBoxPr
 
   return (
     <input
-      className="pos-box"
+      className={className === undefined ? 'pos-box' : `pos-box ${className}`}
       inputMode="numeric"
-      aria-label={ui.reorder.position(name)}
+      aria-label={label ?? ui.reorder.position(name)}
       value={text ?? String(position)}
+      // `text` holds only what the user typed: the box follows the row's position until
+      // then, so a move that gives the focus back (and a later "Desfazer") never leaves a
+      // stale number in it. The focus selects the number, so typing replaces it.
       onFocus={(event) => {
-        setText(String(position));
         const input = event.currentTarget;
         requestAnimationFrame(() => input.select());
       }}

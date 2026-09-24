@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { ENTITIES, ENTITY_SCOPE, entityKeys, entityRowSchemas, registryKeys, type Entity } from './entities.ts';
@@ -56,5 +58,36 @@ describe('entityKeys', () => {
     expect(entityKeys('file')).toContain('caption');
     expect(registryKeys('instrument')).toContain('certificate_file_id');
     expect(registryKeys('client')).not.toContain('serial');
+  });
+});
+
+function sortKeysDeep(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortKeysDeep);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.keys(value as object)
+        .sort()
+        .map((k) => [k, sortKeysDeep((value as Record<string, unknown>)[k])]),
+    );
+  }
+  return value;
+}
+
+describe('4.1-UNIT the Porto Seguro golden files still parse after location_id became nullable', () => {
+  it.each(['../../fixtures/porto-seguro/snapshot.golden.json', '../../fixtures/porto-seguro/small/snapshot.golden.json'])('%s', (file) => {
+    const path = fileURLToPath(new URL(file, import.meta.url));
+    const golden = JSON.parse(readFileSync(path, 'utf8')) as { blocks: unknown[] };
+    for (const block of golden.blocks) {
+      const parsed = entityRowSchemas.block.parse(block);
+      expect(typeof parsed.location_id).toBe('string');
+      // A parse round trip changes no value: the golden file (canonical, keys sorted) stays
+      // byte-identical to what the schema hands back once sorted the same way.
+      expect(JSON.stringify(sortKeysDeep(parsed))).toBe(JSON.stringify(block));
+    }
+  });
+
+  it('accepts a section block with no location', () => {
+    const golden = JSON.parse(readFileSync(fileURLToPath(new URL('../../fixtures/porto-seguro/small/snapshot.golden.json', import.meta.url)), 'utf8')) as { blocks: { location_id: string }[] };
+    expect(entityRowSchemas.block.safeParse({ ...golden.blocks[0], location_id: null, equipment_id: null, block_type: 'section_2', config: {} }).success).toBe(true);
   });
 });

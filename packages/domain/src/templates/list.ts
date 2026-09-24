@@ -47,12 +47,22 @@ export function pickableTemplates(rows: readonly TemplateRow[]): TemplateRow[] {
 }
 
 /**
- * How many of the company's relatórios were created from this template, read from the
- * company pull's summary (AD-8). A template with any is only ever archived, never
- * removed (FR-9).
+ * How many of the company's relatórios were created from this template: the company
+ * pull's summary (AD-8) united by id with the relatório rows this device holds, so one
+ * created here and not yet synced already makes the template referenced (Story 4.1). A
+ * template with any is only ever archived, never removed (FR-9).
  */
-export function templateUseCount(templateId: string, summaries: readonly RelatorioSummary[]): number {
-  return summaries.filter((summary) => summary.template_id === templateId).length;
+export function templateUseCount(
+  templateId: string,
+  summaries: readonly RelatorioSummary[],
+  localRelatorios: readonly { id: string; template_id: string | null; removed_at?: string | null }[] = [],
+): number {
+  const ids = new Set<string>();
+  for (const summary of summaries) if (summary.template_id === templateId) ids.add(summary.id);
+  for (const row of localRelatorios) {
+    if (row.template_id === templateId && (row.removed_at ?? null) === null) ids.add(row.id);
+  }
+  return ids.size;
 }
 
 /**

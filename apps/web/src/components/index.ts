@@ -50,3 +50,6 @@ export type { RegistryPickerFieldProps } from './registry-picker-field.tsx';
 
 export { QuantityStepper } from './quantity-stepper.tsx';
 export type { QuantityStepperProps } from './quantity-stepper.tsx';
+
+export { DateField } from './date-field.tsx';
+export type { DateFieldProps } from './date-field.tsx';

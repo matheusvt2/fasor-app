@@ -8,6 +8,7 @@ import {
   relatorioCreateOp,
   seedOutbox,
 } from './support/outbox.ts';
+import { resetEmpresaB } from './support/reset-empresa-b.ts';
 
 /*
  * 1.6-E2E-001. Home over the real pipeline: relatórios are seeded as outbox ops, pushed
@@ -118,8 +119,12 @@ test('@p1 1.6-E2E-001 Home shows the status board, the current relatório first 
   await expect(first.locator('.card-title')).toContainText('Cliente E2E · Torres A e B');
   await expect(first.locator('.card-meta')).toContainText('06–08/09/2026');
   await expect(first.getByRole('button', { name: 'Continuar' })).toHaveAttribute('aria-disabled', 'true');
-  await expect(first.getByRole('button', { name: 'Ver sumário' })).toHaveAttribute('aria-disabled', 'true');
   await expect(card(page, rascunhoId).getByRole('button', { name: 'Continuar' })).toHaveCount(0);
+  // "Ver sumário" opens the relatório's Sumário (Story 4.3).
+  await first.getByRole('button', { name: 'Ver sumário' }).click();
+  await expect(page).toHaveURL(new RegExp(`/relatorio/${emCampoId}$`));
+  await page.goBack();
+  await expect(card(page, emCampoId)).toBeVisible();
 
   // The three device lines.
   await expect(first.locator('.card-device')).toContainText('No aparelho · atualizado');
@@ -149,18 +154,22 @@ test('@p1 1.6-E2E-001 Home shows the status board, the current relatório first 
   await expect(card(page, emitidoId)).toBeVisible();
   await tile(page, 'Emitido').click();
 
-  // Tapping the Emitido card starts its pull; while the stream is slow the card says so.
-  // The predicate is held in a const: Playwright matches function URL-patterns by
-  // reference, so unrouting with a fresh lambda would leave the delay installed for
-  // every assertion below it.
+  // Tapping the Emitido card starts its pull and opens its Sumário (AD-8 "pulled on open"),
+  // which says so while the stream is slow; once it lands the Sumário draws and, back on
+  // Home, the card reads "No aparelho". The predicate is held in a const: Playwright
+  // matches function URL-patterns by reference, so unrouting with a fresh lambda would
+  // leave the delay installed for every assertion below it.
   const slowStream = (url: URL) => url.pathname.startsWith(`/api/sync/relatorios/${emitidoId}`);
   await page.route(slowStream, async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 4_000));
     await route.continue();
   });
   await card(page, emitidoId).locator('.card-title').click();
-  await expect(card(page, emitidoId).locator('.card-device')).toContainText('Baixando…', { timeout: 20_000 });
+  await expect(page).toHaveURL(new RegExp(`/relatorio/${emitidoId}$`));
+  await expect(page.getByText('Baixando o relatório…')).toBeVisible({ timeout: 20_000 });
   await page.unroute(slowStream);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 40_000 });
+  await page.goBack();
   await expect(card(page, emitidoId).locator('.card-device')).toContainText('No aparelho', { timeout: 40_000 });
 
   // The App bar carries the surface title from the real route config (hidden on Home,
@@ -175,17 +184,20 @@ test('@p1 1.6-E2E-001 Home shows the status board, the current relatório first 
   await expect(page.locator('.shortcut-card .sync-badge')).toHaveCount(0);
 });
 
-test('@p1 1.6-E2E-002 a device with nothing on it says so and offers a disabled "Novo relatório"', async ({
-  page,
-  seed,
-}) => {
-  // The second seeded company is never given a relatório by the suite.
+test('@p1 1.6-E2E-002 a device with nothing on it says so and offers "Novo relatório"', async ({ page, seed }) => {
+  // Empresa B is the company the writing specs use (`e2e/relatorio.spec.ts` resets it and
+  // leaves relatórios behind), so it is emptied here first: the reset is only ever Empresa B's.
+  await resetEmpresaB();
   await signIn(page, seed.companies[1].email);
   await expect(page.getByText('Nenhum relatório ainda.')).toBeVisible();
   await expect(page.locator('.relatorio-card')).toHaveCount(0);
-  const novo = page.getByRole('button', { name: 'Novo relatório' });
-  await expect(novo).toHaveAttribute('aria-disabled', 'true');
-  await expect(page.locator('.btn-reason', { hasText: 'Disponível em uma próxima etapa' }).first()).toBeVisible();
+  // "Novo relatório" asks for the client and the obra (Story 4.1).
+  await page.getByRole('button', { name: 'Novo relatório' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Novo relatório' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('combobox', { name: 'Cliente' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
 });
 
 test('@p1 1.6-E2E-003 a cold open with a session and no connection renders from the device', async ({ page, seed }) => {

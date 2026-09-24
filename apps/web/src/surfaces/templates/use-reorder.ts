@@ -27,6 +27,12 @@ export interface ReorderOptions {
   siblings: number;
   /** Moves the row to a 0-based index among its siblings; resolves once written. */
   onMove: (toIndex: number) => Promise<void>;
+  /**
+   * How many frames the focus is watched for after a move lands. The composer's list
+   * re-renders within the default; a list whose live query rebuilds a whole snapshot (the
+   * Sumário) passes `LIST_FOCUS_WATCH_FRAMES`.
+   */
+  focusFrames?: number;
 }
 
 export interface Reorder {
@@ -108,7 +114,7 @@ function siblingRows(row: HTMLElement): HTMLElement[] {
   return [...parent.children].filter((el): el is HTMLElement => el instanceof HTMLElement && el.dataset.reorderKey !== undefined);
 }
 
-export function useReorder({ itemKey, position, siblings, onMove }: ReorderOptions): Reorder {
+export function useReorder({ itemKey, position, siblings, onMove, focusFrames = FOCUS_WATCH_FRAMES }: ReorderOptions): Reorder {
   const rowRef = useRef<HTMLElement | null>(null);
   const drag = useRef<DragState | null>(null);
   const [offset, setOffset] = useState<number | null>(null);
@@ -119,9 +125,18 @@ export function useReorder({ itemKey, position, siblings, onMove }: ReorderOptio
       if (index === position - 1) return;
       const held = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       await onMove(index);
-      restoreFocus(focus ?? (() => held));
+      const row = rowRef.current;
+      restoreFocus(
+        () => {
+          // Only once the row sits at its new place, and once only: a watch left over from
+          // an earlier move must never pull the focus back after a later one.
+          if (row !== null && row.isConnected && siblingRows(row).indexOf(row) !== index) return null;
+          return (focus ?? (() => held))();
+        },
+        { frames: focusFrames, once: true },
+      );
     },
-    [onMove, position, siblings],
+    [onMove, position, siblings, focusFrames],
   );
 
   const arm = useCallback(() => {

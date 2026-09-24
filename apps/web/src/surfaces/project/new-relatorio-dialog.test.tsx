@@ -1,0 +1,162 @@
+import 'fake-indexeddb/auto';
+import { standardTemplate, type ClientRow, type EquipmentRow, type ProjectRow, type TemplateRow } from '@app/domain';
+import { configure, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { axe } from 'jest-axe';
+import { I18nProvider } from 'react-aria-components';
+import { MemoryRouter, Route, Routes } from 'react-router';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { toRecord } from '../../db/commit.ts';
+import { openDatabase, type AppDatabase } from '../../db/schema.ts';
+import type { SessionState } from '../../state/session.tsx';
+import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
+import { NewRelatorioDialog } from './new-relatorio-dialog.tsx';
+
+/*
+ * Story 4.1: the "Novo relatório" dialog over a real device database. The reason beside
+ * "Criar relatório" follows the kernel, the end date follows the start, and Criar writes
+ * ONE batch of 223 ops under one batch_id, then opens the Sumário.
+ */
+
+const COMPANY = '0b000000-0000-7000-8000-00000000000b';
+const USER = '0b000000-0000-7000-8000-0000000000b1';
+const TEMPLATE = '019966b0-0060-7000-8000-000000000001';
+const PROJECT = '019966b0-0060-7000-8000-000000000002';
+const CLIENT = '019966b0-0060-7000-8000-000000000003';
+
+let database: AppDatabase | null = null;
+let counter = 0;
+
+const session = (): SessionState => ({
+  status: 'signed-in',
+  user: { id: USER, name: 'Bento Braga', email: 'b@teste.local', companyId: COMPANY, companyName: 'Empresa B de Teste', council: null, registrationNumber: null, title: null },
+  online: true,
+  reAuthRequired: false,
+  database,
+  signIn: vi.fn(),
+  signOut: vi.fn(async () => {}),
+  saveRegistration: vi.fn(async () => {}),
+  dismissReAuth: vi.fn(),
+  recoveryNeeded: false,
+  dismissRecovery: vi.fn(),
+});
+
+vi.mock('../../state/session.tsx', () => ({ useSession: () => session() }));
+
+configure({ asyncUtilTimeout: 5000 });
+
+async function freshDb(): Promise<AppDatabase> {
+  const user = `019966b0-0061-7000-8000-${(++counter).toString(16).padStart(12, '0')}`;
+  const db = openDatabase(user);
+  await db.delete();
+  return openDatabase(user);
+}
+
+const project: ProjectRow = { id: PROJECT, client_id: CLIENT, name: 'Torres A e B', site: 'Torres A e B', removed_at: null };
+const client: ClientRow = { id: CLIENT, kind: 'client', name: 'Seguradora Exemplo S.A.', cnpj: null, contact_name: null, contact_phone: null, sites: [], removed_at: null };
+const template = (): TemplateRow => standardTemplate({ id: TEMPLATE });
+
+function renderDialog(templates: TemplateRow[] = [template()]) {
+  const onClose = vi.fn();
+  render(
+    <I18nProvider locale="pt-BR">
+      <MemoryRouter initialEntries={['/project/x']}>
+        <ToastProvider>
+          <Routes>
+            <Route path="/project/:id" element={<NewRelatorioDialog project={project} client={client} relatorios={[]} templates={templates} onClose={onClose} />} />
+            <Route path="/relatorio/:id" element={<p data-testid="sumario-route">Sumário</p>} />
+          </Routes>
+          <ToastOutlet />
+        </ToastProvider>
+      </MemoryRouter>
+    </I18nProvider>,
+  );
+  return onClose;
+}
+
+const dialog = () => screen.getByRole('dialog', { name: 'Novo relatório' });
+const create = () => within(dialog()).getByRole('button', { name: 'Criar relatório' });
+const segments = (label: string) => within(within(dialog()).getByRole('group', { name: label })).getAllByRole('spinbutton');
+
+async function typeDate(label: string, digits: string) {
+  await userEvent.click(segments(label)[0]!);
+  await userEvent.keyboard(digits);
+}
+
+afterEach(() => {
+  database?.close();
+  database = null;
+});
+
+describe('4.1 NewRelatorioDialog', () => {
+  it('preselects the one type and the only pickable template, and says what is missing until a start exists', async () => {
+    database = await freshDb();
+    await database.entities.put(toRecord(`template:${TEMPLATE}`, template()));
+    renderDialog();
+    const radio = within(dialog()).getByRole('radio', { name: /Cabine primária/ });
+    expect(radio).toHaveAttribute('aria-checked', 'true');
+    expect(radio).toHaveClass('option-row', 'is-selected');
+    expect(within(dialog()).getByRole('combobox', { name: 'Template' })).toHaveValue('Cabine primária — padrão');
+    expect(within(dialog()).getByText('Os 94 blocos nascem nas cabines e colunas do template, com a TAG final. Arquivados não aparecem.')).toHaveClass('helper');
+    expect(create()).toHaveAttribute('aria-disabled', 'true');
+    expect(create()).toHaveAccessibleDescription('Criar relatório: falta a data de início');
+    expect(await axe(document.body)).toHaveNoViolations();
+  });
+
+  it('with no pickable template the reason names the template first', async () => {
+    database = await freshDb();
+    renderDialog([{ ...template(), archived_at: '2026-09-01T00:00:00.000Z' }]);
+    expect(create()).toHaveAccessibleDescription('Criar relatório: falta o template');
+  });
+
+  it('the end follows the start until typed by hand, and an end before the start is refused', async () => {
+    database = await freshDb();
+    renderDialog();
+    await typeDate('Início da parada', '06092026');
+    await waitFor(() => expect(segments('Fim da parada').map((s) => s.textContent)).toEqual(['06', '09', '2026']));
+    expect(create()).not.toHaveAttribute('aria-disabled');
+    await typeDate('Fim da parada', '05092026');
+    await waitFor(() => expect(create()).toHaveAccessibleDescription('Criar relatório: o fim é anterior ao início'));
+    // A start typed again does not overwrite the end the user chose.
+    await typeDate('Início da parada', '01092026');
+    await waitFor(() => expect(segments('Fim da parada').map((s) => s.textContent)).toEqual(['05', '09', '2026']));
+    expect(create()).not.toHaveAttribute('aria-disabled');
+  });
+
+  it('Criar writes one batch of 223 ops under one batch_id and opens the Sumário', async () => {
+    database = await freshDb();
+    await database.entities.put(toRecord(`template:${TEMPLATE}`, template()));
+    const onClose = renderDialog();
+    await typeDate('Início da parada', '06092026');
+    await typeDate('Fim da parada', '08092026');
+    await userEvent.click(create());
+    await screen.findByTestId('sumario-route');
+    expect(onClose).toHaveBeenCalled();
+    const outbox = await database.outbox.toArray();
+    expect(outbox).toHaveLength(223);
+    expect(new Set(outbox.map((op) => op.batch_id)).size).toBe(1);
+    expect(outbox.filter((op) => op.path.startsWith('relatorio/'))).toHaveLength(1);
+    expect(outbox.filter((op) => op.path.startsWith('location/'))).toHaveLength(23);
+    expect(outbox.filter((op) => op.path.startsWith('equipment/'))).toHaveLength(94);
+    expect(outbox.filter((op) => op.path.startsWith('block/'))).toHaveLength(105);
+    const relatorio = outbox.find((op) => op.path.startsWith('relatorio/'))!.value as { template_id: string; template_version: number; seed_version: string; status: string; setup: { service_start: string; service_end: string } };
+    expect(relatorio).toMatchObject({ template_id: TEMPLATE, template_version: 1, seed_version: 'v1', status: 'rascunho', setup: { service_start: '2026-09-06', service_end: '2026-09-08' } });
+    expect(await database.entities.where('entity').equals('block').count()).toBe(105);
+  });
+
+  it('suggests TAGs around the equipment the project already holds: SEC-C05 taken, the new chave in Coluna 5 is SEC-C05-2', async () => {
+    database = await freshDb();
+    const EQUIPMENT = '019966b0-0060-7000-8000-000000000004';
+    const existing: EquipmentRow = { id: EQUIPMENT, project_id: PROJECT, tag: 'SEC-C05', type: 'chave_seccionadora', last_nameplate: null, removed_at: null };
+    await database.entities.bulkPut([toRecord(`template:${TEMPLATE}`, template()), toRecord(`equipment:${EQUIPMENT}`, existing)]);
+    renderDialog();
+    await typeDate('Início da parada', '06092026');
+    await userEvent.click(create());
+    await screen.findByTestId('sumario-route');
+    const tags = (await database.outbox.toArray()).filter((op) => op.path.startsWith('equipment/')).map((op) => (op.value as { tag: string }).tag);
+    expect(tags).toHaveLength(94);
+    expect(tags).toContain('SEC-C05-2');
+    expect(tags).not.toContain('SEC-C05');
+    expect(tags.filter((tag) => tag.startsWith('SEC-C05'))).toEqual(['SEC-C05-2']);
+  });
+});

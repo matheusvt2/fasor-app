@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { formatServiceDates, formatShortDateTime, formatTimeOfDay } from './datetime.ts';
+import { dateRangeText, formatDateOfInstant, uuidV7Instant } from './datetime.ts';
 
 describe('formatShortDateTime', () => {
   it('renders dd/mm HH:mm in America/Sao_Paulo', () => {
@@ -47,5 +48,28 @@ describe('formatServiceDates', () => {
     expect(formatServiceDates('2026-09', null)).toBe('09/2026');
     expect(formatServiceDates(null, null)).toBe('');
     expect(formatServiceDates('setembro', null)).toBe('');
+  });
+});
+
+describe('4.1-UNIT dateRangeText', () => {
+  it('writes the five forms', () => {
+    expect(dateRangeText('2026-09-06', '2026-09-08')).toBe('06–08/09/2026');
+    expect(dateRangeText('2026-09-06', '2026-10-02')).toBe('06/09–02/10/2026');
+    expect(dateRangeText('2026-12-28', '2027-01-02')).toBe('28/12/2026–02/01/2027');
+    expect(dateRangeText('2026-09-06', '2026-09-06')).toBe('06/09/2026');
+    expect(dateRangeText('2026-09-06', null)).toBe('06/09/2026');
+    expect(dateRangeText(null, '2026-09-08')).toBe('08/09/2026');
+    expect(dateRangeText(null, null)).toBe('');
+    expect(dateRangeText('2026-09', '2026-10')).toBe('09/2026–10/2026');
+  });
+});
+
+describe('4.1-UNIT uuidV7Instant and formatDateOfInstant', () => {
+  it('reads the minting instant out of a UUIDv7 and formats it in São Paulo', () => {
+    expect(uuidV7Instant('019966b0-0057-7000-8000-000000000001')).toBe(new Date(0x019966b00057).toISOString());
+    expect(uuidV7Instant('0a000000-0000-4000-8000-00000000000a')).toBeNull();
+    expect(uuidV7Instant('nope')).toBeNull();
+    expect(formatDateOfInstant('2026-09-23T02:30:00.000Z')).toBe('22/09/2026');
+    expect(formatDateOfInstant('x')).toBe('');
   });
 });

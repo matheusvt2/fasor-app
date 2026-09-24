@@ -5,6 +5,8 @@ import { ui } from '../copy/ui';
 export interface ComboboxOption {
   id: string;
   label: string;
+  /** The mock's `.option-meta` at the right of the option ("94 blocos"). */
+  meta?: string;
 }
 
 const CREATE_KEY = '__create__';
@@ -95,6 +97,7 @@ export function Combobox({
             {options.map((option) => (
               <ListBoxItem key={option.id} id={option.id} className="combobox-option" textValue={option.label}>
                 {option.label}
+                {option.meta === undefined ? null : <span className="option-meta">{option.meta}</span>}
               </ListBoxItem>
             ))}
             {showCreate ? (

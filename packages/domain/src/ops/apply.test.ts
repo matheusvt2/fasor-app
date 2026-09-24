@@ -313,3 +313,47 @@ describe('readPath', () => {
     expect(readPath(state(), f.op({ path: `block/${B1}/order_key`, value: 'x' }))).toBeUndefined();
   });
 });
+
+describe('4.1-UNIT D-4 template.version follows content edits', () => {
+  const TEMPLATE = '019966b0-0004-7000-8000-000000000010';
+  const template = () => ({
+    id: TEMPLATE,
+    name: 'Cabine primária — padrão',
+    version: 1,
+    seed_version: 'v1',
+    blocks: [],
+    skeleton: [],
+    archived_at: null,
+    removed_at: null,
+  });
+  const key = entityKey('template', TEMPLATE);
+  const companyPut = (f: ReturnType<typeof opFactory>, field: string, value: unknown, kind: 'put' | 'remove' = 'put') =>
+    f.op({ kind, scope: 'company', path: `template/${TEMPLATE}/${field}`, value: value as Op['value'] });
+
+  it('bumps version on name, blocks and skeleton puts, one each', () => {
+    const f = opFactory();
+    const s = fold(state([key, template()]), [
+      companyPut(f, 'name', 'Outro'),
+      companyPut(f, 'blocks', []),
+      companyPut(f, 'skeleton', []),
+    ]);
+    expect((s.get(key) as { version: number; name: string }).version).toBe(4);
+    expect((s.get(key) as { name: string }).name).toBe('Outro');
+  });
+
+  it('archive, restore and remove do not bump it', () => {
+    const f = opFactory();
+    const s = fold(state([key, template()]), [
+      companyPut(f, 'archived_at', '2026-09-22T10:00:00.000Z'),
+      companyPut(f, 'archived_at', null),
+      companyPut(f, 'removed_at', null, 'remove'),
+    ]);
+    expect((s.get(key) as { version: number }).version).toBe(1);
+  });
+
+  it('a version put sets the value explicitly', () => {
+    const f = opFactory();
+    const s = fold(state([key, template()]), [companyPut(f, 'version', 7)]);
+    expect((s.get(key) as { version: number }).version).toBe(7);
+  });
+});

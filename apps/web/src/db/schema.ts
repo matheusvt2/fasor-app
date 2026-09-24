@@ -78,7 +78,8 @@ export interface SyncStateRow {
 
 /**
  * Device-local, never-synced state (Conventions).
- * Keys: `db_version`, `device_id`, `theme`, `recovery_notice_dismissed`, `registry_tab`.
+ * Keys: `db_version`, `device_id`, `theme`, `recovery_notice_dismissed`, `registry_tab`,
+ * `last_sheet:{relatorio_id}`.
  */
 export interface LocalPrefRow {
   key: string;
@@ -92,6 +93,8 @@ export const THEME_PREF = 'theme';
 export const RECOVERY_NOTICE_PREF = 'recovery_notice_dismissed';
 /** AR-27: the last selected Cadastros tab (Story 2.1 AC1), device-local like every other UI preference. */
 export const REGISTRY_TAB_PREF = 'registry_tab';
+/** Story 4.3: the block id of the last sheet worked on this device, per relatório. */
+export const LAST_SHEET_PREF = (relatorioId: string): string => `last_sheet:${relatorioId}`;
 
 interface VersionDef {
   version: number;

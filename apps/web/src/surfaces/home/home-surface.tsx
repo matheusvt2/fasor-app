@@ -9,6 +9,7 @@ import {
   type TemplateRow,
 } from '@app/domain';
 import { useEffect, useId, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { Button } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { now } from '../../clock.ts';
@@ -19,6 +20,7 @@ import type { OutboxRow, SyncStateRow } from '../../db/schema.ts';
 import { useSession } from '../../state/session.tsx';
 import { useSync } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
+import { NewProjectDialog } from './new-project-dialog.tsx';
 import { RelatorioCard } from './relatorio-card.tsx';
 import { ShortcutRow } from './shortcut-row.tsx';
 import { StatusBoard } from './status-board.tsx';
@@ -45,7 +47,9 @@ export function HomeSurface() {
   const session = useSession();
   const sync = useSync();
   const { showOnce, showToast } = useToast();
+  const navigate = useNavigate();
   const db = session.database;
+  const [creating, setCreating] = useState(false);
 
   const statusHeadingId = useId();
   const listHeadingId = useId();
@@ -111,10 +115,10 @@ export function HomeSurface() {
       return;
     }
     if (card.device.kind === 'absent-online') {
+      // AD-8 "pulled on open": the Sumário shows the pull while the stream comes down.
       void sync.syncRelatorio(card.id);
-      return;
     }
-    // The relatório tree is Epic 2; until it exists, the card has nowhere to open.
+    void navigate(`/relatorio/${card.id}`);
   }
 
   return (
@@ -134,9 +138,7 @@ export function HomeSurface() {
         <section className="section" aria-labelledby={listHeadingId}>
           <div className="home-head">
             <h2 id={listHeadingId}>{copy.home.relatoriosHeading}</h2>
-            <Button isDisabled disabledReason={copy.home.notAvailableYet}>
-              {copy.home.newRelatorio}
-            </Button>
+            <Button onPress={() => setCreating(true)}>{copy.home.newRelatorio}</Button>
           </div>
 
           {cards.length === 0 ? (
@@ -161,6 +163,8 @@ export function HomeSurface() {
           <ShortcutRow templateCount={templates.length} />
         </section>
       </div>
+
+      {creating ? <NewProjectDialog clients={clients} projects={projects} onClose={() => setCreating(false)} /> : null}
     </main>
   );
 }
