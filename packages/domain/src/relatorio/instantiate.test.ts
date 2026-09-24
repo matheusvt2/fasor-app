@@ -52,7 +52,20 @@ describe('4.1-UNIT instantiateTemplate over the standard template', () => {
       template_version: 1,
       seed_version: 'v1',
       status: 'rascunho',
-      setup: { service_start: '2026-09-06', service_end: '2026-09-08', responsible_user_id: null },
+      setup: {
+        service_start: '2026-09-06',
+        service_end: '2026-09-08',
+        responsible_user_id: null,
+        escopo: null,
+        exclusions: null,
+        additional_info: null,
+        art_trt_number: null,
+        instrument_ids: [],
+        site_altitude_m: null,
+        site_altitude_confirmed: false,
+        next_intervention_date: null,
+        next_intervention_justification: null,
+      },
     });
     expect(all[0]!.path).toBe(`relatorio/${relatorioId}`);
   });

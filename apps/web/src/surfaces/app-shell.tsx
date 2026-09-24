@@ -11,6 +11,7 @@ import { oldestPendingClientTs } from '../db/commit.ts';
 import { useLiveQuery } from '../db/live.ts';
 import { useBackTargetValue } from '../state/back-target.tsx';
 import { BannerSlot, bannerCandidates } from '../state/banner-slot.tsx';
+import { useExtraBannerValue } from '../state/extra-banner.tsx';
 import { useSession } from '../state/session.tsx';
 import { useSync } from '../state/sync.tsx';
 import { ToastOutlet } from '../state/toast.tsx';
@@ -56,6 +57,7 @@ export function AppShell() {
   const location = useLocation();
   const params = useParams();
   const backTarget = useBackTargetValue();
+  const extraBanner = useExtraBannerValue();
   const isHome = location.pathname === '/';
   const db = session.database;
 
@@ -83,6 +85,7 @@ export function AppShell() {
     reAuthRequired: session.reAuthRequired,
     online: sync.online,
     unsyncedForDays: unsyncedForDays(oldest, now()),
+    extra: extraBanner === null ? undefined : [extraBanner],
     reAuthAction: (
       // The flag stays set until a sign-in clears it, so /login does not bounce straight
       // back to Home.

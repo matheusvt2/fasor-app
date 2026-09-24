@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { CalibrationStatus } from '../checks/calibration.ts';
 import {
   compareInstrumentRows,
+  instrumentDetailSeparator,
+  instrumentExpiredNoteText,
   instrumentManufacturerRecents,
   instrumentRegistryRowText,
   sortInstrumentRegistryRows,
@@ -58,6 +60,35 @@ describe('instrumentRegistryRowText', () => {
   it('skips missing manufacturer/serial/cert parts', () => {
     const text = instrumentRegistryRowText(instrument({ manufacturer: null, serial: null, cert_number: null }), 'valid');
     expect(text.secondaryLead).toBe('');
+  });
+});
+
+describe('instrumentDetailSeparator', () => {
+  it('is " · " when both a lead and a validity clause exist', () => {
+    const text = instrumentRegistryRowText(instrument(), 'valid');
+    expect(instrumentDetailSeparator(text)).toBe(' · ');
+  });
+
+  it('is empty with no lead, even with a validity clause', () => {
+    const text = instrumentRegistryRowText(instrument({ manufacturer: null, serial: null, cert_number: null }), 'valid');
+    expect(instrumentDetailSeparator(text)).toBe('');
+  });
+
+  it('is empty with no validity clause, even with a lead', () => {
+    const text = instrumentRegistryRowText(instrument({ calibrated_at: null }), 'valid');
+    expect(instrumentDetailSeparator(text)).toBe('');
+  });
+});
+
+describe('instrumentExpiredNoteText', () => {
+  it('is null when the instrument is not expired', () => {
+    const text = instrumentRegistryRowText(instrument(), 'valid');
+    expect(instrumentExpiredNoteText(text)).toBeNull();
+  });
+
+  it('names the code and the expiry date when expired', () => {
+    const text = instrumentRegistryRowText(instrument({ calibrated_at: '2025-01-01', calibration_interval_months: 12 }), 'expired');
+    expect(instrumentExpiredNoteText(text)).toBe('Calibração do 2E vencida em 01/01/2026. Pode continuar — listada na verificação antes de emitir.');
   });
 });
 

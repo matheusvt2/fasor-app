@@ -1,4 +1,4 @@
-import { instrumentRegistryRowText, type CalibrationStatus, type InstrumentRow as InstrumentRowType } from '@app/domain';
+import { instrumentDetailSeparator, instrumentRegistryRowText, type CalibrationStatus, type InstrumentRow as InstrumentRowType } from '@app/domain';
 
 export interface InstrumentRowProps {
   instrument: InstrumentRowType;
@@ -32,12 +32,8 @@ export function InstrumentRow({ instrument, status, isOpen, onOpen }: Instrument
         </span>
         <span className="rr-secondary">
           {text.secondaryLead}
-          {text.validity === null ? null : (
-            <>
-              {text.secondaryLead === '' ? null : ' · '}
-              {text.validity.expired ? <span className="rr-expired">{text.validity.text}</span> : text.validity.text}
-            </>
-          )}
+          {instrumentDetailSeparator(text)}
+          {text.validity === null ? null : text.validity.expired ? <span className="rr-expired">{text.validity.text}</span> : text.validity.text}
         </span>
       </div>
       <svg className="ico rr-chevron" aria-hidden="true">

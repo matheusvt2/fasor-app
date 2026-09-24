@@ -1,10 +1,11 @@
-import { DISPLAY_TIME_ZONE, formatServiceDates } from '../format/datetime.ts';
+import { DISPLAY_TIME_ZONE } from '../format/datetime.ts';
 import { empresaFooterLine, empresaFormLine } from '../registry/empresa.ts';
 import { SECTION_BLOCK_TYPES, type SectionBlockType } from '../schemas/block-config.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { relatorioSectionNumber } from '../relatorio/instantiate.ts';
+import { section3Blocks, sectionVariables } from '../relatorio/section-variables.ts';
 import { sectionBlocks } from '../relatorio/sumario.ts';
-import { getSeed, sectionText, type SectionVariable } from '../seed/definitions.ts';
+import { getSeed, sectionText } from '../seed/definitions.ts';
 import type { TextBlock } from '../seed/schema.ts';
 import { sectionNumber } from '../templates/compose.ts';
 import { resolveSectionText } from '../templates/section-text.ts';
@@ -105,24 +106,6 @@ function present(value: string | null | undefined): string | undefined {
   return value;
 }
 
-/** The section variables of a relatório, only those with a value (AD-15's inputs of `resolveSectionText`). */
-export function sectionInputs(snapshot: RelatorioSnapshot): Partial<Record<SectionVariable, string>> {
-  const { setup } = snapshot.relatorio;
-  const inputs: Partial<Record<SectionVariable, string>> = {};
-  const set = (name: SectionVariable, value: string | null | undefined) => {
-    const text = present(value);
-    if (text !== undefined) inputs[name] = text;
-  };
-  set('cliente', snapshot.client?.name);
-  // A blank `local` falls back to the project's site, as an unset one does.
-  set('obra', present(setup.local) ?? snapshot.project?.site);
-  set('datas', formatServiceDates(setup.service_start, setup.service_end));
-  set('escopo', setup.atividade);
-  set('responsavel', snapshot.responsible?.name);
-  set('empresa_executora', snapshot.empresa?.name);
-  return inputs;
-}
-
 /** The seed's text blocks of a section in force on `date`, or null when the seed carries none for it. */
 function seededBlocks(seedVersion: string, section: number, date: string): readonly TextBlock[] | null {
   const seeded = getSeed(seedVersion, 'cabine_primaria').sections.some(
@@ -182,7 +165,10 @@ export function layoutSpec(snapshot: RelatorioSnapshot, inputs: LayoutInputs): D
   const { empresa, relatorio } = snapshot;
   const seedVersion = relatorio.seed_version;
   const seed = getSeed(seedVersion, 'cabine_primaria');
-  const variables = sectionInputs(snapshot);
+  // The one section-variable mapping in the kernel (`relatorio/section-variables.ts`):
+  // `section-text-surface.tsx` (Story 4.7) and this renderer (Story 4.8) both resolve
+  // against it, so `obra`/`escopo`/`exclusions` can never diverge between the two.
+  const variables = sectionVariables(snapshot, snapshot.responsible?.name ?? null);
   const textDate = dateInForce(inputs.sectionTextAt ?? inputs.issuedAt);
 
   const cover = seed.cover;
@@ -195,7 +181,10 @@ export function layoutSpec(snapshot: RelatorioSnapshot, inputs: LayoutInputs): D
     const number = index + 1;
     const title = seed.section_titles[String(section)] ?? '';
     const composed = sectionType(section) !== null;
-    const blocks = !composed ? null : ownText !== null ? ownParagraphs(ownText) : seededBlocks(seedVersion, section, textDate);
+    // Section 3's own exclusion list (Story 4.2's `setup.exclusions`, AD-21) overrides the
+    // seed's own three items when the relatório carries no per-relatório text edit of its own.
+    const seeded = section === 3 ? section3Blocks(seedVersion, textDate, relatorio.setup.exclusions) : seededBlocks(seedVersion, section, textDate);
+    const blocks = !composed ? null : ownText !== null ? ownParagraphs(ownText) : seeded;
     if (blocks === null || blocks.length === 0) return { number, title, kind: 'empty', note: EMPTY_SECTION_NOTE };
     return {
       number,

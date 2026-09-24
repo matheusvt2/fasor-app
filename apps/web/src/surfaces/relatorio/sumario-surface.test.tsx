@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { instantiateTemplate, standardTemplate, type BlockRow, type LocationRow, type SumarioRow } from '@app/domain';
+import { instantiateTemplate, standardTemplate, type BlockRow, type LocationRow, type RelatorioRow, type SumarioRow } from '@app/domain';
 import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { cleanup, configure, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -10,6 +10,8 @@ import { toRecord } from '../../db/commit.ts';
 import { LAST_SHEET_PREF, openDatabase, type AppDatabase } from '../../db/schema.ts';
 import { applyPulled } from '../../db/sync-store.ts';
 import { BackTargetProvider } from '../../state/back-target.tsx';
+import { BannerSlot } from '../../state/banner-slot.tsx';
+import { ExtraBannerProvider, useExtraBannerValue } from '../../state/extra-banner.tsx';
 import type { SessionState } from '../../state/session.tsx';
 import { SyncContext, type SyncState } from '../../state/sync.tsx';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
@@ -113,6 +115,12 @@ function SetupProbe() {
   return <p data-testid="setup-route">Setup {params.get('etapa')}</p>;
 }
 
+/** Stands in for `AppShell`'s one banner slot, which a route cannot render itself (`extra-banner.tsx`). */
+function BannerSlotProbe() {
+  const banner = useExtraBannerValue();
+  return <BannerSlot banners={banner === null ? [] : [banner]} />;
+}
+
 /** The tree the surface renders for `id` under `sync`; `rerender` swaps the sync state in place. */
 function tree(id: string, sync: SyncState) {
   return (
@@ -120,12 +128,15 @@ function tree(id: string, sync: SyncState) {
       <SyncContext value={sync}>
         <ToastProvider>
           <BackTargetProvider>
-            <Routes>
-              <Route path="/relatorio/:id" element={<SumarioSurface />} />
-              <Route path="/relatorio/:id/setup" element={<SetupProbe />} />
-              <Route path="/relatorio/:id/secao/:blockId" element={<p data-testid="secao-route">Seção</p>} />
-            </Routes>
-            <ToastOutlet />
+            <ExtraBannerProvider>
+              <BannerSlotProbe />
+              <Routes>
+                <Route path="/relatorio/:id" element={<SumarioSurface />} />
+                <Route path="/relatorio/:id/setup" element={<SetupProbe />} />
+                <Route path="/relatorio/:id/secao/:blockId" element={<p data-testid="secao-route">Seção</p>} />
+              </Routes>
+              <ToastOutlet />
+            </ExtraBannerProvider>
           </BackTargetProvider>
         </ToastProvider>
       </SyncContext>
@@ -514,5 +525,85 @@ describe('4.3 SumarioSurface', () => {
     expect(button).toHaveAccessibleDescription('Parecer não preenchido impede gerar.');
     await userEvent.click(button);
     expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
+
+describe('4.6 SumarioSurface: status transitions and the issued banner', () => {
+  it('has no banner on a fresh Em campo relatório with no revision', async () => {
+    database = await seeded();
+    renderSumario();
+    await waitFor(() => expect(rows()).toHaveLength(13));
+    expect(screen.queryByText(/Relatório emitido em/)).toBeNull();
+  });
+
+  it('carries no backward-move item at Rascunho (nothing to move back to)', async () => {
+    database = await seeded();
+    const relatorioRecord = await database.entities.get(['relatorio', RELATORIO]);
+    await database.entities.put({ ...relatorioRecord!, row: { ...(relatorioRecord!.row as RelatorioRow), status: 'rascunho' } });
+    renderSumario();
+    await waitFor(() => expect(rows()).toHaveLength(13));
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções do relatório' }));
+    expect(within(await screen.findByRole('menu')).queryByRole('menuitem', { name: /Voltar para/ })).toBeNull();
+  });
+
+  it('the header Overflow offers "Voltar para Rascunho" from Em campo; confirming writes the put and returns focus to the trigger', async () => {
+    database = await seeded();
+    renderSumario();
+    await waitFor(() => expect(rows()).toHaveLength(13));
+    const trigger = screen.getByRole('button', { name: 'Mais opções do relatório' });
+    await userEvent.click(trigger);
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Voltar para Rascunho' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Voltar para Rascunho' });
+    expect(dialog).toHaveTextContent('O relatório volta de Em campo para Rascunho.');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Voltar para Rascunho' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(async () => {
+      const row = await database!.entities.get(['relatorio', RELATORIO]);
+      expect((row!.row as { status: string }).status).toBe('rascunho');
+    });
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
+  });
+
+  it('shows the issued banner with the issue date and revision numbers once a revision exists', async () => {
+    database = await seeded();
+    const relatorioRecord = await database.entities.get(['relatorio', RELATORIO]);
+    await database.entities.put({ ...relatorioRecord!, row: { ...(relatorioRecord!.row as RelatorioRow), status: 'emitido' } });
+    await database.entities.put(
+      toRecord(`revision:019966c1-000f-7000-8000-000000000001`, {
+        id: '019966c1-000f-7000-8000-000000000001',
+        relatorio_id: RELATORIO,
+        number: 2,
+        snapshot_seq: 10,
+        created_by: USER,
+        docx_file_id: '019966c1-000f-7000-8000-000000000002',
+        pdf_file_id: '019966c1-000f-7000-8000-000000000003',
+        created_at: '2026-09-10T12:00:00.000Z',
+      } as never),
+    );
+    renderSumario();
+    expect(await screen.findByText('Relatório emitido em 10/09 (revisão 2). Alterações geram a revisão 3.')).toBeVisible();
+    // Through the real Banner component (UX-DR11), not a plain paragraph.
+    expect(screen.getByText('Relatório emitido em 10/09 (revisão 2). Alterações geram a revisão 3.').closest('.banner')).not.toBeNull();
+  });
+
+  it('hides the issued banner once backed all the way to Em campo, even though the revision row is still on record', async () => {
+    database = await seeded();
+    const relatorioRecord = await database.entities.get(['relatorio', RELATORIO]);
+    await database.entities.put({ ...relatorioRecord!, row: { ...(relatorioRecord!.row as RelatorioRow), status: 'em_campo' } });
+    await database.entities.put(
+      toRecord(`revision:019966c1-000f-7000-8000-000000000001`, {
+        id: '019966c1-000f-7000-8000-000000000001',
+        relatorio_id: RELATORIO,
+        number: 2,
+        snapshot_seq: 10,
+        created_by: USER,
+        docx_file_id: '019966c1-000f-7000-8000-000000000002',
+        pdf_file_id: '019966c1-000f-7000-8000-000000000003',
+        created_at: '2026-09-10T12:00:00.000Z',
+      } as never),
+    );
+    renderSumario();
+    await waitFor(() => expect(rows()).toHaveLength(13));
+    expect(screen.queryByText(/Relatório emitido em/)).toBeNull();
   });
 });

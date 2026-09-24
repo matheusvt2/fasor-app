@@ -1,9 +1,13 @@
 import {
+  backwardMoveConsequenceText,
+  backwardMoveLabel,
   buildSnapshot,
   defaultBlockConfig,
   emptySheet,
   fichasConcluidasText,
   generateReason,
+  issuedBannerText,
+  latestRevision,
   moveAnnouncement,
   naoEnsaiadasText,
   ncAbertosText,
@@ -24,6 +28,7 @@ import {
   type EntityState,
   type RelatorioSnapshot,
   type RestorableBlock,
+  type RevisionRow,
   type SectionBlockType,
   type SumarioRow,
   type TemplateRow,
@@ -31,7 +36,7 @@ import {
 } from '@app/domain';
 import { useId, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { Button, OverflowMenu, StatusPill, TextButton } from '../../components/index.ts';
+import { Button, ConfirmDialog, OverflowMenu, StatusPill, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { templateRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
@@ -39,6 +44,7 @@ import { readLastSheet } from '../../db/prefs.ts';
 import { localUsers } from '../../db/sync-store.ts';
 import { newId } from '../../ids.ts';
 import { useBackTarget } from '../../state/back-target.tsx';
+import { useExtraBanner } from '../../state/extra-banner.tsx';
 import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { AddSectionDialog } from './add-section-dialog.tsx';
@@ -46,7 +52,7 @@ import { GenerateAction } from './generate-action.tsx';
 import { useProjectEquipment, useRelatorioEditor } from './relatorio-editor.ts';
 import { RelatorioGate } from './relatorio-gate.tsx';
 import { focusAfterRemoval, focusWhenRendered } from './relatorio-focus.ts';
-import { createBlockOp, putBlockOp, removeBlockOp } from './relatorio-ops.ts';
+import { createBlockOp, putBlockOp, putRelatorioStatusOp, removeBlockOp } from './relatorio-ops.ts';
 import { RelatorioTree, type RelatorioTreeHandle } from './relatorio-tree.tsx';
 import { RestoreDialog } from './restore-dialog.tsx';
 import { FixedRow, NumberedRow, Section9Row, type RowActions } from './sumario-row.tsx';
@@ -85,6 +91,10 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   // Every equipment row of the project, removed sheets' included: the snapshot keeps only
   // the equipment of live blocks, and "Restaurar ficha removida" names a sheet by its TAG.
   const equipment = useProjectEquipment(state, snapshot.relatorio.project_id);
+  // Story 4.6: revisions read straight off `EntityState`, the same way `equipment` was
+  // before batch B's `useProjectEquipment` extraction -- `RelatorioSnapshot` is not
+  // extended by this batch (batch D/4.8 owns it).
+  const revisions = useMemo(() => [...state.entries()].filter(([key]) => key.startsWith('revision:')).map(([, row]) => row as RevisionRow), [state]);
   const templates = useLiveQuery(() => (db === null ? Promise.resolve(NO_TEMPLATES) : templateRows(db)), [db], NO_TEMPLATES);
   const users = useLiveQuery(() => (db === null ? Promise.resolve(NO_USERS) : localUsers(db)), [db], NO_USERS);
   const lastSheet = useLiveQuery(() => (db === null ? Promise.resolve(null) : readLastSheet(db, relatorioId)), [db, relatorioId], null);
@@ -107,6 +117,14 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const treeRef = useRef<RelatorioTreeHandle>(null);
   const [adding, setAdding] = useState<SumarioRow | null>(null);
   const [restoring, setRestoring] = useState(false);
+  const [confirmingBack, setConfirmingBack] = useState(false);
+  const bannerText = useMemo(() => issuedBannerText(relatorio.status, latestRevision(revisions)), [relatorio.status, revisions]);
+  const banner = useMemo(
+    () => (bannerText === null ? null : { kind: 'relatorio-exported' as const, variant: 'warning' as const, role: 'region' as const, text: bannerText }),
+    [bannerText],
+  );
+  useExtraBanner(banner);
+  const backMove = useMemo(() => backwardMoveLabel(relatorio.status), [relatorio.status]);
   const listRef = useRef<HTMLOListElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const headerMenuRef = useRef<HTMLDivElement>(null);
@@ -270,6 +288,18 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
     requestAnimationFrame(() => chevron.current?.focus());
   }
 
+  /** The header Overflow's backward-move Confirm: one `relatorio/status` put, focus back on the trigger. */
+  function onConfirmBack(): void {
+    if (backMove === null) return;
+    const to = backMove.to;
+    void edit((_fresh, by) => [putRelatorioStatusOp(by, relatorioId, to)])
+      .then((batch) => {
+        if (batch === null) return;
+        focusWhenRendered(() => headerMenuRef.current?.querySelector<HTMLElement>('.overflow-trigger') ?? null);
+      })
+      .catch(() => undefined);
+  }
+
   const blocked = rows.some((row) => row.blocking);
   const openable = (row: SumarioRow) => row.kind === 'setup' || row.kind === 'text';
 
@@ -290,7 +320,14 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
           </p>
         </div>
         <div className="header-side" ref={headerMenuRef}>
-          <OverflowMenu name="" label={t.headerMenu} items={[{ id: 'restore', label: t.restore, onAction: () => setRestoring(true) }]} />
+          <OverflowMenu
+            name=""
+            label={t.headerMenu}
+            items={[
+              { id: 'restore', label: t.restore, onAction: () => setRestoring(true) },
+              ...(backMove === null ? [] : [{ id: 'back', label: backMove.label, onAction: () => setConfirmingBack(true) }]),
+            ]}
+          />
         </div>
       </div>
 
@@ -360,6 +397,16 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
 
       {adding === null ? null : <AddSectionDialog below={adding.title} onPick={onPickSection} onClose={() => setAdding(null)} />}
       {restoring ? <RestoreDialog blocks={removable} onRestore={onRestore} onClose={() => setRestoring(false)} /> : null}
+      {backMove === null ? null : (
+        <ConfirmDialog
+          isOpen={confirmingBack}
+          onOpenChange={setConfirmingBack}
+          title={backMove.label}
+          description={backwardMoveConsequenceText(relatorio.status, backMove.to)}
+          confirmLabel={backMove.label}
+          onConfirm={onConfirmBack}
+        />
+      )}
     </>
   );
 }

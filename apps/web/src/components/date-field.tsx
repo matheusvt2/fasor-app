@@ -11,6 +11,8 @@ export interface DateFieldProps {
   /** Ids of elements that describe the field (a helper, a reason). */
   describedBy?: string;
   autoFocus?: boolean;
+  /** Focus left the field: a caller debouncing its commit (`useFieldCommit`) settles it now. */
+  onBlur?: () => void;
 }
 
 function toCalendarDate(value: string | null): CalendarDate | null {
@@ -28,7 +30,7 @@ function toCalendarDate(value: string | null): CalendarDate | null {
  * and typed digits) and the `#i-calendar` sprite glyph. ISO strings in and out; the app
  * root's `I18nProvider locale="pt-BR"` orders the segments.
  */
-export function DateField({ label, value, onChange, isInvalid, describedBy, autoFocus }: DateFieldProps) {
+export function DateField({ label, value, onChange, isInvalid, describedBy, autoFocus, onBlur }: DateFieldProps) {
   const labelId = useId();
   return (
     <AriaDateField
@@ -38,6 +40,7 @@ export function DateField({ label, value, onChange, isInvalid, describedBy, auto
       isInvalid={isInvalid}
       aria-describedby={describedBy}
       autoFocus={autoFocus}
+      onBlur={onBlur}
       granularity="day"
     >
       <Label className="field-label" id={labelId}>

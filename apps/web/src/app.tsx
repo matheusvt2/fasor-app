@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate, Outlet, RouterProvider, type RouteObject
 import { copy } from './copy/pt-br.ts';
 import { BackTargetProvider } from './state/back-target.tsx';
 import { DraftProvider } from './state/drafts.tsx';
+import { ExtraBannerProvider } from './state/extra-banner.tsx';
 import { SessionProvider, useSession } from './state/session.tsx';
 import { SyncProvider, useSync } from './state/sync.tsx';
 import { ThemeProvider } from './state/theme.tsx';
@@ -17,7 +18,7 @@ import { HomeSurface } from './surfaces/home/home-surface.tsx';
 import { LoginSurface } from './surfaces/login/login-surface.tsx';
 import { ProjectSurface } from './surfaces/project/project-surface.tsx';
 import { SectionTextSurface } from './surfaces/relatorio/section-text-surface.tsx';
-import { SetupStubSurface } from './surfaces/relatorio/setup-stub-surface.tsx';
+import { SetupSurface } from './surfaces/relatorio/setup-surface.tsx';
 import { SumarioSurface } from './surfaces/relatorio/sumario-surface.tsx';
 import { TreeSurface } from './surfaces/relatorio/tree-surface.tsx';
 import { RegistriesSurface } from './surfaces/registries/registries-surface.tsx';
@@ -64,7 +65,9 @@ function RequireSession() {
         <ToastProvider>
           <DraftProvider>
             <BackTargetProvider>
-              <SessionShell />
+              <ExtraBannerProvider>
+                <SessionShell />
+              </ExtraBannerProvider>
             </BackTargetProvider>
           </DraftProvider>
         </ToastProvider>
@@ -126,8 +129,8 @@ const router = createBrowserRouter([
           { path: '/relatorio/:id', element: <SumarioSurface />, handle: { title: copy.sumario.title } },
           {
             path: '/relatorio/:id/setup',
-            element: <SetupStubSurface />,
-            handle: { title: copy.setupStub.title, back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}` },
+            element: <SetupSurface />,
+            handle: { title: copy.setup.heading, back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}` },
           },
           // Story 4.4: the tree's rail presentation, until Epic 5 mounts it inside a sheet.
           {

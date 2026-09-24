@@ -231,7 +231,24 @@ export const relatorioSetupSchema = z.object({
   local: nullableString,
   responsible_user_id: nullableId,
   cover_photo_file_id: nullableId,
+  // Story 4.2 (Etapa 2, section 1/3): `escopo` is section 1's `{escopo}` variable;
+  // `exclusions` null means the seed's own section-3 items are in force (AD-21), a string
+  // array is the relatório's own override list.
+  escopo: nullableString.default(null),
+  exclusions: z.array(z.string()).nullable().default(null),
+  additional_info: nullableString.default(null),
+  // Etapa 3 (Responsável): the one typed field, relabeled ART/TRT by the responsible's council.
+  art_trt_number: nullableString.default(null),
+  // Etapa 4 (Instrumentos e certificados): the instruments this relatório carries into
+  // section 11 and the sheets' instrument picker.
+  instrument_ids: z.array(uuidV7Schema).default([]),
+  // Etapa 5 (Local): the site altitude, prefilled from geolocation and confirmed once.
+  site_altitude_m: z.number().int().nullable().default(null),
+  site_altitude_confirmed: z.boolean().default(false),
+  next_intervention_date: dateValueSchema.nullable().default(null),
+  next_intervention_justification: nullableString.default(null),
 });
+export type RelatorioSetup = z.infer<typeof relatorioSetupSchema>;
 
 export const relatorioRowSchema = z.object({
   id: uuidV7Schema,

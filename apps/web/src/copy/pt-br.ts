@@ -568,20 +568,98 @@ export const copy = {
       note: 'Abra uma ficha na árvore.',
     },
   },
-  // Story 4.2's page, a tracked stub here (batch C replaces the file and keeps the route).
-  setupStub: {
-    title: 'Dados do relatório',
-    // authored: the stub's one sentence.
-    note: (etapa: number) => `Etapa ${etapa} — disponível na próxima etapa deste épico`,
-    backToSumario: 'Voltar para o sumário',
+  // Relatório setup (`50-relatorio-setup.html`, Story 4.2): the five Etapa bands plus the
+  // "Conclusão e parecer" placeholder, per epics.md's AC band list (not the mock's own
+  // six-band structure -- see the spec's Design Notes). Field-level copy is verbatim from
+  // the mock where it draws the same field; the rest is `// authored:`.
+  setup: {
+    heading: 'Dados do relatório',
+    notFound: 'Relatório não encontrado.',
+    // Etapa 1 — Capa.
+    etapa1Title: 'Etapa 1 — Capa',
+    // authored: this batch's own band note, since the mock's Etapa 1 covers a superset.
+    etapa1Note: 'Capa do relatório',
+    clientLabel: 'Cliente',
+    obraLabel: 'Local (obra)',
+    startLabel: 'Início da execução',
+    endLabel: 'Fim da execução',
+    // authored: the echo line under "Fim da execução" (`50-relatorio-setup.html`'s own
+    // wording is a fixed pt-BR date list; this batch's dates are the kernel's `dateRangeText`).
+    datesEcho: (text: string) => `Na capa: ${text}`,
+    additionalInfoLabel: 'Informações adicionais',
+    coverPhotoLabel: 'Foto de capa',
+    // Etapa 2 — Objetivo e escopo.
+    etapa2Title: 'Etapa 2 — Objetivo e escopo',
+    etapa2Note: 'Seções 1 e 3',
+    empresaExecutoraLabel: 'Empresa executora',
+    localLabel: 'Local',
+    escopoLabel: 'Escopo',
+    exclusionsLabel: 'Exclusões',
+    addExclusion: 'Adicionar exclusão',
+    // authored: the accessible name of one exclusion's typed field.
+    exclusionFieldLabel: (n: number) => `Exclusão ${n}`,
+    // Etapa 3 — Responsável.
+    etapa3Title: 'Etapa 3 — Responsável',
+    etapa3Note: 'Seção 10',
+    responsibleLabel: 'Responsável técnico',
+    councilLabel: 'Conselho',
+    // authored: the ART/TRT field's fallback label before the responsible's council is known.
+    artTrtFallbackLabel: 'Número ART/TRT',
+    // authored: the registration-number field's fallback label before the council is known.
+    registrationNumberFallbackLabel: 'Número de registro',
+    // authored: the council is read-only here (it lives on the responsible's own account
+    // profile, epics.md Story 4.2's 2026-09-24 narrowing), so this helper names where it
+    // comes from and what it signs, in place of an editable Conselho segmented control.
+    councilHelper: (title: string) => `Assina a seção 10 como ${title} · conselho e número vêm do perfil`,
+    // Etapa 4 — Instrumentos e certificados.
+    etapa4Title: 'Etapa 4 — Instrumentos e certificados',
+    etapa4Note: 'Seção 11',
+    // authored: the note above the instrument checklist.
+    instrumentsNote: 'Marque os instrumentos desta obra: o certificado de cada um entra na seção 11.',
+    // authored: the inline note beside an instrument a sheet still references.
+    instrumentReferenced: 'Continua na seção 11 porque uma ficha usa este instrumento',
+    // authored: the accessible name of the "m" unit suffix beside the altitude value.
+    altitudeUnit: 'metros',
+    // Etapa 5 — Local.
+    etapa5Title: 'Etapa 5 — Local',
+    etapa5Note: 'Ambiente de ensaio',
+    altitudeLabel: 'Altitude do site',
+    // Verbatim from `50-relatorio-setup.html`'s `.suggested-pill`.
+    altitudeSuggestedPill: 'Sugerido',
+    altitudeConfirm: 'Confirmar',
+    // authored: the echo line once the altitude is confirmed.
+    altitudeConfirmed: (text: string) => `Altitude do site: ${text} — confirmada`,
+    nextInterventionDateLabel: 'Próxima intervenção recomendada',
+    nextInterventionJustificationLabel: 'Justificativa',
+    // "Conclusão e parecer" placeholder band.
+    parecerTitle: 'Conclusão e parecer',
+    // authored: mirrors the stub's phrasing, kept for the one band this epic does not build yet.
+    parecerNote: 'Disponível na próxima etapa deste épico',
+    // Sticky action bar.
+    complete: 'Concluir dados do relatório',
+    // authored: once the relatório has left Rascunho, the sticky bar has nothing left to do.
+    completeDone: 'Dados salvos',
   },
-  // Story 4.7's editor is batch C; this batch shows the resolved text read-only.
+  // The section text editor (`45-secao.html`, Story 4.7): plain text with variable chips,
+  // autosaving to the block's own `config.section_text`.
   sectionText: {
     title: 'Seção',
     backToSumario: 'Voltar para o sumário',
-    // authored: no text is in force for this section (8 and 11 carry none).
-    noText: 'Esta seção não tem texto fixo; o conteúdo vem do relatório.',
+    voltarAoSumario: 'Voltar ao sumário',
     notFound: 'Seção não encontrada.',
+    fieldLabel: 'Texto da seção',
+    insertVariable: 'Inserir dado do relatório',
+    restore: 'Restaurar texto do template',
+    // authored: the reason beside "Restaurar texto do template" once the section already
+    // shows the seed's own text (nothing to restore).
+    nothingToRestore: 'Restaurar texto do template: já é o texto do template',
+    restored: 'Texto do template restaurado nesta seção',
+    undo: 'Desfazer',
+    // authored: the meta line, split so the middle clause renders in <strong> (verbatim `45-secao.html`).
+    metaLead: (templateName: string | null) => `Texto do template${templateName === null ? '' : ` ${templateName}`}. `,
+    metaStrong: 'O que você mudar aqui fica só neste relatório',
+    metaTail: '; o template e os próximos relatórios não mudam.',
+    autosaveNote: 'Salvo automaticamente. Texto simples; negrito e listas ficam para depois.',
   },
   // authored: the mocks are static frames and draw no boot state.
   common: {

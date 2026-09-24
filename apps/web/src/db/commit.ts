@@ -1,4 +1,5 @@
 import {
+  advanceOnEdit,
   applyOp,
   coalesce,
   invertBatch,
@@ -15,6 +16,7 @@ import {
   type NewId,
   type Op,
   type OpDraft,
+  type RelatorioRow,
 } from '@app/domain';
 import { targetKeysOf, type AppDatabase, type EntityRecord, type OutboxRow } from './schema.ts';
 import { newId as mintId } from '../ids.ts';
@@ -154,6 +156,47 @@ async function buildBatch(
   const batch_id = deps.newId();
   const now = deps.now();
   const built = inputs.map((input) => makeOp({ ...input, batch_id, device_id }, { newId: deps.newId, now }));
+
+  // AD-22: append the Emitido→Em revisão transition once per relatório this batch touches
+  // (`advanceOnEdit`), computed here and nowhere else -- the one place every relatório-scoped
+  // write path (setup fields, the Sumário's reorders, the tree, sheets) gets covered without
+  // any surface deciding a status transition of its own (AD-1, AD-13).
+  const byRelatorio = new Map<string, Op[]>();
+  for (const op of built) {
+    if (op.relatorio_id == null) continue;
+    const list = byRelatorio.get(op.relatorio_id);
+    if (list) list.push(op);
+    else byRelatorio.set(op.relatorio_id, [op]);
+  }
+  for (const [relatorioId, relatorioOps] of byRelatorio) {
+    if (relatorioOps.some((op) => op.path === 'relatorio/status')) continue;
+    const record = await db.entities.get(['relatorio', relatorioId]);
+    const row = record?.row as RelatorioRow | undefined;
+    if (row === undefined) continue;
+    const next = advanceOnEdit(row.status, relatorioOps);
+    if (next === null) continue;
+    const trigger = relatorioOps[0]!;
+    built.push(
+      makeOp(
+        {
+          kind: 'put',
+          scope: 'relatorio',
+          company_id: trigger.company_id,
+          project_id: null,
+          relatorio_id: relatorioId,
+          device_id,
+          prev_op_id: null,
+          batch_id,
+          meta: null,
+          actor_id: trigger.actor_id,
+          path: 'relatorio/status',
+          value: next,
+        },
+        { newId: deps.newId, now },
+      ),
+    );
+  }
+
   const ops: Op[] = [];
   const lastInBatch = new Map<string, string>();
   for (const op of built) {

@@ -218,7 +218,7 @@ export async function runGenerateJob(deps: GenerateJobDeps, payload: GeneratePay
       return { snapshot, snapshotSeq, number };
     });
     const issuedAt = stamp();
-    const layout = layoutSpec(frozen.snapshot, { revisionNumber: frozen.number, issuedAt });
+    const layout = layoutSpec(frozen.snapshot, { revisionNumber: frozen.number, issuedAt, art: frozen.snapshot.relatorio.setup.art_trt_number });
     const images: DocxImages = {};
     const logo = await printVariant(deps, companyId, frozen.snapshot.empresa?.logo_file_id ?? null);
     if (logo !== undefined) images.logo = logo;

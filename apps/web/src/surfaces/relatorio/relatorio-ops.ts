@@ -48,6 +48,11 @@ export function createBlockOp(author: Author, relatorioId: string, row: BlockRow
   return { ...envelope(author, relatorioId), kind: 'create', path: `block/${row.id}`, value: row as unknown as JsonValue };
 }
 
+/** `relatorio/status` put: a manual backward move (Story 4.6), the server never writes it. */
+export function putRelatorioStatusOp(author: Author, relatorioId: string, status: string): OpDraft {
+  return { ...envelope(author, relatorioId), kind: 'put', path: 'relatorio/status', value: status as JsonValue };
+}
+
 /** `location/{id}` create of a whole row (a coluna or a cabine added from the tree). */
 export function createLocationOp(author: Author, relatorioId: string, row: LocationRow): OpDraft {
   return { ...envelope(author, relatorioId), kind: 'create', path: `location/${row.id}`, value: row as unknown as JsonValue };
