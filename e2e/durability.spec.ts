@@ -27,6 +27,7 @@ import {
 } from './support/durability.ts';
 import { clientCreateOp, pullAll, readDeviceId, readStore, seedOutbox } from './support/outbox.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
+import { pushNewRelatorio } from './support/relatorio-seed.ts';
 
 /**
  * FR-54 / NFR-17: "the tab closed mid-sheet, the network dropped mid-push, the quota
@@ -429,4 +430,56 @@ test('@p1 4.3-E2E-003 the Position box typed by touch moves a Sumário row', asy
   await expect(page.getByTestId('sumario-announcer')).toHaveText('Seção 2 movida para a posição 4 de 11');
   await expect(box).toHaveValue('4');
   await expect(page.getByText('Definições movida — numeração refeita')).toBeVisible();
+});
+
+/*
+ * 4.5-E2E-004 (E3-A8's touch rule): on the Android emulation at phone width the field
+ * palette opens as a bottom sheet and one tap creates a block; a press and hold of 300 ms
+ * on a row's handle (CDP touch events, the way a finger does it) then a drag moves it.
+ */
+test('@p1 4.5-E2E-004 phone width: the palette is a bottom sheet, a tap creates a block, and a press-and-hold drag moves it', async ({ page, context, browserName }) => {
+  test.skip(browserName === 'webkit', 'the touch rule is asserted on the Android emulation; WebKit runs the desktop spec');
+  await resetEmpresaB({ standard: true });
+  const account = TEST_SEED.companies[1];
+  await signInForDurability(page, context, account.email);
+  const { relatorioId } = await pushNewRelatorio(page, account, deviceDatabaseName(account.userId));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`/relatorio/${relatorioId}`);
+  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  await expect(chevron).toBeVisible({ timeout: 30_000 });
+  await chevron.tap();
+  await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).tap();
+  const col1 = page.locator('li.s9-coluna').filter({ has: page.locator(':scope > .s9-col .s9-col-name', { hasText: /^Coluna 1$/ }) });
+  const tags = col1.locator(':scope > .s9-eqs > li.s9-eq .block-tag');
+  await expect(tags).toHaveText(['SEC-C01']);
+
+  // The palette from the coluna row: a bottom sheet across the phone.
+  await page.getByRole('button', { name: 'Mais opções de Coluna 1', exact: true }).tap();
+  await page.getByRole('menuitem', { name: 'Adicionar bloco' }).tap();
+  const palette = page.getByRole('dialog', { name: 'Adicionar bloco' });
+  await expect(palette.locator('.sheet-grip')).toBeVisible();
+  const sheet = (await palette.boundingBox())!;
+  expect(sheet.width).toBeGreaterThan(360);
+  expect(Math.round(sheet.y + sheet.height)).toBeGreaterThanOrEqual(844 - 2);
+  await palette.getByRole('button', { name: /Disjuntor MT/ }).tap();
+  await expect(palette).toBeHidden();
+  await expect(tags).toHaveText(['SEC-C01', 'DJ-C01']);
+
+  // Press and hold 300 ms on DJ-C01's handle, then drag above SEC-C01.
+  const handle = page.getByRole('button', { name: 'Reordenar DJ-C01' });
+  await handle.scrollIntoViewIfNeeded();
+  const from = (await handle.boundingBox())!;
+  const top = (await col1.locator('li.s9-eq').first().boundingBox())!;
+  const cdp = await context.newCDPSession(page);
+  const x = from.x + from.width / 2;
+  const y = from.y + from.height / 2;
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+  await page.waitForTimeout(450);
+  for (let step = 1; step <= 8; step++) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y + ((top.y - 8 - y) * step) / 8 }] });
+    await page.waitForTimeout(16);
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await expect(page.getByTestId('sumario-announcer')).toHaveText('DJ-C01 movido para a posição 1 de 2');
+  await expect(tags).toHaveText(['DJ-C01', 'SEC-C01']);
 });

@@ -78,11 +78,50 @@
 /* Playwright sweep fixes (2026-09-21): hit areas and phone layout of the Sumário */
 [data-route="/relatorio/:id"] .sum-s9 .tree-chevron, [data-route="/relatorio/:id"] .s9-cabine .tree-chevron { width: var(--touch-min); height: 56px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
 [data-route="/relatorio/:id"] .sum-summary .btn-text { min-height: 44px; }
-/* authored: the mock's `.s9-cabine` row carries a chevron in front; this batch draws no
-   children yet (Story 4.4), so the cabine name takes the chevron's inset. */
-[data-route="/relatorio/:id"] .s9-cab-row { padding-left: var(--sp-3); }
-/* authored: the current cabine takes the mock's `.s9-eq.is-current` look until the equipment rows exist (Story 4.4). */
-[data-route="/relatorio/:id"] .s9-cabine.is-current > .s9-cab-row { background: var(--focus-fill); box-shadow: inset 4px 0 0 var(--primary); }
+/* authored: a collapsed cabine holding the last sheet takes the mock's `.s9-eq.is-current` look,
+   since its row is not drawn; once open, the sheet's own row carries it (Story 4.4). */
+[data-route="/relatorio/:id"] .s9-cabine.is-current:not(.is-open) > .s9-cab-row { background: var(--focus-fill); box-shadow: inset 4px 0 0 var(--primary); }
+/* ---------- section 9's location tree (Stories 4.4, 4.5; 40-relatorio-overview.html) ---------- */
+[data-route="/relatorio/:id"] .s9-eqs, [data-route="/relatorio/:id"] .s9-add { display: none; }
+[data-route="/relatorio/:id"] .s9-cabine.is-open > .s9-eqs { display: block; }
+[data-route="/relatorio/:id"] .s9-cabine.is-open > .s9-add { display: inline-flex; margin: 0 0 var(--sp-2) 72px; }
+[data-route="/relatorio/:id"] .s9-eqs { list-style: none; margin: 0; padding: 0 var(--sp-3) 0 48px; }
+[data-route="/relatorio/:id"] .s9-col { padding: var(--sp-2) 0 var(--sp-1); font-size: var(--t-label-size); font-weight: 600; color: var(--ink-secondary); }
+[data-route="/relatorio/:id"] .s9-col-meta { font-weight: 400; margin-left: var(--sp-2); }
+[data-route="/relatorio/:id"] .s9-eq-open { display: flex; align-items: center; gap: var(--sp-3); width: 100%; min-height: 48px; padding: 0 var(--sp-2); text-align: left; border-radius: var(--r-sm); cursor: pointer; }
+[data-route="/relatorio/:id"] .s9-eq.is-current .s9-eq-open { background: var(--focus-fill); box-shadow: inset 4px 0 0 var(--primary); }
+[data-route="/relatorio/:id"] .s9-eq-name { flex: 1; min-width: 0; }
+[data-route="/relatorio/:id"] .s9-state { font-size: var(--t-meta-size); color: var(--ink-secondary); }
+[data-route="/relatorio/:id"] .s9-state[data-state="ok"] { color: var(--conforme); }
+[data-route="/relatorio/:id"] .s9-state[data-state="doing"] { color: var(--primary); }
+/* authored (DESIGN.md › Relatório tree): the fourth state, ⊘ Não ensaiada in `nao-ensaiado`; the mock draws three. */
+[data-route="/relatorio/:id"] .s9-state[data-state="nao-ensaiada"] { color: var(--nao-ensaiado); }
+/* authored (DESIGN.md › Relatório tree wins over the mock's compact list): every row is 56 px
+   tall, indented 24 px per level (two levels drawn; a deeper one indents as the second), and
+   each chevron is a 48×56 px target apart from the row body. The mock's `.s9-col` is a
+   heading line; here a coluna is a row with its chevron, counter and Overflow. */
+[data-route="/relatorio/:id"] .s9-eqs, [data-route="/relatorio/:id"] .s9-cols { list-style: none; margin: 0; padding: 0 0 0 24px; }
+[data-route="/relatorio/:id"] .s9-coluna.is-open > .s9-eqs { display: block; }
+[data-route="/relatorio/:id"] .s9-coluna[data-level="2"] > .s9-eqs, [data-route="/relatorio/:id"] .s9-coluna[data-level="2"] > .s9-cols { padding-left: 0; }
+[data-route="/relatorio/:id"] .s9-coluna .tree-chevron { width: var(--touch-min); height: 56px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+[data-route="/relatorio/:id"] .s9-coluna .tree-chevron .ico { transition: transform .15s; transform: rotate(-90deg); }
+[data-route="/relatorio/:id"] .s9-coluna.is-open > .s9-col .tree-chevron .ico { transform: none; }
+[data-route="/relatorio/:id"] .s9-col { display: flex; align-items: center; gap: var(--sp-2); min-height: 56px; padding: 0 var(--sp-3) 0 0; }
+[data-route="/relatorio/:id"] .s9-col-name { flex: 1; min-width: 0; color: var(--ink-primary); }
+[data-route="/relatorio/:id"] .s9-eq { display: flex; align-items: center; flex-wrap: wrap; gap: 0 var(--sp-1); min-height: 56px; }
+[data-route="/relatorio/:id"] .s9-eq.is-dragging { position: relative; z-index: 5; background: var(--surface-raised); box-shadow: var(--shadow-float); }
+[data-route="/relatorio/:id"] .s9-eq > .s9-eq-open { flex: 1; width: auto; min-width: 0; min-height: 56px; }
+[data-route="/relatorio/:id"] .s9-eq .pos-box, [data-route="/relatorio/:id"] .s9-eq .drag-handle, [data-route="/relatorio/:id"] .s9-eq > .overflow-trigger { flex: none; }
+[data-route="/relatorio/:id"] .s9-eq .block-tag { flex: none; }
+/* authored: DESIGN.md › Relatório tree draws the Position box borderless until hover or focus;
+   the tree row's box takes the Sumário row's `.sum-pos` look, declarations copied. */
+[data-route="/relatorio/:id"] .s9-pos { border-color: transparent; background: transparent; color: var(--ink-secondary); }
+[data-route="/relatorio/:id"] .s9-pos:hover, [data-route="/relatorio/:id"] .s9-pos:focus { border-color: var(--border-strong); background: var(--surface-raised); color: var(--ink-primary); }
+/* authored: the duplicate line (`key-sheet-states.html` duplicated row) under the row body, amber like a warning helper. */
+[data-route="/relatorio/:id"] .s9-dup { flex-basis: 100%; display: flex; align-items: center; flex-wrap: wrap; gap: 0 var(--sp-2); margin: 0 0 var(--sp-1); padding-left: 112px; font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--fora-do-limite); }
+/* authored: "Adicionar cabine" at the foot of the tree, shown with it. */
+[data-route="/relatorio/:id"] .s9-foot { display: none; }
+[data-route="/relatorio/:id"] .sum-s9.is-open > .s9-foot { display: block; padding: 0 var(--sp-3) var(--sp-2) 40px; }
 /* authored: the mock's row is an `<li>` with the number as `<input>`; the App bar's back
    `.icon-btn` reset does not reach a plain `<div class="sum-open">`, which reads as the button does. */
 [data-route="/relatorio/:id"] div.sum-open { cursor: default; }
@@ -101,3 +140,53 @@
 .section-picker .section-option .rr-text { flex: 1; min-width: 0; }
 .restore-list .rr-text { flex: 1; min-width: 0; }
 .restore-list .rr-actions { flex: none; }
+
+/* ---------- the field Block palette (Story 4.5; 40-relatorio-overview.html `#lo-palette`) ----------
+   The palette is portaled out of the route, so the mock's `[data-route="/relatorio/porto-seguro"]`
+   scope becomes `.field-palette`; the drawer and sheet placement is `app.css` › "Block palette as
+   a drawer or a sheet", shared with the Template composer. */
+.field-palette .palette-item { cursor: pointer; }
+.field-palette .lo-type.is-open > .palette-item { background: var(--focus-fill); }
+.field-palette .lo-type .type-confirm { display: none; padding: var(--sp-2) var(--sp-4) var(--sp-4); gap: var(--sp-2); flex-direction: column; background: var(--focus-fill); }
+.field-palette .lo-type.is-open .type-confirm { display: flex; }
+.field-palette .lo-type .type-confirm .confirm-row { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+.field-palette .office-note { padding: var(--sp-3) var(--sp-4) 0; font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); border-top: 1px solid var(--border-hairline); margin-top: var(--sp-2); }
+/* the mock's inline `style="padding-top: var(--sp-3)"` on the "Em: …" line */
+.field-palette .palette-where { padding-top: var(--sp-3); }
+/* authored: which row a type draws, by width alone (Boundaries: never a JS `matchMedia`).
+   Below 1280 px (phone and tablet, the field) a tap creates at once; from 1280 px (the
+   desktop, the office) a tap opens the type's TAG and Local confirm. */
+.field-palette .lo-type.pf-office { display: none; }
+@media (min-width: 1280px) {
+  /* one class more than components.css's `.block-palette .palette-item { display: flex }`, which loads later */
+  .field-palette .palette-item.pf-field { display: none; }
+  .field-palette .lo-type.pf-office { display: block; }
+}
+
+/* ---------- /relatorio/:id/arvore: the rail until Epic 5 mounts it in a sheet (Story 4.4) ----------
+   authored from EXPERIENCE.md › Responsive & Platform and DESIGN.md › Collapsed rail (the
+   prototype's `proto.css` rail modes, which components.css does not carry): below 768 px the
+   tree is the surface, full width; from 768 px the 320 px `.rail`, collapsed to the 48 px
+   `.rail-collapsed` strip by default in portrait (768-1023 px), with `data-rail` holding the
+   user's "Abrir árvore do relatório" / "Recolher árvore". */
+[data-route="/relatorio/:id/arvore"] .arvore-body { flex: 1; display: flex; min-height: 0; }
+[data-route="/relatorio/:id/arvore"] .rail { overflow-y: auto; }
+[data-route="/relatorio/:id/arvore"] .relatorio-tree button.tree-body { text-align: left; }
+/* authored: a collapsed node's chevron points right, as the Sumário's section 9 chevrons do. */
+[data-route="/relatorio/:id/arvore"] .relatorio-tree .tree-chevron .ico { transition: transform .15s; }
+[data-route="/relatorio/:id/arvore"] .relatorio-tree .tree-chevron[aria-expanded="false"] .ico { transform: rotate(-90deg); }
+[data-route="/relatorio/:id/arvore"] .arvore-content { flex: 1; min-width: 0; padding: var(--sp-5) var(--gutter-tablet); }
+@media (max-width: 767.98px) {
+  [data-route="/relatorio/:id/arvore"] .rail-collapsed, [data-route="/relatorio/:id/arvore"] .arvore-content, [data-route="/relatorio/:id/arvore"] .rail-head .icon-btn { display: none; }
+  [data-route="/relatorio/:id/arvore"] .rail { width: 100%; border-right: 0; }
+}
+@media (min-width: 768px) and (max-width: 1023.98px) {
+  [data-route="/relatorio/:id/arvore"] [data-rail="auto"] > .rail { display: none; }
+}
+@media (min-width: 1024px) {
+  [data-route="/relatorio/:id/arvore"] [data-rail="auto"] > .rail-collapsed { display: none; }
+}
+@media (min-width: 768px) {
+  [data-route="/relatorio/:id/arvore"] [data-rail="open"] > .rail-collapsed { display: none; }
+  [data-route="/relatorio/:id/arvore"] [data-rail="closed"] > .rail { display: none; }
+}

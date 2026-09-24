@@ -10,7 +10,8 @@ export interface RestoreDialogProps {
 
 /**
  * Header Overflow › "Restaurar ficha removida" (Story 4.3): the removed blocks of the
- * relatório, newest removal first, each with its own "Restaurar"; the sentence the mock
+ * relatório, newest removal first, each with its own "Restaurar" (an equipment sheet with
+ * where it was, Story 4.5); the sentence the mock
  * toasts when there is nothing to restore stands in the dialog instead, so the way in
  * is always the same.
  */
@@ -32,9 +33,11 @@ export function RestoreDialog({ blocks, onRestore, onClose }: RestoreDialogProps
             <li key={block.id} className="registry-row" data-block-id={block.id}>
               <div className="rr-text">
                 <span className="rr-primary">{block.name}</span>
+                {/* F-5: where an equipment sheet was; the button's name carries the unique label. */}
+                {block.detail === null ? null : <span className="rr-secondary">{block.detail}</span>}
               </div>
               <div className="rr-actions">
-                <TextButton aria-label={t.restoreLabel(block.name)} onPress={() => onRestore(block)}>
+                <TextButton aria-label={t.restoreLabel(block.label)} onPress={() => onRestore(block)}>
                   {t.restoreAction}
                 </TextButton>
               </div>

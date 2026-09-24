@@ -61,4 +61,41 @@ describe('OverflowMenu', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
     await waitFor(() => expect(trigger).toHaveFocus());
   });
+
+  it('draws a toggle item as a menuitemcheckbox with its state, in order, and a press calls it once', async () => {
+    const onToggle = vi.fn();
+    const onOpen = vi.fn();
+    const { rerender } = render(
+      <OverflowMenu
+        name="1° Subsolo"
+        items={[
+          { id: 'open', label: 'Abrir primeira ficha (dados da cabine)', onAction: onOpen },
+          { id: 'agrupar', label: 'Agrupar por tipo na seção 9', onAction: onToggle, checked: true },
+          { id: 'up', label: 'Subir', onAction: vi.fn() },
+        ]}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de 1° Subsolo' }));
+    const menu = screen.getByRole('menu');
+    expect([...menu.querySelectorAll('[role^="menuitem"]')].map((item) => item.textContent)).toEqual([
+      'Abrir primeira ficha (dados da cabine)',
+      'Agrupar por tipo na seção 9',
+      'Subir',
+    ]);
+    const toggle = screen.getByRole('menuitemcheckbox', { name: 'Agrupar por tipo na seção 9' });
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
+    await userEvent.click(toggle);
+    expect(onToggle).toHaveBeenCalledTimes(1);
+    expect(onOpen).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+
+    rerender(
+      <OverflowMenu
+        name="1° Subsolo"
+        items={[{ id: 'agrupar', label: 'Agrupar por tipo na seção 9', onAction: onToggle, checked: false }]}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de 1° Subsolo' }));
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Agrupar por tipo na seção 9' })).toHaveAttribute('aria-checked', 'false');
+  });
 });

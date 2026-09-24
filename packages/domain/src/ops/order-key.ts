@@ -96,6 +96,14 @@ export function sortByOrderKey<T extends { id: string; order_key: string }>(rows
 }
 
 /**
+ * Where a move to `toIndex` (0-based) lands among `total` siblings: clamped to the ends,
+ * fractions dropped. `orderKeyForMove` and every move announcement read this one rule.
+ */
+export function moveLandingIndex(total: number, toIndex: number): number {
+  return Math.min(Math.max(0, total - 1), Math.max(0, Math.floor(toIndex)));
+}
+
+/**
  * The key a row takes when moved to `toIndex` (0-based) among `siblings`, which must be
  * sorted and include the row itself: between the neighbours it lands between once it has
  * left its current slot. `null` when the move lands the row where it already is.
@@ -104,7 +112,7 @@ export function orderKeyForMove<T extends { id: string; order_key: string }>(sib
   const from = siblings.findIndex((row) => row.id === id);
   if (from === -1) throw new RangeError(`row ${id} is not among its siblings`);
   const others = siblings.filter((row) => row.id !== id);
-  const to = Math.min(others.length, Math.max(0, Math.floor(toIndex)));
+  const to = moveLandingIndex(siblings.length, toIndex);
   if (to === from) return null;
   const lower = others[to - 1]?.order_key ?? null;
   // Two siblings may hold one key (minted apart on two devices): the row then lands after

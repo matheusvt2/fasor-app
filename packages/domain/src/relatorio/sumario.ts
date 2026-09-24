@@ -7,6 +7,7 @@ import { normalizeRegistryName } from '../text/normalize-name.ts';
 import { isRelatorioSectionType, relatorioSectionNumber, type RelatorioSectionType } from './instantiate.ts';
 import { blockingRows, preIssueRowsFor, type PreIssueRow, type SumarioRowKey } from './pre-issue.ts';
 import { progressCounterText, type Progress } from './progress.ts';
+import { locationPathText } from './location-path.ts';
 import { isEquipmentBlock } from './sheet-state.ts';
 
 /*
@@ -87,16 +88,29 @@ function pendingRows(rows: readonly PreIssueRow[]): PreIssueRow[] {
   return rows.filter((row) => row.severity !== 'info');
 }
 
-/** `.s9-cab-meta` of a cabine row: "Blindada · 13,8 kV · agrupar por tipo" from the cabine's own data. */
+/** A cabine number value as its meta line prints it: "13,8 kV", "19 °C", "67 %"; null when not typed. */
+function measure(value: { raw: string; unit: string | null } | null, unit: string): string | null {
+  if (value === null || value.raw.trim() === '') return null;
+  return `${value.raw.trim().replace('.', ',')} ${value.unit ?? unit}`;
+}
+
+/**
+ * `.s9-cab-meta` of a cabine row (DESIGN.md › Relatório tree: "SE · 13,8 kV · 19 °C · 67 %",
+ * read-only), from the cabine's own data: its SE type, primary voltage, test temperature
+ * and humidity, and "agrupar por tipo" when the flag is on; "—" when none is set. A coluna
+ * has no data line and reads "".
+ */
 export function cabineMetaText(location: LocationRow): string {
   if (location.kind !== 'cabine') return '';
-  const kv = location.se.primary_kv;
-  return join([
+  const line = join([
     location.se.type,
-    kv !== null && kv.raw !== '' ? `${kv.raw.replace('.', ',')} ${kv.unit ?? 'kV'}` : null,
+    measure(location.se.primary_kv, 'kV'),
+    measure(location.env.temperature_c, '°C'),
+    measure(location.env.humidity_pct, '%'),
     // Verbatim from the mock's cabine rows.
     location.agrupar_por_tipo ? 'agrupar por tipo' : null,
   ]);
+  return line === '' ? '—' : line;
 }
 const join = (parts: readonly (string | null | undefined)[]) => parts.filter((p): p is string => typeof p === 'string' && p !== '').join(SEP);
 
@@ -227,22 +241,48 @@ export interface RestorableBlock {
   id: string;
   /** "2 Definições" for a section, the TAG for an equipment sheet. */
   name: string;
+  /** Where an equipment sheet was: "1° Subsolo › Coluna 5"; null for a section. */
+  detail: string | null;
+  /**
+   * The name no other row of the list shares (F-5): the name and its detail, "SEC-C05 —
+   * 1° Subsolo › Coluna 5", with " (2)", " (3)" after the second and later identical ones
+   * in list order.
+   */
+  label: string;
+  /** The sheet's equipment row, restored with it (a removal tombstones both); null for a section. */
+  equipmentId: string | null;
   removed_at: string;
 }
 
-/** The removed blocks "Restaurar ficha removida" offers, newest removal first. */
-export function restorableBlocks(blocks: readonly BlockRow[], equipment: readonly Pick<EquipmentRow, 'id' | 'tag'>[] = []): RestorableBlock[] {
+/**
+ * The removed blocks "Restaurar ficha removida" offers, newest removal first, each with a
+ * label unique in the list. `locations` are the relatório's, removed ones included, so a
+ * sheet still names the coluna it was in.
+ */
+export function restorableBlocks(
+  blocks: readonly BlockRow[],
+  equipment: readonly Pick<EquipmentRow, 'id' | 'tag'>[] = [],
+  locations: readonly Pick<LocationRow, 'id' | 'parent_id' | 'name'>[] = [],
+): RestorableBlock[] {
   const tags = new Map(equipment.map((row) => [row.id, row.tag]));
-  return blocks
+  const rows = blocks
     .filter((block): block is BlockRow & { removed_at: string } => block.removed_at !== null)
-    .map((block) => ({
-      id: block.id,
-      name: isEquipmentBlock(block)
+    .map((block) => {
+      const sheet = isEquipmentBlock(block);
+      const name = sheet
         ? ((block.equipment_id !== null && tags.get(block.equipment_id)) || block.block_type)
-        : join([relatorioSectionNumber(block.block_type)?.toString() ?? null, sectionRowTitle(block.block_type)]).replace(SEP, ' '),
-      removed_at: block.removed_at,
-    }))
+        : join([relatorioSectionNumber(block.block_type)?.toString() ?? null, sectionRowTitle(block.block_type)]).replace(SEP, ' ');
+      const path = sheet ? locationPathText(locations, block.location_id) : '';
+      return { id: block.id, name, detail: path === '' ? null : path, equipmentId: sheet ? block.equipment_id : null, removed_at: block.removed_at };
+    })
     .sort((a, b) => (a.removed_at < b.removed_at ? 1 : a.removed_at > b.removed_at ? -1 : a.id < b.id ? -1 : 1));
+  const seen = new Map<string, number>();
+  return rows.map((row) => {
+    const base = row.detail === null ? row.name : `${row.name} — ${row.detail}`;
+    const n = (seen.get(base) ?? 0) + 1;
+    seen.set(base, n);
+    return { ...row, label: n === 1 ? base : `${base} (${n})` };
+  });
 }
 
 // --- relatório and project texts (Story 4.1) -------------------------------------------
