@@ -142,6 +142,15 @@ export function blockHoldsData(block: BlockRow): boolean {
   return sheetState(block) !== 'vazia';
 }
 
+/**
+ * True when another live block (of any relatório in `blocks`) references the equipment
+ * `blockId` names (Epic 4 QA Q4): a later relatório of the obra reuses the project's
+ * equipment, so removing one of its sheets must not tombstone the row another sheet holds.
+ */
+export function equipmentSharedElsewhere(blocks: readonly Pick<BlockRow, 'id' | 'equipment_id' | 'removed_at'>[], equipmentId: string, blockId: string): boolean {
+  return blocks.some((block) => block.id !== blockId && block.removed_at === null && block.equipment_id === equipmentId);
+}
+
 /** The live locations of a relatório in `order_key` order. */
 function liveLocations(locations: readonly LocationRow[]): LocationRow[] {
   return sortByOrderKey(locations.filter((location) => location.removed_at === null));

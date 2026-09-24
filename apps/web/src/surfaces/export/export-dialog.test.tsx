@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { SERVER_DEVICE_ID, type GenerateResponse, type Op, type RevisionRow } from '@app/domain';
-import { BLOCK_CHAVE_ID, portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
+import { BLOCK_CHAVE_ID, EQUIPMENT_CHAVE_ID, portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { act, cleanup, configure, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
@@ -148,7 +148,8 @@ function revisionOf(number: number): { row: RevisionRow; op: Op } {
     id: newId(),
     relatorio_id: REL,
     number,
-    snapshot_seq: 100 * number,
+    // The head of the log when the revision is cut: every op pulled so far is in its snapshot.
+    snapshot_seq: seq,
     created_by: USER,
     docx_file_id: newId(),
     pdf_file_id: newId(),
@@ -287,9 +288,98 @@ describe('Export dialog (Story 4.8)', () => {
 
     expect(await axe(modal)).toHaveNoViolations();
 
-    // "Gerar de novo" goes back to idle, with the next number in the reason.
+    // "Gerar de novo" goes back to idle. Nothing was edited since revision 1 (its status ops
+    // are not edits, AD-15), so a press would answer revision 1 again and the line says so (Q11).
     await userEvent.click(within(modal).getByRole('button', { name: 'Gerar de novo' }));
-    expect(within(modal).getByText('Gera o DOCX e o PDF juntos, a partir dos dados do app, como a revisão 2. Precisa de conexão.')).toBeInTheDocument();
+    await waitFor(() => expect(within(modal).getByText('Gera o DOCX e o PDF juntos, a partir dos dados do app, como a revisão 1. Precisa de conexão.')).toBeInTheDocument());
+    // An edit on this device, not yet sent: the next press cuts revision 2.
+    await act(async () => {
+      await commitBatch(
+        database!,
+        [
+          {
+            kind: 'put',
+            scope: 'relatorio',
+            company_id: COMPANY,
+            project_id: null,
+            relatorio_id: REL,
+            path: 'relatorio/setup/local',
+            value: 'Outro local',
+            prev_op_id: null,
+            batch_id: null,
+            meta: null,
+            actor_id: USER,
+          },
+        ],
+        { newId, now: () => new Date() },
+      );
+    });
+    await waitFor(() => expect(within(modal).getByText('Gera o DOCX e o PDF juntos, a partir dos dados do app, como a revisão 2. Precisa de conexão.')).toBeInTheDocument());
+  });
+
+  /** Revision 1 generated and pulled, then "Gerar de novo": the idle line names revision 1. */
+  async function afterRevisionOne(): Promise<HTMLElement> {
+    database = await freshDb();
+    render(<Harness sync={syncState()} />);
+    await userEvent.click(generateButton());
+    await waitFor(() => expect(within(dialog()).getByRole('status')).toHaveTextContent('Gerando revisão 1…'));
+    await act(async () => {
+      await applyPulled(database!, [...jobOps('done'), revisionOf(1).op]);
+    });
+    const modal = dialog();
+    await waitFor(() => expect(within(modal).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeInTheDocument());
+    await waitFor(async () => expect(await statusOps(database!)).toEqual(['em_revisao', 'emitido']));
+    await userEvent.click(within(modal).getByRole('button', { name: 'Gerar de novo' }));
+    await waitFor(() => expect(within(modal).getByText('Gera o DOCX e o PDF juntos, a partir dos dados do app, como a revisão 1. Precisa de conexão.')).toBeInTheDocument());
+    return modal;
+  }
+
+  /** An edit another device made, pulled with a seq past the revision's snapshot (nothing in this device's outbox). */
+  const pulledEdit = (input: { scope: 'relatorio' | 'project'; path: string; value: unknown }): Op => ({
+    ...serverOp({ kind: 'put', path: input.path, value: input.value, client_ts: '2026-09-23T12:05:00.000Z' }),
+    scope: input.scope,
+    project_id: input.scope === 'project' ? portoSeguroSmall.projectId : null,
+    relatorio_id: input.scope === 'relatorio' ? REL : null,
+    actor_id: USER,
+    device_id: 'outro-aparelho',
+  });
+
+  it('Q11: a pulled edit of the relatório past the snapshot moves the idle line to revision 2', async () => {
+    const modal = await afterRevisionOne();
+    await act(async () => {
+      await applyPulled(database!, [pulledEdit({ scope: 'relatorio', path: 'relatorio/setup/local', value: 'Outro local' })]);
+    });
+    await waitFor(() => expect(within(modal).getByText('Gera o DOCX e o PDF juntos, a partir dos dados do app, como a revisão 2. Precisa de conexão.')).toBeInTheDocument());
+    expect(await database!.outbox.where('path').equals('relatorio/setup/local').count()).toBe(0);
+  });
+
+  it('Q11: a pulled project-scope edit (an equipment TAG) past the snapshot moves the idle line to revision 2', async () => {
+    const modal = await afterRevisionOne();
+    await act(async () => {
+      await applyPulled(database!, [pulledEdit({ scope: 'project', path: `equipment/${EQUIPMENT_CHAVE_ID}/tag`, value: 'SEC-NOVA' })]);
+    });
+    await waitFor(() => expect(within(modal).getByText('Gera o DOCX e o PDF juntos, a partir dos dados do app, como a revisão 2. Precisa de conexão.')).toBeInTheDocument());
+  });
+
+  it('Q11: the ready pill reads the status after the issue op, even when the revision lands before the relatório row is read', async () => {
+    database = await freshDb();
+    const sync = syncState();
+    const { unmount } = render(<Harness sync={sync} />);
+    await userEvent.click(generateButton());
+    await waitFor(() => expect(within(dialog()).getByRole('status')).toHaveTextContent('Gerando revisão 1…'));
+    await waitFor(async () => expect(await statusOps(database!)).toEqual(['em_revisao']));
+    unmount();
+    // The revision is already on the device when the dialog mounts again: the resume path
+    // finishes it in the first renders, while the live relatório row may still be unread.
+    const { op } = revisionOf(1);
+    await applyPulled(database, [...jobOps('done'), op]);
+    render(<Harness sync={sync} />);
+    const modal = dialog();
+    await waitFor(() => expect(within(modal).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeInTheDocument());
+    // The ready state never shows the status before the issue op.
+    expect(modal.querySelector('.row-wrap .status-pill')).not.toHaveTextContent('Em revisão');
+    await waitFor(() => expect(modal.querySelector('.row-wrap .status-pill')).toHaveTextContent('Emitido'));
+    expect(await statusOps(database!)).toEqual(['em_revisao', 'emitido']);
   });
 
   it('shows the inline error with "Tentar novamente" when the job fails, and a network failure ends the same way', async () => {

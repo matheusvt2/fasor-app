@@ -12,7 +12,7 @@ import {
   type TreeLocationNode,
 } from '@app/domain';
 import { Button as AriaButton } from 'react-aria-components';
-import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type Ref } from 'react';
+import { memo, useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type Ref } from 'react';
 import { ConfirmDialog, OverflowMenu, TextButton, type OverflowMenuAction } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
@@ -40,6 +40,12 @@ import { NameDialog, TagDialog } from './tag-dialogs.tsx';
  * collapse, and Left on a leaf or a collapsed node goes to its parent's chevron. Expand
  * state is local to the mount and never persisted: cabines start collapsed (the path to
  * the last sheet opens when the Sumário opens on it), colunas open with their cabine.
+ *
+ * Rendering (Epic 4 QA Q7): every committed op re-reads the relatório and rebuilds the
+ * tree's nodes, and a move also re-renders the Sumário for its announcement and its toast.
+ * Each row is memoized on its node's content and on \`shared\`, which keeps its identity
+ * while the expand state, the last sheet and the actions hold, so a move redraws only the
+ * rows whose data changed (the moved row's siblings and their parents), not all 94.
  */
 
 export interface RelatorioTreeHandle {
@@ -90,6 +96,31 @@ const Chevron = () => (
     <use href="/sprite.svg#i-chev-down" />
   </svg>
 );
+
+/**
+ * Deep equality over the plain data of a tree node (strings, numbers, booleans, null,
+ * arrays and plain objects): two renders of the same row compare equal when nothing it
+ * draws changed, whatever the identity of the objects the kernel built.
+ */
+function sameData(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  if (Array.isArray(a)) {
+    if (!Array.isArray(b) || a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (!sameData(a[i], b[i])) return false;
+    return true;
+  }
+  if (Array.isArray(b)) return false;
+  const keys = Object.keys(a);
+  if (keys.length !== Object.keys(b).length) return false;
+  for (const key of keys) if (!sameData((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])) return false;
+  return true;
+}
+
+/** A row redraws only when its node's content or the shared row context changed. */
+function sameRow<N>(prev: { node: N; shared: Shared }, next: { node: N; shared: Shared }): boolean {
+  return prev.shared === next.shared && sameData(prev.node, next.node);
+}
 
 /** The parent location's chevron of the row `from` sits in. */
 function focusParentChevron(from: HTMLElement): void {
@@ -181,30 +212,47 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
     row.scrollIntoView?.({ block: 'center' });
   });
 
-  const currentPath = useMemo(() => new Set(lastSheetId === null ? [] : treePathTo(tree, { blockId: lastSheetId })), [tree, lastSheetId]);
+  // The path to the last sheet, kept by content so a rebuilt tree with the same path keeps `shared`.
+  const currentPathKey = (lastSheetId === null ? [] : treePathTo(tree, { blockId: lastSheetId })).join(' ');
+  const currentPath = useMemo(() => new Set(currentPathKey === '' ? [] : currentPathKey.split(' ')), [currentPathKey]);
+  // Read at call time: a row's menu action needs the latest snapshot, not the one `shared` was built with.
+  const latestSnapshot = useRef(snapshot);
+  latestSnapshot.current = snapshot;
+  // The locations as rows see them through `pathOf` (a duplicate line's accessible name): a
+  // rename, a move or a removal changes `shared`, so memoized rows redraw with the new path.
+  const locationsKey = snapshot.locations.map((row) => `${row.id}\u0000${row.name}\u0000${row.parent_id ?? ''}\u0000${row.removed_at ?? ''}`).join('\u0001');
 
-  const shared: Shared = {
-    presentation,
-    isOpen: (node) => expanded.get(node.id) ?? node.level > 0,
-    setOpen: (node, open) =>
-      setExpanded((current) => {
-        const next = new Map(current);
-        next.set(node.id, open);
-        return next;
-      }),
-    currentBlockId: lastSheetId,
-    currentPath,
-    actions,
-    openPalette: setPalette,
-    paletteLocation: (node) => (node.kind === 'cabine' ? paletteLocationFor(snapshot, node.id, lastSheetId) : node.id),
-    pathOf: (locationId) => locationPathText(snapshot.locations, locationId),
-    openDialog: setDialog,
-    requestRemove: (node) => {
-      // EXPERIENCE.md › Block Model: only a sheet holding data asks first (the kernel's `holdsData`).
-      if (node.holdsData) setDialog({ kind: 'remove', node });
-      else actions.removeBlock(node);
-    },
-  };
+  // The tree draws some edits in renders of its own (a reveal of a collapsed location): a
+  // pending `settle` is checked here too, not only in the Sumário's render (Q7).
+  const { settleCheck } = context.editor;
+  useLayoutEffect(() => settleCheck());
+
+  const shared: Shared = useMemo(
+    () => ({
+      presentation,
+      isOpen: (node) => expanded.get(node.id) ?? node.level > 0,
+      setOpen: (node, open) =>
+        setExpanded((current) => {
+          const next = new Map(current);
+          next.set(node.id, open);
+          return next;
+        }),
+      currentBlockId: lastSheetId,
+      currentPath,
+      actions,
+      openPalette: setPalette,
+      paletteLocation: (node) => (node.kind === 'cabine' ? paletteLocationFor(latestSnapshot.current, node.id, lastSheetId) : node.id),
+      pathOf: (locationId) => locationPathText(latestSnapshot.current.locations, locationId),
+      openDialog: setDialog,
+      requestRemove: (node) => {
+        // EXPERIENCE.md › Block Model: only a sheet holding data asks first (the kernel's `holdsData`).
+        if (node.holdsData) setDialog({ kind: 'remove', node });
+        else actions.removeBlock(node);
+      },
+    }),
+    // `locationsKey` is read through `latestSnapshot`; it is a dependency so a new path renews `shared`.
+    [presentation, expanded, lastSheetId, currentPath, actions, locationsKey],
+  );
 
   const closeDialog = (focusTo?: () => HTMLElement | null) => {
     setDialog(null);
@@ -341,7 +389,7 @@ function locationMenu(node: TreeLocationNode, shared: Shared, reorder: Reorder |
 }
 
 /** A cabine row, or a coluna row (any location below a cabine), with what hangs under it when open. */
-function SumarioLocation({ node, shared }: { node: TreeLocationNode; shared: Shared }) {
+const SumarioLocation = memo(function SumarioLocation({ node, shared }: { node: TreeLocationNode; shared: Shared }) {
   const t = copy.sumario.tree;
   const open = shared.isOpen(node);
   const eqsId = useId();
@@ -435,7 +483,7 @@ function SumarioLocation({ node, shared }: { node: TreeLocationNode; shared: Sha
       {children}
     </li>
   );
-}
+}, sameRow);
 
 function equipmentMenu(node: TreeEquipmentNode, shared: Shared, reorder: Reorder, trigger: () => HTMLElement | null) {
   const t = copy.sumario.tree;
@@ -450,7 +498,7 @@ function equipmentMenu(node: TreeEquipmentNode, shared: Shared, reorder: Reorder
 }
 
 /** An equipment row: drag handle, Position box, the row body that opens the sheet, the Overflow, and the duplicate line. */
-function SumarioEquipment({ node, shared }: { node: TreeEquipmentNode; shared: Shared }) {
+const SumarioEquipment = memo(function SumarioEquipment({ node, shared }: { node: TreeEquipmentNode; shared: Shared }) {
   const t = copy.sumario.tree;
   const reorder = useReorder({
     itemKey: node.blockId,
@@ -496,11 +544,11 @@ function SumarioEquipment({ node, shared }: { node: TreeEquipmentNode; shared: S
       ) : null}
     </li>
   );
-}
+}, sameRow);
 
 // --- the rail presentation -------------------------------------------------------------
 
-function RailLocation({ node, shared }: { node: TreeLocationNode; shared: Shared }) {
+const RailLocation = memo(function RailLocation({ node, shared }: { node: TreeLocationNode; shared: Shared }) {
   const t = copy.sumario.tree;
   const open = shared.isOpen(node);
   const groupId = useId();
@@ -543,9 +591,9 @@ function RailLocation({ node, shared }: { node: TreeLocationNode; shared: Shared
       ) : null}
     </li>
   );
-}
+}, sameRow);
 
-function RailEquipment({ node, shared }: { node: TreeEquipmentNode; shared: Shared }) {
+const RailEquipment = memo(function RailEquipment({ node, shared }: { node: TreeEquipmentNode; shared: Shared }) {
   const current = shared.currentBlockId === node.blockId;
   return (
     <li data-block-id={node.blockId}>
@@ -568,4 +616,4 @@ function RailEquipment({ node, shared }: { node: TreeEquipmentNode; shared: Shar
       </div>
     </li>
   );
-}
+}, sameRow);

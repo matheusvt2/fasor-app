@@ -116,7 +116,8 @@ test('@p1 1.6-E2E-001 Home shows the status board, the current relatório first 
   const first = page.locator('.relatorio-card').first();
   await expect(first).toHaveAttribute('data-relatorio', emCampoId);
   await expect(first).toHaveClass(/is-current/);
-  await expect(first.locator('.card-title')).toContainText('Cliente E2E · Torres A e B');
+  // Q5: the card names the client and the obra as the Sumário header does, not the setup Local.
+  await expect(first.locator('.card-title')).toContainText('Cliente E2E · Projeto E2E');
   await expect(first.locator('.card-meta')).toContainText('06–08/09/2026');
   await expect(first.getByRole('button', { name: 'Continuar' })).toHaveAttribute('aria-disabled', 'true');
   await expect(card(page, rascunhoId).getByRole('button', { name: 'Continuar' })).toHaveCount(0);

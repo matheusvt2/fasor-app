@@ -22,7 +22,7 @@ function baseSnapshot(overrides: Partial<RelatorioSnapshot> = {}): RelatorioSnap
         cover_photo_file_id: null,
         escopo: 'manutenção preventiva e à execução de ensaios dielétricos',
         exclusions: null,
-        additional_info: null,
+        additional_info: 'Manutenção Preventiva nas Cabines Primárias',
         art_trt_number: null,
         instrument_ids: [],
         site_altitude_m: null,
@@ -79,8 +79,17 @@ describe('4.2-UNIT / 4.7-UNIT sectionVariables', () => {
     expect(vars.cliente).toBe('Porto Seguro Companhia de Seguros Gerais');
     expect(vars.empresa_executora).toBe('Fasor Engenharia');
     expect(vars.responsavel).toBe('Rafael Lamonde');
-    expect(vars.escopo).toBe('manutenção preventiva e à execução de ensaios dielétricos');
     expect(vars.datas).toBeUndefined();
+  });
+
+  it('Q3: escopo is the cover\'s Informações adicionais (setup.additional_info), never setup.escopo', () => {
+    const vars = sectionVariables(baseSnapshot(), null);
+    expect(vars.escopo).toBe('Manutenção Preventiva nas Cabines Primárias');
+    const blank = baseSnapshot();
+    blank.relatorio.setup.additional_info = '   ';
+    expect(sectionVariables(blank, null).escopo).toBeUndefined();
+    blank.relatorio.setup.additional_info = null;
+    expect(sectionVariables(blank, null).escopo).toBeUndefined();
   });
 });
 

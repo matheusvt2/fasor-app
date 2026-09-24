@@ -481,7 +481,7 @@ export const copy = {
     // Foot.
     preview: 'Pré-visualizar',
     // authored: the draft preview (RASCUNHO watermark) is Epic 7's (FR-73).
-    previewReason: 'Pré-visualizar: disponível na pré-visualização do documento',
+    previewReason: 'Pré-visualizar: disponível em uma próxima etapa',
     generate: 'Gerar relatório',
     // authored: an address that names no relatório on this device, and the way back.
     notFound: 'Relatório não encontrado neste aparelho.',
@@ -593,7 +593,6 @@ export const copy = {
     etapa2Note: 'Seções 1 e 3',
     empresaExecutoraLabel: 'Empresa executora',
     localLabel: 'Local',
-    escopoLabel: 'Escopo',
     exclusionsLabel: 'Exclusões',
     addExclusion: 'Adicionar exclusão',
     // authored: the accessible name of one exclusion's typed field.
@@ -629,12 +628,16 @@ export const copy = {
     altitudeConfirm: 'Confirmar',
     // authored: the echo line once the altitude is confirmed.
     altitudeConfirmed: (text: string) => `Altitude do site: ${text} — confirmada`,
+    // authored: the confirmed line's way back to the field (Epic 4 QA Q8), the value kept.
+    altitudeChange: 'Alterar',
+    // authored: its accessible name, naming what it changes.
+    altitudeChangeLabel: 'Alterar altitude do site',
     nextInterventionDateLabel: 'Próxima intervenção recomendada',
     nextInterventionJustificationLabel: 'Justificativa',
     // "Conclusão e parecer" placeholder band.
     parecerTitle: 'Conclusão e parecer',
-    // authored: mirrors the stub's phrasing, kept for the one band this epic does not build yet.
-    parecerNote: 'Disponível na próxima etapa deste épico',
+    // authored: the band is Epic 7's; the note says it comes later without naming an epic (Q10).
+    parecerNote: 'Disponível em uma próxima etapa',
     // Sticky action bar.
     complete: 'Concluir dados do relatório',
     // authored: once the relatório has left Rascunho, the sticky bar has nothing left to do.

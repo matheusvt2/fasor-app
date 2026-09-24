@@ -128,6 +128,15 @@ export function registrationPuts(input: {
   }));
 }
 
+/**
+ * The responsável técnico a new relatório is born with (Epic 4 QA Q2, EXPERIENCE.md
+ * Account row: the registration is "the default responsável of every new relatório"): the
+ * signed-in user when they carry a registration (a council and a number), else nobody.
+ */
+export function defaultResponsibleId(user: Pick<UserProfile, 'id' | 'council' | 'registrationNumber'>): string | null {
+  return user.council !== null && (user.registrationNumber?.trim() ?? '') !== '' ? user.id : null;
+}
+
 /** First letter of the name, for the app-bar avatar. */
 export function avatarInitial(name: string): string {
   return (name.trim()[0] ?? '?').toUpperCase();

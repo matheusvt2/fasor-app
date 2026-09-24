@@ -115,7 +115,7 @@ describe('4.2 SetupSurface', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Etapa 4 — Instrumentos e certificados' })).toBeVisible();
     expect(screen.getByRole('heading', { level: 2, name: 'Etapa 5 — Local' })).toBeVisible();
     expect(screen.getByRole('heading', { level: 2, name: 'Conclusão e parecer' })).toBeVisible();
-    expect(screen.getByText('Disponível na próxima etapa deste épico')).toBeVisible();
+    expect(screen.getByText('Disponível em uma próxima etapa')).toBeVisible();
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -287,6 +287,81 @@ describe('4.2 SetupSurface', () => {
     await waitFor(() => expect(screen.getByRole('spinbutton', { name: 'Altitude do site' })).toHaveValue(1200));
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
     await waitFor(() => expect(screen.getByText('Altitude do site: 1200 m — confirmada')).toBeVisible());
+  });
+
+  it('Q8: without a geolocation reading the altitude is a plain field, no "Sugerido" pill and no suggested state', async () => {
+    database = await seeded();
+    renderSetup();
+    const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+    expect(input).toHaveValue(null);
+    const field = input.closest('.altitude-field')!;
+    expect(field).not.toHaveAttribute('data-state');
+    expect(within(field as HTMLElement).queryByText('Sugerido')).toBeNull();
+  });
+
+  it('Q8: a geolocation reading shows the "Sugerido" pill until the user types over it', async () => {
+    const getCurrentPosition = vi.fn((ok: PositionCallback) => ok({ coords: { altitude: 763.6 } } as GeolocationPosition));
+    Object.defineProperty(navigator, 'geolocation', { configurable: true, value: { getCurrentPosition } });
+    try {
+      database = await seeded();
+      renderSetup();
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      await waitFor(() => expect(input).toHaveValue(764));
+      const field = input.closest('.altitude-field') as HTMLElement;
+      expect(field).toHaveAttribute('data-state', 'suggested');
+      expect(within(field).getByText('Sugerido')).toHaveClass('suggested-pill');
+      await userEvent.type(input, '1');
+      expect(field).not.toHaveAttribute('data-state');
+      expect(within(field).queryByText('Sugerido')).toBeNull();
+    } finally {
+      // @ts-expect-error jsdom has no geolocation; the property above added it.
+      delete navigator.geolocation;
+    }
+  });
+
+  it('Q8: a confirmed geolocation reading reopened by "Alterar" is a plain field, not "Sugerido" again', async () => {
+    const getCurrentPosition = vi.fn((ok: PositionCallback) => ok({ coords: { altitude: 763.6 } } as GeolocationPosition));
+    Object.defineProperty(navigator, 'geolocation', { configurable: true, value: { getCurrentPosition } });
+    try {
+      database = await seeded();
+      renderSetup();
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      await waitFor(() => expect(input).toHaveValue(764));
+      await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
+      await screen.findByText('Altitude do site: < 1000 m — confirmada');
+      await userEvent.click(screen.getByRole('button', { name: 'Alterar altitude do site' }));
+      const reopened = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      expect(reopened).toHaveValue(764);
+      const field = reopened.closest('.altitude-field') as HTMLElement;
+      expect(field).not.toHaveAttribute('data-state');
+      expect(within(field).queryByText('Sugerido')).toBeNull();
+    } finally {
+      // @ts-expect-error jsdom has no geolocation; the property above added it.
+      delete navigator.geolocation;
+    }
+  });
+
+  it('Q8: "Alterar" reopens a confirmed altitude with its value kept and the focus in the field', async () => {
+    database = await seeded();
+    const relatorioRecord = await database.entities.get(['relatorio', RELATORIO]);
+    const row = relatorioRecord!.row as RelatorioRow;
+    await database.entities.put({ ...relatorioRecord!, row: { ...row, setup: { ...row.setup, site_altitude_m: 764, site_altitude_confirmed: true } } });
+    renderSetup();
+    await screen.findByText('Altitude do site: < 1000 m — confirmada');
+    await userEvent.click(screen.getByRole('button', { name: 'Alterar altitude do site' }));
+    const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+    expect(input).toHaveValue(764);
+    await waitFor(() => expect(input).toHaveFocus());
+    const stored = (await database.entities.get(['relatorio', RELATORIO]))!.row as RelatorioRow;
+    expect(stored.setup).toMatchObject({ site_altitude_m: 764, site_altitude_confirmed: false });
+  });
+
+  it('Q3: Etapa 2 carries no "Escopo" field (the cover prints Etapa 1\'s Informações adicionais)', async () => {
+    database = await seeded();
+    renderSetup();
+    const band = (await screen.findByRole('heading', { level: 2, name: 'Etapa 2 — Objetivo e escopo' })).closest('section')!;
+    expect(within(band).getByRole('textbox', { name: 'Local' })).toBeVisible();
+    expect(within(band).queryByRole('textbox', { name: 'Escopo' })).toBeNull();
   });
 
   it('committing an exclusion edit writes the whole array to the relatório row', async () => {

@@ -1,4 +1,5 @@
 import {
+  editedOnDevice,
   generationJobRowSchema,
   relatorioRowSchema,
   revisionRowSchema,
@@ -50,6 +51,33 @@ export async function latestGenerationJob(db: AppDatabase, relatorioId: string):
     if (latest === null || job.created_at > latest.created_at || (job.created_at === latest.created_at && job.id > latest.id)) latest = job;
   }
   return latest;
+}
+
+/**
+ * Epic 4 QA Q11: whether the relatório was edited on this device's view since the
+ * snapshot at `snapshotSeq` — the pulled ops of its stream (its own and its project's)
+ * past that seq, plus this device's ops of the same stream the server has not applied yet
+ * (pending or sent). The kernel decides what an edit is (`editedOnDevice`).
+ */
+export async function editedSinceSnapshot(db: AppDatabase, relatorioId: string, snapshotSeq: number): Promise<boolean> {
+  const relatorio = await relatorioRow(db, relatorioId);
+  const projectId = relatorio?.project_id ?? null;
+  const inStream = (op: { relatorio_id?: string | null; project_id?: string | null; scope: string }) =>
+    op.relatorio_id === relatorioId || (projectId !== null && op.scope === 'project' && op.project_id === projectId);
+  const pulled = (await db.remote_ops.where('seq').above(snapshotSeq).toArray()).filter(inStream);
+  // An op of this device the server acked (its `seq` known) before the pull brought it back.
+  const acked = (await db.outbox.where('seq').above(snapshotSeq).toArray()).filter((op) => op.status === 'acked' && inStream(op));
+  const unsent = (await db.outbox.where('status').anyOf('pending', 'sent').toArray()).filter(inStream);
+  return editedOnDevice([...pulled, ...acked], unsent, snapshotSeq);
+}
+
+/** `editedSinceSnapshot`, live; true (the next number) until the first read lands or with no snapshot. */
+export function useEditedSince(db: AppDatabase | null, relatorioId: string, snapshotSeq: number | null): boolean {
+  return useLiveQuery(
+    () => (db === null || snapshotSeq === null ? Promise.resolve(true) : editedSinceSnapshot(db, relatorioId, snapshotSeq)),
+    [db, relatorioId, snapshotSeq],
+    true,
+  );
 }
 
 const byClientTsThenOpId = (a: OutboxRow, b: OutboxRow) =>

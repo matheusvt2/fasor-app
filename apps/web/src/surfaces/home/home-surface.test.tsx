@@ -130,7 +130,7 @@ async function freshDb(): Promise<AppDatabase> {
 
 async function seedCompany(db: AppDatabase) {
   await db.entities.bulkPut([
-    toRecord(`project:${PROJECT}`, { id: PROJECT, client_id: CLIENT, name: 'Porto Seguro', site: null, removed_at: null }),
+    toRecord(`project:${PROJECT}`, { id: PROJECT, client_id: CLIENT, name: 'Porto Seguro', site: 'Torres A e B', removed_at: null }),
     toRecord(`registry:${CLIENT}`, {
       id: CLIENT,
       kind: 'client',

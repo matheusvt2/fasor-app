@@ -30,7 +30,7 @@ export async function pushNewRelatorio(page: Page, account: Account, database: s
   const { relatorioId, drafts } = instantiateTemplate(
     standardTemplate({ id: newId() }),
     { id: projectId },
-    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [] },
+    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
     { newId, actorId: account.userId, companyId: account.companyId },
   );
   await pushDrafts(page, database, [project, ...drafts]);

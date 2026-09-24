@@ -202,12 +202,13 @@ push({
       local: COVER.obra,
       responsible_user_id: USER_ID,
       cover_photo_file_id: null,
-      // The delivered relatório's own "Informações adicionais"/`{escopo}` text (Story 4.2
-      // added this field; `atividade` above is its now-unread predecessor, left in place
-      // only because the schema still carries it).
-      escopo: 'Manutenção preventiva',
+      // The delivered relatório's own cover "Informações adicionais" text, which the cover's
+      // `{escopo}` resolves from (Epic 4 QA Q3: `sectionVariables` reads `additional_info`;
+      // `setup.escopo` prints nowhere in seed v1, and `atividade` above is an unread
+      // predecessor left in place only because the schema still carries it).
+      escopo: null,
       exclusions: null,
-      additional_info: null,
+      additional_info: COVER.escopo,
       art_trt_number: null,
       instrument_ids: [],
       site_altitude_m: null,

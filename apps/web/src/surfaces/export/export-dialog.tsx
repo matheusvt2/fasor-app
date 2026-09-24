@@ -44,7 +44,7 @@ function openDocx(revisionId: string): void {
  */
 export function ExportDialog({ relatorioId, isOpen, onOpenChange, timing = DEFAULT_TIMING }: ExportDialogProps) {
   const state = useGenerate(relatorioId, timing);
-  const { phase, relatorio, revisions, nextNumber, userNames, online } = state;
+  const { phase, relatorio, revisions, idleNumber, userNames, online } = state;
   const whoOf = (row: RevisionRow) => userNames[row.created_by] ?? null;
   const downloadingReasonId = useId();
 
@@ -97,7 +97,8 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, timing = DEFAU
           </div>
         </div>
         <div className="row-wrap">
-          {relatorio === null ? null : <StatusPill status={relatorio.status} />}
+          {/* The status after the issue op (Q11): the hook's until the live row re-renders. */}
+          {phase.status !== undefined ? <StatusPill status={phase.status} /> : relatorio === null ? null : <StatusPill status={relatorio.status} />}
           <span className="t-meta ink-secondary">{nextEditNote(phase.number)}</span>
         </div>
         <Button variant="secondary" block onPress={state.reset}>
@@ -125,7 +126,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, timing = DEFAU
         ? copy.export.flushing
         : undefined;
     const reason =
-      phase.kind === 'blocked' ? copy.export.deadOpsReason : phase.kind === 'failed' ? failedReason(nextNumber) : idleReason(nextNumber);
+      phase.kind === 'blocked' ? copy.export.deadOpsReason : phase.kind === 'failed' ? failedReason(idleNumber) : idleReason(idleNumber);
     body = (
       <>
         {phase.kind === 'failed' ? (

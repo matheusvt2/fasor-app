@@ -22,7 +22,7 @@ import {
 } from '@app/domain';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams, useParams } from 'react-router';
-import { Button, Checkbox, Combobox, DateField, UploadTile } from '../../components/index.ts';
+import { Button, Checkbox, Combobox, DateField, TextButton, UploadTile } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { now } from '../../clock.ts';
 import { commitBatch } from '../../db/commit.ts';
@@ -34,6 +34,7 @@ import { localUsers } from '../../db/sync-store.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
+import { focusWhenRendered } from './relatorio-focus.ts';
 import './relatorio.css';
 
 const NO_USERS: UserRow[] = [];
@@ -345,10 +346,10 @@ function Etapa2Escopo({
   }
   const exclusionsCommitter = useFieldCommit<string[]>({ commit: (value) => onCommit('exclusions', value) });
 
+  // No "Escopo" field (Epic 4 QA Q3): in seed v1 `{escopo}` prints only on the cover, and
+  // resolves from Etapa 1's "Informações adicionais"; `setup.escopo` would print nowhere.
   const local = useTextField(setup.local ?? '', (v) => onCommit('local', v === '' ? null : v));
-  const escopo = useTextField(setup.escopo ?? '', (v) => onCommit('escopo', v === '' ? null : v));
   const localId = useId();
-  const escopoId = useId();
 
   function onExclusionChange(index: number, value: string): void {
     const next = exclusions.slice();
@@ -385,12 +386,6 @@ function Etapa2Escopo({
               {t.localLabel}
             </label>
             <input id={localId} className="input" value={local.text} onChange={(event) => local.change(event.target.value)} onBlur={local.blur} />
-          </div>
-          <div className="field span-2">
-            <label className="field-label" htmlFor={escopoId}>
-              {t.escopoLabel}
-            </label>
-            <textarea id={escopoId} className="observation-field" value={escopo.text} onChange={(event) => escopo.change(event.target.value)} onBlur={escopo.blur} />
           </div>
         </div>
         <ul className="exclusion-list" aria-label={t.exclusionsLabel}>
@@ -436,11 +431,10 @@ function Etapa3Responsavel({
   const setup = snapshot.relatorio.setup;
   const selected = users.find((row) => row.id === setup.responsible_user_id) ?? null;
   const selectedName = selected?.name ?? null;
-  // Empty, never the session user's name, while `responsible_user_id` is still null: the
-  // AC's "prefilled from the account" is read literally by the Combobox's own default
-  // selection (whatever the caller passes for `selectedKey`), not by echoing a name here
-  // with nothing actually committed -- a screen that looks filled while it is not
-  // (review finding 3).
+  // Empty, never the session user's name, while `responsible_user_id` is still null: a
+  // screen must not look filled while it is not (review finding 3). The account's default
+  // responsável is written in the creation batch instead (`instantiateTemplate`'s
+  // `responsible_user_id`, Epic 4 QA Q2), so a new relatório arrives here already filled.
   const [text, setText] = useState(() => selectedName ?? '');
   // Resync `text` to `selected?.name` whenever `selected` changes (another device picks or
   // clears the responsible, or `users` finishes loading after this page's first paint), while
@@ -635,6 +629,11 @@ function Etapa5Local({
   // null`, common on non-GPS devices) all leave the field exactly as typeable and empty.
   const [altitudeText, setAltitudeText] = useState<string>(() => (setup.site_altitude_m === null ? '' : String(setup.site_altitude_m)));
   const altitudeUserEdited = useRef(setup.site_altitude_m !== null);
+  // The geolocation reading, once one exists: only then is the field a Suggestion (the
+  // amber `data-state="suggested"` and the "Sugerido" pill, Epic 4 QA Q8), and only while
+  // it still shows that reading.
+  const [reading, setReading] = useState<string | null>(null);
+  const altitudeInput = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (setup.site_altitude_m !== null || setup.site_altitude_confirmed) return;
@@ -643,7 +642,9 @@ function Etapa5Local({
     geolocation.getCurrentPosition(
       (position) => {
         if (altitudeUserEdited.current || position.coords.altitude === null) return;
-        setAltitudeText(String(Math.round(position.coords.altitude)));
+        const text = String(Math.round(position.coords.altitude));
+        setReading(text);
+        setAltitudeText(text);
       },
       () => undefined,
     );
@@ -653,14 +654,25 @@ function Etapa5Local({
   const parsedAltitude = altitudeText.trim() === '' ? null : Number(altitudeText);
   const shownAltitude = parsedAltitude !== null && Number.isFinite(parsedAltitude) ? parsedAltitude : null;
   const confirmedText = setup.site_altitude_m === null ? '' : siteAltitudeText(setup.site_altitude_m);
+  const suggested = !setup.site_altitude_confirmed && reading !== null && altitudeText === reading;
 
   async function onConfirmAltitude(): Promise<void> {
     if (shownAltitude === null) return;
+    // Confirmed, the value is the user's: "Alterar" later reopens it plain, never "Sugerido" again.
+    setReading(null);
     // One batch, two puts (the matrix's "in one batch").
     await onCommitFields([
       ['site_altitude_m', Math.round(shownAltitude)],
       ['site_altitude_confirmed', true],
     ]);
+  }
+
+  /** "Alterar": the confirmed altitude opens again as a typed field, its value kept, the focus in it (Q8). */
+  async function onChangeAltitude(): Promise<void> {
+    altitudeUserEdited.current = true;
+    setAltitudeText(setup.site_altitude_m === null ? '' : String(setup.site_altitude_m));
+    await onCommit('site_altitude_confirmed', false);
+    focusWhenRendered(() => altitudeInput.current);
   }
 
   return (
@@ -676,7 +688,7 @@ function Etapa5Local({
       </div>
       <div className="band-body">
         <div className="form-grid">
-          <div className="field suggestion-field altitude-field span-2" data-state={setup.site_altitude_confirmed ? undefined : 'suggested'}>
+          <div className="field suggestion-field altitude-field span-2" data-state={suggested ? 'suggested' : undefined}>
             {setup.site_altitude_confirmed ? (
               <span className="field-label">{t.altitudeLabel}</span>
             ) : (
@@ -685,12 +697,18 @@ function Etapa5Local({
               </label>
             )}
             {setup.site_altitude_confirmed ? (
-              <span className="helper helper-ok">{t.altitudeConfirmed(confirmedText)}</span>
+              <span className="row">
+                <span className="helper helper-ok">{t.altitudeConfirmed(confirmedText)}</span>
+                <TextButton aria-label={t.altitudeChangeLabel} onPress={() => void onChangeAltitude()}>
+                  {t.altitudeChange}
+                </TextButton>
+              </span>
             ) : (
               <>
                 <div className="measurement-field">
                   <input
                     id={altitudeId}
+                    ref={altitudeInput}
                     type="number"
                     className="mf-value"
                     value={altitudeText}
@@ -708,7 +726,7 @@ function Etapa5Local({
                     </Button>
                   )}
                 </div>
-                <span className="suggested-pill">{t.altitudeSuggestedPill}</span>
+                {suggested ? <span className="suggested-pill">{t.altitudeSuggestedPill}</span> : null}
               </>
             )}
           </div>

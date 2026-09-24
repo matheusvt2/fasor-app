@@ -112,7 +112,7 @@ const announcer = (page: Page) => page.getByTestId('sumario-announcer');
 
 // --- Story 4.1 -------------------------------------------------------------------------
 
-test('@p0 4.1-E2E-001 Home › Novo relatório creates the client and the obra inline, then the relatório as 223 ops, and the Sumário opens', async ({
+test('@p0 4.1-E2E-001 Home › Novo relatório creates the client and the obra inline, then the relatório as 223 ops; setup opens at Etapa 1 with the account as responsável, then the Sumário', async ({
   page,
 }) => {
   await resetEmpresaB();
@@ -126,17 +126,27 @@ test('@p0 4.1-E2E-001 Home › Novo relatório creates the client and the obra i
   await expect(page.locator('.crumbs')).toContainText(`${CLIENT}`);
   await expect(page.locator('.crumbs')).toContainText(SITE);
 
-  const relatorioId = await createRelatorio(page);
+  // Criar opens Relatório setup at Etapa 1, its band heading focused (Q1, asserted by the
+  // helper). Etapa 3 already names the signed-in account as responsável (Q2): the creation
+  // batch wrote it, nothing is filled for show.
+  const relatorioId = await createRelatorio(page, {
+    whileOnSetup: async () => {
+      const band = page.locator('section', { has: page.getByRole('heading', { level: 2, name: 'Etapa 3 — Responsável' }) });
+      await expect(band.getByRole('combobox', { name: 'Responsável técnico' })).toHaveValue(account.name);
+      await expect(band.getByText(registrationNumberLabel('crt'))).toBeVisible();
+    },
+  });
 
-  // The Sumário: 13 rows and "0 de 94 fichas concluídas".
+  // The Sumário: 13 rows and "0 de 94 fichas concluídas"; no responsável missing on the cover row.
   await expect(sumarioTitles(page)).toHaveText(TITLES);
+  await expect(sumario(page).getByRole('listitem').nth(0).locator('.sum-status')).not.toContainText('Responsável técnico em branco');
   await expect(page.getByRole('button', { name: '0 de 94 fichas concluídas' })).toBeVisible();
   await expect(page.locator('.sheet-title')).toHaveText(`${CLIENT} · ${SITE}`);
   await expect(page.locator('.sheet-meta')).toContainText('06–08/09/2026');
   await expect(page.locator('.sheet-meta')).toContainText(`template ${STANDARD_TEMPLATE_NAME}`);
 
   // One batch of 223 ops on this device, one batch_id, in the shapes the story names.
-  const outbox = await readStore<{ path: string; batch_id: string; value: { template_version?: number; status?: string } }>(page, database, 'outbox');
+  const outbox = await readStore<{ path: string; batch_id: string; value: { template_version?: number; status?: string; setup?: { responsible_user_id?: string | null } } }>(page, database, 'outbox');
   const creation = outbox.filter((op) => !op.path.startsWith('registry/') && !op.path.startsWith('project/'));
   expect(creation).toHaveLength(223);
   expect(new Set(creation.map((op) => op.batch_id)).size).toBe(1);
@@ -144,7 +154,7 @@ test('@p0 4.1-E2E-001 Home › Novo relatório creates the client and the obra i
   expect(creation.filter((op) => op.path.startsWith('block/'))).toHaveLength(105);
   expect(creation.filter((op) => op.path.startsWith('location/'))).toHaveLength(23);
   const relatorio = creation.find((op) => op.path === `relatorio/${relatorioId}`)!;
-  expect(relatorio.value).toMatchObject({ template_version: 1, status: 'rascunho' });
+  expect(relatorio.value).toMatchObject({ template_version: 1, status: 'rascunho', setup: { responsible_user_id: account.userId } });
 
   // Back on the Project, the row reads the kernel's lines.
   await page.getByRole('button', { name: 'Voltar' }).click();
@@ -212,6 +222,49 @@ test('@p0 4.1-E2E-002 the same creation offline; once online and synced, the cli
   }
 });
 
+test('@p0 4.1-E2E-003 a second relatório of the same obra reuses its equipment (SEC-C05, never SEC-C05-2), and every Home card names the obra as the Sumário header does', async ({
+  page,
+}) => {
+  await resetEmpresaB();
+  await signIn(page, account.email);
+  await expect(page.locator('.shortcut-sub', { hasText: '1 template' })).toBeVisible({ timeout: 30_000 });
+  await createProjectFromHome(page);
+  const first = await createRelatorio(page);
+
+  // The same obra, a second relatório; its setup "Local" is the section 1 phrase, not a title.
+  await page.getByRole('button', { name: 'Voltar' }).click();
+  await expect(page).toHaveURL(/\/project\/[0-9a-f-]{36}$/);
+  await page.getByRole('button', { name: 'Novo relatório a partir de template' }).first().click();
+  const second = await createRelatorio(page, {
+    whileOnSetup: async () => {
+      await page.getByLabel('Local', { exact: true }).fill('da Torre Norte, bloco B');
+    },
+  });
+  expect(second).not.toBe(first);
+  await expect(page.locator('.sheet-title')).toHaveText(`${CLIENT} · ${SITE}`);
+
+  // Q4: the second creation batch minted no equipment; its 94 sheets hold the first one's.
+  const outbox = await readStore<{ path: string; batch_id: string; relatorio_id: string | null }>(page, database, 'outbox');
+  const batchOf = (id: string) => outbox.find((op) => op.path === `relatorio/${id}`)!.batch_id;
+  const secondBatch = outbox.filter((op) => op.batch_id === batchOf(second));
+  expect(secondBatch.filter((op) => op.path.startsWith('equipment/'))).toHaveLength(0);
+  expect(secondBatch.filter((op) => op.path.startsWith('block/'))).toHaveLength(105);
+  expect(outbox.filter((op) => op.batch_id === batchOf(first) && op.path.startsWith('equipment/'))).toHaveLength(94);
+
+  // The tree shows the same TAGs the first relatório got.
+  await page.getByRole('button', { name: 'Expandir ou recolher a seção 9' }).click();
+  await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
+  const coluna5 = page.locator('li.s9-coluna').filter({ has: page.locator(':scope > .s9-col .s9-col-name', { hasText: /^Coluna 5$/ }) });
+  await expect(coluna5.locator(':scope > .s9-eqs > li.s9-eq .block-tag')).toHaveText(['SEC-C05', 'DJ-C05']);
+
+  // Q5: Home names both cards "client · obra", exactly as the Sumário header does.
+  await page.getByRole('button', { name: 'Voltar' }).click();
+  await page.getByRole('link', { name: 'Início' }).click();
+  for (const id of [first, second]) {
+    await expect(page.locator(`.relatorio-card[data-relatorio="${id}"] .card-title`)).toHaveText(`${CLIENT} · ${SITE}`);
+  }
+});
+
 // --- Story 4.3 -------------------------------------------------------------------------
 
 test('@p0 4.3-E2E-001 the Sumário: order, rows that open, the Position box, Overflow moves, Alt+arrows, Duplicar, Adicionar abaixo, Remover with focus, Restaurar, reload', async ({
@@ -228,12 +281,13 @@ test('@p0 4.3-E2E-001 the Sumário: order, rows that open, the Position box, Ove
   const rows = sumario(page).getByRole('listitem');
   await expect(rows.nth(0).locator('.sum-ro')).toHaveText('sempre no início');
   await expect(rows.nth(1).locator('.sum-ro')).toHaveText('montado sozinho');
-  await expect(rows.nth(0).locator('.sum-status')).toContainText('Responsável técnico em branco');
+  // Q2: the creation batch named the account as responsável, so the cover row does not ask for one.
+  await expect(rows.nth(0).locator('.sum-status')).not.toContainText('Responsável técnico em branco');
   await expect(rows.nth(10).locator('.sum-status')).toHaveText('0 de 94');
   await expect(rows.nth(3).locator('.sum-status')).toHaveText('texto padrão');
   await expect(page.getByText('Nada impede gerar.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Pré-visualizar' })).toHaveAttribute('aria-disabled', 'true');
-  await expect(page.getByRole('button', { name: 'Pré-visualizar' })).toHaveAccessibleDescription('Pré-visualizar: disponível na pré-visualização do documento');
+  await expect(page.getByRole('button', { name: 'Pré-visualizar' })).toHaveAccessibleDescription('Pré-visualizar: disponível em uma próxima etapa');
   // Every row is 64 px tall.
   for (const i of [0, 2, 5, 12]) {
     const box = (await rows.nth(i).boundingBox())!;
@@ -243,21 +297,28 @@ test('@p0 4.3-E2E-001 the Sumário: order, rows that open, the Position box, Ove
   // The Capa row opens the setup at Etapa 1.
   await rows.nth(0).getByRole('button', { name: /^Capa e dados do relatório/ }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/setup\\?etapa=1$`));
+  // The setup scrolls its band to the top and focuses its heading as it opens (the App bar
+  // is not sticky): Voltar is pressed once the page has settled, as a person would.
+  await expect(page.getByRole('heading', { level: 2, name: 'Etapa 1 — Capa' })).toBeFocused();
   await page.getByRole('button', { name: 'Voltar' }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
 
   // Rows 1 and 3 open the setup at Etapa 2; row 2 opens the section text; 7, 8, 10, 11 have no control.
   await rows.nth(2).getByRole('button', { name: /^Objetivo/ }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/setup\\?etapa=2$`));
-  await expect(page.getByRole('heading', { level: 2, name: 'Etapa 2 — Objetivo e escopo' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2, name: 'Etapa 2 — Objetivo e escopo' })).toBeFocused();
   await page.getByRole('button', { name: 'Voltar' }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
   await rows.nth(4).getByRole('button', { name: /^Limite de escopo/ }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/setup\\?etapa=2$`));
+  await expect(page.getByRole('heading', { level: 2, name: 'Etapa 2 — Objetivo e escopo' })).toBeFocused();
   await page.getByRole('button', { name: 'Voltar' }).click();
+  await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
   await rows.nth(3).getByRole('button', { name: /^Definições/ }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/secao/[0-9a-f-]{36}$`));
   await expect(page.locator('.section-text-title')).toHaveText('Seção 2 — Definições');
+  // Q14: opening a section moves the focus to its heading, never leaving it on <body>.
+  await expect(page.getByRole('heading', { level: 2, name: 'Seção 2 — Definições' })).toBeFocused();
   await expect(page.getByRole('textbox', { name: 'Texto da seção' })).not.toBeEmpty();
   await page.getByRole('button', { name: 'Voltar ao sumário' }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
@@ -469,7 +530,8 @@ test('@p0 4.2-E2E-001 Relatório setup: the five Etapa bands, autosave, geolocat
   await page.goto(`/relatorio/${relatorioId}`);
   await expect(sumarioTitles(page)).toHaveText(TITLES);
   const rows = sumario(page).getByRole('listitem');
-  await expect(rows.nth(0).locator('.sum-status')).toContainText('Responsável técnico em branco');
+  // Q2: the responsável came with the creation batch.
+  await expect(rows.nth(0).locator('.sum-status')).not.toContainText('Responsável técnico em branco');
 
   // Geolocation stubbed before the setup page mounts Etapa 5's effect. Chromium's emulated
   // position carries no altitude (Playwright's `setGeolocation` has no such field), so the
@@ -502,17 +564,18 @@ test('@p0 4.2-E2E-001 Relatório setup: the five Etapa bands, autosave, geolocat
   await page.getByTestId('upload-input-cover_photo').setInputFiles({ name: 'capa.png', mimeType: 'image/png', buffer: COVER_PHOTO });
   await expect(page.locator('.tile-name')).toContainText('capa.png');
 
-  // Etapa 2 — Objetivo e escopo: Local/Escopo autosave; one exclusion added, one edited.
+  // Etapa 2 — Objetivo e escopo: Local autosaves; one exclusion added, one edited. No
+  // "Escopo" field (Q3): the cover's `{escopo}` prints Etapa 1's "Informações adicionais".
   await page.getByLabel('Local', { exact: true }).fill('das Torres A e B');
-  await page.getByLabel('Escopo', { exact: true }).fill('Ensaios de comissionamento da cabine primária.');
+  await expect(page.getByRole('textbox', { name: 'Escopo', exact: true })).toHaveCount(0);
   await expect(page.getByRole('textbox', { name: 'Exclusão 1' })).not.toHaveValue('');
   await page.getByRole('button', { name: 'Adicionar exclusão' }).click();
   await page.getByRole('textbox', { name: 'Exclusão 4' }).fill('Exclusão nova E2E');
   await page.getByRole('textbox', { name: 'Exclusão 1' }).fill('Exclusão editada E2E');
 
-  // Etapa 3 — Responsável: the one seeded user (Empresa B, council CRT) relabels the field TRT.
-  await page.getByRole('button', { name: 'Abrir lista' }).click();
-  await page.getByRole('option', { name: account.name }).click();
+  // Etapa 3 — Responsável: the one seeded user (Empresa B, council CRT) is already the
+  // responsável (Q2, written at creation) and relabels the field TRT.
+  await expect(page.getByRole('combobox', { name: 'Responsável técnico' })).toHaveValue(account.name);
   await expect(page.getByText('CRT', { exact: true })).toBeVisible();
   await expect(page.getByText(registrationNumberLabel('crt'))).toBeVisible();
   await page.getByLabel(artOrTrtLabel('crt'), { exact: true }).fill('2620262602583');
@@ -531,9 +594,20 @@ test('@p0 4.2-E2E-001 Relatório setup: the five Etapa bands, autosave, geolocat
   // Etapa 5 — Local: the altitude field is always typeable (geolocation here carries no
   // altitude, so the field stays empty rather than a false "0 m" reading); typed by hand and
   // confirmed once.
-  const altitudeInput = page.getByLabel('Altitude do site');
+  const altitudeInput = page.getByLabel('Altitude do site', { exact: true });
   await expect(altitudeInput).toHaveValue('');
+  // Q8: with no reading nothing is suggested: no amber state, no "Sugerido" pill.
+  const altitudeField = page.locator('.altitude-field');
+  await expect(altitudeField).not.toHaveAttribute('data-state', 'suggested');
+  await expect(altitudeField.locator('.suggested-pill')).toHaveCount(0);
   await altitudeInput.fill('800');
+  await page.getByRole('button', { name: 'Confirmar' }).click();
+  await expect(page.getByText('Altitude do site: < 1000 m — confirmada')).toBeVisible();
+  // Q8: "Alterar" reopens the confirmed altitude with its value kept and the focus in it.
+  await page.getByRole('button', { name: 'Alterar altitude do site' }).click();
+  await expect(altitudeInput).toBeFocused();
+  await expect(altitudeInput).toHaveValue('800');
+  await altitudeInput.fill('820');
   await page.getByRole('button', { name: 'Confirmar' }).click();
   await expect(page.getByText('Altitude do site: < 1000 m — confirmada')).toBeVisible();
   await typeDate(setupRoot, 'Próxima intervenção recomendada', '15092027');
@@ -551,7 +625,11 @@ test('@p0 4.2-E2E-001 Relatório setup: the five Etapa bands, autosave, geolocat
 
   // The stored value, not just the segments: all three dates committed with the right
   // year (finding 1's "0202" / dropped-date failure mode would show up here too).
-  const entities = await readStore<{ entity: string; id: string; row: { setup?: { service_start?: string; service_end?: string; next_intervention_date?: string } } }>(
+  const entities = await readStore<{
+    entity: string;
+    id: string;
+    row: { setup?: { service_start?: string; service_end?: string; next_intervention_date?: string; site_altitude_m?: number; site_altitude_confirmed?: boolean } };
+  }>(
     page,
     database,
     'entities',
@@ -560,6 +638,7 @@ test('@p0 4.2-E2E-001 Relatório setup: the five Etapa bands, autosave, geolocat
   expect(relatorioRow.row.setup?.service_start).toBe('2026-10-01');
   expect(relatorioRow.row.setup?.service_end).toBe('2026-10-03');
   expect(relatorioRow.row.setup?.next_intervention_date).toBe('2027-09-15');
+  expect(relatorioRow.row.setup).toMatchObject({ site_altitude_m: 820, site_altitude_confirmed: true });
 });
 
 test('@p1 4.2-E2E-002 an instrument still referenced by a sheet cannot be unchecked', async ({ page }) => {
@@ -693,6 +772,7 @@ test('@p0 4.7-E2E-001 section text: edited text, a chip inserted by mouse and re
     .getByRole('button', { name: /^Definições/ })
     .click();
   await expect(page.locator('.section-text-title')).toHaveText('Seção 2 — Definições');
+  await expect(page.getByRole('heading', { level: 2, name: 'Seção 2 — Definições' })).toBeFocused();
   const area = page.getByRole('textbox', { name: 'Texto da seção' });
   const chips = area.locator('.var-chip');
   await expect(area).not.toBeEmpty();

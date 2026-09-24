@@ -64,6 +64,8 @@ describe('4.8-UNIT-006 DOCX structure golden', () => {
     expect(cover![0]).toEqual(['DADOS DO CLIENTE']);
     expect(cover!.slice(1).map((row) => row[0])).toEqual(['Cliente', 'Cidade/local', 'Data da execução do serviço', 'Informações adicionais', 'Responsável']);
     expect(cover![1]![1]).toBe('Porto Seguro Companhia de Seguros Gerais');
+    // Q3: the cover's "Informações adicionais" is the setup's own additional_info.
+    expect(cover![4]).toEqual(['Informações adicionais', 'Manutenção Preventiva nas Cabines Primárias']);
     expect(control!.map((row) => row[0])).toEqual([
       'Documento',
       'Revisão do documento',
@@ -100,6 +102,30 @@ describe('4.8-UNIT-006 DOCX structure golden', () => {
       layout.toc.map((_, i) => String(4 + i)),
     );
     expect(structure.tables[1]![1]![1]).toBe('Rev. 2');
+  }, 30_000);
+});
+
+describe('Epic 4 QA Q13 footer size and document properties', () => {
+  it('sets the footer size on its paragraph style and paragraph marks, where the PAGE/NUMPAGES results take it from, and names PRODUTO as the last editor', async () => {
+    const entries = readZipEntries(await renderFixture());
+    const footerName = [...entries.keys()].find((name) => /^word\/footer\d+\.xml$/.test(name))!;
+    const footer = entries.get(footerName)!.toString('utf8');
+    const paragraphs = footer.match(/<w:p>.*?<\/w:p>|<w:p [^>]*>.*?<\/w:p>/gs) ?? [];
+    expect(paragraphs.length).toBeGreaterThan(0);
+    for (const paragraph of paragraphs) {
+      const pPr = /<w:pPr>(.*?)<\/w:pPr>/s.exec(paragraph)?.[1] ?? '';
+      expect(pPr).toContain('<w:pStyle w:val="FooterText"/>');
+      // The paragraph mark's own run properties carry the 9 pt size.
+      expect(pPr).toMatch(/<w:rPr>.*<w:sz w:val="18"\/>.*<\/w:rPr>/s);
+    }
+    expect(footer).toContain('PAGE');
+    expect(footer).toContain('NUMPAGES');
+    const styles = entries.get('word/styles.xml')!.toString('utf8');
+    const footerStyle = /<w:style [^>]*w:styleId="FooterText"[^>]*>(.*?)<\/w:style>/s.exec(styles)?.[1] ?? '';
+    expect(footerStyle).toContain('<w:sz w:val="18"/>');
+    const core = entries.get('docProps/core.xml')!.toString('utf8');
+    expect(core).toContain('<cp:lastModifiedBy>PRODUTO</cp:lastModifiedBy>');
+    expect(core).not.toContain('Un-named');
   }, 30_000);
 });
 

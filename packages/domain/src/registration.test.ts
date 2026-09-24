@@ -10,6 +10,7 @@ import {
   registrationPuts,
   userProfileSchema,
   councilLabel,
+  defaultResponsibleId,
   defaultTitleForCouncil,
   registrationNumberLabel,
   registrationRowText,
@@ -182,5 +183,17 @@ describe('avatarInitial', () => {
   it('is the first letter of the name', () => {
     expect(avatarInitial('Bruno Matsui')).toBe('B');
     expect(avatarInitial('  ')).toBe('?');
+  });
+});
+
+describe('Epic 4 QA Q2 defaultResponsibleId', () => {
+  const id = '019966b0-0003-7000-8000-000000000002';
+  it('is the signed-in user when they carry a council and a number', () => {
+    expect(defaultResponsibleId({ id, council: 'crea', registrationNumber: 'SP 5069912345' })).toBe(id);
+  });
+  it('is nobody without a council or with a blank number', () => {
+    expect(defaultResponsibleId({ id, council: null, registrationNumber: 'SP 1' })).toBeNull();
+    expect(defaultResponsibleId({ id, council: 'crt', registrationNumber: '  ' })).toBeNull();
+    expect(defaultResponsibleId({ id, council: 'crt', registrationNumber: null })).toBeNull();
   });
 });

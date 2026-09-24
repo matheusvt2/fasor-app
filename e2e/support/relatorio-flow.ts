@@ -34,8 +34,13 @@ export async function createProjectFromHome(page: Page): Promise<void> {
   await expect(page.locator('.app-bar h1')).toHaveText('Obra');
 }
 
-/** The Project's "Novo relatório" dialog, already open for a project born on Home: dates typed, Criar. Returns the relatório id. */
-export async function createRelatorio(page: Page): Promise<string> {
+/**
+ * The Project's "Novo relatório" dialog, already open for a project born on Home: dates
+ * typed, Criar. Criar opens Relatório setup at Etapa 1 with the focus on its band heading
+ * (Epic 4 QA Q1); `whileOnSetup` runs there, then "Voltar" leads to the Sumário. Returns
+ * the relatório id.
+ */
+export async function createRelatorio(page: Page, options: { whileOnSetup?: () => Promise<void> } = {}): Promise<string> {
   const dialog = page.getByRole('dialog', { name: 'Novo relatório' });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('radio', { name: /Cabine primária/ })).toHaveAttribute('aria-checked', 'true');
@@ -49,7 +54,13 @@ export async function createRelatorio(page: Page): Promise<string> {
   await expect(create).not.toHaveAttribute('aria-disabled', 'true');
   await typeDate(dialog, 'Fim da parada', '08092026');
   await create.click();
-  await expect(page).toHaveURL(/\/relatorio\/[0-9a-f-]{36}$/, { timeout: 30_000 });
+  await expect(page).toHaveURL(/\/relatorio\/[0-9a-f-]{36}\/setup\?etapa=1$/, { timeout: 30_000 });
+  await expect(page.locator('.app-bar h1')).toHaveText('Dados do relatório');
+  await expect(page.getByRole('heading', { level: 2, name: 'Etapa 1 — Capa' })).toBeFocused();
+  const relatorioId = new URL(page.url()).pathname.split('/')[2]!;
+  await options.whileOnSetup?.();
+  await page.getByRole('button', { name: 'Voltar' }).click();
+  await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`), { timeout: 30_000 });
   await expect(page.locator('.app-bar h1')).toHaveText('Sumário');
-  return page.url().split('/').at(-1)!;
+  return relatorioId;
 }

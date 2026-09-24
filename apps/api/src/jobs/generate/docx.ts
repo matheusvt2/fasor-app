@@ -46,6 +46,14 @@ const COVER_MAX_HEIGHT_PX = Math.round(12 * PX_PER_CM);
 
 const BODY_FONT = 'Arial';
 const BODY_SIZE = 22; // half-points: 11 pt
+/** The footer's size (half-points: 9 pt), carried by its paragraph style too (Epic 4 QA Q13). */
+const FOOTER_SIZE = 18;
+/**
+ * The footer paragraphs' style. A PAGE/NUMPAGES field result has no run of its own to
+ * carry a size: LibreOffice (and Word) lay it out with the paragraph's character
+ * properties, so the size lives on the style and the paragraph mark, not only the runs.
+ */
+const FOOTER_STYLE = 'FooterText';
 
 /** What pass 1 prints where a page number is not known yet: fixed width, so pass 2 moves nothing. */
 export const TOC_PLACEHOLDER = '00';
@@ -171,19 +179,21 @@ export async function buildDocx(layout: DocumentLayout, options: BuildDocxOption
     children: [new Paragraph({ children: [...(logo === null ? [] : [image(logo)]), titleRun] }), plain(layout.header.formLine)],
   });
 
-  // Footer: the company lines that exist, then the page line.
+  // Footer: the company lines that exist, then the page line, all in the footer style.
+  const footerParagraph = (children: TextRun[], alignment?: (typeof AlignmentType)[keyof typeof AlignmentType]) =>
+    new Paragraph({ style: FOOTER_STYLE, run: { size: FOOTER_SIZE }, alignment, children });
   const footer = new Footer({
     children: [
-      ...[layout.footer.companyLine, layout.footer.contactLine].filter((line) => line !== '').map((line) => plain(line, { size: 18 })),
-      new Paragraph({
-        alignment: AlignmentType.RIGHT,
-        children: [
-          text(PAGE_LINE.before, { size: 18 }),
-          new TextRun({ children: [PageNumber.CURRENT], size: 18 }),
-          text(PAGE_LINE.between, { size: 18 }),
-          new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 18 }),
+      ...[layout.footer.companyLine, layout.footer.contactLine].filter((line) => line !== '').map((line) => footerParagraph([text(line, { size: FOOTER_SIZE })])),
+      footerParagraph(
+        [
+          text(PAGE_LINE.before, { size: FOOTER_SIZE }),
+          new TextRun({ children: [PageNumber.CURRENT], size: FOOTER_SIZE }),
+          text(PAGE_LINE.between, { size: FOOTER_SIZE }),
+          new TextRun({ children: [PageNumber.TOTAL_PAGES], size: FOOTER_SIZE }),
         ],
-      }),
+        AlignmentType.RIGHT,
+      ),
     ],
   });
 
@@ -220,9 +230,18 @@ export async function buildDocx(layout: DocumentLayout, options: BuildDocxOption
 
   const document = new Document({
     creator: PRODUTO,
+    // Without it the `docx` library writes its own "Un-named" into cp:lastModifiedBy (Q13).
+    lastModifiedBy: PRODUTO,
     styles: {
       default: { document: { run: { font: BODY_FONT, size: BODY_SIZE } } },
       paragraphStyles: [
+        {
+          id: FOOTER_STYLE,
+          name: 'Footer Text',
+          basedOn: 'Normal',
+          quickFormat: true,
+          run: { font: BODY_FONT, size: FOOTER_SIZE },
+        },
         {
           id: 'Heading1',
           name: 'Heading 1',

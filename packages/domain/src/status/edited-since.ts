@@ -70,3 +70,12 @@ export function editedSince(ops: readonly EditCandidate[], snapshotSeq: number):
   }
   return false;
 }
+
+/**
+ * The device's view of `editedSince` (Epic 4 QA Q11): the pulled ops of the relatório's
+ * stream past the snapshot, plus this device's ops the server has not applied yet (no
+ * `seq`, pending or sent), any of which that `countsAsEdit` will be an edit once it lands.
+ */
+export function editedOnDevice(pulled: readonly EditCandidate[], unsent: readonly EditCandidate[], snapshotSeq: number): boolean {
+  return editedSince(pulled, snapshotSeq) || unsent.some(countsAsEdit);
+}

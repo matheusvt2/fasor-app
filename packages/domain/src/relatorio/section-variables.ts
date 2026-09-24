@@ -19,18 +19,29 @@ function present(value: string | null | undefined): string | undefined {
 /**
  * The section variables a relatório resolves against, from its own snapshot and the
  * responsible's name (read off the local `user` row the surface already holds).
+ *
+ * `escopo` resolves from `setup.additional_info` (Epic 4 QA Q3, 2026-09-24). In seed v1
+ * the variable appears in one place only: the cover's "Informações adicionais" row
+ * (`seed/sections-v1.ts`, cover rows, `{ label: 'Informações adicionais', value: '{escopo}' }`),
+ * which FO.SERV-03 fills with the cover text ("Manutenção Preventiva nas Cabines
+ * Primárias", `imports/extract-fo-serv-03.md:42`); section 1's own text fixes the scope
+ * phrase and carries no `{escopo}`. The field the user types under that label, in the
+ * Capa band (Etapa 1, mock `50-relatorio-setup.html:134`), is `additional_info`. The
+ * `setup.escopo` key stays in the schema, unread in v1, for a seed v2 in which section 1
+ * gains the variable after the R-009 review.
  */
 export function sectionVariables(snapshot: RelatorioSnapshot, responsibleName: string | null): Partial<Record<SectionVariable, string>> {
   const setup = snapshot.relatorio.setup;
   const obra = present(setup.local) ?? snapshot.project?.site ?? snapshot.project?.name ?? undefined;
   const datas = dateRangeText(setup.service_start, setup.service_end);
+  const escopo = present(setup.additional_info);
   return {
     ...(snapshot.client === null ? {} : { cliente: snapshot.client.name }),
     ...(obra === undefined ? {} : { obra }),
     ...(datas === '' ? {} : { datas }),
     ...(snapshot.empresa === null ? {} : { empresa_executora: snapshot.empresa.name }),
     ...(responsibleName === null ? {} : { responsavel: responsibleName }),
-    ...(setup.escopo === null ? {} : { escopo: setup.escopo }),
+    ...(escopo === undefined ? {} : { escopo }),
   };
 }
 

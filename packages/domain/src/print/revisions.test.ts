@@ -9,6 +9,7 @@ import {
   generatingReason,
   generatingText,
   idleReason,
+  idleRevisionNumber,
   failedReason,
   GENERATE_JOB_EXPIRE_S,
   isJobActive,
@@ -53,6 +54,15 @@ describe('4.8-UNIT-004 revision numbering and rows', () => {
     expect(latestRevision([])).toBeNull();
     expect(latestRevision([REV_1, REV_2])?.id).toBe(REV_2.id);
     expect(sortRevisions([REV_1, REV_2]).map((r) => r.number)).toEqual([2, 1]);
+  });
+
+  it('Q11: the idle line names the last revision while nothing was edited since it, the next one otherwise', () => {
+    expect(idleRevisionNumber([], false)).toBe(1);
+    expect(idleRevisionNumber([], true)).toBe(1);
+    expect(idleRevisionNumber([REV_1], false)).toBe(1);
+    expect(idleRevisionNumber([REV_1], true)).toBe(2);
+    expect(idleRevisionNumber([REV_1, REV_2], false)).toBe(2);
+    expect(idleRevisionNumber([REV_1, REV_2], true)).toBe(3);
   });
 
   it('writes "Rev. n" and the row "Rev. 2 — 10/09/2026 08:47 — Bruno" with the date as a <time> segment', () => {

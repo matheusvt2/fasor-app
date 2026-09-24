@@ -4,7 +4,7 @@ import { configure, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 import { I18nProvider } from 'react-aria-components';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Route, Routes, useSearchParams } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { toRecord } from '../../db/commit.ts';
 import { openDatabase, type AppDatabase } from '../../db/schema.ts';
@@ -15,7 +15,7 @@ import { NewRelatorioDialog } from './new-relatorio-dialog.tsx';
 /*
  * Story 4.1: the "Novo relatório" dialog over a real device database. The reason beside
  * "Criar relatório" follows the kernel, the end date follows the start, and Criar writes
- * ONE batch of 223 ops under one batch_id, then opens the Sumário.
+ * ONE batch of 223 ops under one batch_id, then opens Relatório setup at Etapa 1 (Q1).
  */
 
 const COMPANY = '0b000000-0000-7000-8000-00000000000b';
@@ -26,10 +26,11 @@ const CLIENT = '019966b0-0060-7000-8000-000000000003';
 
 let database: AppDatabase | null = null;
 let counter = 0;
+let registration: { council: 'crea' | 'crt' | null; registrationNumber: string | null } = { council: null, registrationNumber: null };
 
 const session = (): SessionState => ({
   status: 'signed-in',
-  user: { id: USER, name: 'Bento Braga', email: 'b@teste.local', companyId: COMPANY, companyName: 'Empresa B de Teste', council: null, registrationNumber: null, title: null },
+  user: { id: USER, name: 'Bento Braga', email: 'b@teste.local', companyId: COMPANY, companyName: 'Empresa B de Teste', ...registration, title: null },
   online: true,
   reAuthRequired: false,
   database,
@@ -65,6 +66,7 @@ function renderDialog(templates: TemplateRow[] = [template()]) {
           <Routes>
             <Route path="/project/:id" element={<NewRelatorioDialog project={project} client={client} relatorios={[]} templates={templates} onClose={onClose} />} />
             <Route path="/relatorio/:id" element={<p data-testid="sumario-route">Sumário</p>} />
+            <Route path="/relatorio/:id/setup" element={<SetupProbe />} />
           </Routes>
           <ToastOutlet />
         </ToastProvider>
@@ -86,7 +88,14 @@ async function typeDate(label: string, digits: string) {
 afterEach(() => {
   database?.close();
   database = null;
+  registration = { council: null, registrationNumber: null };
 });
+
+/** Where Criar lands: Relatório setup at Etapa 1 (Q1). */
+function SetupProbe() {
+  const [params] = useSearchParams();
+  return <p data-testid="setup-route">{params.get('etapa')}</p>;
+}
 
 describe('4.1 NewRelatorioDialog', () => {
   it('preselects the one type and the only pickable template, and says what is missing until a start exists', async () => {
@@ -123,14 +132,14 @@ describe('4.1 NewRelatorioDialog', () => {
     expect(create()).not.toHaveAttribute('aria-disabled');
   });
 
-  it('Criar writes one batch of 223 ops under one batch_id and opens the Sumário', async () => {
+  it('Criar writes one batch of 223 ops under one batch_id and opens Relatório setup at Etapa 1', async () => {
     database = await freshDb();
     await database.entities.put(toRecord(`template:${TEMPLATE}`, template()));
     const onClose = renderDialog();
     await typeDate('Início da parada', '06092026');
     await typeDate('Fim da parada', '08092026');
     await userEvent.click(create());
-    await screen.findByTestId('sumario-route');
+    expect(await screen.findByTestId('setup-route')).toHaveTextContent('1');
     expect(onClose).toHaveBeenCalled();
     const outbox = await database.outbox.toArray();
     expect(outbox).toHaveLength(223);
@@ -140,11 +149,24 @@ describe('4.1 NewRelatorioDialog', () => {
     expect(outbox.filter((op) => op.path.startsWith('equipment/'))).toHaveLength(94);
     expect(outbox.filter((op) => op.path.startsWith('block/'))).toHaveLength(105);
     const relatorio = outbox.find((op) => op.path.startsWith('relatorio/'))!.value as { template_id: string; template_version: number; seed_version: string; status: string; setup: { service_start: string; service_end: string } };
-    expect(relatorio).toMatchObject({ template_id: TEMPLATE, template_version: 1, seed_version: 'v1', status: 'rascunho', setup: { service_start: '2026-09-06', service_end: '2026-09-08' } });
+    // The session user carries no registration here: nobody is written as responsável (Q2).
+    expect(relatorio).toMatchObject({ template_id: TEMPLATE, template_version: 1, seed_version: 'v1', status: 'rascunho', setup: { service_start: '2026-09-06', service_end: '2026-09-08', responsible_user_id: null } });
     expect(await database.entities.where('entity').equals('block').count()).toBe(105);
   });
 
-  it('suggests TAGs around the equipment the project already holds: SEC-C05 taken, the new chave in Coluna 5 is SEC-C05-2', async () => {
+  it('Q2: a session user with a registration is written as the responsável técnico in the creation batch', async () => {
+    database = await freshDb();
+    registration = { council: 'crea', registrationNumber: 'SP 5069912345' };
+    await database.entities.put(toRecord(`template:${TEMPLATE}`, template()));
+    renderDialog();
+    await typeDate('Início da parada', '06092026');
+    await userEvent.click(create());
+    await screen.findByTestId('setup-route');
+    const relatorio = (await database.outbox.toArray()).find((op) => op.path.startsWith('relatorio/'))!.value as { setup: { responsible_user_id: string | null } };
+    expect(relatorio.setup.responsible_user_id).toBe(USER);
+  });
+
+  it('Q4: reuses the equipment the project already holds by base TAG and type: the chave in Coluna 5 is bound to SEC-C05, no second one is minted', async () => {
     database = await freshDb();
     const EQUIPMENT = '019966b0-0060-7000-8000-000000000004';
     const existing: EquipmentRow = { id: EQUIPMENT, project_id: PROJECT, tag: 'SEC-C05', type: 'chave_seccionadora', last_nameplate: null, removed_at: null };
@@ -152,7 +174,24 @@ describe('4.1 NewRelatorioDialog', () => {
     renderDialog();
     await typeDate('Início da parada', '06092026');
     await userEvent.click(create());
-    await screen.findByTestId('sumario-route');
+    await screen.findByTestId('setup-route');
+    const outbox = await database.outbox.toArray();
+    const tags = outbox.filter((op) => op.path.startsWith('equipment/')).map((op) => (op.value as { tag: string }).tag);
+    expect(tags).toHaveLength(93);
+    expect(tags.filter((tag) => tag.startsWith('SEC-C05'))).toEqual([]);
+    const bound = outbox.filter((op) => op.path.startsWith('block/')).map((op) => op.value as { equipment_id: string | null }).filter((row) => row.equipment_id === EQUIPMENT);
+    expect(bound).toHaveLength(1);
+  });
+
+  it('suggests TAGs around a live equipment of another type: SEC-C05 taken by a TP, the new chave in Coluna 5 is SEC-C05-2', async () => {
+    database = await freshDb();
+    const EQUIPMENT = '019966b0-0060-7000-8000-000000000004';
+    const existing: EquipmentRow = { id: EQUIPMENT, project_id: PROJECT, tag: 'SEC-C05', type: 'tp', last_nameplate: null, removed_at: null };
+    await database.entities.bulkPut([toRecord(`template:${TEMPLATE}`, template()), toRecord(`equipment:${EQUIPMENT}`, existing)]);
+    renderDialog();
+    await typeDate('Início da parada', '06092026');
+    await userEvent.click(create());
+    await screen.findByTestId('setup-route');
     const tags = (await database.outbox.toArray()).filter((op) => op.path.startsWith('equipment/')).map((op) => (op.value as { tag: string }).tag);
     expect(tags).toHaveLength(94);
     expect(tags).toContain('SEC-C05-2');

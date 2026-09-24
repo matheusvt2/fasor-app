@@ -55,7 +55,7 @@ function sectionBlocksFor(relatorioId: string): BlockRow[] {
   const { drafts } = instantiateTemplate(
     standardTemplate({ id: '019966c1-0012-7000-8000-000000000001' }),
     { id: portoSeguroSmall.projectId },
-    { service_start: null, service_end: null, existingEquipment: [] },
+    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null },
     { newId, actorId: USER, companyId: COMPANY },
   );
   return drafts
@@ -100,6 +100,14 @@ describe('4.7 SectionTextSurface', () => {
     await waitFor(() => expect(area.textContent).not.toBe(''));
     expect(screen.getByRole('button', { name: 'Restaurar texto do template' })).toHaveAttribute('aria-disabled');
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('Q14: moves the focus to the section heading on open', async () => {
+    const seed = await seeded();
+    database = seed.db;
+    render(tree(RELATORIO, seed.section2.id));
+    const heading = await screen.findByRole('heading', { level: 2, name: 'Seção 2 — Definições' });
+    await waitFor(() => expect(heading).toHaveFocus());
   });
 
   it('autosaves an edit to block/{id}/config.section_text and keeps the template untouched', async () => {

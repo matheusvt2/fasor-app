@@ -15,7 +15,7 @@ import { integrityFindings } from './integrity.ts';
 const TEMPLATE_ID = '019966b0-0043-7000-8000-000000000001';
 const deps = () => ({ newId: idSequence('019966b0-0044-7000-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY });
 const project = { id: TEST_PROJECT };
-const inputs = { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [] };
+const inputs = { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null };
 
 function drafts(template: TemplateRow = standardTemplate({ id: TEMPLATE_ID })) {
   return instantiateTemplate(template, project, inputs, deps());
@@ -176,14 +176,99 @@ describe('4.1-UNIT instantiateTemplate over the standard template', () => {
     expect(templateTotals(orphaned)).toEqual(templateTotals(template));
   });
 
-  it('feeds suggestTag the project equipment it already knows', () => {
-    const existing = [{ tag: 'SEC-C05', removed_at: null }, { tag: 'TR-1', removed_at: null }];
+  it('feeds suggestTag the project equipment it already knows when the type differs (nothing to reuse)', () => {
+    const existing = [
+      { id: PRIOR(1), tag: 'SEC-C05', type: 'tp', removed_at: null },
+      { id: PRIOR(2), tag: 'TR-1', type: 'tc', removed_at: null },
+    ];
     const { drafts: all } = instantiateTemplate(standardTemplate({ id: TEMPLATE_ID }), project, { ...inputs, existingEquipment: existing }, deps());
-    const tags = valuesOf<EquipmentRow>(all, 'equipment').map((e) => e.tag);
+    const created = valuesOf<EquipmentRow>(all, 'equipment');
+    const tags = created.map((e) => e.tag);
+    expect(created).toHaveLength(94);
     expect(tags).toContain('SEC-C05-2');
     expect(tags).not.toContain('SEC-C05');
     expect(tags).not.toContain('TR-1');
     expect(tags).toContain('TR-9');
+  });
+
+  it('writes the responsável técnico it is given into the setup (Q2)', () => {
+    const { drafts: all } = instantiateTemplate(standardTemplate({ id: TEMPLATE_ID }), project, { ...inputs, responsible_user_id: TEST_USER }, deps());
+    expect(valuesOf<RelatorioRow>(all, 'relatorio')[0]!.setup.responsible_user_id).toBe(TEST_USER);
+  });
+});
+
+const PRIOR = (n: number) => `019966b0-0050-7000-8000-${n.toString(16).padStart(12, '0')}`;
+
+/** One cabine with Coluna 5 holding `sec` seccionadoras and one disjuntor, plus the standard sections. */
+function coluna5Template(sec: number): TemplateRow {
+  const standard = standardTemplate({ id: TEMPLATE_ID });
+  const coluna5 = 'subsolo-1/coluna-5';
+  return {
+    ...standard,
+    skeleton: standard.skeleton.filter((node) => node.ref === 'subsolo-1' || node.ref === coluna5),
+    blocks: standard.blocks
+      .filter((block) => block.skeleton_location_ref === null || block.skeleton_location_ref === coluna5)
+      .map((block) => (block.block_type === 'chave_seccionadora' ? { ...block, quantity: sec } : block)),
+  };
+}
+
+const sheetsOf = (all: readonly { path: string; value: unknown }[]) => valuesOf<BlockRow>(all, 'block').filter((b) => b.location_id !== null);
+
+describe('Epic 4 QA Q4: a later relatório of the obra reuses the project live equipment', () => {
+  it('the second relatório of the standard template creates no equipment: 94 blocks bound to the first one ids, same TAGs', () => {
+    const template = standardTemplate({ id: TEMPLATE_ID });
+    const first = instantiateTemplate(template, project, inputs, deps());
+    const firstEquipment = valuesOf<EquipmentRow>(first.drafts, 'equipment');
+    const second = instantiateTemplate(template, project, { ...inputs, existingEquipment: firstEquipment }, { ...deps(), newId: idSequence('019966b0-0051-7000-8000-') });
+
+    expect(valuesOf<EquipmentRow>(second.drafts, 'equipment')).toHaveLength(0);
+    const firstSheets = sheetsOf(first.drafts);
+    const secondSheets = sheetsOf(second.drafts);
+    expect(secondSheets).toHaveLength(94);
+    expect(second.drafts).toHaveLength(1 + 23 + 11 + 94);
+    // Position by position (skeleton order), the same equipment id and so the same TAG.
+    expect(secondSheets.map((b) => b.equipment_id)).toEqual(firstSheets.map((b) => b.equipment_id));
+    expect(new Set(secondSheets.map((b) => b.equipment_id)).size).toBe(94);
+    const tagOf = new Map(firstEquipment.map((e) => [e.id, e.tag]));
+    expect(secondSheets.map((b) => tagOf.get(b.equipment_id!))).toEqual(firstSheets.map((b) => tagOf.get(b.equipment_id!)));
+  });
+
+  it('partial reuse: SEC-C05 is reused, the removed SEC-C05-2 is neither reused nor taken, a DJ-C05 of another type is not reused', () => {
+    const existing = [
+      { id: PRIOR(1), tag: 'SEC-C05', type: 'chave_seccionadora', removed_at: null },
+      { id: PRIOR(2), tag: 'SEC-C05-2', type: 'chave_seccionadora', removed_at: '2026-09-20T10:00:00.000Z' },
+      { id: PRIOR(3), tag: 'DJ-C05', type: 'tp', removed_at: null },
+    ];
+    const { drafts: all } = instantiateTemplate(coluna5Template(2), project, { ...inputs, existingEquipment: existing }, deps());
+    const created = valuesOf<EquipmentRow>(all, 'equipment');
+    expect(created.map((e) => [e.tag, e.type])).toEqual([
+      ['SEC-C05-2', 'chave_seccionadora'],
+      ['DJ-C05-2', 'disjuntor_mt'],
+    ]);
+    const sheets = sortByOrderKey(sheetsOf(all));
+    expect(sheets.map((b) => b.block_type)).toEqual(['chave_seccionadora', 'chave_seccionadora', 'disjuntor_mt']);
+    expect(sheets[0]!.equipment_id).toBe(PRIOR(1));
+    expect(sheets[1]!.equipment_id).toBe(created[0]!.id);
+    expect(sheets[2]!.equipment_id).toBe(created[1]!.id);
+    expect(sheets.map((b) => b.equipment_id)).not.toContain(PRIOR(2));
+    expect(sheets.map((b) => b.equipment_id)).not.toContain(PRIOR(3));
+  });
+
+  it('never binds one equipment twice: two SEC in Coluna 5 and only SEC-C05 in the project', () => {
+    const existing = [{ id: PRIOR(1), tag: 'SEC-C05', type: 'chave_seccionadora', removed_at: null }];
+    const { drafts: all } = instantiateTemplate(coluna5Template(2), project, { ...inputs, existingEquipment: existing }, deps());
+    const created = valuesOf<EquipmentRow>(all, 'equipment');
+    expect(created.map((e) => e.tag)).toEqual(['SEC-C05-2', 'DJ-C05']);
+    const sheets = sortByOrderKey(sheetsOf(all));
+    expect(sheets[0]!.equipment_id).toBe(PRIOR(1));
+    expect(sheets[1]!.equipment_id).toBe(created[0]!.id);
+  });
+
+  it('matches a TAG case-insensitively and keeps the prior row as it is', () => {
+    const existing = [{ id: PRIOR(1), tag: 'sec-c05', type: 'chave_seccionadora', removed_at: null }];
+    const { drafts: all } = instantiateTemplate(coluna5Template(1), project, { ...inputs, existingEquipment: existing }, deps());
+    expect(valuesOf<EquipmentRow>(all, 'equipment').map((e) => e.tag)).toEqual(['DJ-C05']);
+    expect(sheetsOf(all).find((b) => b.block_type === 'chave_seccionadora')!.equipment_id).toBe(PRIOR(1));
   });
 });
 

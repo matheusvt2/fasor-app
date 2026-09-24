@@ -1,5 +1,6 @@
 import {
   expectedFileIds,
+  idleRevisionNumber,
   isJobActive,
   jobExpiresAt,
   latestRevision,
@@ -9,6 +10,7 @@ import {
   toIso,
   type GenerationJobRow,
   type RelatorioRow,
+  type RelatorioStatus,
   type RevisionRow,
   type StatusEvent,
 } from '@app/domain';
@@ -16,7 +18,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { now } from '../../clock.ts';
 import { commitBatch } from '../../db/commit.ts';
 import { pendingUploadCount } from '../../db/file-store.ts';
-import { lastOpIdFor, useLatestGenerationJob, useRelatorio, useRevisions } from '../../db/generate-store.ts';
+import { lastOpIdFor, relatorioRow, useEditedSince, useLatestGenerationJob, useRelatorio, useRevisions } from '../../db/generate-store.ts';
 import { clearGenerateAwaiting, readGenerateAwaiting, writeGenerateAwaiting } from '../../db/prefs.ts';
 import { toSnapshot } from '../../db/snapshot.ts';
 import { newId } from '../../ids.ts';
@@ -45,7 +47,17 @@ export type GeneratePhase =
   | { kind: 'requesting'; number: number }
   | { kind: 'working'; number: number; jobId: string }
   | { kind: 'failed' }
-  | { kind: 'ready'; number: number; revisionId: string | null; unchanged: boolean };
+  | {
+      kind: 'ready';
+      number: number;
+      revisionId: string | null;
+      unchanged: boolean;
+      /**
+       * The relatório's status as the store held it once the `issue` op was written (Q11),
+       * shown until the live row re-renders; from then on the live row speaks.
+       */
+      status?: RelatorioStatus;
+    };
 
 export interface GenerateTiming {
   /** How often the relatório stream is pulled while a job runs. */
@@ -66,6 +78,11 @@ export interface GenerateState {
   latestJob: GenerationJobRow | null;
   /** The number the next generate allocates (kernel). */
   nextNumber: number;
+  /**
+   * The number the idle line promises (Q11): the last revision's own while nothing was
+   * edited since its snapshot (a press answers it again), else `nextNumber`.
+   */
+  idleNumber: number;
   /** Names of the users this device knows, for "who" on a revision row. */
   userNames: Readonly<Record<string, string>>;
   online: boolean;
@@ -87,6 +104,8 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
   const revisions = useRevisions(db, relatorioId);
   const latestJob = useLatestGenerationJob(db, relatorioId);
   const nextNumber = nextRevisionNumber(revisions);
+  const edited = useEditedSince(db, relatorioId, latestRevision(revisions)?.snapshot_seq ?? null);
+  const idleNumber = idleRevisionNumber(revisions, edited);
 
   const [phase, setPhase] = useState<GeneratePhase>({ kind: 'idle' });
   /** The wait recorded in `local_prefs`, read once on mount; null when none or once handled. */
@@ -116,11 +135,19 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
     };
   }, [db, relatorioId]);
 
-  /** One `relatorio/status` put when the table has a row for `(current status, event)`; nothing otherwise. */
+  /**
+   * One `relatorio/status` put when the table has a row for `(current status, event)`;
+   * nothing otherwise. The status is read from the device store at the moment of the write,
+   * never from the render that scheduled it (Q11): a revision can arrive in a render whose
+   * live `relatorio` is still null (a reload) or one op behind, and the `issue` op would
+   * then be computed from the wrong row, or skipped.
+   */
   const emitStatus = useCallback(
     async (event: StatusEvent) => {
-      if (db === null || user === null || relatorio === null) return;
-      const next = statusTable(relatorio.status, event);
+      if (db === null || user === null) return;
+      const current = await relatorioRow(db, relatorioId);
+      if (current === null) return;
+      const next = statusTable(current.status, event);
       if (next === null) return;
       await commitBatch(
         db,
@@ -142,21 +169,51 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
         { newId, now },
       );
     },
-    [db, user, relatorio, relatorioId],
+    [db, user, relatorioId],
   );
   const emitStatusRef = useRef(emitStatus);
   emitStatusRef.current = emitStatus;
 
-  /** The revision arrived: the toast, the `issue` op, the recorded wait cleared. */
+  /**
+   * The revision arrived: the `issue` op first, then the ready state and the toast, then
+   * the recorded wait cleared. Ready waits for the op (Q11) so the result block's pill
+   * reads the status after the issue (Emitido), never the one before it.
+   */
+  const finishing = useRef<string | null>(null);
+  /** The live relatório row rendered last, and the one rendered when ready was set. */
+  const renderedRelatorio = useRef(relatorio);
+  renderedRelatorio.current = relatorio;
+  const readyBasis = useRef<RelatorioRow | null>(null);
   const finishReady = useCallback(
     (revision: RevisionRow) => {
-      setPhase({ kind: 'ready', number: revision.number, revisionId: revision.id, unchanged: false });
-      showToast(readyToast(revision.number));
-      emitStatusRef.current('issue').catch((error: unknown) => console.error('issue status op failed', error));
-      if (db !== null) void clearGenerateAwaiting(db, relatorioId).catch(() => undefined);
+      // Once per revision while its issue op is being written (the live queries re-emit
+      // meanwhile); released once ready is set, so a later finish of the same revision (the
+      // job-done branch after "Gerar de novo") is not stranded in working.
+      if (finishing.current === revision.id) return;
+      finishing.current = revision.id;
+      const ready = async () => {
+        const stored = db === null ? null : await relatorioRow(db, relatorioId).catch(() => null);
+        readyBasis.current = renderedRelatorio.current;
+        if (mounted.current) {
+          setPhase({ kind: 'ready', number: revision.number, revisionId: revision.id, unchanged: false, ...(stored === null ? {} : { status: stored.status }) });
+        }
+        finishing.current = null;
+        showToast(readyToast(revision.number));
+        if (db !== null) void clearGenerateAwaiting(db, relatorioId).catch(() => undefined);
+      };
+      void emitStatusRef
+        .current('issue')
+        .catch((error: unknown) => console.error('issue status op failed', error))
+        .then(ready);
     },
     [db, relatorioId, showToast],
   );
+
+  // Once the live row re-renders after ready was set, it speaks for the status again.
+  useEffect(() => {
+    if (phase.kind !== 'ready' || phase.status === undefined) return;
+    if (relatorio !== readyBasis.current) setPhase({ ...phase, status: undefined });
+  }, [phase, relatorio]);
 
   // Resume. A wait this device recorded wins: revision present -> ready (toast, issue op);
   // its job failed -> failed; its job still active -> working; anything else -> the entry
@@ -352,5 +409,5 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
 
   const reset = useCallback(() => setPhase({ kind: 'idle' }), []);
 
-  return { phase, relatorio, revisions, latestJob, nextNumber, userNames: sync.userNames, online: sync.online, start, reset };
+  return { phase, relatorio, revisions, latestJob, nextNumber, idleNumber, userNames: sync.userNames, online: sync.online, start, reset };
 }

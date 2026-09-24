@@ -19,12 +19,16 @@ export const SECTION_VARIABLE_LABELS: Readonly<Record<SectionVariable, string>> 
   datas: 'Datas',
   empresa_executora: 'Empresa executora',
   responsavel: 'Responsável',
-  escopo: 'Escopo',
+  // Seed v1 prints `{escopo}` only as the cover's "Informações adicionais" (Epic 4 QA Q3),
+  // so a blank one prints that field's own name.
+  escopo: 'Informações adicionais',
 };
 
 /**
  * The variables the editor's "Inserir dado do relatório" row offers, in the story's order.
- * `escopo` resolves wherever the seed's text carries it but is not offered for insertion.
+ * `escopo` is not offered for insertion: in seed v1 it is the cover's "Informações
+ * adicionais" row, resolved from `setup.additional_info` (Epic 4 QA Q3), and no section
+ * text carries it.
  */
 export const INSERTABLE_SECTION_VARIABLES: readonly SectionVariable[] = ['cliente', 'obra', 'datas', 'empresa_executora', 'responsavel'];
 

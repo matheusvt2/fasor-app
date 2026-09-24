@@ -9,7 +9,7 @@ import {
   type BlockRow,
   type RelatorioSnapshot,
 } from '@app/domain';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { Button, Chip, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -151,11 +151,18 @@ function SectionTextEditor({ relatorioId, block, seedVersion, templateName }: Se
 
   const number = relatorioSectionNumber(block.block_type) ?? 0;
 
+  // Opening a section moves the focus to its heading, as the setup page does for its band
+  // (Epic 4 QA Q14): never left on `<body>` after the Sumário row that opened it is gone.
+  const heading = useRef<HTMLHeadingElement | null>(null);
+  useEffect(() => {
+    heading.current?.focus();
+  }, []);
+
   return (
     <div className="content">
       <div className="sheet-header">
         <div>
-          <h2 className="section-text-title">
+          <h2 className="section-text-title" tabIndex={-1} ref={heading}>
             {t.title} {number} — {sectionRowTitle(block.block_type)}
           </h2>
           <p className="sheet-meta">

@@ -15,7 +15,7 @@ function fresh(): RelatorioSnapshot {
   const { relatorioId, drafts } = instantiateTemplate(
     standardTemplate({ id: TEMPLATE_ID }),
     { id: TEST_PROJECT },
-    { service_start: null, service_end: null, existingEquipment: [] },
+    { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null },
     { newId: idSequence('019966b0-0052-7000-8000-'), actorId: TEST_USER, companyId: TEST_COMPANY },
   );
   const ops = drafts.map((d, i) => ({ ...makeOp({ ...d, device_id: 'tablet-test' }, { newId: idSequence('019966b0-0053-7000-8000-'), now: T0 }), seq: i + 1 }));
@@ -45,6 +45,20 @@ describe('4.3-UNIT preIssue', () => {
     const rows = preIssue(without);
     expect(preIssueRowsFor(rows, 'section_9').map((r) => r.text)).toEqual(['0 de 75', cabineSemEquipamentoText('Geradores')]);
     expect(rows.find((r) => r.kind === 'cabine_sem_equipamento')).toMatchObject({ id: `cabine_sem_equipamento:${geradores.id}`, severity: 'pending' });
+  });
+
+  it('Q9: never says "Cabine" twice, whatever the case or accents of the name', () => {
+    expect(cabineSemEquipamentoText('Geradores')).toBe('Cabine Geradores sem equipamento');
+    expect(cabineSemEquipamentoText('1° Subsolo')).toBe('Cabine 1° Subsolo sem equipamento');
+    expect(cabineSemEquipamentoText('Cabine QA')).toBe('Cabine QA sem equipamento');
+    expect(cabineSemEquipamentoText('Cabine 7')).toBe('Cabine 7 sem equipamento');
+    expect(cabineSemEquipamentoText('CABINE norte')).toBe('CABINE norte sem equipamento');
+    expect(cabineSemEquipamentoText('Cabíne A')).toBe('Cabíne A sem equipamento');
+    expect(cabineSemEquipamentoText('Cabine-7')).toBe('Cabine-7 sem equipamento');
+    expect(cabineSemEquipamentoText('Cabine7')).toBe('Cabine7 sem equipamento');
+    expect(cabineSemEquipamentoText('  Geradores ')).toBe('Cabine Geradores sem equipamento');
+    // A word that only starts with the letters is not the prefix.
+    expect(cabineSemEquipamentoText('Cabinet')).toBe('Cabine Cabinet sem equipamento');
   });
 
   it('over the Porto Seguro fixture: the client has no warning beyond its CNPJ, sheets and not-tested rows on section 9', () => {
