@@ -61,3 +61,11 @@ export function createWordOp(author: Author, kind: 'manufacturer' | 'voltage_cla
 export function concludedByOp(author: Author, relatorioId: string, blockId: string, at: string): OpDraft {
   return put(author, relatorioId, `block/${blockId}/concluded_by`, { actor_id: author.id, at });
 }
+
+/**
+ * `block/{id}/not_tested` put (AR-17): "Marcar não ensaiado" (`{reason, text, at}`, `by`
+ * added here) and its "Desfazer" (`null`).
+ */
+export function notTestedOp(author: Author, relatorioId: string, blockId: string, value: { reason: string; text: string | null; at: string } | null): OpDraft {
+  return put(author, relatorioId, `block/${blockId}/not_tested`, value === null ? null : { ...value, by: author.id });
+}

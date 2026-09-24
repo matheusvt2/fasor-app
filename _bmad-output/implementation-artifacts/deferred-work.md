@@ -659,10 +659,16 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: The sheet's "Ensaios" step host `apps/web/src/surfaces/ficha/ensaios-section.tsx` renders only the step's empty anchor (`#ficha-step-ensaios`); the Measurement table, the continuous run and the Instrument picker are not drawn. `sheetProgress` already counts the step's missing cells, so a sheet cannot reach Completa through the UI until they are.
   evidence: Stories 5.1-5.4 build the shell and reserve the stepper's third step for Batch B; the spec forbids any placeholder for later stories' controls.
   class: stub
-  state: open (owner: Epic 5 Batch B, Stories 5.5-5.7)
+  state: open (owner: Epic 5 Batch B, Stories 5.5-5.8; ~~Stories 5.5-5.7~~ 2026-09-24 -- Story 5.9 shipped separately (not-tested), so Batch B's remaining sheet-content stories are 5.5-5.8)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-5-1-5-4-sheet-shell-cabine-nameplate-checklist.md`
-  summary: The sheet's "Conclusão" step host `apps/web/src/surfaces/ficha/conclusao-section.tsx` renders only the step's empty anchor (`#ficha-step-conclusao`); the Conclusion control, the generated conclusion text, the sheet Observation field and "Não ensaiado" are not drawn. `sheetProgress` counts the conclusion as missing until they are, and "Observações rápidas" (Story 5.2 AC 4) writes `sheet/{blockId}/observations` with no field showing it yet.
-  evidence: Stories 5.1-5.4 build the shell and reserve the stepper's fourth step for Batch C; the spec forbids any placeholder for later stories' controls.
+  summary: The sheet's "Conclusão" step host `apps/web/src/surfaces/ficha/conclusao-section.tsx` renders only the step's empty anchor (`#ficha-step-conclusao`); the Conclusion control, the generated conclusion text and the sheet Observation field are not drawn (Story 5.9 has shipped "Não ensaiado" itself, above the anchor). `sheetProgress` counts the conclusion as missing until they are, and "Observações rápidas" (Story 5.2 AC 4) writes `sheet/{blockId}/observations` with no field showing it yet.
+  evidence: Stories 5.1-5.4 build the shell and reserve the stepper's fourth step for Batch B; the spec forbids any placeholder for later stories' controls.
   class: stub
-  state: open (owner: Epic 5 Batch C, Stories 5.8-5.9)
+  state: open (owner: Epic 5 Batch B, Stories 5.5-5.8; ~~Batch C, Stories 5.8-5.9~~ 2026-09-24 -- Story 5.9 shipped separately; Batch B now owns 5.5-5.8, "Não ensaiado" is done)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-5-9-not-tested-and-sheet-leftovers.md`
+  summary: `useSheetReadOnly()` (`apps/web/src/surfaces/ficha/sheet-read-only.tsx`), a plain boolean context wrapped around the whole sheet `.content` block (true once `block.not_tested !== null`), is not yet read by `ensaios-section.tsx`/`conclusao-section.tsx` because they are still stubs (see the two entries above). Once Batch B builds their real content, each must read the context with `useSheetReadOnly()` inside its own component body and render its fields read-only through `ReadOnlyField` (`ficha-fields.tsx`), the same pattern this story used for the nameplate and the checklist -- no prop or signature change to `<EnsaiosSection />`/`<ConclusaoSection />` in `ficha-surface.tsx` is needed for this.
+  evidence: Story 5.9 (`spec-5-9-not-tested-and-sheet-leftovers.md`, Design Notes) chose a context over threading a `readOnly` prop through call sites Batch B also edits, to avoid a merge conflict for no benefit.
+  class: stub
+  state: open (owner: Epic 5 Batch B, Stories 5.5-5.8, whichever story first renders real content in `ensaios-section.tsx`/`conclusao-section.tsx`)

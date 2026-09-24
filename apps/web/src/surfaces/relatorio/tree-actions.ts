@@ -18,6 +18,7 @@ import {
   tagRenamedText,
   tagTakenText,
   tagVerdict,
+  toIso,
   type BlockRow,
   type EquipmentRow,
   type OpDraft,
@@ -26,12 +27,14 @@ import {
 } from '@app/domain';
 import { useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router';
+import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { projectBlockRows } from '../../db/home-store.ts';
 import { writeLastSheet } from '../../db/prefs.ts';
 import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
+import { notTestedOp } from '../ficha/ficha-ops.ts';
 import type { PaletteCreate } from './block-palette-field.tsx';
 import type { RelatorioEditor } from './relatorio-editor.ts';
 import { focusAfterRemoval, focusWhenRendered } from './relatorio-focus.ts';
@@ -84,6 +87,7 @@ export interface TreeActions {
   removeBlock: (node: TreeEquipmentNode) => void;
   duplicateBlock: (node: TreeEquipmentNode, tag: string) => void;
   renameTag: (node: TreeEquipmentNode, tag: string) => void;
+  markNotTested: (node: TreeEquipmentNode, reason: string, text: string | null) => void;
   addLocation: (parent: TreeLocationNode | null) => void;
   renameLocation: (node: TreeLocationNode, name: string) => void;
   toggleAgrupar: (node: TreeLocationNode) => void;
@@ -351,6 +355,27 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
     [edit, projectId, host, showToast, undoable, t.gone],
   );
 
+  const markNotTested = useCallback(
+    (node: TreeEquipmentNode, reason: string, text: string | null) => {
+      void edit((blocks, by) => {
+        const block = blocks.find((row) => row.id === node.blockId && row.removed_at === null);
+        if (block === undefined) return null;
+        return [notTestedOp(by, relatorioId, node.blockId, { reason, text, at: toIso(now()) })];
+      })
+        .then((batch) => {
+          if (batch === null) {
+            showToast(t.gone);
+            return;
+          }
+          // The band on the sheet gives it its own Desfazer once opened; the toast here
+          // states what happened, verbatim from `60-ficha.html`'s Overflow (spec Boundaries).
+          showToast(copy.ficha.notTestedToast);
+        })
+        .catch(() => undefined);
+    },
+    [edit, relatorioId, showToast, t.gone],
+  );
+
   const addLocation = useCallback(
     (parent: TreeLocationNode | null) => {
       const out: { created: { id: string; name: string; kind: 'cabine' | 'coluna' } | null } = { created: null };
@@ -427,8 +452,8 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
   );
 
   return useMemo(
-    () => ({ openSheet, moveBlock, moveLocation, createBlock, removeBlock, duplicateBlock, renameTag, addLocation, renameLocation, toggleAgrupar }),
-    [openSheet, moveBlock, moveLocation, createBlock, removeBlock, duplicateBlock, renameTag, addLocation, renameLocation, toggleAgrupar],
+    () => ({ openSheet, moveBlock, moveLocation, createBlock, removeBlock, duplicateBlock, renameTag, markNotTested, addLocation, renameLocation, toggleAgrupar }),
+    [openSheet, moveBlock, moveLocation, createBlock, removeBlock, duplicateBlock, renameTag, markNotTested, addLocation, renameLocation, toggleAgrupar],
   );
 }
 

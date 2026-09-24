@@ -16,8 +16,9 @@ import { Chip, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { newId } from '../../ids.ts';
 import type { FichaApi } from './ficha-api.ts';
-import { firstFocusable, SheetField } from './ficha-fields.tsx';
+import { firstFocusable, ReadOnlyField, SheetField } from './ficha-fields.tsx';
 import { createWordOp, nameplateOp } from './ficha-ops.ts';
+import { useSheetReadOnly } from './sheet-read-only.tsx';
 
 /*
  * Story 5.3 (FR-23, FR-34, AR-10, AR-24; `60-ficha.html` "Dados de placa"): an empty group
@@ -57,13 +58,14 @@ export function NameplateSection({
     focusFirst.current = false;
     firstFocusable(grid.current)?.focus();
   });
+  const readOnly = useSheetReadOnly();
   if (definition.nameplate.length === 0) return null;
 
   const empty = nameplateIsEmpty(block);
   const own = block.equipment_id === null ? undefined : equipment.find((row) => row.id === block.equipment_id);
   const same = empty ? suggestNameplateCopy({ blocks: snapshot.blocks, equipment }, block.id) : null;
   const lastVisit = empty && own?.last_nameplate != null ? lastNameplateCopy(own, definition) : [];
-  const showFields = !empty || revealed;
+  const showFields = readOnly || !empty || revealed;
 
   function copyFrom(fields: readonly { fieldKey: string; value: unknown }[], toast: (n: number) => string): void {
     if (fields.length === 0) return;
@@ -98,21 +100,25 @@ export function NameplateSection({
       </div>
       {showFields ? (
         <div className="nameplate-grid" ref={grid}>
-          {definition.nameplate.map((field) => (
-            <SheetField
-              key={field.key}
-              field={field}
-              value={block.sheet.nameplate[field.key]?.value ?? null}
-              missing={!isCellFilled(block.sheet.nameplate[field.key])}
-              draft={{ entityId: block.id, field: `placa-${field.key.replace(/_/g, '-')}` }}
-              invalidText={t.invalidNumber}
-              selectEmpty={t.selectEmpty}
-              registries={registries}
-              blocks={snapshot.blocks}
-              onCreateWord={(kind, name) => createWord(field.key, kind, name)}
-              commit={(next) => (api.author === null ? undefined : api.commit([nameplateOp(api.author, api.relatorioId, block.id, field.key, next)]))}
-            />
-          ))}
+          {definition.nameplate.map((field) =>
+            readOnly ? (
+              <ReadOnlyField key={field.key} field={field} value={block.sheet.nameplate[field.key]?.value ?? null} />
+            ) : (
+              <SheetField
+                key={field.key}
+                field={field}
+                value={block.sheet.nameplate[field.key]?.value ?? null}
+                missing={!isCellFilled(block.sheet.nameplate[field.key])}
+                draft={{ entityId: block.id, field: `placa-${field.key.replace(/_/g, '-')}` }}
+                invalidText={t.invalidNumber}
+                selectEmpty={t.selectEmpty}
+                registries={registries}
+                blocks={snapshot.blocks}
+                onCreateWord={(kind, name) => createWord(field.key, kind, name)}
+                commit={(next) => (api.author === null ? undefined : api.commit([nameplateOp(api.author, api.relatorioId, block.id, field.key, next)]))}
+              />
+            ),
+          )}
         </div>
       ) : (
         <div className="camera-group">

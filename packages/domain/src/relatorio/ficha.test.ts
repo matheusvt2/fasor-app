@@ -11,6 +11,7 @@ import {
   insertPhrase,
   isCabineFirstSheet,
   itensMarcadosConformeText,
+  lastNotTestedReason,
   nameplateWordRecents,
   nextSheet,
   numberFieldValue,
@@ -139,7 +140,7 @@ describe('5.4-UNIT the checklist', () => {
     expect(itensMarcadosConformeText(1)).toBe('1 item marcado Conforme');
   });
 
-  it('repeats the pattern of the last concluded same-type sheet, results only', () => {
+  it('repeats the pattern of the last concluded same-type sheet, the target unset rows only', () => {
     const r = relatorio();
     const [a, b, c, target] = r.blocks;
     const concluded = (row: BlockRow, at: string, checklist: BlockRow['sheet']['checklist']): BlockRow => ({ ...row, concluded_by: { actor_id: 'u1', at }, sheet: { ...row.sheet, checklist } });
@@ -154,6 +155,34 @@ describe('5.4-UNIT the checklist', () => {
     expect(pattern.some((entry) => entry.itemKey === 'motor')).toBe(false);
     expect(pattern).toHaveLength(2);
     expect(repeatChecklistSource({ blocks: [c!, target!] }, target!.id)).toBeNull();
+
+    // The target already answered `contatos` (differently from the source): "Repetir"
+    // must leave it as is, the same rule as "Marcar os restantes como Conforme".
+    const answeredTarget = { ...target!, sheet: { ...target!.sheet, checklist: { contatos: { result: cell('C') } } } };
+    const patternOverAnswered = repeatChecklistPattern(newer, answeredTarget);
+    expect(patternOverAnswered.some((entry) => entry.itemKey === 'contatos')).toBe(false);
+    expect(patternOverAnswered).toContainEqual({ itemKey: 'isoladores', value: 'C' });
+
+    // The target's `motor` is only `na_defaults`-derived (no cell of its own); the source
+    // now holds an explicit, differing value for it. "Repetir" must still leave the
+    // target's `motor` alone -- an `na_defaults` default counts as answered, the same as
+    // an explicit cell (review finding, 2026-09-24: the old value-comparison rule and the
+    // new null-check rule only diverge on this exact case).
+    const sourceWithExplicitMotor = { ...newer, sheet: { ...newer.sheet, checklist: { ...newer.sheet.checklist, motor: { result: cell('C') } } } };
+    const patternOverNaDefault = repeatChecklistPattern(sourceWithExplicitMotor, target!);
+    expect(patternOverNaDefault.some((entry) => entry.itemKey === 'motor')).toBe(false);
+  });
+
+  it('lastNotTestedReason: null with nothing marked, else the latest by `at`', () => {
+    const r = relatorio();
+    const [a, b] = r.blocks;
+    expect(lastNotTestedReason(r.blocks)).toBeNull();
+    const marked = [
+      { ...a!, not_tested: { reason: 'solicitacao_cliente', text: null, at: '2026-09-06T10:00:00.000Z', by: 'u1' } },
+      { ...b!, not_tested: { reason: 'impossibilidade_desligamento', text: null, at: '2026-09-06T11:00:00.000Z', by: 'u1' } },
+    ];
+    expect(lastNotTestedReason(marked)).toBe('impossibilidade_desligamento');
+    expect(lastNotTestedReason([{ ...a!, removed_at: '2026-09-06T12:00:00.000Z', not_tested: { reason: 'outro', text: 'x', at: '2026-09-06T12:00:00.000Z', by: 'u1' } }])).toBeNull();
   });
 
   it('offers the five most recent typed observations of an item, newest first, without the seeded phrases or repeats', () => {

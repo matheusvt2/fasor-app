@@ -16,6 +16,7 @@ export function FichaHeader({
   concludedBy,
   progress,
   menu,
+  notTested = false,
   onRename,
 }: {
   typeName: string;
@@ -25,6 +26,8 @@ export function FichaHeader({
   concludedBy: string | null;
   progress: SheetProgress;
   menu: OverflowMenuAction[];
+  /** `key-sheet-states.html` frame (a): the chip beside the TAG once the sheet is not tested. */
+  notTested?: boolean;
   onRename: (() => void) | null;
 }) {
   const t = copy.ficha;
@@ -44,6 +47,7 @@ export function FichaHeader({
               </svg>
             </button>
           )}
+          {notTested ? <span className="not-tested-chip">{t.notTestedChip}</span> : null}
         </h2>
         {locationText === '' ? null : <p className="sheet-meta">{locationText}</p>}
         {filledBy === null ? null : <p className="sheet-meta">{filledBy}</p>}

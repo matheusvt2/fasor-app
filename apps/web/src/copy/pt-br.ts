@@ -511,6 +511,13 @@ export const copy = {
       rename: 'Renomear',
       // authored: the equipment row Overflow's rename.
       renameTag: 'Renomear TAG',
+      // DESIGN.md Block card row / `60-ficha.html` header Overflow: shared by both entry
+      // points' menu item and both dialogs' title and primary (Story 5.9).
+      markNotTested: 'Marcar não ensaiado',
+      // authored: the reason picker's chip group name (source-deltas.md row 18: 3 reasons only).
+      notTestedReasonLabel: 'Motivo',
+      // authored: the text field "Outro" reveals.
+      notTestedTextLabel: 'Descreva o motivo',
       // authored: the duplicate line's "Renomear" named with its row, so two duplicated rows never read alike.
       renameDuplicateLabel: (tag: string, path: string) => `Renomear TAG ${tag} em ${path}`,
       // `40-relatorio-overview.html` `.s9-add`.
@@ -587,6 +594,20 @@ export const copy = {
     // `60-ficha.html` header Overflow (only the items this story's surface works).
     menuConcluir: 'Concluir ficha',
     menuRenameTag: 'Renomear TAG',
+    // `key-sheet-states.html` frame (a): the chip beside the TAG once not tested.
+    notTestedChip: 'Não ensaiado',
+    // `60-ficha.html` header Overflow's "Marcar não ensaiado" toast, verbatim.
+    notTestedToast: 'Marcada como não ensaiada — entra na seção 8',
+    // The band's sentence around the reason (`key-sheet-states.html` `.band-reason`), split
+    // so the reason renders as its own span, verbatim otherwise.
+    notTestedBandBefore: 'Não ensaiado — ',
+    notTestedBandAfter: '. Os campos ficam somente leitura; a ficha imprime com os dados de placa e o motivo, e entra na seção 8 automaticamente.',
+    // `key-sheet-states.html` frame (a) `.not-tested-band .btn-text`.
+    desfazer: 'Desfazer',
+    // authored: the Confirm dialog that gates "Desfazer" once the mark has reached the server.
+    notTestedConfirmTitle: 'Desfazer "Marcar não ensaiado"?',
+    notTestedConfirmDescription: 'A marca já foi sincronizada com o servidor. A ficha volta a pedir os campos normalmente.',
+    notTestedConfirmAction: 'Desfazer',
     // The Section stepper (`60-ficha.html` `.section-stepper`).
     stepperLabel: 'Seções da ficha — toque para ir à seção',
     steps: {
@@ -640,6 +661,8 @@ export const copy = {
     },
     checklist: {
       title: 'Verificações gerais',
+      // `key-sheet-states.html` frame (a) `.section-head .btn-reason`, verbatim.
+      readOnlyReason: 'Somente leitura — equipamento não ensaiado',
       bulkLabel: 'Ações em lote da verificação',
       markRest: 'Marcar os restantes como Conforme',
       repeat: 'Repetir da ficha anterior do mesmo tipo',

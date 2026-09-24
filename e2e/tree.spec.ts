@@ -440,3 +440,70 @@ test('@p0 4.4-E2E-002 /relatorio/:id/arvore: the tree as a surface at 390, the s
   await expect(rail.locator('.pos-box')).toHaveCount(0);
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
 });
+
+test('@p0 5.9-E2E-003 "Marcar não ensaiado" from a Block card Overflow: the reason picked shows in the Sumário row and the rail', async ({ page }) => {
+  test.setTimeout(120_000);
+  const { relatorioId } = await openRelatorio(page, 1280);
+  await openSection9(page);
+  await page.getByRole('button', { name: 'Expandir Cubículo Enel' }).click();
+  const firstTag = (await tagsIn(cabine(page, 'Cubículo Enel')).first().textContent())!.trim();
+  const blockId = await blockIdOf(page, firstTag);
+
+  await menuOf(page, firstTag).click();
+  await expect(page.getByRole('menuitem', { name: 'Duplicar' })).toBeVisible();
+  // DESIGN.md Block card row: "Marcar não ensaiado" right after "Duplicar".
+  const labels = await page.getByRole('menu').getByRole('menuitem').allTextContents();
+  expect(labels[labels.indexOf('Duplicar') + 1]).toBe('Marcar não ensaiado');
+  await page.getByRole('menuitem', { name: 'Marcar não ensaiado' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Marcar não ensaiado' });
+  await expect(dialog.getByLabel('Descreva o motivo')).toHaveCount(0);
+  await dialog.getByRole('radio', { name: 'Solicitação do cliente' }).click();
+  await dialog.getByRole('button', { name: 'Marcar não ensaiado' }).click();
+  await expect(dialog).toBeHidden();
+
+  await expect(toast(page)).toContainText('Marcada como não ensaiada — entra na seção 8');
+  await expect(eqRow(page, firstTag).locator('.s9-state')).toHaveText('⊘ Não ensaiada · Solicitação do cliente');
+
+  // Not offered a second time once the sheet is already not tested (spec OPEN QUESTION).
+  await menuOf(page, firstTag).click();
+  await expect(page.getByRole('menuitem', { name: 'Marcar não ensaiado' })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+
+  // The rail reads the same state.
+  await page.goto(`/relatorio/${relatorioId}/arvore`);
+  const rail = page.getByRole('list', { name: 'Árvore do relatório' });
+  await expect(rail).toBeVisible();
+  const cabineChevron = page.getByRole('button', { name: 'Expandir Cubículo Enel' });
+  if ((await cabineChevron.count()) > 0) await cabineChevron.click();
+  const railRow = rail.locator(`li[data-block-id="${blockId}"] .tree-row`);
+  await expect(railRow.locator('.tree-state')).toHaveText('⊘Não ensaiada');
+  await expect(railRow.locator('.tree-meta')).toHaveText(`${firstTag} · Solicitação do cliente`);
+});
+
+test('@p0 5.2-E2E-004 (AC2 leftover) cabineMetaText updates live, with no reload, in the Sumário row and the rail once "Da cabine" is filled', async ({ page }) => {
+  test.setTimeout(120_000);
+  await openRelatorio(page, 1280);
+  await openSection9(page);
+  await expect(cabine(page, 'Cubículo Enel').locator('.s9-cab-meta')).toHaveText('—');
+  await menuOf(page, 'Cubículo Enel').click();
+  await page.getByRole('menuitem', { name: 'Abrir primeira ficha (dados da cabine)' }).click();
+  await expect(page).toHaveURL(/\/ficha\//);
+
+  await page.getByLabel('TIPO DE SE', { exact: true }).selectOption('BLINDADA');
+  const primaria = page.getByLabel('TENSÃO PRIMÁRIA', { exact: true });
+  await primaria.fill('13,8');
+  await primaria.press('Tab');
+  await page.getByLabel('TEMPERATURA', { exact: true }).fill('19');
+  const umidade = page.getByLabel('UMIDADE RELATIVA DO AR', { exact: true });
+  await umidade.fill('67');
+  await umidade.press('Enter');
+
+  // The rail beside the sheet (already on screen at 1280) reads live, no reload.
+  const railCabine = page.locator('aside.rail li[data-location-id]').filter({ has: page.locator(':scope > .tree-row > .tree-body > span', { hasText: /^Cubículo Enel$/ }) });
+  await expect(railCabine.locator(':scope > .tree-row > .tree-body > .tree-meta')).toHaveText('BLINDADA · 13,8 kV · 19 °C · 67 %');
+
+  // Back on the Sumário, the same value with no reload.
+  await page.goBack();
+  await openSection9(page);
+  await expect(cabine(page, 'Cubículo Enel').locator('.s9-cab-meta')).toHaveText('BLINDADA · 13,8 kV · 19 °C · 67 %');
+});
