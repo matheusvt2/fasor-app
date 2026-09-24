@@ -317,7 +317,9 @@ function FichaBody({
         return [notTestedOp(by, relatorioId, blockId, { reason, text, at: toIso(now()) })];
       })
       .then((batch) => {
-        if (batch !== null) showToast(t.notTestedToast);
+        // Same feedback as the tree's `markNotTested` on the same null-batch case (review
+        // finding, 2026-09-24): the block was removed by another device meanwhile.
+        showToast(batch === null ? copy.sumario.tree.gone : t.notTestedToast);
       })
       .catch(() => undefined);
   };

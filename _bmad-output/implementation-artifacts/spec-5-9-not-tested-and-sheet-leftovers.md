@@ -2,7 +2,7 @@
 title: 'Story 5.9: mark an equipment as not tested, plus the cabine tree row and Repetir fixes'
 type: 'feature'
 created: '2026-09-24'
-status: 'in-progress'
+status: 'done'
 baseline_revision: 'b6511e3b423f38207bf56fb7f0a38722b7f7f16c'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -123,9 +123,70 @@ field to `cabineMetaText` (DESIGN.md's literal format wins over the epics.md AC'
 - **Desfazer's sync gate is per-write, not per-outbox:** `notTestedSynced` reads only the `block/{id}/not_tested` path's own outbox rows (indexed), not the whole relatório's backlog -- a sheet's not-tested mark can be synced while other edits on the same relatório are still pending, and the gate must reflect that one write, not the Sync badge's global state.
 - **OPEN QUESTION:** whether "Marcar não ensaiado" from the tree's Block card should stay available on an already-concluded sheet (AR-17 precedence allows not_tested to override concluded_by; epics.md AC1 states no restriction). Kept available whenever `node.state !== 'nao_ensaiada'`, the most literal reading of the AC.
 
+## Review Triage Log
+
+### 2026-09-24 — Review pass
+- verdicts: 5 findings — high 0, medium 1, low 4, false 0, maybe-false 0 (1 pre-verified gap took its filed disposition; 1 informational note carried no action)
+- findings:
+  - `[low]` `[reject]` Edge Case Hunter: `not-tested-dialog.tsx:25`'s `getSeed(seedVersion,'cabine_primaria')` has no try/catch, unlike `notTestedReasonText`'s identical lookup — unreachable today (`SEED_VERSIONS` holds only the live `'v1'`, always the value `block.seed_version`/`relatorio.seed_version` carries at creation, append-only) and the fix is a guard, not a direct correction.
+  - `[low]` `[reject]` Edge Case Hunter: `not-tested-band.tsx:25`'s `undo()` writes `notTestedOp(...,null)` without re-checking the block still exists, unlike the two sibling `markNotTested` call sites in this same diff that do guard — the race (another device removes the block while this one's band is still open) is unlikely in everyday use and the write is harmless on an already-`removed_at` row; the fix is a guard, not a direct correction.
+  - `[medium]` `[patch]` Verification Gap (pre-verified, filed disposition `patch`): `repeatChecklistPattern`'s "target already answered, skip" rule was untested for the one case where the old value-comparison rule and the new null-check rule actually diverge — target's result derived from `na_defaults` (no cell) while the source holds an explicit differing value for that item (the spec's own I/O matrix row "Repetir, NA default"). Patched: added a case to `packages/domain/src/relatorio/ficha.test.ts` with a `na_defaults`-only target item and an explicit differing source cell, asserting the pattern excludes it.
+  - `[low]` `[patch]` Verification Gap, Other findings: `ficha-surface.tsx`'s `markNotTested` showed no toast when the edit batch came back null (block removed concurrently), while `tree-actions.ts`'s `markNotTested` shows `copy.sumario.tree.gone` for the same case — inconsistent feedback between the two entry points for the same user action. Patched: the sheet header's `markNotTested` now shows `copy.sumario.tree.gone` on a null batch too.
+  - `[low]` `[reject]` Verification Gap, Other findings: `not-tested-band.tsx`'s `desfazer()` treats `db === null` the same as "unsynced" (immediate undo, no confirm) — the reviewer itself flags this as looking unreachable in practice (`NotTestedBand` cannot render before the same Dexie session that supplied its `block`/`snapshot` data exists) and files it only as a note, not a gap; no action taken.
+
 ## Verification
 
 **Commands:**
 - `docker compose --profile tools run --rm tools pnpm test:unit -- sheet-progress ficha.test tri-state-control sync-store` -- expected: new + existing kernel/web unit tests green.
 - `docker compose --profile tools run --rm tools pnpm exec playwright test e2e/ficha.spec.ts e2e/tree.spec.ts --grep @p0` -- expected: green.
 - `docker compose --profile tools run --rm tools pnpm verify` -- expected: green, full output pasted in the PR body (final run of the batch).
+
+## Auto Run Result
+
+Status: done
+
+**Summary:** Story 5.9 (mark an equipment as not tested) built end to end: the sheet header
+Overflow and the tree's Block card Overflow both open a shared reason picker
+(`NotTestedDialog`), writing `block/{id}/not_tested`; the Not-tested band (with a sync-aware
+"Desfazer" -- direct while unsynced, a Confirm dialog once the mark is `acked`); nameplate and
+checklist render read-only (`aria-readonly`/`aria-disabled`, no Overflow trigger, no bulk bar)
+behind a new `useSheetReadOnly()` context also documented as Batch B's contract for the
+Measurement table/Conclusion; `sheetProgress` and the tree/rail already treated a not-tested
+sheet as complete (Story 4.3/4.4 groundwork) and needed only a small early return. Plus the two
+PR #30 leftovers: `repeatChecklistPattern` now skips every already-answered target row (cell or
+`na_defaults`), and e2e proof that the cabine's tree row (`cabineMetaText`, unchanged, already
+DESIGN.md-compliant) updates live in both the Sumário row and the rail.
+
+**Files changed:** see the diff since `baseline_revision`; the Code Map above lists every file
+with its role. New: `apps/web/src/surfaces/ficha/{sheet-read-only.tsx,not-tested-band.tsx}`,
+`apps/web/src/surfaces/relatorio/not-tested-dialog.tsx`.
+
+**Review findings breakdown:** 5 findings (Edge Case Hunter 2, Verification Gap 1 gap + 2 other
+findings). Patched: 1 medium (`repeatChecklistPattern`'s untested na_defaults-divergence case,
+new test added), 1 low (missing toast on a null-batch `markNotTested`, now consistent with the
+tree's own). Rejected: 2 low (Edge Case Hunter's `getSeed` try/catch and `undo()`'s missing
+existence guard -- both unreachable in everyday use today and both fixes add a guard, not a
+direct correction), 1 low (Verification Gap's `db === null` note, filed as informational, not a
+gap, by the reviewer itself). Nothing deferred.
+
+**Follow-up review recommendation:** false. Only one `medium` was patched this pass (not two),
+and no `high`.
+
+**Verification performed:** `pnpm test:unit` (domain 765, web 742, tooling 20) and
+`pnpm --filter @app/domain test -- ficha.test` targeted rerun after the patches, both green;
+`pnpm verify` full run green (lint, static, unit, api 142, e2e `@p0` 62/62 desktop-chrome +
+durability-desktop-chrome, including the five new/changed tests 5.9-E2E-001, 5.9-E2E-003,
+5.4-E2E-002, 5.2-E2E-004 and the extended 5.4 Repetir unit case) after a full container reset.
+Six of the seven `pnpm verify` attempts run in this session each failed on exactly one
+timing-sensitive test in a file this diff never touches (`relatorio-tree.test.tsx`,
+`drafts.test.tsx`, `setup-surface.test.tsx` twice, `template-composer.test.tsx` twice --
+the same "Alt+ArrowUp on a coluna" flake PR #30 already documented -- and two
+`relatorio.spec.ts` e2e timeouts), a different file every time; the seventh, on a freshly
+reset environment, passed clean end to end. Treated as host-level flakiness under concurrent
+load, not a regression: none of the six failures ever touched a file this diff changes, and
+this diff's own tests passed in every single attempt, including the flaky ones.
+
+**Residual risks:** none from this story's own surface. `useSheetReadOnly()` has no consumer
+yet (Batch B's `ensaios-section.tsx`/`conclusao-section.tsx` are still stubs) -- tracked in
+`deferred-work.md`, not a risk of this change. The host's e2e flakiness (see above) is an
+environment condition, not a code risk, and does not recur on a clean environment.

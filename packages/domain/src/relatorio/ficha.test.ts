@@ -162,6 +162,15 @@ describe('5.4-UNIT the checklist', () => {
     const patternOverAnswered = repeatChecklistPattern(newer, answeredTarget);
     expect(patternOverAnswered.some((entry) => entry.itemKey === 'contatos')).toBe(false);
     expect(patternOverAnswered).toContainEqual({ itemKey: 'isoladores', value: 'C' });
+
+    // The target's `motor` is only `na_defaults`-derived (no cell of its own); the source
+    // now holds an explicit, differing value for it. "Repetir" must still leave the
+    // target's `motor` alone -- an `na_defaults` default counts as answered, the same as
+    // an explicit cell (review finding, 2026-09-24: the old value-comparison rule and the
+    // new null-check rule only diverge on this exact case).
+    const sourceWithExplicitMotor = { ...newer, sheet: { ...newer.sheet, checklist: { ...newer.sheet.checklist, motor: { result: cell('C') } } } };
+    const patternOverNaDefault = repeatChecklistPattern(sourceWithExplicitMotor, target!);
+    expect(patternOverNaDefault.some((entry) => entry.itemKey === 'motor')).toBe(false);
   });
 
   it('lastNotTestedReason: null with nothing marked, else the latest by `at`', () => {
