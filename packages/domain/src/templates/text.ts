@@ -147,6 +147,16 @@ export function removedText(kind: ComposerItemKind, name: string): string {
   return `${itemPhrase(kind, name)} removida`;
 }
 
+/** The toast of a location added from the relatório tree (Story 4.4): "Coluna 18 adicionada", "Cabine 7 adicionada". */
+export function addedText(kind: ComposerItemKind, name: string): string {
+  return `${itemPhrase(kind, name)} adicionada`;
+}
+
+/** The toast of a location renamed from the relatório tree (Story 4.4): "Coluna Entrada renomeada", "Cabine Geradores Norte renomeada". */
+export function renamedText(kind: ComposerItemKind, name: string): string {
+  return `${itemPhrase(kind, name)} renomeada`;
+}
+
 /** The name a new cabine gets: "Cabine 7" when six exist. */
 export function defaultCabineName(n: number): string {
   return `Cabine ${n}`;

@@ -66,6 +66,34 @@ export function cabineProgress(snapshot: Pick<RelatorioSnapshot, 'blocks' | 'loc
   );
 }
 
+/**
+ * The location ids of a node and every location under it, at any depth (Story 4.4: a
+ * block may attach to any node, and the tree's coluna counters count what hangs below).
+ */
+export function descendantLocationIds(locations: readonly Pick<LocationRow, 'id' | 'parent_id'>[], locationId: string): Set<string> {
+  const ids = new Set([locationId]);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const location of locations) {
+      if (location.parent_id !== null && ids.has(location.parent_id) && !ids.has(location.id)) {
+        ids.add(location.id);
+        grew = true;
+      }
+    }
+  }
+  return ids;
+}
+
+/** One location's progress: the blocks on it and on every location under it (the tree's coluna counter). */
+export function locationProgress(snapshot: Pick<RelatorioSnapshot, 'blocks' | 'locations'>, locationId: string): Progress {
+  const ids = descendantLocationIds(snapshot.locations, locationId);
+  return over(
+    snapshot.blocks.filter((block) => block.location_id !== null && ids.has(block.location_id)),
+    0,
+  );
+}
+
 // --- the texts -------------------------------------------------------------------------
 
 /** `.progress-counter`: "42 de 94" (the section 9 cabine rows). */

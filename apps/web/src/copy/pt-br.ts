@@ -467,6 +467,84 @@ export const copy = {
     loading: 'Baixando o relatório…',
     // authored: the section the action names is no longer in the relatório (another device removed it).
     gone: 'A seção mudou em outro aparelho; nada foi alterado.',
+    // Section 9's location tree and the rail (Stories 4.4, 4.5). Every state word, glyph,
+    // counter, meta, TAG and composed sentence is the kernel's (`locationTree`, block texts).
+    tree: {
+      // `40-relatorio-overview.html` cabine chevrons ("Expandir Cubículo Enel"); the collapse word is authored.
+      expand: (name: string) => `Expandir ${name}`,
+      // authored: the chevron of an open node names what a press does.
+      collapse: (name: string) => `Recolher ${name}`,
+      // The cabine Overflow, verbatim from `#sum-menu-cabine`.
+      openFirst: 'Abrir primeira ficha (dados da cabine)',
+      agrupar: 'Agrupar por tipo na seção 9',
+      addBlock: 'Adicionar bloco',
+      // authored: Story 4.4 adds a coluna and renames a location from the tree.
+      addColuna: 'Adicionar coluna',
+      // A location's Overflow item and the duplicate line's action (`key-sheet-states.html` duplicated row).
+      rename: 'Renomear',
+      moveUp: 'Subir',
+      moveDown: 'Descer',
+      // The equipment row Overflow (DESIGN.md › Overflow menu order); "Renomear TAG" is authored.
+      addBelow: 'Adicionar abaixo',
+      duplicate: 'Duplicar',
+      renameTag: 'Renomear TAG',
+      remove: 'Remover',
+      // `40-relatorio-overview.html` `.s9-add`.
+      addBlockIn: (name: string) => `Adicionar bloco em ${name}`,
+      // authored: the foot of section 9's tree.
+      addCabine: 'Adicionar cabine',
+      // `key-sheet-states.html` (e) and (e'): the remove Confirm and its toast.
+      removeDescription: 'Dá para desfazer em seguida e restaurar em "Restaurar ficha removida" até o relatório ser emitido.',
+      removeConfirm: 'Remover ficha',
+      removed: 'Ficha removida',
+      // authored: the toast after an equipment sheet is restored.
+      restored: 'Ficha restaurada',
+      // authored: tracked stub, owner Epic 5 Story 5.1 (the sheet surface).
+      openStub: 'Abrir a ficha: disponível na próxima etapa',
+      // authored: the sheet or the location the action names changed on another device.
+      gone: 'A ficha mudou em outro aparelho; nada foi alterado.',
+      locationGone: 'O local mudou em outro aparelho; nada foi alterado.',
+    },
+    // The TAG and name dialogs of the tree (authored: no mock draws them; EXPERIENCE.md ›
+    // Equipment identity and Form dialog).
+    tagDialogs: {
+      duplicateTitle: (tag: string) => `Duplicar ${tag}`,
+      duplicate: 'Duplicar',
+      renameTagTitle: (tag: string) => `Renomear TAG ${tag}`,
+      renameTitle: (name: string) => `Renomear ${name}`,
+      tagLabel: 'TAG',
+      nameLabel: 'Nome',
+      save: 'Salvar',
+      emptyTag: 'Informe a TAG',
+      emptyName: 'Informe o nome',
+      // The primary's visible reason while the field refuses.
+      missingTag: (action: string) => `${action}: falta a TAG`,
+      missingName: (action: string) => `${action}: falta o nome`,
+      takenReason: (action: string) => `${action}: a TAG já existe nesta obra`,
+    },
+    // The field Block palette (`40-relatorio-overview.html` `#lo-palette`).
+    palette: {
+      title: 'Adicionar bloco',
+      close: 'Fechar',
+      where: (path: string) => `Em: ${path}`,
+      // authored from the mock's "Ou escolha o tipo · …": the camera tile above it is out of the slice.
+      chooseType: 'Escolha o tipo · TAG sugerida por tipo + coluna',
+      officeNote: 'Seções de texto e sub-blocos (ensaios, placa, itens) são do escritório: Compositor de template e paleta aberta de dentro da ficha no desktop.',
+      // The office confirm (EXPERIENCE.md › Block palette, office variant: TAG and location, prefilled).
+      tagLabel: 'TAG',
+      localLabel: 'Local',
+      confirm: 'Confirmar',
+    },
+    // The rail (`shell-head.html`), and `/relatorio/:id/arvore`.
+    rail: {
+      // The route title, the rail's name and the strip's vertical label (`shell-head.html`).
+      title: 'Árvore do relatório',
+      collapse: 'Recolher árvore',
+      open: 'Abrir árvore do relatório',
+      stripLabel: 'Árvore do relatório (recolhida)',
+      // authored: tracked stub, owner Epic 5 (the sheet column beside the rail).
+      note: 'Abra uma ficha na árvore.',
+    },
   },
   // Story 4.2's page, a tracked stub here (batch C replaces the file and keeps the route).
   setupStub: {

@@ -415,17 +415,21 @@ test('@p1 4.3-E2E-002 Em campo opens section 9 expanded at the last sheet cabine
   await expect(chevron).toHaveAttribute('aria-expanded', 'true');
   const tree = page.getByRole('list', { name: 'Locais do relatório' });
   await expect(tree).toBeVisible();
-  await expect(tree.getByRole('listitem')).toHaveCount(6);
+  // Story 4.4: the six cabine rows; the path to the last sheet is open and its row says so.
+  await expect(tree.locator(':scope > li.s9-cabine')).toHaveCount(6);
   const current = tree.locator('.s9-cabine.is-current');
   await expect(current).toHaveCount(1);
   await expect(current.locator('.s9-cab-name')).toContainText('Geradores');
   await expect(current.locator('.sum-here')).toHaveText('você parou aqui');
-  await expect(current.locator('.progress-counter')).toHaveText('0 de 19');
+  await expect(current.locator('.s9-cab-row .progress-counter')).toHaveText('0 de 19');
+  const currentRow = tree.locator('li.s9-eq.is-current');
+  await expect(currentRow).toHaveAttribute('data-block-id', block.id);
+  await expect(currentRow).toHaveAttribute('aria-current', 'true');
   await expect(page.getByText('Organizados por local aqui; no documento, agrupados como no FO.SERV-03.')).toBeVisible();
   // AC 3 "scrolled to the last sheet": the current row's box lies inside the 600 px viewport.
   await expect
     .poll(async () => {
-      const box = await current.boundingBox();
+      const box = await currentRow.boundingBox();
       return box !== null && box.y >= 0 && box.y + box.height <= 600;
     })
     .toBe(true);

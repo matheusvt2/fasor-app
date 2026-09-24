@@ -145,14 +145,45 @@ describe('4.3-UNIT sumarioRows', () => {
     expect(restorableBlocks([sheet], []).map((r) => r.name)).toEqual([]);
   });
 
+  it('F-5: gives every restorable row a unique label, the sheet its place and equipment id', () => {
+    const s2 = snapshot.blocks.find((b) => b.block_type === 'section_2')!;
+    const sheet = snapshot.blocks.find((b) => b.block_type === 'chave_seccionadora')!;
+    const blocks = [
+      { ...s2, removed_at: '2026-09-08T10:00:00.000Z' },
+      { ...s2, id: '019966b0-0057-7000-8000-000000000001', removed_at: '2026-09-07T10:00:00.000Z' },
+      { ...s2, id: '019966b0-0057-7000-8000-000000000002', removed_at: '2026-09-06T10:00:00.000Z' },
+      { ...sheet, removed_at: '2026-09-05T10:00:00.000Z' },
+    ];
+    const restorable = restorableBlocks(blocks, snapshot.equipment, snapshot.locations);
+    expect(restorable.map((r) => r.label)).toEqual(['2 Definições', '2 Definições (2)', '2 Definições (3)', 'SEC-C01 — 1° Subsolo › Coluna 1']);
+    expect(restorable.at(-1)).toMatchObject({ name: 'SEC-C01', detail: '1° Subsolo › Coluna 1', equipmentId: sheet.equipment_id });
+    expect(restorable[0]).toMatchObject({ detail: null, equipmentId: null });
+    expect(new Set(restorable.map((r) => r.label)).size).toBe(4);
+  });
+
   it('writes a cabine meta line from its own data', () => {
     const ps = buildSnapshot(replay(portoSeguro.log, { deadOpIds: portoSeguro.deadOpIds }), portoSeguro.relatorioId);
     const enel = ps.locations.find((l) => l.name === 'Cubículo Enel')!;
-    expect(cabineMetaText(enel)).toBe('BLINDADA · 13,8 kV');
+    expect(cabineMetaText(enel)).toBe('BLINDADA · 13,8 kV · 19 °C · 67 %');
     // The fixture's 1° Subsolo carries no SE data of its own: only its grouping flag reads.
     expect(cabineMetaText(ps.locations.find((l) => l.name === '1° Subsolo')!)).toBe('agrupar por tipo');
-    expect(cabineMetaText(snapshot.locations.find((l) => l.name === 'Cubículo Enel')!)).toBe('');
+    // A cabine with nothing set reads the dash; a coluna has no data line.
+    expect(cabineMetaText(snapshot.locations.find((l) => l.name === 'Cubículo Enel')!)).toBe('—');
     expect(cabineMetaText(snapshot.locations.find((l) => l.kind === 'coluna')!)).toBe('');
+  });
+
+  it('4.4 matrix: the cabine meta reads SE type, voltage, temperature, humidity and the grouping flag', () => {
+    const base = snapshot.locations.find((l) => l.name === 'Cubículo Enel')!;
+    if (base.kind !== 'cabine') throw new Error('Cubículo Enel is a cabine');
+    const n = (raw: string) => ({ raw, unit: null, state: 'measured' as const });
+    const full = {
+      ...base,
+      se: { ...base.se, type: 'SE', primary_kv: n('13.8') },
+      env: { ...base.env, temperature_c: n('19'), humidity_pct: n('67') },
+      agrupar_por_tipo: true,
+    };
+    expect(cabineMetaText(full)).toBe('SE · 13,8 kV · 19 °C · 67 % · agrupar por tipo');
+    expect(cabineMetaText({ ...base, agrupar_por_tipo: false })).toBe('—');
   });
 
   it('over the Porto Seguro fixture: the cover reads the client and dates once nothing is missing but the logo', () => {

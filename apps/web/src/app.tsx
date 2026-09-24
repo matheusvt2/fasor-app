@@ -19,6 +19,7 @@ import { ProjectSurface } from './surfaces/project/project-surface.tsx';
 import { SectionTextSurface } from './surfaces/relatorio/section-text-surface.tsx';
 import { SetupStubSurface } from './surfaces/relatorio/setup-stub-surface.tsx';
 import { SumarioSurface } from './surfaces/relatorio/sumario-surface.tsx';
+import { TreeSurface } from './surfaces/relatorio/tree-surface.tsx';
 import { RegistriesSurface } from './surfaces/registries/registries-surface.tsx';
 import { SyncStatusSurface } from './surfaces/sync/sync-status-surface.tsx';
 import { TemplateComposerSurface } from './surfaces/templates/template-composer.tsx';
@@ -127,6 +128,12 @@ const router = createBrowserRouter([
             path: '/relatorio/:id/setup',
             element: <SetupStubSurface />,
             handle: { title: copy.setupStub.title, back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}` },
+          },
+          // Story 4.4: the tree's rail presentation, until Epic 5 mounts it inside a sheet.
+          {
+            path: '/relatorio/:id/arvore',
+            element: <TreeSurface />,
+            handle: { title: copy.sumario.rail.title, back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}` },
           },
           {
             path: '/relatorio/:id/secao/:blockId',

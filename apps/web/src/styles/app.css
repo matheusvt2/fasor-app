@@ -197,6 +197,18 @@ body {
   [data-route="/relatorio/:id"] .sum-here { flex-basis: 100%; order: 9; }
   /* `.frame-phone [data-route="/relatorio/porto-seguro"] .sum-open` */
   [data-route="/relatorio/:id"] .sum-open { gap: var(--sp-2); }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro"] .s9-eqs` (Story 4.4, the tree's rows) */
+  [data-route="/relatorio/:id"] .s9-eqs { padding: 0 var(--sp-2) 0 var(--sp-4); }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro"] .s9-eq-open` */
+  [data-route="/relatorio/:id"] .s9-eq-open { flex-wrap: wrap; gap: 2px var(--sp-2); padding: var(--sp-1) var(--sp-2); }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro"] .s9-eq-name` */
+  [data-route="/relatorio/:id"] .s9-eq-name { flex: 1 1 60%; }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro"] .s9-cabine.is-open > .s9-add` */
+  [data-route="/relatorio/:id"] .s9-cabine.is-open > .s9-add { margin-left: var(--sp-4); white-space: normal; text-align: left; }
+  /* authored: the coluna list follows the mock's phone indent of the equipment list (16 px a
+     level instead of 24), and the duplicate line the row's narrower inset. */
+  [data-route="/relatorio/:id"] .s9-cols { padding-left: var(--sp-4); }
+  [data-route="/relatorio/:id"] .s9-dup { padding-left: var(--sp-2); }
   /* `.frame-tablet [data-route="/project/porto-seguro"] .project-head .btn, .frame-phone ... .btn`
      (30-project.html); the tablet half is under "Tablet" below. authored: `.btn` is
      `white-space: nowrap`, and "Novo relatório a partir de template" is wider than a 390px

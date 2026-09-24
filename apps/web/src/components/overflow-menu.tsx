@@ -6,6 +6,11 @@ export interface OverflowMenuAction {
   id: string;
   label: string;
   onAction: () => void;
+  /**
+   * Present on a toggle item ("Agrupar por tipo na seção 9"): the item is a
+   * `menuitemcheckbox` whose `aria-checked` is this value, and a press calls `onAction`.
+   */
+  checked?: boolean;
 }
 
 export interface OverflowMenuProps {
@@ -20,7 +25,9 @@ export interface OverflowMenuProps {
 
 /**
  * Opens on tap or Enter; arrow keys move, Esc closes and returns focus to the trigger
- * (Component Patterns › Overflow menu) — all built into `MenuTrigger`/`Menu`.
+ * (Component Patterns › Overflow menu) — all built into `MenuTrigger`/`Menu`. A toggle
+ * item sits in its own selection section, so React Aria gives it the checkbox role and
+ * state while every other item stays a plain `menuitem`.
  */
 export function OverflowMenu({ name, items, destructiveItems = [], label }: OverflowMenuProps) {
   const actionsById = new Map([...items, ...destructiveItems].map((item) => [item.id, item]));
@@ -37,13 +44,33 @@ export function OverflowMenu({ name, items, destructiveItems = [], label }: Over
       <Popover ref={relabelDismissButtons}>
         <Menu
           className="overflow-menu"
-          onAction={(key) => actionsById.get(String(key))?.onAction()}
+          onAction={(key) => {
+            const item = actionsById.get(String(key));
+            // A toggle item answers through its section's selection change instead.
+            if (item !== undefined && item.checked === undefined) item.onAction();
+          }}
         >
-          {items.map((item) => (
-            <MenuItem key={item.id} id={item.id} className="menu-item" textValue={item.label}>
-              {item.label}
-            </MenuItem>
-          ))}
+          {items.map((item) =>
+            item.checked === undefined ? (
+              <MenuItem key={item.id} id={item.id} className="menu-item" textValue={item.label}>
+                {item.label}
+              </MenuItem>
+            ) : (
+              <MenuSection
+                key={item.id}
+                className="menu-toggle-group"
+                aria-label={item.label}
+                selectionMode="multiple"
+                selectedKeys={item.checked ? [item.id] : []}
+                onSelectionChange={() => item.onAction()}
+                shouldCloseOnSelect
+              >
+                <MenuItem id={item.id} className="menu-item" textValue={item.label}>
+                  {item.label}
+                </MenuItem>
+              </MenuSection>
+            ),
+          )}
           {destructiveItems.length > 0 ? (
             <MenuSection className="menu-group">
               {destructiveItems.map((item) => (

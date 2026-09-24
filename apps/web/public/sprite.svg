@@ -68,4 +68,7 @@
   <symbol id="i-chev-down" viewBox="0 0 24 24">
     <path d="M6 9l6 6 6-6" />
   </symbol>
+  <symbol id="i-tree" viewBox="0 0 24 24">
+    <path d="M4 6h16M4 12h10M4 18h13" />
+  </symbol>
 </svg>

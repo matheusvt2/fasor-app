@@ -272,11 +272,11 @@ describe('4.3 SumarioSurface', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Mais opções de Recomendações gerais (NR-10)' })).toHaveFocus());
   });
 
-  it('Em campo opens section 9 expanded, scrolled once to the last sheet cabine; Rascunho opens it collapsed', async () => {
+  it('Em campo opens section 9 expanded on the path to the last sheet, scrolled once to its row; Rascunho opens it collapsed', async () => {
     database = await seeded();
     const chaveBlockId = portoSeguroSmall.log.find((op) => op.path.startsWith('block/'))!.path.split('/')[1]!;
     await database.local_prefs.put({ key: LAST_SHEET_PREF(RELATORIO), value: chaveBlockId });
-    // jsdom has no `scrollIntoView`; the surface must call it on the current cabine, once.
+    // jsdom has no `scrollIntoView`; the tree must call it on the last sheet's row, once.
     const scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;
     const { container } = renderSumario();
@@ -288,15 +288,23 @@ describe('4.3 SumarioSurface', () => {
     expect(chevron).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText('Organizados por local aqui; no documento, agrupados como no FO.SERV-03.')).toHaveClass('s9-note');
     const tree = screen.getByRole('list', { name: 'Locais do relatório' });
-    expect(within(tree).getAllByRole('listitem')).toHaveLength(1);
-    // The last-sheet pref is its own live query and lands a tick after the rows.
-    await waitFor(() => expect(within(tree).getByRole('listitem')).toHaveClass('is-current'));
-    expect(within(tree).getByText('você parou aqui')).toHaveClass('sum-here');
+    const cabines = () => [...tree.querySelectorAll<HTMLElement>(':scope > li.s9-cabine')];
+    expect(cabines()).toHaveLength(1);
+    // The last-sheet pref is its own live query and lands a tick after the rows; the path to
+    // it opens and its row says "você parou aqui".
+    await waitFor(() => expect(cabines()[0]).toHaveClass('is-current'));
+    await waitFor(() => expect(cabines()[0]).toHaveClass('is-open'));
+    const here = await within(tree).findByText('você parou aqui');
+    expect(here).toHaveClass('sum-here');
+    const current = here.closest('li')!;
+    expect(current).toHaveClass('s9-eq', 'is-current');
+    expect(current).toHaveAttribute('aria-current', 'true');
+    expect(current).toHaveAttribute('data-block-id', chaveBlockId);
     await waitFor(() => expect(scrollIntoView).toHaveBeenCalledTimes(1));
     expect(scrollIntoView).toHaveBeenCalledWith({ block: 'center' });
-    expect(scrollIntoView.mock.instances[0]).toBe(within(tree).getByRole('listitem'));
-    expect(within(tree).getByRole('listitem').querySelector('.progress-counter')).toHaveTextContent('1 de 3');
-    expect(within(tree).getByRole('listitem').querySelector('.s9-cab-name')).toHaveTextContent('Cabine de Testes');
+    expect(scrollIntoView.mock.instances[0]).toBe(current);
+    expect(cabines()[0]!.querySelector('.s9-cab-row .progress-counter')).toHaveTextContent('1 de 3');
+    expect(cabines()[0]!.querySelector('.s9-cab-name')).toHaveTextContent('Cabine de Testes');
     // The chevron collapses it; a header count opens it again and moves the focus to the chevron.
     await userEvent.click(chevron);
     expect(container.querySelector('.sum-s9')).not.toHaveClass('is-open');
@@ -313,9 +321,12 @@ describe('4.3 SumarioSurface', () => {
     await waitFor(() => expect(rows()).toHaveLength(13));
     expect(second.container.querySelector('.sum-s9')).not.toHaveClass('is-open');
     expect(screen.getByRole('button', { name: 'Expandir ou recolher a seção 9' })).toHaveAttribute('aria-expanded', 'false');
-    // Opened collapsed: nothing scrolls, not even after an expand by hand.
+    // Opened collapsed: nothing scrolls, not even after an expand by hand; the cabine stays
+    // collapsed and says "você parou aqui" for its row.
     await userEvent.click(screen.getByRole('button', { name: 'Expandir ou recolher a seção 9' }));
     await waitFor(() => expect(second.container.querySelector('.s9-cabine.is-current')).not.toBeNull());
+    expect(second.container.querySelector('.s9-cabine.is-current')).not.toHaveClass('is-open');
+    expect(second.container.querySelector('.s9-cabine.is-current .s9-cab-name .sum-here')).toHaveTextContent('você parou aqui');
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
     // @ts-expect-error jsdom's Element has no scrollIntoView; the mock above added it.
     delete Element.prototype.scrollIntoView;
@@ -367,10 +378,15 @@ describe('4.3 SumarioSurface', () => {
     const { container } = renderSumario();
     await waitFor(() => expect(rows()).toHaveLength(13));
     const tree = screen.getByRole('list', { name: 'Locais do relatório' });
-    expect(within(tree).getAllByRole('listitem')).toHaveLength(2);
+    expect(tree.querySelectorAll(':scope > li.s9-cabine')).toHaveLength(2);
     await waitFor(() => expect(container.querySelectorAll('.s9-cabine.is-current')).toHaveLength(1));
     expect(container.querySelector('.s9-cabine.is-current')).toHaveAttribute('data-location-id', cabineId);
-    expect(within(tree).getByText('você parou aqui').closest('li')).toHaveAttribute('data-location-id', cabineId);
+    // The path opens down to the coluna, whose row holds the last sheet.
+    await waitFor(() => expect(tree.querySelector('li.s9-eq.is-current')).not.toBeNull());
+    const here = within(tree.querySelector<HTMLElement>('li.s9-eq.is-current')!).getByText('você parou aqui');
+    expect(here.closest('li')).toHaveAttribute('data-block-id', chaveBlockId);
+    expect(here.closest('li.s9-coluna')).toHaveAttribute('data-location-id', COLUNA);
+    expect(here.closest('li.s9-cabine')).toHaveAttribute('data-location-id', cabineId);
   });
 
   it('"Restaurar ficha removida" names a removed sheet by its TAG and gives every Restaurar its own name', async () => {
@@ -388,8 +404,13 @@ describe('4.3 SumarioSurface', () => {
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Restaurar ficha removida' }));
     const dialog = await screen.findByRole('dialog', { name: 'Restaurar ficha removida' });
     expect(within(dialog).getAllByRole('listitem').map((li) => li.querySelector('.rr-primary')?.textContent)).toEqual(['SEC-TEST', '5 Recomendações gerais (NR-10)']);
-    expect(within(dialog).getAllByRole('button', { name: /^Restaurar / }).map((b) => b.getAttribute('aria-label'))).toEqual(['Restaurar SEC-TEST', 'Restaurar 5 Recomendações gerais (NR-10)']);
-    expect(within(dialog).getByRole('button', { name: 'Restaurar SEC-TEST' })).toHaveTextContent('Restaurar');
+    // F-5: the sheet names where it was, and every Restaurar has a name of its own.
+    expect(within(dialog).getAllByRole('listitem')[0]!.querySelector('.rr-secondary')).toHaveTextContent('Cabine de Testes');
+    expect(within(dialog).getAllByRole('button', { name: /^Restaurar / }).map((b) => b.getAttribute('aria-label'))).toEqual([
+      'Restaurar SEC-TEST — Cabine de Testes',
+      'Restaurar 5 Recomendações gerais (NR-10)',
+    ]);
+    expect(within(dialog).getByRole('button', { name: 'Restaurar SEC-TEST — Cabine de Testes' })).toHaveTextContent('Restaurar');
   });
 
   it('a blocking row draws its status line red and bold (`is-blocking`)', () => {
