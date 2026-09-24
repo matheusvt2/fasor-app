@@ -77,10 +77,10 @@ development_status:
   epic-4-retrospective: done
 
   epic-5: in-progress
-  5-1-open-a-sheet-and-move-through-its-four-steps: backlog
-  5-2-record-the-cabine-s-characteristics-and-test-environment-onc: backlog
-  5-3-fill-the-nameplate-by-copy-or-by-typing: backlog
-  5-4-mark-the-checklist-with-taps-not-typing: backlog
+  5-1-open-a-sheet-and-move-through-its-four-steps: done  # PR #30
+  5-2-record-the-cabine-s-characteristics-and-test-environment-onc: done  # PR #30
+  5-3-fill-the-nameplate-by-copy-or-by-typing: done  # PR #30
+  5-4-mark-the-checklist-with-taps-not-typing: done  # PR #30
   5-5-type-a-reading-with-its-unit-and-see-it-judged-against-the-c: backlog
   5-6-type-all-of-a-sheet-s-readings-in-one-continuous-run: backlog
   5-7-pick-the-instrument-by-its-code: backlog
@@ -295,7 +295,7 @@ action_items:
     action: "E3-A3 Validate sheet/* path segments against getDefinition in applyOp
       before Epic 4 writes sheet values"
     owner: "dev"
-    status: open
+    status: done  # PR #30 (assertSeedPath; cell row/col stay structural)
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
   - id: "epic-3-retro-item-21-e3-a4-stabilize-the-gate-templates-list"
     epic: 3
