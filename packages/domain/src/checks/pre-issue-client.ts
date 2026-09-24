@@ -8,14 +8,17 @@ import type { ClientRow } from '../registry/client-row.ts';
  * collides on the same file at merge time.
  */
 
-/** One warning-row shape Epic 7's Sumário/Export dialog will render (AD-15's contract). */
-export interface PreIssueRow {
+/**
+ * The narrow warning-row shape this check yields; `relatorio/pre-issue.ts`'s `preIssue`
+ * (Story 4.3) maps it into the typed `PreIssueRow` the Sumário and the Export render.
+ */
+export interface ClientPreIssueRow {
   key: string;
   text: string;
 }
 
 /** Story 2.4 AC3: a client with no CNPJ surfaces one pre-issue warning row. */
-export function clientPreIssueRows(client: ClientRow | null): PreIssueRow[] {
+export function clientPreIssueRows(client: ClientRow | null): ClientPreIssueRow[] {
   if (client !== null && client.cnpj === null) {
     return [{ key: 'cnpj_do_contratante_em_branco', text: 'CNPJ do contratante em branco' }];
   }

@@ -323,10 +323,16 @@ export const emptySheet = (): Sheet => ({
   observations: null,
 });
 
+/**
+ * A block of a relatório: an equipment sheet placed in a location, or (Story 4.1) a
+ * section block, born from the template's section blocks plus the synthesized sections 7
+ * and 9, which lives in the relatório with no location (`location_id: null`) and no
+ * equipment. Both reorder through the same `block/{id}/order_key` op.
+ */
 export const blockRowSchema = z.object({
   id: uuidV7Schema,
   relatorio_id: uuidV7Schema,
-  location_id: uuidV7Schema,
+  location_id: nullableId,
   equipment_id: nullableId,
   block_type: z.string(),
   config: jsonValueSchema,

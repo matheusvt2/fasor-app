@@ -382,9 +382,12 @@ Every story below carries a line `**Dev model:** ⟨fable|opus|sonnet⟩ · **Ef
 
 Rule of thumb used: `fable` for kernel invariants and the renderer, where a wrong decision propagates (op log, sync, instantiation, parsing, suggestions, generation, merge); `opus` for cross-layer features with real design room; `sonnet` for well-specified UI, CRUD, adapters and data transcription. Effort follows the size of the decision space, not the size of the diff.
 
+*2026-09-24, Matheus: fable is no longer used for new work because Opus 5.5 performs better. Every story not yet built that named fable now names opus at the same effort; the stories already built on fable (1.4, 1.5, 4.1) keep their line as the record of the model they ran on.*
+
 | Model | Stories |
 | --- | --- |
-| fable | 1.4, 1.5, 4.1, 4.8, 5.5, 5.8, 7.1, 7.5, 8.1, 8.4, 10.1 |
+| fable | 1.4, 1.5, 4.1, ~~4.8, 5.5, 5.8, 7.1, 7.5, 8.1, 8.4, 10.1~~ |
+| opus (from fable, 2026-09-24) | 4.8, 5.5, 5.8, 7.1, 7.5, 8.1, 8.4, 10.1 |
 | opus | 1.3, 1.6, 1.8, 2.2, 3.1, 3.2, 3.4, 4.3, 4.4, 4.5, 5.6, 6.1, 6.2, 6.6, 7.2, 7.3, 7.4, 8.2, 8.3, 8.5, 8.6, 9.1, 9.2, 10.2, 10.3, 11.6, 11.8 |
 | sonnet | 1.1, 1.2, 1.7, 2.1, 2.3, 2.4, 2.5, 2.6, 3.3, 3.5, 3.6, 3.7, 4.2, 4.6, 4.7, 5.1, 5.2, 5.3, 5.4, 5.7, 5.9, 6.3, 6.4, 6.5, 9.3, 9.4, 9.5, 10.4, 11.1, 11.2, 11.3, 11.4, 11.5, 11.7, 11.9, 11.10 |
 
@@ -1182,7 +1185,7 @@ So that I see the report the way the client will read it and know exactly what i
 
 **Given** the kernel `preIssue(snapshot)` returning typed rows (this story seeds it with: setup fields missing, sheets not concluded "n de N", cabines without equipment; later epics append rows) and `progress(snapshot)`
 **When** rows render
-**Then** each row's `meta` line comes from `preIssue` (for example "42 de 94", "sempre no início", "montado sozinho"), a blocking status is set in `nao-conforme` with the title's weight, and the header shows fichas concluídas de N · NC abertos · não ensaiadas · sugestões por confirmar, each count opening its list (AR-2, FR-17)
+**Then** each row's `meta` line comes from `preIssue` (for example "42 de 94", "sempre no início", "montado sozinho"), a blocking status is set in `nao-conforme` with the title's weight, and the header shows fichas concluídas de N · NC abertos · não ensaiadas · sugestões por confirmar, ~~each count opening its list~~ each count opening section 9 *(2026-09-24, narrowed in PR #25: the per-count lists arrive with the epics that produce them)* (AR-2, FR-17)
 
 **Given** the relatório status
 **When** the Sumário opens
@@ -1192,6 +1195,7 @@ So that I see the report the way the client will read it and know exactly what i
 **When** the user uses the row's Overflow (Adicionar abaixo · Subir · Descer · Duplicar · Remover) or types another number in the Position box that is the row number
 **Then** section blocks reorder as `block/{id}/order_key` ops, numbering redraws, every change is announced and undoable, and the cover and document control rows are fixed with `meta` notes and no controls (FR-19, UX-DR31)
 **And** "Restaurar ficha removida" lives in the header Overflow
+*2026-09-24, narrowed in PR #25: the generated rows 7 and 9 offer only Subir · Descer, because the renderer produces their content and adding, duplicating or removing them has no meaning; "Restaurar ficha removida" opens a dialog from the header Overflow.*
 
 **Given** rows 1 and 3
 **When** tapped
@@ -1301,7 +1305,7 @@ So that the objective for Porto Seguro does not change the next client's report.
 
 ### Story 4.8: Generate the document skeleton as a numbered DOCX revision
 
-**Dev model:** fable · **Effort:** high · the one renderer: generate job, frozen snapshot, LibreOffice, two-pass TOC and revision transaction
+**Dev model:** ~~fable~~ opus *(2026-09-24, Matheus: fable replaced by opus, Opus 5.5 performs better)* · **Effort:** high · the one renderer: generate job, frozen snapshot, LibreOffice, two-pass TOC and revision transaction
 
 As an office user,
 I want to generate the relatório as a DOCX with its cover, document control page, table of contents and section texts,
@@ -1450,7 +1454,7 @@ So that on a conforme sheet I touch only the rows that are not.
 
 ### Story 5.5: Type a reading with its unit and see it judged against the criterion
 
-**Dev model:** fable · **Effort:** high · pt-BR parsing and criterion comparison are safety-critical; a wrong parse is a wrong signed value
+**Dev model:** ~~fable~~ opus *(2026-09-24, Matheus: fable replaced by opus, Opus 5.5 performs better)* · **Effort:** high · pt-BR parsing and criterion comparison are safety-critical; a wrong parse is a wrong signed value
 
 As a field engineer,
 I want to type each reading with its unit, see it parsed the Brazilian way, and be told when it is outside the criterion or wildly off its neighbours,
@@ -1517,7 +1521,7 @@ So that the data typed 94 times today costs one tap per test.
 
 ### Story 5.8: Conclude the sheet with one tap and a text the app wrote from its own values
 
-**Dev model:** fable · **Effort:** high · suggested pair, device-composed conclusion text with basis hash and the shared Suggestion field
+**Dev model:** ~~fable~~ opus *(2026-09-24, Matheus: fable replaced by opus, Opus 5.5 performs better)* · **Effort:** high · suggested pair, device-composed conclusion text with basis hash and the shared Suggestion field
 
 As a field engineer,
 I want the app to suggest Aprovado or Com restrições from what the sheet already says and to draft the conclusion paragraph with its basis listed,
@@ -1727,7 +1731,7 @@ An office user sets the parecer, sees every outstanding condition on the Sumári
 
 ### Story 7.1: Print the equipment sheets as native tables grouped as FO.SERV-03
 
-**Dev model:** fable · **Effort:** max · section 9 rendering: grouping scheme, pairing, five-column grid, units, conclusion text rules; the moat of the product
+**Dev model:** ~~fable~~ opus *(2026-09-24, Matheus: fable replaced by opus, Opus 5.5 performs better)* · **Effort:** max · section 9 rendering: grouping scheme, pairing, five-column grid, units, conclusion text rules; the moat of the product
 
 As a field engineer,
 I want my 94 sheets to print as real tables in the order the form reads, with the criterion beside each value,
@@ -1809,7 +1813,7 @@ So that the document carries my opinion in my words and nothing the app decided 
 
 ### Story 7.5: See what is outstanding, preview as RASCUNHO, and issue the revision
 
-**Dev model:** fable · **Effort:** high · complete preIssue, the identity test, preview job and last_nameplate projection
+**Dev model:** ~~fable~~ opus *(2026-09-24, Matheus: fable replaced by opus, Opus 5.5 performs better)* · **Effort:** high · complete preIssue, the identity test, preview job and last_nameplate projection
 
 As an office user,
 I want every outstanding condition on the Sumário rows and summarized in the Export dialog, a preview I can read as the client will, and one button that issues the revision,
@@ -1841,7 +1845,7 @@ A field engineer photographs a nameplate, the photo is kept and queued offline, 
 
 ### Story 8.1: A Suggestion is an entity nobody can write without a tap
 
-**Dev model:** fable · **Effort:** high · the Suggestion entity and confirm contract; nothing unconfirmed may leak
+**Dev model:** ~~fable~~ opus *(2026-09-24, Matheus: fable replaced by opus, Opus 5.5 performs better)* · **Effort:** high · the Suggestion entity and confirm contract; nothing unconfirmed may leak
 
 As a field engineer,
 I want every value the app proposes to sit beside my field in amber until I confirm it, and never to be written, counted or printed before that,
@@ -1912,7 +1916,7 @@ So that nameplates are read for real with no cloud account and the same contract
 
 ### Story 8.4: Run the reading job end to end with fixture-driven structuring
 
-**Dev model:** fable · **Effort:** high · reading job orchestration, providers, idempotent suggestion emission and reading_run
+**Dev model:** ~~fable~~ opus *(2026-09-24, Matheus: fable replaced by opus, Opus 5.5 performs better)* · **Effort:** high · reading job orchestration, providers, idempotent suggestion emission and reading_run
 
 As a builder,
 I want the reading job to run in docker-compose with the local OCR and a fake structuring step, logging every run,
@@ -2085,7 +2089,7 @@ Two engineers work the same relatório on two devices: sheets merge by sub-block
 
 ### Story 10.1: Merge the same sheet from two devices by rule
 
-**Dev model:** fable · **Effort:** high · merge policy by sub-block over prev_op_id; the hardest correctness surface post-slice
+**Dev model:** ~~fable~~ opus *(2026-09-24, Matheus: fable replaced by opus, Opus 5.5 performs better)* · **Effort:** high · merge policy by sub-block over prev_op_id; the hardest correctness surface post-slice
 
 As a field engineer,
 I want a sheet both of us touched to merge itself by sub-block, with every merge listed as information,

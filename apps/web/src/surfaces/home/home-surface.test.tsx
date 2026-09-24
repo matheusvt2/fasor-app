@@ -252,7 +252,8 @@ describe('Home: relatório cards', () => {
     expect(within(first!).getByRole('button', { name: 'Continuar' })).toHaveAccessibleDescription(
       'Disponível em uma próxima etapa',
     );
-    expect(within(first!).getByRole('button', { name: 'Ver sumário' })).toHaveAttribute('aria-disabled', 'true');
+    // Story 4.3: "Ver sumário" opens the Sumário like the card's own tap.
+    expect(within(first!).getByRole('button', { name: 'Ver sumário' })).not.toHaveAttribute('aria-disabled');
     expect(second).not.toHaveClass('is-current');
     expect(within(second!).queryByRole('button', { name: 'Continuar' })).toBeNull();
   });
@@ -345,7 +346,7 @@ describe('Home: relatório cards', () => {
 });
 
 describe('Home: empty state and shortcuts', () => {
-  it('says so and offers a disabled "Novo relatório" when nothing is on the device', async () => {
+  it('says so and offers "Novo relatório", which asks for the client and the obra (Story 4.1)', async () => {
     database = await freshDb();
     await seedCompany(database);
     const { container } = renderHome();
@@ -353,8 +354,16 @@ describe('Home: empty state and shortcuts', () => {
     expect(await screen.findByText('Nenhum relatório ainda.')).toBeVisible();
     expect(cards()).toHaveLength(0);
     const novo = screen.getByRole('button', { name: 'Novo relatório' });
-    expect(novo).toHaveAttribute('aria-disabled', 'true');
-    expect(novo).toHaveAccessibleDescription('Disponível em uma próxima etapa');
+    expect(novo).not.toHaveAttribute('aria-disabled');
+    expect(await axe(container)).toHaveNoViolations();
+
+    await userEvent.click(novo);
+    const dialog = await screen.findByRole('dialog', { name: 'Novo relatório' });
+    expect(within(dialog).getByRole('combobox', { name: 'Cliente' })).toBeVisible();
+    expect(within(dialog).getByRole('combobox', { name: 'Local (obra)' })).toHaveAttribute('aria-disabled', 'true');
+    const proceed = within(dialog).getByRole('button', { name: 'Continuar' });
+    expect(proceed).toHaveAttribute('aria-disabled', 'true');
+    expect(proceed).toHaveAccessibleDescription('Continuar: falta o cliente');
     expect(await axe(container)).toHaveNoViolations();
   });
 

@@ -100,9 +100,24 @@ export const copy = {
     templates: 'Templates',
     cadastros: 'Cadastros',
     // authored: one reason shared by every affordance whose destination belongs to a
-    // later epic (Sumário, relatório creation), so the screen
-    // never argues with itself about what is missing.
+    // later epic ("Continuar" opens the last sheet, Epic 5), so the screen never argues
+    // with itself about what is missing.
     notAvailableYet: 'Disponível em uma próxima etapa',
+    // Story 4.1: "Novo relatório" first asks for the client and the obra (the Project the
+    // relatório is born in), through the client Combobox `50-relatorio-setup.html` draws.
+    newProject: {
+      title: 'Novo relatório',
+      clientLabel: 'Cliente',
+      // Verbatim from `50-relatorio-setup.html` Etapa 1.
+      siteLabel: 'Local (obra)',
+      // authored: the dialog asks for both before the Project surface can open.
+      continue: 'Continuar',
+      cancel: 'Cancelar',
+      needsClient: 'Continuar: falta o cliente',
+      needsSite: 'Continuar: falta a obra',
+      // Verbatim from `50-relatorio-setup.html`'s "Criar" option toast.
+      clientCreated: 'Cliente criado no cadastro de Clientes',
+    },
     // authored: the mock draws no empty Home; a device with nothing on it still needs a sentence.
     empty: 'Nenhum relatório ainda.',
     // authored: a tile that reads zero is still pressable, and an empty list under it is
@@ -387,6 +402,114 @@ export const copy = {
     // authored: the server answered with a revision this device has not pulled yet; the
     // download row waits for it (the stream is being asked for).
     downloadingRevision: 'Baixando a revisão…',
+  },
+  // Project (`30-project.html`, Story 4.1). The heading's count, the row lines, the
+  // dates and the counter are the kernel's (`projectRelatoriosHeading`, `relatorioTitle`,
+  // `relatorioSubText`, `dateRangeText`, `fichasCountText`).
+  project: {
+    title: 'Obra',
+    crumbsHome: 'Início',
+    newRelatorio: 'Novo relatório a partir de template',
+    clientLabel: 'Cliente',
+    siteLabel: 'Obra / local',
+    relatoriosLabel: 'Relatórios',
+    columns: { relatorio: 'Relatório', status: 'Status', dates: 'Datas', template: 'Template', progress: 'Progresso' },
+    // Verbatim from EXPERIENCE.md State Patterns › Empty (Project).
+    empty: 'Nenhum relatório nesta obra.',
+    // authored: an address that names no project on this device.
+    notFound: 'Obra não encontrada.',
+    backHome: 'Voltar para o início',
+    listLabel: 'Relatórios desta obra',
+  },
+  // The "Novo relatório" Form dialog (`30-project.html` `#proj-dlg-novo`). The reason
+  // beside "Criar relatório" and the template helper are the kernel's (`newRelatorioReason`,
+  // `templateHelperText`, `templateBlocksText`).
+  newRelatorio: {
+    title: 'Novo relatório',
+    descriptionLead: 'Para ',
+    descriptionTail: '. Os dados da capa, os instrumentos e as exclusões vêm em seguida, em Dados do relatório.',
+    typeLabel: 'Tipo de relatório',
+    typeName: 'Cabine primária',
+    typeMeta: 'Relatório de inspeção e ensaios em cabine primária de média tensão (FO.SERV-03)',
+    typeNote: 'Único tipo disponível nesta versão. Outros tipos (painel, SPDA) entram aqui quando existirem.',
+    templateLabel: 'Template',
+    startLabel: 'Início da parada',
+    endLabel: 'Fim da parada',
+    cancel: 'Cancelar',
+    create: 'Criar relatório',
+    // authored: the reason beside "Criar relatório" while its 223 ops are being written.
+    creating: 'Criando o relatório…',
+  },
+  // The Sumário (`40-relatorio-overview.html`, Story 4.3). Every row title, meta, count
+  // and reason is the kernel's (`sumarioRows`, `preIssue`, `progress`, `generateReason`).
+  sumario: {
+    title: 'Sumário',
+    listLabel: 'Sumário do relatório',
+    summaryLabel: 'Resumo do relatório',
+    headerMenu: 'Mais opções do relatório',
+    // "Número de Objetivo — digite outro para mover": the Position box of a row.
+    positionLabel: (title: string) => `Número de ${title} — digite outro para mover`,
+    // Overflow of a numbered row, in the mock's order.
+    addBelow: 'Adicionar abaixo',
+    moveUp: 'Subir',
+    moveDown: 'Descer',
+    duplicate: 'Duplicar',
+    remove: 'Remover',
+    undo: 'Desfazer',
+    removed: 'Seção removida deste relatório — numeração refeita',
+    // authored: the toasts of "Adicionar abaixo" and "Duplicar" (the mock's, without "Desfazer" on the first).
+    added: 'Nova seção adicionada abaixo — numeração refeita',
+    duplicated: 'Seção duplicada abaixo',
+    // Section 9.
+    s9Toggle: 'Expandir ou recolher a seção 9',
+    s9Note: 'Organizados por local aqui; no documento, agrupados como no FO.SERV-03.',
+    s9TreeLabel: 'Locais do relatório',
+    here: 'você parou aqui',
+    // Header Overflow.
+    restore: 'Restaurar ficha removida',
+    restoreTitle: 'Restaurar ficha removida',
+    restoreNone: 'Nenhuma ficha removida para restaurar',
+    restoreAction: 'Restaurar',
+    // authored: the accessible name of each row's "Restaurar", so two rows never read alike.
+    restoreLabel: (name: string) => `Restaurar ${name}`,
+    // authored: the toast after a restore.
+    restored: 'Ficha restaurada — numeração refeita',
+    close: 'Fechar',
+    // "Adicionar abaixo" dialog.
+    addSectionTitle: 'Adicionar seção abaixo',
+    addSectionListLabel: 'Seções',
+    // Foot.
+    preview: 'Pré-visualizar',
+    // authored: the draft preview is Story 4.8's.
+    previewReason: 'Pré-visualizar: disponível na pré-visualização do documento',
+    generate: 'Gerar relatório',
+    // authored: the generate wiring is Story 4.8's (batch D).
+    generateStub: 'Gerar relatório: disponível na próxima etapa',
+    // authored: an address that names no relatório on this device, and the way back.
+    notFound: 'Relatório não encontrado neste aparelho.',
+    backHome: 'Voltar para o início',
+    // authored: the company summary lists the relatório but its pull left no row on this device.
+    downloadFailed: 'Não foi possível baixar o relatório neste aparelho.',
+    retry: 'Tentar de novo',
+    // authored: while `syncRelatorio` brings a relatório opened from its Home card down.
+    loading: 'Baixando o relatório…',
+    // authored: the section the action names is no longer in the relatório (another device removed it).
+    gone: 'A seção mudou em outro aparelho; nada foi alterado.',
+  },
+  // Story 4.2's page, a tracked stub here (batch C replaces the file and keeps the route).
+  setupStub: {
+    title: 'Dados do relatório',
+    // authored: the stub's one sentence.
+    note: (etapa: number) => `Etapa ${etapa} — disponível na próxima etapa deste épico`,
+    backToSumario: 'Voltar para o sumário',
+  },
+  // Story 4.7's editor is batch C; this batch shows the resolved text read-only.
+  sectionText: {
+    title: 'Seção',
+    backToSumario: 'Voltar para o sumário',
+    // authored: no text is in force for this section (8 and 11 carry none).
+    noText: 'Esta seção não tem texto fixo; o conteúdo vem do relatório.',
+    notFound: 'Seção não encontrada.',
   },
   // authored: the mocks are static frames and draw no boot state.
   common: {

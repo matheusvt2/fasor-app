@@ -116,3 +116,48 @@ export function formatServiceDates(start: string | null, end: string | null): st
   }
   return `${formatDate(from)} – ${formatDate(to)}`;
 }
+
+/**
+ * The service period as the Project row, the Sumário header and the "Novo relatório"
+ * dialog write it (Story 4.1): `06–08/09/2026` inside one month, `06/09–02/10/2026` across
+ * months of one year, `28/12/2026–02/01/2027` across years, the single date when the two
+ * are one day or only one is present, `''` when neither is.
+ */
+export function dateRangeText(start: string | null, end: string | null): string {
+  const from = splitDate(start);
+  const to = splitDate(end);
+  if (from === null && to === null) return '';
+  if (from === null) return formatDate(to!);
+  if (to === null) return formatDate(from);
+  if (from.year === to.year && from.month === to.month && from.day === to.day) return formatDate(from);
+  if (from.day === null || to.day === null) return `${formatDate(from)}–${formatDate(to)}`;
+  if (from.year === to.year && from.month === to.month) return `${from.day}–${to.day}/${from.month}/${from.year}`;
+  if (from.year === to.year) return `${from.day}/${from.month}–${to.day}/${to.month}/${from.year}`;
+  return `${formatDate(from)}–${formatDate(to)}`;
+}
+
+const calendarDate = new Intl.DateTimeFormat('pt-BR', {
+  timeZone: DISPLAY_TIME_ZONE,
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+});
+
+/** `dd/mm/aaaa` in America/Sao_Paulo of an instant, or '' for an unparseable timestamp. */
+export function formatDateOfInstant(iso: string): string {
+  const time = Date.parse(iso);
+  if (Number.isNaN(time)) return '';
+  return calendarDate.format(new Date(time));
+}
+
+/**
+ * The instant a UUIDv7 was minted (AD-4: its first 48 bits are Unix milliseconds), as ISO,
+ * or null for anything else. A row with no `created_at` column (a relatório) still knows
+ * when it was born.
+ */
+export function uuidV7Instant(id: string): string | null {
+  const match = /^([0-9a-f]{8})-([0-9a-f]{4})-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.exec(id);
+  if (match === null) return null;
+  const ms = Number.parseInt(match[1]! + match[2]!, 16);
+  return new Date(ms).toISOString();
+}

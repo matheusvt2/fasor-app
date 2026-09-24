@@ -6,8 +6,9 @@ import type { EmpresaRow } from '../registry/empresa.ts';
  * rows only; the registry, sheet and photo rows of Stories 2.4-2.6 and later epics append
  * their own from their own modules, so the batches never collide. The row type is named
  * `CompanyPreIssueRow` because the parallel Stories 2.4-2.6 batch landed its own
- * `PreIssueRow` (a narrower `{key, text}`) in `pre-issue-client.ts`; Epic 7's real
- * `preIssue(snapshot)` aggregator unifies the two shapes when it reads them together.
+ * `ClientPreIssueRow` (a narrower `{key, text}`) in `pre-issue-client.ts`; the real
+ * `preIssue(snapshot)` aggregator (`relatorio/pre-issue.ts`, Story 4.3) maps both into
+ * its typed `PreIssueRow`.
  */
 
 export interface CompanyPreIssueRow {

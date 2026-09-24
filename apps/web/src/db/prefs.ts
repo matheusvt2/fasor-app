@@ -1,5 +1,5 @@
 import { themePreferenceSchema, type ThemePreference } from '@app/domain';
-import { RECOVERY_NOTICE_PREF, REGISTRY_TAB_PREF, THEME_PREF, type AppDatabase } from './schema.ts';
+import { LAST_SHEET_PREF, RECOVERY_NOTICE_PREF, REGISTRY_TAB_PREF, THEME_PREF, type AppDatabase } from './schema.ts';
 
 /*
  * AR-27: device-local preferences live in `local_prefs`. This is the only access to
@@ -122,4 +122,18 @@ export async function writeGenerateAwaiting(db: AppDatabase, relatorioId: string
 
 export async function clearGenerateAwaiting(db: AppDatabase, relatorioId: string): Promise<void> {
   await db.local_prefs.delete(generateAwaitingKey(relatorioId));
+}
+
+/**
+ * AR-27, Story 4.3: the last sheet worked on this device, per relatório (`last_sheet:{id}`),
+ * so an Em campo Sumário opens section 9 at the cabine that holds it. Written by the sheet
+ * surface (Epic 5); read here. `null` when nothing is stored or the value is not a string.
+ */
+export async function readLastSheet(db: AppDatabase, relatorioId: string): Promise<string | null> {
+  const row = await db.local_prefs.get(LAST_SHEET_PREF(relatorioId));
+  return typeof row?.value === 'string' ? row.value : null;
+}
+
+export async function writeLastSheet(db: AppDatabase, relatorioId: string, blockId: string): Promise<void> {
+  await db.local_prefs.put({ key: LAST_SHEET_PREF(relatorioId), value: blockId });
 }

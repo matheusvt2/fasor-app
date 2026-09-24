@@ -11,7 +11,8 @@ persistent_facts = [
   """
 MODEL AND EFFORT POLICY (fasor). Every story in _bmad-output/planning-artifacts/epics.md carries a line
 `**Dev model:** <fable|opus|sonnet> · **Effort:** <low|medium|high|max> · <why>` right under its `### Story N.M:` heading.
-Model ladder, lowest to highest: sonnet < opus < fable.
+Model ladder, lowest to highest: sonnet < opus < fable. Since 2026-09-24 (Matheus) fable is not used for new work:
+Opus 5.5 performs better, so a story line that still names fable runs as opus at the same effort.
 
 1. As soon as the story is identified (step 1, story-key resolution or the epic story path), read that line and hold
    {dev_model} and {dev_effort} for the whole run. If the intent is not an epic story, use dev_model = opus and
@@ -35,7 +36,7 @@ Model ladder, lowest to highest: sonnet < opus < fable.
 5. Investigation subagents in step 2 and the epic-context compile subagent in step 1 are launched with model sonnet.
 6. The implementation subagent (step 3) is launched with `subagent_type` = `bmad-dev-{dev_model}-{dev_effort}` and
    `model` = {dev_model}, as the implementation handoff below says. If that agent definition does not exist for the
-   pair, use `bmad-dev-{dev_model}-medium` for opus or sonnet and `bmad-dev-fable-high` for fable, and say so.
+   pair, use `bmad-dev-{dev_model}-medium` for opus or sonnet and `bmad-dev-opus-high` for fable (fable is retired, see the ladder note), and say so.
 7. Review layer subagents (step 4) are launched with `model` = {dev_model}. Their effort inherits the session.
 """,
   """

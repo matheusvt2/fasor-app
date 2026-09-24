@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 09-23-2026 09:11
+last_updated: 09-24-2026 00:00
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -66,14 +66,14 @@ development_status:
   epic-3-retrospective: done
 
   epic-4: in-progress
-  4-1-create-a-project-and-a-relatório-whose-blocks-are-born-in-pl: backlog
+  4-1-create-a-project-and-a-relatório-whose-blocks-are-born-in-pl: done
   4-2-fill-the-relatório-setup-page: backlog
-  4-3-see-the-relatório-as-its-own-table-of-contents-the-sumário: backlog
+  4-3-see-the-relatório-as-its-own-table-of-contents-the-sumário: done
   4-4-walk-the-location-tree: backlog
   4-5-add-remove-restore-duplicate-and-reorder-equipment-blocks: backlog
   4-6-status-transitions-and-the-relatório-emitido-warning: backlog
   4-7-edit-a-section-s-text-inside-one-relatório: backlog
-  4-8-generate-the-document-skeleton-as-a-numbered-docx-revision: backlog
+  4-8-generate-the-document-skeleton-as-a-numbered-docx-revision: in-progress
   epic-4-retrospective: optional
 
   epic-5: backlog
