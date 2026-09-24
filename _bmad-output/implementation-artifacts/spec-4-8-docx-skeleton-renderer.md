@@ -5,7 +5,7 @@ created: '2026-09-23'
 status: 'done'
 baseline_revision: '960363549cf0046c9d2ab52e7c411ef9fbcd438b'
 review_loop_iteration: 0
-followup_review_recommended: true
+followup_review_recommended: false
 dev_model: 'opus'
 dev_effort: 'high'
 context:
@@ -285,7 +285,9 @@ Mock and rules: `73-exportar.html` (classes and verbatim strings listed under De
 
 ## Auto Run Result
 
-Status: done (build workflow); batch D checkpoint `awaiting-sumario` (draft PR, Sumário wiring and the real-UI e2e after Story 4.3 merges).
+Status: done (build workflow); ~~batch D checkpoint `awaiting-sumario` (draft PR, Sumário wiring and the real-UI e2e after Story 4.3 merges)~~ (2026-09-24: resumed and finished; PR #24 ready for the coordinator's merge. Bruno's read of the skeleton DOCX stays pending, a human step).
+
+**Resume, 2026-09-24 (opus, after fable was retired).** `git merge origin/main` (Stories 4.1/4.3, PR #25), six union conflicts, no golden regeneration needed; `ExportDialog` opened from the Sumário's foot through batch A's `generate-action.tsx` (`aria-disabled` with `generateReason` while a `blocking` row stands); the `/__fixture/export` route removed; `e2e/export.spec.ts` on the real UI (4.8-E2E-001 and 4.8-E2E-004 `@p0`, 002 and 005 `@p1`) and `e2e/export-visual.spec.ts` (`@p2`) re-pointed; human-style scripted pass at 390/768/1280, light and dark, keyboard, offline, the api with `GENERATE_FAULT=libreoffice_timeout` (`reviews/qa-epic-4-D/`, table in `reviews/epic-4-D-review.md` section 1: every AC pass, Bruno's read pending). Independent review (opus): changes-requested with 1 must-fix (R1, `NODE_ENV` in the shared compose anchor, which the `scrollTo` jsdom shim was hiding), 4 should-fix (R2 dead-job wait, R3 section blocks ignored by the layout, R4 "pode fechar" off the Sumário, R5 ledger entry deleted) and 5 nice-to-have; fixed R1, R2, R3, R5, R6, R8, R10; deferred R4, R7, R9 to the ledger with owners; re-check verdict: approve. `pnpm verify` green at `1b07078`: lint, static, unit (domain 55 files/639, web 73/641, root 2/20), api 25/138, e2e 41 `@p0` passed (4.5 min). Flakes seen under a load average of 12-15 (batches B and C verifying in parallel): one e2e timeout (`3.4-E2E-005`, G-1) and three runs of `template-composer` "commits the name on blur" failing on the field's idle commit racing slow typing, fixed by pasting the name in that test (assertion unchanged).
 
 **Summary of the implemented change.** The one renderer end to end on the seeded template: kernel layout spec (`packages/domain/src/print`: `layoutSpec`, `documentControlRows`, revision numbering and every numbered sentence, `expectedFileIds`, `isJobActive`), `RelatorioSnapshot.responsible` with both `toSnapshot()`s and the three goldens regenerated, the generate contract (`GENERATE_ROUTES`, request/response schemas, `not_caught_up`, `invalid_request`), `generation_job.result`; api: `applyServerBatch` (one transaction under the company lock with a `before` hook), `freezeSnapshot`, the `docx` renderer, LibreOffice conversion (per-job profile, concurrency 1, process-group kill on timeout, fault flag), pdfjs outline reader, two-pass (at most three) TOC, `runGenerateJob` with the revision written in the same transaction as the files, pg-boss worker (`WORKER=1`), `POST /api/relatorios/:id/generate` (409 barrier, running, unchanged, 202) and `GET /api/revisions/:id/docx`; web: `SyncClient.generate`, `generate-store`, the Export dialog (mock `73-exportar.html`) with its state machine, `local_prefs` "awaiting" entry for "pode fechar", status ops through `statusTable`, dev-only `/__fixture/export` route; tests at every layer; `e2e/export.spec.ts` (`@p0`, `@p1`) and `e2e/export-visual.spec.ts` (`@p2`); the fixture skeleton DOCX and PDF under `reviews/qa-epic-4-D/` for Bruno's read (pending).
 
