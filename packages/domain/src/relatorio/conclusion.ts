@@ -62,6 +62,12 @@ function ncItems(block: BlockRow, definition: BlockDefinition): { n: number; lab
   });
 }
 
+/** E5-Q4: true when the enabled checklist holds at least one Conforme row. */
+function anyConforme(block: BlockRow, definition: BlockDefinition): boolean {
+  if (definition.checklist === null || !enabledSubBlocksOf(block).has('checklist')) return false;
+  return definition.checklist.some((item) => checklistResultOf(block, item.key) === 'C');
+}
+
 /** True when any stored checklist result was answered by the engineer (a `na_defaults` NA alone is not an answer). */
 function anyAnswered(block: BlockRow): boolean {
   return Object.values(block.sheet.checklist).some((item) => isCellFilled(item.result));
@@ -193,8 +199,9 @@ function fnv1a(text: string): string {
  * FR-30: the conclusion paragraph composed on the device from the sheet's own values, one
  * fixed template per block type: the identity from the nameplate, each test's worst
  * reading when it is out of criterion (else "valores medidos dentro dos critérios de
- * aceitação"), the NC items with their observations (else "todos os itens verificados
- * conformes") and, when restricted or failed, the recommendation. No network, no model.
+ * aceitação", only when a capture was judged), the NC items with their observations (else
+ * "todos os itens verificados conformes", only with a C row), a clause saying what was not
+ * recorded (E5-Q4) and, when restricted or failed, the recommendation. No network, no model.
  */
 export function composeConclusion(block: BlockRow, definition: BlockDefinition, equipmentTag: string): ComposedConclusion {
   const noun = NOUNS[definition.block_type];
@@ -206,17 +213,32 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
   const subject = [noun.noun, tag === '' ? null : tag, identity.length === 0 ? null : `(${identity.join(', ')})`].filter((part) => part !== null).join(' ');
 
   const evaluations = evaluateSheetReadings(block, definition);
+  const cells = evaluatedCells(evaluations);
   const worst = worstReadings(evaluations);
   const out = worst.filter((reading) => reading.verdict === 'out');
+  // E5-Q4: "within the criteria" only when a capture was judged; "conformes" only with a C row.
+  const judged = out.length > 0 || cells.some((cell) => cell.role === 'capture' && cell.verdict !== null);
   const readings = out.length === 0 ? 'valores medidos dentro dos critérios de aceitação' : listPtBr(out.map(readingClause));
   const ncs = ncItems(block, definition);
+  const conformes = anyConforme(block, definition);
+  const checked = ncs.length > 0 || conformes;
   const checklist =
     ncs.length === 0 ? 'todos os itens verificados conformes' : listPtBr(ncs.map((item) => `${item.observation ?? item.label.toLocaleLowerCase('pt-BR')} (item ${item.n}, NC)`));
 
   const result = conclusionResultOf(block);
   const restriction = conclusionRestrictionOf(block);
   const recommend = restriction === 'com_restricoes' || result === 'reprovado';
-  const text = `${subject} ${noun.plural ? 'apresentaram' : 'apresentou'} ${readings} e ${checklist}.${recommend ? ` ${RECOMMENDATION}` : ''}`;
+  const verb = noun.plural ? 'apresentaram' : 'apresentou';
+  // authored (OQ-3 placeholder): the sentence states only what exists.
+  const body =
+    judged && checked
+      ? `${verb} ${readings} e ${checklist}`
+      : judged
+        ? `${verb} ${readings}, sem itens verificados registrados`
+        : checked
+          ? `${verb} ${checklist}, sem valores medidos registrados`
+          : `não ${verb} valores medidos nem itens verificados registrados`;
+  const text = `${subject} ${body}.${recommend ? ` ${RECOMMENDATION}` : ''}`;
 
   const criteriaItems = [
     ...worst.map((reading) => `${TEST_WORDS[reading.testKey].symbol} ${reading.where} ${reading.valueText} · critério ${reading.criterionText}`),
@@ -227,7 +249,9 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
     canonicalJson({
       pair: { result, restriction },
       identity: { tag, fabricacao, tensao, corrente },
-      readings: evaluatedCells(evaluations).map((cell) => ({ a: cell.address, s: cell.state, r: cell.raw, u: cell.unit, f: cell.fallback?.raw ?? null, v: cell.verdict })),
+      judged,
+      conformes,
+      readings: cells.map((cell) => ({ a: cell.address, s: cell.state, r: cell.raw, u: cell.unit, f: cell.fallback?.raw ?? null, v: cell.verdict })),
       nc: ncs,
     }),
   );

@@ -641,6 +641,9 @@ test('@p0 4.2-E2E-001 Relatório setup: the five Etapa bands, autosave, geolocat
   expect(relatorioRow.row.setup).toMatchObject({ site_altitude_m: 820, site_altitude_confirmed: true });
 });
 
+/** The seed v1 equipment block types (`packages/domain/src/seed/v1.ts`); every one has an `isolacao` test. */
+const EQUIPMENT_BLOCK_TYPES = ['cabos_entrada', 'para_raio', 'chave_seccionadora', 'disjuntor_mt', 'tp', 'tc', 'cabos_saida', 'transformador_forca'];
+
 test('@p1 4.2-E2E-002 an instrument still referenced by a sheet cannot be unchecked', async ({ page }) => {
   await resetEmpresaB();
   await signIn(page, account.email);
@@ -655,11 +658,17 @@ test('@p1 4.2-E2E-002 an instrument still referenced by a sheet cannot be unchec
   // of them can materialize; the instrument itself never needs to sync (its id is carried
   // by value in the cell, the same way `isInstrumentReferenced` reads it).
   await syncNow(page);
-  const entities = await readStore<{ entity: string; id: string; row: { code?: string; kind?: string } }>(page, database, 'entities');
+  const entities = await readStore<{ entity: string; id: string; row: { code?: string; kind?: string; block_type?: string } }>(
+    page,
+    database,
+    'entities',
+  );
   const instrument = entities.find((r) => r.entity === 'registry' && r.row.kind === 'instrument' && r.row.code === 'R1')!;
-  const block = entities.find((r) => r.entity === 'block')!;
+  // E5-Q1: an equipment block and a real test key; the kernel refuses a seed key outside the
+  // block's definition (`isolacao` is a test of every equipment block type in seed v1).
+  const block = entities.find((r) => r.entity === 'block' && EQUIPMENT_BLOCK_TYPES.includes(r.row.block_type ?? ''))!;
   const deviceId = await readDeviceId(page, database);
-  await pushOp(page, relatorioId, deviceId, `sheet/${block.id}/test/t1/instrument`, { instrument_id: instrument.id });
+  await pushOp(page, relatorioId, deviceId, `sheet/${block.id}/test/isolacao/instrument`, { instrument_id: instrument.id });
   await syncNow(page);
   await page.reload();
 

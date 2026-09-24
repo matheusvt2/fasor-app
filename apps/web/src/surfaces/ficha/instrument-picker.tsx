@@ -193,12 +193,13 @@ export function InstrumentPicker({
             </svg>
           </span>
         )}
+        {/* E5-Q9: inside `.instrument-picker`, so the mock rule `.instrument-picker .ip-expired` (components.css) colors it fora-do-limite. */}
+        {expired === null ? null : (
+          <p className="ip-expired" id={expiredId}>
+            {expired}
+          </p>
+        )}
       </div>
-      {expired === null ? null : (
-        <p className="ip-expired" id={expiredId}>
-          {expired}
-        </p>
-      )}
       {header === null ? null : (
         <details className="ficha-details">
           <summary>

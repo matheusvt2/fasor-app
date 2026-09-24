@@ -70,6 +70,14 @@ describe('5.5-UNIT parseReadingPtBr, formatDecimalGroupedPtBr, numberEchoText', 
     expect(parseReadingPtBr('147 GΩ', insulation)).toEqual({ raw: '147', unit: 'GΩ' });
     expect(parseReadingPtBr('330 Ω', insulation)).toEqual({ raw: '330', unit: 'MΩ' });
     expect(parseReadingPtBr('147G', micro)).toBe('invalid');
+    // E5-Q7: a lowercase m with the ohm is milliohm, refused; mega spellings stay mega.
+    expect(parseReadingPtBr('147 mΩ', insulation)).toBe('invalid');
+    expect(parseReadingPtBr('147 mohm', insulation)).toBe('invalid');
+    expect(parseReadingPtBr('147mohms', insulation)).toBe('invalid');
+    expect(parseReadingPtBr('147 MΩ', insulation)).toEqual({ raw: '147', unit: 'MΩ' });
+    expect(parseReadingPtBr('147M', insulation)).toEqual({ raw: '147', unit: 'MΩ' });
+    expect(parseReadingPtBr('147 m', insulation)).toEqual({ raw: '147', unit: 'MΩ' });
+    expect(parseReadingPtBr('147 Mohm', insulation)).toEqual({ raw: '147', unit: 'MΩ' });
   });
 
   it('empty is null, no number is invalid', () => {

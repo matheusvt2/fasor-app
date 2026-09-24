@@ -3,7 +3,7 @@ import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { getDefinition, getSeed } from '../seed/definitions.ts';
 import type { BlockDefinition, FieldDef } from '../seed/schema.ts';
 import { formatCalendarDate } from '../format/datetime.ts';
-import { formatDecimalPtBr, parseDecimalPtBr } from '../parse/pt-br-number.ts';
+import { formatDecimalGroupedPtBr, parseDecimalPtBr } from '../parse/pt-br-number.ts';
 import { wordRowByName } from '../registry/instrument-row.ts';
 import { sortWordRegistryRows, type WordRow } from '../registry/word-row.ts';
 import { plural } from '../text/plural.ts';
@@ -264,12 +264,12 @@ export function numberFieldValue(typed: string, unit: string | null): { raw: str
   return raw === null ? 'invalid' : { raw, unit, state: 'measured' };
 }
 
-/** A stored field value as a field shows it: numbers pt-BR, dates dd/mm/aaaa, text as typed; '' when empty. */
+/** A stored field value as a field shows it: numbers pt-BR with thousands grouped ("1.500", E5-Q14), dates dd/mm/aaaa, text as typed; '' when empty. */
 export function fieldValueText(field: Pick<FieldDef, 'kind'>, value: unknown): string {
   if (value === null || value === undefined) return '';
   if (typeof value === 'object' && !Array.isArray(value) && 'raw' in (value as object)) {
     const number = value as { raw: string; state?: string };
-    return number.state === 'empty' ? '' : formatDecimalPtBr(number.raw);
+    return number.state === 'empty' ? '' : formatDecimalGroupedPtBr(number.raw);
   }
   if (field.kind === 'date' && typeof value === 'string') return formatCalendarDate(value);
   return typeof value === 'string' ? value : String(value);

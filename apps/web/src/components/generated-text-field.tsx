@@ -33,7 +33,8 @@ export interface GeneratedTextFieldProps {
  * its description. "Editar" stores the current text as edited at once, which stops the
  * recomposition, then opens it for typing; a confirmed text whose values changed since
  * shows "Sugerido: texto atualizado — Substituir" beneath and is never overwritten on its
- * own. The texts are the caller's (the kernel's). Read-only, it shows the text alone and
+ * own; there the Criteria line moves beneath that row as the evidence of the replacement
+ * and stops describing the stored text (E5-Q5). The texts are the caller's (the kernel's). Read-only, it shows the text alone and
  * offers no action.
  */
 export function GeneratedTextField({ label, text, criteriaItems, state, onConfirm, onReplace, onEdit, draft, helper, confirmedHelper, readOnly = false }: GeneratedTextFieldProps) {
@@ -70,6 +71,18 @@ export function GeneratedTextField({ label, text, criteriaItems, state, onConfir
   });
 
   const suggested = state === 'unconfirmed';
+  // E5-Q5: a stale text's criteria line is the recomposed text's, the evidence of the
+  // "Substituir" suggestion, never the description of the stored text it contradicts.
+  const stale = state === 'stale';
+  const describedBy = stale ? undefined : criteriaId;
+  const criteriaLine = (
+    <p className="criteria-line" id={criteriaId}>
+      <span className="cl-label">{t.criteria}</span>
+      {criteriaItems.map((item) => (
+        <span key={item}>{item}</span>
+      ))}
+    </p>
+  );
   return (
     <div className="field suggestion-field is-generated" data-state={suggested && !typing ? 'suggested' : 'confirmed'}>
       <span className="field-label" id={labelId}>
@@ -80,7 +93,7 @@ export function GeneratedTextField({ label, text, criteriaItems, state, onConfir
           ref={area}
           className="observation-field"
           aria-labelledby={labelId}
-          aria-describedby={criteriaId}
+          aria-describedby={describedBy}
           value={value}
           onChange={(event) => {
             dirty.current = true;
@@ -93,23 +106,19 @@ export function GeneratedTextField({ label, text, criteriaItems, state, onConfir
           }}
         />
       ) : (
-        <div className="generated-text" role="textbox" aria-multiline="true" aria-readonly="true" aria-labelledby={labelId} aria-describedby={criteriaId}>
+        <div className="generated-text" role="textbox" aria-multiline="true" aria-readonly="true" aria-labelledby={labelId} aria-describedby={describedBy}>
           {text}
         </div>
       )}
       {suggested && !typing ? <span className="suggested-pill">{ui.suggestionField.suggested}</span> : null}
-      <p className="criteria-line" id={criteriaId}>
-        <span className="cl-label">{t.criteria}</span>
-        {criteriaItems.map((item) => (
-          <span key={item}>{item}</span>
-        ))}
-      </p>
-      {state === 'stale' && !readOnly ? (
+      {stale ? null : criteriaLine}
+      {stale && !readOnly ? (
         <p className="suggestion-alt">
           {`${t.stale} — `}
           <button
             type="button"
             className="btn btn-text"
+            aria-describedby={criteriaId}
             onClick={() => {
               setEditing(false);
               dirty.current = false;
@@ -120,6 +129,7 @@ export function GeneratedTextField({ label, text, criteriaItems, state, onConfir
           </button>
         </p>
       ) : null}
+      {stale ? criteriaLine : null}
       {readOnly ? null : (
         <div className="generated-actions">
           {suggested && !typing ? (

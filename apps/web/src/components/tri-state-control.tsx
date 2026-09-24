@@ -1,5 +1,6 @@
 import { useRef, type KeyboardEvent } from 'react';
 import { ui } from '../copy/ui.ts';
+import { useLatestChoice } from './use-latest-choice.ts';
 
 export type TriStateValue = 'C' | 'NC' | 'NA';
 
@@ -18,8 +19,8 @@ export interface TriStateControlProps {
    */
   committed?: boolean;
   /**
-   * Story 5.9: a not-tested sheet's checklist is read-only (`key-sheet-states.html` frame
-   * (a): `aria-disabled="true"` on the radiogroup, no segment selectable). `components.css`
+   * Story 5.9: a not-tested sheet's checklist is read-only (`aria-readonly="true"` on the
+   * radiogroup, UX-DR48/49 and E5-Q10, the value stays announced; no segment selectable). `components.css`
    * already blocks pointer events on `.is-readonly .tri-state`; this also blocks the
    * keyboard (arrows, Delete/Backspace) and a click that reaches the button regardless.
    */
@@ -47,12 +48,14 @@ export function TriStateControl({ value, onChange, committed = true, readOnly = 
   const segments = useRef(new Map<TriStateValue, HTMLButtonElement | null>());
   const selectedIndex = SEGMENTS.findIndex((segment) => segment.value === value);
   const tabbableIndex = selectedIndex === -1 ? 0 : selectedIndex;
+  // E5-Q8: the guards read the last emitted value, never the prop one round trip behind.
+  const { latest, emit } = useLatestChoice(value, onChange);
 
   function moveTo(index: number) {
     if (readOnly) return;
     const target = SEGMENTS[(index + SEGMENTS.length) % SEGMENTS.length]!;
     segments.current.get(target.value)?.focus();
-    if (target.value !== value) onChange(target.value);
+    if (target.value !== latest.current) emit(target.value);
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
@@ -78,7 +81,7 @@ export function TriStateControl({ value, onChange, committed = true, readOnly = 
       case 'Delete':
       case 'Backspace':
         event.preventDefault();
-        if (!readOnly && value !== null) onChange(null);
+        if (!readOnly && latest.current !== null) emit(null);
         return;
       default:
         return;
@@ -86,7 +89,7 @@ export function TriStateControl({ value, onChange, committed = true, readOnly = 
   }
 
   return (
-    <div className="tri-state" role="radiogroup" aria-disabled={readOnly || undefined} {...rest}>
+    <div className="tri-state" role="radiogroup" aria-readonly={readOnly || undefined} {...rest}>
       {SEGMENTS.map((segment, index) => (
         <button
           key={segment.value}
@@ -102,7 +105,7 @@ export function TriStateControl({ value, onChange, committed = true, readOnly = 
           }}
           onClick={() => {
             if (readOnly) return;
-            if (segment.value !== value || !committed) onChange(segment.value);
+            if (segment.value !== latest.current || !committed) emit(segment.value);
           }}
           onKeyDown={(event) => onKeyDown(event, index)}
         >

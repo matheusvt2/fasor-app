@@ -3,6 +3,8 @@ import {
   buildSnapshot,
   cabineOf,
   concludedByText,
+  conclusionRestrictionOf,
+  conclusionResultOf,
   enabledSubBlocksOf,
   filledByText,
   getDefinition,
@@ -57,7 +59,7 @@ import { EnsaiosSection } from './ensaios-section.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { FichaHeader } from './ficha-header.tsx';
 import { firstFocusable } from './ficha-fields.tsx';
-import { concludedByOp, notTestedOp } from './ficha-ops.ts';
+import { concludedByOp, conclusionOp, notTestedOp } from './ficha-ops.ts';
 import { NameplateSection } from './nameplate-section.tsx';
 import { NotTestedBand } from './not-tested-band.tsx';
 import { SectionStepper } from './section-stepper.tsx';
@@ -315,6 +317,22 @@ function FichaBody({
   if (block.concluded_by === null && block.not_tested === null) menu.push({ id: 'concluir', label: t.menuConcluir, onAction: conclude });
   if (block.equipment_id !== null) menu.push({ id: 'rename-tag', label: t.menuRenameTag, onAction: () => setRenaming(true) });
   if (block.not_tested === null) menu.push({ id: 'nao-ensaiado', label: copy.sumario.tree.markNotTested, onAction: () => setNotTestedDialogOpen(true) });
+  // E5-Q17 (EXPERIENCE › Conclusion control: "Limpar" via Delete/Backspace or the sheet
+  // Overflow menu): clears the result and the restriction in one edit, undoable like any
+  // other; the stored text stays, hidden while the result is empty.
+  if (block.not_tested === null && (conclusionResultOf(block) !== null || conclusionRestrictionOf(block) !== null)) {
+    menu.push({ id: 'limpar-conclusao', label: t.menuLimparConclusao, onAction: () => clearConclusion() });
+  }
+
+  const clearConclusion = () => {
+    void api
+      .edit((blocks, by) => {
+        const fresh = blocks.find((row) => row.id === blockId && row.removed_at === null);
+        if (fresh === undefined || (conclusionResultOf(fresh) === null && conclusionRestrictionOf(fresh) === null)) return null;
+        return [conclusionOp(by, relatorioId, blockId, 'result', null), conclusionOp(by, relatorioId, blockId, 'restriction', null)];
+      })
+      .catch(() => undefined);
+  };
 
   const markNotTested = (reason: string, text: string | null) => {
     void api

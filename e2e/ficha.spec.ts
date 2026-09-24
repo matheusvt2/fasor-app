@@ -914,9 +914,15 @@ test('@p0 5.9-E2E-001 "Marcar não ensaiado" from the sheet header: reason chips
   await expect(page.getByRole('button', { name: 'Digitar' })).toHaveCount(0);
   await expect(page.getByRole('textbox', { name: PARA_RAIO.nameplate[0]!.label })).toHaveAttribute('aria-readonly', 'true');
 
-  // Checklist: no bulk bar, the tri-state radiogroups disabled, the Overflow trigger hidden.
+  // Checklist: no bulk bar, the tri-state radiogroups read-only (E5-Q10: `aria-readonly`,
+  // never `aria-disabled`), the Overflow trigger hidden.
   await expect(page.locator('#ficha-step-verificacoes .bulk-action-bar')).toHaveCount(0);
-  await expect(checklistRow(page, 1).getByRole('radiogroup')).toHaveAttribute('aria-disabled', 'true');
+  const groups = page.locator('#ficha-step-verificacoes li.checklist-row [role="radiogroup"]');
+  await expect(groups).toHaveCount(PARA_RAIO.checklist!.length);
+  for (const group of await groups.all()) {
+    await expect(group).toHaveAttribute('aria-readonly', 'true');
+    await expect(group).not.toHaveAttribute('aria-disabled');
+  }
   await expect(checklistRow(page, 1).locator('.overflow-trigger')).toBeHidden();
   await expect(page.locator('.sticky-action-bar .bulk-action-bar')).toHaveCount(0);
 
@@ -1051,4 +1057,175 @@ test('@p0 5.4-E2E-002 "Repetir da ficha anterior do mesmo tipo" writes only the 
   const written = (await outbox(page)).filter((row) => row.path === `sheet/${target.blockId}/checklist/${items[0]!.key}/result`);
   expect(written.every((row) => row.value === 'NC')).toBe(true);
   expect((await outbox(page)).find((row) => row.path === `sheet/${target.blockId}/checklist/${items[1]!.key}/result`)?.value).toBe('C');
+});
+
+// --- Epic 5 integrated review fixes (E5-Q2, Q8, Q9, Q17, Q18) ---------------------------------
+
+test('@p1 E5-Q2 phone 390 x 844: the insulation value input, its unit slot and its cell Overflow sit inside the viewport', async ({ page }) => {
+  test.setTimeout(120_000);
+  await openRelatorio(page, 390);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openEnel(page);
+  await openSheet(page, rowOfType(page, 'TP'));
+  await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
+  const input = cellInput(page, 'Fase R, 1 minuto');
+  await input.scrollIntoViewIfNeeded();
+  const cell = cellBox(page, 'isolacao:0:1');
+  for (const part of [input, cell.locator('.unit-cycle'), cell.locator('.overflow-trigger')]) {
+    await expect(part).toBeVisible();
+    const box = (await part.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(390);
+  }
+  expect(await horizontalOverflow(page)).toBe(0);
+});
+
+test('@p1 E5-Q8 Space, ArrowRight and Delete in quick succession always leave the checklist row unset', async ({ page }) => {
+  test.setTimeout(120_000);
+  await openRelatorio(page, 1280);
+  await openEnel(page);
+  const { blockId } = await openSheet(page, rowOfType(page, 'Para-raio'));
+  const row = checklistRow(page, 1);
+  const path = `sheet/${blockId}/checklist/${PARA_RAIO.checklist![0]!.key}/result`;
+  for (let round = 0; round < 3; round++) {
+    await row.getByRole('radio', { name: 'Conforme', exact: true }).focus();
+    await page.keyboard.press('Space');
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('Delete');
+    await expect(row.locator('[role="radio"][aria-checked="true"]')).toHaveCount(0);
+    await expect.poll(async () => (await outbox(page)).filter((op) => op.path === path).at(-1)?.value).toBeNull();
+  }
+  // Still unset once every op has landed.
+  await page.reload();
+  await expect(checklistRow(page, 1).getByRole('radiogroup')).toBeVisible({ timeout: 30_000 });
+  await expect(checklistRow(page, 1).locator('[role="radio"][aria-checked="true"]')).toHaveCount(0);
+});
+
+test('@p1 E5-Q17 the sheet Overflow "Limpar conclusão" clears both groups in one edit', async ({ page }) => {
+  test.setTimeout(120_000);
+  await openRelatorio(page, 1280);
+  await openEnel(page);
+  const { blockId, tag } = await openSheet(page, rowOfType(page, 'Para-raio'));
+  const menu = page.getByRole('button', { name: `Mais opções da ficha ${tag}` });
+  // Nothing set: no entry.
+  await menu.click();
+  await expect(page.getByRole('menuitem', { name: 'Limpar conclusão' })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+
+  await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
+  await resultGroup(page).getByRole('radio', { name: 'Aprovado' }).click();
+  await restrictionGroup(page).getByRole('radio', { name: 'Sem restrições' }).click();
+  await expect(restrictionGroup(page).getByRole('radio', { name: 'Sem restrições' })).toHaveAttribute('aria-checked', 'true');
+
+  await menu.click();
+  await page.getByRole('menuitem', { name: 'Limpar conclusão' }).click();
+  await expect(resultGroup(page).locator('[aria-checked="true"]')).toHaveCount(0);
+  await expect(restrictionGroup(page).locator('[aria-checked="true"]')).toHaveCount(0);
+  const last = async (field: string) => (await outbox(page)).filter((op) => op.path === `sheet/${blockId}/conclusion/${field}`).at(-1);
+  await expect.poll(async () => (await last('result'))?.value).toBeNull();
+  await expect.poll(async () => (await last('restriction'))?.value).toBeNull();
+  // One edit: the two clears share a batch.
+  const [result, restriction] = [await last('result'), await last('restriction')];
+  expect(result?.batch_id).not.toBeNull();
+  expect(result?.batch_id).toBe(restriction?.batch_id);
+});
+
+test('@p0 E5-Q18a a typed, uncommitted reading survives a dead tab as "Rascunho encontrado — Recuperar"', async ({ page, context }) => {
+  test.setTimeout(120_000);
+  await openRelatorio(page, 1280);
+  await openEnel(page);
+  const { blockId } = await openSheet(page, rowOfType(page, 'Chave seccionadora'));
+  await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
+  const t1 = cellInput(page, 'T1, Valor');
+  await t1.click();
+  await page.keyboard.type('3.300');
+  // The tab goes away mid-typing, before Enter or a blur commits the reading.
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect.poll(async () => (await readStore<{ value: unknown }>(page, database, 'drafts')).map((row) => row.value)).toContain('3.300');
+  expect((await outbox(page)).filter((row) => row.path === `sheet/${blockId}/test/isolacao/cell/0/0`)).toEqual([]);
+  const url = page.url();
+  await page.close();
+
+  const reopened = await context.newPage();
+  await reopened.setViewportSize({ width: 1280, height: 900 });
+  await reopened.goto(url);
+  await expect(reopened.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  await stepper(reopened).getByRole('button', { name: /^Ensaios,/ }).click();
+  const offer = reopened.getByTestId('toast');
+  await expect(offer).toContainText('Rascunho encontrado');
+  await offer.getByRole('button', { name: 'Recuperar' }).click();
+  const recovered = cellInput(reopened, 'T1, Valor');
+  await expect(recovered).toHaveValue('3.300');
+  await recovered.click();
+  await reopened.keyboard.press('Enter');
+  await expect
+    .poll(async () => (await readStore<OutboxRow>(reopened, database, 'outbox')).filter((row) => row.path === `sheet/${blockId}/test/isolacao/cell/0/0`).at(-1)?.value)
+    .toEqual({ raw: '3300', unit: 'GΩ', state: 'measured' });
+});
+
+test('@p1 E5-Q18d offline, "Cadastrar instrumento" opens Cadastros; the instrument created there is picked back on the sheet', async ({ page, context }) => {
+  test.setTimeout(150_000);
+  await openRelatorio(page, 1280);
+  await openEnel(page);
+  const { blockId } = await openSheet(page, rowOfType(page, 'Chave seccionadora'));
+  await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
+  await context.setOffline(true);
+  try {
+    const isoSection = page.locator('section[data-test-key="isolacao"]');
+    await isoSection.getByRole('button', { name: /^Instrumento/ }).click();
+    await isoSection.getByRole('button', { name: 'Cadastrar instrumento' }).click();
+    await expect(page).toHaveURL(/\/cadastros/);
+    await page.getByRole('tab', { name: 'Instrumentos' }).click();
+    await page.getByRole('button', { name: /^(Novo|Cadastrar) instrumento$/ }).click();
+    const panel = page.locator('.registry-panel');
+    await expect(panel).toBeVisible();
+    await panel.getByLabel('Código').fill('N1');
+    await panel.getByLabel('Nome').fill('Megôhmetro offline');
+    await panel.getByRole('button', { name: 'Fechar edição' }).click();
+    await expect(panel).toBeHidden();
+    await expect(page.getByRole('button', { name: /N1/ })).toBeVisible();
+
+    await page.goBack();
+    await expect(page).toHaveURL(new RegExp(`/ficha/${blockId}$`));
+    await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
+    await isoSection.getByRole('button', { name: /^Instrumento/ }).click();
+    await isoSection.getByRole('radiogroup', { name: 'Instrumentos cadastrados' }).getByRole('radio', { name: /^N1/ }).click();
+    await expect(isoSection.getByRole('button', { name: 'Instrumento N1 — Megôhmetro offline' })).toBeVisible();
+    await expect
+      .poll(async () => (await outbox(page)).filter((row) => row.path === `sheet/${blockId}/test/isolacao/instrument`).map((row) => (row.value as { code?: string }).code))
+      .toEqual(['N1']);
+    expect((await outbox(page)).some((row) => row.path.startsWith('registry/instrument/'))).toBe(true);
+  } finally {
+    await context.setOffline(false);
+  }
+});
+
+test('@p1 E5-Q9 the expired calibration line under a picked instrument is drawn in fora-do-limite', async ({ page }) => {
+  test.setTimeout(150_000);
+  const { relatorioId } = await openRelatorio(page, 1280);
+  await pushDrafts(page, database, [
+    instrumentDraft(newId(), { code: '5A', name: 'Megôhmetro MIT525', manufacturer: 'Megger', model: 'MIT525', serial: '1002211', cert_number: '35110/24', calibrated_at: '2025-02-02', calibration_interval_months: 12 }),
+  ]);
+  await syncNow(page);
+  await page.goto(`/relatorio/${relatorioId}`);
+  await openEnel(page);
+  await openSheet(page, rowOfType(page, 'Chave seccionadora'));
+  await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
+  const isoSection = page.locator('section[data-test-key="isolacao"]');
+  await isoSection.getByRole('button', { name: /^Instrumento/ }).click();
+  await isoSection.getByRole('radio', { name: /^5A/ }).click();
+  const expired = isoSection.locator('.instrument-picker p.ip-expired');
+  await expect(expired).toHaveText('Calibração vencida em 02/02/2026');
+  const [color, expected] = await expired.evaluate((element) => {
+    const probe = document.createElement('span');
+    probe.style.color = 'var(--fora-do-limite)';
+    document.body.append(probe);
+    const want = getComputedStyle(probe).color;
+    probe.remove();
+    return [getComputedStyle(element).color, want];
+  });
+  expect(color).toBe(expected);
 });

@@ -1,4 +1,4 @@
-import { relatorioOpEnvelope, type Author, type InstrumentHeader, type JsonValue, type OpDraft } from '@app/domain';
+import { putBlockOp, relatorioOpEnvelope, type Author, type InstrumentHeader, type JsonValue, type OpDraft } from '@app/domain';
 
 /*
  * The ops the equipment sheet writes (Stories 5.1-5.4): `sheet/{blockId}/nameplate/{key}`,
@@ -7,7 +7,8 @@ import { relatorioOpEnvelope, type Author, type InstrumentHeader, type JsonValue
  * sheet, AR-5) and `block/{id}/concluded_by`; Stories 5.5-5.8 add the test cells, the
  * instrument header and the conclusion fields. All relatório scope, one op per committed
  * value (AD-1); `applyOp` validates the seed-defined keys (E3-A3). The envelope is the
- * kernel's `relatorioOpEnvelope` (Epic 4 retro item 7), the same one `relatorio-ops.ts` uses.
+ * kernel's `relatorioOpEnvelope` (Epic 4 retro item 7), the same one `relatorio-ops.ts` uses;
+ * the two `block/{id}/…` puts are the kernel's `putBlockOp` (E4-A4, E5-Q16).
  */
 
 const envelope = relatorioOpEnvelope;
@@ -92,7 +93,7 @@ export function conclusionOp(
 
 /** `block/{id}/concluded_by` put: `{actor_id, at}` (AR-17), only at Progress = Completa. */
 export function concludedByOp(author: Author, relatorioId: string, blockId: string, at: string): OpDraft {
-  return put(author, relatorioId, `block/${blockId}/concluded_by`, { actor_id: author.id, at });
+  return putBlockOp(author, relatorioId, blockId, 'concluded_by', { actor_id: author.id, at });
 }
 
 /**
@@ -100,5 +101,5 @@ export function concludedByOp(author: Author, relatorioId: string, blockId: stri
  * added here) and its "Desfazer" (`null`).
  */
 export function notTestedOp(author: Author, relatorioId: string, blockId: string, value: { reason: string; text: string | null; at: string } | null): OpDraft {
-  return put(author, relatorioId, `block/${blockId}/not_tested`, value === null ? null : { ...value, by: author.id });
+  return putBlockOp(author, relatorioId, blockId, 'not_tested', value === null ? null : { ...value, by: author.id });
 }

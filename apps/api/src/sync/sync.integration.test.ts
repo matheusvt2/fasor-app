@@ -273,6 +273,40 @@ function equipmentCreate(ids: Ids, equipmentId: string, projectId: string): Op {
   });
 }
 
+/** A relatório block row of `blockType` at seed v1 (a section type has no equipment definition). */
+function blockCreate(ids: Ids, relatorioId: string, blockId: string, blockType: string): Op {
+  written.entityIds.add(blockId);
+  return op(ids, {
+    kind: 'create',
+    scope: 'relatorio',
+    relatorio_id: relatorioId,
+    path: `block/${blockId}`,
+    value: {
+      id: blockId,
+      relatorio_id: relatorioId,
+      location_id: null,
+      equipment_id: null,
+      block_type: blockType,
+      config: {},
+      seed_version: 'v1',
+      order_key: 'a0',
+      feeds_block_id: null,
+      not_tested: null,
+      concluded_by: null,
+      sheet: { nameplate: {}, checklist: {}, test: {}, conclusion: {}, observations: null },
+      created_by: null,
+      first_edited_at: null,
+      last_modified_by: null,
+      last_modified_at: null,
+      removed_at: null,
+    },
+  });
+}
+
+function sheetPut(ids: Ids, relatorioId: string, path: string, value: unknown): Op {
+  return op(ids, { kind: 'put', scope: 'relatorio', relatorio_id: relatorioId, path, value: value as Op['value'] });
+}
+
 function setupPut(ids: Ids, relatorioId: string, field: string, value: unknown, extra: Partial<OpInput> = {}): Op {
   return op(ids, {
     kind: 'put',
@@ -349,6 +383,42 @@ describe('1.5-API-001 push semantics', () => {
     expect(stored.has(badValue.op_id)).toBe(false);
     expect(stored.has(unknownPath.op_id)).toBe(false);
     expect(stored.has(good.op_id)).toBe(true);
+  });
+
+  it('E5-Q1 answers 200 with a seed-path refusal as op_invalid, never 500, and applies the rest', async () => {
+    const relatorioId = newId();
+    const equipment = newId();
+    const section = newId();
+    const setup = [
+      relatorioCreate(idsA, relatorioId, newId()),
+      blockCreate(idsA, relatorioId, equipment, 'disjuntor_mt'),
+      blockCreate(idsA, relatorioId, section, 'section_1'),
+    ];
+    expect((await pushOk(companyA, setup)).rejected).toEqual([]);
+    const instrument = { instrument_id: newId() };
+    const reading = { raw: '3300', unit: 'MΩ', state: 'measured' };
+    // disjuntor_mt isolação: six rows (0-5), one VALORES column; TP ratio col 2 is VAL CALCULADO (derived).
+    const unknownTest = sheetPut(idsA, relatorioId, `sheet/${equipment}/test/nao_existe/instrument`, instrument);
+    const onSection = sheetPut(idsA, relatorioId, `sheet/${section}/test/isolacao/instrument`, instrument);
+    const rowOutside = sheetPut(idsA, relatorioId, `sheet/${equipment}/test/isolacao/cell/6/0`, reading);
+    const colOutside = sheetPut(idsA, relatorioId, `sheet/${equipment}/test/isolacao/cell/0/1`, reading);
+    const good = sheetPut(idsA, relatorioId, `sheet/${equipment}/test/isolacao/cell/0/0`, reading);
+    const result = await pushOk(companyA, [unknownTest, onSection, rowOutside, colOutside, good]);
+    expect(result.rejected).toEqual([
+      { op_id: unknownTest.op_id, code: 'op_invalid' },
+      { op_id: onSection.op_id, code: 'op_invalid' },
+      { op_id: rowOutside.op_id, code: 'op_invalid' },
+      { op_id: colOutside.op_id, code: 'op_invalid' },
+    ]);
+    expect(result.applied.map((a) => a.op_id)).toEqual([good.op_id]);
+    const [row] = await db
+      .select({ row: entities.row })
+      .from(entities)
+      .where(and(eq(entities.company_id, companyA.companyId), eq(entities.entity, 'block'), eq(entities.id, equipment)));
+    const sheet = (row?.row as { sheet: { test: Record<string, { cells: Record<string, Record<string, unknown>> }> } }).sheet;
+    expect(sheet.test.isolacao?.cells['0']?.['0']).toBeDefined();
+    expect(sheet.test.nao_existe).toBeUndefined();
+    expect((await storedIds([unknownTest.op_id, onSection.op_id])).size).toBe(0);
   });
 
   it('rejects a server-only family and the two origin spoofs as op_server_only, a foreign actor as op_invalid', async () => {

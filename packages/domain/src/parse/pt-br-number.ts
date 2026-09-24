@@ -94,7 +94,8 @@ export function isInsulationFamily(units: readonly string[]): boolean {
 /**
  * Story 5.5: a typed reading. `null` for an empty field, `'invalid'` for text that is no
  * number. On the insulation family a trailing M, G or T (any case, an optional space, an
- * optional "Ω" or "ohm") sets the unit ("147G" -> 147 GΩ, "3.7T" -> 3,7 TΩ, "147 g"); a
+ * optional "Ω" or "ohm") sets the unit ("147G" -> 147 GΩ, "3.7T" -> 3,7 TΩ, "147 g"), but
+ * a lowercase m with the ohm ("147 mΩ", "147 mohm") is milliohm and invalid (E5-Q7); a
  * suffix on any other field is invalid, since its unit is fixed. A reading is never
  * negative: a leading "-" (also "-5" typed over a "Não medido" dash) is invalid.
  */
@@ -103,9 +104,11 @@ export function parseReadingPtBr(input: string, options: ParseReadingOptions): P
   if (text === '') return null;
   if (text.startsWith('-')) return 'invalid';
   const insulation = isInsulationFamily(options.units);
-  const suffix = /^(.*\d)\s*([mgt])\s*(?:Ω|ohms?)?$/i.exec(text);
+  const suffix = /^(.*\d)\s*([mgt])\s*(Ω|ohms?)?$/i.exec(text);
   if (suffix !== null) {
     if (!insulation) return 'invalid';
+    // E5-Q7: a lowercase m followed by the ohm is milliohm ("147 mΩ"), never mega: refused.
+    if (suffix[2] === 'm' && suffix[3] !== undefined) return 'invalid';
     const raw = parseDecimalPtBr(suffix[1]!);
     return raw === null ? 'invalid' : { raw: canonicalDecimal(raw), unit: SUFFIX_UNITS[suffix[2]!.toLowerCase()]! };
   }

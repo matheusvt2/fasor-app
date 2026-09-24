@@ -10,6 +10,7 @@ import {
   PathError,
   rowIndexColumns,
   rowRemovedAt,
+  SeedPathError,
   SERVER_DEVICE_ID,
   splitEntityKey,
   targetsOf,
@@ -376,6 +377,14 @@ export interface ServerBatchDeps {
 }
 
 /**
+ * A refusal no retry can fix: a row schema failure, a seed key or cell outside the block's
+ * definition (E5-Q1, `SeedPathError`), or an op_id another company holds. Each is `op_invalid`.
+ */
+function isPermanentRefusal(error: unknown): boolean {
+  return error instanceof ZodError || error instanceof SeedPathError || error instanceof ForeignOpIdError;
+}
+
+/**
  * Story 4.8: the server's own ops applied as ONE transaction under the company lock —
  * the generate job's two `file` creates, the `revision` create and the job's `status`
  * and `result` puts land together, so a failed job allocates no revision number and
@@ -415,7 +424,7 @@ export async function applyServerBatch(
       }
     });
   } catch (error) {
-    if (error instanceof ZodError || error instanceof ForeignOpIdError) {
+    if (isPermanentRefusal(error)) {
       const opId = (applying as Op | null)?.op_id ?? '';
       throw new ServerBatchRejectedError([{ op_id: opId, code: 'op_invalid' }], { cause: error });
     }
@@ -445,10 +454,10 @@ export async function applyOps(
       result.applied.push({ op_id: validation.op.op_id, seq });
       if (supersededOver !== null) result.superseded.push({ op_id: validation.op.op_id, over_op_id: supersededOver });
     } catch (error) {
-      // Only a row-schema refusal by applyOp or an op_id taken by another company is a permanent
-      // rejection; anything else (connection, lock, pool) propagates so the caller retries instead
-      // of marking the op dead.
-      if (!(error instanceof ZodError) && !(error instanceof ForeignOpIdError)) throw error;
+      // Only a row-schema or seed-path refusal by applyOp or an op_id taken by another company is a
+      // permanent rejection; anything else (connection, lock, pool) propagates so the caller retries
+      // instead of marking the op dead.
+      if (!isPermanentRefusal(error)) throw error;
       result.rejected.push({ op_id: validation.op.op_id, code: 'op_invalid' });
     }
   }

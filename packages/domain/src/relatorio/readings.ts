@@ -397,9 +397,12 @@ function evaluateTable(block: BlockRow, definition: BlockDefinition, test: TestD
   };
 }
 
-/** The largest power of ten not above `ratio` (clear of float noise: 330 / 0,33 is 1000). */
-function powerOfTenBelow(ratio: number): number {
-  return 10 ** Math.floor(Math.log10(ratio) + 1e-9);
+/**
+ * E5-Q15: the power of ten nearest `ratio` on a log scale (970 reads 1000, not 100), never
+ * below 100, the outlier threshold itself.
+ */
+function nearestPowerOfTen(ratio: number): number {
+  return Math.max(100, 10 ** Math.round(Math.log10(ratio)));
 }
 
 /** The others' labels with the prefix they share with the row dropped: "Fase A", "Fase B" -> "A", "B". */
@@ -430,7 +433,7 @@ function markOutliers(rows: EvaluatedRow[], typed: { col: number; column: Column
       const above = Math.min(...others.map((m) => target.value / m.value));
       const direction = below >= 100 * (1 - 1e-9) ? 'abaixo' : above >= 100 * (1 - 1e-9) ? 'acima' : null;
       if (direction === null) continue;
-      const factor = powerOfTenBelow(direction === 'abaixo' ? below : above);
+      const factor = nearestPowerOfTen(direction === 'abaixo' ? below : above);
       const names = othersText(target.row.label, others.map((m) => m.row.label));
       target.cell.outlier = { text: `${target.row.label} ${factor}× ${direction} de ${names}. Conferir?` };
     }

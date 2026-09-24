@@ -13,7 +13,7 @@ import {
   type Sheet,
 } from '../schemas/entities.ts';
 import type { Op } from './op.ts';
-import { familyDef, parsePath, targetOf, type OpPath } from './path.ts';
+import { familyDef, formatPath, parsePath, targetOf, type OpPath } from './path.ts';
 
 /*
  * AD-3: `applyOp` is the only code that turns an op into state, on both sides.
@@ -92,6 +92,20 @@ function withSheet(block: BlockRow, update: (sheet: Sheet) => Sheet): BlockRow {
 }
 
 /**
+ * E5-Q1: a `sheet/*` op whose seed key or cell address is outside the block's definition.
+ * A permanent refusal, like a schema failure: the api answers it `op_invalid` (never a 500),
+ * so the device drops it from the outbox instead of retrying it forever.
+ */
+export class SeedPathError extends Error {
+  readonly path: string;
+  constructor(path: string, detail: string) {
+    super(`invalid op path "${path}": ${detail}`);
+    this.name = 'SeedPathError';
+    this.path = path;
+  }
+}
+
+/**
  * E3-A3 (Epic 3 retro G-2): rejects a `sheet/*` write whose seed-defined key -- nameplate
  * `field_key`, checklist `item_key`, `test_key` -- is not present in the block's own
  * definition at its `seed_version`. `parsePath` checks these segments structurally only
@@ -112,22 +126,22 @@ function assertSeedPath(block: BlockRow, path: OpPath): void {
   try {
     definition = getDefinition(block.seed_version, 'cabine_primaria', block.block_type);
   } catch {
-    throw new Error(
+    throw new SeedPathError(formatPath(path), 
       `${path.family}: block ${block.id} has no equipment definition for block_type "${block.block_type}" at seed_version "${block.seed_version}"`,
     );
   }
   if (path.family === 'sheet/nameplate') {
     if (!definition.nameplate.some((f) => f.key === path.field_key)) {
-      throw new Error(`sheet/nameplate: "${path.field_key}" is not a nameplate field of ${block.block_type}`);
+      throw new SeedPathError(formatPath(path), `sheet/nameplate: "${path.field_key}" is not a nameplate field of ${block.block_type}`);
     }
   } else if (path.family === 'sheet/checklist') {
     if (!(definition.checklist ?? []).some((c) => c.key === path.item_key)) {
-      throw new Error(`sheet/checklist: "${path.item_key}" is not a checklist item of ${block.block_type}`);
+      throw new SeedPathError(formatPath(path), `sheet/checklist: "${path.item_key}" is not a checklist item of ${block.block_type}`);
     }
   } else {
     const test = definition.tests.find((t) => t.key === path.test_key);
-    if (test === undefined) throw new Error(`${path.family}: "${path.test_key}" is not a test of ${block.block_type}`);
-    if (path.family === 'sheet/test/cell') assertCellGeometry(block, test, path.row, path.col);
+    if (test === undefined) throw new SeedPathError(formatPath(path), `${path.family}: "${path.test_key}" is not a test of ${block.block_type}`);
+    if (path.family === 'sheet/test/cell') assertCellGeometry(block, test, path);
   }
 }
 
@@ -137,18 +151,19 @@ function assertSeedPath(block: BlockRow, path: OpPath): void {
  * column outside the geometry, or a `derived` column (VAL CALCULADO, CONDIÇÕES: the
  * kernel's, never written), is refused; a `print` column stays writable.
  */
-function assertCellGeometry(block: BlockRow, test: TestDef, row: number, col: number): void {
+function assertCellGeometry(block: BlockRow, test: TestDef, path: OpPath & { family: 'sheet/test/cell' }): void {
+  const { row, col } = path;
   let offset = 0;
   for (const table of test.tables) {
     if (row < offset + table.rows.length) {
       const column = table.value_columns[col];
-      if (column === undefined) throw new Error(`sheet/test/cell: column ${col} is outside ${block.block_type}/${test.key} row ${row}`);
-      if (column.role === 'derived') throw new Error(`sheet/test/cell: column ${col} of ${block.block_type}/${test.key} is derived, never written`);
+      if (column === undefined) throw new SeedPathError(formatPath(path), `sheet/test/cell: column ${col} is outside ${block.block_type}/${test.key} row ${row}`);
+      if (column.role === 'derived') throw new SeedPathError(formatPath(path), `sheet/test/cell: column ${col} of ${block.block_type}/${test.key} is derived, never written`);
       return;
     }
     offset += table.rows.length;
   }
-  throw new Error(`sheet/test/cell: row ${row} is outside ${block.block_type}/${test.key}`);
+  throw new SeedPathError(formatPath(path), `sheet/test/cell: row ${row} is outside ${block.block_type}/${test.key}`);
 }
 
 function putSheet(block: BlockRow, path: OpPath, cell: Cell): BlockRow {

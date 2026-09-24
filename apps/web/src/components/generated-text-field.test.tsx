@@ -42,6 +42,13 @@ describe('GeneratedTextField (UX-DR46/47)', () => {
     expect(container.querySelector('.suggestion-field.is-generated')).toHaveAttribute('data-state', 'confirmed');
     expect(container.querySelector('.suggestion-alt')).toHaveTextContent('Sugerido: texto atualizado — Substituir');
     expect(screen.queryByRole('button', { name: 'Confirmar' })).toBeNull();
+    // E5-Q5: the criteria line no longer describes the stored text; it follows the row as the
+    // evidence of the suggested replacement.
+    const stored = screen.getByRole('textbox', { name: 'Texto da conclusão' });
+    expect(stored).not.toHaveAttribute('aria-describedby');
+    const alt = container.querySelector('.suggestion-alt')!;
+    expect(alt.nextElementSibling).toHaveClass('criteria-line');
+    expect(screen.getByRole('button', { name: 'Substituir' })).toHaveAccessibleDescription(/Critérios usados.*R_iso T1–T2 330 MΩ/);
     await userEvent.click(screen.getByRole('button', { name: 'Substituir' }));
     expect(onReplace).toHaveBeenCalledTimes(1);
   });
