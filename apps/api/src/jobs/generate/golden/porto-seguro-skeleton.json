@@ -1,0 +1,117 @@
+{
+  "headings": [
+    {
+      "level": 1,
+      "text": "1 OBJETIVO"
+    },
+    {
+      "level": 1,
+      "text": "2 DEFINIÇÕES"
+    },
+    {
+      "level": 1,
+      "text": "3 LIMITE DE ESCOPO"
+    },
+    {
+      "level": 1,
+      "text": "4 REQUISITOS BÁSICOS PARA EXECUÇÃO DE MANUTENÇÃO PREVENTIVA EM CABINES PRIMÁRIAS"
+    },
+    {
+      "level": 1,
+      "text": "5 RECOMENDAÇÕES GERAIS TÉCNICAS E DE SEGURANÇA"
+    },
+    {
+      "level": 1,
+      "text": "6 VERIFICAÇÕES E ENSAIOS APLICÁVEIS"
+    },
+    {
+      "level": 1,
+      "text": "7 REGISTRO FOTOGRÁFICO MANUTENÇÃO PREVENTIVA"
+    },
+    {
+      "level": 1,
+      "text": "8 PONTOS DE ATENÇÃO / SUGESTÃO DE CORRETIVAS COMPLEMENTARES"
+    },
+    {
+      "level": 1,
+      "text": "9 RELATÓRIOS DOS ENSAIOS"
+    },
+    {
+      "level": 1,
+      "text": "10 CONCLUSÃO E OBSERVAÇÕES TÉCNICAS"
+    },
+    {
+      "level": 1,
+      "text": "11 CERTIFICADOS"
+    }
+  ],
+  "tables": [
+    [
+      [
+        "DADOS DO CLIENTE"
+      ],
+      [
+        "Cliente",
+        "Porto Seguro Companhia de Seguros Gerais"
+      ],
+      [
+        "Cidade/local",
+        "São Paulo/SP"
+      ],
+      [
+        "Data da execução do serviço",
+        "06–08/09/2026"
+      ],
+      [
+        "Informações adicionais",
+        "Manutenção preventiva"
+      ],
+      [
+        "Responsável",
+        "[Responsável]"
+      ]
+    ],
+    [
+      [
+        "Documento",
+        "Relatório Técnico de Cabine Primária · FO.SERV-03 · Revisão 00"
+      ],
+      [
+        "Revisão do documento",
+        "Rev. 1"
+      ],
+      [
+        "Data de emissão",
+        "23/09/2026"
+      ],
+      [
+        "Contratante",
+        "Porto Seguro Companhia de Seguros Gerais · CNPJ —"
+      ],
+      [
+        "Contratada",
+        "Fasor Engenharia · CNPJ —"
+      ],
+      [
+        "Responsável técnico",
+        "—"
+      ],
+      [
+        "ART/TRT",
+        "—"
+      ],
+      [
+        "Período do serviço",
+        "06–08/09/2026"
+      ]
+    ]
+  ],
+  "header": [
+    "Relatório Técnico de Cabine Primária",
+    "FO.SERV-03 · Revisão 00"
+  ],
+  "footer": [
+    "Fasor Engenharia",
+    "Página {PAGE} de {NUMPAGES}"
+  ]
+}

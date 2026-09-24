@@ -1,6 +1,6 @@
-import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, contractExamples, SYNC_ROUTES, type Op } from '@app/domain';
+import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, contractExamples, GENERATE_ROUTES, SYNC_ROUTES, type Op } from '@app/domain';
 import { describe, expect, it } from 'vitest';
-import { createSyncClient, SyncRequestError, type FetchLike, type SyncFailure } from './client.ts';
+import { createSyncClient, revisionDocxUrl, SyncRequestError, type FetchLike, type SyncFailure } from './client.ts';
 
 /*
  * The real client over a captured `fetch`: request building from the contract's route
@@ -95,6 +95,26 @@ describe('sync client failures', () => {
       },
     });
     expect(await failureOf(offline.pullRelatorio('r', 0))).toEqual({ kind: 'network' });
+  });
+
+  it('generates through POST /api/relatorios/:id/generate: 202 queued and 200 unchanged parsed, a 409 rejected as not_caught_up (Story 4.8)', async () => {
+    const body = { last_op_id: null, file_ids_expected: ['019966c1-0000-7000-8000-0000000000f1'] };
+    const queued = { outcome: 'queued', job_id: '019966c1-0000-7000-8000-0000000000e1', revision_number: 1 };
+    const { calls, fetch } = capturing(() => json(queued, 202));
+    const client = createSyncClient({ fetch });
+    expect(await client.generate('019966c1-0000-7000-8000-000000000007', body)).toEqual(queued);
+    expect(calls[0]!.input).toBe(GENERATE_ROUTES.generate('019966c1-0000-7000-8000-000000000007').path);
+    expect(calls[0]!.init.method).toBe('POST');
+    expect(JSON.parse(calls[0]!.init.body as string)).toEqual(body);
+    expect((calls[0]!.init.headers as Record<string, string>)[CONTRACT_VERSION_HEADER]).toBe(String(CONTRACT_VERSION));
+
+    const unchanged = { outcome: 'unchanged', revision_id: '019966c1-0000-7000-8000-0000000000a1', revision_number: 1 };
+    expect(await createSyncClient({ fetch: async () => json(unchanged) }).generate('r', body)).toEqual(unchanged);
+
+    const barrier = createSyncClient({ fetch: async () => json({ code: 'not_caught_up', message: 'x', details: { missing_op: true, missing_files: [] } }, 409) });
+    expect(await failureOf(barrier.generate('r', body))).toEqual({ kind: 'http', status: 409, code: 'not_caught_up' });
+
+    expect(revisionDocxUrl('019966c1-0000-7000-8000-0000000000a1')).toBe('/api/revisions/019966c1-0000-7000-8000-0000000000a1/docx');
   });
 
   it('treats a 2xx whose body is not the contract shape as invalid_response, never a retry', async () => {

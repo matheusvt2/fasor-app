@@ -431,6 +431,19 @@ export const suggestionRowSchema = z.object({
   prompt_version: z.string(),
 });
 
+/**
+ * Story 4.8: what a finished generate job records about its table of contents and its
+ * output (AD-15's two-pass TOC), written by the server as `generation_job/{id}/result`
+ * so a test can assert the pass count and whether pass-2 pages equalled pass-1.
+ */
+export const generationResultSchema = z.object({
+  toc_passes: z.number().int().positive(),
+  toc_converged: z.boolean(),
+  pages: z.number().int().positive(),
+  duration_ms: z.number().int().nonnegative(),
+});
+export type GenerationResult = z.infer<typeof generationResultSchema>;
+
 export const generationJobRowSchema = z.object({
   id: uuidV7Schema,
   relatorio_id: uuidV7Schema,
@@ -438,6 +451,9 @@ export const generationJobRowSchema = z.object({
   status: z.enum(['queued', 'running', 'done', 'failed']),
   error: nullableString,
   result_file_id: nullableId,
+  // Defaulted, so a job row written before the field existed (the `replay-small` fixture)
+  // still parses.
+  result: generationResultSchema.nullable().default(null),
   created_at: isoTimestampSchema,
 });
 

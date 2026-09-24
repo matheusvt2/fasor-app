@@ -69,6 +69,7 @@ function syncState(pendingText: string, pendingCount: number): SyncState {
     syncRelatorio: vi.fn(async () => 'ran' as const),
     resendDead: vi.fn(async () => {}),
     fetchFile: vi.fn(async () => new Blob()),
+    generate: vi.fn(async () => ({ outcome: 'queued' as const, job_id: '019966b0-0000-7000-8000-0000000000e1', revision_number: 1 })),
   };
 }
 

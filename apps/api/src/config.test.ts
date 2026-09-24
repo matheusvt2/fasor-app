@@ -21,6 +21,19 @@ describe('config', () => {
     expect(config.OCR_PROVIDER).toBe('fake');
   });
 
+  it('defaults the worker on and reads the generate fault only when set (Story 4.8)', () => {
+    const config = loadConfig(valid);
+    expect(config.WORKER).toBe('1');
+    expect(config.GENERATE_FAULT).toBeUndefined();
+    expect(config.NODE_ENV).toBeUndefined();
+    expect(loadConfig({ ...valid, WORKER: '0' }).WORKER).toBe('0');
+    expect(loadConfig({ ...valid, GENERATE_FAULT: '' }).GENERATE_FAULT).toBeUndefined();
+    expect(loadConfig({ ...valid, GENERATE_FAULT: 'libreoffice_timeout' }).GENERATE_FAULT).toBe('libreoffice_timeout');
+    expect(loadConfig({ ...valid, NODE_ENV: 'production' }).NODE_ENV).toBe('production');
+    expect(() => loadConfig({ ...valid, WORKER: 'yes' })).toThrow(/WORKER/);
+    expect(() => loadConfig({ ...valid, GENERATE_FAULT: 'explode' })).toThrow(/GENERATE_FAULT/);
+  });
+
   it('names a missing variable', () => {
     const rest: Record<string, string | undefined> = { ...valid };
     delete rest.DATABASE_URL;

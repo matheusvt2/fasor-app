@@ -35,6 +35,19 @@ describe('snapshot tombstones (AD-20)', () => {
     expect(final.suggestions.map((s) => s.id)).not.toContain(SUGGESTION_2_ID);
   });
 
+  it('resolves the responsible user row when the state holds it, null otherwise (Story 4.8)', () => {
+    const state = replay(replaySmall.log, { deadOpIds: replaySmall.deadOpIds });
+    const relatorio = state.get(`relatorio:${replaySmall.relatorioId}`) as { setup: { responsible_user_id: string | null } };
+    const userId = relatorio.setup.responsible_user_id;
+    // The fixture names a responsible but projects no `user` row: the snapshot says null.
+    expect(buildSnapshot(state, replaySmall.relatorioId).responsible).toBeNull();
+    if (userId === null) return;
+    const withUser = new Map(state);
+    const user = { id: userId, name: 'Ana Alves', email: 'a@teste.local', council: 'crea', registration_number: '1', title: 'Eng.', photo_location_enabled: true };
+    withUser.set(`user:${userId}`, user as never);
+    expect(buildSnapshot(withUser, replaySmall.relatorioId).responsible).toEqual(user);
+  });
+
   it('serializes as canonical JSON: keys sorted at every level, no formatting whitespace', () => {
     const text = serializeSnapshot(snapshotAfter(removeIndex));
     expect(JSON.stringify(sortKeysDeep(JSON.parse(text)))).toBe(text);

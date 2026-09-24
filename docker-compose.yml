@@ -27,6 +27,13 @@ x-app-env: &app-env
   TRUSTED_ORIGINS: ${TRUSTED_ORIGINS:-http://localhost:5173,http://localhost:*,http://127.0.0.1:*,http://api:3000,http://web:5173,https://${TABLET_HOST:-localhost},https://${TABLET_HOST:-localhost}:${CADDY_HTTPS_PORT:-443}}
   LLM_PROVIDER: ${LLM_PROVIDER:-fake}
   OCR_PROVIDER: ${OCR_PROVIDER:-fake}
+  # Story 4.8: the generate worker runs in the api process; GENERATE_FAULT (TC-3) is
+  # read only outside production and injects a LibreOffice timeout at the conversion step.
+  # NODE_ENV stays unset here on purpose: the tools container inherits this anchor, and a
+  # set NODE_ENV would turn Vitest's `test` mode and `vite build`'s production mode off.
+  # An unset NODE_ENV is non-production for config.ts; only `api-prod` sets it.
+  WORKER: ${WORKER:-1}
+  GENERATE_FAULT: ${GENERATE_FAULT:-}
   npm_config_store_dir: /pnpm-store
 
 services:
@@ -151,7 +158,10 @@ services:
     profiles: ['prod']
     build: ./apps/api
     <<: *workspace
-    environment: *app-env
+    environment:
+      <<: *app-env
+      # The prod profile never honours GENERATE_FAULT (config.ts reads it only outside production).
+      NODE_ENV: production
     command: pnpm --filter @app/api start
     ports:
       - '127.0.0.1:${API_PROD_PORT:-3001}:3000'

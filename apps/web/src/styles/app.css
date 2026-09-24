@@ -149,6 +149,13 @@ body {
   .conclusion-pair.is-verdict .seg + .seg { border-left: 0; border-top: 2px solid var(--border-strong); }
   /* `.frame-phone .form-dialog .field-pair` */
   .form-dialog .field-pair { grid-template-columns: 1fr; }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro/exportar"] .t-display` (73-exportar.html);
+     the dialog is portaled out of the route, so `.export-dialog` stands for the route scope. */
+  .export-dialog .t-display { margin-bottom: var(--sp-1); }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro/exportar"] .revision-row` (73-exportar.html) */
+  .export-dialog .revision-row { flex-wrap: wrap; padding: var(--sp-2) 0; }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro/exportar"] .revision-row .rev-text` (73-exportar.html) */
+  .export-dialog .revision-row .rev-text { flex-basis: 100%; }
   /* `.frame-phone .status-board` */
   .status-board { grid-template-columns: repeat(2, 1fr); }
   /* `.frame-phone .section-band .band-head, .frame-phone .section-band .band-body` */

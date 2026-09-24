@@ -1,5 +1,14 @@
 import 'fake-indexeddb/auto';
-import { makeOp, type FilePutResponse, type FileVariantName, type Op, type OpInput, type SyncPullResponse, type SyncPushResponse } from '@app/domain';
+import {
+  makeOp,
+  type FilePutResponse,
+  type FileVariantName,
+  type GenerateResponse,
+  type Op,
+  type OpInput,
+  type SyncPullResponse,
+  type SyncPushResponse,
+} from '@app/domain';
 import { BLOCK_1_ID, COMPANY_ID, EQUIPMENT_1_ID, PROJECT_ID, RELATORIO_ID, replaySmall, USER_ID } from '@app/domain/fixtures/replay-small';
 import { describe, expect, it, vi } from 'vitest';
 import { commitOps } from '../db/commit.ts';
@@ -118,6 +127,11 @@ class FakeServer implements SyncClient {
   async fetchFile(id: string, variant: FileVariantName): Promise<Blob> {
     this.fetches.push(id);
     return new Blob([`${id}:${variant}`]);
+  }
+
+  /** Story 4.8: the generate barrier is the Export dialog's, never the cycle's; the engine never calls it. */
+  async generate(): Promise<GenerateResponse> {
+    throw new Error('the sync engine never generates');
   }
 
   async pullRelatorio(id: string, since: number): Promise<SyncPullResponse> {

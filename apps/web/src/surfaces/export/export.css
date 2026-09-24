@@ -1,0 +1,33 @@
+/*
+ * Page-only layout of the Export dialog, copied from the mock's own
+ * `<style data-screen="exportar">` block (`73-exportar.html`), the same pattern as
+ * `templates.css`. The mock scopes every rule to its prototype route
+ * `[data-route="/relatorio/porto-seguro/exportar"]` and draws the dialog as a page
+ * (`.export-dialog.is-page`); the app renders it as the real modal, portaled out of any
+ * route, so the route scope is dropped and `.export-dialog` stands for it. The
+ * `.frame-phone` variants live in `app.css` (AGENTS.md "Mock container selectors").
+ * Rules for parts this story does not render (`.precheck`, `.sim-row`, `.is-page`, the
+ * `.relatorio-head`) are left out.
+ */
+
+/* `[data-route] .export-state` */
+.export-dialog .export-state { display: flex; flex-direction: column; gap: var(--sp-4); }
+/* `[data-route] .generate-row` */
+.export-dialog .generate-row { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-3) var(--sp-4); }
+/* `[data-route] .revision-row .rev-text` and `.rev-files` */
+.export-dialog .revision-row .rev-text { flex: 1; min-width: 0; }
+.export-dialog .revision-row .rev-files { display: flex; gap: var(--sp-1); }
+/* `[data-route] .result-row .rr-text` and `.rr-open` */
+.export-dialog .result-row .rr-text { flex: 1; min-width: 0; }
+.export-dialog .result-row .rr-open { min-height: var(--touch-min); display: inline-flex; align-items: center; gap: var(--sp-3); flex: 1; min-width: 0; text-align: left; }
+/* `[data-route] .result-block` and its first row */
+.export-dialog .result-block { border: 1px solid var(--border-strong); border-radius: var(--r-md); overflow: hidden; }
+.export-dialog .result-block .result-row:first-child { border-top: 0; }
+/* `[data-route] .gen-progress` */
+.export-dialog .gen-progress { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); font-size: var(--t-meta-size); color: var(--ink-secondary); }
+/* `[data-route] .gen-error` */
+.export-dialog .gen-error { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2) var(--sp-3); font-size: var(--t-body-size); color: var(--nao-conforme); }
+/* authored: the mock's "Revisões" label sits `margin-bottom: var(--sp-2)` above the rows through an inline style. */
+.export-dialog .revisions-label { margin-bottom: var(--sp-2); }
+/* authored: the mock draws the dialog inside a frame; as a real modal on a short viewport it scrolls. */
+.export-dialog { max-height: calc(100dvh - 2 * var(--sp-5)); overflow-y: auto; }

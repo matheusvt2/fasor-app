@@ -485,7 +485,10 @@ describe('3.4 composer: name', () => {
     renderComposer();
     const name = await screen.findByRole('textbox', { name: 'Nome do template' });
     await userEvent.clear(name);
-    await userEvent.type(name, '  Porto Seguro — Torres A e B  ');
+    // One paste, not 31 keystrokes: on a loaded machine the gap between two typed keys can
+    // outlast the field's idle commit, which then writes a correct but second put of the
+    // partial name before the blur writes the rest.
+    await userEvent.paste('  Porto Seguro — Torres A e B  ');
     await act(async () => {
       name.blur();
     });
