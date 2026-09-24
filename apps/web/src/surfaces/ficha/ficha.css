@@ -4,10 +4,11 @@
  * too, not part of components.css -- the same pattern as `relatorio.css`. The mock scopes
  * the screen to its prototype route `/ficha/:tag`; the app renders it on
  * `/relatorio/:id/ficha/:blockId`, so that `[data-route]` value stands for it. Rules for
- * parts these stories do not render (the plate photo and its reading states, the
- * measurement tables, the instrument picker, the conclusion, the viewfinders, the not-tested
- * band) are left out, and so are their `.frame-*` variants: no `.frame-*` rule of the mock
- * applies to what this surface draws (AGENTS.md "Mock container selectors").
+ * parts not rendered yet (the plate photo and its reading states, "Ler visor" and
+ * Dictation, the viewfinders, the not-tested band) are left out, and so are their `.frame-*`
+ * variants. The measurement tables, the instrument picker and the conclusion (Stories
+ * 5.5-5.8) bring the mock's `.frame-phone`/`.frame-desktop` page rules for what they draw,
+ * each translated to its media query (AGENTS.md "Mock container selectors").
  */
 
 /* ---------- 60-ficha.html ---------- */
@@ -93,3 +94,50 @@
 /* A native select in the mock's `.field.combobox` box: the chevron sits over the box, not the label. */
 [data-route="/relatorio/:id/ficha/:blockId"] select.input { appearance: none; padding-right: var(--touch-min); cursor: pointer; }
 [data-route="/relatorio/:id/ficha/:blockId"] .field.combobox > .combobox-chevron { top: calc(var(--t-label-size) * var(--t-label-lh) + var(--sp-1)); bottom: auto; height: var(--touch-field); pointer-events: none; }
+
+/* ---------- 60-ficha.html: the Ensaios and Conclusão steps (Stories 5.5-5.8) ---------- */
+[data-route="/relatorio/:id/ficha/:blockId"] .tests-two { display: flex; flex-direction: column; gap: var(--sp-5); }
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-ttr td, [data-route="/relatorio/:id/ficha/:blockId"] .ficha-ttr th { padding-left: var(--sp-2); padding-right: var(--sp-2); }
+/* Instrument picker: code + short name on the sheet; serial / RBC / validity behind the chevron */
+[data-route="/relatorio/:id/ficha/:blockId"] .instrument-picker .input { min-height: var(--touch-field); padding-top: 0; padding-bottom: 0; }
+[data-route="/relatorio/:id/ficha/:blockId"] .combobox-list { margin: var(--sp-1) 0 var(--sp-3); }
+[data-route="/relatorio/:id/ficha/:blockId"] .combobox-option { width: 100%; text-align: left; }
+[data-route="/relatorio/:id/ficha/:blockId"] .combobox-option[aria-checked="true"] { background: var(--focus-fill); font-weight: 600; }
+[data-route="/relatorio/:id/ficha/:blockId"] .combobox-option .ip-code, [data-route="/relatorio/:id/ficha/:blockId"] .instrument-picker .ip-code { font-size: var(--t-value-size); font-weight: var(--t-value-weight); font-variant-numeric: tabular-nums; min-width: 48px; }
+[data-route="/relatorio/:id/ficha/:blockId"] .combobox-option .ip-expired { color: var(--fora-do-limite); font-size: var(--t-label-size); font-weight: var(--t-label-weight); }
+[data-route="/relatorio/:id/ficha/:blockId"] .mt-title-row .mt-source { margin: 0; flex-basis: auto; }
+/* Measurement cell */
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-cell { display: flex; flex-direction: column; gap: var(--sp-1); }
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-table td.cell-value { min-width: 300px; }
+/* Conclusion text */
+[data-route="/relatorio/:id/ficha/:blockId"] #ficha-conc .generated-actions { margin-top: var(--sp-2); }
+/* Measurement tables -> stacked cards on the phone: the TTR tables only (EXPERIENCE.md ›
+   Measurement table wins over the mock, which stacks every table). */
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-cards { display: none; }
+/* mirrors `.frame-phone [data-route] .ficha-cards` and `.frame-phone [data-route] .measurement-table`, TTR only */
+@media (max-width: 767.98px) {
+  [data-route="/relatorio/:id/ficha/:blockId"] .ficha-mt:has(.ficha-ttr) .ficha-cards { display: block; }
+  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table.ficha-ttr { display: none; }
+  /* mirrors `.frame-phone [data-route] .mt-title-row .mt-source` */
+  [data-route="/relatorio/:id/ficha/:blockId"] .mt-title-row .mt-source { flex-basis: 100%; }
+}
+/* mirrors `.frame-desktop [data-route] .ficha-ttr td.cell-dim, .frame-desktop [data-route] .ficha-ttr th` */
+@media (min-width: 1280px) {
+  [data-route="/relatorio/:id/ficha/:blockId"] .ficha-ttr td.cell-dim, [data-route="/relatorio/:id/ficha/:blockId"] .ficha-ttr th { white-space: nowrap; }
+}
+
+/* ---------- authored (Stories 5.5-5.8) ---------- */
+/* The picker's closed field is a real button in the mock's `.input` box. */
+[data-route="/relatorio/:id/ficha/:blockId"] .instrument-picker button.input { text-align: left; cursor: pointer; }
+[data-route="/relatorio/:id/ficha/:blockId"] .instrument-picker .ip-name.is-empty { color: var(--ink-secondary); }
+[data-route="/relatorio/:id/ficha/:blockId"] .instrument-picker-host .ip-expired { margin: var(--sp-1) 0 0; }
+[data-route="/relatorio/:id/ficha/:blockId"] .ip-empty { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); padding: var(--sp-3) var(--sp-4); }
+/* AC 5.5: the criterion source opens behind a 48 px chevron. */
+[data-route="/relatorio/:id/ficha/:blockId"] details.mt-source summary { min-height: var(--touch-min); }
+/* The "calc." mark of a calculated cell (EXPERIENCE.md › Measurement table). */
+[data-route="/relatorio/:id/ficha/:blockId"] .calc-mark { margin-left: var(--sp-1); font-size: var(--t-meta-size); font-weight: 400; color: var(--ink-secondary); }
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-field .overflow-trigger { align-self: center; }
+/* The M · G · T chip row shows on phone only, above the keypad (Story 5.5 AC 2). */
+@media (min-width: 768px) {
+  [data-route="/relatorio/:id/ficha/:blockId"] .unit-suffix-row { display: none; }
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calibrationCheck, calibrationValidUntil } from './calibration.ts';
+import { calibrationCheck, calibrationStatusOf, calibrationValidUntil } from './calibration.ts';
 
 describe('calibrationValidUntil', () => {
   it('adds the interval as calendar months', () => {
@@ -40,6 +40,14 @@ describe('calibrationCheck', () => {
   it('no period context compares against now', () => {
     const status = calibrationCheck({ calibrated_at: '2026-01-01', calibration_interval_months: 1 }, null, now);
     expect(status).toBe('expired');
+  });
+
+  it('5.7-UNIT calibrationStatusOf is the same rule on a validity date already known', () => {
+    expect(calibrationStatusOf('2026-01-01', '2026-06-01', now)).toBe('expired');
+    expect(calibrationStatusOf('2026-06-20', '2026-06-01', now)).toBe('expiring');
+    expect(calibrationStatusOf('2027-06-20', '2026-06-01', now)).toBe('valid');
+    expect(calibrationStatusOf(null, '2026-06-01', now)).toBe('valid');
+    expect(calibrationStatusOf('garbage', '2026-06-01', now)).toBe('valid');
   });
 
   it('missing calibration data is always valid, never blocks', () => {

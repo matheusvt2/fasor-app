@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { emptySheet, type BlockRow, type Cell, type Sheet } from '../schemas/entities.ts';
 import { getDefinition } from '../seed/definitions.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
+import { cellAddressesOf, type TestKey } from './readings.ts';
 import {
   checklistResultOf,
   concludedByText,
@@ -58,16 +59,20 @@ function allChecklist(value: 'C' | 'NC' | 'NA'): Sheet['checklist'] {
   return Object.fromEntries(SEC.checklist!.map((item) => [item.key, { result: cell(value) }]));
 }
 
-/** Every enabled test's cells filled, `n` per test, at arbitrary row/col addresses. */
+/** The first `n` addresses of each test, in the fixture's addressing (`cellAddressesOf`), measured. */
 function testCells(cellsPerTest: Record<string, number>): Sheet['test'] {
   const out: Sheet['test'] = {};
   for (const [key, n] of Object.entries(cellsPerTest)) {
     const cells: Record<string, Record<string, Cell>> = {};
-    for (let i = 0; i < n; i++) cells[String(i * 7)] = { [String(i + 3)]: cell({ raw: '100', unit: 'GΩ', state: 'measured' }) };
+    for (const a of cellAddressesOf(SEC, key as TestKey).slice(0, n)) {
+      cells[String(a.row)] = { ...cells[String(a.row)], [String(a.col)]: cell({ raw: '100', unit: 'GΩ', state: 'measured' }) };
+    }
     out[key] = { cells };
   }
   return out;
 }
+
+const PAIR = { result: cell('aprovado'), restriction: cell('sem_restricoes') };
 
 describe('5.1-UNIT sheetProgress', () => {
   it('an empty block misses every step: nameplate, unset rows (NA defaults excluded), every test cell, the conclusion', () => {
@@ -75,10 +80,10 @@ describe('5.1-UNIT sheetProgress', () => {
     expect(p.steps.placa.missing).toBe(SEC.nameplate.length);
     expect(p.steps.verificacoes.missing).toBe(SEC.checklist!.length - 2);
     expect(p.steps.ensaios.missing).toBe(9);
-    expect(p.steps.conclusao.missing).toBe(1);
+    expect(p.steps.conclusao.missing).toBe(2);
     expect(p.complete).toBe(false);
     expect(p.firstIncompleteStep).toBe('placa');
-    expect(sheetMissingTotal(p)).toBe(SEC.nameplate.length + SEC.checklist!.length - 2 + 9 + 1);
+    expect(sheetMissingTotal(p)).toBe(SEC.nameplate.length + SEC.checklist!.length - 2 + 9 + 2);
   });
 
   it('na_defaults items with no cell are answered NA (a display default, not a cell); a stored cell overrides them', () => {
@@ -103,16 +108,34 @@ describe('5.1-UNIT sheetProgress', () => {
     expect(progressOf(observed).steps.verificacoes.missing).toBe(0);
   });
 
-  it('ensaios counts filled cells whatever their row/col addressing', () => {
+  it('5.5-UNIT ensaios counts the addresses of the enabled tests: a "Não medido" is filled, a stray address or an empty-state number is not', () => {
     const before = progressOf(block()).steps.ensaios.missing;
-    const two = progressOf(block({ test: testCells({ isolacao: 2 }) })).steps.ensaios.missing;
-    expect(two).toBe(before - 2);
-    const odd: Sheet['test'] = { isolacao: { cells: { '99': { '42': cell({ raw: '1', unit: 'GΩ', state: 'measured' }) }, '5': { '0': cell({ raw: '2', unit: 'GΩ', state: 'measured' }) } } } };
-    expect(progressOf(block({ test: odd })).steps.ensaios.missing).toBe(before - 2);
-    // An empty-state number is not a reading; more cells than required never go negative.
-    const empty: Sheet['test'] = { isolacao: { cells: { '0': { '0': cell({ raw: '', unit: 'GΩ', state: 'empty' }) } } } };
-    expect(progressOf(block({ test: empty })).steps.ensaios.missing).toBe(before);
-    expect(progressOf(block({ test: testCells({ isolacao: 20, resistencia_contato: 20 }) })).steps.ensaios.missing).toBe(0);
+    expect(progressOf(block({ test: testCells({ isolacao: 2 }) })).steps.ensaios.missing).toBe(before - 2);
+    const notMeasured: Sheet['test'] = { isolacao: { cells: { '0': { '0': cell({ raw: '', unit: 'GΩ', state: 'not_measured' }) } } } };
+    expect(progressOf(block({ test: notMeasured })).steps.ensaios.missing).toBe(before - 1);
+    const stray: Sheet['test'] = {
+      isolacao: { cells: { '99': { '42': cell({ raw: '1', unit: 'GΩ', state: 'measured' }) }, '0': { '0': cell({ raw: '', unit: 'GΩ', state: 'empty' }) } } },
+    };
+    expect(progressOf(block({ test: stray })).steps.ensaios.missing).toBe(before);
+    expect(progressOf(block({ test: testCells({ isolacao: 6, resistencia_contato: 3 }) })).steps.ensaios.missing).toBe(0);
+  });
+
+  it('5.5-UNIT a TP counts its insulation capture and its ratio captures and inputs; inputs read from the nameplate are not missing', () => {
+    const tp = (sheet: Partial<Sheet>) => block(sheet, { block_type: 'tp', config: defaultBlockConfig('v1', 'tp') });
+    // 3 insulation captures (1 MINUTO; the print columns never count) + 3 ratio rows x (2 inputs + 1 capture).
+    expect(progressOf(tp({})).steps.ensaios.missing).toBe(3 + 9);
+    const plate = { tensao_nominal_at: cell({ raw: '13.8', unit: 'kV', state: 'measured' }), tensao_nominal_bt: cell({ raw: '115', unit: 'V', state: 'measured' }) };
+    expect(progressOf(tp({ nameplate: plate })).steps.ensaios.missing).toBe(3 + 3);
+  });
+
+  it('5.8-UNIT conclusao counts the result, the restriction and the observation Com restrições requires', () => {
+    expect(progressOf(block({ conclusion: { result: cell('aprovado') } })).steps.conclusao.missing).toBe(1);
+    expect(progressOf(block({ conclusion: PAIR })).steps.conclusao.missing).toBe(0);
+    const com = { result: cell('aprovado'), restriction: cell('com_restricoes') };
+    expect(progressOf(block({ conclusion: com })).steps.conclusao.missing).toBe(1);
+    expect(progressOf(block({ conclusion: com, observations: cell('contatos com desgaste') })).steps.conclusao.missing).toBe(0);
+    // The conclusion text never counts: an unconfirmed text does not block "Concluir ficha".
+    expect(progressOf(block({ conclusion: { ...PAIR, text: cell('x') } })).steps.conclusao.missing).toBe(0);
   });
 
   it('a disabled test sub-block counts nothing', () => {
@@ -126,7 +149,7 @@ describe('5.1-UNIT sheetProgress', () => {
       nameplate: fullNameplate(),
       checklist: allChecklist('C'),
       test: testCells({ isolacao: 6, resistencia_contato: 3 }),
-      conclusion: { result: cell('aprovado') },
+      conclusion: PAIR,
     });
     const p = progressOf(b);
     expect(p.complete).toBe(true);
@@ -145,7 +168,7 @@ describe('5.1-UNIT sheetProgress', () => {
   });
 
   it('the first incomplete step follows the stepper order', () => {
-    const b = block({ nameplate: fullNameplate(), checklist: allChecklist('C'), conclusion: { result: cell('aprovado') } });
+    const b = block({ nameplate: fullNameplate(), checklist: allChecklist('C'), conclusion: PAIR });
     expect(progressOf(b).firstIncompleteStep).toBe('ensaios');
     const onlyConclusion = block({ nameplate: fullNameplate(), checklist: allChecklist('NA'), test: testCells({ isolacao: 6, resistencia_contato: 3 }) });
     expect(progressOf(onlyConclusion).firstIncompleteStep).toBe('conclusao');

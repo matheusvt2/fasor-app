@@ -3,6 +3,12 @@
  * never writes a singular-or-plural choice of its own.
  */
 
+/** A pt-BR list: "A", "A e B", "A, B e D". */
+export function listPtBr(items: readonly string[]): string {
+  if (items.length <= 1) return items[0] ?? '';
+  return `${items.slice(0, -1).join(', ')} e ${items[items.length - 1]}`;
+}
+
 /** "1 ficha" / "3 fichas". */
 export function plural(n: number, one: string, many: string): string {
   return `${n} ${n === 1 ? one : many}`;

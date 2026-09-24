@@ -684,6 +684,52 @@ export const copy = {
       // authored: nothing to repeat (the pattern already matches).
       repeatNothing: 'O padrão já é o mesmo desta ficha',
     },
+    // The "Ensaios" step (Stories 5.5-5.7): the Measurement tables and the Instrument picker,
+    // verbatim from `60-ficha.html` where it draws them.
+    ensaios: {
+      // `.mt-criterion`: the criterion value alone after the word (EXPERIENCE.md › Measurement table).
+      criterion: (text: string) => `Aceitável ${text}`,
+      sourceSummary: 'Fonte do critério',
+      // The Instrument picker.
+      instrumentLabel: 'Instrumento',
+      // authored: the closed picker before any pick.
+      instrumentEmpty: 'Selecione o instrumento',
+      instrumentDetails: 'Série, RBC e validade',
+      instrumentList: 'Instrumentos cadastrados',
+      // EXPERIENCE.md › State patterns, Empty: Instrument picker.
+      noInstruments: 'Nenhum instrumento cadastrado',
+      registerInstrument: 'Cadastrar instrumento',
+      // authored: a Measurement cell's accessible name, row + column ("Fase A, 1 minuto").
+      cellLabel: (row: string, column: string) => `${row}, ${column}`,
+      // authored: the TTR card's field label ("H1-H2 / X1-X2 (medido)", `60-ficha.html`).
+      cardMeasured: (column: string) => `${column} (medido)`,
+      // `60-ficha.html` TTR card: "Condição: Satisfatório".
+      cardCondition: (text: string) => `Condição: ${text}`,
+      // authored: the toast after "Marcar Com restrições".
+      restrictionMarked: 'Com restrições marcado na conclusão',
+    },
+    // The "Conclusão" step (Story 5.8): the Conclusion control, its suggestion row, the
+    // sheet Observation field and the Generated text field.
+    conclusao: {
+      title: 'Conclusão',
+      resultGroup: 'Resultado',
+      restrictionGroup: 'Restrições',
+      aprovado: 'Aprovado',
+      reprovado: 'Reprovado',
+      semRestricoes: 'Sem restrições',
+      comRestricoes: 'Com restrições',
+      // authored: the suggestion row's field label.
+      suggestionLabel: 'Sugestão',
+      observationTitle: 'Observações',
+      // `60-ficha.html` "Observações da ficha".
+      observationLabel: 'Observações da ficha',
+      // EXPERIENCE.md › Observation field.
+      observationRequired: 'Obrigatória com restrições',
+      textLabel: 'Texto da conclusão',
+      // `60-ficha.html` helper under the suggested text.
+      textHelper: 'Montado no aparelho com os valores desta ficha e os critérios acima — funciona sem sinal. Impresso na linha Conclusão da seção 9 depois de confirmar.',
+      textConfirmed: 'Confirmado · impresso na linha Conclusão da ficha (seção 9)',
+    },
   },
   // Relatório setup (`50-relatorio-setup.html`, Story 4.2): the five Etapa bands plus the
   // "Conclusão e parecer" placeholder, per epics.md's AC band list (not the mock's own

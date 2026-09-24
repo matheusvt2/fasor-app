@@ -61,6 +61,46 @@ export const ui = {
     NC: 'Não conforme',
     NA: 'Não se aplica',
   },
+  // The Measurement field (Story 5.5, UX-DR39): the unit slot, the calc mark, the cell menu.
+  measurementField: {
+    // authored: the spoken name of each unit, the unit slot's label (Story 5.5 AC 2).
+    unitNames: {
+      'MΩ': 'megaohms',
+      'GΩ': 'gigaohms',
+      'TΩ': 'teraohms',
+      'µΩ': 'microohms',
+      V: 'volts',
+      kV: 'quilovolts',
+      A: 'ampères',
+      '%': 'por cento',
+    } as Record<string, string>,
+    // `60-ficha.html` "Unidade GΩ — toque para alternar", the unit spoken.
+    unitCycle: (spoken: string) => `${spoken}, toque para alternar`,
+    // authored: the M · G · T chip row's name on phone.
+    unitChips: 'Unidade',
+    // EXPERIENCE.md › Measurement table: a calculated cell shows "calc." and announces "calculado".
+    calcMark: 'calc.',
+    calcSpoken: 'calculado',
+    // FR-27: the cell Overflow's one item.
+    notMeasured: 'Não medido',
+    // `key-equipment-sheet.html` `.mf-helper`'s text button.
+    markRestricted: 'Marcar Com restrições',
+    // authored: a typed text that is no number (kept typed, not committed).
+    invalid: 'Número não reconhecido',
+  },
+  // The Suggestion field and the Generated text field (Story 5.8, UX-DR45/46/47).
+  suggestionField: {
+    suggested: 'Sugerido',
+    confirm: 'Confirmar',
+  },
+  generatedText: {
+    criteria: 'Critérios usados',
+    confirm: 'Confirmar',
+    edit: 'Editar',
+    replace: 'Substituir',
+    // EXPERIENCE.md › Generated text field: under a confirmed text whose values changed.
+    stale: 'Sugerido: texto atualizado',
+  },
   registryPicker: {
     /** Trailing chip of `RegistryPickerField`'s chip row: opens the full Combobox (2.4, 2.5). */
     other: 'Outro…',

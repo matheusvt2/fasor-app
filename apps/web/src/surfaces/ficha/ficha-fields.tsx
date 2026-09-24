@@ -1,6 +1,8 @@
 import {
   fieldValueText,
+  formatDecimalGroupedPtBr,
   nameplateWordRecents,
+  numberEchoText,
   numberFieldValue,
   parseVoltageClassKv,
   wordRowByName,
@@ -10,6 +12,7 @@ import {
 } from '@app/domain';
 import { useId, useRef, useState } from 'react';
 import { DateField, RegistryPickerField } from '../../components/index.ts';
+import { useNumberInput } from '../../components/number-input.tsx';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { useDraftSource } from '../../state/drafts.tsx';
 
@@ -52,10 +55,22 @@ export function useTypedText(value: string, commit: (text: string) => void | Pro
   const committed = useRef(value);
   const current = useRef(text);
   current.current = text;
-  const committer = useFieldCommit<string>({ commit });
+  /** The texts this field committed and the store has not echoed yet: an own echo never rewrites newer typing. */
+  const sent = useRef<string[]>([]);
+  const committer = useFieldCommit<string>({
+    commit: (next) => {
+      sent.current.push(next.trim() === '' ? '' : next);
+      return commit(next);
+    },
+  });
   if (value !== committed.current) {
     committed.current = value;
-    if (value !== text) setText(value);
+    const at = sent.current.indexOf(value);
+    if (at !== -1) sent.current = sent.current.slice(at + 1);
+    else {
+      sent.current = [];
+      if (value !== text) setText(value);
+    }
   }
   useDraftSource({
     surface: DRAFT_SURFACE,
@@ -146,49 +161,49 @@ function TextField({ field, value, commit, draft, missing, label }: FieldProps) 
   );
 }
 
+/**
+ * A nameplate or cabine number (Story 5.3; the carry-over of PR #30): the shared
+ * `useNumberInput`, so the text is parsed and committed on blur or Enter only and never
+ * rewritten while the engineer types ("3.3", a pause, "00" commits 3300).
+ */
 function NumberField({ field, value, commit, draft, missing, label, invalidText }: FieldProps) {
   const id = useId();
   const helperId = useId();
-  const stored = fieldValueText(field, value);
   const unit = field.unit ?? null;
-  const [invalid, setInvalid] = useState(false);
-  const typed = useTypedText(
-    stored,
-    (text) => {
-      const parsed = numberFieldValue(text, unit);
-      if (parsed === 'invalid') {
-        setInvalid(true);
-        return;
-      }
-      setInvalid(false);
-      return commit(parsed);
-    },
-    draft,
-  );
+  const storedRaw = typeof value === 'object' && value !== null && 'raw' in value && (value as { state?: string }).state === 'measured' ? (value as { raw: string }).raw : null;
+  const number = useNumberInput({
+    // At rest a stored number reads grouped ("3.300"), the same after a blur and a reload.
+    storedText: storedRaw === null ? fieldValueText(field, value) : formatDecimalGroupedPtBr(storedRaw),
+    storedRaw,
+    parse: (text) => numberFieldValue(text, unit),
+    commit: (parsed) => commit(parsed === null ? null : { raw: parsed.raw, unit, state: 'measured' }),
+    echo: (parsed) => numberEchoText(parsed.raw, unit),
+    format: (parsed) => formatDecimalGroupedPtBr(parsed.raw),
+    draft: { surface: DRAFT_SURFACE, entityId: draft.entityId, field: draft.field },
+  });
+  const describedBy = [number.invalid ? helperId : null, number.echo === null ? null : `${helperId}-echo`].filter(Boolean).join(' ') || undefined;
   return (
     <div className="field" data-field-key={field.key}>
       <label className="field-label" htmlFor={id}>
         {label ?? field.label}
       </label>
-      <div className="measurement-field" aria-invalid={invalid || undefined}>
+      <div className="measurement-field" aria-invalid={number.invalid || undefined}>
         <input
           id={id}
           className="mf-value"
-          inputMode="decimal"
-          autoComplete="off"
-          value={typed.text}
-          aria-invalid={invalid || undefined}
-          aria-describedby={invalid ? helperId : undefined}
+          {...number.inputProps}
+          aria-invalid={number.invalid || undefined}
+          aria-describedby={describedBy}
           data-missing-field={missing ? '' : undefined}
-          onChange={(event) => typed.change(event.target.value)}
-          onBlur={typed.blur}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter') typed.enter();
-          }}
         />
         {unit === null ? null : <span className="mf-unit">{unit}</span>}
       </div>
-      {invalid ? (
+      {number.echo === null ? null : (
+        <span className="mf-echo" id={`${helperId}-echo`}>
+          {number.echo}
+        </span>
+      )}
+      {number.invalid ? (
         <span className="helper" data-tone="red" id={helperId}>
           {invalidText}
         </span>

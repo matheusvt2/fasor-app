@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compareCriterion, criterionSeedSchema, formatCriterionValue, SEEDED_CRITERIA } from './criteria.ts';
+import { compareCriterion, criterionSeedSchema, formatCriterionValue, scaleToUnit, SEEDED_CRITERIA } from './criteria.ts';
 
 const isolacao = SEEDED_CRITERIA.find((c) => c.key === 'isolacao')!;
 const resistenciaContato = SEEDED_CRITERIA.find((c) => c.key === 'resistencia_contato')!;
@@ -42,6 +42,13 @@ describe('compareCriterion', () => {
     expect(compareCriterion({ value: 0.4, unit: '%' }, relacaoTransformacao)).toBe(true);
     expect(compareCriterion({ value: -0.4, unit: '%' }, relacaoTransformacao)).toBe(true);
     expect(compareCriterion({ value: 0.6, unit: '%' }, relacaoTransformacao)).toBe(false);
+  });
+
+  it('5.5-UNIT scales TΩ too, and scaleToUnit puts values in one unit', () => {
+    expect(compareCriterion({ value: 3.7, unit: 'TΩ' }, isolacao)).toBe(true);
+    expect(scaleToUnit(3.7, 'TΩ', 'MΩ')).toBeCloseTo(3_700_000);
+    expect(scaleToUnit(5, null, null)).toBe(5);
+    expect(scaleToUnit(5, 'A', 'MΩ')).toBeNull();
   });
 
   it('compares directly when units already match', () => {

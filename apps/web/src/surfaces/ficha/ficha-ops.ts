@@ -1,10 +1,11 @@
-import { relatorioOpEnvelope, type Author, type JsonValue, type OpDraft } from '@app/domain';
+import { relatorioOpEnvelope, type Author, type InstrumentHeader, type JsonValue, type OpDraft } from '@app/domain';
 
 /*
  * The ops the equipment sheet writes (Stories 5.1-5.4): `sheet/{blockId}/nameplate/{key}`,
  * `sheet/{blockId}/checklist/{item}/{result|observation}`, `sheet/{blockId}/observations`,
  * the cabine's `location/{id}/se/{field}` and `location/{id}/env/{field}` (never on the
- * sheet, AR-5) and `block/{id}/concluded_by`. All relatório scope, one op per committed
+ * sheet, AR-5) and `block/{id}/concluded_by`; Stories 5.5-5.8 add the test cells, the
+ * instrument header and the conclusion fields. All relatório scope, one op per committed
  * value (AD-1); `applyOp` validates the seed-defined keys (E3-A3). The envelope is the
  * kernel's `relatorioOpEnvelope` (Epic 4 retro item 7), the same one `relatorio-ops.ts` uses.
  */
@@ -55,6 +56,38 @@ export function createWordOp(author: Author, kind: 'manufacturer' | 'voltage_cla
     path: `registry/${kind}/${id}`,
     value: { id, kind, name, gender: null, number: null, removed_at: null },
   };
+}
+
+/**
+ * `sheet/{blockId}/test/{testKey}/cell/{row}/{col}` put (Stories 5.5-5.6): `{raw, unit,
+ * state}` (AR-10), null to clear. The address is the fixture's (`relatorio/readings.ts`).
+ */
+export function testCellOp(
+  author: Author,
+  relatorioId: string,
+  blockId: string,
+  testKey: string,
+  row: number,
+  col: number,
+  value: { raw: string; unit: string | null; state: 'measured' | 'not_measured' } | null,
+): OpDraft {
+  return put(author, relatorioId, `sheet/${blockId}/test/${testKey}/cell/${row}/${col}`, value);
+}
+
+/** `sheet/{blockId}/test/{testKey}/instrument` put: the instrument header copied by value (Story 5.7, AR-18). */
+export function testInstrumentOp(author: Author, relatorioId: string, blockId: string, testKey: string, header: InstrumentHeader): OpDraft {
+  return put(author, relatorioId, `sheet/${blockId}/test/${testKey}/instrument`, header);
+}
+
+/** `sheet/{blockId}/conclusion/{field}` put (Story 5.8): the pair, the confirmed text, its status and basis; null clears. */
+export function conclusionOp(
+  author: Author,
+  relatorioId: string,
+  blockId: string,
+  field: 'result' | 'restriction' | 'text' | 'text_status' | 'text_basis',
+  value: string | null,
+): OpDraft {
+  return put(author, relatorioId, `sheet/${blockId}/conclusion/${field}`, value);
 }
 
 /** `block/{id}/concluded_by` put: `{actor_id, at}` (AR-17), only at Progress = Completa. */

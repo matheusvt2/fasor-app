@@ -73,7 +73,7 @@ export const SEEDED_CRITERIA: readonly CriterionSeed[] = [
   }),
 ];
 
-/** Ω-unit scale table, relative to Ω = 1 (Code Map: µΩ/mΩ/Ω/kΩ/MΩ/GΩ). */
+/** Ω-unit scale table, relative to Ω = 1 (Code Map: µΩ/mΩ/Ω/kΩ/MΩ/GΩ, TΩ since Story 5.5). */
 const OHM_SCALE: Readonly<Record<string, number>> = {
   'µΩ': 1e-6,
   mΩ: 1e-3,
@@ -81,7 +81,20 @@ const OHM_SCALE: Readonly<Record<string, number>> = {
   kΩ: 1e3,
   MΩ: 1e6,
   GΩ: 1e9,
+  TΩ: 1e12,
 };
+
+/**
+ * A value in `from` expressed in `to`, through the same Ω table `compareCriterion` scales
+ * with; the value itself when the units are equal, null when they cannot be compared. Not
+ * a comparison: the outlier check (`relatorio/readings.ts`) puts a table's readings in one
+ * unit with it before measuring how far apart they are.
+ */
+export function scaleToUnit(value: number, from: string | null, to: string | null): number | null {
+  if (from === to) return value;
+  if (from === null || to === null || !(from in OHM_SCALE) || !(to in OHM_SCALE)) return null;
+  return (value * OHM_SCALE[from]!) / OHM_SCALE[to]!;
+}
 
 export interface MeasuredValue {
   value: number;
