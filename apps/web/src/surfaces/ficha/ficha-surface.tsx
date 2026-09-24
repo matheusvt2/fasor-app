@@ -21,6 +21,7 @@ import {
   type BlockDefinition,
   type BlockRow,
   type EntityState,
+  type InstrumentRow,
   type OpDraft,
   type RelatorioSnapshot,
   type SheetStep,
@@ -33,7 +34,7 @@ import { type OverflowMenuAction } from '../../components/index.ts';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { commitBatch } from '../../db/commit.ts';
-import { manufacturerRows, voltageClassRows } from '../../db/home-store.ts';
+import { instrumentRows, manufacturerRows, voltageClassRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { writeLastSheet } from '../../db/prefs.ts';
 import { localUsers } from '../../db/sync-store.ts';
@@ -62,6 +63,10 @@ import './ficha.css';
 
 const NO_USERS: UserRow[] = [];
 const NO_WORDS: WordRow[] = [];
+const NO_INSTRUMENTS: InstrumentRow[] = [];
+
+/** The Sticky action bar's primary: where the readings' continuous Enter run ends. */
+const PRIMARY_ID = 'ficha-primary';
 
 /** EXPERIENCE.md › Autosave: "Salvo" is announced at most every few seconds, never per keystroke. */
 export const SAVED_THROTTLE_MS = 3000;
@@ -165,6 +170,7 @@ function FichaBody({
   const users = useLiveQuery(() => (db === null ? Promise.resolve(NO_USERS) : localUsers(db)), [db], NO_USERS);
   const manufacturers = useLiveQuery(() => (db === null ? Promise.resolve(NO_WORDS) : manufacturerRows(db)), [db], NO_WORDS);
   const voltageClasses = useLiveQuery(() => (db === null ? Promise.resolve(NO_WORDS) : voltageClassRows(db)), [db], NO_WORDS);
+  const instruments = useLiveQuery(() => (db === null ? Promise.resolve(NO_INSTRUMENTS) : instrumentRows(db)), [db], NO_INSTRUMENTS);
   const registries = useMemo(() => ({ manufacturer: manufacturers, voltage_class: voltageClasses }), [manufacturers, voltageClasses]);
   const editor = useRelatorioEditor(relatorioId, projectId);
   const { text: savedText, saved } = useSavedStatus();
@@ -234,7 +240,8 @@ function FichaBody({
       const host = document.getElementById(`ficha-step-${step}`);
       if (host === null) return;
       host.scrollIntoView?.({ block: 'start' });
-      const marker = missing ? host.querySelector<HTMLElement>('[data-missing-field]') : null;
+      // The first marker drawn now (a TTR table and its phone cards both carry one; CSS shows one).
+      const marker = missing ? ([...host.querySelectorAll<HTMLElement>('[data-missing-field]')].find((element) => element.getClientRects().length > 0) ?? null) : null;
       (marker === null ? host : focusableIn(marker)).focus({ preventScroll: marker === null });
     };
     afterFrames(land);
@@ -428,14 +435,24 @@ function FichaBody({
               />
             </div>
             {enabled.has('observations') ? <QuickNotes api={api} snapshot={snapshot} cabine={cabine} observations={observations} /> : null}
-            <EnsaiosSection />
-            <ConclusaoSection />
+            <EnsaiosSection
+              api={api}
+              snapshot={snapshot}
+              block={block}
+              definition={definition}
+              instruments={instruments}
+              className={stepClass('ensaios')}
+              onFocus={() => setCurrent('ensaios')}
+              primaryId={PRIMARY_ID}
+            />
+            <ConclusaoSection api={api} block={block} definition={definition} tag={tag} className={stepClass('conclusao')} onFocus={() => setCurrent('conclusao')} />
           </div>
           <StickyActionBar
             stepper={<SectionStepper progress={progress} current={current} onGo={(step) => goTo(step, false)} />}
             secondary={checklistOnScreen && definition.checklist !== null ? <BulkActionBar bulk={bulk} compact /> : null}
             primaryLabel={primaryLabel}
             onPrimary={concludable ? conclude : goNext}
+            primaryId={PRIMARY_ID}
           />
         </div>
       </div>

@@ -19,8 +19,12 @@ import {
  * has no block state to check them against the block's own definition. That
  * check is `assertSeedPath` in `ops/apply.ts` (E3-A3), which runs in
  * `applyOp` where the target block is loaded. Cell `row`/`col` stay
- * structural (`cellIndex`): a table's row/column geometry is not addressable
- * from the path alone and is Epic 5's measurement stories' concern.
+ * structural (`cellIndex`) here; their meaning is the Porto Seguro fixture's
+ * (Stories 5.5-5.6, `relatorio/readings.ts`): `row` counts the rows across the
+ * test's tables in table order (contato aberto 0-2, contato fechado 3-5), `col`
+ * indexes that row's table `value_columns` (the single insulation capture
+ * `1 MINUTO` is col 1; the TP ratio inputs are cols 0 and 1, its capture col 3).
+ * `assertSeedPath` refuses a row/col outside that geometry or a `derived` column.
  * `{field}` segments are keys of the target entity's schema.
  */
 

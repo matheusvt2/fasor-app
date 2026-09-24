@@ -79,8 +79,15 @@ export function calibrationCheck(
   servicePeriodEnd: string | null,
   now: Date,
 ): CalibrationStatus {
-  const validUntil = calibrationValidUntil(instrument.calibrated_at, instrument.calibration_interval_months);
-  if (validUntil === null) return 'valid';
+  return calibrationStatusOf(calibrationValidUntil(instrument.calibrated_at, instrument.calibration_interval_months), servicePeriodEnd, now);
+}
+
+/**
+ * `calibrationCheck`'s rule on a validity date already known (Story 5.7: the instrument
+ * header copied onto a sheet carries `valid_until` by value): `'valid'` with no date.
+ */
+export function calibrationStatusOf(validUntil: string | null, servicePeriodEnd: string | null, now: Date): CalibrationStatus {
+  if (validUntil === null || parseCalendarDate(validUntil) === null) return 'valid';
   const reference = servicePeriodEnd ?? isoDateOnly(now);
   const delta = daysBetween(reference, validUntil);
   if (delta < 0) return 'expired';

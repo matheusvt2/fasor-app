@@ -13,18 +13,21 @@ export function StickyActionBar({
   secondary,
   primaryLabel,
   onPrimary,
+  primaryId,
 }: {
   stepper: ReactNode;
   secondary: ReactNode;
   primaryLabel: string;
   onPrimary: () => void;
+  /** The primary's id: the continuous Enter run of the readings ends on it (Story 5.6). */
+  primaryId?: string;
 }) {
   return (
     <div className="sticky-action-bar">
       {stepper}
       {secondary}
       <div className="bar-buttons">
-        <Button variant="primary" onPress={onPrimary}>
+        <Button variant="primary" onPress={onPrimary} id={primaryId}>
           {primaryLabel}
           <svg className="ico" aria-hidden="true">
             <use href="/sprite.svg#i-chev-right" />

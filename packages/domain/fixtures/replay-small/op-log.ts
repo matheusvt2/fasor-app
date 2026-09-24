@@ -267,7 +267,7 @@ const steps: Step[] = [
   },
   { kind: 'put', scope: 'relatorio', path: `sheet/${BLOCK_1_ID}/test/isolacao/cell/0/1`, value: measured('2500', 'MΩ') },
   { kind: 'put', scope: 'relatorio', path: `sheet/${BLOCK_1_ID}/test/isolacao/cell/1/1`, value: measured('3100', 'MΩ') },
-  { kind: 'put', scope: 'relatorio', path: `sheet/${BLOCK_1_ID}/test/isolacao/cell/10/2`, value: { raw: '', unit: 'MΩ', state: 'not_measured' } },
+  { kind: 'put', scope: 'relatorio', path: `sheet/${BLOCK_1_ID}/test/isolacao/cell/2/2`, value: { raw: '', unit: 'MΩ', state: 'not_measured' } },
   {
     kind: 'put',
     scope: 'relatorio',

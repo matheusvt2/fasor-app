@@ -5,6 +5,7 @@ import { getDefinition } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import { plural } from '../text/plural.ts';
 import { formatShortDateTime } from '../format/datetime.ts';
+import { evaluatedCells, evaluateSheetReadings } from './readings.ts';
 import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
 
 /*
@@ -18,10 +19,13 @@ import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
  * - `verificacoes`: every checklist item neither answered (a filled result cell) nor NA by
  *   the block's `na_defaults` with no cell of its own; plus every NC row whose observation
  *   is empty (the observation is required on NC).
- * - `ensaios`: per enabled test, the capture/input cells its tables hold, less the filled
- *   cells stored under the test (counted, not addressed: the row/col scheme is Stories
- *   5.5-5.7's).
- * - `conclusao`: 1 while the conclusion result is unfilled.
+ * - `ensaios`: per address of the enabled tests (`evaluateSheetReadings`, the fixture's
+ *   row/col addressing), every capture cell not filled (a "Não medido" is filled) plus every
+ *   ratio input with no effective value (typed, or read from the nameplate); `print` and
+ *   `derived` columns never count.
+ * - `conclusao`: 1 while the result is unset, 1 while the restriction is unset, and 1 while
+ *   the restriction is Com restrições and the sheet observation is empty (Story 5.8 AC 2).
+ *   The conclusion text never counts: an unconfirmed text does not block "Concluir ficha".
  * A disabled sub-block counts nothing (AR-17). A pending suggestion is a row, never a
  * cell, so an unconfirmed suggestion is empty here by construction.
  */
@@ -42,8 +46,8 @@ export interface SheetProgress {
 /** The value of a checklist result cell that names a non-conformity. */
 const NC = 'NC';
 
-/** The test sub-blocks a definition's `tests` may carry. */
-const TEST_KEYS: readonly SubBlockKey[] = ['isolacao', 'resistencia_contato', 'relacao_transformacao'];
+/** The restriction value that makes the sheet observation required (`relatorio/conclusion.ts`). */
+const COM_RESTRICOES = 'com_restricoes';
 
 function definitionOf(block: BlockRow): BlockDefinition | null {
   try {
@@ -91,27 +95,18 @@ function verificacoesMissing(block: BlockRow, definition: BlockDefinition, enabl
   return missing;
 }
 
-function ensaiosMissing(block: BlockRow, definition: BlockDefinition, enabled: ReadonlySet<SubBlockKey>): number {
-  let missing = 0;
-  for (const test of definition.tests) {
-    if (!TEST_KEYS.includes(test.key) || !enabled.has(test.key)) continue;
-    let required = 0;
-    for (const table of test.tables) {
-      const typed = table.value_columns.filter((column) => column.role === 'capture' || column.role === 'input').length;
-      required += table.rows.length * typed;
-    }
-    let filled = 0;
-    for (const row of Object.values(block.sheet.test[test.key]?.cells ?? {})) {
-      for (const cell of Object.values(row)) if (isCellFilled(cell)) filled += 1;
-    }
-    missing += Math.max(required - filled, 0);
-  }
-  return missing;
+function ensaiosMissing(block: BlockRow, definition: BlockDefinition): number {
+  return evaluatedCells(evaluateSheetReadings(block, definition)).filter((cell) => cell.missing).length;
 }
 
 function conclusaoMissing(block: BlockRow, enabled: ReadonlySet<SubBlockKey>): number {
   if (!enabled.has('conclusion')) return 0;
-  return isCellFilled(block.sheet.conclusion.result) ? 0 : 1;
+  const { result, restriction } = block.sheet.conclusion;
+  let missing = 0;
+  if (!isCellFilled(result)) missing += 1;
+  if (!isCellFilled(restriction)) missing += 1;
+  else if (restriction!.value === COM_RESTRICOES && enabled.has('observations') && !isCellFilled(block.sheet.observations)) missing += 1;
+  return missing;
 }
 
 /** One sheet's progress; every step empty-handed (0) for a block that is not an equipment sheet. */
@@ -128,7 +123,7 @@ export function sheetProgress(snapshot: Pick<RelatorioSnapshot, 'blocks'>, block
     const enabled = enabledSubBlocksOf(block);
     steps.placa.missing = placaMissing(block, definition, enabled);
     steps.verificacoes.missing = verificacoesMissing(block, definition, enabled);
-    steps.ensaios.missing = ensaiosMissing(block, definition, enabled);
+    steps.ensaios.missing = ensaiosMissing(block, definition);
     steps.conclusao.missing = conclusaoMissing(block, enabled);
   }
   const firstIncompleteStep = SHEET_STEPS.find((step) => steps[step].missing > 0) ?? null;

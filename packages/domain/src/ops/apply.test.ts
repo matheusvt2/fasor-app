@@ -357,6 +357,24 @@ describe('E3-A3 assertSeedPath: sheet writes checked against getDefinition', () 
     ).toThrow(/"relacao_transformacao" is not a test of disjuntor_mt/);
   });
 
+  it('5.5-UNIT rejects a cell outside the table geometry or in a derived column; a print column stays writable', () => {
+    const f = opFactory();
+    // disjuntor_mt isolação: contato aberto rows 0-2, fechado rows 3-5, one VALORES column.
+    expect(() => applyOp(state([key, block(B1)]), f.op({ path: `sheet/${B1}/test/isolacao/cell/6/0`, value: '1' }))).toThrow(/row 6 is outside disjuntor_mt\/isolacao/);
+    expect(() => applyOp(state([key, block(B1)]), f.op({ path: `sheet/${B1}/test/isolacao/cell/5/1`, value: '1' }))).toThrow(/column 1 is outside/);
+    const tp = { ...block(B1), block_type: 'tp' };
+    // TP ratio: V PRIMÁRIO 0, V SECUNDÁRIO 1, VAL CALCULADO 2 (derived), capture 3, CONDIÇÕES 4 (derived).
+    expect(() => applyOp(state([key, tp]), f.op({ path: `sheet/${B1}/test/relacao_transformacao/cell/0/2`, value: '1' }))).toThrow(/is derived/);
+    expect(() => applyOp(state([key, tp]), f.op({ path: `sheet/${B1}/test/relacao_transformacao/cell/2/4`, value: '1' }))).toThrow(/is derived/);
+    const s = fold(state([key, tp]), [
+      f.op({ path: `sheet/${B1}/test/relacao_transformacao/cell/2/3`, value: { raw: '120.135', unit: null, state: 'measured' } }),
+      // TP single insulation: 30 SEGUNDOS (col 0) is a print column, still writable.
+      f.op({ path: `sheet/${B1}/test/isolacao/cell/0/0`, value: { raw: '', unit: 'GΩ', state: 'not_measured' } }),
+    ]);
+    expect((s.get(key) as BlockRow).sheet.test.relacao_transformacao?.cells['2']?.['3']).toBeDefined();
+    expect((s.get(key) as BlockRow).sheet.test.isolacao?.cells['0']?.['0']).toBeDefined();
+  });
+
   it('rejects a sheet write on a block_type with no equipment definition (a section block)', () => {
     const f = opFactory();
     const sectionBlock = { ...block(B1), block_type: 'section_1' };

@@ -1,4 +1,5 @@
 import { getDefinition } from '../seed/definitions.ts';
+import type { TestDef } from '../seed/schema.ts';
 import {
   emptySheet,
   entityRowSchemas,
@@ -123,9 +124,31 @@ function assertSeedPath(block: BlockRow, path: OpPath): void {
     if (!(definition.checklist ?? []).some((c) => c.key === path.item_key)) {
       throw new Error(`sheet/checklist: "${path.item_key}" is not a checklist item of ${block.block_type}`);
     }
-  } else if (!definition.tests.some((t) => t.key === path.test_key)) {
-    throw new Error(`${path.family}: "${path.test_key}" is not a test of ${block.block_type}`);
+  } else {
+    const test = definition.tests.find((t) => t.key === path.test_key);
+    if (test === undefined) throw new Error(`${path.family}: "${path.test_key}" is not a test of ${block.block_type}`);
+    if (path.family === 'sheet/test/cell') assertCellGeometry(block, test, path.row, path.col);
   }
+}
+
+/**
+ * Stories 5.5-5.6: a cell address is the fixture's (`relatorio/readings.ts`): `row` across
+ * the test's tables in table order, `col` into that row's table `value_columns`. A row or
+ * column outside the geometry, or a `derived` column (VAL CALCULADO, CONDIÇÕES: the
+ * kernel's, never written), is refused; a `print` column stays writable.
+ */
+function assertCellGeometry(block: BlockRow, test: TestDef, row: number, col: number): void {
+  let offset = 0;
+  for (const table of test.tables) {
+    if (row < offset + table.rows.length) {
+      const column = table.value_columns[col];
+      if (column === undefined) throw new Error(`sheet/test/cell: column ${col} is outside ${block.block_type}/${test.key} row ${row}`);
+      if (column.role === 'derived') throw new Error(`sheet/test/cell: column ${col} of ${block.block_type}/${test.key} is derived, never written`);
+      return;
+    }
+    offset += table.rows.length;
+  }
+  throw new Error(`sheet/test/cell: row ${row} is outside ${block.block_type}/${test.key}`);
 }
 
 function putSheet(block: BlockRow, path: OpPath, cell: Cell): BlockRow {
