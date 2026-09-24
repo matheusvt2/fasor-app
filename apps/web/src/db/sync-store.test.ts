@@ -30,6 +30,7 @@ import {
   markAcked,
   markDead,
   markSent,
+  notTestedSynced,
   resendDead,
   takePending,
 } from './sync-store.ts';
@@ -328,6 +329,43 @@ describe('a server merge converges on the device that sent the merged ops (Epic 
       gender: 'f',
       number: 'singular',
     });
+    db.close();
+  });
+});
+
+describe('5.9-UNIT notTestedSynced', () => {
+  it('nothing local to wait on: an empty outbox reads synced', async () => {
+    const db = await freshDb();
+    await applyPulled(db, seedLog());
+    expect(await notTestedSynced(db, BLOCK_1_ID)).toBe(true);
+    db.close();
+  });
+
+  it('one pending row reads unsynced; once acked it reads synced', async () => {
+    const db = await freshDb();
+    const d = deps();
+    await applyPulled(db, seedLog());
+    const mark = makeOp(put(`block/${BLOCK_1_ID}/not_tested`, { reason: 'solicitacao_cliente', text: null, at: d.now().toISOString(), by: USER_ID }), { newId: d.newId, now: d.now() });
+    await commitOps(db, [mark]);
+    expect(await notTestedSynced(db, BLOCK_1_ID)).toBe(false);
+    await markSent(db, [mark.op_id]);
+    expect(await notTestedSynced(db, BLOCK_1_ID)).toBe(false);
+    await markAcked(db, [{ op_id: mark.op_id, seq: 999 }]);
+    expect(await notTestedSynced(db, BLOCK_1_ID)).toBe(true);
+    db.close();
+  });
+
+  it('the latest write wins: an older acked mark undone by a newer pending one reads unsynced', async () => {
+    const db = await freshDb();
+    const d = deps();
+    await applyPulled(db, seedLog());
+    const mark = makeOp(put(`block/${BLOCK_1_ID}/not_tested`, { reason: 'outro', text: 'x', at: d.now().toISOString(), by: USER_ID }), { newId: d.newId, now: d.now() });
+    await commitOps(db, [mark]);
+    await markAcked(db, [{ op_id: mark.op_id, seq: 998 }]);
+    expect(await notTestedSynced(db, BLOCK_1_ID)).toBe(true);
+    const undo = makeOp(put(`block/${BLOCK_1_ID}/not_tested`, null), { newId: d.newId, now: d.now() });
+    await commitOps(db, [undo]);
+    expect(await notTestedSynced(db, BLOCK_1_ID)).toBe(false);
     db.close();
   });
 });

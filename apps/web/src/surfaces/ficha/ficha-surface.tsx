@@ -9,6 +9,7 @@ import {
   isCabineFirstSheet,
   isEquipmentBlock,
   isEquipmentBlockType,
+  lastNotTestedReason,
   locationPathText,
   nextSheet,
   railHeadText,
@@ -44,6 +45,7 @@ import { useToast } from '../../state/toast.tsx';
 import { useProjectEquipment, useRelatorioEditor, type Build } from '../relatorio/relatorio-editor.ts';
 import { RelatorioGate } from '../relatorio/relatorio-gate.tsx';
 import { putEquipmentTagOp } from '../relatorio/relatorio-ops.ts';
+import { NotTestedDialog } from '../relatorio/not-tested-dialog.tsx';
 import { RelatorioTree } from '../relatorio/relatorio-tree.tsx';
 import { TagDialog } from '../relatorio/tag-dialogs.tsx';
 import '../relatorio/relatorio.css';
@@ -54,9 +56,11 @@ import { EnsaiosSection } from './ensaios-section.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { FichaHeader } from './ficha-header.tsx';
 import { firstFocusable } from './ficha-fields.tsx';
-import { concludedByOp } from './ficha-ops.ts';
+import { concludedByOp, notTestedOp } from './ficha-ops.ts';
 import { NameplateSection } from './nameplate-section.tsx';
+import { NotTestedBand } from './not-tested-band.tsx';
 import { SectionStepper } from './section-stepper.tsx';
+import { SheetReadOnlyProvider } from './sheet-read-only.tsx';
 import { StickyActionBar } from './sticky-action-bar.tsx';
 import './ficha.css';
 
@@ -294,6 +298,7 @@ function FichaBody({
 
   // --- the header -----------------------------------------------------------------------
   const [renaming, setRenaming] = useState(false);
+  const [notTestedDialogOpen, setNotTestedDialogOpen] = useState(false);
   const nameOf = (actorId: string | null) => (actorId === null ? null : (users.find((row) => row.id === actorId)?.name ?? (session.user?.id === actorId ? session.user.name : null)));
   const filledName = nameOf(block.last_modified_by);
   const filledBy = filledName === null || block.last_modified_at === null ? null : filledByText(filledName, block.last_modified_at);
@@ -302,6 +307,20 @@ function FichaBody({
   const menu: OverflowMenuAction[] = [];
   if (block.concluded_by === null && block.not_tested === null) menu.push({ id: 'concluir', label: t.menuConcluir, onAction: conclude });
   if (block.equipment_id !== null) menu.push({ id: 'rename-tag', label: t.menuRenameTag, onAction: () => setRenaming(true) });
+  if (block.not_tested === null) menu.push({ id: 'nao-ensaiado', label: copy.sumario.tree.markNotTested, onAction: () => setNotTestedDialogOpen(true) });
+
+  const markNotTested = (reason: string, text: string | null) => {
+    void api
+      .edit((blocks, by) => {
+        const fresh = blocks.find((row) => row.id === blockId && row.removed_at === null);
+        if (fresh === undefined) return null;
+        return [notTestedOp(by, relatorioId, blockId, { reason, text, at: toIso(now()) })];
+      })
+      .then((batch) => {
+        if (batch !== null) showToast(t.notTestedToast);
+      })
+      .catch(() => undefined);
+  };
 
   const rename = (value: string) => {
     const equipmentId = block.equipment_id;
@@ -397,43 +416,47 @@ function FichaBody({
             concludedBy={concludedBy}
             progress={progress}
             menu={menu}
+            notTested={block.not_tested !== null}
             onRename={block.equipment_id === null ? null : () => setRenaming(true)}
           />
-          <div className="content">
-            <div id="ficha-step-placa" className={stepClass('placa')} data-step="placa" tabIndex={-1} onFocus={() => setCurrent('placa')}>
-              {cabine === null ? null : <CabineBlock api={api} snapshot={snapshot} cabine={cabine} editable={cabineFirst} />}
-              {enabled.has('nameplate') ? (
-                <NameplateSection
+          <SheetReadOnlyProvider value={block.not_tested !== null}>
+            <div className="content">
+              {block.not_tested === null ? null : <NotTestedBand api={api} block={block} />}
+              <div id="ficha-step-placa" className={stepClass('placa')} data-step="placa" tabIndex={-1} onFocus={() => setCurrent('placa')}>
+                {cabine === null ? null : <CabineBlock api={api} snapshot={snapshot} cabine={cabine} editable={cabineFirst} />}
+                {enabled.has('nameplate') ? (
+                  <NameplateSection
+                    api={api}
+                    snapshot={snapshot}
+                    block={block}
+                    definition={definition}
+                    equipment={equipment}
+                    registries={registries}
+                    revealed={revealed}
+                    onReveal={() => setRevealed(true)}
+                  />
+                ) : null}
+              </div>
+              <div id="ficha-step-verificacoes" className={stepClass('verificacoes')} data-step="verificacoes" tabIndex={-1} onFocus={() => setCurrent('verificacoes')}>
+                <ChecklistSection
                   api={api}
                   snapshot={snapshot}
                   block={block}
                   definition={definition}
-                  equipment={equipment}
-                  registries={registries}
-                  revealed={revealed}
-                  onReveal={() => setRevealed(true)}
+                  bulk={bulk}
+                  sectionRef={(element) => {
+                    checklistEl.current = element;
+                  }}
                 />
-              ) : null}
+              </div>
+              {enabled.has('observations') ? <QuickNotes api={api} snapshot={snapshot} cabine={cabine} observations={observations} /> : null}
+              <EnsaiosSection />
+              <ConclusaoSection />
             </div>
-            <div id="ficha-step-verificacoes" className={stepClass('verificacoes')} data-step="verificacoes" tabIndex={-1} onFocus={() => setCurrent('verificacoes')}>
-              <ChecklistSection
-                api={api}
-                snapshot={snapshot}
-                block={block}
-                definition={definition}
-                bulk={bulk}
-                sectionRef={(element) => {
-                  checklistEl.current = element;
-                }}
-              />
-            </div>
-            {enabled.has('observations') ? <QuickNotes api={api} snapshot={snapshot} cabine={cabine} observations={observations} /> : null}
-            <EnsaiosSection />
-            <ConclusaoSection />
-          </div>
+          </SheetReadOnlyProvider>
           <StickyActionBar
             stepper={<SectionStepper progress={progress} current={current} onGo={(step) => goTo(step, false)} />}
-            secondary={checklistOnScreen && definition.checklist !== null ? <BulkActionBar bulk={bulk} compact /> : null}
+            secondary={checklistOnScreen && definition.checklist !== null && block.not_tested === null ? <BulkActionBar bulk={bulk} compact /> : null}
             primaryLabel={primaryLabel}
             onPrimary={concludable ? conclude : goNext}
           />
@@ -458,6 +481,18 @@ function FichaBody({
           selfId={own.id}
           onClose={() => setRenaming(false)}
           onSubmit={rename}
+        />
+      ) : null}
+
+      {notTestedDialogOpen ? (
+        <NotTestedDialog
+          seedVersion={block.seed_version}
+          lastReason={lastNotTestedReason(snapshot.blocks)}
+          onClose={() => setNotTestedDialogOpen(false)}
+          onSubmit={(reason, text) => {
+            setNotTestedDialogOpen(false);
+            markNotTested(reason, text);
+          }}
         />
       ) : null}
     </>

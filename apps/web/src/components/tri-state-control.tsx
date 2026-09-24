@@ -17,6 +17,13 @@ export interface TriStateControlProps {
    * already-committed selection, where re-tapping the same segment does nothing).
    */
   committed?: boolean;
+  /**
+   * Story 5.9: a not-tested sheet's checklist is read-only (`key-sheet-states.html` frame
+   * (a): `aria-disabled="true"` on the radiogroup, no segment selectable). `components.css`
+   * already blocks pointer events on `.is-readonly .tri-state`; this also blocks the
+   * keyboard (arrows, Delete/Backspace) and a click that reaches the button regardless.
+   */
+  readOnly?: boolean;
 }
 
 const SEGMENTS: readonly { value: TriStateValue; attr: 'c' | 'nc' | 'na' }[] = [
@@ -36,12 +43,13 @@ const SEGMENTS: readonly { value: TriStateValue; attr: 'c' | 'nc' | 'na' }[] = [
  * Re-tapping the selected segment does nothing: a glove double-tap must not un-mark a row.
  * With nothing chosen, the first segment holds the tab stop and focus alone never commits.
  */
-export function TriStateControl({ value, onChange, committed = true, ...rest }: TriStateControlProps) {
+export function TriStateControl({ value, onChange, committed = true, readOnly = false, ...rest }: TriStateControlProps) {
   const segments = useRef(new Map<TriStateValue, HTMLButtonElement | null>());
   const selectedIndex = SEGMENTS.findIndex((segment) => segment.value === value);
   const tabbableIndex = selectedIndex === -1 ? 0 : selectedIndex;
 
   function moveTo(index: number) {
+    if (readOnly) return;
     const target = SEGMENTS[(index + SEGMENTS.length) % SEGMENTS.length]!;
     segments.current.get(target.value)?.focus();
     if (target.value !== value) onChange(target.value);
@@ -70,7 +78,7 @@ export function TriStateControl({ value, onChange, committed = true, ...rest }: 
       case 'Delete':
       case 'Backspace':
         event.preventDefault();
-        if (value !== null) onChange(null);
+        if (!readOnly && value !== null) onChange(null);
         return;
       default:
         return;
@@ -78,7 +86,7 @@ export function TriStateControl({ value, onChange, committed = true, ...rest }: 
   }
 
   return (
-    <div className="tri-state" role="radiogroup" {...rest}>
+    <div className="tri-state" role="radiogroup" aria-disabled={readOnly || undefined} {...rest}>
       {SEGMENTS.map((segment, index) => (
         <button
           key={segment.value}
@@ -93,6 +101,7 @@ export function TriStateControl({ value, onChange, committed = true, ...rest }: 
             segments.current.set(segment.value, element);
           }}
           onClick={() => {
+            if (readOnly) return;
             if (segment.value !== value || !committed) onChange(segment.value);
           }}
           onKeyDown={(event) => onKeyDown(event, index)}

@@ -428,3 +428,110 @@ test('@p0 5.1-E2E-004 uncommitted observation text survives a dead tab as "Rascu
     .poll(async () => (await readStore<OutboxRow>(reopened, database, 'outbox')).filter((row) => row.path === `sheet/${blockId}/checklist/${PARA_RAIO.checklist![0]!.key}/observation`).map((row) => row.value))
     .toContain('texto ainda não salvo');
 });
+
+test('@p0 5.9-E2E-001 "Marcar não ensaiado" from the sheet header: reason chips, "Outro" reveals text, toast, band, chip in the title, read-only nameplate/checklist, no bulk mirror; unsynced Desfazer clears it at once', async ({ page }) => {
+  test.setTimeout(120_000);
+  await openRelatorio(page, 1280);
+  await openEnel(page);
+  const { blockId, tag } = await openSheet(page, rowOfType(page, 'Para-raio'));
+
+  await page.getByRole('button', { name: `Mais opções da ficha ${tag}` }).click();
+  await page.getByRole('menuitem', { name: 'Marcar não ensaiado' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Marcar não ensaiado' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByLabel('Descreva o motivo')).toHaveCount(0);
+  await dialog.getByRole('radio', { name: 'Outro' }).click();
+  const textField = dialog.getByLabel('Descreva o motivo');
+  await expect(textField).toBeVisible();
+  await textField.fill('Equipamento inacessível na visita');
+  await dialog.getByRole('button', { name: 'Marcar não ensaiado' }).click();
+  await expect(dialog).toBeHidden();
+
+  await expect(toast(page)).toContainText('Marcada como não ensaiada — entra na seção 8');
+  await expect(page.locator('.sheet-title .not-tested-chip')).toHaveText('Não ensaiado');
+  await expect(page.locator('.not-tested-band .band-reason')).toHaveText('Equipamento inacessível na visita');
+  await expect(page.getByTestId('ficha-progress')).toHaveText('Completa');
+  expect((await outbox(page)).find((row) => row.path === `block/${blockId}/not_tested`)).toMatchObject({
+    value: { reason: 'outro', text: 'Equipamento inacessível na visita' },
+  });
+
+  // "Concluir ficha" leaves the header Overflow once the sheet is not tested.
+  await page.getByRole('button', { name: `Mais opções da ficha ${tag}` }).click();
+  await expect(page.getByRole('menuitem', { name: 'Concluir ficha' })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+
+  // Nameplate: read-only fields, no "Digitar" text link.
+  await expect(page.getByRole('button', { name: 'Digitar' })).toHaveCount(0);
+  await expect(page.getByRole('textbox', { name: PARA_RAIO.nameplate[0]!.label })).toHaveAttribute('aria-readonly', 'true');
+
+  // Checklist: no bulk bar, the tri-state radiogroups disabled, the Overflow trigger hidden.
+  await expect(page.locator('#ficha-step-verificacoes .bulk-action-bar')).toHaveCount(0);
+  await expect(checklistRow(page, 1).getByRole('radiogroup')).toHaveAttribute('aria-disabled', 'true');
+  await expect(checklistRow(page, 1).locator('.overflow-trigger')).toBeHidden();
+  await expect(page.locator('.sticky-action-bar .bulk-action-bar')).toHaveCount(0);
+
+  // "Desfazer" on a not-yet-synced mark clears it at once, no dialog (this device wrote
+  // it this session and the relatório has never synced -- everything here is offline).
+  await page.locator('.not-tested-band').getByRole('button', { name: 'Desfazer' }).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.locator('.not-tested-band')).toHaveCount(0);
+  await expect(page.locator('.sheet-title .not-tested-chip')).toHaveCount(0);
+  expect((await outbox(page)).filter((row) => row.path === `block/${blockId}/not_tested`).at(-1)?.value).toBeNull();
+});
+
+test('@p1 5.9-E2E-002 "Desfazer" once the mark has synced opens a Confirm dialog; only confirming clears it', async ({ page }) => {
+  test.setTimeout(150_000);
+  await openRelatorio(page, 1280);
+  await openEnel(page);
+  const { blockId } = await openSheet(page, rowOfType(page, 'Disjuntor'));
+
+  await checklistRow(page, 1).getByRole('radio', { name: 'Conforme', exact: true }).click();
+  await page.getByRole('button', { name: /^Mais opções da ficha/ }).click();
+  await page.getByRole('menuitem', { name: 'Marcar não ensaiado' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Marcar não ensaiado' });
+  await dialog.getByRole('button', { name: 'Marcar não ensaiado' }).click();
+  await expect(page.locator('.not-tested-band')).toBeVisible();
+  await syncNow(page);
+
+  const band = page.locator('.not-tested-band');
+  await band.getByRole('button', { name: 'Desfazer' }).click();
+  const confirm = page.getByRole('dialog', { name: 'Desfazer "Marcar não ensaiado"?' });
+  await expect(confirm).toBeVisible();
+  await confirm.getByRole('button', { name: 'Cancelar' }).click();
+  await expect(confirm).toBeHidden();
+  await expect(band).toBeVisible();
+
+  await band.getByRole('button', { name: 'Desfazer' }).click();
+  await confirm.getByRole('button', { name: 'Desfazer' }).click();
+  await expect(band).toHaveCount(0);
+  expect((await outbox(page)).filter((row) => row.path === `block/${blockId}/not_tested`).at(-1)?.value).toBeNull();
+});
+
+test('@p0 5.4-E2E-002 "Repetir da ficha anterior do mesmo tipo" writes only the target unset rows, leaving an already-answered row untouched', async ({ page }) => {
+  test.setTimeout(120_000);
+  const { relatorioId } = await openRelatorio(page, 1280);
+  await openEnel(page);
+  const items = PARA_RAIO.checklist!;
+  const source = await rowIds(rowOfType(page, 'Para-raio', 0));
+  const target = await rowIds(rowOfType(page, 'Para-raio', 1));
+  const scope = { relatorioId };
+  const drafts: OpDraft[] = [
+    ...items.map((item) => officeDraft(account, scope, `sheet/${source.blockId}/checklist/${item.key}/result`, 'C')),
+    officeDraft(account, scope, `block/${source.blockId}/concluded_by`, { actor_id: account.userId, at: new Date().toISOString() }),
+    // The target already answered its first item, differently from the source: "Repetir" must leave it as is.
+    officeDraft(account, scope, `sheet/${target.blockId}/checklist/${items[0]!.key}/result`, 'NC'),
+  ];
+  await pushDrafts(page, database, drafts);
+  await syncNow(page);
+  await openEnel(page);
+  await openSheet(page, rowOfType(page, 'Para-raio', 1));
+
+  const bulk = page.locator('#ficha-step-verificacoes .bulk-action-bar');
+  await bulk.getByRole('button', { name: 'Repetir da ficha anterior do mesmo tipo' }).click();
+  await expect(toast(page)).toContainText(`Padrão de ${source.tag} repetido`);
+  await expect(checklistRow(page, 1).getByRole('radio', { name: 'Não conforme' })).toHaveAttribute('aria-checked', 'true');
+  await expect(checklistRow(page, 2).getByRole('radio', { name: 'Conforme', exact: true })).toHaveAttribute('aria-checked', 'true');
+  const written = (await outbox(page)).filter((row) => row.path === `sheet/${target.blockId}/checklist/${items[0]!.key}/result`);
+  expect(written.every((row) => row.value === 'NC')).toBe(true);
+  expect((await outbox(page)).find((row) => row.path === `sheet/${target.blockId}/checklist/${items[1]!.key}/result`)?.value).toBe('C');
+});

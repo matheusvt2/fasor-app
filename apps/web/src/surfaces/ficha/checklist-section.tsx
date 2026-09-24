@@ -18,6 +18,7 @@ import { copy } from '../../copy/pt-br.ts';
 import type { FichaApi } from './ficha-api.ts';
 import { useTypedText } from './ficha-fields.tsx';
 import { checklistObservationOp, checklistResultOp } from './ficha-ops.ts';
+import { useSheetReadOnly } from './sheet-read-only.tsx';
 
 /*
  * Story 5.4 (FR-25, FR-26, UX-DR36-38, UX-DR44; `60-ficha.html` "Verificações gerais"):
@@ -142,15 +143,17 @@ export function ChecklistSection({
 }) {
   const t = copy.ficha.checklist;
   const headingId = useId();
+  const readOnly = useSheetReadOnly();
   const [legendOpen] = useState(() => legendOpensHere(block.id));
   const items = definition.checklist;
   if (items === null || items.length === 0) return null;
   return (
-    <section className="section" aria-labelledby={headingId} ref={sectionRef}>
+    <section className={readOnly ? 'section is-readonly' : 'section'} aria-labelledby={headingId} ref={sectionRef}>
       <div className="section-head">
         <h2 id={headingId}>{t.title}</h2>
+        {readOnly ? <span className="btn-reason">{t.readOnlyReason}</span> : null}
       </div>
-      <BulkActionBar bulk={bulk} />
+      {readOnly ? null : <BulkActionBar bulk={bulk} />}
       <details className="ficha-details ficha-legend" open={legendOpen}>
         <summary>
           <svg className="ico" aria-hidden="true">
@@ -169,6 +172,7 @@ export function ChecklistSection({
             item={item}
             number={index + 1}
             recents={recentChecklistObservations(snapshot, item.key, item.nc_phrases)}
+            readOnly={readOnly}
           />
         ))}
       </ul>
@@ -176,7 +180,21 @@ export function ChecklistSection({
   );
 }
 
-function ChecklistRow({ api, block, item, number, recents }: { api: FichaApi; block: BlockRow; item: ChecklistItem; number: number; recents: readonly string[] }) {
+function ChecklistRow({
+  api,
+  block,
+  item,
+  number,
+  recents,
+  readOnly,
+}: {
+  api: FichaApi;
+  block: BlockRow;
+  item: ChecklistItem;
+  number: number;
+  recents: readonly string[];
+  readOnly: boolean;
+}) {
   const t = copy.ficha.checklist;
   const result = checklistResultOf(block, item.key);
   // A `na_defaults` row shows NA with no cell of its own (checklistResultOf's display
@@ -197,8 +215,9 @@ function ChecklistRow({ api, block, item, number, recents }: { api: FichaApi; bl
   );
   const nc = result === 'NC';
   const empty = typed.text.trim() === '';
-  // The reason line goes once text exists (EXPERIENCE.md › Observation field).
-  const required = nc && empty;
+  // The reason line goes once text exists (EXPERIENCE.md › Observation field); a
+  // not-tested row is read-only end to end (AR-17), so nothing on it is ever required.
+  const required = !readOnly && nc && empty;
   const expanded = nc || observationOpen || stored.trim() !== '';
 
   const choose = (value: TriStateValue | null) => {
@@ -234,12 +253,12 @@ function ChecklistRow({ api, block, item, number, recents }: { api: FichaApi; bl
           <span className="row-num">{number}.</span>
           {item.label}
         </span>
-        <TriStateControl value={result} onChange={choose} committed={resultCommitted} aria-label={name} />
+        <TriStateControl value={result} onChange={choose} committed={resultCommitted} aria-label={name} readOnly={readOnly} />
         <OverflowMenu name={item.label} items={menu} />
       </div>
       {expanded ? (
         <div className="row-expand">
-          {nc ? (
+          {nc && !readOnly ? (
             <div className="chip-row" role="group" aria-label={t.chipsLabel(number)}>
               {[...item.nc_phrases, ...recents].map((phrase) => (
                 <Chip key={phrase} onPress={() => insert(phrase)}>
@@ -257,6 +276,7 @@ function ChecklistRow({ api, block, item, number, recents }: { api: FichaApi; bl
               ref={area}
               className="observation-field"
               value={typed.text}
+              readOnly={readOnly}
               data-required={required ? '' : undefined}
               data-missing-field={required ? '' : undefined}
               aria-invalid={required || undefined}
