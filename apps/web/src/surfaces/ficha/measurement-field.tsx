@@ -206,3 +206,29 @@ export function MeasurementField({
     </div>
   );
 }
+
+/**
+ * A Measurement cell of a sheet marked not tested (Story 5.9, UX-DR49): the stored reading
+ * as text with `aria-readonly`, the same box `ReadOnlyField` draws, and no input, unit
+ * cycle, "Não medido" Overflow or "Marcar Com restrições". It carries no `data-cell-input`,
+ * so the continuous run never lands on it.
+ */
+export function ReadOnlyMeasurementField({ cell, label }: { cell: EvaluatedCell; label: string }) {
+  const t = ui.measurementField;
+  const empty = cell.state === 'empty';
+  const text = empty ? (cell.fallback?.text ?? cell.displayText) : cell.displayText;
+  return (
+    <div className="ficha-cell" data-cell={cellKey(cell.address)}>
+      <div className="measurement-field" role="textbox" aria-readonly="true" aria-label={label} data-state={cell.verdict === 'out' ? 'out-of-limit' : undefined}>
+        <span className={empty ? 'mf-value is-empty' : 'mf-value'}>{text}</span>
+        {cell.unit === null ? null : (
+          <span className="mf-unit" aria-label={t.unitNames[cell.unit] ?? cell.unit}>
+            {cell.unit}
+          </span>
+        )}
+      </div>
+      {cell.helperText === null ? null : <div className="mf-helper">{cell.helperText}</div>}
+      {cell.outlier === null ? null : <div className="outlier-helper">{cell.outlier.text}</div>}
+    </div>
+  );
+}

@@ -929,11 +929,78 @@ test('@p0 5.9-E2E-001 "Marcar não ensaiado" from the sheet header: reason chips
   expect((await outbox(page)).filter((row) => row.path === `block/${blockId}/not_tested`).at(-1)?.value).toBeNull();
 });
 
+test('@p0 5.9-E2E-004 a Não ensaiada sheet: readings, instrument and conclusion read-only, no suggestion or Confirmar; the sheet Observation stays editable', async ({ page }) => {
+  test.setTimeout(150_000);
+  await openRelatorio(page, 1280);
+  await openEnel(page);
+  const { blockId, tag } = await openSheet(page, rowOfType(page, 'Chave seccionadora'));
+
+  // A reading and a result before the mark, so the read-only state has values to show.
+  await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
+  await cellInput(page, 'T1, Valor').click();
+  await typeAndEnter(page, '3.300');
+  await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
+  await resultGroup(page).getByRole('radio', { name: 'Aprovado' }).click();
+  await expect(resultGroup(page).getByRole('radio', { name: 'Aprovado' })).toHaveAttribute('aria-checked', 'true');
+
+  await page.getByRole('button', { name: `Mais opções da ficha ${tag}` }).click();
+  await page.getByRole('menuitem', { name: 'Marcar não ensaiado' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Marcar não ensaiado' });
+  await dialog.getByRole('button', { name: 'Marcar não ensaiado' }).click();
+  await expect(page.locator('.not-tested-band')).toBeVisible();
+  const readingAndConclusionOps = async () => (await outbox(page)).filter((row) => row.path.startsWith(`sheet/${blockId}/conclusion/`) || row.path.startsWith(`sheet/${blockId}/test/`)).length;
+  const opsBefore = await readingAndConclusionOps();
+
+  // Ensaios: the cell is a read-only textbox with its value, no input, unit cycle or Overflow.
+  await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
+  const isoSection = page.locator('section[data-test-key="isolacao"]');
+  await expect(isoSection).toHaveClass(/is-readonly/);
+  await expect(isoSection.locator('.section-head .btn-reason')).toHaveText('Somente leitura — equipamento não ensaiado');
+  const t1 = cellBox(page, 'isolacao:0:0');
+  await expect(t1.getByRole('textbox', { name: 'T1, Valor' })).toHaveAttribute('aria-readonly', 'true');
+  await expect(t1.getByRole('textbox', { name: 'T1, Valor' })).toContainText('3.300');
+  await expect(t1.locator('input')).toHaveCount(0);
+  await expect(t1.locator('.unit-cycle')).toHaveCount(0);
+  await expect(t1.locator('.overflow-trigger')).toHaveCount(0);
+  await expect(page.locator('#ficha-step-ensaios input[data-cell-input]')).toHaveCount(0);
+
+  // The Instrument picker: a read-only textbox, no button, and a tap opens nothing.
+  await expect(isoSection.getByRole('button', { name: /^Instrumento/ })).toHaveCount(0);
+  const picker = isoSection.getByRole('textbox', { name: /^Instrumento/ });
+  await expect(picker).toHaveAttribute('aria-readonly', 'true');
+  await picker.click();
+  await expect(isoSection.locator('.combobox-list')).toHaveCount(0);
+
+  // Conclusão: both radiogroups read-only, a tap and Delete change nothing; no suggestion row, no Confirmar/Editar.
+  await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
+  await expect(resultGroup(page)).toHaveAttribute('aria-readonly', 'true');
+  await expect(restrictionGroup(page)).toHaveAttribute('aria-readonly', 'true');
+  await resultGroup(page).getByRole('radio', { name: 'Reprovado' }).click();
+  await expect(resultGroup(page).getByRole('radio', { name: 'Aprovado' })).toHaveAttribute('aria-checked', 'true');
+  await expect(resultGroup(page).getByRole('radio', { name: 'Reprovado' })).toHaveAttribute('aria-checked', 'false');
+  await resultGroup(page).getByRole('radio', { name: 'Aprovado' }).press('Delete');
+  await expect(resultGroup(page).getByRole('radio', { name: 'Aprovado' })).toHaveAttribute('aria-checked', 'true');
+  await restrictionGroup(page).getByRole('radio', { name: 'Com restrições' }).click();
+  await expect(restrictionGroup(page).locator('[aria-checked="true"]')).toHaveCount(0);
+  await expect(page.getByRole('group', { name: 'Sugestão' })).toHaveCount(0);
+  const generated = page.locator('.suggestion-field.is-generated');
+  await expect(generated.getByRole('textbox', { name: 'Texto da conclusão' })).toHaveAttribute('aria-readonly', 'true');
+  await expect(generated.getByRole('button')).toHaveCount(0);
+  expect(await readingAndConclusionOps()).toBe(opsBefore);
+
+  // The sheet Observation stays editable: typed, blurred, the op lands in the outbox.
+  const observation = page.getByRole('textbox', { name: 'Observações da ficha' });
+  await expect(observation).not.toHaveAttribute('aria-readonly', 'true');
+  await observation.fill('Acesso bloqueado pelo cliente');
+  await observation.blur();
+  await expect.poll(async () => (await outbox(page)).filter((row) => row.path === `sheet/${blockId}/observations`).at(-1)?.value).toBe('Acesso bloqueado pelo cliente');
+});
+
 test('@p1 5.9-E2E-002 "Desfazer" once the mark has synced opens a Confirm dialog; only confirming clears it', async ({ page }) => {
   test.setTimeout(150_000);
   await openRelatorio(page, 1280);
   await openEnel(page);
-  const { blockId } = await openSheet(page, rowOfType(page, 'Disjuntor'));
+  const { blockId } = await openSheet(page, rowOfType(page, 'Disjuntor MT'));
 
   await checklistRow(page, 1).getByRole('radio', { name: 'Conforme', exact: true }).click();
   await page.getByRole('button', { name: /^Mais opções da ficha/ }).click();

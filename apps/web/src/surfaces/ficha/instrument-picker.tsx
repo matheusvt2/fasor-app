@@ -27,7 +27,8 @@ import { testInstrumentOp } from './ficha-ops.ts';
  * used for this test type in the relatório first; a pick is one
  * `sheet/{b}/test/{t}/instrument` op holding the header copied by value (AR-18). With no
  * instrument registered it says so and offers "Cadastrar instrumento" (Registries, which
- * works offline).
+ * works offline). On a sheet marked not tested (`readOnly`, Story 5.9) it shows the stored
+ * instrument as read-only text (`aria-readonly`) and never opens.
  */
 export function InstrumentPicker({
   api,
@@ -36,6 +37,7 @@ export function InstrumentPicker({
   testKey,
   instruments,
   serviceEnd,
+  readOnly = false,
 }: {
   api: FichaApi;
   block: BlockRow;
@@ -44,6 +46,8 @@ export function InstrumentPicker({
   testKey: TestKey;
   instruments: readonly InstrumentRow[];
   serviceEnd: string | null;
+  /** The sheet is marked not tested: the stored instrument as text, the list never opens. */
+  readOnly?: boolean;
 }) {
   const t = copy.ficha.ensaios;
   const navigate = useNavigate();
@@ -133,7 +137,30 @@ export function InstrumentPicker({
     }
   };
 
-  const fieldText = header === null ? t.instrumentEmpty : instrumentFieldText(header, registryRow?.name ?? null);
+  // Read-only with nothing stored shows the read-only field's dash, not the "Selecione" prompt.
+  const emptyText = readOnly ? '—' : t.instrumentEmpty;
+  const fieldText = header === null ? emptyText : instrumentFieldText(header, registryRow?.name ?? null);
+  const closedValue = (
+    <>
+      <span className="visually-hidden" id={valueId}>
+        {fieldText}
+      </span>
+      {header === null ? (
+        <span className="grow ip-name is-empty" aria-hidden="true">
+          {emptyText}
+        </span>
+      ) : (
+        <>
+          <span className="ip-code" aria-hidden="true">
+            {header.code}
+          </span>
+          <span className="grow ip-name" aria-hidden="true">
+            {registryRow?.name ?? header.model ?? ''}
+          </span>
+        </>
+      )}
+    </>
+  );
 
   return (
     <div className="instrument-picker-host" ref={host} onBlur={onHostBlur}>
@@ -141,39 +168,31 @@ export function InstrumentPicker({
         <span className="field-label" id={labelId}>
           {t.instrumentLabel}
         </span>
-        <button
-          type="button"
-          ref={trigger}
-          className="input"
-          aria-labelledby={`${labelId} ${valueId}`}
-          aria-describedby={expired === null ? undefined : expiredId}
-          aria-expanded={open}
-          aria-controls={listId}
-          onClick={toggle}
-        >
-          <span className="visually-hidden" id={valueId}>
-            {fieldText}
+        {readOnly ? (
+          <div className="input" role="textbox" aria-readonly="true" aria-labelledby={`${labelId} ${valueId}`} aria-describedby={expired === null ? undefined : expiredId}>
+            {closedValue}
+          </div>
+        ) : (
+          <button
+            type="button"
+            ref={trigger}
+            className="input"
+            aria-labelledby={`${labelId} ${valueId}`}
+            aria-describedby={expired === null ? undefined : expiredId}
+            aria-expanded={open}
+            aria-controls={listId}
+            onClick={toggle}
+          >
+            {closedValue}
+          </button>
+        )}
+        {readOnly ? null : (
+          <span className="combobox-chevron" aria-hidden="true">
+            <svg className="ico" aria-hidden="true">
+              <use href="/sprite.svg#i-chev-down" />
+            </svg>
           </span>
-          {header === null ? (
-            <span className="grow ip-name is-empty" aria-hidden="true">
-              {t.instrumentEmpty}
-            </span>
-          ) : (
-            <>
-              <span className="ip-code" aria-hidden="true">
-                {header.code}
-              </span>
-              <span className="grow ip-name" aria-hidden="true">
-                {registryRow?.name ?? header.model ?? ''}
-              </span>
-            </>
-          )}
-        </button>
-        <span className="combobox-chevron" aria-hidden="true">
-          <svg className="ico" aria-hidden="true">
-            <use href="/sprite.svg#i-chev-down" />
-          </svg>
-        </span>
+        )}
       </div>
       {expired === null ? null : (
         <p className="ip-expired" id={expiredId}>
@@ -191,7 +210,7 @@ export function InstrumentPicker({
           <p>{instrumentDetailText(header, expired !== null)}</p>
         </details>
       )}
-      {!open ? null : list.length === 0 ? (
+      {!open || readOnly ? null : list.length === 0 ? (
         <div className="combobox-list ip-empty" id={listId}>
           <p className="section-note">{t.noInstruments}</p>
           <Button variant="secondary" onPress={() => void navigate('/cadastros')}>

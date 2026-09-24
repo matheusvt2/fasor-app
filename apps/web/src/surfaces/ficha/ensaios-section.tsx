@@ -17,7 +17,8 @@ import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
 import type { FichaApi } from './ficha-api.ts';
 import { InstrumentPicker } from './instrument-picker.tsx';
-import { cellKey, MeasurementField, type RunDirection } from './measurement-field.tsx';
+import { cellKey, MeasurementField, ReadOnlyMeasurementField, type RunDirection } from './measurement-field.tsx';
+import { useSheetReadOnly } from './sheet-read-only.tsx';
 
 /*
  * The "Ensaios" step (Stories 5.5-5.7, FR-27, UX-DR39/40/42; `60-ficha.html`): one section
@@ -29,7 +30,9 @@ import { cellKey, MeasurementField, type RunDirection } from './measurement-fiel
  * step is one continuous Enter run (`runTarget`): down the column, then the first empty
  * cell of what follows, and "Concluir ficha"/"Próxima ficha" after the last. Everything
  * shown is the kernel's one evaluation (`evaluateSheetReadings`). "Ler visor" and
- * Dictation are later epics' and are not drawn.
+ * Dictation are later epics' and are not drawn. On a sheet marked not tested (Story 5.9)
+ * every section is `.is-readonly` with the reason line: the cells show their stored
+ * readings as read-only text and the Instrument picker its stored instrument, unchangeable.
  */
 export function EnsaiosSection({
   api,
@@ -120,15 +123,17 @@ function TestSection({
   onRun: (from: CellAddress, direction: RunDirection) => boolean;
 }) {
   const headingId = useId();
+  const readOnly = useSheetReadOnly();
   const tables = test.tables.map((table) => (
-    <MeasurementTable key={table.key} api={api} test={test} table={table} firstMissing={firstMissing} onRun={onRun} />
+    <MeasurementTable key={table.key} api={api} test={test} table={table} firstMissing={firstMissing} onRun={onRun} readOnly={readOnly} />
   ));
   return (
-    <section className="section" aria-labelledby={headingId} data-test-key={test.testKey}>
+    <section className={readOnly ? 'section is-readonly' : 'section'} aria-labelledby={headingId} data-test-key={test.testKey}>
       <div className="section-head">
         <h2 id={headingId}>{test.title}</h2>
+        {readOnly ? <span className="btn-reason">{copy.ficha.checklist.readOnlyReason}</span> : null}
       </div>
-      <InstrumentPicker api={api} block={block} blocks={blocks} testKey={test.testKey} instruments={instruments} serviceEnd={serviceEnd} />
+      <InstrumentPicker api={api} block={block} blocks={blocks} testKey={test.testKey} instruments={instruments} serviceEnd={serviceEnd} readOnly={readOnly} />
       {tables.length > 1 ? <div className="tests-two">{tables}</div> : tables}
     </section>
   );
@@ -140,26 +145,31 @@ function MeasurementTable({
   table,
   firstMissing,
   onRun,
+  readOnly,
 }: {
   api: FichaApi;
   test: TestEvaluation;
   table: EvaluatedTable;
   firstMissing: CellAddress | null;
   onRun: (from: CellAddress, direction: RunDirection) => boolean;
+  readOnly: boolean;
 }) {
   const t = copy.ficha.ensaios;
   const titleId = useId();
   const cellOf = (row: EvaluatedRow, col: number): EvaluatedCell | undefined => row.cells.find((cell) => cell.address.col === col);
-  const field = (row: EvaluatedRow, cell: EvaluatedCell, presentation: 'table' | 'card') => (
-    <MeasurementField
-      api={api}
-      cell={cell}
-      label={t.cellLabel(row.label, cell.column)}
-      presentation={presentation}
-      missing={sameAddress(firstMissing, cell.address)}
-      onRun={onRun}
-    />
-  );
+  const field = (row: EvaluatedRow, cell: EvaluatedCell, presentation: 'table' | 'card') =>
+    readOnly ? (
+      <ReadOnlyMeasurementField cell={cell} label={t.cellLabel(row.label, cell.column)} />
+    ) : (
+      <MeasurementField
+        api={api}
+        cell={cell}
+        label={t.cellLabel(row.label, cell.column)}
+        presentation={presentation}
+        missing={sameAddress(firstMissing, cell.address)}
+        onRun={onRun}
+      />
+    );
   const derivedText = (row: EvaluatedRow, kind: 'calculated' | 'condicao' | null) => (kind === 'condicao' ? (row.condicao ?? '—') : (row.calculated?.text ?? '—'));
 
   return (

@@ -59,6 +59,29 @@ describe('GeneratedTextField (UX-DR46/47)', () => {
     await user.tab();
     expect(onEdit).toHaveBeenCalledWith('Meu texto');
   });
+
+  it('read-only (a sheet marked not tested): the text alone, no Confirmar, Editar or Substituir, even when edited', () => {
+    for (const state of ['unconfirmed', 'stale', 'edited'] as const) {
+      const { unmount } = render(
+        <ToastProvider>
+          <GeneratedTextField
+            label="Texto da conclusão"
+            text="Texto guardado."
+            criteriaItems={[]}
+            state={state}
+            onConfirm={vi.fn()}
+            onReplace={vi.fn()}
+            onEdit={vi.fn()}
+            draft={{ surface: 'ficha', entityId: 'e', field: 'conclusion-text' }}
+            readOnly
+          />
+        </ToastProvider>,
+      );
+      expect(screen.getByRole('textbox', { name: 'Texto da conclusão' })).toHaveAttribute('aria-readonly', 'true');
+      expect(screen.queryByRole('button')).toBeNull();
+      unmount();
+    }
+  });
 });
 
 describe('SuggestionField (UX-DR45)', () => {

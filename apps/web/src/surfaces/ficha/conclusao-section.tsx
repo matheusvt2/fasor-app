@@ -21,6 +21,7 @@ import { copy } from '../../copy/pt-br.ts';
 import { DRAFT_SURFACE, useTypedText } from './ficha-fields.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { conclusionOp, sheetObservationsOp } from './ficha-ops.ts';
+import { useSheetReadOnly } from './sheet-read-only.tsx';
 
 /*
  * The "Conclusão" step (Story 5.8, FR-29/30, UX-DR43-47; `60-ficha.html` "Observações" and
@@ -30,7 +31,11 @@ import { conclusionOp, sheetObservationsOp } from './ficha-ops.ts';
  * stacked radiogroups with the Tri-state control's keyboard (arrows, Home/End, Delete
  * clears); the "Há itens não conformes" warning; and, once the result is picked, the
  * Generated text field with the device-composed paragraph and its Criteria line. The app
- * never writes a verdict the engineer did not tap. "Não ensaiado" is Story 5.9's.
+ * never writes a verdict the engineer did not tap. On a sheet marked not tested (Story 5.9)
+ * the Conclusão section is `.is-readonly` with the reason line: the two radiogroups are
+ * `aria-readonly` (the value stays visible; a tap, an arrow or Delete changes nothing), no
+ * suggestion row, and the Generated text field offers no action. The sheet Observation
+ * field stays editable (Story 5.9 AC 2).
  */
 
 type Segment<T extends string> = { value: T; attr: string; label: string };
@@ -41,12 +46,14 @@ function ConclusionPair<T extends string>({
   value,
   onChange,
   missing,
+  readOnly,
 }: {
   label: string;
   segments: readonly Segment<T>[];
   value: T | null;
   onChange: (value: T | null) => void;
   missing: boolean;
+  readOnly: boolean;
 }) {
   const refs = useRef(new Map<T, HTMLButtonElement | null>());
   const selected = segments.findIndex((segment) => segment.value === value);
@@ -55,7 +62,7 @@ function ConclusionPair<T extends string>({
   const moveTo = (index: number) => {
     const target = segments[(index + segments.length) % segments.length]!;
     refs.current.get(target.value)?.focus();
-    if (target.value !== value) onChange(target.value);
+    if (!readOnly && target.value !== value) onChange(target.value);
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
@@ -81,7 +88,7 @@ function ConclusionPair<T extends string>({
       case 'Delete':
       case 'Backspace':
         event.preventDefault();
-        if (value !== null) onChange(null);
+        if (!readOnly && value !== null) onChange(null);
         return;
       default:
         return;
@@ -89,7 +96,14 @@ function ConclusionPair<T extends string>({
   };
 
   return (
-    <div className="conclusion-pair" role="radiogroup" aria-label={label} aria-invalid={value === null || undefined} data-missing-field={missing ? '' : undefined}>
+    <div
+      className="conclusion-pair"
+      role="radiogroup"
+      aria-label={label}
+      aria-readonly={readOnly || undefined}
+      aria-invalid={(!readOnly && value === null) || undefined}
+      data-missing-field={missing && !readOnly ? '' : undefined}
+    >
       {segments.map((segment, index) => (
         <button
           key={segment.value}
@@ -104,7 +118,7 @@ function ConclusionPair<T extends string>({
           }}
           onClick={() => {
             // A re-tap of the chosen segment never un-marks it (a glove double-tap).
-            if (segment.value !== value) onChange(segment.value);
+            if (!readOnly && segment.value !== value) onChange(segment.value);
           }}
           onKeyDown={(event) => onKeyDown(event, index)}
         >
@@ -138,6 +152,7 @@ export function ConclusaoSection({
   const obsFieldId = useId();
   const obsReasonId = useId();
   const concHeading = useId();
+  const readOnly = useSheetReadOnly();
   const enabled = enabledSubBlocksOf(block);
 
   const result = conclusionResultOf(block);
@@ -218,11 +233,12 @@ export function ConclusaoSection({
         </section>
       ) : null}
       {enabled.has('conclusion') ? (
-        <section className="section" aria-labelledby={concHeading} id="ficha-conc">
+        <section className={readOnly ? 'section is-readonly' : 'section'} aria-labelledby={concHeading} id="ficha-conc">
           <div className="section-head">
             <h2 id={concHeading}>{t.title}</h2>
+            {readOnly ? <span className="btn-reason">{copy.ficha.checklist.readOnlyReason}</span> : null}
           </div>
-          {suggestion === null ? null : (
+          {suggestion === null || readOnly ? null : (
             <div className="ficha-conc-sug-host">
               <SuggestionField label={t.suggestionLabel} onConfirm={applySuggestion}>
                 {conclusionSuggestionText(suggestion)}
@@ -230,8 +246,8 @@ export function ConclusaoSection({
             </div>
           )}
           <div className="conclusion-control">
-            <ConclusionPair label={t.resultGroup} segments={resultSegments} value={result} onChange={setResult} missing={result === null} />
-            <ConclusionPair label={t.restrictionGroup} segments={restrictionSegments} value={restriction} onChange={setRestriction} missing={result !== null && restriction === null} />
+            <ConclusionPair label={t.resultGroup} segments={resultSegments} value={result} onChange={setResult} missing={result === null} readOnly={readOnly} />
+            <ConclusionPair label={t.restrictionGroup} segments={restrictionSegments} value={restriction} onChange={setRestriction} missing={result !== null && restriction === null} readOnly={readOnly} />
             {warning === null ? null : (
               <span className="conclusion-hint" role="status">
                 {warning}
@@ -251,6 +267,7 @@ export function ConclusaoSection({
                 draft={{ surface: DRAFT_SURFACE, entityId: api.blockId, field: 'conclusion-text' }}
                 helper={t.textHelper}
                 confirmedHelper={t.textConfirmed}
+                readOnly={readOnly}
               />
             </div>
           )}

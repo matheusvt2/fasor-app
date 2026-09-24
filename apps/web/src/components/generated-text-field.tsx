@@ -22,6 +22,8 @@ export interface GeneratedTextFieldProps {
   /** The line under a suggested text, and under a confirmed one. */
   helper?: string;
   confirmedHelper?: string;
+  /** Read-only (a sheet marked not tested, Story 5.9): the text only, no Confirmar, Editar or Substituir. */
+  readOnly?: boolean;
 }
 
 /**
@@ -31,14 +33,15 @@ export interface GeneratedTextFieldProps {
  * its description. "Editar" stores the current text as edited at once, which stops the
  * recomposition, then opens it for typing; a confirmed text whose values changed since
  * shows "Sugerido: texto atualizado — Substituir" beneath and is never overwritten on its
- * own. The texts are the caller's (the kernel's).
+ * own. The texts are the caller's (the kernel's). Read-only, it shows the text alone and
+ * offers no action.
  */
-export function GeneratedTextField({ label, text, criteriaItems, state, onConfirm, onReplace, onEdit, draft, helper, confirmedHelper }: GeneratedTextFieldProps) {
+export function GeneratedTextField({ label, text, criteriaItems, state, onConfirm, onReplace, onEdit, draft, helper, confirmedHelper, readOnly = false }: GeneratedTextFieldProps) {
   const t = ui.generatedText;
   const labelId = useId();
   const criteriaId = useId();
   const [editing, setEditing] = useState(false);
-  const typing = editing || state === 'edited';
+  const typing = !readOnly && (editing || state === 'edited');
   const [value, setValue] = useState(text);
   const area = useRef<HTMLTextAreaElement | null>(null);
   const dirty = useRef(false);
@@ -57,6 +60,7 @@ export function GeneratedTextField({ label, text, criteriaItems, state, onConfir
     field: draft.field,
     read: () => (dirty.current ? current.current : null),
     apply: (recovered) => {
+      if (readOnly) return;
       const next = typeof recovered === 'string' ? recovered : String(recovered);
       setEditing(true);
       setValue(next);
@@ -100,7 +104,7 @@ export function GeneratedTextField({ label, text, criteriaItems, state, onConfir
           <span key={item}>{item}</span>
         ))}
       </p>
-      {state === 'stale' ? (
+      {state === 'stale' && !readOnly ? (
         <p className="suggestion-alt">
           {`${t.stale} — `}
           <button
@@ -116,35 +120,37 @@ export function GeneratedTextField({ label, text, criteriaItems, state, onConfir
           </button>
         </p>
       ) : null}
-      <div className="generated-actions">
-        {suggested && !typing ? (
-          <button type="button" className="btn btn-secondary confirm-action" onClick={onConfirm}>
-            <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-check" />
-            </svg>
-            {t.confirm}
-          </button>
-        ) : null}
-        {typing ? null : (
-          <button
-            type="button"
-            className="btn btn-text"
-            onClick={() => {
-              setValue(text);
-              dirty.current = false;
-              committer.immediate(text);
-              setEditing(true);
-              requestAnimationFrame(() => area.current?.focus());
-            }}
-          >
-            <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-pencil" />
-            </svg>
-            {t.edit}
-          </button>
-        )}
-      </div>
-      {suggested && !typing && helper !== undefined ? <span className="helper">{helper}</span> : null}
+      {readOnly ? null : (
+        <div className="generated-actions">
+          {suggested && !typing ? (
+            <button type="button" className="btn btn-secondary confirm-action" onClick={onConfirm}>
+              <svg className="ico" aria-hidden="true">
+                <use href="/sprite.svg#i-check" />
+              </svg>
+              {t.confirm}
+            </button>
+          ) : null}
+          {typing ? null : (
+            <button
+              type="button"
+              className="btn btn-text"
+              onClick={() => {
+                setValue(text);
+                dirty.current = false;
+                committer.immediate(text);
+                setEditing(true);
+                requestAnimationFrame(() => area.current?.focus());
+              }}
+            >
+              <svg className="ico" aria-hidden="true">
+                <use href="/sprite.svg#i-pencil" />
+              </svg>
+              {t.edit}
+            </button>
+          )}
+        </div>
+      )}
+      {suggested && !typing && !readOnly && helper !== undefined ? <span className="helper">{helper}</span> : null}
       {(state === 'confirmed' || state === 'edited') && confirmedHelper !== undefined ? <span className="helper">{confirmedHelper}</span> : null}
     </div>
   );
