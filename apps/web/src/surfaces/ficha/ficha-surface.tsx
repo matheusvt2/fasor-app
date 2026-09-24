@@ -328,9 +328,13 @@ function FichaBody({
     void api
       .edit((blocks, by) => {
         const fresh = blocks.find((row) => row.id === blockId && row.removed_at === null);
-        if (fresh === undefined || (conclusionResultOf(fresh) === null && conclusionRestrictionOf(fresh) === null)) return null;
-        return [conclusionOp(by, relatorioId, blockId, 'result', null), conclusionOp(by, relatorioId, blockId, 'restriction', null)];
+        if (fresh === undefined) return null;
+        const ops: OpDraft[] = [];
+        if (conclusionResultOf(fresh) !== null) ops.push(conclusionOp(by, relatorioId, blockId, 'result', null));
+        if (conclusionRestrictionOf(fresh) !== null) ops.push(conclusionOp(by, relatorioId, blockId, 'restriction', null));
+        return ops.length === 0 ? null : ops;
       })
+      .then((batch) => api.undoable(t.conclusionCleared, batch))
       .catch(() => undefined);
   };
 

@@ -129,7 +129,8 @@ export function GeneratedTextField({ label, text, criteriaItems, state, onConfir
           </button>
         </p>
       ) : null}
-      {stale ? criteriaLine : null}
+      {/* Stale and read-only: no Substituir row, so no criteria line that would describe nothing. */}
+      {stale && !readOnly ? criteriaLine : null}
       {readOnly ? null : (
         <div className="generated-actions">
           {suggested && !typing ? (

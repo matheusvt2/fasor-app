@@ -1099,6 +1099,18 @@ test('@p1 E5-Q8 Space, ArrowRight and Delete in quick succession always leave th
   await page.reload();
   await expect(checklistRow(page, 1).getByRole('radiogroup')).toBeVisible({ timeout: 30_000 });
   await expect(checklistRow(page, 1).locator('[role="radio"][aria-checked="true"]')).toHaveCount(0);
+
+  // The same fast sequence on the Conclusão result group.
+  await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
+  const resultPath = `sheet/${blockId}/conclusion/result`;
+  for (let round = 0; round < 3; round++) {
+    await resultGroup(page).getByRole('radio', { name: 'Aprovado' }).focus();
+    await page.keyboard.press('Space');
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('Delete');
+    await expect(resultGroup(page).locator('[aria-checked="true"]')).toHaveCount(0);
+    await expect.poll(async () => (await outbox(page)).filter((op) => op.path === resultPath).at(-1)?.value).toBeNull();
+  }
 });
 
 test('@p1 E5-Q17 the sheet Overflow "Limpar conclusão" clears both groups in one edit', async ({ page }) => {
@@ -1128,6 +1140,11 @@ test('@p1 E5-Q17 the sheet Overflow "Limpar conclusão" clears both groups in on
   const [result, restriction] = [await last('result'), await last('restriction')];
   expect(result?.batch_id).not.toBeNull();
   expect(result?.batch_id).toBe(restriction?.batch_id);
+  // Undoable like any other edit.
+  await expect(toast(page)).toContainText('Conclusão limpa');
+  await toast(page).getByRole('button', { name: 'Desfazer' }).click();
+  await expect(resultGroup(page).getByRole('radio', { name: 'Aprovado' })).toHaveAttribute('aria-checked', 'true');
+  await expect(restrictionGroup(page).getByRole('radio', { name: 'Sem restrições' })).toHaveAttribute('aria-checked', 'true');
 });
 
 test('@p0 E5-Q18a a typed, uncommitted reading survives a dead tab as "Rascunho encontrado — Recuperar"', async ({ page, context }) => {

@@ -418,7 +418,7 @@ describe('1.5-API-001 push semantics', () => {
     const sheet = (row?.row as { sheet: { test: Record<string, { cells: Record<string, Record<string, unknown>> }> } }).sheet;
     expect(sheet.test.isolacao?.cells['0']?.['0']).toBeDefined();
     expect(sheet.test.nao_existe).toBeUndefined();
-    expect((await storedIds([unknownTest.op_id, onSection.op_id])).size).toBe(0);
+    expect((await storedIds([unknownTest.op_id, onSection.op_id, rowOutside.op_id, colOutside.op_id])).size).toBe(0);
   });
 
   it('rejects a server-only family and the two origin spoofs as op_server_only, a foreign actor as op_invalid', async () => {

@@ -2,7 +2,7 @@
 title: 'Epic 5 fixes: integrated review findings'
 type: 'bugfix'
 created: '2026-09-24'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '253215ed63dad40aacad80eab75d871beaba827a'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -98,6 +98,7 @@ Q4 wording (open question OQ-3 for Matheus; this is the literal, conservative pl
 - checklist present, no judged reading: `{subject} apresentou {checklist}, sem valores medidos registrados.`
 - neither: `{subject} não apresentou valores medidos nem itens verificados registrados.`
 An `out` reading or an NC row always counts as present (its clause lists it).
+- (amended 2026-09-24, review) captures measured but none judged (a TTR with no VAL CALCULADO): the readings clause is `valores medidos sem comparação com o critério de aceitação`; "sem valores medidos registrados" only when no capture is measured.
 
 ## Narrowings
 
@@ -110,7 +111,31 @@ E5-Q3 (defer to Epic 7, OQ-2), E5-Q6 (OQ-1), E5-Q11 (OQ-4), E5-Q12 (OQ-5), E5-Q1
 
 ## Spec Change Log
 
+### 2026-09-24 — Review pass 1 (patched in place, no re-derivation)
+- Trigger: edge-case finding "measured but unjudged captures read 'sem valores medidos registrados'".
+- Amended: Design Notes gains the measured-but-unjudged clause.
+- Known-bad state avoided: the signed paragraph denying readings that exist.
+- KEEP: the four sentence shapes, `SeedPathError` and its api mapping, `useLatestChoice`, the phone table rule, every test already added.
+
 ## Review Triage Log
+
+### 2026-09-24 — Review pass
+- layers: Edge Case Hunter, Verification Gap Reviewer (Blind Hunter and Intent Alignment skipped: token economy; the integrated Epic 5 review covers them)
+- verdicts: 13 findings — high 0, medium 2, low 6, false 1, maybe-false 4
+- findings:
+  - `[low]` `[patch]` VG: ConclusionPair latest-choice guards untested — added the result group to the E5-Q8 e2e.
+  - `[low]` `[reject]` VG: Q17, Q2, Q9 verified only by `@p1` tests — repo policy runs `@p1` in `test:e2e:full` at the retro; this batch runs it before the PR.
+  - `[low]` `[patch]` VG: E5-Q1 push test does not assert `rowOutside`/`colOutside` absent — assertion added.
+  - `[maybe-false]` `[reject]` EC: `useLatestChoice` resync to an intermediate prop value can drop a third quick tap — needs three keypresses inside one IndexedDB round trip plus an intermediate live-query emission; not shown reachable, fix adds pending-state tracking.
+  - `[maybe-false]` `[reject]` EC: a refused/null edit leaves a phantom `latest` — would need an `onChange` edit that returns null while the value differs; not shown reachable on these controls; low if true.
+  - `[maybe-false]` `[reject]` VG: every confirmed text shows stale after the basis change — true only for local dev data (no fixture stores `text_basis`, no production data exists); intended, the text inputs changed.
+  - `[medium]` `[patch]` EC: measured but unjudged captures read "sem valores medidos registrados" — new clause "valores medidos sem comparação com o critério de aceitação" plus unit test (Design Notes amended).
+  - `[low]` `[patch]` EC: stale + readOnly renders an orphan criteria line — no criteria line in stale + readOnly.
+  - `[low]` `[reject]` EC: "Limpar conclusão" on a concluded sheet keeps "Concluída por" — same as the Delete key today; this is E5-Q3 / OQ-2, left open for Matheus.
+  - `[low]` `[patch]` EC: "Limpar conclusão" writes a null op for an already null field — only non-null fields emit an op.
+  - `[medium]` `[patch]` EC: "Limpar conclusão" offers no Desfazer though the spec says undoable — routed through `api.undoable` with toast "Conclusão limpa"; e2e clicks Desfazer.
+  - `[false]` `[reject]` EC: server-batch test covers only the derived-column row — the matrix row is "applyServerBatch with such an op"; the refusal is one `isPermanentRefusal` catch for every `SeedPathError`, and the push route covers the other three rows.
+  - `[maybe-false]` `[reject]` VG (other findings): E5-Q8 narrower race — same claim and evidence as the EC `useLatestChoice` row above.
 
 ## Verification
 

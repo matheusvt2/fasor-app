@@ -86,6 +86,11 @@ describe('GeneratedTextField (UX-DR46/47)', () => {
       );
       expect(screen.getByRole('textbox', { name: 'Texto da conclusão' })).toHaveAttribute('aria-readonly', 'true');
       expect(screen.queryByRole('button')).toBeNull();
+      if (state === 'stale') {
+        // E5-Q5: no Substituir row, so no criteria line and nothing described.
+        expect(screen.getByRole('textbox', { name: 'Texto da conclusão' })).not.toHaveAttribute('aria-describedby');
+        expect(document.querySelector('.criteria-line')).toBeNull();
+      }
       unmount();
     }
   });

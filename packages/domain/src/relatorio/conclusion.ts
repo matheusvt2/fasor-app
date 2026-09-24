@@ -218,7 +218,12 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
   const out = worst.filter((reading) => reading.verdict === 'out');
   // E5-Q4: "within the criteria" only when a capture was judged; "conformes" only with a C row.
   const judged = out.length > 0 || cells.some((cell) => cell.role === 'capture' && cell.verdict !== null);
-  const readings = out.length === 0 ? 'valores medidos dentro dos critérios de aceitação' : listPtBr(out.map(readingClause));
+  // A capture measured but never judged (a TTR row with no VAL CALCULADO) is still a measurement.
+  const measured = cells.some((cell) => cell.role === 'capture' && cell.state === 'measured');
+  // authored (OQ-3 placeholder): measured, no criterion applied.
+  const unjudged = 'valores medidos sem comparação com o critério de aceitação';
+  const readings = out.length > 0 ? listPtBr(out.map(readingClause)) : judged ? 'valores medidos dentro dos critérios de aceitação' : unjudged;
+  const hasReadings = judged || measured;
   const ncs = ncItems(block, definition);
   const conformes = anyConforme(block, definition);
   const checked = ncs.length > 0 || conformes;
@@ -231,9 +236,9 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
   const verb = noun.plural ? 'apresentaram' : 'apresentou';
   // authored (OQ-3 placeholder): the sentence states only what exists.
   const body =
-    judged && checked
+    hasReadings && checked
       ? `${verb} ${readings} e ${checklist}`
-      : judged
+      : hasReadings
         ? `${verb} ${readings}, sem itens verificados registrados`
         : checked
           ? `${verb} ${checklist}, sem valores medidos registrados`
@@ -250,6 +255,7 @@ export function composeConclusion(block: BlockRow, definition: BlockDefinition, 
       pair: { result, restriction },
       identity: { tag, fabricacao, tensao, corrente },
       judged,
+      measured,
       conformes,
       readings: cells.map((cell) => ({ a: cell.address, s: cell.state, r: cell.raw, u: cell.unit, f: cell.fallback?.raw ?? null, v: cell.verdict })),
       nc: ncs,

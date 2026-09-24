@@ -154,6 +154,25 @@ describe('5.8-UNIT composeConclusion', () => {
     );
   });
 
+  it('E5-Q4 a TTR capture measured with no VAL CALCULADO is a measurement, never judged within the criteria', () => {
+    const tp = getDefinition('v1', 'cabine_primaria', 'tp');
+    const b = block(
+      { test: { relacao_transformacao: { cells: { '0': { '3': measured('120.1', null) } } } } },
+      { block_type: 'tp', config: defaultBlockConfig('v1', 'tp') },
+    );
+    const ratio = evaluateSheetReadings(b, tp).find((t) => t.testKey === 'relacao_transformacao')!.tables[0]!.rows[0]!;
+    expect(ratio.calculated).toBeNull();
+    const text = composeConclusion(b, tp, 'TP-1').text;
+    expect(text).toBe('O TP TP-1 apresentou valores medidos sem comparação com o critério de aceitação, sem itens verificados registrados.');
+    const withC = block(
+      { checklist: Object.fromEntries(tp.checklist!.map((item) => [item.key, { result: cell('C') }])), test: b.sheet.test },
+      { block_type: 'tp', config: defaultBlockConfig('v1', 'tp') },
+    );
+    expect(composeConclusion(withC, tp, 'TP-1').text).toBe(
+      'O TP TP-1 apresentou valores medidos sem comparação com o critério de aceitação e todos os itens verificados conformes.',
+    );
+  });
+
   it('E5-Q4 the basis recomposes when a C row or a judged reading appears', () => {
     const allNA = (): Sheet['checklist'] => Object.fromEntries(SEC.checklist!.map((item) => [item.key, { result: cell('NA') }]));
     const before = composeConclusion(block({ checklist: allNA() }), SEC, 'SEC-C05').basis;
