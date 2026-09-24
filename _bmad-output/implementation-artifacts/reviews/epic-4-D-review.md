@@ -113,3 +113,24 @@ Verdict: changes-requested
 | R9 nice-to-have | deferred | Ledger entry (invalid payload leaves the row `queued` until expiry). |
 | R10 nice-to-have | partly fixed | The failed state's reason is the mock's shorter sentence (`failedReason(n)`, kernel); the dialog title stays above the result (it labels the dialog); "Gerar de novo" keeps naming the number the next edit allocates. |
 | O1, O2, O3 | as triaged | O1 no change (AD-22); O2 left to the Epic 4 retro; O3 folded into R3. |
+
+## 4. Re-check of the fixes
+
+Re-checked 2026-09-24 against `git diff 092a075..82616be`. Targeted Vitest runs in the tools container, where `NODE_ENV` is now empty:
+
+- Domain `src/print` and `src/contract`: 4 files, 39 tests pass.
+- Web `src/surfaces/export`, `src/surfaces/relatorio` and the three suites that threw `scrollTo` errors before (`tabs`, `new-project-dialog`, `template-composer`): 5 files, 69 tests pass, with no unhandled errors and no shim.
+
+I ran no Playwright, because `pnpm verify` was running on this stack.
+
+- **R1: resolved.** `NODE_ENV` is gone from `x-app-env` (`docker-compose.yml`, with a comment saying why), and `api-prod` keeps `production`. The `scrollTo` shim is deleted, and the suites run clean in Vitest's `test` mode. With `NODE_ENV` unset, the tools-container `vite build` has no `/__fixture/field` route and no `jsxDEV` runtime (probe in section 2).
+- **R2: resolved.** `use-generate.ts` sets a timer to the kernel's `jobExpiresAt` while working, then switches to failed and clears the awaiting pref. The jsdom test "stops waiting when the running job outlives the queue expiry" covers it.
+- **R3: resolved.** `layout.ts` `printedSections` prints the live section blocks via `sectionBlocks` (tombstones dropped, `order_key` order), numbered by position, and a block's own `config.section_text` wins over the seed text. TOC matching stays unique, because `headingPages` keys on "n TITLE". `4.8-UNIT-007` covers removal, a move and a duplicate with its own text.
+  - Residual nice-to-have, `packages/domain/src/print/layout.ts:164`: a relatório whose section blocks are all removed falls back to printing the seed's eleven sections. The fallback cannot tell "no blocks ever" from "all removed". Not blocking.
+- **R5: resolved.** Batch A's "Gerar relatório wiring" entry is restored in `deferred-work.md` with `state: closed (2026-09-24, ...)`.
+- **R6: resolved.** `GENERATE_JOB_EXPIRE_S` and `jobExpiresAt` now live in `packages/domain/src/print/revisions.ts` (the default of `isJobActive`). The worker, the route and the web hook read them from there, and neither app keeps a copy.
+- **R8: resolved.** `file_ids_expected` is capped by `.max(GENERATE_MAX_EXPECTED_FILES)` (10 000) in `contract/generate.ts`, with a contract test.
+- **R10: resolved as decided.** The failed state now shows the mock's shorter `failedReason(n)`, a kernel string. The dialog title staying above the result, and "Gerar de novo" naming the next number, are recorded decisions, and both were nice-to-have.
+- **R4, R7, R9 (not re-checked, deferred):** each has a ledger entry in `deferred-work.md`, which is acceptable for those severities.
+
+Verdict after fixes: approve
