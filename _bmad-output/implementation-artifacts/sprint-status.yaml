@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 09-24-2026 00:00
+last_updated: 09-24-2026 13:08
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -74,7 +74,7 @@ development_status:
   4-6-status-transitions-and-the-relatório-emitido-warning: done
   4-7-edit-a-section-s-text-inside-one-relatório: done
   4-8-generate-the-document-skeleton-as-a-numbered-docx-revision: done  # PR #24; Bruno reading of the skeleton DOCX pending (R-009)
-  epic-4-retrospective: optional
+  epic-4-retrospective: done
 
   epic-5: backlog
   5-1-open-a-sheet-and-move-through-its-four-steps: backlog
@@ -266,14 +266,14 @@ action_items:
     action: "E2-A4 DoD: every user-facing AC exercised through a mounted screen or
       moved in epics.md with a date; at least one @p0 per story"
     owner: "Matheus"
-    status: open
+    status: in-progress
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-22.md"
   - id: "epic-2-retro-item-17-e2-a5-human-style-pass-covers-each-form"
     epic: 2
     action: "E2-A5 Human-style pass covers each form at 390 and one second-cycle or
       second-device scenario"
     owner: "dev and reviewers"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-22.md"
   - id: "epic-3-retro-item-18-e3-a1-record-the-r-009-seed-review-under"
     epic: 3
@@ -324,14 +324,14 @@ action_items:
     action: "E3-A7 Process: one story per PR or a recorded exception; Dev model changes
       noted in epics.md with a date"
     owner: "Matheus / SM"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
   - id: "epic-3-retro-item-25-e3-a8-process-focus-asserted-after-every"
     epic: 3
     action: "E3-A8 Process: focus asserted after every destructive action; contenteditable
       and touch ACs run once on Android Chrome or WebKit before close"
     owner: "dev + reviewers"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
   - id: "epic-3-retro-item-26-e3-a9-deferred-polish-toggle-sub-lines-f"
     epic: 3
@@ -346,5 +346,75 @@ action_items:
     action: "E3-A10 Tooling: remove stale worktrees, require the worktree .env before
       the first compose command, drop the emoji from the PR attribution line"
     owner: "Matheus"
-    status: open
+    status: in-progress
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
+  - id: "epic-4-retro-item-28-e4-a1-fix-the-generate-and-status-seams"
+    epic: 4
+    action: "E4-A1 Fix the generate and status seams: one kernel editedSince limited
+      to the equipment the relatorio references (with Q15), no issue over edits after
+      snapshot_seq, issue on unchanged, setup asks statusTable(status); add a @p0
+      generate-edit-regenerate e2e (before Epic 5)"
+    owner: "dev (opus)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
+  - id: "epic-4-retro-item-29-e4-a2-q4-across-devices-pull-the-project"
+    epic: 4
+    action: "E4-A2 Q4 across devices: pull the project equipment before Criar relatorio
+      (or refuse offline) so reuse never mints duplicates; add a two-device test"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
+  - id: "epic-4-retro-item-30-e4-a3-section-text-and-exclusions-one-sh"
+    epic: 4
+    action: "E4-A3 Section text and exclusions: one shared undo-toast/edit-queue hook
+      (stale Desfazer, swallowed errors), Sumario meta for an edited text, blank exclusions
+      filtered and removable, decide template section 3 vs setup exclusions"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
+  - id: "epic-4-retro-item-31-e4-a4-small-fixes-one-putrelatoriostatus"
+    epic: 4
+    action: "E4-A4 Small fixes: one putRelatorioStatusOp/putBlockOp for every write,
+      web uses the kernel projectLabel, drop the stale ART comment in document-control.ts"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
+  - id: "epic-4-retro-item-32-e4-a5-spec-reconciliation-dated-narrowin"
+    epic: 4
+    action: "E4-A5 Spec reconciliation: dated narrowings in epics.md for items 27,
+      28, 30, 31; decide whether Rascunho may generate (25); schedule 29 and 14 with
+      Epic 7"
+    owner: "Matheus with the coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
+  - id: "epic-4-retro-item-33-e4-a6-bruno-reads-the-skeleton-docx-revi"
+    epic: 4
+    action: "E4-A6 Bruno reads the skeleton DOCX (reviews/qa-epic-4-D) and his remarks
+      are recorded under Story 4.8; Matheus confirms or reverses the Q3 and Q4 decisions"
+    owner: "Matheus"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
+  - id: "epic-4-retro-item-34-e4-a7-refactor-when-next-touched-split-s"
+    epic: 4
+    action: "E4-A7 Refactor when next touched: split setup-surface.tsx, extract the
+      Sumario row actions, unify the focus-restore helpers, move project helpers out
+      of sumario.ts"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
+  - id: "epic-4-retro-item-35-e4-a8-process-integrated-human-style-qa"
+    epic: 4
+    action: "E4-A8 Process: integrated human-style QA on clean main before each epic
+      closes; every cross-batch AC gets a named wiring owner in the spec phase; identity/reuse
+      rules get a two-device test; fix agents report product choices as open questions"
+    owner: "coordinator / SM"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
+  - id: "epic-4-retro-item-36-e4-a9-gate-run-test-e2e-matrix-at-epic-c"
+    epic: 4
+    action: "E4-A9 Gate: run test:e2e:matrix at epic close, at most two concurrent
+      verifies, a shared SyncState test factory, an orchestrator watchdog with ISO
+      timestamps"
+    owner: "dev / coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
