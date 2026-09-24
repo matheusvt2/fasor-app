@@ -2,7 +2,7 @@
 title: 'Stories 5.5-5.8: readings judged against the criterion, the continuous run, the instrument and the conclusion'
 type: 'feature'
 created: '2026-09-24'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'b6511e3b423f38207bf56fb7f0a38722b7f7f16c'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -23,7 +23,7 @@ deferred:
   - summary: >-
       A 5.8-E2E-001 run failed once at the Editar outbox poll during the fix pass; cause not found, later reruns green.
     evidence: |-
-      Reported by the fix subagent; 3 consecutive reruns of the 5.4, 5.5 and 5.8 tests passed.
+      Reproduced once more in the gate ("confirmed" read as the last text_status op); the likely cause is that outbox rows come back in op_id key order, not commit order, within one millisecond. The assertion now checks for the presence of the "edited" op; 3/3 green on repeat. Root cause not proven.
     location: >-
       e2e/ficha.spec.ts
     severity: low
@@ -144,3 +144,19 @@ Layers run: Edge Case Hunter, Verification Gap Reviewer. Skipped: Blind Hunter, 
 - `docker compose --profile tools run --rm tools pnpm test:unit -- readings conclusion instrument-pick pt-br-number sheet-progress criteria apply` -- expected: green.
 - `docker compose --profile tools run --rm tools pnpm exec playwright test e2e/ficha.spec.ts` -- expected: green.
 - `docker compose --profile tools run --rm tools pnpm verify > /tmp/verify-e5b.log 2>&1` -- expected: exit 0 (the orchestrator runs this once at the end).
+
+## Auto Run Result
+
+Status: done
+
+**Summary.** Stories 5.5-5.8 plus the Batch A carry-over: one kernel reading evaluation (`relatorio/readings.ts`: parse, unit, state, criterion verdict, outlier, ratio calc with nameplate fallback, the Enter run, worst readings) read by the Measurement table, `sheetProgress`, `suggestConclusionPair` and `composeConclusion`; the shared pt-BR `NumberInput` (commit on blur/Enter, "= 3.300 MΩ" echo, never rewrites focused text) used by measurement cells and nameplate numbers; the Ensaios step (tables, unit tap-cycle, M · G · T chips, "Não medido", calc cells, TTR cards on phone, continuous run), the Instrument picker, the Conclusão step (Conclusion control, suggestion row, sheet Observation, Generated text field with criteria line).
+
+**Files.** Kernel: `parse/pt-br-number.ts` (reading parse, grouping, echo), `seed/criteria.ts` (TΩ, `scaleToUnit`), `checks/calibration.ts` (`calibrationStatusOf`), `relatorio/readings.ts`, `relatorio/conclusion.ts`, `relatorio/instrument-pick.ts` (new), `relatorio/sheet-progress.ts` (evaluation-based counts, conclusion pair + required observation), `ops/apply.ts` (cell geometry and derived-column checks), `ops/path.ts` (addressing header), `text/plural.ts` (`listPtBr`), `index.ts`; fixture `replay-small` (one out-of-table cell address moved into the table). Web: `components/number-input.tsx`, `suggestion-field.tsx`, `generated-text-field.tsx` (new, shared), `surfaces/ficha/measurement-field.tsx`, `instrument-picker.tsx` (new), `ensaios-section.tsx`, `conclusao-section.tsx` (filled), `ficha-fields.tsx`, `ficha-ops.ts`, `ficha-surface.tsx`, `sticky-action-bar.tsx`, `ficha.css`, `copy/pt-br.ts`, `copy/ui.ts`, `public/sprite.svg` (`i-cycle`). E2E: `e2e/ficha.spec.ts` (8 new tests, two seeds fixed). `deferred-work.md` (stub entries closed, TAP deferral added).
+
+**Review.** Two layers (Edge Case Hunter, Verification Gap); Blind Hunter and Intent Alignment skipped (token economy). 21 findings: 13 patched in one fix loop (5 medium edge cases, 4 medium coverage gaps, 4 low), 1 deferred (draft recovery of a reading, untested), 7 rejected (see the triage log for each reason). One flaky assertion found by the final gate was stabilized (5.8-E2E-001: wait for the stepper's focus landing; read outbox ops by presence, not by IndexedDB key order).
+
+**Follow-up review recommended:** false (no high patched; the medium patches are covered by the new e2e and unit tests and the integrated Epic 5 review follows).
+
+**Verification.** `pnpm test:unit` green (domain, web, tooling); `e2e/ficha.spec.ts` 14 tests green, 5.8-E2E-001 3/3 on repeat; full `pnpm verify` green at f9445de: lint, static, unit (domain 803, web 745, tooling 20), api 142, e2e `@p0` 64 passed.
+
+**Residual risks.** Open questions 1-6 of the Design Notes stand (ratio nameplate fallback, the fixture's transformer units, CONDIÇÕES when out, picker list scope, authored conclusion copy, conclusão counting). The stricter cell geometry refuses older local op logs with out-of-table addresses (nothing shipped).
