@@ -76,4 +76,18 @@
   <symbol id="i-tree" viewBox="0 0 24 24">
     <path d="M4 6h16M4 12h10M4 18h13" />
   </symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24">
+    <path d="M4 20h4l11-11-4-4L4 16z" />
+    <path d="M13 7l4 4" />
+  </symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24">
+    <path d="M17 3l4 4-4 4" />
+    <path d="M3 11V9a2 2 0 0 1 2-2h16" />
+    <path d="M7 21l-4-4 4-4" />
+    <path d="M21 13v2a2 2 0 0 1-2 2H3" />
+  </symbol>
+  <symbol id="i-check-all" viewBox="0 0 24 24">
+    <path d="M2 12l5 5 8-9" />
+    <path d="M11 17l2 2 9-10" />
+  </symbol>
 </svg>

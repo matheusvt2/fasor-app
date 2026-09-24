@@ -4,7 +4,7 @@ import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { act, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
-import { MemoryRouter, Route, Routes, useNavigate, type NavigateFunction } from 'react-router';
+import { MemoryRouter, Route, Routes, useNavigate, useParams, type NavigateFunction } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { toRecord } from '../../db/commit.ts';
 import { LAST_SHEET_PREF, openDatabase, type AppDatabase } from '../../db/schema.ts';
@@ -144,6 +144,12 @@ function NavProbe() {
   return null;
 }
 
+/** Story 5.1: a tree row opens its sheet; the probe names the block the address carries. */
+function FichaProbe() {
+  const { blockId } = useParams();
+  return <p data-testid="ficha-probe">{blockId}</p>;
+}
+
 function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -155,6 +161,7 @@ function renderAt(path: string) {
               <Route path="/relatorio/:id" element={<SumarioSurface />} />
               <Route path="/relatorio/:id/arvore" element={<TreeSurface />} />
               <Route path="/elsewhere" element={<p>Outra tela</p>} />
+              <Route path="/relatorio/:id/ficha/:blockId" element={<FichaProbe />} />
             </Routes>
             <ToastOutlet />
           </BackTargetProvider>
@@ -255,7 +262,7 @@ describe('4.4 location tree (Sumário presentation)', () => {
     expect(screen.getByRole('button', { name: 'Recolher Cabine de Testes' })).toHaveAttribute('aria-expanded', 'true');
   });
 
-  it('offers the Overflow per row kind; "Abrir primeira ficha" is absent on a cabine with no equipment and focuses the row', async () => {
+  it('offers the Overflow per row kind; "Abrir primeira ficha" is absent on a cabine with no equipment and opens the sheet', async () => {
     database = await seeded();
     await openCabine();
     const itemsOf = async (trigger: string) => {
@@ -279,9 +286,10 @@ describe('4.4 location tree (Sumário presentation)', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Cabine de Testes' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Abrir primeira ficha (dados da cabine)' }));
-    await waitFor(() => expect(eqRow(SEC_TEST).querySelector('.s9-eq-open')).toHaveFocus());
-    expect(await screen.findByText('Abrir a ficha: disponível na próxima etapa')).toBeInTheDocument();
+    // Story 5.1: the cabine's first sheet opens, and it is the last sheet worked on here.
+    expect(await screen.findByTestId('ficha-probe')).toHaveTextContent(SEC_TEST);
     await waitFor(async () => expect((await database!.local_prefs.get(LAST_SHEET_PREF(RELATORIO)))?.value).toBe(SEC_TEST));
+    act(() => void go!(`/relatorio/${RELATORIO}`));
     await waitFor(() => expect(eqRow(SEC_TEST)).toHaveAttribute('aria-current', 'true'));
     expect(within(eqRow(SEC_TEST)).getByText('você parou aqui')).toHaveClass('sum-here');
   });

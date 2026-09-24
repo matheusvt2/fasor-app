@@ -1,0 +1,95 @@
+/*
+ * Page-only layout of the equipment sheet, copied from the mock's own `<style
+ * data-screen="ficha">` (`prototype/screens/60-ficha.html`) -- screen-scoped in the mock
+ * too, not part of components.css -- the same pattern as `relatorio.css`. The mock scopes
+ * the screen to its prototype route `/ficha/:tag`; the app renders it on
+ * `/relatorio/:id/ficha/:blockId`, so that `[data-route]` value stands for it. Rules for
+ * parts these stories do not render (the plate photo and its reading states, the
+ * measurement tables, the instrument picker, the conclusion, the viewfinders, the not-tested
+ * band) are left out, and so are their `.frame-*` variants: no `.frame-*` rule of the mock
+ * applies to what this surface draws (AGENTS.md "Mock container selectors").
+ */
+
+/* ---------- 60-ficha.html ---------- */
+[data-route="/relatorio/:id/ficha/:blockId"] .content { display: flex; flex-direction: column; gap: var(--sp-6); }
+[data-route="/relatorio/:id/ficha/:blockId"] .content .section { margin-top: 0; }
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-head-side { display: flex; align-items: center; gap: var(--sp-2); flex: none; }
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-head-side .overflow-trigger { color: var(--ink-primary); }
+[data-route="/relatorio/:id/ficha/:blockId"] .nameplate-grid { display: flex; flex-direction: column; gap: var(--sp-3); }
+[data-route="/relatorio/:id/ficha/:blockId"] .chip, [data-route="/relatorio/:id/ficha/:blockId"] .combobox-option, [data-route="/relatorio/:id/ficha/:blockId"] .overflow-menu .menu-item { cursor: pointer; }
+[data-route="/relatorio/:id/ficha/:blockId"] .section-stepper .step { cursor: pointer; }
+/* "Da cabine" label on the cabine blocks */
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-da-cabine { display: inline-flex; align-items: center; gap: var(--sp-1); min-height: 28px; padding: 0 var(--sp-3); border: 1.5px solid var(--border-strong); border-radius: var(--r-full); font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--ink-secondary); white-space: nowrap; }
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-amb-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-3); }
+/* Read-only: fields stay visible and readable, only the affordance goes */
+[data-route="/relatorio/:id/ficha/:blockId"] .is-readonly .input, [data-route="/relatorio/:id/ficha/:blockId"] .is-readonly .measurement-field, [data-route="/relatorio/:id/ficha/:blockId"] .is-readonly .observation-field { border-color: var(--border-hairline); background: var(--surface-base); }
+[data-route="/relatorio/:id/ficha/:blockId"] .is-readonly .combobox-chevron, [data-route="/relatorio/:id/ficha/:blockId"] .is-readonly .overflow-trigger, [data-route="/relatorio/:id/ficha/:blockId"] .is-readonly .chip-row, [data-route="/relatorio/:id/ficha/:blockId"] .is-readonly .section-head .btn, [data-route="/relatorio/:id/ficha/:blockId"] .is-readonly .bulk-action-bar, [data-route="/relatorio/:id/ficha/:blockId"] .is-readonly .ficha-legend { display: none; }
+[data-route="/relatorio/:id/ficha/:blockId"] .is-readonly .tri-state { border-color: var(--border-hairline); pointer-events: none; }
+[data-route="/relatorio/:id/ficha/:blockId"] .is-readonly .tri-state .seg { border-left-color: var(--border-hairline); }
+[data-route="/relatorio/:id/ficha/:blockId"] .camera-group .chip-row { padding-bottom: 0; }
+/* Checklist */
+[data-route="/relatorio/:id/ficha/:blockId"] .bulk-action-bar { margin-bottom: var(--sp-3); }
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-legend { margin: 0 0 var(--sp-2); }
+[data-route="/relatorio/:id/ficha/:blockId"] .row-expand .chip-row { padding-bottom: 0; }
+[data-route="/relatorio/:id/ficha/:blockId"] details.ficha-details { margin: var(--sp-1) 0 var(--sp-3); font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+[data-route="/relatorio/:id/ficha/:blockId"] details.ficha-details summary { display: inline-flex; align-items: center; gap: var(--sp-1); min-height: 40px; color: var(--primary); font-weight: 600; font-size: var(--t-label-size); cursor: pointer; list-style: none; }
+[data-route="/relatorio/:id/ficha/:blockId"] details.ficha-details summary::-webkit-details-marker { display: none; }
+[data-route="/relatorio/:id/ficha/:blockId"] details.ficha-details summary .ico { width: 18px; height: 18px; transition: transform .15s; }
+[data-route="/relatorio/:id/ficha/:blockId"] details.ficha-details[open] summary .ico { transform: rotate(180deg); }
+[data-route="/relatorio/:id/ficha/:blockId"] details.ficha-details p { margin: 0 0 var(--sp-1); }
+
+/* ---------- authored ---------- */
+
+/* The rail beside the sheet: the `/relatorio/:id/arvore` rules of `relatorio.css` (DESIGN.md ›
+   Collapsed rail), for this route. Below 768 px the sheet is the surface and the tree is its
+   own route (the App bar's back); from 768 px the 320 px rail, collapsed to the 48 px strip by
+   default in portrait (768-1023 px). The rail stays in view while the sheet scrolls. */
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-body { flex: 1; display: flex; min-height: 0; align-items: flex-start; }
+[data-route="/relatorio/:id/ficha/:blockId"] .rail, [data-route="/relatorio/:id/ficha/:blockId"] .rail-collapsed { position: sticky; top: 0; align-self: flex-start; max-height: 100dvh; }
+[data-route="/relatorio/:id/ficha/:blockId"] .rail { overflow-y: auto; }
+[data-route="/relatorio/:id/ficha/:blockId"] .relatorio-tree button.tree-body { text-align: left; }
+[data-route="/relatorio/:id/ficha/:blockId"] .relatorio-tree .tree-chevron .ico { transition: transform .15s; }
+[data-route="/relatorio/:id/ficha/:blockId"] .relatorio-tree .tree-chevron[aria-expanded="false"] .ico { transform: rotate(-90deg); }
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-main { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 100%; align-self: stretch; }
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-main > .content { flex: 1; }
+@media (max-width: 767.98px) {
+  [data-route="/relatorio/:id/ficha/:blockId"] .rail, [data-route="/relatorio/:id/ficha/:blockId"] .rail-collapsed { display: none; }
+}
+@media (min-width: 768px) and (max-width: 1023.98px) {
+  [data-route="/relatorio/:id/ficha/:blockId"] [data-rail="auto"] > .rail { display: none; }
+}
+@media (min-width: 1024px) {
+  [data-route="/relatorio/:id/ficha/:blockId"] [data-rail="auto"] > .rail-collapsed { display: none; }
+}
+@media (min-width: 768px) {
+  [data-route="/relatorio/:id/ficha/:blockId"] [data-rail="open"] > .rail-collapsed { display: none; }
+  [data-route="/relatorio/:id/ficha/:blockId"] [data-rail="closed"] > .rail { display: none; }
+}
+
+/* DESIGN.md › Sticky action bar: always within the thumb's reach and above the keyboard;
+   below a 480 px viewport height it unsticks and flows after the content. */
+[data-route="/relatorio/:id/ficha/:blockId"] .sticky-action-bar { position: sticky; bottom: 0; margin-top: auto; }
+@media (max-height: 479.98px) {
+  [data-route="/relatorio/:id/ficha/:blockId"] .sticky-action-bar { position: static; }
+}
+
+/* A step anchor takes the focus on a jump; a collapsed step keeps its section titles only
+   (EXPERIENCE.md › Section stepper: "Completed sections collapse to their title line"). */
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-step { display: flex; flex-direction: column; gap: var(--sp-6); scroll-margin-top: var(--sp-3); }
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-step:focus:not(:focus-visible) { outline: none; }
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-step.is-collapsed .section > :not(.section-head) { display: none; }
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-step.is-collapsed .section-head { margin-bottom: 0; }
+
+/* The mock draws a field's value as text inside `.measurement-field`; the app puts a real
+   input there, which fills the value slot (`.mf-value`), aligned as the mock's value is. */
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-field input.mf-value { width: 100%; text-align: right; }
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-field input:focus-visible { outline: none; }
+/* mirrors `.measurement-field.is-focus` for the real input's focus */
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-field:focus-within { border: 3px solid var(--focus); background: var(--focus-fill); }
+[data-route="/relatorio/:id/ficha/:blockId"] .measurement-field[aria-invalid="true"] { border-color: var(--nao-conforme); }
+/* mirrors `.observation-field.is-focus` for the real textarea's focus */
+[data-route="/relatorio/:id/ficha/:blockId"] textarea.observation-field { resize: vertical; }
+[data-route="/relatorio/:id/ficha/:blockId"] textarea.observation-field:focus-visible { outline: none; border: 3px solid var(--focus); background: var(--focus-fill); }
+/* A native select in the mock's `.field.combobox` box: the chevron sits over the box, not the label. */
+[data-route="/relatorio/:id/ficha/:blockId"] select.input { appearance: none; padding-right: var(--touch-min); cursor: pointer; }
+[data-route="/relatorio/:id/ficha/:blockId"] .field.combobox > .combobox-chevron { top: calc(var(--t-label-size) * var(--t-label-lh) + var(--sp-1)); bottom: auto; height: var(--touch-field); pointer-events: none; }

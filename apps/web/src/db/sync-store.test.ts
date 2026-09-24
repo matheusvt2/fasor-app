@@ -51,7 +51,7 @@ function deps(prefix = '019966b0-000f-7000-8000-') {
   };
 }
 
-const FIELD = `sheet/${BLOCK_1_ID}/nameplate/fabricante`;
+const FIELD = `sheet/${BLOCK_1_ID}/nameplate/fabricacao`;
 
 function put(path: string, value: OpInput['value'], extra: Partial<OpInput> = {}): OpInput {
   return {
@@ -98,7 +98,7 @@ describe('1.5-UNIT-001 rebase', () => {
 
     const local = makeOp(put(FIELD, 'LOCAL', { prev_op_id: null }), { newId: d.newId, now: d.now() });
     await commitOps(db, [local]);
-    expect((await block(db)).sheet.nameplate.fabricante?.value).toBe('LOCAL');
+    expect((await block(db)).sheet.nameplate.fabricacao?.value).toBe('LOCAL');
 
     // Another device's put on the same path lands on the server first.
     const remote: Op = {
@@ -110,8 +110,8 @@ describe('1.5-UNIT-001 rebase', () => {
     };
     await applyPulled(db, [remote]);
     const rebased = await block(db);
-    expect(rebased.sheet.nameplate.fabricante?.value).toBe('LOCAL');
-    expect(rebased.sheet.nameplate.fabricante?.op_id).toBe(local.op_id);
+    expect(rebased.sheet.nameplate.fabricacao?.value).toBe('LOCAL');
+    expect(rebased.sheet.nameplate.fabricacao?.op_id).toBe(local.op_id);
     expect(await db.outbox.get(local.op_id)).toMatchObject({ status: 'pending', prev_op_id: null, value: 'LOCAL' });
 
     // Pushed and acked below the remote op's seq, then pulled back: the server order decides.
@@ -120,7 +120,7 @@ describe('1.5-UNIT-001 rebase', () => {
     expect(await db.outbox.get(local.op_id)).toMatchObject({ status: 'acked', seq: seedSeq + 2 });
     const later: Op = { ...remote, op_id: '019966b0-0001-7000-8000-00000000aa02', value: 'REMOTE-2', seq: seedSeq + 3 };
     await applyPulled(db, [{ ...local, seq: seedSeq + 2 }, later]);
-    expect((await block(db)).sheet.nameplate.fabricante?.value).toBe('REMOTE-2');
+    expect((await block(db)).sheet.nameplate.fabricacao?.value).toBe('REMOTE-2');
 
     // The whole row equals the pure fold of the server log for that entity.
     const remoteOps = (await db.remote_ops.where('targets').equals(entityKey('block', BLOCK_1_ID)).toArray()).sort((a, b) => a.seq - b.seq);
@@ -135,10 +135,10 @@ describe('1.5-UNIT-001 rebase', () => {
     const dead = makeOp(put(FIELD, 'DEAD'), { newId: d.newId, now: d.now() });
     await commitOps(db, [dead]);
     await markDead(db, [{ op_id: dead.op_id, code: 'op_invalid' }]);
-    expect((await block(db)).sheet.nameplate.fabricante).toBeUndefined();
+    expect((await block(db)).sheet.nameplate.fabricacao).toBeUndefined();
     const remote: Op = { ...dead, op_id: '019966b0-0001-7000-8000-00000000ab01', device_id: 'tablet-b', value: 'REMOTE', seq: 900 };
     await applyPulled(db, [remote]);
-    expect((await block(db)).sheet.nameplate.fabricante?.value).toBe('REMOTE');
+    expect((await block(db)).sheet.nameplate.fabricacao?.value).toBe('REMOTE');
     expect(await db.outbox.get(dead.op_id)).toMatchObject({ status: 'dead', error_code: 'op_invalid', value: 'DEAD' });
     db.close();
   });
@@ -152,7 +152,7 @@ describe('dead-op re-materialization (1.4 deferred settling test)', () => {
     const keep = makeOp(put(`sheet/${BLOCK_1_ID}/observations`, 'fica'), { newId: d.newId, now: d.now() });
     const x = makeOp(put(FIELD, 'REJEITADO'), { newId: d.newId, now: d.now() });
     await commitOps(db, [keep, x]);
-    expect((await block(db)).sheet.nameplate.fabricante?.value).toBe('REJEITADO');
+    expect((await block(db)).sheet.nameplate.fabricacao?.value).toBe('REJEITADO');
 
     await markDead(db, [{ op_id: x.op_id, code: 'op_server_only' }]);
 
@@ -161,12 +161,12 @@ describe('dead-op re-materialization (1.4 deferred settling test)', () => {
     const remote = (await db.remote_ops.where('targets').equals(key).toArray()).sort((a, b) => a.seq - b.seq);
     const local = (await db.outbox.where('targets').equals(key).toArray()).filter((r) => r.status !== 'dead').map(opOf);
     expect(row).toEqual(materializeEntity({ entity: 'block', id: BLOCK_1_ID }, remote, local));
-    expect(row.sheet.nameplate.fabricante).toBeUndefined();
+    expect(row.sheet.nameplate.fabricacao).toBeUndefined();
     expect(row.sheet.observations?.value).toBe('fica');
 
     const snapshot = await toSnapshot(db, RELATORIO_ID);
     const b1 = snapshot.blocks.find((b) => b.id === BLOCK_1_ID)!;
-    expect(b1.sheet.nameplate.fabricante).toBeUndefined();
+    expect(b1.sheet.nameplate.fabricacao).toBeUndefined();
     expect(JSON.stringify(snapshot)).not.toContain('REJEITADO');
     expect(await db.outbox.get(x.op_id)).toMatchObject({ status: 'dead', error_code: 'op_server_only', value: 'REJEITADO' });
     db.close();
@@ -195,10 +195,10 @@ describe('dead-op re-materialization (1.4 deferred settling test)', () => {
     const x = makeOp(put(FIELD, 'DE-NOVO'), { newId: d.newId, now: d.now() });
     await commitOps(db, [x]);
     await markDead(db, [{ op_id: x.op_id, code: 'op_invalid' }]);
-    expect((await block(db)).sheet.nameplate.fabricante).toBeUndefined();
+    expect((await block(db)).sheet.nameplate.fabricacao).toBeUndefined();
     expect(await resendDead(db)).toBe(1);
     expect(await db.outbox.get(x.op_id)).toMatchObject({ status: 'pending', error_code: null });
-    expect((await block(db)).sheet.nameplate.fabricante?.value).toBe('DE-NOVO');
+    expect((await block(db)).sheet.nameplate.fabricacao?.value).toBe('DE-NOVO');
     expect(await resendDead(db)).toBe(0);
     db.close();
   });

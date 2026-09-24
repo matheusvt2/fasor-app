@@ -102,3 +102,25 @@ describe('Q7 useRelatorioEditor settle ordering', () => {
     expect(screen.getByTestId('toast')).toHaveTextContent('C movido');
   });
 });
+
+describe('retireUndo (Batch A review finding: a typed correction after a copy must not be undoable away)', () => {
+  it('dismisses a live undo toast, the same as a later edit() would', async () => {
+    database = openDatabase('019966c1-0061-7000-8000-000000000004');
+    renderEditor();
+    act(() => editor!.undoable('Copiado de TAG-2 — Desfazer', BATCH_A));
+    expect(screen.getByTestId('toast')).toHaveTextContent('Copiado de TAG-2');
+    act(() => editor!.retireUndo());
+    expect(screen.queryByTestId('toast')).toBeNull();
+  });
+
+  it('leaves a newer, unrelated toast alone (only its own live undo toast is retired)', async () => {
+    database = openDatabase('019966c1-0061-7000-8000-000000000005');
+    renderEditor();
+    act(() => editor!.undoable('Copiado de TAG-2 — Desfazer', BATCH_A));
+    act(() => editor!.retireUndo());
+    expect(screen.queryByTestId('toast')).toBeNull();
+    // A second retire with nothing live is a no-op, never an error.
+    act(() => editor!.retireUndo());
+    expect(screen.queryByTestId('toast')).toBeNull();
+  });
+});

@@ -275,7 +275,7 @@ function localPut(newId: () => string, value: string, extra: Partial<OpInput> = 
       prev_op_id: null,
       batch_id: null,
       meta: null,
-      path: `sheet/${BLOCK_1_ID}/nameplate/fabricante`,
+      path: `sheet/${BLOCK_1_ID}/nameplate/fabricacao`,
       value,
       actor_id: USER_ID,
       device_id: 'tablet-a',
@@ -820,7 +820,7 @@ describe('sync engine', () => {
     expect(await h.db.outbox.get(good.op_id)).toMatchObject({ status: 'acked' });
     expect(h.engine.status().supersededCount).toBe(1);
     const block = (await h.db.entities.get(['block', BLOCK_1_ID]))!.row as { sheet: { nameplate: Record<string, { value: unknown }> } };
-    expect(block.sheet.nameplate.fabricante?.value).toBe('GOOD');
+    expect(block.sheet.nameplate.fabricacao?.value).toBe('GOOD');
     h.db.close();
   });
 });

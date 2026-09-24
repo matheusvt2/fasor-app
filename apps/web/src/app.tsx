@@ -4,6 +4,7 @@ import { copy } from './copy/pt-br.ts';
 import { BackTargetProvider } from './state/back-target.tsx';
 import { DraftProvider } from './state/drafts.tsx';
 import { ExtraBannerProvider } from './state/extra-banner.tsx';
+import { PageTitleProvider } from './state/page-title.tsx';
 import { SessionProvider, useSession } from './state/session.tsx';
 import { SyncProvider, useSync } from './state/sync.tsx';
 import { ThemeProvider } from './state/theme.tsx';
@@ -13,6 +14,7 @@ import { AppShell } from './surfaces/app-shell.tsx';
 import { AccountSurface } from './surfaces/account/account-surface.tsx';
 import { ContractOutdatedSurface } from './surfaces/contract-outdated-surface.tsx';
 import { EvictionRecoverySurface } from './surfaces/eviction-recovery-surface.tsx';
+import { FichaSurface } from './surfaces/ficha/ficha-surface.tsx';
 import { FieldFixtureSurface } from './surfaces/fixtures/field-fixture-surface.tsx';
 import { HomeSurface } from './surfaces/home/home-surface.tsx';
 import { LoginSurface } from './surfaces/login/login-surface.tsx';
@@ -65,9 +67,11 @@ function RequireSession() {
         <ToastProvider>
           <DraftProvider>
             <BackTargetProvider>
-              <ExtraBannerProvider>
-                <SessionShell />
-              </ExtraBannerProvider>
+              <PageTitleProvider>
+                <ExtraBannerProvider>
+                  <SessionShell />
+                </ExtraBannerProvider>
+              </PageTitleProvider>
             </BackTargetProvider>
           </DraftProvider>
         </ToastProvider>
@@ -137,6 +141,13 @@ const router = createBrowserRouter([
             path: '/relatorio/:id/arvore',
             element: <TreeSurface />,
             handle: { title: copy.sumario.rail.title, back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}` },
+          },
+          // Story 5.1: the equipment sheet, keyed by block id (a TAG rename keeps the address).
+          // Its App bar title is the TAG, which the surface sets (`usePageTitle`).
+          {
+            path: '/relatorio/:id/ficha/:blockId',
+            element: <FichaSurface />,
+            handle: { title: '', back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}/arvore` },
           },
           {
             path: '/relatorio/:id/secao/:blockId',

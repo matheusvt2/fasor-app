@@ -6,7 +6,7 @@ import { materializeEntity } from './materialize.ts';
 import type { Op } from './op.ts';
 import { replay } from './replay.ts';
 
-const FIELD = `sheet/${BLOCK_1_ID}/nameplate/fabricante`;
+const FIELD = `sheet/${BLOCK_1_ID}/nameplate/fabricacao`;
 
 /** The fixture ops whose targets include the key, as the Dexie `*targets` index would return them. */
 function targeting(key: string, log: readonly Op[]): Op[] {
@@ -43,14 +43,14 @@ describe('1.5-UNIT-001 materializeEntity', () => {
       client_ts: '2026-09-21T09:00:00.000Z',
     };
     const rebased = materializeEntity(splitEntityKey(key), remote, [local]) as BlockRow;
-    expect(rebased.sheet.nameplate.fabricante?.value).toBe('LOCAL');
-    expect(rebased.sheet.nameplate.fabricante?.op_id).toBe(local.op_id);
+    expect(rebased.sheet.nameplate.fabricacao?.value).toBe('LOCAL');
+    expect(rebased.sheet.nameplate.fabricacao?.op_id).toBe(local.op_id);
 
     // Pulled back (seq 1000) with another device's put applied after it (seq 1001): the server order decides.
     const pulledBack = { ...local, seq: 1000 };
     const other: Op = { ...template, op_id: '019966b0-0001-7000-8000-00000000ff02', value: 'OTHER', seq: 1001 };
     const converged = materializeEntity(splitEntityKey(key), [...remote, pulledBack, other], [local]) as BlockRow;
-    expect(converged.sheet.nameplate.fabricante?.value).toBe('OTHER');
+    expect(converged.sheet.nameplate.fabricacao?.value).toBe('OTHER');
   });
 
   it('an op left out of local (dead) leaves no trace', () => {
@@ -78,9 +78,9 @@ describe('1.5-UNIT-001 materializeEntity', () => {
     const a: Op = { ...template, op_id: '019966b0-0001-7000-8000-00000000ff01', value: 'A', seq: undefined };
     const b: Op = { ...template, op_id: '019966b0-0001-7000-8000-00000000ff02', value: 'B', seq: undefined };
     const row = materializeEntity(splitEntityKey(key), remote, [b, a]) as BlockRow;
-    expect(row.sheet.nameplate.fabricante?.value).toBe('B');
+    expect(row.sheet.nameplate.fabricacao?.value).toBe('B');
     const acked = materializeEntity(splitEntityKey(key), [...remote, { ...b, seq: 1 }], [b, a]) as BlockRow;
     // b is now remote (seq 1, before every fixture op); a is the only local op and lands last.
-    expect(acked.sheet.nameplate.fabricante?.value).toBe('A');
+    expect(acked.sheet.nameplate.fabricacao?.value).toBe('A');
   });
 });

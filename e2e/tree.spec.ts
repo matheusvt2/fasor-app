@@ -117,14 +117,19 @@ test('@p0 4.4-E2E-001 section 9 at 1280: chevrons and Left/Right, coluna and equ
   await page.keyboard.press('Escape');
   await expect(page.getByRole('menu')).toHaveCount(0);
 
-  // "Abrir primeira ficha" expands the path and focuses its row.
+  // "Abrir primeira ficha" opens the cabine's first sheet (Story 5.1: the App bar names its
+  // TAG); back on the Sumário its row is the last sheet worked on.
   await menuOf(page, 'Cubículo Enel').click();
   await page.getByRole('menuitem', { name: 'Abrir primeira ficha (dados da cabine)' }).click();
-  const firstEnel = tagsIn(cabine(page, 'Cubículo Enel')).first();
-  await expect(firstEnel).toBeVisible();
-  const firstTag = (await firstEnel.textContent())!;
-  await expect(eqRow(page, firstTag).locator('.s9-eq-open')).toBeFocused();
-  await expect(toast(page)).toContainText('Abrir a ficha: disponível na próxima etapa');
+  await expect(page).toHaveURL(/\/ficha\//);
+  const tagButton = page.locator('.sheet-header .tag-btn');
+  await expect(tagButton).not.toHaveText('');
+  const firstTag = (await tagButton.textContent())!.trim();
+  await expect(page.locator('.app-bar-title')).toHaveText(firstTag);
+  await page.goBack();
+  await openSection9(page);
+  await page.getByRole('button', { name: 'Expandir Cubículo Enel' }).click();
+  await expect(tagsIn(cabine(page, 'Cubículo Enel')).first()).toHaveText(firstTag);
   await expect(eqRow(page, firstTag)).toHaveAttribute('aria-current', 'true');
 
   // "Agrupar por tipo" toggles the cabine flag, announced, and survives a reload.

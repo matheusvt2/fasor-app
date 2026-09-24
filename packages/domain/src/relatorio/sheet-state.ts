@@ -39,7 +39,7 @@ export function isCellFilled(cell: Cell | null | undefined): boolean {
 }
 
 /** The sub-blocks the block's own config enables; every one when the config does not parse. */
-function enabledOf(block: BlockRow): ReadonlySet<SubBlockKey> {
+export function enabledSubBlocksOf(block: Pick<BlockRow, 'config'>): ReadonlySet<SubBlockKey> {
   const parsed = blockConfigSchema.safeParse(block.config);
   if (!parsed.success) return new Set(SUB_BLOCK_KEYS);
   return new Set(enabledSubBlocks(parsed.data));
@@ -47,7 +47,7 @@ function enabledOf(block: BlockRow): ReadonlySet<SubBlockKey> {
 
 /** Every cell of the sheet's enabled sub-blocks. */
 export function enabledCells(block: BlockRow): Cell[] {
-  const enabled = enabledOf(block);
+  const enabled = enabledSubBlocksOf(block);
   const s = block.sheet;
   const cells: Cell[] = [];
   if (enabled.has('nameplate')) cells.push(...Object.values(s.nameplate));

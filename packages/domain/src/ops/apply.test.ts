@@ -207,19 +207,19 @@ describe('1.4-UNIT-004 provenance and attribution', () => {
     const f = opFactory();
     const key = entityKey('block', B1);
     const confirm = f.op({
-      path: `sheet/${B1}/nameplate/tensao`,
+      path: `sheet/${B1}/nameplate/tensao_nominal`,
       value: '13800',
       meta: { source_suggestion_id: SUG },
     });
     const s1 = applyOp(state([key, block(B1)]), confirm);
-    expect((s1.get(key) as BlockRow).sheet.nameplate.tensao).toEqual({
+    expect((s1.get(key) as BlockRow).sheet.nameplate.tensao_nominal).toEqual({
       value: '13800',
       source_suggestion_id: SUG,
       op_id: confirm.op_id,
     });
-    const plain = f.op({ path: `sheet/${B1}/nameplate/tensao`, value: '13.8' });
+    const plain = f.op({ path: `sheet/${B1}/nameplate/tensao_nominal`, value: '13.8' });
     const s2 = applyOp(s1, plain);
-    expect((s2.get(key) as BlockRow).sheet.nameplate.tensao).toEqual({
+    expect((s2.get(key) as BlockRow).sheet.nameplate.tensao_nominal).toEqual({
       value: '13.8',
       source_suggestion_id: null,
       op_id: plain.op_id,
@@ -243,15 +243,15 @@ describe('1.4-UNIT-004 provenance and attribution', () => {
   it('attributes sheet ops: first_edited_at only once, last_modified from the latest op', () => {
     const f = opFactory();
     const key = entityKey('block', B1);
-    const a = f.op({ path: `sheet/${B1}/checklist/limpeza/result`, value: 'C' });
-    const b = f.op({ path: `sheet/${B1}/test/isolamento/cell/0/0`, value: '1', actor_id: OTHER_USER });
+    const a = f.op({ path: `sheet/${B1}/checklist/limpeza_e_lubrificacao/result`, value: 'C' });
+    const b = f.op({ path: `sheet/${B1}/test/isolacao/cell/0/0`, value: '1', actor_id: OTHER_USER });
     const s = fold(state([key, block(B1)]), [a, b]);
     const row = s.get(key) as BlockRow;
     expect(row.first_edited_at).toBe(a.client_ts);
     expect(row.last_modified_at).toBe(b.client_ts);
     expect(row.last_modified_by).toBe(OTHER_USER);
-    expect(row.sheet.checklist.limpeza?.result?.value).toBe('C');
-    expect(row.sheet.test.isolamento?.cells['0']?.['0']?.value).toBe('1');
+    expect(row.sheet.checklist.limpeza_e_lubrificacao?.result?.value).toBe('C');
+    expect(row.sheet.test.isolacao?.cells['0']?.['0']?.value).toBe('1');
   });
 
   it('attributes block not_tested but no other block field', () => {
@@ -305,12 +305,75 @@ describe('readPath', () => {
   it('reads the value a put replaces, undefined when absent', () => {
     const f = opFactory();
     const key = entityKey('block', B1);
-    const s = applyOp(state([key, block(B1)]), f.op({ path: `sheet/${B1}/nameplate/tensao`, value: '1' }));
-    expect(readPath(s, f.op({ path: `sheet/${B1}/nameplate/tensao`, value: '2' }))).toBe('1');
+    const s = applyOp(state([key, block(B1)]), f.op({ path: `sheet/${B1}/nameplate/tensao_nominal`, value: '1' }));
+    expect(readPath(s, f.op({ path: `sheet/${B1}/nameplate/tensao_nominal`, value: '2' }))).toBe('1');
     expect(readPath(s, f.op({ path: `sheet/${B1}/nameplate/potencia`, value: '2' }))).toBeUndefined();
     expect(readPath(s, f.op({ path: `block/${B1}/order_key`, value: 'x' }))).toBe('a0');
     expect(readPath(s, f.op({ kind: 'create', path: `block/${B2}`, value: block(B2) }))).toBeUndefined();
     expect(readPath(state(), f.op({ path: `block/${B1}/order_key`, value: 'x' }))).toBeUndefined();
+  });
+});
+
+describe('E3-A3 assertSeedPath: sheet writes checked against getDefinition', () => {
+  const key = entityKey('block', B1);
+
+  it('accepts a nameplate field_key, checklist item_key and test_key the block_type actually defines', () => {
+    const f = opFactory();
+    const s = fold(state([key, block(B1)]), [
+      f.op({ path: `sheet/${B1}/nameplate/tensao_nominal`, value: '13800' }),
+      f.op({ path: `sheet/${B1}/checklist/limpeza_e_lubrificacao/result`, value: 'C' }),
+      f.op({ path: `sheet/${B1}/test/isolacao/cell/0/0`, value: '1' }),
+    ]);
+    const row = s.get(key) as BlockRow;
+    expect(row.sheet.nameplate.tensao_nominal?.value).toBe('13800');
+    expect(row.sheet.checklist.limpeza_e_lubrificacao?.result?.value).toBe('C');
+    expect(row.sheet.test.isolacao?.cells['0']?.['0']?.value).toBe('1');
+  });
+
+  it('rejects a nameplate field_key the block_type has no field for', () => {
+    const f = opFactory();
+    expect(() => applyOp(state([key, block(B1)]), f.op({ path: `sheet/${B1}/nameplate/nao_existe`, value: 'x' }))).toThrow(
+      /"nao_existe" is not a nameplate field of disjuntor_mt/,
+    );
+  });
+
+  it('rejects a checklist item_key the block_type has no item for', () => {
+    const f = opFactory();
+    expect(() =>
+      applyOp(state([key, block(B1)]), f.op({ path: `sheet/${B1}/checklist/nao_existe/result`, value: 'C' })),
+    ).toThrow(/"nao_existe" is not a checklist item of disjuntor_mt/);
+  });
+
+  it('rejects a test_key the block_type has no test for, on both the test and the cell family', () => {
+    const f = opFactory();
+    expect(() =>
+      applyOp(
+        state([key, block(B1)]),
+        f.op({ path: `sheet/${B1}/test/relacao_transformacao/instrument`, value: {} }),
+      ),
+    ).toThrow(/"relacao_transformacao" is not a test of disjuntor_mt/);
+    expect(() =>
+      applyOp(state([key, block(B1)]), f.op({ path: `sheet/${B1}/test/relacao_transformacao/cell/0/0`, value: '1' })),
+    ).toThrow(/"relacao_transformacao" is not a test of disjuntor_mt/);
+  });
+
+  it('rejects a sheet write on a block_type with no equipment definition (a section block)', () => {
+    const f = opFactory();
+    const sectionBlock = { ...block(B1), block_type: 'section_1' };
+    expect(() =>
+      applyOp(state([key, sectionBlock]), f.op({ path: `sheet/${B1}/nameplate/tensao_nominal`, value: '1' })),
+    ).toThrow(/block_type "section_1"/);
+  });
+
+  it('never checks sheet/conclusion or sheet/observations against a seed key (they carry none)', () => {
+    const f = opFactory();
+    const s = fold(state([key, block(B1)]), [
+      f.op({ path: `sheet/${B1}/conclusion/result`, value: 'aprovado' }),
+      f.op({ path: `sheet/${B1}/observations`, value: 'ok' }),
+    ]);
+    const row = s.get(key) as BlockRow;
+    expect(row.sheet.conclusion.result?.value).toBe('aprovado');
+    expect(row.sheet.observations?.value).toBe('ok');
   });
 });
 

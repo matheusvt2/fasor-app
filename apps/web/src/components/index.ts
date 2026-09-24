@@ -53,3 +53,6 @@ export type { QuantityStepperProps } from './quantity-stepper.tsx';
 
 export { DateField } from './date-field.tsx';
 export type { DateFieldProps } from './date-field.tsx';
+
+export { TriStateControl } from './tri-state-control.tsx';
+export type { TriStateControlProps, TriStateValue } from './tri-state-control.tsx';

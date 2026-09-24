@@ -25,6 +25,7 @@ import {
   type TreeLocationNode,
 } from '@app/domain';
 import { useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router';
 import { copy } from '../../copy/pt-br.ts';
 import { projectBlockRows } from '../../db/home-store.ts';
 import { writeLastSheet } from '../../db/prefs.ts';
@@ -117,15 +118,19 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
   const { showToast } = useToast();
   const t = copy.sumario.tree;
 
+  const navigate = useNavigate();
+  // Story 5.1: a tree row opens its sheet (the rail's rows too, moving to another sheet).
+  // The pref is written first, so the path back to it is "você parou aqui".
   const openSheet = useCallback(
     (blockId: string) => {
-      const locationId = host.locationOf(blockId);
-      if (locationId !== null) host.reveal(locationId);
-      focusWhenRendered(() => blockOpen(host.root(), blockId));
-      if (db !== null) void writeLastSheet(db, relatorioId, blockId);
-      showToast(t.openStub);
+      const go = () => void navigate(`/relatorio/${relatorioId}/ficha/${blockId}`);
+      if (db === null) {
+        go();
+        return;
+      }
+      void writeLastSheet(db, relatorioId, blockId).then(go, go);
     },
-    [host, db, relatorioId, showToast, t.openStub],
+    [db, relatorioId, navigate],
   );
 
   const moveBlock = useCallback(
