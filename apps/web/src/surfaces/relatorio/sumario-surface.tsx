@@ -489,7 +489,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
             </svg>
             {t.preview}
           </Button>
-          <GenerateAction reasonId={reasonId} blocked={blocked} />
+          <GenerateAction relatorioId={relatorioId} reasonId={reasonId} blocked={blocked} />
         </div>
       </div>
 

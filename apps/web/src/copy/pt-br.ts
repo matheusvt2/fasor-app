@@ -480,11 +480,9 @@ export const copy = {
     addSectionListLabel: 'Seções',
     // Foot.
     preview: 'Pré-visualizar',
-    // authored: the draft preview is Story 4.8's.
+    // authored: the draft preview (RASCUNHO watermark) is Epic 7's (FR-73).
     previewReason: 'Pré-visualizar: disponível na pré-visualização do documento',
     generate: 'Gerar relatório',
-    // authored: the generate wiring is Story 4.8's (batch D).
-    generateStub: 'Gerar relatório: disponível na próxima etapa',
     // authored: an address that names no relatório on this device, and the way back.
     notFound: 'Relatório não encontrado neste aparelho.',
     backHome: 'Voltar para o início',

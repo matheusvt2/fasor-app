@@ -12,7 +12,6 @@ import { AppShell } from './surfaces/app-shell.tsx';
 import { AccountSurface } from './surfaces/account/account-surface.tsx';
 import { ContractOutdatedSurface } from './surfaces/contract-outdated-surface.tsx';
 import { EvictionRecoverySurface } from './surfaces/eviction-recovery-surface.tsx';
-import { ExportFixtureSurface } from './surfaces/fixtures/export-fixture-surface.tsx';
 import { FieldFixtureSurface } from './surfaces/fixtures/field-fixture-surface.tsx';
 import { HomeSurface } from './surfaces/home/home-surface.tsx';
 import { LoginSurface } from './surfaces/login/login-surface.tsx';
@@ -86,16 +85,12 @@ function LoginRoute() {
 }
 
 /**
- * The dev-only fixtures: the field fixture the durability scenarios drive (no sheet
- * surface exists before Epic 5) and the export fixture that mounts the Export dialog
- * until the Sumário (Story 4.3) does. `import.meta.env.DEV` is statically replaced at
- * build time, so the routes and the surfaces are tree-shaken out of a production bundle.
+ * The dev-only field fixture the durability scenarios drive (no sheet surface exists
+ * before Epic 5). `import.meta.env.DEV` is statically replaced at build time, so the
+ * route and the surface are tree-shaken out of a production bundle.
  */
 const fixtureRoutes: RouteObject[] = import.meta.env.DEV
-  ? [
-      { path: '/__fixture/field', element: <FieldFixtureSurface />, handle: { title: 'Campo de teste' } },
-      { path: '/__fixture/export', element: <ExportFixtureSurface />, handle: { title: 'Exportar (fixture)' } },
-    ]
+  ? [{ path: '/__fixture/field', element: <FieldFixtureSurface />, handle: { title: 'Campo de teste' } }]
   : [];
 
 const router = createBrowserRouter([

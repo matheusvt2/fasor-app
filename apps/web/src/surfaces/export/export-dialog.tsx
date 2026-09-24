@@ -36,8 +36,8 @@ function openDocx(revisionId: string): void {
 /**
  * The Export dialog of `73-exportar.html` (Story 4.8, FR-62, FR-74): "Gerar relatório"
  * with its reason, the working line, the failed line, the result block with "DOCX — abrir
- * no Word" and the "Revisões" list. Mounted by the Sumário's "Gerar relatório" once Story
- * 4.3 lands; until then by the dev-only export fixture route. Out of the slice here: the
+ * no Word" and the "Revisões" list. Mounted by the Sumário's "Gerar relatório"
+ * (`surfaces/relatorio/generate-action.tsx`). Out of the slice here: the
  * pre-issue list, the document control summary, "Pré-visualizar", the share buttons and
  * the PDF row (Epic 11).
  */
