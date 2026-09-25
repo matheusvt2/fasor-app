@@ -268,7 +268,7 @@ test('@p0 12.4-E2E-004 a voltage class created with its unit ("15 kV") through "
   expect((await outbox(page)).filter((row) => row.path === `sheet/${secEnel.blockId}/nameplate/tensao_de_placa`).map((row) => row.value)).toEqual(['15']);
 });
 
-test('@p1 12.1-E2E-008 a primary still labelled "Próxima ficha" when the last reading commits concludes on the fresh rows: the suggested instruments and the conclusion in one batch, then the next sheet (E12-Q6, open question D-4 kept)', async ({ page }) => {
+test('@p0 12.1-E2E-008 a primary still labelled "Próxima ficha" when the last reading commits concludes on the fresh rows: the suggested instruments and the conclusion in one batch, then the next sheet (E12-Q6, open question D-4 kept)', async ({ page }) => {
   test.setTimeout(150_000);
   const cells = SECC.tests.flatMap((t) => cellAddressesOf(SECC, t.key));
   const last = cells.at(-1)!;
@@ -289,12 +289,13 @@ test('@p1 12.1-E2E-008 a primary still labelled "Próxima ficha" when the last r
   await page.keyboard.type(last.testKey === 'isolacao' ? '150' : '100');
   // The value is typed but not committed: this render still offers "Próxima ficha".
   await expect(primary).toHaveText(/Próxima ficha/);
-  // A hand's press: the pointer down blurs the reading (its commit), the render stays held
-  // until the click, so the click runs the primary this render labelled "Próxima ficha".
+  // In a fixed order: the pointer goes down on the primary, which blurs the reading and so
+  // commits it; once that value's op is in the outbox the pointer comes up. The click runs the
+  // primary this render labelled "Próxima ficha", and it concludes on the fresh rows.
   const box = (await primary.boundingBox())!;
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
-  await page.waitForTimeout(80);
+  await expect.poll(async () => (await outbox(page)).some((row) => row.path === lastPath(second.blockId)), { intervals: [20] }).toBe(true);
   await page.mouse.up();
 
   await expect(toast(page)).toContainText('Ficha concluída');

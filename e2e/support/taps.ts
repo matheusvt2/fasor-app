@@ -153,12 +153,18 @@ export async function touchPressAcross(page: Page, target: Locator, during: () =
   const x = box.x + box.width / 2;
   const y = box.y + box.height / 2;
   const cdp = await page.context().newCDPSession(page);
+  let touching = false;
   try {
     await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+    touching = true;
     await during();
-    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   } finally {
-    await cdp.detach();
+    // The finger always lifts, even when `during` threw, so no touch is left down on the page.
+    try {
+      if (touching) await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    } finally {
+      await cdp.detach();
+    }
   }
 }

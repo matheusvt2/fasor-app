@@ -77,6 +77,7 @@ export function NewProjectDialog({ clients, projects, onClose }: NewProjectDialo
     const existing = clientOptions.find((option) => normalizeRegistryName(option.label) === normalizeRegistryName(name));
     if (existing !== undefined) {
       pickClient(existing.id, existing.label);
+      requestAnimationFrame(() => siteInput.current?.focus());
       return;
     }
     const base = author();

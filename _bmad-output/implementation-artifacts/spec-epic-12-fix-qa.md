@@ -2,10 +2,10 @@
 title: 'Epic 12 fixes: integrated review findings (E12-Q1..Q14 except Q5)'
 type: 'bugfix'
 created: '2026-09-25'
-status: 'in-progress'
+status: 'done'
 baseline_revision: 'c0ce7b0dc303550c4565d49da66bb5a8814c4854'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: 'opus'
 dev_effort: 'high'
 context:
@@ -13,7 +13,14 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-12-context.md'
 warnings: ['batched', 'multiple-goals', 'oversized']
 # batched: thirteen review findings on the same sheet, setup and shell surfaces fixed in one PR (shared surface, token economy).
-deferred: []
+deferred:
+  - summary: >-
+      The focus move to "Local (obra)" after a client "Criar" runs after an awaited IndexedDB commit, outside the user gesture, so a tablet may keep its soft keyboard shut.
+    evidence: |-
+      apps/web/src/surfaces/home/new-project-dialog.tsx createClient focuses in requestAnimationFrame after await commitBatch; the E12-Q7 rationale (no keyboard for a focus outside a gesture) applies. Chrome desktop focuses and types fine. Settle on the target tablet.
+    location: >-
+      apps/web/src/surfaces/home/new-project-dialog.tsx
+    severity: medium
 ---
 
 <intent-contract>
@@ -115,6 +122,25 @@ Coordinator decisions (binding, 2026-09-25):
 
 ## Review Triage Log
 
+### 2026-09-25 — Review pass
+
+Layers run: Edge Case Hunter and Verification Gap Reviewer. Blind Hunter and Intent Alignment skipped (token economy; the integrated Epic 12 review covers them). Orchestrator fix before review: `CONTRACT_VERSION` and `MIN_CONTRACT_VERSION` raised to 3 for the new server-only `template/{id}/seed_version` family (the precedent of version 2: an old bundle cannot parse a family it does not know, so it must update).
+
+- verdicts: 12 findings — high 0, medium 4, low 7, false 1, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` Edge: the upgrade's four puts go through `applyOps`, op by op; a refusal mid-way leaves `seed_version` moved and blocks old, and later runs skip it — moved to `applyServerBatch` (one transaction under the company lock).
+  - `[medium]` `[patch]` Edge: `version === 1` read outside the lock; a device edit in between is overwritten and `version` reset to 1 — re-checked in `deps.before` under the lock.
+  - `[low]` `[reject]` Edge: a stored `seed_version` newer than the server's would be downgraded — only reachable by running an older build against a newer database; the fix adds a version-order guard.
+  - `[low]` `[patch]` Edge: the intermediate row (new `seed_version`, old blocks) could fail validation for a future seed — covered by the atomic batch (same root cause as the first row).
+  - `[medium]` `[defer]` Edge: the client-"Criar" focus to "Local (obra)" runs in a frame after an awaited IndexedDB commit, outside the gesture, so a tablet may keep its keyboard shut — the fix restructures the create (pick before the await, undo on error); recorded as a device check like the original E12-Q7.
+  - `[low]` `[patch]` Edge: an existing-client "Criar" returns without moving the focus to "Local (obra)" — focus added there too.
+  - `[low]` `[patch]` Edge: `.rail-collapsed { height: 100dvh }` stretches a short sheet to the viewport plus the App bar — sized so it never makes the page taller.
+  - `[low]` `[patch]` Edge: `taps.ts` never releases the CDP touch when `during()` throws — `touchEnd` moved into `finally`.
+  - `[medium]` `[patch]` Verification: `useForwardArrival`'s POP and search-only exclusions are untested — Vitest added over a memory router.
+  - `[low]` `[patch]` Verification: "Fechar" on an untouched arrival panel (no row, no check) is untested — assertion added to 12.2-E2E-003.
+  - `[low]` `[patch]` Verification: the stale-"Próxima ficha" pin is `@p1` with an 80 ms timing, outside the gate — made order-deterministic and tagged `@p0` (the coordinator asked for a deterministic test).
+  - `[false]` `[reject]` Verification (other): E12-Q12 is not a live defect — `card.counter?.text` with a null counter is already `undefined`, which the old filter dropped; the `!= null` change is harmless and kept. The trailing separator the QA pass heard was not reproduced in code.
+
 ## Verification
 
 **Commands:**
@@ -123,3 +149,13 @@ Coordinator decisions (binding, 2026-09-25):
 - `docker compose --profile tools run --rm tools pnpm exec playwright test e2e/journey-forward.spec.ts --project desktop-chrome --repeat-each 5` -- green
 - `docker compose --profile tools run --rm tools pnpm exec playwright test e2e/tap-budget.spec.ts e2e/lost-taps.durability.spec.ts` -- green, J1/J3 counts logged
 - `docker compose --profile tools run --rm tools pnpm verify` -- green
+
+## Auto Run Result
+
+- **Status:** done. Thirteen findings fixed (E12-Q1..Q14 except Q5), one review-fix loop.
+- **Summary:** Q1 voltage class shown with its unit in the sheet picker, "15" and "15 kV" one entry, the created row's label kept in the input, so no later null; Q2 one shared `useForwardArrival` in the App shell (push to a new pathname: top of page, App bar `<h1>` focused; surfaces with a target win); Cadastros arrival lands on "Código"; Q3 journey-forward waits on committed state; Q4 unedited standard template moved to `SEED_VERSION` in one locked server batch through the new server-only family `template/{id}/seed_version` (contract version 3); Q6 `@p0 12.1-E2E-007` (touch held across a commit, red with the hold removed) and `@p0 12.1-E2E-008` (stale "Próxima ficha", order-deterministic); Q7/Q13 focus in the press handler; Q8/Q10 `sheetSummaryParts` with `.n-missing` and "campos da cabine"; Q9 U+00A0 between value and unit; Q11 focus to "Local (obra)", the Etapa 4 instrument comes back checked on "Fechar"; Q12 filter on `!= null` (no-op, see triage); Q14 strip height in `app.css`.
+- **Review:** 12 findings; 9 patched (3 medium, 6 low), 1 deferred (medium, device check), 2 rejected (1 false, 1 unlikely low).
+- **Follow-up review recommended:** true — two or more medium entries were patched; the unverified risk is the template upgrade's lock/rollback path (`UpgradeNoLongerNeeded`), which no test drives mid-batch.
+- **Verification:** `pnpm verify` EXIT 0: unit 996 + 800 + 20, api 147 (25 files), e2e `@p0` 92 passed in 9.6 min. `journey-forward.spec.ts --repeat-each 5`: 30 passed. Tap budget: J1 9 taps / 36 keys, J3 7 / 47; J0 1 tap; J5 11 taps.
+- **Residual risks:** a device on a contract-2 bundle stops pulling and shows "Atualizar" until it updates (by design, AD-13).
+

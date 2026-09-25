@@ -1,6 +1,7 @@
 import { artOrTrtLabel } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { deviceDatabaseName, expect, signIn, syncBadge, test, TEST_SEED } from './support/merged-fixtures.ts';
+import { readStore } from './support/outbox.ts';
 import { resetEmpresaB as resetCompany } from './support/reset-empresa-b.ts';
 import { officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
 
@@ -191,7 +192,9 @@ test('@p0 12.2-E2E-006 forward at 768: "Próxima ficha", the sheet\'s "Voltar", 
     await page.emulateMedia({ colorScheme });
     const strip = (await page.locator('.rail-collapsed').boundingBox())!;
     const viewport = page.viewportSize()!;
-    expect(strip.y + strip.height, `${colorScheme}: the strip reaches the bottom of the viewport`).toBeGreaterThanOrEqual(viewport.height);
+    expect(strip.y + strip.height, `${colorScheme}: the strip reaches the bottom of the viewport`).toBeGreaterThanOrEqual(viewport.height - 1);
+    // ...and never makes the page taller than the viewport on its own account.
+    expect(strip.y + strip.height, `${colorScheme}: the strip ends at the viewport`).toBeLessThanOrEqual(viewport.height + 1);
   }
   await page.emulateMedia({ colorScheme: null });
 
@@ -264,6 +267,16 @@ test('@p0 12.2-E2E-003 J5 at 768: Home to the first sheet of a new relatório wi
   await page.getByRole('button', { name: 'Voltar' }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/setup\\?etapa=4$`));
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 4 — Instrumentos e certificados' })).toBeFocused();
+  // Outside the count too: "Fechar" on the arrival panel with nothing typed creates no
+  // instrument, so setup checks none (E12-Q11: only an instrument that exists is checked).
+  await register.click();
+  await expect(page.locator('.registry-panel')).toBeVisible();
+  await page.locator('.registry-panel').getByRole('button', { name: 'Fechar', exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/setup\\?etapa=4$`));
+  await expect(page.getByText('Nenhum instrumento cadastrado')).toBeVisible();
+  const instrumentIdOps = async () => (await readStore<{ path: string }>(page, database, 'outbox')).filter((row) => row.path === 'relatorio/setup/instrument_ids');
+  expect(await instrumentIdOps()).toEqual([]);
+
   await scrollToEnd(page);
   await register.click();
   await expect(page).toHaveURL(/\/cadastros$/);
@@ -280,6 +293,7 @@ test('@p0 12.2-E2E-003 J5 at 768: Home to the first sheet of a new relatório wi
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 4 — Instrumentos e certificados' })).toBeFocused();
   const instrument = page.getByRole('checkbox', { name: /^MG-01/ });
   await expect(instrument).toBeChecked();
+  await expect.poll(async () => (await instrumentIdOps()).length).toBe(1);
 
   // Concluir goes forward: the Sumário, "Dados salvos", section 9 open.
   const complete = page.getByRole('button', { name: 'Concluir dados do relatório' });
