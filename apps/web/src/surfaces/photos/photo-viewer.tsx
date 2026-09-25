@@ -2,6 +2,7 @@ import { photoItemLine, photoStampFull, toIso, viewerCountText, viewerLabel, typ
 import { useEffect, useId, useState } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { Button, ConfirmDialog, PhotoStamp } from '../../components/index.ts';
+import { useObjectUrl } from '../../components/photo-row.tsx';
 import { DialogShell } from '../../components/dialog-shell.tsx';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -32,21 +33,6 @@ export interface PhotoViewerProps {
   onClose: () => void;
   onEditCaption: (tile: PhotoTile) => void;
   onRemove: (tile: PhotoTile) => void;
-}
-
-/** An object URL for a Blob, revoked when it changes. */
-function useBlobUrl(blob: Blob | null): string | null {
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    if (blob === null || typeof URL.createObjectURL !== 'function') {
-      setUrl(null);
-      return;
-    }
-    const next = URL.createObjectURL(blob);
-    setUrl(next);
-    return () => URL.revokeObjectURL(next);
-  }, [blob]);
-  return url;
 }
 
 /** The best picture this device can show: its original, else the server's print copy, the thumb meanwhile. */
@@ -97,7 +83,7 @@ function ViewerBody({
   const [confirming, setConfirming] = useState(false);
   const number = numbers.get(tile.id) ?? index + 1;
   const total = numbers.size;
-  const src = useBlobUrl(useViewerPicture(tile));
+  const src = useObjectUrl(useViewerPicture(tile));
   const item = photoItemLine(tile, snapshot);
   const previous = index > 0 ? tiles[index - 1]! : null;
   const next = index < tiles.length - 1 ? tiles[index + 1]! : null;

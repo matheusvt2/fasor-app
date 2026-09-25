@@ -15,8 +15,11 @@
  *
  * 3 (2026-09-25, E12-Q4): the server-only `template/{id}/seed_version` put family is new
  * (the seed moves an unedited standard template to the current seed version).
+ *
+ * 4 (2026-09-25, Story 6.6): the `point` row carries `action`, `priority`, `deadline` and
+ * `owner`, so the `point/{id}/{action|priority|deadline|owner}` put families are new.
  */
-export const CONTRACT_VERSION = 3;
+export const CONTRACT_VERSION = 4;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -24,7 +27,9 @@ export const CONTRACT_VERSION = 3;
  * carries, so it must stop pulling and show "Atualizar" (AD-13).
  * 3: a version-2 bundle cannot parse the `template/{id}/seed_version` put a company stream
  * carries once its standard template was upgraded, so it updates the same way.
+ * 4: a version-3 bundle cannot parse a `point/{id}/action` (or `priority`, `deadline`,
+ * `owner`) put a relatório stream carries once a point holds an action, so it updates too.
  */
-export const MIN_CONTRACT_VERSION = 3;
+export const MIN_CONTRACT_VERSION = 4;
 
 export const CONTRACT_VERSION_HEADER = 'x-contract-version';

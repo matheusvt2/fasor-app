@@ -44,7 +44,6 @@ import { AddSectionDialog } from './add-section-dialog.tsx';
 import { GenerateAction } from './generate-action.tsx';
 import { useProjectEquipment, useRelatorioEditor } from './relatorio-editor.ts';
 import { RelatorioGate } from './relatorio-gate.tsx';
-import { useRelatorioFileRows, withFileRows } from '../../db/photo-store.ts';
 import { RelatorioTree, type RelatorioTreeHandle } from './relatorio-tree.tsx';
 import { RestoreDialog } from './restore-dialog.tsx';
 import { useSumarioActions } from './sumario-actions.ts';
@@ -79,9 +78,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const db = session.database;
   const t = copy.sumario;
 
-  // Stories 6.3/6.5: section 7 counts the relatório's photos, read beside the state.
-  const photoRows = useRelatorioFileRows(db, relatorioId);
-  const snapshot: RelatorioSnapshot = useMemo(() => buildSnapshot(withFileRows(state, photoRows), relatorioId), [state, photoRows, relatorioId]);
+  const snapshot: RelatorioSnapshot = useMemo(() => buildSnapshot(state, relatorioId), [state, relatorioId]);
   const allBlocks = useMemo(() => [...state.values()].filter((row): row is BlockRow => 'sheet' in row && (row as BlockRow).relatorio_id === relatorioId), [state, relatorioId]);
   // Every equipment row of the project, removed sheets' included: the snapshot keeps only
   // the equipment of live blocks, and "Restaurar ficha removida" names a sheet by its TAG.
@@ -180,8 +177,8 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   }
 
   const blocked = rows.some((row) => row.blocking);
-  // Story 6.3: row 7 opens the gallery.
-  const openable = (row: SumarioRow) => row.kind === 'setup' || row.kind === 'text' || row.rowKey === 'section_7';
+  // Story 6.3: row 7 opens the gallery; Story 6.6: row 8 opens the Points surface (`/relatorio/:id/pontos`).
+  const openable = (row: SumarioRow) => row.kind === 'setup' || row.kind === 'text' || row.rowKey === 'section_7' || row.rowKey === 'section_8';
 
   return (
     <>

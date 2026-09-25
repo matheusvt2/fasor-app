@@ -14,7 +14,7 @@ import { ui } from '../copy/ui.ts';
  */
 
 /** An object URL for a Blob, revoked when the Blob changes or the caller unmounts. */
-function useObjectUrl(blob: Blob | null): string | null {
+export function useObjectUrl(blob: Blob | null): string | null {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     if (blob === null || typeof URL.createObjectURL !== 'function') {

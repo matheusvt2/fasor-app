@@ -6,6 +6,7 @@ import {
   getDefinition,
   getSeed,
   naDefaultsFor,
+  recurringFindings,
   SECTION_VARIABLES,
   sectionText,
   SEED_VERSION,
@@ -606,8 +607,7 @@ describe('seed v2 (Stories 12.3, 12.4): v1 plus the per-unit flags and the third
   const v1 = getSeed('v1', 'cabine_primaria');
   const v2 = getSeed('v2', 'cabine_primaria');
 
-  it('is the version a new Template is created with', () => {
-    expect(SEED_VERSION).toBe('v2');
+  it('stays in the bundle once v3 is current (AR-20: append-only)', () => {
     expect(SEED_VERSIONS.v2!.version).toBe('v2');
   });
 
@@ -645,5 +645,45 @@ describe('seed v2 (Stories 12.3, 12.4): v1 plus the per-unit flags and the third
     expect(v2.not_tested_reasons[3]!.justification).toBeNull();
     // v1 relatórios keep their three reasons (AR-20).
     expect(v1.not_tested_reasons.map((r) => r.key)).toEqual(['impossibilidade_desligamento', 'solicitacao_cliente', 'outro']);
+  });
+});
+
+/** The content hash of seed v2 as merged (Stories 12.3, 12.4), pinned when v3 shipped; never updated after. */
+const V2_HASH = '901b91b9e19257553e40b1eb8421fe8f6889d7a69154ff6b93b91f1b364c24ca';
+
+describe('seed v3 (Story 6.6): v2 plus the recurring-finding chips', () => {
+  const v2 = getSeed('v2', 'cabine_primaria');
+  const v3 = getSeed('v3', 'cabine_primaria');
+
+  it('is the version a new Template is created with', () => {
+    expect(SEED_VERSION).toBe('v3');
+    expect(SEED_VERSIONS.v3!.version).toBe('v3');
+  });
+
+  it('differs from v2 by exactly `recurring_findings`, and v1 and v2 carry none', () => {
+    const stripped = structuredClone(v3) as typeof v3;
+    delete stripped.recurring_findings;
+    expect(JSON.stringify(stripped)).toBe(JSON.stringify(v2));
+    expect('recurring_findings' in v2).toBe(false);
+    expect('recurring_findings' in getSeed('v1', 'cabine_primaria')).toBe(false);
+    // v2 still hashes as before this story (nothing parsed into it).
+    expect(createHash('sha256').update(JSON.stringify(SEED_VERSIONS.v2)).digest('hex')).toBe(V2_HASH);
+  });
+
+  it('offers the four chips with the mock\'s texts', () => {
+    expect(v3.recurring_findings!.map((finding) => finding.label)).toEqual([
+      'Ausência de placas de sinalização de segurança',
+      'Diagrama unifilar desatualizado',
+      'Chuva e umidade elevada',
+      'Ensaios pendentes',
+    ]);
+    expect(v3.recurring_findings![1]!.text).toBe('Emoldurar e pendurar nas cabines o diagrama unifilar atualizado (faz parte do PIE).');
+  });
+
+  it('recurringFindings: a version with none (v1, v2) or unknown falls back to the current seed\'s list', () => {
+    expect(recurringFindings('v3')).toEqual(v3.recurring_findings);
+    expect(recurringFindings('v1')).toEqual(v3.recurring_findings);
+    expect(recurringFindings('v2')).toEqual(v3.recurring_findings);
+    expect(recurringFindings('v99')).toEqual(v3.recurring_findings);
   });
 });

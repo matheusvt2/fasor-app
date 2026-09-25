@@ -10,6 +10,7 @@ import { progressCounterText, type Progress } from './progress.ts';
 import { sectionTextEdited } from './section-variables.ts';
 import { locationPathText } from './location-path.ts';
 import { isEquipmentBlock } from './sheet-state.ts';
+import { pointsSummary, pointsSummaryText } from '../points/summary.ts';
 
 /*
  * Story 4.3: the Sumário as data (`40-relatorio-overview.html`): the relatório's own table
@@ -40,8 +41,8 @@ export const SUMARIO_TITLES: Readonly<Record<SumarioRowKey, string>> = {
 /**
  * What a row is: `fixed` (the cover and the control, no reorder controls), `setup` (opens
  * Dados do relatório, rows 1 and 3), `text` (a section text, rows 2, 4, 5, 6), `generated`
- * (7 and 9: the renderer produces their content, so they only move), `pending-epic`
- * (8, 10, 11: status only until their epic lands).
+ * (7, 8 and 9: the renderer produces their content from what the relatório stores; 8 opens
+ * the Points surface, Story 6.6), `pending-epic` (10, 11: status only until their epic lands).
  */
 export type SumarioRowKind = 'fixed' | 'text' | 'setup' | 'generated' | 'pending-epic';
 
@@ -53,7 +54,7 @@ const KIND_OF: Readonly<Record<RelatorioSectionType, SumarioRowKind>> = {
   section_5: 'text',
   section_6: 'text',
   section_7: 'generated',
-  section_8: 'pending-epic',
+  section_8: 'generated',
   section_9: 'generated',
   section_10: 'pending-epic',
   section_11: 'pending-epic',
@@ -149,12 +150,17 @@ export function sectionBlocks(blocks: readonly BlockRow[]): BlockRow[] {
   return sortByOrderKey(blocks.filter((block) => block.removed_at === null && block.location_id === null && !isEquipmentBlock(block)));
 }
 
-function metaOfSection(block: BlockRow, issues: readonly PreIssueRow[], computed: Progress, photoCount: number): string {
+function metaOfSection(block: BlockRow, issues: readonly PreIssueRow[], computed: Progress, snapshot: RelatorioSnapshot): string {
   const kind = isRelatorioSectionType(block.block_type) ? KIND_OF[block.block_type] : 'text';
   const own = issues.map((row) => row.text);
   if (block.block_type === 'section_9') return own.length > 0 ? join(own) : progressCounterText(computed);
+  // Story 6.6: row 8 always counts its entries; the "sem ação" count is already in that
+  // line, so only the rows naming a point with a removed photo follow it.
+  if (block.block_type === 'section_8') {
+    return join([pointsSummaryText(pointsSummary(snapshot)), ...issues.filter((row) => row.kind === 'point_photo_removed').map((row) => row.text)]);
+  }
   // Stories 6.3/6.5: "82 fotos · 1 sem legenda · 3 aguardando envio", like section 9's counter.
-  if (block.block_type === 'section_7') return join([photoCountText(photoCount), ...own]);
+  if (block.block_type === 'section_7') return join([photoCountText(livePhotos(snapshot).length), ...own]);
   if (own.length > 0) return join(own);
   if (kind === 'setup') return META.setup;
   if (kind === 'text') {
@@ -209,7 +215,6 @@ export function sumarioRows(snapshot: RelatorioSnapshot, issues: readonly PreIss
     },
   ];
   const sections = sectionBlocks(snapshot.blocks);
-  const photoCount = livePhotos(snapshot).length;
   sections.forEach((block, i) => {
     const rowKey: SumarioRowKey = isRelatorioSectionType(block.block_type) ? block.block_type : 'section_11';
     const own = isRelatorioSectionType(block.block_type) ? preIssueRowsFor(issues, block.block_type) : [];
@@ -219,7 +224,7 @@ export function sumarioRows(snapshot: RelatorioSnapshot, issues: readonly PreIss
       kind: isRelatorioSectionType(block.block_type) ? KIND_OF[block.block_type] : 'text',
       number: i + 1,
       title: sectionRowTitle(block.block_type),
-      meta: metaOfSection(block, own, computed, photoCount),
+      meta: metaOfSection(block, own, computed, snapshot),
       blocking: blockingRows(own).length > 0,
       pending: pendingRows(own).length > 0,
       blockId: block.id,

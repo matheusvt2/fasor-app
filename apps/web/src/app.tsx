@@ -18,6 +18,7 @@ import { FichaSurface } from './surfaces/ficha/ficha-surface.tsx';
 import { FieldFixtureSurface } from './surfaces/fixtures/field-fixture-surface.tsx';
 import { HomeSurface } from './surfaces/home/home-surface.tsx';
 import { LoginSurface } from './surfaces/login/login-surface.tsx';
+import { PointsSurface } from './surfaces/points/points-surface.tsx';
 import { ProjectSurface } from './surfaces/project/project-surface.tsx';
 import { SectionTextSurface } from './surfaces/relatorio/section-text-surface.tsx';
 import { SetupSurface } from './surfaces/relatorio/setup-surface.tsx';
@@ -164,6 +165,12 @@ const router = createBrowserRouter([
             path: '/relatorio/:id/fotos',
             element: <GallerySurface />,
             handle: { title: copy.gallery.title, back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}` },
+          },
+          // Story 6.6: section 8, opened from Sumário row 8.
+          {
+            path: '/relatorio/:id/pontos',
+            element: <PointsSurface />,
+            handle: { title: copy.points.title, back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}` },
           },
           {
             path: '/relatorio/:id/secao/:blockId',

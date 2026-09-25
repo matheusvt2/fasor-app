@@ -178,6 +178,13 @@ export type SeedWord = z.infer<typeof seedWordSchema>;
 export const reportTypeSchema = z.enum(['cabine_primaria']);
 export type ReportType = z.infer<typeof reportTypeSchema>;
 
+/** Story 6.6: a recurring-finding chip of the point editor and the plain text it inserts. */
+export const recurringFindingSchema = z.object({
+  label: z.string().min(1),
+  text: z.string().min(1),
+});
+export type RecurringFinding = z.infer<typeof recurringFindingSchema>;
+
 /** Everything one seed version holds for one report type. */
 export const reportSeedSchema = z.object({
   blocks: z.record(equipmentBlockTypeSchema, blockDefinitionSchema),
@@ -190,6 +197,12 @@ export const reportSeedSchema = z.object({
   atividades: z.array(seedWordSchema).min(1),
   locais: z.array(seedWordSchema).min(1),
   quick_notes: z.array(z.string().min(1)).min(1),
+  /**
+   * Story 6.6 (seed v3): the recurring-finding chips. Optional rather than defaulted, so
+   * parsing v1 and v2 adds nothing to them and their content hashes stay as shipped;
+   * `recurringFindings` reads an absent list as none.
+   */
+  recurring_findings: z.array(recurringFindingSchema).min(1).optional(),
 });
 export type ReportSeed = z.infer<typeof reportSeedSchema>;
 

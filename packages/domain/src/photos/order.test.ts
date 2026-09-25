@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { comparePhotos, livePhotos, numberPhotos } from './order.ts';
+import { numberPhotos } from './numbering.ts';
+import { comparePhotos, livePhotos } from './order.ts';
 
 /*
  * 6.3-UNIT: capture order and the provisional numbers (spec I/O matrix rows "Numbering"
@@ -20,7 +21,7 @@ const T2 = '2026-09-06T12:00:00.000Z';
 describe('6.3-UNIT-001 comparePhotos / numberPhotos', () => {
   it('numbers live photos 1..n by captured_at, then local_seq; a removed photo has no number', () => {
     const files = [photo(1, T2, 5), photo(2, T1, 9), photo(3, T1, 3), photo(4, T0, 1, '2026-09-07T00:00:00.000Z')];
-    const numbers = numberPhotos({ files });
+    const numbers = numberPhotos(files);
     expect(numbers.get(id(3))).toBe(1);
     expect(numbers.get(id(2))).toBe(2);
     expect(numbers.get(id(1))).toBe(3);

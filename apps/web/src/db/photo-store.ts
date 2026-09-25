@@ -1,12 +1,7 @@
 import {
   CAPTION_RECENTS_MAX,
   comparePhotos,
-  entityKey,
-  fileRowSchema,
   photoFileRowSchema,
-  type EntityRow,
-  type EntityState,
-  type FileRow,
   type PhotoFileRow,
   type RegistryRow,
   type UserRow,
@@ -67,13 +62,15 @@ export async function photoTilesOfBlock(db: AppDatabase, relatorioId: string, bl
   return photoTiles(db, relatorioId, (row) => row.block_id === blockId);
 }
 
-/** Story 6.3: every live photo of a relatório, in capture order (the gallery). */
+/** Stories 6.3/6.6: every live photo of a relatório, in capture order (the gallery, the point editor's picker). */
 export async function photoTilesOfRelatorio(db: AppDatabase, relatorioId: string): Promise<PhotoTile[]> {
   return photoTiles(db, relatorioId, () => true);
 }
 
-export function useRelatorioPhotoTiles(db: AppDatabase | null, relatorioId: string): PhotoTile[] | undefined {
-  return useLiveQuery(() => (db === null ? Promise.resolve(NO_TILES) : photoTilesOfRelatorio(db, relatorioId)), [db, relatorioId]);
+export function useRelatorioPhotoTiles(db: AppDatabase | null, relatorioId: string): PhotoTile[] {
+  return (
+    useLiveQuery(() => (db === null ? Promise.resolve(NO_TILES) : photoTilesOfRelatorio(db, relatorioId)), [db, relatorioId], NO_TILES) ?? NO_TILES
+  );
 }
 
 /** Story 6.5: the composer's recent words of one relatório, most recent first. */
@@ -175,34 +172,4 @@ export async function writePhotoSeqAtLeast(db: AppDatabase, seq: number): Promis
   await db.transaction('rw', db.local_prefs, async () => {
     if ((await readPhotoSeq(db)) < seq) await db.local_prefs.put({ key: PHOTO_SEQ_PREF, value: seq });
   });
-}
-
-/**
- * Stories 6.3/6.5: the relatório's file rows (tombstones included; the snapshot drops them),
- * read in their own live query so the Sumário counts section 7 without widening the state
- * every relatório surface reads (`relatorioState`).
- */
-export async function relatorioFileRows(db: AppDatabase, relatorioId: string): Promise<FileRow[]> {
-  const records = await db.entities.where('relatorio_id').equals(relatorioId).toArray();
-  const rows: FileRow[] = [];
-  for (const record of records) {
-    if (record.entity !== 'file') continue;
-    const parsed = fileRowSchema.safeParse(record.row);
-    if (parsed.success) rows.push(parsed.data);
-  }
-  return rows;
-}
-
-const NO_FILES: FileRow[] = [];
-
-export function useRelatorioFileRows(db: AppDatabase | null, relatorioId: string): FileRow[] {
-  return useLiveQuery(() => (db === null ? Promise.resolve(NO_FILES) : relatorioFileRows(db, relatorioId)), [db, relatorioId], NO_FILES) ?? NO_FILES;
-}
-
-/** The state with the file rows added, for `buildSnapshot`. */
-export function withFileRows(state: EntityState, files: readonly FileRow[]): EntityState {
-  if (files.length === 0) return state;
-  const next = new Map(state);
-  for (const row of files) next.set(entityKey('file', row.id), row as EntityRow);
-  return next;
 }

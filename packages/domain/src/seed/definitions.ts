@@ -6,12 +6,14 @@ import {
   seedBundleSchema,
   type BlockDefinition,
   type ReportSeed,
+  type RecurringFinding,
   type ReportType,
   type SeedBundle,
   type TextBlock,
 } from './schema.ts';
 import { CABINE_PRIMARIA_V1 } from './v1.ts';
 import { CABINE_PRIMARIA_V2 } from './v2.ts';
+import { CABINE_PRIMARIA_V3 } from './v3.ts';
 
 /*
  * AD-21, AR-20: seed data is versioned code, resolved and never copied. A Template and a
@@ -25,7 +27,7 @@ import { CABINE_PRIMARIA_V2 } from './v2.ts';
  * The version a new Template is created with. A Template, and every relatório made from
  * it, keeps the version it was created with: a v1 Template keeps producing v1 relatórios.
  */
-export const SEED_VERSION = 'v2';
+export const SEED_VERSION = 'v3';
 
 /** The named variables section boilerplate may carry, resolved at generation. */
 export const SECTION_VARIABLES = ['empresa_executora', 'cliente', 'obra', 'escopo', 'datas', 'responsavel'] as const;
@@ -57,6 +59,7 @@ function bundle(version: string, cabinePrimaria: ReportSeed): SeedBundle {
 export const SEED_VERSIONS: Readonly<Record<string, SeedBundle>> = deepFreeze({
   v1: bundle('v1', CABINE_PRIMARIA_V1),
   v2: bundle('v2', CABINE_PRIMARIA_V2),
+  v3: bundle('v3', CABINE_PRIMARIA_V3),
 });
 
 /**
@@ -88,6 +91,16 @@ export function getDefinition(seedVersion: string, reportType: string, blockType
   const type = equipmentBlockTypeSchema.safeParse(blockType);
   if (!type.success) throw new Error(`getDefinition: unknown block_type "${blockType}"`);
   return seed.blocks[type.data as EquipmentBlockType];
+}
+
+/**
+ * Story 6.6: the recurring-finding chips ("Textos rápidos") of a relatório's seed version.
+ * A version that ships none (v1, v2) or is unknown falls back to the current
+ * `SEED_VERSION`'s list, so a relatório created before v3 still offers the chips.
+ */
+export function recurringFindings(seedVersion: string): readonly RecurringFinding[] {
+  const own = Object.hasOwn(SEED_VERSIONS, seedVersion) ? SEED_VERSIONS[seedVersion]!.report_types.cabine_primaria.recurring_findings : undefined;
+  return own ?? SEED_VERSIONS[SEED_VERSION]!.report_types.cabine_primaria.recurring_findings ?? [];
 }
 
 /** FR-11: the item keys a subtype pre-marks NA, or none without a subtype. */

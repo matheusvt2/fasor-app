@@ -27,6 +27,13 @@ export interface UseSectionTextAreaOptions {
   onBlur?: () => void;
   /** Called with the area's own focus state, for a caller that styles it (`.is-focus`). */
   onFocusChange?: (focused: boolean) => void;
+  /**
+   * Story 6.6: how a text becomes the area's nodes (default: `renderText`, variable chips)
+   * and how a paste lands at the caret (default: `insertText`). The point editor passes its
+   * own, whose chips are photo references and whose pastes stay plain text.
+   */
+  render?: (area: HTMLElement, text: string) => void;
+  paste?: (area: HTMLElement, range: Range | null, text: string) => void;
 }
 
 export interface SectionTextAreaProps {
@@ -58,6 +65,11 @@ export interface UseSectionTextArea {
    * on every one of those too).
    */
   setText: (text: string) => void;
+  /**
+   * Story 6.6: runs an edit of the caller's (a photo chip, a quick text) at the caret last
+   * left in the area -- or at the end with none saved -- then reports the change.
+   */
+  editAtCaret: (edit: (area: HTMLElement, range: Range | null) => void) => void;
 }
 
 /** The extracted hook: ref, caret tracking, `beforeinput`/`paste`/`keydown` wiring, chip insert. */
@@ -72,7 +84,7 @@ export function useSectionTextArea(options: UseSectionTextAreaOptions): UseSecti
   // the helpers below change it.
   const initial = useRef(options.initialText);
   useLayoutEffect(() => {
-    if (area.current !== null) renderText(area.current, initial.current);
+    if (area.current !== null) (latest.current.render ?? renderText)(area.current, initial.current);
   }, []);
 
   // The caret the chip row inserts at: the last one the user left in the area, kept while
@@ -125,7 +137,7 @@ export function useSectionTextArea(options: UseSectionTextAreaOptions): UseSecti
     };
     const onPaste = (event: ClipboardEvent) => {
       event.preventDefault();
-      insertText(element, currentRange(), (event.clipboardData?.getData('text/plain') ?? '').replace(/\r\n?/g, '\n'));
+      (latest.current.paste ?? insertText)(element, currentRange(), (event.clipboardData?.getData('text/plain') ?? '').replace(/\r\n?/g, '\n'));
       changed();
     };
     element.addEventListener('beforeinput', onBeforeInput);
@@ -172,12 +184,21 @@ export function useSectionTextArea(options: UseSectionTextAreaOptions): UseSecti
   };
 
   const setText = (text: string) => {
-    if (area.current !== null) renderText(area.current, text);
+    if (area.current !== null) (latest.current.render ?? renderText)(area.current, text);
+  };
+
+  const editAtCaret = (edit: (area: HTMLElement, range: Range | null) => void) => {
+    const element = area.current;
+    if (element === null) return;
+    element.focus();
+    edit(element, caret.current);
+    changed();
   };
 
   return {
     areaRef: area,
     setText,
+    editAtCaret,
     areaProps: {
       ref: area,
       role: 'textbox',

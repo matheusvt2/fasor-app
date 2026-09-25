@@ -1,4 +1,4 @@
-import { isSectionVariable, sectionTextTokens, type SectionVariable } from '@app/domain';
+import { isSectionVariable, photoToken, sectionTextTokens, type SectionVariable } from '@app/domain';
 
 /*
  * Story 3.6: the DOM side of the plain-text section editor. The text area is a
@@ -7,6 +7,11 @@ import { isSectionVariable, sectionTextTokens, type SectionVariable } from '@app
  * browser moves the caret over and deletes as one unit. The kernel owns what a text means
  * (`sectionTextTokens`); this module only turns a text into those nodes, reads them back and
  * edits them at the caret.
+ *
+ * Story 6.6 reuses the area for a point of attention's text, whose chips are photo references
+ * (`<span class="var-chip photo-ref" data-photo="<id>">Imagem 12</span>`, built by
+ * `point-text-editor.ts`): a chip is either kind, and a photo chip reads back as its
+ * `[[foto:<id>]]` token.
  *
  * The text read back is what the area shows, line for line. A browser draws no empty line
  * after a trailing `<br>`, so a text that ends in a line break is drawn with one more
@@ -26,7 +31,7 @@ export function chipElement(doc: Document, name: SectionVariable): HTMLSpanEleme
 }
 
 export function isChip(node: Node | null | undefined): node is HTMLElement {
-  return node instanceof HTMLElement && node.classList.contains(CHIP_CLASS) && node.dataset.var !== undefined;
+  return node instanceof HTMLElement && node.classList.contains(CHIP_CLASS) && (node.dataset.var !== undefined || node.dataset.photo !== undefined);
 }
 
 function isBreak(node: Node | null | undefined): boolean {
@@ -70,7 +75,8 @@ export function serializeArea(area: HTMLElement): string {
         if (data !== '') lastNode = child;
       } else if (isChip(child)) {
         const name = child.dataset.var ?? '';
-        out += isSectionVariable(name) ? `{${name}}` : (child.textContent ?? '');
+        const photo = child.dataset.photo;
+        out += photo !== undefined ? photoToken(photo) : isSectionVariable(name) ? `{${name}}` : (child.textContent ?? '');
         lastNode = child;
       } else if (isBreak(child)) {
         out += '\n';
@@ -96,7 +102,7 @@ export function endRange(area: HTMLElement): Range {
   return range;
 }
 
-function placeCaret(area: HTMLElement, range: Range): void {
+export function placeCaret(area: HTMLElement, range: Range): void {
   const selection = area.ownerDocument.getSelection();
   if (selection === null) return;
   selection.removeAllRanges();
@@ -104,7 +110,7 @@ function placeCaret(area: HTMLElement, range: Range): void {
 }
 
 /** A caret right after `node`, in an editable text node so typing goes beside the chip. */
-function caretAfter(area: HTMLElement, node: Node): Range {
+export function caretAfter(area: HTMLElement, node: Node): Range {
   const doc = area.ownerDocument;
   let next = node.nextSibling;
   if (next === null || next.nodeType !== Node.TEXT_NODE) {
@@ -154,7 +160,7 @@ export function insertText(area: HTMLElement, range: Range | null, text: string)
 }
 
 /** A `<br>` that nothing drawn follows gets the extra, undrawn one, so its new line shows. */
-function keepLastLineDrawn(area: HTMLElement, br: Node): void {
+export function keepLastLineDrawn(area: HTMLElement, br: Node): void {
   let after = br.nextSibling;
   while (isEmptyText(after)) after = after!.nextSibling;
   if (after === null && br.parentNode === area) area.append(area.ownerDocument.createElement('br'));

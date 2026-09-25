@@ -230,7 +230,7 @@ describe('3.3 Templates: list', () => {
     const first = within(list).getAllByRole('listitem')[0]!;
     expect(first).toHaveClass('registry-row', 'tpl-row');
     expect(first.querySelector('.rr-secondary')).toHaveTextContent(
-      'Semente v2 · 9 seções · 6 cabines · 17 colunas · 94 blocos de equipamento',
+      'Semente v3 · 9 seções · 6 cabines · 17 colunas · 94 blocos de equipamento',
     );
     expect(within(first).getByRole('button', { name: 'Abrir template Cabine primária — padrão' })).toHaveClass('rr-text');
     expect(within(first).getByRole('button', { name: 'Duplicar' })).toBeVisible();
@@ -469,7 +469,7 @@ describe('3.3 Templates: actions', () => {
     const outbox = await database.outbox.toArray();
     expect(outbox).toHaveLength(1);
     const created = templateRowSchema.parse(outbox[0]!.value);
-    expect(created).toMatchObject({ name: 'Novo template', blocks: [], skeleton: [], seed_version: 'v2', version: 1 });
+    expect(created).toMatchObject({ name: 'Novo template', blocks: [], skeleton: [], seed_version: 'v3', version: 1 });
     expect(where).toHaveTextContent(`/templates/${created.id}`);
   });
 });

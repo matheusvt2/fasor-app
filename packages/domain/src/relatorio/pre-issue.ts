@@ -4,6 +4,7 @@ import { livePhotos } from '../photos/order.ts';
 import { photosAwaitingText, photosUncaptionedText } from '../photos/text.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { normalizeRegistryName } from '../text/normalize-name.ts';
+import { pointPhotoRemovedText, pointsSemAcaoText, pointsWithoutAction, pointsWithRemovedPhotos } from '../points/checks.ts';
 import { cabineMissingText, cabineProgress } from './cabine.ts';
 import type { RelatorioSectionType } from './instantiate.ts';
 import { cabineLocationIds, naoEnsaiadasText, progress, progressCounterText, type Progress } from './progress.ts';
@@ -33,7 +34,9 @@ export type PreIssueKind =
   | 'company'
   | 'client'
   | 'photos_uncaptioned'
-  | 'photos_pending_upload';
+  | 'photos_pending_upload'
+  | 'points_sem_acao'
+  | 'point_photo_removed';
 
 export interface PreIssueRow {
   /** Stable key of the rule and its subject, for React lists and tests; never shown. */
@@ -65,7 +68,7 @@ export function cabineSemEquipamentoText(name: string): string {
   return saysCabine ? `${trimmed} sem equipamento` : `Cabine ${trimmed} sem equipamento`;
 }
 
-/** Every pre-issue row of a relatório, in reading order: the cover, the control, then section 9. */
+/** Every pre-issue row of a relatório, in reading order: the cover, the control, section 8, then section 9. */
 export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progress(snapshot)): PreIssueRow[] {
   const rows: PreIssueRow[] = [];
   const setup = snapshot.relatorio.setup;
@@ -94,6 +97,15 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
   const unsent = photos.filter((photo) => photo.uploaded_at === null).length;
   if (unsent > 0) {
     rows.push({ id: 'photos_pending_upload', row: 'section_7', severity: 'info', text: photosAwaitingText(unsent), kind: 'photos_pending_upload' });
+  }
+  // Story 6.6: section 8. Manual points with no action are pending, never blocking; a point
+  // whose text cites a removed photo gets its own row, so the Export dialog can name it.
+  const semAcao = pointsWithoutAction(snapshot.points).length;
+  if (semAcao > 0) {
+    rows.push({ id: 'points_sem_acao', row: 'section_8', severity: 'pending', text: pointsSemAcaoText(semAcao), kind: 'points_sem_acao' });
+  }
+  for (const { point, position } of pointsWithRemovedPhotos(snapshot)) {
+    rows.push({ id: `point_photo_removed:${point.id}`, row: 'section_8', severity: 'pending', text: pointPhotoRemovedText(position), kind: 'point_photo_removed' });
   }
 
   if (computed.sheets_concluded < computed.sheets_total) {

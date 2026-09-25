@@ -685,6 +685,65 @@ export const copy = {
     back: 'Voltar sem alterar',
     save: 'Salvar legenda',
   },
+  // Story 6.6: the Points surface (`72-pontos.html`) and the point editor. Counts, titles,
+  // order lines and the derived entries' texts are the kernel's (`points/*.ts`).
+  points: {
+    title: 'Pontos de atenção',
+    // `72-pontos.html` `.section-note`, verbatim minus the sentences about the photo draft,
+    // the priority and the action-plan table, none of which the MVP builds (source-deltas row 29).
+    sectionNote:
+      'A ordem aqui é a ordem da seção 8 do relatório. Reordene arrastando, pelo menu ⋯ ou com Alt+↑/↓. Um ponto criado de um item não conforme já traz a foto e o equipamento. Equipamentos marcados como Não ensaiado entram sozinhos ao final, com o motivo.',
+    // Story 6.6 AC, verbatim.
+    empty: 'Nenhum ponto de atenção.',
+    create: 'Criar',
+    createFromRow: 'Criar ponto de atenção',
+    actionLabel: 'Ação recomendada',
+    // `72-pontos.html`, verbatim.
+    listLabel: 'Pontos de atenção da seção 8',
+    textLabel: 'Texto',
+    quickTexts: 'Textos rápidos',
+    textHelper: 'Referências a fotos entram pela seleção abaixo; o número é definido na exportação.',
+    photosLabel: 'Fotos referenciadas',
+    choosePhotos: 'Escolher fotos',
+    photosMeta: 'Números provisórios — definidos na exportação',
+    actionDt: 'Ação',
+    none: '—',
+    removePoint: 'Remover ponto',
+    removed: 'Ponto removido',
+    undo: 'Desfazer',
+    moveUp: 'Subir',
+    moveDown: 'Descer',
+    remove: 'Remover',
+    notTestedChip: 'Não ensaiado',
+    autoOrder: 'Listado automaticamente · após os pontos manuais',
+    autoReason: 'O motivo é editado na ficha; o ponto sai daqui se a ficha voltar a ser ensaiada',
+    openSheet: (tag: string) => `Abrir ficha ${tag}`,
+    // authored: the parts of the editor no mock names.
+    concluir: 'Concluir',
+    cancel: 'Cancelar',
+    edit: 'Editar',
+    editLabel: (title: string, position: number) => `Editar o ponto ${position}, ${title}`,
+    // The name a card's drag handle and Overflow read ("Reordenar ponto 2, Geral"): two points
+    // may share a title, never a position.
+    cardName: (position: number, title: string) => `ponto ${position}, ${title}`,
+    editingReason: 'Conclua o ponto em edição primeiro.',
+    equipmentLabel: 'Equipamento',
+    newOrder: 'Novo ponto · entra no fim da seção 8',
+    editingLabel: (position: number | null) => (position === null ? 'Novo ponto de atenção em edição' : `Ponto de atenção ${position} em edição`),
+    removeTitle: 'Remover este ponto de atenção?',
+    removeDescription: 'Ele sai da seção 8. Um toque em Desfazer o traz de volta.',
+    pickerTitle: 'Escolher fotos',
+    pickerEmpty: 'Nenhuma foto neste relatório ainda.',
+    pickerLabel: 'Fotos do relatório',
+    // `72-pontos.html` "Imagem 13, cabos de entrada do Cubículo Enel, abrir", with the pick as its action.
+    pickPhotoLabel: (label: string, caption: string | null) => `${label}${caption === null ? '' : `, ${caption}`}, referenciar`,
+    // `72-pontos.html` "Imagem 31, remover referência", verbatim.
+    unrefPhotoLabel: (label: string) => `${label}, remover referência`,
+    removedPhoto: 'Foto removida',
+    gone: 'Este ponto não está mais neste relatório.',
+    notFound: 'Relatório não encontrado neste aparelho.',
+    backToSumario: 'Voltar ao sumário',
+  },
   ficha: {
     // authored: an address naming no equipment sheet of this relatório on this device.
     notFound: 'Ficha não encontrada neste relatório.',

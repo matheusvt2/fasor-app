@@ -78,8 +78,8 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const { retryUpload } = useSync();
   const snapshot: RelatorioSnapshot = useMemo(() => buildSnapshot(state, relatorioId), [state, relatorioId]);
   const tiles = useRelatorioPhotoTiles(db, relatorioId);
-  const all = useMemo(() => tiles ?? [], [tiles]);
-  const numbers = useMemo(() => numberPhotos({ files: all }), [all]);
+  const all = tiles;
+  const numbers = useMemo(() => numberPhotos(snapshot.files), [snapshot.files]);
   const sources = useCaptionSources(relatorioId, snapshot);
   const heading = useRef<HTMLHeadingElement>(null);
   const surface = useRef<HTMLDivElement>(null);
@@ -157,9 +157,9 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
           <p className="section-note">{t.note}</p>
           {options.length > 1 ? <FilterChipGroup aria-label={t.filterLabel} options={options} selectedId={filter} onChange={setPicked} /> : null}
           <p className="visually-hidden" role="status" data-testid="gallery-filter-status">
-            {tiles === undefined ? '' : filterText}
+            {filterText}
           </p>
-          {tiles !== undefined && all.length === 0 ? <p className="section-note gallery-empty">{t.empty}</p> : null}
+          {numbers.size === 0 && all.length === 0 ? <p className="section-note gallery-empty">{t.empty}</p> : null}
           <div className="gallery-grid" role="list" aria-label={t.listLabel}>
             {shown.map((tile) => {
               const number = numbers.get(tile.id) ?? 0;

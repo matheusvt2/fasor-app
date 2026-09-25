@@ -423,6 +423,15 @@ export const otherFileRowSchema = z.object({ ...fileBase, kind: otherFileKindSch
 /** AD-7 union, minimal for this story. */
 export const fileRowSchema = z.discriminatedUnion('kind', [photoFileRowSchema, otherFileRowSchema]);
 
+/** Story 6.6: the action-plan priorities (NR-10 10.7.11), a data-model field with no UI in the MVP. */
+export const pointPrioritySchema = z.enum(['P0', 'P1', 'P2', 'P3', 'P4']);
+
+/**
+ * A point of attention (section 8). `text` may carry `[[foto:<id>]]` photo tokens
+ * (`points/refs.ts`), never a literal photo number. Story 6.6 adds `action` (Ação
+ * recomendada) and the no-UI `priority`, `deadline` and `owner` (`source-deltas.md` row 29);
+ * their defaults keep rows written before them parsing.
+ */
 export const pointRowSchema = z.object({
   id: uuidV7Schema,
   relatorio_id: uuidV7Schema,
@@ -431,6 +440,10 @@ export const pointRowSchema = z.object({
   origin: z.enum(['manual', 'not_tested']),
   order_key: z.string(),
   removed_at: nullableIso,
+  action: nullableString.default(null),
+  priority: pointPrioritySchema.nullable().default(null),
+  deadline: dateValueSchema.nullable().default(null),
+  owner: nullableString.default(null),
 });
 
 export const suggestionRowSchema = z.object({

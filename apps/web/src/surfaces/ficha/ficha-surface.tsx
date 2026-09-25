@@ -44,7 +44,7 @@ import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { instrumentRows, manufacturerRows, voltageClassRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
-import { photoTilesOfRelatorio, useBlockPhotoTiles, useLocalWordRows, type PhotoTile } from '../../db/photo-store.ts';
+import { useBlockPhotoTiles, useLocalWordRows, type PhotoTile } from '../../db/photo-store.ts';
 import { writeLastSheet } from '../../db/prefs.ts';
 import { localUsers } from '../../db/sync-store.ts';
 import { isPointerModality, useHeldWhilePressed } from '../../input/press-hold.ts';
@@ -302,9 +302,7 @@ function FichaBody({
   };
   const saveCaption = (tile: PhotoTile, text: string | null) => {
     if (db === null || api.author === null) return;
-    void setPhotoCaption(db, api.author, relatorioId, tile.id, text)
-      .then(() => photoTilesOfRelatorio(db, relatorioId))
-      .then((all) => showToast(captionSavedText(numberPhotos({ files: all }).get(tile.id) ?? null)));
+    void setPhotoCaption(db, api.author, relatorioId, tile.id, text).then(() => showToast(captionSavedText(numberPhotos(snapshot.files).get(tile.id) ?? null)));
   };
 
   /** A focus arriving in `step`: leaving the previous step only when it came from the keyboard. */
@@ -559,7 +557,7 @@ function FichaBody({
           />
           <SheetReadOnlyProvider value={block.not_tested !== null}>
             <div className="content">
-              {block.not_tested === null ? null : <NotTestedBand api={api} block={block} />}
+              {block.not_tested === null ? null : <NotTestedBand api={api} block={block} snapshot={snapshot} />}
               <div id="ficha-step-placa" className={stepClass('placa')} data-step="placa" tabIndex={-1} onFocus={() => focusIn('placa')}>
                 {cabine === null ? null : <CabineBlock api={api} snapshot={snapshot} cabine={cabine} first={cabineFirst} />}
                 {enabled.has('nameplate') ? (
