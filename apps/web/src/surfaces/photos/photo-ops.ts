@@ -6,11 +6,11 @@ import { newId } from '../../ids.ts';
 
 /*
  * Stories 6.3-6.5: the edits a photo takes after it is born, each a `file/{id}/{field}` put
- * in relatório scope (`FILE_FIELDS`): its caption, its tombstone (AD-20: removing sets
- * `removed_at`, "Desfazer" clears it) and, for an import batch, its sheet. No new op family.
+ * in relatório scope (`FILE_FIELDS`): its caption and its tombstone (AD-20: removing sets
+ * `removed_at`, "Desfazer" clears it). No new op family.
  */
 
-function put(author: Author, relatorioId: string, fileId: string, field: 'caption' | 'block_id' | 'item_key' | 'removed_at', value: JsonValue): OpDraft {
+function put(author: Author, relatorioId: string, fileId: string, field: 'caption' | 'removed_at', value: JsonValue): OpDraft {
   return { ...relatorioOpEnvelope(author, relatorioId), kind: 'put', path: fileFieldPath(fileId, field), value };
 }
 
@@ -34,20 +34,4 @@ export async function removePhoto(db: AppDatabase, author: Author, relatorioId: 
 /** The toast's "Desfazer": the tombstone cleared, the photo back with its number. */
 export async function restorePhoto(db: AppDatabase, author: Author, relatorioId: string, fileId: string): Promise<void> {
   await commitBatch(db, [put(author, relatorioId, fileId, 'removed_at', null)], deps);
-}
-
-/** A batch placed on a sheet (or "Geral") after it was saved: sheet, no item, and the batch caption. */
-export async function setBatchPlacement(
-  db: AppDatabase,
-  author: Author,
-  relatorioId: string,
-  fileIds: readonly string[],
-  placement: { blockId: string | null; caption: string | null },
-): Promise<void> {
-  const ops = fileIds.flatMap((fileId) => [
-    put(author, relatorioId, fileId, 'block_id', placement.blockId),
-    put(author, relatorioId, fileId, 'item_key', null),
-    put(author, relatorioId, fileId, 'caption', captionValue(placement.caption)),
-  ]);
-  if (ops.length > 0) await commitBatch(db, ops, deps);
 }

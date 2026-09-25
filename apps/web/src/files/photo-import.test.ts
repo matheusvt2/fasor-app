@@ -108,6 +108,20 @@ describe('6.4-UNIT-001 importPhotoFiles', () => {
     expect(committed[0]!.coords!.lng).toBeCloseTo(-46.6333, 4);
   });
 
+  it('with photo locations off (FR-8), the EXIF GPS is not kept; the EXIF time still is', async () => {
+    const { value, committed } = deps({ withLocation: false });
+    await importPhotoFiles([new File([jpegWithExif()], 'com-exif.jpg', { type: 'image/jpeg' })], target, value);
+    expect(committed[0]).toMatchObject({ coords: null, capturedAt: '2026-09-06T11:12:30.000Z' });
+  });
+
+  it('a HEIC reads its Exif block from anywhere in the file (before the conversion)', async () => {
+    const exifBlock = jpegWithExif().slice(6, -4);
+    const heic = new File([new Uint8Array([0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63, ...exifBlock])], 'IMG_0003.HEIC', { type: 'image/heic' });
+    const { value, committed } = deps({ convertHeic: async () => new Blob(['jpeg'], { type: 'image/jpeg' }) });
+    await importPhotoFiles([heic], target, value);
+    expect(committed[0]).toMatchObject({ capturedAt: '2026-09-06T11:12:30.000Z', coords: { source: 'exif' } });
+  });
+
   it('no EXIF: the file date, else the device clock; no coords', async () => {
     const { value, committed } = deps();
     const dated = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], 'sem-exif.jpg', { type: 'image/jpeg', lastModified: Date.parse('2026-09-20T10:00:00.000Z') });

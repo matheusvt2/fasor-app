@@ -15,6 +15,7 @@ import {
   photoStampShort,
   photoTileLabel,
   photoUploadState,
+  skippedFilesText,
   type EntityState,
   type RelatorioSnapshot,
 } from '@app/domain';
@@ -23,6 +24,7 @@ import { useParams } from 'react-router';
 import { Button, FilterChipGroup, PhotoRow } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { useRelatorioPhotoTiles, type PhotoTile } from '../../db/photo-store.ts';
+import { splitImportable } from '../../files/photo-import.ts';
 import { useSession } from '../../state/session.tsx';
 import { useSync } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
@@ -79,7 +81,11 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const snapshot: RelatorioSnapshot = useMemo(() => buildSnapshot(state, relatorioId), [state, relatorioId]);
   const tiles = useRelatorioPhotoTiles(db, relatorioId);
   const all = tiles;
-  const numbers = useMemo(() => numberPhotos(snapshot.files), [snapshot.files]);
+  // Numbered from the tiles this surface draws (one query), so every drawn tile has its number.
+  const numbers = useMemo(
+    () => numberPhotos(all.map((tile) => ({ id: tile.id, kind: 'photo', removed_at: null, captured_at: tile.captured_at, local_seq: tile.local_seq }))),
+    [all],
+  );
   const sources = useCaptionSources(relatorioId, snapshot);
   const heading = useRef<HTMLHeadingElement>(null);
   const surface = useRef<HTMLDivElement>(null);
@@ -104,7 +110,18 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const [captioning, setCaptioning] = useState<PhotoTile | null>(null);
   const [importing, setImporting] = useState<{ files: readonly File[] | null } | null>(null);
   const camera = useSheetCamera(relatorioId, () => GERAL_TARGET);
-  const dragging = useDropZone(surface, useCallback((files: File[]) => setImporting({ files }), []));
+  // A drop of pictures opens straight on "De qual equipamento?"; a drop with none only says so.
+  const dragging = useDropZone(
+    surface,
+    useCallback(
+      (files: File[]) => {
+        const { images, skipped } = splitImportable(files);
+        if (images.length === 0) showToast(skippedFilesText(skipped));
+        else setImporting({ files });
+      },
+      [showToast],
+    ),
+  );
 
   const closeViewer = () => {
     const id = viewing;
@@ -159,7 +176,7 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
           <p className="visually-hidden" role="status" data-testid="gallery-filter-status">
             {filterText}
           </p>
-          {numbers.size === 0 && all.length === 0 ? <p className="section-note gallery-empty">{t.empty}</p> : null}
+          {all.length === 0 ? <p className="section-note gallery-empty">{t.empty}</p> : null}
           <div className="gallery-grid" role="list" aria-label={t.listLabel}>
             {shown.map((tile) => {
               const number = numbers.get(tile.id) ?? 0;

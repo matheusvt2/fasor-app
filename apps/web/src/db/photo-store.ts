@@ -112,8 +112,8 @@ export function useCaptionRecents(db: AppDatabase | null, relatorioId: string): 
   return useLiveQuery(() => (db === null ? Promise.resolve(NO_RECENTS) : readCaptionRecents(db, relatorioId)), [db, relatorioId], NO_RECENTS) ?? NO_RECENTS;
 }
 
-/** The registry's `atividade` words (the composer's typed-word agreement, AD-19). */
-export async function atividadeWordRows(db: AppDatabase): Promise<RegistryRow[]> {
+/** The registry's `atividade` and `local` words (the composer's typed-word agreement, AD-19). */
+export async function captionWordRows(db: AppDatabase): Promise<RegistryRow[]> {
   const records = await db.entities.where('entity').equals('registry').toArray();
   return records.map((record) => record.row as RegistryRow).filter((row) => row.kind === 'atividade' || row.kind === 'local');
 }
@@ -122,7 +122,7 @@ const NO_WORD_ROWS: RegistryRow[] = [];
 
 /** The registry's `atividade` and `local` words. */
 export function useCaptionWordRows(db: AppDatabase | null): RegistryRow[] {
-  return useLiveQuery(() => (db === null ? Promise.resolve(NO_WORD_ROWS) : atividadeWordRows(db)), [db], NO_WORD_ROWS) ?? NO_WORD_ROWS;
+  return useLiveQuery(() => (db === null ? Promise.resolve(NO_WORD_ROWS) : captionWordRows(db)), [db], NO_WORD_ROWS) ?? NO_WORD_ROWS;
 }
 
 const NO_TILES: PhotoTile[] = [];

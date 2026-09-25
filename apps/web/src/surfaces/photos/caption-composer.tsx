@@ -77,7 +77,8 @@ function ComposerBody({ prefill, stored, sources, onSave, onClose, headingId }: 
   const t = copy.captionComposer;
   const [parts, setParts] = useState<CaptionParts>(prefill);
   const generated = composeCaption(parts);
-  const [editing, setEditing] = useState(() => (stored ?? null) !== (composeCaption(prefill) ?? null));
+  // A stored caption the rows do not compose (typed by hand) opens as free text; no caption opens on the rows.
+  const [editing, setEditing] = useState(() => stored !== null && stored !== composeCaption(prefill));
   const [text, setText] = useState(() => stored ?? composeCaption(prefill) ?? '');
   const textId = useId();
   const reasonId = useId();
@@ -115,7 +116,8 @@ function ComposerBody({ prefill, stored, sources, onSave, onClose, headingId }: 
 
   const save = () => {
     const value = editing ? text : (generated ?? '');
-    sources.remember?.(parts);
+    // Free text is not made of the chips: only a composed caption feeds the recents.
+    if (!editing) sources.remember?.(parts);
     onSave(value.trim() === '' ? null : value.trim(), parts);
     onClose();
   };
@@ -216,6 +218,8 @@ function PartRow({ kind, options, value, onChange }: { kind: Kind; options: read
               if (selected) {
                 onChange(typed.trim() === '' ? null : typed);
                 requestAnimationFrame(() => otherInput.current?.focus());
+              } else {
+                onChange(null);
               }
             }}
           >

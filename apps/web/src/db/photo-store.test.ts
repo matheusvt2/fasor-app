@@ -15,7 +15,7 @@ import {
   setUploadError,
   thumbsToRefresh,
 } from './file-store.ts';
-import { photoTilesOfBlock } from './photo-store.ts';
+import { photoTilesOfBlock, pushCaptionRecents, readCaptionRecents } from './photo-store.ts';
 import { openDatabase, PHOTO_SEQ_PREF, type AppDatabase } from './schema.ts';
 
 /*
@@ -205,6 +205,20 @@ describe('6.2-UNIT-007 server thumbs and eviction', () => {
     expect(await runEviction(db, null)).toEqual([PHOTO_B]);
     expect(await db.files.get(PHOTO_C)).toMatchObject({ acked: false });
     expect(await db.thumbs.count()).toBe(3);
+    db.close();
+  });
+});
+
+describe('6.5-UNIT the Caption composer recents', () => {
+  it('keeps the most recent first, once each (case-insensitive), at most five per row, per relatório', async () => {
+    const db = await freshDb();
+    const other = '019966b0-0000-7000-8000-0000000006ff';
+    expect(await readCaptionRecents(db, RELATORIO_ID)).toEqual({ atividade: [], equipamento: [], local: [] });
+    for (const word of ['a', 'b', 'c', 'd', 'e', 'f']) await pushCaptionRecents(db, RELATORIO_ID, { atividade: word });
+    await pushCaptionRecents(db, RELATORIO_ID, { atividade: 'C', local: 'Oxigênio', equipamento: null });
+    await pushCaptionRecents(db, other, { local: 'Cubículo Enel' });
+    expect(await readCaptionRecents(db, RELATORIO_ID)).toEqual({ atividade: ['C', 'f', 'e', 'd', 'b'], equipamento: [], local: ['Oxigênio'] });
+    expect(await readCaptionRecents(db, other)).toEqual({ atividade: [], equipamento: [], local: ['Cubículo Enel'] });
     db.close();
   });
 });

@@ -18,7 +18,7 @@ import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { commitPhotoCapture } from '../../db/file-commit.ts';
 import { photoLocationEnabled } from '../../db/photo-store.ts';
-import { importPhotoFiles, PHOTO_ACCEPT, type ImportResult, type ImportTarget } from '../../files/photo-import.ts';
+import { importPhotoFiles, PHOTO_ACCEPT, splitImportable, type ImportResult, type ImportTarget } from '../../files/photo-import.ts';
 import { encodePhoto } from '../../files/photo-encode.ts';
 import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
@@ -40,15 +40,20 @@ import './photos.css';
  */
 
 /** Saves picked or dropped files through the one-shot commit, and says how it went. */
-export function usePhotoImport(relatorioId: string): (files: readonly File[], target: ImportTarget) => Promise<ImportResult | null> {
+export function usePhotoImport(relatorioId: string): (files: readonly File[], target: ImportTarget, skippedBefore?: number) => Promise<ImportResult | null> {
   const session = useSession();
   const { showToast } = useToast();
   const db = session.database;
   const user = session.user;
   return useCallback(
-    async (files, target) => {
-      if (db === null || user === null || files.length === 0) return null;
-      const withLocation = await photoLocationEnabled(db, user.id).catch(() => true);
+    async (files, target, skippedBefore = 0) => {
+      if (db === null || user === null) return null;
+      if (files.length === 0) {
+        if (skippedBefore > 0) showToast(skippedFilesText(skippedBefore));
+        return null;
+      }
+      // A setting that cannot be read keeps no position (FR-8 errs on the side of privacy).
+      const withLocation = await photoLocationEnabled(db, user.id).catch(() => false);
       const result = await importPhotoFiles(files, target, {
         companyId: user.companyId,
         relatorioId,
@@ -60,9 +65,10 @@ export function usePhotoImport(relatorioId: string): (files: readonly File[], ta
         withLocation,
       });
       requestStorageCheck();
-      if (result.saved.length > 0 && result.skipped > 0) showToast(`${photosAddedText(result.saved.length)}. ${skippedFilesText(result.skipped)}`);
+      const skipped = result.skipped + skippedBefore;
+      if (result.saved.length > 0 && skipped > 0) showToast(`${photosAddedText(result.saved.length)}. ${skippedFilesText(skipped)}`);
       else if (result.saved.length > 0) showToast(photosAddedText(result.saved.length));
-      else if (result.skipped > 0) showToast(skippedFilesText(result.skipped));
+      else if (skipped > 0) showToast(skippedFilesText(skipped));
       return result;
     },
     [db, user, relatorioId, showToast],
@@ -178,7 +184,13 @@ function SheetBody({
   const t = copy.captureSheet;
   const input = useRef<HTMLInputElement>(null);
   const importFiles = usePhotoImport(relatorioId);
-  const [files, setFiles] = useState<readonly File[] | null>(initialFiles);
+  const { showToast } = useToast();
+  // Only pictures reach "De qual equipamento?"; the other files are counted in the toast.
+  const [batch, setBatch] = useState<{ files: readonly File[]; skipped: number } | null>(() => {
+    if (initialFiles === null) return null;
+    const { images, skipped } = splitImportable(initialFiles);
+    return images.length === 0 ? null : { files: images, skipped };
+  });
 
   const picked = (list: File[]) => {
     if (list.length === 0) return;
@@ -188,11 +200,26 @@ function SheetBody({
       void importFiles(list, target);
       return;
     }
-    setFiles(list);
+    const { images, skipped } = splitImportable(list);
+    if (images.length === 0) {
+      showToast(skippedFilesText(skipped));
+      onClose();
+      return;
+    }
+    setBatch({ files: images, skipped });
   };
 
-  if (mode.kind === 'gallery' && files !== null) {
-    return <EquipmentStep relatorioId={relatorioId} snapshot={mode.snapshot} files={files} titleId={titleId} onClose={onClose} onImport={importFiles} />;
+  if (mode.kind === 'gallery' && batch !== null) {
+    return (
+      <EquipmentStep
+        relatorioId={relatorioId}
+        snapshot={mode.snapshot}
+        files={batch.files}
+        titleId={titleId}
+        onClose={onClose}
+        onImport={(files, target) => importFiles(files, target, batch.skipped)}
+      />
+    );
   }
 
   return (

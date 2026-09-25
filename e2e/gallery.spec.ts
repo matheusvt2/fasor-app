@@ -180,6 +180,70 @@ test('@p0 6.3-E2E-001 Sumário row 7 opens the gallery in capture order with num
   await expect(page.locator('.photo-viewer')).toHaveCount(0);
   await expect(tileOf(page, 2)).toBeFocused();
   expect(blockId).not.toBe(oxigenio);
+
+  // "Editar legenda" in the viewer: a chip change, "Salvar legenda", the new caption shows.
+  await tileOf(page, 2).click();
+  viewer = page.getByRole('dialog', { name: 'Foto 2 de 3' });
+  await viewer.getByRole('button', { name: 'Editar legenda' }).click();
+  const composer = page.getByRole('dialog', { name: 'Legenda' });
+  // 1280 px: the rows are Comboboxes.
+  await composer.getByRole('combobox', { name: 'Atividade' }).fill('limpeza');
+  await page.getByRole('option', { name: 'limpeza e reaperto' }).click();
+  const edited = 'Detalhe da limpeza e reaperto realizada na chave seccionadora do Cubículo Enel';
+  await expect(composer.locator('.caption-preview')).toHaveText(edited);
+  await composer.getByRole('button', { name: 'Salvar legenda' }).click();
+  await expect(page.locator('.caption-composer')).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: 'Foto 2 de 3' }).getByText(edited)).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(itemOf(page, photos[1]!.id).locator('.photo-meta')).toHaveText(edited);
+});
+
+test('@p1 6.4-E2E-006 with the camera denied, the NC row\'s "Adicionar fotos" saves a picked file on that row with its caption', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.addInitScript(() => {
+    const denied = () => Promise.reject(new DOMException('Permission denied', 'NotAllowedError'));
+    Object.defineProperty(navigator.mediaDevices, 'getUserMedia', { value: denied, configurable: true });
+  });
+  const { blockId } = await openChaveSheet(page, account, database);
+  const row = contatos(page);
+  await row.getByRole('radio', { name: 'Não conforme', exact: true }).click();
+  await row.getByRole('button', { name: 'Adicionar foto' }).click();
+  await expect(row.locator('.camera-denied')).toBeVisible();
+  await pickFiles(page, row.getByRole('button', { name: 'Adicionar fotos' }), [await plainJpeg(page, 'nc.jpg')]);
+  await expect(toast(page)).toContainText('1 foto adicionada — legenda aplicada');
+  await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(1);
+  expect((await devicePhotos(page, database))[0]).toMatchObject({ block_id: blockId, item_key: 'contatos', caption: NC_CAPTION });
+  await expect(row.locator('.photo-list .photo-row')).toHaveCount(1);
+});
+
+test('@p1 6.4-E2E-005 a JPEG dropped on the gallery opens straight on "De qual equipamento?" and saves on the chosen sheet', async ({ page }) => {
+  test.setTimeout(120_000);
+  const { relatorioId, blockId } = await openChaveSheet(page, account, database);
+  await openGallery(page, relatorioId);
+  const file = await plainJpeg(page, 'na-galeria.jpg');
+  const transfer = await page.evaluateHandle(
+    ({ name, base64 }) => {
+      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      const data = new DataTransfer();
+      data.items.add(new File([bytes], name, { type: 'image/jpeg' }));
+      data.items.add(new File(['%PDF'], 'documento.pdf', { type: 'application/pdf' }));
+      return data;
+    },
+    { name: file.name, base64: file.buffer.toString('base64') },
+  );
+  const zone = page.locator('.gallery-content');
+  await zone.dispatchEvent('dragenter', { dataTransfer: transfer });
+  await expect(page.locator('.drop-hint')).toHaveText('Solte para adicionar');
+  await zone.dispatchEvent('drop', { dataTransfer: transfer });
+  const sheet = page.getByRole('dialog', { name: /^De qual equipamento\?/ });
+  await expect(sheet).toBeVisible();
+  // The PDF is left out of the batch.
+  await expect(sheet.locator('.field-label .capture-reason')).toHaveText('— vale para a foto');
+  await sheet.getByRole('radio', { name: /· Chave seccionadora · Cubículo Enel$/ }).first().click();
+  await sheet.getByRole('button', { name: 'Adicionar 1 foto' }).click();
+  await expect(toast(page)).toContainText('1 foto adicionada — legenda aplicada');
+  await expect(galleryItems(page)).toHaveCount(1);
+  expect((await devicePhotos(page, database))[0]).toMatchObject({ block_id: blockId, caption: SHEET_CAPTION });
 });
 
 test('@p0 6.3/6.4-E2E-002 files added from a sheet save at once with its caption; "Remover" redraws the numbers and "Desfazer" brings the photo back, across a reload', async ({ page }) => {

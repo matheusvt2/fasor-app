@@ -127,6 +127,34 @@ describe('6.1-UNIT-003 parseExif', () => {
     expect(exif.gps).toEqual({ lat: -23, lng: -46 });
   });
 
+  it('6.4: reads an Exif block embedded in a non-JPEG file (a HEIC item), both byte orders', () => {
+    for (const little of [true, false]) {
+      const block = tiff(
+        little,
+        [],
+        [
+          { tag: 0x9003, type: 2, value: '2026:09:06 08:12:30' },
+          { tag: 0x9011, type: 2, value: '-03:00' },
+        ],
+        [
+          { tag: 0x0001, type: 2, value: 'S' },
+          { tag: 0x0002, type: 5, value: [[23, 1], [0, 1], [0, 1]] },
+          { tag: 0x0003, type: 2, value: 'W' },
+          { tag: 0x0004, type: 5, value: [[46, 1], [0, 1], [0, 1]] },
+        ],
+      );
+      // An ISO-BMFF-like head ("ftypheic"), filler, then `Exif\0\0` and the TIFF block.
+      const head = [0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63, 0x00, 0x00, 0x00, 0x00, 0x45, 0x78];
+      const bytes = new Uint8Array([...head, ...new Array<number>(40).fill(0x11), 0x45, 0x78, 0x69, 0x66, 0x00, 0x00, ...block]);
+      const exif = parseExif(bytes);
+      expect(exif.dateTimeOriginal).toBe('2026-09-06T08:12:30');
+      expect(exif.offsetMinutes).toBe(-180);
+      expect(exif.gps).toEqual({ lat: -23, lng: -46 });
+    }
+    // `Exif\0\0` with no TIFF header after it reads as nothing.
+    expect(parseExif(new Uint8Array([0x00, 0x45, 0x78, 0x69, 0x66, 0x00, 0x00, 0x12, 0x34, 0x56, 0x78])).dateTimeOriginal).toBeNull();
+  });
+
   it('leaves a missing offset null', () => {
     const bytes = jpeg(tiff(true, [], [{ tag: 0x9003, type: 2, value: '2026:09:06 08:12:30' }], []));
     expect(parseExif(bytes)).toEqual({ dateTimeOriginal: '2026-09-06T08:12:30', offsetMinutes: null, gps: null, orientation: null });

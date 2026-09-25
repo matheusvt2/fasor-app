@@ -33,6 +33,12 @@ export function isImportableImage(file: Pick<File, 'name' | 'type'>): boolean {
   return IMAGE_TYPES.has(file.type.toLowerCase()) || IMAGE_EXTENSIONS.has(extensionOf(file.name));
 }
 
+/** The pictures of a pick or a drop, and how many other files it held. */
+export function splitImportable<F extends Pick<File, 'name' | 'type'>>(files: readonly F[]): { images: F[]; skipped: number } {
+  const images = files.filter(isImportableImage);
+  return { images, skipped: files.length - images.length };
+}
+
 export function isHeic(file: Pick<File, 'name' | 'type'>): boolean {
   return HEIC_TYPES.has(file.type.toLowerCase()) || HEIC_EXTENSIONS.has(extensionOf(file.name));
 }
@@ -84,7 +90,8 @@ export async function importPhotoFiles(files: readonly File[], target: ImportTar
       continue;
     }
     try {
-      const exif = parseExif(await readHead(file));
+      // A HEIC keeps its Exif item anywhere in the file: read it whole.
+      const exif = parseExif(isHeic(file) ? new Uint8Array(await file.arrayBuffer()) : await readHead(file));
       const source = isHeic(file) ? await (deps.convertHeic ?? heicToJpeg)(file) : file;
       const encoded = await deps.encode(source);
       const clock = deps.now();
