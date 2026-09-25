@@ -168,6 +168,9 @@ describe('4.2 SetupSurface', () => {
       const relatorio = await database!.entities.get(['relatorio', RELATORIO]);
       expect((relatorio!.row as RelatorioRow).setup.instrument_ids).toContain(INSTRUMENT_MEGOHMETRO_ID);
     });
+    // The live query re-reads the relatório (now with its points and files) after the write
+    // lands: uncheck only once the row draws the checked state, or the click checks again.
+    await waitFor(() => expect(checkbox).toHaveAttribute('aria-checked', 'true'));
     await userEvent.click(checkbox);
     expect(await screen.findByText('Continua na seção 11 porque uma ficha usa este instrumento')).toBeVisible();
     const relatorio = await database!.entities.get(['relatorio', RELATORIO]);
