@@ -5,7 +5,7 @@ import { firstSetupGap, isSetupComplete, setupIncompleteReason, siteAltitudeText
 
 const RESPONSIBLE: UserRow = {
   id: '019966b0-0061-7000-8000-000000000003',
-  name: 'Rafael Lamonde',
+  name: 'Ana Exemplo',
   email: 'rafael@fasor.com.br',
   council: 'crea',
   registration_number: 'SP 5063583141',
@@ -48,7 +48,7 @@ function snapshotWith(overrides: { client?: RelatorioSnapshot['client']; setup?:
     },
     project: null,
     empresa: null,
-    client: overrides.client === undefined ? { id: 'c1', kind: 'client', name: 'Porto Seguro', cnpj: null, contact_name: null, contact_phone: null, sites: [], removed_at: null } : overrides.client,
+    client: overrides.client === undefined ? { id: 'c1', kind: 'client', name: 'Seguradora Exemplo', cnpj: null, contact_name: null, contact_phone: null, sites: [], removed_at: null } : overrides.client,
     responsible: null,
     instruments: [],
     equipment: [],

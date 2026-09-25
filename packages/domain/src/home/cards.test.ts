@@ -32,7 +32,7 @@ const R_ISSUED_B = ids();
 const client: RegistryRow = {
   id: CLIENT,
   kind: 'client',
-  name: 'Porto Seguro Companhia de Seguros Gerais',
+  name: 'Seguradora Exemplo Companhia de Seguros',
   cnpj: null,
   contact_name: null,
   contact_phone: null,
@@ -40,7 +40,7 @@ const client: RegistryRow = {
   removed_at: null,
 };
 
-const project: ProjectRow = { id: PROJECT, client_id: CLIENT, name: 'Porto Seguro', site: null, removed_at: null };
+const project: ProjectRow = { id: PROJECT, client_id: CLIENT, name: 'Seguradora Exemplo', site: null, removed_at: null };
 
 const template: TemplateRow = {
   id: TEMPLATE,
@@ -140,17 +140,17 @@ describe('homeCards: the four lines of a card', () => {
       input({
         relatorios: [
           relatorio(R_FIELD_HERE, 'em_campo', {
-            local: 'das Torres A e B da Porto Seguro',
+            local: 'dos Blocos Norte e Sul da Seguradora Exemplo',
             service_start: '2026-09-06',
             service_end: '2026-09-08',
           }),
         ],
-        projects: [{ ...project, site: 'Torres A e B' }],
+        projects: [{ ...project, site: 'Blocos Norte e Sul' }],
         syncStates: [onDevice(R_FIELD_HERE)],
       }),
     );
-    expect(card!.title).toBe('Porto Seguro Companhia de Seguros Gerais · Torres A e B');
-    expect(card!.title).toBe(sumarioTitle(client as { name: string }, { ...project, site: 'Torres A e B' }));
+    expect(card!.title).toBe('Seguradora Exemplo Companhia de Seguros · Blocos Norte e Sul');
+    expect(card!.title).toBe(sumarioTitle(client as { name: string }, { ...project, site: 'Blocos Norte e Sul' }));
     expect(card!.meta).toBe('06–08/09/2026 · Cabine primária — padrão');
     expect(card!.statusPillId).toBe('em-campo');
     expect(card!.device).toEqual({ kind: 'on-device', text: 'No aparelho · atualizado 21:40' });
@@ -158,12 +158,12 @@ describe('homeCards: the four lines of a card', () => {
 
   it('a project with no site names the obra by the project name, as the Sumário header does', () => {
     const [card] = homeCards(input({ relatorios: [relatorio(R_DRAFT, 'rascunho', { local: 'Outro texto' })] }));
-    expect(card!.title).toBe('Porto Seguro Companhia de Seguros Gerais · Porto Seguro');
+    expect(card!.title).toBe('Seguradora Exemplo Companhia de Seguros · Seguradora Exemplo');
   });
 
   it('without the project row, joins the client and the local, and falls back when the title is empty', () => {
-    const [withLocal] = homeCards(input({ relatorios: [relatorio(R_DRAFT, 'rascunho', { local: 'Torres A e B' })], projects: [] }));
-    expect(withLocal!.title).toBe('Torres A e B');
+    const [withLocal] = homeCards(input({ relatorios: [relatorio(R_DRAFT, 'rascunho', { local: 'Blocos Norte e Sul' })], projects: [] }));
+    expect(withLocal!.title).toBe('Blocos Norte e Sul');
     const [card] = homeCards(
       input({
         relatorios: [relatorio(R_DRAFT, 'rascunho')],
@@ -238,7 +238,7 @@ describe('homeCards: device availability (AD-7, AD-8)', () => {
   it('a local row wins over the same id in the summary', () => {
     const cards = homeCards(
       input({
-        relatorios: [relatorio(R_FIELD_HERE, 'em_campo', { local: 'Torres A e B' })],
+        relatorios: [relatorio(R_FIELD_HERE, 'em_campo', { local: 'Blocos Norte e Sul' })],
         summary: [summary(R_FIELD_HERE, 'emitido')],
         syncStates: [onDevice(R_FIELD_HERE)],
       }),

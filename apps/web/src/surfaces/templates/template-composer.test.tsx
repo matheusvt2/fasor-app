@@ -488,11 +488,11 @@ describe('3.4 composer: name', () => {
     // One paste, not 31 keystrokes: on a loaded machine the gap between two typed keys can
     // outlast the field's idle commit, which then writes a correct but second put of the
     // partial name before the blur writes the rest.
-    await userEvent.paste('  Porto Seguro — Torres A e B  ');
+    await userEvent.paste('  Seguradora Exemplo — Blocos Norte e Sul  ');
     await act(async () => {
       name.blur();
     });
-    await waitFor(async () => expect((await templateRow(database!, ID))!.name).toBe('Porto Seguro — Torres A e B'));
+    await waitFor(async () => expect((await templateRow(database!, ID))!.name).toBe('Seguradora Exemplo — Blocos Norte e Sul'));
     expect(await outboxPaths()).toEqual([`template/${ID}/name`]);
     // D-4: a rename is a content edit, so the row's version is bumped on this device too.
     expect((await templateRow(database!, ID))!.version).toBe(2);
@@ -530,11 +530,19 @@ describe('3.5 composer: sub-block defaults per type', () => {
       expect(toggle).toHaveAttribute('aria-disabled', 'true');
       expect(toggle).toHaveAttribute('aria-checked', 'true');
       expect(toggle).toHaveTextContent('Sempre');
-      expect(toggle.closest('.toggle-row')!.querySelector('.toggle-sub')).toHaveTextContent('Sempre na ficha');
+      expect([...toggle.closest('.toggle-row')!.querySelectorAll('.toggle-sub')].at(-1)).toHaveTextContent('Sempre na ficha');
       await userEvent.click(within(dialog).getByText(locked, { selector: 'label' }));
       expect(toggle).toHaveAttribute('aria-checked', 'true');
     }
-    expect(dialog.querySelectorAll('.toggle-sub')).toHaveLength(2);
+    // E3-A9: the kernel's line under each sub-block that holds something, then the two "Sempre na ficha".
+    expect([...dialog.querySelectorAll('.toggle-sub')].map((el) => el.textContent)).toEqual([
+      '10 campos',
+      '14 itens C · NC · NA',
+      'Sempre na ficha',
+      'T1 · T3 · T5 · Fase A · Fase B · Fase C × Valor · >400 MΩ (aceitável na ficha)',
+      'T1-T2 · T3-T4 · T5-T6 × Valor · <250 µΩ (aceitável na ficha)',
+      'Sempre na ficha',
+    ]);
     const subtype = within(dialog).getByRole('combobox', { name: 'Subtipo padrão' });
     expect(subtype).toHaveValue('Manual');
     expect(within(dialog).getByText('2 itens marcados NA por padrão')).toBeVisible();

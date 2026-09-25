@@ -5,7 +5,7 @@ function client(overrides: Partial<ClientRow> = {}): ClientRow {
   return {
     id: '019966b0-0004-7000-8000-000000000001',
     kind: 'client',
-    name: 'Porto Seguro',
+    name: 'Seguradora Exemplo',
     cnpj: null,
     contact_name: null,
     contact_phone: null,
@@ -18,14 +18,14 @@ function client(overrides: Partial<ClientRow> = {}): ClientRow {
 describe('clientRegistryRowText', () => {
   it('shows the CNPJ when present', () => {
     expect(clientRegistryRowText(client({ cnpj: '00.000.000/0001-00' }))).toEqual({
-      primary: 'Porto Seguro',
+      primary: 'Seguradora Exemplo',
       secondary: 'CNPJ 00.000.000/0001-00',
     });
   });
 
   it('falls back to the not-informed text when the CNPJ is blank', () => {
     expect(clientRegistryRowText(client({ cnpj: null }))).toEqual({
-      primary: 'Porto Seguro',
+      primary: 'Seguradora Exemplo',
       secondary: 'CNPJ não informado',
     });
   });

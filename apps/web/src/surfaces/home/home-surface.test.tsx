@@ -107,11 +107,11 @@ async function freshDb(): Promise<AppDatabase> {
 
 async function seedCompany(db: AppDatabase) {
   await db.entities.bulkPut([
-    toRecord(`project:${PROJECT}`, { id: PROJECT, client_id: CLIENT, name: 'Porto Seguro', site: 'Torres A e B', removed_at: null }),
+    toRecord(`project:${PROJECT}`, { id: PROJECT, client_id: CLIENT, name: 'Seguradora Exemplo', site: 'Blocos Norte e Sul', removed_at: null }),
     toRecord(`registry:${CLIENT}`, {
       id: CLIENT,
       kind: 'client',
-      name: 'Porto Seguro',
+      name: 'Seguradora Exemplo',
       cnpj: null,
       contact_name: null,
       contact_phone: null,
@@ -176,7 +176,7 @@ describe('Home: status board', () => {
     await seedCompany(database);
     await database.entities.bulkPut([
       toRecord(`relatorio:${R_DRAFT}`, relatorio(R_DRAFT, 'rascunho', 'Oxigênio', '2026-09-10')),
-      toRecord(`relatorio:${R_FIELD_HERE}`, relatorio(R_FIELD_HERE, 'em_campo', 'Torres A e B', '2026-09-06')),
+      toRecord(`relatorio:${R_FIELD_HERE}`, relatorio(R_FIELD_HERE, 'em_campo', 'Blocos Norte e Sul', '2026-09-06')),
       toRecord(`relatorio:${R_ISSUED}`, relatorio(R_ISSUED, 'emitido', 'Subestação', '2026-07-18')),
     ]);
     await database.sync_state.bulkPut([onDevice(R_FIELD_HERE), onDevice(R_DRAFT)]);
@@ -231,7 +231,7 @@ describe('Home: relatório cards', () => {
     await seedCompany(database);
     await database.entities.bulkPut([
       toRecord(`relatorio:${R_FIELD_AWAY}`, relatorio(R_FIELD_AWAY, 'em_campo', 'Longe', '2026-09-20')),
-      toRecord(`relatorio:${R_FIELD_HERE}`, relatorio(R_FIELD_HERE, 'em_campo', 'Torres A e B', '2026-09-06')),
+      toRecord(`relatorio:${R_FIELD_HERE}`, relatorio(R_FIELD_HERE, 'em_campo', 'Blocos Norte e Sul', '2026-09-06')),
     ]);
     await database.sync_state.put(onDevice(R_FIELD_HERE));
 
@@ -283,7 +283,7 @@ describe('Home: relatório cards', () => {
     const second = sheet('SEC-02', 'a1');
     const done = { ...first.block, concluded_by: { actor_id: 'u1', at: '2026-09-07T11:00:00.000Z' } };
     await database.entities.bulkPut([
-      toRecord(`relatorio:${R_FIELD_HERE}`, relatorio(R_FIELD_HERE, 'em_campo', 'Torres A e B', '2026-09-06')),
+      toRecord(`relatorio:${R_FIELD_HERE}`, relatorio(R_FIELD_HERE, 'em_campo', 'Blocos Norte e Sul', '2026-09-06')),
       toRecord(`location:${cabineId}`, cabine),
       toRecord(`block:${done.id}`, done),
       toRecord(`block:${second.block.id}`, second.block),
@@ -299,7 +299,7 @@ describe('Home: relatório cards', () => {
     const card = cards()[0]!;
     expect(card.querySelector('.card-state .progress-counter')).toHaveTextContent('1 de 2 fichas');
     expect(card.querySelector('.card-state .progress-counter')).toHaveAttribute('data-state', 'pending');
-    expect(card.querySelector('.card-title')).toHaveAttribute('aria-label', 'Porto Seguro · Torres A e B, Em campo, 1 de 2 fichas');
+    expect(card.querySelector('.card-title')).toHaveAttribute('aria-label', 'Seguradora Exemplo · Blocos Norte e Sul, Em campo, 1 de 2 fichas');
 
     // The pointer wins, live.
     await writeLastSheet(database, R_FIELD_HERE, done.id);
@@ -313,8 +313,8 @@ describe('Home: relatório cards', () => {
     await seedCompany(database);
     await database.entities.put(
       toRecord(`relatorio:${R_FIELD_HERE}`, {
-        ...relatorio(R_FIELD_HERE, 'em_campo', 'Torres A e B', '2026-09-06'),
-        setup: { ...relatorio(R_FIELD_HERE, 'em_campo', 'Torres A e B', '2026-09-06').setup, service_end: '2026-09-08' },
+        ...relatorio(R_FIELD_HERE, 'em_campo', 'Blocos Norte e Sul', '2026-09-06'),
+        setup: { ...relatorio(R_FIELD_HERE, 'em_campo', 'Blocos Norte e Sul', '2026-09-06').setup, service_end: '2026-09-08' },
       }),
     );
     await database.sync_state.put(onDevice(R_FIELD_HERE));
@@ -326,7 +326,7 @@ describe('Home: relatório cards', () => {
     // rather than read once the card exists.
     await waitFor(() => {
       expect(cards()).toHaveLength(1);
-      expect(cards()[0]?.querySelector('.card-title')).toHaveTextContent('Porto Seguro · Torres A e B');
+      expect(cards()[0]?.querySelector('.card-title')).toHaveTextContent('Seguradora Exemplo · Blocos Norte e Sul');
       expect(cards()[0]?.querySelector('.card-meta')).toHaveTextContent('06–08/09/2026 · Cabine primária — padrão');
     });
     const card = cards()[0]!;
@@ -334,8 +334,9 @@ describe('Home: relatório cards', () => {
     expect(card.querySelector('.card-state .sync-badge')).toHaveClass('is-compact');
     // The stamp is from 07/09; the suite runs on a later day, so the kernel dates it.
     expect(card.querySelector('.card-device')).toHaveTextContent('No aparelho · atualizado 07/09 21:40');
-    // Story 12.2: a relatório on this device carries its "n de N fichas" (none here).
-    expect(card.querySelector('.progress-counter')).toHaveTextContent('0 de 0 fichas');
+    // Story 12.2: a relatório on this device carries its "n de N fichas" (none here). Its
+    // own live query can land after the card's first lines on a loaded machine (E3-A4).
+    await waitFor(() => expect(card.querySelector('.progress-counter')).toHaveTextContent('0 de 0 fichas'));
   });
 
   it('reads "Baixando…" while a relatório is still coming down', async () => {

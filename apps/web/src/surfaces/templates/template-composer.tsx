@@ -35,7 +35,7 @@ import {
   type TemplateRow,
   type TypeConfig,
 } from '@app/domain';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { Button, ConfirmDialog, FormDialog } from '../../components/index.ts';
 import { now } from '../../clock.ts';
@@ -519,11 +519,18 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
   );
 }
 
+/**
+ * A cabine's or a coluna's "Renomear": one "Nome" field. E3-A9: a blank name is refused with
+ * "Informe o nome" under the field and the dialog stays open; the name is unchanged.
+ */
 function RenameDialog({ node, onClose, onSave }: { node: ComposerNode; onClose: () => void; onSave: (name: string) => void }) {
   const [value, setValue] = useState(node.name);
+  const [refused, setRefused] = useState(false);
+  const helperId = useId();
   const save = () => {
     const trimmed = value.trim();
-    if (trimmed === '' || trimmed === node.name) onClose();
+    if (trimmed === '') setRefused(true);
+    else if (trimmed === node.name) onClose();
     else onSave(trimmed);
   };
   return (
@@ -539,7 +546,12 @@ function RenameDialog({ node, onClose, onSave }: { node: ComposerNode; onClose: 
         <input
           className="input"
           value={value}
-          onChange={(event) => setValue(event.target.value)}
+          aria-invalid={refused ? true : undefined}
+          aria-describedby={refused ? helperId : undefined}
+          onChange={(event) => {
+            setRefused(false);
+            setValue(event.target.value);
+          }}
           onKeyDown={(event) => {
             if (event.key === 'Enter') {
               event.preventDefault();
@@ -547,6 +559,11 @@ function RenameDialog({ node, onClose, onSave }: { node: ComposerNode; onClose: 
             }
           }}
         />
+        {refused ? (
+          <span className="helper" data-tone="red" id={helperId} role="alert">
+            {copy.composer.renameEmpty}
+          </span>
+        ) : null}
       </label>
       <div className="dialog-actions">
         <Button variant="secondary" onPress={onClose}>

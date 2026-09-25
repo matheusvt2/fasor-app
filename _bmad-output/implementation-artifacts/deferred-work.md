@@ -689,4 +689,10 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: E12-R2. The lost-tap spec 12.1-E2E-007 alone can pass with `useHeldWhilePressed` removed (1 of 2 runs); the gate still goes red because 12.1-E2E-001 fails deterministically without the hold.
   evidence: `reviews/epic-12-review-qa.md` § Re-check (PR #39).
   class: deferred
-  state: open (owner: Epic 6 carry-over batch F, with E5-A2)
+  state: closed (2026-09-25, spec-epic-6-fix-carry-over.md: `e2e/lost-taps.durability.spec.ts` 12.1-E2E-007 now runs three rounds, one sheet each, with the finger down 350, 500 and 650 ms from the touch start; the Enter commit's render lands about 300 ms after the Enter, so every round but the shortest draws it before the finger lifts. With `useHeldWhilePressed` replaced by identity it failed 6 of 6 runs (3 on desktop Chrome, 3 on Android Chrome emulation); restored, it passed 6 of 6)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-6-fix-carry-over.md`
+  summary: E3-A9, section 8 bullet 4: the Porto Seguro fixture's three not-tested blocks give section 8 three per-block not-tested points, where the delivered document prints one merged bullet 4 ("algumas seccionadoras específicas" and "o disjuntor TIE"). How they merge into one bullet is a renderer decision, and there is no section 8 renderer yet.
+  evidence: Epic 3 retrospective (`epic-3-retro-2026-09-23.md` § findings, E3-A9); `apps/api/src/jobs/generate/docx.ts` renders no section 8, and `derivedPoints` does not exist (Epic 6 context). Not buildable in the carry-over batch, whose boundaries forbid rendering section 8 or building `derivedPoints`.
+  class: debt
+  state: open (owner: Story 6.6 for `derivedPoints` and the merge rule, Epic 7 for the section 8 renderer)

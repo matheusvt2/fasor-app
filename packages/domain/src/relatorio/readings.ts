@@ -134,7 +134,8 @@ const HEADER_TEXT: Readonly<Record<string, string>> = {
   CONDIÇÕES: 'Condição',
 };
 
-function headerText(label: string): string {
+/** A value column's header as the Measurement table shows it ("VALORES" -> "Valor", "1 MINUTO" -> "1 minuto"). */
+export function headerText(label: string): string {
   return HEADER_TEXT[label] ?? readingLabelText(label);
 }
 

@@ -562,7 +562,7 @@ test('@p0 4.2-E2E-001 Relatório setup: the five Etapa bands, autosave, geolocat
 
   // Etapa 2 — Objetivo e escopo: Local autosaves; one exclusion added, one edited. No
   // "Escopo" field (Q3): the cover's `{escopo}` prints Etapa 1's "Informações adicionais".
-  await page.getByLabel('Local', { exact: true }).fill('das Torres A e B');
+  await page.getByLabel('Local', { exact: true }).fill('dos Blocos Norte e Sul');
   await expect(page.getByRole('textbox', { name: 'Escopo', exact: true })).toHaveCount(0);
   await expect(page.getByRole('textbox', { name: 'Exclusão 1' })).not.toHaveValue('');
   await page.getByRole('button', { name: 'Adicionar exclusão' }).click();

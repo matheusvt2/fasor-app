@@ -56,7 +56,7 @@ async function freshDb(): Promise<AppDatabase> {
   return openDatabase(user);
 }
 
-const project: ProjectRow = { id: PROJECT, client_id: CLIENT, name: 'Torres A e B', site: 'Torres A e B', removed_at: null };
+const project: ProjectRow = { id: PROJECT, client_id: CLIENT, name: 'Blocos Norte e Sul', site: 'Blocos Norte e Sul', removed_at: null };
 const client: ClientRow = { id: CLIENT, kind: 'client', name: 'Seguradora Exemplo S.A.', cnpj: null, contact_name: null, contact_phone: null, sites: [], removed_at: null };
 
 const relatorio = (id: string, status: RelatorioStatus, start: string | null, end: string | null): RelatorioRow => ({
@@ -145,7 +145,7 @@ describe('4.1 ProjectSurface', () => {
     expect(await screen.findByRole('heading', { level: 2, name: 'Relatórios desta obra (0)' })).toBeVisible();
     expect(screen.getByText('Nenhum relatório nesta obra.')).toHaveClass('section-note');
     expect(screen.getAllByRole('button', { name: 'Novo relatório a partir de template' })).toHaveLength(2);
-    expect(container.querySelector('.crumbs')).toHaveTextContent(/^Início.*Seguradora Exemplo S\.A\..*Torres A e B$/);
+    expect(container.querySelector('.crumbs')).toHaveTextContent(/^Início.*Seguradora Exemplo S\.A\..*Blocos Norte e Sul$/);
     expect(container.querySelector('.project-meta')).toHaveTextContent(/Cliente\s*Seguradora Exemplo S\.A\./);
     expect(container.querySelector('.project-meta')).toHaveTextContent(/Relatórios\s*0$/);
     expect(await axe(container)).toHaveNoViolations();
@@ -165,7 +165,7 @@ describe('4.1 ProjectSurface', () => {
     expect(first).toHaveAttribute('data-relatorio', NEWER);
     expect(second).toHaveAttribute('data-relatorio', OLDER);
     await waitFor(() => expect(first!.querySelector('.lr-sub')).toHaveTextContent(/^criado em \d{2}\/\d{2}\/\d{4} · Cabine primária — padrão$/));
-    expect(first!.querySelector('.lr-title')).toHaveTextContent('Cabine primária — Torres A e B');
+    expect(first!.querySelector('.lr-title')).toHaveTextContent('Cabine primária — Blocos Norte e Sul');
     expect(first!.querySelector('.status-pill')).toHaveAttribute('data-status', 'rascunho');
     expect(first!.querySelector('.lr-dates')).toHaveTextContent('06–08/09/2026');
     expect(first!.querySelector('.lr-template')).toHaveTextContent('Cabine primária — padrão');
