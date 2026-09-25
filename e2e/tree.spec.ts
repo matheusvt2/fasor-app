@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, syncBadge, test, TEST_SEED } from './support/merged-fixtures.ts';
+import { syncNowAndReturn } from './support/sync.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB as resetCompany } from './support/reset-empresa-b.ts';
 import { officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
@@ -27,18 +28,6 @@ const coluna = (page: Page, name: string) => page.locator('li.s9-coluna').filter
 const tagsIn = (li: Locator) => li.locator(':scope > .s9-eqs > li.s9-eq .block-tag');
 const eqRow = (page: Page, tag: string) => page.locator('li.s9-eq').filter({ has: page.locator('.block-tag', { hasText: new RegExp(`^${tag}$`) }) });
 const menuOf = (page: Page, name: string) => page.getByRole('button', { name: `Mais opções de ${name}`, exact: true });
-
-/** "Sincronizar agora" from the Sync status, until nothing is waiting, then back. */
-async function syncNow(page: Page): Promise<void> {
-  const back = page.url();
-  await syncBadge(page).click();
-  const button = page.getByRole('button', { name: 'Sincronizar agora' });
-  await expect(button).not.toHaveAttribute('aria-disabled', 'true', { timeout: 30_000 });
-  await button.click();
-  await expect(syncBadge(page)).toHaveAttribute('data-pending', '0', { timeout: 30_000 });
-  await expect(syncBadge(page)).toHaveAttribute('data-state', 'ok');
-  await page.goto(back);
-}
 
 /** Resets Empresa B, signs in and opens the Sumário of a relatório pushed from the office. */
 async function openRelatorio(page: Page, width: number): Promise<{ relatorioId: string; projectId: string }> {
@@ -214,7 +203,7 @@ test('@p0 4.5-E2E-001 at 768: the palette from a coluna creates a block offline;
   await openSection9(page);
   await page.getByRole('button', { name: /^(Expandir|Recolher) 1° Subsolo$/ }).click();
   await expect(tagsIn(col1)).toHaveText(['SEC-C01', 'DJ-C01']);
-  await syncNow(page);
+  await syncNowAndReturn(page);
   await openSection9(page);
   if ((await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).count()) > 0) await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
 
@@ -291,7 +280,7 @@ test('@p0 4.5-E2E-001 at 768: the palette from a coluna creates a block offline;
   await pushDrafts(page, database, [
     officeDraft(account, { relatorioId }, `block/${secId}/not_tested`, { reason: 'solicitacao_cliente', text: null, at: new Date().toISOString(), by: account.userId }),
   ]);
-  await syncNow(page);
+  await syncNowAndReturn(page);
   await openSection9(page);
   if ((await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).count()) > 0) await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
   await expect(eqRow(page, 'SEC-C01').locator('.s9-state')).toHaveText('⊘ Não ensaiada · Solicitação do cliente');
@@ -353,7 +342,7 @@ test('@p1 4.5-E2E-003 a TAG duplicated by sync reads "TAG ⟨TAG⟩ duplicada" a
   await pushDrafts(page, database, [
     officeDraft(account, { projectId }, `equipment/${equipmentId}`, { id: equipmentId, project_id: projectId, tag: 'SEC-C01', type: 'chave_seccionadora', last_nameplate: null, removed_at: null }, 'create'),
   ]);
-  await syncNow(page);
+  await syncNowAndReturn(page);
   await openSection9(page);
   await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
   const line = eqRow(page, 'SEC-C01').locator('.s9-dup');
@@ -376,7 +365,7 @@ test('@p0 4.4-E2E-002 /relatorio/:id/arvore: the tree as a surface at 390, the s
   await pushDrafts(page, database, [
     officeDraft(account, { relatorioId }, `block/${lastSheet}/not_tested`, { reason: 'solicitacao_cliente', text: null, at: new Date().toISOString(), by: account.userId }),
   ]);
-  await syncNow(page);
+  await syncNowAndReturn(page);
   await page.evaluate(
     async ([name, key, value]) => {
       const open = await new Promise<IDBDatabase>((resolve, reject) => {
