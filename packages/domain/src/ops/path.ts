@@ -431,7 +431,7 @@ export function targetOf(path: OpPath): EntityRef {
 export const projectPath = (id: string): string => formatPath({ family: 'project', id });
 export const projectFieldPath = (id: string, field: string): string => formatPath({ family: 'project/field', id, field });
 export const relatorioPath = (id: string): string => formatPath({ family: 'relatorio', id });
-export const relatorioSetupPath =(field: string): string => formatPath({ family: 'relatorio/setup', field });
+export const relatorioSetupPath = (field: string): string => formatPath({ family: 'relatorio/setup', field });
 export const relatorioStatusPath = (): string => formatPath({ family: 'relatorio/status' });
 export const relatorioExportSchemePath = (): string => formatPath({ family: 'relatorio/export/scheme' });
 export const locationPath = (id: string): string => formatPath({ family: 'location', id });

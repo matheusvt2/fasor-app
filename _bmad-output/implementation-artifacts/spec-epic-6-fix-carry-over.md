@@ -2,7 +2,7 @@
 title: 'Epic 6 carry-over: refactors, gate cost, sheet on touch and the Epic 5 kernel leftovers'
 type: 'refactor'
 created: '2026-09-25'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '130eaa27dd5caa631873cae07ec10ca8694cea40'
 review_loop_iteration: 0
 followup_review_recommended: false
