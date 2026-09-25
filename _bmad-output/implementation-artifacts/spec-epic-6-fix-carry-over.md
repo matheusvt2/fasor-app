@@ -2,10 +2,10 @@
 title: 'Epic 6 carry-over: refactors, gate cost, sheet on touch and the Epic 5 kernel leftovers'
 type: 'refactor'
 created: '2026-09-25'
-status: 'in-review'
+status: 'done'
 baseline_revision: '130eaa27dd5caa631873cae07ec10ca8694cea40'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: 'opus'
 dev_effort: 'high'
 context:
@@ -105,3 +105,47 @@ Open questions (keep conservative, list in PR): the `criterion_override` value s
 - `docker compose --profile tools run --rm tools pnpm test:unit` -- green, duration recorded before and after
 - `docker compose --profile tools run --rm tools pnpm exec playwright test e2e/ficha.durability.spec.ts e2e/lost-taps.durability.spec.ts --project durability-desktop-chrome --project durability-android-chrome --project durability-webkit` -- green
 - `docker compose --profile tools run --rm tools pnpm verify` -- green (redirect to a log, read the tail)
+
+## Spec Change Log
+
+## Review Triage Log
+
+### 2026-09-25 — Review pass
+Layers run: Edge Case Hunter, Verification Gap Reviewer. Skipped: Blind Hunter and Intent Alignment (token economy; the integrated Epic 6 review covers them).
+- verdicts: 15 findings — high 0, medium 4, low 9, false 1, maybe-false 1
+- findings:
+  - `[medium]` `[patch]` (VG) The E3-A9 composer changes (blank rename refused in place, card body opens "Editar texto") were covered only by the @p1 E3-A9-E2E-001, which `pnpm verify` skips — added unit tests in `template-composer.test.tsx` and `template-composer-defaults.test.tsx`.
+  - `[medium]` `[patch]` (VG other) 12.1-E2E-007 measured finger-down time after the CDP touchStart round trip with no bound on the commit poll, so the 650 ms round could outlast the 800 ms hold cap under load — the finger now lifts 300 ms after the commit reaches the outbox, within 350-650 ms from before the touch start; `touchPressAcross` hands the start time to `during`; fails 4/4 without the hold, passes 4/4 with it.
+  - `[low]` `[patch]` (VG other) `test-axe.ts` claimed contrast is checked by Playwright; none is — comment now names `styles/contrast.test.ts` and the gallery token tests.
+  - `[low]` `[reject]` (VG other) The `fresh === undefined` confirm path has no test — a one-line guard, unlikely path; not worth a test.
+  - `[low]` `[reject]` (ECH) `focusAfterRemoval` now also resolves on a row-count drop while the removed row is still connected; a concurrent pull removing a sibling inside the watch window could focus the row being removed — rare (sync pull of the same list within the ~1 s watch), outcome only focus placement; keeping one rule for both list kinds (the composer's position-keyed list needs the count rule).
+  - `[low]` `[patch]` (ECH) The confirm's fresh-block lookup accepted a tombstoned block — now requires `removed_at === null`.
+  - `[low]` `[reject]` (ECH) A TAG renamed between render and tap stores text with the old TAG under a matching basis — pre-existing class, self-corrects to "stale" with "Substituir"; the fix needs the fresh equipment row in the edit.
+  - `[medium]` `[reject]` (ECH) A stale confirm writes nothing and announces nothing — the recomposed text re-renders in place (matrix row "Stale confirm"); an announcement needs new copy, a product choice; listed as known open in the PR. Graded medium for screen-reader users, rejected from this batch as it needs authored copy (open question).
+  - `[low]` `[patch]` (ECH) A negative override raw passed as well formed — now malformed (seed stands), added to the `it.each`.
+  - `[maybe-false]` `[reject]` (ECH) `subBlockSummaryText` on a test without row labels or capture columns would print " × Valor" — every seeded test has both (unit test pins the lines per type); would only be low.
+  - `[low]` `[reject]` (ECH claim) Some path builders take `field: string` — they mirror `OpPath` families whose field is a free string; `opSchema` validates at commit.
+  - `[low]` `[reject]` (ECH claim) The focus refactor changes behavior under concurrent sync — same root as the focus row above.
+  - `[false]` `[reject]` (ECH claim) Removing the gallery's dark-theme axe pass loses coverage — the theme switches CSS tokens only, the DOM and ARIA are identical, and the colour-contrast rule does not run in jsdom.
+  - `[low]` `[reject]` (ECH claim) `file/${id}` is still hand-built in `db/file-commit.ts` — excluded on purpose (parallel batch P1 owns the file); `filePath`/`fileFieldPath` exist for P1 to adopt.
+  - `[medium]` `[patch]` (ECH) 12.1-E2E-007 takes `down` after the touch starts and the outbox poll can outlast the round, so the finger can stay down past the 800 ms hold cap and the gate flakes — same root and fix as the VG 12.1-E2E-007 row above.
+
+## Auto Run Result
+
+Status: done
+
+**Summary.** Every carry-over item of batch F is implemented except the section 8 merged bullet 4 (no section 8 renderer yet; ledger entry owned by Story 6.6 / Epic 7).
+- E4-A7 + E5-A5: `setup-surface.tsx` 957 -> 234 lines (`relatorio/setup/` Etapa files + `setup-fields.ts`); Sumário row actions in `sumario-actions.ts` (`sumario-surface.tsx` 442 -> 289); one focus helper `apps/web/src/input/focus-restore.ts` (`restoreFocus`, `focusAfterRemoval`; `relatorio-focus.ts` deleted); project helpers in `packages/domain/src/relatorio/project.ts`; typed path builders in `packages/domain/src/ops/path.ts` (`sheetNameplatePath`, `sheetChecklistPath`, `sheetTestPath`, `sheetTestCellPath`, `sheetConclusionPath`, `relatorioSetupPath`, `locationSePath`, `blockFieldPath`, `equipmentFieldPath`, `registryPath`, `templatePath`, `filePath`, `fileFieldPath`, `pointPath`, `pointFieldPath`, ...); no hand-built op path left in `apps/web/src` except `db/file-commit.ts` and `db/file-store.ts` (P1).
+- E5-A4: `effectiveCriterion(block, test)` applies a well-formed `criterion_override` `{raw, unit}`; `conclusionPairComplete`; `conclusionTextForPrint` null on an incomplete pair; `conclusionBasisMatches` guards the confirm of the composed text; E5-Q18 (e) and (f) e2e (@p1).
+- E5-A2: `e2e/ficha.durability.spec.ts` E5-A2-E2E-001..004 (@p1, run by `test:e2e:matrix`).
+- E12-R2: 12.1-E2E-007 lifts the finger 300 ms after the commit (350-650 ms from touch start); fails 4/4 without the hold, passes 4/4 with it.
+- E3-A9: `subBlockSummaryText` `.toggle-sub` lines (no test voltage: the seed has none; "Ler placa da foto" omitted), "Informe o nome" on a blank composer rename, the card body opens "Editar texto", synthetic names in non-fixture tests.
+- E3-A4: 18 web test files on the node environment, axe loaded only where used with color-contrast off in jsdom and one pass per gallery state, two slow files split, domain 15 s timeout, 3.6-E2E-001 waits for the stored template. `pnpm test:unit` web part: 133.6 s baseline -> 119.2 s back to back under load; 115.6 s in the final verify (idle baseline total 2m42.7s). Timings are noisy (shared machine).
+
+**Review.** Patches applied: 5 entries (medium 2: composer unit tests, 12.1-E2E-007 timing; low 3: axe comment, tombstoned-block confirm, negative override). Deferred: none. Rejected: see the Review Triage Log (known open for the PR: silent stale confirm with no announcement; focus row-count rule under a concurrent pull; TAG renamed between render and confirm).
+
+**Follow-up review recommended: true** -- two medium entries were patched; the unverified risk is 12.1-E2E-007's new commit-relative timing, which has only the implementer's 4+4 runs and one gate run behind it.
+
+**Verification.** `pnpm verify` green after merging `origin/main` (e9e863c): lint, static, unit domain 1044 / web 803 (95 files) / root 20, api 147, e2e @p0 92 passed (11.8 min); total 17m09s. Durability command from the spec: 32 passed, 1 skipped (007 on WebKit, CDP touch).
+
+**Residual risks.** The gate total is above the 15-minute budget on this machine (17 min). P1 overlap: test-only edits in `components/upload-tile.test.tsx` (axe import) and `sync/policy.test.ts` (node environment pragma); `ficha-ops.ts` now uses the kernel builders.
