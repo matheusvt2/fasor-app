@@ -1383,6 +1383,8 @@ So that I know where I am, what is missing and how to get to the next sheet with
 **When** a value is committed
 **Then** it is a `sheet/{blockId}/...` op per Story 1.4 with no Save button, a visually hidden "Salvo" status is announced at most every few seconds, and reopening after a closed tab offers "Rascunho encontrado — Recuperar" for uncommitted text (FR-32, FR-61)
 
+*Narrowing (2026-09-24, Epic 5 delivery, PRs #30-#33):* `sheetProgress(snapshot, blockId)` in `packages/domain/src/relatorio/sheet-progress.ts` is the per-sheet count this story calls `progress` (that name stays Story 4.3's relatório-wide count); the route is `/relatorio/:id/ficha/:blockId` (block id, survives a TAG rename). Whether an edit after "Concluir ficha" clears `concluded_by` or flags "concluída com pendências" is open (E5-Q3, Epic 7).
+
 ### Story 5.2: Record the cabine's characteristics and test environment once
 
 **Dev model:** sonnet · **Effort:** medium · cabine block edited in one place, read-only elsewhere, copy chip
@@ -1409,6 +1411,8 @@ So that every other sheet of the cabine shows them and the document prints them 
 **When** the value is committed
 **Then** the sheet-level "Observações rápidas" chip row surfaces the standard rain/humidity note first
 
+*Narrowing (2026-09-24, Epic 5 delivery, PRs #30-#33):* The humidity threshold for the rain/humidity note is a fixed 80 % until a configured value exists (open question). The cabine tree row shows the values through the existing `cabineMetaText` line.
+
 ### Story 5.3: Fill the nameplate by copy or by typing
 
 **Dev model:** sonnet · **Effort:** medium · nameplate fields by kind and two copy chips
@@ -1434,6 +1438,8 @@ So that the plate costs me a glance, not twelve fields.
 **Given** the block's Equipment row has `last_nameplate ≠ null` (written by Epic 7 at issue)
 **When** the empty group renders
 **Then** the chip "Copiar da última visita (⟨TAG⟩)" copies only the keys present in the target block's definition at its `seed_version`, reports "N campos copiados", and never fetches (FR-34, AR-24)
+
+*Narrowing (2026-09-24, Epic 5 delivery, PRs #30-#33):* "Igual à ⟨TAG⟩?" comes before "Copiar da última visita"; labels render the seed's verbatim uppercase text; the copy includes per-unit fields such as Nº SÉRIE (E5-Q12, open question). "Copiar da última visita" is covered by unit tests only, since `last_nameplate` is written by Epic 7.
 
 ### Story 5.4: Mark the checklist with taps, not typing
 
@@ -1462,6 +1468,8 @@ So that on a conforme sheet I touch only the rows that are not.
 **When** the user taps "Repetir da ficha anterior do mesmo tipo"
 **Then** only the tri-state pattern is copied (never observations or photos) with the same undo; both bulk actions are `aria-disabled` with the reason beside them when nothing applies ("Todos os itens já estão marcados"; "Nenhuma ficha deste tipo concluída") (FR-26)
 
+*Narrowing (2026-09-24, Epic 5 delivery, PRs #30-#33):* The legend keeps the mock's "Legenda" disclosure instead of a "?" text button. "Repetir da ficha anterior" fills only unset rows (PR #31).
+
 ### Story 5.5: Type a reading with its unit and see it judged against the criterion
 
 **Dev model:** ~~fable~~ opus *(2026-09-24, Matheus: fable replaced by opus, Opus 5.5 performs better)* · **Effort:** high · pt-BR parsing and criterion comparison are safety-critical; a wrong parse is a wrong signed value
@@ -1489,6 +1497,8 @@ So that I judge the equipment on the spot and never sign a misread digit.
 **When** it is committed
 **Then** a neutral field shows the helper "Fase C 1000× abaixo de A e B. Conferir?" in `fora-do-limite`, announced once on blur via `role="status"`, never a block (FR-28)
 
+*Narrowing (2026-09-24, Epic 5 delivery, PRs #30-#33):* Only insulation cells cycle their unit (MΩ → GΩ → TΩ). Whether "120.001" in a ratio or contact cell reads as 120001 is open (E5-Q6). A stored `criterion_override` is not applied yet.
+
 ### Story 5.6: Type all of a sheet's readings in one continuous run
 
 **Dev model:** opus · **Effort:** medium · continuous keyboard run across tables, not-measured state, calculated cells
@@ -1511,6 +1521,8 @@ So that the nine readings of a seccionadora are one pass with no tap on the scre
 **When** the nameplate voltages or currents and the measured values exist
 **Then** `VAL CALCULADO` is computed by the kernel from the nameplate (Vp/Vs, Ip/Is, per TAP for the transformer), `CONDIÇÕES` prints "SATISFATÓRIO" when |medido − calculado| / calculado is within the criterion, recomputes live, and neither is ever typed (FR-27)
 
+*Narrowing (2026-09-24, Epic 5 delivery, PRs #30-#33):* The transformer keeps its single TAP row (no typed `TAP Nº`, no "Adicionar TAP"); a ratio input left empty uses the nameplate value; CONDIÇÕES stays blank when the reading is out of criterion (open question).
+
 ### Story 5.7: Pick the instrument by its code
 
 **Dev model:** sonnet · **Effort:** low · instrument picker with copied header
@@ -1528,6 +1540,8 @@ So that the data typed 94 times today costs one tap per test.
 **Given** no instrument is registered
 **When** the picker opens
 **Then** it shows "Nenhum instrumento cadastrado" with "Cadastrar instrumento", which opens Registries and works offline (UX-DR42)
+
+*Narrowing (2026-09-24, Epic 5 delivery, PRs #30-#33):* `test_parameter` is copied from the instrument's default for that test type; the picker lists every registered instrument.
 
 ### Story 5.8: Conclude the sheet with one tap and a text the app wrote from its own values
 
@@ -1557,6 +1571,8 @@ So that concluding costs two taps and the paragraph is auditable.
 **Then** it recomposes silently; "Confirmar" emits `conclusion/text`, `text_status = confirmed` and `text_basis` (hash of the inputs); "Editar" opens typing and stops recomposition (`text_status = edited`); after confirmation a later change shows "Sugerido: texto atualizado — Substituir" beneath and never overwrites (FR-30, AR-11)
 **And** an unconfirmed text does not block "Concluir ficha" and the kernel marks it "not printable" for the renderer
 
+*Narrowing (2026-09-24, Epic 5 delivery, PRs #30-#33):* The Conclusão step counts result, restriction and the required observation as separate missing items. The recommendation sentences and the empty-sheet wording ("não apresentou valores medidos nem itens verificados registrados") are authored placeholders awaiting Matheus (E5 OQ-3). After a confirmed text, the stored criteria line is not rebuilt; the Overflow "Limpar conclusão" keeps the stored text.
+
 ### Story 5.9: Mark an equipment as not tested
 
 **Dev model:** sonnet · **Effort:** medium · not-tested state with precedence and read-only fields
@@ -1578,6 +1594,8 @@ So that it prints its nameplate and reason and lists itself in section 8 without
 **Given** `progress` and `preIssue`
 **When** a sheet is Não ensaiada
 **Then** it counts as complete and is listed in the Sumário's "não ensaiadas" count, never as "não concluída" (FR-31, FR-73)
+
+*Narrowing (2026-09-24, Epic 5 delivery, PRs #30-#33):* The reason picker is a modal dialog opened by "Marcar não ensaiado" from both the sheet Overflow and the Block card Overflow; Não ensaiado stays available on a concluded sheet (AR-17). With no reason used yet the first seed reason is preselected (E5-Q13, open question).
 
 ## Epic 6: Photos and points of attention
 
