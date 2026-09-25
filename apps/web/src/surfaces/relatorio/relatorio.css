@@ -51,6 +51,9 @@
 /* authored (ERGO-E2E-001): the number is the typeable Position box, so its hit area stays
    48 x 48; the mock's 32 px `surface-sunken` circle is drawn inside it. */
 [data-route="/relatorio/:id"] .pos-box.sum-pos { width: var(--touch-min); height: var(--touch-min); margin: 0; padding: 0; border: 0; border-radius: var(--r-full); background: radial-gradient(circle, var(--sum-pos-background) calc(var(--sum-pos-size) / 2), transparent calc(var(--sum-pos-size) / 2 + 0.5px)); }
+/* authored (Epic 12, no lost tap): the row chevron is `aria-hidden` (app.css turns off its pointer
+   events) yet a finger landing on it opens the row, as `.sum-open` does. */
+[data-route="/relatorio/:id"] .sum-ctrls .sum-chev { pointer-events: auto; cursor: pointer; }
 /* the fixed rows' empty first column (the mock's `.sum-pos-empty { display: block }`) */
 [data-route="/relatorio/:id"] .sum-pos-empty { display: block; }
 /* section 9: the mock's `<li class="sum-row sum-s9" style="display:block">` */

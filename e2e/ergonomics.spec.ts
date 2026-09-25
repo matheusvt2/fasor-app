@@ -6,7 +6,7 @@ import { newRelatorioDrafts, pushDrafts } from './support/relatorio-seed.ts';
 /*
  * Story 12.6 AC2 (ERGO-E2E-001): the glove targets of DESIGN.md § Spacing, measured on the
  * real app at 390 x 844 and 768 x 1024. Every visible interactive element has a hit area of
- * at least 48 x 48 px: the element's box, or, for a control inside a `label`, an `.input`, a
+ * at least 48 x 48 px: the element's box, or, for a text control (`input`, `select`, `textarea`, a date segment) inside a `label`, an `.input`, a
  * `.measurement-field` or a date field group (the wrapper that receives the tap), that
  * wrapper's box. The glove-filled controls are at least 56 px tall: the tri-state segments,
  * the Measurement field, the conclusion segments and the tree rows. A failure is fixed in
@@ -43,8 +43,9 @@ const INTERACTIVE = [
   '[tabindex="0"]',
 ].join(', ');
 
-/** The wrappers whose box is the hit area of a control inside them. */
+/** The wrappers whose box is the hit area of a text control inside them; every other element (a button nested in a field) is measured by its own box. */
 const WRAPPERS = 'label, .input, .measurement-field, .date-input';
+const WRAPPED = 'input, select, textarea, [role=spinbutton]';
 
 /** The glove-filled controls: at least 56 px tall. */
 const TALL = ['.tri-state .seg', '.measurement-field', '.conclusion-pair .seg', '.s9-eq-open', '.sum-open', '.relatorio-tree .tree-row'].join(', ');
@@ -59,7 +60,7 @@ interface Miss {
 /** Every visible target on screen now that misses its rule. */
 async function misses(page: Page): Promise<{ misses: Miss[]; measured: number }> {
   return page.evaluate(
-    ({ interactive, wrappers, tall, excluded }) => {
+    ({ interactive, wrappers, wrapped, tall, excluded }) => {
       const describe = (element: Element) => {
         const name = element.getAttribute('aria-label') ?? element.textContent?.trim().slice(0, 40) ?? '';
         const classes = typeof element.className === 'string' && element.className !== '' ? `.${element.className.trim().split(/\s+/).join('.')}` : '';
@@ -77,7 +78,7 @@ async function misses(page: Page): Promise<{ misses: Miss[]; measured: number }>
       for (const element of document.querySelectorAll(interactive)) {
         if (!visible(element) || skip(element)) continue;
         measured += 1;
-        const wrapper = element.parentElement?.closest(wrappers) ?? null;
+        const wrapper = element.matches(wrapped) ? (element.parentElement?.closest(wrappers) ?? null) : null;
         const box = (wrapper ?? element).getBoundingClientRect();
         if (Math.round(box.width) < 48 || Math.round(box.height) < 48) {
           out.push({ what: describe(element), width: Math.round(box.width), height: Math.round(box.height), rule: '48 x 48' });
@@ -91,7 +92,7 @@ async function misses(page: Page): Promise<{ misses: Miss[]; measured: number }>
       }
       return { misses: out, measured };
     },
-    { interactive: INTERACTIVE, wrappers: WRAPPERS, tall: TALL, excluded: ERGO_EXCLUSIONS.map((e) => e.selector) },
+    { interactive: INTERACTIVE, wrappers: WRAPPERS, wrapped: WRAPPED, tall: TALL, excluded: ERGO_EXCLUSIONS.map((e) => e.selector) },
   );
 }
 

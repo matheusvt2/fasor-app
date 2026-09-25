@@ -2,7 +2,7 @@
 title: 'Stories 12.5 and 12.6: the v0.9 visual direction and the tap budget as a test'
 type: 'feature'
 created: '2026-09-25'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '66fe4107fc45df8dd6fd5b1936be8c63784129ae'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -12,7 +12,28 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-12-context.md'
 warnings: ['batched', 'multiple-goals', 'oversized']
 batched_reason: '12.6 measures taps and target sizes on the final UI that 12.5 restyles (shared surfaces: sheet, Sumário, Home); one batch for token economy.'
-deferred: []
+deferred:
+  - summary: >-
+      The Sheet header sentence (and the stepper) name a step whose sub-block is off, e.g. "Verificações prontas" on a sheet with no checklist.
+    evidence: |-
+      STEPPER_STEPS is all four SHEET_STEPS; the stepper already showed "Placa ✓" on a sheet with no nameplate before this change (journey review § 3, app against mock). Settle by deriving the shown steps from the block's enabled sub-blocks for both the stepper and sheetSummaryText.
+    location: >-
+      apps/web/src/surfaces/ficha/section-stepper.tsx STEPPER_STEPS
+    severity: low
+  - summary: >-
+      The promoted rule `.sticky-action-bar .bulk-action-bar.is-compact.is-done { display: none }` never fires: the app never sets `is-done`.
+    evidence: |-
+      BulkActionBar sets no is-done class; the disabled compact bulk bar stays in the sticky bar as before (pre-existing behavior, not in 12.5's component list).
+    location: >-
+      apps/web/src/styles/components.css (.bulk-action-bar.is-compact.is-done)
+    severity: low
+  - summary: >-
+      Two sentence-case rules for seed labels coexist: kernel readingLabelText/sentenceCase (Measurement table) and screenLabel (fields, checklist, cabine).
+    evidence: |-
+      They disagree on some headers (TTR "TAP Nº" reads "Tap Nº" in the table, screenLabel gives "TAP nº"). Unifying them touches conclusion.ts, which reads evaluated tables; check the generated conclusion text before delegating readingLabelText to screenLabel.
+    location: >-
+      packages/domain/src/relatorio/readings.ts readingLabelText
+    severity: low
 ---
 
 <intent-contract>
@@ -99,6 +120,21 @@ Wording rules: done steps named "placa", "verificações", "leituras", "conclus�
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-09-25 — Review pass
+- verdicts: 10 findings — high 0, medium 3, low 5, false 2, maybe-false 0
+- layers run: Edge Case Hunter, Verification Gap; Blind Hunter and Intent Alignment skipped (token economy; the integrated Epic 12 review covers them)
+- findings:
+  - `[medium]` `[patch]` ECH: Sumário chevron moved outside `button.sum-open` is a dead tap target — the chevron span now calls the row's open action (pointer-events restored in relatorio.css); 12.5-E2E-001 taps it.
+  - `[low]` `[defer]` ECH: sheetSummaryText names a disabled step "pronta(s)" — pre-existing stepper behavior (all four steps drawn); deferred.
+  - `[false]` `[reject]` ECH: a `shown` omitting a missing step reads "Ficha completa" — the only caller passes STEPPER_STEPS = SHEET_STEPS, so no step is ever omitted.
+  - `[medium]` `[patch]` ECH: ERGO measures nested buttons by their wrapper — grouped with VG 1; wrapper box used only for input/select/textarea/spinbutton; re-run 0 misses.
+  - `[low]` `[defer]` ECH: `.bulk-action-bar.is-compact.is-done` never set — pre-existing behavior, bulk bar not in 12.5's component list.
+  - `[false]` `[reject]` ECH: outlier helper shows caps row labels — markOutliers reads EvaluatedRow.label, already `readingLabelText`-cased ("Fase A", "Massa").
+  - `[low]` `[reject]` ECH: removed hover/focus cue on the Sumário position box — cosmetic; the v0.9 mock draws no hover state and focus-visible stays.
+  - `[medium]` `[patch]` VG: ERGO wrapper rule lets undersized nested buttons pass — see the grouped ECH row.
+  - `[medium]` `[patch]` VG: checklist sentence case not pinned — exact radiogroup name assertion added to 12.5-E2E-001.
+  - `[low]` `[patch]` VG: Measurement table strings double-formatted (kernel rule then screenLabel, "Tap nº") — screenLabel wrapping removed from ensaios-section.tsx (kernel already formats); unifying the two rules deferred.
 
 ## Design Notes
 

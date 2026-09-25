@@ -16,10 +16,11 @@ export interface RowActions {
 
 /**
  * The row's chevron in the trailing `.sum-ctrls` cluster (v0.9, `key-relatorio-overview-v09.html`):
- * a drawn hint that the row opens, not a control of its own; the tap goes to `.sum-open`.
+ * a drawn hint that the row opens, hidden from assistive tech (`.sum-open` is the control),
+ * but a finger that lands on it opens the row too: no tap on the row is ever lost (Epic 12).
  */
-const Chevron = () => (
-  <span className="icon-btn sum-chev" aria-hidden="true">
+const Chevron = ({ onOpen }: { onOpen: () => void }) => (
+  <span className="icon-btn sum-chev" aria-hidden="true" onClick={onOpen}>
     <svg className="ico" aria-hidden="true">
       <use href="/sprite.svg#i-chev-right" />
     </svg>
@@ -80,7 +81,7 @@ export function FixedRow({ row, onOpen }: { row: Row; onOpen?: (row: Row) => voi
       <RowOpen row={row} onOpen={onOpen} />
       <span className="sum-ctrls">
         <span className="sum-ro">{fixedRowNote(row.rowKey as 'capa' | 'controle')}</span>
-        {onOpen === undefined ? null : <Chevron />}
+        {onOpen === undefined ? null : <Chevron onOpen={() => onOpen(row)} />}
       </span>
     </li>
   );
@@ -107,7 +108,7 @@ export function NumberedRow({ row, actions, openable }: { row: Row; actions: Row
       />
       <RowOpen row={row} onOpen={openable ? actions.onOpen : undefined} />
       <span className="sum-ctrls">
-        {openable ? <Chevron /> : null}
+        {openable ? <Chevron onOpen={() => actions.onOpen(row)} /> : null}
         <OverflowMenu name={row.title} items={menu.items} destructiveItems={menu.destructiveItems} />
       </span>
     </li>

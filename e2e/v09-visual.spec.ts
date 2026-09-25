@@ -1,4 +1,4 @@
-import { SHEET_STEPS, sheetSummaryText, type SheetStep } from '@app/domain';
+import { getDefinition, screenLabel, SHEET_STEPS, sheetSummaryText, type SheetStep } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { deviceDatabaseName, expect, signIn, test, TEST_SEED } from './support/merged-fixtures.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
@@ -60,6 +60,14 @@ test('@p0 12.5-E2E-001 v0.9 at 768 px: the header sentence, sentence-case labels
   expect(name).not.toBe('');
   await expect(page.locator('.app-bar h1')).toHaveText(name);
 
+  // The row chevron in the trailing cluster is drawn, not a control of its own, yet a finger on it
+  // opens the row (no lost tap): "Definições" opens its section text.
+  const definicoes = page.getByRole('list', { name: 'Sumário do relatório' }).locator(':scope > li.sum-row').filter({ has: page.locator('.sum-title', { hasText: /^Definições$/ }) });
+  await definicoes.locator('.sum-ctrls .sum-chev').click();
+  await expect(page).toHaveURL(/\/secao\//);
+  await page.goto(`/relatorio/${relatorioId}`);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
+
   // At 390 px the row text keeps at least 60 % of the row (J-18).
   await page.setViewportSize({ width: 390, height: 844 });
   const rows = page.getByRole('list', { name: 'Sumário do relatório' }).locator(':scope > li.sum-row:not(.sum-s9)');
@@ -96,6 +104,10 @@ test('@p0 12.5-E2E-001 v0.9 at 768 px: the header sentence, sentence-case labels
 
   // The chosen tri-state segment is solid, its letter in the selected foreground.
   const row = page.locator('#ficha-step-verificacoes li.checklist-row').first();
+  // The checklist rows read in sentence case too, exactly (the seed keeps the caps for the document).
+  const firstItem = getDefinition('v2', 'cabine_primaria', 'chave_seccionadora').checklist![0]!.label;
+  expect(screenLabel(firstItem)).not.toBe(firstItem);
+  await expect(row.getByRole('radiogroup', { name: `1. ${screenLabel(firstItem)}`, exact: true })).toBeVisible();
   const conforme = row.getByRole('radio', { name: 'Conforme', exact: true });
   await conforme.click();
   await expect(conforme).toHaveAttribute('aria-checked', 'true');
