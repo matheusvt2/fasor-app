@@ -184,6 +184,13 @@ test('@p0 12.2-E2E-003 J5 at 768: Home to the first sheet of a new relatório wi
   await expect(register).toHaveAccessibleDescription('Abre Cadastros › Instrumentos');
   await journey.tap(register);
   await expect(page).toHaveURL(/\/cadastros$/);
+  // A side check, outside the journey's count: the App bar "Voltar" from here also returns
+  // to Etapa 4; then the same press again, as the forward path had it.
+  await page.getByRole('button', { name: 'Voltar' }).click();
+  await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/setup\\?etapa=4$`));
+  await expect(page.getByRole('heading', { level: 2, name: 'Etapa 4 — Instrumentos e certificados' })).toBeFocused();
+  await register.click();
+  await expect(page).toHaveURL(/\/cadastros$/);
   await expect(page.getByRole('tab', { name: 'Instrumentos' })).toHaveAttribute('aria-selected', 'true');
   const panel = page.locator('.registry-panel');
   await expect(panel).toBeVisible();

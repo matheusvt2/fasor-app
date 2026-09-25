@@ -35,7 +35,7 @@ import {
   type TemplateRow,
   type UserRow,
 } from '@app/domain';
-import { useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { Button, ConfirmDialog, OverflowMenu, StatusPill, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -123,6 +123,11 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   // whatever the status, and a sheet left by "Voltar" gets its row focused.
   const location = useLocation();
   const [arrival] = useState(() => arrivalOf(location.state));
+  // History keeps no arrival state: a reload or a browser back onto the Sumário opens it plain.
+  useEffect(() => {
+    if (location.state !== null && location.state !== undefined) void navigate(location.pathname + location.search, { replace: true, state: null });
+    // Once per mount, with the values captured above.
+  }, []);
   const [expanded, setExpanded] = useState(() => arrival.openSection9 || sumarioOpensExpanded(relatorio.status));
   const [openedByStatus] = useState(expanded);
   const chevron = useRef<HTMLButtonElement | null>(null);

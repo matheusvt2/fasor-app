@@ -22,14 +22,26 @@ const NO_BLOCKS: BlockRow[] = [];
 export interface InstrumentosTabProps {
   /** Opens a new instrument's panel on arrival (Story 12.2: setup Etapa 4's "Cadastrar instrumento"). */
   openNew?: boolean;
-  /** Where closing the panel goes instead of back to the list (the setup page that asked for it). */
-  onPanelClose?: () => void;
+  /**
+   * The arrival's panel is done with, once: `back` when it was closed (the caller returns to
+   * the page that asked for it), false when another panel replaced it.
+   */
+  onEntryEnd?: (back: boolean) => void;
 }
 
-export function InstrumentosTab({ openNew = false, onPanelClose }: InstrumentosTabProps = {}) {
+export function InstrumentosTab({ openNew = false, onEntryEnd }: InstrumentosTabProps = {}) {
   const session = useSession();
   const db = session.database;
-  const [openId, setOpenId] = useState<string | null>(() => (openNew ? newId() : null));
+  // The panel minted for the arrival; only its close returns, and only once.
+  const [entryId, setEntryId] = useState<string | null>(() => (openNew ? newId() : null));
+  const [openId, setOpenIdState] = useState<string | null>(entryId);
+  const setOpenId = (next: string | null) => {
+    if (entryId !== null && openId === entryId && next !== entryId) {
+      setEntryId(null);
+      onEntryEnd?.(next === null);
+    }
+    setOpenIdState(next);
+  };
 
   const instruments = useLiveQuery(
     () => (db === null ? Promise.resolve(NO_INSTRUMENTS) : instrumentRows(db)),
@@ -79,10 +91,7 @@ export function InstrumentosTab({ openNew = false, onPanelClose }: InstrumentosT
           instrumentId={openId}
           instrument={openInstrument}
           referenced={referenced}
-          onClose={() => {
-            setOpenId(null);
-            onPanelClose?.();
-          }}
+          onClose={() => setOpenId(null)}
         />
       )}
     </div>

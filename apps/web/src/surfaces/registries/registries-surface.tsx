@@ -57,14 +57,27 @@ export function RegistriesSurface() {
   const db = session.database;
   const navigate = useNavigate();
   const location = useLocation();
-  // Read once: the entry state belongs to the arrival, not to later tab changes.
-  const [entry] = useState(() => entryOf(location.state));
-  const [selectedId, setSelectedId] = useState<TabId>(entry.tab ?? DEFAULT_TAB);
+  // Read once: the entry state belongs to the arrival, and is spent by its panel's close or
+  // by a tab change, never replayed.
+  const [entry, setEntry] = useState(() => entryOf(location.state));
+  const [arrivalTab] = useState(entry.tab);
+  const [selectedId, setSelectedId] = useState<TabId>(arrivalTab ?? DEFAULT_TAB);
   useBackTarget(entry.returnTo ?? null);
+  // History keeps no arrival state: a browser back or a reload onto Cadastros opens it plain.
+  useEffect(() => {
+    if (location.state !== null && location.state !== undefined) void navigate(location.pathname + location.search, { replace: true, state: null });
+    // Once per mount, with the values captured above.
+  }, []);
+
+  function endEntry(back: boolean): void {
+    const returnTo = entry.returnTo;
+    setEntry({});
+    if (back && returnTo !== undefined) void navigate(returnTo);
+  }
 
   useEffect(() => {
     // An arrival that names its tab keeps it over the remembered one.
-    if (db === null || entry.tab !== undefined) return;
+    if (db === null || arrivalTab !== undefined) return;
     let cancelled = false;
     void readRegistryTab(db).then((stored) => {
       if (cancelled) return;
@@ -73,10 +86,11 @@ export function RegistriesSurface() {
     return () => {
       cancelled = true;
     };
-  }, [db, entry.tab]);
+  }, [db, arrivalTab]);
 
   function selectTab(id: string): void {
     if (!isTabId(id)) return;
+    if (id !== selectedId) setEntry({});
     setSelectedId(id);
     if (db !== null) void writeRegistryTab(db, id);
   }
@@ -88,10 +102,7 @@ export function RegistriesSurface() {
       id: 'instrumentos',
       label: copy.registries.tabInstrumentos,
       panel: (
-        <InstrumentosTab
-          openNew={entry.newInstrument === true}
-          onPanelClose={entry.returnTo === undefined ? undefined : () => void navigate(entry.returnTo!)}
-        />
+        <InstrumentosTab openNew={entry.newInstrument === true} onEntryEnd={endEntry} />
       ),
     },
     { id: 'fabricantes', label: copy.registries.tabFabricantes, panel: <FabricantesTab /> },

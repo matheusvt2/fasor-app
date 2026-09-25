@@ -78,7 +78,8 @@ export function HomeSurface() {
   );
   const outbox = useLiveQuery(() => (db === null ? Promise.resolve(NO_OUTBOX) : outboxRows(db)), [db], NO_OUTBOX);
   // Story 12.2: the blocks this device holds, for the on-device cards' `.progress-counter`.
-  const blocks = useLiveQuery(() => (db === null ? Promise.resolve(NO_BLOCKS) : blockRows(db)), [db], NO_BLOCKS);
+  // Undefined until read, so no card counts "0 de 0" for a frame.
+  const blocks = useLiveQuery(() => (db === null ? Promise.resolve(NO_BLOCKS) : blockRows(db)), [db], null) ?? undefined;
 
   const states = useLiveQuery(() => (db === null ? Promise.resolve(NO_STATES) : syncStateRows(db)), [db], NO_STATES);
   const syncStates = useMemo(

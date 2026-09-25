@@ -2,7 +2,7 @@
 title: 'Story 12.2: Forward, never back: resume in one tap and no dead ends'
 type: 'feature'
 created: '2026-09-24'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '144a55892a5b86c1ecb7b03ed91589bec03d6910'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -88,6 +88,27 @@ deferred: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-09-25 — Review pass
+
+Layers: Edge Case Hunter and Verification Gap Reviewer. Blind Hunter and Intent Alignment skipped (token economy; the integrated Epic 12 review covers them).
+
+- verdicts: 14 findings — high 0, medium 6, low 6, false 2, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` VG: `openSection9` arrival on a non-Em campo Sumário untested — add a Rascunho case in `sumario-surface.test.tsx`.
+  - `[medium]` `[patch]` VG: Cadastros App bar "Voltar" back to setup untested — add the step to the journey spec.
+  - `[low]` `[patch]` VG: "Próxima seção" covered only by an `@p1` e2e outside `verify` — add a surface unit case.
+  - `[medium]` `[patch]` VG other / EC: `onPanelClose` fires on every instrument panel close (list rows, remove, archive) and bounces to setup — only the panel minted from `openNew` returns.
+  - `[false]` `[reject]` VG other: uncommitted `relatorio-card.tsx` change — the orchestrator's own indentation fix, reviewed in the working-tree diff on purpose.
+  - `[low]` `[patch]` EC: `openNew` re-mints a blank panel whenever the Instrumentos tab remounts — consume the entry once (grouped with the row above).
+  - `[low]` `[reject]` EC: a changed `currentId` while the resume query is pending could keep the old target — needs two Em campo relatórios swapping the current card within one live-query tick; guard adds surface for a case not met in everyday use.
+  - `[low]` `[patch]` EC: on-device cards flash "0 de 0 fichas" before the blocks query resolves — pass `blocks: undefined` until loaded.
+  - `[low]` `[reject]` EC: "Continuar" pressed before the resume query resolves opens the Sumário — the window is one local IndexedDB read; a pending state adds complexity.
+  - `[low]` `[reject]` EC: focus stays pending if the revealed row never renders — reveal renders the row in the same commit; only a collapse within that commit reaches it.
+  - `[medium]` `[patch]` EC: arrival state persists in history (reload or browser back re-forces section 9 and focus; `/cadastros` reopens a new panel and bounces to setup) — clear it with a replace after reading.
+  - `[medium]` `[patch]` EC: same root cause on `/cadastros` (grouped with the row above).
+  - `[false]` `[reject]` EC: `resumeTarget`'s "n de N" counts blocks the tree does not draw — it is `progress(snapshot)`, the same count the Sumário header and Project row show; blocks under removed locations are removed with them.
+  - `[medium]` `[patch]` EC: `onPanelClose` fires on every panel close (the same defect as the VG other row, reported by both layers; shares its route and fix).
 
 ## Design Notes
 

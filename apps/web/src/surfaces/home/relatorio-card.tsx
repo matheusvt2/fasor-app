@@ -68,6 +68,6 @@ export function RelatorioCard({ card, onPress, resume = null, onContinue }: Rela
         </div>
       ) : null}
       <p className="card-device">{card.device.text}</p>
-  </div>
+    </div>
   );
 }
