@@ -49,7 +49,40 @@ export async function photoTilesOfBlock(db: AppDatabase, relatorioId: string, bl
   return tiles.sort(byCapture);
 }
 
+/**
+ * Story 6.6: every live photo of a relatório, in capture order -- the photo picker of the
+ * point editor. Read through the `entity` index, like `photoTilesOfBlock`.
+ */
+export async function photoTilesOfRelatorio(db: AppDatabase, relatorioId: string): Promise<PhotoTile[]> {
+  const records = await db.entities.where('entity').equals('file').toArray();
+  const tiles: PhotoTile[] = [];
+  for (const record of records) {
+    if (record.relatorio_id !== relatorioId) continue;
+    const parsed = photoFileRowSchema.safeParse(record.row);
+    if (!parsed.success || parsed.data.removed_at !== null) continue;
+    const row = parsed.data;
+    const [thumb, blob] = await Promise.all([db.thumbs.get(row.id), db.files.get(row.id)]);
+    tiles.push({
+      id: row.id,
+      item_key: row.item_key,
+      caption: row.caption,
+      captured_at: row.captured_at,
+      local_seq: row.local_seq,
+      uploaded_at: row.uploaded_at,
+      thumb: thumb?.blob ?? null,
+      upload_error: blob?.upload_error ?? null,
+    });
+  }
+  return tiles.sort(byCapture);
+}
+
 const NO_TILES: PhotoTile[] = [];
+
+export function useRelatorioPhotoTiles(db: AppDatabase | null, relatorioId: string): PhotoTile[] {
+  return (
+    useLiveQuery(() => (db === null ? Promise.resolve(NO_TILES) : photoTilesOfRelatorio(db, relatorioId)), [db, relatorioId], NO_TILES) ?? NO_TILES
+  );
+}
 
 export function useBlockPhotoTiles(db: AppDatabase | null, relatorioId: string, blockId: string): PhotoTile[] {
   return (

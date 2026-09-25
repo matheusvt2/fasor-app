@@ -114,6 +114,7 @@ function tree(id: string, sync: SyncState, state: unknown = null) {
                 <Route path="/relatorio/:id" element={<SumarioSurface />} />
                 <Route path="/relatorio/:id/setup" element={<SetupProbe />} />
                 <Route path="/relatorio/:id/secao/:blockId" element={<p data-testid="secao-route">Seção</p>} />
+                <Route path="/relatorio/:id/pontos" element={<p data-testid="pontos-route">Pontos</p>} />
               </Routes>
               <ToastOutlet />
             </ExtraBannerProvider>
@@ -188,7 +189,7 @@ describe('4.3 SumarioSurface', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('offers the Overflow per row kind and opens rows 1/3 on the setup and row 2 on the section text', async () => {
+  it('offers the Overflow per row kind and opens rows 1/3 on the setup, row 2 on the section text and row 8 on the points', async () => {
     database = await seeded();
     renderSumario();
     await waitFor(() => expect(rows()).toHaveLength(13));
@@ -201,9 +202,14 @@ describe('4.3 SumarioSurface', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Objetivo' }));
     expect((await screen.findAllByRole('menuitem')).map((m) => m.textContent)).toEqual(['Adicionar abaixo', 'Descer', 'Duplicar', 'Remover']);
     await userEvent.keyboard('{Escape}');
-    // Rows 7, 8, 10 and 11 have no `.sum-open` button; 1 and 3 open the setup, 2 the text.
+    // Story 6.6: row 8 is generated (Subir · Descer only) and opens the Points surface.
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Pontos de atenção' }));
+    expect((await screen.findAllByRole('menuitem')).map((m) => m.textContent)).toEqual(['Subir', 'Descer']);
+    await userEvent.keyboard('{Escape}');
+    // Rows 7, 10 and 11 have no `.sum-open` button; 1 and 3 open the setup, 2 the text, 8 the points.
     const [, , r1, , , , , , r7, r8, , r10, r11] = rows();
-    for (const li of [r7, r8, r10, r11]) expect(li!.querySelector('button.sum-open')).toBeNull();
+    for (const li of [r7, r10, r11]) expect(li!.querySelector('button.sum-open')).toBeNull();
+    expect(within(r8!).getByRole('button', { name: /^Pontos de atenção/ })).toHaveTextContent('1 ponto · 1 não ensaiada');
     await userEvent.click(within(r1!).getByRole('button', { name: /^Objetivo/ }));
     expect(await screen.findByTestId('setup-route')).toHaveTextContent('Setup 2');
     cleanup();
@@ -211,6 +217,11 @@ describe('4.3 SumarioSurface', () => {
     await waitFor(() => expect(rows()).toHaveLength(13));
     await userEvent.click(within(rows()[3]!).getByRole('button', { name: /^Definições/ }));
     expect(await screen.findByTestId('secao-route')).toBeVisible();
+    cleanup();
+    renderSumario();
+    await waitFor(() => expect(rows()).toHaveLength(13));
+    await userEvent.click(within(rows()[9]!).getByRole('button', { name: /^Pontos de atenção/ }));
+    expect(await screen.findByTestId('pontos-route')).toBeVisible();
   });
 
   it('"Capa e dados do relatório" opens the setup at Etapa 1; "Controle do documento" opens nothing', async () => {

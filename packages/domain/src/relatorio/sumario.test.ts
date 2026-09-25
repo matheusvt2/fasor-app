@@ -93,7 +93,7 @@ describe('4.3-UNIT sumarioRows', () => {
       'text',
       'text',
       'generated',
-      'pending-epic',
+      'generated',
       'generated',
       'pending-epic',
       'pending-epic',
@@ -116,6 +116,8 @@ describe('4.3-UNIT sumarioRows', () => {
       ['0 de 94', ...['Cubículo Enel', '1° Subsolo', 'Oxigênio', 'Cobertura A', 'Cobertura B', 'Geradores'].map((name) => `${name}: faltam 6 campos`)].join(' · '),
     );
     expect(meta.section_7).toBe('disponível em uma próxima etapa');
+    // Story 6.6: row 8 counts its entries; a new relatório has none.
+    expect(meta.section_8).toBe('Nenhum ponto de atenção');
     expect(rows.every((r) => !r.blocking)).toBe(true);
     expect(rows.filter((r) => r.pending).map((r) => r.rowKey)).toEqual(['capa', 'section_9']);
     expect(generateReason(rows)).toBe('Nada impede gerar.');

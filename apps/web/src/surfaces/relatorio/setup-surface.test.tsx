@@ -264,7 +264,8 @@ describe('4.2 SetupSurface', () => {
       const row = await database!.entities.get(['relatorio', RELATORIO]);
       expect((row!.row as RelatorioRow).setup.responsible_user_id).toBe(OTHER_ID);
     });
-    expect(screen.getByRole('textbox', { name: 'TRT' })).toBeVisible();
+    // The live query re-reads the relatório after the write lands: wait for the relabelled field.
+    expect(await screen.findByRole('textbox', { name: 'TRT' })).toBeVisible();
     await userEvent.type(screen.getByRole('textbox', { name: 'TRT' }), '123');
     await waitFor(() => expect(screen.getByText(/Na seção 10: "Este relatório tem validade apenas acompanhada da TRT/)).toBeVisible());
   });

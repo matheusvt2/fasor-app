@@ -603,3 +603,17 @@ input.count { width: 40px; padding: 0; border: 0; background: transparent; color
 .photo-tile .thumb .thumb-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 /* authored: the denied-camera reason under the Sticky action bar's button row. */
 .sticky-action-bar .camera-denied { margin: var(--sp-2) 0 0; }
+
+/* Story 6.6, `72-pontos.html` `.frame-*` rules (the Points surface and the point editor dialog). */
+/* mirrors `.frame-desktop [data-route="/relatorio/porto-seguro/pontos"] .poa-list .point-of-attention-card .poa-fields` */
+@media (min-width: 1280px) {
+  [data-route="/relatorio/:id/pontos"] .poa-list .point-of-attention-card .poa-fields { grid-template-columns: repeat(4, minmax(140px, 1fr)); }
+}
+/* mirrors `.frame-phone [data-route="/relatorio/porto-seguro/pontos"] .poa-list .point-of-attention-card .poa-fields`,
+   `... .point-of-attention-card.is-auto .handle-spacer` and `... .poa-edit-actions .btn` */
+@media (max-width: 767.98px) {
+  [data-route="/relatorio/:id/pontos"] .poa-list .point-of-attention-card .poa-fields { grid-template-columns: 1fr; }
+  [data-route="/relatorio/:id/pontos"] .point-of-attention-card.is-auto .handle-spacer { width: var(--sp-2); }
+  [data-route="/relatorio/:id/pontos"] .poa-edit-actions .btn,
+  .point-editor-dialog .poa-edit-actions .btn { flex: 1 1 100%; }
+}

@@ -1,6 +1,6 @@
 import type { OpDraft } from '../ops/op.ts';
-import { blockFieldPath, relatorioStatusPath } from '../ops/path.ts';
-import type { JsonValue, RelatorioStatus } from '../schemas/entities.ts';
+import { blockFieldPath, pointFieldPath, pointPath, relatorioStatusPath } from '../ops/path.ts';
+import type { JsonValue, PointRow, RelatorioStatus } from '../schemas/entities.ts';
 
 /*
  * Epic 4 retro item 7: the one builder of the relatório-scope op envelope, the
@@ -40,4 +40,22 @@ export type BlockField = 'order_key' | 'removed_at' | 'config' | 'concluded_by' 
 /** `block/{id}/{field}` put. */
 export function putBlockOp(author: Author, relatorioId: string, blockId: string, field: BlockField, value: unknown): OpDraft {
   return { ...relatorioOpEnvelope(author, relatorioId), kind: 'put', path: blockFieldPath(blockId, field), value: value as JsonValue };
+}
+
+/** Story 6.6: the `point/{id}/{field}` fields a device writes (`origin` is set at create). */
+export type PointField = 'text' | 'equipment_id' | 'order_key' | 'action' | 'priority' | 'deadline' | 'owner';
+
+/** `point/{id}` create of a whole row (section 8, Story 6.6). */
+export function createPointOp(author: Author, row: PointRow): OpDraft {
+  return { ...relatorioOpEnvelope(author, row.relatorio_id), kind: 'create', path: pointPath(row.id), value: row as unknown as JsonValue };
+}
+
+/** `point/{id}/{field}` put. */
+export function putPointOp(author: Author, relatorioId: string, pointId: string, field: PointField, value: string | null): OpDraft {
+  return { ...relatorioOpEnvelope(author, relatorioId), kind: 'put', path: pointFieldPath(pointId, field), value };
+}
+
+/** `point/{id}/removed_at` remove: the point is tombstoned (AD-20), and a put of null restores it. */
+export function removePointOp(author: Author, relatorioId: string, pointId: string): OpDraft {
+  return { ...relatorioOpEnvelope(author, relatorioId), kind: 'remove', path: pointFieldPath(pointId, 'removed_at'), value: null };
 }

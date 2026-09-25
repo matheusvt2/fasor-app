@@ -8,7 +8,9 @@ import {
   type EntityRow,
   type EntityState,
   type EquipmentRow,
+  type FileRow,
   type InstrumentRow,
+  type PointRow,
   type LocationRow,
   type ProjectRow,
   type RegistryRow,
@@ -125,6 +127,11 @@ export async function locationRows(db: AppDatabase, relatorioId: string): Promis
   return (await rowsWhere<LocationRow>(db, 'location', 'relatorio_id', relatorioId)).filter((row) => row.removed_at === null);
 }
 
+/** Story 6.6: every point of one relatório, removed ones included (a new point's order key is read from the live ones). */
+export function pointRowsOf(db: AppDatabase, relatorioId: string): Promise<PointRow[]> {
+  return rowsWhere<PointRow>(db, 'point', 'relatorio_id', relatorioId);
+}
+
 /** Every block of one relatório, removed ones included ("Restaurar ficha removida" lists them). */
 export function blockRowsOf(db: AppDatabase, relatorioId: string): Promise<BlockRow[]> {
   return rowsWhere<BlockRow>(db, 'block', 'relatorio_id', relatorioId);
@@ -167,6 +174,10 @@ export async function relatorioState(db: AppDatabase, relatorioId: string): Prom
   // this state, the same way it already reads `equipment` -- `RelatorioSnapshot` is not
   // extended for revisions by this batch (batch D/4.8 owns that).
   for (const row of await rowsWhere<RevisionRow>(db, 'revision', 'relatorio_id', relatorioId)) put('revision', row);
+  // Story 6.6: section 8 is counted from the points, and a point citing a removed photo is
+  // named by `preIssue`, so the snapshot needs both (`buildSnapshot` keeps the live ones).
+  for (const row of await rowsWhere<PointRow>(db, 'point', 'relatorio_id', relatorioId)) put('point', row);
+  for (const row of await rowsWhere<FileRow>(db, 'file', 'relatorio_id', relatorioId)) put('file', row);
   return state;
 }
 
