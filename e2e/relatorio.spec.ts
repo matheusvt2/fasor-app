@@ -281,10 +281,10 @@ test('@p0 4.3-E2E-001 the Sumário: order, rows that open, the Position box, Ove
   await expect(page.getByText('Nada impede gerar.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Pré-visualizar' })).toHaveAttribute('aria-disabled', 'true');
   await expect(page.getByRole('button', { name: 'Pré-visualizar' })).toHaveAccessibleDescription('Pré-visualizar: disponível em uma próxima etapa');
-  // Every row is 64 px tall.
+  // Every row is at least 56 px tall (v0.9 `.sum-row { min-height: var(--touch-field) }`, Story 12.5; was 64 in v0.8).
   for (const i of [0, 2, 5, 12]) {
     const box = (await rows.nth(i).boundingBox())!;
-    expect(Math.round(box.height), `row ${i} height`).toBeGreaterThanOrEqual(64);
+    expect(Math.round(box.height), `row ${i} height`).toBeGreaterThanOrEqual(56);
   }
 
   // The Capa row opens the setup at Etapa 1.

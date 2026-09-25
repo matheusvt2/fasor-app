@@ -482,12 +482,12 @@ test('@p0 5.2-E2E-004 (AC2 leftover) cabineMetaText updates live, with no reload
   await page.getByRole('menuitem', { name: 'Abrir primeira ficha (dados da cabine)' }).click();
   await expect(page).toHaveURL(/\/ficha\//);
 
-  await page.getByLabel('TIPO DE SE', { exact: true }).selectOption('BLINDADA');
-  const primaria = page.getByLabel('TENSÃO PRIMÁRIA', { exact: true });
+  await page.getByLabel('Tipo de SE', { exact: true }).selectOption('BLINDADA');
+  const primaria = page.getByLabel('Tensão primária', { exact: true });
   await primaria.fill('13,8');
   await primaria.press('Tab');
-  await page.getByLabel('TEMPERATURA', { exact: true }).fill('19');
-  const umidade = page.getByLabel('UMIDADE RELATIVA DO AR', { exact: true });
+  await page.getByLabel('Temperatura', { exact: true }).fill('19');
+  const umidade = page.getByLabel('Umidade relativa do ar', { exact: true });
   await umidade.fill('67');
   await umidade.press('Enter');
 

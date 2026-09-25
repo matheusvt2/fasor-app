@@ -62,7 +62,7 @@ import { firstFocusable } from './ficha-fields.tsx';
 import { concludedByOp, conclusionOp, notTestedOp, testInstrumentOp } from './ficha-ops.ts';
 import { NameplateSection } from './nameplate-section.tsx';
 import { NotTestedBand } from './not-tested-band.tsx';
-import { SectionStepper } from './section-stepper.tsx';
+import { SectionStepper, STEPPER_STEPS } from './section-stepper.tsx';
 import { SheetReadOnlyProvider } from './sheet-read-only.tsx';
 import { StickyActionBar } from './sticky-action-bar.tsx';
 import { useOnScreen } from './use-on-screen.ts';
@@ -490,6 +490,7 @@ function FichaBody({
             filledBy={filledBy}
             concludedBy={concludedBy}
             progress={progress}
+            shown={STEPPER_STEPS}
             menu={menu}
             notTested={block.not_tested !== null}
             onRename={block.equipment_id === null ? null : () => setRenaming(true)}

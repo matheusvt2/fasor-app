@@ -139,15 +139,15 @@ test('@p0 12.3-E2E-001 the plate: every field visible with the chips above, no "
   await chips.getByRole('button', { name: `Igual à ${source.tag}?` }).click();
   await expect(toast(page)).toContainText(`Copiado de ${source.tag}`);
   await expect(toast(page).getByRole('button', { name: 'Desfazer' })).toBeVisible();
-  await expect(page.getByLabel('TIPO', { exact: true })).toHaveValue('Rotativa');
-  await expect(page.getByLabel('IDENTIFICAÇÃO', { exact: true })).toHaveValue('');
-  await expect(page.getByLabel('Nº SÉRIE', { exact: true })).toHaveValue('');
+  await expect(page.getByLabel('Tipo', { exact: true })).toHaveValue('Rotativa');
+  await expect(page.getByLabel('Identificação', { exact: true })).toHaveValue('');
+  await expect(page.getByLabel('Nº série', { exact: true })).toHaveValue('');
   await expect(tag).toHaveValue(target.tag);
   const copied = (await outbox(page)).filter((row) => row.path.startsWith(`sheet/${target.blockId}/nameplate/`));
   expect(copied.map((row) => row.path.split('/').at(-1)).sort()).toEqual(['fabricacao', 'tipo']);
   expect(new Set(copied.map((row) => row.batch_id)).size).toBe(1);
   await toast(page).getByRole('button', { name: 'Desfazer' }).click();
-  await expect(page.getByLabel('TIPO', { exact: true })).toHaveValue('');
+  await expect(page.getByLabel('Tipo', { exact: true })).toHaveValue('');
   await expect(chips.getByRole('button', { name: `Igual à ${source.tag}?` })).toBeVisible();
 
   // J-09: "Outro…" lands in the Combobox it opens; typing goes straight in; "Criar" works offline.
@@ -175,7 +175,7 @@ test('@p0 12.3-E2E-001 the plate: every field visible with the chips above, no "
   await expect(tag).not.toHaveAccessibleDescription('Do bloco · editável');
   await page.reload();
   await expect(page.getByLabel('TAG', { exact: true })).toHaveValue('PLACA-01');
-  await expect(page.getByLabel('IDENTIFICAÇÃO', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Identificação', { exact: true })).toBeVisible();
 });
 
 test('@p0 12.3-E2E-002 the instrument last used for a test kind is suggested on the next sheet; "Próxima ficha" writes nothing, "Concluir ficha" writes it with the conclusion; the reload shows it stored', async ({ page }) => {
@@ -213,7 +213,7 @@ test('@p0 12.3-E2E-002 the instrument last used for a test kind is suggested on 
     );
   }
   expect(await instrumentOps(second.blockId)).toEqual([]);
-  await expect(page.getByTestId('ficha-progress')).toHaveText('Completa');
+  await expect(page.getByTestId('ficha-progress')).toHaveText('Ficha completa');
 
   // "Concluir ficha": the two instruments in the conclusion's batch.
   await expect(page.locator('#ficha-primary')).toHaveText(/Concluir ficha/);
@@ -257,14 +257,14 @@ test('@p0 12.3-E2E-003 the cabine: its empty fields counted on its first sheet a
   const tag = (await page.locator('.sheet-header .tag-btn').textContent())!.trim();
   await page.getByRole('button', { name: `Mais opções da ficha ${tag}` }).click();
   await page.getByRole('menuitem', { name: 'Concluir ficha' }).click();
-  await expect(page.getByLabel('TIPO DE SE', { exact: true })).toBeFocused();
+  await expect(page.getByLabel('Tipo de SE', { exact: true })).toBeFocused();
 
-  await page.getByLabel('TIPO DE SE', { exact: true }).selectOption('BLINDADA');
+  await page.getByLabel('Tipo de SE', { exact: true }).selectOption('BLINDADA');
   for (const [label, value] of [
-    ['TENSÃO PRIMÁRIA', '13,8'],
-    ['TENSÃO SECUNDÁRIA', '380'],
-    ['POTÊNCIA INSTALADA', '1500'],
-    ['TEMPERATURA', '25'],
+    ['Tensão primária', '13,8'],
+    ['Tensão secundária', '380'],
+    ['Potência instalada', '1500'],
+    ['Temperatura', '25'],
   ] as const) {
     const input = page.getByLabel(label, { exact: true });
     await input.fill(value);
@@ -284,7 +284,7 @@ test('@p0 12.3-E2E-003 the cabine: its empty fields counted on its first sheet a
   await page.locator('#ficha-primary').click();
   await expect(page).not.toHaveURL(firstUrl);
   await expect(page.getByRole('heading', { name: 'Características da SE' })).toBeVisible();
-  const umidade = page.getByLabel('UMIDADE RELATIVA DO AR', { exact: true });
+  const umidade = page.getByLabel('Umidade relativa do ar', { exact: true });
   await expect(umidade).toBeEditable();
   await expect(umidade).not.toHaveAttribute('data-missing-field');
   const laterPlaca = await stepMissing(page, 'Placa');
@@ -305,7 +305,7 @@ test('@p0 12.3-E2E-003 the cabine: its empty fields counted on its first sheet a
   expect(Math.round((await editar.boundingBox())!.height)).toBeGreaterThanOrEqual(48);
   await editar.click();
   await expect(page.getByRole('heading', { name: 'Características da SE' })).toBeVisible();
-  const temperatura = page.getByLabel('TEMPERATURA', { exact: true });
+  const temperatura = page.getByLabel('Temperatura', { exact: true });
   await temperatura.fill('26');
   await temperatura.press('Tab');
   await expect.poll(async () => (await outbox(page)).filter((row) => row.path.endsWith('/env/temperature_c')).at(-1)?.value).toEqual({ raw: '26', unit: '°C', state: 'measured' });
@@ -317,7 +317,7 @@ test('@p0 12.3-E2E-003 the cabine: its empty fields counted on its first sheet a
   await expect(cabineRow(page, 'Cubículo Enel').locator('.cl-missing')).toHaveCount(0);
   await expect(page.locator('li.sum-s9 .sum-status')).not.toContainText('Cubículo Enel:');
   await page.goto(firstUrl);
-  await expect(page.getByLabel('TEMPERATURA', { exact: true })).toHaveValue('26');
+  await expect(page.getByLabel('Temperatura', { exact: true })).toHaveValue('26');
   expect(await stepMissing(page, 'Placa')).toBe(withCabine - 6);
 });
 
@@ -346,7 +346,7 @@ test('@p0 12.3-E2E-005 a cabine first sheet complete but one cabine field: "Pró
   await page.getByRole('button', { name: 'Mais opções de Cubículo Enel' }).click();
   await page.getByRole('menuitem', { name: 'Abrir primeira ficha (dados da cabine)' }).click();
   await expect(page).toHaveURL(new RegExp(`/ficha/${first.blockId}$`));
-  await expect(page.getByTestId('ficha-progress')).toHaveText('1 obrigatório faltando');
+  await expect(page.getByTestId('ficha-progress')).toHaveText('Verificações, leituras e conclusão prontas · falta 1 campo da placa');
   expect(await stepMissing(page, 'Placa')).toBe(1);
 
   // The primary reads "Próxima ficha" and moves on without concluding.
@@ -359,7 +359,7 @@ test('@p0 12.3-E2E-005 a cabine first sheet complete but one cabine field: "Pró
   await openSheet(page, relatorioId, first.blockId);
   await page.getByRole('button', { name: `Mais opções da ficha ${first.tag}` }).click();
   await page.getByRole('menuitem', { name: 'Concluir ficha' }).click();
-  const umidade = page.getByLabel('UMIDADE RELATIVA DO AR', { exact: true });
+  const umidade = page.getByLabel('Umidade relativa do ar', { exact: true });
   await expect(umidade).toBeFocused();
   await expect(umidade).toHaveAttribute('data-missing-field', '');
   expect(await concludedOps()).toEqual([]);

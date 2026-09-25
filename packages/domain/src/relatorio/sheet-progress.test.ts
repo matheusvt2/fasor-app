@@ -11,6 +11,7 @@ import {
   sheetProgress,
   sheetProgressState,
   sheetProgressText,
+  sheetSummaryText,
   stepMayCollapse,
   stepMissingLabel,
 } from './sheet-progress.ts';
@@ -230,5 +231,50 @@ describe('12.1-UNIT D-2 outOfLimit and stepMayCollapse', () => {
     const within = progressOf(block({ nameplate: fullNameplate(), checklist: allChecklist('C'), test: readings({ raw: '150', unit: 'GΩ', state: 'measured' }) }));
     expect(stepMayCollapse(within, 'ensaios')).toBe(true);
     expect(stepMayCollapse(progressOf(block()), 'placa')).toBe(false);
+  });
+});
+
+describe('12.5-UNIT sheetSummaryText (the Sheet header sentence, J-14)', () => {
+  const counts = (placa: number, verificacoes: number, ensaios: number, conclusao: number) => ({
+    steps: {
+      placa: { missing: placa, outOfLimit: 0 },
+      verificacoes: { missing: verificacoes, outOfLimit: 0 },
+      ensaios: { missing: ensaios, outOfLimit: 0 },
+      conclusao: { missing: conclusao, outOfLimit: 0 },
+    },
+  });
+
+  it('names the steps done, then what is missing', () => {
+    expect(sheetSummaryText(counts(0, 0, 9, 2))).toBe('Placa e verificações prontas · faltam 9 leituras e a conclusão');
+  });
+
+  it('one singular step done reads "pronta"', () => {
+    expect(sheetSummaryText(counts(0, 14, 9, 1))).toBe('Placa pronta · faltam 14 verificações, 9 leituras e a conclusão');
+    expect(sheetSummaryText(counts(3, 14, 9, 0))).toBe('Conclusão pronta · faltam 3 campos da placa, 14 verificações e 9 leituras');
+  });
+
+  it('one plural step done reads "prontas"', () => {
+    expect(sheetSummaryText(counts(3, 0, 9, 2))).toBe('Verificações prontas · faltam 3 campos da placa, 9 leituras e a conclusão');
+  });
+
+  it('the verb and the counts agree with one missing thing', () => {
+    expect(sheetSummaryText(counts(0, 0, 1, 0))).toBe('Placa, verificações e conclusão prontas · falta 1 leitura');
+    expect(sheetSummaryText(counts(0, 0, 0, 2))).toBe('Placa, verificações e leituras prontas · falta a conclusão');
+    expect(sheetSummaryText(counts(1, 1, 0, 0))).toBe('Leituras e conclusão prontas · falta 1 campo da placa e 1 verificação');
+  });
+
+  it('nothing done starts at the missing part', () => {
+    expect(sheetSummaryText(counts(3, 14, 9, 2))).toBe('Faltam 3 campos da placa, 14 verificações, 9 leituras e a conclusão');
+  });
+
+  it('a complete sheet reads "Ficha completa"', () => {
+    expect(sheetSummaryText(counts(0, 0, 0, 0))).toBe('Ficha completa');
+  });
+
+  it('a step the stepper does not show is never named', () => {
+    const noPlaca = ['verificacoes', 'ensaios', 'conclusao'] as const;
+    expect(sheetSummaryText(counts(0, 0, 9, 2), noPlaca)).toBe('Verificações prontas · faltam 9 leituras e a conclusão');
+    expect(sheetSummaryText(counts(0, 14, 9, 2), noPlaca)).toBe('Faltam 14 verificações, 9 leituras e a conclusão');
+    expect(sheetSummaryText(counts(5, 0, 0, 0), noPlaca)).toBe('Ficha completa');
   });
 });

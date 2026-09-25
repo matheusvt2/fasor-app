@@ -196,6 +196,60 @@ export function sheetProgressText(p: StepMissing): string {
   return total === 0 ? 'Completa' : plural(total, 'obrigatório faltando', 'obrigatórios faltando');
 }
 
+/** How each step reads in the Sheet header sentence once done, and whether its noun is singular. */
+const SUMMARY_DONE: Record<SheetStep, { noun: string; singular: boolean }> = {
+  placa: { noun: 'placa', singular: true },
+  verificacoes: { noun: 'verificações', singular: false },
+  ensaios: { noun: 'leituras', singular: false },
+  conclusao: { noun: 'conclusão', singular: true },
+};
+
+/** How each step reads in the Sheet header sentence while something in it is missing. */
+function summaryMissingPart(step: SheetStep, n: number): string {
+  switch (step) {
+    case 'placa':
+      return plural(n, 'campo da placa', 'campos da placa');
+    case 'verificacoes':
+      return plural(n, 'verificação', 'verificações');
+    case 'ensaios':
+      return plural(n, 'leitura', 'leituras');
+    case 'conclusao':
+      return 'a conclusão';
+  }
+}
+
+/** "a", "a e b", "a, b e c". */
+function joinPtBr(parts: readonly string[]): string {
+  if (parts.length <= 1) return parts.join('');
+  return `${parts.slice(0, -1).join(', ')} e ${parts[parts.length - 1]}`;
+}
+
+function capitalise(text: string): string {
+  return text.charAt(0).toLocaleUpperCase('pt-BR') + text.slice(1);
+}
+
+/**
+ * Story 12.5 (DESIGN.md § v0.9 › Sheet header, J-14): the Sheet header's one sentence of
+ * progress, "Placa e verificações prontas · faltam 9 leituras e a conclusão". The steps
+ * done are named first, in stepper order ("pronta" after one singular noun, else
+ * "prontas"), then what is missing, the verb agreeing with its first part ("falta 1
+ * leitura", "falta a conclusão", "faltam 9 leituras"). A step the stepper does not show
+ * (`shown`) is never named. "Ficha completa" once nothing is missing (authored copy, an
+ * open question for Bruno and Matheus).
+ */
+export function sheetSummaryText(p: Pick<SheetProgress, 'steps'>, shown: readonly SheetStep[] = SHEET_STEPS): string {
+  const steps = SHEET_STEPS.filter((step) => shown.includes(step));
+  const done = steps.filter((step) => p.steps[step].missing === 0);
+  const missing = steps.filter((step) => p.steps[step].missing > 0);
+  const first = missing[0];
+  if (first === undefined) return 'Ficha completa';
+  const verb = first === 'conclusao' || p.steps[first].missing === 1 ? 'falta' : 'faltam';
+  const missingText = `${verb} ${joinPtBr(missing.map((step) => summaryMissingPart(step, p.steps[step].missing)))}`;
+  if (done.length === 0) return capitalise(missingText);
+  const adjective = done.length === 1 && SUMMARY_DONE[done[0]!].singular ? 'pronta' : 'prontas';
+  return `${capitalise(joinPtBr(done.map((step) => SUMMARY_DONE[step].noun)))} ${adjective} · ${missingText}`;
+}
+
 /** `.progress-counter[data-state]` of the Sheet header. */
 export function sheetProgressState(p: Pick<SheetProgress, 'complete'>): 'complete' | 'pending' {
   return p.complete ? 'complete' : 'pending';

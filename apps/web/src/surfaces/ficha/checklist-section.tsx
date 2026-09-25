@@ -2,6 +2,7 @@ import {
   checklistResultOf,
   checklistUnsetItems,
   insertPhrase,
+  screenLabel,
   itensMarcadosConformeText,
   recentChecklistObservations,
   repeatChecklistPattern,
@@ -206,7 +207,8 @@ function ChecklistRow({
   const area = useRef<HTMLTextAreaElement | null>(null);
   const fieldId = useId();
   const reasonId = useId();
-  const name = `${number}. ${item.label}`;
+  const label = screenLabel(item.label);
+  const name = `${number}. ${label}`;
   const typed = useTypedText(
     stored,
     (text) =>
@@ -251,10 +253,10 @@ function ChecklistRow({
       <div className="row-main">
         <span className="row-label">
           <span className="row-num">{number}.</span>
-          {item.label}
+          {label}
         </span>
         <TriStateControl value={result} onChange={choose} committed={resultCommitted} aria-label={name} readOnly={readOnly} />
-        <OverflowMenu name={item.label} items={menu} />
+        <OverflowMenu name={label} items={menu} />
       </div>
       {expanded ? (
         <div className="row-expand">

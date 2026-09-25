@@ -6,6 +6,12 @@
    Theme rule (DESIGN.md § Colors): follows the device preference,
    manual override via [data-theme="light|dark"] on any ancestor
    (the mock frames carry it; the real app sets it on <html>).
+   v0.9 (DESIGN.md § v0.9 direction, promoted by Story 12.5 on
+   2026-09-25): the former tokens-v09.css is folded in below, each
+   value in the block it overrode, the new tokens appended to it.
+   Invariants kept: ink on surfaces >= 7:1, amber = suggestion, red =
+   the engineer's NC, 48/56 px targets, both themes, no meaning by
+   color alone.
    ===================================================================== */
 
 :root,
@@ -13,9 +19,9 @@
   color-scheme: light;
 
   /* --- Surfaces and ink --- */
-  --surface-base: #F4F5F7;
+  --surface-base: #F7F8FA;      /* v0.9: one step lighter, cards read as cards on a single hairline */
   --surface-raised: #FFFFFF;
-  --surface-sunken: #E6E9ED;   /* [ASSUMPTION — reference tool 2026-09-18] neutral fill for P2–P4 pills, preview boxes */
+  --surface-sunken: #EEF1F5;    /* v0.9: the field fill; ink-primary on it 15.7:1. Also the neutral fill for P2–P4 pills, preview boxes */
   --ink-primary: #15181D;
   --ink-secondary: #454B54;
   --border-strong: #5C6470;
@@ -59,15 +65,20 @@
 
   /* --- Elevation (DESIGN.md § Elevation & Depth): only floating things --- */
   --shadow-float: 0 8px 24px rgba(0, 0, 0, 0.24);
+
+  /* --- v0.9: field fill, the chosen tri-state letter, the primary button's gradient --- */
+  --field-fill: var(--surface-sunken);
+  --tri-state-selected-foreground: #FFFFFF;   /* on conforme 6.6:1, nao-conforme 6.6:1, nao-aplica 6.0:1 */
+  --primary-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.04));
 }
 
 /* Dark values — device preference, unless an ancestor forces light */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --surface-base: #121417;
+    --surface-base: #101317;
     --surface-raised: #1C2027;
-    --surface-sunken: #2A2F37;
+    --surface-sunken: #262B33;
     --ink-primary: #F3F4F6;
     --ink-secondary: #B6BCC6;
     --border-strong: #8A93A0;
@@ -94,15 +105,18 @@
     --sync-error: #F59288;
     --sync-conflict: #BDB4E6;
     --toast-action: #1F4E79;
+    --field-fill: var(--surface-sunken);
+    --tri-state-selected-foreground: #0B1B2B;  /* on the dark-theme conforme/nao-conforme/nao-aplica solids, 7.8:1 or better */
+    --primary-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0.06));
   }
 }
 
 /* Dark values — manual override (Account › Tema › Escuro) */
 [data-theme="dark"] {
   color-scheme: dark;
-  --surface-base: #121417;
+  --surface-base: #101317;
   --surface-raised: #1C2027;
-  --surface-sunken: #2A2F37;
+  --surface-sunken: #262B33;
   --ink-primary: #F3F4F6;
   --ink-secondary: #B6BCC6;
   --border-strong: #8A93A0;
@@ -129,6 +143,9 @@
   --sync-error: #F59288;
   --sync-conflict: #BDB4E6;
   --toast-action: #1F4E79;
+  --field-fill: var(--surface-sunken);
+  --tri-state-selected-foreground: #0B1B2B;
+  --primary-gradient: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0.06));
 }
 
 /* =====================================================================
@@ -141,17 +158,18 @@
   --font-ui: Inter, Roboto, 'Segoe UI', system-ui, sans-serif;
 
   --t-display-size: 28px;  --t-display-weight: 600; --t-display-lh: 1.2;  --t-display-ls: -0.01em;
-  --t-title-size: 22px;    --t-title-weight: 600;   --t-title-lh: 1.25;
+  --t-title-size: 24px;    --t-title-weight: 600;   --t-title-lh: 1.25;  --t-title-ls: -0.01em;   /* v0.9: was 22px */
   --t-heading-size: 18px;  --t-heading-weight: 600; --t-heading-lh: 1.3;
   --t-body-size: 16px;     --t-body-weight: 400;    --t-body-lh: 1.5;
   --t-field-input-size: 18px; --t-field-input-weight: 400; --t-field-input-lh: 1.4;
-  --t-value-size: 20px;    --t-value-weight: 600;   --t-value-lh: 1.3;
-  --t-label-size: 14px;    --t-label-weight: 500;   --t-label-lh: 1.4;
+  --t-value-size: 22px;    --t-value-weight: 600;   --t-value-lh: 1.3;   /* v0.9: was 20px */
+  --t-label-size: 14px;    --t-label-weight: 500;   --t-label-lh: 1.4;   /* the 14px floor of DESIGN.md § Typography holds */
   --t-meta-size: 14px;     --t-meta-weight: 400;    --t-meta-lh: 1.4;
 
   /* --- Rounded --- */
   --r-sm: 4px;
   --r-md: 8px;
+  --r-btn: 10px;   /* v0.9: buttons */
   --r-lg: 12px;
   --r-full: 9999px;
 
@@ -258,6 +276,39 @@
   --suggestion-field-crop-border: 1px solid var(--border-strong);
   --suggestion-field-confirm-min-height: var(--touch-min);
   --suggestion-field-plate-crop-max-height: 160px;
+
+  /* --- v0.9 (DESIGN.md § v0.9 direction) --- */
+  /* field (filled, underlined) */
+  --field-min-height: var(--touch-field);
+  --field-radius: var(--r-md) var(--r-md) 0 0;
+  --field-rule: 2px solid var(--border-strong);
+  --field-focus-rule: 3px solid var(--focus);
+  --field-gap: var(--sp-1);
+
+  /* tri-state (solid selected segment) */
+  --tri-state-selected-conforme: var(--conforme);
+  --tri-state-selected-nao-conforme: var(--nao-conforme);
+  --tri-state-selected-nao-aplica: var(--nao-aplica);
+
+  /* section-stepper (progress rule under each name) */
+  --section-stepper-rule-height: 3px;
+  --section-stepper-rule-track: var(--border-hairline);
+  --section-stepper-rule-complete: var(--conforme);
+  --section-stepper-rule-missing: var(--fora-do-limite);
+
+  /* sheet-header */
+  --sheet-header-rule: 1px solid var(--border-hairline);
+  --sheet-header-summary-typography: var(--font-body);
+
+  /* sumário row */
+  --sum-pos-size: 32px;
+  --sum-pos-background: var(--surface-sunken);
+  --sum-open-rule: 2px solid var(--primary);
+
+  /* cabine line (collapsed "Da cabine" block) */
+  --cabine-line-min-height: var(--touch-min);
+  --cabine-line-background: var(--surface-sunken);
+  --cabine-line-radius: var(--r-md);
 }
 
 /* =====================================================================

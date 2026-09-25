@@ -123,7 +123,7 @@ async function readingsAndConclude(page: Page, c: Counter, nextBlockId: string):
   await c.tap('Confirmar the suggestion', suggestion.getByRole('button', { name: 'Confirmar' }), () =>
     expect(page.getByRole('radiogroup', { name: 'Resultado' }).getByRole('radio', { name: 'Aprovado' })).toHaveAttribute('aria-checked', 'true', { timeout: EFFECT_MS }),
   );
-  await expect(page.getByTestId('ficha-progress')).toHaveText('Completa');
+  await expect(page.getByTestId('ficha-progress')).toHaveText('Ficha completa');
   await c.tap('Concluir ficha', page.locator('#ficha-primary'), async () => {
     await expect(toast(page)).toContainText('Ficha concluída', { timeout: EFFECT_MS });
     await expect(page).toHaveURL(new RegExp(`/ficha/${nextBlockId}$`), { timeout: EFFECT_MS });
@@ -161,8 +161,8 @@ test('@p1 12.1-E2E-009 J1 and J3 at 768 px: every tap lands on the first try, co
 
   // Stories 12.3/12.4: the fields are visible from the start (no "Digitar"), "Outro…" lands
   // in its Combobox, and the TAG comes prefilled from the block.
-  const identificacao = page.getByLabel('IDENTIFICAÇÃO', { exact: true });
-  await j1.tap('IDENTIFICAÇÃO', identificacao, () => expect(identificacao).toBeFocused({ timeout: EFFECT_MS }));
+  const identificacao = page.getByLabel('Identificação', { exact: true });
+  await j1.tap('Identificação', identificacao, () => expect(identificacao).toBeFocused({ timeout: EFFECT_MS }));
   await j1.type('SC-01');
 
   const fabricacao = field(page, 'fabricacao').getByRole('combobox');
@@ -172,8 +172,8 @@ test('@p1 12.1-E2E-009 J1 and J3 at 768 px: every tap lands on the first try, co
 
   await expect(page.getByLabel('TAG', { exact: true })).toHaveValue(secEnel.tag);
   for (const [label, value] of [
-    ['Nº SÉRIE', '123456'],
-    ['TIPO', 'Rotativa'],
+    ['Nº série', '123456'],
+    ['Tipo', 'Rotativa'],
   ] as const) {
     const input = page.getByLabel(label, { exact: true });
     await j1.tap(label, input, () => expect(input).toBeFocused({ timeout: EFFECT_MS }));
@@ -181,7 +181,7 @@ test('@p1 12.1-E2E-009 J1 and J3 at 768 px: every tap lands on the first try, co
   }
 
   // A native select: its tap, then the option (two taps, as on the tablet).
-  const meio = page.getByLabel('MEIO DE EXTINÇÃO', { exact: true });
+  const meio = page.getByLabel('Meio de extinção', { exact: true });
   await j1.tap('Meio de extinção', meio, () => expect(meio).toBeFocused({ timeout: EFFECT_MS }));
   await j1.pick('Meio de extinção AR', meio, 'AR');
 
@@ -190,11 +190,11 @@ test('@p1 12.1-E2E-009 J1 and J3 at 768 px: every tap lands on the first try, co
   await j1.type('13,8');
   await j1.tap('Tensão Criar', page.getByRole('option', { name: 'Criar “13,8”' }), () => expect(tensao).toHaveValue(/13,8/, { timeout: EFFECT_MS }));
 
-  const corrente = page.getByLabel('CORRENTE NOMINAL', { exact: true });
+  const corrente = page.getByLabel('Corrente nominal', { exact: true });
   await j1.tap('Corrente nominal', corrente, () => expect(corrente).toBeFocused({ timeout: EFFECT_MS }));
   await j1.type('630');
 
-  const acionamento = page.getByLabel('ACIONAMENTO', { exact: true });
+  const acionamento = page.getByLabel('Acionamento', { exact: true });
   await j1.tap('Acionamento', acionamento, () => expect(acionamento).toBeFocused({ timeout: EFFECT_MS }));
   await j1.pick('Acionamento MANUAL/PUNHO', acionamento, 'MANUAL/PUNHO');
 
@@ -225,8 +225,8 @@ test('@p1 12.1-E2E-009 J1 and J3 at 768 px: every tap lands on the first try, co
     await expect(chips).toHaveCount(0, { timeout: EFFECT_MS });
   });
   for (const [label, value] of [
-    ['IDENTIFICAÇÃO', 'SC-02'],
-    ['Nº SÉRIE', '654321'],
+    ['Identificação', 'SC-02'],
+    ['Nº série', '654321'],
   ] as const) {
     const input = page.getByLabel(label, { exact: true });
     await j3.tap(label, input, () => expect(input).toBeFocused({ timeout: EFFECT_MS }));
