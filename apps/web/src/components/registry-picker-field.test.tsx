@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { RegistryPickerField } from './registry-picker-field.tsx';
@@ -50,6 +50,17 @@ describe('RegistryPickerField', () => {
     expect(screen.queryByRole('combobox', { name: 'Fabricante' })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Outro…' }));
     expect(screen.getByRole('combobox', { name: 'Fabricante' })).toBeInTheDocument();
+  });
+
+  it('Story 12.4: "Outro…" lands the focus in the Combobox it opens, so typing starts at once', async () => {
+    render(
+      <RegistryPickerField label="Fabricante" options={OPTIONS} recentIds={[]} value={null} onChange={vi.fn()} onCreate={vi.fn()} />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Outro…' }));
+    const input = screen.getByRole('combobox', { name: 'Fabricante' });
+    await waitFor(() => expect(input).toHaveFocus());
+    await userEvent.keyboard('Blu');
+    expect(input).toHaveValue('Blu');
   });
 
   it('typing an unmatched name and choosing "Criar…" calls onCreate with the trimmed text', async () => {

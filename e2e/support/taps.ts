@@ -1,4 +1,5 @@
 import type { Locator, Page, TestInfo } from '@playwright/test';
+import { expect, test } from './merged-fixtures.ts';
 
 /** How long a human finger rests on the glass in a plain tap. */
 export const TAP_HOLD_MS = 80;
@@ -75,3 +76,60 @@ export async function humanTap(page: Page, target: Locator, info: TestInfo, befo
   await page.waitForTimeout(TAP_HOLD_MS);
   await page.mouse.up();
 }
+
+/**
+ * Stories 12.1-12.4: counts a journey's taps and keystrokes the way the journey review
+ * counted them (`review-journey-2026-09-24.md` § 6). Every tap is a `humanTap` whose effect
+ * must show on the first try within `effectMs`: a lost tap fails instead of costing a
+ * second tap. `label` tags a tap or a keystroke run so a spec can count a subset (the
+ * chips of one field, the characters typed into another).
+ */
+export function tapCounter(page: Page, effectMs = 3_000) {
+  const info = test.info();
+  let taps = 0;
+  let keys = 0;
+  const byLabel = new Map<string, { taps: number; keys: number }>();
+  const add = (label: string | undefined, kind: 'taps' | 'keys', n: number) => {
+    if (label === undefined) return;
+    const entry = byLabel.get(label) ?? { taps: 0, keys: 0 };
+    entry[kind] += n;
+    byLabel.set(label, entry);
+  };
+  return {
+    async tap(what: string, target: Locator, effect: () => Promise<void>, label?: string): Promise<void> {
+      taps += 1;
+      add(label, 'taps', 1);
+      await humanTap(page, target, info);
+      await test.step(`tap ${taps}: ${what}`, effect);
+    },
+    /** A native select's option: the second tap of a select (the popup is the browser's, out of the page). */
+    async pick(what: string, select: Locator, option: string, label?: string): Promise<void> {
+      taps += 1;
+      add(label, 'taps', 1);
+      await select.selectOption(option);
+      await test.step(`tap ${taps}: ${what}`, () => expect(select).toHaveValue(option, { timeout: effectMs }));
+    },
+    async type(text: string, label?: string): Promise<void> {
+      keys += text.length;
+      add(label, 'keys', text.length);
+      await page.keyboard.type(text);
+    },
+    async press(key: string, label?: string): Promise<void> {
+      keys += 1;
+      add(label, 'keys', 1);
+      await page.keyboard.press(key);
+    },
+    get taps() {
+      return taps;
+    },
+    get keys() {
+      return keys;
+    },
+    /** The taps and keystrokes counted under `label`. */
+    of(label: string): { taps: number; keys: number } {
+      return byLabel.get(label) ?? { taps: 0, keys: 0 };
+    },
+  };
+}
+
+export type TapCounter = ReturnType<typeof tapCounter>;

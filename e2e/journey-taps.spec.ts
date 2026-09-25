@@ -159,20 +159,20 @@ test('@p1 12.1-E2E-009 J1 and J3 at 768 px: every tap lands on the first try, co
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
   const j1 = counter(page);
 
-  await j1.tap('Digitar', page.getByRole('button', { name: 'Digitar' }), () =>
-    expect.poll(() => page.evaluate(() => document.activeElement?.closest('[data-field-key]')?.getAttribute('data-field-key') ?? null), { timeout: EFFECT_MS }).toBe('identificacao'),
-  );
+  // Stories 12.3/12.4: the fields are visible from the start (no "Digitar"), "Outro…" lands
+  // in its Combobox, and the TAG comes prefilled from the block.
+  const identificacao = page.getByLabel('IDENTIFICAÇÃO', { exact: true });
+  await j1.tap('IDENTIFICAÇÃO', identificacao, () => expect(identificacao).toBeFocused({ timeout: EFFECT_MS }));
   await j1.type('SC-01');
 
   const fabricacao = field(page, 'fabricacao').getByRole('combobox');
-  await j1.tap('Fabricação Outro…', field(page, 'fabricacao').getByRole('button', { name: 'Outro…' }), () => expect(fabricacao).toBeVisible({ timeout: EFFECT_MS }));
-  await j1.tap('Fabricação combobox', fabricacao, () => expect(fabricacao).toBeFocused({ timeout: EFFECT_MS }));
+  await j1.tap('Fabricação Outro…', field(page, 'fabricacao').getByRole('button', { name: 'Outro…' }), () => expect(fabricacao).toBeFocused({ timeout: EFFECT_MS }));
   await j1.type('Fabricante J1');
   await j1.tap('Fabricação Criar', page.getByRole('option', { name: 'Criar “Fabricante J1”' }), () => expect(fabricacao).toHaveValue('Fabricante J1', { timeout: EFFECT_MS }));
 
+  await expect(page.getByLabel('TAG', { exact: true })).toHaveValue(secEnel.tag);
   for (const [label, value] of [
     ['Nº SÉRIE', '123456'],
-    ['TAG', secEnel.tag],
     ['TIPO', 'Rotativa'],
   ] as const) {
     const input = page.getByLabel(label, { exact: true });
@@ -186,8 +186,7 @@ test('@p1 12.1-E2E-009 J1 and J3 at 768 px: every tap lands on the first try, co
   await j1.pick('Meio de extinção AR', meio, 'AR');
 
   const tensao = field(page, 'tensao_de_placa').getByRole('combobox');
-  await j1.tap('Tensão Outro…', field(page, 'tensao_de_placa').getByRole('button', { name: 'Outro…' }), () => expect(tensao).toBeVisible({ timeout: EFFECT_MS }));
-  await j1.tap('Tensão combobox', tensao, () => expect(tensao).toBeFocused({ timeout: EFFECT_MS }));
+  await j1.tap('Tensão Outro…', field(page, 'tensao_de_placa').getByRole('button', { name: 'Outro…' }), () => expect(tensao).toBeFocused({ timeout: EFFECT_MS }));
   await j1.type('13,8');
   await j1.tap('Tensão Criar', page.getByRole('option', { name: 'Criar “13,8”' }), () => expect(tensao).toHaveValue(/13,8/, { timeout: EFFECT_MS }));
 
@@ -214,18 +213,30 @@ test('@p1 12.1-E2E-009 J1 and J3 at 768 px: every tap lands on the first try, co
   await readingsAndConclude(page, j1, secEnel2.blockId);
   report('J1 SEC-ENEL', j1, '24 taps + 1 lost');
 
-  // --- J3 SEC-ENEL-2: "Igual à", "Repetir" ------------------------------------------------
+  // --- J3 SEC-ENEL-2: "Igual à", its own unit, "Repetir" -----------------------------------
+  // Story 12.3: IDENTIFICAÇÃO and Nº SÉRIE are never copied (typed here), the instruments
+  // come suggested and "Concluir ficha" confirms them (no picker taps).
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible();
   const j3 = counter(page);
-  await j3.tap(`Igual à ${secEnel.tag}?`, page.getByRole('group', { name: 'Copiar dados de placa' }).getByRole('button', { name: `Igual à ${secEnel.tag}?` }), async () => {
+  const chips = page.getByRole('group', { name: 'Copiar dados de placa' });
+  await j3.tap(`Igual à ${secEnel.tag}?`, chips.getByRole('button', { name: `Igual à ${secEnel.tag}?` }), async () => {
     await expect(toast(page)).toContainText(`Copiado de ${secEnel.tag}`, { timeout: EFFECT_MS });
-    await expect(stepper(page).getByRole('button', { name: 'Placa, 0 faltando' })).toBeVisible({ timeout: EFFECT_MS });
+    // The chips go with the plate no longer empty: the fields below move up once.
+    await expect(chips).toHaveCount(0, { timeout: EFFECT_MS });
   });
+  for (const [label, value] of [
+    ['IDENTIFICAÇÃO', 'SC-02'],
+    ['Nº SÉRIE', '654321'],
+  ] as const) {
+    const input = page.getByLabel(label, { exact: true });
+    await j3.tap(label, input, () => expect(input).toBeFocused({ timeout: EFFECT_MS }));
+    await j3.type(value);
+  }
   await j3.tap('Repetir da ficha anterior do mesmo tipo', page.locator('#ficha-step-verificacoes .bulk-action-bar').getByRole('button', { name: 'Repetir da ficha anterior do mesmo tipo' }), async () => {
     await expect(toast(page)).toContainText(`Padrão de ${secEnel.tag} repetido`, { timeout: EFFECT_MS });
     await expect(stepper(page).getByRole('button', { name: 'Verificações, 0 faltando' })).toBeVisible({ timeout: EFFECT_MS });
   });
-  await pickInstruments(page, j3);
+  await expect(stepper(page).getByRole('button', { name: 'Placa, 0 faltando' })).toBeVisible();
   const at = built.sheets.findIndex((sheet) => sheet.blockId === secEnel2.blockId);
   expect(at, 'SEC-ENEL-2 has a sheet after it').toBeGreaterThanOrEqual(0);
   expect(built.sheets.length).toBeGreaterThan(at + 1);
@@ -233,6 +244,8 @@ test('@p1 12.1-E2E-009 J1 and J3 at 768 px: every tap lands on the first try, co
   await readingsAndConclude(page, j3, after.blockId);
   report('J3 SEC-ENEL-2', j3, '9 taps + 2 lost');
 
-  expect(j1.taps).toBe(24);
-  expect(j3.taps).toBe(9);
+  // 24 and 9 at Story 12.1; Stories 12.3/12.4 took "Digitar", the two Combobox taps, the
+  // TAG and J3's four picker taps out, and put J3's two per-unit fields in.
+  expect(j1.taps).toBe(21);
+  expect(j3.taps).toBe(7);
 });

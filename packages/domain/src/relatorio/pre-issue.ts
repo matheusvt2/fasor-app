@@ -2,6 +2,7 @@ import { clientPreIssueRows } from '../checks/pre-issue-client.ts';
 import { companyPreIssues } from '../checks/pre-issue.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { normalizeRegistryName } from '../text/normalize-name.ts';
+import { cabineMissingText, cabineProgress } from './cabine.ts';
 import type { RelatorioSectionType } from './instantiate.ts';
 import { cabineLocationIds, naoEnsaiadasText, progress, progressCounterText, type Progress } from './progress.ts';
 import { isEquipmentBlock } from './sheet-state.ts';
@@ -21,7 +22,7 @@ export type SumarioRowKey = 'capa' | 'controle' | RelatorioSectionType;
 
 export type PreIssueSeverity = 'blocking' | 'pending' | 'info';
 
-export type PreIssueKind = 'setup_missing' | 'sheets' | 'not_tested' | 'cabine_sem_equipamento' | 'company' | 'client';
+export type PreIssueKind = 'setup_missing' | 'sheets' | 'not_tested' | 'cabine_sem_equipamento' | 'cabine_incompleta' | 'company' | 'client';
 
 export interface PreIssueRow {
   /** Stable key of the rule and its subject, for React lists and tests; never shown. */
@@ -90,9 +91,28 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
         text: cabineSemEquipamentoText(location.name),
         kind: 'cabine_sem_equipamento',
       });
+      continue;
+    }
+    // Story 12.3 (J-03): a cabine field still empty is pending, never blocking. A cabine
+    // with no equipment has no sheet to fill it on; the row above already names it.
+    const missing = cabineMissingText(cabineProgress(snapshot, location.id));
+    if (missing !== null) {
+      rows.push({
+        id: `cabine_incompleta:${location.id}`,
+        row: 'section_9',
+        severity: 'pending',
+        text: cabineIncompletaText(location.name, missing),
+        kind: 'cabine_incompleta',
+      });
     }
   }
   return rows;
+}
+
+/** "Cubículo Enel: falta a umidade", "Cubículo Enel: faltam 3 campos". */
+export function cabineIncompletaText(name: string, missingText: string): string {
+  // authored: the pre-issue row of a cabine with empty fields (open question for Bruno).
+  return `${name.trim()}: ${missingText}`;
 }
 
 /** The rows addressed to one Sumário row. */

@@ -601,3 +601,49 @@ describe('seed v1 is frozen (AR-20)', () => {
     expect(hash, 'seed v1 changed after it shipped: add a v2 instead').toBe(V1_HASH);
   });
 });
+
+describe('seed v2 (Stories 12.3, 12.4): v1 plus the per-unit flags and the third Não ensaiado reason', () => {
+  const v1 = getSeed('v1', 'cabine_primaria');
+  const v2 = getSeed('v2', 'cabine_primaria');
+
+  it('is the version a new Template is created with', () => {
+    expect(SEED_VERSION).toBe('v2');
+    expect(SEED_VERSIONS.v2!.version).toBe('v2');
+  });
+
+  it('differs from v1 by exactly the per-unit flags and the reason', () => {
+    // Strip the two changes from v2: what is left is v1, byte for byte.
+    const stripped = structuredClone(v2) as typeof v2;
+    for (const definition of Object.values(stripped.blocks)) {
+      for (const field of definition.nameplate) delete (field as { per_unit?: true }).per_unit;
+    }
+    stripped.not_tested_reasons = stripped.not_tested_reasons.filter((reason) => reason.key !== 'equipamento_inacessivel');
+    expect(JSON.stringify(stripped)).toBe(JSON.stringify(v1));
+  });
+
+  it('flags IDENTIFICAÇÃO, Nº SÉRIE and TAG per unit on every block type that carries them, and nothing else', () => {
+    for (const type of EQUIPMENT_BLOCK_TYPES) {
+      for (const field of v2.blocks[type].nameplate) {
+        expect(field.per_unit === true, `${type}/${field.key}`).toBe(['identificacao', 'n_serie', 'tag'].includes(field.key));
+      }
+    }
+    // Every type with a plate (the cables have none) carries Nº SÉRIE; the seccionadora carries all three.
+    const withPlate = EQUIPMENT_BLOCK_TYPES.filter((type) => v2.blocks[type].nameplate.length > 0);
+    expect(withPlate).toHaveLength(6);
+    expect(withPlate.every((type) => v2.blocks[type].nameplate.some((field) => field.key === 'n_serie' && field.per_unit === true))).toBe(true);
+    expect(v2.blocks.chave_seccionadora.nameplate.filter((field) => field.per_unit === true).map((field) => field.label)).toEqual(['IDENTIFICAÇÃO', 'Nº SÉRIE', 'TAG']);
+  });
+
+  it('offers three standard reasons plus "Outro" last, the third with its authored justification', () => {
+    expect(v2.not_tested_reasons.map((r) => [r.key, r.label])).toEqual([
+      ['impossibilidade_desligamento', 'Impossibilidade de desligamento'],
+      ['solicitacao_cliente', 'Solicitação do cliente'],
+      ['equipamento_inacessivel', 'Equipamento inacessível'],
+      ['outro', 'Outro'],
+    ]);
+    expect(v2.not_tested_reasons[2]!.justification).toBe('Os ensaios não foram realizados devido à impossibilidade de acesso ao equipamento.');
+    expect(v2.not_tested_reasons[3]!.justification).toBeNull();
+    // v1 relatórios keep their three reasons (AR-20).
+    expect(v1.not_tested_reasons.map((r) => r.key)).toEqual(['impossibilidade_desligamento', 'solicitacao_cliente', 'outro']);
+  });
+});

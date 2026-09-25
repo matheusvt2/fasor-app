@@ -11,6 +11,7 @@ import {
   type TextBlock,
 } from './schema.ts';
 import { CABINE_PRIMARIA_V1 } from './v1.ts';
+import { CABINE_PRIMARIA_V2 } from './v2.ts';
 
 /*
  * AD-21, AR-20: seed data is versioned code, resolved and never copied. A Template and a
@@ -20,8 +21,11 @@ import { CABINE_PRIMARIA_V1 } from './v1.ts';
  * new version appended here, never an edit of a shipped one (`seed.test.ts` pins v1).
  */
 
-/** The version a new Template is created with. */
-export const SEED_VERSION = 'v1';
+/**
+ * The version a new Template is created with. A Template, and every relatório made from
+ * it, keeps the version it was created with: a v1 Template keeps producing v1 relatórios.
+ */
+export const SEED_VERSION = 'v2';
 
 /** The named variables section boilerplate may carry, resolved at generation. */
 export const SECTION_VARIABLES = ['empresa_executora', 'cliente', 'obra', 'escopo', 'datas', 'responsavel'] as const;
@@ -52,6 +56,7 @@ function bundle(version: string, cabinePrimaria: ReportSeed): SeedBundle {
 /** Every seed version this bundle shipped, append-only. */
 export const SEED_VERSIONS: Readonly<Record<string, SeedBundle>> = deepFreeze({
   v1: bundle('v1', CABINE_PRIMARIA_V1),
+  v2: bundle('v2', CABINE_PRIMARIA_V2),
 });
 
 /**

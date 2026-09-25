@@ -109,7 +109,10 @@ describe('4.3-UNIT sumarioRows', () => {
     expect(meta.controle).toBe('montado dos dados do relatório · Rev. 1 na primeira emissão');
     expect(meta.section_1).toBe('editado em Dados do relatório › Etapa 2');
     expect(meta.section_2).toBe('texto padrão');
-    expect(meta.section_9).toBe('0 de 94');
+    // Story 12.3: every cabine of a new relatório still asks its six fields (pending, never blocking).
+    expect(meta.section_9).toBe(
+      ['0 de 94', ...['Cubículo Enel', '1° Subsolo', 'Oxigênio', 'Cobertura A', 'Cobertura B', 'Geradores'].map((name) => `${name}: faltam 6 campos`)].join(' · '),
+    );
     expect(meta.section_7).toBe('disponível em uma próxima etapa');
     expect(rows.every((r) => !r.blocking)).toBe(true);
     expect(rows.filter((r) => r.pending).map((r) => r.rowKey)).toEqual(['capa', 'section_9']);
@@ -205,7 +208,10 @@ describe('4.3-UNIT sumarioRows', () => {
     expect(psRows).toHaveLength(2);
     // The fixture predates section blocks: a relatório with none lists the two fixed rows only.
     const withSections = { ...ps, blocks: [...ps.blocks, ...fresh().blocks.filter((b) => b.location_id === null).map((b) => ({ ...b, relatorio_id: ps.relatorio.id }))] };
-    expect(rowsOf(withSections).find((r) => r.rowKey === 'section_9')!.meta).toBe('3 de 94 · 3 não ensaiadas');
+    // The delivered relatório left Cubículo Enel's secondary voltage and two cabines' data blank (Story 12.3 counts them).
+    expect(rowsOf(withSections).find((r) => r.rowKey === 'section_9')!.meta).toBe(
+      '3 de 94 · 3 não ensaiadas · Cubículo Enel: falta a tensão secundária · 1° Subsolo: faltam 6 campos · Geradores: faltam 6 campos',
+    );
   });
 });
 

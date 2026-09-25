@@ -9,16 +9,18 @@ import {
   observationRequired,
   restrictionWarning,
   suggestConclusionPair,
+  suggestedSheetObservation,
   type BlockDefinition,
   type BlockRow,
   type ConclusionRestriction,
   type ConclusionResult,
 } from '@app/domain';
-import { useId, useMemo, useRef, type KeyboardEvent } from 'react';
+import { useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { GeneratedTextField } from '../../components/generated-text-field.tsx';
 import { SuggestionField } from '../../components/suggestion-field.tsx';
 import { useLatestChoice } from '../../components/use-latest-choice.ts';
 import { copy } from '../../copy/pt-br.ts';
+import { ui } from '../../copy/ui.ts';
 import { DRAFT_SURFACE, useTypedText } from './ficha-fields.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { conclusionOp, sheetObservationsOp } from './ficha-ops.ts';
@@ -36,7 +38,10 @@ import { useSheetReadOnly } from './sheet-read-only.tsx';
  * the Conclusão section is `.is-readonly` with the reason line: the two radiogroups are
  * `aria-readonly` (the value stays visible; a tap, an arrow or Delete changes nothing), no
  * suggestion row, and the Generated text field offers no action. The sheet Observation
- * field stays editable (Story 5.9 AC 2).
+ * field stays editable (Story 5.9 AC 2). Story 12.4 (D-7): while the sheet observation is
+ * empty and NC items carry observations, the field is a Suggestion field holding the
+ * kernel's "Item ⟨n⟩: ⟨observação⟩" lines, written by its "Confirmar" or together with the
+ * conclusion text's confirm; Com restrições then needs no typing.
  */
 
 type Segment<T extends string> = { value: T; attr: string; label: string };
@@ -154,6 +159,7 @@ export function ConclusaoSection({
   const obsHeading = useId();
   const obsFieldId = useId();
   const obsReasonId = useId();
+  const obsSuggestedId = useId();
   const concHeading = useId();
   const readOnly = useSheetReadOnly();
   const enabled = enabledSubBlocksOf(block);
@@ -172,9 +178,29 @@ export function ConclusaoSection({
     (text) => (api.author === null ? undefined : api.commit([sheetObservationsOp(api.author, api.relatorioId, api.blockId, text.trim() === '' ? null : text)])),
     { entityId: api.blockId, field: 'observations' },
   );
-  const required = observationRequired(block) && observation.text.trim() === '';
+  // Story 12.4 (D-7): with the sheet observation empty, the NC items' observations stand in
+  // it as a suggestion until its "Confirmar" (or the conclusion text's) writes them; typing
+  // replaces it. `typing` holds from the first keystroke until a blur leaves the field empty.
+  const suggestedObservation = useMemo(() => suggestedSheetObservation(block, definition), [block, definition]);
+  const [typing, setTyping] = useState(false);
+  const observationSuggested = suggestedObservation !== null && storedObservation.trim() === '' && observation.text.trim() === '' && !typing;
+  const required = observationRequired(block) && observation.text.trim() === '' && !observationSuggested;
+  const observationMissing = observationRequired(block) && result !== null && restriction !== null;
 
   const edit = (build: Parameters<FichaApi['edit']>[0]) => void api.edit(build).catch(() => undefined);
+
+  /** The suggested observation, written from the fresh block (never over text written meanwhile); null when none applies. */
+  const suggestedObservationOp = (blocks: readonly BlockRow[], by: Parameters<typeof sheetObservationsOp>[0]) => {
+    const fresh = blocks.find((row) => row.id === api.blockId && row.removed_at === null);
+    const text = fresh === undefined ? null : suggestedSheetObservation(fresh, definition);
+    return text === null ? null : sheetObservationsOp(by, api.relatorioId, api.blockId, text);
+  };
+
+  const confirmObservation = () =>
+    edit((blocks, by) => {
+      const op = suggestedObservationOp(blocks, by);
+      return op === null ? null : [op];
+    });
 
   const setResult = (value: ConclusionResult | null) => edit((_b, by) => [conclusionOp(by, api.relatorioId, api.blockId, 'result', value)]);
   const setRestriction = (value: ConclusionRestriction | null) => edit((_b, by) => [conclusionOp(by, api.relatorioId, api.blockId, 'restriction', value)]);
@@ -188,13 +214,21 @@ export function ConclusaoSection({
     });
   };
 
-  /** Confirms a text: the text, `text_status` and the basis it was composed from, one batch. */
+  /**
+   * Confirms a text: the text, `text_status` and the basis it was composed from, one batch;
+   * with the sheet observation still empty, its suggestion joins the batch (D-7: confirmed
+   * together with the conclusion text).
+   */
   const confirmText = (text: string, status: 'confirmed' | 'edited') =>
-    edit((_b, by) => [
-      conclusionOp(by, api.relatorioId, api.blockId, 'text', text),
-      conclusionOp(by, api.relatorioId, api.blockId, 'text_status', status),
-      conclusionOp(by, api.relatorioId, api.blockId, 'text_basis', composed.basis),
-    ]);
+    edit((blocks, by) => {
+      const observationOp = suggestedObservationOp(blocks, by);
+      return [
+        conclusionOp(by, api.relatorioId, api.blockId, 'text', text),
+        conclusionOp(by, api.relatorioId, api.blockId, 'text_status', status),
+        conclusionOp(by, api.relatorioId, api.blockId, 'text_basis', composed.basis),
+        ...(observationOp === null ? [] : [observationOp]),
+      ];
+    });
 
   const resultSegments: Segment<ConclusionResult>[] = [
     { value: 'aprovado', attr: 'aprovado', label: t.aprovado },
@@ -212,21 +246,55 @@ export function ConclusaoSection({
           <div className="section-head">
             <h2 id={obsHeading}>{t.observationTitle}</h2>
           </div>
-          <div className="field">
+          {/* The textarea keeps its place among the children, so the focus survives the switch between suggested and typed. */}
+          <div className={observationSuggested ? 'field suggestion-field' : 'field'} data-state={observationSuggested ? 'suggested' : undefined}>
             <label className="field-label" htmlFor={obsFieldId}>
               {t.observationLabel}
             </label>
             <textarea
               id={obsFieldId}
               className="observation-field"
-              value={observation.text}
+              value={observationSuggested ? suggestedObservation : observation.text}
               data-required={required ? '' : undefined}
-              data-missing-field={required && result !== null && restriction !== null ? '' : undefined}
+              data-missing-field={required && observationMissing ? '' : undefined}
               aria-invalid={required || undefined}
-              aria-describedby={required ? obsReasonId : undefined}
-              onChange={(event) => observation.change(event.target.value)}
-              onBlur={observation.blur}
+              aria-describedby={required ? obsReasonId : observationSuggested ? obsSuggestedId : undefined}
+              onFocus={(event) => {
+                // Typing replaces the suggestion: it is selected whole once the focus lands.
+                if (!observationSuggested) return;
+                const field = event.currentTarget;
+                requestAnimationFrame(() => {
+                  if (document.activeElement === field) field.select();
+                });
+              }}
+              onChange={(event) => {
+                setTyping(true);
+                observation.change(event.target.value);
+              }}
+              onBlur={() => {
+                observation.blur();
+                if (observation.text.trim() === '') setTyping(false);
+              }}
             />
+            {observationSuggested ? <span className="suggested-pill">{ui.suggestionField.suggested}</span> : null}
+            {observationSuggested && !readOnly ? (
+              <div className="generated-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary confirm-action"
+                  aria-describedby={obsFieldId}
+                  data-missing-field={observationMissing ? '' : undefined}
+                  onClick={confirmObservation}
+                >
+                  {ui.suggestionField.confirm}
+                </button>
+              </div>
+            ) : null}
+            {observationSuggested ? (
+              <span className="helper" id={obsSuggestedId}>
+                {t.observationSuggestedHelper}
+              </span>
+            ) : null}
             {required ? (
               <span className="helper" data-tone="red" id={obsReasonId}>
                 {t.observationRequired}

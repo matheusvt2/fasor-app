@@ -110,6 +110,8 @@ export interface FieldProps {
   missing?: boolean;
   /** The visible label; the seed's own when omitted. */
   label?: string;
+  /** A text field's helper line under the input (the prefilled TAG's "Do bloco · editável"). */
+  helper?: string;
   /** The words a field shows when a typed number is not one ("Número não reconhecido"). */
   invalidText: string;
   /** The select's empty option. */
@@ -138,8 +140,9 @@ export function SheetField(props: FieldProps) {
   }
 }
 
-function TextField({ field, value, commit, draft, missing, label }: FieldProps) {
+function TextField({ field, value, commit, draft, missing, label, helper }: FieldProps) {
   const id = useId();
+  const helperId = useId();
   const typed = useTypedText(typeof value === 'string' ? value : '', (text) => commit(text.trim() === '' ? null : text), draft);
   return (
     <div className="field" data-field-key={field.key}>
@@ -151,12 +154,18 @@ function TextField({ field, value, commit, draft, missing, label }: FieldProps) 
         className="input"
         value={typed.text}
         data-missing-field={missing ? '' : undefined}
+        aria-describedby={helper === undefined ? undefined : helperId}
         onChange={(event) => typed.change(event.target.value)}
         onBlur={typed.blur}
         onKeyDown={(event) => {
           if (event.key === 'Enter') typed.enter();
         }}
       />
+      {helper === undefined ? null : (
+        <span className="helper" id={helperId}>
+          {helper}
+        </span>
+      )}
     </div>
   );
 }

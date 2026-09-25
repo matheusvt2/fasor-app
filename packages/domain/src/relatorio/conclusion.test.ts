@@ -10,6 +10,7 @@ import {
   observationRequired,
   restrictionWarning,
   suggestConclusionPair,
+  suggestedSheetObservation,
 } from './conclusion.ts';
 import { evaluateSheetReadings } from './readings.ts';
 
@@ -228,5 +229,40 @@ describe('5.8-UNIT the text lifecycle', () => {
     expect(restrictionWarning(block({ checklist: nc, conclusion: { restriction: cell('sem_restricoes') } }))).toBe('Há itens não conformes');
     expect(restrictionWarning(block({ checklist: allC(), conclusion: { restriction: cell('sem_restricoes') } }))).toBeNull();
     expect(restrictionWarning(block({ checklist: nc, conclusion: { restriction: cell('com_restricoes') } }))).toBeNull();
+  });
+});
+
+describe('12.4-UNIT suggestedSheetObservation (J-10, D-7)', () => {
+  const at = (key: string) => SEC.checklist!.findIndex((item) => item.key === key) + 1;
+  const [first, second, third] = SEC.checklist!;
+
+  it('one line "Item ⟨n⟩: ⟨observação⟩" per NC item with an observation, in checklist order, n the row number', () => {
+    const checklist: Sheet['checklist'] = {
+      ...allC(),
+      contatos: { result: cell('NC'), observation: cell(' conexão frouxa ') },
+      [first!.key]: { result: cell('NC'), observation: cell('pintura descascada') },
+      // An NC row with no observation yet adds no line.
+      [second!.key]: { result: cell('NC') },
+      // A C row with an observation is not a non-conformity.
+      [third!.key]: { result: cell('C'), observation: cell('ok') },
+    };
+    expect(suggestedSheetObservation(block({ checklist }), SEC)).toBe(`Item 1: pintura descascada\nItem ${at('contatos')}: conexão frouxa`);
+    expect(suggestedSheetObservation(block({ checklist: { ...allC(), contatos: { result: cell('NC'), observation: cell('conexão frouxa') } } }), SEC)).toBe(
+      `Item ${contatosIndex}: conexão frouxa`,
+    );
+  });
+
+  it('is null with the sheet observation written, no NC observation, the observation sub-block off, or the sheet not tested', () => {
+    const checklist = { ...allC(), contatos: { result: cell('NC'), observation: cell('conexão frouxa') } };
+    expect(suggestedSheetObservation(block({ checklist, observations: cell('Texto próprio') }), SEC)).toBeNull();
+    // A cleared observation (null cell) asks again.
+    expect(suggestedSheetObservation(block({ checklist, observations: cell(null) }), SEC)).toBe(`Item ${contatosIndex}: conexão frouxa`);
+    expect(suggestedSheetObservation(block({ checklist: allC() }), SEC)).toBeNull();
+    const config = (off: string) => {
+      const base = defaultBlockConfig('v1', 'chave_seccionadora', { subtype: 'manual' }) as { sub_blocks: Record<string, { enabled: boolean }> };
+      return { ...base, sub_blocks: { ...base.sub_blocks, [off]: { enabled: false } } };
+    };
+    expect(suggestedSheetObservation(block({ checklist }, { config: config('observations') }), SEC)).toBeNull();
+    expect(suggestedSheetObservation(block({ checklist }, { not_tested: { reason: 'outro', text: 'x', at: '2026-09-06T12:00:00.000Z', by: 'u1' } }), SEC)).toBeNull();
   });
 });

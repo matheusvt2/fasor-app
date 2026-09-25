@@ -20,7 +20,7 @@ const standard = standardTemplate({ id: '019966b0-0035-7000-8000-000000000001' }
 
 describe('3.3-UNIT templateSummaryText', () => {
   it('reads the seed, the sections and the skeleton counts of the standard template', () => {
-    expect(templateSummaryText(standard, 0)).toBe('Semente v1 · 9 seções · 6 cabines · 17 colunas · 94 blocos de equipamento');
+    expect(templateSummaryText(standard, 0)).toBe('Semente v2 · 9 seções · 6 cabines · 17 colunas · 94 blocos de equipamento');
   });
 
   it('adds the use at one and at many, and omits every zero part except the sections', () => {

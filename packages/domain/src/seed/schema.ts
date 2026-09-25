@@ -27,6 +27,12 @@ export const fieldDefSchema = z
     kind: fieldKindSchema,
     unit: z.string().min(1).optional(),
     options: z.array(z.string().min(1)).min(1).optional(),
+    /**
+     * Seed v2 (journey review D-3): a field of one physical unit (IDENTIFICAÇÃO, Nº SÉRIE,
+     * TAG). "Igual à ⟨TAG⟩?" never copies it from another block; "Copiar da última
+     * visita" (the same equipment) does.
+     */
+    per_unit: z.literal(true).optional(),
   })
   .refine((f) => (f.kind === 'select') === (f.options !== undefined), {
     message: 'options exist exactly on a select field',

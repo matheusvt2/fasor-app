@@ -7,6 +7,7 @@ import {
   instrumentPickerOrder,
   lastInstrumentIdFor,
   storedInstrumentHeader,
+  suggestedInstrument,
   type BlockRow,
   type InstrumentRow,
   type TestKey,
@@ -16,6 +17,7 @@ import { useNavigate } from 'react-router';
 import { Button } from '../../components/index.ts';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
+import { ui } from '../../copy/ui.ts';
 import type { FichaApi } from './ficha-api.ts';
 import { testInstrumentOp } from './ficha-ops.ts';
 
@@ -55,15 +57,20 @@ export function InstrumentPicker({
   const valueId = useId();
   const listId = useId();
   const expiredId = useId();
+  const suggestedId = useId();
   const [open, setOpen] = useState(false);
   const trigger = useRef<HTMLButtonElement | null>(null);
   const host = useRef<HTMLDivElement | null>(null);
   const options = useRef(new Map<string, HTMLButtonElement | null>());
 
   const header = storedInstrumentHeader(block.sheet.test[testKey]?.instrument?.value);
+  // Story 12.3 (D-4): with nothing stored, the kernel's suggestion (the last one used for
+  // this test kind in the relatório) shows amber "Sugerido"; "Concluir ficha" writes it.
+  const suggestion = header === null && !readOnly ? suggestedInstrument({ blocks, instruments }, block.id, testKey) : null;
+  const shown = header ?? suggestion;
   const at = now();
-  const registryRow = header === null ? undefined : instruments.find((row) => row.id === header.instrument_id);
-  const expired = header === null ? null : instrumentExpiredText(header, serviceEnd, at);
+  const registryRow = shown === null ? undefined : instruments.find((row) => row.id === shown.instrument_id);
+  const expired = shown === null ? null : instrumentExpiredText(shown, serviceEnd, at);
   const ordered = instrumentPickerOrder(instruments, lastInstrumentIdFor(blocks, testKey));
   const list = ordered.map((row) => instrumentOptionOf(row, serviceEnd, at));
   const selectedIndex = header === null ? -1 : list.findIndex((option) => option.id === header.instrument_id);
@@ -139,13 +146,17 @@ export function InstrumentPicker({
 
   // Read-only with nothing stored shows the read-only field's dash, not the "Selecione" prompt.
   const emptyText = readOnly ? '—' : t.instrumentEmpty;
-  const fieldText = header === null ? emptyText : instrumentFieldText(header, registryRow?.name ?? null);
+  const fieldText = shown === null ? emptyText : instrumentFieldText(shown, registryRow?.name ?? null);
   const closedValue = (
     <>
       <span className="visually-hidden" id={valueId}>
         {fieldText}
       </span>
-      {header === null ? (
+      {suggestion !== null ? (
+        <span className="sv" aria-hidden="true">
+          {fieldText}
+        </span>
+      ) : header === null ? (
         <span className="grow ip-name is-empty" aria-hidden="true">
           {emptyText}
         </span>
@@ -164,7 +175,7 @@ export function InstrumentPicker({
 
   return (
     <div className="instrument-picker-host" ref={host} onBlur={onHostBlur}>
-      <div className="field combobox instrument-picker">
+      <div className={suggestion === null ? 'field combobox instrument-picker' : 'field combobox instrument-picker suggestion-field'} data-state={suggestion === null ? undefined : 'suggested'}>
         <span className="field-label" id={labelId}>
           {t.instrumentLabel}
         </span>
@@ -178,7 +189,7 @@ export function InstrumentPicker({
             ref={trigger}
             className="input"
             aria-labelledby={`${labelId} ${valueId}`}
-            aria-describedby={expired === null ? undefined : expiredId}
+            aria-describedby={[suggestion === null ? null : suggestedId, expired === null ? null : expiredId].filter(Boolean).join(' ') || undefined}
             aria-expanded={open}
             aria-controls={listId}
             onClick={toggle}
@@ -192,6 +203,14 @@ export function InstrumentPicker({
               <use href="/sprite.svg#i-chev-down" />
             </svg>
           </span>
+        )}
+        {suggestion === null ? null : (
+          <>
+            <span className="suggested-pill">{ui.suggestionField.suggested}</span>
+            <span className="helper" id={suggestedId}>
+              {t.instrumentSuggestedHelper}
+            </span>
+          </>
         )}
         {/* E5-Q9: inside `.instrument-picker`, so the mock rule `.instrument-picker .ip-expired` (components.css) colors it fora-do-limite. */}
         {expired === null ? null : (

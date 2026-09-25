@@ -36,14 +36,16 @@ export interface FilterChipOption {
 
 export interface FilterChipGroupProps {
   options: ReadonlyArray<FilterChipOption>;
-  selectedId: string;
+  /** The pressed chip; null while none is (a choice with no default, Story 12.4's Não ensaiado reason). */
+  selectedId: string | null;
   onChange: (id: string) => void;
   'aria-label': string;
 }
 
 /**
- * Exactly one pressed chip at all times: tapping another moves the selection, tapping the
- * pressed one does nothing — no clearing by re-tap (Component Patterns › Filter chip).
+ * Exactly one pressed chip once one is chosen (none before, with `selectedId` null): tapping
+ * another moves the selection, tapping the pressed one does nothing — no clearing by re-tap
+ * (Component Patterns › Filter chip).
  * `ToggleButtonGroup` in single-selection mode gives the roving-tabindex keyboard behavior
  * (Design Notes) as a real, valid `radiogroup`/`radio` (a button with its role reassigned,
  * fully valid — unlike Switch/Checkbox/Radio, no hidden input is involved here).
@@ -61,7 +63,7 @@ export function FilterChipGroup({ options, selectedId, onChange, ...rest }: Filt
     <ToggleButtonGroup
       selectionMode="single"
       disallowEmptySelection
-      selectedKeys={[selectedId]}
+      selectedKeys={selectedId === null ? [] : [selectedId]}
       onSelectionChange={(keys: Selection) => {
         if (keys === 'all') return;
         const [first] = Array.from(keys);

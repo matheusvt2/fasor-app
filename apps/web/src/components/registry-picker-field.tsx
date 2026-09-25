@@ -1,5 +1,5 @@
 import { normalizeRegistryName } from '@app/domain';
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { ui } from '../copy/ui.ts';
 import { Chip } from './chip.tsx';
 import { Combobox, type ComboboxOption } from './combobox.tsx';
@@ -39,6 +39,26 @@ export function RegistryPickerField({
 }: RegistryPickerFieldProps) {
   const byId = new Map(options.map((option) => [option.id, option] as const));
   const [showCombobox, setShowCombobox] = useState(false);
+  // Story 12.4 (J-09): "Outro…" lands the focus inside the Combobox it reveals, so typing
+  // starts at once (one tap, not two).
+  const comboboxHost = useRef<HTMLDivElement>(null);
+  const focusInput = useRef(false);
+  useEffect(() => {
+    if (!showCombobox || !focusInput.current) return;
+    focusInput.current = false;
+    const input = comboboxHost.current?.querySelector<HTMLInputElement>('input');
+    if (input === null || input === undefined) return;
+    // Centred first, so the list the typing opens below it is on screen; the focus comes two
+    // frames later, once that scroll's event has fired: a scroll landing after the list opened
+    // would close it (`combobox.tsx`).
+    input.scrollIntoView?.({ block: 'center' });
+    let frames = 2;
+    const land = () => {
+      if (--frames > 0) requestAnimationFrame(land);
+      else input.focus({ preventScroll: true });
+    };
+    requestAnimationFrame(land);
+  }, [showCombobox]);
   const [inputValue, setInputValue] = useState(
     () => initialText ?? (value === null ? '' : (byId.get(value)?.label ?? '')),
   );
@@ -70,11 +90,18 @@ export function RegistryPickerField({
                 {option.label}
               </Chip>
             ))}
-            <Chip onPress={() => setShowCombobox(true)}>{ui.registryPicker.other}</Chip>
+            <Chip
+              onPress={() => {
+                focusInput.current = true;
+                setShowCombobox(true);
+              }}
+            >
+              {ui.registryPicker.other}
+            </Chip>
           </div>
         </div>
       )}
-      <div className="rpf-combobox" hidden={!showCombobox}>
+      <div className="rpf-combobox" hidden={!showCombobox} ref={comboboxHost}>
         <Combobox
           label={label}
           options={options}

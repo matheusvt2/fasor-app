@@ -1,7 +1,6 @@
 import {
   duplicateTagSuggestion,
   duplicateTagText,
-  lastNotTestedReason,
   locationPathText,
   locationTree,
   paletteLocationFor,
@@ -382,7 +381,6 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
       {dialog?.kind === 'not-tested' ? (
         <NotTestedDialog
           seedVersion={context.seedVersion}
-          lastReason={lastNotTestedReason(snapshot.blocks)}
           onClose={() => closeDialog(() => blockTrigger(blockRow(rootRef.current, dialog.node.blockId)))}
           onSubmit={(reason, text) => {
             const node = dialog.node;
@@ -492,7 +490,16 @@ const SumarioLocation = memo(function SumarioLocation({ node, shared }: { node: 
               {/* The last sheet's row says it when drawn; a collapsed cabine says it for it. */}
               {current && !open ? <span className="sum-here"> {copy.sumario.here}</span> : null}
             </span>
-            <span className="s9-cab-meta">{node.meta}</span>
+            <span className="s9-cab-meta">
+              {node.meta}
+              {/* Story 12.3 (`key-relatorio-overview-v09.html`): "falta a umidade" after the data line. */}
+              {node.metaMissing === null ? null : (
+                <>
+                  {' · '}
+                  <span className="cl-missing">{node.metaMissing}</span>
+                </>
+              )}
+            </span>
           </span>
           <span className="progress-counter" data-state={node.counterState}>
             <span className="dot" aria-hidden="true" />

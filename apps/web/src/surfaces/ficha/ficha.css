@@ -27,7 +27,9 @@
 [data-route="/relatorio/:id/ficha/:blockId"] .is-readonly .combobox-chevron, [data-route="/relatorio/:id/ficha/:blockId"] .is-readonly .overflow-trigger, [data-route="/relatorio/:id/ficha/:blockId"] .is-readonly .chip-row, [data-route="/relatorio/:id/ficha/:blockId"] .is-readonly .section-head .btn, [data-route="/relatorio/:id/ficha/:blockId"] .is-readonly .bulk-action-bar, [data-route="/relatorio/:id/ficha/:blockId"] .is-readonly .ficha-legend { display: none; }
 [data-route="/relatorio/:id/ficha/:blockId"] .is-readonly .tri-state { border-color: var(--border-hairline); pointer-events: none; }
 [data-route="/relatorio/:id/ficha/:blockId"] .is-readonly .tri-state .seg { border-left-color: var(--border-hairline); }
-[data-route="/relatorio/:id/ficha/:blockId"] .camera-group .chip-row { padding-bottom: 0; }
+/* Story 12.4 (D-6): the copy chips above the always-visible nameplate fields, spaced as
+   `key-equipment-sheet-v09.html` spaces them (its inline `margin-bottom: var(--sp-3)`). */
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-nameplate-chips { margin-bottom: var(--sp-3); }
 /* Checklist */
 [data-route="/relatorio/:id/ficha/:blockId"] .bulk-action-bar { margin-bottom: var(--sp-3); }
 [data-route="/relatorio/:id/ficha/:blockId"] .ficha-legend { margin: 0 0 var(--sp-2); }

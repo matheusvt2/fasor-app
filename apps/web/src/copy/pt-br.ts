@@ -512,10 +512,14 @@ export const copy = {
       // DESIGN.md Block card row / `60-ficha.html` header Overflow: shared by both entry
       // points' menu item and both dialogs' title and primary (Story 5.9).
       markNotTested: 'Marcar não ensaiado',
-      // authored: the reason picker's chip group name (source-deltas.md row 18: 3 reasons only).
+      // authored: the reason picker's chip group name (the seed's reasons, source-deltas.md row 56).
       notTestedReasonLabel: 'Motivo',
       // authored: the text field "Outro" reveals.
       notTestedTextLabel: 'Descreva o motivo',
+      // authored (Story 12.4): the primary's reason while no reason is tapped, nothing preselected.
+      notTestedPickReason: 'Escolha um motivo',
+      // authored (Story 12.4): the primary's reason while "Outro" has no text.
+      notTestedTextReason: 'Descreva o motivo',
       // authored: the duplicate line's "Renomear" named with its row, so two duplicated rows never read alike.
       renameDuplicateLabel: (tag: string, path: string) => `Renomear TAG ${tag} em ${path}`,
       // `40-relatorio-overview.html` `.s9-add`.
@@ -628,6 +632,9 @@ export const copy = {
     renamed: 'TAG renomeada',
     // The rail beside the sheet (`shell-head.html`): the Sumário's `rail` words are reused.
     cabine: {
+      // `key-equipment-sheet-v09.html` `.cabine-line` (Story 12.3): the group's name and its action.
+      lineLabel: 'Da cabine',
+      editar: 'Editar',
       seTitle: 'Características da SE',
       envTitle: 'Ambiente de ensaio',
       daCabine: (name: string) => `Da cabine · ${name}`,
@@ -650,8 +657,8 @@ export const copy = {
     },
     nameplate: {
       title: 'Dados de placa',
-      // `60-ficha.html` empty group: the text link that reveals the fields.
-      digitar: 'Digitar',
+      // `key-equipment-sheet-v09.html` TAG field helper (Story 12.3): the block's TAG, prefilled.
+      tagHelper: 'Do bloco · editável',
       // authored: the chip row's name.
       chipsLabel: 'Copiar dados de placa',
       // FR-34 chips (`60-ficha.html`, epics.md Story 5.3).
@@ -697,6 +704,8 @@ export const copy = {
       // authored: the closed picker before any pick.
       instrumentEmpty: 'Selecione o instrumento',
       instrumentDetails: 'Série, RBC e validade',
+      // `key-equipment-sheet-v09.html` suggested instrument helper (Story 12.3), verbatim.
+      instrumentSuggestedHelper: 'Último usado neste relatório · confirmado ao concluir a ficha, ou toque para trocar',
       instrumentList: 'Instrumentos cadastrados',
       // EXPERIENCE.md › State patterns, Empty: Instrument picker.
       noInstruments: 'Nenhum instrumento cadastrado',
@@ -727,6 +736,8 @@ export const copy = {
       observationLabel: 'Observações da ficha',
       // EXPERIENCE.md › Observation field.
       observationRequired: 'Obrigatória com restrições',
+      // `key-equipment-sheet-v09.html` suggested sheet observation helper (Story 12.4), verbatim.
+      observationSuggestedHelper: 'Montada dos itens NC · confirmada com o texto da conclusão',
       textLabel: 'Texto da conclusão',
       // `60-ficha.html` helper under the suggested text.
       textHelper: 'Montado no aparelho com os valores desta ficha e os critérios acima — funciona sem sinal. Impresso na linha Conclusão da seção 9 depois de confirmar.',

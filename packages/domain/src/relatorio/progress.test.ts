@@ -4,7 +4,7 @@ import { replay } from '../ops/replay.ts';
 import { emptySheet, type BlockRow, type Cell } from '../schemas/entities.ts';
 import { buildSnapshot } from '../schemas/snapshot.ts';
 import {
-  cabineProgress,
+  cabineSheetsProgress,
   fichasConcluidasText,
   fichasCountText,
   naoEnsaiadasText,
@@ -25,13 +25,13 @@ describe('4.3-UNIT progress over the Porto Seguro fixture', () => {
   it('counts one cabine with its colunas', () => {
     const subsolo = snapshot.locations.find((l) => l.name === '1° Subsolo')!;
     // 5 trafos and 5 cabos on the cabine itself, 39 in its 17 colunas.
-    expect(cabineProgress(snapshot, subsolo.id).sheets_total).toBe(49);
+    expect(cabineSheetsProgress(snapshot, subsolo.id).sheets_total).toBe(49);
     const enel = snapshot.locations.find((l) => l.name === 'Cubículo Enel')!;
-    expect(cabineProgress(snapshot, enel.id).sheets_total).toBe(9);
+    expect(cabineSheetsProgress(snapshot, enel.id).sheets_total).toBe(9);
     const geradores = snapshot.locations.find((l) => l.name === 'Geradores')!;
-    expect(cabineProgress(snapshot, geradores.id).sheets_total).toBe(19);
+    expect(cabineSheetsProgress(snapshot, geradores.id).sheets_total).toBe(19);
     // The six cabines partition the 94 sheets and the 3 not-tested ones.
-    const cabines = snapshot.locations.filter((l) => l.kind === 'cabine').map((l) => cabineProgress(snapshot, l.id));
+    const cabines = snapshot.locations.filter((l) => l.kind === 'cabine').map((l) => cabineSheetsProgress(snapshot, l.id));
     expect(cabines.reduce((n, p) => n + p.sheets_total, 0)).toBe(94);
     expect(cabines.reduce((n, p) => n + p.not_tested, 0)).toBe(3);
   });

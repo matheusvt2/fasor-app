@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { EQUIPMENT_BLOCK_TYPES } from '../schemas/block-config.ts';
 import { emptySheet, type BlockRow, type Cell, type EquipmentRow } from '../schemas/entities.ts';
 import { getDefinition } from '../seed/definitions.ts';
+import type { FieldDef } from '../seed/schema.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
-import { camposCopiadosText, lastNameplateCopy, nameplateCopyFields, nameplateIsEmpty, suggestNameplateCopy } from './nameplate-copy.ts';
+import { camposCopiadosText, lastNameplateCopy, nameplateCopyFields, nameplateIsEmpty, nameplateTagPrefill, suggestNameplateCopy } from './nameplate-copy.ts';
 
 const REL = '019966b0-0052-7000-8000-000000000001';
 const OTHER_REL = '019966b0-0052-7000-8000-000000000002';
@@ -99,5 +101,62 @@ describe('5.3-UNIT lastNameplateCopy (AR-24)', () => {
     expect(lastNameplateCopy(equipment(2), SEC)).toEqual([]);
     expect(camposCopiadosText(3)).toBe('3 campos copiados');
     expect(camposCopiadosText(1)).toBe('1 campo copiado');
+  });
+});
+
+describe('12.3-UNIT per-unit fields and the TAG prefill (D-3, J-09)', () => {
+  /** A filled value of the field's kind. */
+  const sample = (field: FieldDef): unknown => {
+    switch (field.kind) {
+      case 'number':
+        return { raw: '1', unit: field.unit ?? null, state: 'measured' };
+      case 'date':
+        return '2020-01-01';
+      case 'select':
+        return field.options![0];
+      default:
+        return `valor ${field.key}`;
+    }
+  };
+  const PER_UNIT = ['identificacao', 'n_serie', 'tag'];
+
+  it('"Igual à" over each of the eight v2 block types never copies IDENTIFICAÇÃO, Nº SÉRIE or TAG and copies every other filled field', () => {
+    for (const type of EQUIPMENT_BLOCK_TYPES) {
+      const definition = getDefinition('v2', 'cabine_primaria', type);
+      const source = block(1, Object.fromEntries(definition.nameplate.map((field) => [field.key, sample(field)])), { block_type: type, seed_version: 'v2' });
+      // The flag sits exactly on the per-unit keys the type carries.
+      expect(definition.nameplate.filter((field) => field.per_unit === true).map((field) => field.key), type).toEqual(
+        definition.nameplate.filter((field) => PER_UNIT.includes(field.key)).map((field) => field.key),
+      );
+      const copied = nameplateCopyFields(source, definition).map((entry) => entry.fieldKey);
+      expect(copied.some((key) => PER_UNIT.includes(key)), type).toBe(false);
+      expect(copied, type).toEqual(definition.nameplate.filter((field) => !PER_UNIT.includes(field.key)).map((field) => field.key));
+    }
+  });
+
+  it('a v1 block copies as it always did, per-unit fields included (AR-20)', () => {
+    const source = block(1, { identificacao: 'Coluna 5', fabricacao: 'Celtta', n_serie: 'A1', tag: 'SEC-C01' });
+    expect(nameplateCopyFields(source, SEC).map((entry) => entry.fieldKey)).toEqual(['identificacao', 'fabricacao', 'n_serie', 'tag']);
+  });
+
+  it('"Copiar da última visita" is the same equipment: it carries the per-unit fields too (source-deltas row 50)', () => {
+    const v2 = getDefinition('v2', 'cabine_primaria', 'chave_seccionadora');
+    const fields = { identificacao: 'Coluna 5', fabricacao: 'Celtta', n_serie: 'SU1', tag: 'SEC-C05' };
+    const row = equipment(1, { last_nameplate: { relatorio_id: OTHER_REL, revision_number: 1, issued_at: '2025-03-01T10:00:00.000Z', seed_version: 'v2', block_type: 'chave_seccionadora', fields } });
+    expect(lastNameplateCopy(row, v2).map((entry) => entry.fieldKey)).toEqual(['identificacao', 'fabricacao', 'n_serie', 'tag']);
+  });
+
+  it('prefills the nameplate TAG from the block TAG while the cell is absent; a typed or cleared cell stops following', () => {
+    const target = block(1, {}, { seed_version: 'v2' });
+    expect(nameplateTagPrefill({ blocks: [target], equipment: [equipment(1, { tag: 'SEC-2' })] }, target.id)).toBe('SEC-2');
+    // Renaming the block TAG moves an untouched nameplate TAG with it.
+    expect(nameplateTagPrefill({ blocks: [target], equipment: [equipment(1, { tag: 'SEC-3' })] }, target.id)).toBe('SEC-3');
+    expect(nameplateTagPrefill({ blocks: [block(1, { tag: 'OUTRA' })], equipment: [equipment(1)] }, id(1))).toBeNull();
+    expect(nameplateTagPrefill({ blocks: [block(1, { tag: null })], equipment: [equipment(1)] }, id(1))).toBeNull();
+    expect(nameplateTagPrefill({ blocks: [target], equipment: [equipment(1, { tag: '  ' })] }, target.id)).toBeNull();
+    expect(nameplateTagPrefill({ blocks: [target], equipment: [] }, target.id)).toBeNull();
+    // The para-raio's plate has no TAG field.
+    const paraRaio = block(2, {}, { block_type: 'para_raio', config: defaultBlockConfig('v2', 'para_raio'), seed_version: 'v2' });
+    expect(nameplateTagPrefill({ blocks: [paraRaio], equipment: [equipment(2)] }, paraRaio.id)).toBeNull();
   });
 });

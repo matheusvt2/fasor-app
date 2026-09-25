@@ -1,4 +1,4 @@
-import { STANDARD_TEMPLATE_NAME, standardTemplate, templateRowSchema, templateTotals } from '@app/domain';
+import { SEED_VERSION, STANDARD_TEMPLATE_NAME, standardTemplate, templateRowSchema, templateTotals } from '@app/domain';
 import { and, eq, like } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
 import { createAuth } from '../auth/auth.ts';
@@ -67,7 +67,7 @@ describe('seedStandardTemplate', () => {
       expect(rows).toHaveLength(1);
       const row = templateRowSchema.parse(rows[0]!.row);
       expect(row).toEqual(standardTemplate({ id: id! }));
-      expect(row).toMatchObject({ name: STANDARD_TEMPLATE_NAME, seed_version: 'v1', removed_at: null });
+      expect(row).toMatchObject({ name: STANDARD_TEMPLATE_NAME, seed_version: SEED_VERSION, removed_at: null });
       expect(templateTotals(row)).toMatchObject({ chave_seccionadora: 25, disjuntor_mt: 21 });
 
       expect(await templateCreates(companyId)).toEqual([

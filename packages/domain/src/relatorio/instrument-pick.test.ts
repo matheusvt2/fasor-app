@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { InstrumentRow } from '../registry/instrument-row.ts';
 import { emptySheet, type BlockRow, type Cell } from '../schemas/entities.ts';
+import { defaultBlockConfig } from '../seed/template.ts';
 import {
+  suggestedInstrument,
+  suggestedInstruments,
   instrumentDetailText,
   instrumentExpiredText,
   instrumentFieldText,
@@ -102,5 +105,77 @@ describe('5.7-UNIT remembering the last instrument per test type', () => {
     ];
     expect(instrumentPickerOrder(rows, '1').map((r) => r.code)).toEqual(['5A', '2E', '10B']);
     expect(instrumentPickerOrder(rows, null).map((r) => r.code)).toEqual(['2E', '5A', '10B']);
+  });
+});
+
+describe('12.3-UNIT suggestedInstrument (J-07, D-4)', () => {
+  const REL = '019966b0-0051-7000-8000-000000000100';
+  const X = '019966b0-0051-7000-8000-00000000000a';
+  const Y = '019966b0-0051-7000-8000-00000000000b';
+  const opId = (n: number) => `019966b0-0051-7000-8000-0000000002${String(n).padStart(2, '0')}`;
+  const picked = (instrumentId: string, n: number): Cell => ({ value: { instrument_id: instrumentId, code: instrumentId === X ? '2E' : '3M' }, source_suggestion_id: null, op_id: opId(n) });
+
+  function sec(n: number, test: Record<string, Cell> = {}, over: Partial<BlockRow> = {}): BlockRow {
+    return {
+      id: `019966b0-0051-7000-8000-0000000001${String(n).padStart(2, '0')}`,
+      relatorio_id: REL,
+      location_id: REL,
+      equipment_id: `019966b0-0051-7000-8000-0000000003${String(n).padStart(2, '0')}`,
+      block_type: 'chave_seccionadora',
+      config: defaultBlockConfig('v2', 'chave_seccionadora', { subtype: 'manual' }),
+      seed_version: 'v2',
+      order_key: `a${n}`,
+      feeds_block_id: null,
+      not_tested: null,
+      concluded_by: null,
+      sheet: { ...emptySheet(), test: Object.fromEntries(Object.entries(test).map(([key, instrumentCell]) => [key, { cells: {}, instrument: instrumentCell }])) },
+      created_by: null,
+      first_edited_at: null,
+      last_modified_by: null,
+      last_modified_at: null,
+      removed_at: null,
+      ...over,
+    };
+  }
+
+  const instruments = [instrument(), instrument({ id: Y, code: '3M', name: 'Microhmímetro', test_isolacao: null })];
+
+  it('suggests the instrument last used for the test kind in the relatório, from its live registry row', () => {
+    const earlier = sec(1, { isolacao: picked(Y, 1) });
+    const later = sec(2, { isolacao: picked(X, 2), resistencia_contato: picked(Y, 3) });
+    const target = sec(3);
+    const snapshot = { blocks: [earlier, later, target], instruments };
+    expect(suggestedInstrument(snapshot, target.id, 'isolacao')).toEqual(instrumentHeaderOf(instruments[0]!, 'isolacao'));
+    expect(suggestedInstrument(snapshot, target.id, 'resistencia_contato')?.instrument_id).toBe(Y);
+    // "Concluir ficha" writes one per enabled test that has a suggestion, in the definition's order.
+    expect(suggestedInstruments(snapshot, target.id).map((s) => [s.testKey, s.header.instrument_id])).toEqual([
+      ['isolacao', X],
+      ['resistencia_contato', Y],
+    ]);
+  });
+
+  it('suggests nothing when the cell is filled, with no prior use, when the instrument was removed, or on a sheet not tested or concluded', () => {
+    const used = sec(1, { isolacao: picked(X, 1) });
+    // The cell is filled: the picker shows what is stored.
+    const filled = sec(2, { isolacao: picked(Y, 2) });
+    expect(suggestedInstrument({ blocks: [used, filled], instruments }, filled.id, 'isolacao')).toBeNull();
+    // No prior use for this test kind.
+    const target = sec(3);
+    expect(suggestedInstrument({ blocks: [used, target], instruments }, target.id, 'resistencia_contato')).toBeNull();
+    expect(suggestedInstrument({ blocks: [target], instruments }, target.id, 'isolacao')).toBeNull();
+    // X was removed from the registry.
+    const removed = [{ ...instruments[0]!, removed_at: '2026-09-06T12:00:00.000Z' }, instruments[1]!];
+    expect(suggestedInstrument({ blocks: [used, target], instruments: removed }, target.id, 'isolacao')).toBeNull();
+    // A use on a removed block does not count.
+    expect(suggestedInstrument({ blocks: [{ ...used, removed_at: '2026-09-06T12:00:00.000Z' }, target], instruments }, target.id, 'isolacao')).toBeNull();
+    // Nothing would confirm it on a sheet not tested or already concluded.
+    const notTested = sec(4, {}, { not_tested: { reason: 'outro', text: 'x', at: '2026-09-06T12:00:00.000Z', by: 'u1' } });
+    const concluded = sec(5, {}, { concluded_by: { actor_id: 'u1', at: '2026-09-06T12:00:00.000Z' } });
+    expect(suggestedInstrument({ blocks: [used, notTested], instruments }, notTested.id, 'isolacao')).toBeNull();
+    expect(suggestedInstrument({ blocks: [used, concluded], instruments }, concluded.id, 'isolacao')).toBeNull();
+    expect(suggestedInstruments({ blocks: [used, notTested], instruments }, notTested.id)).toEqual([]);
+    // A test the block type does not have.
+    expect(suggestedInstrument({ blocks: [used, target], instruments }, target.id, 'relacao_transformacao')).toBeNull();
+    expect(suggestedInstrument({ blocks: [used], instruments }, 'nope', 'isolacao')).toBeNull();
   });
 });

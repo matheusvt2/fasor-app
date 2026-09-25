@@ -2,16 +2,14 @@ import { describe, expect, it } from 'vitest';
 import type { BlockRow, Cell, EquipmentRow, LocationRow } from '../schemas/entities.ts';
 import type { WordRow } from '../registry/word-row.ts';
 import { TEST_PROJECT, TEST_RELATORIO } from '../test-support.ts';
+import { cabineOf } from './cabine.ts';
 import {
   appendObservation,
-  cabineOf,
   checklistUnsetItems,
   fieldValueText,
   humidityNoteSurfaced,
   insertPhrase,
-  isCabineFirstSheet,
   itensMarcadosConformeText,
-  lastNotTestedReason,
   nameplateWordRecents,
   nextSheet,
   numberFieldValue,
@@ -22,6 +20,7 @@ import {
   repeatChecklistSource,
   sheetOrder,
 } from './ficha.ts';
+import { isCabineFirstSheet } from './sheet-progress.ts';
 import { newEquipmentBlock } from './tree.ts';
 
 /*
@@ -171,18 +170,6 @@ describe('5.4-UNIT the checklist', () => {
     const sourceWithExplicitMotor = { ...newer, sheet: { ...newer.sheet, checklist: { ...newer.sheet.checklist, motor: { result: cell('C') } } } };
     const patternOverNaDefault = repeatChecklistPattern(sourceWithExplicitMotor, target!);
     expect(patternOverNaDefault.some((entry) => entry.itemKey === 'motor')).toBe(false);
-  });
-
-  it('lastNotTestedReason: null with nothing marked, else the latest by `at`', () => {
-    const r = relatorio();
-    const [a, b] = r.blocks;
-    expect(lastNotTestedReason(r.blocks)).toBeNull();
-    const marked = [
-      { ...a!, not_tested: { reason: 'solicitacao_cliente', text: null, at: '2026-09-06T10:00:00.000Z', by: 'u1' } },
-      { ...b!, not_tested: { reason: 'impossibilidade_desligamento', text: null, at: '2026-09-06T11:00:00.000Z', by: 'u1' } },
-    ];
-    expect(lastNotTestedReason(marked)).toBe('impossibilidade_desligamento');
-    expect(lastNotTestedReason([{ ...a!, removed_at: '2026-09-06T12:00:00.000Z', not_tested: { reason: 'outro', text: 'x', at: '2026-09-06T12:00:00.000Z', by: 'u1' } }])).toBeNull();
   });
 
   it('offers the five most recent typed observations of an item, newest first, without the seeded phrases or repeats', () => {
