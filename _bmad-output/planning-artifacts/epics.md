@@ -2429,7 +2429,7 @@ So that the second sheet of a type costs five taps, as the spine promised.
 **When** the nameplate renders its TAG field empty
 **Then** it is prefilled from the block's TAG as a plain value with the helper "Do bloco · editável", and renaming the block TAG updates an untouched nameplate TAG (J-09; FR-7)
 
-**Definition of Done, in addition:** J3 measures at most 5 taps and about 36 keystrokes, recorded in the PR; the fixture Porto Seguro golden snapshot is regenerated if `per_unit` changes copied values.
+**Definition of Done, in addition:** ~~J3 measures at most 5 taps and about 36 keystrokes~~ J3 measures at most 7 taps and 47 keystrokes *(2026-09-25, coordinator narrowing after PR #37: the 5-tap target assumed a copied serial; D-3 forbids copying IDENTIFICAÇÃO and Nº SÉRIE, which cost 2 taps and about 11 keys; E12-Q5)*, recorded in the PR; the fixture Porto Seguro golden snapshot is regenerated if `per_unit` changes copied values.
 
 ### Story 12.4: The plate and the NC in fewer taps
 
@@ -2505,7 +2505,7 @@ So that a story cannot add taps to the sheet without anyone noticing.
 
 **Given** the seeded standard template and one instrument
 **When** the test 5.1-E2E-001 runs J1 (a seccionadora with a copied plate, bulk C, nine typed readings, suggested conclusion, conclude) and J3 (the next seccionadora with "Igual à" and "Repetir")
-**Then** it counts clicks and typed characters through a page-level listener and asserts J1 at most 12 taps and J3 at most 5 taps, both at most 40 keystrokes offline; the thresholds live in one constant beside the test with the review's numbers as comments (D-11; EXPERIENCE.md § Interaction budget)
+**Then** it counts clicks and typed characters through a page-level listener and asserts ~~J1 at most 12 taps and J3 at most 5 taps, both at most 40 keystrokes offline~~ J1 (copied plate) at most 9 taps and 36 keystrokes and J3 at most 7 taps and 47 keystrokes offline *(2026-09-25, measured after PR #38; J3 counts the per-unit fields D-3 no longer copies; E12-Q5)*; the thresholds live in one constant beside the test with the review's numbers as comments (D-11; EXPERIENCE.md § Interaction budget)
 
 **Given** every interactive element on the sheet, the Sumário and Home
 **When** ERGO-E2E-001 runs at 390 and 768 px
