@@ -45,6 +45,25 @@ export function useCamera(relatorioId: string, target: () => CaptureTarget, open
   const [burst, setBurst] = useState(0);
   const fileInput = useRef<HTMLInputElement>(null);
   const fallbackTarget = useRef<CaptureTarget | null>(null);
+  // The session as the async callbacks see it (a state value in a closure can be stale).
+  const sessionRef = useRef<CameraSession | null>(null);
+  // A `getUserMedia` in flight: a second press waits for it instead of asking twice.
+  const opening = useRef(false);
+  const mounted = useRef(true);
+  // Frame grabs not yet resolved: "Concluir fotos" waits for them before stopping the stream.
+  const grabs = useRef(new Set<Promise<void>>());
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  const startSession = (next: CameraSession | null) => {
+    sessionRef.current = next;
+    setSession(next);
+  };
 
   // The opener takes the focus back once the view is gone, after React Aria's own restore
   // (which a re-render of the sheet during the burst -- the new tiles -- can leave on the
@@ -64,7 +83,7 @@ export function useCamera(relatorioId: string, target: () => CaptureTarget, open
   }, [opener]);
 
   const open = () => {
-    if (!capture.ready || session !== null) return;
+    if (!capture.ready || sessionRef.current !== null || opening.current) return;
     const context = target();
     setDenied(false);
     void capture.prepare();
@@ -76,9 +95,20 @@ export function useCamera(relatorioId: string, target: () => CaptureTarget, open
       fileInput.current?.click();
       return;
     }
+    opening.current = true;
     media.getUserMedia({ video: { facingMode: 'environment' }, audio: false }).then(
-      (stream) => setSession({ stream, target: context }),
+      (stream) => {
+        opening.current = false;
+        // Resolved after the sheet went, or over a session already open: never left live.
+        if (!mounted.current || sessionRef.current !== null) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        startSession({ stream, target: context });
+      },
       (error: unknown) => {
+        opening.current = false;
+        if (!mounted.current) return;
         const name = (error as { name?: unknown } | null)?.name;
         if (typeof name === 'string' && DENIED_ERRORS.has(name)) {
           setDenied(true);
@@ -91,25 +121,37 @@ export function useCamera(relatorioId: string, target: () => CaptureTarget, open
     );
   };
 
-  const shoot = (bitmap: ImageBitmap) => {
-    if (session === null) {
-      bitmap.close();
-      return;
-    }
-    capture.shoot(bitmap, session.target);
+  /** One grab of the shutter: tracked until it resolves, then saved (or reported). */
+  const grab = (frame: Promise<ImageBitmap>) => {
+    const target = sessionRef.current?.target ?? null;
+    const done: Promise<void> = frame.then(
+      (bitmap) => {
+        if (target === null) {
+          bitmap.close();
+          return;
+        }
+        capture.shoot(bitmap, target);
+      },
+      () => {
+        setBurst((n) => Math.max(0, n - 1));
+        showToast(copy.photos.failedToast);
+      },
+    );
+    grabs.current.add(done);
+    void done.finally(() => grabs.current.delete(done));
   };
 
   const finishing = useRef(false);
 
   const end = (ending: CameraSession | null) => {
-    setSession(null);
+    startSession(null);
     ending?.stream.getTracks().forEach((track) => track.stop());
     returnFocus();
   };
 
   /** "Fechar a câmera sem concluir": the shots already taken keep saving behind it. */
   const close = () => {
-    end(session);
+    end(sessionRef.current);
     void capture.settle().then(() => setBurst(0));
   };
 
@@ -117,13 +159,17 @@ export function useCamera(relatorioId: string, target: () => CaptureTarget, open
   const finish = () => {
     if (finishing.current) return;
     finishing.current = true;
-    const ending = session;
-    void capture.settle().then((allSaved) => {
-      finishing.current = false;
-      end(ending);
-      setBurst(0);
-      if (allSaved) showToast(copy.photos.doneToast);
-    });
+    const ending = sessionRef.current;
+    // A shot whose frame is still being read joins the commit queue before it is awaited,
+    // and the stream stays live until then.
+    void Promise.allSettled([...grabs.current])
+      .then(() => capture.settle())
+      .then((allSaved) => {
+        finishing.current = false;
+        end(ending);
+        setBurst(0);
+        if (allSaved) showToast(copy.photos.doneToast);
+      });
   };
 
   const onFallbackFile = (file: File | undefined) => {
@@ -161,11 +207,7 @@ export function useCamera(relatorioId: string, target: () => CaptureTarget, open
           caption={session.target.caption}
           count={burst}
           onShutter={() => setBurst((n) => n + 1)}
-          onFrame={shoot}
-          onFrameFailed={() => {
-            setBurst((n) => Math.max(0, n - 1));
-            showToast(copy.photos.failedToast);
-          }}
+          onGrab={grab}
           onDone={finish}
           onClose={close}
         />
@@ -199,8 +241,7 @@ function CameraView({
   caption,
   count,
   onShutter,
-  onFrame,
-  onFrameFailed,
+  onGrab,
   onDone,
   onClose,
 }: {
@@ -208,8 +249,8 @@ function CameraView({
   caption: string | null;
   count: number;
   onShutter: () => void;
-  onFrame: (bitmap: ImageBitmap) => void;
-  onFrameFailed: () => void;
+  /** The frame being read for this tap (rejects when there is none). */
+  onGrab: (frame: Promise<ImageBitmap>) => void;
   onDone: () => void;
   onClose: () => void;
 }) {
@@ -237,11 +278,7 @@ function CameraView({
     // The count moves at the tap (the badge and the status line); the shot saves behind it.
     onShutter();
     const element = video.current;
-    if (element === null) {
-      onFrameFailed();
-      return;
-    }
-    grabFrame(element).then(onFrame, onFrameFailed);
+    onGrab(element === null ? Promise.reject(new Error('no viewfinder')) : grabFrame(element));
   };
 
   return (

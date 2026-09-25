@@ -58,6 +58,19 @@ describe('6.1-UNIT-007 positionAtCapture', () => {
     expect((await pending)?.lat).toBe(-23.6);
   });
 
+  it('ages a cached fix from its own timestamp, not from when it arrived', async () => {
+    const h = harness();
+    h.advance(100_000);
+    h.tracker.warm();
+    // The browser answers with a position cached 50 s ago (`maximumAge`).
+    h.requests[0]!.ok({ ...h.position(-23.5505), timestamp: 50_000 } as GeolocationPosition);
+    await Promise.resolve();
+    expect(await h.tracker.positionAtCapture()).not.toBeNull();
+    h.advance(11_000);
+    void h.tracker.positionAtCapture();
+    expect(h.requests).toHaveLength(2);
+  });
+
   it('waits at most 5 s for a request in flight, then leaves the shot without coords', async () => {
     const h = harness();
     const pending = h.tracker.positionAtCapture();

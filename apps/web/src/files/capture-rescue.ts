@@ -94,16 +94,49 @@ export function createCaptureRescue(): CaptureRescue {
  */
 export const sessionCaptureRescue: CaptureRescue = createCaptureRescue();
 
+/** The file ids whose direct create the server already applied in this tab (a retry only re-PUTs). */
+export const sessionAppliedCreates = new Set<string>();
+
 /**
  * Pushes the shot's `file/{id}` create op and PUTs its bytes, bypassing the local store.
- * Throws unless the server applied the op and took the bytes.
+ * Throws unless the server applied the op and took the bytes. A shot whose create was
+ * applied before (`applied`, the PUT failed) is not pushed again: a second create for the
+ * same id would never apply, so the retry only sends the bytes.
  */
 export async function sendPhotoDirect(
   input: PhotoCaptureInput,
-  deps: { client: Pick<SyncClient, 'pushOps' | 'uploadFile'>; deviceId: string; localSeq: number; newId: NewId; now: Date },
+  deps: {
+    client: Pick<SyncClient, 'pushOps' | 'uploadFile'>;
+    deviceId: string;
+    localSeq: number;
+    newId: NewId;
+    now: Date;
+    applied?: Set<string>;
+  },
 ): Promise<void> {
-  const op: Op = makeOp({ ...photoCreateDraft(input, deps.localSeq), device_id: deps.deviceId }, { newId: deps.newId, now: deps.now });
-  const pushed = await deps.client.pushOps([op]);
-  if (!pushed.applied.some((entry) => entry.op_id === op.op_id)) throw new Error('photo create not applied');
+  const applied = deps.applied ?? sessionAppliedCreates;
+  if (!applied.has(input.fileId)) {
+    const op: Op = makeOp({ ...photoCreateDraft(input, deps.localSeq), device_id: deps.deviceId }, { newId: deps.newId, now: deps.now });
+    const pushed = await deps.client.pushOps([op]);
+    if (!pushed.applied.some((entry) => entry.op_id === op.op_id)) throw new Error('photo create not applied');
+    applied.add(input.fileId);
+  }
   await deps.client.uploadFile(input.fileId, input.original, input.sha256);
+}
+
+const directSeqs = new Map<string, number>();
+let lastIssuedSeq = 0;
+
+/**
+ * The `local_seq` of a shot sent straight to the server: reserved once per shot (a retry
+ * keeps it) and never below a number already issued in this tab, so it cannot share one
+ * with the next committed shot. The caller writes it back to `photo_seq` when it can.
+ */
+export function reserveDirectSeq(fileId: string, stored: number): number {
+  const kept = directSeqs.get(fileId);
+  if (kept !== undefined) return kept;
+  const seq = Math.max(stored + 1, lastIssuedSeq + 1);
+  lastIssuedSeq = seq;
+  directSeqs.set(fileId, seq);
+  return seq;
 }

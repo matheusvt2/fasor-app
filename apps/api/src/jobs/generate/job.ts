@@ -141,15 +141,18 @@ async function liveRevisions(reader: Pick<Db, 'select'>, companyId: CompanyId, r
   });
 }
 
-/** A company-scope or relatório-scope `file` row by id, parsed, or null. */
-async function fileRow(db: Db, companyId: CompanyId, id: string): Promise<FileRow | null> {
+/**
+ * A company-scope or relatório-scope `file` row by id, parsed, with the `relatorio_id`
+ * column it is filed under (the one the file routes key a photo's object by), or null.
+ */
+async function fileRow(db: Db, companyId: CompanyId, id: string): Promise<{ row: FileRow; relatorioId: string | null } | null> {
   const [record] = await db
-    .select({ row: entities.row })
+    .select({ row: entities.row, relatorio_id: entities.relatorio_id })
     .from(entities)
     .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'file'), eq(entities.id, id)))
     .limit(1);
   const parsed = record === undefined ? null : fileRowSchema.safeParse(record.row);
-  return parsed !== null && parsed.success ? parsed.data : null;
+  return parsed !== null && parsed.success ? { row: parsed.data, relatorioId: record!.relatorio_id } : null;
 }
 
 async function readAll(body: NodeJS.ReadableStream): Promise<Buffer> {
@@ -161,9 +164,9 @@ async function readAll(body: NodeJS.ReadableStream): Promise<Buffer> {
 /** The `print` variant bytes of a file whose row says the variants were rendered; null otherwise. */
 async function printVariant(deps: GenerateJobDeps, companyId: CompanyId, fileId: string | null): Promise<Buffer | undefined> {
   if (fileId === null) return undefined;
-  const row = await fileRow(deps.db, companyId, fileId);
-  if (row === null || row.uploaded_at === null || row.variants === null) return undefined;
-  const stored = await getObject(deps.s3, deps.bucket, objectKey(companyId, row.kind, fileId, 'print', row.relatorio_id));
+  const found = await fileRow(deps.db, companyId, fileId);
+  if (found === null || found.row.uploaded_at === null || found.row.variants === null) return undefined;
+  const stored = await getObject(deps.s3, deps.bucket, objectKey(companyId, found.row.kind, fileId, 'print', found.relatorioId));
   return stored === null ? undefined : readAll(stored.body);
 }
 

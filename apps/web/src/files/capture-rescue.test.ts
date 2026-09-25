@@ -2,7 +2,7 @@ import { COMPANY_ID, RELATORIO_ID, USER_ID, BLOCK_1_ID } from '@app/domain/fixtu
 import type { Op, SyncPushResponse } from '@app/domain';
 import { describe, expect, it, vi } from 'vitest';
 import type { PhotoCaptureInput } from '../db/file-commit.ts';
-import { createCaptureRescue, isQuotaError, sendPhotoDirect, type RescueDeps } from './capture-rescue.ts';
+import { createCaptureRescue, isQuotaError, reserveDirectSeq, sendPhotoDirect, type RescueDeps } from './capture-rescue.ts';
 
 /*
  * 6.2-UNIT: the browser-refusal path of FR-57. Online, a refused shot goes straight to the
@@ -146,3 +146,38 @@ describe('6.2-UNIT-010 sendPhotoDirect', () => {
     expect(client.uploadFile).not.toHaveBeenCalled();
   });
 });
+
+describe('6.2-UNIT-011 a direct send retried after its PUT failed', () => {
+  it('pushes the create once and only re-PUTs the bytes on the retry', async () => {
+    const pushes: string[] = [];
+    let failPut = true;
+    const client = {
+      pushOps: vi.fn(async (ops: readonly Op[]): Promise<SyncPushResponse> => {
+        pushes.push(ops[0]!.path);
+        return { applied: ops.map((op, i) => ({ op_id: op.op_id, seq: i + 1 })), rejected: [], superseded: [] };
+      }),
+      uploadFile: vi.fn(async (id: string) => {
+        if (failPut) throw new Error('network');
+        return { id, uploaded_at: '2026-09-25T12:00:00.000Z', variants: null };
+      }),
+    };
+    const applied = new Set<string>();
+    let n = 0;
+    const deps = { client, deviceId: 'tablet-a', localSeq: 3, newId: () => `019966b0-0079-7000-8000-${String(++n).padStart(12, '0')}`, now: new Date('2026-09-25T12:00:00.000Z'), applied };
+    const shot = input('019966b0-0000-7000-8000-0000000006a3');
+    await expect(sendPhotoDirect(shot, deps)).rejects.toThrow('network');
+    failPut = false;
+    await sendPhotoDirect(shot, deps);
+    expect(pushes).toEqual(['file/019966b0-0000-7000-8000-0000000006a3']);
+    expect(client.uploadFile).toHaveBeenCalledTimes(2);
+  });
+
+  it('reserves a local_seq once per shot, never below one already issued', () => {
+    const a = reserveDirectSeq('seq-a', 4);
+    expect(a).toBe(5);
+    expect(reserveDirectSeq('seq-a', 9)).toBe(5);
+    // The store still says 4 (its write was refused): the next number is not 5 again.
+    expect(reserveDirectSeq('seq-b', 4)).toBe(6);
+  });
+});
+

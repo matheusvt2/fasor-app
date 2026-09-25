@@ -1110,6 +1110,31 @@ describe('6.2 photo uploads', () => {
     h.db.close();
   });
 
+  it('runs the eviction pass after the cycle: under pressure the acked original goes, the unacked one and every thumb stay', async () => {
+    const MB = 1024 * 1024;
+    let low = false;
+    const h = await harness({ readStorage: async () => (low ? { usage: 10_000 * MB - 100 * MB, quota: 10_000 * MB } : { usage: 0, quota: 10_000 * MB }) });
+    await shoot(h, PHOTO_1, '2026-09-21T16:10:00.000Z');
+    await shoot(h, PHOTO_2, '2026-09-21T16:20:00.000Z');
+    for (const id of [PHOTO_1, PHOTO_2]) await h.db.thumbs.put({ id, blob: new Blob(['t']), source: 'server', created_at: '2026-09-21T16:30:00.000Z' });
+    h.server.failUpload = (id) => (id === PHOTO_2 ? { kind: 'http', status: 413, code: 'file_too_large' } : null);
+    await h.engine.runCycle();
+    expect((await h.db.files.get(PHOTO_1))!.acked).toBe(true);
+    // Its `uploaded_at` as the relatório pull would bring it.
+    const record = (await h.db.entities.get(['file', PHOTO_1]))!;
+    await h.db.entities.put({ ...record, row: { ...record.row, uploaded_at: '2026-09-21T16:05:00.000Z' } as never });
+    // No pressure, relatório still in the field: nothing is evicted.
+    await h.engine.runCycle();
+    expect(await h.db.files.get(PHOTO_1)).toBeDefined();
+
+    low = true;
+    await h.engine.runCycle();
+    expect(await h.db.files.get(PHOTO_1)).toBeUndefined();
+    expect((await h.db.files.get(PHOTO_2))!.acked).toBe(false);
+    expect(await h.db.thumbs.count()).toBe(2);
+    h.db.close();
+  });
+
   it('swaps the device thumb for the server one once the variants arrive, and fetches no original', async () => {
     const h = await harness();
     await shoot(h, PHOTO_1, '2026-09-21T16:10:00.000Z');

@@ -3,9 +3,9 @@ import { useCallback, useEffect, useRef } from 'react';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { commitPhotoCapture, type PhotoCaptureInput } from '../../db/file-commit.ts';
-import { photoLocationEnabled, readPhotoSeq, writeGeolocationDenied } from '../../db/photo-store.ts';
+import { photoLocationEnabled, readPhotoSeq, writeGeolocationDenied, writePhotoSeqAtLeast } from '../../db/photo-store.ts';
 import { deviceId } from '../../db/sync-store.ts';
-import { sendPhotoDirect, sessionCaptureRescue, type RescueDeps } from '../../files/capture-rescue.ts';
+import { reserveDirectSeq, sendPhotoDirect, sessionCaptureRescue, type RescueDeps } from '../../files/capture-rescue.ts';
 import { browserPositionTracker, type PositionTracker } from '../../files/geolocation.ts';
 import { encodePhoto, type EncodedPhoto } from '../../files/photo-encode.ts';
 import { newId } from '../../ids.ts';
@@ -73,7 +73,9 @@ export function usePhotoCapture(relatorioId: string): PhotoCapture {
       commit: (input) => commitPhotoCapture(db, input, { newId, now }),
       sendDirect: async (input) => {
         const device = await deviceId(db, newId);
-        const localSeq = (await readPhotoSeq(db)) + 1 + sessionCaptureRescue.heldCount();
+        const localSeq = reserveDirectSeq(input.fileId, await readPhotoSeq(db));
+        // Best effort (the device may be refusing writes): the next stored shot continues after it.
+        await writePhotoSeqAtLeast(db, localSeq).catch(() => undefined);
         await sendPhotoDirect(input, { client: createBrowserSyncClient(), deviceId: device, localSeq, newId, now: now() });
       },
     };

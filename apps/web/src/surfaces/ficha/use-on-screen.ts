@@ -50,12 +50,14 @@ function visibleHeight(element: Element): number {
 
 /**
  * Story 6.1: the sheet step the engineer is looking at when the camera opens: the
- * `[data-step]` section with the most of itself in the viewport, or null when none is (a
+ * `#ficha-step-*` section with the most of itself in the viewport, or null when none is (a
  * test DOM with no layout). The caption's activity comes from it (`contextCaption`).
  */
 export function stepOnScreen(root: ParentNode = document): string | null {
   let best: { step: string; height: number } | null = null;
-  for (const element of root.querySelectorAll<HTMLElement>('[data-step]')) {
+  // The step sections only (`#ficha-step-*`): the Section stepper's buttons carry
+  // `data-step` too and stay on screen in the sticky bar.
+  for (const element of root.querySelectorAll<HTMLElement>('[id^="ficha-step-"][data-step]')) {
     const height = visibleHeight(element);
     const step = element.dataset.step;
     if (step === undefined || height <= 0) continue;

@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { deviceDatabaseName, expect, test } from './support/merged-fixtures.ts';
 import { devicePhotos, expectCameraOpen, openChaveSheet, PHOTO_ACCOUNT, shoot } from './support/photos.ts';
+import { pullAll } from './support/outbox.ts';
 import { syncNow } from './support/sync.ts';
 
 /*
@@ -199,4 +200,47 @@ test('@p1 6.2-E2E-002 under 500 MB free the low-storage banner shows on every su
   await expect(page.locator('.banner-slot .banner[data-banner="storage-low"] .banner-text')).toHaveText(
     'Pouco espaço neste aparelho (180 MB). Sincronize para liberar.',
   );
+});
+
+test('@p1 6.2-E2E-003 the browser refuses to store a shot while online: it goes straight to the server and is not lost', async ({ page }) => {
+  test.setTimeout(120_000);
+  // The next `put` into the device's `files` store throws the browser's quota refusal, once.
+  await page.addInitScript(() => {
+    const original = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function (this: IDBObjectStore, ...args: Parameters<IDBObjectStore['put']>) {
+      const w = window as unknown as { __refuseFilesPut?: boolean };
+      if (w.__refuseFilesPut === true && this.name === 'files') {
+        w.__refuseFilesPut = false;
+        throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+      }
+      return original.apply(this, args);
+    };
+  });
+  const { relatorioId } = await openChaveSheet(page, account, database);
+  await page.evaluate(() => {
+    (window as unknown as { __refuseFilesPut?: boolean }).__refuseFilesPut = true;
+  });
+
+  await cameraButton(page).click();
+  const camera = await expectCameraOpen(page);
+  await shoot(page, 1);
+  await camera.getByRole('button', { name: 'Concluir fotos' }).click();
+  await expect(page.getByRole('dialog', { name: 'Câmera' })).toHaveCount(0);
+  expect(await page.evaluate(() => (window as unknown as { __refuseFilesPut?: boolean }).__refuseFilesPut)).toBe(false);
+
+  // The server holds the photo's create and its bytes.
+  const serverPhoto = async () => {
+    const { ops } = await pullAll(page.request, `/api/sync/relatorios/${relatorioId}`);
+    const creates = ops.filter((op) => /^file\/[0-9a-f-]+$/.test(op.path) && (op.value as { kind?: string }).kind === 'photo');
+    const uploaded = creates.filter((create) => ops.some((op) => op.path === `${create.path}/uploaded_at`));
+    return { creates, uploaded };
+  };
+  await expect.poll(async () => (await serverPhoto()).uploaded.length, { timeout: 30_000 }).toBe(1);
+  const { creates } = await serverPhoto();
+  expect(creates).toHaveLength(1);
+  expect(creates[0]!.value).toMatchObject({ kind: 'photo', caption: 'Detalhe da chave seccionadora do Cubículo Enel' });
+
+  // The next pull brings the row back to this device.
+  await syncNow(page);
+  await expect.poll(async () => (await devicePhotos(page, database)).filter((photo) => photo.uploaded_at !== null).length, { timeout: 30_000 }).toBe(1);
 });

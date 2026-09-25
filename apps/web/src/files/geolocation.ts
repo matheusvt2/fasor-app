@@ -60,7 +60,8 @@ export function createPositionTracker(deps: GeolocationDeps): PositionTracker {
                 accuracy_m: Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : null,
                 source: 'geolocation',
               },
-              at: deps.now(),
+              // The fix's own time: a cached position (`maximumAge`) is as old as it says.
+              at: Number.isFinite(position.timestamp) ? position.timestamp : deps.now(),
             };
             resolve(last);
           },

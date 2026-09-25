@@ -27,7 +27,7 @@ const TAG_GPS_LNG_REF = 0x0003;
 const TAG_GPS_LNG = 0x0004;
 
 /** The byte sizes of the TIFF field types this reader understands. */
-const TYPE_SIZE: Readonly<Record<number, number>> = { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 7: 1, 9: 4, 10: 8 };
+const TYPE_SIZE: Readonly<Record<number, number>> = { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 7: 1, 9: 4, 10: 8, 13: 4 };
 
 interface Entry {
   type: number;
@@ -87,7 +87,8 @@ class Tiff {
   short(entry: Entry | undefined): number | null {
     if (entry === undefined) return null;
     if (entry.type === 3) return this.u16(entry.valueAt);
-    if (entry.type === 4) return this.u32(entry.valueAt);
+    // LONG, or IFD (type 13): a sub-IFD pointer some writers store with the IFD type.
+    if (entry.type === 4 || entry.type === 13) return this.u32(entry.valueAt);
     return null;
   }
 

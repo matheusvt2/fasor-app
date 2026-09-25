@@ -162,7 +162,7 @@ export async function localUploadError(db: AppDatabase, id: string): Promise<Upl
  * Story 6.2 (AR-6): deletes the local originals the kernel's `evictionPlan` names. Only
  * photo originals the server acknowledged are candidates; thumbs are never touched. The
  * relatórios' statuses come from this device's rows; `reading` sizes the pressure.
- * Returns the evicted ids.
+ * Returns the ids actually deleted.
  */
 export async function runEviction(db: AppDatabase, reading: StorageReading | null): Promise<string[]> {
   const acked = await db.files.filter((row) => row.acked && row.variant === 'original').toArray();
@@ -182,16 +182,20 @@ export async function runEviction(db: AppDatabase, reading: StorageReading | nul
     blobs.push({ id: blob.id, acked: true, acked_at: blob.acked_at ?? null, size: row.size, relatorio_id: relatorioId });
   }
   const plan = evictionPlan({ blobs, relatorioStatus, pressure: storagePressureBytes(reading) });
+  const deleted: string[] = [];
   if (plan.length > 0) {
     await db.transaction('rw', db.files, async () => {
       for (const id of plan) {
         // Re-checked inside the write: an original is deleted only while it is still acked.
         const current = await db.files.get(id);
-        if (current?.acked === true && current.variant === 'original') await db.files.delete(id);
+        if (current?.acked === true && current.variant === 'original') {
+          await db.files.delete(id);
+          deleted.push(id);
+        }
       }
     });
   }
-  return plan;
+  return deleted;
 }
 
 /**

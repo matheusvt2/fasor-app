@@ -90,3 +90,10 @@ export async function readPhotoSeq(db: AppDatabase): Promise<number> {
   const row = await db.local_prefs.get(PHOTO_SEQ_PREF);
   return typeof row?.value === 'number' ? row.value : 0;
 }
+
+/** Raises the per-device photo counter to at least `seq` (a shot numbered outside `commitPhotoBatch`). */
+export async function writePhotoSeqAtLeast(db: AppDatabase, seq: number): Promise<void> {
+  await db.transaction('rw', db.local_prefs, async () => {
+    if ((await readPhotoSeq(db)) < seq) await db.local_prefs.put({ key: PHOTO_SEQ_PREF, value: seq });
+  });
+}

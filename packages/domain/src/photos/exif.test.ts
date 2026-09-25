@@ -7,13 +7,13 @@ import { capturedAtFrom, parseExif } from './exif.ts';
 
 interface Field {
   tag: number;
-  type: 2 | 3 | 4 | 5;
+  type: 2 | 3 | 4 | 5 | 13;
   /** ASCII text, one SHORT/LONG, or rationals as [num, den] pairs. */
   value: string | number | [number, number][];
 }
 
 /** A TIFF block: IFD0 (orientation + pointers), the Exif IFD and the GPS IFD. */
-function tiff(little: boolean, ifd0: Field[], exif: Field[], gps: Field[]): Uint8Array {
+function tiff(little: boolean, ifd0: Field[], exif: Field[], gps: Field[], pointerType: 4 | 13 = 4): Uint8Array {
   const buffer = new ArrayBuffer(1024);
   const view = new DataView(buffer);
   const u16 = (at: number, v: number) => view.setUint16(at, v, little);
@@ -30,7 +30,7 @@ function tiff(little: boolean, ifd0: Field[], exif: Field[], gps: Field[]): Uint
       for (let i = 0; i < text.length; i++) view.setUint8(at + i, text.charCodeAt(i));
       view.setUint8(at + text.length, 0);
     } else if (f.type === 3) u16(at, f.value as number);
-    else if (f.type === 4) u32(at, f.value as number);
+    else if (f.type === 4 || f.type === 13) u32(at, f.value as number);
     else (f.value as [number, number][]).forEach(([n, d], i) => {
       u32(at + i * 8, n);
       u32(at + i * 8 + 4, d);
@@ -55,7 +55,7 @@ function tiff(little: boolean, ifd0: Field[], exif: Field[], gps: Field[]): Uint
   };
   const exifAt = 200;
   const gpsAt = 400;
-  writeIfd(8, [...ifd0, { tag: 0x8769, type: 4, value: exifAt }, { tag: 0x8825, type: 4, value: gpsAt }]);
+  writeIfd(8, [...ifd0, { tag: 0x8769, type: pointerType, value: exifAt }, { tag: 0x8825, type: pointerType, value: gpsAt }]);
   writeIfd(exifAt, exif);
   writeIfd(gpsAt, gps);
   return new Uint8Array(buffer, 0, heap);
@@ -105,6 +105,26 @@ describe('6.1-UNIT-003 parseExif', () => {
     expect(parseExif(FULL(true).slice(0, 30))).toEqual(none);
     expect(parseExif(new Uint8Array([0x89, 0x50, 0x4e, 0x47]))).toEqual(none);
     expect(parseExif(new Uint8Array(0))).toEqual(none);
+  });
+
+  it('follows Exif and GPS pointers stored with the IFD type (13)', () => {
+    const bytes = jpeg(
+      tiff(
+        true,
+        [],
+        [{ tag: 0x9003, type: 2, value: '2026:09:06 08:12:30' }],
+        [
+          { tag: 0x0001, type: 2, value: 'S' },
+          { tag: 0x0002, type: 5, value: [[23, 1], [0, 1], [0, 1]] },
+          { tag: 0x0003, type: 2, value: 'W' },
+          { tag: 0x0004, type: 5, value: [[46, 1], [0, 1], [0, 1]] },
+        ],
+        13,
+      ),
+    );
+    const exif = parseExif(bytes);
+    expect(exif.dateTimeOriginal).toBe('2026-09-06T08:12:30');
+    expect(exif.gps).toEqual({ lat: -23, lng: -46 });
   });
 
   it('leaves a missing offset null', () => {
