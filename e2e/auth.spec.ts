@@ -10,6 +10,7 @@ import {
   test,
   writeLocalMarker,
 } from './support/merged-fixtures.ts';
+import { syncNow } from './support/sync.ts';
 import { readDeviceId, readStore } from './support/outbox.ts';
 
 const MARKER = 'e2e-local-marker';
@@ -39,16 +40,6 @@ async function waitForUserRow(page: Page, database: string, userId: string): Pro
     .toBe(true);
 }
 
-/** Opens Sync status from the badge and runs one cycle through "Sincronizar agora". */
-async function syncNow(page: Page): Promise<void> {
-  await syncBadge(page).click();
-  const button = page.getByRole('button', { name: 'Sincronizar agora' });
-  await expect(button).not.toHaveAttribute('aria-disabled', 'true', { timeout: 20_000 });
-  await button.click();
-  await expect(syncBadge(page)).toHaveAttribute('data-pending', '0', { timeout: 20_000 });
-  await expect(button).not.toHaveAttribute('aria-disabled', 'true', { timeout: 20_000 });
-}
-
 test('@p0 1.3-E2E-001 signs in, keeps working with the API down, and signs out without dropping the local database', async ({
   page,
   context,
@@ -71,7 +62,7 @@ test('@p0 1.3-E2E-001 signs in, keeps working with the API down, and signs out w
   ]);
 
   // Reopen the tab with the server unreachable. Without the service worker of Story 1.8
-  // the document itself still has to come from the dev server, so "network down" is the
+  // (blocked in this project) the document itself still comes from the server, so "network down" is the
   // API being unreachable: the app must reach Home from the cookie and the local
   // database, with no sign-in prompt and no network wait.
   await page.route(isApiRequest, (route) => route.abort('internetdisconnected'));

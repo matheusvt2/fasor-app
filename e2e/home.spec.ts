@@ -1,5 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { deviceDatabaseName, expect, signIn, syncBadge, syncWord, test } from './support/merged-fixtures.ts';
+import { syncNow, waitForCompanyPull } from './support/sync.ts';
 import {
   clientCreateOp,
   projectCreateOp,
@@ -42,16 +43,6 @@ function tile(page: Page, status: (typeof STATUSES)[number]): Locator {
 
 const card = (page: Page, relatorioId: string) => page.locator(`.relatorio-card[data-relatorio="${relatorioId}"]`);
 
-/** Pushes what the outbox holds and waits for the queue to empty. */
-async function syncNow(page: Page): Promise<void> {
-  await syncBadge(page).click();
-  const button = page.getByRole('button', { name: 'Sincronizar agora' });
-  await expect(button).not.toHaveAttribute('aria-disabled', 'true', { timeout: 30_000 });
-  await button.click();
-  await expect(syncBadge(page)).toHaveAttribute('data-pending', '0', { timeout: 30_000 });
-  await expect(button).not.toHaveAttribute('aria-disabled', 'true', { timeout: 30_000 });
-}
-
 test('@p1 1.6-E2E-001 Home shows the status board, the current relatório first and the three device states', async ({
   page,
   seed,
@@ -59,6 +50,9 @@ test('@p1 1.6-E2E-001 Home shows the status board, the current relatório first 
   const account = seed.companies[0];
   const database = deviceDatabaseName(account.userId);
   await signIn(page, account.email);
+  // The baseline is what the company already holds, so it is read once the launch pull
+  // has landed; read earlier, it misses relatórios still on their way (E5-A1).
+  await waitForCompanyPull(page, database);
   const before = await tileCounts(page);
 
   const user = { ...account, deviceId: await readDeviceId(page, database) };
@@ -209,7 +203,7 @@ test('@p1 1.6-E2E-003 a cold open with a session and no connection renders from 
   await signIn(page, account.email);
 
   // A genuine cold open with `navigator.onLine` false at the first render. The document
-  // itself still comes from the dev server (the service worker is Story 1.8), so "no
+  // itself still comes from the server (this project blocks the Story 1.8 service worker), so "no
   // connection" is the API being unreachable plus the browser reporting itself offline.
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false });

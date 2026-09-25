@@ -186,7 +186,7 @@ services:
     <<: *workspace
     environment:
       <<: *app-env
-      # The Playwright-started Vite on 5199 proxies /api through this, exactly as `web` does.
+      # The Playwright-started `vite preview` on 5200 proxies /api through this, exactly as `web` does.
       API_PROXY_TARGET: http://api:3000
     depends_on:
       install: { condition: service_completed_successfully }
