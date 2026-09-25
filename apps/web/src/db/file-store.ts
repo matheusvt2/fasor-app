@@ -1,5 +1,6 @@
 import {
   evictionPlan,
+  filePath,
   fileRowSchema,
   orderUploads,
   relatorioStatusSchema,
@@ -128,7 +129,7 @@ export async function pendingUploads(db: AppDatabase): Promise<PendingUpload[]> 
     if (blob.variant !== 'original') continue;
     const row = await localFileRow(db, blob.id);
     if (row === null || row.uploaded_at !== null) continue;
-    const createOp = await db.outbox.where('path').equals(`file/${blob.id}`).first();
+    const createOp = await db.outbox.where('path').equals(filePath(blob.id)).first();
     if (createOp === undefined || createOp.status !== 'acked') continue;
     out.push({
       id: blob.id,

@@ -1,4 +1,4 @@
-import { type OpDraft, type UploadFileKind } from '@app/domain';
+import { filePath, type OpDraft, type UploadFileKind } from '@app/domain';
 import type { PickedFile } from '../components/upload-tile.tsx';
 import { commitFileBatch, commitPhotoBatch, type CommitDeps } from './commit.ts';
 import { readLocalBlob, localFileRow } from './file-store.ts';
@@ -40,7 +40,7 @@ export async function commitFilePick(db: AppDatabase, input: FilePickInput, deps
   const create: OpDraft = {
     ...base,
     kind: 'create',
-    path: `file/${input.fileId}`,
+    path: filePath(input.fileId),
     value: {
       id: input.fileId,
       company_id: input.companyId,
@@ -109,7 +109,7 @@ export function photoCreateDraft(input: Omit<PhotoCaptureInput, 'thumb'>, localS
     meta: null,
     actor_id: input.actorId,
     kind: 'create',
-    path: `file/${input.fileId}`,
+    path: filePath(input.fileId),
     value: {
       id: input.fileId,
       company_id: input.companyId,
