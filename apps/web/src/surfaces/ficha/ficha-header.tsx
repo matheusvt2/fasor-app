@@ -1,4 +1,4 @@
-import { SHEET_STEPS, sheetProgressState, sheetProgressText, sheetSummaryText, type SheetProgress, type SheetStep } from '@app/domain';
+import { SHEET_STEPS, sheetProgressState, sheetProgressText, sheetSummaryParts, type SheetProgress, type SheetStep } from '@app/domain';
 import { OverflowMenu, type OverflowMenuAction } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 
@@ -6,7 +6,7 @@ import { copy } from '../../copy/pt-br.ts';
  * The Sheet header (UX-DR33, `key-equipment-sheet-v09.html` `.sheet-header`): type + TAG,
  * the TAG a 48 px text button that renames the equipment (its id kept); Cabine › Coluna;
  * the attribution lines once saved; the kernel's one sentence of progress
- * (`sheetSummaryText`, "Placa e verificações prontas · faltam 9 leituras e a conclusão",
+ * (`sheetSummaryParts`, "Placa e verificações prontas · faltam 9 leituras e a conclusão",
  * Story 12.5, J-14), which never blocks anything; and the sheet's Overflow. A sheet marked
  * not tested keeps its v0.8 Progress counter ("Completa"): nothing in it is counted.
  */
@@ -59,7 +59,16 @@ export function FichaHeader({
         {concludedBy === null ? null : <p className="sheet-meta">{concludedBy}</p>}
         {notTested ? null : (
           <p className="sheet-summary" data-testid="ficha-progress">
-            {sheetSummaryText(progress, shown)}
+            {/* E12-Q8: the missing counts in `.n-missing`, as `key-equipment-sheet-v09.html` draws them. */}
+            {sheetSummaryParts(progress, shown).map((part, index) =>
+              part.kind === 'missing' ? (
+                <span key={index} className="n-missing">
+                  {part.text}
+                </span>
+              ) : (
+                part.text
+              ),
+            )}
           </p>
         )}
       </div>

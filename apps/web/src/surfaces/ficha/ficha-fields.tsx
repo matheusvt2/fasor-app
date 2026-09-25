@@ -2,10 +2,12 @@ import {
   fieldValueText,
   formatDecimalGroupedPtBr,
   nameplateWordRecents,
+  normalizeRegistryName,
   numberEchoText,
   numberFieldValue,
   parseVoltageClassKv,
   screenLabel,
+  wordRegistryRowText,
   wordRowByName,
   type BlockRow,
   type FieldDef,
@@ -295,10 +297,11 @@ function WordField({ field, value, commit, missing, label, registries, blocks, o
     <div className="field" data-field-key={field.key} data-missing-field={missing ? '' : undefined}>
       <RegistryPickerField
         label={screenLabel(label ?? field.label)}
-        options={rows.filter((row) => row.removed_at === null).map((row) => ({ id: row.id, label: row.name }))}
+        options={rows.filter((row) => row.removed_at === null).map((row) => ({ id: row.id, label: wordRegistryRowText(row).primary }))}
         recentIds={recents}
         value={selected}
-        initialText={current ?? ''}
+        initialText={current === null ? '' : wordLabel(kind, current)}
+        {...(kind === 'voltage_class' ? { matchKey: voltageMatchKey } : {})}
         onChange={(id) => {
           const chosen = rows.find((row) => row.id === id);
           if (chosen === undefined && (created.current !== null || (current !== null && selected === null))) return;
@@ -306,13 +309,26 @@ function WordField({ field, value, commit, missing, label, registries, blocks, o
         }}
         onCreate={(text) => {
           const name = kind === 'voltage_class' ? parseVoltageClassKv(text) : text.trim();
-          if (name === null || name === '') return;
+          if (name === null || name === '') return null;
           created.current = name;
           onCreateWord?.(kind, name);
+          // E12-Q1: the input shows the created row's label ("15 kV"), the text the Combobox
+          // matches it by once it arrives, so the next blur keeps it instead of writing null.
+          return wordLabel(kind, name);
         }}
       />
     </div>
   );
+}
+
+/** A word field's stored name as its registry row reads it: a voltage class with its unit ("15 kV"). */
+function wordLabel(kind: 'manufacturer' | 'voltage_class', name: string): string {
+  return kind === 'voltage_class' ? wordRegistryRowText({ kind, name } as WordRow).primary : name;
+}
+
+/** A voltage class typed with or without its unit names the same row ("15" and "15 kV"). */
+function voltageMatchKey(text: string): string {
+  return parseVoltageClassKv(text) ?? normalizeRegistryName(text);
 }
 
 /** A read-only field (UX-DR49): the same label, the value as text, `aria-readonly`. */

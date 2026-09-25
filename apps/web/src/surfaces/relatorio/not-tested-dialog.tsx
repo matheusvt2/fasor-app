@@ -1,5 +1,6 @@
 import { getSeed } from '@app/domain';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { Button, FilterChipGroup, FormDialog } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
@@ -25,6 +26,17 @@ export function NotTestedDialog({ seedVersion, onClose, onSubmit }: NotTestedDia
   const reasons = getSeed(seedVersion, 'cabine_primaria').not_tested_reasons;
   const [selected, setSelected] = useState<string | null>(null);
   const [text, setText] = useState('');
+  const textInput = useRef<HTMLInputElement>(null);
+  // E12-Q13: choosing "Outro" moves the focus to the text it asks for, in the same press
+  // (so a tablet opens its keyboard), never leaving it on the chip.
+  const choose = (id: string) => {
+    if (id !== OUTRO) {
+      setSelected(id);
+      return;
+    }
+    flushSync(() => setSelected(id));
+    textInput.current?.focus();
+  };
   const disabledReason = selected === null ? t.notTestedPickReason : selected === OUTRO && text.trim() === '' ? t.notTestedTextReason : undefined;
 
   const submit = () => {
@@ -40,11 +52,11 @@ export function NotTestedDialog({ seedVersion, onClose, onSubmit }: NotTestedDia
       }}
       title={t.markNotTested}
     >
-      <FilterChipGroup options={reasons.map((reason) => ({ id: reason.key, label: reason.label }))} selectedId={selected} onChange={setSelected} aria-label={t.notTestedReasonLabel} />
+      <FilterChipGroup options={reasons.map((reason) => ({ id: reason.key, label: reason.label }))} selectedId={selected} onChange={choose} aria-label={t.notTestedReasonLabel} />
       {selected === OUTRO ? (
         <label className="field">
           <span className="field-label">{t.notTestedTextLabel}</span>
-          <input className="input" value={text} onChange={(event) => setText(event.target.value)} />
+          <input className="input" ref={textInput} value={text} onChange={(event) => setText(event.target.value)} />
         </label>
       ) : null}
       <div className="dialog-actions">

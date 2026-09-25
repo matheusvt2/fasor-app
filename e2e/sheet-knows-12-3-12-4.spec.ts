@@ -237,6 +237,78 @@ test('@p0 12.3-E2E-002 the instrument last used for a test kind is suggested on 
   await expect(stored.locator('.suggested-pill')).toHaveCount(0);
 });
 
+test('@p0 12.4-E2E-004 a voltage class created with its unit ("15 kV") through "Outro…" is kept through a Tab away and a reload: "15" stored once, never a later null, read with its unit (E12-Q1)', async ({ page }) => {
+  test.setTimeout(120_000);
+  const { relatorioId, enel } = await setUp(page);
+  const [secEnel] = enel;
+  await openSheet(page, relatorioId, secEnel.blockId);
+  const tensao = field(page, 'tensao_de_placa');
+  await expect(tensao).toHaveAttribute('data-missing-field', '');
+  const placaBefore = await stepMissing(page, 'Placa');
+
+  await tensao.getByRole('button', { name: 'Outro…' }).click();
+  const combobox = tensao.getByRole('combobox');
+  await expect(combobox).toBeFocused();
+  await page.keyboard.type('15 kV');
+  await page.getByRole('option', { name: 'Criar “15 kV”' }).click();
+  await expect(combobox).toHaveValue('15 kV');
+  await expect.poll(async () => (await outbox(page)).filter((row) => row.path === `sheet/${secEnel.blockId}/nameplate/tensao_de_placa`).map((row) => row.value)).toEqual(['15']);
+  // The created row arrives, then the engineer tabs away: the value stays.
+  await combobox.focus();
+  await page.keyboard.press('Tab');
+  await expect(combobox).toHaveValue('15 kV');
+  await expect(tensao).not.toHaveAttribute('data-missing-field');
+  expect(await stepMissing(page, 'Placa')).toBe(placaBefore - 1);
+
+  await page.reload();
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  await expect(field(page, 'tensao_de_placa').getByRole('button', { name: '15 kV', pressed: true })).toBeVisible();
+  await expect(field(page, 'tensao_de_placa')).not.toHaveAttribute('data-missing-field');
+  expect(await stepMissing(page, 'Placa')).toBe(placaBefore - 1);
+  expect((await outbox(page)).filter((row) => row.path === `sheet/${secEnel.blockId}/nameplate/tensao_de_placa`).map((row) => row.value)).toEqual(['15']);
+});
+
+test('@p1 12.1-E2E-008 a primary still labelled "Próxima ficha" when the last reading commits concludes on the fresh rows: the suggested instruments and the conclusion in one batch, then the next sheet (E12-Q6, open question D-4 kept)', async ({ page }) => {
+  test.setTimeout(150_000);
+  const cells = SECC.tests.flatMap((t) => cellAddressesOf(SECC, t.key));
+  const last = cells.at(-1)!;
+  const lastPath = (blockId: string) => `sheet/${blockId}/test/${last.testKey}/cell/${last.row}/${last.col}`;
+  const { relatorioId, enel } = await setUp(
+    page,
+    (scope, [first, second], _sheets, instrument) => [
+      officeDraft(account, scope, `sheet/${first.blockId}/test/isolacao/instrument`, instrumentHeaderOf(instrument!, 'isolacao')),
+      officeDraft(account, scope, `sheet/${first.blockId}/test/resistencia_contato/instrument`, instrumentHeaderOf(instrument!, 'resistencia_contato')),
+      ...completeButInstruments(scope, second.blockId).filter((draft) => draft.path !== lastPath(second.blockId)),
+    ],
+    true,
+  );
+  const [, second] = enel;
+  await openSheet(page, relatorioId, second.blockId);
+  const primary = page.locator('#ficha-primary');
+  await page.locator(`.ficha-cell[data-cell="${last.testKey}:${last.row}:${last.col}"]`).filter({ visible: true }).locator('input').click();
+  await page.keyboard.type(last.testKey === 'isolacao' ? '150' : '100');
+  // The value is typed but not committed: this render still offers "Próxima ficha".
+  await expect(primary).toHaveText(/Próxima ficha/);
+  // A hand's press: the pointer down blurs the reading (its commit), the render stays held
+  // until the click, so the click runs the primary this render labelled "Próxima ficha".
+  const box = (await primary.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(80);
+  await page.mouse.up();
+
+  await expect(toast(page)).toContainText('Ficha concluída');
+  await expect(page).not.toHaveURL(new RegExp(`/ficha/${second.blockId}$`));
+  const rows = await outbox(page);
+  const instruments = rows.filter((row) => row.path.startsWith(`sheet/${second.blockId}/test/`) && row.path.endsWith('/instrument'));
+  const concluded = rows.filter((row) => row.path === `block/${second.blockId}/concluded_by`);
+  expect(instruments.map((row) => row.path.split('/')[3]).sort()).toEqual(['isolacao', 'resistencia_contato']);
+  expect(concluded).toHaveLength(1);
+  expect(new Set([...instruments, ...concluded].map((row) => row.batch_id)).size).toBe(1);
+  // The reading was committed before the conclusion read the rows (the one edit queue).
+  expect(rows.some((row) => row.path === lastPath(second.blockId))).toBe(true);
+});
+
 test('@p0 12.3-E2E-003 the cabine: its empty fields counted on its first sheet and named on the Sumário row; editable while incomplete on a later sheet; one line with "Editar" once complete, the edit reaching every sheet', async ({ page }) => {
   test.setTimeout(180_000);
   const { relatorioId } = await setUp(page);
@@ -254,6 +326,11 @@ test('@p0 12.3-E2E-003 the cabine: its empty fields counted on its first sheet a
   await expect(page.getByRole('heading', { name: 'Características da SE' })).toBeVisible();
   const withCabine = await stepMissing(page, 'Placa');
   expect(withCabine).toBeGreaterThanOrEqual(6);
+  // E12-Q10: the cabine's first sheet holds no plate field left, and the header names the six as the cabine's;
+  // E12-Q8: the count in `.n-missing`.
+  expect(withCabine).toBe(6);
+  await expect(page.getByTestId('ficha-progress')).toHaveText(/^Faltam 6 campos da cabine, /);
+  await expect(page.getByTestId('ficha-progress').locator('.n-missing').first()).toHaveText('6');
   const tag = (await page.locator('.sheet-header .tag-btn').textContent())!.trim();
   await page.getByRole('button', { name: `Mais opções da ficha ${tag}` }).click();
   await page.getByRole('menuitem', { name: 'Concluir ficha' }).click();
@@ -346,7 +423,9 @@ test('@p0 12.3-E2E-005 a cabine first sheet complete but one cabine field: "Pró
   await page.getByRole('button', { name: 'Mais opções de Cubículo Enel' }).click();
   await page.getByRole('menuitem', { name: 'Abrir primeira ficha (dados da cabine)' }).click();
   await expect(page).toHaveURL(new RegExp(`/ficha/${first.blockId}$`));
-  await expect(page.getByTestId('ficha-progress')).toHaveText('Verificações, leituras e conclusão prontas · falta 1 campo da placa');
+  // E12-Q10: the field is the cabine's, and the sentence names it so; E12-Q8: its count in `.n-missing`.
+  await expect(page.getByTestId('ficha-progress')).toHaveText('Verificações, leituras e conclusão prontas · falta 1 campo da cabine');
+  await expect(page.getByTestId('ficha-progress').locator('.n-missing')).toHaveText(['1']);
   expect(await stepMissing(page, 'Placa')).toBe(1);
 
   // The primary reads "Próxima ficha" and moves on without concluding.

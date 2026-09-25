@@ -26,6 +26,7 @@ const EXTRA_PATHS = [
   `user/${ID}`,
   `generation_job/${ID}/error`,
   `generation_job/${ID}/result`,
+  `template/${ID}/seed_version`,
 ];
 
 describe('1.4-UNIT-001 path round trip', () => {
@@ -41,7 +42,7 @@ describe('1.4-UNIT-001 path round trip', () => {
     const seen = new Set(paths.map((p) => parsePath(p).family));
     const missing = FAMILIES.map((f) => f.family).filter((f) => !seen.has(f));
     expect(missing).toEqual([]);
-    expect(FAMILIES.length).toBe(39);
+    expect(FAMILIES.length).toBe(40);
   });
 
   it('returns typed segments', () => {
@@ -81,7 +82,9 @@ describe('1.4-UNIT-001 path round trip', () => {
     expect(() => parsePath(`point/${ID}/origin`)).toThrow(/unknown field "origin" for point/);
     // D-4: `version` is mutable since 2026-09-23 (the reducer bumps it on content edits).
     expect(parsePath(`template/${ID}/version`)).toEqual({ family: 'template/field', id: ID, field: 'version' });
-    expect(() => parsePath(`template/${ID}/seed_version`)).toThrow(/unknown field "seed_version" for template/);
+    // E12-Q4: a template's seed version is no `template/field`; only its server-only family names it.
+    expect(parsePath(`template/${ID}/seed_version`)).toEqual({ family: 'template/seed_version', id: ID, field: 'seed_version' });
+    expect(isServerOnly(`template/${ID}/seed_version`)).toBe(true);
   });
 
   it('rejects malformed segments', () => {
@@ -111,6 +114,7 @@ describe('1.4-UNIT-001 path round trip', () => {
       `revision/${ID}`,
       'relatorio/preview_file_id',
       `user/${ID}`,
+      `template/${ID}/seed_version`,
     ]) {
       expect(isServerOnly(p)).toBe(true);
     }

@@ -79,15 +79,38 @@ async function firstCabineRows(page: Page): Promise<Locator> {
   return rows;
 }
 
-/** Opens a tree row's sheet and returns its block id and App bar title (the TAG). */
+/** Opens a tree row's sheet and returns its block id and TAG, once the App bar shows that TAG. */
 async function openRow(page: Page, row: Locator): Promise<{ blockId: string; tag: string }> {
   const blockId = (await row.getAttribute('data-block-id'))!;
+  // E12-Q3: the TAG is read from the row, and the sheet is waited for by it, never by a
+  // non-empty title (the Sumário's own title, the relatório name, is not empty either).
+  const tag = (await row.locator('.s9-eq-open .block-tag').textContent())!.trim();
   await row.locator('.s9-eq-open').click();
   await expect(page).toHaveURL(new RegExp(`/ficha/${blockId}$`));
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible();
-  // The sheet sets its App bar title (the TAG) once its snapshot is read.
-  await expect(page.locator('.app-bar-title')).not.toHaveText('');
-  return { blockId, tag: (await page.locator('.app-bar-title').textContent())!.trim() };
+  await expect(page.locator('.app-bar-title')).toHaveText(tag);
+  return { blockId, tag };
+}
+
+/**
+ * E12-Q2: a forward navigation lands at the new page's top with the focus on the App bar
+ * heading, or, when the surface has a target, on that target, in view. Never on `<body>`.
+ */
+async function expectLanded(page: Page, target: Locator | null = null): Promise<void> {
+  await expect.poll(() => page.evaluate(() => document.activeElement?.tagName ?? 'BODY')).not.toBe('BODY');
+  if (target === null) {
+    await expect(page.locator('.app-bar-title')).toBeFocused();
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+    return;
+  }
+  await expect(target).toBeFocused();
+  await expect(target).toBeInViewport();
+}
+
+/** Scrolls the page to its end, so a forward navigation that kept the scroll would show it. */
+async function scrollToEnd(page: Page): Promise<void> {
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
 }
 
 test('@p0 12.2-E2E-001 J0 at 768: Home "Continuar" opens the last sheet in one tap, with the card counter, after a reload too', async ({ page }) => {
@@ -130,6 +153,7 @@ test('@p0 12.2-E2E-002 "Voltar" from a sheet: the Sumário with section 9 open a
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
   await expect(section9Chevron(page)).toHaveAttribute('aria-expanded', 'true');
   await expect(open()).toBeFocused();
+  await expect(open()).toBeInViewport();
 
   // The focused row opens again from the keyboard; at 1280 the same way back.
   await page.keyboard.press('Enter');
@@ -148,6 +172,53 @@ test('@p0 12.2-E2E-002 "Voltar" from a sheet: the Sumário with section 9 open a
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/arvore$`));
 });
 
+test('@p0 12.2-E2E-006 forward at 768: "Próxima ficha", the sheet\'s "Voltar", Home "Continuar" and "Próxima seção" open the new page at its top or its target, the focus on its heading or the target (E12-Q2)', async ({ page }) => {
+  test.setTimeout(120_000);
+  const relatorioId = await emCampoRelatorio(page, 768);
+  const rows = await firstCabineRows(page);
+  const second = (await rows.nth(1).getAttribute('data-block-id'))!;
+  const first = await openRow(page, rows.nth(0));
+
+  // "Próxima ficha" from the end of a long sheet: the next sheet from its top, its heading focused.
+  await scrollToEnd(page);
+  await page.locator('#ficha-primary').click();
+  await expect(page).toHaveURL(new RegExp(`/ficha/${second}$`));
+  await expect(page.locator('.app-bar-title')).not.toHaveText(first.tag);
+  await expectLanded(page);
+
+  // E12-Q14: the collapsed rail strip beside the sheet paints the whole column in view, in both themes.
+  for (const colorScheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme });
+    const strip = (await page.locator('.rail-collapsed').boundingBox())!;
+    const viewport = page.viewportSize()!;
+    expect(strip.y + strip.height, `${colorScheme}: the strip reaches the bottom of the viewport`).toBeGreaterThanOrEqual(viewport.height);
+  }
+  await page.emulateMedia({ colorScheme: null });
+
+  // "Voltar" from the end of the sheet: the Sumário with the row of the sheet focused, in view.
+  await scrollToEnd(page);
+  await page.getByRole('button', { name: 'Voltar' }).click();
+  await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
+  await expectLanded(page, page.locator(`li.s9-eq[data-block-id="${second}"] .s9-eq-open`));
+
+  // Home "Continuar": the last sheet, its heading focused.
+  await page.goto('/');
+  const resume = currentCard(page).getByRole('button', { name: /^Continuar: / });
+  await expect(resume).toBeVisible({ timeout: 30_000 });
+  await resume.click();
+  await expect(page).toHaveURL(new RegExp(`/ficha/${second}$`));
+  await expectLanded(page);
+
+  // "Próxima seção" from the end of a section text: the next section, its own heading focused.
+  await page.goto(`/relatorio/${relatorioId}`);
+  await page.getByRole('list', { name: 'Sumário do relatório' }).getByRole('button', { name: /^Definições/ }).click();
+  await expect(page.locator('.section-text-title')).toHaveText('Seção 2 — Definições');
+  await scrollToEnd(page);
+  await page.getByRole('button', { name: 'Próxima seção' }).click();
+  await expectLanded(page, page.getByRole('heading', { level: 2, name: 'Seção 4 — Requisitos básicos' }));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+});
+
 test('@p0 12.2-E2E-003 J5 at 768: Home to the first sheet of a new relatório with no "Voltar", the instrument registered on the way', async ({ page }) => {
   test.setTimeout(180_000);
   await resetCompany({ standard: true });
@@ -162,7 +233,9 @@ test('@p0 12.2-E2E-003 J5 at 768: Home to the first sheet of a new relatório wi
   await start.getByRole('combobox', { name: 'Cliente' }).fill('Cliente da jornada');
   await journey.tap(page.getByRole('option', { name: 'Criar “Cliente da jornada”' }));
   await expect(start.getByRole('combobox', { name: 'Cliente' })).toHaveValue('Cliente da jornada');
-  await start.getByRole('combobox', { name: 'Local (obra)' }).fill('Obra da jornada');
+  // E12-Q11: the obra is next, and the focus is already there.
+  await expect(start.getByRole('combobox', { name: 'Local (obra)' })).toBeFocused();
+  await page.keyboard.type('Obra da jornada');
   await journey.tap(page.getByRole('option', { name: 'Criar “Obra da jornada”' }));
   await expect(start.getByRole('combobox', { name: 'Local (obra)' })).toHaveValue('Obra da jornada');
   await journey.tap(start.getByRole('button', { name: 'Continuar' }));
@@ -184,32 +257,36 @@ test('@p0 12.2-E2E-003 J5 at 768: Home to the first sheet of a new relatório wi
   await expect(register).toHaveAccessibleDescription('Abre Cadastros › Instrumentos');
   await journey.tap(register);
   await expect(page).toHaveURL(/\/cadastros$/);
+  // E12-Q3: the arrival is drawn (its panel, the return target set) before "Voltar".
+  await expect(page.locator('.registry-panel')).toBeVisible();
   // A side check, outside the journey's count: the App bar "Voltar" from here also returns
   // to Etapa 4; then the same press again, as the forward path had it.
   await page.getByRole('button', { name: 'Voltar' }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/setup\\?etapa=4$`));
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 4 — Instrumentos e certificados' })).toBeFocused();
+  await scrollToEnd(page);
   await register.click();
   await expect(page).toHaveURL(/\/cadastros$/);
   await expect(page.getByRole('tab', { name: 'Instrumentos' })).toHaveAttribute('aria-selected', 'true');
   const panel = page.locator('.registry-panel');
   await expect(panel).toBeVisible();
-  await journey.tap(panel.getByLabel('Código'));
+  // E12-Q2: the new instrument's first field is the arrival's target, focused and in view.
+  await expectLanded(page, panel.getByLabel('Código'));
   await page.keyboard.type('MG-01');
   await journey.tap(panel.getByRole('button', { name: 'Fechar', exact: true }));
 
-  // Back on Etapa 4, its heading focused, the new instrument listed.
+  // Back on Etapa 4, its heading focused, the new instrument listed and checked (E12-Q11).
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/setup\\?etapa=4$`));
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 4 — Instrumentos e certificados' })).toBeFocused();
   const instrument = page.getByRole('checkbox', { name: /^MG-01/ });
-  await journey.tap(instrument);
-  await expect(instrument).toHaveAttribute('aria-checked', 'true');
+  await expect(instrument).toBeChecked();
 
   // Concluir goes forward: the Sumário, "Dados salvos", section 9 open.
   const complete = page.getByRole('button', { name: 'Concluir dados do relatório' });
   await expect(complete).not.toHaveAttribute('aria-disabled', 'true');
   await journey.tap(complete);
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
+  await expectLanded(page);
   await expect(page.getByTestId('toast')).toContainText('Dados salvos');
   await expect(page.locator('.sheet-meta .status-pill')).toHaveText('Em campo');
   await expect(section9Chevron(page)).toHaveAttribute('aria-expanded', 'true');

@@ -1,5 +1,5 @@
 import { isInstrumentReferenced, sortInstrumentRegistryRows, type BlockRow, type InstrumentRow } from '@app/domain';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { now } from '../../clock.ts';
@@ -7,6 +7,7 @@ import { newId } from '../../ids.ts';
 import { blockRows, instrumentRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { useSession } from '../../state/session.tsx';
+import { focusWhenRendered } from '../relatorio/relatorio-focus.ts';
 import { InstrumentPanel } from './instrument-panel.tsx';
 import { InstrumentRow as InstrumentRowItem } from './instrument-row.tsx';
 
@@ -24,9 +25,10 @@ export interface InstrumentosTabProps {
   openNew?: boolean;
   /**
    * The arrival's panel is done with, once: `back` when it was closed (the caller returns to
-   * the page that asked for it), false when another panel replaced it.
+   * the page that asked for it), false when another panel replaced it. `instrumentId` is the
+   * arrival panel's instrument, which exists only if a field of it was committed.
    */
-  onEntryEnd?: (back: boolean) => void;
+  onEntryEnd?: (back: boolean, instrumentId: string) => void;
 }
 
 export function InstrumentosTab({ openNew = false, onEntryEnd }: InstrumentosTabProps = {}) {
@@ -38,10 +40,18 @@ export function InstrumentosTab({ openNew = false, onEntryEnd }: InstrumentosTab
   const setOpenId = (next: string | null) => {
     if (entryId !== null && openId === entryId && next !== entryId) {
       setEntryId(null);
-      onEntryEnd?.(next === null);
+      onEntryEnd?.(next === null, entryId);
     }
     setOpenIdState(next);
   };
+
+  // E12-Q2: the arrival's target is the new instrument's first field ("Código"), focused and
+  // so scrolled into view, never the end of the panel with the focus on `<body>`.
+  useEffect(() => {
+    if (entryId === null) return;
+    focusWhenRendered(() => document.querySelector<HTMLElement>('.registry-panel .panel-body input'));
+    // Once per arrival.
+  }, []);
 
   const instruments = useLiveQuery(
     () => (db === null ? Promise.resolve(NO_INSTRUMENTS) : instrumentRows(db)),

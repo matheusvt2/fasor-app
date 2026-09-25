@@ -11,6 +11,7 @@ import {
   sheetProgress,
   sheetProgressState,
   sheetProgressText,
+  sheetSummaryParts,
   sheetSummaryText,
   stepMayCollapse,
   stepMissingLabel,
@@ -269,6 +270,31 @@ describe('12.5-UNIT sheetSummaryText (the Sheet header sentence, J-14)', () => {
 
   it('a complete sheet reads "Ficha completa"', () => {
     expect(sheetSummaryText(counts(0, 0, 0, 0))).toBe('Ficha completa');
+  });
+
+  it('E12-Q10: the cabine fields counted on the Placa step are named "campos da cabine", apart from the plate\'s, the plate first', () => {
+    const cabine = (plate: number, cabineFields: number, verificacoes = 14) => {
+      const c = counts(plate + cabineFields, verificacoes, 9, 2);
+      return { steps: { ...c.steps, placa: { missing: plate + cabineFields, outOfLimit: 0, cabine: cabineFields } } };
+    };
+    expect(sheetSummaryText(cabine(0, 6))).toBe('Faltam 6 campos da cabine, 14 verificações, 9 leituras e a conclusão');
+    expect(sheetSummaryText(cabine(2, 6))).toBe('Faltam 2 campos da placa, 6 campos da cabine, 14 verificações, 9 leituras e a conclusão');
+    expect(sheetSummaryText(cabine(0, 1, 0))).toBe('Verificações prontas · falta 1 campo da cabine, 9 leituras e a conclusão');
+  });
+
+  it('E12-Q8: the parts join to the sentence, each missing count a "missing" part', () => {
+    const c = counts(0, 0, 9, 2);
+    expect(sheetSummaryParts(c)).toEqual([
+      { text: 'Placa e verificações prontas · faltam ', kind: 'text' },
+      { text: '9', kind: 'missing' },
+      { text: ' leituras', kind: 'text' },
+      { text: ' e ', kind: 'text' },
+      { text: 'a conclusão', kind: 'text' },
+    ]);
+    for (const sample of [counts(3, 14, 9, 2), counts(0, 0, 1, 0), counts(1, 1, 0, 0), counts(0, 0, 0, 0)]) {
+      expect(sheetSummaryParts(sample).map((part) => part.text).join('')).toBe(sheetSummaryText(sample));
+    }
+    expect(sheetSummaryParts(counts(3, 14, 9, 2)).filter((part) => part.kind === 'missing').map((part) => part.text)).toEqual(['3', '14', '9']);
   });
 
   it('a step the stepper does not show is never named', () => {

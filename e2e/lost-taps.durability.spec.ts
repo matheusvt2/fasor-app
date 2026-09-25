@@ -6,7 +6,7 @@ import { deviceDatabaseName, expect, syncBadge, test, TEST_SEED } from './suppor
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
-import { humanTap } from './support/taps.ts';
+import { humanTap, touchPressAcross } from './support/taps.ts';
 
 /*
  * Story 12.1 (J-01): the first tap after a field commit is never lost. For each control of
@@ -259,6 +259,31 @@ test('@p0 12.1-E2E-004 lost tap: "Concluir ficha" right after Enter on the last 
     await expect(page).not.toHaveURL(new RegExp(`/ficha/${sheet.blockId}$`));
     await expect.poll(async () => (await outbox(page)).filter((row) => row.path === `block/${sheet.blockId}/concluded_by`).length).toBe(1);
   }
+});
+
+test('@p0 12.1-E2E-007 lost tap (E12-Q6): a commit landing while the finger is down, its tap click 100 ms or more after the finger lifts (the Android gap), still applies "Marcar os restantes como Conforme" once', async ({ page, context, browserName }) => {
+  test.skip(browserName !== 'chromium', 'the touch is dispatched through the Chromium DevTools protocol');
+  test.setTimeout(90_000);
+  // The gate's own witness of `useHeldWhilePressed`: the Enter commit of the last plate
+  // value is made while a touch is down on the bulk action, so its render (the Placa step
+  // left and complete collapses, the action moves up) lands between the pointer down and
+  // the tap's click. Held, the click lands on the action; drawn at once, it misses it.
+  const { relatorioId, secc } = await setUp(page, context, (scope, rows) => seedPlate(scope, target(rows, 0).blockId, 'n_serie'));
+  const sheet = target(secc, 0);
+  await openSheet(page, relatorioId, sheet.blockId);
+  const unset = await checklistMissing(page);
+  await page.getByLabel('Nº série', { exact: true }).click();
+  await page.keyboard.type('SN-HELD');
+  const bulk = page.locator('#ficha-step-verificacoes .bulk-action-bar').getByRole('button', { name: 'Marcar os restantes como Conforme' });
+  await touchPressAcross(page, bulk, async () => {
+    await page.keyboard.press('Enter');
+    // The commit is in the outbox, and its render has had time to draw (or to be held).
+    await expect.poll(async () => (await outbox(page)).some((row) => row.path === `sheet/${sheet.blockId}/nameplate/n_serie`), { intervals: [20] }).toBe(true);
+    await page.waitForTimeout(100);
+  });
+  await expect(toast(page), 'the tap held across the commit').toContainText(itensMarcadosConformeText(unset), { timeout: EFFECT_MS });
+  await expect(stepper(page).getByRole('button', { name: 'Verificações, 0 faltando' })).toBeVisible();
+  await expect.poll(async () => (await outbox(page)).filter((row) => row.path.startsWith(`sheet/${sheet.blockId}/checklist/`)).length).toBe(unset);
 });
 
 test('@p1 12.1-E2E-005 lost tap: a checklist tri-state segment right after Enter in the last nameplate field is set once', async ({ page, context }, info) => {
