@@ -217,6 +217,7 @@ describe('5.3-UNIT typed values (AR-10)', () => {
 
   it('shows a stored value the way a field reads it', () => {
     expect(fieldValueText({ kind: 'number' }, { raw: '13.8', unit: 'kV', state: 'measured' })).toBe('13,8');
+    expect(fieldValueText({ kind: 'number' }, { raw: '1500', unit: 'kVA', state: 'measured' })).toBe('1.500');
     expect(fieldValueText({ kind: 'date' }, '2012-03-01')).toBe('01/03/2012');
     expect(fieldValueText({ kind: 'text' }, 'SU1')).toBe('SU1');
     expect(fieldValueText({ kind: 'text' }, null)).toBe('');

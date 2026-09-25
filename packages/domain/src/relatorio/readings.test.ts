@@ -176,6 +176,9 @@ describe('5.5-UNIT evaluateSheetReadings', () => {
     // Mixed units compare in one scale; above works too; fewer than two others is no outlier.
     const above = block('chave_seccionadora', test('isolacao', [[0, 0, measured('200', 'GΩ')], [1, 0, measured('1', 'GΩ')], [2, 0, measured('1500', 'MΩ')]]));
     expect(evaluateSheetReadings(above, SEC)[0]!.tables[0]!.rows[0]!.cells[0]!.outlier?.text).toBe('T1 100× acima de T3 e T5. Conferir?');
+    // E5-Q15: the nearest power of ten on a log scale: 3,3 against 3.300 and 3.200 (about 970x) reads 1000x.
+    const near = block('chave_seccionadora', test('isolacao', [[3, 0, measured('3300', 'MΩ')], [4, 0, measured('3200', 'MΩ')], [5, 0, measured('3.3', 'MΩ')]]));
+    expect(evaluateSheetReadings(near, SEC)[0]!.tables[1]!.rows[2]!.cells[0]!.outlier?.text).toBe('Fase C 1000× abaixo de A e B. Conferir?');
     const two = block('chave_seccionadora', test('isolacao', [[3, 0, measured('330', 'MΩ')], [5, 0, measured('0.33', 'MΩ')]]));
     expect(evaluateSheetReadings(two, SEC)[0]!.tables[1]!.rows[2]!.cells[0]!.outlier).toBeNull();
   });

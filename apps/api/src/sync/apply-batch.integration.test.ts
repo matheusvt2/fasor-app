@@ -18,7 +18,9 @@ const databaseUrl = process.env.DATABASE_URL ?? 'postgres://app:app@postgres:543
 const companyId = asCompanyId(newId());
 const { sql, db } = createDb(databaseUrl);
 
-function serverOp(input: Omit<OpInput, 'company_id' | 'actor_id' | 'device_id' | 'project_id' | 'relatorio_id' | 'prev_op_id' | 'batch_id' | 'meta'>): Op {
+function serverOp(
+  input: Omit<OpInput, 'company_id' | 'actor_id' | 'device_id' | 'project_id' | 'relatorio_id' | 'prev_op_id' | 'batch_id' | 'meta'> & Partial<Pick<OpInput, 'relatorio_id'>>,
+): Op {
   return makeOp(
     {
       company_id: companyId,
@@ -72,6 +74,52 @@ describe('4.8-INT-001 applyServerBatch', () => {
       rejected: [{ op_id: forged.op_id, code: 'op_tenant_mismatch' }],
     });
     const logged = await db.select({ op_id: ops.op_id }).from(ops).where(eq(ops.op_id, create.op_id));
+    expect(logged).toEqual([]);
+  });
+
+  it('E5-Q1 refuses a seed-path op as op_invalid naming it, and rolls the batch back', async () => {
+    const relatorioId = newId();
+    const blockId = newId();
+    const createBlock = serverOp({
+      kind: 'create',
+      scope: 'relatorio',
+      relatorio_id: relatorioId,
+      path: `block/${blockId}`,
+      value: {
+        id: blockId,
+        relatorio_id: relatorioId,
+        location_id: null,
+        equipment_id: null,
+        block_type: 'tp',
+        config: {},
+        seed_version: 'v1',
+        order_key: 'a0',
+        feeds_block_id: null,
+        not_tested: null,
+        concluded_by: null,
+        sheet: { nameplate: {}, checklist: {}, test: {}, conclusion: {}, observations: null },
+        created_by: null,
+        first_edited_at: null,
+        last_modified_by: null,
+        last_modified_at: null,
+        removed_at: null,
+      },
+    });
+    // TP ratio: column 2 is VAL CALCULADO, derived by the kernel and never written.
+    const derived = serverOp({
+      kind: 'put',
+      scope: 'relatorio',
+      relatorio_id: relatorioId,
+      path: `sheet/${blockId}/test/relacao_transformacao/cell/0/2`,
+      value: { raw: '120', unit: null, state: 'measured' },
+    });
+    await expect(applyServerBatch(db, companyId, [createBlock, derived], { now })).rejects.toMatchObject({
+      name: 'ServerBatchRejectedError',
+      rejected: [{ op_id: derived.op_id, code: 'op_invalid' }],
+    });
+    const rows = await db.select({ id: entities.id }).from(entities).where(and(eq(entities.company_id, companyId), eq(entities.id, blockId)));
+    expect(rows).toEqual([]);
+    const logged = await db.select({ op_id: ops.op_id }).from(ops).where(inArray(ops.op_id, [createBlock.op_id, derived.op_id]));
     expect(logged).toEqual([]);
   });
 

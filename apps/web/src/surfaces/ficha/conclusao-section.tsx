@@ -17,6 +17,7 @@ import {
 import { useId, useMemo, useRef, type KeyboardEvent } from 'react';
 import { GeneratedTextField } from '../../components/generated-text-field.tsx';
 import { SuggestionField } from '../../components/suggestion-field.tsx';
+import { useLatestChoice } from '../../components/use-latest-choice.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { DRAFT_SURFACE, useTypedText } from './ficha-fields.tsx';
 import type { FichaApi } from './ficha-api.ts';
@@ -58,11 +59,13 @@ function ConclusionPair<T extends string>({
   const refs = useRef(new Map<T, HTMLButtonElement | null>());
   const selected = segments.findIndex((segment) => segment.value === value);
   const tabbable = selected === -1 ? 0 : selected;
+  // E5-Q8: the guards read the last emitted value, never the prop one round trip behind.
+  const { latest, emit } = useLatestChoice(value, onChange);
 
   const moveTo = (index: number) => {
     const target = segments[(index + segments.length) % segments.length]!;
     refs.current.get(target.value)?.focus();
-    if (!readOnly && target.value !== value) onChange(target.value);
+    if (!readOnly && target.value !== latest.current) emit(target.value);
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
@@ -88,7 +91,7 @@ function ConclusionPair<T extends string>({
       case 'Delete':
       case 'Backspace':
         event.preventDefault();
-        if (!readOnly && value !== null) onChange(null);
+        if (!readOnly && latest.current !== null) emit(null);
         return;
       default:
         return;
@@ -118,7 +121,7 @@ function ConclusionPair<T extends string>({
           }}
           onClick={() => {
             // A re-tap of the chosen segment never un-marks it (a glove double-tap).
-            if (!readOnly && segment.value !== value) onChange(segment.value);
+            if (!readOnly && segment.value !== latest.current) emit(segment.value);
           }}
           onKeyDown={(event) => onKeyDown(event, index)}
         >

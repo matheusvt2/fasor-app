@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { emptySheet, type BlockRow, type FileRow, type LocationRow } from '../schemas/entities.ts';
 import { opFactory, TEST_COMPANY, TEST_RELATORIO, TEST_USER } from '../test-support.ts';
-import { applyOp, entityKey, readPath, targetsOf, type EntityState } from './apply.ts';
+import { applyOp, entityKey, readPath, SeedPathError, targetsOf, type EntityState } from './apply.ts';
 import type { Op } from './op.ts';
 
 const LOC = '019966b0-0004-7000-8000-000000000001';
@@ -381,6 +381,31 @@ describe('E3-A3 assertSeedPath: sheet writes checked against getDefinition', () 
     expect(() =>
       applyOp(state([key, sectionBlock]), f.op({ path: `sheet/${B1}/nameplate/tensao_nominal`, value: '1' })),
     ).toThrow(/block_type "section_1"/);
+  });
+
+  it('E5-Q1 types every seed-path refusal as a SeedPathError carrying the op path', () => {
+    const f = opFactory();
+    const tp = { ...block(B1), block_type: 'tp' };
+    const sectionBlock = { ...block(B1), block_type: 'section_1' };
+    const cases: [BlockRow, string][] = [
+      [block(B1), `sheet/${B1}/nameplate/nao_existe`],
+      [block(B1), `sheet/${B1}/checklist/nao_existe/result`],
+      [block(B1), `sheet/${B1}/test/nao_existe/instrument`],
+      [block(B1), `sheet/${B1}/test/isolacao/cell/6/0`],
+      [block(B1), `sheet/${B1}/test/isolacao/cell/5/1`],
+      [tp, `sheet/${B1}/test/relacao_transformacao/cell/0/2`],
+      [sectionBlock, `sheet/${B1}/test/isolacao/instrument`],
+    ];
+    for (const [row, path] of cases) {
+      const op = f.op({ path, value: '1' });
+      expect(() => applyOp(state([key, row]), op)).toThrow(SeedPathError);
+      try {
+        applyOp(state([key, row]), op);
+      } catch (error) {
+        expect((error as SeedPathError).name).toBe('SeedPathError');
+        expect((error as SeedPathError).path).toBe(path);
+      }
+    }
   });
 
   it('never checks sheet/conclusion or sheet/observations against a seed key (they carry none)', () => {

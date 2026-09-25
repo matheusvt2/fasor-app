@@ -105,7 +105,81 @@ describe('5.8-UNIT composeConclusion', () => {
     );
     const cabos = getDefinition('v1', 'cabine_primaria', 'cabos_entrada');
     const c = block({}, { block_type: 'cabos_entrada', config: defaultBlockConfig('v1', 'cabos_entrada') });
-    expect(composeConclusion(c, cabos, 'CB-ENT').text).toMatch(/^Os cabos de entrada CB-ENT apresentaram /);
+    expect(composeConclusion(c, cabos, 'CB-ENT').text).toMatch(/^Os cabos de entrada CB-ENT não apresentaram /);
+  });
+
+  it('E5-Q4 states only what exists: no judged reading, no C row, or neither, plural nouns included', () => {
+    const notMeasured = (): Sheet['test'] => ({
+      isolacao: { cells: Object.fromEntries([0, 1, 2, 3, 4, 5].map((row) => [String(row), { '0': cell({ raw: '', unit: 'GΩ', state: 'not_measured' }) }])) },
+    });
+    const allNA = (): Sheet['checklist'] => Object.fromEntries(SEC.checklist!.map((item) => [item.key, { result: cell('NA') }]));
+    // Every capture Não medido and the checklist all NA: neither claim.
+    const neither = composeConclusion(block({ checklist: allNA(), test: notMeasured() }), SEC, 'SEC-C05').text;
+    expect(neither).toBe('A seccionadora SEC-C05 não apresentou valores medidos nem itens verificados registrados.');
+    expect(neither).not.toContain('dentro dos critérios');
+    expect(neither).not.toContain('conformes');
+    // Readings judged, checklist all NA.
+    expect(composeConclusion(block({ checklist: allNA(), test: within() }), SEC, 'SEC-C05').text).toBe(
+      'A seccionadora SEC-C05 apresentou valores medidos dentro dos critérios de aceitação, sem itens verificados registrados.',
+    );
+    // A C row, nothing measured.
+    expect(composeConclusion(block({ checklist: allC(), test: notMeasured() }), SEC, 'SEC-C05').text).toBe(
+      'A seccionadora SEC-C05 apresentou todos os itens verificados conformes, sem valores medidos registrados.',
+    );
+    // An NC row and an out reading always count as present.
+    const out = notMeasured();
+    out.isolacao!.cells['0'] = { '0': measured('330', 'MΩ') };
+    const nc = composeConclusion(block({ checklist: { ...allNA(), contatos: { result: cell('NC') } }, test: out }), SEC, 'SEC-C05').text;
+    expect(nc).toContain('apresentou resistência de isolação mínima de 330 MΩ');
+    expect(nc).toContain(`(item ${contatosIndex}, NC).`);
+    // Every test sub-block disabled: its retained readings are ignored.
+    const config = defaultBlockConfig('v1', 'chave_seccionadora', { subtype: 'manual' }) as { sub_blocks: Record<string, { enabled: boolean }> };
+    const noTests = block(
+      { checklist: allC(), test: within() },
+      { config: { ...config, sub_blocks: { ...config.sub_blocks, isolacao: { enabled: false }, resistencia_contato: { enabled: false } } } },
+    );
+    expect(composeConclusion(noTests, SEC, 'SEC-C05').text).toBe(
+      'A seccionadora SEC-C05 apresentou todos os itens verificados conformes, sem valores medidos registrados.',
+    );
+    // Plural nouns.
+    const cabos = getDefinition('v1', 'cabine_primaria', 'cabos_entrada');
+    const c = block({}, { block_type: 'cabos_entrada', config: defaultBlockConfig('v1', 'cabos_entrada') });
+    expect(composeConclusion(c, cabos, 'CB-ENT').text).toBe('Os cabos de entrada CB-ENT não apresentaram valores medidos nem itens verificados registrados.');
+    const cabosC = block(
+      { checklist: Object.fromEntries(cabos.checklist!.map((item) => [item.key, { result: cell('C') }])) },
+      { block_type: 'cabos_entrada', config: defaultBlockConfig('v1', 'cabos_entrada') },
+    );
+    expect(composeConclusion(cabosC, cabos, 'CB-ENT').text).toBe(
+      'Os cabos de entrada CB-ENT apresentaram todos os itens verificados conformes, sem valores medidos registrados.',
+    );
+  });
+
+  it('E5-Q4 a TTR capture measured with no VAL CALCULADO is a measurement, never judged within the criteria', () => {
+    const tp = getDefinition('v1', 'cabine_primaria', 'tp');
+    const b = block(
+      { test: { relacao_transformacao: { cells: { '0': { '3': measured('120.1', null) } } } } },
+      { block_type: 'tp', config: defaultBlockConfig('v1', 'tp') },
+    );
+    const ratio = evaluateSheetReadings(b, tp).find((t) => t.testKey === 'relacao_transformacao')!.tables[0]!.rows[0]!;
+    expect(ratio.calculated).toBeNull();
+    const text = composeConclusion(b, tp, 'TP-1').text;
+    expect(text).toBe('O TP TP-1 apresentou valores medidos sem comparação com o critério de aceitação, sem itens verificados registrados.');
+    const withC = block(
+      { checklist: Object.fromEntries(tp.checklist!.map((item) => [item.key, { result: cell('C') }])), test: b.sheet.test },
+      { block_type: 'tp', config: defaultBlockConfig('v1', 'tp') },
+    );
+    expect(composeConclusion(withC, tp, 'TP-1').text).toBe(
+      'O TP TP-1 apresentou valores medidos sem comparação com o critério de aceitação e todos os itens verificados conformes.',
+    );
+  });
+
+  it('E5-Q4 the basis recomposes when a C row or a judged reading appears', () => {
+    const allNA = (): Sheet['checklist'] => Object.fromEntries(SEC.checklist!.map((item) => [item.key, { result: cell('NA') }]));
+    const before = composeConclusion(block({ checklist: allNA() }), SEC, 'SEC-C05').basis;
+    const withC = composeConclusion(block({ checklist: { ...allNA(), contatos: { result: cell('C') } } }), SEC, 'SEC-C05').basis;
+    const withReading = composeConclusion(block({ checklist: allNA(), test: within() }), SEC, 'SEC-C05').basis;
+    expect(withC).not.toBe(before);
+    expect(withReading).not.toBe(before);
   });
 
   it('the same evaluation: an out reading drives the field helper, the Com restrições suggestion and the criteria line', () => {

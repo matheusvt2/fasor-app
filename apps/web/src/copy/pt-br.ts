@@ -594,6 +594,10 @@ export const copy = {
     // `60-ficha.html` header Overflow (only the items this story's surface works).
     menuConcluir: 'Concluir ficha',
     menuRenameTag: 'Renomear TAG',
+    // authored: EXPERIENCE.md › Conclusion control, "Limpar" in the sheet Overflow menu (E5-Q17).
+    menuLimparConclusao: 'Limpar conclusão',
+    // authored: E5-Q17, the undo toast after "Limpar conclusão".
+    conclusionCleared: 'Conclusão limpa',
     // `key-sheet-states.html` frame (a): the chip beside the TAG once not tested.
     notTestedChip: 'Não ensaiado',
     // `60-ficha.html` header Overflow's "Marcar não ensaiado" toast, verbatim.
