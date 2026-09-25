@@ -2,10 +2,10 @@
 title: 'Stories 12.5 and 12.6: the v0.9 visual direction and the tap budget as a test'
 type: 'feature'
 created: '2026-09-25'
-status: 'in-review'
+status: 'done'
 baseline_revision: '66fe4107fc45df8dd6fd5b1936be8c63784129ae'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: 'opus'
 dev_effort: 'high'
 context:
@@ -146,3 +146,13 @@ Narrowings (PR body; the coordinator records them): J3 thresholds exceed the sto
 - `docker compose --profile tools run --rm tools pnpm test:unit` -- expected: green.
 - `docker compose --profile tools run --rm tools pnpm exec playwright test e2e/v09-visual.spec.ts e2e/tap-budget.spec.ts e2e/ergonomics.spec.ts e2e/lost-taps.durability.spec.ts` -- expected: green; budget counts printed.
 - `docker compose --profile tools run --rm tools pnpm verify` -- expected: green.
+
+## Auto Run Result
+
+Status: done
+
+- Summary: v0.9 folded into `mockups/tokens.css`/`components.css` (the `-v09.css` files deleted, v0.9 mocks and MOCK-GUIDE repointed, DESIGN.md 0.9.0 with dated strike-throughs, contrast table corrected to measured values), copied byte-identical to `apps/web/src/styles`, `.frame-phone .sum-*` translated in `app.css`; kernel `screenLabel(label)` and `sheetSummaryText(progress, shown?)`; sheet header sentence, sentence-case seed labels (fields, cabine, checklist, subtypes), Sumário App bar = relatório name and v0.9 rows; tests 12.5-E2E-001/002, 5.1-E2E-001 (tap budget, page-level pointerdown/keydown listener, offline) and ERGO-E2E-001 (390 and 768 px), all `@p0` where the stories require; 18 `P-` screenshots from `e2e/p-screens.capture.spec.ts` (`CAPTURE_P=1`).
+- Files: kernel `relatorio/{screen-label,sheet-progress}.ts` (+ tests); web `styles/*`, `surfaces/ficha/{ficha-header,ficha-fields,checklist-section,section-stepper,ficha-surface}.tsx`, `surfaces/relatorio/{sumario-row,sumario-surface}.tsx`, `relatorio.css`, `templates/type-defaults-dialog.tsx`; e2e `tap-budget`, `ergonomics`, `v09-visual`, `p-screens.capture` specs, `support/push-server-ops.ts` (`pushLastNameplate`), sentence-case updates in existing specs; the old ficha "5.1-E2E-001" renamed 5.1-E2E-005.
+- Review: 10 findings; patched 3 medium (Sumário chevron dead tap, ERGO own-box rule, checklist label pin) and 1 low (double formatting in the Measurement table); deferred 3 low (disabled step named in the header, inert `is-done` rule, two sentence-case rules); rejected 2 false and 1 low (reasons in the triage log). Follow-up review: true (two or more medium patches): the integrated Epic 12 review should re-check the chevron tap forwarding on an `aria-hidden` span with touch input.
+- Verification: `pnpm verify` green on the second run (unit 70+86+2 files, api 25 files incl. the DOCX golden, Playwright 88 passed in 8.9 min); the first run failed only on the known flake 3.6-E2E-001, which passed alone. Budget at 768 px offline: J1 9 taps / 36 keystrokes (copied plate), J3 7 taps / 47 keystrokes. ERGO: 0 misses, no exclusions.
+- Residual risks: the current stepper step draws both the v0.8 3 px underline and the v0.9 4 px rule, as the mock's cascade does; the section 9 header row stays narrow at 390 px; screenshots are not compared automatically.
