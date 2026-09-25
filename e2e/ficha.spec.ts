@@ -825,6 +825,101 @@ test('@p0 5.8-E2E-002 "Concluir ficha" lands on the first empty reading, then on
   expect((await outbox(page)).some((row) => row.path === `block/${blockId}/concluded_by`)).toBe(false);
 });
 
+// --- Story 12.1: D-2 section collapse timing and J-15 the mirror -------------------------------
+
+/** A seccionadora plate complete, as the office would push it. */
+const seccionadoraPlate = (relatorioId: string, blockId: string): OpDraft[] =>
+  SECCIONADORA.nameplate.map((f) =>
+    officeDraft(account, { relatorioId }, `sheet/${blockId}/nameplate/${f.key}`, f.kind === 'number' ? { raw: '630', unit: f.unit ?? null, state: 'measured' } : f.kind === 'date' ? '2020-01-01' : f.kind === 'select' ? f.options![0] : 'X'),
+  );
+const stepHost = (page: Page, step: string) => page.locator(`#ficha-step-${step}`);
+
+test('@p0 12.1-E2E-007 D-2: the NC chip completing the checklist keeps it open; a pointer focus below leaves it open; the stepper collapses it; an out-of-limit Ensaios step never collapses', async ({ page }) => {
+  test.setTimeout(150_000);
+  const { relatorioId } = await openRelatorio(page, 1280);
+  await openEnel(page);
+  const target = await rowIds(rowOfType(page, 'Chave seccionadora'));
+  const items = SECCIONADORA.checklist!;
+  const cells = SECCIONADORA.tests.flatMap((t) => cellAddressesOf(SECCIONADORA, t.key));
+  // Plate and readings complete (isolação T1 330 MΩ, below the >400 MΩ criterion), every
+  // checklist item C but the first, NC with no observation; the conclusion pair unset.
+  await pushDrafts(page, database, [
+    ...seccionadoraPlate(relatorioId, target.blockId),
+    ...items.slice(1).map((item) => officeDraft(account, { relatorioId }, `sheet/${target.blockId}/checklist/${item.key}/result`, 'C')),
+    officeDraft(account, { relatorioId }, `sheet/${target.blockId}/checklist/${items[0]!.key}/result`, 'NC'),
+    ...cells.map((c, i) =>
+      officeDraft(
+        account,
+        { relatorioId },
+        `sheet/${target.blockId}/test/${c.testKey}/cell/${c.row}/${c.col}`,
+        i === 0 ? { raw: '330', unit: 'MΩ', state: 'measured' } : c.testKey === 'isolacao' ? { raw: '150', unit: 'GΩ', state: 'measured' } : { raw: '100', unit: 'µΩ', state: 'measured' },
+      ),
+    ),
+  ]);
+  await syncNow(page);
+  await openEnel(page);
+  await openSheet(page, rowOfType(page, 'Chave seccionadora'));
+  await expect(stepper(page).getByRole('button', { name: 'Verificações, 1 faltando' })).toHaveAttribute('aria-current', 'step');
+  await expect(stepper(page).getByRole('button', { name: 'Ensaios, 0 faltando' })).toBeVisible();
+
+  // Leave the checklist by the stepper while it still misses the observation: it stays open.
+  await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
+  await expect(stepper(page).getByRole('button', { name: /^Ensaios,/ })).toHaveAttribute('aria-current', 'step');
+  await expect(stepHost(page, 'verificacoes')).not.toHaveClass(/is-collapsed/);
+
+  // The NC chip fills the last observation: the checklist completes and stays expanded.
+  const phrase = items[0]!.nc_phrases[0]!;
+  await checklistRow(page, 1).getByRole('group', { name: 'Observações sugeridas do item 1' }).getByRole('button', { name: phrase }).click();
+  await expect(page.getByLabel('Observação do item 1', { exact: true })).toHaveValue(phrase);
+  await expect(stepper(page).getByRole('button', { name: 'Verificações, 0 faltando' })).toHaveAttribute('aria-current', 'step');
+  await expect(stepHost(page, 'verificacoes')).not.toHaveClass(/is-collapsed/);
+  await expect(page.getByLabel('Observação do item 1', { exact: true })).toBeVisible();
+
+  // A pointer focus in the section below makes it current but never collapses the one above.
+  await resultGroup(page).getByRole('radio', { name: 'Aprovado' }).click();
+  await expect(stepper(page).getByRole('button', { name: /^Conclusão,/ })).toHaveAttribute('aria-current', 'step');
+  await expect(stepHost(page, 'verificacoes')).not.toHaveClass(/is-collapsed/);
+
+  // The complete Ensaios step holds an amber reading: left by the stepper, it stays open.
+  await stepper(page).getByRole('button', { name: /^Ensaios,/ }).click();
+  await expect(stepper(page).getByRole('button', { name: /^Ensaios,/ })).toHaveAttribute('aria-current', 'step');
+  await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
+  await expect(stepper(page).getByRole('button', { name: /^Conclusão,/ })).toHaveAttribute('aria-current', 'step');
+  await expect(stepHost(page, 'ensaios')).not.toHaveClass(/is-collapsed/);
+  await expect(cellBox(page, 'isolacao:0:0').locator('.measurement-field')).toHaveAttribute('data-state', 'out-of-limit');
+
+  // The complete checklist, left by the stepper: it collapses to its head.
+  await stepper(page).getByRole('button', { name: /^Verificações,/ }).click();
+  await expect(stepper(page).getByRole('button', { name: /^Verificações,/ })).toHaveAttribute('aria-current', 'step');
+  await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
+  await expect(stepHost(page, 'verificacoes')).toHaveClass(/is-collapsed/);
+  await expect(checklistRow(page, 1)).toBeHidden();
+  await expect(page.getByRole('heading', { name: 'Verificações gerais' })).toBeVisible();
+});
+
+test('@p1 12.1-E2E-008 J-15: once the checklist is complete the Sticky action bar drops its bulk mirror; the list head keeps the disabled action with its reason', async ({ page }) => {
+  test.setTimeout(120_000);
+  const { relatorioId } = await openRelatorio(page, 1280);
+  await openEnel(page);
+  const target = await rowIds(rowOfType(page, 'Chave seccionadora'));
+  const items = SECCIONADORA.checklist!;
+  await pushDrafts(page, database, items.slice(0, -1).map((item) => officeDraft(account, { relatorioId }, `sheet/${target.blockId}/checklist/${item.key}/result`, 'C')));
+  await syncNow(page);
+  await openEnel(page);
+  await openSheet(page, rowOfType(page, 'Chave seccionadora'));
+  await stepper(page).getByRole('button', { name: /^Verificações,/ }).click();
+  const mirror = page.locator('.sticky-action-bar .bulk-action-bar');
+  await expect(mirror.getByRole('button', { name: 'Marcar os restantes como Conforme' })).toBeVisible();
+
+  await checklistRow(page, items.length).getByRole('radio', { name: 'Conforme', exact: true }).click();
+  await expect(stepper(page).getByRole('button', { name: 'Verificações, 0 faltando' })).toBeVisible();
+  await expect(mirror).toHaveCount(0);
+  await expect(page.locator('.sticky-action-bar')).not.toContainText('Todos os itens já estão marcados');
+  const head = page.locator('#ficha-step-verificacoes .bulk-action-bar');
+  await expect(head.getByRole('button', { name: 'Marcar os restantes como Conforme' })).toHaveAttribute('aria-disabled', 'true');
+  await expect(head.getByText('Todos os itens já estão marcados')).toBeVisible();
+});
+
 test('@p0 5.3-E2E-002 carry-over: "3.3", a pause, "00" in a nameplate number reads 3.300 while focused, after the blur and after a reload', async ({ page }) => {
   test.setTimeout(120_000);
   await openRelatorio(page, 1280);

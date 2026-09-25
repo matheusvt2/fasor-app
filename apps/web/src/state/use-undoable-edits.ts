@@ -42,6 +42,14 @@ export interface UndoableEdits {
    * refused value for the next blur), so one refusal is said once.
    */
   write: (run: () => Promise<string | null>, options?: { quiet?: boolean }) => Promise<string | null>;
+  /**
+   * Story 12.1: a typed field's commit on the same serial queue (no undo, no toast of its
+   * own: `useFieldCommit` raises the refused-write toast and keeps the value, so a rejection
+   * is only rethrown). A later edit therefore reads the typed value, and the commit retires
+   * only an undo toast that was already standing when it began, never one an edit queued
+   * before it raised meanwhile (the bulk action's fresh "Desfazer").
+   */
+  commit: (run: () => Promise<void>) => Promise<void>;
   /** Shows `text` with the undo action for `batchId` (nothing for a null batch). */
   undoable: (text: string, batchId: string | null, options: UndoOptions) => void;
   /** Takes the live undo toast away now (typing over what it would undo, before the autosave lands). */
@@ -55,8 +63,8 @@ export function useUndoableEdits(): UndoableEdits {
   const { showToast, dismissToast, toast } = useToast();
   const queue = useRef<Promise<unknown>>(Promise.resolve());
 
-  /** The live undo toast, by its text; null once retired or pressed. */
-  const undoToast = useRef<string | null>(null);
+  /** The live undo toast (one object per toast, so two with the same text differ); null once retired or pressed. */
+  const undoToast = useRef<{ text: string } | null>(null);
   /** The last toast this surface showed (undo or plain), by its text. */
   const ownToast = useRef<string | null>(null);
   const shownToast = useRef(toast);
@@ -77,7 +85,7 @@ export function useUndoableEdits(): UndoableEdits {
   }, []);
 
   const retire = useCallback(() => {
-    if (undoToast.current !== null && shownToast.current?.text === undoToast.current) dismissRef.current();
+    if (undoToast.current !== null && shownToast.current?.text === undoToast.current.text) dismissRef.current();
     undoToast.current = null;
   }, []);
 
@@ -105,10 +113,20 @@ export function useUndoableEdits(): UndoableEdits {
     [enqueue, retire, notify],
   );
 
+  const commit = useCallback(
+    (run: () => Promise<void>): Promise<void> =>
+      enqueue(async () => {
+        const standing = undoToast.current;
+        await run();
+        if (standing !== null && undoToast.current === standing) retire();
+      }),
+    [enqueue, retire],
+  );
+
   const undoable = useCallback(
     (text: string, batchId: string | null, options: UndoOptions) => {
       if (batchId === null || db === null) return;
-      undoToast.current = text;
+      undoToast.current = { text };
       notify(text, {
         action: {
           label: options.label,
@@ -123,5 +141,5 @@ export function useUndoableEdits(): UndoableEdits {
     [db, enqueue, notify],
   );
 
-  return useMemo(() => ({ write, undoable, retire, notify }), [write, undoable, retire, notify]);
+  return useMemo(() => ({ write, commit, undoable, retire, notify }), [write, commit, undoable, retire, notify]);
 }

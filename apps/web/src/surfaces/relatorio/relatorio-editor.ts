@@ -39,10 +39,15 @@ export interface RelatorioEditor {
   /** A toast with "Desfazer"; `focus` names where the focus goes once the undo has landed, `onUndo` runs as it starts. */
   undoable: (text: string, batchId: string | null, focus?: () => HTMLElement | null, onUndo?: () => void) => void;
   /**
+   * Story 12.1: one typed field's ops, committed on the same serial queue as `edit` (no
+   * undo, no toast; rejects on a refused write, which `useFieldCommit` reports). It retires
+   * a "Desfazer" toast that was standing when it began (the toast's undo would otherwise put
+   * a value the engineer corrected back), never one raised by an edit queued before it.
+   */
+  commit: (drafts: OpDraft[]) => Promise<void>;
+  /**
    * Dismisses a live "Desfazer" toast, the same way `edit` does after every commit of its
-   * own: a caller that commits outside `edit` (a typed field's direct `commitBatch`, Story
-   * 5.1's `FichaApi.commit`) must retire it too, or the toast's undo would put a value the
-   * engineer already corrected back to what a copy or bulk action left behind.
+   * own (typing over what it would undo, before the autosave lands).
    */
   retireUndo: () => void;
   /**
@@ -101,6 +106,16 @@ export function useRelatorioEditor(relatorioId: string, projectId: string): Rela
         return (await commitBatch(db, drafts, { newId, now })).batch_id;
       }),
     [write, db, author, relatorioId, projectId],
+  );
+
+  const { commit: queueCommit } = edits;
+  const commit = useCallback(
+    (drafts: OpDraft[]): Promise<void> =>
+      queueCommit(async () => {
+        if (db === null) return;
+        await commitBatch(db, drafts, { newId, now });
+      }),
+    [queueCommit, db],
   );
 
   // `settle`: one edit waits to be drawn at a time; a newer one says the older at once.
@@ -165,7 +180,7 @@ export function useRelatorioEditor(relatorioId: string, projectId: string): Rela
   // One object while its members hold, so the tree's context and its action callbacks keep
   // their identity between renders.
   return useMemo(
-    () => ({ author, edit, announce, announcement, undoable, settle, settleCheck, retireUndo }),
-    [author, edit, announce, announcement, undoable, settle, settleCheck, retireUndo],
+    () => ({ author, edit, commit, announce, announcement, undoable, settle, settleCheck, retireUndo }),
+    [author, edit, commit, announce, announcement, undoable, settle, settleCheck, retireUndo],
   );
 }

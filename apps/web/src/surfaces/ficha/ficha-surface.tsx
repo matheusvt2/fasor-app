@@ -17,6 +17,7 @@ import {
   railHeadText,
   sheetOrder,
   sheetProgress,
+  stepMayCollapse,
   tagRenamedText,
   tagTakenText,
   tagVerdict,
@@ -36,12 +37,11 @@ import { useNavigate, useParams } from 'react-router';
 import { type OverflowMenuAction } from '../../components/index.ts';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
-import { commitBatch } from '../../db/commit.ts';
 import { instrumentRows, manufacturerRows, voltageClassRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { writeLastSheet } from '../../db/prefs.ts';
 import { localUsers } from '../../db/sync-store.ts';
-import { newId } from '../../ids.ts';
+import { isPointerModality, useHeldWhilePressed } from '../../input/press-hold.ts';
 import { usePageTitle } from '../../state/page-title.tsx';
 import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
@@ -93,7 +93,10 @@ export function FichaSurface() {
   );
 }
 
-function Ficha({ relatorioId, blockId, state }: { relatorioId: string; blockId: string; state: EntityState }) {
+function Ficha({ relatorioId, blockId, state: live }: { relatorioId: string; blockId: string; state: EntityState }) {
+  // Story 12.1 (J-01): the rows as they were when a finger went down, until it comes up, so
+  // a commit landing mid-press never moves the pressed control (`input/press-hold.ts`).
+  const state = useHeldWhilePressed(live);
   const snapshot: RelatorioSnapshot = useMemo(() => buildSnapshot(state, relatorioId), [state, relatorioId]);
   const block = snapshot.blocks.find((row) => row.id === blockId && isEquipmentBlock(row)) ?? null;
   const definition = useMemo<BlockDefinition | null>(() => {
@@ -203,15 +206,10 @@ function FichaBody({
       projectId,
       blockId,
       author: editor.author,
-      commit: async (drafts: OpDraft[]) => {
-        if (db === null) return;
-        await commitBatch(db, drafts, { newId, now });
-        // A typed field's commit bypasses the edit queue, so it must retire a stale
-        // undo toast itself, or "Desfazer" on an earlier copy/bulk action would put
-        // this newer value back (Batch A review finding).
-        editor.retireUndo();
-        saved();
-      },
+      // Story 12.1: a typed value joins the relatório's one edit queue, so a tap's edit
+      // queued after its blur or Enter commit reads it, and the commit retires only a
+      // "Desfazer" toast standing before it began (never the tap's own fresh toast).
+      commit: (drafts: OpDraft[]) => editor.commit(drafts).then(saved),
       edit: (build: Build) =>
         editor.edit(build).then((batch) => {
           if (batch !== null) saved();
@@ -220,27 +218,39 @@ function FichaBody({
       undoable: editor.undoable,
       announce: editor.announce,
     }),
-    [relatorioId, projectId, blockId, editor, db, saved],
+    [relatorioId, projectId, blockId, editor, saved],
   );
   const bulk = useChecklistBulk(api, snapshot, block, equipment);
 
   // --- the steps: the current one, the ones left complete (collapsed), the jump -----------
+  // D-2 (`source-deltas.md` 2026-09-24): a complete section collapses when the engineer
+  // leaves it (a stepper tap, or the keyboard -- Tab, the Enter run -- moving the focus into
+  // another section), never in reaction to a tap: a pointer focus arriving in another
+  // section makes it current but leaves the previous one open, and a section holding a
+  // reading out of its criterion never collapses (`stepMayCollapse`, the kernel's rule).
   const [current, setCurrentStep] = useState<SheetStep>(() => progress.firstIncompleteStep ?? 'placa');
   const [left, setLeft] = useState<ReadonlySet<SheetStep>>(() => new Set());
   const [revealed, setRevealed] = useState(false);
   const setCurrent = useCallback(
-    (step: SheetStep) => {
+    (step: SheetStep, leaving: boolean) => {
       if (step === current) return;
-      setLeft((before) => new Set(before).add(current));
+      setLeft((before) => {
+        const after = new Set(before);
+        after.delete(step);
+        if (leaving) after.add(current);
+        return after;
+      });
       setCurrentStep(step);
     },
     [current],
   );
-  const collapsed = (step: SheetStep) => step !== current && left.has(step) && progress.steps[step].missing === 0;
+  /** A focus arriving in `step`: leaving the previous step only when it came from the keyboard. */
+  const focusIn = (step: SheetStep) => setCurrent(step, !isPointerModality());
+  const collapsed = (step: SheetStep) => step !== current && left.has(step) && stepMayCollapse(progress, step);
 
   /** Scrolls to a step and expands it; with `missing`, focuses its first missing field. */
   const goTo = (step: SheetStep, missing: boolean) => {
-    setCurrent(step);
+    setCurrent(step, true);
     if (step === 'placa' && missing) setRevealed(true);
     const land = () => {
       const host = document.getElementById(`ficha-step-${step}`);
@@ -277,25 +287,39 @@ function FichaBody({
     else void navigate(`/relatorio/${relatorioId}/ficha/${next.blockId}`);
   };
 
-  const conclude = () => {
-    if (!progress.complete) {
-      editor.announce(t.incomplete);
-      goTo(progress.firstIncompleteStep ?? 'placa', true);
-      return;
-    }
+  /**
+   * "Concluir ficha" (Story 12.1): completeness is decided on the fresh rows inside the
+   * edit, which runs after the commit of the value typed just before (the one queue), never
+   * on this render's progress, which may predate that commit. `otherwise` runs when the
+   * fresh rows are not complete: the menu and a primary labelled "Concluir ficha" say so and
+   * jump to the first missing field; a primary still labelled "Próxima ficha" moves on.
+   */
+  const conclude = (otherwise: 'jump' | 'next' = 'jump') => {
     if (block.concluded_by !== null) {
       goNext();
       return;
     }
+    let firstMissing: SheetStep | null = null;
     void api
       .edit((blocks, by) => {
         const fresh = blocks.find((row) => row.id === blockId && row.removed_at === null);
-        if (fresh === undefined || fresh.concluded_by !== null) return null;
-        if (!sheetProgress({ blocks }, blockId).complete) return null;
+        if (fresh === undefined || fresh.concluded_by !== null || fresh.not_tested !== null) return null;
+        const freshProgress = sheetProgress({ blocks }, blockId);
+        if (!freshProgress.complete) {
+          firstMissing = freshProgress.firstIncompleteStep ?? 'placa';
+          return null;
+        }
         return [concludedByOp(by, relatorioId, blockId, toIso(now()))];
       })
       .then((batch) => {
-        if (batch === null) return;
+        if (batch === null) {
+          if (otherwise === 'next') goNext();
+          else if (firstMissing !== null) {
+            editor.announce(t.incomplete);
+            goTo(firstMissing, true);
+          }
+          return;
+        }
         showToast(t.concluded);
         goNext();
       })
@@ -304,6 +328,9 @@ function FichaBody({
 
   const concludable = progress.complete && block.concluded_by === null && block.not_tested === null;
   const primaryLabel = concludable ? t.concluir : next.kind === 'ficha' ? t.proximaFicha : next.kind === 'coluna' ? t.proximaColuna : t.voltarRelatorio;
+  // An open sheet's primary concludes on the fresh rows: right after the last value is typed
+  // this render may still say "Próxima ficha" (the commit has not been drawn yet).
+  const primary = block.concluded_by === null && block.not_tested === null ? () => conclude(concludable ? 'jump' : 'next') : goNext;
 
   // --- the header -----------------------------------------------------------------------
   const [renaming, setRenaming] = useState(false);
@@ -314,7 +341,7 @@ function FichaBody({
   const concludedName = block.concluded_by === null ? null : nameOf(block.concluded_by.actor_id);
   const concludedBy = block.concluded_by === null || concludedName === null ? null : concludedByText(concludedName, block.concluded_by.at);
   const menu: OverflowMenuAction[] = [];
-  if (block.concluded_by === null && block.not_tested === null) menu.push({ id: 'concluir', label: t.menuConcluir, onAction: conclude });
+  if (block.concluded_by === null && block.not_tested === null) menu.push({ id: 'concluir', label: t.menuConcluir, onAction: () => conclude() });
   if (block.equipment_id !== null) menu.push({ id: 'rename-tag', label: t.menuRenameTag, onAction: () => setRenaming(true) });
   if (block.not_tested === null) menu.push({ id: 'nao-ensaiado', label: copy.sumario.tree.markNotTested, onAction: () => setNotTestedDialogOpen(true) });
   // E5-Q17 (EXPERIENCE › Conclusion control: "Limpar" via Delete/Backspace or the sheet
@@ -453,7 +480,7 @@ function FichaBody({
           <SheetReadOnlyProvider value={block.not_tested !== null}>
             <div className="content">
               {block.not_tested === null ? null : <NotTestedBand api={api} block={block} />}
-              <div id="ficha-step-placa" className={stepClass('placa')} data-step="placa" tabIndex={-1} onFocus={() => setCurrent('placa')}>
+              <div id="ficha-step-placa" className={stepClass('placa')} data-step="placa" tabIndex={-1} onFocus={() => focusIn('placa')}>
                 {cabine === null ? null : <CabineBlock api={api} snapshot={snapshot} cabine={cabine} editable={cabineFirst} />}
                 {enabled.has('nameplate') ? (
                   <NameplateSection
@@ -468,7 +495,7 @@ function FichaBody({
                   />
                 ) : null}
               </div>
-              <div id="ficha-step-verificacoes" className={stepClass('verificacoes')} data-step="verificacoes" tabIndex={-1} onFocus={() => setCurrent('verificacoes')}>
+              <div id="ficha-step-verificacoes" className={stepClass('verificacoes')} data-step="verificacoes" tabIndex={-1} onFocus={() => focusIn('verificacoes')}>
                 <ChecklistSection
                   api={api}
                   snapshot={snapshot}
@@ -488,17 +515,19 @@ function FichaBody({
                 definition={definition}
                 instruments={instruments}
                 className={stepClass('ensaios')}
-                onFocus={() => setCurrent('ensaios')}
+                onFocus={() => focusIn('ensaios')}
                 primaryId={PRIMARY_ID}
               />
-              <ConclusaoSection api={api} block={block} definition={definition} tag={tag} className={stepClass('conclusao')} onFocus={() => setCurrent('conclusao')} />
+              <ConclusaoSection api={api} block={block} definition={definition} tag={tag} className={stepClass('conclusao')} onFocus={() => focusIn('conclusao')} />
             </div>
           </SheetReadOnlyProvider>
           <StickyActionBar
             stepper={<SectionStepper progress={progress} current={current} onGo={(step) => goTo(step, false)} />}
-            secondary={checklistOnScreen && definition.checklist !== null && block.not_tested === null ? <BulkActionBar bulk={bulk} compact /> : null}
+            // J-15: with nothing left to mark the mirror goes (no disabled button in the bar);
+            // the list head keeps its disabled action with the reason.
+            secondary={checklistOnScreen && definition.checklist !== null && block.not_tested === null && bulk.unset > 0 ? <BulkActionBar bulk={bulk} compact /> : null}
             primaryLabel={primaryLabel}
-            onPrimary={concludable ? conclude : goNext}
+            onPrimary={primary}
             primaryId={PRIMARY_ID}
           />
         </div>
