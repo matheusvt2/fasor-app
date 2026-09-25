@@ -2,10 +2,10 @@
 title: 'Story 6.6: points of attention that print as section 8, with untested equipment listing itself'
 type: 'feature'
 created: '2026-09-25'
-status: 'in-review'
+status: 'done'
 baseline_revision: '324d8c31ed87d03266220c4cd9b72dc6d1b10154'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: medium
 context:
@@ -162,3 +162,19 @@ Layers run: Edge Case Hunter, Verification Gap. Skipped: Blind Hunter, Intent Al
 - `docker compose --profile tools run --rm tools pnpm test:api` -- green
 - `docker compose --profile tools run --rm tools pnpm exec playwright test e2e/points.spec.ts --project=desktop-chrome` -- green
 - `docker compose --profile tools run --rm tools pnpm verify > /tmp/verify-s6p3.log 2>&1` -- exit 0 (orchestrator runs this once at the end)
+
+## Auto Run Result
+
+Status: done
+
+**Summary:** Story 6.6 built. Point row gains `action` plus no-UI `priority`, `deadline`, `owner`; contract 4; kernel `packages/domain/src/points/` (photo tokens, derived untested entries and their grouping, section 8 order, row 8 summary, card texts) and `photos/numbering.ts`; seed v3 with four recurring findings; `preIssue` rows `points_sem_acao` and `point_photo_removed`; Sumário row 8 opens the new Points surface (`/relatorio/:id/pontos`) with the point editor, photo picker, quick chips and reorder; "Criar ponto de atenção" on the NC row and the untested sheet's band.
+
+**Files changed:** kernel (`schemas/entities.ts`, `contract/version.ts`, `points/*`, `photos/numbering.ts`, `relatorio/{ops,pre-issue,sumario}.ts`, `seed/{schema,definitions,v3}.ts`); web (`surfaces/points/*`, `surfaces/ficha/{checklist-section,not-tested-band,ficha-surface}.tsx`, `surfaces/relatorio/sumario-*`, `db/{home-store,photo-store}.ts`, section text editor and its hook widened for photo chips, `copy/pt-br.ts`, `styles/app.css`); api `sync/points.integration.test.ts`; `e2e/points.spec.ts`; `deferred-work.md`.
+
+**Review:** 13 findings; 5 patched (3 medium, 2 low), 2 deferred (frontmatter `deferred`), 6 rejected with reasons in the triage log.
+
+**Follow-up review recommended:** true — three medium entries were patched in one pass; the unverified risk is the editor state across concurrent removes and the retested-count rule, both left to the integrated Epic 6 review (no second loop, token economy).
+
+**Verification:** `pnpm verify` green in the tools container: domain 1106, web 835, tooling 20, api 150, Playwright 102 `@p0` passed (e2e 16.4 min under two parallel batches). An earlier gate run failed one web unit test (`setup-surface.test.tsx`, unchecking an instrument before the live query re-rendered it); fixed by waiting for the checked state.
+
+**Residual risks:** batch P2 may add its own `numberPhotos` and touch `photo-store.ts`, the seed and `sumario-surface.tsx`; the coordinator keeps one at merge.
