@@ -2,7 +2,7 @@
 title: 'Stories 12.3 and 12.4: the sheet repeats nothing, the plate and the NC in fewer taps'
 type: 'feature'
 created: '2026-09-25'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'f027678e9915a39a06b0af0640c2e6e3823bd8ad'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -154,3 +154,13 @@ deferred:
 - `docker compose --profile tools run --rm tools pnpm test:unit` -- expected: green.
 - `docker compose --profile tools run --rm tools pnpm exec playwright test e2e/sheet-knows-12-3-12-4.spec.ts e2e/journeys-12-3-12-4.spec.ts e2e/lost-taps.durability.spec.ts` -- expected: green; journey counts printed.
 - `docker compose --profile tools run --rm tools pnpm verify` -- expected: green.
+
+## Auto Run Result
+
+Status: done
+
+- Summary: seed v2 (`per_unit` on IDENTIFICAÇÃO, Nº SÉRIE, TAG; third Não ensaiado reason "Equipamento inacessível"; `SEED_VERSION = 'v2'`); kernel `suggestedInstrument`, `suggestedInstruments`, `cabineProgress`, `cabineMissingText`, `cabineLineText`, `nameplateTagPrefill`, `suggestedSheetObservation`, wider `sheetProgress`, preIssue `cabine_incompleta`, tree `metaMissing`; sheet: one-line cabine block with "Editar" editable from any sheet, instrument Suggestion confirmed by "Concluir ficha", nameplate fields always visible with TAG prefilled, "Outro…" focuses its combobox, suggested sheet observation, Não ensaiado dialog with no preselection and required Outro text.
+- Files: 54 (kernel `packages/domain/src/relatorio/{cabine,instrument-pick,nameplate-copy,sheet-progress,conclusion,pre-issue,tree,sumario}.ts`, `seed/{schema,v2,definitions}.ts`; web `surfaces/ficha/{cabine-block,nameplate-section,instrument-picker,conclusao-section,ficha-surface}.tsx`, `components/{registry-picker-field,chip}.tsx`, `surfaces/relatorio/{not-tested-dialog,relatorio-tree}.tsx`, `copy/pt-br.ts`, `styles/app.css`; e2e `sheet-knows-12-3-12-4.spec.ts` (@p0), `journeys-12-3-12-4.spec.ts` (@p1), updates to existing specs).
+- Review: 18 findings; 13 patched (7 medium, 6 low incl. one maybe-false resolved by the cabine patch), 1 deferred (prefilled TAG never written), 5 rejected (1 false, 4 low; reasons in the triage log). Follow-up review: false (no high patched; the integrated Epic 12 review follows).
+- Verification: `pnpm verify` green (lint, static, unit 69+85+2 files, api 25 files, Playwright 85 passed). Journeys at 768 px: J1 21 taps / 83 keys; J3 7 taps / 47 keys (2 taps, 11 keys for the per-unit fields); J2 one chip, 0 keys in the observation.
+- Residual risks: J3's "at most 5 taps" cannot hold with D-3 (IDENTIFICAÇÃO and Nº SÉRIE are required and never copied): 5 taps without them; a new relatório opens with every cabine incomplete, so the cabine block is expanded on every sheet until filled; existing v1 templates keep producing v1 relatórios.
