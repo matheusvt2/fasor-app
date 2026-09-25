@@ -142,7 +142,7 @@ development_status:
   11-10-print-the-action-plan-table-in-section-8-post-mvp-before-202: backlog
   epic-11-retrospective: optional
   epic-12: in-progress  # journey review 2026-09-24; runs before Epic 6, confirmed by Matheus (sprint-change-proposal-2026-09-24.md)
-  12-1-no-tap-is-ever-lost-and-a-section-never-collapses-under-the: backlog
+  12-1-no-tap-is-ever-lost-and-a-section-never-collapses-under-the: done  # PR #36
   12-2-forward-never-back-resume-in-one-tap-and-no-dead-ends: done  # PR #35
   12-3-the-sheet-repeats-nothing-the-cabine-or-the-relatorio-alread: backlog
   12-4-the-plate-and-the-nc-in-fewer-taps: backlog
