@@ -384,6 +384,8 @@ Rule of thumb used: `fable` for kernel invariants and the renderer, where a wron
 
 *2026-09-24, Matheus: fable is no longer used for new work because Opus 5.5 performs better. Every story not yet built that named fable now names opus at the same effort; the stories already built on fable (1.4, 1.5, 4.1) keep their line as the record of the model they ran on.*
 
+*2026-09-24, Matheus: the effort floor is medium; low is too weak for this product. Every story not yet built that said low now says medium (the `bmad-dev-opus-low` agent was removed), and the effort review raised 6.1, 7.2, 7.3, 7.4, 8.5, 9.4, 10.2, 10.3 and 11.8 from medium to high: photo capture, the printed sections of the signed document, digit acceptance, spoken readings, sync conflicts and the cloud deploy are where a wrong decision reaches the client. Built stories keep their line as the record.*
+
 *2026-09-24, Matheus: sonnet is no longer used for new work either; every model choice is opus. Every story not yet built that named sonnet now names opus at the same effort (a new `bmad-dev-opus-low` covers the former sonnet·low stories); the stories already built on sonnet in Epics 1 to 5 keep their line as the record. Investigation and epic-context subagents also run on opus.*
 
 | Model | Stories |
@@ -1606,7 +1608,7 @@ A user shoots bursts from any surface with no composer, imports photos during or
 
 ### Story 6.1: Shoot photos in a burst from any surface, captioned from where I stand
 
-**Dev model:** opus · **Effort:** medium · camera capture, on-device re-encode, EXIF, geolocation and context captions
+**Dev model:** opus · **Effort:** ~~medium~~ high *(2026-09-24, Matheus: effort review)* · camera capture, on-device re-encode, EXIF, geolocation and context captions
 
 As a field engineer,
 I want the camera to open directly from the sticky bar or an NC row and keep shooting until I say stop,
@@ -1709,7 +1711,7 @@ So that Eduardo's twelve photos and my late shots slot into section 7 by their c
 
 ### Story 6.5: Change a caption from chips or free text
 
-**Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** low · caption composer
+**Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** ~~low~~ medium *(2026-09-24, Matheus: effort floor is medium)* · caption composer
 
 As a user,
 I want to open a composer only when I choose to change a caption, with the activity, equipment and location as chips,
@@ -1786,7 +1788,7 @@ So that the client gets the company's own section 9 and I can still edit it in W
 
 ### Story 7.2: Print the photo record and the photos beside their equipment
 
-**Dev model:** opus · **Effort:** medium · section 7 numbering and photos inside sheets
+**Dev model:** opus · **Effort:** ~~medium~~ high *(2026-09-24, Matheus: effort review)* · section 7 numbering and photos inside sheets
 
 As a field engineer,
 I want section 7 numbered automatically in capture order and each equipment's photos inside its own sheet,
@@ -1808,7 +1810,7 @@ So that "conforme Imagem 5" is always right and the evidence sits next to the te
 
 ### Story 7.3: Print the points of attention and the certificates
 
-**Dev model:** opus · **Effort:** medium · section 8 token resolution and section 11 certificate rasterization
+**Dev model:** opus · **Effort:** ~~medium~~ high *(2026-09-24, Matheus: effort review)* · section 8 token resolution and section 11 certificate rasterization
 
 As a field engineer,
 I want section 8 to print my findings as bullets with resolved photo numbers followed by the untested equipment, and section 11 to carry the certificates of every instrument I used,
@@ -1826,7 +1828,7 @@ So that the report is complete without me assembling anything.
 
 ### Story 7.4: Set the parecer and print section 10 with the signature block
 
-**Dev model:** opus · **Effort:** medium · parecer suggestion, composed summary and section 10
+**Dev model:** opus · **Effort:** ~~medium~~ high *(2026-09-24, Matheus: effort review)* · parecer suggestion, composed summary and section 10
 
 As an office user,
 I want to choose the relatório's verdict, confirm a summary composed from its own counts, and see section 10 print the parecer, the fixed bullets, the validity line and the signature block,
@@ -1974,7 +1976,7 @@ So that the whole assist is testable with no cloud account and swapping in a pai
 
 ### Story 8.5: Accept a digit only when the OCR saw it, and check names against the registries
 
-**Dev model:** opus · **Effort:** medium · digit coverage and registry cross-check on the server
+**Dev model:** opus · **Effort:** ~~medium~~ high *(2026-09-24, Matheus: effort review)* · digit coverage and registry cross-check on the server
 
 As a field engineer,
 I want a number the model guessed but the OCR did not see to be flagged instead of offered, and an unknown manufacturer or voltage class to ask me instead of failing,
@@ -2084,7 +2086,7 @@ So that Eduardo's twelve gate photos are captioned in the van, not on Monday.
 
 ### Story 9.4: Dictate a caption, an observation or a reading
 
-**Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** medium · speech engine behind an interface, parsed table utterances
+**Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** ~~medium~~ high *(2026-09-24, Matheus: effort review)* · speech engine behind an interface, parsed table utterances
 
 As a field engineer,
 I want to speak a caption or an observation, or say "Fase A, 147 giga", and see it as a suggestion,
@@ -2135,7 +2137,7 @@ So that splitting a job across two tablets never asks me to arbitrate 94 sheets.
 
 ### Story 10.2: Decide a true cell contradiction, and nothing else
 
-**Dev model:** opus · **Effort:** medium · conflict state, banner and the per-cell Conflict view
+**Dev model:** opus · **Effort:** ~~medium~~ high *(2026-09-24, Matheus: effort review)* · conflict state, banner and the per-cell Conflict view
 
 As a field engineer,
 I want to be asked only when both of us filled the same cell with different values, with both values and their evidence side by side,
@@ -2149,7 +2151,7 @@ So that a decision costs one tap on one row.
 
 ### Story 10.3: Resolve a removed-versus-edited block and a duplicate TAG
 
-**Dev model:** opus · **Effort:** medium · structure conflicts and duplicate TAG resolution
+**Dev model:** opus · **Effort:** ~~medium~~ high *(2026-09-24, Matheus: effort review)* · structure conflicts and duplicate TAG resolution
 
 As a user,
 I want the two structural cases that cannot merge by rule put to me with the two blocks side by side,
@@ -2185,7 +2187,7 @@ The remaining product scope the slice deferred, the cloud and paid-provider work
 
 ### Story 11.1: Download the PDF beside the DOCX
 
-**Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** low · serve a stored file
+**Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** ~~low~~ medium *(2026-09-24, Matheus: effort floor is medium)* · serve a stored file
 
 As an office user,
 I want the PDF row of the Export dialog and the revision list to download the file the job already stored,
@@ -2241,7 +2243,7 @@ So that the boilerplate prints with the formatting the company form uses.
 
 ### Story 11.5: Turn the photo location stamp on or off
 
-**Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** low · account toggle
+**Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** ~~low~~ medium *(2026-09-24, Matheus: effort floor is medium)* · account toggle
 
 As a user,
 I want a switch in Account for the coordinates on my photos, with the OS denial shown there,
@@ -2283,7 +2285,7 @@ So that nameplates and printed text can use a managed OCR once the AWS account e
 
 ### Story 11.8: Deploy the same images to AWS
 
-**Dev model:** opus · **Effort:** medium · CDK stack for ECS, RDS, S3 and CI promotion
+**Dev model:** opus · **Effort:** ~~medium~~ high *(2026-09-24, Matheus: effort review)* · CDK stack for ECS, RDS, S3 and CI promotion
 
 As a builder,
 I want the docker-compose images to run on AWS managed container services from infrastructure code,
