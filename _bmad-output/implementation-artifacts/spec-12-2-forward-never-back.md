@@ -2,10 +2,10 @@
 title: 'Story 12.2: Forward, never back: resume in one tap and no dead ends'
 type: 'feature'
 created: '2026-09-24'
-status: 'in-review'
+status: 'done'
 baseline_revision: '144a55892a5b86c1ecb7b03ed91589bec03d6910'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: 'opus'
 dev_effort: 'medium'
 context:
@@ -121,3 +121,14 @@ Layers: Edge Case Hunter and Verification Gap Reviewer. Blind Hunter and Intent 
 - `docker compose --profile tools run --rm tools pnpm test:unit` -- expected: green.
 - `docker compose --profile tools run --rm tools pnpm exec playwright test e2e/journey-forward.spec.ts e2e/home.spec.ts --project=desktop-chrome` -- expected: green, J0 and J5 annotations printed.
 - `docker compose --profile tools run --rm tools pnpm verify` -- expected: green.
+
+## Auto Run Result
+
+Status: done
+
+- **Summary:** Home "Continuar" resumes the last or first missing sheet (`resumeTarget`) with the card counter (`homeCards` `counter`); setup "Concluir" goes to the Sumário (section 9 open, toast "Dados salvos"); a sheet's "Voltar" goes to the Sumário with the row focused from 768 px (press-time width check, `RouteTitle.backWide`), `/arvore` below; "Próxima seção" (`nextTextSection`); new-relatório dates default to today (`calendarDateOfInstant`); Etapa 4 "Cadastrar instrumento" round trip through Cadastros with a one-shot arrival state.
+- **Files:** kernel `relatorio/resume.ts` (new), `relatorio/sumario.ts`, `home/cards.ts`, `format/datetime.ts`, `index.ts`; web `app.tsx`, `surfaces/app-shell.tsx`, `state/arrival-state.ts` (new), `copy/pt-br.ts`, home card and surface, setup, Sumário, relatório tree, section text, new-relatório dialog, registries surface and Instrumentos tab; tests `resume.test.ts`, web surface tests, `e2e/journey-forward.spec.ts` (new), `home.spec.ts`, `relatorio.spec.ts`, `support/relatorio-flow.ts`.
+- **Review:** 14 findings; 9 routed to patch (6 entries, all applied: one-shot Cadastros arrival, arrival state cleared from history, no counter flash, three missing tests), 0 deferred, 5 rejected (2 false, 3 low with guards not worth their cost; reasons in the triage log). After the fix pass the Sumário/Cadastros history clearing was changed from a router `navigate(replace)` to an in-place `history.replaceState` (`state/arrival-state.ts`), because the second navigation raced a tap under load (12.2-E2E-002 failed once in the gate at 390 px and passed 3 of 3 alone).
+- **Follow-up review:** recommended (two or more medium entries patched): the arrival-state lifecycle (history rewrite, one-shot Cadastros entry) is the part to re-read in the integrated Epic 12 review.
+- **Verification:** `pnpm verify` green after merging `origin/main` (e546e0e, 07ddc32): lint, static, unit 819 + 758 + 20, api 144, Playwright `@p0` 73 passed. J0 = 1 tap, J5 = 13 taps (10 without the 3 instrument-registration taps), 0 "Voltar".
+- **Residual risks:** the "Continuar" label reads "Continuar" and opens the Sumário for the few milliseconds before the resume query resolves; the width choice of "Voltar" is taken at press time, so a rotation between render and press follows the new width (intended).
