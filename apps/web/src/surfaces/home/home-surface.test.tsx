@@ -1,12 +1,13 @@
 import 'fake-indexeddb/auto';
-import type { RelatorioRow, RelatorioStatus, RelatorioSummary } from '@app/domain';
+import { newEquipmentBlock, type LocationRow, type RelatorioRow, type RelatorioStatus, type RelatorioSummary } from '@app/domain';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 import { useState } from 'react';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { toRecord } from '../../db/commit.ts';
+import { writeLastSheet } from '../../db/prefs.ts';
 import { openDatabase, type AppDatabase } from '../../db/schema.ts';
 import type { SessionState } from '../../state/session.tsx';
 import { SyncContext, type SyncState } from '../../state/sync.tsx';
@@ -140,11 +141,17 @@ const onDevice = (id: string, complete = true) => ({
   last_push_at: [],
 });
 
+/** Where the router is, so a test sees where a press navigated. */
+function Where() {
+  return <p data-testid="where">{useLocation().pathname}</p>;
+}
+
 const renderHome = (sync: SyncState = syncState()) =>
   render(
     <MemoryRouter>
       <SyncContext value={sync}>
         <ToastProvider>
+          <Where />
           <HomeSurface />
           <ToastOutlet />
         </ToastProvider>
@@ -233,14 +240,72 @@ describe('Home: relatório cards', () => {
     const [first, second] = cards();
     expect(first).toHaveAttribute('data-relatorio', R_FIELD_HERE);
     expect(first).toHaveClass('is-current');
-    expect(within(first!).getByRole('button', { name: 'Continuar' })).toHaveAttribute('aria-disabled', 'true');
-    expect(within(first!).getByRole('button', { name: 'Continuar' })).toHaveAccessibleDescription(
-      'Disponível em uma próxima etapa',
-    );
+    // Story 12.2: "Continuar" is live; with no sheet on the relatório it opens the Sumário.
+    expect(within(first!).getByRole('button', { name: 'Continuar' })).not.toHaveAttribute('aria-disabled');
+    expect(first!.querySelector('.btn-reason')).toBeNull();
     // Story 4.3: "Ver sumário" opens the Sumário like the card's own tap.
     expect(within(first!).getByRole('button', { name: 'Ver sumário' })).not.toHaveAttribute('aria-disabled');
     expect(second).not.toHaveClass('is-current');
     expect(within(second!).queryByRole('button', { name: 'Continuar' })).toBeNull();
+    await userEvent.click(within(first!).getByRole('button', { name: 'Continuar' }));
+    expect(screen.getByTestId('where')).toHaveTextContent(`/relatorio/${R_FIELD_HERE}`);
+  });
+
+  it('12.2: "Continuar: ⟨TAG⟩ · n de N" opens the last sheet, else the first sheet still missing something; the card counts its sheets', async () => {
+    database = await freshDb();
+    await seedCompany(database);
+    const cabineId = ids();
+    const cabine: LocationRow = {
+      id: cabineId,
+      relatorio_id: R_FIELD_HERE,
+      parent_id: null,
+      kind: 'cabine',
+      name: 'Cabine 1',
+      order_key: 'a0',
+      removed_at: null,
+      se: { type: null, primary_kv: null, secondary_kv: null, installed_kva: null },
+      env: { altitude_m: null, temperature_c: null, humidity_pct: null },
+      agrupar_por_tipo: false,
+    };
+    const sheet = (tag: string, orderKey: string) =>
+      newEquipmentBlock({
+        blockId: ids(),
+        equipmentId: ids(),
+        relatorioId: R_FIELD_HERE,
+        projectId: PROJECT,
+        locationId: cabineId,
+        type: 'chave_seccionadora',
+        tag,
+        seedVersion: 'v1',
+        orderKey: orderKey,
+      });
+    const first = sheet('SEC-01', 'a0');
+    const second = sheet('SEC-02', 'a1');
+    const done = { ...first.block, concluded_by: { actor_id: 'u1', at: '2026-09-07T11:00:00.000Z' } };
+    await database.entities.bulkPut([
+      toRecord(`relatorio:${R_FIELD_HERE}`, relatorio(R_FIELD_HERE, 'em_campo', 'Torres A e B', '2026-09-06')),
+      toRecord(`location:${cabineId}`, cabine),
+      toRecord(`block:${done.id}`, done),
+      toRecord(`block:${second.block.id}`, second.block),
+      toRecord(`equipment:${first.equipment.id}`, first.equipment),
+      toRecord(`equipment:${second.equipment.id}`, second.equipment),
+    ]);
+    await database.sync_state.put(onDevice(R_FIELD_HERE));
+
+    renderHome();
+    // No pointer: the first sheet still missing something (SEC-01 is concluded).
+    const next = await screen.findByRole('button', { name: 'Continuar: SEC-02 · 1 de 2' });
+    expect(next.querySelector('.tabular')).toHaveTextContent('SEC-02 · 1 de 2');
+    const card = cards()[0]!;
+    expect(card.querySelector('.card-state .progress-counter')).toHaveTextContent('1 de 2 fichas');
+    expect(card.querySelector('.card-state .progress-counter')).toHaveAttribute('data-state', 'pending');
+    expect(card.querySelector('.card-title')).toHaveAttribute('aria-label', 'Porto Seguro · Torres A e B, Em campo, 1 de 2 fichas');
+
+    // The pointer wins, live.
+    await writeLastSheet(database, R_FIELD_HERE, done.id);
+    const last = await screen.findByRole('button', { name: 'Continuar: SEC-01 · 1 de 2' });
+    await userEvent.click(last);
+    expect(screen.getByTestId('where')).toHaveTextContent(`/relatorio/${R_FIELD_HERE}/ficha/${done.id}`);
   });
 
   it('writes the four lines of a card from the kernel', async () => {
@@ -269,8 +334,8 @@ describe('Home: relatório cards', () => {
     expect(card.querySelector('.card-state .sync-badge')).toHaveClass('is-compact');
     // The stamp is from 07/09; the suite runs on a later day, so the kernel dates it.
     expect(card.querySelector('.card-device')).toHaveTextContent('No aparelho · atualizado 07/09 21:40');
-    // "n de N fichas" waits for progress(snapshot) (AD-8): no counter is invented here.
-    expect(card.querySelector('.progress-counter')).toBeNull();
+    // Story 12.2: a relatório on this device carries its "n de N fichas" (none here).
+    expect(card.querySelector('.progress-counter')).toHaveTextContent('0 de 0 fichas');
   });
 
   it('reads "Baixando…" while a relatório is still coming down', async () => {

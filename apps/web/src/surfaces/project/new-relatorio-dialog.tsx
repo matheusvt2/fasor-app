@@ -1,4 +1,5 @@
 import {
+  calendarDateOfInstant,
   defaultResponsibleId,
   defaultTemplateFor,
   endBeforeStart,
@@ -65,8 +66,10 @@ export function NewRelatorioDialog({ project, client, relatorios, templates, onC
   const options = useMemo(() => pickable.map((row) => ({ id: row.id, label: row.name, meta: templateBlocksText(templateBlockTotal(row)) })), [pickable]);
   const [templateId, setTemplateId] = useState<string | null>(() => defaultTemplateFor(relatorios, templates));
   const [templateText, setTemplateText] = useState(() => pickable.find((row) => row.id === templateId)?.name ?? '');
-  const [start, setStart] = useState<string | null>(null);
-  const [end, setEnd] = useState<string | null>(null);
+  // Story 12.2 (J-12): in the field the parada starts today (America/Sao_Paulo), so both
+  // dates open on it and the end still follows a start typed over it.
+  const [start, setStart] = useState<string | null>(() => calendarDateOfInstant(now()));
+  const [end, setEnd] = useState<string | null>(() => calendarDateOfInstant(now()));
   const [creating, setCreating] = useState(false);
   const inFlight = useRef(false);
 

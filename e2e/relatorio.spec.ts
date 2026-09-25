@@ -621,7 +621,7 @@ test('@p0 4.2-E2E-001 Relatório setup: the five Etapa bands, autosave, geolocat
   const complete = page.getByRole('button', { name: 'Concluir dados do relatório' });
   await expect(complete).not.toHaveAttribute('aria-disabled', 'true');
   await complete.click();
-  await page.getByRole('button', { name: 'Voltar' }).click();
+  // Story 12.2: Concluir goes forward to the Sumário by itself.
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
   await expect(page.locator('.sheet-meta .status-pill')).toHaveText('Em campo');
   await expect(rows.nth(0).locator('.sum-status')).not.toContainText('Responsável técnico em branco');

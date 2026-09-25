@@ -150,6 +150,17 @@ export function formatDateOfInstant(iso: string): string {
   return calendarDate.format(new Date(time));
 }
 
+/**
+ * Story 12.2 (J-12): the calendar date of an instant in America/Sao_Paulo as an AD-11
+ * `date` value (`YYYY-MM-DD`): "today" for the "Novo relatório" dates. Read from the
+ * rendered parts, so no host time zone moves the day.
+ */
+export function calendarDateOfInstant(now: Date): string {
+  const parts = calendarDate.formatToParts(now);
+  const part = (type: 'year' | 'month' | 'day') => parts.find((p) => p.type === type)?.value ?? '';
+  return `${part('year')}-${part('month')}-${part('day')}`;
+}
+
 const dayMonth = new Intl.DateTimeFormat('pt-BR', {
   timeZone: DISPLAY_TIME_ZONE,
   day: '2-digit',

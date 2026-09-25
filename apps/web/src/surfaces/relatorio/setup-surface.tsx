@@ -25,7 +25,7 @@ import {
   type UserRow,
 } from '@app/domain';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Link, useSearchParams, useParams } from 'react-router';
+import { Link, useNavigate, useSearchParams, useParams } from 'react-router';
 import { Button, Checkbox, Combobox, DateField, OverflowMenu, TextButton, UploadTile } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { now } from '../../clock.ts';
@@ -39,6 +39,7 @@ import { localUsers } from '../../db/sync-store.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
+import { useToast } from '../../state/toast.tsx';
 import { useUndoableEdits, type UndoableEdits } from '../../state/use-undoable-edits.ts';
 import { focusWhenRendered } from './relatorio-focus.ts';
 import './relatorio.css';
@@ -93,6 +94,8 @@ function SetupContent({ relatorioId, snapshot, users, instruments, blocks }: Set
   const db = useSession().database;
   const user = useSession().user;
   const [search] = useSearchParams();
+  const navigate = useNavigate();
+  const { showToast } = useToast();
   const t = copy.setup;
   const relatorio = snapshot.relatorio;
   const setup = relatorio.setup;
@@ -151,7 +154,7 @@ function SetupContent({ relatorioId, snapshot, users, instruments, blocks }: Set
 
   async function onComplete(): Promise<void> {
     if (gapReason !== null || db === null || author === null) return;
-    await edits
+    const batchId = await edits
       .write(async () => {
         // The status as the store holds it at the moment of the write, never the render's.
         const current = await relatorioRow(db, relatorioId);
@@ -159,7 +162,12 @@ function SetupContent({ relatorioId, snapshot, users, instruments, blocks }: Set
         if (next === null) return null;
         return (await commitBatch(db, [putRelatorioStatusOp(author, relatorioId, next)], { newId, now })).batch_id;
       })
-      .catch(() => undefined);
+      .catch(() => null);
+    if (batchId === null) return;
+    // Story 12.2 (J-06): the path goes forward, to the Sumário with section 9 open on the
+    // sheets. The shell's toast, not the page's: the page is leaving.
+    void navigate(`/relatorio/${relatorioId}`, { state: { openSection9: true } });
+    showToast(t.completeDone);
   }
 
   return (
@@ -181,7 +189,14 @@ function SetupContent({ relatorioId, snapshot, users, instruments, blocks }: Set
         bandRef={(el) => (bandRefs.current[2] = el)}
       />
       <Etapa3Responsavel snapshot={snapshot} users={users} onCommit={commitField} bandRef={(el) => (bandRefs.current[3] = el)} />
-      <Etapa4Instrumentos snapshot={snapshot} instruments={instruments} blocks={blocks} onCommit={commitField} bandRef={(el) => (bandRefs.current[4] = el)} />
+      <Etapa4Instrumentos
+        relatorioId={relatorioId}
+        snapshot={snapshot}
+        instruments={instruments}
+        blocks={blocks}
+        onCommit={commitField}
+        bandRef={(el) => (bandRefs.current[4] = el)}
+      />
       <Etapa5Local snapshot={snapshot} onCommit={commitField} onCommitFields={commitFields} bandRef={(el) => (bandRefs.current[5] = el)} />
 
       <section className="section-band" aria-labelledby="setup-parecer-band">
@@ -567,12 +582,14 @@ function Etapa3Responsavel({
 // --- Etapa 4 — Instrumentos e certificados -------------------------------------------------
 
 function Etapa4Instrumentos({
+  relatorioId,
   snapshot,
   instruments,
   blocks,
   onCommit,
   bandRef,
 }: {
+  relatorioId: string;
   snapshot: RelatorioSnapshot;
   instruments: readonly InstrumentRow[];
   blocks: readonly BlockRow[];
@@ -580,6 +597,8 @@ function Etapa4Instrumentos({
   bandRef: (el: HTMLElement | null) => void;
 }) {
   const t = copy.setup;
+  const navigate = useNavigate();
+  const registerReasonId = useId();
   const setup = snapshot.relatorio.setup;
   const [refusedNote, setRefusedNote] = useState<string | null>(null);
   const rows = useMemo(
@@ -612,7 +631,7 @@ function Etapa4Instrumentos({
         <span className="band-note">{t.etapa4Note}</span>
       </div>
       <div className="band-body">
-        <p className="section-note">{t.instrumentsNote}</p>
+        <p className="section-note">{rows.length === 0 ? t.noInstruments : t.instrumentsNote}</p>
         <ul className="instrument-list instrument-picker">
           {rows.map(({ instrument, status }) => {
             const text = instrumentRegistryRowText(instrument, status);
@@ -648,6 +667,26 @@ function Etapa4Instrumentos({
             );
           })}
         </ul>
+        {/* Story 12.2 (J-11): `50-relatorio-setup.html` Etapa 4's row. It opens the new
+            instrument's panel in Cadastros › Instrumentos, whose "Fechar" comes back here. */}
+        <div className="row">
+          <TextButton
+            aria-describedby={registerReasonId}
+            onPress={() =>
+              void navigate('/cadastros', {
+                state: { tab: 'instrumentos', newInstrument: true, returnTo: `/relatorio/${relatorioId}/setup?etapa=4` },
+              })
+            }
+          >
+            <svg className="ico" aria-hidden="true">
+              <use href="/sprite.svg#i-plus" />
+            </svg>
+            {t.registerInstrument}
+          </TextButton>
+          <span className="btn-reason" id={registerReasonId}>
+            {t.registerInstrumentReason}
+          </span>
+        </div>
       </div>
     </section>
   );

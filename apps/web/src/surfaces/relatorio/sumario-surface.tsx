@@ -36,7 +36,7 @@ import {
   type UserRow,
 } from '@app/domain';
 import { useId, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import { Button, ConfirmDialog, OverflowMenu, StatusPill, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { templateRows } from '../../db/home-store.ts';
@@ -76,6 +76,13 @@ export function SumarioSurface() {
   );
 }
 
+/** The navigation state the Sumário is opened with (setup "Concluir", a sheet's "Voltar"). */
+function arrivalOf(state: unknown): { openSection9: boolean; focusBlockId: string | null } {
+  if (typeof state !== 'object' || state === null) return { openSection9: false, focusBlockId: null };
+  const raw = state as Record<string, unknown>;
+  return { openSection9: raw.openSection9 === true, focusBlockId: typeof raw.focusBlockId === 'string' ? raw.focusBlockId : null };
+}
+
 /** The control the focus goes to on a numbered row `li`. */
 const rowFocusTarget = (li: Element | null | undefined): HTMLElement | null =>
   li?.querySelector<HTMLElement>('.sum-ctrls .overflow-trigger') ?? null;
@@ -112,7 +119,11 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
 
   // Section 9 opens expanded on an Em campo relatório, collapsed otherwise (EXPERIENCE.md);
   // opened that way, the tree opens the path to the last sheet and scrolls it into view.
-  const [expanded, setExpanded] = useState(() => sumarioOpensExpanded(relatorio.status));
+  // Story 12.2: arriving from setup's "Concluir" or from a sheet's "Voltar" opens it
+  // whatever the status, and a sheet left by "Voltar" gets its row focused.
+  const location = useLocation();
+  const [arrival] = useState(() => arrivalOf(location.state));
+  const [expanded, setExpanded] = useState(() => arrival.openSection9 || sumarioOpensExpanded(relatorio.status));
   const [openedByStatus] = useState(expanded);
   const chevron = useRef<HTMLButtonElement | null>(null);
   const treeRef = useRef<RelatorioTreeHandle>(null);
@@ -375,6 +386,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
                     lastSheetId={lastSheet}
                     id={treeId}
                     expandToLastSheet={openedByStatus}
+                    focusBlockId={arrival.focusBlockId}
                     context={treeContext}
                     ref={treeRef}
                   />

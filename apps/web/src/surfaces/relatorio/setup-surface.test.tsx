@@ -5,7 +5,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 import { I18nProvider } from 'react-aria-components';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { toRecord } from '../../db/commit.ts';
 import { openDatabase, type AppDatabase } from '../../db/schema.ts';
@@ -77,6 +77,12 @@ async function seeded(): Promise<AppDatabase> {
   return db;
 }
 
+/** Where a press navigated, with the navigation state it carried (Story 12.2). */
+function Probe({ testId }: { testId: string }) {
+  const location = useLocation();
+  return <p data-testid={testId}>{`${location.pathname}${location.search} ${JSON.stringify(location.state)}`}</p>;
+}
+
 function tree(id: string) {
   return (
     // pt-BR orders the DateField segments day/month/year, as `app.tsx`'s own root
@@ -88,6 +94,8 @@ function tree(id: string) {
         <ToastProvider>
           <Routes>
             <Route path="/relatorio/:id/setup" element={<SetupSurface />} />
+            <Route path="/relatorio/:id" element={<Probe testId="sumario-route" />} />
+            <Route path="/cadastros" element={<Probe testId="cadastros-route" />} />
           </Routes>
           <ToastOutlet />
         </ToastProvider>
@@ -195,6 +203,23 @@ describe('4.2 SetupSurface', () => {
       const row = await database!.entities.get(['relatorio', RELATORIO]);
       expect((row!.row as RelatorioRow).status).toBe('em_campo');
     });
+    // Story 12.2 (J-06): forward to the Sumário with section 9 open, and the toast says it saved.
+    expect(await screen.findByTestId('sumario-route')).toHaveTextContent(`/relatorio/${RELATORIO} {"openSection9":true}`);
+    expect(await screen.findByText('Dados salvos')).toBeVisible();
+  });
+
+  it('12.2: with no instrument registered, Etapa 4 says so and "Cadastrar instrumento" opens Cadastros on a new instrument, returning here', async () => {
+    database = await seeded();
+    const instruments = (await database.entities.where('entity').equals('registry').toArray()).filter((record) => (record.row as { kind?: string }).kind === 'instrument');
+    await database.entities.bulkDelete(instruments.map((record) => [record.entity, record.id] as [typeof record.entity, string]));
+    renderSetup();
+    expect(await screen.findByText('Nenhum instrumento cadastrado')).toBeVisible();
+    const register = screen.getByRole('button', { name: 'Cadastrar instrumento' });
+    expect(register).toHaveAccessibleDescription('Abre Cadastros › Instrumentos');
+    await userEvent.click(register);
+    expect(await screen.findByTestId('cadastros-route')).toHaveTextContent(
+      `/cadastros {"tab":"instrumentos","newInstrument":true,"returnTo":"/relatorio/${RELATORIO}/setup?etapa=4"}`,
+    );
   });
 
   it('the Combobox shows the already-picked responsible\'s name once users resolve, not blank', async () => {

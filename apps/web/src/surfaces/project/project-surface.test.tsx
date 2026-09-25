@@ -186,7 +186,8 @@ describe('4.1 ProjectSurface', () => {
     expect(dialog).toBeVisible();
     // The dialog waits for the templates query, so the only pickable template is already chosen.
     expect(within(dialog).getByRole('combobox', { name: 'Template' })).toHaveValue('Cabine primária — padrão');
-    expect(within(dialog).getByRole('button', { name: 'Criar relatório' })).toHaveAccessibleDescription('Criar relatório: falta a data de início');
+    // Story 12.2: the dates open on today, so Criar is ready at once.
+    expect(within(dialog).getByRole('button', { name: 'Criar relatório' })).not.toHaveAttribute('aria-disabled');
   });
 
   it('consumes the hand-over once: after Cancelar a later write to the project row does not reopen the dialog', async () => {

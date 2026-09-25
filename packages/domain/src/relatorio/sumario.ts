@@ -228,6 +228,19 @@ export function sumarioRows(snapshot: RelatorioSnapshot, issues: readonly PreIss
   return rows;
 }
 
+/**
+ * Story 12.2 (J-06): the section text after `blockId` in Sumário order, the next live block
+ * whose row is a `text` row (sections 2, 4, 5 and 6, the ones the section text surface
+ * opens); null on the last one or for a block that is not a live section.
+ */
+export function nextTextSection(snapshot: Pick<RelatorioSnapshot, 'blocks'>, blockId: string): string | null {
+  const sections = sectionBlocks(snapshot.blocks);
+  const at = sections.findIndex((block) => block.id === blockId);
+  if (at < 0) return null;
+  const next = sections.slice(at + 1).find((block) => isRelatorioSectionType(block.block_type) && KIND_OF[block.block_type] === 'text');
+  return next?.id ?? null;
+}
+
 /** The numbered rows, the ones the Position box and Alt+arrows move among. */
 export function numberedSiblings(rows: readonly SumarioRow[]): SumarioRow[] {
   return rows.filter((row) => row.number !== null);

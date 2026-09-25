@@ -147,7 +147,16 @@ const router = createBrowserRouter([
           {
             path: '/relatorio/:id/ficha/:blockId',
             element: <FichaSurface />,
-            handle: { title: '', back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}/arvore` },
+            // Story 12.2 (D-8): from 768 px the sheet goes back to the Sumário, section 9
+            // open and its row focused; the phone keeps the tree surface.
+            handle: {
+              title: '',
+              back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}/arvore`,
+              backWide: (params: Record<string, string | undefined>) => ({
+                to: `/relatorio/${params.id ?? ''}`,
+                state: { openSection9: true, focusBlockId: params.blockId ?? null },
+              }),
+            },
           },
           {
             path: '/relatorio/:id/secao/:blockId',

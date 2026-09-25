@@ -6,6 +6,7 @@ import {
   restoredSectionTextConfig,
   INSERTABLE_SECTION_VARIABLES,
   isSectionBlockType,
+  nextTextSection,
   relatorioSectionNumber,
   SECTION_VARIABLE_LABELS,
   sectionRowTitle,
@@ -67,6 +68,7 @@ export function SectionTextSurface() {
           block={block}
           seedVersion={snapshot.relatorio.seed_version}
           templateName={templates.find((row) => row.id === snapshot.relatorio.template_id)?.name ?? null}
+          nextBlockId={nextTextSection(snapshot, block.id)}
         />
       )}
     </main>
@@ -78,9 +80,11 @@ interface SectionTextEditorProps {
   block: BlockRow;
   seedVersion: string;
   templateName: string | null;
+  /** The next section text in Sumário order (`nextTextSection`), null on the last one. */
+  nextBlockId: string | null;
 }
 
-function SectionTextEditor({ relatorioId, block, seedVersion, templateName }: SectionTextEditorProps) {
+function SectionTextEditor({ relatorioId, block, seedVersion, templateName, nextBlockId }: SectionTextEditorProps) {
   const db = useSession().database;
   const user = useSession().user;
   const navigate = useNavigate();
@@ -200,6 +204,12 @@ function SectionTextEditor({ relatorioId, block, seedVersion, templateName }: Se
 
       <div className="sticky-action-bar">
         <div className="bar-buttons">
+          {/* Story 12.2 (J-06): the way on, secondary so "Voltar ao sumário" keeps its place. */}
+          {nextBlockId === null ? null : (
+            <Button variant="secondary" onPress={() => void navigate(`/relatorio/${relatorioId}/secao/${nextBlockId}`)}>
+              {t.proximaSecao}
+            </Button>
+          )}
           <Button variant="primary" onPress={() => void navigate(`/relatorio/${relatorioId}`)}>
             {t.voltarAoSumario}
           </Button>
