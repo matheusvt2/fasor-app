@@ -69,3 +69,51 @@ export function officeDraft(account: Account, scope: { relatorioId: string } | {
     actor_id: account.userId,
   };
 }
+
+/** One equipment sheet of a relatório built by `newRelatorioDrafts`, in template order. */
+export interface SeededSheet {
+  blockId: string;
+  blockType: string;
+  locationName: string;
+  tag: string;
+}
+
+/**
+ * Story 12.1: the same relatório `pushNewRelatorio` pushes, returned as drafts (nothing
+ * pushed yet) with its equipment sheets read off them, so a spec can add its own seed ops,
+ * push everything in one batch and open a sheet by its address without walking the tree.
+ */
+export function newRelatorioDrafts(account: Account): { relatorioId: string; projectId: string; drafts: OpDraft[]; sheets: SeededSheet[] } {
+  const projectId = newId();
+  const project: OpDraft = {
+    kind: 'create',
+    scope: 'company',
+    company_id: account.companyId,
+    project_id: null,
+    relatorio_id: null,
+    path: `project/${projectId}`,
+    value: { id: projectId, client_id: null, name: 'Obra da árvore', site: 'Obra da árvore', removed_at: null },
+    prev_op_id: null,
+    batch_id: null,
+    meta: null,
+    actor_id: account.userId,
+  };
+  const { relatorioId, drafts } = instantiateTemplate(
+    standardTemplate({ id: newId() }),
+    { id: projectId },
+    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
+    { newId, actorId: account.userId, companyId: account.companyId },
+  );
+  const rows = (prefix: string) => drafts.filter((draft) => draft.kind === 'create' && draft.path.startsWith(prefix)).map((draft) => draft.value as Record<string, unknown>);
+  const locationName = new Map(rows('location/').map((row) => [row.id as string, row.name as string]));
+  const tagOf = new Map(rows('equipment/').map((row) => [row.id as string, row.tag as string]));
+  const sheets = rows('block/')
+    .filter((row) => row.equipment_id !== null)
+    .map((row) => ({
+      blockId: row.id as string,
+      blockType: row.block_type as string,
+      locationName: locationName.get(row.location_id as string) ?? '',
+      tag: tagOf.get(row.equipment_id as string) ?? '',
+    }));
+  return { relatorioId, projectId, drafts: [project, ...drafts], sheets };
+}

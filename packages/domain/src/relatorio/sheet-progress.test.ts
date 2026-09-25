@@ -11,6 +11,7 @@ import {
   sheetProgress,
   sheetProgressState,
   sheetProgressText,
+  stepMayCollapse,
   stepMissingLabel,
 } from './sheet-progress.ts';
 
@@ -161,7 +162,12 @@ describe('5.1-UNIT sheetProgress', () => {
   it('a not-tested block is complete with every step at zero, even fully empty', () => {
     const b = block({}, { not_tested: { reason: 'solicitacao_cliente', text: null, at: '2026-09-24T10:00:00.000Z', by: 'u1' } });
     const p = progressOf(b);
-    expect(p.steps).toEqual({ placa: { missing: 0 }, verificacoes: { missing: 0 }, ensaios: { missing: 0 }, conclusao: { missing: 0 } });
+    expect(p.steps).toEqual({
+      placa: { missing: 0, outOfLimit: 0 },
+      verificacoes: { missing: 0, outOfLimit: 0 },
+      ensaios: { missing: 0, outOfLimit: 0 },
+      conclusao: { missing: 0, outOfLimit: 0 },
+    });
     expect(p.complete).toBe(true);
     expect(p.firstIncompleteStep).toBeNull();
     expect(sheetProgressText(p)).toBe('Completa');
@@ -187,5 +193,42 @@ describe('5.1-UNIT sheetProgress', () => {
     expect(filledByText('Bruno', '2026-09-06T12:41:00.000Z')).toBe('Preenchido por Bruno · 06/09 09:41');
     expect(concludedByText('Bruno', '2026-09-06T13:02:00.000Z')).toBe('Concluída por Bruno · 06/09 10:02');
     expect(filledByText('Bruno', 'nope')).toBe('Preenchido por Bruno');
+  });
+});
+
+describe('12.1-UNIT D-2 outOfLimit and stepMayCollapse', () => {
+  /** Every reading of both tests measured, isolação T1 at `t1` (the criterion is >400 MΩ). */
+  function readings(t1: Cell['value']): Sheet['test'] {
+    const out: Sheet['test'] = {};
+    for (const key of ['isolacao', 'resistencia_contato'] as const) {
+      const cells: Record<string, Record<string, Cell>> = {};
+      cellAddressesOf(SEC, key).forEach((a, i) => {
+        const value = key === 'isolacao' ? (i === 0 ? t1 : { raw: '150', unit: 'GΩ', state: 'measured' }) : { raw: '100', unit: 'µΩ', state: 'measured' };
+        cells[String(a.row)] = { ...cells[String(a.row)], [String(a.col)]: cell(value) };
+      });
+      out[key] = { cells };
+    }
+    return out;
+  }
+
+  it('counts the Ensaios readings out of their criterion, and nothing on the other steps', () => {
+    const within = progressOf(block({ nameplate: fullNameplate(), checklist: allChecklist('C'), test: readings({ raw: '150', unit: 'GΩ', state: 'measured' }), conclusion: PAIR }));
+    expect(within.steps.ensaios).toEqual({ missing: 0, outOfLimit: 0 });
+    const out = progressOf(block({ nameplate: fullNameplate(), checklist: allChecklist('C'), test: readings({ raw: '330', unit: 'MΩ', state: 'measured' }), conclusion: PAIR }));
+    expect(out.steps.ensaios).toEqual({ missing: 0, outOfLimit: 1 });
+    expect(out.steps.placa.outOfLimit + out.steps.verificacoes.outOfLimit + out.steps.conclusao.outOfLimit).toBe(0);
+    // An amber reading blocks nothing: the sheet is still complete.
+    expect(out.complete).toBe(true);
+  });
+
+  it('a step may collapse only with nothing missing and no reading out of its criterion', () => {
+    const out = progressOf(block({ nameplate: fullNameplate(), checklist: allChecklist('C'), test: readings({ raw: '330', unit: 'MΩ', state: 'measured' }) }));
+    expect(stepMayCollapse(out, 'placa')).toBe(true);
+    expect(stepMayCollapse(out, 'verificacoes')).toBe(true);
+    expect(stepMayCollapse(out, 'ensaios')).toBe(false);
+    expect(stepMayCollapse(out, 'conclusao')).toBe(false);
+    const within = progressOf(block({ nameplate: fullNameplate(), checklist: allChecklist('C'), test: readings({ raw: '150', unit: 'GΩ', state: 'measured' }) }));
+    expect(stepMayCollapse(within, 'ensaios')).toBe(true);
+    expect(stepMayCollapse(progressOf(block()), 'placa')).toBe(false);
   });
 });

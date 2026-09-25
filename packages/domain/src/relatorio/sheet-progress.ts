@@ -35,8 +35,15 @@ export type SheetStep = 'placa' | 'verificacoes' | 'ensaios' | 'conclusao';
 /** The four steps in their stepper order. */
 export const SHEET_STEPS: readonly SheetStep[] = ['placa', 'verificacoes', 'ensaios', 'conclusao'];
 
+/** One step's counts: what is missing, and (Ensaios only) the readings out of their criterion. */
+export interface SheetStepProgress {
+  missing: number;
+  /** Story 12.1 (D-2): capture cells whose verdict is `out`; 0 on every step but `ensaios`. */
+  outOfLimit: number;
+}
+
 export interface SheetProgress {
-  steps: Record<SheetStep, { missing: number }>;
+  steps: Record<SheetStep, SheetStepProgress>;
   /** Every step's `missing` is zero. */
   complete: boolean;
   /** The first step (stepper order) with something missing, or null when complete. */
@@ -95,8 +102,9 @@ function verificacoesMissing(block: BlockRow, definition: BlockDefinition, enabl
   return missing;
 }
 
-function ensaiosMissing(block: BlockRow, definition: BlockDefinition): number {
-  return evaluatedCells(evaluateSheetReadings(block, definition)).filter((cell) => cell.missing).length;
+function ensaiosCounts(block: BlockRow, definition: BlockDefinition): SheetStepProgress {
+  const cells = evaluatedCells(evaluateSheetReadings(block, definition));
+  return { missing: cells.filter((cell) => cell.missing).length, outOfLimit: cells.filter((cell) => cell.verdict === 'out').length };
 }
 
 function conclusaoMissing(block: BlockRow, enabled: ReadonlySet<SubBlockKey>): number {
@@ -113,11 +121,11 @@ function conclusaoMissing(block: BlockRow, enabled: ReadonlySet<SubBlockKey>): n
 export function sheetProgress(snapshot: Pick<RelatorioSnapshot, 'blocks'>, blockId: string): SheetProgress {
   const block = snapshot.blocks.find((row) => row.id === blockId);
   const definition = block === undefined ? null : definitionOf(block);
-  const steps: Record<SheetStep, { missing: number }> = {
-    placa: { missing: 0 },
-    verificacoes: { missing: 0 },
-    ensaios: { missing: 0 },
-    conclusao: { missing: 0 },
+  const steps: Record<SheetStep, SheetStepProgress> = {
+    placa: { missing: 0, outOfLimit: 0 },
+    verificacoes: { missing: 0, outOfLimit: 0 },
+    ensaios: { missing: 0, outOfLimit: 0 },
+    conclusao: { missing: 0, outOfLimit: 0 },
   };
   // Story 5.9 / AR-17: a sheet marked not tested prints from its plate and its reason
   // alone (section 8); its nameplate/checklist/tests/conclusion go read-only and never
@@ -129,22 +137,35 @@ export function sheetProgress(snapshot: Pick<RelatorioSnapshot, 'blocks'>, block
     const enabled = enabledSubBlocksOf(block);
     steps.placa.missing = placaMissing(block, definition, enabled);
     steps.verificacoes.missing = verificacoesMissing(block, definition, enabled);
-    steps.ensaios.missing = ensaiosMissing(block, definition);
+    steps.ensaios = ensaiosCounts(block, definition);
     steps.conclusao.missing = conclusaoMissing(block, enabled);
   }
   const firstIncompleteStep = SHEET_STEPS.find((step) => steps[step].missing > 0) ?? null;
   return { steps, complete: firstIncompleteStep === null, firstIncompleteStep };
 }
 
+/**
+ * Story 12.1 (D-2, `source-deltas.md` 2026-09-24): whether a step the engineer has left may
+ * be drawn collapsed: nothing missing in it and no reading out of its criterion (an amber
+ * reading stays in view). When it is left is the surface's call; this is the kernel's rule.
+ */
+export function stepMayCollapse(p: Pick<SheetProgress, 'steps'>, step: SheetStep): boolean {
+  const counts = p.steps[step];
+  return counts.missing === 0 && counts.outOfLimit === 0;
+}
+
+/** The per-step missing counts a text reads. */
+type StepMissing = { steps: Record<SheetStep, { missing: number }> };
+
 /** Every missing field of the sheet, summed over its steps. */
-export function sheetMissingTotal(p: Pick<SheetProgress, 'steps'>): number {
+export function sheetMissingTotal(p: StepMissing): number {
   return SHEET_STEPS.reduce((sum, step) => sum + p.steps[step].missing, 0);
 }
 
 // --- the texts -------------------------------------------------------------------------
 
 /** The Sheet header's Progress counter: "Completa", "1 obrigatório faltando", "8 obrigatórios faltando" (`60-ficha.html`). */
-export function sheetProgressText(p: Pick<SheetProgress, 'steps'>): string {
+export function sheetProgressText(p: StepMissing): string {
   const total = sheetMissingTotal(p);
   return total === 0 ? 'Completa' : plural(total, 'obrigatório faltando', 'obrigatórios faltando');
 }
