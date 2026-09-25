@@ -14,7 +14,8 @@ MODEL AND EFFORT POLICY (fasor). Every story in _bmad-output/planning-artifacts/
 Model ladder, lowest to highest: sonnet < opus < fable. Since 2026-09-24 (Matheus) fable is not used for new work:
 Opus 5.5 performs better, so a story line that still names fable runs as opus at the same effort. Since 2026-09-24
 (Matheus) sonnet is not used either: every model choice is opus, so a story line that still names sonnet runs as opus
-at the same effort (`bmad-dev-opus-low` exists for the former sonnet low stories).
+at the same effort. Since 2026-09-24 (Matheus) the effort floor is medium: a story line that says low runs at medium
+(there is no low implementation agent).
 
 1. As soon as the story is identified (step 1, story-key resolution or the epic story path), read that line and hold
    {dev_model} and {dev_effort} for the whole run. If the intent is not an epic story, use dev_model = opus and

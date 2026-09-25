@@ -130,3 +130,11 @@ No protótipo navegável, o botão **Recorte do MVP** na barra de controles liga
 - **Tema:** `tokens.css` declara os tokens de componente em `:root, [data-theme]` — obrigatório enquanto o tema for aplicado no `.frame`.
 - **Chips e abas quebram linha**, nunca rolam para o lado. **Tabelas** nunca cortam: caixa com rolagem como último recurso; a TTR usa `.is-wide` com colunas fixas. Os ensaios da ficha ficam empilhados em qualquer largura.
 - **Miniatura do recorte:** a área de toque vem de `.crop-thumb::before` — não volte a pôr `overflow: hidden` no `.crop-thumb`.
+
+## v0.9 (2026-09-24) — direção visual proposta (journey review)
+
+- `DESIGN.md § v0.9 direction` descreve a nova pele: campo preenchido com régua inferior, labels em caixa baixa na tela, tri-state com o segmento escolhido sólido, stepper com régua de progresso, cabeçalho da ficha com uma frase, `cabine-line`, botão primário com raio 10 px e degradê de 4 %, linhas do Sumário com número em círculo.
+- Os tokens e regras ficam em **`tokens-v09.css`** e **`components-v09.css`**, carregados depois de `tokens.css` e `components.css` só pelos mocks `key-*-v09.html`. `tokens.css` e `components.css` **não mudam** até a Story 12.5 fundir os overrides neles e copiá-los para `apps/web/src/styles` no mesmo PR (regra byte-idêntico do AGENTS.md, delta em `source-deltas.md`).
+- Mocks: `key-equipment-sheet-v09.html` (ficha, tablet, telefone e escuro; o "antes" é `key-equipment-sheet.html`) e `key-relatorio-overview-v09.html` (Sumário; o "antes" é `prototype/screens/40-relatorio-overview.html`). O protótipo navegável continua na v0.8.
+- Novos blocos em `components-v09.css`: `.cabine-line`, `.sheet-header .sheet-summary`, `.sum-row`/`.sum-pos`/`.sum-open`/`.sum-ctrls` (promovidos do CSS de página do protótipo), `.input.is-readonly`, `.section-stepper .step::after`.
+- Capturas do app real e dos mocks lado a lado: `_bmad-output/implementation-artifacts/reviews/journey-review-2026-09-24/` (`A-*` app, `M-*` protótipo).
