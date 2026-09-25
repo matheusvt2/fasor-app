@@ -49,8 +49,24 @@ export function useSheetCamera(relatorioId: string, target: () => CaptureTarget)
   };
 }
 
-/** The NC row's "Adicionar foto" with its reason, and the denied reason under it. */
-export function RowPhotoAction({ relatorioId, target }: { relatorioId: string; target: () => CaptureTarget }) {
+/**
+ * Story 6.4: "Adicionar fotos" (`70-fotos.html` Sticky action bar, `btn btn-secondary` with
+ * `i-image`), the import path beside the camera. Below 480 px its word is visually hidden so
+ * the bar never runs wider than the phone (the button keeps its name).
+ */
+export function AddPhotosButton({ onPress }: { onPress: () => void }) {
+  return (
+    <AriaButton className="btn btn-secondary add-photos-btn" onPress={onPress}>
+      <svg className="ico" aria-hidden="true">
+        <use href="/sprite.svg#i-image" />
+      </svg>
+      <span className="add-photos-word">{copy.photos.addPhotos}</span>
+    </AriaButton>
+  );
+}
+
+/** The NC row's "Adicionar foto" with its reason, and the denied reason under it (then "Adicionar fotos", Story 6.4). */
+export function RowPhotoAction({ relatorioId, target, onAddPhotos }: { relatorioId: string; target: () => CaptureTarget; onAddPhotos?: () => void }) {
   const t = copy.photos;
   const opener = useRef<HTMLButtonElement>(null);
   const camera = useCamera(relatorioId, target, opener);
@@ -75,9 +91,12 @@ export function RowPhotoAction({ relatorioId, target }: { relatorioId: string; t
         </span>
       </div>
       {camera.denied ? (
-        <p className="camera-denied" id={deniedId} role="status">
-          {t.denied}
-        </p>
+        <>
+          <p className="camera-denied" id={deniedId} role="status">
+            {t.denied}
+          </p>
+          {onAddPhotos === undefined ? null : <AddPhotosButton onPress={onAddPhotos} />}
+        </>
       ) : null}
       {camera.element}
     </>
@@ -85,7 +104,18 @@ export function RowPhotoAction({ relatorioId, target }: { relatorioId: string; t
 }
 
 /** The Photo tile rows of one checklist item, in capture order. */
-export function RowPhotoList({ tiles, number, onRetry }: { tiles: readonly PhotoTile[]; number: number; onRetry: (fileId: string) => void }) {
+export function RowPhotoList({
+  tiles,
+  number,
+  onRetry,
+  onCaption,
+}: {
+  tiles: readonly PhotoTile[];
+  number: number;
+  onRetry: (fileId: string) => void;
+  /** Story 6.5: "Legendar" on each tile opens the Caption composer. */
+  onCaption?: (tile: PhotoTile) => void;
+}) {
   const t = copy.photos;
   if (tiles.length === 0) return null;
   return (
@@ -98,6 +128,7 @@ export function RowPhotoList({ tiles, number, onRetry }: { tiles: readonly Photo
           thumb={tile.thumb}
           state={photoUploadState({ uploaded_at: tile.uploaded_at, localError: tile.upload_error })}
           onRetry={() => onRetry(tile.id)}
+          {...(onCaption === undefined ? {} : { onCaption: () => onCaption(tile) })}
         />
       ))}
     </div>

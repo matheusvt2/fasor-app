@@ -155,6 +155,20 @@ function Gallery() {
           <PhotoRow label="Foto 2" caption="Detalhe da chave seccionadora do Cubículo Enel" thumb={null} state="error" onRetry={() => {}} />
           <PhotoRow label="Foto 3" caption={null} thumb={null} state="uploaded" />
         </div>
+        {/* Stories 6.3/6.5: the gallery variant -- the tile opens the viewer, number badge, stamp, "Legendar". */}
+        <div className="gallery-grid">
+          <PhotoRow
+            label="Foto 4, abrir"
+            number={4}
+            stamp={{ text: '06/09 14:32', gps: true }}
+            caption="Detalhe da chave seccionadora do Cubículo Enel"
+            thumb={null}
+            state="pending"
+            onOpen={() => {}}
+            onCaption={() => {}}
+          />
+          <PhotoRow label="Foto 5, abrir" number={5} stamp={{ text: '06/09 14:40', gps: false }} caption={null} thumb={null} state="uploaded" onOpen={() => {}} />
+        </div>
       </div>
     </div>
   );
@@ -285,6 +299,7 @@ describe('component gallery', () => {
       'combobox-chevron', // .combobox-chevron: width touch-min
       'tab-select-trigger', // .tab-select-trigger (app.css, Tabs' phone selector): min-height touch-field
       'upload-pill', // .upload-pill[data-state="error"]: min-height touch-min (the retry pill)
+      'photo-tile', // .photo-tile: width thumb-grid (96px), a square (Story 6.3's viewer opener)
     ];
     const hitAreaSelector = sufficientHitAreaClasses.map((c) => `.${c}`).join(', ');
     const roles = ['button', 'switch', 'checkbox', 'radio', 'tab', 'combobox', 'menuitem'] as const;

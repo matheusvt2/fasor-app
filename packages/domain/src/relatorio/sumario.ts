@@ -1,5 +1,7 @@
 import { dateRangeText } from '../format/datetime.ts';
 import { sortByOrderKey } from '../ops/order-key.ts';
+import { livePhotos } from '../photos/order.ts';
+import { photoCountText } from '../photos/text.ts';
 import type { BlockRow, EquipmentRow, LocationRow, RelatorioStatus } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { isRelatorioSectionType, relatorioSectionNumber, type RelatorioSectionType } from './instantiate.ts';
@@ -147,10 +149,12 @@ export function sectionBlocks(blocks: readonly BlockRow[]): BlockRow[] {
   return sortByOrderKey(blocks.filter((block) => block.removed_at === null && block.location_id === null && !isEquipmentBlock(block)));
 }
 
-function metaOfSection(block: BlockRow, issues: readonly PreIssueRow[], computed: Progress): string {
+function metaOfSection(block: BlockRow, issues: readonly PreIssueRow[], computed: Progress, photoCount: number): string {
   const kind = isRelatorioSectionType(block.block_type) ? KIND_OF[block.block_type] : 'text';
   const own = issues.map((row) => row.text);
   if (block.block_type === 'section_9') return own.length > 0 ? join(own) : progressCounterText(computed);
+  // Stories 6.3/6.5: "82 fotos · 1 sem legenda · 3 aguardando envio", like section 9's counter.
+  if (block.block_type === 'section_7') return join([photoCountText(photoCount), ...own]);
   if (own.length > 0) return join(own);
   if (kind === 'setup') return META.setup;
   if (kind === 'text') {
@@ -205,6 +209,7 @@ export function sumarioRows(snapshot: RelatorioSnapshot, issues: readonly PreIss
     },
   ];
   const sections = sectionBlocks(snapshot.blocks);
+  const photoCount = livePhotos(snapshot).length;
   sections.forEach((block, i) => {
     const rowKey: SumarioRowKey = isRelatorioSectionType(block.block_type) ? block.block_type : 'section_11';
     const own = isRelatorioSectionType(block.block_type) ? preIssueRowsFor(issues, block.block_type) : [];
@@ -214,7 +219,7 @@ export function sumarioRows(snapshot: RelatorioSnapshot, issues: readonly PreIss
       kind: isRelatorioSectionType(block.block_type) ? KIND_OF[block.block_type] : 'text',
       number: i + 1,
       title: sectionRowTitle(block.block_type),
-      meta: metaOfSection(block, own, computed),
+      meta: metaOfSection(block, own, computed, photoCount),
       blocking: blockingRows(own).length > 0,
       pending: pendingRows(own).length > 0,
       blockId: block.id,

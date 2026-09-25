@@ -67,6 +67,8 @@ export * from './photos/exif.ts';
 export * from './photos/upload-order.ts';
 export * from './photos/eviction.ts';
 export * from './photos/text.ts';
+export * from './photos/order.ts';
+export * from './photos/gallery.ts';
 export * from './drafts/key.ts';
 export * from './sync/counts.ts';
 export * from './format/datetime.ts';

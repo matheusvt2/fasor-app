@@ -999,3 +999,64 @@ describe('1.5-API-005 contract skew', () => {
     expect(syncPushResponseSchema.parse(await res.json()).applied).toHaveLength(1);
   });
 });
+
+describe('6.3/6.5-API-001 a photo caption and removal through the sync route', () => {
+  it('applies file/{id}/caption and file/{id}/removed_at (and its clearing) and pulls them back on the relatório stream', async () => {
+    const relatorioId = newId();
+    const photoId = newId();
+    written.entityIds.add(photoId);
+    const create = op(idsA, {
+      kind: 'create',
+      scope: 'relatorio',
+      relatorio_id: relatorioId,
+      path: `file/${photoId}`,
+      value: {
+        id: photoId,
+        company_id: companyA.companyId,
+        relatorio_id: relatorioId,
+        kind: 'photo',
+        sha256: 'ab'.repeat(32),
+        mime: 'image/jpeg',
+        size: 1024,
+        uploaded_at: null,
+        variants: null,
+        removed_at: null,
+        captured_at: '2026-09-06T11:12:30.000Z',
+        tz_offset: -180,
+        coords: null,
+        local_seq: 1,
+        block_id: null,
+        item_key: null,
+        caption: 'Detalhe da chave seccionadora do Cubículo Enel',
+        reading_kind: null,
+        reading_target: null,
+        reading_status: 'none',
+      },
+    });
+    const created = await pushOk(companyA, [relatorioCreate(idsA, relatorioId, newId()), create]);
+    expect(created.rejected).toEqual([]);
+
+    const newCaption = 'Detalhe da limpeza e reaperto realizada na chave seccionadora';
+    const caption = op(idsA, { kind: 'put', scope: 'relatorio', relatorio_id: relatorioId, path: `file/${photoId}/caption`, value: newCaption });
+    const removed = op(idsA, { kind: 'put', scope: 'relatorio', relatorio_id: relatorioId, path: `file/${photoId}/removed_at`, value: '2026-09-25T12:00:00.000Z' });
+    const edits = await pushOk(companyA, [caption, removed]);
+    expect(edits.rejected).toEqual([]);
+    expect(edits.applied).toHaveLength(2);
+
+    const rowOf = async () =>
+      (await db.select({ row: entities.row, removed_at: entities.removed_at }).from(entities).where(and(eq(entities.entity, 'file'), eq(entities.id, photoId))))[0]!;
+    const tombstoned = await rowOf();
+    expect(tombstoned.row).toMatchObject({ caption: newCaption, removed_at: '2026-09-25T12:00:00.000Z' });
+    expect(tombstoned.removed_at).not.toBeNull();
+
+    // "Desfazer": the tombstone cleared, the photo back with its caption.
+    const restore = op(idsA, { kind: 'put', scope: 'relatorio', relatorio_id: relatorioId, path: `file/${photoId}/removed_at`, value: null, prev_op_id: removed.op_id });
+    const restored = await pushOk(companyA, [restore]);
+    expect(restored.rejected).toEqual([]);
+    expect((await rowOf()).row).toMatchObject({ removed_at: null, caption: newCaption });
+
+    const page = await pullOk(companyA, `/api/sync/relatorios/${relatorioId}?since=0`);
+    expect((page.ops as Op[]).map((o) => o.op_id)).toEqual([created.applied[0]!.op_id, create.op_id, caption.op_id, removed.op_id, restore.op_id]);
+    expect((page.ops as Op[]).map((o) => o.path).slice(1)).toEqual([`file/${photoId}`, `file/${photoId}/caption`, `file/${photoId}/removed_at`, `file/${photoId}/removed_at`]);
+  });
+});

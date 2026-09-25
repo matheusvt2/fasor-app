@@ -69,8 +69,16 @@ export interface ContextCaptionMeta {
   registry: readonly RegistryRow[];
 }
 
-interface CaptionWord extends Agreement {
+/** One part of a caption: its words and their gender and number. */
+export interface CaptionWord extends Agreement {
   name: string;
+}
+
+/** Story 6.5: the three parts a caption is composed of; a null part is left out. */
+export interface CaptionParts {
+  atividade: CaptionWord | null;
+  equipamento: CaptionWord | null;
+  local: CaptionWord | null;
 }
 
 function definitionOf(block: BlockRow) {
@@ -109,6 +117,56 @@ function localOf(block: BlockRow, snapshot: RelatorioSnapshot, meta: ContextCapt
 }
 
 /**
+ * Story 6.5: the parts of a photo's context caption (the composer's prefill): equipment and
+ * location from its sheet, activity from the section on screen (an NC row's item, or the
+ * test table). Every part null when the photo has no sheet.
+ */
+export function contextCaptionParts(
+  photo: { block_id: string | null; item_key: string | null },
+  snapshot: RelatorioSnapshot,
+  meta: ContextCaptionMeta,
+): CaptionParts {
+  const block = photo.block_id === null ? undefined : snapshot.blocks.find((row) => row.id === photo.block_id);
+  if (block === undefined) return { atividade: null, equipamento: null, local: null };
+  return {
+    atividade: activityOf(photo, block, meta),
+    equipamento: isEquipmentBlockType(block.block_type) ? CAPTION_EQUIPMENT_WORDS[block.block_type] : null,
+    local: localOf(block, snapshot, meta),
+  };
+}
+
+function usable(word: CaptionWord | null): CaptionWord | null {
+  return word === null || word.name.trim() === '' ? null : { ...word, name: word.name.trim() };
+}
+
+/**
+ * The one caption grammar (Stories 6.1 and 6.5): "Detalhe d⟨o/a⟩(s) ⟨atividade⟩
+ * realizad⟨o/a⟩(s) n⟨o/a⟩(s) ⟨equipamento⟩ d⟨o/a⟩(s) ⟨local⟩", a missing part left out;
+ * null when no part is given. No trailing period.
+ */
+export function composeCaption(parts: CaptionParts): string | null {
+  const activity = usable(parts.atividade);
+  const equipment = usable(parts.equipamento);
+  const local = usable(parts.local);
+  const out: string[] = [];
+  if (activity !== null) {
+    out.push(`Detalhe d${article(activity)} ${activity.name} realizad${activity.gender === 'f' ? 'a' : 'o'}${activity.number === 'plural' ? 's' : ''}`);
+    if (equipment !== null) {
+      out.push(`n${article(equipment)} ${equipment.name}`);
+      if (local !== null) out.push(`d${article(local)} ${local.name}`);
+    } else if (local !== null) {
+      out.push(`n${article(local)} ${local.name}`);
+    }
+  } else if (equipment !== null) {
+    out.push(`Detalhe d${article(equipment)} ${equipment.name}`);
+    if (local !== null) out.push(`d${article(local)} ${local.name}`);
+  } else if (local !== null) {
+    out.push(`Detalhe d${article(local)} ${local.name}`);
+  }
+  return out.length === 0 ? null : out.join(' ');
+}
+
+/**
  * The caption of a photo taken where the engineer stands: equipment and location from its
  * sheet, activity from the section on screen (an NC row's item, or the test table). Null
  * when no part is known (a photo with no sheet).
@@ -118,28 +176,70 @@ export function contextCaption(
   snapshot: RelatorioSnapshot,
   meta: ContextCaptionMeta,
 ): string | null {
-  const block = photo.block_id === null ? undefined : snapshot.blocks.find((row) => row.id === photo.block_id);
-  if (block === undefined) return null;
-  const activity = activityOf(photo, block, meta);
-  const equipment: CaptionWord | null = isEquipmentBlockType(block.block_type) ? CAPTION_EQUIPMENT_WORDS[block.block_type] : null;
-  const local = localOf(block, snapshot, meta);
+  return composeCaption(contextCaptionParts(photo, snapshot, meta));
+}
 
-  const parts: string[] = [];
-  if (activity !== null) {
-    parts.push(`Detalhe d${article(activity)} ${activity.name} realizad${activity.gender === 'f' ? 'a' : 'o'}${activity.number === 'plural' ? 's' : ''}`);
-    if (equipment !== null) {
-      parts.push(`n${article(equipment)} ${equipment.name}`);
-      if (local !== null) parts.push(`d${article(local)} ${local.name}`);
-    } else if (local !== null) {
-      parts.push(`n${article(local)} ${local.name}`);
+/**
+ * Story 6.5: the agreement of a word the engineer picked or typed in the composer. A live
+ * registry row of that kind with gender and number wins, then the seed word of that name
+ * (for `equipamento`, the kernel's equipment words), else masculine singular. Null for a
+ * blank name.
+ */
+export function captionWordFor(
+  name: string,
+  kind: 'atividade' | 'local' | 'equipamento',
+  words: readonly SeedWord[],
+  registry: readonly RegistryRow[],
+): CaptionWord | null {
+  const trimmed = name.trim();
+  if (trimmed === '') return null;
+  if (kind !== 'equipamento') {
+    const registered = registry.find(
+      (row): row is Extract<RegistryRow, { kind: 'local' | 'atividade' }> => row.kind === kind && row.removed_at === null && sameName(row.name, trimmed),
+    );
+    if (registered !== undefined && registered.gender !== null && registered.number !== null) {
+      return { name: trimmed, gender: registered.gender, number: registered.number };
     }
-  } else if (equipment !== null) {
-    parts.push(`Detalhe d${article(equipment)} ${equipment.name}`);
-    if (local !== null) parts.push(`d${article(local)} ${local.name}`);
-  } else if (local !== null) {
-    parts.push(`Detalhe d${article(local)} ${local.name}`);
   }
-  return parts.length === 0 ? null : parts.join(' ');
+  const pool = kind === 'equipamento' ? [...words, ...Object.values(CAPTION_EQUIPMENT_WORDS)] : words;
+  const seeded = pool.find((word) => sameName(word.name, trimmed));
+  return { name: trimmed, ...(seeded === undefined ? MASCULINE_SINGULAR : { gender: seeded.gender, number: seeded.number }) };
+}
+
+/** How many recent values a chip row offers before the seed's (EXPERIENCE.md › Chip). */
+export const CAPTION_RECENTS_MAX = 5;
+
+/**
+ * Story 6.5: one chip row of the composer: the prefilled value, then up to five recents,
+ * then the seed names, deduplicated case-insensitively (the UI appends "Outro…").
+ */
+export function captionChipOptions(prefill: string | null, recents: readonly string[], seed: readonly string[]): string[] {
+  const out: string[] = [];
+  const add = (name: string) => {
+    const trimmed = name.trim();
+    if (trimmed !== '' && !out.some((known) => sameName(known, trimmed))) out.push(trimmed);
+  };
+  if (prefill !== null) add(prefill);
+  recents.slice(0, CAPTION_RECENTS_MAX).forEach(add);
+  seed.forEach(add);
+  return out;
+}
+
+/**
+ * Story 6.5: the Equipamento words the composer offers: the photo's own sheet first, then
+ * every equipment type the relatório's live blocks hold, in block order, each once.
+ */
+export function equipmentChipOptions(snapshot: Pick<RelatorioSnapshot, 'blocks'>, blockId: string | null): CaptionWord[] {
+  const out: CaptionWord[] = [];
+  const add = (blockType: string) => {
+    if (!isEquipmentBlockType(blockType)) return;
+    const word = CAPTION_EQUIPMENT_WORDS[blockType];
+    if (!out.some((known) => known.name === word.name)) out.push(word);
+  };
+  const own = blockId === null ? undefined : snapshot.blocks.find((row) => row.id === blockId);
+  if (own !== undefined) add(own.block_type);
+  for (const block of snapshot.blocks) if (block.removed_at === null) add(block.block_type);
+  return out;
 }
 
 /** The camera view's `.cam-context` line ("Contexto: Cubículo Enel · foto geral" in the mock). */

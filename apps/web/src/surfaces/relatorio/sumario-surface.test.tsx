@@ -201,9 +201,11 @@ describe('4.3 SumarioSurface', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Objetivo' }));
     expect((await screen.findAllByRole('menuitem')).map((m) => m.textContent)).toEqual(['Adicionar abaixo', 'Descer', 'Duplicar', 'Remover']);
     await userEvent.keyboard('{Escape}');
-    // Rows 7, 8, 10 and 11 have no `.sum-open` button; 1 and 3 open the setup, 2 the text.
+    // Rows 8, 10 and 11 have no `.sum-open` button; 1 and 3 open the setup, 2 the text,
+    // 7 the gallery (Story 6.3).
     const [, , r1, , , , , , r7, r8, , r10, r11] = rows();
-    for (const li of [r7, r8, r10, r11]) expect(li!.querySelector('button.sum-open')).toBeNull();
+    for (const li of [r8, r10, r11]) expect(li!.querySelector('button.sum-open')).toBeNull();
+    expect(r7!.querySelector('button.sum-open')).not.toBeNull();
     await userEvent.click(within(r1!).getByRole('button', { name: /^Objetivo/ }));
     expect(await screen.findByTestId('setup-route')).toHaveTextContent('Setup 2');
     cleanup();

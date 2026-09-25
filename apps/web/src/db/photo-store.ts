@@ -1,6 +1,18 @@
-import { photoFileRowSchema, type RegistryRow, type UserRow } from '@app/domain';
+import {
+  CAPTION_RECENTS_MAX,
+  comparePhotos,
+  entityKey,
+  fileRowSchema,
+  photoFileRowSchema,
+  type EntityRow,
+  type EntityState,
+  type FileRow,
+  type PhotoFileRow,
+  type RegistryRow,
+  type UserRow,
+} from '@app/domain';
 import { useLiveQuery } from './live.ts';
-import { GEOLOCATION_DENIED_PREF, PHOTO_SEQ_PREF, type AppDatabase, type UploadError } from './schema.ts';
+import { CAPTION_RECENTS_PREF, GEOLOCATION_DENIED_PREF, PHOTO_SEQ_PREF, type AppDatabase, type UploadError } from './schema.ts';
 
 /*
  * Stories 6.1 and 6.2: the device-store reads the camera and the photo tiles need. Every
@@ -10,20 +22,19 @@ import { GEOLOCATION_DENIED_PREF, PHOTO_SEQ_PREF, type AppDatabase, type UploadE
 /** One photo tile as a surface draws it: the kernel row's fields, the thumb and the local error. */
 export interface PhotoTile {
   id: string;
+  block_id: string | null;
   item_key: string | null;
   caption: string | null;
   captured_at: string;
   local_seq: number;
+  coords: PhotoFileRow['coords'];
   uploaded_at: string | null;
   thumb: Blob | null;
   upload_error: UploadError | null;
 }
 
-const byCapture = (a: PhotoTile, b: PhotoTile) =>
-  a.captured_at !== b.captured_at ? (a.captured_at < b.captured_at ? -1 : 1) : a.local_seq !== b.local_seq ? a.local_seq - b.local_seq : a.id < b.id ? -1 : 1;
-
-/** The live photos of one sheet (every checklist item's and the sheet's own), in capture order. */
-export async function photoTilesOfBlock(db: AppDatabase, relatorioId: string, blockId: string): Promise<PhotoTile[]> {
+/** The live photos of one relatório matching `keep`, with their thumbs, in the kernel's capture order. */
+async function photoTiles(db: AppDatabase, relatorioId: string, keep: (row: PhotoFileRow) => boolean): Promise<PhotoTile[]> {
   // Read through the `entity` index, so the live query behind a sheet re-runs on a file
   // change only, never on each reading the sheet commits.
   const records = await db.entities.where('entity').equals('file').toArray();
@@ -33,20 +44,88 @@ export async function photoTilesOfBlock(db: AppDatabase, relatorioId: string, bl
     const parsed = photoFileRowSchema.safeParse(record.row);
     if (!parsed.success) continue;
     const row = parsed.data;
-    if (row.removed_at !== null || row.block_id !== blockId) continue;
+    if (row.removed_at !== null || !keep(row)) continue;
     const [thumb, blob] = await Promise.all([db.thumbs.get(row.id), db.files.get(row.id)]);
     tiles.push({
       id: row.id,
+      block_id: row.block_id,
       item_key: row.item_key,
       caption: row.caption,
       captured_at: row.captured_at,
       local_seq: row.local_seq,
+      coords: row.coords,
       uploaded_at: row.uploaded_at,
       thumb: thumb?.blob ?? null,
       upload_error: blob?.upload_error ?? null,
     });
   }
-  return tiles.sort(byCapture);
+  return tiles.sort(comparePhotos);
+}
+
+/** The live photos of one sheet (every checklist item's and the sheet's own), in capture order. */
+export async function photoTilesOfBlock(db: AppDatabase, relatorioId: string, blockId: string): Promise<PhotoTile[]> {
+  return photoTiles(db, relatorioId, (row) => row.block_id === blockId);
+}
+
+/** Story 6.3: every live photo of a relatório, in capture order (the gallery). */
+export async function photoTilesOfRelatorio(db: AppDatabase, relatorioId: string): Promise<PhotoTile[]> {
+  return photoTiles(db, relatorioId, () => true);
+}
+
+export function useRelatorioPhotoTiles(db: AppDatabase | null, relatorioId: string): PhotoTile[] | undefined {
+  return useLiveQuery(() => (db === null ? Promise.resolve(NO_TILES) : photoTilesOfRelatorio(db, relatorioId)), [db, relatorioId]);
+}
+
+/** Story 6.5: the composer's recent words of one relatório, most recent first. */
+export interface CaptionRecents {
+  atividade: string[];
+  equipamento: string[];
+  local: string[];
+}
+
+const NO_RECENTS: CaptionRecents = { atividade: [], equipamento: [], local: [] };
+
+function namesOf(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+}
+
+export async function readCaptionRecents(db: AppDatabase, relatorioId: string): Promise<CaptionRecents> {
+  const row = await db.local_prefs.get(CAPTION_RECENTS_PREF(relatorioId));
+  const value = (row?.value ?? null) as Partial<Record<keyof CaptionRecents, unknown>> | null;
+  if (value === null || typeof value !== 'object') return NO_RECENTS;
+  return { atividade: namesOf(value.atividade), equipamento: namesOf(value.equipamento), local: namesOf(value.local) };
+}
+
+/** Puts the words just saved first in their rows, each once (case-insensitive), at most five per row. */
+export async function pushCaptionRecents(db: AppDatabase, relatorioId: string, words: Partial<Record<keyof CaptionRecents, string | null>>): Promise<void> {
+  await db.transaction('rw', db.local_prefs, async () => {
+    const before = await readCaptionRecents(db, relatorioId);
+    const next: CaptionRecents = { ...before };
+    for (const key of ['atividade', 'equipamento', 'local'] as const) {
+      const word = words[key]?.trim() ?? '';
+      if (word === '') continue;
+      const lower = word.toLocaleLowerCase('pt-BR');
+      next[key] = [word, ...before[key].filter((known) => known.toLocaleLowerCase('pt-BR') !== lower)].slice(0, CAPTION_RECENTS_MAX);
+    }
+    await db.local_prefs.put({ key: CAPTION_RECENTS_PREF(relatorioId), value: next });
+  });
+}
+
+export function useCaptionRecents(db: AppDatabase | null, relatorioId: string): CaptionRecents {
+  return useLiveQuery(() => (db === null ? Promise.resolve(NO_RECENTS) : readCaptionRecents(db, relatorioId)), [db, relatorioId], NO_RECENTS) ?? NO_RECENTS;
+}
+
+/** The registry's `atividade` words (the composer's typed-word agreement, AD-19). */
+export async function atividadeWordRows(db: AppDatabase): Promise<RegistryRow[]> {
+  const records = await db.entities.where('entity').equals('registry').toArray();
+  return records.map((record) => record.row as RegistryRow).filter((row) => row.kind === 'atividade' || row.kind === 'local');
+}
+
+const NO_WORD_ROWS: RegistryRow[] = [];
+
+/** The registry's `atividade` and `local` words. */
+export function useCaptionWordRows(db: AppDatabase | null): RegistryRow[] {
+  return useLiveQuery(() => (db === null ? Promise.resolve(NO_WORD_ROWS) : atividadeWordRows(db)), [db], NO_WORD_ROWS) ?? NO_WORD_ROWS;
 }
 
 const NO_TILES: PhotoTile[] = [];
@@ -96,4 +175,34 @@ export async function writePhotoSeqAtLeast(db: AppDatabase, seq: number): Promis
   await db.transaction('rw', db.local_prefs, async () => {
     if ((await readPhotoSeq(db)) < seq) await db.local_prefs.put({ key: PHOTO_SEQ_PREF, value: seq });
   });
+}
+
+/**
+ * Stories 6.3/6.5: the relatório's file rows (tombstones included; the snapshot drops them),
+ * read in their own live query so the Sumário counts section 7 without widening the state
+ * every relatório surface reads (`relatorioState`).
+ */
+export async function relatorioFileRows(db: AppDatabase, relatorioId: string): Promise<FileRow[]> {
+  const records = await db.entities.where('relatorio_id').equals(relatorioId).toArray();
+  const rows: FileRow[] = [];
+  for (const record of records) {
+    if (record.entity !== 'file') continue;
+    const parsed = fileRowSchema.safeParse(record.row);
+    if (parsed.success) rows.push(parsed.data);
+  }
+  return rows;
+}
+
+const NO_FILES: FileRow[] = [];
+
+export function useRelatorioFileRows(db: AppDatabase | null, relatorioId: string): FileRow[] {
+  return useLiveQuery(() => (db === null ? Promise.resolve(NO_FILES) : relatorioFileRows(db, relatorioId)), [db, relatorioId], NO_FILES) ?? NO_FILES;
+}
+
+/** The state with the file rows added, for `buildSnapshot`. */
+export function withFileRows(state: EntityState, files: readonly FileRow[]): EntityState {
+  if (files.length === 0) return state;
+  const next = new Map(state);
+  for (const row of files) next.set(entityKey('file', row.id), row as EntityRow);
+  return next;
 }

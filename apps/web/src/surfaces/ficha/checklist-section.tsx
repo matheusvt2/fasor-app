@@ -45,6 +45,10 @@ export interface ChecklistPhotos {
   target: (itemKey: string) => CaptureTarget;
   /** The error pill's retry (clears the error, runs "Sincronizar agora"). */
   retry: (fileId: string) => void;
+  /** Story 6.4: the import path for an item (beside a denied camera). */
+  addPhotos?: (itemKey: string) => void;
+  /** Story 6.5: "Legendar" on a tile. */
+  caption?: (tile: PhotoTile) => void;
 }
 
 /** sessionStorage: the block whose checklist opened the legend in this session. */
@@ -312,11 +316,20 @@ function ChecklistRow({
               </span>
             ) : null}
           </div>
-          {nc && !readOnly && photos !== undefined ? <RowPhotoAction relatorioId={api.relatorioId} target={() => photos.target(item.key)} /> : null}
+          {nc && !readOnly && photos !== undefined ? <RowPhotoAction
+              relatorioId={api.relatorioId}
+              target={() => photos.target(item.key)}
+              {...(photos.addPhotos === undefined ? {} : { onAddPhotos: () => photos.addPhotos?.(item.key) })}
+            /> : null}
         </div>
       ) : null}
       {photos === undefined ? null : (
-        <RowPhotoList tiles={photos.tiles.filter((tile) => tile.item_key === item.key)} number={number} onRetry={photos.retry} />
+        <RowPhotoList
+          tiles={photos.tiles.filter((tile) => tile.item_key === item.key)}
+          number={number}
+          onRetry={photos.retry}
+          {...(photos.caption === undefined ? {} : { onCaption: photos.caption })}
+        />
       )}
     </li>
   );
