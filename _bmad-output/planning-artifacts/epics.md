@@ -377,19 +377,22 @@ Every story below carries a line `**Dev model:** ⟨fable|opus|sonnet⟩ · **Ef
 
 - The **implementation subagent** (step 3) is launched with the story's model and effort automatically.
 - The **planning and review orchestration** (steps 2 and 4) run in the interactive session, whose model only Matheus can change with `/model`. If the session's model is below the story's `Dev model`, `bmad-build` halts and names the model to switch to before continuing; if it is above, it proceeds and only mentions the cheaper option.
-- **Review layers** (step 4) run on the story's `Dev model`; the investigation and epic-context subagents run on `sonnet`.
+- **Review layers** (step 4) run on the story's `Dev model`; the investigation and epic-context subagents run on ~~`sonnet`~~ `opus` *(2026-09-24)*.
 - The subagent definitions are `.claude/agents/bmad-dev-⟨model⟩-⟨effort⟩.md` (seven combinations in use); the override is `_bmad/custom/bmad-build.toml` (committed, applies to everyone on the project).
 
 Rule of thumb used: `fable` for kernel invariants and the renderer, where a wrong decision propagates (op log, sync, instantiation, parsing, suggestions, generation, merge); `opus` for cross-layer features with real design room; `sonnet` for well-specified UI, CRUD, adapters and data transcription. Effort follows the size of the decision space, not the size of the diff.
 
 *2026-09-24, Matheus: fable is no longer used for new work because Opus 5.5 performs better. Every story not yet built that named fable now names opus at the same effort; the stories already built on fable (1.4, 1.5, 4.1) keep their line as the record of the model they ran on.*
 
+*2026-09-24, Matheus: sonnet is no longer used for new work either; every model choice is opus. Every story not yet built that named sonnet now names opus at the same effort (a new `bmad-dev-opus-low` covers the former sonnet·low stories); the stories already built on sonnet in Epics 1 to 5 keep their line as the record. Investigation and epic-context subagents also run on opus.*
+
 | Model | Stories |
 | --- | --- |
 | fable | 1.4, 1.5, 4.1, ~~4.8, 5.5, 5.8, 7.1, 7.5, 8.1, 8.4, 10.1~~ |
 | opus (from fable, 2026-09-24) | 4.8, 5.5, 5.8, 7.1, 7.5, 8.1, 8.4, 10.1 |
 | opus | 1.3, 1.6, 1.8, 2.2, 3.1, 3.2, 3.4, 4.3, 4.4, 4.5, 5.6, 6.1, 6.2, 6.6, 7.2, 7.3, 7.4, 8.2, 8.3, 8.5, 8.6, 9.1, 9.2, 10.2, 10.3, 11.6, 11.8 |
-| sonnet | 1.1, 1.2, 1.7, 2.1, 2.3, 2.4, 2.5, 2.6, 3.3, 3.5, 3.6, 3.7, 4.2, 4.6, 4.7, 5.1, 5.2, 5.3, 5.4, 5.7, 5.9, 6.3, 6.4, 6.5, 9.3, 9.4, 9.5, 10.4, 11.1, 11.2, 11.3, 11.4, 11.5, 11.7, 11.9, 11.10 |
+| sonnet | 1.1, 1.2, 1.7, 2.1, 2.3, 2.4, 2.5, 2.6, 3.3, 3.5, 3.6, 3.7, 4.2, 4.6, 4.7, 5.1, 5.2, 5.3, 5.4, 5.7, 5.9, ~~6.3, 6.4, 6.5, 9.3, 9.4, 9.5, 10.4, 11.1, 11.2, 11.3, 11.4, 11.5, 11.7, 11.9, 11.10~~ |
+| opus (from sonnet, 2026-09-24) | 6.3, 6.4, 6.5, 9.3, 9.4, 9.5, 10.4, 11.1, 11.2, 11.3, 11.4, 11.5, 11.7, 11.9, 11.10 |
 
 ## Definition of Ready and Definition of Done
 
@@ -1658,7 +1661,7 @@ So that three days in a basement never cost a single image.
 
 ### Story 6.3: See every photo in one chronological gallery with its stamp and provisional number
 
-**Dev model:** sonnet · **Effort:** medium · gallery, viewer, stamp and provisional numbering
+**Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** medium · gallery, viewer, stamp and provisional numbering
 
 As a user,
 I want the relatório's photos in capture order with their stamp, caption and upload state, filterable by cabine, openable in a viewer,
@@ -1684,7 +1687,7 @@ So that the gallery is section 7 before it is printed.
 
 ### Story 6.4: Add photos after the visit or from someone else's phone
 
-**Dev model:** sonnet · **Effort:** medium · import path with batch caption
+**Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** medium · import path with batch caption
 
 As an office user,
 I want a visible "Adicionar fotos" button on every sheet and in the gallery, with drag-and-drop on a computer,
@@ -1706,7 +1709,7 @@ So that Eduardo's twelve photos and my late shots slot into section 7 by their c
 
 ### Story 6.5: Change a caption from chips or free text
 
-**Dev model:** sonnet · **Effort:** low · caption composer
+**Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** low · caption composer
 
 As a user,
 I want to open a composer only when I choose to change a caption, with the activity, equipment and location as chips,
@@ -2063,7 +2066,7 @@ So that an equipment missing from the drawing costs one shot and one tap.
 
 ### Story 9.3: Caption context-less photos by vision, confirmed in batch
 
-**Dev model:** sonnet · **Effort:** medium · caption reading kind, batch confirm and the manual people mark
+**Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** medium · caption reading kind, batch confirm and the manual people mark
 
 As a user,
 I want photos without a sheet context to receive a suggested caption on sync that I confirm one by one or all at once,
@@ -2081,7 +2084,7 @@ So that Eduardo's twelve gate photos are captioned in the van, not on Monday.
 
 ### Story 9.4: Dictate a caption, an observation or a reading
 
-**Dev model:** sonnet · **Effort:** medium · speech engine behind an interface, parsed table utterances
+**Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** medium · speech engine behind an interface, parsed table utterances
 
 As a field engineer,
 I want to speak a caption or an observation, or say "Fase A, 147 giga", and see it as a suggestion,
@@ -2099,7 +2102,7 @@ So that the free text I cannot pick from a chip still costs no typing.
 
 ### Story 9.5: Draft the NC observation from the row's photo
 
-**Dev model:** sonnet · **Effort:** medium · one more reading kind on the existing pipeline
+**Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** medium · one more reading kind on the existing pipeline
 
 As a field engineer,
 I want a one-sentence description of what my NC photo shows, offered as a suggestion on that row's observation,
@@ -2164,7 +2167,7 @@ So that nothing is silently lost or duplicated.
 
 ### Story 10.4: See everything the sync did or is waiting to do
 
-**Dev model:** sonnet · **Effort:** medium · full sync status surface from syncCounts
+**Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** medium · full sync status surface from syncCounts
 
 As a user,
 I want the full Sync status surface with every pending upload, download, error, merge and contradiction, and each colleague's last send,
@@ -2182,7 +2185,7 @@ The remaining product scope the slice deferred, the cloud and paid-provider work
 
 ### Story 11.1: Download the PDF beside the DOCX
 
-**Dev model:** sonnet · **Effort:** low · serve a stored file
+**Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** low · serve a stored file
 
 As an office user,
 I want the PDF row of the Export dialog and the revision list to download the file the job already stored,
@@ -2196,7 +2199,7 @@ So that I send the client the closed document the same morning.
 
 ### Story 11.2: Move a block to another location
 
-**Dev model:** sonnet · **Effort:** medium · move block op with TAG re-suggestion
+**Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** medium · move block op with TAG re-suggestion
 
 As a user,
 I want to move an equipment block to another column carrying its data, with its TAG re-suggested,
@@ -2210,7 +2213,7 @@ So that a block placed in the wrong column is fixed without retyping.
 
 ### Story 11.3: Save a relatório as a template
 
-**Dev model:** sonnet · **Effort:** medium · template from relatório structure
+**Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** medium · template from relatório structure
 
 As an office user,
 I want to turn a finished relatório's structure into a template,
@@ -2224,7 +2227,7 @@ So that the next visit to the same site starts from what was actually there.
 
 ### Story 11.4: Edit section boilerplate in a rich text editor
 
-**Dev model:** sonnet · **Effort:** medium · rich text editor limited to renderer-shared formatting
+**Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** medium · rich text editor limited to renderer-shared formatting
 
 As an office user,
 I want bold, italics, lists and variables in the Template composer's section editor,
@@ -2238,7 +2241,7 @@ So that the boilerplate prints with the formatting the company form uses.
 
 ### Story 11.5: Turn the photo location stamp on or off
 
-**Dev model:** sonnet · **Effort:** low · account toggle
+**Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** low · account toggle
 
 As a user,
 I want a switch in Account for the coordinates on my photos, with the OS denial shown there,
@@ -2266,7 +2269,7 @@ So that the pipeline proven on fixtures reads real plates with one config change
 
 ### Story 11.7: Use Amazon Textract as the cloud OCR
 
-**Dev model:** sonnet · **Effort:** medium · Textract adapter behind the existing contract
+**Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** medium · Textract adapter behind the existing contract
 
 As a builder,
 I want `OCR_PROVIDER=textract` behind the `OcrProvider` contract,
@@ -2294,7 +2297,7 @@ So that the design partner uses the product outside the office network without a
 
 ### Story 11.9: Let the priority suggest the deadline on a point of attention (post-MVP, before 2027-06-01)
 
-**Dev model:** sonnet · **Effort:** medium · priority picker and deadline suggestion
+**Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** medium · priority picker and deadline suggestion
 
 As an office user,
 I want to pick a priority P0 to P4 on a finding and see the deadline suggested from it,
@@ -2308,7 +2311,7 @@ So that the report carries the compliance schedule NR-10 10.7.11 will require.
 
 ### Story 11.10: Print the action-plan table in section 8 (post-MVP, before 2027-06-01)
 
-**Dev model:** sonnet · **Effort:** medium · action-plan table in the renderer
+**Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** medium · action-plan table in the renderer
 
 As an office user,
 I want section 8 to print a numbered table of the findings with local, priority, deadline, action, owner and images beneath the bullets,

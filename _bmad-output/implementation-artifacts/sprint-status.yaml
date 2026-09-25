@@ -76,7 +76,7 @@ development_status:
   4-8-generate-the-document-skeleton-as-a-numbered-docx-revision: done  # PR #24; Bruno reading of the skeleton DOCX pending (R-009)
   epic-4-retrospective: done
 
-  epic-5: in-progress
+  epic-5: done  # closed by Matheus 2026-09-24; deep testing (device proof, E5-A2) deferred to the product POC
   5-1-open-a-sheet-and-move-through-its-four-steps: done  # PR #30
   5-2-record-the-cabine-s-characteristics-and-test-environment-onc: done  # PR #30
   5-3-fill-the-nameplate-by-copy-or-by-typing: done  # PR #30
