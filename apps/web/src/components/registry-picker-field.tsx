@@ -1,5 +1,6 @@
 import { normalizeRegistryName } from '@app/domain';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { ui } from '../copy/ui.ts';
 import { Chip } from './chip.tsx';
 import { Combobox, type ComboboxOption } from './combobox.tsx';
@@ -12,8 +13,18 @@ export interface RegistryPickerFieldProps {
   recentIds: readonly string[];
   value: string | null;
   onChange: (id: string | null) => void;
-  /** Fires with the trimmed typed text when "Criar '…'" is chosen (Story 2.4 AC2, 2.5 AC3). */
-  onCreate: (text: string) => void;
+  /**
+   * Fires with the trimmed typed text when "Criar '…'" is chosen (Story 2.4 AC2, 2.5 AC3).
+   * Returns the label the created entry will carry in `options` ("15 kV" for a typed
+   * "15 kV" or "15"), which the input then shows, so a later blur finds the entry and does
+   * not let go of it (E12-Q1); nothing, or null when nothing was created, keeps the typed text.
+   */
+  onCreate: (text: string) => string | null | void;
+  /**
+   * The key two texts are compared by to tell whether the typed text names an entry already
+   * there (no "Criar" then). Defaults to the registry's own normalized name (AR-18).
+   */
+  matchKey?: (text: string) => string;
   /**
    * The text the Combobox shows on the first render: the chosen option's label, or the
    * stored by-value text when it matches no registry entry (a free-text manufacturer
@@ -36,37 +47,33 @@ export function RegistryPickerField({
   onChange,
   onCreate,
   initialText,
+  matchKey = normalizeRegistryName,
 }: RegistryPickerFieldProps) {
   const byId = new Map(options.map((option) => [option.id, option] as const));
   const [showCombobox, setShowCombobox] = useState(false);
-  // Story 12.4 (J-09): "Outro…" lands the focus inside the Combobox it reveals, so typing
-  // starts at once (one tap, not two).
+  // Story 12.4 (J-09), E12-Q7: "Outro…" lands the focus inside the Combobox it reveals, in
+  // the press handler itself, so a tablet browser opens its soft keyboard for it (a focus
+  // outside the user gesture shows none) and typing starts at once.
   const comboboxHost = useRef<HTMLDivElement>(null);
-  const focusInput = useRef(false);
-  useEffect(() => {
-    if (!showCombobox || !focusInput.current) return;
-    focusInput.current = false;
+  const revealCombobox = () => {
+    // The host is always mounted (`hidden`), so the reveal commits synchronously here.
+    flushSync(() => setShowCombobox(true));
     const input = comboboxHost.current?.querySelector<HTMLInputElement>('input');
     if (input === null || input === undefined) return;
-    // Centred first, so the list the typing opens below it is on screen; the focus comes two
-    // frames later, once that scroll's event has fired: a scroll landing after the list opened
-    // would close it (`combobox.tsx`).
+    input.focus({ preventScroll: true });
+    // Centred after the focus, so the list the typing opens below it is on screen; the
+    // scroll's event fires within the frame, before any typed key opens the list, which a
+    // scroll landing after it would close (`combobox.tsx`).
     input.scrollIntoView?.({ block: 'center' });
-    let frames = 2;
-    const land = () => {
-      if (--frames > 0) requestAnimationFrame(land);
-      else input.focus({ preventScroll: true });
-    };
-    requestAnimationFrame(land);
-  }, [showCombobox]);
+  };
   const [inputValue, setInputValue] = useState(
     () => initialText ?? (value === null ? '' : (byId.get(value)?.label ?? '')),
   );
   const chipsLabelId = useId();
   // "Criar" only for a name the registry does not hold yet, by the same normalized
   // comparison the server merges on (case and accents folded, trimmed; AR-18).
-  const typed = normalizeRegistryName(inputValue);
-  const exists = typed === '' || options.some((option) => normalizeRegistryName(option.label) === typed);
+  const typed = matchKey(inputValue);
+  const exists = inputValue.trim() === '' || options.some((option) => matchKey(option.label) === typed);
 
   const choose = (id: string | null) => {
     if (id !== null) setInputValue(byId.get(id)?.label ?? '');
@@ -90,12 +97,7 @@ export function RegistryPickerField({
                 {option.label}
               </Chip>
             ))}
-            <Chip
-              onPress={() => {
-                focusInput.current = true;
-                setShowCombobox(true);
-              }}
-            >
+            <Chip onPress={revealCombobox}>
               {ui.registryPicker.other}
             </Chip>
           </div>
@@ -113,8 +115,8 @@ export function RegistryPickerField({
             ? {}
             : {
                 onCreate: (text: string) => {
-                  setInputValue(text.trim());
-                  onCreate(text.trim());
+                  const createdLabel = onCreate(text.trim());
+                  setInputValue(typeof createdLabel === 'string' ? createdLabel : text.trim());
                 },
               })}
         />

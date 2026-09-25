@@ -137,4 +137,63 @@ describe('RegistryPickerField', () => {
     );
     expect(screen.getByRole('button', { name: 'Blutrafos', pressed: true })).toBeInTheDocument();
   });
+
+  it('E12-Q7: "Outro…" focuses the Combobox inside the press itself, not in a later frame', async () => {
+    render(
+      <RegistryPickerField label="Fabricante" options={OPTIONS} recentIds={[]} value={null} onChange={vi.fn()} onCreate={vi.fn()} />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Outro…' }));
+    // No waitFor: the focus is already there when the press handler returns.
+    expect(screen.getByRole('combobox', { name: 'Fabricante' })).toHaveFocus();
+  });
+
+  it('E12-Q1: after "Criar" the input shows the label onCreate returns, and a blur once the entry arrives keeps it', async () => {
+    const onChange = vi.fn();
+    const onCreate = vi.fn(() => '15 kV');
+    const matchKey = (text: string) => text.trim().replace(/\s*kv$/i, '');
+    const classes = [{ id: 'c13', label: '13,8 kV' }];
+    const { rerender } = render(
+      <>
+        <RegistryPickerField label="Tensão" options={classes} recentIds={[]} value={null} onChange={onChange} onCreate={onCreate} matchKey={matchKey} />
+        <button type="button">depois</button>
+      </>,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Outro…' }));
+    const input = screen.getByRole('combobox', { name: 'Tensão' });
+    // Typed bare, created with its unit: the input shows the created row's label, not the typed text.
+    await userEvent.keyboard('15');
+    await userEvent.click(await screen.findByRole('option', { name: 'Criar “15”' }));
+    expect(onCreate).toHaveBeenCalledWith('15');
+    expect(input).toHaveValue('15 kV');
+    // The created entry arrives through the live reads, then the engineer tabs away.
+    rerender(
+      <>
+        <RegistryPickerField
+          label="Tensão"
+          options={[...classes, { id: 'c15', label: '15 kV' }]}
+          recentIds={['c15']}
+          value="c15"
+          onChange={onChange}
+          onCreate={onCreate}
+          matchKey={matchKey}
+        />
+        <button type="button">depois</button>
+      </>,
+    );
+    input.focus();
+    await userEvent.tab();
+    expect(input).toHaveValue('15 kV');
+    expect(onChange).not.toHaveBeenCalledWith(null);
+  });
+
+  it('E12-Q1: a match key folds the unit, so an existing "15 kV" offers no "Criar" for a typed "15"', async () => {
+    const matchKey = (text: string) => text.trim().replace(/\s*kv$/i, '');
+    render(
+      <RegistryPickerField label="Tensão" options={[{ id: 'c15', label: '15 kV' }]} recentIds={[]} value={null} onChange={vi.fn()} onCreate={vi.fn()} matchKey={matchKey} />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Outro…' }));
+    await userEvent.keyboard('15');
+    expect(await screen.findByRole('option', { name: '15 kV' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /Criar/ })).not.toBeInTheDocument();
+  });
 });

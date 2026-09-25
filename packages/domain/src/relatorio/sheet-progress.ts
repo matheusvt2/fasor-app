@@ -47,6 +47,11 @@ export interface SheetStepProgress {
   missing: number;
   /** Story 12.1 (D-2): capture cells whose verdict is `out`; 0 on every step but `ensaios`. */
   outOfLimit: number;
+  /**
+   * E12-Q10: on `placa` only, the share of `missing` that are cabine fields (the cabine's
+   * first sheet counts them in this step); absent everywhere else.
+   */
+  cabine?: number;
 }
 
 export interface SheetProgress {
@@ -103,18 +108,20 @@ export function isCabineFirstSheet(snapshot: Pick<RelatorioSnapshot, 'locations'
   return cabine !== null && firstInTree(snapshot, cabine.id) === blockId;
 }
 
-function placaMissing(snapshot: SheetProgressSnapshot, block: BlockRow, definition: BlockDefinition, enabled: ReadonlySet<SubBlockKey>): number {
-  let missing = 0;
+/** The Placa step's missing fields: the plate's own and, on the cabine's first sheet, the cabine's. */
+function placaMissing(snapshot: SheetProgressSnapshot, block: BlockRow, definition: BlockDefinition, enabled: ReadonlySet<SubBlockKey>): { plate: number; cabine: number } {
+  let plate = 0;
   if (enabled.has('nameplate')) {
     const prefilled = snapshot.equipment === undefined ? null : nameplateTagPrefill({ blocks: snapshot.blocks, equipment: snapshot.equipment }, block.id);
-    missing += definition.nameplate.filter((field) => !isCellFilled(block.sheet.nameplate[field.key]) && !(field.key === 'tag' && prefilled !== null)).length;
+    plate = definition.nameplate.filter((field) => !isCellFilled(block.sheet.nameplate[field.key]) && !(field.key === 'tag' && prefilled !== null)).length;
   }
+  let cabineMissing = 0;
   const { relatorio, locations, equipment } = snapshot;
   if (relatorio !== undefined && locations !== undefined && equipment !== undefined && isCabineFirstSheet({ blocks: snapshot.blocks, locations, equipment }, block.id)) {
     const cabine = cabineOf(locations, block.location_id);
-    if (cabine !== null) missing += cabineProgress({ relatorio, locations }, cabine.id).missing.length;
+    if (cabine !== null) cabineMissing = cabineProgress({ relatorio, locations }, cabine.id).missing.length;
   }
-  return missing;
+  return { plate, cabine: cabineMissing };
 }
 
 function verificacoesMissing(block: BlockRow, definition: BlockDefinition, enabled: ReadonlySet<SubBlockKey>): number {
@@ -161,7 +168,8 @@ export function sheetProgress(snapshot: SheetProgressSnapshot, blockId: string):
   }
   if (block !== undefined && definition !== null) {
     const enabled = enabledSubBlocksOf(block);
-    steps.placa.missing = placaMissing(snapshot, block, definition, enabled);
+    const placa = placaMissing(snapshot, block, definition, enabled);
+    steps.placa = { missing: placa.plate + placa.cabine, outOfLimit: 0, ...(placa.cabine > 0 ? { cabine: placa.cabine } : {}) };
     steps.verificacoes.missing = verificacoesMissing(block, definition, enabled);
     steps.ensaios = ensaiosCounts(block, definition);
     steps.conclusao.missing = conclusaoMissing(block, enabled);
@@ -204,17 +212,44 @@ const SUMMARY_DONE: Record<SheetStep, { noun: string; singular: boolean }> = {
   conclusao: { noun: 'conclusão', singular: true },
 };
 
-/** How each step reads in the Sheet header sentence while something in it is missing. */
-function summaryMissingPart(step: SheetStep, n: number): string {
+/** One piece of the Sheet header sentence: plain text, or a missing count the header emphasises (`.n-missing`). */
+export interface SheetSummaryPart {
+  text: string;
+  kind: 'text' | 'missing';
+}
+
+/** The per-step counts the Sheet header sentence reads (the Placa step with its cabine share). */
+type SummaryCounts = { steps: Record<SheetStep, { missing: number; cabine?: number }> };
+
+/** A count and its noun, the count its own part: "9" + " leituras". */
+function countParts(n: number, one: string, many: string): SheetSummaryPart[] {
+  return [
+    { text: String(n), kind: 'missing' },
+    { text: ` ${n === 1 ? one : many}`, kind: 'text' },
+  ];
+}
+
+/**
+ * How each step reads in the Sheet header sentence while something in it is missing. The
+ * Placa step names its plate fields and its cabine fields apart (E12-Q10), the plate first:
+ * "2 campos da placa, 6 campos da cabine".
+ */
+function summaryMissingParts(step: SheetStep, counts: { missing: number; cabine?: number }): SheetSummaryPart[][] {
   switch (step) {
-    case 'placa':
-      return plural(n, 'campo da placa', 'campos da placa');
+    case 'placa': {
+      const cabine = Math.min(counts.cabine ?? 0, counts.missing);
+      const plate = counts.missing - cabine;
+      const parts: SheetSummaryPart[][] = [];
+      if (plate > 0) parts.push(countParts(plate, 'campo da placa', 'campos da placa'));
+      if (cabine > 0) parts.push(countParts(cabine, 'campo da cabine', 'campos da cabine'));
+      return parts;
+    }
     case 'verificacoes':
-      return plural(n, 'verificação', 'verificações');
+      return [countParts(counts.missing, 'verificação', 'verificações')];
     case 'ensaios':
-      return plural(n, 'leitura', 'leituras');
+      return [countParts(counts.missing, 'leitura', 'leituras')];
     case 'conclusao':
-      return 'a conclusão';
+      return [[{ text: 'a conclusão', kind: 'text' }]];
   }
 }
 
@@ -224,30 +259,49 @@ function joinPtBr(parts: readonly string[]): string {
   return `${parts.slice(0, -1).join(', ')} e ${parts[parts.length - 1]}`;
 }
 
+/** `joinPtBr` over lists of parts, the separators as text parts. */
+function joinPartsPtBr(items: readonly SheetSummaryPart[][]): SheetSummaryPart[] {
+  return items.flatMap((item, index) => {
+    if (index === 0) return item;
+    const separator = index === items.length - 1 ? ' e ' : ', ';
+    return [{ text: separator, kind: 'text' as const }, ...item];
+  });
+}
+
 function capitalise(text: string): string {
   return text.charAt(0).toLocaleUpperCase('pt-BR') + text.slice(1);
 }
 
 /**
  * Story 12.5 (DESIGN.md § v0.9 › Sheet header, J-14): the Sheet header's one sentence of
- * progress, "Placa e verificações prontas · faltam 9 leituras e a conclusão". The steps
- * done are named first, in stepper order ("pronta" after one singular noun, else
- * "prontas"), then what is missing, the verb agreeing with its first part ("falta 1
- * leitura", "falta a conclusão", "faltam 9 leituras"). A step the stepper does not show
- * (`shown`) is never named. "Ficha completa" once nothing is missing (authored copy, an
- * open question for Bruno and Matheus).
+ * progress, "Placa e verificações prontas · faltam 9 leituras e a conclusão", in parts:
+ * each missing count is a `missing` part the header draws in `.n-missing` (E12-Q8,
+ * `key-equipment-sheet-v09.html`), the rest plain text. The steps done are named first, in
+ * stepper order ("pronta" after one singular noun, else "prontas"), then what is missing,
+ * the verb agreeing with its first part ("falta 1 leitura", "falta a conclusão", "faltam 9
+ * leituras"). A step the stepper does not show (`shown`) is never named. "Ficha completa"
+ * once nothing is missing (authored copy, an open question for Bruno and Matheus).
  */
-export function sheetSummaryText(p: Pick<SheetProgress, 'steps'>, shown: readonly SheetStep[] = SHEET_STEPS): string {
+export function sheetSummaryParts(p: SummaryCounts, shown: readonly SheetStep[] = SHEET_STEPS): SheetSummaryPart[] {
   const steps = SHEET_STEPS.filter((step) => shown.includes(step));
   const done = steps.filter((step) => p.steps[step].missing === 0);
   const missing = steps.filter((step) => p.steps[step].missing > 0);
-  const first = missing[0];
-  if (first === undefined) return 'Ficha completa';
-  const verb = first === 'conclusao' || p.steps[first].missing === 1 ? 'falta' : 'faltam';
-  const missingText = `${verb} ${joinPtBr(missing.map((step) => summaryMissingPart(step, p.steps[step].missing)))}`;
-  if (done.length === 0) return capitalise(missingText);
+  if (missing.length === 0) return [{ text: 'Ficha completa', kind: 'text' }];
+  const items = missing.flatMap((step) => summaryMissingParts(step, p.steps[step]));
+  // The verb agrees with the first thing missing: a count of 1 or "a conclusão" is singular.
+  const lead = items[0]![0]!;
+  const verb = lead.kind === 'text' || lead.text === '1' ? 'falta' : 'faltam';
+  const missingParts = joinPartsPtBr(items);
+  if (done.length === 0) return [{ text: `${capitalise(verb)} `, kind: 'text' }, ...missingParts];
   const adjective = done.length === 1 && SUMMARY_DONE[done[0]!].singular ? 'pronta' : 'prontas';
-  return `${capitalise(joinPtBr(done.map((step) => SUMMARY_DONE[step].noun)))} ${adjective} · ${missingText}`;
+  return [{ text: `${capitalise(joinPtBr(done.map((step) => SUMMARY_DONE[step].noun)))} ${adjective} · ${verb} `, kind: 'text' }, ...missingParts];
+}
+
+/** `sheetSummaryParts` as one string. */
+export function sheetSummaryText(p: SummaryCounts, shown: readonly SheetStep[] = SHEET_STEPS): string {
+  return sheetSummaryParts(p, shown)
+    .map((part) => part.text)
+    .join('');
 }
 
 /** `.progress-counter[data-state]` of the Sheet header. */

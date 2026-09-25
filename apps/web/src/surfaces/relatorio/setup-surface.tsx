@@ -25,7 +25,7 @@ import {
   type UserRow,
 } from '@app/domain';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useSearchParams, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useSearchParams, useParams } from 'react-router';
 import { Button, Checkbox, Combobox, DateField, OverflowMenu, TextButton, UploadTile } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { now } from '../../clock.ts';
@@ -38,6 +38,7 @@ import { instrumentRows } from '../../db/home-store.ts';
 import { localUsers } from '../../db/sync-store.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { newId } from '../../ids.ts';
+import { useForgetArrivalState } from '../../state/arrival-state.ts';
 import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { useUndoableEdits, type UndoableEdits } from '../../state/use-undoable-edits.ts';
@@ -88,6 +89,13 @@ interface SetupContentProps {
   users: readonly UserRow[];
   instruments: readonly InstrumentRow[];
   blocks: readonly BlockRow[];
+}
+
+/** The instrument Cadastros registered for this page (E12-Q11), from the arrival's state. */
+function registeredInstrumentOf(state: unknown): string | null {
+  if (typeof state !== 'object' || state === null) return null;
+  const raw = (state as Record<string, unknown>).registeredInstrumentId;
+  return typeof raw === 'string' ? raw : null;
 }
 
 function SetupContent({ relatorioId, snapshot, users, instruments, blocks }: SetupContentProps) {
@@ -147,6 +155,21 @@ function SetupContent({ relatorioId, snapshot, users, instruments, blocks }: Set
   async function commitField(field: string, value: unknown): Promise<void> {
     await commitFields([[field, value]]);
   }
+
+  // E12-Q11: back from Cadastros' "Fechar" after "Cadastrar instrumento", the instrument just
+  // registered there is checked here (one op), when it exists and is not listed yet. Read once
+  // from the arrival, then forgotten, so a reload never checks it again.
+  const location = useLocation();
+  const [registeredId] = useState(() => registeredInstrumentOf(location.state));
+  useForgetArrivalState();
+  const registeredSpent = useRef(false);
+  useEffect(() => {
+    if (registeredId === null || registeredSpent.current) return;
+    if (!instruments.some((row) => row.id === registeredId && row.removed_at === null)) return;
+    registeredSpent.current = true;
+    if (setup.instrument_ids.includes(registeredId)) return;
+    void commitField('instrument_ids', [...setup.instrument_ids, registeredId]);
+  });
 
   const gapReason = setupIncompleteReason(snapshot, responsible);
   // AD-22 (Epic 4 retro item 12): the kernel's table says whether this status completes setup.

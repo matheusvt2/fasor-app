@@ -58,6 +58,7 @@ export function NewProjectDialog({ clients, projects, onClose }: NewProjectDialo
   // The labels of rows created here: the live query lists them a tick after the commit,
   // and an input event in that tick must not read the missing option as a changed name.
   const createdLabels = useRef(new Map<string, string>());
+  const siteInput = useRef<HTMLInputElement>(null);
   const labelOf = (options: readonly { id: string; label: string }[], id: string): string | undefined =>
     options.find((option) => option.id === id)?.label ?? createdLabels.current.get(id);
   /** True for a row created in this dialog that the live query has not listed yet. */
@@ -76,6 +77,7 @@ export function NewProjectDialog({ clients, projects, onClose }: NewProjectDialo
     const existing = clientOptions.find((option) => normalizeRegistryName(option.label) === normalizeRegistryName(name));
     if (existing !== undefined) {
       pickClient(existing.id, existing.label);
+      requestAnimationFrame(() => siteInput.current?.focus());
       return;
     }
     const base = author();
@@ -91,6 +93,8 @@ export function NewProjectDialog({ clients, projects, onClose }: NewProjectDialo
     createdLabels.current.set(id, name);
     pickClient(id, name);
     showToast(t.clientCreated);
+    // E12-Q11: the next thing to type is the obra, so the focus goes there once it is enabled.
+    requestAnimationFrame(() => siteInput.current?.focus());
   }
 
   async function createProject(site: string): Promise<void> {
@@ -178,6 +182,7 @@ export function NewProjectDialog({ clients, projects, onClose }: NewProjectDialo
         onCreate={clientId === null ? undefined : (text) => void createProject(text)}
         isDisabled={clientId === null}
         disabledReason={clientId === null ? t.needsClient : undefined}
+        inputRef={siteInput}
       />
       <div className="dialog-actions">
         <Button variant="secondary" onPress={onClose}>

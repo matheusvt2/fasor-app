@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, type Ref } from 'react';
 import { Button, ComboBox, Input, Label, ListBox, ListBoxItem, Popover } from 'react-aria-components';
 import { ui } from '../copy/ui';
 
@@ -64,6 +64,8 @@ export interface ComboboxProps {
   placeholder?: string;
   isDisabled?: boolean;
   disabledReason?: string;
+  /** The text input, for a caller that moves the focus into it (E12-Q11). */
+  inputRef?: Ref<HTMLInputElement>;
 }
 
 /**
@@ -82,6 +84,7 @@ export function Combobox({
   placeholder,
   isDisabled,
   disabledReason,
+  inputRef,
 }: ComboboxProps) {
   if (isDisabled && !disabledReason) {
     throw new Error('Combobox: isDisabled requires a disabledReason shown beside the control.');
@@ -121,6 +124,7 @@ export function Combobox({
       >
         <Label className="field-label">{label}</Label>
         <Input
+          ref={inputRef}
           className="input"
           placeholder={placeholder}
           aria-disabled={isDisabled || undefined}

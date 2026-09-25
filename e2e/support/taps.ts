@@ -133,3 +133,38 @@ export function tapCounter(page: Page, effectMs = 3_000) {
 }
 
 export type TapCounter = ReturnType<typeof tapCounter>;
+
+/**
+ * E12-Q6: a touch press held across `during`, on Chromium through CDP touch emulation (the
+ * desktop project too): the finger goes down at the target's centre, `during` runs (a
+ * commit that re-renders the sheet), the finger comes up at the same point, and the
+ * browser's own tap gesture dispatches the click 100 ms or more after the pointer up, as an
+ * Android tablet does. A render that moves the target while the finger is down, or in that
+ * gap, loses the tap unless the render is held (`useHeldWhilePressed`).
+ */
+export async function touchPressAcross(page: Page, target: Locator, during: () => Promise<void>): Promise<void> {
+  // On screen and centred before the finger goes down; nothing scrolls it afterwards.
+  await target.evaluate(async (element) => {
+    element.scrollIntoView({ block: 'center', inline: 'nearest' });
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  });
+  const box = await target.boundingBox({ timeout: 10_000 });
+  if (box === null) throw new Error('touchPressAcross: the target has no box on screen');
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  const cdp = await page.context().newCDPSession(page);
+  let touching = false;
+  try {
+    await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
+    touching = true;
+    await during();
+  } finally {
+    // The finger always lifts, even when `during` threw, so no touch is left down on the page.
+    try {
+      if (touching) await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    } finally {
+      await cdp.detach();
+    }
+  }
+}

@@ -103,10 +103,14 @@ export function cabineMissingText(p: Pick<CabineProgress, 'missing'>): string | 
   return `falta ${SHORT_NAMES[first.key] ?? first.label.toLocaleLowerCase('pt-BR')}`;
 }
 
-/** A cabine number as the line prints it: "13,8 kV", "1.500 kVA", "65 %"; null when not typed. */
+/**
+ * A cabine number as the line prints it: "13,8 kV", "1.500 kVA", "65 %"; null when not typed.
+ * Value and unit are joined by a no-break space (U+00A0), so a wrapping line never splits
+ * "25" from "°C" (E12-Q9).
+ */
 function lineMeasure(value: { raw: string; unit: string | null; state?: string } | null, unit: string): string | null {
   if (value === null || value.state === 'empty' || value.raw.trim() === '') return null;
-  return `${formatDecimalGroupedPtBr(value.raw.trim())} ${value.unit ?? unit}`;
+  return `${formatDecimalGroupedPtBr(value.raw.trim())}\u00a0${value.unit ?? unit}`;
 }
 
 /**

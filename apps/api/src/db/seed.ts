@@ -1,6 +1,7 @@
 import {
   councilSchema,
   defaultTitleForCouncil,
+  SEED_VERSION,
   SERVER_DEVICE_ID,
   STANDARD_TEMPLATE_NAME,
   standardTemplate,
@@ -14,7 +15,7 @@ import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Auth } from '../auth/auth.ts';
 import { now } from '../clock.ts';
 import { newId } from '../ids.ts';
-import { applyOps } from '../sync/apply.ts';
+import { applyOps, applyServerBatch, type Tx } from '../sync/apply.ts';
 import type { Db } from './client.ts';
 import { ensureCompany } from './repositories/companies.ts';
 import { asCompanyId, type CompanyId } from './repositories/company-id.ts';
@@ -226,10 +227,15 @@ export async function seedUser(
  * surface's empty state commits from a device. Idempotent: a company that already holds
  * a live template of that name gets nothing, so a second run adds no op. Returns the id
  * of the template it created, or null.
+ *
+ * E12-Q4: a company seeded before the current `SEED_VERSION` holds its standard template at
+ * the older version. When nobody has edited it (`version` still the seeded 1), the seed moves
+ * it to the current version in one server batch (`upgradeStandardTemplate`); an edited one
+ * keeps its version (AR-20), and so does every relatório already made from it.
  */
 export async function seedStandardTemplate(db: Db, companyId: CompanyId): Promise<string | null> {
   const [existing] = await db
-    .select({ id: entities.id })
+    .select({ id: entities.id, row: entities.row })
     .from(entities)
     .where(
       and(
@@ -240,7 +246,10 @@ export async function seedStandardTemplate(db: Db, companyId: CompanyId): Promis
       ),
     )
     .limit(1);
-  if (existing !== undefined) return null;
+  if (existing !== undefined) {
+    await upgradeStandardTemplate(db, companyId, existing.id, existing.row as { seed_version?: unknown; version?: unknown });
+    return null;
+  }
   const id = newId();
   const op = {
     ...provisioningEnvelope(companyId),
@@ -253,6 +262,66 @@ export async function seedStandardTemplate(db: Db, companyId: CompanyId): Promis
   const rejected = result.rejected[0];
   if (rejected !== undefined) throw new Error(`could not seed the standard template: ${rejected.code}`);
   return id;
+}
+
+/** Thrown inside the batch's lock when the template no longer needs the upgrade: rolls back, then skipped. */
+class UpgradeNoLongerNeeded extends Error {}
+
+/**
+ * E12-Q4: moves an unedited seeded standard template to `SEED_VERSION`, as one server op
+ * batch (`system:identity`, one transaction under the company lock, the row checked again
+ * there): its `seed_version` (a server-only path), the blocks and the
+ * skeleton `standardTemplate` builds at that version, then `version` back to 1 (each
+ * content put bumps it, D-4), so the template still reads as never edited. A template
+ * already at `SEED_VERSION`, or edited (`version` above 1), gets no op.
+ */
+async function upgradeStandardTemplate(
+  db: Db,
+  companyId: CompanyId,
+  id: string,
+  row: { seed_version?: unknown; version?: unknown },
+): Promise<void> {
+  if (!needsUpgrade(row)) return;
+  const target = standardTemplate({ id });
+  const batchId = newId();
+  const put = (field: string, value: unknown) => ({
+    ...provisioningEnvelope(companyId),
+    batch_id: batchId,
+    op_id: newId(),
+    kind: 'put',
+    path: `template/${id}/${field}`,
+    value,
+  });
+  const batch = [
+    put('seed_version', target.seed_version),
+    put('blocks', target.blocks),
+    put('skeleton', target.skeleton),
+    put('version', 1),
+  ];
+  // One transaction under the company lock: all four land or none does, and the row is read
+  // again under the lock, so a device edit that landed after the read above is never undone.
+  try {
+    await applyServerBatch(db, companyId, batch, {
+      now,
+      before: async (tx: Tx) => {
+        const [current] = await tx
+          .select({ row: entities.row, removed_at: entities.removed_at })
+          .from(entities)
+          .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'template'), eq(entities.id, id)));
+        if (current === undefined || current.removed_at !== null || !needsUpgrade(current.row as { seed_version?: unknown; version?: unknown })) {
+          throw new UpgradeNoLongerNeeded();
+        }
+      },
+    });
+  } catch (error) {
+    if (error instanceof UpgradeNoLongerNeeded) return;
+    throw error;
+  }
+}
+
+/** An unedited seeded template (`version` still 1) at an older seed version. */
+function needsUpgrade(row: { seed_version?: unknown; version?: unknown }): boolean {
+  return row.seed_version !== SEED_VERSION && row.version === 1;
 }
 
 /** Removes every session of one user of this company, so a password reset takes effect. */

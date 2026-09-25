@@ -133,6 +133,8 @@ export const opPathSchema = z.discriminatedUnion('family', [
   z.object({ family: z.literal('generation_job/field'), id: uuidV7Schema, field: z.enum(GENERATION_JOB_FIELDS) }),
   z.object({ family: z.literal('revision'), id: uuidV7Schema }),
   z.object({ family: z.literal('relatorio/preview_file_id') }),
+  // E12-Q4: the server's move of an unedited seeded template to the current seed version.
+  z.object({ family: z.literal('template/seed_version'), id: uuidV7Schema, field: z.literal('seed_version') }),
 ]);
 
 export type OpPath = z.infer<typeof opPathSchema>;
@@ -272,6 +274,10 @@ export const FAMILIES: readonly FamilyDef[] = [
   // Users are provisioned, never created by a device (AD-9): the seed projects each
   // identity user into the company stream as this `system:identity` create.
   { family: 'user', entity: 'user', create: true, serverOnly: true, segments: [lit('user'), id()] },
+  // E12-Q4: a template's `seed_version` is set at create and never by a device; the seed
+  // moves the unedited "Cabine primária — padrão" template to the current version with
+  // this `system:identity` put (a relatório keeps the version it was made with, AR-20).
+  { family: 'template/seed_version', entity: 'template', serverOnly: true, segments: [lit('template'), id(), en(['seed_version'])] },
 ];
 
 const BY_FAMILY: ReadonlyMap<PathFamily, FamilyDef> = new Map(FAMILIES.map((f) => [f.family, f]));

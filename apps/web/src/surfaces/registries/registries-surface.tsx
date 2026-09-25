@@ -67,10 +67,12 @@ export function RegistriesSurface() {
   // History keeps no arrival state: a browser back or a reload onto Cadastros opens it plain.
   useForgetArrivalState();
 
-  function endEntry(back: boolean): void {
+  function endEntry(back: boolean, instrumentId: string): void {
     const returnTo = entry.returnTo;
     setEntry({});
-    if (back && returnTo !== undefined) void navigate(returnTo);
+    // E12-Q11: the page that asked for the instrument is told which one it was, so it can
+    // list it (setup Etapa 4 checks it when it exists).
+    if (back && returnTo !== undefined) void navigate(returnTo, { state: { registeredInstrumentId: instrumentId } });
   }
 
   useEffect(() => {

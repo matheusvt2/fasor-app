@@ -152,7 +152,8 @@ test('@p0 5.1-E2E-005 a tree row opens the sheet: App bar TAG, header, stepper w
   await expect(page.getByLabel('Tipo', { exact: true })).toHaveValue('Polimérico');
   await expect(page.getByLabel('Corrente nominal', { exact: true })).toHaveValue('10');
   await expect(field(page, 'fabricacao').getByRole('combobox')).toHaveValue('Fabricante Ficha');
-  await expect(field(page, 'tensao_nominal').getByRole('combobox')).toHaveValue('36,2');
+  // A voltage class reads with its unit (E12-Q1); the stored value stays "36,2" (the outbox check above).
+  await expect(field(page, 'tensao_nominal').getByRole('combobox')).toHaveValue('36,2 kV');
   await expect(page.locator('.sheet-header .sheet-meta').nth(1)).toHaveText(/^Preenchido por .+ · \d{2}\/\d{2} \d{2}:\d{2}$/);
   expect(relatorioId).not.toBe('');
 });

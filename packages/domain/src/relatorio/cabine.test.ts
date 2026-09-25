@@ -73,8 +73,15 @@ describe('12.3-UNIT cabineProgress and its words', () => {
 
   it('draws the collapsed line from the stored values in the seed order, leaving out what is not typed', () => {
     const { cabine } = withCabine(fresh(), 'Cubículo Enel', (c) => ({ ...c, se: FULL_SE, env: FULL_ENV }));
-    expect(cabineLineText(cabine)).toBe('ALVENARIA - CONVENCIONAL · 13,8 kV · 380 V · 1.500 kVA · 25 °C · 65 %');
-    expect(cabineLineText({ ...cabine, se: { ...FULL_SE, secondary_kv: null, installed_kva: null } })).toBe('ALVENARIA - CONVENCIONAL · 13,8 kV · 25 °C · 65 %');
+    expect(cabineLineText(cabine)).toBe('ALVENARIA - CONVENCIONAL · 13,8\u00a0kV · 380\u00a0V · 1.500\u00a0kVA · 25\u00a0°C · 65\u00a0%');
+    expect(cabineLineText({ ...cabine, se: { ...FULL_SE, secondary_kv: null, installed_kva: null } })).toBe('ALVENARIA - CONVENCIONAL · 13,8\u00a0kV · 25\u00a0°C · 65\u00a0%');
+  });
+
+  it('E12-Q9: joins each value to its unit with a no-break space, so a wrap never splits "25" from "°C"', () => {
+    const { cabine } = withCabine(fresh(), 'Cubículo Enel', (c) => ({ ...c, se: FULL_SE, env: FULL_ENV }));
+    const measures = cabineLineText(cabine).split(' · ').slice(1);
+    expect(measures).toHaveLength(5);
+    for (const measure of measures) expect(measure).toMatch(/^[\d.,]+\u00a0\S+$/);
   });
 });
 
@@ -93,8 +100,13 @@ describe('12.3-UNIT the cabine counts on its first sheet only', () => {
     const otherPlate = sheetProgress({ blocks: snapshot.blocks }, other.id).steps.placa.missing;
     expect(sheetProgress(snapshot, other.id).steps.placa.missing).toBe(otherPlate - (tagPrefilled(snapshot, other.id) ? 1 : 0));
 
+    // E12-Q10: the Placa step carries its cabine share, so the header names it apart.
+    expect(sheetProgress(snapshot, first).steps.placa.cabine).toBe(6);
+    expect(sheetProgress(snapshot, other.id).steps.placa.cabine).toBeUndefined();
+
     const done = withCabine(snapshot, 'Cubículo Enel', (c) => ({ ...c, se: FULL_SE, env: FULL_ENV })).snapshot;
     expect(sheetProgress(done, first).steps.placa.missing).toBe(plateOnly - (tagPrefilled(snapshot, first) ? 1 : 0));
+    expect(sheetProgress(done, first).steps.placa.cabine).toBeUndefined();
   });
 
   it('counts the block TAG as the prefilled nameplate TAG, so a seccionadora misses one field fewer', () => {

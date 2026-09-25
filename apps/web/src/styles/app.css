@@ -540,3 +540,12 @@ input.count { width: 40px; padding: 0; border: 0; background: transparent; color
    The Sumário cabine row's "falta a umidade": `.cabine-line .cl-missing`'s declarations
    (the same color and weight `key-relatorio-overview-v09.html` draws inline on its `.cl-missing`). */
 .s9-cab-meta .cl-missing { color: var(--fora-do-limite); font-weight: 600; }
+
+/* ---------- Collapsed rail strip beside the sheet (E12-Q14) ----------
+   `components.css` `.screen-body` is a flex row that stretches its children, so the mock's
+   `.rail-collapsed` strip (its surface-raised fill and hairline border) runs the whole column
+   height. The sheet keeps the strip sticky at the top (`ficha.css`), which sizes it to its
+   content; a strip as tall as the viewport below the App bar (`components.css` `.app-bar`
+   height, `--touch-field`) paints the same full column while it stays in view, and never
+   makes a short sheet taller than the viewport. */
+[data-route="/relatorio/:id/ficha/:blockId"] .rail-collapsed { height: calc(100dvh - var(--touch-field)); }

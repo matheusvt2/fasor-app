@@ -1,4 +1,4 @@
-import { SEED_VERSION, STANDARD_TEMPLATE_NAME, standardTemplate, templateRowSchema, templateTotals } from '@app/domain';
+import { instantiateTemplate, SEED_VERSION, STANDARD_TEMPLATE_NAME, standardTemplate, templateRowSchema, templateTotals } from '@app/domain';
 import { and, eq, like } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
 import { createAuth } from '../auth/auth.ts';
@@ -37,6 +37,74 @@ async function templates(companyId: string) {
     .select({ id: entities.id, row: entities.row, removed_at: entities.removed_at })
     .from(entities)
     .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'template')));
+}
+
+async function templateOps(companyId: string) {
+  return db
+    .select({ path: ops.path, kind: ops.kind, actor_id: ops.actor_id, device_id: ops.device_id, batch_id: ops.batch_id })
+    .from(ops)
+    .where(and(eq(ops.company_id, companyId), like(ops.path, 'template/%')))
+    .orderBy(ops.seq);
+}
+
+/** Server ops (`system:identity`) from bare drafts, applied as the seed applies its own. */
+async function applyServer(companyId: string, drafts: readonly Record<string, unknown>[]) {
+  const envelope = {
+    scope: 'company',
+    company_id: companyId,
+    project_id: null,
+    relatorio_id: null,
+    prev_op_id: null,
+    batch_id: null,
+    meta: null,
+    actor_id: 'system:identity',
+    device_id: 'server',
+  };
+  const result = await applyOps(
+    db,
+    asCompanyId(companyId),
+    drafts.map((draft) => ({ ...envelope, op_id: newId(), client_ts: new Date().toISOString(), ...draft })),
+    { now: () => new Date(), origin: 'server' },
+  );
+  expect(result.rejected).toEqual([]);
+}
+
+/** A company holding the standard template as seed v1 made it (a database seeded before v2), and one relatório made from it. */
+async function companyWithV1Template(label: string) {
+  const companyId = newId();
+  await seedUser(db, auth, {
+    companyId,
+    companyName: `Empresa ${label}`,
+    email: `template-${label}-${companyId}@teste.local`,
+    password: TEST_SEED.password,
+    name: `Tita ${label}`,
+    council: 'crea',
+    registrationNumber: 'SP 9',
+  });
+  const templateId = newId();
+  const v1 = standardTemplate({ id: templateId, seedVersion: 'v1' });
+  await applyServer(companyId, [{ kind: 'create', path: `template/${templateId}`, value: v1 }]);
+  const projectId = newId();
+  const { relatorioId, drafts } = instantiateTemplate(
+    v1,
+    { id: projectId },
+    { service_start: '2026-09-06', service_end: '2026-09-08', existingEquipment: [], responsible_user_id: null },
+    { newId, actorId: 'system:identity', companyId },
+  );
+  const relatorioCreate = drafts.find((draft) => draft.path === `relatorio/${relatorioId}`)!;
+  await applyServer(companyId, [
+    { kind: 'create', path: `project/${projectId}`, value: { id: projectId, client_id: null, name: 'Obra', site: 'Obra', removed_at: null } },
+    { ...relatorioCreate },
+  ]);
+  return { companyId, templateId, relatorioId };
+}
+
+async function relatorioSeedVersion(companyId: string, relatorioId: string) {
+  const [row] = await db
+    .select({ row: entities.row })
+    .from(entities)
+    .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'relatorio'), eq(entities.id, relatorioId)));
+  return (row?.row as { seed_version?: string } | undefined)?.seed_version;
 }
 
 async function templateCreates(companyId: string) {
@@ -126,6 +194,91 @@ describe('seedStandardTemplate', () => {
       await dropCompany(db, companyId);
     }
   }, 30_000);
+});
+
+describe('seedStandardTemplate on a database seeded before the current seed version (E12-Q4)', () => {
+  it('moves an unedited v1 template to SEED_VERSION in one server batch, version kept at 1; its relatório keeps v1; a second run adds no op', async () => {
+    const { companyId, templateId, relatorioId } = await companyWithV1Template('v1');
+    try {
+      const before = (await templateOps(companyId)).length;
+      expect(await seedStandardTemplate(db, asCompanyId(companyId))).toBeNull();
+
+      const rows = (await templates(companyId)).filter((t) => t.removed_at === null);
+      expect(rows).toHaveLength(1);
+      const row = templateRowSchema.parse(rows[0]!.row);
+      expect(row).toEqual(standardTemplate({ id: templateId }));
+      expect(row).toMatchObject({ seed_version: SEED_VERSION, version: 1 });
+
+      const added = (await templateOps(companyId)).slice(before);
+      expect(added.map((op) => op.path)).toEqual([
+        `template/${templateId}/seed_version`,
+        `template/${templateId}/blocks`,
+        `template/${templateId}/skeleton`,
+        `template/${templateId}/version`,
+      ]);
+      expect(new Set(added.map((op) => op.batch_id)).size).toBe(1);
+      expect(added[0]!.batch_id).not.toBeNull();
+      expect(added.every((op) => op.kind === 'put' && op.actor_id === 'system:identity' && op.device_id === 'server')).toBe(true);
+
+      // AR-20: the relatório made from v1 keeps it.
+      expect(await relatorioSeedVersion(companyId, relatorioId)).toBe('v1');
+
+      const settled = (await templateOps(companyId)).length;
+      expect(await seedStandardTemplate(db, asCompanyId(companyId))).toBeNull();
+      expect(await templateOps(companyId)).toHaveLength(settled);
+    } finally {
+      await dropCompany(db, companyId);
+    }
+  }, 60_000);
+
+  it('leaves an edited v1 template (version above 1) at v1, with no op', async () => {
+    const { companyId, templateId } = await companyWithV1Template('editado');
+    try {
+      const v1 = standardTemplate({ id: templateId, seedVersion: 'v1' });
+      // A content edit (D-4) bumps the version to 2.
+      await applyServer(companyId, [{ kind: 'put', path: `template/${templateId}/blocks`, value: v1.blocks.slice(0, -1) }]);
+      const before = (await templateOps(companyId)).length;
+      expect(await seedStandardTemplate(db, asCompanyId(companyId))).toBeNull();
+      expect(await templateOps(companyId)).toHaveLength(before);
+      const row = templateRowSchema.parse((await templates(companyId))[0]!.row);
+      expect(row).toMatchObject({ seed_version: 'v1', version: 2 });
+    } finally {
+      await dropCompany(db, companyId);
+    }
+  }, 60_000);
+
+  it('refuses the seed_version path from a device: it is a server-only family', async () => {
+    const { companyId, templateId } = await companyWithV1Template('cliente');
+    const actorId = newId();
+    try {
+      const result = await applyOps(
+        db,
+        asCompanyId(companyId),
+        [
+          {
+            op_id: newId(),
+            kind: 'put',
+            scope: 'company',
+            company_id: companyId,
+            project_id: null,
+            relatorio_id: null,
+            prev_op_id: null,
+            batch_id: null,
+            meta: null,
+            actor_id: actorId,
+            device_id: 'tablet-x',
+            client_ts: new Date().toISOString(),
+            path: `template/${templateId}/seed_version`,
+            value: SEED_VERSION,
+          },
+        ],
+        { now: () => new Date(), origin: 'client', actorId },
+      );
+      expect(result.rejected.map((r) => r.code)).toEqual(['op_server_only']);
+    } finally {
+      await dropCompany(db, companyId);
+    }
+  }, 60_000);
 });
 
 describe('seedTestCompanies and the standard template', () => {

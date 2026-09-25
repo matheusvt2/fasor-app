@@ -1,5 +1,5 @@
 import { avatarInitial, PRODUTO, unsyncedForDays } from '@app/domain';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { Link, Outlet, useLocation, useMatches, useNavigate, useParams } from 'react-router';
 import { now } from '../clock.ts';
@@ -12,6 +12,7 @@ import { useLiveQuery } from '../db/live.ts';
 import { useBackTargetValue } from '../state/back-target.tsx';
 import { BannerSlot, bannerCandidates } from '../state/banner-slot.tsx';
 import { useExtraBannerValue } from '../state/extra-banner.tsx';
+import { useForwardArrival } from '../state/forward-arrival.ts';
 import { usePageTitleValue } from '../state/page-title.tsx';
 import { useSession } from '../state/session.tsx';
 import { useSync } from '../state/sync.tsx';
@@ -94,6 +95,10 @@ export function AppShell() {
     document.title = tabTitle;
   }, [tabTitle]);
 
+  // E12-Q2: a forward navigation opens the new page at its top, its heading focused.
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  useForwardArrival(titleRef);
+
   function goBack(): void {
     // A press-time width check, not a render switch: the destination depends on the
     // layout the person sees when they press, and nothing on screen changes with it.
@@ -134,7 +139,9 @@ export function AppShell() {
             </AriaButton>
           )}
         </span>
-        <h1 className={handle?.titleHidden ? 'app-bar-title visually-hidden' : 'app-bar-title'}>{title}</h1>
+        <h1 className={handle?.titleHidden ? 'app-bar-title visually-hidden' : 'app-bar-title'} tabIndex={-1} ref={titleRef}>
+          {title}
+        </h1>
         <span className="app-bar-right">
           <SyncBadge state={sync.badgeState} counts={sync.counts} onPress={() => void navigate('/sync')} />
           <Link

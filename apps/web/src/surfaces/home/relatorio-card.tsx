@@ -23,7 +23,7 @@ export function RelatorioCard({ card, onPress, resume = null, onContinue }: Rela
   const className = ['relatorio-card', card.isCurrent && 'is-current', card.isUnavailable && 'is-unavailable']
     .filter(Boolean)
     .join(' ');
-  const label = [card.title, statusLabel(card.status), card.counter?.text].filter((part) => part !== undefined).join(', ');
+  const label = [card.title, statusLabel(card.status), card.counter?.text].filter((part) => part != null).join(', ');
 
   return (
     <div className={className} data-testid="relatorio-card" data-relatorio={card.id} data-status={card.status}>
