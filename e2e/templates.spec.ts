@@ -16,6 +16,7 @@ import {
   test,
   TEST_SEED,
 } from './support/merged-fixtures.ts';
+import { syncNowAndReturn } from './support/sync.ts';
 
 /*
  * 3.2-E2E, 3.3-E2E and 3.4-E2E. The Templates surface and the Template composer, driven
@@ -77,19 +78,6 @@ async function openComposer(page: Page, name: string): Promise<void> {
   await expect(page.getByRole('textbox', { name: 'Nome do template' })).toHaveValue(name);
 }
 
-/** "Sincronizar agora" from the Sync status, until nothing is waiting. */
-async function syncNow(page: Page): Promise<void> {
-  const back = page.url();
-  await syncBadge(page).click();
-  const button = page.getByRole('button', { name: 'Sincronizar agora' });
-  await expect(button).not.toHaveAttribute('aria-disabled', 'true', { timeout: 30_000 });
-  await button.click();
-  await expect(syncBadge(page)).toHaveAttribute('data-pending', '0', { timeout: 30_000 });
-  await expect(button).not.toHaveAttribute('aria-disabled', 'true', { timeout: 30_000 });
-  await expect(syncBadge(page)).toHaveAttribute('data-state', 'ok');
-  await page.goto(back);
-}
-
 async function outboxPaths(page: Page, userId: string): Promise<string[]> {
   return (await readStore<{ path: string }>(page, deviceDatabaseName(userId), 'outbox')).map((op) => op.path);
 }
@@ -142,7 +130,7 @@ test('@p0 3.2-E2E-001 Empresa B creates the standard template from the empty sta
   await expect(names(activeList(page))).toHaveText([STANDARD_TEMPLATE_NAME]);
 
   // "Sincronizar agora" pushes the create.
-  await syncNow(page);
+  await syncNowAndReturn(page);
 
   // The server holds exactly one template create for Empresa B, the kernel's standard row.
   const company = await pullAll(page.request, '/api/sync/company');
@@ -479,7 +467,7 @@ test('@p0 3.4-E2E-003 section blocks reorder, duplicate and remove with undo; Ag
   await expect(tags).toHaveText(['2', '1', '4', '3', '5', '6', '8', '10', '10', '11', '5']);
 
   expect((await outboxPaths(page, account.userId)).every((path) => path.startsWith('template/'))).toBe(true);
-  await syncNow(page);
+  await syncNowAndReturn(page);
 
   // Another device of the company pulls the same composition.
   const other = await browser.newContext();
@@ -533,11 +521,11 @@ test('@p0 3.4-E2E-005 a coluna removed on one device while a stale device sets q
     await page.getByRole('menuitem', { name: 'Remover' }).click();
     await page.getByRole('dialog', { name: 'Remover Coluna 9?' }).getByRole('button', { name: 'Remover' }).click();
     await expect(skeletonHeading(page)).toHaveText('Esqueleto de locais · 6 cabines · 16 colunas · 94 blocos');
-    await syncNow(page);
+    await syncNowAndReturn(page);
 
     // Context 2 comes back and syncs LAST: its blocks, built on the old row, win on the server.
     await other.setOffline(false);
-    await syncNow(second);
+    await syncNowAndReturn(second);
 
     // The server now holds an orphan: blocks on a coluna its skeleton no longer has.
     const log = (await pullAll(page.request, '/api/sync/company')).ops.filter((op) => op.path.startsWith(`template/${templateId}`));
@@ -550,8 +538,8 @@ test('@p0 3.4-E2E-005 a coluna removed on one device while a stale device sets q
 
     // Both sync once more; neither shows a failure, and both composers show one skeleton
     // and one set of totals, with the orphan quantities nowhere.
-    await syncNow(page);
-    await syncNow(second);
+    await syncNowAndReturn(page);
+    await syncNowAndReturn(second);
     for (const p of [page, second]) {
       await expect(syncBadge(p)).toHaveAttribute('data-state', 'ok');
       await expect(skeletonHeading(p)).toHaveText('Esqueleto de locais · 6 cabines · 16 colunas · 94 blocos');

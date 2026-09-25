@@ -12,7 +12,7 @@ export const configSchema = z.object({
   SESSION_SECRET: z.string().min(32),
   /**
    * Origins allowed to post to /api/auth/* (better-auth CSRF check). Comma separated;
-   * locally the Vite dev server (5173), the Playwright dev server (5199) and the api
+   * locally the Vite dev server (5173), the Playwright preview server (5200) and the api
    * itself. Same origin in production, so this stays a local-development list.
    */
   TRUSTED_ORIGINS: z.string().min(1),

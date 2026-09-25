@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 09-24-2026 23:40
+last_updated: 09-25-2026 00:05
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -141,9 +141,9 @@ development_status:
   11-9-let-the-priority-suggest-the-deadline-on-a-point-of-attentio: backlog
   11-10-print-the-action-plan-table-in-section-8-post-mvp-before-202: backlog
   epic-11-retrospective: optional
-  epic-12: backlog  # journey review 2026-09-24; runs before Epic 6, confirmed by Matheus (sprint-change-proposal-2026-09-24.md)
+  epic-12: in-progress  # journey review 2026-09-24; runs before Epic 6, confirmed by Matheus (sprint-change-proposal-2026-09-24.md)
   12-1-no-tap-is-ever-lost-and-a-section-never-collapses-under-the: backlog
-  12-2-forward-never-back-resume-in-one-tap-and-no-dead-ends: backlog
+  12-2-forward-never-back-resume-in-one-tap-and-no-dead-ends: done  # PR #35
   12-3-the-sheet-repeats-nothing-the-cabine-or-the-relatorio-alread: backlog
   12-4-the-plate-and-the-nc-in-fewer-taps: backlog
   12-5-apply-the-v0-9-visual-direction: backlog
@@ -311,7 +311,7 @@ action_items:
     action: "E3-A4 Stabilize the gate: Templates list empty for 30 s after sign-in
       under load (3.6-E2E-001), and cut unit-suite jsdom/axe cost"
     owner: "dev"
-    status: open
+    status: in-progress
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
   - id: "epic-3-retro-item-22-e3-a5-decide-d-4-template-version-d-5-co"
     epic: 3
@@ -433,7 +433,7 @@ action_items:
       the timing flakes 4.1-E2E-002, 4.3-E2E-002, 1.6-E2E-001, 5.5-E2E-001 and the
       E5-Q8 test by waiting on committed state; three green full runs in a row"
     owner: "dev (opus)"
-    status: open
+    status: done
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
   - id: "epic-5-retro-item-38-e5-a2-add-the-sheet-to-the-durability-ma"
     epic: 5

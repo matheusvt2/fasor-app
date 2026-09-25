@@ -1,7 +1,8 @@
 import { cellAddressesOf, getDefinition, type OpDraft } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
-import { deviceDatabaseName, expect, horizontalOverflow, signIn, syncBadge, test, TEST_SEED } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, TEST_SEED } from './support/merged-fixtures.ts';
+import { syncNowAndReturn } from './support/sync.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB as resetCompany } from './support/reset-empresa-b.ts';
 import { officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
@@ -38,18 +39,6 @@ const stepper = (page: Page) => page.getByRole('group', { name: 'Seções da fic
 const field = (page: Page, key: string) => page.locator(`[data-field-key="${key}"]`);
 const checklistRow = (page: Page, n: number) => page.locator('#ficha-step-verificacoes li.checklist-row').nth(n - 1);
 const outbox = (page: Page) => readStore<OutboxRow>(page, database, 'outbox');
-
-/** "Sincronizar agora" from the Sync status, until nothing is waiting, then back. */
-async function syncNow(page: Page): Promise<void> {
-  const back = page.url();
-  await syncBadge(page).click();
-  const button = page.getByRole('button', { name: 'Sincronizar agora' });
-  await expect(button).not.toHaveAttribute('aria-disabled', 'true', { timeout: 30_000 });
-  await button.click();
-  await expect(syncBadge(page)).toHaveAttribute('data-pending', '0', { timeout: 30_000 });
-  await expect(syncBadge(page)).toHaveAttribute('data-state', 'ok');
-  await page.goto(back);
-}
 
 /** Resets Empresa B, signs in and opens the Sumário of a relatório pushed from the office. */
 async function openRelatorio(page: Page, width: number): Promise<{ relatorioId: string; projectId: string }> {
@@ -330,7 +319,7 @@ test('@p0 5.3-E2E-001 "Igual à ⟨TAG⟩?" copies a same-type plate as plain op
     officeDraft(account, { relatorioId }, `sheet/${source.blockId}/nameplate/fabricacao`, 'Celtta'),
     officeDraft(account, { relatorioId }, `sheet/${source.blockId}/nameplate/n_serie`, 'PR-0009'),
   ]);
-  await syncNow(page);
+  await syncNowAndReturn(page);
   await openEnel(page);
   const target = await openSheet(page, rowOfType(page, 'Para-raio', 1));
 
@@ -383,7 +372,7 @@ test('@p0 5.1-E2E-003 "Concluir ficha" on a complete sheet emits concluded_by an
     officeDraft(account, scope, `sheet/${target.blockId}/conclusion/restriction`, 'sem_restricoes'),
   ];
   await pushDrafts(page, database, drafts);
-  await syncNow(page);
+  await syncNowAndReturn(page);
   await openEnel(page);
   await openSheet(page, rowOfType(page, 'Para-raio'));
 
@@ -636,7 +625,7 @@ test('@p0 5.7-E2E-001 the Instrument picker: empty state opens Cadastros; a pick
     instrumentDraft(megId, { code: '2E', name: 'Megôhmetro', manufacturer: 'Instrum', model: 'DMG10Ki', serial: 'IN919021', cert_number: '37428/26', calibrated_at: '2026-08-28', calibration_interval_months: 12, test_isolacao: { raw: '5', unit: 'kV' } }),
     instrumentDraft(oldId, { code: '5A', name: 'Megôhmetro MIT525', manufacturer: 'Megger', model: 'MIT525', serial: '1002211', cert_number: '35110/24', calibrated_at: '2025-02-02', calibration_interval_months: 12 }),
   ]);
-  await syncNow(page);
+  await syncNowAndReturn(page);
   await page.goto(`/relatorio/${relatorioId}`);
   await openEnel(page);
   const first = await openSheet(page, rowOfType(page, 'Chave seccionadora', 0));
@@ -686,7 +675,7 @@ test('@p0 5.8-E2E-001 one tap on the suggestion sets both pairs, the composed te
       officeDraft(account, { relatorioId }, `sheet/${target.blockId}/nameplate/${f.key}`, f.kind === 'number' ? { raw: '630', unit: f.unit ?? null, state: 'measured' } : f.kind === 'date' ? '2020-01-01' : f.kind === 'select' ? f.options![0] : 'X'),
     ),
   );
-  await syncNow(page);
+  await syncNowAndReturn(page);
   await openEnel(page);
   const { blockId, tag } = await openSheet(page, rowOfType(page, 'Chave seccionadora'));
   await page.locator('#ficha-step-verificacoes .bulk-action-bar').getByRole('button', { name: 'Marcar os restantes como Conforme' }).click();
@@ -794,7 +783,7 @@ test('@p0 5.8-E2E-002 "Concluir ficha" lands on the first empty reading, then on
     ),
     ...SECCIONADORA.checklist!.map((item) => officeDraft(account, { relatorioId }, `sheet/${target.blockId}/checklist/${item.key}/result`, 'C')),
   ]);
-  await syncNow(page);
+  await syncNowAndReturn(page);
   await openEnel(page);
   const { blockId, tag } = await openSheet(page, rowOfType(page, 'Chave seccionadora'));
   const concluir = async () => {
@@ -1142,7 +1131,7 @@ test('@p1 5.9-E2E-002 "Desfazer" once the mark has synced opens a Confirm dialog
   const dialog = page.getByRole('dialog', { name: 'Marcar não ensaiado' });
   await dialog.getByRole('button', { name: 'Marcar não ensaiado' }).click();
   await expect(page.locator('.not-tested-band')).toBeVisible();
-  await syncNow(page);
+  await syncNowAndReturn(page);
 
   const band = page.locator('.not-tested-band');
   await band.getByRole('button', { name: 'Desfazer' }).click();
@@ -1173,7 +1162,7 @@ test('@p0 5.4-E2E-002 "Repetir da ficha anterior do mesmo tipo" writes only the 
     officeDraft(account, scope, `sheet/${target.blockId}/checklist/${items[0]!.key}/result`, 'NC'),
   ];
   await pushDrafts(page, database, drafts);
-  await syncNow(page);
+  await syncNowAndReturn(page);
   await openEnel(page);
   await openSheet(page, rowOfType(page, 'Para-raio', 1));
 
@@ -1379,7 +1368,7 @@ test('@p1 E5-Q9 the expired calibration line under a picked instrument is drawn 
   await pushDrafts(page, database, [
     instrumentDraft(newId(), { code: '5A', name: 'Megôhmetro MIT525', manufacturer: 'Megger', model: 'MIT525', serial: '1002211', cert_number: '35110/24', calibrated_at: '2025-02-02', calibration_interval_months: 12 }),
   ]);
-  await syncNow(page);
+  await syncNowAndReturn(page);
   await page.goto(`/relatorio/${relatorioId}`);
   await openEnel(page);
   await openSheet(page, rowOfType(page, 'Chave seccionadora'));

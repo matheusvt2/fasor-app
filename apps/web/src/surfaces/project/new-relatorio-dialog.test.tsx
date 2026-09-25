@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { standardTemplate, type ClientRow, type EquipmentRow, type ProjectRow, type TemplateRow } from '@app/domain';
+import { calendarDateOfInstant, standardTemplate, type ClientRow, type EquipmentRow, type ProjectRow, type TemplateRow } from '@app/domain';
 import { configure, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
@@ -104,7 +104,7 @@ function SetupProbe() {
 }
 
 describe('4.1 NewRelatorioDialog', () => {
-  it('preselects the one type and the only pickable template, and says what is missing until a start exists', async () => {
+  it('preselects the one type and the only pickable template, and both dates open on today (12.2), so Criar is ready', async () => {
     database = await freshDb();
     await database.entities.put(toRecord(`template:${TEMPLATE}`, template()));
     renderDialog();
@@ -113,8 +113,11 @@ describe('4.1 NewRelatorioDialog', () => {
     expect(radio).toHaveClass('option-row', 'is-selected');
     expect(within(dialog()).getByRole('combobox', { name: 'Template' })).toHaveValue('Cabine primária — padrão');
     expect(within(dialog()).getByText('Os 94 blocos nascem nas cabines e colunas do template, com a TAG final. Arquivados não aparecem.')).toHaveClass('helper');
-    expect(create()).toHaveAttribute('aria-disabled', 'true');
-    expect(create()).toHaveAccessibleDescription('Criar relatório: falta a data de início');
+    // Story 12.2 (J-12): today in America/Sao_Paulo, both dates.
+    const [year, month, day] = calendarDateOfInstant(new Date()).split('-');
+    expect(segments('Início da parada').map((seg) => seg.textContent)).toEqual([day, month, year]);
+    expect(segments('Fim da parada').map((seg) => seg.textContent)).toEqual([day, month, year]);
+    expect(create()).not.toHaveAttribute('aria-disabled');
     expect(await axe(document.body)).toHaveNoViolations();
   });
 

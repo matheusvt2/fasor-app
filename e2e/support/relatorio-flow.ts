@@ -1,4 +1,4 @@
-import { STANDARD_TEMPLATE_NAME } from '@app/domain';
+import { calendarDateOfInstant, STANDARD_TEMPLATE_NAME } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { expect } from './merged-fixtures.ts';
 
@@ -36,7 +36,7 @@ export async function createProjectFromHome(page: Page): Promise<void> {
 
 /**
  * The Project's "Novo relatório" dialog, already open for a project born on Home: dates
- * typed, Criar. Criar opens Relatório setup at Etapa 1 with the focus on its band heading
+ * typed over today's, Criar. Criar opens Relatório setup at Etapa 1 with the focus on its band heading
  * (Epic 4 QA Q1); `whileOnSetup` runs there, then "Voltar" leads to the Sumário. Returns
  * the relatório id.
  */
@@ -46,8 +46,11 @@ export async function createRelatorio(page: Page, options: { whileOnSetup?: () =
   await expect(dialog.getByRole('radio', { name: /Cabine primária/ })).toHaveAttribute('aria-checked', 'true');
   await expect(dialog.getByRole('combobox', { name: 'Template' })).toHaveValue(STANDARD_TEMPLATE_NAME);
   const create = dialog.getByRole('button', { name: 'Criar relatório' });
-  await expect(create).toHaveAttribute('aria-disabled', 'true');
-  await expect(create).toHaveAccessibleDescription('Criar relatório: falta a data de início');
+  // Story 12.2 (J-12): both dates open on today (America/Sao_Paulo), so Criar is ready.
+  const [year, month, day] = calendarDateOfInstant(new Date()).split('-');
+  await expect(dialog.getByRole('group', { name: 'Início da parada' }).getByRole('spinbutton')).toHaveText([day!, month!, year!]);
+  await expect(dialog.getByRole('group', { name: 'Fim da parada' }).getByRole('spinbutton')).toHaveText([day!, month!, year!]);
+  await expect(create).not.toHaveAttribute('aria-disabled', 'true');
   await typeDate(dialog, 'Início da parada', '06092026');
   // The end follows the start.
   await expect(dialog.getByRole('group', { name: 'Fim da parada' }).getByRole('spinbutton')).toHaveText(['06', '09', '2026']);

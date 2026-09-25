@@ -1,10 +1,10 @@
 import 'fake-indexeddb/auto';
 import { instantiateTemplate, standardTemplate, type BlockRow } from '@app/domain';
 import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
-import { render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
-import { MemoryRouter, Route, Routes } from 'react-router';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { toRecord } from '../../db/commit.ts';
 import { openDatabase, type AppDatabase } from '../../db/schema.ts';
@@ -84,10 +84,16 @@ async function seeded(): Promise<{ db: AppDatabase; section2: BlockRow }> {
   return { db, section2: sections.find((b) => b.block_type === 'section_2')! };
 }
 
+/** Where a press navigated. */
+function Where() {
+  return <p data-testid="where">{useLocation().pathname}</p>;
+}
+
 function tree(id: string, blockId: string) {
   return (
     <MemoryRouter initialEntries={[`/relatorio/${id}/secao/${blockId}`]}>
       <ToastProvider>
+        <Where />
         <Routes>
           <Route path="/relatorio/:id/secao/:blockId" element={<SectionTextSurface />} />
         </Routes>
@@ -218,5 +224,22 @@ describe('4.7 SectionTextSurface', () => {
     await database.entities.bulkPut([toRecord(`block:${other.id}`, other)]);
     render(tree(RELATORIO, other.id));
     expect(await screen.findByText('Seção não encontrada.')).toBeVisible();
+  });
+
+  it('12.2: "Próxima seção" opens the next section text (2 to 4); on section 6 only "Voltar ao sumário" remains', async () => {
+    const seed = await seeded();
+    database = seed.db;
+    const sections = sectionBlocksFor(RELATORIO);
+    const section4 = sections.find((b) => b.block_type === 'section_4')!;
+    const section6 = sections.find((b) => b.block_type === 'section_6')!;
+    render(tree(RELATORIO, seed.section2.id));
+    await userEvent.click(await screen.findByRole('button', { name: 'Próxima seção' }));
+    expect(screen.getByTestId('where')).toHaveTextContent(`/relatorio/${RELATORIO}/secao/${section4.id}`);
+    expect(await screen.findByRole('heading', { level: 2, name: /^Seção 4 — / })).toBeVisible();
+    cleanup();
+
+    render(tree(RELATORIO, section6.id));
+    expect(await screen.findByRole('button', { name: 'Voltar ao sumário' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Próxima seção' })).toBeNull();
   });
 });
