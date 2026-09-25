@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 09-24-2026 18:00
+last_updated: 09-24-2026 22:16
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -86,7 +86,7 @@ development_status:
   5-7-pick-the-instrument-by-its-code: done  # PR #32
   5-8-conclude-the-sheet-with-one-tap-and-a-text-the-app-wrote-fro: done  # PR #32
   5-9-mark-an-equipment-as-not-tested: done  # PR #31
-  epic-5-retrospective: optional
+  epic-5-retrospective: done
 
   epic-6: backlog
   6-1-shoot-photos-in-a-burst-from-any-surface-captioned-from-wher: backlog
@@ -418,3 +418,59 @@ action_items:
     owner: "dev / coordinator"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
+  - id: "epic-5-retro-item-37-e5-a1-stabilize-the-e2e-gate-before-epic"
+    epic: 5
+    action: "E5-A1 Stabilize the e2e gate before Epic 6: fix 3.6-E2E-001 (E3-A4) and
+      the timing flakes 4.1-E2E-002, 4.3-E2E-002, 1.6-E2E-001, 5.5-E2E-001 and the
+      E5-Q8 test by waiting on committed state; three green full runs in a row"
+    owner: "dev (opus)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
+  - id: "epic-5-retro-item-38-e5-a2-add-the-sheet-to-the-durability-ma"
+    epic: 5
+    action: "E5-A2 Add the sheet to the durability matrix (tri-state taps, phone unit
+      chip row, sticky bar with the keyboard, Nao ensaiado) and to the E1-A1 manual
+      device script"
+    owner: "dev, then Matheus"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
+  - id: "epic-5-retro-item-39-e5-a3-decide-oq-1-oq-6-of-reviews-epic-5"
+    epic: 5
+    action: "E5-A3 Decide OQ-1..OQ-6 of reviews/epic-5-review-qa.md, the carried questions
+      (humidity threshold, CONDICOES when out, single TAP row, fixture kV unit, Q15,
+      item 23) and the authored conclusion wording; record dated notes under each
+      story"
+    owner: "Matheus (with Bruno for wording)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
+  - id: "epic-5-retro-item-40-e5-a4-small-fixes-with-the-epic-7-print"
+    epic: 5
+    action: "E5-A4 Small fixes with the Epic 7 print path: apply criterion_override,
+      a cleared result leaves no printable confirmed text, guard the stale basis on
+      confirm, remaining E5-Q18 e2e"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
+  - id: "epic-5-retro-item-41-e5-a5-kernel-path-builders-for-every-op"
+    epic: 5
+    action: "E5-A5 Kernel path builders for every op family the web writes (ficha-ops,
+      relatorio-ops, setup-surface puts), folded into E4-A7 with the setup-surface
+      split"
+    owner: "dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
+  - id: "epic-5-retro-item-42-e5-a6-dod-a-new-kernel-refusal-of-a-writ"
+    epic: 5
+    action: "E5-A6 DoD: a new kernel refusal of a write ships with an api integration
+      test through the sync route; a batch adding a table or wide control asserts
+      its 390 px fit in an e2e"
+    owner: "coordinator / SM"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
+  - id: "epic-5-retro-item-43-e5-a7-keep-the-epic-5-token-economy-deli"
+    epic: 5
+    action: "E5-A7 Keep the Epic 5 token-economy delivery shape while tokens are scarce,
+      orchestrate on opus, cut batches along data dependencies"
+    owner: "coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
