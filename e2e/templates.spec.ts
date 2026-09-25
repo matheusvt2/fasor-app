@@ -1,4 +1,4 @@
-import { materializeEntity, STANDARD_TEMPLATE_NAME, standardTemplate, templateRowSchema, type TemplateRow } from '@app/domain';
+import { materializeEntity, SEED_VERSION, STANDARD_TEMPLATE_NAME, standardTemplate, templateRowSchema, type TemplateRow } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { createAuth } from '../apps/api/src/auth/auth.ts';
 import { parseTrustedOrigins } from '../apps/api/src/auth/trusted-origins.ts';
@@ -90,7 +90,7 @@ const skeletonHeading = (page: Page) => page.locator('.composer-main h2').first(
 /** The standard template's Coluna 9 of 1° Subsolo, which holds no equipment. */
 const ORPHAN_REF = 'subsolo-1/coluna-9';
 const EMPTY = 'Nenhum template. Crie um a partir do relatório padrão FO.SERV-03.';
-const STANDARD_SUMMARY = 'Semente v1 · 9 seções · 6 cabines · 17 colunas · 94 blocos de equipamento';
+const STANDARD_SUMMARY = `Semente ${SEED_VERSION} · 9 seções · 6 cabines · 17 colunas · 94 blocos de equipamento`;
 const STANDARD_TOTALS =
   '25 seccionadoras · 21 disjuntores · 11 TP · 11 TC · 8 trafos · 4 cabos de entrada · 9 cabos de saída · 5 para-raios';
 
@@ -138,7 +138,7 @@ test('@p0 3.2-E2E-001 Empresa B creates the standard template from the empty sta
   expect(creates).toHaveLength(1);
   expect(templateRowSchema.parse(creates[0]!.value)).toMatchObject({
     name: STANDARD_TEMPLATE_NAME,
-    seed_version: 'v1',
+    seed_version: SEED_VERSION,
     archived_at: null,
     removed_at: null,
   });
