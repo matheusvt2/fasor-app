@@ -112,14 +112,20 @@
 @media (min-width: 768px) {
   [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table td.cell-value { min-width: 300px; }
 }
-/* E5-Q2, DESIGN.md "the value column taking the remaining width on phone": mirrors
-   `.measurement-table.is-wide td.cell-value` and `.measurement-table.is-wide td.cell-value
-   .measurement-field, .measurement-table.is-wide td.cell-value .suggestion-field`
-   (components.css), on the non-TTR tables below 768px */
+/* E5-Q2 and E5-R2, DESIGN.md "the value column taking the remaining width on phone", nothing
+   clipped: the non-TTR tables below 768px take the mock's narrow-table rules for the
+   connection columns -- `.measurement-table.is-wide th { white-space: normal }`,
+   `.measurement-table.is-wide td { overflow-wrap: anywhere }` (components.css) -- with the
+   cells' own `--sp-1` inset on both axes, and the value cell taking the remaining width
+   with an input that never falls under five digit widths, so "3.300" shows whole beside
+   the unit slot and the cell Overflow, on one line, inside a 358px content box. */
 @media (max-width: 767.98px) {
-  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table:not(.ficha-ttr) td.cell-value { width: auto; min-width: 128px; }
-  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table:not(.ficha-ttr) td.cell-value .measurement-field,
-  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table:not(.ficha-ttr) td.cell-value .suggestion-field { flex-wrap: wrap; min-width: 0; }
+  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table:not(.ficha-ttr) th { white-space: normal; }
+  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table:not(.ficha-ttr) td { overflow-wrap: anywhere; }
+  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table:not(.ficha-ttr) td:not(.cell-value),
+  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table:not(.ficha-ttr) th { padding-left: var(--sp-1); padding-right: var(--sp-1); }
+  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table:not(.ficha-ttr) td.cell-value { width: auto; }
+  [data-route="/relatorio/:id/ficha/:blockId"] .measurement-table:not(.ficha-ttr) td.cell-value .mf-value { padding-left: var(--sp-2); padding-right: var(--sp-2); min-width: calc(5ch + 2 * var(--sp-2) + 4px); }
 }
 /* Conclusion text */
 [data-route="/relatorio/:id/ficha/:blockId"] #ficha-conc .generated-actions { margin-top: var(--sp-2); }

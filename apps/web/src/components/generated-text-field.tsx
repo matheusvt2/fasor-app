@@ -74,15 +74,17 @@ export function GeneratedTextField({ label, text, criteriaItems, state, onConfir
   // E5-Q5: a stale text's criteria line is the recomposed text's, the evidence of the
   // "Substituir" suggestion, never the description of the stored text it contradicts.
   const stale = state === 'stale';
-  const describedBy = stale ? undefined : criteriaId;
-  const criteriaLine = (
+  // E5-R3: no reading and no NC item -- no "Critérios usados" heading over an empty list.
+  const hasCriteria = criteriaItems.length > 0;
+  const describedBy = stale || !hasCriteria ? undefined : criteriaId;
+  const criteriaLine = hasCriteria ? (
     <p className="criteria-line" id={criteriaId}>
       <span className="cl-label">{t.criteria}</span>
       {criteriaItems.map((item) => (
         <span key={item}>{item}</span>
       ))}
     </p>
-  );
+  ) : null;
   return (
     <div className="field suggestion-field is-generated" data-state={suggested && !typing ? 'suggested' : 'confirmed'}>
       <span className="field-label" id={labelId}>
@@ -118,7 +120,7 @@ export function GeneratedTextField({ label, text, criteriaItems, state, onConfir
           <button
             type="button"
             className="btn btn-text"
-            aria-describedby={criteriaId}
+            aria-describedby={hasCriteria ? criteriaId : undefined}
             onClick={() => {
               setEditing(false);
               dirty.current = false;

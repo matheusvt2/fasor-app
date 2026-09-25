@@ -1078,6 +1078,23 @@ test('@p1 E5-Q2 phone 390 x 844: the insulation value input, its unit slot and i
     expect(box.x + box.width).toBeLessThanOrEqual(390);
   }
   expect(await horizontalOverflow(page)).toBe(0);
+
+  // E5-R2: the value itself is readable, not only its box: "3.300" fits the input, typed
+  // and once committed, with the unit slot and the Overflow on the same line.
+  const fits = () => input.evaluate((element: HTMLInputElement) => element.scrollWidth <= element.clientWidth);
+  await input.fill('3.300');
+  expect(await fits()).toBe(true);
+  // The table itself fits its box: no sideways scroll inside the wrapper either.
+  expect(await input.evaluate((element) => {
+    const table = element.closest('table')!;
+    return table.getBoundingClientRect().width <= table.parentElement!.getBoundingClientRect().width + 0.5;
+  })).toBe(true);
+  await input.press('Tab');
+  await expect(input).toHaveValue('3.300');
+  expect(await fits()).toBe(true);
+  const inputBox = (await input.boundingBox())!;
+  const overflowBox = (await cell.locator('.overflow-trigger').boundingBox())!;
+  expect(Math.abs(overflowBox.y - inputBox.y)).toBeLessThan(inputBox.height);
 });
 
 test('@p1 E5-Q8 Space, ArrowRight and Delete in quick succession always leave the checklist row unset', async ({ page }) => {
@@ -1087,13 +1104,19 @@ test('@p1 E5-Q8 Space, ArrowRight and Delete in quick succession always leave th
   const { blockId } = await openSheet(page, rowOfType(page, 'Para-raio'));
   const row = checklistRow(page, 1);
   const path = `sheet/${blockId}/checklist/${PARA_RAIO.checklist![0]!.key}/result`;
+  // E5-R1: each round starts from a committed non-null value (NA), so the poll for the
+  // last op being null passes only once the round's Delete has landed through the edit
+  // queue (slow under load), never on the previous round's null; then the row is read.
+  const lastOf = async (opPath: string) => (await outbox(page)).filter((op) => op.path === opPath).at(-1)?.value;
   for (let round = 0; round < 3; round++) {
+    await row.getByRole('radio', { name: 'Não se aplica' }).click();
+    await expect.poll(() => lastOf(path), { timeout: 20_000 }).toBe('NA');
     await row.getByRole('radio', { name: 'Conforme', exact: true }).focus();
     await page.keyboard.press('Space');
     await page.keyboard.press('ArrowRight');
     await page.keyboard.press('Delete');
+    await expect.poll(() => lastOf(path), { timeout: 20_000 }).toBeNull();
     await expect(row.locator('[role="radio"][aria-checked="true"]')).toHaveCount(0);
-    await expect.poll(async () => (await outbox(page)).filter((op) => op.path === path).at(-1)?.value).toBeNull();
   }
   // Still unset once every op has landed.
   await page.reload();
@@ -1104,12 +1127,14 @@ test('@p1 E5-Q8 Space, ArrowRight and Delete in quick succession always leave th
   await stepper(page).getByRole('button', { name: /^Conclusão,/ }).click();
   const resultPath = `sheet/${blockId}/conclusion/result`;
   for (let round = 0; round < 3; round++) {
+    await resultGroup(page).getByRole('radio', { name: 'Reprovado' }).click();
+    await expect.poll(() => lastOf(resultPath), { timeout: 20_000 }).toBe('reprovado');
     await resultGroup(page).getByRole('radio', { name: 'Aprovado' }).focus();
     await page.keyboard.press('Space');
     await page.keyboard.press('ArrowRight');
     await page.keyboard.press('Delete');
+    await expect.poll(() => lastOf(resultPath), { timeout: 20_000 }).toBeNull();
     await expect(resultGroup(page).locator('[aria-checked="true"]')).toHaveCount(0);
-    await expect.poll(async () => (await outbox(page)).filter((op) => op.path === resultPath).at(-1)?.value).toBeNull();
   }
 });
 

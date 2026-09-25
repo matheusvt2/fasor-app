@@ -94,6 +94,29 @@ describe('GeneratedTextField (UX-DR46/47)', () => {
       unmount();
     }
   });
+
+  it('E5-R3: with no criteria items there is no "Critérios usados" heading and no description', () => {
+    for (const state of ['unconfirmed', 'confirmed', 'stale'] as const) {
+      const { unmount } = render(
+        <ToastProvider>
+          <GeneratedTextField
+            label="Texto da conclusão"
+            text="O TP TP-ENEL não apresentou valores medidos nem itens verificados registrados."
+            criteriaItems={[]}
+            state={state}
+            onConfirm={vi.fn()}
+            onReplace={vi.fn()}
+            onEdit={vi.fn()}
+            draft={{ surface: 'ficha', entityId: 'e', field: 'conclusion-text' }}
+          />
+        </ToastProvider>,
+      );
+      expect(screen.queryByText('Critérios usados')).toBeNull();
+      expect(document.querySelector('.criteria-line')).toBeNull();
+      expect(screen.getByRole('textbox', { name: 'Texto da conclusão' })).not.toHaveAttribute('aria-describedby');
+      unmount();
+    }
+  });
 });
 
 describe('SuggestionField (UX-DR45)', () => {
