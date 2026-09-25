@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { standardTemplate, templateRowSchema, type RelatorioSummary, type TemplateRow } from '@app/domain';
 import { cleanup, configure, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { axe } from 'jest-axe';
+import { axe } from '../../test-axe.ts';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { commitBatch, toRecord, undoBatch } from '../../db/commit.ts';

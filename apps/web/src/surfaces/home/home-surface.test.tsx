@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { newEquipmentBlock, type LocationRow, type RelatorioRow, type RelatorioStatus, type RelatorioSummary } from '@app/domain';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { axe } from 'jest-axe';
+import { axe } from '../../test-axe.ts';
 import { useState } from 'react';
 import { MemoryRouter, useLocation } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';

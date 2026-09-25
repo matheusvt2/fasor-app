@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, contractExamples, GENERATE_ROUTES, SYNC_ROUTES, type Op } from '@app/domain';
 import { describe, expect, it } from 'vitest';
 import { createSyncClient, revisionDocxUrl, SyncRequestError, type FetchLike, type SyncFailure } from './client.ts';

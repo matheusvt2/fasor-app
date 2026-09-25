@@ -1,3 +1,4 @@
+// @vitest-environment node
 import 'fake-indexeddb/auto';
 import { portoSeguro } from '@app/domain/fixtures/porto-seguro';
 import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';

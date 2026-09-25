@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { emptySheet, standardTemplate, type BlockRow, type ClientRow, type ProjectRow, type RelatorioRow, type RelatorioStatus } from '@app/domain';
 import { configure, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { axe } from 'jest-axe';
+import { axe } from '../../test-axe.ts';
 import { I18nProvider } from 'react-aria-components';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';

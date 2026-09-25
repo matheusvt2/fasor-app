@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { axe } from 'jest-axe';
+import { axe } from '../test-axe.ts';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Button, TextButton } from './button.tsx';
 import { StatusPill } from './status-pill.tsx';
@@ -191,24 +191,22 @@ async function expectNoAxeViolations() {
 }
 
 describe('component gallery', () => {
-  it.each(['light', 'dark'] as const)(
-    'renders every shared component under data-theme=%s with zero WCAG 2.2 AA violations',
-    async (theme) => {
-      setTheme(theme);
-      render(<Gallery />);
-      await expectNoAxeViolations();
+  // E3-A4: one axe pass per component state (closed, menu open, dialog open), not one per
+  // theme as well. jsdom resolves no `var()` color, so a pass under data-theme=dark saw the
+  // same tree as the light one and checked nothing more; each theme's contrast is the token
+  // tests' below and `styles/contrast.test.ts`'s, which read the resolved hex values.
+  it('renders every shared component, closed and with each overlay open, with zero WCAG 2.2 AA violations', async () => {
+    setTheme('light');
+    render(<Gallery />);
+    await expectNoAxeViolations();
 
-      await openOverflowMenu();
-      await expectNoAxeViolations();
-      await closeOverflowMenu();
+    await openOverflowMenu();
+    await expectNoAxeViolations();
+    await closeOverflowMenu();
 
-      await openConfirmDialog();
-      await expectNoAxeViolations();
-    },
-    // Now three full-document axe passes per theme (baseline + each opened overlay) instead
-    // of one, well over the 5s default under parallel test-file load.
-    15000,
-  );
+    await openConfirmDialog();
+    await expectNoAxeViolations();
+  });
 
   it('resolves the dark hex chain for the Suggestion amber tokens (never the light value)', () => {
     setTheme('light');

@@ -3,7 +3,7 @@ import { instantiateTemplate, standardTemplate, type BlockRow, type LocationRow,
 import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { cleanup, configure, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { axe } from 'jest-axe';
+import { axe } from '../../test-axe.ts';
 import { MemoryRouter, Route, Routes, useSearchParams } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { toRecord } from '../../db/commit.ts';

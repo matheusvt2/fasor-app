@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFieldCommitter, FIELD_COMMIT_IDLE_MS } from './field-commit.ts';
 

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import 'fake-indexeddb/auto';
 import { opLog } from '@app/domain/fixtures/replay-small';
 import { describe, expect, it } from 'vitest';
