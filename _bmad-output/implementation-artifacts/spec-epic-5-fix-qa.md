@@ -2,10 +2,10 @@
 title: 'Epic 5 fixes: integrated review findings'
 type: 'bugfix'
 created: '2026-09-24'
-status: 'in-review'
+status: 'done'
 baseline_revision: '253215ed63dad40aacad80eab75d871beaba827a'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: 'opus'
 dev_effort: 'medium'
 context:
@@ -142,3 +142,32 @@ E5-Q3 (defer to Epic 7, OQ-2), E5-Q6 (OQ-1), E5-Q11 (OQ-4), E5-Q12 (OQ-5), E5-Q1
 **Commands:**
 - `docker compose --profile tools run --rm tools pnpm verify > /tmp/verify-e5q.log 2>&1; echo EXIT=$?; tail -60 /tmp/verify-e5q.log` -- expected: EXIT=0
 - `docker compose --profile tools run --rm tools pnpm test:e2e:full > /tmp/e2efull-e5q.log 2>&1; echo EXIT=$?; tail -40 /tmp/e2efull-e5q.log` -- expected: EXIT=0 (4.2-E2E-002 passes)
+
+## Auto Run Result
+
+Status: done
+
+**Summary.** Every "Fix now" row of `reviews/epic-5-review-qa.md` is fixed (E5-Q1, Q2, Q4, Q5, Q7, Q8, Q9, Q10, Q14, Q16, Q17), plus Q15 (nearest power of ten) and the Q18 e2e paths (a), (c), (d). E5-Q3, Q6, Q11, Q12, Q13 and Q18 (b), (f), (g) stay open, unchanged.
+
+**Files.**
+- `packages/domain/src/ops/apply.ts` -- `SeedPathError` (exported), thrown by `assertSeedPath`/`assertCellGeometry`.
+- `apps/api/src/sync/apply.ts` -- `isPermanentRefusal` maps `SeedPathError` to `op_invalid` in `applyOps` and `applyServerBatch`.
+- `packages/domain/src/relatorio/conclusion.ts` -- the text states only what the sheet holds (Design Notes wording, OQ-3 placeholder); `basis` covers `judged`, `measured`, `conformes`.
+- `packages/domain/src/parse/pt-br-number.ts` -- "147 mΩ" / "147 mohm" invalid.
+- `packages/domain/src/relatorio/readings.ts` -- outlier factor rounds to the nearest power of ten, floor 100.
+- `packages/domain/src/relatorio/ficha.ts` -- grouped thousands in read-only fields.
+- `packages/domain/src/relatorio/ops.ts` -- `BlockField` gains `concluded_by`, `not_tested`; `apps/web/src/surfaces/ficha/ficha-ops.ts` uses `putBlockOp`.
+- `apps/web/src/components/use-latest-choice.ts` (new), `tri-state-control.tsx`, `surfaces/ficha/conclusao-section.tsx` -- guards read the last emitted value; `aria-readonly` on the read-only radiogroup.
+- `apps/web/src/components/generated-text-field.tsx` -- stale: the criteria line sits with "Substituir" and does not describe the stored text; stale + read-only: none.
+- `apps/web/src/surfaces/ficha/instrument-picker.tsx` -- `.ip-expired` inside `.instrument-picker`.
+- `apps/web/src/surfaces/ficha/ficha-surface.tsx`, `copy/pt-br.ts` -- Overflow "Limpar conclusão", undoable ("Conclusão limpa").
+- `apps/web/src/surfaces/ficha/ficha.css` -- phone value cell mirrors `components.css` `.is-wide` rules.
+- Tests: `apply.test.ts`, `pt-br-number.test.ts`, `conclusion.test.ts`, `ficha.test.ts`, `readings.test.ts`, `tri-state-control.test.tsx`, `generated-text-field.test.tsx`, `sync.integration.test.ts`, `apply-batch.integration.test.ts`, `e2e/ficha.spec.ts` (E5-Q2, Q8, Q9, Q17, Q18a `@p0`, Q18d), `e2e/relatorio.spec.ts` (4.2-E2E-002 fixed; 4.3-E2E-002 given a 60 s budget after a cold-run test timeout).
+
+**Review.** 13 findings: 5 patched (2 medium, 3 low), 0 deferred, 8 rejected with reasons in the triage log.
+
+**Follow-up review recommended:** true -- two medium entries were patched; the specific unverified risk is the OQ-3 placeholder wording of the conclusion text (four sentence shapes plus the unjudged clause), which Matheus has not seen.
+
+**Verification.** `pnpm verify`: lint, static clean; unit 809 + 751 + 20; api 144; e2e `@p0` 69 passed, 1 failed = known flake 3.6-E2E-001, passed alone. `pnpm test:e2e:full`: see the PR body.
+
+**Residual risks.** `useLatestChoice` may still drop a third tap inside one IndexedDB round trip (maybe-false, rejected); every confirmed conclusion text on existing dev data turns stale once (basis inputs changed).

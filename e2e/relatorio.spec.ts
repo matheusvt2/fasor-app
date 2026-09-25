@@ -421,6 +421,9 @@ test('@p0 4.3-E2E-001 the Sumário: order, rows that open, the Position box, Ove
 });
 
 test('@p1 4.3-E2E-002 Em campo opens section 9 expanded at the last sheet cabine; Rascunho opens it collapsed', async ({ page }) => {
+  // A relatório creation, two syncs and a reload: 14 s warm, but a cold first run in
+  // `test:e2e:full` crossed the default 30 s test budget (Epic 5 QA batch, 1 of 3 runs).
+  test.setTimeout(60_000);
   await resetEmpresaB();
   await signIn(page, account.email);
   await expect(page.locator('.shortcut-sub', { hasText: '1 template' })).toBeVisible({ timeout: 30_000 });
