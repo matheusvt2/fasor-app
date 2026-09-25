@@ -69,9 +69,9 @@ describe('contract examples (ADR readiness 1.4)', () => {
 });
 
 describe('contract constants', () => {
-  it('speaks version 3 and accepts only version 3 (the template/seed_version family is new)', () => {
-    expect(CONTRACT_VERSION).toBe(3);
-    expect(MIN_CONTRACT_VERSION).toBe(3);
+  it('speaks version 4 and accepts only version 4 (the point action, priority, deadline and owner families are new)', () => {
+    expect(CONTRACT_VERSION).toBe(4);
+    expect(MIN_CONTRACT_VERSION).toBe(4);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');
   });
 

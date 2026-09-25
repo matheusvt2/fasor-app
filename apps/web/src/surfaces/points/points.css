@@ -1,0 +1,60 @@
+/*
+ * Page-only layout of the Points surface (Story 6.6), copied from the mock's own screen
+ * `<style>` in `72-pontos.html` -- screen-scoped in the mock too, not part of
+ * components.css -- the same pattern as `relatorio.css`. The mock scopes it to the prototype
+ * route `/relatorio/porto-seguro/pontos`; the app renders it on `/relatorio/:id/pontos`, so
+ * that `[data-route]` value stands for it. The point editor also opens in a Form dialog
+ * portaled out of the route (from an NC row or an untested sheet), so its rules are scoped
+ * to `.point-editor-dialog` as well, and the photo picker's to `.poa-picker-dialog`.
+ * The `.frame-*` variants live in `app.css` (AGENTS.md "Mock container selectors").
+ * Rules for parts the MVP does not build (the photo draft, the priority picker, Prazo, the
+ * action-plan table) are left out.
+ */
+
+[data-route="/relatorio/:id/pontos"] .poa-list { display: flex; flex-direction: column; gap: var(--sp-4); }
+[data-route="/relatorio/:id/pontos"] .poa-list .point-of-attention-card .poa-fields { grid-template-columns: repeat(2, minmax(140px, 1fr)); }
+[data-route="/relatorio/:id/pontos"] .poa-order,
+.point-editor-dialog .poa-order { font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--ink-secondary); }
+/* Photo reference token inside the text — resolved to "Imagem NN" at export */
+[data-route="/relatorio/:id/pontos"] .photo-ref,
+.point-editor-dialog .photo-ref { font-weight: 600; color: var(--primary); border-bottom: 2px solid var(--primary); white-space: nowrap; }
+[data-route="/relatorio/:id/pontos"] .poa-photos .photo-tile { cursor: pointer; }
+[data-route="/relatorio/:id/pontos"] .poa-photos .photo-tile .caption { display: none; }
+[data-route="/relatorio/:id/pontos"] .poa-photos-meta { font-size: var(--t-meta-size); color: var(--ink-secondary); margin-top: var(--sp-1); }
+/* Auto-listed Não ensaiado entry: read-only, dashed */
+[data-route="/relatorio/:id/pontos"] .point-of-attention-card.is-auto { border-color: var(--nao-ensaiado); border-style: dashed; }
+[data-route="/relatorio/:id/pontos"] .point-of-attention-card.is-auto .handle-spacer { width: var(--touch-min); flex: none; }
+/* Edit mode (opened by "Criar" or "Editar"): fields, photo picker row, its own action row */
+[data-route="/relatorio/:id/pontos"] .point-of-attention-card.is-editing { padding-right: var(--sp-4); padding-left: var(--sp-4); border-width: 2px; border-color: var(--primary); }
+[data-route="/relatorio/:id/pontos"] .point-of-attention-card.is-editing .poa-body,
+.point-editor-dialog .poa-body { gap: var(--sp-4); }
+[data-route="/relatorio/:id/pontos"] .poa-photo-picker,
+.point-editor-dialog .poa-photo-picker { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); }
+[data-route="/relatorio/:id/pontos"] .poa-fields-edit,
+.point-editor-dialog .poa-fields-edit { display: flex; flex-direction: column; gap: var(--sp-4); }
+[data-route="/relatorio/:id/pontos"] .poa-edit-actions,
+.point-editor-dialog .poa-edit-actions { display: flex; flex-wrap: wrap; gap: var(--sp-3); padding-top: var(--sp-2); border-top: 1px solid var(--border-hairline); }
+[data-route="/relatorio/:id/pontos"] .chip,
+.point-editor-dialog .chip { cursor: pointer; }
+
+/* authored: the parts the mock draws inline or not at all. */
+/* The mock's inline `style="margin-bottom: var(--sp-1)"` on the "Textos rápidos" note. */
+[data-route="/relatorio/:id/pontos"] .poa-quick-note,
+.point-editor-dialog .poa-quick-note { margin-bottom: var(--sp-1); }
+/* The mock's inline `style="min-height: 72px"` on the Ação field. */
+[data-route="/relatorio/:id/pontos"] .poa-action,
+.point-editor-dialog .poa-action { min-height: 72px; }
+/* A point's text keeps the line breaks it was typed with. */
+[data-route="/relatorio/:id/pontos"] .poa-text { white-space: pre-line; }
+[data-route="/relatorio/:id/pontos"] .poa-text-area,
+.point-editor-dialog .poa-text-area { white-space: pre-wrap; }
+[data-route="/relatorio/:id/pontos"] .poa-empty { font-size: var(--t-body-size); color: var(--ink-secondary); margin: var(--sp-3) 0; }
+[data-route="/relatorio/:id/pontos"] .poa-equipment,
+.point-editor-dialog .poa-equipment { font-size: var(--t-body-size); }
+/* In the Form dialog the editor has no card around it: the card's own `.poa-body` column (components.css). */
+.point-editor-dialog .poa-body { display: flex; flex-direction: column; min-width: 0; }
+/* A recurring-finding label longer than a phone's width wraps inside its chip. */
+[data-route="/relatorio/:id/pontos"] .chip-row .chip,
+.point-editor-dialog .chip-row .chip { max-width: 100%; white-space: normal; text-align: left; }
+.poa-picker-dialog .poa-picker-grid { display: flex; flex-wrap: wrap; gap: var(--sp-3); margin-bottom: var(--sp-4); }
+.poa-picker-dialog .photo-tile { cursor: pointer; }

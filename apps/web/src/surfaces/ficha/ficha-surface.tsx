@@ -540,7 +540,7 @@ function FichaBody({
           />
           <SheetReadOnlyProvider value={block.not_tested !== null}>
             <div className="content">
-              {block.not_tested === null ? null : <NotTestedBand api={api} block={block} />}
+              {block.not_tested === null ? null : <NotTestedBand api={api} block={block} snapshot={snapshot} />}
               <div id="ficha-step-placa" className={stepClass('placa')} data-step="placa" tabIndex={-1} onFocus={() => focusIn('placa')}>
                 {cabine === null ? null : <CabineBlock api={api} snapshot={snapshot} cabine={cabine} first={cabineFirst} />}
                 {enabled.has('nameplate') ? (

@@ -4,6 +4,7 @@ import {
   insertPhrase,
   screenLabel,
   itensMarcadosConformeText,
+  photoToken,
   recentChecklistObservations,
   repeatChecklistPattern,
   repeatChecklistSource,
@@ -22,6 +23,7 @@ import { useTypedText } from './ficha-fields.tsx';
 import { RowPhotoAction, RowPhotoList } from './photo-openers.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
 import { checklistObservationOp, checklistResultOp } from './ficha-ops.ts';
+import { CreatePointAction } from '../points/create-point-action.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
 
 /*
@@ -33,8 +35,9 @@ import { useSheetReadOnly } from './sheet-read-only.tsx';
  * most recent observations typed for the item in this relatório) and the required
  * Observation field. Story 6.1 adds the NC row's "Adicionar foto" (the burst camera, the
  * caption "verificação de ⟨item⟩") and the item's Photo tile rows under the row's buttons;
- * "Criar ponto de atenção" is Story 6.6's, and the Dictation button has no engine: both
- * absent, never disabled.
+ * Story 6.6 adds "Criar ponto de atenção" beside it (the point editor in a Form dialog,
+ * pre-linked with the sheet's equipment and a token per photo of the item). The Dictation
+ * button has no engine: absent, never disabled.
  */
 
 /** Story 6.1: what the checklist rows need to shoot and show their photos. */
@@ -192,6 +195,7 @@ export function ChecklistSection({
             recents={recentChecklistObservations(snapshot, item.key, item.nc_phrases)}
             readOnly={readOnly}
             photos={photos}
+            snapshot={snapshot}
           />
         ))}
       </ul>
@@ -207,6 +211,7 @@ function ChecklistRow({
   recents,
   readOnly,
   photos,
+  snapshot,
 }: {
   api: FichaApi;
   block: BlockRow;
@@ -215,6 +220,7 @@ function ChecklistRow({
   recents: readonly string[];
   readOnly: boolean;
   photos?: ChecklistPhotos;
+  snapshot: RelatorioSnapshot;
 }) {
   const t = copy.ficha.checklist;
   const result = checklistResultOf(block, item.key);
@@ -313,6 +319,22 @@ function ChecklistRow({
             ) : null}
           </div>
           {nc && !readOnly && photos !== undefined ? <RowPhotoAction relatorioId={api.relatorioId} target={() => photos.target(item.key)} /> : null}
+          {nc && !readOnly ? (
+            <div className="row-wrap">
+              <CreatePointAction
+                relatorioId={api.relatorioId}
+                snapshot={snapshot}
+                seed={() => ({
+                  text: (photos?.tiles ?? [])
+                    .filter((tile) => tile.item_key === item.key)
+                    .map((tile) => photoToken(tile.id))
+                    .join(' '),
+                  equipmentId: block.equipment_id,
+                  origin: 'manual',
+                })}
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
       {photos === undefined ? null : (

@@ -159,7 +159,7 @@ describe('4.1 NewRelatorioDialog', () => {
     expect(outbox.filter((op) => op.path.startsWith('block/'))).toHaveLength(105);
     const relatorio = outbox.find((op) => op.path.startsWith('relatorio/'))!.value as { template_id: string; template_version: number; seed_version: string; status: string; setup: { service_start: string; service_end: string } };
     // The session user carries no registration here: nobody is written as responsável (Q2).
-    expect(relatorio).toMatchObject({ template_id: TEMPLATE, template_version: 1, seed_version: 'v2', status: 'rascunho', setup: { service_start: '2026-09-06', service_end: '2026-09-08', responsible_user_id: null } });
+    expect(relatorio).toMatchObject({ template_id: TEMPLATE, template_version: 1, seed_version: 'v3', status: 'rascunho', setup: { service_start: '2026-09-06', service_end: '2026-09-08', responsible_user_id: null } });
     expect(await database.entities.where('entity').equals('block').count()).toBe(105);
   });
 

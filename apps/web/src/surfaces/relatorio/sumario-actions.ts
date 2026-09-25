@@ -166,6 +166,8 @@ export function useSumarioActions(context: SumarioContext, host: SumarioHost): S
       if (row.kind === 'setup') void navigate(`/relatorio/${relatorioId}/setup?etapa=2`);
       else if (row.kind === 'text' && row.blockId !== null) void navigate(`/relatorio/${relatorioId}/secao/${row.blockId}`);
       else if (row.rowKey === 'capa') void navigate(`/relatorio/${relatorioId}/setup?etapa=1`);
+      // Story 6.6: row 8 opens the Points surface.
+      else if (row.rowKey === 'section_8') void navigate(`/relatorio/${relatorioId}/pontos`);
     },
     onAddBelow: (row) => host.pickBelow(row),
     onDuplicate: (row) => {
