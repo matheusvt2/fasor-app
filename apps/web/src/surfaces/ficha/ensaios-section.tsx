@@ -2,6 +2,7 @@ import {
   evaluateSheetReadings,
   evaluatedCells,
   runTarget,
+  screenLabel,
   type BlockDefinition,
   type BlockRow,
   type CellAddress,
@@ -130,7 +131,7 @@ function TestSection({
   return (
     <section className={readOnly ? 'section is-readonly' : 'section'} aria-labelledby={headingId} data-test-key={test.testKey}>
       <div className="section-head">
-        <h2 id={headingId}>{test.title}</h2>
+        <h2 id={headingId}>{screenLabel(test.title)}</h2>
         {readOnly ? <span className="btn-reason">{copy.ficha.checklist.readOnlyReason}</span> : null}
       </div>
       <InstrumentPicker api={api} block={block} blocks={blocks} testKey={test.testKey} instruments={instruments} serviceEnd={serviceEnd} readOnly={readOnly} />
@@ -159,12 +160,12 @@ function MeasurementTable({
   const cellOf = (row: EvaluatedRow, col: number): EvaluatedCell | undefined => row.cells.find((cell) => cell.address.col === col);
   const field = (row: EvaluatedRow, cell: EvaluatedCell, presentation: 'table' | 'card') =>
     readOnly ? (
-      <ReadOnlyMeasurementField cell={cell} label={t.cellLabel(row.label, cell.column)} />
+      <ReadOnlyMeasurementField cell={cell} label={t.cellLabel(screenLabel(row.label), screenLabel(cell.column))} />
     ) : (
       <MeasurementField
         api={api}
         cell={cell}
-        label={t.cellLabel(row.label, cell.column)}
+        label={t.cellLabel(screenLabel(row.label), screenLabel(cell.column))}
         presentation={presentation}
         missing={sameAddress(firstMissing, cell.address)}
         onRun={onRun}
@@ -177,7 +178,7 @@ function MeasurementTable({
       <div className="mt-title-row">
         {table.title === null ? null : (
           <span className="mt-title" id={titleId}>
-            {table.title}
+            {screenLabel(table.title)}
           </span>
         )}
         <span className="mt-criterion">{t.criterion(test.criterionText)}</span>
@@ -191,17 +192,17 @@ function MeasurementTable({
           <p>{test.sourceName}</p>
         </details>
       </div>
-      <table className={table.ratio ? 'measurement-table ficha-ttr is-wide' : 'measurement-table'} aria-labelledby={table.title === null ? undefined : titleId} aria-label={table.title === null ? test.title : undefined}>
+      <table className={table.ratio ? 'measurement-table ficha-ttr is-wide' : 'measurement-table'} aria-labelledby={table.title === null ? undefined : titleId} aria-label={table.title === null ? screenLabel(test.title) : undefined}>
         <thead>
           <tr>
             {table.connectionHeaders.map((header, i) => (
               <th key={`c${i}`} scope="col">
-                {header}
+                {screenLabel(header)}
               </th>
             ))}
             {table.columns.map((column) => (
               <th key={column.col} scope="col" className={column.role === 'input' ? undefined : 'col-value'}>
-                {column.header}
+                {screenLabel(column.header)}
               </th>
             ))}
           </tr>
@@ -211,7 +212,7 @@ function MeasurementTable({
             <tr key={row.row}>
               {row.connection.map((text, i) => (
                 <td key={`c${i}`} className={i === 0 ? 'cell-point' : 'cell-dim'}>
-                  {text === '' ? '—' : text}
+                  {text === '' ? '—' : screenLabel(text)}
                 </td>
               ))}
               {table.columns.map((column) => {
@@ -242,11 +243,11 @@ function MeasurementTable({
           <div className="measurement-cards">
             {table.rows.map((row) => (
               <div key={row.row} className="measurement-card">
-                <p className="card-point">{row.label}</p>
+                <p className="card-point">{screenLabel(row.label)}</p>
                 {row.cells.map((cell) => (
                   <div key={cell.address.col} className="field">
                     <span className="field-label" aria-hidden="true">
-                      {cell.role === 'capture' ? t.cardMeasured(cell.column) : cell.column}
+                      {cell.role === 'capture' ? t.cardMeasured(screenLabel(cell.column)) : screenLabel(cell.column)}
                     </span>
                     {field(row, cell, 'card')}
                   </div>
@@ -255,7 +256,7 @@ function MeasurementTable({
                   .filter((column) => column.role === 'derived')
                   .map((column) => (
                     <p key={column.col} className="card-dims">
-                      {column.derivedKind === 'condicao' ? t.cardCondition(derivedText(row, column.derivedKind)) : `${column.header} ${derivedText(row, column.derivedKind)}`}
+                      {column.derivedKind === 'condicao' ? t.cardCondition(derivedText(row, column.derivedKind)) : `${screenLabel(column.header)} ${derivedText(row, column.derivedKind)}`}
                       <span className="calc-mark" aria-hidden="true">
                         {ui.measurementField.calcMark}
                       </span>

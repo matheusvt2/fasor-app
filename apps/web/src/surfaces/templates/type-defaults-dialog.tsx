@@ -3,6 +3,7 @@ import {
   LOCKED_SUB_BLOCKS,
   naDefaultsCountText,
   naDefaultsFor,
+  screenLabel,
   subtypeSchema,
   type EquipmentBlockType,
   type SubBlockKey,
@@ -66,7 +67,7 @@ export function TypeDefaultsDialog({ type, seedVersion, config, onChange, onClos
             label={copy.composer.subtypeLabel}
             options={[
               { id: NO_SUBTYPE, label: copy.composer.noSubtype },
-              ...definition.subtypes.map((subtype) => ({ id: subtype.key, label: subtype.label })),
+              ...definition.subtypes.map((subtype) => ({ id: subtype.key, label: screenLabel(subtype.label) })),
             ]}
             selectedKey={config.subtype ?? NO_SUBTYPE}
             onSelectionChange={(key) => setSubtype(key ?? NO_SUBTYPE)}

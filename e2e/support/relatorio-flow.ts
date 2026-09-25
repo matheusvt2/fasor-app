@@ -64,6 +64,7 @@ export async function createRelatorio(page: Page, options: { whileOnSetup?: () =
   await options.whileOnSetup?.();
   await page.getByRole('button', { name: 'Voltar' }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`), { timeout: 30_000 });
-  await expect(page.locator('.app-bar h1')).toHaveText('Sumário');
+  // Story 12.5 (J-17): the App bar names the relatório; the Sumário list says where we are.
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible();
   return relatorioId;
 }

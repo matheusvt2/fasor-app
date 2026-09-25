@@ -83,7 +83,7 @@ function paraRaioCells(): { testKey: string; row: number; col: number }[] {
   return PARA_RAIO.tests.flatMap((t) => cellAddressesOf(PARA_RAIO, t.key));
 }
 
-test('@p0 5.1-E2E-001 a tree row opens the sheet: App bar TAG, header, stepper with counts, rail, stepper jump; the nameplate typed field by field survives a reload', async ({ page }) => {
+test('@p0 5.1-E2E-005 a tree row opens the sheet: App bar TAG, header, stepper with counts, rail, stepper jump; the nameplate typed field by field survives a reload', async ({ page }) => {
   test.setTimeout(120_000);
   const { relatorioId } = await openRelatorio(page, 1280);
   await openEnel(page);
@@ -105,8 +105,7 @@ test('@p0 5.1-E2E-001 a tree row opens the sheet: App bar TAG, header, stepper w
   await expect(stepper(page).getByRole('button', { name: `Verificações, ${checklistCount} faltando` })).toBeVisible();
   await expect(stepper(page).getByRole('button', { name: `Ensaios, ${cells} faltando` })).toBeVisible();
   await expect(stepper(page).getByRole('button', { name: 'Conclusão, 2 faltando' })).toBeVisible();
-  const total = PARA_RAIO.nameplate.length + checklistCount + cells + 2;
-  await expect(page.getByTestId('ficha-progress')).toHaveText(`${total} obrigatórios faltando`);
+  await expect(page.getByTestId('ficha-progress')).toHaveText(`Faltam ${PARA_RAIO.nameplate.length} campos da placa, ${checklistCount} verificações, ${cells} leituras e a conclusão`);
   // The primary moves on while the sheet is incomplete; no camera is drawn before Epic 6.
   await expect(page.locator('.sticky-action-bar .bar-buttons .btn-primary')).toHaveText(/Próxima ficha/);
   await expect(page.locator('.camera-capture-btn')).toHaveCount(0);
@@ -131,11 +130,11 @@ test('@p0 5.1-E2E-001 a tree row opens the sheet: App bar TAG, header, stepper w
   await field(page, 'fabricacao').getByRole('combobox').fill('Fabricante Ficha');
   await page.getByRole('option', { name: 'Criar “Fabricante Ficha”' }).click();
   await expect(page.getByTestId('ficha-saved')).toHaveText('Salvo');
-  await page.getByLabel('Nº SÉRIE', { exact: true }).fill('PR-0001');
-  await page.getByLabel('TIPO', { exact: true }).fill('Polimérico');
+  await page.getByLabel('Nº série', { exact: true }).fill('PR-0001');
+  await page.getByLabel('Tipo', { exact: true }).fill('Polimérico');
   await field(page, 'tensao_nominal').getByRole('combobox').fill('36,2');
   await page.getByRole('option', { name: 'Criar “36,2”' }).click();
-  const corrente = page.getByLabel('CORRENTE NOMINAL', { exact: true });
+  const corrente = page.getByLabel('Corrente nominal', { exact: true });
   await expect(corrente).toHaveAttribute('inputmode', 'decimal');
   await expect(field(page, 'corrente_nominal').locator('.mf-unit')).toHaveText('kA');
   await corrente.fill('10');
@@ -149,9 +148,9 @@ test('@p0 5.1-E2E-001 a tree row opens the sheet: App bar TAG, header, stepper w
   expect(ops.find((row) => row.path === `sheet/${blockId}/nameplate/corrente_nominal`)?.value).toEqual({ raw: '10', unit: 'kA', state: 'measured' });
 
   await page.reload();
-  await expect(page.getByLabel('Nº SÉRIE', { exact: true })).toHaveValue('PR-0001');
-  await expect(page.getByLabel('TIPO', { exact: true })).toHaveValue('Polimérico');
-  await expect(page.getByLabel('CORRENTE NOMINAL', { exact: true })).toHaveValue('10');
+  await expect(page.getByLabel('Nº série', { exact: true })).toHaveValue('PR-0001');
+  await expect(page.getByLabel('Tipo', { exact: true })).toHaveValue('Polimérico');
+  await expect(page.getByLabel('Corrente nominal', { exact: true })).toHaveValue('10');
   await expect(field(page, 'fabricacao').getByRole('combobox')).toHaveValue('Fabricante Ficha');
   await expect(field(page, 'tensao_nominal').getByRole('combobox')).toHaveValue('36,2');
   await expect(page.locator('.sheet-header .sheet-meta').nth(1)).toHaveText(/^Preenchido por .+ · \d{2}\/\d{2} \d{2}:\d{2}$/);
@@ -260,15 +259,15 @@ test('@p0 5.2-E2E-001 the cabine block: edited on the cabine first sheet as loca
 
   await expect(page.getByRole('heading', { name: 'Características da SE' })).toBeVisible();
   await expect(page.locator('.ficha-da-cabine').first()).toHaveText('Da cabine · Cubículo Enel');
-  await page.getByLabel('TIPO DE SE', { exact: true }).selectOption('BLINDADA');
-  const primaria = page.getByLabel('TENSÃO PRIMÁRIA', { exact: true });
+  await page.getByLabel('Tipo de SE', { exact: true }).selectOption('BLINDADA');
+  const primaria = page.getByLabel('Tensão primária', { exact: true });
   await primaria.fill('13,8');
   await primaria.press('Tab');
-  await page.getByLabel('TEMPERATURA', { exact: true }).fill('19');
-  const umidade = page.getByLabel('UMIDADE RELATIVA DO AR', { exact: true });
+  await page.getByLabel('Temperatura', { exact: true }).fill('19');
+  const umidade = page.getByLabel('Umidade relativa do ar', { exact: true });
   await umidade.fill('85');
   await umidade.press('Enter');
-  await expect(page.getByRole('textbox', { name: 'ALTITUDE', exact: true })).toHaveAttribute('aria-readonly', 'true');
+  await expect(page.getByRole('textbox', { name: 'Altitude', exact: true })).toHaveAttribute('aria-readonly', 'true');
 
   await expect.poll(async () => (await outbox(page)).filter((row) => row.path.startsWith('location/')).map((row) => row.path.split('/').slice(2).join('/')).sort()).toEqual([
     'env/humidity_pct',
@@ -291,8 +290,8 @@ test('@p0 5.2-E2E-001 the cabine block: edited on the cabine first sheet as loca
   // there (Story 12.3, D-5; the one-line block is 12.3-E2E-003's).
   await page.locator('.sticky-action-bar .btn-primary').click();
   await expect(page).not.toHaveURL(new RegExp(`/ficha/${first.blockId}$`));
-  await expect(page.getByLabel('TENSÃO PRIMÁRIA', { exact: true })).toHaveValue('13,8');
-  await expect(page.getByLabel('TIPO DE SE', { exact: true })).toHaveValue('BLINDADA');
+  await expect(page.getByLabel('Tensão primária', { exact: true })).toHaveValue('13,8');
+  await expect(page.getByLabel('Tipo de SE', { exact: true })).toHaveValue('BLINDADA');
   await expect(page.locator('.se-block.is-readonly')).toHaveCount(0);
 
   // 1° Subsolo's first sheet copies Cubículo Enel's environment, with an undo.
@@ -304,11 +303,11 @@ test('@p0 5.2-E2E-001 the cabine block: edited on the cabine first sheet as loca
   await expect(page).toHaveURL(/\/ficha\//);
   await page.getByRole('button', { name: 'Copiar da cabine anterior' }).click();
   await expect(toast(page)).toContainText('Copiado de Cubículo Enel');
-  await expect(page.getByLabel('TEMPERATURA', { exact: true })).toHaveValue('19');
-  await expect(page.getByLabel('UMIDADE RELATIVA DO AR', { exact: true })).toHaveValue('85');
+  await expect(page.getByLabel('Temperatura', { exact: true })).toHaveValue('19');
+  await expect(page.getByLabel('Umidade relativa do ar', { exact: true })).toHaveValue('85');
   await toast(page).getByRole('button', { name: 'Desfazer' }).click();
-  await expect(page.getByLabel('TEMPERATURA', { exact: true })).toHaveValue('');
-  await expect(page.getByLabel('UMIDADE RELATIVA DO AR', { exact: true })).toHaveValue('');
+  await expect(page.getByLabel('Temperatura', { exact: true })).toHaveValue('');
+  await expect(page.getByLabel('Umidade relativa do ar', { exact: true })).toHaveValue('');
 });
 
 test('@p0 5.3-E2E-001 "Igual à ⟨TAG⟩?" copies a same-type plate as plain ops, with an undo', async ({ page }) => {
@@ -327,14 +326,14 @@ test('@p0 5.3-E2E-001 "Igual à ⟨TAG⟩?" copies a same-type plate as plain op
 
   await page.getByRole('button', { name: `Igual à ${source.tag}?` }).click();
   await expect(toast(page)).toContainText(`Copiado de ${source.tag}`);
-  await expect(page.getByLabel('TIPO', { exact: true })).toHaveValue('Polimérico');
+  await expect(page.getByLabel('Tipo', { exact: true })).toHaveValue('Polimérico');
   // Story 12.3 (D-3, seed v2): Nº SÉRIE belongs to one unit and is never copied.
-  await expect(page.getByLabel('Nº SÉRIE', { exact: true })).toHaveValue('');
+  await expect(page.getByLabel('Nº série', { exact: true })).toHaveValue('');
   const copied = (await outbox(page)).filter((row) => row.path.startsWith(`sheet/${target.blockId}/nameplate/`));
   expect(copied.map((row) => row.path.split('/').at(-1)).sort()).toEqual(['fabricacao', 'tipo']);
   expect(new Set(copied.map((row) => row.batch_id)).size).toBe(1);
   await toast(page).getByRole('button', { name: 'Desfazer' }).click();
-  await expect(page.getByLabel('TIPO', { exact: true })).toHaveValue('');
+  await expect(page.getByLabel('Tipo', { exact: true })).toHaveValue('');
   await expect(page.getByRole('button', { name: `Igual à ${source.tag}?` })).toBeVisible();
 });
 
@@ -380,7 +379,7 @@ test('@p0 5.1-E2E-003 "Concluir ficha" on a complete sheet emits concluded_by an
   await openEnel(page);
   await openSheet(page, rowOfType(page, 'Para-raio'));
 
-  await expect(page.getByTestId('ficha-progress')).toHaveText('Completa');
+  await expect(page.getByTestId('ficha-progress')).toHaveText('Ficha completa');
   await expect(stepper(page).getByRole('button', { name: 'Conclusão, 0 faltando' })).toBeVisible();
   const primary = page.locator('.sticky-action-bar .btn-primary');
   await expect(primary).toHaveText(/Concluir ficha/);
@@ -765,11 +764,11 @@ test('@p0 5.8-E2E-001 one tap on the suggestion sets both pairs, the composed te
   await restrictionGroup(page).getByRole('radio', { name: 'Com restrições' }).click();
   await expect(page.getByText('Obrigatória com restrições')).toBeVisible();
   await expect(page.getByLabel('Observações da ficha')).toHaveAttribute('data-required', '');
-  await expect(page.getByTestId('ficha-progress')).toHaveText('1 obrigatório faltando');
+  await expect(page.getByTestId('ficha-progress')).toHaveText('Placa, verificações e leituras prontas · falta a conclusão');
   await page.getByLabel('Observações da ficha').fill('Isolação T1 abaixo do aceitável.');
   await page.getByLabel('Observações da ficha').press('Tab');
   await expect(page.getByText('Obrigatória com restrições')).toHaveCount(0);
-  await expect(page.getByTestId('ficha-progress')).toHaveText('Completa');
+  await expect(page.getByTestId('ficha-progress')).toHaveText('Ficha completa');
   await page.locator('#ficha-primary').click();
   await expect(toast(page)).toContainText('Ficha concluída');
   await expect.poll(async () => (await outbox(page)).some((row) => row.path === `block/${blockId}/concluded_by`)).toBe(true);
@@ -951,7 +950,7 @@ test('@p0 5.3-E2E-002 carry-over: "3.3", a pause, "00" in a nameplate number rea
   await openRelatorio(page, 1280);
   await openEnel(page);
   const { blockId } = await openSheet(page, rowOfType(page, 'Para-raio'));
-  const corrente = page.getByLabel('CORRENTE NOMINAL', { exact: true });
+  const corrente = page.getByLabel('Corrente nominal', { exact: true });
   await corrente.click();
   await corrente.pressSequentially('3.3');
   await page.waitForTimeout(1000);
@@ -964,7 +963,7 @@ test('@p0 5.3-E2E-002 carry-over: "3.3", a pause, "00" in a nameplate number rea
   ]);
   await expect(corrente).toHaveValue('3.300');
   await page.reload();
-  await expect(page.getByLabel('CORRENTE NOMINAL', { exact: true })).toHaveValue('3.300');
+  await expect(page.getByLabel('Corrente nominal', { exact: true })).toHaveValue('3.300');
 });
 
 test('@p1 5.5-E2E-002 phone 390: the TTR stacks into cards, the plain tables stay tables, the M · G · T chips set the unit; Shift+Enter goes back; Delete clears a conclusion pair', async ({ page }) => {
@@ -1078,8 +1077,8 @@ test('@p0 5.9-E2E-004 a Não ensaiada sheet: readings, instrument and conclusion
   await expect(page.locator('.not-tested-band')).toBeVisible();
   // The cabine is not the sheet's data: its (incomplete) block stays editable here (Story 12.3).
   await expect(page.locator('.se-block.is-readonly')).toHaveCount(0);
-  await expect(page.getByLabel('TEMPERATURA', { exact: true })).toBeEditable();
-  await expect(page.getByLabel('TIPO DE SE', { exact: true })).toBeEnabled();
+  await expect(page.getByLabel('Temperatura', { exact: true })).toBeEditable();
+  await expect(page.getByLabel('Tipo de SE', { exact: true })).toBeEnabled();
   const readingAndConclusionOps = async () => (await outbox(page)).filter((row) => row.path.startsWith(`sheet/${blockId}/conclusion/`) || row.path.startsWith(`sheet/${blockId}/test/`)).length;
   const opsBefore = await readingAndConclusionOps();
 

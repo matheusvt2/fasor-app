@@ -1,9 +1,9 @@
 ---
 name: fasor
 description: Field tool for medium-voltage substation maintenance reports (relatório de cabine primária). Sober, sunlight-readable, tablet-first. Product name chosen as Releng in the brief (availability unchecked) — UI shows the literal placeholder PRODUTO until confirmed.
-version: 0.8.0
+version: 0.9.0  # 2026-09-25 v0.9: was 0.8.0 (Story 12.5 promoted § v0.9 direction)
 status: draft
-updated: 2026-09-21
+updated: 2026-09-25  # 2026-09-25 v0.9: was 2026-09-21
 sources:
   - _bmad-output/planning-artifacts/briefs/brief-fasor-2026-09-18/brief.md
   - _bmad-output/planning-artifacts/briefs/brief-fasor-2026-09-18/addendum.md
@@ -16,9 +16,9 @@ sources:
   - docs/concorrentes/extract-media-reference-tool.md
 colors:
   # Light theme — used when the device prefers light. The theme follows the system preference; manual override in Account (see Colors).
-  surface-base: '#F4F5F7'
+  surface-base: '#F7F8FA'  # 2026-09-25 v0.9: was '#F4F5F7'
   surface-raised: '#FFFFFF'
-  surface-sunken: '#E6E9ED'
+  surface-sunken: '#EEF1F5'  # 2026-09-25 v0.9: was '#E6E9ED'; also the field fill
   ink-primary: '#15181D'
   ink-secondary: '#454B54'
   border-strong: '#5C6470'
@@ -34,6 +34,8 @@ colors:
   nao-conforme-fill: '#FBE3E0'
   nao-aplica: '#5C6470'
   nao-aplica-fill: '#E6E9ED'
+  # v0.9 (2026-09-25): the letter on a chosen tri-state segment, set on the conforme / nao-conforme / nao-aplica solid
+  tri-state-selected-foreground: '#FFFFFF'
   # Sheet conclusion
   aprovado: '#1B6B36'
   reprovado: '#B42318'
@@ -54,9 +56,9 @@ colors:
   # Dialog scrim: ink-primary at 45% over the page (dialogs, capture sheet, palette on phone)
   scrim: 'rgba(21,24,29,0.45)'
   # Dark theme — used when the device prefers dark; same sunlight contrast rules apply
-  surface-base-dark: '#121417'
+  surface-base-dark: '#101317'  # 2026-09-25 v0.9: was '#121417'
   surface-raised-dark: '#1C2027'
-  surface-sunken-dark: '#2A2F37'
+  surface-sunken-dark: '#262B33'  # 2026-09-25 v0.9: was '#2A2F37'
   ink-primary-dark: '#F3F4F6'
   ink-secondary-dark: '#B6BCC6'
   border-strong-dark: '#8A93A0'
@@ -71,6 +73,7 @@ colors:
   nao-conforme-fill-dark: '#3D1E1B'
   nao-aplica-dark: '#A9B1BC'
   nao-aplica-fill-dark: '#2A2F37'
+  tri-state-selected-foreground-dark: '#0B1B2B'
   aprovado-dark: '#6FD08F'
   reprovado-dark: '#F59288'
   fora-do-limite-dark: '#F2B85C'
@@ -94,9 +97,10 @@ typography:
     letterSpacing: '-0.01em'
   title:
     fontFamily: "Inter, Roboto, 'Segoe UI', system-ui, sans-serif"
-    fontSize: 22px
+    fontSize: 24px  # 2026-09-25 v0.9: was 22px
     fontWeight: '600'
     lineHeight: '1.25'
+    letterSpacing: '-0.01em'  # 2026-09-25 v0.9: new
   heading:
     fontFamily: "Inter, Roboto, 'Segoe UI', system-ui, sans-serif"
     fontSize: 18px
@@ -114,7 +118,7 @@ typography:
     lineHeight: '1.4'
   value:
     fontFamily: "Inter, Roboto, 'Segoe UI', system-ui, sans-serif"
-    fontSize: 20px
+    fontSize: 22px  # 2026-09-25 v0.9: was 20px
     fontWeight: '600'
     lineHeight: '1.3'
     note: 'font-variant-numeric: tabular-nums. Measured readings and calculated indices only.'
@@ -131,6 +135,7 @@ typography:
 rounded:
   sm: 4px
   md: 8px
+  btn: 10px  # 2026-09-25 v0.9: new, buttons
   lg: 12px
   full: 9999px
 spacing:
@@ -193,19 +198,20 @@ components:
   button-primary:
     background: '{colors.primary}'
     foreground: '{colors.primary-foreground}'
-    radius: '{rounded.md}'
+    radius: '{rounded.btn}'  # 2026-09-25 v0.9: was '{rounded.md}'
+    gradient: 'linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.04))'  # 2026-09-25 v0.9: new; dark 'linear-gradient(180deg, rgba(255,255,255,0.05), rgba(0,0,0,0.06))'
     min-height: '{spacing.touch-min}'
   button-secondary:
     background: '{colors.surface-raised}'
     foreground: '{colors.primary}'
     border: '2px solid {colors.primary}'
-    radius: '{rounded.md}'
+    radius: '{rounded.btn}'  # 2026-09-25 v0.9: was '{rounded.md}'
     min-height: '{spacing.touch-min}'
   button-destructive:
     background: '{colors.surface-raised}'
     foreground: '{colors.nao-conforme}'
     border: '2px solid {colors.nao-conforme}'
-    radius: '{rounded.md}'
+    radius: '{rounded.btn}'  # 2026-09-25 v0.9: was '{rounded.md}'
     min-height: '{spacing.touch-min}'
   sticky-action-bar:
     background: '{colors.surface-raised}'
@@ -275,10 +281,11 @@ components:
     selected-background: '{colors.focus-fill}'
     selected-rule: '4px solid {colors.primary}'
   sheet-header:
-    background: '{colors.surface-base}'
-    border-bottom: '2px solid {colors.border-strong}'
+    background: '{colors.surface-raised}'  # 2026-09-25 v0.9: was '{colors.surface-base}'
+    border-bottom: '1px solid {colors.border-hairline}'  # 2026-09-25 v0.9: was '2px solid {colors.border-strong}'
     title: '{typography.title}'
     meta: '{typography.meta}'
+    summary-typography: '{typography.body}'  # 2026-09-25 v0.9: new, the one sentence of progress
   progress-counter:
     pending-color: '{colors.fora-do-limite}'
     complete-color: '{colors.conforme}'
@@ -292,6 +299,10 @@ components:
     current-rule: '3px solid {colors.primary}'
     missing-count-color: '{colors.fora-do-limite}'
     complete-color: '{colors.conforme}'
+    rule-height: '3px'  # 2026-09-25 v0.9: new, the progress rule under every name (4px on the current)
+    rule-track: '{colors.border-hairline}'  # 2026-09-25 v0.9: new
+    rule-complete: '{colors.conforme}'  # 2026-09-25 v0.9: new
+    rule-missing: '{colors.fora-do-limite}'  # 2026-09-25 v0.9: new
   bulk-action-bar:
     background: '{colors.surface-base}'
     border: '1px solid {colors.border-hairline}'
@@ -305,21 +316,37 @@ components:
     border: '2px solid {colors.border-strong}'
     radius: '{rounded.md}'
     letter-typography: '{typography.heading}'
-    c-selected: '{colors.conforme-fill}'
-    c-foreground: '{colors.conforme}'
-    nc-selected: '{colors.nao-conforme-fill}'
-    nc-foreground: '{colors.nao-conforme}'
-    na-selected: '{colors.nao-aplica-fill}'
-    na-foreground: '{colors.nao-aplica}'
+    c-selected: '{colors.conforme}'  # 2026-09-25 v0.9: was '{colors.conforme-fill}' (the chosen segment is solid)
+    c-foreground: '{colors.tri-state-selected-foreground}'  # 2026-09-25 v0.9: was '{colors.conforme}'
+    nc-selected: '{colors.nao-conforme}'  # 2026-09-25 v0.9: was '{colors.nao-conforme-fill}'
+    nc-foreground: '{colors.tri-state-selected-foreground}'  # 2026-09-25 v0.9: was '{colors.nao-conforme}'
+    na-selected: '{colors.nao-aplica}'  # 2026-09-25 v0.9: was '{colors.nao-aplica-fill}'
+    na-foreground: '{colors.tri-state-selected-foreground}'  # 2026-09-25 v0.9: was '{colors.nao-aplica}'
   checklist-row:
     min-height: '{spacing.touch-field}'
     divider: '1px solid {colors.border-hairline}'
     label: '{typography.body}'
+  field:  # 2026-09-25 v0.9: new, the generic field filled and underlined
+    background: '{colors.surface-sunken}'
+    min-height: '{spacing.touch-field}'
+    radius: '{rounded.md} {rounded.md} 0 0'
+    rule: '2px solid {colors.border-strong}'
+    focus-rule: '3px solid {colors.focus}'
+    focus-background: '{colors.focus-fill}'
+    gap: '{spacing.1}'
+  cabine-line:  # 2026-09-25 v0.9: new, the collapsed "Da cabine" block (D-5)
+    min-height: '{spacing.touch-min}'
+    background: '{colors.surface-sunken}'
+    radius: '{rounded.md}'
+  sumario-row:  # 2026-09-25 v0.9: new, the Sumário row
+    pos-size: '32px'
+    pos-background: '{colors.surface-sunken}'
+    open-cabine-rule: '2px solid {colors.primary}'
   measurement-field:
     typography: '{typography.value}'
     unit-typography: '{typography.label}'
-    border: '2px solid {colors.border-strong}'
-    radius: '{rounded.sm}'
+    border: '2px solid {colors.border-strong}'  # 2026-09-25 v0.9: bottom rule only, the field's fill and rule
+    radius: '{rounded.sm}'  # 2026-09-25 v0.9: '{rounded.md} {rounded.md} 0 0' as the field
     min-height: '{spacing.touch-field}'
     out-of-limit-background: '{colors.fora-do-limite-fill}'
     out-of-limit-border: '2px solid {colors.fora-do-limite}'
@@ -725,11 +752,11 @@ Depth is drawn with borders, not shadows. Cards sit on `surface-base` with a `bo
 
 → Mock: `mockups/key-equipment-sheet.html` (4px inputs and cells, 8px buttons and block cards, 12px dialogs, full-round pills).
 
-## v0.9 direction (2026-09-24, proposed)
+## v0.9 direction (2026-09-24, ~~proposed~~ promoted by Story 12.5 on 2026-09-25)
 
 Written by Sally after the journey review of 2026-09-24 (`review-journey-2026-09-24.md` § 3), at Matheus's request for a more current look. It is a new skin on the same skeleton: every rule of § Colors that is about safety stays (ink on surfaces at 7:1 or better, amber for suggestion only, red for what the engineer marked, no meaning by color alone, both themes under the same bar), and so do the 48px and 56px targets, the borders-not-shadows rule and the single column of the sheet. What changes is what made the app read as a desktop form: boxed inputs stacked with equal weight, caps labels, three progress indicators in one header, eleven identical rows on the Sumário.
 
-Tokens and rules live beside the v0.8 files until Story 12.5 promotes them: `mockups/tokens-v09.css` (overrides) and `mockups/components-v09.css` (overrides). The frontmatter above still lists v0.8; the story that folds the overrides into `tokens.css` and `components.css` bumps the frontmatter and this file's version to 0.9.0 in the same change, so `tokens.css` stays a 1:1 copy of the frontmatter at every commit.
+~~Tokens and rules live beside the v0.8 files until Story 12.5 promotes them: `mockups/tokens-v09.css` (overrides) and `mockups/components-v09.css` (overrides).~~ ~~The frontmatter above still lists v0.8; the story that folds the overrides into `tokens.css` and `components.css` bumps the frontmatter and this file's version to 0.9.0 in the same change, so `tokens.css` stays a 1:1 copy of the frontmatter at every commit.~~ *(2026-09-25)* Promoted by Story 12.5: the overrides are folded into `mockups/tokens.css` and `mockups/components.css` (the `-v09.css` files are gone), the app's copies stay byte-identical, and the frontmatter above lists the v0.9 values with this file at version 0.9.0, so `tokens.css` stays a 1:1 copy of the frontmatter. Seed labels render through the kernel's `screenLabel` and the Sheet header sentence is the kernel's `sheetSummaryText`.
 
 | Element | v0.8 | v0.9 | Why |
 |---|---|---|---|
@@ -738,7 +765,7 @@ Tokens and rules live beside the v0.8 files until Story 12.5 promotes them: `moc
 | Value | 20/600 tabular | 22/600 tabular | The reading is what the engineer checks against the limit |
 | Title | 22/600 | 24/600, -0.01em | Hierarchy between the sheet title and its headings |
 | Surfaces | `surface-base` #F4F5F7, cards with hairline plus `border-strong` on interactive cards | `surface-base` #F7F8FA, one hairline per card, 12px radius; the current Relatório card keeps its 2px `primary` edge | One boundary per card, no double borders |
-| Tri-state | Three outlined cells, the chosen one tinted with an inset ring | One 56px control, the chosen segment solid (`conforme`, `nao-conforme`, `nao-aplica`) with the letter in white (dark theme: dark ink), unselected segments outlined | The state is seen at arm's length; contrast on the solids 6.6 / 6.6 / 6.0:1 light, 9.9:1 or better dark |
+| Tri-state | Three outlined cells, the chosen one tinted with an inset ring | One 56px control, the chosen segment solid (`conforme`, `nao-conforme`, `nao-aplica`) with the letter in white (dark theme: dark ink), unselected segments outlined | The state is seen at arm's length; contrast on the solids 6.6 / 6.6 / 6.0:1 light, ~~9.9:1 or better dark~~ 7.8:1 or better dark *(2026-09-25, measured)* |
 | Section stepper | Names with counts, 3px rule under the current step | Names on one row, a 3px progress rule under every name (`conforme` complete, `fora-do-limite` missing, 4px on the current), the count only where something is missing | One glance says which steps are done |
 | Sheet header | Progress counter "11 obrigatórios faltando" beside the title, 2px bottom rule | One kernel sentence, "Placa e verificações prontas · faltam 9 leituras", hairline rule; the sync badge stays in the App bar | Three overlapping counters become one sentence plus the stepper |
 | Cabine block | "Características da SE" and "Ambiente de ensaio" on every sheet of the cabine | One `cabine-line` "Cubículo Enel · Alvenaria · 13,8 kV · 25 °C · 65 %" with "Editar"; expanded on the first sheet or while a field is missing | The sheet starts at its own data (D-5) |
@@ -746,7 +773,9 @@ Tokens and rules live beside the v0.8 files until Story 12.5 promotes them: `moc
 | Sumário row | Number in a plain cell, chevron and overflow apart | Number in a 32px `surface-sunken` circle, status sentence in meta, chevron and overflow in one trailing cluster; the open cabine carries a 2px `primary` left rule | Rows differ by state, not only by text |
 | Home | Four status tiles above the list | The tiles stay as the filter; the current card carries "Continuar: SEC-C05 · 42 de 94" and "42 de 94 fichas" as the mock already draws | The mock was right; the app lags it (J-05) |
 
-Contrast checks for the new values (light): `ink-primary` on `surface-sunken` #EEF1F5 15.9:1; `ink-secondary` on it 7.9:1; white on `conforme` 6.6:1, on `nao-conforme` 6.6:1, on `nao-aplica` 6.0:1 (the letter is set in `heading` weight, as § Colors requires for semantic inks on fills). Dark: `ink-primary` on #262B33 13.1:1; #0B1B2B on `conforme-dark` #6FD08F 9.9:1, on `nao-conforme-dark` #F59288 9.1:1, on `nao-aplica-dark` #A9B1BC 8.7:1.
+~~Contrast checks for the new values (light): `ink-primary` on `surface-sunken` #EEF1F5 15.9:1; `ink-secondary` on it 7.9:1; white on `conforme` 6.6:1, on `nao-conforme` 6.6:1, on `nao-aplica` 6.0:1 (the letter is set in `heading` weight, as § Colors requires for semantic inks on fills). Dark: `ink-primary` on #262B33 13.1:1; #0B1B2B on `conforme-dark` #6FD08F 9.9:1, on `nao-conforme-dark` #F59288 9.1:1, on `nao-aplica-dark` #A9B1BC 8.7:1.~~
+
+*(2026-09-25, Story 12.5, measured with the WCAG 2 formula on the same hex values; six of the ratios above were overstated, every pair still clears its floor and no token changes)* Contrast checks for the new values (light): `ink-primary` on `surface-sunken` #EEF1F5 15.7:1; `ink-secondary` on it 7.8:1; white on `conforme` 6.6:1, on `nao-conforme` 6.6:1, on `nao-aplica` 6.0:1 (the letter is set in `heading` weight, as § Colors requires for semantic inks on fills). Dark: `ink-primary` on #262B33 12.9:1; `ink-secondary` on it 7.5:1; #0B1B2B on `conforme-dark` #6FD08F 9.2:1, on `nao-conforme-dark` #F59288 7.8:1, on `nao-aplica-dark` #A9B1BC 8.0:1. `apps/web/src/styles/contrast.test.ts` checks these pairs on `tokens.css`.
 
 → Mock: `mockups/key-equipment-sheet-v09.html` (the sheet before and after, tablet and phone, light and dark), `mockups/key-relatorio-overview-v09.html` (the Sumário after). Before: `mockups/key-equipment-sheet.html`, `mockups/prototype/screens/40-relatorio-overview.html`.
 

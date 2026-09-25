@@ -1,12 +1,14 @@
-import { sheetProgressState, sheetProgressText, type SheetProgress } from '@app/domain';
+import { SHEET_STEPS, sheetProgressState, sheetProgressText, sheetSummaryText, type SheetProgress, type SheetStep } from '@app/domain';
 import { OverflowMenu, type OverflowMenuAction } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 
 /**
- * The Sheet header (UX-DR33, `60-ficha.html` `.sheet-header`): type + TAG, the TAG a 48 px
- * text button that renames the equipment (its id kept); Cabine › Coluna; the attribution
- * lines once saved; the Progress counter ("8 obrigatórios faltando" / "Completa"), which
- * never blocks anything; and the sheet's Overflow. No hint sentence of its own.
+ * The Sheet header (UX-DR33, `key-equipment-sheet-v09.html` `.sheet-header`): type + TAG,
+ * the TAG a 48 px text button that renames the equipment (its id kept); Cabine › Coluna;
+ * the attribution lines once saved; the kernel's one sentence of progress
+ * (`sheetSummaryText`, "Placa e verificações prontas · faltam 9 leituras e a conclusão",
+ * Story 12.5, J-14), which never blocks anything; and the sheet's Overflow. A sheet marked
+ * not tested keeps its v0.8 Progress counter ("Completa"): nothing in it is counted.
  */
 export function FichaHeader({
   typeName,
@@ -15,6 +17,7 @@ export function FichaHeader({
   filledBy,
   concludedBy,
   progress,
+  shown = SHEET_STEPS,
   menu,
   notTested = false,
   onRename,
@@ -25,6 +28,8 @@ export function FichaHeader({
   filledBy: string | null;
   concludedBy: string | null;
   progress: SheetProgress;
+  /** The steps the Section stepper shows; a step it does not show is never named. */
+  shown?: readonly SheetStep[];
   menu: OverflowMenuAction[];
   /** `key-sheet-states.html` frame (a): the chip beside the TAG once the sheet is not tested. */
   notTested?: boolean;
@@ -52,12 +57,19 @@ export function FichaHeader({
         {locationText === '' ? null : <p className="sheet-meta">{locationText}</p>}
         {filledBy === null ? null : <p className="sheet-meta">{filledBy}</p>}
         {concludedBy === null ? null : <p className="sheet-meta">{concludedBy}</p>}
+        {notTested ? null : (
+          <p className="sheet-summary" data-testid="ficha-progress">
+            {sheetSummaryText(progress, shown)}
+          </p>
+        )}
       </div>
       <div className="ficha-head-side">
-        <div className="progress-counter" data-state={sheetProgressState(progress)} data-testid="ficha-progress">
-          <span className="dot" aria-hidden="true" />
-          {sheetProgressText(progress)}
-        </div>
+        {notTested ? (
+          <div className="progress-counter" data-state={sheetProgressState(progress)} data-testid="ficha-progress">
+            <span className="dot" aria-hidden="true" />
+            {sheetProgressText(progress)}
+          </div>
+        ) : null}
         <OverflowMenu name="" label={t.headerMenu(tag)} items={menu} />
       </div>
     </div>

@@ -87,7 +87,7 @@ async function confirmPair(page: Page, c: TapCounter, restriction: 'Sem restriç
 }
 
 async function conclude(page: Page, c: TapCounter, nextBlockId: string): Promise<void> {
-  await expect(page.getByTestId('ficha-progress')).toHaveText('Completa');
+  await expect(page.getByTestId('ficha-progress')).toHaveText('Ficha completa');
   await c.tap('Concluir ficha', page.locator('#ficha-primary'), async () => {
     await expect(toast(page)).toContainText('Ficha concluída', { timeout: EFFECT_MS });
     await expect(page).toHaveURL(new RegExp(`/ficha/${nextBlockId}$`), { timeout: EFFECT_MS });
@@ -130,16 +130,16 @@ test('@p1 12.3-E2E-004 J1, J3 and J2 at 768 px: a new plate, the second secciona
   // No "Digitar": the fields are there; the TAG comes from the block.
   await expect(page.getByLabel('TAG', { exact: true })).toHaveValue(secEnel.tag);
   const j1 = tapCounter(page, EFFECT_MS);
-  await typeField(page, j1, 'IDENTIFICAÇÃO', 'SC-01');
+  await typeField(page, j1, 'Identificação', 'SC-01');
   await createWord(page, j1, 'fabricacao', 'Fabricante J1');
-  await typeField(page, j1, 'Nº SÉRIE', '123456');
-  await typeField(page, j1, 'TIPO', 'Rotativa');
-  const meio = page.getByLabel('MEIO DE EXTINÇÃO', { exact: true });
+  await typeField(page, j1, 'Nº série', '123456');
+  await typeField(page, j1, 'Tipo', 'Rotativa');
+  const meio = page.getByLabel('Meio de extinção', { exact: true });
   await j1.tap('Meio de extinção', meio, () => expect(meio).toBeFocused({ timeout: EFFECT_MS }));
   await j1.pick('Meio de extinção AR', meio, 'AR');
   await createWord(page, j1, 'tensao_de_placa', '13,8');
-  await typeField(page, j1, 'CORRENTE NOMINAL', '630');
-  const acionamento = page.getByLabel('ACIONAMENTO', { exact: true });
+  await typeField(page, j1, 'Corrente nominal', '630');
+  const acionamento = page.getByLabel('Acionamento', { exact: true });
   await j1.tap('Acionamento', acionamento, () => expect(acionamento).toBeFocused({ timeout: EFFECT_MS }));
   await j1.pick('Acionamento MANUAL/PUNHO', acionamento, 'MANUAL/PUNHO');
   const day = field(page, 'data_de_fabricacao').getByRole('spinbutton').first();
@@ -162,8 +162,8 @@ test('@p1 12.3-E2E-004 J1, J3 and J2 at 768 px: a new plate, the second secciona
     await expect(chips).toHaveCount(0, { timeout: EFFECT_MS });
   });
   await expect(page.getByLabel('TAG', { exact: true })).toHaveValue(secEnel2.tag);
-  await typeField(page, j3, 'IDENTIFICAÇÃO', 'SC-02', 'perUnit');
-  await typeField(page, j3, 'Nº SÉRIE', '654321', 'perUnit');
+  await typeField(page, j3, 'Identificação', 'SC-02', 'perUnit');
+  await typeField(page, j3, 'Nº série', '654321', 'perUnit');
   await expect(stepper(page).getByRole('button', { name: 'Placa, 0 faltando' })).toBeVisible();
   await j3.tap('Repetir da ficha anterior do mesmo tipo', bulk(page, 'Repetir da ficha anterior do mesmo tipo'), async () => {
     await expect(toast(page)).toContainText(`Padrão de ${secEnel.tag} repetido`, { timeout: EFFECT_MS });
@@ -193,8 +193,8 @@ test('@p1 12.3-E2E-004 J1, J3 and J2 at 768 px: a new plate, the second secciona
     await expect(toast(page)).toContainText('Copiado de', { timeout: EFFECT_MS });
     await expect(chips).toHaveCount(0, { timeout: EFFECT_MS });
   });
-  await typeField(page, j2, 'IDENTIFICAÇÃO', 'SC-03', 'perUnit');
-  await typeField(page, j2, 'Nº SÉRIE', '777777', 'perUnit');
+  await typeField(page, j2, 'Identificação', 'SC-03', 'perUnit');
+  await typeField(page, j2, 'Nº série', '777777', 'perUnit');
   const conexoes = page.locator('#ficha-step-verificacoes li.checklist-row').nth(CONEXOES - 1);
   await j2.tap('NC', conexoes.getByRole('radio', { name: 'Não conforme' }), () => expect(conexoes.getByRole('radio', { name: 'Não conforme' })).toHaveAttribute('aria-checked', 'true', { timeout: EFFECT_MS }));
   const chip = conexoes.getByRole('button', { name: 'conexão frouxa', exact: true });

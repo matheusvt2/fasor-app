@@ -39,7 +39,8 @@ const JOB_TIMEOUT = 150_000;
 /** The small fixture's Sumário, pulled onto this device (AD-8: opening it asks for the stream). */
 async function openFixtureSumario(page: Page): Promise<void> {
   await page.goto(`/relatorio/${EXPORT_RELATORIO_ID}`);
-  await expect(page.locator('.app-bar h1')).toHaveText('Sumário', { timeout: 30_000 });
+  // Story 12.5 (J-17): the App bar names the relatório; the Sumário list says where we are.
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
   await expect(headerPill(page)).toHaveText('Em campo', { timeout: 30_000 });
 }
 
@@ -167,7 +168,8 @@ test('@p0 4.8-E2E-004 an Em campo relatório: generate moves it to Em revisão, 
   await page.keyboard.press('Escape');
   await expect(dialog(page)).toBeHidden();
   await page.reload();
-  await expect(page.locator('.app-bar h1')).toHaveText('Sumário', { timeout: 30_000 });
+  // Story 12.5 (J-17): the App bar names the relatório; the Sumário list says where we are.
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
 
   // The revision lands with nobody watching the dialog: the toast, and `statusTable(Em revisão, issue)`.
   await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX', { timeout: JOB_TIMEOUT });
@@ -275,11 +277,13 @@ test('@p0 E4-E2E-001 generate, edit, Em revisão, generate revision 2: listed an
   await info.pressSequentially('Parada de 12 horas');
   await page.keyboard.press('Tab');
   await page.getByRole('button', { name: 'Voltar' }).click();
-  await expect(page.locator('.app-bar h1')).toHaveText('Sumário');
+  // Story 12.5 (J-17): the App bar names the relatório; the Sumário list says where we are.
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible();
   await expect(headerPill(page)).toHaveText('Em revisão');
   await expect(banner(page)).toContainText('(revisão 1). Alterações geram a revisão 2.');
   await page.reload();
-  await expect(page.locator('.app-bar h1')).toHaveText('Sumário', { timeout: 30_000 });
+  // Story 12.5 (J-17): the App bar names the relatório; the Sumário list says where we are.
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
   await expect(headerPill(page)).toHaveText('Em revisão');
 
   // Revision 2: listed with revision 1, and the relatório is Emitido again.
@@ -361,7 +365,8 @@ test('@p0 E4-E2E-002 a second relatório of an obra whose Emitido relatório thi
   await syncNow(page);
   await expect(page.getByText(/duplicada/)).toHaveCount(0);
   await page.goto(`/relatorio/${r2}`);
-  await expect(page.locator('.app-bar h1')).toHaveText('Sumário', { timeout: 30_000 });
+  // Story 12.5 (J-17): the App bar names the relatório; the Sumário list says where we are.
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
   const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   await expect(page.getByRole('list', { name: 'Locais do relatório' })).toBeVisible();
@@ -423,7 +428,8 @@ test('@p1 E4-E2E-004 Etapa 2: an exclusion removed from its menu comes back with
 
   // The generated document lists the three filled exclusions and no empty bullet.
   await page.getByRole('button', { name: 'Voltar' }).click();
-  await expect(page.locator('.app-bar h1')).toHaveText('Sumário');
+  // Story 12.5 (J-17): the App bar names the relatório; the Sumário list says where we are.
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible();
   await footButton(page).click();
   await generateButton(page).click();
   await expect(dialog(page).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeVisible({ timeout: JOB_TIMEOUT });

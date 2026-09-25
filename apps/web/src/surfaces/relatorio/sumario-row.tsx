@@ -14,10 +14,16 @@ export interface RowActions {
   onRemove: (row: Row) => void;
 }
 
+/**
+ * The row's chevron in the trailing `.sum-ctrls` cluster (v0.9, `key-relatorio-overview-v09.html`):
+ * a drawn hint that the row opens, not a control of its own; the tap goes to `.sum-open`.
+ */
 const Chevron = () => (
-  <svg className="ico" aria-hidden="true">
-    <use href="/sprite.svg#i-chev-right" />
-  </svg>
+  <span className="icon-btn sum-chev" aria-hidden="true">
+    <svg className="ico" aria-hidden="true">
+      <use href="/sprite.svg#i-chev-right" />
+    </svg>
+  </span>
 );
 
 /** `.sum-body`: the title and the status line the kernel wrote; red and bold when blocking. */
@@ -44,7 +50,6 @@ export function RowOpen({ row, onOpen, children }: { row: Row; onOpen?: (row: Ro
     <button type="button" className="sum-open" data-kind={row.kind} onClick={() => onOpen(row)}>
       <RowBody row={row} />
       {children}
-      <Chevron />
     </button>
   );
 }
@@ -75,6 +80,7 @@ export function FixedRow({ row, onOpen }: { row: Row; onOpen?: (row: Row) => voi
       <RowOpen row={row} onOpen={onOpen} />
       <span className="sum-ctrls">
         <span className="sum-ro">{fixedRowNote(row.rowKey as 'capa' | 'controle')}</span>
+        {onOpen === undefined ? null : <Chevron />}
       </span>
     </li>
   );
@@ -101,6 +107,7 @@ export function NumberedRow({ row, actions, openable }: { row: Row; actions: Row
       />
       <RowOpen row={row} onOpen={openable ? actions.onOpen : undefined} />
       <span className="sum-ctrls">
+        {openable ? <Chevron /> : null}
         <OverflowMenu name={row.title} items={menu.items} destructiveItems={menu.destructiveItems} />
       </span>
     </li>

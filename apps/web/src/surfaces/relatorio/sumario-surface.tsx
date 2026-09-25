@@ -47,6 +47,7 @@ import { newId } from '../../ids.ts';
 import { useForgetArrivalState } from '../../state/arrival-state.ts';
 import { useBackTarget } from '../../state/back-target.tsx';
 import { useExtraBanner } from '../../state/extra-banner.tsx';
+import { usePageTitle } from '../../state/page-title.tsx';
 import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { AddSectionDialog } from './add-section-dialog.tsx';
@@ -117,6 +118,9 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const responsibleName = users.find((row) => row.id === relatorio.setup.responsible_user_id)?.name ?? null;
 
   useBackTarget(`/project/${relatorio.project_id}`);
+  // Story 12.5 (J-17): inside a relatório the App bar names it, never the surface; the
+  // route's "Sumário" stays only as the fallback while the gate loads.
+  usePageTitle(sumarioTitle(snapshot.client, snapshot.project));
 
   // Section 9 opens expanded on an Em campo relatório, collapsed otherwise (EXPERIENCE.md);
   // opened that way, the tree opens the path to the last sheet and scrolls it into view.

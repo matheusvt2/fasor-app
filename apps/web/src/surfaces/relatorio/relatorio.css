@@ -38,25 +38,25 @@
 /* ---------- 40-relatorio-overview.html (Sumário, v0.8) ---------- */
 [data-route="/relatorio/:id"] .overview-content { flex: 1; min-width: 0; padding: var(--sp-5) var(--gutter-tablet); }
 [data-route="/relatorio/:id"] .header-side { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-1); flex: none; }
-[data-route="/relatorio/:id"] .sum-summary { display: flex; flex-wrap: wrap; gap: 0 var(--sp-3); margin: var(--sp-2) 0 0; }
-[data-route="/relatorio/:id"] .sum-summary .btn-text { min-height: 36px; padding: 0; font-size: var(--t-meta-size); }
-[data-route="/relatorio/:id"] .sumario { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border-hairline); border-radius: var(--r-md); background: var(--surface-raised); }
-[data-route="/relatorio/:id"] .sum-row { display: flex; align-items: center; gap: var(--sp-2); min-height: 64px; padding: 0 var(--sp-3) 0 0; border-top: 1px solid var(--border-hairline); }
-[data-route="/relatorio/:id"] .sum-row:first-child { border-top: 0; }
-[data-route="/relatorio/:id"] .sum-open { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--sp-3); min-height: 64px; padding: var(--sp-2) var(--sp-3) var(--sp-2) var(--sp-1); text-align: left; cursor: pointer; }
-[data-route="/relatorio/:id"] .sum-open > .ico { color: var(--ink-secondary); flex: none; }
-[data-route="/relatorio/:id"] .sum-row > .sum-pos, [data-route="/relatorio/:id"] .sum-pos-empty { flex: none; margin-left: var(--sp-3); }
-[data-route="/relatorio/:id"] .sum-pos-empty { width: 56px; }
-[data-route="/relatorio/:id"] .sum-pos { border-color: transparent; background: transparent; color: var(--ink-secondary); }
-[data-route="/relatorio/:id"] .sum-pos:hover, [data-route="/relatorio/:id"] .sum-pos:focus { border-color: var(--border-strong); background: var(--surface-raised); color: var(--ink-primary); }
+/* v0.9 (Story 12.5): the Sumário rows (`.sum-row`, `.sum-pos`, `.sum-open`, `.sum-title`,
+   `.sum-status`, `.sum-ctrls`, `.sum-ro`, `.sum-summary`) are drawn by `components.css`, which
+   promoted this page's v0.8 rules; only the list box and the app-only pieces stay here. */
+/* `key-relatorio-overview-v09.html` draws the list inline: raised surface, one hairline, 12 px radius. */
+[data-route="/relatorio/:id"] .sumario { list-style: none; margin: 0; padding: 0; border: 1px solid var(--border-hairline); border-radius: var(--r-lg); background: var(--surface-raised); }
+/* authored: the row's `.sum-open` holds the title and status in the app's `.sum-body`, the mock's column. */
 [data-route="/relatorio/:id"] .sum-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-[data-route="/relatorio/:id"] .sum-title { font-size: var(--t-body-size); font-weight: 600; color: var(--ink-primary); }
-[data-route="/relatorio/:id"] .sum-status { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
-[data-route="/relatorio/:id"] .sum-status.is-blocking { color: var(--nao-conforme); font-weight: 600; font-size: var(--t-body-size); }
-[data-route="/relatorio/:id"] .sum-ctrls { flex: none; display: flex; align-items: center; gap: var(--sp-1); }
-[data-route="/relatorio/:id"] .sum-ro { font-size: var(--t-meta-size); color: var(--ink-secondary); padding-right: var(--sp-2); }
-/* section 9 */
-[data-route="/relatorio/:id"] .sum-s9 { flex-direction: column; align-items: stretch; padding: 0; }
+[data-route="/relatorio/:id"] .sum-open { min-width: 0; cursor: pointer; }
+/* mirrors `.sum-status .is-blocking`: the app marks the status line itself `is-blocking`. */
+[data-route="/relatorio/:id"] .sum-status.is-blocking { color: var(--nao-conforme); font-weight: 600; }
+/* authored (ERGO-E2E-001): the number is the typeable Position box, so its hit area stays
+   48 x 48; the mock's 32 px `surface-sunken` circle is drawn inside it. */
+[data-route="/relatorio/:id"] .pos-box.sum-pos { width: var(--touch-min); height: var(--touch-min); margin: 0; padding: 0; border: 0; border-radius: var(--r-full); background: radial-gradient(circle, var(--sum-pos-background) calc(var(--sum-pos-size) / 2), transparent calc(var(--sum-pos-size) / 2 + 0.5px)); }
+/* the fixed rows' empty first column (the mock's `.sum-pos-empty { display: block }`) */
+[data-route="/relatorio/:id"] .sum-pos-empty { display: block; }
+/* section 9: the mock's `<li class="sum-row sum-s9" style="display:block">` */
+[data-route="/relatorio/:id"] .sum-s9 { display: block; padding: 0; }
+/* the mock draws a closed cabine's rule in hairline (inline `border-left-color`); only the open one is `primary` */
+[data-route="/relatorio/:id"] .sum-s9 .s9-cabine:not(.is-open) { border-left-color: var(--border-hairline); }
 [data-route="/relatorio/:id"] .sum-s9-head { display: flex; align-items: center; gap: var(--sp-2); min-height: 64px; padding: var(--sp-2) var(--sp-3) var(--sp-2) 0; }
 [data-route="/relatorio/:id"] .sum-s9-head .tree-chevron { flex: none; }
 [data-route="/relatorio/:id"] .sum-s9 .tree-chevron .ico { transition: transform .15s; transform: rotate(-90deg); }
@@ -66,7 +66,8 @@
 [data-route="/relatorio/:id"] .s9-note, [data-route="/relatorio/:id"] .s9-tree { display: none; }
 [data-route="/relatorio/:id"] .sum-s9.is-open > .s9-note, [data-route="/relatorio/:id"] .sum-s9.is-open > .s9-tree { display: block; }
 [data-route="/relatorio/:id"] .s9-note { margin: 0 var(--sp-4) var(--sp-2) 104px; font-size: var(--t-meta-size); color: var(--ink-secondary); }
-[data-route="/relatorio/:id"] .s9-tree { list-style: none; margin: 0; padding: 0 0 var(--sp-2) 40px; }
+/* v0.9: the tree starts flush; each cabine carries its own 24 px inset and rule (`.sum-s9 .s9-cabine`, the mock's inline `.s9-tree { padding: 0 }`) */
+[data-route="/relatorio/:id"] .s9-tree { list-style: none; margin: 0; padding: 0 0 var(--sp-2) 0; }
 [data-route="/relatorio/:id"] .s9-cab-row { display: flex; align-items: center; gap: var(--sp-2); min-height: 56px; padding-right: var(--sp-3); border-top: 1px solid var(--border-hairline); }
 [data-route="/relatorio/:id"] .s9-cab-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 [data-route="/relatorio/:id"] .s9-cab-name { font-weight: 600; }
@@ -77,7 +78,6 @@
 [data-route="/relatorio/:id"] .sumario.is-review .sum-row.has-pend { background: var(--surface-base); }
 /* Playwright sweep fixes (2026-09-21): hit areas and phone layout of the Sumário */
 [data-route="/relatorio/:id"] .sum-s9 .tree-chevron, [data-route="/relatorio/:id"] .s9-cabine .tree-chevron { width: var(--touch-min); height: 56px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
-[data-route="/relatorio/:id"] .sum-summary .btn-text { min-height: 44px; }
 /* authored: a collapsed cabine holding the last sheet takes the mock's `.s9-eq.is-current` look,
    since its row is not drawn; once open, the sheet's own row carries it (Story 4.4). */
 [data-route="/relatorio/:id"] .s9-cabine.is-current:not(.is-open) > .s9-cab-row { background: var(--focus-fill); box-shadow: inset 4px 0 0 var(--primary); }

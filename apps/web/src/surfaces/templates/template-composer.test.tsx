@@ -536,7 +536,7 @@ describe('3.5 composer: sub-block defaults per type', () => {
     }
     expect(dialog.querySelectorAll('.toggle-sub')).toHaveLength(2);
     const subtype = within(dialog).getByRole('combobox', { name: 'Subtipo padrão' });
-    expect(subtype).toHaveValue('MANUAL');
+    expect(subtype).toHaveValue('Manual');
     expect(within(dialog).getByText('2 itens marcados NA por padrão')).toBeVisible();
     expect(await axe(dialog)).toHaveNoViolations();
 
@@ -566,8 +566,8 @@ describe('3.5 composer: sub-block defaults per type', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Padrões de TP — proteção' });
     expect(within(dialog).getByRole('combobox', { name: 'Subtipo padrão' })).toHaveValue('Sem subtipo');
     await userEvent.click(within(dialog).getByRole('button', { name: /Abrir lista/ }));
-    expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual(['Sem subtipo', 'EPÓXI', 'Á SECO']);
-    await userEvent.click(screen.getByRole('option', { name: 'Á SECO' }));
+    expect((await screen.findAllByRole('option')).map((o) => o.textContent)).toEqual(['Sem subtipo', 'Epóxi', 'Á seco']);
+    await userEvent.click(screen.getByRole('option', { name: 'Á seco' }));
     await waitFor(() => expect(within(dialog).getByText('8 itens marcados NA por padrão')).toBeVisible());
     // "IA e IP lidos do visor" ships off and can be switched on.
     expect(within(dialog).getByRole('switch', { name: 'IA e IP lidos do visor' })).toHaveAttribute('aria-checked', 'false');

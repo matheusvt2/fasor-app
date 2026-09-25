@@ -5,6 +5,7 @@ import {
   numberEchoText,
   numberFieldValue,
   parseVoltageClassKv,
+  screenLabel,
   wordRowByName,
   type BlockRow,
   type FieldDef,
@@ -147,7 +148,7 @@ function TextField({ field, value, commit, draft, missing, label, helper }: Fiel
   return (
     <div className="field" data-field-key={field.key}>
       <label className="field-label" htmlFor={id}>
-        {label ?? field.label}
+        {screenLabel(label ?? field.label)}
       </label>
       <input
         id={id}
@@ -194,7 +195,7 @@ function NumberField({ field, value, commit, draft, missing, label, invalidText 
   return (
     <div className="field" data-field-key={field.key}>
       <label className="field-label" htmlFor={id}>
-        {label ?? field.label}
+        {screenLabel(label ?? field.label)}
       </label>
       <div className="measurement-field" aria-invalid={number.invalid || undefined}>
         <input
@@ -233,7 +234,7 @@ function DateValueField({ field, value, commit, missing, label }: FieldProps) {
   return (
     <div data-field-key={field.key} data-missing-field={missing ? '' : undefined}>
       <DateField
-        label={label ?? field.label}
+        label={screenLabel(label ?? field.label)}
         value={date}
         onChange={(next) => {
           setDate(next);
@@ -252,7 +253,7 @@ function SelectField({ field, value, commit, missing, label, selectEmpty }: Fiel
   return (
     <div className="field combobox" data-field-key={field.key}>
       <label className="field-label" htmlFor={id}>
-        {label ?? field.label}
+        {screenLabel(label ?? field.label)}
       </label>
       <select
         id={id}
@@ -293,7 +294,7 @@ function WordField({ field, value, commit, missing, label, registries, blocks, o
   return (
     <div className="field" data-field-key={field.key} data-missing-field={missing ? '' : undefined}>
       <RegistryPickerField
-        label={label ?? field.label}
+        label={screenLabel(label ?? field.label)}
         options={rows.filter((row) => row.removed_at === null).map((row) => ({ id: row.id, label: row.name }))}
         recentIds={recents}
         value={selected}
@@ -322,7 +323,7 @@ export function ReadOnlyField({ field, value, label, helper }: { field: Pick<Fie
   return (
     <div className="field">
       <span className="field-label" id={labelId}>
-        {label ?? field.label}
+        {screenLabel(label ?? field.label)}
       </span>
       {isNumber ? (
         <div className="measurement-field" role="textbox" aria-readonly="true" aria-labelledby={labelId}>

@@ -144,7 +144,7 @@ async function openSheet(page: Page, relatorioId: string, blockId: string): Prom
 
 /** Types the last missing nameplate value (Nº SÉRIE) and presses Enter; returns when Enter went down. */
 async function typeLastPlateValueAndEnter(page: Page, value: string): Promise<number> {
-  const serie = page.getByLabel('Nº SÉRIE', { exact: true });
+  const serie = page.getByLabel('Nº série', { exact: true });
   await serie.click();
   await page.keyboard.type(value);
   await page.keyboard.press('Enter');

@@ -259,5 +259,6 @@ test('@p1 12.2-E2E-005 "Próxima seção" walks the section texts 2, 4, 5, 6 and
   }
   await expect(next).toHaveCount(0);
   await page.getByRole('button', { name: 'Voltar ao sumário' }).click();
-  await expect(page.locator('.app-bar h1')).toHaveText('Sumário');
+  // Story 12.5 (J-17): the App bar names the relatório; the Sumário list says where we are.
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible();
 });

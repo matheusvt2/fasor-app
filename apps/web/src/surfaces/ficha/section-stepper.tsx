@@ -1,6 +1,9 @@
 import { SHEET_STEPS, stepMissingLabel, type SheetProgress, type SheetStep } from '@app/domain';
 import { copy } from '../../copy/pt-br.ts';
 
+/** The steps the stepper draws, all four; the Sheet header names only these (`sheetSummaryText`). */
+export const STEPPER_STEPS: readonly SheetStep[] = SHEET_STEPS;
+
 /**
  * The Section stepper (UX-DR35, `60-ficha.html` `.section-stepper`): the four steps with
  * their missing counts, the current one `aria-current="step"`, each a button named "Placa,
@@ -11,7 +14,7 @@ export function SectionStepper({ progress, current, onGo }: { progress: SheetPro
   const t = copy.ficha;
   return (
     <div className="section-stepper" role="group" aria-label={t.stepperLabel}>
-      {SHEET_STEPS.map((step) => {
+      {STEPPER_STEPS.map((step) => {
         const missing = progress.steps[step].missing;
         const name = t.steps[step];
         return (
