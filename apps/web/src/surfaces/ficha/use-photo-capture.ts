@@ -10,6 +10,7 @@ import { browserPositionTracker, type PositionTracker } from '../../files/geoloc
 import { encodePhoto, type EncodedPhoto } from '../../files/photo-encode.ts';
 import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
+import { requestSyncCycle } from '../../state/sync.tsx';
 import { requestStorageCheck } from '../../state/storage-reading.ts';
 import { useToast } from '../../state/toast.tsx';
 import { createBrowserSyncClient } from '../../sync/client.ts';
@@ -133,6 +134,8 @@ export function usePhotoCapture(relatorioId: string): PhotoCapture {
           if (sessionCaptureRescue.heldCount() > 0) await sessionCaptureRescue.retryHeld(deps);
           const outcome = await sessionCaptureRescue.save(input, deps);
           if (outcome === 'held') showToast(copy.photos.refusalToast);
+          // E6-Q14: a saved shot goes out now when online, not on the next 60 s tick.
+          else requestSyncCycle();
         } catch (error) {
           console.error('photo capture failed', error);
           showToast(copy.photos.failedToast);

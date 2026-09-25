@@ -6,9 +6,9 @@ import {
   GALLERY_ALL,
   galleryCabineOptions,
   galleryCounterText,
+  galleryCounts,
   galleryFilterText,
   galleryHeadingText,
-  isUncaptioned,
   numberPhotos,
   photoCabineId,
   photoRemovedText,
@@ -99,11 +99,8 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const filterText = galleryFilterText(shown.length, cabineName === null ? null : captionWordFor(cabineName, 'local', sources.locais, sources.registry));
 
   // --- the header counter -------------------------------------------------------------------
-  const counter = galleryCounterText({
-    pending: all.filter((tile) => photoUploadState({ uploaded_at: tile.uploaded_at, localError: tile.upload_error }) === 'pending').length,
-    error: all.filter((tile) => photoUploadState({ uploaded_at: tile.uploaded_at, localError: tile.upload_error }) === 'error').length,
-    uncaptioned: all.filter((tile) => isUncaptioned(tile.caption)).length,
-  });
+  // E6-Q12: the counts are the kernel's.
+  const counter = galleryCounterText(galleryCounts(all));
 
   // --- the viewer, the composer, the import ---------------------------------------------------
   const [viewing, setViewing] = useState<string | null>(null);
@@ -211,7 +208,7 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
             </svg>
             {copy.photos.addPhotos}
           </Button>
-          <span className="btn-reason">{copy.photos.dragReason}</span>
+          <span className="btn-reason drag-reason">{copy.photos.dragReason}</span>
         </div>
         {camera.note}
       </div>
@@ -234,6 +231,7 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
             setCaptioning(null);
             if (viewing === null) focusTileSoon(id, heading.current);
           }}
+          photo={{ thumb: captioning.thumb, number: numbers.get(captioning.id) ?? null, capturedAt: captioning.captured_at }}
           prefill={contextCaptionParts(captioning, snapshot, composerMeta)}
           stored={captioning.caption}
           sources={sources}

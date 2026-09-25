@@ -47,6 +47,7 @@ import { useLiveQuery } from '../../db/live.ts';
 import { useBlockPhotoTiles, useLocalWordRows, type PhotoTile } from '../../db/photo-store.ts';
 import { writeLastSheet } from '../../db/prefs.ts';
 import { localUsers } from '../../db/sync-store.ts';
+import { LIST_FOCUS_WATCH_FRAMES } from '../../input/focus-restore.ts';
 import { isPointerModality, useHeldWhilePressed } from '../../input/press-hold.ts';
 import { usePageTitle } from '../../state/page-title.tsx';
 import { useSession } from '../../state/session.tsx';
@@ -69,6 +70,7 @@ import { firstFocusable } from './ficha-fields.tsx';
 import { concludedByOp, conclusionOp, notTestedOp, testInstrumentOp } from './ficha-ops.ts';
 import { NameplateSection } from './nameplate-section.tsx';
 import { NotTestedBand } from './not-tested-band.tsx';
+import { usePointDraftRecovery } from '../points/point-draft-recovery.ts';
 import { AddPhotosButton, useSheetCamera } from './photo-openers.tsx';
 import { DropHint, PhotoCaptureSheet, useDropZone, usePhotoImport } from '../photos/capture-sheet.tsx';
 import { setPhotoCaption } from '../photos/photo-ops.ts';
@@ -285,6 +287,8 @@ function FichaBody({
     };
   };
   const sheetCamera = useSheetCamera(relatorioId, () => photoTarget(null));
+  // E6-Q2, FR-61: a point typed in an NC row's dialog before a reload is offered back here.
+  usePointDraftRecovery(relatorioId);
   const photoTiles = useBlockPhotoTiles(db, relatorioId, blockId);
   const { retryUpload } = sync;
   // --- Stories 6.4/6.5: "Adicionar fotos" (and a drop on a computer) and "Legendar" -------
@@ -312,13 +316,18 @@ function FichaBody({
   /** Scrolls to a step and expands it; with `missing`, focuses its first missing field. */
   const goTo = (step: SheetStep, missing: boolean) => {
     setCurrent(step, true);
+    const hostOf = () => document.getElementById(`ficha-step-${step}`);
+    // The first marker drawn now (a TTR table and its phone cards both carry one; CSS shows one).
+    const markerIn = (host: HTMLElement) => (missing ? ([...host.querySelectorAll<HTMLElement>('[data-missing-field]')].find((element) => element.getClientRects().length > 0) ?? null) : null);
+    /** What the land (or the watch below) last gave the focus to. */
+    let landed: HTMLElement | null = null;
     const land = () => {
-      const host = document.getElementById(`ficha-step-${step}`);
+      const host = hostOf();
       if (host === null) return;
       host.scrollIntoView?.({ block: 'start' });
-      // The first marker drawn now (a TTR table and its phone cards both carry one; CSS shows one).
-      const marker = missing ? ([...host.querySelectorAll<HTMLElement>('[data-missing-field]')].find((element) => element.getClientRects().length > 0) ?? null) : null;
-      (marker === null ? host : focusableIn(marker)).focus({ preventScroll: marker === null });
+      const marker = markerIn(host);
+      landed = marker === null ? host : focusableIn(marker);
+      landed.focus({ preventScroll: marker === null });
     };
     afterFrames(land);
     // A menu that closed on the action hands its focus back to its trigger on its own
@@ -328,6 +337,42 @@ function FichaBody({
       const active = document.activeElement;
       if (active === null || active === document.body || active.matches('.overflow-trigger')) land();
     }, 12);
+    // E6-Q6: the sheet can be drawn from rows older than the ones "Concluir ficha" read (the
+    // value committed just before it -- "Com restrições" asking for the observation --
+    // reaches the sheet on the live query's own schedule), so the land may fall on the step
+    // or on a marker that is already answered. Until the person does something, the focus
+    // follows the first missing field as the sheet catches up, from wherever the land left
+    // it (the step, that stale marker, the body, the menu's trigger), never from a control
+    // they moved to.
+    if (missing) {
+      let interacted = false;
+      const stop = () => {
+        interacted = true;
+      };
+      const events = ['pointerdown', 'keydown'] as const;
+      for (const type of events) document.addEventListener(type, stop, { capture: true });
+      let frames = 0;
+      const tick = () => {
+        frames += 1;
+        if (interacted || frames > LIST_FOCUS_WATCH_FRAMES) {
+          for (const type of events) document.removeEventListener(type, stop, { capture: true });
+          return;
+        }
+        const host = hostOf();
+        const marker = host === null || landed === null ? null : markerIn(host);
+        if (host !== null && marker !== null) {
+          const target = focusableIn(marker);
+          const active = document.activeElement;
+          const stillLanding = active === null || active === document.body || !active.isConnected || active === host || active === landed || active.matches('.overflow-trigger');
+          if (active !== target && stillLanding) {
+            landed = target;
+            target.focus();
+          }
+        }
+        requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }
   };
 
   // --- the checklist on screen: the Sticky action bar mirrors its bulk action --------------

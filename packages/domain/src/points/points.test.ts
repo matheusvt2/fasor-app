@@ -14,7 +14,7 @@ import { sheetOrder } from '../relatorio/ficha.ts';
 import { numberPhotos, photoRefLabel } from '../photos/numbering.ts';
 import { extractPhotoRefs, photoToken, pointTextTokens } from './refs.ts';
 import { derivedPointReasonText, derivedPoints, groupDerivedPoints, notTestedPointText, type DerivedPoint } from './derived.ts';
-import { livePoints, newPointRow, pointMoveOrderKey, pointsWithRemovedPhotos } from './checks.ts';
+import { livePoints, ncRowPointPositions, ncRowPointsText, newPointRow, photoCitedByText, pointMoveOrderKey, pointsCitingPhoto, pointsWithRemovedPhotos } from './checks.ts';
 import { pointOrderText, pointsHeadingText, pointsSummary, pointsSummaryText, pointTitle, sectionEightEntries } from './summary.ts';
 
 const A = '019966b0-0070-7000-8000-00000000000a';
@@ -312,5 +312,41 @@ describe('6.6-UNIT the Porto Seguro fixture', () => {
     // Rows written before Story 6.6 parse with the new fields empty.
     expect(snapshot.points.every((row) => row.action === null && row.priority === null && row.deadline === null && row.owner === null)).toBe(true);
     expect(pointsSummary(snapshot)).toEqual({ total: 7, semAcao: 4, naoEnsaiadas: 3 });
+  });
+});
+
+describe('E6-Q11 the points a photo or an NC row already has', () => {
+  const EQ = '019966b0-0075-7000-8000-000000000001';
+  const OTHER = '019966b0-0075-7000-8000-000000000002';
+  const rows = (...fields: Partial<PointRow>[]): PointRow[] => {
+    let snapshot = fresh();
+    for (const f of fields) snapshot = withPoints(snapshot, point(snapshot, f));
+    return snapshot.points;
+  };
+
+  it('pointsCitingPhoto: the live points citing it, by section 8 position; photoCitedByText names them', () => {
+    const points = rows({ text: `Ver ${photoToken(A)}` }, { text: 'Nada' }, { text: `${photoToken(B)} e ${photoToken(A)}` }, { text: photoToken(A), removed_at: T0.toISOString() });
+    expect(pointsCitingPhoto(points, A)).toEqual([1, 3]);
+    expect(pointsCitingPhoto(points, '019966b0-0075-7000-8000-0000000000ff')).toEqual([]);
+    expect(photoCitedByText([])).toBeNull();
+    expect(photoCitedByText([2])).toBe('Ela é citada no ponto de atenção 2, que passa a mostrar Foto removida.');
+    expect(photoCitedByText([1, 3])).toBe('Ela é citada nos pontos de atenção 1 e 3, que passam a mostrar Foto removida.');
+  });
+
+  it('ncRowPointPositions: the equipment points citing the item photos, or citing none when the item has none', () => {
+    const points = rows(
+      { equipment_id: EQ, text: `Oxidação ${photoToken(A)}` },
+      { equipment_id: EQ, text: 'Sem foto' },
+      { equipment_id: OTHER, text: 'Outro equipamento' },
+      { equipment_id: null, text: 'Geral' },
+      { equipment_id: EQ, text: 'Não ensaiado', origin: 'not_tested' },
+    );
+    expect(ncRowPointPositions(points, EQ, [A])).toEqual([1]);
+    expect(ncRowPointPositions(points, EQ, [B])).toEqual([]);
+    expect(ncRowPointPositions(points, EQ, [])).toEqual([2]);
+    expect(ncRowPointPositions(points, null, [])).toEqual([]);
+    expect(ncRowPointsText([])).toBeNull();
+    expect(ncRowPointsText([1])).toBe('Ponto de atenção 1');
+    expect(ncRowPointsText([1, 2, 4])).toBe('Pontos de atenção 1, 2 e 4');
   });
 });

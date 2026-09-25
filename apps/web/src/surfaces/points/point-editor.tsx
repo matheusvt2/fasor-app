@@ -1,29 +1,25 @@
 import {
-  createPointOp,
   extractPhotoRefs,
-  newPointRow,
   numberPhotos,
   photoRefLabel,
   pointOrderText,
   pointTitle,
-  putPointOp,
   recurringFindings,
-  type OpDraft,
   type PointRow,
   type RelatorioSnapshot,
 } from '@app/domain';
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type RefObject } from 'react';
 import { Button, Chip, FormDialog } from '../../components/index.ts';
-import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
-import { commitBatch } from '../../db/commit.ts';
-import { pointRowsOf } from '../../db/home-store.ts';
 import { useRelatorioPhotoTiles, type PhotoTile } from '../../db/photo-store.ts';
 import { newId } from '../../ids.ts';
+import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { useSectionTextArea } from '../../input/use-section-text-area.ts';
+import { useDraftSource } from '../../state/drafts.tsx';
 import { useSession } from '../../state/session.tsx';
 import { useUndoableEdits } from '../../state/use-undoable-edits.ts';
 import { PhotoRefTile } from './photo-ref-tile.tsx';
+import { actionValue, pointDraftValue, pointPlace, POINT_DRAFT_SURFACE, writePoint, type NewPointLink, type PointValues } from './point-writes.ts';
 import { insertPhotoChip, insertPlainText, quickTextAt, relabelPhotoChips, renderPointText } from './point-text-editor.ts';
 import './points.css';
 
@@ -33,9 +29,17 @@ import './points.css';
  * stored as `[[foto:<id>]]`, never a number), the "Textos rápidos" chips insert the seed's
  * recurring findings as plain text at the caret, "Fotos referenciadas" lists the cited
  * photos and opens the picker of the relatório's live photos, and "Ação recomendada" is a
- * plain field. "Concluir" commits one batch: the `point` create on a new point, a put per
- * changed field after. No priority, deadline or owner field (`source-deltas.md` row 29), no
+ * plain field. No priority, deadline or owner field (`source-deltas.md` row 29), no
  * Dictation button (Epic 9), no photo draft (FR-75).
+ *
+ * E6-Q2: every field autosaves like the rest of the app (EXPERIENCE.md › Autosave): a
+ * change commits through `useFieldCommit` (blur or 500 ms idle), a new point is created
+ * (with the id generated when the editor opened) the first time its text or action is not
+ * empty, and every later change is a field put (`point-writes.ts`). Closing the editor --
+ * "Concluir", Esc, the scrim -- flushes the pending commit first, so nothing typed is lost;
+ * there is no "Cancelar" (the mock has none, and autosave has nothing to discard). Text not
+ * yet committed is a draft source (FR-61). A seeded new point the person never touched is
+ * created only by "Concluir".
  *
  * The same editor opens inline on the Points surface (`variant: 'card'`, the mock's
  * `.is-editing` card) and in a Form dialog from an NC row or an untested sheet.
@@ -48,28 +52,40 @@ export interface PointSeed {
   origin: PointRow['origin'];
 }
 
+/** Where a point the editor wrote to sits in section 8 once it closed. */
+export interface PointSaved {
+  pointId: string;
+  position: number;
+  total: number;
+}
+
 export interface PointEditorProps {
   relatorioId: string;
   snapshot: RelatorioSnapshot;
   /** The point being edited, or null for a new one. */
   point: PointRow | null;
+  /** A new point's id when the caller generated it (the Points surface); else the editor makes one. */
+  newPointId?: string;
   /** A new point's start; ignored when editing. */
   seed?: PointSeed;
   /** 1-based position of the edited point among the live ones, and how many there are. */
   position?: number;
   total?: number;
-  /** Called after "Concluir": the point id when a write landed, null when nothing changed. */
-  onDone: (pointId: string | null) => void;
-  onCancel: () => void;
+  /**
+   * Called once when the editor closes, after its last write settled: where the point sits
+   * when this editor wrote to it, null when it wrote nothing.
+   */
+  onDone: (saved: PointSaved | null) => void;
   /** "Remover ponto" of an existing point (the caller confirms). */
   onRemove?: () => void;
-  /** The heading id a dialog names itself by; the card names itself. */
   variant: 'card' | 'dialog';
+  /** The dialog's Esc and scrim close through this: the pending commit is flushed first. */
+  closeRef?: RefObject<(() => void) | null>;
 }
 
 const EMPTY_SEED: PointSeed = { text: '', equipmentId: null, origin: 'manual' };
 
-export function PointEditor({ relatorioId, snapshot, point, seed = EMPTY_SEED, position, total, onDone, onCancel, onRemove, variant }: PointEditorProps) {
+export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = EMPTY_SEED, position, total, onDone, onRemove, variant, closeRef }: PointEditorProps) {
   const t = copy.points;
   const session = useSession();
   const db = session.database;
@@ -89,15 +105,148 @@ export function PointEditor({ relatorioId, snapshot, point, seed = EMPTY_SEED, p
   const [text, setText] = useState(initialText);
   const [action, setAction] = useState(point?.action ?? '');
   const [picking, setPicking] = useState(false);
-  const [saving, setSaving] = useState(false);
+
+  // --- E6-Q2: autosave ---------------------------------------------------------------------
+  const [pointId] = useState(() => point?.id ?? newPointId ?? newId());
+  /** A new point's link; null when editing a stored one (a missing row is then `gone`). */
+  const [link] = useState<NewPointLink | null>(() => (point === null ? { equipmentId: seed.equipmentId, origin: seed.origin } : null));
+  /** What the fields hold now (read by the commits, the draft source and the close). */
+  const values = useRef<PointValues>({ text: initialText, action: point?.action ?? '' });
+  /** What the store holds, as far as this editor wrote or read it. */
+  const stored = useRef<PointValues>({ text: point?.text ?? '', action: point?.action ?? '' });
+  /** The person changed something here (a seeded new point untouched is created only by "Concluir"). */
+  const touched = useRef(false);
+  /** This editor wrote to the point. */
+  const wrote = useRef(false);
+  const lastWrite = useRef<Promise<unknown>>(Promise.resolve());
+  const goneShown = useRef(false);
+  const finishing = useRef(false);
+  const mounted = useRef(true);
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
+  const committers = useRef<{ flush: () => void } | null>(null);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  // Declared before the committers, so on unmount it runs before they drop their timers: a
+  // surface left mid-typing (a route change) still stores what was typed.
+  useEffect(
+    () => () => {
+      if (!finishing.current) committers.current?.flush();
+    },
+    [],
+  );
+
+  const persist = (fields: readonly (keyof PointValues)[]): Promise<void> => {
+    if (db === null || user === null) return Promise.resolve();
+    const author = { id: user.id, companyId: user.companyId };
+    const taken = { ...values.current };
+    const run = edits.write(
+      async () => {
+        const result = await writePoint(db, author, relatorioId, pointId, taken, fields, link);
+        if (result.kind === 'gone') {
+          if (mounted.current && !goneShown.current) {
+            goneShown.current = true;
+            edits.notify(t.gone);
+          }
+          return null;
+        }
+        if (result.kind === 'written') wrote.current = true;
+        // A create stores both fields; a put (or nothing to write) the fields it names.
+        for (const field of result.kind === 'written' && result.created ? (['text', 'action'] as const) : fields) stored.current[field] = taken[field];
+        return null;
+      },
+      { quiet: true },
+    );
+    lastWrite.current = run.catch(() => undefined);
+    return run.then(() => undefined);
+  };
+
+  const textCommit = useFieldCommit<string>({ commit: () => persist(['text']) });
+  const actionCommit = useFieldCommit<string>({ commit: () => persist(['action']) });
+  committers.current = {
+    flush: () => {
+      textCommit.flush();
+      actionCommit.flush();
+    },
+  };
 
   const area = useSectionTextArea({
     initialText,
-    onChange: setText,
+    onChange: (next) => {
+      setText(next);
+      values.current.text = next;
+      touched.current = true;
+      textCommit.change(next);
+    },
+    onBlur: () => textCommit.blur(),
     render: (element, value) => renderPointText(element, value, labelOf),
     paste: insertPlainText,
   });
   const { areaRef, editAtCaret } = area;
+
+  const changeAction = (next: string) => {
+    setAction(next);
+    values.current.action = next;
+    touched.current = true;
+    actionCommit.change(next);
+  };
+
+  // FR-61: what is typed and not yet stored goes to `drafts` when the tab hides; enough to
+  // write it with this editor closed (`usePointDraftRecovery`).
+  useDraftSource({
+    surface: POINT_DRAFT_SURFACE,
+    entityId: pointId,
+    read: () => {
+      const now = values.current;
+      const before = stored.current;
+      const unsaved =
+        link !== null && !wrote.current
+          ? touched.current && (now.text.trim() !== '' || actionValue(now.action) !== null)
+          : now.text !== before.text || actionValue(now.action) !== actionValue(before.action);
+      if (!unsaved) return null;
+      return {
+        relatorio_id: relatorioId,
+        text: now.text,
+        action: now.action,
+        equipmentId: link?.equipmentId ?? point?.equipment_id ?? null,
+        origin: link?.origin ?? point?.origin ?? 'manual',
+        is_new: link !== null,
+      };
+    },
+    apply: (value) => {
+      const draft = pointDraftValue(value);
+      if (draft === null) return;
+      values.current = { text: draft.text, action: draft.action };
+      touched.current = true;
+      area.setText(draft.text);
+      setText(draft.text);
+      setAction(draft.action);
+      void persist(['text', 'action']).catch(() => undefined);
+    },
+  });
+
+  /** Closes the editor: the pending commits first ("Concluir" also creates an untouched seeded point), then `onDone`. */
+  const finish = (explicit: boolean) => {
+    if (finishing.current) return;
+    finishing.current = true;
+    textCommit.flush();
+    actionCommit.flush();
+    if (explicit && link !== null && !wrote.current) void persist(['text', 'action']).catch(() => undefined);
+    void lastWrite.current.then(async () => {
+      if (!wrote.current || db === null) {
+        onDoneRef.current(null);
+        return;
+      }
+      const place = await pointPlace(db, relatorioId, pointId).catch(() => null);
+      onDoneRef.current(place === null ? null : { pointId, ...place });
+    });
+  };
+  if (closeRef !== undefined) closeRef.current = () => finish(false);
 
   // A photo added or removed elsewhere renumbers the chips already drawn.
   useEffect(() => {
@@ -133,42 +282,6 @@ export function PointEditor({ relatorioId, snapshot, point, seed = EMPTY_SEED, p
         if (chip.dataset.photo === id) chip.remove();
       }
     });
-
-  async function save(): Promise<void> {
-    if (db === null || user === null || saving) return;
-    const author = { id: user.id, companyId: user.companyId };
-    const actionValue = action.trim() === '' ? null : action.trim();
-    const pointId = point?.id ?? newId();
-    setSaving(true);
-    let batch: string | null;
-    try {
-      batch = await edits.write(async () => {
-        const fresh = await pointRowsOf(db, relatorioId);
-        const drafts: OpDraft[] = [];
-        if (point === null) {
-          if (text.trim() === '' && actionValue === null) return null;
-          const row = newPointRow({ id: pointId, relatorioId, text, equipmentId: seed.equipmentId, origin: seed.origin, action: actionValue }, fresh);
-          drafts.push(createPointOp(author, row));
-        } else {
-          const current = fresh.find((row) => row.id === point.id);
-          if (current === undefined || current.removed_at !== null) {
-            edits.notify(t.gone);
-            return null;
-          }
-          if (text !== current.text) drafts.push(putPointOp(author, relatorioId, point.id, 'text', text));
-          if (actionValue !== current.action) drafts.push(putPointOp(author, relatorioId, point.id, 'action', actionValue));
-          if (drafts.length === 0) return null;
-        }
-        return (await commitBatch(db, drafts, { newId, now })).batch_id;
-      });
-    } catch {
-      // Refused: the queue toasted it and the editor keeps what was typed.
-      setSaving(false);
-      return;
-    }
-    setSaving(false);
-    onDone(batch === null ? null : pointId);
-  }
 
   const order = position === undefined || total === undefined ? t.newOrder : pointOrderText(position, total);
 
@@ -235,16 +348,19 @@ export function PointEditor({ relatorioId, snapshot, point, seed = EMPTY_SEED, p
           <label className="field-label" htmlFor={actionId}>
             {t.actionLabel}
           </label>
-          <textarea id={actionId} className="observation-field poa-action" value={action} onChange={(event) => setAction(event.target.value)} />
+          <textarea
+            id={actionId}
+            className="observation-field poa-action"
+            value={action}
+            onChange={(event) => changeAction(event.target.value)}
+            onBlur={() => actionCommit.blur()}
+          />
         </div>
       </div>
 
       <div className="poa-edit-actions">
-        <Button variant="primary" onPress={() => void save()}>
+        <Button variant="primary" onPress={() => finish(true)}>
           {t.concluir}
-        </Button>
-        <Button variant="secondary" onPress={onCancel}>
-          {t.cancel}
         </Button>
         {onRemove === undefined ? null : (
           <Button variant="destructive" onPress={onRemove}>
@@ -309,7 +425,10 @@ function PhotoPicker({
   );
 }
 
-/** "Criar ponto de atenção" from a sheet (an NC row, an untested sheet): the editor in a Form dialog. */
+/**
+ * "Criar ponto de atenção" from a sheet (an NC row, an untested sheet): the editor in a Form
+ * dialog. Esc and the scrim close through the editor, which flushes what was typed first.
+ */
 export function PointEditorDialog({
   isOpen,
   onOpenChange,
@@ -323,11 +442,21 @@ export function PointEditorDialog({
   relatorioId: string;
   snapshot: RelatorioSnapshot;
   seed: PointSeed;
-  onDone: (pointId: string | null) => void;
+  onDone: (saved: PointSaved | null) => void;
 }) {
+  const close = useRef<(() => void) | null>(null);
   return (
-    <FormDialog isOpen={isOpen} onOpenChange={onOpenChange} title={copy.points.createFromRow} className="point-editor-dialog">
-      <PointEditor variant="dialog" relatorioId={relatorioId} snapshot={snapshot} point={null} seed={seed} onDone={onDone} onCancel={() => onOpenChange(false)} />
+    <FormDialog
+      isOpen={isOpen}
+      onOpenChange={(open) => {
+        if (open) onOpenChange(true);
+        else if (close.current !== null) close.current();
+        else onOpenChange(false);
+      }}
+      title={copy.points.createFromRow}
+      className="point-editor-dialog"
+    >
+      <PointEditor variant="dialog" relatorioId={relatorioId} snapshot={snapshot} point={null} seed={seed} onDone={onDone} closeRef={close} />
     </FormDialog>
   );
 }

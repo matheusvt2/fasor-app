@@ -10,7 +10,7 @@ import { newId } from '../../ids.ts';
  * `removed_at`, "Desfazer" clears it). No new op family.
  */
 
-function put(author: Author, relatorioId: string, fileId: string, field: 'caption' | 'removed_at', value: JsonValue): OpDraft {
+function put(author: Author, relatorioId: string, fileId: string, field: 'caption' | 'removed_at' | 'block_id', value: JsonValue): OpDraft {
   return { ...relatorioOpEnvelope(author, relatorioId), kind: 'put', path: fileFieldPath(fileId, field), value };
 }
 
@@ -24,6 +24,20 @@ export function captionValue(text: string | null): string | null {
 /** "Salvar legenda": one `file/{id}/caption` op. */
 export async function setPhotoCaption(db: AppDatabase, author: Author, relatorioId: string, fileId: string, text: string | null): Promise<void> {
   await commitBatch(db, [put(author, relatorioId, fileId, 'caption', captionValue(text))], deps);
+}
+
+/**
+ * E6-Q8: "Adicionar N fotos" of a gallery batch already saved as "Geral": the chosen sheet
+ * and the caption, as `file/{id}/block_id` and `file/{id}/caption` puts on every photo, in
+ * one batch. A part left at its saved value ("Geral", no caption) writes nothing.
+ */
+export async function assignPhotoBatch(db: AppDatabase, author: Author, relatorioId: string, fileIds: readonly string[], blockId: string | null, caption: string | null): Promise<void> {
+  const value = captionValue(caption);
+  const drafts = fileIds.flatMap((id) => [
+    ...(blockId === null ? [] : [put(author, relatorioId, id, 'block_id', blockId)]),
+    ...(value === null ? [] : [put(author, relatorioId, id, 'caption', value)]),
+  ]);
+  if (drafts.length > 0) await commitBatch(db, drafts, deps);
 }
 
 /** "Remover": the photo's tombstone. */

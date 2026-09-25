@@ -13,13 +13,20 @@ import {
   addPhotosButtonText,
   batchCaptionLabel,
   batchScopeText,
+  captionPhotoLabel,
+  captionPhotoMetaText,
   GALLERY_ALL,
   galleryCabineOptions,
   galleryCounterText,
   galleryFilterText,
   galleryHeadingText,
   photoCabineId,
+  galleryCounts,
+  PHOTO_EQUIPMENT_NEARBY_MAX,
+  photoEquipmentGroups,
   photoEquipmentOptions,
+  photosImportedText,
+  photosKeptGeneralText,
   photoItemLine,
   photoRemovedText,
   photosAddedText,
@@ -171,6 +178,68 @@ describe('6.3-UNIT-005 gallery texts', () => {
     expect(options).toHaveLength(94);
     const first = options.find((option) => option.blockId === chave.id)!;
     expect(first.text).toMatch(/ · Chave seccionadora · Cubículo Enel$/);
+  });
+
+  it('E6-Q4 photoEquipmentGroups: the current sheet, its location, then its cabine; the full list grouped by location in tree order', () => {
+    const all = photoEquipmentOptions(base);
+    const { nearby, groups } = photoEquipmentGroups(base, null);
+    expect(nearby).toEqual([]);
+    // Every sheet once, in tree order, grouped by the location it hangs off.
+    expect(groups.flatMap((group) => group.options)).toEqual(all);
+    expect(new Set(groups.map((group) => group.locationId)).size).toBe(groups.length);
+    expect(groups[0]!.label).toBe('Cubículo Enel');
+    const colunaIds = new Set(base.locations.filter((location) => location.kind === 'coluna').map((location) => location.id));
+    const colunaGroups = groups.filter((group) => colunaIds.has(group.locationId));
+    expect(colunaGroups.length).toBeGreaterThan(1);
+    expect(colunaGroups[0]!.label).toMatch(/ › /);
+
+    // A sheet under a coluna: itself, its coluna's other sheets, then its cabine's.
+    const colunaGroup = colunaGroups.find((group) => group.options.length > 1)!;
+    const current = colunaGroup.options[1]!;
+    const withCurrent = photoEquipmentGroups(base, current.blockId);
+    expect(withCurrent.nearby).toHaveLength(PHOTO_EQUIPMENT_NEARBY_MAX);
+    expect(withCurrent.nearby[0]).toEqual(current);
+    const sameColuna = colunaGroup.options.filter((option) => option !== current);
+    expect(withCurrent.nearby.slice(1, 1 + Math.min(sameColuna.length, PHOTO_EQUIPMENT_NEARBY_MAX - 1))).toEqual(sameColuna.slice(0, PHOTO_EQUIPMENT_NEARBY_MAX - 1));
+    expect(withCurrent.groups).toEqual(groups);
+
+    // A cabine holding its sheets directly: its own sheets.
+    const enel = photoEquipmentGroups(base, groups[0]!.options[0]!.blockId);
+    expect(enel.nearby[0]).toEqual(groups[0]!.options[0]);
+    expect(enel.nearby.every((option) => groups[0]!.options.some((own) => own.blockId === option.blockId))).toBe(true);
+
+    // A pref naming no live sheet counts as none.
+    expect(photoEquipmentGroups(base, '019966b0-0064-7000-8000-0000000000ff').nearby).toEqual([]);
+  });
+
+  it('E6-Q3 the composer photo line and name', () => {
+    expect(captionPhotoMetaText(4, '2026-09-06T11:31:00.000Z')).toBe('Nº provisório 4 · 06/09 08:31');
+    expect(captionPhotoMetaText(null, '2026-09-06T11:31:00.000Z')).toBe('06/09 08:31');
+    expect(captionPhotoLabel(4)).toBe('Foto 4');
+    expect(captionPhotoLabel(null)).toBe('Foto');
+  });
+
+  it('E6-Q12 galleryCounts, and the import toasts as one kernel sentence', () => {
+    expect(
+      galleryCounts([
+        { uploaded_at: null, upload_error: null, caption: null },
+        { uploaded_at: null, upload_error: 'dead', caption: 'Detalhe' },
+        { uploaded_at: T0.toISOString(), upload_error: null, caption: '  ' },
+        { uploaded_at: null, caption: 'Detalhe' },
+      ]),
+    ).toEqual({ pending: 2, error: 1, uncaptioned: 2 });
+    expect(photosImportedText(3, 0)).toBe('3 fotos adicionadas — legenda aplicada');
+    expect(photosImportedText(3, 1)).toBe('3 fotos adicionadas — legenda aplicada. 1 arquivo não pôde ser lido como foto e ficou de fora');
+    expect(photosImportedText(0, 2)).toBe(skippedFilesText(2));
+    expect(photosImportedText(0, 0)).toBeNull();
+  });
+
+  it('E6-Q8 photosKeptGeneralText: a cancelled batch stays as Geral with no caption', () => {
+    expect(photosKeptGeneralText(3, 0)).toBe('3 fotos ficaram como Geral, sem legenda');
+    expect(photosKeptGeneralText(1, 0)).toBe('1 foto ficou como Geral, sem legenda');
+    expect(photosKeptGeneralText(2, 1)).toBe('2 fotos ficaram como Geral, sem legenda. 1 arquivo não pôde ser lido como foto e ficou de fora');
+    expect(photosKeptGeneralText(0, 1)).toBe(skippedFilesText(1));
+    expect(photosKeptGeneralText(0, 0)).toBeNull();
   });
 });
 

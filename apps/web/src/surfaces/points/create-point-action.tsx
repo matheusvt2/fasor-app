@@ -1,4 +1,4 @@
-import { livePoints, pointSavedText, type RelatorioSnapshot } from '@app/domain';
+import { pointSavedText, type RelatorioSnapshot } from '@app/domain';
 import { useState } from 'react';
 import { Button } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -31,7 +31,6 @@ export function CreatePointAction({
   const t = copy.points;
   const { showToast } = useToast();
   const [open, setOpen] = useState<PointSeed | null>(null);
-  const total = livePoints(snapshot.points).length + 1;
   return (
     <>
       <Button variant="secondary" onPress={() => setOpen(seed())}>
@@ -49,10 +48,11 @@ export function CreatePointAction({
           relatorioId={relatorioId}
           snapshot={snapshot}
           seed={open}
-          onDone={(pointId) => {
+          onDone={(saved) => {
             setOpen(null);
-            if (pointId !== null) showToast(pointSavedText(total, total));
-            if (pointId !== null && focusAfterSave !== undefined) restoreFocus(focusAfterSave, { frames: LIST_FOCUS_WATCH_FRAMES, once: true });
+            // E6-Q2: Esc and the scrim store what was typed as "Concluir" does, and say so.
+            if (saved !== null) showToast(pointSavedText(saved.position, saved.total));
+            if (saved !== null && focusAfterSave !== undefined) restoreFocus(focusAfterSave, { frames: LIST_FOCUS_WATCH_FRAMES, once: true });
           }}
         />
       )}

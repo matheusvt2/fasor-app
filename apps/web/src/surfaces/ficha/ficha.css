@@ -161,3 +161,6 @@
 @media (min-width: 768px) {
   [data-route="/relatorio/:id/ficha/:blockId"] .unit-suffix-row { display: none; }
 }
+/* authored (E6-Q11): the NC row names the point it already has beside its actions, in the
+   meta style of the row's other secondary text (`.btn-reason`). */
+[data-route="/relatorio/:id/ficha/:blockId"] .nc-point-ref { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }

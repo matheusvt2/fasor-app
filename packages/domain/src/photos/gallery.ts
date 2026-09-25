@@ -9,7 +9,7 @@ import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { getDefinition } from '../seed/definitions.ts';
 import { plural } from '../text/plural.ts';
 import type { CaptionWord } from './caption.ts';
-import { photosPendingText, photosUncaptionedText } from './text.ts';
+import { photosPendingText, photosUncaptionedText, photoUploadState } from './text.ts';
 
 /*
  * Stories 6.3 and 6.4: every stamp, count and sentence the gallery, the viewer and the
@@ -143,6 +143,17 @@ export function photoRemovedText(n: number): string {
   return `Foto ${n} removida do relatório`;
 }
 
+/** E6-Q3: the Caption composer's photo line (`71-legenda.html` `.capture-meta`): "Nº provisório 4 · 06/09 08:31". */
+export function captionPhotoMetaText(n: number | null, capturedAt: string): string {
+  const stamp = photoStampShort(capturedAt);
+  return n === null ? stamp : `Nº provisório ${n}${SEP}${stamp}`;
+}
+
+/** E6-Q3: the composer's photo preview name: "Foto 4", "Foto" before it has a number. */
+export function captionPhotoLabel(n: number | null): string {
+  return n === null ? 'Foto' : `Foto ${n}`;
+}
+
 /** The toast after "Salvar legenda": "Legenda da foto 4 salva". */
 export function captionSavedText(n: number | null): string {
   return n === null ? 'Legenda salva' : `Legenda da foto ${n} salva`;
@@ -194,4 +205,91 @@ export function photoEquipmentOptions(snapshot: Pick<RelatorioSnapshot, 'blocks'
     blockId: node.blockId,
     text: [node.tag, node.typeLabel, locationPathText(snapshot.locations, node.locationId)].filter((part) => part !== '').join(SEP),
   }));
+}
+
+/** E6-Q4: how many rows the short list of "De qual equipamento?" offers before "Outro equipamento". */
+export const PHOTO_EQUIPMENT_NEARBY_MAX = 5;
+
+/** E6-Q4: one group of the full list: the sheets of one location, "1° Subsolo › Coluna 5". */
+export interface PhotoEquipmentGroup {
+  locationId: string;
+  label: string;
+  options: PhotoEquipmentOption[];
+}
+
+export interface PhotoEquipmentGroups {
+  /**
+   * The short list: the current sheet (this device's last one), then the sheets of its
+   * location, then the rest of its cabine, in tree order, at most `PHOTO_EQUIPMENT_NEARBY_MAX`;
+   * empty with no current sheet (the full list shows directly).
+   */
+  nearby: PhotoEquipmentOption[];
+  /** Every sheet grouped by the location it hangs off (cabine › coluna), in tree order. */
+  groups: PhotoEquipmentGroup[];
+}
+
+/**
+ * E6-Q4 (`70-fotos.html` "De qual equipamento?"): the likely equipment first, the whole
+ * relatório grouped as the tree draws it after "Outro equipamento". `currentBlockId` is the
+ * `last_sheet:{relatorio_id}` pref; one that is not a live sheet counts as none.
+ */
+export function photoEquipmentGroups(snapshot: Pick<RelatorioSnapshot, 'blocks' | 'locations' | 'equipment'>, currentBlockId: string | null): PhotoEquipmentGroups {
+  const order = sheetOrder(snapshot);
+  const options = photoEquipmentOptions(snapshot);
+  const optionOf = new Map(options.map((option) => [option.blockId, option]));
+  const groups: PhotoEquipmentGroup[] = [];
+  for (const node of order) {
+    let group = groups.find((known) => known.locationId === node.locationId);
+    if (group === undefined) {
+      group = { locationId: node.locationId, label: locationPathText(snapshot.locations, node.locationId), options: [] };
+      groups.push(group);
+    }
+    group.options.push(optionOf.get(node.blockId)!);
+  }
+  const current = currentBlockId === null ? undefined : order.find((node) => node.blockId === currentBlockId);
+  if (current === undefined) return { nearby: [], groups };
+  const cabineId = cabineOf(snapshot.locations, current.locationId)?.id ?? null;
+  const sameCabine = (locationId: string) => cabineId !== null && cabineOf(snapshot.locations, locationId)?.id === cabineId;
+  const ranked = [
+    current,
+    ...order.filter((node) => node !== current && node.locationId === current.locationId),
+    ...order.filter((node) => node.locationId !== current.locationId && sameCabine(node.locationId)),
+  ];
+  return { nearby: ranked.slice(0, PHOTO_EQUIPMENT_NEARBY_MAX).map((node) => optionOf.get(node.blockId)!), groups };
+}
+
+/** E6-Q12: the gallery header's counts, from the tiles' upload state and caption. */
+export function galleryCounts(tiles: readonly { uploaded_at: string | null; upload_error?: unknown; caption: string | null }[]): { pending: number; error: number; uncaptioned: number } {
+  const counts = { pending: 0, error: 0, uncaptioned: 0 };
+  for (const tile of tiles) {
+    const state = photoUploadState({ uploaded_at: tile.uploaded_at, localError: tile.upload_error });
+    if (state === 'pending') counts.pending += 1;
+    else if (state === 'error') counts.error += 1;
+    if (isUncaptioned(tile.caption)) counts.uncaptioned += 1;
+  }
+  return counts;
+}
+
+/**
+ * E6-Q12: the one toast of an import: "3 fotos adicionadas — legenda aplicada", with the
+ * files left out after it ("… 1 arquivo não pôde ser lido como foto e ficou de fora"), or
+ * those alone; null when nothing was added or left out.
+ */
+export function photosImportedText(added: number, skipped: number): string | null {
+  if (added > 0 && skipped > 0) return `${photosAddedText(added)}. ${skippedFilesText(skipped)}`;
+  if (added > 0) return photosAddedText(added);
+  if (skipped > 0) return skippedFilesText(skipped);
+  return null;
+}
+
+/**
+ * E6-Q8: "Cancelar" on "De qual equipamento?": the batch was saved when it was picked and
+ * stays, as "Geral" with no caption. "3 fotos ficaram como Geral, sem legenda", the files
+ * left out after it.
+ */
+export function photosKeptGeneralText(kept: number, skipped: number): string | null {
+  // authored: no mock draws this toast (open for Bruno).
+  const keptText = kept === 0 ? null : kept === 1 ? '1 foto ficou como Geral, sem legenda' : `${kept} fotos ficaram como Geral, sem legenda`;
+  if (keptText !== null && skipped > 0) return `${keptText}. ${skippedFilesText(skipped)}`;
+  return keptText ?? (skipped > 0 ? skippedFilesText(skipped) : null);
 }

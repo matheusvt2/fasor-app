@@ -106,6 +106,12 @@ export interface SyncEngine {
    */
   syncProject(projectId: string): Promise<CycleResult>;
   start(): void;
+  /**
+   * E6-Q14: new work was committed (a photo captured or imported). Online, a cycle runs
+   * now, or once more right after the one in flight (coalesced, never two at once);
+   * offline, paused or stopped, nothing happens (the `online` event covers the return).
+   */
+  nudge(): void;
   /** Final: ends the in-flight cycle at its next step and silences the engine (a new session builds a new engine). */
   stop(): void;
   pause(): void;
@@ -164,9 +170,9 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
   /** The cycle in flight was cut by the device going offline. */
   let cycleWentOffline = false;
   /**
-   * An `online` event arrived while a cycle was running. That cycle may already be past
-   * its push, or ending on the offline check, so one more cycle runs as soon as it ends:
-   * work committed offline must not wait for the 60 s tick (retro U3).
+   * An `online` event (or a `nudge`, E6-Q14) arrived while a cycle was running. That cycle
+   * may already be past its push, or ending on the offline check, so one more cycle runs
+   * as soon as it ends: work committed offline must not wait for the 60 s tick (retro U3).
    */
   let onlineWhileRunning = false;
   /** Resolves when the cycle in flight ends (resolved while none runs). */
@@ -547,6 +553,11 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       });
       void fireCycle();
       schedule();
+    },
+    nudge() {
+      if (!started || stopped || status.paused || !deps.isOnline()) return;
+      if (status.running) onlineWhileRunning = true;
+      else void fireCycle();
     },
     stop() {
       started = false;

@@ -103,17 +103,69 @@ function activityOf(photo: { item_key: string | null }, block: BlockRow, meta: C
   return { name, ...(seeded === undefined ? MASCULINE_PLURAL : { gender: seeded.gender, number: seeded.number }) };
 }
 
-function localOf(block: BlockRow, snapshot: RelatorioSnapshot, meta: ContextCaptionMeta): CaptionWord | null {
-  const name = cabineOf(snapshot.locations, block.location_id)?.name.trim() ?? '';
-  if (name === '') return null;
+/**
+ * E6-Q5: the head nouns a location name the tree or the seed starts with, and their
+ * agreement ("Coluna 1" reads "da Coluna 1"). A name with another head noun takes the
+ * registry's or the seed's agreement, else masculine singular.
+ */
+export const LOCATION_HEAD_NOUNS: Readonly<Record<string, Agreement>> = {
+  coluna: { gender: 'f', number: 'singular' },
+  colunas: { gender: 'f', number: 'plural' },
+  cabine: { gender: 'f', number: 'singular' },
+  sala: { gender: 'f', number: 'singular' },
+  subestação: { gender: 'f', number: 'singular' },
+  cobertura: { gender: 'f', number: 'singular' },
+  cubículo: { gender: 'm', number: 'singular' },
+  cubículos: { gender: 'm', number: 'plural' },
+  subsolo: { gender: 'm', number: 'singular' },
+};
+
+function headNounAgreement(name: string): Agreement | null {
+  const head = name.trim().split(/\s+/)[0]?.toLocaleLowerCase('pt-BR') ?? '';
+  return LOCATION_HEAD_NOUNS[head] ?? null;
+}
+
+/**
+ * The agreement of a location name: a live `local` registry row of that name wins, then
+ * the seed `locais` word, then its head noun (`LOCATION_HEAD_NOUNS`), else masculine
+ * singular.
+ */
+function locationAgreement(name: string, meta: Pick<ContextCaptionMeta, 'words' | 'registry'>): Agreement {
   const registered = meta.registry.find(
     (row): row is Extract<RegistryRow, { kind: 'local' }> => row.kind === 'local' && row.removed_at === null && sameName(row.name, name),
   );
-  if (registered !== undefined && registered.gender !== null && registered.number !== null) {
-    return { name, gender: registered.gender, number: registered.number };
-  }
+  if (registered !== undefined && registered.gender !== null && registered.number !== null) return { gender: registered.gender, number: registered.number };
   const seeded = meta.words.locais.find((word) => sameName(word.name, name));
-  return { name, ...(seeded === undefined ? MASCULINE_SINGULAR : { gender: seeded.gender, number: seeded.number }) };
+  if (seeded !== undefined) return { gender: seeded.gender, number: seeded.number };
+  return headNounAgreement(name) ?? MASCULINE_SINGULAR;
+}
+
+/**
+ * The Local part: the block's cabine ("do Cubículo Enel"), or for a block under a coluna,
+ * the coluna and then its cabine ("da Coluna 1 do 1° Subsolo", E6-Q5 and the mock), agreeing
+ * with its first noun. Null when the block sits under no named location.
+ */
+function localOf(block: BlockRow, snapshot: RelatorioSnapshot, meta: ContextCaptionMeta): CaptionWord | null {
+  const cabineName = cabineOf(snapshot.locations, block.location_id)?.name.trim() ?? '';
+  const own = snapshot.locations.find((row) => row.id === block.location_id);
+  const colunaName = own !== undefined && own.kind !== 'cabine' ? own.name.trim() : '';
+  if (colunaName !== '') {
+    const name = cabineName === '' ? colunaName : `${colunaName} d${article(locationAgreement(cabineName, meta))} ${cabineName}`;
+    return { name, ...locationAgreement(colunaName, meta) };
+  }
+  if (cabineName === '') return null;
+  return { name: cabineName, ...locationAgreement(cabineName, meta) };
+}
+
+/**
+ * The Equipamento part: the block type's noun phrase and the equipment's TAG when this
+ * device holds one ("chave seccionadora SEC-C01", E6-Q5); a blank TAG is left out.
+ */
+function equipmentOf(block: BlockRow, snapshot: RelatorioSnapshot): CaptionWord | null {
+  if (!isEquipmentBlockType(block.block_type)) return null;
+  const word = CAPTION_EQUIPMENT_WORDS[block.block_type];
+  const tag = block.equipment_id === null ? '' : ((snapshot.equipment ?? []).find((row) => row.id === block.equipment_id)?.tag.trim() ?? '');
+  return tag === '' ? word : { ...word, name: `${word.name} ${tag}` };
 }
 
 /**
@@ -130,7 +182,7 @@ export function contextCaptionParts(
   if (block === undefined) return { atividade: null, equipamento: null, local: null };
   return {
     atividade: activityOf(photo, block, meta),
-    equipamento: isEquipmentBlockType(block.block_type) ? CAPTION_EQUIPMENT_WORDS[block.block_type] : null,
+    equipamento: equipmentOf(block, snapshot),
     local: localOf(block, snapshot, meta),
   };
 }
@@ -203,7 +255,18 @@ export function captionWordFor(
   }
   const pool = kind === 'equipamento' ? [...words, ...Object.values(CAPTION_EQUIPMENT_WORDS)] : words;
   const seeded = pool.find((word) => sameName(word.name, trimmed));
-  return { name: trimmed, ...(seeded === undefined ? MASCULINE_SINGULAR : { gender: seeded.gender, number: seeded.number }) };
+  if (seeded !== undefined) return { name: trimmed, gender: seeded.gender, number: seeded.number };
+  if (kind === 'equipamento') {
+    // E6-Q5: an equipment word and its TAG ("chave seccionadora SEC-C01") agree with the word.
+    const lower = trimmed.toLocaleLowerCase('pt-BR');
+    const head = pool
+      .filter((word) => lower.startsWith(`${word.name.trim().toLocaleLowerCase('pt-BR')} `))
+      .sort((a, b) => b.name.length - a.name.length)[0];
+    if (head !== undefined) return { name: trimmed, gender: head.gender, number: head.number };
+  }
+  // E6-Q5: a Local such as "Coluna 1 do 1° Subsolo" agrees with its head noun.
+  const head = kind === 'local' ? headNounAgreement(trimmed) : null;
+  return { name: trimmed, ...(head ?? MASCULINE_SINGULAR) };
 }
 
 /** How many recent values a chip row offers before the seed's (EXPERIENCE.md › Chip). */

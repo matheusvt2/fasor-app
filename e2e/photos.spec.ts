@@ -25,6 +25,24 @@ const cameraButton = (page: Page) => page.getByRole('button', { name: 'Tirar fot
 const toast = (page: Page) => page.getByTestId('toast');
 const contatos = (page: Page) => page.locator('#ficha-step-verificacoes li.checklist-row[data-item-key="contatos"]');
 
+/**
+ * E6-Q14: a saved photo goes out at once while online, so a test reading the pending pills
+ * holds the photo PUTs until it calls the returned `release`, which lets them through.
+ */
+async function holdUploadsUntilReleased(page: Page): Promise<() => Promise<void>> {
+  let release = () => {};
+  const held = new Promise<void>((resolve) => (release = resolve));
+  const matches = (url: URL) => url.pathname.startsWith('/api/files/');
+  await page.route(matches, async (route) => {
+    if (route.request().method() === 'PUT') await held;
+    await route.continue();
+  });
+  // The handler stays: once released it lets every PUT through as it comes.
+  return async () => {
+    release();
+  };
+}
+
 test('@p0 6.1-E2E-001 "Tirar foto" opens the camera, a burst of three saves at once with the context caption, and survives a reload', async ({ page }) => {
   test.setTimeout(120_000);
   const { relatorioId, blockId } = await openChaveSheet(page, account, database);
@@ -39,7 +57,7 @@ test('@p0 6.1-E2E-001 "Tirar foto" opens the camera, a burst of three saves at o
   await button.click();
   const camera = await expectCameraOpen(page);
   // No chooser and no caption composer: the viewfinder, the context and the shutter.
-  await expect(camera.locator('.cam-context')).toHaveText('Contexto: Detalhe da chave seccionadora do Cubículo Enel');
+  await expect(camera.locator('.cam-context')).toHaveText('Contexto: Detalhe da chave seccionadora SEC-ENEL do Cubículo Enel');
   await expect(page.getByRole('dialog')).toHaveCount(1);
   await expect(camera.locator('.cam-count')).toHaveText('Rajada: toque no disparador quantas vezes precisar; nada pergunta entre as fotos');
 
@@ -66,7 +84,7 @@ test('@p0 6.1-E2E-001 "Tirar foto" opens the camera, a burst of three saves at o
       block_id: blockId,
       item_key: null,
       mime: 'image/jpeg',
-      caption: 'Detalhe da chave seccionadora do Cubículo Enel',
+      caption: 'Detalhe da chave seccionadora SEC-ENEL do Cubículo Enel',
       reading_status: 'none',
     });
     expect(photo.coords).toMatchObject({ lat: SAO_PAULO.latitude, lng: SAO_PAULO.longitude, source: 'geolocation' });
@@ -85,10 +103,11 @@ test('@p0 6.1-E2E-002 an NC row\'s "Adicionar foto" shoots two photos that show 
 
   const add = row.getByRole('button', { name: 'Adicionar foto' });
   await expect(row.locator('.row-wrap .btn-reason')).toHaveText('Recomendada para não conforme');
+  const releaseUploads = await holdUploadsUntilReleased(page);
   await add.click();
   const camera = await expectCameraOpen(page);
   await expect(camera.locator('.cam-context')).toHaveText(
-    'Contexto: Detalhe da verificação de contatos realizada na chave seccionadora do Cubículo Enel',
+    'Contexto: Detalhe da verificação de contatos realizada na chave seccionadora SEC-ENEL do Cubículo Enel',
   );
   await shoot(page, 2);
   await camera.getByRole('button', { name: 'Concluir fotos' }).click();
@@ -99,7 +118,7 @@ test('@p0 6.1-E2E-002 an NC row\'s "Adicionar foto" shoots two photos that show 
   const tiles = row.locator('.photo-list .photo-row');
   await expect(tiles).toHaveCount(2);
   for (let i = 0; i < 2; i++) {
-    await expect(tiles.nth(i).locator('.photo-meta')).toHaveText('Detalhe da verificação de contatos realizada na chave seccionadora do Cubículo Enel');
+    await expect(tiles.nth(i).locator('.photo-meta')).toHaveText('Detalhe da verificação de contatos realizada na chave seccionadora SEC-ENEL do Cubículo Enel');
     await expect(tiles.nth(i).locator('.upload-pill')).toHaveText('Aguardando envio');
     await expect(tiles.nth(i).locator('.upload-pill')).toHaveAttribute('data-state', 'pending');
     await expect(tiles.nth(i).locator('img.thumb-img')).toBeVisible();
@@ -108,6 +127,7 @@ test('@p0 6.1-E2E-002 an NC row\'s "Adicionar foto" shoots two photos that show 
   expect(photos.map((photo) => photo.item_key)).toEqual(['contatos', 'contatos']);
 
   // Once the server holds them, the pills go.
+  await releaseUploads();
   await syncNow(page);
   await page.goBack();
   await expect(contatos(page).locator('.photo-list .photo-row')).toHaveCount(2);
@@ -238,7 +258,7 @@ test('@p1 6.2-E2E-004 the browser refuses to store a shot while online: it goes 
   await expect.poll(async () => (await serverPhoto()).uploaded.length, { timeout: 30_000 }).toBe(1);
   const { creates } = await serverPhoto();
   expect(creates).toHaveLength(1);
-  expect(creates[0]!.value).toMatchObject({ kind: 'photo', caption: 'Detalhe da chave seccionadora do Cubículo Enel' });
+  expect(creates[0]!.value).toMatchObject({ kind: 'photo', caption: 'Detalhe da chave seccionadora SEC-ENEL do Cubículo Enel' });
 
   // The next pull brings the row back to this device.
   await syncNow(page);

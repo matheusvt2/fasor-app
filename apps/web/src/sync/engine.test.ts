@@ -399,6 +399,48 @@ describe('sync engine', () => {
     h.db.close();
   });
 
+  it('E6-Q14 nudge: online it runs a cycle now, during one it runs one more after it, offline or stopped it does nothing', async () => {
+    const h = await harness();
+    // Not started: nothing.
+    h.engine.nudge();
+    expect(h.server.pulls).toEqual([]);
+    h.engine.start();
+    await waitFor(() => !h.engine.status().running, 'the launch cycle');
+    // Idle and online: a photo committed goes out now, not on the 60 s tick.
+    await commitOps(h.db, seedLog());
+    h.engine.nudge();
+    await waitFor(() => h.server.pushes.length === 1, 'the nudged push');
+    await waitFor(() => !h.engine.status().running, 'the nudged cycle');
+    expect(h.clock.now()).toBe(0);
+    // During a cycle: coalesced into one more cycle after it, never two at once.
+    h.server.failNext.pulls = [{ kind: 'network' }];
+    const pullsBefore = h.server.pulls.length;
+    const cycle = h.engine.runCycle();
+    // The cycle is past its (empty) push and waiting out a pull retry...
+    await waitFor(() => h.server.pulls.length > pullsBefore, 'the failed pull');
+    expect(h.engine.status().running).toBe(true);
+    // ...when a photo is committed: two nudges ask for one more cycle, after this one.
+    await commitOps(h.db, [localPut(ids('019966b0-0014-7000-8000-'), 'nudged')]);
+    h.engine.nudge();
+    h.engine.nudge();
+    expect(h.server.pushes).toHaveLength(1);
+    await h.clock.advance(1_000);
+    expect(await cycle).toBe('ran');
+    await h.clock.advance(0);
+    await waitFor(() => h.server.pushes.length === 2, 'the follow-up push');
+    await waitFor(() => !h.engine.status().running, 'the follow-up cycle');
+    await h.clock.advance(0);
+    expect(h.server.pushes).toHaveLength(2);
+    // Offline: nothing (the online event covers the return).
+    h.online.value = false;
+    const pulls = h.server.pulls.length;
+    h.engine.nudge();
+    await h.clock.advance(0);
+    expect(h.server.pulls.length).toBe(pulls);
+    h.engine.stop();
+    h.db.close();
+  });
+
   it('a push that hit 503 stays the cycle failure when a later relatório pull answers 404', async () => {
     const h = await harness();
     await commitOps(h.db, seedLog());

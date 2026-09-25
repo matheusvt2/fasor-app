@@ -1,7 +1,7 @@
 import { initialOrderKey, orderKeyAfter, orderKeyForMove, sortByOrderKey } from '../ops/order-key.ts';
 import type { PointRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { plural } from '../text/plural.ts';
+import { listPtBr, plural } from '../text/plural.ts';
 import { extractPhotoRefs } from './refs.ts';
 
 /*
@@ -87,4 +87,44 @@ export function pointMovedText(position: number, total: number): string {
 /** The toast after "Concluir": "Ponto de atenção salvo · 4 de 4 na seção 8" (`72-pontos.html`). */
 export function pointSavedText(position: number, total: number): string {
   return `Ponto de atenção salvo · ${position} de ${total} na seção 8`;
+}
+
+/** E6-Q11: the 1-based section 8 positions of the live points whose text cites `photoId`. */
+export function pointsCitingPhoto(points: readonly PointRow[], photoId: string): number[] {
+  return livePoints(points).flatMap((point, i) => (extractPhotoRefs(point.text).includes(photoId) ? [i + 1] : []));
+}
+
+/**
+ * E6-Q11: the Remover confirm's line for a photo points cite, null when none does:
+ * "Ela é citada no ponto de atenção 2, que passa a mostrar Foto removida."
+ */
+export function photoCitedByText(positions: readonly number[]): string | null {
+  if (positions.length === 0) return null;
+  // authored: no mock draws this line (open for Bruno).
+  return positions.length === 1
+    ? `Ela é citada no ponto de atenção ${positions[0]}, que passa a mostrar Foto removida.`
+    : `Ela é citada nos pontos de atenção ${listPtBr(positions.map(String))}, que passam a mostrar Foto removida.`;
+}
+
+/**
+ * E6-Q11: the live points an NC row already has, by section 8 position. A point stores no
+ * checklist item, so the row matches by what "Criar ponto de atenção" put in it: the
+ * sheet's equipment and the item's photos. With photos on the item, the points of that
+ * equipment citing one of them; with none, the points of that equipment citing no photo.
+ */
+export function ncRowPointPositions(points: readonly PointRow[], equipmentId: string | null, itemPhotoIds: readonly string[]): number[] {
+  if (equipmentId === null) return [];
+  return livePoints(points).flatMap((point, i) => {
+    if (point.equipment_id !== equipmentId || point.origin !== 'manual') return [];
+    const refs = extractPhotoRefs(point.text);
+    const matches = itemPhotoIds.length === 0 ? refs.length === 0 : refs.some((id) => itemPhotoIds.includes(id));
+    return matches ? [i + 1] : [];
+  });
+}
+
+/** E6-Q11: the NC row's mark beside its actions: "Ponto de atenção 1", "Pontos de atenção 1 e 3"; null with none. */
+export function ncRowPointsText(positions: readonly number[]): string | null {
+  if (positions.length === 0) return null;
+  // authored: no mock draws the mark (open for Bruno).
+  return positions.length === 1 ? `Ponto de atenção ${positions[0]}` : `Pontos de atenção ${listPtBr(positions.map(String))}`;
 }

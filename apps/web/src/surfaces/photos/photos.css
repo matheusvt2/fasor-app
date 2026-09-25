@@ -34,6 +34,11 @@
   [data-route="/relatorio/:id/fotos"] .sticky-action-bar .bar-buttons.has-camera .btn-text { flex: 0 0 auto; }
   [data-route="/relatorio/:id/fotos"] .sticky-action-bar .cam-reason { display: none; }
 }
+/* authored (E6-Q13): dragging files is a computer's gesture (Story 6.4 AC1): "ou arraste para
+   cá" is not said below `breakpoint-tablet` (768 px) nor on a touch screen. */
+@media (max-width: 767.98px), (pointer: coarse) {
+  [data-route="/relatorio/:id/fotos"] .sticky-action-bar .drag-reason { display: none; }
+}
 /* authored: the gallery's bar stays at the bottom of the viewport, like the sheet's (`ficha.css`). */
 [data-route="/relatorio/:id/fotos"] .sticky-action-bar { position: sticky; bottom: 0; margin-top: auto; }
 /* authored: DESIGN.md › Photo tile: the caption in `meta`, two lines at most, ellipsis. */
@@ -93,6 +98,12 @@
 .photo-capture-sheet > .field-label { padding: 0 var(--sp-5) var(--sp-2); }
 .photo-capture-sheet .capture-caption { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3) var(--sp-5) 0; }
 .photo-capture-sheet .capture-caption .capture-reason { padding: 0; }
+/* authored (E6-Q4): the whole relatório after "Outro equipamento", one group per location
+   with its "Cabine › Coluna" line in the meta style, in a box that scrolls by itself so
+   "Geral (sem equipamento)" under it is never below the whole list. */
+.photo-capture-sheet .capture-groups { max-height: 45dvh; overflow-y: auto; border-top: 1px solid var(--border-hairline); border-bottom: 1px solid var(--border-hairline); }
+.photo-capture-sheet .capture-group-label { margin: 0; padding: var(--sp-3) var(--sp-5) var(--sp-1); font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--ink-secondary); }
+.photo-capture-sheet .capture-more { color: var(--primary); }
 
 /* ---------- Caption composer: `71-legenda.html` lines 11, 44-49 ---------- */
 /* authored: the composer is a full-screen modal (the mock draws it as a route). */
@@ -112,6 +123,35 @@
   .caption-composer .caption-part .caption-combo { display: block; }
 }
 .caption-composer .caption-chips { display: flex; flex-direction: column; gap: var(--sp-2); }
+
+/* ---------- E6-Q3: the photo on top and the Sticky action bar (`71-legenda.html` lines 7-10, 60-75, 166-170) ---------- */
+/* mirrors `[data-route] .capture-preview` */
+.caption-composer .capture-preview { position: relative; width: 100%; max-width: 480px; aspect-ratio: 4 / 3; border: 1px solid var(--border-strong); border-radius: var(--r-md); overflow: hidden; background: var(--surface-raised); }
+/* mirrors `[data-route] .capture-preview .thumb-fake::after` */
+.caption-composer .capture-preview .thumb-fake::after { left: 12%; right: 12%; top: 22%; bottom: 22%; }
+/* mirrors `[data-route] .capture-preview .number-badge` */
+.caption-composer .capture-preview .number-badge { position: absolute; top: 8px; left: 8px; min-width: 28px; height: 28px; padding: 0 8px; border-radius: var(--r-full); background: var(--ink-primary); color: var(--surface-raised); font-size: var(--t-label-size); font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
+/* mirrors `[data-route] .capture-meta` */
+.caption-composer .capture-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); margin-top: var(--sp-2); font-size: var(--t-meta-size); color: var(--ink-secondary); }
+/* authored: the stored thumb fills the preview box the way the mock's `.thumb-fake` does. */
+.caption-composer .capture-preview .capture-preview-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/* authored: the modal scrolls with no padding at its top and bottom edges, so the Sticky
+   action bar (and, on a phone, the photo head) pin flush to them; the heading keeps the space. */
+.dialog-scrim.scrim-composer .caption-composer { padding-top: 0; padding-bottom: 0; }
+.caption-composer > .section-head { padding-top: var(--sp-5); }
+/* authored: the mock's `.sticky-action-bar` at the bottom of the composer, edge to edge, always in view. */
+.caption-composer .sticky-action-bar { position: sticky; bottom: 0; margin: var(--sp-5) calc(-1 * var(--gutter-tablet)) 0; }
+/* authored: below 768 px the photo is compact beside the caption the rows compose, and the
+   two stay pinned under the heading while the chips scroll, so a chip's effect is seen. */
+@media (max-width: 767.98px) {
+  .caption-composer .caption-head {
+    position: sticky; top: 0; z-index: 2; display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: var(--sp-3); align-items: start;
+    margin: 0 calc(-1 * var(--gutter-tablet)); padding: var(--sp-2) var(--gutter-tablet); background: var(--surface-raised); border-bottom: 1px solid var(--border-hairline);
+  }
+  .caption-composer .caption-head .capture-meta { margin-top: var(--sp-1); }
+  .caption-composer .caption-head .caption-field { margin: 0; min-width: 0; }
+  .caption-composer .caption-head:not(:has(.caption-photo)) { grid-template-columns: minmax(0, 1fr); }
+}
 
 /* ---------- "Adicionar fotos" in the sheet's Sticky action bar (Story 6.4) ----------
    authored: below 480 px the button keeps its glyph and its name (`.visually-hidden`'s

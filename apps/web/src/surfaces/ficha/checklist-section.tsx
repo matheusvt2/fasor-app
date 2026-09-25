@@ -4,6 +4,8 @@ import {
   insertPhrase,
   screenLabel,
   itensMarcadosConformeText,
+  ncRowPointPositions,
+  ncRowPointsText,
   photoToken,
   recentChecklistObservations,
   repeatChecklistPattern,
@@ -251,6 +253,15 @@ function ChecklistRow({
   // not-tested row is read-only end to end (AR-17), so nothing on it is ever required.
   const required = !readOnly && nc && empty;
   const expanded = nc || observationOpen || stored.trim() !== '';
+  const rowPoints = nc
+    ? ncRowPointsText(
+        ncRowPointPositions(
+          snapshot.points,
+          block.equipment_id,
+          (photos?.tiles ?? []).filter((tile) => tile.item_key === item.key).map((tile) => tile.id),
+        ),
+      )
+    : null;
 
   const choose = (value: TriStateValue | null) => {
     void api.edit((_blocks, by) => [checklistResultOp(by, api.relatorioId, block.id, item.key, value)]).catch(() => undefined);
@@ -327,9 +338,9 @@ function ChecklistRow({
               target={() => photos.target(item.key)}
               {...(photos.addPhotos === undefined ? {} : { onAddPhotos: () => photos.addPhotos?.(item.key) })}
             /> : null}
-          {nc && !readOnly ? (
+          {nc && (!readOnly || rowPoints !== null) ? (
             <div className="row-wrap">
-              <CreatePointAction
+              {readOnly ? null : <CreatePointAction
                 relatorioId={api.relatorioId}
                 snapshot={snapshot}
                 seed={() => ({
@@ -340,7 +351,9 @@ function ChecklistRow({
                   equipmentId: block.equipment_id,
                   origin: 'manual',
                 })}
-              />
+              />}
+              {/* E6-Q11: the point this row already has, so a second tap is a choice, not a duplicate. */}
+              {rowPoints === null ? null : <span className="nc-point-ref">{rowPoints}</span>}
             </div>
           ) : null}
         </div>

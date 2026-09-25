@@ -226,19 +226,28 @@ export function ConclusaoSection({
    */
   const confirmText = (text: string, status: 'confirmed' | 'edited') => {
     const basis = composed.basis;
-    edit((blocks, by) => {
-      if (status === 'confirmed') {
-        const fresh = blocks.find((row) => row.id === api.blockId && row.removed_at === null);
-        if (fresh === undefined || !conclusionBasisMatches(fresh, definition, tag, basis)) return null;
-      }
-      const observationOp = suggestedObservationOp(blocks, by);
-      return [
-        conclusionOp(by, api.relatorioId, api.blockId, 'text', text),
-        conclusionOp(by, api.relatorioId, api.blockId, 'text_status', status),
-        conclusionOp(by, api.relatorioId, api.blockId, 'text_basis', basis),
-        ...(observationOp === null ? [] : [observationOp]),
-      ];
-    });
+    /** Carry-over F: the basis moved between the draw and the tap, so nothing was written. */
+    let moved = false;
+    void api
+      .edit((blocks, by) => {
+        if (status === 'confirmed') {
+          const fresh = blocks.find((row) => row.id === api.blockId && row.removed_at === null);
+          if (fresh !== undefined && !conclusionBasisMatches(fresh, definition, tag, basis)) moved = true;
+          if (fresh === undefined || moved) return null;
+        }
+        const observationOp = suggestedObservationOp(blocks, by);
+        return [
+          conclusionOp(by, api.relatorioId, api.blockId, 'text', text),
+          conclusionOp(by, api.relatorioId, api.blockId, 'text_status', status),
+          conclusionOp(by, api.relatorioId, api.blockId, 'text_basis', basis),
+          ...(observationOp === null ? [] : [observationOp]),
+        ];
+      })
+      .then(() => {
+        // Said through the sheet's polite live region; the field already shows the recomposed text.
+        if (moved) api.announce(t.basisMoved);
+      })
+      .catch(() => undefined);
   };
 
   const resultSegments: Segment<ConclusionResult>[] = [

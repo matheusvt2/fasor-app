@@ -1,5 +1,7 @@
 import {
   captionChipOptions,
+  captionPhotoLabel,
+  captionPhotoMetaText,
   captionWordFor,
   composeCaption,
   type CaptionParts,
@@ -11,6 +13,7 @@ import { useId, useRef, useState } from 'react';
 import { Button as AriaButton, ToggleButton } from 'react-aria-components';
 import { Button, Chip, Combobox } from '../../components/index.ts';
 import { DialogShell } from '../../components/dialog-shell.tsx';
+import { useObjectUrl } from '../../components/photo-row.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import type { CaptionRecents } from '../../db/photo-store.ts';
 import './photos.css';
@@ -43,9 +46,18 @@ export interface CaptionComposerSources {
   remember?: (parts: CaptionParts) => void;
 }
 
+/** E6-Q3: the one photo being captioned (`71-legenda.html` `.capture-preview`); a batch has none. */
+export interface CaptionComposerPhoto {
+  thumb: Blob | null;
+  /** The provisional number, null before it has one. */
+  number: number | null;
+  capturedAt: string;
+}
+
 export interface CaptionComposerProps {
   isOpen: boolean;
   onClose: () => void;
+  photo?: CaptionComposerPhoto;
   /** The parts the rows open on (`contextCaptionParts`). */
   prefill: CaptionParts;
   /** The caption stored now: when it is not what the parts compose, the composer opens in "Editar texto". */
@@ -73,7 +85,27 @@ export function CaptionComposer(props: CaptionComposerProps) {
   );
 }
 
-function ComposerBody({ prefill, stored, sources, onSave, onClose, headingId }: CaptionComposerProps & { headingId: string }) {
+/** E6-Q3: the photo on top, as `71-legenda.html` draws it: the picture with its number badge, then its line. */
+function PhotoPreview({ photo }: { photo: CaptionComposerPhoto }) {
+  const src = useObjectUrl(photo.thumb);
+  return (
+    <div className="caption-photo">
+      <div className="capture-preview" role="img" aria-label={captionPhotoLabel(photo.number)}>
+        {src === null ? <span className="thumb-fake" /> : <img className="capture-preview-img" src={src} alt="" />}
+        {photo.number === null ? null : (
+          <span className="number-badge" aria-hidden="true">
+            {photo.number}
+          </span>
+        )}
+      </div>
+      <div className="capture-meta">
+        <span>{captionPhotoMetaText(photo.number, photo.capturedAt)}</span>
+      </div>
+    </div>
+  );
+}
+
+function ComposerBody({ prefill, stored, sources, onSave, onClose, headingId, photo }: CaptionComposerProps & { headingId: string }) {
   const t = copy.captionComposer;
   const [parts, setParts] = useState<CaptionParts>(prefill);
   const generated = composeCaption(parts);
@@ -122,55 +154,63 @@ function ComposerBody({ prefill, stored, sources, onSave, onClose, headingId }: 
     onClose();
   };
 
+  // E6-Q3 (`71-legenda.html`): the photo and the caption the rows compose come first (on a
+  // phone they stay pinned while the chips scroll under them), then the rows, then the
+  // Sticky action bar with "Salvar legenda", always in view.
   return (
     <>
       <div className="section-head">
         <h2 id={headingId}>{t.heading}</h2>
       </div>
+      <div className="caption-head">
+        {photo === undefined ? null : <PhotoPreview photo={photo} />}
+        <div className="field caption-field" data-editing={editing ? '' : undefined}>
+          <span className="field-label">{t.previewLabel}</span>
+          {editing ? (
+            <>
+              <label className="visually-hidden" htmlFor={textId}>
+                {t.textLabel}
+              </label>
+              <textarea
+                id={textId}
+                ref={area}
+                className="observation-field caption-edit"
+                value={text}
+                aria-describedby={reasonId}
+                onChange={(event) => setText(event.target.value)}
+              />
+            </>
+          ) : (
+            <p className="caption-preview" role="status">
+              {generated ?? ''}
+            </p>
+          )}
+          <div className="caption-actions">
+            <ToggleButton className="btn btn-text caption-edit-toggle" isSelected={editing} onChange={toggleEditing}>
+              <svg className="ico" aria-hidden="true">
+                <use href="/sprite.svg#i-pencil" />
+              </svg>
+              {t.editText}
+            </ToggleButton>
+            <span className="btn-reason" id={reasonId}>
+              {t.editReason}
+            </span>
+          </div>
+        </div>
+      </div>
       <p className="section-note">{t.note}</p>
       {KINDS.map((kind) => (
         <PartRow key={kind} kind={kind} options={optionsOf(kind)} value={parts[kind]?.name ?? null} onChange={(name) => setPart(kind, name)} />
       ))}
-      <div className="field caption-field" data-editing={editing ? '' : undefined}>
-        <span className="field-label">{t.previewLabel}</span>
-        {editing ? (
-          <>
-            <label className="visually-hidden" htmlFor={textId}>
-              {t.textLabel}
-            </label>
-            <textarea
-              id={textId}
-              ref={area}
-              className="observation-field caption-edit"
-              value={text}
-              aria-describedby={reasonId}
-              onChange={(event) => setText(event.target.value)}
-            />
-          </>
-        ) : (
-          <p className="caption-preview" role="status">
-            {generated ?? ''}
-          </p>
-        )}
-        <div className="caption-actions">
-          <ToggleButton className="btn btn-text caption-edit-toggle" isSelected={editing} onChange={toggleEditing}>
-            <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-pencil" />
-            </svg>
-            {t.editText}
-          </ToggleButton>
-          <span className="btn-reason" id={reasonId}>
-            {t.editReason}
-          </span>
+      <div className="sticky-action-bar">
+        <div className="bar-buttons">
+          <Button variant="secondary" onPress={onClose}>
+            {t.back}
+          </Button>
+          <Button variant="primary" onPress={save}>
+            {t.save}
+          </Button>
         </div>
-      </div>
-      <div className="dialog-actions">
-        <Button variant="secondary" onPress={onClose}>
-          {t.back}
-        </Button>
-        <Button variant="primary" onPress={save}>
-          {t.save}
-        </Button>
       </div>
     </>
   );
