@@ -11,7 +11,8 @@ import {
 } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
-import { deviceDatabaseName, expect, signIn, syncBadge, test, TEST_SEED } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, signIn, test, TEST_SEED } from './support/merged-fixtures.ts';
+import { syncNowAndReturn } from './support/sync.ts';
 import { readDeviceId, readStore } from './support/outbox.ts';
 import { pushRevision } from './support/push-server-ops.ts';
 import { resetEmpresaB as resetCompany } from './support/reset-empresa-b.ts';
@@ -32,19 +33,6 @@ const account = TEST_SEED.companies[1];
 const database = deviceDatabaseName(account.userId);
 
 const resetEmpresaB = () => resetCompany({ standard: true });
-
-/** "Sincronizar agora" from the Sync status, until nothing is waiting, then back. */
-async function syncNow(page: Page): Promise<void> {
-  const back = page.url();
-  await syncBadge(page).click();
-  const button = page.getByRole('button', { name: 'Sincronizar agora' });
-  await expect(button).not.toHaveAttribute('aria-disabled', 'true', { timeout: 30_000 });
-  await button.click();
-  await expect(syncBadge(page)).toHaveAttribute('data-pending', '0', { timeout: 30_000 });
-  await expect(button).not.toHaveAttribute('aria-disabled', 'true', { timeout: 30_000 });
-  await expect(syncBadge(page)).toHaveAttribute('data-state', 'ok');
-  await page.goto(back);
-}
 
 /** A client-authored op, pushed straight to the server the way `4.3-E2E-002` does. */
 async function pushOp(page: Page, relatorioId: string, deviceId: string, path: string, value: unknown): Promise<void> {
@@ -181,6 +169,10 @@ test('@p0 4.1-E2E-002 the same creation offline; once online and synced, the cli
   context,
   browser,
 }) => {
+  // Two whole-relatório syncs (223 ops up, then a second device's pull), each waited on by
+  // state: seconds when idle, several times that under load, so the budget fits the work
+  // (E5-A1), as the export specs do.
+  test.setTimeout(120_000);
   await resetEmpresaB();
   await signIn(page, account.email);
   await expect(page.locator('.shortcut-sub', { hasText: '1 template' })).toBeVisible({ timeout: 30_000 });
@@ -191,14 +183,14 @@ test('@p0 4.1-E2E-002 the same creation offline; once online and synced, the cli
   await expect(sumarioTitles(page)).toHaveText(TITLES);
   await expect(page.getByRole('button', { name: '0 de 94 fichas concluídas' })).toBeVisible();
   // Still offline, the Project lists the row from the device (a reload offline is the
-  // durability suite's, on the built bundle: the dev server has no shell cache).
+  // durability suite's: this project blocks the service worker, so it has no shell cache).
   await page.getByRole('button', { name: 'Voltar' }).click();
   await expect(page.getByRole('list', { name: 'Relatórios desta obra' }).getByRole('listitem')).toHaveCount(1);
   await page.getByRole('list', { name: 'Relatórios desta obra' }).getByRole('link').click();
   await expect(sumarioTitles(page)).toHaveText(TITLES);
 
   await context.setOffline(false);
-  await syncNow(page);
+  await syncNowAndReturn(page);
 
   // The client is in Cadastros › Clientes.
   await page.goto('/cadastros');
@@ -435,7 +427,7 @@ test('@p1 4.3-E2E-002 Em campo opens section 9 expanded at the last sheet cabine
   const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
   await expect(chevron).toHaveAttribute('aria-expanded', 'false');
   await expect(page.locator('.s9-tree')).toBeHidden();
-  await syncNow(page);
+  await syncNowAndReturn(page);
 
   // A block of the Geradores cabine is the last sheet on this device; the status goes Em
   // campo through the api with the page's own session. The rows are read from `entities`:
@@ -483,7 +475,7 @@ test('@p1 4.3-E2E-002 Em campo opens section 9 expanded at the last sheet cabine
     data: { ops: [status] },
   });
   expect(pushed.ok(), await pushed.text()).toBe(true);
-  await syncNow(page);
+  await syncNowAndReturn(page);
   // A short viewport: the Geradores row would sit below the fold unless the Sumário scrolls to it.
   await page.setViewportSize({ width: 1280, height: 600 });
   await page.reload();
@@ -660,7 +652,7 @@ test('@p1 4.2-E2E-002 an instrument still referenced by a sheet cannot be unchec
   // The relatório (and its blocks) must exist server-side before a `sheet/test` put on one
   // of them can materialize; the instrument itself never needs to sync (its id is carried
   // by value in the cell, the same way `isInstrumentReferenced` reads it).
-  await syncNow(page);
+  await syncNowAndReturn(page);
   const entities = await readStore<{ entity: string; id: string; row: { code?: string; kind?: string; block_type?: string } }>(
     page,
     database,
@@ -672,7 +664,7 @@ test('@p1 4.2-E2E-002 an instrument still referenced by a sheet cannot be unchec
   const block = entities.find((r) => r.entity === 'block' && EQUIPMENT_BLOCK_TYPES.includes(r.row.block_type ?? ''))!;
   const deviceId = await readDeviceId(page, database);
   await pushOp(page, relatorioId, deviceId, `sheet/${block.id}/test/isolacao/instrument`, { instrument_id: instrument.id });
-  await syncNow(page);
+  await syncNowAndReturn(page);
   await page.reload();
 
   await expect(sumarioTitles(page)).toHaveText(TITLES);
@@ -709,11 +701,11 @@ test('@p0 4.6-E2E-001 Emitido shows the issued banner; moving a numbered row adv
   // target it; the status put goes through the ordinary client op push (`4.3-E2E-002`'s
   // pattern), the `revision` row through `pushRevision` (its own family is `serverOnly`,
   // refused on `/api/sync/ops` the way `file/server`/`suggestion` are).
-  await syncNow(page);
+  await syncNowAndReturn(page);
   await pushOp(page, relatorioId, deviceId, 'relatorio/status', 'emitido');
   const createdAt = new Date('2026-09-10T12:00:00.000Z');
   await pushRevision(account.companyId, relatorioId, { number: 2, createdBy: account.userId, createdAt });
-  await syncNow(page);
+  await syncNowAndReturn(page);
   await page.reload();
 
   await expect(sumarioTitles(page)).toHaveText(TITLES);
@@ -748,9 +740,9 @@ test('@p1 4.6-E2E-002 the header Overflow\'s backward-move item: a Confirm dialo
   await createProjectFromHome(page);
   const relatorioId = await createRelatorio(page);
   const deviceId = await readDeviceId(page, database);
-  await syncNow(page);
+  await syncNowAndReturn(page);
   await pushOp(page, relatorioId, deviceId, 'relatorio/status', 'em_campo');
-  await syncNow(page);
+  await syncNowAndReturn(page);
   await page.reload();
   await expect(sumarioTitles(page)).toHaveText(TITLES);
   await expect(page.locator('.sheet-meta .status-pill')).toHaveText('Em campo');

@@ -1,4 +1,5 @@
 import { deviceDatabaseName, expect, signIn, test } from './support/merged-fixtures.ts';
+import { syncNow } from './support/sync.ts';
 import { readFileBlobs, readStore } from './support/outbox.ts';
 import type { Locator, Page } from '@playwright/test';
 
@@ -10,15 +11,6 @@ import type { Locator, Page } from '@playwright/test';
 
 const PDF = Buffer.from('%PDF-1.4\ncertificado de teste E2E\n%%EOF\n');
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
-
-async function syncNow(page: Page): Promise<void> {
-  const badge = page.locator('.app-bar [data-testid="sync-badge"]');
-  await badge.click();
-  const button = page.getByRole('button', { name: 'Sincronizar agora' });
-  await expect(button).not.toHaveAttribute('aria-disabled', 'true', { timeout: 20_000 });
-  await button.click();
-  await expect(badge).toHaveAttribute('data-pending', '0', { timeout: 20_000 });
-}
 
 /** Opens Cadastros › Instrumentos with one new instrument in the panel. */
 async function newInstrument(page: Page, code: string): Promise<void> {

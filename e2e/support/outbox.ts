@@ -1,5 +1,5 @@
 import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, makeOp, targetsOf, type Op, type OpInput } from '@app/domain';
-import type { APIRequestContext, Page } from '@playwright/test';
+import { expect, type APIRequestContext, type Page } from '@playwright/test';
 import { newId } from '../../apps/api/src/ids.ts';
 
 /**
@@ -159,15 +159,24 @@ export async function seedOutbox(page: Page, database: string, ops: readonly Op[
   }, args);
 }
 
-/** The device id the sync provider minted into `local_prefs` on sign-in (retried while it lands). */
+/**
+ * The device id the sync provider minted into `local_prefs` on sign-in, polled until it
+ * lands (E5-A1: a fixed 40 x 100 ms loop ran out under load).
+ */
 export async function readDeviceId(page: Page, database: string): Promise<string> {
-  for (let attempt = 0; attempt < 40; attempt++) {
-    const prefs = await readStore<{ key: string; value: unknown }>(page, database, 'local_prefs');
-    const value = prefs.find((p) => p.key === 'device_id')?.value;
-    if (typeof value === 'string' && value !== '') return value;
-    await page.waitForTimeout(100);
-  }
-  throw new Error('device_id was never written to local_prefs');
+  let deviceId = '';
+  await expect
+    .poll(
+      async () => {
+        const prefs = await readStore<{ key: string; value: unknown }>(page, database, 'local_prefs');
+        const value = prefs.find((p) => p.key === 'device_id')?.value;
+        deviceId = typeof value === 'string' ? value : '';
+        return deviceId;
+      },
+      { message: 'device_id is written to local_prefs', timeout: 15_000 },
+    )
+    .not.toBe('');
+  return deviceId;
 }
 
 interface ReadArgs {

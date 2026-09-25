@@ -65,6 +65,7 @@ import { NotTestedBand } from './not-tested-band.tsx';
 import { SectionStepper } from './section-stepper.tsx';
 import { SheetReadOnlyProvider } from './sheet-read-only.tsx';
 import { StickyActionBar } from './sticky-action-bar.tsx';
+import { useOnScreen } from './use-on-screen.ts';
 import './ficha.css';
 
 const NO_USERS: UserRow[] = [];
@@ -262,14 +263,7 @@ function FichaBody({
 
   // --- the checklist on screen: the Sticky action bar mirrors its bulk action --------------
   const checklistEl = useRef<HTMLElement | null>(null);
-  const [checklistOnScreen, setChecklistOnScreen] = useState(false);
-  useEffect(() => {
-    const element = checklistEl.current;
-    if (element === null || typeof IntersectionObserver === 'undefined') return;
-    const observer = new IntersectionObserver((entries) => setChecklistOnScreen(entries.some((entry) => entry.isIntersecting)));
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [blockId]);
+  const checklistOnScreen = useOnScreen(checklistEl, blockId);
 
   // --- "Concluir ficha" and the way on ------------------------------------------------------
   const goNext = () => {

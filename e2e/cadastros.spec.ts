@@ -2,6 +2,7 @@ import { formatCriterionValue, makeOp, SEEDED_CRITERIA, type Op } from '@app/dom
 import type { Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, signIn, test } from './support/merged-fixtures.ts';
+import { syncNow } from './support/sync.ts';
 import { projectCreateOp, readDeviceId, readFileBlobs, readStore, seedOutbox, type SeedUser } from './support/outbox.ts';
 
 /*
@@ -127,15 +128,6 @@ function voltageClassOp(user: SeedUser, fields: Record<string, unknown>, id = ne
 async function seedUser(page: Page, account: { companyId: string; userId: string }, database: string): Promise<SeedUser> {
   const deviceId = await readDeviceId(page, database);
   return { companyId: account.companyId, userId: account.userId, deviceId };
-}
-
-async function syncNow(page: Page): Promise<void> {
-  const badge = page.locator('.app-bar [data-testid="sync-badge"]');
-  await badge.click();
-  const button = page.getByRole('button', { name: 'Sincronizar agora' });
-  await expect(button).not.toHaveAttribute('aria-disabled', 'true', { timeout: 20_000 });
-  await button.click();
-  await expect(badge).toHaveAttribute('data-pending', '0', { timeout: 20_000 });
 }
 
 test('@p0 2.1-E2E-001 Cadastros: tabs render with Instrumentos default and remembered, and a new instrument autosaves field by field', async ({

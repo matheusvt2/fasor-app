@@ -2,7 +2,8 @@ import { DOCX_MIME, instantiateTemplate, standardTemplate, type OpDraft } from '
 import type { BrowserContext, Download, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-fixture.ts';
-import { deviceDatabaseName, expect, signIn, syncBadge, test, TEST_SEED } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, signIn, test, TEST_SEED } from './support/merged-fixtures.ts';
+import { syncNow } from './support/sync.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.ts';
@@ -357,11 +358,7 @@ test('@p0 E4-E2E-002 a second relatório of an obra whose Emitido relatório thi
   expect(outbox.filter((row) => row.kind === 'create' && row.path.startsWith('block/') && row.relatorio_id === r2)).toHaveLength(105);
 
   // After "Sincronizar agora", nothing is duplicated: not on Sync status, not in R2's tree.
-  await syncBadge(page).click();
-  const syncButton = page.getByRole('button', { name: 'Sincronizar agora' });
-  await expect(syncButton).not.toHaveAttribute('aria-disabled', 'true', { timeout: 30_000 });
-  await syncButton.click();
-  await expect(syncBadge(page)).toHaveAttribute('data-pending', '0', { timeout: 60_000 });
+  await syncNow(page);
   await expect(page.getByText(/duplicada/)).toHaveCount(0);
   await page.goto(`/relatorio/${r2}`);
   await expect(page.locator('.app-bar h1')).toHaveText('Sumário', { timeout: 30_000 });
