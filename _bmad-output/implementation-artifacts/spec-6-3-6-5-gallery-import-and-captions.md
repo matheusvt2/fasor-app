@@ -2,10 +2,10 @@
 title: 'Stories 6.3 to 6.5: the gallery, adding photos later, and captions from chips'
 type: 'feature'
 created: '2026-09-25'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '324d8c31ed87d03266220c4cd9b72dc6d1b10154'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: medium
 context:
@@ -117,6 +117,34 @@ deferred: []
 
 ## Review Triage Log
 
+### 2026-09-25 — Review pass
+Skipped layers: Blind Hunter and Intent Alignment (token economy; the integrated Epic 6 review covers them). Reviewed diff: `origin/main..HEAD` after merging PR #42 (Story 6.6).
+- verdicts: 24 findings — high 0, medium 6, low 17, false 1, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` Edge: HEIC imports lose EXIF time and GPS (`parseExif` reads JPEG APP1 only) — `parseExif` falls back to the `Exif\0\0` + TIFF header in non-JPEG bytes; kernel case added.
+  - `[low]` `[patch]` Edge: a mixed drop counts non-images ("Adicionar 3 fotos" for 2), an all-PDF drop still asks for the equipment — files filtered before the step; all non-image -> toast only.
+  - `[low]` `[reject]` Edge: db or user null when files are picked drops them silently — the surfaces only render signed in; the fix adds a branch.
+  - `[low]` `[patch]` Edge: `photoLocationEnabled` read failure keeps EXIF GPS — `.catch(() => false)`.
+  - `[low]` `[patch]` Edge: turning "Outro…" off keeps the hidden typed word in the caption — deselect clears the part.
+  - `[low]` `[patch]` Edge: a `caption: null` photo with a context opens in "Editar texto" — editing starts only for a non-null stored caption that differs from the preview.
+  - `[low]` `[reject]` Edge: toggling "Editar texto" off then on replaces the custom text by the generated one — the user chose chip mode; rare, and the fix adds state.
+  - `[low]` `[patch]` Edge: saving free text pushes chip words to recents — remember only in chip mode.
+  - `[low]` `[reject]` Edge: a rejected `commitBatch` in remove/restore/caption is unhandled — IndexedDB write failures are rare; the fix adds catch branches.
+  - `[low]` `[patch]` Edge: tiles and snapshot numbers can briefly disagree ("Foto 0") — the gallery numbers the tiles it renders.
+  - `[low]` `[reject]` Edge: the viewed photo vanishing while open leaves `viewing` set — needs a second writer on a one-device relatório; the fix adds an effect.
+  - `[low]` `[reject]` Edge: Sumário "aguardando envio" includes photos the gallery counts "com erro" — the upload error is device-local and the kernel reads the snapshot; noted as known open.
+  - `[false]` `[reject]` Edge: `captured_at` null changes numbering — `photoFileRowSchema` requires `captured_at`, and only photos reach the sort.
+  - `[low]` `[patch]` Edge + Verification (other): `setBatchPlacement` has no caller — deleted.
+  - `[medium]` `[patch]` Edge (claim): HEIC import never gets EXIF — same root cause as the first row.
+  - `[low]` `[patch]` Edge (claim): button and toast counts disagree on a mixed batch — same root cause as the second row.
+  - `[medium]` `[patch]` Verification: caption recents never tested — `photo-store.test.ts` case (order, dedupe, cap 5, per relatório).
+  - `[medium]` `[patch]` Verification: the denied NC row's "Adicionar fotos" never exercised — Playwright case asserting `item_key` and the NC caption.
+  - `[medium]` `[patch]` Verification: `withLocation: false` never tested — `photo-import.test.ts` case.
+  - `[medium]` `[patch]` Verification: the viewer's "Editar legenda" never exercised — step added to a gallery @p0 test.
+  - `[low]` `[patch]` Verification: a drop on the gallery never tested — `@p1` case.
+  - `[low]` `[reject]` Verification: which picture the viewer shows (original vs print vs thumb) is untested — a thumb fallback still shows the photo; known open.
+  - `[low]` `[patch]` Verification (other): `atividadeWordRows` returns atividade and local rows under an atividade name — renamed with its doc.
+
 ## Design Notes
 
 Narrowings (coordinator records them): the composer is a modal, not a route (one component serves the tile, the viewer and the gallery batch); caption recents are device-local per relatório (`local_prefs`), since one device fills a relatório and the row stores text only; the composer's Equipamento choice changes the text, never `block_id`; gallery camera shots are "Geral" (`block_id` and caption null; the mock's "local from the gallery filter" needs a location column); a removed photo is recovered by the toast's "Desfazer" only (no restore list); the gallery-batch files commit on "Adicionar N fotos", sheet imports commit at once; no gallery day headers; HEIC conversion is unit-tested with the converter mocked (no HEIC fixture in Playwright).
@@ -129,3 +157,18 @@ Open questions (conservative choice taken): tie-breaker `(captured_at, local_seq
 - `docker compose --profile tools run --rm tools pnpm test:unit -- packages/domain/src/photos` -- green
 - `docker compose --profile tools run --rm tools pnpm exec playwright test e2e/gallery.spec.ts e2e/photos.spec.ts e2e/tap-budget.spec.ts --project=desktop-chrome` -- green
 - `docker compose --profile tools run --rm tools pnpm verify > /tmp/verify-s6p2.log 2>&1` -- green (once, at the end)
+
+## Auto Run Result
+
+Status: done. Stories 6.3, 6.4 and 6.5 implemented on top of merged PR #41 (6.1/6.2) and PR #42 (6.6).
+
+- Kernel `packages/domain/src/photos/`: `order.ts` (`comparePhotos`, `livePhotos`), one `numberPhotos(files)` in `numbering.ts` (PR #42's signature, sorted by `comparePhotos`), `gallery.ts` (stamps, filter, counters, viewer and import texts, `photoEquipmentOptions`), `caption.ts` (`CaptionParts`, `composeCaption`, `contextCaptionParts`, `captionWordFor`, `captionChipOptions`; `contextCaption` delegates), `exif.ts` (Exif TIFF fallback for HEIC and other non-JPEG bytes); section 7 pre-issue family and Sumário row 7 meta.
+- Web: gallery route `/relatorio/:id/fotos` (`surfaces/photos/gallery-surface.tsx`, `photo-viewer.tsx`, `capture-sheet.tsx`, `caption-composer.tsx`, `photo-caption-dialog.tsx`, `photo-ops.ts`, `use-caption-sources.ts`, `photos.css`), `files/photo-import.ts` (`heic-to` lazily), "Adicionar fotos" and drop zone on every sheet, "Legendar" on NC-row tiles, `PhotoRow` extended, caption recents in `local_prefs`, Sumário row 7 opens the gallery.
+- Api: sync integration test for `file/{id}/caption` and `file/{id}/removed_at`.
+- Tests: kernel units, `photo-import.test.ts`, `photo-store.test.ts`, `e2e/gallery.spec.ts` (4 @p0, 4 @p1) with synthetic fixtures.
+
+Review: 24 findings; 14 patch rows applied as 12 fixes (5 medium entries, 7 low), 9 rejected (8 low, 1 false), 0 deferred. Follow-up review recommended: true (five medium entries patched); the named unverified risk is the HEIC Exif fallback, checked only on synthetic bytes, never on a real iPhone HEIC.
+
+Verification: `pnpm verify` green on the second run (unit 1127, web 842, tooling 20, api 151, Playwright 106 @p0). The first run failed only 6.1-E2E-002 (focus back on "Adicionar foto" after "Concluir fotos"), which passed 3 of 3 alone and in the second full run: known load flake.
+
+Residual risks: Sumário "aguardando envio" also counts photos the gallery shows as "com erro" (the error is device-local); the viewer's original/print/thumb choice is untested; no real HEIC file in Playwright.

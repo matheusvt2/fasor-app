@@ -743,7 +743,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: AD-17's `device_id` tie-breaker is not a column of the photo row; Story 6.3's `numberPhotos` must take it from the create op's `device_id` (or the UUIDv7 `id`).
   evidence: `photoFileRowSchema` (`packages/domain/src/schemas/entities.ts`) carries `captured_at` and `local_seq` only, by the spec's Code Map.
   class: deferred
-  state: ~~open (owner: Story 6.3)~~ closed (2026-09-25, Stories 6.3-6.5: `comparePhotos` / `numberPhotos` in `packages/domain/src/photos/order.ts` sort by `(captured_at, local_seq, id)`; only one device fills a relatório (source-deltas row 14), so AD-17's device component collapses and the UUIDv7 `id` is the final deterministic tie-breaker)
+  state: ~~open (owner: Story 6.3)~~ closed (2026-09-25, Stories 6.3-6.5: `comparePhotos` (`packages/domain/src/photos/order.ts`) and `numberPhotos` (`photos/numbering.ts`) sort by `(captured_at, local_seq, id)`; only one device fills a relatório (source-deltas row 14), so AD-17's device component collapses and the UUIDv7 `id` is the final deterministic tie-breaker)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-12-3-12-4-sheet-cabine-instrument-plate-nc.md`
   summary: The nameplate TAG field is prefilled from the block's TAG on screen but never written as a value; the kernel `nameplateTagPrefill({blocks, equipment}, blockId)` derives it. The section 9 renderer must print the prefill when the stored TAG cell is empty (E12-A2).
