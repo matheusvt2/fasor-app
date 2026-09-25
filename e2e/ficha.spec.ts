@@ -845,7 +845,7 @@ test('@p0 12.1-E2E-007 D-2: the NC chip completing the checklist keeps it open; 
       ),
     ),
   ]);
-  await syncNow(page);
+  await syncNowAndReturn(page);
   await openEnel(page);
   await openSheet(page, rowOfType(page, 'Chave seccionadora'));
   await expect(stepper(page).getByRole('button', { name: 'Verificações, 1 faltando' })).toHaveAttribute('aria-current', 'step');
@@ -906,7 +906,7 @@ test('@p1 12.1-E2E-008 J-15: once the checklist is complete the Sticky action ba
   const target = await rowIds(rowOfType(page, 'Chave seccionadora'));
   const items = SECCIONADORA.checklist!;
   await pushDrafts(page, database, items.slice(0, -1).map((item) => officeDraft(account, { relatorioId }, `sheet/${target.blockId}/checklist/${item.key}/result`, 'C')));
-  await syncNow(page);
+  await syncNowAndReturn(page);
   await openEnel(page);
   await openSheet(page, rowOfType(page, 'Chave seccionadora'));
   await stepper(page).getByRole('button', { name: /^Verificações,/ }).click();
