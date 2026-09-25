@@ -50,13 +50,17 @@ function plateValue(f: FieldDef): unknown {
   return `P-${f.key}`;
 }
 
-/** A complete seccionadora sheet but its instruments: plate, checklist C, readings within criterion, the pair. */
-function completeButInstruments(scope: Scope, blockId: string): OpDraft[] {
+/**
+ * A complete sheet of `blockType` but its instruments: plate (never the TAG, which the block
+ * prefills), checklist C, readings within criterion, the pair.
+ */
+function completeButInstruments(scope: Scope, blockId: string, blockType = 'chave_seccionadora'): OpDraft[] {
+  const definition = getDefinition('v2', 'cabine_primaria', blockType);
   return [
-    ...SECC.nameplate.map((f) => officeDraft(account, scope, `sheet/${blockId}/nameplate/${f.key}`, plateValue(f))),
-    ...CHECKLIST.map((item) => officeDraft(account, scope, `sheet/${blockId}/checklist/${item.key}/result`, 'C')),
-    ...SECC.tests
-      .flatMap((t) => cellAddressesOf(SECC, t.key))
+    ...definition.nameplate.filter((f) => f.key !== 'tag').map((f) => officeDraft(account, scope, `sheet/${blockId}/nameplate/${f.key}`, plateValue(f))),
+    ...(definition.checklist ?? []).map((item) => officeDraft(account, scope, `sheet/${blockId}/checklist/${item.key}/result`, 'C')),
+    ...definition.tests
+      .flatMap((t) => cellAddressesOf(definition, t.key))
       .map((c) =>
         officeDraft(account, scope, `sheet/${blockId}/test/${c.testKey}/cell/${c.row}/${c.col}`, c.testKey === 'isolacao' ? { raw: '150', unit: 'GΩ', state: 'measured' } : { raw: '100', unit: 'µΩ', state: 'measured' }),
       ),
@@ -72,7 +76,7 @@ function completeButInstruments(scope: Scope, blockId: string): OpDraft[] {
  */
 async function setUp(
   page: Page,
-  seed: (scope: Scope, enel: [SeededSheet, SeededSheet], sheets: SeededSheet[], instrument: InstrumentRow | null) => OpDraft[] = () => [],
+  seed: (scope: Scope, enel: [SeededSheet, SeededSheet], sheets: SeededSheet[], instrument: InstrumentRow | null, drafts: readonly OpDraft[]) => OpDraft[] = () => [],
   withInstrument = false,
 ): Promise<{ relatorioId: string; enel: [SeededSheet, SeededSheet]; sheets: SeededSheet[] }> {
   await resetEmpresaB({ standard: true });
@@ -84,7 +88,7 @@ async function setUp(
   expect(enel).toHaveLength(2);
   const instrument = withInstrument ? instrumentDraft(account) : null;
   const row = instrument === null ? null : (instrument.value as InstrumentRow);
-  await pushDrafts(page, database, [...built.drafts, ...(instrument === null ? [] : [instrument]), ...seed(scope, enel, built.sheets, row)]);
+  await pushDrafts(page, database, [...built.drafts, ...(instrument === null ? [] : [instrument]), ...seed(scope, enel, built.sheets, row, built.drafts)]);
   await page.goto(`/relatorio/${built.relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });
   if (withInstrument) await syncNowAndReturn(page);
@@ -222,6 +226,8 @@ test('@p0 12.3-E2E-002 the instrument last used for a test kind is suggested on 
   expect(concluded).toBeDefined();
   expect(new Set([...written.map((row) => row.batch_id), concluded.batch_id]).size).toBe(1);
   expect(written[0]!.value).toMatchObject({ code: 'MG-01', model: 'DMG10Ki' });
+  // The plate's TAG was the block's, prefilled and never written: it still let the sheet conclude.
+  expect((await outbox(page)).some((row) => row.path === `sheet/${second.blockId}/nameplate/tag`)).toBe(false);
 
   // Stored now: the picker shows it as a value, no suggestion.
   await openSheet(page, relatorioId, second.blockId);
@@ -315,7 +321,96 @@ test('@p0 12.3-E2E-003 the cabine: its empty fields counted on its first sheet a
   expect(await stepMissing(page, 'Placa')).toBe(withCabine - 6);
 });
 
-test('@p0 12.4-E2E-001 an NC item observation becomes the suggested sheet observation, written with the conclusion text: Com restrições with nothing typed', async ({ page }) => {
+test('@p0 12.3-E2E-005 a cabine first sheet complete but one cabine field: "Próxima ficha" and the menu\'s "Concluir ficha" conclude nothing, the menu lands on the cabine field; once typed, the primary concludes', async ({ page }) => {
+  test.setTimeout(150_000);
+  const n = (raw: string, unit: string) => ({ raw, unit, state: 'measured' as const });
+  let firstSheet: SeededSheet | null = null;
+  const { relatorioId } = await setUp(page, (scope, _enel, sheets, _instrument, drafts) => {
+    const cabine = drafts.find((d) => d.kind === 'create' && d.path.startsWith('location/') && (d.value as { name?: string }).name === 'Cubículo Enel')!;
+    const cabineId = (cabine.value as { id: string }).id;
+    firstSheet = sheets.find((sheet) => sheet.locationName === 'Cubículo Enel')!;
+    return [
+      ...completeButInstruments(scope, firstSheet.blockId, firstSheet.blockType),
+      officeDraft(account, scope, `location/${cabineId}/se/type`, 'BLINDADA'),
+      officeDraft(account, scope, `location/${cabineId}/se/primary_kv`, n('13.8', 'kV')),
+      officeDraft(account, scope, `location/${cabineId}/se/secondary_kv`, n('380', 'V')),
+      officeDraft(account, scope, `location/${cabineId}/se/installed_kva`, n('1500', 'kVA')),
+      officeDraft(account, scope, `location/${cabineId}/env/temperature_c`, n('25', '°C')),
+    ];
+  });
+  const first = firstSheet!;
+  const concludedOps = async () => (await outbox(page)).filter((row) => row.path === `block/${first.blockId}/concluded_by`);
+
+  // It is the cabine's first sheet: the one empty cabine field is the one thing it lacks.
+  await openSection9(page);
+  await page.getByRole('button', { name: 'Mais opções de Cubículo Enel' }).click();
+  await page.getByRole('menuitem', { name: 'Abrir primeira ficha (dados da cabine)' }).click();
+  await expect(page).toHaveURL(new RegExp(`/ficha/${first.blockId}$`));
+  await expect(page.getByTestId('ficha-progress')).toHaveText('1 obrigatório faltando');
+  expect(await stepMissing(page, 'Placa')).toBe(1);
+
+  // The primary reads "Próxima ficha" and moves on without concluding.
+  await expect(page.locator('#ficha-primary')).toHaveText(/Próxima ficha/);
+  await page.locator('#ficha-primary').click();
+  await expect(page).not.toHaveURL(new RegExp(`/ficha/${first.blockId}$`));
+  expect(await concludedOps()).toEqual([]);
+
+  // The menu's "Concluir ficha" concludes nothing and lands on the empty cabine field.
+  await openSheet(page, relatorioId, first.blockId);
+  await page.getByRole('button', { name: `Mais opções da ficha ${first.tag}` }).click();
+  await page.getByRole('menuitem', { name: 'Concluir ficha' }).click();
+  const umidade = page.getByLabel('UMIDADE RELATIVA DO AR', { exact: true });
+  await expect(umidade).toBeFocused();
+  await expect(umidade).toHaveAttribute('data-missing-field', '');
+  expect(await concludedOps()).toEqual([]);
+
+  // Typed and entered: the primary concludes at once, on the fresh rows.
+  await page.keyboard.type('65');
+  await page.keyboard.press('Enter');
+  await page.locator('#ficha-primary').click();
+  await expect(toast(page)).toContainText('Ficha concluída');
+  await expect.poll(async () => (await concludedOps()).length).toBe(1);
+});
+
+test('@p0 12.4-E2E-003 the suggested sheet observation: its own "Confirmar" writes exactly the suggestion; a tap and typing replace it whole', async ({ page }) => {
+  test.setTimeout(150_000);
+  const { relatorioId, enel } = await setUp(page);
+  const n = CHECKLIST.findIndex((item) => item.nc_phrases.includes('conexão frouxa')) + 1;
+  expect(n).toBeGreaterThan(0);
+  const observations = async (blockId: string) => (await outbox(page)).filter((row) => row.path === `sheet/${blockId}/observations`);
+  const markNc = async () => {
+    await checklistRow(page, n).getByRole('radio', { name: 'Não conforme' }).click();
+    await checklistRow(page, n).getByRole('group', { name: `Observações sugeridas do item ${n}` }).getByRole('button', { name: 'conexão frouxa' }).click();
+    await expect(page.getByLabel(`Observação do item ${n}`, { exact: true })).toHaveValue('conexão frouxa');
+  };
+  const observation = page.getByLabel('Observações da ficha', { exact: true });
+  const suggested = page.locator('.field.suggestion-field[data-state="suggested"]').filter({ has: observation });
+
+  // Its own "Confirmar": one op, exactly the suggestion, and the suggestion gone.
+  const [a, b] = enel;
+  await openSheet(page, relatorioId, a.blockId);
+  await markNc();
+  await expect(observation).toHaveValue(`Item ${n}: conexão frouxa`);
+  await suggested.getByRole('button', { name: 'Confirmar' }).click();
+  await expect.poll(async () => (await observations(a.blockId)).map((row) => row.value)).toEqual([`Item ${n}: conexão frouxa`]);
+  await expect(suggested).toHaveCount(0);
+  await expect(observation).toHaveValue(`Item ${n}: conexão frouxa`);
+
+  // Another sheet: a tap on the suggestion and typing write exactly what was typed.
+  await openSheet(page, relatorioId, b.blockId);
+  await markNc();
+  await expect(suggested).toHaveCount(1);
+  await observation.click();
+  await expect(observation).toHaveValue('');
+  await page.keyboard.type('Texto do engenheiro');
+  await observation.blur();
+  await expect.poll(async () => (await observations(b.blockId)).at(-1)?.value).toBe('Texto do engenheiro');
+  expect((await observations(b.blockId)).map((row) => row.value)).toEqual(['Texto do engenheiro']);
+  await expect(observation).toHaveValue('Texto do engenheiro');
+  await expect(suggested).toHaveCount(0);
+});
+
+test('@p0 12.4-E2E-001an NC item observation becomes the suggested sheet observation, written with the conclusion text: Com restrições with nothing typed', async ({ page }) => {
   test.setTimeout(150_000);
   const { relatorioId, enel } = await setUp(page);
   const [sheet] = enel;

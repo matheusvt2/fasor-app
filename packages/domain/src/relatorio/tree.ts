@@ -230,7 +230,8 @@ export function locationTree(
       name: location.name,
       level: Math.min(depth, TREE_MAX_LEVEL),
       meta: cabineMetaText(location),
-      metaMissing: location.kind === 'cabine' && relatorio !== undefined ? cabineMissingText(cabineProgress({ relatorio, locations }, location.id)) : null,
+      // A cabine with no equipment block has no sheet to fill its data on: nothing is asked (as in `preIssue`).
+      metaMissing: location.kind === 'cabine' && relatorio !== undefined && counts.sheets_total > 0 ? cabineMissingText(cabineProgress({ relatorio, locations }, location.id)) : null,
       counterText: progressCounterText(counts),
       counterState: progressCounterState(counts),
       position,

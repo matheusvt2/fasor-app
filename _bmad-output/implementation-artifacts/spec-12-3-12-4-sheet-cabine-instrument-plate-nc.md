@@ -2,7 +2,7 @@
 title: 'Stories 12.3 and 12.4: the sheet repeats nothing, the plate and the NC in fewer taps'
 type: 'feature'
 created: '2026-09-25'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'f027678e9915a39a06b0af0640c2e6e3823bd8ad'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -12,7 +12,14 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-12-context.md'
 warnings: ['batched', 'multiple-goals', 'oversized']
 batched_reason: 'Both stories change the equipment sheet surface and the seed (new seed v2); one batch for token economy.'
-deferred: []
+deferred:
+  - summary: >-
+      The prefilled nameplate TAG is derived, never written, so a consumer reading sheet.nameplate directly sees no TAG.
+    evidence: |-
+      nameplateTagPrefill returns the block TAG while the cell is absent; print does not read the nameplate yet. Settle when Epic 7 prints the plate (it must read nameplateTagPrefill) and by checking whether the issue-time last_nameplate projection reads sheet.nameplate.
+    location: >-
+      packages/domain/src/relatorio/nameplate-copy.ts nameplateTagPrefill
+    severity: medium (unverified)
 ---
 
 <intent-contract>
@@ -83,7 +90,7 @@ deferred: []
 - `packages/domain/src/seed/{schema.ts,v2.ts,definitions.ts}` -- `per_unit` flag; `CABINE_PRIMARIA_V2` = v1 deep copy with `per_unit: true` on nameplate keys `identificacao`, `n_serie`, `tag` of every block type, and reasons `impossibilidade_desligamento`, `solicitacao_cliente`, `equipamento_inacessivel` (label "Equipamento inacessível", justification `// authored:` "Os ensaios não foram realizados devido à impossibilidade de acesso ao equipamento."), `outro`; register v2, `SEED_VERSION='v2'`.
 - `packages/domain/src/relatorio/*` -- `suggestedInstrument(snapshot: Pick<RelatorioSnapshot,'blocks'|'instruments'>, blockId, testKind: TestKey): InstrumentHeader | null`; `suggestedInstruments(snapshot, blockId): {testKey, header}[]`; `cabineProgress(snapshot: Pick<RelatorioSnapshot,'relatorio'|'locations'>, cabineId): {missing: {group:'se'|'env'; key: string; label: string}[]; complete: boolean}` (altitude excluded); `cabineLineText(location)` ("Alvenaria · 13,8 kV · 380 V · 1.500 kVA · 25 °C · 65 %" shape, stored values, `measure` formatting); `cabineMissingText(p)`: one → "falta ⟨a/o campo⟩" (authored short names with article: o tipo de SE, a tensão primária, a tensão secundária, a potência instalada, a temperatura, a umidade — mock "falta a umidade"), two or more → "faltam ⟨n⟩ campos" (authored), none → null; `nameplateTagPrefill(snapshot: Pick<RelatorioSnapshot,'blocks'|'equipment'>, blockId): string | null` (equipment TAG when the definition has `tag` and the cell is absent); `sheetProgress` widening above; `suggestedSheetObservation`; `preIssue` row text `// authored:` "⟨cabine⟩: ⟨cabineMissingText⟩"; tree `metaMissing`.
 - Kernel unit tests -- seed v2 vs v1 diff is exactly flags + reason; Igual à over each of the eight block types never copies a `per_unit` key present in it and copies the rest; last-visit copies per-unit; `suggestedInstrument` matrix rows; `cabineProgress`/texts; first-sheet counting; TAG prefill counting and rename; observation lines and ordering; preIssue severity `pending`.
-- `apps/web/src/surfaces/ficha/cabine-block.tsx` + `app.css` -- expanded (today's two sections, editable, missing fields marked `data-missing-field` on the first sheet) when first sheet, incomplete, or "Editar" tapped (per-visit state); otherwise `.cabine-line` `role="group"` `aria-label="Da cabine"`: `.cl-name` cabine name, `.cl-values` line text, `.btn-text` "Editar" (48 px). Read-only on a not-tested sheet as today's non-first rendering.
+- `apps/web/src/surfaces/ficha/cabine-block.tsx` + `app.css` -- expanded (today's two sections, editable, missing fields marked `data-missing-field` on the first sheet) when first sheet, incomplete, or "Editar" tapped (per-visit state); otherwise `.cabine-line` `role="group"` `aria-label="Da cabine"`: `.cl-name` cabine name, `.cl-values` line text, `.btn-text` "Editar" (48 px). ~~Read-only on a not-tested sheet as today's non-first rendering.~~ (2026-09-25, review: the cabine is not the sheet's data; it stays editable on a not-tested sheet, as the first sheet was before 12.3.)
 - `nameplate-section.tsx`, `ficha-surface.tsx`, `registry-picker-field.tsx` -- fields always visible; TAG shows the prefill as its value with helper "Do bloco · editável"; editing writes a normal nameplate op; "Outro…" focuses the combobox input.
 - `instrument-picker.tsx`, `ficha-surface.tsx` -- suggestion: `.field.suggestion-field[data-state=suggested]` with the instrument text, `.suggested-pill` "Sugerido", helper "Último usado neste relatório · confirmado ao concluir a ficha, ou toque para trocar" (mock verbatim); a tap opens the picker as today; `conclude()` appends `testInstrumentOp` per `suggestedInstruments` of the fresh blocks in the same batch as `concludedByOp`.
 - `conclusao-section.tsx` -- with the observation empty and a suggestion: the observation field is `.suggestion-field[data-state=suggested]` showing the suggestion, pill, "Confirmar" (writes it), helper "Montada dos itens NC · confirmada com o texto da conclusão" (mock verbatim); typing replaces it (focus+blur without a change writes nothing); the red "required" helper is not shown while the suggestion stands (the jump lands on its Confirmar); confirming the conclusion text writes the suggested observation in the same batch.
@@ -105,7 +112,36 @@ deferred: []
 
 ## Spec Change Log
 
+### 2026-09-25 — review pass 1
+- Trigger: edge-case finding "a cabine whose sheets are all not tested can never be filled" (cabine-block read-only on a not-tested sheet).
+- Amended: the cabine-block task line (read-only on a not-tested sheet struck; the block stays editable).
+- Known-bad state avoided: a pending "falta …" row no surface can clear; the pre-12.3 editable first sheet regressing to read-only.
+- KEEP: everything else in the diff; applied as a patch instead of a re-derivation (one review-fix loop, token economy).
+
 ## Review Triage Log
+
+### 2026-09-25 — Review pass
+- verdicts: 18 findings — high 0, medium 7, low 8, false 1, maybe-false 2
+- layers run: Edge Case Hunter, Verification Gap; Blind Hunter and Intent Alignment skipped (token economy; the integrated Epic 12 review covers them)
+- findings:
+  - `[medium]` `[patch]` VG: fresh-row cabine check in `conclude()` never tested with an otherwise complete first sheet — @p0 case added.
+  - `[medium]` `[patch]` VG: concluding with a prefilled unwritten TAG only covered by @p1 — 12.3-E2E-002 pushes the plate without `tag`.
+  - `[medium]` `[patch]` VG: the observation's own "Confirmar" never clicked — step added to 12.4-E2E-001.
+  - `[medium]` `[patch]` VG: typing into the suggested observation never exercised — grouped with the two ECH typing findings; typing step added.
+  - `[low]` `[patch]` VG: cabine block on a not-tested sheet unpinned — assertion added (now: still editable).
+  - `[low]` `[patch]` VG other: journeys `of('observation').keys` can never fail — interactions tagged.
+  - `[false]` `[reject]` VG other: TAG prefill also on v1 relatórios — the prefill is a kernel UI rule, not seed data; the matrix row does not condition it on the seed version.
+  - `[medium]` `[patch]` ECH: mouseup after the rAF select collapses the selection, typing mixes into the suggestion — typing now replaces the whole suggestion.
+  - `[medium]` `[patch]` ECH: keystroke before the rAF select inserts into the suggestion — same root cause and fix as above.
+  - `[medium]` `[patch]` ECH: all sheets of an incomplete cabine not tested leaves the cabine unfillable — cabine block editable regardless of the sheet's not-tested state (spec line amended, see change log).
+  - `[low]` `[reject]` ECH: first sheet not tested counts the cabine on no sheet — after the patch the fields are editable on every sheet while incomplete and preIssue names them; a not-tested sheet has no "Concluir ficha" to block.
+  - `[low]` `[reject]` ECH: no `data-missing-field` marker when the first sheet is not tested — same reason; the block is expanded and preIssue names the fields.
+  - `[low]` `[patch]` ECH: Sumário "faltam N campos" on a cabine with no equipment — `metaMissing` null there.
+  - `[low]` `[patch]` ECH: "— · faltam 6 campos" — no "—"/separator before the missing text.
+  - `[low]` `[reject]` ECH: "Outro…" focus rAF may pull focus back within two frames — a move within ~33 ms is not everyday use; the fix adds cancellation plumbing.
+  - `[maybe-false]` `[defer]` ECH: prefilled TAG never written, so a printer or `last_nameplate` projection reading `sheet.nameplate` sees no TAG — settle when Epic 7 prints the plate (it must read `nameplateTagPrefill`) and by checking the issue-time `last_nameplate` projection.
+  - `[low]` `[reject]` ECH: instrument removed between render and "Concluir ficha" still written — sub-second race, the header is a copy by value (AR-18) of an instrument the engineer saw suggested.
+  - `[maybe-false]` `[patch]` ECH claim: not-tested sheet of a complete cabine shows the line, not read-only sections — resolved by the cabine-editable patch (the line with "Editar" is the intended rendering).
 
 ## Design Notes
 

@@ -116,6 +116,11 @@ describe('12.3-UNIT the cabine counts on its first sheet only', () => {
     expect(locationTree(almost).find((node) => node.name === 'Cubículo Enel')!.metaMissing).toBe('falta a umidade');
     const done = withCabine(snapshot, 'Cubículo Enel', (c) => ({ ...c, se: FULL_SE, env: FULL_ENV })).snapshot;
     expect(locationTree(done).find((node) => node.name === 'Cubículo Enel')!.metaMissing).toBeNull();
+    // A cabine holding no equipment block has no sheet to fill it on: nothing is named (as in preIssue).
+    const geradores = snapshot.locations.find((l) => l.name === 'Geradores')!;
+    const inGeradores = new Set(snapshot.locations.filter((l) => l.id === geradores.id || l.parent_id === geradores.id).map((l) => l.id));
+    const withoutEquipment = { ...snapshot, blocks: snapshot.blocks.filter((b) => b.location_id === null || !inGeradores.has(b.location_id)) };
+    expect(locationTree(withoutEquipment).find((node) => node.name === 'Geradores')!.metaMissing).toBeNull();
     // Without the relatório row (no seed version) the tree names nothing missing.
     expect(locationTree({ locations: snapshot.locations, blocks: snapshot.blocks, equipment: snapshot.equipment })[0]!.metaMissing).toBeNull();
   });

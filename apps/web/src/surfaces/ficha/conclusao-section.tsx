@@ -180,7 +180,7 @@ export function ConclusaoSection({
   );
   // Story 12.4 (D-7): with the sheet observation empty, the NC items' observations stand in
   // it as a suggestion until its "Confirmar" (or the conclusion text's) writes them; typing
-  // replaces it. `typing` holds from the first keystroke until a blur leaves the field empty.
+  // replaces it. `typing` holds from the focus until a blur leaves the field empty.
   const suggestedObservation = useMemo(() => suggestedSheetObservation(block, definition), [block, definition]);
   const [typing, setTyping] = useState(false);
   const observationSuggested = suggestedObservation !== null && storedObservation.trim() === '' && observation.text.trim() === '' && !typing;
@@ -259,13 +259,11 @@ export function ConclusaoSection({
               data-missing-field={required && observationMissing ? '' : undefined}
               aria-invalid={required || undefined}
               aria-describedby={required ? obsReasonId : observationSuggested ? obsSuggestedId : undefined}
-              onFocus={(event) => {
-                // Typing replaces the suggestion: it is selected whole once the focus lands.
-                if (!observationSuggested) return;
-                const field = event.currentTarget;
-                requestAnimationFrame(() => {
-                  if (document.activeElement === field) field.select();
-                });
+              onFocus={() => {
+                // Typing replaces the suggestion whole: the focused field is the empty,
+                // typed one (a discrete event, so it is drawn before any keystroke lands);
+                // a blur with nothing typed brings the suggestion back and writes nothing.
+                if (observationSuggested) setTyping(true);
               }}
               onChange={(event) => {
                 setTyping(true);

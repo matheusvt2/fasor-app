@@ -1076,6 +1076,10 @@ test('@p0 5.9-E2E-004 a Não ensaiada sheet: readings, instrument and conclusion
   await dialog.getByRole('radio', { name: 'Impossibilidade de desligamento' }).click();
   await dialog.getByRole('button', { name: 'Marcar não ensaiado' }).click();
   await expect(page.locator('.not-tested-band')).toBeVisible();
+  // The cabine is not the sheet's data: its (incomplete) block stays editable here (Story 12.3).
+  await expect(page.locator('.se-block.is-readonly')).toHaveCount(0);
+  await expect(page.getByLabel('TEMPERATURA', { exact: true })).toBeEditable();
+  await expect(page.getByLabel('TIPO DE SE', { exact: true })).toBeEnabled();
   const readingAndConclusionOps = async () => (await outbox(page)).filter((row) => row.path.startsWith(`sheet/${blockId}/conclusion/`) || row.path.startsWith(`sheet/${blockId}/test/`)).length;
   const opsBefore = await readingAndConclusionOps();
 

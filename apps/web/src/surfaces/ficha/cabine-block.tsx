@@ -16,8 +16,6 @@ import { copy } from '../../copy/pt-br.ts';
 import { cabineEnvOp, cabineSeOp, sheetObservationsOp } from './ficha-ops.ts';
 import { firstFocusable, ReadOnlyField, SheetField } from './ficha-fields.tsx';
 import type { FichaApi } from './ficha-api.ts';
-import { useSheetReadOnly } from './sheet-read-only.tsx';
-
 type Cabine = Extract<LocationRow, { kind: 'cabine' }>;
 
 /*
@@ -28,8 +26,9 @@ type Cabine = Extract<LocationRow, { kind: 'cabine' }>;
  * line of its values with "Editar"; it is expanded, editable, on the cabine's first sheet
  * (where its empty fields count and carry the missing-field markers "Concluir ficha" jumps
  * to), on any sheet while a field is empty (editable, not counted there), and once
- * "Editar" is tapped or a field inside took the focus (for this visit of the sheet). On a sheet marked not tested it stays
- * read-only (`.section.is-readonly`, UX-DR49) and offers no "Editar". The altitude is the
+ * "Editar" is tapped or a field inside took the focus (for this visit of the sheet). The
+ * cabine is not the sheet's data: on a sheet marked not tested it stays editable and keeps
+ * "Editar", so a cabine whose sheets are all not tested can still be filled. The altitude is the
  * relatório setup's own, read-only everywhere. "Copiar da cabine anterior" writes the
  * previous cabine's temperature and humidity as plain ops with an undo.
  */
@@ -37,7 +36,6 @@ export function CabineBlock({ api, snapshot, cabine, first }: { api: FichaApi; s
   const t = copy.ficha.cabine;
   const seHeading = useId();
   const envHeading = useId();
-  const readOnly = useSheetReadOnly();
   const [editing, setEditing] = useState(false);
   const host = useRef<HTMLElement>(null);
   // "Editar" hands the focus to the first field once the fields are drawn.
@@ -55,10 +53,9 @@ export function CabineBlock({ api, snapshot, cabine, first }: { api: FichaApi; s
   const keepOpen = () => {
     if (!editing) setEditing(true);
   };
-  const editable = expanded && !readOnly;
   const missingKeys = new Set(first ? progress.missing.map((field) => `${field.group}/${field.key}`) : []);
-  const previous = editable ? previousCabineEnv(snapshot.locations, cabine.id) : null;
-  const sectionClass = (extra: string) => ['section', 'se-block', extra, editable ? null : 'is-readonly'].filter(Boolean).join(' ');
+  const previous = previousCabineEnv(snapshot.locations, cabine.id);
+  const sectionClass = (extra: string) => ['section', 'se-block', extra].filter(Boolean).join(' ');
   const altitude = snapshot.relatorio.setup.site_altitude_m;
   const altitudeField = definition.env.find((field) => field.key === 'altitude_m');
 
@@ -67,23 +64,20 @@ export function CabineBlock({ api, snapshot, cabine, first }: { api: FichaApi; s
       <div className="cabine-line" role="group" aria-label={t.lineLabel}>
         <span className="cl-name">{cabine.name}</span>
         <span className="cl-values">{cabineLineText(cabine)}</span>
-        {readOnly ? null : (
-          <TextButton
-            onPress={() => {
-              focusFirst.current = true;
-              setEditing(true);
-            }}
-          >
-            {t.editar}
-          </TextButton>
-        )}
+        <TextButton
+          onPress={() => {
+            focusFirst.current = true;
+            setEditing(true);
+          }}
+        >
+          {t.editar}
+        </TextButton>
       </div>
     );
   }
 
   const fieldOf = (group: 'se' | 'env', field: FieldDef) => {
     const value = (cabine[group] as Record<string, unknown>)[field.key] ?? null;
-    if (!editable) return <ReadOnlyField key={field.key} field={field} value={value} />;
     return (
       <SheetField
         key={field.key}
@@ -120,7 +114,7 @@ export function CabineBlock({ api, snapshot, cabine, first }: { api: FichaApi; s
           <h2 id={seHeading}>{t.seTitle}</h2>
           <DaCabine name={cabine.name} />
         </div>
-        {editable ? <p className="section-note">{t.seNote}</p> : null}
+        <p className="section-note">{t.seNote}</p>
         <div className="nameplate-grid">{definition.se.map((field) => fieldOf('se', field))}</div>
       </section>
       <section className={sectionClass('ficha-amb')} aria-labelledby={envHeading} onFocus={keepOpen}>

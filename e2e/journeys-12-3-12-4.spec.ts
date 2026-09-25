@@ -179,6 +179,14 @@ test('@p1 12.3-E2E-004 J1, J3 and J2 at 768 px: a new plate, the second secciona
   // --- J2: one NC on the next seccionadora, the sheet observation never typed ---------------
   await page.goto(`/relatorio/${built.relatorioId}/ficha/${ncSheet.blockId}`);
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  // Every key or input the sheet observation itself receives, whatever sent it.
+  const observation = page.getByLabel('Observações da ficha', { exact: true });
+  await observation.evaluate((element) => {
+    const w = window as unknown as { observationInputs: number };
+    w.observationInputs = 0;
+    for (const type of ['keydown', 'beforeinput', 'paste']) element.addEventListener(type, () => (w.observationInputs += 1));
+  });
+  const observationInputs = () => page.evaluate(() => (window as unknown as { observationInputs: number }).observationInputs);
   const j2 = tapCounter(page, EFFECT_MS);
   const copyChip = chips.getByRole('button', { name: /^Igual à / });
   await j2.tap('Igual à', copyChip, async () => {
@@ -194,18 +202,18 @@ test('@p1 12.3-E2E-004 J1, J3 and J2 at 768 px: a new plate, the second secciona
   await j2.tap('Marcar os restantes como Conforme', bulk(page, 'Marcar os restantes como Conforme'), () => expect(toast(page)).toContainText('marcados Conforme', { timeout: EFFECT_MS }));
   await expectSuggestedInstruments(page);
   await readings(page, j2);
-  const observation = page.getByLabel('Observações da ficha', { exact: true });
   await expect(observation).toHaveValue(/^Item \d+: conexão frouxa$/);
   await confirmPair(page, j2, 'Com restrições');
   await j2.tap('Confirmar the conclusion text (and the observation)', page.locator('.ficha-conc-text').getByRole('button', { name: 'Confirmar' }), async () => {
     await expect(page.locator('.field.suggestion-field').filter({ has: observation })).toHaveCount(0, { timeout: EFFECT_MS });
     await expect(observation).toHaveValue(/^Item \d+: conexão frouxa$/);
   });
+  const typedInObservation = await observationInputs();
   await conclude(page, j2, after(built.sheets, ncSheet).blockId);
-  report('J2 NC', j2, ` (${j2.of('ncChip').taps} chip, ${j2.of('observation').keys} characters typed in the sheet observation)`);
+  report('J2 NC', j2, ` (${j2.of('ncChip').taps} chip, ${typedInObservation} keys or inputs received by the sheet observation)`);
 
   // Targets: J3 without its per-unit fields at most 5 taps, no instrument picker; J2 one chip, nothing typed in the observation.
   expect(j3.taps - perUnit.taps).toBeLessThanOrEqual(5);
   expect(j2.of('ncChip').taps).toBe(1);
-  expect(j2.of('observation').keys).toBe(0);
+  expect(typedInObservation).toBe(0);
 });

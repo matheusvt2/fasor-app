@@ -67,7 +67,7 @@ test('@p0 4.4-E2E-001 section 9 at 1280: chevrons and Left/Right, coluna and equ
   expect(Math.round(box.width)).toBe(48);
   expect(Math.round(box.height)).toBe(56);
   // Story 12.3: an empty cabine's row also says what its data lacks, after the data line.
-  await expect(cabine(page, 'Cubículo Enel').locator('.s9-cab-meta')).toHaveText('— · faltam 6 campos');
+  await expect(cabine(page, 'Cubículo Enel').locator('.s9-cab-meta')).toHaveText('faltam 6 campos');
   await expect(cabine(page, 'Cubículo Enel').locator('.s9-cab-meta .cl-missing')).toHaveText('faltam 6 campos');
   await expect(cabine(page, '1° Subsolo').locator('.s9-cab-meta')).toHaveText('agrupar por tipo · faltam 6 campos');
   await expect(cabine(page, 'Cubículo Enel').locator('.s9-cab-row .progress-counter')).toHaveText('0 de 9');
@@ -477,7 +477,7 @@ test('@p0 5.2-E2E-004 (AC2 leftover) cabineMetaText updates live, with no reload
   test.setTimeout(120_000);
   await openRelatorio(page, 1280);
   await openSection9(page);
-  await expect(cabine(page, 'Cubículo Enel').locator('.s9-cab-meta')).toHaveText('— · faltam 6 campos');
+  await expect(cabine(page, 'Cubículo Enel').locator('.s9-cab-meta')).toHaveText('faltam 6 campos');
   await menuOf(page, 'Cubículo Enel').click();
   await page.getByRole('menuitem', { name: 'Abrir primeira ficha (dados da cabine)' }).click();
   await expect(page).toHaveURL(/\/ficha\//);
