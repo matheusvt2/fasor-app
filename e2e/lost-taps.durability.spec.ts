@@ -158,7 +158,10 @@ async function waitUntil(page: Page, since: number, delay: number): Promise<void
 }
 
 /** The nth seccionadora of the delay loop: the Subsolo ones, after the source Enel ones. */
-const target = (secc: SeededSheet[], i: number) => secc[2 + i]!;
+function target(secc: SeededSheet[], i: number): SeededSheet {
+  expect(secc.length, 'seccionadoras in the standard relatório').toBeGreaterThan(2 + i);
+  return secc[2 + i]!;
+}
 
 test('@p0 12.1-E2E-001 lost tap: "Marcar os restantes como Conforme" right after Enter in the last nameplate field applies once, with its toast', async ({ page, context }, info) => {
   test.setTimeout(150_000);
@@ -197,33 +200,36 @@ test('@p0 12.1-E2E-002 lost tap: "Repetir da ficha anterior do mesmo tipo" right
   }
 });
 
-test('@p0 12.1-E2E-003 lost tap: the instrument picker opens on the tap that blur-commits the last checklist observation', async ({ page, context }, info) => {
+test('@p0 12.1-E2E-003 lost tap: the instrument picker opens on a touch tap right after "Repetir" completed the checklist above it', async ({ page, context }, info) => {
   test.setTimeout(150_000);
-  const last = CHECKLIST.at(-1)!;
+  // The review's script (SEC-ENEL-2): "Repetir" completes the checklist, then the picker
+  // below it is tapped. A touch tap on every Chromium project, so the gap between pointerup
+  // and the tap's click (where the "Repetir" write re-renders the sheet) is in the gate.
   const { relatorioId, secc } = await setUp(
     page,
     context,
-    (scope, rows) =>
-      DELAYS.flatMap((_d, i) => {
-        const blockId = target(rows, i).blockId;
-        return [...seedPlate(scope, blockId), ...seedChecklist(scope, blockId, [last.key]), officeDraft(account, scope, `sheet/${blockId}/checklist/${last.key}/result`, 'NC')];
-      }),
+    (scope, rows) => [
+      ...seedChecklist(scope, rows[0]!.blockId),
+      officeDraft(account, scope, `block/${rows[0]!.blockId}/concluded_by`, { actor_id: account.userId, at: new Date().toISOString() }),
+      ...DELAYS.flatMap((_d, i) => seedPlate(scope, target(rows, i).blockId)),
+    ],
     true,
   );
   for (const [i, delay] of DELAYS.entries()) {
     const sheet = target(secc, i);
     await openSheet(page, relatorioId, sheet.blockId);
-    await expect(stepper(page).getByRole('button', { name: 'Verificações, 1 faltando' })).toBeVisible();
-    const observation = page.getByLabel(`Observação do item ${CHECKLIST.length}`, { exact: true });
-    await observation.click();
-    await page.keyboard.type(`folga ${delay}`);
+    const unset = await checklistMissing(page);
+    expect(unset).toBeGreaterThan(0);
+    const repeat = page.locator('#ficha-step-verificacoes .bulk-action-bar').getByRole('button', { name: 'Repetir da ficha anterior do mesmo tipo' });
+    await humanTap(page, repeat, info);
     const since = Date.now();
-    const trigger = page.locator('section[data-test-key="isolacao"]').getByRole('button', { name: /^Instrumento/ });
-    await humanTap(page, trigger, info, () => waitUntil(page, since, delay));
-    await expect(page.locator('section[data-test-key="isolacao"]').getByRole('radiogroup', { name: 'Instrumentos cadastrados' }), `picker at ${delay} ms`).toBeVisible({ timeout: EFFECT_MS });
+    const section = page.locator('section[data-test-key="isolacao"]');
+    const trigger = section.getByRole('button', { name: /^Instrumento/ });
+    await humanTap(page, trigger, info, () => waitUntil(page, since, delay), { touch: true });
+    await expect(section.getByRole('radiogroup', { name: 'Instrumentos cadastrados' }), `picker at ${delay} ms`).toBeVisible({ timeout: EFFECT_MS });
     await expect(trigger).toHaveAttribute('aria-expanded', 'true');
-    await expect.poll(async () => (await outbox(page)).find((row) => row.path === `sheet/${sheet.blockId}/checklist/${last.key}/observation`)?.value).toBe(`folga ${delay}`);
     await expect(stepper(page).getByRole('button', { name: 'Verificações, 0 faltando' })).toBeVisible();
+    await expect.poll(async () => (await outbox(page)).filter((row) => row.path.startsWith(`sheet/${sheet.blockId}/checklist/`)).length).toBe(unset);
   }
 });
 

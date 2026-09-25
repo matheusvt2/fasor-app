@@ -226,7 +226,10 @@ test('@p1 12.1-E2E-009 J1 and J3 at 768 px: every tap lands on the first try, co
     await expect(stepper(page).getByRole('button', { name: 'Verificações, 0 faltando' })).toBeVisible({ timeout: EFFECT_MS });
   });
   await pickInstruments(page, j3);
-  const after = built.sheets[built.sheets.findIndex((sheet) => sheet.blockId === secEnel2.blockId) + 1]!;
+  const at = built.sheets.findIndex((sheet) => sheet.blockId === secEnel2.blockId);
+  expect(at, 'SEC-ENEL-2 has a sheet after it').toBeGreaterThanOrEqual(0);
+  expect(built.sheets.length).toBeGreaterThan(at + 1);
+  const after = built.sheets[at + 1]!;
   await readingsAndConclude(page, j3, after.blockId);
   report('J3 SEC-ENEL-2', j3, '9 taps + 2 lost');
 

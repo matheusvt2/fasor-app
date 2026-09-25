@@ -41,7 +41,7 @@ export interface RelatorioEditor {
   /**
    * Story 12.1: one typed field's ops, committed on the same serial queue as `edit` (no
    * undo, no toast; rejects on a refused write, which `useFieldCommit` reports). It retires
-   * a "Desfazer" toast that was standing when it began (the toast's undo would otherwise put
+   * a "Desfazer" toast that was standing when it was called (the toast's undo would otherwise put
    * a value the engineer corrected back), never one raised by an edit queued before it.
    */
   commit: (drafts: OpDraft[]) => Promise<void>;

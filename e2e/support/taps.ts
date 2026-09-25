@@ -10,14 +10,16 @@ export const TAP_HOLD_MS = 80;
  * control between down and up (J-01, the lost tap) therefore shows up as a lost tap here,
  * exactly as it did on the tablet.
  *
- * On a touch project (`hasTouch`) running Chromium the contact is a real touch through
- * CDP `Input.dispatchTouchEvent`, so the browser runs its own tap gesture (pointer events,
- * then the compatibility mouse events and the click); elsewhere it is the mouse. The box is
+ * On a touch project (`hasTouch`) running Chromium, or with `touch` on any Chromium project,
+ * the contact is a real touch through CDP `Input.dispatchTouchEvent`, so the browser runs
+ * its own tap gesture (pointer events, then the compatibility mouse events and the click);
+ * elsewhere it is the mouse. The box is
  * read right before the pointer goes down, after `beforeDown` (a race's delay).
  */
-export async function humanTap(page: Page, target: Locator, info: TestInfo, beforeDown?: () => Promise<void>): Promise<void> {
-  const touch = info.project.use.hasTouch === true && page.context().browser()?.browserType().name() === 'chromium';
-  const cdp = touch ? await page.context().newCDPSession(page) : null;
+export async function humanTap(page: Page, target: Locator, info: TestInfo, beforeDown?: () => Promise<void>, options: { touch?: boolean } = {}): Promise<void> {
+  const chromium = page.context().browser()?.browserType().name() === 'chromium';
+  const hasTouch = info.project.use.hasTouch === true;
+  const touch = chromium && (hasTouch || options.touch === true);
   // On screen as a person sees it before tapping: a target off screen or covered (by the
   // Sticky action bar) is scrolled to the middle; one already in view is not scrolled (a
   // scroll would close an open list, as it does on the tablet). Its centre must hit it when
@@ -53,8 +55,13 @@ export async function humanTap(page: Page, target: Locator, info: TestInfo, befo
   if (box === null) throw new Error('humanTap: the target has no box on screen');
   const x = box.x + box.width / 2;
   const y = box.y + box.height / 2;
-  if (cdp !== null) {
+  if (touch) {
+    // Opened only now, after every check that can throw, and always detached.
+    const cdp = await page.context().newCDPSession(page);
     try {
+      // A desktop context has no touch: emulate it for this tap, so Chromium runs its tap
+      // gesture (the click comes 100 ms or more after pointerup, its own task).
+      if (!hasTouch) await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
       await page.waitForTimeout(TAP_HOLD_MS);
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });

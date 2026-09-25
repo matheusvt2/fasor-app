@@ -55,6 +55,26 @@ describe('press-hold store', () => {
     expect(isPointerHeld()).toBe(false);
   });
 
+  it('a slow pointer up keeps the hold past the cap until its click (the up timer bounds it)', () => {
+    pointer('pointerdown');
+    vi.advanceTimersByTime(HOLD_CAP_MS - 100);
+    pointer('pointerup');
+    vi.advanceTimersByTime(150);
+    expect(isPointerHeld()).toBe(true);
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    vi.advanceTimersByTime(0);
+    expect(isPointerHeld()).toBe(false);
+  });
+
+  it('a click release still pending never ends a newer pointer down', () => {
+    pointer('pointerdown');
+    pointer('pointerup');
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    pointer('pointerdown');
+    vi.advanceTimersByTime(0);
+    expect(isPointerHeld()).toBe(true);
+  });
+
   it('ignores a secondary button and a non-primary pointer', () => {
     pointer('pointerdown', { button: 2 });
     expect(isPointerHeld()).toBe(false);

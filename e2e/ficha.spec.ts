@@ -834,7 +834,7 @@ const seccionadoraPlate = (relatorioId: string, blockId: string): OpDraft[] =>
   );
 const stepHost = (page: Page, step: string) => page.locator(`#ficha-step-${step}`);
 
-test('@p0 12.1-E2E-007 D-2: the NC chip completing the checklist keeps it open; a pointer focus below leaves it open; the stepper collapses it; an out-of-limit Ensaios step never collapses', async ({ page }) => {
+test('@p0 12.1-E2E-007 D-2: the NC chip completing the checklist keeps it open; a pointer focus below leaves it open; the stepper and Tab collapse the section left; an out-of-limit Ensaios step never collapses', async ({ page }) => {
   test.setTimeout(150_000);
   const { relatorioId } = await openRelatorio(page, 1280);
   await openEnel(page);
@@ -895,9 +895,22 @@ test('@p0 12.1-E2E-007 D-2: the NC chip completing the checklist keeps it open; 
   await expect(stepHost(page, 'verificacoes')).toHaveClass(/is-collapsed/);
   await expect(checklistRow(page, 1)).toBeHidden();
   await expect(page.getByRole('heading', { name: 'Verificações gerais' })).toBeVisible();
+
+  // The keyboard half: from the complete plate, Tab carries the focus into the next section,
+  // and the plate it left collapses.
+  await stepper(page).getByRole('button', { name: /^Placa,/ }).click();
+  await expect(stepHost(page, 'placa')).toBeFocused();
+  // DATA DE FABRICAÇÃO is the plate's last field; its year segment the last stop in it.
+  const lastPlate = field(page, 'data_de_fabricacao').getByRole('spinbutton', { name: /^ano/ });
+  await lastPlate.focus();
+  await expect(lastPlate).toBeFocused();
+  await expect(stepHost(page, 'placa')).not.toHaveClass(/is-collapsed/);
+  await page.keyboard.press('Tab');
+  await expect.poll(() => page.evaluate(() => document.activeElement?.closest('[data-step]')?.getAttribute('data-step') ?? null)).not.toBe('placa');
+  await expect(stepHost(page, 'placa')).toHaveClass(/is-collapsed/);
 });
 
-test('@p1 12.1-E2E-008 J-15: once the checklist is complete the Sticky action bar drops its bulk mirror; the list head keeps the disabled action with its reason', async ({ page }) => {
+test('@p1 12.1-E2E-008 J-15: once the checklist is complete the Sticky action bar drops its bulk mirror (its focus goes to the list head); the list head keeps the disabled action with its reason', async ({ page }) => {
   test.setTimeout(120_000);
   const { relatorioId } = await openRelatorio(page, 1280);
   await openEnel(page);
@@ -911,13 +924,33 @@ test('@p1 12.1-E2E-008 J-15: once the checklist is complete the Sticky action ba
   const mirror = page.locator('.sticky-action-bar .bulk-action-bar');
   await expect(mirror.getByRole('button', { name: 'Marcar os restantes como Conforme' })).toBeVisible();
 
-  await checklistRow(page, items.length).getByRole('radio', { name: 'Conforme', exact: true }).click();
+  // The mirror by keyboard marks the last item and leaves; the focus lands on the list head's action.
+  await mirror.getByRole('button', { name: 'Marcar os restantes como Conforme' }).focus();
+  await page.keyboard.press('Enter');
   await expect(stepper(page).getByRole('button', { name: 'Verificações, 0 faltando' })).toBeVisible();
   await expect(mirror).toHaveCount(0);
+  await expect(page.locator('#ficha-step-verificacoes .bulk-action-bar').getByRole('button', { name: 'Marcar os restantes como Conforme' })).toBeFocused();
   await expect(page.locator('.sticky-action-bar')).not.toContainText('Todos os itens já estão marcados');
   const head = page.locator('#ficha-step-verificacoes .bulk-action-bar');
   await expect(head.getByRole('button', { name: 'Marcar os restantes como Conforme' })).toHaveAttribute('aria-disabled', 'true');
   await expect(head.getByText('Todos os itens já estão marcados')).toBeVisible();
+});
+
+test('@p1 12.1-E2E-010 a typed value committed after a bulk action retires its standing "Desfazer" toast', async ({ page }) => {
+  test.setTimeout(120_000);
+  await openRelatorio(page, 1280);
+  await openEnel(page);
+  const { blockId } = await openSheet(page, rowOfType(page, 'Chave seccionadora'));
+  await page.locator('#ficha-step-verificacoes .bulk-action-bar').getByRole('button', { name: 'Marcar os restantes como Conforme' }).click();
+  await expect(toast(page)).toContainText('marcados Conforme');
+  await expect(toast(page).getByRole('button', { name: 'Desfazer' })).toBeVisible();
+
+  // Typing over what the toast would undo, then the blur commit: the toast goes.
+  const observations = page.getByLabel('Observações da ficha');
+  await observations.fill('Nota digitada depois do lote.');
+  await observations.press('Tab');
+  await expect.poll(async () => (await outbox(page)).find((row) => row.path === `sheet/${blockId}/observations`)?.value).toBe('Nota digitada depois do lote.');
+  await expect(toast(page)).toHaveCount(0);
 });
 
 test('@p0 5.3-E2E-002 carry-over: "3.3", a pause, "00" in a nameplate number reads 3.300 while focused, after the blur and after a reload', async ({ page }) => {

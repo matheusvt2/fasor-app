@@ -46,8 +46,8 @@ export interface UndoableEdits {
    * Story 12.1: a typed field's commit on the same serial queue (no undo, no toast of its
    * own: `useFieldCommit` raises the refused-write toast and keeps the value, so a rejection
    * is only rethrown). A later edit therefore reads the typed value, and the commit retires
-   * only an undo toast that was already standing when it began, never one an edit queued
-   * before it raised meanwhile (the bulk action's fresh "Desfazer").
+   * only an undo toast that was already standing when it was called, never one an edit
+   * queued before it raised meanwhile (the bulk action's fresh "Desfazer").
    */
   commit: (run: () => Promise<void>) => Promise<void>;
   /** Shows `text` with the undo action for `batchId` (nothing for a null batch). */
@@ -114,12 +114,15 @@ export function useUndoableEdits(): UndoableEdits {
   );
 
   const commit = useCallback(
-    (run: () => Promise<void>): Promise<void> =>
-      enqueue(async () => {
-        const standing = undoToast.current;
+    (run: () => Promise<void>): Promise<void> => {
+      // The toast standing when the value was committed (blur, Enter), read now: a toast an
+      // earlier queued edit raises after its write is that edit's own, never this one's to retire.
+      const standing = undoToast.current;
+      return enqueue(async () => {
         await run();
         if (standing !== null && undoToast.current === standing) retire();
-      }),
+      });
+    },
     [enqueue, retire],
   );
 

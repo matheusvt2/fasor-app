@@ -2,7 +2,7 @@
 title: 'Story 12.1: No tap is ever lost, and a section never collapses under the finger'
 type: 'bugfix'
 created: '2026-09-24'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '144a55892a5b86c1ecb7b03ed91589bec03d6910'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -12,7 +12,24 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-12-context.md'
 warnings: ['batched', 'oversized']
 batched_reason: 'Story 12.1 runs as its own batch (A) beside Story 12.2; one spec keeps the sheet-surface changes of J-01, J-04 and J-15 together (shared surface, token economy).'
-deferred: []
+deferred:
+  - summary: >-
+      The gate does not fail when useHeldWhilePressed is removed from Ficha.
+    evidence: |-
+      With the hold removed, 12.1-E2E-003 (touch taps) still passes on durability-desktop-chrome; only the Android
+      picker blur-commit variant of the diagnosis needed the hold, and it runs in test:e2e:matrix only. A touch
+      blur-commit race case in the gate, or a component test of Ficha, would settle it.
+    location: >-
+      apps/web/src/surfaces/ficha/ficha-surface.tsx (Ficha, useHeldWhilePressed)
+    severity: medium
+  - summary: >-
+      The primary concluding from a stale "Próxima ficha" render has no deterministic test.
+    evidence: |-
+      12.1-E2E-004 taps after the render has most likely caught up, so the 'next' branch of conclude() is not
+      exercised; reverting to `concludable ? conclude : goNext` would likely pass every test.
+    location: >-
+      apps/web/src/surfaces/ficha/ficha-surface.tsx (primary)
+    severity: low
 ---
 
 <intent-contract>
@@ -85,6 +102,31 @@ deferred: []
 
 ## Review Triage Log
 
+### 2026-09-25 — Review pass
+
+Layers run: Edge Case Hunter, Verification Gap Reviewer. Blind Hunter and Intent Alignment skipped (token economy; the integrated Epic 12 review covers them). One orchestrator finding added from its own red re-run.
+
+- verdicts: 18 findings — high 0, medium 5, low 11, false 1, maybe-false 0 (plus 1 deferred)
+- findings:
+  - `[low]` `[patch]` press-hold cap timer can fire between a slow pointerup and its touch click — clear `capTimer` on pointerup.
+  - `[low]` `[patch]` untracked `setTimeout(release, 0)` on click can end a newer hold — tracked and cleared in `clearTimers`.
+  - `[low]` `[reject]` `api.commit` calls `saved()` when `db === null` — the sheet renders only inside a session with a database; unreachable in everyday use.
+  - `[low]` `[reject]` "Concluir ficha" gives no feedback when the fresh block is concluded/not tested/removed — same null-batch silence as before the change (pre-existing).
+  - `[low]` `[reject]` double tap on "Próxima ficha" runs `goNext` twice — pre-existing (the old primary called `goNext` directly too).
+  - `[medium]` `[patch]` keyboard activation of the Sticky mirror that marks the last item unmounts the focused button — focus moves to the list-head bulk action.
+  - `[medium]` `[patch]` `standing` toast read when the queued commit job starts, not when `commit()` is called — captured at call time (grouped with the claim row below).
+  - `[low]` `[patch]` CDP session leak in `e2e/support/taps.ts` on a failed check — detached in `finally`.
+  - `[low]` `[patch]` `e2e/journey-taps.spec.ts:229` out-of-range sheet index — length asserted first.
+  - `[low]` `[patch]` `e2e/lost-taps.durability.spec.ts:172` too few seccionadora sheets crash — length asserted first.
+  - `[false]` `[reject]` claim: release is not "one task after pointerup" as the spec says — the Spec Change Log (2026-09-25, first entry) records the amended release rule.
+  - `[low]` `[patch]` claim: "retires only a toast raised before it began" holds only with a two-microtask caller chain — same root cause as the `standing` row.
+  - `[low]` `[reject]` a section left by a pointer focus is never collapsed later — matches the AC's literal reading ("collapses only when the user taps another step or the readings run moves focus"); listed as an open question in the PR.
+  - `[medium]` `[patch]` gate does not fail if `useHeldWhilePressed` is removed (desktop mouse taps only) — E2E-003 now taps by touch on every Chromium project, but with the hold removed it still passes on durability-desktop-chrome (the D-2 rule alone covers that path); the remaining gap is known open and deferred (one review loop only).
+  - `[medium]` `[patch]` orchestrator re-run: E2E-003 passes on the baseline code in all three durability projects (not proven red) — reworked to the review's picker script and proven red then green.
+  - `[medium]` `[patch]` keyboard half of D-2 untested — 12.1-E2E-007 extended with a keyboard move into the next section.
+  - `[low]` `[patch]` typed commit retiring a standing "Desfazer" untested — @p1 test added.
+  - `[low]` `[defer]` the primary concluding from a stale "Próxima ficha" render has no deterministic test — deferred (frontmatter `deferred`).
+
 ## Design Notes
 
 Holding the snapshot only while a pointer is down (at most ~800 ms) is invisible to the engineer: press handlers write through `api.edit`, which reads fresh Dexie rows, so correctness never depends on the held render. Keyboard focus counts as "leaving" because the readings' Enter run and Tab are the keyboard way to move on (source-deltas row 48: "next section entered by Enter").
@@ -97,3 +139,13 @@ Narrowings and open questions go in the PR body: the durability matrix is run fo
 - `docker compose --profile tools run --rm tools pnpm test:unit > /tmp/s121-unit.log 2>&1; echo EXIT=$?; tail -30 /tmp/s121-unit.log` -- expected: green.
 - `docker compose --profile tools run --rm tools pnpm exec playwright test e2e/lost-taps.durability.spec.ts --project=durability-desktop-chrome --project=durability-android-chrome --project=durability-webkit > /tmp/s121-race.log 2>&1; echo EXIT=$?; tail -30 /tmp/s121-race.log` -- expected: red before the fix, green after.
 - `docker compose --profile tools run --rm tools pnpm exec playwright test e2e/ficha.spec.ts e2e/journey-taps.spec.ts --project=desktop-chrome > /tmp/s121-ficha.log 2>&1; echo EXIT=$?; tail -30 /tmp/s121-ficha.log` -- expected: green.
+
+## Auto Run Result
+
+Status: done
+
+- Summary: J-01 fixed in the shared press path (`apps/web/src/input/press-hold.ts`, `useHeldWhilePressed`, plus typed commits joining the one serial write queue in `state/use-undoable-edits.ts` / `relatorio-editor.ts`); D-2 collapse rule (pointer focus never collapses the section left; stepper and keyboard do; kernel `stepMayCollapse`, `steps[].outOfLimit`); "Concluir ficha" decides on fresh rows; J-15 mirror leaves the Sticky bar when nothing is unset.
+- Files: `apps/web/src/input/press-hold.ts` (+test) new guard; `state/use-undoable-edits.ts` queued `commit`; `surfaces/relatorio/relatorio-editor.ts` `commit`; `surfaces/ficha/ficha-surface.tsx` held snapshot, D-2, conclude, mirror; `packages/domain/src/relatorio/sheet-progress.ts` (+test) outOfLimit and stepMayCollapse; `e2e/lost-taps.durability.spec.ts`, `e2e/journey-taps.spec.ts`, `e2e/support/taps.ts` new; `e2e/ficha.spec.ts` 12.1-E2E-007/008/010; `e2e/support/relatorio-seed.ts` helper.
+- Review: 12 patches applied, 2 deferred, 5 rejected (reasons in the triage log). Follow-up review recommended: false (no high patched; the medium patches were test additions and small guards verified by their tests).
+- Verification: race file red on baseline (desktop 4/6 failed; E2E-003 reworked, 3/3 failed on baseline across projects; E2E-004 red on WebKit), 18/18 green on the three durability projects after the fix; ficha 12.1 tests and journey spec green; J1 24 taps 0 lost, J3 9 taps 0 lost.
+- Residual risks: the two deferred items; a chip for an item's own committed observation can appear just before a tap (outside the hold).

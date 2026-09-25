@@ -41,6 +41,7 @@ let down = false;
 let installed = false;
 let capTimer: ReturnType<typeof setTimeout> | null = null;
 let upTimer: ReturnType<typeof setTimeout> | null = null;
+let clickTimer: ReturnType<typeof setTimeout> | null = null;
 /** The last kind of user input: a pointer going down or a key. */
 let modality: 'pointer' | 'keyboard' | null = null;
 const listeners = new Set<Listener>();
@@ -48,8 +49,10 @@ const listeners = new Set<Listener>();
 function clearTimers(): void {
   if (capTimer !== null) clearTimeout(capTimer);
   if (upTimer !== null) clearTimeout(upTimer);
+  if (clickTimer !== null) clearTimeout(clickTimer);
   capTimer = null;
   upTimer = null;
+  clickTimer = null;
 }
 
 function release(): void {
@@ -69,13 +72,18 @@ function onPointerDown(event: PointerEvent): void {
 
 function onPointerUp(event: PointerEvent): void {
   if (!event.isPrimary || !down) return;
+  // From here the up timer bounds the hold: a cap left running could fire between a slow
+  // pointerup and its touch click and release before the click.
+  if (capTimer !== null) clearTimeout(capTimer);
+  capTimer = null;
   if (upTimer !== null) clearTimeout(upTimer);
   upTimer = setTimeout(release, RELEASE_AFTER_UP_MS);
 }
 
 function onClick(): void {
   // One task after the click, so the click's own handlers still run on the held render.
-  if (down) setTimeout(release, 0);
+  // Tracked, so a newer pointer down cancels it instead of being released by it.
+  if (down && clickTimer === null) clickTimer = setTimeout(release, 0);
 }
 
 function onKeyDown(): void {

@@ -32,7 +32,7 @@ import {
   type UserRow,
   type WordRow,
 } from '@app/domain';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { type OverflowMenuAction } from '../../components/index.ts';
 import { now } from '../../clock.ts';
@@ -208,7 +208,7 @@ function FichaBody({
       author: editor.author,
       // Story 12.1: a typed value joins the relatório's one edit queue, so a tap's edit
       // queued after its blur or Enter commit reads it, and the commit retires only a
-      // "Desfazer" toast standing before it began (never the tap's own fresh toast).
+      // "Desfazer" toast standing when it was called (never the tap's own fresh toast).
       commit: (drafts: OpDraft[]) => editor.commit(drafts).then(saved),
       edit: (build: Build) =>
         editor.edit(build).then((batch) => {
@@ -280,6 +280,25 @@ function FichaBody({
     observer.observe(element);
     return () => observer.disconnect();
   }, [blockId]);
+  // J-15: the mirror only while something is left to mark. When it leaves holding the focus
+  // (its own keyboard press marked the last items), the focus goes to the list head's action,
+  // still there with its reason, never to the page body.
+  const showMirror = checklistOnScreen && definition.checklist !== null && block.not_tested === null && bulk.unset > 0;
+  const mirrorFocused = useRef(false);
+  useEffect(() => {
+    const onFocusIn = (event: FocusEvent) => {
+      mirrorFocused.current = event.target instanceof Element && event.target.closest('.sticky-action-bar .bulk-action-bar') !== null;
+    };
+    document.addEventListener('focusin', onFocusIn);
+    return () => document.removeEventListener('focusin', onFocusIn);
+  }, []);
+  useLayoutEffect(() => {
+    if (showMirror || !mirrorFocused.current) return;
+    mirrorFocused.current = false;
+    const active = document.activeElement;
+    if (active !== null && active !== document.body) return;
+    document.querySelector<HTMLElement>('#ficha-step-verificacoes .bulk-action-bar button')?.focus({ preventScroll: true });
+  }, [showMirror]);
 
   // --- "Concluir ficha" and the way on ------------------------------------------------------
   const goNext = () => {
@@ -525,7 +544,7 @@ function FichaBody({
             stepper={<SectionStepper progress={progress} current={current} onGo={(step) => goTo(step, false)} />}
             // J-15: with nothing left to mark the mirror goes (no disabled button in the bar);
             // the list head keeps its disabled action with the reason.
-            secondary={checklistOnScreen && definition.checklist !== null && block.not_tested === null && bulk.unset > 0 ? <BulkActionBar bulk={bulk} compact /> : null}
+            secondary={showMirror ? <BulkActionBar bulk={bulk} compact /> : null}
             primaryLabel={primaryLabel}
             onPrimary={primary}
             primaryId={PRIMARY_ID}
