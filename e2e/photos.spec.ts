@@ -202,7 +202,7 @@ test('@p1 6.2-E2E-002 under 500 MB free the low-storage banner shows on every su
   );
 });
 
-test('@p1 6.2-E2E-003 the browser refuses to store a shot while online: it goes straight to the server and is not lost', async ({ page }) => {
+test('@p1 6.2-E2E-004 the browser refuses to store a shot while online: it goes straight to the server and is not lost', async ({ page }) => {
   test.setTimeout(120_000);
   // The next `put` into the device's `files` store throws the browser's quota refusal, once.
   await page.addInitScript(() => {

@@ -141,7 +141,7 @@ Skipped layers: Blind Hunter and Intent Alignment (token economy; the integrated
   - `[low]` `[patch]` Edge: EXIF sub-IFD pointer of TIFF type 13 is ignored — read as a 4-byte offset; unit case added.
   - `[low]` `[reject]` Edge: an impossible EXIF date may roll over — rare; the fix adds a round-trip branch.
   - `[medium]` `[patch]` Verification: the eviction pass inside the sync cycle is never tested — engine.test.ts case: acked original evicted under a low readStorage, unacked original and thumbs kept.
-  - `[medium]` `[patch]` Verification: the FR-57 browser-refusal path is tested only with fakes — @p1 6.2-E2E-003 makes the files store's put throw QuotaExceededError once online and checks the server holds the create and uploaded_at.
+  - `[medium]` `[patch]` Verification: the FR-57 browser-refusal path is tested only with fakes — @p1 6.2-E2E-004 makes the files store's put throw QuotaExceededError once online and checks the server holds the create and uploaded_at.
   - `[medium]` `[defer]` Verification: error-pill retry and storage banner wiring only reached by @p1 specs outside pnpm verify — spec tags them @p1; recorded in `deferred`.
 
 ## Design Notes
