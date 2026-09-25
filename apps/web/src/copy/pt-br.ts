@@ -136,6 +136,9 @@ export const copy = {
     // authored: WCAG 2.5.3 wants the accessible name to start with the visible label,
     // which is the "+N" the chip prints.
     moreLabel: (count: number) => `+${count}, outras condições — abrir status de sincronização`,
+    // `key-sync-status.html` low-storage banner's action, verbatim; its sentence is the
+    // kernel's `storageLowBannerText`.
+    storageLowAction: 'Sincronizar',
   },
   // Sync status from `mockups/prototype/screens/85-sync.html` and `key-sync-status.html`.
   // The badge words and the pending summary come from the kernel (`syncBadgeLabel`,
@@ -579,6 +582,39 @@ export const copy = {
   // Stories 5.1-5.4). Every count, state, attribution line, missing count and copied-field
   // sentence is the kernel's (`sheetProgress` and its texts, `nameplate-copy.ts`,
   // `ficha.ts`); field and item labels are the seed's own (they print).
+  // Stories 6.1 and 6.2: the camera and the photo tiles (`70-fotos.html`, `60-ficha.html`,
+  // `key-photos.html`). Counts, captions, pill words and the storage sentence are the
+  // kernel's (`burstCountText`, `contextCaption`, `uploadPillText`, `storageLowBannerText`).
+  photos: {
+    // `70-fotos.html` Sticky action bar `.camera-capture-btn`: the mock's aria-label adds
+    // "— abre a câmera diretamente"; the spec and the epic AC name it "Tirar foto".
+    takePhoto: 'Tirar foto',
+    camWord: 'Foto',
+    // `70-fotos.html` camera view, verbatim.
+    cameraLabel: 'Câmera',
+    closeCamera: 'Fechar a câmera sem concluir',
+    finderLabel: 'Visor da câmera',
+    shutter: 'Disparar',
+    done: 'Concluir fotos',
+    burstIdle: 'Rajada: toque no disparador quantas vezes precisar; nada pergunta entre as fotos',
+    // authored: `.cam-hint` for a sheet (the mock's hint describes the gallery's context).
+    hint: 'Cada disparo é salvo neste aparelho com a legenda do contexto.',
+    // `70-fotos.html` "Concluir fotos" toast, verbatim.
+    doneToast: 'Fotos salvas neste aparelho — entram na fila de envio',
+    // authored: EXPERIENCE.md › camera permission denied: the reason and the OS path under the button.
+    denied: 'A câmera está bloqueada para este site. Para liberar: Configurações do navegador › Permissões do site › Câmera.',
+    // authored: FR-57, the browser refused to store a shot while offline; it is kept in memory.
+    refusalToast: 'Este aparelho recusou guardar a foto. Ela fica na memória e será tentada de novo no próximo disparo.',
+    // authored: a shot that could not be read or saved at all.
+    failedToast: 'Não foi possível salvar a foto. Tente de novo.',
+    // `60-ficha.html` NC row, verbatim.
+    addPhoto: 'Adicionar foto',
+    addPhotoReason: 'Recomendada para não conforme',
+    // authored: the NC row's photo list and each tile's name (`key-photos.html` "Foto 1, abrir"
+    // opens the viewer, which is Story 6.3's; here the tile is a picture, not a button).
+    rowPhotosLabel: (n: number) => `Fotos do item ${n}`,
+    tileLabel: (n: number) => `Foto ${n}`,
+  },
   ficha: {
     // authored: an address naming no equipment sheet of this relatório on this device.
     notFound: 'Ficha não encontrada neste relatório.',

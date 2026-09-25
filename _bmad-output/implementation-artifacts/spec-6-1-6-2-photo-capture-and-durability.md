@@ -2,7 +2,8 @@
 title: 'Stories 6.1 and 6.2: burst photos captioned from context, and no photo is ever lost'
 type: 'feature'
 created: '2026-09-25'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: '3f2893b1a7c6307b808e4345f3131b6d100fdb8b'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: opus

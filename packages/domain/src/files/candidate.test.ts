@@ -48,6 +48,20 @@ describe('2.2-UNIT-002 objectKey', () => {
     // A variant key is always the original key plus a suffix: no key is ever overwritten.
     expect(objectKey(CID, 'logo', FID, 'thumb').startsWith(objectKey(CID, 'logo', FID))).toBe(true);
   });
+
+  it('6.2-UNIT keys a photo under its relatório, variants by suffix', () => {
+    const RID = '019966b0-0000-7000-8000-00000000004d';
+    expect(objectKey(CID, 'photo', FID, 'original', RID)).toBe(`company/${CID}/relatorio/${RID}/photo/${FID}`);
+    expect(objectKey(CID, 'photo', FID, 'thumb', RID)).toBe(`company/${CID}/relatorio/${RID}/photo/${FID}/thumb`);
+    expect(objectKey(CID, 'photo', FID, 'print', RID)).toBe(`company/${CID}/relatorio/${RID}/photo/${FID}/print`);
+    // Only a photo moves: another kind ignores the relatório.
+    expect(objectKey(CID, 'cover_photo', FID, 'original', RID)).toBe(`company/${CID}/cover_photo/${FID}`);
+  });
+
+  it('6.2-UNIT accepts a photo as JPEG only', () => {
+    expect(checkFileCandidate({ kind: 'photo', mime: 'image/jpeg', size: 10 })).toEqual({ ok: true });
+    expect(checkFileCandidate({ kind: 'photo', mime: 'image/png', size: 10 })).toMatchObject({ ok: false, reason: 'mime' });
+  });
 });
 
 describe('2.2-UNIT-003 tile lines', () => {

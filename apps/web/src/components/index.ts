@@ -56,3 +56,6 @@ export type { DateFieldProps } from './date-field.tsx';
 
 export { TriStateControl } from './tri-state-control.tsx';
 export type { TriStateControlProps, TriStateValue } from './tri-state-control.tsx';
+
+export { PhotoRow, UploadPill } from './photo-row.tsx';
+export type { PhotoRowProps, UploadPillProps } from './photo-row.tsx';

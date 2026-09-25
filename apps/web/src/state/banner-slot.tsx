@@ -1,12 +1,15 @@
+import { storageLow, storageLowBannerText, type StorageReading } from '@app/domain';
 import { useId, type ReactNode } from 'react';
 import { copy } from '../copy/pt-br.ts';
 
 /**
  * One banner slot for the whole app. Priority is the spine's Consistency Conventions
- * list, not EXPERIENCE.md's (which still carries the removed install banner):
+ * list, not EXPERIENCE.md's (which still carries the removed install banner), with Story
+ * 6.2's low-storage warning right after re-auth (spec open question, the conservative
+ * rank: a device about to refuse a photo outranks everything but a lost session):
  *
- *   conflict > re-auth > draft found > suggestions ready > relatório exported > offline
- *   > unsynced > 5 days
+ *   conflict > re-auth > storage low > draft found > suggestions ready > relatório
+ *   exported > offline > unsynced > 5 days
  *
  * Only `re-auth` and `offline` have a publisher today; the other five kinds are
  * declared here and published by the story that owns them — `draft-found` by none today
@@ -18,6 +21,7 @@ import { copy } from '../copy/pt-br.ts';
 export const BANNER_PRIORITY = [
   'conflict',
   're-auth',
+  'storage-low',
   'draft-found',
   'suggestions-ready',
   'relatorio-exported',
@@ -61,6 +65,10 @@ export interface BannerConditions {
   reAuthAction?: ReactNode;
   /** AD-8: the outbox has held work for five days or more (`unsyncedForDays`). */
   unsyncedForDays?: boolean;
+  /** Story 6.2 (FR-57): the last `navigator.storage.estimate()` reading, or null when unknown. */
+  storage?: StorageReading | null;
+  /** "Sincronizar" beside the low-storage sentence: the shell owns the sync, the candidate the wording. */
+  storageAction?: ReactNode;
   /** Everything a surface contributes on its own (none of them exist yet). */
   extra?: readonly Banner[];
 }
@@ -82,6 +90,18 @@ export function bannerCandidates(conditions: BannerConditions): Banner[] {
       role: 'alert',
       text: copy.banner.reAuthText,
       actions: conditions.reAuthAction,
+    });
+  }
+  // Story 6.2 (FR-57, AD-8): under 500 MB free (provisional) the device warns before a
+  // capture can fail; the capture itself is still attempted.
+  const storage = conditions.storage ?? null;
+  if (storage !== null && storageLow(storage)) {
+    candidates.push({
+      kind: 'storage-low',
+      variant: 'warning',
+      role: 'region',
+      text: storageLowBannerText(storage),
+      actions: conditions.storageAction,
     });
   }
   // FR-61: a waiting draft is offered by the persistent toast (`key-sheet-states.html`)

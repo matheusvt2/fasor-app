@@ -16,8 +16,11 @@ import {
 import { useId, useRef, useState } from 'react';
 import { Chip, OverflowMenu, TextButton, TriStateControl, type OverflowMenuAction, type TriStateValue } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
+import type { PhotoTile } from '../../db/photo-store.ts';
 import type { FichaApi } from './ficha-api.ts';
 import { useTypedText } from './ficha-fields.tsx';
+import { RowPhotoAction, RowPhotoList } from './photo-openers.tsx';
+import type { CaptureTarget } from './use-photo-capture.ts';
 import { checklistObservationOp, checklistResultOp } from './ficha-ops.ts';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
 
@@ -28,9 +31,21 @@ import { useSheetReadOnly } from './sheet-read-only.tsx';
  * Overflow ("Limpar", "Observação"). NA defaults show NA with no cell of their own; nothing
  * is ever pre-marked C. An NC row expands to its chips (the seed's phrases plus the five
  * most recent observations typed for the item in this relatório) and the required
- * Observation field. The row's "Adicionar foto" / "Criar ponto de atenção" slot is Epic
- * 6's, and the Dictation button has no engine: both absent, never disabled.
+ * Observation field. Story 6.1 adds the NC row's "Adicionar foto" (the burst camera, the
+ * caption "verificação de ⟨item⟩") and the item's Photo tile rows under the row's buttons;
+ * "Criar ponto de atenção" is Story 6.6's, and the Dictation button has no engine: both
+ * absent, never disabled.
  */
+
+/** Story 6.1: what the checklist rows need to shoot and show their photos. */
+export interface ChecklistPhotos {
+  /** Every photo of this sheet (the rows pick theirs by `item_key`). */
+  tiles: readonly PhotoTile[];
+  /** The capture target of an item's camera: the sheet, the item and its context caption. */
+  target: (itemKey: string) => CaptureTarget;
+  /** The error pill's retry (clears the error, runs "Sincronizar agora"). */
+  retry: (fileId: string) => void;
+}
 
 /** sessionStorage: the block whose checklist opened the legend in this session. */
 const LEGEND_KEY = 'ficha:legend-first';
@@ -133,6 +148,7 @@ export function ChecklistSection({
   block,
   definition,
   bulk,
+  photos,
   sectionRef,
 }: {
   api: FichaApi;
@@ -140,6 +156,7 @@ export function ChecklistSection({
   block: BlockRow;
   definition: BlockDefinition;
   bulk: ChecklistBulk;
+  photos?: ChecklistPhotos;
   sectionRef?: (element: HTMLElement | null) => void;
 }) {
   const t = copy.ficha.checklist;
@@ -174,6 +191,7 @@ export function ChecklistSection({
             number={index + 1}
             recents={recentChecklistObservations(snapshot, item.key, item.nc_phrases)}
             readOnly={readOnly}
+            photos={photos}
           />
         ))}
       </ul>
@@ -188,6 +206,7 @@ function ChecklistRow({
   number,
   recents,
   readOnly,
+  photos,
 }: {
   api: FichaApi;
   block: BlockRow;
@@ -195,6 +214,7 @@ function ChecklistRow({
   number: number;
   recents: readonly string[];
   readOnly: boolean;
+  photos?: ChecklistPhotos;
 }) {
   const t = copy.ficha.checklist;
   const result = checklistResultOf(block, item.key);
@@ -292,8 +312,12 @@ function ChecklistRow({
               </span>
             ) : null}
           </div>
+          {nc && !readOnly && photos !== undefined ? <RowPhotoAction relatorioId={api.relatorioId} target={() => photos.target(item.key)} /> : null}
         </div>
       ) : null}
+      {photos === undefined ? null : (
+        <RowPhotoList tiles={photos.tiles.filter((tile) => tile.item_key === item.key)} number={number} onRetry={photos.retry} />
+      )}
     </li>
   );
 }

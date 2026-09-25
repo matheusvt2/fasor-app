@@ -219,8 +219,10 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
       return c.json(fail('file_sha_mismatch', 'The body does not hash to the row sha256.'), 409);
     }
 
-    // Keyed by the id the row is filed under, never by the id its JSON claims.
-    const key = objectKey(session.companyId, row.kind, id);
+    // Keyed by the id the row is filed under, never by the id its JSON claims. A photo's
+    // relatório is the column the row is filed under too (`entities.relatorio_id`).
+    const relatorioKey = lookup.relatorioId;
+    const key = objectKey(session.companyId, row.kind, id, 'original', relatorioKey);
     // Idempotent on `(id, sha256)`: the object is written once and the `uploaded_at` op
     // emitted once; a retry of the identical upload answers with the same timestamp.
     if (row.uploaded_at === null || !(await headObject(s3, bucket, key))) {
@@ -237,8 +239,8 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
     // is answered by the store: a `variants` map on the row is only ever a record of what
     // this route already wrote.
     const derived = {
-      thumb: objectKey(session.companyId, row.kind, id, 'thumb'),
-      print: objectKey(session.companyId, row.kind, id, 'print'),
+      thumb: objectKey(session.companyId, row.kind, id, 'thumb', relatorioKey),
+      print: objectKey(session.companyId, row.kind, id, 'print', relatorioKey),
     };
     let variants: FileVariants | null = null;
     if (hasVariants(row.mime)) {
@@ -277,7 +279,7 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
 
     const lookup = await readFileRow(db, session.companyId, id);
     if (lookup === null) return c.json(notFound, 404);
-    const { row } = lookup;
+    const { row, relatorioId } = lookup;
     if (row.uploaded_at === null) return c.json(notFound, 404);
 
     // Every key is derived exactly as the PUT writes it, from the session's company, the
@@ -285,7 +287,7 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
     // JSON on a client create family, so a key read out of it would let a company name
     // another company's object (a cross-tenant read) or a path S3 refuses outright.
     // Whether a variant exists is answered by the store, not by the row.
-    const key = objectKey(session.companyId, row.kind, id, variant);
+    const key = objectKey(session.companyId, row.kind, id, variant, relatorioId);
 
     const stored = await getObject(s3, bucket, key);
     if (stored === null) return c.json(notFound, 404);

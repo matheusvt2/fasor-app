@@ -5,8 +5,10 @@
 
 /**
  * PROVISIONAL. AD-8 marks the number `[ASSUMPTION]` and the spine's Deferred list says
- * it is set after the iPadOS check, which is this story's manual script and has not run.
- * The check ships and is tested; no banner is published on it until the number is real.
+ * it is set after the iPadOS check, which has not run yet. Story 6.2 publishes the global
+ * "Pouco espaço neste aparelho" banner on it (`storageLowBannerText`) and sizes the
+ * eviction pressure from it (`storagePressureBytes`); the number itself stays provisional
+ * until the manual iPadOS reading replaces it.
  */
 export const STORAGE_LOW_FREE_BYTES = 500 * 1024 * 1024;
 

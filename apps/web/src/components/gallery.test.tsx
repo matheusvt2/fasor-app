@@ -14,6 +14,7 @@ import { Checkbox } from './checkbox.tsx';
 import { SegmentedControl } from './segmented-control.tsx';
 import { Tabs } from './tabs.tsx';
 import { Combobox } from './combobox.tsx';
+import { PhotoRow } from './photo-row.tsx';
 
 /**
  * jsdom does not resolve `var()` in computed styles (verified against jsdom 30: a
@@ -148,6 +149,12 @@ function Gallery() {
             { id: 'instrum', label: 'Instrum' },
           ]}
         />
+
+        <div className="photo-list">
+          <PhotoRow label="Foto 1" caption="Detalhe da verificação de contatos realizada na chave seccionadora do Cubículo Enel" thumb={null} state="pending" />
+          <PhotoRow label="Foto 2" caption="Detalhe da chave seccionadora do Cubículo Enel" thumb={null} state="error" onRetry={() => {}} />
+          <PhotoRow label="Foto 3" caption={null} thumb={null} state="uploaded" />
+        </div>
       </div>
     </div>
   );
@@ -279,6 +286,7 @@ describe('component gallery', () => {
       'input', // .input (combobox field): min-height touch-field
       'combobox-chevron', // .combobox-chevron: width touch-min
       'tab-select-trigger', // .tab-select-trigger (app.css, Tabs' phone selector): min-height touch-field
+      'upload-pill', // .upload-pill[data-state="error"]: min-height touch-min (the retry pill)
     ];
     const hitAreaSelector = sufficientHitAreaClasses.map((c) => `.${c}`).join(', ');
     const roles = ['button', 'switch', 'checkbox', 'radio', 'tab', 'combobox', 'menuitem'] as const;

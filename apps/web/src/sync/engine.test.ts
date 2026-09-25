@@ -12,6 +12,7 @@ import {
 import { BLOCK_1_ID, COMPANY_ID, EQUIPMENT_1_ID, PROJECT_ID, RELATORIO_ID, replaySmall, USER_ID } from '@app/domain/fixtures/replay-small';
 import { describe, expect, it, vi } from 'vitest';
 import { commitOps } from '../db/commit.ts';
+import { clearUploadError } from '../db/file-store.ts';
 import { openDatabase, type AppDatabase } from '../db/schema.ts';
 import type { Timers } from '../input/field-commit.ts';
 import { SyncRequestError, type SyncClient, type SyncFailure } from './client.ts';
@@ -955,6 +956,176 @@ describe('2.2 upload phase', () => {
     await h.engine.runCycle();
     expect(h.server.uploads).toEqual([FILE_A, FILE_A]);
     expect((await h.db.files.get(FILE_A))!.acked).toBe(true);
+    h.db.close();
+  });
+});
+
+describe('6.2 photo uploads', () => {
+  const PHOTO_1 = '019966b0-0000-7000-8000-0000000006a1';
+  const PHOTO_2 = '019966b0-0000-7000-8000-0000000006b2';
+  const PHOTO_3 = '019966b0-0000-7000-8000-0000000006c3';
+  const CERT = '019966b0-0000-7000-8000-0000000006d4';
+
+  /** A photo's create op plus its original, committed the way `commitPhotoCapture` does. */
+  async function shoot(h: Harness, id: string, capturedAt: string, readingStatus: 'none' | 'queued' = 'none'): Promise<void> {
+    const op = makeOp(
+      {
+        kind: 'create',
+        scope: 'relatorio',
+        company_id: COMPANY_ID,
+        relatorio_id: RELATORIO_ID,
+        project_id: null,
+        prev_op_id: null,
+        batch_id: null,
+        meta: null,
+        path: `file/${id}`,
+        value: {
+          id,
+          company_id: COMPANY_ID,
+          relatorio_id: RELATORIO_ID,
+          kind: 'photo',
+          sha256: 'abc',
+          mime: 'image/jpeg',
+          size: 4,
+          uploaded_at: null,
+          variants: null,
+          removed_at: null,
+          captured_at: capturedAt,
+          tz_offset: -180,
+          coords: null,
+          local_seq: 1,
+          block_id: BLOCK_1_ID,
+          item_key: null,
+          caption: null,
+          reading_kind: readingStatus === 'none' ? null : 'plate',
+          reading_target: null,
+          reading_status: readingStatus,
+        },
+        actor_id: USER_ID,
+        device_id: 'tablet-a',
+      },
+      { newId: ids(`019966b0-00${id.slice(-2)}-7000-8000-`), now: new Date('2026-09-21T16:30:00.000Z') },
+    );
+    await commitOps(h.db, [op]);
+    await h.db.files.put({ id, variant: 'original', blob: new Blob(['abcd']), acked: false, created_at: '2026-09-21T16:30:00.000Z' });
+  }
+
+  async function certificate(h: Harness, id: string): Promise<void> {
+    const op = makeOp(
+      {
+        kind: 'create',
+        scope: 'company',
+        company_id: COMPANY_ID,
+        relatorio_id: null,
+        project_id: null,
+        prev_op_id: null,
+        batch_id: null,
+        meta: null,
+        path: `file/${id}`,
+        value: { id, company_id: COMPANY_ID, relatorio_id: null, kind: 'certificate', sha256: 'abc', mime: 'application/pdf', size: 4, uploaded_at: null, variants: null, removed_at: null },
+        actor_id: USER_ID,
+        device_id: 'tablet-a',
+      },
+      { newId: ids(`019966b0-00${id.slice(-2)}-7000-8000-`), now: new Date('2026-09-21T16:29:00.000Z') },
+    );
+    await commitOps(h.db, [op]);
+    await h.db.files.put({ id, variant: 'original', blob: new Blob(['abcd']), acked: false, created_at: '2026-09-21T16:29:00.000Z' });
+  }
+
+  /** A second engine over the same database and server: the tab reloaded. */
+  function reload(h: Harness): SyncEngine {
+    let t = Date.parse('2026-09-21T17:00:00.000Z');
+    return createSyncEngine({
+      db: h.db,
+      client: h.server,
+      timers: h.clock.timers,
+      random: () => 0,
+      now: () => new Date((t += 1000)),
+      newId: ids('019966b0-0014-7000-8000-'),
+      isOnline: () => h.online.value,
+      onReAuth: () => {},
+      onOutdated: () => {},
+      onChange: () => {},
+      subscribeOnline: () => () => {},
+    });
+  }
+
+  it('uploads a waiting reading first, then photos by captured_at, then the other kinds', async () => {
+    const h = await harness();
+    await certificate(h, CERT);
+    await shoot(h, PHOTO_2, '2026-09-21T16:20:00.000Z');
+    await shoot(h, PHOTO_1, '2026-09-21T16:10:00.000Z');
+    await shoot(h, PHOTO_3, '2026-09-21T16:25:00.000Z', 'queued');
+    // One upload at a time is enough to read the order off the server.
+    await h.engine.runCycle();
+    expect(h.server.uploads).toEqual([PHOTO_3, PHOTO_1, PHOTO_2, CERT]);
+    h.db.close();
+  });
+
+  it('persists a permanent refusal as dead: a reload does not retry it, the others upload, and a cleared error retries', async () => {
+    const h = await harness();
+    await shoot(h, PHOTO_1, '2026-09-21T16:10:00.000Z');
+    await shoot(h, PHOTO_2, '2026-09-21T16:20:00.000Z');
+    h.server.failUpload = (id) => (id === PHOTO_1 ? { kind: 'http', status: 413, code: 'file_too_large' } : null);
+
+    await h.engine.runCycle();
+    expect((await h.db.files.get(PHOTO_1))!.upload_error).toMatchObject({ state: 'dead', code: 'file_too_large' });
+    expect((await h.db.files.get(PHOTO_2))!.acked).toBe(true);
+    expect(h.engine.status().lastFailure).toBeNull();
+
+    const again = reload(h);
+    const before = h.server.uploads.length;
+    await again.runCycle();
+    expect(h.server.uploads.slice(before)).toEqual([]);
+    expect((await h.db.sync_state.get('company'))!.files_pending).toBe(1);
+
+    // The tile's "Erro — Tentar novamente": the error is cleared and the next cycle sends it.
+    h.server.failUpload = () => null;
+    await clearUploadError(h.db, PHOTO_1);
+    await again.runCycle();
+    expect(h.server.uploads.slice(before)).toEqual([PHOTO_1]);
+    expect((await h.db.files.get(PHOTO_1))!.acked).toBe(true);
+    expect((await h.db.files.get(PHOTO_1))!.upload_error).toBeUndefined();
+    h.db.close();
+  });
+
+  it('marks retries run out as failed, retries it next cycle and clears it on success', async () => {
+    const h = await harness();
+    await shoot(h, PHOTO_1, '2026-09-21T16:10:00.000Z');
+    let down = true;
+    h.server.failUpload = () => (down ? { kind: 'http', status: 503 } : null);
+    const cycle = h.engine.runCycle();
+    await waitFor(() => h.server.uploads.length === 1, 'the first attempt');
+    await h.clock.advance(1_000);
+    await waitFor(() => h.server.uploads.length === 2, 'the second attempt');
+    await h.clock.advance(2_000);
+    await cycle;
+    expect(h.server.uploads).toEqual([PHOTO_1, PHOTO_1, PHOTO_1]);
+    expect((await h.db.files.get(PHOTO_1))!.upload_error).toMatchObject({ state: 'failed', code: '503' });
+
+    down = false;
+    await h.engine.runCycle();
+    expect((await h.db.files.get(PHOTO_1))!.acked).toBe(true);
+    expect((await h.db.files.get(PHOTO_1))!.upload_error).toBeUndefined();
+    h.db.close();
+  });
+
+  it('swaps the device thumb for the server one once the variants arrive, and fetches no original', async () => {
+    const h = await harness();
+    await shoot(h, PHOTO_1, '2026-09-21T16:10:00.000Z');
+    await h.db.thumbs.put({ id: PHOTO_1, blob: new Blob(['device']), source: 'device', created_at: '2026-09-21T16:30:00.000Z' });
+    await h.engine.runCycle();
+    expect(h.server.fetches).toEqual([]);
+
+    // The pulled `variants` op, as the device would hold it.
+    const record = (await h.db.entities.get(['file', PHOTO_1]))!;
+    await h.db.entities.put({ ...record, row: { ...record.row, uploaded_at: '2026-09-21T16:05:00.000Z', variants: { thumb: 'k/thumb', print: 'k/print' } } as never });
+    await h.engine.runCycle();
+    expect(h.server.fetches).toEqual([PHOTO_1]);
+    expect(await h.db.thumbs.get(PHOTO_1)).toMatchObject({ source: 'server' });
+    // Once swapped, never asked again.
+    await h.engine.runCycle();
+    expect(h.server.fetches).toEqual([PHOTO_1]);
     h.db.close();
   });
 });

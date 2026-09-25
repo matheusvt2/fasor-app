@@ -1,4 +1,15 @@
-import { isAutoPulled, projectIdOfStream, projectStreamId, SYNC_PUSH_MAX_OPS, toIso, type Clock, type NewId, type Op, type SyncSummary } from '@app/domain';
+import {
+  isAutoPulled,
+  projectIdOfStream,
+  projectStreamId,
+  SYNC_PUSH_MAX_OPS,
+  toIso,
+  type Clock,
+  type NewId,
+  type Op,
+  type StorageReading,
+  type SyncSummary,
+} from '@app/domain';
 import { COMPANY_STREAM, type AppDatabase, type SyncStateRow } from '../db/schema.ts';
 import {
   applyPulled,
@@ -10,7 +21,15 @@ import {
   writeSyncState,
 } from '../db/sync-store.ts';
 import { opOf } from '../db/commit.ts';
-import { markBlobAcked, pendingUploads, type PendingUpload } from '../db/file-store.ts';
+import {
+  markBlobAcked,
+  pendingUploads,
+  putServerThumb,
+  runEviction,
+  setUploadError,
+  thumbsToRefresh,
+  type PendingUpload,
+} from '../db/file-store.ts';
 import type { Timers } from '../input/field-commit.ts';
 import { SyncRequestError, type SyncClient, type SyncFailure } from './client.ts';
 import {
@@ -65,6 +84,11 @@ export interface SyncEngineDeps {
   /** Subscribes to the `online` event; returns the unsubscribe. Defaults to `window`. */
   subscribeOnline?: (listener: () => void) => () => void;
   intervalMs?: number;
+  /**
+   * Story 6.2: the storage reading the eviction pass sizes its pressure from. Without it
+   * (tests, a browser with no estimate) only the wholesale rule runs.
+   */
+  readStorage?: () => Promise<StorageReading | null>;
 }
 
 export interface SyncEngine {
@@ -216,12 +240,9 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
   /** AD-7: two uploads at a time, so one big certificate never holds the queue. */
   const UPLOAD_CONCURRENCY = 2;
 
-  /**
-   * Files this session will not try again: the server gave a verdict no retry can change
-   * (`file_sha_mismatch`, `413`). Kept in memory, not in Dexie — a reload is a new
-   * session and may well be a new (fixed) state.
-   */
-  const permanentlyFailed = new Set<string>();
+  /** The code a failure is recorded under on the blob row (Story 6.2 `upload_error`). */
+  const failureCode = (failure: SyncFailure): string =>
+    failure.kind === 'http' ? (failure.code ?? String(failure.status)) : failure.kind;
 
   /** One file, with the upload retry table; throws PhaseEnd only for re-auth and outdated. */
   async function uploadOne(item: PendingUpload): Promise<'uploaded' | 'deferred' | 'failed'> {
@@ -232,9 +253,10 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       }
       try {
         await deps.client.uploadFile(item.id, item.blob, item.sha256);
-        // The bytes are on the server: AD-7's first eviction candidate. `uploaded_at`
-        // itself comes back with the next pull, as a `system:files` op.
-        await markBlobAcked(deps.db, item.id);
+        // The bytes are on the server: AD-7's first eviction candidate (and any persisted
+        // error is cleared). `uploaded_at` itself comes back with the next pull, as a
+        // `system:files` op.
+        await markBlobAcked(deps.db, item.id, toIso(deps.now()));
         return 'uploaded';
       } catch (error) {
         if (!(error instanceof SyncRequestError)) throw error;
@@ -246,13 +268,16 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
           // Not recorded as a cycle failure: the server answered, the push and the pull
           // are unaffected, and `lastFailure` is what the badge and the eviction-recovery
           // screen read as "the server could not be reached". One unusable file is a
-          // per-file verdict, not a verdict on the cycle.
-          permanentlyFailed.add(item.id);
+          // per-file verdict, not a verdict on the cycle. Story 6.2: persisted as `dead`,
+          // so a reload does not re-queue it; only the tile's retry clears it.
+          await setUploadError(deps.db, item.id, { state: 'dead', code: failureCode(error.failure), at: toIso(deps.now()) });
           console.error('file upload refused permanently', { id: item.id, failure: error.failure });
           return 'failed';
         }
         if (attempt >= MAX_ATTEMPTS) {
           recordFailure(error.failure);
+          // Story 6.2: the tile shows the error until the next cycle's retry succeeds.
+          await setUploadError(deps.db, item.id, { state: 'failed', code: failureCode(error.failure), at: toIso(deps.now()) });
           return 'failed';
         }
         await sleep(backoffMs(attempt, deps.random));
@@ -266,10 +291,12 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
    * (AC 2.2-2). One file's failure is recorded and skipped; the queue never blocks.
    */
   async function uploadPhase(): Promise<void> {
+    // Story 6.2: already in upload order (a pending reading, photos by `captured_at`, the
+    // rest). A `dead` file waits for its tile's retry; a `failed` one is tried again.
     const pending = await pendingUploads(deps.db);
-    const queue = pending.filter((item) => !permanentlyFailed.has(item.id));
-    // A file this session gave up on is still unacked work on the device, so it stays in
-    // the count even though no cycle will try it again.
+    const queue = pending.filter((item) => item.upload_error?.state !== 'dead');
+    // A file no cycle will try on its own is still unacked work on the device, so it stays
+    // in the count.
     const givenUp = pending.length - queue.length;
     if (queue.length === 0) {
       await setFilesPending(givenUp);
@@ -302,6 +329,40 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     const state = (await readSyncState(deps.db, COMPANY_STREAM)) ?? emptyState(COMPANY_STREAM);
     if (state.files_pending === count) return;
     await writeSyncState(deps.db, { ...state, files_pending: count });
+  }
+
+  /**
+   * Story 6.2: after the pull, the server's thumb replaces the device's for every photo
+   * whose variants arrived (thumbs only, never an original: AC 2.2-3). A thumb that cannot
+   * be fetched now is tried again next cycle; nothing here fails the cycle.
+   */
+  async function thumbPhase(): Promise<void> {
+    let wanted: string[];
+    try {
+      wanted = await thumbsToRefresh(deps.db);
+    } catch (error) {
+      console.error('thumb refresh failed', error);
+      return;
+    }
+    for (const id of wanted) {
+      if (stopped || status.paused || !deps.isOnline()) return;
+      try {
+        const blob = await deps.client.fetchFile(id, 'thumb');
+        await putServerThumb(deps.db, id, blob, toIso(deps.now()));
+      } catch {
+        // The device thumb stays; the next cycle asks again.
+      }
+    }
+  }
+
+  /** Story 6.2 (AR-6): the eviction pass after the cycle; never-acked originals are never touched. */
+  async function evictionPhase(): Promise<void> {
+    try {
+      const reading = deps.readStorage === undefined ? null : await deps.readStorage();
+      await runEviction(deps.db, reading);
+    } catch (error) {
+      console.error('eviction pass failed', error);
+    }
   }
 
   /** Pulls one stream to its head, page by page; the cursor never passes an op the device cannot parse. */
@@ -397,6 +458,8 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       if (!status.paused && !stopped) await runPhase(uploadPhase);
       // A 401 during the push pauses the engine: nothing else runs until sign-in.
       if (!status.paused && !stopped) await runPhase(pullPhase);
+      if (!status.paused && !stopped && !status.outdated) await thumbPhase();
+      if (!stopped) await evictionPhase();
     } finally {
       status.running = false;
       endCycle();

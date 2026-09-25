@@ -40,3 +40,41 @@ export function useOnScreen(ref: RefObject<HTMLElement | null>, key: unknown): b
   }, [ref, key]);
   return onScreen;
 }
+
+/** How much of an element's box is inside the viewport, in px of height (0 when none). */
+function visibleHeight(element: Element): number {
+  const rect = element.getBoundingClientRect();
+  const viewport = typeof window === 'undefined' ? 0 : window.innerHeight;
+  return Math.max(0, Math.min(rect.bottom, viewport) - Math.max(rect.top, 0));
+}
+
+/**
+ * Story 6.1: the sheet step the engineer is looking at when the camera opens: the
+ * `[data-step]` section with the most of itself in the viewport, or null when none is (a
+ * test DOM with no layout). The caption's activity comes from it (`contextCaption`).
+ */
+export function stepOnScreen(root: ParentNode = document): string | null {
+  let best: { step: string; height: number } | null = null;
+  for (const element of root.querySelectorAll<HTMLElement>('[data-step]')) {
+    const height = visibleHeight(element);
+    const step = element.dataset.step;
+    if (step === undefined || height <= 0) continue;
+    if (best === null || height > best.height) best = { step, height };
+  }
+  return best?.step ?? null;
+}
+
+/**
+ * Story 6.1: the test table nearest the viewport top among those on screen
+ * (`[data-test-key]` in the Ensaios step), or null when none is visible.
+ */
+export function testKeyOnScreen(root: ParentNode = document): string | null {
+  let best: { key: string; top: number } | null = null;
+  for (const element of root.querySelectorAll<HTMLElement>('#ficha-step-ensaios [data-test-key]')) {
+    const key = element.dataset.testKey;
+    if (key === undefined || visibleHeight(element) <= 0) continue;
+    const top = Math.abs(element.getBoundingClientRect().top);
+    if (best === null || top < best.top) best = { key, top };
+  }
+  return best?.key ?? null;
+}

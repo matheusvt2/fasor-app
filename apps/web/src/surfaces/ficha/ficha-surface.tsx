@@ -3,11 +3,13 @@ import {
   buildSnapshot,
   cabineOf,
   concludedByText,
+  contextCaption,
   conclusionRestrictionOf,
   conclusionResultOf,
   enabledSubBlocksOf,
   filledByText,
   getDefinition,
+  getSeed,
   isCabineFirstSheet,
   isEquipmentBlock,
   isEquipmentBlockType,
@@ -28,6 +30,7 @@ import {
   type InstrumentRow,
   type OpDraft,
   type RelatorioSnapshot,
+  type SeedWord,
   type SheetStep,
   type UserRow,
   type WordRow,
@@ -39,11 +42,13 @@ import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { instrumentRows, manufacturerRows, voltageClassRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
+import { useBlockPhotoTiles, useLocalWordRows } from '../../db/photo-store.ts';
 import { writeLastSheet } from '../../db/prefs.ts';
 import { localUsers } from '../../db/sync-store.ts';
 import { isPointerModality, useHeldWhilePressed } from '../../input/press-hold.ts';
 import { usePageTitle } from '../../state/page-title.tsx';
 import { useSession } from '../../state/session.tsx';
+import { useSync } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { useProjectEquipment, useRelatorioEditor, type Build } from '../relatorio/relatorio-editor.ts';
 import { RelatorioGate } from '../relatorio/relatorio-gate.tsx';
@@ -53,7 +58,7 @@ import { RelatorioTree } from '../relatorio/relatorio-tree.tsx';
 import { TagDialog } from '../relatorio/tag-dialogs.tsx';
 import '../relatorio/relatorio.css';
 import { CabineBlock, QuickNotes } from './cabine-block.tsx';
-import { BulkActionBar, ChecklistSection, useChecklistBulk } from './checklist-section.tsx';
+import { BulkActionBar, ChecklistSection, useChecklistBulk, type ChecklistPhotos } from './checklist-section.tsx';
 import { ConclusaoSection } from './conclusao-section.tsx';
 import { EnsaiosSection } from './ensaios-section.tsx';
 import type { FichaApi } from './ficha-api.ts';
@@ -62,15 +67,22 @@ import { firstFocusable } from './ficha-fields.tsx';
 import { concludedByOp, conclusionOp, notTestedOp, testInstrumentOp } from './ficha-ops.ts';
 import { NameplateSection } from './nameplate-section.tsx';
 import { NotTestedBand } from './not-tested-band.tsx';
+import { useSheetCamera } from './photo-openers.tsx';
+import type { CaptureTarget } from './use-photo-capture.ts';
 import { SectionStepper, STEPPER_STEPS } from './section-stepper.tsx';
 import { SheetReadOnlyProvider } from './sheet-read-only.tsx';
 import { StickyActionBar } from './sticky-action-bar.tsx';
-import { useOnScreen } from './use-on-screen.ts';
+import { stepOnScreen, testKeyOnScreen, useOnScreen } from './use-on-screen.ts';
 import './ficha.css';
 
 const NO_USERS: UserRow[] = [];
 const NO_WORDS: WordRow[] = [];
 const NO_INSTRUMENTS: InstrumentRow[] = [];
+const NO_SEED_WORDS: { atividades: readonly SeedWord[]; locais: readonly SeedWord[] } = { atividades: [], locais: [] };
+
+function isSheetStep(value: string | null): value is SheetStep {
+  return value === 'placa' || value === 'verificacoes' || value === 'ensaios' || value === 'conclusao';
+}
 
 /** The Sticky action bar's primary: where the readings' continuous Enter run ends. */
 const PRIMARY_ID = 'ficha-primary';
@@ -245,6 +257,37 @@ function FichaBody({
     },
     [current],
   );
+  // --- Story 6.1: the camera, captioned from where the engineer stands --------------------
+  const sync = useSync();
+  const localWords = useLocalWordRows(db);
+  const seedWords = useMemo(() => {
+    try {
+      const seed = getSeed(block.seed_version, 'cabine_primaria');
+      return { atividades: seed.atividades, locais: seed.locais };
+    } catch {
+      return NO_SEED_WORDS;
+    }
+  }, [block.seed_version]);
+  /** The capture target, read when a camera opens: the section on screen then, the item if any. */
+  const photoTarget = (itemKey: string | null): CaptureTarget => {
+    const onScreen = stepOnScreen();
+    const step: SheetStep = itemKey !== null ? 'verificacoes' : isSheetStep(onScreen) ? onScreen : current;
+    const testKey = step === 'ensaios' ? testKeyOnScreen() : null;
+    return {
+      blockId,
+      itemKey,
+      caption: contextCaption({ block_id: blockId, item_key: itemKey }, snapshot, { step, testKey, words: seedWords, registry: localWords }),
+    };
+  };
+  const sheetCamera = useSheetCamera(relatorioId, () => photoTarget(null));
+  const photoTiles = useBlockPhotoTiles(db, relatorioId, blockId);
+  const { retryUpload } = sync;
+  const checklistPhotos: ChecklistPhotos = {
+    tiles: photoTiles,
+    target: (itemKey) => photoTarget(itemKey),
+    retry: (fileId) => void retryUpload?.(fileId),
+  };
+
   /** A focus arriving in `step`: leaving the previous step only when it came from the keyboard. */
   const focusIn = (step: SheetStep) => setCurrent(step, !isPointerModality());
   const collapsed = (step: SheetStep) => step !== current && left.has(step) && stepMayCollapse(progress, step);
@@ -511,6 +554,7 @@ function FichaBody({
                   block={block}
                   definition={definition}
                   bulk={bulk}
+                  photos={checklistPhotos}
                   sectionRef={(element) => {
                     checklistEl.current = element;
                   }}
@@ -535,6 +579,8 @@ function FichaBody({
             // J-15: with nothing left to mark the mirror goes (no disabled button in the bar);
             // the list head keeps its disabled action with the reason.
             secondary={showMirror ? <BulkActionBar bulk={bulk} compact /> : null}
+            camera={sheetCamera.button}
+            cameraNote={sheetCamera.note}
             primaryLabel={primaryLabel}
             onPrimary={primary}
             primaryId={PRIMARY_ID}

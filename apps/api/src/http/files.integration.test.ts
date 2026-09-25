@@ -650,3 +650,105 @@ describe('2.2-API-005 a client may not forge the server ops', () => {
     expect(parsed.rejected).toEqual([{ op_id: forged.op_id, code: 'op_server_only' }]);
   });
 });
+
+/** A photo's `file/{id}` create: relatório scope, the full photo row (Story 6.1's write path). */
+function photoCreate(ids: Ids, relatorioId: string, bytes: Uint8Array, mime = 'image/jpeg', id = newId()): { id: string; op: Op } {
+  written.entityIds.add(id);
+  const built = op(ids, {
+    kind: 'create',
+    scope: 'relatorio',
+    relatorio_id: relatorioId,
+    path: `file/${id}`,
+    value: {
+      id,
+      company_id: ids.company,
+      relatorio_id: relatorioId,
+      kind: 'photo',
+      sha256: sha256(bytes),
+      mime,
+      size: bytes.byteLength,
+      uploaded_at: null,
+      variants: null,
+      removed_at: null,
+      captured_at: '2026-09-06T11:12:30.000Z',
+      tz_offset: -180,
+      coords: { lat: -23.5505, lng: -46.6333, accuracy_m: 12, source: 'geolocation' },
+      local_seq: 1,
+      block_id: null,
+      item_key: null,
+      caption: 'Detalhe da chave seccionadora do Cubículo Enel',
+      reading_kind: null,
+      reading_target: null,
+      reading_status: 'none',
+    },
+  });
+  written.opIds.add(built.op_id);
+  return { id, op: built };
+}
+
+async function jpegBytes(width: number, height: number): Promise<Uint8Array> {
+  const buffer = await sharp({ create: { width, height, channels: 3, background: { r: 120, g: 90, b: 40 } } })
+    .jpeg({ quality: 85 })
+    .toBuffer();
+  return new Uint8Array(buffer);
+}
+
+describe('6.2-API-001 a photo through the sync route and PUT', () => {
+  it('409 before the create is applied; then stored under its relatório with 512/2000 variants, idempotent on (id, sha256)', async () => {
+    const relatorioId = newId();
+    const bytes = await jpegBytes(3000, 1500);
+    const { id, op: createOp } = photoCreate(idsA, relatorioId, bytes);
+
+    // The device's create has not reached the server: the retryable 409, nothing stored.
+    const early = await put(companyA, id, bytes);
+    expect(early.status).toBe(409);
+    expect(errorResponseSchema.parse(await early.json()).code).toBe('file_row_missing');
+
+    await pushOk(companyA, [createOp]);
+    const first = await put(companyA, id, bytes);
+    expect(first.status, await first.clone().text()).toBe(200);
+    const body = filePutResponseSchema.parse(await first.json());
+    expect(body.uploaded_at).not.toBeNull();
+
+    // AD-7: `company/{cid}/relatorio/{rid}/photo/{id}`, variants suffixed.
+    const key = `company/${companyA.companyId}/relatorio/${relatorioId}/photo/${id}`;
+    expect(objectKey(companyA.companyId, 'photo', id, 'original', relatorioId)).toBe(key);
+    expect(body.variants).toEqual({ thumb: `${key}/thumb`, print: `${key}/print` });
+    expect(await getObject(s3, config.S3_BUCKET, key)).not.toBeNull();
+    expect(await getObject(s3, config.S3_BUCKET, objectKey(companyA.companyId, 'photo', id))).toBeNull();
+
+    // The variants: long edge at most 512 and 2000, JPEG.
+    const sizes: Record<string, sharp.Metadata> = {};
+    for (const variant of ['thumb', 'print'] as const) {
+      const got = await authed(companyA, `/api/files/${id}/${variant}`);
+      expect(got.status, `${variant} should be readable`).toBe(200);
+      expect(got.headers.get('content-type')).toContain('image/jpeg');
+      sizes[variant] = await sharp(new Uint8Array(await got.arrayBuffer())).metadata();
+    }
+    expect(sizes.thumb).toMatchObject({ width: 512, height: 256, format: 'jpeg' });
+    expect(sizes.print).toMatchObject({ width: 2000, height: 1000, format: 'jpeg' });
+
+    // A second PUT of the same bytes (a retry after a dropped answer) changes nothing.
+    const second = await put(companyA, id, bytes);
+    expect(second.status).toBe(200);
+    expect(filePutResponseSchema.parse(await second.json()).uploaded_at).toBe(body.uploaded_at);
+
+    // Exactly one `uploaded_at` and one `variants` op, both `system:files` on the relatório.
+    const serverOps = await db
+      .select({ op_id: ops.op_id, path: ops.path, actor_id: ops.actor_id, relatorio_id: ops.relatorio_id, scope: ops.scope })
+      .from(ops)
+      .where(inArray(ops.path, [`file/${id}/uploaded_at`, `file/${id}/variants`]));
+    for (const row of serverOps) written.opIds.add(row.op_id);
+    expect(serverOps.map((row) => row.path).sort()).toEqual([`file/${id}/uploaded_at`, `file/${id}/variants`]);
+    for (const row of serverOps) expect(row).toMatchObject({ actor_id: 'system:files', relatorio_id: relatorioId, scope: 'relatorio' });
+  });
+
+  it('refuses a photo whose row is not JPEG', async () => {
+    const png = await pngBytes();
+    const { id, op: createOp } = photoCreate(idsA, newId(), png, 'image/png');
+    await pushOk(companyA, [createOp]);
+    const res = await put(companyA, id, png);
+    expect(res.status).toBe(400);
+    expect(errorResponseSchema.parse(await res.json()).code).toBe('file_kind_invalid');
+  });
+});

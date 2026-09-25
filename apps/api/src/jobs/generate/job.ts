@@ -163,7 +163,7 @@ async function printVariant(deps: GenerateJobDeps, companyId: CompanyId, fileId:
   if (fileId === null) return undefined;
   const row = await fileRow(deps.db, companyId, fileId);
   if (row === null || row.uploaded_at === null || row.variants === null) return undefined;
-  const stored = await getObject(deps.s3, deps.bucket, objectKey(companyId, row.kind, fileId, 'print'));
+  const stored = await getObject(deps.s3, deps.bucket, objectKey(companyId, row.kind, fileId, 'print', row.relatorio_id));
   return stored === null ? undefined : readAll(stored.body);
 }
 
