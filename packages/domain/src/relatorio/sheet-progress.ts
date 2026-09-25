@@ -5,8 +5,11 @@ import { getDefinition } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import { plural } from '../text/plural.ts';
 import { formatShortDateTime } from '../format/datetime.ts';
+import { cabineOf, cabineProgress } from './cabine.ts';
+import { nameplateTagPrefill } from './nameplate-copy.ts';
 import { evaluatedCells, evaluateSheetReadings } from './readings.ts';
 import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
+import { firstInTree } from './tree.ts';
 
 /*
  * Story 5.1: the per-sheet progress the Sheet header's Progress counter, the Section
@@ -15,7 +18,11 @@ import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
  * already owns that name (spec 5.1-5.4, Naming resolution).
  *
  * What counts as missing, step by step:
- * - `placa`: every nameplate field of the block's definition whose cell is not filled.
+ * - `placa`: every nameplate field of the block's definition whose cell is not filled (a
+ *   TAG field with no cell, shown prefilled from the block's TAG, is filled: Story 12.3);
+ *   plus, on the cabine's first sheet, every cabine field still empty (`cabineProgress`,
+ *   J-03: the cabine block renders inside this step). Both need the snapshot's locations,
+ *   equipment and relatório; a caller passing blocks alone counts the plate cells only.
  * - `verificacoes`: every checklist item neither answered (a filled result cell) nor NA by
  *   the block's `na_defaults` with no cell of its own; plus every NC row whose observation
  *   is empty (the observation is required on NC).
@@ -86,9 +93,28 @@ export function checklistResultOf(block: Pick<BlockRow, 'config' | 'sheet'>, ite
   return naDefaultsOf(block).has(itemKey) ? 'NA' : null;
 }
 
-function placaMissing(block: BlockRow, definition: BlockDefinition, enabled: ReadonlySet<SubBlockKey>): number {
-  if (!enabled.has('nameplate')) return 0;
-  return definition.nameplate.filter((field) => !isCellFilled(block.sheet.nameplate[field.key])).length;
+/** What `sheetProgress` reads: the blocks, and the rest of the snapshot when the caller has it. */
+export type SheetProgressSnapshot = Pick<RelatorioSnapshot, 'blocks'> & Partial<Pick<RelatorioSnapshot, 'relatorio' | 'locations' | 'equipment'>>;
+
+/** The cabine block is expanded and counted on its cabine's first sheet (`firstInTree`). */
+export function isCabineFirstSheet(snapshot: Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment'>, blockId: string): boolean {
+  const block = snapshot.blocks.find((row) => row.id === blockId);
+  const cabine = cabineOf(snapshot.locations, block?.location_id ?? null);
+  return cabine !== null && firstInTree(snapshot, cabine.id) === blockId;
+}
+
+function placaMissing(snapshot: SheetProgressSnapshot, block: BlockRow, definition: BlockDefinition, enabled: ReadonlySet<SubBlockKey>): number {
+  let missing = 0;
+  if (enabled.has('nameplate')) {
+    const prefilled = snapshot.equipment === undefined ? null : nameplateTagPrefill({ blocks: snapshot.blocks, equipment: snapshot.equipment }, block.id);
+    missing += definition.nameplate.filter((field) => !isCellFilled(block.sheet.nameplate[field.key]) && !(field.key === 'tag' && prefilled !== null)).length;
+  }
+  const { relatorio, locations, equipment } = snapshot;
+  if (relatorio !== undefined && locations !== undefined && equipment !== undefined && isCabineFirstSheet({ blocks: snapshot.blocks, locations, equipment }, block.id)) {
+    const cabine = cabineOf(locations, block.location_id);
+    if (cabine !== null) missing += cabineProgress({ relatorio, locations }, cabine.id).missing.length;
+  }
+  return missing;
 }
 
 function verificacoesMissing(block: BlockRow, definition: BlockDefinition, enabled: ReadonlySet<SubBlockKey>): number {
@@ -118,7 +144,7 @@ function conclusaoMissing(block: BlockRow, enabled: ReadonlySet<SubBlockKey>): n
 }
 
 /** One sheet's progress; every step empty-handed (0) for a block that is not an equipment sheet. */
-export function sheetProgress(snapshot: Pick<RelatorioSnapshot, 'blocks'>, blockId: string): SheetProgress {
+export function sheetProgress(snapshot: SheetProgressSnapshot, blockId: string): SheetProgress {
   const block = snapshot.blocks.find((row) => row.id === blockId);
   const definition = block === undefined ? null : definitionOf(block);
   const steps: Record<SheetStep, SheetStepProgress> = {
@@ -135,7 +161,7 @@ export function sheetProgress(snapshot: Pick<RelatorioSnapshot, 'blocks'>, block
   }
   if (block !== undefined && definition !== null) {
     const enabled = enabledSubBlocksOf(block);
-    steps.placa.missing = placaMissing(block, definition, enabled);
+    steps.placa.missing = placaMissing(snapshot, block, definition, enabled);
     steps.verificacoes.missing = verificacoesMissing(block, definition, enabled);
     steps.ensaios = ensaiosCounts(block, definition);
     steps.conclusao.missing = conclusaoMissing(block, enabled);

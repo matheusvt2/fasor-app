@@ -529,3 +529,23 @@ body {
    (EXPERIENCE.md › Quantity stepper), so it is an `<input class="count">` that keeps the
    span's look -- `components.css` sets its type, weight and minimum width. */
 input.count { width: 40px; padding: 0; border: 0; background: transparent; color: inherit; font-family: inherit; }
+
+/* ---------- Cabine line: the collapsed "Da cabine" block (Story 12.3, D-5) ----------
+   Mirrors `mockups/components-v09.css` "Cabine line" (`.cabine-line`, `.cl-name`,
+   `.cl-values`, `.cl-missing`, `.btn-text`) until Story 12.5 folds v0.9 into
+   `components.css`. Declarations verbatim; the v0.9 tokens resolved to their v0.8 values:
+   `--cabine-line-min-height` = `--touch-min`, `--cabine-line-background` =
+   `--surface-sunken`, `--cabine-line-radius` = `--r-md` (`mockups/tokens-v09.css`). */
+.cabine-line {
+  display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap;
+  min-height: var(--touch-min); padding: var(--sp-2) var(--sp-3);
+  background: var(--surface-sunken); border-radius: var(--r-md);
+  font-size: var(--t-label-size); line-height: var(--t-label-lh); color: var(--ink-secondary);
+}
+.cabine-line .cl-name { color: var(--ink-primary); font-weight: 600; }
+.cabine-line .cl-values { flex: 1; min-width: 0; font-variant-numeric: tabular-nums; }
+.cabine-line .cl-missing { color: var(--fora-do-limite); font-weight: 600; }
+.cabine-line .btn-text { min-height: var(--touch-min); }
+/* The Sumário cabine row's "falta a umidade": `.cabine-line .cl-missing`'s declarations
+   (the same color and weight `key-relatorio-overview-v09.html` draws inline on its `.cl-missing`). */
+.s9-cab-meta .cl-missing { color: var(--fora-do-limite); font-weight: 600; }

@@ -275,7 +275,8 @@ test('@p0 4.3-E2E-001 the Sumário: order, rows that open, the Position box, Ove
   await expect(rows.nth(1).locator('.sum-ro')).toHaveText('montado sozinho');
   // Q2: the creation batch named the account as responsável, so the cover row does not ask for one.
   await expect(rows.nth(0).locator('.sum-status')).not.toContainText('Responsável técnico em branco');
-  await expect(rows.nth(10).locator('.sum-status')).toHaveText('0 de 94');
+  // Story 12.3: the cabines' empty data is pending on section 9 too (never blocking).
+  await expect(rows.nth(10).locator('.sum-status')).toHaveText(/^0 de 94 · Cubículo Enel: faltam 6 campos · /);
   await expect(rows.nth(3).locator('.sum-status')).toHaveText('texto padrão');
   await expect(page.getByText('Nada impede gerar.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Pré-visualizar' })).toHaveAttribute('aria-disabled', 'true');

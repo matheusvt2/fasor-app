@@ -10,6 +10,7 @@ import { integrityFindings } from './integrity.ts';
 import { locationPathText } from './location-path.ts';
 import { locationProgress, progressCounterState, progressCounterText } from './progress.ts';
 import { isEquipmentBlock, sheetState, sheetStateLabel, type SheetState } from './sheet-state.ts';
+import { cabineMissingText, cabineProgress } from './cabine.ts';
 import { cabineMetaText } from './sumario.ts';
 import { suggestTag, type TagEquipment } from './tag.ts';
 
@@ -97,6 +98,8 @@ export interface TreeLocationNode {
   level: number;
   /** The cabine's read-only data line, "—" when it holds none; "" on a coluna. */
   meta: string;
+  /** Story 12.3: "falta a umidade" / "faltam 3 campos" after the meta while a cabine field is empty; null otherwise (and on a coluna). */
+  metaMissing: string | null;
   /** "3 de 9": the sheets concluded on this node and every node under it. */
   counterText: string;
   counterState: 'complete' | 'pending';
@@ -173,10 +176,12 @@ export function locationBlocks(blocks: readonly BlockRow[], locationId: string):
  * live blocks) could miss across relatórios.
  */
 export function locationTree(
-  snapshot: Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment'>,
+  snapshot: Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment'> & Partial<Pick<RelatorioSnapshot, 'relatorio'>>,
   equipment: readonly Pick<EquipmentRow, 'id' | 'tag' | 'removed_at'>[] = snapshot.equipment,
 ): TreeLocationNode[] {
   const locations = liveLocations(snapshot.locations);
+  // The cabine's missing fields need the seed version; a caller without the relatório row gets none.
+  const relatorio = snapshot.relatorio;
   const liveIds = new Set(locations.map((location) => location.id));
   const tags = new Map<string, string>();
   for (const row of [...snapshot.equipment, ...equipment]) tags.set(row.id, row.tag);
@@ -225,6 +230,8 @@ export function locationTree(
       name: location.name,
       level: Math.min(depth, TREE_MAX_LEVEL),
       meta: cabineMetaText(location),
+      // A cabine with no equipment block has no sheet to fill its data on: nothing is asked (as in `preIssue`).
+      metaMissing: location.kind === 'cabine' && relatorio !== undefined && counts.sheets_total > 0 ? cabineMissingText(cabineProgress({ relatorio, locations }, location.id)) : null,
       counterText: progressCounterText(counts),
       counterState: progressCounterState(counts),
       position,

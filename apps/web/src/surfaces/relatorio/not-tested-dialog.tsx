@@ -5,30 +5,31 @@ import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
 
 /*
- * Story 5.9: "Marcar não ensaiado", shared by the sheet header's Overflow and the tree's
- * Block card Overflow. The seed's 3 reasons as a Filter chip group (source-deltas.md row
- * 18 -- never a hardcoded list), "Outro" reveals a text field, the last reason used in
- * this relatório preselected (EXPERIENCE.md › Não ensaiado reason).
+ * Stories 5.9 and 12.4: "Marcar não ensaiado", shared by the sheet header's Overflow and the
+ * tree's Block card Overflow. The seed's reasons as a Filter chip group (never a hardcoded
+ * list: seed v2 offers Impossibilidade de desligamento, Solicitação do cliente, Equipamento
+ * inacessível and "Outro", a v1 relatório its own three), "Outro" reveals a required text
+ * field. Nothing is preselected (J-16, `source-deltas.md` row 56): the primary waits,
+ * disabled with its reason, for a tap on a reason and, with "Outro", for text.
  */
 const OUTRO = 'outro';
 
 export interface NotTestedDialogProps {
   seedVersion: string;
-  /** The relatório's `lastNotTestedReason`, or null to default to the seed's first reason. */
-  lastReason: string | null;
   onClose: () => void;
   onSubmit: (reasonKey: string, text: string | null) => void;
 }
 
-export function NotTestedDialog({ seedVersion, lastReason, onClose, onSubmit }: NotTestedDialogProps) {
+export function NotTestedDialog({ seedVersion, onClose, onSubmit }: NotTestedDialogProps) {
   const t = copy.sumario.tree;
   const reasons = getSeed(seedVersion, 'cabine_primaria').not_tested_reasons;
-  const [selected, setSelected] = useState(() => (lastReason !== null && reasons.some((r) => r.key === lastReason) ? lastReason : (reasons[0]?.key ?? '')));
+  const [selected, setSelected] = useState<string | null>(null);
   const [text, setText] = useState('');
+  const disabledReason = selected === null ? t.notTestedPickReason : selected === OUTRO && text.trim() === '' ? t.notTestedTextReason : undefined;
 
   const submit = () => {
-    if (selected === '') return;
-    onSubmit(selected, selected === OUTRO ? (text.trim() === '' ? null : text.trim()) : null);
+    if (selected === null || disabledReason !== undefined) return;
+    onSubmit(selected, selected === OUTRO ? text.trim() : null);
   };
 
   return (
@@ -50,7 +51,7 @@ export function NotTestedDialog({ seedVersion, lastReason, onClose, onSubmit }: 
         <Button variant="secondary" onPress={onClose}>
           {ui.confirmDialog.cancel}
         </Button>
-        <Button variant="primary" isDisabled={selected === ''} onPress={submit}>
+        <Button variant="primary" isDisabled={disabledReason !== undefined} {...(disabledReason === undefined ? {} : { disabledReason })} onPress={submit}>
           {t.markNotTested}
         </Button>
       </div>

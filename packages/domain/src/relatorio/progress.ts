@@ -57,8 +57,12 @@ export function cabineLocationIds(locations: readonly Pick<LocationRow, 'id' | '
   return ids;
 }
 
-/** One cabine's progress: the blocks on it and on its colunas. */
-export function cabineProgress(snapshot: Pick<RelatorioSnapshot, 'blocks' | 'locations' | 'suggestions'>, cabineId: string): Progress {
+/**
+ * One cabine's sheet progress: the blocks on it and on its colunas. (Named
+ * `cabineProgress` until Story 12.3, which gave that name to the cabine's own required
+ * fields, `cabine.ts`.)
+ */
+export function cabineSheetsProgress(snapshot: Pick<RelatorioSnapshot, 'blocks' | 'locations' | 'suggestions'>, cabineId: string): Progress {
   const ids = cabineLocationIds(snapshot.locations, cabineId);
   return over(
     snapshot.blocks.filter((block) => block.location_id !== null && ids.has(block.location_id)),

@@ -53,4 +53,12 @@ describe('FilterChipGroup', () => {
     for (const call of onChange.mock.calls) expect(call[0]).toBe('all');
     expect(screen.getByRole('radio', { name: 'Todas' })).toBeChecked();
   });
+
+  it('Story 12.4: with no selection (null) no chip is pressed until a tap picks one', async () => {
+    const onChange = vi.fn();
+    render(<FilterChipGroup options={options} selectedId={null} onChange={onChange} aria-label="Motivo" />);
+    expect(screen.getAllByRole('radio').filter((radio) => (radio as HTMLElement).getAttribute('aria-checked') === 'true')).toHaveLength(0);
+    await userEvent.click(screen.getByRole('radio', { name: 'Cubículo Enel' }));
+    expect(onChange).toHaveBeenCalledWith('enel');
+  });
 });

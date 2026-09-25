@@ -3,7 +3,11 @@ import { formatCalendarDate } from '../format/datetime.ts';
 import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
 import { instrumentRegistryRowText, type InstrumentRow } from '../registry/instrument-row.ts';
 import type { BlockRow } from '../schemas/entities.ts';
+import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
+import { getDefinition } from '../seed/definitions.ts';
+import type { BlockDefinition } from '../seed/schema.ts';
 import type { TestKey } from './readings.ts';
+import { enabledSubBlocksOf, isCellFilled } from './sheet-state.ts';
 
 /*
  * Story 5.7 (FR-3, AR-18, UX-DR42): the Instrument picker of a test sub-block. Picking a
@@ -123,6 +127,47 @@ export function lastInstrumentIdFor(blocks: readonly Pick<BlockRow, 'sheet' | 'r
     if (best === null || cell.op_id > best.opId) best = { opId: cell.op_id, id: header.instrument_id };
   }
   return best?.id ?? null;
+}
+
+/** What the suggestion reads: `Pick<RelatorioSnapshot, 'blocks' | 'instruments'>`, read-only. */
+export type InstrumentSnapshot = { readonly [K in 'blocks' | 'instruments']: readonly RelatorioSnapshot[K][number][] };
+
+/**
+ * Story 12.3 (J-07, D-4; `source-deltas.md` row 51): the instrument a test sub-block
+ * suggests while its own instrument cell is empty -- the one last used for that test kind
+ * in this relatório, when it is still live in the registry. Shown amber "Sugerido" in the
+ * test header and written only by "Concluir ficha" (or replaced by a pick); nothing prints
+ * while it is a suggestion. Null on a sheet marked not tested or already concluded (nothing
+ * would confirm it), for a test the block does not have enabled, or with no prior use.
+ */
+export function suggestedInstrument(snapshot: InstrumentSnapshot, blockId: string, testKind: TestKey): InstrumentHeader | null {
+  const block = snapshot.blocks.find((row) => row.id === blockId);
+  if (block === undefined || block.removed_at !== null || block.not_tested !== null || block.concluded_by !== null) return null;
+  const definition = definitionOf(block);
+  if (definition === null || !definition.tests.some((test) => test.key === testKind) || !enabledSubBlocksOf(block).has(testKind)) return null;
+  if (isCellFilled(block.sheet.test[testKind]?.instrument)) return null;
+  const lastId = lastInstrumentIdFor(snapshot.blocks, testKind);
+  const row = lastId === null ? undefined : snapshot.instruments.find((candidate) => candidate.id === lastId && candidate.removed_at === null);
+  return row === undefined ? null : instrumentHeaderOf(row, testKind);
+}
+
+/** Every enabled test of the block that has a suggestion, in the definition's order: what "Concluir ficha" writes. */
+export function suggestedInstruments(snapshot: InstrumentSnapshot, blockId: string): { testKey: TestKey; header: InstrumentHeader }[] {
+  const block = snapshot.blocks.find((row) => row.id === blockId);
+  const definition = block === undefined ? null : definitionOf(block);
+  if (definition === null) return [];
+  return definition.tests.flatMap((test) => {
+    const header = suggestedInstrument(snapshot, blockId, test.key);
+    return header === null ? [] : [{ testKey: test.key, header }];
+  });
+}
+
+function definitionOf(block: Pick<BlockRow, 'seed_version' | 'block_type'>): BlockDefinition | null {
+  try {
+    return getDefinition(block.seed_version, 'cabine_primaria', block.block_type);
+  } catch {
+    return null;
+  }
 }
 
 /** The picker's list: live instruments, the last one used for this test type first, then by code. */

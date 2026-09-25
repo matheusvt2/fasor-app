@@ -120,10 +120,11 @@ test('@p0 5.1-E2E-001 a tree row opens the sheet: App bar TAG, header, stepper w
   await expect(stepper(page).getByRole('button', { name: /^Verificações,/ })).toHaveAttribute('aria-current', 'step');
   await expect(page.getByRole('heading', { name: 'Verificações gerais' })).toBeInViewport();
 
-  // The empty plate offers "Digitar" (no photo tile before Epic 8).
+  // The empty plate shows its fields from the start (Story 12.4, D-6: no "Digitar", and no
+  // photo tile before Epic 8).
   await expect(page.getByText('Fotografar placa')).toHaveCount(0);
-  await page.getByRole('button', { name: 'Digitar' }).click();
-  await expect.poll(() => page.evaluate(() => document.activeElement?.closest('[data-field-key]')?.getAttribute('data-field-key') ?? null)).toBe(PARA_RAIO.nameplate[0]!.key);
+  await expect(page.getByRole('button', { name: 'Digitar' })).toHaveCount(0);
+  for (const f of PARA_RAIO.nameplate) await expect(field(page, f.key)).toBeVisible();
 
   // Every field by typing: at 1280 the manufacturer and voltage class Combobox shows at
   // once (the chip row with "Outro…" is the tablet and phone presentation), with "Criar".
@@ -248,7 +249,7 @@ test('@p0 5.4-E2E-001 the checklist by mouse and keyboard: C/NC/NA, Delete clear
   await expect(page.getByLabel('Observação do item 4', { exact: true })).toHaveValue('abcdef');
 });
 
-test('@p0 5.2-E2E-001 the cabine block: edited on the cabine first sheet as location ops, read-only on the next sheet, the humidity note, "Copiar da cabine anterior" with undo', async ({ page }) => {
+test('@p0 5.2-E2E-001 the cabine block: edited on the cabine first sheet as location ops, the same values on the next sheet, the humidity note, "Copiar da cabine anterior" with undo', async ({ page }) => {
   test.setTimeout(150_000);
   const { relatorioId } = await openRelatorio(page, 1280);
   await openEnel(page);
@@ -285,14 +286,14 @@ test('@p0 5.2-E2E-001 the cabine block: edited on the cabine first sheet as loca
   await expect(notes.getByRole('button', { name: 'Chuva e umidade elevada' })).toHaveAttribute('aria-pressed', 'true');
   await expect.poll(async () => String((await outbox(page)).find((row) => row.path === `sheet/${first.blockId}/observations`)?.value ?? '')).toContain('umidade');
 
-  // The next sheet of the cabine shows the same values read-only under the same labels.
+  // The next sheet of the cabine shows the same values under the same labels; the cabine
+  // still lacks its secondary voltage and power, so the block stays expanded and editable
+  // there (Story 12.3, D-5; the one-line block is 12.3-E2E-003's).
   await page.locator('.sticky-action-bar .btn-primary').click();
   await expect(page).not.toHaveURL(new RegExp(`/ficha/${first.blockId}$`));
-  const readOnly = page.getByRole('textbox', { name: 'TENSÃO PRIMÁRIA' });
-  await expect(readOnly).toHaveAttribute('aria-readonly', 'true');
-  await expect(readOnly).toContainText('13,8');
-  await expect(page.getByRole('textbox', { name: 'TIPO DE SE' })).toHaveText('BLINDADA');
-  await expect(page.locator('.se-block.is-readonly')).toHaveCount(2);
+  await expect(page.getByLabel('TENSÃO PRIMÁRIA', { exact: true })).toHaveValue('13,8');
+  await expect(page.getByLabel('TIPO DE SE', { exact: true })).toHaveValue('BLINDADA');
+  await expect(page.locator('.se-block.is-readonly')).toHaveCount(0);
 
   // 1° Subsolo's first sheet copies Cubículo Enel's environment, with an undo.
   await page.goto(`/relatorio/${relatorioId}`);
@@ -318,6 +319,7 @@ test('@p0 5.3-E2E-001 "Igual à ⟨TAG⟩?" copies a same-type plate as plain op
   await pushDrafts(page, database, [
     officeDraft(account, { relatorioId }, `sheet/${source.blockId}/nameplate/fabricacao`, 'Celtta'),
     officeDraft(account, { relatorioId }, `sheet/${source.blockId}/nameplate/n_serie`, 'PR-0009'),
+    officeDraft(account, { relatorioId }, `sheet/${source.blockId}/nameplate/tipo`, 'Polimérico'),
   ]);
   await syncNowAndReturn(page);
   await openEnel(page);
@@ -325,12 +327,14 @@ test('@p0 5.3-E2E-001 "Igual à ⟨TAG⟩?" copies a same-type plate as plain op
 
   await page.getByRole('button', { name: `Igual à ${source.tag}?` }).click();
   await expect(toast(page)).toContainText(`Copiado de ${source.tag}`);
-  await expect(page.getByLabel('Nº SÉRIE', { exact: true })).toHaveValue('PR-0009');
+  await expect(page.getByLabel('TIPO', { exact: true })).toHaveValue('Polimérico');
+  // Story 12.3 (D-3, seed v2): Nº SÉRIE belongs to one unit and is never copied.
+  await expect(page.getByLabel('Nº SÉRIE', { exact: true })).toHaveValue('');
   const copied = (await outbox(page)).filter((row) => row.path.startsWith(`sheet/${target.blockId}/nameplate/`));
-  expect(copied.map((row) => row.path.split('/').at(-1)).sort()).toEqual(['fabricacao', 'n_serie']);
+  expect(copied.map((row) => row.path.split('/').at(-1)).sort()).toEqual(['fabricacao', 'tipo']);
   expect(new Set(copied.map((row) => row.batch_id)).size).toBe(1);
   await toast(page).getByRole('button', { name: 'Desfazer' }).click();
-  await expect(page.getByRole('button', { name: 'Digitar' })).toBeVisible();
+  await expect(page.getByLabel('TIPO', { exact: true })).toHaveValue('');
   await expect(page.getByRole('button', { name: `Igual à ${source.tag}?` })).toBeVisible();
 });
 
@@ -947,7 +951,6 @@ test('@p0 5.3-E2E-002 carry-over: "3.3", a pause, "00" in a nameplate number rea
   await openRelatorio(page, 1280);
   await openEnel(page);
   const { blockId } = await openSheet(page, rowOfType(page, 'Para-raio'));
-  await page.getByRole('button', { name: 'Digitar' }).click();
   const corrente = page.getByLabel('CORRENTE NOMINAL', { exact: true });
   await corrente.click();
   await corrente.pressSequentially('3.3');
@@ -1069,8 +1072,14 @@ test('@p0 5.9-E2E-004 a Não ensaiada sheet: readings, instrument and conclusion
   await page.getByRole('button', { name: `Mais opções da ficha ${tag}` }).click();
   await page.getByRole('menuitem', { name: 'Marcar não ensaiado' }).click();
   const dialog = page.getByRole('dialog', { name: 'Marcar não ensaiado' });
+  // Story 12.4: nothing is preselected; the reason is a tap.
+  await dialog.getByRole('radio', { name: 'Impossibilidade de desligamento' }).click();
   await dialog.getByRole('button', { name: 'Marcar não ensaiado' }).click();
   await expect(page.locator('.not-tested-band')).toBeVisible();
+  // The cabine is not the sheet's data: its (incomplete) block stays editable here (Story 12.3).
+  await expect(page.locator('.se-block.is-readonly')).toHaveCount(0);
+  await expect(page.getByLabel('TEMPERATURA', { exact: true })).toBeEditable();
+  await expect(page.getByLabel('TIPO DE SE', { exact: true })).toBeEnabled();
   const readingAndConclusionOps = async () => (await outbox(page)).filter((row) => row.path.startsWith(`sheet/${blockId}/conclusion/`) || row.path.startsWith(`sheet/${blockId}/test/`)).length;
   const opsBefore = await readingAndConclusionOps();
 
@@ -1129,6 +1138,8 @@ test('@p1 5.9-E2E-002 "Desfazer" once the mark has synced opens a Confirm dialog
   await page.getByRole('button', { name: /^Mais opções da ficha/ }).click();
   await page.getByRole('menuitem', { name: 'Marcar não ensaiado' }).click();
   const dialog = page.getByRole('dialog', { name: 'Marcar não ensaiado' });
+  // Story 12.4: nothing is preselected; the reason is a tap.
+  await dialog.getByRole('radio', { name: 'Impossibilidade de desligamento' }).click();
   await dialog.getByRole('button', { name: 'Marcar não ensaiado' }).click();
   await expect(page.locator('.not-tested-band')).toBeVisible();
   await syncNowAndReturn(page);

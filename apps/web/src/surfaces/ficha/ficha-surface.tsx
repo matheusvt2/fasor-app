@@ -11,13 +11,13 @@ import {
   isCabineFirstSheet,
   isEquipmentBlock,
   isEquipmentBlockType,
-  lastNotTestedReason,
   locationPathText,
   nextSheet,
   railHeadText,
   sheetOrder,
   sheetProgress,
   stepMayCollapse,
+  suggestedInstruments,
   tagRenamedText,
   tagTakenText,
   tagVerdict,
@@ -59,7 +59,7 @@ import { EnsaiosSection } from './ensaios-section.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { FichaHeader } from './ficha-header.tsx';
 import { firstFocusable } from './ficha-fields.tsx';
-import { concludedByOp, conclusionOp, notTestedOp } from './ficha-ops.ts';
+import { concludedByOp, conclusionOp, notTestedOp, testInstrumentOp } from './ficha-ops.ts';
 import { NameplateSection } from './nameplate-section.tsx';
 import { NotTestedBand } from './not-tested-band.tsx';
 import { SectionStepper } from './section-stepper.tsx';
@@ -195,7 +195,8 @@ function FichaBody({
     if (db !== null) void writeLastSheet(db, relatorioId, blockId);
   }, [db, relatorioId, blockId]);
 
-  const progress = useMemo(() => sheetProgress(snapshot, blockId), [snapshot, blockId]);
+  // The project's equipment, live on its own: a TAG rename moves the prefilled nameplate TAG (Story 12.3).
+  const progress = useMemo(() => sheetProgress({ ...snapshot, equipment }, blockId), [snapshot, equipment, blockId]);
   const next = useMemo(() => nextSheet(snapshot, blockId), [snapshot, blockId]);
   const cabine = useMemo(() => cabineOf(snapshot.locations, block.location_id), [snapshot.locations, block.location_id]);
   const cabineFirst = useMemo(() => isCabineFirstSheet(snapshot, blockId), [snapshot, blockId]);
@@ -231,7 +232,6 @@ function FichaBody({
   // reading out of its criterion never collapses (`stepMayCollapse`, the kernel's rule).
   const [current, setCurrentStep] = useState<SheetStep>(() => progress.firstIncompleteStep ?? 'placa');
   const [left, setLeft] = useState<ReadonlySet<SheetStep>>(() => new Set());
-  const [revealed, setRevealed] = useState(false);
   const setCurrent = useCallback(
     (step: SheetStep, leaving: boolean) => {
       if (step === current) return;
@@ -252,7 +252,6 @@ function FichaBody({
   /** Scrolls to a step and expands it; with `missing`, focuses its first missing field. */
   const goTo = (step: SheetStep, missing: boolean) => {
     setCurrent(step, true);
-    if (step === 'placa' && missing) setRevealed(true);
     const land = () => {
       const host = document.getElementById(`ficha-step-${step}`);
       if (host === null) return;
@@ -306,6 +305,8 @@ function FichaBody({
    * on this render's progress, which may predate that commit. `otherwise` runs when the
    * fresh rows are not complete: the menu and a primary labelled "Concluir ficha" say so and
    * jump to the first missing field; a primary still labelled "Próxima ficha" moves on.
+   * Story 12.3 (D-4): the conclusion confirms every suggested instrument of the sheet, in
+   * the same batch as `concluded_by` ("Próxima ficha" alone writes nothing).
    */
   const conclude = (otherwise: 'jump' | 'next' = 'jump') => {
     if (block.concluded_by !== null) {
@@ -314,15 +315,18 @@ function FichaBody({
     }
     let firstMissing: SheetStep | null = null;
     void api
-      .edit((blocks, by) => {
+      .edit((blocks, by, rows) => {
         const fresh = blocks.find((row) => row.id === blockId && row.removed_at === null);
         if (fresh === undefined || fresh.concluded_by !== null || fresh.not_tested !== null) return null;
-        const freshProgress = sheetProgress({ blocks }, blockId);
+        const freshProgress = sheetProgress({ blocks, locations: rows.locations, equipment: rows.equipment, relatorio }, blockId);
         if (!freshProgress.complete) {
           firstMissing = freshProgress.firstIncompleteStep ?? 'placa';
           return null;
         }
-        return [concludedByOp(by, relatorioId, blockId, toIso(now()))];
+        return [
+          ...suggestedInstruments({ blocks, instruments }, blockId).map((suggestion) => testInstrumentOp(by, relatorioId, blockId, suggestion.testKey, suggestion.header)),
+          concludedByOp(by, relatorioId, blockId, toIso(now())),
+        ];
       })
       .then((batch) => {
         if (batch === null) {
@@ -494,18 +498,9 @@ function FichaBody({
             <div className="content">
               {block.not_tested === null ? null : <NotTestedBand api={api} block={block} />}
               <div id="ficha-step-placa" className={stepClass('placa')} data-step="placa" tabIndex={-1} onFocus={() => focusIn('placa')}>
-                {cabine === null ? null : <CabineBlock api={api} snapshot={snapshot} cabine={cabine} editable={cabineFirst} />}
+                {cabine === null ? null : <CabineBlock api={api} snapshot={snapshot} cabine={cabine} first={cabineFirst} />}
                 {enabled.has('nameplate') ? (
-                  <NameplateSection
-                    api={api}
-                    snapshot={snapshot}
-                    block={block}
-                    definition={definition}
-                    equipment={equipment}
-                    registries={registries}
-                    revealed={revealed}
-                    onReveal={() => setRevealed(true)}
-                  />
+                  <NameplateSection api={api} snapshot={snapshot} block={block} definition={definition} equipment={equipment} registries={registries} />
                 ) : null}
               </div>
               <div id="ficha-step-verificacoes" className={stepClass('verificacoes')} data-step="verificacoes" tabIndex={-1} onFocus={() => focusIn('verificacoes')}>
@@ -570,7 +565,6 @@ function FichaBody({
       {notTestedDialogOpen ? (
         <NotTestedDialog
           seedVersion={block.seed_version}
-          lastReason={lastNotTestedReason(snapshot.blocks)}
           onClose={() => setNotTestedDialogOpen(false)}
           onSubmit={(reason, text) => {
             setNotTestedDialogOpen(false);

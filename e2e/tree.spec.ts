@@ -66,8 +66,10 @@ test('@p0 4.4-E2E-001 section 9 at 1280: chevrons and Left/Right, coluna and equ
   const box = (await enelChevron.boundingBox())!;
   expect(Math.round(box.width)).toBe(48);
   expect(Math.round(box.height)).toBe(56);
-  await expect(cabine(page, 'Cubículo Enel').locator('.s9-cab-meta')).toHaveText('—');
-  await expect(cabine(page, '1° Subsolo').locator('.s9-cab-meta')).toHaveText('agrupar por tipo');
+  // Story 12.3: an empty cabine's row also says what its data lacks, after the data line.
+  await expect(cabine(page, 'Cubículo Enel').locator('.s9-cab-meta')).toHaveText('faltam 6 campos');
+  await expect(cabine(page, 'Cubículo Enel').locator('.s9-cab-meta .cl-missing')).toHaveText('faltam 6 campos');
+  await expect(cabine(page, '1° Subsolo').locator('.s9-cab-meta')).toHaveText('agrupar por tipo · faltam 6 campos');
   await expect(cabine(page, 'Cubículo Enel').locator('.s9-cab-row .progress-counter')).toHaveText('0 de 9');
 
   // Left/Right on the chevron.
@@ -127,10 +129,10 @@ test('@p0 4.4-E2E-001 section 9 at 1280: chevrons and Left/Right, coluna and equ
   await expect(agrupar).toHaveAttribute('aria-checked', 'false');
   await agrupar.click();
   await expect(announcer(page)).toHaveText('Agrupar por tipo ativado em Cubículo Enel');
-  await expect(cabine(page, 'Cubículo Enel').locator('.s9-cab-meta')).toHaveText('agrupar por tipo');
+  await expect(cabine(page, 'Cubículo Enel').locator('.s9-cab-meta')).toHaveText('agrupar por tipo · faltam 6 campos');
   await page.reload();
   await openSection9(page);
-  await expect(cabine(page, 'Cubículo Enel').locator('.s9-cab-meta')).toHaveText('agrupar por tipo');
+  await expect(cabine(page, 'Cubículo Enel').locator('.s9-cab-meta')).toHaveText('agrupar por tipo · faltam 6 campos');
 
   // "Adicionar coluna", "Renomear", and a cabine moved up by the Overflow.
   await menuOf(page, 'Cubículo Enel').click();
@@ -446,6 +448,8 @@ test('@p0 5.9-E2E-003 "Marcar não ensaiado" from a Block card Overflow: the rea
   await page.getByRole('menuitem', { name: 'Marcar não ensaiado' }).click();
   const dialog = page.getByRole('dialog', { name: 'Marcar não ensaiado' });
   await expect(dialog.getByLabel('Descreva o motivo')).toHaveCount(0);
+  // Story 12.4: nothing is preselected.
+  await expect(dialog.locator('[role="radio"][aria-checked="true"]')).toHaveCount(0);
   await dialog.getByRole('radio', { name: 'Solicitação do cliente' }).click();
   await dialog.getByRole('button', { name: 'Marcar não ensaiado' }).click();
   await expect(dialog).toBeHidden();
@@ -473,7 +477,7 @@ test('@p0 5.2-E2E-004 (AC2 leftover) cabineMetaText updates live, with no reload
   test.setTimeout(120_000);
   await openRelatorio(page, 1280);
   await openSection9(page);
-  await expect(cabine(page, 'Cubículo Enel').locator('.s9-cab-meta')).toHaveText('—');
+  await expect(cabine(page, 'Cubículo Enel').locator('.s9-cab-meta')).toHaveText('faltam 6 campos');
   await menuOf(page, 'Cubículo Enel').click();
   await page.getByRole('menuitem', { name: 'Abrir primeira ficha (dados da cabine)' }).click();
   await expect(page).toHaveURL(/\/ficha\//);
@@ -494,5 +498,6 @@ test('@p0 5.2-E2E-004 (AC2 leftover) cabineMetaText updates live, with no reload
   // Back on the Sumário, the same value with no reload.
   await page.goBack();
   await openSection9(page);
-  await expect(cabine(page, 'Cubículo Enel').locator('.s9-cab-meta')).toHaveText('BLINDADA · 13,8 kV · 19 °C · 67 %');
+  // Story 12.3: the secondary voltage and the power are still empty.
+  await expect(cabine(page, 'Cubículo Enel').locator('.s9-cab-meta')).toHaveText('BLINDADA · 13,8 kV · 19 °C · 67 % · faltam 2 campos');
 });

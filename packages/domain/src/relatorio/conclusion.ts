@@ -106,6 +106,23 @@ export function restrictionWarning(block: BlockRow): string | null {
   return definition !== null && ncItems(block, definition).length > 0 ? 'Há itens não conformes' : null;
 }
 
+/**
+ * Story 12.4 (J-10, D-7; `source-deltas.md` row 52): the sheet observation the NC items
+ * already wrote, suggested while the sheet observation is empty: one line "Item ⟨n⟩:
+ * ⟨observação⟩" per NC item that carries an observation, in checklist order, `n` the row
+ * number. Null when the sheet observation holds text, the observation or checklist
+ * sub-block is off, the sheet is marked not tested, or no NC item has an observation. It is
+ * written only by its own "Confirmar" or with the conclusion text's confirm.
+ */
+export function suggestedSheetObservation(block: BlockRow, definition: BlockDefinition): string | null {
+  if (block.not_tested !== null || !enabledSubBlocksOf(block).has('observations')) return null;
+  if (isCellFilled(block.sheet.observations)) return null;
+  const lines = ncItems(block, definition)
+    .filter((item): item is { n: number; label: string; observation: string } => item.observation !== null && item.observation !== '')
+    .map((item) => `Item ${item.n}: ${item.observation}`);
+  return lines.length === 0 ? null : lines.join('\n');
+}
+
 /** Com restrições makes the sheet observation required (Story 5.8 AC 2). */
 export function observationRequired(block: Pick<BlockRow, 'sheet'>): boolean {
   return conclusionRestrictionOf(block) === 'com_restricoes';

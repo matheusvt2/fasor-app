@@ -97,6 +97,9 @@ function measure(value: { raw: string; unit: string | null } | null, unit: strin
   return `${value.raw.trim().replace('.', ',')} ${value.unit ?? unit}`;
 }
 
+/** `cabineMetaText` of a cabine that holds no data yet. */
+export const CABINE_META_NONE = '—';
+
 /**
  * `.s9-cab-meta` of a cabine row (DESIGN.md › Relatório tree: "SE · 13,8 kV · 19 °C · 67 %",
  * read-only), from the cabine's own data: its SE type, primary voltage, test temperature
@@ -113,7 +116,7 @@ export function cabineMetaText(location: LocationRow): string {
     // Verbatim from the mock's cabine rows.
     location.agrupar_por_tipo ? 'agrupar por tipo' : null,
   ]);
-  return line === '' ? '—' : line;
+  return line === '' ? CABINE_META_NONE : line;
 }
 const join = (parts: readonly (string | null | undefined)[]) => parts.filter((p): p is string => typeof p === 'string' && p !== '').join(SEP);
 

@@ -9,7 +9,7 @@ import { sortWordRegistryRows, type WordRow } from '../registry/word-row.ts';
 import { plural } from '../text/plural.ts';
 import { checklistResultOf } from './sheet-progress.ts';
 import { isCellFilled } from './sheet-state.ts';
-import { firstInTree, locationTree, siblingLocations, treeNodes, type TreeEquipmentNode } from './tree.ts';
+import { locationTree, siblingLocations, treeNodes, type TreeEquipmentNode } from './tree.ts';
 
 /*
  * Stories 5.1-5.4: the rules the equipment sheet reads and must not decide on its own
@@ -43,26 +43,8 @@ export function nextSheet(snapshot: Pick<RelatorioSnapshot, 'locations' | 'block
 }
 
 // --- the cabine ------------------------------------------------------------------------
-
-/** The root location (the cabine) above a location, or null when it is not on this device. */
-export function cabineOf(locations: readonly LocationRow[], locationId: string | null): Extract<LocationRow, { kind: 'cabine' }> | null {
-  const byId = new Map(locations.map((row) => [row.id, row]));
-  const seen = new Set<string>();
-  let at = locationId === null ? undefined : byId.get(locationId);
-  while (at !== undefined && !seen.has(at.id)) {
-    seen.add(at.id);
-    if (at.kind === 'cabine' && (at.parent_id === null || !byId.has(at.parent_id))) return at;
-    at = at.parent_id === null ? undefined : byId.get(at.parent_id);
-  }
-  return null;
-}
-
-/** Story 5.2: the cabine block is edited on its cabine's first sheet (`firstInTree`) and read-only on every other. */
-export function isCabineFirstSheet(snapshot: Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment'>, blockId: string): boolean {
-  const block = snapshot.blocks.find((row) => row.id === blockId);
-  const cabine = cabineOf(snapshot.locations, block?.location_id ?? null);
-  return cabine !== null && firstInTree(snapshot, cabine.id) === blockId;
-}
+// `cabineOf` and the cabine's required fields live in `cabine.ts`; whether a sheet is its
+// cabine's first (`isCabineFirstSheet`) in `sheet-progress.ts`, which counts it.
 
 /**
  * "Copiar da cabine anterior": the cabine right before this one among the roots, by
@@ -165,18 +147,6 @@ export function repeatChecklistPattern(
     out.push({ itemKey: item.key, value });
   }
   return out;
-}
-
-/**
- * "Marcar não ensaiado": the reason the seed offers by default -- the latest
- * `not_tested.at` among the relatório's live blocks that carry one, or null when none
- * does. Used to pre-select the picker's chip the next time it opens (a repeated visit's
- * most likely reason).
- */
-export function lastNotTestedReason(blocks: readonly Pick<BlockRow, 'not_tested' | 'removed_at'>[]): string | null {
-  const marked = blocks.filter((block): block is Pick<BlockRow, 'not_tested' | 'removed_at'> & { not_tested: NonNullable<BlockRow['not_tested']> } => block.removed_at === null && block.not_tested !== null);
-  marked.sort((a, b) => (a.not_tested.at < b.not_tested.at ? 1 : a.not_tested.at > b.not_tested.at ? -1 : 0));
-  return marked[0]?.not_tested.reason ?? null;
 }
 
 /**

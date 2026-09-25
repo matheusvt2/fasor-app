@@ -43,10 +43,16 @@ export function nameplateIsEmpty(block: Pick<BlockRow, 'sheet'>): boolean {
   return !Object.values(block.sheet.nameplate).some(isCellFilled);
 }
 
-/** The filled nameplate values of `source` whose keys the target's definition carries, in the definition's order. */
+/**
+ * "Igual à ⟨TAG⟩?": the filled nameplate values of `source` whose keys the target's
+ * definition carries, in the definition's order, never a `per_unit` field (seed v2, D-3:
+ * IDENTIFICAÇÃO, Nº SÉRIE and TAG belong to one physical unit). A v1 definition flags
+ * none, so a v1 relatório copies as it always did (AR-20).
+ */
 export function nameplateCopyFields(source: Pick<BlockRow, 'sheet'>, definition: BlockDefinition): { fieldKey: string; value: JsonValue }[] {
   const out: { fieldKey: string; value: JsonValue }[] = [];
   for (const field of definition.nameplate) {
+    if (field.per_unit === true) continue;
     const cell = source.sheet.nameplate[field.key];
     if (cell !== undefined && isCellFilled(cell)) out.push({ fieldKey: field.key, value: cell.value as JsonValue });
   }
@@ -90,7 +96,8 @@ export function suggestNameplateCopy(
 
 /**
  * "Copiar da última visita": the equipment's last issued plate, keeping only the keys the
- * target definition carries now (AR-24) and the values that say something. Never fetches;
+ * target definition carries now (AR-24) and the values that say something, the `per_unit`
+ * ones included: it is the same equipment (`source-deltas.md` row 50). Never fetches;
  * an equipment row with no `last_nameplate` copies nothing.
  */
 export function lastNameplateCopy(equipment: Pick<EquipmentRow, 'last_nameplate'>, definition: BlockDefinition): { fieldKey: string; value: unknown }[] {
@@ -104,6 +111,26 @@ export function lastNameplateCopy(equipment: Pick<EquipmentRow, 'last_nameplate'
     out.push({ fieldKey: field.key, value });
   }
   return out;
+}
+
+/** The nameplate field the block's TAG prefills. */
+const TAG_KEY = 'tag';
+
+/**
+ * Story 12.3 (J-09, `source-deltas.md` row 49): the value the nameplate TAG field shows
+ * while it has no cell of its own: the block's equipment TAG. A plain value, editable;
+ * nothing is written until the engineer types (a typed or cleared cell stops following the
+ * block). Null when the definition has no TAG field, the cell exists, or the block has no
+ * TAG.
+ */
+export function nameplateTagPrefill(snapshot: { readonly blocks: readonly BlockRow[]; readonly equipment: readonly Pick<EquipmentRow, 'id' | 'tag'>[] }, blockId: string): string | null {
+  const block = snapshot.blocks.find((row) => row.id === blockId);
+  if (block === undefined || block.removed_at !== null || block.equipment_id === null) return null;
+  const definition = definitionOf(block);
+  if (definition === null || !definition.nameplate.some((field) => field.key === TAG_KEY)) return null;
+  if (block.sheet.nameplate[TAG_KEY] !== undefined) return null;
+  const tag = snapshot.equipment.find((row) => row.id === block.equipment_id)?.tag.trim() ?? '';
+  return tag === '' ? null : tag;
 }
 
 /** "9 campos copiados", "1 campo copiado". */

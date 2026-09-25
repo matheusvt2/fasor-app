@@ -1,5 +1,7 @@
 import {
   appendObservation,
+  cabineLineText,
+  cabineProgress,
   getSeed,
   humidityNoteSurfaced,
   previousCabineEnv,
@@ -8,42 +10,80 @@ import {
   type LocationRow,
   type RelatorioSnapshot,
 } from '@app/domain';
-import { useId } from 'react';
-import { Chip } from '../../components/index.ts';
+import { useEffect, useId, useRef, useState } from 'react';
+import { Chip, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { cabineEnvOp, cabineSeOp, sheetObservationsOp } from './ficha-ops.ts';
-import { ReadOnlyField, SheetField } from './ficha-fields.tsx';
+import { firstFocusable, ReadOnlyField, SheetField } from './ficha-fields.tsx';
 import type { FichaApi } from './ficha-api.ts';
-
 type Cabine = Extract<LocationRow, { kind: 'cabine' }>;
 
 /*
- * Story 5.2: the cabine's "Características da SE" and "Ambiente de ensaio" (FR-24, AR-5,
- * `60-ficha.html` CB-ENT). Edited on the cabine's first sheet (`firstInTree`), written as
- * `location/{id}/se/*` and `location/{id}/env/*` ops on the cabine, never on the sheet;
- * every other sheet of the cabine shows the same values as Read-only fields under the same
- * labels (`.section.is-readonly`, UX-DR49). The altitude is the relatório setup's own,
- * read-only everywhere. "Copiar da cabine anterior" writes the previous cabine's
- * temperature and humidity as plain ops with an undo.
+ * Stories 5.2 and 12.3: the cabine's "Características da SE" and "Ambiente de ensaio"
+ * (FR-24, AR-5; `60-ficha.html` CB-ENT, `key-equipment-sheet-v09.html` `.cabine-line`),
+ * written as `location/{id}/se/*` and `location/{id}/env/*` ops on the cabine, never on the
+ * sheet. D-5 (`source-deltas.md` row 51): on every sheet of the cabine the block is one
+ * line of its values with "Editar"; it is expanded, editable, on the cabine's first sheet
+ * (where its empty fields count and carry the missing-field markers "Concluir ficha" jumps
+ * to), on any sheet while a field is empty (editable, not counted there), and once
+ * "Editar" is tapped or a field inside took the focus (for this visit of the sheet). The
+ * cabine is not the sheet's data: on a sheet marked not tested it stays editable and keeps
+ * "Editar", so a cabine whose sheets are all not tested can still be filled. The altitude is the
+ * relatório setup's own, read-only everywhere. "Copiar da cabine anterior" writes the
+ * previous cabine's temperature and humidity as plain ops with an undo.
  */
-export function CabineBlock({ api, snapshot, cabine, editable }: { api: FichaApi; snapshot: RelatorioSnapshot; cabine: Cabine; editable: boolean }) {
+export function CabineBlock({ api, snapshot, cabine, first }: { api: FichaApi; snapshot: RelatorioSnapshot; cabine: Cabine; first: boolean }) {
   const t = copy.ficha.cabine;
   const seHeading = useId();
   const envHeading = useId();
+  const [editing, setEditing] = useState(false);
+  const host = useRef<HTMLElement>(null);
+  // "Editar" hands the focus to the first field once the fields are drawn.
+  const focusFirst = useRef(false);
+  useEffect(() => {
+    if (!focusFirst.current || host.current === null) return;
+    focusFirst.current = false;
+    firstFocusable(host.current)?.focus();
+  });
   const definition = getSeed(snapshot.relatorio.seed_version, 'cabine_primaria').cabine;
-  const previous = editable ? previousCabineEnv(snapshot.locations, cabine.id) : null;
-  const sectionClass = (extra: string) => ['section', 'se-block', extra, editable ? null : 'is-readonly'].filter(Boolean).join(' ');
+  const progress = cabineProgress(snapshot, cabine.id);
+  // Open while a field is empty; a focus inside keeps it open for the rest of the visit, so
+  // the value that completes the cabine never folds the block under the finger (D-2).
+  const expanded = first || !progress.complete || editing;
+  const keepOpen = () => {
+    if (!editing) setEditing(true);
+  };
+  const missingKeys = new Set(first ? progress.missing.map((field) => `${field.group}/${field.key}`) : []);
+  const previous = previousCabineEnv(snapshot.locations, cabine.id);
+  const sectionClass = (extra: string) => ['section', 'se-block', extra].filter(Boolean).join(' ');
   const altitude = snapshot.relatorio.setup.site_altitude_m;
   const altitudeField = definition.env.find((field) => field.key === 'altitude_m');
 
+  if (!expanded) {
+    return (
+      <div className="cabine-line" role="group" aria-label={t.lineLabel}>
+        <span className="cl-name">{cabine.name}</span>
+        <span className="cl-values">{cabineLineText(cabine)}</span>
+        <TextButton
+          onPress={() => {
+            focusFirst.current = true;
+            setEditing(true);
+          }}
+        >
+          {t.editar}
+        </TextButton>
+      </div>
+    );
+  }
+
   const fieldOf = (group: 'se' | 'env', field: FieldDef) => {
     const value = (cabine[group] as Record<string, unknown>)[field.key] ?? null;
-    if (!editable) return <ReadOnlyField key={field.key} field={field} value={value} />;
     return (
       <SheetField
         key={field.key}
         field={field}
         value={value}
+        missing={missingKeys.has(`${group}/${field.key}`)}
         draft={{ entityId: cabine.id, field: `${group}-${field.key.replace(/_/g, '-')}` }}
         invalidText={t.invalidNumber}
         selectEmpty={t.selectEmpty}
@@ -69,15 +109,15 @@ export function CabineBlock({ api, snapshot, cabine, editable }: { api: FichaApi
 
   return (
     <>
-      <section className={sectionClass('')} aria-labelledby={seHeading}>
+      <section className={sectionClass('')} aria-labelledby={seHeading} ref={host} onFocus={keepOpen}>
         <div className="section-head">
           <h2 id={seHeading}>{t.seTitle}</h2>
           <DaCabine name={cabine.name} />
         </div>
-        {editable ? <p className="section-note">{t.seNote}</p> : null}
+        <p className="section-note">{t.seNote}</p>
         <div className="nameplate-grid">{definition.se.map((field) => fieldOf('se', field))}</div>
       </section>
-      <section className={sectionClass('ficha-amb')} aria-labelledby={envHeading}>
+      <section className={sectionClass('ficha-amb')} aria-labelledby={envHeading} onFocus={keepOpen}>
         <div className="section-head">
           <h2 id={envHeading}>{t.envTitle}</h2>
           <DaCabine name={cabine.name} />

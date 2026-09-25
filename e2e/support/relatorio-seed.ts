@@ -70,6 +70,42 @@ export function officeDraft(account: Account, scope: { relatorioId: string } | {
   };
 }
 
+/** Stories 12.3-12.4: the instrument MG-01 of the account's company, created from the office device (pulled with "Sincronizar agora"). */
+export function instrumentDraft(account: Account): OpDraft {
+  const id = newId();
+  return {
+    kind: 'create',
+    scope: 'company',
+    company_id: account.companyId,
+    project_id: null,
+    relatorio_id: null,
+    path: `registry/instrument/${id}`,
+    value: {
+      id,
+      kind: 'instrument',
+      code: 'MG-01',
+      name: 'Megôhmetro',
+      manufacturer: 'Instrum',
+      model: 'DMG10Ki',
+      serial: 'IN919021',
+      cert_number: '37428/26',
+      laboratory: null,
+      calibrated_at: '2026-08-28',
+      calibration_interval_months: 12,
+      rbc_accredited: null,
+      test_isolacao: null,
+      test_resistencia_contato: null,
+      test_relacao_transformacao: null,
+      certificate_file_id: null,
+      removed_at: null,
+    },
+    prev_op_id: null,
+    batch_id: null,
+    meta: null,
+    actor_id: account.userId,
+  } as OpDraft;
+}
+
 /** One equipment sheet of a relatório built by `newRelatorioDrafts`, in template order. */
 export interface SeededSheet {
   blockId: string;

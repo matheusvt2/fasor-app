@@ -1,7 +1,7 @@
 import {
+  CABINE_META_NONE,
   duplicateTagSuggestion,
   duplicateTagText,
-  lastNotTestedReason,
   locationPathText,
   locationTree,
   paletteLocationFor,
@@ -382,7 +382,6 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
       {dialog?.kind === 'not-tested' ? (
         <NotTestedDialog
           seedVersion={context.seedVersion}
-          lastReason={lastNotTestedReason(snapshot.blocks)}
           onClose={() => closeDialog(() => blockTrigger(blockRow(rootRef.current, dialog.node.blockId)))}
           onSubmit={(reason, text) => {
             const node = dialog.node;
@@ -492,7 +491,21 @@ const SumarioLocation = memo(function SumarioLocation({ node, shared }: { node: 
               {/* The last sheet's row says it when drawn; a collapsed cabine says it for it. */}
               {current && !open ? <span className="sum-here"> {copy.sumario.here}</span> : null}
             </span>
-            <span className="s9-cab-meta">{node.meta}</span>
+            {/* Story 12.3 (`key-relatorio-overview-v09.html`): "falta a umidade" after the data
+                line; alone, with no "—" before it, when the cabine holds no data yet. */}
+            {node.metaMissing === null ? (
+              <span className="s9-cab-meta">{node.meta}</span>
+            ) : node.meta === CABINE_META_NONE ? (
+              <span className="s9-cab-meta">
+                <span className="cl-missing">{node.metaMissing}</span>
+              </span>
+            ) : (
+              <span className="s9-cab-meta">
+                {node.meta}
+                {' · '}
+                <span className="cl-missing">{node.metaMissing}</span>
+              </span>
+            )}
           </span>
           <span className="progress-counter" data-state={node.counterState}>
             <span className="dot" aria-hidden="true" />
