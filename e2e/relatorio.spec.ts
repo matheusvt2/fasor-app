@@ -169,6 +169,10 @@ test('@p0 4.1-E2E-002 the same creation offline; once online and synced, the cli
   context,
   browser,
 }) => {
+  // Two whole-relatório syncs (223 ops up, then a second device's pull), each waited on by
+  // state: seconds when idle, several times that under load, so the budget fits the work
+  // (E5-A1), as the export specs do.
+  test.setTimeout(120_000);
   await resetEmpresaB();
   await signIn(page, account.email);
   await expect(page.locator('.shortcut-sub', { hasText: '1 template' })).toBeVisible({ timeout: 30_000 });
