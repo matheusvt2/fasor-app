@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router';
 import { Tabs, type TabItem } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { readRegistryTab, writeRegistryTab } from '../../db/prefs.ts';
+import { useForgetArrivalState } from '../../state/arrival-state.ts';
 import { useBackTarget } from '../../state/back-target.tsx';
 import { useSession } from '../../state/session.tsx';
 import { ClassesTensaoTab } from './classes-tensao-tab.tsx';
@@ -64,10 +65,7 @@ export function RegistriesSurface() {
   const [selectedId, setSelectedId] = useState<TabId>(arrivalTab ?? DEFAULT_TAB);
   useBackTarget(entry.returnTo ?? null);
   // History keeps no arrival state: a browser back or a reload onto Cadastros opens it plain.
-  useEffect(() => {
-    if (location.state !== null && location.state !== undefined) void navigate(location.pathname + location.search, { replace: true, state: null });
-    // Once per mount, with the values captured above.
-  }, []);
+  useForgetArrivalState();
 
   function endEntry(back: boolean): void {
     const returnTo = entry.returnTo;

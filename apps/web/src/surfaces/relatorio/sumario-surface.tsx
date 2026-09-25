@@ -35,7 +35,7 @@ import {
   type TemplateRow,
   type UserRow,
 } from '@app/domain';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { Button, ConfirmDialog, OverflowMenu, StatusPill, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -44,6 +44,7 @@ import { useLiveQuery } from '../../db/live.ts';
 import { readLastSheet } from '../../db/prefs.ts';
 import { localUsers } from '../../db/sync-store.ts';
 import { newId } from '../../ids.ts';
+import { useForgetArrivalState } from '../../state/arrival-state.ts';
 import { useBackTarget } from '../../state/back-target.tsx';
 import { useExtraBanner } from '../../state/extra-banner.tsx';
 import { useSession } from '../../state/session.tsx';
@@ -124,10 +125,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const location = useLocation();
   const [arrival] = useState(() => arrivalOf(location.state));
   // History keeps no arrival state: a reload or a browser back onto the Sumário opens it plain.
-  useEffect(() => {
-    if (location.state !== null && location.state !== undefined) void navigate(location.pathname + location.search, { replace: true, state: null });
-    // Once per mount, with the values captured above.
-  }, []);
+  useForgetArrivalState();
   const [expanded, setExpanded] = useState(() => arrival.openSection9 || sumarioOpensExpanded(relatorio.status));
   const [openedByStatus] = useState(expanded);
   const chevron = useRef<HTMLButtonElement | null>(null);
