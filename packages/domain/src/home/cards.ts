@@ -1,8 +1,9 @@
 import type { RelatorioSummary } from '../contract/sync.ts';
 import { formatServiceDates, formatShortDateTime, formatTimeOfDay } from '../format/datetime.ts';
 import type { Op } from '../ops/op.ts';
+import { fichasCountText, progress, progressCounterState } from '../relatorio/progress.ts';
 import { sumarioTitle } from '../relatorio/sumario.ts';
-import type { ProjectRow, RegistryRow, RelatorioRow, RelatorioStatus, TemplateRow } from '../schemas/entities.ts';
+import type { BlockRow, ProjectRow, RegistryRow, RelatorioRow, RelatorioStatus, TemplateRow } from '../schemas/entities.ts';
 import { RELATORIO_STATUSES, statusPillId, type StatusPillId } from '../status/table.ts';
 import {
   syncBadgeState,
@@ -51,6 +52,11 @@ export interface HomeCard {
   isCurrent: boolean;
   /** `.is-unavailable`: not on this device and no connection to fetch it. */
   isUnavailable: boolean;
+  /**
+   * `.progress-counter[data-state]`: "42 de 94 fichas" (`20-home.html`), only on a card
+   * whose relatório is on this device (Story 12.2); null otherwise.
+   */
+  counter: { text: string; state: 'complete' | 'pending' } | null;
 }
 
 export interface HomeCardsInput {
@@ -69,6 +75,8 @@ export interface HomeCardsInput {
   reachable?: boolean;
   /** Injected, never read from a clock here (TC-1): decides whether a card's stamp needs its date. */
   now: Date;
+  /** Every block this device holds (Story 12.2): the counter of an on-device card. Omitted means no counter. */
+  blocks?: readonly BlockRow[];
 }
 
 // authored: the mock never draws a relatório without a client and a local, but a
@@ -190,6 +198,18 @@ export function homeCards(input: HomeCardsInput): HomeCard[] {
     else bucket.push(row);
   }
 
+  const blocksByRelatorio = new Map<string, BlockRow[]>();
+  for (const block of input.blocks ?? []) {
+    const bucket = blocksByRelatorio.get(block.relatorio_id);
+    if (bucket === undefined) blocksByRelatorio.set(block.relatorio_id, [block]);
+    else bucket.push(block);
+  }
+  const counterOf = (id: string, device: HomeCardDevice): HomeCard['counter'] => {
+    if (input.blocks === undefined || device.kind !== 'on-device') return null;
+    const p = progress({ blocks: blocksByRelatorio.get(id) ?? [], suggestions: [] });
+    return { text: fichasCountText(p), state: progressCounterState(p) };
+  };
+
   const cards: HomeCard[] = [];
   for (const source of sources.values()) {
     const project = projects.get(source.project_id);
@@ -216,6 +236,7 @@ export function homeCards(input: HomeCardsInput): HomeCard[] {
       badgeCounts: counts,
       isCurrent: false,
       isUnavailable: device.kind === 'absent-offline',
+      counter: counterOf(source.id, device),
     });
   }
 

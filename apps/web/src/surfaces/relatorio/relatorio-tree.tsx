@@ -20,7 +20,7 @@ import { ui } from '../../copy/ui.ts';
 import { DragHandle, PositionBox } from '../templates/reorder-controls.tsx';
 import { LIST_FOCUS_WATCH_FRAMES, useReorder, type Reorder } from '../templates/use-reorder.ts';
 import { FieldPalette, type PaletteTarget } from './block-palette-field.tsx';
-import { blockRow, blockTrigger, locationChevron, useTreeActions, type TreeActions, type TreeContext } from './tree-actions.ts';
+import { blockOpen, blockRow, blockTrigger, locationChevron, useTreeActions, type TreeActions, type TreeContext } from './tree-actions.ts';
 import { NameDialog, TagDialog } from './tag-dialogs.tsx';
 import { NotTestedDialog } from './not-tested-dialog.tsx';
 
@@ -66,6 +66,11 @@ export interface RelatorioTreeProps {
   id?: string;
   /** Opens the path to the last sheet once it is known, and scrolls it into view (Em campo; the rail). */
   expandToLastSheet?: boolean;
+  /**
+   * Story 12.2: the sheet just left by "Voltar": the path to it opens once, its row is
+   * scrolled into view and its open button takes the focus.
+   */
+  focusBlockId?: string | null;
   context: TreeContext;
   ref?: Ref<RelatorioTreeHandle>;
 }
@@ -153,7 +158,7 @@ function treeKeys(event: KeyboardEvent<HTMLElement>, open: boolean | null, setOp
   else focusParentChevron(target);
 }
 
-export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, id, expandToLastSheet = false, context, ref }: RelatorioTreeProps) {
+export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, id, expandToLastSheet = false, focusBlockId = null, context, ref }: RelatorioTreeProps) {
   const t = copy.sumario.tree;
   const tree = useMemo(() => locationTree(snapshot, equipment), [snapshot, equipment]);
   const rootRef = useRef<HTMLUListElement>(null);
@@ -213,6 +218,26 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
     scrollPending.current = false;
     // jsdom draws no layout and has no `scrollIntoView`.
     row.scrollIntoView?.({ block: 'center' });
+  });
+
+  // Story 12.2: back from a sheet, its row opens, scrolls into view and takes the focus, once.
+  const focusSeeded = useRef(false);
+  const focusPending = useRef(false);
+  useEffect(() => {
+    if (focusSeeded.current || focusBlockId === null) return;
+    const path = treePathTo(tree, { blockId: focusBlockId });
+    if (path.length === 0) return;
+    focusSeeded.current = true;
+    focusPending.current = true;
+    reveal(path.at(-1)!);
+  }, [focusBlockId, tree, reveal]);
+  useEffect(() => {
+    if (!focusPending.current || focusBlockId === null) return;
+    const open = blockOpen(rootRef.current, focusBlockId);
+    if (open === null) return;
+    focusPending.current = false;
+    blockRow(rootRef.current, focusBlockId)?.scrollIntoView?.({ block: 'center' });
+    open.focus({ preventScroll: true });
   });
 
   // The path to the last sheet, kept by content so a rebuilt tree with the same path keeps `shared`.

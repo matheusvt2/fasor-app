@@ -99,10 +99,8 @@ export const copy = {
     shortcutsHeading: 'Atalhos',
     templates: 'Templates',
     cadastros: 'Cadastros',
-    // authored: one reason shared by every affordance whose destination belongs to a
-    // later epic ("Continuar" opens the last sheet, Epic 5), so the screen never argues
-    // with itself about what is missing.
-    notAvailableYet: 'Disponível em uma próxima etapa',
+    // Verbatim from `20-home.html`: "Continuar: <span class="tabular">SEC-C05 · 42 de 94</span>".
+    continueTo: 'Continuar: ',
     // Story 4.1: "Novo relatório" first asks for the client and the obra (the Project the
     // relatório is born in), through the client Combobox `50-relatorio-setup.html` draws.
     newProject: {
@@ -791,6 +789,12 @@ export const copy = {
     instrumentsNote: 'Marque os instrumentos desta obra: o certificado de cada um entra na seção 11.',
     // authored: the inline note beside an instrument a sheet still references.
     instrumentReferenced: 'Continua na seção 11 porque uma ficha usa este instrumento',
+    // authored (Story 12.2): the note in place of the list while the registry is empty,
+    // the same sentence the sheet's instrument picker says.
+    noInstruments: 'Nenhum instrumento cadastrado',
+    // Verbatim from `50-relatorio-setup.html` Etapa 4's row.
+    registerInstrument: 'Cadastrar instrumento',
+    registerInstrumentReason: 'Abre Cadastros › Instrumentos',
     // authored: the accessible name of the "m" unit suffix beside the altitude value.
     altitudeUnit: 'metros',
     // Etapa 5 — Local.
@@ -814,7 +818,8 @@ export const copy = {
     parecerNote: 'Disponível em uma próxima etapa',
     // Sticky action bar.
     complete: 'Concluir dados do relatório',
-    // authored: once the relatório has left Rascunho, the sticky bar has nothing left to do.
+    // authored: once the relatório has left Rascunho, the sticky bar has nothing left to do;
+    // also the toast on the Sumário after "Concluir dados do relatório" (Story 12.2).
     completeDone: 'Dados salvos',
   },
   // The section text editor (`45-secao.html`, Story 4.7): plain text with variable chips,
@@ -823,6 +828,8 @@ export const copy = {
     title: 'Seção',
     backToSumario: 'Voltar para o sumário',
     voltarAoSumario: 'Voltar ao sumário',
+    // authored (Story 12.2): the sticky bar's way on to the next section text.
+    proximaSecao: 'Próxima seção',
     notFound: 'Seção não encontrada.',
     fieldLabel: 'Texto da seção',
     insertVariable: 'Inserir dado do relatório',

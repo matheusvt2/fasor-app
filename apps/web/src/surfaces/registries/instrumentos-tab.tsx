@@ -19,10 +19,29 @@ const NO_BLOCKS: BlockRow[] = [];
  * "Novo instrumento" mints an id locally; nothing is written until the first field
  * commits (`InstrumentPanel`'s create-on-first-field rule, AD-3).
  */
-export function InstrumentosTab() {
+export interface InstrumentosTabProps {
+  /** Opens a new instrument's panel on arrival (Story 12.2: setup Etapa 4's "Cadastrar instrumento"). */
+  openNew?: boolean;
+  /**
+   * The arrival's panel is done with, once: `back` when it was closed (the caller returns to
+   * the page that asked for it), false when another panel replaced it.
+   */
+  onEntryEnd?: (back: boolean) => void;
+}
+
+export function InstrumentosTab({ openNew = false, onEntryEnd }: InstrumentosTabProps = {}) {
   const session = useSession();
   const db = session.database;
-  const [openId, setOpenId] = useState<string | null>(null);
+  // The panel minted for the arrival; only its close returns, and only once.
+  const [entryId, setEntryId] = useState<string | null>(() => (openNew ? newId() : null));
+  const [openId, setOpenIdState] = useState<string | null>(entryId);
+  const setOpenId = (next: string | null) => {
+    if (entryId !== null && openId === entryId && next !== entryId) {
+      setEntryId(null);
+      onEntryEnd?.(next === null);
+    }
+    setOpenIdState(next);
+  };
 
   const instruments = useLiveQuery(
     () => (db === null ? Promise.resolve(NO_INSTRUMENTS) : instrumentRows(db)),

@@ -102,9 +102,9 @@ function BannerSlotProbe() {
 }
 
 /** The tree the surface renders for `id` under `sync`; `rerender` swaps the sync state in place. */
-function tree(id: string, sync: SyncState) {
+function tree(id: string, sync: SyncState, state: unknown = null) {
   return (
-    <MemoryRouter initialEntries={[`/relatorio/${id}`]}>
+    <MemoryRouter initialEntries={[{ pathname: `/relatorio/${id}`, state }]}>
       <SyncContext value={sync}>
         <ToastProvider>
           <BackTargetProvider>
@@ -124,8 +124,8 @@ function tree(id: string, sync: SyncState) {
   );
 }
 
-function renderSumario(id = RELATORIO, sync = syncState()) {
-  return render(tree(id, sync));
+function renderSumario(id = RELATORIO, sync = syncState(), state: unknown = null) {
+  return render(tree(id, sync, state));
 }
 
 const list = () => screen.getByRole('list', { name: 'Sumário do relatório' });
@@ -335,6 +335,18 @@ describe('4.3 SumarioSurface', () => {
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
     // @ts-expect-error jsdom's Element has no scrollIntoView; the mock above added it.
     delete Element.prototype.scrollIntoView;
+  });
+
+  it('12.2: arriving with openSection9 and focusBlockId opens section 9 on a Rascunho relatório and focuses that sheet\'s row', async () => {
+    database = await seeded();
+    const record = (await database.entities.get(['relatorio', RELATORIO]))!;
+    await database.entities.put({ ...record, row: { ...(record.row as { status: string }), status: 'rascunho' } as never });
+    const chaveBlockId = portoSeguroSmall.log.find((op) => op.path.startsWith('block/'))!.path.split('/')[1]!;
+    const { container } = renderSumario(RELATORIO, syncState(), { openSection9: true, focusBlockId: chaveBlockId });
+    await waitFor(() => expect(rows()).toHaveLength(13));
+    expect(container.querySelector('.sum-s9')).toHaveClass('is-open');
+    expect(screen.getByRole('button', { name: 'Expandir ou recolher a seção 9' })).toHaveAttribute('aria-expanded', 'true');
+    await waitFor(() => expect(container.querySelector(`li.s9-eq[data-block-id="${chaveBlockId}"] [data-tree-open]`)).toHaveFocus());
   });
 
   it('"Desfazer" after Remover brings the row back and hands the focus to its Overflow trigger', async () => {

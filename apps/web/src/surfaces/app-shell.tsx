@@ -28,7 +28,16 @@ export interface RouteTitle {
    * `useBackTarget` instead.
    */
   back?: string | ((params: Record<string, string | undefined>) => string);
+  /**
+   * Story 12.2 (D-8): where back goes at the tablet and desktop widths when that differs
+   * from `back` (a sheet returns to the Sumário with its row focused; the phone keeps the
+   * tree surface), with the navigation state the destination reads.
+   */
+  backWide?: (params: Record<string, string | undefined>) => { to: string; state: unknown };
 }
+
+/** DESIGN.md `breakpoint-tablet`, the width from which a sheet has its rail beside it. */
+const WIDE_QUERY = '(min-width: 768px)';
 
 /** The document title of a route: "Conta · PRODUTO", or the product name alone on Home. */
 export function documentTitle(handle: RouteTitle | undefined): string {
@@ -85,6 +94,18 @@ export function AppShell() {
     document.title = tabTitle;
   }, [tabTitle]);
 
+  function goBack(): void {
+    // A press-time width check, not a render switch: the destination depends on the
+    // layout the person sees when they press, and nothing on screen changes with it.
+    const backWide = backTarget === null ? handle?.backWide : undefined;
+    if (backWide !== undefined && typeof window.matchMedia === 'function' && window.matchMedia(WIDE_QUERY).matches) {
+      const { to, state } = backWide(params);
+      void navigate(to, { state });
+      return;
+    }
+    void navigate(back);
+  }
+
   const banners = bannerCandidates({
     reAuthRequired: session.reAuthRequired,
     online: sync.online,
@@ -106,7 +127,7 @@ export function AppShell() {
               {PRODUTO}
             </Link>
           ) : (
-            <AriaButton className="icon-btn" aria-label={ui.appBar.back} onPress={() => void navigate(back)}>
+            <AriaButton className="icon-btn" aria-label={ui.appBar.back} onPress={goBack}>
               <svg className="ico" aria-hidden="true">
                 <use href="/sprite.svg#i-back" />
               </svg>

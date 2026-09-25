@@ -113,7 +113,10 @@ test('@p1 1.6-E2E-001 Home shows the status board, the current relatório first 
   // Q5: the card names the client and the obra as the Sumário header does, not the setup Local.
   await expect(first.locator('.card-title')).toContainText('Cliente E2E · Projeto E2E');
   await expect(first.locator('.card-meta')).toContainText('06–08/09/2026');
-  await expect(first.getByRole('button', { name: 'Continuar' })).toHaveAttribute('aria-disabled', 'true');
+  // Story 12.2: "Continuar" is live (no sheet here, so it names none) and the card counts its sheets.
+  await expect(first.getByRole('button', { name: 'Continuar' })).not.toHaveAttribute('aria-disabled', 'true');
+  await expect(first.locator('.card-state .progress-counter')).toHaveText('0 de 0 fichas');
+  await expect(card(page, emitidoId).locator('.progress-counter')).toHaveCount(0);
   await expect(card(page, rascunhoId).getByRole('button', { name: 'Continuar' })).toHaveCount(0);
   // "Ver sumário" opens the relatório's Sumário (Story 4.3).
   await first.getByRole('button', { name: 'Ver sumário' }).click();
