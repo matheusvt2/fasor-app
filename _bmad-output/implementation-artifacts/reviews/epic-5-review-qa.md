@@ -110,3 +110,44 @@ Counts by severity: **high 1**, **medium 5** (Q2, Q3, Q4, Q6, Q18), **low 10**, 
 5. **OQ-5 (E5-Q12):** Should "Igual à ⟨TAG⟩?" skip per-unit keys (Nº SÉRIE, perhaps the fabrication date)?
 6. **OQ-6 (E5-Q13):** With no reason used yet in the relatório, should the not-tested dialog preselect nothing?
 7. Carried from the PR bodies and still undecided: Q15 (renaming a TAG shared with an Emitido relatório); item 23 (template section 3 against setup exclusions); the 80 % humidity threshold; CONDIÇÕES blank when a reading is out; the single TAP row; the Porto Seguro transformer fixture storing V PRIMÁRIO 13800 under **kV**.
+
+## Re-check after #33
+
+- **Head checked:** `fix/epic-5-qa` at `a5b3559`, on the same `fasor-qa5` stack. api and web were restarted. There is no schema or seed change.
+- **`pnpm test:e2e:full`:** **EXIT 1.** 119 passed, 3 skipped (touch) and **1 failed**: `@p1 E5-Q8` (`e2e/ficha.spec.ts:1083`), on its Conclusão-pair half. The last `conclusion/result` op in the outbox was `"reprovado"`, not `null`. It passed **2 of 2** when re-run alone (`--repeat-each 2`). Load average was 2.3 to 2.5 before and after. Classified as a **flake under load**; see the residual risk E5-R1.
+  - `4.2-E2E-002` (E5-Q1) now passes.
+  - The new tests E5-Q2, Q9, Q17, Q18a and Q18d pass.
+  - The api logged no `unhandled route error` in the whole window.
+- **Browser (Playwright MCP):**
+  - A new relatório was created through the UI.
+  - SEC-ENEL was filled end to end at 768 px: nameplate by kind, bulk Conforme, 9 readings by Enter only ending on "Próxima ficha", the suggestion, Confirmar, then "Concluir ficha" moving to SEC-ENEL-2.
+  - Also checked: 390 px in dark theme, 1280 px, the Não ensaiada path, and an expired instrument created in Cadastros and then picked.
+  - The only console errors are one burst of `useSession must be used inside SessionProvider` and 502s, both at the moment of the api/web restart (Vite HMR on the old page). This is not a product error.
+
+| Finding | Result | Evidence |
+|---|---|---|
+| E5-Q1 | **fixed** | 4.2-E2E-002 is green in the full run. No 500 was logged. Integration tests were added. |
+| E5-Q2 | **fixed, with a new defect (E5-R2)** | At 390 px the value input, unit slot and Overflow now sit inside the viewport (input 236-294, unit 294-352, Overflow 236-284 of 390), with no sideways page scroll. But see E5-R2. Screenshot `14-recheck-q2-390-dark.png`. |
+| E5-Q4 | **fixed** | With nothing recorded: "O TP TP-ENEL não apresentou valores medidos nem itens verificados registrados." With checklist only: "… apresentou todos os itens verificados conformes, sem valores medidos registrados." The wording is still OQ-3. |
+| E5-Q5 | **fixed** | When the text is stale, the criteria line (250 GΩ) describes the "Substituir" button, not the stored text (330 GΩ). Screenshot `13-recheck-q5-stale-criteria.png`. |
+| E5-Q7 | **fixed** | "147 mΩ" gives "Número não reconhecido" with `aria-invalid`. "147 m" reads 147 MΩ. |
+| E5-Q8 | **fixed in the browser; the e2e is intermittent** | 6 of 6 fast Space, ArrowRight, Delete on a checklist row and 6 of 6 on Resultado end unset, also after a reload. The e2e failed once under load (E5-R1). |
+| E5-Q9 | **fixed** | "Calibração vencida em 10/01/2026" draws in `rgb(138,75,0)`, which is `--fora-do-limite`, inside `.instrument-picker`. Screenshot `15-recheck-q9-expired-amber.png`. |
+| E5-Q10 | **fixed** | On a Não ensaiada sheet the checklist radiogroup carries `aria-readonly="true"` and no `aria-disabled`. The unsynced Desfazer opens no dialog. |
+| E5-Q14 | **fixed** | POTÊNCIA INSTALADA typed "1.500" on CE-ENEL reads "1.500 kVA" on PR-ENEL. |
+| E5-Q15 | **fixed** | 3,3 against 3.300 and 3.200 (about 970×) now reads "Fase C 1000× abaixo de A e B". |
+| E5-Q16 | **fixed** | `concludedByOp` and `notTestedOp` now use `putBlockOp` (checked in the diff). |
+| E5-Q17 | **fixed** | The sheet Overflow has "Limpar conclusão". It clears both groups with the toast "Conclusão limpa — Desfazer", and Desfazer restores both. |
+| E5-Q18 (a), (c), (d) | **fixed** | E5-Q18a `@p0`, E5-Q2 `@p1` and E5-Q18d `@p1` pass in the full run. Behavior (a) and (d) was also confirmed by hand in the first pass. |
+
+The items still open (E5-Q3, Q6, Q11, Q12, Q13, Q18 b/f/g, and OQ-1 to OQ-6) are unchanged and stay as the PR lists them.
+
+### New findings
+
+| ID | Sev | Kind | Where | Reproduction | Disposition |
+|---|---|---|---|---|---|
+| E5-R1 | low | test flake / possible residual race | `e2e/ficha.spec.ts:1112`; `use-latest-choice.ts` | In `test:e2e:full` at load average 2.5, the Conclusão half of `@p1 E5-Q8` saw the UI unset while the last `conclusion/result` op was `"reprovado"`. It passed 2 of 2 alone, and 12 of 12 by hand. The edit queue serialises writes, so the cause is likely that the test reads the outbox before the `null` op lands. A dropped Delete, if it happened, would still show as a checked segment. | Defer. Make the poll wait for a `null` op after the `reprovado` one, or read the snapshot rather than the outbox's last row. Not a merge blocker. |
+| E5-R2 | medium | defect (5.5 AC1 "nothing clipped") | `apps/web/src/surfaces/ficha/ficha.css` (the new `max-width: 767.98px` rule, `min-width: 128px`, flex-wrap) | At 390 px the insulation value input is **58 px wide**: "250" shows as "25", and a grouped "3.300" would be cut further. The cell Overflow wraps under the input. See `14-recheck-q2-390-dark.png`. The E5-Q2 e2e checks only that the controls are inside the viewport, not that the value is readable. | **Fix before or right after merge.** Give the input a readable minimum, for example the width of the Terra/Guard columns or `ch`-based, or stack the Terra and Guard columns under the Linha label on phone. Add a check that `input.scrollWidth <= input.clientWidth` for a 5-character value at 390. |
+| E5-R3 | nit | defect | `generated-text-field.tsx` | With no reading and no NC, the Generated text field still shows the "Critérios usados" heading with an empty list. | Defer. Hide the heading when there are no items. |
+
+**Verdict:** **merge**, with E5-R2 to be fixed in a small follow-up before the Epic 5 close; merge now only if that follow-up is scheduled. No finding regressed, E5-Q1 (high) is fixed, and the only full-run failure is a load flake that passes alone.
