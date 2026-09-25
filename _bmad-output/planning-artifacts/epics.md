@@ -492,6 +492,12 @@ The remaining product scope the slice deferred: the PDF download beside the DOCX
 **Also covers:** UX-DR55 (priority pill and picker), UX-DR65 (location switch), AR-26 (AWS: ECS Fargate, RDS, S3, Secrets Manager, CloudWatch, Bedrock, Textract via CDK in `infra/`, CI image promotion), AR-29
 **Decisions (Matheus, 2026-09-21):** the MVP runs 100% locally in Docker; the AWS deployment, the real Claude structuring call (`LLM_PROVIDER=anthropic` with a Console key, then `bedrock`) and Amazon Textract as an `OcrProvider` are stories of this epic, after the MVP, and no earlier epic depends on a cloud account or on paid API credits.
 
+### Epic 12: Field journey and visual refresh (journey review 2026-09-24)
+A field engineer resumes the sheet where they stopped in one tap, never has to tap twice for a tap the app swallowed, moves forward from setup to the first sheet to the last without "Voltar", repeats nothing from sheet to sheet that the app already knows (instrument, cabine data, NC observation, per-unit plate fields), and sees a sheet that reads as a modern field tool while keeping every sunlight and glove rule. Source: `ux-fasor-2026-09-18/review-journey-2026-09-24.md` (findings J-01 to J-19, decisions D-1 to D-11), `DESIGN.md` § v0.9 direction, `source-deltas.md` rows of 2026-09-24. Runs before Epic 6: the photos epic builds on the sticky bar and sheet header that Story 12.5 restyles. Mockups: `key-equipment-sheet-v09.html`, `key-relatorio-overview-v09.html`, `key-home.html`.
+**FRs covered:** FR-16, FR-17, FR-21, FR-24, FR-25, FR-28, FR-32, FR-34 (revisited); NFR-15
+**Also covers:** UX-DR33 to UX-DR40, UX-DR45, UX-DR46 (revisited); AR-10, AR-17, AR-20 (`per_unit` in the seed)
+**Decisions (journey review 2026-09-24, Amelia and Sally with Matheus):** the lost-tap fix ships alone and first (D-1); the visual refresh lands in the mocks before the app (D-10); the tap budget becomes a real test (D-11). Matheus confirmed on 2026-09-24 that Epic 12 runs before Epic 6 and decided the Não ensaiado reasons (three standard plus free text, Story 12.4); the nameplate TAG field, the printed observation and the status on generate stay for later.
+
 ## Epic 1: Sign in and work on the device (offline-first foundation)
 
 A company user signs in once, opens PRODUTO on any device, and every relatório in progress is already on the device and keeps working with no signal; whatever is captured lands locally first and reaches the server by itself. Stories stay small; the whole MVP runs 100% locally in Docker (AWS only after the MVP), so this epic exposes the local stack to tablets over HTTPS and the offline proof runs on a real iPad against that origin. Mockups: `prototype/screens/10-login.html`, `20-home.html`, `90-account.html`, `85-sync.html` (badge and counts only), `key-login.html`, `key-home.html`, `key-account.html`.
@@ -2324,3 +2330,189 @@ So that the client receives the schedule the new NR-10 names.
 **Given** points with priority, deadline and owner
 **When** the generate job renders section 8
 **Then** beneath the bullets a table prints with columns Nº · Ponto de atenção · Local/TAG · Prioridade · Prazo · Ação recomendada · Responsável · Imagens, manual then derived rows numbered continuously, "—" where a value is missing, images as the same resolved numbers; `preIssue` counts "pontos sem prazo" as information (FR-52, AR-25)
+
+## Epic 12: Field journey and visual refresh (journey review 2026-09-24)
+
+Added 2026-09-24 from `review-journey-2026-09-24.md` and `sprint-change-proposal-2026-09-24.md`. Six stories, ordered; 12.1 ships alone before any other. The Definition of Ready and Definition of Done of this document apply; each story below adds its own clauses. Every story with a front end re-measures the journeys it touches (J0 to J6 of the review, tablet 768 px) and records the new tap and keystroke counts in its PR.
+
+### Story 12.1: No tap is ever lost, and a section never collapses under the finger
+
+**Dev model:** opus · **Effort:** high · React Aria press semantics against re-renders on blur commits; the fix must be proven in a real browser and in a race test
+
+As a field engineer,
+I want every tap on the sheet to do what it says, even right after I typed a value,
+So that I never conclude a sheet believing I marked something I did not.
+
+**Acceptance Criteria:**
+
+**Given** a sheet with a pending field commit (a value typed and Enter or blur less than 500 ms ago) or a section that just re-rendered
+**When** the user taps "Marcar os restantes como Conforme", "Repetir da ficha anterior do mesmo tipo", an instrument picker, a tri-state segment, a chip or "Concluir ficha"
+**Then** the tap is applied exactly once and its feedback appears (toast, counter, expanded picker); a Playwright test types into a field, presses Enter and taps each of these controls within 50 ms, 200 ms and 400 ms, asserting the state change every time (J-01; UX-DR36, UX-DR38, AR-17)
+
+**Given** the root cause is identified
+**When** the fix lands
+**Then** it is written once in the shared press path (`components/` or `input/`), not per surface, and a comment names the mechanism that swallowed the tap; the PR pastes the before and after of the J1 and J3 tap counts from `review-journey-2026-09-24.md` § 6
+
+**Given** a section becomes complete because of a tap or a keystroke inside it
+**When** that happens
+**Then** it stays expanded; it collapses only when the user taps another step or the readings run moves focus into the next section, and never while it holds an out-of-limit reading; the Section stepper still shows it complete (J-04; EXPERIENCE.md § Section stepper as amended 2026-09-24, D-2)
+
+**Given** the checklist is complete
+**When** the sticky bar mirrors the bulk action
+**Then** the mirror leaves the bar instead of staying disabled with "Todos os itens já estão marcados" (J-15; UX-DR36)
+
+**Definition of Done, in addition:** the real-browser pass repeats the four lost-tap scripts of the review on desktop Chrome and on Android Chrome emulation; the durability matrix gains the race test.
+
+### Story 12.2: Forward, never back: resume in one tap and no dead ends
+
+**Dev model:** opus · **Effort:** medium · navigation handlers, the Home card counter from the kernel, defaults on the new-relatório dialog
+
+As a field engineer,
+I want "Continuar" on Home to open the sheet where I stopped, and every screen to lead to the next one,
+So that I never use "Voltar" to move forward.
+
+**Acceptance Criteria:**
+
+**Given** a relatório Em campo on this device with a last opened sheet
+**When** the user taps "Continuar: ⟨TAG⟩ · ⟨n⟩ de ⟨N⟩" on the Home card
+**Then** the app opens that sheet; with no last sheet it opens the first sheet with something missing; the card shows the "⟨n⟩ de ⟨N⟩ fichas" progress counter from the kernel; the disabled state and "Disponível em uma próxima etapa" are gone (J-05; FR-21, `key-home.html`)
+
+**Given** the user taps "Concluir dados do relatório"
+**When** the status moves to Em campo
+**Then** the app navigates to the Sumário with section 9 expanded; the toast "Dados salvos" is announced there (J-06; FR-16)
+
+**Given** a sheet on a tablet or desktop width
+**When** the user taps the App bar "Voltar"
+**Then** the app returns to the Sumário with section 9 expanded on that sheet's row and focus on it; on a phone "Voltar" returns to the tree surface as before; `/arvore` stops being a destination on widths with a rail (J-06; FR-17)
+
+**Given** the section text surface
+**When** it renders its sticky bar
+**Then** it offers "Próxima seção" beside "Voltar ao sumário" while a later editable section exists (J-06; FR-12)
+
+**Given** the "Novo relatório" dialog on the Project page
+**When** it opens
+**Then** "Início da parada" and "Fim da parada" default to today and "Criar relatório" is enabled; typing another start date still moves the end date with it (J-12; FR-15)
+
+**Given** setup Etapa 4 with no instrument registered
+**When** it renders
+**Then** the band shows "Nenhum instrumento cadastrado" with a "Cadastrar instrumento" button that opens Cadastros › Instrumentos and returns to Etapa 4 after "Fechar" (J-11; FR-16, FR-4)
+
+**Definition of Done, in addition:** J0 measures 1 tap and J5 measures no forced "Voltar", recorded in the PR.
+
+### Story 12.3: The sheet repeats nothing the cabine or the relatório already knows
+
+**Dev model:** opus · **Effort:** high · kernel rules (`suggestedInstrument`, `cabineProgress`, `per_unit`), one-line cabine block, confirm-on-conclude batch
+
+As a field engineer,
+I want the instrument, the cabine data and the copied plate to come to me,
+So that the second sheet of a type costs five taps, as the spine promised.
+
+**Acceptance Criteria:**
+
+**Given** a test sub-block on a sheet and an instrument already used for the same test kind in this relatório
+**When** the sheet renders
+**Then** the test header shows that instrument as a Suggestion field ("Sugerido", helper "Último usado neste relatório · confirmado ao concluir a ficha"), computed by the kernel (`suggestedInstrument(snapshot, blockId, testKind)`); tapping it opens the picker as today; "Concluir ficha" writes the suggested instrument in the same batch as the conclusion unless the user picked another; nothing prints while unconfirmed (J-07, D-4; FR-28, UX-DR45)
+
+**Given** any sheet of a cabine
+**When** it renders the "Da cabine" block
+**Then** it shows one `cabine-line` "⟨cabine⟩ · ⟨tipo⟩ · ⟨kV⟩ · ⟨°C⟩ · ⟨%⟩" with "Editar"; the block is expanded on the cabine's first sheet or while any cabine field is empty; editing from any sheet writes the cabine ops as today (J-08, D-5; FR-24, `key-equipment-sheet-v09.html`)
+
+**Given** the kernel's progress rules
+**When** a cabine field is empty
+**Then** `cabineProgress(snapshot, cabineId)` reports it, the first sheet of the cabine counts it in "obrigatórios faltando", and the Sumário cabine row shows "falta ⟨campo⟩"; `preIssue` lists it as a warning, never blocking (J-03; FR-24, FR-73)
+
+**Given** "Igual à ⟨TAG⟩?" or "Copiar da última visita"
+**When** the user taps it
+**Then** IDENTIFICAÇÃO, Nº SÉRIE and TAG are not copied (seed `per_unit: true` on those field definitions, AR-20); the toast still reads "Copiado de ⟨TAG⟩" with Desfazer; a kernel test covers each of the eight block types (J-02, D-3; FR-34)
+
+**Given** a sheet whose block has a TAG
+**When** the nameplate renders its TAG field empty
+**Then** it is prefilled from the block's TAG as a plain value with the helper "Do bloco · editável", and renaming the block TAG updates an untouched nameplate TAG (J-09; FR-7)
+
+**Definition of Done, in addition:** J3 measures at most 5 taps and about 36 keystrokes, recorded in the PR; the fixture Porto Seguro golden snapshot is regenerated if `per_unit` changes copied values.
+
+### Story 12.4: The plate and the NC in fewer taps
+
+**Dev model:** opus · **Effort:** medium · nameplate section layout, combobox focus, suggested sheet observation
+
+As a field engineer,
+I want to see the plate fields as soon as I open a new equipment and write a non-conformity once,
+So that a new equipment costs no exploratory tap and an NC costs one chip.
+
+**Acceptance Criteria:**
+
+**Given** a sheet whose nameplate is empty
+**When** it renders
+**Then** the fields are visible with the copy chips above them; "Digitar" no longer exists; when Epic 8 ships, the "Fotografar placa" tile sits above the fields (J-09, D-6; FR-23, EXPERIENCE.md § Nameplate as amended 2026-09-24)
+
+**Given** "Outro…" on a manufacturer or voltage class chip row
+**When** the user taps it
+**Then** focus lands inside the combobox it opens, so typing starts at once; "Criar “⟨valor⟩”" still creates the registry entry offline (J-09; FR-5, UX-DR23)
+
+**Given** a checklist with at least one NC item carrying an observation
+**When** the sheet observation is empty
+**Then** it is shown as a Suggestion "Item ⟨n⟩: ⟨observação⟩" (one line per NC item, kernel text) and is confirmed together with the conclusion text or by its own "Confirmar"; typing replaces it; "Com restrições" no longer demands typing when the suggestion exists (J-10, D-7; FR-25, FR-30, UX-DR46)
+
+~~**Given** the "Marcar não ensaiado" dialog **When** it opens **Then** it follows Matheus's decision on preselection recorded under this story before it starts (J-16, review § 5 item 1); until decided the story is not ready~~ *(2026-09-24, Matheus decided: three standard reasons plus a fourth free text)*
+
+**Given** the "Marcar não ensaiado" dialog, from the sheet menu or the tree row menu
+**When** it opens
+**Then** it offers three standard reasons, Impossibilidade de desligamento · Solicitação do cliente · Equipamento inacessível, and a fourth "Outro" with a required free-text field; no reason is preselected and "Marcar não ensaiado" stays disabled with its reason until one is tapped; the third reason and its printed justification come from the seed (a new seed version per AR-20, earlier relatórios keep theirs) (J-16; FR-31, AR-20)
+
+**Definition of Done, in addition:** J2 measures one chip and zero typed characters for the common NC; the human-style pass covers a new equipment and an NC at 390 and 768 px.
+
+### Story 12.5: Apply the v0.9 visual direction
+
+**Dev model:** opus · **Effort:** high · CSS promotion with the byte-identical rule, shared components (tri-state, stepper, field, sheet header), the real-browser pass at four widths in both themes
+
+As a field engineer,
+I want the sheet to read at arm's length as a modern field tool,
+So that the state of every row and step is seen before it is read.
+
+**Acceptance Criteria:**
+
+**Given** `mockups/tokens-v09.css` and `mockups/components-v09.css`
+**When** the story starts
+**Then** their rules are folded into `mockups/tokens.css` and `mockups/components.css` (replacing the rules they override), `DESIGN.md` frontmatter and version move to 0.9.0, and the same files are copied unchanged to `apps/web/src/styles`, in one PR; `app-css.test.ts` stays green; every `.frame-*` rule gains its translation in `app.css` (AGENTS.md "Mock container selectors")
+
+**Given** the shared components
+**When** they render
+**Then** the field, measurement field, tri-state, section stepper, sheet header, cabine line, buttons, relatório card, status tile and Sumário row match `key-equipment-sheet-v09.html` and `key-relatorio-overview-v09.html` in light and dark at 390, 768, 1024 landscape and 1280 px (DESIGN.md § v0.9 direction; UX-DR33 to UX-DR40)
+
+**Given** a seed label such as "TENSÃO PRIMÁRIA"
+**When** it renders on screen
+**Then** it reads "Tensão primária" (kernel `screenLabel`, sentence case with the seed's acronyms kept: SE, kV, TAG, RBC); the DOCX renderer keeps the caps (J-13, D-9; FR-22, FR-68)
+
+**Given** the sheet header
+**When** it renders
+**Then** it shows one kernel sentence of progress ("Placa e verificações prontas · faltam 9 leituras e a conclusão", `sheetSummaryText`) instead of the "⟨n⟩ obrigatórios faltando" counter; the counts stay in the stepper (J-14)
+
+**Given** the Sumário
+**When** it renders
+**Then** the App bar title is the relatório name, rows use the v0.9 row layout and the 390 px layout keeps the text column at least 60 % of the width (J-17, J-18; FR-17)
+
+**Definition of Done, in addition:** the real-browser pass captures the same three screens as the review's `A-*` set and stores them beside them; contrast of every new pair is checked with the DESIGN.md § v0.9 table.
+
+### Story 12.6: The tap budget is a test
+
+**Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** medium · Playwright tests that count taps and keystrokes, plus the touch-target audit
+
+As the team,
+I want the interaction budget measured on every merge,
+So that a story cannot add taps to the sheet without anyone noticing.
+
+**Acceptance Criteria:**
+
+**Given** the seeded standard template and one instrument
+**When** the test 5.1-E2E-001 runs J1 (a seccionadora with a copied plate, bulk C, nine typed readings, suggested conclusion, conclude) and J3 (the next seccionadora with "Igual à" and "Repetir")
+**Then** it counts clicks and typed characters through a page-level listener and asserts J1 at most 12 taps and J3 at most 5 taps, both at most 40 keystrokes offline; the thresholds live in one constant beside the test with the review's numbers as comments (D-11; EXPERIENCE.md § Interaction budget)
+
+**Given** every interactive element on the sheet, the Sumário and Home
+**When** ERGO-E2E-001 runs at 390 and 768 px
+**Then** each has a hit area of at least 48 by 48 px, and tri-state segments, measurement fields, conclusion segments and tree rows at least 56 px tall (DESIGN.md § Layout & Spacing)
+
+**Given** `pnpm verify`
+**When** it runs
+**Then** both tests are tagged `@p0` and finish within the 15-minute gate
+
+**Definition of Done, in addition:** the retro of Epic 12 records the measured numbers next to the review's table.

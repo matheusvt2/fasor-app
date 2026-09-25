@@ -669,7 +669,7 @@ The active theme follows the device preference (`prefers-color-scheme`) unless t
 | `fora-do-limite` + fill | `#8A4B00` / `#FDEBD0` | `#F2B85C` / `#3A2A10` | 6.8:1 on white; 5.8:1 on fill | Out-of-limit values; Com restrições; "Sugerido" and "Verificar" (Suggestion field); the conclusion suggestion; the outlier helper; `sync-pending`; warning Banner; Priority pill P1; Parecer box *Apto com restrições*; Generated text field until confirmed. |
 | `nao-ensaiado` + fill | `#4A4374` / `#E9E6F5` | `#BDB4E6` / `#2A2740` | 9.0:1 on white | Not-tested chip and band; `sync-conflict`; conflict Banner and changed cells. |
 
-**Surfaces and ink.** Surface base is slightly off-white so raised cards read as cards, but close enough to white that a sunlit screen still has full luminance to spend. Ink secondary is deliberately dark; there is no "disabled gray" text tone — disabled controls use `border-hairline` and reduced opacity on the whole control, never a lighter ink. Border strong keeps a field edge visible outdoors; border hairline is never the sole boundary of an interactive element.
+**Surfaces and ink.** Surface base is slightly off-white so raised cards read as cards, but close enough to white that a sunlit screen still has full luminance to spend. Ink secondary is deliberately dark; there is no "disabled gray" text tone — disabled controls use `border-hairline` and reduced opacity on the whole control, never a lighter ink. ~~Border strong keeps a field edge visible outdoors;~~ A field is a filled surface (`surface-sunken`) closed by a 2px `border-strong` bottom rule, which keeps its edge visible outdoors with less ink than a box *(v0.9, 2026-09-24; § v0.9 direction)*; border hairline is never the sole boundary of an interactive element.
 
 **Focus.** The active field changes its whole background to `focus-fill` and gets a 3px `focus` border, lifted from the GroundPRO screenshots (`docs/concorrentes/extract-fotos-whatsapp.md` §8): with gloves and glare the engineer must know without doubt which field is live. Non-input elements (buttons, tree rows, cards, tiles, chips, the Sync badge, dialog options) take a 3px `focus` ring with 2px offset around their full hit area.
 
@@ -693,7 +693,7 @@ The active theme follows the device preference (`prefers-color-scheme`) unless t
 
 One family, **Inter** (fallback Roboto → Segoe UI → system-ui), chosen for large x-height and unambiguous digits at small sizes. Numerals are always `tabular-nums` so columns of readings align, and measured values render in `value` (20px, 600) — larger and heavier than body text because the reading is the thing the engineer checks against the limit.
 
-The ramp is deliberately larger than a desktop default: `body` 16px, `field-input` 18px, `value` 20px, `heading` 18px, `title` 22px, `display` 28px (display appears only on Home and the export result). `label` and `meta` are 14px, the floor; nothing in the app is set below 14px. No ALL-CAPS labels — the current sheets truncate uppercase Excel labels ("TENSÃO SECUNDÁ", "CAPACIDADE INTERRU", `imports/extract-fo-serv-03.md` §6.5); labels here are sentence case and wrap rather than clip.
+The ramp is deliberately larger than a desktop default: `body` 16px, `field-input` 18px, ~~`value` 20px~~ `value` 22px *(v0.9, 2026-09-24)*, `heading` 18px, ~~`title` 22px~~ `title` 24px with -0.01em tracking *(v0.9)*, `display` 28px (display appears only on Home and the export result). `label` and `meta` are 14px, the floor; nothing in the app is set below 14px. No ALL-CAPS labels — the current sheets truncate uppercase Excel labels ("TENSÃO SECUNDÁ", "CAPACIDADE INTERRU", `imports/extract-fo-serv-03.md` §6.5); labels here are sentence case and wrap rather than clip.
 
 Units are set in `label` next to the value, never inside the number string ("330" + "MΩ", not "330MΩ"), so the unit can be a control (MΩ / GΩ / TΩ) where the sheet needs one.
 
@@ -721,9 +721,34 @@ Depth is drawn with borders, not shadows. Cards sit on `surface-base` with a `bo
 
 ## Shapes
 
-`{rounded.sm}` 4px for inputs and table cells (they should look like a form, not a chat bubble). `{rounded.md}` 8px for buttons, block cards, segmented controls, photo tiles. `{rounded.lg}` 12px for Relatório cards, dialogs and the Photo capture sheet. `{rounded.full}` only on status pills, sync badge, not-tested chip and photo number badges. Thumbnails follow their tile's corners.
+`{rounded.sm}` 4px for inputs and table cells (they should look like a form, not a chat bubble). `{rounded.md}` 8px for ~~buttons,~~ block cards, segmented controls, photo tiles; buttons take 10px (`--r-btn`) *(v0.9, 2026-09-24)*. `{rounded.lg}` 12px for Relatório cards, dialogs and the Photo capture sheet. `{rounded.full}` only on status pills, sync badge, not-tested chip and photo number badges. Thumbnails follow their tile's corners.
 
 → Mock: `mockups/key-equipment-sheet.html` (4px inputs and cells, 8px buttons and block cards, 12px dialogs, full-round pills).
+
+## v0.9 direction (2026-09-24, proposed)
+
+Written by Sally after the journey review of 2026-09-24 (`review-journey-2026-09-24.md` § 3), at Matheus's request for a more current look. It is a new skin on the same skeleton: every rule of § Colors that is about safety stays (ink on surfaces at 7:1 or better, amber for suggestion only, red for what the engineer marked, no meaning by color alone, both themes under the same bar), and so do the 48px and 56px targets, the borders-not-shadows rule and the single column of the sheet. What changes is what made the app read as a desktop form: boxed inputs stacked with equal weight, caps labels, three progress indicators in one header, eleven identical rows on the Sumário.
+
+Tokens and rules live beside the v0.8 files until Story 12.5 promotes them: `mockups/tokens-v09.css` (overrides) and `mockups/components-v09.css` (overrides). The frontmatter above still lists v0.8; the story that folds the overrides into `tokens.css` and `components.css` bumps the frontmatter and this file's version to 0.9.0 in the same change, so `tokens.css` stays a 1:1 copy of the frontmatter at every commit.
+
+| Element | v0.8 | v0.9 | Why |
+|---|---|---|---|
+| Field | White box, 2px `border-strong` all round, 4px radius | `surface-sunken` fill, no side borders, 2px `border-strong` bottom rule, 8px top radius; focus = 3px `focus` rule + `focus-fill` | Less ink per field, the value reads first, 12px shorter per field; the seccionadora nameplate gains one screen at 768px |
+| Label | 14/500 `ink-secondary`; seed strings render in caps on screen | Same size and ink, sentence case on screen (the document keeps the caps) | § Typography already forbids caps; the 14px floor holds |
+| Value | 20/600 tabular | 22/600 tabular | The reading is what the engineer checks against the limit |
+| Title | 22/600 | 24/600, -0.01em | Hierarchy between the sheet title and its headings |
+| Surfaces | `surface-base` #F4F5F7, cards with hairline plus `border-strong` on interactive cards | `surface-base` #F7F8FA, one hairline per card, 12px radius; the current Relatório card keeps its 2px `primary` edge | One boundary per card, no double borders |
+| Tri-state | Three outlined cells, the chosen one tinted with an inset ring | One 56px control, the chosen segment solid (`conforme`, `nao-conforme`, `nao-aplica`) with the letter in white (dark theme: dark ink), unselected segments outlined | The state is seen at arm's length; contrast on the solids 6.6 / 6.6 / 6.0:1 light, 9.9:1 or better dark |
+| Section stepper | Names with counts, 3px rule under the current step | Names on one row, a 3px progress rule under every name (`conforme` complete, `fora-do-limite` missing, 4px on the current), the count only where something is missing | One glance says which steps are done |
+| Sheet header | Progress counter "11 obrigatórios faltando" beside the title, 2px bottom rule | One kernel sentence, "Placa e verificações prontas · faltam 9 leituras", hairline rule; the sync badge stays in the App bar | Three overlapping counters become one sentence plus the stepper |
+| Cabine block | "Características da SE" and "Ambiente de ensaio" on every sheet of the cabine | One `cabine-line` "Cubículo Enel · Alvenaria · 13,8 kV · 25 °C · 65 %" with "Editar"; expanded on the first sheet or while a field is missing | The sheet starts at its own data (D-5) |
+| Primary button | Flat `primary`, 8px radius | `primary` with a 4% vertical gradient, 10px radius | Depth without a shadow; contrast unchanged |
+| Sumário row | Number in a plain cell, chevron and overflow apart | Number in a 32px `surface-sunken` circle, status sentence in meta, chevron and overflow in one trailing cluster; the open cabine carries a 2px `primary` left rule | Rows differ by state, not only by text |
+| Home | Four status tiles above the list | The tiles stay as the filter; the current card carries "Continuar: SEC-C05 · 42 de 94" and "42 de 94 fichas" as the mock already draws | The mock was right; the app lags it (J-05) |
+
+Contrast checks for the new values (light): `ink-primary` on `surface-sunken` #EEF1F5 15.9:1; `ink-secondary` on it 7.9:1; white on `conforme` 6.6:1, on `nao-conforme` 6.6:1, on `nao-aplica` 6.0:1 (the letter is set in `heading` weight, as § Colors requires for semantic inks on fills). Dark: `ink-primary` on #262B33 13.1:1; #0B1B2B on `conforme-dark` #6FD08F 9.9:1, on `nao-conforme-dark` #F59288 9.1:1, on `nao-aplica-dark` #A9B1BC 8.7:1.
+
+→ Mock: `mockups/key-equipment-sheet-v09.html` (the sheet before and after, tablet and phone, light and dark), `mockups/key-relatorio-overview-v09.html` (the Sumário after). Before: `mockups/key-equipment-sheet.html`, `mockups/prototype/screens/40-relatorio-overview.html`.
 
 ## Components
 

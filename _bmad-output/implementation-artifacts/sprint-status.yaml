@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 09-24-2026 22:16
+last_updated: 09-24-2026 23:40
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -141,6 +141,15 @@ development_status:
   11-9-let-the-priority-suggest-the-deadline-on-a-point-of-attentio: backlog
   11-10-print-the-action-plan-table-in-section-8-post-mvp-before-202: backlog
   epic-11-retrospective: optional
+  epic-12: backlog  # journey review 2026-09-24; runs before Epic 6, confirmed by Matheus (sprint-change-proposal-2026-09-24.md)
+  12-1-no-tap-is-ever-lost-and-a-section-never-collapses-under-the: backlog
+  12-2-forward-never-back-resume-in-one-tap-and-no-dead-ends: backlog
+  12-3-the-sheet-repeats-nothing-the-cabine-or-the-relatorio-alread: backlog
+  12-4-the-plate-and-the-nc-in-fewer-taps: backlog
+  12-5-apply-the-v0-9-visual-direction: backlog
+  12-6-the-tap-budget-is-a-test: backlog
+  epic-12-retrospective: optional
+
 action_items:
   - id: "epic-1-retro-item-1-a1-run-the-manual-ipad-and-android-offli"
     epic: 1

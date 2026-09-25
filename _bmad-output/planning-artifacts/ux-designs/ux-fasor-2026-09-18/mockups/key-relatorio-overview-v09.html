@@ -1,0 +1,217 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PRODUTO — Sumário v0.9</title>
+<link rel="stylesheet" href="tokens.css"><link rel="stylesheet" href="components.css">
+<link rel="stylesheet" href="tokens-v09.css"><link rel="stylesheet" href="components-v09.css">
+<style>/* Governs: DESIGN.md § v0.9 direction (2026-09-24); EXPERIENCE.md § IA › Relatório overview — the Sumário; § Component Patterns › Relatório tree (Sumário); journey review 2026-09-24 § 3 (J-05, J-17, J-18) and D-5 (cabine row shows what is missing). Page-only layout below. */
+.sum-pos-empty { display: block; }
+.ficha-head-side { display: flex; align-items: center; gap: var(--sp-2); flex: none; }
+</style></head>
+<body class="mock-page">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+  <symbol id="i-chev-down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+  <symbol id="i-chev-right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20h4l11-11-4-4L4 16z"/><path d="M13 7l4 4"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
+  <symbol id="i-dots" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.8" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-tree" viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h13"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/></symbol>
+</svg>
+<h1 class="mock-h1">Sumário — direção v0.9 (depois). Antes: <a href="prototype/screens/40-relatorio-overview.html">prototype/screens/40-relatorio-overview.html</a></h1>
+<div class="mock-row">
+<div class="mock-item">
+  <p class="mock-caption"><b>Sumário v0.9</b><span class="sep">·</span>tablet retrato 768×1024, claro, Em campo, seção 9 aberta na cabine atual<span class="sep">·</span>DESIGN § v0.9 · EXPERIENCE § IA › Sumário</p>
+  <div class="frame frame-tablet" data-theme="light">
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">Porto Seguro · Torres A e B</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="ok" aria-label="Sincronização: Sincronizado"><span class="pill"><span class="dot" aria-hidden="true"></span><span class="sync-long">Sincronizado</span><span class="sync-short">Sincronizado</span></span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+    <main class="screen">
+      <div class="sheet-header">
+        <div>
+          <h2 class="sheet-title">Porto Seguro · Torres A e B</h2>
+          <p class="sheet-meta"><span class="status-pill" data-status="em-campo">Em campo</span> 06–08/09/2026 · template Porto Seguro — Torres A e B · responsável Rafael Lamonde</p>
+          <div class="sum-summary"><button class="btn-text">42 de 94 fichas concluídas</button><button class="btn-text">2 NC abertos</button><button class="btn-text">1 não ensaiada</button><button class="btn-text">12 sugestões por confirmar</button></div>
+        </div>
+        <div class="ficha-head-side"><button class="icon-btn overflow-trigger" aria-label="Mais opções do relatório"><svg class="ico"><use href="#i-dots"/></svg></button></div>
+      </div>
+      <div class="content">
+        <ol class="sumario" style="list-style:none; margin:0; padding:0; background: var(--surface-raised); border: 1px solid var(--border-hairline); border-radius: var(--r-lg)">
+<li class="sum-row"><span class="sum-pos-empty"></span><button class="sum-open"><span class="sum-title">Capa e dados do relatório</span><span class="sum-status">Porto Seguro · 06 a 08/09/2026 · Rafael Lamonde · CREA SP</span></button><span class="sum-ctrls"><span class="sum-ro">sempre no início</span><span class="icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-right"/></svg></span></span></li>
+<li class="sum-row"><span class="sum-pos-empty"></span><button class="sum-open"><span class="sum-title">Controle do documento</span><span class="sum-status">montado dos dados do relatório · Rev. 1 na primeira emissão</span></button><span class="sum-ctrls"><span class="sum-ro">montado sozinho</span></span></li>
+<li class="sum-row"><span class="sum-pos">1</span><button class="sum-open"><span class="sum-title">Objetivo</span><span class="sum-status">editado em Dados do relatório › Etapa 2 · 3 variáveis preenchidas</span></button><span class="sum-ctrls"><span class="icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-right"/></svg></span><button class="icon-btn overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></span></li>
+<li class="sum-row"><span class="sum-pos">2</span><button class="sum-open"><span class="sum-title">Definições</span><span class="sum-status">texto padrão</span></button><span class="sum-ctrls"><span class="icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-right"/></svg></span><button class="icon-btn overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></span></li>
+<li class="sum-row"><span class="sum-pos">3</span><button class="sum-open"><span class="sum-title">Limite de escopo</span><span class="sum-status">editado em Dados do relatório › Etapa 2 · 3 exclusões</span></button><span class="sum-ctrls"><span class="icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-right"/></svg></span><button class="icon-btn overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></span></li>
+<li class="sum-row"><span class="sum-pos">7</span><button class="sum-open"><span class="sum-title">Registro fotográfico</span><span class="sum-status">82 fotos · <span class="is-pending">1 sem legenda</span> · 12 legendas sugeridas</span></button><span class="sum-ctrls"><span class="icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-right"/></svg></span><button class="icon-btn overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></span></li>
+
+          <li class="sum-row sum-s9" style="display:block">
+            <div style="display:grid; grid-template-columns: var(--touch-min) 1fr auto; align-items:center; min-height: var(--touch-field)">
+              <span class="sum-pos">9</span>
+              <button class="sum-open"><span class="sum-title">Relatórios dos ensaios</span><span class="sum-status">42 de 94 · 1 não ensaiada · organizados por local aqui; no documento, agrupados como no FO.SERV-03</span></button>
+              <span class="sum-ctrls"><span class="icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span><button class="icon-btn overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></span>
+            </div>
+            <ul class="s9-tree" style="list-style:none; margin: 0 0 var(--sp-3); padding: 0">
+              <li class="s9-cabine">
+                <div class="s9-cab-row" style="display:flex; align-items:center; gap: var(--sp-3); min-height: var(--touch-min); padding: var(--sp-1) var(--sp-2)"><span style="font-weight:600">Cubículo 1° Subsolo</span><span style="color: var(--ink-secondary); font-size: var(--t-meta-size)">Alvenaria · 13,8 kV · 25 °C · 65 % · <span class="cl-missing" style="color: var(--fora-do-limite); font-weight:600">falta a umidade</span></span><span style="margin-left:auto; color: var(--ink-secondary); font-size: var(--t-meta-size); font-variant-numeric: tabular-nums">38 de 49</span></div>
+                <ul style="list-style:none; margin:0; padding:0">
+<li class="s9-eq"><button class="s9-eq-open"><span><span class="block-tag" style="font-weight:600; font-variant-numeric: tabular-nums">SEC-C04</span> <span class="s9-eq-name" style="color: var(--ink-secondary)">Chave seccionadora</span></span><span class="s9-state" data-state="concluida">✓ Concluída</span></button></li><li class="s9-eq is-current"><button class="s9-eq-open"><span><span class="block-tag" style="font-weight:600; font-variant-numeric: tabular-nums">SEC-C05</span> <span class="s9-eq-name" style="color: var(--ink-secondary)">Chave seccionadora</span></span><span class="s9-state" data-state="vazia">você parou aqui · 9 leituras faltando</span></button></li><li class="s9-eq"><button class="s9-eq-open"><span><span class="block-tag" style="font-weight:600; font-variant-numeric: tabular-nums">DJ-C05</span> <span class="s9-eq-name" style="color: var(--ink-secondary)">Disjuntor MT</span></span><span class="s9-state" data-state="vazia">○ Vazia</span></button></li><li class="s9-eq"><button class="s9-eq-open"><span><span class="block-tag" style="font-weight:600; font-variant-numeric: tabular-nums">TP-C05</span> <span class="s9-eq-name" style="color: var(--ink-secondary)">TP</span></span><span class="s9-state" data-state="nao-ensaiada">⊘ Não ensaiada · Solicitação do cliente</span></button></li>
+                </ul>
+                <button class="btn-text" style="margin: var(--sp-1) 0 0 var(--sp-2)">Adicionar bloco em Cubículo 1° Subsolo</button>
+              </li>
+              <li class="s9-cabine" style="border-left-color: var(--border-hairline)">
+                <div class="s9-cab-row" style="display:flex; align-items:center; gap: var(--sp-3); min-height: var(--touch-min); padding: var(--sp-1) var(--sp-2)"><span class="icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-right"/></svg></span><span style="font-weight:600">Oxigênio</span><span style="margin-left:auto; color: var(--ink-secondary); font-size: var(--t-meta-size)">0 de 5</span></div>
+              </li>
+            </ul>
+          </li>
+<li class="sum-row"><span class="sum-pos">10</span><button class="sum-open"><span class="sum-title">Conclusão e parecer</span><span class="sum-status"><span class="is-blocking">parecer não preenchido</span></span></button><span class="sum-ctrls"><span class="icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-right"/></svg></span><button class="icon-btn overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></span></li>
+<li class="sum-row"><span class="sum-pos">11</span><button class="sum-open"><span class="sum-title">Certificados</span><span class="sum-status">3 instrumentos · 3 certificados anexados</span></button><span class="sum-ctrls"><span class="icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-right"/></svg></span><button class="icon-btn overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></span></li>
+
+        </ol>
+      </div>
+      <div class="sticky-action-bar">
+        <span class="btn-reason">Só o parecer (linha 10) impede gerar. O resto está escrito em cada linha.</span>
+        <div class="bar-buttons">
+          <button class="btn btn-secondary"><svg class="ico"><use href="#i-doc"/></svg> Pré-visualizar</button>
+          <button class="btn btn-primary" aria-disabled="true"><svg class="ico"><use href="#i-doc"/></svg> Gerar relatório</button>
+        </div>
+      </div>
+    </main>
+
+  </div>
+</div>
+<div class="mock-item">
+  <p class="mock-caption"><b>Sumário v0.9</b><span class="sep">·</span>telefone 390×844, claro, metade superior<span class="sep">·</span>DESIGN § v0.9</p>
+  <div class="frame frame-phone frame--crop" data-theme="light">
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">Porto Seguro · Torres A e B</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="ok" aria-label="Sincronização: Sincronizado"><span class="pill"><span class="dot" aria-hidden="true"></span><span class="sync-long">Sincronizado</span><span class="sync-short">Sincronizado</span></span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+    <main class="screen">
+      <div class="sheet-header">
+        <div>
+          <h2 class="sheet-title">Porto Seguro · Torres A e B</h2>
+          <p class="sheet-meta"><span class="status-pill" data-status="em-campo">Em campo</span> 06–08/09/2026 · template Porto Seguro — Torres A e B · responsável Rafael Lamonde</p>
+          <div class="sum-summary"><button class="btn-text">42 de 94 fichas concluídas</button><button class="btn-text">2 NC abertos</button><button class="btn-text">1 não ensaiada</button><button class="btn-text">12 sugestões por confirmar</button></div>
+        </div>
+        <div class="ficha-head-side"><button class="icon-btn overflow-trigger" aria-label="Mais opções do relatório"><svg class="ico"><use href="#i-dots"/></svg></button></div>
+      </div>
+      <div class="content">
+        <ol class="sumario" style="list-style:none; margin:0; padding:0; background: var(--surface-raised); border: 1px solid var(--border-hairline); border-radius: var(--r-lg)">
+<li class="sum-row"><span class="sum-pos-empty"></span><button class="sum-open"><span class="sum-title">Capa e dados do relatório</span><span class="sum-status">Porto Seguro · 06 a 08/09/2026 · Rafael Lamonde · CREA SP</span></button><span class="sum-ctrls"><span class="sum-ro">sempre no início</span><span class="icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-right"/></svg></span></span></li>
+<li class="sum-row"><span class="sum-pos-empty"></span><button class="sum-open"><span class="sum-title">Controle do documento</span><span class="sum-status">montado dos dados do relatório · Rev. 1 na primeira emissão</span></button><span class="sum-ctrls"><span class="sum-ro">montado sozinho</span></span></li>
+<li class="sum-row"><span class="sum-pos">1</span><button class="sum-open"><span class="sum-title">Objetivo</span><span class="sum-status">editado em Dados do relatório › Etapa 2 · 3 variáveis preenchidas</span></button><span class="sum-ctrls"><span class="icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-right"/></svg></span><button class="icon-btn overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></span></li>
+<li class="sum-row"><span class="sum-pos">2</span><button class="sum-open"><span class="sum-title">Definições</span><span class="sum-status">texto padrão</span></button><span class="sum-ctrls"><span class="icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-right"/></svg></span><button class="icon-btn overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></span></li>
+<li class="sum-row"><span class="sum-pos">3</span><button class="sum-open"><span class="sum-title">Limite de escopo</span><span class="sum-status">editado em Dados do relatório › Etapa 2 · 3 exclusões</span></button><span class="sum-ctrls"><span class="icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-right"/></svg></span><button class="icon-btn overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></span></li>
+<li class="sum-row"><span class="sum-pos">7</span><button class="sum-open"><span class="sum-title">Registro fotográfico</span><span class="sum-status">82 fotos · <span class="is-pending">1 sem legenda</span> · 12 legendas sugeridas</span></button><span class="sum-ctrls"><span class="icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-right"/></svg></span><button class="icon-btn overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></span></li>
+
+          <li class="sum-row sum-s9" style="display:block">
+            <div style="display:grid; grid-template-columns: var(--touch-min) 1fr auto; align-items:center; min-height: var(--touch-field)">
+              <span class="sum-pos">9</span>
+              <button class="sum-open"><span class="sum-title">Relatórios dos ensaios</span><span class="sum-status">42 de 94 · 1 não ensaiada · organizados por local aqui; no documento, agrupados como no FO.SERV-03</span></button>
+              <span class="sum-ctrls"><span class="icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span><button class="icon-btn overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></span>
+            </div>
+            <ul class="s9-tree" style="list-style:none; margin: 0 0 var(--sp-3); padding: 0">
+              <li class="s9-cabine">
+                <div class="s9-cab-row" style="display:flex; align-items:center; gap: var(--sp-3); min-height: var(--touch-min); padding: var(--sp-1) var(--sp-2)"><span style="font-weight:600">Cubículo 1° Subsolo</span><span style="color: var(--ink-secondary); font-size: var(--t-meta-size)">Alvenaria · 13,8 kV · 25 °C · 65 % · <span class="cl-missing" style="color: var(--fora-do-limite); font-weight:600">falta a umidade</span></span><span style="margin-left:auto; color: var(--ink-secondary); font-size: var(--t-meta-size); font-variant-numeric: tabular-nums">38 de 49</span></div>
+                <ul style="list-style:none; margin:0; padding:0">
+<li class="s9-eq"><button class="s9-eq-open"><span><span class="block-tag" style="font-weight:600; font-variant-numeric: tabular-nums">SEC-C04</span> <span class="s9-eq-name" style="color: var(--ink-secondary)">Chave seccionadora</span></span><span class="s9-state" data-state="concluida">✓ Concluída</span></button></li><li class="s9-eq is-current"><button class="s9-eq-open"><span><span class="block-tag" style="font-weight:600; font-variant-numeric: tabular-nums">SEC-C05</span> <span class="s9-eq-name" style="color: var(--ink-secondary)">Chave seccionadora</span></span><span class="s9-state" data-state="vazia">você parou aqui · 9 leituras faltando</span></button></li><li class="s9-eq"><button class="s9-eq-open"><span><span class="block-tag" style="font-weight:600; font-variant-numeric: tabular-nums">DJ-C05</span> <span class="s9-eq-name" style="color: var(--ink-secondary)">Disjuntor MT</span></span><span class="s9-state" data-state="vazia">○ Vazia</span></button></li><li class="s9-eq"><button class="s9-eq-open"><span><span class="block-tag" style="font-weight:600; font-variant-numeric: tabular-nums">TP-C05</span> <span class="s9-eq-name" style="color: var(--ink-secondary)">TP</span></span><span class="s9-state" data-state="nao-ensaiada">⊘ Não ensaiada · Solicitação do cliente</span></button></li>
+                </ul>
+                <button class="btn-text" style="margin: var(--sp-1) 0 0 var(--sp-2)">Adicionar bloco em Cubículo 1° Subsolo</button>
+              </li>
+              <li class="s9-cabine" style="border-left-color: var(--border-hairline)">
+                <div class="s9-cab-row" style="display:flex; align-items:center; gap: var(--sp-3); min-height: var(--touch-min); padding: var(--sp-1) var(--sp-2)"><span class="icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-right"/></svg></span><span style="font-weight:600">Oxigênio</span><span style="margin-left:auto; color: var(--ink-secondary); font-size: var(--t-meta-size)">0 de 5</span></div>
+              </li>
+            </ul>
+          </li>
+<li class="sum-row"><span class="sum-pos">10</span><button class="sum-open"><span class="sum-title">Conclusão e parecer</span><span class="sum-status"><span class="is-blocking">parecer não preenchido</span></span></button><span class="sum-ctrls"><span class="icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-right"/></svg></span><button class="icon-btn overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></span></li>
+<li class="sum-row"><span class="sum-pos">11</span><button class="sum-open"><span class="sum-title">Certificados</span><span class="sum-status">3 instrumentos · 3 certificados anexados</span></button><span class="sum-ctrls"><span class="icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-right"/></svg></span><button class="icon-btn overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></span></li>
+
+        </ol>
+      </div>
+      <div class="sticky-action-bar">
+        <span class="btn-reason">Só o parecer (linha 10) impede gerar. O resto está escrito em cada linha.</span>
+        <div class="bar-buttons">
+          <button class="btn btn-secondary"><svg class="ico"><use href="#i-doc"/></svg> Pré-visualizar</button>
+          <button class="btn btn-primary" aria-disabled="true"><svg class="ico"><use href="#i-doc"/></svg> Gerar relatório</button>
+        </div>
+      </div>
+    </main>
+
+  </div>
+</div>
+<div class="mock-item">
+  <p class="mock-caption"><b>Sumário v0.9</b><span class="sep">·</span>tablet retrato, tema escuro, metade superior<span class="sep">·</span>DESIGN § v0.9</p>
+  <div class="frame frame-tablet frame--crop" data-theme="dark">
+    <header class="app-bar">
+      <div class="app-bar-left"><button class="icon-btn" aria-label="Voltar"><svg class="ico"><use href="#i-back"/></svg></button></div>
+      <h1 class="app-bar-title">Porto Seguro · Torres A e B</h1>
+      <div class="app-bar-right">
+        <button class="sync-badge" data-state="ok" aria-label="Sincronização: Sincronizado"><span class="pill"><span class="dot" aria-hidden="true"></span><span class="sync-long">Sincronizado</span><span class="sync-short">Sincronizado</span></span></button>
+        <button class="avatar-btn" aria-label="Conta de Bruno"><span class="avatar">B</span></button>
+      </div>
+    </header>
+    <main class="screen">
+      <div class="sheet-header">
+        <div>
+          <h2 class="sheet-title">Porto Seguro · Torres A e B</h2>
+          <p class="sheet-meta"><span class="status-pill" data-status="em-campo">Em campo</span> 06–08/09/2026 · template Porto Seguro — Torres A e B · responsável Rafael Lamonde</p>
+          <div class="sum-summary"><button class="btn-text">42 de 94 fichas concluídas</button><button class="btn-text">2 NC abertos</button><button class="btn-text">1 não ensaiada</button><button class="btn-text">12 sugestões por confirmar</button></div>
+        </div>
+        <div class="ficha-head-side"><button class="icon-btn overflow-trigger" aria-label="Mais opções do relatório"><svg class="ico"><use href="#i-dots"/></svg></button></div>
+      </div>
+      <div class="content">
+        <ol class="sumario" style="list-style:none; margin:0; padding:0; background: var(--surface-raised); border: 1px solid var(--border-hairline); border-radius: var(--r-lg)">
+<li class="sum-row"><span class="sum-pos-empty"></span><button class="sum-open"><span class="sum-title">Capa e dados do relatório</span><span class="sum-status">Porto Seguro · 06 a 08/09/2026 · Rafael Lamonde · CREA SP</span></button><span class="sum-ctrls"><span class="sum-ro">sempre no início</span><span class="icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-right"/></svg></span></span></li>
+<li class="sum-row"><span class="sum-pos-empty"></span><button class="sum-open"><span class="sum-title">Controle do documento</span><span class="sum-status">montado dos dados do relatório · Rev. 1 na primeira emissão</span></button><span class="sum-ctrls"><span class="sum-ro">montado sozinho</span></span></li>
+<li class="sum-row"><span class="sum-pos">1</span><button class="sum-open"><span class="sum-title">Objetivo</span><span class="sum-status">editado em Dados do relatório › Etapa 2 · 3 variáveis preenchidas</span></button><span class="sum-ctrls"><span class="icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-right"/></svg></span><button class="icon-btn overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></span></li>
+<li class="sum-row"><span class="sum-pos">2</span><button class="sum-open"><span class="sum-title">Definições</span><span class="sum-status">texto padrão</span></button><span class="sum-ctrls"><span class="icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-right"/></svg></span><button class="icon-btn overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></span></li>
+<li class="sum-row"><span class="sum-pos">3</span><button class="sum-open"><span class="sum-title">Limite de escopo</span><span class="sum-status">editado em Dados do relatório › Etapa 2 · 3 exclusões</span></button><span class="sum-ctrls"><span class="icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-right"/></svg></span><button class="icon-btn overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></span></li>
+<li class="sum-row"><span class="sum-pos">7</span><button class="sum-open"><span class="sum-title">Registro fotográfico</span><span class="sum-status">82 fotos · <span class="is-pending">1 sem legenda</span> · 12 legendas sugeridas</span></button><span class="sum-ctrls"><span class="icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-right"/></svg></span><button class="icon-btn overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></span></li>
+
+          <li class="sum-row sum-s9" style="display:block">
+            <div style="display:grid; grid-template-columns: var(--touch-min) 1fr auto; align-items:center; min-height: var(--touch-field)">
+              <span class="sum-pos">9</span>
+              <button class="sum-open"><span class="sum-title">Relatórios dos ensaios</span><span class="sum-status">42 de 94 · 1 não ensaiada · organizados por local aqui; no documento, agrupados como no FO.SERV-03</span></button>
+              <span class="sum-ctrls"><span class="icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-down"/></svg></span><button class="icon-btn overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></span>
+            </div>
+            <ul class="s9-tree" style="list-style:none; margin: 0 0 var(--sp-3); padding: 0">
+              <li class="s9-cabine">
+                <div class="s9-cab-row" style="display:flex; align-items:center; gap: var(--sp-3); min-height: var(--touch-min); padding: var(--sp-1) var(--sp-2)"><span style="font-weight:600">Cubículo 1° Subsolo</span><span style="color: var(--ink-secondary); font-size: var(--t-meta-size)">Alvenaria · 13,8 kV · 25 °C · 65 % · <span class="cl-missing" style="color: var(--fora-do-limite); font-weight:600">falta a umidade</span></span><span style="margin-left:auto; color: var(--ink-secondary); font-size: var(--t-meta-size); font-variant-numeric: tabular-nums">38 de 49</span></div>
+                <ul style="list-style:none; margin:0; padding:0">
+<li class="s9-eq"><button class="s9-eq-open"><span><span class="block-tag" style="font-weight:600; font-variant-numeric: tabular-nums">SEC-C04</span> <span class="s9-eq-name" style="color: var(--ink-secondary)">Chave seccionadora</span></span><span class="s9-state" data-state="concluida">✓ Concluída</span></button></li><li class="s9-eq is-current"><button class="s9-eq-open"><span><span class="block-tag" style="font-weight:600; font-variant-numeric: tabular-nums">SEC-C05</span> <span class="s9-eq-name" style="color: var(--ink-secondary)">Chave seccionadora</span></span><span class="s9-state" data-state="vazia">você parou aqui · 9 leituras faltando</span></button></li><li class="s9-eq"><button class="s9-eq-open"><span><span class="block-tag" style="font-weight:600; font-variant-numeric: tabular-nums">DJ-C05</span> <span class="s9-eq-name" style="color: var(--ink-secondary)">Disjuntor MT</span></span><span class="s9-state" data-state="vazia">○ Vazia</span></button></li><li class="s9-eq"><button class="s9-eq-open"><span><span class="block-tag" style="font-weight:600; font-variant-numeric: tabular-nums">TP-C05</span> <span class="s9-eq-name" style="color: var(--ink-secondary)">TP</span></span><span class="s9-state" data-state="nao-ensaiada">⊘ Não ensaiada · Solicitação do cliente</span></button></li>
+                </ul>
+                <button class="btn-text" style="margin: var(--sp-1) 0 0 var(--sp-2)">Adicionar bloco em Cubículo 1° Subsolo</button>
+              </li>
+              <li class="s9-cabine" style="border-left-color: var(--border-hairline)">
+                <div class="s9-cab-row" style="display:flex; align-items:center; gap: var(--sp-3); min-height: var(--touch-min); padding: var(--sp-1) var(--sp-2)"><span class="icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-right"/></svg></span><span style="font-weight:600">Oxigênio</span><span style="margin-left:auto; color: var(--ink-secondary); font-size: var(--t-meta-size)">0 de 5</span></div>
+              </li>
+            </ul>
+          </li>
+<li class="sum-row"><span class="sum-pos">10</span><button class="sum-open"><span class="sum-title">Conclusão e parecer</span><span class="sum-status"><span class="is-blocking">parecer não preenchido</span></span></button><span class="sum-ctrls"><span class="icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-right"/></svg></span><button class="icon-btn overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></span></li>
+<li class="sum-row"><span class="sum-pos">11</span><button class="sum-open"><span class="sum-title">Certificados</span><span class="sum-status">3 instrumentos · 3 certificados anexados</span></button><span class="sum-ctrls"><span class="icon-btn" aria-hidden="true"><svg class="ico"><use href="#i-chev-right"/></svg></span><button class="icon-btn overflow-trigger" aria-label="Mais opções"><svg class="ico"><use href="#i-dots"/></svg></button></span></li>
+
+        </ol>
+      </div>
+      <div class="sticky-action-bar">
+        <span class="btn-reason">Só o parecer (linha 10) impede gerar. O resto está escrito em cada linha.</span>
+        <div class="bar-buttons">
+          <button class="btn btn-secondary"><svg class="ico"><use href="#i-doc"/></svg> Pré-visualizar</button>
+          <button class="btn btn-primary" aria-disabled="true"><svg class="ico"><use href="#i-doc"/></svg> Gerar relatório</button>
+        </div>
+      </div>
+    </main>
+
+  </div>
+</div>
+</div>
+</body></html>
