@@ -1,5 +1,6 @@
 import {
   composeConclusion,
+  conclusionBasisMatches,
   conclusionRestrictionOf,
   conclusionResultOf,
   conclusionStoredText,
@@ -217,18 +218,28 @@ export function ConclusaoSection({
   /**
    * Confirms a text: the text, `text_status` and the basis it was composed from, one batch;
    * with the sheet observation still empty, its suggestion joins the batch (D-7: confirmed
-   * together with the conclusion text).
+   * together with the conclusion text). E5-A4: a confirm of the composed text recomposes
+   * from the freshest block first and writes nothing when its basis moved since the render
+   * (a value changed between the draw and the tap): the field then shows the recomposed text
+   * to confirm again. An edited text is the engineer's own and is written as typed, under
+   * the basis they saw (a later change marks it stale, as before).
    */
-  const confirmText = (text: string, status: 'confirmed' | 'edited') =>
+  const confirmText = (text: string, status: 'confirmed' | 'edited') => {
+    const basis = composed.basis;
     edit((blocks, by) => {
+      if (status === 'confirmed') {
+        const fresh = blocks.find((row) => row.id === api.blockId && row.removed_at === null);
+        if (fresh === undefined || !conclusionBasisMatches(fresh, definition, tag, basis)) return null;
+      }
       const observationOp = suggestedObservationOp(blocks, by);
       return [
         conclusionOp(by, api.relatorioId, api.blockId, 'text', text),
         conclusionOp(by, api.relatorioId, api.blockId, 'text_status', status),
-        conclusionOp(by, api.relatorioId, api.blockId, 'text_basis', composed.basis),
+        conclusionOp(by, api.relatorioId, api.blockId, 'text_basis', basis),
         ...(observationOp === null ? [] : [observationOp]),
       ];
     });
+  };
 
   const resultSegments: Segment<ConclusionResult>[] = [
     { value: 'aprovado', attr: 'aprovado', label: t.aprovado },

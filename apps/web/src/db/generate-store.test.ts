@@ -1,3 +1,4 @@
+// @vitest-environment node
 import 'fake-indexeddb/auto';
 import { makeOp, SERVER_DEVICE_ID, type Op, type RevisionRow } from '@app/domain';
 import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';

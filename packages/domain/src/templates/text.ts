@@ -1,5 +1,8 @@
-import type { EquipmentBlockType } from '../schemas/block-config.ts';
+import { headerText, readingLabelText } from '../relatorio/readings.ts';
+import type { EquipmentBlockType, SubBlockKey } from '../schemas/block-config.ts';
 import type { TemplateRow } from '../schemas/entities.ts';
+import { formatCriterionValue, SEEDED_CRITERIA } from '../seed/criteria.ts';
+import type { BlockDefinition } from '../seed/schema.ts';
 import { plural, relatoriosCount } from '../text/plural.ts';
 import { composerView, type ComposerNode, type ComposerView } from './compose.ts';
 
@@ -165,6 +168,28 @@ export function defaultCabineName(n: number): string {
 /** The name a new coluna gets: "Coluna 3" when its cabine holds two. */
 export function defaultColunaName(n: number): string {
   return `Coluna ${n}`;
+}
+
+/**
+ * E3-A9: the `.toggle-sub` line under a sub-block of the type defaults panel
+ * (`42-template-composer.html` "9 campos", "14 itens C · NC · NA", "T1/T2 · T3/T4 · T5/T6 ×
+ * Massa · 10 kV · >400 MΩ (aceitável na ficha)"), from the type's seed definition: the
+ * nameplate's field count; the checklist's item count; a test's rows (each row's first
+ * connection, table after table) × its captured columns, then its criterion with the
+ * source. The mock's "Ler placa da foto" is out of the slice, and its test voltage ("10
+ * kV") has no seed value (the instrument carries it), so neither is written. Null for a
+ * sub-block with nothing to count (IA/IP, observations, conclusion).
+ */
+export function subBlockSummaryText(definition: BlockDefinition, key: SubBlockKey): string | null {
+  if (key === 'nameplate') return plural(definition.nameplate.length, 'campo', 'campos');
+  if (key === 'checklist') return definition.checklist === null ? null : `${plural(definition.checklist.length, 'item', 'itens')} C · NC · NA`;
+  const test = definition.tests.find((t) => t.key === key);
+  if (test === undefined) return null;
+  const rows = test.tables.flatMap((table) => table.rows.map((row) => readingLabelText(row[0] ?? '')).filter((label) => label !== ''));
+  const captured = [...new Set(test.tables.flatMap((table) => table.value_columns.filter((c) => c.role === 'capture').map((c) => headerText(c.label))))];
+  const criterion = SEEDED_CRITERIA.find((c) => c.key === test.criterion_key);
+  const judged = criterion === undefined ? null : `${formatCriterionValue(criterion)} (${criterion.source.name})`;
+  return [`${rows.join(' · ')} × ${captured.join(' · ')}`, judged].filter((part): part is string => part !== null).join(' · ');
 }
 
 /**

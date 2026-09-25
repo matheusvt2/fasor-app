@@ -37,7 +37,7 @@ import { useToast } from '../../state/toast.tsx';
 import { notTestedOp } from '../ficha/ficha-ops.ts';
 import type { PaletteCreate } from './block-palette-field.tsx';
 import type { RelatorioEditor } from './relatorio-editor.ts';
-import { focusAfterRemoval, focusWhenRendered } from './relatorio-focus.ts';
+import { focusAfterRemoval, restoreFocus } from '../../input/focus-restore.ts';
 import {
   createBlockOp,
   createEquipmentOp,
@@ -254,7 +254,7 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
             return;
           }
           host.reveal(input.locationId);
-          focusWhenRendered(() => blockOpen(host.root(), made.blockId));
+          restoreFocus(() => blockOpen(host.root(), made.blockId), { mode: 'settled' });
           // "Desfazer" removes the new row: the focus goes back to the row it went under, else the location's chevron.
           const anchor = input.anchorBlockId;
           // The toast comes with the new row, never before it (Q7).
@@ -305,12 +305,12 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
             showToast(t.gone);
             return;
           }
-          focusAfterRemoval(
-            li,
-            (list) => [...list.children].filter((el): el is HTMLElement => el instanceof HTMLElement && el.matches('li[data-block-id]')),
-            (row) => row?.querySelector<HTMLElement>('[data-tree-open]') ?? null,
-            () => locationChevron(host.root(), parentId),
-          );
+          focusAfterRemoval(li, {
+            rows: (list) => [...list.children].filter((el): el is HTMLElement => el instanceof HTMLElement && el.matches('li[data-block-id]')),
+            focusOf: (row) => row?.querySelector<HTMLElement>('[data-tree-open]') ?? null,
+            fallback: () => locationChevron(host.root(), parentId),
+            mode: 'settled',
+          });
           undoable(
             t.removed,
             batch,
@@ -343,7 +343,7 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
         return [putEquipmentTagOp(by, projectId, equipmentId, tag.trim())];
       })
         .then((batch) => {
-          focusWhenRendered(() => blockTrigger(blockRow(host.root(), node.blockId)));
+          restoreFocus(() => blockTrigger(blockRow(host.root(), node.blockId)), { mode: 'settled' });
           if (batch === null) {
             if (out.refusal !== null) showToast(out.refusal);
             return;
@@ -392,7 +392,7 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
             return;
           }
           if (parent !== null) host.reveal(parent.id);
-          focusWhenRendered(() => locationChevron(host.root(), made.id));
+          restoreFocus(() => locationChevron(host.root(), made.id), { mode: 'settled' });
           // "Desfazer" removes the new location: the focus goes to its cabine's chevron, or to "Adicionar cabine".
           undoable(addedText(made.kind, made.name), batch, () =>
             locationChevron(host.root(), made.id) !== null ? null : parent !== null ? locationChevron(host.root(), parent.id) : host.addCabine(),
@@ -420,7 +420,7 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
             showToast(t.locationGone);
             return;
           }
-          focusWhenRendered(() => locationChevron(host.root(), node.id));
+          restoreFocus(() => locationChevron(host.root(), node.id), { mode: 'settled' });
           undoable(renamedText(node.kind === 'cabine' ? 'cabine' : 'coluna', name), batch, () => locationChevron(host.root(), node.id));
         })
         .catch(() => undefined);

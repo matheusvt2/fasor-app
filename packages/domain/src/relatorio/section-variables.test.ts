@@ -27,7 +27,7 @@ function baseSnapshot(overrides: Partial<RelatorioSnapshot> = {}): RelatorioSnap
         service_start: null,
         service_end: null,
         atividade: null,
-        local: 'das Torres A e B da Porto Seguro',
+        local: 'dos Blocos Norte e Sul da Seguradora Exemplo',
         responsible_user_id: null,
         cover_photo_file_id: null,
         escopo: 'manutenção preventiva e à execução de ensaios dielétricos',
@@ -44,7 +44,7 @@ function baseSnapshot(overrides: Partial<RelatorioSnapshot> = {}): RelatorioSnap
       preview_file_id: null,
       removed_at: null,
     },
-    project: { id: '019966b0-0070-7000-8000-000000000011', client_id: null, name: 'Porto Seguro', site: 'Torres A e B', removed_at: null },
+    project: { id: '019966b0-0070-7000-8000-000000000011', client_id: null, name: 'Seguradora Exemplo', site: 'Blocos Norte e Sul', removed_at: null },
     empresa: {
       id: 'e1',
       kind: 'empresa',
@@ -61,7 +61,7 @@ function baseSnapshot(overrides: Partial<RelatorioSnapshot> = {}): RelatorioSnap
       cover_background_file_id: null,
       removed_at: null,
     },
-    client: { id: 'c1', kind: 'client', name: 'Porto Seguro Companhia de Seguros Gerais', cnpj: null, contact_name: null, contact_phone: null, sites: [], removed_at: null },
+    client: { id: 'c1', kind: 'client', name: 'Seguradora Exemplo Companhia de Seguros', cnpj: null, contact_name: null, contact_phone: null, sites: [], removed_at: null },
     responsible: null,
     instruments: [],
     equipment: [],
@@ -76,19 +76,19 @@ function baseSnapshot(overrides: Partial<RelatorioSnapshot> = {}): RelatorioSnap
 
 describe('4.2-UNIT / 4.7-UNIT sectionVariables', () => {
   it('resolves obra from setup.local, falling back to project.site then project.name', () => {
-    expect(sectionVariables(baseSnapshot(), 'Rafael Lamonde').obra).toBe('das Torres A e B da Porto Seguro');
+    expect(sectionVariables(baseSnapshot(), 'Ana Exemplo').obra).toBe('dos Blocos Norte e Sul da Seguradora Exemplo');
     const withoutLocal = baseSnapshot();
     withoutLocal.relatorio.setup.local = null;
-    expect(sectionVariables(withoutLocal, null).obra).toBe('Torres A e B');
+    expect(sectionVariables(withoutLocal, null).obra).toBe('Blocos Norte e Sul');
     withoutLocal.project = { ...withoutLocal.project!, site: null };
-    expect(sectionVariables(withoutLocal, null).obra).toBe('Porto Seguro');
+    expect(sectionVariables(withoutLocal, null).obra).toBe('Seguradora Exemplo');
   });
 
   it('resolves every other variable off the snapshot and the responsible name', () => {
-    const vars = sectionVariables(baseSnapshot(), 'Rafael Lamonde');
-    expect(vars.cliente).toBe('Porto Seguro Companhia de Seguros Gerais');
+    const vars = sectionVariables(baseSnapshot(), 'Ana Exemplo');
+    expect(vars.cliente).toBe('Seguradora Exemplo Companhia de Seguros');
     expect(vars.empresa_executora).toBe('Fasor Engenharia');
-    expect(vars.responsavel).toBe('Rafael Lamonde');
+    expect(vars.responsavel).toBe('Ana Exemplo');
     expect(vars.datas).toBeUndefined();
   });
 

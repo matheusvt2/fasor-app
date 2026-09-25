@@ -1,4 +1,4 @@
-import { type ClientRow, type OpDraft } from '@app/domain';
+import { registryFieldPath, registryPath, type ClientRow, type OpDraft } from '@app/domain';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Button, ConfirmDialog, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -69,11 +69,11 @@ export function ClientPanel({ clientId, client, referenced, onClose }: ClientPan
     if (!created.current) {
       created.current = true;
       const row = { ...defaultRow(clientId), [field]: value };
-      const op: OpDraft = { ...base, kind: 'create', path: `registry/client/${clientId}`, value: row as never };
+      const op: OpDraft = { ...base, kind: 'create', path: registryPath('client', clientId), value: row as never };
       await commitBatch(db, [op], { newId, now });
       return;
     }
-    const op: OpDraft = { ...base, kind: 'put', path: `registry/client/${clientId}/${field}`, value: value as never };
+    const op: OpDraft = { ...base, kind: 'put', path: registryFieldPath('client', clientId, field), value: value as never };
     await commitBatch(db, [op], { newId, now });
   }
 
@@ -92,7 +92,7 @@ export function ClientPanel({ clientId, client, referenced, onClose }: ClientPan
           batch_id: null,
           meta: null,
           actor_id: user.id,
-          path: `registry/client/${clientId}/removed_at`,
+          path: registryFieldPath('client', clientId, 'removed_at'),
           value: null,
         },
       ],

@@ -3,7 +3,7 @@ import { SERVER_DEVICE_ID, type GenerateResponse, type Op, type RevisionRow } fr
 import { BLOCK_CHAVE_ID, EQUIPMENT_CHAVE_ID, portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { act, cleanup, configure, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { axe } from 'jest-axe';
+import { axe } from '../../test-axe.ts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { commitBatch } from '../../db/commit.ts';
 import { readGenerateAwaiting } from '../../db/prefs.ts';

@@ -6,7 +6,7 @@ function client(overrides: Partial<ClientRow> = {}): ClientRow {
   return {
     id: '019966b0-0004-7000-8000-000000000001',
     kind: 'client',
-    name: 'Porto Seguro',
+    name: 'Seguradora Exemplo',
     cnpj: null,
     contact_name: null,
     contact_phone: null,

@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { axe } from 'jest-axe';
+import { axe } from '../../test-axe.ts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SignInResult } from '../../api/auth-client.ts';
 import type { SessionState } from '../../state/session.tsx';

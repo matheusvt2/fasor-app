@@ -1,7 +1,7 @@
 import { newEquipmentBlock, type LocationRow } from '@app/domain';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { axe } from 'jest-axe';
+import { axe } from '../../test-axe.ts';
 import { describe, expect, it, vi } from 'vitest';
 import { NameDialog, TagDialog } from './tag-dialogs.tsx';
 

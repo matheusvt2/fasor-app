@@ -1,3 +1,4 @@
+// @vitest-environment node
 import 'fake-indexeddb/auto';
 import { draftKey } from '@app/domain';
 import { beforeEach, describe, expect, it } from 'vitest';

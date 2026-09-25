@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { defaultEmpresaRow, type EmpresaRow, type RegistryRow } from '@app/domain';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { axe } from 'jest-axe';
+import { axe } from '../../test-axe.ts';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '../../state/toast.tsx';
 import type { SessionState } from '../../state/session.tsx';

@@ -40,7 +40,7 @@ vi.mock('../../state/session.tsx', () => ({ useSession: () => session }));
 const client: ClientRow = {
   id: '0a000000-0000-7000-8000-0000000000c1',
   kind: 'client',
-  name: 'Porto Seguro',
+  name: 'Seguradora Exemplo',
   cnpj: null,
   contact_name: null,
   contact_phone: null,
@@ -74,7 +74,7 @@ describe('ClientPanel — AC1 referenced vs unreferenced deletion', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     await user.click(removeButton);
     const dialog = await screen.findByRole('dialog');
-    expect(dialog).toHaveTextContent('Remover Porto Seguro?');
+    expect(dialog).toHaveTextContent('Remover Seguradora Exemplo?');
   });
 });
 

@@ -1,7 +1,9 @@
 import {
+  blockFieldPath,
   materializeEntity,
   newRelatorioEquipmentReady,
   splitEntityKey,
+  userFieldPath,
   userRowSchema,
   type EntityKey,
   type Op,
@@ -234,12 +236,12 @@ const REGISTRATION_FIELDS = new Set(['council', 'registration_number', 'title'])
  * returns at boot predates them, so they must stand over it until the push lands.
  */
 export async function unsentRegistration(db: AppDatabase, userId: string): Promise<UnsentRegistration> {
-  const prefix = `user/${userId}/`;
-  const rows = await db.outbox.where('path').startsWith(prefix).toArray();
+  const fieldOfPath = new Map([...REGISTRATION_FIELDS].map((field) => [userFieldPath(userId, field), field]));
+  const rows = await db.outbox.where('path').anyOf([...fieldOfPath.keys()]).toArray();
   const out: UnsentRegistration = {};
   for (const row of rows.filter((r) => r.status === 'pending' || r.status === 'sent').sort(byClientTsThenOpId)) {
-    const field = row.path.slice(prefix.length);
-    if (row.kind === 'put' && REGISTRATION_FIELDS.has(field)) out[field as keyof UnsentRegistration] = row.value;
+    const field = fieldOfPath.get(row.path);
+    if (row.kind === 'put' && field !== undefined) out[field as keyof UnsentRegistration] = row.value;
   }
   return out;
 }
@@ -255,7 +257,7 @@ export async function remoteOpRows(db: AppDatabase): Promise<RemoteOpRow[]> {
  * (by `client_ts`) reads `acked`; false while it is still `pending`, `sent` or `dead`.
  */
 export async function notTestedSynced(db: AppDatabase, blockId: string): Promise<boolean> {
-  const rows = await db.outbox.where('path').equals(`block/${blockId}/not_tested`).toArray();
+  const rows = await db.outbox.where('path').equals(blockFieldPath(blockId, 'not_tested')).toArray();
   if (rows.length === 0) return true;
   const latest = rows.sort(byClientTsThenOpId).at(-1)!;
   return latest.status === 'acked';

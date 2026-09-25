@@ -1,4 +1,19 @@
-import { relatorioOpEnvelope, type Author, type BlockRow, type EquipmentRow, type JsonValue, type LocationRow, type OpDraft } from '@app/domain';
+import {
+  blockFieldPath,
+  blockPath,
+  equipmentFieldPath,
+  equipmentPath,
+  locationAgruparPath,
+  locationFieldPath,
+  locationPath,
+  relatorioOpEnvelope,
+  type Author,
+  type BlockRow,
+  type EquipmentRow,
+  type JsonValue,
+  type LocationRow,
+  type OpDraft,
+} from '@app/domain';
 
 /*
  * The ops the Sumário and its location tree write (Stories 4.3, 4.4, 4.5):
@@ -21,42 +36,42 @@ function projectEnvelope(author: Author, projectId: string): Omit<OpDraft, 'kind
 
 /** `block/{id}/removed_at` remove: the row is tombstoned, and an undo puts null back. */
 export function removeBlockOp(author: Author, relatorioId: string, blockId: string): OpDraft {
-  return { ...envelope(author, relatorioId), kind: 'remove', path: `block/${blockId}/removed_at`, value: null };
+  return { ...envelope(author, relatorioId), kind: 'remove', path: blockFieldPath(blockId, 'removed_at'), value: null };
 }
 
 /** `block/{id}` create of a whole row. */
 export function createBlockOp(author: Author, relatorioId: string, row: BlockRow): OpDraft {
-  return { ...envelope(author, relatorioId), kind: 'create', path: `block/${row.id}`, value: row as unknown as JsonValue };
+  return { ...envelope(author, relatorioId), kind: 'create', path: blockPath(row.id), value: row as unknown as JsonValue };
 }
 
 /** `location/{id}` create of a whole row (a coluna or a cabine added from the tree). */
 export function createLocationOp(author: Author, relatorioId: string, row: LocationRow): OpDraft {
-  return { ...envelope(author, relatorioId), kind: 'create', path: `location/${row.id}`, value: row as unknown as JsonValue };
+  return { ...envelope(author, relatorioId), kind: 'create', path: locationPath(row.id), value: row as unknown as JsonValue };
 }
 
 /** `location/{id}/{name|order_key}` put. */
 export function putLocationOp(author: Author, relatorioId: string, locationId: string, field: 'name' | 'order_key', value: string): OpDraft {
-  return { ...envelope(author, relatorioId), kind: 'put', path: `location/${locationId}/${field}`, value };
+  return { ...envelope(author, relatorioId), kind: 'put', path: locationFieldPath(locationId, field), value };
 }
 
 /** `location/{id}/agrupar_por_tipo` put (the cabine's flag; the family has no field segment). */
 export function putAgruparOp(author: Author, relatorioId: string, locationId: string, value: boolean): OpDraft {
-  return { ...envelope(author, relatorioId), kind: 'put', path: `location/${locationId}/agrupar_por_tipo`, value };
+  return { ...envelope(author, relatorioId), kind: 'put', path: locationAgruparPath(locationId), value };
 }
 
 /** `equipment/{id}` create, project scope. */
 export function createEquipmentOp(author: Author, row: EquipmentRow): OpDraft {
-  return { ...projectEnvelope(author, row.project_id), kind: 'create', path: `equipment/${row.id}`, value: row as unknown as JsonValue };
+  return { ...projectEnvelope(author, row.project_id), kind: 'create', path: equipmentPath(row.id), value: row as unknown as JsonValue };
 }
 
 /** `equipment/{id}/tag` put: a rename keeps the row, so the block and its history stay attached. */
 export function putEquipmentTagOp(author: Author, projectId: string, equipmentId: string, tag: string): OpDraft {
-  return { ...projectEnvelope(author, projectId), kind: 'put', path: `equipment/${equipmentId}/tag`, value: tag };
+  return { ...projectEnvelope(author, projectId), kind: 'put', path: equipmentFieldPath(equipmentId, 'tag'), value: tag };
 }
 
 /** `equipment/{id}/removed_at` remove (the TAG is freed with its sheet), or a put of null that restores it. */
 export function equipmentRemovedOp(author: Author, projectId: string, equipmentId: string, removed: boolean): OpDraft {
   return removed
-    ? { ...projectEnvelope(author, projectId), kind: 'remove', path: `equipment/${equipmentId}/removed_at`, value: null }
-    : { ...projectEnvelope(author, projectId), kind: 'put', path: `equipment/${equipmentId}/removed_at`, value: null };
+    ? { ...projectEnvelope(author, projectId), kind: 'remove', path: equipmentFieldPath(equipmentId, 'removed_at'), value: null }
+    : { ...projectEnvelope(author, projectId), kind: 'put', path: equipmentFieldPath(equipmentId, 'removed_at'), value: null };
 }

@@ -87,16 +87,28 @@ export function SectionCard({
   });
   const name = sectionName(section.block_type);
   const menu = sectionMenu(section, reorder, props);
+  const line = (
+    <>
+      <span className="block-tag">{section.number}</span>
+      <span className="block-name">{copy.composer.sectionTitles[section.block_type]}</span>
+    </>
+  );
   return (
     <li className={reorder.dragging ? 'block-card is-dragging' : 'block-card'} {...reorder.rowProps}>
       <DragHandle name={name} reorder={reorder} />
       <PositionBox name={name} position={section.position} siblings={section.siblings} reorder={reorder} />
-      <div className="block-body">
-        <div className="block-line">
-          <span className="block-tag">{section.number}</span>
-          <span className="block-name">{copy.composer.sectionTitles[section.block_type]}</span>
+      {/* E3-A9 (mock l.281, `li.block-card` opening `#tc-dlg-rich`): a section with text opens
+          "Editar texto" from a tap on its body, the cabine card's `button.block-body` pattern;
+          the Overflow item stays. */}
+      {props.canEditText(section) ? (
+        <button type="button" className="block-body" aria-label={copy.composer.editTextOf(name)} onClick={() => props.onEditText(section)}>
+          <span className="block-line">{line}</span>
+        </button>
+      ) : (
+        <div className="block-body">
+          <div className="block-line">{line}</div>
         </div>
-      </div>
+      )}
       <OverflowMenu name={name} items={menu.items} destructiveItems={menu.destructiveItems} />
     </li>
   );

@@ -50,7 +50,7 @@ function relatorio(id: string, removed_at: string | null): RelatorioRow {
       service_start: '2026-09-06',
       service_end: '2026-09-08',
       atividade: null,
-      local: 'Torres A e B',
+      local: 'Blocos Norte e Sul',
       responsible_user_id: null,
       cover_photo_file_id: null,
       escopo: null,
@@ -77,7 +77,7 @@ async function seeded(): Promise<AppDatabase> {
     toRecord(`project:${PROJECT}`, {
       id: PROJECT,
       client_id: CLIENT,
-      name: 'Porto Seguro',
+      name: 'Seguradora Exemplo',
       site: null,
       removed_at: null,
     }),
@@ -118,7 +118,7 @@ describe('home-store', () => {
     const db = await seeded();
     const rows = await relatorioRows(db);
     expect(rows.map((r) => r.id)).toEqual([RELATORIO]);
-    expect(rows[0]!.setup.local).toBe('Torres A e B');
+    expect(rows[0]!.setup.local).toBe('Blocos Norte e Sul');
     db.close();
   });
 
@@ -214,7 +214,7 @@ describe('home-store: the Project and Sumário readers (Story 4.1, 4.3)', () => 
 
   it('reads one live project and relatório by id, null for a tombstone or an unknown id', async () => {
     const db = await seeded();
-    expect((await projectRow(db, PROJECT))?.name).toBe('Porto Seguro');
+    expect((await projectRow(db, PROJECT))?.name).toBe('Seguradora Exemplo');
     expect((await relatorioRow(db, RELATORIO))?.id).toBe(RELATORIO);
     expect(await relatorioRow(db, TOMBSTONED)).toBeNull();
     expect(await projectRow(db, ids())).toBeNull();

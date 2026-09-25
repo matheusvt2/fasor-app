@@ -7,7 +7,7 @@ import { newId } from '../../ids.ts';
 import { blockRows, instrumentRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { useSession } from '../../state/session.tsx';
-import { focusWhenRendered } from '../relatorio/relatorio-focus.ts';
+import { restoreFocus } from '../../input/focus-restore.ts';
 import { InstrumentPanel } from './instrument-panel.tsx';
 import { InstrumentRow as InstrumentRowItem } from './instrument-row.tsx';
 
@@ -49,7 +49,7 @@ export function InstrumentosTab({ openNew = false, onEntryEnd }: InstrumentosTab
   // so scrolled into view, never the end of the panel with the focus on `<body>`.
   useEffect(() => {
     if (entryId === null) return;
-    focusWhenRendered(() => document.querySelector<HTMLElement>('.registry-panel .panel-body input'));
+    restoreFocus(() => document.querySelector<HTMLElement>('.registry-panel .panel-body input'), { mode: 'settled' });
     // Once per arrival.
   }, []);
 

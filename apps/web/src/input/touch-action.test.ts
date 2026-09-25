@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { TOUCH_ACTION, touchActionStyle } from './touch-action.ts';
 

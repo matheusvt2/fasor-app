@@ -1,4 +1,4 @@
-import type { JsonValue, OpDraft, TemplateRow } from '@app/domain';
+import { templateFieldPath, templatePath, type JsonValue, type OpDraft, type TemplateRow } from '@app/domain';
 
 /*
  * The only ops the Templates surfaces write (Story 3.4 AC, FR-13): a `template/{id}`
@@ -29,17 +29,17 @@ function envelope(author: Author): Omit<OpDraft, 'kind' | 'path' | 'value'> {
 
 /** `template/{id}` create of a whole row. */
 export function createTemplateOp(author: Author, row: TemplateRow): OpDraft {
-  return { ...envelope(author), kind: 'create', path: `template/${row.id}`, value: row as unknown as JsonValue };
+  return { ...envelope(author), kind: 'create', path: templatePath(row.id), value: row as unknown as JsonValue };
 }
 
 /** `template/{id}/{field}` put. */
 export function putTemplateOp(author: Author, id: string, field: TemplateField, value: unknown): OpDraft {
-  return { ...envelope(author), kind: 'put', path: `template/${id}/${field}`, value: value as JsonValue };
+  return { ...envelope(author), kind: 'put', path: templateFieldPath(id, field), value: value as JsonValue };
 }
 
 /** `template/{id}/removed_at` remove: the row is tombstoned, and an undo puts null back. */
 export function removeTemplateOp(author: Author, id: string): OpDraft {
-  return { ...envelope(author), kind: 'remove', path: `template/${id}/removed_at`, value: null };
+  return { ...envelope(author), kind: 'remove', path: templateFieldPath(id, 'removed_at'), value: null };
 }
 
 /** The toast for a refused device write (AD-8, FR-54), kept where the edit queue raises it. */

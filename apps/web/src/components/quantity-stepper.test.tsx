@@ -1,7 +1,7 @@
 import { quantityLabel } from '@app/domain';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { axe } from 'jest-axe';
+import { axe } from '../test-axe.ts';
 import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PRESS_AND_HOLD_MS } from '../input/use-press-and-hold.ts';

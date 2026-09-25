@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { opLog } from '../../fixtures/replay-small/op-log.ts';
 import { FAMILIES, formatPath, isServerOnly, opPathSchema, parsePath, PathError, targetOf, type OpPath } from './path.ts';
+import * as builders from './path.ts';
 
 const ID = '019966b0-0000-7000-8000-0000000000aa';
 const BLOCK = '019966b0-0000-7000-8000-0000000000bb';
@@ -165,5 +166,64 @@ describe('2.3-UNIT-005 field immutability is per entity, not global', () => {
   it('still refuses identity and ownership keys everywhere', () => {
     expect(() => parsePath(`registry/empresa/${EMPRESA}/id`)).toThrow(PathError);
     expect(() => parsePath(`registry/empresa/${EMPRESA}/kind`)).toThrow(PathError);
+  });
+});
+
+describe('E5-A5 typed path builders round-trip through parsePath', () => {
+  const cases: ReadonlyArray<readonly [string, Record<string, unknown>]> = [
+    [builders.projectPath(ID), { family: 'project', id: ID }],
+    [builders.projectFieldPath(ID, 'name'), { family: 'project/field', id: ID, field: 'name' }],
+    [builders.relatorioPath(ID), { family: 'relatorio', id: ID }],
+    [builders.relatorioSetupPath('exclusions'), { family: 'relatorio/setup', field: 'exclusions' }],
+    [builders.relatorioStatusPath(), { family: 'relatorio/status' }],
+    [builders.relatorioExportSchemePath(), { family: 'relatorio/export/scheme' }],
+    [builders.locationPath(ID), { family: 'location', id: ID }],
+    [builders.locationFieldPath(ID, 'order_key'), { family: 'location/field', id: ID, field: 'order_key' }],
+    [builders.locationSePath(ID, 'type'), { family: 'location/se', id: ID, field: 'type' }],
+    [builders.locationEnvPath(ID, 'humidity_pct'), { family: 'location/env', id: ID, field: 'humidity_pct' }],
+    [builders.locationAgruparPath(ID), { family: 'location/agrupar_por_tipo', id: ID }],
+    [builders.blockPath(ID), { family: 'block', id: ID }],
+    [builders.blockFieldPath(ID, 'not_tested'), { family: 'block/field', id: ID, field: 'not_tested' }],
+    [builders.sheetNameplatePath(BLOCK, 'fabricante'), { family: 'sheet/nameplate', block_id: BLOCK, field_key: 'fabricante' }],
+    [
+      builders.sheetChecklistPath(BLOCK, 'item_1', 'observation'),
+      { family: 'sheet/checklist', block_id: BLOCK, item_key: 'item_1', field: 'observation' },
+    ],
+    [
+      builders.sheetTestPath(BLOCK, 'insulation', 'criterion_override'),
+      { family: 'sheet/test', block_id: BLOCK, test_key: 'insulation', field: 'criterion_override' },
+    ],
+    [
+      builders.sheetTestCellPath(BLOCK, 'insulation', 3, 1),
+      { family: 'sheet/test/cell', block_id: BLOCK, test_key: 'insulation', row: 3, col: 1 },
+    ],
+    [builders.sheetConclusionPath(BLOCK, 'text_basis'), { family: 'sheet/conclusion', block_id: BLOCK, field: 'text_basis' }],
+    [builders.sheetObservationsPath(BLOCK), { family: 'sheet/observations', block_id: BLOCK }],
+    [builders.equipmentPath(ID), { family: 'equipment', id: ID }],
+    [builders.equipmentFieldPath(ID, 'tag'), { family: 'equipment/field', id: ID, field: 'tag' }],
+    [builders.filePath(ID), { family: 'file', id: ID }],
+    [builders.fileFieldPath(ID, 'caption'), { family: 'file/field', id: ID, field: 'caption' }],
+    [builders.pointPath(ID), { family: 'point', id: ID }],
+    [builders.pointFieldPath(ID, 'text'), { family: 'point/field', id: ID, field: 'text' }],
+    [builders.suggestionStatusPath(ID), { family: 'suggestion/status', id: ID }],
+    [builders.registryPath('client', ID), { family: 'registry', kind: 'client', id: ID }],
+    [
+      builders.registryFieldPath('instrument', ID, 'certificate_file_id'),
+      { family: 'registry/field', kind: 'instrument', id: ID, field: 'certificate_file_id' },
+    ],
+    [builders.templatePath(ID), { family: 'template', id: ID }],
+    [builders.templateFieldPath(ID, 'archived_at'), { family: 'template/field', id: ID, field: 'archived_at' }],
+    [builders.userFieldPath(ID, 'council'), { family: 'user/field', id: ID, field: 'council' }],
+  ];
+
+  it.each(cases)('%s parses back to its family and segments', (path, expected) => {
+    expect(parsePath(path)).toEqual(expected);
+    expect(formatPath(parsePath(path))).toBe(path);
+  });
+
+  it('covers every family a device writes, and no server-only one', () => {
+    const built = new Set(cases.map(([path]) => parsePath(path).family));
+    const deviceFamilies = FAMILIES.filter((def) => def.serverOnly !== true).map((def) => def.family);
+    expect([...built].sort()).toEqual([...deviceFamilies].sort());
   });
 });

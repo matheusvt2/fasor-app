@@ -311,7 +311,7 @@ action_items:
     action: "E3-A4 Stabilize the gate: Templates list empty for 30 s after sign-in
       under load (3.6-E2E-001), and cut unit-suite jsdom/axe cost"
     owner: "dev"
-    status: in-progress
+    status: done  # PR #40 (Epic 6 batch F)
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
   - id: "epic-3-retro-item-22-e3-a5-decide-d-4-template-version-d-5-co"
     epic: 3
@@ -348,7 +348,7 @@ action_items:
       4 in section 8, synthetic names in remaining tests, blank-rename message, open
       Editar texto from the card"
     owner: "dev"
-    status: open
+    status: in-progress  # PR #40 all but section 8 bullet 4 (Story 6.6 / Epic 7)
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
   - id: "epic-3-retro-item-27-e3-a10-tooling-remove-stale-worktrees-re"
     epic: 3
@@ -409,7 +409,7 @@ action_items:
       Sumario row actions, unify the focus-restore helpers, move project helpers out
       of sumario.ts"
     owner: "dev"
-    status: open
+    status: done  # PR #40 (Epic 6 batch F)
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
   - id: "epic-4-retro-item-35-e4-a8-process-integrated-human-style-qa"
     epic: 4
@@ -441,7 +441,7 @@ action_items:
       chip row, sticky bar with the keyboard, Nao ensaiado) and to the E1-A1 manual
       device script"
     owner: "dev, then Matheus"
-    status: open
+    status: in-progress  # PR #40 sheet specs in test:e2e:matrix (@p1); device run by Matheus open
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
   - id: "epic-5-retro-item-39-e5-a3-decide-oq-1-oq-6-of-reviews-epic-5"
     epic: 5
@@ -458,7 +458,7 @@ action_items:
       a cleared result leaves no printable confirmed text, guard the stale basis on
       confirm, remaining E5-Q18 e2e"
     owner: "dev"
-    status: open
+    status: done  # PR #40; E5-Q18 (b) moves to Epic 7
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
   - id: "epic-5-retro-item-41-e5-a5-kernel-path-builders-for-every-op"
     epic: 5
@@ -466,7 +466,7 @@ action_items:
       relatorio-ops, setup-surface puts), folded into E4-A7 with the setup-surface
       split"
     owner: "dev"
-    status: open
+    status: done  # PR #40 (Epic 6 batch F)
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
   - id: "epic-5-retro-item-42-e5-a6-dod-a-new-kernel-refusal-of-a-writ"
     epic: 5

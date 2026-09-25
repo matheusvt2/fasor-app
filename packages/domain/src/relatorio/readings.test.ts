@@ -9,6 +9,7 @@ import { defaultBlockConfig } from '../seed/template.ts';
 import {
   cellAddressesOf,
   cellAt,
+  effectiveCriterion,
   evaluatedCells,
   evaluateSheetReadings,
   firstRunCell,
@@ -321,5 +322,51 @@ describe('5.8-UNIT worstReadings', () => {
       ['isolacao', '500 MΩ', 'T1–T2', 'within'],
       ['resistencia_contato', '300 µΩ', 'T3-T4–Fase B', 'out'],
     ]);
+  });
+});
+
+describe('E5-A4 criterion_override', () => {
+  const ISO = SEC.tests.find((t) => t.key === 'isolacao')!;
+  const override = (value: unknown) => ({ cells: {}, criterion_override: cell(value) });
+  const readings = (): Sheet['test'][string]['cells'] => ({ '0': { '0': measured('500', 'MΩ') }, '1': { '0': measured('2', 'GΩ') } });
+
+  it('a well-formed override replaces the value and unit; operator, type and source stay the seed\'s', () => {
+    const b = block('chave_seccionadora', { test: { isolacao: { ...override({ raw: '1000', unit: 'MΩ' }), cells: readings() } } });
+    const criterion = effectiveCriterion(b, ISO);
+    expect(criterion).toMatchObject({ key: 'isolacao', operator: '>', value: 1000, unit: 'MΩ', type: 'absolute_min', source: { name: 'aceitável na ficha' } });
+    const iso = evaluateSheetReadings(b, SEC)[0]!;
+    expect(iso.criterionText).toBe('>1000 MΩ');
+    expect(iso.sourceName).toBe('aceitável na ficha');
+    const cells = iso.tables[0]!.rows.map((r) => r.cells[0]!);
+    // 500 MΩ is within the seed's >400 MΩ but out of the override's >1000 MΩ; 2 GΩ stays within.
+    expect(cells.slice(0, 2).map((c) => c.verdict)).toEqual(['out', 'within']);
+    expect(cells[0]!.helperText).toBe('Abaixo do aceitável (>1000 MΩ)');
+    // The conclusion's criteria items read the same effective criterion.
+    expect(worstReadings(evaluateSheetReadings(b, SEC)).find((r) => r.testKey === 'isolacao')!.criterionText).toBe('>1000 MΩ');
+  });
+
+  it('an override in another convertible unit is judged through the Ω scale', () => {
+    const b = block('chave_seccionadora', { test: { isolacao: { ...override({ raw: '1.5', unit: 'GΩ' }), cells: readings() } } });
+    const iso = evaluateSheetReadings(b, SEC)[0]!;
+    expect(iso.criterionText).toBe('>1,5 GΩ');
+    expect(iso.tables[0]!.rows.slice(0, 2).map((r) => r.cells[0]!.verdict)).toEqual(['out', 'within']);
+  });
+
+  it.each([
+    ['a bare number', 1000],
+    ['a string', '1000 MΩ'],
+    ['no raw', { unit: 'MΩ' }],
+    ['a non-decimal raw', { raw: '1.000,5', unit: 'MΩ' }],
+    ['a negative value', { raw: '-5', unit: 'MΩ' }],
+    ['an unconvertible unit', { raw: '1000', unit: 'µΩ-x' }],
+    ['a unit of another scale', { raw: '1', unit: '%' }],
+    ['no unit field', { raw: '1000' }],
+    ['a null value', null],
+  ])('a malformed override (%s) leaves the seed criterion, without throwing', (_name, value) => {
+    const b = block('chave_seccionadora', { test: { isolacao: { ...override(value), cells: readings() } } });
+    expect(effectiveCriterion(b, ISO)).toMatchObject({ value: 400, unit: 'MΩ' });
+    const iso = evaluateSheetReadings(b, SEC)[0]!;
+    expect(iso.criterionText).toBe('>400 MΩ');
+    expect(iso.tables[0]!.rows[0]!.cells[0]!.verdict).toBe('within');
   });
 });
