@@ -1,5 +1,5 @@
 import { hasNotTestedPoint, notTestedPointText, notTestedReasonText, type BlockRow, type RelatorioSnapshot } from '@app/domain';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ConfirmDialog } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { notTestedSynced } from '../../db/sync-store.ts';
@@ -29,6 +29,8 @@ export function NotTestedBand({
   const t = copy.ficha;
   const db = useSession().database;
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const desfazerRef = useRef<HTMLButtonElement>(null);
+  const createRef = useRef<HTMLDivElement>(null);
   if (block.not_tested === null) return null;
   const reason = notTestedReasonText(block);
   if (reason === null) return null;
@@ -54,16 +56,18 @@ export function NotTestedBand({
           <span className="band-reason">{reason}</span>
           {t.notTestedBandAfter}
         </span>
-        <button type="button" className="btn btn-text" onClick={() => void desfazer()}>
+        <button type="button" className="btn btn-text" ref={desfazerRef} onClick={() => void desfazer()}>
           {t.desfazer}
         </button>
       </div>
       {snapshot === undefined || hasNotTestedPoint(snapshot.points, block.equipment_id) ? null : (
-        <div className="row-wrap not-tested-point">
+        <div className="row-wrap not-tested-point" ref={createRef}>
           <CreatePointAction
             relatorioId={api.relatorioId}
             snapshot={snapshot}
             seed={() => ({ text: notTestedPointText(block), equipmentId: block.equipment_id, origin: 'not_tested' })}
+            // The saved point takes this button away: the focus stays on the band.
+            focusAfterSave={() => (createRef.current?.isConnected === true ? null : desfazerRef.current)}
           />
         </div>
       )}

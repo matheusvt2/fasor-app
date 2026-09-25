@@ -246,8 +246,9 @@ test('@p0 6.6-E2E-003 an untested sheet lists itself after the manual points; a 
   await expect(textArea(dialog)).toHaveText('Os ensaios não foram realizados conforme solicitação do cliente.');
   await dialog.getByRole('button', { name: 'Concluir' }).click();
   await expect(dialog).toHaveCount(0);
-  // The sheet now holds its point: the action is gone from the band.
+  // The sheet now holds its point: the action is gone from the band, the focus stays on it.
   await expect(page.locator('.not-tested-point')).toHaveCount(0);
+  await expect(page.locator('.not-tested-band .btn-text')).toBeFocused();
   const ops = await outbox(page);
   expect(ops).toHaveLength(1);
   expect(ops[0]!.value).toMatchObject({ origin: 'not_tested', equipment_id: equipmentOf.get(chave.blockId) });
@@ -299,6 +300,36 @@ test('@p0 6.6-E2E-004 Alt+↑ and the Overflow\'s "Subir" move a card with one o
 
   await page.reload();
   await expect(texts()).toHaveText(['Segundo', 'Terceiro', 'Primeiro'], { timeout: 30_000 });
+});
+
+test('@p0 6.6-E2E-008 "Editar" then "Concluir" writes only the changed text and action as puts, kept across a reload', async ({ page }) => {
+  test.setTimeout(150_000);
+  let point: PointRow | null = null;
+  await setUp(page, (scope) => {
+    const built = pointDrafts(scope, [{ text: 'Texto antigo', action: 'Ação antiga' }]);
+    point = built.rows[0]!;
+    return built.drafts;
+  });
+  await openPoints(page);
+  await page.getByRole('button', { name: 'Editar o ponto 1, Geral' }).click();
+  const editor = page.getByRole('article', { name: 'Ponto de atenção 1 em edição' });
+  const text = textArea(editor);
+  await expect(text).toBeFocused();
+  await page.keyboard.press('ControlOrMeta+a');
+  await page.keyboard.type('Texto novo');
+  await editor.getByRole('textbox', { name: 'Ação recomendada' }).fill('Ação nova');
+  await editor.getByRole('button', { name: 'Concluir' }).click();
+  await expect(editor).toHaveCount(0);
+
+  const ops = await outbox(page);
+  expect(ops.map((op) => [op.kind, op.path, op.value])).toEqual([
+    ['put', `point/${point!.id}/text`, 'Texto novo'],
+    ['put', `point/${point!.id}/action`, 'Ação nova'],
+  ]);
+  await page.reload();
+  const card = cards(page).first();
+  await expect(card.locator('.poa-text')).toHaveText('Texto novo', { timeout: 30_000 });
+  await expect(card.locator('.poa-fields dd')).toHaveText('Ação nova');
 });
 
 test('@p0 6.6-E2E-005 Sumário row 8 reads "5 pontos · 1 sem ação · 3 não ensaiadas" for 2 manual points (one without action) and 3 untested sheets', async ({ page }) => {

@@ -213,6 +213,8 @@ describe('6.6-UNIT pointsSummary and row 8', () => {
     const block = marked.blocks.find((row) => row.id === sheetOrder(marked)[0]!.blockId)!;
     const snapshot = withPoints(marked, point(marked, { origin: 'not_tested', equipment_id: block.equipment_id, action: null }));
     expect(pointsSummary(snapshot)).toEqual({ total: 3, semAcao: 0, naoEnsaiadas: 3 });
+    // Once that sheet is tested again, its stored point stays but is no longer "não ensaiada".
+    expect(pointsSummary(withNotTested(snapshot, { 0: null }))).toEqual({ total: 3, semAcao: 0, naoEnsaiadas: 2 });
   });
 
   it('writes the heading and the order line', () => {

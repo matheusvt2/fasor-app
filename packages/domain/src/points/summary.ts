@@ -55,7 +55,16 @@ export function pointsSummary(snapshot: PointsSnapshot): PointsSummary {
   return {
     total: live.length + derived.length,
     semAcao: pointsWithoutAction(snapshot.points).length,
-    naoEnsaiadas: derived.length + live.filter((point) => point.origin === 'not_tested').length,
+    // A point written from an untested sheet counts only while that sheet is still untested,
+    // so row 8 agrees with row 9 once the sheet is tested again.
+    naoEnsaiadas:
+      derived.length +
+      live.filter(
+        (point) =>
+          point.origin === 'not_tested' &&
+          point.equipment_id !== null &&
+          snapshot.blocks.some((block) => block.removed_at === null && block.equipment_id === point.equipment_id && block.not_tested !== null),
+      ).length,
   };
 }
 

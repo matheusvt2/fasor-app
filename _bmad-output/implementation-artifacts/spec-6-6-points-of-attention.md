@@ -2,7 +2,7 @@
 title: 'Story 6.6: points of attention that print as section 8, with untested equipment listing itself'
 type: 'feature'
 created: '2026-09-25'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '324d8c31ed87d03266220c4cd9b72dc6d1b10154'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -12,7 +12,21 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-6-context.md'
 warnings: ['batched', 'oversized']
 batched_reason: 'Batch P3 of Epic 6 carries Story 6.6 plus the kernel half of E3-A9 section 8 bullet 4 (derivedPoints and its grouping rule): one kernel family and one surface, batched for token economy.'
-deferred: []
+deferred:
+  - summary: >-
+      Point removal, its "Desfazer" and the removed-photo pre-issue row are driven in the UI only by the @p1 E2E-006, outside pnpm verify.
+    evidence: |-
+      e2e/points.spec.ts E2E-006 is tagged @p1; verify runs --grep @p0. The kernel side is unit-tested in points.test.ts.
+    location: >-
+      e2e/points.spec.ts
+    severity: medium
+  - summary: >-
+      An untested block with equipment_id null could gain repeated not_tested points that never suppress its derived entry.
+    evidence: |-
+      derivedPoints suppresses by equipment_id only; not-tested-band.tsx hides its action via hasNotTestedPoint(equipment_id). Settle by checking every equipment-block create path sets equipment_id (instantiate.ts sets null only on section blocks).
+    location: >-
+      apps/web/src/surfaces/ficha/not-tested-band.tsx:61
+    severity: medium (unverified)
 ---
 
 <intent-contract>
@@ -114,6 +128,26 @@ deferred: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-09-25 — Review pass
+
+Layers run: Edge Case Hunter, Verification Gap. Skipped: Blind Hunter, Intent Alignment (token economy; the integrated Epic 6 review covers them).
+
+- verdicts: 13 findings — high 0, medium 3, low 5, false 1, maybe-false 4
+- findings:
+  - `[medium]` `[patch]` VG: editing an existing point ("Editar" then "Concluir") is exercised by no test — added an `@p0` e2e case asserting the text/action puts, no create, and the values after reload.
+  - `[medium]` `[defer]` VG: point removal, its undo and the removed-photo row run only in the `@p1` E2E-006, outside `pnpm verify` — the spec put removal at `@p1`; recorded for the retro's P1 run.
+  - `[low]` `[reject]` ECH: a typed or pasted literal `[[foto:<uuid>]]` is stored and reloads as a chip — typing a full uuid token is not an everyday action (copying a chip copies "Imagem N", not the token); the fix adds escaping logic.
+  - `[maybe-false]` `[reject]` ECH: the "Fotos referenciadas" tile of a literal token cannot be removed — depends on the previous finding's unlikely input; if true only low.
+  - `[medium]` `[patch]` ECH: removing point B from its Overflow while A is in the editor closes A and drops its unsaved text — `remove()` now clears `editing` only for the removed point.
+  - `[low]` `[reject]` ECH: the edited point removed by a pull leaves `editing` set (Criar disabled) — one device fills a relatório (epic context), so a remote remove mid-edit is rare; the fix adds an effect guard.
+  - `[low]` `[reject]` ECH: the save toast can name a stale position when points change between open and save — cosmetic and rare.
+  - `[maybe-false]` `[defer]` ECH: an untested block with `equipment_id` null can gain repeated `not_tested` points that never suppress its derived entry — equipment blocks are created with an equipment row as far as read (`instantiate.ts` sets null only on section blocks); settle by checking every equipment-block create path. If true, medium.
+  - `[medium]` `[patch]` ECH: a live `not_tested` point keeps counting as "não ensaiada" after its sheet is tested again, so row 8 disagrees with row 9 — `pointsSummary` now counts it only while a live block of that equipment is still not tested; unit test added.
+  - `[low]` `[patch]` ECH: a quick text inserted right before a word runs into it — `quickTextAt` now also appends a space; unit test extended.
+  - `[maybe-false]` `[reject]` ECH: a move queued after the point's removal throws RangeError and shows the generic error toast — needs a remove and a move racing on one device; if true only low.
+  - `[low]` `[patch]` ECH: after saving from an untested sheet the invoking button unmounts and focus falls to `<body>` (spec: focus returns to the invoker) — the save now falls back to the band's "Desfazer".
+  - `[false]` `[reject]` ECH: `notTestedPointText` drops text typed for a seeded reason — the matrix defines the prefill as the justification, the typed `text` only for `outro`; the implementation matches it.
 
 ## Design Notes
 

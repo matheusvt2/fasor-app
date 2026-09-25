@@ -68,7 +68,13 @@ describe('6.6-UNIT point text editor', () => {
     insertPlainText(pasted, null, `colado ${photoToken(A)}`);
     expect(pasted.querySelectorAll('.var-chip')).toHaveLength(0);
     expect(quickTextAt(area(''), null, 'X')).toBe('X');
-  });
+    // A word right after the caret gets a space after the quick text too.
+    const before = area('palavra');
+    const start = caretAt(before.firstChild!, 0);
+    const lead = quickTextAt(before, start, 'Texto (PIE).');
+    expect(lead).toBe('Texto (PIE). ');
+    insertPlainText(before, start, lead);
+    expect(serializeArea(before)).toBe('Texto (PIE). palavra');  });
 
   it('removes a chip whole with one Backspace, and relabels chips when the numbers change', () => {
     const element = area(`Ver ${photoToken(A)}`);

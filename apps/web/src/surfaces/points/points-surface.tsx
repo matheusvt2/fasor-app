@@ -122,7 +122,8 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
 
   async function remove(point: PointRow): Promise<void> {
     setRemoving(null);
-    setEditing(null);
+    // Only the removed point's own editor closes: another point open in edit mode keeps its text.
+    setEditing((current) => (current?.kind === 'point' && current.id === point.id ? null : current));
     if (db === null || author === null) return;
     const batch = await edits
       .write(async () => {

@@ -76,13 +76,22 @@ export function insertPlainText(area: HTMLElement, range: Range | null, text: st
   }
 }
 
-/** A quick text lands as its own sentence: a space before it when the caret follows a word. */
+/**
+ * A quick text lands as its own sentence: a space before it when the caret follows a word,
+ * and a space after it when a word follows the caret.
+ */
 export function quickTextAt(area: HTMLElement, range: Range | null, text: string): string {
   const target = rangeInside(area, range) ? range : endRange(area);
   const before = target.cloneRange();
   before.setStart(area, 0);
   const preceding = before.toString();
-  return preceding === '' || /\s$/.test(preceding) ? text : ` ${text}`;
+  const after = target.cloneRange();
+  after.collapse(false);
+  after.setEnd(area, area.childNodes.length);
+  const following = after.toString();
+  const lead = preceding === '' || /\s$/.test(preceding) ? '' : ' ';
+  const tail = following === '' || /^\s/.test(following) ? '' : ' ';
+  return `${lead}${text}${tail}`;
 }
 
 /** Keeps every chip's label in step with the current photo numbers. */

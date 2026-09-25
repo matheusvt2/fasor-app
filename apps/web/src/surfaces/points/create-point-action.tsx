@@ -2,6 +2,7 @@ import { livePoints, pointSavedText, type RelatorioSnapshot } from '@app/domain'
 import { useState } from 'react';
 import { Button } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
+import { LIST_FOCUS_WATCH_FRAMES, restoreFocus } from '../../input/focus-restore.ts';
 import { useToast } from '../../state/toast.tsx';
 import { PointEditorDialog, type PointSeed } from './point-editor.tsx';
 
@@ -12,7 +13,21 @@ import { PointEditorDialog, type PointSeed } from './point-editor.tsx';
  * token per photo of the item); saving closes it and the Form dialog gives the focus back
  * to this button, inside the row that opened it.
  */
-export function CreatePointAction({ relatorioId, snapshot, seed }: { relatorioId: string; snapshot: RelatorioSnapshot; seed: () => PointSeed }) {
+export function CreatePointAction({
+  relatorioId,
+  snapshot,
+  seed,
+  focusAfterSave,
+}: {
+  relatorioId: string;
+  snapshot: RelatorioSnapshot;
+  seed: () => PointSeed;
+  /**
+   * Where the focus goes after a save that takes this button away (the untested sheet's
+   * band); null until the button is gone, so the dialog's own return to it lands first.
+   */
+  focusAfterSave?: () => HTMLElement | null;
+}) {
   const t = copy.points;
   const { showToast } = useToast();
   const [open, setOpen] = useState<PointSeed | null>(null);
@@ -37,6 +52,7 @@ export function CreatePointAction({ relatorioId, snapshot, seed }: { relatorioId
           onDone={(pointId) => {
             setOpen(null);
             if (pointId !== null) showToast(pointSavedText(total, total));
+            if (pointId !== null && focusAfterSave !== undefined) restoreFocus(focusAfterSave, { frames: LIST_FOCUS_WATCH_FRAMES, once: true });
           }}
         />
       )}
