@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { RelatorioSummary } from '../contract/sync.ts';
 import type { ProjectRow, RegistryRow, RelatorioRow, RelatorioStatus, TemplateRow } from '../schemas/entities.ts';
-import { sumarioTitle } from '../relatorio/sumario.ts';
+import { sumarioTitle } from '../relatorio/project.ts';
 import { idSequence } from '../test-support.ts';
 import {
   CADASTROS_SUBLINE,

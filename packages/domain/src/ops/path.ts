@@ -419,3 +419,51 @@ export function targetOf(path: OpPath): EntityRef {
   const id = typeof p.block_id === 'string' ? p.block_id : String(p.id);
   return { entity: def.entity, id };
 }
+
+// --- typed path builders (E5-A5, G-3) -----------------------------------------------------
+//
+// One builder per family a device writes, each built with `formatPath`, so no caller in
+// `apps/web` composes an op path as a string. `formatPath` only joins: the path is still
+// checked where every op is (`opSchema` at commit, `applyOp` for the seed-defined keys).
+// Families only the server writes (`file/server`, `generation_job/*`, `revision`, ...) get
+// no builder on purpose.
+
+export const projectPath = (id: string): string => formatPath({ family: 'project', id });
+export const projectFieldPath = (id: string, field: string): string => formatPath({ family: 'project/field', id, field });
+export const relatorioPath = (id: string): string => formatPath({ family: 'relatorio', id });
+export const relatorioSetupPath =(field: string): string => formatPath({ family: 'relatorio/setup', field });
+export const relatorioStatusPath = (): string => formatPath({ family: 'relatorio/status' });
+export const relatorioExportSchemePath = (): string => formatPath({ family: 'relatorio/export/scheme' });
+export const locationPath = (id: string): string => formatPath({ family: 'location', id });
+export const locationFieldPath = (id: string, field: (typeof LOCATION_FIELDS)[number]): string =>
+  formatPath({ family: 'location/field', id, field });
+export const locationSePath = (id: string, field: string): string => formatPath({ family: 'location/se', id, field });
+export const locationEnvPath = (id: string, field: string): string => formatPath({ family: 'location/env', id, field });
+export const locationAgruparPath = (id: string): string => formatPath({ family: 'location/agrupar_por_tipo', id });
+export const blockPath = (id: string): string => formatPath({ family: 'block', id });
+export const blockFieldPath = (id: string, field: (typeof BLOCK_FIELDS)[number]): string => formatPath({ family: 'block/field', id, field });
+export const sheetNameplatePath = (blockId: string, fieldKey: string): string =>
+  formatPath({ family: 'sheet/nameplate', block_id: blockId, field_key: fieldKey });
+export const sheetChecklistPath = (blockId: string, itemKey: string, field: (typeof CHECKLIST_FIELDS)[number]): string =>
+  formatPath({ family: 'sheet/checklist', block_id: blockId, item_key: itemKey, field });
+export const sheetTestPath = (blockId: string, testKey: string, field: (typeof TEST_FIELDS)[number]): string =>
+  formatPath({ family: 'sheet/test', block_id: blockId, test_key: testKey, field });
+export const sheetTestCellPath = (blockId: string, testKey: string, row: number, col: number): string =>
+  formatPath({ family: 'sheet/test/cell', block_id: blockId, test_key: testKey, row, col });
+export const sheetConclusionPath = (blockId: string, field: (typeof CONCLUSION_FIELDS)[number]): string =>
+  formatPath({ family: 'sheet/conclusion', block_id: blockId, field });
+export const sheetObservationsPath = (blockId: string): string => formatPath({ family: 'sheet/observations', block_id: blockId });
+export const equipmentPath = (id: string): string => formatPath({ family: 'equipment', id });
+export const equipmentFieldPath = (id: string, field: (typeof EQUIPMENT_FIELDS)[number]): string =>
+  formatPath({ family: 'equipment/field', id, field });
+export const filePath = (id: string): string => formatPath({ family: 'file', id });
+export const fileFieldPath = (id: string, field: (typeof FILE_FIELDS)[number]): string => formatPath({ family: 'file/field', id, field });
+export const pointPath = (id: string): string => formatPath({ family: 'point', id });
+export const pointFieldPath = (id: string, field: string): string => formatPath({ family: 'point/field', id, field });
+export const suggestionStatusPath = (id: string): string => formatPath({ family: 'suggestion/status', id });
+export const registryPath = (kind: RegistryKind, id: string): string => formatPath({ family: 'registry', kind, id });
+export const registryFieldPath = (kind: RegistryKind, id: string, field: string): string =>
+  formatPath({ family: 'registry/field', kind, id, field });
+export const templatePath = (id: string): string => formatPath({ family: 'template', id });
+export const templateFieldPath = (id: string, field: string): string => formatPath({ family: 'template/field', id, field });
+export const userFieldPath = (id: string, field: string): string => formatPath({ family: 'user/field', id, field });

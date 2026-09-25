@@ -44,6 +44,7 @@ import { commitBatch } from '../../db/commit.ts';
 import { templateRow } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { newId } from '../../ids.ts';
+import { focusAfterRemoval, LIST_FOCUS_WATCH_FRAMES } from '../../input/focus-restore.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
@@ -54,7 +55,6 @@ import { SectionTextDialog } from './section-text-dialog.tsx';
 import { SkeletonList } from './skeleton-list.tsx';
 import { putTemplateOp, type TemplateField } from './template-ops.ts';
 import { TypeDefaultsDialog } from './type-defaults-dialog.tsx';
-import { LIST_FOCUS_WATCH_FRAMES, restoreFocus } from './use-reorder.ts';
 import './templates.css';
 
 /**
@@ -95,23 +95,10 @@ const overflowOf = (row: Element | undefined): HTMLElement | null =>
  * Names where the focus goes once the row `li` has left its list: the Overflow the Confirm
  * dialog returned the focus to leaves with it, which would drop the focus to `<body>`. The
  * row now at its place takes it, else the one before it, else `fallback` (the list's
- * heading, or the cabine a coluna belonged to). Called with the row as drawn before the
- * removal was written.
+ * heading, or the cabine a coluna belonged to).
  */
-function focusAfterRemoval(li: HTMLElement | null, fallback: HTMLElement | null): void {
-  const list = li?.parentElement ?? null;
-  if (li === null || list === null) return;
-  const count = list.children.length;
-  const index = [...list.children].indexOf(li);
-  restoreFocus(
-    () => {
-      const rows = list.isConnected ? [...list.children] : [];
-      // Not re-rendered yet: the row is still counted in its list.
-      if (list.isConnected && rows.length >= count) return null;
-      return overflowOf(rows[index]) ?? overflowOf(rows[index - 1]) ?? fallback;
-    },
-    { frames: LIST_FOCUS_WATCH_FRAMES, once: true },
-  );
+function focusRowAfterRemoval(li: HTMLElement | null, fallback: HTMLElement | null): void {
+  focusAfterRemoval(li, { focusOf: overflowOf, fallback: () => fallback, frames: LIST_FOCUS_WATCH_FRAMES, once: true });
 }
 
 /**
@@ -255,7 +242,7 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
             ['blocks', next.blocks],
           ];
         }).catch(() => null);
-        if (batch !== null) focusAfterRemoval(li, fallback);
+        if (batch !== null) focusRowAfterRemoval(li, fallback);
         undoable(removedText(node.kind, node.name), batch);
       },
     });
@@ -310,7 +297,7 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
         const li = (list?.children[section.position - 1] as HTMLElement | undefined) ?? null;
         const heading = list?.closest('section')?.querySelector<HTMLElement>('h2') ?? null;
         const batch = await edit((fresh) => [['blocks', removeSection(withoutOrphans(fresh), section.index)]]).catch(() => null);
-        if (batch !== null) focusAfterRemoval(li, heading);
+        if (batch !== null) focusRowAfterRemoval(li, heading);
         undoable(removedText('section', String(section.number)), batch);
       },
     });

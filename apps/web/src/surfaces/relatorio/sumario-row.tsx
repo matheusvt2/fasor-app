@@ -3,7 +3,8 @@ import { useId, type ReactNode } from 'react';
 import { OverflowMenu, type OverflowMenuAction } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { PositionBox } from '../templates/reorder-controls.tsx';
-import { LIST_FOCUS_WATCH_FRAMES, useReorder, type Reorder } from '../templates/use-reorder.ts';
+import { LIST_FOCUS_WATCH_FRAMES } from '../../input/focus-restore.ts';
+import { useReorder, type Reorder } from '../templates/use-reorder.ts';
 
 export interface RowActions {
   /** Moves the row to a 0-based index among the numbered rows; resolves once written. */

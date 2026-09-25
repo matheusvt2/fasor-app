@@ -12,8 +12,9 @@ import {
 import { useId, useRef } from 'react';
 import { Button, OverflowMenu, QuantityStepper, TextButton, Toggle, type OverflowMenuAction } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
+import { restoreFocus } from '../../input/focus-restore.ts';
 import { DragHandle, PositionBox } from './reorder-controls.tsx';
-import { restoreFocus, useReorder } from './use-reorder.ts';
+import { useReorder } from './use-reorder.ts';
 
 export interface SkeletonListProps {
   view: ComposerView;

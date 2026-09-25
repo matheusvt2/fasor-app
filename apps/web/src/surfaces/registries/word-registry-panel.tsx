@@ -1,4 +1,4 @@
-import { parseVoltageClassKv, wordRegistryRowText, type OpDraft, type WordRow } from '@app/domain';
+import { parseVoltageClassKv, registryFieldPath, registryPath, wordRegistryRowText, type OpDraft, type WordRow } from '@app/domain';
 import { useId, useRef, useState } from 'react';
 import { Button, ConfirmDialog, SegmentedControl, TextButton, type SegmentedOption } from '../../components/index.ts';
 import { now } from '../../clock.ts';
@@ -97,11 +97,11 @@ export function WordRegistryPanel(props: WordRegistryPanelProps) {
     if (!created.current) {
       created.current = true;
       const next = { ...defaultRow(kind, rowId), [field]: value };
-      const op: OpDraft = { ...opBase, kind: 'create', path: `registry/${kind}/${rowId}`, value: next as never };
+      const op: OpDraft = { ...opBase, kind: 'create', path: registryPath(kind, rowId), value: next as never };
       await commitBatch(db, [op], { newId, now });
       return;
     }
-    const op: OpDraft = { ...opBase, kind: 'put', path: `registry/${kind}/${rowId}/${field}`, value: value as never };
+    const op: OpDraft = { ...opBase, kind: 'put', path: registryFieldPath(kind, rowId, field), value: value as never };
     await commitBatch(db, [op], { newId, now });
   }
 
@@ -120,7 +120,7 @@ export function WordRegistryPanel(props: WordRegistryPanelProps) {
           batch_id: null,
           meta: null,
           actor_id: user.id,
-          path: `registry/${kind}/${rowId}/removed_at`,
+          path: registryFieldPath(kind, rowId, 'removed_at'),
           value: null,
         },
       ],

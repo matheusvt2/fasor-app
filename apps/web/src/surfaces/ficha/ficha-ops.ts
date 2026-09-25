@@ -1,4 +1,20 @@
-import { putBlockOp, relatorioOpEnvelope, type Author, type InstrumentHeader, type JsonValue, type OpDraft } from '@app/domain';
+import {
+  locationEnvPath,
+  locationSePath,
+  putBlockOp,
+  registryPath,
+  relatorioOpEnvelope,
+  sheetChecklistPath,
+  sheetConclusionPath,
+  sheetNameplatePath,
+  sheetObservationsPath,
+  sheetTestCellPath,
+  sheetTestPath,
+  type Author,
+  type InstrumentHeader,
+  type JsonValue,
+  type OpDraft,
+} from '@app/domain';
 
 /*
  * The ops the equipment sheet writes (Stories 5.1-5.4): `sheet/{blockId}/nameplate/{key}`,
@@ -19,32 +35,32 @@ function put(author: Author, relatorioId: string, path: string, value: unknown):
 
 /** `sheet/{blockId}/nameplate/{fieldKey}` put (null clears it). */
 export function nameplateOp(author: Author, relatorioId: string, blockId: string, fieldKey: string, value: unknown): OpDraft {
-  return put(author, relatorioId, `sheet/${blockId}/nameplate/${fieldKey}`, value);
+  return put(author, relatorioId, sheetNameplatePath(blockId, fieldKey), value);
 }
 
 /** `sheet/{blockId}/checklist/{itemKey}/result` put: "C", "NC", "NA", or null to clear. */
 export function checklistResultOp(author: Author, relatorioId: string, blockId: string, itemKey: string, value: 'C' | 'NC' | 'NA' | null): OpDraft {
-  return put(author, relatorioId, `sheet/${blockId}/checklist/${itemKey}/result`, value);
+  return put(author, relatorioId, sheetChecklistPath(blockId, itemKey, 'result'), value);
 }
 
 /** `sheet/{blockId}/checklist/{itemKey}/observation` put. */
 export function checklistObservationOp(author: Author, relatorioId: string, blockId: string, itemKey: string, value: string | null): OpDraft {
-  return put(author, relatorioId, `sheet/${blockId}/checklist/${itemKey}/observation`, value);
+  return put(author, relatorioId, sheetChecklistPath(blockId, itemKey, 'observation'), value);
 }
 
 /** `sheet/{blockId}/observations` put: the sheet-level observation text. */
 export function sheetObservationsOp(author: Author, relatorioId: string, blockId: string, value: string | null): OpDraft {
-  return put(author, relatorioId, `sheet/${blockId}/observations`, value);
+  return put(author, relatorioId, sheetObservationsPath(blockId), value);
 }
 
 /** `location/{id}/se/{field}` put on the cabine (TIPO DE SE, tensões, potência). */
 export function cabineSeOp(author: Author, relatorioId: string, cabineId: string, field: string, value: unknown): OpDraft {
-  return put(author, relatorioId, `location/${cabineId}/se/${field}`, value);
+  return put(author, relatorioId, locationSePath(cabineId, field), value);
 }
 
 /** `location/{id}/env/{field}` put on the cabine (temperatura, umidade). */
 export function cabineEnvOp(author: Author, relatorioId: string, cabineId: string, field: string, value: unknown): OpDraft {
-  return put(author, relatorioId, `location/${cabineId}/env/${field}`, value);
+  return put(author, relatorioId, locationEnvPath(cabineId, field), value);
 }
 
 /** `registry/{manufacturer|voltage_class}/{id}` create, company scope: "Criar “…”" of a nameplate chip field (Story 2.5 AC3). */
@@ -54,7 +70,7 @@ export function createWordOp(author: Author, kind: 'manufacturer' | 'voltage_cla
     scope: 'company',
     relatorio_id: null,
     kind: 'create',
-    path: `registry/${kind}/${id}`,
+    path: registryPath(kind, id),
     value: { id, kind, name, gender: null, number: null, removed_at: null },
   };
 }
@@ -72,12 +88,12 @@ export function testCellOp(
   col: number,
   value: { raw: string; unit: string | null; state: 'measured' | 'not_measured' } | null,
 ): OpDraft {
-  return put(author, relatorioId, `sheet/${blockId}/test/${testKey}/cell/${row}/${col}`, value);
+  return put(author, relatorioId, sheetTestCellPath(blockId, testKey, row, col), value);
 }
 
 /** `sheet/{blockId}/test/{testKey}/instrument` put: the instrument header copied by value (Story 5.7, AR-18). */
 export function testInstrumentOp(author: Author, relatorioId: string, blockId: string, testKey: string, header: InstrumentHeader): OpDraft {
-  return put(author, relatorioId, `sheet/${blockId}/test/${testKey}/instrument`, header);
+  return put(author, relatorioId, sheetTestPath(blockId, testKey, 'instrument'), header);
 }
 
 /** `sheet/{blockId}/conclusion/{field}` put (Story 5.8): the pair, the confirmed text, its status and basis; null clears. */
@@ -88,7 +104,7 @@ export function conclusionOp(
   field: 'result' | 'restriction' | 'text' | 'text_status' | 'text_basis',
   value: string | null,
 ): OpDraft {
-  return put(author, relatorioId, `sheet/${blockId}/conclusion/${field}`, value);
+  return put(author, relatorioId, sheetConclusionPath(blockId, field), value);
 }
 
 /** `block/{id}/concluded_by` put: `{actor_id, at}` (AR-17), only at Progress = Completa. */

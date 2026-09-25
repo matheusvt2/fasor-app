@@ -1,3 +1,4 @@
+import { relatorioSetupPath } from '@app/domain';
 import { useCallback, useRef, useState } from 'react';
 import { useLocation } from 'react-router';
 import { Checkbox, FilterChipGroup, Toggle } from '../../components/index.ts';
@@ -50,7 +51,7 @@ export function FieldFixtureSurface() {
             company_id: user.companyId,
             project_id: null,
             relatorio_id: FIXTURE_RELATORIO_ID,
-            path: `relatorio/setup/${FIELD}`,
+            path: relatorioSetupPath(FIELD),
             value,
             prev_op_id: null,
             batch_id: null,

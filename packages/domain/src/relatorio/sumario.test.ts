@@ -12,15 +12,24 @@ import { progress } from './progress.ts';
 import type { ProjectRow } from '../schemas/entities.ts';
 import {
   cabineMetaText,
-  defaultTemplateFor,
-  endBeforeStart,
   fixedRowNote,
   generateReason,
+  numberedSiblings,
+  restorableBlocks,
+  sectionMovedText,
+  SUMARIO_TITLES,
+  sumarioMetaText,
+  sumarioOpensExpanded,
+  sumarioReadingMode,
+  sumarioRows,
+} from './sumario.ts';
+import {
+  defaultTemplateFor,
+  endBeforeStart,
   lastTemplateUsed,
   newRelatorioEquipmentReady,
   newRelatorioEquipmentReason,
   newRelatorioReason,
-  numberedSiblings,
   projectLabel,
   projectNamed,
   projectRelatoriosHeading,
@@ -29,17 +38,10 @@ import {
   relatoriosOfProject,
   relatorioSubText,
   relatorioTitle,
-  restorableBlocks,
-  sectionMovedText,
-  SUMARIO_TITLES,
-  sumarioMetaText,
-  sumarioOpensExpanded,
-  sumarioReadingMode,
-  sumarioRows,
   sumarioTitle,
   templateBlocksText,
   templateHelperText,
-} from './sumario.ts';
+} from './project.ts';
 
 const TEMPLATE_ID = '019966b0-0054-7000-8000-000000000001';
 

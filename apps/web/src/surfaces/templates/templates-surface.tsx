@@ -25,10 +25,10 @@ import { relatorioRows, templateRows } from '../../db/home-store.ts';
 import { companyDownloaded, companySummaries } from '../../db/sync-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { newId } from '../../ids.ts';
+import { LIST_FOCUS_WATCH_FRAMES, restoreFocus } from '../../input/focus-restore.ts';
 import { useSession } from '../../state/session.tsx';
 import { useUndoableEdits } from '../../state/use-undoable-edits.ts';
 import { createTemplateOp, putTemplateOp, removeTemplateOp } from './template-ops.ts';
-import { LIST_FOCUS_WATCH_FRAMES, restoreFocus } from './use-reorder.ts';
 import './templates.css';
 
 const NO_SUMMARIES: RelatorioSummary[] = [];

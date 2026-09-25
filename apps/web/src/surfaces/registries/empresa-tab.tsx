@@ -1,10 +1,4 @@
-import {
-  defaultEmpresaRow,
-  toIso,
-  type EmpresaRow,
-  type OpDraft,
-  type UploadFileKind,
-} from '@app/domain';
+import { defaultEmpresaRow, registryFieldPath, registryPath, toIso, type EmpresaRow, type OpDraft, type UploadFileKind } from '@app/domain';
 import { useEffect, useId, useRef, useState } from 'react';
 import { UploadTile, type PickedFile } from '../../components/index.ts';
 import { now } from '../../clock.ts';
@@ -78,7 +72,7 @@ export function EmpresaTab() {
     if (!created.current) {
       created.current = true;
       const row: EmpresaRow = { ...defaultEmpresaRow(empresaId), [field]: field === 'name' ? value : next };
-      await commitBatch(db, [{ ...base, kind: 'create', path: `registry/empresa/${empresaId}`, value: row as never }], {
+      await commitBatch(db, [{ ...base, kind: 'create', path: registryPath('empresa', empresaId), value: row as never }], {
         newId,
         now,
       });
@@ -90,7 +84,7 @@ export function EmpresaTab() {
         {
           ...base,
           kind: 'put',
-          path: `registry/empresa/${empresaId}/${field}`,
+          path: registryFieldPath('empresa', empresaId, field),
           // `name` is a plain string in the schema, never null.
           value: (field === 'name' ? value : next) as never,
         },
@@ -105,12 +99,12 @@ export function EmpresaTab() {
     if (db === null || base === null || user === null) return;
     const fileId = newId();
     const ownerOps: OpDraft[] = created.current
-      ? [{ ...base, kind: 'put', path: `registry/empresa/${empresaId}/${field}`, value: fileId as never }]
+      ? [{ ...base, kind: 'put', path: registryFieldPath('empresa', empresaId, field), value: fileId as never }]
       : [
           {
             ...base,
             kind: 'create',
-            path: `registry/empresa/${empresaId}`,
+            path: registryPath('empresa', empresaId),
             value: { ...defaultEmpresaRow(empresaId), [field]: fileId } as never,
           },
         ];

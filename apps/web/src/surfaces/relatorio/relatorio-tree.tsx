@@ -18,7 +18,8 @@ import { ConfirmDialog, OverflowMenu, TextButton, type OverflowMenuAction } from
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
 import { DragHandle, PositionBox } from '../templates/reorder-controls.tsx';
-import { LIST_FOCUS_WATCH_FRAMES, useReorder, type Reorder } from '../templates/use-reorder.ts';
+import { LIST_FOCUS_WATCH_FRAMES } from '../../input/focus-restore.ts';
+import { useReorder, type Reorder } from '../templates/use-reorder.ts';
 import { FieldPalette, type PaletteTarget } from './block-palette-field.tsx';
 import { blockOpen, blockRow, blockTrigger, locationChevron, useTreeActions, type TreeActions, type TreeContext } from './tree-actions.ts';
 import { NameDialog, TagDialog } from './tag-dialogs.tsx';
