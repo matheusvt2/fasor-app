@@ -63,7 +63,7 @@ test('@p1 1.6-E2E-001 Home shows the status board, the current relatório first 
 
   const emCampo = relatorioCreateOp(user, undefined, projectId, {
     status: 'em_campo',
-    local: 'Torres A e B',
+    local: 'Blocos Norte e Sul',
     serviceStart: '2026-09-06',
     serviceEnd: '2026-09-08',
   });

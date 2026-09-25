@@ -2,7 +2,7 @@ import type { RelatorioSummary } from '../contract/sync.ts';
 import { formatServiceDates, formatShortDateTime, formatTimeOfDay } from '../format/datetime.ts';
 import type { Op } from '../ops/op.ts';
 import { fichasCountText, progress, progressCounterState } from '../relatorio/progress.ts';
-import { sumarioTitle } from '../relatorio/sumario.ts';
+import { sumarioTitle } from '../relatorio/project.ts';
 import type { BlockRow, ProjectRow, RegistryRow, RelatorioRow, RelatorioStatus, TemplateRow } from '../schemas/entities.ts';
 import { RELATORIO_STATUSES, statusPillId, type StatusPillId } from '../status/table.ts';
 import {

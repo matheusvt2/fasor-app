@@ -4,6 +4,8 @@ import { getDefinition } from '../seed/definitions.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
 import {
   composeConclusion,
+  conclusionBasisMatches,
+  conclusionPairComplete,
   conclusionSuggestionText,
   conclusionTextForPrint,
   conclusionTextState,
@@ -220,6 +222,38 @@ describe('5.8-UNIT the text lifecycle', () => {
     const edited = block({ conclusion: { ...pair, text: cell('meu texto'), text_status: cell('edited'), text_basis: cell(composeConclusion(block({ conclusion: pair }), SEC, '').basis) } });
     expect(conclusionTextState(edited, composeConclusion(edited, SEC, ''))).toBe('edited');
     expect(conclusionTextForPrint(edited)).toBe('meu texto');
+  });
+
+  it('E5-A4: a confirmed text is not printable once its result or restriction is cleared', () => {
+    const b = block({ checklist: allC(), test: within(), conclusion: pair });
+    const composed = composeConclusion(b, SEC, 'SEC-C05');
+    const text = { text: cell(composed.text), text_status: cell('confirmed'), text_basis: cell(composed.basis) };
+    const confirmed = block({ checklist: allC(), test: within(), conclusion: { ...pair, ...text } });
+    expect(conclusionPairComplete(confirmed)).toBe(true);
+    expect(conclusionTextForPrint(confirmed)).toBe(composed.text);
+
+    const noResult = block({ checklist: allC(), test: within(), conclusion: { ...pair, ...text, result: cell(null) } });
+    expect(conclusionPairComplete(noResult)).toBe(false);
+    expect(conclusionTextForPrint(noResult)).toBeNull();
+
+    const noRestriction = block({ checklist: allC(), test: within(), conclusion: { ...pair, ...text, restriction: cell(null) } });
+    expect(conclusionPairComplete(noRestriction)).toBe(false);
+    expect(conclusionTextForPrint(noRestriction)).toBeNull();
+
+    // Set again, the stored text prints again (stale or not, as before).
+    const setAgain = block({ checklist: allC(), test: within(), conclusion: { ...pair, ...text, restriction: cell('com_restricoes') } });
+    expect(conclusionTextForPrint(setAgain)).toBe(composed.text);
+  });
+
+  it('E5-A4: the basis predicate says whether the text the engineer saw is still the composed one', () => {
+    const seen = block({ checklist: allC(), test: within(), conclusion: pair });
+    const basis = composeConclusion(seen, SEC, 'SEC-C05').basis;
+    expect(conclusionBasisMatches(seen, SEC, 'SEC-C05', basis)).toBe(true);
+    const changed = within();
+    changed.isolacao!.cells['1'] = { '0': measured('148', 'GΩ') };
+    const fresh = { ...seen, sheet: { ...seen.sheet, test: changed } };
+    expect(conclusionBasisMatches(fresh, SEC, 'SEC-C05', basis)).toBe(false);
+    expect(conclusionBasisMatches(seen, SEC, 'SEC-C06', basis)).toBe(false);
   });
 
   it('Com restrições requires the observation; Sem restrições with an NC row warns', () => {

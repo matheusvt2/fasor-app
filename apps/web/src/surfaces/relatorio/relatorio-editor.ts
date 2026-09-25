@@ -8,7 +8,7 @@ import { useLiveQuery } from '../../db/live.ts';
 import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
 import { useUndoableEdits } from '../../state/use-undoable-edits.ts';
-import { focusWhenRendered } from './relatorio-focus.ts';
+import { restoreFocus } from '../../input/focus-restore.ts';
 import type { Author } from './relatorio-ops.ts';
 
 /*
@@ -170,7 +170,7 @@ export function useRelatorioEditor(relatorioId: string, projectId: string): Rela
         label: copy.sumario.undo,
         onUndo: () => {
           onUndo?.();
-          if (focus !== undefined) focusWhenRendered(focus);
+          if (focus !== undefined) restoreFocus(focus, { mode: 'settled' });
         },
       });
     },

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { locationTree, newEquipmentBlock, treeNodes, type LocationRow, type TreeEquipmentNode } from '@app/domain';
 import { describe, expect, it } from 'vitest';
 import { removeSheetOps, restoreSheetOps } from './tree-actions.ts';

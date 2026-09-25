@@ -4,6 +4,7 @@ import {
   naDefaultsCountText,
   naDefaultsFor,
   screenLabel,
+  subBlockSummaryText,
   subtypeSchema,
   type EquipmentBlockType,
   type SubBlockKey,
@@ -30,7 +31,8 @@ export interface TypeDefaultsDialogProps {
  * Story 3.5: the sub-block defaults of one equipment type (the mock's expanded equipment
  * card in `42-template-composer.html`, opened here from the palette's equipment row). Every
  * sub-block of the type's definition is a Toggle row with its state word, except checklist
- * and conclusion, which read "Sempre" and are not controls; a type with subtypes in the
+ * and conclusion, which read "Sempre" and are not controls; under each label, the kernel's
+ * line of what the sub-block holds (E3-A9, `subBlockSummaryText`); a type with subtypes in the
  * seed gets the subtype select, which pre-marks that subtype's items NA and removes none.
  * Every change autosaves and reaches every placement of the type.
  */
@@ -81,6 +83,7 @@ export function TypeDefaultsDialog({ type, seedVersion, config, onChange, onClos
           const label = copy.composer.subBlockLabels[key];
           const locked = LOCKED_SUB_BLOCKS.includes(key);
           const toggleId = `${rowIdPrefix}-${key}`;
+          const summary = subBlockSummaryText(definition, key);
           return (
             <div className="toggle-row" key={key}>
               <div>
@@ -88,6 +91,7 @@ export function TypeDefaultsDialog({ type, seedVersion, config, onChange, onClos
                 <label className="toggle-label" htmlFor={toggleId}>
                   {label}
                 </label>
+                {summary === null ? null : <div className="toggle-sub">{summary}</div>}
                 {locked ? <div className="toggle-sub">{copy.composer.alwaysOnSheet}</div> : null}
               </div>
               {locked ? (

@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { entityKey, type UserRow } from '@app/domain';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { axe } from 'jest-axe';
+import { axe } from '../../test-axe.ts';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { toRecord } from '../../db/commit.ts';

@@ -134,7 +134,8 @@ const HEADER_TEXT: Readonly<Record<string, string>> = {
   CONDIÇÕES: 'Condição',
 };
 
-function headerText(label: string): string {
+/** A value column's header as the Measurement table shows it ("VALORES" -> "Valor", "1 MINUTO" -> "1 minuto"). */
+export function headerText(label: string): string {
   return HEADER_TEXT[label] ?? readingLabelText(label);
 }
 
@@ -241,6 +242,27 @@ function criterionOf(test: TestDef): CriterionSeed {
   const found = SEEDED_CRITERIA.find((criterion) => criterion.key === test.criterion_key);
   if (found === undefined) throw new Error(`readings: unknown criterion "${test.criterion_key}"`);
   return found;
+}
+
+/**
+ * E5-A4: the criterion a test of this sheet is judged by: the seed's, with the value and
+ * unit of the sheet's `test.{key}.criterion_override` when it is well formed -- `{raw, unit}`
+ * (AR-10's number shape), `raw` a decimal string and `unit` one the seed's unit converts
+ * to (`scaleToUnit`). The operator, type and source stay the seed's. A malformed override
+ * (a negative value among them: it would make `>` pass and `±` fail every reading) is
+ * ignored and the seed stands. Open question: no document fixes the override's shape;
+ * this is the conservative reading, and no surface writes it yet.
+ */
+export function effectiveCriterion(block: Pick<BlockRow, 'sheet'>, test: TestDef): CriterionSeed {
+  const seed = criterionOf(test);
+  const value = block.sheet.test[test.key]?.criterion_override?.value;
+  if (value === null || value === undefined || typeof value !== 'object' || Array.isArray(value)) return seed;
+  const override = value as { raw?: unknown; unit?: unknown };
+  if (typeof override.raw !== 'string' || !DECIMAL.test(override.raw)) return seed;
+  if (override.unit !== null && typeof override.unit !== 'string') return seed;
+  const number = Number(override.raw);
+  if (!Number.isFinite(number) || number < 0 || scaleToUnit(number, override.unit, seed.unit) === null) return seed;
+  return { ...seed, value: number, unit: override.unit };
 }
 
 function outHelperText(criterion: CriterionSeed): string {
@@ -442,7 +464,7 @@ function markOutliers(rows: EvaluatedRow[], typed: { col: number; column: Column
 
 /** One test sub-block's evaluation. */
 export function evaluateTest(block: BlockRow, definition: BlockDefinition, test: TestDef): TestEvaluation {
-  const criterion = criterionOf(test);
+  const criterion = effectiveCriterion(block, test);
   const tables: EvaluatedTable[] = [];
   let offset = 0;
   for (const table of test.tables) {

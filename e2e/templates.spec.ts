@@ -618,6 +618,25 @@ async function deviceTemplate(page: Page, userId: string, id: string): Promise<T
   return templateRowSchema.parse(record!.row);
 }
 
+/**
+ * Waits until this device's store holds a live template named `name` (committed by the first
+ * pull after sign-in); the pull's time depends on the machine's load, so it gets its own
+ * generous budget instead of a render deadline.
+ */
+async function deviceHoldsTemplate(page: Page, userId: string, name: string): Promise<void> {
+  await expect
+    .poll(
+      async () =>
+        (await readStore<{ entity: string; row: unknown }>(page, deviceDatabaseName(userId), 'entities')).some((record) => {
+          if (record.entity !== 'template') return false;
+          const row = templateRowSchema.safeParse(record.row);
+          return row.success && row.data.name === name && row.data.removed_at === null;
+        }),
+      { timeout: 90_000, intervals: [250, 500, 1_000] },
+    )
+    .toBe(true);
+}
+
 /** Picks a subtype in the defaults dialog's Combobox: its chevron opens the list. */
 async function pickSubtype(page: Page, dialog: Locator, label: string): Promise<void> {
   await dialog.getByRole('button', { name: /Abrir lista/ }).click();
@@ -651,7 +670,7 @@ test('@p0 3.5-E2E-001 per-type sub-block defaults: toggles, "Sempre", subtype NA
     const toggle = dialog.getByRole('switch', { name: `${locked}, sempre ativado` });
     await expect(toggle).toContainText('Sempre');
     await expect(toggle).toHaveAttribute('aria-disabled', 'true');
-    await expect(dialog.locator('.toggle-row').filter({ has: page.getByRole('switch', { name: `${locked}, sempre ativado` }) }).locator('.toggle-sub')).toHaveText('Sempre na ficha');
+    await expect(dialog.locator('.toggle-row').filter({ has: page.getByRole('switch', { name: `${locked}, sempre ativado` }) }).locator('.toggle-sub').last()).toHaveText('Sempre na ficha');
     // Playwright waits for an aria-disabled control to become enabled; the press is forced
     // to show it does nothing.
     await toggle.click({ force: true });
@@ -715,6 +734,9 @@ test('@p0 3.6-E2E-001 section text: a chip inserted at the caret is one atomic t
   await resetEmpresaB({ standard: true });
   const account = seed.companies[1];
   await signIn(page, account.email);
+  // E3-A4 (G-1): the list is asserted once this device holds the template the first pull
+  // brings, not against a render deadline that a loaded machine can miss.
+  await deviceHoldsTemplate(page, account.userId, STANDARD_TEMPLATE_NAME);
   await openTemplates(page);
   await expect(names(activeList(page))).toHaveText([STANDARD_TEMPLATE_NAME], { timeout: 30_000 });
   await openComposer(page, STANDARD_TEMPLATE_NAME);
@@ -888,4 +910,51 @@ test('@p0 3.6-E2E-003 section text: browser undo cannot corrupt the text, and sp
   await expect(await openText()).toBeVisible();
   await expect(chips).toHaveText(['{empresa_executora}', '{obra}', '{cliente}']);
   expect(await area.innerText()).toMatch(/ Texto A {4}B\s*$/);
+});
+
+test('@p1 E3-A9-E2E-001 composer polish: a tap on a section card body opens "Editar texto" with the focus in the text; a blank rename says "Informe o nome" and keeps the name', async ({
+  page,
+  seed,
+}) => {
+  await resetEmpresaB({ standard: true });
+  const account = seed.companies[1];
+  await signIn(page, account.email);
+  await deviceHoldsTemplate(page, account.userId, STANDARD_TEMPLATE_NAME);
+  await openTemplates(page);
+  await expect(names(activeList(page))).toHaveText([STANDARD_TEMPLATE_NAME], { timeout: 30_000 });
+  await openComposer(page, STANDARD_TEMPLATE_NAME);
+  const templateId = page.url().split('/').at(-1)!;
+
+  // The card body of a section with text opens its editor; the Overflow item stays.
+  await page.getByRole('button', { name: 'Editar texto de 1 Objetivo' }).click();
+  const dialog = page.getByRole('dialog', { name: '1 Objetivo — texto fixo' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('textbox', { name: 'Texto da seção 1' })).toBeFocused();
+  await dialog.getByRole('button', { name: 'Fechar' }).click();
+  await expect(dialog).toBeHidden();
+  await page.getByRole('button', { name: 'Mais opções de 1 Objetivo' }).click();
+  await expect(page.getByRole('menuitem', { name: 'Editar texto' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  // A section with no text has a plain body: nothing to open.
+  await expect(page.getByRole('button', { name: 'Editar texto de 8 Pontos de atenção' })).toHaveCount(0);
+
+  // A blank rename is refused in place: the message under the field, the dialog open.
+  const cabines = page.getByRole('list', { name: 'Cabines do template' }).locator(':scope > li .block-name');
+  const first = (await cabines.first().textContent())!;
+  await page.getByRole('button', { name: `Mais opções de ${first}` }).click();
+  await page.getByRole('menuitem', { name: 'Renomear' }).click();
+  const rename = page.getByRole('dialog', { name: `Renomear ${first}` });
+  const field = rename.getByRole('textbox', { name: 'Nome' });
+  await field.fill('   ');
+  await rename.getByRole('button', { name: 'Salvar' }).click();
+  await expect(rename.getByRole('alert')).toHaveText('Informe o nome');
+  await expect(field).toHaveAttribute('aria-invalid', 'true');
+  await expect(rename).toBeVisible();
+  // Typing takes the message away; "Cancelar" leaves the name as it was.
+  await field.fill('Outra');
+  await expect(rename.getByRole('alert')).toHaveCount(0);
+  await rename.getByRole('button', { name: 'Cancelar' }).click();
+  await expect(rename).toBeHidden();
+  await expect(cabines.first()).toHaveText(first);
+  expect((await outboxPaths(page, account.userId)).filter((path) => path === `template/${templateId}/skeleton`)).toEqual([]);
 });

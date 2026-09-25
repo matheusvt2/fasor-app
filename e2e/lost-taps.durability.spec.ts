@@ -261,29 +261,63 @@ test('@p0 12.1-E2E-004 lost tap: "Concluir ficha" right after Enter on the last 
   }
 });
 
+/**
+ * E12-R2: how 12.1-E2E-007 times the finger, measured from before the touch start is sent.
+ * The Enter commit's render lands a few hundred ms after the commit reaches the outbox (the
+ * relatório's live query rebuilds the whole snapshot), and the commit itself takes longer on
+ * a loaded machine. So the finger stays down `RENDER_MS` past the commit, at least
+ * `MIN_DOWN_MS` and never past `LIFT_CEILING_MS`, which leaves the touch-end round trip well
+ * under `HOLD_CAP_MS` (800 ms from pointerdown, `input/press-hold.ts`) and the touch
+ * long-press delay: with the hold every tap lands; without it the render moves the action
+ * under the finger. One round alone raced that render and could pass without the fix, so
+ * the test runs `ROUNDS` sheets and fails when no round had the commit before the lift.
+ */
+const ROUNDS = 3;
+const MIN_DOWN_MS = 350;
+const RENDER_MS = 300;
+const LIFT_CEILING_MS = 650;
+
 test('@p0 12.1-E2E-007 lost tap (E12-Q6): a commit landing while the finger is down, its tap click 100 ms or more after the finger lifts (the Android gap), still applies "Marcar os restantes como Conforme" once', async ({ page, context, browserName }) => {
   test.skip(browserName !== 'chromium', 'the touch is dispatched through the Chromium DevTools protocol');
-  test.setTimeout(90_000);
+  test.setTimeout(150_000);
   // The gate's own witness of `useHeldWhilePressed`: the Enter commit of the last plate
   // value is made while a touch is down on the bulk action, so its render (the Placa step
-  // left and complete collapses, the action moves up) lands between the pointer down and
-  // the tap's click. Held, the click lands on the action; drawn at once, it misses it.
-  const { relatorioId, secc } = await setUp(page, context, (scope, rows) => seedPlate(scope, target(rows, 0).blockId, 'n_serie'));
-  const sheet = target(secc, 0);
-  await openSheet(page, relatorioId, sheet.blockId);
-  const unset = await checklistMissing(page);
-  await page.getByLabel('Nº série', { exact: true }).click();
-  await page.keyboard.type('SN-HELD');
-  const bulk = page.locator('#ficha-step-verificacoes .bulk-action-bar').getByRole('button', { name: 'Marcar os restantes como Conforme' });
-  await touchPressAcross(page, bulk, async () => {
-    await page.keyboard.press('Enter');
-    // The commit is in the outbox, and its render has had time to draw (or to be held).
-    await expect.poll(async () => (await outbox(page)).some((row) => row.path === `sheet/${sheet.blockId}/nameplate/n_serie`), { intervals: [20] }).toBe(true);
-    await page.waitForTimeout(100);
-  });
-  await expect(toast(page), 'the tap held across the commit').toContainText(itensMarcadosConformeText(unset), { timeout: EFFECT_MS });
-  await expect(stepper(page).getByRole('button', { name: 'Verificações, 0 faltando' })).toBeVisible();
-  await expect.poll(async () => (await outbox(page)).filter((row) => row.path.startsWith(`sheet/${sheet.blockId}/checklist/`)).length).toBe(unset);
+  // left and complete collapses once the tap moves the focus, the action moves up) lands
+  // between the pointer down and the tap's click. Held, the click lands on the action;
+  // drawn at once, it misses it.
+  const { relatorioId, secc } = await setUp(page, context, (scope, rows) => Array.from({ length: ROUNDS }, (_r, i) => seedPlate(scope, target(rows, i).blockId, 'n_serie')).flat());
+  // The rounds whose commit reached the outbox before the finger lifted: only those witness the hold.
+  let covered = 0;
+  for (let i = 0; i < ROUNDS; i++) {
+    const sheet = target(secc, i);
+    await openSheet(page, relatorioId, sheet.blockId);
+    const unset = await checklistMissing(page);
+    await page.getByLabel('Nº série', { exact: true }).click();
+    await page.keyboard.type(`SN-HELD-${i}`);
+    const bulk = page.locator('#ficha-step-verificacoes .bulk-action-bar').getByRole('button', { name: 'Marcar os restantes como Conforme' });
+    let downMs = 0;
+    await touchPressAcross(page, bulk, async (touchedAt) => {
+      await page.keyboard.press('Enter');
+      const committed = await expect
+        .poll(async () => (await outbox(page)).some((row) => row.path === `sheet/${sheet.blockId}/nameplate/n_serie`), {
+          intervals: [20],
+          timeout: Math.max(0, LIFT_CEILING_MS - (Date.now() - touchedAt)),
+        })
+        .toBe(true)
+        .then(
+          () => true,
+          () => false,
+        );
+      const committedMs = Date.now() - touchedAt;
+      if (committed && committedMs < LIFT_CEILING_MS) covered += 1;
+      downMs = Math.min(LIFT_CEILING_MS, Math.max(MIN_DOWN_MS, committedMs + RENDER_MS));
+      await waitUntil(page, touchedAt, downMs);
+    });
+    await expect(toast(page), `the tap held across the commit (round ${i + 1}, finger down ${downMs} ms)`).toContainText(itensMarcadosConformeText(unset), { timeout: EFFECT_MS });
+    await expect(stepper(page).getByRole('button', { name: 'Verificações, 0 faltando' })).toBeVisible();
+    await expect.poll(async () => (await outbox(page)).filter((row) => row.path.startsWith(`sheet/${sheet.blockId}/checklist/`)).length).toBe(unset);
+  }
+  expect(covered, `no round had its commit in the outbox before the finger lifted (by ${LIFT_CEILING_MS} ms): the machine was too loaded for this test to witness the hold`).toBeGreaterThan(0);
 });
 
 test('@p1 12.1-E2E-005 lost tap: a checklist tri-state segment right after Enter in the last nameplate field is set once', async ({ page, context }, info) => {

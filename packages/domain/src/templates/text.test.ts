@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { getDefinition } from '../seed/definitions.ts';
 import { standardTemplate, templateTotals, zeroTotals } from '../seed/template.ts';
 import { addCabine, addColuna, composerView, setQuantity } from './compose.ts';
 import { emptyTemplate } from './list.ts';
@@ -12,6 +13,7 @@ import {
   removedText,
   sectionsHeading,
   skeletonHeading,
+  subBlockSummaryText,
   templateSummaryText,
   totalsText,
 } from './text.ts';
@@ -111,5 +113,27 @@ describe('3.5-UNIT naDefaultsCountText', () => {
     expect(naDefaultsCountText(8)).toBe('8 itens marcados NA por padrão');
     expect(naDefaultsCountText(1)).toBe('1 item marcado NA por padrão');
     expect(naDefaultsCountText(0)).toBe('Nenhum item marcado NA por padrão');
+  });
+});
+
+describe('E3-A9 subBlockSummaryText', () => {
+  const secc = getDefinition('v1', 'cabine_primaria', 'chave_seccionadora');
+  const tp = getDefinition('v1', 'cabine_primaria', 'tp');
+
+  it('counts the nameplate fields and the checklist items', () => {
+    expect(subBlockSummaryText(secc, 'nameplate')).toBe(`${secc.nameplate.length} campos`);
+    expect(subBlockSummaryText(secc, 'checklist')).toBe(`${secc.checklist!.length} itens C · NC · NA`);
+  });
+
+  it('reads a test as its rows × captured columns, then the criterion with its source', () => {
+    expect(subBlockSummaryText(secc, 'isolacao')).toBe('T1 · T3 · T5 · Fase A · Fase B · Fase C × Valor · >400 MΩ (aceitável na ficha)');
+    expect(subBlockSummaryText(secc, 'resistencia_contato')).toBe('T1-T2 · T3-T4 · T5-T6 × Valor · <250 µΩ (aceitável na ficha)');
+    expect(subBlockSummaryText(tp, 'isolacao')).toBe('Fase R · Fase S · Fase T × 1 minuto · >400 MΩ (aceitável na ficha)');
+    expect(subBlockSummaryText(tp, 'relacao_transformacao')).toBe('Fase R · Fase S · Fase T × H1-H2 / X1-X2 · ±0,5 % (aceitável na ficha)');
+  });
+
+  it('is null for a sub-block with nothing to count', () => {
+    expect(subBlockSummaryText(secc, 'observations')).toBeNull();
+    expect(subBlockSummaryText(secc, 'conclusion')).toBeNull();
   });
 });

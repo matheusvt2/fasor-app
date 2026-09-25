@@ -1373,6 +1373,66 @@ test('@p1 E5-Q18d offline, "Cadastrar instrumento" opens Cadastros; the instrume
   }
 });
 
+test('@p1 E5-Q18e the Sumário counts a sheet marked not tested: "0 não ensaiadas", then "1 não ensaiada"; the count opens section 9', async ({ page }) => {
+  test.setTimeout(120_000);
+  const { relatorioId } = await openRelatorio(page, 1280);
+  const summary = page.getByRole('group', { name: 'Resumo do relatório' });
+  await expect(summary.getByRole('button', { name: '0 não ensaiadas' })).toBeVisible();
+
+  await openEnel(page);
+  const { tag } = await openSheet(page, rowOfType(page, 'Para-raio'));
+  await page.getByRole('button', { name: `Mais opções da ficha ${tag}` }).click();
+  await page.getByRole('menuitem', { name: 'Marcar não ensaiado' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Marcar não ensaiado' });
+  await dialog.getByRole('radio', { name: 'Solicitação do cliente' }).click();
+  await dialog.getByRole('button', { name: 'Marcar não ensaiado' }).click();
+  await expect(toast(page)).toContainText('Marcada como não ensaiada — entra na seção 8');
+
+  await page.goto(`/relatorio/${relatorioId}`);
+  const count = summary.getByRole('button', { name: '1 não ensaiada' });
+  await expect(count).toBeVisible({ timeout: 30_000 });
+  await expect(summary.getByRole('button', { name: /não ensaiadas$/ })).toHaveCount(0);
+  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  if ((await chevron.getAttribute('aria-expanded')) === 'true') await chevron.click();
+  await count.click();
+  await expect(chevron).toHaveAttribute('aria-expanded', 'true');
+});
+
+test('@p1 E5-Q18f "Salvo" is announced at most once per throttle window, never per commit', async ({ page }) => {
+  test.setTimeout(120_000);
+  await openRelatorio(page, 1280);
+  await openEnel(page);
+  const { blockId } = await openSheet(page, rowOfType(page, 'Para-raio'));
+  const items = PARA_RAIO.checklist!;
+  // Every time the live region starts saying "Salvo", with the page's own clock.
+  await page.getByTestId('ficha-saved').evaluate((region) => {
+    const said: number[] = [];
+    (window as unknown as { salvo: number[] }).salvo = said;
+    let last = region.textContent;
+    new MutationObserver(() => {
+      if (region.textContent === 'Salvo' && last !== 'Salvo') said.push(performance.now());
+      last = region.textContent;
+    }).observe(region, { childList: true, characterData: true, subtree: true });
+  });
+  const said = () => page.evaluate(() => (window as unknown as { salvo: number[] }).salvo);
+  const resultsWritten = async () => (await outbox(page)).filter((row) => row.path.startsWith(`sheet/${blockId}/checklist/`)).length;
+
+  // A burst of four commits well inside one window: one "Salvo".
+  for (const n of [1, 2, 3, 4]) await checklistRow(page, n).getByRole('radio', { name: 'Conforme', exact: true }).click();
+  await expect.poll(resultsWritten).toBe(4);
+  await expect.poll(async () => (await said()).length).toBe(1);
+  const [first] = await said();
+  expect(items.length).toBeGreaterThan(4);
+
+  // Once the window has passed, the next commit says it again, and only once.
+  await page.waitForFunction((at) => performance.now() - at > 3_100, first!);
+  await checklistRow(page, 5).getByRole('radio', { name: 'Conforme', exact: true }).click();
+  await expect.poll(resultsWritten).toBe(5);
+  await expect.poll(async () => (await said()).length).toBe(2);
+  const [a, b] = await said();
+  expect(b! - a!).toBeGreaterThanOrEqual(3_000);
+});
+
 test('@p1 E5-Q9 the expired calibration line under a picked instrument is drawn in fora-do-limite', async ({ page }) => {
   test.setTimeout(150_000);
   const { relatorioId } = await openRelatorio(page, 1280);

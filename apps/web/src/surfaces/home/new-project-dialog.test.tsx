@@ -62,7 +62,7 @@ async function seed(db: AppDatabase) {
   await db.entities.bulkPut([
     toRecord(`registry:${CLIENT_A}`, client(CLIENT_A, 'Seguradora Exemplo S.A.')),
     toRecord(`registry:${CLIENT_B}`, client(CLIENT_B, 'Condomínio Beta')),
-    toRecord(`project:${PROJECT_A1}`, project(PROJECT_A1, CLIENT_A, 'Torres A e B')),
+    toRecord(`project:${PROJECT_A1}`, project(PROJECT_A1, CLIENT_A, 'Blocos Norte e Sul')),
     toRecord(`project:${PROJECT_A2_REMOVED}`, project(PROJECT_A2_REMOVED, CLIENT_A, 'Anexo demolido', '2026-09-01T00:00:00.000Z')),
     toRecord(`project:${PROJECT_B1}`, project(PROJECT_B1, CLIENT_B, 'Torre Norte')),
   ]);
@@ -183,9 +183,9 @@ describe('4.1 NewProjectDialog', () => {
     expect(siteBox()).toHaveAttribute('aria-disabled', 'true');
     await pickClient('Seguradora Exemplo S.A.');
     await openList(1);
-    expect(await optionNames()).toEqual(['Torres A e B']);
-    await userEvent.click(screen.getByRole('option', { name: 'Torres A e B' }));
-    await waitFor(() => expect(siteBox()).toHaveValue('Torres A e B'));
+    expect(await optionNames()).toEqual(['Blocos Norte e Sul']);
+    await userEvent.click(screen.getByRole('option', { name: 'Blocos Norte e Sul' }));
+    await waitFor(() => expect(siteBox()).toHaveValue('Blocos Norte e Sul'));
     expect(proceed()).not.toHaveAttribute('aria-disabled');
 
     await pickClient('Condomínio Beta');
@@ -202,7 +202,7 @@ describe('4.1 NewProjectDialog', () => {
     const onClose = renderDialog();
     await pickClient('Seguradora Exemplo S.A.');
     await openList(1);
-    await userEvent.click(await screen.findByRole('option', { name: 'Torres A e B' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Blocos Norte e Sul' }));
     await waitFor(() => expect(proceed()).not.toHaveAttribute('aria-disabled'));
     await userEvent.click(proceed());
     expect(onClose).toHaveBeenCalled();
@@ -221,9 +221,9 @@ describe('4.1 NewProjectDialog', () => {
     expect(await database.outbox.count()).toBe(0);
     expect(siteBox()).not.toHaveAttribute('aria-disabled');
     // The same for an obra of that client.
-    await userEvent.type(siteBox(), 'torres a e b ');
-    await userEvent.click(await screen.findByRole('option', { name: 'Criar “torres a e b”' }));
-    await waitFor(() => expect(siteBox()).toHaveValue('Torres A e B'));
+    await userEvent.type(siteBox(), 'blocos norte e sul ');
+    await userEvent.click(await screen.findByRole('option', { name: 'Criar “blocos norte e sul”' }));
+    await waitFor(() => expect(siteBox()).toHaveValue('Blocos Norte e Sul'));
     await settleLists();
     expect(await database.outbox.count()).toBe(0);
     expect(proceed()).not.toHaveAttribute('aria-disabled');

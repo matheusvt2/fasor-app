@@ -140,9 +140,11 @@ export type TapCounter = ReturnType<typeof tapCounter>;
  * commit that re-renders the sheet), the finger comes up at the same point, and the
  * browser's own tap gesture dispatches the click 100 ms or more after the pointer up, as an
  * Android tablet does. A render that moves the target while the finger is down, or in that
- * gap, loses the tap unless the render is held (`useHeldWhilePressed`).
+ * gap, loses the tap unless the render is held (`useHeldWhilePressed`). `during` gets the
+ * `Date.now()` taken right before the touch start was sent, so a caller can bound how long
+ * the finger stays down from the moment it went down.
  */
-export async function touchPressAcross(page: Page, target: Locator, during: () => Promise<void>): Promise<void> {
+export async function touchPressAcross(page: Page, target: Locator, during: (touchedAt: number) => Promise<void>): Promise<void> {
   // On screen and centred before the finger goes down; nothing scrolls it afterwards.
   await target.evaluate(async (element) => {
     element.scrollIntoView({ block: 'center', inline: 'nearest' });
@@ -156,9 +158,10 @@ export async function touchPressAcross(page: Page, target: Locator, during: () =
   let touching = false;
   try {
     await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+    const touchedAt = Date.now();
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] });
     touching = true;
-    await during();
+    await during(touchedAt);
   } finally {
     // The finger always lifts, even when `during` threw, so no touch is left down on the page.
     try {

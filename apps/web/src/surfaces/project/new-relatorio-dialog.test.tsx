@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { calendarDateOfInstant, standardTemplate, type ClientRow, type EquipmentRow, type ProjectRow, type TemplateRow } from '@app/domain';
 import { configure, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { axe } from 'jest-axe';
+import { axe } from '../../test-axe.ts';
 import { I18nProvider } from 'react-aria-components';
 import { MemoryRouter, Route, Routes, useSearchParams } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -58,7 +58,7 @@ async function freshDb(): Promise<AppDatabase> {
   return openDatabase(user);
 }
 
-const project: ProjectRow = { id: PROJECT, client_id: CLIENT, name: 'Torres A e B', site: 'Torres A e B', removed_at: null };
+const project: ProjectRow = { id: PROJECT, client_id: CLIENT, name: 'Blocos Norte e Sul', site: 'Blocos Norte e Sul', removed_at: null };
 const client: ClientRow = { id: CLIENT, kind: 'client', name: 'Seguradora Exemplo S.A.', cnpj: null, contact_name: null, contact_phone: null, sites: [], removed_at: null };
 const template = (): TemplateRow => standardTemplate({ id: TEMPLATE });
 

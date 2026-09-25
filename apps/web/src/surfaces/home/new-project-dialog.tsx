@@ -1,4 +1,15 @@
-import { normalizeRegistryName, projectLabel, projectNamed, projectsOfClient, sortClientRegistryRows, type ClientRow, type OpDraft, type ProjectRow } from '@app/domain';
+import {
+  normalizeRegistryName,
+  projectLabel,
+  projectNamed,
+  projectPath,
+  projectsOfClient,
+  registryPath,
+  sortClientRegistryRows,
+  type ClientRow,
+  type OpDraft,
+  type ProjectRow,
+} from '@app/domain';
 import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Button, Combobox, FormDialog } from '../../components/index.ts';
@@ -85,7 +96,7 @@ export function NewProjectDialog({ clients, projects, onClose }: NewProjectDialo
     const id = newId();
     const row: ClientRow = { id, kind: 'client', name, cnpj: null, contact_name: null, contact_phone: null, sites: [], removed_at: null };
     try {
-      await commitBatch(db, [{ ...base, kind: 'create', path: `registry/client/${id}`, value: row as never }], { newId, now });
+      await commitBatch(db, [{ ...base, kind: 'create', path: registryPath('client', id), value: row as never }], { newId, now });
     } catch (error) {
       showToast(writeErrorText(error));
       return;
@@ -110,7 +121,7 @@ export function NewProjectDialog({ clients, projects, onClose }: NewProjectDialo
     const id = newId();
     const row: ProjectRow = { id, client_id: clientId, name: site, site, removed_at: null };
     try {
-      await commitBatch(db, [{ ...base, kind: 'create', path: `project/${id}`, value: row as never }], { newId, now });
+      await commitBatch(db, [{ ...base, kind: 'create', path: projectPath(id), value: row as never }], { newId, now });
     } catch (error) {
       showToast(writeErrorText(error));
       return;

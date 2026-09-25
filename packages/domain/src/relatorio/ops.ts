@@ -1,4 +1,5 @@
 import type { OpDraft } from '../ops/op.ts';
+import { blockFieldPath, relatorioStatusPath } from '../ops/path.ts';
 import type { JsonValue, RelatorioStatus } from '../schemas/entities.ts';
 
 /*
@@ -31,12 +32,12 @@ export function relatorioOpEnvelope(author: Author, relatorioId: string): Omit<O
 
 /** `relatorio/status` put (AD-22: a client op; the server never writes it). */
 export function putRelatorioStatusOp(author: Author, relatorioId: string, status: RelatorioStatus): OpDraft {
-  return { ...relatorioOpEnvelope(author, relatorioId), kind: 'put', path: 'relatorio/status', value: status };
+  return { ...relatorioOpEnvelope(author, relatorioId), kind: 'put', path: relatorioStatusPath(), value: status };
 }
 
 export type BlockField = 'order_key' | 'removed_at' | 'config' | 'concluded_by' | 'not_tested';
 
 /** `block/{id}/{field}` put. */
 export function putBlockOp(author: Author, relatorioId: string, blockId: string, field: BlockField, value: unknown): OpDraft {
-  return { ...relatorioOpEnvelope(author, relatorioId), kind: 'put', path: `block/${blockId}/${field}`, value: value as JsonValue };
+  return { ...relatorioOpEnvelope(author, relatorioId), kind: 'put', path: blockFieldPath(blockId, field), value: value as JsonValue };
 }

@@ -2,23 +2,15 @@ import {
   backwardMoveConsequenceText,
   backwardMoveLabel,
   buildSnapshot,
-  defaultBlockConfig,
-  emptySheet,
   fichasConcluidasText,
   generateReason,
   issuedBannerText,
   latestRevision,
-  moveAnnouncement,
-  moveLandingIndex,
   naoEnsaiadasText,
   ncAbertosText,
-  orderKeyAfter,
-  orderKeyForMove,
   preIssue,
   progress,
   restorableBlocks,
-  sectionBlocks,
-  sectionMovedText,
   sugestoesText,
   sumarioMetaText,
   sumarioOpensExpanded,
@@ -36,30 +28,26 @@ import {
   type UserRow,
 } from '@app/domain';
 import { useId, useMemo, useRef, useState } from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router';
+import { useLocation, useParams } from 'react-router';
 import { Button, ConfirmDialog, OverflowMenu, StatusPill, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { templateRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { readLastSheet } from '../../db/prefs.ts';
 import { localUsers } from '../../db/sync-store.ts';
-import { newId } from '../../ids.ts';
 import { useForgetArrivalState } from '../../state/arrival-state.ts';
 import { useBackTarget } from '../../state/back-target.tsx';
 import { useExtraBanner } from '../../state/extra-banner.tsx';
 import { usePageTitle } from '../../state/page-title.tsx';
 import { useSession } from '../../state/session.tsx';
-import { useToast } from '../../state/toast.tsx';
 import { AddSectionDialog } from './add-section-dialog.tsx';
 import { GenerateAction } from './generate-action.tsx';
 import { useProjectEquipment, useRelatorioEditor } from './relatorio-editor.ts';
 import { RelatorioGate } from './relatorio-gate.tsx';
-import { focusAfterRemoval, focusWhenRendered } from './relatorio-focus.ts';
-import { createBlockOp, putBlockOp, putRelatorioStatusOp, removeBlockOp } from './relatorio-ops.ts';
 import { RelatorioTree, type RelatorioTreeHandle } from './relatorio-tree.tsx';
 import { RestoreDialog } from './restore-dialog.tsx';
-import { FixedRow, NumberedRow, Section9Row, type RowActions } from './sumario-row.tsx';
-import { blockTrigger, restoreSheetOps } from './tree-actions.ts';
+import { useSumarioActions } from './sumario-actions.ts';
+import { FixedRow, NumberedRow, Section9Row } from './sumario-row.tsx';
 import './relatorio.css';
 
 const NO_TEMPLATES: TemplateRow[] = [];
@@ -85,15 +73,9 @@ function arrivalOf(state: unknown): { openSection9: boolean; focusBlockId: strin
   return { openSection9: raw.openSection9 === true, focusBlockId: typeof raw.focusBlockId === 'string' ? raw.focusBlockId : null };
 }
 
-/** The control the focus goes to on a numbered row `li`. */
-const rowFocusTarget = (li: Element | null | undefined): HTMLElement | null =>
-  li?.querySelector<HTMLElement>('.sum-ctrls .overflow-trigger') ?? null;
-
 function Sumario({ relatorioId, state }: { relatorioId: string; state: EntityState }) {
   const session = useSession();
   const db = session.database;
-  const navigate = useNavigate();
-  const { showToast } = useToast();
   const t = copy.sumario;
 
   const snapshot: RelatorioSnapshot = useMemo(() => buildSnapshot(state, relatorioId), [state, relatorioId]);
@@ -152,163 +134,34 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   // One write path for the rows and the tree: the serialised edit queue, the announcer and
   // the undo toast that any later edit or leaving the Sumário retires.
   const editor = useRelatorioEditor(relatorioId, relatorio.project_id);
-  const { edit, announcement, undoable, settle } = editor;
+  const { announcement } = editor;
   const treeContext = useMemo(
     () => ({ relatorioId, projectId: relatorio.project_id, seedVersion: relatorio.seed_version, editor }),
     [relatorioId, relatorio.project_id, relatorio.seed_version, editor],
   );
 
-  const rowLi = (blockId: string | null): HTMLElement | null =>
-    blockId === null ? null : (listRef.current?.querySelector<HTMLElement>(`[data-block-id="${CSS.escape(blockId)}"]`) ?? null);
-
-  /**
-   * A new section block right under `after`, as one create op; `spec` names its type and
-   * config from the row `after` as this device holds it now (a duplicate copies the current
-   * config, not the one drawn when the menu opened).
-   */
-  const insertBelow = (after: SumarioRow, spec: (source: BlockRow) => { type: string; config: unknown }, toastText: string) => {
-    void edit((fresh, by) => {
-      const siblings = sectionBlocks(fresh);
-      const source = siblings.find((block) => block.id === after.blockId);
-      if (source === undefined) return null;
-      const order_key = orderKeyAfter(siblings, source.id);
-      const { type, config } = spec(source);
-      const row: BlockRow = {
-        id: newId(),
-        relatorio_id: relatorioId,
-        location_id: null,
-        equipment_id: null,
-        block_type: type,
-        config: config as BlockRow['config'],
-        seed_version: relatorio.seed_version,
-        order_key,
-        feeds_block_id: null,
-        not_tested: null,
-        concluded_by: null,
-        sheet: emptySheet(),
-        created_by: null,
-        first_edited_at: null,
-        last_modified_by: null,
-        last_modified_at: null,
-        removed_at: null,
-      };
-      return [createBlockOp(by, relatorioId, row)];
-    })
-      .then((batch) => {
-        if (batch === null) showToast(t.gone);
-        else undoable(toastText, batch);
-      })
-      .catch(() => undefined);
-  };
-
-  const actions: RowActions = {
-    onMove: async (row, toIndex) => {
-      if (row.blockId === null) return;
-      const blockId = row.blockId;
-      // Where the row sits now, so "Desfazer" can hand the focus back once it is there again.
-      const li = rowLi(blockId);
-      const fromIndex = li === null || li.parentElement === null ? -1 : [...li.parentElement.children].indexOf(li);
-      let present = true;
-      const batch = await edit((fresh, by) => {
-        const siblings = sectionBlocks(fresh);
-        if (!siblings.some((block) => block.id === blockId)) {
-          present = false;
-          return null;
-        }
-        const key = orderKeyForMove(siblings, blockId, toIndex);
-        return key === null ? null : [putBlockOp(by, relatorioId, blockId, 'order_key', key)];
-      }).catch(() => null);
-      if (batch === null) {
-        // A same-slot move is nothing to say; a row another device removed is.
-        if (!present) showToast(t.gone);
-        return;
-      }
-      // Said, and the toast shown, in the render that draws the row in its new slot (Q7).
-      const to = moveLandingIndex(row.siblings, toIndex);
-      settle(
-        () => {
-          const li = rowLi(blockId);
-          if (li === null || li.parentElement === null) return true;
-          return [...li.parentElement.children].filter((el) => el.hasAttribute('data-block-id')).indexOf(li) === to;
-        },
-        moveAnnouncement('section', String(row.number), toIndex + 1, row.siblings),
-        () =>
-          undoable(sectionMovedText(row.title), batch, () => {
-            const back = rowLi(blockId);
-            const list = back?.parentElement ?? null;
-            if (back === null || list === null || [...list.children].indexOf(back) !== fromIndex) return null;
-            return back.querySelector<HTMLElement>('.pos-box');
-          }),
-      );
+  const { rows: actions, addSection, restore, moveBack } = useSumarioActions(
+    { relatorioId, projectId: relatorio.project_id, seedVersion: relatorio.seed_version, editor, allBlocks },
+    {
+      list: () => listRef.current,
+      heading: () => headingRef.current,
+      headerMenu: () => headerMenuRef.current,
+      tree: () => treeRef.current,
+      expandSection9: () => setExpanded(true),
+      pickBelow: setAdding,
     },
-    onOpen: (row) => {
-      if (row.kind === 'setup') void navigate(`/relatorio/${relatorioId}/setup?etapa=2`);
-      else if (row.kind === 'text' && row.blockId !== null) void navigate(`/relatorio/${relatorioId}/secao/${row.blockId}`);
-      else if (row.rowKey === 'capa') void navigate(`/relatorio/${relatorioId}/setup?etapa=1`);
-    },
-    onAddBelow: (row) => setAdding(row),
-    onDuplicate: (row) => {
-      if (row.blockId === null) return;
-      insertBelow(row, (source) => ({ type: source.block_type, config: structuredClone(source.config) }), t.duplicated);
-    },
-    onRemove: (row) => {
-      if (row.blockId === null) return;
-      const li = rowLi(row.blockId);
-      const blockId = row.blockId;
-      void edit((fresh, by) => (fresh.some((block) => block.id === blockId && block.removed_at === null) ? [removeBlockOp(by, relatorioId, blockId)] : null))
-        .then((batch) => {
-          if (batch === null) {
-            showToast(t.gone);
-            return;
-          }
-          focusAfterRemoval(li, (list) => [...list.children] as HTMLElement[], rowFocusTarget, () => headingRef.current);
-          undoable(t.removed, batch, () => rowFocusTarget(rowLi(blockId)));
-        })
-        .catch(() => undefined);
-    },
-  };
+  );
 
   function onPickSection(type: SectionBlockType): void {
     const below = adding;
     setAdding(null);
     if (below === null) return;
-    insertBelow(below, () => ({ type, config: { ...defaultBlockConfig(relatorio.seed_version, type), section_text: null } }), t.added);
+    addSection(below, type);
   }
-
-  /**
-   * "Desfazer" of a Restaurar tombstones the row again: the focus goes back to where the
-   * restore came from, the header's "Mais opções do relatório", once the row is gone (E3-A8).
-   */
-  const undoneRestoreFocus = (blockId: string) => () =>
-    listRef.current?.querySelector(`[data-block-id="${CSS.escape(blockId)}"]`) != null ? null : headerMenuRef.current?.querySelector<HTMLElement>('.overflow-trigger') ?? null;
 
   function onRestore(block: RestorableBlock): void {
     setRestoring(false);
-    const locationId = allBlocks.find((row) => row.id === block.id)?.location_id ?? null;
-    void edit((fresh, by, rows) =>
-      locationId === null
-        ? fresh.some((row) => row.id === block.id && row.removed_at !== null)
-          ? [putBlockOp(by, relatorioId, block.id, 'removed_at', null)]
-          : null
-        : restoreSheetOps(by, relatorioId, relatorio.project_id, fresh, block.id, block.equipmentId, rows.equipment),
-    )
-      .then((batch) => {
-        if (batch === null) {
-          showToast(t.gone);
-          return;
-        }
-        if (locationId !== null) {
-          // An equipment sheet comes back in section 9: it opens, with the path down to the row.
-          setExpanded(true);
-          treeRef.current?.reveal(locationId);
-          focusWhenRendered(() => blockTrigger(listRef.current?.querySelector(`li.s9-eq[data-block-id="${CSS.escape(block.id)}"]`)));
-          undoable(t.tree.restored, batch, undoneRestoreFocus(block.id));
-          return;
-        }
-        focusWhenRendered(() => rowFocusTarget(rowLi(block.id)));
-        undoable(t.restored, batch, undoneRestoreFocus(block.id));
-      })
-      .catch(() => undefined);
+    restore(block);
   }
 
   /** A header count: opens section 9 and moves the focus to its row. */
@@ -320,13 +173,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   /** The header Overflow's backward-move Confirm: one `relatorio/status` put, focus back on the trigger. */
   function onConfirmBack(): void {
     if (backMove === null) return;
-    const to = backMove.to;
-    void edit((_fresh, by) => [putRelatorioStatusOp(by, relatorioId, to)])
-      .then((batch) => {
-        if (batch === null) return;
-        focusWhenRendered(() => headerMenuRef.current?.querySelector<HTMLElement>('.overflow-trigger') ?? null);
-      })
-      .catch(() => undefined);
+    moveBack(backMove.to);
   }
 
   const blocked = rows.some((row) => row.blocking);

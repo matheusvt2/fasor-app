@@ -306,11 +306,33 @@ export function conclusionTextState(block: Pick<BlockRow, 'sheet'>, composed: Pi
   return storedText(block, 'text_basis') === composed.basis ? status : 'stale';
 }
 
-/** The stored text the renderer prints, or null ("not printable") while the text is unconfirmed. */
+/**
+ * E5-A4: true when the pair is complete, the way the sheet's progress counts it
+ * (`sheet-progress.ts`): a result and a restriction are both set.
+ */
+export function conclusionPairComplete(block: Pick<BlockRow, 'sheet'>): boolean {
+  return conclusionResultOf(block) !== null && conclusionRestrictionOf(block) !== null;
+}
+
+/**
+ * The stored text the renderer prints, or null ("not printable") while the text is
+ * unconfirmed or the pair it concludes is incomplete (E5-A4: a result or a restriction
+ * cleared after the confirm leaves the confirmed text unprintable until the pair is set again).
+ */
 export function conclusionTextForPrint(block: Pick<BlockRow, 'sheet'>): string | null {
-  if (conclusionTextStatusOf(block) === null) return null;
+  if (conclusionTextStatusOf(block) === null || !conclusionPairComplete(block)) return null;
   const text = storedText(block, 'text');
   return text === null || text.trim() === '' ? null : text;
+}
+
+/**
+ * E5-A4: true when the text composed from `block` now still has `basis`, the basis of the
+ * text the engineer saw. A confirm checks it against the freshest block before it writes, so
+ * a value changed between the render and the tap never stores a text under a basis it was
+ * not composed from.
+ */
+export function conclusionBasisMatches(block: BlockRow, definition: BlockDefinition, equipmentTag: string, basis: string): boolean {
+  return composeConclusion(block, definition, equipmentTag).basis === basis;
 }
 
 /** The stored conclusion text, or null. */

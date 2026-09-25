@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
+import { FOCUS_WATCH_FRAMES, restoreFocus } from '../../input/focus-restore.ts';
 import { touchActionStyle } from '../../input/touch-action.ts';
 import { usePressAndHold } from '../../input/use-press-and-hold.ts';
 
@@ -72,45 +73,6 @@ interface DragState {
   index: number;
   armed: boolean;
 }
-
-/** How many frames the focus is watched for after a move lands (the live query re-renders late). */
-const FOCUS_WATCH_FRAMES = 30;
-
-/**
- * Gives the focus to `target()` once the element that held it is gone (a re-render moved or
- * removed it), watching a few frames because the live query re-renders after the write.
- * `target()` may return null until the change it waits for has rendered. `frames` is how
- * long to watch; with `once`, the watch ends as soon as the target took the focus, so a
- * later click on the page's background keeps its usual effect.
- */
-export function restoreFocus(
-  target: () => HTMLElement | null,
-  { frames = FOCUS_WATCH_FRAMES, once = false }: { frames?: number; once?: boolean } = {},
-): void {
-  let watched = 0;
-  const tick = () => {
-    const element = target();
-    const active = document.activeElement;
-    const lost = active === null || active === document.body || !active.isConnected;
-    if (element !== null && element.isConnected) {
-      if (lost) element.focus();
-      // With `once`, the watch ends as soon as the target is there: it took the focus now,
-      // or it already held it (a Position box committed with Enter), or something else holds
-      // it on purpose. A watch that outlived its move once stole the focus from the next
-      // removal's own target (batch A real-browser pass, 2026-09-24).
-      if (once) return;
-    }
-    if (++watched < frames) requestAnimationFrame(tick);
-  };
-  requestAnimationFrame(tick);
-}
-
-/**
- * How many frames a focus target is watched for after a write that re-renders a list: a
- * removal or an undo lands only after the Confirm dialog or the toast has closed and the
- * live query has re-read the rows, which on a loaded device takes more than half a second.
- */
-export const LIST_FOCUS_WATCH_FRAMES = 180;
 
 function siblingRows(row: HTMLElement): HTMLElement[] {
   const parent = row.parentElement;

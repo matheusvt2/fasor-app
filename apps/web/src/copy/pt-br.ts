@@ -294,6 +294,8 @@ export const copy = {
     // authored: the rename Form dialog.
     renameTitle: (name: string) => `Renomear ${name}`,
     renameLabel: 'Nome',
+    // authored (E3-A9): a blank name refused, the location tree's own words (`tagDialogs.emptyName`).
+    renameEmpty: 'Informe o nome',
     save: 'Salvar',
     cancel: 'Cancelar',
     // Story 3.5: the per-type sub-block defaults, a Form dialog opened from the palette's
@@ -327,6 +329,8 @@ export const copy = {
     },
     // Story 3.6: the section text editor, a Form dialog from the section card's Overflow.
     editText: 'Editar texto',
+    // authored (E3-A9): the section card body's name, which opens the same editor.
+    editTextOf: (section: string) => `Editar texto de ${section}`,
     // Verbatim from the mock's `#tc-dlg-rich` title and meta.
     textTitle: (section: string) => `${section} — texto fixo`,
     textNote: 'Vale para os próximos relatórios deste template. As variáveis são preenchidas em Dados do relatório; o texto nunca aparece em campo.',

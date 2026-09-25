@@ -2,6 +2,8 @@ import {
   calibrationValidUntil,
   formatCalendarDate,
   instrumentManufacturerRecents,
+  registryFieldPath,
+  registryPath,
   toIso,
   wordRowByName,
   type InstrumentRow,
@@ -122,11 +124,11 @@ export function InstrumentPanel({ instrumentId, instrument, referenced, onClose 
     if (!created.current) {
       created.current = true;
       const row = { ...defaultRow(instrumentId), [field]: value };
-      const op: OpDraft = { ...base, kind: 'create', path: `registry/instrument/${instrumentId}`, value: row as never };
+      const op: OpDraft = { ...base, kind: 'create', path: registryPath('instrument', instrumentId), value: row as never };
       await commitBatch(db, [...before, op], { newId, now });
       return;
     }
-    const op: OpDraft = { ...base, kind: 'put', path: `registry/instrument/${instrumentId}/${field}`, value: value as never };
+    const op: OpDraft = { ...base, kind: 'put', path: registryFieldPath('instrument', instrumentId, field), value: value as never };
     await commitBatch(db, [...before, op], { newId, now });
   }
 
@@ -136,7 +138,7 @@ export function InstrumentPanel({ instrumentId, instrument, referenced, onClose 
     if (base === null || name === '') return;
     const id = newId();
     const row = { id, kind: 'manufacturer', name, gender: null, number: null, removed_at: null };
-    await commitField('manufacturer', name, [{ ...base, kind: 'create', path: `registry/manufacturer/${id}`, value: row as never }]);
+    await commitField('manufacturer', name, [{ ...base, kind: 'create', path: registryPath('manufacturer', id), value: row as never }]);
   }
 
   /**
@@ -176,7 +178,7 @@ export function InstrumentPanel({ instrumentId, instrument, referenced, onClose 
           batch_id: null,
           meta: null,
           actor_id: user.id,
-          path: `registry/instrument/${instrumentId}/removed_at`,
+          path: registryFieldPath('instrument', instrumentId, 'removed_at'),
           value: null,
         },
       ],
@@ -211,7 +213,7 @@ export function InstrumentPanel({ instrumentId, instrument, referenced, onClose 
             batch_id: null,
             meta: null,
             actor_id: user.id,
-            path: `registry/instrument/${instrumentId}`,
+            path: registryPath('instrument', instrumentId),
             value: defaultRow(instrumentId) as never,
           },
         ],
@@ -238,7 +240,7 @@ export function InstrumentPanel({ instrumentId, instrument, referenced, onClose 
             batch_id: null,
             meta: null,
             actor_id: user.id,
-            path: `registry/instrument/${instrumentId}/certificate_file_id`,
+            path: registryFieldPath('instrument', instrumentId, 'certificate_file_id'),
             value: fileId as never,
           },
         ],
