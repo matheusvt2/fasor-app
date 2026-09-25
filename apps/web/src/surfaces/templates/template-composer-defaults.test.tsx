@@ -352,4 +352,14 @@ describe('3.6 composer: section text', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
     await waitFor(async () => expect((await templateRow(database!, ID))!.blocks[0]!.section_text).toMatch(/^\{responsavel\}O presente/));
   });
+
+  it('E3-A9: a tap on a section card body opens "Editar texto" with the focus in the text; a section with no text has no body button', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    renderComposer();
+    await userEvent.click(await screen.findByRole('button', { name: 'Editar texto de 1 Objetivo' }));
+    const dialog = await screen.findByRole('dialog', { name: '1 Objetivo — texto fixo' });
+    await waitFor(() => expect(area(dialog)).toHaveFocus());
+    expect(screen.queryByRole('button', { name: 'Editar texto de 8 Pontos de atenção' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Editar texto de 11 Certificados' })).toBeNull();
+  });
 });

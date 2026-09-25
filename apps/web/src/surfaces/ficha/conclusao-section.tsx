@@ -228,7 +228,7 @@ export function ConclusaoSection({
     const basis = composed.basis;
     edit((blocks, by) => {
       if (status === 'confirmed') {
-        const fresh = blocks.find((row) => row.id === api.blockId);
+        const fresh = blocks.find((row) => row.id === api.blockId && row.removed_at === null);
         if (fresh === undefined || !conclusionBasisMatches(fresh, definition, tag, basis)) return null;
       }
       const observationOp = suggestedObservationOp(blocks, by);

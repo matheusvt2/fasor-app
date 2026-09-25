@@ -357,6 +357,7 @@ describe('E5-A4 criterion_override', () => {
     ['a string', '1000 MΩ'],
     ['no raw', { unit: 'MΩ' }],
     ['a non-decimal raw', { raw: '1.000,5', unit: 'MΩ' }],
+    ['a negative value', { raw: '-5', unit: 'MΩ' }],
     ['an unconvertible unit', { raw: '1000', unit: 'µΩ-x' }],
     ['a unit of another scale', { raw: '1', unit: '%' }],
     ['no unit field', { raw: '1000' }],

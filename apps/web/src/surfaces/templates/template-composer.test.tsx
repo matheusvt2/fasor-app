@@ -225,4 +225,27 @@ describe('3.4 composer: skeleton', () => {
     expect(screen.queryByText('Coluna 3 removida')).toBeNull();
   });
 
+  it('E3-A9: a blank rename says "Informe o nome", keeps the dialog open and writes nothing', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    renderComposer();
+    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de Cubículo Enel' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Renomear' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Renomear Cubículo Enel' });
+    const field = within(dialog).getByRole('textbox', { name: 'Nome' });
+    await userEvent.clear(field);
+    await userEvent.type(field, '   ');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Salvar' }));
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('Informe o nome');
+    expect(field).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('dialog', { name: 'Renomear Cubículo Enel' })).toBeVisible();
+    // Enter refuses the same way; typing takes the message away.
+    await userEvent.type(field, '{Enter}');
+    expect(within(dialog).getByRole('alert')).toHaveTextContent('Informe o nome');
+    await userEvent.type(field, 'X');
+    expect(within(dialog).queryByRole('alert')).toBeNull();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(screen.getByRole('list', { name: 'Cabines do template' }).querySelector(':scope > li .block-name')).toHaveTextContent('Cubículo Enel');
+    expect(await outboxPaths()).toEqual([]);
+  });
 });

@@ -249,7 +249,8 @@ function criterionOf(test: TestDef): CriterionSeed {
  * unit of the sheet's `test.{key}.criterion_override` when it is well formed -- `{raw, unit}`
  * (AR-10's number shape), `raw` a decimal string and `unit` one the seed's unit converts
  * to (`scaleToUnit`). The operator, type and source stay the seed's. A malformed override
- * is ignored and the seed stands. Open question: no document fixes the override's shape;
+ * (a negative value among them: it would make `>` pass and `±` fail every reading) is
+ * ignored and the seed stands. Open question: no document fixes the override's shape;
  * this is the conservative reading, and no surface writes it yet.
  */
 export function effectiveCriterion(block: Pick<BlockRow, 'sheet'>, test: TestDef): CriterionSeed {
@@ -260,7 +261,7 @@ export function effectiveCriterion(block: Pick<BlockRow, 'sheet'>, test: TestDef
   if (typeof override.raw !== 'string' || !DECIMAL.test(override.raw)) return seed;
   if (override.unit !== null && typeof override.unit !== 'string') return seed;
   const number = Number(override.raw);
-  if (!Number.isFinite(number) || scaleToUnit(number, override.unit, seed.unit) === null) return seed;
+  if (!Number.isFinite(number) || number < 0 || scaleToUnit(number, override.unit, seed.unit) === null) return seed;
   return { ...seed, value: number, unit: override.unit };
 }
 
