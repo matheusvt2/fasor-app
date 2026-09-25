@@ -146,8 +146,8 @@ development_status:
   12-2-forward-never-back-resume-in-one-tap-and-no-dead-ends: done  # PR #35
   12-3-the-sheet-repeats-nothing-the-cabine-or-the-relatorio-alread: done  # PR #37
   12-4-the-plate-and-the-nc-in-fewer-taps: done  # PR #37
-  12-5-apply-the-v0-9-visual-direction: backlog
-  12-6-the-tap-budget-is-a-test: backlog
+  12-5-apply-the-v0-9-visual-direction: done  # PR #38
+  12-6-the-tap-budget-is-a-test: done  # PR #38
   epic-12-retrospective: optional
 
 action_items:
