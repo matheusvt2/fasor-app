@@ -138,4 +138,10 @@ export const ui = {
   registryTabPlaceholder: {
     text: 'Disponível em uma próxima etapa.',
   },
+  photoRow: {
+    // `70-fotos.html` tile row `.photo-text .btn-text`, verbatim.
+    caption: 'Legendar',
+    // DESIGN.md › Photo stamp: the pin glyph is aria-hidden, "GPS" its accessible text.
+    gps: 'GPS',
+  },
 } as const;

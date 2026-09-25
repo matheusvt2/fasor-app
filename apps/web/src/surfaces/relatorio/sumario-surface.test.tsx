@@ -206,9 +206,11 @@ describe('4.3 SumarioSurface', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Pontos de atenção' }));
     expect((await screen.findAllByRole('menuitem')).map((m) => m.textContent)).toEqual(['Subir', 'Descer']);
     await userEvent.keyboard('{Escape}');
-    // Rows 7, 10 and 11 have no `.sum-open` button; 1 and 3 open the setup, 2 the text, 8 the points.
+    // Rows 10 and 11 have no `.sum-open` button; 1 and 3 open the setup, 2 the text,
+    // 7 the gallery (Story 6.3), 8 the points (Story 6.6).
     const [, , r1, , , , , , r7, r8, , r10, r11] = rows();
-    for (const li of [r7, r10, r11]) expect(li!.querySelector('button.sum-open')).toBeNull();
+    for (const li of [r10, r11]) expect(li!.querySelector('button.sum-open')).toBeNull();
+    expect(r7!.querySelector('button.sum-open')).not.toBeNull();
     expect(within(r8!).getByRole('button', { name: /^Pontos de atenção/ })).toHaveTextContent('1 ponto · 1 não ensaiada');
     await userEvent.click(within(r1!).getByRole('button', { name: /^Objetivo/ }));
     expect(await screen.findByTestId('setup-route')).toHaveTextContent('Setup 2');

@@ -2,6 +2,7 @@ import {
   blockTypeLabel,
   buildSnapshot,
   cabineOf,
+  captionSavedText,
   concludedByText,
   contextCaption,
   conclusionRestrictionOf,
@@ -15,6 +16,7 @@ import {
   isEquipmentBlockType,
   locationPathText,
   nextSheet,
+  numberPhotos,
   railHeadText,
   sheetOrder,
   sheetProgress,
@@ -42,7 +44,7 @@ import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { instrumentRows, manufacturerRows, voltageClassRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
-import { useBlockPhotoTiles, useLocalWordRows } from '../../db/photo-store.ts';
+import { useBlockPhotoTiles, useLocalWordRows, type PhotoTile } from '../../db/photo-store.ts';
 import { writeLastSheet } from '../../db/prefs.ts';
 import { localUsers } from '../../db/sync-store.ts';
 import { isPointerModality, useHeldWhilePressed } from '../../input/press-hold.ts';
@@ -67,7 +69,10 @@ import { firstFocusable } from './ficha-fields.tsx';
 import { concludedByOp, conclusionOp, notTestedOp, testInstrumentOp } from './ficha-ops.ts';
 import { NameplateSection } from './nameplate-section.tsx';
 import { NotTestedBand } from './not-tested-band.tsx';
-import { useSheetCamera } from './photo-openers.tsx';
+import { AddPhotosButton, useSheetCamera } from './photo-openers.tsx';
+import { DropHint, PhotoCaptureSheet, useDropZone, usePhotoImport } from '../photos/capture-sheet.tsx';
+import { setPhotoCaption } from '../photos/photo-ops.ts';
+import { PhotoCaptionDialog } from '../photos/photo-caption-dialog.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
 import { SectionStepper, STEPPER_STEPS } from './section-stepper.tsx';
 import { SheetReadOnlyProvider } from './sheet-read-only.tsx';
@@ -282,10 +287,22 @@ function FichaBody({
   const sheetCamera = useSheetCamera(relatorioId, () => photoTarget(null));
   const photoTiles = useBlockPhotoTiles(db, relatorioId, blockId);
   const { retryUpload } = sync;
+  // --- Stories 6.4/6.5: "Adicionar fotos" (and a drop on a computer) and "Legendar" -------
+  const [importTarget, setImportTarget] = useState<CaptureTarget | null>(null);
+  const [captioning, setCaptioning] = useState<PhotoTile | null>(null);
+  const importFiles = usePhotoImport(relatorioId);
+  const fichaMain = useRef<HTMLDivElement>(null);
+  const dragging = useDropZone(fichaMain, (files) => void importFiles(files, photoTarget(null)));
   const checklistPhotos: ChecklistPhotos = {
     tiles: photoTiles,
     target: (itemKey) => photoTarget(itemKey),
     retry: (fileId) => void retryUpload?.(fileId),
+    addPhotos: (itemKey) => setImportTarget(photoTarget(itemKey)),
+    caption: (tile) => setCaptioning(tile),
+  };
+  const saveCaption = (tile: PhotoTile, text: string | null) => {
+    if (db === null || api.author === null) return;
+    void setPhotoCaption(db, api.author, relatorioId, tile.id, text).then(() => showToast(captionSavedText(numberPhotos(snapshot.files).get(tile.id) ?? null)));
   };
 
   /** A focus arriving in `step`: leaving the previous step only when it came from the keyboard. */
@@ -525,7 +542,7 @@ function FichaBody({
           <RelatorioTree presentation="rail" snapshot={snapshot} equipment={equipment} lastSheetId={blockId} expandToLastSheet context={treeContext} />
         </aside>
 
-        <div className="ficha-main">
+        <div className="ficha-main" ref={fichaMain} data-dropping={dragging ? '' : undefined}>
           <FichaHeader
             typeName={typeName}
             tag={tag}
@@ -574,12 +591,14 @@ function FichaBody({
               <ConclusaoSection api={api} block={block} definition={definition} tag={tag} className={stepClass('conclusao')} onFocus={() => focusIn('conclusao')} />
             </div>
           </SheetReadOnlyProvider>
+          <DropHint dragging={dragging} />
           <StickyActionBar
             stepper={<SectionStepper progress={progress} current={current} onGo={(step) => goTo(step, false)} />}
             // J-15: with nothing left to mark the mirror goes (no disabled button in the bar);
             // the list head keeps its disabled action with the reason.
             secondary={showMirror ? <BulkActionBar bulk={bulk} compact /> : null}
             camera={sheetCamera.button}
+            importButton={<AddPhotosButton onPress={() => setImportTarget(photoTarget(null))} />}
             cameraNote={sheetCamera.note}
             primaryLabel={primaryLabel}
             onPrimary={primary}
@@ -608,6 +627,22 @@ function FichaBody({
           onSubmit={rename}
         />
       ) : null}
+
+      <PhotoCaptureSheet
+        relatorioId={relatorioId}
+        isOpen={importTarget !== null}
+        onClose={() => setImportTarget(null)}
+        mode={{ kind: 'sheet', target: () => importTarget ?? photoTarget(null) }}
+      />
+      {captioning === null ? null : (
+        <PhotoCaptionDialog
+          relatorioId={relatorioId}
+          snapshot={snapshot}
+          photo={captioning}
+          onClose={() => setCaptioning(null)}
+          onSave={(text) => saveCaption(captioning, text)}
+        />
+      )}
 
       {notTestedDialogOpen ? (
         <NotTestedDialog

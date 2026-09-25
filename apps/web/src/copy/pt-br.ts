@@ -618,6 +618,72 @@ export const copy = {
     // opens the viewer, which is Story 6.3's; here the tile is a picture, not a button).
     rowPhotosLabel: (n: number) => `Fotos do item ${n}`,
     tileLabel: (n: number) => `Foto ${n}`,
+    // `70-fotos.html` Sticky action bar, verbatim.
+    addPhotos: 'Adicionar fotos',
+    dragReason: 'ou arraste para cá',
+    // EXPERIENCE.md › Photo capture sheet: the drop zone's word while files are dragged over it.
+    dropHint: 'Solte para adicionar',
+  },
+  // Story 6.3: the gallery (`70-fotos.html`, `key-photos.html`). Counts, stamps, numbers and
+  // the filter status are the kernel's (`galleryHeadingText`, `galleryCounterText`, ...).
+  gallery: {
+    // `70-fotos.html` `data-title`.
+    title: 'Fotos',
+    // `key-photos.html` line 105, verbatim.
+    note: 'Ordem cronológica de captura. Os números são provisórios até a exportação (seção 7 do relatório). A hora e o pino vêm da captura; sem permissão de localização no aparelho, só a hora.',
+    // `70-fotos.html` `.chip-row` aria-label, verbatim.
+    filterLabel: 'Filtrar por cabine',
+    // authored: the list of tile rows.
+    listLabel: 'Fotos do relatório',
+    // Spec I/O matrix "Empty gallery", verbatim.
+    empty: 'Nenhuma foto. Tire fotos a partir da ficha do equipamento para já sair com legenda.',
+    // `70-fotos.html` `.cam-reason`, verbatim.
+    camReason: 'Abre a câmera direto; rajada até "Concluir fotos". A legenda nasce do contexto.',
+  },
+  // Story 6.3: the Photo viewer (`70-fotos.html` "Photo viewer").
+  viewer: {
+    close: 'Fechar',
+    editCaption: 'Editar legenda',
+    remove: 'Remover',
+    previous: 'Anterior',
+    next: 'Próxima',
+    // authored: the Confirm dialog before "Remover" (EXPERIENCE.md › Photo viewer).
+    removeTitle: (n: number) => `Remover a foto ${n} do relatório?`,
+    removeDescription: 'A foto sai da galeria e da seção 7. Dá para desfazer pelo aviso logo em seguida.',
+    removeConfirm: 'Remover foto',
+    // `70-fotos.html` toast action, verbatim.
+    undo: 'Desfazer',
+  },
+  // Story 6.4: the Photo capture sheet (`70-fotos.html` "Photo capture sheet", "De qual equipamento?").
+  captureSheet: {
+    title: 'Adicionar fotos',
+    choose: 'Escolher arquivos',
+    reason: 'Várias de uma vez, durante a visita ou depois — inclusive fotos que outra pessoa mandou. No computador, dá para arrastar os arquivos direto para a galeria ou para uma ficha. A câmera não passa por aqui: o botão Foto abre o visor direto.',
+    cancel: 'Cancelar',
+    whichEquipment: 'De qual equipamento?',
+    general: 'Geral (sem equipamento)',
+    // authored: the list of equipment rows.
+    equipmentList: 'Equipamentos do relatório',
+    caption: 'Legendar',
+  },
+  // Story 6.5: the Caption composer (`71-legenda.html`, `key-photos.html` frame 3).
+  captionComposer: {
+    heading: 'Legenda',
+    // authored: `key-photos.html`'s note without the sentence about where the parts came from.
+    note: 'A legenda é montada com os três campos abaixo.',
+    atividade: 'Atividade',
+    equipamento: 'Equipamento',
+    local: 'Local',
+    // EXPERIENCE.md › Chip: the last chip of a value row, verbatim.
+    other: 'Outro…',
+    // authored: the field "Outro…" opens.
+    otherLabel: { atividade: 'Outra atividade', equipamento: 'Outro equipamento', local: 'Outro local' },
+    previewLabel: 'Legenda gerada',
+    editText: 'Editar texto',
+    editReason: 'Ao editar, a legenda deixa de ser regenerada',
+    textLabel: 'Texto da legenda',
+    back: 'Voltar sem alterar',
+    save: 'Salvar legenda',
   },
   // Story 6.6: the Points surface (`72-pontos.html`) and the point editor. Counts, titles,
   // order lines and the derived entries' texts are the kernel's (`points/*.ts`).

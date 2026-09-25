@@ -122,9 +122,25 @@ function parseOffset(raw: string | null): number | null {
   return match[1] === '-' ? -minutes : minutes;
 }
 
-/** The TIFF block of the first APP1 Exif segment of a JPEG, or null. */
+/**
+ * Story 6.4: a file that is not a JPEG (a HEIC from an iPhone keeps its Exif in an `Exif`
+ * item): the first `Exif\0\0` marker followed by a TIFF header (`II*\0` or `MM\0*`); the
+ * TIFF block runs to the end of the bytes.
+ */
+function embeddedExif(bytes: Uint8Array): DataView | null {
+  for (let at = 0; at + 10 <= bytes.length; at++) {
+    if (bytes[at] !== 0x45 || bytes[at + 1] !== 0x78 || bytes[at + 2] !== 0x69 || bytes[at + 3] !== 0x66 || bytes[at + 4] !== 0 || bytes[at + 5] !== 0) continue;
+    const t = at + 6;
+    const little = bytes[t] === 0x49 && bytes[t + 1] === 0x49 && bytes[t + 2] === 0x2a && bytes[t + 3] === 0;
+    const big = bytes[t] === 0x4d && bytes[t + 1] === 0x4d && bytes[t + 2] === 0 && bytes[t + 3] === 0x2a;
+    if (little || big) return new DataView(bytes.buffer, bytes.byteOffset + t, bytes.length - t);
+  }
+  return null;
+}
+
+/** The TIFF block of the first APP1 Exif segment of a JPEG, else of an embedded Exif block, or null. */
 function exifSegment(bytes: Uint8Array): DataView | null {
-  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return null;
+  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return embeddedExif(bytes);
   let at = 2;
   while (at + 4 <= bytes.length) {
     if (bytes[at] !== 0xff) return null;

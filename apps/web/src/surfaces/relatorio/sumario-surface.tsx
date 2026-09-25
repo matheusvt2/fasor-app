@@ -177,8 +177,8 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   }
 
   const blocked = rows.some((row) => row.blocking);
-  // Story 6.6: row 8 opens the Points surface (`/relatorio/:id/pontos`).
-  const openable = (row: SumarioRow) => row.kind === 'setup' || row.kind === 'text' || row.rowKey === 'section_8';
+  // Story 6.3: row 7 opens the gallery; Story 6.6: row 8 opens the Points surface (`/relatorio/:id/pontos`).
+  const openable = (row: SumarioRow) => row.kind === 'setup' || row.kind === 'text' || row.rowKey === 'section_7' || row.rowKey === 'section_8';
 
   return (
     <>

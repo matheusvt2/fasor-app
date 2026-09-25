@@ -24,7 +24,8 @@ import { createBrowserSyncClient } from '../../sync/client.ts';
  */
 
 export interface CaptureTarget {
-  blockId: string;
+  /** The sheet, or null for a gallery shot ("Geral", Story 6.3). */
+  blockId: string | null;
   itemKey: string | null;
   /** The kernel's `contextCaption`, fixed when the camera opened (null: no context). */
   caption: string | null;

@@ -18,6 +18,21 @@ export function photosPendingText(n: number): string {
   return `${plural(n, 'foto', 'fotos')} aguardando envio`;
 }
 
+/** Section 7's count (the Sumário row): "82 fotos", "1 foto", "Nenhuma foto". */
+export function photoCountText(n: number): string {
+  return n === 0 ? 'Nenhuma foto' : plural(n, 'foto', 'fotos');
+}
+
+/** Section 7's pre-issue row: "1 sem legenda", "3 sem legenda". */
+export function photosUncaptionedText(n: number): string {
+  return `${n} sem legenda`;
+}
+
+/** Section 7's pre-issue row: "3 aguardando envio". */
+export function photosAwaitingText(n: number): string {
+  return `${n} aguardando envio`;
+}
+
 /** Where one photo's bytes stand: on the server, waiting, or refused/failed. */
 export type PhotoUploadState = 'uploaded' | 'pending' | 'error';
 

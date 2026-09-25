@@ -71,6 +71,7 @@ export interface PhotoRowRecord {
   variants: { thumb: string; print: string } | null;
   mime: string;
   reading_status: string;
+  removed_at: string | null;
 }
 
 /** The photo rows the device holds, oldest first. */

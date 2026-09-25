@@ -1,5 +1,7 @@
 import { dateRangeText } from '../format/datetime.ts';
 import { sortByOrderKey } from '../ops/order-key.ts';
+import { livePhotos } from '../photos/order.ts';
+import { photoCountText } from '../photos/text.ts';
 import type { BlockRow, EquipmentRow, LocationRow, RelatorioStatus } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { isRelatorioSectionType, relatorioSectionNumber, type RelatorioSectionType } from './instantiate.ts';
@@ -157,6 +159,8 @@ function metaOfSection(block: BlockRow, issues: readonly PreIssueRow[], computed
   if (block.block_type === 'section_8') {
     return join([pointsSummaryText(pointsSummary(snapshot)), ...issues.filter((row) => row.kind === 'point_photo_removed').map((row) => row.text)]);
   }
+  // Stories 6.3/6.5: "82 fotos · 1 sem legenda · 3 aguardando envio", like section 9's counter.
+  if (block.block_type === 'section_7') return join([photoCountText(livePhotos(snapshot).length), ...own]);
   if (own.length > 0) return join(own);
   if (kind === 'setup') return META.setup;
   if (kind === 'text') {

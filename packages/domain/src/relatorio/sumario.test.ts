@@ -115,7 +115,8 @@ describe('4.3-UNIT sumarioRows', () => {
     expect(meta.section_9).toBe(
       ['0 de 94', ...['Cubículo Enel', '1° Subsolo', 'Oxigênio', 'Cobertura A', 'Cobertura B', 'Geradores'].map((name) => `${name}: faltam 6 campos`)].join(' · '),
     );
-    expect(meta.section_7).toBe('disponível em uma próxima etapa');
+    // Stories 6.3/6.5: section 7 counts its photos (none yet).
+    expect(meta.section_7).toBe('Nenhuma foto');
     // Story 6.6: row 8 counts its entries; a new relatório has none.
     expect(meta.section_8).toBe('Nenhum ponto de atenção');
     expect(rows.every((r) => !r.blocking)).toBe(true);

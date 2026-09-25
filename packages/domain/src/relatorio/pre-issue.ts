@@ -1,5 +1,7 @@
 import { clientPreIssueRows } from '../checks/pre-issue-client.ts';
 import { companyPreIssues } from '../checks/pre-issue.ts';
+import { livePhotos } from '../photos/order.ts';
+import { photosAwaitingText, photosUncaptionedText } from '../photos/text.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { normalizeRegistryName } from '../text/normalize-name.ts';
 import { pointPhotoRemovedText, pointsSemAcaoText, pointsWithoutAction, pointsWithRemovedPhotos } from '../points/checks.ts';
@@ -31,6 +33,8 @@ export type PreIssueKind =
   | 'cabine_incompleta'
   | 'company'
   | 'client'
+  | 'photos_uncaptioned'
+  | 'photos_pending_upload'
   | 'points_sem_acao'
   | 'point_photo_removed';
 
@@ -83,6 +87,17 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
     rows.push({ id: `client:${warning.key}`, row: 'controle', severity: 'info', text: warning.text, kind: 'client' });
   }
 
+  // Stories 6.3/6.5: section 7's photo family. Photos never block "Gerar" (coordinator
+  // decision 2026-09-25): an uncaptioned photo is pending, an unsent one a plain warning.
+  const photos = livePhotos(snapshot);
+  const uncaptioned = photos.filter((photo) => photo.caption === null || photo.caption.trim() === '').length;
+  if (uncaptioned > 0) {
+    rows.push({ id: 'photos_uncaptioned', row: 'section_7', severity: 'pending', text: photosUncaptionedText(uncaptioned), kind: 'photos_uncaptioned' });
+  }
+  const unsent = photos.filter((photo) => photo.uploaded_at === null).length;
+  if (unsent > 0) {
+    rows.push({ id: 'photos_pending_upload', row: 'section_7', severity: 'info', text: photosAwaitingText(unsent), kind: 'photos_pending_upload' });
+  }
   // Story 6.6: section 8. Manual points with no action are pending, never blocking; a point
   // whose text cites a removed photo gets its own row, so the Export dialog can name it.
   const semAcao = pointsWithoutAction(snapshot.points).length;

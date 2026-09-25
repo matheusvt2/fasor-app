@@ -28,6 +28,7 @@ import { RegistriesSurface } from './surfaces/registries/registries-surface.tsx'
 import { SyncStatusSurface } from './surfaces/sync/sync-status-surface.tsx';
 import { TemplateComposerSurface } from './surfaces/templates/template-composer.tsx';
 import { TemplatesSurface } from './surfaces/templates/templates-surface.tsx';
+import { GallerySurface } from './surfaces/photos/gallery-surface.tsx';
 
 /** While the cookie is being read, render nothing decisive: never flash Login. */
 function Booting() {
@@ -158,6 +159,12 @@ const router = createBrowserRouter([
                 state: { openSection9: true, focusBlockId: params.blockId ?? null },
               }),
             },
+          },
+          // Story 6.3: the gallery, reached from Sumário row 7.
+          {
+            path: '/relatorio/:id/fotos',
+            element: <GallerySurface />,
+            handle: { title: copy.gallery.title, back: (params: Record<string, string | undefined>) => `/relatorio/${params.id ?? ''}` },
           },
           // Story 6.6: section 8, opened from Sumário row 8.
           {

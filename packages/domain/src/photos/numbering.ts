@@ -1,3 +1,5 @@
+import { comparePhotos } from './order.ts';
+
 /*
  * AD-17 (Story 6.6, also read by the gallery): the provisional photo numbers. Every live
  * photo of a relatório in capture order `(captured_at, local_seq, id)` gets 1, 2, 3...; a
@@ -19,8 +21,8 @@ export interface NumberableFile {
 export function numberPhotos(files: readonly NumberableFile[]): Map<string, number> {
   const photos = files
     .filter((file) => file.kind === 'photo' && file.removed_at === null)
-    .map((file) => ({ id: file.id, at: file.captured_at ?? '', seq: file.local_seq ?? 0 }))
-    .sort((a, b) => (a.at !== b.at ? (a.at < b.at ? -1 : 1) : a.seq !== b.seq ? a.seq - b.seq : a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    .map((file) => ({ id: file.id, captured_at: file.captured_at ?? '', local_seq: file.local_seq ?? 0 }))
+    .sort(comparePhotos);
   return new Map(photos.map((photo, i) => [photo.id, i + 1]));
 }
 

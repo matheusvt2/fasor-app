@@ -27,7 +27,7 @@ function sourceFiles(dir: string): string[] {
 const declared = new Set([...sprite.matchAll(/<symbol\s+id="([^"]+)"/g)].map((m) => m[1]!));
 
 describe('icon sprite', () => {
-  it('declares the four symbols the shell used to inline, plus the App bar back chevron, the Registries icons, the upload tile image glyph, the Templates row icons, the composer palette icons, the Project and Sumário glyphs (calendar, chevron down), the Export download glyph, the rail toggle (tree) and the sheet pencil, repeat, check-all and the unit tap-cycle (Epic 5), the camera and the upload arrow (Epic 6)', () => {
+  it('declares the four symbols the shell used to inline, plus the App bar back chevron, the Registries icons, the upload tile image glyph, the Templates row icons, the composer palette icons, the Project and Sumário glyphs (calendar, chevron down), the Export download glyph, the rail toggle (tree) and the sheet pencil, repeat, check-all and the unit tap-cycle (Epic 5), the camera and the upload arrow (Epic 6), the gallery pin, trash and chevron left (Stories 6.3-6.5)', () => {
     expect([...declared].sort()).toEqual([
       'i-archive',
       'i-back',
@@ -38,6 +38,7 @@ describe('icon sprite', () => {
       'i-check',
       'i-check-all',
       'i-chev-down',
+      'i-chev-left',
       'i-chev-right',
       'i-close',
       'i-copy',
@@ -48,9 +49,11 @@ describe('icon sprite', () => {
       'i-image',
       'i-layers',
       'i-pencil',
+      'i-pin',
       'i-plus',
       'i-repeat',
       'i-template',
+      'i-trash',
       'i-tree',
       'i-up',
     ]);

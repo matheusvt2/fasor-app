@@ -107,7 +107,7 @@ export interface SyncStateRow {
 /**
  * Device-local, never-synced state (Conventions).
  * Keys: `db_version`, `device_id`, `theme`, `recovery_notice_dismissed`, `registry_tab`,
- * `last_sheet:{relatorio_id}`, `photo_seq`, `geolocation_denied`.
+ * `last_sheet:{relatorio_id}`, `photo_seq`, `geolocation_denied`, `caption_recents:{relatorio_id}`.
  */
 export interface LocalPrefRow {
   key: string;
@@ -123,6 +123,8 @@ export const RECOVERY_NOTICE_PREF = 'recovery_notice_dismissed';
 export const REGISTRY_TAB_PREF = 'registry_tab';
 /** Story 4.3: the block id of the last sheet worked on this device, per relatório. */
 export const LAST_SHEET_PREF = (relatorioId: string): string => `last_sheet:${relatorioId}`;
+/** Story 6.5: the Caption composer's recent words of one relatório on this device (never synced). */
+export const CAPTION_RECENTS_PREF = (relatorioId: string): string => `caption_recents:${relatorioId}`;
 /** Story 6.1 (AD-17): the per-device photo counter, bumped in the capture's own transaction. */
 export const PHOTO_SEQ_PREF = 'photo_seq';
 /**

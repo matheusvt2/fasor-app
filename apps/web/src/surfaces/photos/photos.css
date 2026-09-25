@@ -1,0 +1,123 @@
+/*
+ * Stories 6.3-6.5: the gallery (`70-fotos.html`), the Photo viewer, the Photo capture sheet
+ * and the Caption composer (`71-legenda.html`). The mocks scope their `<style>` rules to
+ * `[data-route="/relatorio/porto-seguro/fotos"]`; the gallery's rules keep the route scope
+ * (the app's route is `/relatorio/:id/fotos`), and the rules of the three overlays -- which
+ * React Aria portals to the end of `<body>`, outside any route -- are translated to their
+ * bare selectors, declarations copied verbatim. Each rule names the mock line it mirrors;
+ * `authored:` marks the few the mocks do not draw.
+ */
+
+/* ---------- Gallery: `70-fotos.html` lines 10-18, 23, 42-49 ---------- */
+[data-route="/relatorio/:id/fotos"] .gallery-grid { display: grid; grid-template-columns: 1fr; gap: 0 var(--sp-5); margin-top: var(--sp-3); }
+@media (min-width: 1024px) {
+  /* `.frame-tablet-landscape [data-route] .gallery-grid, .frame-desktop [data-route] .gallery-grid` */
+  [data-route="/relatorio/:id/fotos"] .gallery-grid { grid-template-columns: 1fr 1fr; }
+}
+[data-route="/relatorio/:id/fotos"] .gallery-grid .photo-row { min-width: 0; border-top: 0; border-bottom: 1px solid var(--border-hairline); }
+/* The pressed filter chip (`[data-route] .chip[aria-checked="true"]`) is `app.css`'s `.chip[role="radio"][aria-checked="true"]`. */
+/* mirrors `[data-route] .photo-tile` */
+[data-route="/relatorio/:id/fotos"] .photo-tile { cursor: pointer; }
+/* mirrors `.frame-phone [data-route] .section-head .progress-counter` */
+@media (max-width: 767.98px) {
+  [data-route="/relatorio/:id/fotos"] .section-head .progress-counter { white-space: normal; }
+}
+/* mirrors `[data-route] .photo-text .btn-text` */
+[data-route="/relatorio/:id/fotos"] .photo-text .btn-text { margin-left: calc(-1 * var(--sp-3)); }
+/* mirrors `[data-route] .sticky-action-bar .bar-buttons.has-camera` (+ `.btn-text`, `.cam-reason`) */
+[data-route="/relatorio/:id/fotos"] .sticky-action-bar .bar-buttons.has-camera { align-items: center; }
+[data-route="/relatorio/:id/fotos"] .sticky-action-bar .bar-buttons.has-camera .btn-text { flex: 0 0 auto; }
+[data-route="/relatorio/:id/fotos"] .sticky-action-bar .cam-reason { flex: 1; min-width: 0; font-size: var(--t-meta-size); color: var(--ink-secondary); }
+@media (max-width: 767.98px) {
+  /* `.frame-phone [data-route] .sticky-action-bar ...` */
+  [data-route="/relatorio/:id/fotos"] .sticky-action-bar .bar-buttons.has-camera { justify-content: space-between; }
+  [data-route="/relatorio/:id/fotos"] .sticky-action-bar .bar-buttons.has-camera .btn-text { flex: 0 0 auto; }
+  [data-route="/relatorio/:id/fotos"] .sticky-action-bar .cam-reason { display: none; }
+}
+/* authored: the gallery's bar stays at the bottom of the viewport, like the sheet's (`ficha.css`). */
+[data-route="/relatorio/:id/fotos"] .sticky-action-bar { position: sticky; bottom: 0; margin-top: auto; }
+/* authored: DESIGN.md › Photo tile: the caption in `meta`, two lines at most, ellipsis. */
+.photo-row .photo-meta { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* authored: the gallery tile is 96 px (DESIGN.md `thumb-grid`); the button carries no chrome of its own. */
+[data-route="/relatorio/:id/fotos"] .photo-row .photo-tile { flex: none; padding: 0; border: 0; background: none; }
+
+/* ---------- Drop zone (Story 6.4) ----------
+   authored: EXPERIENCE.md › Photo capture sheet ("drag files onto a sheet or the gallery"):
+   while files are dragged over the surface, a dashed `primary` outline and "Solte para
+   adicionar" over it. */
+[data-dropping] { position: relative; outline: 2px dashed var(--primary); outline-offset: -4px; }
+.drop-hint {
+  position: absolute; inset: var(--sp-3); display: flex; align-items: center; justify-content: center; gap: var(--sp-2);
+  background: var(--focus-fill); color: var(--primary); border-radius: var(--r-md);
+  font-size: var(--t-heading-size); font-weight: var(--t-heading-weight); pointer-events: none; z-index: 5;
+}
+
+/* ---------- Photo viewer: `70-fotos.html` lines 20-22, 89-102 ---------- */
+/* mirrors `[data-route] .scrim-viewer` */
+.dialog-scrim.scrim-viewer { padding: 0; align-items: stretch; justify-content: stretch; background: #15181D; }
+/* mirrors `[data-route] .photo-viewer` */
+.photo-viewer { width: 100%; }
+/* mirrors `[data-route] .photo-viewer .icon-btn` */
+.photo-viewer .icon-btn { color: #FFFFFF; }
+/* mirrors `[data-route] .photo-viewer .viewer-top .number-badge` */
+.photo-viewer .viewer-top .number-badge { min-width: 28px; height: 28px; padding: 0 8px; border-radius: var(--r-full); background: #FFFFFF; color: #15181D; font-size: var(--t-label-size); font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
+/* mirrors `[data-route] .photo-viewer .viewer-count` */
+.photo-viewer .viewer-count { font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: #B6BCC6; margin-left: var(--sp-1); }
+/* mirrors `[data-route] .photo-viewer .viewer-photo` */
+.photo-viewer .viewer-photo { position: relative; min-height: 380px; }
+/* mirrors `[data-route] .photo-viewer .viewer-bottom` */
+.photo-viewer .viewer-bottom { max-width: 640px; width: 100%; margin: 0 auto; }
+/* mirrors `[data-route] .photo-viewer .viewer-stamp` (+ `.ico`) */
+.photo-viewer .viewer-stamp { display: inline-flex; align-items: center; gap: var(--sp-1); color: #FFFFFF; font-variant-numeric: tabular-nums; }
+.photo-viewer .viewer-stamp .ico { width: 16px; height: 16px; }
+/* mirrors `[data-route] .photo-viewer .viewer-nav` (+ `.btn`) */
+.photo-viewer .viewer-nav { display: flex; gap: var(--sp-3); }
+.photo-viewer .viewer-nav .btn { flex: 1; }
+/* mirrors `[data-route] .photo-viewer .viewer-actions` */
+.photo-viewer .viewer-actions { display: flex; flex-direction: column; gap: var(--sp-2); }
+/* authored: the photo fits the width of the dark area, whole (DESIGN.md › Photo viewer "fit-to-width"). */
+.photo-viewer .viewer-photo .viewer-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+/* authored: the viewer scrolls inside itself on a short screen. */
+.dialog-scrim.scrim-viewer .photo-viewer { max-height: 100dvh; overflow-y: auto; }
+
+/* ---------- Photo capture sheet: `70-fotos.html` lines 85-87 ---------- */
+/* mirrors `[data-route] .scrim-bottom` (+ `.photo-capture-sheet`) */
+.dialog-scrim.scrim-bottom { align-items: flex-end; padding: 0; }
+.dialog-scrim.scrim-bottom .photo-capture-sheet { width: 100%; }
+/* mirrors `[data-route] .photo-capture-sheet .capture-cancel` */
+.photo-capture-sheet .capture-cancel { width: calc(100% - 2 * var(--sp-4)); }
+/* authored: the selected "De qual equipamento?" row takes `focus-fill` (DESIGN.md › Photo capture sheet). */
+.photo-capture-sheet .capture-option.is-selected { background: var(--focus-fill); }
+/* authored: a long tree scrolls inside the sheet; the batch caption field sits under it. */
+.photo-capture-sheet { max-height: 90dvh; overflow-y: auto; }
+.photo-capture-sheet > .field-label { padding: 0 var(--sp-5) var(--sp-2); }
+.photo-capture-sheet .capture-caption { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3) var(--sp-5) 0; }
+.photo-capture-sheet .capture-caption .capture-reason { padding: 0; }
+
+/* ---------- Caption composer: `71-legenda.html` lines 11, 44-49 ---------- */
+/* authored: the composer is a full-screen modal (the mock draws it as a route). */
+.dialog-scrim.scrim-composer { padding: 0; align-items: stretch; justify-content: stretch; }
+.dialog-scrim.scrim-composer .caption-composer { width: 100%; max-height: 100dvh; overflow-y: auto; background: var(--surface-raised); padding: var(--sp-5) var(--gutter-tablet); }
+/* mirrors `[data-route] .caption-composer .caption-actions` */
+.caption-composer .caption-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); }
+/* mirrors `[data-route] .caption-field:has(.btn[aria-pressed="true"]) .btn-reason` and `.caption-field .btn[aria-pressed="true"]` */
+.caption-composer .caption-field:has(.btn[aria-pressed="true"]) .btn-reason { color: var(--fora-do-limite); }
+.caption-composer .caption-field .btn[aria-pressed="true"] { background: var(--focus-fill); border-radius: var(--r-md); }
+/* mirrors the mock's inline `style="margin-left: calc(-1 * var(--sp-3))"` on "Editar texto" */
+.caption-composer .caption-actions .btn-text { margin-left: calc(-1 * var(--sp-3)); }
+/* authored: EXPERIENCE.md › Caption composer: chip rows on phone and tablet, Comboboxes on desktop (CSS alone). */
+.caption-composer .caption-part .caption-combo { display: none; }
+@media (min-width: 1280px) {
+  .caption-composer .caption-part .caption-chips { display: none; }
+  .caption-composer .caption-part .caption-combo { display: block; }
+}
+.caption-composer .caption-chips { display: flex; flex-direction: column; gap: var(--sp-2); }
+
+/* ---------- "Adicionar fotos" in the sheet's Sticky action bar (Story 6.4) ----------
+   authored: below 480 px the button keeps its glyph and its name (`.visually-hidden`'s
+   declarations on the word) and does not stretch, so the Camera capture button, it and the
+   primary share one row at 390 px without the bar running wider than the phone. */
+@media (max-width: 479.98px) {
+  .sticky-action-bar .bar-buttons .add-photos-btn { flex: none; }
+  .add-photos-btn .add-photos-word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
