@@ -727,3 +727,8 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   class: deferred
   state: open (owner: Story 6.3)
 
+- source_spec: `_bmad-output/implementation-artifacts/spec-12-3-12-4-sheet-cabine-instrument-plate-nc.md`
+  summary: The nameplate TAG field is prefilled from the block's TAG on screen but never written as a value; the kernel `nameplateTagPrefill({blocks, equipment}, blockId)` derives it. The section 9 renderer must print the prefill when the stored TAG cell is empty (E12-A2).
+  evidence: batch C PR #37 "Known open"; `epic-12-retro-2026-09-25.md` E12-A2.
+  class: stub
+  state: open (owner: Epic 7 Story 7.1, print the equipment sheets)
