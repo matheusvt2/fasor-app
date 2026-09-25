@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 09-25-2026 00:05
+last_updated: 09-25-2026 09:53
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -141,14 +141,14 @@ development_status:
   11-9-let-the-priority-suggest-the-deadline-on-a-point-of-attentio: backlog
   11-10-print-the-action-plan-table-in-section-8-post-mvp-before-202: backlog
   epic-11-retrospective: optional
-  epic-12: in-progress  # journey review 2026-09-24; runs before Epic 6, confirmed by Matheus (sprint-change-proposal-2026-09-24.md)
+  epic-12: done  # journey review 2026-09-24; runs before Epic 6, confirmed by Matheus (sprint-change-proposal-2026-09-24.md)
   12-1-no-tap-is-ever-lost-and-a-section-never-collapses-under-the: done  # PR #36
   12-2-forward-never-back-resume-in-one-tap-and-no-dead-ends: done  # PR #35
   12-3-the-sheet-repeats-nothing-the-cabine-or-the-relatorio-alread: done  # PR #37
   12-4-the-plate-and-the-nc-in-fewer-taps: done  # PR #37
   12-5-apply-the-v0-9-visual-direction: done  # PR #38
   12-6-the-tap-budget-is-a-test: done  # PR #38
-  epic-12-retrospective: optional
+  epic-12-retrospective: done
 
 action_items:
   - id: "epic-1-retro-item-1-a1-run-the-manual-ipad-and-android-offli"
@@ -483,3 +483,62 @@ action_items:
     owner: "coordinator"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
+  - id: "epic-12-retro-item-44-e12-a1-add-the-epic-12-product-questions"
+    epic: 12
+    action: "E12-A1 Add the Epic 12 product questions to the E5-A3 session: D-2 residue
+      (fold complete sections), D-4 residue (a stale Proxima ficha label concluding
+      and writing the suggested instruments), Bruno's authored copy (Ficha completa,
+      falta campo, cabine count wording, pre-issue row, Equipamento inacessivel justification),
+      printed OBSERVACOES with NC items, TAG field final form, status on generate
+      (J-19)"
+    owner: "Matheus (with Bruno for wording)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
+  - id: "epic-12-retro-item-45-e12-a2-add-the-prefilled-tag-deferral-to"
+    epic: 12
+    action: "E12-A2 Add the prefilled-TAG deferral to deferred-work.md and the Epic
+      7 context: the TAG is never written as an op, so the printer and the last_nameplate
+      projection must read nameplateTagPrefill"
+    owner: "coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
+  - id: "epic-12-retro-item-46-e12-a3-add-to-the-e1-a1-manual-device-sc"
+    epic: 12
+    action: "E12-A3 Add to the E1-A1 manual device script the soft keyboard after
+      Outro and Criar (E12-Q7) and the lost-tap paths on a real tablet"
+    owner: "Matheus"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
+  - id: "epic-12-retro-item-47-e12-a4-every-seed-version-bump-names-how"
+    epic: 12
+    action: "E12-A4 Every seed version bump names how existing companies reach it;
+      decide whether the template upgrade runs on API start, and before a seed version
+      that changes template block shape reject a content put whose base predates the
+      seed_version change (E12-Q4, E12-R1)"
+    owner: "architect / dev"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
+  - id: "epic-12-retro-item-48-e12-a5-recompute-every-numeric-ac-target"
+    epic: 12
+    action: "E12-A5 Recompute every numeric AC target (taps, keys, times) against
+      the decisions of its source document before a story is marked ready (E12-Q5)"
+    owner: "coordinator / SM"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
+  - id: "epic-12-retro-item-49-e12-a6-gate-and-agents-new-p0-specs-wait"
+    epic: 12
+    action: "E12-A6 Gate and agents: new @p0 specs wait on the target's committed
+      state; a mechanism fix ships with a mutation run proving the gate goes red without
+      it; QA writes its report inside its worktree; agents block on background commands;
+      one coordinator per checkout"
+    owner: "coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
+  - id: "epic-12-retro-item-50-e12-a7-visual-follow-ups-with-epic-6-s-s"
+    epic: 12
+    action: "E12-A7 Visual follow-ups with Epic 6's sheet work: 1024 landscape capture
+      (12.5 AC2), stepper double underline, section 9 header at 390, batch D deferred
+      lows, MOCK-GUIDE note that the before mocks now render with v0.9 CSS"
+    owner: "dev; coordinator for MOCK-GUIDE"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
