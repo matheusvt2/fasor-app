@@ -94,7 +94,7 @@ development_status:
   6-3-see-every-photo-in-one-chronological-gallery-with-its-stamp: backlog
   6-4-add-photos-after-the-visit-or-from-someone-else-s-phone: backlog
   6-5-change-a-caption-from-chips-or-free-text: backlog
-  6-6-record-findings-that-print-as-section-8-with-untested-equipm: backlog
+  6-6-record-findings-that-print-as-section-8-with-untested-equipm: done  # PR #42
   epic-6-retrospective: optional
 
   epic-7: backlog
