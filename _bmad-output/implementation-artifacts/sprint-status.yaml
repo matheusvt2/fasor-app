@@ -91,9 +91,9 @@ development_status:
   epic-6: in-progress
   6-1-shoot-photos-in-a-burst-from-any-surface-captioned-from-wher: done  # PR #41
   6-2-no-photo-is-ever-lost: done  # PR #41
-  6-3-see-every-photo-in-one-chronological-gallery-with-its-stamp: backlog
-  6-4-add-photos-after-the-visit-or-from-someone-else-s-phone: backlog
-  6-5-change-a-caption-from-chips-or-free-text: backlog
+  6-3-see-every-photo-in-one-chronological-gallery-with-its-stamp: done  # PR #43
+  6-4-add-photos-after-the-visit-or-from-someone-else-s-phone: done  # PR #43
+  6-5-change-a-caption-from-chips-or-free-text: done  # PR #43
   6-6-record-findings-that-print-as-section-8-with-untested-equipm: done  # PR #42
   epic-6-retrospective: optional
 
