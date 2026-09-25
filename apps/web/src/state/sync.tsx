@@ -17,6 +17,8 @@ import { publishReAuth } from '../api/auth-client.ts';
 import { useLiveQuery } from '../db/live.ts';
 import { COMPANY_STREAM, type OutboxRow, type SyncStateRow } from '../db/schema.ts';
 import { deviceId, localUsers, outboxRows, resendDead as resendDeadRows, syncStateRows } from '../db/sync-store.ts';
+import { clearUploadError } from '../db/file-store.ts';
+import { storageHeadroom } from '../device/storage-estimate.ts';
 import { now } from '../clock.ts';
 import { newId } from '../ids.ts';
 import { createBrowserSyncClient, type SyncClient } from '../sync/client.ts';
@@ -74,6 +76,12 @@ export interface SyncState {
    */
   syncProject?: (projectId: string) => Promise<CycleResult>;
   resendDead: () => Promise<void>;
+  /**
+   * Story 6.2: the upload pill's "Erro — Tentar novamente": clears the file's persisted
+   * error and runs "Sincronizar agora". Optional in the type only so the test doubles built
+   * before it existed still type-check; the provider always supplies it.
+   */
+  retryUpload?: (fileId: string) => Promise<void>;
   /**
    * AD-7: the on-demand file read, handed to the surfaces so a tile can fill its
    * thumbnail. It is the engine's own client, so `src/sync` stays the only caller of the
@@ -142,6 +150,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       onReAuth: publishReAuth,
       onOutdated: () => {},
       onChange: setStatus,
+      readStorage: storageHeadroom,
     });
     engineRef.current = engine;
     void deviceId(db, newId).then(setDevice, () => setDevice(null));
@@ -186,6 +195,21 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     await engineRef.current?.runCycle();
   }, [db]);
 
+  const retryUpload = useCallback(
+    async (fileId: string) => {
+      if (db === null) return;
+      await clearUploadError(db, fileId);
+      // A cycle already running may have read its queue before the error was cleared, so
+      // wait for it to end and run one of our own (bounded: the timer covers the rest).
+      for (let attempt = 0; attempt < 40; attempt++) {
+        const result = await engineRef.current?.runCycle();
+        if (result !== 'busy') return;
+        await new Promise((resolve) => globalThis.setTimeout(resolve, 250));
+      }
+    },
+    [db],
+  );
+
   /** Stable across renders, so a tile's effect does not re-fetch on every parent render. */
   const fetchFile = useCallback(async (id: string, variant: FileVariantName): Promise<Blob> => {
     const client = clientRef.current;
@@ -223,10 +247,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       syncRelatorio,
       syncProject,
       resendDead,
+      retryUpload,
       fetchFile,
       generate,
     }),
-    [counts, session.online, unreachable, status, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, fetchFile, generate],
+    [counts, session.online, unreachable, status, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate],
   );
 
   return <SyncContext value={value}>{children}</SyncContext>;

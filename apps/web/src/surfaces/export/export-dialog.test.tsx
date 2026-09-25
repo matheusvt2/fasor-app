@@ -454,7 +454,7 @@ describe('Export dialog (Story 4.8)', () => {
     expect(modal.querySelectorAll('.revision-row')).toHaveLength(1);
   });
 
-  it('sends the device\'s newest op and the files it expects: a committed setup put and a pulled photo row', async () => {
+  it('sends the device\'s newest op and the files it expects: a committed setup put, and a pulled photo row left out (photos never block Gerar)', async () => {
     database = await freshDb();
     const put = await commitBatch(
       database,
@@ -511,7 +511,8 @@ describe('Export dialog (Story 4.8)', () => {
     render(<Harness sync={sync} />);
     await userEvent.click(generateButton());
     await waitFor(() => expect(sync.generate).toHaveBeenCalledTimes(1));
-    expect(sync.generate).toHaveBeenCalledWith(REL, { last_op_id: put.ops[0]!.op_id, file_ids_expected: [photoId] });
+    // Coordinator decision 2026-09-25: the job renders with the photos the server holds.
+    expect(sync.generate).toHaveBeenCalledWith(REL, { last_op_id: put.ops[0]!.op_id, file_ids_expected: [] });
   });
 
   it('gives up after ten 409 answers with the inline error, and after ten flush rounds that never drain', async () => {

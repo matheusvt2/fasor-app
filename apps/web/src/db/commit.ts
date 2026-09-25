@@ -22,7 +22,7 @@ import {
   type RelatorioRow,
 } from '@app/domain';
 import { blockRowsOf, relatoriosOfProject } from './home-store.ts';
-import { targetKeysOf, type AppDatabase, type EntityRecord, type OutboxRow } from './schema.ts';
+import { PHOTO_SEQ_PREF, targetKeysOf, type AppDatabase, type EntityRecord, type OutboxRow } from './schema.ts';
 import { newId as mintId } from '../ids.ts';
 import { deviceId } from './device-id.ts';
 
@@ -245,6 +245,46 @@ export async function commitFileBatch(
     });
   });
   return { batch_id, ops };
+}
+
+export interface PhotoBatchInput {
+  /** The photo's `file/{id}` create op; its `local_seq` is set inside the transaction. */
+  create: OpDraft;
+  fileId: string;
+  /** The re-encoded original, written to `files`. */
+  original: Blob;
+  /** The device's own thumb, written to `thumbs`. */
+  thumb: Blob;
+}
+
+/**
+ * Story 6.1 (AR-6, AD-17): one shot is one transaction over `entities`, `outbox`, `files`,
+ * `thumbs` and `local_prefs`. The per-device `photo_seq` counter is read and bumped inside
+ * it and stamped on the create op's `local_seq`, so two shots can never share a number and
+ * a shot that fails leaves the counter, the op, the original and the thumb all unwritten.
+ */
+export async function commitPhotoBatch(
+  db: AppDatabase,
+  input: PhotoBatchInput,
+  deps: CommitDeps,
+): Promise<{ batch_id: string; ops: Op[]; localSeq: number }> {
+  const { batch_id, ops: built } = await buildBatch(db, [input.create], deps);
+  const created_at = toIso(deps.now());
+  const createPath = `file/${input.fileId}`;
+  let ops: Op[] = built;
+  let localSeq = 0;
+  await db.transaction('rw', [db.entities, db.outbox, db.files, db.thumbs, db.local_prefs], async () => {
+    const pref = await db.local_prefs.get(PHOTO_SEQ_PREF);
+    localSeq = typeof pref?.value === 'number' && Number.isInteger(pref.value) && pref.value >= 0 ? pref.value + 1 : 1;
+    await db.local_prefs.put({ key: PHOTO_SEQ_PREF, value: localSeq });
+    ops = built.map((op) =>
+      op.kind === 'create' && op.path === createPath ? { ...op, value: { ...(op.value as Record<string, unknown>), local_seq: localSeq } as Op['value'] } : op,
+    );
+    for (const op of ops) await applyOne(db, op);
+    await db.files.put({ id: input.fileId, variant: 'original', blob: input.original, acked: false, created_at });
+    await db.thumbs.put({ id: input.fileId, blob: input.thumb, source: 'device', created_at });
+  });
+  return { batch_id, ops, localSeq };
 }
 
 /** Undo: N inverse ops in a new batch, built from the outbox rows of the batch (dead rows never applied, AD-24). */

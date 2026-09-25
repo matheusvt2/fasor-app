@@ -15,6 +15,7 @@ import { useExtraBannerValue } from '../state/extra-banner.tsx';
 import { useForwardArrival } from '../state/forward-arrival.ts';
 import { usePageTitleValue } from '../state/page-title.tsx';
 import { useSession } from '../state/session.tsx';
+import { useStorageReading } from '../state/storage-reading.ts';
 import { useSync } from '../state/sync.tsx';
 import { ToastOutlet } from '../state/toast.tsx';
 
@@ -111,10 +112,15 @@ export function AppShell() {
     void navigate(back);
   }
 
+  // Story 6.2 (FR-57): measured on mount, after each capture and after each sync cycle.
+  const storage = useStorageReading(sync.running);
+
   const banners = bannerCandidates({
     reAuthRequired: session.reAuthRequired,
     online: sync.online,
     unsyncedForDays: unsyncedForDays(oldest, now()),
+    storage,
+    storageAction: <TextButton onPress={() => void sync.syncNow()}>{copy.banner.storageLowAction}</TextButton>,
     extra: extraBanner === null ? undefined : [extraBanner],
     reAuthAction: (
       // The flag stays set until a sign-in clears it, so /login does not bounce straight

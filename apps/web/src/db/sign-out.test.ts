@@ -42,6 +42,7 @@ describe('sign-out and the device database', () => {
         'outbox',
         'remote_ops',
         'sync_state',
+        'thumbs',
       ]);
       expect(await reopened.local_prefs.get('theme')).toMatchObject({ value: 'dark' });
       expect(await reopened.drafts.get('d-1')).toMatchObject({ surface: 'sheet' });

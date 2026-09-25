@@ -15,8 +15,8 @@ describe('Dexie store', () => {
   });
 
   it('declares append-only versions, each with an upgrade()', () => {
-    expect(VERSIONS.map((v) => v.version)).toEqual([1, 2, 3, 4]);
-    expect(LATEST_VERSION).toBe(4);
+    expect(VERSIONS.map((v) => v.version)).toEqual([1, 2, 3, 4, 5]);
+    expect(LATEST_VERSION).toBe(5);
     for (const v of VERSIONS) expect(typeof v.upgrade).toBe('function');
   });
 
@@ -47,7 +47,7 @@ describe('Dexie store', () => {
     await v3.drafts.put({ key: 'ficha/a1', surface: 'ficha', entity_id: 'a1', value: 'texto', saved_at: '2026-09-22T12:00:00.000Z' });
     v3.close();
 
-    const v4 = openDatabase(user);
+    const v4 = openDatabase(user, { upToVersion: 4 });
     await v4.open();
     expect(v4.verno).toBe(4);
     expect(await v4.outbox.count()).toBe(2);
@@ -55,6 +55,29 @@ describe('Dexie store', () => {
     expect(await v4.drafts.where('[surface+entity_id]').equals(['ficha', 'a1']).count()).toBe(1);
     expect(await v4.local_prefs.get('db_version')).toEqual({ key: 'db_version', value: 4 });
     v4.close();
+  });
+
+  it('6.1 a version 4 store gains the thumbs table at version 5, outbox and files intact', async () => {
+    const user = '019966b0-0009-7000-8000-000000000007';
+    const v4 = openDatabase(user, { upToVersion: 4 });
+    const rows = opLog.slice(0, 3).map((op) => ({ ...op, status: 'pending' as const, error_code: null, targets: [] }));
+    await v4.outbox.bulkAdd(rows);
+    await v4.files.put({ id: 'f1', variant: 'original', blob: new Blob(['abcd']), acked: false, created_at: '2026-09-25T12:00:00.000Z' });
+    expect(v4.tables.map((t) => t.name)).not.toContain('thumbs');
+    v4.close();
+
+    const v5 = openDatabase(user);
+    await v5.open();
+    expect(v5.verno).toBe(5);
+    expect(v5.tables.map((t) => t.name)).toContain('thumbs');
+    const kept = await v5.outbox.orderBy('client_ts').toArray();
+    expect(kept.map((r) => r.op_id)).toEqual(rows.map((r) => r.op_id));
+    expect(kept.every((r) => r.status === 'pending')).toBe(true);
+    expect(await v5.files.get('f1')).toMatchObject({ acked: false, variant: 'original' });
+    await v5.thumbs.put({ id: 'f1', blob: new Blob(['t']), source: 'device', created_at: '2026-09-25T12:00:00.000Z' });
+    expect(await v5.thumbs.count()).toBe(1);
+    expect(await v5.local_prefs.get('db_version')).toEqual({ key: 'db_version', value: 5 });
+    v5.close();
   });
 
   // AD-8's eviction signal: only the open that brings the store into existence says so.

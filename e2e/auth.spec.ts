@@ -59,6 +59,7 @@ test('@p0 1.3-E2E-001 signs in, keeps working with the API down, and signs out w
     'outbox',
     'remote_ops',
     'sync_state',
+    'thumbs',
   ]);
 
   // Reopen the tab with the server unreachable. Without the service worker of Story 1.8

@@ -1,5 +1,16 @@
-import { fileRowSchema, type FileRow } from '@app/domain';
-import type { AppDatabase, FileBlobRow } from './schema.ts';
+import {
+  evictionPlan,
+  filePath,
+  fileRowSchema,
+  orderUploads,
+  relatorioStatusSchema,
+  storagePressureBytes,
+  type EvictionBlob,
+  type FileRow,
+  type RelatorioStatus,
+  type StorageReading,
+} from '@app/domain';
+import type { AppDatabase, FileBlobRow, ThumbRow, UploadError } from './schema.ts';
 
 /*
  * AD-7 on the device: the local Blob store. The bytes of a file this device picked are
@@ -29,9 +40,55 @@ export async function putLocalBlob(
   });
 }
 
-/** Marks a file's bytes as sent: AD-7's first eviction candidates. */
-export async function markBlobAcked(db: AppDatabase, id: string): Promise<void> {
-  await db.files.update(id, { acked: true });
+/**
+ * Marks a file's bytes as sent: AD-7's first eviction candidates, oldest `acked_at` first
+ * (Story 6.2). A persisted upload error is cleared with it: the server took the bytes.
+ */
+export async function markBlobAcked(db: AppDatabase, id: string, ackedAt: string = new Date().toISOString()): Promise<void> {
+  await db.files.where('id').equals(id).modify((row) => {
+    row.acked = true;
+    row.acked_at = ackedAt;
+    delete row.upload_error;
+  });
+}
+
+/** Story 6.2: records why an upload stopped, kept across reloads. */
+export async function setUploadError(db: AppDatabase, id: string, error: UploadError): Promise<void> {
+  await db.files.update(id, { upload_error: error });
+}
+
+/** Story 6.2: the tile's "Erro — Tentar novamente": the next cycle tries the file again. */
+export async function clearUploadError(db: AppDatabase, id: string): Promise<void> {
+  await db.files.where('id').equals(id).modify((row) => {
+    delete row.upload_error;
+  });
+}
+
+/** Story 6.1: a photo's thumb (the device's until the server's replaces it), or null. */
+export async function readThumb(db: AppDatabase, id: string): Promise<ThumbRow | null> {
+  return (await db.thumbs.get(id)) ?? null;
+}
+
+/** Story 6.2: the server's thumb replaces the device's on pull; thumbs are never evicted. */
+export async function putServerThumb(db: AppDatabase, id: string, blob: Blob, createdAt: string): Promise<void> {
+  await db.thumbs.put({ id, blob, source: 'server', created_at: createdAt });
+}
+
+/**
+ * Story 6.2: the photos whose server thumb this device should fetch after a pull: the row
+ * says the variants exist and the local thumb is missing or still the device's own.
+ * Thumbs only: an original is never prefetched (AC 2.2-3).
+ */
+export async function thumbsToRefresh(db: AppDatabase): Promise<string[]> {
+  const records = await db.entities.where('entity').equals('file').toArray();
+  const wanted: string[] = [];
+  for (const record of records) {
+    const parsed = fileRowSchema.safeParse(record.row);
+    if (!parsed.success || parsed.data.kind !== 'photo' || parsed.data.variants === null || parsed.data.removed_at !== null) continue;
+    const thumb = await db.thumbs.get(parsed.data.id);
+    if (thumb === undefined || thumb.source === 'device') wanted.push(parsed.data.id);
+  }
+  return wanted;
 }
 
 /** The kernel `file` row of an id on this device, or null when it does not parse or is absent. */
@@ -47,13 +104,20 @@ export interface PendingUpload {
   blob: Blob;
   sha256: string;
   mime: string;
+  kind: string;
+  captured_at: string | null;
+  reading_status: string | null;
+  /** Story 6.2: the persisted failure, or null. A `dead` one is never retried on its own. */
+  upload_error: UploadError | null;
 }
 
 /**
- * Files this device must still upload: a local blob whose kernel row says `uploaded_at`
- * is null and whose `file/{id}` create op the server has already acked. The ack is the
- * precondition of the route (`409 file_row_missing` otherwise), so the uploader never
- * spends a cycle on a file the server cannot accept yet.
+ * Files this device must still upload, in upload order (Story 6.2, `orderUploads`): a
+ * local blob whose kernel row says `uploaded_at` is null and whose `file/{id}` create op
+ * the server has already acked. The ack is the precondition of the route (`409
+ * file_row_missing` otherwise), so the uploader never spends a cycle on a file the server
+ * cannot accept yet. A file with a `dead` upload error is still listed (it is unacked
+ * work); the uploader skips it.
  */
 export async function pendingUploads(db: AppDatabase): Promise<PendingUpload[]> {
   // Scanned, not indexed: IndexedDB has no boolean key, so the `acked` index of
@@ -65,16 +129,74 @@ export async function pendingUploads(db: AppDatabase): Promise<PendingUpload[]> 
     if (blob.variant !== 'original') continue;
     const row = await localFileRow(db, blob.id);
     if (row === null || row.uploaded_at !== null) continue;
-    const createOp = await db.outbox.where('path').equals(`file/${blob.id}`).first();
+    const createOp = await db.outbox.where('path').equals(filePath(blob.id)).first();
     if (createOp === undefined || createOp.status !== 'acked') continue;
-    out.push({ id: blob.id, blob: blob.blob, sha256: row.sha256, mime: row.mime });
+    out.push({
+      id: blob.id,
+      blob: blob.blob,
+      sha256: row.sha256,
+      mime: row.mime,
+      kind: row.kind,
+      captured_at: row.kind === 'photo' ? row.captured_at : null,
+      reading_status: row.kind === 'photo' ? row.reading_status : null,
+      upload_error: blob.upload_error ?? null,
+    });
   }
-  return out;
+  return orderUploads(out);
 }
 
-/** How many files are still waiting to be uploaded, for `sync_state.files_pending`. */
+/**
+ * How many files a sync can still upload: the Export dialog drains these before it asks
+ * to generate. A `dead` file is left out -- no cycle retries it, and a photo never blocks
+ * "Gerar" (coordinator decision 2026-09-25).
+ */
 export async function pendingUploadCount(db: AppDatabase): Promise<number> {
-  return (await pendingUploads(db)).length;
+  return (await pendingUploads(db)).filter((item) => item.upload_error?.state !== 'dead').length;
+}
+
+/** Story 6.1/6.2: one photo's upload view for its tile: the persisted error, if any. */
+export async function localUploadError(db: AppDatabase, id: string): Promise<UploadError | null> {
+  return (await db.files.get(id))?.upload_error ?? null;
+}
+
+/**
+ * Story 6.2 (AR-6): deletes the local originals the kernel's `evictionPlan` names. Only
+ * photo originals the server acknowledged are candidates; thumbs are never touched. The
+ * relatórios' statuses come from this device's rows; `reading` sizes the pressure.
+ * Returns the ids actually deleted.
+ */
+export async function runEviction(db: AppDatabase, reading: StorageReading | null): Promise<string[]> {
+  const acked = await db.files.filter((row) => row.acked && row.variant === 'original').toArray();
+  if (acked.length === 0) return [];
+  const blobs: EvictionBlob[] = [];
+  const relatorioStatus: Record<string, RelatorioStatus> = {};
+  for (const blob of acked) {
+    const row = await localFileRow(db, blob.id);
+    if (row === null || row.kind !== 'photo' || row.uploaded_at === null) continue;
+    const relatorioId = row.relatorio_id;
+    if (relatorioId !== null && relatorioStatus[relatorioId] === undefined) {
+      const record = await db.entities.get(['relatorio', relatorioId]);
+      const status = relatorioStatusSchema.safeParse((record?.row as { status?: unknown } | undefined)?.status);
+      if (status.success) relatorioStatus[relatorioId] = status.data;
+    }
+    // The row's `size` is the original's byte count (the server checks the PUT against it).
+    blobs.push({ id: blob.id, acked: true, acked_at: blob.acked_at ?? null, size: row.size, relatorio_id: relatorioId });
+  }
+  const plan = evictionPlan({ blobs, relatorioStatus, pressure: storagePressureBytes(reading) });
+  const deleted: string[] = [];
+  if (plan.length > 0) {
+    await db.transaction('rw', db.files, async () => {
+      for (const id of plan) {
+        // Re-checked inside the write: an original is deleted only while it is still acked.
+        const current = await db.files.get(id);
+        if (current?.acked === true && current.variant === 'original') {
+          await db.files.delete(id);
+          deleted.push(id);
+        }
+      }
+    });
+  }
+  return deleted;
 }
 
 /**
@@ -92,7 +214,8 @@ export async function ensureLocalBlob(
   // `files` is keyed by id alone, so it holds one rendering of a file at a time. The
   // cached blob is only the answer when it is the rendering that was asked for: a
   // full-size original is not a thumb, and a thumb is not something to hand back as an
-  // original. Epic 6 widens the key when a photo needs several at once.
+  // original. A photo keeps its thumb apart, in `thumbs` (Story 6.1, `readThumb`), so
+  // it holds both at once without widening this key.
   const local = await readLocalBlob(db, id);
   const cachedAs = local === null ? null : localVariantName(local.variant);
   if (local !== null && cachedAs === variant) return local.blob;

@@ -44,6 +44,18 @@ export interface DraftRow {
   saved_at: string;
 }
 
+/**
+ * Story 6.2: why an upload of this blob stopped, kept across reloads. `dead` is a server
+ * verdict no retry can change (413, a sha mismatch): never retried on its own, only by the
+ * tile's "Erro — Tentar novamente". `failed` is a transient failure whose retries ran out
+ * this cycle: retried by the next cycle. Cleared when the server takes the bytes.
+ */
+export interface UploadError {
+  state: 'dead' | 'failed';
+  code: string;
+  at: string;
+}
+
 /** AD-7: local originals and thumbs; `acked` marks the first eviction candidates. */
 export interface FileBlobRow {
   id: string;
@@ -57,6 +69,22 @@ export interface FileBlobRow {
    * falls back to the format and size on every other device (`fileTileLine`).
    */
   name?: string;
+  /** Story 6.2: when this device learnt the server holds the bytes (the eviction order). Not indexed. */
+  acked_at?: string;
+  /** Story 6.2: the persisted upload failure, absent while none. Not indexed. */
+  upload_error?: UploadError;
+}
+
+/**
+ * Story 6.1/6.2 (AD-7): a photo's small picture, kept apart from its original so a tile
+ * never needs the full bytes and eviction never touches it. `device` is the thumb made at
+ * capture; the sync replaces it with the server's (`server`) once the variants exist.
+ */
+export interface ThumbRow {
+  id: string;
+  blob: Blob;
+  source: 'device' | 'server';
+  created_at: string;
 }
 
 /** AD-8: one row per stream (`company` or a relatorio id). */
@@ -79,7 +107,7 @@ export interface SyncStateRow {
 /**
  * Device-local, never-synced state (Conventions).
  * Keys: `db_version`, `device_id`, `theme`, `recovery_notice_dismissed`, `registry_tab`,
- * `last_sheet:{relatorio_id}`.
+ * `last_sheet:{relatorio_id}`, `photo_seq`, `geolocation_denied`.
  */
 export interface LocalPrefRow {
   key: string;
@@ -95,6 +123,13 @@ export const RECOVERY_NOTICE_PREF = 'recovery_notice_dismissed';
 export const REGISTRY_TAB_PREF = 'registry_tab';
 /** Story 4.3: the block id of the last sheet worked on this device, per relatório. */
 export const LAST_SHEET_PREF = (relatorioId: string): string => `last_sheet:${relatorioId}`;
+/** Story 6.1 (AD-17): the per-device photo counter, bumped in the capture's own transaction. */
+export const PHOTO_SEQ_PREF = 'photo_seq';
+/**
+ * Story 6.1: the browser refused the position. A device-local stand-in for "marks the
+ * account row" (Epic 11's location switch surface reads it); never synced.
+ */
+export const GEOLOCATION_DENIED_PREF = 'geolocation_denied';
 
 interface VersionDef {
   version: number;
@@ -159,6 +194,13 @@ export const VERSIONS: readonly VersionDef[] = [
     stores: { drafts: 'key, surface, [surface+entity_id]' },
     upgrade: stamp(4),
   },
+  {
+    // Story 6.1: photo thumbs in their own table, so a photo holds its original and its
+    // thumb at once and eviction (originals only) never reaches a thumb.
+    version: 5,
+    stores: { thumbs: 'id' },
+    upgrade: stamp(5),
+  },
 ];
 
 export const LATEST_VERSION = VERSIONS[VERSIONS.length - 1]!.version;
@@ -177,6 +219,7 @@ export class AppDatabase extends Dexie {
   remote_ops!: Table<RemoteOpRow, string>;
   drafts!: Table<DraftRow, string>;
   files!: Table<FileBlobRow, string>;
+  thumbs!: Table<ThumbRow, string>;
   sync_state!: Table<SyncStateRow, string>;
   local_prefs!: Table<LocalPrefRow, string>;
 

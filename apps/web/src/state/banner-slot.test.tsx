@@ -16,6 +16,7 @@ describe('banner priority', () => {
     expect([...BANNER_PRIORITY]).toEqual([
       'conflict',
       're-auth',
+      'storage-low',
       'draft-found',
       'suggestions-ready',
       'relatorio-exported',
@@ -81,6 +82,19 @@ describe('bannerCandidates', () => {
     const candidates = bannerCandidates({ reAuthRequired: false, online: false, unsyncedForDays: true });
     expect(candidates.map((b) => b.kind).sort()).toEqual(['offline', 'unsynced-5-days']);
     expect(pickBanner(candidates)?.kind).toBe('offline');
+  });
+
+  it('6.2 publishes the low-storage warning under 500 MB free, ranked right after re-auth', () => {
+    const MB = 1024 * 1024;
+    const low = { usage: 9_820 * MB, quota: 10_000 * MB };
+    const candidates = bannerCandidates({ reAuthRequired: false, online: true, storage: low });
+    expect(candidates).toEqual([
+      { kind: 'storage-low', variant: 'warning', role: 'region', text: 'Pouco espaço neste aparelho (180 MB). Sincronize para liberar.', actions: undefined },
+    ]);
+    expect(bannerCandidates({ reAuthRequired: false, online: true, storage: { usage: 0, quota: 10_000 * MB } })).toEqual([]);
+    expect(bannerCandidates({ reAuthRequired: false, online: true, storage: null })).toEqual([]);
+    expect(pickBanner(bannerCandidates({ reAuthRequired: true, online: true, storage: low }))?.kind).toBe('re-auth');
+    expect(pickBanner(bannerCandidates({ reAuthRequired: false, online: false, unsyncedForDays: true, storage: low }))?.kind).toBe('storage-low');
   });
 
   it('never publishes a draft-found candidate: the persistent toast is the only offer (retro U7)', () => {

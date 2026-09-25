@@ -122,11 +122,10 @@ describe('4.8-UNIT-005 expectedFileIds', () => {
     expect(expectedFileIds(snapshot)).toEqual([]);
   });
 
-  it('lists every snapshot file once, plus the logo and the cover photo when set', () => {
+  it('never lists a photo (photos never block Gerar), and lists the logo and the cover photo once when set', () => {
     const snapshot = buildSnapshot(replay(portoSeguro.log, { deadOpIds: portoSeguro.deadOpIds }), portoSeguro.relatorioId);
-    const ids = expectedFileIds(snapshot);
-    expect(ids).toHaveLength(82);
-    expect(new Set(ids).size).toBe(82);
+    expect(snapshot.files.filter((file) => file.kind === 'photo')).toHaveLength(82);
+    expect(expectedFileIds(snapshot)).toEqual([]);
     const logo = '019966c0-0000-7000-8000-0000000000f1';
     const cover = snapshot.files[0]!.id;
     const withBrand = {
@@ -135,8 +134,25 @@ describe('4.8-UNIT-005 expectedFileIds', () => {
       relatorio: { ...snapshot.relatorio, setup: { ...snapshot.relatorio.setup, cover_photo_file_id: cover } },
     };
     const brandIds = expectedFileIds(withBrand);
-    expect(brandIds).toHaveLength(83);
+    expect(brandIds).toHaveLength(2);
     expect(brandIds).toContain(logo);
     expect(brandIds.filter((id) => id === cover)).toHaveLength(1);
+  });
+
+  it('lists a non-photo file of the snapshot once', () => {
+    const snapshot = buildSnapshot(replay(portoSeguro.log, { deadOpIds: portoSeguro.deadOpIds }), portoSeguro.relatorioId);
+    const photo = snapshot.files[0]!;
+    const certificate = {
+      id: '019966c0-0000-7000-8000-0000000000f2',
+      relatorio_id: photo.relatorio_id,
+      kind: 'cover_photo' as const,
+      sha256: 'ab',
+      mime: 'image/jpeg',
+      size: 2,
+      uploaded_at: null,
+      variants: null,
+      removed_at: null,
+    };
+    expect(expectedFileIds({ ...snapshot, files: [...snapshot.files, certificate] })).toEqual([certificate.id]);
   });
 });

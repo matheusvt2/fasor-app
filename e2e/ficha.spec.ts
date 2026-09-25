@@ -106,9 +106,10 @@ test('@p0 5.1-E2E-005 a tree row opens the sheet: App bar TAG, header, stepper w
   await expect(stepper(page).getByRole('button', { name: `Ensaios, ${cells} faltando` })).toBeVisible();
   await expect(stepper(page).getByRole('button', { name: 'Conclusão, 2 faltando' })).toBeVisible();
   await expect(page.getByTestId('ficha-progress')).toHaveText(`Faltam ${PARA_RAIO.nameplate.length} campos da placa, ${checklistCount} verificações, ${cells} leituras e a conclusão`);
-  // The primary moves on while the sheet is incomplete; no camera is drawn before Epic 6.
+  // The primary moves on while the sheet is incomplete; Story 6.1's Camera capture button
+  // sits at the left of the row.
   await expect(page.locator('.sticky-action-bar .bar-buttons .btn-primary')).toHaveText(/Próxima ficha/);
-  await expect(page.locator('.camera-capture-btn')).toHaveCount(0);
+  await expect(page.locator('.sticky-action-bar .bar-buttons.has-camera .camera-capture-btn')).toHaveCount(1);
 
   // The rail sits at the left at 1280 with this sheet current.
   await expect(page.getByRole('complementary', { name: 'Árvore do relatório', exact: true })).toBeVisible();

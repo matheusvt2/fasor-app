@@ -7,8 +7,11 @@ import sharp from 'sharp';
  * a vector logo still has a bitmap the DOCX renderer can place.
  */
 
-export const THUMB_MAX_PX = 480;
-export const PRINT_MAX_PX = 1600;
+/** AD-7 and Story 6.2: the spine's sizes, thumb at most 512 px and print at most 2000 px on the long edge. */
+export const THUMB_MAX_PX = 512;
+export const PRINT_MAX_PX = 2000;
+/** Story 6.2: the JPEG quality of both variants. */
+export const JPEG_QUALITY = 85;
 
 export interface RenderedVariant {
   bytes: Uint8Array;
@@ -36,7 +39,7 @@ async function render(source: Uint8Array, mime: string, maxPx: number): Promise<
   // enough that the `resize` below is a downscale, never an upscale of a 72 dpi render.
   const input = mime === 'image/svg+xml' ? sharp(source, { density: 300 }) : sharp(source);
   const pipeline = input.resize({ width: maxPx, height: maxPx, fit: 'inside', withoutEnlargement: true });
-  const bytes = await (format === 'jpeg' ? pipeline.jpeg({ quality: 82 }) : pipeline.png()).toBuffer();
+  const bytes = await (format === 'jpeg' ? pipeline.jpeg({ quality: JPEG_QUALITY }) : pipeline.png()).toBuffer();
   return { bytes: new Uint8Array(bytes), contentType: format === 'jpeg' ? 'image/jpeg' : 'image/png' };
 }
 

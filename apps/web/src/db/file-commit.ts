@@ -1,6 +1,6 @@
-import { type OpDraft, type UploadFileKind } from '@app/domain';
+import { filePath, type OpDraft, type UploadFileKind } from '@app/domain';
 import type { PickedFile } from '../components/upload-tile.tsx';
-import { commitFileBatch, type CommitDeps } from './commit.ts';
+import { commitFileBatch, commitPhotoBatch, type CommitDeps } from './commit.ts';
 import { readLocalBlob, localFileRow } from './file-store.ts';
 import { useLiveQuery } from './live.ts';
 import type { AppDatabase } from './schema.ts';
@@ -40,7 +40,7 @@ export async function commitFilePick(db: AppDatabase, input: FilePickInput, deps
   const create: OpDraft = {
     ...base,
     kind: 'create',
-    path: `file/${input.fileId}`,
+    path: filePath(input.fileId),
     value: {
       id: input.fileId,
       company_id: input.companyId,
@@ -60,6 +60,79 @@ export async function commitFilePick(db: AppDatabase, input: FilePickInput, deps
     deps,
   );
   return { batch_id };
+}
+
+export interface PhotoCaptureInput {
+  companyId: string;
+  relatorioId: string;
+  actorId: string;
+  /** Minted by the caller (the camera counts the shot before the commit lands). */
+  fileId: string;
+  blockId: string | null;
+  itemKey: string | null;
+  /** The kernel's `contextCaption`, stored as a plain editable value (null: no context). */
+  caption: string | null;
+  capturedAt: string;
+  tzOffset: number;
+  coords: { lat: number; lng: number; accuracy_m: number | null; source: 'geolocation' | 'exif' } | null;
+  original: Blob;
+  thumb: Blob;
+  sha256: string;
+}
+
+/**
+ * Story 6.1 (AD-7, AR-6, AR-16): one shot. The `file/{id}` create of kind `photo` in
+ * relatório scope, with the full photo row, goes in one transaction with the original, the
+ * device thumb and the bumped `photo_seq` (`commitPhotoBatch`). No owner op: a photo points
+ * at its sheet through its own `block_id` / `item_key`.
+ */
+export async function commitPhotoCapture(
+  db: AppDatabase,
+  input: PhotoCaptureInput,
+  deps: CommitDeps,
+): Promise<{ batch_id: string; localSeq: number }> {
+  // `local_seq` is stamped inside the transaction from the device's `photo_seq`.
+  const create = photoCreateDraft(input, 0);
+  const { batch_id, localSeq } = await commitPhotoBatch(db, { create, fileId: input.fileId, original: input.original, thumb: input.thumb }, deps);
+  return { batch_id, localSeq };
+}
+
+/** The photo's `file/{id}` create draft: relatório scope, the full `photoFileRowSchema` row. */
+export function photoCreateDraft(input: Omit<PhotoCaptureInput, 'thumb'>, localSeq: number): OpDraft {
+  return {
+    scope: 'relatorio',
+    company_id: input.companyId,
+    project_id: null,
+    relatorio_id: input.relatorioId,
+    prev_op_id: null,
+    batch_id: null,
+    meta: null,
+    actor_id: input.actorId,
+    kind: 'create',
+    path: filePath(input.fileId),
+    value: {
+      id: input.fileId,
+      company_id: input.companyId,
+      relatorio_id: input.relatorioId,
+      kind: 'photo',
+      sha256: input.sha256,
+      mime: 'image/jpeg',
+      size: input.original.size,
+      uploaded_at: null,
+      variants: null,
+      removed_at: null,
+      captured_at: input.capturedAt,
+      tz_offset: input.tzOffset,
+      coords: input.coords,
+      local_seq: localSeq,
+      block_id: input.blockId,
+      item_key: input.itemKey,
+      caption: input.caption,
+      reading_kind: null,
+      reading_target: null,
+      reading_status: 'none',
+    } as never,
+  };
 }
 
 /**

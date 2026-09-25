@@ -2,7 +2,8 @@
  * AD-7: the one place a file candidate is judged and the one place an object key
  * is built. Both apps import this module, so the device's inline refusal and the
  * server's own check can never drift, and the immutable key
- * `company/{cid}/{kind}/{id}` (plus `/{variant}`) has a single spelling.
+ * `company/{cid}/{kind}/{id}` (a photo: `company/{cid}/relatorio/{rid}/photo/{id}`,
+ * plus `/{variant}`) has a single spelling.
  */
 
 /** Epic 2 context: "25 MB limit, refused inline before upload". */
@@ -11,14 +12,15 @@ export const MAX_FILE_BYTES = 25 * 1024 * 1024;
 /**
  * The kinds this story uploads and the mime types each accepts (Epic 2 context:
  * certificate pdf/jpeg/png, logo png/svg, cover_background jpeg/png; Story 4.2 adds the
- * relatório's own cover_photo jpeg/png). `photo` and the render outputs are not here:
- * Epic 6 and Epic 7 own their own routes.
+ * relatório's own cover_photo jpeg/png; Story 6.2 adds the photo, re-encoded to JPEG on
+ * the device). The render outputs are not here: Epic 7 owns their route.
  */
 export const FILE_KIND_MIME = {
   certificate: ['application/pdf', 'image/jpeg', 'image/png'],
   logo: ['image/png', 'image/svg+xml'],
   cover_background: ['image/jpeg', 'image/png'],
   cover_photo: ['image/jpeg', 'image/png'],
+  photo: ['image/jpeg'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type UploadFileKind = keyof typeof FILE_KIND_MIME;
@@ -50,6 +52,7 @@ const MIME_REFUSAL: Record<UploadFileKind, string> = {
   logo: 'Formato não aceito. Envie PNG ou SVG.',
   cover_background: 'Formato não aceito. Envie JPG ou PNG.',
   cover_photo: 'Formato não aceito. Envie JPG ou PNG.',
+  photo: 'Formato não aceito. Envie JPG.',
 };
 
 const TOO_LARGE_TEXT = 'Arquivo acima de 25 MB. Escolha um menor.';
@@ -74,9 +77,20 @@ export type FileVariant = 'original' | 'thumb' | 'print';
 /**
  * AD-7: object keys are immutable and never deleted. The original is
  * `company/{cid}/{kind}/{id}`; a derived variant extends it by suffix
- * (`company/{cid}/{kind}/{id}/thumb`), so no key is ever overwritten.
+ * (`company/{cid}/{kind}/{id}/thumb`), so no key is ever overwritten. A photo lives under
+ * its relatório (Story 6.2): `company/{cid}/relatorio/{rid}/photo/{id}` whenever the row
+ * names one.
  */
-export function objectKey(companyId: string, kind: string, id: string, variant: FileVariant = 'original'): string {
-  const base = `company/${companyId}/${kind}/${id}`;
+export function objectKey(
+  companyId: string,
+  kind: string,
+  id: string,
+  variant: FileVariant = 'original',
+  relatorioId: string | null = null,
+): string {
+  const base =
+    kind === 'photo' && relatorioId !== null
+      ? `company/${companyId}/relatorio/${relatorioId}/photo/${id}`
+      : `company/${companyId}/${kind}/${id}`;
   return variant === 'original' ? base : `${base}/${variant}`;
 }

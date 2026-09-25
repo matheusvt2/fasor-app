@@ -1,4 +1,4 @@
-import type { Op } from '@app/domain';
+import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, type Op } from '@app/domain';
 import { deviceDatabaseName, expect, test, TEST_SEED } from './support/merged-fixtures.ts';
 import {
   clearSessionPointer,
@@ -25,14 +25,16 @@ import {
   withoutPageErrors,
   withoutServiceWorker,
 } from './support/durability.ts';
-import { clientCreateOp, pullAll, readDeviceId, readStore, seedOutbox } from './support/outbox.ts';
+import { clientCreateOp, pullAll, readDeviceId, readFileBlobs, readStore, seedOutbox } from './support/outbox.ts';
+import { devicePhotos, jpegFromPage, jpegSize, openChaveSheet, PHOTO_ACCOUNT } from './support/photos.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { pushNewRelatorio } from './support/relatorio-seed.ts';
 
 /**
  * FR-54 / NFR-17: "the tab closed mid-sheet, the network dropped mid-push, the quota
  * exhausted through a mocked `storage.estimate`", plus AD-8's cold open from the shell
- * cache, the 5-day banner and the eviction recovery.
+ * cache, the 5-day banner and the eviction recovery. Story 6.2 adds the photo half of
+ * scenario 2: the network dropped mid-upload.
  *
  * This file runs on three projects (desktop Chrome, Android Chrome emulation, WebKit)
  * against the built bundle on the preview server, never on the dev server: under
@@ -550,4 +552,100 @@ test('@p1 4.5-E2E-004 phone width: the palette is a bottom sheet, a tap creates 
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await expect(page.getByTestId('sumario-announcer')).toHaveText('DJ-C01 movido para a posição 1 de 2');
   await expect(tags).toHaveText(['DJ-C01', 'SEC-C01']);
+});
+
+test('@p0 6.2-E2E-003 the network drops mid-upload: every photo uploads exactly once with its 512/2000 variants, none duplicated or lost', async ({
+  page,
+  context,
+  browserName,
+}) => {
+  test.setTimeout(180_000);
+  // Playwright's WebKit runs every context as an ephemeral (private) session, where WebKit's
+  // IndexedDB refuses Blob values ("Error preparing Blob/File data to be stored in object
+  // store"), so no file, certificate or photo, can be stored there at all. The upload path
+  // itself is browser-independent; the real Safari check is the manual iPad script.
+  if (browserName === 'webkit') {
+    test.info().annotations.push({
+      type: 'not-covered-here',
+      description: "Playwright's WebKit contexts are ephemeral and refuse Blobs in IndexedDB; Safari itself is the pending manual iPad script",
+    });
+    return;
+  }
+  const account = PHOTO_ACCOUNT;
+  const database = deviceDatabaseName(account.userId);
+  await withoutServiceWorker(page);
+  // No camera API on this browser: "Tirar foto" falls back to the system camera (the hidden
+  // `capture` input), one shot each, so the scenario runs the same on all three projects.
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'mediaDevices', { value: undefined, configurable: true });
+  });
+  const { relatorioId } = await openChaveSheet(page, account, database, { signIn: () => signInForDurability(page, context, account.email) });
+
+  const shot = await jpegFromPage(page, 3000, 2000);
+  for (let n = 1; n <= 3; n++) {
+    const chooser = page.waitForEvent('filechooser');
+    await page.getByRole('button', { name: 'Tirar foto', exact: true }).click();
+    await (await chooser).setFiles({ name: `foto-${n}.jpg`, mimeType: 'image/jpeg', buffer: shot });
+    await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 20_000 }).toBe(n);
+  }
+  const taken = await devicePhotos(page, database);
+  expect(taken.map((photo) => photo.local_seq)).toEqual([1, 2, 3]);
+
+  // The worst kind of drop: the server stored the bytes and the answer never arrived, so
+  // the device sends the same bytes again.
+  const dropped = new Set<string>();
+  const puts: string[] = [];
+  await page.route(
+    (url) => /^\/api\/files\/[0-9a-f-]+$/.test(url.pathname),
+    async (route) => {
+      if (route.request().method() !== 'PUT') return route.continue();
+      const id = new URL(route.request().url()).pathname.split('/').pop()!;
+      puts.push(id);
+      if (dropped.has(id)) return route.continue();
+      dropped.add(id);
+      await route.fetch();
+      await route.abort('internetdisconnected');
+    },
+  );
+
+  await page.goto('/sync');
+  const syncNow = page.getByRole('button', { name: 'Sincronizar agora' });
+  await expect(syncNow).not.toHaveAttribute('aria-disabled', 'true', { timeout: 30_000 });
+  await syncNow.click();
+  await expect.poll(() => dropped.size, { timeout: 60_000 }).toBe(3);
+
+  // On the device: each photo once, each with the server's `uploaded_at`, every original acked.
+  await expect
+    .poll(async () => (await devicePhotos(page, database)).filter((photo) => photo.uploaded_at !== null && photo.variants !== null).length, {
+      timeout: 60_000,
+    })
+    .toBe(3);
+  const held = await devicePhotos(page, database);
+  expect(held.map((photo) => photo.id).sort()).toEqual(taken.map((photo) => photo.id).sort());
+  const originals = (await readFileBlobs(page, database)).filter((blob) => taken.some((photo) => photo.id === blob.id));
+  expect(originals).toHaveLength(3);
+  for (const blob of originals) expect(blob).toMatchObject({ variant: 'original', acked: true });
+
+  // On the server: one create, one `uploaded_at` and one `variants` op per photo.
+  const { ops } = await pullAll(page.request, `/api/sync/relatorios/${relatorioId}`);
+  for (const photo of taken) {
+    expect(ops.filter((op) => op.path === `file/${photo.id}`)).toHaveLength(1);
+    expect(ops.filter((op) => op.path === `file/${photo.id}/uploaded_at`)).toHaveLength(1);
+    expect(ops.filter((op) => op.path === `file/${photo.id}/variants`)).toHaveLength(1);
+    // The dropped PUT was sent again, and the retry changed nothing on the server.
+    expect(puts.filter((id) => id === photo.id).length).toBeGreaterThanOrEqual(2);
+  }
+
+  // The variants: a 2560 px original re-encoded on the device, a 512 px thumb and a 2000 px print.
+  for (const photo of taken) {
+    const sizes: Record<string, { width: number; height: number }> = {};
+    for (const variant of ['original', 'thumb', 'print'] as const) {
+      const res = await page.request.get(`/api/files/${photo.id}/${variant}`, { headers: { [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION) } });
+      expect(res.status(), `${variant} of ${photo.id}`).toBe(200);
+      sizes[variant] = jpegSize(await res.body());
+    }
+    expect(Math.max(sizes.original!.width, sizes.original!.height)).toBe(2560);
+    expect(Math.max(sizes.thumb!.width, sizes.thumb!.height)).toBe(512);
+    expect(Math.max(sizes.print!.width, sizes.print!.height)).toBe(2000);
+  }
 });

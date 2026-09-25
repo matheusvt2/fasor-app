@@ -167,12 +167,14 @@ export function nextEditNote(number: number): string {
 
 /**
  * AD-15: the files the device expects the server to have stored before it generates —
- * every file of the snapshot plus the company logo and the cover photo when set, once
- * each. The server answers `409 not_caught_up` while any of them has no `uploaded_at`.
+ * every non-photo file of the snapshot plus the company logo and the cover photo when set,
+ * once each. The server answers `409 not_caught_up` while any of them has no `uploaded_at`.
+ * Photos never block "Gerar" (coordinator decision 2026-09-25): the job renders with the
+ * photos the server holds, so no `kind: 'photo'` row is listed here.
  */
 export function expectedFileIds(snapshot: RelatorioSnapshot): string[] {
   const ids = new Set<string>();
-  for (const file of snapshot.files) ids.add(file.id);
+  for (const file of snapshot.files) if (file.kind !== 'photo') ids.add(file.id);
   const logo = snapshot.empresa?.logo_file_id ?? null;
   if (logo !== null) ids.add(logo);
   const cover = snapshot.relatorio.setup.cover_photo_file_id;
