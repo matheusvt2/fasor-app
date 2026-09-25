@@ -88,9 +88,9 @@ development_status:
   5-9-mark-an-equipment-as-not-tested: done  # PR #31
   epic-5-retrospective: done
 
-  epic-6: backlog
-  6-1-shoot-photos-in-a-burst-from-any-surface-captioned-from-wher: backlog
-  6-2-no-photo-is-ever-lost: backlog
+  epic-6: in-progress
+  6-1-shoot-photos-in-a-burst-from-any-surface-captioned-from-wher: done  # PR #41
+  6-2-no-photo-is-ever-lost: done  # PR #41
   6-3-see-every-photo-in-one-chronological-gallery-with-its-stamp: backlog
   6-4-add-photos-after-the-visit-or-from-someone-else-s-phone: backlog
   6-5-change-a-caption-from-chips-or-free-text: backlog
