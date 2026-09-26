@@ -96,7 +96,7 @@ describe('4.3-UNIT sumarioRows', () => {
       'generated',
       'generated',
       'pending-epic',
-      'pending-epic',
+      'generated',
     ]);
     expect(rows.filter((r) => r.expandable).map((r) => r.blockType)).toEqual(['section_9']);
     expect(numberedSiblings(rows)).toHaveLength(11);
@@ -119,6 +119,8 @@ describe('4.3-UNIT sumarioRows', () => {
     expect(meta.section_7).toBe('Nenhuma foto');
     // Story 6.6: row 8 counts its entries; a new relatório has none.
     expect(meta.section_8).toBe('Nenhum ponto de atenção');
+    // Story 7.3: row 11 counts its instruments; a new relatório has none.
+    expect(meta.section_11).toBe('Nenhum instrumento');
     expect(rows.every((r) => !r.blocking)).toBe(true);
     expect(rows.filter((r) => r.pending).map((r) => r.rowKey)).toEqual(['capa', 'section_9']);
     expect(generateReason(rows)).toBe('Nada impede gerar.');

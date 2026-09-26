@@ -1,8 +1,9 @@
-import { chmodSync, existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { convertToPdf, LibreOfficeFailedError, LibreOfficeTimeoutError } from './libreoffice.ts';
+import { convertToPdf, LibreOfficeFailedError, LibreOfficeTimeoutError, pageRangeFilter, pngSizeFilter, rasterizePdfPages } from './libreoffice.ts';
+import { samplePdf } from './sample-pdf.ts';
 
 /*
  * `convertToPdf` without LibreOffice: a fake `soffice` shell script on the PATH plays the
@@ -71,4 +72,82 @@ describe('convertToPdf over a fake soffice', () => {
     expect(existsSync(marker)).toBe(false);
     expect(jobDirs('fault')).toEqual([]);
   });
+});
+
+/*
+ * 7.3-UNIT: `rasterizePdfPages` over the same fake soffice. The fake records each run's
+ * arguments (one per line, runs separated by "--") and writes what the real one would:
+ * the one-page PDF for a `pdf:` conversion, a PNG stand-in for a `png:` one.
+ */
+describe('rasterizePdfPages over a fake soffice', () => {
+  const argLog = join(binDir, 'args.log');
+  const rasterDirs = (jobId: string) => readdirSync(tmpdir()).filter((name) => name.startsWith(`rasterize-${jobId}-`));
+  const recording = [
+    `for a in "$@"; do echo "$a" >> "${argLog}"; done`,
+    `echo "--" >> "${argLog}"`,
+    'out=""; conv=""',
+    'while [ $# -gt 0 ]; do case "$1" in --outdir) out="$2"; shift;; --convert-to) conv="$2"; shift;; esac; shift; done',
+  ].join('\n');
+  /** The runs the fake saw, each as its argument list. */
+  const runs = () =>
+    readFileSync(argLog, 'utf8')
+      .split('--\n')
+      .filter((run) => run.trim() !== '')
+      .map((run) => run.trim().split('\n'));
+
+  it('cuts each page with PageRange and exports it as PNG at the page size x 150 / 72, one image per page', async () => {
+    rmSync(argLog, { force: true });
+    fakeSoffice(`${recording}\ncase "$conv" in pdf:*) printf "%%PDF-page" > "$out/certificado.pdf";; png:*) printf "PNG %s" "$conv" > "$out/certificado.png";; esac`);
+    const pages = await rasterizePdfPages(samplePdf(3), { jobId: 'raster-ok', timeoutMs: 5000 });
+    expect(pages).toHaveLength(3);
+    const all = runs();
+    expect(all).toHaveLength(6);
+    for (const [i, run] of all.entries()) {
+      const page = Math.floor(i / 2) + 1;
+      expect(run.slice(0, 3)).toEqual(['--headless', '--norestore', '--nologo']);
+      expect(run[3]).toMatch(/^-env:UserInstallation=file:\/\/.*\/profile$/);
+      expect(run).toContain('--infilter=draw_pdf_import');
+      const conversion = run[run.indexOf('--convert-to') + 1];
+      const outdir = run[run.indexOf('--outdir') + 1]!;
+      if (i % 2 === 0) {
+        expect(conversion).toBe(pageRangeFilter(page));
+        expect(conversion).toBe(`pdf:draw_pdf_Export:{"PageRange":{"type":"string","value":"${page}"}}`);
+        expect(outdir).toMatch(new RegExp(`/page-${page}$`));
+        expect(run.at(-1)).toMatch(/\/certificado\.pdf$/);
+      } else {
+        // A4 is 595 x 842 pt: 1240 x 1754 px at 150 dpi.
+        expect(conversion).toBe(pngSizeFilter(1240, 1754));
+        expect(conversion).toBe('png:draw_png_Export:{"PixelWidth":{"type":"long","value":"1240"},"PixelHeight":{"type":"long","value":"1754"}}');
+        expect(outdir).toMatch(new RegExp(`/png-${page}$`));
+        expect(run.at(-1)).toMatch(new RegExp(`/page-${page}/certificado\\.pdf$`));
+      }
+    }
+    expect(pages.map((p) => p.toString('utf8'))).toEqual(new Array(3).fill(`PNG ${pngSizeFilter(1240, 1754)}`));
+    expect(rasterDirs('raster-ok')).toEqual([]);
+  }, 20_000);
+
+  it('rasterizes a landscape page at its own size', async () => {
+    rmSync(argLog, { force: true });
+    fakeSoffice(`${recording}\ncase "$conv" in pdf:*) printf "%%PDF-page" > "$out/certificado.pdf";; png:*) printf "PNG" > "$out/certificado.png";; esac`);
+    await rasterizePdfPages(samplePdf(1, { width: 842, height: 595 }), { jobId: 'raster-land', timeoutMs: 5000, dpi: 72 });
+    expect(runs()[1]).toContain(pngSizeFilter(842, 595));
+  }, 20_000);
+
+  it('surfaces a hung soffice as LibreOfficeTimeoutError and a failing one as LibreOfficeFailedError, leaving no directory', async () => {
+    fakeSoffice('sleep 5');
+    await expect(rasterizePdfPages(samplePdf(2), { jobId: 'raster-timeout', timeoutMs: 300 })).rejects.toBeInstanceOf(LibreOfficeTimeoutError);
+    expect(rasterDirs('raster-timeout')).toEqual([]);
+    fakeSoffice('echo "boom" >&2\nexit 1');
+    await expect(rasterizePdfPages(samplePdf(2), { jobId: 'raster-exit1', timeoutMs: 2000 })).rejects.toBeInstanceOf(LibreOfficeFailedError);
+    expect(rasterDirs('raster-exit1')).toEqual([]);
+    // A clean exit that wrote no PNG is a failure too.
+    fakeSoffice('exit 0');
+    await expect(rasterizePdfPages(samplePdf(1), { jobId: 'raster-nopng', timeoutMs: 2000 })).rejects.toBeInstanceOf(LibreOfficeFailedError);
+  }, 20_000);
+
+  it('rejects bytes that are not a PDF before any soffice run', async () => {
+    fakeSoffice('exit 0');
+    await expect(rasterizePdfPages(Buffer.from('not a pdf'), { jobId: 'raster-garbage', timeoutMs: 2000 })).rejects.toThrow();
+    expect(existsSync(marker)).toBe(false);
+  }, 20_000);
 });

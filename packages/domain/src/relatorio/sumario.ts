@@ -11,6 +11,7 @@ import { sectionTextEdited } from './section-variables.ts';
 import { locationPathText } from './location-path.ts';
 import { isEquipmentBlock } from './sheet-state.ts';
 import { pointsSummary, pointsSummaryText } from '../points/summary.ts';
+import { certificatesCountText, section11Instruments } from '../print/section-11.ts';
 
 /*
  * Story 4.3: the Sumário as data (`40-relatorio-overview.html`): the relatório's own table
@@ -41,8 +42,9 @@ export const SUMARIO_TITLES: Readonly<Record<SumarioRowKey, string>> = {
 /**
  * What a row is: `fixed` (the cover and the control, no reorder controls), `setup` (opens
  * Dados do relatório, rows 1 and 3), `text` (a section text, rows 2, 4, 5, 6), `generated`
- * (7, 8 and 9: the renderer produces their content from what the relatório stores; 8 opens
- * the Points surface, Story 6.6), `pending-epic` (10, 11: status only until their epic lands).
+ * (7, 8, 9 and 11: the renderer produces their content from what the relatório stores; 8 opens
+ * the Points surface, Story 6.6; 11 prints the certificates, Story 7.3), `pending-epic` (10:
+ * status only until its story lands).
  */
 export type SumarioRowKind = 'fixed' | 'text' | 'setup' | 'generated' | 'pending-epic';
 
@@ -57,7 +59,7 @@ const KIND_OF: Readonly<Record<RelatorioSectionType, SumarioRowKind>> = {
   section_8: 'generated',
   section_9: 'generated',
   section_10: 'pending-epic',
-  section_11: 'pending-epic',
+  section_11: 'generated',
 };
 
 export interface SumarioRow {
@@ -161,6 +163,8 @@ function metaOfSection(block: BlockRow, issues: readonly PreIssueRow[], computed
   }
   // Stories 6.3/6.5: "82 fotos · 1 sem legenda · 3 aguardando envio", like section 9's counter.
   if (block.block_type === 'section_7') return join([photoCountText(livePhotos(snapshot).length), ...own]);
+  // Story 7.3: "3 certificados", then its own pre-issue rows, like section 7.
+  if (block.block_type === 'section_11') return join([certificatesCountText(section11Instruments(snapshot).length), ...own]);
   if (own.length > 0) return join(own);
   if (kind === 'setup') return META.setup;
   if (kind === 'text') {

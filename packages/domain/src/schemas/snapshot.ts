@@ -109,7 +109,8 @@ export function buildSnapshot(state: EntityState, relatorioId: string): Relatori
   const equipment = live(rowsOf('equipment', (row) => equipmentIds.has(row.id)));
 
   const suggestionIds = new Set<string>();
-  const instrumentIds = new Set<string>();
+  // Story 7.3: section 11 prints the instruments checked at setup as well as those the sheets copied.
+  const instrumentIds = new Set<string>(relatorio.setup.instrument_ids);
   for (const block of blocks) {
     for (const cell of cellsOf(block)) if (cell.source_suggestion_id) suggestionIds.add(cell.source_suggestion_id);
     for (const test of Object.values(block.sheet.test)) {

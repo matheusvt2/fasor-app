@@ -10,6 +10,9 @@ import type { TextBlock } from '../seed/schema.ts';
 import { sectionNumber } from '../templates/compose.ts';
 import { resolveSectionText } from '../templates/section-text.ts';
 import { documentControlRows, type DocumentControlRow } from './document-control.ts';
+import { section11Layout, type LayoutSectionCertificates } from './section-11.ts';
+import { section7Layout, type LayoutSectionPhotos } from './section-7.ts';
+import { section8Layout, type LayoutSectionPoints } from './section-8.ts';
 
 /*
  * Story 4.8 (AD-15): the layout spec of the printed relatório. Pure data: what prints, in
@@ -26,7 +29,9 @@ import { documentControlRows, type DocumentControlRow } from './document-control
  * FO.SERV-03 order. A block's own `config.section_text` (the template's text, later Story
  * 4.7's per-relatório edit) wins over the seed default at the relatório's `seed_version`,
  * which is resolved per `TextBlock` so paragraphs, items and headings keep their kind.
- * Sections 7, 8, 9 and 11 print only their heading and a note until Epics 6 and 7.
+ * Sections 7, 8 and 11 are built by their own modules (`section-7.ts`, `section-8.ts`,
+ * `section-11.ts`, Stories 7.2 and 7.3) and print the note when they have nothing to
+ * print; section 9 prints only its heading and the note until Story 7.1.
  */
 
 /** What sections 7, 8, 9 and 11 print under their heading until Epics 6 and 7 fill them. */
@@ -57,7 +62,14 @@ export interface LayoutSectionEmpty {
   note: string;
 }
 
-export type LayoutSection = LayoutSectionText | LayoutSectionEmpty;
+export type LayoutSection = LayoutSectionText | LayoutSectionEmpty | LayoutSectionPhotos | LayoutSectionPoints | LayoutSectionCertificates;
+
+/** Stories 7.2/7.3: the sections built by their own module; a null return prints the empty note. */
+const SECTION_BUILDERS: Readonly<Partial<Record<number, (snapshot: RelatorioSnapshot, heading: { number: number; title: string }) => LayoutSection | null>>> = {
+  7: section7Layout,
+  8: section8Layout,
+  11: section11Layout,
+};
 
 export interface TocEntry {
   number: number;
@@ -180,6 +192,8 @@ export function layoutSpec(snapshot: RelatorioSnapshot, inputs: LayoutInputs): D
   const sections: LayoutSection[] = printedSections(snapshot).map(({ section, ownText }, index) => {
     const number = index + 1;
     const title = seed.section_titles[String(section)] ?? '';
+    const build = SECTION_BUILDERS[section];
+    if (build !== undefined) return build(snapshot, { number, title }) ?? { number, title, kind: 'empty', note: EMPTY_SECTION_NOTE };
     const composed = sectionType(section) !== null;
     // Section 3's own exclusion list (Story 4.2's `setup.exclusions`, AD-21) overrides the
     // seed's own three items when the relatório carries no per-relatório text edit of its own.

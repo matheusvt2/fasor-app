@@ -27,6 +27,8 @@ export interface PhotoViewerProps {
   /** The photos in the order the gallery shows them (its filter applied). */
   tiles: readonly PhotoTile[];
   numbers: ReadonlyMap<string, number>;
+  /** Story 7.2 (AC3): false while an issued revision froze the numbers (no "nº provisório"). */
+  provisional?: boolean;
   /** The photo on screen. */
   photoId: string;
   onNavigate: (photoId: string) => void;
@@ -70,6 +72,7 @@ function ViewerBody({
   snapshot,
   tiles,
   numbers,
+  provisional = true,
   tile,
   index,
   titleId,
@@ -105,7 +108,7 @@ function ViewerBody({
           {number}
         </span>
         <span className="viewer-count" id={countId}>
-          {viewerCountText(number, total)}
+          {viewerCountText(number, total, provisional)}
         </span>
       </div>
       <div className="viewer-photo">{src === null ? <span className="thumb-fake" /> : <img className="viewer-img" src={src} alt={tile.caption ?? viewerLabel(number, total)} />}</div>
