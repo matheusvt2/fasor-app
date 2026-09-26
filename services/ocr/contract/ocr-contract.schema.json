@@ -1,0 +1,271 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ocr-contract.schema.json",
+  "title": "OcrContract",
+  "description": "Generated from packages/domain/src/contract/ocr.ts by `pnpm schema:ocr`; do not edit. The OCR sidecar (services/ocr) and the api reading job speak these shapes.",
+  "$defs": {
+    "OcrReadResult": {
+      "title": "OcrReadResult",
+      "type": "object",
+      "properties": {
+        "image": {
+          "type": "object",
+          "properties": {
+            "width": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            },
+            "height": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "width",
+            "height"
+          ],
+          "additionalProperties": false
+        },
+        "tokens": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^t\\d+$"
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1
+              },
+              "bbox": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                ],
+                "items": false,
+                "minItems": 4,
+                "maxItems": 4,
+                "description": "[x0, y0, x1, y1] in pixels of the decoded received image, x0 < x1 and y0 < y1."
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "required": [
+              "id",
+              "text",
+              "bbox",
+              "confidence"
+            ],
+            "additionalProperties": false,
+            "description": "One recognized word; id is \"t\" followed by the token index in tokens."
+          }
+        },
+        "preprocessing_applied": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "image",
+        "tokens",
+        "preprocessing_applied"
+      ],
+      "additionalProperties": false,
+      "description": "The OCR read of one image. Not expressible here and enforced by the producer: token ids are t0..tn in array order; every box satisfies x1 <= image.width and y1 <= image.height; the array order is reading order (lines top to bottom, words left to right). preprocessing_applied is true when a geometric step (downscale, deskew) ran and its boxes were mapped back to the received pixel grid."
+    },
+    "OcrToken": {
+      "title": "OcrToken",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^t\\d+$"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bbox": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "number",
+              "minimum": 0
+            },
+            {
+              "type": "number",
+              "minimum": 0
+            }
+          ],
+          "items": false,
+          "minItems": 4,
+          "maxItems": 4,
+          "description": "[x0, y0, x1, y1] in pixels of the decoded received image, x0 < x1 and y0 < y1."
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "bbox",
+        "confidence"
+      ],
+      "additionalProperties": false,
+      "description": "One recognized word; id is \"t\" followed by the token index in tokens."
+    },
+    "OcrHealthResponse": {
+      "title": "OcrHealthResponse",
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "const": "up"
+        },
+        "detection": {
+          "type": "string",
+          "minLength": 1
+        },
+        "recognition": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "status",
+        "detection",
+        "recognition"
+      ],
+      "additionalProperties": false
+    },
+    "OcrErrorResponse": {
+      "title": "OcrErrorResponse",
+      "type": "object",
+      "properties": {
+        "error": {
+          "type": "string",
+          "enum": [
+            "invalid_image",
+            "too_large",
+            "internal"
+          ]
+        }
+      },
+      "required": [
+        "error"
+      ],
+      "additionalProperties": false
+    },
+    "StructuringOutput": {
+      "title": "StructuringOutput",
+      "type": "object",
+      "properties": {
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "key": {
+                "type": "string",
+                "minLength": 1
+              },
+              "value": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "raw": {
+                        "type": "string"
+                      },
+                      "unit": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "state": {
+                        "type": "string",
+                        "enum": [
+                          "measured",
+                          "not_measured",
+                          "empty"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "raw",
+                      "unit",
+                      "state"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                ]
+              },
+              "ocr_token_ids": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^t\\d+$"
+                }
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "required": [
+              "key",
+              "value",
+              "ocr_token_ids",
+              "confidence"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "values"
+      ],
+      "additionalProperties": false,
+      "description": "The structuring step output. Not expressible here and checked by the job: each value has the shape of its field's kind (structuringValueSchemaFor) and cites only token ids present in the OCR read."
+    }
+  }
+}

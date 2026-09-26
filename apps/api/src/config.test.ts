@@ -21,6 +21,12 @@ describe('config', () => {
     expect(config.OCR_PROVIDER).toBe('fake');
   });
 
+  it('defaults the OCR sidecar URL and reads an override (Story 8.3)', () => {
+    expect(loadConfig(valid).OCR_SERVICE_URL).toBe('http://ocr:8000');
+    expect(loadConfig({ ...valid, OCR_SERVICE_URL: 'http://localhost:32800' }).OCR_SERVICE_URL).toBe('http://localhost:32800');
+    expect(() => loadConfig({ ...valid, OCR_SERVICE_URL: 'not-a-url' })).toThrow(/OCR_SERVICE_URL/);
+  });
+
   it('defaults the worker on and reads the generate fault only when set (Story 4.8)', () => {
     const config = loadConfig(valid);
     expect(config.WORKER).toBe('1');
