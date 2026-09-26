@@ -63,9 +63,14 @@ const GROUP_WORDS: readonly { kind: TypeGroup; words: string }[] = [
   { kind: 'transformadores', words: 'Transformadores e Cabos de Alimentação' },
 ];
 
-/** A cabine name's head noun decides the contraction ("do 1° Subsolo", "dos Geradores"); masculine singular when unknown. */
+/** A leading ordinal or number ("1°", "2ª", "3") is not the head noun of a cabine name. */
+const LEADING_ORDINAL = /^\d+[°ºª]?$/;
+
+/** A cabine name's head noun decides the contraction ("do 1° Subsolo", "da 2ª Cabine", "dos Geradores"); masculine singular when unknown. */
 function ofCabine(name: string): string {
-  const agreement = headNounAgreement(name) ?? { gender: 'm', number: 'singular' };
+  const words = name.trim().split(/\s+/);
+  const head = LEADING_ORDINAL.test(words[0] ?? '') ? words.slice(1).join(' ') : name;
+  const agreement = headNounAgreement(head) ?? { gender: 'm', number: 'singular' };
   return `d${agreement.gender === 'f' ? 'a' : 'o'}${agreement.number === 'plural' ? 's' : ''} ${name}`;
 }
 

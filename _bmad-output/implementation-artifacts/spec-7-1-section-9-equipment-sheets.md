@@ -2,7 +2,7 @@
 title: 'Story 7.1 (+ 7.2 AC2, E12-A2): section 9 equipment sheets as native tables grouped as FO.SERV-03'
 type: 'feature'
 created: '2026-09-26'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '1582cddadfc18cac787efb0f86995fd2fb163151'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -11,7 +11,14 @@ dev_effort: 'max'
 context: []
 warnings: ['batched', 'oversized']
 batched_reason: 'Epic 7 batch G1 (coordinator decision 2026-09-26): Story 7.1, Story 7.2 AC2 (photos inside their sheet) and carry-over E12-A2 (TAG prefill prints) all render the one section 9 sheet, so they ship as one change.'
-deferred: []
+deferred:
+  - summary: >-
+      A hanging MinIO getObject for one of the in-sheet photos could stall the generate job before LibreOffice's timeout applies.
+    evidence: |-
+      job.ts loads each photo through printVariant sequentially; the same path already loads the logo and the cover. Settle by checking the S3 client's request timeout and adding a per-photo timeout if none applies.
+    location: >-
+      apps/api/src/jobs/generate/job.ts
+    severity: medium (unverified)
 ---
 
 <intent-contract>
@@ -139,3 +146,23 @@ deferred: []
 
 **Manual checks:**
 - Render the Porto Seguro fixture to DOCX and PDF in the stack, rasterize two section 9 pages (a flagged-cabine page and an Enel page), and confirm the tables, the grid "-", the units and the titles by eye.
+
+## Spec Change Log
+
+## Review Triage Log
+
+### 2026-09-26 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer ran; Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 11 findings — high 0, medium 4, low 6, false 0, maybe-false 1
+- findings:
+  - `[medium]` `[patch]` (VG-1) `buildSnapshot` `actors` and the api `toSnapshot` user query are untested (goldens hold `[]`) — added a kernel `buildSnapshot` actors test and an api `toSnapshot` assertion for a non-responsible user.
+  - `[medium]` `[patch]` (VG-2, grouped with EC-1) device `toSnapshot` (`apps/web/src/db/snapshot.ts`) loads only the responsible's user row, breaking AD-15 byte-equality once another user edits a sheet — device now loads the user rows; byte-equality case added.
+  - `[medium]` `[patch]` (VG-3) the job's in-sheet photo loading is never exercised with stored bytes — `generate.integration.test.ts` stores a real `print` variant and asserts the embedded image.
+  - `[low]` `[patch]` (VG-4) page breaks, `cantSplit` and spans are untested — XML counts added to `docx.test.ts`.
+  - `[low]` `[patch]` (VG-5) the checklist-off fallback of an `item_key` photo is untested — test added (`checklist` is a locked sub-block, so the fallback is reached only by a config that enables none; the test covers both).
+  - `[medium]` `[patch]` (EC-1) same root cause as VG-2 — fixed with it.
+  - `[maybe-false]` `[defer]` (EC-2) a hanging MinIO `getObject` for one of many photos could stall the job before LibreOffice's timeout — the same `printVariant` path already loads the logo and cover; settling it needs the S3 client's request timeout checked. Deferred (medium, unverified).
+  - `[low]` `[patch]` (EC-3) a cabine name opening with an ordinal ("2ª Cabine") took its article from the ordinal ("do 2ª Cabine") — `ofCabine` skips a leading ordinal token; test added.
+  - `[low]` `[patch]` (EC-4) a caption ending in `?`, `!` or `…` got a second period — any closing punctuation now counts; test added.
+  - `[low]` `[reject]` (EC-5) a nameplate value stored as a bare JSON number prints unformatted — number fields are stored as `{raw, unit, state}` by every writer; only a malformed op could store a bare number, and the fix adds a branch.
+  - `[low]` `[patch]` (EC-6) side-by-side contato tables were fitted per half as if each had the whole page — the joined rows are re-fitted with `fittedColumns`.

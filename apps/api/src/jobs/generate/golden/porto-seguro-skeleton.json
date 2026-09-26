@@ -64,7 +64,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (MΩ)","QUALIDADE ISOLAÇÃO"],
@@ -99,7 +99,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (MΩ)","QUALIDADE ISOLAÇÃO"],
@@ -145,7 +145,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["SECCIONADORA CONTATO ABERTO","SECCIONADORA CONTATO FECHADO"],
@@ -157,7 +157,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -197,7 +197,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["SECCIONADORA CONTATO ABERTO","SECCIONADORA CONTATO FECHADO"],
@@ -209,7 +209,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -250,7 +250,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -304,7 +304,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -358,7 +358,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["DISJUNTOR CONTATO ABERTO","DISJUNTOR CONTATO FECHADO"],
@@ -370,7 +370,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -399,7 +399,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (MΩ)","QUALIDADE ISOLAÇÃO"],
@@ -425,7 +425,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -487,7 +487,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["SECCIONADORA CONTATO ABERTO","SECCIONADORA CONTATO FECHADO"],
@@ -499,7 +499,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -539,7 +539,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["SECCIONADORA CONTATO ABERTO","SECCIONADORA CONTATO FECHADO"],
@@ -551,7 +551,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -591,7 +591,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["SECCIONADORA CONTATO ABERTO","SECCIONADORA CONTATO FECHADO"],
@@ -603,7 +603,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -643,7 +643,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["SECCIONADORA CONTATO ABERTO","SECCIONADORA CONTATO FECHADO"],
@@ -655,7 +655,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -695,7 +695,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["SECCIONADORA CONTATO ABERTO","SECCIONADORA CONTATO FECHADO"],
@@ -707,7 +707,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -747,7 +747,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["SECCIONADORA CONTATO ABERTO","SECCIONADORA CONTATO FECHADO"],
@@ -759,7 +759,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -799,7 +799,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["SECCIONADORA CONTATO ABERTO","SECCIONADORA CONTATO FECHADO"],
@@ -811,7 +811,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -851,7 +851,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["SECCIONADORA CONTATO ABERTO","SECCIONADORA CONTATO FECHADO"],
@@ -863,7 +863,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -903,7 +903,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["SECCIONADORA CONTATO ABERTO","SECCIONADORA CONTATO FECHADO"],
@@ -915,7 +915,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -955,7 +955,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["SECCIONADORA CONTATO ABERTO","SECCIONADORA CONTATO FECHADO"],
@@ -967,7 +967,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -1007,7 +1007,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["SECCIONADORA CONTATO ABERTO","SECCIONADORA CONTATO FECHADO"],
@@ -1019,7 +1019,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -1071,7 +1071,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["DISJUNTOR CONTATO ABERTO","DISJUNTOR CONTATO FECHADO"],
@@ -1083,7 +1083,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -1136,7 +1136,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["DISJUNTOR CONTATO ABERTO","DISJUNTOR CONTATO FECHADO"],
@@ -1148,7 +1148,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -1190,7 +1190,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["DISJUNTOR CONTATO ABERTO","DISJUNTOR CONTATO FECHADO"],
@@ -1202,7 +1202,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -1244,7 +1244,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["DISJUNTOR CONTATO ABERTO","DISJUNTOR CONTATO FECHADO"],
@@ -1256,7 +1256,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -1298,7 +1298,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["DISJUNTOR CONTATO ABERTO","DISJUNTOR CONTATO FECHADO"],
@@ -1310,7 +1310,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -1352,7 +1352,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["DISJUNTOR CONTATO ABERTO","DISJUNTOR CONTATO FECHADO"],
@@ -1364,7 +1364,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -1406,7 +1406,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["DISJUNTOR CONTATO ABERTO","DISJUNTOR CONTATO FECHADO"],
@@ -1418,7 +1418,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -1460,7 +1460,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["DISJUNTOR CONTATO ABERTO","DISJUNTOR CONTATO FECHADO"],
@@ -1472,7 +1472,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -1514,7 +1514,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["DISJUNTOR CONTATO ABERTO","DISJUNTOR CONTATO FECHADO"],
@@ -1526,7 +1526,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -1568,7 +1568,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["DISJUNTOR CONTATO ABERTO","DISJUNTOR CONTATO FECHADO"],
@@ -1580,7 +1580,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -1622,7 +1622,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["DISJUNTOR CONTATO ABERTO","DISJUNTOR CONTATO FECHADO"],
@@ -1634,7 +1634,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -1676,7 +1676,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["DISJUNTOR CONTATO ABERTO","DISJUNTOR CONTATO FECHADO"],
@@ -1688,7 +1688,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -1730,7 +1730,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["DISJUNTOR CONTATO ABERTO","DISJUNTOR CONTATO FECHADO"],
@@ -1742,7 +1742,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -1783,7 +1783,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -1837,7 +1837,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -1890,7 +1890,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -1944,7 +1944,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -1997,7 +1997,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -2051,7 +2051,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -2104,7 +2104,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -2158,7 +2158,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -2211,7 +2211,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -2265,7 +2265,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -2318,7 +2318,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -2372,7 +2372,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -2408,7 +2408,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -2451,7 +2451,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -2485,7 +2485,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -2528,7 +2528,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -2562,7 +2562,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -2605,7 +2605,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -2639,7 +2639,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -2682,7 +2682,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -2716,7 +2716,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -2759,7 +2759,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -2803,7 +2803,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (MΩ)","QUALIDADE ISOLAÇÃO"],
@@ -2845,7 +2845,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["SECCIONADORA CONTATO ABERTO","SECCIONADORA CONTATO FECHADO"],
@@ -2857,7 +2857,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -2886,7 +2886,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (MΩ)","QUALIDADE ISOLAÇÃO"],
@@ -2912,7 +2912,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -2955,7 +2955,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -2999,7 +2999,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (MΩ)","QUALIDADE ISOLAÇÃO"],
@@ -3030,7 +3030,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (MΩ)","QUALIDADE ISOLAÇÃO"],
@@ -3072,7 +3072,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["SECCIONADORA CONTATO ABERTO","SECCIONADORA CONTATO FECHADO"],
@@ -3084,7 +3084,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -3126,7 +3126,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["DISJUNTOR CONTATO ABERTO","DISJUNTOR CONTATO FECHADO"],
@@ -3138,7 +3138,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -3162,7 +3162,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -3205,7 +3205,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -3249,7 +3249,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (MΩ)","QUALIDADE ISOLAÇÃO"],
@@ -3280,7 +3280,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (MΩ)","QUALIDADE ISOLAÇÃO"],
@@ -3322,7 +3322,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["SECCIONADORA CONTATO ABERTO","SECCIONADORA CONTATO FECHADO"],
@@ -3334,7 +3334,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -3376,7 +3376,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["DISJUNTOR CONTATO ABERTO","DISJUNTOR CONTATO FECHADO"],
@@ -3388,7 +3388,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -3412,7 +3412,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -3455,7 +3455,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -3515,7 +3515,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["SECCIONADORA CONTATO ABERTO","SECCIONADORA CONTATO FECHADO"],
@@ -3527,7 +3527,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -3567,7 +3567,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["SECCIONADORA CONTATO ABERTO","SECCIONADORA CONTATO FECHADO"],
@@ -3579,7 +3579,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -3619,7 +3619,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["SECCIONADORA CONTATO ABERTO","SECCIONADORA CONTATO FECHADO"],
@@ -3631,7 +3631,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -3671,7 +3671,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["SECCIONADORA CONTATO ABERTO","SECCIONADORA CONTATO FECHADO"],
@@ -3683,7 +3683,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -3723,7 +3723,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["SECCIONADORA CONTATO ABERTO","SECCIONADORA CONTATO FECHADO"],
@@ -3735,7 +3735,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -3775,7 +3775,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["SECCIONADORA CONTATO ABERTO","SECCIONADORA CONTATO FECHADO"],
@@ -3787,7 +3787,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -3827,7 +3827,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["SECCIONADORA CONTATO ABERTO","SECCIONADORA CONTATO FECHADO"],
@@ -3839,7 +3839,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -3881,7 +3881,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["DISJUNTOR CONTATO ABERTO","DISJUNTOR CONTATO FECHADO"],
@@ -3893,7 +3893,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -3935,7 +3935,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["DISJUNTOR CONTATO ABERTO","DISJUNTOR CONTATO FECHADO"],
@@ -3947,7 +3947,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -3989,7 +3989,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["DISJUNTOR CONTATO ABERTO","DISJUNTOR CONTATO FECHADO"],
@@ -4001,7 +4001,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -4043,7 +4043,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["DISJUNTOR CONTATO ABERTO","DISJUNTOR CONTATO FECHADO"],
@@ -4055,7 +4055,7 @@
     [
       ["ENSAIO DE RESISTÊNCIA ÔHMICA DE CONTATO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","CORRENTE","ACEITÁVEL"],
-      ["Hi-Tech","HTMO-10","G282926","37276/26","Resistência ôhmica de contato","<250 µΩ"]
+      ["Hi-Tech","HTMO-10","G282926","37276/26","10 A","<250 µΩ"]
     ],
     [
       ["LINHA","TERRA","GUARD","VALORES (µΩ)"],
@@ -4096,7 +4096,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -4150,7 +4150,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -4203,7 +4203,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -4257,7 +4257,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -4310,7 +4310,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -4364,7 +4364,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -4417,7 +4417,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],
@@ -4471,7 +4471,7 @@
     [
       ["ENSAIO DE ISOLAÇÃO"],
       ["INSTRUM./FABRIC.","TIPO","Nº SÉRIE","RBC","TENSÃO ENSAIO","ACEITÁVEL"],
-      ["Instrument","DMG10Ki","IN919021-25945","37428/26","Resistência de isolação",">400 MΩ"]
+      ["Instrument","DMG10Ki","IN919021-25945","37428/26","10 kV",">400 MΩ"]
     ],
     [
       ["PONTO DE ENSAIO/CONEXÃO","VALORES (GΩ)","QUALIDADE ISOLAÇÃO"],

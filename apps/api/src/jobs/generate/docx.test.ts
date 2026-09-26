@@ -163,6 +163,21 @@ describe('7.1-UNIT section 9 in the DOCX', () => {
     expect(titles.slice(0, 4)).toEqual(['CABOS DE ALIMENTAÇÃO CB-TR1', 'TRANSFORMADOR DE FORÇA TR-1', 'CABOS DE ALIMENTAÇÃO CB-TR2', 'TRANSFORMADOR DE FORÇA TR-2']);
   }, 60_000);
 
+  it('starts each subsection after the first and each sheet after its subsection\'s first on a new page, never splits a row, and spans the bands', async () => {
+    const document = readZipEntries(await renderFixture()).get('word/document.xml')!.toString('utf8');
+    // 11 subsections: 10 breaks; 94 sheets in 11 subsections: 83 breaks.
+    expect(document.match(/<w:pageBreakBefore\/>/g)).toHaveLength(10 + 83);
+    const tables = [...document.matchAll(/<w:tbl>([\s\S]*?)<\/w:tbl>/g)].map((match) => match[1]!);
+    // The cover and the document control come first; every row after them is a sheet's.
+    const sheetRows = tables.slice(2).flatMap((table) => [...table.matchAll(/<w:tr(?:\s[^>]*)?>([\s\S]*?)<\/w:tr>/g)].map((match) => match[1]!));
+    expect(sheetRows.length).toBeGreaterThan(94 * 10);
+    for (const row of sheetRows) expect(row).toContain('<w:cantSplit/>');
+    const bands = sheetRows.filter((row) => paragraphText(row) === 'DADOS DO EQUIPAMENTO');
+    // Every sheet but the cabos (4 de entrada, 9 de saída), whose type has no nameplate.
+    expect(bands).toHaveLength(94 - 4 - 9);
+    for (const band of bands) expect(band).toContain('<w:gridSpan w:val="6"/>');
+  }, 60_000);
+
   /** The fixture with its first photo moved into the sheet of TR-1, and that photo's id, number and caption. */
   function withPhotoInTr1() {
     const base = fixtureSnapshot();

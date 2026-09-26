@@ -863,4 +863,4 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Found in Story 7.1. AMBIENTE DE ENSAIO prints the cabine's own `env.altitude_m` (the spec's reading); since Story 12.3 a relatório's altitude lives in its setup (`site_altitude_m`, Etapa 5) and no sheet asks the cabine's, so a relatório created in the app prints "-" for ALTITUDE.
   evidence: `packages/domain/src/relatorio/cabine.ts` (`SETUP_OWNED = 'altitude_m'`); `print/section-9.ts` `cabineParts`.
   class: deferred
-  state: open (owner: none; open question for Matheus: print the setup's altitude when the cabine holds none)
+  state: ~~open (owner: none; open question for Matheus: print the setup's altitude when the cabine holds none)~~ closed (2026-09-26, same batch: ownership is already decided by Story 12.3 (`SETUP_OWNED`), so AMBIENTE DE ENSAIO prints the setup's `site_altitude_m` when the cabine holds none, and a cabine value still wins; `section-9.test.ts` "ALTITUDE prints the setup altitude")

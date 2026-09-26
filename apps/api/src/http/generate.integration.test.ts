@@ -18,6 +18,7 @@ import {
 } from '@app/domain';
 import { BLOCK_CHAVE_ID, EQUIPMENT_CHAVE_ID, portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { and, eq } from 'drizzle-orm';
+import sharp from 'sharp';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createAuth } from '../auth/auth.ts';
 import { parseTrustedOrigins } from '../auth/trusted-origins.ts';
@@ -29,9 +30,9 @@ import { entities } from '../db/schema.ts';
 import { seedTestCompanies, TEST_SEED } from '../db/seed.ts';
 import { removePortoSeguroSmall, seedPortoSeguroSmall, SMALL_FIXTURE_PROJECT_ID, SMALL_FIXTURE_RELATORIO_ID } from '../db/test-fixtures.ts';
 import { newId } from '../ids.ts';
-import { extractStructure } from '../jobs/generate/docx-structure.ts';
+import { extractStructure, paragraphText, readZipEntries } from '../jobs/generate/docx-structure.ts';
 import { readOutline } from '../jobs/generate/pdf-outline.ts';
-import { createS3, getObject } from '../storage/s3.ts';
+import { createS3, getObject, putObject } from '../storage/s3.ts';
 import { applyOps } from '../sync/apply.ts';
 
 /*
@@ -257,6 +258,39 @@ describe('4.8-INT-002 POST /api/relatorios/:id/generate and GET /api/revisions/:
       { now, origin: 'server' },
     );
     expect(stored.rejected).toEqual([]);
+    // Story 7.1/7.2: and renders its variants, as `files.ts` does: a real JPEG for the `print`
+    // one the generate job embeds in the sheet of the block the photo belongs to.
+    const jpeg = await sharp({ create: { width: 64, height: 48, channels: 3, background: { r: 30, g: 90, b: 150 } } }).jpeg().toBuffer();
+    const variants = {
+      thumb: objectKey(companyA.companyId, 'photo', photoFileId, 'thumb', RELATORIO_ID),
+      print: objectKey(companyA.companyId, 'photo', photoFileId, 'print', RELATORIO_ID),
+    };
+    await putObject(s3, config.S3_BUCKET, variants.thumb, jpeg, 'image/jpeg');
+    await putObject(s3, config.S3_BUCKET, variants.print, jpeg, 'image/jpeg');
+    const rendered = await applyOps(
+      db,
+      asCompanyId(companyA.companyId),
+      [
+        {
+          op_id: newId(),
+          company_id: companyA.companyId,
+          scope: 'relatorio',
+          project_id: null,
+          relatorio_id: RELATORIO_ID,
+          kind: 'put',
+          path: `file/${photoFileId}/variants`,
+          value: variants,
+          prev_op_id: null,
+          batch_id: null,
+          meta: null,
+          actor_id: 'system:files',
+          device_id: SERVER_DEVICE_ID,
+          client_ts: toIso(now()),
+        },
+      ],
+      { now, origin: 'server' },
+    );
+    expect(rendered.rejected).toEqual([]);
     // The 202 test below sends this same file id and is no longer refused for it.
   });
 
@@ -344,6 +378,22 @@ describe('4.8-INT-002 POST /api/relatorios/:id/generate and GET /api/revisions/:
     // The outline carries section 9's subsection as well (level 2); the ÍNDICE lists the sections.
     expect(outline.headings.map((heading) => heading.title)).toEqual([...printed.keys()].flatMap((title) => (title.startsWith('9 ') ? [title, '9.1 Cabine de Testes'] : [title])));
     for (const [title, page] of printed) expect(outline.headings.find((heading) => heading.title === title)?.page, title).toBe(page);
+
+    // Story 7.1/7.2: the block-linked photo's stored `print` variant is embedded inside its
+    // sheet, in the cell whose line names it. It is the relatório's only photo, uncaptioned: "Imagem 1.".
+    const entries = readZipEntries(docx);
+    expect([...entries.keys()].filter((name) => name.startsWith('word/media/') && !name.endsWith('/')).length).toBeGreaterThan(0);
+    const document = entries.get('word/document.xml')!.toString('utf8');
+    const cell = [...document.matchAll(/<w:tc>([\s\S]*?)<\/w:tc>/g)].map((match) => match[0]).find((xml) => paragraphText(xml).includes('Imagem 1.'));
+    expect(cell).toBeDefined();
+    expect(cell).toContain('<w:drawing');
+    // Inside the sheet of the block the photo belongs to: after its title bar, before the next sheet's.
+    const chave = structure.paragraphs.findIndex((p) => p.startsWith('CHAVE SECCIONADORA'));
+    const next = structure.paragraphs.findIndex((p, i) => i > chave && /^(DISJUNTOR MT|TRANSFORMADOR DE FORÇA)\b/.test(p));
+    const line = structure.paragraphs.indexOf('Imagem 1.');
+    expect(chave).toBeGreaterThan(-1);
+    expect(line).toBeGreaterThan(chave);
+    expect(line).toBeLessThan(next);
   }, 60_000);
 
   it('answers unchanged with the last revision when nothing was edited since its snapshot', async () => {

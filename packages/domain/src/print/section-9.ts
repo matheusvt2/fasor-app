@@ -280,14 +280,23 @@ function attributionOf(block: BlockRow, actors: ReadonlyMap<string, UserRow>): s
 
 // --- the cabine block -------------------------------------------------------------------------
 
-/** CARACTERÍSTICAS DA SE and AMBIENTE DE ENSAIO, labels over values, "-" for a field not filled. */
-function cabineParts(cabine: CabineLocation, definition: CabineDefinition): SheetPart[] {
+/**
+ * CARACTERÍSTICAS DA SE and AMBIENTE DE ENSAIO, labels over values, "-" for a field not
+ * filled. ALTITUDE is the relatório's since Story 12.3 (setup Etapa 5, `site_altitude_m`; no
+ * sheet asks the cabine's, `relatorio/cabine.ts` SETUP_OWNED): a cabine value still wins when
+ * one exists, else the setup's prints.
+ */
+function cabineParts(cabine: CabineLocation, definition: CabineDefinition, siteAltitudeM: number | null): SheetPart[] {
   const group = (title: string, fields: readonly FieldDef[], values: Record<string, unknown>): SheetPart =>
     table(
       fields.map(() => 1),
       [bandRow(title, fields.length), headerRow(fields.map((field) => printLabel(field.label))), { cells: fields.map((field) => valueCell(storedValueText(field, values[field.key]))) }],
     );
-  return [group(CABINE_SE_TITLE, definition.se, cabine.se as Record<string, unknown>), group(CABINE_ENV_TITLE, definition.env, cabine.env as Record<string, unknown>)];
+  const env: Record<string, unknown> = { ...(cabine.env as Record<string, unknown>) };
+  if ((env.altitude_m === null || env.altitude_m === undefined) && siteAltitudeM !== null) {
+    env.altitude_m = { raw: String(siteAltitudeM), unit: 'm', state: 'measured' };
+  }
+  return [group(CABINE_SE_TITLE, definition.se, cabine.se as Record<string, unknown>), group(CABINE_ENV_TITLE, definition.env, env)];
 }
 
 // --- DADOS DO EQUIPAMENTO ---------------------------------------------------------------------
@@ -501,12 +510,10 @@ function simpleTitled(definition: TableDef): boolean {
   return definition.title !== undefined && definition.connection_group === undefined && definition.value_columns.every((column) => column.group === undefined);
 }
 
-/** Two tables of the same shape drawn as one, side by side, row by row. */
+/** Two tables of the same shape drawn as one, side by side, row by row, its columns fitted over the joined rows. */
 function sideBySide(left: PrintTable, right: PrintTable): PrintTable {
-  return {
-    columns: [...left.columns, ...right.columns],
-    rows: left.rows.map((row, i) => ({ ...row, cells: [...row.cells, ...right.rows[i]!.cells] })),
-  };
+  const rows = left.rows.map((row, i) => ({ ...row, cells: [...row.cells, ...right.rows[i]!.cells] }));
+  return { columns: fittedColumns(rows, left.columns.length + right.columns.length), rows };
 }
 
 function testParts(block: BlockRow, definition: BlockDefinition, evaluation: TestEvaluation, enabled: ReadonlySet<SubBlockKey>): SheetPart[] {
@@ -566,11 +573,14 @@ function notTestedPart(block: BlockRow): SheetPart {
 
 // --- photos ---------------------------------------------------------------------------------------
 
-/** "Imagem 3: ⟨legenda⟩." (no second period after a caption that ends in one), "Imagem 3." without a caption. */
+/** A caption already closed by its own punctuation, a quote or parenthesis allowed after it ("Está oxidado?", "(ver nota.)"). */
+const CLOSED_CAPTION = /[.!?…]["'”’»)\]]*$/u;
+
+/** "Imagem 3: ⟨legenda⟩." (nothing added to a caption already closed), "Imagem 3." without a caption. */
 function photoLine(n: number, caption: string | null): string {
   const text = (caption ?? '').trim();
   if (text === '') return `${photoRefLabel(n)}.`;
-  return `${photoRefLabel(n)}: ${text}${text.endsWith('.') ? '' : '.'}`;
+  return `${photoRefLabel(n)}: ${text}${CLOSED_CAPTION.test(text) ? '' : '.'}`;
 }
 
 /** The sheet's photos by where they print: the plate's after the nameplate, a checklist row's after the checklist, the rest after the tests. */
@@ -599,7 +609,7 @@ function sheetOf(ctx: Context, blockId: string, cabine: CabineLocation | null): 
   const seed = sheetSeedOf(block.seed_version);
   const enabled = enabledSubBlocksOf(block);
   const parts: SheetPart[] = [];
-  if (cabine !== null && seed !== null) parts.push(...cabineParts(cabine, seed.cabine));
+  if (cabine !== null && seed !== null) parts.push(...cabineParts(cabine, seed.cabine, ctx.snapshot.relatorio.setup.site_altitude_m));
   const nameplate = definition !== null && enabled.has('nameplate') && definition.nameplate.length > 0;
   if (nameplate) parts.push(nameplatePart(ctx, block, definition));
   const sheet = { blockId, title: sheetTitle(block, tag), attribution: attributionOf(block, ctx.actors), parts };

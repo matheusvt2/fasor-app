@@ -83,6 +83,44 @@ describe('1.4-INT-001 replay byte-equality (Drizzle layer)', () => {
     expect(serializeSnapshot(await toSnapshot(db, companyId, replaySmall.relatorioId))).toBe(before);
   });
 
+  // After the op count above, and before the caption edit below breaks the equality with the pure replay.
+  it('reads the company\'s user rows: the responsible and a second user who edited a sheet (Story 7.1), byte-equal to the pure replay', async () => {
+    const editorId = newId();
+    const server = { scope: 'company' as const, company_id: companyId, project_id: null, relatorio_id: null, prev_op_id: null, batch_id: null, meta: null, actor_id: 'system:identity', device_id: 'server' };
+    const user = (id: string, name: string): Op => ({
+      ...server,
+      op_id: newId(),
+      kind: 'create',
+      path: `user/${id}`,
+      value: { id, name, email: `${id}@teste.local`, council: null, registration_number: null, title: null, photo_location_enabled: true },
+      client_ts: now().toISOString(),
+    });
+    const users = [user(replaySmall.userId, 'Ana Alves'), user(editorId, 'Bruno Silva')];
+    const edit: Op = {
+      ...server,
+      op_id: newId(),
+      kind: 'put',
+      scope: 'relatorio',
+      relatorio_id: replaySmall.relatorioId,
+      path: `sheet/${BLOCK_1_ID}/observations`,
+      value: 'Editado por outro usuário.',
+      actor_id: editorId,
+      device_id: 'tablet-b',
+      client_ts: now().toISOString(),
+    };
+    const result = await applyOps(db, companyId, [...users, edit], deps);
+    expect(result.rejected).toEqual([]);
+
+    const snapshot = await toSnapshot(db, companyId, replaySmall.relatorioId);
+    expect(snapshot.responsible?.id).toBe(replaySmall.userId);
+    expect(snapshot.blocks.find((block) => block.id === BLOCK_1_ID)?.last_modified_by).toBe(editorId);
+    // The editor is not the responsible, and still comes back with the snapshot.
+    expect(editorId).not.toBe(replaySmall.userId);
+    expect(snapshot.actors.find((row) => row.id === editorId)?.name).toBe('Bruno Silva');
+    const pure = buildSnapshot(replay([...replaySmall.log, ...users, edit], { deadOpIds: dead }), replaySmall.relatorioId);
+    expect(serializeSnapshot(snapshot)).toBe(serializeSnapshot(pure));
+  });
+
   it('rejects by code without blocking the rest and never stores a rejected op', async () => {
     const template = live.find((op) => op.path === `file/${PHOTO_ID}/caption`)!;
     const unknownPath = { ...template, op_id: newId(), path: `file/${PHOTO_ID}/colour`, value: 'x' };

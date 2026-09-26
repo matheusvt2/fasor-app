@@ -1,16 +1,19 @@
 import {
   emptySheet,
   getDefinition,
+  instrumentHeaderOf,
   isEquipmentBlockType,
   opSchema,
   standardTemplate,
   templateTotals,
   type EquipmentBlockType,
+  type InstrumentRow,
   type Op,
   type OpKind,
   type Scope,
   type SkeletonNode,
   type TemplateBlock,
+  type TestKey,
 } from '../../src/index.ts';
 import type { BlockDefinition, TableDef } from '../../src/seed/schema.ts';
 import golden from './snapshot.golden.json' with { type: 'json' };
@@ -143,7 +146,7 @@ push({
   },
 });
 
-function instrumentRow(id: string, inst: (typeof INSTRUMENTS)[keyof typeof INSTRUMENTS], testKey: 'test_isolacao' | 'test_resistencia_contato' | 'test_relacao_transformacao') {
+function instrumentRow(id: string, inst: (typeof INSTRUMENTS)[keyof typeof INSTRUMENTS], testKey: 'test_isolacao' | 'test_resistencia_contato' | 'test_relacao_transformacao'): InstrumentRow {
   const defaultCell = inst.defaultRaw === null ? null : { raw: inst.defaultRaw, unit: inst.defaultUnit };
   return {
     id,
@@ -168,9 +171,16 @@ function instrumentRow(id: string, inst: (typeof INSTRUMENTS)[keyof typeof INSTR
   };
 }
 
-push({ kind: 'create', scope: 'company', path: `registry/instrument/${INSTRUMENT_MEGOHMETRO_ID}`, value: instrumentRow(INSTRUMENT_MEGOHMETRO_ID, INSTRUMENTS.megohmetro, 'test_isolacao') });
-push({ kind: 'create', scope: 'company', path: `registry/instrument/${INSTRUMENT_MICROHMETRO_ID}`, value: instrumentRow(INSTRUMENT_MICROHMETRO_ID, INSTRUMENTS.microhmetro, 'test_resistencia_contato') });
-push({ kind: 'create', scope: 'company', path: `registry/instrument/${INSTRUMENT_RATIOMETRO_ID}`, value: instrumentRow(INSTRUMENT_RATIOMETRO_ID, INSTRUMENTS.ratiometro, 'test_relacao_transformacao') });
+/** The three registry rows, kept so each sheet copies its instrument header from them as the app's picker does. */
+const INSTRUMENT_ROWS = {
+  megohmetro: instrumentRow(INSTRUMENT_MEGOHMETRO_ID, INSTRUMENTS.megohmetro, 'test_isolacao'),
+  microhmetro: instrumentRow(INSTRUMENT_MICROHMETRO_ID, INSTRUMENTS.microhmetro, 'test_resistencia_contato'),
+  ratiometro: instrumentRow(INSTRUMENT_RATIOMETRO_ID, INSTRUMENTS.ratiometro, 'test_relacao_transformacao'),
+} as const;
+
+for (const row of [INSTRUMENT_ROWS.megohmetro, INSTRUMENT_ROWS.microhmetro, INSTRUMENT_ROWS.ratiometro]) {
+  push({ kind: 'create', scope: 'company', path: `registry/instrument/${row.id}`, value: row });
+}
 
 push({
   kind: 'create',
@@ -331,23 +341,12 @@ function checklistSteps(blockId: string, definition: BlockDefinition, blockType:
   }
 }
 
-function instrumentPut(blockId: string, testKey: string, instrumentId: string, inst: (typeof INSTRUMENTS)[keyof typeof INSTRUMENTS]): void {
-  push({
-    kind: 'put',
-    scope: 'relatorio',
-    path: `sheet/${blockId}/test/${testKey}/instrument`,
-    value: {
-      instrument_id: instrumentId,
-      code: inst.code,
-      manufacturer: inst.manufacturer,
-      model: inst.model,
-      serial: inst.serial,
-      cert_number: inst.certNumber,
-      calibrated_at: null,
-      valid_until: null,
-      test_parameter: inst.testParameter,
-    },
-  });
+/**
+ * The header the app's Instrument picker copies onto the sheet (Story 5.7, `instrumentHeaderOf`):
+ * the registry row's values and its default for this test ("10 kV", "10 A"; none for the ratio).
+ */
+function instrumentPut(blockId: string, testKey: TestKey, row: InstrumentRow): void {
+  push({ kind: 'put', scope: 'relatorio', path: `sheet/${blockId}/test/${testKey}/instrument`, value: instrumentHeaderOf(row, testKey) });
 }
 
 function cellPut(blockId: string, testKey: string, row: number, col: number, value: unknown): void {
@@ -360,7 +359,7 @@ function singleInsulationSteps(blockId: string, definition: BlockDefinition, iso
   const test = definition.tests.find((t) => t.key === 'isolacao')!;
   const table = test.tables[0]!;
   const captureCol = table.value_columns.findIndex((c) => c.role === 'capture');
-  instrumentPut(blockId, test.key, INSTRUMENT_MEGOHMETRO_ID, INSTRUMENTS.megohmetro);
+  instrumentPut(blockId, test.key, INSTRUMENT_ROWS.megohmetro);
   table.rows.forEach((_row, r) => {
     const raw = isoRows[r] ?? null;
     table.value_columns.forEach((col, c) => {
@@ -374,7 +373,7 @@ function singleInsulationSteps(blockId: string, definition: BlockDefinition, iso
  *  triple is identical on both tables in every one of the 94 real sheets read. */
 function contactInsulationSteps(blockId: string, definition: BlockDefinition, triple: readonly [string, string, string]): void {
   const test = definition.tests.find((t) => t.key === 'isolacao')!;
-  instrumentPut(blockId, test.key, INSTRUMENT_MEGOHMETRO_ID, INSTRUMENTS.megohmetro);
+  instrumentPut(blockId, test.key, INSTRUMENT_ROWS.megohmetro);
   let rowOffset = 0;
   for (const table of test.tables) {
     const unit = table.value_columns[0]!.unit;
@@ -387,7 +386,7 @@ function resistenciaContatoSteps(blockId: string, definition: BlockDefinition, t
   const test = definition.tests.find((t) => t.key === 'resistencia_contato');
   if (!test) throw new Error(`porto-seguro fixture: ${definition.block_type} has no resistencia_contato test but an instance set .rc`);
   const table = test.tables[0]!;
-  instrumentPut(blockId, test.key, INSTRUMENT_MICROHMETRO_ID, INSTRUMENTS.microhmetro);
+  instrumentPut(blockId, test.key, INSTRUMENT_ROWS.microhmetro);
   table.rows.forEach((_row, r) => cellPut(blockId, test.key, r, 0, measured(triple[r]!, table.value_columns[0]!.unit)));
 }
 
@@ -406,7 +405,7 @@ function tpTcRatioSteps(blockId: string, definition: BlockDefinition, ratio: { p
   const table = test.tables[0]!;
   const [pCol, sCol] = inputCols(table);
   const [capCol] = captureCols(table);
-  instrumentPut(blockId, test.key, INSTRUMENT_RATIOMETRO_ID, INSTRUMENTS.ratiometro);
+  instrumentPut(blockId, test.key, INSTRUMENT_ROWS.ratiometro);
   table.rows.forEach((_row, r) => {
     cellPut(blockId, test.key, r, pCol!, measured(ratio.p, table.value_columns[pCol!]!.unit));
     cellPut(blockId, test.key, r, sCol!, measured(ratio.s, table.value_columns[sCol!]!.unit));
@@ -421,7 +420,7 @@ function transformadorRatioSteps(blockId: string, definition: BlockDefinition, r
   const table = test.tables[0]!;
   const [pCol, sCol] = inputCols(table);
   const caps = captureCols(table);
-  instrumentPut(blockId, test.key, INSTRUMENT_RATIOMETRO_ID, INSTRUMENTS.ratiometro);
+  instrumentPut(blockId, test.key, INSTRUMENT_ROWS.ratiometro);
   cellPut(blockId, test.key, 0, pCol!, measured(ratio.p, table.value_columns[pCol!]!.unit));
   cellPut(blockId, test.key, 0, sCol!, measured(ratio.s, table.value_columns[sCol!]!.unit));
   caps.forEach((c, k) => cellPut(blockId, test.key, 0, c, measured(ratio.cap[k]!, table.value_columns[c]!.unit)));

@@ -232,6 +232,10 @@ describe('7.1-UNIT-001 groupForPrint: por_local_e_tipo is built on the base case
       return groupForPrint(snapshot, 'por_local_e_tipo').subsections[0]!.title;
     };
     expect(titleOf('1° Subsolo')).toBe('Disjuntores dos Cubículos de MT do 1° Subsolo');
+    // A leading ordinal or number is skipped: the noun after it agrees.
+    expect(titleOf('2ª Cabine')).toBe('Disjuntores dos Cubículos de MT da 2ª Cabine');
+    expect(titleOf('3º Subsolo')).toBe('Disjuntores dos Cubículos de MT do 3º Subsolo');
+    expect(titleOf('2 Colunas')).toBe('Disjuntores dos Cubículos de MT das 2 Colunas');
     expect(titleOf('Geradores')).toBe('Disjuntores dos Cubículos de MT dos Geradores');
     expect(titleOf('Cabine Principal')).toBe('Disjuntores dos Cubículos de MT da Cabine Principal');
     expect(titleOf('Colunas Leste')).toBe('Disjuntores dos Cubículos de MT das Colunas Leste');

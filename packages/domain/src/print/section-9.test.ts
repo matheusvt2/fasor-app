@@ -348,6 +348,15 @@ describe('7.1 section9Layout: the I/O matrix', () => {
     expect(texts(tableNamed(sheetOf(section, block(4)), 'CARACTERÍSTICAS DA SE'))[2]).toEqual(['-', '-', '-', '-']);
   });
 
+  it('ALTITUDE prints the setup altitude (Story 12.3 owns it) when the cabine holds none; a cabine value still wins', () => {
+    const env = { altitude_m: null, temperature_c: measured('25', '°C'), humidity_pct: measured('65', '%') };
+    const snapshot = snapshotOf([cabine(1, 'Cabine A', 'a0', { env }), cabine(2, 'Cabine B', 'a1', { env: { ...env, altitude_m: measured('900', 'm') } })], [sheet(1, 1, 'tp', 'a0'), sheet(2, 2, 'tp', 'a0')]);
+    const withSetup = { ...snapshot, relatorio: { ...snapshot.relatorio, setup: { ...snapshot.relatorio.setup, site_altitude_m: 760 } } };
+    const section = layoutOf(withSetup);
+    expect(texts(tableNamed(sheetOf(section, block(1)), 'AMBIENTE DE ENSAIO'))[2]).toEqual(['760 m', '25 °C', '65 %']);
+    expect(texts(tableNamed(sheetOf(section, block(2)), 'AMBIENTE DE ENSAIO'))[2]).toEqual(['900 m', '25 °C', '65 %']);
+  });
+
   it('Não ensaiada: title, attribution, the cabine block on a first sheet, the nameplate and the reason band; nothing else', () => {
     const marked = (n: number, type: EquipmentBlockType, reason: string, text: string | null) =>
       edit(sheet(n, 1, type, `a${n}`), (b) => ({
@@ -543,6 +552,38 @@ describe('7.1 section9Layout: sub-blocks, grids and words', () => {
     expect(attributionOf((b) => ({ ...b, last_modified_by: id(999), last_modified_at: '2026-09-06T12:41:00.000Z' }))).toBeNull();
     expect(attributionOf((b) => ({ ...b, last_modified_by: USER.id, last_modified_at: null }))).toBeNull();
     expect(attributionOf((b) => b)).toBeNull();
+  });
+
+  it('closes a photo line with a period only when the caption has no closing punctuation of its own', () => {
+    const captions = ['Está oxidado?', 'Contato aquecido!', 'Ver detalhe…', 'Ver "nota."', '(ver foto 2.)', 'Sem ponto', 'Com ponto.'];
+    const files = captions.map((caption, i) => photo(i + 1, { block_id: block(1), caption, captured_at: `2026-09-06T10:0${i}:00.000Z` }));
+    const printed = sheetOf(layoutOf(snapshotOf([cabine(1, 'Cabine A', 'a0')], [sheet(1, 1, 'tp', 'a0')], { files })), block(1));
+    expect(printed.parts.flatMap((p) => (p.kind === 'photos' ? p.photos.map((x) => x.caption) : []))).toEqual([
+      'Imagem 1: Está oxidado?',
+      'Imagem 2: Contato aquecido!',
+      'Imagem 3: Ver detalhe…',
+      'Imagem 4: Ver "nota."',
+      'Imagem 5: (ver foto 2.)',
+      'Imagem 6: Sem ponto.',
+      'Imagem 7: Com ponto.',
+    ]);
+  });
+
+  it('prints a checklist row\'s photo with the photos after the tests when the sheet prints no checklist', () => {
+    const files = [photo(1, { block_id: block(1), item_key: 'limpeza', caption: 'Limpeza do TP', captured_at: '2026-09-06T10:00:00.000Z' })];
+    // The checklist is a locked sub-block (`LOCKED_SUB_BLOCKS`): switched off in the config it
+    // still prints, and the row's photo right after it.
+    const locked = sheetOf(layoutOf(snapshotOf([cabine(1, 'Cabine A', 'a0')], [edit(sheet(1, 1, 'tp', 'a0'), withSubBlocks({ checklist: false }))], { files })), block(1));
+    const names = locked.parts.map(partName);
+    expect(names.indexOf('photos 1')).toBe(names.indexOf('VERIFICAÇÕES GERAIS') + 1);
+    // Only a config the kernel reads as enabling no sub-block leaves the checklist out (and
+    // the tests with it): the photo then prints with the photos after the tests.
+    const bare = edit(sheet(1, 1, 'tp', 'a1'), (b) => ({ ...b, config: { block_type: 'section_1', sub_blocks: {}, na_defaults: [] } }));
+    const section = layoutOf(snapshotOf([cabine(1, 'Cabine A', 'a0')], [sheet(2, 1, 'disjuntor_mt', 'a0'), bare], { files }));
+    const printed = sheetOf(section, block(1));
+    expect(printed.parts.map(partName)).toEqual(['photos 1']);
+    expect(printed.parts[0]).toEqual({ kind: 'photos', photos: [{ fileId: id(3001), number: 1, caption: 'Imagem 1: Limpeza do TP.' }] });
+    expect(layoutPhotoIds({ sections: [section] })).toEqual([id(3001)]);
   });
 
   it('marks NA the checklist items the block\'s config pre-marks, and leaves an unanswered item blank', () => {
