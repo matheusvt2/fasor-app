@@ -1,27 +1,46 @@
 import { expect, test as base, type Locator, type Page } from '@playwright/test';
-import { TEST_SEED } from '../../apps/api/src/db/test-seed.ts';
+import {
+  E2E_WORKER_PASSWORD,
+  workerSeed,
+  type SeedAccount,
+  type WorkerSeed,
+} from '../../apps/api/src/db/e2e-worker-seed.ts';
 
 /**
  * Every spec imports `test` and `expect` from here, so a fixture added later reaches
- * the whole suite at once. The two seeded companies come from `scripts/seed-users.ts
- * --test`, which `global-setup.ts` runs before the first spec.
+ * the whole suite at once.
+ *
+ * `seed` is this worker's own pair of companies (E6-Q7): `global-setup.ts` seeds one pair
+ * per worker, and the fixture hands each worker the pair of its `parallelIndex`, so two
+ * workers never share a company, a user or a device database. Specs take every company
+ * id, user id, e-mail and name from it; none names a fixed one.
  */
 
-export interface Fixtures {
-  seed: typeof TEST_SEED;
+export interface WorkerFixtures {
+  seed: WorkerSeed;
 }
 
-export const test = base.extend<Fixtures>({
-  seed: [TEST_SEED, { option: true }],
+export const test = base.extend<object, WorkerFixtures>({
+  seed: [
+    // Playwright reads which fixtures a function takes from its first parameter's pattern.
+    // eslint-disable-next-line no-empty-pattern
+    async ({}, use, workerInfo) => {
+      await use(workerSeed(workerInfo.parallelIndex));
+    },
+    { scope: 'worker' },
+  ],
 });
 
-export { expect, TEST_SEED };
+export { expect, type SeedAccount, type WorkerSeed };
+
+/** The password of every worker user. */
+export const SEED_PASSWORD = E2E_WORKER_PASSWORD;
 
 /** Fills the Login form and waits for Home. */
 export async function signIn(page: Page, email: string): Promise<void> {
   await page.goto('/login');
   await page.getByLabel('E-mail').fill(email);
-  await page.getByLabel('Senha').fill(TEST_SEED.password);
+  await page.getByLabel('Senha').fill(E2E_WORKER_PASSWORD);
   await page.getByRole('button', { name: 'Entrar', exact: true }).click();
   // Home's own <h1> now lives in the App bar and is visually-hidden there
   // (`key-home.html`), so the marker that Home has painted is the status board.

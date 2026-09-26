@@ -1,6 +1,6 @@
 import { getDefinition } from '@app/domain';
 import type { Page } from '@playwright/test';
-import { deviceDatabaseName, expect, signIn, test, TEST_SEED } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { instrumentDraft, newRelatorioDrafts, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
 import { syncNowAndReturn } from './support/sync.ts';
@@ -20,8 +20,13 @@ import { tapCounter, type TapCounter } from './support/taps.ts';
  * instrument picker, no plate typed but its own unit); the per-unit taps are reported apart.
  */
 
-const account = TEST_SEED.companies[1];
-const database = deviceDatabaseName(account.userId);
+let account: SeedAccount;
+let database: string;
+test.beforeEach(({ seed }) => {
+  // This worker's Empresa B (E6-Q7): its company, its user and its device database.
+  account = seed.companies[1];
+  database = deviceDatabaseName(account.userId);
+});
 const EFFECT_MS = 3_000;
 const READINGS = ['150', '160', '170', '180', '190', '200', '100', '110', '120'];
 /** The seccionadora's checklist row whose NC chips offer "conexão frouxa" (1-based). */
@@ -109,7 +114,7 @@ function after(sheets: readonly SeededSheet[], sheet: SeededSheet): SeededSheet 
 
 test('@p1 12.3-E2E-004 J1, J3 and J2 at 768 px: a new plate, the second seccionadora and one NC, every tap on the first try, taps and keystrokes counted', async ({ page }) => {
   test.setTimeout(300_000);
-  await resetEmpresaB({ standard: true });
+  await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 768, height: 1024 });
   await signIn(page, account.email);
   const built = newRelatorioDrafts(account);

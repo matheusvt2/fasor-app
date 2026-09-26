@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
-import { deviceDatabaseName, expect, test } from './support/merged-fixtures.ts';
-import { devicePhotos, expectCameraOpen, openChaveSheet, PHOTO_ACCOUNT, shoot } from './support/photos.ts';
+import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
+import { devicePhotos, expectCameraOpen, openChaveSheet, shoot } from './support/photos.ts';
 import { plainJpeg } from './fixtures/photos/synthetic.ts';
 import { pullAll } from './support/outbox.ts';
 import { syncNow } from './support/sync.ts';
@@ -20,8 +20,13 @@ test.use({
   geolocation: SAO_PAULO,
 });
 
-const account = PHOTO_ACCOUNT;
-const database = deviceDatabaseName(account.userId);
+let account: SeedAccount;
+let database: string;
+test.beforeEach(({ seed }) => {
+  // This worker's Empresa B (E6-Q7): its company, its user and its device database.
+  account = seed.companies[1];
+  database = deviceDatabaseName(account.userId);
+});
 const cameraButton = (page: Page) => page.getByRole('button', { name: 'Tirar foto', exact: true });
 const toast = (page: Page) => page.getByTestId('toast');
 const contatos = (page: Page) => page.locator('#ficha-step-verificacoes li.checklist-row[data-item-key="contatos"]');

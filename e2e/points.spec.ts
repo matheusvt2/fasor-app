@@ -1,7 +1,7 @@
 import { getDefinition, newPointRow, photoToken, type OpDraft, type PointRow } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
-import { deviceDatabaseName, expect, signIn, test, TEST_SEED } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
@@ -17,8 +17,13 @@ import { newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from '.
  * template (with whatever the scenario needs) from an "office" device.
  */
 
-const account = TEST_SEED.companies[1];
-const database = deviceDatabaseName(account.userId);
+let account: SeedAccount;
+let database: string;
+test.beforeEach(({ seed }) => {
+  // This worker's Empresa B (E6-Q7): its company, its user and its device database.
+  account = seed.companies[1];
+  database = deviceDatabaseName(account.userId);
+});
 const SECC = getDefinition('v3', 'cabine_primaria', 'chave_seccionadora');
 const FIRST_ITEM = SECC.checklist![0]!;
 
@@ -107,7 +112,7 @@ function notTestedDraft(scope: Scope, blockId: string, reason = 'solicitacao_cli
 }
 
 async function setUp(page: Page, seed: (scope: Scope, sheets: SeededSheet[]) => OpDraft[] = () => []): Promise<Built> {
-  await resetEmpresaB({ standard: true });
+  await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 1280, height: 900 });
   await signIn(page, account.email);
   const built = newRelatorioDrafts(account);

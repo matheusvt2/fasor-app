@@ -20,6 +20,7 @@ import type { Db } from './client.ts';
 import { ensureCompany } from './repositories/companies.ts';
 import { asCompanyId, type CompanyId } from './repositories/company-id.ts';
 import { account, company, entities, ops, session, syncDevicePush, user } from './schema.ts';
+import { isE2eWorkerCompany, workerSeed, type SeedAccount } from './e2e-worker-seed.ts';
 import { LEGACY_TEST_COMPANY_IDS, TEST_SEED } from './test-seed.ts';
 
 export { LEGACY_TEST_COMPANY_IDS, TEST_SEED };
@@ -382,9 +383,10 @@ export async function resetTestCompanyData(
   only: readonly string[] = TEST_SEED.companies.map((c) => c.companyId),
 ): Promise<void> {
   // `only` narrows the reset to some of the test companies (the Templates empty-state spec
-  // resets Empresa B alone); it can never name any other company.
+  // resets Empresa B alone); it can never name any company but a `TEST_SEED` one or an e2e
+  // worker's pair (`e2e-worker-seed.ts`), which the Playwright suite resets instead.
   const testIds: readonly string[] = TEST_SEED.companies.map((c) => c.companyId);
-  const foreign = only.filter((id) => !testIds.includes(id));
+  const foreign = only.filter((id) => !testIds.includes(id) && !isE2eWorkerCompany(id));
   if (foreign.length > 0) throw new Error(`resetTestCompanyData resets only the test companies, not ${foreign.join(', ')}`);
   const ids = [...only];
   if (ids.length === 0) return;
@@ -418,4 +420,46 @@ export async function seedTestCompanies(db: Db, auth: Auth): Promise<SeedUserRes
     results.push(result);
   }
   return results;
+}
+
+/**
+ * Provisions one seeded account (a `TEST_SEED` company or an e2e worker's A or B): its
+ * company, its user and, when the account says so, the standard template. Idempotent like
+ * `seedUser`, which is also how a spec re-seeds its user after emptying the company.
+ */
+export async function seedAccount(
+  db: Db,
+  auth: Auth,
+  seeded: SeedAccount,
+  password: string,
+  { standardTemplate = seeded.standardTemplate }: { standardTemplate?: boolean } = {},
+): Promise<SeedUserResult> {
+  const result = await seedUser(db, auth, {
+    companyId: seeded.companyId,
+    companyName: seeded.companyName,
+    email: seeded.email,
+    password,
+    name: seeded.name,
+    council: seeded.council,
+    registrationNumber: seeded.registrationNumber,
+    userId: seeded.userId,
+  });
+  if (standardTemplate) await seedStandardTemplate(db, result.companyId);
+  return result;
+}
+
+/**
+ * E6-Q7: empties and provisions the pairs of e2e workers `0 .. count - 1`, the Playwright
+ * global setup's one step. Each pair is `TEST_SEED`'s shape with its own ids and e-mails;
+ * `TEST_SEED` itself is not touched.
+ */
+export async function seedE2eWorkerPairs(db: Db, auth: Auth, count: number): Promise<void> {
+  const pairs = Array.from({ length: count }, (_, index) => workerSeed(index));
+  await resetTestCompanyData(
+    db,
+    pairs.flatMap((pair) => pair.companies.map((c) => c.companyId)),
+  );
+  for (const pair of pairs) {
+    for (const seeded of pair.companies) await seedAccount(db, auth, seeded, pair.password);
+  }
 }

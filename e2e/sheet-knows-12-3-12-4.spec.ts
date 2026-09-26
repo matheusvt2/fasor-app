@@ -1,6 +1,6 @@
 import { cellAddressesOf, getDefinition, instrumentHeaderOf, type FieldDef, type InstrumentRow, type OpDraft } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
-import { deviceDatabaseName, expect, signIn, test, TEST_SEED } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { instrumentDraft, newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
@@ -14,8 +14,13 @@ import { syncNowAndReturn } from './support/sync.ts';
  * already filled there (another sheet's plate, its instruments), then works on the sheet.
  */
 
-const account = TEST_SEED.companies[1];
-const database = deviceDatabaseName(account.userId);
+let account: SeedAccount;
+let database: string;
+test.beforeEach(({ seed }) => {
+  // This worker's Empresa B (E6-Q7): its company, its user and its device database.
+  account = seed.companies[1];
+  database = deviceDatabaseName(account.userId);
+});
 const SECC = getDefinition('v2', 'cabine_primaria', 'chave_seccionadora');
 const CHECKLIST = SECC.checklist!;
 
@@ -79,7 +84,7 @@ async function setUp(
   seed: (scope: Scope, enel: [SeededSheet, SeededSheet], sheets: SeededSheet[], instrument: InstrumentRow | null, drafts: readonly OpDraft[]) => OpDraft[] = () => [],
   withInstrument = false,
 ): Promise<{ relatorioId: string; enel: [SeededSheet, SeededSheet]; sheets: SeededSheet[] }> {
-  await resetEmpresaB({ standard: true });
+  await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 768, height: 1024 });
   await signIn(page, account.email);
   const built = newRelatorioDrafts(account);

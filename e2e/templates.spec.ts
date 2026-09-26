@@ -1,11 +1,5 @@
 import { materializeEntity, SEED_VERSION, STANDARD_TEMPLATE_NAME, standardTemplate, templateRowSchema, type TemplateRow } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
-import { createAuth } from '../apps/api/src/auth/auth.ts';
-import { parseTrustedOrigins } from '../apps/api/src/auth/trusted-origins.ts';
-import { loadConfig } from '../apps/api/src/config.ts';
-import { createDb } from '../apps/api/src/db/client.ts';
-import { asCompanyId } from '../apps/api/src/db/repositories/company-id.ts';
-import { resetTestCompanyData, seedStandardTemplate, seedUser } from '../apps/api/src/db/seed.ts';
 import { pullAll, readStore } from './support/outbox.ts';
 import {
   deviceDatabaseName,
@@ -14,8 +8,8 @@ import {
   signIn,
   syncBadge,
   test,
-  TEST_SEED,
 } from './support/merged-fixtures.ts';
+import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { syncNowAndReturn } from './support/sync.ts';
 
 /*
@@ -25,40 +19,9 @@ import { syncNowAndReturn } from './support/sync.ts';
  * Empresa A holds the standard template the provisioning CLI seeded and is only read here.
  * Every test that writes starts by resetting Empresa B (the test-company reset, only ever
  * Empresa B) and, when it needs one, seeding the standard template into it again, so the
- * file is re-runnable on its own. Safe mid-run only because the suite runs with
- * `workers: 1` and no later spec needs data Empresa B held before.
+ * file is re-runnable on its own. Safe mid-run because Empresa B is this worker's own
+ * (E6-Q7) and no later spec needs data Empresa B held before.
  */
-
-async function resetEmpresaB({ standard = false }: { standard?: boolean } = {}): Promise<void> {
-  const b = TEST_SEED.companies[1];
-  const config = loadConfig();
-  const { sql, db } = createDb(config.DATABASE_URL);
-  try {
-    await resetTestCompanyData(db, [b.companyId]);
-    await seedUser(
-      db,
-      createAuth({
-        db,
-        secret: config.SESSION_SECRET,
-        baseURL: config.AUTH_BASE_URL,
-        trustedOrigins: parseTrustedOrigins(config.TRUSTED_ORIGINS),
-      }),
-      {
-        companyId: b.companyId,
-        companyName: b.companyName,
-        email: b.email,
-        password: TEST_SEED.password,
-        name: b.name,
-        council: b.council,
-        registrationNumber: b.registrationNumber,
-        userId: b.userId,
-      },
-    );
-    if (standard) await seedStandardTemplate(db, asCompanyId(b.companyId));
-  } finally {
-    await sql.end();
-  }
-}
 
 async function openTemplates(page: Page): Promise<void> {
   await page.getByRole('link', { name: /Templates/ }).click();
@@ -101,7 +64,7 @@ test('@p0 3.2-E2E-001 Empresa B creates the standard template from the empty sta
   browser,
   seed,
 }) => {
-  await resetEmpresaB();
+  await resetEmpresaB(seed.companies[1]);
   const account = seed.companies[1];
   await signIn(page, account.email);
   await openTemplates(page);
@@ -191,7 +154,7 @@ test('@p0 3.3-E2E-002 "Duplicar" makes "⟨nome⟩ — cópia" with the same com
   page,
   seed,
 }) => {
-  await resetEmpresaB({ standard: true });
+  await resetEmpresaB(seed.companies[1], { standard: true });
   const account = seed.companies[1];
   await signIn(page, account.email);
   await openTemplates(page);
@@ -219,7 +182,7 @@ test('@p0 3.3-E2E-002 "Duplicar" makes "⟨nome⟩ — cópia" with the same com
 });
 
 test('@p0 3.3-E2E-003 archive, restore, remove with confirm and undo, all kept on reload', async ({ page, seed }) => {
-  await resetEmpresaB({ standard: true });
+  await resetEmpresaB(seed.companies[1], { standard: true });
   const account = seed.companies[1];
   await signIn(page, account.email);
   await openTemplates(page);
@@ -274,7 +237,7 @@ test('@p0 3.4-E2E-001 builds a skeleton from "Novo template" and reorders a colu
   page,
   seed,
 }) => {
-  await resetEmpresaB();
+  await resetEmpresaB(seed.companies[1]);
   const account = seed.companies[1];
   await signIn(page, account.email);
   await openTemplates(page);
@@ -342,7 +305,7 @@ test('@p0 3.4-E2E-001 builds a skeleton from "Novo template" and reorders a colu
 });
 
 test('@p0 3.4-E2E-002 sets quantities per node with the palette stepper; the coluna and the totals follow', async ({ page, seed }) => {
-  await resetEmpresaB();
+  await resetEmpresaB(seed.companies[1]);
   const account = seed.companies[1];
   await signIn(page, account.email);
   await openTemplates(page);
@@ -415,7 +378,7 @@ test('@p0 3.4-E2E-003 section blocks reorder, duplicate and remove with undo; Ag
   browser,
   seed,
 }) => {
-  await resetEmpresaB({ standard: true });
+  await resetEmpresaB(seed.companies[1], { standard: true });
   const account = seed.companies[1];
   await signIn(page, account.email);
   await openTemplates(page);
@@ -491,7 +454,7 @@ test('@p0 3.4-E2E-005 a coluna removed on one device while a stale device sets q
   browser,
   seed,
 }) => {
-  await resetEmpresaB({ standard: true });
+  await resetEmpresaB(seed.companies[1], { standard: true });
   const account = seed.companies[1];
 
   // Context 1 (the remover, this page) and context 2 (the stale device) open the standard template.
@@ -648,7 +611,7 @@ test('@p0 3.5-E2E-001 per-type sub-block defaults: toggles, "Sempre", subtype NA
   page,
   seed,
 }) => {
-  await resetEmpresaB({ standard: true });
+  await resetEmpresaB(seed.companies[1], { standard: true });
   const account = seed.companies[1];
   await signIn(page, account.email);
   await openTemplates(page);
@@ -731,7 +694,7 @@ test('@p0 3.6-E2E-001 section text: a chip inserted at the caret is one atomic t
   page,
   seed,
 }) => {
-  await resetEmpresaB({ standard: true });
+  await resetEmpresaB(seed.companies[1], { standard: true });
   const account = seed.companies[1];
   await signIn(page, account.email);
   // E3-A4 (G-1): the list is asserted once this device holds the template the first pull
@@ -824,7 +787,7 @@ test('@p1 3.6-E2E-002 "Restaurar texto padrão" puts the seed text back and "Des
   page,
   seed,
 }) => {
-  await resetEmpresaB({ standard: true });
+  await resetEmpresaB(seed.companies[1], { standard: true });
   const account = seed.companies[1];
   await signIn(page, account.email);
   await openTemplates(page);
@@ -868,7 +831,7 @@ test('@p0 3.6-E2E-003 section text: browser undo cannot corrupt the text, and sp
   page,
   seed,
 }) => {
-  await resetEmpresaB({ standard: true });
+  await resetEmpresaB(seed.companies[1], { standard: true });
   const account = seed.companies[1];
   await signIn(page, account.email);
   await openTemplates(page);
@@ -916,7 +879,7 @@ test('@p1 E3-A9-E2E-001 composer polish: a tap on a section card body opens "Edi
   page,
   seed,
 }) => {
-  await resetEmpresaB({ standard: true });
+  await resetEmpresaB(seed.companies[1], { standard: true });
   const account = seed.companies[1];
   await signIn(page, account.email);
   await deviceHoldsTemplate(page, account.userId, STANDARD_TEMPLATE_NAME);
