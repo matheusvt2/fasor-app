@@ -175,6 +175,29 @@ describe('4.2 SetupSurface', () => {
     });
   });
 
+  it('7.4: the parecer radiogroup by keyboard: ArrowRight from "Apto" checks "Apto com restrições" with one op; Home and End move to the ends', async () => {
+    database = await seeded();
+    renderSetup();
+    const group = await screen.findByRole('radiogroup', { name: 'Parecer' });
+    const radio = (name: string) => within(group).getByRole('radio', { name });
+    const parecerOps = async () => (await database!.outbox.where('path').equals('relatorio/setup/parecer').toArray()).map((op) => (op.value as { verdict: string }).verdict);
+    await userEvent.click(radio('Apto'));
+    await waitFor(async () => expect(await parecerOps()).toEqual(['apto']));
+    await waitFor(() => expect(radio('Apto')).toHaveAttribute('aria-checked', 'true'));
+    radio('Apto').focus();
+    await userEvent.keyboard('{ArrowRight}');
+    await waitFor(() => expect(radio('Apto com restrições')).toHaveAttribute('aria-checked', 'true'));
+    expect(radio('Apto com restrições')).toHaveFocus();
+    await waitFor(async () => expect(await parecerOps()).toEqual(['apto', 'apto_com_restricoes']));
+    await userEvent.keyboard('{End}');
+    await waitFor(() => expect(radio('Não apto')).toHaveAttribute('aria-checked', 'true'));
+    expect(radio('Não apto')).toHaveFocus();
+    await userEvent.keyboard('{Home}');
+    await waitFor(() => expect(radio('Apto')).toHaveAttribute('aria-checked', 'true'));
+    expect(radio('Apto')).toHaveFocus();
+    await waitFor(async () => expect(await parecerOps()).toEqual(['apto', 'apto_com_restricoes', 'nao_apto', 'apto']));
+  });
+
   it('7.5: opened from the Export dialog (?etapa=6&volta=exportar), Etapa 6 offers the way back to it', async () => {
     database = await seeded();
     renderSetup(RELATORIO, '?etapa=6&volta=exportar');

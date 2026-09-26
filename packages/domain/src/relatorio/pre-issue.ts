@@ -312,8 +312,14 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
     }
   }
 
-  // Story 7.4/7.5: the one blocking row.
-  if (parecerOf(snapshot) === null) {
+  // Story 7.4/7.5: the one blocking row, only while section 10 prints: a live `section_10`
+  // block, or no live section block at all (the legacy snapshot prints the seed's eleven,
+  // `print/layout.ts` `printedSections`).
+  const printedSectionTypes = liveSections(snapshot)
+    .filter((block) => relatorioSectionNumber(block.block_type) !== null)
+    .map((block) => block.block_type);
+  const section10Prints = printedSectionTypes.length === 0 || printedSectionTypes.includes('section_10');
+  if (section10Prints && parecerOf(snapshot) === null) {
     rows.push({ id: 'parecer_missing', row: 'section_10', severity: 'blocking', text: PARECER_MISSING_TEXT, kind: 'parecer_missing' });
   }
 

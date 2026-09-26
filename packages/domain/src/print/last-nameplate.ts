@@ -2,7 +2,7 @@ import type { JsonValue } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { getDefinition } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
-import { isCellFilled, isEquipmentBlock } from '../relatorio/sheet-state.ts';
+import { enabledSubBlocksOf, isCellFilled, isEquipmentBlock } from '../relatorio/sheet-state.ts';
 import type { EquipmentRow } from '../schemas/entities.ts';
 
 /*
@@ -31,13 +31,15 @@ function definitionOf(seedVersion: string, blockType: string): BlockDefinition |
 }
 
 /**
- * One entry per live equipment block whose definition has a nameplate and whose plate holds
+ * One entry per live equipment block whose definition has an enabled nameplate and whose plate holds
  * a filled cell, in snapshot order.
  */
 export function lastNameplates(snapshot: RelatorioSnapshot, input: { revisionNumber: number; issuedAt: string }): LastNameplateEntry[] {
   const out: LastNameplateEntry[] = [];
   for (const block of snapshot.blocks) {
     if (block.removed_at !== null || block.equipment_id === null || !isEquipmentBlock(block)) continue;
+    // A disabled nameplate does not print; its stale cells are not the last visit's plate.
+    if (!enabledSubBlocksOf(block).has('nameplate')) continue;
     const definition = definitionOf(block.seed_version, block.block_type);
     if (definition === null || definition.nameplate.length === 0) continue;
     const fields: Record<string, JsonValue> = {};

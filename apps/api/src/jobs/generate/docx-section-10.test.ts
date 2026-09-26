@@ -87,6 +87,11 @@ describe('7.5-UNIT draft equals issued', () => {
     expect(media(draft)).toHaveLength(1);
   }, 60_000);
 
+  it('fails a draft whose watermark cannot be read, never printing it without RASCUNHO', async () => {
+    const layout = layoutSpec(fixture(), { revisionNumber: 1, issuedAt: ISSUED_AT, draft: true });
+    await expect(buildDocx(layout, { tocPages: placeholderPages(layout), images: { watermark: Buffer.from('not an image') } })).rejects.toThrow(/watermark/);
+  }, 30_000);
+
   it('draws RASCUNHO as a square transparent PNG', async () => {
     const png = await watermarkPng('RASCUNHO');
     const meta = await sharp(png).metadata();

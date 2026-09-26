@@ -74,6 +74,19 @@ describe('7.5-UNIT preIssue: the one blocking row', () => {
     expect(preIssue(snapshot, undefined, { now: NOW, rejected: 3 }).filter((r) => r.severity === 'blocking')).toHaveLength(1);
   });
 
+  it('does not block when section 10 does not print (its block removed)', () => {
+    const snapshot = fresh();
+    const blocks = snapshot.blocks.map((b) => (b.block_type === 'section_10' ? { ...b, removed_at: AT } : b));
+    expect(blockingRows(preIssue({ ...snapshot, blocks }, undefined, { now: NOW }))).toEqual([]);
+  });
+
+  it('blocks on a legacy snapshot with no section block at all (the seed\'s eleven print)', () => {
+    const snapshot = fresh();
+    const blocks = snapshot.blocks.filter((b) => isEquipmentBlock(b) || b.location_id !== null);
+    expect(blocks.some((b) => b.block_type.startsWith('section_'))).toBe(false);
+    expect(blockingRows(preIssue({ ...snapshot, blocks }, undefined, { now: NOW })).map((r) => r.kind)).toEqual(['parecer_missing']);
+  });
+
   it('the Sumário row 10 names the blocking text, then the verdict word once set', () => {
     const snapshot = fresh();
     const row10 = (s: RelatorioSnapshot) => {

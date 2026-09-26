@@ -455,6 +455,68 @@ describe('4.3 SumarioSurface', () => {
     expect(within(dialog).getByRole('button', { name: 'Restaurar SEC-TEST — Cabine de Testes' })).toHaveTextContent('Restaurar');
   });
 
+  it('7.5: "Restaurar" lists only what was removed after the last revision', async () => {
+    database = await seeded();
+    const sections = sectionBlocksFor(RELATORIO);
+    const s5 = sections.find((b) => b.block_type === 'section_5')!;
+    const s2 = sections.find((b) => b.block_type === 'section_2')!;
+    await database.entities.bulkPut([
+      toRecord(`block:${s5.id}`, { ...s5, removed_at: '2026-09-09T10:00:00.000Z' }),
+      toRecord(`block:${s2.id}`, { ...s2, removed_at: '2026-09-11T10:00:00.000Z' }),
+      toRecord(`revision:019966c1-000f-7000-8000-000000000001`, {
+        id: '019966c1-000f-7000-8000-000000000001',
+        relatorio_id: RELATORIO,
+        number: 1,
+        snapshot_seq: 10,
+        created_by: USER,
+        docx_file_id: '019966c1-000f-7000-8000-000000000002',
+        pdf_file_id: '019966c1-000f-7000-8000-000000000003',
+        created_at: '2026-09-10T12:00:00.000Z',
+      } as never),
+    ]);
+    renderSumario();
+    await waitFor(() => expect(rows()).toHaveLength(11));
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções do relatório' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Restaurar ficha removida' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Restaurar ficha removida' });
+    expect(within(dialog).getAllByRole('listitem').map((li) => li.querySelector('.rr-primary')?.textContent)).toEqual(['2 Definições']);
+  });
+
+  it('7.5: the foot "Pré-visualizar" opens a tab, asks for the preview and reads "Gerando rascunho…"; leaving closes the blank tab', async () => {
+    database = await seeded();
+    const tab = { location: { href: '' }, close: vi.fn(), opener: {} };
+    const open = vi.spyOn(window, 'open').mockImplementation(() => tab as unknown as Window);
+    const sync = syncState();
+    const { unmount } = renderSumario(RELATORIO, sync);
+    await waitFor(() => expect(rows()).toHaveLength(13));
+    const bar = document.querySelector('.sticky-action-bar') as HTMLElement;
+    await userEvent.click(within(bar).getByRole('button', { name: 'Pré-visualizar' }));
+    expect(open).toHaveBeenCalledWith('', '_blank');
+    await waitFor(() => expect(sync.preview).toHaveBeenCalledWith(RELATORIO, expect.objectContaining({ file_ids_expected: expect.any(Array) })));
+    expect(within(bar).getByRole('button', { name: 'Gerando rascunho…' })).toBeInTheDocument();
+    // A second press while it runs opens no second tab.
+    await userEvent.click(within(bar).getByRole('button', { name: 'Gerando rascunho…' }));
+    expect(open).toHaveBeenCalledTimes(1);
+    unmount();
+    expect(tab.close).toHaveBeenCalled();
+    open.mockRestore();
+  });
+
+  it('7.5: offline, the foot "Pré-visualizar" is disabled with the offline reason', async () => {
+    database = await seeded();
+    const open = vi.spyOn(window, 'open');
+    const sync = syncState({ online: false });
+    renderSumario(RELATORIO, sync);
+    await waitFor(() => expect(rows()).toHaveLength(13));
+    const button = within(document.querySelector('.sticky-action-bar') as HTMLElement).getByRole('button', { name: 'Pré-visualizar' });
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    expect(button).toHaveAccessibleDescription('Gerar relatório precisa de conexão. Conecte e tente de novo.');
+    await userEvent.click(button);
+    expect(open).not.toHaveBeenCalled();
+    expect(sync.preview).not.toHaveBeenCalled();
+    open.mockRestore();
+  });
+
   it('a blocking row draws its status line red and bold (`is-blocking`)', () => {
     const row: SumarioRow = {
       key: 'x',

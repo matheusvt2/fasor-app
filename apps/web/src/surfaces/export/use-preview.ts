@@ -1,4 +1,4 @@
-import { expectedFileIds, isJobActive, toIso } from '@app/domain';
+import { expectedFileIds, GENERATE_JOB_EXPIRE_S, isJobActive, toIso } from '@app/domain';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { now } from '../../clock.ts';
 import { pendingUploadCount } from '../../db/file-store.ts';
@@ -22,6 +22,8 @@ export type PreviewPhase = { kind: 'idle' } | { kind: 'working' } | { kind: 'fai
 
 export interface PreviewState {
   phase: PreviewPhase;
+  /** The button is disabled offline ("Sem conexão"), like "Gerar relatório". */
+  online: boolean;
   start: () => void;
 }
 
@@ -50,10 +52,16 @@ export function usePreview(relatorioId: string, timing: GenerateTiming = DEFAULT
   syncRef.current = sync;
   const [phase, setPhase] = useState<PreviewPhase>({ kind: 'idle' });
   const mounted = useRef(true);
+  /** The press in flight: a second press while it runs does nothing (one tab, one job). */
+  const busy = useRef(false);
+  /** The blank tab of the press in flight; closed when the surface goes away before the PDF is in it. */
+  const openTab = useRef<Tab>(null);
   useEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
+      openTab.current?.close();
+      openTab.current = null;
     };
   }, []);
 
@@ -83,17 +91,22 @@ export function usePreview(relatorioId: string, timing: GenerateTiming = DEFAULT
           await wait(timing.retryMs);
         }
       }
-      // Pull until the job is done (its file named) or ends without one.
+      // Pull until the job is done (its file named) or ends without one; a job row that
+      // never arrives is given up once a job of its own would have expired.
+      const askedAt = now().getTime();
       for (;;) {
         await engine.syncRelatorio(relatorioId).catch(() => undefined);
         const job = await generationJobRow(db, jobId);
         if (job !== null && job.status === 'done' && job.result_file_id !== null) {
+          if (!mounted.current) return;
           const url = previewPdfUrl(relatorioId, job.result_file_id);
+          openTab.current = null;
           if (tab === null) window.open(url, '_blank', 'noopener');
           else tab.location.href = url;
           return;
         }
         if (job !== null && (job.status === 'failed' || job.status === 'done' || !isJobActive(job, toIso(now())))) throw new Error(`preview job ${jobId} ended without a file`);
+        if (job === null && now().getTime() - askedAt > GENERATE_JOB_EXPIRE_S * 1000) throw new Error(`preview job ${jobId} never arrived`);
         if (!mounted.current) return;
         await wait(timing.pollMs);
       }
@@ -102,20 +115,27 @@ export function usePreview(relatorioId: string, timing: GenerateTiming = DEFAULT
   );
 
   const start = useCallback(() => {
-    if (phase.kind === 'working' || !syncRef.current.online || db === null) return;
+    if (busy.current || !syncRef.current.online || db === null) return;
+    busy.current = true;
     const tab = openBlankTab();
+    openTab.current = tab;
     setPhase({ kind: 'working' });
-    run(tab).then(
-      () => {
-        if (mounted.current) setPhase({ kind: 'idle' });
-      },
-      (error: unknown) => {
-        console.error('preview failed', error);
-        tab?.close();
-        if (mounted.current) setPhase({ kind: 'failed' });
-      },
-    );
-  }, [phase.kind, db, run]);
+    run(tab)
+      .then(
+        () => {
+          if (mounted.current) setPhase({ kind: 'idle' });
+        },
+        (error: unknown) => {
+          console.error('preview failed', error);
+          tab?.close();
+          if (mounted.current) setPhase({ kind: 'failed' });
+        },
+      )
+      .finally(() => {
+        busy.current = false;
+        if (openTab.current === tab) openTab.current = null;
+      });
+  }, [db, run]);
 
-  return { phase, start };
+  return { phase, online: sync.online, start };
 }

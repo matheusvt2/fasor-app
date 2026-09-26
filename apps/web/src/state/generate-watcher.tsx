@@ -38,13 +38,18 @@ export async function emitIssueFor(db: AppDatabase, author: GenerateAuthor, rela
   await commitBatch(db, [putRelatorioStatusOp(author, relatorioId, next)], { newId, now });
 }
 
-/** The revisions already finished on this device store in this session: one op and one toast each. */
-const finished = new WeakMap<AppDatabase, Set<string>>();
+/**
+ * The finish of each revision on this device store in this session, by revision id: one op
+ * and one toast each. The promise is kept so a second caller waits for the first one's
+ * `issue` op before it resolves (the dialog must not go ready on the pre-issue status).
+ */
+const finishing = new WeakMap<AppDatabase, Map<string, Promise<void>>>();
 
 /**
  * The one finish of an arrived revision: the `issue` op, the ready toast, the wait cleared.
- * Resolves to true for the caller that did it, false when it was already done (the watcher
- * and the Export dialog may both see the revision arrive).
+ * Resolves to true for the caller that did it, false when another caller did (the watcher
+ * and the Export dialog may both see the revision arrive); either resolves only once the
+ * finish is written.
  */
 export async function finishGenerate(
   db: AppDatabase,
@@ -53,16 +58,23 @@ export async function finishGenerate(
   revision: RevisionRow,
   showToast: (text: string) => void,
 ): Promise<boolean> {
-  let done = finished.get(db);
-  if (done === undefined) {
-    done = new Set();
-    finished.set(db, done);
+  let inFlight = finishing.get(db);
+  if (inFlight === undefined) {
+    inFlight = new Map();
+    finishing.set(db, inFlight);
   }
-  if (done.has(revision.id)) return false;
-  done.add(revision.id);
-  if (author !== null) await emitIssueFor(db, author, relatorioId, revision).catch((error: unknown) => console.error('issue status op failed', error));
-  showToast(readyToast(revision.number));
-  await clearGenerateAwaiting(db, relatorioId).catch(() => undefined);
+  const running = inFlight.get(revision.id);
+  if (running !== undefined) {
+    await running;
+    return false;
+  }
+  const work = (async () => {
+    if (author !== null) await emitIssueFor(db, author, relatorioId, revision).catch((error: unknown) => console.error('issue status op failed', error));
+    showToast(readyToast(revision.number));
+    await clearGenerateAwaiting(db, relatorioId).catch(() => undefined);
+  })();
+  inFlight.set(revision.id, work);
+  await work;
   return true;
 }
 

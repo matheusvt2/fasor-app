@@ -108,7 +108,11 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
     if (highlighted.size === 0) return;
     const clear = () => setHighlighted(NO_HIGHLIGHT);
     document.addEventListener('pointerdown', clear, { once: true });
-    return () => document.removeEventListener('pointerdown', clear);
+    document.addEventListener('keydown', clear, { once: true });
+    return () => {
+      document.removeEventListener('pointerdown', clear);
+      document.removeEventListener('keydown', clear);
+    };
   }, [highlighted]);
   const relatorio = snapshot.relatorio;
   const templateName = templates.find((row) => row.id === relatorio.template_id)?.name ?? null;
@@ -279,7 +283,12 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
           </span>
         ) : null}
         <div className="bar-buttons">
-          <Button variant="secondary" onPress={preview.start}>
+          <Button
+            variant="secondary"
+            isDisabled={!preview.online}
+            disabledReason={preview.online ? undefined : copy.export.offlineReason}
+            onPress={preview.start}
+          >
             <svg className="ico" aria-hidden="true">
               <use href="/sprite.svg#i-doc" />
             </svg>

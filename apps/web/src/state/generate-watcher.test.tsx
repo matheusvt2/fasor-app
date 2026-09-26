@@ -84,9 +84,9 @@ function revision(number: number): { row: RevisionRow; op: Op } {
 
 const issueOps = async (db: AppDatabase) => (await db.outbox.where('path').equals('relatorio/status').toArray()).map((row) => row.value);
 
-function Watching() {
+function Watching({ sync = makeSyncState() }: { sync?: ReturnType<typeof makeSyncState> }) {
   return (
-    <SyncContext value={makeSyncState()}>
+    <SyncContext value={sync}>
       <ToastProvider>
         <GenerateWatcher pollMs={20} />
         <ToastOutlet />
@@ -120,6 +120,23 @@ describe('R4 GenerateWatcher', () => {
     expect(await issueOps(database!)).toEqual(['emitido']);
   });
 
+  it('pulls an awaited relatório\'s stream while online', async () => {
+    database = await freshDb();
+    await writeGenerateAwaiting(database, REL, { number: 1, job_id: JOB });
+    const sync = makeSyncState();
+    render(<Watching sync={sync} />);
+    await waitFor(() => expect(sync.syncRelatorio).toHaveBeenCalledWith(REL));
+  });
+
+  it('does not pull while offline', async () => {
+    database = await freshDb();
+    await writeGenerateAwaiting(database, REL, { number: 1, job_id: JOB });
+    const sync = makeSyncState({ online: false });
+    render(<Watching sync={sync} />);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(sync.syncRelatorio).not.toHaveBeenCalled();
+  });
+
   it('a failed job clears the wait silently: no op, no toast', async () => {
     database = await freshDb();
     await writeGenerateAwaiting(database, REL, { number: 1, job_id: JOB });
@@ -138,11 +155,14 @@ describe('R4 GenerateWatcher', () => {
     await applyPulled(database, [op]);
     const toasts: string[] = [];
     const author = { id: USER, companyId: COMPANY };
-    const [first, second] = await Promise.all([
-      finishGenerate(database, author, REL, row, (text) => toasts.push(text)),
-      finishGenerate(database, author, REL, row, (text) => toasts.push(text)),
-    ]);
-    expect([first, second].sort()).toEqual([false, true]);
+    const db = database;
+    // Each caller reads the outbox the moment it resolves: the losing one waits for the
+    // winner's `issue` op, so neither goes ready on the pre-issue status.
+    const finish = () => finishGenerate(db, author, REL, row, (text) => toasts.push(text)).then(async (won) => ({ won, ops: await issueOps(db) }));
+    const [first, second] = await Promise.all([finish(), finish()]);
+    expect([first.won, second.won].sort()).toEqual([false, true]);
+    expect(first.ops).toEqual(['emitido']);
+    expect(second.ops).toEqual(['emitido']);
     expect(toasts).toEqual(['Revisão 1 pronta — DOCX']);
     expect(await issueOps(database)).toEqual(['emitido']);
   });

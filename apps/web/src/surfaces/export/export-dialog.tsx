@@ -77,6 +77,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
   const { phase, relatorio, revisions, idleNumber, userNames, online } = state;
   const whoOf = (row: RevisionRow) => userNames[row.created_by] ?? null;
   const downloadingReasonId = useId();
+  const generateReasonId = useId();
   const db = useSession().database;
   const { resendDead } = useSync();
 
@@ -101,7 +102,8 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
   }, [issues, precheck]);
 
   const previewButton = (
-    <Button variant="secondary" onPress={preview.start}>
+    // Offline, the row's one reason ("Gerar relatório precisa de conexão") names both buttons.
+    <Button variant="secondary" isDisabled={!online} disabledReasonId={online ? undefined : generateReasonId} onPress={preview.start}>
       <svg className="ico" aria-hidden="true">
         <use href="/sprite.svg#i-doc" />
       </svg>
@@ -112,9 +114,19 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
   const generateRow = (options: { disabledReason?: string; reason?: string; withPreview: boolean }) => (
     <div className="generate-row">
       {options.withPreview ? previewButton : null}
-      <Button variant="primary" isDisabled={options.disabledReason !== undefined} disabledReason={options.disabledReason} onPress={state.start}>
+      <Button
+        variant="primary"
+        isDisabled={options.disabledReason !== undefined}
+        disabledReasonId={options.disabledReason === undefined ? undefined : generateReasonId}
+        onPress={state.start}
+      >
         {copy.export.generate}
       </Button>
+      {options.disabledReason === undefined ? null : (
+        <span className="btn-reason" id={generateReasonId}>
+          {options.disabledReason}
+        </span>
+      )}
       {options.disabledReason === undefined && options.reason !== undefined ? <span className="btn-reason">{options.reason}</span> : null}
     </div>
   );

@@ -177,9 +177,10 @@ function tocParagraph(entry: DocumentLayout['toc'][number], page: number | null)
 }
 
 /** The watermark image, as wide as the content, floating behind the text at the centre of the page. */
-async function watermarkRun(data: Buffer): Promise<ImageRun | null> {
+async function watermarkRun(data: Buffer): Promise<ImageRun> {
   const sized = await sizedImage(data, COVER_MAX_WIDTH_PX, COVER_MAX_WIDTH_PX);
-  if (sized === null) return null;
+  // A preview must never render without its RASCUNHO: fail the job instead.
+  if (sized === null) throw new Error('watermark image could not be read');
   return new ImageRun({
     type: 'png',
     data: sized.data,

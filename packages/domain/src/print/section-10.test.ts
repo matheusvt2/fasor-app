@@ -103,6 +103,27 @@ describe('7.5-UNIT lastNameplates', () => {
     const emptied = { ...snapshot, blocks: snapshot.blocks.map((b) => ({ ...b, sheet: { ...b.sheet, nameplate: {} } })) };
     expect(lastNameplates(emptied, { revisionNumber: 1, issuedAt: ISSUED_AT })).toEqual([]);
   });
+
+  it('skips a sheet whose nameplate sub-block is switched off (its stale cells do not print)', () => {
+    const snapshot = base();
+    const entries = lastNameplates(snapshot, { revisionNumber: 1, issuedAt: ISSUED_AT });
+    const target = entries[0]!.equipmentId;
+    const blocks = snapshot.blocks.map((b) => {
+      if (b.equipment_id !== target) return b;
+      const config = b.config as { sub_blocks: Record<string, unknown> };
+      return { ...b, config: { ...config, sub_blocks: { ...config.sub_blocks, nameplate: { enabled: false } } } };
+    });
+    const after = lastNameplates({ ...snapshot, blocks }, { revisionNumber: 1, issuedAt: ISSUED_AT });
+    expect(after.map((e) => e.equipmentId)).toEqual(entries.map((e) => e.equipmentId).filter((id) => id !== target));
+  });
+
+  it('skips a removed block', () => {
+    const snapshot = base();
+    const entries = lastNameplates(snapshot, { revisionNumber: 1, issuedAt: ISSUED_AT });
+    const target = entries[0]!.equipmentId;
+    const blocks = snapshot.blocks.map((b) => (b.equipment_id === target ? { ...b, removed_at: ISSUED_AT } : b));
+    expect(lastNameplates({ ...snapshot, blocks }, { revisionNumber: 1, issuedAt: ISSUED_AT }).some((e) => e.equipmentId === target)).toBe(false);
+  });
 });
 
 describe('7.5-UNIT SM-C1 confirmedCellsLaterEdited', () => {
@@ -121,5 +142,19 @@ describe('7.5-UNIT SM-C1 confirmedCellsLaterEdited', () => {
     ).toBe(1);
     // Order is `seq`, not array order; a plain put before the suggestion counts nothing.
     expect(confirmedCellsLaterEdited([{ kind: 'put', path, meta: suggestion, seq: 2 }, { kind: 'put', path, meta: null, seq: 1 }])).toBe(0);
+  });
+
+  it('a later suggestion re-arms the cell; a non-put, a non-sheet path and an empty suggestion id count nothing', () => {
+    expect(
+      confirmedCellsLaterEdited([
+        { kind: 'put', path, meta: suggestion, seq: 1 },
+        { kind: 'put', path, meta: null, seq: 2 },
+        { kind: 'put', path, meta: suggestion, seq: 3 },
+        { kind: 'put', path, meta: null, seq: 4 },
+      ]),
+    ).toBe(1);
+    expect(confirmedCellsLaterEdited([{ kind: 'put', path, meta: { source_suggestion_id: '' } }, { kind: 'put', path, meta: null }])).toBe(0);
+    expect(confirmedCellsLaterEdited([{ kind: 'put', path: 'not a path', meta: suggestion }, { kind: 'put', path: 'not a path', meta: null }])).toBe(0);
+    expect(confirmedCellsLaterEdited([])).toBe(0);
   });
 });

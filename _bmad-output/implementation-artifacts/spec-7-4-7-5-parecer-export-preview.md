@@ -2,7 +2,7 @@
 title: 'Stories 7.4 and 7.5: set the parecer, see what is outstanding, preview as RASCUNHO and issue'
 type: 'feature'
 created: '2026-09-26'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '1582cddadfc18cac787efb0f86995fd2fb163151'
 review_loop_iteration: 0
 followup_review_recommended: false
