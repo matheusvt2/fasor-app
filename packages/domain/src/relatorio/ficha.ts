@@ -1,4 +1,4 @@
-import type { BlockRow, LocationRow } from '../schemas/entities.ts';
+import type { BlockRow, LocationRow, SuggestionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { getDefinition, getSeed } from '../seed/definitions.ts';
 import type { BlockDefinition, FieldDef } from '../seed/schema.ts';
@@ -9,6 +9,7 @@ import { sortWordRegistryRows, type WordRow } from '../registry/word-row.ts';
 import { plural } from '../text/plural.ts';
 import { checklistResultOf } from './sheet-progress.ts';
 import { isCellFilled } from './sheet-state.ts';
+import { blocksWithPendingSuggestions } from './suggestions.ts';
 import { locationTree, siblingLocations, treeNodes, type TreeEquipmentNode } from './tree.ts';
 
 /*
@@ -24,6 +25,18 @@ import { locationTree, siblingLocations, treeNodes, type TreeEquipmentNode } fro
 /** The equipment rows of the relatório in tree order (the order "Próxima ficha" walks). */
 export function sheetOrder(snapshot: Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment'>): TreeEquipmentNode[] {
   return treeNodes(locationTree(snapshot)).filter((node): node is TreeEquipmentNode => node.kind === 'equipment');
+}
+
+/**
+ * Story 8.1: the first sheet in tree order holding a pending suggestion, where the Sumário's
+ * "N sugestões por confirmar" leads; null when none does.
+ */
+export function firstSheetWithPendingSuggestions(
+  snapshot: Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment'>,
+  pending: readonly SuggestionRow[],
+): string | null {
+  const held = blocksWithPendingSuggestions(pending);
+  return sheetOrder(snapshot).find((node) => held.has(node.blockId))?.blockId ?? null;
 }
 
 /**

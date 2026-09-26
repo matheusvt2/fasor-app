@@ -135,7 +135,16 @@ function FichaBody({
               <div id="ficha-step-placa" className={stepClass('placa')} data-step="placa" tabIndex={-1} onFocus={() => focusIn('placa')}>
                 {cabine === null ? null : <CabineBlock api={api} snapshot={snapshot} cabine={cabine} first={cabineFirst} />}
                 {enabled.has('nameplate') ? (
-                  <NameplateSection api={api} snapshot={snapshot} block={block} definition={definition} equipment={equipment} registries={registries} />
+                  <NameplateSection
+                    api={api}
+                    snapshot={snapshot}
+                    state={state}
+                    block={block}
+                    definition={definition}
+                    equipment={equipment}
+                    registries={registries}
+                    onCaptionPhoto={photos.setCaptioning}
+                  />
                 ) : null}
               </div>
               <div id="ficha-step-verificacoes" className={stepClass('verificacoes')} data-step="verificacoes" tabIndex={-1} onFocus={() => focusIn('verificacoes')}>

@@ -167,6 +167,7 @@ describe('4.4-UNIT locationTree', () => {
       source: { photo_id: id(8002), bbox: [0, 0, 10, 10], ocr_token_ids: [], reading_run_id: id(8003) },
       status: 'pending',
       prompt_version: 'v1',
+      hint: null,
     };
     const withSuggestion = { ...snapshot, suggestions: [pending] };
     const tree = locationTree(withSuggestion);

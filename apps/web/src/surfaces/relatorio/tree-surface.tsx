@@ -1,4 +1,4 @@
-import { buildSnapshot, progress, railHeadText, type EntityState, type RelatorioSnapshot } from '@app/domain';
+import { buildSnapshot, pendingSuggestions, progress, railHeadText, suggestionRowsOf, type EntityState, type RelatorioSnapshot } from '@app/domain';
 import { useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import { copy } from '../../copy/pt-br.ts';
@@ -35,7 +35,8 @@ function Arvore({ relatorioId, state }: { relatorioId: string; state: EntityStat
   const snapshot: RelatorioSnapshot = useMemo(() => buildSnapshot(state, relatorioId), [state, relatorioId]);
   const equipment = useProjectEquipment(state, snapshot.relatorio.project_id);
   const lastSheet = useLiveQuery(() => (db === null ? Promise.resolve(null) : readLastSheet(db, relatorioId)), [db, relatorioId], null);
-  const total = useMemo(() => progress(snapshot).sheets_total, [snapshot]);
+  // Story 8.1: the same counts as the Sumário, over the device's pending suggestion rows.
+  const total = useMemo(() => progress(snapshot, pendingSuggestions(suggestionRowsOf(state, relatorioId))).sheets_total, [snapshot, state, relatorioId]);
   const relatorio = snapshot.relatorio;
   const editor = useRelatorioEditor(relatorioId, relatorio.project_id);
   const context = useMemo(

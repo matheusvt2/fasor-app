@@ -11,6 +11,7 @@ import {
   type FileRow,
   type InstrumentRow,
   type PointRow,
+  type SuggestionRow,
   type LocationRow,
   type ProjectRow,
   type RegistryRow,
@@ -178,6 +179,10 @@ export async function relatorioState(db: AppDatabase, relatorioId: string): Prom
   // named by `preIssue`, so the snapshot needs both (`buildSnapshot` keeps the live ones).
   for (const row of await rowsWhere<PointRow>(db, 'point', 'relatorio_id', relatorioId)) put('point', row);
   for (const row of await rowsWhere<FileRow>(db, 'file', 'relatorio_id', relatorioId)) put('file', row);
+  // Story 8.1: the device's suggestion rows (pending ones included), which the nameplate and
+  // the Sumário's pending counts read (`suggestionRowsOf`); `buildSnapshot` keeps only the
+  // ones a cell references.
+  for (const row of await rowsWhere<SuggestionRow>(db, 'suggestion', 'relatorio_id', relatorioId)) put('suggestion', row);
   return state;
 }
 

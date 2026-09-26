@@ -4,6 +4,7 @@ import {
   projectStreamId,
   SYNC_PUSH_MAX_OPS,
   toIso,
+  type Author,
   type Clock,
   type NewId,
   type Op,
@@ -21,6 +22,7 @@ import {
   writeSyncState,
 } from '../db/sync-store.ts';
 import { opOf } from '../db/commit.ts';
+import { autoConfirmPulled } from '../db/suggestion-store.ts';
 import {
   markBlobAcked,
   pendingUploads,
@@ -89,6 +91,11 @@ export interface SyncEngineDeps {
    * (tests, a browser with no estimate) only the wholesale rule runs.
    */
   readStorage?: () => Promise<StorageReading | null>;
+  /**
+   * Story 8.1: the signed-in user, who auto-confirms a pulled suggestion whose target
+   * already holds the same value (`autoConfirmPulled`). Without one nothing is confirmed.
+   */
+  author?: () => Author | null;
 }
 
 export interface SyncEngine {
@@ -371,6 +378,26 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     }
   }
 
+  /**
+   * Story 8.1: after a page is applied, the suggestions it created whose target already
+   * holds the same value are confirmed as the signed-in user (`meta.auto`). A failure is
+   * logged and never stops the pull; the confirm ops go out with one more cycle right after.
+   */
+  async function autoConfirm(ops: readonly Op[]): Promise<void> {
+    if (deps.author === undefined || ops.length === 0) return;
+    try {
+      const author = deps.author();
+      if (author === null) return;
+      const own = ops.filter((op) => op.company_id === author.companyId);
+      if (own.length === 0) return;
+      const confirmed = await autoConfirmPulled(deps.db, own, author, { newId: deps.newId, now: deps.now });
+      // The confirm ops were committed after this cycle's push: one more cycle sends them now.
+      if (confirmed.length > 0) onlineWhileRunning = true;
+    } catch (error) {
+      console.error('suggestion auto-confirm failed', error);
+    }
+  }
+
   /** Pulls one stream to its head, page by page; the cursor never passes an op the device cannot parse. */
   async function pullStream(
     id: string,
@@ -391,6 +418,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
         if (error instanceof SyncRequestError) throw error;
         throw new PhaseEnd('stop', { kind: 'apply' });
       }
+      await autoConfirm(ops);
       const lastSeq = ops.at(-1)?.seq;
       const cursor = lastSeq === undefined ? previousCursor : Math.max(previousCursor, lastSeq);
       const complete = stoppedAt === undefined && cursor >= page.seq;

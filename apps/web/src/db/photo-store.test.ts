@@ -101,6 +101,17 @@ describe('6.1-UNIT-006 commitPhotoCapture', () => {
     db.close();
   });
 
+  it('8.1-UNIT: a shot that asks for a reading carries reading_kind, reading_target and reading_status queued', async () => {
+    const db = await freshDb();
+    const target = { block_id: BLOCK_1_ID, block_type: 'transformador' };
+    await commitPhotoCapture(db, shot(PHOTO_C, '2026-09-25T11:00:00.000Z', { reading: { kind: 'plate', target } }), { newId, now });
+    const row = photoFileRowSchema.parse((await db.entities.get(['file', PHOTO_C]))!.row);
+    expect(row).toMatchObject({ reading_kind: 'plate', reading_target: target, reading_status: 'queued' });
+    const [create] = await db.outbox.where('path').equals(`file/${PHOTO_C}`).toArray();
+    expect(create!.value).toMatchObject({ reading_kind: 'plate', reading_target: target, reading_status: 'queued' });
+    db.close();
+  });
+
   it('lists a sheet photos in capture order with their thumb and item', async () => {
     const db = await freshDb();
     await commitPhotoCapture(db, shot(PHOTO_B, '2026-09-25T11:05:00.000Z', { itemKey: 'contatos' }), { newId, now });

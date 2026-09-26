@@ -828,3 +828,33 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: Story 8.3 review, Verification Gap finding; the 1.9 GB image stays out of the 15-minute gate by decision.
   class: deferred
   state: open (owner: none)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-8-1-suggestion-entity.md`
+  summary: Sync status lines "leituras na fila" and "sugestões por confirmar" are not rendered yet. `syncCounts(outbox, {suggestions, photos})` computes `readings_queued` and `suggestions_pending` (0 when the input is omitted), but `SyncProvider` still calls it with the outbox alone.
+  evidence: `packages/domain/src/sync/counts.ts` `ReadingCountInputs`; `apps/web/src/state/sync.tsx` `syncCounts(rows)`.
+  class: deferred
+  state: open (owner: Epic 8 batch P, Story 8.2)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-8-1-suggestion-entity.md`
+  summary: The pre-issue row "N fichas com sugestões por confirmar" (a warning that never blocks) is not in `preIssue` yet: its text is the kernel's `fichasComSugestoesText`, but `relatorio/pre-issue.ts` stayed untouched while the Epic 7 batches run.
+  evidence: `packages/domain/src/relatorio/suggestions.ts` `fichasComSugestoesText`, `blocksWithPendingSuggestions`.
+  class: deferred
+  state: open (owner: Epic 8 batch P, Story 8.6)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-8-1-suggestion-entity.md`
+  summary: The plate tile, the plate crop above the group (with the focused field's region), "da foto N" in the group note, the arrival toast "N leituras prontas para confirmar — Ver" and the "Sugestões prontas" banner are not built; the group note reads "N sugestões lidas. Nada foi gravado ..." without the photo number.
+  evidence: `suggestionGroupNoteText` comment; `apps/web/src/surfaces/ficha/nameplate-suggestions.tsx`.
+  class: deferred
+  state: open (owner: Epic 8 batch P, Stories 8.2 and 8.6)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-8-1-suggestion-entity.md`
+  summary: "Criar ⟨nome⟩?" from a suggestion's `hint.create_registry_entry` is not rendered; the row carries the hint (contract 5) and the device ignores it.
+  evidence: `packages/domain/src/schemas/entities.ts` `suggestionHintSchema`.
+  class: deferred
+  state: open (owner: Epic 8 batch R, Story 8.5)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-8-1-suggestion-entity.md`
+  summary: A crop source fetched from the server is kept as a `crop` blob under the photo id and the eviction pass (`runEviction`) never removes it (it deletes acked `original` rows only), so every plate photo a device only viewed through a crop keeps its full original on the device.
+  evidence: `apps/web/src/db/file-store.ts` `cropSourceBlob`, `runEviction`.
+  class: debt
+  state: open (owner: none)

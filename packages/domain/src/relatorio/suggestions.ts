@@ -1,0 +1,408 @@
+import { formatCalendarDate } from '../format/datetime.ts';
+import { splitEntityKey, type EntityState } from '../ops/apply.ts';
+import type { OpDraft } from '../ops/op.ts';
+import { safeParsePath, suggestionStatusPath } from '../ops/path.ts';
+import { canonicalDecimal, formatDecimalGroupedPtBr, parseDecimalPtBr } from '../parse/pt-br-number.ts';
+import { parseVoltageClassKv } from '../registry/word-row.ts';
+import type { BlockRow, Cell, JsonValue, RelatorioStatus, SuggestionRow } from '../schemas/entities.ts';
+import { getDefinition } from '../seed/definitions.ts';
+import type { FieldDef } from '../seed/schema.ts';
+import { normalizeRegistryName } from '../text/normalize-name.ts';
+import { plural } from '../text/plural.ts';
+import { relatorioOpEnvelope, type Author } from './ops.ts';
+import { isCellFilled } from './sheet-state.ts';
+
+/*
+ * Story 8.1 (AD-12, EXPERIENCE.md › Suggestion field): every rule of a Suggestion on the
+ * device, computed once. A suggestion is a `suggestion` row the reading job writes with
+ * `status = pending`; it is never a cell, so nothing reads it as filled, counted or printed
+ * until the engineer taps. The only writes are the batches built here:
+ *
+ * - Confirmar: `suggestion/{id}/status = confirmed` + the target put carrying
+ *   `meta.source_suggestion_id` (the cell's provenance, `applyOp`'s `cellOf`);
+ * - typing into the guess: the typed value put (no meta) + `status = discarded`;
+ * - Confirmar todos: the confirm pairs of every `suggested` fill of the group, one batch;
+ * - auto-confirm after a pull: the confirm batch with `meta.auto = true`.
+ *
+ * `pending` is the stored status, never inferred. The group of the nameplate is the only
+ * target Epic 8 reads (`sheet/{block}/nameplate/{field}`).
+ */
+
+// --- reading the rows ---------------------------------------------------------------------
+
+/** The suggestion rows of one relatório the state holds, oldest first (uuidv7 order). */
+export function suggestionRowsOf(state: EntityState, relatorioId: string): SuggestionRow[] {
+  const rows: SuggestionRow[] = [];
+  for (const [key, row] of state) {
+    if (splitEntityKey(key).entity !== 'suggestion') continue;
+    const suggestion = row as SuggestionRow;
+    if (suggestion.relatorio_id === relatorioId) rows.push(suggestion);
+  }
+  return rows.sort(byId);
+}
+
+function byId(a: { id: string }, b: { id: string }): number {
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+}
+
+/** The rows still waiting for a tap: the stored `status = pending`, nothing else. */
+export function pendingSuggestions(rows: readonly SuggestionRow[]): SuggestionRow[] {
+  return rows.filter((row) => row.status === 'pending');
+}
+
+/** The block a suggestion targets (any `sheet/*` path), or null for any other target. */
+export function suggestionBlockId(s: Pick<SuggestionRow, 'target_path'>): string | null {
+  const path = safeParsePath(s.target_path);
+  if (path === null || !path.family.startsWith('sheet/')) return null;
+  return (path as { block_id: string }).block_id;
+}
+
+/** The nameplate field key a suggestion targets on `blockId`, or null. */
+function nameplateKeyOf(s: Pick<SuggestionRow, 'target_path'>, blockId: string): string | null {
+  const path = safeParsePath(s.target_path);
+  if (path === null || path.family !== 'sheet/nameplate' || path.block_id !== blockId) return null;
+  return path.field_key;
+}
+
+/**
+ * The pending suggestion each nameplate field of `blockId` shows: with several on one field
+ * the newest (highest uuidv7 id) wins, and Confirmar or typing acts on it alone.
+ */
+export function pendingByNameplateField(rows: readonly SuggestionRow[], blockId: string): Map<string, SuggestionRow> {
+  const out = new Map<string, SuggestionRow>();
+  for (const row of rows) {
+    if (row.status !== 'pending') continue;
+    const key = nameplateKeyOf(row, blockId);
+    if (key === null) continue;
+    const held = out.get(key);
+    if (held === undefined || row.id > held.id) out.set(key, row);
+  }
+  return out;
+}
+
+/** The blocks holding at least one pending suggestion (never counted as concluded). */
+export function blocksWithPendingSuggestions(pending: readonly SuggestionRow[]): Set<string> {
+  const out = new Set<string>();
+  for (const row of pending) {
+    if (row.status !== 'pending') continue;
+    const blockId = suggestionBlockId(row);
+    if (blockId !== null) out.add(blockId);
+  }
+  return out;
+}
+
+/** The field definition a nameplate suggestion targets on `block`, or null (another target, an unknown key). */
+export function suggestionFieldDef(block: Pick<BlockRow, 'id' | 'seed_version' | 'block_type'>, s: Pick<SuggestionRow, 'target_path'>): FieldDef | null {
+  const key = nameplateKeyOf(s, block.id);
+  if (key === null) return null;
+  try {
+    return getDefinition(block.seed_version, 'cabine_primaria', block.block_type).nameplate.find((field) => field.key === key) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// --- comparing ------------------------------------------------------------------------------
+
+function collapse(text: string): string {
+  return text.trim().replace(/\s+/g, ' ');
+}
+
+function kvOf(value: string): string | null {
+  const kv = parseVoltageClassKv(value);
+  return kv === null ? null : canonicalDecimal(kv.replace(',', '.'));
+}
+
+function deepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  if (Array.isArray(a)) {
+    const other = b as unknown[];
+    return a.length === other.length && a.every((item, i) => deepEqual(item, other[i]));
+  }
+  const ka = Object.keys(a as object);
+  const kb = Object.keys(b as object);
+  if (ka.length !== kb.length) return false;
+  return ka.every((key) => Object.hasOwn(b as object, key) && deepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]));
+}
+
+interface NumberShape {
+  raw: string;
+  unit: string | null;
+  state: string;
+}
+
+function numberShape(value: unknown): NumberShape | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const v = value as Record<string, unknown>;
+  if (typeof v.raw !== 'string' || typeof v.state !== 'string') return null;
+  return { raw: v.raw, unit: typeof v.unit === 'string' ? v.unit : null, state: v.state };
+}
+
+/**
+ * The device-side comparison of a filled cell and an incoming suggestion (AD-12): `equal`
+ * auto-confirms, `different` shows the replace line. By kind: text and select trimmed with
+ * inner whitespace collapsed, then exact; manufacturer by its normalized registry name;
+ * voltage class by its kV number ("15" = "15 kV" = "15,0"); number by `canonicalDecimal`
+ * of `raw` plus the same unit and state; date as the stored string; no definition: JSON
+ * deep equality.
+ */
+export function compareSuggestion(cellValue: unknown, suggestionValue: unknown, fieldDef: Pick<FieldDef, 'kind'> | null): 'equal' | 'different' {
+  const same = (() => {
+    if (fieldDef === null) return deepEqual(cellValue, suggestionValue);
+    switch (fieldDef.kind) {
+      case 'text':
+      case 'select':
+        return typeof cellValue === 'string' && typeof suggestionValue === 'string' ? collapse(cellValue) === collapse(suggestionValue) : deepEqual(cellValue, suggestionValue);
+      case 'manufacturer':
+        return typeof cellValue === 'string' && typeof suggestionValue === 'string'
+          ? normalizeRegistryName(cellValue) === normalizeRegistryName(suggestionValue)
+          : deepEqual(cellValue, suggestionValue);
+      case 'voltage_class': {
+        if (typeof cellValue !== 'string' || typeof suggestionValue !== 'string') return deepEqual(cellValue, suggestionValue);
+        const a = kvOf(cellValue);
+        const b = kvOf(suggestionValue);
+        return a !== null && b !== null ? a === b : normalizeRegistryName(cellValue) === normalizeRegistryName(suggestionValue);
+      }
+      case 'number': {
+        const a = numberShape(cellValue);
+        const b = numberShape(suggestionValue);
+        if (a === null || b === null) return deepEqual(cellValue, suggestionValue);
+        return canonicalDecimal(a.raw) === canonicalDecimal(b.raw) && a.unit === b.unit && a.state === b.state;
+      }
+      case 'date':
+        return typeof cellValue === 'string' && typeof suggestionValue === 'string' ? cellValue === suggestionValue : deepEqual(cellValue, suggestionValue);
+    }
+  })();
+  return same ? 'equal' : 'different';
+}
+
+/**
+ * How a pending suggestion shows on its field: an empty cell takes it as a fill (amber
+ * field, "Confirmar"); a filled cell with a different value keeps the engineer's value and
+ * shows the replace line; a filled cell with an equal value shows nothing (the device
+ * auto-confirms it after the pull).
+ */
+export function suggestionView(cell: Cell | null | undefined, s: Pick<SuggestionRow, 'value'>, fieldDef: Pick<FieldDef, 'kind'> | null): 'fill' | 'replace' | 'none' {
+  if (!isCellFilled(cell)) return 'fill';
+  return compareSuggestion(cell!.value, s.value, fieldDef) === 'equal' ? 'none' : 'replace';
+}
+
+// --- the group -------------------------------------------------------------------------------
+
+/** The nameplate fields of `block` in definition order (none when the definition is unknown). */
+function nameplateFields(block: Pick<BlockRow, 'seed_version' | 'block_type'>): readonly FieldDef[] {
+  try {
+    return getDefinition(block.seed_version, 'cabine_primaria', block.block_type).nameplate;
+  } catch {
+    return [];
+  }
+}
+
+export interface NameplateSuggestion {
+  field: FieldDef;
+  suggestion: SuggestionRow;
+  view: 'fill' | 'replace' | 'none';
+}
+
+/** Each nameplate field of `block` holding a pending suggestion, in definition order, with its view. */
+export function nameplateSuggestions(block: Pick<BlockRow, 'id' | 'seed_version' | 'block_type' | 'sheet'>, pending: readonly SuggestionRow[]): NameplateSuggestion[] {
+  const byField = pendingByNameplateField(pending, block.id);
+  const out: NameplateSuggestion[] = [];
+  for (const field of nameplateFields(block)) {
+    const suggestion = byField.get(field.key);
+    if (suggestion === undefined) continue;
+    out.push({ field, suggestion, view: suggestionView(block.sheet.nameplate[field.key], suggestion, field) });
+  }
+  return out;
+}
+
+/**
+ * "Confirmar todos": every pending `suggested` suggestion of the group whose target cell
+ * is empty, in definition order. Every `verify` one (it confirms only by its own tap) and
+ * every replace one (the engineer's value is kept) are skipped.
+ */
+export function confirmAllCandidates(block: Pick<BlockRow, 'id' | 'seed_version' | 'block_type' | 'sheet'>, pending: readonly SuggestionRow[]): SuggestionRow[] {
+  return nameplateSuggestions(block, pending)
+    .filter((entry) => entry.view === 'fill' && entry.suggestion.trust === 'suggested')
+    .map((entry) => entry.suggestion);
+}
+
+/** The group head's numbers: the suggestions shown (fill and replace), the confirmable ones and the `verify` fills. */
+export function suggestionGroupCounts(block: Pick<BlockRow, 'id' | 'seed_version' | 'block_type' | 'sheet'>, pending: readonly SuggestionRow[]): { shown: number; fills: number; confirmable: number; verify: number } {
+  const entries = nameplateSuggestions(block, pending);
+  const fills = entries.filter((entry) => entry.view === 'fill');
+  return {
+    shown: entries.filter((entry) => entry.view !== 'none').length,
+    fills: fills.length,
+    confirmable: fills.filter((entry) => entry.suggestion.trust === 'suggested').length,
+    verify: fills.filter((entry) => entry.suggestion.trust === 'verify').length,
+  };
+}
+
+/** The confirmed glyph: a cell a suggestion filled, while the relatório is not Emitido ("reachable until export"). */
+export function showsConfirmedGlyph(cell: Cell | null | undefined, relatorioStatus: RelatorioStatus): boolean {
+  return cell != null && cell.source_suggestion_id !== null && relatorioStatus !== 'emitido';
+}
+
+// --- the ops ---------------------------------------------------------------------------------
+
+/**
+ * Confirmar (and "Substituir", and the device's auto-confirm with `auto`): the status put
+ * and the target put carrying `meta.source_suggestion_id`, one batch.
+ */
+export function confirmSuggestionOps(author: Author, s: Pick<SuggestionRow, 'id' | 'relatorio_id' | 'target_path' | 'value'>, opts: { auto?: boolean } = {}): OpDraft[] {
+  const envelope = relatorioOpEnvelope(author, s.relatorio_id);
+  const auto = opts.auto === true ? { auto: true } : {};
+  return [
+    { ...envelope, meta: opts.auto === true ? { auto: true } : null, kind: 'put', path: suggestionStatusPath(s.id), value: 'confirmed' },
+    { ...envelope, meta: { source_suggestion_id: s.id, ...auto }, kind: 'put', path: s.target_path, value: s.value as JsonValue },
+  ];
+}
+
+/** Typing into a suggested field: this suggestion alone is discarded (the typed value op is the caller's). */
+export function discardSuggestionOp(author: Author, s: Pick<SuggestionRow, 'id' | 'relatorio_id'>): OpDraft {
+  return { ...relatorioOpEnvelope(author, s.relatorio_id), kind: 'put', path: suggestionStatusPath(s.id), value: 'discarded' };
+}
+
+// --- the editable guess ------------------------------------------------------------------------
+
+/*
+ * `ficha.ts`'s `fieldValueText` and `numberFieldValue`, restated here: `progress.ts` reads
+ * this module, and `ficha.ts` reaches `progress.ts` through `tree.ts`, so importing it back
+ * would close an import cycle. Same rules: numbers grouped pt-BR, dates dd/mm/aaaa.
+ */
+function valueText(field: Pick<FieldDef, 'kind'>, value: unknown): string {
+  if (value === null || value === undefined) return '';
+  const number = numberShape(value);
+  if (number !== null) return number.state === 'empty' ? '' : formatDecimalGroupedPtBr(number.raw);
+  if (field.kind === 'date' && typeof value === 'string') return formatCalendarDate(value);
+  return typeof value === 'string' ? value : String(value);
+}
+
+/** A value as the editable guess shows it: "3.300", "03/2012", "15 kV", the text as it is; '' for none. */
+export function fieldInputText(field: Pick<FieldDef, 'kind'>, value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (field.kind === 'voltage_class' && typeof value === 'string') {
+    const kv = parseVoltageClassKv(value);
+    return kv === null ? value : `${kv} kV`;
+  }
+  if (typeof value === 'object' && numberShape(value) === null) return JSON.stringify(value);
+  return valueText(field, value);
+}
+
+const DATE_DMY = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+const DATE_MY = /^(\d{1,2})\/(\d{4})$/;
+const DATE_ISO = /^(\d{4})-(\d{2})(?:-(\d{2}))?$/;
+
+function isoDate(year: number, month: number, day: number | null): string | null {
+  if (month < 1 || month > 12) return null;
+  const mm = String(month).padStart(2, '0');
+  if (day === null) return `${year}-${mm}`;
+  const days = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  if (day < 1 || day > days) return null;
+  return `${year}-${mm}-${String(day).padStart(2, '0')}`;
+}
+
+function parseDateInput(text: string): string | null {
+  let match = DATE_DMY.exec(text);
+  if (match !== null) return isoDate(Number(match[3]), Number(match[2]), Number(match[1]));
+  match = DATE_MY.exec(text);
+  if (match !== null) return isoDate(Number(match[2]), Number(match[1]), null);
+  match = DATE_ISO.exec(text);
+  if (match !== null) return isoDate(Number(match[1]), Number(match[2]), match[3] === undefined ? null : Number(match[3]));
+  return null;
+}
+
+/**
+ * What the engineer typed into a suggested field, as the value its kind stores (AR-10), or
+ * `{ok: false}` when it is not one (the kind's invalid helper shows and nothing is written).
+ * Empty text is `null`. Number: `{raw, unit: field.unit, state: 'measured'}`; date:
+ * `dd/mm/aaaa`, `mm/aaaa` or ISO; select: an option, ignoring case and accents; voltage
+ * class: a kV number ("15", "17,5 kV").
+ */
+export function parseFieldInput(field: Pick<FieldDef, 'kind' | 'unit' | 'options'>, text: string): { ok: true; value: JsonValue | null } | { ok: false } {
+  const trimmed = text.trim();
+  if (trimmed === '') return { ok: true, value: null };
+  switch (field.kind) {
+    case 'number': {
+      const raw = parseDecimalPtBr(trimmed);
+      return raw === null ? { ok: false } : { ok: true, value: { raw, unit: field.unit ?? null, state: 'measured' } };
+    }
+    case 'date': {
+      const iso = parseDateInput(trimmed);
+      return iso === null ? { ok: false } : { ok: true, value: iso };
+    }
+    case 'select': {
+      const wanted = normalizeRegistryName(trimmed);
+      const option = (field.options ?? []).find((candidate) => normalizeRegistryName(candidate) === wanted);
+      return option === undefined ? { ok: false } : { ok: true, value: option };
+    }
+    case 'voltage_class': {
+      const kv = parseVoltageClassKv(trimmed);
+      return kv === null ? { ok: false } : { ok: true, value: kv };
+    }
+    default:
+      return { ok: true, value: collapse(trimmed) };
+  }
+}
+
+// --- the texts ---------------------------------------------------------------------------------
+
+/** A suggested value as a sentence names it, unit included: "630 A", "15 kV", "03/2012", "Schneider". */
+export function suggestionValueText(field: Pick<FieldDef, 'kind' | 'unit'> | null, value: unknown): string {
+  if (field === null) return typeof value === 'string' ? value : JSON.stringify(value);
+  if (field.kind === 'voltage_class') return fieldInputText(field, value);
+  if (field.kind === 'date' && typeof value === 'string') return formatCalendarDate(value) || value;
+  const number = numberShape(value);
+  if (number !== null) {
+    const unit = number.unit ?? field.unit ?? null;
+    const shown = formatDecimalGroupedPtBr(number.raw);
+    return unit === null ? shown : `${shown} ${unit}`;
+  }
+  return valueText(field, value);
+}
+
+/** The group button: "Confirmar todos (7)". */
+export function confirmarTodosText(n: number): string {
+  return `Confirmar todos (${n})`;
+}
+
+/** The toast of "Confirmar todos": "7 campos confirmados — 1 campo pede verificação" (the verify clause only when one is left). */
+export function confirmedAllToastText(confirmed: number, skipped: number): string {
+  const done = plural(confirmed, 'campo confirmado', 'campos confirmados');
+  return skipped === 0 ? done : `${done} — ${plural(skipped, 'campo pede verificação', 'campos pedem verificação')}`;
+}
+
+/** The toast of one Confirmar: "Fabricante: Schneider — confirmado". */
+export function confirmedFieldToastText(label: string, valueText: string): string {
+  return `${label}: ${valueText} — confirmado`;
+}
+
+/**
+ * The group note (`60-ficha.html`'s ".section-note" of the nameplate): "9 sugestões lidas.
+ * Nada foi gravado: confirme um a um ou todos — o campo “Verificar” pede o seu toque." The
+ * mock's "da foto 3" is left out until Story 8.6 wires the plate photo's number.
+ */
+export function suggestionGroupNoteText(n: number, verifyCount: number): string {
+  const read = plural(n, 'sugestão lida', 'sugestões lidas');
+  const head = n === 1 ? `${read}. Nada foi gravado até você confirmar` : `${read}. Nada foi gravado: confirme um a um ou todos`;
+  if (verifyCount === 0) return `${head}.`;
+  return verifyCount === 1 ? `${head} — o campo “Verificar” pede o seu toque.` : `${head} — os campos “Verificar” pedem o seu toque.`;
+}
+
+/** The Confirmar button's accessible name: "Sugerido, 15 kV, confirmar" ("Verificar, …" for a guess to check). */
+export function suggestionAnnouncement(trust: SuggestionRow['trust'], valueText: string): string {
+  return `${trust === 'verify' ? 'Verificar' : 'Sugerido'}, ${valueText}, confirmar`;
+}
+
+/** The replace line beside an engineer-filled value: "Sugerido: 15 kV" (then "Substituir"). */
+export function replaceLineText(valueText: string): string {
+  return `Sugerido: ${valueText}`;
+}
+
+/** The pre-issue row (Story 8.6): "3 fichas com sugestões por confirmar". */
+export function fichasComSugestoesText(n: number): string {
+  return plural(n, 'ficha com sugestões por confirmar', 'fichas com sugestões por confirmar');
+}
