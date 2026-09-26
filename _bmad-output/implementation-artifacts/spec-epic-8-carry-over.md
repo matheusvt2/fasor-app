@@ -2,10 +2,10 @@
 title: 'Epic 8 carry-over: sync push under overlap, gate workers, Epic 6 and 12 follow-ups'
 type: 'bugfix'
 created: '2026-09-26'
-status: 'in-review'
+status: 'done'
 baseline_revision: '8c9527cd48e45d6b0c0e79febac21138b78e2125'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: 'opus'
 dev_effort: 'high'
 context:
@@ -187,3 +187,15 @@ E6-R1 e2e (6.6-E2E-013): the idle commit (500 ms) is held back by refusing the d
 - `docker compose --profile tools run --rm tools pnpm test:unit -- <touched paths>` -- expected: green.
 - `flock /tmp/fasor-verify.lock docker compose --profile tools run --rm tools pnpm test:api > /tmp/api-s8c.log 2>&1` -- expected: EXIT 0.
 - Each new or touched Playwright spec alone with `--grep` under the lock -- expected: green.
+
+## Auto Run Result
+
+Status: done (orchestrator validation and gate below).
+
+- Summary: a client push is one transaction under one company lock (a permanently refused op deletes its own log row; no savepoints, which made the 2500-op replay six times slower); AGENTS.md documents the e2e runner; E6-R1 point draft written 300 ms after typing and dropped after a stored commit; E6-R2 chips, Combobox and "Outro…" inactive in "Editar texto" with an authored note; Sumário "aguardando envio" leaves out photos with a local upload error (kernel `preIssue` `photoErrors`); viewer picture e2e by pixel size; `ficha-surface.tsx` split into eight modules under 250 lines; nine dated Epic 6 narrowing lines in `epics.md`; stepper single current rule (mock CSS, prototype pages, app copy), kernel `shownSheetSteps`, one acronym rule `screenAcronym`, 1024 landscape capture and checks, section 9 header fit at 390, MOCK-GUIDE and DESIGN.md dated notes; `makeSyncState` in the three tree tests and the instrument panel test; TAG-rename e2e 4.6-E2E-006 (fix already on main, #29); pg-boss reset matches `company_id` and `companyId`; four ledger entries closed.
+- Files: api `sync/apply.ts`, `db/reset-company-jobs.ts`, `scripts/test-reset.ts` and their integration tests; web `state/draft-autosave.ts`, `state/drafts.tsx`, `surfaces/points/point-editor.tsx`, `surfaces/photos/caption-composer.tsx`, `components/chip.tsx`, `copy/pt-br.ts`, `styles/app.css`, `styles/components.css`, `db/file-store.ts`, `surfaces/relatorio/sumario-surface.tsx`, `surfaces/ficha/*` (split, `section-stepper.tsx`), test migrations; kernel `relatorio/{pre-issue,readings,screen-label,sheet-progress}.ts` and tests; e2e `ficha`, `gallery`, `p-screens.capture`, `photos`, `points`, `tree`, `v09-visual`; docs AGENTS.md, `deferred-work.md`, `epics.md`, DESIGN.md, MOCK-GUIDE.md, mock `components.css`, `60-ficha.html`, `prototype/index.html`.
+- Review: 16 findings; patched 4 medium entries (post-commit draft drop test, shown steps in the sheet with the start step, caption desktop controls, and the hidden start step grouped) and 3 low (acronym tests, test title, prototype stepper rule); rejected 3 low (Sumário wiring at `@p1`, poison op now rolls back the whole push, leading or punctuated acronym) and 3 false. Known open for the PR: a deterministic non-permanent error mid-push now rolls back the ops before it too (the device outbox is stuck at that op either way).
+- Follow-up review recommended: true (four medium entries patched). Named risk: the one-transaction push path (refused op removes its own `ops` row) and the start-step fix have no independent re-check; the integrated Epic 8 review should re-check both.
+- Verification: implementer `pnpm verify` green before review (kernel 1143, web 854, tooling 33, api 157, e2e @p0 112); review patches verified by their own suites under the lock; orchestrator's 3 serial + 3 parallel `test:e2e:full` runs and the final `verify` are in the PR body.
+- Residual risks: 6.6-E2E-013 refuses outbox writes to hold the idle commit back; the E6-R2 e2e presses inactive chips by keyboard (Playwright does not click `aria-disabled`).
+- Orchestrator validation (2026-09-26, `test:e2e:full`, each run alone under the host lock): serial s1 200/204 passed, 0 failed, 1432 s; s2 1 failed (12.1-E2E-007, load), 2004 s; s3 0 failed, 1850 s. Parallel (3 workers) p1 1 failed (12.3-E2E-004), 964 s; p2 1 failed (12.3-E2E-004), 844 s; p3 1 failed (6.2-E2E-001), about 840 s. Leak check clean in all six. Push times in the parallel runs: median 197-251 ms, max 2.2-2.9 s, none over 3 s. The three failing tests pass alone three times each. Gate kept at one worker (`PARALLEL_WORKERS = 1`, dated comment in `e2e/support/groups.ts`, new ledger entry owned by the Epic 9 carry-over).

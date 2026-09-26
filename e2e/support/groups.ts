@@ -32,6 +32,11 @@ export type E2eGroup = 'parallel' | 'serial';
  * The api's `POST /api/sync/ops` slows sharply when pushes of several workers overlap, so
  * a test that passes serially can fail in parallel; the gate stays on one worker until
  * that is fixed. `--workers=3` runs the isolated per-worker pairs in parallel on demand.
+ *
+ * Still one (2026-09-26, `spec-epic-8-carry-over.md`): a push is now one transaction and no
+ * overlapping push took over 3 s, but each of three `test:e2e:full` runs on three workers
+ * still failed one test the three serial runs passed (12.3-E2E-004 twice, a reading's
+ * commit late on the device; 6.2-E2E-001 once, a retried upload past 60 s); both pass alone.
  */
 export const PARALLEL_WORKERS = 1;
 
