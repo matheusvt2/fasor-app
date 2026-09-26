@@ -2,10 +2,10 @@
 title: 'Epic 6 fixes: integrated review findings (E6-Q1..Q14 except Q7, Q9)'
 type: 'bugfix'
 created: '2026-09-25'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'b7ac7b512d5252985bc16af2568b3c4ace22a8bf'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: 'opus'
 dev_effort: 'high'
 context:
@@ -152,3 +152,14 @@ Layers: Edge Case Hunter and Verification Gap Reviewer. Blind Hunter and Intent 
   - `[medium]` `[patch]` Q1 header fix guarded only by timing-dependent `@p1` journeys — added `ficha-header.test.tsx`.
   - `[medium]` `[patch]` stored-point autosave/draft on the Points surface untested — added 6.6-E2E-012 `@p1`.
   - `[low]` `[patch]` Esc at "De qual equipamento?" untested — added 6.4-E2E-010 `@p1`; and the wrong comment in `point-draft-recovery.ts` corrected.
+
+## Auto Run Result
+
+Status: done
+
+- **Summary:** E6-Q1 to Q14 (except Q7, Q9) and the carry-over stale "Confirmar" announcement fixed as the coordinator decisions say; causes and narrowings in the section above.
+- **Files:** kernel `photos/caption.ts` (TAG and coluna in the context caption), `photos/gallery.ts` (`photoEquipmentGroups`, `galleryCounts`, `photosImportedText`, `photosKeptGeneralText`, composer preview texts), `points/checks.ts` (`pointsCitingPhoto`, `photoCitedByText`, `ncRowPointPositions`, `ncRowPointsText`); web `points/point-editor.tsx` + `point-writes.ts` + `point-draft-recovery.ts` (autosave, FR-61), `photos/capture-sheet.tsx` (commit on pick, grouped picker), `photos/caption-composer.tsx` + `photos.css` (preview, sticky bar), `ficha/ficha-header.tsx` (Q1), `ficha/camera-view.tsx` and `ficha-surface.tsx` `goTo` (Q6), `components/photo-row.tsx` (Q10), `photo-viewer.tsx`/`checklist-section.tsx` (Q11), `gallery-surface.tsx` (Q12, Q13), `sync/engine.ts` `nudge` + `state/sync.tsx` `requestSyncCycle` (Q14), `ficha/conclusao-section.tsx` (carry-over); e2e `points`, `gallery`, `photos`, `durability` specs; `deferred-work.md`.
+- **Review:** 15 findings; 11 patched (7 medium, 4 low incl. one maybe-false), 4 rejected (reasons in the triage log), 0 deferred.
+- **Follow-up review recommended:** true. Patched mediums: 7. Unverified risk: the point editor's close path after a refused write and the gallery batch committed on pick were only exercised by e2e on desktop Chrome, with no human browser pass; the integrated QA should drive both at 390 px.
+- **Verification:** `pnpm verify` EXIT 0 in 1056 s (lint, static, unit 1138 + 849 + 20, api 151, e2e 111 passed). `pnpm test:e2e:full` result in the PR body.
+- **Residual risks:** the Q1 fix reserves an empty header line on never-filled sheets; Q14 sends photos at once while online, so specs that read pending pills hold the PUTs.
