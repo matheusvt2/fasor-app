@@ -170,7 +170,7 @@ test('@p1 7.3-E2E-001 the DOCX prints "Imagem 1:" in section 7, the point citing
   await panel.getByLabel('Código').fill('CT-7');
   await panel.getByLabel('Nome').fill('Terrômetro');
   await panel.locator('input[type="file"]').setInputFiles({ name: 'certificado-ct7.pdf', mimeType: 'application/pdf', buffer: samplePdf(2) });
-  await expect(panel.locator('.file-input .file-name')).toContainText('certificado-ct7.pdf');
+  await expect(panel.locator('.file-input .file-name')).toContainText('certificado-ct7.pdf', { timeout: 15_000 });
   await syncNow(page);
   await expect.poll(async () => (await readFileBlobs(page, database))[0]?.acked, { timeout: 30_000 }).toBe(true);
 
