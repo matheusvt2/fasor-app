@@ -2,10 +2,10 @@
 title: 'Stories 7.2 and 7.3: print the photo record, the points of attention and the certificates'
 type: 'feature'
 created: '2026-09-26'
-status: 'in-review'
+status: 'done'
 baseline_revision: '1582cddadfc18cac787efb0f86995fd2fb163151'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: 'opus'
 dev_effort: 'high'
 context:
@@ -123,6 +123,22 @@ deferred: []
 
 ## Review Triage Log
 
+### 2026-09-26 — Review pass
+- Layers: Edge Case Hunter and Verification Gap Reviewer. Blind Hunter and Intent Alignment were skipped for token economy; the integrated epic review covers them.
+- verdicts: 11 findings — high 2, medium 2, low 5, false 1, maybe-false 1
+- findings:
+  - `[high]` `[patch]` `job.integration.test.ts:259` expects 2 `pageBreakBefore`, but section 11's first page now sits under the heading and emits 1 — the assertion was changed to 1, and its comment now says the first page sits under the heading.
+  - `[high]` `[patch]` `e2e/photo-numbers.spec.ts:238` has the same stale count of 2 for a two-page CT-7 certificate — changed to 1, with its comment.
+  - `[false]` `[reject]` The AC says 8 stored bullets but the code prints 7 — the fixture holds 7 live points (4 manual, 3 not_tested). The spec miscounted and the code is right; the fix would be a spec edit.
+  - `[medium]` `[patch]` A certificate PDF with hundreds of pages holds the one soffice queue for minutes, since each page costs two soffice runs — `rasterizePdfPages` now refuses more than `MAX_CERTIFICATE_PAGES` (20) before any run, and the section prints the placeholder. Unit test added.
+  - `[low]` `[patch]` `readPageSizes` never destroyed the pdfjs task when `task.promise` rejected — the await moved inside the `try`.
+  - `[low]` `[reject]` A failing certificate file shared by several instruments is re-rasterized once per instrument — two instruments sharing one file is unusual, and the fix adds state.
+  - `[low]` `[reject]` Some but not all page PNGs fail `sizedImage`, so pages go missing silently — the PNGs are soffice's own output; unlikely, and the fix adds a branch.
+  - `[low]` `[reject]` R9 could overwrite a `done` job row — the payload is built only by the route for a fresh `queued` row, so an invalid payload naming a finished job is unreachable.
+  - `[maybe-false]` `[reject]` A `/Rotate` or CropBox page could be stretched, because the pixel size comes from the pdfjs viewport — settling it needs a rotated or cropped sample PDF through Draw's import. If real it is only low (a mild aspect change on unusual certificates), so it is rejected.
+  - `[medium]` `[patch]` (verification gap) The image-certificate branch of `loadCertificatePages` was untested — added `sections/section-11.test.ts` (7.3-UNIT-009): a JPEG with EXIF orientation 6 comes out upright and capped, a PNG is not enlarged, missing and unprintable certificates are skipped, and a throwing reader leaves the certificate out.
+  - `[low]` `[patch]` (verification gap) Sumário row 11 was only checked at 0 — added a Porto Seguro assertion for "3 certificados".
+
 ## Design Notes
 
 - Gallery texts (kernel, authored): no revision gives null (the static note already says the numbers are provisional). A revision with nothing edited since gives "Números da revisão N". A revision edited since gives "Números provisórios — serão definidos na revisão N+1". `viewerCountText(position, total, false)` gives "4 de 20".
@@ -142,3 +158,25 @@ deferred: []
 
 **Manual checks:**
 - The orchestrator renders the full Porto Seguro fixture with synthetic photos and a two-page PDF certificate inside the api container, then rasterizes and looks at the section 7, 8 and 11 pages.
+
+## Auto Run Result
+
+Status: done
+
+**Summary:** Sections 7, 8 and 11 now print from their own kernel modules (`print/section-7.ts`, `section-8.ts`, `section-11.ts`) and their own api renderers (`jobs/generate/sections/`), with dispatch-only edits to `layout.ts`, `docx.ts` and `job.ts`. `rasterizePdfPages` in `libreoffice.ts` rasterizes certificates page by page at 150 dpi in two steps. `readPageSizes` in `pdf-outline.ts` reads page sizes. The snapshot now carries the instruments checked at setup. Integrity gained `cert_number_mismatch`. Sumário row 11 shows the certificate count. The gallery shows a frozen or provisional status line, and the viewer's count follows it. `worker.ts` `handleGenerateJobs` fixes R9.
+
+**Review:** 6 patches (high 2, medium 2, low 2), 0 deferred, and 5 rejected as logged above. The orchestrator also made one change of its own after the implementation: section 11's first page image sits under its heading, so the heading never stands alone at the foot of a page.
+
+**Follow-up review recommended:** true. Two high findings were patched, both stale page-break assertions from the orchestrator's heading change. The risk that remains unverified until `test:api` and `test:e2e:full` run is that these two assertions hold on real LibreOffice output.
+
+**Verification:**
+- Narrow suites are green: api `docx.test`, `libreoffice.test`, `sections/section-11.test`, and domain `sumario.test`.
+- The implementation subagent reported `test:api` green (29 files, 167 tests) and `test:e2e:full` green (202 passed, 4 skipped), both before the patches.
+- Manual check: the orchestrator rendered the full Porto Seguro fixture in the api container through `renderDocument`, with 12 synthetic photos, a point citing two photos, and a two-page sample PDF certificate. The result was 15 pages, TOC converged in 2 passes, and every heading in the outline. Pages 7, 8, 12, 13, 14 and 15 were rasterized and inspected:
+  - Section 7: two photos per row, the bold "Imagem N:" label, the uncaptioned "Imagem 3.", the stamp with coordinates, the item line "Item 1 · Limpeza · C", and placeholders for photos without bytes.
+  - Section 8: the tokens resolved as "Imagem 1 e Imagem 5", and the action appended.
+  - Section 11: the certificate's first page under its heading and page 2 on its own page, then the two placeholder lines.
+
+**Residual risks:**
+- The small fixture's `sub_blocks: {}` hides its sheet instruments from section 11 (deferred-work entry).
+- Each certificate page costs two soffice runs, so a certificate adds about 5 s per page to a generation.

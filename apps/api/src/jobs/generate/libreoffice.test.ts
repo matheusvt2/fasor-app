@@ -2,7 +2,7 @@ import { chmodSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { convertToPdf, LibreOfficeFailedError, LibreOfficeTimeoutError, pageRangeFilter, pngSizeFilter, rasterizePdfPages } from './libreoffice.ts';
+import { convertToPdf, LibreOfficeFailedError, LibreOfficeTimeoutError, MAX_CERTIFICATE_PAGES, pageRangeFilter, pngSizeFilter, rasterizePdfPages } from './libreoffice.ts';
 import { samplePdf } from './sample-pdf.ts';
 
 /*
@@ -150,4 +150,11 @@ describe('rasterizePdfPages over a fake soffice', () => {
     await expect(rasterizePdfPages(Buffer.from('not a pdf'), { jobId: 'raster-garbage', timeoutMs: 2000 })).rejects.toThrow();
     expect(existsSync(marker)).toBe(false);
   }, 20_000);
+
+  it('refuses a certificate over MAX_CERTIFICATE_PAGES pages before any soffice run', async () => {
+    fakeSoffice('exit 0');
+    await expect(rasterizePdfPages(samplePdf(MAX_CERTIFICATE_PAGES + 1), { jobId: 'job-cap' })).rejects.toBeInstanceOf(LibreOfficeFailedError);
+    expect(existsSync(marker)).toBe(false);
+    expect(rasterDirs('job-cap')).toEqual([]);
+  });
 });

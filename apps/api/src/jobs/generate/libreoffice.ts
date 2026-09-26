@@ -149,9 +149,13 @@ export function pngSizeFilter(width: number, height: number): string {
  * points x dpi / 72. A throw (unreadable PDF, soffice failure or timeout) leaves nothing
  * behind; the caller prints the placeholder.
  */
+/** A certificate longer than this is refused (two soffice runs per page would hold the one queue for minutes). */
+export const MAX_CERTIFICATE_PAGES = 20;
+
 export function rasterizePdfPages(pdf: Buffer, options: RasterizeOptions): Promise<Buffer[]> {
   return serialize(async () => {
     const sizes = await readPageSizes(pdf);
+    if (sizes.length > MAX_CERTIFICATE_PAGES) throw new LibreOfficeFailedError(`certificate has ${sizes.length} pages, more than ${MAX_CERTIFICATE_PAGES}`);
     const dpi = options.dpi ?? 150;
     const timeoutMs = options.timeoutMs ?? DEFAULT_CONVERT_TIMEOUT_MS;
     const dir = await mkdtemp(join(tmpdir(), `rasterize-${options.jobId}-`));

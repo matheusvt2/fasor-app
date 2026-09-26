@@ -230,11 +230,11 @@ test('@p1 7.3-E2E-001 the DOCX prints "Imagem 1:" in section 7, the point citing
   expect(photoTable?.[0]?.[0]).toMatch(/^\nImagem 1\.\n\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}/);
   // Section 8: the token printed as the frozen number, the action after it.
   expect(structure.paragraphs).toContain('Isolador trincado, conforme Imagem 1. Substituir na próxima parada.');
-  // Section 11: the two certificate pages as images, each on its own page, no placeholder for it.
+  // Section 11: the two certificate pages as images, the first under the heading and the second on its own page, no placeholder for it.
   expect(structure.paragraphs.some((p) => p.startsWith('Certificado não anexado: CT-7'))).toBe(false);
   const media = [...readZipEntries(docx).keys()].filter((name) => name.startsWith('word/media/') && !name.endsWith('/'));
   expect(media.length).toBeGreaterThanOrEqual(1 + 2);
   const document = readZipEntries(docx).get('word/document.xml')!.toString('utf8');
-  expect((document.match(/<w:pageBreakBefore\/>/g) ?? []).length).toBe(2);
+  expect((document.match(/<w:pageBreakBefore\/>/g) ?? []).length).toBe(1);
   expect(structure.headings.map((h) => h.text)).toEqual(expect.arrayContaining(['7 REGISTRO FOTOGRÁFICO MANUTENÇÃO PREVENTIVA', '11 CERTIFICADOS']));
 });

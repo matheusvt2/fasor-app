@@ -256,7 +256,7 @@ describe('7.2/7.3-INT-001 a revision with a photo, a point citing it and two cer
       const media = [...readZipEntries(docx).keys()].filter((name) => name.startsWith('word/media/') && !name.endsWith('/'));
       expect(media).toHaveLength(3);
       const document = readZipEntries(docx).get('word/document.xml')!.toString('utf8');
-      expect(document.match(/<w:pageBreakBefore\/>/g) ?? []).toHaveLength(2);
+      expect(document.match(/<w:pageBreakBefore\/>/g) ?? []).toHaveLength(1);
     },
     200_000,
   );
