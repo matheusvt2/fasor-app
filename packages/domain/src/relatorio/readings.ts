@@ -3,6 +3,7 @@ import type { BlockRow, Cell } from '../schemas/entities.ts';
 import { compareCriterion, formatCriterionValue, scaleToUnit, SEEDED_CRITERIA, type CriterionSeed } from '../seed/criteria.ts';
 import type { BlockDefinition, ColumnDef, TableDef, TestDef } from '../seed/schema.ts';
 import { listPtBr } from '../text/plural.ts';
+import { screenAcronym } from './screen-label.ts';
 import { enabledSubBlocksOf } from './sheet-state.ts';
 
 /*
@@ -111,9 +112,14 @@ export interface TestEvaluation {
 
 const VOWEL = /[aeiouáéíóúâêôãõà]/i;
 
-/** A seed label as the table shows it: "FASE A" -> "Fase A", "1 MINUTO" -> "1 minuto", "H1-H2 / X1-X2" kept. */
+/**
+ * A seed label as the table shows it: "FASE A" -> "Fase A", "1 MINUTO" -> "1 minuto", "H1-H2 / X1-X2"
+ * kept, and a `SCREEN_LABEL_ACRONYMS` word in its screen form ("KV" -> "kV") as `screenLabel` has it.
+ */
 export function readingLabelText(label: string): string {
   const words = label.split(' ').map((word) => {
+    const acronym = screenAcronym(word);
+    if (acronym !== null) return acronym;
     if (word.length <= 2 || /[\d']/.test(word) || !VOWEL.test(word)) return word;
     return word.toLocaleLowerCase('pt-BR');
   });
@@ -121,9 +127,12 @@ export function readingLabelText(label: string): string {
   return text.charAt(0).toLocaleUpperCase('pt-BR') + text.slice(1);
 }
 
-/** A title sentence-cased: "ENSAIO DE ISOLAÇÃO" -> "Ensaio de isolação". */
+/** A title sentence-cased: "ENSAIO DE ISOLAÇÃO" -> "Ensaio de isolação"; `SCREEN_LABEL_ACRONYMS` words keep their screen form. */
 function sentenceCase(text: string): string {
-  const lower = text.toLocaleLowerCase('pt-BR');
+  const lower = text
+    .split(' ')
+    .map((word) => screenAcronym(word) ?? word.toLocaleLowerCase('pt-BR'))
+    .join(' ');
   return lower.charAt(0).toLocaleUpperCase('pt-BR') + lower.slice(1);
 }
 

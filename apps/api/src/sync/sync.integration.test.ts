@@ -524,6 +524,45 @@ describe('1.5-API-002 idempotency and monotonic seq', () => {
   });
 });
 
+describe('E6-A1 a push is one transaction, each op in its own savepoint', () => {
+  it('a row-schema refusal in the middle rolls back only that op: the ops before and after it land with ascending seqs', async () => {
+    const relatorioId = newId();
+    const create = relatorioCreate(idsA, relatorioId, newId());
+    const before = setupPut(idsA, relatorioId, 'local', 'Galpao 7');
+    // `service_start` must be a date string: `applyOp`'s row schema refuses 42 (a ZodError).
+    const refused = setupPut(idsA, relatorioId, 'service_start', 42);
+    const after = setupPut(idsA, relatorioId, 'atividade', 'Manutencao preventiva');
+    const batch = [create, before, refused, after];
+
+    const result = await pushOk(companyA, batch);
+    expect(result.applied.map((a) => a.op_id)).toEqual([create.op_id, before.op_id, after.op_id]);
+    const seqs = result.applied.map((a) => a.seq);
+    expect([...seqs].sort((x, y) => x - y)).toEqual(seqs);
+    expect(new Set(seqs).size).toBe(3);
+    expect(result.rejected).toEqual([{ op_id: refused.op_id, code: 'op_invalid' }]);
+    const stored = await storedIds(batch.map((o) => o.op_id));
+    expect(stored).toEqual(new Set([create.op_id, before.op_id, after.op_id]));
+    const [row] = await db
+      .select({ row: entities.row, updated_seq: entities.updated_seq })
+      .from(entities)
+      .where(and(eq(entities.company_id, companyA.companyId), eq(entities.entity, 'relatorio'), eq(entities.id, relatorioId)));
+    const setup = (row?.row as { setup: { local: string; atividade: string; service_start: unknown } }).setup;
+    expect(setup.local).toBe('Galpao 7');
+    expect(setup.atividade).toBe('Manutencao preventiva');
+    expect(setup.service_start).toBeNull();
+    expect(row?.updated_seq).toBe(seqs[2]);
+
+    // Re-sent whole (the device never saw the answer): the same seqs, nothing new, and the
+    // refused op refused again.
+    const again = await pushOk(companyA, batch);
+    expect(again.applied).toEqual(result.applied);
+    expect(again.rejected).toEqual(result.rejected);
+    expect(again.superseded).toEqual([]);
+    const rows = await db.select({ op_id: ops.op_id }).from(ops).where(inArray(ops.op_id, batch.map((o) => o.op_id)));
+    expect(rows).toHaveLength(3);
+  });
+});
+
 describe('1.5-API-003 superseded', () => {
   it('applies and reports an op whose prev_op_id is not the latest on its path', async () => {
     const relatorioId = newId();

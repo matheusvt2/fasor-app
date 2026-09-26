@@ -6,7 +6,7 @@ import { newRelatorioDrafts, pushDrafts } from './support/relatorio-seed.ts';
 /*
  * Story 12.5 DoD: the "after" captures of the v0.9 skin, beside the journey review's `A-*`
  * (app, before) and `M-*` (mocks) frames: Home, the Sumário and the SEC-ENEL sheet at 390,
- * 768 and 1280 px, light and dark, 18 files named `P-{surface}-{width}x{height}-{theme}.png`.
+ * 768, 1024 (tablet landscape, added 2026-09-26) and 1280 px, light and dark, 24 files named `P-{surface}-{width}x{height}-{theme}.png`.
  * Not a test: skipped unless `CAPTURE_P=1`, run by hand and the PNGs committed.
  *
  *   docker compose --profile tools run --rm -e CAPTURE_P=1 tools pnpm exec playwright test e2e/p-screens.capture.spec.ts --project desktop-chrome
@@ -16,6 +16,8 @@ const OUT = fileURLToPath(new URL('../_bmad-output/implementation-artifacts/revi
 const VIEWPORTS = [
   { width: 390, height: 844 },
   { width: 768, height: 1024 },
+  // Tablet landscape (E12-A7): the `.frame-tablet-landscape` translations in `app.css`.
+  { width: 1024, height: 768 },
   { width: 1280, height: 800 },
 ] as const;
 const THEMES = ['light', 'dark'] as const;

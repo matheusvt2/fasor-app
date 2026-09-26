@@ -441,6 +441,47 @@ test('@p0 6.6-E2E-010 E6-Q2: a point typed and not yet saved when the tab dies i
   await expect(reopenedRow.locator('.nc-point-ref')).toHaveCount(0);
 });
 
+test('@p0 6.6-E2E-013 E6-R1: a point typed and reloaded with no hide event first is still offered back, and "Recuperar" stores it', async ({ page }) => {
+  test.setTimeout(150_000);
+  // The idle commit must not land before the reload, whatever the machine's load: the
+  // device's outbox refuses writes while the flag is up, as a full store would. No
+  // `visibilitychange` or `pagehide` handler runs before the reload below.
+  await page.addInitScript(() => {
+    const original = IDBObjectStore.prototype.put;
+    IDBObjectStore.prototype.put = function (this: IDBObjectStore, ...args: Parameters<IDBObjectStore['put']>) {
+      if ((window as unknown as { __refuseOutbox?: boolean }).__refuseOutbox === true && this.name === 'outbox') {
+        throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+      }
+      return original.apply(this, args);
+    };
+  });
+  const { row } = await openNcRow(page);
+  await page.evaluate(() => {
+    (window as unknown as { __refuseOutbox?: boolean }).__refuseOutbox = true;
+  });
+  await row.getByRole('button', { name: 'Criar ponto de atenção' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Criar ponto de atenção' });
+  await expect(textArea(dialog)).toBeFocused();
+  await page.keyboard.type('Terminal sem identificação');
+  // Written while typing, about 300 ms after the last key: no hide event was needed.
+  await expect
+    .poll(async () => (await readStore<{ surface: string; value: { text?: string } }>(page, database, 'drafts')).filter((draft) => draft.surface === 'point').map((draft) => draft.value.text))
+    .toContain('Terminal sem identificação');
+  expect(await storedPoints(page)).toEqual([]);
+
+  await page.reload();
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  const offer = page.getByTestId('toast');
+  await expect(offer).toContainText('Rascunho encontrado');
+  await offer.getByRole('button', { name: 'Recuperar' }).click();
+  await expect.poll(async () => (await storedPoints(page)).map((point) => point.text)).toEqual(['Terminal sem identificação']);
+  await expect.poll(async () => (await outbox(page)).length).toBeGreaterThan(0);
+  // The recovered draft is stored text now: its row is gone.
+  await expect
+    .poll(async () => (await readStore<{ surface: string }>(page, database, 'drafts')).filter((draft) => draft.surface === 'point'))
+    .toEqual([]);
+});
+
 test('@p1 6.6-E2E-012 E6-Q2: a stored point edited on the Points surface and reloaded before its autosave is offered back; "Recuperar" writes one text put', async ({ page }) => {
   test.setTimeout(150_000);
   let point: PointRow | null = null;

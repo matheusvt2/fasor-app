@@ -1,20 +1,18 @@
-import { SHEET_STEPS, stepMissingLabel, type SheetProgress, type SheetStep } from '@app/domain';
+import { stepMissingLabel, type SheetProgress, type SheetStep } from '@app/domain';
 import { copy } from '../../copy/pt-br.ts';
 
-/** The steps the stepper draws, all four; the Sheet header names only these (`sheetSummaryText`). */
-export const STEPPER_STEPS: readonly SheetStep[] = SHEET_STEPS;
-
 /**
- * The Section stepper (UX-DR35, `60-ficha.html` `.section-stepper`): the four steps with
- * their missing counts, the current one `aria-current="step"`, each a button named "Placa,
+ * The Section stepper (UX-DR35, `60-ficha.html` `.section-stepper`): the shown steps (the
+ * kernel's `shownSheetSteps`, E12-A7: an off sub-block's step is not drawn, and the Sheet
+ * header names only these) with their missing counts, the current one `aria-current="step"`, each a button named "Placa,
  * 2 faltando" that scrolls to its section and expands it. Not a wizard: every step is
  * reachable at any time. A step with nothing missing shows the stylesheet's check.
  */
-export function SectionStepper({ progress, current, onGo }: { progress: SheetProgress; current: SheetStep; onGo: (step: SheetStep) => void }) {
+export function SectionStepper({ steps, progress, current, onGo }: { steps: readonly SheetStep[]; progress: SheetProgress; current: SheetStep; onGo: (step: SheetStep) => void }) {
   const t = copy.ficha;
   return (
     <div className="section-stepper" role="group" aria-label={t.stepperLabel}>
-      {STEPPER_STEPS.map((step) => {
+      {steps.map((step) => {
         const missing = progress.steps[step].missing;
         const name = t.steps[step];
         return (

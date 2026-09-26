@@ -273,4 +273,22 @@ describe('6.3-UNIT-006 section 7 on the Sumário and in preIssue', () => {
     expect(row.pending).toBe(false);
     expect(rowsOf(base).row.meta).toBe('Nenhuma foto');
   });
+
+  it('Epic 8 carry-over: a photo with a local upload error (failed or dead) is not "aguardando envio"; an uploaded one never is', () => {
+    const failed = photo();
+    const dead = photo();
+    const uploaded = photo({ uploaded_at: '2026-09-06T18:00:00.000Z' });
+    const files = [failed, dead, uploaded, photo(), photo()];
+    const snapshot = { ...base, files } as RelatorioSnapshot;
+    const computed = progress(snapshot);
+    // `failed` and `dead` both reach the kernel as one set of ids with a local error; an
+    // uploaded photo in the set (the error cleared late) still is not counted.
+    const issues = preIssue(snapshot, computed, { photoErrors: new Set([failed.id, dead.id, uploaded.id]) });
+    expect(preIssueRowsFor(issues, 'section_7').find((r) => r.kind === 'photos_pending_upload')?.text).toBe('2 aguardando envio');
+    expect(sumarioRows(snapshot, issues, computed).find((r) => r.rowKey === 'section_7')!.meta).toBe('5 fotos · 2 aguardando envio');
+    // Every error: no "aguardando envio" row at all; no context: every unsent photo counts.
+    const allErrors = preIssue(snapshot, computed, { photoErrors: new Set(files.map((f) => f.id)) });
+    expect(allErrors.some((r) => r.kind === 'photos_pending_upload')).toBe(false);
+    expect(preIssueRowsFor(preIssue(snapshot, computed), 'section_7').find((r) => r.kind === 'photos_pending_upload')?.text).toBe('4 aguardando envio');
+  });
 });

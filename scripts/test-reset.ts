@@ -6,6 +6,7 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3';
 import { createDb } from '../apps/api/src/db/client.ts';
+import { resetCompanyJobs } from '../apps/api/src/db/reset-company-jobs.ts';
 import { resetTestCompanyData } from '../apps/api/src/db/seed.ts';
 import { TEST_SEED } from '../apps/api/src/db/test-seed.ts';
 
@@ -61,8 +62,7 @@ async function main(): Promise<void> {
   const { sql, db } = createDb(need('DATABASE_URL'));
   try {
     await resetTestCompanyData(db);
-    const [queue] = await sql`select to_regclass('pgboss.job') as name`;
-    if (queue?.name) await sql`delete from pgboss.job where data->>'companyId' = ${companyId}`;
+    await resetCompanyJobs(sql, companyId);
   } finally {
     await sql.end();
   }

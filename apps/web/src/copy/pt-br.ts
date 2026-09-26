@@ -684,6 +684,8 @@ export const copy = {
     previewLabel: 'Legenda gerada',
     editText: 'Editar texto',
     editReason: 'Ao editar, a legenda deixa de ser regenerada',
+    // authored: E6-R2, under the toggle while "Editar texto" is on and the chips do nothing.
+    editingNote: 'Texto editado à mão. Desligue Editar texto para montar pelas opções.',
     textLabel: 'Texto da legenda',
     back: 'Voltar sem alterar',
     save: 'Salvar legenda',

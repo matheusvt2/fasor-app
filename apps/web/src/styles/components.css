@@ -254,7 +254,7 @@
   background: var(--section-stepper-rule-missing);
 }
 .section-stepper .step[data-missing="0"]::after { background: var(--section-stepper-rule-complete); }
-.section-stepper .step[aria-current] { color: var(--primary); border-bottom: var(--section-stepper-current-rule); font-weight: 600; }
+.section-stepper .step[aria-current] { color: var(--primary); font-weight: 600; }   /* the 4px ::after below is the one current mark: the v0.8 3px border-bottom drew a second rule (2026-09-26, DESIGN.md v0.9 stepper row) */
 .section-stepper .step[aria-current]::after { height: 4px; }
 .section-stepper .step-count { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--section-stepper-missing-count-color); }
 .section-stepper .step[data-missing="0"] .step-count { color: var(--section-stepper-complete-color); display: none; }   /* the rule says "done"; the count only where something is missing */
