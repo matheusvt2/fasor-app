@@ -15,6 +15,7 @@ import { useRelatorioPhotoTiles, type PhotoTile } from '../../db/photo-store.ts'
 import { newId } from '../../ids.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { useSectionTextArea } from '../../input/use-section-text-area.ts';
+import { useDraftAutosave } from '../../state/draft-autosave.ts';
 import { useDraftSource } from '../../state/drafts.tsx';
 import { useSession } from '../../state/session.tsx';
 import { useUndoableEdits } from '../../state/use-undoable-edits.ts';
@@ -127,6 +128,11 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
   const committers = useRef<{ flush: () => void } | null>(null);
+  /** Writes this point's draft now (`useDraftSource`), set once the source is registered below. */
+  const saveDraftRef = useRef<() => Promise<void>>(() => Promise.resolve());
+  // E6-R1: the draft is also written 300 ms after the typing stops, not only when the tab
+  // hides: a plain reload fires no hide first, and the idle commit (500 ms) may not have run.
+  const draftAutosave = useDraftAutosave(() => saveDraftRef.current());
 
   useEffect(() => {
     mounted.current = true;
@@ -160,6 +166,9 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
         if (result.kind === 'written') wrote.current = true;
         // A create stores both fields; a put (or nothing to write) the fields it names.
         for (const field of result.kind === 'written' && result.created ? (['text', 'action'] as const) : fields) stored.current[field] = taken[field];
+        // E6-R1: the draft written while typing is now stored text: rewritten from what is
+        // still unstored, which drops the row when nothing is.
+        void saveDraftRef.current();
         return null;
       },
     );
@@ -192,6 +201,7 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
       values.current.text = next;
       touched.current = true;
       textCommit.change(next);
+      draftAutosave.changed();
     },
     onBlur: () => textCommit.blur(),
     render: (element, value) => renderPointText(element, value, labelOf),
@@ -204,11 +214,12 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
     values.current.action = next;
     touched.current = true;
     actionCommit.change(next);
+    draftAutosave.changed();
   };
 
   // FR-61: what is typed and not yet stored goes to `drafts` when the tab hides; enough to
   // write it with this editor closed (`usePointDraftRecovery`).
-  useDraftSource({
+  saveDraftRef.current = useDraftSource({
     surface: POINT_DRAFT_SURFACE,
     entityId: pointId,
     read: () => {

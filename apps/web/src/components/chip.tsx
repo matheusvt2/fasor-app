@@ -7,6 +7,21 @@ export interface ChipProps {
   onSelectedChange?: (isSelected: boolean) => void;
   /** Text chip: tap inserts text at the caret; no persistent pressed state. */
   onPress?: () => void;
+  /**
+   * Shown but not in use (the Caption composer's rows while "Editar texto" is on): the chip
+   * stays in the tab order with `aria-disabled="true"`, never reads pressed, and a tap
+   * does nothing.
+   */
+  isInactive?: boolean;
+}
+
+/** A chip that is on screen but does nothing: `aria-disabled`, focusable, never pressed. */
+export function InactiveChip({ children, className = 'chip' }: { children: React.ReactNode; className?: string }) {
+  return (
+    <button type="button" className={className} aria-disabled="true">
+      {children}
+    </button>
+  );
 }
 
 /**
@@ -14,7 +29,8 @@ export interface ChipProps {
  * toggle (`aria-pressed`) and a text chip is a plain tap. `chip-row` wraps to a new line at
  * 8px gaps and never scrolls sideways — the layout is the surface's, not this component's.
  */
-export function Chip({ children, isSelected, onSelectedChange, onPress }: ChipProps) {
+export function Chip({ children, isSelected, onSelectedChange, onPress, isInactive = false }: ChipProps) {
+  if (isInactive) return <InactiveChip>{children}</InactiveChip>;
   if (onSelectedChange) {
     return (
       <ToggleButton isSelected={isSelected} onChange={onSelectedChange} className="chip">

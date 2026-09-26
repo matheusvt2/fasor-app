@@ -11,7 +11,7 @@ import {
 } from '@app/domain';
 import { useId, useRef, useState } from 'react';
 import { Button as AriaButton, ToggleButton } from 'react-aria-components';
-import { Button, Chip, Combobox } from '../../components/index.ts';
+import { Button, Chip, Combobox, InactiveChip } from '../../components/index.ts';
 import { DialogShell } from '../../components/dialog-shell.tsx';
 import { useObjectUrl } from '../../components/photo-row.tsx';
 import { copy } from '../../copy/pt-br.ts';
@@ -196,11 +196,12 @@ function ComposerBody({ prefill, stored, sources, onSave, onClose, headingId, ph
               {t.editReason}
             </span>
           </div>
+          {editing ? <p className="helper caption-edit-note">{t.editingNote}</p> : null}
         </div>
       </div>
       <p className="section-note">{t.note}</p>
       {KINDS.map((kind) => (
-        <PartRow key={kind} kind={kind} options={optionsOf(kind)} value={parts[kind]?.name ?? null} onChange={(name) => setPart(kind, name)} />
+        <PartRow key={kind} kind={kind} options={optionsOf(kind)} value={parts[kind]?.name ?? null} onChange={(name) => setPart(kind, name)} inactive={editing} />
       ))}
       <div className="sticky-action-bar">
         <div className="bar-buttons">
@@ -216,8 +217,24 @@ function ComposerBody({ prefill, stored, sources, onSave, onClose, headingId, ph
   );
 }
 
-/** One row: chips below 1280 px, a Combobox from 1280 px (`photos.css`). */
-function PartRow({ kind, options, value, onChange }: { kind: Kind; options: readonly string[]; value: string | null; onChange: (name: string | null) => void }) {
+/**
+ * One row: chips below 1280 px, a Combobox from 1280 px (`photos.css`). `inactive` (E6-R2):
+ * while "Editar texto" is on the caption is free text no chip regenerates, so every chip of
+ * the row is shown `aria-disabled`, never pressed, and a tap does nothing.
+ */
+function PartRow({
+  kind,
+  options,
+  value,
+  onChange,
+  inactive = false,
+}: {
+  kind: Kind;
+  options: readonly string[];
+  value: string | null;
+  onChange: (name: string | null) => void;
+  inactive?: boolean;
+}) {
   const t = copy.captionComposer;
   const label = t[kind];
   const labelId = useId();
@@ -241,6 +258,7 @@ function PartRow({ kind, options, value, onChange }: { kind: Kind; options: read
           {options.map((option) => (
             <Chip
               key={option}
+              isInactive={inactive}
               isSelected={!other && value !== null && sameName(option, value)}
               onSelectedChange={(selected) => {
                 setOther(false);
@@ -250,21 +268,25 @@ function PartRow({ kind, options, value, onChange }: { kind: Kind; options: read
               {option}
             </Chip>
           ))}
-          <ToggleButton
-            className="chip chip-other"
-            isSelected={other}
-            onChange={(selected) => {
-              setOther(selected);
-              if (selected) {
-                onChange(typed.trim() === '' ? null : typed);
-                requestAnimationFrame(() => otherInput.current?.focus());
-              } else {
-                onChange(null);
-              }
-            }}
-          >
-            {t.other}
-          </ToggleButton>
+          {inactive ? (
+            <InactiveChip className="chip chip-other">{t.other}</InactiveChip>
+          ) : (
+            <ToggleButton
+              className="chip chip-other"
+              isSelected={other}
+              onChange={(selected) => {
+                setOther(selected);
+                if (selected) {
+                  onChange(typed.trim() === '' ? null : typed);
+                  requestAnimationFrame(() => otherInput.current?.focus());
+                } else {
+                  onChange(null);
+                }
+              }}
+            >
+              {t.other}
+            </ToggleButton>
+          )}
         </div>
         {other ? (
           <div className="field">
@@ -276,7 +298,9 @@ function PartRow({ kind, options, value, onChange }: { kind: Kind; options: read
               ref={otherInput}
               className="input"
               value={typed}
+              readOnly={inactive}
               onChange={(event) => {
+                if (inactive) return;
                 setTyped(event.target.value);
                 onChange(event.target.value.trim() === '' ? null : event.target.value);
               }}
@@ -290,6 +314,8 @@ function PartRow({ kind, options, value, onChange }: { kind: Kind; options: read
           options={comboOptions}
           selectedKey={selectedKey}
           inputValue={query}
+          isDisabled={inactive}
+          {...(inactive ? { disabledReason: t.editingNote } : {})}
           onInputChange={(next) => {
             setQuery(next);
             onChange(next.trim() === '' ? null : next);

@@ -148,4 +148,63 @@ test('@p1 12.5-E2E-002 v0.9 extras: the button radius, the section stepper rule,
   expect(rule).toBe('4px');
   const other = stepper(page).locator('.step:not([aria-current])').first();
   expect(await other.evaluate((element) => getComputedStyle(element, '::after').height)).toBe('3px');
+
+  // E12-A7: exactly one mark on the current step at 768 and 1280 px, the 4px rule; the v0.8
+  // 3px bottom border under it is gone (DESIGN.md v0.9 stepper row).
+  for (const viewport of [{ width: 768, height: 1024 }, { width: 1280, height: 800 }]) {
+    await page.setViewportSize(viewport);
+    await expect(current).toHaveCSS('border-bottom-width', '0px');
+    expect(await current.evaluate((element) => getComputedStyle(element, '::after').height)).toBe('4px');
+  }
+});
+
+test('@p1 12.5-E2E-003 E12-A7 at 390 px: the section 9 header fits a cabine with a long name, no overflow and no clipped title', async ({ page }) => {
+  test.setTimeout(150_000);
+  const LONG = 'Cabine de medição e proteção do galpão norte da subestação principal';
+  await resetEmpresaB(account, { standard: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIn(page, account.email);
+  const built = newRelatorioDrafts(account);
+  // The first cabine of the template gets the long name before the relatório is pushed.
+  let renamed = false;
+  const drafts = built.drafts.map((draft) => {
+    const value = draft.value as { kind?: string; parent_id?: string | null; name?: string } | null;
+    if (renamed || draft.kind !== 'create' || !draft.path.startsWith('location/') || value?.kind !== 'cabine' || value.parent_id !== null) return draft;
+    renamed = true;
+    return { ...draft, value: { ...value, name: LONG } };
+  });
+  expect(renamed).toBe(true);
+  await pushDrafts(page, database, drafts);
+  await page.goto(`/relatorio/${built.relatorioId}`);
+  const head = page.locator('li.sum-s9 > .sum-s9-head');
+  await expect(head.locator('.sum-title')).toBeVisible({ timeout: 30_000 });
+  const chevron = page.getByRole('button', { name: 'Expandir ou recolher a seção 9' });
+  if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
+  await expect(page.locator('.s9-cab-name', { hasText: LONG })).toBeVisible();
+
+  const fits = (locator: typeof head) => locator.evaluate((element) => element.scrollWidth <= element.clientWidth);
+  expect(await fits(head)).toBe(true);
+  expect(await fits(head.locator('.sum-title'))).toBe(true);
+  const box = (await head.boundingBox())!;
+  expect(box.x + box.width).toBeLessThanOrEqual(390);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+});
+
+test('@p1 12.5-E2E-004 E12-A7 at 1024x768 (tablet landscape): the sheet\'s action buttons sit right, the Sumário has no sideways scroll', async ({ page }) => {
+  test.setTimeout(150_000);
+  const { relatorioId, secEnel } = await setUp(page);
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1024);
+
+  await page.goto(`/relatorio/${relatorioId}/ficha/${secEnel.blockId}`);
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  // `.frame-tablet-landscape .sticky-action-bar .bar-buttons` (app.css): right-aligned.
+  const bar = page.locator('.sticky-action-bar .bar-buttons');
+  await expect(bar).toHaveCSS('justify-content', 'flex-end');
+  const barBox = (await bar.boundingBox())!;
+  const primary = (await page.locator('#ficha-primary').boundingBox())!;
+  expect(primary.x + primary.width).toBeGreaterThan(barBox.x + barBox.width - 48);
+  expect(primary.x).toBeGreaterThan(barBox.x + barBox.width / 2);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1024);
 });

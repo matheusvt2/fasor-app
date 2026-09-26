@@ -68,8 +68,20 @@ export function cabineSemEquipamentoText(name: string): string {
   return saysCabine ? `${trimmed} sem equipamento` : `Cabine ${trimmed} sem equipamento`;
 }
 
+/** What the device knows beside the snapshot, for the rules that read it. */
+export interface PreIssueContext {
+  /**
+   * Ids of the photos whose local upload stopped with an error (`failed` or `dead`): their
+   * tile says "Erro", so section 7's "aguardando envio" does not count them. Default: none.
+   */
+  photoErrors?: ReadonlySet<string>;
+}
+
+const NO_PHOTO_ERRORS: ReadonlySet<string> = new Set();
+
 /** Every pre-issue row of a relatório, in reading order: the cover, the control, section 8, then section 9. */
-export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progress(snapshot)): PreIssueRow[] {
+export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progress(snapshot), context: PreIssueContext = {}): PreIssueRow[] {
+  const photoErrors = context.photoErrors ?? NO_PHOTO_ERRORS;
   const rows: PreIssueRow[] = [];
   const setup = snapshot.relatorio.setup;
   const missing: (keyof typeof SETUP_TEXTS)[] = [];
@@ -94,7 +106,8 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
   if (uncaptioned > 0) {
     rows.push({ id: 'photos_uncaptioned', row: 'section_7', severity: 'pending', text: photosUncaptionedText(uncaptioned), kind: 'photos_uncaptioned' });
   }
-  const unsent = photos.filter((photo) => photo.uploaded_at === null).length;
+  // A photo with a local upload error is not waiting: `photoUploadState` reads it as `error`.
+  const unsent = photos.filter((photo) => photo.uploaded_at === null && !photoErrors.has(photo.id)).length;
   if (unsent > 0) {
     rows.push({ id: 'photos_pending_upload', row: 'section_7', severity: 'info', text: photosAwaitingText(unsent), kind: 'photos_pending_upload' });
   }

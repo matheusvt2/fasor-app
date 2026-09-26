@@ -31,6 +31,7 @@ import { useId, useMemo, useRef, useState } from 'react';
 import { useLocation, useParams } from 'react-router';
 import { Button, ConfirmDialog, OverflowMenu, StatusPill, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
+import { uploadErrorIds } from '../../db/file-store.ts';
 import { templateRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { readLastSheet } from '../../db/prefs.ts';
@@ -52,6 +53,7 @@ import './relatorio.css';
 
 const NO_TEMPLATES: TemplateRow[] = [];
 const NO_USERS: UserRow[] = [];
+const NO_ERRORS: ReadonlySet<string> = new Set();
 
 /**
  * `/relatorio/:id` (`40-relatorio-overview.html`, Story 4.3): the Sumário of the relatório
@@ -92,7 +94,9 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const lastSheet = useLiveQuery(() => (db === null ? Promise.resolve(null) : readLastSheet(db, relatorioId)), [db, relatorioId], null);
 
   const computed = useMemo(() => progress(snapshot), [snapshot]);
-  const issues = useMemo(() => preIssue(snapshot, computed), [snapshot, computed]);
+  // The photos whose local upload stopped with an error: section 7's "aguardando envio" leaves them out.
+  const photoErrors = useLiveQuery(() => (db === null ? Promise.resolve(NO_ERRORS) : uploadErrorIds(db)), [db], NO_ERRORS);
+  const issues = useMemo(() => preIssue(snapshot, computed, { photoErrors }), [snapshot, computed, photoErrors]);
   const rows = useMemo(() => sumarioRows(snapshot, issues, computed), [snapshot, issues, computed]);
   const removable = useMemo(() => restorableBlocks(allBlocks, equipment, snapshot.locations), [allBlocks, equipment, snapshot.locations]);
   const relatorio = snapshot.relatorio;

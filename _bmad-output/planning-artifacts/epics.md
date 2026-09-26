@@ -1637,6 +1637,10 @@ So that every photo is saved on the spot with a caption I did not have to type.
 **Then** its caption is written as a plain editable value: equipment and location from the sheet, activity from the section on screen (an NC row → "verificação de ⟨item⟩", a test table → that test), composed as "Detalhe d⟨o/a⟩ ⟨atividade⟩ realizad⟨o/a⟩(s) n⟨o/a⟩ ⟨equipamento⟩ d⟨o/a⟩ ⟨local⟩" with gender and number from registry metadata (FR-39)
 **And** a photo from an NC row keeps `item_key` and shows as a Photo tile row under the row's buttons with its caption in `meta` (FR-44)
 
+*(2026-09-26, narrowing: the nameplate "Fotografar placa" single-shot tile is not built — deferred-work.md, owner Epic 8)*
+
+*(2026-09-26, narrowing: a geolocation denial is the device-local pref `geolocation_denied`, not a mark on the account row — deferred-work.md, owner Epic 11)*
+
 ### Story 6.2: No photo is ever lost
 
 **Dev model:** opus · **Effort:** high · photo durability: upload order, retry, eviction policy and storage pressure
@@ -1667,6 +1671,8 @@ So that three days in a basement never cost a single image.
 **When** it runs with photos in the queue
 **Then** the upload resumes on reconnection, `PUT /api/files/{id}` with the same `sha256` is idempotent, and no photo is duplicated or lost (FR-56, NFR-17)
 
+*(2026-09-26, narrowing: the Export dialog has no pre-issue warning row for photos the server does not hold yet — deferred-work.md, owner Epic 7)*
+
 ### Story 6.3: See every photo in one chronological gallery with its stamp and provisional number
 
 **Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** medium · gallery, viewer, stamp and provisional numbering
@@ -1692,6 +1698,10 @@ So that the gallery is section 7 before it is printed.
 **Given** the Sumário row 7
 **When** it renders
 **Then** its status reads from `preIssue`: "82 fotos · 1 sem legenda" and "3 aguardando envio"
+
+*(2026-09-26, narrowing: a gallery camera shot is "Geral" with no `block_id` or caption, not placed from the gallery filter — deferred-work.md, owner none)*
+
+*(2026-09-26, narrowing: a removed photo comes back only through the toast's "Desfazer", with no restore list and no gallery day headers — deferred-work.md, owner none)*
 
 ### Story 6.4: Add photos after the visit or from someone else's phone
 
@@ -1733,6 +1743,12 @@ So that fixing one caption costs a tap, not a sentence.
 **When** the chip rows render
 **Then** they offer the five most recent values used in this relatório followed by the seed values, ending in "Outro…"
 
+*(2026-09-26, narrowing: the Caption composer is a full-screen modal, not the mock's route — deferred-work.md, owner none, revisit if Bruno asks for the route)*
+
+*(2026-09-26, narrowing: caption recents are device-local per relatório and not synced; the Equipamento choice changes the text only, never `block_id` — deferred-work.md, owner none)*
+
+*(2026-09-26, narrowing: a caption its prefilled rows do not compose opens in "Editar texto" with the stored text — deferred-work.md, owner none, revisit with Bruno)*
+
 ### Story 6.6: Record findings that print as section 8, with untested equipment listing itself
 
 **Dev model:** opus · **Effort:** medium · points with photo tokens, derived untested entries and reorder
@@ -1763,6 +1779,8 @@ So that section 8 is written on site and never forgets an untested equipment.
 **When** the Points surface or `preIssue` runs
 **Then** every block in `not_tested` state appears after the manual points in tree order as a read-only derived entry with its reason and justification text, never stored; a point created from an untested sheet with `origin: not_tested` suppresses the derived entry (FR-51, AR-25)
 **And** the Sumário row 8 reads "5 pontos · 1 sem ação · 3 não ensaiadas"
+
+*(2026-09-26, narrowing: section 8 prints nothing yet; the points renderer is not built — deferred-work.md, owner Epic 7)*
 
 ## Epic 7: Generate the FO.SERV-03 relatório
 

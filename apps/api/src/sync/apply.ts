@@ -31,9 +31,9 @@ import { entities, ops } from '../db/schema.ts';
 import { newId } from '../ids.ts';
 
 /*
- * AD-3, AD-4, AD-24: the server materializer. Per-op transaction: insert the
- * op (an existing `op_id` returns its `seq`), load the target rows, call the
- * same `applyOp`, upsert `entities`. Rejected only for shape, unknown path,
+ * AD-3, AD-4, AD-24: the server materializer. One transaction per push
+ * (E6-A1): per op, insert the op (an existing `op_id` returns its `seq`), load the
+ * target rows, call the same `applyOp`, upsert `entities`. Rejected only for shape, unknown path,
  * origin (a server-only family, a spoofed device or actor), ownership (a user
  * row written by anyone but that user) or tenant; never for a domain rule.
  */
@@ -143,7 +143,7 @@ function isMergeKind(kind: string): kind is MergeKind {
 /**
  * The live row an id was merged into, read from the log. A merge is recorded as one
  * `system:registry` remove of the merged-away id's `removed_at` whose `meta.merged_into`
- * names the survivor (the system op `applyOne` emits): the redirect is persisted in the
+ * names the survivor (the system op `applyOneIn` emits): the redirect is persisted in the
  * one log, so a put or remove on the merged-away id that reaches the server in any later
  * request still lands on the survivor instead of being acked onto a row that does not
  * exist (Epic 2 retro D-1).
@@ -248,18 +248,11 @@ async function insertOp(tx: Tx, companyId: CompanyId, op: Op, receivedAt: string
   return inserted[0]?.seq;
 }
 
-async function applyOne(db: Db, companyId: CompanyId, received: Op, receivedAt: string): Promise<Applied> {
-  return db.transaction(async (tx) => {
-    // Applies serialize per company: no lost update on a shared row, and seq order equals commit order.
-    await lockCompany(tx, companyId);
-    return applyOneIn(tx, companyId, received, receivedAt);
-  });
-}
-
 /**
- * The body of one apply, inside a transaction the caller opened and locked (`lockCompany`).
- * `applyOne` wraps it per op; `applyServerBatch` runs several under one lock so they land
- * together or not at all.
+ * The body of one apply, inside a transaction the caller opened and locked (`lockCompany`):
+ * applies serialize per company, so no update is lost on a shared row and seq order equals
+ * commit order. `applyOps` runs every op of a push in one transaction under one lock;
+ * `applyServerBatch` runs several under one lock so they land together or not at all.
  */
 async function applyOneIn(tx: Tx, companyId: CompanyId, received: Op, receivedAt: string): Promise<Applied> {
   // Epic 2 retro D-1: an op on a merged-away id is rewritten onto the survivor, and a
@@ -313,7 +306,16 @@ async function applyOneIn(tx: Tx, companyId: CompanyId, received: Op, receivedAt
     );
   const state = new Map<EntityKey, EntityRow>();
   for (const row of rows) state.set(entityKey(row.entity as Entity, row.id), row.row);
-  const next = applyOp(state, { ...op, seq });
+  let next: ReturnType<typeof applyOp>;
+  try {
+    next = applyOp(state, { ...op, seq });
+  } catch (error) {
+    // E6-A1: a refusal by `applyOp` (row schema, seed path) comes before any entity write,
+    // so the op's own log row is its only write: removed here, the push's transaction holds
+    // nothing of the refused op and goes on with the next one (no savepoint needed).
+    if (isPermanentRefusal(error)) await tx.delete(ops).where(and(eq(ops.company_id, companyId), eq(ops.op_id, op.op_id)));
+    throw error;
+  }
   for (const [key, row] of next) {
     if (row === state.get(key)) continue;
     const { entity, id } = splitEntityKey(key);
@@ -433,33 +435,58 @@ export async function applyServerBatch(
   return result;
 }
 
-/** Applies ops in array order for one tenant; one rejected op never blocks the rest. */
+/**
+ * Applies ops in array order for one tenant; one rejected op never blocks the rest.
+ *
+ * E6-A1: the whole push is ONE transaction under ONE company lock. A permanent refusal
+ * (`isPermanentRefusal`) is raised before the op wrote anything but its own log row, which
+ * `applyOneIn` removes, so it is answered `op_invalid` and the ops before and after it land;
+ * no savepoint is needed (a savepoint per op made the 2500-op Porto Seguro replay six times
+ * slower: every one is a Postgres subtransaction, and past 64 of them in one transaction
+ * each visibility check goes through `pg_subtrans`).
+ * Anything else (connection, lock, pool) rolls the whole push back and propagates, so the
+ * device retries the push as it is (a re-sent `op_id` answers its existing seq). Holding
+ * the lock for the push keeps seq order equal to commit order within the company, and the
+ * push pays one commit (one WAL flush) instead of one per op: with one transaction per op,
+ * overlapping pushes of a few hundred ops each queued on the flushes and slowed sharply.
+ */
 export async function applyOps(
   db: Db,
   companyId: CompanyId,
   rawOps: readonly unknown[],
   deps: ApplyDeps,
 ): Promise<ApplyResult> {
-  const result: ApplyResult = { applied: [], rejected: [], superseded: [] };
-  for (const raw of rawOps) {
-    const rawId = (raw as { op_id?: unknown } | null)?.op_id;
-    const opId = typeof rawId === 'string' ? rawId : '';
+  // Shape, origin and tenant checks need no database: done first, in array order.
+  const steps: ({ ok: true; op: Op } | { ok: false; op_id: string; code: OpRejectCode })[] = rawOps.map((raw) => {
     const validation = validate(raw, companyId, deps);
-    if (!validation.ok) {
-      result.rejected.push({ op_id: opId, code: validation.code });
-      continue;
-    }
-    try {
-      const { seq, supersededOver } = await applyOne(db, companyId, validation.op, toIso(deps.now()));
-      result.applied.push({ op_id: validation.op.op_id, seq });
-      if (supersededOver !== null) result.superseded.push({ op_id: validation.op.op_id, over_op_id: supersededOver });
-    } catch (error) {
-      // Only a row-schema or seed-path refusal by applyOp or an op_id taken by another company is a
-      // permanent rejection; anything else (connection, lock, pool) propagates so the caller retries
-      // instead of marking the op dead.
-      if (!isPermanentRefusal(error)) throw error;
-      result.rejected.push({ op_id: validation.op.op_id, code: 'op_invalid' });
-    }
+    if (validation.ok) return validation;
+    const rawId = (raw as { op_id?: unknown } | null)?.op_id;
+    return { ok: false, op_id: typeof rawId === 'string' ? rawId : '', code: validation.code };
+  });
+  const result: ApplyResult = { applied: [], rejected: [], superseded: [] };
+  if (!steps.some((step) => step.ok)) {
+    for (const step of steps) if (!step.ok) result.rejected.push({ op_id: step.op_id, code: step.code });
+    return result;
   }
+  await db.transaction(async (tx) => {
+    await lockCompany(tx, companyId);
+    for (const step of steps) {
+      if (!step.ok) {
+        result.rejected.push({ op_id: step.op_id, code: step.code });
+        continue;
+      }
+      try {
+        const { seq, supersededOver } = await applyOneIn(tx, companyId, step.op, toIso(deps.now()));
+        result.applied.push({ op_id: step.op.op_id, seq });
+        if (supersededOver !== null) result.superseded.push({ op_id: step.op.op_id, over_op_id: supersededOver });
+      } catch (error) {
+        // Only a row-schema or seed-path refusal by applyOp or an op_id taken by another company is a
+        // permanent rejection; anything else (connection, lock, pool) propagates so the caller retries
+        // instead of marking the op dead.
+        if (!isPermanentRefusal(error)) throw error;
+        result.rejected.push({ op_id: step.op.op_id, code: 'op_invalid' });
+      }
+    }
+  });
   return result;
 }

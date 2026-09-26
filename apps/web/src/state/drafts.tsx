@@ -41,6 +41,11 @@ export interface DraftsState {
   register: (source: DraftSource) => () => void;
   /** Writes every source whose value is uncommitted. The hide listeners and the tests call it. */
   persistAll: () => Promise<void>;
+  /**
+   * Writes one target's value now, by `persistAll`'s rule: null drops the row, except
+   * while that row is the one on offer. `useDraftSource` hands it to its surface (E6-R1).
+   */
+  persistOne: (target: DraftTarget, value: unknown) => Promise<void>;
 }
 
 /** Exported so a surface test can supply the state without the provider's Dexie work. */
@@ -109,6 +114,21 @@ export function DraftProvider({ children }: { children: ReactNode }) {
       console.warn('could not persist the drafts', error);
     }
   }, [db]);
+
+  const persistOne = useCallback(
+    async (target: DraftTarget, value: unknown) => {
+      if (db === null) return;
+      const empty = value === null || value === undefined || value === '';
+      // The row on offer is never dropped by a surface showing the committed value (see above).
+      if (empty && (offerRef.current ?? []).includes(draftKey(target))) return;
+      try {
+        await saveDrafts(db, [{ target, value }], now());
+      } catch (error) {
+        console.warn('could not persist the draft', error);
+      }
+    },
+    [db],
+  );
 
   // One `visibilitychange` and one `pagehide` listener for the whole app. `pagehide` is
   // the event iOS Safari fires when it discards the tab; `visibilitychange` covers
@@ -183,8 +203,8 @@ export function DraftProvider({ children }: { children: ReactNode }) {
   }, [offer, declined, toast, showToast, recover]);
 
   const value = useMemo<DraftsState>(
-    () => ({ draftFound: offer !== null && !declined, register, persistAll }),
-    [offer, declined, register, persistAll],
+    () => ({ draftFound: offer !== null && !declined, register, persistAll, persistOne }),
+    [offer, declined, register, persistAll, persistOne],
   );
 
   return <DraftsContext value={value}>{children}</DraftsContext>;
@@ -205,13 +225,15 @@ export interface DraftSourceOptions extends Omit<DraftSource, 'entity_id'> {
  * dialogs and field surfaces each call this with their own surface name; nothing in the
  * store or in this provider changes when they do.
  */
-export function useDraftSource(options: DraftSourceOptions): void {
-  const { register } = useDrafts();
+export function useDraftSource(options: DraftSourceOptions): () => Promise<void> {
+  const { register, persistOne } = useDrafts();
   const { surface, entityId, field, read, apply } = options;
   // `read` and `apply` are called at hide time and at recovery time, so the registration
   // holds a stable indirection instead of re-registering on every render.
   const latest = useRef({ read, apply });
   latest.current = { read, apply };
+  const target = useRef({ surface, entityId, field });
+  target.current = { surface, entityId, field };
   useEffect(
     () =>
       register({
@@ -223,4 +245,11 @@ export function useDraftSource(options: DraftSourceOptions): void {
       }),
     [register, surface, entityId, field],
   );
+  // E6-R1: writes this source's draft now, by the same rule as a tab-hide, for a surface
+  // that keeps its draft while the person types (a reload fires no hide first). It reads
+  // the latest values, so it still works from a timer that fires after an unmount.
+  return useCallback(() => {
+    const { surface: s, entityId: id, field: f } = target.current;
+    return persistOne({ surface: s, entity_id: id, ...(f === undefined ? {} : { field: f }) }, latest.current.read());
+  }, [persistOne]);
 }

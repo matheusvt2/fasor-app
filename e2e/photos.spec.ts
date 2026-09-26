@@ -212,6 +212,46 @@ test('@p1 6.2-E2E-001 a photo refused with 413 reads "Erro — Tentar novamente"
   expect(photos.every((photo) => photo.uploaded_at !== null)).toBe(true);
 });
 
+test('@p1 6.2-E2E-006 the Sumário counts "aguardando envio" without the photo whose upload stopped with an error', async ({ page }) => {
+  test.setTimeout(150_000);
+  const { relatorioId } = await openChaveSheet(page, account, database);
+
+  // Every file PUT waits until the first photo's id is read off the device; then that
+  // photo is refused as too large (a `dead` error) and the others are held unanswered, so
+  // they stay waiting while the test reads the Sumário.
+  let firstId: string | null = null;
+  let idKnown = () => {};
+  const idRead = new Promise<void>((resolve) => (idKnown = resolve));
+  let refused = 0;
+  await page.route(
+    (url) => url.pathname.startsWith('/api/files/'),
+    async (route) => {
+      if (route.request().method() !== 'PUT') return route.continue();
+      await idRead;
+      if (new URL(route.request().url()).pathname !== `/api/files/${firstId}`) return; // held
+      refused += 1;
+      await route.fulfill({ status: 413, contentType: 'application/json', body: JSON.stringify({ code: 'file_too_large', message: 'too large' }) });
+    },
+  );
+
+  await cameraButton(page).click();
+  const camera = await expectCameraOpen(page);
+  await shoot(page, 3);
+  await camera.getByRole('button', { name: 'Concluir fotos' }).click();
+  await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(3);
+  const [first] = await devicePhotos(page, database);
+  firstId = first!.id;
+  idKnown();
+  await expect.poll(() => refused, { timeout: 30_000 }).toBe(1);
+
+  // Three photos the server does not hold: one reads "Erro", two are waiting.
+  await page.goto(`/relatorio/${relatorioId}`);
+  const row7 = page.locator('button.sum-open', { hasText: 'Registro fotográfico' });
+  await expect(row7.locator('.sum-status')).toHaveText('3 fotos · 2 aguardando envio', { timeout: 30_000 });
+  const photos = await devicePhotos(page, database);
+  expect(photos.filter((photo) => photo.uploaded_at === null)).toHaveLength(3);
+});
+
 test('@p1 6.2-E2E-002 under 500 MB free the low-storage banner shows on every surface, and a capture still saves', async ({ page }) => {
   test.setTimeout(120_000);
   await page.addInitScript(() => {

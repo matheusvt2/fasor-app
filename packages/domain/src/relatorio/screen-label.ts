@@ -39,6 +39,15 @@ export const SCREEN_LABEL_ACRONYMS: readonly string[] = [
 
 const ACRONYM_BY_UPPER: ReadonlyMap<string, string> = new Map(SCREEN_LABEL_ACRONYMS.map((word) => [word.toUpperCase(), word]));
 
+/**
+ * The screen form of a word of `SCREEN_LABEL_ACRONYMS` ("KV" -> "kV", "tp" -> "TP"), or null
+ * when the word is none of them. The one acronym rule of every sentence-case helper on screen
+ * (`screenLabel` here, the Measurement table's `readingLabelText` and titles), E12-A7.
+ */
+export function screenAcronym(word: string): string | null {
+  return ACRONYM_BY_UPPER.get(word.toUpperCase()) ?? null;
+}
+
 /** One word: letters and digits, with an apostrophe suffix kept on it ("TP's"). */
 const WORD = /[\p{L}\p{N}]+(?:['’]\p{L}+)?/gu;
 
@@ -57,8 +66,8 @@ export function screenLabel(label: string): string {
     const isFirst = first;
     first = false;
     if (/\p{Ll}/u.test(word)) return word;
-    const acronym = ACRONYM_BY_UPPER.get(word.toUpperCase());
-    if (acronym !== undefined) return acronym;
+    const acronym = screenAcronym(word);
+    if (acronym !== null) return acronym;
     if (/\p{N}/u.test(word)) return word;
     if ([...word].length === 1 && !ONE_LETTER_WORDS.has(word)) return word;
     const lower = word.toLocaleLowerCase('pt-BR');

@@ -4,6 +4,7 @@ import { afterAll, describe, expect, it } from 'vitest';
 import { loadConfig } from '../config.ts';
 import { newId } from '../ids.ts';
 import { createDb } from './client.ts';
+import { resetCompanyJobs } from './reset-company-jobs.ts';
 import { entities, ops, syncDevicePush } from './schema.ts';
 import { resetTestCompanyData } from './seed.ts';
 import { workerSeed } from './e2e-worker-seed.ts';
@@ -111,6 +112,26 @@ describe('resetTestCompanyData', () => {
       await db.delete(ops).where(eq(ops.company_id, OTHER_COMPANY_ID));
       await db.delete(entities).where(eq(entities.company_id, OTHER_COMPANY_ID));
       await db.delete(syncDevicePush).where(eq(syncDevicePush.company_id, OTHER_COMPANY_ID));
+    }
+  });
+
+  it("deletes the company's pg-boss jobs keyed company_id or companyId, and no other company's", async () => {
+    // `completed`, so the running api never picks a planted job up; an index no Playwright run reaches.
+    const company = workerSeed(0xff03).companies[0].companyId;
+    const plant = async (data: Record<string, string>): Promise<string> => {
+      const [row] = await sql<{ id: string }[]>`insert into pgboss.job (name, data, state) values ('generate', ${JSON.stringify(data)}::jsonb, 'completed') returning id`;
+      return row!.id;
+    };
+    const snake = await plant({ company_id: company });
+    const camel = await plant({ companyId: company });
+    const other = await plant({ company_id: OTHER_COMPANY_ID });
+    try {
+      await resetCompanyJobs(sql, company);
+
+      const left = await sql<{ id: string }[]>`select id from pgboss.job where id in (${snake}, ${camel}, ${other})`;
+      expect(left.map((row) => row.id)).toEqual([other]);
+    } finally {
+      await sql`delete from pgboss.job where id in (${snake}, ${camel}, ${other})`;
     }
   });
 });

@@ -3,7 +3,8 @@ import type { Locator, Page } from '@playwright/test';
 import { exifJpeg, plainJpeg, png, type FilePayload } from './fixtures/photos/synthetic.ts';
 import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
-import { devicePhotos, expectCameraOpen, openChaveSheet, shoot, type PhotoRowRecord } from './support/photos.ts';
+import { devicePhotos, expectCameraOpen, jpegFromPage, openChaveSheet, shoot, type PhotoRowRecord } from './support/photos.ts';
+import { syncNow } from './support/sync.ts';
 
 /*
  * 6.3/6.4/6.5-E2E: the gallery (Sumário row 7), the Photo viewer, removal and "Desfazer",
@@ -421,8 +422,15 @@ test('@p0 6.5-E2E-001 "Legendar" on a sheet tile: prefilled chips, agreement on 
   await expect(text).toHaveValue('Detalhe dos ensaios de resistência de isolação realizados na chave seccionadora SEC-ENEL do Pátio de manobra');
   const typed = 'Detalhe dos ensaios de resistência de isolação, com a equipe da concessionária';
   await text.fill(typed);
-  await group('Atividade').getByRole('button', { name: 'limpeza e reaperto' }).click();
+  // E6-R2: while "Editar texto" is on the chips are shown inactive, with a note saying why;
+  // pressing one (from the keyboard: Playwright never clicks an `aria-disabled` control) changes nothing.
+  const chip = group('Atividade').getByRole('button', { name: 'limpeza e reaperto' });
+  await expect(chip).toHaveAttribute('aria-disabled', 'true');
+  await expect(composer.locator('.caption-edit-note')).toHaveText('Texto editado à mão. Desligue Editar texto para montar pelas opções.');
+  await chip.focus();
+  await page.keyboard.press('Enter');
   await expect(text).toHaveValue(typed);
+  await expect(composer.locator('.chip[aria-pressed="true"]')).toHaveCount(0);
 
   const before = (await readStore<{ path: string }>(page, database, 'outbox')).filter((op) => op.path === `file/${photo!.id}/caption`).length;
   await composer.getByRole('button', { name: 'Salvar legenda' }).click();
@@ -608,4 +616,104 @@ test('@p1 6.4-E2E-009 E6-Q13: "ou arraste para cá" is said on a computer, never
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(reason).toBeHidden();
   await expect(page.locator('.sticky-action-bar').getByRole('button', { name: 'Adicionar fotos' })).toBeVisible();
+});
+
+test('@p1 6.3-E2E-008 the viewer shows the original this device holds, and the server\'s print copy of a photo whose original it does not', async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.addInitScript(() => {
+    const denied = () => Promise.reject(new DOMException('Permission denied', 'NotAllowedError'));
+    Object.defineProperty(navigator.mediaDevices, 'getUserMedia', { value: denied, configurable: true });
+  });
+  const { relatorioId } = await openChaveSheet(page, account, database);
+  const row = contatos(page);
+  await row.getByRole('radio', { name: 'Não conforme', exact: true }).click();
+  await row.getByRole('button', { name: 'Adicionar foto' }).click();
+  await expect(row.locator('.camera-denied')).toBeVisible();
+  // Larger than the print copy's 2000 px bound and under the device's 2560 px original bound.
+  const big = async (name: string): Promise<FilePayload> => ({ name, mimeType: 'image/jpeg', buffer: await jpegFromPage(page, 2400, 1600) });
+  await pickFiles(page, row.getByRole('button', { name: 'Adicionar fotos' }), [await big('local.jpg'), await big('servidor.jpg')]);
+  await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(2);
+
+  // Both uploaded and rendered by the server, as this device learns on a sync.
+  await expect
+    .poll(
+      async () => {
+        await syncNow(page);
+        return (await devicePhotos(page, database)).filter((photo) => photo.uploaded_at !== null && photo.variants !== null).length;
+      },
+      { timeout: 120_000, intervals: [1_000] },
+    )
+    .toBe(2);
+  const [local, remote] = byCapture(await devicePhotos(page, database));
+
+  // The second photo's original leaves this device, as an eviction takes it; its thumb stays.
+  await page.evaluate(
+    async ([name, id]) => {
+      const open = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open(name!);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      await new Promise<void>((resolve, reject) => {
+        const tx = open.transaction('files', 'readwrite');
+        tx.objectStore('files').delete(id!);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+      open.close();
+    },
+    [database, remote!.id],
+  );
+
+  // What a person sees: the picture's own pixel size, the original's or the print copy's.
+  const picture = page.locator('.photo-viewer img.viewer-img');
+  const size = () => picture.evaluate((img: HTMLImageElement) => (img.complete ? `${img.naturalWidth}x${img.naturalHeight}` : 'loading'));
+  await openGallery(page, relatorioId);
+  await itemOf(page, local!.id).getByRole('button', { name: /^Foto \d+, abrir$/ }).click();
+  await expect.poll(size, { timeout: 30_000 }).toBe('2400x1600');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.photo-viewer')).toHaveCount(0);
+
+  await itemOf(page, remote!.id).getByRole('button', { name: /^Foto \d+, abrir$/ }).click();
+  await expect.poll(size, { timeout: 30_000 }).toBe('2000x1333');
+});
+
+test('@p1 6.5-E2E-004 E6-R2: a caption typed by hand opens in "Editar texto" with inactive chips and a note; a chip tap changes nothing stored', async ({ page }) => {
+  test.setTimeout(180_000);
+  await openChaveSheet(page, account, database, { width: 1024 });
+  const row = contatos(page);
+  await row.getByRole('radio', { name: 'Não conforme', exact: true }).click();
+  await burst(page, row.getByRole('button', { name: 'Adicionar foto' }), 1);
+  const [photo] = await devicePhotos(page, database);
+  const tile = row.locator('.photo-list .photo-row').first();
+  const composer = page.getByRole('dialog', { name: 'Legenda' });
+
+  // A caption the rows do not compose, typed and saved.
+  const typed = 'Contato com marcas de arco, fotografado antes da limpeza';
+  await tile.getByRole('button', { name: 'Legendar' }).click();
+  await composer.getByRole('button', { name: 'Editar texto' }).click();
+  await composer.getByRole('textbox', { name: 'Texto da legenda' }).fill(typed);
+  await composer.getByRole('button', { name: 'Salvar legenda' }).click();
+  await expect(page.locator('.caption-composer')).toHaveCount(0);
+  await expect.poll(async () => (await devicePhotos(page, database)).find((p) => p.id === photo!.id)?.caption).toBe(typed);
+
+  // Reopened: free text, every chip inactive and none pressed, the note says why.
+  await tile.getByRole('button', { name: /^(Legendar|Editar legenda)$/ }).click();
+  await expect(composer.getByRole('button', { name: 'Editar texto' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(composer.locator('.caption-edit-note')).toHaveText('Texto editado à mão. Desligue Editar texto para montar pelas opções.');
+  const chips = composer.locator('.caption-part .chip-row .chip');
+  expect(await chips.count()).toBeGreaterThan(0);
+  for (const chip of await chips.all()) {
+    await expect(chip).toHaveAttribute('aria-disabled', 'true');
+    await expect(chip).not.toHaveAttribute('aria-pressed', 'true');
+  }
+  // Below 1280 px the chips are the rows; pressing one (from the keyboard: Playwright never
+  // clicks an `aria-disabled` control) changes neither the text nor, once saved, the stored caption.
+  await composer.getByRole('group', { name: 'Atividade' }).getByRole('button', { name: 'limpeza e reaperto' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(composer.getByRole('textbox', { name: 'Texto da legenda' })).toHaveValue(typed);
+  await expect(composer.locator('.chip[aria-pressed="true"]')).toHaveCount(0);
+  await composer.getByRole('button', { name: 'Salvar legenda' }).click();
+  await expect(page.locator('.caption-composer')).toHaveCount(0);
+  expect((await devicePhotos(page, database)).find((p) => p.id === photo!.id)?.caption).toBe(typed);
 });
