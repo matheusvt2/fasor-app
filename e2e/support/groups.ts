@@ -23,8 +23,17 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
 /** The group a Playwright run is in: set by `scripts/e2e.ts`; absent for a bare `playwright test`. */
 export type E2eGroup = 'parallel' | 'serial';
 
-/** The default worker count of the parallel group; `--workers=N` on the command line overrides it. */
-export const PARALLEL_WORKERS = 3;
+/**
+ * The default worker count of the parallel group; `--workers=N` on the command line overrides it.
+ *
+ * One, not three (2026-09-26, validation rule (d) of `spec-e2e-parallel-workers.md`): three
+ * `test:e2e:full` runs on one worker all passed, and one of three runs on three workers
+ * failed 12.3-E2E-004 (a tap's effect late under load) with the same 195 tests executed.
+ * The api's `POST /api/sync/ops` slows sharply when pushes of several workers overlap, so
+ * a test that passes serially can fail in parallel; the gate stays on one worker until
+ * that is fixed. `--workers=3` runs the isolated per-worker pairs in parallel on demand.
+ */
+export const PARALLEL_WORKERS = 1;
 
 /** The fewest worker pairs the global setup seeds, whatever the worker count. */
 export const MIN_WORKER_PAIRS = 3;
