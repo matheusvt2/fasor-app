@@ -1,5 +1,5 @@
 import type { Locator, Page } from '@playwright/test';
-import { expect, signIn, TEST_SEED } from './merged-fixtures.ts';
+import { expect, signIn, type SeedAccount } from './merged-fixtures.ts';
 import { readStore } from './outbox.ts';
 import { resetEmpresaB } from './reset-empresa-b.ts';
 import { pushNewRelatorio } from './relatorio-seed.ts';
@@ -10,9 +10,7 @@ import { pushNewRelatorio } from './relatorio-seed.ts';
  * Chave seccionadora in Cubículo Enel through the tree, by the row's type.
  */
 
-type Account = (typeof TEST_SEED.companies)[number];
-
-export const PHOTO_ACCOUNT = TEST_SEED.companies[1];
+type Account = SeedAccount;
 
 const tree = (page: Page) => page.getByRole('list', { name: 'Locais do relatório' });
 const enel = (page: Page) =>
@@ -31,7 +29,7 @@ export async function openChaveSheet(
   database: string,
   options: { width?: number; signIn?: () => Promise<void> } = {},
 ): Promise<{ relatorioId: string; blockId: string }> {
-  await resetEmpresaB({ standard: true });
+  await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: options.width ?? 1280, height: 900 });
   if (options.signIn === undefined) await signIn(page, account.email);
   else await options.signIn();

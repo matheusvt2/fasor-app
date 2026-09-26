@@ -2,7 +2,7 @@ import { DOCX_MIME, instantiateTemplate, standardTemplate, type OpDraft } from '
 import type { BrowserContext, Download, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-fixture.ts';
-import { deviceDatabaseName, expect, signIn, test, TEST_SEED } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { syncNow } from './support/sync.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
@@ -21,7 +21,13 @@ import { pushDrafts } from './support/relatorio-seed.ts';
  * Empresa B (Em campo, so the status ops `generate` and `issue` both apply).
  */
 
-const account = TEST_SEED.companies[1];
+let account: SeedAccount;
+let database: string;
+test.beforeEach(({ seed }) => {
+  // This worker's Empresa B (E6-Q7): its company, its user and its device database.
+  account = seed.companies[1];
+  database = deviceDatabaseName(account.userId);
+});
 
 const footButton = (page: Page) => page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' });
 const dialog = (page: Page) => page.getByRole('dialog', { name: 'Gerar relatório' });
@@ -71,7 +77,7 @@ test('@p0 4.8-E2E-001 a relatório born on Home: the Sumário\'s "Gerar relatór
   context,
 }) => {
   test.setTimeout(300_000);
-  await resetEmpresaB({ standard: true });
+  await resetEmpresaB(account, { standard: true });
   await signIn(page, account.email);
   await expect(page.locator('.shortcut-sub', { hasText: '1 template' })).toBeVisible({ timeout: 30_000 });
   await createProjectFromHome(page);
@@ -153,7 +159,7 @@ test('@p0 4.8-E2E-004 an Em campo relatório: generate moves it to Em revisão, 
   page,
 }) => {
   test.setTimeout(300_000);
-  await resetEmpresaBWithFixture();
+  await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
   await openFixtureSumario(page);
 
@@ -184,7 +190,7 @@ test('@p0 4.8-E2E-004 an Em campo relatório: generate moves it to Em revisão, 
 });
 
 test('@p1 4.8-E2E-002 offline, "Gerar relatório" waits with its reason and calls nothing', async ({ page, context }) => {
-  await resetEmpresaBWithFixture();
+  await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
   await openFixtureSumario(page);
   await footButton(page).click();
@@ -211,7 +217,7 @@ test('@p1 4.8-E2E-002 offline, "Gerar relatório" waits with its reason and call
 
 test('@p1 4.8-E2E-005 a failed request says nothing changed and no revision was created; "Tentar novamente" then generates', async ({ page }) => {
   test.setTimeout(300_000);
-  await resetEmpresaBWithFixture();
+  await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
   await openFixtureSumario(page);
   await footButton(page).click();
@@ -238,7 +244,6 @@ test('@p1 4.8-E2E-005 a failed request says nothing changed and no revision was 
 // --- Epic 4 carry-over (E4-A1, E4-A2, E4-A3) -------------------------------------------
 
 const IDLE_2 = 'Gera o DOCX e o PDF juntos, a partir dos dados do app, como a revisão 2. Precisa de conexão.';
-const database = deviceDatabaseName(account.userId);
 const sumarioList = (page: Page) => page.getByRole('list', { name: 'Sumário do relatório' });
 const banner = (page: Page) => page.locator('.banner-slot .banner');
 
@@ -254,7 +259,7 @@ test('@p0 E4-E2E-001 generate, edit, Em revisão, generate revision 2: listed an
   page,
 }) => {
   test.setTimeout(480_000);
-  await resetEmpresaBWithFixture();
+  await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
   await openFixtureSumario(page);
 
@@ -316,7 +321,7 @@ test('@p0 E4-E2E-002 a second relatório of an obra whose Emitido relatório thi
   page,
 }) => {
   test.setTimeout(300_000);
-  await resetEmpresaB({ standard: true });
+  await resetEmpresaB(account, { standard: true });
   await signIn(page, account.email);
   await expect(page.locator('.shortcut-sub', { hasText: '1 template' })).toBeVisible({ timeout: 30_000 });
 
@@ -383,7 +388,7 @@ test('@p0 E4-E2E-002 a second relatório of an obra whose Emitido relatório thi
 
 test('@p1 E4-E2E-003 an edited section text reads "texto editado" on its Sumário row', async ({ page }) => {
   test.setTimeout(120_000);
-  await resetEmpresaB({ standard: true });
+  await resetEmpresaB(account, { standard: true });
   await signIn(page, account.email);
   await expect(page.locator('.shortcut-sub', { hasText: '1 template' })).toBeVisible({ timeout: 30_000 });
   await createProjectFromHome(page);
@@ -401,7 +406,7 @@ test('@p1 E4-E2E-003 an edited section text reads "texto editado" on its Sumári
 
 test('@p1 E4-E2E-004 Etapa 2: an exclusion removed from its menu comes back with "Desfazer", and a blank exclusion never prints', async ({ page }) => {
   test.setTimeout(300_000);
-  await resetEmpresaBWithFixture();
+  await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
   await openFixtureSumario(page);
   await sumarioList(page).getByRole('button', { name: /^Capa e dados do relatório/ }).click();

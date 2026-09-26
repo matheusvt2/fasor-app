@@ -1,7 +1,7 @@
 import { cellAddressesOf, getDefinition, type OpDraft } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
-import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, TEST_SEED } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { syncNowAndReturn } from './support/sync.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB as resetCompany } from './support/reset-empresa-b.ts';
@@ -16,12 +16,17 @@ import { officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-s
  *
  * Every test resets Empresa B and pushes a relatório of the standard template from an
  * "office" device, then opens `/relatorio/:id` and reaches a sheet through the tree, by the
- * row's type (no literal TAG or id). Safe mid-run only because the suite runs with
- * `workers: 1`.
+ * row's type (no literal TAG or id). Safe mid-run because Empresa B is this worker's own
+ * (E6-Q7).
  */
 
-const account = TEST_SEED.companies[1];
-const database = deviceDatabaseName(account.userId);
+let account: SeedAccount;
+let database: string;
+test.beforeEach(({ seed }) => {
+  // This worker's Empresa B (E6-Q7): its company, its user and its device database.
+  account = seed.companies[1];
+  database = deviceDatabaseName(account.userId);
+});
 
 interface OutboxRow {
   path: string;
@@ -42,7 +47,7 @@ const outbox = (page: Page) => readStore<OutboxRow>(page, database, 'outbox');
 
 /** Resets Empresa B, signs in and opens the Sumário of a relatório pushed from the office. */
 async function openRelatorio(page: Page, width: number): Promise<{ relatorioId: string; projectId: string }> {
-  await resetCompany({ standard: true });
+  await resetCompany(account, { standard: true });
   await page.setViewportSize({ width, height: 900 });
   await signIn(page, account.email);
   const ids = await pushNewRelatorio(page, account, database);

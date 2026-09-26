@@ -6,6 +6,7 @@ import { newId } from '../ids.ts';
 import { createDb } from './client.ts';
 import { entities, ops, syncDevicePush } from './schema.ts';
 import { resetTestCompanyData } from './seed.ts';
+import { workerSeed } from './e2e-worker-seed.ts';
 import { TEST_SEED } from './test-seed.ts';
 
 /**
@@ -89,5 +90,27 @@ describe('resetTestCompanyData', () => {
     await expect(resetTestCompanyData(db, [OTHER_COMPANY_ID])).rejects.toThrow(/only the test companies/);
 
     await resetTestCompanyData(db);
+  });
+
+  it('also empties an e2e worker company (E6-Q7), and no company it was not given', async () => {
+    const now = new Date().toISOString();
+    // An index no Playwright run reaches, so a live suite's pair is never touched.
+    const worker = workerSeed(0xff02).companies[1].companyId;
+    try {
+      await plantRows(worker, now);
+      await plantRows(OTHER_COMPANY_ID, now);
+
+      await resetTestCompanyData(db, [worker]);
+
+      expect(await db.select().from(ops).where(eq(ops.company_id, worker))).toEqual([]);
+      expect(await db.select().from(entities).where(eq(entities.company_id, worker))).toEqual([]);
+      expect(await db.select().from(syncDevicePush).where(eq(syncDevicePush.company_id, worker))).toEqual([]);
+      expect(await db.select().from(ops).where(eq(ops.company_id, OTHER_COMPANY_ID))).toHaveLength(1);
+    } finally {
+      await resetTestCompanyData(db, [worker]);
+      await db.delete(ops).where(eq(ops.company_id, OTHER_COMPANY_ID));
+      await db.delete(entities).where(eq(entities.company_id, OTHER_COMPANY_ID));
+      await db.delete(syncDevicePush).where(eq(syncDevicePush.company_id, OTHER_COMPANY_ID));
+    }
   });
 });

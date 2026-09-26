@@ -1,7 +1,7 @@
 import { getDefinition } from '@app/domain';
 import type { BrowserContext, Locator, Page, TestInfo } from '@playwright/test';
 import { signInForDurability } from './support/durability.ts';
-import { deviceDatabaseName, expect, test, TEST_SEED } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { newRelatorioDrafts, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
@@ -21,11 +21,16 @@ import { humanTap, TAP_HOLD_MS } from './support/taps.ts';
  * "Marcar não ensaiado" by taps, then the sheet read-only after a reload.
  *
  * Each test resets Empresa B and pushes a standard relatório from an office device, then
- * opens a chave seccionadora sheet by its address (`workers: 1`, the shared company).
+ * opens a chave seccionadora sheet by its address (Empresa B is this worker's own, E6-Q7).
  */
 
-const account = TEST_SEED.companies[1];
-const database = deviceDatabaseName(account.userId);
+let account: SeedAccount;
+let database: string;
+test.beforeEach(({ seed }) => {
+  // This worker's Empresa B (E6-Q7): its company, its user and its device database.
+  account = seed.companies[1];
+  database = deviceDatabaseName(account.userId);
+});
 const SECC = getDefinition('v1', 'cabine_primaria', 'chave_seccionadora');
 const ITEMS = SECC.checklist!;
 
@@ -71,7 +76,7 @@ async function tapAt(page: Page, target: Locator): Promise<void> {
 
 /** Resets Empresa B, signs in, pushes a standard relatório and opens its first chave seccionadora sheet. */
 async function openSeccionadora(page: Page, context: BrowserContext): Promise<SeededSheet> {
-  await resetEmpresaB({ standard: true });
+  await resetEmpresaB(account, { standard: true });
   await signInForDurability(page, context, account.email);
   const built = newRelatorioDrafts(account);
   await pushDrafts(page, database, built.drafts);

@@ -1,7 +1,7 @@
 import { getDefinition, type OpDraft } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
-import { deviceDatabaseName, expect, signIn, test, TEST_SEED } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { pushLastNameplate } from './support/push-server-ops.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { instrumentDraft, newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
@@ -36,8 +36,13 @@ export const TAP_BUDGET = {
   J3: { taps: 7, keys: 47 },
 } as const;
 
-const account = TEST_SEED.companies[1];
-const database = deviceDatabaseName(account.userId);
+let account: SeedAccount;
+let database: string;
+test.beforeEach(({ seed }) => {
+  // This worker's Empresa B (E6-Q7): its company, its user and its device database.
+  account = seed.companies[1];
+  database = deviceDatabaseName(account.userId);
+});
 const EFFECT_MS = 3_000;
 const READINGS = ['150', '160', '170', '180', '190', '200', '100', '110', '120'];
 const SECCIONADORA = getDefinition('v2', 'cabine_primaria', 'chave_seccionadora');
@@ -145,7 +150,7 @@ function plateValue(kind: string, key: string, unit: string | undefined, options
 test('@p0 5.1-E2E-001 the tap budget at 768 px, offline: J1 with the plate copied from the last visit and J3 the next seccionadora stay within TAP_BUDGET, every tap on the first try', async ({ page, context }) => {
   test.setTimeout(240_000);
   await context.addInitScript(installCounter);
-  await resetEmpresaB({ standard: true });
+  await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 768, height: 1024 });
   await signIn(page, account.email);
 

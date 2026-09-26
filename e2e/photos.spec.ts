@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
-import { deviceDatabaseName, expect, test } from './support/merged-fixtures.ts';
-import { devicePhotos, expectCameraOpen, openChaveSheet, PHOTO_ACCOUNT, shoot } from './support/photos.ts';
+import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
+import { devicePhotos, expectCameraOpen, openChaveSheet, shoot } from './support/photos.ts';
 import { plainJpeg } from './fixtures/photos/synthetic.ts';
 import { pullAll } from './support/outbox.ts';
 import { syncNow } from './support/sync.ts';
@@ -20,8 +20,13 @@ test.use({
   geolocation: SAO_PAULO,
 });
 
-const account = PHOTO_ACCOUNT;
-const database = deviceDatabaseName(account.userId);
+let account: SeedAccount;
+let database: string;
+test.beforeEach(({ seed }) => {
+  // This worker's Empresa B (E6-Q7): its company, its user and its device database.
+  account = seed.companies[1];
+  database = deviceDatabaseName(account.userId);
+});
 const cameraButton = (page: Page) => page.getByRole('button', { name: 'Tirar foto', exact: true });
 const toast = (page: Page) => page.getByTestId('toast');
 const contatos = (page: Page) => page.locator('#ficha-step-verificacoes li.checklist-row[data-item-key="contatos"]');
@@ -155,24 +160,33 @@ test('@p1 6.2-E2E-001 a photo refused with 413 reads "Erro — Tentar novamente"
   await openChaveSheet(page, account, database);
   const row = contatos(page);
   await row.getByRole('radio', { name: 'Não conforme', exact: true }).click();
+
+  // The first photo (by capture time) is refused as too large; the second goes through.
+  // E6-Q14 sends a saved shot at once, so the route is in place before the shots: every
+  // file PUT waits until the first photo's id is read off the device, then only that
+  // photo's PUT is refused.
+  let firstId: string | null = null;
+  let idKnown = () => {};
+  const idRead = new Promise<void>((resolve) => (idKnown = resolve));
+  let refused = 0;
+  const filePut = (url: URL) => url.pathname.startsWith('/api/files/');
+  await page.route(filePut, async (route) => {
+    if (route.request().method() !== 'PUT') return route.continue();
+    await idRead;
+    if (new URL(route.request().url()).pathname !== `/api/files/${firstId}`) return route.continue();
+    refused += 1;
+    await route.fulfill({ status: 413, contentType: 'application/json', body: JSON.stringify({ code: 'file_too_large', message: 'too large' }) });
+  });
+
   await row.getByRole('button', { name: 'Adicionar foto' }).click();
   const camera = await expectCameraOpen(page);
   await shoot(page, 2);
   await camera.getByRole('button', { name: 'Concluir fotos' }).click();
   await expect(row.locator('.photo-list .photo-row')).toHaveCount(2);
 
-  // The first photo (by capture time) is refused as too large; the second goes through.
   const [first] = await devicePhotos(page, database);
-  let refused = 0;
-  const firstPut = (url: URL) => url.pathname === `/api/files/${first!.id}`;
-  await page.route(
-    firstPut,
-    async (route) => {
-      if (route.request().method() !== 'PUT') return route.continue();
-      refused += 1;
-      await route.fulfill({ status: 413, contentType: 'application/json', body: JSON.stringify({ code: 'file_too_large', message: 'too large' }) });
-    },
-  );
+  firstId = first!.id;
+  idKnown();
   await syncNow(page);
   expect(refused).toBe(1);
   await page.goBack();
@@ -190,7 +204,7 @@ test('@p1 6.2-E2E-001 a photo refused with 413 reads "Erro — Tentar novamente"
   expect(refused).toBe(1);
 
   // The pill is the retry: the server now takes it.
-  await page.unroute(firstPut);
+  await page.unroute(filePut);
   await contatos(page).locator('.photo-list .photo-row').nth(0).getByRole('button', { name: 'Erro — Tentar novamente' }).click();
   await expect(contatos(page).locator('.photo-list .photo-row').nth(0).locator('.upload-pill')).toHaveCount(0, { timeout: 60_000 });
   expect(refused).toBe(1);
