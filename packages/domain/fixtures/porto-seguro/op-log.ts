@@ -443,6 +443,11 @@ function nextOrderKey(locationId: string): string {
 
 let equipmentInstanceIndex = 0;
 
+/** Story 7.1: the 1° Subsolo's transformers and alimentação cables, in tree order (their `order_key` follows this loop). */
+const SUBSOLO_LOCATION_ID = locationIdOf.get('subsolo-1')!;
+const subsoloTransformerIds: string[] = [];
+const subsoloFeederCableIds: string[] = [];
+
 for (const templateBlock of equipmentTemplateBlocks) {
   const blockType = templateBlock.block_type as EquipmentBlockType;
   const locationId = locationIdOf.get(templateBlock.skeleton_location_ref!)!;
@@ -453,6 +458,8 @@ for (const templateBlock of equipmentTemplateBlocks) {
     const blockId = newId();
     const orderKey = nextOrderKey(locationId);
     const tag = instance.tag ?? `${blockType}-${orderKey}`;
+    if (locationId === SUBSOLO_LOCATION_ID && blockType === 'transformador_forca') subsoloTransformerIds.push(blockId);
+    if (locationId === SUBSOLO_LOCATION_ID && blockType === 'cabos_saida' && templateBlock.role === 'alimentacao') subsoloFeederCableIds.push(blockId);
 
     push({ kind: 'create', scope: 'project', path: `equipment/${equipmentId}`, value: { id: equipmentId, project_id: PROJECT_ID, tag, type: blockType, last_nameplate: null, removed_at: null } });
 
@@ -525,6 +532,22 @@ for (const templateBlock of equipmentTemplateBlocks) {
 
 if (equipmentInstanceIndex !== 94) throw new Error(`porto-seguro fixture: zipped ${equipmentInstanceIndex} instances, expected 94`);
 if (notTested.length !== 3) throw new Error(`porto-seguro fixture: ${notTested.length} not-tested blocks, expected 3`);
+
+// --- Story 7.1: the 1° Subsolo alimentação cables feed their transformers -------------------
+// The delivered 9.5 prints each "CABOS DE ALIMENTAÇÃO TRn" right before its "TRANSFORMADOR DE
+// FORÇA TRn": cable n feeds transformer n, both in tree order. Section 9 pairs them by this
+// field only (`groupForPrint`), never by name.
+
+if (subsoloFeederCableIds.length !== 5 || subsoloTransformerIds.length !== 5) {
+  throw new Error(`porto-seguro fixture: 1° Subsolo holds ${subsoloFeederCableIds.length} alimentação cables and ${subsoloTransformerIds.length} transformers, expected 5 and 5`);
+}
+subsoloFeederCableIds.forEach((cableId, n) => {
+  push({ kind: 'put', scope: 'relatorio', path: `block/${cableId}/feeds_block_id`, value: subsoloTransformerIds[n] });
+});
+
+/** The 1° Subsolo's five transformers and the alimentação cable feeding each, in tree order (Story 7.1). */
+export const SUBSOLO_TRANSFORMER_BLOCK_IDS: readonly string[] = subsoloTransformerIds;
+export const SUBSOLO_FEEDER_CABLE_BLOCK_IDS: readonly string[] = subsoloFeederCableIds;
 
 export const NOT_TESTED_SECCIONADORA_1_BLOCK_ID = notTested[0]!.blockId;
 export const NOT_TESTED_SECCIONADORA_2_BLOCK_ID = notTested[2]!.blockId;

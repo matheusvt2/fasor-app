@@ -1,11 +1,11 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { buildSnapshot, layoutSpec, replay } from '@app/domain';
+import { buildSnapshot, layoutSpec, numberPhotos, replay, type RelatorioSnapshot } from '@app/domain';
 import { portoSeguro } from '@app/domain/fixtures/porto-seguro';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 import { buildDocx, TOC_PLACEHOLDER } from './docx.ts';
-import { extractStructure, paragraphText, readZipEntries } from './docx-structure.ts';
+import { extractStructure, paragraphText, readZipEntries, type DocxStructure } from './docx-structure.ts';
 import { placeholderPages } from './toc.ts';
 
 /*
@@ -13,40 +13,59 @@ import { placeholderPages } from './toc.ts';
  * rendered with fixed inputs, unpacked without the `docx` library, and its headings,
  * tables, header and footer are compared with `golden/porto-seguro-skeleton.json`. Drift
  * fails here; a deliberate change is recorded with `GOLDEN_UPDATE=1`. No LibreOffice is
- * needed: the rendering is asserted, the conversion is the integration suite's.
+ * needed: the rendering is asserted, the conversion is the integration suite's. Since Story
+ * 7.1 the golden carries section 9's 94 sheets, one table row per line so its diff reads.
  */
 
 const GOLDEN_PATH = resolve(__dirname, 'golden/porto-seguro-skeleton.json');
 const ISSUED_AT = '2026-09-23T12:00:00.000Z';
 
-async function renderFixture(): Promise<Buffer> {
-  const snapshot = buildSnapshot(replay(portoSeguro.log, { deadOpIds: portoSeguro.deadOpIds }), portoSeguro.relatorioId);
-  const layout = layoutSpec(snapshot, { revisionNumber: 1, issuedAt: ISSUED_AT });
-  return buildDocx(layout, { tocPages: placeholderPages(layout) });
+type Golden = Pick<DocxStructure, 'headings' | 'tables' | 'header' | 'footer'>;
+
+/** The golden's JSON: pretty-printed, but every heading and every table row on one line. */
+function goldenJson(subject: Golden): string {
+  const list = (items: readonly unknown[], indent: string) => items.map((item) => `${indent}${JSON.stringify(item)}`).join(',\n');
+  const tables = subject.tables.map((table) => `    [\n${list(table, '      ')}\n    ]`).join(',\n');
+  return `{\n  "headings": [\n${list(subject.headings, '    ')}\n  ],\n  "tables": [\n${tables}\n  ],\n  "header": [\n${list(subject.header, '    ')}\n  ],\n  "footer": [\n${list(subject.footer, '    ')}\n  ]\n}\n`;
+}
+
+function fixtureSnapshot(): RelatorioSnapshot {
+  return buildSnapshot(replay(portoSeguro.log, { deadOpIds: portoSeguro.deadOpIds }), portoSeguro.relatorioId);
+}
+
+/** The fixture rendered once for the tests that only read it: 94 sheets make each render take seconds. */
+let fixtureDocx: Promise<Buffer> | null = null;
+function renderFixture(): Promise<Buffer> {
+  fixtureDocx ??= (async () => {
+    const layout = layoutSpec(fixtureSnapshot(), { revisionNumber: 1, issuedAt: ISSUED_AT });
+    return buildDocx(layout, { tocPages: placeholderPages(layout) });
+  })();
+  return fixtureDocx;
 }
 
 describe('4.8-UNIT-006 DOCX structure golden', () => {
   it('matches golden/porto-seguro-skeleton.json (headings, tables, header, footer)', async () => {
     const docx = await renderFixture();
     const structure = extractStructure(docx);
-    const subject = { headings: structure.headings, tables: structure.tables, header: structure.header, footer: structure.footer };
+    const subject: Golden = { headings: structure.headings, tables: structure.tables, header: structure.header, footer: structure.footer };
     if (process.env.GOLDEN_UPDATE === '1') {
       mkdirSync(dirname(GOLDEN_PATH), { recursive: true });
-      writeFileSync(GOLDEN_PATH, `${JSON.stringify(subject, null, 2)}\n`);
+      writeFileSync(GOLDEN_PATH, goldenJson(subject));
     } else if (!existsSync(GOLDEN_PATH)) {
       throw new Error(`${GOLDEN_PATH} is missing; regenerate it deliberately with GOLDEN_UPDATE=1`);
     }
-    const golden = JSON.parse(readFileSync(GOLDEN_PATH, 'utf8')) as typeof subject;
+    const golden = JSON.parse(readFileSync(GOLDEN_PATH, 'utf8')) as Golden;
     expect(subject).toEqual(golden);
-  }, 30_000);
+  }, 60_000);
 
   it('prints the AC parts: header lines, PAGE/NUMPAGES footer, DADOS DO CLIENTE, document control with "Rev. 1", the ÍNDICE and the empty sections', async () => {
     const structure = extractStructure(await renderFixture());
     expect(structure.header).toEqual(['Relatório Técnico de Cabine Primária', 'FO.SERV-03 · Revisão 00']);
     // The fixture's Empresa has no address, phone or e-mail: no empty contact line is printed.
     expect(structure.footer).toEqual(['Fasor Engenharia', 'Página {PAGE} de {NUMPAGES}']);
-    expect(structure.headings.map((h) => h.level)).toEqual(new Array(11).fill(1));
-    expect(structure.headings.map((h) => h.text)).toEqual([
+    // Level 1: the eleven sections; level 2: section 9's subsections (Story 7.1).
+    expect(structure.headings.map((h) => h.level)).toEqual([...new Array(9).fill(1), ...new Array(11).fill(2), 1, 1]);
+    expect(structure.headings.filter((h) => h.level === 1).map((h) => h.text)).toEqual([
       '1 OBJETIVO',
       '2 DEFINIÇÕES',
       '3 LIMITE DE ESCOPO',
@@ -84,25 +103,109 @@ describe('4.8-UNIT-006 DOCX structure golden', () => {
     expect(toc).toHaveLength(11);
     expect(toc[0]).toBe(`1 OBJETIVO\t${TOC_PLACEHOLDER}`);
     expect(structure.paragraphs).toContain('ÍNDICE');
-    // Section 3's exclusions and the empty sections' note.
+    // Section 3's exclusions and the note of the sections still empty (7, 8 and 11).
     expect(structure.paragraphs).toContain('Exclusões:');
     expect(structure.paragraphs).toContain('Quadros elétricos terminais, localizados nos respectivos setores;');
-    expect(structure.paragraphs.filter((p) => p === '(sem conteúdo nesta revisão)')).toHaveLength(4);
+    expect(structure.paragraphs.filter((p) => p === '(sem conteúdo nesta revisão)')).toHaveLength(3);
     const section1 = structure.paragraphs.find((p) => p.startsWith('O presente relatório tem por objetivo'));
     expect(section1).toContain('realizadas pela Fasor Engenharia');
     expect(section1).not.toMatch(/\{[a-z_]+\}/);
-  }, 30_000);
+  }, 60_000);
 
   it('writes the page numbers it is given into the ÍNDICE', async () => {
-    const snapshot = buildSnapshot(replay(portoSeguro.log, { deadOpIds: portoSeguro.deadOpIds }), portoSeguro.relatorioId);
-    const layout = layoutSpec(snapshot, { revisionNumber: 2, issuedAt: ISSUED_AT });
+    const layout = layoutSpec(fixtureSnapshot(), { revisionNumber: 2, issuedAt: ISSUED_AT });
     const pages = new Map(layout.toc.map((entry, i) => [entry.number, 4 + i]));
     const structure = extractStructure(await buildDocx(layout, { tocPages: pages }));
     expect(structure.paragraphs.filter((p) => /^\d+ .*\t\d+$/.test(p)).map((p) => p.split('\t')[1])).toEqual(
       layout.toc.map((_, i) => String(4 + i)),
     );
     expect(structure.tables[1]![1]![1]).toBe('Rev. 2');
-  }, 30_000);
+  }, 60_000);
+});
+
+describe('7.1-UNIT section 9 in the DOCX', () => {
+  const jpeg = () => sharp({ create: { width: 40, height: 30, channels: 3, background: { r: 200, g: 100, b: 20 } } }).jpeg().toBuffer();
+
+  it('heads the Porto Seguro subsections 9.1 to 9.11 as Heading 2, the FO.SERV-03 titles', async () => {
+    const structure = extractStructure(await renderFixture());
+    expect(structure.headings.filter((h) => h.level === 2).map((h) => h.text)).toEqual([
+      '9.1 Cubículo Enel',
+      '9.2 Seccionadoras dos Cubículos de MT do 1° Subsolo',
+      '9.3 Disjuntores dos Cubículos de MT do 1° Subsolo',
+      "9.4 TP's e TC's dos Cubículos de MT do 1° Subsolo",
+      '9.5 Transformadores e Cabos de Alimentação do 1° Subsolo',
+      '9.6 Oxigênio',
+      '9.7 Cobertura A',
+      '9.8 Cobertura B',
+      '9.9 Seccionadoras dos Cubículos de MT dos Geradores',
+      '9.10 Disjuntores dos Cubículos de MT dos Geradores',
+      "9.11 TP's e TC's dos Cubículos de MT dos Geradores",
+    ]);
+    const styles = readZipEntries(await renderFixture()).get('word/styles.xml')!.toString('utf8');
+    const heading2 = /<w:style [^>]*w:styleId="Heading2"[^>]*>(?:(?!<\/w:style>).)*<w:outlineLvl w:val="1"\/>(?:(?!<\/w:style>).)*<\/w:style>/s.exec(styles);
+    expect(heading2).not.toBeNull();
+  }, 60_000);
+
+  it('prints every sheet as native Word tables, never as a picture', async () => {
+    const docx = await renderFixture();
+    const entries = readZipEntries(docx);
+    expect([...entries.keys()].filter((name) => name.startsWith('word/media/') && !name.endsWith('/'))).toEqual([]);
+    const document = entries.get('word/document.xml')!.toString('utf8');
+    expect(document).not.toContain('<w:drawing');
+    const structure = extractStructure(docx);
+    // Two tables before section 9 (the cover and the document control); every sheet adds several.
+    expect(structure.tables.length).toBeGreaterThan(2 + 94 * 4);
+    expect(structure.tables.filter((table) => table[0]![0] === 'VERIFICAÇÕES GERAIS')).toHaveLength(94 - 3);
+    const enelCabos = structure.tables.find((table) => table[0]![0] === 'CARACTERÍSTICAS DA SE')!;
+    expect(enelCabos).toEqual([['CARACTERÍSTICAS DA SE'], ['TIPO DE SE', 'TENSÃO PRIMÁRIA', 'TENSÃO SECUNDÁRIA', 'POTÊNCIA INSTALADA'], ['BLINDADA', '13,8 kV', '-', '10 kVA']]);
+    // The sheet title bars, in the delivered 9.5 order: each alimentação cable before its transformer.
+    const titles = structure.paragraphs.filter((p) => /^(CABOS DE ALIMENTAÇÃO|TRANSFORMADOR DE FORÇA) (CB-)?TR/.test(p));
+    expect(titles.slice(0, 4)).toEqual(['CABOS DE ALIMENTAÇÃO CB-TR1', 'TRANSFORMADOR DE FORÇA TR-1', 'CABOS DE ALIMENTAÇÃO CB-TR2', 'TRANSFORMADOR DE FORÇA TR-2']);
+  }, 60_000);
+
+  /** The fixture with its first photo moved into the sheet of TR-1, and that photo's id, number and caption. */
+  function withPhotoInTr1() {
+    const base = fixtureSnapshot();
+    const tr1 = base.blocks.find((b) => b.equipment_id === base.equipment.find((e) => e.tag === 'TR-1')!.id)!;
+    const photo = base.files.find((f) => f.kind === 'photo')!;
+    const snapshot: RelatorioSnapshot = { ...base, files: base.files.map((f) => (f.id === photo.id && f.kind === 'photo' ? { ...f, block_id: tr1.id } : f)) };
+    const caption = photo.kind === 'photo' ? photo.caption : null;
+    return { snapshot, photoId: photo.id, number: numberPhotos(snapshot.files).get(photo.id)!, caption };
+  }
+
+  it('embeds a block-linked photo inside its sheet, with "Imagem N: ⟨legenda⟩." beneath and N its numberPhotos number', async () => {
+    const { snapshot, photoId, number, caption } = withPhotoInTr1();
+    const layout = layoutSpec(snapshot, { revisionNumber: 1, issuedAt: ISSUED_AT });
+    const docx = await buildDocx(layout, { tocPages: placeholderPages(layout), images: { photos: new Map([[photoId, await jpeg()]]) } });
+    const entries = readZipEntries(docx);
+    expect([...entries.keys()].filter((name) => name.startsWith('word/media/') && !name.endsWith('/'))).toHaveLength(1);
+    // The fixture's caption already ends in a period: none is added.
+    expect(caption).toBe('Detalhe da equipe da Enel no local para desligamento e religamento da energia.');
+    const line = `Imagem ${number}: ${caption}`;
+    expect(line).toBe('Imagem 1: Detalhe da equipe da Enel no local para desligamento e religamento da energia.');
+    const { paragraphs, tables } = extractStructure(docx);
+    const at = paragraphs.indexOf('TRANSFORMADOR DE FORÇA TR-1');
+    const next = paragraphs.indexOf('CABOS DE ALIMENTAÇÃO CB-TR2');
+    expect(at).toBeGreaterThan(-1);
+    expect(paragraphs.indexOf(line)).toBeGreaterThan(at);
+    expect(paragraphs.indexOf(line)).toBeLessThan(next);
+    // The picture and its line share one cell of the photo table.
+    const document = entries.get('word/document.xml')!.toString('utf8');
+    const cell = [...document.matchAll(/<w:tc>([\s\S]*?)<\/w:tc>/g)].map((match) => match[0]).find((xml) => paragraphText(xml).includes(line))!;
+    expect(cell).toContain('<w:drawing');
+    expect(tables.some((table) => table.some((row) => row.includes(`\n${line}`)))).toBe(true);
+  }, 60_000);
+
+  it('keeps the photo line and leaves its image cell empty when the bytes are missing or unreadable, and never throws', async () => {
+    const { snapshot, photoId, number, caption } = withPhotoInTr1();
+    const layout = layoutSpec(snapshot, { revisionNumber: 1, issuedAt: ISSUED_AT });
+    for (const photos of [new Map<string, Buffer>(), new Map([[photoId, Buffer.from('not an image')]])]) {
+      const docx = await buildDocx(layout, { tocPages: placeholderPages(layout), images: { photos } });
+      const entries = readZipEntries(docx);
+      expect([...entries.keys()].filter((name) => name.startsWith('word/media/') && !name.endsWith('/'))).toHaveLength(0);
+      expect(extractStructure(docx).paragraphs).toContain(`Imagem ${number}: ${caption}`);
+    }
+  }, 60_000);
 });
 
 describe('Epic 4 QA Q13 footer size and document properties', () => {

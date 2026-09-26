@@ -57,6 +57,7 @@ function snapshotWith(overrides: { client?: RelatorioSnapshot['client']; setup?:
     files: [],
     points: [],
     suggestions: [],
+    actors: [],
   };
 }
 

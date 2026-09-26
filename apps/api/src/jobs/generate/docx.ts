@@ -22,6 +22,7 @@ import {
   type IBorderOptions,
 } from 'docx';
 import sharp from 'sharp';
+import { SECTION_9_PARAGRAPH_STYLES, section9Children } from './sections/section-9.ts';
 import type { TocPages } from './toc.ts';
 
 /*
@@ -36,7 +37,7 @@ import type { TocPages } from './toc.ts';
 /** A4 in twips (11906 x 16838) and the source margin. */
 const A4 = { width: 11906, height: 16838 } as const;
 const MARGIN_TWIPS = 720;
-const CONTENT_WIDTH_TWIPS = A4.width - 2 * MARGIN_TWIPS;
+export const CONTENT_WIDTH_TWIPS = A4.width - 2 * MARGIN_TWIPS;
 
 /** Printed at 96 px per inch, the scale `docx` assumes for an image's `transformation`. */
 const PX_PER_CM = 96 / 2.54;
@@ -63,6 +64,8 @@ export interface DocxImages {
   logo?: Buffer;
   /** The cover photo, `print` variant bytes. */
   cover?: Buffer;
+  /** Story 7.1/7.2: the `print` variant bytes of the photos section 9 prints inside its sheets, by file id. */
+  photos?: ReadonlyMap<string, Buffer>;
 }
 
 export interface BuildDocxOptions {
@@ -86,7 +89,7 @@ function imageType(data: Buffer): 'png' | 'jpg' {
  * Bytes sharp cannot read (a corrupt upload) yield null: the document prints without
  * that image rather than failing the revision.
  */
-async function sizedImage(data: Buffer, maxWidth: number, maxHeight: number): Promise<SizedImage | null> {
+export async function sizedImage(data: Buffer, maxWidth: number, maxHeight: number): Promise<SizedImage | null> {
   let meta: { width?: number; height?: number };
   try {
     meta = await sharp(data).metadata();
@@ -100,7 +103,7 @@ async function sizedImage(data: Buffer, maxWidth: number, maxHeight: number): Pr
   return { data, type: imageType(data), width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) };
 }
 
-function image(img: SizedImage): ImageRun {
+export function image(img: SizedImage): ImageRun {
   return new ImageRun({ type: img.type, data: img.data, transformation: { width: img.width, height: img.height } });
 }
 
@@ -225,6 +228,7 @@ export async function buildDocx(layout: DocumentLayout, options: BuildDocxOption
   for (const section of layout.sections) {
     children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [text(sectionHeading(section))] }));
     if (section.kind === 'empty') children.push(new Paragraph({ children: [text(section.note)], spacing: { after: 120 } }));
+    else if (section.kind === 'sheets') children.push(...(await section9Children(section, options.images?.photos ?? new Map())));
     else for (const block of section.paragraphs) children.push(sectionParagraph(block));
   }
 
@@ -251,6 +255,17 @@ export async function buildDocx(layout: DocumentLayout, options: BuildDocxOption
           run: { font: BODY_FONT, size: 28, bold: true },
           paragraph: { spacing: { before: 360, after: 160 }, outlineLevel: 0, keepNext: true },
         },
+        {
+          // Story 7.1: section 9's subsections ("9.1 Cubículo Enel"), level 2 of the PDF outline.
+          id: 'Heading2',
+          name: 'Heading 2',
+          basedOn: 'Normal',
+          next: 'Normal',
+          quickFormat: true,
+          run: { font: BODY_FONT, size: 24, bold: true },
+          paragraph: { spacing: { before: 240, after: 120 }, outlineLevel: 1, keepNext: true },
+        },
+        ...SECTION_9_PARAGRAPH_STYLES,
       ],
     },
     sections: [

@@ -70,6 +70,7 @@ function baseSnapshot(overrides: Partial<RelatorioSnapshot> = {}): RelatorioSnap
     files: [],
     points: [],
     suggestions: [],
+    actors: [],
     ...overrides,
   };
 }

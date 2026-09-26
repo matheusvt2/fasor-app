@@ -321,7 +321,9 @@ describe('4.8-INT-002 POST /api/relatorios/:id/generate and GET /api/revisions/:
     expect(res.headers.get('x-content-type-options')).toBe('nosniff');
     const docx = Buffer.from(await res.arrayBuffer());
     const structure = extractStructure(docx);
-    expect(structure.headings).toHaveLength(11);
+    // The eleven sections, and (Story 7.1) section 9's one subsection: the small fixture's one cabine.
+    expect(structure.headings.filter((h) => h.level === 1)).toHaveLength(11);
+    expect(structure.headings.filter((h) => h.level === 2).map((h) => h.text)).toEqual(['9.1 Cabine de Testes']);
     expect(structure.tables[1]![1]).toEqual(['Revisão do documento', 'Rev. 1']);
     expect(structure.tables[1]![5]![1]).toBe(`${companyA.name} · CREA ${companyA.registrationNumber}`);
     const printed = new Map(
@@ -339,8 +341,9 @@ describe('4.8-INT-002 POST /api/relatorios/:id/generate and GET /api/revisions/:
     const chunks: Buffer[] = [];
     for await (const chunk of stored!.body) chunks.push(chunk as Buffer);
     const outline = await readOutline(Buffer.concat(chunks));
-    expect(outline.headings).toHaveLength(11);
-    for (const heading of outline.headings) expect(printed.get(heading.title), heading.title).toBe(heading.page);
+    // The outline carries section 9's subsection as well (level 2); the ÍNDICE lists the sections.
+    expect(outline.headings.map((heading) => heading.title)).toEqual([...printed.keys()].flatMap((title) => (title.startsWith('9 ') ? [title, '9.1 Cabine de Testes'] : [title])));
+    for (const [title, page] of printed) expect(outline.headings.find((heading) => heading.title === title)?.page, title).toBe(page);
   }, 60_000);
 
   it('answers unchanged with the last revision when nothing was edited since its snapshot', async () => {

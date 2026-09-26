@@ -25,7 +25,6 @@ export async function toSnapshot(db: Reader, companyId: CompanyId, relatorioId: 
   if (!relatorio) throw new Error(`relatorio ${relatorioId} not found`);
   const row = relatorio.row as RelatorioRow;
   const projectId = row.project_id;
-  const responsibleId = row.setup.responsible_user_id;
   const rows = await db
     .select()
     .from(entities)
@@ -37,8 +36,10 @@ export async function toSnapshot(db: Reader, companyId: CompanyId, relatorioId: 
           eq(entities.project_id, projectId),
           and(eq(entities.entity, 'project'), eq(entities.id, projectId)),
           eq(entities.entity, 'registry'),
-          // Story 4.8: the responsible's `user` row, for the cover and the document control.
-          responsibleId === null ? undefined : and(eq(entities.entity, 'user'), eq(entities.id, responsibleId)),
+          // Stories 4.8 and 7.1: the company's `user` rows, as the device's state holds them:
+          // the responsible (cover, document control) and the sheets' actors (the section 9
+          // attribution line). `buildSnapshot` keeps only the rows it names.
+          eq(entities.entity, 'user'),
         ),
       ),
     );
