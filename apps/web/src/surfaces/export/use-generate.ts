@@ -2,12 +2,10 @@ import {
   expectedFileIds,
   idleRevisionNumber,
   isJobActive,
-  issueOnRevision,
   jobExpiresAt,
   latestRevision,
   nextRevisionNumber,
   putRelatorioStatusOp,
-  readyToast,
   statusTable,
   toIso,
   type GenerationJobRow,
@@ -21,7 +19,6 @@ import { now } from '../../clock.ts';
 import { commitBatch } from '../../db/commit.ts';
 import { pendingUploadCount } from '../../db/file-store.ts';
 import {
-  editedSinceSnapshot,
   lastOpIdFor,
   relatorioRow,
   revisionRows,
@@ -33,6 +30,7 @@ import {
 import { clearGenerateAwaiting, readGenerateAwaiting, writeGenerateAwaiting } from '../../db/prefs.ts';
 import { toSnapshot } from '../../db/snapshot.ts';
 import { newId } from '../../ids.ts';
+import { emitIssueFor, finishGenerate } from '../../state/generate-watcher.tsx';
 import { useSession } from '../../state/session.tsx';
 import { useSync } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
@@ -177,11 +175,7 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
   const emitIssue = useCallback(
     async (revision: Pick<RevisionRow, 'snapshot_seq'>) => {
       if (db === null || user === null) return;
-      const current = await relatorioRow(db, relatorioId);
-      if (current === null) return;
-      const next = issueOnRevision(current.status, await editedSinceSnapshot(db, relatorioId, revision.snapshot_seq));
-      if (next === null) return;
-      await commitBatch(db, [putRelatorioStatusOp({ id: user.id, companyId: user.companyId }, relatorioId, next)], { newId, now });
+      await emitIssueFor(db, { id: user.id, companyId: user.companyId }, relatorioId, revision);
     },
     [db, user, relatorioId],
   );
@@ -189,9 +183,11 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
   emitIssueRef.current = emitIssue;
 
   /**
-   * The revision arrived: the `issue` op first, then the ready state and the toast, then
-   * the recorded wait cleared. Ready waits for the op (Q11) so the result block's pill
-   * reads the status after the issue (Emitido), never the one before it.
+   * The revision arrived: R4 (Story 7.5), the app-level watcher's `finishGenerate` writes
+   * the `issue` op, raises the toast and clears the recorded wait, once per revision
+   * whichever of the two sees it first; then the ready state. Ready waits for the op (Q11)
+   * so the result block's pill reads the status after the issue (Emitido), never the one
+   * before it.
    */
   const finishing = useRef<string | null>(null);
   /** The live relatório row rendered last, and the one rendered when ready was set. */
@@ -212,15 +208,13 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
           setPhase({ kind: 'ready', number: revision.number, revisionId: revision.id, unchanged: false, ...(stored === null ? {} : { status: stored.status }) });
         }
         finishing.current = null;
-        showToast(readyToast(revision.number));
-        if (db !== null) void clearGenerateAwaiting(db, relatorioId).catch(() => undefined);
       };
-      void emitIssueRef
-        .current(revision)
-        .catch((error: unknown) => console.error('issue status op failed', error))
+      const author = user === null ? null : { id: user.id, companyId: user.companyId };
+      void (db === null ? Promise.resolve(false) : finishGenerate(db, author, relatorioId, revision, showToast))
+        .catch((error: unknown) => console.error('generate finish failed', error))
         .then(ready);
     },
-    [db, relatorioId, showToast],
+    [db, user, relatorioId, showToast],
   );
 
   // Once the live row re-renders after ready was set, it speaks for the status again.

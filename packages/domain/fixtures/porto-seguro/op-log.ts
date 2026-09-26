@@ -620,6 +620,13 @@ export const deadOpIds: readonly string[] = [];
 /** The golden `RelatorioSnapshot`, committed as canonical JSON. */
 export const goldenSnapshot: unknown = golden;
 
+/**
+ * Story 7.5 (AD-2): the clock reading both sides pass to `preIssue` when they compute
+ * `pre-issue.golden.json` (Postgres, `apps/api`) and the Sumário's rows (Dexie, `apps/web`),
+ * so the calibration and section-text rules judge the same instant.
+ */
+export const PRE_ISSUE_GOLDEN_NOW = '2026-09-10T12:00:00.000Z';
+
 export const portoSeguro = {
   companyId: COMPANY_ID,
   relatorioId: RELATORIO_ID,

@@ -9,7 +9,8 @@ import { getSeed, sectionText } from '../seed/definitions.ts';
 import type { TextBlock } from '../seed/schema.ts';
 import { sectionNumber } from '../templates/compose.ts';
 import { resolveSectionText } from '../templates/section-text.ts';
-import { documentControlRows, type DocumentControlRow } from './document-control.ts';
+import { documentControlRows, MISSING, REVISION_ROW_LABEL, type DocumentControlRow } from './document-control.ts';
+import { section10Layout, type LayoutSection10 } from './section-10.ts';
 
 /*
  * Story 4.8 (AD-15): the layout spec of the printed relatório. Pure data: what prints, in
@@ -57,7 +58,10 @@ export interface LayoutSectionEmpty {
   note: string;
 }
 
-export type LayoutSection = LayoutSectionText | LayoutSectionEmpty;
+export type LayoutSection = LayoutSectionText | LayoutSectionEmpty | LayoutSection10;
+
+/** Story 7.5: the word the preview prints behind every page; issued documents carry none. */
+export const DRAFT_WATERMARK = 'RASCUNHO';
 
 export interface TocEntry {
   number: number;
@@ -76,6 +80,8 @@ export interface DocumentLayout {
   documentControl: DocumentControlRow[];
   toc: TocEntry[];
   sections: LayoutSection[];
+  /** Story 7.5: `RASCUNHO` on a preview (behind the text of every page), null on an issued document. */
+  watermark: typeof DRAFT_WATERMARK | null;
 }
 
 export interface LayoutInputs {
@@ -86,6 +92,8 @@ export interface LayoutInputs {
   sectionTextAt?: string;
   /** See `documentControlRows`. */
   art?: string | null;
+  /** Story 7.5: a preview: the RASCUNHO watermark and no revision number ("Revisão do documento" prints `—`). */
+  draft?: boolean;
 }
 
 const calendarDate = new Intl.DateTimeFormat('en-CA', {
@@ -185,6 +193,7 @@ export function layoutSpec(snapshot: RelatorioSnapshot, inputs: LayoutInputs): D
     // seed's own three items when the relatório carries no per-relatório text edit of its own.
     const seeded = section === 3 ? section3Blocks(seedVersion, textDate, relatorio.setup.exclusions) : seededBlocks(seedVersion, section, textDate);
     const blocks = !composed ? null : ownText !== null ? ownParagraphs(ownText) : seeded;
+    if (section === 10) return section10Layout(snapshot, { number, title, paragraphs: (blocks ?? []).map((block) => ({ text: resolveSectionText(block.text, variables).resolved })) });
     if (blocks === null || blocks.length === 0) return { number, title, kind: 'empty', note: EMPTY_SECTION_NOTE };
     return {
       number,
@@ -210,9 +219,12 @@ export function layoutSpec(snapshot: RelatorioSnapshot, inputs: LayoutInputs): D
       table: { title: cover.title, rows: coverRows },
       coverPhotoFileId: relatorio.setup.cover_photo_file_id,
     },
-    documentControl: documentControlRows(snapshot, { revisionNumber: inputs.revisionNumber, issuedAt: inputs.issuedAt, art: inputs.art ?? null }),
+    documentControl: documentControlRows(snapshot, { revisionNumber: inputs.revisionNumber, issuedAt: inputs.issuedAt, art: inputs.art ?? null }).map((row) =>
+      inputs.draft === true && row.label === REVISION_ROW_LABEL ? { ...row, value: MISSING } : row,
+    ),
     toc: sections.map(({ number, title }) => ({ number, title })),
     sections,
+    watermark: inputs.draft === true ? DRAFT_WATERMARK : null,
   };
 }
 

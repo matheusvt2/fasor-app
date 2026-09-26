@@ -184,6 +184,14 @@ body {
   .brand-preview .bp-pages { grid-template-columns: 1fr; }
   /* `.frame-phone .doc-control th` */
   .doc-control th { width: 128px; }
+  /* `.frame-phone [data-route="/relatorio/porto-seguro/exportar"] .precheck li` and `li .pc-actions` (73-exportar.html) */
+  .export-dialog .precheck li { flex-wrap: wrap; }
+  .export-dialog .precheck li .pc-actions { margin-left: calc(-1 * var(--sp-3)); flex-wrap: wrap; max-width: 100%; }
+  /* authored (Story 7.5, DESIGN.md "stacks on phone"): the Export dialog's document control
+     `dl` puts each value under its key below the tablet breakpoint (`export.css` dt/dd). */
+  .export-dialog dl.doc-control { grid-template-columns: minmax(0, 1fr); }
+  .export-dialog dl.doc-control dt { border-right: 0; padding-bottom: 0; }
+  .export-dialog dl.doc-control dd { border-top: 0; }
   /* `.frame-phone .pos-box` */
   .pos-box { width: 48px; }
   /* `.frame-phone [data-route="/relatorio/porto-seguro"] .overview-content` (40-relatorio-overview.html) */
@@ -623,3 +631,8 @@ input.count { width: 40px; padding: 0; border: 0; background: transparent; color
   [data-route="/relatorio/:id/pontos"] .poa-edit-actions .btn,
   .point-editor-dialog .poa-edit-actions .btn { flex: 1 1 100%; }
 }
+
+/* authored (Story 7.5): "Ver no sumário" returns from the Export dialog to the Sumário with
+   the rows its warnings stand on marked, until the next tap; the focus ring's own tokens, so
+   no new colour is invented. */
+.sumario .sum-row.is-highlighted { box-shadow: inset 4px 0 0 var(--focus); background: var(--focus-fill); }

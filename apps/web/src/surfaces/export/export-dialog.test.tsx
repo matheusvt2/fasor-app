@@ -67,7 +67,30 @@ async function freshDb(): Promise<AppDatabase> {
   await db.delete();
   const fresh = openDatabase(user);
   await applyPulled(fresh, portoSeguroSmall.log);
+  // Story 7.5: the parecer is set, so "Parecer não preenchido" does not block these issue walks.
+  await applyPulled(fresh, [parecerOp()]);
   return fresh;
+}
+
+/** The engineer's parecer as a pulled setup put (the fixture's log carries none). */
+function parecerOp(): Op {
+  return {
+    op_id: newId(),
+    kind: 'put',
+    scope: 'relatorio',
+    company_id: COMPANY,
+    project_id: null,
+    relatorio_id: REL,
+    path: 'relatorio/setup/parecer',
+    value: { verdict: 'apto', text: null, text_status: null, text_basis: null },
+    prev_op_id: null,
+    batch_id: null,
+    meta: null,
+    actor_id: USER,
+    device_id: 'tablet-other',
+    client_ts: '2026-09-23T11:00:00.000Z',
+    seq: 19_999,
+  };
 }
 
 const syncState = (over: SyncStateOverrides = {}): SyncState =>
@@ -600,5 +623,89 @@ describe('Export dialog (Story 4.8)', () => {
     await waitFor(() => expect(within(modal).getByRole('status')).toHaveTextContent('Gerando revisão 1…'));
     expect(generateButton()).toHaveAttribute('aria-disabled', 'true');
     await waitFor(() => expect(sync.syncRelatorio).toHaveBeenCalled());
+  });
+});
+
+describe('Export dialog (Story 7.5)', () => {
+  it('lists "Antes de emitir": the count of the Sumário warnings with "Ver no sumário", rejected ops with "Reenviar", and the document control as a dl', async () => {
+    database = await freshDb();
+    const onSee = vi.fn();
+    const sync = syncState({ counts: { dead: 2 } });
+    render(
+      <SyncContext value={sync}>
+        <ToastProvider>
+          <ExportDialog relatorioId={REL} isOpen onOpenChange={() => {}} onSeeInSumario={onSee} onEditInSetup={() => {}} timing={TIMING} />
+        </ToastProvider>
+      </SyncContext>,
+    );
+    const modal = dialog();
+    const list = await waitFor(() => {
+      const found = modal.querySelector('ul.precheck');
+      expect(found).not.toBeNull();
+      return found as HTMLElement;
+    });
+    // The parecer is set in this fixture: nothing blocks.
+    expect(list.querySelector('li.is-blocking')).toBeNull();
+    expect(within(list).getByText('2 alterações rejeitadas')).toBeVisible();
+    await userEvent.click(within(list).getByRole('button', { name: 'Reenviar' }));
+    expect(sync.resendDead).toHaveBeenCalledTimes(1);
+    const count = [...list.querySelectorAll('li')].at(-1)!;
+    expect(count.querySelector('.pc-text')).toHaveTextContent(/^\d+ avisos? — estão nas linhas do sumário; nenhum impede gerar\.$/);
+    await userEvent.click(within(count).getByRole('button', { name: 'Ver no sumário' }));
+    expect(onSee).toHaveBeenCalledWith(expect.arrayContaining(['section_9']));
+    // Document control: a dl of the kernel's rows, "Rev. 1" the next number, "—" for a missing value.
+    const dl = modal.querySelector('dl.doc-control')!;
+    expect(dl).toHaveAccessibleName('Controle do documento — impresso após a capa');
+    const pairs = [...dl.querySelectorAll('.dc-row')].map((row) => [row.querySelector('dt')!.textContent, row.querySelector('dd')!.textContent]);
+    expect(pairs.map(([label]) => label)).toEqual(['Documento', 'Revisão do documento', 'Data de emissão', 'Contratante', 'Contratada', 'Responsável técnico', 'ART/TRT', 'Período do serviço']);
+    expect(pairs[1]![1]).toBe('Rev. 1');
+    expect(modal.querySelector('.export-sec9-note')).toHaveTextContent('Seção 9 impressa no agrupamento do FO.SERV-03 (por local e tipo, com a flag Agrupar por tipo de cada cabine).');
+    expect(await axe(modal)).toHaveNoViolations();
+  });
+
+  it('"Pré-visualizar" opens a tab at once, reads "Gerando rascunho…", asks for the preview job and points the tab at preview.pdf; no status op, no revision', async () => {
+    database = await freshDb();
+    const PREVIEW_JOB = '019966c1-0000-7000-8000-0000000000e2';
+    const FILE = '019966c1-0000-7000-8000-0000000000e3';
+    const sync = syncState({ preview: vi.fn(async () => ({ outcome: 'queued' as const, job_id: PREVIEW_JOB })) });
+    const tab = { location: { href: '' }, close: vi.fn(), opener: {} };
+    const open = vi.spyOn(window, 'open').mockImplementation(() => tab as unknown as Window);
+    render(<Harness sync={sync} />);
+    const modal = dialog();
+    await userEvent.click(within(modal).getByRole('button', { name: 'Pré-visualizar' }));
+    expect(open).toHaveBeenCalledWith('', '_blank');
+    await waitFor(() => expect(within(modal).getByRole('button', { name: 'Gerando rascunho…' })).toBeInTheDocument());
+    await waitFor(() => expect(sync.preview).toHaveBeenCalledWith(REL, expect.objectContaining({ file_ids_expected: expect.any(Array) })));
+    await act(async () => {
+      await applyPulled(database!, [
+        serverOp({
+          kind: 'create',
+          path: `generation_job/${PREVIEW_JOB}`,
+          value: { id: PREVIEW_JOB, relatorio_id: REL, kind: 'preview', status: 'queued', error: null, result_file_id: null, result: null, created_at: new Date().toISOString() },
+          client_ts: '2026-09-23T12:00:00.000Z',
+        }),
+        serverOp({ kind: 'put', path: `generation_job/${PREVIEW_JOB}/result_file_id`, value: FILE, client_ts: '2026-09-23T12:00:05.000Z' }),
+        serverOp({ kind: 'put', path: `generation_job/${PREVIEW_JOB}/status`, value: 'done', client_ts: '2026-09-23T12:00:05.000Z' }),
+      ]);
+    });
+    await waitFor(() => expect(tab.location.href).toBe(`/api/relatorios/${REL}/preview.pdf?v=${FILE}`));
+    await waitFor(() => expect(within(modal).getByRole('button', { name: 'Pré-visualizar' })).toBeInTheDocument());
+    expect(sync.generate).not.toHaveBeenCalled();
+    expect(await statusOps(database)).toEqual([]);
+    // A preview job never reads as a running issue.
+    expect(within(modal).queryByText(/Gerando revisão/)).toBeNull();
+    open.mockRestore();
+  });
+
+  it('a failed preview closes its tab and says so', async () => {
+    database = await freshDb();
+    const sync = syncState({ preview: vi.fn(async () => Promise.reject(new Error('offline'))) });
+    const tab = { location: { href: '' }, close: vi.fn(), opener: {} };
+    const open = vi.spyOn(window, 'open').mockImplementation(() => tab as unknown as Window);
+    render(<Harness sync={sync} />);
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Pré-visualizar' }));
+    await waitFor(() => expect(within(dialog()).getByText('Não foi possível gerar o rascunho. Os dados não foram alterados.')).toBeVisible());
+    expect(tab.close).toHaveBeenCalled();
+    open.mockRestore();
   });
 });

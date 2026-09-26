@@ -174,15 +174,21 @@ describe('4.3 SumarioSurface', () => {
     expect(numbered[8]!.querySelector('.sum-status')).toHaveTextContent('1 de 3 · 1 não ensaiada');
     expect(numbered[8]!).toHaveClass('has-pend');
     expect(numbered[1]!.querySelector('.sum-status')).toHaveTextContent('texto padrão');
-    expect(numbered[0]!.querySelector('.sum-status')).toHaveTextContent('editado em Dados do relatório › Etapa 2');
-    expect(container.querySelector('.sum-status.is-blocking')).toBeNull();
+    // Story 7.5: the fixture has no Empresa, so section 1's text names it as a gap; section 3 reads the setup line.
+    expect(numbered[0]!.querySelector('.sum-status')).toHaveTextContent('Dado do relatório em branco: Empresa executora');
+    expect(numbered[2]!.querySelector('.sum-status')).toHaveTextContent('editado em Dados do relatório › Etapa 2');
+    // Story 7.4: the one blocking row, in red on row 10.
+    expect(container.querySelector('.sum-status.is-blocking')).toBe(numbered[9]!.querySelector('.sum-status'));
+    expect(numbered[9]!.querySelector('.sum-status')).toHaveTextContent('Parecer não preenchido');
     // The header counts and the foot reason.
     const summary = screen.getByRole('group', { name: 'Resumo do relatório' });
     expect(within(summary).getAllByRole('button').map((b) => b.textContent)).toEqual(['1 de 3 fichas concluídas', '0 NC abertos', '1 não ensaiada', '0 sugestões por confirmar']);
     expect(capa!.querySelector('.sum-status')).toHaveTextContent('Fim da parada em branco');
-    expect(screen.getByText('Nada impede gerar.')).toHaveClass('btn-reason');
-    expect(screen.getByRole('button', { name: 'Pré-visualizar' })).toHaveAttribute('aria-disabled', 'true');
-    expect(screen.getByRole('button', { name: 'Gerar relatório' })).toHaveAccessibleDescription('Nada impede gerar.');
+    const reason = 'Só Conclusão e parecer (linha 10) impede gerar. O resto está escrito em cada linha.';
+    expect(screen.getByText(reason)).toHaveClass('btn-reason');
+    // Story 7.5: the preview is live; "Gerar relatório" opens the dialog, where the block stops it.
+    expect(screen.getByRole('button', { name: 'Pré-visualizar' })).not.toHaveAttribute('aria-disabled');
+    expect(screen.getByRole('button', { name: 'Gerar relatório' })).toHaveAccessibleDescription(reason);
     expect(screen.getByRole('button', { name: 'Mais opções do relatório' })).toBeVisible();
     expect(container.querySelector('.sheet-title')).toHaveTextContent('Cliente de Testes Ltda · Local de Testes');
     expect(container.querySelector('.sheet-meta')).toHaveTextContent('Em campo 06/09/2026');
@@ -206,10 +212,11 @@ describe('4.3 SumarioSurface', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Pontos de atenção' }));
     expect((await screen.findAllByRole('menuitem')).map((m) => m.textContent)).toEqual(['Subir', 'Descer']);
     await userEvent.keyboard('{Escape}');
-    // Rows 10 and 11 have no `.sum-open` button; 1 and 3 open the setup, 2 the text,
-    // 7 the gallery (Story 6.3), 8 the points (Story 6.6).
+    // Row 11 has no `.sum-open` button; 1 and 3 open the setup, 2 the text, 7 the gallery
+    // (Story 6.3), 8 the points (Story 6.6), 10 the setup at Etapa 6 (Story 7.4).
     const [, , r1, , , , , , r7, r8, , r10, r11] = rows();
-    for (const li of [r10, r11]) expect(li!.querySelector('button.sum-open')).toBeNull();
+    expect(r11!.querySelector('button.sum-open')).toBeNull();
+    expect(r10!.querySelector('button.sum-open')).not.toBeNull();
     expect(r7!.querySelector('button.sum-open')).not.toBeNull();
     expect(within(r8!).getByRole('button', { name: /^Pontos de atenção/ })).toHaveTextContent('1 ponto · 1 não ensaiada');
     await userEvent.click(within(r1!).getByRole('button', { name: /^Objetivo/ }));
@@ -224,6 +231,11 @@ describe('4.3 SumarioSurface', () => {
     await waitFor(() => expect(rows()).toHaveLength(13));
     await userEvent.click(within(rows()[9]!).getByRole('button', { name: /^Pontos de atenção/ }));
     expect(await screen.findByTestId('pontos-route')).toBeVisible();
+    cleanup();
+    renderSumario();
+    await waitFor(() => expect(rows()).toHaveLength(13));
+    await userEvent.click(within(rows()[11]!).getByRole('button', { name: /^Conclusão e parecer/ }));
+    expect(await screen.findByTestId('setup-route')).toHaveTextContent('Setup 6');
   });
 
   it('"Capa e dados do relatório" opens the setup at Etapa 1; "Controle do documento" opens nothing', async () => {
@@ -525,23 +537,44 @@ describe('4.3 SumarioSurface', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Gerar relatório' })).toHaveFocus());
   });
 
-  it('4.8: while a blocking row stands, "Gerar relatório" is aria-disabled with the foot reason and opens nothing', async () => {
+  it('7.5: while the parecer blocks, the foot button opens the dialog (?exportar=1), where "Gerar relatório" is aria-disabled with its reason and "Editar em Dados do relatório" opens Etapa 6', async () => {
     database = await seeded();
+    function Where() {
+      const [search] = useSearchParams();
+      return <p data-testid="setup-at">{search.toString()}</p>;
+    }
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[`/relatorio/${RELATORIO}`]}>
         <SyncContext value={syncState()}>
           <ToastProvider>
-            <p id="reason">Parecer não preenchido impede gerar.</p>
-            <GenerateAction relatorioId={RELATORIO} reasonId="reason" blocked />
+            <Routes>
+              <Route
+                path="/relatorio/:id"
+                element={
+                  <>
+                    <p id="reason">Só Conclusão e parecer (linha 10) impede gerar.</p>
+                    <GenerateAction relatorioId={RELATORIO} reasonId="reason" onSeeInSumario={() => {}} />
+                  </>
+                }
+              />
+              <Route path="/relatorio/:id/setup" element={<Where />} />
+            </Routes>
           </ToastProvider>
         </SyncContext>
       </MemoryRouter>,
     );
     const button = screen.getByRole('button', { name: 'Gerar relatório' });
-    expect(button).toHaveAttribute('aria-disabled', 'true');
-    expect(button).toHaveAccessibleDescription('Parecer não preenchido impede gerar.');
+    expect(button).not.toHaveAttribute('aria-disabled');
+    expect(button).toHaveAccessibleDescription('Só Conclusão e parecer (linha 10) impede gerar.');
     await userEvent.click(button);
-    expect(screen.queryByRole('dialog')).toBeNull();
+    const dialog = await screen.findByRole('dialog', { name: 'Gerar relatório' });
+    const blocking = await within(dialog).findByText('Parecer não preenchido');
+    expect(blocking).toHaveClass('pc-block');
+    const generate = within(dialog).getByRole('button', { name: 'Gerar relatório' });
+    expect(generate).toHaveAttribute('aria-disabled', 'true');
+    expect(generate).toHaveAccessibleDescription(/^Preencha o parecer .*para emitir a revisão 1\. O rascunho pode ser visto antes\.$/);
+    await userEvent.click(within(dialog).getAllByRole('button', { name: 'Editar em Dados do relatório' })[0]!);
+    expect(await screen.findByTestId('setup-at')).toHaveTextContent('etapa=6&volta=exportar');
   });
 });
 

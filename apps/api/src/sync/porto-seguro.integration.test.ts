@@ -1,5 +1,6 @@
-import { buildSnapshot, relatorioSnapshotSchema, replay, serializeSnapshot, type Op } from '@app/domain';
-import { portoSeguro } from '@app/domain/fixtures/porto-seguro';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { buildSnapshot, preIssue, progress, relatorioSnapshotSchema, replay, serializeSnapshot, type Op } from '@app/domain';
+import { portoSeguro, PRE_ISSUE_GOLDEN_NOW } from '@app/domain/fixtures/porto-seguro';
 import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -17,6 +18,9 @@ import { toSnapshot } from './snapshot.ts';
  * their value, so it is remapped the same way; every other id is already fixed by the
  * fixture and needs no remap since each test claims a fresh `companyId`.
  */
+
+/** Story 7.5 (AD-2): written here from Postgres (`GOLDEN_UPDATE=1`), read by the web's Dexie test too. */
+const PRE_ISSUE_GOLDEN = new URL('../../../../packages/domain/fixtures/porto-seguro/pre-issue.golden.json', import.meta.url);
 
 const databaseUrl = process.env.DATABASE_URL ?? 'postgres://app:app@postgres:5432/app';
 
@@ -73,6 +77,15 @@ describe('3.7-INT-001 Porto Seguro fixture replay byte-equality (Drizzle layer)'
     // own contract) against the compose Postgres, well past vitest's 5s default.
     60_000,
   );
+
+  it('7.5-INT AD-2: preIssue over the Postgres snapshot equals pre-issue.golden.json (the Sumário computes the same on Dexie)', async () => {
+    const snapshot = await toSnapshot(db, companyId, portoSeguro.relatorioId);
+    const rows = preIssue(snapshot, progress(snapshot), { now: new Date(PRE_ISSUE_GOLDEN_NOW) });
+    if (process.env.GOLDEN_UPDATE === '1') writeFileSync(PRE_ISSUE_GOLDEN, `${JSON.stringify(rows, null, 2)}\n`);
+    expect(rows).toEqual(JSON.parse(readFileSync(PRE_ISSUE_GOLDEN, 'utf8')));
+    // The fixture carries no parecer: the one blocking row is there.
+    expect(rows.filter((row) => row.severity === 'blocking').map((row) => row.kind)).toEqual(['parecer_missing']);
+  });
 });
 
 describe('3.7-INT-002 Porto Seguro small fixture replay byte-equality (Drizzle layer)', () => {

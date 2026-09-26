@@ -285,7 +285,9 @@ describe('6.3-UNIT-006 section 7 on the Sumário and in preIssue', () => {
     // uploaded photo in the set (the error cleared late) still is not counted.
     const issues = preIssue(snapshot, computed, { photoErrors: new Set([failed.id, dead.id, uploaded.id]) });
     expect(preIssueRowsFor(issues, 'section_7').find((r) => r.kind === 'photos_pending_upload')?.text).toBe('2 aguardando envio');
-    expect(sumarioRows(snapshot, issues, computed).find((r) => r.rowKey === 'section_7')!.meta).toBe('5 fotos · 2 aguardando envio');
+    // Story 7.5 (carry-over): the two with an error are named apart, a warning the server does not hold them.
+    expect(preIssueRowsFor(issues, 'section_7').find((r) => r.kind === 'photos_upload_error')).toMatchObject({ text: '2 com erro de envio', severity: 'info' });
+    expect(sumarioRows(snapshot, issues, computed).find((r) => r.rowKey === 'section_7')!.meta).toBe('5 fotos · 2 aguardando envio · 2 com erro de envio');
     // Every error: no "aguardando envio" row at all; no context: every unsent photo counts.
     const allErrors = preIssue(snapshot, computed, { photoErrors: new Set(files.map((f) => f.id)) });
     expect(allErrors.some((r) => r.kind === 'photos_pending_upload')).toBe(false);

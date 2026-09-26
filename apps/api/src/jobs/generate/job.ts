@@ -1,7 +1,9 @@
 import { createHash } from 'node:crypto';
 import {
+  confirmedCellsLaterEdited,
   DOCX_MIME,
   fileRowSchema,
+  lastNameplates,
   layoutSpec,
   nextRevisionNumber,
   objectKey,
@@ -19,10 +21,10 @@ import {
   type RevisionRow,
 } from '@app/domain';
 import type { S3Client } from '@aws-sdk/client-s3';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNull, like } from 'drizzle-orm';
 import type { Db } from '../../db/client.ts';
 import { asCompanyId, type CompanyId } from '../../db/repositories/company-id.ts';
-import { entities } from '../../db/schema.ts';
+import { entities, ops as opsTable } from '../../db/schema.ts';
 import { log, logError } from '../../log.ts';
 import { getObject, putObject } from '../../storage/s3.ts';
 import { applyOps, applyServerBatch, lockCompany, type Tx } from '../../sync/apply.ts';
@@ -37,10 +39,16 @@ import { headingPages, missingHeadings, placeholderPages, tocConverged, type Toc
  * the kernel's layout with the `docx` library, converts its own DOCX with LibreOffice in
  * two (at most three) passes so the printed TOC pages equal the PDF outline, stores both
  * files, and only then applies ONE server batch: the two `file` creates, the `revision`
- * create with the number allocated in that same transaction, and the job's `status` and
- * `result`. A throw anywhere leaves only `status: failed` and `error` behind: no revision
- * number is consumed and no `file` row exists (objects already written to S3 are orphans
- * under immutable, never referenced keys).
+ * create with the number allocated in that same transaction, the `last_nameplate` puts of
+ * the issued plates (Story 7.5, AD-25), and the job's `status` and `result`. A throw
+ * anywhere leaves only `status: failed` and `error` behind: no revision number is consumed
+ * and no `file` row exists (objects already written to S3 are orphans under immutable,
+ * never referenced keys).
+ *
+ * Story 7.5: a `preview` job is the identical render with the layout's `draft` (RASCUNHO
+ * behind every page, no revision number) and stores only its PDF, as a `file` of kind
+ * `preview` the relatório's `preview_file_id` names; it changes no status, allocates no
+ * number and writes no `last_nameplate`.
  */
 
 export const GENERATE_ACTOR = 'system:generate';
@@ -49,12 +57,16 @@ export const GENERATE_ACTOR = 'system:generate';
 export const GENERATE_ERROR_CODES = ['libreoffice_timeout', 'toc_outline_missing', 'render_failed', 'enqueue_failed'] as const;
 export type GenerateErrorCode = (typeof GENERATE_ERROR_CODES)[number];
 
+export type GenerateKind = 'issue' | 'preview';
+
 export interface GeneratePayload {
   job_id: string;
   company_id: string;
   relatorio_id: string;
   /** The user who pressed "Gerar relatório": the revision's `created_by`. */
   actor_id: string;
+  /** Story 7.5: `preview` renders the RASCUNHO draft; absent means `issue` (payloads queued before the field existed). */
+  kind?: GenerateKind;
 }
 
 export interface GenerateJobDeps {
@@ -125,7 +137,7 @@ function serverOp(
   };
 }
 
-function jobPut(payload: GeneratePayload, now: string, newId: NewId, field: 'status' | 'error' | 'result', value: unknown): Op {
+function jobPut(payload: GeneratePayload, now: string, newId: NewId, field: 'status' | 'error' | 'result' | 'result_file_id' | 'started_at', value: unknown): Op {
   return serverOp(payload, now, newId, { kind: 'put', scope: 'relatorio', path: `generation_job/${payload.job_id}/${field}`, value });
 }
 
@@ -211,8 +223,11 @@ export async function runGenerateJob(deps: GenerateJobDeps, payload: GeneratePay
     const result = await applyOps(deps.db, companyId, ops, { now: deps.now, origin: 'server' });
     if (result.rejected.length > 0) logError('generate job field op rejected', { ...fields, rejected: result.rejected });
   };
+  const kind: GenerateKind = payload.kind ?? 'issue';
   try {
-    await putJobFields([jobPut(payload, stamp(), deps.newId, 'status', 'running')]);
+    // R7: the running put carries `started_at`, the instant a running job's expiry counts from.
+    const startedAt = stamp();
+    await putJobFields([jobPut(payload, startedAt, deps.newId, 'status', 'running'), jobPut(payload, startedAt, deps.newId, 'started_at', startedAt)]);
 
     const frozen = await deps.db.transaction(async (tx: Tx) => {
       await lockCompany(tx, companyId);
@@ -221,7 +236,12 @@ export async function runGenerateJob(deps: GenerateJobDeps, payload: GeneratePay
       return { snapshot, snapshotSeq, number };
     });
     const issuedAt = stamp();
-    const layout = layoutSpec(frozen.snapshot, { revisionNumber: frozen.number, issuedAt, art: frozen.snapshot.relatorio.setup.art_trt_number });
+    const layout = layoutSpec(frozen.snapshot, {
+      revisionNumber: frozen.number,
+      issuedAt,
+      art: frozen.snapshot.relatorio.setup.art_trt_number,
+      draft: kind === 'preview',
+    });
     const images: DocxImages = {};
     const logo = await printVariant(deps, companyId, frozen.snapshot.empresa?.logo_file_id ?? null);
     if (logo !== undefined) images.logo = logo;
@@ -229,6 +249,16 @@ export async function runGenerateJob(deps: GenerateJobDeps, payload: GeneratePay
     if (cover !== undefined) images.cover = cover;
 
     const rendered = await renderDocument(layout, images, { jobId: payload.job_id, timeoutMs: deps.timeoutMs, fault: deps.fault });
+
+    if (kind === 'preview') {
+      const previewId = deps.newId();
+      await putObject(deps.s3, deps.bucket, objectKey(companyId, 'preview', previewId), rendered.pdf, PDF_MIME);
+      const durationMs = Date.now() - started;
+      const result: GenerationResult = { toc_passes: rendered.tocPasses, toc_converged: rendered.tocConverged, pages: rendered.pages, duration_ms: durationMs };
+      await commitPreview(deps, payload, companyId, { previewId, pdf: rendered.pdf, result });
+      log('generate preview done', { ...fields, duration_ms: durationMs, toc_passes: rendered.tocPasses, pages: rendered.pages });
+      return 'done';
+    }
 
     const docxId = deps.newId();
     const pdfId = deps.newId();
@@ -240,6 +270,7 @@ export async function runGenerateJob(deps: GenerateJobDeps, payload: GeneratePay
     await commitRevision(deps, payload, companyId, frozen, { docxId, pdfId, docx: rendered.docx, pdf: rendered.pdf, result });
 
     log('generate done', { ...fields, duration_ms: durationMs, toc_passes: rendered.tocPasses, toc_converged: rendered.tocConverged, pages: rendered.pages, revision_number: frozen.number });
+    await logSmC1(deps, companyId, payload, frozen.number);
     return 'done';
   } catch (error) {
     const code = errorCodeOf(error);
@@ -249,6 +280,58 @@ export async function runGenerateJob(deps: GenerateJobDeps, payload: GeneratePay
     );
     return 'failed';
   }
+}
+
+/**
+ * SM-C1 (Story 7.5): how many sheet cells written from a confirmed suggestion were later
+ * overwritten by hand, over the relatório's ops, logged per issue and never stored. A
+ * failure to count is logged and never fails the issued revision.
+ */
+async function logSmC1(deps: GenerateJobDeps, companyId: CompanyId, payload: GeneratePayload, revisionNumber: number): Promise<void> {
+  try {
+    const rows = await deps.db
+      .select({ kind: opsTable.kind, path: opsTable.path, meta: opsTable.meta, seq: opsTable.seq })
+      .from(opsTable)
+      .where(and(eq(opsTable.company_id, companyId), eq(opsTable.relatorio_id, payload.relatorio_id), like(opsTable.path, 'sheet/%')));
+    const count = confirmedCellsLaterEdited(rows.map((row) => ({ kind: row.kind as Op['kind'], path: row.path, meta: (row.meta ?? null) as Op['meta'], seq: row.seq })));
+    log('generate sm_c1', { company_id: payload.company_id, relatorio_id: payload.relatorio_id, job_id: payload.job_id, revision_number: revisionNumber, sm_c1: count });
+  } catch (error) {
+    logError('generate sm_c1 not counted', { company_id: payload.company_id, relatorio_id: payload.relatorio_id, job_id: payload.job_id, error: String(error) });
+  }
+}
+
+/** The preview's one batch: the `preview` file, the relatório's `preview_file_id`, and the job's result file, status and result. */
+async function commitPreview(
+  deps: GenerateJobDeps,
+  payload: GeneratePayload,
+  companyId: CompanyId,
+  outputs: { previewId: string; pdf: Buffer; result: GenerationResult },
+): Promise<void> {
+  const now = toIso(deps.now());
+  const batch: Op[] = [
+    serverOp(payload, now, deps.newId, {
+      kind: 'create',
+      scope: 'relatorio',
+      path: `file/${outputs.previewId}`,
+      value: {
+        id: outputs.previewId,
+        company_id: payload.company_id,
+        relatorio_id: payload.relatorio_id,
+        kind: 'preview',
+        sha256: sha256(outputs.pdf),
+        mime: PDF_MIME,
+        size: outputs.pdf.byteLength,
+        uploaded_at: now,
+        variants: null,
+        removed_at: null,
+      },
+    }),
+    serverOp(payload, now, deps.newId, { kind: 'put', scope: 'relatorio', path: 'relatorio/preview_file_id', value: outputs.previewId }),
+    jobPut(payload, now, deps.newId, 'result_file_id', outputs.previewId),
+    jobPut(payload, now, deps.newId, 'status', 'done'),
+    jobPut(payload, now, deps.newId, 'result', outputs.result),
+  ];
+  await applyServerBatch(deps.db, companyId, batch, { now: deps.now });
 }
 
 interface Outputs {
@@ -297,10 +380,19 @@ async function commitRevision(
     pdf_file_id: outputs.pdfId,
     created_at: now,
   };
+  // AD-25: the issued plates, projected onto their equipment rows (project scope) in the
+  // same batch as the revision, so "Copiar da última visita" appears on the next visit.
+  const projectId = frozen.snapshot.relatorio.project_id;
+  const lastNameplateOps: Op[] = lastNameplates(frozen.snapshot, { revisionNumber: frozen.number, issuedAt: now }).map((entry) => ({
+    ...serverOp(payload, now, deps.newId, { kind: 'put', scope: 'project', path: `equipment/${entry.equipmentId}/last_nameplate`, value: entry.value }),
+    project_id: projectId,
+    relatorio_id: null,
+  }));
   const batch: Op[] = [
     fileCreate(outputs.docxId, 'docx', outputs.docx, DOCX_MIME),
     fileCreate(outputs.pdfId, 'pdf', outputs.pdf, PDF_MIME),
     serverOp(payload, now, deps.newId, { kind: 'create', scope: 'relatorio', path: `revision/${revisionId}`, value: revision }),
+    ...lastNameplateOps,
     jobPut(payload, now, deps.newId, 'status', 'done'),
     jobPut(payload, now, deps.newId, 'result', outputs.result),
   ];

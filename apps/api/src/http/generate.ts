@@ -1,5 +1,6 @@
 import { Readable } from 'node:stream';
 import {
+  blockingRows,
   blockRowSchema,
   DOCX_MIME,
   fileRowSchema,
@@ -9,6 +10,8 @@ import {
   latestRevision,
   nextRevisionNumber,
   objectKey,
+  PDF_MIME,
+  preIssue,
   referencedEquipmentIds,
   relatorioEditedSince,
   relatorioRowSchema,
@@ -24,6 +27,8 @@ import {
   type NewId,
   type NotCaughtUpDetails,
   type Op,
+  type PreIssueBlockedDetails,
+  type PreviewResponse,
   type RevisionRow,
 } from '@app/domain';
 import type { S3Client } from '@aws-sdk/client-s3';
@@ -32,17 +37,22 @@ import { Hono } from 'hono';
 import type { Db } from '../db/client.ts';
 import type { CompanyId } from '../db/repositories/company-id.ts';
 import { entities, ops } from '../db/schema.ts';
-import { GENERATE_ACTOR, type GeneratePayload } from '../jobs/generate/job.ts';
+import { GENERATE_ACTOR, type GenerateKind, type GeneratePayload } from '../jobs/generate/job.ts';
 import { logError } from '../log.ts';
 import { getObject } from '../storage/s3.ts';
 import { applyOps, applyServerBatch, type Tx } from '../sync/apply.ts';
+import { freezeSnapshot } from '../sync/snapshot.ts';
 import { type AppEnv, requireSession } from './session.ts';
 
 /*
- * AD-15: `POST /api/relatorios/:id/generate` is the flush barrier and the one place a
- * generate job is created; `GET /api/revisions/:id/docx` serves a revision's DOCX. Both
- * resolve the company from the session and scope every read by it (AD-10), so another
- * company's relatório or revision answers exactly as an unknown id.
+ * AD-15: `POST /api/relatorios/:id/generate` is the flush barrier and the one place an
+ * issue job is created; `GET /api/revisions/:id/docx` serves a revision's DOCX. Story 7.5:
+ * the issue route refuses while `preIssue` holds a blocking row ("Parecer não preenchido",
+ * `409 pre_issue_blocked`); `POST /api/relatorios/:id/preview` creates the same job with
+ * `kind: preview` behind the same barrier, and `GET /api/relatorios/:id/preview.pdf` serves
+ * the relatório's latest preview. All resolve the company from the session and scope every
+ * read by it (AD-10), so another company's relatório or revision answers exactly as an
+ * unknown id.
  */
 
 export interface GenerateRouteDeps {
@@ -76,7 +86,7 @@ export function docxFilename(number: number): string {
 export function createGenerateRoutes(db: Db, s3: S3Client, bucket: string, deps: GenerateRouteDeps): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
 
-  async function readRelatorio(companyId: CompanyId, id: string): Promise<{ project_id: string } | null> {
+  async function readRelatorio(companyId: CompanyId, id: string): Promise<{ project_id: string; preview_file_id: string | null } | null> {
     if (!uuidV7Schema.safeParse(id).success) return null;
     const [record] = await db
       .select({ row: entities.row, removed_at: entities.removed_at })
@@ -85,11 +95,14 @@ export function createGenerateRoutes(db: Db, s3: S3Client, bucket: string, deps:
       .limit(1);
     if (record === undefined || record.removed_at !== null) return null;
     const parsed = relatorioRowSchema.safeParse(record.row);
-    return parsed.success ? { project_id: parsed.data.project_id } : null;
+    return parsed.success ? { project_id: parsed.data.project_id, preview_file_id: parsed.data.preview_file_id } : null;
   }
 
-  /** The relatório's job that still counts as running (`isJobActive`: queued/running and younger than the queue expiry), or null. */
-  async function activeJob(reader: Pick<Db, 'select'>, companyId: CompanyId, relatorioId: string): Promise<GenerationJobRow | null> {
+  /**
+   * The relatório's job of `kind` that still counts as running (`isJobActive`), or null. A
+   * preview never holds an issue back, nor an issue a preview (Story 7.5).
+   */
+  async function activeJob(reader: Pick<Db, 'select'>, companyId: CompanyId, relatorioId: string, kind: GenerateKind): Promise<GenerationJobRow | null> {
     const rows = await reader
       .select({ row: entities.row })
       .from(entities)
@@ -97,7 +110,7 @@ export function createGenerateRoutes(db: Db, s3: S3Client, bucket: string, deps:
     const nowIso = toIso(deps.now());
     for (const r of rows) {
       const parsed = generationJobRowSchema.safeParse(r.row);
-      if (parsed.success && isJobActive(parsed.data, nowIso)) return parsed.data;
+      if (parsed.success && parsed.data.kind === kind && isJobActive(parsed.data, nowIso)) return parsed.data;
     }
     return null;
   }
@@ -198,6 +211,67 @@ export function createGenerateRoutes(db: Db, s3: S3Client, bucket: string, deps:
     };
   }
 
+  /**
+   * Creates one job of `kind` under the company lock, with the "already running" check of
+   * that kind re-read inside the same transaction (two presses that interleave cannot queue
+   * two jobs), then sends it to the queue; an enqueue failure marks the job `failed` and
+   * rethrows.
+   */
+  async function createJob(
+    companyId: CompanyId,
+    relatorioId: string,
+    actorId: string,
+    kind: GenerateKind,
+  ): Promise<{ outcome: 'queued'; jobId: string } | { outcome: 'running'; job: GenerationJobRow }> {
+    const jobId = deps.newId();
+    const create = jobOp(companyId, relatorioId, {
+      kind: 'create',
+      path: `generation_job/${jobId}`,
+      value: {
+        id: jobId,
+        relatorio_id: relatorioId,
+        kind,
+        status: 'queued',
+        error: null,
+        result_file_id: null,
+        result: null,
+        created_at: toIso(deps.now()),
+        started_at: null,
+      },
+    });
+    try {
+      await applyServerBatch(db, companyId, [create], {
+        now: deps.now,
+        before: async (tx: Tx) => {
+          const other = await activeJob(tx, companyId, relatorioId, kind);
+          if (other !== null) throw new AlreadyRunningError(other);
+        },
+      });
+    } catch (error) {
+      if (error instanceof AlreadyRunningError) return { outcome: 'running', job: error.job };
+      throw error;
+    }
+
+    const payload: GeneratePayload = { job_id: jobId, company_id: companyId, relatorio_id: relatorioId, actor_id: actorId, kind };
+    try {
+      if (deps.enqueue === undefined) throw new Error('no queue is configured for generate jobs');
+      await deps.enqueue(payload);
+    } catch (error) {
+      logError('generate enqueue failed', { company_id: companyId, relatorio_id: relatorioId, job_id: jobId, kind, error: String(error) });
+      await applyOps(
+        db,
+        companyId,
+        [
+          jobOp(companyId, relatorioId, { kind: 'put', path: `generation_job/${jobId}/status`, value: 'failed' }),
+          jobOp(companyId, relatorioId, { kind: 'put', path: `generation_job/${jobId}/error`, value: 'enqueue_failed' }),
+        ],
+        { now: deps.now, origin: 'server' },
+      );
+      throw error;
+    }
+    return { outcome: 'queued', jobId };
+  }
+
   routes.post('/api/relatorios/:id/generate', async (c) => {
     const session = requireSession(c);
     const relatorioId = c.req.param('id');
@@ -214,11 +288,20 @@ export function createGenerateRoutes(db: Db, s3: S3Client, bucket: string, deps:
       return c.json(fail('not_caught_up', 'The server has not applied every op or stored every file yet.', details), 409);
     }
 
+    // Story 7.5: the one blocking pre-issue row stops the issue here too, never only in the
+    // dialog; the rule is the kernel's, over the snapshot the server holds.
+    const snapshot = (await db.transaction((tx: Tx) => freezeSnapshot(tx, session.companyId, relatorioId))).snapshot;
+    const blocking = blockingRows(preIssue(snapshot, undefined, { now: deps.now() }));
+    if (blocking.length > 0) {
+      const blocked: PreIssueBlockedDetails = { rows: blocking.map((row) => row.kind) };
+      return c.json(fail('pre_issue_blocked', 'A blocking pre-issue row stands; the revision cannot be issued.', blocked), 409);
+    }
+
     const revisions = await revisionsOf(session.companyId, relatorioId);
     const number = nextRevisionNumber(revisions);
     const running = (job: GenerationJobRow): GenerateResponse => ({ outcome: 'running', job_id: job.id, revision_number: number });
 
-    const active = await activeJob(db, session.companyId, relatorioId);
+    const active = await activeJob(db, session.companyId, relatorioId, 'issue');
     if (active !== null) return c.json(running(active), 200);
 
     const latest = latestRevision(revisions);
@@ -227,57 +310,51 @@ export function createGenerateRoutes(db: Db, s3: S3Client, bucket: string, deps:
       return c.json(answer, 200);
     }
 
-    // The job row is created under the company lock, with the "already running" check
-    // re-read inside that same transaction: two presses that interleave above cannot
-    // queue two jobs.
-    const jobId = deps.newId();
-    const create = jobOp(session.companyId, relatorioId, {
-      kind: 'create',
-      path: `generation_job/${jobId}`,
-      value: {
-        id: jobId,
-        relatorio_id: relatorioId,
-        kind: 'issue',
-        status: 'queued',
-        error: null,
-        result_file_id: null,
-        result: null,
-        created_at: toIso(deps.now()),
-      },
-    });
-    try {
-      await applyServerBatch(db, session.companyId, [create], {
-        now: deps.now,
-        before: async (tx: Tx) => {
-          const other = await activeJob(tx, session.companyId, relatorioId);
-          if (other !== null) throw new AlreadyRunningError(other);
-        },
-      });
-    } catch (error) {
-      if (error instanceof AlreadyRunningError) return c.json(running(error.job), 200);
-      throw error;
-    }
-
-    const payload: GeneratePayload = { job_id: jobId, company_id: session.companyId, relatorio_id: relatorioId, actor_id: session.userId };
-    try {
-      if (deps.enqueue === undefined) throw new Error('no queue is configured for generate jobs');
-      await deps.enqueue(payload);
-    } catch (error) {
-      logError('generate enqueue failed', { company_id: session.companyId, relatorio_id: relatorioId, job_id: jobId, error: String(error) });
-      await applyOps(
-        db,
-        session.companyId,
-        [
-          jobOp(session.companyId, relatorioId, { kind: 'put', path: `generation_job/${jobId}/status`, value: 'failed' }),
-          jobOp(session.companyId, relatorioId, { kind: 'put', path: `generation_job/${jobId}/error`, value: 'enqueue_failed' }),
-        ],
-        { now: deps.now, origin: 'server' },
-      );
-      throw error;
-    }
+    const created = await createJob(session.companyId, relatorioId, session.userId, 'issue');
+    if (created.outcome === 'running') return c.json(running(created.job), 200);
+    const jobId = created.jobId;
 
     const answer: GenerateResponse = { outcome: 'queued', job_id: jobId, revision_number: number };
     return c.json(answer, 202);
+  });
+
+  routes.post('/api/relatorios/:id/preview', async (c) => {
+    const session = requireSession(c);
+    const relatorioId = c.req.param('id');
+    c.set('relatorioId', relatorioId);
+    const relatorio = await readRelatorio(session.companyId, relatorioId);
+    if (relatorio === null) return c.json(notFound, 404);
+
+    const body: unknown = await c.req.json().catch(() => undefined);
+    const parsed = generateRequestSchema.safeParse(body);
+    if (!parsed.success) return c.json(fail('invalid_request', 'The body must be {last_op_id, file_ids_expected}.'), 400);
+
+    const details = await missing(session.companyId, parsed.data.last_op_id, parsed.data.file_ids_expected);
+    if (details.missing_op || details.missing_files.length > 0) {
+      return c.json(fail('not_caught_up', 'The server has not applied every op or stored every file yet.', details), 409);
+    }
+
+    const active = await activeJob(db, session.companyId, relatorioId, 'preview');
+    if (active !== null) return c.json({ outcome: 'running', job_id: active.id } satisfies PreviewResponse, 200);
+    const created = await createJob(session.companyId, relatorioId, session.userId, 'preview');
+    if (created.outcome === 'running') return c.json({ outcome: 'running', job_id: created.job.id } satisfies PreviewResponse, 200);
+    return c.json({ outcome: 'queued', job_id: created.jobId } satisfies PreviewResponse, 202);
+  });
+
+  routes.get('/api/relatorios/:id/preview.pdf', async (c) => {
+    const session = requireSession(c);
+    const relatorio = await readRelatorio(session.companyId, c.req.param('id'));
+    if (relatorio === null || relatorio.preview_file_id === null) return c.json(notFound, 404);
+    // The key is derived from the session's company and the id the relatório names.
+    const stored = await getObject(s3, bucket, objectKey(session.companyId, 'preview', relatorio.preview_file_id));
+    if (stored === null) return c.json(notFound, 404);
+    return c.body(Readable.toWeb(stored.body) as ReadableStream, 200, {
+      'content-type': PDF_MIME,
+      'content-disposition': 'inline; filename="relatorio-rascunho.pdf"',
+      'cache-control': 'no-store',
+      'x-content-type-options': 'nosniff',
+      ...(stored.contentLength === null ? {} : { 'content-length': String(stored.contentLength) }),
+    });
   });
 
   routes.get('/api/revisions/:id/docx', async (c) => {

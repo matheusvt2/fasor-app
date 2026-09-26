@@ -1,27 +1,45 @@
 import {
+  buildSnapshot,
+  documentControlRows,
+  exportPrecheck,
   failedReason,
   generatingReason,
   generatingText,
   idleReason,
   nextEditNote,
+  parecerMissingReason,
   readyTitle,
   revisionMetaSegments,
   revisionRowSegments,
+  sectionBlocks,
+  toIso,
   type RevisionRow,
+  type SumarioRowKey,
 } from '@app/domain';
-import { useId } from 'react';
+import { useId, useMemo } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { Button, StatusPill, TextButton } from '../../components/index.ts';
 import { DialogShell } from '../../components/dialog-shell.tsx';
 import { copy } from '../../copy/pt-br.ts';
+import { now } from '../../clock.ts';
+import { relatorioState } from '../../db/home-store.ts';
+import { useLiveQuery } from '../../db/live.ts';
+import { useSession } from '../../state/session.tsx';
+import { useSync } from '../../state/sync.tsx';
 import { revisionDocxUrl } from '../../sync/client.ts';
 import { DEFAULT_TIMING, useGenerate, type GenerateTiming } from './use-generate.ts';
+import { usePreIssue } from './use-pre-issue.ts';
+import { usePreview } from './use-preview.ts';
 import './export.css';
 
 export interface ExportDialogProps {
   relatorioId: string;
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
+  /** "Editar em Dados do relatório": opens the setup at `etapa` (6 from the blocking row, which comes back here). */
+  onEditInSetup?: (etapa: number) => void;
+  /** "Ver no sumário": closes the dialog and highlights the Sumário rows these warnings stand on. */
+  onSeeInSumario?: (rows: SumarioRowKey[]) => void;
   /** Test hook: shorter waits than the 3 s poll and 2 s retry of the product. */
   timing?: GenerateTiming;
 }
@@ -34,28 +52,67 @@ function openDocx(revisionId: string): void {
   window.open(revisionDocxUrl(revisionId), '_blank', 'noopener');
 }
 
+/** The system share sheet, only where the browser has one (mobile). */
+const canShare = (): boolean => typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+
+function shareDocx(revisionId: string, title: string): void {
+  const url = new URL(revisionDocxUrl(revisionId), window.location.origin).toString();
+  void navigator.share({ title, url }).catch(() => undefined);
+}
+
 /**
- * The Export dialog of `73-exportar.html` (Story 4.8, FR-62, FR-74): "Gerar relatório"
- * with its reason, the working line, the failed line, the result block with "DOCX — abrir
- * no Word" and the "Revisões" list. Mounted by the Sumário's "Gerar relatório"
- * (`surfaces/relatorio/generate-action.tsx`). Out of the slice here: the
- * pre-issue list, the document control summary, "Pré-visualizar", the share buttons and
- * the PDF row (Epic 11).
+ * The Export dialog of `73-exportar.html` (Stories 4.8 and 7.5, FR-62, FR-73, FR-74):
+ * "Antes de emitir" (the one blocking row with its way to Dados do relatório, the lines only
+ * the dialog can say, and the count of the warnings that stay on the Sumário rows), the
+ * read-only document control summary (a `dl`, UX-DR67), the section 9 fact line,
+ * "Pré-visualizar" (the RASCUNHO draft in a new tab) beside "Gerar relatório" with its
+ * reason, the working line, the failed line, the result block with "DOCX — abrir no Word"
+ * (and share where the system has it) and the "Revisões" list. Mounted by the Sumário's
+ * "Gerar relatório" (`surfaces/relatorio/generate-action.tsx`). Out of the slice: the PDF
+ * row (Epic 11).
  */
-export function ExportDialog({ relatorioId, isOpen, onOpenChange, timing = DEFAULT_TIMING }: ExportDialogProps) {
+export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup, onSeeInSumario, timing = DEFAULT_TIMING }: ExportDialogProps) {
   const state = useGenerate(relatorioId, timing);
+  const preview = usePreview(relatorioId, timing);
   const { phase, relatorio, revisions, idleNumber, userNames, online } = state;
   const whoOf = (row: RevisionRow) => userNames[row.created_by] ?? null;
   const downloadingReasonId = useId();
+  const db = useSession().database;
+  const { resendDead } = useSync();
 
-  const generateRow = (options: { disabledReason?: string; reason?: string }) => (
+  const entityState = useLiveQuery(() => (db === null ? Promise.resolve(null) : relatorioState(db, relatorioId)), [db, relatorioId], null);
+  const snapshot = useMemo(() => (entityState === null ? null : buildSnapshot(entityState, relatorioId)), [entityState, relatorioId]);
+  const issues = usePreIssue(db, snapshot);
+  const precheck = useMemo(() => exportPrecheck(issues), [issues]);
+  const blocked = precheck.blocking.length > 0;
+  const control = useMemo(
+    () => (snapshot === null ? [] : documentControlRows(snapshot, { revisionNumber: idleNumber, issuedAt: toIso(now()), art: snapshot.relatorio.setup.art_trt_number })),
+    [snapshot, idleNumber],
+  );
+  // Section 10's Sumário line, the one the blocked reason names.
+  const parecerLine = useMemo(() => {
+    if (snapshot === null) return null;
+    const at = sectionBlocks(snapshot.blocks).findIndex((block) => block.block_type === 'section_10');
+    return at < 0 ? null : at + 1;
+  }, [snapshot]);
+  const summarizedRows = useMemo(() => {
+    const explicit = new Set([...precheck.blocking, ...precheck.explicit]);
+    return [...new Set(issues.filter((row) => !explicit.has(row)).map((row) => row.row))];
+  }, [issues, precheck]);
+
+  const previewButton = (
+    <Button variant="secondary" onPress={preview.start}>
+      <svg className="ico" aria-hidden="true">
+        <use href="/sprite.svg#i-doc" />
+      </svg>
+      {preview.phase.kind === 'working' ? copy.export.previewing : copy.export.preview}
+    </Button>
+  );
+
+  const generateRow = (options: { disabledReason?: string; reason?: string; withPreview: boolean }) => (
     <div className="generate-row">
-      <Button
-        variant="primary"
-        isDisabled={options.disabledReason !== undefined}
-        disabledReason={options.disabledReason}
-        onPress={state.start}
-      >
+      {options.withPreview ? previewButton : null}
+      <Button variant="primary" isDisabled={options.disabledReason !== undefined} disabledReason={options.disabledReason} onPress={state.start}>
         {copy.export.generate}
       </Button>
       {options.disabledReason === undefined && options.reason !== undefined ? <span className="btn-reason">{options.reason}</span> : null}
@@ -93,6 +150,12 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, timing = DEFAU
               <span className="btn-reason" id={downloadingReasonId}>
                 {copy.export.downloadingRevision}
               </span>
+            ) : canShare() ? (
+              <AriaButton className="icon-btn" aria-label={copy.export.shareDocx} onPress={() => shareDocx(revision.id, readyTitle(phase.number))}>
+                <svg className="ico" aria-hidden="true">
+                  <use href="/sprite.svg#i-share" />
+                </svg>
+              </AriaButton>
             ) : null}
           </div>
         </div>
@@ -116,15 +179,17 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, timing = DEFAU
           </span>
           <span>{copy.export.canClose}</span>
         </div>
-        {generateRow({ disabledReason: generatingReason(phase.number) })}
+        {generateRow({ disabledReason: generatingReason(phase.number), withPreview: false })}
       </>
     );
   } else {
     const disabledReason = !online
       ? copy.export.offlineReason
-      : phase.kind === 'flushing' || phase.kind === 'requesting'
-        ? copy.export.flushing
-        : undefined;
+      : blocked
+        ? parecerMissingReason(idleNumber, parecerLine)
+        : phase.kind === 'flushing' || phase.kind === 'requesting'
+          ? copy.export.flushing
+          : undefined;
     const reason =
       phase.kind === 'blocked' ? copy.export.deadOpsReason : phase.kind === 'failed' ? failedReason(idleNumber) : idleReason(idleNumber);
     body = (
@@ -132,13 +197,15 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, timing = DEFAU
         {phase.kind === 'failed' ? (
           <div className="gen-error" role="alert">
             <span>{copy.export.failed}</span>
-            <TextButton onPress={state.start}>{copy.export.retry}</TextButton>
+            {blocked ? null : <TextButton onPress={state.start}>{copy.export.retry}</TextButton>}
           </div>
         ) : null}
-        {generateRow({ disabledReason, reason })}
+        {generateRow({ disabledReason, reason, withPreview: true })}
       </>
     );
   }
+
+  const showPrecheck = phase.kind !== 'ready' && (precheck.blocking.length > 0 || precheck.explicit.length > 0 || precheck.summarizedCount > 0);
 
   return (
     <DialogShell className="export-dialog" isOpen={isOpen} onOpenChange={onOpenChange} aria-labelledby={TITLE_ID}>
@@ -146,7 +213,91 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, timing = DEFAU
         <h2 className="dialog-title" id={TITLE_ID}>
           {copy.export.title}
         </h2>
+
+        {showPrecheck ? (
+          <div>
+            <p className="field-label precheck-label">{copy.export.precheckLabel}</p>
+            <ul className="precheck">
+              {precheck.blocking.map((row) => (
+                <li className="is-blocking" key={row.id}>
+                  <span className="pc-text">
+                    <span className="pc-block">{row.text}</span>
+                    {copy.export.blockingWhere}
+                    <span className="pc-meta">{copy.export.blockingMeta}</span>
+                  </span>
+                  {onEditInSetup === undefined ? null : (
+                    <span className="pc-actions">
+                      <TextButton onPress={() => onEditInSetup(6)}>{copy.export.editInSetup}</TextButton>
+                    </span>
+                  )}
+                </li>
+              ))}
+              {precheck.explicit.map((row) => (
+                <li key={row.id}>
+                  <span className="pc-text">{row.text}</span>
+                  {row.kind === 'rejected' ? (
+                    <span className="pc-actions">
+                      <TextButton onPress={() => void resendDead()}>{copy.export.resend}</TextButton>
+                    </span>
+                  ) : null}
+                </li>
+              ))}
+              {precheck.summarizedCount === 0 ? null : (
+                <li>
+                  <span className="pc-text">
+                    {precheck.countText}
+                    <span className="pc-meta">{copy.export.countMeta}</span>
+                  </span>
+                  {onSeeInSumario === undefined ? null : (
+                    <span className="pc-actions">
+                      <TextButton onPress={() => onSeeInSumario(summarizedRows)}>{copy.export.seeInSumario}</TextButton>
+                    </span>
+                  )}
+                </li>
+              )}
+            </ul>
+          </div>
+        ) : null}
+
+        {phase.kind === 'ready' || control.length === 0 ? null : (
+          <div>
+            <div className="doc-control-head">
+              <p className="field-label">{copy.export.docControlLabel}</p>
+              {onEditInSetup === undefined ? null : (
+                <TextButton onPress={() => onEditInSetup(1)}>
+                  {copy.export.editInSetup}
+                  <svg className="ico ico-sm" aria-hidden="true">
+                    <use href="/sprite.svg#i-chev-right" />
+                  </svg>
+                </TextButton>
+              )}
+            </div>
+            <dl className="doc-control" aria-label={copy.export.docControlAria}>
+              {control.map((row) => (
+                <div className="dc-row" key={row.label}>
+                  <dt>{row.label}</dt>
+                  <dd>{row.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        )}
+
+        {phase.kind === 'ready' ? null : (
+          <p className="pc-meta export-sec9-note">
+            {copy.export.sec9NoteBefore}
+            <em>{copy.export.sec9NoteFlag}</em>
+            {copy.export.sec9NoteAfter}
+          </p>
+        )}
+
         {body}
+
+        {preview.phase.kind === 'failed' ? (
+          <div className="gen-error" role="alert">
+            <span>{copy.export.previewFailed}</span>
+          </div>
+        ) : null}
       </div>
       <div>
         <p className="field-label revisions-label">{copy.export.revisionsLabel}</p>

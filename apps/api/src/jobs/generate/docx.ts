@@ -6,6 +6,8 @@ import {
   Footer,
   Header,
   HeadingLevel,
+  HorizontalPositionAlign,
+  HorizontalPositionRelativeFrom,
   ImageRun,
   LeaderType,
   Packer,
@@ -18,11 +20,16 @@ import {
   TableRow,
   TabStopType,
   TextRun,
+  TextWrappingType,
+  VerticalPositionAlign,
+  VerticalPositionRelativeFrom,
   WidthType,
   type IBorderOptions,
 } from 'docx';
 import sharp from 'sharp';
+import { section10Children } from './sections/section-10.ts';
 import type { TocPages } from './toc.ts';
+import { watermarkPng } from './watermark.ts';
 
 /*
  * Story 4.8 (AD-15): the one place that knows the `docx` library. It renders the kernel's
@@ -63,6 +70,8 @@ export interface DocxImages {
   logo?: Buffer;
   /** The cover photo, `print` variant bytes. */
   cover?: Buffer;
+  /** Story 7.5: the preview's watermark PNG; drawn from `layout.watermark` when absent. */
+  watermark?: Buffer;
 }
 
 export interface BuildDocxOptions {
@@ -167,6 +176,24 @@ function tocParagraph(entry: DocumentLayout['toc'][number], page: number | null)
   });
 }
 
+/** The watermark image, as wide as the content, floating behind the text at the centre of the page. */
+async function watermarkRun(data: Buffer): Promise<ImageRun | null> {
+  const sized = await sizedImage(data, COVER_MAX_WIDTH_PX, COVER_MAX_WIDTH_PX);
+  if (sized === null) return null;
+  return new ImageRun({
+    type: 'png',
+    data: sized.data,
+    transformation: { width: sized.width, height: sized.height },
+    floating: {
+      horizontalPosition: { relative: HorizontalPositionRelativeFrom.PAGE, align: HorizontalPositionAlign.CENTER },
+      verticalPosition: { relative: VerticalPositionRelativeFrom.PAGE, align: VerticalPositionAlign.CENTER },
+      behindDocument: true,
+      allowOverlap: true,
+      wrap: { type: TextWrappingType.NONE },
+    },
+  });
+}
+
 /** Renders the layout into DOCX bytes. */
 export async function buildDocx(layout: DocumentLayout, options: BuildDocxOptions): Promise<Buffer> {
   const logo = options.images?.logo === undefined ? null : await sizedImage(options.images.logo, COVER_MAX_WIDTH_PX, LOGO_MAX_HEIGHT_PX);
@@ -175,8 +202,11 @@ export async function buildDocx(layout: DocumentLayout, options: BuildDocxOption
   // Header: the logo beside the two lines (the image rides in the title paragraph, a tab
   // apart, so the header stays two paragraphs whether or not a logo exists).
   const titleRun = logo === null ? text(layout.header.titleLine, { bold: true }) : new TextRun({ children: [new Tab(), layout.header.titleLine], bold: true });
+  // Story 7.5: a preview's RASCUNHO rides in the same paragraph, floating behind the text at
+  // the page's centre, so every page carries it and the header's lines do not change.
+  const watermark = layout.watermark === null ? null : await watermarkRun(options.images?.watermark ?? (await watermarkPng(layout.watermark)));
   const header = new Header({
-    children: [new Paragraph({ children: [...(logo === null ? [] : [image(logo)]), titleRun] }), plain(layout.header.formLine)],
+    children: [new Paragraph({ children: [...(watermark === null ? [] : [watermark]), ...(logo === null ? [] : [image(logo)]), titleRun] }), plain(layout.header.formLine)],
   });
 
   // Footer: the company lines that exist, then the page line, all in the footer style.
@@ -225,6 +255,7 @@ export async function buildDocx(layout: DocumentLayout, options: BuildDocxOption
   for (const section of layout.sections) {
     children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [text(sectionHeading(section))] }));
     if (section.kind === 'empty') children.push(new Paragraph({ children: [text(section.note)], spacing: { after: 120 } }));
+    else if (section.kind === 'section_10') children.push(...section10Children(section, CONTENT_WIDTH_TWIPS));
     else for (const block of section.paragraphs) children.push(sectionParagraph(block));
   }
 

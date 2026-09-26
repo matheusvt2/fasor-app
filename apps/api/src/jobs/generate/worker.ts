@@ -1,4 +1,4 @@
-import { GENERATE_JOB_EXPIRE_S, uuidV7Schema } from '@app/domain';
+import { GENERATE_JOB_EXPIRE_S, GENERATE_JOB_QUEUE_RETENTION_S, uuidV7Schema } from '@app/domain';
 import type { PgBoss } from 'pg-boss';
 import { z } from 'zod';
 import { logError } from '../../log.ts';
@@ -13,14 +13,20 @@ import { runGenerateJob, type GenerateJobDeps, type GeneratePayload } from './jo
 
 export const GENERATE_QUEUE = 'generate';
 
-/** `expireInSeconds` is the kernel's `GENERATE_JOB_EXPIRE_S`, the age `isJobActive` reads. */
-const QUEUE_OPTIONS = { retryLimit: 0, expireInSeconds: GENERATE_JOB_EXPIRE_S } as const;
+/**
+ * `expireInSeconds` is the kernel's `GENERATE_JOB_EXPIRE_S` (a running job's life after its
+ * `started_at`) and `retentionSeconds` its `GENERATE_JOB_QUEUE_RETENTION_S` (how long a
+ * created job waits for a worker): the two ages `isJobActive` reads (R7).
+ */
+const QUEUE_OPTIONS = { retryLimit: 0, expireInSeconds: GENERATE_JOB_EXPIRE_S, retentionSeconds: GENERATE_JOB_QUEUE_RETENTION_S } as const;
 
 const payloadSchema = z.object({
   job_id: uuidV7Schema,
   company_id: uuidV7Schema,
   relatorio_id: uuidV7Schema,
   actor_id: z.string().min(1),
+  // Story 7.5: absent on payloads queued before previews existed, which were all issues.
+  kind: z.enum(['issue', 'preview']).optional(),
 });
 
 /**

@@ -19,7 +19,12 @@
  * 4 (2026-09-25, Story 6.6): the `point` row carries `action`, `priority`, `deadline` and
  * `owner`, so the `point/{id}/{action|priority|deadline|owner}` put families are new.
  */
-export const CONTRACT_VERSION = 4;
+/*
+ * 5 (2026-09-26, Stories 7.4/7.5): the relatório setup carries `parecer`, so the
+ * `relatorio/setup/parecer` put family is new, and the `generation_job` row carries
+ * `started_at`, so the server-only `generation_job/{id}/started_at` put is new.
+ */
+export const CONTRACT_VERSION = 5;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -30,6 +35,11 @@ export const CONTRACT_VERSION = 4;
  * 4: a version-3 bundle cannot parse a `point/{id}/action` (or `priority`, `deadline`,
  * `owner`) put a relatório stream carries once a point holds an action, so it updates too.
  */
-export const MIN_CONTRACT_VERSION = 4;
+/*
+ * 5: a version-4 bundle cannot parse a `relatorio/setup/parecer` put nor a
+ * `generation_job/{id}/started_at` put a relatório stream carries once a parecer is set or
+ * a job runs, so it updates too.
+ */
+export const MIN_CONTRACT_VERSION = 5;
 
 export const CONTRACT_VERSION_HEADER = 'x-contract-version';

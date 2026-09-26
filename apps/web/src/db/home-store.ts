@@ -178,6 +178,13 @@ export async function relatorioState(db: AppDatabase, relatorioId: string): Prom
   // named by `preIssue`, so the snapshot needs both (`buildSnapshot` keeps the live ones).
   for (const row of await rowsWhere<PointRow>(db, 'point', 'relatorio_id', relatorioId)) put('point', row);
   for (const row of await rowsWhere<FileRow>(db, 'file', 'relatorio_id', relatorioId)) put('file', row);
+  // Story 7.5 (AD-2, Epic 4 item 14): the responsible's `user` row, as the server's
+  // `toSnapshot` holds it, so the setup gaps and the pre-issue rows read the same snapshot.
+  const responsibleId = relatorio.setup.responsible_user_id;
+  if (responsibleId !== null) {
+    const record = await db.entities.get(['user', responsibleId]);
+    if (record !== undefined) state.set(entityKey('user', responsibleId), record.row);
+  }
   return state;
 }
 

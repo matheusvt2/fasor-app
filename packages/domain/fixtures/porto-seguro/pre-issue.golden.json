@@ -1,0 +1,114 @@
+[
+  {
+    "id": "setup_missing:registration_number",
+    "row": "capa",
+    "severity": "pending",
+    "text": "Registro profissional do responsável em branco",
+    "kind": "setup_missing"
+  },
+  {
+    "id": "setup_missing:art_trt_number",
+    "row": "capa",
+    "severity": "pending",
+    "text": "Número da ART/TRT em branco",
+    "kind": "setup_missing"
+  },
+  {
+    "id": "company:company_logo",
+    "row": "capa",
+    "severity": "info",
+    "text": "Logo da empresa não cadastrado",
+    "kind": "company"
+  },
+  {
+    "id": "client:cnpj_do_contratante_em_branco",
+    "row": "controle",
+    "severity": "info",
+    "text": "CNPJ do contratante em branco",
+    "kind": "client"
+  },
+  {
+    "id": "photos_pending_upload",
+    "row": "section_7",
+    "severity": "info",
+    "text": "82 aguardando envio",
+    "kind": "photos_pending_upload"
+  },
+  {
+    "id": "points_sem_acao",
+    "row": "section_8",
+    "severity": "pending",
+    "text": "4 pontos sem ação",
+    "kind": "points_sem_acao"
+  },
+  {
+    "id": "sheets",
+    "row": "section_9",
+    "severity": "pending",
+    "text": "3 de 94",
+    "kind": "sheets"
+  },
+  {
+    "id": "not_tested",
+    "row": "section_9",
+    "severity": "info",
+    "text": "3 não ensaiadas",
+    "kind": "not_tested"
+  },
+  {
+    "id": "cabine_incompleta:019966c0-0000-7000-8000-000000000064",
+    "row": "section_9",
+    "severity": "pending",
+    "text": "Cubículo Enel: falta a tensão secundária",
+    "kind": "cabine_incompleta"
+  },
+  {
+    "id": "cabine_incompleta:019966c0-0000-7000-8000-000000000065",
+    "row": "section_9",
+    "severity": "pending",
+    "text": "1° Subsolo: faltam 6 campos",
+    "kind": "cabine_incompleta"
+  },
+  {
+    "id": "cabine_incompleta:019966c0-0000-7000-8000-00000000007a",
+    "row": "section_9",
+    "severity": "pending",
+    "text": "Geradores: faltam 6 campos",
+    "kind": "cabine_incompleta"
+  },
+  {
+    "id": "parecer_missing",
+    "row": "section_10",
+    "severity": "blocking",
+    "text": "Parecer não preenchido",
+    "kind": "parecer_missing"
+  },
+  {
+    "id": "setup_missing:instruments",
+    "row": "section_11",
+    "severity": "pending",
+    "text": "Nenhum instrumento em Dados do relatório",
+    "kind": "setup_missing"
+  },
+  {
+    "id": "certificate_missing:019966c0-0000-7000-8000-000000000005",
+    "row": "section_11",
+    "severity": "info",
+    "text": "2E sem certificado",
+    "kind": "certificate_missing"
+  },
+  {
+    "id": "certificate_missing:019966c0-0000-7000-8000-000000000006",
+    "row": "section_11",
+    "severity": "info",
+    "text": "3M sem certificado",
+    "kind": "certificate_missing"
+  },
+  {
+    "id": "certificate_missing:019966c0-0000-7000-8000-000000000007",
+    "row": "section_11",
+    "severity": "info",
+    "text": "1T sem certificado",
+    "kind": "certificate_missing"
+  }
+]

@@ -272,6 +272,35 @@ describe('4.8-INT-002 POST /api/relatorios/:id/generate and GET /api/revisions/:
     expect(unknown.status).toBe(404);
   });
 
+  it('Story 7.5: refuses with 409 pre_issue_blocked until the parecer is set; the parecer put goes through the sync route', async () => {
+    const blocked = await generate(companyA, { last_op_id: null, file_ids_expected: [] });
+    expect(blocked.status).toBe(409);
+    expect(errorResponseSchema.parse(await blocked.json()).code).toBe('pre_issue_blocked');
+    const parecer = makeOp(
+      {
+        kind: 'put',
+        scope: 'relatorio',
+        company_id: companyA.companyId,
+        project_id: null,
+        relatorio_id: RELATORIO_ID,
+        path: 'relatorio/setup/parecer',
+        value: { verdict: 'apto_com_restricoes', text: null, text_status: null, text_basis: null },
+        prev_op_id: null,
+        batch_id: null,
+        meta: null,
+        actor_id: companyA.userId,
+        device_id: 'tablet-generate-a',
+      },
+      { newId, now: now() },
+    );
+    const pushed = await authed(companyA, '/api/sync/ops', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ops: [parecer] }),
+    });
+    expect(syncPushResponseSchema.parse(await pushed.json()).rejected).toEqual([]);
+  });
+
   it(
     'accepts the generate (202 queued), the worker renders both files, and the revision reaches the pull with a converged TOC',
     async () => {

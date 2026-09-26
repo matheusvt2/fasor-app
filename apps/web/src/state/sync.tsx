@@ -5,6 +5,7 @@ import {
   syncCounts,
   type GenerateRequest,
   type GenerateResponse,
+  type PreviewResponse,
   type LastPushAt,
   type RelatorioSummary,
   type SyncBadgeState,
@@ -94,6 +95,12 @@ export interface SyncState {
    * network (AD-1).
    */
   generate: (relatorioId: string, body: GenerateRequest) => Promise<GenerateResponse>;
+  /**
+   * Story 7.5: the preview job, asked for by the Export dialog's "Pré-visualizar" once the
+   * outbox is drained. Optional in the type only so the test doubles built before it existed
+   * still type-check; the provider always supplies it.
+   */
+  preview?: (relatorioId: string, body: GenerateRequest) => Promise<PreviewResponse>;
 }
 
 export const SyncContext = createContext<SyncState | null>(null);
@@ -237,6 +244,12 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     return client.generate(relatorioId, body);
   }, []);
 
+  const preview = useCallback(async (relatorioId: string, body: GenerateRequest): Promise<PreviewResponse> => {
+    const client = clientRef.current;
+    if (client === null || client.preview === undefined) throw new Error('sync client is not running');
+    return client.preview(relatorioId, body);
+  }, []);
+
   const unreachable = unreachableCause({ reAuthRequired: session.reAuthRequired, lastFailure: status.lastFailure });
 
   const value = useMemo<SyncState>(
@@ -264,8 +277,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       retryUpload,
       fetchFile,
       generate,
+      preview,
     }),
-    [counts, session.online, unreachable, status, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate],
+    [counts, session.online, unreachable, status, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview],
   );
 
   return <SyncContext value={value}>{children}</SyncContext>;

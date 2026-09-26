@@ -224,6 +224,17 @@ export const relatorioStatusSchema = z.enum(['rascunho', 'em_campo', 'em_revisao
 export type RelatorioStatus = z.infer<typeof relatorioStatusSchema>;
 export const exportSchemeSchema = z.enum(['por_local_e_tipo', 'ordem_de_campo']);
 
+/** Story 7.4: the three verdicts of the parecer, never suggested as Não apto nor set by the app. */
+export const parecerVerdictSchema = z.enum(['apto', 'apto_com_restricoes', 'nao_apto']);
+
+export const relatorioParecerSchema = z.object({
+  verdict: parecerVerdictSchema,
+  text: nullableString,
+  text_status: z.enum(['confirmed', 'edited']).nullable(),
+  text_basis: nullableString,
+});
+export type RelatorioParecer = z.infer<typeof relatorioParecerSchema>;
+
 export const relatorioSetupSchema = z.object({
   service_start: dateValueSchema.nullable(),
   service_end: dateValueSchema.nullable(),
@@ -249,6 +260,11 @@ export const relatorioSetupSchema = z.object({
   site_altitude_confirmed: z.boolean().default(false),
   next_intervention_date: dateValueSchema.nullable().default(null),
   next_intervention_justification: nullableString.default(null),
+  // Story 7.4 (Etapa 6, section 10): the engineer's parecer, one LWW value written whole by
+  // every tap or text action. `text` is the confirmed or edited summary (null while the
+  // composed one is unconfirmed), `text_basis` the `composeParecer` basis it was confirmed
+  // against. Null until a verdict is tapped; never set by the app.
+  parecer: relatorioParecerSchema.nullable().default(null),
 });
 export type RelatorioSetup = z.infer<typeof relatorioSetupSchema>;
 
@@ -487,6 +503,9 @@ export const generationJobRowSchema = z.object({
   // still parses.
   result: generationResultSchema.nullable().default(null),
   created_at: isoTimestampSchema,
+  // R7 (Story 4.8 review): when the worker put the job `running`; the expiry of a running
+  // job counts from it, not from `created_at`. Defaulted for rows written before it.
+  started_at: nullableIso.default(null),
 });
 
 export const revisionRowSchema = z.object({

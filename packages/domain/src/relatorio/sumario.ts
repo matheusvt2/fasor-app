@@ -11,6 +11,7 @@ import { sectionTextEdited } from './section-variables.ts';
 import { locationPathText } from './location-path.ts';
 import { isEquipmentBlock } from './sheet-state.ts';
 import { pointsSummary, pointsSummaryText } from '../points/summary.ts';
+import { parecerOf, parecerVerdictLabel } from './parecer.ts';
 
 /*
  * Story 4.3: the Sumário as data (`40-relatorio-overview.html`): the relatório's own table
@@ -36,13 +37,16 @@ export const SUMARIO_TITLES: Readonly<Record<SumarioRowKey, string>> = {
   section_9: 'Relatórios dos ensaios',
   section_10: 'Conclusão e parecer',
   section_11: 'Certificados',
+  // Story 7.5: the Export dialog's sync lines; no Sumário row carries this key.
+  sync: 'Sincronização',
 };
 
 /**
  * What a row is: `fixed` (the cover and the control, no reorder controls), `setup` (opens
- * Dados do relatório, rows 1 and 3), `text` (a section text, rows 2, 4, 5, 6), `generated`
- * (7, 8 and 9: the renderer produces their content from what the relatório stores; 8 opens
- * the Points surface, Story 6.6), `pending-epic` (10, 11: status only until their epic lands).
+ * Dados do relatório, rows 1 and 3, and 10 at its Etapa 6 since Story 7.4), `text` (a
+ * section text, rows 2, 4, 5, 6), `generated` (7, 8 and 9: the renderer produces their
+ * content from what the relatório stores; 8 opens the Points surface, Story 6.6),
+ * `pending-epic` (11: status only until its epic lands).
  */
 export type SumarioRowKind = 'fixed' | 'text' | 'setup' | 'generated' | 'pending-epic';
 
@@ -56,7 +60,7 @@ const KIND_OF: Readonly<Record<RelatorioSectionType, SumarioRowKind>> = {
   section_7: 'generated',
   section_8: 'generated',
   section_9: 'generated',
-  section_10: 'pending-epic',
+  section_10: 'setup',
   section_11: 'pending-epic',
 };
 
@@ -161,6 +165,11 @@ function metaOfSection(block: BlockRow, issues: readonly PreIssueRow[], computed
   }
   // Stories 6.3/6.5: "82 fotos · 1 sem legenda · 3 aguardando envio", like section 9's counter.
   if (block.block_type === 'section_7') return join([photoCountText(livePhotos(snapshot).length), ...own]);
+  // Story 7.4: row 10 names what stops it ("Parecer não preenchido"), else the verdict set.
+  if (block.block_type === 'section_10' && own.length === 0) {
+    const parecer = parecerOf(snapshot);
+    if (parecer !== null) return parecerVerdictLabel(parecer.verdict);
+  }
   if (own.length > 0) return join(own);
   if (kind === 'setup') return META.setup;
   if (kind === 'text') {
@@ -285,16 +294,19 @@ export interface RestorableBlock {
 /**
  * The removed blocks "Restaurar ficha removida" offers, newest removal first, each with a
  * label unique in the list. `locations` are the relatório's, removed ones included, so a
- * sheet still names the coluna it was in.
+ * sheet still names the coluna it was in. Epic 4 retro item 29: `since` (the last
+ * revision's `created_at`) cuts the list at the last issue: a block removed before it is
+ * part of what was issued and is not offered; null (no revision) offers every one.
  */
 export function restorableBlocks(
   blocks: readonly BlockRow[],
   equipment: readonly Pick<EquipmentRow, 'id' | 'tag'>[] = [],
   locations: readonly Pick<LocationRow, 'id' | 'parent_id' | 'name'>[] = [],
+  since: string | null = null,
 ): RestorableBlock[] {
   const tags = new Map(equipment.map((row) => [row.id, row.tag]));
   const rows = blocks
-    .filter((block): block is BlockRow & { removed_at: string } => block.removed_at !== null)
+    .filter((block): block is BlockRow & { removed_at: string } => block.removed_at !== null && (since === null || block.removed_at > since))
     .map((block) => {
       const sheet = isEquipmentBlock(block);
       const name = sheet

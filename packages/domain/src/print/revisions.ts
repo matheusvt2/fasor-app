@@ -96,35 +96,57 @@ export function revisionMetaText(row: RevisionRow, whoName: string | null): stri
 }
 
 /**
- * Seconds pg-boss lets a generate job stay active before it expires it (the api's queue
- * options), and so the age past which a `queued`/`running` row no longer counts as
- * running. One value for the queue, the route and the Export dialog.
+ * Seconds pg-boss lets a generate job stay active (running) before it expires it (the
+ * api's queue options), and so how long after its `started_at` a `running` row still
+ * counts as running. One value for the queue, the route and the Export dialog.
  */
 export const GENERATE_JOB_EXPIRE_S = 900;
 
 /**
- * The instant (ms since the epoch) after which a job no longer counts as running, or
- * null when its `created_at` does not parse.
+ * R7 (Story 4.8 review): seconds a job may wait `queued` before it no longer counts as
+ * running: pg-boss's `retentionSeconds` of the queue, the time a created job is kept
+ * waiting for a worker. One hour, so a busy queue never makes a waiting press look dead.
  */
-export function jobExpiresAt(job: Pick<GenerationJobRow, 'created_at'>, expireS: number = GENERATE_JOB_EXPIRE_S): number | null {
-  const created = Date.parse(job.created_at);
-  return Number.isNaN(created) ? null : created + expireS * 1000;
+export const GENERATE_JOB_QUEUE_RETENTION_S = 3600;
+
+/**
+ * The instant (ms since the epoch) after which a job no longer counts as running, or null
+ * when it cannot be said: a `running` job expires `expireS` after its `started_at`
+ * (`created_at` for a row written before `started_at` existed), a `queued` one
+ * `GENERATE_JOB_QUEUE_RETENTION_S` after its `created_at`. Null when the date read does
+ * not parse, or for a job that is neither queued nor running.
+ */
+export function jobExpiresAt(
+  job: Pick<GenerationJobRow, 'created_at' | 'status'> & Partial<Pick<GenerationJobRow, 'started_at'>>,
+  expireS: number = GENERATE_JOB_EXPIRE_S,
+  queueRetentionS: number = GENERATE_JOB_QUEUE_RETENTION_S,
+): number | null {
+  if (job.status === 'running') {
+    const started = Date.parse(job.started_at ?? job.created_at);
+    return Number.isNaN(started) ? null : started + expireS * 1000;
+  }
+  if (job.status === 'queued') {
+    const created = Date.parse(job.created_at);
+    return Number.isNaN(created) ? null : created + queueRetentionS * 1000;
+  }
+  return null;
 }
 
 /**
- * AD-15: a generate job still counts as running only while it is `queued` or `running`
- * and younger than the queue's expiry (pg-boss gives up on it after `expireS` seconds,
- * and a worker that died after `status: running` never writes `failed`). The route and
- * the Export dialog read this one rule, so neither waits forever on a dead job. A job
- * whose `created_at` does not parse is treated as expired.
+ * AD-15, R7: a generate job still counts as running only while it is `queued` (until the
+ * queue's retention after `created_at`) or `running` (until the queue's expiry after
+ * `started_at`): pg-boss gives up on it then, and a worker that died after `status:
+ * running` never writes `failed`. The route and the Export dialog read this one rule, so
+ * neither waits forever on a dead job. A job whose dates do not parse is inactive.
  */
 export function isJobActive(
-  job: Pick<GenerationJobRow, 'status' | 'created_at'>,
+  job: Pick<GenerationJobRow, 'status' | 'created_at'> & Partial<Pick<GenerationJobRow, 'started_at'>>,
   nowIso: string,
   expireS: number = GENERATE_JOB_EXPIRE_S,
+  queueRetentionS: number = GENERATE_JOB_QUEUE_RETENTION_S,
 ): boolean {
   if (job.status !== 'queued' && job.status !== 'running') return false;
-  const expires = jobExpiresAt(job, expireS);
+  const expires = jobExpiresAt(job, expireS, queueRetentionS);
   const now = Date.parse(nowIso);
   if (expires === null || Number.isNaN(now)) return false;
   return now < expires;

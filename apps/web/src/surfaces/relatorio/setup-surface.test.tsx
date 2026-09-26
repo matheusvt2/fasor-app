@@ -62,6 +62,9 @@ const session = (): SessionState => ({
 });
 
 vi.mock('../../state/session.tsx', () => ({ useSession: () => session() }));
+// Story 7.4: Etapa 6's summary is the shared Generated text field, whose draft source needs
+// the app's DraftProvider; drafts are covered by their own suite (as `conclusao-section.test.tsx`).
+vi.mock('../../state/drafts.tsx', () => ({ useDraftSource: () => undefined }));
 
 async function freshDb(): Promise<AppDatabase> {
   const user = `019966c1-000f-7000-8000-${(++counter).toString(16).padStart(12, '0')}`;
@@ -83,14 +86,14 @@ function Probe({ testId }: { testId: string }) {
   return <p data-testid={testId}>{`${location.pathname}${location.search} ${JSON.stringify(location.state)}`}</p>;
 }
 
-function tree(id: string) {
+function tree(id: string, search = '') {
   return (
     // pt-BR orders the DateField segments day/month/year, as `app.tsx`'s own root
     // `I18nProvider` does for the real app; without it jsdom's default locale would
     // order them month/day/year, and the date-typing tests below would type into the
     // wrong segment.
     <I18nProvider locale="pt-BR">
-      <MemoryRouter initialEntries={[`/relatorio/${id}/setup`]}>
+      <MemoryRouter initialEntries={[`/relatorio/${id}/setup${search}`]}>
         <ToastProvider>
           <Routes>
             <Route path="/relatorio/:id/setup" element={<SetupSurface />} />
@@ -104,8 +107,8 @@ function tree(id: string) {
   );
 }
 
-function renderSetup(id = RELATORIO) {
-  return render(tree(id));
+function renderSetup(id = RELATORIO, search = '') {
+  return render(tree(id, search));
 }
 
 afterEach(() => {
@@ -114,7 +117,7 @@ afterEach(() => {
 });
 
 describe('4.2 SetupSurface', () => {
-  it('renders the five Etapa bands and the placeholder band, with no violations', async () => {
+  it('renders the six Etapa bands, Etapa 6 the parecer, with no violations', async () => {
     database = await seeded();
     const { container } = renderSetup();
     await waitFor(() => expect(screen.getByRole('heading', { level: 2, name: 'Etapa 1 — Capa' })).toBeVisible());
@@ -122,9 +125,61 @@ describe('4.2 SetupSurface', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Etapa 3 — Responsável' })).toBeVisible();
     expect(screen.getByRole('heading', { level: 2, name: 'Etapa 4 — Instrumentos e certificados' })).toBeVisible();
     expect(screen.getByRole('heading', { level: 2, name: 'Etapa 5 — Local' })).toBeVisible();
-    expect(screen.getByRole('heading', { level: 2, name: 'Conclusão e parecer' })).toBeVisible();
-    expect(screen.getByText('Disponível em uma próxima etapa')).toBeVisible();
+    expect(screen.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeVisible();
+    const group = screen.getByRole('radiogroup', { name: 'Parecer' });
+    expect(within(group).getAllByRole('radio').map((r) => [r.textContent, r.getAttribute('aria-checked')])).toEqual([
+      ['Apto', 'false'],
+      ['Apto com restrições', 'false'],
+      ['Não apto', 'false'],
+    ]);
+    // Nothing set: no summary field and no box yet; the counts' suggestion is the hint.
+    expect(screen.queryByText('Resumo do parecer')).toBeNull();
+    expect(container.querySelector('.parecer-box')).toBeNull();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('7.4 AC1: a verdict tap writes the whole parecer once; the summary shows the kernel\'s text and Criteria line; Confirmar stores it confirmed', async () => {
+    database = await seeded();
+    const { container } = renderSetup();
+    const group = await screen.findByRole('radiogroup', { name: 'Parecer' });
+    await userEvent.click(within(group).getByRole('radio', { name: 'Não apto' }));
+    await waitFor(async () => expect(await database!.outbox.where('path').equals('relatorio/setup/parecer').count()).toBe(1));
+    const [op] = await database!.outbox.where('path').equals('relatorio/setup/parecer').toArray();
+    expect(op!.value).toEqual({ verdict: 'nao_apto', text: null, text_status: null, text_basis: null });
+    await waitFor(() => expect(within(group).getByRole('radio', { name: 'Não apto' })).toHaveAttribute('aria-checked', 'true'));
+    // The box is toned by the verdict set, never by a suggestion.
+    expect(container.querySelector('.parecer-box')).toHaveAttribute('data-verdict', 'nao-apto');
+    expect(container.querySelector('.parecer-box .pb-verdict')).toHaveTextContent('Não apto');
+    // A re-tap writes nothing.
+    await userEvent.click(within(group).getByRole('radio', { name: 'Não apto' }));
+    const field = container.querySelector('.suggestion-field.is-generated')!;
+    expect(field).toHaveAttribute('data-state', 'suggested');
+    expect(field.querySelector('.generated-text')).toHaveTextContent(/^Foram registradas 3 fichas de ensaio: /);
+    expect(field.querySelector('.criteria-line')).toHaveTextContent(/Critérios usados.*3 fichas/);
+    await userEvent.click(within(field as HTMLElement).getByRole('button', { name: 'Confirmar' }));
+    await waitFor(async () => {
+      const row = await database!.entities.get(['relatorio', RELATORIO]);
+      expect((row!.row as RelatorioRow).setup.parecer).toMatchObject({ verdict: 'nao_apto', text_status: 'confirmed' });
+    });
+    expect(await database!.outbox.where('path').equals('relatorio/setup/parecer').count()).toBe(2);
+    const confirmed = (await database!.entities.get(['relatorio', RELATORIO]))!.row as RelatorioRow;
+    expect(confirmed.setup.parecer!.text).toMatch(/^Foram registradas 3 fichas de ensaio: /);
+    expect(confirmed.setup.parecer!.text_basis).toMatch(/^[0-9a-f]{8}$/);
+    await waitFor(() => expect(container.querySelector('.suggestion-field.is-generated')).toHaveAttribute('data-state', 'confirmed'));
+    expect(await screen.findByText('Resumo do parecer confirmado — impresso na seção 10')).toBeVisible();
+    // Changing the verdict keeps the confirmed summary (one object, written whole).
+    await userEvent.click(within(group).getByRole('radio', { name: 'Apto com restrições' }));
+    await waitFor(async () => {
+      const row = await database!.entities.get(['relatorio', RELATORIO]);
+      expect((row!.row as RelatorioRow).setup.parecer).toMatchObject({ verdict: 'apto_com_restricoes', text_status: 'confirmed' });
+    });
+  });
+
+  it('7.5: opened from the Export dialog (?etapa=6&volta=exportar), Etapa 6 offers the way back to it', async () => {
+    database = await seeded();
+    renderSetup(RELATORIO, '?etapa=6&volta=exportar');
+    await userEvent.click(await screen.findByRole('button', { name: 'Voltar para Gerar relatório' }));
+    expect(await screen.findByTestId('sumario-route')).toHaveTextContent(`/relatorio/${RELATORIO}?exportar=1`);
   });
 
   it('autosaves Etapa 1 "Informações adicionais" as one relatorio/setup/additional_info op', async () => {
