@@ -2,10 +2,10 @@
 title: 'Gate: run the e2e suite on parallel workers with per-worker companies'
 type: 'chore'
 created: '2026-09-25'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '3edcc59ba5ee7717a722988b163a43c0b5f3c5a6'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: 'opus'
 dev_effort: 'high'
 context:
@@ -124,3 +124,14 @@ Layers: Edge Case Hunter and Verification Gap Reviewer. Blind Hunter and Intent 
   - `[low]` `[reject]` the spec's Tasks still name 3 workers — same as the spec-text row.
   - `[maybe-false]` `[reject]` the e2e setup no longer provisions the `TEST_SEED` users for manual sessions — the api suite seeds them before e2e in `verify`; noted in the PR.
   - `[low]` `[reject]` (grouped with the combine row) early exit on a failed parallel group — covered by the `runBothGroups` test.
+
+## Auto Run Result
+
+Status: done
+
+- **Summary:** per-worker company pairs (`workerSeed(i)`), the `seed` fixture by `parallelIndex`, every spec and helper on the worker's pair, a two-group runner (`scripts/e2e.ts`: parallel group, then serial group, always both, combined exit code, `summary.json`), a worker guard outside the parallel group, and a leak check as the global teardown. The 3 + 3 validation found a test that passes serially and fails in parallel, so the gate ships at `PARALLEL_WORKERS = 1`; `--workers=3` is opt-in.
+- **Validation (d):** `--workers=1`: 3 runs, 195 executed, 191 passed, 0 failed, 4 skipped, 0 flaky; 1272 s, 1255 s, 1281 s. `--workers=3`: 195 executed each; run 1 190 passed, 1 failed (12.3-E2E-004), 4 skipped, 791 s; runs 2 and 3 191 passed, 0 failed, 4 skipped, 796 s and 812 s. Title sets identical across all six.
+- **Verify per stage:** before (1 worker, old runner) lint 32, static 45, unit 149, api 97, e2e 722; total 1045 s. After (shipped, 1 worker, two groups) lint 29, static 50, unit 159, api 128, e2e 797; total 1163 s. At 3 workers (implementer run, same code before the review patches) e2e 519 s, total 878 s.
+- **Review:** 13 findings; 5 patched (3 medium, 2 low), 1 deferred (gate on one worker), 7 rejected (reasons in the triage log).
+- **Follow-up review recommended:** true. Patched mediums: 3. Unverified risk: the api push contention that makes parallel runs flaky is diagnosed from the api log only.
+- **Verification:** `pnpm verify` EXIT 0 in 1157 s (unit 1138 + 849 + 33, api 154, e2e 111 = 107 parallel group + 4 serial group).
