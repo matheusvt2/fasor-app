@@ -1,6 +1,6 @@
 import { artOrTrtLabel } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
-import { deviceDatabaseName, expect, signIn, syncBadge, test, TEST_SEED } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, signIn, syncBadge, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB as resetCompany } from './support/reset-empresa-b.ts';
 import { officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
@@ -13,12 +13,17 @@ import { officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-s
  * no pointer "Continuar" opens the first sheet still missing something; "Próxima seção"
  * walks the section texts. Each journey records its tap count as a test annotation.
  *
- * Every test resets Empresa B first. Safe mid-run only because the suite runs with
- * `workers: 1`.
+ * Every test resets Empresa B first. Safe mid-run because Empresa B is this worker's own
+ * (E6-Q7).
  */
 
-const account = TEST_SEED.companies[1];
-const database = deviceDatabaseName(account.userId);
+let account: SeedAccount;
+let database: string;
+test.beforeEach(({ seed }) => {
+  // This worker's Empresa B (E6-Q7): its company, its user and its device database.
+  account = seed.companies[1];
+  database = deviceDatabaseName(account.userId);
+});
 
 const tree = (page: Page) => page.getByRole('list', { name: 'Locais do relatório' });
 const firstCabine = (page: Page) => tree(page).locator(':scope > li.s9-cabine').first();
@@ -60,7 +65,7 @@ async function syncNow(page: Page): Promise<void> {
 
 /** An Em campo relatório of the standard template pushed from the office, its Sumário open. */
 async function emCampoRelatorio(page: Page, width: number): Promise<string> {
-  await resetCompany({ standard: true });
+  await resetCompany(account, { standard: true });
   await page.setViewportSize({ width, height: 1024 });
   await signIn(page, account.email);
   const { relatorioId } = await pushNewRelatorio(page, account, database);
@@ -224,7 +229,7 @@ test('@p0 12.2-E2E-006 forward at 768: "Próxima ficha", the sheet\'s "Voltar", 
 
 test('@p0 12.2-E2E-003 J5 at 768: Home to the first sheet of a new relatório with no "Voltar", the instrument registered on the way', async ({ page }) => {
   test.setTimeout(180_000);
-  await resetCompany({ standard: true });
+  await resetCompany(account, { standard: true });
   await page.setViewportSize({ width: 768, height: 1024 });
   await signIn(page, account.email);
   await expect(page.locator('.shortcut-sub', { hasText: '1 template' })).toBeVisible({ timeout: 30_000 });

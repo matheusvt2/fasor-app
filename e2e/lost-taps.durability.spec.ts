@@ -2,7 +2,7 @@ import { cellAddressesOf, getDefinition, itensMarcadosConformeText, type FieldDe
 import type { BrowserContext, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { signInForDurability } from './support/durability.ts';
-import { deviceDatabaseName, expect, syncBadge, test, TEST_SEED } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, syncBadge, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
@@ -18,12 +18,17 @@ import { humanTap, touchPressAcross } from './support/taps.ts';
  * with its feedback.
  *
  * Each control gets one relatório and one chave seccionadora sheet per delay, opened by
- * address. Runs on the three durability projects against the built bundle, one at a time
- * (`workers: 1`, the shared Empresa B).
+ * address. Runs on the three durability projects against the built bundle; each worker
+ * has its own Empresa B (E6-Q7).
  */
 
-const account = TEST_SEED.companies[1];
-const database = deviceDatabaseName(account.userId);
+let account: SeedAccount;
+let database: string;
+test.beforeEach(({ seed }) => {
+  // This worker's Empresa B (E6-Q7): its company, its user and its device database.
+  account = seed.companies[1];
+  database = deviceDatabaseName(account.userId);
+});
 const SECC = getDefinition('v1', 'cabine_primaria', 'chave_seccionadora');
 const CHECKLIST = SECC.checklist!;
 const CELLS = SECC.tests.flatMap((t) => cellAddressesOf(SECC, t.key));
@@ -117,7 +122,7 @@ function instrumentDraft(): OpDraft {
  * `instruments`, one instrument is pushed too and pulled with "Sincronizar agora".
  */
 async function setUp(page: Page, context: BrowserContext, seed: (scope: Scope, secc: SeededSheet[]) => OpDraft[], instruments = false): Promise<{ relatorioId: string; secc: SeededSheet[] }> {
-  await resetEmpresaB({ standard: true });
+  await resetEmpresaB(account, { standard: true });
   // The API sign-in with the cookie set on the context, then the one-time "Baixar do
   // servidor": the form's cookie does not stick on WebKit over plain http.
   await signInForDurability(page, context, account.email);

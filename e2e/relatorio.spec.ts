@@ -11,7 +11,7 @@ import {
 } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
-import { deviceDatabaseName, expect, signIn, test, TEST_SEED } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { syncNowAndReturn } from './support/sync.ts';
 import { readDeviceId, readStore } from './support/outbox.ts';
 import { pushRevision } from './support/push-server-ops.ts';
@@ -26,13 +26,18 @@ import { CLIENT, createProjectFromHome, createRelatorio, SITE, typeDate } from '
  *
  * Every test starts by resetting Empresa B and seeding the standard template into it
  * (the test-company reset, only ever Empresa B), so the file is re-runnable on its own.
- * Safe mid-run only because the suite runs with `workers: 1`.
+ * Safe mid-run because Empresa B is this worker's own (E6-Q7).
  */
 
-const account = TEST_SEED.companies[1];
-const database = deviceDatabaseName(account.userId);
+let account: SeedAccount;
+let database: string;
+test.beforeEach(({ seed }) => {
+  // This worker's Empresa B (E6-Q7): its company, its user and its device database.
+  account = seed.companies[1];
+  database = deviceDatabaseName(account.userId);
+});
 
-const resetEmpresaB = () => resetCompany({ standard: true });
+const resetEmpresaB = () => resetCompany(account, { standard: true });
 
 /** A client-authored op, pushed straight to the server the way `4.3-E2E-002` does. */
 async function pushOp(page: Page, relatorioId: string, deviceId: string, path: string, value: unknown): Promise<void> {

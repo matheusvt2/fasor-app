@@ -1,9 +1,9 @@
 import { photoStampFull, photoStampShort } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { exifJpeg, plainJpeg, png, type FilePayload } from './fixtures/photos/synthetic.ts';
-import { deviceDatabaseName, expect, test } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
-import { devicePhotos, expectCameraOpen, openChaveSheet, PHOTO_ACCOUNT, shoot, type PhotoRowRecord } from './support/photos.ts';
+import { devicePhotos, expectCameraOpen, openChaveSheet, shoot, type PhotoRowRecord } from './support/photos.ts';
 
 /*
  * 6.3/6.4/6.5-E2E: the gallery (Sumário row 7), the Photo viewer, removal and "Desfazer",
@@ -22,8 +22,13 @@ test.use({
   geolocation: SAO_PAULO,
 });
 
-const account = PHOTO_ACCOUNT;
-const database = deviceDatabaseName(account.userId);
+let account: SeedAccount;
+let database: string;
+test.beforeEach(({ seed }) => {
+  // This worker's Empresa B (E6-Q7): its company, its user and its device database.
+  account = seed.companies[1];
+  database = deviceDatabaseName(account.userId);
+});
 const SHEET_CAPTION = 'Detalhe da chave seccionadora SEC-ENEL do Cubículo Enel';
 const NC_CAPTION = 'Detalhe da verificação de contatos realizada na chave seccionadora SEC-ENEL do Cubículo Enel';
 

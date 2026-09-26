@@ -1,5 +1,5 @@
 import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, type Op } from '@app/domain';
-import { deviceDatabaseName, expect, test, TEST_SEED } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, test } from './support/merged-fixtures.ts';
 import {
   clearSessionPointer,
   closeEveryTab,
@@ -26,7 +26,7 @@ import {
   withoutServiceWorker,
 } from './support/durability.ts';
 import { clientCreateOp, pullAll, readDeviceId, readFileBlobs, readStore, seedOutbox } from './support/outbox.ts';
-import { devicePhotos, jpegFromPage, jpegSize, openChaveSheet, PHOTO_ACCOUNT } from './support/photos.ts';
+import { devicePhotos, jpegFromPage, jpegSize, openChaveSheet } from './support/photos.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { pushNewRelatorio } from './support/relatorio-seed.ts';
 
@@ -394,12 +394,12 @@ test('@p0 1.8-E2E-006 a pending job keeps its shell through a worker restart and
  * reorder path that costs one tap and a number; typed by touch, it moves the row like the
  * desktop path does. Runs against the built bundle like every scenario here.
  */
-test('@p1 4.3-E2E-003 the Position box typed by touch moves a Sumário row', async ({ page, context }) => {
+test('@p1 4.3-E2E-003 the Position box typed by touch moves a Sumário row', async ({ page, context, seed }) => {
   // A tap needs a touch screen: only the Android emulation has one (Q6); the desktop
   // projects run the same flows by pointer in their own specs.
   test.skip(!test.info().project.use.hasTouch, 'the touch rule is asserted on a project with a touch screen (the Android emulation)');
-  await resetEmpresaB({ standard: true });
-  const account = TEST_SEED.companies[1];
+  const account = seed.companies[1];
+  await resetEmpresaB(account, { standard: true });
   await signInForDurability(page, context, account.email);
   await expect(page.locator('.shortcut-sub', { hasText: '1 template' })).toBeVisible({ timeout: 30_000 });
 
@@ -445,12 +445,12 @@ test('@p1 4.3-E2E-003 the Position box typed by touch moves a Sumário row', asy
  * every surface, so the same insert-by-tap, remove-by-Backspace pass `3.6-E2E-001` runs on
  * desktop Chrome runs here by touch. Runs against the built bundle like every scenario here.
  */
-test('@p1 4.7-E2E-003 section text: a chip inserted by tap is removed whole by Backspace', async ({ page, context }) => {
+test('@p1 4.7-E2E-003 section text: a chip inserted by tap is removed whole by Backspace', async ({ page, context, seed }) => {
   // A tap needs a touch screen: only the Android emulation has one (Q6); the desktop
   // projects run the same flows by pointer in their own specs.
   test.skip(!test.info().project.use.hasTouch, 'the touch rule is asserted on a project with a touch screen (the Android emulation)');
-  await resetEmpresaB({ standard: true });
-  const account = TEST_SEED.companies[1];
+  const account = seed.companies[1];
+  await resetEmpresaB(account, { standard: true });
   await signInForDurability(page, context, account.email);
   await expect(page.locator('.shortcut-sub', { hasText: '1 template' })).toBeVisible({ timeout: 30_000 });
 
@@ -505,12 +505,12 @@ test('@p1 4.7-E2E-003 section text: a chip inserted by tap is removed whole by B
  * palette opens as a bottom sheet and one tap creates a block; a press and hold of 300 ms
  * on a row's handle (CDP touch events, the way a finger does it) then a drag moves it.
  */
-test('@p1 4.5-E2E-004 phone width: the palette is a bottom sheet, a tap creates a block, and a press-and-hold drag moves it', async ({ page, context }) => {
+test('@p1 4.5-E2E-004 phone width: the palette is a bottom sheet, a tap creates a block, and a press-and-hold drag moves it', async ({ page, context, seed }) => {
   // A tap needs a touch screen: only the Android emulation has one (Q6); the desktop
   // projects run the same flows by pointer in their own specs.
   test.skip(!test.info().project.use.hasTouch, 'the touch rule is asserted on a project with a touch screen (the Android emulation)');
-  await resetEmpresaB({ standard: true });
-  const account = TEST_SEED.companies[1];
+  const account = seed.companies[1];
+  await resetEmpresaB(account, { standard: true });
   await signInForDurability(page, context, account.email);
   const { relatorioId } = await pushNewRelatorio(page, account, deviceDatabaseName(account.userId));
   await page.setViewportSize({ width: 390, height: 844 });
@@ -558,6 +558,7 @@ test('@p0 6.2-E2E-003 the network drops mid-upload: every photo uploads exactly 
   page,
   context,
   browserName,
+  seed,
 }) => {
   test.setTimeout(180_000);
   // Playwright's WebKit runs every context as an ephemeral (private) session, where WebKit's
@@ -571,7 +572,7 @@ test('@p0 6.2-E2E-003 the network drops mid-upload: every photo uploads exactly 
     });
     return;
   }
-  const account = PHOTO_ACCOUNT;
+  const account = seed.companies[1];
   const database = deviceDatabaseName(account.userId);
   await withoutServiceWorker(page);
   // No camera API on this browser: "Tirar foto" falls back to the system camera (the hidden

@@ -1,6 +1,6 @@
 import { getDefinition, screenLabel, SHEET_STEPS, sheetSummaryText, type SheetStep } from '@app/domain';
 import type { Page } from '@playwright/test';
-import { deviceDatabaseName, expect, signIn, test, TEST_SEED } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { newRelatorioDrafts, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
 
@@ -12,8 +12,13 @@ import { newRelatorioDrafts, pushDrafts, type SeededSheet } from './support/rela
  * its width on a phone.
  */
 
-const account = TEST_SEED.companies[1];
-const database = deviceDatabaseName(account.userId);
+let account: SeedAccount;
+let database: string;
+test.beforeEach(({ seed }) => {
+  // This worker's Empresa B (E6-Q7): its company, its user and its device database.
+  account = seed.companies[1];
+  database = deviceDatabaseName(account.userId);
+});
 const stepper = (page: Page) => page.getByRole('group', { name: 'Seções da ficha — toque para ir à seção' });
 const STEP_NAMES: Record<SheetStep, string> = { placa: 'Placa', verificacoes: 'Verificações', ensaios: 'Ensaios', conclusao: 'Conclusão' };
 
@@ -40,7 +45,7 @@ async function rootColor(page: Page, token: string): Promise<string> {
 }
 
 async function setUp(page: Page): Promise<{ relatorioId: string; secEnel: SeededSheet }> {
-  await resetEmpresaB({ standard: true });
+  await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 768, height: 1024 });
   await signIn(page, account.email);
   const built = newRelatorioDrafts(account);
