@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 09-25-2026 09:53
+last_updated: 09-26-2026 02:59
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -88,14 +88,14 @@ development_status:
   5-9-mark-an-equipment-as-not-tested: done  # PR #31
   epic-5-retrospective: done
 
-  epic-6: in-progress
+  epic-6: done
   6-1-shoot-photos-in-a-burst-from-any-surface-captioned-from-wher: done  # PR #41
   6-2-no-photo-is-ever-lost: done  # PR #41
   6-3-see-every-photo-in-one-chronological-gallery-with-its-stamp: done  # PR #43
   6-4-add-photos-after-the-visit-or-from-someone-else-s-phone: done  # PR #43
   6-5-change-a-caption-from-chips-or-free-text: done  # PR #43
   6-6-record-findings-that-print-as-section-8-with-untested-equipm: done  # PR #42
-  epic-6-retrospective: optional
+  epic-6-retrospective: done
 
   epic-7: backlog
   7-1-print-the-equipment-sheets-as-native-tables-grouped-as-fo-se: backlog
@@ -425,7 +425,7 @@ action_items:
       verifies, a shared SyncState test factory, an orchestrator watchdog with ISO
       timestamps"
     owner: "dev / coordinator"
-    status: open
+    status: in-progress
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
   - id: "epic-5-retro-item-37-e5-a1-stabilize-the-e2e-gate-before-epic"
     epic: 5
@@ -542,3 +542,65 @@ action_items:
     owner: "dev; coordinator for MOCK-GUIDE"
     status: open
     ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
+  - id: "epic-6-retro-item-51-e6-a1-gate-time-next-action-fix-the-sync-push"
+    epic: 6
+    action: "E6-A1 Gate time, next action: fix the sync push slowdown under overlap
+      (POST /api/sync/ops about 1.2 s alone vs about 17 s median; one transaction
+      per push batch or find the serializing lock or pool), repeat the PR #45 3 serial
+      vs 3 parallel full-run validation and switch the gate to 3 workers if it holds,
+      bringing verify back under 15 min (measured 17-21 min)"
+    owner: "Epic 7 carry-over batch (dev)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
+  - id: "epic-6-retro-item-52-e6-a2-gate-policy-one-verify-at-a-time-on-this"
+    epic: 6
+    action: "E6-A2 Gate policy: one verify at a time on this machine (replaces E4-A9
+      at most two); a batch touching the sheet, overlays or shared layout also runs
+      test:e2e:full before merge, and the epic's last story PR always does"
+    owner: "coordinator; Matheus decides the e2e:full rule"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
+  - id: "epic-6-retro-item-53-e6-a3-document-the-new-e2e-runner-in-agents-md"
+    epic: 6
+    action: "E6-A3 Document the new e2e runner in AGENTS.md Running and verifying:
+      scripts/e2e.ts, per-worker companies, the serial export group, the leak check
+      and --workers opt-in"
+    owner: "coordinator"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
+  - id: "epic-6-retro-item-54-e6-a4-add-the-epic-6-product-questions-to-the"
+    epic: 6
+    action: "E6-A4 Add the Epic 6 product questions to the E5-A3 session: manual points
+      naming an equipment (E6-Q9), caption period and agreement, row 8 counts with
+      the derived entry, four authored texts, criterion_override shape {raw, unit},
+      edited conclusion text unguarded, point editor without Cancelar, confirm or
+      reverse photos never block Gerar"
+    owner: "Matheus (with Bruno for wording)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
+  - id: "epic-6-retro-item-55-e6-a5-add-to-the-e1-a1-manual-device-script-tc"
+    epic: 6
+    action: "E6-A5 Add to the E1-A1 manual device script (TC-12 at Epic 6 close) a
+      camera burst and an import on a real tablet, photo durability on iPad Safari
+      (untested in Playwright WebKit) and the soft keyboard after programmatic focus"
+    owner: "Matheus"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
+  - id: "epic-6-retro-item-56-e6-a6-epic-7-carry-over-lows-persist-the-point"
+    epic: 6
+    action: "E6-A6 Epic 7 carry-over lows: persist the point draft on each input,
+      debounced (E6-R1); chip tap in Editar texto regenerates with a notice or chips
+      shown inactive (E6-R2); Sumario aguardando envio stops counting com erro photos;
+      a test on which picture the viewer shows"
+    owner: "Epic 7 carry-over batch (dev)"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
+  - id: "epic-6-retro-item-57-e6-a7-process-and-structure-retarget-stacked-p"
+    epic: 6
+    action: "E6-A7 Process and structure: retarget stacked PRs with --base main after
+      the first merges; every narrowing in deferred-work.md also gets a dated line
+      under its story in epics.md; split ficha-surface.tsx (704 lines) when next touched;
+      keep the carry-over-first batch in each epic"
+    owner: "coordinator (batch instruction file); dev for the split"
+    status: open
+    ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
