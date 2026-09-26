@@ -5,7 +5,7 @@ created: '2026-09-26'
 status: 'done'
 baseline_revision: '1582cddadfc18cac787efb0f86995fd2fb163151'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: high
 context:
@@ -170,3 +170,14 @@ Layers: Edge Case Hunter and Verification Gap Reviewer. Blind Hunter and Intent 
   - `[low]` `[patch]` ECH: `removePhoto` rejection unhandled — `.catch` added.
   - `[low]` `[reject]` ECH: a double tap on Confirmar queues two idempotent batches — same values, no state harm; a guard adds in-flight state.
   - `[medium]` `[defer]` ECH: a manufacturer typed over a guess is written without a registry row — the "Criar ⟨nome⟩?" path is Story 8.5/8.6 (batches R/P).
+
+## Auto Run Result
+
+Status: done
+
+- Summary: the suggestion contract is complete (contract 5: `suggestionPath`, `hint`, device photo creates carrying `reading_kind`/`reading_target`/`reading_status: queued`, the client refusal of any other `reading_status`); the kernel module `relatorio/suggestions.ts` holds every rule, op builder and text; the nameplate group renders fill (suggested/verify), replace and confirmed states with crop, Confirmar, Confirmar todos, typing discards and the viewer zoomed on `bbox`; the device auto-confirms equal suggestions after a pull (writing the engineer's own value back with provenance); progress, tree counters, Home resume and the Sumário count only live pending rows.
+- Files: kernel (`suggestions.ts`, `progress.ts`, `tree.ts`, `resume.ts`, `ficha.ts`, `counts.ts`, `entities.ts`, `path.ts`, `version.ts`), api (`sync/apply.ts`, `suggestion.integration.test.ts`), web (`suggestion-store.ts`, `engine.ts`, `state/sync.tsx`, `suggestion-field.tsx`, `crop-thumb.tsx`, `nameplate-suggestions.tsx`, `nameplate-section.tsx`, `photo-viewer.tsx`, `file-commit.ts`, `file-store.ts`, `home-store.ts`, Sumário/tree/rail/home surfaces, copy, `app.css`), e2e (`suggestions.spec.ts`, `push-server-ops.ts` `pushSuggestion`).
+- Review: 19 findings; 11 patched, 4 deferred (frontmatter `deferred` and `deferred-work.md`), 4 low rejected with the reasons above.
+- Follow-up review recommended: true (two or more medium entries patched on a first pass). Unverified risk: the stable `NameplateField` wrapper and the Enter refocus retry were written in the fix pass and are exercised only by the e2e walk, not re-reviewed.
+- Verification: `e2e/suggestions.spec.ts` 9 passed; `pnpm test:e2e:full` 209 passed, 4 skipped, 0 failed (1662 s); `pnpm verify` output in the PR body (a first run failed on two web unit tests outside this story while another batch's tools container ran concurrently; both files pass alone).
+- Residual risks: the deferred items above; the Sync status lines, pre-issue row, plate tile and "Criar ⟨nome⟩?" are later batches' (P, R).
