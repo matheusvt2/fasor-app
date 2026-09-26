@@ -42,7 +42,7 @@ describe('E6-R2 the Caption composer chips while "Editar texto" is on', () => {
     const { dialog, chips, onSave } = renderComposer(typed);
     const text = within(dialog).getByRole('textbox', { name: 'Texto da legenda' });
     expect(text).toHaveValue(typed);
-    expect(within(dialog).getByText(NOTE)).toBeVisible();
+    expect(dialog.querySelector('.caption-edit-note')).toHaveTextContent(NOTE);
     expect(chips().length).toBeGreaterThan(0);
     for (const chip of chips()) {
       expect(chip).toHaveAttribute('aria-disabled', 'true');
@@ -64,7 +64,7 @@ describe('E6-R2 the Caption composer chips while "Editar texto" is on', () => {
     const { dialog, chips } = renderComposer('Legenda escrita à mão');
     const toggle = within(dialog).getByRole('button', { name: 'Editar texto' });
     await userEvent.click(toggle);
-    expect(within(dialog).queryByText(NOTE)).toBeNull();
+    expect(within(dialog).queryAllByText(NOTE)).toEqual([]);
     for (const chip of chips()) expect(chip).not.toHaveAttribute('aria-disabled');
     const atividade = within(dialog).getByRole('group', { name: 'Atividade' });
     expect(within(atividade).getByRole('button', { name: 'verificação de contatos' })).toHaveAttribute('aria-pressed', 'true');
@@ -74,13 +74,40 @@ describe('E6-R2 the Caption composer chips while "Editar texto" is on', () => {
     expect(dialog.querySelector('.caption-preview')).toHaveTextContent(rebuilt!);
 
     await userEvent.click(toggle);
-    expect(within(dialog).getByText(NOTE)).toBeVisible();
+    expect(dialog.querySelector('.caption-edit-note')).toHaveTextContent(NOTE);
     for (const chip of chips()) expect(chip).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('from 1280 px the row is a Combobox: disabled with the note as its reason, and typing into it changes no part', async () => {
+    const typed = 'Legenda escrita à mão pela equipe';
+    const { dialog, onSave } = renderComposer(typed);
+    const combo = within(dialog).getByRole('combobox', { name: 'Atividade' });
+    expect(combo).toHaveAttribute('aria-disabled', 'true');
+    expect(combo.getAttribute('aria-describedby')).not.toBeNull();
+    expect(document.getElementById(combo.getAttribute('aria-describedby')!)).toHaveTextContent(NOTE);
+    await userEvent.type(combo, 'limpeza');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Salvar legenda' }));
+    expect(onSave).toHaveBeenCalledWith(typed, prefill);
+  });
+
+  it('an "Outro…" field opened before "Editar texto" is read-only while it is on', async () => {
+    const { dialog, onSave } = renderComposer(composeCaption(prefill));
+    const atividade = within(dialog).getByRole('group', { name: 'Atividade' });
+    await userEvent.click(within(atividade).getByRole('button', { name: 'Outro…' }));
+    const outro = within(dialog).getByRole('textbox', { name: 'Outra atividade' });
+    await userEvent.type(outro, 'termografia');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Editar texto' }));
+    expect(outro).toHaveAttribute('readonly');
+    await userEvent.type(outro, ' extra');
+    expect(outro).toHaveValue('termografia');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Salvar legenda' }));
+    const [, parts] = onSave.mock.calls[0]! as [string | null, CaptionParts];
+    expect(parts.atividade?.name).toBe('termografia');
   });
 
   it('a caption the rows compose opens on the rows, chips active, no note', () => {
     const { dialog, chips } = renderComposer(composeCaption(prefill));
-    expect(within(dialog).queryByText(NOTE)).toBeNull();
+    expect(within(dialog).queryAllByText(NOTE)).toEqual([]);
     for (const chip of chips()) expect(chip).not.toHaveAttribute('aria-disabled');
   });
 });

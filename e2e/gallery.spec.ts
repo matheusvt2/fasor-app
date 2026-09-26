@@ -426,7 +426,7 @@ test('@p0 6.5-E2E-001 "Legendar" on a sheet tile: prefilled chips, agreement on 
   // pressing one (from the keyboard: Playwright never clicks an `aria-disabled` control) changes nothing.
   const chip = group('Atividade').getByRole('button', { name: 'limpeza e reaperto' });
   await expect(chip).toHaveAttribute('aria-disabled', 'true');
-  await expect(composer.getByText('Texto editado à mão. Desligue Editar texto para montar pelas opções.')).toBeVisible();
+  await expect(composer.locator('.caption-edit-note')).toHaveText('Texto editado à mão. Desligue Editar texto para montar pelas opções.');
   await chip.focus();
   await page.keyboard.press('Enter');
   await expect(text).toHaveValue(typed);
@@ -700,7 +700,7 @@ test('@p1 6.5-E2E-004 E6-R2: a caption typed by hand opens in "Editar texto" wit
   // Reopened: free text, every chip inactive and none pressed, the note says why.
   await tile.getByRole('button', { name: /^(Legendar|Editar legenda)$/ }).click();
   await expect(composer.getByRole('button', { name: 'Editar texto' })).toHaveAttribute('aria-pressed', 'true');
-  await expect(composer.getByText('Texto editado à mão. Desligue Editar texto para montar pelas opções.')).toBeVisible();
+  await expect(composer.locator('.caption-edit-note')).toHaveText('Texto editado à mão. Desligue Editar texto para montar pelas opções.');
   const chips = composer.locator('.caption-part .chip-row .chip');
   expect(await chips.count()).toBeGreaterThan(0);
   for (const chip of await chips.all()) {

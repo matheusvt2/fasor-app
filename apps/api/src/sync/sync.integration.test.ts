@@ -524,8 +524,8 @@ describe('1.5-API-002 idempotency and monotonic seq', () => {
   });
 });
 
-describe('E6-A1 a push is one transaction, each op in its own savepoint', () => {
-  it('a row-schema refusal in the middle rolls back only that op: the ops before and after it land with ascending seqs', async () => {
+describe('E6-A1 a push is one transaction under one company lock; a refused op leaves nothing behind', () => {
+  it('a row-schema refusal in the middle removes only that op: the ops before and after it land with ascending seqs', async () => {
     const relatorioId = newId();
     const create = relatorioCreate(idsA, relatorioId, newId());
     const before = setupPut(idsA, relatorioId, 'local', 'Galpao 7');

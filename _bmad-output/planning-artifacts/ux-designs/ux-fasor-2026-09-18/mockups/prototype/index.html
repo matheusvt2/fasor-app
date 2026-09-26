@@ -1811,7 +1811,7 @@ Verificar simultaneidade da abertura e do fechamento das fases; verificar o esta
 [data-route="/ficha/:tag"] .ficha-anchor-slot:first-child { margin-top: 0; margin-bottom: calc(-1 * var(--sp-6)); }
 [data-route="/ficha/:tag"] .ficha-anchor { position: absolute; left: 0; top: 0; width: 1px; height: 700px; opacity: 0; pointer-events: none; }
 [data-route="/ficha/:tag"] .section-stepper .step { cursor: pointer; }
-[data-route="/ficha/:tag"] .section-stepper .step.is-current, [data-route="/ficha/:tag"] .section-stepper:not(:has(.is-current)) .step[aria-current] { color: var(--section-stepper-current-foreground); border-bottom: var(--section-stepper-current-rule); font-weight: 600; }
+[data-route="/ficha/:tag"] .section-stepper .step.is-current, [data-route="/ficha/:tag"] .section-stepper:not(:has(.is-current)) .step[aria-current] { color: var(--section-stepper-current-foreground); font-weight: 600; }   /* no v0.8 3px border-bottom: the 4px ::after of components.css is the one current mark (2026-09-26, DESIGN.md v0.9 stepper row) */
 [data-route="/ficha/:tag"] .section-stepper:has(.is-current) .step[aria-current]:not(.is-current) { color: var(--section-stepper-step-foreground); border-bottom-color: transparent; font-weight: 400; }
 /* "Da cabine" label on the CB-ENT blocks */
 [data-route="/ficha/:tag"] .ficha-da-cabine { display: inline-flex; align-items: center; gap: var(--sp-1); min-height: 28px; padding: 0 var(--sp-3); border: 1.5px solid var(--border-strong); border-radius: var(--r-full); font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: var(--ink-secondary); white-space: nowrap; }

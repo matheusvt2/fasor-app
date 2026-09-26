@@ -298,7 +298,9 @@ function PartRow({
               ref={otherInput}
               className="input"
               value={typed}
+              readOnly={inactive}
               onChange={(event) => {
+                if (inactive) return;
                 setTyped(event.target.value);
                 onChange(event.target.value.trim() === '' ? null : event.target.value);
               }}
@@ -312,6 +314,8 @@ function PartRow({
           options={comboOptions}
           selectedKey={selectedKey}
           inputValue={query}
+          isDisabled={inactive}
+          {...(inactive ? { disabledReason: t.editingNote } : {})}
           onInputChange={(next) => {
             setQuery(next);
             onChange(next.trim() === '' ? null : next);

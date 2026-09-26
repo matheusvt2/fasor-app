@@ -87,7 +87,7 @@ function FichaBody({
   // E12-A7: only the steps whose sub-block is on; the header sentence names only these.
   const shownSteps = useMemo(() => shownSheetSteps(block, { cabineFirst }), [block, cabineFirst]);
   const bulk = useChecklistBulk(api, snapshot, block, equipment);
-  const { current, focusIn, stepClass, goTo } = useFichaSteps(progress);
+  const { current, focusIn, stepClass, goTo } = useFichaSteps(progress, shownSteps);
   const photos = useFichaPhotos({ relatorioId, snapshot, block, current, db, api, showToast });
   const { photoTarget, sheetCamera, checklistPhotos, setImportTarget, fichaMain, dragging } = photos;
   const { checklistEl, showMirror } = useChecklistMirror(block, definition, bulk);

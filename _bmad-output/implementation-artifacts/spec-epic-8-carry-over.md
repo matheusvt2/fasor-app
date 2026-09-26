@@ -2,7 +2,7 @@
 title: 'Epic 8 carry-over: sync push under overlap, gate workers, Epic 6 and 12 follow-ups'
 type: 'bugfix'
 created: '2026-09-26'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '8c9527cd48e45d6b0c0e79febac21138b78e2125'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -128,6 +128,27 @@ deferred: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-09-26 — Review pass
+- layers run: Edge Case Hunter, Verification Gap; Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them)
+- verdicts: 16 findings — high 0, medium 7, low 6, false 3, maybe-false 0 (grouped into 4 medium entries patched, 3 low patched, 3 low rejected, 3 false rejected)
+- findings:
+  - `[medium]` `[patch]` VG: the point editor's post-commit draft drop is unverified; removing it would offer every saved point back as a draft — patched: `@p0` e2e type, wait for draft, Concluir, reload, no `point` draft row and no "Rascunho encontrado".
+  - `[medium]` `[patch]` VG: the sheet's use of `shownSheetSteps` (header and stepper) has no test — patched: test on a block with nameplate off, not the cabine's first sheet.
+  - `[low]` `[patch]` VG: the acronym rule of `readingLabelText`/`sentenceCase` is unpinned (TP table header "TAP Nº") — patched: kernel expectations added.
+  - `[medium]` `[patch]` VG: the 1280 px Combobox and the "Outro…" input stay live in "Editar texto" (E6-R2 symptom on desktop) — grouped with ECH 1 and 2; patched: Combobox `isDisabled` with the note as reason, Outro input read-only, unit test.
+  - `[medium]` `[patch]` VG other: on a complete sheet with Placa hidden, `current` starts on the hidden `placa` so no step is `aria-current` — grouped with ECH 3; patched: start on the first shown step.
+  - `[low]` `[reject]` VG other: Sumário `photoErrors` wiring is covered end to end only by `@p1` 6.2-E2E-006 — secondary AC, `@p1` is the playbook's level for it and `test:e2e:full` runs before the PR; kernel side unit-tested.
+  - `[low]` `[patch]` VG other: `sync.integration.test.ts:527` title says savepoint, the code uses none — grouped with ECH 6 (title half); patched: retitled.
+  - `[medium]` `[patch]` ECH: Combobox live while editing — see the VG row above.
+  - `[medium]` `[patch]` ECH: Outro input editable while chips read disabled — see the VG row above.
+  - `[medium]` `[patch]` ECH: `use-ficha-steps.ts:42` default current step hidden — see the VG row above.
+  - `[low]` `[reject]` ECH: a deterministic non-permanent error (DB constraint, TypeError) mid-push now rolls the whole push back, where the ops before it used to land — real but the device outbox is stuck at the same poison op either way (no ack before), a poison op is a bug of this codebase, and the fix (a per-op fallback path) adds a branch; listed as known-open in the PR.
+  - `[false]` `[reject]` ECH: test-reset integration test fails without `pgboss.job` — `test:api` runs against the compose Postgres where the api service has already started pg-boss (the test passed in `verify`); guarding it would silently skip the assertion.
+  - `[false]` `[reject]` ECH claim: a permanent refusal after an entity write commits partial rows — `rowIndexColumns`/`rowRemovedAt` are pure and never throw; every permanent refusal (`applyOp` ZodError/SeedPathError, ForeignOpIdError) precedes the upserts (`apply.ts` `applyOneIn`).
+  - `[low]` `[reject]` ECH claim: `readingLabelText` splits on spaces only, so a leading lowercase-form acronym or a punctuated one ("(KV)") differs from `screenLabel` — no seed reading label or title hits either case (`seed/v1.ts` grep); tokenizing like `screenLabel` would add complexity for no present label.
+  - `[false]` `[reject]` ECH claim: AC "no file in `surfaces/ficha/` exceeds about 300 lines" fails on pre-existing files — the intent is the split of `ficha-surface.tsx` (every new module is under 250 lines); the fix would be a spec edit.
+  - `[low]` `[patch]` ECH: the prototype page CSS (`60-ficha.html:42`, `prototype/index.html:1814`) still draws the v0.8 current-step border — patched: declaration removed in both.
 
 ## Design Notes
 

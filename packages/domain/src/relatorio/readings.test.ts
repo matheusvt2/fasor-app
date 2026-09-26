@@ -275,6 +275,24 @@ describe('5.5-UNIT evaluateSheetReadings', () => {
     expect(readingLabelText('H1-H2 / X1-X2')).toBe('H1-H2 / X1-X2');
     expect(readingLabelText("TP's")).toBe("TP's");
   });
+
+  it('E12-A7 keeps the screen acronyms as screenLabel does, in labels, headers and table titles', () => {
+    expect(readingLabelText('TAP Nº')).toBe('TAP Nº');
+    // Not the first word, and written in a case the screen form corrects.
+    expect(readingLabelText('TENSÃO KV')).toBe('Tensão kV');
+    expect(readingLabelText('CLASSE kv')).toBe('Classe kV');
+    // The transformer's ratio table: its typed connection column reads "TAP Nº".
+    const trafo = getDefinition('v1', 'cabine_primaria', 'transformador_forca');
+    const ratio = evaluateSheetReadings(block('transformador_forca'), trafo).find((t) => t.testKey === 'relacao_transformacao')!;
+    expect(ratio.tables[0]!.connectionHeaders).toEqual(['TAP Nº']);
+    // A table title is sentence-cased with the same rule.
+    const titled = {
+      ...SEC,
+      tests: SEC.tests.map((t) => (t.key === 'isolacao' ? { ...t, tables: t.tables.map((table, i) => (i === 0 ? { ...table, title: 'SECCIONADORA TP CONTATO ABERTO' } : table)) } : t)),
+    };
+    const iso = evaluateSheetReadings(block('chave_seccionadora'), titled).find((t) => t.testKey === 'isolacao')!;
+    expect(iso.tables[0]!.title).toBe('Seccionadora TP contato aberto');
+  });
 });
 
 describe('5.6-UNIT the continuous run', () => {

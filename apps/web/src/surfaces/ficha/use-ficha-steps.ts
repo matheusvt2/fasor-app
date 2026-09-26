@@ -32,14 +32,19 @@ export interface FichaSteps {
   goTo: (step: SheetStep, missing: boolean) => void;
 }
 
-export function useFichaSteps(progress: SheetProgress): FichaSteps {
+export function useFichaSteps(progress: SheetProgress, shown: readonly SheetStep[]): FichaSteps {
   // --- the steps: the current one, the ones left complete (collapsed), the jump -----------
   // D-2 (`source-deltas.md` 2026-09-24): a complete section collapses when the engineer
   // leaves it (a stepper tap, or the keyboard -- Tab, the Enter run -- moving the focus into
   // another section), never in reaction to a tap: a pointer focus arriving in another
   // section makes it current but leaves the previous one open, and a section holding a
   // reading out of its criterion never collapses (`stepMayCollapse`, the kernel's rule).
-  const [current, setCurrentStep] = useState<SheetStep>(() => progress.firstIncompleteStep ?? 'placa');
+  // E12-A7: it starts on a step the stepper shows (`shownSheetSteps`): the first incomplete
+  // one, else the first shown, never a step whose sub-block is off.
+  const [current, setCurrentStep] = useState<SheetStep>(() => {
+    const first = progress.firstIncompleteStep;
+    return first !== null && shown.includes(first) ? first : (shown[0] ?? 'placa');
+  });
   const [left, setLeft] = useState<ReadonlySet<SheetStep>>(() => new Set());
   const setCurrent = useCallback(
     (step: SheetStep, leaving: boolean) => {

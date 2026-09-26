@@ -482,6 +482,30 @@ test('@p0 6.6-E2E-013 E6-R1: a point typed and reloaded with no hide event first
     .toEqual([]);
 });
 
+test('@p0 6.6-E2E-014 E6-R1: the draft written while typing is dropped once the point is stored; a reload offers nothing', async ({ page }) => {
+  test.setTimeout(150_000);
+  const { row } = await openNcRow(page);
+  await row.getByRole('button', { name: 'Criar ponto de atenção' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Criar ponto de atenção' });
+  await expect(textArea(dialog)).toBeFocused();
+  await page.keyboard.type('Isolador trincado');
+  const pointDrafts = async () => (await readStore<{ surface: string; value: { text?: string } }>(page, database, 'drafts')).filter((draft) => draft.surface === 'point');
+  // The typing-time draft is there first...
+  await expect.poll(async () => (await pointDrafts()).map((draft) => draft.value.text)).toContain('Isolador trincado');
+  await dialog.getByRole('button', { name: 'Concluir' }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect.poll(async () => (await storedPoints(page)).map((point) => point.text)).toEqual(['Isolador trincado']);
+  // ...and the stored commit drops it: nothing is left to offer.
+  await expect.poll(pointDrafts).toEqual([]);
+
+  await page.reload();
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  // The launch reads the drafts store once; give the offer the time it would take to show.
+  await page.waitForTimeout(1_500);
+  await expect(page.getByTestId('toast').filter({ hasText: 'Rascunho encontrado' })).toHaveCount(0);
+  expect(await pointDrafts()).toEqual([]);
+});
+
 test('@p1 6.6-E2E-012 E6-Q2: a stored point edited on the Points surface and reloaded before its autosave is offered back; "Recuperar" writes one text put', async ({ page }) => {
   test.setTimeout(150_000);
   let point: PointRow | null = null;
