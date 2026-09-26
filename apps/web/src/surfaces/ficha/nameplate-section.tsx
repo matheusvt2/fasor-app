@@ -22,7 +22,7 @@ import type { FichaApi } from './ficha-api.ts';
 import { ReadOnlyField, SheetField } from './ficha-fields.tsx';
 import { createWordOp, nameplateOp } from './ficha-ops.ts';
 import type { PhotoTile } from '../../db/photo-store.ts';
-import { ConfirmedField, ReplaceLine, SuggestionFill, SuggestionGroupHead, useNameplateSuggestions } from './nameplate-suggestions.tsx';
+import { NameplateField, ReplaceLine, SuggestionFill, SuggestionGroupHead, useNameplateSuggestions } from './nameplate-suggestions.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
 
 /*
@@ -155,12 +155,12 @@ export function NameplateSection({
               after={after}
             />
           );
-          return source === null ? (
-            sheetField
-          ) : (
-            <ConfirmedField key={field.key} model={suggestions} field={field} source={source}>
+          // One wrapper for every field, confirmed or not, so the field keeps its place in the
+          // tree when a typed correction clears the provenance mid-typing (no remount).
+          return (
+            <NameplateField key={field.key} model={suggestions} field={field} source={source}>
               {sheetField}
-            </ConfirmedField>
+            </NameplateField>
           );
         })}
       </div>

@@ -1,4 +1,4 @@
-import { railHeadText, sheetOrder, type EquipmentRow, type RelatorioSnapshot } from '@app/domain';
+import { railHeadText, sheetOrder, type EquipmentRow, type RelatorioSnapshot, type SuggestionRow } from '@app/domain';
 import { useMemo, useRef } from 'react';
 import { copy } from '../../copy/pt-br.ts';
 import type { RelatorioEditor } from '../relatorio/relatorio-editor.ts';
@@ -16,6 +16,7 @@ export function FichaRail({
   blockId,
   editor,
   onRail,
+  pending,
 }: {
   relatorioId: string;
   projectId: string;
@@ -24,6 +25,8 @@ export function FichaRail({
   blockId: string;
   editor: RelatorioEditor;
   onRail: (rail: RailState) => void;
+  /** Story 8.1: the device's pending suggestion rows, for the tree's counters. */
+  pending?: readonly SuggestionRow[];
 }) {
   // --- the rail -------------------------------------------------------------------------
   const railT = copy.sumario.rail;
@@ -76,7 +79,7 @@ export function FichaRail({
             </svg>
           </button>
         </div>
-        <RelatorioTree presentation="rail" snapshot={snapshot} equipment={equipment} lastSheetId={blockId} expandToLastSheet context={treeContext} />
+        <RelatorioTree presentation="rail" snapshot={snapshot} equipment={equipment} lastSheetId={blockId} expandToLastSheet context={treeContext} {...(pending === undefined ? {} : { pending })} />
       </aside>
     </>
   );

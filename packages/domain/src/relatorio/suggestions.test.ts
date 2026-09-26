@@ -21,6 +21,7 @@ import {
   discardSuggestionOp,
   fichasComSugestoesText,
   fieldInputText,
+  livePendingSuggestions,
   nameplateSuggestions,
   parseFieldInput,
   pendingByNameplateField,
@@ -127,6 +128,8 @@ describe('8.1-UNIT the suggestion row and its ops', () => {
     const auto = confirmSuggestionOps(AUTHOR, row, { auto: true });
     expect(auto[0]!.meta).toEqual({ auto: true });
     expect(auto[1]!.meta).toEqual({ source_suggestion_id: row.id, auto: true });
+    // The auto path writes the engineer's own value back, never the reading's spelling.
+    expect(confirmSuggestionOps(AUTHOR, row, { auto: true, value: '15 kV' })[1]!.value).toBe('15 kV');
     // Each draft is a valid op once stamped.
     for (const draft of [...auto, discardSuggestionOp(AUTHOR, row)]) {
       expect(opSchema.safeParse({ ...draft, op_id: sid(), device_id: 'd', client_ts: '2026-09-26T10:00:00.000Z' }).success).toBe(true);
@@ -357,6 +360,11 @@ describe('8.1-UNIT progress over the device pending rows', () => {
     expect(progress({ blocks, suggestions: [] }, [])).toMatchObject({ sheets_concluded: 2, suggestions_pending: 0 });
     expect(cabineSheetsProgress({ blocks, locations: [cabine], suggestions: [] }, LOC, pending)).toMatchObject({ sheets_concluded: 1, suggestions_pending: 2 });
     expect(locationProgress({ blocks, locations: [cabine] }, LOC, pending)).toMatchObject({ sheets_concluded: 1, suggestions_pending: 2 });
+    // A pending row on a removed block, or on a block the snapshot does not hold, counts nothing and holds nothing.
+    const removed = { ...concluded(OTHER_BLOCK), removed_at: '2026-09-26T11:00:00.000Z' };
+    const stale = [suggestion('tipo', 'X', { target_path: `sheet/${OTHER_BLOCK}/nameplate/tipo` }), suggestion('tipo', 'Y', { target_path: `sheet/019966b0-0081-7000-8000-0000000000ef/nameplate/tipo` })];
+    expect(progress({ blocks: [concluded(BLOCK), removed], suggestions: [] }, stale)).toMatchObject({ sheets_concluded: 1, suggestions_pending: 0 });
+    expect(livePendingSuggestions([concluded(BLOCK), removed], [...stale, pending[0]!]).map((row) => row.id)).toEqual([pending[0]!.id]);
     // A pending row of a block outside the location is not its own.
     const elsewhere = [suggestion('n_serie', 'SU1', { target_path: `sheet/019966b0-0081-7000-8000-0000000000ee/nameplate/n_serie` })];
     expect(locationProgress({ blocks, locations: [cabine] }, LOC, elsewhere)).toMatchObject({ sheets_concluded: 2, suggestions_pending: 0 });
@@ -371,5 +379,8 @@ describe('8.1-UNIT the Sumário count leads to the first sheet holding a pending
     expect(firstSheetWithPendingSuggestions(snapshot, [at(10), at(3)])).toBe(order[3]);
     expect(firstSheetWithPendingSuggestions(snapshot, [at(3, 'confirmed'), at(10)])).toBe(order[10]);
     expect(firstSheetWithPendingSuggestions(snapshot, [])).toBeNull();
+    // A pending row on a block the snapshot does not hold never leads anywhere.
+    const gone = suggestion('fabricacao', 'x', { target_path: `sheet/019966b0-0081-7000-8000-0000000000ee/nameplate/fabricacao` });
+    expect(firstSheetWithPendingSuggestions(snapshot, [gone])).toBeNull();
   });
 });

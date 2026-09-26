@@ -9,7 +9,7 @@ import { sortWordRegistryRows, type WordRow } from '../registry/word-row.ts';
 import { plural } from '../text/plural.ts';
 import { checklistResultOf } from './sheet-progress.ts';
 import { isCellFilled } from './sheet-state.ts';
-import { blocksWithPendingSuggestions } from './suggestions.ts';
+import { blocksWithPendingSuggestions, livePendingSuggestions } from './suggestions.ts';
 import { locationTree, siblingLocations, treeNodes, type TreeEquipmentNode } from './tree.ts';
 
 /*
@@ -35,7 +35,7 @@ export function firstSheetWithPendingSuggestions(
   snapshot: Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment'>,
   pending: readonly SuggestionRow[],
 ): string | null {
-  const held = blocksWithPendingSuggestions(pending);
+  const held = blocksWithPendingSuggestions(livePendingSuggestions(snapshot.blocks, pending));
   return sheetOrder(snapshot).find((node) => held.has(node.blockId))?.blockId ?? null;
 }
 

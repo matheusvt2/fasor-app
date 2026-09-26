@@ -215,6 +215,29 @@ test('@p0 8.1-E2E-003 typing over a suggested guess writes the typed value and d
   expect(rows.some((row) => row.path === `suggestion/${sid.fabricacao}/status`)).toBe(false);
 });
 
+test('@p0 8.1-E2E-009 an edited guess confirmed with its "Confirmar" writes the typed value and discards the suggestion, never confirms it', async ({ page }) => {
+  test.setTimeout(180_000);
+  const ids = await openChaveSheet(page, account, database);
+  const sid = await suggest(page, ids, { n_serie: { value: 'SU1240998' }, tipo: { value: 'Manual' } });
+
+  const serie = suggestionOf(page, 'n_serie');
+  await serie.locator('input.sv').fill('SU1240999');
+  await serie.getByRole('button', { name: 'Sugerido, SU1240998, confirmar' }).click();
+
+  await expect.poll(async () => (await outbox(page)).filter((row) => row.path === `suggestion/${sid.n_serie}/status`).length).toBe(1);
+  const rows = await outbox(page);
+  const statuses = rows.filter((row) => row.path === `suggestion/${sid.n_serie}/status`);
+  expect(statuses.map((row) => row.value)).toEqual(['discarded']);
+  const typed = rows.filter((row) => row.path === `sheet/${ids.blockId}/nameplate/n_serie`);
+  expect(typed.map((row) => row.value)).toEqual(['SU1240999']);
+  expect(typed[0]!.meta ?? null).toBeNull();
+  expect(typed[0]!.batch_id).toBe(statuses[0]!.batch_id);
+  await expect(field(page, 'n_serie').locator('input')).toHaveValue('SU1240999');
+  expect((await cell(page, ids.blockId, 'n_serie'))?.source_suggestion_id ?? null).toBeNull();
+  await expect(page.locator('#ficha-nameplate .ficha-suggestion-confirmed')).toHaveCount(0);
+  expect(await suggestionStatus(page, sid.tipo!)).toBe('pending');
+});
+
 test('@p0 8.1-E2E-004 a filled field receiving a different suggestion keeps its value and offers Substituir, which writes the confirm batch', async ({ page }) => {
   test.setTimeout(180_000);
   const ids = await openChaveSheet(page, account, database);
@@ -257,6 +280,10 @@ test('@p0 8.1-E2E-005 a filled field receiving an equal suggestion is confirmed 
   await expect.poll(async () => (await cell(page, ids.blockId, 'n_serie'))?.source_suggestion_id).toBe(sid.n_serie);
   const auto = (await outbox(page)).filter((row) => row.meta?.auto === true);
   expect(auto.map((row) => row.path).sort()).toEqual([`sheet/${ids.blockId}/nameplate/n_serie`, `suggestion/${sid.n_serie}/status`].sort());
+  // The engineer's own value is written back as typed, never the reading's spelling of it.
+  expect(auto.find((row) => row.path === `sheet/${ids.blockId}/nameplate/n_serie`)!.value).toBe('ABC123');
+  expect((await cell(page, ids.blockId, 'n_serie'))?.value).toBe('ABC123');
+  await expect(field(page, 'n_serie').locator('input')).toHaveValue('ABC123');
   expect(new Set(auto.map((row) => row.batch_id)).size).toBe(1);
   expect(await suggestionStatus(page, sid.n_serie!)).toBe('confirmed');
   // No tap was asked for: no Suggestion field, no replace line; the glyph shows.
@@ -307,7 +334,7 @@ test('@p1 8.1-E2E-007 the nameplate with suggestions fits 390 px without a sidew
   }
 });
 
-test('@p1 8.1-E2E-008 the crop of a photo on this device draws the picture and opens the Photo viewer zoomed on its region', async ({ page }) => {
+test('@p0 8.1-E2E-008 the crop of a photo on this device draws the picture and opens the Photo viewer zoomed on its region, before and after Confirmar', async ({ page }) => {
   test.setTimeout(180_000);
   const ids = await openChaveSheet(page, account, database);
   const add = page.locator('.sticky-action-bar').getByRole('button', { name: 'Adicionar fotos' });
@@ -324,6 +351,17 @@ test('@p1 8.1-E2E-008 the crop of a photo on this device draws the picture and o
   await expect(crop.locator('img[alt="Recorte da placa"]')).toBeVisible();
   await crop.click();
   const viewer = page.getByRole('dialog', { name: 'Foto 1 de 1' });
+  await expect(viewer).toBeVisible();
+  await expect(viewer.locator('svg.viewer-zoom[data-zoom="0.2,0.3,0.6,0.45"] .viewer-zoom-region')).toBeVisible();
+  await viewer.getByRole('button', { name: 'Fechar' }).click();
+  await expect(viewer).toHaveCount(0);
+
+  // Confirmed, the crop is the 24 px glyph beside the field, and its tap opens the same zoom.
+  await suggestionOf(page, 'fabricacao').getByRole('button', { name: 'Sugerido, Schneider, confirmar' }).click();
+  const glyph = page.locator('#ficha-nameplate .ficha-suggestion-confirmed[data-state="confirmed"] .crop-thumb');
+  await expect(glyph).toBeVisible();
+  expect(Math.round((await glyph.boundingBox())!.width)).toBe(24);
+  await glyph.click();
   await expect(viewer).toBeVisible();
   await expect(viewer.locator('svg.viewer-zoom[data-zoom="0.2,0.3,0.6,0.45"] .viewer-zoom-region')).toBeVisible();
   await viewer.getByRole('button', { name: 'Fechar' }).click();

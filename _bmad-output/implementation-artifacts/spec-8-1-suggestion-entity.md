@@ -2,7 +2,7 @@
 title: 'Story 8.1: A Suggestion is an entity nobody can write without a tap'
 type: 'feature'
 created: '2026-09-26'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '1582cddadfc18cac787efb0f86995fd2fb163151'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -125,3 +125,27 @@ deferred: []
 - `docker compose --profile tools run --rm tools pnpm test:api` -- includes `suggestion.integration.test.ts`.
 - `docker compose --profile tools run --rm tools pnpm exec playwright test e2e/suggestions.spec.ts` (through the repo's e2e runner if required; see AGENTS.md) -- green.
 - `flock /tmp/fasor-verify.lock docker compose --profile tools run --rm tools pnpm verify` -- green (run by the orchestrator).
+
+### 2026-09-26 — Review pass
+Layers: Edge Case Hunter and Verification Gap Reviewer. Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 19 findings — high 0, medium 9, low 9, false 0, maybe-false 1
+- findings:
+  - `[medium]` `[patch]` VG: tree cabine/coluna counters (`tree.ts` `locationTree`) and Home resume (`resume.ts`) ignore pending rows, disagreeing with the Sumário header — pass `pending` through and wire callers; tree test added.
+  - `[medium]` `[patch]` VG: edit-then-Confirmar, blur and clear of a guess untested — `@p0` e2e case added for edit-then-Confirmar.
+  - `[medium]` `[patch]` VG: confirmed glyph tap and zoomed viewer covered nowhere in `@p0` — glyph tap step added to a `@p0` test; the Sumário count navigation stays `@p1` (run at the retrospective).
+  - `[medium]` `[patch]` VG other: auto-confirm writes the suggestion's value over the engineer's own normalized-equal value — the auto path now writes the existing cell value with the provenance meta.
+  - `[maybe-false]` `[defer]` VG other: crop original re-downloaded on every mount when the id already holds a thumb blob — would be medium if photo thumbs land in `files`; settle by checking whether any path stores a photo thumb under `files` (tiles use `thumbs`).
+  - `[low]` `[patch]` ECH: rAF refocus after Enter can land on the unmounting fill — query the plain field only.
+  - `[medium]` `[patch]` ECH: `ConfirmedField` wrapper switch remounts `SheetField` mid-typing — one stable wrapper.
+  - `[low]` `[patch]` ECH: `written` set before the edit resolves — set from the edit outcome.
+  - `[medium]` `[defer]` ECH: a pending suggestion whose view later becomes `none` (a copy chip wrote an equal value) stays pending with no UI; auto-confirm only runs over pulled creates — owner batch P (typed-first exclusion, Story 8.2/8.6).
+  - `[low]` `[defer]` ECH: an auto-confirm that throws is never retried (cursor passes the create) — same root as the row above.
+  - `[medium]` `[patch]` ECH: pending rows on removed/absent blocks counted forever — count only rows of live snapshot blocks.
+  - `[medium]` `[patch]` ECH: Sumário "sugestões" navigation derived from the unfiltered set — same kernel filter as the count.
+  - `[medium]` `[patch]` ECH: other `progress`/`locationProgress` callers omit `pending` — grouped with the first VG row; Home/Project cards without the relatório state deferred to the integrated review.
+  - `[low]` `[reject]` ECH: a non-normalized bbox draws off-image — the reading job (batch R) emits normalized boxes by contract; a guard adds branches for an input no emitter produces.
+  - `[low]` `[reject]` ECH: `queued` with `reading_target: null` accepted — only `reading_kind` is required by the contract; batch P sends the target.
+  - `[low]` `[reject]` ECH: a failed crop fetch retries only on remount — every sheet re-entry remounts.
+  - `[low]` `[patch]` ECH: `removePhoto` rejection unhandled — `.catch` added.
+  - `[low]` `[reject]` ECH: a double tap on Confirmar queues two idempotent batches — same values, no state harm; a guard adds in-flight state.
+  - `[medium]` `[defer]` ECH: a manufacturer typed over a guess is written without a registry row — the "Criar ⟨nome⟩?" path is Story 8.5/8.6 (batches R/P).

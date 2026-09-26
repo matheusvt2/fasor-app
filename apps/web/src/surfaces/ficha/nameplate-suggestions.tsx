@@ -62,8 +62,11 @@ export interface NameplateSuggestionsModel {
   sourceOf: (suggestionId: string) => SuggestionRow | null;
   confirm: (s: SuggestionRow, field: FieldDef) => void;
   confirmAll: () => void;
-  /** Writes a typed value over a suggestion: the put and this suggestion's discard, one batch. */
-  type: (s: SuggestionRow, field: FieldDef, text: string) => 'written' | 'invalid' | 'unchanged';
+  /**
+   * Writes a typed value over a suggestion: the put and this suggestion's discard, one batch.
+   * A write resolves true once the batch is in, false when nothing was written.
+   */
+  type: (s: SuggestionRow, field: FieldDef, text: string) => Promise<boolean> | 'invalid' | 'unchanged';
   openCrop: (s: SuggestionCrop) => void;
   /** The Photo viewer opened from a crop, zoomed on its region. */
   viewer: ReactNode;
@@ -124,16 +127,16 @@ export function useNameplateSuggestions({
       .catch(() => undefined);
   };
 
-  const type = (s: SuggestionRow, field: FieldDef, text: string): 'written' | 'invalid' | 'unchanged' => {
+  const type = (s: SuggestionRow, field: FieldDef, text: string): Promise<boolean> | 'invalid' | 'unchanged' => {
     if (text === fieldInputText(field, s.value)) return 'unchanged';
     const parsed = parseFieldInput(field, text);
     if (!parsed.ok) return 'invalid';
-    void api
+    return api
       .edit((_blocks, by) =>
         parsed.value === null ? [discardSuggestionOp(by, s)] : [nameplateOp(by, api.relatorioId, block.id, field.key, parsed.value), discardSuggestionOp(by, s)],
       )
-      .catch(() => undefined);
-    return 'written';
+      .then((batch) => batch !== null)
+      .catch(() => false);
   };
 
   // --- the viewer, opened on a crop's region when the photo is on this device -----------
@@ -151,9 +154,13 @@ export function useNameplateSuggestions({
     const author = api.author;
     const number = numbers.get(tile.id) ?? 0;
     setViewing(null);
-    void removePhoto(db, author, api.relatorioId, tile.id).then(() =>
-      showToast(photoRemovedText(number), { action: { label: copy.viewer.undo, onPress: () => void restorePhoto(db, author, api.relatorioId, tile.id) } }),
-    );
+    void removePhoto(db, author, api.relatorioId, tile.id)
+      .then(() =>
+        showToast(photoRemovedText(number), {
+          action: { label: copy.viewer.undo, onPress: () => void restorePhoto(db, author, api.relatorioId, tile.id).catch(() => undefined) },
+        }),
+      )
+      .catch(() => undefined);
   };
   const viewer = (
     <PhotoViewer
@@ -212,22 +219,23 @@ export function SuggestionFill({ model, field, suggestion }: { model: NameplateS
   const valueText = suggestionValueText(field, suggestion.value);
   const isNumber = field.kind === 'number';
   const root = useRef<HTMLDivElement>(null);
-  /** Once a typed value is written, a second blur or tap writes nothing more. */
+  /** While a typed value is being written (and once it is), a second blur or tap writes nothing. */
   const written = useRef(false);
 
   const commit = (refocus: boolean) => {
     if (written.current) return;
     const result = model.type(suggestion, field, text);
-    written.current = result === 'written';
     setInvalid(result === 'invalid');
-    if (result === 'written' && refocus) {
-      // The field becomes the plain one once the discard lands; the focus follows it.
-      requestAnimationFrame(() => {
-        const root = document.querySelector<HTMLElement>(`#ficha-nameplate [data-field-key="${field.key}"]`);
-        const target = root === null ? null : firstFocusable(root);
-        target?.focus();
-      });
-    }
+    if (typeof result === 'string') return;
+    written.current = true;
+    void result.then((ok) => {
+      // A refused or empty write leaves the guess editable again.
+      if (!ok) {
+        written.current = false;
+        return;
+      }
+      if (refocus) focusPlainField(field.key);
+    });
   };
   const invalidText = field.kind === 'number' ? t.invalidNumber : field.kind === 'date' ? t.invalidDate : field.kind === 'voltage_class' ? t.invalidVoltage : t.invalidOption;
   const input = (
@@ -281,6 +289,19 @@ export function SuggestionFill({ model, field, suggestion }: { model: NameplateS
   );
 }
 
+/**
+ * After Enter over a guess: the focus follows the field to its plain form once the discard
+ * has landed and the fill is gone, trying for a few frames (never the fill that unmounts).
+ */
+function focusPlainField(key: string, frames = 10): void {
+  requestAnimationFrame(() => {
+    const root = document.querySelector<HTMLElement>(`#ficha-nameplate [data-field-key="${key}"]:not(.ficha-suggestion)`);
+    const target = root === null ? null : firstFocusable(root);
+    if (target !== null) target.focus();
+    else if (frames > 1) focusPlainField(key, frames - 1);
+  });
+}
+
 /** "Sugerido: 15 kV — Substituir" under a field the engineer filled with another value. */
 export function ReplaceLine({ model, field, suggestion }: { model: NameplateSuggestionsModel; field: FieldDef; suggestion: SuggestionRow }) {
   return (
@@ -293,12 +314,22 @@ export function ReplaceLine({ model, field, suggestion }: { model: NameplateSugg
   );
 }
 
-/** A cell a suggestion filled: the plain field in `data-state="confirmed"`, the crop shrunk to its glyph. */
-export function ConfirmedField({ model, field, source, children }: { model: NameplateSuggestionsModel; field: FieldDef; source: SuggestionRow; children: ReactNode }) {
+/**
+ * The wrapper of every plain nameplate field. A cell a suggestion filled (`source`) shows as
+ * `data-state="confirmed"` with the crop shrunk to its glyph; otherwise only the field. The
+ * element stays the same either way, so the field is never remounted when that changes.
+ */
+export function NameplateField({ model, field, source, children }: { model: NameplateSuggestionsModel; field: FieldDef; source: SuggestionRow | null; children: ReactNode }) {
   return (
-    <div className="suggestion-field ficha-suggestion-confirmed" data-state="confirmed" data-suggestion-id={source.id}>
+    <div
+      className={source === null ? 'ficha-nameplate-field' : 'ficha-nameplate-field suggestion-field ficha-suggestion-confirmed'}
+      data-state={source === null ? undefined : 'confirmed'}
+      data-suggestion-id={source?.id}
+    >
       {children}
-      <CropThumb photoId={source.source.photo_id} bbox={source.source.bbox} label={screenLabel(field.label)} onPress={() => model.openCrop(source)} />
+      {source === null ? null : (
+        <CropThumb photoId={source.source.photo_id} bbox={source.source.bbox} label={screenLabel(field.label)} onPress={() => model.openCrop(source)} />
+      )}
     </div>
   );
 }

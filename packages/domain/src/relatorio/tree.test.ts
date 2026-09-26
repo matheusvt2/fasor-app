@@ -175,6 +175,30 @@ describe('4.4-UNIT locationTree', () => {
     expect(row).toMatchObject({ state: 'vazia', holdsData: false });
   });
 
+  it('8.1: a concluded block holding a pending suggestion drops out of its counters; one on a removed block counts nothing', () => {
+    const snapshot = relatorio();
+    const pendingOn = (blockId: string): SuggestionRow => ({
+      id: id(8100 + Number.parseInt(blockId.slice(-3), 16)),
+      relatorio_id: TEST_RELATORIO,
+      target_path: `sheet/${blockId}/nameplate/fabricacao`,
+      value: 'ABB',
+      trust: 'suggested',
+      mode: 'fill',
+      source: { photo_id: id(8002), bbox: [0, 0, 1, 1], ocr_token_ids: [], reading_run_id: id(8003) },
+      status: 'pending',
+      prompt_version: 'v1',
+      hint: null,
+    });
+    const coluna5 = (tree: TreeLocationNode[]) => tree[0]!.locations.find((node) => node.name === 'Coluna 5')!;
+    expect(coluna5(locationTree(snapshot)).counterText).toBe('2 de 2');
+    const dj = snapshot.blocks[2]!.id;
+    const tc = snapshot.blocks[6]!.id;
+    const tree = locationTree(snapshot, snapshot.equipment, [pendingOn(dj), pendingOn(tc)]);
+    expect(coluna5(tree).counterText).toBe('1 de 2');
+    expect(tree[0]!.counterText).toBe('1 de 5');
+    expect(coluna5(locationTree(snapshot, snapshot.equipment, [pendingOn(tc)])).counterText).toBe('2 de 2');
+  });
+
   it('writes the cabine meta and every location counter; a coluna has no meta', () => {
     const tree = locationTree(relatorio());
     expect(tree[0]!.meta).toBe('SE · 13,8 kV · agrupar por tipo');

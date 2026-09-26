@@ -2,7 +2,7 @@ import type { BlockRow, LocationRow, SuggestionRow } from '../schemas/entities.t
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { plural } from '../text/plural.ts';
 import { enabledCells, isCellFilled, isEquipmentBlock, sheetState } from './sheet-state.ts';
-import { blocksWithPendingSuggestions, suggestionBlockId } from './suggestions.ts';
+import { blocksWithPendingSuggestions, livePendingSuggestions } from './suggestions.ts';
 
 /*
  * Story 4.3: the counts the Sumário header, the Project row and the Home card read, computed
@@ -57,21 +57,18 @@ function over(blocks: readonly BlockRow[], suggestionsPending: number, held: Rea
 /**
  * The whole relatório's progress over its live equipment blocks. `pending` is the device's
  * pending suggestion rows of the relatório (`pendingSuggestions(suggestionRowsOf(...))`):
- * `suggestions_pending` is their number and a block holding any is not concluded.
+ * `suggestions_pending` is the number of those waiting on a live block, and a block holding
+ * any is not concluded.
  */
 export function progress(snapshot: Pick<RelatorioSnapshot, 'blocks' | 'suggestions'>, pending?: readonly SuggestionRow[]): Progress {
   if (pending === undefined) return over(snapshot.blocks, snapshot.suggestions.filter((s) => s.status === 'pending').length);
-  return over(snapshot.blocks, pending.length, blocksWithPendingSuggestions(pending));
+  return over(snapshot.blocks, ...scoped(snapshot.blocks, pending));
 }
 
-/** The pending rows whose block is one of `blocks`, and those blocks' ids (a cabine's or a location's share). */
+/** The pending rows waiting on a live block of `blocks` (`livePendingSuggestions`), and those blocks' ids. */
 function scoped(blocks: readonly BlockRow[], pending: readonly SuggestionRow[] | undefined): [number, ReadonlySet<string>] {
   if (pending === undefined) return [0, new Set()];
-  const ids = new Set(blocks.map((block) => block.id));
-  const own = pending.filter((row) => {
-    const blockId = suggestionBlockId(row);
-    return blockId !== null && ids.has(blockId);
-  });
+  const own = livePendingSuggestions(blocks, pending);
   return [own.length, blocksWithPendingSuggestions(own)];
 }
 

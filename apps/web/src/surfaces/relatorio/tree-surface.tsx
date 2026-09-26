@@ -36,7 +36,8 @@ function Arvore({ relatorioId, state }: { relatorioId: string; state: EntityStat
   const equipment = useProjectEquipment(state, snapshot.relatorio.project_id);
   const lastSheet = useLiveQuery(() => (db === null ? Promise.resolve(null) : readLastSheet(db, relatorioId)), [db, relatorioId], null);
   // Story 8.1: the same counts as the Sumário, over the device's pending suggestion rows.
-  const total = useMemo(() => progress(snapshot, pendingSuggestions(suggestionRowsOf(state, relatorioId))).sheets_total, [snapshot, state, relatorioId]);
+  const pending = useMemo(() => pendingSuggestions(suggestionRowsOf(state, relatorioId)), [state, relatorioId]);
+  const total = useMemo(() => progress(snapshot, pending).sheets_total, [snapshot, pending]);
   const relatorio = snapshot.relatorio;
   const editor = useRelatorioEditor(relatorioId, relatorio.project_id);
   const context = useMemo(
@@ -88,7 +89,7 @@ function Arvore({ relatorioId, state }: { relatorioId: string; state: EntityStat
             </svg>
           </button>
         </div>
-        <RelatorioTree presentation="rail" snapshot={snapshot} equipment={equipment} lastSheetId={lastSheet} expandToLastSheet context={context} />
+        <RelatorioTree presentation="rail" snapshot={snapshot} equipment={equipment} lastSheetId={lastSheet} expandToLastSheet context={context} pending={pending} />
       </aside>
       <div className="arvore-content">
         <p className="section-note">{t.note}</p>

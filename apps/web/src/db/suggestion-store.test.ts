@@ -119,12 +119,13 @@ describe('8.1-UNIT autoConfirmPulled', () => {
     const outbox = (await db.outbox.toArray()).filter((row) => row.meta?.auto === true);
     expect(outbox.map((row) => [row.path, row.value])).toEqual([
       [`suggestion/${(equal.value as SuggestionRow).id}/status`, 'confirmed'],
-      [`sheet/${BLOCK_1_ID}/nameplate/fabricacao`, 'weg  s.a.'],
+      // The engineer's own spelling is kept; only the provenance is new.
+      [`sheet/${BLOCK_1_ID}/nameplate/fabricacao`, 'WEG S.A.'],
     ]);
     expect(new Set(outbox.map((row) => row.batch_id)).size).toBe(1);
     expect(outbox.every((row) => row.actor_id === USER_ID)).toBe(true);
     expect(outbox[1]!.meta).toEqual({ source_suggestion_id: (equal.value as SuggestionRow).id, auto: true });
-    expect((await block(db)).sheet.nameplate.fabricacao!.source_suggestion_id).toBe((equal.value as SuggestionRow).id);
+    expect((await block(db)).sheet.nameplate.fabricacao).toMatchObject({ value: 'WEG S.A.', source_suggestion_id: (equal.value as SuggestionRow).id });
     expect(((await db.entities.get(['suggestion', (different.value as SuggestionRow).id]))!.row as SuggestionRow).status).toBe('pending');
     expect(((await db.entities.get(['suggestion', (empty.value as SuggestionRow).id]))!.row as SuggestionRow).status).toBe('pending');
 

@@ -16,7 +16,7 @@ import type { AppDatabase } from './schema.ts';
 /*
  * Story 8.1 (AD-12, "device-side comparison"): after a pull, a `suggestion/{id}` create
  * whose target the engineer already filled with the same value is confirmed on the device,
- * as the signed-in user, with `meta.auto = true`: the cell gains its provenance and the
+ * as the signed-in user, with `meta.auto = true`, writing the engineer's value back as it is: the cell gains its provenance and the
  * field its confirmed glyph, and nothing asks for a tap the engineer already made. A
  * different value stays pending (the sheet shows the replace line); an empty target stays
  * pending (the sheet shows the fill). The rule and the ops are the kernel's
@@ -53,8 +53,10 @@ export async function autoConfirmPulled(db: AppDatabase, pulled: readonly Op[], 
     const relatorio = await db.entities.get(['relatorio', suggestion.relatorio_id]);
     if ((relatorio?.row as RelatorioRow | undefined)?.status === 'emitido') continue;
     const field = suggestionFieldDef(block, suggestion);
-    if (suggestionView(block.sheet.nameplate[target.field_key], suggestion, field) !== 'none') continue;
-    await commitBatch(db, confirmSuggestionOps(author, suggestion, { auto: true }), deps);
+    const cell = block.sheet.nameplate[target.field_key];
+    if (cell === undefined || suggestionView(cell, suggestion, field) !== 'none') continue;
+    // The engineer's own value is written back as it is; only its provenance changes.
+    await commitBatch(db, confirmSuggestionOps(author, suggestion, { auto: true, value: cell.value }), deps);
     confirmed.push(suggestion.id);
   }
   return confirmed;

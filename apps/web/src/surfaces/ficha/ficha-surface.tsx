@@ -1,4 +1,4 @@
-import { buildSnapshot, getDefinition, isEquipmentBlock, locationPathText, shownSheetSteps, type BlockDefinition, type BlockRow, type EntityState, type RelatorioSnapshot } from '@app/domain';
+import { buildSnapshot, getDefinition, isEquipmentBlock, locationPathText, pendingSuggestions, shownSheetSteps, suggestionRowsOf, type BlockDefinition, type BlockRow, type EntityState, type RelatorioSnapshot } from '@app/domain';
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 import { copy } from '../../copy/pt-br.ts';
@@ -109,12 +109,14 @@ function FichaBody({
   });
   const { primaryLabel, primary, menu, filledBy, concludedBy, setRenaming } = actions;
   const [rail, setRail] = useState<RailState>('auto');
+  // Story 8.1: the rail's counters read the device's pending suggestion rows, as the Sumário's do.
+  const pending = useMemo(() => pendingSuggestions(suggestionRowsOf(state, relatorioId)), [state, relatorioId]);
   const observations = typeof block.sheet.observations?.value === 'string' ? block.sheet.observations.value : null;
 
   return (
     <>
       <div className="screen-body ficha-body" data-rail={rail}>
-        <FichaRail relatorioId={relatorioId} projectId={projectId} snapshot={snapshot} equipment={equipment} blockId={blockId} editor={editor} onRail={setRail} />
+        <FichaRail relatorioId={relatorioId} projectId={projectId} snapshot={snapshot} equipment={equipment} blockId={blockId} editor={editor} onRail={setRail} pending={pending} />
 
         <div className="ficha-main" ref={fichaMain} data-dropping={dragging ? '' : undefined}>
           <FichaHeader

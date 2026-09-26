@@ -80,6 +80,20 @@ export function pendingByNameplateField(rows: readonly SuggestionRow[], blockId:
   return out;
 }
 
+/**
+ * The pending rows that still wait on a live block of `blocks`: a row whose block was
+ * removed (or is not among them) has nothing left to confirm, so it is neither counted nor
+ * led to. Every pending count and "N sugestões por confirmar" read this one filter.
+ */
+export function livePendingSuggestions(blocks: readonly Pick<BlockRow, 'id' | 'removed_at'>[], pending: readonly SuggestionRow[]): SuggestionRow[] {
+  const live = new Set(blocks.filter((block) => block.removed_at === null).map((block) => block.id));
+  return pending.filter((row) => {
+    if (row.status !== 'pending') return false;
+    const blockId = suggestionBlockId(row);
+    return blockId !== null && live.has(blockId);
+  });
+}
+
 /** The blocks holding at least one pending suggestion (never counted as concluded). */
 export function blocksWithPendingSuggestions(pending: readonly SuggestionRow[]): Set<string> {
   const out = new Set<string>();
@@ -250,14 +264,20 @@ export function showsConfirmedGlyph(cell: Cell | null | undefined, relatorioStat
 
 /**
  * Confirmar (and "Substituir", and the device's auto-confirm with `auto`): the status put
- * and the target put carrying `meta.source_suggestion_id`, one batch.
+ * and the target put carrying `meta.source_suggestion_id`, one batch. `value` replaces the
+ * suggestion's value in the put: the auto-confirm writes the engineer's own cell value back
+ * (only its provenance changes), never the reading's spelling of it.
  */
-export function confirmSuggestionOps(author: Author, s: Pick<SuggestionRow, 'id' | 'relatorio_id' | 'target_path' | 'value'>, opts: { auto?: boolean } = {}): OpDraft[] {
+export function confirmSuggestionOps(
+  author: Author,
+  s: Pick<SuggestionRow, 'id' | 'relatorio_id' | 'target_path' | 'value'>,
+  opts: { auto?: boolean; value?: JsonValue } = {},
+): OpDraft[] {
   const envelope = relatorioOpEnvelope(author, s.relatorio_id);
   const auto = opts.auto === true ? { auto: true } : {};
   return [
     { ...envelope, meta: opts.auto === true ? { auto: true } : null, kind: 'put', path: suggestionStatusPath(s.id), value: 'confirmed' },
-    { ...envelope, meta: { source_suggestion_id: s.id, ...auto }, kind: 'put', path: s.target_path, value: s.value as JsonValue },
+    { ...envelope, meta: { source_suggestion_id: s.id, ...auto }, kind: 'put', path: s.target_path, value: (opts.value === undefined ? s.value : opts.value) as JsonValue },
   ];
 }
 

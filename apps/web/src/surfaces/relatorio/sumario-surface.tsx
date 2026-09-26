@@ -262,6 +262,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
                     focusBlockId={arrival.focusBlockId}
                     context={treeContext}
                     ref={treeRef}
+                    pending={pending}
                   />
                 )}
               </Section9Row>

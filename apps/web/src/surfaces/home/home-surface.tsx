@@ -12,6 +12,8 @@ import {
   type RelatorioStatus,
   type ResumeTarget,
   type TemplateRow,
+  pendingSuggestions,
+  suggestionRowsOf,
 } from '@app/domain';
 import { useEffect, useId, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -119,7 +121,8 @@ export function HomeSurface() {
     async (): Promise<ResumeTarget | null> => {
       if (db === null || currentId === null) return null;
       const [state, lastSheet] = await Promise.all([relatorioState(db, currentId), readLastSheet(db, currentId)]);
-      return state === null ? null : resumeTarget(buildSnapshot(state, currentId), lastSheet);
+      // Story 8.1: the count agrees with the Sumário's, over the device's pending suggestion rows.
+      return state === null ? null : resumeTarget(buildSnapshot(state, currentId), lastSheet, pendingSuggestions(suggestionRowsOf(state, currentId)));
     },
     [db, currentId],
     null,
