@@ -786,3 +786,9 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: `apps/web/src/surfaces/photos/caption-composer.tsx` `ComposerBody`; the photo row stores no step or test key, so `contextCaptionParts` cannot rebuild a test activity.
   class: deferred
   state: open (owner: none; revisit with Bruno)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-e2e-parallel-workers.md`
+  summary: With 3 e2e workers on per-worker companies, `POST /api/sync/ops` slows from about 1.2 s alone to about 17 s median when pushes overlap, and 12.3-E2E-004 failed in 1 of 3 parallel full runs (never serially). The gate stays at 1 worker (`PARALLEL_WORKERS = 1`); `--workers=3` is opt-in. Probable fix: apply a push batch in one transaction (or find the shared lock/pool the pushes serialize on), then repeat the 3+3 validation of PR #45 and switch the gate if it holds.
+  evidence: PR #45 body (validation table, api log timings).
+  class: deferred
+  state: open (owner: Epic 7 carry-over batch; blocks the 18 -> ~10 min gate)
