@@ -792,3 +792,15 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: PR #45 body (validation table, api log timings).
   class: deferred
   state: open (owner: Epic 7 carry-over batch; blocks the 18 -> ~10 min gate)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-6-fix-qa.md`
+  summary: E6-R1. In a new point of attention, text typed right before a plain reload (no page-hidden event first) is neither committed nor kept as a draft; it is recovered when the page is hidden first (a phone going to the background).
+  evidence: `reviews/epic-6-review-qa.md` § Re-check (PR #44).
+  class: deferred
+  state: open (owner: Epic 7 carry-over batch)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-6-fix-qa.md`
+  summary: E6-R2. Photos captioned before PR #44 open the caption composer in "Editar texto"; a chip tapped there shows pressed but the caption does not change and nothing says why.
+  evidence: `reviews/epic-6-review-qa.md` § Re-check (PR #44).
+  class: deferred
+  state: open (owner: Epic 7 carry-over batch)

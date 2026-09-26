@@ -96,3 +96,34 @@ Checked and found correct (no finding):
 5. **Matheus, carry-over F.** A stale "Confirmar" of the conclusion writes nothing and announces nothing: should it say "O texto mudou; confira e confirme de novo"? What is the `criterion_override` shape `{raw, unit}`? And is an edited conclusion text not guarded against a moved basis acceptable?
 6. **Bruno, row 8 counts.** "3 pontos · 1 sem ação · 1 não ensaiada" counts the derived entry among the "pontos". Is that the intended reading of "5 pontos · 1 sem ação · 3 não ensaiadas"?
 7. **Matheus, gate.** Should `e2e:full` (not only `verify`) run before an epic's last story PR merges? The E6-Q1 regression reached main because the `@p1` journeys are outside `verify`.
+
+## Re-check (PR #44)
+
+The re-check ran on `b4bf96d` (origin/main): PR #44 fixes (head `43353d9`) and PR #46 (per-worker e2e companies). The worktree was detached there and `fasor-qa6` was rebuilt at contract 4. The browser pass reused the relatório and company from the first pass. The full gate was not re-run; #44 reports `verify` and `test:e2e:full` green. Two new screenshots are in `qa-epic-6/`: `R1-composer-390.png` and `R2-equipment-chooser-390.png`.
+
+| Run | Result |
+|---|---|
+| 5.8-E2E-002, 6.1-E2E-002, 12.1-E2E-009, 12.3-E2E-004 with `--repeat-each 3` on desktop-chrome (`scripts/e2e.ts -g …`) | **12 of 12 passed**, 391 s wall time including the build. |
+
+| Item | Result | Evidence |
+|---|---|---|
+| E6-Q1 "Criar" reachable at 768 | **pass** | The two journey specs passed 3 of 3 each. In the browser at 768, SEC-ENEL, "Outro…" on Fabricação, "Fabricante R1": the option's centre hits `combobox-option is-create`, and the tap stores "Fabricante R1". The cause was scroll anchoring from the header's "Preenchido por" line, which closed the popover. The fix is in `ficha-header.tsx`, with a unit test. |
+| E6-Q2 point editor keeps text on Esc and reload | **pass**, with E6-R1 | Esc after typing shows "Ponto de atenção salvo · 3 de 3 na seção 8", and the point is stored. With `visibilitychange`/`pagehide`, the draft `point/{id}` is written. On reload, "Rascunho encontrado · Recuperar" appears, and "Recuperar" stores the text ("… Texto R4 reload lento"). "Cancelar" is gone from the editor (narrowing). |
+| E6-Q3 390 composer | **pass** | The photo thumb, number, stamp and "Legenda gerada" are pinned at the top. The sticky bar ("Voltar sem alterar", "Salvar legenda") sits at y=784 in 844, and a chip tap is visible in the preview (`R1-composer-390.png`). |
+| E6-Q4 equipment chooser | **pass** | A short list of 5 (the current sheet first), then "Outro equipamento", then "Geral (sem equipamento)" (`R2`). "Outro equipamento" opens groups ("Cubículo Enel", "1° Subsolo › Coluna 1", …) and moves the focus to the first row. |
+| E6-Q5 captions carry TAG and column | **pass** | A sheet import gives "Detalhe da chave seccionadora SEC-ENEL do Cubículo Enel". Picking SEC-C01 in the gallery gives "Detalhe da chave seccionadora SEC-C01 da Coluna 1 do 1° Subsolo". |
+| E6-Q6 race fixed in the app | **pass** | `camera-view.tsx` now returns the focus with `restoreFocus(…, { frames: LIST_FOCUS_WATCH_FRAMES })`, watching the opener instead of the one-shot 3-frame focus. `ficha-surface` `goTo` follows the first missing marker as the sheet catches up. Both specs passed 3 of 3. |
+| E6-Q8 import commits on pick | **pass** | While "De qual equipamento?" was still open, the device already held both new `file` rows (14 → 16). |
+| E6-Q11 citing point named, NC row mark | **pass** | The Remover confirm reads "Ela é citada nos pontos de atenção 2, 3 e 4, que passam a mostrar Foto removida." The NC row shows "Pontos de atenção 2 e 3". |
+| E6-Q13 drag hint on phone | **pass** | "ou arraste para cá" is not visible at 390. |
+| E6-Q14 upload without waiting for the timer | **pass** | A sheet import was `uploaded_at` within 3 s online (`SyncEngine.nudge` on photo commits). |
+| Carry-over stale "Confirmar" | **pass (code)** | `conclusao-section.tsx` announces "O texto mudou; confira e confirme de novo" through the sheet's polite live region when the basis moved. It is unit-tested and was not driven in the browser. |
+
+New findings:
+
+| ID | Sev | Kind | Where | Evidence | Disposition |
+|---|---|---|---|---|---|
+| E6-R1 | low | durability edge (FR-61) | `point-editor.tsx` / `point-draft-recovery.ts` | Typing into a new point from an NC row followed at once by a plain reload (Playwright `page.reload()`, no `visibilitychange` first) stored nothing and left no draft: " Texto R3 antes do reload" was lost. It works when `visibilitychange` fires first, as on a phone going to the background. A desktop F5 inside the autosave debounce can lose the last words. Other FR-61 surfaces share this pattern. | Accept as known, or persist the draft on each input (debounced) instead of only on hide. |
+| E6-R2 | low | UX (caption composer) | `caption-composer.tsx` | On a photo whose stored caption differs from the composed one (every photo captioned before #44, since the TAG was added), the composer opens in "Editar texto" (`aria-pressed=true`). Tapping a chip then shows it pressed while the caption text stays the same, with no message. Checked on photo 1: "verificação da ausência de tensão" was pressed and the text unchanged. A fresh photo regenerates correctly. | Either a chip tap leaves free text (regenerates, with a notice), or the chips are shown inactive while "Editar texto" is on. |
+
+After the checks the stack was taken down with `docker compose down -v`.
