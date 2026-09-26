@@ -53,3 +53,17 @@ export function readGroup(value: string | undefined): E2eGroup | undefined {
 
 /** Matches the path of every spec that is not in the serial group. */
 export const NON_SERIAL_SPEC_PATTERN = new RegExp(`^(?!.*[\\\\/](${SERIAL_SPECS.map((spec) => escape(spec.file)).join('|')})$)`);
+
+/**
+ * Refuses a run that would put the serial specs beside another worker: outside the
+ * parallel group (a bare `playwright test`, or `E2E_GROUP=serial`) the run must have one
+ * worker. The global setup calls it before anything is seeded.
+ */
+export function assertWorkersAllowed(group: E2eGroup | undefined, workers: number): void {
+  if (group === 'parallel' || workers <= 1) return;
+  const where = group === undefined ? 'a run without E2E_GROUP' : 'the serial group';
+  throw new Error(
+    `${where} holds the serial specs (${SERIAL_SPECS.map((spec) => spec.file).join(', ')}) and must run on one worker, got ${workers}. ` +
+      'Run the suite with pnpm test:e2e, test:e2e:full or test:e2e:matrix, which run the parallel group and then the serial group.',
+  );
+}

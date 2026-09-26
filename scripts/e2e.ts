@@ -109,6 +109,40 @@ export function summarize(group: E2eGroup, exitCode: number, report: JsonReport 
   };
 }
 
+/**
+ * The report a group's run left, or null when there is none this run can trust: no file,
+ * text that does not parse (a run killed mid-write), or a report that started before this
+ * run did (left by an earlier run). `summarize` counts null as a failed group.
+ */
+export function readReport(text: string | null, runStartedMs: number): JsonReport | null {
+  if (text === null) return null;
+  let parsed: JsonReport;
+  try {
+    parsed = JSON.parse(text) as JsonReport;
+  } catch {
+    return null;
+  }
+  if (parsed === null || typeof parsed !== 'object') return null;
+  const start = parsed.stats?.startTime === undefined ? Number.NaN : Date.parse(parsed.stats.startTime);
+  return Number.isFinite(start) && start >= runStartedMs - 1_000 ? parsed : null;
+}
+
+/** Runs the parallel group, then the serial group, always both, whatever the first one did. */
+export function runBothGroups(runGroup: (group: E2eGroup) => GroupSummary): [GroupSummary, GroupSummary] {
+  const parallel = runGroup('parallel');
+  const serial = runGroup('serial');
+  return [parallel, serial];
+}
+
+/** The combined result: exit 1 when either group failed or neither ran a test. */
+export function combine(groups: readonly GroupSummary[], durationMs: number) {
+  const sum = (key: 'tests' | 'passed' | 'failed' | 'skipped' | 'flaky') => groups.reduce((total, group) => total + group[key], 0);
+  const total = { tests: sum('tests'), passed: sum('passed'), failed: sum('failed'), skipped: sum('skipped'), flaky: sum('flaky'), durationMs };
+  const results = Object.assign({}, ...groups.map((group) => group.results)) as Record<string, Outcome>;
+  const failed = groups.some((group) => group.exitCode !== 0) || total.tests === 0;
+  return { exitCode: failed ? 1 : 0, total, titles: Object.keys(results).sort() };
+}
+
 function run(command: string, args: string[], env: NodeJS.ProcessEnv): number {
   const result = spawnSync(command, args, { cwd: root, env, stdio: 'inherit' });
   return result.status ?? 1;
@@ -119,14 +153,13 @@ function runGroup(group: E2eGroup, args: readonly string[]): GroupSummary {
   const started = Date.now();
   console.log(`\n[e2e] ${group} group: playwright ${groupArgs(group, args).slice(1).join(' ')}`);
   const exitCode = run('pnpm', ['exec', ...groupArgs(group, args)], { ...process.env, E2E_GROUP: group, E2E_PREBUILT: '1' });
-  // A report left by an earlier run must not stand in for this one.
-  let report: JsonReport | null = null;
-  if (existsSync(reportFile)) {
-    const parsed = JSON.parse(readFileSync(reportFile, 'utf8')) as JsonReport;
-    const start = parsed.stats?.startTime === undefined ? 0 : Date.parse(parsed.stats.startTime);
-    if (start >= started - 1_000) report = parsed;
+  let text: string | null;
+  try {
+    text = existsSync(reportFile) ? readFileSync(reportFile, 'utf8') : null;
+  } catch {
+    text = null;
   }
-  return summarize(group, exitCode, report);
+  return summarize(group, exitCode, readReport(text, started));
 }
 
 function line(summary: Pick<GroupSummary, 'tests' | 'passed' | 'failed' | 'skipped' | 'flaky' | 'durationMs'>): string {
@@ -145,21 +178,10 @@ function main(): void {
   }
 
   // Sequential on purpose: the serial group starts only once the parallel run has exited.
-  const parallel = runGroup('parallel', args);
-  const serial = runGroup('serial', args);
-  const groups = [parallel, serial];
-
-  const results = { ...parallel.results, ...serial.results };
-  const total = {
-    tests: parallel.tests + serial.tests,
-    passed: parallel.passed + serial.passed,
-    failed: parallel.failed + serial.failed,
-    skipped: parallel.skipped + serial.skipped,
-    flaky: parallel.flaky + serial.flaky,
-    durationMs: Date.now() - started,
-  };
-  const failed = groups.some((group) => group.exitCode !== 0) || total.tests === 0;
-  const summary = { args, exitCode: failed ? 1 : 0, total, groups, titles: Object.keys(results).sort() };
+  const groups = runBothGroups((group) => runGroup(group, args));
+  const { exitCode, total, titles } = combine(groups, Date.now() - started);
+  const failed = exitCode !== 0;
+  const summary = { args, exitCode, total, groups, titles };
   const summaryFile = resolve(REPORT_DIR, 'summary.json');
   mkdirSync(dirname(summaryFile), { recursive: true });
   writeFileSync(summaryFile, `${JSON.stringify(summary, null, 2)}\n`);

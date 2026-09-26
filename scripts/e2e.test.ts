@@ -1,8 +1,11 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { NON_SERIAL_SPEC_PATTERN, SERIAL_SPEC_PATTERN, SERIAL_SPECS } from '../e2e/support/groups.ts';
-import { groupArgs, summarize, withoutWorkers } from './e2e.ts';
+import type { E2eLeak } from '../apps/api/src/db/e2e-leak-check.ts';
+import { assertNoLeaks } from '../e2e/support/global-teardown.ts';
+import { assertWorkersAllowed, NON_SERIAL_SPEC_PATTERN, SERIAL_SPEC_PATTERN, SERIAL_SPECS, type E2eGroup } from '../e2e/support/groups.ts';
+import playwrightConfig from '../playwright.config.ts';
+import { combine, groupArgs, readReport, runBothGroups, summarize, withoutWorkers, type GroupSummary } from './e2e.ts';
 
 /*
  * E6-Q7: the e2e grouping and its runner. The Playwright run itself is `test:e2e`; these
@@ -81,6 +84,74 @@ describe('scripts/e2e.ts summary', () => {
 
   it('treats a missing report as a failed group, even when Playwright exited 0', () => {
     expect(summarize('serial', 0, null)).toMatchObject({ exitCode: 1, tests: 0 });
+  });
+
+  it('reads only a whole report of this run: a missing, corrupt or older one is null', () => {
+    const runStarted = Date.parse('2026-09-25T10:00:00.000Z');
+    const text = JSON.stringify(report);
+    expect(readReport(text, runStarted)).toEqual(report);
+    expect(readReport(null, runStarted)).toBeNull();
+    expect(readReport(text.slice(0, text.length / 2), runStarted)).toBeNull();
+    expect(readReport('null', runStarted)).toBeNull();
+    expect(readReport(JSON.stringify({ ...report, stats: undefined }), runStarted)).toBeNull();
+    expect(readReport(text, runStarted + 60_000)).toBeNull();
+    // An unreadable report is a failed group, as a missing one is.
+    expect(summarize('parallel', 0, readReport('{"suites": [', runStarted))).toMatchObject({ exitCode: 1 });
+  });
+});
+
+describe('scripts/e2e.ts combining the groups', () => {
+  const group = (name: E2eGroup, exitCode: number, tests: number): GroupSummary => ({
+    group: name,
+    exitCode,
+    startTime: null,
+    durationMs: 0,
+    tests,
+    passed: exitCode === 0 ? tests : tests - 1,
+    failed: exitCode === 0 ? 0 : 1,
+    skipped: 0,
+    flaky: 0,
+    results: Object.fromEntries(Array.from({ length: tests }, (_, i) => [`${name} > t${i}`, 'expected' as const])),
+    errors: [],
+  });
+
+  it('runs the serial group after a failed parallel group, in that order', () => {
+    const ran: E2eGroup[] = [];
+    const groups = runBothGroups((name) => {
+      ran.push(name);
+      return group(name, name === 'parallel' ? 1 : 0, 2);
+    });
+    expect(ran).toEqual(['parallel', 'serial']);
+    expect(combine(groups, 5).exitCode).toBe(1);
+  });
+
+  it('exits 1 when either group failed or no test ran, 0 only when both passed with tests', () => {
+    expect(combine([group('parallel', 0, 2), group('serial', 0, 1)], 5)).toMatchObject({
+      exitCode: 0,
+      total: { tests: 3, passed: 3, failed: 0, durationMs: 5 },
+      titles: ['parallel > t0', 'parallel > t1', 'serial > t0'],
+    });
+    expect(combine([group('parallel', 0, 2), group('serial', 1, 1)], 5).exitCode).toBe(1);
+    expect(combine([group('parallel', 1, 2), group('serial', 0, 1)], 5).exitCode).toBe(1);
+    expect(combine([group('parallel', 0, 0), group('serial', 0, 0)], 5).exitCode).toBe(1);
+  });
+});
+
+describe('the e2e run guards', () => {
+  it('refuses more than one worker outside the parallel group', () => {
+    expect(() => assertWorkersAllowed('parallel', 3)).not.toThrow();
+    expect(() => assertWorkersAllowed('serial', 1)).not.toThrow();
+    expect(() => assertWorkersAllowed(undefined, 1)).not.toThrow();
+    expect(() => assertWorkersAllowed('serial', 2)).toThrow(/pnpm test:e2e/);
+    expect(() => assertWorkersAllowed(undefined, 3)).toThrow(/without E2E_GROUP.*one worker/);
+  });
+
+  it('keeps the leak check registered as the global teardown, and it fails on a leak', async () => {
+    expect(playwrightConfig.globalTeardown).toBe('./e2e/support/global-teardown.ts');
+    expect(existsSync(resolve(root, 'e2e/support/global-teardown.ts'))).toBe(true);
+    const leak: E2eLeak = { table: 'ops', companyId: 'c', userId: 'u', what: 'probe/x' };
+    await expect(assertNoLeaks(async () => [])).resolves.toBeUndefined();
+    await expect(assertNoLeaks(async () => [leak])).rejects.toThrow(/user u wrote probe\/x into company c/);
   });
 });
 

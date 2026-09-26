@@ -22,8 +22,9 @@ import { NON_SERIAL_SPEC_PATTERN, PARALLEL_WORKERS, readGroup, SERIAL_SPEC_PATTE
  * runs one after the other with `E2E_GROUP` set: `parallel` on `PARALLEL_WORKERS` workers,
  * each on its own pair of companies (the `seed` fixture), then `serial` on one worker for
  * the specs that share the document queue or a fixed-id fixture. A bare `playwright test`
- * (no group) runs every spec on one worker, so no invocation puts a serial spec beside a
- * parallel worker. `--workers=N` still overrides the parallel group's count.
+ * (no group) runs every spec on one worker. `--workers=N` overrides the parallel group's
+ * count; outside the parallel group the global setup refuses more than one worker
+ * (`assertWorkersAllowed`), so no invocation puts a serial spec beside another worker.
  */
 const group = readGroup(process.env.E2E_GROUP);
 const groupIgnore = group === 'parallel' ? [SERIAL_SPEC_PATTERN] : group === 'serial' ? [NON_SERIAL_SPEC_PATTERN] : [];
