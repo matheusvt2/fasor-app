@@ -1,0 +1,35 @@
+[project]
+name = "ocr-sidecar"
+version = "0.1.0"
+description = "Stateless OCR sidecar: PP-OCRv5 detection and PARSeq word recognition on CPU (Story 8.3)."
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "fastapi==0.141.1",
+  "uvicorn==0.54.0",
+  "pydantic==2.13.5",
+  "numpy>=2.0,<3",
+  # OpenCV comes as opencv-contrib-python, the distribution paddlex checks for by name
+  # (the headless wheel ships the same `cv2` module and would clash with it).
+  "opencv-contrib-python>=4.10,<5",
+  "onnxruntime==1.30.0",
+  "pillow==12.3.0",
+  # PP-OCRv5 detection runs in PaddleOCR on paddlepaddle's CPU wheel (cp313 exists).
+  "paddleocr==3.7.0",
+  "paddlepaddle==3.3.1",
+]
+
+[dependency-groups]
+dev = [
+  "pytest==9.1.1",
+  "httpx==0.28.1",
+  "jsonschema==4.26.0",
+  "datamodel-code-generator==0.83.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-p no:cacheprovider"

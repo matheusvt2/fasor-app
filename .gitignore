@@ -36,5 +36,11 @@ _bmad/render/
 playwright-report/
 test-results/
 
+# Python artifacts of services/ocr and its build-generated contract models (Story 8.3)
+__pycache__/
+.pytest_cache/
+.venv/
+services/ocr/app/contract_models.py
+
 # Scratch folder of the "migrations match schema.ts" test (drizzle-kit needs a relative --out)
 apps/api/.drizzle-check/

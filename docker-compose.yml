@@ -27,6 +27,8 @@ x-app-env: &app-env
   TRUSTED_ORIGINS: ${TRUSTED_ORIGINS:-http://localhost:5173,http://localhost:*,http://127.0.0.1:*,http://api:3000,http://web:5173,https://${TABLET_HOST:-localhost},https://${TABLET_HOST:-localhost}:${CADDY_HTTPS_PORT:-443}}
   LLM_PROVIDER: ${LLM_PROVIDER:-fake}
   OCR_PROVIDER: ${OCR_PROVIDER:-fake}
+  # Story 8.3: the OCR sidecar below (profile `ocr`); only the `ocr-svc` provider calls it.
+  OCR_SERVICE_URL: ${OCR_SERVICE_URL:-http://ocr:8000}
   # Story 4.8: the generate worker runs in the api process; GENERATE_FAULT (TC-3) is
   # read only outside production and injects a LibreOffice timeout at the conversion step.
   # NODE_ENV stays unset here on purpose: the tools container inherits this anchor, and a
@@ -193,6 +195,25 @@ services:
       postgres: { condition: service_healthy }
       minio: { condition: service_healthy }
       api: { condition: service_healthy }
+
+  # Story 8.3: the stateless OCR sidecar (services/ocr). `ocr` profile only, so a plain
+  # `docker compose up -d` never starts it and nothing depends on it. Weights are baked
+  # into the image at build time; it never downloads at runtime.
+  #   docker compose --profile ocr build ocr
+  #   docker compose --profile ocr run --rm ocr pytest
+  ocr:
+    profiles: ['ocr']
+    build:
+      context: services/ocr
+    image: app-ocr
+    ports:
+      - '127.0.0.1:8000:8000'
+    healthcheck:
+      test: ['CMD', 'python', '-c', "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health', timeout=4).status == 200 else 1)"]
+      interval: 5s
+      timeout: 5s
+      start_period: 60s
+      retries: 30
 
 volumes:
   pgdata:

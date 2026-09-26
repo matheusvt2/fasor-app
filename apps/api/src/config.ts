@@ -24,6 +24,8 @@ export const configSchema = z.object({
   AUTH_BASE_URL: z.string().url().optional(),
   LLM_PROVIDER: z.enum(['fake', 'anthropic', 'bedrock']).default('fake'),
   OCR_PROVIDER: z.enum(['fake', 'textract', 'ocr-svc']).default('fake'),
+  /** Story 8.3: base URL of the `services/ocr` sidecar (compose profile `ocr`), read by the `ocr-svc` provider. */
+  OCR_SERVICE_URL: z.string().url().default('http://ocr:8000'),
   /** Story 4.8: `1` registers the pg-boss generate worker in this process (the compose default). */
   WORKER: z.enum(['0', '1']).default('1'),
   NODE_ENV: z.string().optional(),
