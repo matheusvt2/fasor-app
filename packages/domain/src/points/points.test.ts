@@ -333,7 +333,7 @@ describe('E6-Q11 the points a photo or an NC row already has', () => {
     expect(photoCitedByText([1, 3])).toBe('Ela é citada nos pontos de atenção 1 e 3, que passam a mostrar Foto removida.');
   });
 
-  it('ncRowPointPositions: the equipment points citing the item photos, or citing none when the item has none', () => {
+  it('ncRowPointPositions: the equipment points citing the item photos; an item with no photo gets no mark', () => {
     const points = rows(
       { equipment_id: EQ, text: `Oxidação ${photoToken(A)}` },
       { equipment_id: EQ, text: 'Sem foto' },
@@ -343,7 +343,8 @@ describe('E6-Q11 the points a photo or an NC row already has', () => {
     );
     expect(ncRowPointPositions(points, EQ, [A])).toEqual([1]);
     expect(ncRowPointPositions(points, EQ, [B])).toEqual([]);
-    expect(ncRowPointPositions(points, EQ, [])).toEqual([2]);
+    // Two NC items with no photo on one sheet: a point from one never marks the other.
+    expect(ncRowPointPositions(points, EQ, [])).toEqual([]);
     expect(ncRowPointPositions(points, null, [])).toEqual([]);
     expect(ncRowPointsText([])).toBeNull();
     expect(ncRowPointsText([1])).toBe('Ponto de atenção 1');

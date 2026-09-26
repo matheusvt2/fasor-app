@@ -109,16 +109,15 @@ export function photoCitedByText(positions: readonly number[]): string | null {
 /**
  * E6-Q11: the live points an NC row already has, by section 8 position. A point stores no
  * checklist item, so the row matches by what "Criar ponto de atenção" put in it: the
- * sheet's equipment and the item's photos. With photos on the item, the points of that
- * equipment citing one of them; with none, the points of that equipment citing no photo.
+ * sheet's equipment and the item's photos -- the points of that equipment citing one of the
+ * item's photos. An item with no photo gets no mark: nothing tells its point from another
+ * NC item's of the same sheet.
  */
 export function ncRowPointPositions(points: readonly PointRow[], equipmentId: string | null, itemPhotoIds: readonly string[]): number[] {
-  if (equipmentId === null) return [];
+  if (equipmentId === null || itemPhotoIds.length === 0) return [];
   return livePoints(points).flatMap((point, i) => {
     if (point.equipment_id !== equipmentId || point.origin !== 'manual') return [];
-    const refs = extractPhotoRefs(point.text);
-    const matches = itemPhotoIds.length === 0 ? refs.length === 0 : refs.some((id) => itemPhotoIds.includes(id));
-    return matches ? [i + 1] : [];
+    return extractPhotoRefs(point.text).some((id) => itemPhotoIds.includes(id)) ? [i + 1] : [];
   });
 }
 

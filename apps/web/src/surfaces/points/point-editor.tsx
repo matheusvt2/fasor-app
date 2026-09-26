@@ -120,6 +120,8 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
   const wrote = useRef(false);
   const lastWrite = useRef<Promise<unknown>>(Promise.resolve());
   const goneShown = useRef(false);
+  /** A write since the last close attempt was refused (quota, a closed database). */
+  const refused = useRef(false);
   const finishing = useRef(false);
   const mounted = useRef(true);
   const onDoneRef = useRef(onDone);
@@ -160,10 +162,18 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
         for (const field of result.kind === 'written' && result.created ? (['text', 'action'] as const) : fields) stored.current[field] = taken[field];
         return null;
       },
-      { quiet: true },
     );
-    lastWrite.current = run.catch(() => undefined);
-    return run.then(() => undefined);
+    // A refused write is toasted once, by the edit queue (`writeErrorText`); the editor keeps
+    // what was typed (`values`, and the draft source) and a close waiting on it stays open.
+    // The promise resolves either way, so `useFieldCommit` does not say it a second time.
+    const settled = run.then(
+      () => undefined,
+      () => {
+        refused.current = true;
+      },
+    );
+    lastWrite.current = settled;
+    return settled;
   };
 
   const textCommit = useFieldCommit<string>({ commit: () => persist(['text']) });
@@ -226,7 +236,7 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
       area.setText(draft.text);
       setText(draft.text);
       setAction(draft.action);
-      void persist(['text', 'action']).catch(() => undefined);
+      void persist(['text', 'action']);
     },
   });
 
@@ -234,10 +244,23 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
   const finish = (explicit: boolean) => {
     if (finishing.current) return;
     finishing.current = true;
+    refused.current = false;
+    // A commit refused earlier left its value unstored with nothing pending: this close writes
+    // both fields again (an untouched new point still writes nothing unless "Concluir").
+    const unstored =
+      link === null
+        ? stored.current.text !== values.current.text || actionValue(stored.current.action) !== actionValue(values.current.action)
+        : touched.current && !wrote.current;
+    const retry = unstored && !textCommit.pending && !actionCommit.pending;
     textCommit.flush();
     actionCommit.flush();
-    if (explicit && link !== null && !wrote.current) void persist(['text', 'action']).catch(() => undefined);
+    if ((explicit && link !== null && !wrote.current) || retry) void persist(['text', 'action']);
     void lastWrite.current.then(async () => {
+      // Refused: the editor stays open with what was typed (the toast said why).
+      if (refused.current) {
+        finishing.current = false;
+        return;
+      }
       if (!wrote.current || db === null) {
         onDoneRef.current(null);
         return;

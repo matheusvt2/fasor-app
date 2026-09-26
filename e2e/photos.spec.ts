@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { deviceDatabaseName, expect, test } from './support/merged-fixtures.ts';
 import { devicePhotos, expectCameraOpen, openChaveSheet, PHOTO_ACCOUNT, shoot } from './support/photos.ts';
+import { plainJpeg } from './fixtures/photos/synthetic.ts';
 import { pullAll } from './support/outbox.ts';
 import { syncNow } from './support/sync.ts';
 
@@ -263,4 +264,27 @@ test('@p1 6.2-E2E-004 the browser refuses to store a shot while online: it goes 
   // The next pull brings the row back to this device.
   await syncNow(page);
   await expect.poll(async () => (await devicePhotos(page, database)).filter((photo) => photo.uploaded_at !== null).length, { timeout: 30_000 }).toBe(1);
+});
+
+test('@p1 6.2-E2E-005 E6-Q14: online, a shot and a file added from the sheet go out on their own, with no "Sincronizar agora"', async ({ page }) => {
+  test.setTimeout(120_000);
+  await openChaveSheet(page, account, database);
+  const uploaded = async () => (await devicePhotos(page, database)).filter((photo) => photo.uploaded_at !== null).length;
+
+  // One shot: the server holds it within seconds, not at the next 60 s tick.
+  await cameraButton(page).click();
+  const camera = await expectCameraOpen(page);
+  await shoot(page, 1);
+  await camera.getByRole('button', { name: 'Concluir fotos' }).click();
+  await expect(page.getByRole('dialog', { name: 'Câmera' })).toHaveCount(0);
+  await expect.poll(uploaded, { timeout: 10_000 }).toBe(1);
+
+  // One file through "Adicionar fotos": the same.
+  await page.locator('.sticky-action-bar').getByRole('button', { name: 'Adicionar fotos' }).click();
+  const sheet = page.getByRole('dialog', { name: 'Adicionar fotos' });
+  const chooser = page.waitForEvent('filechooser');
+  await sheet.getByRole('button', { name: 'Escolher arquivos' }).click();
+  await (await chooser).setFiles(await plainJpeg(page, 'depois.jpg'));
+  await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(2);
+  await expect.poll(uploaded, { timeout: 10_000 }).toBe(2);
 });

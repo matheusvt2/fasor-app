@@ -11,9 +11,11 @@ import { pointDraftValue, POINT_DRAFT_SURFACE, writePoint } from './point-writes
  * inline card, so after a reload it is closed and no source of its key is mounted; the
  * surfaces that write points (the sheet and the Points surface) mount this instead. For
  * every point draft of this relatório on the device it registers a source that holds
- * nothing of its own (`read` is null, so a tab-hide never rewrites the row) and whose
- * "Recuperar" writes the draft through the editor's own write path: the create op of a new
- * point, or the field puts of a stored one.
+ * nothing of its own (`read` is null) and whose "Recuperar" writes the draft through the
+ * editor's own write path: the create op of a new point, or the field puts of a stored one.
+ * A null read makes `DraftProvider.persistAll` drop the row on a tab-hide unless that row is
+ * on the current "Recuperar" offer (then it is kept); a row dismissed from the offer can go
+ * at the next tab-hide while this surface is open.
  */
 export function usePointDraftRecovery(relatorioId: string): void {
   const session = useSession();

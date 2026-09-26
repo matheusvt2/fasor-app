@@ -546,6 +546,21 @@ test('@p0 6.4-E2E-008 E6-Q8: "Cancelar" on "De qual equipamento?" keeps the save
   expect(puts).toHaveLength(0);
 });
 
+test('@p1 6.4-E2E-010 E6-Q8: Esc on "De qual equipamento?" keeps the saved batch as "Geral", as "Cancelar" does', async ({ page }) => {
+  test.setTimeout(150_000);
+  const { relatorioId } = await openChaveSheet(page, account, database);
+  await openGallery(page, relatorioId);
+  await pickFiles(page, page.locator('.sticky-action-bar').getByRole('button', { name: 'Adicionar fotos' }), [await plainJpeg(page, 'a.jpg'), await plainJpeg(page, 'b.jpg')]);
+  const sheet = page.getByRole('dialog', { name: /^De qual equipamento\?/ });
+  await expect(sheet).toBeVisible();
+  await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(2);
+  await page.keyboard.press('Escape');
+  await expect(sheet).toHaveCount(0);
+  await expect(toast(page)).toContainText('2 fotos ficaram como Geral, sem legenda');
+  await expect(galleryItems(page)).toHaveCount(2);
+  for (const photo of await devicePhotos(page, database)) expect(photo).toMatchObject({ block_id: null, item_key: null, caption: null });
+});
+
 test('@p0 6.5-E2E-003 E6-Q3 at 390 px: the composer shows the photo on top, and after a chip tap the caption and "Salvar legenda" are both on screen', async ({ page }) => {
   test.setTimeout(150_000);
   await holdUploads(page);

@@ -230,6 +230,8 @@ export function ConclusaoSection({
     let moved = false;
     void api
       .edit((blocks, by) => {
+        // The build may run again on fresher rows: only its last run decides.
+        moved = false;
         if (status === 'confirmed') {
           const fresh = blocks.find((row) => row.id === api.blockId && row.removed_at === null);
           if (fresh !== undefined && !conclusionBasisMatches(fresh, definition, tag, basis)) moved = true;

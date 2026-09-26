@@ -243,9 +243,8 @@ function SheetBody({
       return;
     }
     setBatch({ count: images.length, skipped, ids: null });
-    void importFiles(images, GERAL, { quiet: true })
-      .catch(() => null)
-      .then((result) => {
+    void importFiles(images, GERAL, { quiet: true }).then(
+      (result) => {
         const ids = result?.saved ?? [];
         const left = skipped + (result?.skipped ?? images.length);
         if (settled.current !== null) {
@@ -259,7 +258,16 @@ function SheetBody({
           return;
         }
         setBatch({ count: ids.length, skipped: left, ids });
-      });
+      },
+      // The device refused the save (quota, a closed database): said as such, never as files
+      // that could not be read.
+      (error: unknown) => {
+        showToast(writeErrorText(error));
+        answered.current = true;
+        settled.current = null;
+        onClose();
+      },
+    );
   };
 
   // Files dropped on the gallery open straight on "De qual equipamento?", saved at once.
@@ -381,9 +389,14 @@ function EquipmentStep({
   const db = useSession().database;
   const sources = useCaptionSources(relatorioId, snapshot);
   // The `last_sheet:{relatorio_id}` pref; undefined while it is read.
-  const current = useLiveQuery(() => (db === null ? Promise.resolve(null) : readLastSheet(db, relatorioId)), [db, relatorioId], undefined);
+  const current = useLiveQuery(() => (db === null ? Promise.resolve(null) : readLastSheet(db, relatorioId).catch(() => null)), [db, relatorioId], undefined);
   const { nearby, groups } = useMemo(() => photoEquipmentGroups(snapshot, current ?? null), [snapshot, current]);
   const [expanded, setExpanded] = useState(false);
+  // "Outro equipamento" goes away on press: the focus moves to the first row of the grouped list.
+  const groupsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (expanded) groupsRef.current?.querySelector<HTMLElement>('[role="radio"]')?.focus();
+  }, [expanded]);
   // `undefined`: nothing chosen yet; `null`: "Geral".
   const [chosen, setChosen] = useState<string | null | undefined>(undefined);
   const [caption, setCaption] = useState('');
@@ -422,7 +435,7 @@ function EquipmentStep({
             </button>
           )}
           {showGroups ? (
-            <div className="capture-groups">
+            <div className="capture-groups" ref={groupsRef}>
               {groups.map((group) => (
                 <div key={group.locationId} className="capture-group" role="group" aria-label={group.label}>
                   <p className="capture-group-label" aria-hidden="true">

@@ -2,7 +2,7 @@
 title: 'Epic 6 fixes: integrated review findings (E6-Q1..Q14 except Q7, Q9)'
 type: 'bugfix'
 created: '2026-09-25'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'b7ac7b512d5252985bc16af2568b3c4ace22a8bf'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -113,7 +113,7 @@ Implementation notes (2026-09-25):
 - **Q4 narrowings.** The short list holds at most 5 rows (`PHOTO_EQUIPMENT_NEARBY_MAX`: the current sheet, its location's sheets, then its cabine's). "Outro equipamento" (the mock's "Outro equipamento — abrir a árvore" shortened) opens the grouped list in place, in a box that scrolls by itself, instead of leaving for the tree; "Geral" stays last as in the mock and stays on screen.
 - **Q5 narrowings.** The coluna's agreement comes from the registry, the seed `locais`, then a kernel head-noun table (`LOCATION_HEAD_NOUNS`: "Coluna 1" is feminine), else masculine singular; only the location holding the block and its cabine are named (an intermediate level is left out). A composer recent such as "chave seccionadora SEC-C01" agrees with its equipment word by prefix. The Porto Seguro fixture and golden are unchanged (captions there are stored data).
 - **Q8 narrowings.** Esc and the scrim at "De qual equipamento?" act as "Cancelar". A batch answered while its files are still being saved gets its puts (or the "Geral" toast) as soon as the save ends. Toast authored for Bruno: "3 fotos ficaram como Geral, sem legenda".
-- **Q11 narrowings.** A point stores no checklist item (no op family added), so an NC row counts as "its" points the live manual points of the sheet's equipment that cite one of the item's photos, or, for an item with no photo, those that cite no photo. Authored for Bruno: "Ponto de atenção 1" / "Pontos de atenção 1 e 3" beside the row's actions, and the Remover confirm's "Ela é citada no ponto de atenção 2, que passa a mostrar Foto removida."
+- **Q11 narrowings.** A point stores no checklist item (no op family added), so an NC row counts as "its" points the live manual points of the sheet's equipment that cite one of the item's photos. ~~or, for an item with no photo, those that cite no photo.~~ (2026-09-25, review: that marked a point of one photo-less NC item on every other photo-less NC item of the sheet.) An NC item with no photo shows no "Ponto de atenção n" mark, even when a point was written from it. Authored for Bruno: "Ponto de atenção 1" / "Pontos de atenção 1 e 3" beside the row's actions, and the Remover confirm's "Ela é citada no ponto de atenção 2, que passa a mostrar Foto removida."
 - **Q13** hides the line on both conditions (below 768 px or `pointer: coarse`).
 - **Q14 narrowing.** Only photo commits (capture and import) nudge the engine; caption and removal puts wait for the next trigger. Because a photo now goes out at once while online, 6.1-E2E-002 holds the photo PUTs while it reads the "Aguardando envio" pills (as `gallery.spec.ts` already did).
 - **Carry-over.** Announced through the sheet's polite live region (`ficha-announcer`), not a toast.
@@ -130,3 +130,25 @@ Run inside the `tools` container of this worktree's compose project (`.env` is s
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-09-25 — Review pass
+
+Layers: Edge Case Hunter and Verification Gap Reviewer. Blind Hunter and Intent Alignment skipped (token economy; the integrated Epic 6 review covers them).
+
+- verdicts: 15 findings — high 0, medium 7, low 6, false 0, maybe-false 2
+- findings:
+  - `[medium]` `[patch]` point-editor `finish` closes after a refused (quiet) autosave, losing the text — persist now toasts `writeErrorText` once; close keeps the editor open with the text when a flushed write was refused.
+  - `[medium]` `[patch]` same root as above: the removed `save()` kept the editor open on refusal — covered by the same fix.
+  - `[low]` `[reject]` text typed after Esc while `finish` awaits the last write is dropped — a window of milliseconds; not met in everyday use and the fix adds guards.
+  - `[maybe-false]` `[reject]` a recovered stored-point draft may overwrite newer text — "Recuperar" is an explicit choice with the same semantics as every FR-61 source; if true only low.
+  - `[low]` `[patch]` a rejected batch save was toasted as unreadable files — now toasts `writeErrorText` and closes.
+  - `[low]` `[reject]` gallery route left before the batch save resolves gives no toast — the photos are saved as "Geral" (no loss); rare.
+  - `[medium]` `[patch]` "Outro equipamento" unmounts on press and drops keyboard focus to the body — the focus moves to the first grouped row.
+  - `[low]` `[reject]` the 180-frame focus watch after the camera pulls focus back if the person taps blank space within 3 s — mild and rare; `once` would undo the Q6 fix.
+  - `[medium]` `[patch]` `ncRowPointPositions` marked a photo-less NC row with another photo-less row's point — now matches only through the item's photos (narrowing recorded).
+  - `[low]` `[patch]` `readLastSheet` rejection would throw in `useLiveQuery` — `.catch(() => null)`.
+  - `[maybe-false]` `[patch]` conclusion `moved` flag never reset on a build re-run — reset at the top of the build (trivial, no new surface).
+  - `[medium]` `[patch]` Q14 call sites untested (tests press "Sincronizar agora") — added 6.2-E2E-005 `@p1`: shot and import upload on their own within 10 s.
+  - `[medium]` `[patch]` Q1 header fix guarded only by timing-dependent `@p1` journeys — added `ficha-header.test.tsx`.
+  - `[medium]` `[patch]` stored-point autosave/draft on the Points surface untested — added 6.6-E2E-012 `@p1`.
+  - `[low]` `[patch]` Esc at "De qual equipamento?" untested — added 6.4-E2E-010 `@p1`; and the wrong comment in `point-draft-recovery.ts` corrected.
