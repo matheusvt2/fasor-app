@@ -1,10 +1,10 @@
 import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, instantiateTemplate, makeOp, standardTemplate, type JsonValue, type OpDraft } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { newId } from '../../apps/api/src/ids.ts';
-import { expect, TEST_SEED } from './merged-fixtures.ts';
+import { expect, type SeedAccount } from './merged-fixtures.ts';
 import { readDeviceId } from './outbox.ts';
 
-type Account = (typeof TEST_SEED.companies)[number];
+type Account = SeedAccount;
 
 /**
  * Stories 4.4/4.5: a relatório of the standard template born on "another device" — the

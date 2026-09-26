@@ -36,7 +36,7 @@ test('@p2 4.8-E2E-003 the Export dialog renders its states at 390, 768 and 1280 
   seed,
 }) => {
   test.setTimeout(240_000);
-  await resetEmpresaBWithFixture();
+  await resetEmpresaBWithFixture(seed.companies[1]);
   await signIn(page, seed.companies[1].email);
   // The Sumário of the small fixture (Em campo); its foot's "Gerar relatório" opens the dialog.
   await page.goto(`/relatorio/${RELATORIO_ID}`);

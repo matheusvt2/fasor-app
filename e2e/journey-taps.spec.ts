@@ -1,7 +1,7 @@
 import { type OpDraft } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
-import { deviceDatabaseName, expect, signIn, syncBadge, test, TEST_SEED } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, signIn, syncBadge, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { newRelatorioDrafts, pushDrafts } from './support/relatorio-seed.ts';
 import { humanTap } from './support/taps.ts';
@@ -16,8 +16,13 @@ import { humanTap } from './support/taps.ts';
  * the review.
  */
 
-const account = TEST_SEED.companies[1];
-const database = deviceDatabaseName(account.userId);
+let account: SeedAccount;
+let database: string;
+test.beforeEach(({ seed }) => {
+  // This worker's Empresa B (E6-Q7): its company, its user and its device database.
+  account = seed.companies[1];
+  database = deviceDatabaseName(account.userId);
+});
 /** A tap that landed shows its effect well within this; a lost one never does. */
 const EFFECT_MS = 3_000;
 const READINGS = ['150', '160', '170', '180', '190', '200', '100', '110', '120'];
@@ -138,7 +143,7 @@ function report(label: string, c: Counter, baseline: string): void {
 
 test('@p1 12.1-E2E-009 J1 and J3 at 768 px: every tap lands on the first try, counted against the review baseline', async ({ page }) => {
   test.setTimeout(240_000);
-  await resetEmpresaB({ standard: true });
+  await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 768, height: 1024 });
   await signIn(page, account.email);
   const built = newRelatorioDrafts(account);

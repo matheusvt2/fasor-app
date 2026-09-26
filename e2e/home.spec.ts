@@ -185,7 +185,7 @@ test('@p1 1.6-E2E-001 Home shows the status board, the current relatório first 
 test('@p1 1.6-E2E-002 a device with nothing on it says so and offers "Novo relatório"', async ({ page, seed }) => {
   // Empresa B is the company the writing specs use (`e2e/relatorio.spec.ts` resets it and
   // leaves relatórios behind), so it is emptied here first: the reset is only ever Empresa B's.
-  await resetEmpresaB();
+  await resetEmpresaB(seed.companies[1]);
   await signIn(page, seed.companies[1].email);
   await expect(page.getByText('Nenhum relatório ainda.')).toBeVisible();
   await expect(page.locator('.relatorio-card')).toHaveCount(0);

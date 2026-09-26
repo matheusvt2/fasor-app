@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import { deviceDatabaseName, expect, signIn, test, TEST_SEED } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { newRelatorioDrafts, pushDrafts } from './support/relatorio-seed.ts';
 
@@ -20,13 +20,18 @@ const VIEWPORTS = [
 ] as const;
 const THEMES = ['light', 'dark'] as const;
 
-const account = TEST_SEED.companies[1];
-const database = deviceDatabaseName(account.userId);
+let account: SeedAccount;
+let database: string;
+test.beforeEach(({ seed }) => {
+  // This worker's Empresa B (E6-Q7): its company, its user and its device database.
+  account = seed.companies[1];
+  database = deviceDatabaseName(account.userId);
+});
 
 test('P- captures of the v0.9 skin (CAPTURE_P=1 only)', async ({ page }) => {
   test.skip(process.env.CAPTURE_P !== '1', 'captures run only with CAPTURE_P=1');
   test.setTimeout(300_000);
-  await resetEmpresaB({ standard: true });
+  await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: 768, height: 1024 });
   await signIn(page, account.email);
   const built = newRelatorioDrafts(account);

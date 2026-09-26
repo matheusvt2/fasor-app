@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { deviceDatabaseName, expect, signIn, test, TEST_SEED } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { newRelatorioDrafts, pushDrafts } from './support/relatorio-seed.ts';
 
@@ -14,8 +14,13 @@ import { newRelatorioDrafts, pushDrafts } from './support/relatorio-seed.ts';
  * with its reason (and in the PR).
  */
 
-const account = TEST_SEED.companies[1];
-const database = deviceDatabaseName(account.userId);
+let account: SeedAccount;
+let database: string;
+test.beforeEach(({ seed }) => {
+  // This worker's Empresa B (E6-Q7): its company, its user and its device database.
+  account = seed.companies[1];
+  database = deviceDatabaseName(account.userId);
+});
 
 const VIEWPORTS = [
   { width: 390, height: 844 },
@@ -128,7 +133,7 @@ async function openSection9(page: Page): Promise<void> {
 
 test('@p0 ERGO-E2E-001 glove targets at 390 and 768 px: every control at least 48 x 48, the glove-filled ones at least 56 tall (Home, Sumário with section 9 open, the tree, a sheet)', async ({ page }) => {
   test.setTimeout(240_000);
-  await resetEmpresaB({ standard: true });
+  await resetEmpresaB(account, { standard: true });
   await page.setViewportSize(VIEWPORTS[1]);
   await signIn(page, account.email);
   const built = newRelatorioDrafts(account);
