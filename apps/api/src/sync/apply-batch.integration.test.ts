@@ -2,11 +2,11 @@ import { makeOp, type Op, type OpInput } from '@app/domain';
 import { and, eq, inArray } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
 import { now } from '../clock.ts';
-import { createDb } from '../db/client.ts';
+import { createDb, type Db } from '../db/client.ts';
 import { asCompanyId } from '../db/repositories/company-id.ts';
 import { entities, ops } from '../db/schema.ts';
 import { newId } from '../ids.ts';
-import { applyServerBatch, ServerBatchRejectedError } from './apply.ts';
+import { applyOps, applyServerBatch, ServerBatchRejectedError } from './apply.ts';
 
 /*
  * Story 4.8: `applyServerBatch` is one transaction under the company lock. A batch whose
@@ -133,5 +133,54 @@ describe('4.8-INT-001 applyServerBatch', () => {
     expect(result.applied[1]!.seq).toBeGreaterThan(result.applied[0]!.seq);
     const [row] = await db.select({ row: entities.row }).from(entities).where(and(eq(entities.company_id, companyId), eq(entities.id, id)));
     expect((row?.row as { name: string }).name).toBe('Cliente renomeado');
+  });
+});
+
+/**
+ * A `Db` whose `failAt`-th insert into `ops` throws a plain Error, as a dropped connection
+ * would: a transient failure, not a refusal. Nested transactions (savepoints) are wrapped too.
+ */
+function failingOnOpInsert(real: Db, failAt: number): Db {
+  let inserts = 0;
+  const wrap = <T extends object>(target: T): T =>
+    new Proxy(target, {
+      get(obj, prop, receiver) {
+        if (prop === 'insert') {
+          return (table: unknown) => {
+            if (table === ops) {
+              inserts += 1;
+              if (inserts === failAt) throw new Error('connection terminated unexpectedly');
+            }
+            return (obj as unknown as Db).insert(table as typeof ops);
+          };
+        }
+        if (prop === 'transaction') {
+          return (callback: (tx: unknown) => Promise<unknown>) => (obj as unknown as Db).transaction((inner) => callback(wrap(inner)));
+        }
+        const value = Reflect.get(obj, prop, receiver) as unknown;
+        return typeof value === 'function' ? (value as (...args: unknown[]) => unknown).bind(obj) : value;
+      },
+    });
+  return wrap(real);
+}
+
+describe('E6-A1 applyOps: one transaction per push', () => {
+  it('a transient error mid-push propagates and commits nothing of the push', async () => {
+    const id = newId();
+    const create = clientCreate(id);
+    const rename = serverOp({ kind: 'put', scope: 'company', path: `registry/client/${id}/name`, value: 'Cliente renomeado' });
+    const third = clientCreate(newId());
+    await expect(applyOps(failingOnOpInsert(db, 3), companyId, [create, rename, third], { now, origin: 'server' })).rejects.toThrow(
+      'connection terminated unexpectedly',
+    );
+    const logged = await db.select({ op_id: ops.op_id }).from(ops).where(inArray(ops.op_id, [create.op_id, rename.op_id, third.op_id]));
+    expect(logged).toEqual([]);
+    const rows = await db.select({ id: entities.id }).from(entities).where(and(eq(entities.company_id, companyId), eq(entities.id, id)));
+    expect(rows).toEqual([]);
+
+    // The retry of the same push lands whole, in order.
+    const retried = await applyOps(db, companyId, [create, rename, third], { now, origin: 'server' });
+    expect(retried.rejected).toEqual([]);
+    expect(retried.applied.map((a) => a.op_id)).toEqual([create.op_id, rename.op_id, third.op_id]);
   });
 });

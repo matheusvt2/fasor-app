@@ -11,7 +11,7 @@ import { useEffect, useReducer, useRef } from 'react';
  * with no action and no feedback. On the equipment sheet two things rendered in that window:
  * the blur (or Enter) commit of the field the engineer had just typed in, whose write lands
  * mid-press and rebuilds the snapshot from the new rows, and the section above collapsing
- * because the pointer's focus moved into the next one (the D-2 half is in `ficha-surface`).
+ * because the pointer's focus moved into the next one (the D-2 half is in `use-ficha-steps.ts`).
  *
  * This module is the guard for the first half: one module-level store of "a primary pointer
  * is down", fed by document capture listeners, and `useHeldWhilePressed(value)`, which keeps

@@ -5,6 +5,7 @@ import { syncNowAndReturn } from './support/sync.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB as resetCompany } from './support/reset-empresa-b.ts';
 import { officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
+import { pushRevision } from './support/push-server-ops.ts';
 
 /*
  * 4.4-E2E and 4.5-E2E: the location tree in the Sumário's section 9 and on the rail, and
@@ -505,4 +506,36 @@ test('@p0 5.2-E2E-004 (AC2 leftover) cabineMetaText updates live, with no reload
   await openSection9(page);
   // Story 12.3: the secondary voltage and the power are still empty.
   await expect(cabine(page, 'Cubículo Enel').locator('.s9-cab-meta')).toHaveText('BLINDADA · 13,8 kV · 19 °C · 67 % · faltam 2 campos');
+});
+
+test('@p1 4.6-E2E-006 an Emitido relatório whose block references an equipment moves to Em revisão when that TAG is renamed from the tree, in the rename\'s batch', async ({ page }) => {
+  test.setTimeout(150_000);
+  const { relatorioId } = await openRelatorio(page, 1280);
+  // Emitido, as an issue leaves it: the status from the office, the revision as the server writes it.
+  await pushDrafts(page, database, [officeDraft(account, { relatorioId }, 'relatorio/status', 'emitido')]);
+  await pushRevision(account.companyId, relatorioId, { number: 1, createdBy: account.userId, createdAt: new Date('2026-09-10T12:00:00.000Z') });
+  await syncNowAndReturn(page);
+  await page.reload();
+  await expect(page.locator('.sheet-meta .status-pill')).toHaveText('Emitido', { timeout: 30_000 });
+
+  await openSection9(page);
+  await page.getByRole('button', { name: 'Expandir 1° Subsolo' }).click();
+  const blockId = await blockIdOf(page, 'SEC-C01');
+  await menuOf(page, 'SEC-C01').click();
+  await page.getByRole('menuitem', { name: 'Renomear TAG' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Renomear TAG SEC-C01' });
+  await dialog.getByRole('textbox', { name: 'TAG' }).fill('SEC-C01-R');
+  await dialog.getByRole('button', { name: 'Salvar' }).click();
+  await expect(tagsIn(coluna(page, 'Coluna 1'))).toContainText(['SEC-C01-R']);
+  expect(await blockIdOf(page, 'SEC-C01-R')).toBe(blockId);
+
+  // The rename is project-scoped (the TAG is the obra's), yet the relatório advances.
+  await expect(page.locator('.sheet-meta .status-pill')).toHaveText('Em revisão');
+  const outbox = await readStore<{ path: string; value: unknown; batch_id: string | null; relatorio_id: string | null }>(page, database, 'outbox');
+  const rename = outbox.find((op) => op.path.startsWith('equipment/') && op.value === 'SEC-C01-R');
+  const status = outbox.find((op) => op.path === 'relatorio/status' && op.relatorio_id === relatorioId && op.value === 'em_revisao');
+  expect(rename).toBeDefined();
+  expect(status).toBeDefined();
+  expect(rename!.batch_id).not.toBeNull();
+  expect(status!.batch_id).toBe(rename!.batch_id);
 });

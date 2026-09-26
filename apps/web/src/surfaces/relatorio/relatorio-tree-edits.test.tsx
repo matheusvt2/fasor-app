@@ -12,6 +12,7 @@ import { applyPulled } from '../../db/sync-store.ts';
 import { BackTargetProvider } from '../../state/back-target.tsx';
 import type { SessionState } from '../../state/session.tsx';
 import { SyncContext, type SyncState } from '../../state/sync.tsx';
+import { makeSyncState } from '../../test/sync-state.ts';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
 import { SumarioSurface } from './sumario-surface.tsx';
 import { TreeSurface } from './tree-surface.tsx';
@@ -55,29 +56,7 @@ const session = (): SessionState => ({
 
 vi.mock('../../state/session.tsx', () => ({ useSession: () => session() }));
 
-const syncState = (): SyncState => ({
-  counts: { pending: 0, sent: 0, dead: 0, sheets_pending: 0, photos_pending: 0 },
-  badgeState: 'ok',
-  pendingText: '',
-  pendingCount: 0,
-  online: true,
-  running: false,
-  outdated: false,
-  lastResult: 'ran',
-  lastFailure: null,
-  unreachable: null,
-  lastSyncAt: null,
-  lastPushAt: [],
-  supersededCount: 0,
-  deviceId: 'tablet-1',
-  userNames: {},
-  summaryRelatorios: [],
-  syncNow: vi.fn(async () => 'ran' as const),
-  syncRelatorio: vi.fn(async () => 'ran' as const),
-  resendDead: vi.fn(async () => {}),
-  fetchFile: vi.fn(async () => new Blob()),
-  generate: vi.fn(async () => ({ outcome: 'queued' as const, job_id: '019966b0-0000-7000-8000-0000000000e1', revision_number: 1 })),
-});
+const syncState = (): SyncState => makeSyncState();
 
 configure({ asyncUtilTimeout: 5000 });
 

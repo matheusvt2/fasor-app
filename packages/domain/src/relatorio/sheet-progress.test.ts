@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { SubBlockKey } from '../schemas/block-config.ts';
 import { emptySheet, type BlockRow, type Cell, type Sheet } from '../schemas/entities.ts';
 import { getDefinition } from '../seed/definitions.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
@@ -13,6 +14,7 @@ import {
   sheetProgressText,
   sheetSummaryParts,
   sheetSummaryText,
+  shownSheetSteps,
   stepMayCollapse,
   stepMissingLabel,
 } from './sheet-progress.ts';
@@ -302,5 +304,39 @@ describe('12.5-UNIT sheetSummaryText (the Sheet header sentence, J-14)', () => {
     expect(sheetSummaryText(counts(0, 0, 9, 2), noPlaca)).toBe('Verificações prontas · faltam 9 leituras e a conclusão');
     expect(sheetSummaryText(counts(0, 14, 9, 2), noPlaca)).toBe('Faltam 14 verificações, 9 leituras e a conclusão');
     expect(sheetSummaryText(counts(5, 0, 0, 0), noPlaca)).toBe('Ficha completa');
+  });
+});
+
+describe('E12-A7 shownSheetSteps: the steps whose sub-block is enabled', () => {
+  const withOff = (...off: SubBlockKey[]): BlockRow => {
+    const config = defaultBlockConfig('v1', 'chave_seccionadora', { subtype: 'manual' });
+    const sub_blocks = { ...config.sub_blocks };
+    for (const key of off) sub_blocks[key] = { ...sub_blocks[key], enabled: false };
+    return block({}, { config: { ...config, sub_blocks } });
+  };
+
+  it('all four for a default sheet', () => {
+    expect(shownSheetSteps(block())).toEqual(['placa', 'verificacoes', 'ensaios', 'conclusao']);
+  });
+
+  it('drops the step of an off sub-block; Ensaios only when every test is off; Verificações and Conclusão are always on', () => {
+    expect(shownSheetSteps(withOff('checklist', 'conclusion'))).toEqual(['placa', 'verificacoes', 'ensaios', 'conclusao']);
+    expect(shownSheetSteps(withOff('nameplate'))).toEqual(['verificacoes', 'ensaios', 'conclusao']);
+    const tests = SEC.sub_blocks.filter((key): key is SubBlockKey => ['isolacao', 'ia_ip_display', 'resistencia_contato', 'relacao_transformacao'].includes(key));
+    expect(tests.length).toBeGreaterThan(0);
+    expect(shownSheetSteps(withOff(tests[0]!))).toContain(tests.length > 1 ? 'ensaios' : 'placa');
+    expect(shownSheetSteps(withOff(...tests))).toEqual(['placa', 'verificacoes', 'conclusao']);
+  });
+
+  it('keeps Placa on the cabine\'s first sheet, whose cabine fields are filled there', () => {
+    expect(shownSheetSteps(withOff('nameplate'), { cabineFirst: true })).toEqual(['placa', 'verificacoes', 'ensaios', 'conclusao']);
+  });
+
+  it('the header sentence never names an off step', () => {
+    const b = withOff('nameplate');
+    const shown = shownSheetSteps(b);
+    expect(sheetSummaryText(progressOf(b), shown)).not.toMatch(/placa/i);
+    // Without the shown steps the off Placa (0 missing) would read "Placa pronta".
+    expect(sheetSummaryText(progressOf(b))).toMatch(/^Placa pronta/);
   });
 });

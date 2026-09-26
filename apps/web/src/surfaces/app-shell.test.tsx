@@ -50,6 +50,7 @@ const draftsState = (draftFound = false): DraftsState => ({
   draftFound,
   register: vi.fn(() => () => {}),
   persistAll: vi.fn(async () => {}),
+  persistOne: vi.fn(async () => {}),
 });
 
 function renderShell(sync: SyncState = syncState(), path = '/', drafts: DraftsState = draftsState()) {

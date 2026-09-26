@@ -154,6 +154,16 @@ export async function pendingUploadCount(db: AppDatabase): Promise<number> {
   return (await pendingUploads(db)).filter((item) => item.upload_error?.state !== 'dead').length;
 }
 
+/**
+ * The ids of the files whose local upload stopped with an error (`failed` or `dead`), for
+ * the kernel's `preIssue` (`photoErrors`): the Sumário's "aguardando envio" leaves them out,
+ * as their tile says "Erro". `upload_error` is not indexed, so this reads every blob row.
+ */
+export async function uploadErrorIds(db: AppDatabase): Promise<ReadonlySet<string>> {
+  const rows = await db.files.filter((row) => row.upload_error !== undefined && row.upload_error !== null).toArray();
+  return new Set(rows.map((row) => row.id));
+}
+
 /** Story 6.1/6.2: one photo's upload view for its tile: the persisted error, if any. */
 export async function localUploadError(db: AppDatabase, id: string): Promise<UploadError | null> {
   return (await db.files.get(id))?.upload_error ?? null;

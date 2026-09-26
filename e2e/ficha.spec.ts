@@ -5,7 +5,7 @@ import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, type Seed
 import { syncNowAndReturn } from './support/sync.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB as resetCompany } from './support/reset-empresa-b.ts';
-import { officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
+import { newRelatorioDrafts, officeDraft, pushDrafts, pushNewRelatorio } from './support/relatorio-seed.ts';
 
 /*
  * 5.1-5.4-E2E: the equipment sheet, driven as a person would, by pointer and by keyboard:
@@ -1464,4 +1464,44 @@ test('@p1 E5-Q9 the expired calibration line under a picked instrument is drawn 
     return [getComputedStyle(element).color, want];
   });
   expect(color).toBe(expected);
+});
+
+test('@p1 12.5-E2E-005 E12-A7: a sheet whose nameplate is off draws no Placa step, its header sentence never names the plate, and one shown step is current', async ({ page }) => {
+  test.setTimeout(150_000);
+  await resetCompany(account, { standard: true });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await signIn(page, account.email);
+  const built = newRelatorioDrafts(account);
+  // The last sheet of Cubículo Enel (never the cabine's first, which keeps Placa for the
+  // cabine's fields) gets its nameplate sub-block turned off before the push.
+  type BlockValue = { id: string; location_id: string | null; equipment_id: string | null; order_key: string; config: { sub_blocks: Record<string, { enabled?: boolean }> } };
+  const enelIds = new Set(
+    built.drafts
+      .filter((draft) => draft.kind === 'create' && draft.path.startsWith('location/') && (draft.value as { name?: string }).name === 'Cubículo Enel')
+      .map((draft) => (draft.value as { id: string }).id),
+  );
+  const enelBlocks = built.drafts
+    .filter((draft) => draft.kind === 'create' && draft.path.startsWith('block/'))
+    .map((draft) => draft.value as unknown as BlockValue)
+    .filter((block) => block.equipment_id !== null && block.location_id !== null && enelIds.has(block.location_id))
+    .sort((a, b) => (a.order_key < b.order_key ? -1 : 1));
+  expect(enelBlocks.length).toBeGreaterThan(1);
+  const target = enelBlocks.at(-1)!;
+  const drafts = built.drafts.map((draft) => {
+    if (draft.kind !== 'create' || draft.path !== `block/${target.id}`) return draft;
+    const value = draft.value as unknown as BlockValue;
+    const sub_blocks = { ...value.config.sub_blocks, nameplate: { ...value.config.sub_blocks.nameplate, enabled: false } };
+    return { ...draft, value: { ...value, config: { ...value.config, sub_blocks } } } as unknown as OpDraft;
+  });
+  await pushDrafts(page, database, drafts);
+
+  await page.goto(`/relatorio/${built.relatorioId}/ficha/${target.id}`);
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  await expect(stepper(page).getByRole('button')).toHaveCount(3);
+  await expect(stepper(page).getByRole('button', { name: /^Placa,/ })).toHaveCount(0);
+  await expect(stepper(page).getByRole('button', { name: /^Verificações,/ })).toBeVisible();
+  await expect(stepper(page).locator('.step[aria-current="step"]')).toHaveCount(1);
+  const summary = page.locator('.sheet-header .sheet-summary');
+  await expect(summary).not.toHaveText('');
+  await expect(summary).not.toContainText(/placa/i);
 });

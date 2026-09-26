@@ -42,6 +42,26 @@ export type SheetStep = 'placa' | 'verificacoes' | 'ensaios' | 'conclusao';
 /** The four steps in their stepper order. */
 export const SHEET_STEPS: readonly SheetStep[] = ['placa', 'verificacoes', 'ensaios', 'conclusao'];
 
+/** The sub-blocks each step fills (`placaMissing`, `verificacoesMissing`, `ensaiosCounts`, `conclusaoMissing`); Ensaios is every test. */
+const STEP_SUB_BLOCKS: Readonly<Record<SheetStep, readonly SubBlockKey[]>> = {
+  placa: ['nameplate'],
+  verificacoes: ['checklist'],
+  ensaios: ['isolacao', 'ia_ip_display', 'resistencia_contato', 'relacao_transformacao'],
+  conclusao: ['conclusion'],
+};
+
+/**
+ * E12-A7 (batch D low a): the steps a sheet shows, in stepper order: those whose sub-block
+ * the block's config enables (`enabledSubBlocksOf`). The stepper draws only these and the
+ * Sheet header's sentence (`sheetSummaryText`) names only these, so no sentence calls an off
+ * step "pronta". Placa stays on the cabine's first sheet (`cabineFirst`) whatever its plate,
+ * since the cabine's fields are filled there.
+ */
+export function shownSheetSteps(block: Pick<BlockRow, 'config'>, options: { cabineFirst?: boolean } = {}): SheetStep[] {
+  const enabled = enabledSubBlocksOf(block);
+  return SHEET_STEPS.filter((step) => STEP_SUB_BLOCKS[step].some((key) => enabled.has(key)) || (step === 'placa' && options.cabineFirst === true));
+}
+
 /** One step's counts: what is missing, and (Ensaios only) the readings out of their criterion. */
 export interface SheetStepProgress {
   missing: number;

@@ -640,7 +640,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: An equipment TAG rename (project-scoped, `relatorio_id: null`) never triggers the Emitido→Em revisão transition for a relatório that references the renamed equipment, even though `equipment`/`equipment/field` are in AD-22's `editedSince` family set.
   evidence: Found by the independent review of PR #27 (batch C), 2026-09-24 (`_bmad-output/implementation-artifacts/reviews/epic-4-C-review.md`, finding 9). `apps/web/src/db/commit.ts`'s `buildBatch` groups ops `byRelatorio` and skips any op with `relatorio_id == null` (`if (op.relatorio_id == null) continue;`), so `advanceOnEdit` is only ever evaluated for relatório-scoped ops. Every other family in `EDITED_SINCE_FAMILIES` is relatório-scoped and correctly covered; `equipment` alone is project-scoped by design (a TAG is shared across a project's relatórios, AD-19). Fixing it needs `buildBatch` to resolve, for a project-scoped equipment op, which of the project's relatórios have a block referencing that equipment id (no existing Dexie index supports this directly — blocks are indexed by `relatorio_id`, not `equipment_id` — so it would be a new cross-relatório scan inside `commitBatch`'s hot path, used by every write in the app). Recorded as a dated narrowing in `epics.md`'s Story 4.6 AC rather than risked as an unreviewed change to that shared path under this fix pass's time budget.
   class: bug
-  state: open (owner: whichever story next touches `commit.ts`'s `buildBatch` or Epic 5's equipment work; a candidate fix is a `db.entities.where('relatorio_id').anyOf(projectRelatorioIds)` scan filtered to `entity === 'block' && row.equipment_id === id` in JS, gated behind an `emitido`-status check to keep the common case cheap)
+  state: ~~open (owner: whichever story next touches `commit.ts`'s `buildBatch` or Epic 5's equipment work; a candidate fix is a `db.entities.where('relatorio_id').anyOf(projectRelatorioIds)` scan filtered to `entity === 'block' && row.equipment_id === id` in JS, gated behind an `emitido`-status check to keep the common case cheap)~~ closed (2026-09-26, spec-epic-8-carry-over.md: the fix landed in PR #29, `apps/web/src/db/commit.ts` `inRelatorioStream`, unit test "E4 retro Q15"; the tree's "Renomear TAG" on an Emitido relatório is now covered end to end by 4.6-E2E-006)
   note: 2026-09-24, Epic 4 QA fixes (`spec-epic-4-fix-qa.md`, Q4). A later relatório of the obra now reuses the project's equipment, so this gap is no longer rare. A TAG rename made in relatório 2 changes what an Emitido relatório 1 prints, and relatório 1's status does not move. The rename dialog also gives no sign that the TAG is shared. The priority rises; the owner is unchanged.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-4-fix-qa.md`
@@ -791,16 +791,22 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: With 3 e2e workers on per-worker companies, `POST /api/sync/ops` slows from about 1.2 s alone to about 17 s median when pushes overlap, and 12.3-E2E-004 failed in 1 of 3 parallel full runs (never serially). The gate stays at 1 worker (`PARALLEL_WORKERS = 1`); `--workers=3` is opt-in. Probable fix: apply a push batch in one transaction (or find the shared lock/pool the pushes serialize on), then repeat the 3+3 validation of PR #45 and switch the gate if it holds.
   evidence: PR #45 body (validation table, api log timings).
   class: deferred
-  state: open (owner: Epic 7 carry-over batch; blocks the 18 -> ~10 min gate)
+  state: ~~open (owner: Epic 7 carry-over batch; blocks the 18 -> ~10 min gate)~~ partially closed (2026-09-26, spec-epic-8-carry-over.md: a client push is applied as one transaction under one company lock (a refused op removes its own log row, no savepoint), before/after/mutation timings in the spec's Design Notes. The slowdown half is closed: no overlapping push took over 3 s in three 3-worker full runs (worst 2.9 s, against 33 s before). The gate half is not: each 3-worker run still failed one test the serial runs passed, so `PARALLEL_WORKERS` stays 1; see the entry below)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-8-carry-over.md`
+  summary: With the push path fixed, `test:e2e:full --workers=3` still fails one test per run that the three serial runs pass. 12.3-E2E-004 failed twice: once "Ensaios, 9 faltando" with the values on screen (the device's reading commits land after the 5 s effect window), once an NC radio not checked within its window. 6.2-E2E-001 failed once (the retried upload past its 60 s bound). All pass alone, three times each. The gate stays at one worker (`PARALLEL_WORKERS = 1`), so `verify` stays over its 15-minute budget.
+  evidence: PR of branch `fix/epic-8-carry-over`, validation table (3 serial + 3 parallel runs, 2026-09-26). A host Chrome renderer used about 200 % CPU during the runs. Next steps: find why a device's commit queue slows under three browsers (IndexedDB contention, the preview server or CPU), try two workers, or widen the effect windows of the two tests.
+  class: deferred
+  state: open (owner: Epic 9 carry-over batch; blocks the ~13 min gate)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-6-fix-qa.md`
   summary: E6-R1. In a new point of attention, text typed right before a plain reload (no page-hidden event first) is neither committed nor kept as a draft; it is recovered when the page is hidden first (a phone going to the background).
   evidence: `reviews/epic-6-review-qa.md` § Re-check (PR #44).
   class: deferred
-  state: open (owner: Epic 7 carry-over batch)
+  state: ~~open (owner: Epic 7 carry-over batch)~~ closed (2026-09-26, spec-epic-8-carry-over.md: the point editor also writes its `point/{id}` draft 300 ms after typing stops (`state/draft-autosave.ts`), rewritten after each stored commit; the hide-time write stays; 6.6-E2E-013)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-6-fix-qa.md`
   summary: E6-R2. Photos captioned before PR #44 open the caption composer in "Editar texto"; a chip tapped there shows pressed but the caption does not change and nothing says why.
   evidence: `reviews/epic-6-review-qa.md` § Re-check (PR #44).
   class: deferred
-  state: open (owner: Epic 7 carry-over batch)
+  state: ~~open (owner: Epic 7 carry-over batch)~~ closed (2026-09-26, spec-epic-8-carry-over.md: while "Editar texto" is on every chip of the rows is `aria-disabled`, never pressed, a tap does nothing, and an authored note under the toggle says why; `app.css` mirrors the mock's disabled `.btn` opacity for `.chip[aria-disabled]`)
