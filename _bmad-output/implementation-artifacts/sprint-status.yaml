@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 09-26-2026 02:59
+last_updated: 09-26-2026 20:00
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -97,7 +97,7 @@ development_status:
   6-6-record-findings-that-print-as-section-8-with-untested-equipm: done  # PR #42
   epic-6-retrospective: done
 
-  epic-7: backlog
+  epic-7: in-progress  # started 2026-09-26 in parallel with Epic 8 (Matheus)
   7-1-print-the-equipment-sheets-as-native-tables-grouped-as-fo-se: backlog
   7-2-print-the-photo-record-and-the-photos-beside-their-equipment: backlog
   7-3-print-the-points-of-attention-and-the-certificates: backlog
@@ -105,10 +105,10 @@ development_status:
   7-5-see-what-is-outstanding-preview-as-rascunho-and-issue-the-re: backlog
   epic-7-retrospective: optional
 
-  epic-8: backlog
+  epic-8: in-progress
   8-1-a-suggestion-is-an-entity-nobody-can-write-without-a-tap: backlog
   8-2-photograph-the-plate-and-keep-the-photo-until-there-is-signa: backlog
-  8-3-run-a-local-ocr-service-in-docker-behind-the-ocrprovider-con: backlog
+  8-3-run-a-local-ocr-service-in-docker-behind-the-ocrprovider-con: done  # PR #47
   8-4-run-the-reading-job-end-to-end-with-fixture-driven-structuri: backlog
   8-5-accept-a-digit-only-when-the-ocr-saw-it-and-check-names-agai: backlog
   8-6-confirm-the-plate-in-one-tap-with-the-crop-in-view: backlog
@@ -417,7 +417,7 @@ action_items:
       closes; every cross-batch AC gets a named wiring owner in the spec phase; identity/reuse
       rules get a two-device test; fix agents report product choices as open questions"
     owner: "coordinator / SM"
-    status: open
+    status: done  # folded into epic-batch-orchestrator.md
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
   - id: "epic-4-retro-item-36-e4-a9-gate-run-test-e2e-matrix-at-epic-c"
     epic: 4
@@ -425,7 +425,7 @@ action_items:
       verifies, a shared SyncState test factory, an orchestrator watchdog with ISO
       timestamps"
     owner: "dev / coordinator"
-    status: in-progress
+    status: done  # PR #48 makeSyncState; host lock; watchdog rule in epic-batch-orchestrator.md
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
   - id: "epic-5-retro-item-37-e5-a1-stabilize-the-e2e-gate-before-epic"
     epic: 5
@@ -474,14 +474,14 @@ action_items:
       test through the sync route; a batch adding a table or wide control asserts
       its 390 px fit in an e2e"
     owner: "coordinator / SM"
-    status: open
+    status: done  # folded into epic-batch-orchestrator.md
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
   - id: "epic-5-retro-item-43-e5-a7-keep-the-epic-5-token-economy-deli"
     epic: 5
     action: "E5-A7 Keep the Epic 5 token-economy delivery shape while tokens are scarce,
       orchestrate on opus, cut batches along data dependencies"
     owner: "coordinator"
-    status: open
+    status: done  # folded into epic-batch-orchestrator.md
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
   - id: "epic-12-retro-item-44-e12-a1-add-the-epic-12-product-questions"
     epic: 12
@@ -500,7 +500,7 @@ action_items:
       7 context: the TAG is never written as an op, so the printer and the last_nameplate
       projection must read nameplateTagPrefill"
     owner: "coordinator"
-    status: open
+    status: done  # epic-7-context.md carry-over
     ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
   - id: "epic-12-retro-item-46-e12-a3-add-to-the-e1-a1-manual-device-sc"
     epic: 12
@@ -523,7 +523,7 @@ action_items:
     action: "E12-A5 Recompute every numeric AC target (taps, keys, times) against
       the decisions of its source document before a story is marked ready (E12-Q5)"
     owner: "coordinator / SM"
-    status: open
+    status: done  # folded into epic-batch-orchestrator.md
     ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
   - id: "epic-12-retro-item-49-e12-a6-gate-and-agents-new-p0-specs-wait"
     epic: 12
@@ -532,7 +532,7 @@ action_items:
       it; QA writes its report inside its worktree; agents block on background commands;
       one coordinator per checkout"
     owner: "coordinator"
-    status: open
+    status: done  # folded into epic-batch-orchestrator.md
     ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
   - id: "epic-12-retro-item-50-e12-a7-visual-follow-ups-with-epic-6-s-s"
     epic: 12
@@ -540,7 +540,7 @@ action_items:
       (12.5 AC2), stepper double underline, section 9 header at 390, batch D deferred
       lows, MOCK-GUIDE note that the before mocks now render with v0.9 CSS"
     owner: "dev; coordinator for MOCK-GUIDE"
-    status: open
+    status: done  # PR #48
     ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
   - id: "epic-6-retro-item-51-e6-a1-gate-time-next-action-fix-the-sync-push"
     epic: 6
@@ -550,7 +550,7 @@ action_items:
       vs 3 parallel full-run validation and switch the gate to 3 workers if it holds,
       bringing verify back under 15 min (measured 17-21 min)"
     owner: "Epic 7 carry-over batch (dev)"
-    status: open
+    status: in-progress  # PR #48: push applied in one transaction (worst 32.9 s -> 2.9 s); parallel runs still fail one timing spec each, gate stays at 1 worker
     ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
   - id: "epic-6-retro-item-52-e6-a2-gate-policy-one-verify-at-a-time-on-this"
     epic: 6
@@ -558,7 +558,7 @@ action_items:
       at most two); a batch touching the sheet, overlays or shared layout also runs
       test:e2e:full before merge, and the epic's last story PR always does"
     owner: "coordinator; Matheus decides the e2e:full rule"
-    status: open
+    status: in-progress  # one gate at a time via the host lock in epic-batch-orchestrator.md; the e2e:full rule applied conservatively, Matheus decides
     ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
   - id: "epic-6-retro-item-53-e6-a3-document-the-new-e2e-runner-in-agents-md"
     epic: 6
@@ -566,7 +566,7 @@ action_items:
       scripts/e2e.ts, per-worker companies, the serial export group, the leak check
       and --workers opt-in"
     owner: "coordinator"
-    status: open
+    status: done  # PR #48
     ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
   - id: "epic-6-retro-item-54-e6-a4-add-the-epic-6-product-questions-to-the"
     epic: 6
@@ -593,7 +593,7 @@ action_items:
       shown inactive (E6-R2); Sumario aguardando envio stops counting com erro photos;
       a test on which picture the viewer shows"
     owner: "Epic 7 carry-over batch (dev)"
-    status: open
+    status: done  # PR #48
     ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
   - id: "epic-6-retro-item-57-e6-a7-process-and-structure-retarget-stacked-p"
     epic: 6
@@ -602,5 +602,5 @@ action_items:
       under its story in epics.md; split ficha-surface.tsx (704 lines) when next touched;
       keep the carry-over-first batch in each epic"
     owner: "coordinator (batch instruction file); dev for the split"
-    status: open
+    status: done  # PR #48 (split, dated narrowings); process rules in epic-batch-orchestrator.md
     ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
