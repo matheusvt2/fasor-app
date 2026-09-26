@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { RegistryRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { getSeed } from '../seed/definitions.ts';
-import { cameraContextText, contextCaption, type ContextCaptionMeta } from './caption.ts';
+import { cameraContextText, captionWordFor, composeCaption, contextCaption, contextCaptionParts, type ContextCaptionMeta } from './caption.ts';
 
 /*
  * 6.1-UNIT: the context caption, row by row of the spec's I/O matrix.
@@ -44,7 +44,7 @@ describe('6.1-UNIT-001 contextCaption', () => {
 
   it('the ensaios step: the seed atividade of the test on screen, plural agreement', () => {
     expect(contextCaption({ block_id: TRAFO, item_key: null }, snapshotWith('Oxigênio'), meta({ step: 'ensaios', testKey: 'isolacao' }))).toBe(
-      'Detalhe dos ensaios de resistência de isolação realizados no transformador de força do Oxigênio',
+      'Detalhe dos ensaios de resistência de isolação realizados no transformador de força da Coluna 5 do Oxigênio',
     );
     expect(
       contextCaption({ block_id: CHAVE, item_key: null }, snapshotWith('Cubículo Enel'), meta({ step: 'ensaios', testKey: 'resistencia_contato' })),
@@ -101,6 +101,72 @@ describe('6.1-UNIT-001 contextCaption', () => {
   it('composes no trailing period', () => {
     const caption = contextCaption({ block_id: CHAVE, item_key: 'contatos' }, snapshotWith('Cubículo Enel'), meta())!;
     expect(caption.endsWith('.')).toBe(false);
+  });
+});
+
+describe('E6-Q5 the TAG and the column in the context caption', () => {
+  const SUBSOLO = '019966b0-0000-7000-8000-000000000111';
+  const COLUNA_1 = '019966b0-0000-7000-8000-000000000112';
+  const ENEL = '019966b0-0000-7000-8000-000000000113';
+  const SEC_C01 = '019966b0-0000-7000-8000-000000000114';
+  const SEC_ENEL = '019966b0-0000-7000-8000-000000000115';
+  const SEC_ENEL_2 = '019966b0-0000-7000-8000-000000000116';
+  const BLANK = '019966b0-0000-7000-8000-000000000117';
+  const EQ = (n: number) => `019966b0-0000-7000-8000-0000000002${String(n).padStart(2, '0')}`;
+  const withEquipment = (id: string, blockType: string, locationId: string, equipmentId: string) => ({ ...block(id, blockType, locationId), equipment_id: equipmentId });
+  // Porto Seguro's shapes: a cabine with colunas, and Cubículo Enel holding its blocks directly.
+  const snapshot = {
+    locations: [
+      { id: SUBSOLO, relatorio_id: RELATORIO, parent_id: null, name: '1° Subsolo', kind: 'cabine' },
+      { id: COLUNA_1, relatorio_id: RELATORIO, parent_id: SUBSOLO, name: 'Coluna 1', kind: 'coluna' },
+      { id: ENEL, relatorio_id: RELATORIO, parent_id: null, name: 'Cubículo Enel', kind: 'cabine' },
+    ],
+    blocks: [
+      withEquipment(SEC_C01, 'chave_seccionadora', COLUNA_1, EQ(1)),
+      withEquipment(SEC_ENEL, 'chave_seccionadora', ENEL, EQ(2)),
+      withEquipment(SEC_ENEL_2, 'chave_seccionadora', ENEL, EQ(3)),
+      withEquipment(BLANK, 'disjuntor_mt', COLUNA_1, EQ(4)),
+    ],
+    equipment: [
+      { id: EQ(1), tag: 'SEC-C01' },
+      { id: EQ(2), tag: 'SEC-ENEL' },
+      { id: EQ(3), tag: 'SEC-ENEL-2' },
+      { id: EQ(4), tag: '  ' },
+    ],
+  } as unknown as RelatorioSnapshot;
+
+  it('a block under a coluna: the TAG after the equipment, then the coluna and its cabine', () => {
+    expect(contextCaption({ block_id: SEC_C01, item_key: null }, snapshot, meta())).toBe('Detalhe da chave seccionadora SEC-C01 da Coluna 1 do 1° Subsolo');
+    // The mock's sentence: the composer's activity chip on the same parts.
+    const parts = contextCaptionParts({ block_id: SEC_C01, item_key: null }, snapshot, meta());
+    expect(parts.equipamento).toEqual({ name: 'chave seccionadora SEC-C01', gender: 'f', number: 'singular' });
+    expect(parts.local).toEqual({ name: 'Coluna 1 do 1° Subsolo', gender: 'f', number: 'singular' });
+    const limpeza = captionWordFor('limpeza e reaperto', 'atividade', seed.atividades, []);
+    expect(composeCaption({ ...parts, atividade: limpeza })).toBe('Detalhe da limpeza e reaperto realizada na chave seccionadora SEC-C01 da Coluna 1 do 1° Subsolo');
+  });
+
+  it('a recent equipment or local picked again agrees with its head word', () => {
+    expect(captionWordFor('chave seccionadora SEC-C01', 'equipamento', [], [])).toEqual({ name: 'chave seccionadora SEC-C01', gender: 'f', number: 'singular' });
+    expect(captionWordFor('cabos de saída CS-01', 'equipamento', [], [])).toMatchObject({ gender: 'm', number: 'plural' });
+    expect(captionWordFor('Coluna 1 do 1° Subsolo', 'local', seed.locais, [])).toMatchObject({ gender: 'f', number: 'singular' });
+  });
+
+  it('a block directly in the cabine: the TAG, then the cabine; two seccionadoras differ by TAG', () => {
+    const one = contextCaption({ block_id: SEC_ENEL, item_key: null }, snapshot, meta());
+    const two = contextCaption({ block_id: SEC_ENEL_2, item_key: null }, snapshot, meta());
+    expect(one).toBe('Detalhe da chave seccionadora SEC-ENEL do Cubículo Enel');
+    expect(two).toBe('Detalhe da chave seccionadora SEC-ENEL-2 do Cubículo Enel');
+    expect(one).not.toBe(two);
+  });
+
+  it('an NC row keeps the activity before them', () => {
+    expect(contextCaption({ block_id: SEC_C01, item_key: 'contatos' }, snapshot, meta({ step: 'verificacoes' }))).toBe(
+      'Detalhe da verificação de contatos realizada na chave seccionadora SEC-C01 da Coluna 1 do 1° Subsolo',
+    );
+  });
+
+  it('a blank TAG is left out', () => {
+    expect(contextCaption({ block_id: BLANK, item_key: null }, snapshot, meta())).toBe('Detalhe do disjuntor de média tensão da Coluna 1 do 1° Subsolo');
   });
 });
 

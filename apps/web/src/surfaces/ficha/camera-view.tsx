@@ -1,6 +1,7 @@
 import { burstCountText, cameraContextText } from '@app/domain';
 import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Button as AriaButton, Dialog, Modal, ModalOverlay } from 'react-aria-components';
+import { LIST_FOCUS_WATCH_FRAMES, restoreFocus } from '../../input/focus-restore.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { useToast } from '../../state/toast.tsx';
 import { usePhotoCapture, type CaptureTarget } from './use-photo-capture.ts';
@@ -67,19 +68,18 @@ export function useCamera(relatorioId: string, target: () => CaptureTarget, open
 
   // The opener takes the focus back once the view is gone, after React Aria's own restore
   // (which a re-render of the sheet during the burst -- the new tiles -- can leave on the
-  // page body). A few frames, so the overlay has unmounted first.
+  // page body). E6-Q6: the new tiles' rows commit after the view closes, on the live query's
+  // own schedule (later still on a loaded device), and that re-render can drop the focus
+  // again once it was returned; so the opener is watched, as a list's focus is after a write,
+  // and takes the focus back whenever it was lost, until the rows have settled.
   const returnFocus = useCallback(() => {
-    let frames = 0;
-    const tick = () => {
-      if (++frames < 3) {
-        requestAnimationFrame(tick);
-        return;
-      }
-      const target = opener.current;
-      if (target === null || !target.isConnected || document.querySelector('.camera-view') !== null) return;
-      if (document.activeElement !== target) target.focus();
-    };
-    requestAnimationFrame(tick);
+    restoreFocus(
+      () => {
+        const target = opener.current;
+        return target === null || document.querySelector('.camera-view') !== null ? null : target;
+      },
+      { frames: LIST_FOCUS_WATCH_FRAMES },
+    );
   }, [opener]);
 
   const open = () => {

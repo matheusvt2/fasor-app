@@ -38,6 +38,24 @@ interface Built {
 }
 
 const outbox = async (page: Page) => (await readStore<OutboxRow>(page, database, 'outbox')).filter((row) => row.path.startsWith('point/'));
+/** The point rows this device holds, as the ops left them. */
+const storedPoints = async (page: Page) =>
+  (await readStore<{ entity: string; row: PointRow }>(page, database, 'entities')).filter((record) => record.entity === 'point').map((record) => record.row);
+
+/**
+ * E6-Q2: the editor autosaves, so a point is one create op (its first non-empty commit)
+ * followed by field puts on that point only; nothing else touches `point/`.
+ */
+function expectOnePointAutosaved(ops: readonly OutboxRow[]): string {
+  expect(ops.length).toBeGreaterThanOrEqual(1);
+  expect(ops[0]!.kind).toBe('create');
+  const id = (ops[0]!.value as PointRow).id;
+  for (const op of ops.slice(1)) {
+    expect(op.kind).toBe('put');
+    expect(op.path).toMatch(new RegExp(`^point/${id}/(text|action)$`));
+  }
+  return id;
+}
 const row8 = (page: Page) => page.locator('li.sum-row[data-row="section_8"]');
 const cards = (page: Page) => page.locator('.poa-list > .point-of-attention-card:not(.is-auto):not(.is-editing)');
 const autoCards = (page: Page) => page.locator('.poa-list > .point-of-attention-card.is-auto');
@@ -155,11 +173,9 @@ test('@p0 6.6-E2E-001 row 8 opens the empty Points surface; "Criar" writes one p
   await expect(editor).toHaveCount(0);
   await expect(toast(page)).toContainText('Ponto de atenção salvo · 1 de 1 na seção 8');
 
-  // One create op; the text holds the token, never the number.
-  const ops = await outbox(page);
-  expect(ops).toHaveLength(1);
-  expect(ops[0]!.kind).toBe('create');
-  const row = ops[0]!.value as PointRow;
+  // One point, autosaved (a create, then its field puts); the text holds the token, never the number.
+  const pointId = expectOnePointAutosaved(await outbox(page));
+  const row = (await storedPoints(page)).find((point) => point.id === pointId)!;
   expect(row).toMatchObject({ relatorio_id: relatorioId, equipment_id: null, origin: 'manual', action: 'Instalar plaquetas de identificação', removed_at: null });
   expect(row.text).toContain(photoToken(photoId));
   expect(row.text).not.toContain('Imagem');
@@ -207,9 +223,8 @@ test('@p0 6.6-E2E-002 an NC row\'s "Criar ponto de atenção" links the sheet\'s
   await expect(dialog).toHaveCount(0);
   await expect(create).toBeFocused();
 
-  const ops = await outbox(page);
-  expect(ops).toHaveLength(1);
-  const point = ops[0]!.value as PointRow;
+  const pointId = expectOnePointAutosaved(await outbox(page));
+  const point = (await storedPoints(page)).find((row) => row.id === pointId)!;
   expect(point).toMatchObject({ equipment_id: equipmentOf.get(chave.blockId), origin: 'manual', action: 'Reapertar e medir de novo' });
   expect(point.text).toBe(`Contato com sinais de aquecimento ${photoToken(photoId)}`);
 
@@ -330,6 +345,153 @@ test('@p0 6.6-E2E-008 "Editar" then "Concluir" writes only the changed text and 
   const card = cards(page).first();
   await expect(card.locator('.poa-text')).toHaveText('Texto novo', { timeout: 30_000 });
   await expect(card.locator('.poa-fields dd')).toHaveText('Ação nova');
+});
+
+/**
+ * A relatório whose first Cubículo Enel seccionadora has its first item NC (with a photo on
+ * that item when `photoId` is given); the sheet open and the NC row returned.
+ */
+async function openNcRow(page: Page, photoId: string | null = null): Promise<{ relatorioId: string; chave: SeededSheet; row: Locator }> {
+  const { relatorioId, sheets } = await setUp(page, (scope, all) => {
+    const blockId = enelChaves(all)[0]!.blockId;
+    return [
+      officeDraft(account, scope, `sheet/${blockId}/checklist/${FIRST_ITEM.key}/result`, 'NC'),
+      ...(photoId === null ? [] : [photoDraft(scope, photoId, 3, { blockId, itemKey: FIRST_ITEM.key })]),
+    ];
+  });
+  const chave = enelChaves(sheets)[0]!;
+  await page.goto(`/relatorio/${relatorioId}/ficha/${chave.blockId}`);
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  const row = page.locator(`#ficha-step-verificacoes li.checklist-row[data-item-key="${FIRST_ITEM.key}"]`);
+  await row.scrollIntoViewIfNeeded();
+  return { relatorioId, chave, row };
+}
+
+test('@p0 6.6-E2E-009 E6-Q2: text typed in the point dialog is kept on Esc; the NC row then names its point and still offers another', async ({ page }) => {
+  test.setTimeout(150_000);
+  // The item has a photo: the row matches its point through it (E6-Q11).
+  const photoId = newId();
+  const { relatorioId, row } = await openNcRow(page, photoId);
+  const create = row.getByRole('button', { name: 'Criar ponto de atenção' });
+  const dialog = page.getByRole('dialog', { name: 'Criar ponto de atenção' });
+  // Opened and closed untouched: nothing is written.
+  await create.click();
+  await expect(textArea(dialog)).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(create).toBeFocused();
+  expect(await outbox(page)).toHaveLength(0);
+
+  await create.click();
+  await expect(textArea(dialog)).toBeFocused();
+  await page.keyboard.type('Contato da lâmina com sinais de oxidação');
+  // No "Cancelar": autosave has nothing to discard.
+  await expect(dialog.getByRole('button', { name: 'Cancelar' })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  await expect(toast(page)).toContainText('Ponto de atenção salvo · 1 de 1 na seção 8');
+  await expect(create).toBeFocused();
+
+  const pointId = expectOnePointAutosaved(await outbox(page));
+  const stored = (await storedPoints(page)).find((point) => point.id === pointId)!.text;
+  expect(stored).toContain('Contato da lâmina com sinais de oxidação');
+  expect(stored).toContain(photoToken(photoId));
+  // E6-Q11: the row names its point beside its actions, and a second point is still possible.
+  await expect(row.locator('.nc-point-ref')).toHaveText('Ponto de atenção 1');
+  await expect(create).toBeVisible();
+
+  // Reopening the point shows the text.
+  await page.goto(`/relatorio/${relatorioId}/pontos`);
+  await expect(cards(page).first().locator('.poa-text')).toContainText('Contato da lâmina com sinais de oxidação', { timeout: 30_000 });
+  await page.getByRole('button', { name: /^Editar o ponto 1/ }).click();
+  await expect(textArea(page.getByRole('article', { name: 'Ponto de atenção 1 em edição' }))).toContainText('Contato da lâmina com sinais de oxidação');
+});
+
+test('@p0 6.6-E2E-010 E6-Q2: a point typed and not yet saved when the tab dies is offered back as "Rascunho encontrado — Recuperar", which stores it', async ({ page, context }) => {
+  test.setTimeout(150_000);
+  const { row } = await openNcRow(page);
+  await row.getByRole('button', { name: 'Criar ponto de atenção' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Criar ponto de atenção' });
+  await expect(textArea(dialog)).toBeFocused();
+  await page.keyboard.type('Sem aterramento');
+  // The tab goes away before the autosave's idle commit.
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect.poll(async () => (await readStore<{ surface: string; value: { text?: string } }>(page, database, 'drafts')).filter((draft) => draft.surface === 'point').map((draft) => draft.value.text)).toContain('Sem aterramento');
+  const url = page.url();
+  await page.close();
+
+  const reopened = await context.newPage();
+  await reopened.setViewportSize({ width: 1280, height: 900 });
+  await reopened.goto(url);
+  await expect(reopened.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  const offer = reopened.getByTestId('toast');
+  await expect(offer).toContainText('Rascunho encontrado');
+  await offer.getByRole('button', { name: 'Recuperar' }).click();
+  await expect.poll(async () => (await storedPoints(reopened)).map((point) => point.text)).toEqual(['Sem aterramento']);
+  // An item with no photo names no point (E6-Q11): nothing tells its point from another item's.
+  const reopenedRow = reopened.locator(`#ficha-step-verificacoes li.checklist-row[data-item-key="${FIRST_ITEM.key}"]`);
+  await expect(reopenedRow.locator('.nc-point-ref')).toHaveCount(0);
+});
+
+test('@p1 6.6-E2E-012 E6-Q2: a stored point edited on the Points surface and reloaded before its autosave is offered back; "Recuperar" writes one text put', async ({ page }) => {
+  test.setTimeout(150_000);
+  let point: PointRow | null = null;
+  await setUp(page, (scope) => {
+    const built = pointDrafts(scope, [{ text: 'Texto antigo', action: 'Ação antiga' }]);
+    point = built.rows[0]!;
+    return built.drafts;
+  });
+  await openPoints(page);
+  await page.getByRole('button', { name: 'Editar o ponto 1, Geral' }).click();
+  const text = textArea(page.getByRole('article', { name: 'Ponto de atenção 1 em edição' }));
+  await expect(text).toBeFocused();
+  await page.keyboard.press('ControlOrMeta+a');
+  await page.keyboard.type('Texto novo');
+  // The tab goes away before the 500 ms idle commit, then the page is reloaded.
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await expect.poll(async () => (await readStore<{ surface: string; value: { text?: string } }>(page, database, 'drafts')).filter((draft) => draft.surface === 'point').map((draft) => draft.value.text)).toContain('Texto novo');
+  await page.reload();
+  await expect(page.locator('.poa-list')).toBeAttached({ timeout: 30_000 });
+  const offer = toast(page);
+  await expect(offer).toContainText('Rascunho encontrado');
+  await offer.getByRole('button', { name: 'Recuperar' }).click();
+  await expect(cards(page).first().locator('.poa-text')).toHaveText('Texto novo', { timeout: 10_000 });
+  const puts = (await outbox(page)).filter((op) => op.path === `point/${point!.id}/text`);
+  expect(puts.map((op) => [op.kind, op.value])).toEqual([['put', 'Texto novo']]);
+  expect((await outbox(page)).filter((op) => op.path === `point/${point!.id}/action`)).toHaveLength(0);
+});
+
+test('@p1 6.6-E2E-011 E6-Q11: removing a photo a point cites names that point in the confirm', async ({ page }) => {
+  test.setTimeout(150_000);
+  const cited = newId();
+  const other = newId();
+  const { relatorioId } = await setUp(page, (scope) => [
+    photoDraft(scope, cited, 1),
+    photoDraft(scope, other, 2),
+    ...pointDrafts(scope, [
+      { text: 'Primeiro', action: 'A' },
+      { text: `Ver ${photoToken(cited)}`, action: 'B' },
+    ]).drafts,
+  ]);
+  await page.goto(`/relatorio/${relatorioId}/fotos`);
+  await page.getByRole('button', { name: 'Foto 1, abrir', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Foto 1 de 2' }).getByRole('button', { name: 'Remover', exact: true }).click();
+  const confirm = page.getByRole('dialog', { name: 'Remover a foto 1 do relatório?' });
+  await expect(confirm).toContainText('Ela é citada no ponto de atenção 2, que passa a mostrar Foto removida.');
+  await confirm.getByRole('button', { name: 'Cancelar' }).click();
+  await page.keyboard.press('Escape');
+  // A photo no point cites says only what happens to it.
+  await page.getByRole('button', { name: 'Foto 2, abrir', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Foto 2 de 2' }).getByRole('button', { name: 'Remover', exact: true }).click();
+  const plain = page.getByRole('dialog', { name: 'Remover a foto 2 do relatório?' });
+  await expect(plain).toContainText('A foto sai da galeria e da seção 7.');
+  await expect(plain).not.toContainText('citada');
 });
 
 test('@p0 6.6-E2E-005 Sumário row 8 reads "5 pontos · 1 sem ação · 3 não ensaiadas" for 2 manual points (one without action) and 3 untested sheets', async ({ page }) => {

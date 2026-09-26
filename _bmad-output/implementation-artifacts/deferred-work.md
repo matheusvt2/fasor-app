@@ -701,7 +701,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Narrowing. The point editor saves on "Concluir" only; text typed and not yet concluded is not kept in the `drafts` store, so a tab discarded mid-edit loses it.
   evidence: `apps/web/src/surfaces/points/point-editor.tsx`; the spec's Design Notes allow the explicit save and ask for a note when the drafts store is not wired.
   class: deferred
-  state: open (owner: Epic 6 follow-up, with the drafts reopen offer of FR-61)
+  state: ~~open (owner: Epic 6 follow-up, with the drafts reopen offer of FR-61)~~ closed (2026-09-25, `spec-epic-6-fix-qa.md` E6-Q2: the editor autosaves per field through `useFieldCommit`, the new point created with its pre-generated id on the first non-empty commit and field puts after (`points/point-writes.ts`); Esc, the scrim and "Concluir" flush first; uncommitted text is a `point/{id}` draft, and `usePointDraftRecovery` on the sheet and the Points surface lets "Recuperar" store it with the editor closed. `e2e/points.spec.ts` 6.6-E2E-009 and 6.6-E2E-010)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-6-6-points-of-attention.md`
   summary: Section 8 prints nothing yet: the renderer of the points (text with each `[[foto:<id>]]` resolved to its frozen "Imagem N", the action, then the derived untested entries grouped by `groupDerivedPoints`) and the no-UI `priority`, `deadline`, `owner` fields are for Epic 7 and post-MVP.
@@ -753,9 +753,9 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-6-3-6-5-gallery-import-and-captions.md`
   summary: Narrowing, Story 6.5. The Caption composer is a full-screen modal, not the mock's route (`71-legenda.html`), so one component serves the sheet tile, the gallery tile, the viewer and the gallery batch.
-  evidence: `apps/web/src/surfaces/photos/caption-composer.tsx`; the mock's photo preview block above the rows (`.capture-preview`, `.capture-meta`) is not drawn.
+  evidence: `apps/web/src/surfaces/photos/caption-composer.tsx`; ~~the mock's photo preview block above the rows (`.capture-preview`, `.capture-meta`) is not drawn~~ (2026-09-25, E6-Q3: drawn for a single photo, the batch composer has none).
   class: deferred
-  state: open (owner: none; revisit if Bruno asks for the route)
+  state: open (owner: none; revisit if Bruno asks for the route). 2026-09-25, `spec-epic-6-fix-qa.md` E6-Q3: the preview half is closed -- the composer opens on the photo (`.capture-preview` with `.number-badge`, `.capture-meta`), the caption it composes comes before the rows (pinned with a compact photo below 768 px) and "Salvar legenda" sits in a sticky `.sticky-action-bar` (`gallery.spec.ts` 6.5-E2E-003 at 390 px); the modal-not-route narrowing stands.
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-6-3-6-5-gallery-import-and-captions.md`
   summary: Narrowing, Story 6.5. Caption recents are device-local per relatório (`local_prefs` key `caption_recents:{relatorio_id}`), not synced; the Equipamento choice changes the text only, never the photo's `block_id`.
@@ -776,10 +776,10 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   state: open (owner: none)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-6-3-6-5-gallery-import-and-captions.md`
-  summary: Narrowing, Story 6.4. A gallery batch commits on "Adicionar N fotos" (a sheet import commits at once); HEIC conversion is unit-tested with the converter mocked, and no HEIC file runs through Playwright.
+  summary: Narrowing, Story 6.4. ~~A gallery batch commits on "Adicionar N fotos" (a sheet import commits at once);~~ HEIC conversion is unit-tested with the converter mocked, and no HEIC file runs through Playwright.
   evidence: `apps/web/src/files/photo-import.test.ts`; `heic-to` is loaded by dynamic import only when a HEIC arrives.
   class: test-gap
-  state: open (owner: none)
+  state: open (owner: none) for the HEIC half. 2026-09-25, `spec-epic-6-fix-qa.md` E6-Q8 closed the batch half: a gallery batch is committed on pick as "Geral" with no caption, "Adicionar N fotos" writes the `block_id` and `caption` puts in one batch (`photo-ops.ts` `assignPhotoBatch`), and "Cancelar" leaves them as "Geral" with a toast (`gallery.spec.ts` 6.4-E2E-007 and 6.4-E2E-008).
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-6-3-6-5-gallery-import-and-captions.md`
   summary: Story 6.5 open question, conservative choice taken: a composer opened on a caption that is not what its prefilled rows compose (a hand-edited caption, or a sheet shot captioned on the ensaios step, whose activity the row does not store) opens in "Editar texto" with the stored text.

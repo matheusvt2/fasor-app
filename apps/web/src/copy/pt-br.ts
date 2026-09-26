@@ -664,6 +664,9 @@ export const copy = {
     general: 'Geral (sem equipamento)',
     // authored: the list of equipment rows.
     equipmentList: 'Equipamentos do relatório',
+    // `70-fotos.html` "Outro equipamento — abrir a árvore", shortened: E6-Q4 opens the whole
+    // list grouped as the tree, in place, instead of leaving for the tree.
+    otherEquipment: 'Outro equipamento',
     caption: 'Legendar',
   },
   // Story 6.5: the Caption composer (`71-legenda.html`, `key-photos.html` frame 3).
@@ -888,6 +891,9 @@ export const copy = {
     // sheet Observation field and the Generated text field.
     conclusao: {
       title: 'Conclusão',
+      // authored (carry-over F, open for Bruno): a "Confirmar" whose composed text changed
+      // between the draw and the tap writes nothing and says so; the field shows the new text.
+      basisMoved: 'O texto mudou; confira e confirme de novo',
       resultGroup: 'Resultado',
       restrictionGroup: 'Restrições',
       aprovado: 'Aprovado',

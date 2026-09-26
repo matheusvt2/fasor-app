@@ -55,7 +55,17 @@ export function FichaHeader({
           {notTested ? <span className="not-tested-chip">{t.notTestedChip}</span> : null}
         </h2>
         {locationText === '' ? null : <p className="sheet-meta">{locationText}</p>}
-        {filledBy === null ? null : <p className="sheet-meta">{filledBy}</p>}
+        {/* E6-Q1: the attribution line keeps its height before the first commit, so the line
+            appearing under an open Combobox list never grows the header, never makes the
+            browser's scroll anchoring move the page, and never closes that list (React Aria
+            closes a non-modal popover on any scroll of its trigger's ancestors). */}
+        {filledBy === null ? (
+          <p className="sheet-meta" aria-hidden="true">
+            {' '}
+          </p>
+        ) : (
+          <p className="sheet-meta">{filledBy}</p>
+        )}
         {concludedBy === null ? null : <p className="sheet-meta">{concludedBy}</p>}
         {notTested ? null : (
           <p className="sheet-summary" data-testid="ficha-progress">

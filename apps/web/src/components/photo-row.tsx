@@ -1,5 +1,5 @@
 import { uploadPillText, type PhotoUploadState } from '@app/domain';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { ui } from '../copy/ui.ts';
 
@@ -32,9 +32,11 @@ export interface UploadPillProps {
   state: PhotoUploadState;
   /** The error pill's press: clears the error and runs "Sincronizar agora". */
   onRetry?: () => void;
+  /** E6-Q10: the id the tile's `aria-describedby` names. */
+  id?: string;
 }
 
-export function UploadPill({ state, onRetry }: UploadPillProps) {
+export function UploadPill({ state, onRetry, id }: UploadPillProps) {
   const text = uploadPillText(state);
   if (text === null) return null;
   const glyph = (
@@ -44,14 +46,14 @@ export function UploadPill({ state, onRetry }: UploadPillProps) {
   );
   if (state === 'error') {
     return (
-      <AriaButton className="upload-pill" data-state="error" onPress={onRetry}>
+      <AriaButton className="upload-pill" data-state="error" onPress={onRetry} {...(id === undefined ? {} : { id })}>
         {glyph}
         {text}
       </AriaButton>
     );
   }
   return (
-    <span className="upload-pill" data-state="pending">
+    <span className="upload-pill" data-state="pending" id={id}>
       {glyph}
       {text}
     </span>
@@ -76,9 +78,9 @@ export interface PhotoRowProps {
 }
 
 /** DESIGN.md › Photo stamp: the time, and a pin glyph whose accessible text is "GPS". */
-export function PhotoStamp({ text, gps, className = 'photo-stamp' }: { text: string; gps: boolean; className?: string }) {
+export function PhotoStamp({ text, gps, className = 'photo-stamp', id }: { text: string; gps: boolean; className?: string; id?: string }) {
   return (
-    <span className={className}>
+    <span className={className} id={id}>
       {text}
       {gps ? (
         <>
@@ -94,6 +96,15 @@ export function PhotoStamp({ text, gps, className = 'photo-stamp' }: { text: str
 
 export function PhotoRow({ label, caption, thumb, state, onRetry, number, stamp, onOpen, onCaption }: PhotoRowProps) {
   const src = useObjectUrl(thumb);
+  // E6-Q10 (EXPERIENCE.md › Photo tile): the tile is described by its stamp, caption and pill.
+  const stampId = useId();
+  const captionId = useId();
+  const pillId = useId();
+  const described = [
+    stamp === undefined ? null : stampId,
+    caption === null ? null : captionId,
+    uploadPillText(state) === null ? null : pillId,
+  ].filter((id): id is string => id !== null);
   const picture = (
     <span className="thumb">
       {src === null ? (
@@ -113,14 +124,24 @@ export function PhotoRow({ label, caption, thumb, state, onRetry, number, stamp,
       {onOpen === undefined ? (
         <span className="photo-tile">{picture}</span>
       ) : (
-        <AriaButton className="photo-tile" aria-label={label} onPress={onOpen} data-photo-number={number}>
+        <AriaButton
+          className="photo-tile"
+          aria-label={label}
+          aria-describedby={described.length === 0 ? undefined : described.join(' ')}
+          onPress={onOpen}
+          data-photo-number={number}
+        >
           {picture}
         </AriaButton>
       )}
       <div className="photo-text">
-        {stamp === undefined ? null : <PhotoStamp text={stamp.text} gps={stamp.gps} />}
-        {caption === null ? null : <p className="photo-meta">{caption}</p>}
-        <UploadPill state={state} {...(onRetry === undefined ? {} : { onRetry })} />
+        {stamp === undefined ? null : <PhotoStamp text={stamp.text} gps={stamp.gps} id={stampId} />}
+        {caption === null ? null : (
+          <p className="photo-meta" id={captionId}>
+            {caption}
+          </p>
+        )}
+        <UploadPill state={state} id={pillId} {...(onRetry === undefined ? {} : { onRetry })} />
         {onCaption === undefined ? null : (
           <AriaButton className="btn btn-text" onPress={onCaption}>
             <svg className="ico" aria-hidden="true">

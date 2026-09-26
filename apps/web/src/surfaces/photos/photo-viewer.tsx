@@ -1,4 +1,4 @@
-import { photoItemLine, photoStampFull, toIso, viewerCountText, viewerLabel, type RelatorioSnapshot } from '@app/domain';
+import { photoCitedByText, photoItemLine, photoStampFull, pointsCitingPhoto, toIso, viewerCountText, viewerLabel, type RelatorioSnapshot } from '@app/domain';
 import { useEffect, useId, useState } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { Button, ConfirmDialog, PhotoStamp } from '../../components/index.ts';
@@ -85,6 +85,8 @@ function ViewerBody({
   const total = numbers.size;
   const src = useObjectUrl(useViewerPicture(tile));
   const item = photoItemLine(tile, snapshot);
+  // E6-Q11: the Remover confirm names the points that cite this photo.
+  const cited = photoCitedByText(pointsCitingPhoto(snapshot.points, tile.id));
   const previous = index > 0 ? tiles[index - 1]! : null;
   const next = index < tiles.length - 1 ? tiles[index + 1]! : null;
 
@@ -154,7 +156,15 @@ function ViewerBody({
         isOpen={confirming}
         onOpenChange={setConfirming}
         title={t.removeTitle(number)}
-        description={t.removeDescription}
+        description={
+          cited === null ? (
+            t.removeDescription
+          ) : (
+            <>
+              {t.removeDescription} <span className="viewer-cited">{cited}</span>
+            </>
+          )
+        }
         confirmLabel={t.removeConfirm}
         isDestructive
         onConfirm={() => onRemove(tile)}

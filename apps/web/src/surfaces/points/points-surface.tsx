@@ -36,7 +36,8 @@ import { RelatorioGate } from '../relatorio/relatorio-gate.tsx';
 import { DragHandle } from '../templates/reorder-controls.tsx';
 import { useReorder } from '../templates/use-reorder.ts';
 import { PhotoRefTile } from './photo-ref-tile.tsx';
-import { PointEditor } from './point-editor.tsx';
+import { usePointDraftRecovery } from './point-draft-recovery.ts';
+import { PointEditor, type PointSaved } from './point-editor.tsx';
 import './points.css';
 
 /*
@@ -57,7 +58,8 @@ export function PointsSurface() {
   );
 }
 
-type Editing = { kind: 'new' } | { kind: 'point'; id: string } | null;
+/** E6-Q2: a new point's id is generated as "Criar" opens it, so the card its first autosave stores is the one being edited. */
+type Editing = { kind: 'new'; id: string } | { kind: 'point'; id: string } | null;
 
 function Points({ relatorioId, state }: { relatorioId: string; state: EntityState }) {
   const t = copy.points;
@@ -73,6 +75,8 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
   const tiles = useRelatorioPhotoTiles(db, relatorioId);
 
   const [editing, setEditing] = useState<Editing>(null);
+  // FR-61: a point typed before a reload is offered back here with its editor closed.
+  usePointDraftRecovery(relatorioId);
   const [removing, setRemoving] = useState<PointRow | null>(null);
   const [announcement, setAnnouncement] = useState('');
   const headingId = useId();
@@ -105,19 +109,17 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
   /** The point whose editor closed with nothing written: its card takes the focus back. */
   const lastEdited = useRef('');
 
-  function onDone(pointId: string | null, wasNew: boolean): void {
+  function onDone(saved: PointSaved | null, wasNew: boolean): void {
     setEditing(null);
-    if (pointId === null) {
+    if (saved === null) {
       restoreFocus(() => (wasNew ? createButton() : cardFocusTarget(lastEdited.current)), { frames: LIST_FOCUS_WATCH_FRAMES, once: true });
       return;
     }
-    // The saved point's place: a new one lands last among the live points.
-    const index = live.findIndex((row) => row.id === pointId);
-    const total = wasNew ? live.length + 1 : live.length;
-    const text = pointSavedText(index === -1 ? total : index + 1, total);
+    // E6-Q2: the place the editor read once its last autosave landed.
+    const text = pointSavedText(saved.position, saved.total);
     edits.notify(text);
     setAnnouncement(text);
-    restoreFocus(() => cardFocusTarget(pointId), { frames: LIST_FOCUS_WATCH_FRAMES, once: true });
+    restoreFocus(() => cardFocusTarget(saved.pointId), { frames: LIST_FOCUS_WATCH_FRAMES, once: true });
   }
 
   async function remove(point: PointRow): Promise<void> {
@@ -155,7 +157,8 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
           {empty ? <p className="poa-empty">{t.empty}</p> : null}
           <div className="poa-list" aria-label={t.listLabel} role="group" ref={listRef}>
             {live.map((point, i) =>
-              editing?.kind === 'point' && editing.id === point.id ? (
+              // The new point being edited, once autosaved, is drawn by its editor after the list.
+              editing?.kind === 'new' && editing.id === point.id ? null : editing?.kind === 'point' && editing.id === point.id ? (
                 <PointEditor
                   key={point.id}
                   variant="card"
@@ -164,13 +167,9 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
                   point={point}
                   position={i + 1}
                   total={live.length}
-                  onDone={(pointId) => {
+                  onDone={(saved) => {
                     lastEdited.current = point.id;
-                    onDone(pointId, false);
-                  }}
-                  onCancel={() => {
-                    lastEdited.current = point.id;
-                    onDone(null, false);
+                    onDone(saved, false);
                   }}
                   onRemove={() => setRemoving(point)}
                 />
@@ -197,8 +196,8 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
                 relatorioId={relatorioId}
                 snapshot={snapshot}
                 point={null}
-                onDone={(pointId) => onDone(pointId, true)}
-                onCancel={() => onDone(null, true)}
+                newPointId={editing.id}
+                onDone={(saved) => onDone(saved, true)}
               />
             ) : null}
             {derived.map((entry) => (
@@ -210,7 +209,7 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
 
       <div className="sticky-action-bar" ref={bar}>
         <div className="bar-buttons">
-          <Button variant="primary" isDisabled={editing !== null} disabledReason={t.editingReason} onPress={() => setEditing({ kind: 'new' })}>
+          <Button variant="primary" isDisabled={editing !== null} disabledReason={t.editingReason} onPress={() => setEditing({ kind: 'new', id: newId() })}>
             <svg className="ico" aria-hidden="true">
               <use href="/sprite.svg#i-plus" />
             </svg>

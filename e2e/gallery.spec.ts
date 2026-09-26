@@ -24,8 +24,8 @@ test.use({
 
 const account = PHOTO_ACCOUNT;
 const database = deviceDatabaseName(account.userId);
-const SHEET_CAPTION = 'Detalhe da chave seccionadora do Cubículo Enel';
-const NC_CAPTION = 'Detalhe da verificação de contatos realizada na chave seccionadora do Cubículo Enel';
+const SHEET_CAPTION = 'Detalhe da chave seccionadora SEC-ENEL do Cubículo Enel';
+const NC_CAPTION = 'Detalhe da verificação de contatos realizada na chave seccionadora SEC-ENEL do Cubículo Enel';
 
 const toast = (page: Page) => page.getByTestId('toast');
 const contatos = (page: Page) => page.locator('#ficha-step-verificacoes li.checklist-row[data-item-key="contatos"]');
@@ -137,7 +137,7 @@ test('@p0 6.3-E2E-001 Sumário row 7 opens the gallery in capture order with num
     await expect(item.locator('.photo-meta')).toHaveText(photo.caption!);
     await expect(item.locator('.upload-pill')).toHaveText('Aguardando envio');
   }
-  expect(photos.map((photo) => photo.caption)).toEqual([NC_CAPTION, SHEET_CAPTION, 'Detalhe da chave seccionadora do Oxigênio']);
+  expect(photos.map((photo) => photo.caption)).toEqual([NC_CAPTION, SHEET_CAPTION, 'Detalhe da chave seccionadora SEC-OXIGENIO do Oxigênio']);
 
   // The cabine filter: "Todas" first, then the cabines in tree order.
   const filter = page.getByRole('radiogroup', { name: 'Filtrar por cabine' });
@@ -189,7 +189,7 @@ test('@p0 6.3-E2E-001 Sumário row 7 opens the gallery in capture order with num
   // 1280 px: the rows are Comboboxes.
   await composer.getByRole('combobox', { name: 'Atividade' }).fill('limpeza');
   await page.getByRole('option', { name: 'limpeza e reaperto' }).click();
-  const edited = 'Detalhe da limpeza e reaperto realizada na chave seccionadora do Cubículo Enel';
+  const edited = 'Detalhe da limpeza e reaperto realizada na chave seccionadora SEC-ENEL do Cubículo Enel';
   await expect(composer.locator('.caption-preview')).toHaveText(edited);
   await composer.getByRole('button', { name: 'Salvar legenda' }).click();
   await expect(page.locator('.caption-composer')).toHaveCount(0);
@@ -392,28 +392,28 @@ test('@p0 6.5-E2E-001 "Legendar" on a sheet tile: prefilled chips, agreement on 
   await expect(composer).toBeVisible();
   const group = (name: string) => composer.getByRole('group', { name });
   await expect(group('Atividade').getByRole('button', { name: 'verificação de contatos' })).toHaveAttribute('aria-pressed', 'true');
-  await expect(group('Equipamento').getByRole('button', { name: 'chave seccionadora' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(group('Equipamento').getByRole('button', { name: 'chave seccionadora SEC-ENEL', exact: true })).toHaveAttribute('aria-pressed', 'true');
   await expect(group('Local').getByRole('button', { name: 'Cubículo Enel' })).toHaveAttribute('aria-pressed', 'true');
   const preview = composer.locator('.caption-preview');
   await expect(preview).toHaveText(NC_CAPTION);
 
   // A chip change rebuilds the preview with agreement (feminine singular "realizada").
   await group('Atividade').getByRole('button', { name: 'limpeza e reaperto' }).click();
-  await expect(preview).toHaveText('Detalhe da limpeza e reaperto realizada na chave seccionadora do Cubículo Enel');
+  await expect(preview).toHaveText('Detalhe da limpeza e reaperto realizada na chave seccionadora SEC-ENEL do Cubículo Enel');
   await group('Atividade').getByRole('button', { name: 'ensaios de resistência de isolação' }).click();
-  await expect(preview).toHaveText('Detalhe dos ensaios de resistência de isolação realizados na chave seccionadora do Cubículo Enel');
+  await expect(preview).toHaveText('Detalhe dos ensaios de resistência de isolação realizados na chave seccionadora SEC-ENEL do Cubículo Enel');
 
   // "Outro…" takes a typed word (masculine singular when nothing knows it).
   await group('Local').getByRole('button', { name: 'Outro…' }).click();
   await composer.getByRole('textbox', { name: 'Outro local' }).fill('Pátio de manobra');
-  await expect(preview).toHaveText('Detalhe dos ensaios de resistência de isolação realizados na chave seccionadora do Pátio de manobra');
+  await expect(preview).toHaveText('Detalhe dos ensaios de resistência de isolação realizados na chave seccionadora SEC-ENEL do Pátio de manobra');
 
   // "Editar texto": free text that no chip regenerates.
   const edit = composer.getByRole('button', { name: 'Editar texto' });
   await edit.click();
   await expect(edit).toHaveAttribute('aria-pressed', 'true');
   const text = composer.getByRole('textbox', { name: 'Texto da legenda' });
-  await expect(text).toHaveValue('Detalhe dos ensaios de resistência de isolação realizados na chave seccionadora do Pátio de manobra');
+  await expect(text).toHaveValue('Detalhe dos ensaios de resistência de isolação realizados na chave seccionadora SEC-ENEL do Pátio de manobra');
   const typed = 'Detalhe dos ensaios de resistência de isolação, com a equipe da concessionária';
   await text.fill(typed);
   await group('Atividade').getByRole('button', { name: 'limpeza e reaperto' }).click();
@@ -478,4 +478,129 @@ test('@p1 6.5-E2E-002 on a desktop the composer rows are Comboboxes; Sumário ro
 
   await page.goto(`/relatorio/${relatorioId}`);
   await expect(page.locator('button.sum-open', { hasText: 'Registro fotográfico' }).locator('.sum-status')).toHaveText('2 fotos · 1 sem legenda · 2 aguardando envio');
+});
+
+// --- Epic 6 review fixes (E6-Q3, E6-Q4, E6-Q8, E6-Q13) -----------------------------------------
+
+interface OutboxOp {
+  kind: string;
+  path: string;
+  value: unknown;
+  batch_id: string | null;
+}
+
+/** The sheet's option in "De qual equipamento?": "SEC-ENEL · Chave seccionadora · Cubículo Enel". */
+const SEC_ENEL_OPTION = /^SEC-ENEL · Chave seccionadora · Cubículo Enel$/;
+
+test('@p0 6.4-E2E-007 E6-Q4 and E6-Q8 at 390 px: the batch is saved as "Geral" when picked; "De qual equipamento?" puts the current sheet first and "Geral" in view; "Adicionar N fotos" is one batch of puts', async ({ page }) => {
+  test.setTimeout(180_000);
+  // The sheet opened here is this device's last sheet: the current one.
+  const { relatorioId, blockId } = await openChaveSheet(page, account, database, { width: 390 });
+  await openGallery(page, relatorioId);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await pickFiles(page, page.locator('.sticky-action-bar').getByRole('button', { name: 'Adicionar fotos' }), [await plainJpeg(page, 'a.jpg'), await plainJpeg(page, 'b.jpg')]);
+  const sheet = page.getByRole('dialog', { name: /^De qual equipamento\?/ });
+  await expect(sheet).toBeVisible();
+
+  // Saved at once, as "Geral" with no caption, before the question is answered.
+  await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(2);
+  for (const photo of await devicePhotos(page, database)) expect(photo).toMatchObject({ block_id: null, caption: null });
+
+  // The short list: the current sheet first; "Outro equipamento"; "Geral" on screen without a scroll.
+  const list = sheet.getByRole('radiogroup', { name: 'Equipamentos do relatório' });
+  await expect(list.getByRole('radio').first()).toHaveAccessibleName(SEC_ENEL_OPTION);
+  const geral = list.getByRole('radio', { name: 'Geral (sem equipamento)' });
+  await expect(geral).toBeInViewport();
+  expect(await list.getByRole('radio').count()).toBeLessThanOrEqual(6);
+  // "Outro equipamento": the whole relatório grouped as the tree, "Geral" still in view.
+  await sheet.getByRole('button', { name: 'Outro equipamento' }).click();
+  await expect(list.getByRole('group', { name: 'Cubículo Enel' })).toBeVisible();
+  await expect(list.getByRole('group', { name: /^Oxigênio/ }).first()).toBeAttached();
+  await expect(geral).toBeInViewport();
+  await list.getByRole('group', { name: 'Cubículo Enel' }).getByRole('radio', { name: SEC_ENEL_OPTION }).click();
+  await expect(sheet.getByRole('textbox', { name: 'Legenda das 2 fotos' })).toHaveValue(SHEET_CAPTION);
+  await sheet.getByRole('button', { name: 'Adicionar 2 fotos' }).click();
+  await expect(toast(page)).toContainText('2 fotos adicionadas — legenda aplicada');
+
+  const photos = await devicePhotos(page, database);
+  for (const photo of photos) expect(photo).toMatchObject({ block_id: blockId, caption: SHEET_CAPTION });
+  const puts = (await readStore<OutboxOp>(page, database, 'outbox')).filter((op) => op.kind === 'put' && /^file\/[^/]+\/(block_id|caption)$/.test(op.path));
+  expect(puts.map((op) => op.path).sort()).toEqual(photos.flatMap((photo) => [`file/${photo.id}/block_id`, `file/${photo.id}/caption`]).sort());
+  expect(new Set(puts.map((op) => op.batch_id)).size).toBe(1);
+});
+
+test('@p0 6.4-E2E-008 E6-Q8: "Cancelar" on "De qual equipamento?" keeps the saved batch as "Geral", and the toast says so', async ({ page }) => {
+  test.setTimeout(150_000);
+  const { relatorioId } = await openChaveSheet(page, account, database);
+  await openGallery(page, relatorioId);
+  await pickFiles(page, page.locator('.sticky-action-bar').getByRole('button', { name: 'Adicionar fotos' }), [await plainJpeg(page, 'a.jpg'), await png(page, 'b.png'), await plainJpeg(page, 'c.jpg')]);
+  const sheet = page.getByRole('dialog', { name: /^De qual equipamento\?/ });
+  await expect(sheet).toBeVisible();
+  await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(3);
+  await sheet.getByRole('button', { name: 'Cancelar' }).click();
+  await expect(sheet).toHaveCount(0);
+  await expect(toast(page)).toContainText('3 fotos ficaram como Geral, sem legenda');
+  await expect(galleryItems(page)).toHaveCount(3);
+  for (const photo of await devicePhotos(page, database)) expect(photo).toMatchObject({ block_id: null, item_key: null, caption: null });
+  const puts = (await readStore<OutboxOp>(page, database, 'outbox')).filter((op) => op.kind === 'put' && op.path.startsWith('file/'));
+  expect(puts).toHaveLength(0);
+});
+
+test('@p1 6.4-E2E-010 E6-Q8: Esc on "De qual equipamento?" keeps the saved batch as "Geral", as "Cancelar" does', async ({ page }) => {
+  test.setTimeout(150_000);
+  const { relatorioId } = await openChaveSheet(page, account, database);
+  await openGallery(page, relatorioId);
+  await pickFiles(page, page.locator('.sticky-action-bar').getByRole('button', { name: 'Adicionar fotos' }), [await plainJpeg(page, 'a.jpg'), await plainJpeg(page, 'b.jpg')]);
+  const sheet = page.getByRole('dialog', { name: /^De qual equipamento\?/ });
+  await expect(sheet).toBeVisible();
+  await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(2);
+  await page.keyboard.press('Escape');
+  await expect(sheet).toHaveCount(0);
+  await expect(toast(page)).toContainText('2 fotos ficaram como Geral, sem legenda');
+  await expect(galleryItems(page)).toHaveCount(2);
+  for (const photo of await devicePhotos(page, database)) expect(photo).toMatchObject({ block_id: null, item_key: null, caption: null });
+});
+
+test('@p0 6.5-E2E-003 E6-Q3 at 390 px: the composer shows the photo on top, and after a chip tap the caption and "Salvar legenda" are both on screen', async ({ page }) => {
+  test.setTimeout(150_000);
+  await holdUploads(page);
+  const { relatorioId } = await openChaveSheet(page, account, database, { width: 390 });
+  const row = contatos(page);
+  await row.getByRole('radio', { name: 'Não conforme', exact: true }).click();
+  await burst(page, row.getByRole('button', { name: 'Adicionar foto' }), 1);
+  const [photo] = await devicePhotos(page, database);
+  await openGallery(page, relatorioId);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await itemOf(page, photo!.id).getByRole('button', { name: 'Legendar' }).click();
+  const composer = page.getByRole('dialog', { name: 'Legenda' });
+  await expect(composer).toBeVisible();
+  // `71-legenda.html`: the photo with its number badge and line.
+  await expect(composer.getByRole('img', { name: 'Foto 1' })).toBeVisible();
+  await expect(composer.locator('.capture-preview .number-badge')).toHaveText('1');
+  await expect(composer.locator('.capture-meta')).toContainText('Nº provisório 1');
+  const save = composer.getByRole('button', { name: 'Salvar legenda' });
+  const preview = composer.locator('.caption-preview');
+  await expect(save).toBeInViewport();
+
+  // A chip of the last row, far down the list: its effect and "Salvar legenda" stay in view.
+  const local = composer.getByRole('group', { name: 'Local' });
+  const oxigenio = local.getByRole('button', { name: 'Oxigênio', exact: true });
+  await oxigenio.scrollIntoViewIfNeeded();
+  await oxigenio.click();
+  await expect(preview).toHaveText('Detalhe da verificação de contatos realizada na chave seccionadora SEC-ENEL do Oxigênio');
+  await expect(preview).toBeInViewport();
+  await expect(save).toBeInViewport();
+  await save.click();
+  await expect(itemOf(page, photo!.id).locator('.photo-meta')).toHaveText('Detalhe da verificação de contatos realizada na chave seccionadora SEC-ENEL do Oxigênio');
+});
+
+test('@p1 6.4-E2E-009 E6-Q13: "ou arraste para cá" is said on a computer, never on a phone', async ({ page }) => {
+  test.setTimeout(120_000);
+  const { relatorioId } = await openChaveSheet(page, account, database);
+  await openGallery(page, relatorioId);
+  const reason = page.locator('.sticky-action-bar').getByText('ou arraste para cá');
+  await expect(reason).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(reason).toBeHidden();
+  await expect(page.locator('.sticky-action-bar').getByRole('button', { name: 'Adicionar fotos' })).toBeVisible();
 });

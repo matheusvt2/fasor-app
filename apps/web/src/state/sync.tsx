@@ -117,6 +117,17 @@ const browserTimers = {
   clearTimeout: (handle: unknown) => globalThis.clearTimeout(handle as ReturnType<typeof globalThis.setTimeout>),
 };
 
+const cycleRequests = new Set<() => void>();
+
+/**
+ * E6-Q14: new work was committed on this device (a photo captured or imported): the mounted
+ * engine runs a cycle now when online, coalesced with one in flight (`SyncEngine.nudge`),
+ * so the photo does not wait for the 60 s tick. A no-op with no provider mounted.
+ */
+export function requestSyncCycle(): void {
+  for (const request of cycleRequests) request();
+}
+
 export function SyncProvider({ children }: { children: ReactNode }) {
   const session = useSession();
   const db = session.database;
@@ -155,7 +166,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     engineRef.current = engine;
     void deviceId(db, newId).then(setDevice, () => setDevice(null));
     engine.start();
+    const nudge = () => engine.nudge();
+    cycleRequests.add(nudge);
     return () => {
+      cycleRequests.delete(nudge);
       engine.stop();
       stopFollowing();
       engineRef.current = null;

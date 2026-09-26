@@ -1,5 +1,5 @@
 import { composeConclusion, defaultBlockConfig, emptySheet, getDefinition, type BlockRow, type Cell, type Sheet } from '@app/domain';
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { ToastProvider } from '../../state/toast.tsx';
@@ -48,8 +48,12 @@ function block(sheet: Partial<Sheet>): BlockRow {
 const pair = { result: cell('aprovado'), restriction: cell('sem_restricoes') };
 const readings = (raw: string): Sheet['test'] => ({ isolacao: { cells: { '0': { '0': measured(raw, 'GΩ') } } } });
 
-function renderSection(shown: BlockRow) {
+const announced: string[] = [];
+
+/** `current`: the block the store holds when the edit runs (the build is then run against it). */
+function renderSection(shown: BlockRow, current?: BlockRow) {
   const builds: Build[] = [];
+  announced.length = 0;
   const api: FichaApi = {
     relatorioId: ID,
     projectId: ID,
@@ -58,10 +62,13 @@ function renderSection(shown: BlockRow) {
     commit: vi.fn(async () => undefined),
     edit: vi.fn(async (build: Build) => {
       builds.push(build);
+      if (current !== undefined) build([current], AUTHOR, { blocks: [], locations: [], equipment: [] });
       return null;
     }),
     undoable: vi.fn(),
-    announce: vi.fn(),
+    announce: vi.fn((text: string) => {
+      announced.push(text);
+    }),
   };
   render(
     <ToastProvider>
@@ -94,5 +101,17 @@ describe('E5-A4 the conclusion confirm guards its basis', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
     const changed = block({ test: readings('148'), conclusion: pair });
     expect(builds[0]!([changed], AUTHOR, fresh)).toBeNull();
+  });
+
+  it('carry-over F: a stale "Confirmar" says "O texto mudou; confira e confirme de novo" in the live region; a fresh one says nothing', async () => {
+    const shown = block({ test: readings('147'), conclusion: pair });
+    renderSection(shown, block({ test: readings('148'), conclusion: pair }));
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
+    await waitFor(() => expect(announced).toEqual(['O texto mudou; confira e confirme de novo']));
+    cleanup();
+    renderSection(shown, shown);
+    await userEvent.click(screen.getByRole('button', { name: 'Confirmar' }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(announced).toEqual([]);
   });
 });

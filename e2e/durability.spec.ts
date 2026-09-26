@@ -581,18 +581,9 @@ test('@p0 6.2-E2E-003 the network drops mid-upload: every photo uploads exactly 
   });
   const { relatorioId } = await openChaveSheet(page, account, database, { signIn: () => signInForDurability(page, context, account.email) });
 
-  const shot = await jpegFromPage(page, 3000, 2000);
-  for (let n = 1; n <= 3; n++) {
-    const chooser = page.waitForEvent('filechooser');
-    await page.getByRole('button', { name: 'Tirar foto', exact: true }).click();
-    await (await chooser).setFiles({ name: `foto-${n}.jpg`, mimeType: 'image/jpeg', buffer: shot });
-    await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 20_000 }).toBe(n);
-  }
-  const taken = await devicePhotos(page, database);
-  expect(taken.map((photo) => photo.local_seq)).toEqual([1, 2, 3]);
-
   // The worst kind of drop: the server stored the bytes and the answer never arrived, so
-  // the device sends the same bytes again.
+  // the device sends the same bytes again. Set before the shots: E6-Q14, a saved photo goes
+  // out at once while online.
   const dropped = new Set<string>();
   const puts: string[] = [];
   await page.route(
@@ -607,6 +598,16 @@ test('@p0 6.2-E2E-003 the network drops mid-upload: every photo uploads exactly 
       await route.abort('internetdisconnected');
     },
   );
+
+  const shot = await jpegFromPage(page, 3000, 2000);
+  for (let n = 1; n <= 3; n++) {
+    const chooser = page.waitForEvent('filechooser');
+    await page.getByRole('button', { name: 'Tirar foto', exact: true }).click();
+    await (await chooser).setFiles({ name: `foto-${n}.jpg`, mimeType: 'image/jpeg', buffer: shot });
+    await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 20_000 }).toBe(n);
+  }
+  const taken = await devicePhotos(page, database);
+  expect(taken.map((photo) => photo.local_seq)).toEqual([1, 2, 3]);
 
   await page.goto('/sync');
   const syncNow = page.getByRole('button', { name: 'Sincronizar agora' });
