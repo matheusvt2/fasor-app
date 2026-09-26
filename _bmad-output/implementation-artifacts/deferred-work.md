@@ -858,3 +858,21 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: `apps/web/src/db/file-store.ts` `cropSourceBlob`, `runEviction`.
   class: debt
   state: open (owner: none)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-8-1-suggestion-entity.md`
+  summary: A pending suggestion whose target later receives an equal value by another path (a copy chip, another device's put) shows nothing on the sheet (`suggestionView` = `none`) yet stays pending and counted; auto-confirm runs only over pulled suggestion creates, and one that throws is not retried.
+  evidence: `apps/web/src/db/suggestion-store.ts` `autoConfirmPulled`; `apps/web/src/sync/engine.ts` `autoConfirm` (review pass 2026-09-26).
+  class: deferred
+  state: open (owner: Epic 8 batch P, Story 8.2 typed-first exclusion)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-8-1-suggestion-entity.md`
+  summary: A manufacturer typed over a suggested guess is written as a name with no registry row, where the normal field offers "Criar" first.
+  evidence: `packages/domain/src/relatorio/suggestions.ts` `parseFieldInput` default branch (review pass 2026-09-26).
+  class: deferred
+  state: open (owner: Epic 8 batch P, Story 8.6 with the "Criar ⟨nome⟩?" path)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-8-1-suggestion-entity.md`
+  summary: Unverified: `cropSourceBlob` re-downloads a photo's original on every crop mount when the id already holds another blob under `files` (it keeps the fetched bytes only when the id is free).
+  evidence: `apps/web/src/db/file-store.ts` `cropSourceBlob`; settle by checking whether any path stores a photo thumb under `files` (tiles read `thumbs`).
+  class: debt
+  state: open (owner: integrated Epic 8 review)

@@ -2,7 +2,7 @@
 title: 'Story 8.1: A Suggestion is an entity nobody can write without a tap'
 type: 'feature'
 created: '2026-09-26'
-status: 'in-review'
+status: 'done'
 baseline_revision: '1582cddadfc18cac787efb0f86995fd2fb163151'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -12,7 +12,28 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-8-context.md'
 warnings: ['batched', 'oversized']
 batched_reason: 'Batch S of the Epic 8 delivery: one story (8.1) plus the one contract change of the epic (coordinator decision "Contract"), so batches R and P add no op family.'
-deferred: []
+deferred:
+  - summary: >-
+      A pending suggestion whose target later gets an equal value by another path stays pending with no UI; auto-confirm runs only over pulled creates and is not retried on failure.
+    evidence: |-
+      apps/web/src/db/suggestion-store.ts autoConfirmPulled; engine.ts autoConfirm. Owner: batch P (Story 8.2).
+    location: >-
+      apps/web/src/db/suggestion-store.ts
+    severity: medium
+  - summary: >-
+      A manufacturer typed over a guess is written without a registry row.
+    evidence: |-
+      suggestions.ts parseFieldInput default branch; the Criar path is Story 8.5/8.6. Owner: batch P.
+    location: >-
+      packages/domain/src/relatorio/suggestions.ts
+    severity: medium
+  - summary: >-
+      Crop original possibly re-downloaded on every mount when the photo id holds another files blob.
+    evidence: |-
+      file-store.ts cropSourceBlob keeps bytes only when the id is free; settle by checking whether a photo thumb is ever stored under files.
+    location: >-
+      apps/web/src/db/file-store.ts
+    severity: medium (unverified)
 ---
 
 <intent-contract>
