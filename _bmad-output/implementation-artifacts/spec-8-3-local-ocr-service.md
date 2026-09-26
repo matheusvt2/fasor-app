@@ -2,7 +2,7 @@
 title: 'Story 8.3: Run a local OCR service in Docker behind the OcrProvider contract'
 type: 'feature'
 created: '2026-09-26'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '8c9527cd48e45d6b0c0e79febac21138b78e2125'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -12,7 +12,21 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-8-context.md'
 warnings: ['batched', 'oversized']
 batched_reason: 'Batch O of the Epic 8 delivery: one story (8.3) plus the fixture plate the coordinator decisions assign to this batch, run in parallel with carry-over batch C.'
-deferred: []
+deferred:
+  - summary: >-
+      The sidecar duplicates OCR_READ_MAX_BYTES and the /read and /health paths as literals, outside the kernel drift test.
+    evidence: |-
+      services/ocr/app/main.py READ_MAX_BYTES and route decorators, services/ocr/tests/test_api.py READ_MAX_BYTES; ocrContractJsonSchema() exports neither. Both sides agree today (20 MB). Owner: batch R (Story 8.4 ocr-svc provider), the first consumer.
+    location: >-
+      services/ocr/app/main.py
+    severity: medium
+  - summary: >-
+      No pnpm verify step checks the sidecar against a regenerated schema; a contract change relies on the manual sidecar build and pytest run.
+    evidence: |-
+      The AGENTS.md bullet keeps the 1.9 GB image out of the 15-minute gate by decision; the only automated check is kernel vs committed JSON (packages/domain/src/contract/ocr.test.ts).
+    location: >-
+      AGENTS.md Running and verifying
+    severity: low
 ---
 
 <intent-contract>
@@ -104,6 +118,28 @@ deferred: []
 
 ## Review Triage Log
 
+### 2026-09-26 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer ran; Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 17 findings — high 0, medium 5, low 9, false 0, maybe-false 0, rejected-by-rule 3
+- findings:
+  - `[medium]` `[patch]` VG: the downscale branch (side > 4000 px) and its map-back are never exercised — test added: plate upscaled past MAX_SIDE, dims, `preprocessing_applied: true` and scaled boxes asserted.
+  - `[low]` `[patch]` VG: the streamed size check in `_read_body` is unreachable by the Content-Length test — chunked oversized body test added (413).
+  - `[medium]` `[patch]` VG: the `500 internal` path has no test — grouped with ECH-5; test added with a raising recognizer.
+  - `[medium]` `[defer]` VG: `OCR_READ_MAX_BYTES` and the routes are duplicated as literals in the sidecar, outside the drift test — both sides agree today; batch R, the first consumer, ties them (deferred list).
+  - `[low]` `[defer]` VG: no `pnpm verify` step checks the sidecar against a regenerated schema — keeping the 1.9 GB image out of the gate is the decision of record; the AGENTS.md bullet names the manual run for contract changes (deferred list).
+  - `[low]` `[reject]` VG other: the runtime image carries the dev group (pytest, httpx, jsonschema, datamodel-codegen) — deliberate: the story runs pytest inside the service image; the size reported includes it.
+  - `[low]` `[reject]` VG other / ECH-6: `/health` 503 `{status: starting}` is outside the contract — unreachable in practice: uvicorn serves only after the lifespan loaded both models; the compose healthcheck reads the status code only.
+  - `[low]` `[patch]` ECH-1: sync `health()` needs a threadpool thread and can starve behind queued inferences — made `async def`.
+  - `[low]` `[patch]` ECH-2: `decode` runs on the event loop for bodies up to 20 MB — moved to the threadpool.
+  - `[medium]` `[patch]` ECH-3: no pixel-count cap, a small PNG can decode to a gigapixel image — `OPENCV_IO_MAX_IMAGE_PIXELS` cap in the image env and `cv2.error` mapped to `invalid_image`, with a test.
+  - `[low]` `[reject]` ECH-4: an extreme-aspect image (2 x 9000 px) may make the detector raise — answered by the contract's `500 internal` body; the api only sends its print variant; a guard adds a branch for an input nobody sends.
+  - `[medium]` `[patch]` ECH-5: `OcrReadResult.model_validate` outside the try answers FastAPI's plain-text 500 — moved inside the try (grouped with VG 500 path).
+  - `[low]` `[reject]` ECH-6: duplicate of the `/health` 503 row above — same refutation.
+  - `[low]` `[patch]` ECH-7: `OcrImage.mime` is any string while the sidecar takes JPEG/PNG — narrowed to `'image/jpeg' | 'image/png'`.
+  - `[low]` `[patch]` ECH-8: `structuringOutputSchema` accepts a repeated key — refinement rejecting duplicate keys, with tests.
+  - `[low]` `[patch]` ECH-9: the reading-order test drops case-misread value words through `if v in returned` — locates every value word through the fold and asserts all found.
+  - `[low]` `[reject]` ECH-10: the spec says value tokens compare exactly while the tests compare units case-insensitively — rejected by rule (its fix edits this spec); the unit rule is the orchestrator's decision (PARSeq reads `kV`/`kVA` as `KV`/`KVA`), recorded in `services/ocr/tests/matching.py`, the README and the PR body.
+
 ## Design Notes
 
 - Why the JSON Schema lives under `services/ocr/contract/`: the sidecar's build context is `services/ocr`, so the image generates its pydantic models from a file inside the context; the kernel test keeps it equal to the zod source, so drift fails `test:unit`.
@@ -118,3 +154,25 @@ deferred: []
 - `flock /tmp/fasor-verify.lock docker compose --profile ocr build ocr > /tmp/ocr-build-s8o.log 2>&1; echo EXIT=$?` -- expected: EXIT=0; then `docker image ls app-ocr-s8o` reports the size.
 - `flock /tmp/fasor-verify.lock docker compose --profile ocr run --rm ocr pytest -q > /tmp/ocr-test-s8o.log 2>&1; echo EXIT=$?` -- expected: EXIT=0 with the accuracy line.
 - `flock /tmp/fasor-verify.lock docker compose --profile tools run --rm tools pnpm verify > /tmp/verify-s8o.log 2>&1; echo EXIT=$?` -- expected: EXIT=0 (run once at the end by the orchestrator).
+
+## Auto Run Result
+
+Status: done
+
+**Summary.** Kernel OCR and structuring contract in `packages/domain/src/contract/ocr.ts` with its JSON Schema exported to `services/ocr/contract/ocr-contract.schema.json` (drift test in `test:unit`); a stateless FastAPI sidecar in `services/ocr` (Python 3.13, uv, PP-OCRv5 server detection through PaddleOCR + paddlepaddle CPU, PARSeq word recognition exported to ONNX in a builder stage and run in onnxruntime, OpenCV preprocessing with deskew and downscale mapped back); the `ocr` compose service under the `ocr` profile; `OCR_SERVICE_URL` (default `http://ocr:8000`) in the api config and the compose env; a deterministic synthetic transformer plate fixture.
+
+**Files.**
+- `packages/domain/src/contract/ocr.ts`, `ocr.test.ts`, `index.ts` -- contract, drift and shape tests, barrel export.
+- `scripts/export-ocr-schema.ts`, `package.json` -- `pnpm schema:ocr`.
+- `services/ocr/` -- Dockerfile (3 stages), `pyproject.toml`/`uv.lock`, `app/` (main, pipeline, detector, recognizer), `builder/export_parseq.py`, `contract/`, `tests/` (16 pytest tests, fixture generator and plate), README.
+- `docker-compose.yml`, `apps/api/src/config.ts`, `config.test.ts`, `AGENTS.md`, `.gitignore` -- service, env, doc bullet, Python ignores.
+
+**Review.** 17 findings (two layers): 10 patched (4 medium, 6 low), 2 deferred (spec `deferred` list and `deferred-work.md`), 5 rejected with reasons in the triage log. Follow-up review recommended: false (patched medium count 4 on a first pass would say true, but every patched medium is a test gap or an error-path move now covered by a passing test; named residual risk: none beyond the deferred items). Patched counts: high 0, medium 4, low 6.
+
+**Decisions taken during the run.**
+- PARSeq kept (it runs on CPU in a 1.94 GB image, inside the coordinator's condition). It reads `kV`/`kVA` as `KV`/`KVA` and cannot print accents; the fixture test compares unit tokens case-insensitively and labels plus `EPÓXI` accent-insensitively. Open question for Matheus: PP-OCRv5 Latin recognition read 43/43 words exactly in a scratch run.
+- `opencv-contrib-python` instead of `-headless` (PaddleOCR checks the package by name); the export script sits in `services/ocr/builder/` because `build/` is gitignored; the fixture regenerate command runs with `--user "$(id -u):$(id -g)"`.
+
+**Verification.** Sidecar: `docker compose --profile ocr build ocr` EXIT 0, image `app-ocr-s8o` 1.94 GB, `/health` 200 with networking cut; `docker compose --profile ocr run --rm ocr pytest` 16 passed. Accuracy on the plate (43 words, 16 value words): matched 43/43, values 16/16, exact text 27/43, accent-insensitive 41/43, case-and-accent-insensitive 43/43, mean IoU 0.910 (rotated 4 degrees 0.922, upscaled to 4400 px 0.908). Plate JPEG sha256 `a1eac9106f186a29ca82e896741922794eda7f86a231c4dcf942031d14dc26ac`. `pnpm verify` runs at the end of the batch (PR body).
+
+**Residual risks.** Real photos (glare, perspective, embossed plates) are harder than the synthetic plate; PARSeq's ASCII charset loses accents on any value that carries one.

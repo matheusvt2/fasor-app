@@ -118,6 +118,12 @@ describe('structuring contract (Story 8.3)', () => {
     expect(structuringOutputSchema.safeParse({ values: [value('Celtta', ['3'])] }).success).toBe(false);
   });
 
+  it('names each field key at most once', () => {
+    const other = { ...value('TR-01'), key: 'identificacao' };
+    expect(structuringOutputSchema.safeParse({ values: [value('Celtta'), other] }).success).toBe(true);
+    expect(structuringOutputSchema.safeParse({ values: [value('Celtta'), value('Siemens')] }).success).toBe(false);
+  });
+
   it('wraps the output with the reading_run fields', () => {
     const result = {
       output: { values: [] },

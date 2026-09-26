@@ -804,3 +804,21 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: `reviews/epic-6-review-qa.md` § Re-check (PR #44).
   class: deferred
   state: open (owner: Epic 7 carry-over batch)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-8-3-local-ocr-service.md`
+  summary: The OCR sidecar repeats `OCR_READ_MAX_BYTES` (20 MB) and the `/read` and `/health` paths as literals (`services/ocr/app/main.py`, `services/ocr/tests/test_api.py`); `ocrContractJsonSchema()` exports neither, so the kernel drift test does not cover them. Tie them when the api `ocr-svc` provider is built (export them in the schema or assert them in a test).
+  evidence: Story 8.3 review, Verification Gap finding; both sides agree today.
+  class: deferred
+  state: open (owner: Epic 8 batch R, Story 8.4)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-8-3-local-ocr-service.md`
+  summary: The sidecar reads the pixel grid as received (EXIF orientation ignored), and the api's `print` variant is re-encoded by sharp without `.rotate()`, so a photo whose pixels are stored sideways reaches OCR sideways. Decide in the reading job whether the image sent to OCR is auto-oriented first (the boxes must stay in the space of the bytes the job normalizes against).
+  evidence: `apps/api/src/storage/variants.ts` `render`; `services/ocr/app/pipeline.py` `decode`.
+  class: deferred
+  state: open (owner: Epic 8 batch R, Story 8.4)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-8-3-local-ocr-service.md`
+  summary: A contract change regenerated with `pnpm schema:ocr` passes `pnpm verify` without the sidecar being rebuilt and tested; only the manual `docker compose --profile ocr build ocr` and `run --rm ocr pytest` (AGENTS.md) catch a sidecar that no longer validates its own responses.
+  evidence: Story 8.3 review, Verification Gap finding; the 1.9 GB image stays out of the 15-minute gate by decision.
+  class: deferred
+  state: open (owner: none)

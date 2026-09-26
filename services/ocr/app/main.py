@@ -52,7 +52,7 @@ def _error(code: str, status: int) -> Response:
 
 
 @app.get("/health")
-def health() -> Response:
+async def health() -> Response:
     if "detector" not in models or "recognizer" not in models:
         return JSONResponse({"status": "starting"}, status_code=503)
     return _json(OcrHealthResponse.model_validate({"status": "up", "detection": DETECTION_MODEL, "recognition": RECOGNITION_MODEL}))
@@ -87,20 +87,21 @@ async def read(request: Request) -> Response:
     if mime not in ACCEPTED_TYPES:
         return _error("invalid_image", 422)
     try:
-        image = decode(body)
+        image = await run_in_threadpool(decode, body)
     except InvalidImage:
         return _error("invalid_image", 422)
     try:
         result = await run_in_threadpool(_run, image)
+        payload = {
+            "image": {"width": result.width, "height": result.height},
+            "tokens": [
+                {"id": f"t{i}", "text": t.text, "bbox": list(t.bbox), "confidence": t.confidence}
+                for i, t in enumerate(result.tokens)
+            ],
+            "preprocessing_applied": result.preprocessing_applied,
+        }
+        response = OcrReadResult.model_validate(payload)
     except Exception:  # noqa: BLE001 - one opaque error body, the trace goes to the log
         log.exception("read failed")
         return _error("internal", 500)
-    payload = {
-        "image": {"width": result.width, "height": result.height},
-        "tokens": [
-            {"id": f"t{i}", "text": t.text, "bbox": list(t.bbox), "confidence": t.confidence}
-            for i, t in enumerate(result.tokens)
-        ],
-        "preprocessing_applied": result.preprocessing_applied,
-    }
-    return _json(OcrReadResult.model_validate(payload))
+    return _json(response)

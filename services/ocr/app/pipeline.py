@@ -58,7 +58,11 @@ def decode(data: bytes) -> np.ndarray:
     if not data:
         raise InvalidImage("empty body")
     buffer = np.frombuffer(data, dtype=np.uint8)
-    image = cv2.imdecode(buffer, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
+    try:
+        # OPENCV_IO_MAX_IMAGE_PIXELS (Dockerfile) caps the decoded size; above it imdecode raises.
+        image = cv2.imdecode(buffer, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
+    except cv2.error as error:
+        raise InvalidImage("not a decodable image") from error
     if image is None or image.size == 0 or image.shape[0] < 2 or image.shape[1] < 2:
         raise InvalidImage("not a decodable image")
     return image

@@ -265,7 +265,7 @@
         "values"
       ],
       "additionalProperties": false,
-      "description": "The structuring step output. Not expressible here and checked by the job: each value has the shape of its field's kind (structuringValueSchemaFor) and cites only token ids present in the OCR read."
+      "description": "The structuring step output. Not expressible here: each field key appears at most once (enforced by the zod schema); each value has the shape of its field's kind (structuringValueSchemaFor) and cites only token ids present in the OCR read (checked by the job)."
     }
   }
 }

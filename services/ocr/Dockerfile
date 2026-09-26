@@ -70,7 +70,10 @@ ENV PATH=/opt/venv/bin:$PATH \
     HF_DATASETS_OFFLINE=1 \
     TRANSFORMERS_OFFLINE=1 \
     PADDLE_PDX_LOCAL_FONT_FILE_PATH=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf \
-    OMP_NUM_THREADS=4
+    OMP_NUM_THREADS=4 \
+    # Decode cap: 50 megapixels (the api's print variant is at most 2000 px a side), so a
+    # small PNG with a huge header answers 422 instead of allocating gigabytes.
+    OPENCV_IO_MAX_IMAGE_PIXELS=50000000
 USER ocr
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

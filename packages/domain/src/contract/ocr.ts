@@ -103,7 +103,8 @@ export type OcrErrorResponse = z.infer<typeof ocrErrorResponseSchema>;
 /** The image both providers receive: the api's `print` variant bytes (JPEG or PNG, no EXIF orientation). */
 export interface OcrImage {
   bytes: Uint8Array;
-  mime: string;
+  /** The sidecar reads only these two. */
+  mime: 'image/jpeg' | 'image/png';
 }
 
 /** The OCR layer: `ocr-svc` (this sidecar) in the MVP, `textract` in Epic 11, `fake` in tests. */
@@ -141,9 +142,14 @@ export type StructuringValue = z.infer<typeof structuringValueSchema>;
 export const structuringOutputSchema = z
   .object({ values: z.array(structuringValueSchema) })
   .strict()
+  .refine((output) => new Set(output.values.map((v) => v.key)).size === output.values.length, {
+    message: 'each field key appears at most once',
+    path: ['values'],
+  })
   .describe(
-    'The structuring step output. Not expressible here and checked by the job: each value has the shape of its ' +
-      "field's kind (structuringValueSchemaFor) and cites only token ids present in the OCR read.",
+    'The structuring step output. Not expressible here: each field key appears at most once (enforced by the ' +
+      "zod schema); each value has the shape of its field's kind (structuringValueSchemaFor) and cites only " +
+      'token ids present in the OCR read (checked by the job).',
   );
 export type StructuringOutput = z.infer<typeof structuringOutputSchema>;
 

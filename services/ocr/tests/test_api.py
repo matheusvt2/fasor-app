@@ -67,6 +67,37 @@ def test_rotated_plate_is_deskewed_and_mapped_back(client, plate_jpeg, expected_
     assert report.values_matched == report.values_total, report.misses
 
 
+def test_large_plate_is_downscaled_and_mapped_back(client, plate_jpeg, expected_tokens):
+    """The plate upscaled to 4400 px wide: the pipeline works on a copy of at most 4000 px
+    a side and maps the boxes back to the received grid."""
+    image = _decode(plate_jpeg)
+    h, w = image.shape[:2]
+    scale = 4400 / w
+    big = cv2.resize(image, (4400, round(h * scale)), interpolation=cv2.INTER_CUBIC)
+    ok, encoded = cv2.imencode(".jpg", big, [cv2.IMWRITE_JPEG_QUALITY, 90])
+    assert ok
+
+    response = _post(client, encoded.tobytes())
+    assert response.status_code == 200
+    body = response.json()
+    assert_read_result(body)
+    assert body["image"] == {"width": big.shape[1], "height": big.shape[0]}
+    assert body["preprocessing_applied"] is True
+
+    sx, sy = big.shape[1] / w, big.shape[0] / h
+    expected = [
+        {"text": t["text"], "bbox": [t["bbox"][0] * sx, t["bbox"][1] * sy, t["bbox"][2] * sx, t["bbox"][3] * sy]}
+        for t in expected_tokens["tokens"]
+    ]
+    flags = value_flags(expected_tokens["tokens"], value_words())
+    report = match(expected, body["tokens"], flags)
+    SUMMARY.append(report.line("plate upscaled to 4400 px"))
+    for miss in report.misses:
+        SUMMARY.append(f"  miss: {miss}")
+    assert report.accuracy >= 0.95, report.misses
+    assert report.values_matched == report.values_total, report.misses
+
+
 def test_png_reads_like_the_jpeg(client, plate_jpeg, plate_response):
     ok, png = cv2.imencode(".png", _decode(plate_jpeg))
     assert ok
@@ -117,6 +148,41 @@ def test_too_large_is_413_before_decoding(client):
     response = _post(client, b"\0" * (READ_MAX_BYTES + 1))
     assert response.status_code == 413
     assert response.json() == {"error": "too_large"}
+    validate("OcrErrorResponse", response.json())
+
+
+def test_streamed_body_over_the_limit_is_413(client):
+    """A chunked body carries no Content-Length: the streamed count stops it."""
+
+    def chunks():
+        for _ in range(21):
+            yield b"\0" * (1024 * 1024)
+
+    response = client.post("/read", content=chunks(), headers={"content-type": "image/jpeg"})
+    assert response.status_code == 413
+    assert response.json() == {"error": "too_large"}
+    validate("OcrErrorResponse", response.json())
+
+
+def test_image_over_the_pixel_cap_is_422(client):
+    """A small PNG whose header declares 60 megapixels, above OPENCV_IO_MAX_IMAGE_PIXELS."""
+    ok, png = cv2.imencode(".png", np.full((6000, 10000), 255, np.uint8), [cv2.IMWRITE_PNG_COMPRESSION, 9])
+    assert ok and len(png) < READ_MAX_BYTES
+    response = _post(client, png.tobytes(), "image/png")
+    assert response.status_code == 422
+    assert response.json() == {"error": "invalid_image"}
+
+
+def test_pipeline_failure_is_500_internal(client, plate_jpeg, monkeypatch):
+    import app.main
+
+    def boom(*_args, **_kwargs):
+        raise RuntimeError("injected")
+
+    monkeypatch.setattr(app.main, "read_image", boom)
+    response = _post(client, plate_jpeg)
+    assert response.status_code == 500
+    assert response.json() == {"error": "internal"}
     validate("OcrErrorResponse", response.json())
 
 
