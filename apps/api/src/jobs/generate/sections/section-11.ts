@@ -16,6 +16,8 @@ import { DEFAULT_CONVERT_TIMEOUT_MS, rasterizePdfPages } from '../libreoffice.ts
 
 /** The certificate box: the content width by about 23 cm, so a page image never spills onto the next page. */
 const CERTIFICATE_MAX_HEIGHT_CM = 23;
+/** The first page image shares its page with the section heading. */
+const CERTIFICATE_FIRST_MAX_HEIGHT_CM = 21;
 /** An image certificate is scaled into A4 at 150 dpi before it is embedded. */
 const IMAGE_MAX_PX = { width: 1240, height: 1754 } as const;
 
@@ -75,23 +77,28 @@ export async function loadCertificatePages(
   return out;
 }
 
-/** Section 11's body: each certificate's pages, one per page, or its placeholder line. */
+/**
+ * Section 11's body: each certificate's pages, one per page, or its placeholder line. The
+ * section's first page image sits under the heading (Heading 1 keeps with it), a little
+ * shorter so both fit; every later page image starts its own page, so the heading never
+ * stands alone at the foot of a page.
+ */
 export async function section11Children(section: LayoutSectionCertificates, pages: ReadonlyMap<string, readonly Buffer[]>): Promise<Paragraph[]> {
   const maxWidth = Math.round((CONTENT_WIDTH_TWIPS / 1440) * 96);
   const maxHeight = Math.round(CERTIFICATE_MAX_HEIGHT_CM * PX_PER_CM);
+  const firstMaxHeight = Math.round(CERTIFICATE_FIRST_MAX_HEIGHT_CM * PX_PER_CM);
   const children: Paragraph[] = [];
   for (const certificate of section.certificates) {
     const images = certificate.certificateFileId === null ? undefined : pages.get(certificate.certificateFileId);
-    const sized = [];
+    let printed = false;
     for (const page of images ?? []) {
-      const one = await sizedImage(page, maxWidth, maxHeight);
-      if (one !== null) sized.push(one);
+      const underHeading = children.length === 0;
+      const one = await sizedImage(page, maxWidth, underHeading ? firstMaxHeight : maxHeight);
+      if (one === null) continue;
+      children.push(new Paragraph({ pageBreakBefore: !underHeading, alignment: AlignmentType.CENTER, children: [image(one)] }));
+      printed = true;
     }
-    if (sized.length === 0) {
-      children.push(new Paragraph({ children: [text(certificate.placeholder)], spacing: { after: 120 } }));
-      continue;
-    }
-    for (const one of sized) children.push(new Paragraph({ pageBreakBefore: true, alignment: AlignmentType.CENTER, children: [image(one)] }));
+    if (!printed) children.push(new Paragraph({ children: [text(certificate.placeholder)], spacing: { after: 120 } }));
   }
   return children;
 }

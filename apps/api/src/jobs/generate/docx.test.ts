@@ -215,8 +215,9 @@ describe('7.2/7.3-UNIT sections 7, 8 and 11', () => {
       'Certificado não anexado: 1T — Transformer Ratiometer (nº 37274/26)',
     ]);
     const document = entries.get('word/document.xml')!.toString('utf8');
-    // Each certificate page starts a page and fits the content box (at most 18.46 x 23 cm in EMU).
-    expect(document.match(/<w:pageBreakBefore\/>/g) ?? []).toHaveLength(2);
+    // The first certificate page sits under the heading (kept with it); every later one
+    // starts its own page, and each fits the content box (at most 18.46 x 23 cm in EMU).
+    expect(document.match(/<w:pageBreakBefore\/>/g) ?? []).toHaveLength(1);
     const extents = [...document.matchAll(/<wp:extent cx="(\d+)" cy="(\d+)"\/>/g)].map((m) => [Number(m[1]), Number(m[2])]);
     expect(extents).toHaveLength(4);
     for (const [cx, cy] of extents.slice(2)) {
