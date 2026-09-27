@@ -6,8 +6,8 @@
  * (`.export-dialog.is-page`); the app renders it as the real modal, portaled out of any
  * route, so the route scope is dropped and `.export-dialog` stands for it. The
  * `.frame-phone` variants live in `app.css` (AGENTS.md "Mock container selectors").
- * Rules for parts this story does not render (`.precheck`, `.sim-row`, `.is-page`, the
- * `.relatorio-head`) are left out.
+ * Rules for parts the app does not render (`.pc-sug`, `.pc-confirm`, `.pc-sim`, `.sim-row`,
+ * `.is-page`, the `.relatorio-head`) are left out.
  */
 
 /* `[data-route] .export-state` */
@@ -31,3 +31,30 @@
 .export-dialog .revisions-label { margin-bottom: var(--sp-2); }
 /* authored: the mock draws the dialog inside a frame; as a real modal on a short viewport it scrolls. */
 .export-dialog { max-height: calc(100dvh - 2 * var(--sp-5)); overflow-y: auto; }
+
+/* Story 7.5: "Antes de emitir". `[data-route] .precheck li`, `li .pc-text`, `li .pc-actions`, `.precheck .pc-meta` */
+.export-dialog .precheck li { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); min-height: var(--touch-min); }
+.export-dialog .precheck li .pc-text { flex: 1; min-width: 0; }
+.export-dialog .precheck li .pc-actions { display: flex; gap: var(--sp-1); flex: none; }
+.export-dialog .precheck .pc-meta { color: var(--ink-secondary); font-size: var(--t-meta-size); }
+/* `[data-route] .precheck li.is-blocking .pc-block` (D5: "Parecer não preenchido" in red) */
+.export-dialog .precheck li.is-blocking .pc-block { color: var(--nao-conforme); font-weight: 600; }
+/* authored: the mock's "Antes de emitir" label sits `margin-bottom: var(--sp-2)` above the list through an inline style. */
+.export-dialog .precheck-label { margin-bottom: var(--sp-2); }
+/* authored: the mock's fact line reuses `.pc-meta` outside `.precheck`, where no rule of its own reaches it; the same look. */
+.export-dialog .export-sec9-note { color: var(--ink-secondary); font-size: var(--t-meta-size); }
+
+/*
+ * Story 7.5, UX-DR67 (DESIGN.md: the document control summary is a `dl`, which wins over the
+ * mock's `table.doc-control`): `components.css` keeps `.doc-control` for the table, so the
+ * `dt`/`dd` pairs here mirror its `th`/`td` declarations verbatim, a two-column grid whose
+ * key column is `--doc-control-key-width`; each `.dc-row` wrapper is a subgrid row.
+ */
+.export-dialog dl.doc-control { display: grid; grid-template-columns: var(--doc-control-key-width) minmax(0, 1fr); margin: 0; overflow: hidden; }
+.export-dialog dl.doc-control .dc-row { display: contents; }
+/* `.doc-control th` (the width is the grid column) */
+.export-dialog dl.doc-control dt { padding: var(--sp-2) var(--sp-3); text-align: left; vertical-align: top; background: var(--doc-control-key-background); border-top: var(--doc-control-row-divider); border-right: 1px solid var(--border-hairline); font: var(--doc-control-key-typography); color: var(--doc-control-key-foreground); }
+/* `.doc-control td` */
+.export-dialog dl.doc-control dd { margin: 0; padding: var(--sp-2) var(--sp-3); vertical-align: top; border-top: var(--doc-control-row-divider); font: var(--doc-control-value-typography); color: var(--ink-primary); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+/* `.doc-control tr:first-child th, .doc-control tr:first-child td` */
+.export-dialog dl.doc-control .dc-row:first-child dt, .export-dialog dl.doc-control .dc-row:first-child dd { border-top: 0; }

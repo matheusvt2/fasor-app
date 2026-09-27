@@ -15,8 +15,16 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
       'generates documents through the one pg-boss queue and the one LibreOffice of the api, and loads the small Porto Seguro fixture, whose ids are fixed and whose seed reclaims them from every company',
   },
   {
+    file: 'parecer-export.spec.ts',
+    why: 'issues and previews documents through the shared queue and LibreOffice, and loads the same fixed-id Porto Seguro fixture',
+  },
+  {
     file: 'export-visual.spec.ts',
     why: 'loads the same fixed-id Porto Seguro fixture and generates a revision through the shared queue and LibreOffice',
+  },
+  {
+    file: 'photo-numbers.spec.ts',
+    why: 'loads the same fixed-id Porto Seguro fixture and generates revisions through the shared queue and LibreOffice, whose certificate rasterization shares the one soffice chain',
   },
 ];
 

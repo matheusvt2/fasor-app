@@ -95,8 +95,8 @@ describe('4.3-UNIT sumarioRows', () => {
       'generated',
       'generated',
       'generated',
-      'pending-epic',
-      'pending-epic',
+      'setup',
+      'generated',
     ]);
     expect(rows.filter((r) => r.expandable).map((r) => r.blockType)).toEqual(['section_9']);
     expect(numberedSiblings(rows)).toHaveLength(11);
@@ -107,9 +107,11 @@ describe('4.3-UNIT sumarioRows', () => {
 
   it('writes every meta from the kernel: gaps on the cover, "0 de 94" on row 9, the fixed lines elsewhere', () => {
     const meta = Object.fromEntries(rows.map((r) => [r.rowKey, r.meta]));
-    expect(meta.capa).toBe('Cliente em branco · Responsável técnico em branco · Razão social não cadastrada · Logo da empresa não cadastrado');
+    expect(meta.capa).toBe('Cliente em branco · Responsável técnico em branco · Número da ART/TRT em branco · Razão social não cadastrada · Logo da empresa não cadastrado');
     expect(meta.controle).toBe('montado dos dados do relatório · Rev. 1 na primeira emissão');
-    expect(meta.section_1).toBe('editado em Dados do relatório › Etapa 2');
+    // Story 7.5: section 1's text names the client, the site and the company, none known yet.
+    expect(meta.section_1).toBe('Dados do relatório em branco: Empresa executora, Obra e Cliente');
+    expect(meta.section_3).toBe('editado em Dados do relatório › Etapa 2');
     expect(meta.section_2).toBe('texto padrão');
     // Story 12.3: every cabine of a new relatório still asks its six fields (pending, never blocking).
     expect(meta.section_9).toBe(
@@ -119,9 +121,12 @@ describe('4.3-UNIT sumarioRows', () => {
     expect(meta.section_7).toBe('Nenhuma foto');
     // Story 6.6: row 8 counts its entries; a new relatório has none.
     expect(meta.section_8).toBe('Nenhum ponto de atenção');
-    expect(rows.every((r) => !r.blocking)).toBe(true);
-    expect(rows.filter((r) => r.pending).map((r) => r.rowKey)).toEqual(['capa', 'section_9']);
-    expect(generateReason(rows)).toBe('Nada impede gerar.');
+    // Story 7.4: row 10 names the one blocking row; row 11 the instruments not chosen yet.
+    expect(meta.section_10).toBe('Parecer não preenchido');
+    expect(meta.section_11).toBe('Nenhum instrumento em Dados do relatório');
+    expect(rows.filter((r) => r.blocking).map((r) => r.rowKey)).toEqual(['section_10']);
+    expect(rows.filter((r) => r.pending).map((r) => r.rowKey)).toEqual(['capa', 'section_1', 'section_9', 'section_10', 'section_11']);
+    expect(generateReason(rows)).toBe('Só Conclusão e parecer (linha 10) impede gerar. O resto está escrito em cada linha.');
   });
 
   it('E4 retro item 22: an edited section reads "texto editado"; the template text alone reads "texto do template"', () => {
@@ -208,7 +213,8 @@ describe('4.3-UNIT sumarioRows', () => {
   it('over the Porto Seguro fixture: the cover reads the client and dates once nothing is missing but the logo', () => {
     const ps = buildSnapshot(replay(portoSeguro.log, { deadOpIds: portoSeguro.deadOpIds }), portoSeguro.relatorioId);
     const psRows = rowsOf(ps);
-    expect(psRows[0]!.meta).toBe('Logo da empresa não cadastrado');
+    // The fixture's log has no `user` row for its responsible: the registration and the ART are gaps.
+    expect(psRows[0]!.meta).toBe('Registro profissional do responsável em branco · Número da ART/TRT em branco · Logo da empresa não cadastrado');
     expect(psRows.find((r) => r.rowKey === 'section_9')).toBeUndefined();
     expect(psRows).toHaveLength(2);
     // The fixture predates section blocks: a relatório with none lists the two fixed rows only.
@@ -217,6 +223,8 @@ describe('4.3-UNIT sumarioRows', () => {
     expect(rowsOf(withSections).find((r) => r.rowKey === 'section_9')!.meta).toBe(
       '3 de 94 · 3 não ensaiadas · Cubículo Enel: falta a tensão secundária · 1° Subsolo: faltam 6 campos · Geradores: faltam 6 campos',
     );
+    // Story 7.3: row 11 counts the instruments section 11 prints, then its pre-issue rows (Story 7.5: no instrument checked at setup; the fixture attaches no certificate file) (the three the sheets copied).
+    expect(rowsOf(withSections).find((r) => r.rowKey === 'section_11')!.meta).toBe('3 certificados · Nenhum instrumento em Dados do relatório · 2E sem certificado · 3M sem certificado · 1T sem certificado');
   });
 });
 

@@ -1,9 +1,10 @@
 import { execFile, spawn, type ChildProcess } from 'node:child_process';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
+import { readPageSizes } from './pdf-outline.ts';
 
 const run = promisify(execFile);
 
@@ -65,7 +66,7 @@ export function convertToPdf(docx: Buffer, options: ConvertOptions): Promise<Buf
     try {
       const input = join(dir, 'relatorio.docx');
       await writeFile(input, docx);
-      await runSoffice(dir, input, options.timeoutMs ?? DEFAULT_CONVERT_TIMEOUT_MS);
+      await runSoffice(dir, ['--convert-to', 'pdf', '--outdir', dir, input], options.timeoutMs ?? DEFAULT_CONVERT_TIMEOUT_MS);
       try {
         return await readFile(join(dir, 'relatorio.pdf'));
       } catch {
@@ -90,16 +91,16 @@ function killGroup(child: ChildProcess): void {
   }
 }
 
-function runSoffice(dir: string, input: string, timeoutMs: number): Promise<void> {
+/** One headless soffice run with the directory's own profile; `args` follow the fixed profile flags. */
+function runSoffice(dir: string, args: readonly string[], timeoutMs: number): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const profile = pathToFileURL(join(dir, 'profile')).href;
     // `soffice` is a launcher script around `soffice.bin`: the process is its own group
     // (`detached`), so the timeout kills the whole group, not only the launcher.
-    const child = spawn(
-      'soffice',
-      ['--headless', '--norestore', '--nologo', `-env:UserInstallation=${profile}`, '--convert-to', 'pdf', '--outdir', dir, input],
-      { stdio: ['ignore', 'pipe', 'pipe'], detached: true },
-    );
+    const child = spawn('soffice', ['--headless', '--norestore', '--nologo', `-env:UserInstallation=${profile}`, ...args], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      detached: true,
+    });
     let stderr = '';
     child.stderr?.on('data', (chunk: Buffer) => {
       stderr += chunk.toString();
@@ -120,5 +121,68 @@ function runSoffice(dir: string, input: string, timeoutMs: number): Promise<void
       else if (code !== 0) reject(new LibreOfficeFailedError(`soffice exited with ${code ?? signal}: ${stderr.trim()}`));
       else resolve();
     });
+  });
+}
+
+export interface RasterizeOptions {
+  jobId: string;
+  /** Per soffice run; default 120 000 ms, the process killed (SIGKILL) past it. */
+  timeoutMs?: number;
+  /** Default 150 (Story 7.3: certificates print at 150 dpi). */
+  dpi?: number;
+}
+
+/** The two per-page filters (verified on LibreOffice 26.2.6: `draw_png_Export` alone always renders page 1). */
+export function pageRangeFilter(page: number): string {
+  return `pdf:draw_pdf_Export:{"PageRange":{"type":"string","value":"${page}"}}`;
+}
+
+export function pngSizeFilter(width: number, height: number): string {
+  return `png:draw_png_Export:{"PixelWidth":{"type":"long","value":"${width}"},"PixelHeight":{"type":"long","value":"${height}"}}`;
+}
+
+/**
+ * Story 7.3: every page of a PDF as a PNG at `dpi`, for section 11's certificates. Inside
+ * the same `serialize` chain as the conversion (one soffice at a time), with one temporary
+ * directory and one profile: pdfjs reads the page count and each page's size, then per page
+ * soffice cuts a one-page PDF (`PageRange`) and exports it as PNG at the page's size in
+ * points x dpi / 72. A throw (unreadable PDF, soffice failure or timeout) leaves nothing
+ * behind; the caller prints the placeholder.
+ */
+/** A certificate longer than this is refused (two soffice runs per page would hold the one queue for minutes). */
+export const MAX_CERTIFICATE_PAGES = 20;
+
+export function rasterizePdfPages(pdf: Buffer, options: RasterizeOptions): Promise<Buffer[]> {
+  return serialize(async () => {
+    const sizes = await readPageSizes(pdf);
+    if (sizes.length > MAX_CERTIFICATE_PAGES) throw new LibreOfficeFailedError(`certificate has ${sizes.length} pages, more than ${MAX_CERTIFICATE_PAGES}`);
+    const dpi = options.dpi ?? 150;
+    const timeoutMs = options.timeoutMs ?? DEFAULT_CONVERT_TIMEOUT_MS;
+    const dir = await mkdtemp(join(tmpdir(), `rasterize-${options.jobId}-`));
+    try {
+      const input = join(dir, 'certificado.pdf');
+      await writeFile(input, pdf);
+      const pages: Buffer[] = [];
+      for (const [index, size] of sizes.entries()) {
+        const page = index + 1;
+        const pageDir = join(dir, `page-${page}`);
+        const pngDir = join(dir, `png-${page}`);
+        await mkdir(pageDir);
+        await mkdir(pngDir);
+        await runSoffice(dir, ['--infilter=draw_pdf_import', '--convert-to', pageRangeFilter(page), '--outdir', pageDir, input], timeoutMs);
+        const onePage = join(pageDir, 'certificado.pdf');
+        const width = Math.max(1, Math.round((size.width * dpi) / 72));
+        const height = Math.max(1, Math.round((size.height * dpi) / 72));
+        await runSoffice(dir, ['--infilter=draw_pdf_import', '--convert-to', pngSizeFilter(width, height), '--outdir', pngDir, onePage], timeoutMs);
+        try {
+          pages.push(await readFile(join(pngDir, 'certificado.png')));
+        } catch {
+          throw new LibreOfficeFailedError(`soffice exited without writing page ${page} as PNG`);
+        }
+      }
+      return pages;
+    } finally {
+      await rm(dir, { recursive: true, force: true }).catch(() => undefined);
+    }
   });
 }

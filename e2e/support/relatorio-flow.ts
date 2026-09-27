@@ -68,3 +68,22 @@ export async function createRelatorio(page: Page, options: { whileOnSetup?: () =
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible();
   return relatorioId;
 }
+
+/** The three verdicts of the parecer band, as its segments read. */
+export type ParecerWord = 'Apto' | 'Apto com restrições' | 'Não apto';
+
+/**
+ * Story 7.4: sets the parecer as a person does, in Dados do relatório › Etapa 6 (one tap on
+ * a verdict segment), then goes back to the relatório's Sumário. "Parecer não preenchido" is
+ * the one row that stops "Gerar relatório", so every issue walk passes here first.
+ */
+export async function setParecer(page: Page, relatorioId: string, verdict: ParecerWord = 'Apto'): Promise<void> {
+  await page.goto(`/relatorio/${relatorioId}/setup?etapa=6`);
+  await expect(page.getByRole('heading', { level: 2, name: 'Etapa 6 — Conclusão e parecer' })).toBeFocused({ timeout: 30_000 });
+  const segment = page.getByRole('radiogroup', { name: 'Parecer' }).getByRole('radio', { name: verdict, exact: true });
+  await segment.click();
+  await expect(segment).toHaveAttribute('aria-checked', 'true');
+  await expect(page.locator('.parecer-box .pb-verdict')).toHaveText(verdict);
+  await page.goto(`/relatorio/${relatorioId}`);
+  await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
+}

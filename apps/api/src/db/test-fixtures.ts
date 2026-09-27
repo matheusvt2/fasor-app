@@ -1,4 +1,4 @@
-import type { Op } from '@app/domain';
+import type { Op, RelatorioParecer } from '@app/domain';
 import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { eq, inArray, or } from 'drizzle-orm';
 import { now } from '../clock.ts';
@@ -38,16 +38,31 @@ export async function removePortoSeguroSmall(db: Db): Promise<void> {
 export interface SeedSmallFixtureOptions {
   /** Points the relatório's responsible at a real `user` row of the company (the fixture's own user has none). */
   responsibleUserId?: string;
+  /**
+   * Story 7.5: born with this parecer, so an issue is not refused with `pre_issue_blocked`
+   * (the fixture's log carries none, and "Parecer não preenchido" is the one blocking row).
+   */
+  parecer?: RelatorioParecer;
 }
+
+/** A parecer the issue tests seed the fixture with. */
+export const TEST_PARECER: RelatorioParecer = { verdict: 'apto', text: null, text_status: null, text_basis: null };
 
 /** Reclaims and applies the fixture onto `companyId`; throws when any op is rejected. */
 export async function seedPortoSeguroSmall(db: Db, companyId: string, options: SeedSmallFixtureOptions = {}): Promise<void> {
   await removePortoSeguroSmall(db);
   const remapped: Op[] = portoSeguroSmall.log.map((op) => {
     let value = op.value;
-    if (options.responsibleUserId !== undefined && op.kind === 'create' && op.path === `relatorio/${SMALL_FIXTURE_RELATORIO_ID}`) {
+    if (op.kind === 'create' && op.path === `relatorio/${SMALL_FIXTURE_RELATORIO_ID}`) {
       const row = op.value as { setup: Record<string, unknown> };
-      value = { ...row, setup: { ...row.setup, responsible_user_id: options.responsibleUserId } };
+      value = {
+        ...row,
+        setup: {
+          ...row.setup,
+          ...(options.responsibleUserId === undefined ? {} : { responsible_user_id: options.responsibleUserId }),
+          ...(options.parecer === undefined ? {} : { parecer: options.parecer }),
+        },
+      };
     }
     // A `file` create carries the company in its value (AD-10): it follows the envelope.
     if (op.kind === 'create' && value !== null && typeof value === 'object' && !Array.isArray(value) && 'company_id' in value) {
