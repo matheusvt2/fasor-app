@@ -32,6 +32,8 @@ import {
   photosAddedText,
   photoStampFull,
   photoStampShort,
+  photoNumbersProvisional,
+  photoNumbersStatusText,
   photoTileLabel,
   skippedFilesText,
   viewerCountText,
@@ -292,5 +294,22 @@ describe('6.3-UNIT-006 section 7 on the Sumário and in preIssue', () => {
     const allErrors = preIssue(snapshot, computed, { photoErrors: new Set(files.map((f) => f.id)) });
     expect(allErrors.some((r) => r.kind === 'photos_pending_upload')).toBe(false);
     expect(preIssueRowsFor(preIssue(snapshot, computed), 'section_7').find((r) => r.kind === 'photos_pending_upload')?.text).toBe('4 aguardando envio');
+  });
+});
+
+describe('7.2-UNIT-003 frozen or provisional photo numbers (AC3)', () => {
+  it('no revision: provisional, no status line (the note says it); a revision with nothing edited since: frozen; edited: provisional again', () => {
+    expect(photoNumbersProvisional(null, false)).toBe(true);
+    expect(photoNumbersProvisional(null, true)).toBe(true);
+    expect(photoNumbersStatusText(null, true)).toBeNull();
+    expect(photoNumbersProvisional({ number: 2 }, false)).toBe(false);
+    expect(photoNumbersStatusText({ number: 2 }, false)).toBe('Números da revisão 2');
+    expect(photoNumbersProvisional({ number: 2 }, true)).toBe(true);
+    expect(photoNumbersStatusText({ number: 2 }, true)).toBe('Números provisórios — serão definidos na revisão 3');
+  });
+
+  it('the viewer count drops "nº provisório" once the numbers are frozen', () => {
+    expect(viewerCountText(4, 20, false)).toBe('4 de 20');
+    expect(viewerCountText(4, 20, true)).toBe('4 de 20 · nº provisório');
   });
 });

@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { buildSnapshot, layoutSpec, replay } from '@app/domain';
+import { buildSnapshot, layoutSpec, PHOTO_UNAVAILABLE_TEXT, replay, type LayoutSection } from '@app/domain';
 import { portoSeguro } from '@app/domain/fixtures/porto-seguro';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
@@ -40,7 +40,7 @@ describe('4.8-UNIT-006 DOCX structure golden', () => {
     expect(subject).toEqual(golden);
   }, 30_000);
 
-  it('prints the AC parts: header lines, PAGE/NUMPAGES footer, DADOS DO CLIENTE, document control with "Rev. 1", the ÍNDICE and the empty sections', async () => {
+  it('prints the AC parts: header lines, PAGE/NUMPAGES footer, DADOS DO CLIENTE, document control with "Rev. 1", the ÍNDICE and the empty section 9', async () => {
     const structure = extractStructure(await renderFixture());
     expect(structure.header).toEqual(['Relatório Técnico de Cabine Primária', 'FO.SERV-03 · Revisão 00']);
     // The fixture's Empresa has no address, phone or e-mail: no empty contact line is printed.
@@ -84,10 +84,10 @@ describe('4.8-UNIT-006 DOCX structure golden', () => {
     expect(toc).toHaveLength(11);
     expect(toc[0]).toBe(`1 OBJETIVO\t${TOC_PLACEHOLDER}`);
     expect(structure.paragraphs).toContain('ÍNDICE');
-    // Section 3's exclusions and the empty sections' note.
+    // Section 3's exclusions and the empty section's note (9, until Story 7.1; 7, 8 and 11 print their content).
     expect(structure.paragraphs).toContain('Exclusões:');
     expect(structure.paragraphs).toContain('Quadros elétricos terminais, localizados nos respectivos setores;');
-    expect(structure.paragraphs.filter((p) => p === '(sem conteúdo nesta revisão)')).toHaveLength(4);
+    expect(structure.paragraphs.filter((p) => p === '(sem conteúdo nesta revisão)')).toHaveLength(1);
     const section1 = structure.paragraphs.find((p) => p.startsWith('O presente relatório tem por objetivo'));
     expect(section1).toContain('realizadas pela Fasor Engenharia');
     expect(section1).not.toMatch(/\{[a-z_]+\}/);
@@ -155,6 +155,81 @@ describe('4.8-UNIT-007 images', () => {
     expect(entries.get('word/header1.xml')?.toString('utf8')).not.toContain('<w:drawing');
     expect(extractStructure(docx).header).toEqual(['Relatório Técnico de Cabine Primária', 'FO.SERV-03 · Revisão 00']);
   }, 30_000);
+});
+
+describe('7.2/7.3-UNIT sections 7, 8 and 11', () => {
+  const snapshot = () => buildSnapshot(replay(portoSeguro.log, { deadOpIds: portoSeguro.deadOpIds }), portoSeguro.relatorioId);
+  const colour = (r: number, width = 40, height = 30) => sharp({ create: { width, height, channels: 3, background: { r, g: 90, b: 40 } } });
+  const mediaFiles = (entries: Map<string, Buffer>) => [...entries.keys()].filter((name) => name.startsWith('word/media/') && !name.endsWith('/'));
+  const kindOf = <K extends LayoutSection['kind']>(sections: LayoutSection[], kind: K) => sections.find((s): s is Extract<LayoutSection, { kind: K }> => s.kind === kind)!;
+
+  it('prints the photo table, the bullets and the certificate placeholders from the layout alone (no bytes)', async () => {
+    const layout = layoutSpec(snapshot(), { revisionNumber: 1, issuedAt: ISSUED_AT });
+    const docx = await buildDocx(layout, { tocPages: placeholderPages(layout) });
+    const structure = extractStructure(docx);
+    expect(mediaFiles(readZipEntries(docx))).toHaveLength(0);
+    // Section 7: 82 photos two per row, each cell its placeholder, "Imagem N: caption." and the stamp.
+    const photoTable = structure.tables.find((table) => table[0]![0]!.startsWith(PHOTO_UNAVAILABLE_TEXT))!;
+    expect(photoTable).toHaveLength(41);
+    expect(photoTable[0]![0]).toBe(`${PHOTO_UNAVAILABLE_TEXT}\nImagem 1: Detalhe da equipe da Enel no local para desligamento e religamento da energia.\n10/09/2026 09:00`);
+    expect(photoTable[40]![1]!.split('\n')[1]).toMatch(/^Imagem 82: /);
+    expect(structure.paragraphs.filter((p) => p === PHOTO_UNAVAILABLE_TEXT)).toHaveLength(82);
+    // Section 8: each bullet as a numbered-list paragraph, in order.
+    const bullets = kindOf(layout.sections, 'points').bullets;
+    const start = structure.paragraphs.indexOf(bullets[0]!);
+    expect(start).toBeGreaterThan(0);
+    expect(structure.paragraphs.slice(start, start + bullets.length)).toEqual(bullets);
+    // Section 11: the three placeholder lines.
+    expect(structure.paragraphs.filter((p) => p.startsWith('Certificado não anexado: '))).toEqual([
+      'Certificado não anexado: 2E — Megôhmetro Digital (nº 37428/26)',
+      'Certificado não anexado: 3M — Micro-Ohmmeter (nº 37276/26)',
+      'Certificado não anexado: 1T — Transformer Ratiometer (nº 37274/26)',
+    ]);
+    const document = readZipEntries(docx).get('word/document.xml')!.toString('utf8');
+    // The photo rows never split across pages; section 8 is a bulleted list.
+    expect(document).toContain('<w:cantSplit/>');
+    expect(document).toContain('<w:numPr>');
+  }, 60_000);
+
+  it('embeds the photos it has bytes for and each certificate page on its own page; the rest print their placeholders', async () => {
+    const layout = layoutSpec(snapshot(), { revisionNumber: 1, issuedAt: ISSUED_AT });
+    const photosSection = kindOf(layout.sections, 'photos');
+    const certificates = kindOf(layout.sections, 'certificates');
+    // Two certificates attached: one with two page images, one the job could not read.
+    certificates.certificates[0] = { ...certificates.certificates[0]!, certificateFileId: 'cert-a' };
+    certificates.certificates[1] = { ...certificates.certificates[1]!, certificateFileId: 'cert-b' };
+    const photos = new Map([
+      [photosSection.photos[0]!.fileId, await colour(10).jpeg().toBuffer()],
+      [photosSection.photos[1]!.fileId, await colour(60).png().toBuffer()],
+      // Bytes sharp cannot read print the placeholder too.
+      [photosSection.photos[2]!.fileId, Buffer.from('garbage')],
+    ]);
+    const pages = new Map([['cert-a', [await colour(120, 1240, 1754).png().toBuffer(), await colour(180, 1240, 1754).png().toBuffer()]]]);
+    const docx = await buildDocx(layout, { tocPages: placeholderPages(layout), images: { photos, certificates: pages } });
+    const entries = readZipEntries(docx);
+    expect(mediaFiles(entries)).toHaveLength(4);
+    const structure = extractStructure(docx);
+    expect(structure.paragraphs.filter((p) => p === PHOTO_UNAVAILABLE_TEXT)).toHaveLength(80);
+    expect(structure.paragraphs.filter((p) => p.startsWith('Certificado não anexado: '))).toEqual([
+      'Certificado não anexado: 3M — Micro-Ohmmeter (nº 37276/26)',
+      'Certificado não anexado: 1T — Transformer Ratiometer (nº 37274/26)',
+    ]);
+    const document = entries.get('word/document.xml')!.toString('utf8');
+    // The first certificate page sits under the heading (kept with it); every later one
+    // starts its own page, and each fits the content box (at most 18.46 x 23 cm in EMU).
+    expect(document.match(/<w:pageBreakBefore\/>/g) ?? []).toHaveLength(1);
+    const extents = [...document.matchAll(/<wp:extent cx="(\d+)" cy="(\d+)"\/>/g)].map((m) => [Number(m[1]), Number(m[2])]);
+    expect(extents).toHaveLength(4);
+    for (const [cx, cy] of extents.slice(2)) {
+      expect(cx).toBeLessThanOrEqual(Math.round(18.47 * 360_000));
+      expect(cy).toBeLessThanOrEqual(Math.round(23.01 * 360_000));
+    }
+    // The photos fit 8.5 x 6.4 cm.
+    for (const [cx, cy] of extents.slice(0, 2)) {
+      expect(cx).toBeLessThanOrEqual(Math.round(8.51 * 360_000));
+      expect(cy).toBeLessThanOrEqual(Math.round(6.41 * 360_000));
+    }
+  }, 60_000);
 });
 
 describe('docx-structure helpers', () => {

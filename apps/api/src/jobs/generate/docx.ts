@@ -28,6 +28,9 @@ import {
 } from 'docx';
 import sharp from 'sharp';
 import { section10Children } from './sections/section-10.ts';
+import { section11Children } from './sections/section-11.ts';
+import { section7Children } from './sections/section-7.ts';
+import { section8Children } from './sections/section-8.ts';
 import type { TocPages } from './toc.ts';
 import { watermarkPng } from './watermark.ts';
 
@@ -43,10 +46,10 @@ import { watermarkPng } from './watermark.ts';
 /** A4 in twips (11906 x 16838) and the source margin. */
 const A4 = { width: 11906, height: 16838 } as const;
 const MARGIN_TWIPS = 720;
-const CONTENT_WIDTH_TWIPS = A4.width - 2 * MARGIN_TWIPS;
+export const CONTENT_WIDTH_TWIPS = A4.width - 2 * MARGIN_TWIPS;
 
 /** Printed at 96 px per inch, the scale `docx` assumes for an image's `transformation`. */
-const PX_PER_CM = 96 / 2.54;
+export const PX_PER_CM = 96 / 2.54;
 const LOGO_MAX_HEIGHT_PX = Math.round(3 * PX_PER_CM);
 const COVER_MAX_WIDTH_PX = Math.round((CONTENT_WIDTH_TWIPS / 1440) * 96);
 const COVER_MAX_HEIGHT_PX = Math.round(12 * PX_PER_CM);
@@ -72,6 +75,10 @@ export interface DocxImages {
   cover?: Buffer;
   /** Story 7.5: the preview's watermark PNG; drawn from `layout.watermark` when absent. */
   watermark?: Buffer;
+  /** Stories 7.1/7.2: the photos' `print` variant bytes by file id (section 7, and the sheets' photos). */
+  photos?: ReadonlyMap<string, Buffer>;
+  /** Story 7.3: each certificate's page images (PNG or JPEG) by certificate file id (section 11). */
+  certificates?: ReadonlyMap<string, readonly Buffer[]>;
 }
 
 export interface BuildDocxOptions {
@@ -79,7 +86,7 @@ export interface BuildDocxOptions {
   images?: DocxImages;
 }
 
-interface SizedImage {
+export interface SizedImage {
   data: Buffer;
   type: 'png' | 'jpg';
   width: number;
@@ -95,7 +102,7 @@ function imageType(data: Buffer): 'png' | 'jpg' {
  * Bytes sharp cannot read (a corrupt upload) yield null: the document prints without
  * that image rather than failing the revision.
  */
-async function sizedImage(data: Buffer, maxWidth: number, maxHeight: number): Promise<SizedImage | null> {
+export async function sizedImage(data: Buffer, maxWidth: number, maxHeight: number): Promise<SizedImage | null> {
   let meta: { width?: number; height?: number };
   try {
     meta = await sharp(data).metadata();
@@ -109,11 +116,11 @@ async function sizedImage(data: Buffer, maxWidth: number, maxHeight: number): Pr
   return { data, type: imageType(data), width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) };
 }
 
-function image(img: SizedImage): ImageRun {
+export function image(img: SizedImage): ImageRun {
   return new ImageRun({ type: img.type, data: img.data, transformation: { width: img.width, height: img.height } });
 }
 
-const text = (content: string, options: { bold?: boolean; size?: number } = {}): TextRun =>
+export const text = (content: string, options: { bold?: boolean; size?: number } = {}): TextRun =>
   new TextRun({ text: content, bold: options.bold, size: options.size });
 
 const plain = (content: string, options: { bold?: boolean; size?: number; alignment?: (typeof AlignmentType)[keyof typeof AlignmentType] } = {}): Paragraph =>
@@ -257,6 +264,9 @@ export async function buildDocx(layout: DocumentLayout, options: BuildDocxOption
     children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [text(sectionHeading(section))] }));
     if (section.kind === 'empty') children.push(new Paragraph({ children: [text(section.note)], spacing: { after: 120 } }));
     else if (section.kind === 'section_10') children.push(...section10Children(section, CONTENT_WIDTH_TWIPS));
+    else if (section.kind === 'photos') children.push(...(await section7Children(section, options.images?.photos ?? new Map())));
+    else if (section.kind === 'points') children.push(...section8Children(section));
+    else if (section.kind === 'certificates') children.push(...(await section11Children(section, options.images?.certificates ?? new Map())));
     else for (const block of section.paragraphs) children.push(sectionParagraph(block));
   }
 

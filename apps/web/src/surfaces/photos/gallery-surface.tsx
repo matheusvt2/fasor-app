@@ -9,8 +9,11 @@ import {
   galleryCounts,
   galleryFilterText,
   galleryHeadingText,
+  latestRevision,
   numberPhotos,
   photoCabineId,
+  photoNumbersProvisional,
+  photoNumbersStatusText,
   photoRemovedText,
   photoStampShort,
   photoTileLabel,
@@ -23,6 +26,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import { Button, FilterChipGroup, PhotoRow } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
+import { useEditedSince, useRevisions } from '../../db/generate-store.ts';
 import { useRelatorioPhotoTiles, type PhotoTile } from '../../db/photo-store.ts';
 import { splitImportable } from '../../files/photo-import.ts';
 import { useSession } from '../../state/session.tsx';
@@ -86,6 +90,11 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
     () => numberPhotos(all.map((tile) => ({ id: tile.id, kind: 'photo', removed_at: null, captured_at: tile.captured_at, local_seq: tile.local_seq }))),
     [all],
   );
+  // Story 7.2 (AC3): a revision froze these numbers until anything is edited after it.
+  const latest = latestRevision(useRevisions(db, relatorioId));
+  const edited = useEditedSince(db, relatorioId, latest?.snapshot_seq ?? null);
+  const numbersStatus = photoNumbersStatusText(latest, edited);
+  const provisional = photoNumbersProvisional(latest, edited);
   const sources = useCaptionSources(relatorioId, snapshot);
   const heading = useRef<HTMLHeadingElement>(null);
   const surface = useRef<HTMLDivElement>(null);
@@ -169,6 +178,11 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
             )}
           </div>
           <p className="section-note">{t.note}</p>
+          {numbersStatus === null ? null : (
+            <p className="section-note" data-testid="photo-numbers-status">
+              {numbersStatus}
+            </p>
+          )}
           {options.length > 1 ? <FilterChipGroup aria-label={t.filterLabel} options={options} selectedId={filter} onChange={setPicked} /> : null}
           <p className="visually-hidden" role="status" data-testid="gallery-filter-status">
             {filterText}
@@ -217,6 +231,7 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
         snapshot={snapshot}
         tiles={shown}
         numbers={numbers}
+        provisional={provisional}
         photoId={viewing ?? ''}
         onNavigate={setViewing}
         onClose={closeViewer}

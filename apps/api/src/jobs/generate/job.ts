@@ -15,6 +15,7 @@ import {
   type DocumentLayout,
   type FileRow,
   type GenerationResult,
+  type LayoutSectionCertificates,
   type NewId,
   type Op,
   type RelatorioSnapshot,
@@ -32,6 +33,8 @@ import { freezeSnapshot } from '../../sync/snapshot.ts';
 import { buildDocx, type DocxImages } from './docx.ts';
 import { convertToPdf, DEFAULT_CONVERT_TIMEOUT_MS, LibreOfficeTimeoutError, type GenerateFault } from './libreoffice.ts';
 import { readOutline } from './pdf-outline.ts';
+import { loadCertificatePages, type StoredOriginal } from './sections/section-11.ts';
+import { loadPhotoImages } from './sections/section-7.ts';
 import { headingPages, missingHeadings, placeholderPages, tocConverged, type TocPages } from './toc.ts';
 
 /*
@@ -182,6 +185,14 @@ async function printVariant(deps: GenerateJobDeps, companyId: CompanyId, fileId:
   return stored === null ? undefined : readAll(stored.body);
 }
 
+/** Story 7.3: the original bytes and type of an uploaded file (a certificate), or undefined when the server holds none. */
+async function readOriginal(deps: GenerateJobDeps, companyId: CompanyId, fileId: string): Promise<StoredOriginal | undefined> {
+  const found = await fileRow(deps.db, companyId, fileId);
+  if (found === null || found.row.uploaded_at === null || found.row.removed_at !== null) return undefined;
+  const stored = await getObject(deps.s3, deps.bucket, objectKey(companyId, found.row.kind, fileId, 'original', found.relatorioId));
+  return stored === null ? undefined : { bytes: await readAll(stored.body), mime: found.row.mime };
+}
+
 /**
  * AD-15's pass loop: pass 1 with placeholders, pass 2 with the outline's pages, a third
  * pass only when pass-2 moved a heading. Returns the last pass's DOCX and PDF.
@@ -247,6 +258,11 @@ export async function runGenerateJob(deps: GenerateJobDeps, payload: GeneratePay
     if (logo !== undefined) images.logo = logo;
     const cover = await printVariant(deps, companyId, frozen.snapshot.relatorio.setup.cover_photo_file_id);
     if (cover !== undefined) images.cover = cover;
+    // Stories 7.2/7.3: the photos' print bytes and the certificates' page images, loaded
+    // once before the passes; the loaders log and skip what they cannot read, never throw.
+    images.photos = await loadPhotoImages(frozen.snapshot, (fileId) => printVariant(deps, companyId, fileId), fields);
+    const certificatesSection = layout.sections.find((section): section is LayoutSectionCertificates => section.kind === 'certificates');
+    images.certificates = await loadCertificatePages(certificatesSection, (fileId) => readOriginal(deps, companyId, fileId), { jobId: payload.job_id, timeoutMs: deps.timeoutMs, context: fields });
 
     const rendered = await renderDocument(layout, images, { jobId: payload.job_id, timeoutMs: deps.timeoutMs, fault: deps.fault });
 

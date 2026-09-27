@@ -22,6 +22,10 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'export-visual.spec.ts',
     why: 'loads the same fixed-id Porto Seguro fixture and generates a revision through the shared queue and LibreOffice',
   },
+  {
+    file: 'photo-numbers.spec.ts',
+    why: 'loads the same fixed-id Porto Seguro fixture and generates revisions through the shared queue and LibreOffice, whose certificate rasterization shares the one soffice chain',
+  },
 ];
 
 /** The group a Playwright run is in: set by `scripts/e2e.ts`; absent for a bare `playwright test`. */

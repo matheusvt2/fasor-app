@@ -12,6 +12,7 @@ import { locationPathText } from './location-path.ts';
 import { isEquipmentBlock } from './sheet-state.ts';
 import { pointsSummary, pointsSummaryText } from '../points/summary.ts';
 import { parecerOf, parecerVerdictLabel } from './parecer.ts';
+import { certificatesCountText, section11Instruments } from '../print/section-11.ts';
 
 /*
  * Story 4.3: the Sumário as data (`40-relatorio-overview.html`): the relatório's own table
@@ -44,9 +45,9 @@ export const SUMARIO_TITLES: Readonly<Record<SumarioRowKey, string>> = {
 /**
  * What a row is: `fixed` (the cover and the control, no reorder controls), `setup` (opens
  * Dados do relatório, rows 1 and 3, and 10 at its Etapa 6 since Story 7.4), `text` (a
- * section text, rows 2, 4, 5, 6), `generated` (7, 8 and 9: the renderer produces their
- * content from what the relatório stores; 8 opens the Points surface, Story 6.6),
- * `pending-epic` (11: status only until its epic lands).
+ * section text, rows 2, 4, 5, 6), `generated` (7, 8, 9 and 11: the renderer produces their
+ * content from what the relatório stores; 8 opens the Points surface, Story 6.6; 11 prints the
+ * certificates, Story 7.3), `pending-epic` (none since Stories 7.3 and 7.4).
  */
 export type SumarioRowKind = 'fixed' | 'text' | 'setup' | 'generated' | 'pending-epic';
 
@@ -61,7 +62,7 @@ const KIND_OF: Readonly<Record<RelatorioSectionType, SumarioRowKind>> = {
   section_8: 'generated',
   section_9: 'generated',
   section_10: 'setup',
-  section_11: 'pending-epic',
+  section_11: 'generated',
 };
 
 export interface SumarioRow {
@@ -170,6 +171,8 @@ function metaOfSection(block: BlockRow, issues: readonly PreIssueRow[], computed
     const parecer = parecerOf(snapshot);
     if (parecer !== null) return parecerVerdictLabel(parecer.verdict);
   }
+  // Story 7.3: "3 certificados", then its own pre-issue rows, like section 7.
+  if (block.block_type === 'section_11') return join([certificatesCountText(section11Instruments(snapshot).length), ...own]);
   if (own.length > 0) return join(own);
   if (kind === 'setup') return META.setup;
   if (kind === 'text') {
