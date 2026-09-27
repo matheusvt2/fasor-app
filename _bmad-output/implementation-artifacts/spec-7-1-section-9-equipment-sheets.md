@@ -166,3 +166,25 @@ deferred:
   - `[low]` `[patch]` (EC-4) a caption ending in `?`, `!` or `…` got a second period — any closing punctuation now counts; test added.
   - `[low]` `[reject]` (EC-5) a nameplate value stored as a bare JSON number prints unformatted — number fields are stored as `{raw, unit, state}` by every writer; only a malformed op could store a bare number, and the fix adds a branch.
   - `[low]` `[patch]` (EC-6) side-by-side contato tables were fitted per half as if each had the whole page — the joined rows are re-fitted with `fittedColumns`.
+
+## Auto Run Result
+
+Status: done
+
+**Summary:** Section 9 prints the equipment sheets as native Word tables grouped as FO.SERV-03. The kernel computes the grouping (`groupForPrint`) and every sheet (`section9Layout`), and the api draws them (`sections/section-9.ts`). Photos linked to a block print inside their sheet (7.2 AC2), and the nameplate TAG prefill prints when the cell is empty (E12-A2).
+
+**Files:**
+- `packages/domain/src/print/group-for-print.ts`: new. `groupForPrint` (base case plus type groups, TP/TC and cable/transformer pairing, unpaired-cable warnings).
+- `packages/domain/src/print/section-9.ts`: new. Print model, `section9Layout`, `layoutPhotoIds`.
+- `apps/api/src/jobs/generate/sections/section-9.ts`: new. Draws the model: Heading 2 per subsection, one sheet per page, fixed-width ruled tables, photo rows.
+- `packages/domain/src/print/layout.ts`, `apps/api/src/jobs/generate/docx.ts`, `job.ts`: minimal dispatch insertions (section 9 branch, Heading 2 style, photo `print` variants).
+- `packages/domain/src/schemas/snapshot.ts`, `apps/api/src/sync/snapshot.ts`, `apps/web/src/db/snapshot.ts`: `actors` (user rows of sheet concluders and editors), loaded the same on both sides.
+- `packages/domain/src/photos/caption.ts`: `geradores` head noun, `headNounAgreement` exported.
+- `packages/domain/fixtures/porto-seguro/*`: the five 1° Subsolo cable-to-transformer pairs, instrument headers copied through `instrumentHeaderOf`, goldens regenerated.
+- Tests: `group-for-print.test.ts`, `section-9.test.ts`, `snapshot.test.ts`, `docx.test.ts`, `generate.integration.test.ts`, `replay.integration.test.ts`, `commit.test.ts`.
+
+**Review:** 11 findings. 9 patched (medium 4, low 5; the grouped EC-1 counted with VG-2), 1 deferred (EC-2, medium unverified), 1 rejected (EC-5). Follow-up review recommended: false. No `high` finding was patched. The medium patches were missing tests plus one real device/server snapshot divergence, which is now covered by a byte-equality test.
+
+**Verification:** narrow suites green after each fix. The Porto Seguro fixture was rendered to DOCX and PDF in the api container (102 pages, TOC converged in 2 passes, about 30 s), and pages 8, 17, 44, 56 and 57 were rasterized and inspected. That check found the fixture's descriptive `test_parameter` printing under TENSÃO ENSAIO; it is fixed. The gate results are in the PR body.
+
+**Residual risks:** generation of 94 sheets takes about 30 s for two passes. The first sheet of section 9 can split across pages (deferred). No UI writes `feeds_block_id` (open question).
