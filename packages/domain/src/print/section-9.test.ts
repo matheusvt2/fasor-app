@@ -473,6 +473,7 @@ describe('7.1 section9Layout: the I/O matrix', () => {
       value: 'MOTORIZADA',
       trust: 'suggested',
       mode: 'fill',
+      hint: null,
       source: { photo_id: id(701), bbox: [0, 0, 1, 1], ocr_token_ids: [], reading_run_id: id(702) },
       status: 'pending',
       prompt_version: 'v1',
