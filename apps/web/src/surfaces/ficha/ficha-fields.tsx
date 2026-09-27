@@ -13,7 +13,7 @@ import {
   type FieldDef,
   type WordRow,
 } from '@app/domain';
-import { useId, useRef, useState } from 'react';
+import { useId, useRef, useState, type ReactNode } from 'react';
 import { DateField, RegistryPickerField } from '../../components/index.ts';
 import { useNumberInput } from '../../components/number-input.tsx';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
@@ -124,6 +124,8 @@ export interface FieldProps {
   blocks?: readonly BlockRow[];
   /** "Criar “…”" of a registry field: the new row's name, committed with the field. */
   onCreateWord?: (kind: 'manufacturer' | 'voltage_class', name: string) => void;
+  /** Story 8.1: a line at the end of the field (the replace line of a differing suggestion). */
+  after?: ReactNode;
 }
 
 /** One sheet field, editable, rendered by its kind. */
@@ -143,7 +145,7 @@ export function SheetField(props: FieldProps) {
   }
 }
 
-function TextField({ field, value, commit, draft, missing, label, helper }: FieldProps) {
+function TextField({ field, value, commit, draft, missing, label, helper, after }: FieldProps) {
   const id = useId();
   const helperId = useId();
   const typed = useTypedText(typeof value === 'string' ? value : '', (text) => commit(text.trim() === '' ? null : text), draft);
@@ -169,6 +171,7 @@ function TextField({ field, value, commit, draft, missing, label, helper }: Fiel
           {helper}
         </span>
       )}
+      {after}
     </div>
   );
 }
@@ -178,7 +181,7 @@ function TextField({ field, value, commit, draft, missing, label, helper }: Fiel
  * `useNumberInput`, so the text is parsed and committed on blur or Enter only and never
  * rewritten while the engineer types ("3.3", a pause, "00" commits 3300).
  */
-function NumberField({ field, value, commit, draft, missing, label, invalidText }: FieldProps) {
+function NumberField({ field, value, commit, draft, missing, label, invalidText, after }: FieldProps) {
   const id = useId();
   const helperId = useId();
   const unit = field.unit ?? null;
@@ -220,11 +223,12 @@ function NumberField({ field, value, commit, draft, missing, label, invalidText 
           {invalidText}
         </span>
       ) : null}
+      {after}
     </div>
   );
 }
 
-function DateValueField({ field, value, commit, missing, label }: FieldProps) {
+function DateValueField({ field, value, commit, missing, label, after }: FieldProps) {
   const stored = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
   const [date, setDate] = useState(stored);
   const committed = useRef(stored);
@@ -244,11 +248,12 @@ function DateValueField({ field, value, commit, missing, label }: FieldProps) {
         }}
         onBlur={() => committer.blur()}
       />
+      {after}
     </div>
   );
 }
 
-function SelectField({ field, value, commit, missing, label, selectEmpty }: FieldProps) {
+function SelectField({ field, value, commit, missing, label, selectEmpty, after }: FieldProps) {
   const id = useId();
   const current = typeof value === 'string' ? value : '';
   const options = field.options ?? [];
@@ -278,11 +283,12 @@ function SelectField({ field, value, commit, missing, label, selectEmpty }: Fiel
           <use href="/sprite.svg#i-chev-down" />
         </svg>
       </span>
+      {after}
     </div>
   );
 }
 
-function WordField({ field, value, commit, missing, label, registries, blocks, onCreateWord }: FieldProps) {
+function WordField({ field, value, commit, missing, label, registries, blocks, onCreateWord, after }: FieldProps) {
   const kind = field.kind as 'manufacturer' | 'voltage_class';
   const rows = registries?.[kind] ?? [];
   const current = typeof value === 'string' ? value : null;
@@ -317,6 +323,7 @@ function WordField({ field, value, commit, missing, label, registries, blocks, o
           return wordLabel(kind, name);
         }}
       />
+      {after}
     </div>
   );
 }

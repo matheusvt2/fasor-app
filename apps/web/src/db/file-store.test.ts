@@ -4,7 +4,7 @@ import { COMPANY_ID, USER_ID } from '@app/domain/fixtures/replay-small';
 import type { OpDraft } from '@app/domain';
 import { describe, expect, it } from 'vitest';
 import { commitFileBatch } from './commit.ts';
-import { ensureLocalBlob, pendingUploads, previewBlob, readLocalBlob } from './file-store.ts';
+import { cropSourceBlob, ensureLocalBlob, pendingUploads, previewBlob, putLocalBlob, readLocalBlob } from './file-store.ts';
 import { openDatabase, type AppDatabase } from './schema.ts';
 
 /*
@@ -201,6 +201,48 @@ describe('2.2-UNIT-007 ensureLocalBlob', () => {
     };
     expect(await ensureLocalBlob(db, missing, 'thumb', { fetchFile, nowIso: '2026-09-22T12:00:00.000Z' })).toBeNull();
     expect(await db.files.get(missing)).toBeUndefined();
+    db.close();
+  });
+});
+
+describe('8.1-UNIT cropSourceBlob', () => {
+  it('uses the local original, else fetches the original and keeps it as a crop only when the id is free', async () => {
+    const db = await freshDb();
+    await commitFileBatch(db, { ops: fileOps(), blob: blobOf('the original'), fileId: FILE_ID }, { newId, now });
+    const asked: string[] = [];
+    const fetchFile = async (id: string, variant: string) => {
+      asked.push(`${id}:${variant}`);
+      return blobOf('served original');
+    };
+    const deps = { fetchFile, nowIso: '2026-09-26T12:00:00.000Z' };
+
+    expect((await cropSourceBlob(db, FILE_ID, deps))?.size).toBe('the original'.length);
+    expect(asked).toEqual([]);
+
+    const other = '019966b0-0000-7000-8000-0000000000e5';
+    expect((await cropSourceBlob(db, other, deps))?.size).toBe('served original'.length);
+    expect(asked).toEqual([`${other}:original`]);
+    expect(await readLocalBlob(db, other)).toMatchObject({ variant: 'crop', acked: true });
+    // Kept: the second ask is served from the store.
+    await cropSourceBlob(db, other, deps);
+    expect(asked).toHaveLength(1);
+
+    // An id already holding another rendering is never overwritten.
+    const thumbOnly = '019966b0-0000-7000-8000-0000000000e6';
+    await putLocalBlob(db, { id: thumbOnly, blob: blobOf('t'), variant: 'thumb', createdAt: deps.nowIso });
+    expect((await cropSourceBlob(db, thumbOnly, deps))?.size).toBe('served original'.length);
+    expect((await readLocalBlob(db, thumbOnly))?.variant).toBe('thumb');
+    db.close();
+  });
+
+  it('returns null and keeps nothing when the fetch fails', async () => {
+    const db = await freshDb();
+    const missing = '019966b0-0000-7000-8000-0000000000e7';
+    const fetchFile = async (): Promise<Blob> => {
+      throw new Error('404');
+    };
+    expect(await cropSourceBlob(db, missing, { fetchFile, nowIso: '2026-09-26T12:00:00.000Z' })).toBeNull();
+    expect(await readLocalBlob(db, missing)).toBeNull();
     db.close();
   });
 });

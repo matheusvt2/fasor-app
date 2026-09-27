@@ -866,6 +866,86 @@ describe('sync engine', () => {
     expect(block.sheet.nameplate.fabricacao?.value).toBe('GOOD');
     h.db.close();
   });
+
+  describe('8.1 auto-confirm after a pull', () => {
+    const SUGGESTION = '019966b0-0081-7000-8000-0000000000a1';
+
+    /** The reading job's `suggestion/{id}` create, appended to the server log. */
+    function serverSuggestion(h: Harness, value: string): void {
+      const op = makeOp(
+        {
+          kind: 'create',
+          scope: 'relatorio',
+          company_id: COMPANY_ID,
+          relatorio_id: RELATORIO_ID,
+          project_id: null,
+          prev_op_id: null,
+          batch_id: null,
+          meta: null,
+          path: `suggestion/${SUGGESTION}`,
+          value: {
+            id: SUGGESTION,
+            relatorio_id: RELATORIO_ID,
+            target_path: `sheet/${BLOCK_1_ID}/nameplate/fabricacao`,
+            value,
+            trust: 'suggested',
+            mode: 'fill',
+            source: { photo_id: '019966b0-0081-7000-8000-0000000000a2', bbox: [0.1, 0.1, 0.3, 0.2], ocr_token_ids: ['t0'], reading_run_id: '019966b0-0081-7000-8000-0000000000a3' },
+            status: 'pending',
+            prompt_version: 'fake-1',
+            hint: null,
+          },
+          actor_id: 'system:reading',
+          device_id: 'server',
+        },
+        { newId: ids('019966b0-0082-7000-8000-'), now: new Date('2026-09-21T16:40:00.000Z') },
+      );
+      h.server.log.push({ ...op, seq: h.server.log.length + 1 });
+    }
+
+    async function filled(overrides: Partial<SyncEngineDeps>): Promise<Harness> {
+      const h = await harness(overrides);
+      await commitOps(h.db, [...seedLog(), localPut(ids('019966b0-0015-7000-8000-'), 'WEG S.A.')]);
+      expect(await h.engine.runCycle()).toBe('ran');
+      return h;
+    }
+
+    it('confirms an equal pulled suggestion as the signed-in user with meta.auto, pushed on the next cycle', async () => {
+      const h = await filled({ author: () => ({ id: USER_ID, companyId: COMPANY_ID }) });
+      serverSuggestion(h, 'weg s.a.');
+      expect(await h.engine.runCycle()).toBe('ran');
+      const auto = (await h.db.outbox.toArray()).filter((row) => row.meta?.auto === true);
+      expect(auto.map((row) => row.path)).toEqual([`suggestion/${SUGGESTION}/status`, `sheet/${BLOCK_1_ID}/nameplate/fabricacao`]);
+      expect(auto.every((row) => row.actor_id === USER_ID && row.status === 'pending')).toBe(true);
+      expect(((await h.db.entities.get(['suggestion', SUGGESTION]))!.row as { status: string }).status).toBe('confirmed');
+      // One more cycle runs right after the one that confirmed, and pushes the pair.
+      await h.clock.advance(0);
+      await waitFor(async () => h.server.log.filter((op) => op.meta?.auto === true).length === 2 && (await h.db.outbox.where('status').equals('acked').count()) === (await h.db.outbox.count()), 'the auto-confirm push');
+      h.db.close();
+    });
+
+    it('confirms nothing without a signed-in user, and a failing auto-confirm never stops the pull', async () => {
+      const none = await filled({ author: () => null });
+      serverSuggestion(none, 'WEG S.A.');
+      expect(await none.engine.runCycle()).toBe('ran');
+      expect(((await none.db.entities.get(['suggestion', SUGGESTION]))!.row as { status: string }).status).toBe('pending');
+      none.db.close();
+
+      const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const failing = await filled({
+        author: () => {
+          throw new Error('no session');
+        },
+      });
+      serverSuggestion(failing, 'WEG S.A.');
+      expect(await failing.engine.runCycle()).toBe('ran');
+      expect(await failing.db.entities.get(['suggestion', SUGGESTION])).toBeDefined();
+      expect((await failing.db.sync_state.get(RELATORIO_ID))!.cursor_seq).toBe(failing.server.log.at(-1)!.seq);
+      expect(error).toHaveBeenCalledWith('suggestion auto-confirm failed', expect.any(Error));
+      error.mockRestore();
+      failing.db.close();
+    });
+  });
 });
 
 describe('2.2 upload phase', () => {

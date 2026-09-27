@@ -460,6 +460,8 @@ export const filePath = (id: string): string => formatPath({ family: 'file', id 
 export const fileFieldPath = (id: string, field: (typeof FILE_FIELDS)[number]): string => formatPath({ family: 'file/field', id, field });
 export const pointPath = (id: string): string => formatPath({ family: 'point', id });
 export const pointFieldPath = (id: string, field: string): string => formatPath({ family: 'point/field', id, field });
+/** `suggestion/{id}` create: server-only (the reading job's), the builder the server and tests share. */
+export const suggestionPath = (id: string): string => formatPath({ family: 'suggestion', id });
 export const suggestionStatusPath = (id: string): string => formatPath({ family: 'suggestion/status', id });
 export const registryPath = (kind: RegistryKind, id: string): string => formatPath({ family: 'registry', kind, id });
 export const registryFieldPath = (kind: RegistryKind, id: string, field: string): string =>

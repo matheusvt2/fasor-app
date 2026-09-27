@@ -1,4 +1,4 @@
-import { filePath, type OpDraft, type UploadFileKind } from '@app/domain';
+import { filePath, type JsonValue, type OpDraft, type PhotoFileRow, type UploadFileKind } from '@app/domain';
 import type { PickedFile } from '../components/upload-tile.tsx';
 import { commitFileBatch, commitPhotoBatch, type CommitDeps } from './commit.ts';
 import { readLocalBlob, localFileRow } from './file-store.ts';
@@ -78,6 +78,12 @@ export interface PhotoCaptureInput {
   original: Blob;
   thumb: Blob;
   sha256: string;
+  /**
+   * Story 8.1 (contract 5): the reading this shot asks for (the plate tile's), set at
+   * capture: the create carries `reading_kind`, `reading_target` and `reading_status:
+   * 'queued'`. Omitted, the photo is a plain one (`reading_status: 'none'`).
+   */
+  reading?: { kind: NonNullable<PhotoFileRow['reading_kind']>; target: JsonValue };
 }
 
 /**
@@ -128,9 +134,9 @@ export function photoCreateDraft(input: Omit<PhotoCaptureInput, 'thumb'>, localS
       block_id: input.blockId,
       item_key: input.itemKey,
       caption: input.caption,
-      reading_kind: null,
-      reading_target: null,
-      reading_status: 'none',
+      reading_kind: input.reading?.kind ?? null,
+      reading_target: input.reading?.target ?? null,
+      reading_status: input.reading === undefined ? 'none' : 'queued',
     } as never,
   };
 }

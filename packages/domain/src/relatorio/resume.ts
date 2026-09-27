@@ -1,3 +1,4 @@
+import type { SuggestionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { progress, progressCounterText } from './progress.ts';
 import { locationTree, treeNodes, type TreeEquipmentNode } from './tree.ts';
@@ -18,6 +19,8 @@ export interface ResumeTarget {
 export function resumeTarget(
   snapshot: Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment' | 'suggestions'>,
   lastSheetId: string | null,
+  /** Story 8.1: the device's pending suggestion rows, so the count agrees with the Sumário's. */
+  pending?: readonly SuggestionRow[],
 ): ResumeTarget | null {
   const sheets = treeNodes(locationTree(snapshot)).filter((node): node is TreeEquipmentNode => node.kind === 'equipment');
   if (sheets.length === 0) return null;
@@ -25,5 +28,5 @@ export function resumeTarget(
     (lastSheetId === null ? undefined : sheets.find((row) => row.blockId === lastSheetId)) ??
     sheets.find((row) => row.state === 'vazia' || row.state === 'em_preenchimento') ??
     sheets[0]!;
-  return { blockId: node.blockId, text: `${node.name} · ${progressCounterText(progress(snapshot))}` };
+  return { blockId: node.blockId, text: `${node.name} · ${progressCounterText(progress(snapshot, pending))}` };
 }
