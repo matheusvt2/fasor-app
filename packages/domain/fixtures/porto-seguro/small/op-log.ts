@@ -234,10 +234,10 @@ push({
 });
 nameplateSteps(BLOCK_CHAVE_ID, 'chave_seccionadora', CHAVE_DATA.np);
 checklistSteps(BLOCK_CHAVE_ID, 'chave_seccionadora');
-push({ kind: 'put', scope: 'relatorio', path: `sheet/${BLOCK_CHAVE_ID}/test/isolacao/instrument`, value: { instrument_id: INSTRUMENT_MEGOHMETRO_ID, code: '2E', manufacturer: 'Instrument', model: 'DMG10Ki', serial: 'TEST-MEG-01', cert_number: '00000/26', calibrated_at: null, valid_until: null, test_parameter: 'Resistência de isolação' } });
+push({ kind: 'put', scope: 'relatorio', path: `sheet/${BLOCK_CHAVE_ID}/test/isolacao/instrument`, value: { instrument_id: INSTRUMENT_MEGOHMETRO_ID, code: '2E', manufacturer: 'Instrument', model: 'DMG10Ki', serial: 'TEST-MEG-01', cert_number: '00000/26', calibrated_at: null, valid_until: null, test_parameter: '10 kV' } });
 CHAVE_DATA.contact.forEach((v, r) => push({ kind: 'put', scope: 'relatorio', path: `sheet/${BLOCK_CHAVE_ID}/test/isolacao/cell/${r}/0`, value: measured(v, 'GΩ') }));
 CHAVE_DATA.contact.forEach((v, r) => push({ kind: 'put', scope: 'relatorio', path: `sheet/${BLOCK_CHAVE_ID}/test/isolacao/cell/${r + 3}/0`, value: measured(v, 'GΩ') }));
-push({ kind: 'put', scope: 'relatorio', path: `sheet/${BLOCK_CHAVE_ID}/test/resistencia_contato/instrument`, value: { instrument_id: INSTRUMENT_MICROHMETRO_ID, code: '3M', manufacturer: 'Hi-Tech', model: 'HTMO-10', serial: 'TEST-MIC-01', cert_number: '00001/26', calibrated_at: null, valid_until: null, test_parameter: 'Resistência ôhmica de contato' } });
+push({ kind: 'put', scope: 'relatorio', path: `sheet/${BLOCK_CHAVE_ID}/test/resistencia_contato/instrument`, value: { instrument_id: INSTRUMENT_MICROHMETRO_ID, code: '3M', manufacturer: 'Hi-Tech', model: 'HTMO-10', serial: 'TEST-MIC-01', cert_number: '00001/26', calibrated_at: null, valid_until: null, test_parameter: '10 A' } });
 CHAVE_DATA.rc.forEach((v, r) => push({ kind: 'put', scope: 'relatorio', path: `sheet/${BLOCK_CHAVE_ID}/test/resistencia_contato/cell/${r}/0`, value: measured(v, 'µΩ') }));
 push({ kind: 'put', scope: 'relatorio', path: `sheet/${BLOCK_CHAVE_ID}/conclusion/result`, value: 'aprovado' });
 push({ kind: 'put', scope: 'relatorio', path: `sheet/${BLOCK_CHAVE_ID}/conclusion/restriction`, value: 'sem_restricoes' });
@@ -265,7 +265,7 @@ push({
 });
 nameplateSteps(BLOCK_TRANSFORMADOR_ID, 'transformador_forca', TRANSFORMADOR_DATA.np);
 checklistSteps(BLOCK_TRANSFORMADOR_ID, 'transformador_forca');
-push({ kind: 'put', scope: 'relatorio', path: `sheet/${BLOCK_TRANSFORMADOR_ID}/test/isolacao/instrument`, value: { instrument_id: INSTRUMENT_MEGOHMETRO_ID, code: '2E', manufacturer: 'Instrument', model: 'DMG10Ki', serial: 'TEST-MEG-01', cert_number: '00000/26', calibrated_at: null, valid_until: null, test_parameter: 'Resistência de isolação' } });
+push({ kind: 'put', scope: 'relatorio', path: `sheet/${BLOCK_TRANSFORMADOR_ID}/test/isolacao/instrument`, value: { instrument_id: INSTRUMENT_MEGOHMETRO_ID, code: '2E', manufacturer: 'Instrument', model: 'DMG10Ki', serial: 'TEST-MEG-01', cert_number: '00000/26', calibrated_at: null, valid_until: null, test_parameter: '10 kV' } });
 TRANSFORMADOR_DATA.isoRows.forEach((v, r) => {
   push({ kind: 'put', scope: 'relatorio', path: `sheet/${BLOCK_TRANSFORMADOR_ID}/test/isolacao/cell/${r}/0`, value: { raw: '', unit: 'GΩ', state: 'not_measured' } });
   push({ kind: 'put', scope: 'relatorio', path: `sheet/${BLOCK_TRANSFORMADOR_ID}/test/isolacao/cell/${r}/1`, value: measured(v, 'GΩ') });
@@ -273,7 +273,7 @@ TRANSFORMADOR_DATA.isoRows.forEach((v, r) => {
   push({ kind: 'put', scope: 'relatorio', path: `sheet/${BLOCK_TRANSFORMADOR_ID}/test/isolacao/cell/${r}/3`, value: { raw: '', unit: null, state: 'not_measured' } });
   push({ kind: 'put', scope: 'relatorio', path: `sheet/${BLOCK_TRANSFORMADOR_ID}/test/isolacao/cell/${r}/4`, value: { raw: '', unit: null, state: 'not_measured' } });
 });
-push({ kind: 'put', scope: 'relatorio', path: `sheet/${BLOCK_TRANSFORMADOR_ID}/test/relacao_transformacao/instrument`, value: { instrument_id: INSTRUMENT_RATIOMETRO_ID, code: '1T', manufacturer: 'Hi-Tech', model: 'HTRT-8K', serial: 'TEST-RAT-01', cert_number: '00002/26', calibrated_at: null, valid_until: null, test_parameter: 'Relação de transformação' } });
+push({ kind: 'put', scope: 'relatorio', path: `sheet/${BLOCK_TRANSFORMADOR_ID}/test/relacao_transformacao/instrument`, value: { instrument_id: INSTRUMENT_RATIOMETRO_ID, code: '1T', manufacturer: 'Hi-Tech', model: 'HTRT-8K', serial: 'TEST-RAT-01', cert_number: '00002/26', calibrated_at: null, valid_until: null, test_parameter: null } });
 push({ kind: 'put', scope: 'relatorio', path: `sheet/${BLOCK_TRANSFORMADOR_ID}/test/relacao_transformacao/cell/0/0`, value: measured(TRANSFORMADOR_DATA.ratio.p, 'kV') });
 push({ kind: 'put', scope: 'relatorio', path: `sheet/${BLOCK_TRANSFORMADOR_ID}/test/relacao_transformacao/cell/0/1`, value: measured(TRANSFORMADOR_DATA.ratio.s, 'V') });
 push({ kind: 'put', scope: 'relatorio', path: `sheet/${BLOCK_TRANSFORMADOR_ID}/test/relacao_transformacao/cell/0/3`, value: measured(TRANSFORMADOR_DATA.ratio.cap[0], null) });

@@ -118,9 +118,12 @@ export const LOCATION_HEAD_NOUNS: Readonly<Record<string, Agreement>> = {
   cubículo: { gender: 'm', number: 'singular' },
   cubículos: { gender: 'm', number: 'plural' },
   subsolo: { gender: 'm', number: 'singular' },
+  // Story 7.1: "TP's e TC's dos Cubículos de MT dos Geradores" (FO.SERV-03 9.9-9.11).
+  geradores: { gender: 'm', number: 'plural' },
 };
 
-function headNounAgreement(name: string): Agreement | null {
+/** The agreement of a name's head noun (its first word, `LOCATION_HEAD_NOUNS`), or null when the table has none for it. */
+export function headNounAgreement(name: string): Agreement | null {
   const head = name.trim().split(/\s+/)[0]?.toLocaleLowerCase('pt-BR') ?? '';
   return LOCATION_HEAD_NOUNS[head] ?? null;
 }

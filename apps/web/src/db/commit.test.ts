@@ -118,6 +118,53 @@ describe('1.4-INT-001 Dexie replay', () => {
     expect(serializeSnapshot(snapshot)).toBe(serializeSnapshot(pure));
     db.close();
   });
+
+  it('lists a pulled user who edited a sheet and is not the responsible among the actors, byte-equal to the pure replay (Story 7.1)', async () => {
+    const db = await freshDb();
+    const dead = new Set(replaySmall.deadOpIds);
+    const EDITOR_ID = '019966b0-0000-7000-8000-00000000f0e1';
+    const serverOp = (n: number, path: string, value: Op['value'], seq: number, extra: Partial<Op> = {}): Op => ({
+      op_id: `019966b0-0001-7000-8000-00000000f1${n.toString(16).padStart(2, '0')}`,
+      kind: 'create',
+      scope: 'company',
+      company_id: COMPANY_ID,
+      project_id: null,
+      relatorio_id: null,
+      path,
+      value,
+      prev_op_id: null,
+      batch_id: null,
+      meta: null,
+      actor_id: 'system:identity',
+      device_id: 'server',
+      client_ts: fixedTs(0),
+      seq,
+      ...extra,
+    });
+    // The company pull brings both users, the log as the server holds it (no rejected op)
+    // and, last, the other user's edit of block 1 from their own device.
+    const responsible = serverOp(1, `user/${USER_ID}`, { id: USER_ID, name: 'Ana Alves', email: 'a@teste.local', council: 'crea', registration_number: '1', title: null, photo_location_enabled: true }, 0);
+    const editor = serverOp(2, `user/${EDITOR_ID}`, { id: EDITOR_ID, name: 'Bruno Silva', email: 'b@teste.local', council: null, registration_number: null, title: null, photo_location_enabled: true }, 0);
+    const live = replaySmall.log.filter((op) => !dead.has(op.op_id));
+    const edit = serverOp(3, FIELD, 'Celtta', live.at(-1)!.seq! + 1, {
+      kind: 'put',
+      scope: 'relatorio',
+      company_id: COMPANY_ID,
+      relatorio_id: RELATORIO_ID,
+      actor_id: EDITOR_ID,
+      device_id: 'tablet-b',
+      client_ts: fixedTs(90),
+    });
+    const pulled = [responsible, editor, ...live, edit];
+    await applyPulled(db, pulled);
+    const snapshot = await toSnapshot(db, replaySmall.relatorioId);
+    expect(snapshot.responsible?.id).toBe(USER_ID);
+    expect(snapshot.blocks.find((block) => block.id === BLOCK_1_ID)?.last_modified_by).toBe(EDITOR_ID);
+    expect(snapshot.actors.map((user) => user.id)).toContain(EDITOR_ID);
+    expect(snapshot.actors.find((user) => user.id === EDITOR_ID)?.name).toBe('Bruno Silva');
+    expect(serializeSnapshot(snapshot)).toBe(serializeSnapshot(buildSnapshot(replay(pulled), replaySmall.relatorioId)));
+    db.close();
+  });
 });
 
 describe('commitOps', () => {

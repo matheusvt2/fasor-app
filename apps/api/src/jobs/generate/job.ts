@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import {
   DOCX_MIME,
   fileRowSchema,
+  layoutPhotoIds,
   layoutSpec,
   nextRevisionNumber,
   objectKey,
@@ -227,6 +228,17 @@ export async function runGenerateJob(deps: GenerateJobDeps, payload: GeneratePay
     if (logo !== undefined) images.logo = logo;
     const cover = await printVariant(deps, companyId, frozen.snapshot.relatorio.setup.cover_photo_file_id);
     if (cover !== undefined) images.cover = cover;
+    // Story 7.1/7.2: the photos printed inside their sheets. One that cannot be read keeps its
+    // caption line and an empty image cell; the revision never fails for it.
+    const photos = new Map<string, Buffer>();
+    for (const fileId of layoutPhotoIds(layout)) {
+      const bytes = await printVariant(deps, companyId, fileId).catch((error: unknown) => {
+        logError('generate photo unreadable', { ...fields, file_id: fileId, error: String(error) });
+        return undefined;
+      });
+      if (bytes !== undefined) photos.set(fileId, bytes);
+    }
+    images.photos = photos;
 
     const rendered = await renderDocument(layout, images, { jobId: payload.job_id, timeoutMs: deps.timeoutMs, fault: deps.fault });
 

@@ -10,6 +10,7 @@ import type { TextBlock } from '../seed/schema.ts';
 import { sectionNumber } from '../templates/compose.ts';
 import { resolveSectionText } from '../templates/section-text.ts';
 import { documentControlRows, type DocumentControlRow } from './document-control.ts';
+import { section9Layout, type LayoutSectionSheets } from './section-9.ts';
 
 /*
  * Story 4.8 (AD-15): the layout spec of the printed relatório. Pure data: what prints, in
@@ -57,7 +58,7 @@ export interface LayoutSectionEmpty {
   note: string;
 }
 
-export type LayoutSection = LayoutSectionText | LayoutSectionEmpty;
+export type LayoutSection = LayoutSectionText | LayoutSectionEmpty | LayoutSectionSheets;
 
 export interface TocEntry {
   number: number;
@@ -180,6 +181,8 @@ export function layoutSpec(snapshot: RelatorioSnapshot, inputs: LayoutInputs): D
   const sections: LayoutSection[] = printedSections(snapshot).map(({ section, ownText }, index) => {
     const number = index + 1;
     const title = seed.section_titles[String(section)] ?? '';
+    // Story 7.1: section 9 prints the equipment sheets (`print/section-9.ts`), else its note.
+    if (section === 9) return section9Layout(snapshot, number, title) ?? { number, title, kind: 'empty', note: EMPTY_SECTION_NOTE };
     const composed = sectionType(section) !== null;
     // Section 3's own exclusion list (Story 4.2's `setup.exclusions`, AD-21) overrides the
     // seed's own three items when the relatório carries no per-relatório text edit of its own.
