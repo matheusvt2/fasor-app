@@ -129,8 +129,11 @@ describe('7.5-UNIT preIssue: the rows the story adds', () => {
   });
 
   it('calibration per instrument on section 11: expired pending, about to expire a warning; a missing certificate a warning', () => {
+    const base = fresh();
     const snapshot = {
-      ...fresh(),
+      ...base,
+      // Checked at setup, so section 11 prints them (Story 7.3's `missingCertificates` reads only those).
+      relatorio: { ...base.relatorio, setup: { ...base.relatorio.setup, instrument_ids: ['019966b0-0085-7000-8000-000000000001', '019966b0-0085-7000-8000-000000000002', '019966b0-0085-7000-8000-000000000003'] } },
       instruments: [
         instrument({ id: '019966b0-0085-7000-8000-000000000001', code: 'MEG-01', calibrated_at: '2025-08-01' }),
         instrument({ id: '019966b0-0085-7000-8000-000000000002', code: 'MIC-01', calibrated_at: '2025-09-20', certificate_file_id: null }),
