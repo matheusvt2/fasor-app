@@ -833,7 +833,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Certificate-missing stub. The pre-issue row "⟨código⟩ sem certificado" (section 11, warning) reads `packages/domain/src/checks/certificate-missing-stub.ts`, which only asks whether the registry row names a `certificate_file_id`; the rule that decides a missing certificate is Epic 7 batch G2's (Story 7.3, section 11). When both batches are on main, point `preIssue` at G2's kernel function and delete the stub.
   evidence: `packages/domain/src/relatorio/pre-issue.ts` (`certificate_missing` rows); spec-7-4-7-5 Design Notes, "Cross-batch wiring".
   class: deferred
-  state: open (owner: Epic 7 batch G2, or whichever of G2 and G3 merges last)
+  state: ~~open (owner: Epic 7 batch G2, or whichever of G2 and G3 merges last)~~ closed (2026-09-27, coordinator merge of Stories 7.2-7.5: `preIssue` reads `missingCertificates` from `print/section-11.ts`; the stub is deleted)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-7-4-7-5-parecer-export-preview.md`
   summary: The pre-issue calibration and certificate rows read `snapshot.instruments`, the instruments the sheets' copied headers name; an instrument checked in Etapa 4 that no sheet uses is not in the snapshot, so it gets no row. Section 11's union (`section11Instruments`, G2) is where both meet; wire the rows over it when it lands.

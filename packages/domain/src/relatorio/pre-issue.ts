@@ -1,5 +1,4 @@
 import { calibrationCheck, calibrationValidUntil } from '../checks/calibration.ts';
-import { instrumentsMissingCertificate } from '../checks/certificate-missing-stub.ts';
 import { clientPreIssueRows } from '../checks/pre-issue-client.ts';
 import { companyPreIssues } from '../checks/pre-issue.ts';
 import { calendarDateOfInstant, formatCalendarDate, formatShortDateTime } from '../format/datetime.ts';
@@ -7,6 +6,7 @@ import { sortByOrderKey } from '../ops/order-key.ts';
 import { livePhotos } from '../photos/order.ts';
 import { photosAwaitingText, photosUncaptionedText } from '../photos/text.ts';
 import { artLabel } from '../print/document-control.ts';
+import { missingCertificates } from '../print/section-11.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { sectionText, type SectionVariable } from '../seed/definitions.ts';
 import type { TextBlock } from '../seed/schema.ts';
@@ -343,8 +343,9 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
       kind: 'calibration',
     });
   }
-  for (const instrument of instrumentsMissingCertificate(snapshot)) {
-    rows.push({ id: `certificate_missing:${instrument.id}`, row: 'section_11', severity: 'info', text: certificateMissingText(instrument.code), kind: 'certificate_missing' });
+  // Story 7.3's rule (section 11 prints a placeholder line for each of these).
+  for (const entry of missingCertificates(snapshot)) {
+    rows.push({ id: `certificate_missing:${entry.instrument_id}`, row: 'section_11', severity: 'info', text: certificateMissingText(entry.code), kind: 'certificate_missing' });
   }
 
   // The Export dialog's own lines: what this device could not send, and when the others last sent.

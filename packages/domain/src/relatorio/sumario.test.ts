@@ -223,8 +223,8 @@ describe('4.3-UNIT sumarioRows', () => {
     expect(rowsOf(withSections).find((r) => r.rowKey === 'section_9')!.meta).toBe(
       '3 de 94 · 3 não ensaiadas · Cubículo Enel: falta a tensão secundária · 1° Subsolo: faltam 6 campos · Geradores: faltam 6 campos',
     );
-    // Story 7.3: row 11 counts the instruments section 11 prints (the three the sheets copied).
-    expect(rowsOf(withSections).find((r) => r.rowKey === 'section_11')!.meta).toBe('3 certificados');
+    // Story 7.3: row 11 counts the instruments section 11 prints, then its pre-issue rows (Story 7.5: no instrument checked at setup; the fixture attaches no certificate file) (the three the sheets copied).
+    expect(rowsOf(withSections).find((r) => r.rowKey === 'section_11')!.meta).toBe('3 certificados · Nenhum instrumento em Dados do relatório · 2E sem certificado · 3M sem certificado · 1T sem certificado');
   });
 });
 

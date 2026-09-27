@@ -172,7 +172,11 @@ function metaOfSection(block: BlockRow, issues: readonly PreIssueRow[], computed
     if (parecer !== null) return parecerVerdictLabel(parecer.verdict);
   }
   // Story 7.3: "3 certificados", then its own pre-issue rows, like section 7.
-  if (block.block_type === 'section_11') return join([certificatesCountText(section11Instruments(snapshot).length), ...own]);
+  // With no instrument at all, the pre-issue row already says so; the count would repeat it.
+  if (block.block_type === 'section_11') {
+    const count = section11Instruments(snapshot).length;
+    return join(count === 0 && own.length > 0 ? own : [certificatesCountText(count), ...own]);
+  }
   if (own.length > 0) return join(own);
   if (kind === 'setup') return META.setup;
   if (kind === 'text') {

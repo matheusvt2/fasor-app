@@ -87,7 +87,6 @@ export * from './print/revisions.ts';
 export * from './print/section-10.ts';
 export * from './print/last-nameplate.ts';
 export * from './print/sm-c1.ts';
-export * from './checks/certificate-missing-stub.ts';
 export * from './print/section-7.ts';
 export * from './print/section-8.ts';
 export * from './print/section-11.ts';
