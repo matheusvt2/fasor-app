@@ -21,6 +21,19 @@ export interface SyncCounts {
   sheets_pending: number;
   /** Unsent, non-dead `file/{id}` photo creates (0 until Epic 6 emits them). */
   photos_pending: number;
+  /** Story 8.1: the device's suggestion rows with `status = pending` (0 when not given). */
+  suggestions_pending: number;
+  /** Story 8.1: the device's photo rows whose reading is `queued` or `running` (0 when not given). */
+  readings_queued: number;
+}
+
+/**
+ * Story 8.1 (coordinator conflict 3): what the reading counts read besides the outbox, the
+ * device's own rows passed explicitly. Omitted, both counts are 0.
+ */
+export interface ReadingCountInputs {
+  suggestions?: readonly { status: string }[];
+  photos?: readonly { reading_status?: string | null }[];
 }
 
 function blockIdOf(path: string): string | null {
@@ -38,7 +51,7 @@ function isPhotoCreate(row: OutboxLike): boolean {
   return (row.value as { kind?: unknown } | null | undefined)?.kind === 'photo';
 }
 
-export function syncCounts(outbox: readonly OutboxLike[]): SyncCounts {
+export function syncCounts(outbox: readonly OutboxLike[], reading: ReadingCountInputs = {}): SyncCounts {
   let pending = 0;
   let sent = 0;
   let dead = 0;
@@ -53,7 +66,9 @@ export function syncCounts(outbox: readonly OutboxLike[]): SyncCounts {
     if (blockId) blocks.add(blockId);
     if (isPhotoCreate(row)) photos++;
   }
-  return { pending, sent, dead, sheets_pending: blocks.size, photos_pending: photos };
+  const suggestions = (reading.suggestions ?? []).filter((row) => row.status === 'pending').length;
+  const readings = (reading.photos ?? []).filter((row) => row.reading_status === 'queued' || row.reading_status === 'running').length;
+  return { pending, sent, dead, sheets_pending: blocks.size, photos_pending: photos, suggestions_pending: suggestions, readings_queued: readings };
 }
 
 /** The five badge states of `key-sync-status.html`; `conflict` waits for the deferred merge policy. */

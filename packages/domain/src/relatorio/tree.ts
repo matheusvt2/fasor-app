@@ -1,6 +1,6 @@
 import { orderKeyBetween, sortByOrderKey } from '../ops/order-key.ts';
 import { EQUIPMENT_BLOCK_TYPES, isEquipmentBlockType, type EquipmentBlockType } from '../schemas/block-config.ts';
-import { emptySheet, type BlockRow, type EquipmentRow, type JsonValue, type LocationRow } from '../schemas/entities.ts';
+import { emptySheet, type BlockRow, type EquipmentRow, type JsonValue, type LocationRow, type SuggestionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { getDefinition, getSeed } from '../seed/definitions.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
@@ -178,6 +178,8 @@ export function locationBlocks(blocks: readonly BlockRow[], locationId: string):
 export function locationTree(
   snapshot: Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment'> & Partial<Pick<RelatorioSnapshot, 'relatorio'>>,
   equipment: readonly Pick<EquipmentRow, 'id' | 'tag' | 'removed_at'>[] = snapshot.equipment,
+  /** Story 8.1: the device's pending suggestion rows; a block holding one is not concluded in the counters. */
+  pending?: readonly SuggestionRow[],
 ): TreeLocationNode[] {
   const locations = liveLocations(snapshot.locations);
   // The cabine's missing fields need the seed version; a caller without the relatório row gets none.
@@ -221,7 +223,7 @@ export function locationTree(
     const own = locationBlocks(snapshot.blocks, location.id);
     const children = locations.filter((row) => row.parent_id === location.id);
     const childNodes = children.map((child, i) => build(child, depth + 1, i + 1, children.length));
-    const counts = locationProgress(snapshot, location.id);
+    const counts = locationProgress(snapshot, location.id, pending);
     const equipmentNodes = own.map((block, i) => equipmentNode(block, i + 1, own.length, Math.min(depth + 1, TREE_MAX_LEVEL)));
     return {
       kind: location.kind,

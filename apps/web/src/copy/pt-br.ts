@@ -855,6 +855,10 @@ export const copy = {
       copiedFrom: (tag: string) => `Copiado de ${tag}`,
       invalidNumber: 'Número não reconhecido',
       selectEmpty: 'Selecione',
+      // authored (Story 8.1): the typed guess of a suggested field that is not its kind.
+      invalidDate: 'Data não reconhecida — use dd/mm/aaaa ou mm/aaaa',
+      invalidOption: 'Opção não reconhecida',
+      invalidVoltage: 'Tensão não reconhecida — use kV, ex.: 15',
     },
     checklist: {
       title: 'Verificações gerais',

@@ -1,4 +1,4 @@
-import { makeOp, SERVER_DEVICE_ID, toIso, type EquipmentRow, type OpInput, type RevisionRow } from '@app/domain';
+import { makeOp, SERVER_DEVICE_ID, suggestionPath, toIso, type EquipmentRow, type JsonValue, type OpInput, type RevisionRow, type SuggestionRow } from '@app/domain';
 import { loadConfig } from '../../apps/api/src/config.ts';
 import { createDb } from '../../apps/api/src/db/client.ts';
 import { asCompanyId } from '../../apps/api/src/db/repositories/company-id.ts';
@@ -79,6 +79,63 @@ export async function pushLastNameplate(companyId: string, projectId: string, eq
     const op = makeOp(input, { newId, now: at });
     const result = await applyOps(db, asCompanyId(companyId), [op], { origin: 'server', now: () => at });
     if (result.rejected.length > 0) throw new Error(`last_nameplate op rejected: ${JSON.stringify(result.rejected)}`);
+  } finally {
+    await sql.end();
+  }
+}
+
+/**
+ * Story 8.1: one pending suggestion, written as the reading job writes it -- the `suggestion`
+ * family is `serverOnly` like `revision`, and no production endpoint writes one besides
+ * the reading job (batch R) -- so the device pulls it on its next sync. `photoId` and the
+ * reading run are minted when absent; returns the suggestion id.
+ */
+export async function pushSuggestion(
+  companyId: string,
+  relatorioId: string,
+  suggestion: {
+    targetPath: string;
+    value: JsonValue;
+    trust?: SuggestionRow['trust'];
+    photoId?: string;
+    bbox?: SuggestionRow['source']['bbox'];
+    actorId: string;
+  },
+): Promise<string> {
+  const config = loadConfig();
+  const { sql, db } = createDb(config.DATABASE_URL);
+  try {
+    const at = new Date();
+    const row: SuggestionRow = {
+      id: newId(),
+      relatorio_id: relatorioId,
+      target_path: suggestion.targetPath,
+      value: suggestion.value,
+      trust: suggestion.trust ?? 'suggested',
+      mode: 'fill',
+      source: { photo_id: suggestion.photoId ?? newId(), bbox: suggestion.bbox ?? [0.1, 0.2, 0.4, 0.3], ocr_token_ids: ['t0'], reading_run_id: newId() },
+      status: 'pending',
+      prompt_version: 'e2e-1',
+      hint: null,
+    };
+    const input: OpInput = {
+      kind: 'create',
+      scope: 'relatorio',
+      company_id: companyId,
+      project_id: null,
+      relatorio_id: relatorioId,
+      path: suggestionPath(row.id),
+      value: row as never,
+      prev_op_id: null,
+      batch_id: null,
+      meta: null,
+      actor_id: suggestion.actorId,
+      device_id: SERVER_DEVICE_ID,
+    };
+    const op = makeOp(input, { newId, now: at });
+    const result = await applyOps(db, asCompanyId(companyId), [op], { origin: 'server', now: () => at });
+    if (result.rejected.length > 0) throw new Error(`suggestion op rejected: ${JSON.stringify(result.rejected)}`);
+    return row.id;
   } finally {
     await sql.end();
   }

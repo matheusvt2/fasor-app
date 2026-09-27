@@ -462,6 +462,16 @@ export const pointRowSchema = z.object({
   owner: nullableString.default(null),
 });
 
+/**
+ * Story 8.1 (contract 5): what the reading job adds to a suggestion beyond its value. Only
+ * one hint exists: an unknown manufacturer carries `create_registry_entry`, which Story 8.5
+ * renders "Criar ⟨nome⟩?" (creates the registry row and confirms in one batch).
+ */
+export const suggestionHintSchema = z.object({
+  create_registry_entry: z.object({ kind: z.literal('manufacturer'), name: z.string().min(1) }),
+});
+export type SuggestionHint = z.infer<typeof suggestionHintSchema>;
+
 export const suggestionRowSchema = z.object({
   id: uuidV7Schema,
   relatorio_id: uuidV7Schema,
@@ -477,6 +487,8 @@ export const suggestionRowSchema = z.object({
   }),
   status: z.enum(['pending', 'confirmed', 'discarded']),
   prompt_version: z.string(),
+  /** Contract 5: null (or absent on a row written before it) when the reading adds nothing. */
+  hint: suggestionHintSchema.nullable().default(null),
 });
 
 /**

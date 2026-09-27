@@ -265,3 +265,27 @@ export async function previewBlob(
   if (local !== null) return local.blob;
   return ensureLocalBlob(db, id, 'thumb', deps);
 }
+
+/**
+ * Story 8.1: the picture a suggestion's source crop is drawn from. The original this device
+ * holds (picked here, or kept earlier as a crop source) is used as it is; otherwise the
+ * server's original is fetched and kept as variant `crop` under the photo id, only when the
+ * id is free (never over another rendering). Null when neither exists or the fetch fails:
+ * the crop keeps its placeholder and a later render asks again.
+ */
+export async function cropSourceBlob(
+  db: AppDatabase,
+  id: string,
+  deps: { fetchFile: (id: string, variant: 'original' | 'thumb' | 'print') => Promise<Blob>; nowIso: string },
+): Promise<Blob | null> {
+  const local = await readLocalBlob(db, id);
+  if (local !== null && (local.variant === 'original' || local.variant === 'crop')) return local.blob;
+  let blob: Blob;
+  try {
+    blob = await deps.fetchFile(id, 'original');
+  } catch {
+    return null;
+  }
+  if (local === null) await putLocalBlob(db, { id, blob, variant: 'crop', createdAt: deps.nowIso, acked: true });
+  return blob;
+}

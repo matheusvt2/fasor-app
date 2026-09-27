@@ -60,6 +60,7 @@ export * from './relatorio/readings.ts';
 export * from './relatorio/conclusion.ts';
 export * from './relatorio/parecer.ts';
 export * from './relatorio/instrument-pick.ts';
+export * from './relatorio/suggestions.ts';
 export * from './parse/pt-br-number.ts';
 export * from './files/candidate.ts';
 export * from './files/tile.ts';

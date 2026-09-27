@@ -147,6 +147,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   // the engine's included. The session's value is copied in only when it changes, never
   // on every render, so a render that still carries the old value cannot undo the event.
   const onlineRef = useRef(session.online);
+  // Story 8.1: who auto-confirms a pulled suggestion; read by the engine at pull time.
+  const userRef = useRef(session.user);
+  useEffect(() => {
+    userRef.current = session.user;
+  }, [session.user]);
   useEffect(() => {
     onlineRef.current = session.online;
   }, [session.online]);
@@ -169,6 +174,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       onOutdated: () => {},
       onChange: setStatus,
       readStorage: storageHeadroom,
+      author: () => {
+        const user = userRef.current;
+        return user === null ? null : { id: user.id, companyId: user.companyId };
+      },
     });
     engineRef.current = engine;
     void deviceId(db, newId).then(setDevice, () => setDevice(null));
