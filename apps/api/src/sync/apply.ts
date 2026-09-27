@@ -57,7 +57,8 @@ type Validation = { ok: true; op: Op } | { ok: false; code: OpRejectCode };
 /**
  * The `file/server` fields a create may not carry a value for. `reading_status` is left
  * out on purpose: it is a required, non-null enum on a photo row that a create has to
- * set (`'none'`), so it cannot be checked the same way -- Epic 6 owns its rule.
+ * set (`'none'`), so it cannot be checked the same way: `clientReadingFieldsAreValid`
+ * holds its rule (Story 8.1).
  */
 const CREATE_FORBIDDEN_FILE_FIELDS = FILE_SERVER_FIELDS.filter((field) => field !== 'reading_status');
 
@@ -69,6 +70,19 @@ function serverFileFieldsAreEmpty(value: unknown): boolean {
   if (typeof value !== 'object' || value === null) return true;
   const row = value as Record<string, unknown>;
   return CREATE_FORBIDDEN_FILE_FIELDS.every((field) => row[field] === null || row[field] === undefined);
+}
+
+/**
+ * Story 8.1 (contract 5): a device's photo create may queue a reading, never report one.
+ * Its `reading_status` is `none`, or `queued` together with the `reading_kind` the reading
+ * job needs; `running`, `done` and `failed` are the reading job's own (`system:reading`).
+ */
+function clientReadingFieldsAreValid(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null) return true;
+  const row = value as Record<string, unknown>;
+  if (row.kind !== 'photo') return true;
+  if (row.reading_status === 'none') return true;
+  return row.reading_status === 'queued' && row.reading_kind !== null && row.reading_kind !== undefined;
 }
 
 function validate(raw: unknown, companyId: CompanyId, deps: ApplyDeps): Validation {
@@ -104,6 +118,9 @@ function validate(raw: unknown, companyId: CompanyId, deps: ApplyDeps): Validati
     // on it. A file that says it is uploaded when no bytes exist is unrecoverable: the
     // device's `pendingUploads` skips it forever and every read of it 404s (AD-7).
     if (path.family === 'file' && !serverFileFieldsAreEmpty(op.value)) {
+      return { ok: false, code: 'op_invalid' };
+    }
+    if (path.family === 'file' && !clientReadingFieldsAreValid(op.value)) {
       return { ok: false, code: 'op_invalid' };
     }
   }

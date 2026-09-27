@@ -11,6 +11,7 @@ import {
   type RelatorioSnapshot,
   type TreeEquipmentNode,
   type TreeLocationNode,
+  type SuggestionRow,
 } from '@app/domain';
 import { Button as AriaButton } from 'react-aria-components';
 import { memo, useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type Ref } from 'react';
@@ -74,6 +75,8 @@ export interface RelatorioTreeProps {
   focusBlockId?: string | null;
   context: TreeContext;
   ref?: Ref<RelatorioTreeHandle>;
+  /** Story 8.1: the device's pending suggestion rows; a block holding one is not concluded in the counters. */
+  pending?: readonly SuggestionRow[];
 }
 
 type Dialog =
@@ -159,9 +162,9 @@ function treeKeys(event: KeyboardEvent<HTMLElement>, open: boolean | null, setOp
   else focusParentChevron(target);
 }
 
-export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, id, expandToLastSheet = false, focusBlockId = null, context, ref }: RelatorioTreeProps) {
+export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, id, expandToLastSheet = false, focusBlockId = null, context, ref, pending }: RelatorioTreeProps) {
   const t = copy.sumario.tree;
-  const tree = useMemo(() => locationTree(snapshot, equipment), [snapshot, equipment]);
+  const tree = useMemo(() => locationTree(snapshot, equipment, pending), [snapshot, equipment, pending]);
   const rootRef = useRef<HTMLUListElement>(null);
   const footRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState<ReadonlyMap<string, boolean>>(() => new Map());

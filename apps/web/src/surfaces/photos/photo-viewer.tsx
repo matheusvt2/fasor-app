@@ -35,6 +35,11 @@ export interface PhotoViewerProps {
   onClose: () => void;
   onEditCaption: (tile: PhotoTile) => void;
   onRemove: (tile: PhotoTile) => void;
+  /**
+   * Story 8.1: a normalized region `[x0, y0, x1, y1]` of the photo on screen (a suggestion's
+   * source `bbox`): the picture is scaled and centred on it and the region outlined.
+   */
+  zoom?: readonly [number, number, number, number] | null;
 }
 
 /** The best picture this device can show: its original, else the server's print copy, the thumb meanwhile. */
@@ -80,6 +85,7 @@ function ViewerBody({
   onClose,
   onEditCaption,
   onRemove,
+  zoom = null,
 }: PhotoViewerProps & { tile: PhotoTile; index: number; titleId: string }) {
   const t = copy.viewer;
   const countId = useId();
@@ -111,7 +117,15 @@ function ViewerBody({
           {viewerCountText(number, total, provisional)}
         </span>
       </div>
-      <div className="viewer-photo">{src === null ? <span className="thumb-fake" /> : <img className="viewer-img" src={src} alt={tile.caption ?? viewerLabel(number, total)} />}</div>
+      <div className="viewer-photo">
+        {src === null ? (
+          <span className="thumb-fake" />
+        ) : zoom === null ? (
+          <img className="viewer-img" src={src} alt={tile.caption ?? viewerLabel(number, total)} />
+        ) : (
+          <ZoomedPicture key={src} src={src} zoom={zoom} alt={tile.caption ?? viewerLabel(number, total)} />
+        )}
+      </div>
       <div className="viewer-bottom">
         <PhotoStamp text={photoStampFull(tile)} gps={tile.coords !== null} className="photo-stamp is-full viewer-stamp" />
         {item === null ? null : (
@@ -173,5 +187,30 @@ function ViewerBody({
         onConfirm={() => onRemove(tile)}
       />
     </>
+  );
+}
+
+/**
+ * Story 8.1: the picture scaled and centred on a region, the region outlined. The picture's
+ * own size is read from the image first (drawn whole meanwhile); then an SVG whose viewBox
+ * is the region with a margin around it draws the picture and the outline in its pixels.
+ */
+function ZoomedPicture({ src, zoom, alt }: { src: string; zoom: readonly [number, number, number, number]; alt: string }) {
+  const [size, setSize] = useState<{ width: number; height: number } | null>(null);
+  if (size === null) {
+    return <img className="viewer-img" src={src} alt={alt} onLoad={(event) => setSize({ width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })} />;
+  }
+  const [x0, y0, x1, y1] = zoom;
+  const x = x0 * size.width;
+  const y = y0 * size.height;
+  const w = Math.max((x1 - x0) * size.width, 1);
+  const h = Math.max((y1 - y0) * size.height, 1);
+  const margin = Math.max(w, h) * 0.5;
+  const viewBox = `${x - margin} ${y - margin} ${w + 2 * margin} ${h + 2 * margin}`;
+  return (
+    <svg className="viewer-img viewer-zoom" viewBox={viewBox} preserveAspectRatio="xMidYMid meet" role="img" aria-label={alt} data-zoom={zoom.join(',')}>
+      <image href={src} x={0} y={0} width={size.width} height={size.height} />
+      <rect className="viewer-zoom-region" x={x} y={y} width={w} height={h} vectorEffect="non-scaling-stroke" />
+    </svg>
   );
 }

@@ -623,3 +623,21 @@ input.count { width: 40px; padding: 0; border: 0; background: transparent; color
   [data-route="/relatorio/:id/pontos"] .poa-edit-actions .btn,
   .point-editor-dialog .poa-edit-actions .btn { flex: 1 1 100%; }
 }
+
+/* Story 8.1, the Suggestion field of the nameplate (`components.css` Suggestion field, `60-ficha.html` lines ~312-341). */
+/* authored: the editable guess is an `<input class="sv">` where the mock draws a `.sv` span; it reads as that
+   span inside the amber `.input` (no box of its own, the field's type and color). */
+.suggestion-field > .input > input.sv { height: 100%; min-height: var(--touch-field); border: 0; padding: 0; background: transparent; font: inherit; color: inherit; }
+/* authored: the amber border of a suggested field outranks `.input:focus-within`'s focus rule, so the field
+   being typed into shows the global focus ring (`.frame :focus-visible`'s declarations) around its box. */
+.suggestion-field > .input:has(> input:focus-visible), .suggestion-field > .measurement-field:has(> input:focus-visible) { outline: 3px solid var(--focus); outline-offset: 2px; }
+/* authored: the crop's picture, clipped to the thumbnail exactly like `.crop-thumb .thumb-fake`; the image is
+   placed by the component so the region fills the square. */
+.crop-thumb .crop-picture { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; }
+.crop-thumb .crop-picture[hidden] { display: none; }
+.crop-thumb .crop-picture img { position: absolute; max-width: none; }
+/* authored: a confirmed cell keeps its own field; the 24 px glyph (`.suggestion-field[data-state="confirmed"]
+   .crop-thumb`) sits beside the input, centred on the field's line. */
+.ficha-suggestion-confirmed { display: flex; align-items: flex-end; min-width: 0; }
+.ficha-suggestion-confirmed > :first-child { flex: 1; min-width: 0; }
+.ficha-suggestion-confirmed[data-state="confirmed"] > .crop-thumb { margin-bottom: calc((var(--touch-field) - 24px) / 2); }

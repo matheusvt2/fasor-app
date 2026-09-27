@@ -30,7 +30,7 @@ describe('syncCounts', () => {
       row(`sheet/${BLOCK_A}/observations`, 'dead'),
       row(`registry/client/${CLIENT}/contact_name`, 'pending'),
     ]);
-    expect(counts).toEqual({ pending: 3, sent: 1, dead: 1, sheets_pending: 2, photos_pending: 0 });
+    expect(counts).toEqual({ pending: 3, sent: 1, dead: 1, sheets_pending: 2, photos_pending: 0, suggestions_pending: 0, readings_queued: 0 });
   });
 
   it('counts photo creates only when unsent and not dead', () => {
@@ -42,6 +42,17 @@ describe('syncCounts', () => {
     expect(syncCounts([row(`file/${FILE_1}/caption`, 'pending', { kind: 'put', value: 'x' })]).photos_pending).toBe(0);
   });
 
+  it('8.1: counts pending suggestions and queued or running readings from its explicit input, 0 when omitted', () => {
+    const counts = syncCounts([], {
+      suggestions: [{ status: 'pending' }, { status: 'pending' }, { status: 'confirmed' }, { status: 'discarded' }],
+      photos: [{ reading_status: 'queued' }, { reading_status: 'running' }, { reading_status: 'done' }, { reading_status: 'failed' }, { reading_status: 'none' }, {}],
+    });
+    expect(counts.suggestions_pending).toBe(2);
+    expect(counts.readings_queued).toBe(2);
+    expect(syncCounts([]).suggestions_pending).toBe(0);
+    expect(syncCounts([]).readings_queued).toBe(0);
+  });
+
   it('ignores a path it cannot parse without throwing', () => {
     expect(syncCounts([row('nonsense/path', 'pending')])).toEqual({
       pending: 1,
@@ -49,12 +60,14 @@ describe('syncCounts', () => {
       dead: 0,
       sheets_pending: 0,
       photos_pending: 0,
+      suggestions_pending: 0,
+      readings_queued: 0,
     });
   });
 });
 
 describe('syncBadgeState', () => {
-  const base = { pending: 0, sent: 0, dead: 0, sheets_pending: 0, photos_pending: 0 };
+  const base = { pending: 0, sent: 0, dead: 0, sheets_pending: 0, photos_pending: 0, suggestions_pending: 0, readings_queued: 0 };
   it('is ok with nothing pending and online', () => {
     expect(syncBadgeState(base, { online: true })).toBe('ok');
   });
@@ -82,7 +95,7 @@ describe('syncBadgeState', () => {
 });
 
 describe('pendingSummaryText and syncBadgeLabel', () => {
-  const base = { pending: 0, sent: 0, dead: 0, sheets_pending: 0, photos_pending: 0 };
+  const base = { pending: 0, sent: 0, dead: 0, sheets_pending: 0, photos_pending: 0, suggestions_pending: 0, readings_queued: 0 };
   it('names sheets and photos, or plain changes, or nothing', () => {
     expect(pendingSummaryText({ ...base, pending: 3, sheets_pending: 3 })).toBe('3 fichas');
     expect(pendingSummaryText({ ...base, pending: 3, sheets_pending: 1, photos_pending: 2 })).toBe('1 ficha e 2 fotos');
