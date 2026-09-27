@@ -14,6 +14,7 @@ import { section10Layout, type LayoutSection10 } from './section-10.ts';
 import { section11Layout, type LayoutSectionCertificates } from './section-11.ts';
 import { section7Layout, type LayoutSectionPhotos } from './section-7.ts';
 import { section8Layout, type LayoutSectionPoints } from './section-8.ts';
+import { section9Layout, type LayoutSectionSheets } from './section-9.ts';
 
 /*
  * Story 4.8 (AD-15): the layout spec of the printed relatório. Pure data: what prints, in
@@ -63,7 +64,7 @@ export interface LayoutSectionEmpty {
   note: string;
 }
 
-export type LayoutSection = LayoutSectionText | LayoutSectionEmpty | LayoutSection10 | LayoutSectionPhotos | LayoutSectionPoints | LayoutSectionCertificates;
+export type LayoutSection = LayoutSectionText | LayoutSectionEmpty | LayoutSection10 | LayoutSectionPhotos | LayoutSectionPoints | LayoutSectionCertificates | LayoutSectionSheets;
 
 /** Story 7.5: the word the preview prints behind every page; issued documents carry none. */
 export const DRAFT_WATERMARK = 'RASCUNHO';
@@ -200,6 +201,8 @@ export function layoutSpec(snapshot: RelatorioSnapshot, inputs: LayoutInputs): D
   const sections: LayoutSection[] = printedSections(snapshot).map(({ section, ownText }, index) => {
     const number = index + 1;
     const title = seed.section_titles[String(section)] ?? '';
+    // Story 7.1: section 9 prints the equipment sheets (`print/section-9.ts`), else its note.
+    if (section === 9) return section9Layout(snapshot, number, title) ?? { number, title, kind: 'empty', note: EMPTY_SECTION_NOTE };
     const build = SECTION_BUILDERS[section];
     if (build !== undefined) return build(snapshot, { number, title }) ?? { number, title, kind: 'empty', note: EMPTY_SECTION_NOTE };
     const composed = sectionType(section) !== null;

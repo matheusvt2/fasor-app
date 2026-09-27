@@ -91,6 +91,8 @@ export * from './checks/certificate-missing-stub.ts';
 export * from './print/section-7.ts';
 export * from './print/section-8.ts';
 export * from './print/section-11.ts';
+export * from './print/group-for-print.ts';
+export * from './print/section-9.ts';
 export * from './prefs/theme.ts';
 export * from './device/storage.ts';
 export * from './home/cards.ts';

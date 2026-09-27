@@ -70,13 +70,11 @@ describe('4.8-UNIT-001 layoutSpec on the full fixture', () => {
     expect(sectionHeading(layout.toc[0]!)).toBe('1 OBJETIVO');
   });
 
-  it('prints sections 1 to 6 with resolved text, 10 as its own layout, 9 as heading plus the note, and 7, 8, 11 from their own modules', () => {
+  it('prints sections 1 to 6 with resolved text, 10 as its own layout, 9 with the equipment sheets (Story 7.1), and 7, 8, 11 from their own modules', () => {
     const byNumber = new Map(layout.sections.map((s) => [s.number, s]));
     for (const n of [1, 2, 3, 4, 5, 6]) expect(byNumber.get(n)?.kind, `section ${n}`).toBe('text');
     expect(byNumber.get(10)?.kind).toBe('section_10');
-    const ninth = byNumber.get(9)!;
-    expect(ninth.kind).toBe('empty');
-    if (ninth.kind === 'empty') expect(ninth.note).toBe(EMPTY_SECTION_NOTE);
+    expect(byNumber.get(9)?.kind).toBe('sheets');
     expect(EMPTY_SECTION_NOTE).toBe('(sem conteúdo nesta revisão)');
     // Stories 7.2/7.3 (section-7/8/11.test.ts assert their contents): 82 photos, 7 points, 3 certificates.
     const photos = byNumber.get(7)!;

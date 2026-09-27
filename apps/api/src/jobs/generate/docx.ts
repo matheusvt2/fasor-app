@@ -31,6 +31,7 @@ import { section10Children } from './sections/section-10.ts';
 import { section11Children } from './sections/section-11.ts';
 import { section7Children } from './sections/section-7.ts';
 import { section8Children } from './sections/section-8.ts';
+import { SECTION_9_PARAGRAPH_STYLES, section9Children } from './sections/section-9.ts';
 import type { TocPages } from './toc.ts';
 import { watermarkPng } from './watermark.ts';
 
@@ -267,6 +268,7 @@ export async function buildDocx(layout: DocumentLayout, options: BuildDocxOption
     else if (section.kind === 'photos') children.push(...(await section7Children(section, options.images?.photos ?? new Map())));
     else if (section.kind === 'points') children.push(...section8Children(section));
     else if (section.kind === 'certificates') children.push(...(await section11Children(section, options.images?.certificates ?? new Map())));
+    else if (section.kind === 'sheets') children.push(...(await section9Children(section, options.images?.photos ?? new Map())));
     else for (const block of section.paragraphs) children.push(sectionParagraph(block));
   }
 
@@ -293,6 +295,17 @@ export async function buildDocx(layout: DocumentLayout, options: BuildDocxOption
           run: { font: BODY_FONT, size: 28, bold: true },
           paragraph: { spacing: { before: 360, after: 160 }, outlineLevel: 0, keepNext: true },
         },
+        {
+          // Story 7.1: section 9's subsections ("9.1 Cubículo Enel"), level 2 of the PDF outline.
+          id: 'Heading2',
+          name: 'Heading 2',
+          basedOn: 'Normal',
+          next: 'Normal',
+          quickFormat: true,
+          run: { font: BODY_FONT, size: 24, bold: true },
+          paragraph: { spacing: { before: 240, after: 120 }, outlineLevel: 1, keepNext: true },
+        },
+        ...SECTION_9_PARAGRAPH_STYLES,
       ],
     },
     sections: [

@@ -48,6 +48,13 @@ export const relatorioSnapshotSchema = z.object({
   suggestions: z.array(suggestionRowSchema),
   /** Story 4.8: the `user` row `setup.responsible_user_id` names, for the cover, the document control and section text; null when unset or not in the state. */
   responsible: userRowSchema.nullable(),
+  /**
+   * Story 7.1: the `user` rows any block names as its concluder (`concluded_by.actor_id`) or
+   * its last editor (`last_modified_by`), sorted by id, for the section 9 attribution line.
+   * An actor with no row in the state (a system actor, a user this device never pulled) is
+   * left out. Defaulted, so a snapshot serialized before the field existed still parses.
+   */
+  actors: z.array(userRowSchema).default([]),
 });
 
 export type RelatorioSnapshot = z.infer<typeof relatorioSnapshotSchema>;
@@ -132,6 +139,16 @@ export function buildSnapshot(state: EntityState, relatorioId: string): Relatori
   const responsibleId = relatorio.setup.responsible_user_id;
   const responsible = responsibleId === null ? null : ((state.get(entityKey('user', responsibleId)) as UserRow | undefined) ?? null);
 
+  const actorIds = new Set<string>();
+  for (const block of blocks) {
+    if (block.concluded_by !== null) actorIds.add(block.concluded_by.actor_id);
+    if (block.last_modified_by !== null) actorIds.add(block.last_modified_by);
+  }
+  const actors = [...actorIds]
+    .map((id) => state.get(entityKey('user', id)) as UserRow | undefined)
+    .filter((row): row is UserRow => row !== undefined)
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+
   return relatorioSnapshotSchema.parse({
     relatorio,
     project,
@@ -145,6 +162,7 @@ export function buildSnapshot(state: EntityState, relatorioId: string): Relatori
     points,
     suggestions,
     responsible,
+    actors,
   });
 }
 
