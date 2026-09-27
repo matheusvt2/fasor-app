@@ -23,7 +23,7 @@ import { createDb } from '../../db/client.ts';
 import { asCompanyId } from '../../db/repositories/company-id.ts';
 import { entities, ops } from '../../db/schema.ts';
 import { seedTestCompanies, TEST_SEED } from '../../db/seed.ts';
-import { removePortoSeguroSmall, seedPortoSeguroSmall, SMALL_FIXTURE_RELATORIO_ID } from '../../db/test-fixtures.ts';
+import { removePortoSeguroSmall, seedPortoSeguroSmall, SMALL_FIXTURE_RELATORIO_ID, TEST_PARECER } from '../../db/test-fixtures.ts';
 import { newId } from '../../ids.ts';
 import { createS3, getObject, putObject } from '../../storage/s3.ts';
 import { applyOps } from '../../sync/apply.ts';
@@ -118,7 +118,7 @@ async function removeExtras(): Promise<void> {
 
 beforeAll(async () => {
   await seedTestCompanies(db, auth);
-  await seedPortoSeguroSmall(db, companyA.companyId);
+  await seedPortoSeguroSmall(db, companyA.companyId, { parecer: TEST_PARECER });
 
   const photo = await sharp({ create: { width: 640, height: 480, channels: 3, background: { r: 30, g: 90, b: 160 } } }).jpeg().toBuffer();
   const goodPdf = samplePdf(2);
@@ -256,7 +256,9 @@ describe('7.2/7.3-INT-001 a revision with a photo, a point citing it and two cer
       const media = [...readZipEntries(docx).keys()].filter((name) => name.startsWith('word/media/') && !name.endsWith('/'));
       expect(media).toHaveLength(3);
       const document = readZipEntries(docx).get('word/document.xml')!.toString('utf8');
-      expect(document.match(/<w:pageBreakBefore\/>/g) ?? []).toHaveLength(1);
+      // The second 2E page, plus section 9's two breaks on the small fixture (Story 7.1: a new
+      // page for each subsection after the first and each sheet after its subsection's first).
+      expect(document.match(/<w:pageBreakBefore\/>/g) ?? []).toHaveLength(1 + 2);
     },
     200_000,
   );

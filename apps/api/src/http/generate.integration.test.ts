@@ -460,7 +460,8 @@ describe('4.8-INT-002 POST /api/relatorios/:id/generate and GET /api/revisions/:
     // Inside the sheet of the block the photo belongs to: after its title bar, before the next sheet's.
     const chave = structure.paragraphs.findIndex((p) => p.startsWith('CHAVE SECCIONADORA'));
     const next = structure.paragraphs.findIndex((p, i) => i > chave && /^(DISJUNTOR MT|TRANSFORMADOR DE FORÇA)\b/.test(p));
-    const line = structure.paragraphs.indexOf('Imagem 1.');
+    // Section 7 prints the same line first (Story 7.2); the sheet's copy follows its title bar.
+    const line = structure.paragraphs.indexOf('Imagem 1.', chave);
     expect(chave).toBeGreaterThan(-1);
     expect(line).toBeGreaterThan(chave);
     expect(line).toBeLessThan(next);
