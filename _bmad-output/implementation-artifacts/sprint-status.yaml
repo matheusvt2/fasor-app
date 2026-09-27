@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 09-27-2026 20:00
+last_updated: 09-27-2026 23:40
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -97,21 +97,21 @@ development_status:
   6-6-record-findings-that-print-as-section-8-with-untested-equipm: done  # PR #42
   epic-6-retrospective: done
 
-  epic-7: in-progress  # started 2026-09-26 in parallel with Epic 8 (Matheus)
+  epic-7: in-progress  # all five stories merged (#50, #51); integrated QA with Epic 8 and the retro pending
   7-1-print-the-equipment-sheets-as-native-tables-grouped-as-fo-se: done  # PR #50
-  7-2-print-the-photo-record-and-the-photos-beside-their-equipment: review  # combined branch story/7-4-7-5-parecer-export-preview (with 7.2/7.3), gate running
-  7-3-print-the-points-of-attention-and-the-certificates: review  # combined branch story/7-4-7-5-parecer-export-preview (with 7.2/7.3), gate running
-  7-4-set-the-parecer-and-print-section-10-with-the-signature-bloc: review  # combined branch story/7-4-7-5-parecer-export-preview (with 7.2/7.3), gate running
-  7-5-see-what-is-outstanding-preview-as-rascunho-and-issue-the-re: review  # combined branch story/7-4-7-5-parecer-export-preview (with 7.2/7.3), gate running
+  7-2-print-the-photo-record-and-the-photos-beside-their-equipment: done  # PR #51
+  7-3-print-the-points-of-attention-and-the-certificates: done  # PR #51
+  7-4-set-the-parecer-and-print-section-10-with-the-signature-bloc: done  # PR #51
+  7-5-see-what-is-outstanding-preview-as-rascunho-and-issue-the-re: done  # PR #51
   epic-7-retrospective: optional
 
   epic-8: in-progress
   8-1-a-suggestion-is-an-entity-nobody-can-write-without-a-tap: done  # PR #49
-  8-2-photograph-the-plate-and-keep-the-photo-until-there-is-signa: backlog
+  8-2-photograph-the-plate-and-keep-the-photo-until-there-is-signa: in-progress  # batch P, branch story/8-2-8-6-plate-capture-and-confirm
   8-3-run-a-local-ocr-service-in-docker-behind-the-ocrprovider-con: done  # PR #47
-  8-4-run-the-reading-job-end-to-end-with-fixture-driven-structuri: backlog
-  8-5-accept-a-digit-only-when-the-ocr-saw-it-and-check-names-agai: backlog
-  8-6-confirm-the-plate-in-one-tap-with-the-crop-in-view: backlog
+  8-4-run-the-reading-job-end-to-end-with-fixture-driven-structuri: in-progress  # batch R, branch story/8-4-8-5-reading-job
+  8-5-accept-a-digit-only-when-the-ocr-saw-it-and-check-names-agai: in-progress  # batch R, branch story/8-4-8-5-reading-job
+  8-6-confirm-the-plate-in-one-tap-with-the-crop-in-view: in-progress  # batch P, branch story/8-2-8-6-plate-capture-and-confirm
   epic-8-retrospective: optional
 
   epic-9: backlog
