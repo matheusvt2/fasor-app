@@ -111,6 +111,41 @@ deferred: []
 - Given the Porto Seguro fixture, when pre-issue runs on Postgres and the Sumário rows on Dexie, then both equal `pre-issue.golden.json` (AD-2).
 - Given the Export dialog at 390 px, then the precheck, `dl.doc-control` and generate row fit without horizontal scroll (`@p1`).
 
+## Spec Change Log
+
+## Review Triage Log
+
+### 2026-09-26 — Review pass
+
+Layers run: Edge Case Hunter, Verification Gap Reviewer (Blind Hunter and Intent Alignment skipped: token economy; the integrated epic review covers them).
+
+- verdicts: 24 findings — high 0, medium 11, low 12, false 1, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` Preview draft (RASCUNHO, no revision number) not verified through the job — preview.integration now reads the served PDF with pdfjs: "Revisão do documento" with "—", no "Rev. 1", an image on page 1.
+  - `[medium]` `[patch]` Kind filter of `latestGenerationJob` untested — export-dialog test applies a queued preview job alone, asserts no issue working line, then done and no `.gen-error`.
+  - `[medium]` `[patch]` Sumário foot "Pré-visualizar" only checked enabled — sumario-surface test presses it (window.open spy, `sync.preview` called, label changes).
+  - `[medium]` `[patch]` Preview failure paths untested — tests for a `failed` job (tab closed, failure text) and a retried `not_caught_up`.
+  - `[medium]` `[patch]` R4 watcher polling and the Restaurar cut only in `@p1` — watcher test asserts `syncRelatorio`; sumario-surface test with a revision and two removed blocks.
+  - `[low]` `[patch]` Share button untested — stubbed `navigator.share` test with the absolute DOCX URL.
+  - `[medium]` `[patch]` Parecer radiogroup keyboard untested — ArrowRight/Home/End test with exactly one op.
+  - `[low]` `[patch]` "Último envio de …" lines untested — dialog test with this and another device.
+  - `[low]` `[patch]` api tests depended on order for the parecer — each test sets its own parecer; the blocked test asserts release.
+  - `[medium]` `[patch]` `parecer_missing` blocked while section 10 does not print (foot said "Nada impede gerar.") — row only when section 10 prints (live `section_10` block or no section blocks); unit tests.
+  - `[medium]` `[patch]` Watcher/dialog finish race left the pill on the pre-issue status (Q11) — per-revision in-flight promise awaited by the losing caller.
+  - `[low]` `[reject]` 409 `pre_issue_blocked` with a clean local snapshot shows the generic failed line — needs a remote device clearing the parecer after this device's pull; "nothing changed" is true; a new branch not worth it.
+  - `[medium]` `[patch]` Preview poll endless when the job row never arrives — bounded by `GENERATE_JOB_EXPIRE_S`.
+  - `[medium]` `[patch]` Unmount while previewing left a blank tab — closed on unmount.
+  - `[low]` `[reject]` Foot and dialog own separate preview states — the modal dialog makes the foot inert; the server answers `running` with the same job, so both tabs get the same PDF; fix is a refactor.
+  - `[low]` `[patch]` Double press opened two tabs — ref guard.
+  - `[medium]` `[patch]` Offline preview press did nothing silently — both preview Buttons disabled with `copy.export.offlineReason`.
+  - `[low]` `[reject]` Watcher polls forever for a job row that never arrives — the job create travels in the same stream the watcher pulls; not reachable in normal use.
+  - `[low]` `[reject]` Reload between toast and clearing the wait shows the toast twice — a window of milliseconds; reordering would risk losing the issue op.
+  - `[low]` `[patch]` `last_nameplate` projected a disabled nameplate sub-block — skipped via `enabledSubBlocksOf`; unit test.
+  - `[low]` `[reject]` Restaurar cut compares the device's `removed_at` with the server's `created_at` — needs a clock skew larger than the gap between a removal and an issue; fix is a redesign to seq.
+  - `[low]` `[patch]` A watermark image that cannot be sized rendered a preview with no RASCUNHO — `watermarkRun` throws.
+  - `[low]` `[patch]` "Ver no sumário" highlight cleared only on pointerdown — also on keydown.
+  - `[false]` `[reject]` Calibration unjudged without `context.now` — every caller (Sumário, Export dialog, generate route, AD-2 tests) passes `now`.
+
 ## Design Notes
 
 - The parecer is one LWW value (`{verdict, text, text_status, text_basis}`): every tap or text action writes the whole object read from the store at write time, never the render's.
