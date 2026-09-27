@@ -91,7 +91,14 @@ export const ui = {
   // The Suggestion field and the Generated text field (Story 5.8, UX-DR45/46/47).
   suggestionField: {
     suggested: 'Sugerido',
+    // `60-ficha.html` `.verify-pill` (Story 8.1): a low-confidence guess.
+    verify: 'Verificar',
     confirm: 'Confirmar',
+    // `60-ficha.html` `.suggestion-alt` button (Story 8.1).
+    replace: 'Substituir',
+    // `60-ficha.html` `.crop-thumb` aria-label; EXPERIENCE.md › Suggestion field: the crop's alt.
+    cropLabel: (label: string) => `Ver recorte da placa — ${label}`,
+    cropAlt: 'Recorte da placa',
   },
   generatedText: {
     criteria: 'Critérios usados',

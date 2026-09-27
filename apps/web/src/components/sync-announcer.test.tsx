@@ -9,6 +9,8 @@ const counts = (over: Partial<SyncCounts> = {}): SyncCounts => ({
   dead: 0,
   sheets_pending: 0,
   photos_pending: 0,
+  suggestions_pending: 0,
+  readings_queued: 0,
   ...over,
 });
 

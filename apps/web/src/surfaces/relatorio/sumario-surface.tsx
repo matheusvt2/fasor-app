@@ -3,11 +3,13 @@ import {
   backwardMoveLabel,
   buildSnapshot,
   fichasConcluidasText,
+  firstSheetWithPendingSuggestions,
   generateReason,
   issuedBannerText,
   latestRevision,
   naoEnsaiadasText,
   ncAbertosText,
+  pendingSuggestions,
   preIssue,
   progress,
   restorableBlocks,
@@ -17,6 +19,7 @@ import {
   sumarioReadingMode,
   sumarioRows,
   sumarioTitle,
+  suggestionRowsOf,
   type BlockRow,
   type EntityState,
   type RelatorioSnapshot,
@@ -28,7 +31,7 @@ import {
   type UserRow,
 } from '@app/domain';
 import { useId, useMemo, useRef, useState } from 'react';
-import { useLocation, useParams } from 'react-router';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import { Button, ConfirmDialog, OverflowMenu, StatusPill, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { uploadErrorIds } from '../../db/file-store.ts';
@@ -93,7 +96,10 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const users = useLiveQuery(() => (db === null ? Promise.resolve(NO_USERS) : localUsers(db)), [db], NO_USERS);
   const lastSheet = useLiveQuery(() => (db === null ? Promise.resolve(null) : readLastSheet(db, relatorioId)), [db, relatorioId], null);
 
-  const computed = useMemo(() => progress(snapshot), [snapshot]);
+  // Story 8.1 (coordinator conflict 3): the pending counts read the device's suggestion rows,
+  // never the snapshot (which holds only the suggestions a cell references).
+  const pending = useMemo(() => pendingSuggestions(suggestionRowsOf(state, relatorioId)), [state, relatorioId]);
+  const computed = useMemo(() => progress(snapshot, pending), [snapshot, pending]);
   // The photos whose local upload stopped with an error: section 7's "aguardando envio" leaves them out.
   const photoErrors = useLiveQuery(() => (db === null ? Promise.resolve(NO_ERRORS) : uploadErrorIds(db)), [db], NO_ERRORS);
   const issues = useMemo(() => preIssue(snapshot, computed, { photoErrors }), [snapshot, computed, photoErrors]);
@@ -174,6 +180,14 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
     requestAnimationFrame(() => chevron.current?.focus());
   }
 
+  /** "N sugestões por confirmar": the first sheet holding one, section 9 when none does. */
+  const navigate = useNavigate();
+  function openSuggestions(): void {
+    const blockId = firstSheetWithPendingSuggestions({ ...snapshot, equipment }, pending);
+    if (blockId === null) openSection9();
+    else void navigate(`/relatorio/${relatorioId}/ficha/${blockId}`);
+  }
+
   /** The header Overflow's backward-move Confirm: one `relatorio/status` put, focus back on the trigger. */
   function onConfirmBack(): void {
     if (backMove === null) return;
@@ -197,7 +211,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
             <TextButton onPress={openSection9}>{fichasConcluidasText(computed)}</TextButton>
             <TextButton onPress={openSection9}>{ncAbertosText(computed.nc_open)}</TextButton>
             <TextButton onPress={openSection9}>{naoEnsaiadasText(computed.not_tested)}</TextButton>
-            <TextButton onPress={openSection9}>{sugestoesText(computed.suggestions_pending)}</TextButton>
+            <TextButton onPress={openSuggestions}>{sugestoesText(computed.suggestions_pending)}</TextButton>
           </p>
         </div>
         <div className="header-side" ref={headerMenuRef}>
@@ -248,6 +262,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
                     focusBlockId={arrival.focusBlockId}
                     context={treeContext}
                     ref={treeRef}
+                    pending={pending}
                   />
                 )}
               </Section9Row>

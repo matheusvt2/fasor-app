@@ -161,3 +161,5 @@
   .sticky-action-bar .bar-buttons .add-photos-btn { flex: none; }
   .add-photos-btn .add-photos-word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
+/* authored (Story 8.1): the viewer opened from a suggestion's crop, zoomed on its region; the outline is the crop's (`components.css` `.plate-crop .region`). */
+.photo-viewer .viewer-photo .viewer-zoom-region { fill: none; stroke: var(--fora-do-limite); stroke-width: 3; }

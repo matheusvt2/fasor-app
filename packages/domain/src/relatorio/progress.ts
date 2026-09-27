@@ -1,7 +1,8 @@
-import type { BlockRow, LocationRow } from '../schemas/entities.ts';
+import type { BlockRow, LocationRow, SuggestionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { plural } from '../text/plural.ts';
 import { enabledCells, isCellFilled, isEquipmentBlock, sheetState } from './sheet-state.ts';
+import { blocksWithPendingSuggestions, livePendingSuggestions } from './suggestions.ts';
 
 /*
  * Story 4.3: the counts the Sumário header, the Project row and the Home card read, computed
@@ -16,7 +17,11 @@ export interface Progress {
   /** Checklist items answered NC on live sheets. Epic 6's points of attention close them. */
   nc_open: number;
   not_tested: number;
-  /** Pending suggestions the snapshot knows of (Epic 8 fills them in). */
+  /**
+   * Pending suggestions: the device's suggestion rows passed as `pending` (Story 8.1,
+   * coordinator conflict 3); without them, the pending ones the snapshot carries (none: a
+   * snapshot holds only the suggestions a cell references).
+   */
   suggestions_pending: number;
 }
 
@@ -32,22 +37,39 @@ function ncCount(block: BlockRow): number {
   return n;
 }
 
-function over(blocks: readonly BlockRow[], suggestionsPending: number): Progress {
+/**
+ * `held`: the blocks holding a pending suggestion (Story 8.1). A sheet with a value still
+ * waiting for a tap is never counted as concluded, whatever its own state says.
+ */
+function over(blocks: readonly BlockRow[], suggestionsPending: number, held: ReadonlySet<string> = new Set()): Progress {
   const progress: Progress = { sheets_concluded: 0, sheets_total: 0, nc_open: 0, not_tested: 0, suggestions_pending: suggestionsPending };
   for (const block of blocks) {
     if (block.removed_at !== null || !isEquipmentBlock(block)) continue;
     progress.sheets_total += 1;
     const state = sheetState(block);
-    if (state === 'concluida' || state === 'nao_ensaiada') progress.sheets_concluded += 1;
+    if ((state === 'concluida' || state === 'nao_ensaiada') && !held.has(block.id)) progress.sheets_concluded += 1;
     if (state === 'nao_ensaiada') progress.not_tested += 1;
     progress.nc_open += ncCount(block);
   }
   return progress;
 }
 
-/** The whole relatório's progress over its live equipment blocks. */
-export function progress(snapshot: Pick<RelatorioSnapshot, 'blocks' | 'suggestions'>): Progress {
-  return over(snapshot.blocks, snapshot.suggestions.filter((s) => s.status === 'pending').length);
+/**
+ * The whole relatório's progress over its live equipment blocks. `pending` is the device's
+ * pending suggestion rows of the relatório (`pendingSuggestions(suggestionRowsOf(...))`):
+ * `suggestions_pending` is the number of those waiting on a live block, and a block holding
+ * any is not concluded.
+ */
+export function progress(snapshot: Pick<RelatorioSnapshot, 'blocks' | 'suggestions'>, pending?: readonly SuggestionRow[]): Progress {
+  if (pending === undefined) return over(snapshot.blocks, snapshot.suggestions.filter((s) => s.status === 'pending').length);
+  return over(snapshot.blocks, ...scoped(snapshot.blocks, pending));
+}
+
+/** The pending rows waiting on a live block of `blocks` (`livePendingSuggestions`), and those blocks' ids. */
+function scoped(blocks: readonly BlockRow[], pending: readonly SuggestionRow[] | undefined): [number, ReadonlySet<string>] {
+  if (pending === undefined) return [0, new Set()];
+  const own = livePendingSuggestions(blocks, pending);
+  return [own.length, blocksWithPendingSuggestions(own)];
 }
 
 /** The location ids of a cabine and the colunas under it. */
@@ -62,12 +84,14 @@ export function cabineLocationIds(locations: readonly Pick<LocationRow, 'id' | '
  * `cabineProgress` until Story 12.3, which gave that name to the cabine's own required
  * fields, `cabine.ts`.)
  */
-export function cabineSheetsProgress(snapshot: Pick<RelatorioSnapshot, 'blocks' | 'locations' | 'suggestions'>, cabineId: string): Progress {
+export function cabineSheetsProgress(
+  snapshot: Pick<RelatorioSnapshot, 'blocks' | 'locations' | 'suggestions'>,
+  cabineId: string,
+  pending?: readonly SuggestionRow[],
+): Progress {
   const ids = cabineLocationIds(snapshot.locations, cabineId);
-  return over(
-    snapshot.blocks.filter((block) => block.location_id !== null && ids.has(block.location_id)),
-    0,
-  );
+  const blocks = snapshot.blocks.filter((block) => block.location_id !== null && ids.has(block.location_id));
+  return over(blocks, ...scoped(blocks, pending));
 }
 
 /**
@@ -90,12 +114,10 @@ export function descendantLocationIds(locations: readonly Pick<LocationRow, 'id'
 }
 
 /** One location's progress: the blocks on it and on every location under it (the tree's coluna counter). */
-export function locationProgress(snapshot: Pick<RelatorioSnapshot, 'blocks' | 'locations'>, locationId: string): Progress {
+export function locationProgress(snapshot: Pick<RelatorioSnapshot, 'blocks' | 'locations'>, locationId: string, pending?: readonly SuggestionRow[]): Progress {
   const ids = descendantLocationIds(snapshot.locations, locationId);
-  return over(
-    snapshot.blocks.filter((block) => block.location_id !== null && ids.has(block.location_id)),
-    0,
-  );
+  const blocks = snapshot.blocks.filter((block) => block.location_id !== null && ids.has(block.location_id));
+  return over(blocks, ...scoped(blocks, pending));
 }
 
 // --- the texts -------------------------------------------------------------------------

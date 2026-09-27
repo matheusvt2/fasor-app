@@ -10,6 +10,8 @@ const counts = (over: Partial<Parameters<typeof SyncBadge>[0]['counts']> = {}) =
   dead: 0,
   sheets_pending: 0,
   photos_pending: 0,
+  suggestions_pending: 0,
+  readings_queued: 0,
   ...over,
 });
 

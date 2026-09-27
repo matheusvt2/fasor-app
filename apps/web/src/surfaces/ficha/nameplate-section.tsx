@@ -5,9 +5,11 @@ import {
   nameplateCopyFields,
   nameplateIsEmpty,
   nameplateTagPrefill,
+  showsConfirmedGlyph,
   suggestNameplateCopy,
   type BlockDefinition,
   type BlockRow,
+  type EntityState,
   type EquipmentRow,
   type RelatorioSnapshot,
   type WordRow,
@@ -19,6 +21,8 @@ import { newId } from '../../ids.ts';
 import type { FichaApi } from './ficha-api.ts';
 import { ReadOnlyField, SheetField } from './ficha-fields.tsx';
 import { createWordOp, nameplateOp } from './ficha-ops.ts';
+import type { PhotoTile } from '../../db/photo-store.ts';
+import { NameplateField, ReplaceLine, SuggestionFill, SuggestionGroupHead, useNameplateSuggestions } from './nameplate-suggestions.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
 
 /*
@@ -31,26 +35,39 @@ import { useSheetReadOnly } from './sheet-read-only.tsx';
  * both copy plain values in one batch with "Desfazer". The TAG field shows the block's TAG
  * while it has no cell of its own ("Do bloco · editável", J-09): nothing is written until
  * the engineer types, and renaming the block moves it.
+ *
+ * Story 8.1: the device's pending suggestions of this plate (`nameplate-suggestions.tsx`):
+ * a fill takes the field's place as a Suggestion field, a differing value keeps the field
+ * and adds the replace line, a confirmed cell shows its crop glyph; while any fill is
+ * pending the section is `.nameplate-extraction` with the group head above the fields.
  */
 export function NameplateSection({
   api,
   snapshot,
+  state,
   block,
   definition,
   equipment,
   registries,
+  onCaptionPhoto,
 }: {
   api: FichaApi;
   snapshot: RelatorioSnapshot;
+  /** The relatório's rows: its suggestion rows are read from here (a snapshot holds only confirmed ones). */
+  state: EntityState;
   block: BlockRow;
   definition: BlockDefinition;
   equipment: readonly EquipmentRow[];
   registries: { manufacturer: readonly WordRow[]; voltage_class: readonly WordRow[] };
+  /** "Editar legenda" in the viewer a crop opened. */
+  onCaptionPhoto?: (tile: PhotoTile) => void;
 }) {
   const t = copy.ficha.nameplate;
   const headingId = useId();
   const readOnly = useSheetReadOnly();
+  const suggestions = useNameplateSuggestions({ api, state, snapshot, block, ...(onCaptionPhoto === undefined ? {} : { onCaptionPhoto }) });
   if (definition.nameplate.length === 0) return null;
+  const grouped = !readOnly && suggestions.counts.fills > 0;
 
   const empty = nameplateIsEmpty(block);
   const own = block.equipment_id === null ? undefined : equipment.find((row) => row.id === block.equipment_id);
@@ -85,10 +102,11 @@ export function NameplateSection({
   }
 
   return (
-    <section className="section" id="ficha-nameplate" aria-labelledby={headingId}>
+    <section className={grouped ? 'section nameplate-extraction' : 'section'} id="ficha-nameplate" aria-labelledby={headingId}>
       <div className="section-head">
         <h2 id={headingId}>{t.title}</h2>
       </div>
+      {grouped ? <SuggestionGroupHead model={suggestions} /> : null}
       {same === null && (lastVisit.length === 0 || own === undefined) ? null : (
         <div className="chip-row ficha-nameplate-chips" role="group" aria-label={t.chipsLabel}>
           {same === null ? null : (
@@ -115,9 +133,12 @@ export function NameplateSection({
           const prefilled = field.key === 'tag' && stored === undefined && tagPrefill !== null;
           const value = prefilled ? tagPrefill : (stored?.value ?? null);
           const helper = prefilled ? t.tagHelper : undefined;
-          return readOnly ? (
-            <ReadOnlyField key={field.key} field={field} value={value} {...(helper === undefined ? {} : { helper })} />
-          ) : (
+          if (readOnly) return <ReadOnlyField key={field.key} field={field} value={value} {...(helper === undefined ? {} : { helper })} />;
+          const pending = suggestions.entries.get(field.key);
+          if (pending?.view === 'fill') return <SuggestionFill key={`${field.key}:${pending.suggestion.id}`} model={suggestions} field={field} suggestion={pending.suggestion} />;
+          const after = pending?.view === 'replace' ? <ReplaceLine model={suggestions} field={field} suggestion={pending.suggestion} /> : null;
+          const source = showsConfirmedGlyph(stored, snapshot.relatorio.status) ? suggestions.sourceOf(stored!.source_suggestion_id!) : null;
+          const sheetField = (
             <SheetField
               key={field.key}
               field={field}
@@ -131,10 +152,19 @@ export function NameplateSection({
               blocks={snapshot.blocks}
               onCreateWord={(kind, name) => createWord(field.key, kind, name)}
               commit={(next) => (api.author === null ? undefined : api.commit([nameplateOp(api.author, api.relatorioId, block.id, field.key, next)]))}
+              after={after}
             />
+          );
+          // One wrapper for every field, confirmed or not, so the field keeps its place in the
+          // tree when a typed correction clears the provenance mid-typing (no remount).
+          return (
+            <NameplateField key={field.key} model={suggestions} field={field} source={source}>
+              {sheetField}
+            </NameplateField>
           );
         })}
       </div>
+      {suggestions.viewer}
     </section>
   );
 }
