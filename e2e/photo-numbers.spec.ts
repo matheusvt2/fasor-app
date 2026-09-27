@@ -8,6 +8,7 @@ import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readFileBlobs, readStore } from './support/outbox.ts';
 import { devicePhotos } from './support/photos.ts';
+import { setParecer } from './support/relatorio-flow.ts';
 import { pushDrafts } from './support/relatorio-seed.ts';
 import { syncNow } from './support/sync.ts';
 
@@ -72,6 +73,8 @@ async function generateRevision(page: Page, n: number): Promise<void> {
   await expect(dialog(page)).toBeVisible();
   const again = dialog(page).getByRole('button', { name: 'Gerar de novo' });
   if (await again.isVisible()) await again.click();
+  // A blocked "Gerar relatório" is aria-disabled: fail in seconds, not at the test timeout.
+  await expect(generateButton(page)).toBeEnabled({ timeout: 30_000 });
   await generateButton(page).click();
   await expect(toast(page)).toHaveText(`Revisão ${n} pronta — DOCX`, { timeout: JOB_TIMEOUT });
   await expect(dialog(page).getByRole('heading', { level: 2, name: `Revisão ${n} pronta` })).toBeVisible();
@@ -129,8 +132,9 @@ test('@p0 7.2-E2E-001 an issued revision freezes the gallery numbers; a photo ad
   expect(outbox.some((op) => op.kind === 'create' && op.path === `file/${first!.id}`)).toBe(true);
   expect(await viewerCount(page, page.getByRole('button', { name: 'Foto 1, abrir', exact: true }))).toBe('1 de 1 · nº provisório');
 
-  // Issue revision 1 through the Export dialog (it drains the photo's upload first).
-  await openSumario(page);
+  // Issue revision 1 through the Export dialog (it drains the photo's upload first); the
+  // parecer is the one blocking row since Story 7.4, so it is set first (and opens the Sumário).
+  await setParecer(page, EXPORT_RELATORIO_ID);
   await generateRevision(page, 1);
   await closeDialog(page);
   await expect(headerPill(page)).toHaveText('Emitido', { timeout: 30_000 });

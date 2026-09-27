@@ -195,8 +195,27 @@ test('@p0 7.5-E2E-002 E5-Q18b: after revision 1 of project P, a second relatóri
   await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
   await openFixtureSumario(page);
+  // The fixture's chave prints no Placa (its config enables no optional sub-block), and a
+  // disabled nameplate is not the last visit's plate: this visit turns it on before issuing.
+  const chaveConfig = (portoSeguroSmall.log.find((op) => op.kind === 'create' && op.path === `block/${BLOCK_CHAVE_ID}`)!.value as { config: object }).config;
+  await pushDrafts(page, database, [
+    {
+      scope: 'relatorio',
+      company_id: account.companyId,
+      project_id: null,
+      relatorio_id: EXPORT_RELATORIO_ID,
+      prev_op_id: null,
+      batch_id: null,
+      meta: null,
+      actor_id: account.userId,
+      kind: 'put',
+      path: `block/${BLOCK_CHAVE_ID}/config`,
+      value: { ...chaveConfig, sub_blocks: { nameplate: { enabled: true } } } as never,
+    },
+  ]);
   await setParecer(page, EXPORT_RELATORIO_ID);
   await footButton(page).click();
+  await expect(generateButton(page)).toBeEnabled({ timeout: 30_000 });
   await generateButton(page).click();
   await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX', { timeout: JOB_TIMEOUT });
   await page.keyboard.press('Escape');
