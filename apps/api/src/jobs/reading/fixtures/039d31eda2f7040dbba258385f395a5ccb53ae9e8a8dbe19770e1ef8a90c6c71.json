@@ -1,0 +1,67 @@
+{
+  "outcome": "ok",
+  "ocr": {
+    "image": {
+      "width": 1200,
+      "height": 900
+    },
+    "tokens": [
+      {
+        "id": "t0",
+        "text": "MODELOSINTETICO",
+        "bbox": [
+          81.0,
+          64.0,
+          380.0,
+          91.0
+        ],
+        "confidence": 0.9879
+      },
+      {
+        "id": "t1",
+        "text": "12/03/202610:15",
+        "bbox": [
+          122.0,
+          192.0,
+          1079.0,
+          296.0
+        ],
+        "confidence": 0.9751
+      },
+      {
+        "id": "t2",
+        "text": "I=10.0A",
+        "bbox": [
+          124.0,
+          304.0,
+          548.0,
+          392.0
+        ],
+        "confidence": 0.9229
+      },
+      {
+        "id": "t3",
+        "text": "87.",
+        "bbox": [
+          647.0,
+          304.0,
+          829.0,
+          395.0
+        ],
+        "confidence": 0.1677
+      },
+      {
+        "id": "t4",
+        "text": "UR",
+        "bbox": [
+          794.0,
+          303.0,
+          964.0,
+          394.0
+        ],
+        "confidence": 0.4366
+      }
+    ],
+    "preprocessing_applied": false
+  }
+}
