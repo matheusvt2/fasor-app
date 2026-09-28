@@ -15,6 +15,7 @@ import {
   type SuggestionRow,
 } from '@app/domain';
 import { useCallback, useId, useImperativeHandle, useMemo, useRef, useState, type Ref, type RefObject } from 'react';
+import { createPortal } from 'react-dom';
 import { Button as AriaButton } from 'react-aria-components';
 import { Button, Chip, TextButton } from '../../components/index.ts';
 import { CropThumb } from '../../components/crop-thumb.tsx';
@@ -166,12 +167,16 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, o
   const isOpen = shot !== null && photo !== null && photo.removed_at === null && photo.reading_kind === 'panel';
   // The camera's fallback input stays the same element whether the dialog shows or not: "Fotografar
   // de novo" clicks it in the same tap that closes the dialog, and a remounted input would lose the file.
+  // Both branches are portaled to the body: the tree sits inside the Sumário's row 9, and a numbered
+  // row holds no form control of its own (7.5-E2E-006).
   if (!isOpen || shot === null || photo === null)
-    return (
+    return createPortal(
       <>
         {camera.element}
         {null}
-      </>
+      </>,
+      document.body,
+      'panel-capture',
     );
 
   const proposal = panelProposal({ seedVersion, locations, equipment, paletteLocationId: shot.target.locationId, suggestion, pickedType: picked });
@@ -203,7 +208,7 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, o
     open(target);
   };
 
-  return (
+  return createPortal(
     <>
       {camera.element}
       <DialogShell
@@ -270,6 +275,8 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, o
           </Button>
         </div>
       </DialogShell>
-    </>
+    </>,
+    document.body,
+    'panel-capture',
   );
 }
