@@ -1,7 +1,7 @@
 import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, instantiateTemplate, makeOp, standardTemplate, type JsonValue, type OpDraft } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { newId } from '../../apps/api/src/ids.ts';
-import { expect, type SeedAccount } from './merged-fixtures.ts';
+import { expect, timed, type SeedAccount } from './merged-fixtures.ts';
 import { readDeviceId } from './outbox.ts';
 
 type Account = SeedAccount;
@@ -38,7 +38,11 @@ export async function pushNewRelatorio(page: Page, account: Account, database: s
 }
 
 /** Pushes drafts as one batch from an "office" device of this account, through the page's session. */
-export async function pushDrafts(page: Page, database: string, drafts: readonly OpDraft[]): Promise<void> {
+export function pushDrafts(page: Page, database: string, drafts: readonly OpDraft[]): Promise<void> {
+  return timed(`pushDrafts (${drafts.length} ops)`, () => pushDraftsSteps(page, database, drafts));
+}
+
+async function pushDraftsSteps(page: Page, database: string, drafts: readonly OpDraft[]): Promise<void> {
   const deviceId = await readDeviceId(page, database);
   const batchId = newId();
   const at = new Date();

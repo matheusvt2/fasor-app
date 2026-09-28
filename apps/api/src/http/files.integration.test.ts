@@ -457,6 +457,24 @@ describe('2.2-API-003 variants', () => {
     expect(rows).toHaveLength(1);
   });
 
+  it('two PUTs of the same file at once (a retry whose first answer was lost) emit uploaded_at and variants once each, and answer the same uploaded_at', async () => {
+    // Test-speed batch (2026-09-27): 6.2-E2E-003 under load saw the dropped PUT and its
+    // retry both emit `file/{id}/variants`, 4 ms apart: each read the row before the other
+    // wrote. The check now runs inside the company lock the write takes.
+    const png = await pngBytes();
+    const { id, op: createOp } = fileCreate(idsA, 'logo', 'image/png', png);
+    await pushOk(companyA, [createOp]);
+
+    const answers = await Promise.all(Array.from({ length: 4 }, () => put(companyA, id, png)));
+    const bodies = await Promise.all(answers.map(async (answer) => filePutResponseSchema.parse(await answer.json())));
+    expect(answers.map((answer) => answer.status)).toEqual([200, 200, 200, 200]);
+    expect(new Set(bodies.map((body) => body.uploaded_at)).size).toBe(1);
+
+    const rows = await db.select({ op_id: ops.op_id, path: ops.path }).from(ops).where(inArray(ops.path, [`file/${id}/uploaded_at`, `file/${id}/variants`]));
+    for (const row of rows) written.opIds.add(row.op_id);
+    expect(rows.map((row) => row.path).sort()).toEqual([`file/${id}/uploaded_at`, `file/${id}/variants`]);
+  });
+
   it('rasterizes an svg logo into both variants', async () => {
     const { id, op: createOp } = fileCreate(idsA, 'logo', 'image/svg+xml', SVG_BYTES);
     await pushOk(companyA, [createOp]);

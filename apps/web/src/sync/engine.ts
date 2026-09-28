@@ -24,6 +24,7 @@ import {
 import { opOf } from '../db/commit.ts';
 import { autoConfirmPulled } from '../db/suggestion-store.ts';
 import {
+  clearUploadError,
   markBlobAcked,
   pendingUploads,
   putServerThumb,
@@ -112,6 +113,12 @@ export interface SyncEngine {
    * (its project-scope ops, the obra's equipment); every later cycle keeps it fresh.
    */
   syncProject(projectId: string): Promise<CycleResult>;
+  /**
+   * Story 6.2's "Erro — Tentar novamente": clears the file's upload error and runs one
+   * cycle that starts after any cycle in flight has ended, however long that one takes, so
+   * the retried upload never waits for the 60 s tick (test-speed batch, 2026-09-27).
+   */
+  retryUpload(fileId: string): Promise<CycleResult>;
   start(): void;
   /**
    * E6-Q14: new work was committed (a photo captured or imported). Online, a cycle runs
@@ -559,8 +566,16 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     const id = projectStreamId(projectId);
     const existing = await readSyncState(deps.db, id);
     if (existing === undefined) await writeSyncState(deps.db, emptyState(id));
+    return runFreshCycle();
+  }
+
+  /**
+   * One cycle that starts after the caller's write: a cycle already running may have read
+   * its queue or its streams before that write, so this waits for it to end and runs its
+   * own. Another cycle (a timer, an `online` event) may take the mutex first each time.
+   */
+  async function runFreshCycle(): Promise<CycleResult> {
     let result = await runCycle();
-    // Another cycle (a timer, an `online` event) may take the mutex first each time.
     while (result === 'busy') {
       await cycleEnded;
       result = await runCycle();
@@ -568,10 +583,16 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     return result;
   }
 
+  async function retryUpload(fileId: string): Promise<CycleResult> {
+    await clearUploadError(deps.db, fileId);
+    return runFreshCycle();
+  }
+
   return {
     runCycle,
     syncRelatorio,
     syncProject,
+    retryUpload,
     start() {
       if (started) return;
       started = true;

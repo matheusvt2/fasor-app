@@ -31,7 +31,7 @@ import { startReading } from '../jobs/reading/status.ts';
 import { log, logError } from '../log.ts';
 import { getObject, headObject, putObject } from '../storage/s3.ts';
 import { hasVariants, renderVariants } from '../storage/variants.ts';
-import { applyOps } from '../sync/apply.ts';
+import { applyServerBatch, type Tx } from '../sync/apply.ts';
 import { type AppEnv, requireSession } from './session.ts';
 
 /*
@@ -70,7 +70,7 @@ interface FileRowLookup {
  * caller builds object keys from it, and a forged `id` would otherwise let one file's
  * bytes be written over another file's key.
  */
-async function readFileRow(db: Db, companyId: CompanyId, id: string): Promise<FileRowLookup | null> {
+async function readFileRow(db: Db | Tx, companyId: CompanyId, id: string): Promise<FileRowLookup | null> {
   if (!uuidV7Schema.safeParse(id).success) return null;
   const [record] = await db
     .select({ row: entities.row, relatorio_id: entities.relatorio_id })
@@ -82,6 +82,9 @@ async function readFileRow(db: Db, companyId: CompanyId, id: string): Promise<Fi
   if (!parsed.success || parsed.data.id !== id) return null;
   return { row: parsed.data, relatorioId: record.relatorio_id };
 }
+
+/** Thrown inside the write's lock when another PUT of the same file already set the field. */
+class FieldAlreadySet extends Error {}
 
 /** Thrown while draining the body once more than `MAX_FILE_BYTES` has arrived. */
 class BodyTooLargeError extends Error {}
@@ -131,39 +134,57 @@ export interface FileRoutesDeps {
 export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: FileRoutesDeps): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
 
-  /** One `file/{id}/{field}` server op, applied as the server (AD-24 `serverOnly` family). */
+  /**
+   * One `file/{id}/{field}` server op, applied as the server (AD-24 `serverOnly` family),
+   * unless the field is already set. The check runs inside the company lock the write
+   * takes (`applyServerBatch`'s `before`), so of two PUTs of the same file at once (a
+   * retry whose first answer was lost) exactly one writes it: reading the row before the
+   * lock let both see it unset and both emit (6.2-E2E-003 under load, 2026-09-27).
+   * Returns whether this call wrote the field.
+   */
   async function emitServerOp(
     companyId: CompanyId,
     lookup: FileRowLookup,
     field: 'uploaded_at' | 'variants',
     value: unknown,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const relatorioId = lookup.relatorioId;
-    const result = await applyOps(
-      db,
-      companyId,
-      [
+    const id = lookup.row.id;
+    try {
+      await applyServerBatch(
+        db,
+        companyId,
+        [
+          {
+            op_id: newId(),
+            company_id: companyId,
+            scope: relatorioId === null ? 'company' : 'relatorio',
+            project_id: null,
+            relatorio_id: relatorioId,
+            kind: 'put',
+            path: `file/${lookup.row.id}/${field}`,
+            value,
+            prev_op_id: null,
+            batch_id: null,
+            meta: null,
+            actor_id: FILES_ACTOR,
+            device_id: SERVER_DEVICE_ID,
+            client_ts: toIso(deps.now()),
+          },
+        ],
         {
-          op_id: newId(),
-          company_id: companyId,
-          scope: relatorioId === null ? 'company' : 'relatorio',
-          project_id: null,
-          relatorio_id: relatorioId,
-          kind: 'put',
-          path: `file/${lookup.row.id}/${field}`,
-          value,
-          prev_op_id: null,
-          batch_id: null,
-          meta: null,
-          actor_id: FILES_ACTOR,
-          device_id: SERVER_DEVICE_ID,
-          client_ts: toIso(deps.now()),
+          now: deps.now,
+          before: async (tx) => {
+            const current = await readFileRow(tx, companyId, id);
+            if (current !== null && current.row[field] != null) throw new FieldAlreadySet();
+          },
         },
-      ],
-      { now: deps.now, origin: 'server' },
-    );
-    const rejected = result.rejected[0];
-    if (rejected !== undefined) throw new Error(`file op rejected: ${rejected.code}`);
+      );
+      return true;
+    } catch (error) {
+      if (error instanceof FieldAlreadySet) return false;
+      throw error;
+    }
   }
 
   /** Sends the photo's plate reading and writes `running` (`jobs/reading/status.ts`); a failure is logged, never answered. */
@@ -256,11 +277,15 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
       await putObject(s3, bucket, key, body, row.mime);
     }
     // Re-read after the store: two PUTs of the same file can both have seen
-    // `uploaded_at: null` above, and only one of them may emit the op.
+    // `uploaded_at: null` above, and only one of them may emit the op (`emitServerOp`
+    // decides under the company lock; the one that did not write answers the stored time).
     const stored = await readFileRow(db, session.companyId, id);
-    const alreadyUploadedAt = stored?.row.uploaded_at ?? null;
-    const uploadedAt = alreadyUploadedAt ?? toIso(deps.now());
-    if (alreadyUploadedAt === null) await emitServerOp(session.companyId, lookup, 'uploaded_at', uploadedAt);
+    let uploadedAt = stored?.row.uploaded_at ?? null;
+    if (uploadedAt === null) {
+      const now = toIso(deps.now());
+      if (await emitServerOp(session.companyId, lookup, 'uploaded_at', now)) uploadedAt = now;
+      else uploadedAt = (await readFileRow(db, session.companyId, id))?.row.uploaded_at ?? now;
+    }
 
     // The keys are derived, never read back from the row, and whether they hold anything
     // is answered by the store: a `variants` map on the row is only ever a record of what
