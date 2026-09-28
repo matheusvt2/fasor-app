@@ -13,15 +13,20 @@ const root = resolve(import.meta.dirname, '..');
 
 /** A runner whose stages end after `ms[stage]` (fake time) with `codes[stage]`, honouring aborts. */
 function fakeRunner(codes: Record<string, number>, ms: Record<string, number>, log: string[]): StageRunner {
+  const pending = new Set<string>();
   return (stage, signal) =>
     new Promise((done) => {
       log.push(`start ${stage}`);
+      pending.add(stage);
       const timer = setTimeout(() => {
+        pending.delete(stage);
         log.push(`end ${stage}`);
         done({ exitCode: codes[stage] ?? 0, output: `${stage} output` });
       }, ms[stage] ?? 1);
       signal.addEventListener('abort', () => {
+        if (!pending.has(stage)) return;
         clearTimeout(timer);
+        pending.delete(stage);
         log.push(`stopped ${stage}`);
         done({ exitCode: 143, output: '' });
       });
@@ -29,11 +34,10 @@ function fakeRunner(codes: Record<string, number>, ms: Record<string, number>, l
 }
 
 describe('scripts/verify.ts', () => {
-  it('runs the five stages of the old chain, and the e2e suite alone in the last phase', () => {
+  it('runs the five stages of the old chain, the unit and e2e suites each alone, e2e last', () => {
     expect(stagesOf(PHASES).sort()).toEqual(['lint', 'static', 'test:api', 'test:e2e', 'test:unit']);
-    const e2ePhase = PHASES.find((phase) => phase.includes('test:e2e'))!;
-    expect(e2ePhase).toEqual(['test:e2e']);
-    expect(PHASES.at(-1)).toBe(e2ePhase);
+    expect(PHASES.find((phase) => phase.includes('test:unit'))).toEqual(['test:unit']);
+    expect(PHASES.at(-1)).toEqual(['test:e2e']);
     const pkg = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8')) as { scripts: Record<string, string> };
     expect(pkg.scripts.verify).toBe('tsx scripts/verify.ts');
     for (const stage of stagesOf(PHASES)) expect(pkg.scripts[stage], stage).toBeDefined();
@@ -41,7 +45,13 @@ describe('scripts/verify.ts', () => {
 
   it('starts every stage of a phase at once and the next phase only after all passed', async () => {
     const log: string[] = [];
-    const { exitCode, results } = await runPhases([['a', 'b'], ['c']], fakeRunner({}, { a: 20, b: 5, c: 1 }, log));
+    const alone: string[] = [];
+    const runner = fakeRunner({}, { a: 20, b: 5, c: 1 }, log);
+    const { exitCode, results } = await runPhases([['a', 'b'], ['c']], (stage, signal, isAlone) => {
+      if (isAlone) alone.push(stage);
+      return runner(stage, signal, isAlone);
+    });
+    expect(alone).toEqual(['c']);
     expect(exitCode).toBe(0);
     expect(log).toEqual(['start a', 'start b', 'end b', 'end a', 'start c', 'end c']);
     expect(results.map((r) => [r.stage, r.exitCode, r.stopped])).toEqual([

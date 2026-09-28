@@ -43,6 +43,12 @@ export default defineConfig({
   // Each group keeps its own artifacts: the serial run must not clean the parallel run's.
   outputDir: group === undefined ? 'test-results' : `test-results/${group}`,
   workers: group === 'parallel' ? PARALLEL_WORKERS : 1,
+  // Test-speed batch (2026-09-27): the parallel group hands out tests, not files, so one
+  // long file (ficha.spec.ts, about a fifth of the group's time) no longer keeps one
+  // worker busy after the others ran dry. Every test there already starts from its own
+  // reset of its worker's pair (none needs an earlier test of its file), and each worker
+  // keeps its own pair whatever file its tests come from.
+  fullyParallel: group === 'parallel',
   globalSetup: './e2e/support/global-setup.ts',
   globalTeardown: './e2e/support/global-teardown.ts',
   // Fail fast (test-speed batch, 2026-09-27): without an action timeout a click on a
