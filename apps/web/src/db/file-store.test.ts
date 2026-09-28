@@ -227,11 +227,36 @@ describe('8.1-UNIT cropSourceBlob', () => {
     await cropSourceBlob(db, other, deps);
     expect(asked).toHaveLength(1);
 
-    // An id already holding another rendering is never overwritten.
+    // An id holding the original this device picked is never overwritten (above: served as it is).
+    expect(await readLocalBlob(db, FILE_ID)).toMatchObject({ variant: 'original' });
+    db.close();
+  });
+
+  it('E8-A5: over a cached thumb, the fetched original replaces it as the crop, so two mounts fetch it once; a failed fetch keeps the thumb', async () => {
+    const db = await freshDb();
+    const asked: string[] = [];
+    const fetchFile = async (id: string, variant: string) => {
+      asked.push(`${id}:${variant}`);
+      return blobOf('served original');
+    };
+    const deps = { fetchFile, nowIso: '2026-09-28T12:00:00.000Z' };
     const thumbOnly = '019966b0-0000-7000-8000-0000000000e6';
     await putLocalBlob(db, { id: thumbOnly, blob: blobOf('t'), variant: 'thumb', createdAt: deps.nowIso });
+
+    // First mount: fetched, and kept as the crop in place of the thumb.
     expect((await cropSourceBlob(db, thumbOnly, deps))?.size).toBe('served original'.length);
-    expect((await readLocalBlob(db, thumbOnly))?.variant).toBe('thumb');
+    expect(await readLocalBlob(db, thumbOnly)).toMatchObject({ variant: 'crop', acked: true });
+    // Second mount: read locally.
+    expect((await cropSourceBlob(db, thumbOnly, deps))?.size).toBe('served original'.length);
+    expect(asked).toEqual([`${thumbOnly}:original`]);
+
+    const failing = '019966b0-0000-7000-8000-0000000000e8';
+    await putLocalBlob(db, { id: failing, blob: blobOf('t'), variant: 'thumb', createdAt: deps.nowIso });
+    const refuse = async (): Promise<Blob> => {
+      throw new Error('offline');
+    };
+    expect(await cropSourceBlob(db, failing, { fetchFile: refuse, nowIso: deps.nowIso })).toBeNull();
+    expect(await readLocalBlob(db, failing)).toMatchObject({ variant: 'thumb' });
     db.close();
   });
 
