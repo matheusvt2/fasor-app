@@ -63,6 +63,17 @@ describe('7.4-UNIT section 10 in the DOCX', () => {
     expect(structure.paragraphs.slice(at + 1, at + 4)).toEqual(['Rafael Lamonde', 'Eng. Eletricista', 'CREA 5063583141']);
     expect(structure.headings.map((h) => h.text)).toContain('10 CONCLUSÃO E OBSERVAÇÕES TÉCNICAS');
   }, 30_000);
+
+  it('E78-Q11: the Parecer box row cannot split across pages, and its title keeps with its summary', async () => {
+    const document = xml(await render(false), 'word/document.xml');
+    const tables = document.match(/<w:tbl>.*?<\/w:tbl>/gs) ?? [];
+    const box = tables.find((table) => table.includes('Resumo do parecer confirmado.'));
+    expect(box).toBeDefined();
+    expect(box).toMatch(/<w:trPr>(?:(?!<\/w:trPr>).)*<w:cantSplit(?: w:val="(?:true|1|on)")?\/>/s);
+    const title = box!.match(/<w:p>(?:(?!<\/w:p>).)*Apto com restrições.*?<\/w:p>/s)?.[0] ?? '';
+    expect(title).toMatch(/<w:keepNext(?: w:val="(?:true|1|on)")?\/>/);
+    expect(title).toMatch(/<w:keepLines(?: w:val="(?:true|1|on)")?\/>/);
+  }, 30_000);
 });
 
 describe('7.5-UNIT draft equals issued', () => {

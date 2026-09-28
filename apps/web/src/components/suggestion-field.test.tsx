@@ -2,6 +2,7 @@ import 'fake-indexeddb/auto';
 import { Blob as NodeBlob } from 'node:buffer';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { criarAnnouncement, criarText } from '@app/domain';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { openDatabase, type AppDatabase } from '../db/schema.ts';
 import { CropThumb } from './crop-thumb.tsx';
@@ -88,14 +89,14 @@ describe('8.1-UNIT SuggestionField', () => {
 });
 
 describe('8.6-UNIT SuggestionField create hint', () => {
-  it('reads "Criar Celtta?" on its Confirmar while the button keeps the kernel announcement as its name', async () => {
+  it('reads "Criar Celtta?" on its Confirmar, and its accessible name starts with those words (E78-Q13, label in name)', async () => {
     const onConfirm = vi.fn();
     render(
-      <SuggestionField label="Fabricação" combobox announcement="Sugerido, Celtta, confirmar" confirmLabel="Criar Celtta?" onConfirm={onConfirm}>
+      <SuggestionField label="Fabricação" combobox announcement={criarAnnouncement('Celtta', 'suggested')} confirmLabel={criarText('Celtta')} onConfirm={onConfirm}>
         Celtta
       </SuggestionField>,
     );
-    const button = screen.getByRole('button', { name: 'Sugerido, Celtta, confirmar' });
+    const button = screen.getByRole('button', { name: 'Criar Celtta?, sugerido' });
     expect(button).toHaveTextContent('Criar Celtta?');
     await userEvent.click(button);
     expect(onConfirm).toHaveBeenCalledOnce();

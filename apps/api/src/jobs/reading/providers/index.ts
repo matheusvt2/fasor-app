@@ -20,8 +20,11 @@ export interface ReadingProviders {
   ocr_name: string;
 }
 
-/** The providers of one attempt; the fakes key their fixture by the photo's sha256. */
-export type ReadingProvidersFactory = (ctx: { photo_sha256: string }) => ReadingProviders;
+/**
+ * The providers of one attempt; the fakes key their fixture by the photo's sha256, else by
+ * the target block type (E78-Q2: the default fixture of that type).
+ */
+export type ReadingProvidersFactory = (ctx: { photo_sha256: string; block_type: string | null }) => ReadingProviders;
 
 export interface ReadingProviderOptions {
   /** The fake fixtures directory; defaults to the committed `fixtures/`. */
@@ -35,11 +38,11 @@ export function createReadingProviders(
   options: ReadingProviderOptions = {},
 ): ReadingProvidersFactory {
   const fixturesDir = options.fixturesDir ?? DEFAULT_FIXTURES_DIR;
-  return ({ photo_sha256 }) => {
+  return ({ photo_sha256, block_type }) => {
     const ocr = (() => {
       switch (config.OCR_PROVIDER) {
         case 'fake':
-          return fakeOcrProvider(fixturesDir, photo_sha256);
+          return fakeOcrProvider(fixturesDir, photo_sha256, block_type);
         case 'ocr-svc':
           return ocrSvcProvider(config.OCR_SERVICE_URL, options.ocrTimeoutMs === undefined ? {} : { timeoutMs: options.ocrTimeoutMs });
         case 'textract':
@@ -49,7 +52,7 @@ export function createReadingProviders(
     const structuring = (() => {
       switch (config.LLM_PROVIDER) {
         case 'fake':
-          return fakeStructuringProvider(fixturesDir, photo_sha256);
+          return fakeStructuringProvider(fixturesDir, photo_sha256, block_type);
         case 'anthropic':
         case 'bedrock':
           return unimplementedStructuringProvider(config.LLM_PROVIDER);

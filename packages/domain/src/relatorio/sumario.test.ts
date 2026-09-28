@@ -15,14 +15,18 @@ import {
   fixedRowNote,
   generateReason,
   numberedSiblings,
+  printsSeedSections,
   restorableBlocks,
   sectionMovedText,
   SUMARIO_TITLES,
   sumarioMetaText,
   sumarioOpensExpanded,
   sumarioReadingMode,
+  sumarioLineOf,
   sumarioRows,
 } from './sumario.ts';
+import { exportPrecheck, type PreIssueRow } from './pre-issue.ts';
+import type { RelatorioParecer } from '../schemas/entities.ts';
 import {
   defaultTemplateFor,
   endBeforeStart,
@@ -215,9 +219,9 @@ describe('4.3-UNIT sumarioRows', () => {
     const psRows = rowsOf(ps);
     // The fixture's log has no `user` row for its responsible: the registration and the ART are gaps.
     expect(psRows[0]!.meta).toBe('Registro profissional do responsável em branco · Número da ART/TRT em branco · Logo da empresa não cadastrado');
-    expect(psRows.find((r) => r.rowKey === 'section_9')).toBeUndefined();
-    expect(psRows).toHaveLength(2);
-    // The fixture predates section blocks: a relatório with none lists the two fixed rows only.
+    // E78-Q1: the fixture predates section blocks; it lists the eleven sections it prints as virtual rows.
+    expect(psRows).toHaveLength(13);
+    expect(psRows.filter((r) => r.virtual).map((r) => r.number)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
     const withSections = { ...ps, blocks: [...ps.blocks, ...fresh().blocks.filter((b) => b.location_id === null).map((b) => ({ ...b, relatorio_id: ps.relatorio.id }))] };
     // The delivered relatório left Cubículo Enel's secondary voltage and two cabines' data blank (Story 12.3 counts them).
     expect(rowsOf(withSections).find((r) => r.rowKey === 'section_9')!.meta).toBe(
@@ -225,6 +229,81 @@ describe('4.3-UNIT sumarioRows', () => {
     );
     // Story 7.3: row 11 counts the instruments section 11 prints, then its pre-issue rows (Story 7.5: no instrument checked at setup; the fixture attaches no certificate file) (the three the sheets copied).
     expect(rowsOf(withSections).find((r) => r.rowKey === 'section_11')!.meta).toBe('3 certificados · Nenhum instrumento em Dados do relatório · 2E sem certificado · 3M sem certificado · 1T sem certificado');
+  });
+});
+
+describe('E78-Q1 sumarioRows on a snapshot with no section block', () => {
+  const NOW = new Date('2026-09-26T12:00:00.000Z');
+  const ps = buildSnapshot(replay(portoSeguro.log, { deadOpIds: portoSeguro.deadOpIds }), portoSeguro.relatorioId);
+  const parecer: RelatorioParecer = { verdict: 'apto_com_restricoes', text: null, text_status: null, text_basis: null };
+  const withParecer = (s: RelatorioSnapshot): RelatorioSnapshot => ({ ...s, relatorio: { ...s.relatorio, setup: { ...s.relatorio.setup, parecer } } });
+  const both = (s: RelatorioSnapshot) => {
+    const computed = progress(s);
+    const issues = preIssue(s, computed, { now: NOW });
+    return { issues, rows: sumarioRows(s, issues, computed) };
+  };
+
+  it('draws the eleven sections the document prints as virtual rows, row 10 blocking', () => {
+    expect(printsSeedSections(ps.blocks)).toBe(true);
+    const { rows, issues } = both(ps);
+    const numbered = numberedSiblings(rows);
+    expect(numbered.map((r) => [r.number, r.rowKey, r.virtual, r.blockId])).toEqual(Array.from({ length: 11 }, (_, i) => [i + 1, `section_${i + 1}`, true, null]));
+    expect(numbered.map((r) => r.title)).toEqual(rowsOf(fresh()).slice(2).map((r) => r.title));
+    expect(numbered.map((r) => r.kind)).toEqual(rowsOf(fresh()).slice(2).map((r) => r.kind));
+    expect(numbered.every((r) => r.siblings === 11)).toBe(true);
+    expect(numbered.filter((r) => r.expandable).map((r) => r.rowKey)).toEqual(['section_9']);
+    const row10 = rows.find((r) => r.rowKey === 'section_10')!;
+    expect(row10).toMatchObject({ number: 10, meta: 'Parecer não preenchido', blocking: true, pending: true });
+    expect(rows.filter((r) => r.blocking).map((r) => r.rowKey)).toEqual(['section_10']);
+    expect(sumarioLineOf(rows, 'section_10')).toBe(10);
+    expect(generateReason(rows, issues)).toBe('Só Conclusão e parecer (linha 10) impede gerar. O resto está escrito em cada linha.');
+    // The same rows a real row 9 would read (the counter and the cabines left blank).
+    expect(rows.find((r) => r.rowKey === 'section_9')!.meta).toBe(
+      '3 de 94 · 3 não ensaiadas · Cubículo Enel: falta a tensão secundária · 1° Subsolo: faltam 6 campos · Geradores: faltam 6 campos',
+    );
+  });
+
+  it('with the parecer set, nothing blocks and row 10 reads the verdict', () => {
+    const { rows, issues } = both(withParecer(ps));
+    expect(rows.find((r) => r.rowKey === 'section_10')).toMatchObject({ meta: 'Apto com restrições', blocking: false });
+    expect(exportPrecheck(issues).blocking).toEqual([]);
+    expect(generateReason(rows, issues)).toBe('Nada impede gerar.');
+  });
+
+  it('a relatório with section blocks never gets virtual rows', () => {
+    const rows = rowsOf(fresh());
+    expect(rows.some((r) => r.virtual)).toBe(false);
+    // Only some sections left: still no virtual row, and row 10 is gone with its block.
+    const s = fresh();
+    const some = { ...s, blocks: s.blocks.filter((b) => b.location_id !== null || ['section_1', 'section_9'].includes(b.block_type)) };
+    expect(printsSeedSections(some.blocks)).toBe(false);
+    const partial = both(some).rows;
+    expect(partial.some((r) => r.virtual)).toBe(false);
+    expect(numberedSiblings(partial).map((r) => r.rowKey)).toEqual(['section_1', 'section_9']);
+    expect(sumarioLineOf(partial, 'section_10')).toBeNull();
+  });
+
+  it('AD-2 agreement: every blocking row the dialog shows is named by the foot, and every pre-issue row lands on a Sumário row', () => {
+    const template = fresh();
+    for (const s of [ps, withParecer(ps), template, withParecer(template)]) {
+      const { rows, issues } = both(s);
+      const reason = generateReason(rows, issues);
+      for (const blocking of exportPrecheck(issues).blocking) {
+        const row = rows.find((r) => r.rowKey === blocking.row)!;
+        expect(row.blocking).toBe(true);
+        expect(reason).toContain(row.number === null ? row.title : `${row.title} (linha ${row.number})`);
+      }
+      const onRows = issues.filter((issue: PreIssueRow) => issue.row !== 'sync');
+      for (const issue of onRows) expect(rows.some((r) => r.rowKey === issue.row)).toBe(true);
+    }
+  });
+
+  it('a blocking pre-issue row with no Sumário row is still named, by its title', () => {
+    const s = fresh();
+    const { rows } = both(s);
+    const blocking: PreIssueRow = { id: 'x', row: 'section_10', severity: 'blocking', text: 'Parecer não preenchido', kind: 'parecer_missing' };
+    const without = rows.filter((r) => r.rowKey !== 'section_10');
+    expect(generateReason(without, [blocking])).toBe('Só Conclusão e parecer impede gerar. O resto está escrito em cada linha.');
   });
 });
 

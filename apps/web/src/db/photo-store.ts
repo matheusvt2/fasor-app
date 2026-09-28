@@ -30,6 +30,21 @@ export interface PhotoTile {
   reading_kind: PhotoFileRow['reading_kind'];
   /** Story 8.2: where that reading stands (`system:reading` server ops move it). */
   reading_status: PhotoFileRow['reading_status'];
+  /**
+   * E78-Q5: the op id of the newest pulled `reading_status` op of a reading photo (null for a
+   * plain photo, or while only its create set one). It changes on every status op, a
+   * `failed` written over `failed` included, so a control can wait for the next one.
+   */
+  reading_status_op_id: string | null;
+}
+
+/** The newest pulled `file/{id}/reading_status` op of a photo, by server `seq`; null when none. */
+async function readingStatusOpId(db: AppDatabase, photoId: string): Promise<string | null> {
+  const path = `file/${photoId}/reading_status`;
+  const pulled = await db.remote_ops.where('targets').equals(`file:${photoId}`).toArray();
+  let latest: { op_id: string; seq: number } | null = null;
+  for (const op of pulled) if (op.path === path && (latest === null || op.seq > latest.seq)) latest = op;
+  return latest?.op_id ?? null;
 }
 
 /** The live photos of one relatório matching `keep`, with their thumbs, in the kernel's capture order. */
@@ -44,7 +59,11 @@ async function photoTiles(db: AppDatabase, relatorioId: string, keep: (row: Phot
     if (!parsed.success) continue;
     const row = parsed.data;
     if (row.removed_at !== null || !keep(row)) continue;
-    const [thumb, blob] = await Promise.all([db.thumbs.get(row.id), db.files.get(row.id)]);
+    const [thumb, blob, statusOpId] = await Promise.all([
+      db.thumbs.get(row.id),
+      db.files.get(row.id),
+      row.reading_kind === null ? Promise.resolve(null) : readingStatusOpId(db, row.id),
+    ]);
     tiles.push({
       id: row.id,
       block_id: row.block_id,
@@ -58,6 +77,7 @@ async function photoTiles(db: AppDatabase, relatorioId: string, keep: (row: Phot
       upload_error: blob?.upload_error ?? null,
       reading_kind: row.reading_kind,
       reading_status: row.reading_status,
+      reading_status_op_id: statusOpId,
     });
   }
   return tiles.sort(comparePhotos);

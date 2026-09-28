@@ -1,5 +1,5 @@
-import { captionPhotoMetaText, PLATE_CAPTION, regionWithin, type NormalizedBox, type PlateReadingView } from '@app/domain';
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { captionPhotoMetaText, padCropToAspect, PLATE_CAPTION, regionWithin, type NormalizedBox, type PlateReadingView } from '@app/domain';
+import { useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { TextButton } from '../../components/index.ts';
 import { useCropSource } from '../../components/crop-thumb.tsx';
@@ -88,7 +88,10 @@ export function PlatePhotoRow({
             {t.readFailed}
           </p>
         ) : null}
-        {view === 'failed' && onFillManually !== null ? <FailedReading photoId={tile.id} onFillManually={onFillManually} /> : null}
+        {/* E78-Q5: keyed by the newest status op, so a tap waits for the next one (a `failed` over `failed` included). */}
+        {view === 'failed' && onFillManually !== null ? (
+          <FailedReading key={tile.reading_status_op_id ?? 'create'} photoId={tile.id} onFillManually={onFillManually} />
+        ) : null}
       </div>
     </div>
   );
@@ -97,7 +100,9 @@ export function PlatePhotoRow({
 /**
  * "Não foi possível ler": the photo stays and nothing was written. "Tentar novamente" asks the
  * server for a new reading (offline it is disabled with its reason); "Preencher manualmente"
- * takes the engineer to the first empty field.
+ * takes the engineer to the first empty field. E78-Q5: from the tap the button stays disabled
+ * until the photo's reading status moves (the caller remounts this on every status op) or the
+ * request fails, so a second tap never starts a second run.
  */
 function FailedReading({ photoId, onFillManually }: { photoId: string; onFillManually: () => void }) {
   const t = copy.ficha.nameplate;
@@ -113,8 +118,10 @@ function FailedReading({ photoId, onFillManually }: { photoId: string; onFillMan
       // The server moves the reading on (`running`, then suggestions or `failed` again); the
       // next pull brings it, now.
       .then(() => requestSyncCycle())
-      .catch(() => showToast(t.retryFailed))
-      .finally(() => setAsking(false));
+      .catch(() => {
+        setAsking(false);
+        showToast(t.retryFailed);
+      });
   };
   return (
     <>
@@ -122,7 +129,7 @@ function FailedReading({ photoId, onFillManually }: { photoId: string; onFillMan
         {t.readFailed}
       </p>
       <div className="row-wrap">
-        <TextButton isDisabled={!online} disabledReason={online ? undefined : t.retryOffline} onPress={retry}>
+        <TextButton isDisabled={!online || asking} disabledReason={!online ? t.retryOffline : asking ? t.retryAsked : undefined} onPress={retry}>
           {t.retryRead}
         </TextButton>
         <TextButton onPress={onFillManually}>{t.fillManually}</TextButton>
@@ -143,18 +150,22 @@ const pct = (n: number): string => `${Math.round(n * 1000) / 1000}%`;
  */
 export function PlateCrop({ photoId, region, focused, onOpen }: { photoId: string; region: NormalizedBox; focused: NormalizedBox | null; onOpen: () => void }) {
   const src = useObjectUrl(useCropSource(photoId));
-  const [size, setSize] = useState<{ src: string; width: number; height: number } | null>(null);
+  const box = useRef<HTMLSpanElement>(null);
+  const [size, setSize] = useState<{ src: string; width: number; height: number; boxRatio: number } | null>(null);
   const loaded = size !== null && size.src === src;
-  const [x0, y0, x1, y1] = region;
+  // E78-Q14: once the picture's size is known, the read region is widened to the box's own
+  // aspect (the kernel's `padCropToAspect`), so a tall narrow region fills the width.
+  const shown = loaded ? padCropToAspect(region, size, size.boxRatio) : region;
+  const [x0, y0, x1, y1] = shown;
   const w = x1 - x0;
   const h = y1 - y0;
   // The region's own aspect, in pixels of the picture: the view keeps it inside the box.
   const ratio = loaded ? (w * size.width) / Math.max(h * size.height, 1) : null;
-  const outline = focused === null ? null : regionWithin(region, focused);
+  const outline = focused === null ? null : regionWithin(shown, focused);
   const viewStyle = ratio === null ? undefined : ({ '--plate-crop-ratio': String(ratio) } as CSSProperties);
   return (
     <button type="button" className="plate-crop-open" onClick={onOpen} data-photo-id={photoId}>
-      <span className="plate-crop" role="img" aria-label={copy.ficha.nameplate.cropLabel}>
+      <span className="plate-crop" role="img" aria-label={copy.ficha.nameplate.cropLabel} ref={box}>
         {/* Until the picture is drawn the view fills the box over the placeholder, outline included. */}
         <span className="plate-crop-view" style={viewStyle} data-fitted={ratio === null ? undefined : ''}>
           {loaded ? null : <i className="thumb-fake" />}
@@ -164,7 +175,11 @@ export function PlateCrop({ photoId, region, focused, onOpen }: { photoId: strin
               alt=""
               hidden={!loaded}
               style={{ width: pct(100 / w), height: pct(100 / h), left: pct((-x0 / w) * 100), top: pct((-y0 / h) * 100) }}
-              onLoad={(event) => setSize({ src, width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
+              onLoad={(event) => {
+                const frame = box.current;
+                const boxRatio = frame !== null && frame.clientHeight > 0 ? frame.clientWidth / frame.clientHeight : 0;
+                setSize({ src, width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight, boxRatio });
+              }}
             />
           )}
           {outline === null ? null : (

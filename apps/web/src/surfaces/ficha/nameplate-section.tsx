@@ -164,6 +164,11 @@ export function NameplateSection({
       .catch(() => undefined);
   }
 
+  /** E78-Q4: "Criar ⟨nome⟩?" of a stored name the registry does not hold: the registry row alone. */
+  function registerWord(kind: 'manufacturer' | 'voltage_class', name: string): void {
+    void api.edit((_blocks, by) => [createWordOp(by, kind, newId(), name)]).catch(() => undefined);
+  }
+
   const chipRow =
     same === null && (lastVisit.length === 0 || own === undefined) ? null : (
       <div className="chip-row ficha-nameplate-chips" role="group" aria-label={t.chipsLabel}>
@@ -232,6 +237,7 @@ export function NameplateSection({
               registries={registries}
               blocks={snapshot.blocks}
               onCreateWord={(kind, name) => createWord(field.key, kind, name)}
+              onRegisterWord={registerWord}
               commit={(next) => (api.author === null ? undefined : api.commit([nameplateOp(api.author, api.relatorioId, block.id, field.key, next)]))}
               after={after}
             />

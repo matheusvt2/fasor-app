@@ -1,10 +1,13 @@
 import {
+  criarText,
   fieldValueText,
   formatDecimalGroupedPtBr,
   nameplateWordRecents,
   normalizeRegistryName,
   numberEchoText,
+  normalizeDateValue,
   numberFieldValue,
+  parseFieldInput,
   parseVoltageClassKv,
   screenLabel,
   wordRegistryRowText,
@@ -16,6 +19,7 @@ import {
 import { useId, useRef, useState, type ReactNode } from 'react';
 import { DateField, RegistryPickerField } from '../../components/index.ts';
 import { useNumberInput } from '../../components/number-input.tsx';
+import { copy } from '../../copy/pt-br.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { useDraftSource } from '../../state/drafts.tsx';
 
@@ -124,6 +128,11 @@ export interface FieldProps {
   blocks?: readonly BlockRow[];
   /** "Criar “…”" of a registry field: the new row's name, committed with the field. */
   onCreateWord?: (kind: 'manufacturer' | 'voltage_class', name: string) => void;
+  /**
+   * E78-Q4: "Criar ⟨nome⟩?" of a stored manufacturer the registry does not hold (a copied
+   * one): writes the registry row alone; the field already holds the name.
+   */
+  onRegisterWord?: (kind: 'manufacturer' | 'voltage_class', name: string) => void;
   /** Story 8.1: a line at the end of the field (the replace line of a differing suggestion). */
   after?: ReactNode;
 }
@@ -228,8 +237,81 @@ function NumberField({ field, value, commit, draft, missing, label, invalidText,
   );
 }
 
-function DateValueField({ field, value, commit, missing, label, after }: FieldProps) {
-  const stored = typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+const FULL_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * A date field: the date picker for an empty value or a full date (a `dd/mm/aaaa` one read
+ * in the canonical shape), else (E78-Q3: a month-only date, a year, text the kernel cannot
+ * read) a text input showing the stored value, so a value that prints is never blank here.
+ */
+function DateValueField(props: FieldProps) {
+  const canonical = normalizeDateValue(props.value);
+  if (canonical === null || canonical === undefined || (typeof canonical === 'string' && (canonical.trim() === '' || FULL_DATE.test(canonical)))) {
+    return <DatePickerField {...props} value={canonical} />;
+  }
+  return <DateTextField {...props} />;
+}
+
+/**
+ * E78-Q3: a stored date the picker cannot hold, as the kernel's text ("08/2024", "2012").
+ * Typing commits on blur or Enter what `parseFieldInput` reads (`dd/mm/aaaa`, `mm/aaaa`); a
+ * text it cannot read keeps the stored value and shows the invalid helper.
+ */
+function DateTextField({ field, value, commit, missing, label, after }: FieldProps) {
+  const id = useId();
+  const helperId = useId();
+  const storedText = fieldValueText(field, value);
+  const [text, setText] = useState(storedText);
+  const [invalid, setInvalid] = useState(false);
+  const shown = useRef(storedText);
+  if (storedText !== shown.current) {
+    shown.current = storedText;
+    setText(storedText);
+    setInvalid(false);
+  }
+  const submit = () => {
+    if (text === storedText) return;
+    const parsed = parseFieldInput(field, text);
+    if (!parsed.ok) {
+      setInvalid(true);
+      return;
+    }
+    setInvalid(false);
+    void commit(parsed.value);
+  };
+  return (
+    <div className="field" data-field-key={field.key}>
+      <label className="field-label" htmlFor={id}>
+        {screenLabel(label ?? field.label)}
+      </label>
+      <input
+        id={id}
+        className="input"
+        value={text}
+        aria-invalid={invalid || undefined}
+        aria-describedby={invalid ? helperId : undefined}
+        data-missing-field={missing ? '' : undefined}
+        onChange={(event) => {
+          setText(event.target.value);
+          setInvalid(false);
+        }}
+        onBlur={submit}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') submit();
+        }}
+      />
+      {invalid ? (
+        <span className="helper" data-tone="red" id={helperId}>
+          {copy.ficha.nameplate.invalidDate}
+        </span>
+      ) : null}
+      {after}
+    </div>
+  );
+}
+
+function DatePickerField({ field, value, commit, missing, label, after }: FieldProps) {
+  const stored = typeof value === 'string' && FULL_DATE.test(value) ? value : null;
   const [date, setDate] = useState(stored);
   const committed = useRef(stored);
   const committer = useFieldCommit<string | null>({ commit: (next) => commit(next) });
@@ -288,7 +370,7 @@ function SelectField({ field, value, commit, missing, label, selectEmpty, after 
   );
 }
 
-function WordField({ field, value, commit, missing, label, registries, blocks, onCreateWord, after }: FieldProps) {
+function WordField({ field, value, commit, missing, label, registries, blocks, onCreateWord, onRegisterWord, after }: FieldProps) {
   const kind = field.kind as 'manufacturer' | 'voltage_class';
   const rows = registries?.[kind] ?? [];
   const current = typeof value === 'string' ? value : null;
@@ -299,6 +381,14 @@ function WordField({ field, value, commit, missing, label, registries, blocks, o
   // which must not clear the value the "Criar" just wrote.
   const created = useRef<string | null>(null);
   if (created.current !== null && selected !== null && current === created.current) created.current = null;
+  // E78-Q4: a stored manufacturer the registry does not hold shows its name and "Criar ⟨nome⟩?",
+  // until the tap's registry row lands (one tap, one create).
+  const [registering, setRegistering] = useState<string | null>(null);
+  if (registering !== null && (selected !== null || current !== registering)) setRegistering(null);
+  const unregistered =
+    kind === 'manufacturer' && onRegisterWord !== undefined && current !== null && current.trim() !== '' && selected === null && created.current === null && registering === null
+      ? current
+      : null;
   return (
     <div className="field" data-field-key={field.key} data-missing-field={missing ? '' : undefined}>
       <RegistryPickerField
@@ -323,6 +413,21 @@ function WordField({ field, value, commit, missing, label, registries, blocks, o
           return wordLabel(kind, name);
         }}
       />
+      {unregistered === null ? null : (
+        <span className="helper word-unregistered">
+          <span className="word-unregistered-name">{unregistered}</span>
+          <button
+            type="button"
+            className="btn btn-text"
+            onClick={() => {
+              setRegistering(unregistered);
+              onRegisterWord?.(kind, unregistered);
+            }}
+          >
+            {criarText(unregistered)}
+          </button>
+        </span>
+      )}
       {after}
     </div>
   );

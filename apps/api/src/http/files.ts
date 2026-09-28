@@ -27,7 +27,7 @@ import type { CompanyId } from '../db/repositories/company-id.ts';
 import { entities } from '../db/schema.ts';
 import { newId } from '../ids.ts';
 import type { ReadingPayload } from '../jobs/reading/payload.ts';
-import { startReading } from '../jobs/reading/status.ts';
+import { ReadingSendError, startReading, writeReadingFailed } from '../jobs/reading/status.ts';
 import { log, logError } from '../log.ts';
 import { getObject, headObject, putObject } from '../storage/s3.ts';
 import { hasVariants, renderVariants } from '../storage/variants.ts';
@@ -187,7 +187,11 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
     }
   }
 
-  /** Sends the photo's plate reading and writes `running` (`jobs/reading/status.ts`); a failure is logged, never answered. */
+  /**
+   * Sends the photo's plate reading and writes `running` (`jobs/reading/status.ts`); a failure
+   * is logged, never answered. E78-Q7: when the send itself fails (nothing was queued) the
+   * photo is marked `failed`, so the device offers "Tentar novamente" instead of waiting forever.
+   */
   async function queueReading(companyId: CompanyId, lookup: FileRowLookup): Promise<void> {
     const fields = { company_id: companyId, relatorio_id: lookup.relatorioId, file_id: lookup.row.id };
     const enqueue = deps.enqueueReading;
@@ -204,6 +208,12 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
       );
     } catch (error) {
       logError('reading enqueue failed', { ...fields, error: String(error) });
+      if (!(error instanceof ReadingSendError)) return;
+      try {
+        await writeReadingFailed({ db, now: deps.now, newId }, companyId, { id: lookup.row.id, relatorioId: lookup.relatorioId }, 'queued');
+      } catch (writeError) {
+        logError('reading failed status not written', { ...fields, error: String(writeError) });
+      }
     }
   }
 

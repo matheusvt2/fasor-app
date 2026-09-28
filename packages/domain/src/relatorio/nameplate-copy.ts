@@ -3,6 +3,7 @@ import { getDefinition } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import { plural } from '../text/plural.ts';
 import { isCellFilled, isEquipmentBlock } from './sheet-state.ts';
+import { normalizeDateValue } from '../format/datetime.ts';
 
 /*
  * Story 5.3, FR-34, AR-24: the two copy chips of an empty nameplate group.
@@ -108,7 +109,8 @@ export function lastNameplateCopy(equipment: Pick<EquipmentRow, 'last_nameplate'
     if (!Object.hasOwn(fields, field.key)) continue;
     const value = fields[field.key];
     if (!isCellFilled({ value: value as JsonValue, source_suggestion_id: null, op_id: '' })) continue;
-    out.push({ fieldKey: field.key, value });
+    // E78-Q3: a date copied in the canonical shape when it has one ("07/2025" becomes "2025-07"; "2012" stays).
+    out.push({ fieldKey: field.key, value: field.kind === 'date' ? normalizeDateValue(value) : value });
   }
   return out;
 }

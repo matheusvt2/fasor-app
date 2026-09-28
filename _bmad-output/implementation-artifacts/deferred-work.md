@@ -966,7 +966,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: A reading whose last attempt never returns (the api process dies mid-read, or the attempt outlives `expireInSeconds: 300`) is failed by pg-boss without `runReadingJob` seeing it, so nothing writes `reading_status = failed` and the photo stays `running` on the device, where "Tentar novamente" never shows. A dead-letter queue (`deadLetter` on the `reading` queue, its worker writing `failed` when the status is still `running`) or a boot-time sweep would close it.
   evidence: `apps/api/src/jobs/reading/worker.ts` computes `lastAttempt` only for attempts that run to completion; no `deadLetter` or failed-job handler (review pass 2026-09-27, Edge Case Hunter and Verification Gap).
   class: debt
-  state: open (owner: Epic 8 integrated fix batch)
+  state: ~~open (owner: Epic 8 integrated fix batch)~~ closed (2026-09-28, `spec-epic-7-8-fix-qa.md`, E78-Q6: the `reading` queue gets the dead letter queue `reading-dead` (created first; an existing queue is updated), and its worker writes `failed` as `system:reading` while the photo is still `running` and no job of its singleton key is queued or active. Covered by `job.integration.test.ts` with a provider that never answers and a 1 s expiry. A send that fails at file receipt now writes `failed` too, E78-Q7)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-test-speed.md`
   summary: The gate still runs over its 15-minute budget on the 4-core laptop, and the e2e cost per step is the device's: each commit rebuilds the relatório's whole snapshot through its live query (`toSnapshot` + `buildSnapshot`, about 223 ops of a standard relatório), so under CPU contention a commit's render lands late. That is why the tap-timing specs (12.1-E2E-007 lost its tap in 1 of 5 repeats beside other workers) must run alone in the serial group, and why `signIn`/`pushDrafts` cost twice as much per call at 3 workers. An incremental snapshot (or a narrower live query per surface) would shorten every e2e step and the field device's own latency.
@@ -984,10 +984,34 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: A confirmed month-only date suggestion (`2024-08`, the fixture's DATA FABRICAÇÃO) shows blank in the plain date field once the cell holds it; found in Story 8.1's path, seen by batch P.
   evidence: `apps/web/src/surfaces/ficha/ficha-fields.tsx` date kind; kernel `parseFieldInput` accepts `mm/aaaa`.
   class: deferred
-  state: open (owner: integrated Epic 8 fix batch)
+  state: ~~open (owner: integrated Epic 8 fix batch)~~ closed (2026-09-28, `spec-epic-7-8-fix-qa.md`, E78-Q3: `DateValueField` keeps the date picker for an empty value or a full date and shows any other stored value as the kernel's text (`dateFieldText`) in a text input committing `parseFieldInput`; the reading parse and "Copiar da última visita" store a month or day in the canonical shape (`normalizeDateValue`). Covered by `e2e/nameplate-values.spec.ts` and the kernel tests)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-8-2-8-6-plate-capture-and-confirm.md`
   summary: `@p1` 7.3-E2E-001 (`e2e/photo-numbers.spec.ts`) fails in `test:e2e:full` and alone on the batch P branch: the Export dialog lists "Parecer não preenchido" and keeps "Gerar relatório" disabled while the Sumário foot says "Nada impede gerar". It fails the same with batch P's pre-issue and Export changes reverted, so it is read as pre-existing from Stories 7.2 to 7.5 (not in `verify`, which tags `@p0`).
   evidence: batch P `test:e2e:full` 2026-09-28 (223 passed, 1 failed, 4 skipped); isolated reruns with and without `pre-issue.ts`/`surfaces/export/*` of this branch.
   class: deferred
-  state: open (owner: Epic 8 integrated review; confirm on clean main first)
+  state: ~~open (owner: Epic 8 integrated review; confirm on clean main first)~~ closed (2026-09-28, `spec-epic-7-8-fix-qa.md`, E78-Q1: confirmed on clean main with two causes. The test now sets the parecer before generating, and counts the section 11 page breaks from its own heading (section 9's sheets break pages of their own). The kernel draws the eleven printed sections as virtual Sumário rows on a relatório with no section block, so the foot and the dialog both name "linha 10"; `@p0` 7.5-E2E-006 covers it)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-7-8-fix-qa.md`
+  summary: Narrowing, E78-Q1. A relatório with no live section block (the Porto Seguro fixtures, a legacy relatório) lists the eleven sections it prints as virtual Sumário rows, which cannot be moved, removed, duplicated or given a section below them, and whose text rows (2, 4, 5, 6) do not open the section text editor (it needs a block). Giving such a relatório its section blocks is a migration no story owns.
+  evidence: `packages/domain/src/relatorio/sumario.ts` `virtualSectionRows`; `apps/web/src/surfaces/relatorio/sumario-row.tsx` (`StaticPosition`).
+  class: deferred
+  state: open (owner: none)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-7-8-fix-qa.md`
+  summary: Narrowing, E78-Q2. Under the `fake` providers only `transformador_forca` has a default fixture: a plate photographed through the app on any other type still fails permanently at its first attempt ("no fixture for block type ..."). Adding a default per type needs a synthetic plate for it.
+  evidence: `apps/api/src/jobs/reading/providers/fake.ts` `DEFAULT_FIXTURE_BY_BLOCK_TYPE`.
+  class: deferred
+  state: open (owner: none)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-7-8-fix-qa.md`
+  summary: Narrowing, E78-Q5. "Tentar novamente" waits for the photo's next reading status op in component state: a reload before that op arrives offers it again. The route still answers 409 while the reading is `running`, so the only second run left is one asked after the job already ended.
+  evidence: `apps/web/src/surfaces/ficha/plate-photo.tsx` `FailedReading` (keyed by `reading_status_op_id`); `apps/api/src/http/reading.ts`.
+  class: deferred
+  state: open (owner: none)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-7-8-fix-qa.md`
+  summary: Narrowing, E78-Q6. A reading job sent before its queue got the `reading-dead` dead letter (a job already queued when the api first runs this code) carries no dead letter, so its dying last attempt still leaves the photo `running`; every job sent after it is covered.
+  evidence: pg-boss copies the queue's dead letter onto a job at send time (`COALESCE(deadLetter, q.dead_letter)`); `apps/api/src/jobs/reading/worker.ts` `ensureReadingQueue`.
+  class: deferred
+  state: open (owner: none)

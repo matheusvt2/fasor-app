@@ -254,7 +254,8 @@ export function fieldValueText(field: Pick<FieldDef, 'kind'>, value: unknown): s
     const number = value as { raw: string; state?: string };
     return number.state === 'empty' ? '' : formatDecimalGroupedPtBr(number.raw);
   }
-  if (field.kind === 'date' && typeof value === 'string') return formatCalendarDate(value);
+  // E78-Q3: a date in another shape ("07/2025", "2012") shows as stored, never blank.
+  if (field.kind === 'date' && typeof value === 'string') return formatCalendarDate(value) || value;
   return typeof value === 'string' ? value : String(value);
 }
 

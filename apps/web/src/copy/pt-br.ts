@@ -877,6 +877,8 @@ export const copy = {
       retryOffline: 'Sem conexão',
       // authored: the server did not take the new reading.
       retryFailed: 'Não foi possível pedir a nova leitura',
+      // authored (E78-Q5): why "Tentar novamente" waits after a tap, until the reading moves.
+      retryAsked: 'Nova leitura pedida',
       cropLabel: 'Recorte da placa lida — as regiões marcam os campos sugeridos',
       // authored: the plate photo tile's name (`60-ficha.html` "Foto 3, placa — abrir").
       plateTileLabel: (n: number | null) => (n === null ? 'Foto da placa — abrir' : `Foto ${n}, placa — abrir`),

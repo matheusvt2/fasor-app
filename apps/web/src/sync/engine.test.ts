@@ -17,7 +17,7 @@ import { openDatabase, type AppDatabase } from '../db/schema.ts';
 import type { Timers } from '../input/field-commit.ts';
 import { SyncRequestError, type SyncClient, type SyncFailure } from './client.ts';
 import { followOnlineEvents } from './online.ts';
-import { createSyncEngine, type EngineStatus, type SyncEngine, type SyncEngineDeps } from './engine.ts';
+import { createSyncEngine, READING_POLL_INTERVAL_MS, READING_POLL_WINDOW_MS, SYNC_INTERVAL_MS, type EngineStatus, type SyncEngine, type SyncEngineDeps } from './engine.ts';
 
 /*
  * The engine over an in-memory server and a controllable clock. The server
@@ -233,10 +233,12 @@ interface Harness {
   fireOnline: () => void;
 }
 
-async function harness(overrides: Partial<SyncEngineDeps> = {}): Promise<Harness> {
+async function harness(overrides: Partial<SyncEngineDeps> = {}, options: { clockNow?: boolean } = {}): Promise<Harness> {
   const db = await freshDb();
   const server = new FakeServer();
   const clock = fakeClock();
+  // `clockNow`: the engine's clock reads the fake timers' time (E78-Q8's window), not a counter.
+  const base = Date.parse('2026-09-21T16:00:00.000Z');
   const changes: EngineStatus[] = [];
   const online = { value: true };
   const onReAuth = vi.fn();
@@ -248,7 +250,7 @@ async function harness(overrides: Partial<SyncEngineDeps> = {}): Promise<Harness
     client: server,
     timers: clock.timers,
     random: () => 0,
-    now: () => new Date((t += 1000)),
+    now: options.clockNow ? () => new Date(base + clock.now()) : () => new Date((t += 1000)),
     newId: ids('019966b0-0012-7000-8000-'),
     isOnline: () => online.value,
     onReAuth,
@@ -1210,6 +1212,69 @@ describe('6.2 photo uploads', () => {
       subscribeOnline: () => () => {},
     });
   }
+
+  /** Sets a photo's stored reading status as a pulled `system:reading` op would. */
+  async function readingStatus(h: Harness, id: string, value: 'running' | 'done'): Promise<void> {
+    const record = (await h.db.entities.get(['file', id]))!;
+    await h.db.entities.put({ ...record, row: { ...(record.row as object), reading_status: value } as typeof record.row });
+  }
+
+  describe('E78-Q8 the reading cadence', () => {
+    const cycles = (h: Harness) => companyPulls(h).length;
+
+    it('while a photo is running: a cycle every 5 s, for at most 120 s from the first that saw it, then every 60 s', async () => {
+      expect([READING_POLL_INTERVAL_MS, READING_POLL_WINDOW_MS, SYNC_INTERVAL_MS]).toEqual([5_000, 120_000, 60_000]);
+      const h = await harness({}, { clockNow: true });
+      await shoot(h, PHOTO_1, '2026-09-21T16:10:00.000Z', 'queued');
+      await readingStatus(h, PHOTO_1, 'running');
+      h.engine.start();
+      await waitFor(() => cycles(h) === 1 && !h.engine.status().running, 'the launch cycle');
+      await h.clock.advance(5_000);
+      expect(cycles(h)).toBe(2);
+      await h.clock.advance(4_999);
+      expect(cycles(h)).toBe(2);
+      await h.clock.advance(1);
+      expect(cycles(h)).toBe(3);
+      // The rest of the 120 s window: one cycle every 5 s (24 in all, the launch one included).
+      await h.clock.advance(110_000);
+      expect(cycles(h)).toBe(25);
+      // Past the window, still running: back to 60 s.
+      await h.clock.advance(5_000);
+      expect(cycles(h)).toBe(25);
+      await h.clock.advance(55_000);
+      expect(cycles(h)).toBe(26);
+      // The reading ends: the next cycle sees none and the window closes; a new running photo opens a new one.
+      await readingStatus(h, PHOTO_1, 'done');
+      await h.clock.advance(60_000);
+      expect(cycles(h)).toBe(27);
+      await readingStatus(h, PHOTO_1, 'running');
+      await h.clock.advance(60_000);
+      expect(cycles(h)).toBe(28);
+      await h.clock.advance(5_000);
+      expect(cycles(h)).toBe(29);
+      h.engine.stop();
+      h.db.close();
+    });
+
+    it('a cycle that first sees a running photo brings the pending 60 s tick forward to 5 s; offline, no cycle runs', async () => {
+      const h = await harness({}, { clockNow: true });
+      await shoot(h, PHOTO_1, '2026-09-21T16:10:00.000Z', 'queued');
+      h.engine.start();
+      await waitFor(() => cycles(h) === 1 && !h.engine.status().running, 'the launch cycle');
+      await h.clock.advance(20_000);
+      expect(cycles(h)).toBe(1);
+      await readingStatus(h, PHOTO_1, 'running');
+      h.engine.nudge();
+      await waitFor(() => cycles(h) === 2 && !h.engine.status().running, 'the nudged cycle');
+      await h.clock.advance(5_000);
+      expect(cycles(h)).toBe(3);
+      h.online.value = false;
+      await h.clock.advance(30_000);
+      expect(cycles(h)).toBe(3);
+      h.engine.stop();
+      h.db.close();
+    });
+  });
 
   it('uploads a waiting reading first, then photos by captured_at, then the other kinds', async () => {
     const h = await harness();

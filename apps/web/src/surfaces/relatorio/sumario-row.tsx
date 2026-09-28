@@ -90,14 +90,30 @@ export function FixedRow({ row, onOpen, highlighted = false }: { row: Row; onOpe
 }
 
 /**
+ * E78-Q1: a virtual row's number (a section the document prints with no block behind it):
+ * the `.sum-pos` circle as static text, never the Position box, since there is nothing to move.
+ */
+const StaticPosition = ({ row }: { row: Row }) => <span className="sum-pos">{row.number}</span>;
+
+/**
  * A numbered row: its number is the Position box (typing another moves it), the body
  * opens the object for the kinds that have one, and the Overflow holds the reorder
- * actions. Alt+Up/Down anywhere in the row moves it (`useReorder`).
+ * actions. Alt+Up/Down anywhere in the row moves it (`useReorder`). A virtual row (E78-Q1)
+ * draws its number as static text, with no Overflow and no move.
  */
 export function NumberedRow({ row, actions, openable, highlighted = false }: { row: Row; actions: RowActions; openable: boolean; highlighted?: boolean }) {
   const reorder = useReorder({ itemKey: row.key, position: row.position, siblings: row.siblings, onMove: (to) => actions.onMove(row, to), focusFrames: LIST_FOCUS_WATCH_FRAMES });
   const menu = rowMenu(row, reorder, actions);
   const className = ['sum-row', row.pending && 'has-pend', highlighted && 'is-highlighted'].filter(Boolean).join(' ');
+  if (row.virtual) {
+    return (
+      <li className={className} data-row={row.rowKey} data-virtual="">
+        <StaticPosition row={row} />
+        <RowOpen row={row} onOpen={openable ? actions.onOpen : undefined} />
+        <span className="sum-ctrls">{openable ? <Chevron onOpen={() => actions.onOpen(row)} /> : null}</span>
+      </li>
+    );
+  }
   return (
     <li className={className} data-row={row.rowKey} data-block-id={row.blockId ?? undefined} {...reorder.rowProps}>
       <PositionBox
@@ -137,7 +153,7 @@ export function Section9Row({ row, actions, expanded, onToggle, children, chevro
   const treeId = useId();
   const className = ['sum-row', 'sum-s9', expanded && 'is-open', row.pending && 'has-pend', highlighted && 'is-highlighted'].filter(Boolean).join(' ');
   return (
-    <li className={className} data-row={row.rowKey} data-block-id={row.blockId ?? undefined} {...reorder.rowProps}>
+    <li className={className} data-row={row.rowKey} data-block-id={row.blockId ?? undefined} data-virtual={row.virtual ? '' : undefined} {...(row.virtual ? {} : reorder.rowProps)}>
       <div className="sum-s9-head">
         <button
           type="button"
@@ -152,17 +168,21 @@ export function Section9Row({ row, actions, expanded, onToggle, children, chevro
             <use href="/sprite.svg#i-chev-down" />
           </svg>
         </button>
-        <PositionBox
-          name={row.title}
-          position={row.position}
-          siblings={row.siblings}
-          reorder={reorder}
-          className="sum-pos"
-          label={copy.sumario.positionLabel(row.title)}
-        />
+        {row.virtual ? (
+          <StaticPosition row={row} />
+        ) : (
+          <PositionBox
+            name={row.title}
+            position={row.position}
+            siblings={row.siblings}
+            reorder={reorder}
+            className="sum-pos"
+            label={copy.sumario.positionLabel(row.title)}
+          />
+        )}
         <RowBody row={row} />
         <span className="sum-ctrls">
-          <OverflowMenu name={row.title} items={menu.items} destructiveItems={menu.destructiveItems} />
+          {row.virtual ? null : <OverflowMenu name={row.title} items={menu.items} destructiveItems={menu.destructiveItems} />}
         </span>
       </div>
       <p className="s9-note">{copy.sumario.s9Note}</p>

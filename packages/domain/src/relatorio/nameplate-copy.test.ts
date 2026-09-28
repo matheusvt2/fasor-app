@@ -104,6 +104,21 @@ describe('5.3-UNIT lastNameplateCopy (AR-24)', () => {
   });
 });
 
+describe('E78-Q3 lastNameplateCopy of a date', () => {
+  it('copies a date in the canonical shape when it has one, else as stored', () => {
+    const TR = getDefinition('v1', 'cabine_primaria', 'transformador_forca');
+    const copyOf = (data_fabricacao: string) =>
+      lastNameplateCopy(
+        equipment(1, { last_nameplate: { relatorio_id: OTHER_REL, revision_number: 1, issued_at: '2025-03-01T10:00:00.000Z', seed_version: 'v1', block_type: 'transformador_forca', fields: { data_fabricacao } } }),
+        TR,
+      );
+    expect(copyOf('07/2025')).toEqual([{ fieldKey: 'data_fabricacao', value: '2025-07' }]);
+    expect(copyOf('15/03/2019')).toEqual([{ fieldKey: 'data_fabricacao', value: '2019-03-15' }]);
+    expect(copyOf('2024-08')).toEqual([{ fieldKey: 'data_fabricacao', value: '2024-08' }]);
+    expect(copyOf('2012')).toEqual([{ fieldKey: 'data_fabricacao', value: '2012' }]);
+  });
+});
+
 describe('12.3-UNIT per-unit fields and the TAG prefill (D-3, J-09)', () => {
   /** A filled value of the field's kind. */
   const sample = (field: FieldDef): unknown => {

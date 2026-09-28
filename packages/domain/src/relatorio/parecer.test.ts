@@ -10,6 +10,7 @@ import {
   composeParecer,
   parecerBoxText,
   parecerBoxTone,
+  parecerCounts,
   parecerHintText,
   parecerTextForPrint,
   parecerTextState,
@@ -82,8 +83,26 @@ describe('7.4-UNIT suggestParecer (I/O matrix)', () => {
     const oneUntested = mapSheets(base, (b, i) => (i === 2 ? untested(b, 'impossibilidade_desligamento') : conclude(b, 'aprovado', 'sem_restricoes')));
     expect(suggestParecer(oneUntested)).toBe('apto_com_restricoes');
     expect(parecerHintText('apto_com_restricoes', oneUntested)).toBe(
-      'Sugerido pelas contagens: Apto com restrições? — 3 de 3 fichas concluídas, 1 não ensaiada. A escolha é sua: um toque.',
+      'Sugerido pelas contagens: Apto com restrições? — 2 de 3 fichas concluídas, 1 não ensaiada. A escolha é sua: um toque.',
     );
+  });
+
+  it('E78-Q9: the hint\'s "N de M fichas concluídas" is the Critérios line\'s "N concluídas" (one count, not tested apart)', () => {
+    const base = withSheets(5);
+    const cases = [
+      mapSheets(base, (b, i) => (i === 0 ? untested(b, 'impossibilidade_desligamento') : i === 1 ? conclude(b, 'aprovado', 'com_restricoes') : b)),
+      mapSheets(base, (b, i) => (i < 2 ? untested(b, 'outro', 'sem acesso') : conclude(b, 'aprovado', 'sem_restricoes'))),
+      mapSheets(base, (b) => untested(b, 'impossibilidade_desligamento')),
+    ];
+    for (const snapshot of cases) {
+      const counts = parecerCounts(snapshot);
+      const hint = parecerHintText(suggestParecer(snapshot), snapshot)!;
+      const concluded = composeParecer(snapshot).criteriaItems[1]!;
+      expect(hint).toContain(`— ${counts.concluded} de ${counts.total} fichas concluídas`);
+      expect(concluded).toBe(`${counts.concluded} ${counts.concluded === 1 ? 'concluída' : 'concluídas'}`);
+    }
+    expect(parecerCounts(cases[0]!)).toMatchObject({ total: 5, concluded: 1, open: 3 });
+    expect(parecerCounts(cases[2]!)).toMatchObject({ total: 5, concluded: 0, open: 0 });
   });
 
   it('suggests nothing with no sheet, with sheets open and no restriction, or a Reprovado with no restriction; never Não apto', () => {

@@ -5,11 +5,13 @@ import {
   arrivedReadingsCount,
   singleSourcePhotoId,
   confirmAllCandidates,
+  criarAnnouncement,
   criarText,
   hasCreateHint,
   leiturasNaFilaText,
   leiturasProntasText,
   PLATE_CAPTION,
+  padCropToAspect,
   plateCropRegion,
   platePhotoOf,
   plateReadingView,
@@ -144,6 +146,9 @@ describe('8.5/8.6-UNIT the create hint and the typed unknown manufacturer', () =
     expect(hasCreateHint(celtta(), [{ name: '  CELTTA ', removed_at: null }])).toBe(false);
     expect(hasCreateHint(suggestion('fabricacao', 'Schneider'), registry)).toBe(false);
     expect(criarText('Celtta')).toBe('Criar Celtta?');
+    // E78-Q13: the Confirmar's accessible name starts with its visible words (label in name).
+    expect(criarAnnouncement('Celtta', 'suggested')).toBe('Criar Celtta?, sugerido');
+    expect(criarAnnouncement('Celtta', 'verify')).toBe('Criar Celtta?, verificar');
   });
 
   it('keeps a create fill out of Confirmar todos and counts it apart; a known name is a plain fill', () => {
@@ -195,5 +200,34 @@ describe('8.2/8.6-UNIT the texts', () => {
     expect(leiturasNaFilaText(1)).toBe('1 leitura na fila');
     expect(sugestoesProntasBannerText(9)).toBe('Sugestões prontas — 9 campos para confirmar');
     expect(sugestoesProntasBannerText(1)).toBe('Sugestões prontas — 1 campo para confirmar');
+  });
+});
+
+describe('E78-Q14 padCropToAspect', () => {
+  const IMAGE = { width: 1600, height: 1100 };
+  const round = (box: readonly number[]) => box.map((n) => Number(n.toFixed(4)));
+  const aspect = (box: readonly number[]) => ((box[2]! - box[0]!) * IMAGE.width) / ((box[3]! - box[1]!) * IMAGE.height);
+
+  it('widens a tall narrow region symmetrically to the minimum aspect, keeping its height', () => {
+    const out = padCropToAspect([0.45, 0.4, 0.55, 0.6], IMAGE, 3);
+    expect(aspect(out)).toBeCloseTo(3, 6);
+    expect(out[0]).toBeCloseTo(0.29375, 6);
+    expect(out[2]).toBeCloseTo(0.70625, 6);
+    expect([out[1], out[3]]).toEqual([0.4, 0.6]);
+    expect((out[0] + out[2]) / 2).toBeCloseTo(0.5, 6);
+  });
+
+  it('shifts the region to stay inside the picture, and stops at the full width', () => {
+    expect(round(padCropToAspect([0, 0.4, 0.1, 0.6], IMAGE, 3))).toEqual([0, 0.4, 0.4125, 0.6]);
+    expect(round(padCropToAspect([0.95, 0.4, 1, 0.6], IMAGE, 3))).toEqual([0.5875, 0.4, 1, 0.6]);
+    expect(round(padCropToAspect([0.45, 0.1, 0.55, 0.9], IMAGE, 4.2))).toEqual([0, 0.1, 1, 0.9]);
+  });
+
+  it('keeps a region already wide enough, and a degenerate input, as they are', () => {
+    const wide = [0.1, 0.4, 0.9, 0.5] as const;
+    expect(padCropToAspect(wide, IMAGE, 3)).toBe(wide);
+    const flat = [0.1, 0.4, 0.2, 0.4] as const;
+    expect(padCropToAspect(flat, IMAGE, 3)).toBe(flat);
+    expect(padCropToAspect(wide, { width: 0, height: 0 }, 3)).toBe(wide);
   });
 });

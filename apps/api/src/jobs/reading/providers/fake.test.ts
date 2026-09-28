@@ -4,7 +4,8 @@ import { tmpdir } from 'node:os';
 import { join, relative, resolve } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { isPermanentReadingError, PermanentReadingError, ProviderError, ProviderNotImplementedError, ProviderTimeoutError } from './errors.ts';
-import { DEFAULT_FIXTURES_DIR, fakeOcrProvider, fakeReadingFixtureSchema, fakeStructuringProvider } from './fake.ts';
+import sharp from 'sharp';
+import { DEFAULT_FIXTURE_BY_BLOCK_TYPE, DEFAULT_FIXTURES_DIR, fakeOcrProvider, fakeReadingFixtureSchema, fakeStructuringProvider } from './fake.ts';
 import { createReadingProviders } from './index.ts';
 
 /*
@@ -89,21 +90,59 @@ describe('8.4-API committed fake fixtures', () => {
   });
 });
 
+describe('E78-Q2 the fake falls back to the block type\'s default fixture', () => {
+  const NO_FIXTURE = 'e'.repeat(64);
+  const jpeg = async (width: number, height: number) =>
+    ({ bytes: new Uint8Array(await sharp({ create: { width, height, channels: 3, background: { r: 200, g: 200, b: 200 } } }).jpeg().toBuffer()), mime: 'image/jpeg' as const });
+
+  it('a transformer photo with no fixture of its own replays the synthetic plate, its boxes scaled to the image read', async () => {
+    expect(DEFAULT_FIXTURE_BY_BLOCK_TYPE.transformador_forca).toBe(PLATE_SHA);
+    const own = await fakeOcrProvider(DEFAULT_FIXTURES_DIR, PLATE_SHA).read(image);
+    const scaled = await fakeOcrProvider(DEFAULT_FIXTURES_DIR, NO_FIXTURE, 'transformador_forca').read(await jpeg(800, 550));
+    expect(scaled.image).toEqual({ width: 800, height: 550 });
+    expect(scaled.tokens.map((t) => t.text)).toEqual(own.tokens.map((t) => t.text));
+    expect(scaled.tokens[0]!.bbox).toEqual(own.tokens[0]!.bbox.map((n) => n / 2));
+    // Any size, even one that does not keep the plate's aspect; every box stays inside the image.
+    const odd = await fakeOcrProvider(DEFAULT_FIXTURES_DIR, NO_FIXTURE, 'transformador_forca').read(await jpeg(1000, 700));
+    expect(odd.image).toEqual({ width: 1000, height: 700 });
+    expect(odd.tokens.every(({ bbox: [x0, y0, x1, y1] }) => x0 < x1 && y0 < y1 && x1 <= 1000 && y1 <= 700)).toBe(true);
+    const structured = await fakeStructuringProvider(DEFAULT_FIXTURES_DIR, NO_FIXTURE, 'transformador_forca').structure({ image, ocr: scaled, fields: [] });
+    expect(structured.output.values).toHaveLength(11);
+    expect(structured.model).toBe('fake');
+  });
+
+  it('a photo\'s own fixture wins over the default', async () => {
+    const own = await fakeOcrProvider(DEFAULT_FIXTURES_DIR, sha256(join(IMAGES, 'plate-error.png')), 'transformador_forca').read(image).catch((error: unknown) => error);
+    expect(own).toBeInstanceOf(ProviderError);
+  });
+
+  it('any other block type with no fixture fails permanently, naming the type', async () => {
+    const error = await failure(fakeOcrProvider(DEFAULT_FIXTURES_DIR, NO_FIXTURE, 'disjuntor').read(await jpeg(80, 60)));
+    expect(error).toBeInstanceOf(PermanentReadingError);
+    expect(String((error as Error).message)).toContain('no fixture for block type disjuntor');
+    expect(await failure(fakeStructuringProvider(DEFAULT_FIXTURES_DIR, NO_FIXTURE, null).structure({ image, ocr: { image: { width: 1, height: 1 }, tokens: [], preprocessing_applied: false }, fields: [] }))).toBeInstanceOf(
+      PermanentReadingError,
+    );
+    // The default fixture missing from the directory is permanent too.
+    expect(await failure(fakeOcrProvider(scratch, NO_FIXTURE, 'transformador_forca').read(await jpeg(80, 60)))).toBeInstanceOf(PermanentReadingError);
+  });
+});
+
 describe('8.4-API provider switch', () => {
   const base = { OCR_SERVICE_URL: 'http://ocr:8000' };
 
   it('fake by default names the fake OCR; ocr-svc builds the sidecar adapter without calling it', () => {
-    expect(createReadingProviders({ ...base, OCR_PROVIDER: 'fake', LLM_PROVIDER: 'fake' })({ photo_sha256: PLATE_SHA }).ocr_name).toBe('fake');
-    expect(createReadingProviders({ ...base, OCR_PROVIDER: 'ocr-svc', LLM_PROVIDER: 'fake' })({ photo_sha256: PLATE_SHA }).ocr_name).toBe('ocr-svc');
+    expect(createReadingProviders({ ...base, OCR_PROVIDER: 'fake', LLM_PROVIDER: 'fake' })({ photo_sha256: PLATE_SHA, block_type: null }).ocr_name).toBe('fake');
+    expect(createReadingProviders({ ...base, OCR_PROVIDER: 'ocr-svc', LLM_PROVIDER: 'fake' })({ photo_sha256: PLATE_SHA, block_type: null }).ocr_name).toBe('ocr-svc');
   });
 
   it('textract, anthropic and bedrock fail permanently with ProviderNotImplementedError', async () => {
-    const textract = createReadingProviders({ ...base, OCR_PROVIDER: 'textract', LLM_PROVIDER: 'fake' })({ photo_sha256: PLATE_SHA });
+    const textract = createReadingProviders({ ...base, OCR_PROVIDER: 'textract', LLM_PROVIDER: 'fake' })({ photo_sha256: PLATE_SHA, block_type: null });
     const error = await failure(textract.ocr.read(image));
     expect(error).toBeInstanceOf(ProviderNotImplementedError);
     expect(isPermanentReadingError(error)).toBe(true);
     for (const llm of ['anthropic', 'bedrock'] as const) {
-      const providers = createReadingProviders({ ...base, OCR_PROVIDER: 'fake', LLM_PROVIDER: llm })({ photo_sha256: PLATE_SHA });
+      const providers = createReadingProviders({ ...base, OCR_PROVIDER: 'fake', LLM_PROVIDER: llm })({ photo_sha256: PLATE_SHA, block_type: null });
       const ocr = await providers.ocr.read(image);
       const refused = await failure(providers.structuring.structure({ image, ocr, fields: [] }));
       expect(refused).toBeInstanceOf(ProviderNotImplementedError);

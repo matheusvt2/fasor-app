@@ -136,8 +136,22 @@ test('@p0 8.2-E2E-002 the reading line follows the server: "Lendo…", then "Nã
     rereads.push(`${route.request().method()} ${new URL(route.request().url()).pathname}`);
     await route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify({ photo_id: photoId, reading_status: 'running' }) });
   });
-  await plateRow(page).getByRole('button', { name: 'Tentar novamente' }).click();
+  const retry = plateRow(page).getByRole('button', { name: 'Tentar novamente' });
+  await retry.click();
   await expect.poll(() => rereads).toEqual([`POST /api/photos/${photoId}/reread`]);
+  // E78-Q5: from the tap the button waits for the reading to move; a second tap sends nothing.
+  await expect(retry).toHaveAttribute('aria-disabled', 'true');
+  await expect(retry).toHaveAccessibleDescription('Nova leitura pedida');
+  await retry.click({ force: true });
+  await page.waitForTimeout(1_000);
+  expect(rereads).toEqual([`POST /api/photos/${photoId}/reread`]);
+  await expect(retry).toHaveAttribute('aria-disabled', 'true');
+  // The reading ends failed again (a new status op over `failed`): pulled without leaving the
+  // sheet (an `online` event runs one sync cycle), the button is back.
+  await pushReadingStatus(account.companyId, ids.relatorioId, photoId, 'failed');
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await expect(retry).not.toHaveAttribute('aria-disabled', 'true', { timeout: 30_000 });
+  await expect(plateRow(page).locator('.reading-line')).toHaveText('Não foi possível ler');
 
   // "Preencher manualmente" hands over to the first empty field.
   await plateRow(page).getByRole('button', { name: 'Preencher manualmente' }).click();
@@ -217,7 +231,8 @@ test('@p0 8.6-E2E-001 Flow 2b: the arrival toast opens the sheet, the crop outli
   // Offline, "Criar Celtta?" creates the manufacturer and confirms the field in one batch.
   await context.setOffline(true);
   const fab = suggestionOf(page, 'fabricacao');
-  const criar = fab.getByRole('button', { name: 'Sugerido, Celtta, confirmar' });
+  // E78-Q13: the accessible name starts with the visible words (label in name).
+  const criar = fab.getByRole('button', { name: 'Criar Celtta?, sugerido' });
   await expect(criar).toHaveText('Criar Celtta?');
   await criar.click();
   await expect.poll(async () => (await outbox(page)).some((row) => row.path === `suggestion/${sid.fabricacao}/status`)).toBe(true);

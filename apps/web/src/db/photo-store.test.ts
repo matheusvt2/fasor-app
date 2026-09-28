@@ -233,3 +233,27 @@ describe('6.5-UNIT the Caption composer recents', () => {
     db.close();
   });
 });
+
+describe('E78-Q5 photoTilesOfBlock reading_status_op_id', () => {
+  it('is the pulled reading_status op of the highest seq, null for a plain photo or before any pull', async () => {
+    const db = await freshDb();
+    await commitPhotoCapture(db, shot(PHOTO_A, '2026-09-25T11:00:00.000Z', { reading: { kind: 'plate', target: { block_id: BLOCK_1_ID, block_type: 'transformador_forca' } } }), { newId, now });
+    await commitPhotoCapture(db, shot(PHOTO_B, '2026-09-25T11:05:00.000Z'), { newId, now });
+    const tileOf = async (id: string) => (await photoTilesOfBlock(db, RELATORIO_ID, BLOCK_1_ID)).find((tile) => tile.id === id)!;
+    expect((await tileOf(PHOTO_A)).reading_status_op_id).toBeNull();
+
+    const pulled = (opId: string, seq: number, path: string) =>
+      ({ op_id: opId, seq, path, kind: 'put', value: 'failed', targets: [`file:${PHOTO_A}`], relatorio_id: RELATORIO_ID, project_id: null }) as never;
+    const older = '019966b0-0067-7000-8000-000000000001';
+    const newer = '019966b0-0067-7000-8000-000000000002';
+    // Written newest first, beside another path of the same file with a higher seq: only the status path's order counts.
+    await db.remote_ops.bulkPut([
+      pulled(newer, 9, `file/${PHOTO_A}/reading_status`),
+      pulled(older, 7, `file/${PHOTO_A}/reading_status`),
+      pulled('019966b0-0067-7000-8000-000000000003', 11, `file/${PHOTO_A}/caption`),
+    ]);
+    expect((await tileOf(PHOTO_A)).reading_status_op_id).toBe(newer);
+    expect((await tileOf(PHOTO_B)).reading_status_op_id).toBeNull();
+    db.close();
+  });
+});

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, makeOp, syncPushResponseSchema, type Op } from '@app/domain';
+import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, makeOp, readingRereadPath, syncPushResponseSchema, type Op } from '@app/domain';
 import { and, eq, inArray, like } from 'drizzle-orm';
 import sharp from 'sharp';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -142,7 +142,7 @@ afterAll(async () => {
 });
 
 describe('8.4-INT file receipt and the reading queue', () => {
-  it('a send that fails: the upload answers 200 and the plate photo stays queued', async () => {
+  it('E78-Q7: a send that fails: the upload answers 200 and the plate photo ends failed ("Tentar novamente" is offered)', async () => {
     const calls: ReadingPayload[] = [];
     const app = createApp({
       probes,
@@ -160,7 +160,33 @@ describe('8.4-INT file receipt and the reading queue', () => {
     const res = await request(app, `/api/files/${id}`, { method: 'PUT', headers: { 'content-type': 'application/octet-stream' }, body: bytes });
     expect(res.status, await res.clone().text()).toBe(200);
     expect(calls).toEqual([{ company_id: companyA.companyId, photo_id: id, reading_kind: 'plate' }]);
-    expect(await statusOf(id)).toEqual({ reading_status: 'queued', statusOps: 0 });
+    expect(await statusOf(id)).toEqual({ reading_status: 'failed', statusOps: 1 });
+    const [written] = await db
+      .select({ value: ops.value, actor_id: ops.actor_id })
+      .from(ops)
+      .where(and(eq(ops.company_id, companyA.companyId), eq(ops.path, `file/${id}/reading_status`)));
+    expect(written).toEqual({ value: 'failed', actor_id: 'system:reading' });
+  }, 60_000);
+
+  it('E78-Q7: a reread whose send fails answers 500 and writes nothing', async () => {
+    const app = createApp({
+      probes,
+      auth,
+      db,
+      s3,
+      bucket: config.S3_BUCKET,
+      staticDir,
+      enqueueReading: async () => {
+        throw new Error('queue down');
+      },
+    });
+    const { id, bytes } = await photo(app, { reading_kind: 'plate', reading_status: 'queued' });
+    const res = await request(app, `/api/files/${id}`, { method: 'PUT', headers: { 'content-type': 'application/octet-stream' }, body: bytes });
+    expect(res.status).toBe(200);
+    expect(await statusOf(id)).toEqual({ reading_status: 'failed', statusOps: 1 });
+    const again = await request(app, readingRereadPath(id), { method: 'POST' });
+    expect(again.status).toBe(500);
+    expect(await statusOf(id)).toEqual({ reading_status: 'failed', statusOps: 1 });
   }, 60_000);
 
   it('an app without a queue: the upload answers 200 and the plate photo stays queued', async () => {

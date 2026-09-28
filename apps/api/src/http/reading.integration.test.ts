@@ -30,7 +30,10 @@ import { loadConfig } from '../config.ts';
 import { createDb } from '../db/client.ts';
 import { entities, ops, readingRuns } from '../db/schema.ts';
 import { seedTestCompanies, TEST_SEED } from '../db/seed.ts';
+import { asCompanyId } from '../db/repositories/company-id.ts';
 import { newId } from '../ids.ts';
+import { readingServerOp, readingStatusPath } from '../jobs/reading/status.ts';
+import { applyOps } from '../sync/apply.ts';
 
 /*
  * Stories 8.4 and 8.5 end to end over the compose api, as wired by default (env `fake`
@@ -407,5 +410,20 @@ describe('8.4-INT the plate read end to end over the compose api', () => {
     const notPhoto = await reread(companyA, certificateId);
     expect(notPhoto.status).toBe(404);
     expect(await notPhoto.text()).toBe(await (await reread(companyA, newId())).text());
+  }, 60_000);
+
+  it('E78-Q5: a reread while the photo is running answers 409 reading_running: no job sent, no run', async () => {
+    const jobsBefore = await jobsFor(photoId);
+    const runsBefore = (await runsOf(photoId)).length;
+    const running = readingServerOp({ companyId: companyA.companyId, relatorioId, kind: 'put', path: readingStatusPath(photoId), value: 'running', batchId: null, now, newId });
+    written.opIds.add(running.op_id as string);
+    expect((await applyOps(db, asCompanyId(companyA.companyId), [running], { origin: 'server', now })).rejected).toEqual([]);
+    const refused = await reread(companyA, photoId);
+    expect(refused.status).toBe(409);
+    expect(errorResponseSchema.parse(await refused.json()).code).toBe('reading_running');
+    await new Promise((resolveWait) => setTimeout(resolveWait, 1_500));
+    expect(await jobsFor(photoId)).toBe(jobsBefore);
+    expect(await runsOf(photoId)).toHaveLength(runsBefore);
+    expect(statusOps(await pullAll(relatorioId), photoId).at(-1)!.value).toBe('running');
   }, 60_000);
 });

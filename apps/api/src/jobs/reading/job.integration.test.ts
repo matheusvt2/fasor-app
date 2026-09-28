@@ -30,10 +30,11 @@ import { createS3, putObject } from '../../storage/s3.ts';
 import { renderVariants } from '../../storage/variants.ts';
 import { applyOps } from '../../sync/apply.ts';
 import { runReadingJob, type ReadingJobDeps } from './job.ts';
-import { DEFAULT_FIXTURES_DIR } from './providers/fake.ts';
+import { DEFAULT_FIXTURE_BY_BLOCK_TYPE, DEFAULT_FIXTURES_DIR } from './providers/fake.ts';
 import { createReadingProviders } from './providers/index.ts';
 import { readingServerOp, readingStatusPath, startReading } from './status.ts';
-import { enqueueReading, registerReadingWorker, type ReadingQueueOptions } from './worker.ts';
+import { PermanentReadingError } from './providers/index.ts';
+import { enqueueReading, ensureReadingQueue, failDeadReading, readingDeadLetterQueue, registerReadingWorker, type ReadingQueueOptions } from './worker.ts';
 
 /*
  * Stories 8.4 and 8.5: the reading worker on its own PgBoss and a queue of its own (retry
@@ -58,6 +59,7 @@ const queue = `reading-test-${newId()}`;
 const queueOptions: ReadingQueueOptions = { retryLimit: 2, retryBackoff: false, retryDelay: 0, expireInSeconds: 60 };
 const fixturesDir = mkdtempSync(join(tmpdir(), 'reading-fixtures-'));
 const IMAGES = join(DEFAULT_FIXTURES_DIR, 'images');
+const repoRoot = join(import.meta.dirname, '../../../../..');
 
 const deps: ReadingJobDeps = {
   db,
@@ -224,6 +226,9 @@ beforeAll(async () => {
     const sha = sha256(readFileSync(join(IMAGES, name)));
     copyFileSync(join(DEFAULT_FIXTURES_DIR, `${sha}.json`), join(fixturesDir, `${sha}.json`));
   }
+  // E78-Q2: the transformer's default fixture, which a photo with none of its own replays.
+  const plate = DEFAULT_FIXTURE_BY_BLOCK_TYPE.transformador_forca!;
+  copyFileSync(join(DEFAULT_FIXTURES_DIR, `${plate}.json`), join(fixturesDir, `${plate}.json`));
   boss = new PgBoss(config.DATABASE_URL);
   boss.on('error', (error) => console.error('pg-boss error', error));
   await boss.start();
@@ -232,7 +237,9 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await boss.offWork(queue);
+  await boss.offWork(readingDeadLetterQueue(queue));
   await boss.deleteQueue(queue);
+  await boss.deleteQueue(readingDeadLetterQueue(queue));
   await boss.stop();
   await dropCompany(db, companyId);
   await dropCompany(db, otherCompanyId);
@@ -259,9 +266,10 @@ describe('8.4-INT reading job attempts', () => {
     }, 60_000);
   }
 
-  it('a photo without a fixture fails permanently after one attempt', async () => {
+  it('a photo without a fixture, on a type with no default fixture, fails permanently after one attempt', async () => {
     const { relatorioId, blocks } = await relatorio();
-    const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
+    // E78-Q2: a transformer falls back to the synthetic plate; any other type has no fallback.
+    const block = blocks.find((b) => b.block_type === 'chave_seccionadora')!;
     const id = await photo(relatorioId, block, await solidPng(7, 77, 177), 'image/png');
     await send(id);
     await waitFor('the permanent failure', async () => (await status(id)) === 'failed');
@@ -270,6 +278,24 @@ describe('8.4-INT reading job attempts', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ attempt: 1, outcome: 'error' });
     expect(rows[0]!.error).toContain('PermanentReadingError');
+    expect(rows[0]!.error).toContain('no fixture for block type chave_seccionadora');
+  }, 60_000);
+
+  it('E78-Q2: a transformer plate the device re-encoded (no fixture of its own) reads the synthetic plate: done, eleven pending suggestions', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
+    const plate = join(repoRoot, 'services/ocr/tests/fixtures/plate-transformador.jpg');
+    // What a device does to a shot: decoded, resized and re-encoded, so no committed sha matches.
+    const bytes = new Uint8Array(await sharp(readFileSync(plate)).resize({ width: 1200 }).jpeg({ quality: 82 }).toBuffer());
+    const id = await photo(relatorioId, block, bytes, 'image/jpeg');
+    await send(id);
+    await waitFor('the fallback reading', async () => (await status(id)) === 'done');
+    const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+    expect(mine).toHaveLength(11);
+    expect(mine.every((s) => s.status === 'pending')).toBe(true);
+    expect(mine.find((s) => s.target_path.endsWith('/data_fabricacao'))!.value).toBe('2024-08');
+    const [run] = await runs(id);
+    expect(run).toMatchObject({ attempt: 1, outcome: 'ok', ocr_provider: 'fake', model: 'fake', prompt_version: 'fake-1' });
   }, 60_000);
 
   it('an OCR read of another image size is transient: three attempts, failed, no suggestion', async () => {
@@ -499,5 +525,95 @@ describe('8.4-INT provider stubs and foreign payloads', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ outcome: 'error', relatorio_id: null });
     expect(await row('file', photoId)).toBeUndefined();
+  }, 60_000);
+});
+
+describe('E78-Q6 a reading whose last attempt dies ends failed (the dead letter queue)', () => {
+  const hangQueue = `reading-hang-${newId()}`;
+  const hangOptions: ReadingQueueOptions = { retryLimit: 0, retryBackoff: false, retryDelay: 0, expireInSeconds: 1 };
+  let release: () => void = () => undefined;
+  const hanging = new Promise<never>((_, reject) => {
+    release = () => reject(new PermanentReadingError('released by the test'));
+  });
+  hanging.catch(() => undefined);
+  const hangDeps: ReadingJobDeps = {
+    ...deps,
+    providers: () => ({
+      ocr: { read: () => hanging },
+      structuring: { structure: () => hanging },
+      ocr_name: 'fake',
+    }),
+  };
+
+  beforeAll(async () => {
+    await registerReadingWorker(boss, hangDeps, { queue: hangQueue, queueOptions: hangOptions, workOptions: { pollingIntervalSeconds: 0.5 } });
+  }, 60_000);
+
+  afterAll(async () => {
+    release();
+    await boss.offWork(hangQueue, { wait: false });
+    await boss.offWork(readingDeadLetterQueue(hangQueue), { wait: false });
+    await boss.deleteQueue(hangQueue);
+    await boss.deleteQueue(readingDeadLetterQueue(hangQueue));
+  }, 60_000);
+
+  it('a provider that never answers: the attempt expires, the dead letter worker writes failed as system:reading', async () => {
+    expect((await boss.getQueue(hangQueue))!.deadLetter).toBe(readingDeadLetterQueue(hangQueue));
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
+    const id = await photo(relatorioId, block, await solidPng(9, 19, 29), 'image/png');
+    const wrote = await startReading(
+      { db, now, newId, enqueue: (payload) => enqueueReading(boss, payload, { queue: hangQueue, queueOptions: hangOptions }) },
+      company,
+      { id, relatorioId },
+      { company_id: companyId, photo_id: id, reading_kind: 'plate' },
+    );
+    expect(wrote).toBe(true);
+    expect(await status(id)).toBe('running');
+    await waitFor('the dead letter to fail the reading', async () => (await status(id)) === 'failed', 45_000);
+    const [last] = await db
+      .select({ value: ops.value, actor_id: ops.actor_id })
+      .from(ops)
+      .where(and(eq(ops.company_id, companyId), eq(ops.path, readingStatusPath(id))))
+      .orderBy(desc(ops.seq))
+      .limit(1);
+    expect(last).toEqual({ value: 'failed', actor_id: 'system:reading' });
+  }, 60_000);
+
+  it('writes nothing while a job for the key is queued, or once the status moved on', async () => {
+    const idle = `reading-idle-${newId()}`;
+    await ensureReadingQueue(boss, { queue: idle, queueOptions: hangOptions });
+    try {
+      const { relatorioId, blocks } = await relatorio();
+      const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
+      const id = await photo(relatorioId, block, await solidPng(9, 29, 39), 'image/png');
+      const payload = { company_id: companyId, photo_id: id, reading_kind: 'plate' as const };
+      // Running, and a newer job for the same key still queued (no worker on this queue).
+      await startReading({ db, now, newId, enqueue: (p) => enqueueReading(boss, p, { queue: idle, queueOptions: hangOptions }) }, company, { id, relatorioId }, payload);
+      expect(await failDeadReading(boss, { db, now, newId }, idle, payload, 'dead-1')).toBe(false);
+      expect(await status(id)).toBe('running');
+      // No live job any more, still running: failed.
+      await boss.deleteQueuedJobs(idle);
+      expect(await failDeadReading(boss, { db, now, newId }, idle, payload, 'dead-2')).toBe(true);
+      expect(await status(id)).toBe('failed');
+      // Not running (failed, or done): left as it is.
+      expect(await failDeadReading(boss, { db, now, newId }, idle, payload, 'dead-3')).toBe(false);
+    } finally {
+      await boss.deleteQueue(idle);
+      await boss.deleteQueue(readingDeadLetterQueue(idle));
+    }
+  }, 60_000);
+
+  it('an existing queue created without a dead letter gets one', async () => {
+    const old = `reading-old-${newId()}`;
+    await boss.createQueue(old, { policy: 'stately' });
+    try {
+      expect((await boss.getQueue(old))!.deadLetter ?? null).toBeNull();
+      await ensureReadingQueue(boss, { queue: old });
+      expect((await boss.getQueue(old))!.deadLetter).toBe(readingDeadLetterQueue(old));
+    } finally {
+      await boss.deleteQueue(old);
+      await boss.deleteQueue(readingDeadLetterQueue(old));
+    }
   }, 60_000);
 });

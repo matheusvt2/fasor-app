@@ -59,9 +59,12 @@ describe('8.4-UNIT normalizeReadingValue', () => {
   it('date: a valid ISO month or day', () => {
     expect(normalizeReadingValue(date, '2024-08')).toEqual({ ok: true, value: '2024-08', verify: false });
     expect(normalizeReadingValue(date, '2024-02-29')).toEqual({ ok: true, value: '2024-02-29', verify: false });
-    for (const value of ['2024-13', '2023-02-29', '2024-00', '08/2024', 'agosto de 2024']) {
+    for (const value of ['2024-13', '2023-02-29', '2024-00', '13/2024', '2012', 'agosto de 2024']) {
       expect(normalizeReadingValue(date, value)).toEqual({ ok: false, reason: 'invalid_shape' });
     }
+    // E78-Q3: a plate's month or day order is stored in the canonical shape.
+    expect(normalizeReadingValue(date, '08/2024')).toEqual({ ok: true, value: '2024-08', verify: false });
+    expect(normalizeReadingValue(date, '15/03/2019')).toEqual({ ok: true, value: '2019-03-15', verify: false });
   });
 
   it('select: an option ignoring case and accents, stored as the option', () => {
