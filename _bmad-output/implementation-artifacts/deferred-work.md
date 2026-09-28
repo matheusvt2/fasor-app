@@ -1015,3 +1015,15 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: pg-boss copies the queue's dead letter onto a job at send time (`COALESCE(deadLetter, q.dead_letter)`); `apps/api/src/jobs/reading/worker.ts` `ensureReadingQueue`.
   class: deferred
   state: open (owner: none)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-7-8-fix-qa.md`
+  summary: E78-R1. The plate crop shrinks the plate text to about 7 px at 768 px (the crop is 297 px wide inside a 657 px box), and the focused field's outline covers the value it points at.
+  evidence: `reviews/epic-7-8-review-qa.md` § Re-check (PR #55), screenshot R1.
+  class: deferred
+  state: open (owner: Epic 9 carry-over batch)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-7-8-fix-qa.md`
+  summary: E78-R2. The Sumário header reads "3 de 94 fichas concluídas" while the parecer band reads "0 de 94": two definitions of a concluded sheet reach the screen.
+  evidence: `reviews/epic-7-8-review-qa.md` § Re-check (PR #55).
+  class: deferred
+  state: open (owner: Epic 9 carry-over batch)

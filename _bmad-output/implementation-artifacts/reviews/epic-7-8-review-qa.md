@@ -190,3 +190,49 @@ None of these has a dated line under its story yet: the Epic 7 and 8 story secti
 
 - To walk Flow 2b with the real job until E78-Q2 is fixed: import `services/ocr/tests/fixtures/plate-transformador.jpg` through the camera fallback (Chromium has no camera, and `getUserMedia` must reject so the fallback input opens). Read the new photo's `sha256` from the outbox, then copy `apps/api/src/jobs/reading/fixtures/a1eac….json` to `<that sha>.json`. In this Chromium the sha was `6a22b700bf89811ec592a5accd468be4101723d65707b7f1885c5dc95616b537`.
 - The seed script used for the QA company is not committed; it applied `portoSeguro.log` remapped to a new company, as `porto-seguro.integration.test.ts` does, with `seedUser(userId = fixture USER_ID)`.
+
+## Re-check (PR #55)
+
+- Date: 2026-09-28
+- Code: origin/main `89c24ee`
+- Stack: rebuilt with the same tag `qa78` and port base 45, on fresh volumes
+- Data: the QA 78 and QA 79 companies were seeded again with the full Porto Seguro fixture
+- Browser: a fresh store and session in the Playwright MCP browser, at 1280, 768 and 390 px (390 in dark)
+- No alias fixture was used anywhere
+
+### Targeted specs (host lock, no full gates)
+
+| Run | Result | Wall time |
+| --- | --- | --- |
+| Unit specs:<br>`parecer`, `sumario`, `engine`, `plate-photo`, `suggestions-plate`, `datetime`, `nameplate-copy`, `photo-store` | 8 files, 135 tests, all passed | 11 s |
+| Api specs:<br>`reading.integration`, `job.integration`, `files-reading.integration`, `docx-section-10`, `fake.test` | 6 files, 46 tests, all passed | 70 s |
+| E2E grep:<br>`E78-Q`, 7.3-E2E-001, 7.5-E2E-006, 8.4-E2E-001, 8.1-E2E-005, 8.2-E2E-002, 8.6-E2E-001, 8.6-E2E-003 | 8 of 8 passed: parallel 6, serial 2 | 112 s |
+
+### Per finding
+
+| ID | Result | Evidence |
+| --- | --- | --- |
+| E78-Q1 | **pass** | Full Porto Seguro fixture, no section blocks, no parecer:<br>- The Sumário draws rows 1 to 11. Row 10 reads "Parecer não preenchido", and the foot reads "Só Conclusão e parecer (linha 10) impede gerar."<br>- In the dialog, the blocking row is the same, "Gerar relatório" is `aria-disabled="true"`, and the reason reads "Preencha o parecer (linha 10 do sumário)…".<br>- "Ver no sumário" highlights rows capa, controle, 8, 9 and 11.<br>After the parecer was set and confirmed:<br>- Row 10 reads "Apto com restrições" and the foot reads "Nada impede gerar."<br>- The dialog shows no blocking row, the button is enabled, and Rev. 1 was issued in 23 s.<br>7.3-E2E-001 and 7.5-E2E-006 are green. |
+| E78-Q2 | **pass** | Chain, with the camera fallback on a new relatório:<br>1. On TR-1, AT was typed first ("13,8").<br>2. "Fotografar placa" took `plate-transformador.jpg` online.<br>3. The device re-encoded it to sha `6a22b700…`; there is no fixture for that sha.<br>4. The job ran on the fallback: 1 `reading_run` with outcome ok, `reading_status` done, 11 pending suggestions (10 `suggested`, 1 `verify`).<br>5. The toast "1 leitura pronta para confirmar" and the banner "Sugestões prontas — 11 campos para confirmar" came about 1 s after the upload, with no manual sync.<br>On disjuntor DJ-ENEL, the same plate ended `failed` at its first attempt: 1 run per request.<br>8.4-E2E-001 is green. Screenshot: `qa-epic-7-8/R2-q2-q14-crop-768.png`. |
+| E78-Q3 | **pass** | - TR-1: the confirmed `2024-08` shows "08/2024" in the Data fabricação textbox.<br>- TR-2: "Copiar da última visita" stored `data_fabricacao = "2025-07"` (canonical) and shows "07/2025". |
+| E78-Q4 | **pass** | The TR-2 copy shows "SIEMENS" in the Fabricação group, with "Criar SIEMENS?" beside it. |
+| E78-Q5 | **pass** | On DJ-ENEL (failed), I tapped "Tentar novamente" three times:<br>- The button was `aria-disabled` from the first tap.<br>- Exactly 1 `POST /reread` was sent, answered 202.<br>- `reading_runs` holds 2 rows for the photo: the first read and one reread.<br>- The button was enabled again after the next `failed` op.<br>The 409 `reading_running` is covered by `reading.integration` (green). |
+| E78-Q6 | pass (by test) | The dead-letter tests in `job.integration` are green. Not reproduced by hand. |
+| E78-Q7 | pass (by test) | Both E78-Q7 tests in `files-reading.integration` are green. |
+| E78-Q8 | **pass** | No "Lendo…" window was visible: suggestions arrived within about 1 s of upload without a tap on "Sincronizar agora" (it was 47 s before). `engine.test` E78-Q8 is green. |
+| E78-Q9 | **pass** | The hint now reads "0 de 94 fichas concluídas", the same as the Critérios line "0 concluídas" and the summary "91 ainda não concluídas". See E78-R2 for the header. |
+| E78-Q11 | **pass** | Re-rendered Rev. 1 PDF (106 pages): the "10 CONCLUSÃO…" heading and the whole Parecer box moved together to p.106, and p.105 ends with the TC-GER6 sheet. Screenshot: `qa-epic-7-8/R1-q11-section10-page106.png`. |
+| E78-Q13 | **pass** | The accessible name is `button "Criar Celtta?, sugerido"`. |
+| E78-Q14 | **pass-with** | - The crop is no longer a sliver: the view is 297 px wide (the whole plate width) in a 657 px box at 768 px, and fills the box at 390 px. 8.6-E2E-003 is green.<br>- With: E78-R1.<br>Screenshots: `R2-q2-q14-crop-768.png` and `R3-q14-crop-390-dark.png`. |
+
+### New findings
+
+| ID | Severity | Finding | Evidence | Suggested fix | Owner |
+| --- | --- | --- | --- | --- | --- |
+| E78-R1 | low | The widened crop scales the plate text to about 7 px. The focused field's `.region` is then about 38 × 5.4 px with a 2 px border, so it covers the very value it points at. Examples: Nº série at 768 px, and the TAP "3" at 390 px dark. At 768 and 1280 px the crop is also only 297 px wide inside a 657 or 864 px box. | `R2-q2-q14-crop-768.png`, `R3-q14-crop-390-dark.png`. Measured `.region` 38 × 5.4 px, border `2px solid`, and the same size at 390, 768 and 1280 px. | Draw the region as an outline outside the bbox with a minimum height (for example `outline-offset` and at least 12 px), or zoom the crop to the focused field while one is focused. | Epic 8 (next batch) |
+| E78-R2 | info | The Sumário header says "3 de 94 fichas concluídas" (`progress.sheets_concluded`, which counts não ensaiadas), while the parecer band now says "0 de 94 fichas concluídas". Both appear on relatório surfaces with different meanings. | Sumário header vs the Etapa 6 hint on the fixture. | Product wording: "3 de 94 fichas fechadas" in the header, or one definition everywhere. | Matheus / Epic 7 |
+
+**Re-check summary:**
+- 12 of 12 in-scope findings pass. Q6 and Q7 pass by test; Q14 passes with E78-R1.
+- New: E78-R1 (low) and E78-R2 (info).
+- Screenshots added: `R1-q11-section10-page106.png`, `R2-q2-q14-crop-768.png`, `R3-q14-crop-390-dark.png`.
