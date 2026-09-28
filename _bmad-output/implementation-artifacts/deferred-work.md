@@ -815,13 +815,13 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: The OCR sidecar repeats `OCR_READ_MAX_BYTES` (20 MB) and the `/read` and `/health` paths as literals (`services/ocr/app/main.py`, `services/ocr/tests/test_api.py`); `ocrContractJsonSchema()` exports neither, so the kernel drift test does not cover them. Tie them when the api `ocr-svc` provider is built (export them in the schema or assert them in a test).
   evidence: Story 8.3 review, Verification Gap finding; both sides agree today.
   class: deferred
-  state: open (owner: Epic 8 batch R, Story 8.4)
+  state: ~~open (owner: Epic 8 batch R, Story 8.4)~~ closed (2026-09-27, spec-8-4-8-5-reading-job.md: `ocrContractJsonSchema()` exports a top-level `x-ocr-service` with both routes and `read_max_bytes`; `services/ocr/app/main.py` and `tests/test_api.py` read them from the committed schema, so the kernel drift test covers them)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-8-3-local-ocr-service.md`
   summary: The sidecar reads the pixel grid as received (EXIF orientation ignored), and the api's `print` variant is re-encoded by sharp without `.rotate()`, so a photo whose pixels are stored sideways reaches OCR sideways. Decide in the reading job whether the image sent to OCR is auto-oriented first (the boxes must stay in the space of the bytes the job normalizes against).
   evidence: `apps/api/src/storage/variants.ts` `render`; `services/ocr/app/pipeline.py` `decode`.
   class: deferred
-  state: open (owner: Epic 8 batch R, Story 8.4)
+  state: ~~open (owner: Epic 8 batch R, Story 8.4)~~ closed (2026-09-27, spec-8-4-8-5-reading-job.md: the reading job reads the original's EXIF orientation and, for 2 to 8, applies it to the `print` bytes and re-encodes them in the same format without EXIF (`apps/api/src/jobs/reading/image.ts`); both providers receive those bytes and the boxes normalize over their size)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-8-3-local-ocr-service.md`
   summary: A contract change regenerated with `pnpm schema:ocr` passes `pnpm verify` without the sidecar being rebuilt and tested; only the manual `docker compose --profile ocr build ocr` and `run --rm ocr pytest` (AGENTS.md) catch a sidecar that no longer validates its own responses.
@@ -924,7 +924,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: "Criar ⟨nome⟩?" from a suggestion's `hint.create_registry_entry` is not rendered; the row carries the hint (contract 5) and the device ignores it.
   evidence: `packages/domain/src/schemas/entities.ts` `suggestionHintSchema`.
   class: deferred
-  state: ~~open (owner: Epic 8 batch R, Story 8.5)~~ closed (2026-09-27, batch P took the web half: `hasCreateHint`, "Criar ⟨nome⟩?" writes the manufacturer create with the confirm pair in one batch)
+  state: ~~open (~~owner: Epic 8 batch R, Story 8.5~~ owner: Epic 8 batch P, Story 8.6, re-owned 2026-09-27: batch R emits the `hint` on the server, batch P renders "Criar ⟨nome⟩?")~~ closed (2026-09-27, batch P: `hasCreateHint`, "Criar ⟨nome⟩?" writes the manufacturer create with the confirm pair in one batch)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-8-1-suggestion-entity.md`
   summary: A crop source fetched from the server is kept as a `crop` blob under the photo id and the eviction pass (`runEviction`) never removes it (it deletes acked `original` rows only), so every plate photo a device only viewed through a crop keeps its full original on the device.
@@ -950,6 +950,23 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   class: debt
   state: open (owner: integrated Epic 8 review)
 
+- source_spec: `_bmad-output/implementation-artifacts/spec-8-4-8-5-reading-job.md`
+  summary: Narrowing, Story 8.4. Only `plate` readings run. File receipt enqueues a job only for `reading_kind: plate`, a photo queued with another kind (`display`, `caption`, `panel`, `nc_obs`) stays `queued`, the reread route answers it `400 invalid_request`, and the job fails any other kind permanently.
+  evidence: `apps/api/src/http/files.ts` receipt condition; `apps/api/src/http/reading.ts`; `apps/api/src/jobs/reading/job.ts` first check.
+  class: deferred
+  state: open (owner: the story that introduces each reading kind)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-8-4-8-5-reading-job.md`
+  summary: The `thumb` and `print` variants are still rendered without applying the original's EXIF orientation, so a photo stored sideways shows sideways in its tile and prints sideways in the document; only the reading job orients the image it sends to OCR.
+  evidence: `apps/api/src/storage/variants.ts` `render` (no `.rotate()`); `apps/api/src/jobs/reading/image.ts` orients a copy for the reading alone.
+  class: deferred
+  state: open (owner: none)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-8-4-8-5-reading-job.md`
+  summary: A reading whose last attempt never returns (the api process dies mid-read, or the attempt outlives `expireInSeconds: 300`) is failed by pg-boss without `runReadingJob` seeing it, so nothing writes `reading_status = failed` and the photo stays `running` on the device, where "Tentar novamente" never shows. A dead-letter queue (`deadLetter` on the `reading` queue, its worker writing `failed` when the status is still `running`) or a boot-time sweep would close it.
+  evidence: `apps/api/src/jobs/reading/worker.ts` computes `lastAttempt` only for attempts that run to completion; no `deadLetter` or failed-job handler (review pass 2026-09-27, Edge Case Hunter and Verification Gap).
+  class: debt
+  state: open (owner: Epic 8 integrated fix batch)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-8-2-8-6-plate-capture-and-confirm.md`
   summary: The "Fotografar placa" tile shows on every equipment sheet with a nameplate, but batch R reads only `transformador_forca` plates; a plate photo of any other type stays `queued` with "Foto guardada — leitura quando houver sinal" indefinitely.

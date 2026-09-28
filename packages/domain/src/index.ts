@@ -97,4 +97,5 @@ export * from './device/storage.ts';
 export * from './home/cards.ts';
 export * from './text/plural.ts';
 export * from './text/normalize-name.ts';
+export * from './reading/index.ts';
 export * from './text/hash.ts';

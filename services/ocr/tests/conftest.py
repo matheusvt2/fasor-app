@@ -14,6 +14,10 @@ sys.path.insert(0, str(FIXTURES))
 from app.main import app  # noqa: E402
 
 SCHEMA_DOC = json.loads((ROOT / "contract" / "ocr-contract.schema.json").read_text())
+# The routes and the body limit, as the kernel exports them (`x-ocr-service`); never literals.
+READ_PATH: str = SCHEMA_DOC["x-ocr-service"]["routes"]["read"]
+HEALTH_PATH: str = SCHEMA_DOC["x-ocr-service"]["routes"]["health"]
+READ_MAX_BYTES: int = SCHEMA_DOC["x-ocr-service"]["read_max_bytes"]
 
 # Lines a test wants in the run's output whatever the capture mode (see the hook below).
 SUMMARY: list[str] = []
@@ -37,7 +41,7 @@ def expected_tokens() -> dict:
 
 @pytest.fixture(scope="session")
 def plate_response(client, plate_jpeg) -> dict:
-    response = client.post("/read", content=plate_jpeg, headers={"content-type": "image/jpeg"})
+    response = client.post(READ_PATH, content=plate_jpeg, headers={"content-type": "image/jpeg"})
     assert response.status_code == 200, response.text
     return response.json()
 
