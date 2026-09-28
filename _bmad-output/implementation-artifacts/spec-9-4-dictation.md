@@ -2,10 +2,10 @@
 title: 'Story 9.4: Dictate a caption, an observation or a reading'
 type: 'feature'
 created: '2026-09-28'
-status: 'in-review'
+status: 'done'
 baseline_revision: '7c0cb90326aa2fa79b2f36d4e336a335e436e4e9'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: 'opus'
 dev_effort: 'high'
 context:
@@ -151,3 +151,27 @@ Open questions (listed, not decided): (Q1) `webspeech` sends audio to the browse
 - `docker compose --profile tools run --rm tools pnpm test:unit -- packages/domain/src/parse apps/web/src/speech` -- green.
 - `docker compose --profile tools run --rm tools pnpm exec playwright test e2e/dictation.spec.ts --project=desktop-chrome` (after `build:e2e`, or through `pnpm test:e2e -- e2e/dictation.spec.ts`) -- green.
 - `flock /tmp/fasor-verify.lock docker compose --profile tools run --rm tools pnpm verify` and `pnpm test:e2e:full` under the lock -- green.
+
+## Auto Run Result
+
+Status: done
+
+- **Summary:** Story 9.4 whole.
+  - The speech engine interface `webspeech`/`fake`/`none` sits behind `VITE_SPEECH_ENGINE`, default `webspeech`, with one app-wide listening session.
+  - The Dictation button is hidden with no engine, with an unavailable engine or a refused microphone, and while offline.
+  - The dictated result is component state drawn as a Suggestion field. "Usar" (or "Confirmar"/"Salvar legenda") writes the plain op.
+  - The kernel parser lives in `packages/domain/src/parse/utterance.ts`.
+  - Six surfaces: the batch caption, the Caption composer, the checklist row observation, the sheet Observações, the point Texto and the Measurement tables.
+- **Files:**
+  - `apps/web/src/speech/*`: the engines, the provider, the button and their tests.
+  - `packages/domain/src/parse/utterance.ts` and its tests.
+  - The surfaces: `capture-sheet.tsx`, `caption-composer.tsx`, `checklist-section.tsx`, `photo-openers.tsx`, `conclusao-section.tsx`, `ensaios-section.tsx`, `measurement-field.tsx`, `sheet-observation-dictation.tsx`, `ficha-surface.tsx`, `point-editor.tsx` and the surface CSS.
+  - Copy in `copy/pt-br.ts` and `copy/ui.ts`; the `i-mic` symbol in `sprite.svg`.
+  - `build:e2e`, the compose web env and `.env.example`.
+  - `e2e/dictation.spec.ts` and `e2e/support/speech.ts`; `surfaces/ficha/dictation-surfaces.test.tsx`.
+- **Review:** the Review Triage Log above has 7 findings patched and 8 rejected, with their reasons. Nothing was deferred. By entry verdict, 5 medium and 2 low patches were applied.
+- **Follow-up review recommended:** true. Two or more medium patches were applied. The named unverified risk: after merging Story 9.1, the Dictation button shares `.mt-actions` with "Ler visor" and "Confirmar todos". A dictated reading and a display suggestion on the same empty cell have not been reviewed together; the dictated field takes precedence while it is pending.
+- **Verification:** the Vitest runs over parse, speech and ficha are green (78 tests). `e2e/dictation.spec.ts` and `e2e/read-display.spec.ts` are green on their own, 12 of 12. See the PR body for `test:e2e:full` and `pnpm verify`.
+- **Residual risks:**
+  - At 390 px a dictated measurement cell is wider than the column; the table scrolls inside `.ficha-mt`.
+  - `webspeech` is untested against a real browser service (open question Q1).
