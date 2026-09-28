@@ -985,3 +985,9 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: `apps/web/src/surfaces/ficha/ficha-fields.tsx` date kind; kernel `parseFieldInput` accepts `mm/aaaa`.
   class: deferred
   state: open (owner: integrated Epic 8 fix batch)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-8-2-8-6-plate-capture-and-confirm.md`
+  summary: `@p1` 7.3-E2E-001 (`e2e/photo-numbers.spec.ts`) fails in `test:e2e:full` and alone on the batch P branch: the Export dialog lists "Parecer não preenchido" and keeps "Gerar relatório" disabled while the Sumário foot says "Nada impede gerar". It fails the same with batch P's pre-issue and Export changes reverted, so it is read as pre-existing from Stories 7.2 to 7.5 (not in `verify`, which tags `@p0`).
+  evidence: batch P `test:e2e:full` 2026-09-28 (223 passed, 1 failed, 4 skipped); isolated reruns with and without `pre-issue.ts`/`surfaces/export/*` of this branch.
+  class: deferred
+  state: open (owner: Epic 8 integrated review; confirm on clean main first)
