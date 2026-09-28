@@ -55,7 +55,8 @@ test('@p0 HOME-LAYOUT-E2E-001 Home and /cadastros at 390, 768, 1280 and 1906 px:
     await page.emulateMedia({ colorScheme: 'light' });
 
     await page.goto('/cadastros');
-    await expect(page.getByRole('tab', { name: 'Critérios de aceitação' })).toBeVisible();
+    // Below 768 px the tabs are a picker (`.tabs-phone`); the surface itself is the marker at every width.
+    await expect(page.locator('main[data-route="/cadastros"] [role="tabpanel"]')).toBeVisible();
     const cadastros = await rightEdges(page);
     expect(cadastros.bar - cadastros.avatar, `/cadastros at ${width} px: avatar ${cadastros.avatar}, bar ${cadastros.bar}`).toBeLessThanOrEqual(16);
     expect(cadastros.bar - cadastros.avatar).toBeGreaterThanOrEqual(0);
