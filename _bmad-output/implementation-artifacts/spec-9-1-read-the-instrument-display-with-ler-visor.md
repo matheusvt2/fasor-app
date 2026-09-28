@@ -2,7 +2,7 @@
 title: 'Story 9.1: Read the instrument display with "Ler visor" (plus the per-kind reading job)'
 type: 'feature'
 created: '2026-09-28'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'afabb44219466689d5852ae401694b04e7da2e9a'
 review_loop_iteration: 0
 followup_review_recommended: true
