@@ -12,6 +12,7 @@ import {
   idleRevisionNumber,
   failedReason,
   GENERATE_JOB_EXPIRE_S,
+  GENERATE_JOB_QUEUE_RETENTION_S,
   isJobActive,
   jobExpiresAt,
   latestRevision,
@@ -81,28 +82,38 @@ describe('4.8-UNIT-004 revision numbering and rows', () => {
     expect(revisionMetaSegments(REV_2, null).after).toBe('');
   });
 
-  it('counts a job as active only while queued or running and younger than the queue expiry', () => {
-    const job = (status: 'queued' | 'running' | 'done' | 'failed', created_at: string) => ({ status, created_at });
+  it('R7: a running job is active until started_at + expiry, a queued one until created_at + the queue retention', () => {
     const now = '2026-09-23T12:15:00.000Z';
-    expect(isJobActive(job('queued', '2026-09-23T12:14:00.000Z'), now, 900)).toBe(true);
-    expect(isJobActive(job('running', '2026-09-23T12:00:01.000Z'), now, 900)).toBe(true);
+    const running = (started_at: string | null, created_at = '2026-09-23T11:00:00.000Z') => ({ status: 'running' as const, created_at, started_at });
+    const queued = (created_at: string) => ({ status: 'queued' as const, created_at, started_at: null });
+    // Running: counted from started_at, whatever its created_at.
+    expect(isJobActive(running('2026-09-23T12:00:01.000Z'), now, 900)).toBe(true);
     // Exactly the expiry is no longer active.
-    expect(isJobActive(job('running', '2026-09-23T12:00:00.000Z'), now, 900)).toBe(false);
-    expect(isJobActive(job('queued', '2026-09-23T11:00:00.000Z'), now, 900)).toBe(false);
-    expect(isJobActive(job('done', '2026-09-23T12:14:00.000Z'), now, 900)).toBe(false);
-    expect(isJobActive(job('failed', '2026-09-23T12:14:00.000Z'), now, 900)).toBe(false);
-    expect(isJobActive(job('running', 'garbage'), now, 900)).toBe(false);
-    expect(isJobActive(job('running', '2026-09-23T12:14:00.000Z'), 'garbage', 900)).toBe(false);
-    // The default is the queue's expiry, one value for the api and the dialog.
+    expect(isJobActive(running('2026-09-23T12:00:00.000Z'), now, 900)).toBe(false);
+    // A running row written before started_at existed falls back to created_at.
+    expect(isJobActive(running(null, '2026-09-23T12:00:01.000Z'), now, 900)).toBe(true);
+    expect(isJobActive(running(null, '2026-09-23T12:00:00.000Z'), now, 900)).toBe(false);
+    // Queued: counted from created_at with the queue retention (an hour by default).
+    expect(isJobActive(queued('2026-09-23T11:15:01.000Z'), now)).toBe(true);
+    expect(isJobActive(queued('2026-09-23T11:15:00.000Z'), now)).toBe(false);
+    expect(isJobActive(queued('2026-09-23T12:14:00.000Z'), now, 900, 60)).toBe(false);
+    expect(isJobActive({ status: 'done', created_at: '2026-09-23T12:14:00.000Z' }, now)).toBe(false);
+    expect(isJobActive({ status: 'failed', created_at: '2026-09-23T12:14:00.000Z' }, now)).toBe(false);
+    // Unparsable dates are inactive.
+    expect(isJobActive(running('garbage'), now)).toBe(false);
+    expect(isJobActive(queued('garbage'), now)).toBe(false);
+    expect(isJobActive(running('2026-09-23T12:14:00.000Z'), 'garbage')).toBe(false);
+    // The defaults are the queue's options, one value for the api and the dialog.
     expect(GENERATE_JOB_EXPIRE_S).toBe(900);
-    expect(isJobActive(job('running', '2026-09-23T12:00:01.000Z'), now)).toBe(true);
-    expect(isJobActive(job('running', '2026-09-23T12:00:00.000Z'), now)).toBe(false);
+    expect(GENERATE_JOB_QUEUE_RETENTION_S).toBe(3600);
   });
 
   it('names the instant a job stops counting as running', () => {
-    expect(jobExpiresAt({ created_at: '2026-09-23T12:00:00.000Z' })).toBe(Date.parse('2026-09-23T12:15:00.000Z'));
-    expect(jobExpiresAt({ created_at: '2026-09-23T12:00:00.000Z' }, 60)).toBe(Date.parse('2026-09-23T12:01:00.000Z'));
-    expect(jobExpiresAt({ created_at: 'garbage' })).toBeNull();
+    expect(jobExpiresAt({ status: 'running', created_at: '2026-09-23T11:00:00.000Z', started_at: '2026-09-23T12:00:00.000Z' })).toBe(Date.parse('2026-09-23T12:15:00.000Z'));
+    expect(jobExpiresAt({ status: 'running', created_at: '2026-09-23T12:00:00.000Z' }, 60)).toBe(Date.parse('2026-09-23T12:01:00.000Z'));
+    expect(jobExpiresAt({ status: 'queued', created_at: '2026-09-23T12:00:00.000Z' })).toBe(Date.parse('2026-09-23T13:00:00.000Z'));
+    expect(jobExpiresAt({ status: 'running', created_at: 'garbage' })).toBeNull();
+    expect(jobExpiresAt({ status: 'done', created_at: '2026-09-23T12:00:00.000Z' })).toBeNull();
   });
 
   it('composes every sentence that carries the number', () => {

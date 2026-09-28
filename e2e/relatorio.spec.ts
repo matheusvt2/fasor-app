@@ -283,9 +283,11 @@ test('@p0 4.3-E2E-001 the Sumário: order, rows that open, the Position box, Ove
   // Story 12.3: the cabines' empty data is pending on section 9 too (never blocking).
   await expect(rows.nth(10).locator('.sum-status')).toHaveText(/^0 de 94 · Cubículo Enel: faltam 6 campos · /);
   await expect(rows.nth(3).locator('.sum-status')).toHaveText('texto padrão');
-  await expect(page.getByText('Nada impede gerar.')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Pré-visualizar' })).toHaveAttribute('aria-disabled', 'true');
-  await expect(page.getByRole('button', { name: 'Pré-visualizar' })).toHaveAccessibleDescription('Pré-visualizar: disponível em uma próxima etapa');
+  // Story 7.4: the parecer is the one row that stops "Gerar relatório" (row 10, in red); the
+  // foot says so, and the preview (Story 7.5) is live.
+  await expect(rows.nth(11).locator('.sum-status.is-blocking')).toHaveText('Parecer não preenchido');
+  await expect(page.getByText('Só Conclusão e parecer (linha 10) impede gerar. O resto está escrito em cada linha.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Pré-visualizar' })).not.toHaveAttribute('aria-disabled', 'true');
   // Every row is at least 56 px tall (v0.9 `.sum-row { min-height: var(--touch-field) }`, Story 12.5; was 64 in v0.8).
   for (const i of [0, 2, 5, 12]) {
     const box = (await rows.nth(i).boundingBox())!;

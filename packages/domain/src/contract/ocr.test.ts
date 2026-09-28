@@ -46,6 +46,13 @@ describe('OCR sidecar contract (Story 8.3)', () => {
     expect(OCR_READ_MAX_BYTES).toBe(20 * 1024 * 1024);
   });
 
+  it('exports the routes and the size limit for the sidecar to read (Story 8.4)', () => {
+    expect(ocrContractJsonSchema()['x-ocr-service']).toEqual({
+      routes: { read: OCR_SERVICE_ROUTES.read.path, health: OCR_SERVICE_ROUTES.health.path },
+      read_max_bytes: OCR_READ_MAX_BYTES,
+    });
+  });
+
   it('accepts an empty read and ids t0..tn in order', () => {
     expect(ocrReadResultSchema.safeParse(read([])).success).toBe(true);
     expect(ocrReadResultSchema.safeParse(read([token(0, [0, 0, 10, 10]), token(1, [12, 0, 100, 50])])).success).toBe(true);

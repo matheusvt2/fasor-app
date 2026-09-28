@@ -13,6 +13,7 @@ export * from './sync.ts';
 export * from './generate.ts';
 export * from './examples.ts';
 export * from './ocr.ts';
+export * from './reading.ts';
 
 export const componentStatusSchema = z.enum(['up', 'down']);
 

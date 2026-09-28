@@ -29,54 +29,54 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 09-27-2026 20:00
+last_updated: 09-28-2026 02:30
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
 story_location: _bmad-output/implementation-artifacts
 development_status:
-  epic-1: done
-  1-1-run-the-whole-stack-with-one-command: done
-  1-2-build-the-shared-components-from-the-mockups-css: done
-  1-3-sign-in-and-hold-a-session-that-survives-offline: done
-  1-4-every-change-is-an-operation-applied-locally-first: done
-  1-5-what-i-did-on-the-tablet-reaches-the-office-by-itself: done
-  1-6-home-and-account-show-what-is-on-this-device: done
-  1-7-reach-the-local-stack-from-a-tablet-over-https: done
-  1-8-nothing-captured-is-lost-when-the-tab-closes-the-network-dro: done
-  epic-1-retrospective: done
+  epic-1: done  # stories PRs #1-#8; retro fixes PRs #9-#12
+  1-1-run-the-whole-stack-with-one-command: done  # PR #1
+  1-2-build-the-shared-components-from-the-mockups-css: done  # PR #4
+  1-3-sign-in-and-hold-a-session-that-survives-offline: done  # PR #5
+  1-4-every-change-is-an-operation-applied-locally-first: done  # PR #3
+  1-5-what-i-did-on-the-tablet-reaches-the-office-by-itself: done  # PR #6
+  1-6-home-and-account-show-what-is-on-this-device: done  # PR #7
+  1-7-reach-the-local-stack-from-a-tablet-over-https: done  # PR #2
+  1-8-nothing-captured-is-lost-when-the-tab-closes-the-network-dro: done  # PR #8
+  epic-1-retrospective: done  # no PR; commit 88a6664, epic-1-retro-2026-09-22.md
 
-  epic-2: done
-  2-1-register-a-test-instrument-with-its-calibration-record: done
-  2-2-attach-a-certificate-file-that-reaches-the-server-by-itself: done
-  2-3-set-the-company-s-document-identity-once-with-a-live-brand-p: done
-  2-4-register-clients-and-their-sites: done
-  2-5-pick-manufacturers-and-voltage-classes-or-create-one-from-th: done
-  2-6-see-the-acceptance-criteria-as-sourced-data: done
-  epic-2-retrospective: done
+  epic-2: done  # stories PRs #13-#15; fixes PRs #16, #17
+  2-1-register-a-test-instrument-with-its-calibration-record: done  # PR #13
+  2-2-attach-a-certificate-file-that-reaches-the-server-by-itself: done  # PR #15
+  2-3-set-the-company-s-document-identity-once-with-a-live-brand-p: done  # PR #15
+  2-4-register-clients-and-their-sites: done  # PR #14
+  2-5-pick-manufacturers-and-voltage-classes-or-create-one-from-th: done  # PR #14
+  2-6-see-the-acceptance-criteria-as-sourced-data: done  # PR #14
+  epic-2-retrospective: done  # no PR; commit 5feb8d7, epic-2-retro-2026-09-22.md
 
-  epic-3: in-progress
-  3-1-seed-the-eight-equipment-block-types-from-the-decoded-fo-ser: done
-  3-2-seed-the-section-boilerplate-and-the-cabine-primária-padrão: done
-  3-3-list-duplicate-and-archive-templates: done
-  3-4-compose-a-template-with-its-location-skeleton-and-quantities: done
-  3-5-set-sub-block-defaults-and-subtypes-per-block-type: done
-  3-6-edit-the-section-boilerplate-as-plain-text-with-variables: done
-  3-7-build-the-porto-seguro-fixture-relatório: done
-  epic-3-retrospective: done
+  epic-3: done  # stories PRs #18-#21; fixes PRs #22, #23
+  3-1-seed-the-eight-equipment-block-types-from-the-decoded-fo-ser: done  # PR #18
+  3-2-seed-the-section-boilerplate-and-the-cabine-primária-padrão: done  # PR #18
+  3-3-list-duplicate-and-archive-templates: done  # PR #19
+  3-4-compose-a-template-with-its-location-skeleton-and-quantities: done  # PR #19
+  3-5-set-sub-block-defaults-and-subtypes-per-block-type: done  # PR #21
+  3-6-edit-the-section-boilerplate-as-plain-text-with-variables: done  # PR #21
+  3-7-build-the-porto-seguro-fixture-relatório: done  # PR #20
+  epic-3-retrospective: done  # no PR; commit 91f1664, epic-3-retro-2026-09-23.md
 
-  epic-4: in-progress  # all 8 stories merged (PRs #24-#28); open: Bruno reading of the skeleton DOCX (4.8, R-009), R-009 seed review before Epic 5, Q15 shared-TAG rename vs Emitido (deferred-work)
-  4-1-create-a-project-and-a-relatório-whose-blocks-are-born-in-pl: done
-  4-2-fill-the-relatório-setup-page: done
-  4-3-see-the-relatório-as-its-own-table-of-contents-the-sumário: done
-  4-4-walk-the-location-tree: done
-  4-5-add-remove-restore-duplicate-and-reorder-equipment-blocks: done
-  4-6-status-transitions-and-the-relatório-emitido-warning: done
-  4-7-edit-a-section-s-text-inside-one-relatório: done
+  epic-4: done  # stories PRs #24-#27; fixes PRs #28, #29; open follow-ups (action items, not stories): Bruno reading of the skeleton DOCX (4.8, R-009), R-009 seed review before Epic 5, Q15 shared-TAG rename vs Emitido (deferred-work)
+  4-1-create-a-project-and-a-relatório-whose-blocks-are-born-in-pl: done  # PR #25
+  4-2-fill-the-relatório-setup-page: done  # PR #27
+  4-3-see-the-relatório-as-its-own-table-of-contents-the-sumário: done  # PR #25
+  4-4-walk-the-location-tree: done  # PR #26
+  4-5-add-remove-restore-duplicate-and-reorder-equipment-blocks: done  # PR #26
+  4-6-status-transitions-and-the-relatório-emitido-warning: done  # PR #27
+  4-7-edit-a-section-s-text-inside-one-relatório: done  # PR #27
   4-8-generate-the-document-skeleton-as-a-numbered-docx-revision: done  # PR #24; Bruno reading of the skeleton DOCX pending (R-009)
-  epic-4-retrospective: done
+  epic-4-retrospective: done  # no PR; commit 1aff713, epic-4-retro-2026-09-24.md
 
-  epic-5: done  # closed by Matheus 2026-09-24; deep testing (device proof, E5-A2) deferred to the product POC
+  epic-5: done  # stories PRs #30-#32; fixes PR #33; closed by Matheus 2026-09-24; deep testing (device proof, E5-A2) deferred to the product POC
   5-1-open-a-sheet-and-move-through-its-four-steps: done  # PR #30
   5-2-record-the-cabine-s-characteristics-and-test-environment-onc: done  # PR #30
   5-3-fill-the-nameplate-by-copy-or-by-typing: done  # PR #30
@@ -86,32 +86,32 @@ development_status:
   5-7-pick-the-instrument-by-its-code: done  # PR #32
   5-8-conclude-the-sheet-with-one-tap-and-a-text-the-app-wrote-fro: done  # PR #32
   5-9-mark-an-equipment-as-not-tested: done  # PR #31
-  epic-5-retrospective: done
+  epic-5-retrospective: done  # no PR; commit a38668a, epic-5-retro-2026-09-24.md
 
-  epic-6: done
+  epic-6: done  # stories PRs #41-#43; fixes PRs #44, #46
   6-1-shoot-photos-in-a-burst-from-any-surface-captioned-from-wher: done  # PR #41
   6-2-no-photo-is-ever-lost: done  # PR #41
   6-3-see-every-photo-in-one-chronological-gallery-with-its-stamp: done  # PR #43
   6-4-add-photos-after-the-visit-or-from-someone-else-s-phone: done  # PR #43
   6-5-change-a-caption-from-chips-or-free-text: done  # PR #43
   6-6-record-findings-that-print-as-section-8-with-untested-equipm: done  # PR #42
-  epic-6-retrospective: done
+  epic-6-retrospective: done  # no PR; commit f53ed18, epic-6-retro-2026-09-26.md
 
-  epic-7: in-progress  # started 2026-09-26 in parallel with Epic 8 (Matheus)
+  epic-7: in-progress  # stories PRs #50, #51; integrated QA with Epic 8 and the retro pending
   7-1-print-the-equipment-sheets-as-native-tables-grouped-as-fo-se: done  # PR #50
-  7-2-print-the-photo-record-and-the-photos-beside-their-equipment: review  # combined branch story/7-4-7-5-parecer-export-preview (with 7.2/7.3), gate running
-  7-3-print-the-points-of-attention-and-the-certificates: review  # combined branch story/7-4-7-5-parecer-export-preview (with 7.2/7.3), gate running
-  7-4-set-the-parecer-and-print-section-10-with-the-signature-bloc: review  # combined branch story/7-4-7-5-parecer-export-preview (with 7.2/7.3), gate running
-  7-5-see-what-is-outstanding-preview-as-rascunho-and-issue-the-re: review  # combined branch story/7-4-7-5-parecer-export-preview (with 7.2/7.3), gate running
+  7-2-print-the-photo-record-and-the-photos-beside-their-equipment: done  # PR #51
+  7-3-print-the-points-of-attention-and-the-certificates: done  # PR #51
+  7-4-set-the-parecer-and-print-section-10-with-the-signature-bloc: done  # PR #51
+  7-5-see-what-is-outstanding-preview-as-rascunho-and-issue-the-re: done  # PR #51
   epic-7-retrospective: optional
 
-  epic-8: in-progress
+  epic-8: in-progress  # stories PRs #47, #49; carry-over PR #48
   8-1-a-suggestion-is-an-entity-nobody-can-write-without-a-tap: done  # PR #49
-  8-2-photograph-the-plate-and-keep-the-photo-until-there-is-signa: backlog
+  8-2-photograph-the-plate-and-keep-the-photo-until-there-is-signa: in-progress  # PR pending; batch P, branch story/8-2-8-6-plate-capture-and-confirm
   8-3-run-a-local-ocr-service-in-docker-behind-the-ocrprovider-con: done  # PR #47
-  8-4-run-the-reading-job-end-to-end-with-fixture-driven-structuri: backlog
-  8-5-accept-a-digit-only-when-the-ocr-saw-it-and-check-names-agai: backlog
-  8-6-confirm-the-plate-in-one-tap-with-the-crop-in-view: backlog
+  8-4-run-the-reading-job-end-to-end-with-fixture-driven-structuri: done  # PR #52
+  8-5-accept-a-digit-only-when-the-ocr-saw-it-and-check-names-agai: done  # PR #52
+  8-6-confirm-the-plate-in-one-tap-with-the-crop-in-view: in-progress  # PR pending; batch P, branch story/8-2-8-6-plate-capture-and-confirm
   epic-8-retrospective: optional
 
   epic-9: backlog
@@ -141,14 +141,15 @@ development_status:
   11-9-let-the-priority-suggest-the-deadline-on-a-point-of-attentio: backlog
   11-10-print-the-action-plan-table-in-section-8-post-mvp-before-202: backlog
   epic-11-retrospective: optional
-  epic-12: done  # journey review 2026-09-24; runs before Epic 6, confirmed by Matheus (sprint-change-proposal-2026-09-24.md)
+
+  epic-12: done  # stories PRs #35-#38; fixes PR #39; journey review 2026-09-24; runs before Epic 6, confirmed by Matheus (sprint-change-proposal-2026-09-24.md)
   12-1-no-tap-is-ever-lost-and-a-section-never-collapses-under-the: done  # PR #36
   12-2-forward-never-back-resume-in-one-tap-and-no-dead-ends: done  # PR #35
   12-3-the-sheet-repeats-nothing-the-cabine-or-the-relatorio-alread: done  # PR #37
   12-4-the-plate-and-the-nc-in-fewer-taps: done  # PR #37
   12-5-apply-the-v0-9-visual-direction: done  # PR #38
   12-6-the-tap-budget-is-a-test: done  # PR #38
-  epic-12-retrospective: done
+  epic-12-retrospective: done  # no PR; commit e9e863c, epic-12-retro-2026-09-25.md
 
 action_items:
   - id: "epic-1-retro-item-1-a1-run-the-manual-ipad-and-android-offli"
@@ -165,7 +166,7 @@ action_items:
       validated by the seed CLI, user rows projected to the company stream, registration
       save as user/{id}/{field} ops, account reads through the contract"
     owner: "Architecture, then first Epic 2 story"
-    status: done  # PR #9, 66fa41c59fd04b7c0ff92dda8ea412047a38caae
+    status: done  # PR #9
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-3-a3-persist-the-service-worker-hold-shell"
     epic: 1
@@ -173,14 +174,14 @@ action_items:
       or IndexedDB), test the worker-restart lifecycle and re-run QA D-1 in a real
       browser (blocking before Epics 5 and 6)"
     owner: "Follow-up story (opus/high)"
-    status: done  # PR #11, 6a746d50b0ac48f31de2474d802555d57f5a5ab5
+    status: done  # PR #11
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-4-a4-stamp-the-minted-device_id-in-commitd"
     epic: 1
     action: "A4 Stamp the minted device_id in CommitDeps/commitBatch and drop the
       user-id fallback in the fixture before any Epic 2 op emitter"
     owner: "Next story"
-    status: done  # PR #9, 66fa41c59fd04b7c0ff92dda8ea412047a38caae
+    status: done  # PR #9
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-5-a5-ui-hygiene-story-checked-in-a-real-br"
     epic: 1
@@ -191,7 +192,7 @@ action_items:
       draft toast dismiss, badge when server unreachable, back chevron, per-route
       title, favicon"
     owner: "Next story (opus/high)"
-    status: done  # PR #12, 1f61c3e09382e19247ba084133ded2cb255e73e9
+    status: done  # PR #12
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-6-a6-stabilize-and-widen-the-gate-testtime"
     epic: 1
@@ -199,7 +200,7 @@ action_items:
       DB-touching tests out of test:unit, retag e2e by priority, add emoji/laudo scans
       and pnpm audit, rebuild the tools image, keep one reset mechanism"
     owner: "Process"
-    status: done  # PR #10, 947b17e4cd5ea9a32bad3fc30ae2ef4736eabe29
+    status: done  # PR #10
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-7-a7-move-status-words-plurals-counts-and"
     epic: 1
@@ -207,14 +208,14 @@ action_items:
       kernel; brand applyOps and toSnapshot with CompanyId; document where a new string
       goes"
     owner: "Architecture"
-    status: done  # PR #9, 66fa41c59fd04b7c0ff92dda8ea412047a38caae
+    status: done  # PR #9
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-8-a8-keep-the-last-session-pointer-on-a-bo"
     epic: 1
     action: "A8 Keep the last-session pointer on a boot-time 401 so offline cold opens
       reach local data behind the re-auth banner"
     owner: "Next story"
-    status: done  # PR #9, 66fa41c59fd04b7c0ff92dda8ea412047a38caae
+    status: done  # PR #9
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-9-a9-refresh-readme-agents-md-running-and"
     epic: 1
@@ -222,14 +223,14 @@ action_items:
       doc, dist build before Caddy, desktop CA, seed usage and a sample-relatorio
       seed flag; strike Story 1.7 CI AC through"
     owner: "Process (bmad-project-context)"
-    status: done  # PR #10, 947b17e4cd5ea9a32bad3fc30ae2ef4736eabe29
+    status: done  # PR #10
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-10-a10-merge-every-spec-deferred-item-into"
     epic: 1
     action: "A10 Merge every spec deferred item into deferred-work.md with a class,
       close resolved ones, add a cross-tenant case per new route to the DoD"
     owner: "Process"
-    status: done  # PR #10, 947b17e4cd5ea9a32bad3fc30ae2ef4736eabe29
+    status: done  # PR #10
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-11-a11-pipeline-independent-review-on-every"
     epic: 1
@@ -238,7 +239,7 @@ action_items:
       stories, smaller specs with ACs only against existing artifacts, epic-close
       gate checks manual ACs, parallel-story start checklist"
     owner: "Process (bmad-build.toml, model guide)"
-    status: done  # PR #10, 947b17e4cd5ea9a32bad3fc30ae2ef4736eabe29
+    status: done  # PR #10
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-1-retro-item-12-a12-before-any-exposure-beyond-the-offic"
     epic: 1
@@ -254,21 +255,21 @@ action_items:
       op retiring the merged-away id on the originating device, redirect persisted,
       two-cycle convergence test"
     owner: "dev"
-    status: done
+    status: done  # PR #17
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-22.md"
   - id: "epic-2-retro-item-14-e2-a2-fix-d-2-wire-registrypickerfield-i"
     epic: 2
     action: "E2-A2 Fix D-2: wire RegistryPickerField into the instrument Fabricante
       field with an offline Criar e2e; move AC 2.4-2 to Epic 4 in epics.md"
     owner: "dev"
-    status: done
+    status: done  # PR #17
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-22.md"
   - id: "epic-2-retro-item-15-e2-a3-fix-d-3-d-8-open-certificate-empre"
     epic: 2
     action: "E2-A3 Fix D-3..D-8 (open certificate, Empresa @p0, visible defaults,
       voltage-class kV form, phone full-screen form, polish)"
     owner: "dev"
-    status: done
+    status: done  # PR #17
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-22.md"
   - id: "epic-2-retro-item-16-e2-a4-dod-every-user-facing-ac-exercised"
     epic: 2
@@ -282,7 +283,7 @@ action_items:
     action: "E2-A5 Human-style pass covers each form at 390 and one second-cycle or
       second-device scenario"
     owner: "dev and reviewers"
-    status: done
+    status: done  # no PR; adopted as process in the retro (commit 5feb8d7)
     ref: "_bmad-output/implementation-artifacts/epic-2-retro-2026-09-22.md"
   - id: "epic-3-retro-item-18-e3-a1-record-the-r-009-seed-review-under"
     epic: 3
@@ -304,14 +305,14 @@ action_items:
     action: "E3-A3 Validate sheet/* path segments against getDefinition in applyOp
       before Epic 4 writes sheet values"
     owner: "dev"
-    status: done  # PR #30 (assertSeedPath; cell row/col stay structural)
+    status: done  # PR #30; assertSeedPath, cell row/col stay structural
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
   - id: "epic-3-retro-item-21-e3-a4-stabilize-the-gate-templates-list"
     epic: 3
     action: "E3-A4 Stabilize the gate: Templates list empty for 30 s after sign-in
       under load (3.6-E2E-001), and cut unit-suite jsdom/axe cost"
     owner: "dev"
-    status: done  # PR #40 (Epic 6 batch F)
+    status: done  # PR #40; Epic 6 batch F
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
   - id: "epic-3-retro-item-22-e3-a5-decide-d-4-template-version-d-5-co"
     epic: 3
@@ -333,14 +334,14 @@ action_items:
     action: "E3-A7 Process: one story per PR or a recorded exception; Dev model changes
       noted in epics.md with a date"
     owner: "Matheus / SM"
-    status: done
+    status: done  # no PR; adopted as process in the retro (commit 91f1664)
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
   - id: "epic-3-retro-item-25-e3-a8-process-focus-asserted-after-every"
     epic: 3
     action: "E3-A8 Process: focus asserted after every destructive action; contenteditable
       and touch ACs run once on Android Chrome or WebKit before close"
     owner: "dev + reviewers"
-    status: done
+    status: done  # no PR; adopted as process in the retro (commit 91f1664)
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
   - id: "epic-3-retro-item-26-e3-a9-deferred-polish-toggle-sub-lines-f"
     epic: 3
@@ -348,7 +349,7 @@ action_items:
       4 in section 8, synthetic names in remaining tests, blank-rename message, open
       Editar texto from the card"
     owner: "dev"
-    status: in-progress  # PR #40 all but section 8 bullet 4 (Story 6.6 / Epic 7)
+    status: in-progress  # PR #40; all but section 8 bullet 4 (Story 6.6 / Epic 7)
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
   - id: "epic-3-retro-item-27-e3-a10-tooling-remove-stale-worktrees-re"
     epic: 3
@@ -364,14 +365,14 @@ action_items:
       snapshot_seq, issue on unchanged, setup asks statusTable(status); add a @p0
       generate-edit-regenerate e2e (before Epic 5)"
     owner: "dev (opus)"
-    status: done  # PR #29, bc20c98 (item 23 and Q15 product choice stay open questions)
+    status: done  # PR #29; item 23 and Q15 product choice stay open questions
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
   - id: "epic-4-retro-item-29-e4-a2-q4-across-devices-pull-the-project"
     epic: 4
     action: "E4-A2 Q4 across devices: pull the project equipment before Criar relatorio
       (or refuse offline) so reuse never mints duplicates; add a two-device test"
     owner: "dev"
-    status: done  # PR #29, bc20c98 (item 23 and Q15 product choice stay open questions)
+    status: done  # PR #29; item 23 and Q15 product choice stay open questions
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
   - id: "epic-4-retro-item-30-e4-a3-section-text-and-exclusions-one-sh"
     epic: 4
@@ -379,14 +380,14 @@ action_items:
       (stale Desfazer, swallowed errors), Sumario meta for an edited text, blank exclusions
       filtered and removable, decide template section 3 vs setup exclusions"
     owner: "dev"
-    status: done  # PR #29, bc20c98 (item 23 and Q15 product choice stay open questions)
+    status: done  # PR #29; item 23 and Q15 product choice stay open questions
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
   - id: "epic-4-retro-item-31-e4-a4-small-fixes-one-putrelatoriostatus"
     epic: 4
     action: "E4-A4 Small fixes: one putRelatorioStatusOp/putBlockOp for every write,
       web uses the kernel projectLabel, drop the stale ART comment in document-control.ts"
     owner: "dev"
-    status: done  # PR #29, bc20c98 (item 23 and Q15 product choice stay open questions)
+    status: done  # PR #29; item 23 and Q15 product choice stay open questions
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
   - id: "epic-4-retro-item-32-e4-a5-spec-reconciliation-dated-narrowin"
     epic: 4
@@ -409,7 +410,7 @@ action_items:
       Sumario row actions, unify the focus-restore helpers, move project helpers out
       of sumario.ts"
     owner: "dev"
-    status: done  # PR #40 (Epic 6 batch F)
+    status: done  # PR #40; Epic 6 batch F
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
   - id: "epic-4-retro-item-35-e4-a8-process-integrated-human-style-qa"
     epic: 4
@@ -417,7 +418,7 @@ action_items:
       closes; every cross-batch AC gets a named wiring owner in the spec phase; identity/reuse
       rules get a two-device test; fix agents report product choices as open questions"
     owner: "coordinator / SM"
-    status: done  # folded into epic-batch-orchestrator.md
+    status: done  # no PR; folded into epic-batch-orchestrator.md (commit b08f622)
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
   - id: "epic-4-retro-item-36-e4-a9-gate-run-test-e2e-matrix-at-epic-c"
     epic: 4
@@ -425,7 +426,7 @@ action_items:
       verifies, a shared SyncState test factory, an orchestrator watchdog with ISO
       timestamps"
     owner: "dev / coordinator"
-    status: done  # PR #48 makeSyncState; host lock; watchdog rule in epic-batch-orchestrator.md
+    status: done  # PR #48 (makeSyncState); host lock and watchdog rule in epic-batch-orchestrator.md (commit b08f622)
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
   - id: "epic-5-retro-item-37-e5-a1-stabilize-the-e2e-gate-before-epic"
     epic: 5
@@ -433,7 +434,7 @@ action_items:
       the timing flakes 4.1-E2E-002, 4.3-E2E-002, 1.6-E2E-001, 5.5-E2E-001 and the
       E5-Q8 test by waiting on committed state; three green full runs in a row"
     owner: "dev (opus)"
-    status: done
+    status: done  # PR #34
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
   - id: "epic-5-retro-item-38-e5-a2-add-the-sheet-to-the-durability-ma"
     epic: 5
@@ -441,7 +442,7 @@ action_items:
       chip row, sticky bar with the keyboard, Nao ensaiado) and to the E1-A1 manual
       device script"
     owner: "dev, then Matheus"
-    status: in-progress  # PR #40 sheet specs in test:e2e:matrix (@p1); device run by Matheus open
+    status: in-progress  # PR #40; sheet specs in test:e2e:matrix (@p1), device run by Matheus open
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
   - id: "epic-5-retro-item-39-e5-a3-decide-oq-1-oq-6-of-reviews-epic-5"
     epic: 5
@@ -466,7 +467,7 @@ action_items:
       relatorio-ops, setup-surface puts), folded into E4-A7 with the setup-surface
       split"
     owner: "dev"
-    status: done  # PR #40 (Epic 6 batch F)
+    status: done  # PR #40; Epic 6 batch F
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
   - id: "epic-5-retro-item-42-e5-a6-dod-a-new-kernel-refusal-of-a-writ"
     epic: 5
@@ -474,14 +475,14 @@ action_items:
       test through the sync route; a batch adding a table or wide control asserts
       its 390 px fit in an e2e"
     owner: "coordinator / SM"
-    status: done  # folded into epic-batch-orchestrator.md
+    status: done  # no PR; folded into epic-batch-orchestrator.md (commit b08f622)
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
   - id: "epic-5-retro-item-43-e5-a7-keep-the-epic-5-token-economy-deli"
     epic: 5
     action: "E5-A7 Keep the Epic 5 token-economy delivery shape while tokens are scarce,
       orchestrate on opus, cut batches along data dependencies"
     owner: "coordinator"
-    status: done  # folded into epic-batch-orchestrator.md
+    status: done  # no PR; folded into epic-batch-orchestrator.md (commit b08f622)
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
   - id: "epic-12-retro-item-44-e12-a1-add-the-epic-12-product-questions"
     epic: 12
@@ -500,7 +501,7 @@ action_items:
       7 context: the TAG is never written as an op, so the printer and the last_nameplate
       projection must read nameplateTagPrefill"
     owner: "coordinator"
-    status: done  # epic-7-context.md carry-over
+    status: done  # no PR; epic-7-context.md carry-over (commit 1582cdd)
     ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
   - id: "epic-12-retro-item-46-e12-a3-add-to-the-e1-a1-manual-device-sc"
     epic: 12
@@ -523,7 +524,7 @@ action_items:
     action: "E12-A5 Recompute every numeric AC target (taps, keys, times) against
       the decisions of its source document before a story is marked ready (E12-Q5)"
     owner: "coordinator / SM"
-    status: done  # folded into epic-batch-orchestrator.md
+    status: done  # no PR; folded into epic-batch-orchestrator.md (commit b08f622)
     ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
   - id: "epic-12-retro-item-49-e12-a6-gate-and-agents-new-p0-specs-wait"
     epic: 12
@@ -532,7 +533,7 @@ action_items:
       it; QA writes its report inside its worktree; agents block on background commands;
       one coordinator per checkout"
     owner: "coordinator"
-    status: done  # folded into epic-batch-orchestrator.md
+    status: done  # no PR; folded into epic-batch-orchestrator.md (commit b08f622)
     ref: "_bmad-output/implementation-artifacts/epic-12-retro-2026-09-25.md"
   - id: "epic-12-retro-item-50-e12-a7-visual-follow-ups-with-epic-6-s-s"
     epic: 12
@@ -550,7 +551,7 @@ action_items:
       vs 3 parallel full-run validation and switch the gate to 3 workers if it holds,
       bringing verify back under 15 min (measured 17-21 min)"
     owner: "Epic 7 carry-over batch (dev)"
-    status: in-progress  # PR #48: push applied in one transaction (worst 32.9 s -> 2.9 s); parallel runs still fail one timing spec each, gate stays at 1 worker
+    status: in-progress  # PR #48; push applied in one transaction (worst 32.9 s -> 2.9 s); parallel runs still fail one timing spec each, gate stays at 1 worker
     ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
   - id: "epic-6-retro-item-52-e6-a2-gate-policy-one-verify-at-a-time-on-this"
     epic: 6
@@ -602,5 +603,5 @@ action_items:
       under its story in epics.md; split ficha-surface.tsx (704 lines) when next touched;
       keep the carry-over-first batch in each epic"
     owner: "coordinator (batch instruction file); dev for the split"
-    status: done  # PR #48 (split, dated narrowings); process rules in epic-batch-orchestrator.md
+    status: done  # PR #48 (split, dated narrowings); process rules in epic-batch-orchestrator.md (commit b08f622)
     ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"

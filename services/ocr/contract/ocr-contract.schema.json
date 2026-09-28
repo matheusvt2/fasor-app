@@ -3,6 +3,13 @@
   "$id": "ocr-contract.schema.json",
   "title": "OcrContract",
   "description": "Generated from packages/domain/src/contract/ocr.ts by `pnpm schema:ocr`; do not edit. The OCR sidecar (services/ocr) and the api reading job speak these shapes.",
+  "x-ocr-service": {
+    "routes": {
+      "read": "/read",
+      "health": "/health"
+    },
+    "read_max_bytes": 20971520
+  },
   "$defs": {
     "OcrReadResult": {
       "title": "OcrReadResult",

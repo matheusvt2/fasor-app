@@ -19,7 +19,7 @@ import { applyOps, applyServerBatch, type Tx } from '../sync/apply.ts';
 import type { Db } from './client.ts';
 import { ensureCompany } from './repositories/companies.ts';
 import { asCompanyId, type CompanyId } from './repositories/company-id.ts';
-import { account, company, entities, ops, session, syncDevicePush, user } from './schema.ts';
+import { account, company, entities, ops, readingRuns, session, syncDevicePush, user } from './schema.ts';
 import { isE2eWorkerCompany, workerSeed, type SeedAccount } from './e2e-worker-seed.ts';
 import { LEGACY_TEST_COMPANY_IDS, TEST_SEED } from './test-seed.ts';
 
@@ -394,6 +394,7 @@ export async function resetTestCompanyData(
     await tx.delete(ops).where(inArray(ops.company_id, ids));
     await tx.delete(entities).where(inArray(entities.company_id, ids));
     await tx.delete(syncDevicePush).where(inArray(syncDevicePush.company_id, ids));
+    await tx.delete(readingRuns).where(inArray(readingRuns.company_id, ids));
   });
 }
 

@@ -29,6 +29,13 @@
       "when": 1790078765707,
       "tag": "0003_user_registration_to_entity",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790550462523,
+      "tag": "0004_reading_runs",
+      "breakpoints": true
     }
   ]
 }

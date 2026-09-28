@@ -37,6 +37,7 @@ export function makeSyncState(overrides: SyncStateOverrides = {}): SyncState {
     resendDead: vi.fn(async () => {}),
     fetchFile: vi.fn(async () => new Blob()),
     generate: vi.fn(async () => ({ outcome: 'queued' as const, job_id: FAKE_JOB_ID, revision_number: 1 })),
+    preview: vi.fn(async () => ({ outcome: 'queued' as const, job_id: FAKE_JOB_ID })),
     ...overrides,
     counts,
   };

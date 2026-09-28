@@ -247,7 +247,8 @@ test('@p1 6.2-E2E-006 the Sumário counts "aguardando envio" without the photo w
   // Three photos the server does not hold: one reads "Erro", two are waiting.
   await page.goto(`/relatorio/${relatorioId}`);
   const row7 = page.locator('button.sum-open', { hasText: 'Registro fotográfico' });
-  await expect(row7.locator('.sum-status')).toHaveText('3 fotos · 2 aguardando envio', { timeout: 30_000 });
+  // Story 7.5 (carry-over): the photo with the error is named apart, as the server does not hold it.
+  await expect(row7.locator('.sum-status')).toHaveText('3 fotos · 2 aguardando envio · 1 com erro de envio', { timeout: 30_000 });
   const photos = await devicePhotos(page, database);
   expect(photos.filter((photo) => photo.uploaded_at === null)).toHaveLength(3);
 });

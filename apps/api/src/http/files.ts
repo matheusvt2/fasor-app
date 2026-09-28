@@ -26,7 +26,9 @@ import type { Db } from '../db/client.ts';
 import type { CompanyId } from '../db/repositories/company-id.ts';
 import { entities } from '../db/schema.ts';
 import { newId } from '../ids.ts';
-import { logError } from '../log.ts';
+import type { ReadingPayload } from '../jobs/reading/payload.ts';
+import { startReading } from '../jobs/reading/status.ts';
+import { log, logError } from '../log.ts';
 import { getObject, headObject, putObject } from '../storage/s3.ts';
 import { hasVariants, renderVariants } from '../storage/variants.ts';
 import { applyServerBatch, type Tx } from '../sync/apply.ts';
@@ -122,6 +124,11 @@ function sha256Of(bytes: Uint8Array): string {
 
 export interface FileRoutesDeps {
   now: Clock;
+  /**
+   * Story 8.4: sends a plate photo's reading job on its first upload. Absent when the app
+   * runs without a queue: the upload still succeeds and the photo stays `queued`.
+   */
+  enqueueReading?: (payload: ReadingPayload) => Promise<void>;
 }
 
 export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: FileRoutesDeps): Hono<AppEnv> {
@@ -177,6 +184,26 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
     } catch (error) {
       if (error instanceof FieldAlreadySet) return false;
       throw error;
+    }
+  }
+
+  /** Sends the photo's plate reading and writes `running` (`jobs/reading/status.ts`); a failure is logged, never answered. */
+  async function queueReading(companyId: CompanyId, lookup: FileRowLookup): Promise<void> {
+    const fields = { company_id: companyId, relatorio_id: lookup.relatorioId, file_id: lookup.row.id };
+    const enqueue = deps.enqueueReading;
+    if (enqueue === undefined) {
+      log('reading not enqueued: no queue', fields);
+      return;
+    }
+    try {
+      await startReading(
+        { db, now: deps.now, newId, enqueue },
+        companyId,
+        { id: lookup.row.id, relatorioId: lookup.relatorioId },
+        { company_id: companyId, photo_id: lookup.row.id, reading_kind: 'plate' },
+      );
+    } catch (error) {
+      logError('reading enqueue failed', { ...fields, error: String(error) });
     }
   }
 
@@ -289,6 +316,14 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
         logError('file variants failed', { company_id: session.companyId, file_id: id, error: String(error) });
         variants = null;
       }
+    }
+
+    // Story 8.4: the upload of a plate photo the device queued starts its reading, once. The
+    // re-read row says `queued` only until the first PUT wrote `running`, so a retried PUT
+    // sends no second job and writes no second status op. Never fatal to the upload.
+    const current = stored?.row;
+    if (current !== undefined && current.kind === 'photo' && current.reading_kind === 'plate' && current.reading_status === 'queued') {
+      await queueReading(session.companyId, lookup);
     }
 
     const answer: FilePutResponse = { id, uploaded_at: uploadedAt, variants };

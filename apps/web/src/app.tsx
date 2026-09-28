@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate, Outlet, RouterProvider, type RouteObject
 import { copy } from './copy/pt-br.ts';
 import { BackTargetProvider } from './state/back-target.tsx';
 import { DraftProvider } from './state/drafts.tsx';
+import { GenerateWatcher } from './state/generate-watcher.tsx';
 import { ExtraBannerProvider } from './state/extra-banner.tsx';
 import { PageTitleProvider } from './state/page-title.tsx';
 import { SessionProvider, useSession } from './state/session.tsx';
@@ -67,6 +68,8 @@ function RequireSession() {
     <SyncProvider>
       <ThemeProvider>
         <ToastProvider>
+          {/* R4 (Story 7.5): the ready toast and the issue op of a pressed "Gerar relatório" arrive on any surface. */}
+          <GenerateWatcher />
           <DraftProvider>
             <BackTargetProvider>
               <PageTitleProvider>

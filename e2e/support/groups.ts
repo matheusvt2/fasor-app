@@ -15,8 +15,16 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
       'generates documents through the one pg-boss queue and the one LibreOffice of the api, and loads the small Porto Seguro fixture, whose ids are fixed and whose seed reclaims them from every company',
   },
   {
+    file: 'parecer-export.spec.ts',
+    why: 'issues and previews documents through the shared queue and LibreOffice, and loads the same fixed-id Porto Seguro fixture',
+  },
+  {
     file: 'export-visual.spec.ts',
     why: 'loads the same fixed-id Porto Seguro fixture and generates a revision through the shared queue and LibreOffice',
+  },
+  {
+    file: 'photo-numbers.spec.ts',
+    why: 'loads the same fixed-id Porto Seguro fixture and generates revisions through the shared queue and LibreOffice, whose certificate rasterization shares the one soffice chain',
   },
   // Test-speed batch (2026-09-27): the specs that time a tap against a render (`humanTap`,
   // `touchPressAcross`, `tapCounter` in `taps.ts`). They measure the device, and the device
@@ -50,8 +58,9 @@ export type E2eGroup = 'parallel' | 'serial';
  *
  * Three (2026-09-27, `spec-test-speed.md`): 6.2-E2E-001's retry no longer gives up waiting
  * for the cycle in flight (`SyncEngine.retryUpload`), `humanTap` waits for its target to be
- * tappable by time as well as by frames, and every spec that times a tap against a render
- * runs in the serial group, alone on the machine. The validation runs are in that spec.
+ * tappable by time as well as by frames, a PUT and its retry emit a file's server ops once
+ * (6.2-E2E-003), and every spec that times a tap against a render runs in the serial group,
+ * alone on the machine. The validation runs are in that spec.
  */
 export const PARALLEL_WORKERS = 3;
 

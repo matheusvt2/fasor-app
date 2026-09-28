@@ -11,7 +11,7 @@ import { createDb } from '../db/client.ts';
 import { asCompanyId } from '../db/repositories/company-id.ts';
 import { entities } from '../db/schema.ts';
 import { seedTestCompanies, TEST_SEED } from '../db/seed.ts';
-import { removePortoSeguroSmall, seedPortoSeguroSmall, SMALL_FIXTURE_RELATORIO_ID } from '../db/test-fixtures.ts';
+import { removePortoSeguroSmall, seedPortoSeguroSmall, SMALL_FIXTURE_RELATORIO_ID, TEST_PARECER } from '../db/test-fixtures.ts';
 import type { GeneratePayload } from '../jobs/generate/job.ts';
 import { createS3 } from '../storage/s3.ts';
 import { createApp } from './app.ts';
@@ -71,7 +71,7 @@ async function jobs() {
 
 beforeAll(async () => {
   await seedTestCompanies(db, auth);
-  await seedPortoSeguroSmall(db, companyA.companyId);
+  await seedPortoSeguroSmall(db, companyA.companyId, { parecer: TEST_PARECER });
   cookie = await signIn();
 }, 60_000);
 

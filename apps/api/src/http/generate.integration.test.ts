@@ -14,6 +14,7 @@ import {
   syncPushResponseSchema,
   toIso,
   type Op,
+  type RelatorioParecer,
   type RevisionRow,
 } from '@app/domain';
 import { BLOCK_CHAVE_ID, EQUIPMENT_CHAVE_ID, portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
@@ -144,6 +145,35 @@ async function waitForRevision(jobId: string, number: number, timeoutMs = 150_00
     await new Promise((resolve) => setTimeout(resolve, 1500));
   }
 }
+
+/** Story 7.4: the parecer as the device writes it, an ordinary setup put pushed through the sync route. */
+async function pushParecer(value: RelatorioParecer | null): Promise<void> {
+  const parecer = makeOp(
+    {
+      kind: 'put',
+      scope: 'relatorio',
+      company_id: companyA.companyId,
+      project_id: null,
+      relatorio_id: RELATORIO_ID,
+      path: 'relatorio/setup/parecer',
+      value,
+      prev_op_id: null,
+      batch_id: null,
+      meta: null,
+      actor_id: companyA.userId,
+      device_id: 'tablet-generate-a',
+    },
+    { newId, now: now() },
+  );
+  const pushed = await authed(companyA, '/api/sync/ops', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ ops: [parecer] }),
+  });
+  expect(syncPushResponseSchema.parse(await pushed.json()).rejected).toEqual([]);
+}
+
+const PARECER: RelatorioParecer = { verdict: 'apto_com_restricoes', text: null, text_status: null, text_basis: null };
 
 beforeAll(async () => {
   await seedTestCompanies(db, auth);
@@ -306,9 +336,49 @@ describe('4.8-INT-002 POST /api/relatorios/:id/generate and GET /api/revisions/:
     expect(unknown.status).toBe(404);
   });
 
+  it('Story 7.5: refuses with 409 pre_issue_blocked until the parecer is set; the parecer put goes through the sync route and releases the issue', async () => {
+    await pushParecer(null);
+    const blocked = await generate(companyA, { last_op_id: null, file_ids_expected: [] });
+    expect(blocked.status).toBe(409);
+    expect(errorResponseSchema.parse(await blocked.json()).code).toBe('pre_issue_blocked');
+    await pushParecer(PARECER);
+    // Released: past the gate, the route answers the issue job a worker already runs
+    // (a stand-in row, ended at once), so no revision is allocated here.
+    const standIn = newId();
+    const job = (status: 'running' | 'failed', path = `generation_job/${standIn}`): Op => ({
+      op_id: newId(),
+      company_id: companyA.companyId,
+      scope: 'relatorio',
+      project_id: null,
+      relatorio_id: RELATORIO_ID,
+      kind: status === 'running' ? 'create' : 'put',
+      path: status === 'running' ? path : `${path}/status`,
+      value:
+        status === 'running'
+          ? { id: standIn, relatorio_id: RELATORIO_ID, kind: 'issue', status: 'running', error: null, result_file_id: null, result: null, created_at: toIso(now()), started_at: toIso(now()) }
+          : 'failed',
+      prev_op_id: null,
+      batch_id: null,
+      meta: null,
+      actor_id: 'system:generate',
+      device_id: SERVER_DEVICE_ID,
+      client_ts: toIso(now()),
+    });
+    expect((await applyOps(db, asCompanyId(companyA.companyId), [job('running')], { now, origin: 'server' })).rejected).toEqual([]);
+    try {
+      const released = await generate(companyA, { last_op_id: null, file_ids_expected: [] });
+      expect(released.status, await released.clone().text()).toBe(200);
+      expect(generateResponseSchema.parse(await released.json())).toMatchObject({ outcome: 'running', job_id: standIn });
+    } finally {
+      expect((await applyOps(db, asCompanyId(companyA.companyId), [job('failed')], { now, origin: 'server' })).rejected).toEqual([]);
+    }
+  });
+
   it(
     'accepts the generate (202 queued), the worker renders both files, and the revision reaches the pull with a converged TOC',
     async () => {
+      // The parecer this test needs, set here whatever ran before it.
+      await pushParecer(PARECER);
       const lastOp = portoSeguroSmall.log.at(-1)!.op_id;
       // The stored photo of the test above is expected and no longer blocks the barrier.
       const res = await generate(companyA, { last_op_id: lastOp, file_ids_expected: [photoFileId] });
@@ -390,7 +460,8 @@ describe('4.8-INT-002 POST /api/relatorios/:id/generate and GET /api/revisions/:
     // Inside the sheet of the block the photo belongs to: after its title bar, before the next sheet's.
     const chave = structure.paragraphs.findIndex((p) => p.startsWith('CHAVE SECCIONADORA'));
     const next = structure.paragraphs.findIndex((p, i) => i > chave && /^(DISJUNTOR MT|TRANSFORMADOR DE FORÇA)\b/.test(p));
-    const line = structure.paragraphs.indexOf('Imagem 1.');
+    // Section 7 prints the same line first (Story 7.2); the sheet's copy follows its title bar.
+    const line = structure.paragraphs.indexOf('Imagem 1.', chave);
     expect(chave).toBeGreaterThan(-1);
     expect(line).toBeGreaterThan(chave);
     expect(line).toBeLessThan(next);

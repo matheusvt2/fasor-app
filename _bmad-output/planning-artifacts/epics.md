@@ -2050,6 +2050,8 @@ The engineer reads instrument displays by camera so a sheet costs at most 20 tap
 
 **Dev model:** opus · **Effort:** high · seven-segment display path, burst, typed-value check
 
+*(2026-09-28, Definition of Ready, spike base set: 19 legible display crops from the delivered relatório, 6 megôhmetro seven-segment, 7 micro-ohmímetro and 6 TTR character LCD, 14 with a matching table value as ground truth, plus 27 unreadable far shots kept as negatives; in `docs/media/display-spike/` (git-ignored, client material, see its `MANIFEST.md`). Gaps the spike inherits: no thermo-hygrometer photo, the images are embedded at 473x355, the megôhmetro unit comes from a range knob no photo shows, and 5 crops have no matching table value. Real tablet photos of the displays would strengthen the spike. The story is not started.)*
+
 As a field engineer,
 I want to photograph the megôhmetro display and have the value and unit land in the next empty cells as suggestions, and when I typed first, have the photo check my value,
 So that with signal the readings cost no keystrokes and without signal they still cost me nothing extra.

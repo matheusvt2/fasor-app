@@ -9,6 +9,8 @@ import { now } from './clock.ts';
 import { newId } from './ids.ts';
 import { probeLibreOffice } from './jobs/generate/libreoffice.ts';
 import { registerGenerateWorker } from './jobs/generate/worker.ts';
+import { createReadingProviders } from './jobs/reading/providers/index.ts';
+import { registerReadingWorker } from './jobs/reading/worker.ts';
 import { startQueue } from './jobs/queue.ts';
 import { log, logError } from './log.ts';
 import { createS3, ensureBucket, probeStorage } from './storage/s3.ts';
@@ -49,6 +51,9 @@ if (config.WORKER === '1') {
     fault: config.NODE_ENV === 'production' ? undefined : config.GENERATE_FAULT,
   });
   log('generate worker registered', { fault: config.NODE_ENV === 'production' ? null : (config.GENERATE_FAULT ?? null) });
+  // Story 8.4: the plate reading worker, on the providers the env names (both `fake` by default).
+  await registerReadingWorker(boss, { db, s3, bucket: config.S3_BUCKET, now, newId, providers: createReadingProviders(config) });
+  log('reading worker registered', { ocr_provider: config.OCR_PROVIDER, llm_provider: config.LLM_PROVIDER });
 }
 
 const auth = createAuth({

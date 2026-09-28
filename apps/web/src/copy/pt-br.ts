@@ -407,6 +407,26 @@ export const copy = {
     // authored: the server answered with a revision this device has not pulled yet; the
     // download row waits for it (the stream is being asked for).
     downloadingRevision: 'Baixando a revisão…',
+    // Story 7.5, verbatim from `73-exportar.html` unless marked.
+    precheckLabel: 'Antes de emitir',
+    blockingWhere: ' — seção 10 ',
+    blockingMeta: '(Apto · Apto com restrições · Não apto — escolha do engenheiro em Dados do relatório, obrigatória para emitir)',
+    editInSetup: 'Editar em Dados do relatório',
+    // authored: the mock lists the kinds of its seven warnings; the app says where they are.
+    countMeta: ' — estão nas linhas do sumário; nenhum impede gerar.',
+    seeInSumario: 'Ver no sumário',
+    // authored: the Sync status surface's own word for resending rejected changes.
+    resend: 'Reenviar',
+    docControlLabel: 'Controle do documento',
+    docControlAria: 'Controle do documento — impresso após a capa',
+    sec9NoteBefore: 'Seção 9 impressa no agrupamento do FO.SERV-03 (por local e tipo, com a flag ',
+    sec9NoteFlag: 'Agrupar por tipo',
+    sec9NoteAfter: ' de cada cabine).',
+    preview: 'Pré-visualizar',
+    previewing: 'Gerando rascunho…',
+    // authored: the preview job failed or the tab could not be filled; nothing changed.
+    previewFailed: 'Não foi possível gerar o rascunho. Os dados não foram alterados.',
+    shareDocx: 'Compartilhar DOCX',
   },
   // Project (`30-project.html`, Story 4.1). The heading's count, the row lines, the
   // dates and the counter are the kernel's (`projectRelatoriosHeading`, `relatorioTitle`,
@@ -485,8 +505,6 @@ export const copy = {
     addSectionListLabel: 'Seções',
     // Foot.
     preview: 'Pré-visualizar',
-    // authored: the draft preview (RASCUNHO watermark) is Epic 7's (FR-73).
-    previewReason: 'Pré-visualizar: disponível em uma próxima etapa',
     generate: 'Gerar relatório',
     // authored: an address that names no relatório on this device, and the way back.
     notFound: 'Relatório não encontrado neste aparelho.',
@@ -1000,10 +1018,19 @@ export const copy = {
     altitudeChangeLabel: 'Alterar altitude do site',
     nextInterventionDateLabel: 'Próxima intervenção recomendada',
     nextInterventionJustificationLabel: 'Justificativa',
-    // "Conclusão e parecer" placeholder band.
-    parecerTitle: 'Conclusão e parecer',
-    // authored: the band is Epic 7's; the note says it comes later without naming an epic (Q10).
-    parecerNote: 'Disponível em uma próxima etapa',
+    // Etapa 6 — Conclusão e parecer (Story 7.4), verbatim from `50-relatorio-setup.html`
+    // `#setup-parecer` (the mock numbers it 5; the app's Local band is Etapa 5).
+    etapa6Title: 'Etapa 6 — Conclusão e parecer',
+    etapa6Note: 'Seção 10 · caixa de parecer antes dos itens fixos',
+    parecerNote: 'O app conta fichas, restrições e não ensaiados e sugere; o parecer é escolha sua. Sem parecer, a emissão fica bloqueada em Gerar relatório.',
+    parecerLabel: 'Parecer',
+    parecerSummaryLabel: 'Resumo do parecer',
+    parecerHelper: 'Montado no aparelho a partir das contagens do relatório — não é um veredito. Nada é impresso até você confirmar.',
+    parecerConfirmed: 'Confirmado · impresso na caixa de parecer da seção 10',
+    parecerConfirmedToast: 'Resumo do parecer confirmado — impresso na seção 10',
+    parecerKicker: 'Como imprime na seção 10',
+    // authored: the way back to the Export dialog when the band was opened from its blocking row.
+    backToExport: 'Voltar para Gerar relatório',
     // Sticky action bar.
     complete: 'Concluir dados do relatório',
     // authored: once the relatório has left Rascunho, the sticky bar has nothing left to do;

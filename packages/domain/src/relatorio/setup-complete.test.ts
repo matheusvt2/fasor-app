@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import type { RelatorioSetup, UserRow } from '../schemas/entities.ts';
-import { firstSetupGap, isSetupComplete, setupIncompleteReason, siteAltitudeText } from './setup-complete.ts';
+import { firstSetupGap, isSetupComplete, setupGaps, setupIncompleteReason, siteAltitudeText } from './setup-complete.ts';
 
 const RESPONSIBLE: UserRow = {
   id: '019966b0-0061-7000-8000-000000000003',
@@ -29,10 +29,11 @@ const COMPLETE_SETUP: RelatorioSetup = {
   site_altitude_confirmed: false,
   next_intervention_date: null,
   next_intervention_justification: null,
+  parecer: null,
 };
 
 /** A minimal snapshot: only the fields `isSetupComplete` reads are given real shapes. */
-function snapshotWith(overrides: { client?: RelatorioSnapshot['client']; setup?: Partial<RelatorioSetup> }): RelatorioSnapshot {
+function snapshotWith(overrides: { client?: RelatorioSnapshot['client']; setup?: Partial<RelatorioSetup>; responsible?: UserRow | null }): RelatorioSnapshot {
   return {
     relatorio: {
       id: '019966b0-0061-7000-8000-000000000010',
@@ -49,7 +50,7 @@ function snapshotWith(overrides: { client?: RelatorioSnapshot['client']; setup?:
     project: null,
     empresa: null,
     client: overrides.client === undefined ? { id: 'c1', kind: 'client', name: 'Seguradora Exemplo', cnpj: null, contact_name: null, contact_phone: null, sites: [], removed_at: null } : overrides.client,
-    responsible: null,
+    responsible: overrides.responsible === undefined ? RESPONSIBLE : overrides.responsible,
     instruments: [],
     equipment: [],
     locations: [],
@@ -64,26 +65,33 @@ function snapshotWith(overrides: { client?: RelatorioSnapshot['client']; setup?:
 describe('4.2-UNIT isSetupComplete / setupIncompleteReason', () => {
   it('is complete once client, dates, responsible, registration, ART/TRT and an instrument all exist', () => {
     const snapshot = snapshotWith({});
-    expect(isSetupComplete(snapshot, RESPONSIBLE)).toBe(true);
-    expect(setupIncompleteReason(snapshot, RESPONSIBLE)).toBeNull();
+    expect(isSetupComplete(snapshot)).toBe(true);
+    expect(setupIncompleteReason(snapshot)).toBeNull();
+    expect(setupGaps(snapshot)).toEqual([]);
   });
 
-  it('names the first missing item in the fixed order, one gap at a time', () => {
-    expect(firstSetupGap(snapshotWith({ client: null }), RESPONSIBLE)).toBe('client');
-    expect(firstSetupGap(snapshotWith({ setup: { service_start: null } }), RESPONSIBLE)).toBe('service_start');
-    expect(firstSetupGap(snapshotWith({ setup: { service_end: null } }), RESPONSIBLE)).toBe('service_end');
-    expect(firstSetupGap(snapshotWith({ setup: { responsible_user_id: null } }), RESPONSIBLE)).toBe('responsible_user_id');
-    expect(firstSetupGap(snapshotWith({}), { ...RESPONSIBLE, registration_number: null })).toBe('registration_number');
-    expect(firstSetupGap(snapshotWith({}), null)).toBe('registration_number');
-    expect(firstSetupGap(snapshotWith({ setup: { art_trt_number: null } }), RESPONSIBLE)).toBe('art_trt_number');
-    expect(firstSetupGap(snapshotWith({ setup: { instrument_ids: [] } }), RESPONSIBLE)).toBe('instruments');
+  it('names the first missing item in the fixed order, one gap at a time, read off the snapshot alone', () => {
+    expect(firstSetupGap(snapshotWith({ client: null }))).toBe('client');
+    expect(firstSetupGap(snapshotWith({ setup: { service_start: null } }))).toBe('service_start');
+    expect(firstSetupGap(snapshotWith({ setup: { service_end: null } }))).toBe('service_end');
+    expect(firstSetupGap(snapshotWith({ setup: { responsible_user_id: null } }))).toBe('responsible_user_id');
+    expect(firstSetupGap(snapshotWith({ responsible: { ...RESPONSIBLE, registration_number: null } }))).toBe('registration_number');
+    expect(firstSetupGap(snapshotWith({ responsible: null }))).toBe('registration_number');
+    expect(firstSetupGap(snapshotWith({ setup: { art_trt_number: null } }))).toBe('art_trt_number');
+    expect(firstSetupGap(snapshotWith({ setup: { instrument_ids: [] } }))).toBe('instruments');
+  });
+
+  it('Epic 4 item 14: setupGaps lists every gap in order; no registration gap while no responsible is named', () => {
+    const empty = snapshotWith({ client: null, responsible: null, setup: { service_start: null, service_end: null, responsible_user_id: null, art_trt_number: '  ', instrument_ids: [] } });
+    expect(setupGaps(empty)).toEqual(['client', 'service_start', 'service_end', 'responsible_user_id', 'art_trt_number', 'instruments']);
+    expect(setupGaps(snapshotWith({ responsible: { ...RESPONSIBLE, registration_number: ' ' }, setup: { art_trt_number: null } }))).toEqual(['registration_number', 'art_trt_number']);
   });
 
   it('Q12: the ART/TRT gap names the council\'s own document, the article agreed, and the generic words only with no council', () => {
-    const gap = snapshotWith({ setup: { art_trt_number: null } });
-    expect(setupIncompleteReason(gap, RESPONSIBLE)).toBe('Concluir dados do relatório: falta o número da ART');
-    expect(setupIncompleteReason(gap, { ...RESPONSIBLE, council: 'crt' })).toBe('Concluir dados do relatório: falta o número da TRT');
-    expect(setupIncompleteReason(gap, { ...RESPONSIBLE, council: null })).toBe('Concluir dados do relatório: falta o número do ART/TRT');
+    const gap = { setup: { art_trt_number: null } };
+    expect(setupIncompleteReason(snapshotWith(gap))).toBe('Concluir dados do relatório: falta o número da ART');
+    expect(setupIncompleteReason(snapshotWith({ ...gap, responsible: { ...RESPONSIBLE, council: 'crt' } }))).toBe('Concluir dados do relatório: falta o número da TRT');
+    expect(setupIncompleteReason(snapshotWith({ ...gap, responsible: { ...RESPONSIBLE, council: null } }))).toBe('Concluir dados do relatório: falta o número do ART/TRT');
   });
 });
 
