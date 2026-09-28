@@ -554,6 +554,28 @@ export function padCropToAspect(region: NormalizedBox, image: { width: number; h
   return [clamp01(left), y0, clamp01(right), y1];
 }
 
+/** E78-R1: the margin around the focused field's own region when the plate crop zooms to it, in normalized units. */
+export const PLATE_FOCUS_MARGIN = 0.03;
+
+/**
+ * E78-R1: the part of the plate photo the crop shows. While a field is focused, its own
+ * region grown by `margin` and clamped to the picture, so its plate text is drawn legibly
+ * (the whole read region shrank it to about 7 px at 768 px); otherwise the read region.
+ * Once the picture's size is known (`image`), the result is widened to the box's aspect
+ * (`padCropToAspect`, `boxRatio` = the box's width over its height).
+ */
+export function plateCropView(
+  region: NormalizedBox,
+  focused: NormalizedBox | null,
+  image: { width: number; height: number } | null,
+  boxRatio: number,
+  margin = PLATE_FOCUS_MARGIN,
+): NormalizedBox {
+  const base: NormalizedBox =
+    focused === null ? region : [clamp01(focused[0] - margin), clamp01(focused[1] - margin), clamp01(focused[2] + margin), clamp01(focused[3] + margin)];
+  return image === null ? base : padCropToAspect(base, image, boxRatio);
+}
+
 /**
  * Where `inner` sits inside `outer` (both normalized boxes of one picture), in percent of
  * `outer`: the outline of the focused field on the plate crop, clamped to the crop.

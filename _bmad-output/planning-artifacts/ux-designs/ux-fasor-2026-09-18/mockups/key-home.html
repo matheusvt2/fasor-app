@@ -21,6 +21,10 @@
 .frame-phone .home-head .btn { width: 100%; }
 .relatorio-cards { display: flex; flex-direction: column; gap: var(--sp-3); }
 .relatorio-card .card-chev { color: var(--ink-secondary); flex: none; margin: -6px -6px 0 0; }
+/* 2026-09-28: the App bar's right group always takes the grid's third column. Home's h1 is
+   visually hidden (position: absolute), so it leaves the grid and the right group used to
+   fall into the middle column (MOCK-GUIDE.md § App bar: sync-badge, then avatar-btn, at the right). */
+.app-bar-right { grid-column: 3; }
 </style>
 </head>
 <body class="mock-page">
