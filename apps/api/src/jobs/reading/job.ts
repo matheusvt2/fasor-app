@@ -26,7 +26,7 @@ import { asCompanyId, type CompanyId } from '../../db/repositories/company-id.ts
 import { entities, readingRuns } from '../../db/schema.ts';
 import { log, logError } from '../../log.ts';
 import { getObject } from '../../storage/s3.ts';
-import { applyOps } from '../../sync/apply.ts';
+import { applyOps, applyServerBatch, ServerBatchRejectedError, type Tx } from '../../sync/apply.ts';
 import { exifOrientation, readingImage, type ReadingImage } from './image.ts';
 import type { ReadingPayload } from './payload.ts';
 import { isPermanentReadingError, PermanentReadingError, ProviderError, type ReadingProvidersFactory } from './providers/index.ts';
@@ -39,7 +39,7 @@ import { readingServerOp, readingStatusPath, type ReadingStatusValue } from './s
  * providers on the same bytes, and turns the values into pending suggestions through the
  * kernel (`buildReadingSuggestions`: digit coverage, registries, boxes, mode). The discards
  * of the photo's previous pending suggestions, the creates and `reading_status = done` are
- * one `applyOps` call sharing one `batch_id`. Every attempt, successful or not, leaves one
+ * one all-or-nothing server batch sharing one `batch_id`, committed with the run's `ok` row. Every attempt leaves one
  * `reading_runs` row. A transient failure before the last attempt rethrows for pg-boss to
  * retry; the last attempt and a permanent failure write `failed` and return.
  */
@@ -94,7 +94,7 @@ async function liveRegistry(db: Db, companyId: CompanyId): Promise<{ manufacture
 }
 
 /** The ids of the photo's own pending suggestions in its relatório, which a new run replaces. */
-async function pendingOfPhoto(db: Db, companyId: CompanyId, relatorioId: string, photoId: string): Promise<string[]> {
+async function pendingOfPhoto(db: Db | Tx, companyId: CompanyId, relatorioId: string, photoId: string): Promise<string[]> {
   const records = await db
     .select({ row: entities.row })
     .from(entities)
@@ -125,6 +125,16 @@ interface RunFacts {
   image: ReadingImage | null;
   ocr: OcrReadResult | null;
   structuring: StructuringResult | null;
+  /** True once the batch and its `ok` run row committed. */
+  committed: boolean;
+}
+
+/** The photo's pending suggestions changed between the read and the batch: transient, the next attempt reads them again. */
+class PendingChangedError extends ProviderError {
+  constructor() {
+    super('the photo pending suggestions changed while the reading ran');
+    this.name = 'PendingChangedError';
+  }
 }
 
 function normalizedOcr(ocr: OcrReadResult, image: { width: number; height: number }): unknown {
@@ -139,7 +149,7 @@ export async function runReadingJob(deps: ReadingJobDeps, payload: ReadingPayloa
   const companyId = asCompanyId(payload.company_id);
   const startedAt = deps.now().getTime();
   const runId = deps.newId();
-  const facts: RunFacts = { relatorioId: null, photoFound: false, ocrName: 'none', image: null, ocr: null, structuring: null };
+  const facts: RunFacts = { relatorioId: null, photoFound: false, ocrName: 'none', image: null, ocr: null, structuring: null, committed: false };
   const logFields = () => ({
     company_id: payload.company_id,
     relatorio_id: facts.relatorioId,
@@ -150,8 +160,8 @@ export async function runReadingJob(deps: ReadingJobDeps, payload: ReadingPayloa
     attempt: attempt.attempt,
   });
 
-  async function recordRun(outcome: 'ok' | 'error', error: string | null): Promise<void> {
-    await deps.db.insert(readingRuns).values({
+  async function recordRun(outcome: 'ok' | 'error', error: string | null, executor: Db | Tx = deps.db): Promise<void> {
+    await executor.insert(readingRuns).values({
       id: runId,
       company_id: companyId,
       photo_id: payload.photo_id,
@@ -248,16 +258,36 @@ export async function runReadingJob(deps: ReadingJobDeps, payload: ReadingPayloa
       ...built.rows.map((row) => op('create', suggestionPath(row.id), row)),
       op('put', readingStatusPath(photo.id), 'done' satisfies ReadingStatusValue),
     ];
-    const applied = await applyOps(deps.db, companyId, batch, { origin: 'server', now: deps.now });
-    if (applied.rejected.length > 0) {
-      throw new PermanentReadingError(`the reading batch was refused: ${applied.rejected.map((r) => `${r.op_id} ${r.code}`).join(', ')}`);
+    // All or nothing, under the company lock: the pending set is re-read inside the
+    // transaction (a device confirm or discard that landed since is never overwritten; the
+    // attempt retries instead), and the run row commits with the batch it describes.
+    try {
+      await applyServerBatch(deps.db, companyId, batch, {
+        now: deps.now,
+        before: async (tx) => {
+          const current = await pendingOfPhoto(tx, companyId, relatorioId, photo.id);
+          if (current.join() !== previous.join()) throw new PendingChangedError();
+          await recordRun('ok', null, tx);
+        },
+      });
+    } catch (error) {
+      if (error instanceof ServerBatchRejectedError) throw new PermanentReadingError(`the reading batch was refused: ${error.message}`, { cause: error });
+      throw error;
     }
-
-    await recordRun('ok', null);
+    facts.committed = true;
     log('reading done', { ...logFields(), suggestions: built.rows.length, discarded: previous.length, dropped: built.dropped.length });
   } catch (error) {
+    // The batch and its run row committed: nothing after them can fail the reading.
+    if (facts.committed) {
+      logError('reading done, logging failed', { ...logFields(), error: errorText(error) });
+      return;
+    }
     const permanent = isPermanentReadingError(error);
-    await recordRun('error', errorText(error));
+    try {
+      await recordRun('error', errorText(error));
+    } catch (recordError) {
+      logError('reading run row not written', { ...logFields(), error: errorText(recordError) });
+    }
     logError('reading attempt failed', { ...logFields(), permanent, last_attempt: attempt.lastAttempt, error: errorText(error) });
     if (!permanent && !attempt.lastAttempt) throw error;
     if (facts.photoFound) {
@@ -271,8 +301,12 @@ export async function runReadingJob(deps: ReadingJobDeps, payload: ReadingPayloa
         now: deps.now,
         newId: deps.newId,
       });
-      const result = await applyOps(deps.db, companyId, [failed], { origin: 'server', now: deps.now });
-      if (result.rejected.length > 0) logError('reading failed status refused', { ...logFields(), rejected: result.rejected });
+      try {
+        const result = await applyOps(deps.db, companyId, [failed], { origin: 'server', now: deps.now });
+        if (result.rejected.length > 0) logError('reading failed status refused', { ...logFields(), rejected: result.rejected });
+      } catch (writeError) {
+        logError('reading failed status not written', { ...logFields(), error: errorText(writeError) });
+      }
     }
     log('reading failed', { ...logFields(), permanent });
   }

@@ -2,7 +2,7 @@
 title: 'Stories 8.4 and 8.5: Run the reading job end to end, accept a digit only when the OCR saw it'
 type: 'feature'
 created: '2026-09-27'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '842bb34c25ddeb5cfa47fd4cc40cbac35f76f52c'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -12,7 +12,14 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-8-context.md'
 warnings: ['batched', 'oversized']
 batched_reason: 'Batch R of the Epic 8 delivery: 8.5 (digit coverage, registry check) is the verdict step inside 8.4 job emission; one server-side surface, one fixture, one integration test.'
-deferred: []
+deferred:
+  - summary: >-
+      A last attempt that never returns (worker death, expiry past 300 s) leaves the photo `running`; nothing writes `failed`.
+    evidence: |-
+      worker.ts computes lastAttempt only for attempts that complete; no deadLetter queue or failed-job handler. Needs a dead-letter worker or a sweep; beyond the one review-fix loop (token economy). Recorded in deferred-work.md, owner Epic 8 integrated fix batch.
+    location: >-
+      apps/api/src/jobs/reading/worker.ts
+    severity: medium
 ---
 
 <intent-contract>
@@ -164,13 +171,38 @@ deferred: []
 
 ## Review Triage Log
 
+### 2026-09-27 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer ran; Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 19 findings — high 0, medium 9, low 10, false 0, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` ECH-1: the success batch used `applyOps`, which can commit part of it before the catch writes `failed` — now `applyServerBatch`, all or nothing, with the refusal mapped to a permanent error.
+  - `[medium]` `[patch]` ECH-2: a device confirm between `pendingOfPhoto` and the apply was overwritten by the discard (`suggestion/status` has no transition guard) — the `before` hook re-reads the pending ids in the transaction and retries on a change.
+  - `[low]` `[patch]` ECH-3: a `reading_runs` insert failing after the commit made a retry re-emit, or the last attempt write `failed` over `done` — the ok row is inserted inside the batch transaction.
+  - `[low]` `[patch]` ECH-4: a DB error in the catch path on the last attempt skipped the `failed` write — `recordRun` is guarded so `failed` is always attempted.
+  - `[low]` `[reject]` ECH-5: an invalid payload completes silently — only this code builds payloads, from a schema-checked row; unreachable in use, and a fix adds a branch.
+  - `[medium]` `[defer]` ECH-6: a last attempt that never returns (worker death, expiry) leaves `running` — needs a dead-letter worker or a sweep, not a trivial patch; deferred list plus a deferred-work.md entry (owner: Epic 8 integrated fix batch).
+  - `[low]` `[reject]` ECH-7: two concurrent first PUTs can send two jobs — the second run discards the first's pending rows and emits the same values; harmless, and a fix adds a claim step.
+  - `[low]` `[reject]` ECH-8: a reading is enqueued when the variant render failed — the job then fails permanently and visibly (`failed`); sharp failing on a stored JPEG/PNG is rare, and re-rendering adds a path.
+  - `[low]` `[reject]` ECH-9: an enqueue failure answers 200 and leaves `queued` — by design (matrix "Enqueue unavailable"); the queue lives in the same database the PUT just wrote, so this needs a partial outage.
+  - `[low]` `[reject]` ECH-10: a reread answers 202 `running` when a previous outcome landed first — a new job is queued and its outcome reaches the device by pull; no visible harm.
+  - `[low]` `[reject]` ECH-11: a non-guard DB failure after the send answers 500 while a job is queued — needs a DB failure between two statements; the job still runs.
+  - `[low]` `[reject]` ECH-12: another sidecar 4xx is retried — the contract's error enum has only 413, 422 and 500; three retries of a misconfigured URL end `failed` anyway.
+  - `[low]` `[reject]` ECH-13: a corrupt print variant is retried as transient — sharp wrote that print; three attempts end `failed` anyway.
+  - `[medium]` `[patch]` VG-1: no job-level test proves the EXIF orientation reaches OCR — an orientation-6 original case was added.
+  - `[medium]` `[patch]` VG-2: the permanent guards, including the matrix row "no print variant", were untested — cases added for a missing print, a removed photo, a removed block, a block of another relatório, and the transient size mismatch.
+  - `[medium]` `[patch]` VG-3: the guard that keeps a late `running` off `done` was never exercised — a `startReading` test with an enqueue stub that lands `done` first was added.
+  - `[medium]` `[patch]` VG-4: `liveRegistry`'s company scope was unverified — rows in a second company are registered, and the first company still gets the hint and `verify`.
+  - `[medium]` `[patch]` VG-5: the matrix rows "Enqueue unavailable" and "No reading" had no test — an in-process `createApp` test was added with a rejecting spy, a null kind and a `display` kind. The layer said defer, but the matrix audit requires the row.
+  - `[medium]` `[defer]` VG-other: same as ECH-6 (expiry on the last attempt), same entry.
+
 ## Design Notes
 
 - **Why the retry lives in pg-boss:** it also covers a worker that dies mid-job (expiry counts as an attempt), and `stately` with the singleton key keeps one queued and one active job per `(photo, kind)`, so a reread during a run queues exactly one more.
 - **Digits of a value with none:** a value without digits that cites tokens with digits (`Dyn` for `Dyn1`) is the "missing digit" case, so the rule applies to every value. A date compares through its pt-BR display, the order the plate prints it, so `2024-08` against `08/2024` is `suggested`. A plate printing `08.24` gives `verify`, the conservative outcome.
 - **`mode` on the server:** the device decides the view (`suggestionView`), but no op family lets it write `mode`, so the server records `replace` when the target was filled at emission.
 - **Cross-batch wiring owners:** batch P writes the plate photo create with `reading_target = plateReadingTarget(block.id, block.block_type)`, calls `READING_REREAD_PATH` for "Tentar novamente" and renders the `hint` and `verify` states; the deferred-work entries name P. This batch owns everything on the server.
-- **Open question (kept conservative):** Flow 2b's "seven grounded fields" describes a disconnector. On the transformer fixture "Confirmar todos" takes 9 or 10 fields, depending on whether batch P counts the Celtta row (suggested with a hint). The table is the contract.
+- **Decided 2026-09-27 (coordinator):** "Confirmar todos" takes the grounded `suggested` fields without a hint: 9 on the transformer fixture. Celtta is confirmed by its own "Criar Celtta?" and tap_atual by its own tap. This is a dated narrowing of Flow 2b's "seven".
+- ~~**Open question (kept conservative):** Flow 2b's "seven grounded fields" describes a disconnector. On the transformer fixture "Confirmar todos" takes 9 or 10 fields, depending on whether batch P counts the Celtta row (suggested with a hint). The table is the contract.~~
 
 ## Verification
 
@@ -179,3 +211,33 @@ deferred: []
 - `docker compose --profile tools run --rm tools pnpm test:api` -- expected: EXIT=0 (with the api container restarted so it loads the worker).
 - `docker compose --profile ocr build ocr && docker compose --profile ocr run --rm ocr pytest -q` -- expected: EXIT=0 (the sidecar reads its literals from the schema).
 - `docker compose --profile tools run --rm tools pnpm lint && … pnpm static` -- expected: EXIT=0.
+
+## Auto Run Result
+
+Status: done
+
+**Summary.** The reading job, server side:
+- File receipt of a queued `plate` photo sends one pg-boss `reading` job (queue policy `stately`, singleton key `photo:kind`, three attempts with backoff) and writes `running` as `system:reading`.
+- The job orients the `print` variant from the original's EXIF, calls the env-selected OCR and structuring providers (`fake` replays fixtures keyed by the photo's sha256; `ocr-svc` calls the sidecar; `textract`, `anthropic` and `bedrock` are stubs), and builds pending suggestions through the kernel.
+- The kernel (`packages/domain/src/reading/`) decides the digit-coverage verdict, the registry verdicts and the create hint.
+- The job applies the discards, the creates and `done` as one all-or-nothing server batch, together with its `reading_runs` row. Every attempt leaves a row.
+- `POST /api/photos/{id}/reread` is added.
+- The sidecar reads its routes and size limit from the exported schema.
+
+**Files.**
+- `packages/domain/src/reading/*` and `contract/reading.ts`: the kernel rules and the reread contract.
+- `contract/ocr.ts` and the regenerated schema: the `x-ocr-service` export.
+- `apps/api/src/jobs/reading/*`: job, worker, status, image, providers, payload, fixtures and README.
+- `http/reading.ts`, `files.ts`, `app.ts`, `main.ts`: wiring.
+- `db/schema.ts`, migration `0004`, the reset helpers.
+- `services/ocr` `main.py` and its tests.
+- `deferred-work.md`.
+
+**Review.** 19 findings:
+- 9 patched: 7 medium, 2 low.
+- 1 deferred, reported twice (ECH-6 and VG-other): a last attempt that never returns leaves the photo `running`.
+- 8 rejected, with reasons in the triage log.
+
+Follow-up review recommended: false. The patched mediums are atomicity fixes and missing tests, now covered by passing tests. The named residual risk is the deferred item.
+
+**Verification.** The implementer ran lint, static, test:unit and test:api, all EXIT 0. The sidecar build and pytest passed, 16 tests. The fix-loop tests passed: job, files-reading and reading integration, 24 tests. A manual `ocr-svc` run against the real sidecar read 43 tokens in 17 s. The final `pnpm verify` result is in the PR body.

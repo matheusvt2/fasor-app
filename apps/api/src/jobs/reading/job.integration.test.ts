@@ -15,7 +15,7 @@ import {
   type OpDraft,
   type SuggestionRow,
 } from '@app/domain';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq } from 'drizzle-orm';
 import { PgBoss } from 'pg-boss';
 import sharp from 'sharp';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -23,7 +23,7 @@ import { now } from '../../clock.ts';
 import { loadConfig } from '../../config.ts';
 import { createDb } from '../../db/client.ts';
 import { asCompanyId } from '../../db/repositories/company-id.ts';
-import { entities, readingRuns } from '../../db/schema.ts';
+import { entities, ops, readingRuns } from '../../db/schema.ts';
 import { dropCompany } from '../../db/test-cleanup.ts';
 import { newId } from '../../ids.ts';
 import { createS3, putObject } from '../../storage/s3.ts';
@@ -32,6 +32,7 @@ import { applyOps } from '../../sync/apply.ts';
 import { runReadingJob, type ReadingJobDeps } from './job.ts';
 import { DEFAULT_FIXTURES_DIR } from './providers/fake.ts';
 import { createReadingProviders } from './providers/index.ts';
+import { readingServerOp, readingStatusPath, startReading } from './status.ts';
 import { enqueueReading, registerReadingWorker, type ReadingQueueOptions } from './worker.ts';
 
 /*
@@ -49,6 +50,8 @@ const bucket = config.S3_BUCKET;
 
 const companyId = newId();
 const company = asCompanyId(companyId);
+/** A second throwaway company whose registry must never reach the first one's readings. */
+const otherCompanyId = newId();
 const ACTOR = 'reading-job-test-user';
 const DEVICE = 'tablet-reading-job';
 const queue = `reading-test-${newId()}`;
@@ -69,13 +72,13 @@ let boss: PgBoss;
 const sha256 = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 const stamp = (draft: OpDraft): Op => makeOp({ ...draft, device_id: DEVICE }, { newId, now: now() });
 
-async function apply(drafts: OpDraft[]): Promise<void> {
-  const result = await applyOps(db, company, drafts.map(stamp), { origin: 'client', actorId: ACTOR, now });
+async function apply(drafts: OpDraft[], target = company): Promise<void> {
+  const result = await applyOps(db, target, drafts.map(stamp), { origin: 'client', actorId: ACTOR, now });
   expect(result.rejected).toEqual([]);
 }
 
-function companyDraft(path: string, value: unknown): OpDraft {
-  return { kind: 'create', scope: 'company', company_id: companyId, project_id: null, relatorio_id: null, path, value: value as never, prev_op_id: null, batch_id: null, meta: null, actor_id: ACTOR };
+function companyDraft(path: string, value: unknown, owner = companyId): OpDraft {
+  return { kind: 'create', scope: 'company', company_id: owner, project_id: null, relatorio_id: null, path, value: value as never, prev_op_id: null, batch_id: null, meta: null, actor_id: ACTOR };
 }
 
 /** A standard-template relatório of the throwaway company; returns its id and blocks. */
@@ -92,13 +95,23 @@ async function relatorio(): Promise<{ relatorioId: string; blocks: BlockRow[] }>
   return { relatorioId, blocks };
 }
 
-async function registry(kind: 'manufacturer' | 'voltage_class', name: string): Promise<void> {
+async function registry(kind: 'manufacturer' | 'voltage_class', name: string, owner = companyId): Promise<void> {
   const id = newId();
-  await apply([companyDraft(registryPath(kind, id), { id, kind, name, gender: null, number: null, removed_at: null })]);
+  await apply([companyDraft(registryPath(kind, id), { id, kind, name, gender: null, number: null, removed_at: null }, owner)], asCompanyId(owner));
 }
 
-/** A plate photo of `block` with these bytes: the device's create, the original and both variants in the store. */
-async function photo(relatorioId: string, block: BlockRow, bytes: Uint8Array, mime: 'image/png' | 'image/jpeg'): Promise<string> {
+/**
+ * A plate photo of `block` with these bytes: the device's create, the original and both
+ * variants in the store (`print: false` leaves the print variant out; `target` names another block).
+ */
+async function photo(
+  relatorioId: string,
+  block: BlockRow,
+  bytes: Uint8Array,
+  mime: 'image/png' | 'image/jpeg',
+  options: { print?: boolean; target?: Pick<BlockRow, 'id' | 'block_type'> } = {},
+): Promise<string> {
+  const target = options.target ?? block;
   const id = newId();
   await apply([
     {
@@ -127,7 +140,7 @@ async function photo(relatorioId: string, block: BlockRow, bytes: Uint8Array, mi
         item_key: null,
         caption: 'Placa de identificação',
         reading_kind: 'plate',
-        reading_target: plateReadingTarget(block.id, block.block_type),
+        reading_target: plateReadingTarget(target.id, target.block_type),
         reading_status: 'queued',
       } as never,
       prev_op_id: null,
@@ -138,7 +151,7 @@ async function photo(relatorioId: string, block: BlockRow, bytes: Uint8Array, mi
   ]);
   await putObject(s3, bucket, objectKey(companyId, 'photo', id, 'original', relatorioId), bytes, mime);
   const variants = (await renderVariants(bytes, mime))!;
-  await putObject(s3, bucket, objectKey(companyId, 'photo', id, 'print', relatorioId), variants.print.bytes, variants.print.contentType);
+  if (options.print !== false) await putObject(s3, bucket, objectKey(companyId, 'photo', id, 'print', relatorioId), variants.print.bytes, variants.print.contentType);
   await putObject(s3, bucket, objectKey(companyId, 'photo', id, 'thumb', relatorioId), variants.thumb.bytes, variants.thumb.contentType);
   return id;
 }
@@ -222,6 +235,7 @@ afterAll(async () => {
   await boss.deleteQueue(queue);
   await boss.stop();
   await dropCompany(db, companyId);
+  await dropCompany(db, otherCompanyId);
   rmSync(fixturesDir, { recursive: true, force: true });
   await sql.end();
 }, 60_000);
@@ -257,6 +271,138 @@ describe('8.4-INT reading job attempts', () => {
     expect(rows[0]).toMatchObject({ attempt: 1, outcome: 'error' });
     expect(rows[0]!.error).toContain('PermanentReadingError');
   }, 60_000);
+
+  it('an OCR read of another image size is transient: three attempts, failed, no suggestion', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
+    const bytes = await solidPng(7, 88, 199);
+    fixture(bytes, { ocr: { ...plateOcr(), image: { width: 201, height: 100 } }, structuring: plateValues() });
+    const id = await photo(relatorioId, block, bytes, 'image/png');
+    await send(id);
+    await waitFor('the size mismatch to fail', async () => (await status(id)) === 'failed');
+    const rows = await runs(id);
+    expect(rows.map((r) => r.attempt)).toEqual([1, 2, 3]);
+    expect(rows.every((r) => r.outcome === 'error' && r.error!.includes('ProviderError'))).toBe(true);
+    expect(await suggestions(relatorioId)).toEqual([]);
+  }, 60_000);
+});
+
+/** A one-token OCR read of a 200 x 100 image and its one value, for photos the guards must stop. */
+function plateOcr() {
+  return { image: { width: 200, height: 100 }, tokens: [{ id: 't0', text: 'TR-01', bbox: [20, 10, 120, 40], confidence: 0.99 }], preprocessing_applied: false };
+}
+function plateValues() {
+  return { values: [{ key: 'identificacao', value: 'TR-01', ocr_token_ids: ['t0'], confidence: 0.9 }] };
+}
+
+function relatorioPut(relatorioId: string, path: string, value: unknown): OpDraft {
+  return { kind: 'put', scope: 'relatorio', company_id: companyId, project_id: null, relatorio_id: relatorioId, path, value: value as never, prev_op_id: null, batch_id: null, meta: null, actor_id: ACTOR };
+}
+
+describe('8.4-INT permanent guards: one run row, failed, no suggestion', () => {
+  let color = 20;
+  /** A photo whose fixture would read fine, so only the guard can stop it. */
+  async function readablePhoto(relatorioId: string, block: BlockRow, options: Parameters<typeof photo>[4] = {}): Promise<string> {
+    const bytes = await solidPng(3, 150, color++);
+    fixture(bytes, { ocr: plateOcr(), structuring: plateValues() });
+    return photo(relatorioId, block, bytes, 'image/png', options);
+  }
+
+  async function expectPermanent(id: string, relatorioId: string, reason: string): Promise<void> {
+    await runReadingJob(deps, { company_id: companyId, photo_id: id, reading_kind: 'plate' }, { jobId: 'direct', attempt: 1, lastAttempt: false });
+    const rows = await runs(id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.error).toContain('PermanentReadingError');
+    expect(rows[0]!.error).toContain(reason);
+    expect(await status(id)).toBe('failed');
+    expect((await suggestions(relatorioId)).filter((s) => s.source.photo_id === id)).toEqual([]);
+  }
+
+  it('the print variant is missing', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const id = await readablePhoto(relatorioId, blocks.find((b) => b.block_type === 'transformador_forca')!, { print: false });
+    await expectPermanent(id, relatorioId, 'no print variant');
+  }, 60_000);
+
+  it('the photo was removed', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const id = await readablePhoto(relatorioId, blocks.find((b) => b.block_type === 'transformador_forca')!);
+    await apply([relatorioPut(relatorioId, `file/${id}/removed_at`, '2026-09-27T11:00:00.000Z')]);
+    await expectPermanent(id, relatorioId, 'photo was removed');
+  }, 60_000);
+
+  it('the target block was removed', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
+    const id = await readablePhoto(relatorioId, block);
+    await apply([relatorioPut(relatorioId, `block/${block.id}/removed_at`, '2026-09-27T11:00:00.000Z')]);
+    await expectPermanent(id, relatorioId, 'target block was removed');
+  }, 60_000);
+
+  it('the target block belongs to another relatório', async () => {
+    const own = await relatorio();
+    const other = await relatorio();
+    const foreign = other.blocks.find((b) => b.block_type === 'transformador_forca')!;
+    const id = await readablePhoto(own.relatorioId, own.blocks.find((b) => b.block_type === 'transformador_forca')!, { target: foreign });
+    await expectPermanent(id, own.relatorioId, 'not the photo relatorio block');
+  }, 60_000);
+});
+
+describe('8.4-INT EXIF orientation', () => {
+  it('a photo stored sideways (orientation 6) is read upright, boxes normalized over the upright size', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
+    // Stored 200 x 100 with EXIF orientation 6: upright it is 100 x 200.
+    const jpeg = new Uint8Array(
+      await sharp({ create: { width: 200, height: 100, channels: 3, background: { r: 61, g: 6, b: 16 } } })
+        .withMetadata({ orientation: 6 })
+        .jpeg()
+        .toBuffer(),
+    );
+    fixture(jpeg, {
+      ocr: { image: { width: 100, height: 200 }, tokens: [{ id: 't0', text: 'TR-01', bbox: [10, 20, 60, 40], confidence: 0.99 }], preprocessing_applied: false },
+      structuring: plateValues(),
+    });
+    const id = await photo(relatorioId, block, jpeg, 'image/jpeg');
+    await runReadingJob(deps, { company_id: companyId, photo_id: id, reading_kind: 'plate' }, { jobId: 'direct', attempt: 1, lastAttempt: true });
+    expect(await status(id)).toBe('done');
+    const [suggestion] = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+    expect(suggestion!.source.bbox).toEqual([0.1, 0.1, 0.6, 0.2]);
+    expect((await runs(id))[0]).toMatchObject({ outcome: 'ok' });
+  }, 60_000);
+});
+
+describe('8.4-INT startReading keeps a status the job already wrote', () => {
+  const latestStatus = async (photoId: string) => {
+    const [latest] = await db
+      .select({ value: ops.value })
+      .from(ops)
+      .where(and(eq(ops.company_id, companyId), eq(ops.path, readingStatusPath(photoId))))
+      .orderBy(desc(ops.seq))
+      .limit(1);
+    return latest?.value;
+  };
+
+  it('writes running after the send, and not over a done written before it', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
+    const plain = await photo(relatorioId, block, await solidPng(5, 5, 5), 'image/png');
+    const sent: string[] = [];
+    const ran = await startReading({ db, now, newId, enqueue: async (payload) => void sent.push(payload.photo_id) }, company, { id: plain, relatorioId }, { company_id: companyId, photo_id: plain, reading_kind: 'plate' });
+    expect(ran).toBe(true);
+    expect(sent).toEqual([plain]);
+    expect(await latestStatus(plain)).toBe('running');
+
+    const raced = await photo(relatorioId, block, await solidPng(6, 6, 6), 'image/png');
+    const fastJob = async () => {
+      const done = readingServerOp({ companyId, relatorioId, kind: 'put', path: readingStatusPath(raced), value: 'done', batchId: null, now, newId });
+      expect((await applyOps(db, company, [done], { origin: 'server', now })).rejected).toEqual([]);
+    };
+    const wrote = await startReading({ db, now, newId, enqueue: fastJob }, company, { id: raced, relatorioId }, { company_id: companyId, photo_id: raced, reading_kind: 'plate' });
+    expect(wrote).toBe(false);
+    expect(await latestStatus(raced)).toBe('done');
+    expect(await status(raced)).toBe('done');
+  }, 60_000);
 });
 
 describe('8.5-INT registry verdicts on a Chave seccionadora', () => {
@@ -264,6 +410,9 @@ describe('8.5-INT registry verdicts on a Chave seccionadora', () => {
     const maker = `Leituratec${newId().slice(-4).replace(/[^a-f]/g, 'x')}`;
     await registry('manufacturer', maker);
     await registry('voltage_class', '15');
+    // Another company holds exactly the unknown names: its registry must not count here.
+    await registry('manufacturer', 'Novafab', otherCompanyId);
+    await registry('voltage_class', '23', otherCompanyId);
     const { relatorioId, blocks } = await relatorio();
     const chaves = blocks.filter((b) => b.block_type === 'chave_seccionadora');
 
