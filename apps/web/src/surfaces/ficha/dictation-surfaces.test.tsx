@@ -7,25 +7,20 @@ import {
   type BlockRow,
   type EvaluatedCell,
   type OpDraft,
-  type RelatorioSnapshot,
 } from '@app/domain';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, renderHook, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { ui } from '../../copy/ui.ts';
-import { SpeechEngineProvider } from '../../speech/dictation.tsx';
-import { ToastProvider } from '../../state/toast.tsx';
-import { createFakeEngine } from '../../speech/fake-engine.ts';
-import { EnsaiosSection } from './ensaios-section.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { DictatedMeasurementField } from './measurement-field.tsx';
-import { SheetObservationDictationProvider } from './sheet-observation-dictation.tsx';
+import { SheetObservationDictationProvider, useSheetObservationDictation, useTableDictation } from './sheet-observation-dictation.tsx';
 
 /*
  * 9.4-UNIT the sheet's dictation writes: a dictated reading's cell writes the heard value on
  * "Confirmar", the typed value when the engineer edits it, nothing when emptied; a table
- * utterance the kernel cannot read, on a sheet whose "Observações" is off, is only announced.
+ * utterance the kernel cannot read goes to the sheet observation, or, with "Observações" off, is
+ * only announced.
  */
 
 vi.mock('../../state/drafts.tsx', () => ({ useDraftSource: () => undefined }));
@@ -91,11 +86,6 @@ function renderDictated(onDone = vi.fn()) {
   return { commits, onDone, input: screen.getByRole('textbox', { name: 'Fase A, Valores' }) };
 }
 
-afterEach(() => {
-  globalThis.__fakeSpeech = undefined;
-  globalThis.__FAKE_SPEECH__ = undefined;
-});
-
 describe('9.4-UNIT DictatedMeasurementField', () => {
   it('"Confirmar" writes the reading as heard, once', async () => {
     const { commits, onDone } = renderDictated();
@@ -122,32 +112,41 @@ describe('9.4-UNIT DictatedMeasurementField', () => {
   });
 });
 
-describe('9.4-UNIT unparsed table speech with "Observações" off', () => {
-  it('is announced as "type it in the table" and leaves no pending suggestion anywhere', async () => {
-    const { api, commits, announced } = fichaApi();
-    const shown = block();
-    const snapshot = { blocks: [shown], relatorio: { setup: { service_end: null } } } as unknown as RelatorioSnapshot;
-    const { container } = render(
-      <MemoryRouter>
-        <ToastProvider>
-        <SpeechEngineProvider engine={createFakeEngine()} online>
-          <SheetObservationDictationProvider enabled={false}>
-            <EnsaiosSection api={api} snapshot={snapshot} block={shown} definition={SEC} instruments={[]} className="ficha-step" onFocus={() => undefined} primaryId="primary" />
-          </SheetObservationDictationProvider>
-        </SpeechEngineProvider>
-        </ToastProvider>
-      </MemoryRouter>,
-    );
-    const fechado = container.querySelector('.ficha-mt[data-table-key="contato_fechado"]')!;
-    const mic = fechado.querySelector<HTMLButtonElement>('.dictation-btn')!;
-    await userEvent.click(mic);
-    expect(mic).toHaveAttribute('aria-pressed', 'true');
-    await act(async () => {
-      globalThis.__fakeSpeech!.say('está chovendo muito');
+describe('9.4-UNIT useTableDictation: unparsed table speech', () => {
+  const fechado = () => evaluateSheetReadings(block(), SEC).find((t) => t.testKey === 'isolacao')!.tables.find((t) => t.key === 'contato_fechado')!;
+
+  function renderTable(enabled: boolean) {
+    const announce = vi.fn();
+    const seen: { pending: string | null } = { pending: null };
+    function Probe() {
+      seen.pending = useSheetObservationDictation().pending;
+      return null;
+    }
+    const { result } = renderHook(() => useTableDictation(fechado(), announce), {
+      wrapper: ({ children }) => (
+        <SheetObservationDictationProvider enabled={enabled}>
+          {children}
+          <Probe />
+        </SheetObservationDictationProvider>
+      ),
     });
-    expect(announced).toEqual([ui.dictation.unparsedNoObservations]);
-    expect(container.querySelector('.dictated-suggestion')).toBeNull();
-    expect(container.querySelector('.suggestion-field')).toBeNull();
-    expect(commits).toHaveLength(0);
+    return { result, announce, seen };
+  }
+
+  it('with "Observações" off, is announced as "type it in the table" and leaves no pending suggestion', () => {
+    const { result, announce, seen } = renderTable(false);
+    act(() => result.current.onDictated('está chovendo muito'));
+    expect(announce).toHaveBeenCalledWith(ui.dictation.unparsedNoObservations);
+    expect(result.current.dictated).toBeNull();
+    expect(seen.pending).toBeNull();
+  });
+
+  it('with "Observações" on, becomes the observation suggestion and is announced', () => {
+    const { result, announce, seen } = renderTable(true);
+    act(() => result.current.onDictated('está chovendo muito'));
+    expect(announce).toHaveBeenCalledWith(ui.dictation.unparsed);
+    expect(seen.pending).toBe('Está chovendo muito');
+    act(() => result.current.onDictated('Fase A, 147 giga'));
+    expect(result.current.dictated).toMatchObject({ kind: 'cell', raw: '147', unit: 'GΩ', address: { testKey: 'isolacao', row: 3, col: 0 } });
   });
 });

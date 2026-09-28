@@ -1,7 +1,6 @@
 import {
   evaluateSheetReadings,
   evaluatedCells,
-  parseTableUtterance,
   runTarget,
   screenLabel,
   tableDictationLabel,
@@ -14,17 +13,16 @@ import {
   type EvaluatedTable,
   type InstrumentRow,
   type RelatorioSnapshot,
-  type TableDictation,
   type TestEvaluation,
 } from '@app/domain';
-import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useId, useMemo, useRef, type ReactNode } from 'react';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
 import type { FichaApi } from './ficha-api.ts';
 import { InstrumentPicker } from './instrument-picker.tsx';
 import { cellKey, DictatedMeasurementField, ReadOnlyMeasurementField, type RunDirection } from './measurement-field.tsx';
 import { ConfirmTableButton, ReadDisplayButton, ReadingCell, useDisplaySuggestions, type DisplayModel } from './read-display.tsx';
-import { useSheetObservationDictation } from './sheet-observation-dictation.tsx';
+import { useTableDictation } from './sheet-observation-dictation.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
 import { DictationButton } from '../../speech/dictation.tsx';
@@ -211,22 +209,7 @@ function MeasurementTable({
   const t = copy.ficha.ensaios;
   const titleId = useId();
   // Story 9.4: the reading dictated on this table, held until its cell's "Confirmar" (never a row).
-  const [dictated, setDictated] = useState<Extract<TableDictation, { kind: 'cell' }> | null>(null);
-  const observation = useSheetObservationDictation();
-  const onDictated = (transcript: string) => {
-    const parsed = parseTableUtterance(transcript, table);
-    if (parsed.kind === 'cell') {
-      setDictated(parsed);
-      return;
-    }
-    setDictated(null);
-    if (observation.enabled) {
-      observation.offer(parsed.text);
-      api.announce(ui.dictation.unparsed);
-    } else {
-      api.announce(ui.dictation.unparsedNoObservations);
-    }
-  };
+  const { dictated, setDictated, onDictated } = useTableDictation(table, api.announce);
   const cellOf = (row: EvaluatedRow, col: number): EvaluatedCell | undefined => row.cells.find((cell) => cell.address.col === col);
   const field = (row: EvaluatedRow, cell: EvaluatedCell, presentation: 'table' | 'card') =>
     readOnly ? (
