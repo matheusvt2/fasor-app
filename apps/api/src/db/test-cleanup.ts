@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import type { Db } from './client.ts';
-import { account, company, entities, ops, session, syncDevicePush, user } from './schema.ts';
+import { account, company, entities, ops, readingRuns, session, syncDevicePush, user } from './schema.ts';
 
 /**
  * Test support only: removes a throwaway company an integration test provisioned, with
@@ -14,5 +14,6 @@ export async function dropCompany(db: Db, companyId: string): Promise<void> {
   await db.delete(ops).where(eq(ops.company_id, companyId));
   await db.delete(entities).where(eq(entities.company_id, companyId));
   await db.delete(syncDevicePush).where(eq(syncDevicePush.company_id, companyId));
+  await db.delete(readingRuns).where(eq(readingRuns.company_id, companyId));
   await db.delete(company).where(eq(company.id, companyId));
 }

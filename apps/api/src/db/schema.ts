@@ -3,8 +3,10 @@ import {
   bigint,
   bigserial,
   boolean,
+  check,
   customType,
   index,
+  integer,
   pgTable,
   primaryKey,
   text,
@@ -12,6 +14,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 /*
  * AD-3, AD-10: the op log and the materialized rows. Every table carries
@@ -100,6 +103,41 @@ export const entities = pgTable(
     primaryKey({ columns: [t.company_id, t.entity, t.id] }),
     index('entities_company_relatorio_idx').on(t.company_id, t.relatorio_id),
     index('entities_company_project_idx').on(t.company_id, t.project_id),
+  ],
+);
+
+/*
+ * Story 8.4: one row per attempt of a reading job, successful or failed, so the token ids a
+ * suggestion cites resolve later (`ocr_result` keeps the tokens with their boxes normalized
+ * over the image sent) and every model call is accounted for (`model`, `prompt_version`,
+ * `llm_usage`). A suggestion's `source.reading_run_id` names the row of its run. Written
+ * only by the reading job; never synced to a device.
+ */
+export const readingRuns = pgTable(
+  'reading_runs',
+  {
+    id: uuid('id').primaryKey(),
+    company_id: uuid('company_id').notNull(),
+    photo_id: uuid('photo_id').notNull(),
+    relatorio_id: uuid('relatorio_id'),
+    reading_kind: text('reading_kind').notNull(),
+    /** The pg-boss job id. */
+    job_id: text('job_id'),
+    /** 1 for the first attempt of a job, `retryCount + 1` after. */
+    attempt: integer('attempt').notNull(),
+    outcome: text('outcome').notNull(),
+    error: text('error'),
+    ocr_provider: text('ocr_provider').notNull(),
+    ocr_result: json('ocr_result'),
+    model: text('model'),
+    prompt_version: text('prompt_version'),
+    llm_usage: json('llm_usage'),
+    duration_ms: integer('duration_ms').notNull(),
+    created_at: timestamptz('created_at').notNull(),
+  },
+  (t) => [
+    index('reading_runs_company_photo_idx').on(t.company_id, t.photo_id),
+    check('reading_runs_outcome_check', sql`${t.outcome} in ('ok', 'error')`),
   ],
 );
 
@@ -208,4 +246,4 @@ export const verification = pgTable(
   (table) => [index('verification_identifier_idx').on(table.identifier)],
 );
 
-export const schema = { ops, entities, syncDevicePush, company, user, session, account, verification };
+export const schema = { ops, entities, syncDevicePush, readingRuns, company, user, session, account, verification };

@@ -5,16 +5,16 @@ import math
 import cv2
 import numpy as np
 
-from conftest import SUMMARY, assert_read_result, validate
+from conftest import HEALTH_PATH, READ_MAX_BYTES, READ_PATH, SUMMARY, assert_read_result, validate
 from make_plate import BACKGROUND, value_words
 from matching import match, value_flags
 
-READ_MAX_BYTES = 20 * 1024 * 1024
 ROTATION_DEG = 4.0
+MIB = 1024 * 1024
 
 
 def _post(client, body: bytes, mime: str = "image/jpeg"):
-    return client.post("/read", content=body, headers={"content-type": mime})
+    return client.post(READ_PATH, content=body, headers={"content-type": mime})
 
 
 def _decode(jpeg: bytes) -> np.ndarray:
@@ -22,7 +22,7 @@ def _decode(jpeg: bytes) -> np.ndarray:
 
 
 def test_health_names_the_models(client):
-    response = client.get("/health")
+    response = client.get(HEALTH_PATH)
     assert response.status_code == 200
     body = response.json()
     validate("OcrHealthResponse", body)
@@ -155,10 +155,10 @@ def test_streamed_body_over_the_limit_is_413(client):
     """A chunked body carries no Content-Length: the streamed count stops it."""
 
     def chunks():
-        for _ in range(21):
-            yield b"\0" * (1024 * 1024)
+        for _ in range(READ_MAX_BYTES // MIB + 1):
+            yield b"\0" * MIB
 
-    response = client.post("/read", content=chunks(), headers={"content-type": "image/jpeg"})
+    response = client.post(READ_PATH, content=chunks(), headers={"content-type": "image/jpeg"})
     assert response.status_code == 413
     assert response.json() == {"error": "too_large"}
     validate("OcrErrorResponse", response.json())
