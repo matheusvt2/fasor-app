@@ -98,3 +98,39 @@ test('@p1 E78-Q14 8.6-E2E-003 the plate crop fills the box width at 768 and 390 
     expect(shown!.width, `${width} px`).toBeGreaterThan(150);
   }
 });
+
+test('@p1 E78-R1 8.6-E2E-004 at 768 px a focused field zooms the plate crop to its region, outlined outside the value and at least 12 px high', async ({ page }) => {
+  test.setTimeout(180_000);
+  await openTransformerSheet(page, account, database, { width: 768 });
+  await importPlate(page);
+  const crop = section(page).locator('.plate-crop');
+  const view = crop.locator('.plate-crop-view[data-fitted]');
+  await expect(view).toBeVisible({ timeout: 30_000 });
+  const picture = view.locator('img:not([hidden])');
+  const before = (await picture.boundingBox())!;
+
+  const input = field(page, 'identificacao').locator('.field.suggestion-field input');
+  await expect(input).toHaveValue('TR-01', { timeout: 20_000 });
+  await input.focus();
+  const region = crop.locator('.region');
+  await expect(region).toHaveCount(1);
+  // Zoomed: the picture is drawn larger than over the whole read region.
+  await expect.poll(async () => (await picture.boundingBox())!.width).toBeGreaterThan(before.width * 1.5);
+  const drawn = await region.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      height: element.getBoundingClientRect().height,
+      border: style.borderTopWidth,
+      outline: style.outlineStyle,
+      offset: Number.parseFloat(style.outlineOffset),
+    };
+  });
+  expect(drawn.height).toBeGreaterThanOrEqual(12);
+  // Nothing drawn over the value's own box: no border inside it, an outline outside it.
+  expect(drawn.border).toBe('0px');
+  expect(drawn.outline).toBe('solid');
+  expect(drawn.offset).toBeGreaterThan(0);
+  const [box, shown] = await Promise.all([region.boundingBox(), view.boundingBox()]);
+  expect(box!.x).toBeGreaterThan(shown!.x);
+  expect(box!.x + box!.width).toBeLessThan(shown!.x + shown!.width);
+});

@@ -1,5 +1,4 @@
 import {
-  buildSnapshot,
   captionSavedText,
   captionWordFor,
   contextCaptionParts,
@@ -40,6 +39,7 @@ import { removePhoto, restorePhoto, setPhotoCaption } from './photo-ops.ts';
 import { PhotoViewer } from './photo-viewer.tsx';
 import { useCaptionSources } from './use-caption-sources.ts';
 import './photos.css';
+import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
 
 /*
  * `/relatorio/:id/fotos` (Story 6.3; `70-fotos.html`, `key-photos.html`): every live photo of
@@ -82,7 +82,7 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const user = session.user;
   const { showToast } = useToast();
   const { retryUpload } = useSync();
-  const snapshot: RelatorioSnapshot = useMemo(() => buildSnapshot(state, relatorioId), [state, relatorioId]);
+  const snapshot: RelatorioSnapshot = useRelatorioSnapshot(state, relatorioId);
   const tiles = useRelatorioPhotoTiles(db, relatorioId);
   const all = tiles;
   // Numbered from the tiles this surface draws (one query), so every drawn tile has its number.

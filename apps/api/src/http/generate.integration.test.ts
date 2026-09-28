@@ -432,21 +432,23 @@ describe('4.8-INT-002 POST /api/relatorios/:id/generate and GET /api/revisions/:
     expect(structure.tables[1]![5]![1]).toBe(`${companyA.name} · CREA ${companyA.registrationNumber}`);
     const printed = new Map(
       structure.paragraphs
-        .filter((p) => /^\d+ .*\t\d+$/.test(p))
+        .filter((p) => /^\d+(\.\d+)? .*\t\d+$/.test(p))
         .map((p) => {
           const [text, page] = p.split('\t');
           return [text!, Number(page)];
         }),
     );
-    expect(printed.size).toBe(11);
+    // The eleven sections and (E7-A4) section 9's subsection, as FO.SERV-03's ÍNDICE lists them.
+    expect(printed.size).toBe(12);
+    expect(printed.has('9.1 Cabine de Testes')).toBe(true);
 
     const stored = await getObject(s3, config.S3_BUCKET, objectKey(companyA.companyId, 'pdf', firstRevision.pdf_file_id));
     expect(stored).not.toBeNull();
     const chunks: Buffer[] = [];
     for await (const chunk of stored!.body) chunks.push(chunk as Buffer);
     const outline = await readOutline(Buffer.concat(chunks));
-    // The outline carries section 9's subsection as well (level 2); the ÍNDICE lists the sections.
-    expect(outline.headings.map((heading) => heading.title)).toEqual([...printed.keys()].flatMap((title) => (title.startsWith('9 ') ? [title, '9.1 Cabine de Testes'] : [title])));
+    // The outline carries section 9's subsection as well (level 2), and so does the ÍNDICE, in the same order.
+    expect(outline.headings.map((heading) => heading.title)).toEqual([...printed.keys()]);
     for (const [title, page] of printed) expect(outline.headings.find((heading) => heading.title === title)?.page, title).toBe(page);
 
     // Story 7.1/7.2: the block-linked photo's stored `print` variant is embedded inside its

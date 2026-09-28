@@ -13,6 +13,7 @@ import { applyPulled } from '../../db/sync-store.ts';
 import type { SessionState } from '../../state/session.tsx';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
 import { SetupSurface } from './setup-surface.tsx';
+import { loadIndependentWaits, untilStored } from '../../test/load.ts';
 
 /*
  * Story 4.2: the five Etapa bands over the small Porto Seguro fixture, plus the
@@ -61,6 +62,8 @@ const session = (): SessionState => ({
 });
 
 vi.mock('../../state/session.tsx', () => ({ useSession: () => session() }));
+// E7-A2: store state is awaited by its change events; DOM waits get a load-independent ceiling.
+loadIndependentWaits();
 // Story 7.4: Etapa 6's summary is the shared Generated text field, whose draft source needs
 // the app's DraftProvider; drafts are covered by their own suite (as `conclusao-section.test.tsx`).
 vi.mock('../../state/drafts.tsx', () => ({ useDraftSource: () => undefined }));
@@ -142,7 +145,7 @@ describe('4.2 SetupSurface', () => {
     const { container } = renderSetup();
     const group = await screen.findByRole('radiogroup', { name: 'Parecer' });
     await userEvent.click(within(group).getByRole('radio', { name: 'Não apto' }));
-    await waitFor(async () => expect(await database!.outbox.where('path').equals('relatorio/setup/parecer').count()).toBe(1));
+    await untilStored(() => database!.outbox.where('path').equals('relatorio/setup/parecer').count(), (count) => expect(count).toBe(1));
     const [op] = await database!.outbox.where('path').equals('relatorio/setup/parecer').toArray();
     expect(op!.value).toEqual({ verdict: 'nao_apto', text: null, text_status: null, text_basis: null });
     await waitFor(() => expect(within(group).getByRole('radio', { name: 'Não apto' })).toHaveAttribute('aria-checked', 'true'));
@@ -156,8 +159,7 @@ describe('4.2 SetupSurface', () => {
     expect(field.querySelector('.generated-text')).toHaveTextContent(/^Foram registradas 3 fichas de ensaio: /);
     expect(field.querySelector('.criteria-line')).toHaveTextContent(/Critérios usados.*3 fichas/);
     await userEvent.click(within(field as HTMLElement).getByRole('button', { name: 'Confirmar' }));
-    await waitFor(async () => {
-      const row = await database!.entities.get(['relatorio', RELATORIO]);
+    await untilStored(() => database!.entities.get(['relatorio', RELATORIO]), (row) => {
       expect((row!.row as RelatorioRow).setup.parecer).toMatchObject({ verdict: 'nao_apto', text_status: 'confirmed' });
     });
     expect(await database!.outbox.where('path').equals('relatorio/setup/parecer').count()).toBe(2);
@@ -168,8 +170,7 @@ describe('4.2 SetupSurface', () => {
     expect(await screen.findByText('Resumo do parecer confirmado — impresso na seção 10')).toBeVisible();
     // Changing the verdict keeps the confirmed summary (one object, written whole).
     await userEvent.click(within(group).getByRole('radio', { name: 'Apto com restrições' }));
-    await waitFor(async () => {
-      const row = await database!.entities.get(['relatorio', RELATORIO]);
+    await untilStored(() => database!.entities.get(['relatorio', RELATORIO]), (row) => {
       expect((row!.row as RelatorioRow).setup.parecer).toMatchObject({ verdict: 'apto_com_restricoes', text_status: 'confirmed' });
     });
   });
@@ -181,20 +182,20 @@ describe('4.2 SetupSurface', () => {
     const radio = (name: string) => within(group).getByRole('radio', { name });
     const parecerOps = async () => (await database!.outbox.where('path').equals('relatorio/setup/parecer').toArray()).map((op) => (op.value as { verdict: string }).verdict);
     await userEvent.click(radio('Apto'));
-    await waitFor(async () => expect(await parecerOps()).toEqual(['apto']));
+    await untilStored(parecerOps, (ops) => expect(ops).toEqual(['apto']));
     await waitFor(() => expect(radio('Apto')).toHaveAttribute('aria-checked', 'true'));
     radio('Apto').focus();
     await userEvent.keyboard('{ArrowRight}');
     await waitFor(() => expect(radio('Apto com restrições')).toHaveAttribute('aria-checked', 'true'));
     expect(radio('Apto com restrições')).toHaveFocus();
-    await waitFor(async () => expect(await parecerOps()).toEqual(['apto', 'apto_com_restricoes']));
+    await untilStored(parecerOps, (ops) => expect(ops).toEqual(['apto', 'apto_com_restricoes']));
     await userEvent.keyboard('{End}');
     await waitFor(() => expect(radio('Não apto')).toHaveAttribute('aria-checked', 'true'));
     expect(radio('Não apto')).toHaveFocus();
     await userEvent.keyboard('{Home}');
     await waitFor(() => expect(radio('Apto')).toHaveAttribute('aria-checked', 'true'));
     expect(radio('Apto')).toHaveFocus();
-    await waitFor(async () => expect(await parecerOps()).toEqual(['apto', 'apto_com_restricoes', 'nao_apto', 'apto']));
+    await untilStored(parecerOps, (ops) => expect(ops).toEqual(['apto', 'apto_com_restricoes', 'nao_apto', 'apto']));
   });
 
   it('7.5: opened from the Export dialog (?etapa=6&volta=exportar), Etapa 6 offers the way back to it', async () => {
@@ -210,8 +211,7 @@ describe('4.2 SetupSurface', () => {
     const field = await screen.findByRole('textbox', { name: 'Informações adicionais' });
     await userEvent.type(field, 'Manutenção preventiva');
     await userEvent.tab();
-    await waitFor(async () => {
-      const row = await database!.entities.get(['relatorio', RELATORIO]);
+    await untilStored(() => database!.entities.get(['relatorio', RELATORIO]), (row) => {
       expect((row!.row as RelatorioRow).setup.additional_info).toBe('Manutenção preventiva');
     });
   });
@@ -227,8 +227,7 @@ describe('4.2 SetupSurface', () => {
     // segments a keystroke is still building.
     await userEvent.keyboard('01102026');
     await waitFor(() => expect(within(group).getAllByRole('spinbutton').map((el) => el.textContent)).toEqual(['01', '10', '2026']));
-    await waitFor(async () => {
-      const row = await database!.entities.get(['relatorio', RELATORIO]);
+    await untilStored(() => database!.entities.get(['relatorio', RELATORIO]), (row) => {
       expect((row!.row as RelatorioRow).setup.service_start).toBe('2026-10-01');
     });
   });
@@ -241,8 +240,7 @@ describe('4.2 SetupSurface', () => {
     expect(checkbox).toHaveAttribute('aria-checked', 'false');
     // The fixture's instrument_ids starts empty; check it first so there is something to uncheck.
     await userEvent.click(checkbox);
-    await waitFor(async () => {
-      const relatorio = await database!.entities.get(['relatorio', RELATORIO]);
+    await untilStored(() => database!.entities.get(['relatorio', RELATORIO]), (relatorio) => {
       expect((relatorio!.row as RelatorioRow).setup.instrument_ids).toContain(INSTRUMENT_MEGOHMETRO_ID);
     });
     // The live query re-reads the relatório (now with its points and files) after the write
@@ -279,8 +277,7 @@ describe('4.2 SetupSurface', () => {
     const button = await screen.findByRole('button', { name: 'Concluir dados do relatório' });
     await waitFor(() => expect(button).not.toHaveAttribute('aria-disabled'));
     await userEvent.click(button);
-    await waitFor(async () => {
-      const row = await database!.entities.get(['relatorio', RELATORIO]);
+    await untilStored(() => database!.entities.get(['relatorio', RELATORIO]), (row) => {
       expect((row!.row as RelatorioRow).status).toBe('em_campo');
     });
     // Story 12.2 (J-06): forward to the Sumário with section 9 open, and the toast says it saved.
@@ -340,8 +337,7 @@ describe('4.2 SetupSurface', () => {
     await userEvent.type(combobox, 'Carla');
     await userEvent.click(await screen.findByRole('option', { name: 'Carla Nunes' }));
 
-    await waitFor(async () => {
-      const row = await database!.entities.get(['relatorio', RELATORIO]);
+    await untilStored(() => database!.entities.get(['relatorio', RELATORIO]), (row) => {
       expect((row!.row as RelatorioRow).setup.responsible_user_id).toBe(OTHER_ID);
     });
     // The live query re-reads the relatório after the write lands: wait for the relabelled field.
@@ -477,8 +473,7 @@ describe('4.2 SetupSurface', () => {
     await userEvent.clear(first);
     await userEvent.type(first, 'Item alterado');
     await userEvent.tab();
-    await waitFor(async () => {
-      const row = await database!.entities.get(['relatorio', RELATORIO]);
+    await untilStored(() => database!.entities.get(['relatorio', RELATORIO]), (row) => {
       expect((row!.row as RelatorioRow).setup.exclusions?.[0]).toBe('Item alterado');
     });
   });
@@ -493,12 +488,12 @@ describe('4.2 SetupSurface', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: 'Mais opções da exclusão 1' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Remover' }));
-    await waitFor(async () => expect(await exclusionsOf()).toEqual(['  ', 'Item C']));
+    await untilStored(exclusionsOf, (exclusions) => expect(exclusions).toEqual(['  ', 'Item C']));
     expect(screen.getAllByRole('textbox', { name: /^Exclusão \d$/ })).toHaveLength(2);
     expect(await screen.findByText('Exclusão 1 removida')).toBeVisible();
 
     await userEvent.click(screen.getByRole('button', { name: 'Desfazer' }));
-    await waitFor(async () => expect(await exclusionsOf()).toEqual(['Item A', '  ', 'Item C']));
+    await untilStored(exclusionsOf, (exclusions) => expect(exclusions).toEqual(['Item A', '  ', 'Item C']));
     await waitFor(() => expect(screen.getByRole('textbox', { name: 'Exclusão 1' })).toHaveValue('Item A'));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Mais opções da exclusão 1' })).toHaveFocus());
   });

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
-import { buildSnapshot, getDefinition, relatorioSnapshotSchema, replay, serializeSnapshot, standardTemplate, templateTotals } from '../../src/index.ts';
+import { buildSnapshot, getDefinition, relatorioSnapshotSchema, replay, section9Layout, serializeSnapshot, standardTemplate, templateTotals } from '../../src/index.ts';
 import type { EquipmentBlockType } from '../../src/schemas/block-config.ts';
 import { NA_ITEMS_BY_TYPE, SECTION_7_PHOTOS, SECTION_8_POINTS, notTestedText } from './data.ts';
 import {
@@ -281,5 +281,22 @@ describe('3.7-UNIT-004 per-instance fit of data.ts rows to their block type', ()
     ['ratio on a type without relacao_transformacao', 'disjuntor_mt', { ratio: { p: '1', s: '1', cap: ['1'] } }, /instance 7 \(disjuntor_mt\).*ratio/],
   ] as const)('throws with the index and type for %s', (_name, type, instance, message) => {
     expect(() => assertInstanceFitsBlockType(7, def(type), instance)).toThrow(message);
+  });
+});
+
+describe('E7-A3 Porto Seguro fixture: TR-1 relação de transformação (E78-Q15)', () => {
+  it('stores V PRIMÁRIO as 13.2 in the seed unit kV and section 9 prints it as "13,2 kV"', () => {
+    const snapshot = snapshotOf(portoSeguro.log, portoSeguro.deadOpIds);
+    const tr1 = snapshot.equipment.find((row) => row.tag === 'TR-1')!;
+    const block = snapshot.blocks.find((row) => row.equipment_id === tr1.id)!;
+    expect(block.block_type).toBe('transformador_forca');
+    expect(block.sheet.test.relacao_transformacao!.cells['0']!['0']!.value).toEqual({ raw: '13.2', unit: 'kV', state: 'measured' });
+
+    const section = section9Layout(snapshot, 9, 'RELATÓRIOS DOS ENSAIOS')!;
+    const sheet = section.subsections.flatMap((s) => s.sheets).find((s) => s.blockId === block.id)!;
+    const table = sheet.parts.flatMap((part) => (part.kind === 'table' ? [part.table] : [])).find((t) => t.rows[0]!.cells.some((c) => c.text === 'V PRIMÁRIO'))!;
+    const header = table.rows[0]!.cells.map((c) => c.text);
+    const first = table.rows[1]!.cells.map((c) => c.text);
+    expect(first[header.indexOf('V PRIMÁRIO')]).toBe('13,2 kV');
   });
 });

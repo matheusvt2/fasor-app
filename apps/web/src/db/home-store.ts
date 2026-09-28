@@ -191,37 +191,133 @@ export function equipmentRows(db: AppDatabase, projectId: string): Promise<Equip
  * Sumário renders exactly what the kernel's snapshot says (AD-1, AD-15).
  */
 export async function relatorioState(db: AppDatabase, relatorioId: string): Promise<EntityState | null> {
-  const relatorio = await relatorioRow(db, relatorioId);
-  if (relatorio === null) return null;
+  // E7-A1/E8-A1: the relatório's own index is read once (not once per entity) and a record
+  // whose write stamp (`rev`) is the one seen last time yields the row object parsed then,
+  // so an untouched row keeps its identity across live-query runs and is not parsed again.
+  const cache = parsedRows.get(databaseKey(db, relatorioId)) ?? new Map<string, ParsedRow>();
+  const kept = new Map<string, ParsedRow>();
+  const parse = <T>(record: EntityRecord): T | null => parsedRow<T>(record, cache, kept);
+
+  const own = await db.entities.where('relatorio_id').equals(relatorioId).toArray();
+  const byEntity = new Map<string, EntityRecord[]>();
+  for (const record of own) {
+    const list = byEntity.get(record.entity);
+    if (list) list.push(record);
+    else byEntity.set(record.entity, [record]);
+  }
+  const parsedOf = <T>(entity: keyof typeof entityRowSchemas): T[] => {
+    const out: T[] = [];
+    for (const record of byEntity.get(entity) ?? []) {
+      const row = parse<T>(record);
+      if (row !== null) out.push(row);
+    }
+    return out;
+  };
+
+  const forget = () => {
+    parsedRows.delete(databaseKey(db, relatorioId));
+    lastStates.delete(databaseKey(db, relatorioId));
+    return null;
+  };
+  const relatorioRecord = (byEntity.get('relatorio') ?? []).find((record) => record.id === relatorioId);
+  if (relatorioRecord === undefined || relatorioRecord.removed_at !== null) return forget();
+  const relatorio = parse<RelatorioRow>(relatorioRecord);
+  if (relatorio === null) return forget();
   const state = new Map<EntityKey, EntityRow>();
   const put = (entity: keyof typeof entityRowSchemas, row: { id: string }) => state.set(entityKey(entity, row.id), row as EntityRow);
   put('relatorio', relatorio);
-  const project = await projectRow(db, relatorio.project_id);
+  const projectRecord = await db.entities.get(['project', relatorio.project_id]);
+  const project = projectRecord === undefined || projectRecord.removed_at !== null ? null : parse<ProjectRow>(projectRecord);
   if (project !== null) put('project', project);
-  for (const row of await locationRows(db, relatorioId)) put('location', row);
-  for (const row of await blockRowsOf(db, relatorioId)) put('block', row);
-  for (const row of await equipmentRows(db, relatorio.project_id)) put('equipment', row);
-  for (const row of await rows<RegistryRow>(db, 'registry')) put('registry', row);
+  for (const row of parsedOf<LocationRow>('location')) if (row.removed_at === null) put('location', row);
+  for (const row of parsedOf<BlockRow>('block')) put('block', row);
+  const projectRecords = await db.entities.where('project_id').equals(relatorio.project_id).toArray();
+  for (const record of projectRecords) {
+    if (record.entity !== 'equipment') continue;
+    const row = parse<EquipmentRow>(record);
+    if (row !== null) put('equipment', row);
+  }
+  for (const record of await db.entities.where('entity').equals('registry').toArray()) {
+    if (record.removed_at !== null) continue;
+    const row = parse<RegistryRow>(record);
+    if (row !== null) put('registry', row);
+  }
   // Story 4.6: the Sumário's issued banner reads the relatório's revisions straight off
   // this state, the same way it already reads `equipment` -- `RelatorioSnapshot` is not
   // extended for revisions by this batch (batch D/4.8 owns that).
-  for (const row of await rowsWhere<RevisionRow>(db, 'revision', 'relatorio_id', relatorioId)) put('revision', row);
+  for (const row of parsedOf<RevisionRow>('revision')) put('revision', row);
   // Story 6.6: section 8 is counted from the points, and a point citing a removed photo is
   // named by `preIssue`, so the snapshot needs both (`buildSnapshot` keeps the live ones).
-  for (const row of await rowsWhere<PointRow>(db, 'point', 'relatorio_id', relatorioId)) put('point', row);
-  for (const row of await rowsWhere<FileRow>(db, 'file', 'relatorio_id', relatorioId)) put('file', row);
+  for (const row of parsedOf<PointRow>('point')) put('point', row);
+  for (const row of parsedOf<FileRow>('file')) put('file', row);
   // Story 7.5 (AD-2, Epic 4 item 14): the responsible's `user` row, as the server's
   // `toSnapshot` holds it, so the setup gaps and the pre-issue rows read the same snapshot.
+  // Kept as stored (not parsed), as before; its stamp still keeps its identity.
   const responsibleId = relatorio.setup.responsible_user_id;
   if (responsibleId !== null) {
     const record = await db.entities.get(['user', responsibleId]);
-    if (record !== undefined) state.set(entityKey('user', responsibleId), record.row);
+    if (record !== undefined) state.set(entityKey('user', responsibleId), storedRow(record, cache, kept));
   }
   // Story 8.1: the device's suggestion rows (pending ones included), which the nameplate and
   // the Sumário's pending counts read (`suggestionRowsOf`); `buildSnapshot` keeps only the
   // ones a cell references.
-  for (const row of await rowsWhere<SuggestionRow>(db, 'suggestion', 'relatorio_id', relatorioId)) put('suggestion', row);
+  for (const row of parsedOf<SuggestionRow>('suggestion')) put('suggestion', row);
+  const at = databaseKey(db, relatorioId);
+  parsedRows.set(at, kept);
+  // A live-query run that finds every row as it was (a write elsewhere woke it) returns the
+  // previous state itself, so its readers do not render again for nothing.
+  const prev = lastStates.get(at);
+  if (prev !== undefined && prev.size === state.size && [...state].every(([key, row]) => prev.get(key) === row)) return prev;
+  lastStates.set(at, state);
   return state;
+}
+
+/** One cached row of `relatorioState`: the stamp of the record it was read from, and the row. */
+interface ParsedRow {
+  rev: string;
+  row: unknown;
+  /** Kept as stored, not parsed (the responsible's `user` row). */
+  raw: boolean;
+}
+
+/**
+ * E7-A1/E8-A1: per database and relatório, the rows the last `relatorioState` returned,
+ * keyed by `entity:id`. Each entry carries the `rev` of the record it came from; a record
+ * is written only through `toRecord`, which stamps a fresh `rev` on every write, so an
+ * entry whose `rev` matches the record's is that record's row -- never a stale one. Each
+ * call keeps only the entries it used, so rows that left the relatório are dropped. A
+ * record without a stamp (written before `rev` existed) is parsed on every read.
+ */
+const parsedRows = new Map<string, Map<string, ParsedRow>>();
+/** Per database and relatório, the state the last `relatorioState` returned. */
+const lastStates = new Map<string, EntityState>();
+
+function databaseKey(db: AppDatabase, relatorioId: string): string {
+  return `${db.name}|${relatorioId}`;
+}
+
+function parsedRow<T>(record: EntityRecord, cache: Map<string, ParsedRow>, kept: Map<string, ParsedRow>): T | null {
+  const key = `${record.entity}:${record.id}`;
+  const hit = record.rev === undefined ? undefined : cache.get(key);
+  if (hit !== undefined && hit.rev === record.rev && !hit.raw) {
+    kept.set(key, hit);
+    return hit.row as T;
+  }
+  const result = entityRowSchemas[record.entity].safeParse(record.row);
+  if (!result.success) return null;
+  if (record.rev !== undefined) kept.set(key, { rev: record.rev, row: result.data, raw: false });
+  return result.data as T;
+}
+
+function storedRow(record: EntityRecord, cache: Map<string, ParsedRow>, kept: Map<string, ParsedRow>): EntityRow {
+  const key = `${record.entity}:${record.id}`;
+  const hit = record.rev === undefined ? undefined : cache.get(key);
+  if (hit !== undefined && hit.rev === record.rev && hit.raw) {
+    kept.set(key, hit);
+    return hit.row as EntityRow;
+  }
+  if (record.rev !== undefined) kept.set(key, { rev: record.rev, row: record.row, raw: true });
+  return record.row;
 }
 
 /**

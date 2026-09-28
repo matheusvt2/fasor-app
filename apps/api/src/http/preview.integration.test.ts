@@ -18,7 +18,7 @@ import {
   type Op,
   type RelatorioParecer,
 } from '@app/domain';
-import { BLOCK_CHAVE_ID, EQUIPMENT_CHAVE_ID } from '@app/domain/fixtures/porto-seguro/small';
+import { BLOCK_CHAVE_ID, EQUIPMENT_CHAVE_ID, EQUIPMENT_DISJUNTOR_ID, EQUIPMENT_TRANSFORMADOR_ID } from '@app/domain/fixtures/porto-seguro/small';
 import { and, eq } from 'drizzle-orm';
 import { getDocument, GlobalWorkerOptions, OPS } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -340,7 +340,8 @@ describe('7.4/7.5-INT parecer, preview and the blocked issue', () => {
         equipmentRowSchema.parse(r.row),
       );
       const projected = equipment.filter((row) => row.last_nameplate !== null);
-      expect(projected.map((row) => row.id)).toEqual([EQUIPMENT_CHAVE_ID]);
+      // E7-A4: the small fixture's three sheets enable their template's sub-blocks, nameplate included, so all three plates print.
+      expect(projected.map((row) => row.id).sort()).toEqual([EQUIPMENT_CHAVE_ID, EQUIPMENT_DISJUNTOR_ID, EQUIPMENT_TRANSFORMADOR_ID].sort());
       for (const row of projected) {
         expect(row.last_nameplate).toMatchObject({ relatorio_id: RELATORIO_ID, revision_number: revision.number });
         expect(Object.keys(row.last_nameplate!.fields).length).toBeGreaterThan(0);

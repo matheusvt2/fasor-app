@@ -9,7 +9,7 @@ import {
   type RelatorioSummary,
 } from '@app/domain';
 import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
-import { configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from '../../test-axe.ts';
 import { MemoryRouter, Route, Routes, useParams } from 'react-router';
@@ -24,6 +24,7 @@ import { makeSyncState } from '../../test/sync-state.ts';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
 import { SumarioSurface } from './sumario-surface.tsx';
 import { TreeSurface } from './tree-surface.tsx';
+import { loadIndependentWaits } from '../../test/load.ts';
 
 /*
  * Stories 4.4 and 4.5: the location tree in the Sumário's section 9 and on the rail, over
@@ -65,7 +66,8 @@ vi.mock('../../state/session.tsx', () => ({ useSession: () => session() }));
 
 const syncState = (): SyncState => makeSyncState();
 
-configure({ asyncUtilTimeout: 5000 });
+// E7-A2: DOM waits for a store round trip get a load-independent ceiling, and the tests a budget to match.
+loadIndependentWaits();
 
 async function freshDb(): Promise<AppDatabase> {
   const user = `019966c1-0021-7000-8000-${(++counter).toString(16).padStart(12, '0')}`;

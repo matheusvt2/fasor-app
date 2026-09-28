@@ -1,4 +1,4 @@
-import { padCropToAspect, regionWithin } from '@app/domain';
+import { padCropToAspect, PLATE_FOCUS_MARGIN, plateCropView, regionWithin } from '@app/domain';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
@@ -195,8 +195,16 @@ describe('8.6-UNIT the plate crop', () => {
     );
     const regions = container.querySelectorAll<HTMLElement>('.plate-crop .region');
     expect(regions).toHaveLength(1);
-    expect(regions[0]!.style.left).toBe('25%');
-    expect(regions[0]!.style.top).toBe('50%');
+    // E78-R1: the crop zooms to the focused field with the kernel's margin, so the outline
+    // sits inside the view with that margin around it on every side.
+    const zoomed = plateCropView([0.2, 0.2, 0.6, 0.6], [0.3, 0.4, 0.5, 0.5], null, 0);
+    expect(zoomed).toEqual([0.3 - PLATE_FOCUS_MARGIN, 0.4 - PLATE_FOCUS_MARGIN, 0.5 + PLATE_FOCUS_MARGIN, 0.5 + PLATE_FOCUS_MARGIN]);
+    const outline = regionWithin(zoomed, [0.3, 0.4, 0.5, 0.5]);
+    const pct = (n: number) => `${Math.round(n * 1000) / 1000}%`;
+    expect(regions[0]!.style.left).toBe(pct(outline.left));
+    expect(regions[0]!.style.top).toBe(pct(outline.top));
+    expect(outline.left).toBeGreaterThan(0);
+    expect(outline.left + outline.width).toBeLessThan(100);
     await userEvent.click(container.querySelector('.plate-crop-open')!);
     expect(onOpen).toHaveBeenCalledOnce();
   });
@@ -226,8 +234,11 @@ describe('E78-Q14 the plate crop widened to the box', () => {
     Object.defineProperty(img, 'naturalHeight', { value: 1100 });
     fireEvent.load(img);
 
-    const shown = padCropToAspect(region, { width: 1600, height: 1100 }, 670 / 160);
-    expect(shown[2] - shown[0]).toBeGreaterThan(0.5);
+    // E78-R1: zoomed to the focused field (with its margin), then padded to the box aspect.
+    const shown = plateCropView(region, focused, { width: 1600, height: 1100 }, 670 / 160);
+    expect(shown).toEqual(padCropToAspect(plateCropView(region, focused, null, 0), { width: 1600, height: 1100 }, 670 / 160));
+    // Widened to the box's own aspect (it was a tall narrow region).
+    expect(((shown[2] - shown[0]) * 1600) / ((shown[3] - shown[1]) * 1100)).toBeCloseTo(670 / 160, 5);
     const pct = (n: number) => `${Math.round(n * 1000) / 1000}%`;
     const w = shown[2] - shown[0];
     await waitFor(() => expect(img.style.width).toBe(pct(100 / w)));
@@ -235,6 +246,8 @@ describe('E78-Q14 the plate crop widened to the box', () => {
     expect(img.style.left).toBe(pct((-shown[0] / w) * 100));
     // Not the unpadded region's (1000 % wide).
     expect(img.style.width).not.toBe(pct(100 / (region[2] - region[0])));
+    // With no field focused the crop shows the whole read region, padded the same way.
+    expect(plateCropView(region, null, { width: 1600, height: 1100 }, 670 / 160)).toEqual(padCropToAspect(region, { width: 1600, height: 1100 }, 670 / 160));
     const outline = regionWithin(shown, focused);
     const drawn = container.querySelector<HTMLElement>('.plate-crop .region')!;
     expect(drawn.style.left).toBe(pct(outline.left));

@@ -1,5 +1,4 @@
 import {
-  buildSnapshot,
   homeCards,
   isProjectStreamId,
   resumeTarget,
@@ -33,6 +32,7 @@ import { RelatorioCard } from './relatorio-card.tsx';
 import { ShortcutRow } from './shortcut-row.tsx';
 import { StatusBoard } from './status-board.tsx';
 import './home.css';
+import { relatorioSnapshotOf } from '../../db/relatorio-snapshot.ts';
 
 /**
  * Home (`20-home.html`, `key-home.html`) — the status board, the relatório cards and
@@ -122,7 +122,7 @@ export function HomeSurface() {
       if (db === null || currentId === null) return null;
       const [state, lastSheet] = await Promise.all([relatorioState(db, currentId), readLastSheet(db, currentId)]);
       // Story 8.1: the count agrees with the Sumário's, over the device's pending suggestion rows.
-      return state === null ? null : resumeTarget(buildSnapshot(state, currentId), lastSheet, pendingSuggestions(suggestionRowsOf(state, currentId)));
+      return state === null ? null : resumeTarget(relatorioSnapshotOf(state, currentId), lastSheet, pendingSuggestions(suggestionRowsOf(state, currentId)));
     },
     [db, currentId],
     null,

@@ -1,5 +1,4 @@
 import {
-  buildSnapshot,
   documentControlRows,
   exportPrecheck,
   failedReason,
@@ -36,6 +35,7 @@ import { DEFAULT_TIMING, useGenerate, type GenerateTiming } from './use-generate
 import { usePreIssue } from './use-pre-issue.ts';
 import { usePreview } from './use-preview.ts';
 import './export.css';
+import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
 
 export interface ExportDialogProps {
   relatorioId: string;
@@ -87,7 +87,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
   const { resendDead } = useSync();
 
   const entityState = useLiveQuery(() => (db === null ? Promise.resolve(null) : relatorioState(db, relatorioId)), [db, relatorioId], null);
-  const snapshot = useMemo(() => (entityState === null ? null : buildSnapshot(entityState, relatorioId)), [entityState, relatorioId]);
+  const snapshot = useRelatorioSnapshot(entityState, relatorioId);
   // Story 8.6: the device's pending suggestion rows (section 9's warning and the sheets count).
   const pending = useMemo(() => (entityState === null ? [] : pendingSuggestions(suggestionRowsOf(entityState, relatorioId))), [entityState, relatorioId]);
   const computed = useMemo(() => (snapshot === null ? null : progress(snapshot, pending)), [snapshot, pending]);
