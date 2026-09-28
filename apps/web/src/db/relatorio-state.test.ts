@@ -8,6 +8,7 @@ import { relatorioState } from './home-store.ts';
 import { relatorioSnapshotOf } from './relatorio-snapshot.ts';
 import { openDatabase, type AppDatabase } from './schema.ts';
 import { toSnapshot } from './snapshot.ts';
+import { applyPulled } from './sync-store.ts';
 
 /*
  * E7-A1/E8-A1: `relatorioState` reads the relatório's index once and keeps every row a
@@ -113,6 +114,30 @@ describe('E9C1-UNIT-003 relatorioState keeps untouched rows identical across rea
     const second = (await relatorioState(db, RELATORIO_ID))!;
     expect(second.get(key)).toEqual(first.get(key));
     expect(second.get(key)).not.toBe(first.get(key));
+    db.close();
+  });
+});
+
+describe('E9C1-UNIT-004 the device snapshot over interleaved commits of every entity kind', () => {
+  it('after each op of the small replay log (blocks, sheet cells, locations, files, points, suggestions, registry, user), committed locally or pulled in turn, the shared incremental snapshot equals the full device read', async () => {
+    const db = await freshDb();
+    const dead = new Set(replaySmall.deadOpIds);
+    const log = [...replaySmall.log].sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0)).filter((op) => !dead.has(op.op_id));
+    let compared = 0;
+    for (const [index, op] of log.entries()) {
+      // Server-only families arrive pulled; the rest alternate between this device's own
+      // commit path (outbox + entities) and the pull path, as a field session interleaves them.
+      const serverOnly = /^(suggestion|generation_job|revision)\//.test(op.path);
+      if (serverOnly || index % 2 === 1) await applyPulled(db, [op]);
+      else await commitOps(db, [op]);
+      const state = await relatorioState(db, RELATORIO_ID);
+      if (state === null) continue;
+      const incremental = serializeSnapshot(relatorioSnapshotOf(state, RELATORIO_ID));
+      const full = serializeSnapshot((await toSnapshot(db, RELATORIO_ID))!);
+      if (incremental !== full) expect.fail(`the device snapshot diverges after op ${index} (${op.kind} ${op.path})`);
+      compared += 1;
+    }
+    expect(compared).toBeGreaterThan(40);
     db.close();
   });
 });
