@@ -43,7 +43,7 @@ describe('E9C1-UNIT-003 relatorioState keeps untouched rows identical across rea
     const after = (await relatorioState(db, RELATORIO_ID))!;
 
     expect(after).not.toBe(before);
-    const changed = `block:${BLOCK_1_ID}`;
+    const changed = `block:${BLOCK_1_ID}` as const;
     expect(after.get(changed)).not.toBe(before.get(changed));
     expect((after.get(changed) as { sheet: { observations: { value: unknown } } }).sheet.observations.value).toBe('Observação nova.');
     let shared = 0;

@@ -1,4 +1,4 @@
-import { PAGE_LINE, PRODUTO, sectionHeading, TOC_TITLE, type DocumentLayout, type LayoutParagraph } from '@app/domain';
+import { PAGE_LINE, PRODUTO, sectionHeading, TOC_TITLE, tocLines, type DocumentLayout, type LayoutParagraph, type TocLine } from '@app/domain';
 import {
   AlignmentType,
   BorderStyle,
@@ -176,11 +176,15 @@ function sectionParagraph(block: LayoutParagraph): Paragraph {
   }
 }
 
-function tocParagraph(entry: DocumentLayout['toc'][number], page: number | null): Paragraph {
+/** E7-A4: a level 2 line (section 9's subsections) indents like Word's TOC 2 style, as FO.SERV-03's index. */
+const TOC_LEVEL_2_INDENT_TWIPS = 220;
+
+function tocParagraph(line: TocLine, page: number | null): Paragraph {
   return new Paragraph({
     tabStops: [{ type: TabStopType.RIGHT, position: CONTENT_WIDTH_TWIPS, leader: LeaderType.DOT }],
     spacing: { after: 80 },
-    children: [text(sectionHeading(entry)), text(`\t${page === null ? TOC_PLACEHOLDER : String(page)}`)],
+    ...(line.level === 2 ? { indent: { left: TOC_LEVEL_2_INDENT_TWIPS } } : {}),
+    children: [text(line.text), text(`\t${page === null ? TOC_PLACEHOLDER : String(page)}`)],
   });
 }
 
@@ -257,12 +261,15 @@ export async function buildDocx(layout: DocumentLayout, options: BuildDocxOption
   children.push(new Paragraph({ spacing: { after: 240 } }));
   children.push(plain(TOC_TITLE, { bold: true, size: 28, alignment: AlignmentType.CENTER }));
   children.push(new Paragraph({ spacing: { after: 240 } }));
-  for (const entry of layout.toc) children.push(tocParagraph(entry, options.tocPages.get(entry.number) ?? null));
+  for (const line of tocLines(layout)) children.push(tocParagraph(line, options.tocPages.get(line.key) ?? null));
   children.push(pageBreak());
 
   // Sections.
   for (const section of layout.sections) {
-    children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, children: [text(sectionHeading(section))] }));
+    // E7-A4: section 9 starts a page from its own heading, so its first sheet never splits
+    // across the page section 8 ends on (a break before its first subsection would leave
+    // the Heading 1 alone at the foot of that page; LibreOffice keeps no keep-with-next over it).
+    children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: section.kind === 'sheets', children: [text(sectionHeading(section))] }));
     if (section.kind === 'empty') children.push(new Paragraph({ children: [text(section.note)], spacing: { after: 120 } }));
     else if (section.kind === 'section_10') children.push(...section10Children(section, CONTENT_WIDTH_TWIPS));
     else if (section.kind === 'photos') children.push(...(await section7Children(section, options.images?.photos ?? new Map())));
