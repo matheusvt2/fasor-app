@@ -90,6 +90,16 @@ describe('9.1-UNIT displayValues over the six synthetic displays', () => {
     expect(values([tok(0, '147', [0, 0, 10, 10], 0.9), tok(1, 'GO', [0, 20, 10, 30], 0.9)])).toEqual([{ raw: '147', unit: null, ids: ['t0'] }]);
     // "mΩ" in the same token is a unit, not the "m" annotation.
     expect(values([tok(0, '87mΩ', [0, 0, 10, 10], 0.9)])).toEqual([{ raw: '87', unit: `mΩ`, ids: ['t0'] }]);
+    // An annotation after a space in the same token.
+    expect(displayValues([tok(0, '10 A', [0, 0, 10, 10], 0.9), tok(1, '5 kV', [0, 20, 10, 30], 0.9)])).toEqual([]);
+  });
+
+  it('reads the value a date, a time or the test current shares a token with', () => {
+    const one = (text: string) => displayValues([tok(0, text, [0, 0, 100, 10], 0.9)]).map((v) => ({ raw: v.raw, unit: v.unit, covered: v.covered }));
+    expect(one('10:15 87.5UR')).toEqual([{ raw: '87.5', unit: MICRO, covered: true }]);
+    expect(one('06/09/202621:3687')).toEqual([{ raw: '87', unit: null, covered: true }]);
+    expect(one('I=10.0A193u\u03a9')).toEqual([{ raw: '193', unit: MICRO, covered: true }]);
+    expect(one('I=10.0A 193')).toEqual([{ raw: '193', unit: null, covered: true }]);
   });
 
   it('maps the recognizer spellings of a unit back', () => {
@@ -189,6 +199,11 @@ describe('9.1-UNIT buildDisplaySuggestions: the I/O matrix', () => {
     const { rows } = build(MICROHMIMETRO, sec(0, 0, 'resistencia_contato'));
     expect(DISPLAY_MIN_CONFIDENCE).toBe(0.5);
     expect(rows[0]).toMatchObject({ target_path: cellPath('resistencia_contato', 0, 0), value: { raw: '87', unit: MICRO }, trust: 'verify' });
+  });
+
+  it('fixed decimals ("1.20") are covered by the token that prints them: suggested', () => {
+    const { rows } = build([tok(0, '1.20', [0, 0, 100, 10], 0.99), tok(1, 'GO', [110, 0, 150, 10], 0.99)], sec(0));
+    expect(rows[0]).toMatchObject({ value: { raw: '1.2', unit: GOHM }, trust: 'suggested' });
   });
 
   it('a value whose digits are not the cited token digits: verify', () => {

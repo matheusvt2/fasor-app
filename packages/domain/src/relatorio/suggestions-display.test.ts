@@ -16,6 +16,7 @@ import {
   livePendingSuggestions,
   measurementConfirmAllCandidates,
   measurementSuggestions,
+  measurementTableVerifyCount,
   storedTestCell,
   suggestionBlockId,
   suggestionTarget,
@@ -150,6 +151,9 @@ describe('9.1-UNIT Measurement cell suggestions', () => {
     expect(measurementConfirmAllCandidates(block, rows, 'isolacao', 'contato_aberto')).toEqual([fill]);
     expect(measurementConfirmAllCandidates(block, rows, 'isolacao', 'contato_fechado')).toEqual([closed]);
     expect(measurementConfirmAllCandidates(block, rows, 'isolacao', 'nope')).toEqual([]);
+    // Its verify count is the table's own too.
+    expect(measurementTableVerifyCount(block, rows, 'isolacao', 'contato_aberto')).toBe(1);
+    expect(measurementTableVerifyCount(block, rows, 'isolacao', 'contato_fechado')).toBe(0);
   });
 });
 

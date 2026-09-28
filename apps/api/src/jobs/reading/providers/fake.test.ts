@@ -159,7 +159,7 @@ describe('9.1-API the default fixture is chosen by kind, block type and table, m
     for (const sha of Object.values(SHA)) expect(readdirSync(DEFAULT_FIXTURES_DIR)).toContain(`${sha}.json`);
   });
 
-  it('a display photo with no fixture of its own replays its table default, scaled; a structuring call gets no values', async () => {
+  it('a display photo with no fixture of its own replays its table default, its boxes scaled to the image read', async () => {
     const jpeg = { bytes: new Uint8Array(await sharp({ create: { width: 600, height: 450, channels: 3, background: { r: 9, g: 9, b: 9 } } }).jpeg().toBuffer()), mime: 'image/jpeg' as const };
     const read = await fakeOcrProvider(DEFAULT_FIXTURES_DIR, 'e'.repeat(64), display('chave_seccionadora', 'isolacao')).read(jpeg, { mode: 'display' });
     expect(read.image).toEqual({ width: 600, height: 450 });

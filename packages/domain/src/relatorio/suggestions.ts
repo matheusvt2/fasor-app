@@ -709,6 +709,20 @@ export function measurementConfirmAllCandidates(
     .map((entry) => entry.suggestion);
 }
 
+/** The `verify` fills of one table, which its "Confirmar todos" leaves for their own tap. */
+export function measurementTableVerifyCount(
+  block: Pick<BlockRow, 'id' | 'seed_version' | 'block_type' | 'sheet'>,
+  pending: readonly SuggestionRow[],
+  testKey: string,
+  tableKey: string,
+): number {
+  const rows = tableRows(block, testKey, tableKey);
+  if (rows === null) return 0;
+  return measurementSuggestions(block, pending).filter(
+    (entry) => entry.address.testKey === testKey && entry.address.row >= rows.from && entry.address.row < rows.to && entry.view === 'fill' && entry.suggestion.trust === 'verify',
+  ).length;
+}
+
 export type EnvSuggestionField = 'temperature_c' | 'humidity_pct' | 'altitude_m';
 
 export interface EnvSuggestion {

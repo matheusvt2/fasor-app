@@ -17,10 +17,12 @@ import { isDisplayCellTarget, type DisplayCellTarget, type DisplayReadingTarget 
  * environment field (`buildDisplaySuggestions`). No model runs: the rule below is the whole
  * reading, mirrored by the spike tool (`services/ocr/tools/display_spike.py`).
  *
- * Values: a token holding `/` or `:` is a date or a time and is skipped; in a token with `=`
- * only the text after the last `=` is read, and `I=10.0A` (a head `I`, `1` or `l` then a
- * number and `A`) is the test current, skipped. A number followed by `A`, `V`, `kV`, `Hz`,
- * `s`, `min` or `m`, or preceded by `R` (`R30s`, `R1m`), is an annotation. A number's unit is
+ * Values: the dates (`12/03/2026`, `12.03.26`), the times (`10:15`) and the test current
+ * (`I=10.0A`: `I`, `1` or `l`, `=`, a number and `A`) are taken out of a token's text, and
+ * what remains is read (`10:15 87.5UR` reads 87,5 µΩ); then in a token with `=` only the
+ * text after the last `=` is read. A number followed by `A`, `V`, `kV`, `Hz`, `s`, `min` or
+ * `m` (a space between allowed: `10 A`, `5 kV`), or preceded by `R` (`R30s`, `R1m`), is an
+ * annotation. A number's unit is
  * its suffix in the same token, else the next token when it sits on the same row (vertical
  * overlap) and holds no digit. The recognizer has no Ω or ° glyph, so `displayUnitOf` maps
  * its spellings back (`Gn`, `GO`, `GD` -> GΩ; `UR` -> µΩ; `CC` -> °C; `%UR` -> %).
@@ -48,6 +50,13 @@ const OHM = 'Ω';
 export interface DisplayValue {
   /** Canonical dot-decimal (`1.20` -> `1.2`, `3,42` -> `3.42`). */
   raw: string;
+  /** The number as the display printed it (`1.20`), whose digits the coverage rule reads. */
+  text: string;
+  /**
+   * 8.5's digit rule: the printed number's digits are exactly the digits of the cited tokens'
+   * text once dates, times and the test current are taken out.
+   */
+  covered: boolean;
   /** The unit the display prints, mapped (`displayUnitOf`); null when it prints none. */
   unit: string | null;
   /** The value token's confidence. */
@@ -59,8 +68,13 @@ export interface DisplayValue {
 const NUMBER = /-?\d+(?:[.,]\d+)?/g;
 const ANNOTATION = /^(?:A|V|kV|Hz|s|min|m)$/u;
 const ANNOTATION_AFTER = /^(?:A|V|kV|Hz|s|min|m)(?![\p{L}\p{N}])/u;
-const TEST_CURRENT_HEAD = /^[I1l]$/;
-const TEST_CURRENT_TAIL = /^\s*-?[\d.,]+\s*A/;
+/** A date, a time and the test current, taken out of a token's text before its values are read. */
+const NOT_VALUES = [/\d{1,2}[/.]\d{1,2}[/.]\d{2,4}/g, /\d{1,2}:\d{2}/g, /[I1l]=-?[\d.,]+A/g];
+
+/** A token's text without its dates, times and test current. */
+function readableText(text: string): string {
+  return NOT_VALUES.reduce((rest, pattern) => rest.replace(pattern, ' '), text);
+}
 
 const OHM_PREFIX: Readonly<Record<string, string>> = {
   u: MICRO_OHM,
@@ -98,22 +112,16 @@ function sameRow(a: OcrToken['bbox'], b: OcrToken['bbox']): boolean {
 export function displayValues(tokens: readonly OcrToken[]): DisplayValue[] {
   const out: DisplayValue[] = [];
   tokens.forEach((token, index) => {
-    let text = token.text;
-    if (text.includes('/') || text.includes(':')) return;
-    const eq = text.lastIndexOf('=');
-    if (eq !== -1) {
-      const head = text.slice(0, eq).trim();
-      const tail = text.slice(eq + 1);
-      if (TEST_CURRENT_HEAD.test(head) && TEST_CURRENT_TAIL.test(tail)) return;
-      text = tail;
-    }
+    const readable = readableText(token.text);
+    const eq = readable.lastIndexOf('=');
+    const text = eq === -1 ? readable : readable.slice(eq + 1);
     const matches = [...text.matchAll(NUMBER)];
     matches.forEach((match, m) => {
       const start = match.index;
       const end = start + match[0].length;
       const before = text.slice(0, start);
       const after = text.slice(end, matches[m + 1]?.index ?? text.length);
-      if (before.endsWith('R') || ANNOTATION_AFTER.test(after)) return;
+      if (before.trimEnd().endsWith('R') || ANNOTATION_AFTER.test(after.trimStart())) return;
       const suffix = after.trim().replace(/^[.,]+/, '').trim();
       const cited: OcrToken[] = [token];
       let unit: string | null = suffix === '' ? null : displayUnitOf(suffix);
@@ -129,7 +137,11 @@ export function displayValues(tokens: readonly OcrToken[]): DisplayValue[] {
           }
         }
       }
-      out.push({ raw: canonicalDecimal(match[0].replace(',', '.')), unit, confidence: token.confidence, tokens: cited });
+      const covered = digitCoverage(
+        match[0],
+        cited.map((one) => (one === token ? { id: one.id, text: readable } : one)),
+      );
+      out.push({ raw: canonicalDecimal(match[0].replace(',', '.')), text: match[0], covered, unit, confidence: token.confidence, tokens: cited });
     });
   });
   return out;
@@ -191,7 +203,7 @@ function resolveUnit(value: DisplayValue, column: ColumnDef, stored: string | nu
 }
 
 function trustOf(value: DisplayValue, unitVerify: boolean): SuggestionRow['trust'] {
-  if (unitVerify || value.confidence < DISPLAY_MIN_CONFIDENCE || !digitCoverage(value.raw, value.tokens)) return 'verify';
+  if (unitVerify || value.confidence < DISPLAY_MIN_CONFIDENCE || !value.covered) return 'verify';
   return 'suggested';
 }
 

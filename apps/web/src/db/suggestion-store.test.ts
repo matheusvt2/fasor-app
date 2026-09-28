@@ -267,6 +267,23 @@ describe('9.1-UNIT autoConfirmPending for display readings', () => {
     db.close();
   });
 
+  it('leaves an equal cabine reading pending on an issued relatório and on a removed cabine', async () => {
+    const db = await freshDb();
+    await seed(db);
+    const equal = serverSuggestion('x', { raw: '27', unit: 'C', state: 'measured' }, { target_path: `location/${CABINE_ID}/env/temperature_c` });
+    await applyPulled(db, [equal]);
+    const record = (await db.entities.get(['relatorio', RELATORIO_ID]))!;
+    await db.entities.put({ ...record, row: { ...record.row, status: 'emitido' } as never });
+    expect(await autoConfirmPending(db, AUTHOR, deps())).toEqual([]);
+    await db.entities.put(record);
+    const cabine = (await db.entities.get(['location', CABINE_ID]))!;
+    await db.entities.put({ ...cabine, removed_at: '2026-09-26T17:00:00.000Z', row: { ...cabine.row, removed_at: '2026-09-26T17:00:00.000Z' } as never });
+    expect(await autoConfirmPending(db, AUTHOR, deps())).toEqual([]);
+    const row = (await db.entities.get(['suggestion', (equal.value as SuggestionRow).id]))!.row as SuggestionRow;
+    expect(row.status).toBe('pending');
+    db.close();
+  });
+
   it('counts a live cabine reading in the Sync status', async () => {
     const db = await freshDb();
     await seed(db);

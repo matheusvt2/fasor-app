@@ -18,9 +18,10 @@ reading and score as negatives: the reader should return no value. Only aggregat
 printed with the per-crop lines keyed by prefix, never an image or a file name.
 
 The value rule mirrors the kernel's `displayValues` (`packages/domain/src/reading/display.ts`):
-a token with `/` or `:` is a date or time; `I=<n>A` is the test current; a number followed by
-`A`, `V`, `Hz`, `s` or `min` is an annotation; in a token with `=` only the part after the last
-`=` is read; every other number is a value, in reading order.
+dates, times and the test current (`I=<n>A`) are taken out of a token's text and the rest is
+read; in a token with `=` only the part after the last `=` is read; a number followed by `A`,
+`V`, `kV`, `Hz`, `s`, `min` or `m` (a space between allowed), or preceded by `R`, is an
+annotation; every other number is a value, in reading order.
 """
 
 import json
@@ -36,23 +37,24 @@ from app.pipeline import decode, read_image  # noqa: E402
 from app.recognizer import load_recognizer  # noqa: E402
 
 NUMBER = re.compile(r"-?\d+(?:[.,]\d+)?")
-ANNOTATION_AFTER = re.compile(r"^(A|V|kV|Hz|s|min|m)\b", re.IGNORECASE)
+ANNOTATION_AFTER = re.compile(r"^(A|V|kV|Hz|s|min|m)(?![^\W\d_]|\d)")
+NOT_VALUES = [re.compile(r"\d{1,2}[/.]\d{1,2}[/.]\d{2,4}"), re.compile(r"\d{1,2}:\d{2}"), re.compile(r"[I1l]=-?[\d.,]+A")]
 
 
 def values_of(tokens: list[dict]) -> list[tuple[str, float]]:
     out: list[tuple[str, float]] = []
     for token in tokens:
         text = token["text"]
-        if "/" in text or ":" in text:
-            continue
+        for pattern in NOT_VALUES:
+            text = pattern.sub(" ", text)
         if "=" in text:
-            head, _, text = text.rpartition("=")
-            if re.fullmatch(r"[I1l]", head) and re.match(r"\s*-?[\d.,]+\s*A", text):
-                continue
-        for match in NUMBER.finditer(text):
-            after = text[match.end() :]
+            text = text.rpartition("=")[2]
+        matches = list(NUMBER.finditer(text))
+        for m, match in enumerate(matches):
+            end = matches[m + 1].start() if m + 1 < len(matches) else len(text)
+            after = text[match.end() : end]
             before = text[: match.start()]
-            if ANNOTATION_AFTER.match(after) or before.endswith("R"):
+            if ANNOTATION_AFTER.match(after.lstrip()) or before.rstrip().endswith("R"):
                 continue
             out.append((match.group(0), token["confidence"]))
     return out

@@ -2,7 +2,7 @@
 title: 'Story 9.1: Read the instrument display with "Ler visor" (plus the per-kind reading job)'
 type: 'feature'
 created: '2026-09-28'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'afabb44219466689d5852ae401694b04e7da2e9a'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -13,7 +13,21 @@ context:
   - '{project-root}/docs/display-reading-spike.md'
 warnings: ['batched', 'oversized']
 batched_reason: 'Batch D of Epic 9: Story 9.1 is the first new reading kind, so it carries the job generalization (per-kind handler registry, enqueue for every kind, fake fallback by kind) that batches K and P build on.'
-deferred: []
+deferred:
+  - summary: >-
+      A frame grab that rejects during a "Ler visor" burst still advances the target row, so that row gets no shot.
+    evidence: |-
+      camera-view.tsx counts the shot at the tap (taken counter) and does not roll it back when the grab rejects; rare (grab failures are exceptional), fix needs a counter rollback in the camera. Owner: Epic 9 integrated review.
+    location: >-
+      apps/web/src/surfaces/ficha/camera-view.tsx
+    severity: medium
+  - summary: >-
+      The typed-first, mismatch and env e2e cases are @p1 and run only in test:e2e:full, not in the verify gate.
+    evidence: |-
+      By spec (E8-A6 pipeline e2e is @p1); test:e2e:full runs before this PR and at the retrospective.
+    location: >-
+      e2e/read-display-pipeline.spec.ts
+    severity: medium
 ---
 
 <intent-contract>
@@ -143,3 +157,37 @@ Open questions: range source for the unit-less megôhmetro (E8-A3); print-only s
 - `docker compose --profile tools run --rm tools pnpm test:api` -- green, plate cases untouched
 - `docker compose --profile tools run --rm tools pnpm exec tsx scripts/e2e.ts --project desktop-chrome e2e/read-display.spec.ts e2e/read-display-pipeline.spec.ts e2e/tap-budget-signal.spec.ts e2e/tap-budget.spec.ts e2e/plate-reading.spec.ts` (the stack up: `docker compose up -d`) -- green
 - Sidecar (orchestrator runs under the lock): `docker compose --profile ocr build ocr`, `docker compose --profile ocr run --rm ocr pytest`
+
+## Spec Change Log
+
+## Review Triage Log
+
+### 2026-09-28 — Review pass
+
+Layers run: Edge Case Hunter, Verification Gap Reviewer. Skipped: Blind Hunter, Intent Alignment (token economy; the integrated epic review covers them).
+
+- verdicts: 23 findings — high 0, medium 10, low 12, false 1, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` Measurement "Confirmar todos" never run by a test — e2e case added to 9.1-E2E-003.
+  - `[medium]` `[patch]` typing over a suggested cell (typed put + discard, one batch) untested — e2e assertion added.
+  - `[medium]` `[patch]` "keep typed" pick of the mismatch line untested — e2e tap added.
+  - `[medium]` `[defer]` the typed-equal/env e2e is `@p1`, outside the merge gate — by spec; covered by `test:e2e:full` before the PR and the retrospective.
+  - `[medium]` `[patch]` env auto-confirm guards (emitido, removed cabine) untested — unit cases added.
+  - `[low]` `[patch]` reread 400 for an unhandled kind untested — caption case added.
+  - `[low]` `[patch]` confirmAll toast counts verify fills of other tables of the test — scoped to the table.
+  - `[low]` `[patch]` fake.test title claims a structuring assertion it lacks — renamed/asserted.
+  - `[medium]` `[patch]` digit coverage on the canonical raw makes fixed-decimal displays ('1.20') always verify — coverage on the matched text.
+  - `[low]` `[patch]` '10 A' / '5 kV' with a space not treated as annotations — trimmed before the test (sidecar tokens carry no spaces, fixtures could).
+  - `[medium]` `[patch]` a token with a date/time and a value is skipped whole — date/time substrings stripped instead.
+  - `[medium]` `[patch]` a token with the test current then the value is skipped whole — current stripped, rest parsed.
+  - `[low]` `[reject]` several values with a count unlike the group size walk the next rows — the spec's mapping rule (Design Notes, cell mapping); not a defect of the code.
+  - `[false]` `[reject]` a table with no capture column starts the burst elsewhere — `tableDefSchema` requires a capture column on every table.
+  - `[medium]` `[defer]` a frame grab that rejects mid-burst still advances the row — rare, needs a counter rollback in the camera; deferred-work entry.
+  - `[medium]` `[patch]` SuggestedCell/EnvSuggestionFill not keyed by suggestion id (stale text counted as typed on a reread) — keyed.
+  - `[low]` `[patch]` (edge case layer) confirmAll skipped count spans the whole test — same fix as the verification-gap row above.
+  - `[low]` `[reject]` confirm edit returning null leaves the cell stuck — no path shown where the edit fails without a toast; fix adds state plumbing.
+  - `[low]` `[patch]` double tap on the mismatch line sends duplicate batches — in-flight guard.
+  - `[low]` `[reject]` equal magnitude in another insulation unit shows "Conferir" — `compareSuggestion` semantics of Epic 8 (unit must match); the line states both values correctly.
+  - `[low]` `[reject]` caption/panel/nc_obs queued photos are enqueued and fail — coordinator decision (enqueue every queued kind); no device writes those kinds before batches K and P.
+  - `[low]` `[reject]` env pending suggestions not in pre-issue — a recorded narrowing (deferred-work).
+  - `[low]` `[reject]` fake.test plate cases edited — signature adaptation the spec asks for (factory ctx gains kind and table key); the job and plate e2e suites are unmodified.

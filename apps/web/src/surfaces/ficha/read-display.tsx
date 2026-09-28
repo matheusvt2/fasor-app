@@ -18,6 +18,7 @@ import {
   formatDecimalGroupedPtBr,
   measurementConfirmAllCandidates,
   measurementSuggestions,
+  measurementTableVerifyCount,
   parseFieldInput,
   parseReadingPtBr,
   pendingSuggestions,
@@ -94,6 +95,21 @@ function numberOf(value: unknown): { raw: string; unit: string | null } {
 
 const NUMBER: Pick<FieldDef, 'kind'> = { kind: 'number' };
 
+/**
+ * One write per suggestion at a time: a second tap on a pick or a Confirmar before the first
+ * batch has landed writes nothing (never two batches for one suggestion).
+ */
+function useOncePerSuggestion(): (s: Pick<SuggestionRow, 'id'>, write: () => Promise<unknown>) => void {
+  const inFlight = useRef(new Set<string>());
+  return (s, write) => {
+    if (inFlight.current.has(s.id)) return;
+    inFlight.current.add(s.id);
+    void write()
+      .catch(() => undefined)
+      .finally(() => inFlight.current.delete(s.id));
+  };
+}
+
 // --- the Measurement cells ---------------------------------------------------------------
 
 export interface DisplayModel {
@@ -143,18 +159,16 @@ export function useDisplaySuggestions({
     api.announce(text);
   };
 
-  const inFlight = useRef(new Set<string>());
+  const once = useOncePerSuggestion();
   const confirm = (s: SuggestionRow, label: string) => {
-    if (inFlight.current.has(s.id)) return;
-    inFlight.current.add(s.id);
     const text = confirmedFieldToastText(label, suggestionValueText(NUMBER, s.value));
-    void api
-      .edit((_blocks, by) => confirmSuggestionOps(by, s))
-      .then((batch) => {
-        if (batch !== null) said(text);
-      })
-      .catch(() => undefined)
-      .finally(() => inFlight.current.delete(s.id));
+    once(s, () =>
+      api
+        .edit((_blocks, by) => confirmSuggestionOps(by, s))
+        .then((batch) => {
+          if (batch !== null) said(text);
+        }),
+    );
   };
 
   const type = (s: SuggestionRow, cell: EvaluatedCell, text: string, label: string): Promise<boolean> | 'invalid' => {
@@ -175,12 +189,13 @@ export function useDisplaySuggestions({
   };
 
   const keepTyped = (s: SuggestionRow) => {
-    void api
-      .edit((_blocks, by) => [discardSuggestionOp(by, s)])
-      .then((batch) => {
-        if (batch !== null) said(copy.ficha.ensaios.typedKept);
-      })
-      .catch(() => undefined);
+    once(s, () =>
+      api
+        .edit((_blocks, by) => [discardSuggestionOp(by, s)])
+        .then((batch) => {
+          if (batch !== null) said(copy.ficha.ensaios.typedKept);
+        }),
+    );
   };
 
   const confirmAll = (testKey: string, tableKey: string) => {
@@ -192,7 +207,7 @@ export function useDisplaySuggestions({
         const fresh = blocks.find((row) => row.id === block.id) ?? block;
         const picked = measurementConfirmAllCandidates(fresh, pending, testKey, tableKey);
         done = picked.length;
-        skipped = measurementSuggestions(fresh, pending).filter((entry) => entry.view === 'fill' && entry.suggestion.trust === 'verify' && entry.address.testKey === testKey).length;
+        skipped = measurementTableVerifyCount(fresh, pending, testKey, tableKey);
         return picked.length === 0 ? null : picked.flatMap((s) => confirmSuggestionOps(by, s));
       })
       .then((batch) => {
@@ -265,7 +280,7 @@ export function ReadingCell({
   const queued = model.queued.get(key);
   const banner = queued === undefined ? null : <QueuedBanner state={queued} />;
   if (entry !== undefined && entry.view === 'fill') {
-    return <SuggestedCell model={model} cell={cell} suggestion={entry.suggestion} label={label} missing={missing} onRun={onRun} after={banner} />;
+    return <SuggestedCell key={entry.suggestion.id} model={model} cell={cell} suggestion={entry.suggestion} label={label} missing={missing} onRun={onRun} after={banner} />;
   }
   const stored = storedTestCell(model.block, cell.address);
   const source = stored !== null && showsConfirmedGlyph(stored, model.relatorioStatus) ? model.sourceOf(stored.source_suggestion_id!) : null;
@@ -514,14 +529,16 @@ export function useEnvDisplay({ api, state, snapshot, cabine }: { api: FichaApi;
     showToast(text);
     api.announce(text);
   };
+  const once = useOncePerSuggestion();
   const confirm = (s: SuggestionRow, label: string) => {
     const text = confirmedFieldToastText(label, suggestionValueText(NUMBER, s.value));
-    void api
-      .edit((_blocks, by) => confirmSuggestionOps(by, s))
-      .then((batch) => {
-        if (batch !== null) said(text);
-      })
-      .catch(() => undefined);
+    once(s, () =>
+      api
+        .edit((_blocks, by) => confirmSuggestionOps(by, s))
+        .then((batch) => {
+          if (batch !== null) said(text);
+        }),
+    );
   };
   const type = (s: SuggestionRow, field: FieldDef, text: string): Promise<boolean> | 'invalid' | 'unchanged' => {
     if (text === formatDecimalGroupedPtBr(numberOf(s.value).raw)) return 'unchanged';
@@ -534,12 +551,13 @@ export function useEnvDisplay({ api, state, snapshot, cabine }: { api: FichaApi;
       .catch(() => false);
   };
   const keepTyped = (s: SuggestionRow) => {
-    void api
-      .edit((_blocks, by) => [discardSuggestionOp(by, s)])
-      .then((batch) => {
-        if (batch !== null) said(copy.ficha.ensaios.typedKept);
-      })
-      .catch(() => undefined);
+    once(s, () =>
+      api
+        .edit((_blocks, by) => [discardSuggestionOp(by, s)])
+        .then((batch) => {
+          if (batch !== null) said(copy.ficha.ensaios.typedKept);
+        }),
+    );
   };
   return { entries, queued, confirm, type, keepTyped, openCrop, viewer };
 }

@@ -165,7 +165,7 @@ export function CabineBlock({
             .map((field) => {
               const entry = envDisplay.entries.get(field.key);
               return entry !== undefined && entry.view === 'fill' ? (
-                <EnvSuggestionFill key={field.key} model={envDisplay} field={field} suggestion={entry.suggestion} />
+                <EnvSuggestionFill key={`${field.key}:${entry.suggestion.id}`} model={envDisplay} field={field} suggestion={entry.suggestion} />
               ) : (
                 fieldOf('env', field, (value) => envAfter(envDisplay, field, value))
               );

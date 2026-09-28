@@ -144,7 +144,7 @@ async function relatorio(): Promise<{ relatorioId: string; transformer: BlockRow
 }
 
 /** The device's photo create for `block` (a plate reading by default). */
-async function photoCreate(relatorioId: string, block: BlockRow, bytes: Uint8Array, reading: 'plate' | null = 'plate'): Promise<string> {
+async function photoCreate(relatorioId: string, block: BlockRow, bytes: Uint8Array, reading: 'plate' | 'caption' | null = 'plate'): Promise<string> {
   const id = newId();
   written.entityIds.add(id);
   written.photoIds.add(id);
@@ -175,7 +175,7 @@ async function photoCreate(relatorioId: string, block: BlockRow, bytes: Uint8Arr
         item_key: null,
         caption: 'Placa de identificação',
         reading_kind: reading,
-        reading_target: reading === null ? null : plateReadingTarget(block.id, block.block_type),
+        reading_target: reading === 'plate' ? plateReadingTarget(block.id, block.block_type) : null,
         reading_status: reading === null ? 'none' : 'queued',
       } as never,
       prev_op_id: null,
@@ -409,6 +409,21 @@ describe('8.4-INT the plate read end to end over the compose api', () => {
         }),
       ),
     ]);
+    // Story 9.1: an uploaded photo of a kind the job does not read yet (caption) answers 400, no job sent.
+    const captionBytes = new Uint8Array(PLATE.byteLength + 1);
+    captionBytes.set(PLATE);
+    const caption = await photoCreate(relatorioId, transformer, captionBytes, 'caption');
+    expect((await put(companyA, caption, captionBytes)).status).toBe(200);
+    const captionJobs = async () => {
+      const [found] = await sql<{ n: number }[]>`select count(*)::int as n from pgboss.job where name = 'reading' and singleton_key = ${readingSingletonKey(caption, 'caption')}`;
+      return found!.n;
+    };
+    const jobsBefore = await captionJobs();
+    const notRead = await reread(companyA, caption);
+    expect(notRead.status).toBe(400);
+    expect(errorResponseSchema.parse(await notRead.json()).code).toBe('invalid_request');
+    expect(await captionJobs()).toBe(jobsBefore);
+
     const notPhoto = await reread(companyA, certificateId);
     expect(notPhoto.status).toBe(404);
     expect(await notPhoto.text()).toBe(await (await reread(companyA, newId())).text());

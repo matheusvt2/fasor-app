@@ -31,11 +31,14 @@ test.beforeEach(async ({ page }) => {
 const FIXTURES = resolve(import.meta.dirname, '../services/ocr/tests/fixtures');
 const ISOLACAO = readFileSync(resolve(FIXTURES, 'display-isolacao.jpg'));
 const TERMO = readFileSync(resolve(FIXTURES, 'display-termo.jpg'));
+const MICROHMIMETRO = readFileSync(resolve(FIXTURES, 'display-microhmimetro.jpg'));
+const MICRO = '\u00b5\u03a9';
 const GOHM = 'GΩ';
 
 interface OutboxRow {
   path: string;
   value: unknown;
+  batch_id: string | null;
   meta: { source_suggestion_id?: string; auto?: boolean } | null;
 }
 
@@ -58,8 +61,8 @@ async function shootDisplay(page: Page, button: Locator, bytes: Buffer): Promise
   await expect(button).toHaveAttribute('data-count', '', { timeout: 15_000 });
 }
 
-test('@p1 9.1-E2E-003 typed first, the display reading checks the typed values: equal confirms with the crop, different shows "Visor … Conferir"; on an empty cell it is a suggestion Enter confirms', async ({ page }) => {
-  test.setTimeout(240_000);
+test('@p1 9.1-E2E-003 typed first, the display reading checks the typed values: equal confirms with the crop, different shows "Visor … Conferir" (either value kept by a tap); on an empty cell it is a suggestion Enter or "Confirmar todos" confirms, and typing over it discards it', async ({ page }) => {
+  test.setTimeout(360_000);
   const ids = await openChaveSheet(page, account, database);
   const cellPath = (row: number) => `sheet/${ids.blockId}/test/isolacao/cell/${row}/0`;
   const t1 = page.getByRole('textbox', { name: 'T1, Valor', exact: true });
@@ -113,6 +116,58 @@ test('@p1 9.1-E2E-003 typed first, the display reading checks the typed values: 
   const replaced = (await outbox(page)).filter((op) => op.path === cellPath(1)).at(-1)!;
   expect(replaced.value).toEqual({ raw: '147', unit: GOHM, state: 'measured' });
   expect(replaced.meta!.source_suggestion_id).toEqual(expect.any(String));
+
+  // A tap on the typed value keeps it: the reading is discarded, the cell untouched.
+  const contactPath = `sheet/${ids.blockId}/test/resistencia_contato/cell/0/0`;
+  const contact = page.getByRole('textbox', { name: 'T1-T2, Valor', exact: true });
+  await contact.fill('90');
+  await contact.press('Enter');
+  await expect.poll(async () => (await outbox(page)).filter((op) => op.path === contactPath).length).toBe(1);
+  await shootDisplay(page, table(page, 'resistencia_contato').locator('.mt-actions').getByRole('button', { name: 'Ler visor' }), MICROHMIMETRO);
+  const contactLine = cellOf(page, 'T1-T2, Valor').getByRole('group', { name: 'Leitura do visor diferente do valor digitado' });
+  await expect(contactLine).toHaveText(`Visor: 87 ${MICRO} · digitado 90 ${MICRO} — Conferir`, { timeout: 60_000 });
+  const kept = (await contactLine.getAttribute('data-suggestion-id'))!;
+  await contactLine.getByRole('button', { name: `90 ${MICRO}` }).click();
+  await expect.poll(async () => (await outbox(page)).find((op) => op.path === `suggestion/${kept}/status`)?.value ?? null, { timeout: 15_000 }).toBe('discarded');
+  await expect(contactLine).toHaveCount(0);
+  await expect(contact).toHaveValue('90');
+  expect((await outbox(page)).filter((op) => op.path === contactPath).map((op) => op.value)).toEqual([{ raw: '90', unit: MICRO, state: 'measured' }]);
+
+  // Contato fechado read on empty cells: a value typed over a suggestion is written with its discard, one batch.
+  const closed = table(page, 'contato_fechado');
+  for (let i = 0; i < 3; i++) await shootDisplay(page, closed.locator('.mt-actions').getByRole('button', { name: 'Ler visor' }), ISOLACAO);
+  await expect(closed.locator('.field.suggestion-field[data-state="suggested"]')).toHaveCount(3, { timeout: 60_000 });
+  const faseA = cellOf(page, 'Fase A, Valor');
+  const typedOver = (await faseA.getAttribute('data-suggestion-id'))!;
+  const faseAInput = faseA.getByRole('textbox', { name: 'Fase A, Valor', exact: true });
+  await faseAInput.fill('150');
+  await faseAInput.press('Enter');
+  await expect.poll(async () => (await outbox(page)).find((op) => op.path === `suggestion/${typedOver}/status`)?.value ?? null, { timeout: 15_000 }).toBe('discarded');
+  const rows = await outbox(page);
+  const typedPut = rows.find((op) => op.path === cellPath(3))!;
+  expect(typedPut.value).toEqual({ raw: '150', unit: GOHM, state: 'measured' });
+  expect(typedPut.meta?.source_suggestion_id).toBeUndefined();
+  expect(typedPut.batch_id).not.toBeNull();
+  expect(rows.find((op) => op.path === `suggestion/${typedOver}/status`)!.batch_id).toBe(typedPut.batch_id);
+
+  // "Confirmar todos (2)": the two suggested cells left, their confirms and their puts in one batch.
+  const confirmAll = closed.locator('.mt-actions').getByRole('button', { name: 'Confirmar todos (2)' });
+  await expect(confirmAll).toBeVisible({ timeout: 15_000 });
+  await confirmAll.click();
+  await expect.poll(async () => (await outbox(page)).filter((op) => op.path === cellPath(4) || op.path === cellPath(5)).length, { timeout: 15_000 }).toBe(2);
+  const after = await outbox(page);
+  const puts = after.filter((op) => op.path === cellPath(4) || op.path === cellPath(5));
+  const batch = puts[0]!.batch_id;
+  expect(batch).not.toBeNull();
+  expect(puts.every((op) => op.batch_id === batch && op.meta?.source_suggestion_id !== undefined)).toBe(true);
+  expect(puts.map((op) => op.value)).toEqual([
+    { raw: '147', unit: GOHM, state: 'measured' },
+    { raw: '147', unit: GOHM, state: 'measured' },
+  ]);
+  const confirmed = after.filter((op) => op.batch_id === batch && /^suggestion\/[^/]+\/status$/.test(op.path));
+  expect(confirmed.map((op) => op.value)).toEqual(['confirmed', 'confirmed']);
+  expect(after.filter((op) => op.batch_id === batch)).toHaveLength(4);
+  await expect(closed.getByRole('button', { name: /^Confirmar todos/ })).toHaveCount(0);
 });
 
 test('@p1 9.1-E2E-004 the thermo-hygrometer: one shot in "Da cabine" fills temperature and humidity as suggestions', async ({ page }) => {
