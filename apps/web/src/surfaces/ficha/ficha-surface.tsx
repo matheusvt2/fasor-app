@@ -33,6 +33,7 @@ import { NotTestedBand } from './not-tested-band.tsx';
 import { AddPhotosButton } from './photo-openers.tsx';
 import { DropHint } from '../photos/capture-sheet.tsx';
 import { SectionStepper } from './section-stepper.tsx';
+import { SheetObservationDictationProvider } from './sheet-observation-dictation.tsx';
 import { SheetReadOnlyProvider } from './sheet-read-only.tsx';
 import { StickyActionBar } from './sticky-action-bar.tsx';
 import { useChecklistMirror } from './use-checklist-mirror.ts';
@@ -157,6 +158,8 @@ function FichaBody({
             onRename={block.equipment_id === null ? null : () => setRenaming(true)}
           />
           <SheetReadOnlyProvider value={block.not_tested !== null}>
+            {/* Story 9.4: the sheet observation's dictated text, offered by its own mic and by the tables. */}
+            <SheetObservationDictationProvider enabled={enabled.has('observations')}>
             <div className="content">
               {block.not_tested === null ? null : <NotTestedBand api={api} block={block} snapshot={snapshot} />}
               <div id="ficha-step-placa" className={stepClass('placa')} data-step="placa" tabIndex={-1} onFocus={() => focusIn('placa')}>
@@ -200,6 +203,7 @@ function FichaBody({
               />
               <ConclusaoSection api={api} block={block} definition={definition} tag={tag} className={stepClass('conclusao')} onFocus={() => focusIn('conclusao')} />
             </div>
+            </SheetObservationDictationProvider>
           </SheetReadOnlyProvider>
           <DropHint dragging={dragging} />
           <StickyActionBar

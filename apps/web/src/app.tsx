@@ -7,6 +7,7 @@ import { GenerateWatcher } from './state/generate-watcher.tsx';
 import { ExtraBannerProvider } from './state/extra-banner.tsx';
 import { PageTitleProvider } from './state/page-title.tsx';
 import { SessionProvider, useSession } from './state/session.tsx';
+import { SpeechEngineProvider } from './speech/dictation.tsx';
 import { SyncProvider, useSync } from './state/sync.tsx';
 import { ThemeProvider } from './state/theme.tsx';
 import { ToastProvider } from './state/toast.tsx';
@@ -74,7 +75,10 @@ function RequireSession() {
             <BackTargetProvider>
               <PageTitleProvider>
                 <ExtraBannerProvider>
-                  <SessionShell />
+                  {/* Story 9.4: the one speech engine and its single listening session; online-only. */}
+                  <SpeechEngineProvider online={session.online}>
+                    <SessionShell />
+                  </SpeechEngineProvider>
                 </ExtraBannerProvider>
               </PageTitleProvider>
             </BackTargetProvider>

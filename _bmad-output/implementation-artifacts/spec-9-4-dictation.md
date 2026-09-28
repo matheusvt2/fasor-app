@@ -2,7 +2,8 @@
 title: 'Story 9.4: Dictate a caption, an observation or a reading'
 type: 'feature'
 created: '2026-09-28'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: '7c0cb90326aa2fa79b2f36d4e336a335e436e4e9'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: 'opus'

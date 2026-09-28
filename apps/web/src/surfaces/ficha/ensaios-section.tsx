@@ -1,8 +1,10 @@
 import {
   evaluateSheetReadings,
   evaluatedCells,
+  parseTableUtterance,
   runTarget,
   screenLabel,
+  tableDictationLabel,
   type BlockDefinition,
   type BlockRow,
   type CellAddress,
@@ -11,15 +13,18 @@ import {
   type EvaluatedTable,
   type InstrumentRow,
   type RelatorioSnapshot,
+  type TableDictation,
   type TestEvaluation,
 } from '@app/domain';
-import { useId, useMemo, useRef } from 'react';
+import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
 import type { FichaApi } from './ficha-api.ts';
 import { InstrumentPicker } from './instrument-picker.tsx';
-import { cellKey, MeasurementField, ReadOnlyMeasurementField, type RunDirection } from './measurement-field.tsx';
+import { cellKey, DictatedMeasurementField, MeasurementField, ReadOnlyMeasurementField, type RunDirection } from './measurement-field.tsx';
+import { useSheetObservationDictation } from './sheet-observation-dictation.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
+import { DictationButton, useSpeechAvailable } from '../../speech/dictation.tsx';
 
 /*
  * The "Ensaios" step (Stories 5.5-5.7, FR-27, UX-DR39/40/42; `60-ficha.html`): one section
@@ -30,8 +35,11 @@ import { useSheetReadOnly } from './sheet-read-only.tsx';
  * mark. Only the ratio (TTR) tables stack into cards below 768 px (`ficha.css`). The whole
  * step is one continuous Enter run (`runTarget`): down the column, then the first empty
  * cell of what follows, and "Concluir ficha"/"Próxima ficha" after the last. Everything
- * shown is the kernel's one evaluation (`evaluateSheetReadings`). "Ler visor" and
- * Dictation are later epics' and are not drawn. On a sheet marked not tested (Story 5.9)
+ * shown is the kernel's one evaluation (`evaluateSheetReadings`). Story 9.4: each title row's
+ * `.mt-actions` carries the table's Dictation button; the kernel reads the utterance
+ * (`parseTableUtterance`) into a Suggestion on its target cell, never over a filled cell, and
+ * speech it cannot read goes to the sheet observation as a suggestion, announced. On a sheet
+ * marked not tested (Story 5.9)
  * every section is `.is-readonly` with the reason line: the cells show their stored
  * readings as read-only text and the Instrument picker its stored instrument, unchangeable.
  */
@@ -140,6 +148,12 @@ function TestSection({
   );
 }
 
+/** The title row's actions (`60-ficha.html` 516); nothing while no action shows. */
+function MtActions({ children }: { children: ReactNode }) {
+  if (!useSpeechAvailable()) return null;
+  return <div className="mt-actions">{children}</div>;
+}
+
 function MeasurementTable({
   api,
   test,
@@ -157,10 +171,35 @@ function MeasurementTable({
 }) {
   const t = copy.ficha.ensaios;
   const titleId = useId();
+  // Story 9.4: the reading dictated on this table, held until its cell's "Confirmar" (never a row).
+  const [dictated, setDictated] = useState<Extract<TableDictation, { kind: 'cell' }> | null>(null);
+  const observation = useSheetObservationDictation();
+  const onDictated = (transcript: string) => {
+    const parsed = parseTableUtterance(transcript, table);
+    if (parsed.kind === 'cell') {
+      setDictated(parsed);
+      return;
+    }
+    setDictated(null);
+    if (observation.enabled) {
+      observation.offer(parsed.text);
+      api.announce(ui.dictation.unparsed);
+    } else {
+      api.announce(ui.dictation.unparsedNoObservations);
+    }
+  };
   const cellOf = (row: EvaluatedRow, col: number): EvaluatedCell | undefined => row.cells.find((cell) => cell.address.col === col);
   const field = (row: EvaluatedRow, cell: EvaluatedCell, presentation: 'table' | 'card') =>
     readOnly ? (
       <ReadOnlyMeasurementField cell={cell} label={t.cellLabel(screenLabel(row.label), screenLabel(cell.column))} />
+    ) : dictated !== null && cell.state === 'empty' && sameAddress(dictated.address, cell.address) ? (
+      <DictatedMeasurementField
+        api={api}
+        cell={cell}
+        label={t.cellLabel(screenLabel(row.label), screenLabel(cell.column))}
+        reading={dictated}
+        onDone={() => setDictated(null)}
+      />
     ) : (
       <MeasurementField
         api={api}
@@ -191,6 +230,11 @@ function MeasurementTable({
           </summary>
           <p>{test.sourceName}</p>
         </details>
+        {readOnly ? null : (
+          <MtActions>
+            <DictationButton label={tableDictationLabel(table)} onStart={() => setDictated(null)} onResult={onDictated} />
+          </MtActions>
+        )}
       </div>
       <table className={table.ratio ? 'measurement-table ficha-ttr is-wide' : 'measurement-table'} aria-labelledby={table.title === null ? undefined : titleId} aria-label={table.title === null ? screenLabel(test.title) : undefined}>
         <thead>
