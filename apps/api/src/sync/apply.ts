@@ -85,6 +85,20 @@ function clientReadingFieldsAreValid(value: unknown): boolean {
   return row.reading_status === 'queued' && row.reading_kind !== null && row.reading_kind !== undefined;
 }
 
+/** The reading kinds a photo row names (`photoFileRowSchema`). */
+const READING_KINDS: ReadonlySet<unknown> = new Set(['plate', 'display', 'caption', 'panel', 'nc_obs']);
+
+/**
+ * Story 9.2 (contract 7): a device re-targets a photo's reading with a
+ * `file/{id}/reading_kind` put naming one of the five kinds (which queues it, `applyOp`) and a
+ * `file/{id}/reading_target` put holding an object; anything else is `op_invalid`.
+ */
+function clientReadingPutIsValid(field: string, value: unknown): boolean {
+  if (field === 'reading_kind') return READING_KINDS.has(value);
+  if (field === 'reading_target') return typeof value === 'object' && value !== null && !Array.isArray(value);
+  return true;
+}
+
 function validate(raw: unknown, companyId: CompanyId, deps: ApplyDeps): Validation {
   const path = (raw as { path?: unknown } | null)?.path;
   if (typeof path === 'string') {
@@ -121,6 +135,9 @@ function validate(raw: unknown, companyId: CompanyId, deps: ApplyDeps): Validati
       return { ok: false, code: 'op_invalid' };
     }
     if (path.family === 'file' && !clientReadingFieldsAreValid(op.value)) {
+      return { ok: false, code: 'op_invalid' };
+    }
+    if (path.family === 'file/field' && (op.kind !== 'put' ? path.field === 'reading_kind' || path.field === 'reading_target' : !clientReadingPutIsValid(path.field, op.value))) {
       return { ok: false, code: 'op_invalid' };
     }
   }

@@ -583,13 +583,38 @@ export const copy = {
     palette: {
       title: 'Adicionar bloco',
       where: (path: string) => `Em: ${path}`,
-      // authored from the mock's "Ou escolha o tipo · …": the camera tile above it is out of the slice.
-      chooseType: 'Escolha o tipo · TAG sugerida por tipo + coluna',
+      // `40-relatorio-overview.html` line 303 (Story 9.2: the camera tile above it is built).
+      chooseType: 'Ou escolha o tipo · TAG sugerida por tipo + coluna',
+      // Story 9.2: the `.pal-camera` row (lines 297-300).
+      photograph: 'Fotografar equipamento',
+      photographSub: 'Uma foto da frente do painel: tipo, coluna e TAG sugeridos; a mesma foto vira a placa da ficha.',
       officeNote: 'Seções de texto e sub-blocos (ensaios, placa, itens) são do escritório: Compositor de template e paleta aberta de dentro da ficha no desktop.',
       // The office confirm (EXPERIENCE.md › Block palette, office variant: TAG and location, prefilled);
       // its "TAG" is the dialogs' `tagDialogs.tagLabel`.
       localLabel: 'Local',
       confirm: 'Confirmar',
+    },
+    // Story 9.2: "Fotografar equipamento" (`40-relatorio-overview.html` `#relatorio-dlg-detect`,
+    // `#relatorio-dlg-detect-result`). The "Criar …?" line, the location path, the chips' words
+    // and the provenance lines are the kernel's (`panelProposal`, `panelTypeChips`, `panelProvenance`).
+    panel: {
+      title: 'Fotografar equipamento',
+      // The viewfinder's `.t-body` (line 386), shown by the app's camera view.
+      cameraHint: 'Enquadre a frente do painel com a etiqueta da coluna. Uma foto basta.',
+      // authored: while the server reads the photo, online.
+      waiting: 'Lendo a foto…',
+      // Line 398, verbatim.
+      offline: 'Sem sinal, a foto fica guardada: o bloco é criado pelo tipo e a foto já vira a placa dele.',
+      newBlock: 'Novo bloco',
+      provLabel: 'Origem de cada sugestão',
+      wrongType: 'Tipo errado? Toque no certo',
+      // authored: the chip row's label when nothing was read (offline, or no type on the photo).
+      pickType: 'Toque no tipo do equipamento',
+      typeGroup: 'Tipo do equipamento',
+      other: 'Outro…',
+      helper: 'A foto entra na ficha como placa de identificação e na fila de leitura.',
+      again: 'Fotografar de novo',
+      cancel: 'Cancelar',
     },
     // The rail (`shell-head.html`), and `/relatorio/:id/arvore`.
     rail: {

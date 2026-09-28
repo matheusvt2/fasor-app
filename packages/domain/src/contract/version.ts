@@ -28,8 +28,13 @@
  * 6 (2026-09-27, Stories 7.4/7.5): the relatório setup carries `parecer`, so the
  * `relatorio/setup/parecer` put family is new, and the `generation_job` row carries
  * `started_at`, so the server-only `generation_job/{id}/started_at` put is new.
+ *
+ * 7 (2026-09-28, Story 9.2): `reading_kind` and `reading_target` are client file fields, so
+ * the `file/{id}/reading_kind` and `file/{id}/reading_target` put families are new; a
+ * `reading_kind` put on a photo also sets its `reading_status` to `queued` (`applyOp`), and
+ * the push route sends the reading when the photo's bytes are already stored.
  */
-export const CONTRACT_VERSION = 6;
+export const CONTRACT_VERSION = 7;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -48,6 +53,11 @@ export const CONTRACT_VERSION = 6;
  * nor a `generation_job/{id}/started_at` put a relatório stream carries once a parecer is set
  * or a job runs, so it updates too.
  */
-export const MIN_CONTRACT_VERSION = 6;
+/*
+ * 7 (2026-09-28, Story 9.2): a version-6 (or older) bundle cannot parse a
+ * `file/{id}/reading_kind` or `file/{id}/reading_target` put, which a relatório stream carries
+ * once a block is created by photographing the equipment, so it updates too.
+ */
+export const MIN_CONTRACT_VERSION = 7;
 
 export const CONTRACT_VERSION_HEADER = 'x-contract-version';

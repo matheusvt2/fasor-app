@@ -3,6 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import type { Db } from '../../../db/client.ts';
 import type { CompanyId } from '../../../db/repositories/company-id.ts';
 import { entities } from '../../../db/schema.ts';
+import type { Tx } from '../../../sync/apply.ts';
 import type { ReadingImage } from '../image.ts';
 import { PermanentReadingError, ProviderError } from '../providers/errors.ts';
 import type { ReadingProviders } from '../providers/index.ts';
@@ -18,7 +19,7 @@ export interface EntityRecord {
   removed_at: string | null;
 }
 
-export async function entityRecord(db: Db, companyId: CompanyId, entity: string, id: string): Promise<EntityRecord | null> {
+export async function entityRecord(db: Db | Tx, companyId: CompanyId, entity: string, id: string): Promise<EntityRecord | null> {
   const [record] = await db
     .select({ row: entities.row, relatorio_id: entities.relatorio_id, removed_at: entities.removed_at })
     .from(entities)

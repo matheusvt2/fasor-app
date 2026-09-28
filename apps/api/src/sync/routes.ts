@@ -1,18 +1,27 @@
 import {
   CONTRACT_VERSION_HEADER,
+  photoFileRowSchema,
+  safeParsePath,
   MIN_CONTRACT_VERSION,
   sinceQuerySchema,
   syncPushBodySchema,
   toIso,
   type Clock,
   type ErrorResponse,
+  type NewId,
   type SyncPullResponse,
   type SyncPushResponse,
 } from '@app/domain';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
+import { and, eq } from 'drizzle-orm';
 import type { Db } from '../db/client.ts';
+import type { CompanyId } from '../db/repositories/company-id.ts';
+import { entities } from '../db/schema.ts';
 import { type AppEnv, requireSession } from '../http/session.ts';
+import { newId as mintId } from '../ids.ts';
+import type { ReadingPayload } from '../jobs/reading/payload.ts';
+import { sendReading } from '../jobs/reading/send.ts';
 import { applyOps } from './apply.ts';
 import { companySummary, pullCompany, pullProject, pullRelatorio, recordPush } from './pull.ts';
 
@@ -24,6 +33,48 @@ import { companySummary, pullCompany, pullProject, pullRelatorio, recordPush } f
 
 export interface SyncRouteDeps {
   now: Clock;
+  newId?: NewId;
+  /**
+   * Story 9.2: sends a photo's reading when a client `file/{id}/reading_kind` put re-queued it
+   * and its bytes are already stored (file receipt sends it otherwise). Absent without a queue.
+   */
+  enqueueReading?: (payload: ReadingPayload) => Promise<void>;
+}
+
+/** The photo ids of the applied client `file/{id}/reading_kind` puts of a push, once each. */
+function retargetedPhotos(ops: readonly unknown[], applied: ReadonlySet<string>): string[] {
+  const ids = new Set<string>();
+  for (const raw of ops) {
+    const op = raw as { op_id?: unknown; kind?: unknown; path?: unknown };
+    if (typeof op.op_id !== 'string' || !applied.has(op.op_id) || op.kind !== 'put' || typeof op.path !== 'string') continue;
+    const path = safeParsePath(op.path);
+    if (path !== null && path.family === 'file/field' && path.field === 'reading_kind') ids.add(path.id);
+  }
+  return [...ids];
+}
+
+/**
+ * Story 9.2: the reading a re-target queued, sent when the photo row now says `queued` with a
+ * kind, is live, and its bytes are already stored; a photo not uploaded yet is sent by file
+ * receipt when its bytes land. Scoped by the session's company (AD-10). Never fatal to the push.
+ */
+async function sendRetargetedReading(db: Db, companyId: CompanyId, photoId: string, deps: SyncRouteDeps): Promise<void> {
+  const [record] = await db
+    .select({ row: entities.row, relatorio_id: entities.relatorio_id, removed_at: entities.removed_at })
+    .from(entities)
+    .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'file'), eq(entities.id, photoId)))
+    .limit(1);
+  if (record === undefined || record.removed_at !== null) return;
+  const parsed = photoFileRowSchema.safeParse(record.row);
+  if (!parsed.success) return;
+  const photo = parsed.data;
+  if (photo.removed_at !== null || photo.uploaded_at === null || photo.reading_status !== 'queued' || photo.reading_kind === null) return;
+  await sendReading(
+    { db, now: deps.now, newId: deps.newId ?? mintId, ...(deps.enqueueReading === undefined ? {} : { enqueue: deps.enqueueReading }) },
+    companyId,
+    { id: photo.id, relatorioId: record.relatorio_id },
+    photo.reading_kind,
+  );
 }
 
 const batchInvalid: ErrorResponse = {
@@ -87,6 +138,7 @@ export function createSyncRoutes(db: Db, deps: SyncRouteDeps): Hono<AppEnv> {
       }
       const at = toIso(deps.now());
       for (const deviceId of devices) await recordPush(db, session.companyId, session.userId, deviceId, at);
+      for (const photoId of retargetedPhotos(parsed.data.ops, appliedIds)) await sendRetargetedReading(db, session.companyId, photoId, deps);
     }
 
     const response: SyncPushResponse = {

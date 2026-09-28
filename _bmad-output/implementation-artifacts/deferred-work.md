@@ -1087,3 +1087,21 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: `spec-9-1-read-the-instrument-display-with-ler-visor.md` Open questions; `e2e/tap-budget-signal.spec.ts`.
   class: question
   state: open (owner: Matheus)
+
+- source_spec: spec-9-2-create-a-block-by-photographing-the-equipment.md
+  summary: Story 9.2 narrowing: a panel photo whose result dialog is left by navigation (another route, a reload) stays a live "Geral" photo with no caption, `reading_kind: panel` and its pending panel suggestion; nothing offers the dialog again and nothing removes it.
+  evidence: `apps/web/src/surfaces/relatorio/panel-capture.tsx` (the dialog state lives in the mounted tree; only "Cancelar", Esc, the scrim and "Fotografar de novo" remove the photo).
+  class: debt
+  state: open (owner: Epic 9 integrated review)
+
+- source_spec: spec-9-2-create-a-block-by-photographing-the-equipment.md
+  summary: Story 9.2 narrowing: the `@p1` pipeline e2e (`e2e/panel-capture-pipeline.spec.ts`, the real panel and plate jobs under `fake`) runs only in `test:e2e:full`, not in the `verify` gate.
+  evidence: `e2e/panel-capture-pipeline.spec.ts` is tagged `@p1` and listed in `SERIAL_SPECS` (`e2e/support/groups.ts`).
+  class: debt
+  state: open (owner: Epic 9 integrated review)
+
+- source_spec: spec-9-2-create-a-block-by-photographing-the-equipment.md
+  summary: Story 9.2 open questions (conservative readings taken): the app's single-shot camera replaces the mock's simulated viewfinder, so "Escolher o tipo" is no viewfinder action (the type chips are always in the result dialog); the create keeps the palette's reveal and "Desfazer" toast instead of the mock's jump to the ficha; the tile shows at every palette width; a read column with no live coluna under the palette's cabine falls back to the palette's location flagged Verificar (no column is created); "Desfazer" reverts the whole batch, which puts `reading_kind` back to `panel` and so re-queues a panel reading.
+  evidence: `spec-9-2-create-a-block-by-photographing-the-equipment.md` Design Notes; `packages/domain/src/relatorio/panel.ts` `panelLocation`.
+  class: question
+  state: open (owner: Matheus)
