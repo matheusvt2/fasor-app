@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 09-28-2026 02:30
+last_updated: 09-28-2026 06:30
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -105,13 +105,13 @@ development_status:
   7-5-see-what-is-outstanding-preview-as-rascunho-and-issue-the-re: done  # PR #51
   epic-7-retrospective: optional
 
-  epic-8: in-progress  # stories PRs #47, #49; carry-over PR #48
+  epic-8: in-progress  # all six stories merged (#47, #49, #52, #54); integrated QA with Epic 7 and the retro pending  # stories PRs #47, #49; carry-over PR #48
   8-1-a-suggestion-is-an-entity-nobody-can-write-without-a-tap: done  # PR #49
-  8-2-photograph-the-plate-and-keep-the-photo-until-there-is-signa: in-progress  # PR pending; batch P, branch story/8-2-8-6-plate-capture-and-confirm
+  8-2-photograph-the-plate-and-keep-the-photo-until-there-is-signa: done  # PR #54
   8-3-run-a-local-ocr-service-in-docker-behind-the-ocrprovider-con: done  # PR #47
   8-4-run-the-reading-job-end-to-end-with-fixture-driven-structuri: done  # PR #52
   8-5-accept-a-digit-only-when-the-ocr-saw-it-and-check-names-agai: done  # PR #52
-  8-6-confirm-the-plate-in-one-tap-with-the-crop-in-view: in-progress  # PR pending; batch P, branch story/8-2-8-6-plate-capture-and-confirm
+  8-6-confirm-the-plate-in-one-tap-with-the-crop-in-view: done  # PR #54
   epic-8-retrospective: optional
 
   epic-9: backlog
