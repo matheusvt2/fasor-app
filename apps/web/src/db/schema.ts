@@ -15,6 +15,13 @@ export interface EntityRecord {
   project_id: string | null;
   removed_at: string | null;
   row: EntityRow;
+  /**
+   * E7-A1/E8-A1: a stamp unique to this write (`toRecord` mints one per record written), so
+   * a reader knows a record it has seen is unchanged and can keep the row it parsed then
+   * (`relatorioState`). Not indexed, so no new Dexie version; absent on records written
+   * before it existed, which are simply parsed on every read.
+   */
+  rev?: string;
 }
 
 export type OutboxStatus = 'pending' | 'sent' | 'acked' | 'dead';

@@ -1,5 +1,4 @@
 import {
-  buildSnapshot,
   putRelatorioStatusOp,
   relatorioOpEnvelope,
   relatorioSetupPath,
@@ -11,7 +10,7 @@ import {
   type RelatorioSnapshot,
   type UserRow,
 } from '@app/domain';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams, useParams } from 'react-router';
 import { Button } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -33,6 +32,7 @@ import { Etapa4Instrumentos } from './setup/etapa4-instrumentos.tsx';
 import { Etapa5Local } from './setup/etapa5-local.tsx';
 import { Etapa6Parecer } from './setup/etapa6-parecer.tsx';
 import './relatorio.css';
+import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
 
 const NO_USERS: UserRow[] = [];
 const NO_INSTRUMENTS: InstrumentRow[] = [];
@@ -52,7 +52,7 @@ export function SetupSurface() {
   const users = useLiveQuery(() => (db === null ? Promise.resolve(NO_USERS) : localUsers(db)), [db], NO_USERS);
   const instruments = useLiveQuery(() => (db === null ? Promise.resolve(NO_INSTRUMENTS) : instrumentRows(db)), [db], NO_INSTRUMENTS);
   const blocks = useLiveQuery(() => (db === null ? Promise.resolve(NO_BLOCKS) : blockRowsOf(db, id)), [db, id], NO_BLOCKS);
-  const snapshot: RelatorioSnapshot | null = useMemo(() => (state === undefined || state === null ? null : buildSnapshot(state, id)), [state, id]);
+  const snapshot: RelatorioSnapshot | null = useRelatorioSnapshot(state, id);
 
   return (
     <main className="screen" data-route="/relatorio/:id/setup">

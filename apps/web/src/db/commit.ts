@@ -38,9 +38,23 @@ export interface CommitDeps {
   now: Clock;
 }
 
+/*
+ * E7-A1/E8-A1: every record write carries a fresh `rev`. The prefix is random per loaded
+ * bundle (two tabs never mint the same stamp) and the counter makes each write unique
+ * within it, so an equal `rev` always means the same written record.
+ */
+const REV_PREFIX = Math.random().toString(36).slice(2, 10);
+let revCounter = 0;
+
+/** A stamp no other record write of any tab shares. */
+export function nextRev(): string {
+  revCounter += 1;
+  return `${REV_PREFIX}.${revCounter.toString(36)}`;
+}
+
 export function toRecord(key: EntityKey, row: EntityRow): EntityRecord {
   const { entity, id } = splitEntityKey(key);
-  return { entity, id, ...rowIndexColumns(entity, row), removed_at: rowRemovedAt(row), row };
+  return { entity, id, ...rowIndexColumns(entity, row), removed_at: rowRemovedAt(row), row, rev: nextRev() };
 }
 
 const OUTBOX_ONLY_KEYS = ['status', 'error_code', 'prev_value', 'targets'] as const;

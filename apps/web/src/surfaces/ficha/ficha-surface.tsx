@@ -1,5 +1,4 @@
 import {
-  buildSnapshot,
   getDefinition,
   isEquipmentBlock,
   locationPathText,
@@ -41,6 +40,7 @@ import { useFichaData } from './use-ficha-data.ts';
 import { useFichaPhotos } from './use-ficha-photos.ts';
 import { useFichaSteps } from './use-ficha-steps.ts';
 import './ficha.css';
+import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
 
 /** The Sticky action bar's primary: where the readings' continuous Enter run ends. */
 const PRIMARY_ID = 'ficha-primary';
@@ -64,7 +64,7 @@ function Ficha({ relatorioId, blockId, state: live }: { relatorioId: string; blo
   // Story 12.1 (J-01): the rows as they were when a finger went down, until it comes up, so
   // a commit landing mid-press never moves the pressed control (`input/press-hold.ts`).
   const state = useHeldWhilePressed(live);
-  const snapshot: RelatorioSnapshot = useMemo(() => buildSnapshot(state, relatorioId), [state, relatorioId]);
+  const snapshot: RelatorioSnapshot = useRelatorioSnapshot(state, relatorioId);
   const block = snapshot.blocks.find((row) => row.id === blockId && isEquipmentBlock(row)) ?? null;
   const definition = useMemo<BlockDefinition | null>(() => {
     if (block === null) return null;
