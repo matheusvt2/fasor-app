@@ -56,13 +56,16 @@ export type E2eGroup = 'parallel' | 'serial';
  * still failed one test the three serial runs passed (12.3-E2E-004 twice, a reading's
  * commit late on the device; 6.2-E2E-001 once, a retried upload past 60 s); both pass alone.
  *
- * Three (2026-09-27, `spec-test-speed.md`): 6.2-E2E-001's retry no longer gives up waiting
- * for the cycle in flight (`SyncEngine.retryUpload`), `humanTap` waits for its target to be
- * tappable by time as well as by frames, a PUT and its retry emit a file's server ops once
- * (6.2-E2E-003), and every spec that times a tap against a render runs in the serial group,
- * alone on the machine. The validation runs are in that spec.
+ * Still one (2026-09-27, `spec-test-speed.md`): 6.2-E2E-001's retry no longer gives up
+ * waiting for the cycle in flight (`SyncEngine.retryUpload`), `humanTap` waits for its target
+ * to be tappable by time as well as by frames, a PUT and its retry emit a file's server ops
+ * once (6.2-E2E-003), and every spec that times a tap against a render runs in the serial
+ * group. The first `pnpm verify` on three workers still failed 12.4-E2E-001 in the parallel
+ * group (a Confirmar not applied within 5 s, load 12-14 from unlocked work elsewhere) and
+ * 12.1-E2E-007 alone in the serial group, so the gate stays on one worker. `--workers=3`
+ * runs the parallel group on three pairs on demand.
  */
-export const PARALLEL_WORKERS = 3;
+export const PARALLEL_WORKERS = 1;
 
 /** The fewest worker pairs the global setup seeds, whatever the worker count. */
 export const MIN_WORKER_PAIRS = 3;
