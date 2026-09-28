@@ -216,3 +216,18 @@ Status: done.
 - Follow-up review recommended: false (the one high patch is a direct comparison fix covered by its test; the integrated epic review follows).
 - Verification: `test:unit` 2318/2318 before the patches; covering files after the patches (79 web tests, 8 api toc tests), lint and static clean; the orchestrator's `pnpm verify` and `test:e2e:full` follow and are reported in the PR.
 - Residual risks: `--trust-lockfile` needs Matheus's confirmation; the mismatch row's wording is authored (Bruno); EXIF orientation still open.
+
+### Gates after the review (orchestrator, 2026-09-28, HEAD `e1db59e`)
+
+All under `flock /tmp/fasor-verify.lock`, 8-core laptop shared with batches D and V (their unlocked dev runs kept the load at 4-7).
+
+| Gate | Before (Epic 7/8 retros) | After |
+|---|---|---|
+| `pnpm verify` | 1248-1318 s | 1540.8 s, then 1407.0 s (both green; lock waits 791 s and 1622 s) |
+| e2e `@p0` | 868-920 s | 1059.5 s, then 971.7 s (132/132) |
+| `test:e2e:full`, 1 worker | 1560-1585 s | 1706.6 s: 230 passed, 1 failed (E4-E2E-001 Esc did not close the dialog; passes alone with `--repeat-each=3`), 4 skipped |
+| `test:e2e:full --workers=3` | failed one timing test per run | 1252.5 s: 230 passed, 1 failed (5.8-E2E-002 stepper count within 5 s, parallel group), so `PARALLEL_WORKERS` stays 1 and the other two runs were not spent |
+
+The device commit-to-render fell by 60-65 % (table above), but the 900 s budget is still missed on this shared machine: per E8-A1 that stop rule goes to Matheus (a dated DoD clause 3 amendment or a split gate).
+
+A first `verify` failed 4.8-E2E-001 deterministically: the faster Sumário let `setParecer`'s `page.goto` reload abort Etapa 1's still-open write transaction. Fixed in the test (`e1db59e`, an outbox poll before the reload); the product window (a reload within milliseconds of "Voltar") is recorded as known open.
