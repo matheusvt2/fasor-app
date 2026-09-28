@@ -115,6 +115,55 @@ deferred: []
 
 Measurements (filled by the implementer): before/after commit-to-render tables, the per-commit breakdown, the offline-start transcript, the mutation run.
 
+### Commit-to-render (task 1 and 6)
+
+`e2e/commit-to-render.perf.spec.ts` (`@p2` PERF-E2E-001, serial group), standard relatório, first chave seccionadora sheet, 1280 x 800, 20 samples each, run under `flock /tmp/fasor-verify.lock` in the worktree's `tools` container (desktop Chrome, `build:e2e` development bundle). Each sample: capture-phase input event (`pointerup`/`click` of a checklist segment, `keydown` Enter of a measurement cell) to the animation frame after the DOM first shows the committed value (segment `aria-checked`, cell `data-state` out-of-limit on/off). Milliseconds, median / p90.
+
+| | checklist tap | measurement entry | checklist tap, 4x CPU | measurement entry, 4x CPU |
+|---|---|---|---|---|
+| before (baseline `a2cd053` + the spec) | 720.7 / 1004.9 | 880.1 / 1202.5 | 5477.9 / 6783.5 | 5912 / 7127.9 |
+| after (this branch) | AFTER_CT | AFTER_ME | AFTER_CT4 | AFTER_ME4 |
+
+### Per-commit breakdown before the change (task 2)
+
+Temporary instrumentation (reverted, not committed): timers in `relatorioState` (wall time and zod parse time), around the ficha's `buildSnapshot`, a React `Profiler` around the ficha route, and a CDP sampling profile of the 20 checklist taps. Per commit, averaged over 20 taps: `relatorioState` about 330 to 450 ms of wall time between its first and last await (eleven sequential Dexie reads, which queue behind the render on the main thread, so this overlaps the render below), of which the row parse is 10 to 19 ms; `buildSnapshot` about 8 ms per call, two calls per commit (the held and the live state), so about 16 ms; React render (Profiler `actualDuration`) about 550 to 750 ms per commit over about 3 renders. The CPU profile agrees: about 11 s of the 20 s window is React rendering, 5 s of it `jsxDEV`/`createElement` self time (the development build's element creation for the whole sheet and the rail), zod `safeParse` 1.2 s (about 60 ms per commit), `useMemo` bodies 1.7 s. The render of the whole surface on every commit dominates; the snapshot rebuild and the parse are the part this batch may change (surface refactors are out of scope), so the expected gain is the parse, the rebuild, the eleven reads, and the renders a live-query run that changed nothing no longer causes (`relatorioState` now returns the previous state object).
+
+### Offline gate start (task 7)
+
+Cause: `corepack prepare pnpm@12.5.1` stores only pnpm 12's JavaScript wrapper; the wrapper downloads the native binary (`@pnpm/exe.linux-x64` from registry.npmjs.org) on its first run and keeps it beside itself, and every `--rm` container started without it ("Downloading the pnpm 12.5.1 binary for linux-x64..." in the gate log; "Could not download the pnpm 12.5.1 binary: terminated" when the registry was slow). Second cause, found by the proof: `pnpm install --frozen-lockfile` in `install` verifies the lockfile against the supply-chain policies (`minimumReleaseAge`), fetching every entry's metadata, and hangs with no network ("Verifying lockfile against supply-chain policies (518 entries)..." for over 10 min). Fix: both Dockerfiles run pnpm once at build time as `node` with `HOME=/home/node` (the binary is baked, `test -f .../pnpm-native`) and set `COREPACK_ENABLE_NETWORK=0`; `install` runs `pnpm install --frozen-lockfile --trust-lockfile`. Proof, scratch override (not tracked) with `networks.default.internal: true` and the worktree's own dependency volumes as external volumes, project `fasor-e9c1-offline`:
+
+```
+$ docker compose -p fasor-e9c1-offline -f docker-compose.yml -f compose.local.yml -f <scratchpad>/offline.yml run --rm install pnpm install --frozen-lockfile --trust-lockfile
+Scope: all 4 workspace projects
+Lockfile is up to date, resolution step is skipped
+Done in 104ms using pnpm v12.5.1
+$ docker compose -p fasor-e9c1-offline ... --profile tools run --rm tools sh -c 'getent hosts registry.npmjs.org || echo ...; pnpm --version; pnpm exec vitest run packages/domain/src/schemas/snapshot.test.ts'
+ Container fasor-e9c1-offline-install-1  Exited
+ Container fasor-e9c1-offline-postgres-1  Healthy
+ Container fasor-e9c1-offline-minio-1  Healthy
+ Container fasor-e9c1-offline-api-1  Started
+registry.npmjs.org: no name resolution (no egress)
+12.5.1
+ RUN  v5.0.1 /workspace
+ ✓ @app/domain src/schemas/snapshot.test.ts (5 tests) 215ms
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+```
+
+(The same `install` without `--trust-lockfile` hung on the policy check.) `docker run --rm --network none app-tools-e9c1 pnpm --version` and the same for `app-api-e9c1` print 12.5.1.
+
+### Mutation run (task 4)
+
+With `parsedRow`'s cache hit disabled in `relatorioState` (the incremental read reverted to a fresh parse per read), `apps/web/src/db/relatorio-state.test.ts` E9C1-UNIT-003 goes red: "after a commit to one block, every other row of the state is the object the previous read returned" and "a read that finds nothing changed returns the previous state itself" fail; the two correctness tests stay green. With the kernel builder's row memo disabled, all five E9C1-UNIT-002 identity tests in `packages/domain/src/schemas/snapshot-builder.test.ts` fail. Both restored afterwards.
+
+### Deviations and open points
+
+- Prefix equality: the builder is called after every one of the 3841 ops of the full Porto Seguro log, but compared with `buildSnapshot` at every 48th op and the last (about 80 comparisons): each full reference there costs about 45 ms (parse of every row plus two serializations), so every prefix would add about 3 minutes to `test:unit`. The small Porto Seguro log and the replay-small log are compared after every single op.
+- Task 15 (EXIF orientation of `thumb` and `print`) is not done: the reading job (`jobs/reading/image.ts`, read-only for this batch) applies the original's EXIF orientation to the `print` bytes itself, so rotating `print` in `renderVariants` would turn every oriented plate sideways for OCR. Both sides must change in one batch; the deferred entry is re-owned accordingly.
+- `--trust-lockfile` on `install` is a supply-chain policy trade-off for Matheus to confirm: the policies still run where the lockfile is written (a developer's `pnpm install`/`pnpm add`), not at each container start.
+- `cert_number_mismatch` joins the Export dialog's explicit kinds (listed one by one), so the dialog names it (AC); its text is authored and open for Bruno.
+- /cadastros has no `.content`; its capped column is `.registry-main.is-narrow` (Critérios and the placeholder tabs); the Instrumentos tab spans the width beside its panel and is unchanged.
+
 ## Verification
 
 **Commands:**

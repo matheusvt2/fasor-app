@@ -83,13 +83,32 @@ describe('E9C1-UNIT-003 relatorioState keeps untouched rows identical across rea
     db.close();
   });
 
+  it('never serves a stale row: a write that copies a record, its old `rev` included, gets a fresh stamp and is read anew', async () => {
+    const db = await seeded();
+    const first = (await relatorioState(db, RELATORIO_ID))!;
+    const record = (await db.entities.get(['relatorio', RELATORIO_ID]))!;
+    await db.entities.put({ ...record, row: { ...(record.row as object), status: 'rascunho' } as never });
+    expect((await db.entities.get(['relatorio', RELATORIO_ID]))!.rev).not.toBe(record.rev);
+    const second = (await relatorioState(db, RELATORIO_ID))!;
+    expect((second.get(`relatorio:${RELATORIO_ID}`) as { status: string }).status).toBe('rascunho');
+    expect(second).not.toBe(first);
+    db.close();
+  });
+
   it('a record written before `rev` existed is parsed on every read (correct, just not shared)', async () => {
     const db = await seeded();
     const key = `block:${BLOCK_1_ID}` as const;
     const record = (await db.entities.get(['block', BLOCK_1_ID]))!;
     const legacy = { ...record };
     delete legacy.rev;
-    await db.entities.put(legacy);
+    // Written the way an older bundle did, below Dexie's middleware (which stamps every write).
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.backendDB().transaction('entities', 'readwrite');
+      tx.objectStore('entities').put(legacy);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    expect((await db.entities.get(['block', BLOCK_1_ID]))!.rev).toBeUndefined();
     const first = (await relatorioState(db, RELATORIO_ID))!;
     const second = (await relatorioState(db, RELATORIO_ID))!;
     expect(second.get(key)).toEqual(first.get(key));
