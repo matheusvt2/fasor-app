@@ -231,11 +231,13 @@ export function nextRev(): string {
 /** Every add or put to `entities` gets a fresh `rev` on each record it writes. */
 function stampRevs(request: DBCoreMutateRequest): DBCoreMutateRequest {
   if (request.type !== 'add' && request.type !== 'put') return request;
+  const revs = request.values.map(() => nextRev());
   const stamped: DBCoreMutateRequest = {
     ...request,
-    values: request.values.map((value: unknown) => (value !== null && typeof value === 'object' ? { ...(value as object), rev: nextRev() } : value)),
+    values: request.values.map((value: unknown, i) => (value !== null && typeof value === 'object' ? { ...(value as object), rev: revs[i] } : value)),
   };
-  if (stamped.type === 'put' && stamped.changeSpec !== undefined) stamped.changeSpec = { ...stamped.changeSpec, rev: nextRev() };
+  // A put carrying a common changeSpec (a `modify`) gets the same stamp as its one value.
+  if (stamped.type === 'put' && stamped.changeSpec !== undefined && revs.length === 1) stamped.changeSpec = { ...stamped.changeSpec, rev: revs[0] };
   return stamped;
 }
 

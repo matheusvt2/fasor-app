@@ -2,7 +2,7 @@
 title: 'Epic 9 carry-over: gate time, offline tools image, Epic 7 and 8 leftovers, Home layout'
 type: 'chore'
 created: '2026-09-28'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'a2cd0534bee9371e1e76ca1f58da786800a8c902'
 review_loop_iteration: 0
 followup_review_recommended: false

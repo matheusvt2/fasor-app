@@ -255,6 +255,21 @@ describe('E8-A5 crop sources under storage pressure', () => {
     expect(await db.files.get(PHOTO_A)).toMatchObject({ variant: 'crop' });
     db.close();
   });
+
+  it('evicts a crop source even while this device\'s file row still says uploaded_at null (the bytes came from the server)', async () => {
+    const db = await freshDb();
+    await commitPhotoCapture(db, shot(PHOTO_B, '2026-09-25T11:00:00.000Z'), { newId, now });
+    await db.files.delete(PHOTO_B);
+    expect(((await db.entities.get(['file', PHOTO_B]))!.row as { uploaded_at: string | null }).uploaded_at).toBeNull();
+    await db.entities.put({ entity: 'relatorio', id: RELATORIO_ID, relatorio_id: RELATORIO_ID, project_id: null, removed_at: null, row: { id: RELATORIO_ID, status: 'em_campo' } as never });
+    await cropSourceBlob(db, PHOTO_B, { fetchFile: async () => blobOf('served original bytes'), nowIso: '2026-09-25T12:05:00.000Z' });
+    expect(await db.files.get(PHOTO_B)).toMatchObject({ variant: 'crop', acked: true });
+
+    const MB = 1024 * 1024;
+    expect(await runEviction(db, { usage: 10_000 * MB - 1, quota: 10_000 * MB })).toEqual([PHOTO_B]);
+    expect(await db.files.get(PHOTO_B)).toBeUndefined();
+    db.close();
+  });
 });
 
 describe('6.5-UNIT the Caption composer recents', () => {

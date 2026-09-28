@@ -27,10 +27,19 @@ export function placeholderPages(layout: Pick<DocumentLayout, 'toc' | 'sections'
 export function headingPages(outline: PdfOutline, layout: Pick<DocumentLayout, 'toc' | 'sections'>): TocPages {
   const byTitle = new Map<string, number>();
   for (const heading of outline.headings) {
-    const title = heading.title.trim();
+    const title = normalizedTitle(heading.title);
     if (!byTitle.has(title)) byTitle.set(title, heading.page);
   }
-  return new Map(tocLines(layout).map((line) => [line.key, byTitle.get(line.text) ?? null]));
+  return new Map(tocLines(layout).map((line) => [line.key, byTitle.get(normalizedTitle(line.text)) ?? null]));
+}
+
+/**
+ * A heading as compared with the outline: trimmed, every run of whitespace one space. A
+ * subsection heading carries a typed cabine name ("9.2 Oxigênio ", "9.3 " for an empty
+ * one, doubled inner spaces), which the PDF outline's title may not keep as printed.
+ */
+function normalizedTitle(title: string): string {
+  return title.replace(/\s+/g, ' ').trim();
 }
 
 /** The printed numbers whose page is still unknown. */

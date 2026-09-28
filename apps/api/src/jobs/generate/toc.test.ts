@@ -80,6 +80,30 @@ describe('headingPages', () => {
   });
 });
 
+describe('headingPages with typed subsection titles', () => {
+  it('matches a subsection whose cabine name has a trailing space, doubled inner spaces or is empty, whatever the outline kept', () => {
+    const typed = {
+      toc: [{ number: 9, title: 'RELATÓRIOS DOS ENSAIOS' }],
+      sections: [{ number: 9, title: 'RELATÓRIOS DOS ENSAIOS', kind: 'sheets', subsections: [{ heading: '9.1 Oxigênio ', sheets: [] }, { heading: '9.2 ', sheets: [] }, { heading: '9.3 Cabine  A', sheets: [] }], warnings: [] }],
+    } as unknown as DocumentLayout;
+    const result = headingPages(
+      outline([
+        { title: '9 RELATÓRIOS DOS ENSAIOS', page: 13 },
+        { title: '9.1 Oxigênio', page: 13 },
+        { title: '9.2', page: 15 },
+        { title: '9.3 Cabine A', page: 17 },
+      ]),
+      typed,
+    );
+    expect([...result]).toEqual([
+      ['9', 13],
+      ['9.1', 13],
+      ['9.2', 15],
+      ['9.3', 17],
+    ]);
+  });
+});
+
 describe('missingHeadings', () => {
   it('lists exactly the unplaced entries', () => {
     expect(missingHeadings(pages([[1, 4], [2, null], [3, null]]))).toEqual(['2', '3']);

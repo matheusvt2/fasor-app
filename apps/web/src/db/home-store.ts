@@ -183,10 +183,15 @@ export async function relatorioState(db: AppDatabase, relatorioId: string): Prom
     return out;
   };
 
+  const forget = () => {
+    parsedRows.delete(databaseKey(db, relatorioId));
+    lastStates.delete(databaseKey(db, relatorioId));
+    return null;
+  };
   const relatorioRecord = (byEntity.get('relatorio') ?? []).find((record) => record.id === relatorioId);
-  if (relatorioRecord === undefined || relatorioRecord.removed_at !== null) return null;
+  if (relatorioRecord === undefined || relatorioRecord.removed_at !== null) return forget();
   const relatorio = parse<RelatorioRow>(relatorioRecord);
-  if (relatorio === null) return null;
+  if (relatorio === null) return forget();
   const state = new Map<EntityKey, EntityRow>();
   const put = (entity: keyof typeof entityRowSchemas, row: { id: string }) => state.set(entityKey(entity, row.id), row as EntityRow);
   put('relatorio', relatorio);
