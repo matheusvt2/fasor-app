@@ -1,4 +1,4 @@
-import { sectionHeading, type DocumentLayout } from '@app/domain';
+import { tocLines, type DocumentLayout } from '@app/domain';
 import type { PdfOutline } from './pdf-outline.ts';
 
 /*
@@ -7,38 +7,51 @@ import type { PdfOutline } from './pdf-outline.ts';
  * when pass-2 pages differ from pass-1. Both helpers are pure over the outline.
  */
 
-/** Section number -> page, `null` while a pass has not placed the heading yet. */
-export type TocPages = Map<number, number | null>;
+/**
+ * Printed number of an ÍNDICE line ("9", "9.1", `tocLines`) -> page, `null` while a pass
+ * has not placed the heading yet. E7-A4: keyed by the printed number string, since the
+ * ÍNDICE lists section 9's subsections too.
+ */
+export type TocPages = Map<string, number | null>;
 
-/** Every TOC entry unplaced: what pass 1 prints (`00`). */
-export function placeholderPages(layout: DocumentLayout): TocPages {
-  return new Map(layout.toc.map((entry) => [entry.number, null]));
+/** Every ÍNDICE line unplaced: what pass 1 prints (`00`). */
+export function placeholderPages(layout: Pick<DocumentLayout, 'toc' | 'sections'>): TocPages {
+  return new Map(tocLines(layout).map((line) => [line.key, null]));
 }
 
 /**
- * The page of each TOC entry, matched by its printed heading text ("1 OBJETIVO") against
- * the outline titles; `null` for a heading the outline does not carry (the job then fails
- * with `toc_outline_missing`).
+ * The page of each ÍNDICE line, matched by its printed heading text ("1 OBJETIVO", "9.1
+ * Cubículo Enel") against the outline titles (Heading 1 and Heading 2 alike); `null` for a
+ * heading the outline does not carry (the job then fails with `toc_outline_missing`).
  */
-export function headingPages(outline: PdfOutline, layout: DocumentLayout): TocPages {
+export function headingPages(outline: PdfOutline, layout: Pick<DocumentLayout, 'toc' | 'sections'>): TocPages {
   const byTitle = new Map<string, number>();
   for (const heading of outline.headings) {
-    const title = heading.title.trim();
+    const title = normalizedTitle(heading.title);
     if (!byTitle.has(title)) byTitle.set(title, heading.page);
   }
-  return new Map(layout.toc.map((entry) => [entry.number, byTitle.get(sectionHeading(entry)) ?? null]));
+  return new Map(tocLines(layout).map((line) => [line.key, byTitle.get(normalizedTitle(line.text)) ?? null]));
 }
 
-/** The section numbers whose page is still unknown. */
-export function missingHeadings(pages: TocPages): number[] {
+/**
+ * A heading as compared with the outline: trimmed, every run of whitespace one space. A
+ * subsection heading carries a typed cabine name ("9.2 Oxigênio ", "9.3 " for an empty
+ * one, doubled inner spaces), which the PDF outline's title may not keep as printed.
+ */
+function normalizedTitle(title: string): string {
+  return title.replace(/\s+/g, ' ').trim();
+}
+
+/** The printed numbers whose page is still unknown. */
+export function missingHeadings(pages: TocPages): string[] {
   return [...pages.entries()].filter(([, page]) => page === null).map(([number]) => number);
 }
 
 /** True when both passes placed every heading on the same page. */
 export function tocConverged(a: TocPages, b: TocPages): boolean {
   if (a.size !== b.size) return false;
-  for (const [number, page] of a) {
-    if (page === null || b.get(number) !== page) return false;
+  for (const [key, page] of a) {
+    if (page === null || b.get(key) !== page) return false;
   }
   return true;
 }

@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { commitPhotoCapture, type PhotoCaptureInput } from './file-commit.ts';
 import {
   clearUploadError,
+  cropSourceBlob,
   markBlobAcked,
   pendingUploadCount,
   pendingUploads,
@@ -216,6 +217,57 @@ describe('6.2-UNIT-007 server thumbs and eviction', () => {
     expect(await runEviction(db, null)).toEqual([PHOTO_B]);
     expect(await db.files.get(PHOTO_C)).toMatchObject({ acked: false });
     expect(await db.thumbs.count()).toBe(3);
+    db.close();
+  });
+});
+
+describe('E8-A5 crop sources under storage pressure', () => {
+  it('evicts a kept crop source like an acked original, and the next view fetches it again', async () => {
+    const db = await freshDb();
+    await commitPhotoCapture(db, shot(PHOTO_A, '2026-09-25T11:00:00.000Z'), { newId, now });
+    // This device holds PHOTO_A's crop source only (the original it picked went earlier).
+    await db.files.delete(PHOTO_A);
+    const record = (await db.entities.get(['file', PHOTO_A]))!;
+    await db.entities.put({ ...record, row: { ...record.row, uploaded_at: '2026-09-25T12:00:00.000Z' } as never });
+    await db.entities.put({ entity: 'relatorio', id: RELATORIO_ID, relatorio_id: RELATORIO_ID, project_id: null, removed_at: null, row: { id: RELATORIO_ID, status: 'em_campo' } as never });
+    let fetched = 0;
+    const deps = {
+      fetchFile: async () => {
+        fetched += 1;
+        return blobOf('served original bytes');
+      },
+      nowIso: '2026-09-25T12:05:00.000Z',
+    };
+    await cropSourceBlob(db, PHOTO_A, deps);
+    expect(await db.files.get(PHOTO_A)).toMatchObject({ variant: 'crop', acked: true });
+
+    // No pressure in the field: kept.
+    expect(await runEviction(db, { usage: 0, quota: 10_000 * 1024 * 1024 })).toEqual([]);
+    // Pressure: the crop source is a candidate, sized by its bytes.
+    const MB = 1024 * 1024;
+    expect(await runEviction(db, { usage: 10_000 * MB - 1, quota: 10_000 * MB })).toEqual([PHOTO_A]);
+    expect(await db.files.get(PHOTO_A)).toBeUndefined();
+    expect(await db.thumbs.count()).toBe(1);
+
+    // The next view downloads it again.
+    await cropSourceBlob(db, PHOTO_A, deps);
+    expect(fetched).toBe(2);
+    expect(await db.files.get(PHOTO_A)).toMatchObject({ variant: 'crop' });
+    db.close();
+  });
+
+  it('evicts a crop source even while this device\'s file row still says uploaded_at null (the bytes came from the server)', async () => {
+    const db = await freshDb();
+    await commitPhotoCapture(db, shot(PHOTO_B, '2026-09-25T11:00:00.000Z'), { newId, now });
+    await db.files.delete(PHOTO_B);
+    expect(((await db.entities.get(['file', PHOTO_B]))!.row as { uploaded_at: string | null }).uploaded_at).toBeNull();
+    await db.entities.put({ entity: 'relatorio', id: RELATORIO_ID, relatorio_id: RELATORIO_ID, project_id: null, removed_at: null, row: { id: RELATORIO_ID, status: 'em_campo' } as never });
+    await cropSourceBlob(db, PHOTO_B, { fetchFile: async () => blobOf('served original bytes'), nowIso: '2026-09-25T12:05:00.000Z' });
+    expect(await db.files.get(PHOTO_B)).toMatchObject({ variant: 'crop', acked: true });
+
+    const MB = 1024 * 1024;
+    expect(await runEviction(db, { usage: 10_000 * MB - 1, quota: 10_000 * MB })).toEqual([PHOTO_B]);
+    expect(await db.files.get(PHOTO_B)).toBeUndefined();
     db.close();
   });
 });

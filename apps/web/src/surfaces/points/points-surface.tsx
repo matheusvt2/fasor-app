@@ -1,5 +1,4 @@
 import {
-  buildSnapshot,
   derivedPointReasonText,
   extractPhotoRefs,
   moveLandingIndex,
@@ -39,6 +38,7 @@ import { PhotoRefTile } from './photo-ref-tile.tsx';
 import { usePointDraftRecovery } from './point-draft-recovery.ts';
 import { PointEditor, type PointSaved } from './point-editor.tsx';
 import './points.css';
+import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
 
 /*
  * `/relatorio/:id/pontos` (Story 6.6, `72-pontos.html`, Sumário row 8): section 8 in print
@@ -67,7 +67,7 @@ function Points({ relatorioId, state }: { relatorioId: string; state: EntityStat
   const db = session.database;
   const user = session.user;
   const edits = useUndoableEdits();
-  const snapshot: RelatorioSnapshot = useMemo(() => buildSnapshot(state, relatorioId), [state, relatorioId]);
+  const snapshot: RelatorioSnapshot = useRelatorioSnapshot(state, relatorioId);
   const entries = useMemo(() => sectionEightEntries(snapshot), [snapshot]);
   const live = useMemo(() => entries.flatMap((entry) => (entry.kind === 'point' ? [entry.point] : [])), [entries]);
   const derived = useMemo(() => entries.flatMap((entry) => (entry.kind === 'derived' ? [entry.derived] : [])), [entries]);

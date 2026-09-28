@@ -1,7 +1,6 @@
 import {
   backwardMoveConsequenceText,
   backwardMoveLabel,
-  buildSnapshot,
   fichasConcluidasText,
   firstSheetWithPendingSuggestions,
   generateReason,
@@ -54,6 +53,7 @@ import { RestoreDialog } from './restore-dialog.tsx';
 import { useSumarioActions } from './sumario-actions.ts';
 import { FixedRow, NumberedRow, Section9Row } from './sumario-row.tsx';
 import './relatorio.css';
+import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
 
 const NO_TEMPLATES: TemplateRow[] = [];
 const NO_USERS: UserRow[] = [];
@@ -84,7 +84,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const db = session.database;
   const t = copy.sumario;
 
-  const snapshot: RelatorioSnapshot = useMemo(() => buildSnapshot(state, relatorioId), [state, relatorioId]);
+  const snapshot: RelatorioSnapshot = useRelatorioSnapshot(state, relatorioId);
   const allBlocks = useMemo(() => [...state.values()].filter((row): row is BlockRow => 'sheet' in row && (row as BlockRow).relatorio_id === relatorioId), [state, relatorioId]);
   // Every equipment row of the project, removed sheets' included: the snapshot keeps only
   // the equipment of live blocks, and "Restaurar ficha removida" names a sheet by its TAG.

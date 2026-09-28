@@ -73,12 +73,17 @@ services:
       retries: 20
 
   # One-shot dependency install shared by web, api and tools.
+  # E7-A7/E8-A2: `--trust-lockfile` skips pnpm 12's check of the committed lockfile against
+  # the supply-chain policies (`minimumReleaseAge`), which fetches every entry's registry
+  # metadata on each start, so a gate start needs no network once the store holds the
+  # packages. The policies still apply where the lockfile is written (`pnpm install` or
+  # `pnpm add` on a developer's machine), and a frozen lockfile cannot change here.
   install:
     build: ./apps/api
     image: app-api
     <<: *workspace
     environment: *app-env
-    command: pnpm install --frozen-lockfile
+    command: pnpm install --frozen-lockfile --trust-lockfile
 
   api:
     build: ./apps/api

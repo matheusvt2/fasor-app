@@ -25,4 +25,13 @@ RUN mkdir -p /pnpm-store /workspace/node_modules /workspace/packages/domain/node
  && chown -R node:node /pnpm-store /workspace
 USER node
 ENV HOME=/home/node
-RUN corepack prepare pnpm@12.5.1 --activate
+# E7-A7/E8-A2: `corepack prepare` stores only pnpm 12's JavaScript wrapper; the wrapper
+# downloads the native binary (`@pnpm/exe.linux-x64` from registry.npmjs.org) on its first
+# run and keeps it beside itself as `pnpm-native`. Run it once here, as the runtime user and
+# HOME, so the binary is baked into the image and no container start ever downloads it.
+RUN corepack prepare pnpm@12.5.1 --activate \
+ && pnpm --version \
+ && test -f "$HOME/.cache/node/corepack/v1/pnpm/12.5.1/pnpm-native"
+# And never fetch at run time: a gate start works with no network, and a pnpm version the
+# image lacks fails at once (rebuild the image) instead of waiting on the registry.
+ENV COREPACK_ENABLE_NETWORK=0
