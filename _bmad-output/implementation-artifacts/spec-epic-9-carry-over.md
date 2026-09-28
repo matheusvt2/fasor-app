@@ -122,7 +122,7 @@ Measurements (filled by the implementer): before/after commit-to-render tables, 
 | | checklist tap | measurement entry | checklist tap, 4x CPU | measurement entry, 4x CPU |
 |---|---|---|---|---|
 | before (baseline `a2cd053` + the spec) | 720.7 / 1004.9 | 880.1 / 1202.5 | 5477.9 / 6783.5 | 5912 / 7127.9 |
-| after (this branch) | AFTER_CT | AFTER_ME | AFTER_CT4 | AFTER_ME4 |
+| after (HEAD `ebdb479`) | 282.5 / 345.7 | 299 / 448.5 | 1958 / 2625.8 | 2591.6 / 3565.5 |
 
 ### Per-commit breakdown before the change (task 2)
 
@@ -154,12 +154,14 @@ registry.npmjs.org: no name resolution (no egress)
 
 ### Mutation run (task 4)
 
-With `parsedRow`'s cache hit disabled in `relatorioState` (the incremental read reverted to a fresh parse per read), `apps/web/src/db/relatorio-state.test.ts` E9C1-UNIT-003 goes red: "after a commit to one block, every other row of the state is the object the previous read returned" and "a read that finds nothing changed returns the previous state itself" fail; the two correctness tests stay green. With the kernel builder's row memo disabled, all five E9C1-UNIT-002 identity tests in `packages/domain/src/schemas/snapshot-builder.test.ts` fail. Both restored afterwards.
+Re-checked on HEAD after the `rev` stamp moved into a Dexie middleware (every `entities` write, any path). With `parsedRow`'s cache hit disabled in `relatorioState` (the incremental read reverted to a fresh parse per read), `apps/web/src/db/relatorio-state.test.ts` E9C1-UNIT-003 goes red: "after a commit to one block, every other row of the state is the object the previous read returned" and "a read that finds nothing changed returns the previous state itself" fail; the two correctness tests stay green. With the kernel builder's row memo disabled, all five E9C1-UNIT-002 identity tests in `packages/domain/src/schemas/snapshot-builder.test.ts` fail. Both restored afterwards.
 
 ### Deviations and open points
 
 - Prefix equality: the builder is called after every one of the 3841 ops of the full Porto Seguro log, but compared with `buildSnapshot` at every 48th op and the last (about 80 comparisons): each full reference there costs about 45 ms (parse of every row plus two serializations), so every prefix would add about 3 minutes to `test:unit`. The small Porto Seguro log and the replay-small log are compared after every single op.
 - Task 15 (EXIF orientation of `thumb` and `print`) is not done: the reading job (`jobs/reading/image.ts`, read-only for this batch) applies the original's EXIF orientation to the `print` bytes itself, so rotating `print` in `renderVariants` would turn every oriented plate sideways for OCR. Both sides must change in one batch; the deferred entry is re-owned accordingly.
+- `rev` is stamped by a Dexie DBCore middleware (`schema.ts`, `entity-rev`) on every add/put to `entities`, not only by `toRecord`: tests and sync paths that `put` a spread of an old record (its old `rev` included) would otherwise have been served a stale cached row (caught by `sumario-surface.test.tsx`).
+- The small fixture's enabled sub-blocks change two api expectations: all three sheets now print their plates (`last_nameplate` projected for three equipment, `preview.integration.test.ts`) and section 11 prints 1T's placeholder too (`job.integration.test.ts`).
 - `--trust-lockfile` on `install` is a supply-chain policy trade-off for Matheus to confirm: the policies still run where the lockfile is written (a developer's `pnpm install`/`pnpm add`), not at each container start.
 - `cert_number_mismatch` joins the Export dialog's explicit kinds (listed one by one), so the dialog names it (AC); its text is authored and open for Bruno.
 - /cadastros has no `.content`; its capped column is `.registry-main.is-narrow` (Critérios and the placeholder tabs); the Instrumentos tab spans the width beside its panel and is unchanged.
