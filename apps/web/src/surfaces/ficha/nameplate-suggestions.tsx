@@ -4,6 +4,7 @@ import {
   confirmedAllToastText,
   confirmedFieldToastText,
   confirmSuggestionOps,
+  criarAnnouncement,
   criarText,
   discardSuggestionOp,
   fieldInputText,
@@ -312,15 +313,19 @@ export function SuggestionFill({ model, field, suggestion }: { model: NameplateS
       }}
     />
   );
+  const creates = model.createsEntry(suggestion) && text === initial;
+  const createName = suggestion.hint?.create_registry_entry.name ?? '';
   return (
     <div ref={root} data-field-key={field.key} className="ficha-suggestion" data-suggestion-id={suggestion.id}>
       <SuggestionField
         label={label}
         labelId={labelId}
         state={suggestion.trust === 'verify' ? 'verify' : 'suggested'}
-        announcement={suggestionAnnouncement(suggestion.trust, valueText)}
-        // "Criar Celtta?" only while the guess is the one read: an edited guess confirms what was typed.
-        {...(model.createsEntry(suggestion) && text === initial ? { confirmLabel: criarText(suggestion.hint!.create_registry_entry.name) } : {})}
+        // "Criar Celtta?" only while the guess is the one read: an edited guess confirms what was
+        // typed. Its accessible name starts with those visible words (E78-Q13, label in name).
+        {...(creates
+          ? { confirmLabel: criarText(createName), announcement: criarAnnouncement(createName, suggestion.trust) }
+          : { announcement: suggestionAnnouncement(suggestion.trust, valueText) })}
         combobox={COMBOBOX_KINDS.has(field.kind)}
         valueClassName={isNumber ? 'measurement-field' : 'input'}
         bare

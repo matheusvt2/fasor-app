@@ -532,6 +532,7 @@ describe('4.3 SumarioSurface', () => {
       expandable: false,
       position: 10,
       siblings: 11,
+      virtual: false,
     };
     const { container } = render(<RowBody row={row} />);
     expect(container.querySelector('.sum-status')).toHaveClass('is-blocking');

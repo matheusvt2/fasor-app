@@ -220,7 +220,8 @@ test('@p1 7.3-E2E-001 the DOCX prints "Imagem 1:" in section 7, the point citing
   };
   await pushDrafts(page, database, [point]);
 
-  // Generate and download the DOCX.
+  // Generate and download the DOCX: "Parecer não preenchido" is the one row that blocks (E78-Q1).
+  await setParecer(page, EXPORT_RELATORIO_ID);
   await openSumario(page);
   await generateRevision(page, 1);
   const download = await downloadFrom(page, context, () => dialog(page).getByRole('button', { name: 'DOCX — abrir no Word' }).click());
@@ -239,6 +240,8 @@ test('@p1 7.3-E2E-001 the DOCX prints "Imagem 1:" in section 7, the point citing
   const media = [...readZipEntries(docx).keys()].filter((name) => name.startsWith('word/media/') && !name.endsWith('/'));
   expect(media.length).toBeGreaterThanOrEqual(1 + 2);
   const document = readZipEntries(docx).get('word/document.xml')!.toString('utf8');
-  expect((document.match(/<w:pageBreakBefore\/>/g) ?? []).length).toBe(1);
+  // Section 9's sheets and subsections break pages of their own: count only from section 11's heading on.
+  const section11 = document.slice(document.lastIndexOf('CERTIFICADOS</w:t>'));
+  expect((section11.match(/<w:pageBreakBefore\/>/g) ?? []).length).toBe(1);
   expect(structure.headings.map((h) => h.text)).toEqual(expect.arrayContaining(['7 REGISTRO FOTOGRÁFICO MANUTENÇÃO PREVENTIVA', '11 CERTIFICADOS']));
 });

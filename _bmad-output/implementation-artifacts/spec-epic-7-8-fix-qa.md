@@ -2,7 +2,8 @@
 title: 'Epics 7 and 8 fixes: integrated review findings'
 type: 'bugfix'
 created: '2026-09-28'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: '1922634738501401fbfc87d0ffbd6317076f79fa'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: 'opus'
@@ -133,3 +134,16 @@ deferred: []
 - `docker compose --profile tools run --rm tools pnpm test:api -- <paths>` -- reading, files, generate section 10 green.
 - `docker compose --profile tools run --rm tools pnpm test:e2e -- <spec> --grep <id>` -- each new or changed spec green alone.
 - `docker compose --profile tools run --rm tools pnpm lint` and `pnpm static` -- clean.
+
+## Auto Run Result
+
+- `pnpm test:unit` (whole suite): 208 files, 2294 tests passed. `pnpm test:api` (whole suite): 39 files, 243 tests passed (the Porto Seguro structure golden unchanged). `pnpm lint` and `pnpm static` clean.
+- e2e, each alone on `desktop-chrome`: E78-Q1 7.5-E2E-006, `@p1` 7.3-E2E-001, E78-Q2 8.4-E2E-001, `@p1` E78-Q14 8.6-E2E-003, 8.2-E2E-002 (extended), 8.6-E2E-001, E78-Q3/Q4 8.1-E2E-005: 7 passed, 0 failed.
+- Mutation runs, each fix reverted at one point in the working tree, its test run, then restored:
+  - Q1 (no virtual rows in `sumarioRows`): `sumario.test.ts` 4 failed.
+  - Q5 route (no `reading_running` check, api restarted): `reading.integration.test.ts` E78-Q5 failed.
+  - Q5 web (button not disabled while asking): `plate-photo.test.tsx` E78-Q5 failed.
+  - Q6 (dead letter worker not registered): `job.integration.test.ts` E78-Q6 "a provider that never answers" failed (status stayed `running`).
+  - Q7 (receipt no longer writes `failed`): `files-reading.integration.test.ts` both E78-Q7 tests failed.
+  - Q8 (`observeReadings` skipped): `engine.test.ts` both E78-Q8 tests failed.
+  - After the restores: `pnpm static`, `pnpm lint` and the touched web tests green.

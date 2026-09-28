@@ -1,4 +1,4 @@
-import { formatCalendarDate } from '../format/datetime.ts';
+import { dateFieldText, parseCalendarDate } from '../format/datetime.ts';
 import { splitEntityKey, type EntityState } from '../ops/apply.ts';
 import type { OpDraft } from '../ops/op.ts';
 import { safeParsePath, suggestionStatusPath } from '../ops/path.ts';
@@ -338,7 +338,7 @@ function valueText(field: Pick<FieldDef, 'kind'>, value: unknown): string {
   if (value === null || value === undefined) return '';
   const number = numberShape(value);
   if (number !== null) return number.state === 'empty' ? '' : formatDecimalGroupedPtBr(number.raw);
-  if (field.kind === 'date' && typeof value === 'string') return formatCalendarDate(value);
+  if (field.kind === 'date' && typeof value === 'string') return dateFieldText(value);
   return typeof value === 'string' ? value : String(value);
 }
 
@@ -351,29 +351,6 @@ export function fieldInputText(field: Pick<FieldDef, 'kind'>, value: unknown): s
   }
   if (typeof value === 'object' && numberShape(value) === null) return JSON.stringify(value);
   return valueText(field, value);
-}
-
-const DATE_DMY = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
-const DATE_MY = /^(\d{1,2})\/(\d{4})$/;
-const DATE_ISO = /^(\d{4})-(\d{2})(?:-(\d{2}))?$/;
-
-function isoDate(year: number, month: number, day: number | null): string | null {
-  if (month < 1 || month > 12) return null;
-  const mm = String(month).padStart(2, '0');
-  if (day === null) return `${year}-${mm}`;
-  const days = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  if (day < 1 || day > days) return null;
-  return `${year}-${mm}-${String(day).padStart(2, '0')}`;
-}
-
-function parseDateInput(text: string): string | null {
-  let match = DATE_DMY.exec(text);
-  if (match !== null) return isoDate(Number(match[3]), Number(match[2]), Number(match[1]));
-  match = DATE_MY.exec(text);
-  if (match !== null) return isoDate(Number(match[2]), Number(match[1]), null);
-  match = DATE_ISO.exec(text);
-  if (match !== null) return isoDate(Number(match[1]), Number(match[2]), match[3] === undefined ? null : Number(match[3]));
-  return null;
 }
 
 /**
@@ -392,7 +369,7 @@ export function parseFieldInput(field: Pick<FieldDef, 'kind' | 'unit' | 'options
       return raw === null ? { ok: false } : { ok: true, value: { raw, unit: field.unit ?? null, state: 'measured' } };
     }
     case 'date': {
-      const iso = parseDateInput(trimmed);
+      const iso = parseCalendarDate(trimmed);
       return iso === null ? { ok: false } : { ok: true, value: iso };
     }
     case 'select': {
@@ -415,7 +392,7 @@ export function parseFieldInput(field: Pick<FieldDef, 'kind' | 'unit' | 'options
 export function suggestionValueText(field: Pick<FieldDef, 'kind' | 'unit'> | null, value: unknown): string {
   if (field === null) return typeof value === 'string' ? value : JSON.stringify(value);
   if (field.kind === 'voltage_class') return fieldInputText(field, value);
-  if (field.kind === 'date' && typeof value === 'string') return formatCalendarDate(value) || value;
+  if (field.kind === 'date' && typeof value === 'string') return dateFieldText(value);
   const number = numberShape(value);
   if (number !== null) {
     const unit = number.unit ?? field.unit ?? null;
@@ -472,6 +449,14 @@ export function fichasComSugestoesText(n: number): string {
 /** "Criar Celtta?": the Confirmar of a suggestion that creates its manufacturer (Story 8.5). */
 export function criarText(name: string): string {
   return `Criar ${name}?`;
+}
+
+/**
+ * E78-Q13 (WCAG 2.5.3, label in name): the accessible name of a "Criar Celtta?" Confirmar
+ * starts with its visible words, then the trust: "Criar Celtta?, sugerido" ("…, verificar").
+ */
+export function criarAnnouncement(name: string, trust: SuggestionRow['trust']): string {
+  return `${criarText(name)}, ${trust === 'verify' ? 'verificar' : 'sugerido'}`;
 }
 
 // --- the plate photo (Stories 8.2 and 8.6) ---------------------------------------------------
@@ -540,6 +525,33 @@ export function plateCropRegion(pending: readonly Pick<SuggestionRow, 'status' |
   if (out[2] <= out[0]) out[0] = Math.max(0, out[2] - 0.01);
   if (out[3] <= out[1]) out[1] = Math.max(0, out[3] - 0.01);
   return out;
+}
+
+/**
+ * E78-Q14: the crop region widened symmetrically until its aspect in pixels of the picture
+ * (`image`) is at least `minRatio` (the box's own width over height), so a tall, narrow read
+ * region fills the box's width instead of drawing a sliver. The wider region is shifted to
+ * stay inside the picture and stops at its full width; its height never changes. A region
+ * already wide enough (or a degenerate input) is returned as it is.
+ */
+export function padCropToAspect(region: NormalizedBox, image: { width: number; height: number }, minRatio: number): NormalizedBox {
+  const [x0, y0, x1, y1] = region;
+  const heightPx = (y1 - y0) * image.height;
+  if (!(heightPx > 0) || !(image.width > 0) || !(minRatio > 0)) return region;
+  if (((x1 - x0) * image.width) / heightPx >= minRatio) return region;
+  const width = Math.min(1, (minRatio * heightPx) / image.width);
+  const centre = (x0 + x1) / 2;
+  let left = centre - width / 2;
+  let right = centre + width / 2;
+  if (left < 0) {
+    right -= left;
+    left = 0;
+  }
+  if (right > 1) {
+    left -= right - 1;
+    right = 1;
+  }
+  return [clamp01(left), y0, clamp01(right), y1];
 }
 
 /**

@@ -6,7 +6,7 @@ import { getDefinition, getSeed } from '../seed/definitions.ts';
 import { canonicalJson, fnv1a } from '../text/hash.ts';
 import { listPtBr, plural } from '../text/plural.ts';
 import { conclusionRestrictionOf, conclusionResultOf } from './conclusion.ts';
-import { naoEnsaiadasText, progress } from './progress.ts';
+import { naoEnsaiadasText } from './progress.ts';
 import { checklistResultOf } from './sheet-progress.ts';
 import { enabledSubBlocksOf, isEquipmentBlock, sheetState } from './sheet-state.ts';
 import { locationTree, treeNodes } from './tree.ts';
@@ -142,14 +142,41 @@ export function suggestParecer(snapshot: RelatorioSnapshot): ParecerVerdict | nu
  */
 export function parecerHintText(suggestion: ParecerVerdict | null, snapshot: RelatorioSnapshot): string | null {
   if (suggestion === null) return null;
-  const computed = progress(snapshot);
-  const withRestriction = countedSheets(snapshot).filter(({ block }) => block.not_tested === null && restricted(block)).length;
+  // E78-Q9: the counts `composeParecer` states, so the hint and the Critérios line never disagree.
+  const counts = parecerCounts(snapshot);
   const parts = [
-    `${computed.sheets_concluded} de ${computed.sheets_total} fichas concluídas`,
-    withRestriction > 0 ? `${withRestriction} com restrições` : null,
-    computed.not_tested > 0 ? naoEnsaiadasText(computed.not_tested) : null,
+    `${counts.concluded} de ${counts.total} fichas concluídas`,
+    counts.withRestriction.length > 0 ? `${counts.withRestriction.length} com restrições` : null,
+    counts.notTested.length > 0 ? naoEnsaiadasText(counts.notTested.length) : null,
   ].filter((part): part is string => part !== null);
   return `Sugerido pelas contagens: ${parecerVerdictLabel(suggestion)}? — ${parts.join(', ')}. A escolha é sua: um toque.`;
+}
+
+// --- the counts ------------------------------------------------------------------------------
+
+export interface ParecerCounts {
+  /** The live equipment sheets. */
+  total: number;
+  /** Sheets concluded (`sheetState === 'concluida'`); a not tested sheet is counted apart, never here. */
+  concluded: number;
+  /** The not tested sheets, in tree order, with the reason the summary names. */
+  notTested: { name: string; reason: string | null }[];
+  /** Sheets neither concluded nor not tested. */
+  open: number;
+  /** The TAGs of the tested sheets with a restriction, in tree order. */
+  withRestriction: string[];
+}
+
+/**
+ * E78-Q9: the one set of counts the parecer band states, read by both the suggestion hint
+ * (`parecerHintText`) and the composed summary with its Critérios line (`composeParecer`).
+ */
+export function parecerCounts(snapshot: RelatorioSnapshot): ParecerCounts {
+  const sheets = countedSheets(snapshot);
+  const concluded = sheets.filter(({ block }) => sheetState(block) === 'concluida').length;
+  const notTested = sheets.filter(({ block }) => block.not_tested !== null).map(({ block, name }) => ({ name, reason: notTestedReason(block) }));
+  const withRestriction = sheets.filter(({ block }) => block.not_tested === null && restricted(block)).map(({ name }) => name);
+  return { total: sheets.length, concluded, notTested, open: sheets.length - concluded - notTested.length, withRestriction };
 }
 
 // --- the composed summary -------------------------------------------------------------------
@@ -178,11 +205,7 @@ function ncItemName(item: { n: number; label: string }): string {
  */
 export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
   const sheets = countedSheets(snapshot);
-  const total = sheets.length;
-  const concluded = sheets.filter(({ block }) => sheetState(block) === 'concluida');
-  const notTested = sheets.filter(({ block }) => block.not_tested !== null).map(({ block, name }) => ({ name, reason: notTestedReason(block) }));
-  const open = total - concluded.length - notTested.length;
-  const withRestriction = sheets.filter(({ block }) => block.not_tested === null && restricted(block)).map(({ name }) => name);
+  const { total, concluded, notTested, open, withRestriction } = parecerCounts(snapshot);
   const ncGroups = new Map<string, { n: number; label: string; sheets: number }>();
   for (const { block } of sheets) {
     if (block.not_tested !== null) continue;
@@ -201,7 +224,7 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
   if (total === 0) {
     sentences.push('Nenhuma ficha de ensaio registrada neste relatório.');
   } else {
-    const done = concluded.length === 0 ? null : `${concluded.length} ${concluded.length === 1 ? 'concluída' : 'concluídas'}`;
+    const done = concluded === 0 ? null : `${concluded} ${concluded === 1 ? 'concluída' : 'concluídas'}`;
     const untested =
       notTested.length === 0
         ? null
@@ -223,14 +246,14 @@ export function composeParecer(snapshot: RelatorioSnapshot): ComposedParecer {
 
   const criteriaItems = [
     plural(total, 'ficha', 'fichas'),
-    `${concluded.length} ${concluded.length === 1 ? 'concluída' : 'concluídas'}`,
+    `${concluded} ${concluded === 1 ? 'concluída' : 'concluídas'}`,
     ...(notTested.length > 0 ? [`${naoEnsaiadasText(notTested.length)} (${notTested.map((entry) => entry.name).join(', ')})`] : []),
     ...(withRestriction.length > 0 ? [`${withRestriction.length} com restrições (${withRestriction.join(', ')})`] : []),
     ...nc.map((group) => `item ${group.n} NC (${group.sheets})`),
     ...(points > 0 ? [plural(points, 'ponto de atenção', 'pontos de atenção')] : []),
   ];
 
-  const basis = fnv1a(canonicalJson({ total, concluded: concluded.length, open, notTested, withRestriction, nc, points }));
+  const basis = fnv1a(canonicalJson({ total, concluded, open, notTested, withRestriction, nc, points }));
   return { text, criteriaItems, criteriaLine: criteriaItems.join(' · '), basis };
 }
 

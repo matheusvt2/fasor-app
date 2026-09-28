@@ -108,3 +108,12 @@ export async function readingCountRows(db: AppDatabase): Promise<ReadingCountRow
       }),
   };
 }
+
+/** E78-Q8: whether this device holds a live photo whose reading is `running` (the sync engine then polls sooner). */
+export async function hasRunningReading(db: AppDatabase): Promise<boolean> {
+  const files = await db.entities.where('entity').equals('file').toArray();
+  return files.some((record) => {
+    const row = record.row as { kind?: unknown; removed_at?: unknown; reading_status?: unknown };
+    return record.removed_at === null && row.removed_at == null && row.kind === 'photo' && row.reading_status === 'running';
+  });
+}

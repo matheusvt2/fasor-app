@@ -34,6 +34,7 @@ const tile = (extra: Partial<PhotoTile> = {}): PhotoTile => ({
   upload_error: null,
   reading_kind: 'plate',
   reading_status: 'queued',
+  reading_status_op_id: null,
   ...extra,
 });
 
@@ -90,11 +91,38 @@ describe('8.2-UNIT the plate photo row', () => {
     expect(fill).toHaveBeenCalledOnce();
   });
 
-  it('failed: a refused reread says so in a toast; offline the button waits with its reason', async () => {
+  it('E78-Q5: from the tap "Tentar novamente" stays disabled, a second tap sends nothing, until the next status op', async () => {
+    const sync = makeSyncState();
+    const failed = (opId: string | null) => (
+      <PlatePhotoRow tile={tile({ reading_status: 'failed', reading_status_op_id: opId })} number={3} view="failed" onOpen={vi.fn()} onFillManually={vi.fn()} />
+    );
+    const { rerender } = wrap(failed('019966b0-0088-7000-8000-0000000000a1'), sync);
+    await userEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Tentar novamente' })).toHaveAttribute('aria-disabled', 'true'));
+    await userEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+    expect(sync.rereadPhoto).toHaveBeenCalledOnce();
+    // The same status op (a pull that did not move it): still waiting.
+    rerender(
+      <SyncContext value={sync}>
+        <ToastProvider>{failed('019966b0-0088-7000-8000-0000000000a1')}</ToastProvider>
+      </SyncContext>,
+    );
+    expect(screen.getByRole('button', { name: 'Tentar novamente' })).toHaveAttribute('aria-disabled', 'true');
+    // A new `failed` written over `failed`: the button is back.
+    rerender(
+      <SyncContext value={sync}>
+        <ToastProvider>{failed('019966b0-0088-7000-8000-0000000000a2')}</ToastProvider>
+      </SyncContext>,
+    );
+    expect(screen.getByRole('button', { name: 'Tentar novamente' })).not.toHaveAttribute('aria-disabled');
+  });
+
+  it('failed: a refused reread says so in a toast and the button comes back; offline the button waits with its reason', async () => {
     const sync = makeSyncState({ rereadPhoto: vi.fn(async () => Promise.reject(new Error('503'))) });
     wrap(<PlatePhotoRow tile={tile({ reading_status: 'failed' })} number={3} view="failed" onOpen={vi.fn()} onFillManually={vi.fn()} />, sync);
     await userEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
     await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent('Não foi possível pedir a nova leitura'));
+    expect(screen.getByRole('button', { name: 'Tentar novamente' })).not.toHaveAttribute('aria-disabled');
     cleanup();
 
     session.online = false;

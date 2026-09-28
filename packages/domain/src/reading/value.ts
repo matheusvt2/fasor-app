@@ -1,5 +1,5 @@
 import { structuringValueSchemaFor } from '../contract/ocr.ts';
-import { formatCalendarDate } from '../format/datetime.ts';
+import { formatCalendarDate, normalizeDateValue } from '../format/datetime.ts';
 import { parseVoltageClassKv } from '../registry/word-row.ts';
 import type { JsonValue } from '../schemas/entities.ts';
 import type { FieldDef } from '../seed/schema.ts';
@@ -73,7 +73,8 @@ const invalid: NormalizedReadingValue = { ok: false, reason: 'invalid_shape' };
  * - `text` and `manufacturer`: whitespace collapsed, not empty.
  */
 export function normalizeReadingValue(field: ReadingField, value: unknown): NormalizedReadingValue {
-  const shaped = structuringValueSchemaFor(field.kind).safeParse(value);
+  // E78-Q3: a model date in `mm/aaaa` or `dd/mm/aaaa` is read in the canonical shape first.
+  const shaped = structuringValueSchemaFor(field.kind).safeParse(field.kind === 'date' ? normalizeDateValue(value) : value);
   if (!shaped.success) return invalid;
   const parsed = shaped.data as unknown;
   switch (field.kind) {

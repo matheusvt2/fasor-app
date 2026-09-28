@@ -104,6 +104,55 @@ export function formatCalendarDate(value: string | null): string {
   return parts === null ? '' : formatDate(parts);
 }
 
+const DATE_DMY = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+const DATE_MY = /^(\d{1,2})\/(\d{4})$/;
+const DATE_ISO = /^(\d{4})-(\d{2})(?:-(\d{2}))?$/;
+
+function isoDate(year: number, month: number, day: number | null): string | null {
+  if (month < 1 || month > 12) return null;
+  const mm = String(month).padStart(2, '0');
+  if (day === null) return `${year}-${mm}`;
+  const days = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  if (day < 1 || day > days) return null;
+  return `${year}-${mm}-${String(day).padStart(2, '0')}`;
+}
+
+/**
+ * A typed or stored date in the canonical `date` shape (`YYYY-MM-DD` or `YYYY-MM`, AD-11):
+ * `dd/mm/aaaa`, `mm/aaaa` or ISO, a real calendar day or month only; null for anything else.
+ */
+export function parseCalendarDate(text: string): string | null {
+  const trimmed = text.trim();
+  let match = DATE_DMY.exec(trimmed);
+  if (match !== null) return isoDate(Number(match[3]), Number(match[2]), Number(match[1]));
+  match = DATE_MY.exec(trimmed);
+  if (match !== null) return isoDate(Number(match[2]), Number(match[1]), null);
+  match = DATE_ISO.exec(trimmed);
+  if (match !== null) return isoDate(Number(match[1]), Number(match[2]), match[3] === undefined ? null : Number(match[3]));
+  return null;
+}
+
+/**
+ * E78-Q3: a date cell's value in the canonical shape when it has one (`07/2025` becomes
+ * `2025-07`, `15/03/2019` becomes `2019-03-15`, `2024-08` stays); any other value (`2012`,
+ * free text, a non-string) is returned unchanged.
+ */
+export function normalizeDateValue<T>(value: T): T | string {
+  if (typeof value !== 'string') return value;
+  return parseCalendarDate(value) ?? value;
+}
+
+/**
+ * E78-Q3: a date cell as its field shows it: `dd/mm/aaaa` or `mm/aaaa` for a value with a
+ * canonical shape, else the stored text as it is (`2012`); '' for none. Never blank for a
+ * stored value.
+ */
+export function dateFieldText(value: string | null | undefined): string {
+  if (typeof value !== 'string') return '';
+  const canonical = normalizeDateValue(value);
+  return formatCalendarDate(canonical) || value;
+}
+
 export function formatServiceDates(start: string | null, end: string | null): string {
   const from = splitDate(start);
   const to = splitDate(end);

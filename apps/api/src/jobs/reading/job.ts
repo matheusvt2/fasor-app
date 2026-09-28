@@ -217,7 +217,7 @@ export async function runReadingJob(deps: ReadingJobDeps, payload: ReadingPayloa
     }
     const registry = await liveRegistry(deps.db, companyId);
 
-    const providers = deps.providers({ photo_sha256: photo.sha256 });
+    const providers = deps.providers({ photo_sha256: photo.sha256, block_type: block.block_type });
     facts.ocrName = providers.ocr_name;
 
     const print = await objectBytes(deps, objectKey(companyId, 'photo', photo.id, 'print', relatorioId));

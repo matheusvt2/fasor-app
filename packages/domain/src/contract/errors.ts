@@ -45,6 +45,8 @@ export const errorCodeSchema = z.enum([
   // Story 7.5: the issue route refuses while a pre-issue row is `blocking` ("Parecer não
   // preenchido"); `details.rows` names the blocking rows' kinds. Never retryable by a sync.
   'pre_issue_blocked',
+  // E78-Q5: the reread route refuses while the photo's reading is `running` (one run at a time).
+  'reading_running',
   ...opRejectCodeSchema.options,
 ]);
 export type ErrorCode = z.infer<typeof errorCodeSchema>;

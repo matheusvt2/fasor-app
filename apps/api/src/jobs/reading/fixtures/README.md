@@ -25,8 +25,25 @@ One file per photo, named `<sha256 of the photo's original bytes>.json`:
 - `structuring`: a `StructuringOutput`. Absent means no values. The fake reports
   `model: "fake"`, `prompt_version: "fake-1"` and zero usage.
 
-The file is validated by `fakeReadingFixtureSchema` (`providers/fake.ts`). A photo without a
-fixture, or with one that does not validate, fails permanently (one attempt).
+The file is validated by `fakeReadingFixtureSchema` (`providers/fake.ts`). A fixture that
+does not validate fails permanently (one attempt).
+
+## A photo with no fixture of its own (E78-Q2)
+
+The device re-encodes every shot, so a plate photographed or imported through the app never
+has the sha256 of a committed image. A photo with no fixture named after its own sha256 falls
+back to the default fixture of its target block type (`DEFAULT_FIXTURE_BY_BLOCK_TYPE` in
+`providers/fake.ts`):
+
+- `transformador_forca`: the synthetic transformer plate below. Its OCR boxes are scaled to
+  the width and height of the image the job sends (read with sharp), so the job's size check
+  passes whatever size the device's re-encode gave the photo, and the eleven suggestions
+  arrive. This is how the local stack and `e2e/plate-reading.spec.ts` read a plate through the
+  app under the `fake` providers.
+- any other block type: the reading fails permanently at its first attempt ("no fixture for
+  block type ..."), and the sheet offers "Tentar novamente" and "Preencher manualmente".
+
+A photo's own fixture always wins over the default (the error and timeout images below).
 
 ## Adding one
 

@@ -31,7 +31,8 @@ export interface SuggestionFieldProps {
   after?: ReactNode;
   /**
    * Story 8.6: the Confirmar button's visible word ("Criar Celtta?" for a suggestion that
-   * creates its manufacturer); its accessible name stays `announcement`. Default "Confirmar".
+   * creates its manufacturer); its accessible name stays `announcement`, which then starts
+   * with these words (E78-Q13, kernel `criarAnnouncement`). Default "Confirmar".
    */
   confirmLabel?: string;
 }

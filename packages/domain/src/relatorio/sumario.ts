@@ -13,6 +13,7 @@ import { isEquipmentBlock } from './sheet-state.ts';
 import { pointsSummary, pointsSummaryText } from '../points/summary.ts';
 import { parecerOf, parecerVerdictLabel } from './parecer.ts';
 import { certificatesCountText, section11Instruments } from '../print/section-11.ts';
+import { getSeed } from '../seed/definitions.ts';
 
 /*
  * Story 4.3: the Sumário as data (`40-relatorio-overview.html`): the relatório's own table
@@ -86,6 +87,13 @@ export interface SumarioRow {
   /** 1-based position among the numbered rows, and how many there are (the Position box). */
   position: number;
   siblings: number;
+  /**
+   * E78-Q1: a numbered row with no section block behind it, drawn for a snapshot that has no
+   * live section block (a relatório older than them, the Porto Seguro fixtures), which prints
+   * the seed's eleven sections (`print/layout.ts` `printedSections`). It has no Position box,
+   * no Overflow and no move; it opens only where no block is needed.
+   */
+  virtual: boolean;
 }
 
 const SEP = ' · ';
@@ -150,12 +158,28 @@ export function sectionRowTitle(blockType: string): string {
   return isRelatorioSectionType(blockType) ? SUMARIO_TITLES[blockType] : blockType;
 }
 
+/** The eleven FO.SERV-03 section numbers of a seed version in order, from the seed's titles. */
+export function seedSectionNumbers(seedVersion: string): number[] {
+  return Object.keys(getSeed(seedVersion, 'cabine_primaria').section_titles)
+    .map(Number)
+    .sort((a, b) => a - b);
+}
+
+/**
+ * E78-Q1: whether a snapshot prints the seed's sections instead of its own blocks: no live
+ * section block names a FO.SERV-03 section (`print/layout.ts` `printedSections` falls back
+ * then, and the Sumário draws the same rows as virtual ones).
+ */
+export function printsSeedSections(blocks: readonly BlockRow[]): boolean {
+  return !sectionBlocks(blocks).some((block) => relatorioSectionNumber(block.block_type) !== null);
+}
+
 /** The live section blocks of a snapshot in `order_key` order: the numbered rows. */
 export function sectionBlocks(blocks: readonly BlockRow[]): BlockRow[] {
   return sortByOrderKey(blocks.filter((block) => block.removed_at === null && block.location_id === null && !isEquipmentBlock(block)));
 }
 
-function metaOfSection(block: BlockRow, issues: readonly PreIssueRow[], computed: Progress, snapshot: RelatorioSnapshot): string {
+function metaOfSection(block: Pick<BlockRow, 'block_type' | 'config'>, issues: readonly PreIssueRow[], computed: Progress, snapshot: RelatorioSnapshot): string {
   const kind = isRelatorioSectionType(block.block_type) ? KIND_OF[block.block_type] : 'text';
   const own = issues.map((row) => row.text);
   if (block.block_type === 'section_9') return own.length > 0 ? join(own) : progressCounterText(computed);
@@ -213,6 +237,7 @@ export function sumarioRows(snapshot: RelatorioSnapshot, issues: readonly PreIss
       expandable: false,
       position: 0,
       siblings: 0,
+      virtual: false,
     },
     {
       key: 'controle',
@@ -228,8 +253,13 @@ export function sumarioRows(snapshot: RelatorioSnapshot, issues: readonly PreIss
       expandable: false,
       position: 0,
       siblings: 0,
+      virtual: false,
     },
   ];
+  if (printsSeedSections(snapshot.blocks)) {
+    rows.push(...virtualSectionRows(snapshot, issues, computed));
+    return rows;
+  }
   const sections = sectionBlocks(snapshot.blocks);
   sections.forEach((block, i) => {
     const rowKey: SumarioRowKey = isRelatorioSectionType(block.block_type) ? block.block_type : 'section_11';
@@ -248,9 +278,46 @@ export function sumarioRows(snapshot: RelatorioSnapshot, issues: readonly PreIss
       expandable: block.block_type === 'section_9',
       position: i + 1,
       siblings: sections.length,
+      virtual: false,
     });
   });
   return rows;
+}
+
+/**
+ * E78-Q1: the numbered rows of a snapshot with no live section block, one per section the
+ * document prints for it (the seed's eleven, in FO.SERV-03 order), with the metas and
+ * states of the same pre-issue rows a real row would carry, so "linha 10" is true on the
+ * Sumário, in the Export dialog and in the printed document alike.
+ */
+function virtualSectionRows(snapshot: RelatorioSnapshot, issues: readonly PreIssueRow[], computed: Progress): SumarioRow[] {
+  const types = seedSectionNumbers(snapshot.relatorio.seed_version)
+    .map((section) => `section_${section}`)
+    .filter(isRelatorioSectionType);
+  return types.map((type, i) => {
+    const own = preIssueRowsFor(issues, type);
+    return {
+      key: type,
+      rowKey: type,
+      kind: KIND_OF[type],
+      number: i + 1,
+      title: sectionRowTitle(type),
+      meta: metaOfSection({ block_type: type, config: null }, own, computed, snapshot),
+      blocking: blockingRows(own).length > 0,
+      pending: pendingRows(own).length > 0,
+      blockId: null,
+      blockType: type,
+      expandable: type === 'section_9',
+      position: i + 1,
+      siblings: types.length,
+      virtual: true,
+    };
+  });
+}
+
+/** E78-Q1: the Sumário number of the row `key` names ("linha 10"), or null when no numbered row carries it. */
+export function sumarioLineOf(rows: readonly SumarioRow[], key: SumarioRowKey): number | null {
+  return rows.find((row) => row.rowKey === key && row.number !== null)?.number ?? null;
 }
 
 /**
@@ -271,12 +338,21 @@ export function numberedSiblings(rows: readonly SumarioRow[]): SumarioRow[] {
   return rows.filter((row) => row.number !== null);
 }
 
-/** The foot's `.btn-reason`: nothing blocks, or the blocking rows named by line. */
-export function generateReason(rows: readonly SumarioRow[]): string {
-  const blocking = rows.filter((row) => row.blocking);
+/**
+ * The foot's `.btn-reason`: nothing blocks, or the blocking rows named by line. E78-Q1: every
+ * row a blocking pre-issue row addresses is named, the rows drawn blocking and the keys of
+ * `issues` alike, so a blocker the Sumário has no row for is still named by its title.
+ */
+export function generateReason(rows: readonly SumarioRow[], issues: readonly PreIssueRow[] = []): string {
+  const drawn = rows.filter((row) => row.blocking);
+  // A blocking pre-issue row whose Sumário row is not drawn blocking (or not drawn at all).
+  const unnamed = [...new Set(blockingRows(issues).map((issue) => issue.row))].filter((key) => !drawn.some((row) => row.rowKey === key));
   // authored: the mock draws the one-blocker case ("Só o parecer (linha 10) impede gerar.").
-  if (blocking.length === 0) return 'Nada impede gerar.';
-  const named = blocking.map((row) => (row.number === null ? row.title : `${row.title} (linha ${row.number})`));
+  if (drawn.length === 0 && unnamed.length === 0) return 'Nada impede gerar.';
+  const named = [
+    ...drawn.map((row) => (row.number === null ? row.title : `${row.title} (linha ${row.number})`)),
+    ...unnamed.map((key) => SUMARIO_TITLES[key]),
+  ];
   if (named.length === 1) return `Só ${named[0]} impede gerar. O resto está escrito em cada linha.`;
   return `${named.join(', ')} impedem gerar. O resto está escrito em cada linha.`;
 }

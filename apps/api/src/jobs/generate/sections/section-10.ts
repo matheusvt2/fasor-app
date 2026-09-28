@@ -14,13 +14,18 @@ const borders = { top: border, bottom: border, left: border, right: border };
 
 /** Renders section 10's body (everything under its heading), inside a content width in twips. */
 export function section10Children(section: LayoutSection10, contentWidthTwips: number): (Paragraph | Table)[] {
-  const boxChildren: Paragraph[] = [new Paragraph({ children: [new TextRun({ text: section.parecer.title, bold: true, size: 24 })], spacing: { after: 80 } })];
-  if (section.parecer.text !== null) boxChildren.push(new Paragraph({ children: [new TextRun({ text: section.parecer.text })], spacing: { after: 60 } }));
+  // E78-Q11: the box never splits across pages: its row cannot split, and its title keeps with the summary.
+  const hasText = section.parecer.text !== null;
+  const boxChildren: Paragraph[] = [
+    new Paragraph({ children: [new TextRun({ text: section.parecer.title, bold: true, size: 24 })], spacing: { after: 80 }, keepLines: true, keepNext: hasText }),
+  ];
+  if (section.parecer.text !== null) boxChildren.push(new Paragraph({ children: [new TextRun({ text: section.parecer.text })], spacing: { after: 60 }, keepLines: true }));
   const box = new Table({
     width: { size: contentWidthTwips, type: WidthType.DXA },
     columnWidths: [contentWidthTwips],
     rows: [
       new TableRow({
+        cantSplit: true,
         children: [
           new TableCell({
             borders,

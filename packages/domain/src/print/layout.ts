@@ -4,7 +4,7 @@ import { SECTION_BLOCK_TYPES, type SectionBlockType } from '../schemas/block-con
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { relatorioSectionNumber } from '../relatorio/instantiate.ts';
 import { section3Blocks, sectionVariables } from '../relatorio/section-variables.ts';
-import { sectionBlocks } from '../relatorio/sumario.ts';
+import { printsSeedSections, sectionBlocks, seedSectionNumbers } from '../relatorio/sumario.ts';
 import { getSeed, sectionText } from '../seed/definitions.ts';
 import type { TextBlock } from '../seed/schema.ts';
 import { sectionNumber } from '../templates/compose.ts';
@@ -140,13 +140,6 @@ function sectionType(section: number): SectionBlockType | null {
   return SECTION_BLOCK_TYPES.find((type) => sectionNumber(type) === section) ?? null;
 }
 
-/** The eleven FO.SERV-03 sections in order, from the seed's titles. */
-function sectionNumbers(seedVersion: string): number[] {
-  return Object.keys(getSeed(seedVersion, 'cabine_primaria').section_titles)
-    .map(Number)
-    .sort((a, b) => a - b);
-}
-
 /**
  * A section's own flat text (`config.section_text`, the shape `flattenSectionText`
  * writes) as printable paragraphs: blank-line-separated chunks, the first line of a chunk
@@ -173,8 +166,9 @@ function printedSections(snapshot: RelatorioSnapshot): { section: number; ownTex
       return section === null ? null : { section, ownText: typeof own === 'string' ? own : null };
     })
     .filter((entry): entry is { section: number; ownText: string | null } => entry !== null);
-  if (live.length > 0) return live;
-  return sectionNumbers(snapshot.relatorio.seed_version).map((section) => ({ section, ownText: null }));
+  // E78-Q1: the same test the Sumário's virtual rows use (`relatorio/sumario.ts`).
+  if (!printsSeedSections(snapshot.blocks)) return live;
+  return seedSectionNumbers(snapshot.relatorio.seed_version).map((section) => ({ section, ownText: null }));
 }
 
 /**

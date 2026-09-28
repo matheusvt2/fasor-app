@@ -127,6 +127,51 @@ test('@p0 7.4-E2E-001 a relatório with no parecer: row 10 and the dialog say "P
   await expect(row10.locator('.sum-status')).toHaveText('Apto com restrições');
 });
 
+test('@p0 E78-Q1 7.5-E2E-006 a relatório with no section block (the Porto Seguro fixture): row 10 is drawn and blocks, the foot and the dialog both say "linha 10"; with the parecer set nothing blocks', async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
+  await resetEmpresaBWithFixture(account);
+  await signIn(page, account.email);
+  await openFixtureSumario(page);
+
+  // The eleven sections the document prints, as virtual rows: numbers as text, no Position box, no Overflow.
+  const numbered = sumario(page).locator('li.sum-row[data-virtual]');
+  await expect(numbered).toHaveCount(11);
+  await expect(numbered.locator('.sum-pos')).toHaveText(['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11']);
+  await expect(numbered.locator('input')).toHaveCount(0);
+  // The rows' own controls (row 9's tree under it keeps its cabines' menus).
+  await expect(numbered.locator(':scope > .sum-ctrls .overflow-trigger, :scope > .sum-s9-head > .sum-ctrls .overflow-trigger')).toHaveCount(0);
+  const row10 = sumario(page).locator('li[data-row="section_10"]');
+  await expect(row10.locator('.sum-title')).toHaveText('Conclusão e parecer');
+  await expect(row10.locator('.sum-status.is-blocking')).toHaveText('Parecer não preenchido');
+  const reason = page.locator('.sticky-action-bar .btn-reason').first();
+  await expect(reason).toHaveText('Só Conclusão e parecer (linha 10) impede gerar. O resto está escrito em cada linha.');
+
+  // The dialog: the same blocking row and the same line.
+  await footButton(page).click();
+  await expect(dialog(page).locator('.precheck li.is-blocking .pc-block')).toHaveText('Parecer não preenchido');
+  await expect(generateButton(page)).toHaveAttribute('aria-disabled', 'true');
+  await expect(generateButton(page)).toHaveAccessibleDescription('Preencha o parecer (linha 10 do sumário) para emitir a revisão 1. O rascunho pode ser visto antes.');
+  await page.keyboard.press('Escape');
+  await expect(dialog(page)).toBeHidden();
+
+  // Row 10 opens Dados do relatório › Etapa 6 (no block is needed for it).
+  await row10.getByRole('button').first().click();
+  await expect(page).toHaveURL(new RegExp(`/relatorio/${EXPORT_RELATORIO_ID}/setup\\?etapa=6$`));
+
+  // With the parecer set: nothing blocks, on either surface.
+  await setParecer(page, EXPORT_RELATORIO_ID, 'Apto com restrições');
+  await expect(row10.locator('.sum-status')).toHaveText('Apto com restrições');
+  await expect(row10.locator('.sum-status.is-blocking')).toHaveCount(0);
+  await expect(reason).toHaveText('Nada impede gerar.');
+  await footButton(page).click();
+  await expect(dialog(page).locator('.precheck li.is-blocking')).toHaveCount(0);
+  await expect(generateButton(page)).toBeEnabled();
+  await expect(generateButton(page)).not.toHaveAttribute('aria-disabled', 'true');
+  await page.keyboard.press('Escape');
+});
+
 test('@p0 7.4-E2E-002 with a parecer set, "Gerar relatório" issues revision 1: section 10 prints the box, the bullets, the validity line and the signature, and the relatório is Emitido', async ({
   page,
 }) => {

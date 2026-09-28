@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { formatDateTime, formatIssueDate, formatServiceDates, formatShortDateTime, formatTimeOfDay } from './datetime.ts';
-import { dateRangeText, formatDateOfInstant, uuidV7Instant } from './datetime.ts';
+import { dateFieldText, dateRangeText, formatDateOfInstant, normalizeDateValue, parseCalendarDate, uuidV7Instant } from './datetime.ts';
 
 describe('formatDateTime and formatIssueDate (Story 4.8)', () => {
   it('render dd/mm/aaaa HH:mm and dd/mm/aaaa in America/Sao_Paulo', () => {
@@ -85,5 +85,30 @@ describe('4.1-UNIT uuidV7Instant and formatDateOfInstant', () => {
     expect(uuidV7Instant('nope')).toBeNull();
     expect(formatDateOfInstant('2026-09-23T02:30:00.000Z')).toBe('22/09/2026');
     expect(formatDateOfInstant('x')).toBe('');
+  });
+});
+
+describe('E78-Q3 normalizeDateValue and dateFieldText (every stored date shape)', () => {
+  it('keeps the canonical shapes, converts mm/aaaa and dd/mm/aaaa, returns anything else unchanged', () => {
+    expect(normalizeDateValue('2024-08')).toBe('2024-08');
+    expect(normalizeDateValue('2024-08-15')).toBe('2024-08-15');
+    expect(normalizeDateValue('07/2025')).toBe('2025-07');
+    expect(normalizeDateValue('15/03/2019')).toBe('2019-03-15');
+    expect(normalizeDateValue('2012')).toBe('2012');
+    expect(normalizeDateValue('31/02/2024')).toBe('31/02/2024');
+    expect(normalizeDateValue('ago/2024')).toBe('ago/2024');
+    expect(normalizeDateValue(null)).toBeNull();
+    expect(normalizeDateValue({ raw: '1' })).toEqual({ raw: '1' });
+    expect(parseCalendarDate(' 7/2025 ')).toBe('2025-07');
+    expect(parseCalendarDate('2012')).toBeNull();
+  });
+
+  it('shows every shape, never blank for a stored value', () => {
+    expect(dateFieldText('2024-08')).toBe('08/2024');
+    expect(dateFieldText('2024-08-15')).toBe('15/08/2024');
+    expect(dateFieldText('07/2025')).toBe('07/2025');
+    expect(dateFieldText('2012')).toBe('2012');
+    expect(dateFieldText('15/03/2019')).toBe('15/03/2019');
+    expect(dateFieldText(null)).toBe('');
   });
 });

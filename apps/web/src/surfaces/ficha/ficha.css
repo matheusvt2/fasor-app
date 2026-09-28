@@ -168,3 +168,8 @@
 /* authored (E6-Q11): the NC row names the point it already has beside its actions, in the
    meta style of the row's other secondary text (`.btn-reason`). */
 [data-route="/relatorio/:id/ficha/:blockId"] .nc-point-ref { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+/* authored (E78-Q4, no mock draws it): a stored manufacturer the registry does not hold,
+   under its field: the name in the ink of a value, then "Criar ⟨nome⟩?" as a text button,
+   laid out as the mock's `.suggestion-alt` line (flex, wrapping, the same gaps). */
+[data-route="/relatorio/:id/ficha/:blockId"] .word-unregistered { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); }
+[data-route="/relatorio/:id/ficha/:blockId"] .word-unregistered-name { color: var(--ink-primary); font-weight: 600; }

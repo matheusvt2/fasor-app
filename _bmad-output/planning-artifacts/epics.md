@@ -1810,6 +1810,22 @@ So that the client gets the company's own section 9 and I can still edit it in W
 **When** it runs
 **Then** section 9's structure matches the stored snapshot and the Sumário row 9 status comes from the same `preIssue` (NFR-17)
 
+*(2026-09-28, narrowing: `unpaired_cable` warnings are not surfaced as a pre-issue or Export row — PR #50)*
+
+*(2026-09-28, narrowing: no UI writes `feeds_block_id`, so every alimentação cable of a new relatório prints unpaired — PR #50)*
+
+*(2026-09-28, narrowing: the printed ÍNDICE lists sections only — PR #50)*
+
+*(2026-09-28, narrowing: a Não ensaiada sheet prints no photos — PR #50)*
+
+*(2026-09-28, narrowing: TP/TC pairing is ordinal inside a location with no colunas — PR #50)*
+
+*(2026-09-28, narrowing: the group titles read "Cubículos de MT", not "de Média Tensão" — PR #50)*
+
+*(2026-09-28, narrowing: the attribution wording is authored — PR #50)*
+
+*(2026-09-28, narrowing: the first sheet of section 9 can split across pages (deferred-work.md) — PR #50)*
+
 ### Story 7.2: Print the photo record and the photos beside their equipment
 
 **Dev model:** opus · **Effort:** ~~medium~~ high *(2026-09-24, Matheus: effort review)* · section 7 numbering and photos inside sheets
@@ -1832,6 +1848,10 @@ So that "conforme Imagem 5" is always right and the evidence sits next to the te
 **When** the gallery renders
 **Then** numbers show as provisional again and the Sumário banner from Story 4.6 names the next revision (FR-48)
 
+*(2026-09-28, narrowing: the photo sort key is `(captured_at, local_seq, id)` over files (source-deltas row 14), not `(captured_at, device_id, local_seq)` — PR #51)*
+
+*(2026-09-28, narrowing: a photo the server lacks keeps its number and prints a placeholder — PR #51)*
+
 ### Story 7.3: Print the points of attention and the certificates
 
 **Dev model:** opus · **Effort:** ~~medium~~ high *(2026-09-24, Matheus: effort review)* · section 8 token resolution and section 11 certificate rasterization
@@ -1850,6 +1870,14 @@ So that the report is complete without me assembling anything.
 **When** the generate job renders section 11
 **Then** each instrument's certificate file prints as full-page images (PDF certificates rasterized page by page with LibreOffice at 150 dpi; images with sharp), a `cert_number` mismatch between the sheet's copied header and the registry is flagged by `integrity`, and a missing certificate file prints a placeholder line and warns at pre-issue (FR-70, AR-18)
 
+*(2026-09-28, narrowing: stored `not_tested` points are not merged into groups — PR #51)*
+
+*(2026-09-28, narrowing: a point's action prints after its text in the same bullet — PR #51)*
+
+*(2026-09-28, narrowing: a certificate PDF over 20 pages prints the placeholder — PR #51)*
+
+*(2026-09-28, narrowing: an empty registry `cert_number` is not a mismatch — PR #51)*
+
 ### Story 7.4: Set the parecer and print section 10 with the signature block
 
 **Dev model:** opus · **Effort:** ~~medium~~ high *(2026-09-24, Matheus: effort review)* · parecer suggestion, composed summary and section 10
@@ -1867,6 +1895,16 @@ So that the document carries my opinion in my words and nothing the app decided 
 **Given** the generate job
 **When** it renders section 10
 **Then** it opens with the Parecer box (verdict word as title, confirmed summary), then the three fixed bullets, the validity line "Este relatório tem validade apenas acompanhada da ART ⟨n⟩" or "… da TRT ⟨n⟩" by council, and the signature block with name, title by council ("Eng. Eletricista" / "Técnico(a) em Eletrotécnica") and registration; no signature image (FR-69)
+
+*(2026-09-28, narrowing: "Substituir" is the Story 5.8 behavior, not the mock's `parecer-own` field — PR #51)*
+
+*(2026-09-28, narrowing: a Reprovado sheet gives no parecer suggestion — PR #51)*
+
+*(2026-09-28, narrowing: a stale confirmed parecer text still prints — PR #51)*
+
+*(2026-09-28, narrowing: the suggestion hint's "N de M fichas concluídas" counts concluded sheets only, not tested sheets apart, the same count as the Critérios line (`parecerCounts`, E78-Q9) — Epics 7 and 8 fix batch)*
+
+*(2026-09-28, narrowing: the Parecer box is one table row that cannot split across pages, its title kept with its summary (E78-Q11) — Epics 7 and 8 fix batch)*
 
 ### Story 7.5: See what is outstanding, preview as RASCUNHO, and issue the revision
 
@@ -1895,6 +1933,18 @@ So that the only thing that can stop me is a missing parecer.
 **When** the job commits
 **Then** it also emits `equipment/{id}/last_nameplate = {relatorio_id, revision_number, issued_at, seed_version, block_type, fields}` as a `system:generate` op for every equipment block with a nameplate, so "Copiar da última visita" works on the next relatório of the project (FR-34, AR-24)
 **And** the Export dialog emits `relatorio/status = Emitido` on issue; SM-C1 instrumentation counts confirmed cells later edited over the ops table (AR-28)
+
+*(2026-09-28, narrowing: the Revisões list shows the DOCX glyph only (the PDF row is Epic 11's) — PR #51)*
+
+*(2026-09-28, narrowing: `parecer_missing` blocks only while section 10 prints — PR #51)*
+
+*(2026-09-28, narrowing: SM-C1 is logged per issue, not stored — PR #51)*
+
+*(2026-09-28, narrowing: the highlight look of "Ver no sumário" is authored — PR #51)*
+
+*(2026-09-28, narrowing: the preview's revision row prints "—" — PR #51)*
+
+*(2026-09-28, narrowing: a relatório with no live section block (the Porto Seguro fixtures, a legacy relatório) lists the eleven sections it prints as virtual numbered rows: number as text, no Position box, no Overflow, no move; rows 1, 3, 10, 7 and 8 open, row 9 expands, text rows 2, 4, 5 and 6 do not open (E78-Q1) — Epics 7 and 8 fix batch)*
 
 ## Epic 8: Nameplate from a photo (the reading pipeline)
 
@@ -1927,6 +1977,18 @@ So that a signed report never carries a value I did not check.
 **When** pending suggestions exist
 **Then** "sugestões por confirmar" counts them and blocks with pending suggestions are not counted as filled (FR-17, FR-42)
 
+*(2026-09-28, narrowing: the group button reads "Confirmar todos (N)", not "Confirmar N" — PR #49)*
+
+*(2026-09-28, narrowing: the device derives the replace view and never writes `mode` — PR #49)*
+
+*(2026-09-28, narrowing: "reachable until export" means until Emitido; no auto-confirm on an Emitido relatório — PR #49)*
+
+*(2026-09-28, narrowing: Confirmar on an edited guess writes the typed value and discards the suggestion — PR #49)*
+
+*(2026-09-28, narrowing: Home and Project cards count without pending rows — PR #49)*
+
+*(2026-09-28, narrowing: a nameplate date cell holding a month-only date, a year or text shows its stored text in a text field (never a blank date field); a typed `mm/aaaa` or `dd/mm/aaaa` is stored as `YYYY-MM[-DD]` (`normalizeDateValue`, E78-Q3) — Epics 7 and 8 fix batch)*
+
 ### Story 8.2: Photograph the plate and keep the photo until there is signal
 
 **Dev model:** opus · **Effort:** medium · plate capture, queued states, upload priority and arrival toasts
@@ -1953,6 +2015,20 @@ So that I keep walking and the reading catches up with me at the gate.
 **When** the nameplate group renders
 **Then** it shows "Não foi possível ler — Tentar novamente / Preencher manualmente"; "Tentar novamente" calls `POST /api/photos/{id}/reread`; the photo is kept and nothing was written (FR-42)
 
+*(2026-09-28, narrowing: there is no "Digitar" (source-deltas D-6); the fields are always visible — PR #54)*
+
+*(2026-09-28, narrowing: "typing excludes the field" is read as Story 8.1's replace view — PR #54)*
+
+*(2026-09-28, narrowing: the queued line shows whatever the connection — PR #54)*
+
+*(2026-09-28, narrowing: the reading counts sit in the Sync "Leituras" section — PR #54)*
+
+*(2026-09-28, narrowing: the e2e seeds `reading_status` and suggestions as server ops; the real job is walked by `e2e/plate-reading.spec.ts` — PR #54)*
+
+*(2026-09-28, narrowing: while this device holds a `running` reading the sync engine cycles every 5 s, for at most 120 s from the first cycle that saw it, then every 60 s again (E78-Q8) — Epics 7 and 8 fix batch)*
+
+*(2026-09-28, narrowing: "Tentar novamente" stays disabled from its tap until the photo's reading status moves or the request fails (E78-Q5) — Epics 7 and 8 fix batch)*
+
 ### Story 8.3: Run a local OCR service in Docker behind the OcrProvider contract
 
 **Dev model:** opus · **Effort:** medium · Python OCR sidecar in Docker behind a JSON-Schema contract
@@ -1970,6 +2046,12 @@ So that nameplates are read for real with no cloud account and the same contract
 **Given** the `ocr` service image (python:3.13, uv, FastAPI, PaddleOCR, PaddlePaddle CPU, opencv-python, onnxruntime)
 **When** it is built ~~in CI~~ by `docker compose build ocr` (2026-09-21: no CI in the MVP; the build runs locally as part of `pnpm verify` for stories touching `services/ocr`)
 **Then** it starts under the `ocr` profile of docker-compose, answers `GET /health`, and a fixture plate photo returns tokens whose text and boxes match the stored expectation within tolerance (NFR-17, NFR-18)
+
+*(2026-09-28, narrowing: PARSeq has no accents and no case for units; the tests compare accent- and case-insensitive — PR #47)*
+
+*(2026-09-28, narrowing: the image uses `opencv-contrib-python` — PR #47)*
+
+*(2026-09-28, narrowing: the sidecar build and test stay outside `pnpm verify` — PR #47)*
 
 ### Story 8.4: Run the reading job end to end with fixture-driven structuring
 
@@ -1998,6 +2080,16 @@ So that the whole assist is testable with no cloud account and swapping in a pai
 **When** a fixture file declares `outcome: ok | error | timeout` for a photo sha256
 **Then** the job behaves accordingly: `error` and `timeout` exhaust the three attempts and end in `failed` with `reading_status = failed`, `ok` replays the stored tokens and structured values; the outcome field defaults to `ok` (TC-3, R-007)
 
+*(2026-09-28, narrowing: only `plate` readings run; other kinds stay `queued` and the reread route answers 400 — PR #52)*
+
+*(2026-09-28, narrowing: only the reading orients its own copy; the thumb and print variants are not auto-oriented — PR #52)*
+
+*(2026-09-28, narrowing: under `fake`, a photo with no fixture of its own replays its target block type's default fixture (the synthetic plate for `transformador_forca`, its OCR boxes scaled to the image read); any other type fails permanently at its first attempt (E78-Q2) — Epics 7 and 8 fix batch)*
+
+*(2026-09-28, narrowing: the reread route answers 409 `reading_running` while the photo's reading is `running` (E78-Q5) — Epics 7 and 8 fix batch)*
+
+*(2026-09-28, narrowing: a reading whose last attempt dies reaches the `reading-dead` dead letter queue, whose worker writes `failed` while the photo is still `running` and no job of its key is queued or active; a send that fails at file receipt writes `failed` too (E78-Q6, E78-Q7) — Epics 7 and 8 fix batch)*
+
 ### Story 8.5: Accept a digit only when the OCR saw it, and check names against the registries
 
 **Dev model:** opus · **Effort:** ~~medium~~ high *(2026-09-24, Matheus: effort review)* · digit coverage and registry cross-check on the server
@@ -2020,6 +2112,12 @@ So that a misread digit never reaches a signed report.
 **When** the group renders
 **Then** it shows its best guess on the dashed border, is skipped by "Confirmar todos", and confirms only by its own tap (FR-33, FR-41)
 
+*(2026-09-28, narrowing: "Confirmar todos" takes the grounded `suggested` fields without a hint: 9 on the fixture (coordinator decision 2026-09-27) — PR #52)*
+
+*(2026-09-28, narrowing: Celtta and `tap_atual` confirm by their own tap — PR #52)*
+
+*(2026-09-28, narrowing: a stored manufacturer the registry does not hold (a copied one) shows its name and "Criar ⟨nome⟩?", which writes the registry row alone in one tap (E78-Q4) — Epics 7 and 8 fix batch)*
+
 ### Story 8.6: Confirm the plate in one tap with the crop in view
 
 **Dev model:** opus · **Effort:** medium · plate crop UI, field region outlines and the Flow 2b walk
@@ -2041,6 +2139,14 @@ So that the plate costs one shutter and one tap, and two keystrokes for the fiel
 **Given** `preIssue`
 **When** sheets hold pending suggestions
 **Then** the Sumário row 9 and the Export dialog count "3 fichas com sugestões por confirmar" as a warning that never blocks (FR-73)
+
+*(2026-09-28, narrowing: Flow 2b's seven grounded fields are nine; the e2e shows "Confirmar todos (8)" because TENSÃO NOMINAL AT is typed first — PR #54)*
+
+*(2026-09-28, narrowing: only the focused field's region is drawn on the plate crop — PR #54)*
+
+*(2026-09-28, narrowing: the "Criar Celtta?" button's accessible name starts with its visible words ("Criar Celtta?, sugerido"), not "Sugerido, Celtta, confirmar" (WCAG 2.5.3, E78-Q13) — Epics 7 and 8 fix batch)*
+
+*(2026-09-28, narrowing: the plate crop widens the read region to the box's own aspect (`padCropToAspect`), stopping at the picture's full width (E78-Q14) — Epics 7 and 8 fix batch)*
 
 ## Epic 9: More assists: display reading, equipment identity, vision captions, dictation, NC drafts (post-slice)
 

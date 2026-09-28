@@ -9,11 +9,13 @@ import {
   nextEditNote,
   parecerMissingReason,
   pendingSuggestions,
+  progress,
   readyTitle,
   revisionMetaSegments,
   revisionRowSegments,
-  sectionBlocks,
   suggestionRowsOf,
+  sumarioLineOf,
+  sumarioRows,
   toIso,
   type RevisionRow,
   type SumarioRowKey,
@@ -87,19 +89,20 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
   const snapshot = useMemo(() => (entityState === null ? null : buildSnapshot(entityState, relatorioId)), [entityState, relatorioId]);
   // Story 8.6: the device's pending suggestion rows (section 9's warning and the sheets count).
   const pending = useMemo(() => (entityState === null ? [] : pendingSuggestions(suggestionRowsOf(entityState, relatorioId))), [entityState, relatorioId]);
-  const issues = usePreIssue(db, snapshot, null, pending);
+  const computed = useMemo(() => (snapshot === null ? null : progress(snapshot, pending)), [snapshot, pending]);
+  const issues = usePreIssue(db, snapshot, computed, pending);
   const precheck = useMemo(() => exportPrecheck(issues), [issues]);
   const blocked = precheck.blocking.length > 0;
   const control = useMemo(
     () => (snapshot === null ? [] : documentControlRows(snapshot, { revisionNumber: idleNumber, issuedAt: toIso(now()), art: snapshot.relatorio.setup.art_trt_number })),
     [snapshot, idleNumber],
   );
-  // Section 10's Sumário line, the one the blocked reason names.
-  const parecerLine = useMemo(() => {
-    if (snapshot === null) return null;
-    const at = sectionBlocks(snapshot.blocks).findIndex((block) => block.block_type === 'section_10');
-    return at < 0 ? null : at + 1;
-  }, [snapshot]);
+  // Section 10's Sumário line, the one the blocked reason names: the Sumário's own rows (E78-Q1,
+  // virtual ones included), so the dialog and the foot always say the same "linha 10".
+  const parecerLine = useMemo(
+    () => (snapshot === null || computed === null ? null : sumarioLineOf(sumarioRows(snapshot, issues, computed), 'section_10')),
+    [snapshot, issues, computed],
+  );
   const summarizedRows = useMemo(() => {
     const explicit = new Set([...precheck.blocking, ...precheck.explicit]);
     return [...new Set(issues.filter((row) => !explicit.has(row)).map((row) => row.row))];

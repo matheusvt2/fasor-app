@@ -210,7 +210,9 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   }
 
   // Story 6.3: row 7 opens the gallery; Story 6.6: row 8 opens the Points surface (`/relatorio/:id/pontos`).
-  const openable = (row: SumarioRow) => row.kind === 'setup' || row.kind === 'text' || row.rowKey === 'section_7' || row.rowKey === 'section_8';
+  // E78-Q1: a virtual text row has no block for the section text editor, so it does not open.
+  const openable = (row: SumarioRow) =>
+    row.kind === 'setup' || (row.kind === 'text' && !row.virtual) || row.rowKey === 'section_7' || row.rowKey === 'section_8';
 
   return (
     <>
@@ -290,7 +292,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
 
       <div className="sticky-action-bar">
         <span className="btn-reason" id={reasonId}>
-          {generateReason(rows)}
+          {generateReason(rows, issues)}
         </span>
         {preview.phase.kind === 'failed' ? (
           <span className="btn-reason" role="alert">

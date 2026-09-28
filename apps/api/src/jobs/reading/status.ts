@@ -1,8 +1,8 @@
-import { SERVER_DEVICE_ID, toIso, type Clock, type NewId } from '@app/domain';
+import { photoFileRowSchema, SERVER_DEVICE_ID, toIso, type Clock, type NewId } from '@app/domain';
 import { and, desc, eq } from 'drizzle-orm';
 import type { Db } from '../../db/client.ts';
 import type { CompanyId } from '../../db/repositories/company-id.ts';
-import { ops } from '../../db/schema.ts';
+import { entities, ops } from '../../db/schema.ts';
 import { log } from '../../log.ts';
 import { applyServerBatch, ServerBatchRejectedError, type Tx } from '../../sync/apply.ts';
 import type { ReadingPayload } from './payload.ts';
@@ -65,6 +65,70 @@ async function latestStatusOpId(db: Db | Tx, companyId: CompanyId, photoId: stri
 /** The job already wrote its outcome before `running` could be written: `running` is not written over it. */
 class StatusMovedError extends Error {}
 
+/**
+ * E78-Q7: the send of the reading job itself failed (nothing was queued), as opposed to the
+ * `running` write after it. File receipt writes `failed` for it; the reread route answers 500.
+ */
+export class ReadingSendError extends Error {}
+
+/** The photo's stored `reading_status`, or null when the company holds no such photo row. */
+async function storedStatus(db: Db | Tx, companyId: CompanyId, photoId: string): Promise<string | null> {
+  const [found] = await db
+    .select({ row: entities.row })
+    .from(entities)
+    .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'file'), eq(entities.id, photoId)))
+    .limit(1);
+  const parsed = found === undefined ? null : photoFileRowSchema.safeParse(found.row);
+  return parsed === null || !parsed.success ? null : parsed.data.reading_status;
+}
+
+/** Why `writeReadingFailed` wrote nothing: the status moved (or the photo is gone), or `stillLive` said a job will write. */
+class NotStuckError extends Error {}
+
+export interface WriteFailedDeps {
+  db: Db;
+  now: Clock;
+  newId: NewId;
+}
+
+/**
+ * Writes `reading_status = failed` as `system:reading` (E78-Q6, E78-Q7), under the company
+ * lock, only while the photo's status is still `from` and `stillLive` (when given) finds no
+ * job that will write an outcome of its own. Returns whether `failed` was written.
+ */
+export async function writeReadingFailed(
+  deps: WriteFailedDeps,
+  companyId: CompanyId,
+  photo: { id: string; relatorioId: string | null },
+  from: 'queued' | 'running',
+  stillLive?: () => Promise<boolean>,
+): Promise<boolean> {
+  const op = readingServerOp({
+    companyId,
+    relatorioId: photo.relatorioId,
+    kind: 'put',
+    path: readingStatusPath(photo.id),
+    value: 'failed' satisfies ReadingStatusValue,
+    batchId: null,
+    now: deps.now,
+    newId: deps.newId,
+  });
+  try {
+    await applyServerBatch(deps.db, companyId, [op], {
+      now: deps.now,
+      before: async (tx) => {
+        if ((await storedStatus(tx, companyId, photo.id)) !== from) throw new NotStuckError();
+        if (stillLive !== undefined && (await stillLive())) throw new NotStuckError();
+      },
+    });
+    return true;
+  } catch (error) {
+    if (error instanceof NotStuckError) return false;
+    if (error instanceof ServerBatchRejectedError) throw new Error(`reading failed op rejected: ${error.message}`, { cause: error });
+    throw error;
+  }
+}
+
 export interface StartReadingDeps {
   db: Db;
   now: Clock;
@@ -77,7 +141,7 @@ export interface StartReadingDeps {
  * `reading_status` op landed since the job was sent (checked inside the batch transaction,
  * under the company lock): a job fast enough to write `done` or `failed` first keeps its
  * outcome instead of being overwritten by a stale `running`. Returns whether `running` was
- * written. The send throws through to the caller.
+ * written. A failed send throws `ReadingSendError` to the caller, before anything is written.
  */
 export async function startReading(
   deps: StartReadingDeps,
@@ -86,7 +150,11 @@ export async function startReading(
   payload: ReadingPayload,
 ): Promise<boolean> {
   const seen = await latestStatusOpId(deps.db, companyId, photo.id);
-  await deps.enqueue(payload);
+  try {
+    await deps.enqueue(payload);
+  } catch (error) {
+    throw new ReadingSendError(`reading job not sent: ${String(error)}`, { cause: error });
+  }
   const op = readingServerOp({
     companyId,
     relatorioId: photo.relatorioId,

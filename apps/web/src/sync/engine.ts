@@ -22,7 +22,7 @@ import {
   writeSyncState,
 } from '../db/sync-store.ts';
 import { opOf } from '../db/commit.ts';
-import { autoConfirmPending } from '../db/suggestion-store.ts';
+import { autoConfirmPending, hasRunningReading } from '../db/suggestion-store.ts';
 import {
   clearUploadError,
   markBlobAcked,
@@ -134,6 +134,13 @@ export interface SyncEngine {
 }
 
 export const SYNC_INTERVAL_MS = 60_000;
+/**
+ * E78-Q8: while this device holds a photo whose reading is `running`, the next cycle comes
+ * after 5 s instead of 60 s, so "Lendo…" clears about when the server finishes; for at most
+ * 120 s from the first cycle that saw one (the window restarts only once a cycle sees none).
+ */
+export const READING_POLL_INTERVAL_MS = 5_000;
+export const READING_POLL_WINDOW_MS = 120_000;
 
 const defaultSubscribeOnline = (listener: () => void): (() => void) => {
   if (typeof window === 'undefined') return () => {};
@@ -175,6 +182,8 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     supersededCount: 0,
   };
   let timer: unknown = null;
+  /** E78-Q8: when the first cycle of this burst saw a `running` reading (ms of `deps.now()`); null when the last one saw none. */
+  let readingSince: number | null = null;
   let unsubscribe: (() => void) | null = null;
   let started = false;
   /** Set by `stop()`: the in-flight cycle ends at its next step and reports nothing more. */
@@ -500,6 +509,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       if (!status.paused && !stopped) await sweepSuggestions();
       if (!status.paused && !stopped && !status.outdated) await thumbPhase();
       if (!stopped) await evictionPhase();
+      if (!stopped) await observeReadings();
     } finally {
       status.running = false;
       endCycle();
@@ -541,13 +551,44 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       console.error('sync cycle failed', error);
     });
 
+  /** The wait before the next timed cycle: the reading cadence inside its window (E78-Q8), else the interval. */
+  const nextDelay = (): number => {
+    if (readingSince === null || deps.now().getTime() - readingSince >= READING_POLL_WINDOW_MS) return intervalMs;
+    return Math.min(READING_POLL_INTERVAL_MS, intervalMs);
+  };
+
   const schedule = () => {
     timer = deps.timers.setTimeout(() => {
+      timer = null;
       void fireCycle().finally(() => {
-        if (started) schedule();
+        // A cycle that just started a reading burst already set the next, sooner tick.
+        if (started && timer === null) schedule();
       });
-    }, intervalMs);
+    }, nextDelay());
   };
+
+  /**
+   * E78-Q8: after each cycle, whether this device still holds a `running` reading. The first
+   * cycle that sees one opens the window and brings the next tick forward; one that sees
+   * none closes it.
+   */
+  async function observeReadings(): Promise<void> {
+    let running: boolean;
+    try {
+      running = await hasRunningReading(deps.db);
+    } catch {
+      return;
+    }
+    if (!running) {
+      readingSince = null;
+      return;
+    }
+    if (readingSince !== null) return;
+    readingSince = deps.now().getTime();
+    if (!started || stopped) return;
+    if (timer !== null) deps.timers.clearTimeout(timer);
+    schedule();
+  }
 
   async function syncRelatorio(relatorioId: string): Promise<CycleResult> {
     const existing = await readSyncState(deps.db, relatorioId);

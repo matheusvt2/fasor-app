@@ -18,7 +18,8 @@ import { type AppEnv, requireSession } from './session.ts';
 
 /*
  * Story 8.4: `POST /api/photos/{id}/reread` reads an uploaded plate photo again: one new
- * reading job and `reading_status = running` (from `done`, `failed` or `running`); the job
+ * reading job and `reading_status = running` (from `done` or `failed`; E78-Q5: a photo still
+ * `running` answers 409 `reading_running`, no job sent, no run); the job
  * then discards the photo's previous pending suggestions and emits the new run's. The company
  * comes from the session and scopes the lookup (AD-10), so another company's photo, an
  * unknown id, a malformed id and a row that is not a photo all answer the same `404`.
@@ -58,6 +59,8 @@ export function createReadingRoutes(db: Db, deps: ReadingRoutesDeps): Hono<AppEn
     // Only plates are read in the MVP; another kind stays as the device queued it.
     if (photo.reading_kind !== 'plate') return c.json(fail('invalid_request', 'This photo is not a plate reading.'), 400);
     if (photo.uploaded_at === null) return c.json(fail('not_caught_up', 'The photo has not been uploaded yet.'), 409);
+    // E78-Q5: a reading already running is not started again (every further tap was one more run).
+    if (photo.reading_status === 'running') return c.json(fail('reading_running', 'This photo is being read.'), 409);
     const enqueue = deps.enqueueReading;
     if (enqueue === undefined) throw new Error('reread: no reading queue is wired');
 
