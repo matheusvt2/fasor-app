@@ -61,6 +61,7 @@ async function arm(page: Page, trigger: 'tap' | 'enter', selector: string, attr:
       w.__commitToRender = new Promise<number>((resolveSample, reject) => {
         let t0: number | null = null;
         const onInput = (event: Event) => {
+          log.push(`input ${event.type}`);
           if (t0 !== null) return;
           if (event instanceof KeyboardEvent && event.key !== 'Enter') return;
           t0 = performance.now();
@@ -73,7 +74,11 @@ async function arm(page: Page, trigger: 'tap' | 'enter', selector: string, attr:
           observer.disconnect();
           for (const name of events) window.removeEventListener(name, onInput, true);
         };
+        let calls = 0;
+        const log: string[] = [`armed holds=${holds()}`];
         const observer = new MutationObserver(() => {
+          calls += 1;
+          log.push(`cb t0=${t0 !== null} holds=${holds()}`);
           if (t0 === null || !holds()) return;
           stop();
           clearTimeout(timer);
@@ -82,7 +87,8 @@ async function arm(page: Page, trigger: 'tap' | 'enter', selector: string, attr:
         });
         const timer = setTimeout(() => {
           stop();
-          reject(new Error(`no render of ${selector} [${attr}=${String(expected)}] within 60 s`));
+          const seen = [...document.querySelectorAll<HTMLElement>(selector)].map((el) => `${el.getAttribute(attr)}/${el.getClientRects().length}`);
+          reject(new Error(`no render of ${selector} [${attr}=${String(expected)}] within 60 s (input seen: ${t0 !== null}, callbacks: ${calls}, matches: ${seen.join(',')}; ${log.join(' | ')})`));
         }, 60_000);
         for (const name of events) window.addEventListener(name, onInput, true);
         observer.observe(document.body, { subtree: true, attributes: true, childList: true });
@@ -98,9 +104,12 @@ async function checklistTaps(page: Page): Promise<number[]> {
   const out: number[] = [];
   for (let i = 0; i < SAMPLES; i += 1) {
     const n = i % ITEMS.length;
-    const name = Math.floor(i / ITEMS.length) % 2 === 0 ? 'Conforme' : 'Não conforme';
+    const row = `#ficha-step-verificacoes li.checklist-row[data-item-key="${ITEMS[n]!.key}"]`;
+    // The segment not chosen now, so every tap changes the row (a row may already hold a value).
+    const conforme = await page.locator(`${row} [role="radio"][aria-label="Conforme"]`).filter({ visible: true }).getAttribute('aria-checked');
+    const name = conforme === 'true' ? 'Não conforme' : 'Conforme';
     // Found by the row's item key and the segment's name, so a re-render that remounts the row still matches.
-    const selector = `#ficha-step-verificacoes li.checklist-row[data-item-key="${ITEMS[n]!.key}"] [role="radio"][aria-label="${name}"]`;
+    const selector = `${row} [role="radio"][aria-label="${name}"]`;
     const segment = page.locator(selector).filter({ visible: true });
     await segment.scrollIntoViewIfNeeded();
     await arm(page, 'tap', selector, 'aria-checked', 'true');
@@ -119,12 +128,13 @@ async function measurementEntries(page: Page): Promise<number[]> {
   const out: number[] = [];
   for (let i = 0; i < SAMPLES; i += 1) {
     const key = keys[i % keys.length]!;
-    // The first pass writes out-of-limit values, the next in-limit ones, and so on: every entry changes the cell's state.
-    const out_ = Math.floor(i / keys.length) % 2 === 0;
+    const selector = `.ficha-cell[data-cell="${key}"] .measurement-field`;
+    // The value whose verdict differs from the cell's now, so every entry changes its state.
+    const state = await page.locator(selector).filter({ visible: true }).getAttribute('data-state');
+    const out_ = state !== 'out-of-limit';
     const input = page.locator(`input[data-cell-input="${key}"]`).filter({ visible: true });
     await input.click();
     await input.fill(out_ ? OUT_VALUE : IN_VALUE);
-    const selector = `.ficha-cell[data-cell="${key}"] .measurement-field`;
     await arm(page, 'enter', selector, 'data-state', out_ ? 'out-of-limit' : null);
     await page.keyboard.press('Enter');
     out.push(await sample(page));
