@@ -1057,3 +1057,33 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: `reviews/epic-7-8-review-qa.md` E78-Q15; tracked under E7-A3 (2026-09-28).
   class: bug
   state: ~~open (owner: Epic 9 batch C1 fixes the fixture value to 13.2; the dual-voltage secondary stays with Matheus (E7-A5))~~ TTR half closed (2026-09-28, `spec-epic-9-carry-over.md`, batch C1, E7-A3: the seven transformer ratios store V PRIMÁRIO `13.2` and print "13,2 kV"; goldens regenerated; `op-log.test.ts` "E7-A3 ... TR-1"); open for the dual-voltage secondary "380/220" (owner: Matheus, E7-A5)
+
+- source_spec: spec-9-1-read-the-instrument-display-with-ler-visor.md
+  summary: Story 9.1 narrowing: a thermo-hygrometer suggestion confirmed on the cabine environment gets no provenance glyph: `location/{id}/env/*` values are bare number values with no cell provenance (`source_suggestion_id`).
+  evidence: `packages/domain/src/schemas/entities.ts` `locationEnvSchema`; `apps/web/src/surfaces/ficha/read-display.tsx` (no confirmed crop on env fields).
+  class: question
+  state: open (owner: Epic 9 integrated review)
+
+- source_spec: spec-9-1-read-the-instrument-display-with-ler-visor.md
+  summary: Story 9.1 narrowing: pending thermo-hygrometer suggestions count in Sync status ("Leituras") but not in the pre-issue section 9 row or the Sumário, which read sheet suggestions only.
+  evidence: `livePendingSuggestions(blocks, pending, locations)` keeps env rows only when `locations` is given; `db/suggestion-store.ts` `readingCountRows` passes them, `relatorio/pre-issue.ts` does not.
+  class: question
+  state: open (owner: Epic 9 integrated review)
+
+- source_spec: spec-9-1-read-the-instrument-display-with-ler-visor.md
+  summary: Story 9.1 narrowing: a display reading that failed has no retry UI on the cell (the plate's "Tentar novamente" has no display counterpart); `POST /api/photos/{id}/reread` already accepts display photos.
+  evidence: `apps/web/src/surfaces/ficha/read-display.tsx` `QueuedBanner` shows queued and running only; `apps/api/src/http/reading.ts`.
+  class: debt
+  state: open (owner: Epic 9 integrated review)
+
+- source_spec: spec-9-1-read-the-instrument-display-with-ler-visor.md
+  summary: Story 9.1 spike finding: the plate pipeline reads the tiny real display crops better than the chosen display path (8 of 15 against 6 of 15, cleaner confidences); running both and keeping the higher-confidence value is the next experiment, once real tablet photos exist.
+  evidence: `docs/display-reading-spike.md` § Caveats and next steps.
+  class: question
+  state: open (owner: E8-A8 follow-up)
+
+- source_spec: spec-9-1-read-the-instrument-display-with-ler-visor.md
+  summary: Story 9.1 open questions: the range source for the unit-less megôhmetro (E8-A3: the unit comes from the cell, the previous row or the column default, a column default on an insulation column being Verificar); stored 30 s / 10 min values dropped (print-only columns, Conflict 3); the 2 ambiguous crops #08/#10 (E8-A8); the SM-3 recount (measured 20 taps and 9 keys with Enter confirming down the run; EXPERIENCE.md's 19 taps assumed 5 base taps and per-table "Confirmar todos").
+  evidence: `spec-9-1-read-the-instrument-display-with-ler-visor.md` Open questions; `e2e/tap-budget-signal.spec.ts`.
+  class: question
+  state: open (owner: Matheus)

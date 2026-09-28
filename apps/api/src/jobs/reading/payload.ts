@@ -7,6 +7,7 @@ import { z } from 'zod';
  */
 
 export const readingKindSchema = z.enum(['plate', 'display', 'caption', 'panel', 'nc_obs']);
+export type ReadingKind = z.infer<typeof readingKindSchema>;
 
 export const readingPayloadSchema = z.object({
   company_id: uuidV7Schema,

@@ -14,6 +14,10 @@ import { usePhotoCapture, type CaptureTarget } from './use-photo-capture.ts';
  * caption fixed when the camera opened. A denied camera shows its reason and the OS path
  * under the opener (never a dialog, never a silent no-op); a browser with no camera API
  * falls back to the system camera through a hidden `capture` file input, one shot.
+ *
+ * Story 9.1 ("Ler visor"): a burst may give each shot its own target (`shotTarget`, the
+ * Measurement row the shot reads), the hint line naming the next one (`shotHint`); when there
+ * is no next target the shutter is disabled and only "Concluir" is left.
  */
 
 const DENIED_ERRORS = new Set(['NotAllowedError', 'SecurityError', 'PermissionDeniedError']);
@@ -21,6 +25,17 @@ const DENIED_ERRORS = new Set(['NotAllowedError', 'SecurityError', 'PermissionDe
 interface CameraSession {
   stream: MediaStream;
   target: CaptureTarget;
+}
+
+export interface CameraOptions {
+  /** Story 8.2: the first shutter tap is the only one, and the view closes once it is saved. */
+  singleShot?: boolean;
+  /** Story 9.1: the target of the `shot`-th shot of the burst (0-based); null when nothing is left to shoot. */
+  shotTarget?: (shot: number) => CaptureTarget | null;
+  /** Story 9.1: the hint line before the `shot`-th shot ("Próxima leitura: …"). */
+  shotHint?: (shot: number) => string;
+  /** Story 9.1: the closing button's word ("Concluir"); default "Concluir fotos". */
+  doneLabel?: string;
 }
 
 export interface CameraControl {
@@ -42,9 +57,10 @@ export function useCamera(
   relatorioId: string,
   target: () => CaptureTarget,
   opener: RefObject<HTMLElement | null>,
-  options: { singleShot?: boolean } = {},
+  options: CameraOptions = {},
 ): CameraControl {
   const single = options.singleShot === true;
+  const { shotTarget, shotHint } = options;
   const capture = usePhotoCapture(relatorioId);
   const { showToast } = useToast();
   const [session, setSession] = useState<CameraSession | null>(null);
@@ -71,20 +87,34 @@ export function useCamera(
   const shotTaken = useRef(false);
   // ...and whether its frame was actually read and handed to the capture (its done toast).
   const shotGrabbed = useRef(false);
+  // Story 9.1: the taps of this session (the index of the next shot's target) and the target
+  // the tap in progress took, which its grab saves the frame with.
+  const taken = useRef(0);
+  const [takenCount, setTakenCount] = useState(0);
+  const tapTarget = useRef<CaptureTarget | null>(null);
 
   const startSession = (next: CameraSession | null) => {
     sessionRef.current = next;
     if (next !== null) {
       shotTaken.current = false;
       shotGrabbed.current = false;
+      taken.current = 0;
+      setTakenCount(0);
     }
     setSession(next);
   };
 
-  /** The shutter's tap: counted, unless a single-shot session already has its shot. */
+  /** The shutter's tap: counted, unless a single-shot session already has its shot or no target is left. */
   const shutter = (): boolean => {
     if (single && shotTaken.current) return false;
+    if (shotTarget !== undefined) {
+      const target = shotTarget(taken.current);
+      if (target === null) return false;
+      tapTarget.current = target;
+    }
     shotTaken.current = true;
+    taken.current += 1;
+    setTakenCount(taken.current);
     setBurst((n) => n + 1);
     return true;
   };
@@ -146,7 +176,8 @@ export function useCamera(
 
   /** One grab of the shutter: tracked until it resolves, then saved (or reported). */
   const grab = (frame: Promise<ImageBitmap>) => {
-    const target = sessionRef.current?.target ?? null;
+    const target = tapTarget.current ?? sessionRef.current?.target ?? null;
+    tapTarget.current = null;
     const done: Promise<void> = frame.then(
       (bitmap) => {
         if (target === null) {
@@ -235,6 +266,9 @@ export function useCamera(
           stream={session.stream}
           caption={session.target.caption}
           count={burst}
+          hint={shotHint === undefined ? null : shotHint(takenCount)}
+          shutterDisabled={shotTarget !== undefined && shotTarget(takenCount) === null}
+          doneLabel={options.doneLabel ?? null}
           onShutter={shutter}
           onGrab={grab}
           onDone={finish}
@@ -269,6 +303,9 @@ function CameraView({
   stream,
   caption,
   count,
+  hint,
+  shutterDisabled,
+  doneLabel,
   onShutter,
   onGrab,
   onDone,
@@ -277,6 +314,11 @@ function CameraView({
   stream: MediaStream;
   caption: string | null;
   count: number;
+  /** Story 9.1: the hint line in place of the default one. */
+  hint: string | null;
+  /** Story 9.1: nothing is left to shoot ("Nada mais a ler nesta ficha"). */
+  shutterDisabled: boolean;
+  doneLabel: string | null;
   /** Counts the tap; false when the tap takes no shot (a single-shot view already has it). */
   onShutter: () => boolean;
   /** The frame being read for this tap (rejects when there is none). */
@@ -335,14 +377,16 @@ function CameraView({
             <span className="cam-corner bl" aria-hidden="true" />
             <span className="cam-corner br" aria-hidden="true" />
           </div>
-          <p className="cam-hint">{t.hint}</p>
+          <p className="cam-hint" aria-live="polite">
+            {hint ?? t.hint}
+          </p>
           <div className="cam-bottom">
             <span className="cam-link" aria-hidden="true" />
-            <AriaButton className="cam-shutter" aria-label={t.shutter} onPress={fire} autoFocus>
+            <AriaButton className="cam-shutter" aria-label={t.shutter} onPress={fire} isDisabled={shutterDisabled} autoFocus>
               <span aria-hidden="true" />
             </AriaButton>
             <AriaButton className="btn btn-secondary cam-done" onPress={onDone}>
-              {t.done}
+              {doneLabel ?? t.done}
             </AriaButton>
           </div>
           <p className="cam-count" role="status">

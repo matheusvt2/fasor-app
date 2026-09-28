@@ -19,6 +19,8 @@ export interface CropThumbProps {
   label: string;
   /** Opens the Photo viewer on the region; absent, the tap does nothing. */
   onPress?: () => void;
+  /** Story 9.1: what the picture is of, for its names ("Ver recorte do visor"); default `plate`. */
+  source?: 'plate' | 'display';
 }
 
 /*
@@ -80,18 +82,20 @@ function regionStyle(bbox: Bbox, size: { width: number; height: number }): CSSPr
  * mock's `.thumb-fake` stands in meanwhile. 48 px beside a suggestion, a 24 px glyph (the
  * hit area stays 48 px) once confirmed; the tap opens the Photo viewer on the region.
  */
-export function CropThumb({ photoId, bbox, label, onPress }: CropThumbProps) {
+export function CropThumb({ photoId, bbox, label, onPress, source = 'plate' }: CropThumbProps) {
+  const t = ui.suggestionField;
   const src = useObjectUrl(useCropSource(photoId));
   const [size, setSize] = useState<{ src: string; width: number; height: number } | null>(null);
   const loaded = size !== null && size.src === src;
+  const alt = source === 'display' ? t.cropDisplayAlt : t.cropAlt;
   return (
-    <button type="button" className="crop-thumb" aria-label={ui.suggestionField.cropLabel(label)} onClick={onPress} data-photo-id={photoId}>
-      {loaded ? null : <i className="thumb-fake" role="img" aria-label={ui.suggestionField.cropAlt} />}
+    <button type="button" className="crop-thumb" aria-label={source === 'display' ? t.cropDisplayLabel(label) : t.cropLabel(label)} onClick={onPress} data-photo-id={photoId}>
+      {loaded ? null : <i className="thumb-fake" role="img" aria-label={alt} />}
       {src === null ? null : (
         <span className="crop-picture" hidden={!loaded}>
           <img
             src={src}
-            alt={ui.suggestionField.cropAlt}
+            alt={alt}
             style={loaded ? regionStyle(bbox, size) : undefined}
             onLoad={(event) => setSize({ src, width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
           />

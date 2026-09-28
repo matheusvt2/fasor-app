@@ -6,6 +6,7 @@ import {
   type BlockDefinition,
   type BlockRow,
   type CellAddress,
+  type EntityState,
   type EvaluatedCell,
   type EvaluatedRow,
   type EvaluatedTable,
@@ -13,13 +14,15 @@ import {
   type RelatorioSnapshot,
   type TestEvaluation,
 } from '@app/domain';
-import { useId, useMemo, useRef } from 'react';
+import { useId, useMemo, useRef, type ReactNode } from 'react';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
 import type { FichaApi } from './ficha-api.ts';
 import { InstrumentPicker } from './instrument-picker.tsx';
-import { cellKey, MeasurementField, ReadOnlyMeasurementField, type RunDirection } from './measurement-field.tsx';
+import { cellKey, ReadOnlyMeasurementField, type RunDirection } from './measurement-field.tsx';
+import { ConfirmTableButton, ReadDisplayButton, ReadingCell, useDisplaySuggestions, type DisplayModel } from './read-display.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
+import type { CaptureTarget } from './use-photo-capture.ts';
 
 /*
  * The "Ensaios" step (Stories 5.5-5.7, FR-27, UX-DR39/40/42; `60-ficha.html`): one section
@@ -30,13 +33,16 @@ import { useSheetReadOnly } from './sheet-read-only.tsx';
  * mark. Only the ratio (TTR) tables stack into cards below 768 px (`ficha.css`). The whole
  * step is one continuous Enter run (`runTarget`): down the column, then the first empty
  * cell of what follows, and "Concluir ficha"/"Próxima ficha" after the last. Everything
- * shown is the kernel's one evaluation (`evaluateSheetReadings`). "Ler visor" and
- * Dictation are later epics' and are not drawn. On a sheet marked not tested (Story 5.9)
+ * shown is the kernel's one evaluation (`evaluateSheetReadings`). Story 9.1: each table's
+ * title row carries "Ler visor" and, while it holds suggested readings, "Confirmar todos"
+ * (`.mt-actions`); each cell shows its display reading (`read-display.tsx`). Dictation is a
+ * later story's and is not drawn. On a sheet marked not tested (Story 5.9)
  * every section is `.is-readonly` with the reason line: the cells show their stored
  * readings as read-only text and the Instrument picker its stored instrument, unchangeable.
  */
 export function EnsaiosSection({
   api,
+  state,
   snapshot,
   block,
   definition,
@@ -44,8 +50,12 @@ export function EnsaiosSection({
   className,
   onFocus,
   primaryId,
+  targetFor,
+  onCaptionPhoto,
 }: {
   api: FichaApi;
+  /** Story 9.1: the device's rows, for the display suggestions. */
+  state: EntityState;
   snapshot: RelatorioSnapshot;
   block: BlockRow;
   definition: BlockDefinition;
@@ -54,8 +64,12 @@ export function EnsaiosSection({
   onFocus: () => void;
   /** The Sticky action bar's primary button, where the run ends. */
   primaryId: string;
+  /** Story 9.1: the capture target of a "Ler visor" shot of one test. */
+  targetFor: (testKey: string) => CaptureTarget;
+  onCaptionPhoto?: Parameters<typeof useDisplaySuggestions>[0]['onCaptionPhoto'];
 }) {
   const evaluations = useMemo(() => evaluateSheetReadings(block, definition), [block, definition]);
+  const display = useDisplaySuggestions({ api, state, snapshot, block, onCaptionPhoto });
   const host = useRef<HTMLDivElement | null>(null);
   const firstMissing = useMemo(() => evaluatedCells(evaluations).find((cell) => cell.missing)?.address ?? null, [evaluations]);
 
@@ -87,15 +101,18 @@ export function EnsaiosSection({
         <TestSection
           key={test.testKey}
           api={api}
+          snapshot={snapshot}
           block={block}
-          blocks={snapshot.blocks}
+          definition={definition}
           test={test}
           instruments={instruments}
-          serviceEnd={snapshot.relatorio.setup.service_end}
           firstMissing={firstMissing}
           onRun={onRun}
+          display={display}
+          targetFor={targetFor}
         />
       ))}
+      {display.viewer}
     </div>
   );
 }
@@ -106,27 +123,50 @@ function sameAddress(a: CellAddress | null, b: CellAddress): boolean {
 
 function TestSection({
   api,
+  snapshot,
   block,
-  blocks,
+  definition,
   test,
   instruments,
-  serviceEnd,
   firstMissing,
   onRun,
+  display,
+  targetFor,
 }: {
   api: FichaApi;
+  snapshot: RelatorioSnapshot;
   block: BlockRow;
-  blocks: readonly BlockRow[];
+  definition: BlockDefinition;
   test: TestEvaluation;
   instruments: readonly InstrumentRow[];
-  serviceEnd: string | null;
   firstMissing: CellAddress | null;
   onRun: (from: CellAddress, direction: RunDirection) => boolean;
+  display: DisplayModel;
+  targetFor: (testKey: string) => CaptureTarget;
 }) {
   const headingId = useId();
   const readOnly = useSheetReadOnly();
+  const blocks = snapshot.blocks;
+  const serviceEnd = snapshot.relatorio.setup.service_end;
   const tables = test.tables.map((table) => (
-    <MeasurementTable key={table.key} api={api} test={test} table={table} firstMissing={firstMissing} onRun={onRun} readOnly={readOnly} />
+    <MeasurementTable
+      key={table.key}
+      api={api}
+      test={test}
+      table={table}
+      firstMissing={firstMissing}
+      onRun={onRun}
+      readOnly={readOnly}
+      display={display}
+      actions={
+        readOnly ? null : (
+          <div className="mt-actions">
+            <ReadDisplayButton api={api} snapshot={snapshot} block={block} definition={definition} testKey={test.testKey} tableKey={table.key} targetFor={targetFor} />
+            <ConfirmTableButton model={display} testKey={test.testKey} tableKey={table.key} />
+          </div>
+        )
+      }
+    />
   ));
   return (
     <section className={readOnly ? 'section is-readonly' : 'section'} aria-labelledby={headingId} data-test-key={test.testKey}>
@@ -147,6 +187,8 @@ function MeasurementTable({
   firstMissing,
   onRun,
   readOnly,
+  display,
+  actions,
 }: {
   api: FichaApi;
   test: TestEvaluation;
@@ -154,6 +196,9 @@ function MeasurementTable({
   firstMissing: CellAddress | null;
   onRun: (from: CellAddress, direction: RunDirection) => boolean;
   readOnly: boolean;
+  display: DisplayModel;
+  /** Story 9.1: the title row's `.mt-actions` ("Ler visor", "Confirmar todos"). */
+  actions: ReactNode;
 }) {
   const t = copy.ficha.ensaios;
   const titleId = useId();
@@ -162,7 +207,8 @@ function MeasurementTable({
     readOnly ? (
       <ReadOnlyMeasurementField cell={cell} label={t.cellLabel(screenLabel(row.label), screenLabel(cell.column))} />
     ) : (
-      <MeasurementField
+      <ReadingCell
+        model={display}
         api={api}
         cell={cell}
         label={t.cellLabel(screenLabel(row.label), screenLabel(cell.column))}
@@ -191,6 +237,7 @@ function MeasurementTable({
           </summary>
           <p>{test.sourceName}</p>
         </details>
+        {actions}
       </div>
       <table className={table.ratio ? 'measurement-table ficha-ttr is-wide' : 'measurement-table'} aria-labelledby={table.title === null ? undefined : titleId} aria-label={table.title === null ? screenLabel(test.title) : undefined}>
         <thead>

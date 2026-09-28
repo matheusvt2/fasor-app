@@ -83,6 +83,17 @@ describe('8.4-API ocr-svc provider', () => {
     expect(seen[1]!.contentType).toBe('image/png');
   });
 
+  it('Story 9.1: a display read posts the same body to OCR_SERVICE_URL + /read/display; a text read to /read', async () => {
+    handler = reply(200, JSON.stringify(READ));
+    expect(await ocrSvcProvider(baseUrl).read(image, { mode: 'display' })).toEqual(READ);
+    await ocrSvcProvider(baseUrl).read(image, { mode: 'text' });
+    expect(seen.map((request) => [request.method, request.url, request.contentType])).toEqual([
+      ['POST', '/read/display', 'image/jpeg'],
+      ['POST', '/read', 'image/jpeg'],
+    ]);
+    expect(new Uint8Array(seen[0]!.body)).toEqual(image.bytes);
+  });
+
   it('a 422 and a 413 are permanent', async () => {
     handler = reply(422, JSON.stringify({ error: 'invalid_image' }));
     const invalid = await failure(ocrSvcProvider(baseUrl).read(image));
