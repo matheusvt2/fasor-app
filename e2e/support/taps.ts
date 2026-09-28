@@ -4,6 +4,9 @@ import { expect, test } from './merged-fixtures.ts';
 /** How long a human finger rests on the glass in a plain tap. */
 export const TAP_HOLD_MS = 80;
 
+/** The longest a tap waits for its target to be the thing under its centre before the finger goes down. */
+const SETTLE_MS = 2_000;
+
 /**
  * Story 12.1: a tap the way a hand makes it, not Playwright's instantaneous `click()`:
  * the pointer goes down at the element's centre, stays about 80 ms, and comes up at the
@@ -27,7 +30,7 @@ export async function humanTap(page: Page, target: Locator, info: TestInfo, befo
   // the pointer goes down (a frame still settling is waited out); what moves it after that
   // is exactly what the tap is testing.
   const covering = await target.evaluate(
-    async (element) => {
+    async (element, settleMs) => {
       const hitsCentre = () => {
         const rect = element.getBoundingClientRect();
         const x = rect.left + rect.width / 2;
@@ -37,15 +40,22 @@ export async function humanTap(page: Page, target: Locator, info: TestInfo, befo
         return hit !== null && (hit === element || element.contains(hit)) ? true : hit;
       };
       if (hitsCentre() !== true) element.scrollIntoView({ block: 'center', inline: 'nearest' });
+      // The page settles for at least 10 frames and up to SETTLE_MS (test-speed batch,
+      // 2026-09-27): after a choice in a Combobox the page stays aria-hidden (so
+      // pointer-events: none) until React has drawn the list closed, and on a loaded machine
+      // that render can come after 10 frames. A person waits for the field to be there
+      // before tapping; the tap itself, and the effect it must show on the first try, are
+      // unchanged.
       let last: ReturnType<typeof hitsCentre> = null;
-      for (let frame = 0; frame < 10; frame += 1) {
+      const settleUntil = performance.now() + settleMs;
+      for (let frame = 0; frame < 10 || performance.now() < settleUntil; frame += 1) {
         last = hitsCentre();
         if (last === true) return null;
         await new Promise((resolve) => requestAnimationFrame(resolve));
       }
       return last === null ? 'nothing (off screen)' : `${last.tagName.toLowerCase()}.${last.className}`;
     },
-    undefined,
+    SETTLE_MS,
     { timeout: 10_000 },
   );
   if (covering !== null) throw new Error(`humanTap: the target's centre hits ${covering}`);
