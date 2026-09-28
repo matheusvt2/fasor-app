@@ -1,0 +1,60 @@
+import type { OcrProvider, StructuringProvider } from '@app/domain';
+import type { Config } from '../../../config.ts';
+import { DEFAULT_FIXTURES_DIR, fakeOcrProvider, fakeStructuringProvider } from './fake.ts';
+import { ocrSvcProvider } from './ocr-svc.ts';
+import { unimplementedOcrProvider, unimplementedStructuringProvider } from './unimplemented.ts';
+
+export * from './errors.ts';
+
+/*
+ * Story 8.4 (AD-27): the reading providers chosen by env. Both default to `fake` and compose
+ * keeps `fake`; `ocr-svc` calls the local sidecar; `textract`, `anthropic` and `bedrock` are
+ * the Epic 11 slots, present and failing permanently. The backend never uses a personal
+ * Claude subscription and no provider here reads a cloud credential.
+ */
+
+export interface ReadingProviders {
+  ocr: OcrProvider;
+  structuring: StructuringProvider;
+  /** The `reading_runs.ocr_provider` of the attempt. */
+  ocr_name: string;
+}
+
+/** The providers of one attempt; the fakes key their fixture by the photo's sha256. */
+export type ReadingProvidersFactory = (ctx: { photo_sha256: string }) => ReadingProviders;
+
+export interface ReadingProviderOptions {
+  /** The fake fixtures directory; defaults to the committed `fixtures/`. */
+  fixturesDir?: string;
+  /** The `ocr-svc` timeout in ms; defaults to 60 s. */
+  ocrTimeoutMs?: number;
+}
+
+export function createReadingProviders(
+  config: Pick<Config, 'OCR_PROVIDER' | 'LLM_PROVIDER' | 'OCR_SERVICE_URL'>,
+  options: ReadingProviderOptions = {},
+): ReadingProvidersFactory {
+  const fixturesDir = options.fixturesDir ?? DEFAULT_FIXTURES_DIR;
+  return ({ photo_sha256 }) => {
+    const ocr = (() => {
+      switch (config.OCR_PROVIDER) {
+        case 'fake':
+          return fakeOcrProvider(fixturesDir, photo_sha256);
+        case 'ocr-svc':
+          return ocrSvcProvider(config.OCR_SERVICE_URL, options.ocrTimeoutMs === undefined ? {} : { timeoutMs: options.ocrTimeoutMs });
+        case 'textract':
+          return unimplementedOcrProvider('textract');
+      }
+    })();
+    const structuring = (() => {
+      switch (config.LLM_PROVIDER) {
+        case 'fake':
+          return fakeStructuringProvider(fixturesDir, photo_sha256);
+        case 'anthropic':
+        case 'bedrock':
+          return unimplementedStructuringProvider(config.LLM_PROVIDER);
+      }
+    })();
+    return { ocr, structuring, ocr_name: config.OCR_PROVIDER };
+  };
+}

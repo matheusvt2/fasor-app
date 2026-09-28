@@ -10,12 +10,15 @@ import type { Db } from '../db/client.ts';
 import { newId as mintId } from '../ids.ts';
 import type { GeneratePayload } from '../jobs/generate/job.ts';
 import { enqueueGenerate } from '../jobs/generate/worker.ts';
+import type { ReadingPayload } from '../jobs/reading/payload.ts';
+import { enqueueReading } from '../jobs/reading/worker.ts';
 import { log, logError } from '../log.ts';
 import { createSyncRoutes } from '../sync/routes.ts';
 import { createAccountRoutes } from './account.ts';
 import { createFileRoutes } from './files.ts';
 import { createGenerateRoutes } from './generate.ts';
 import { createHealthRoutes, type HealthProbes } from './health.ts';
+import { createReadingRoutes } from './reading.ts';
 import { type AppEnv, sessionMiddleware, UnauthenticatedError, unauthenticatedError } from './session.ts';
 
 // `apps/web/dist` is bind-mounted alongside the api source; api commands run
@@ -89,6 +92,11 @@ export interface AppOptions {
   boss?: PgBoss;
   /** Test override of the send to the queue; wins over `boss` when given. */
   enqueueGenerate?: (payload: GeneratePayload) => Promise<void>;
+  /**
+   * Story 8.4: test override of the send to the `reading` queue; wins over `boss`. With
+   * neither, file receipt leaves a plate photo `queued` and the reread route answers 500.
+   */
+  enqueueReading?: (payload: ReadingPayload) => Promise<void>;
 }
 
 const notFoundBody: ErrorResponse = { code: 'not_found', message: 'No such route.' };
@@ -134,9 +142,26 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
   app.route('/', createSyncRoutes(options.db, { now: options.now ?? clock }));
   // AD-7: mounted after the sync routes so it sits behind the same `/api/*` session
   // middleware; every handler resolves its company from the session (AD-10).
-  app.route('/', createFileRoutes(options.db, options.s3, options.bucket, { now: options.now ?? clock }));
-  // AD-15: the generate barrier and the revision download, behind the same session middleware.
   const boss = options.boss;
+  const sendReading =
+    options.enqueueReading ?? (boss === undefined ? undefined : (payload: ReadingPayload) => enqueueReading(boss, payload));
+  app.route(
+    '/',
+    createFileRoutes(options.db, options.s3, options.bucket, {
+      now: options.now ?? clock,
+      ...(sendReading === undefined ? {} : { enqueueReading: sendReading }),
+    }),
+  );
+  // Story 8.4: the reread route, behind the same session middleware.
+  app.route(
+    '/',
+    createReadingRoutes(options.db, {
+      now: options.now ?? clock,
+      newId: options.newId ?? mintId,
+      ...(sendReading === undefined ? {} : { enqueueReading: sendReading }),
+    }),
+  );
+  // AD-15: the generate barrier and the revision download, behind the same session middleware.
   const enqueue = options.enqueueGenerate ?? (boss === undefined ? undefined : (payload: GeneratePayload) => enqueueGenerate(boss, payload));
   app.route(
     '/',

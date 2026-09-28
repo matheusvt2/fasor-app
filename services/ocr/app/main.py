@@ -9,9 +9,11 @@ through the pydantic models generated from the kernel's JSON Schema
 (`app/contract_models.py`, generated at image build time).
 """
 
+import json
 import logging
 import threading
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
@@ -22,8 +24,13 @@ from .detector import DETECTION_MODEL, load_detector
 from .pipeline import InvalidImage, decode, read_image
 from .recognizer import RECOGNITION_MODEL, load_recognizer
 
-# Mirrors OCR_READ_MAX_BYTES in packages/domain/src/contract/ocr.ts.
-READ_MAX_BYTES = 20 * 1024 * 1024
+# The routes and the body limit come from the kernel's exported contract
+# (`x-ocr-service` in contract/ocr-contract.schema.json, written by `pnpm schema:ocr` from
+# OCR_SERVICE_ROUTES and OCR_READ_MAX_BYTES), so no literal here can drift from the api.
+_SERVICE = json.loads((Path(__file__).resolve().parents[1] / "contract" / "ocr-contract.schema.json").read_text())["x-ocr-service"]
+READ_PATH: str = _SERVICE["routes"]["read"]
+HEALTH_PATH: str = _SERVICE["routes"]["health"]
+READ_MAX_BYTES: int = _SERVICE["read_max_bytes"]
 ACCEPTED_TYPES = {"image/jpeg", "image/png", "application/octet-stream"}
 
 log = logging.getLogger("ocr")
@@ -51,7 +58,7 @@ def _error(code: str, status: int) -> Response:
     return _json(OcrErrorResponse.model_validate({"error": code}), status)
 
 
-@app.get("/health")
+@app.get(HEALTH_PATH)
 async def health() -> Response:
     if "detector" not in models or "recognizer" not in models:
         return JSONResponse({"status": "starting"}, status_code=503)
@@ -78,7 +85,7 @@ def _run(image):
         return read_image(image, models["detector"], models["recognizer"])
 
 
-@app.post("/read")
+@app.post(READ_PATH)
 async def read(request: Request) -> Response:
     body = await _read_body(request)
     if body is None:

@@ -207,6 +207,12 @@ export function ocrContractJsonSchema(): Record<string, unknown> {
     description:
       'Generated from packages/domain/src/contract/ocr.ts by `pnpm schema:ocr`; do not edit. ' +
       'The OCR sidecar (services/ocr) and the api reading job speak these shapes.',
+    // Story 8.4: the sidecar reads its routes and body limit from here, so the drift test
+    // covers them too (no literal is repeated in services/ocr).
+    'x-ocr-service': {
+      routes: { read: OCR_SERVICE_ROUTES.read.path, health: OCR_SERVICE_ROUTES.health.path },
+      read_max_bytes: OCR_READ_MAX_BYTES,
+    },
     $defs,
   };
 }
