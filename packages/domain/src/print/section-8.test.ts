@@ -152,6 +152,7 @@ describe('7.3-UNIT-004 section 8 layout', () => {
       reading_kind: null,
       reading_target: null,
       reading_status: 'none' as const,
+      people_in_photo: false,
     });
     const snapshot = addPoint({ ...base, files: [photo(B, '2026-09-06T18:00:00.000Z'), photo(A, '2026-09-06T17:00:00.000Z')] }, { text: `Ver ${photoToken(B)} e ${photoToken(A)}.` });
     expect(numberPhotos(snapshot.files).get(B)).toBe(2);

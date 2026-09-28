@@ -1,4 +1,4 @@
-import type { OcrProvider, StructuringProvider } from '@app/domain';
+import type { OcrProvider, ProseProvider, StructuringProvider } from '@app/domain';
 import { ProviderNotImplementedError } from './errors.ts';
 
 /*
@@ -19,6 +19,15 @@ export function unimplementedOcrProvider(name: 'textract'): OcrProvider {
 export function unimplementedStructuringProvider(name: 'anthropic' | 'bedrock'): StructuringProvider {
   return {
     async structure() {
+      throw new ProviderNotImplementedError(name);
+    },
+  };
+}
+
+/** Stories 9.3 and 9.5: the prose slot of the same Epic 11 providers. */
+export function unimplementedProseProvider(name: 'anthropic' | 'bedrock'): ProseProvider {
+  return {
+    async describe() {
       throw new ProviderNotImplementedError(name);
     },
   };

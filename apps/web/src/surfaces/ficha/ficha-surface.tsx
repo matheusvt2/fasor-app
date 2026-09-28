@@ -184,6 +184,7 @@ function FichaBody({
                   definition={definition}
                   bulk={bulk}
                   photos={checklistPhotos}
+                  pending={pending}
                   sectionRef={(element) => {
                     checklistEl.current = element;
                   }}

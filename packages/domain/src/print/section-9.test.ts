@@ -175,6 +175,7 @@ function photo(n: number, over: { block_id?: string | null; item_key?: string | 
     reading_kind: over.reading_kind ?? null,
     reading_target: null,
     reading_status: 'none',
+    people_in_photo: false,
   };
 }
 

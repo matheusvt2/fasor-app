@@ -69,9 +69,9 @@ describe('contract examples (ADR readiness 1.4)', () => {
 });
 
 describe('contract constants', () => {
-  it('speaks version 6 and accepts only version 6 (the parecer setup key and the job started_at are new)', () => {
-    expect(CONTRACT_VERSION).toBe(6);
-    expect(MIN_CONTRACT_VERSION).toBe(6);
+  it('speaks version 7 and accepts only version 7 (the photo people_in_photo put is new)', () => {
+    expect(CONTRACT_VERSION).toBe(7);
+    expect(MIN_CONTRACT_VERSION).toBe(7);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');
   });
 

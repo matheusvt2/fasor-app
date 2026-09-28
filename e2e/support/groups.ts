@@ -41,6 +41,11 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'read-display-pipeline.spec.ts',
     why: 'uploads display photos that the api reads on its one reading queue and worker, waiting for each job to land on the device',
   },
+  // Stories 9.3 and 9.5: the vision caption and the NC draft through the real reading job.
+  {
+    file: 'prose-reading-pipeline.spec.ts',
+    why: 'uploads photos that the api reads on its one reading queue and worker, waiting for each job to land on the device',
+  },
   {
     file: 'tap-budget-signal.spec.ts',
     why: 'times every tap of the SM-3 walk against a render and waits on nine readings of the one reading queue and worker',

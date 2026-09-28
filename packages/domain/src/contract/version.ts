@@ -29,7 +29,11 @@
  * `relatorio/setup/parecer` put family is new, and the `generation_job` row carries
  * `started_at`, so the server-only `generation_job/{id}/started_at` put is new.
  */
-export const CONTRACT_VERSION = 6;
+/*
+ * 7 (2026-09-28, Story 9.3): the photo row carries `people_in_photo` ("Pessoas na foto", a
+ * photo never sent to the prose provider), so the `file/{id}/people_in_photo` put family is new.
+ */
+export const CONTRACT_VERSION = 7;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -48,6 +52,10 @@ export const CONTRACT_VERSION = 6;
  * nor a `generation_job/{id}/started_at` put a relatório stream carries once a parecer is set
  * or a job runs, so it updates too.
  */
-export const MIN_CONTRACT_VERSION = 6;
+/*
+ * 7 (2026-09-28, Story 9.3): a version-6 bundle cannot parse a `file/{id}/people_in_photo`
+ * put a relatório stream carries once a photo is marked "Pessoas na foto", so it updates too.
+ */
+export const MIN_CONTRACT_VERSION = 7;
 
 export const CONTRACT_VERSION_HEADER = 'x-contract-version';

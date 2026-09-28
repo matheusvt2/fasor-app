@@ -1,6 +1,10 @@
 import {
   checklistResultOf,
   checklistUnsetItems,
+  confirmSuggestionOps,
+  discardSuggestionOp,
+  ncDraftFor,
+  ncDraftUsarAnnouncement,
   insertPhrase,
   screenLabel,
   itensMarcadosConformeText,
@@ -15,9 +19,11 @@ import {
   type ChecklistItem,
   type EquipmentRow,
   type RelatorioSnapshot,
+  type SuggestionRow,
 } from '@app/domain';
 import { useId, useRef, useState } from 'react';
 import { Chip, OverflowMenu, TextButton, TriStateControl, type OverflowMenuAction, type TriStateValue } from '../../components/index.ts';
+import { SuggestionBlock } from '../../components/suggestion-field.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import type { PhotoTile } from '../../db/photo-store.ts';
 import type { FichaApi } from './ficha-api.ts';
@@ -40,6 +46,12 @@ import { useSheetReadOnly } from './sheet-read-only.tsx';
  * Story 6.6 adds "Criar ponto de atenção" beside it (the point editor in a Form dialog,
  * pre-linked with the sheet's equipment and a token per photo of the item). The Dictation
  * button has no engine: absent, never disabled.
+ *
+ * Story 9.5 (FR-75): an NC row whose photo was read shows the one-sentence draft above its
+ * Observation field (the Suggestion field's block variant, "Rascunho pela foto", "Usar"):
+ * "Usar" writes the observation with its `source_suggestion_id`; the first keystroke or chip
+ * insert discards the draft and keeps what was typed. Which draft shows is the kernel's
+ * (`ncDraftFor`: the row NC, its observation blank).
  */
 
 /** Story 6.1: what the checklist rows need to shoot and show their photos. */
@@ -158,6 +170,7 @@ export function ChecklistSection({
   definition,
   bulk,
   photos,
+  pending = NO_PENDING,
   sectionRef,
 }: {
   api: FichaApi;
@@ -166,6 +179,8 @@ export function ChecklistSection({
   definition: BlockDefinition;
   bulk: ChecklistBulk;
   photos?: ChecklistPhotos;
+  /** Story 9.5: the device's pending suggestion rows of the relatório (the NC drafts among them). */
+  pending?: readonly SuggestionRow[];
   sectionRef?: (element: HTMLElement | null) => void;
 }) {
   const t = copy.ficha.checklist;
@@ -202,12 +217,15 @@ export function ChecklistSection({
             readOnly={readOnly}
             photos={photos}
             snapshot={snapshot}
+            pending={pending}
           />
         ))}
       </ul>
     </section>
   );
 }
+
+const NO_PENDING: readonly SuggestionRow[] = [];
 
 function ChecklistRow({
   api,
@@ -218,6 +236,7 @@ function ChecklistRow({
   readOnly,
   photos,
   snapshot,
+  pending,
 }: {
   api: FichaApi;
   block: BlockRow;
@@ -227,6 +246,7 @@ function ChecklistRow({
   readOnly: boolean;
   photos?: ChecklistPhotos;
   snapshot: RelatorioSnapshot;
+  pending: readonly SuggestionRow[];
 }) {
   const t = copy.ficha.checklist;
   const result = checklistResultOf(block, item.key);
@@ -249,6 +269,20 @@ function ChecklistRow({
   );
   const nc = result === 'NC';
   const empty = typed.text.trim() === '';
+  // Story 9.5: the row's NC draft, while nothing is typed; a draft discarded here is not shown again before its echo.
+  const [discardedId, setDiscardedId] = useState<string | null>(null);
+  const kernelDraft = readOnly || !empty ? null : ncDraftFor(block, item.key, pending);
+  const draft = kernelDraft !== null && kernelDraft.id === discardedId ? null : kernelDraft;
+  const discardDraft = () => {
+    const held = readOnly ? null : ncDraftFor(block, item.key, pending);
+    if (held === null || api.author === null || discardedId === held.id) return;
+    setDiscardedId(held.id);
+    void api.commit([discardSuggestionOp(api.author, held)]);
+  };
+  const applyDraft = () => {
+    if (draft === null || api.author === null) return;
+    void api.commit(confirmSuggestionOps(api.author, draft));
+  };
   // The reason line goes once text exists (EXPERIENCE.md › Observation field); a
   // not-tested row is read-only end to end (AR-17), so nothing on it is ever required.
   const required = !readOnly && nc && empty;
@@ -268,6 +302,7 @@ function ChecklistRow({
   };
 
   const insert = (phrase: string) => {
+    discardDraft();
     const element = area.current;
     const caret = element?.selectionStart ?? typed.text.length;
     const next = insertPhrase(typed.text, phrase, caret);
@@ -310,6 +345,17 @@ function ChecklistRow({
               ))}
             </div>
           ) : null}
+          {draft === null ? null : (
+            <SuggestionBlock
+              className="nc-draft"
+              label={t.draftLabel(number)}
+              kicker={t.draftKicker}
+              text={String(draft.value)}
+              confirmLabel={t.draftUse}
+              announcement={ncDraftUsarAnnouncement(number)}
+              onConfirm={applyDraft}
+            />
+          )}
           <div className="field">
             <label className="field-label" htmlFor={fieldId}>
               {t.observationLabel(number)}
@@ -324,7 +370,10 @@ function ChecklistRow({
               data-missing-field={required ? '' : undefined}
               aria-invalid={required || undefined}
               aria-describedby={required ? reasonId : undefined}
-              onChange={(event) => typed.change(event.target.value)}
+              onChange={(event) => {
+                discardDraft();
+                typed.change(event.target.value);
+              }}
               onBlur={typed.blur}
             />
             {required ? (

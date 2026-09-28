@@ -5,7 +5,7 @@ import { BLOCK_1_ID, CABINE_ID, COMPANY_ID, READING_RUN_ID, PHOTO_ID, RELATORIO_
 import { describe, expect, it, vi } from 'vitest';
 import { commitBatch } from './commit.ts';
 import { openDatabase, type AppDatabase } from './schema.ts';
-import { autoConfirmPending, readingCountRows } from './suggestion-store.ts';
+import { autoConfirmPending, discardStaleProse, readingCountRows } from './suggestion-store.ts';
 import { applyPulled } from './sync-store.ts';
 
 /*
@@ -289,6 +289,49 @@ describe('9.1-UNIT autoConfirmPending for display readings', () => {
     await seed(db);
     await applyPulled(db, [serverSuggestion('x', { raw: '58', unit: '%', state: 'measured' }, { target_path: `location/${CABINE_ID}/env/humidity_pct` })]);
     expect((await readingCountRows(db)).suggestions).toEqual([{ status: 'pending' }]);
+    db.close();
+  });
+});
+
+describe('9.3/9.5-UNIT the stale prose sweep', () => {
+  it('discards an NC draft whose row is not NC and a caption whose photo the device does not hold; keeps a draft on an NC row with a blank observation', async () => {
+    const db = await freshDb();
+    await seed(db);
+    await commitBatch(
+      db,
+      [
+        {
+          kind: 'put',
+          scope: 'relatorio',
+          company_id: COMPANY_ID,
+          project_id: null,
+          relatorio_id: RELATORIO_ID,
+          path: `sheet/${BLOCK_1_ID}/checklist/limpeza/result`,
+          value: 'NC',
+          prev_op_id: null,
+          batch_id: null,
+          meta: null,
+          actor_id: USER_ID,
+        },
+      ],
+      deps(),
+    );
+    const live = serverSuggestion('x', 'Oxidação aparente.', { target_path: `sheet/${BLOCK_1_ID}/checklist/limpeza/observation` });
+    const notNc = serverSuggestion('x', 'Isolador trincado.', { target_path: `sheet/${BLOCK_1_ID}/checklist/aterramento/observation` });
+    const gonePhoto = serverSuggestion('x', 'Vista geral', { target_path: 'file/019966b0-0087-7000-8000-000000000001/caption' });
+    await applyPulled(db, [live, notNc, gonePhoto]);
+
+    const ids = (op: Op) => (op.value as SuggestionRow).id;
+    expect((await discardStaleProse(db, AUTHOR, deps())).sort()).toEqual([ids(notNc), ids(gonePhoto)].sort());
+    const discards = (await db.outbox.toArray()).filter((row) => row.path.startsWith('suggestion/'));
+    expect(discards.map((row) => [row.path, row.value]).sort()).toEqual([
+      [`suggestion/${ids(gonePhoto)}/status`, 'discarded'],
+      [`suggestion/${ids(notNc)}/status`, 'discarded'],
+    ].sort());
+    expect(((await db.entities.get(['suggestion', ids(live)]))!.row as SuggestionRow).status).toBe('pending');
+    // The auto-confirm sweep runs it too; nothing more is stale.
+    expect(await autoConfirmPending(db, AUTHOR, deps())).toEqual([]);
+    expect(await discardStaleProse(db, AUTHOR, deps())).toEqual([]);
     db.close();
   });
 });

@@ -58,6 +58,18 @@ export function isDisplayCellTarget(target: DisplayReadingTarget): target is Dis
   return 'block_id' in target && typeof (target as { block_id?: unknown }).block_id === 'string' && 'start_cell' in target;
 }
 
+/*
+ * Story 9.5: what an NC row's photo `reading_target` names (the draft of that row's
+ * observation, `reading_kind: nc_obs`): the block, its type and the checklist item. Extra
+ * keys are kept.
+ */
+export const ncObsReadingTargetSchema = z.looseObject({
+  block_id: uuidV7Schema,
+  block_type: z.string().min(1),
+  item_key: z.string().min(1),
+});
+export type NcObsReadingTarget = z.infer<typeof ncObsReadingTargetSchema>;
+
 /**
  * The pg-boss `singletonKey` of a reading job: one queued and one active job per
  * `(photo, kind)` under the queue's `stately` policy.

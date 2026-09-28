@@ -421,6 +421,11 @@ export const photoFileRowSchema = z.object({
   reading_kind: z.enum(['plate', 'display', 'caption', 'panel', 'nc_obs']).nullable(),
   reading_target: jsonValueSchema.nullable(),
   reading_status: readingStatusSchema,
+  /**
+   * Story 9.3 (contract 7): the engineer marked "Pessoas na foto" (no face detection). A
+   * marked photo is never sent to the prose provider; a row written before the mark reads false.
+   */
+  people_in_photo: z.boolean().default(false),
 });
 
 export const otherFileKindSchema = z.enum([

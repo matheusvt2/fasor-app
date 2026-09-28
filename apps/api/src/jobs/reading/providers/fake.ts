@@ -2,9 +2,12 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
   ocrReadResultSchema,
+  proseOutputSchema,
   structuringOutputSchema,
   type OcrProvider,
   type OcrReadResult,
+  type ProseProvider,
+  type ProseResult,
   type StructuringProvider,
   type StructuringResult,
 } from '@app/domain';
@@ -40,6 +43,8 @@ export const fakeReadingFixtureSchema = z
     outcome: z.enum(['ok', 'error', 'timeout']).default('ok'),
     ocr: ocrReadResultSchema.optional(),
     structuring: structuringOutputSchema.optional(),
+    // Stories 9.3 and 9.5: the prose answer (`{text}` or null); absent reads null.
+    prose: proseOutputSchema.optional(),
   })
   .strict();
 export type FakeReadingFixture = z.infer<typeof fakeReadingFixtureSchema>;
@@ -174,6 +179,22 @@ export function fakeStructuringProvider(dir: string, sha256: string, fixtureKey:
       failFor(fixture, key, 'structuring');
       return {
         output: fixture.structuring ?? { values: [] },
+        model: FAKE_MODEL,
+        prompt_version: FAKE_PROMPT_VERSION,
+        usage: { input_tokens: 0, output_tokens: 0, usd: 0 },
+      };
+    },
+  };
+}
+
+/** Stories 9.3 and 9.5: the prose step replays the fixture's `prose` (absent reads null: nothing to say). */
+export function fakeProseProvider(dir: string, sha256: string, fixtureKey: FakeFixtureKey | null = null): ProseProvider {
+  return {
+    async describe(): Promise<ProseResult> {
+      const { fixture, key } = await resolveFakeFixture(dir, sha256, fixtureKey);
+      failFor(fixture, key, 'prose');
+      return {
+        output: fixture.prose ?? null,
         model: FAKE_MODEL,
         prompt_version: FAKE_PROMPT_VERSION,
         usage: { input_tokens: 0, output_tokens: 0, usd: 0 },

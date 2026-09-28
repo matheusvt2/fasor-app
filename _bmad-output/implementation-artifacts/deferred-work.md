@@ -1087,3 +1087,21 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: `spec-9-1-read-the-instrument-display-with-ler-visor.md` Open questions; `e2e/tap-budget-signal.spec.ts`.
   class: question
   state: open (owner: Matheus)
+
+- source_spec: spec-9-3-9-5-captions-and-nc-drafts.md
+  summary: Stories 9.3/9.5 narrowing: an import batch's photos are committed as "Geral" at pick time (E6-Q8), so a people mark or an equipment chosen in a batch left open while online may reach the server after the job read the photo. The run-time re-check and the device's stale sweep drop the suggestion, but the image already went to the prose provider (`fake` now); this must close before a cloud LLM is wired.
+  evidence: `apps/web/src/surfaces/photos/capture-sheet.tsx` `startBatch` (GERAL) and `finish`; `apps/api/src/jobs/reading/kinds/caption.ts` `captionSkipReason`.
+  class: debt
+  state: open (owner: Epic 11)
+
+- source_spec: spec-9-3-9-5-captions-and-nc-drafts.md
+  summary: Story 9.3 narrowings: unmarking "Pessoas na foto" does not request a caption (no client reread of `caption`); caption suggestions are not in the Sync status "Leituras" counts (`livePendingSuggestions` reads `sheet/*` and cabine targets only); the tile's "Pessoas na foto" chip shows only on tiles with no equipment or already marked.
+  evidence: `apps/web/src/surfaces/photos/gallery-surface.tsx` (people chip condition); `apps/web/src/db/suggestion-store.ts` `readingCountRows`.
+  class: question
+  state: open (owner: Epic 9 integrated review)
+
+- source_spec: spec-9-3-9-5-captions-and-nc-drafts.md
+  summary: Stories 9.3/9.5 open questions (conservative reading kept): the tile keeps the mock's "Confirmar" while the composer and the NC draft say "Usar" (the story); "Confirmar todas" confirms every suggestion of the relatório, not only the filtered cabine; `captions_suggested` is an `info` row (a warning, never blocking) beside the unchanged `photos_uncaptioned`, and the Export dialog counts it among its "N avisos" (not an explicit kind), while the Sumário row 7 names it.
+  evidence: `spec-9-3-9-5-captions-and-nc-drafts.md` Open questions; `packages/domain/src/relatorio/pre-issue.ts` `EXPLICIT_KINDS`.
+  class: question
+  state: open (owner: Matheus with Bruno for wording)

@@ -1,5 +1,5 @@
 import { uploadPillText, type PhotoUploadState } from '@app/domain';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { ui } from '../copy/ui.ts';
 
@@ -75,6 +75,13 @@ export interface PhotoRowProps {
   onOpen?: () => void;
   /** Story 6.5: "Legendar" opens the Caption composer. */
   onCaption?: () => void;
+  /**
+   * Story 9.3: the photo's vision caption waiting for a tap, drawn as the Suggestion field's
+   * block variant in place of the caption (`70-fotos.html` tile), and the "Pessoas na foto"
+   * chip; both are the surface's elements.
+   */
+  suggestion?: ReactNode;
+  people?: ReactNode;
 }
 
 /** DESIGN.md › Photo stamp: the time, and a pin glyph whose accessible text is "GPS". */
@@ -94,7 +101,7 @@ export function PhotoStamp({ text, gps, className = 'photo-stamp', id }: { text:
   );
 }
 
-export function PhotoRow({ label, caption, thumb, state, onRetry, number, stamp, onOpen, onCaption }: PhotoRowProps) {
+export function PhotoRow({ label, caption, thumb, state, onRetry, number, stamp, onOpen, onCaption, suggestion, people }: PhotoRowProps) {
   const src = useObjectUrl(thumb);
   // E6-Q10 (EXPERIENCE.md › Photo tile): the tile is described by its stamp, caption and pill.
   const stampId = useId();
@@ -136,6 +143,7 @@ export function PhotoRow({ label, caption, thumb, state, onRetry, number, stamp,
       )}
       <div className="photo-text">
         {stamp === undefined ? null : <PhotoStamp text={stamp.text} gps={stamp.gps} id={stampId} />}
+        {suggestion ?? null}
         {caption === null ? null : (
           <p className="photo-meta" id={captionId}>
             {caption}
@@ -150,6 +158,7 @@ export function PhotoRow({ label, caption, thumb, state, onRetry, number, stamp,
             {ui.photoRow.caption}
           </AriaButton>
         )}
+        {people ?? null}
       </div>
     </div>
   );

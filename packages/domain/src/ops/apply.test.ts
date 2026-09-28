@@ -77,6 +77,7 @@ const photo = (blockId: string | null): FileRow => ({
   reading_kind: null,
   reading_target: null,
   reading_status: 'none',
+  people_in_photo: false,
 });
 
 const state = (...rows: [string, unknown][]): EntityState => new Map(rows as never);

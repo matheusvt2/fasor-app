@@ -44,11 +44,23 @@ export interface ReadingKindRunResult {
   rows: SuggestionRow[];
   /** Every value that became no suggestion, with its reason; the job logs each. */
   dropped: { key: string; reason: string }[];
+  /**
+   * Stories 9.3 and 9.5: the model call of a kind with no structuring step (prose), for the
+   * run row's `model`, `prompt_version` and `llm_usage` (read only when `structuring` is null).
+   */
+  model?: { model: string; prompt_version: string; usage: StructuringResult['usage'] } | null;
 }
 
 /** A target that parsed and exists: the `fake` fixture key and the reading itself. */
 export interface PreparedReading {
   fixture: { block_type: string | null; table_key: string | null };
+  /**
+   * Stories 9.3 and 9.5 (Conflicts 7 and 10): why the reading is not sent at all (a people
+   * mark, a caption typed, a sheet chosen, a row no longer NC, an observation typed). The job
+   * then builds no provider, loads no image and never calls `run`: it commits the discards of
+   * the photo's previous pending suggestions and `reading_status = done`, and logs the reason.
+   */
+  skip?: string;
   run(input: ReadingKindRunInput): Promise<ReadingKindRunResult>;
 }
 

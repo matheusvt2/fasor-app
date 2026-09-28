@@ -21,7 +21,7 @@ import { log, logError } from '../../log.ts';
 import { getObject } from '../../storage/s3.ts';
 import { applyOps, applyServerBatch, ServerBatchRejectedError, type Tx } from '../../sync/apply.ts';
 import { exifOrientation, readingImage, type ReadingImage } from './image.ts';
-import { readingKindHandler } from './kinds/index.ts';
+import { readingKindHandler, type ReadingKindRunResult } from './kinds/index.ts';
 import { entityRecord } from './kinds/shared.ts';
 import type { ReadingPayload } from './payload.ts';
 import { isPermanentReadingError, PermanentReadingError, ProviderError, type ReadingProvidersFactory } from './providers/index.ts';
@@ -90,6 +90,8 @@ interface RunFacts {
   image: ReadingImage | null;
   ocr: OcrReadResult | null;
   structuring: StructuringResult | null;
+  /** Stories 9.3 and 9.5: the model call of a prose kind (no structuring step). */
+  model: ReadingKindRunResult['model'];
   /** True once the batch and its `ok` run row committed. */
   committed: boolean;
 }
@@ -114,7 +116,7 @@ export async function runReadingJob(deps: ReadingJobDeps, payload: ReadingPayloa
   const companyId = asCompanyId(payload.company_id);
   const startedAt = deps.now().getTime();
   const runId = deps.newId();
-  const facts: RunFacts = { relatorioId: null, photoFound: false, ocrName: 'none', image: null, ocr: null, structuring: null, committed: false };
+  const facts: RunFacts = { relatorioId: null, photoFound: false, ocrName: 'none', image: null, ocr: null, structuring: null, model: null, committed: false };
   const logFields = () => ({
     company_id: payload.company_id,
     relatorio_id: facts.relatorioId,
@@ -138,9 +140,9 @@ export async function runReadingJob(deps: ReadingJobDeps, payload: ReadingPayloa
       error,
       ocr_provider: facts.ocrName,
       ocr_result: outcome === 'error' || facts.ocr === null || facts.image === null ? null : normalizedOcr(facts.ocr, facts.image),
-      model: facts.structuring?.model ?? null,
-      prompt_version: facts.structuring?.prompt_version ?? null,
-      llm_usage: facts.structuring?.usage ?? null,
+      model: facts.structuring?.model ?? facts.model?.model ?? null,
+      prompt_version: facts.structuring?.prompt_version ?? facts.model?.prompt_version ?? null,
+      llm_usage: facts.structuring?.usage ?? facts.model?.usage ?? null,
       duration_ms: Math.max(0, deps.now().getTime() - startedAt),
       created_at: toIso(deps.now()),
     });
@@ -167,24 +169,33 @@ export async function runReadingJob(deps: ReadingJobDeps, payload: ReadingPayloa
 
     const prepared = await handler.prepare({ db: deps.db, companyId, relatorioId, photo });
 
-    const providers = deps.providers({
-      photo_sha256: photo.sha256,
-      reading_kind: payload.reading_kind,
-      block_type: prepared.fixture.block_type,
-      table_key: prepared.fixture.table_key,
-    });
-    facts.ocrName = providers.ocr_name;
+    // Stories 9.3 and 9.5: a reading the target no longer wants is never sent (no provider,
+    // no image); it still ends `done`, and a previous pending suggestion of the photo leaves.
+    let built: ReadingKindRunResult;
+    if (prepared.skip !== undefined) {
+      log('reading skipped', { ...logFields(), reason: prepared.skip });
+      built = { ocr: null, structuring: null, rows: [], dropped: [] };
+    } else {
+      const providers = deps.providers({
+        photo_sha256: photo.sha256,
+        reading_kind: payload.reading_kind,
+        block_type: prepared.fixture.block_type,
+        table_key: prepared.fixture.table_key,
+      });
+      facts.ocrName = providers.ocr_name;
 
-    const print = await objectBytes(deps, objectKey(companyId, 'photo', photo.id, 'print', relatorioId));
-    if (print === null) throw new PermanentReadingError('the photo has no print variant');
-    const original = await objectBytes(deps, objectKey(companyId, 'photo', photo.id, 'original', relatorioId));
-    const orientation = original === null ? undefined : await exifOrientation(original.bytes);
-    const image = await readingImage({ print: print.bytes, printMime: print.contentType, orientation });
-    facts.image = image;
+      const print = await objectBytes(deps, objectKey(companyId, 'photo', photo.id, 'print', relatorioId));
+      if (print === null) throw new PermanentReadingError('the photo has no print variant');
+      const original = await objectBytes(deps, objectKey(companyId, 'photo', photo.id, 'original', relatorioId));
+      const orientation = original === null ? undefined : await exifOrientation(original.bytes);
+      const image = await readingImage({ print: print.bytes, printMime: print.contentType, orientation });
+      facts.image = image;
 
-    const built = await prepared.run({ providers, image, runId, newId: deps.newId });
+      built = await prepared.run({ providers, image, runId, newId: deps.newId });
+    }
     facts.ocr = built.ocr;
     facts.structuring = built.structuring;
+    facts.model = built.model ?? null;
     for (const drop of built.dropped) log('reading value dropped', { ...logFields(), key: drop.key, reason: drop.reason });
 
     const batchId = deps.newId();

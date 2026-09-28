@@ -45,7 +45,7 @@ export const CHECKLIST_FIELDS = ['result', 'observation'] as const;
 export const TEST_FIELDS = ['instrument', 'criterion_override'] as const;
 export const CONCLUSION_FIELDS = ['result', 'restriction', 'text', 'text_status', 'text_basis'] as const;
 export const EQUIPMENT_FIELDS = ['tag', 'removed_at'] as const;
-export const FILE_FIELDS = ['caption', 'block_id', 'item_key', 'removed_at'] as const;
+export const FILE_FIELDS = ['caption', 'block_id', 'item_key', 'removed_at', 'people_in_photo'] as const;
 export const FILE_SERVER_FIELDS = ['uploaded_at', 'variants', 'reading_status'] as const;
 export const GENERATION_JOB_FIELDS = ['status', 'error', 'result_file_id', 'result', 'started_at'] as const;
 

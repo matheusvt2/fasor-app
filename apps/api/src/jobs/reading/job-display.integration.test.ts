@@ -106,7 +106,7 @@ async function shot(display: string, width = 1000): Promise<Uint8Array> {
 }
 
 /** A display photo of `relatorioId` with `target`, its create applied and its objects stored. */
-async function photo(relatorioId: string, blockId: string | null, bytes: Uint8Array, target: unknown, kind: 'display' | 'caption' = 'display'): Promise<string> {
+async function photo(relatorioId: string, blockId: string | null, bytes: Uint8Array, target: unknown, kind: 'display' | 'panel' = 'display'): Promise<string> {
   const id = newId();
   await apply([
     draft('create', 'relatorio', relatorioId, `file/${id}`, {
@@ -139,7 +139,7 @@ async function photo(relatorioId: string, blockId: string | null, bytes: Uint8Ar
   return id;
 }
 
-const run = (photoId: string, kind: 'display' | 'caption' = 'display') =>
+const run = (photoId: string, kind: 'display' | 'panel' = 'display') =>
   runReadingJob(deps, { company_id: companyId, photo_id: photoId, reading_kind: kind }, { jobId: 'direct', attempt: 1, lastAttempt: false });
 
 async function row<T>(entity: string, id: string): Promise<T | undefined> {
@@ -250,7 +250,7 @@ describe('9.1-INT the display reading kind', () => {
   }, 60_000);
 
   describe('permanent failures: one run row, failed, no suggestion', () => {
-    async function expectPermanent(id: string, reason: string, kind: 'display' | 'caption' = 'display'): Promise<void> {
+    async function expectPermanent(id: string, reason: string, kind: 'display' | 'panel' = 'display'): Promise<void> {
       await run(id, kind);
       const rows = await runs(id);
       expect(rows).toHaveLength(1);
@@ -288,8 +288,9 @@ describe('9.1-INT the display reading kind', () => {
     it('a kind the job does not read yet ends failed (every queued kind is sent)', async () => {
       const { relatorioId, blocks } = await relatorio();
       const chave = blocks.find((b) => b.block_type === 'chave_seccionadora')!;
-      const id = await photo(relatorioId, chave.id, await shot('display-isolacao'), null, 'caption');
-      await expectPermanent(id, 'reading kind caption is not read yet', 'caption');
+      // Stories 9.3/9.5 read caption and nc_obs: the kind not read yet is Story 9.2's panel.
+      const id = await photo(relatorioId, chave.id, await shot('display-isolacao'), null, 'panel');
+      await expectPermanent(id, 'reading kind panel is not read yet', 'panel');
     }, 60_000);
   });
 });
