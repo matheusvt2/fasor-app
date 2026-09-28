@@ -5,7 +5,7 @@ created: '2026-09-28'
 status: 'in-review'
 baseline_revision: 'afabb44219466689d5852ae401694b04e7da2e9a'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: high
 context:
@@ -191,3 +191,12 @@ Layers run: Edge Case Hunter, Verification Gap Reviewer. Skipped: Blind Hunter, 
   - `[low]` `[reject]` caption/panel/nc_obs queued photos are enqueued and fail — coordinator decision (enqueue every queued kind); no device writes those kinds before batches K and P.
   - `[low]` `[reject]` env pending suggestions not in pre-issue — a recorded narrowing (deferred-work).
   - `[low]` `[reject]` fake.test plate cases edited — signature adaptation the spec asks for (factory ctx gains kind and table key); the job and plate e2e suites are unmodified.
+
+## Auto Run Result
+
+- **Summary:** the reading job dispatches over per-kind handlers (`apps/api/src/jobs/reading/kinds/`: `types.ts`, `shared.ts`, `plate.ts` moved unchanged, `display.ts`, `index.ts`); file receipt enqueues every queued kind and reread accepts any handled kind; the fake fallback is keyed by `(reading_kind, block_type?, table_key?)`; the sidecar answers `POST /read/display` (spike choice); the kernel parses display tokens (`reading/display.ts`) and maps them onto test cells and cabine env fields; the sheet gains "Ler visor" (burst per Measurement table, single shot for the thermo-hygrometer), queued banner, suggested/verify cells with crop, Enter-to-confirm, per-table "Confirmar todos", the "Visor … — Conferir" line and device auto-confirm.
+- **Files:** kernel `reading/display.ts`, `reading/target.ts`, `relatorio/suggestions.ts`, `contract/ocr.ts`; api `jobs/reading/{job.ts,kinds/*,providers/*}`, `http/{files,reading}.ts`; sidecar `app/{display,main}.py`, tests, fixtures, `tools/display_spike.py`; web `surfaces/ficha/{read-display,ensaios-section,measurement-field,cabine-block,camera-view,nameplate-suggestions}.tsx`, `db/suggestion-store.ts`, copy; e2e `read-display.spec.ts`, `read-display-pipeline.spec.ts`, `tap-budget-signal.spec.ts`.
+- **Review:** 23 findings; 14 patched (8 medium, 6 low), 2 deferred (frontmatter), 7 rejected with reasons in the triage log.
+- **Follow-up review recommended:** true (8 medium patched on a first pass) — named risk: the display parse rule changed after the spike numbers and after the SM-3 walk ran, so the integrated review should re-run `test:e2e:full` on the merged tree (done before the PR, see PR body).
+- **Verification:** sidecar build + pytest 26/26 under the lock; `pnpm verify` and `test:e2e:full` under the lock (results in the PR body).
+- **Residual risks:** real-set display accuracy 6/15 (spike); the SM-3 walk sits exactly at 20 taps.

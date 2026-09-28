@@ -52,7 +52,9 @@ Variants compared:
 | Whole lines + ink bridging (chosen) | **6** | **6 (40 %)** | 3 | 0 | 3 | 25 |
 
 (The "whole lines" real-set row was scored with an earlier draft of the value rule; the
-other two rows with the committed tool.)
+other two rows with the tool as first committed. The review of Story 9.1 then made the rule
+strip a date, a time or the test current out of a token instead of skipping the whole token;
+the numbers above were not re-measured with that change.)
 
 Why the plate pipeline fails the synthetic displays: the word split cuts a seven-segment
 number at its segment gaps and at its decimal point (a lone `.` reads as a word), and the
