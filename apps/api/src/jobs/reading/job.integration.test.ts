@@ -723,6 +723,55 @@ describe('9.2-INT the panel reading', () => {
     expect((await suggestions(relatorioId)).filter((s) => s.source.photo_id === id)).toEqual([]);
   }, 60_000);
 
+  /** Runs the panel job with a structuring step that re-targets the photo to `block`'s plate mid-run, then answers or throws `fail`. */
+  async function runRetargetedMidRun(relatorioId: string, id: string, block: BlockRow, fail: Error | null): Promise<void> {
+    const midRun: ReadingJobDeps = {
+      ...deps,
+      providers: (ctx) => {
+        const real = deps.providers(ctx);
+        return {
+          ...real,
+          structuring: {
+            async structure(input) {
+              await apply([
+                relatorioPut(relatorioId, `file/${id}/reading_target`, plateReadingTarget(block.id, block.block_type)),
+                relatorioPut(relatorioId, `file/${id}/reading_kind`, 'plate'),
+              ]);
+              if (fail !== null) throw fail;
+              return real.structuring.structure(input);
+            },
+          },
+        };
+      },
+    };
+    await runReadingJob(midRun, { company_id: companyId, photo_id: id, reading_kind: 'panel' }, { jobId: 'direct-panel-mid', attempt: 1, lastAttempt: false });
+  }
+
+  async function expectSuperseded(relatorioId: string, id: string): Promise<void> {
+    expect(await row('file', id)).toMatchObject({ reading_kind: 'plate', reading_status: 'queued' });
+    expect(await db.select({ value: ops.value }).from(ops).where(and(eq(ops.company_id, companyId), eq(ops.path, readingStatusPath(id))))).toEqual([]);
+    const rows = await runs(id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ outcome: 'error', error: 'superseded', reading_kind: 'panel' });
+    expect((await suggestions(relatorioId)).filter((s) => s.source.photo_id === id)).toEqual([]);
+  }
+
+  it('re-targeted while the panel job runs: the check inside the batch ends it superseded, no status and no suggestion', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'chave_seccionadora')!;
+    const id = await panelPhoto(relatorioId, { location_id: block.location_id });
+    await runRetargetedMidRun(relatorioId, id, block, null);
+    await expectSuperseded(relatorioId, id);
+  }, 60_000);
+
+  it('re-targeted while the panel job runs, which then fails permanently: superseded, no failed written over the plate', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'chave_seccionadora')!;
+    const id = await panelPhoto(relatorioId, { location_id: block.location_id });
+    await runRetargetedMidRun(relatorioId, id, block, new PermanentReadingError('stub: the model refused'));
+    await expectSuperseded(relatorioId, id);
+  }, 60_000);
+
   it('a target that does not parse, a location gone or one of another relatório fails permanently', async () => {
     const own = await relatorio();
     const other = await relatorio();

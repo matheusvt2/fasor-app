@@ -350,6 +350,7 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
           locations={snapshot.locations}
           equipment={equipment}
           onConfirm={(input) => actions.createBlock({ ...input, tag: null })}
+          focusAfter={(target) => locationChevron(rootRef.current, target.locationId)}
         />
       ) : null}
 

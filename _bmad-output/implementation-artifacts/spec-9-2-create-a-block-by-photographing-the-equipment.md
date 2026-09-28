@@ -2,7 +2,7 @@
 title: 'Story 9.2: Create a block by photographing the equipment'
 type: 'feature'
 created: '2026-09-28'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '2abf8db19201f12c644b89ce4b2f707dff33b163'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -12,7 +12,21 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-9-context.md'
 warnings: ['batched', 'oversized']
 batched_reason: 'Batch P of Epic 9 (one story): the panel reading kind, the client re-target contract bump and the palette camera row ship together because the create batch needs all three.'
-deferred: []
+deferred:
+  - summary: >-
+      "Desfazer" after a photo-backed create is untested, and what it should do is open (it reverts the batch, so the photo goes back to a panel photo and a panel reading is re-queued).
+    evidence: |-
+      tree-actions.ts createPair appends panelRetargetOps and the suggestion status put to the undoable batch; no spec clicks "Desfazer" after a panel confirm. Owner: Epic 9 integrated review (product question for Matheus).
+    location: >-
+      apps/web/src/surfaces/relatorio/tree-actions.ts
+    severity: medium
+  - summary: >-
+      A client may put any of the five reading kinds on its own company's photo and so re-queue or re-read it; only plate is needed.
+    evidence: |-
+      apps/api/src/sync/apply.ts clientReadingPutIsValid accepts every kind in READING_KINDS; no cross-tenant effect (tenant check runs first). Hardening (plate only, or a kind with a handler and a matching target) left to the integrated review.
+    location: >-
+      apps/api/src/sync/apply.ts
+    severity: medium
 ---
 
 <intent-contract>
@@ -111,3 +125,41 @@ Narrowings (deferred-work entries, owner): a panel photo whose dialog is left by
 - `docker compose --profile tools run --rm tools pnpm test:api` -- green, earlier reading cases untouched
 - `docker compose --profile tools run --rm tools pnpm exec tsx scripts/e2e.ts --project desktop-chrome e2e/panel-capture.spec.ts e2e/panel-capture-pipeline.spec.ts e2e/plate-reading.spec.ts e2e/tree.spec.ts` (stack up: `docker compose up -d`) -- green
 - `docker compose --profile tools run --rm tools pnpm lint` and `pnpm static` -- green
+
+## Spec Change Log
+
+## Review Triage Log
+
+### 2026-09-28 — Review pass
+
+Layers run: Edge Case Hunter, Verification Gap Reviewer. Skipped: Blind Hunter, Intent Alignment (token economy; the integrated epic review covers them).
+
+- verdicts: 15 findings — high 0, medium 9, low 4, false 2, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` VG: the in-transaction superseded check of `job.ts` (`before` hook) runs in no test — job integration cases added (re-target inside the stub structuring; re-target then permanent error).
+  - `[medium]` `[patch]` VG: "Fotografar de novo" is not exercised — e2e step added to `panel-capture.spec.ts` (first photo tombstoned, camera reopens, new shot is the dialog's photo).
+  - `[medium]` `[defer]` VG: "Desfazer" on a photo-backed create is untested; what undo should do (re-queue a panel reading) is an open question — deferred.
+  - `[low]` `[patch]` VG: the `op_invalid` refusal of a `remove` on `file/{id}/reading_kind|reading_target` is untested — cases added.
+  - `[medium]` `[patch]` VG other / ECH: `sendRetargetedReading` is awaited without try/catch in the push route, so a DB error answers 500 after the ops committed — wrapped and logged.
+  - `[medium]` `[patch]` ECH: a panel job re-targeted mid-run that then fails still writes `failed` over the plate status — the failure path re-reads the kind and ends superseded.
+  - `[low]` `[reject]` ECH: `createPair` refusing after the confirm (location removed between the tap and the write) leaves an orphan panel photo — rare race, the fix adds a reopen/cancel branch; the orphan case is the deferred "dialog left" narrowing.
+  - `[low]` `[reject]` ECH: online with the panel reading `failed` (or `done` with nothing) the dialog shows no status line — the chip row with "Toque no tipo do equipamento" still carries the flow; a failure line needs new copy, left to the integrated review.
+  - `[medium]` `[patch]` ECH (duplicate of the VG-other row): the push answers 500 when the send lookup throws — same fix.
+  - `[medium]` `[defer]` ECH: a client may put any of the five kinds (caption, nc_obs, the same kind) and re-queue a reading of its own company's photo — hardening (allow only `plate`, or only kinds with a handler and a matching target) deferred to the integrated review; no cross-tenant effect.
+  - `[medium]` `[patch]` ECH: focus falls to the page body when the camera closes without a shot or the dialog is cancelled (the `opener` ref is never assigned, the palette tile unmounts) — focus returns to the palette location's row.
+  - `[false]` `[reject]` ECH: `discard` while the photo row is not loaded — the dialog renders only when the row exists (`isOpen`), and "Fotografar de novo" runs from the open dialog.
+  - `[false]` `[reject]` ECH: a queued photo with a null kind now never leaves `queued` — unreachable: a client create with `queued` requires a kind and a client `reading_kind` put of null is `op_invalid`.
+  - `[low]` `[reject]` ECH: the `@p0` online spec triggers the sync by going offline and back instead of "Sincronizar agora" — that action lives on the `/sync` route and leaving the page closes the dialog; the reconnect is the same sync cycle.
+  - `[medium]` `[patch]` ECH claim: the failure path still writes `failed` for a superseded job — same fix as the failure-path row.
+  - Patch results: all six patch entries applied by the implementation subagent; the new "Fotografar de novo" e2e step also exposed a remount of the camera's fallback file input when the dialog closed (the re-shot file was lost), fixed by rendering the same fragment shape in both branches of `panel-capture.tsx`.
+
+## Auto Run Result
+
+Status: done
+
+- Summary: the `panel` reading kind (type + column into one pending suggestion on `file/{photo}/block_id`); `reading_kind`/`reading_target` client file fields (contract 7, min 7) with the `applyOp` re-queue and the push route sending the re-targeted reading; superseded handling in the reading job (start, in-transaction, failure path); the field palette's "Fotografar equipamento" row, camera and result dialog with the kernel's "Criar …?" proposal, chips and provenance; one create batch (equipment + block + photo re-target + suggestion status).
+- Files: `packages/domain/src/reading/panel.ts` (panel build), `packages/domain/src/relatorio/panel.ts` (proposal, texts, ops), `packages/domain/src/ops/{path,apply}.ts` (fields, re-queue), `packages/domain/src/contract/version.ts` (7/7), `apps/api/src/jobs/reading/kinds/panel.ts` (handler), `apps/api/src/jobs/reading/job.ts` (superseded), `apps/api/src/jobs/reading/send.ts` (shared send), `apps/api/src/sync/{routes,apply}.ts` (send on re-target, validation), `apps/api/src/http/{files,app}.ts` (wiring), `apps/api/src/jobs/reading/fixtures/*` (synthetic panel image and fixture), `apps/web/src/surfaces/relatorio/{panel-capture,block-palette-field,relatorio-tree,tree-actions}.ts(x)`, `relatorio.css`, copy files, `CropThumb` panel source, `use-photo-capture.ts` pre-minted id; tests: kernel, job and sync integration, `e2e/panel-capture.spec.ts` (3 `@p0`), `e2e/panel-capture-pipeline.spec.ts` (`@p1`, serial).
+- Review: 15 findings; 6 patch entries applied (medium 5, low 1), 2 deferred (medium), 5 rejected (3 low with reasons, 2 false).
+- Follow-up review recommended: false (no high patched; the medium patches carry their own tests).
+- Verification: domain suites 742 passed; `test:api` green (41 files); targeted e2e green; `static` and `lint` clean; full gate run by the orchestrator before the PR.
+- Residual risks: "Desfazer" after a photo-backed create untested; any reading kind is client-writable on the company's own photos.

@@ -280,7 +280,13 @@ describe('9.2-INT the panel photo re-targeted to the new block plate', () => {
     expect((await push(app, [photo.op])).rejected).toEqual([]);
     const put = (field: string, value: unknown): Op =>
       stamp({ scope: 'relatorio', company_id: companyA.companyId, project_id: null, relatorio_id: relatorioId, prev_op_id: null, batch_id: null, meta: null, actor_id: companyA.userId, kind: 'put', path: `file/${photo.id}/${field}`, value: value as never });
-    const bad = [put('reading_kind', 'bogus'), put('reading_kind', null), put('reading_target', 'x'), put('reading_target', [1]), put('reading_target', null)];
+    // A `remove` is built by hand: `makeOp` itself refuses one off a `removed_at` path, which is the refusal pushed here.
+    const remove = (field: string): Op => {
+      const op = { ...put(field, null), op_id: newId(), kind: 'remove' } as unknown as Op;
+      written.opIds.add(op.op_id);
+      return op;
+    };
+    const bad = [put('reading_kind', 'bogus'), put('reading_kind', null), put('reading_target', 'x'), put('reading_target', [1]), put('reading_target', null), remove('reading_kind'), remove('reading_target')];
     const result = await push(app, bad);
     expect(result.applied).toEqual([]);
     expect(result.rejected).toEqual(bad.map((op) => ({ op_id: op.op_id, code: 'op_invalid' })));

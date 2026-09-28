@@ -22,6 +22,7 @@ import { type AppEnv, requireSession } from '../http/session.ts';
 import { newId as mintId } from '../ids.ts';
 import type { ReadingPayload } from '../jobs/reading/payload.ts';
 import { sendReading } from '../jobs/reading/send.ts';
+import { logError } from '../log.ts';
 import { applyOps } from './apply.ts';
 import { companySummary, pullCompany, pullProject, pullRelatorio, recordPush } from './pull.ts';
 
@@ -138,7 +139,14 @@ export function createSyncRoutes(db: Db, deps: SyncRouteDeps): Hono<AppEnv> {
       }
       const at = toIso(deps.now());
       for (const deviceId of devices) await recordPush(db, session.companyId, session.userId, deviceId, at);
-      for (const photoId of retargetedPhotos(parsed.data.ops, appliedIds)) await sendRetargetedReading(db, session.companyId, photoId, deps);
+      for (const photoId of retargetedPhotos(parsed.data.ops, appliedIds)) {
+        try {
+          await sendRetargetedReading(db, session.companyId, photoId, deps);
+        } catch (error) {
+          // The ops are committed: the push is answered whatever the send did.
+          logError('retargeted reading not sent', { company_id: session.companyId, file_id: photoId, error: String(error) });
+        }
+      }
     }
 
     const response: SyncPushResponse = {

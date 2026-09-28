@@ -109,7 +109,7 @@ class ReadingSupersededError extends Error {
 }
 
 /** The photo's stored `reading_kind`, read inside the batch transaction. */
-async function readingKindOf(tx: Tx, companyId: CompanyId, photoId: string): Promise<string | null> {
+async function readingKindOf(tx: Db | Tx, companyId: CompanyId, photoId: string): Promise<string | null> {
   const record = await entityRecord(tx, companyId, 'file', photoId);
   const parsed = record === null ? null : photoFileRowSchema.safeParse(record.row);
   return parsed === null || !parsed.success ? null : parsed.data.reading_kind;
@@ -242,7 +242,18 @@ export async function runReadingJob(deps: ReadingJobDeps, payload: ReadingPayloa
       logError('reading done, logging failed', { ...logFields(), error: errorText(error) });
       return;
     }
-    if (error instanceof ReadingSupersededError) {
+    const permanent = isPermanentReadingError(error);
+    // A failure about to write `failed` on a photo re-targeted meanwhile ends superseded too:
+    // the new kind's reading owns the status.
+    let superseded = error instanceof ReadingSupersededError;
+    if (!superseded && facts.photoFound && (permanent || attempt.lastAttempt)) {
+      try {
+        superseded = (await readingKindOf(deps.db, companyId, payload.photo_id)) !== payload.reading_kind;
+      } catch (readError) {
+        logError('reading kind not re-read', { ...logFields(), error: errorText(readError) });
+      }
+    }
+    if (superseded) {
       try {
         await recordRun('error', 'superseded');
       } catch (recordError) {
@@ -251,7 +262,6 @@ export async function runReadingJob(deps: ReadingJobDeps, payload: ReadingPayloa
       log('reading superseded', logFields());
       return;
     }
-    const permanent = isPermanentReadingError(error);
     try {
       await recordRun('error', errorText(error));
     } catch (recordError) {

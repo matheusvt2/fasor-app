@@ -240,8 +240,22 @@ test('@p0 9.2-E2E-003 at 390 px the result dialog and its eight chips fit with n
   // A bottom sheet on the phone.
   expect(Math.round(box.y + box.height)).toBeGreaterThanOrEqual(899);
 
+  // "Fotografar de novo": the first photo is removed, the camera (the system picker) opens again,
+  // and the dialog comes back on the new shot, nothing picked yet.
+  const chooser = page.waitForEvent('filechooser');
+  await dialog.getByRole('button', { name: 'Fotografar de novo' }).click();
+  await expect.poll(async () => (await photoRecord(page, photoId)) as { removed_at?: string | null }).toMatchObject({ removed_at: expect.any(String) });
+  await (await chooser).setFiles({ name: 'painel-2.png', mimeType: 'image/png', buffer: PANEL });
+  await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(2);
+  const second = (await devicePhotos(page, database)).find((photo) => photo.id !== photoId)!.id;
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator('.suggestion-field')).toHaveCount(0);
+  await expect(dialog.locator('.chip[aria-pressed="true"]')).toHaveCount(0);
+
+  // "Cancelar" removes the photo the dialog is on now, and the focus lands on the coluna's chevron.
   await dialog.getByRole('button', { name: 'Cancelar' }).click();
   await expect(dialog).toBeHidden();
-  await expect.poll(async () => (await photoRecord(page, photoId)) as { removed_at?: string | null }).toMatchObject({ removed_at: expect.any(String) });
+  await expect.poll(async () => (await photoRecord(page, second)) as { removed_at?: string | null }).toMatchObject({ removed_at: expect.any(String) });
+  await expect(page.locator('[data-tree-chevron]:focus')).toHaveCount(1);
   await expect(tagsIn(coluna(page, 'Coluna 1'))).toHaveText(['SEC-C01']);
 });

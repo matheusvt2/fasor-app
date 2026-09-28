@@ -14,7 +14,7 @@ import {
   type PhotoFileRow,
   type SuggestionRow,
 } from '@app/domain';
-import { useCallback, useId, useImperativeHandle, useRef, useState, type Ref } from 'react';
+import { useCallback, useId, useImperativeHandle, useMemo, useRef, useState, type Ref, type RefObject } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { Button, Chip, TextButton } from '../../components/index.ts';
 import { CropThumb } from '../../components/crop-thumb.tsx';
@@ -26,6 +26,7 @@ import { commitBatch } from '../../db/commit.ts';
 import { localFileRow } from '../../db/file-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { newId } from '../../ids.ts';
+import { restoreFocus } from '../../input/focus-restore.ts';
 import { useSession } from '../../state/session.tsx';
 import { useCamera } from '../ficha/camera-view.tsx';
 import type { CaptureTarget } from '../ficha/use-photo-capture.ts';
@@ -64,6 +65,11 @@ export interface PanelCaptureProps {
   locations: readonly LocationRow[];
   equipment: readonly EquipmentRow[];
   onConfirm: (input: PanelConfirm) => void;
+  /**
+   * Where the focus goes when the camera closes with no shot or the dialog is cancelled (the
+   * palette tile that opened it is gone): a stable control of the tree, e.g. the location's chevron.
+   */
+  focusAfter?: (target: PaletteTarget) => HTMLElement | null;
   ref?: Ref<PanelCaptureHandle>;
 }
 
@@ -82,14 +88,28 @@ function captureTarget(shot: Shot): CaptureTarget {
   };
 }
 
-export function PanelCapture({ relatorioId, seedVersion, locations, equipment, onConfirm, ref }: PanelCaptureProps) {
+export function PanelCapture({ relatorioId, seedVersion, locations, equipment, onConfirm, focusAfter, ref }: PanelCaptureProps) {
   const t = copy.sumario.panel;
   const session = useSession();
   const db = session.database;
   const user = session.user;
   const [shot, setShot] = useState<Shot | null>(null);
   const shotRef = useRef<Shot | null>(null);
-  const opener = useRef<HTMLElement | null>(null);
+  // The camera returns the focus to its "opener" when it closes; the palette tile is gone by
+  // then, so the opener is the stable control `focusAfter` names (none while the dialog is up).
+  const lastTarget = useRef<PaletteTarget | null>(null);
+  const focusAfterRef = useRef(focusAfter);
+  focusAfterRef.current = focusAfter;
+  const opener = useMemo<RefObject<HTMLElement | null>>(
+    () => ({
+      get current() {
+        const target = lastTarget.current;
+        if (target === null || document.querySelector('.detect-dialog') !== null) return null;
+        return focusAfterRef.current?.(target) ?? null;
+      },
+    }),
+    [],
+  );
   const [picked, setPicked] = useState<EquipmentBlockType | null>(null);
   const [expanded, setExpanded] = useState(false);
   const titleId = useId();
@@ -106,6 +126,7 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, o
   const open = useCallback(
     (target: PaletteTarget) => {
       const next = { target, photoId: newId() };
+      lastTarget.current = target;
       shotRef.current = next;
       setShot(next);
       setPicked(null);
@@ -132,17 +153,26 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, o
   const suggestion = shot === null || data == null ? null : panelSuggestionOf(data.pending, shot.photoId);
 
   /** "Cancelar", Esc, the scrim and "Fotografar de novo": the unconfirmed photo removed and its suggestion discarded. */
-  const discard = () => {
+  const discard = (refocus = true) => {
     const current = shotRef.current;
     shotRef.current = null;
     setShot(null);
+    if (refocus && current !== null && focusAfter !== undefined) restoreFocus(() => focusAfter(current.target), { mode: 'settled' });
     if (current === null || db === null || user === null || photo === null) return;
     const drafts = panelCancelOps({ id: user.id, companyId: user.companyId }, relatorioId, current.photoId, suggestion?.row ?? null, toIso(now()));
     void commitBatch(db, drafts, { newId, now }).catch((error: unknown) => console.error('panel photo not removed', error));
   };
 
   const isOpen = shot !== null && photo !== null && photo.removed_at === null && photo.reading_kind === 'panel';
-  if (!isOpen || shot === null || photo === null) return camera.element;
+  // The camera's fallback input stays the same element whether the dialog shows or not: "Fotografar
+  // de novo" clicks it in the same tap that closes the dialog, and a remounted input would lose the file.
+  if (!isOpen || shot === null || photo === null)
+    return (
+      <>
+        {camera.element}
+        {null}
+      </>
+    );
 
   const proposal = panelProposal({ seedVersion, locations, equipment, paletteLocationId: shot.target.locationId, suggestion, pickedType: picked });
   const first = suggestion?.value.block_type ?? null;
@@ -169,7 +199,7 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, o
 
   const again = () => {
     const target = shot.target;
-    discard();
+    discard(false);
     open(target);
   };
 
@@ -235,7 +265,7 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, o
         </div>
         <div className="dialog-actions">
           <TextButton onPress={again}>{t.again}</TextButton>
-          <Button variant="secondary" onPress={discard}>
+          <Button variant="secondary" onPress={() => discard()}>
             {t.cancel}
           </Button>
         </div>
