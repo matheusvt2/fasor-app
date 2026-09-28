@@ -16,6 +16,7 @@ from app.main import app  # noqa: E402
 SCHEMA_DOC = json.loads((ROOT / "contract" / "ocr-contract.schema.json").read_text())
 # The routes and the body limit, as the kernel exports them (`x-ocr-service`); never literals.
 READ_PATH: str = SCHEMA_DOC["x-ocr-service"]["routes"]["read"]
+READ_DISPLAY_PATH: str = SCHEMA_DOC["x-ocr-service"]["routes"]["read_display"]
 HEALTH_PATH: str = SCHEMA_DOC["x-ocr-service"]["routes"]["health"]
 READ_MAX_BYTES: int = SCHEMA_DOC["x-ocr-service"]["read_max_bytes"]
 

@@ -99,6 +99,9 @@ export const ui = {
     // `60-ficha.html` `.crop-thumb` aria-label; EXPERIENCE.md › Suggestion field: the crop's alt.
     cropLabel: (label: string) => `Ver recorte da placa — ${label}`,
     cropAlt: 'Recorte da placa',
+    // Story 9.1: `60-ficha.html` "Ver recorte do visor"; EXPERIENCE.md › Accessibility, the alt "Recorte do visor".
+    cropDisplayLabel: (label: string) => `Ver recorte do visor — ${label}`,
+    cropDisplayAlt: 'Recorte do visor',
   },
   // Story 8.2: the arrival toast's action (EXPERIENCE.md › Reading arrived, "— Ver").
   readingArrival: {

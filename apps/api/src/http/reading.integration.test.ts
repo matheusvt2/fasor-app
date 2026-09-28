@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import {
   CONTRACT_VERSION,
   CONTRACT_VERSION_HEADER,
+  displayCellTarget,
   errorResponseSchema,
   instantiateTemplate,
   makeOp,
@@ -12,6 +13,7 @@ import {
   readingRereadResponseSchema,
   readingSingletonKey,
   sheetNameplatePath,
+  sheetTestCellPath,
   standardTemplate,
   suggestionRowSchema,
   syncPullResponseSchema,
@@ -142,7 +144,7 @@ async function relatorio(): Promise<{ relatorioId: string; transformer: BlockRow
 }
 
 /** The device's photo create for `block` (a plate reading by default). */
-async function photoCreate(relatorioId: string, block: BlockRow, bytes: Uint8Array, reading: 'plate' | null = 'plate'): Promise<string> {
+async function photoCreate(relatorioId: string, block: BlockRow, bytes: Uint8Array, reading: 'plate' | 'caption' | null = 'plate'): Promise<string> {
   const id = newId();
   written.entityIds.add(id);
   written.photoIds.add(id);
@@ -173,7 +175,7 @@ async function photoCreate(relatorioId: string, block: BlockRow, bytes: Uint8Arr
         item_key: null,
         caption: 'Placa de identificação',
         reading_kind: reading,
-        reading_target: reading === null ? null : plateReadingTarget(block.id, block.block_type),
+        reading_target: reading === 'plate' ? plateReadingTarget(block.id, block.block_type) : null,
         reading_status: reading === null ? 'none' : 'queued',
       } as never,
       prev_op_id: null,
@@ -407,6 +409,21 @@ describe('8.4-INT the plate read end to end over the compose api', () => {
         }),
       ),
     ]);
+    // Story 9.1: an uploaded photo of a kind the job does not read yet (caption) answers 400, no job sent.
+    const captionBytes = new Uint8Array(PLATE.byteLength + 1);
+    captionBytes.set(PLATE);
+    const caption = await photoCreate(relatorioId, transformer, captionBytes, 'caption');
+    expect((await put(companyA, caption, captionBytes)).status).toBe(200);
+    const captionJobs = async () => {
+      const [found] = await sql<{ n: number }[]>`select count(*)::int as n from pgboss.job where name = 'reading' and singleton_key = ${readingSingletonKey(caption, 'caption')}`;
+      return found!.n;
+    };
+    const jobsBefore = await captionJobs();
+    const notRead = await reread(companyA, caption);
+    expect(notRead.status).toBe(400);
+    expect(errorResponseSchema.parse(await notRead.json()).code).toBe('invalid_request');
+    expect(await captionJobs()).toBe(jobsBefore);
+
     const notPhoto = await reread(companyA, certificateId);
     expect(notPhoto.status).toBe(404);
     expect(await notPhoto.text()).toBe(await (await reread(companyA, newId())).text());
@@ -426,4 +443,80 @@ describe('8.4-INT the plate read end to end over the compose api', () => {
     expect(await runsOf(photoId)).toHaveLength(runsBefore);
     expect(statusOps(await pullAll(relatorioId), photoId).at(-1)!.value).toBe('running');
   }, 60_000);
+});
+
+describe('9.1-INT a display read end to end over the compose api', () => {
+  const TRES_VALORES = new Uint8Array(readFileSync(resolve(import.meta.dirname, '../../../../services/ocr/tests/fixtures/display-tres-valores.jpg')));
+  const displayJobs = async (id: string) => {
+    const [found] = await sql<{ n: number }[]>`select count(*)::int as n from pgboss.job where name = 'reading' and singleton_key = ${readingSingletonKey(id, 'display')}`;
+    return found!.n;
+  };
+
+  /** The device's "Ler visor" shot of the transformer's insulation table, from 1 MINUTO of its first row. */
+  async function displayCreate(relatorioId: string, block: BlockRow, bytes: Uint8Array): Promise<string> {
+    const id = newId();
+    written.entityIds.add(id);
+    written.photoIds.add(id);
+    await push(companyA, [
+      stamp({
+        kind: 'create',
+        scope: 'relatorio',
+        company_id: companyA.companyId,
+        project_id: null,
+        relatorio_id: relatorioId,
+        path: `file/${id}`,
+        value: {
+          id,
+          company_id: companyA.companyId,
+          relatorio_id: relatorioId,
+          kind: 'photo',
+          sha256: createHash('sha256').update(bytes).digest('hex'),
+          mime: 'image/jpeg',
+          size: bytes.byteLength,
+          uploaded_at: null,
+          variants: null,
+          removed_at: null,
+          captured_at: '2026-09-28T10:00:00.000Z',
+          tz_offset: -180,
+          coords: null,
+          local_seq: 1,
+          block_id: block.id,
+          item_key: null,
+          caption: null,
+          reading_kind: 'display',
+          reading_target: displayCellTarget(block.id, block.block_type, 'isolacao', { row: 0, col: 1 }),
+          reading_status: 'queued',
+        } as never,
+        prev_op_id: null,
+        batch_id: null,
+        meta: null,
+        actor_id: companyA.userId,
+      }),
+    ]);
+    return id;
+  }
+
+  it('the PUT sends one display job: running, then done, with 1 MINUTO suggested; a reread runs it again; another company gets 404', async () => {
+    const { relatorioId, transformer } = await relatorio();
+    const id = await displayCreate(relatorioId, transformer, TRES_VALORES);
+    const res = await put(companyA, id, TRES_VALORES);
+    expect(res.status, await res.clone().text()).toBe(200);
+    const all = await waitForStatuses(relatorioId, id, 2);
+    expect(statusOps(all, id).map((op) => op.value)).toEqual(['running', 'done']);
+    const rows = createdSuggestions(all).filter((row) => row.source.photo_id === id);
+    expect(rows.map((row) => [row.target_path, row.value, row.trust, row.mode])).toEqual([
+      [sheetTestCellPath(transformer.id, 'isolacao', 0, 1), { raw: '1.45', unit: 'G\u03a9', state: 'measured' }, 'suggested', 'fill'],
+    ]);
+    const [first] = await runsOf(id);
+    expect(first).toMatchObject({ outcome: 'ok', reading_kind: 'display', ocr_provider: 'fake', model: null, prompt_version: null });
+    expect(await displayJobs(id)).toBe(1);
+
+    expect((await reread(companyB, id)).status).toBe(404);
+    const again = await reread(companyA, id);
+    expect(again.status, await again.clone().text()).toBe(202);
+    const after = await waitForStatuses(relatorioId, id, 4);
+    expect(statusOps(after, id).map((op) => op.value)).toEqual(['running', 'done', 'running', 'done']);
+    expect(await runsOf(id)).toHaveLength(2);
+    expect(await displayJobs(id)).toBe(2);
+  }, 90_000);
 });

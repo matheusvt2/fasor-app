@@ -8,7 +8,7 @@ import {
   type CellAddress,
   type EvaluatedCell,
 } from '@app/domain';
-import { useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { OverflowMenu, TextButton } from '../../components/index.ts';
 import { SuggestionField } from '../../components/suggestion-field.tsx';
 import { useNumberInput } from '../../components/number-input.tsx';
@@ -27,6 +27,9 @@ import { conclusionOp, testCellOp } from './ficha-ops.ts';
  * amber out-of-criterion state and helper, the neutral outlier helper -- is the kernel's
  * evaluation (`evaluateSheetReadings`); red is never used for a reading and nothing here
  * blocks. "Não medido" is the cell's Overflow item.
+ *
+ * Story 9.1: a cell a display reading filled is the Suggestion field's confirmed state (the
+ * crop shrunk to its glyph, `confirmedCrop`), and lines of "Ler visor" go under it (`after`).
  */
 
 export type RunDirection = 'next' | 'previous' | 'right';
@@ -43,6 +46,8 @@ export function MeasurementField({
   presentation,
   missing,
   onRun,
+  confirmedCrop,
+  after,
 }: {
   api: FichaApi;
   cell: EvaluatedCell;
@@ -53,6 +58,10 @@ export function MeasurementField({
   missing: boolean;
   /** Moves the focus along the continuous run; false when there is nowhere to go. */
   onRun: (from: CellAddress, direction: RunDirection) => boolean;
+  /** Story 9.1: the source crop of a value a display reading filled (the confirmed glyph). */
+  confirmedCrop?: ReactNode;
+  /** Story 9.1: lines under the cell (the mismatch line, the queued photo). */
+  after?: ReactNode;
 }) {
   const t = ui.measurementField;
   const echoId = useId();
@@ -138,7 +147,11 @@ export function MeasurementField({
   };
 
   return (
-    <div className="ficha-cell" data-cell={cellKey(address)}>
+    <div
+      className={confirmedCrop === undefined ? 'ficha-cell' : 'ficha-cell suggestion-field'}
+      data-state={confirmedCrop === undefined ? undefined : 'confirmed'}
+      data-cell={cellKey(address)}
+    >
       <div className="measurement-field" data-state={out ? 'out-of-limit' : undefined}>
         <input
           className="mf-value"
@@ -173,6 +186,7 @@ export function MeasurementField({
           name={label}
           items={[{ id: 'not-measured', label: t.notMeasured, onAction: () => void write({ raw: '', unit: slotUnit, state: 'not_measured' }) }]}
         />
+        {confirmedCrop}
       </div>
       {number.echo === null ? null : (
         <span className="mf-echo" id={echoId}>
@@ -213,6 +227,7 @@ export function MeasurementField({
           {cell.outlier.text}
         </div>
       ) : null}
+      {after}
     </div>
   );
 }

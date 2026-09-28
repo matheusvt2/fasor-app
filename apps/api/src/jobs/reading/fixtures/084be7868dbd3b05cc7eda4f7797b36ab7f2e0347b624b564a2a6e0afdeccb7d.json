@@ -1,0 +1,56 @@
+{
+  "outcome": "ok",
+  "ocr": {
+    "image": {
+      "width": 1200,
+      "height": 900
+    },
+    "tokens": [
+      {
+        "id": "t0",
+        "text": "MODELOSINTETICO",
+        "bbox": [
+          80.0,
+          64.0,
+          379.0,
+          91.0
+        ],
+        "confidence": 0.9869
+      },
+      {
+        "id": "t1",
+        "text": "12/03/2026",
+        "bbox": [
+          122.0,
+          194.0,
+          725.0,
+          294.0
+        ],
+        "confidence": 0.9935
+      },
+      {
+        "id": "t2",
+        "text": "10:40",
+        "bbox": [
+          769.0,
+          201.0,
+          1077.0,
+          286.0
+        ],
+        "confidence": 0.9671
+      },
+      {
+        "id": "t3",
+        "text": "RATIO=34.512",
+        "bbox": [
+          121.0,
+          303.0,
+          956.0,
+          395.0
+        ],
+        "confidence": 0.9364
+      }
+    ],
+    "preprocessing_applied": false
+  }
+}

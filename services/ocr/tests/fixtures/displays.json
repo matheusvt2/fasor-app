@@ -1,0 +1,109 @@
+{
+  "display-megohmetro": {
+    "image": {
+      "width": 1200,
+      "height": 900
+    },
+    "lines": [
+      "3.42"
+    ],
+    "values": [
+      {
+        "raw": "3.42",
+        "unit": null
+      }
+    ]
+  },
+  "display-isolacao": {
+    "image": {
+      "width": 1200,
+      "height": 900
+    },
+    "lines": [
+      "147 GΩ"
+    ],
+    "values": [
+      {
+        "raw": "147",
+        "unit": "GΩ"
+      }
+    ]
+  },
+  "display-microhmimetro": {
+    "image": {
+      "width": 1200,
+      "height": 900
+    },
+    "lines": [
+      "12/03/2026 10:15",
+      "I=10.0A  87 uΩ"
+    ],
+    "values": [
+      {
+        "raw": "87",
+        "unit": "µΩ"
+      }
+    ]
+  },
+  "display-ttr": {
+    "image": {
+      "width": 1200,
+      "height": 900
+    },
+    "lines": [
+      "12/03/2026 10:40",
+      "RATIO = 34.512"
+    ],
+    "values": [
+      {
+        "raw": "34.512",
+        "unit": null
+      }
+    ]
+  },
+  "display-termo": {
+    "image": {
+      "width": 1200,
+      "height": 900
+    },
+    "lines": [
+      "23.4 °C",
+      "58 %UR"
+    ],
+    "values": [
+      {
+        "raw": "23.4",
+        "unit": "°C"
+      },
+      {
+        "raw": "58",
+        "unit": "%"
+      }
+    ]
+  },
+  "display-tres-valores": {
+    "image": {
+      "width": 1200,
+      "height": 900
+    },
+    "lines": [
+      "R30s 1.20 GΩ",
+      "R1m  1.45 GΩ",
+      "R10m 1.80 GΩ"
+    ],
+    "values": [
+      {
+        "raw": "1.20",
+        "unit": "GΩ"
+      },
+      {
+        "raw": "1.45",
+        "unit": "GΩ"
+      },
+      {
+        "raw": "1.80",
+        "unit": "GΩ"
+      }
+    ]
+  }
+}

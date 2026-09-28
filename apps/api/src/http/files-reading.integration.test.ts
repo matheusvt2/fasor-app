@@ -21,8 +21,9 @@ import { createApp } from './app.ts';
 /*
  * Story 8.4, file receipt in process: the app is built with a spy send to the reading
  * queue, so the I/O matrix rows "Enqueue unavailable" (the send fails: the upload still
- * answers 200 and the photo stays `queued`) and "No reading" (a photo without a reading kind,
- * or a kind other than plate: no send, no status op) are checked without the compose worker.
+ * answers 200 and the photo stays `queued`) and "No reading" (a photo without a reading kind:
+ * no send, no status op; Story 9.1: every other kind queued is sent with its own kind) are
+ * checked without the compose worker.
  * The session cookie comes from the compose api (sessions live in Postgres).
  */
 
@@ -197,17 +198,25 @@ describe('8.4-INT file receipt and the reading queue', () => {
     expect(await statusOf(id)).toEqual({ reading_status: 'queued', statusOps: 0 });
   }, 60_000);
 
-  it('a photo without a reading kind, or with a kind other than plate: no send, no status op', async () => {
+  it('a photo without a reading kind: no send, no status op', async () => {
     const calls: ReadingPayload[] = [];
     const app = createApp({ probes, auth, db, s3, bucket: config.S3_BUCKET, staticDir, enqueueReading: async (payload) => void calls.push(payload) });
     const none = await photo(app, { reading_kind: null, reading_status: 'none' });
-    const display = await photo(app, { reading_kind: 'display', reading_status: 'queued' });
-    for (const { id, bytes } of [none, display]) {
-      const res = await request(app, `/api/files/${id}`, { method: 'PUT', headers: { 'content-type': 'application/octet-stream' }, body: bytes });
-      expect(res.status, await res.clone().text()).toBe(200);
-    }
+    const res = await request(app, `/api/files/${none.id}`, { method: 'PUT', headers: { 'content-type': 'application/octet-stream' }, body: none.bytes });
+    expect(res.status, await res.clone().text()).toBe(200);
     expect(calls).toEqual([]);
     expect(await statusOf(none.id)).toEqual({ reading_status: 'none', statusOps: 0 });
-    expect(await statusOf(display.id)).toEqual({ reading_status: 'queued', statusOps: 0 });
+  }, 60_000);
+
+  it('9.1-INT a queued display photo is sent with its own kind, once: running; a retried PUT sends nothing more', async () => {
+    const calls: ReadingPayload[] = [];
+    const app = createApp({ probes, auth, db, s3, bucket: config.S3_BUCKET, staticDir, enqueueReading: async (payload) => void calls.push(payload) });
+    const display = await photo(app, { reading_kind: 'display', reading_status: 'queued' });
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const res = await request(app, `/api/files/${display.id}`, { method: 'PUT', headers: { 'content-type': 'application/octet-stream' }, body: display.bytes });
+      expect(res.status, await res.clone().text()).toBe(200);
+    }
+    expect(calls).toEqual([{ company_id: companyA.companyId, photo_id: display.id, reading_kind: 'display' }]);
+    expect(await statusOf(display.id)).toEqual({ reading_status: 'running', statusOps: 1 });
   }, 60_000);
 });

@@ -163,7 +163,9 @@ function FichaBody({
             <div className="content">
               {block.not_tested === null ? null : <NotTestedBand api={api} block={block} snapshot={snapshot} />}
               <div id="ficha-step-placa" className={stepClass('placa')} data-step="placa" tabIndex={-1} onFocus={() => focusIn('placa')}>
-                {cabine === null ? null : <CabineBlock api={api} snapshot={snapshot} cabine={cabine} first={cabineFirst} />}
+                {cabine === null ? null : (
+                  <CabineBlock api={api} state={state} snapshot={snapshot} cabine={cabine} first={cabineFirst} envTarget={() => photos.targetFor('placa', null)} />
+                )}
                 {enabled.has('nameplate') ? (
                   <NameplateSection
                     api={api}
@@ -200,6 +202,9 @@ function FichaBody({
                 className={stepClass('ensaios')}
                 onFocus={() => focusIn('ensaios')}
                 primaryId={PRIMARY_ID}
+                state={state}
+                targetFor={(testKey) => photos.targetFor('ensaios', testKey)}
+                onCaptionPhoto={photos.setCaptioning}
               />
               <ConclusaoSection api={api} block={block} definition={definition} tag={tag} className={stepClass('conclusao')} onFocus={() => focusIn('conclusao')} />
             </div>

@@ -597,6 +597,8 @@ input.count { width: 40px; padding: 0; border: 0; background: transparent; color
 .cam-shutter { width: 76px; height: 76px; border-radius: 50%; border: 4px solid #FFFFFF; background: transparent; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
 .cam-shutter > span { width: 58px; height: 58px; border-radius: 50%; background: #FFFFFF; }
 .cam-shutter:active > span { transform: scale(.9); }
+/* Story 9.1: "Ler visor" with nothing left to read; mirrors `.btn.is-disabled` (components.css) */
+.cam-shutter[data-disabled] { opacity: .4; }
 /* mirrors `[data-route=...] .cam-count` */
 .cam-count { padding: 0 var(--sp-4) var(--sp-4); font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: #B6BCC6; text-align: center; }
 /* `.frame-phone [data-route=...] X` -> below 768px: the shutter alone on the first row,
