@@ -98,6 +98,61 @@ export interface NameplateSuggestionsModel {
   createsEntry: (s: SuggestionRow) => boolean;
 }
 
+/** The Photo viewer a crop opens, zoomed on its region, and what it needs (shared with the Measurement cells, Story 9.1). */
+export interface CropViewer {
+  tiles: readonly PhotoTile[];
+  numbers: ReadonlyMap<string, number>;
+  openPhoto: (photoId: string, zoom?: NormalizedBox | null) => void;
+  openCrop: (s: SuggestionCrop) => void;
+  viewer: ReactNode;
+}
+
+/** The Photo viewer opened from a crop, zoomed on its region, when the photo is on this device. */
+export function useCropViewer({ api, snapshot, onCaptionPhoto }: { api: FichaApi; snapshot: RelatorioSnapshot; onCaptionPhoto?: ((tile: PhotoTile) => void) | undefined }): CropViewer {
+  const { showToast } = useToast();
+  const db = useSession().database;
+  const tiles = useRelatorioPhotoTiles(db, api.relatorioId);
+  const numbers = useMemo(
+    () => numberPhotos(tiles.map((tile) => ({ id: tile.id, kind: 'photo', removed_at: null, captured_at: tile.captured_at, local_seq: tile.local_seq }))),
+    [tiles],
+  );
+  const [viewing, setViewing] = useState<{ photoId: string; zoom: NormalizedBox | null } | null>(null);
+  const openPhoto = (photoId: string, zoom: NormalizedBox | null = null) => {
+    if (tiles.some((tile) => tile.id === photoId)) setViewing({ photoId, zoom });
+  };
+  const openCrop = (s: SuggestionCrop) => openPhoto(s.source.photo_id, s.source.bbox);
+  const remove = (tile: PhotoTile) => {
+    if (db === null || api.author === null) return;
+    const author = api.author;
+    const number = numbers.get(tile.id) ?? 0;
+    setViewing(null);
+    void removePhoto(db, author, api.relatorioId, tile.id)
+      .then(() =>
+        showToast(photoRemovedText(number), {
+          action: { label: copy.viewer.undo, onPress: () => void restorePhoto(db, author, api.relatorioId, tile.id).catch(() => undefined) },
+        }),
+      )
+      .catch(() => undefined);
+  };
+  const viewer = (
+    <PhotoViewer
+      snapshot={snapshot}
+      tiles={tiles}
+      numbers={numbers}
+      photoId={viewing?.photoId ?? ''}
+      zoom={viewing?.zoom ?? null}
+      onNavigate={(photoId) => setViewing({ photoId, zoom: null })}
+      onClose={() => setViewing(null)}
+      onEditCaption={(tile) => {
+        setViewing(null);
+        onCaptionPhoto?.(tile);
+      }}
+      onRemove={remove}
+    />
+  );
+  return { tiles, numbers, openPhoto, openCrop, viewer };
+}
+
 /** Everything the nameplate reads and writes of its suggestions. */
 export function useNameplateSuggestions({
   api,
@@ -116,7 +171,6 @@ export function useNameplateSuggestions({
   onCaptionPhoto?: (tile: PhotoTile) => void;
 }): NameplateSuggestionsModel {
   const { showToast } = useToast();
-  const db = useSession().database;
   const rows = useMemo(() => suggestionRowsOf(state, api.relatorioId), [state, api.relatorioId]);
   const pending = useMemo(() => pendingSuggestions(rows), [rows]);
   const list = useMemo(() => nameplateSuggestions(block, pending), [block, pending]);
@@ -187,45 +241,7 @@ export function useNameplateSuggestions({
   };
 
   // --- the viewer, opened on a crop's region when the photo is on this device -----------
-  const tiles = useRelatorioPhotoTiles(db, api.relatorioId);
-  const numbers = useMemo(
-    () => numberPhotos(tiles.map((tile) => ({ id: tile.id, kind: 'photo', removed_at: null, captured_at: tile.captured_at, local_seq: tile.local_seq }))),
-    [tiles],
-  );
-  const [viewing, setViewing] = useState<{ photoId: string; zoom: NormalizedBox | null } | null>(null);
-  const openPhoto = (photoId: string, zoom: NormalizedBox | null = null) => {
-    if (tiles.some((tile) => tile.id === photoId)) setViewing({ photoId, zoom });
-  };
-  const openCrop = (s: SuggestionCrop) => openPhoto(s.source.photo_id, s.source.bbox);
-  const remove = (tile: PhotoTile) => {
-    if (db === null || api.author === null) return;
-    const author = api.author;
-    const number = numbers.get(tile.id) ?? 0;
-    setViewing(null);
-    void removePhoto(db, author, api.relatorioId, tile.id)
-      .then(() =>
-        showToast(photoRemovedText(number), {
-          action: { label: copy.viewer.undo, onPress: () => void restorePhoto(db, author, api.relatorioId, tile.id).catch(() => undefined) },
-        }),
-      )
-      .catch(() => undefined);
-  };
-  const viewer = (
-    <PhotoViewer
-      snapshot={snapshot}
-      tiles={tiles}
-      numbers={numbers}
-      photoId={viewing?.photoId ?? ''}
-      zoom={viewing?.zoom ?? null}
-      onNavigate={(photoId) => setViewing({ photoId, zoom: null })}
-      onClose={() => setViewing(null)}
-      onEditCaption={(tile) => {
-        setViewing(null);
-        onCaptionPhoto?.(tile);
-      }}
-      onRemove={remove}
-    />
-  );
+  const { tiles, numbers, openPhoto, openCrop, viewer } = useCropViewer({ api, snapshot, onCaptionPhoto });
 
   const sourceOf = (id: string) => rows.find((row) => row.id === id) ?? snapshot.suggestions.find((row) => row.id === id) ?? null;
 

@@ -1,12 +1,17 @@
 import {
   confirmSuggestionOps,
+  envSuggestions,
   livePendingSuggestions,
+  measurementSuggestions,
   safeParsePath,
+  storedTestCell,
   suggestionFieldDef,
   suggestionRowSchema,
   suggestionView,
   type Author,
   type BlockRow,
+  type JsonValue,
+  type LocationRow,
   type RelatorioRow,
   type SuggestionRow,
 } from '@app/domain';
@@ -24,6 +29,10 @@ import type { AppDatabase } from './schema.ts';
  * sheet shows the fill). The rule and the ops are the kernel's (`suggestionView`,
  * `confirmSuggestionOps`); this only reads the local rows. Scanning every pending row, not
  * only the pulled creates, is what retries a confirm that failed on an earlier pull.
+ *
+ * Story 9.1: the same for a display reading on a Measurement cell (the typed value checked
+ * by the photo: an equal one gains the crop silently) and on a cabine's temperature or
+ * humidity, compared as numbers (`measurementSuggestions`, `envSuggestions`).
  */
 
 async function pendingRows(db: AppDatabase): Promise<SuggestionRow[]> {
@@ -62,20 +71,49 @@ async function sweepOne(db: AppDatabase, id: string, author: Author, deps: Commi
   if (parsed === null || !parsed.success || parsed.data.status !== 'pending') return false;
   const suggestion = parsed.data;
   const target = safeParsePath(suggestion.target_path);
-  if (target === null || target.family !== 'sheet/nameplate') return false;
+  if (target === null) return false;
+  if (target.family === 'location/env') {
+    const value = await equalEnvValue(db, target.id, suggestion);
+    if (value === undefined) return false;
+    await commitBatch(db, confirmSuggestionOps(author, suggestion, { auto: true, value }), deps);
+    return true;
+  }
+  if (target.family !== 'sheet/nameplate' && target.family !== 'sheet/test/cell') return false;
   const blockRecord = await db.entities.get(['block', target.block_id]);
   if (blockRecord === undefined) return false;
   const block = blockRecord.row as BlockRow;
   if (block.removed_at !== null) return false;
   // An issued relatório is never moved back to Em revisão by a write nobody tapped.
-  const relatorio = await db.entities.get(['relatorio', suggestion.relatorio_id]);
-  if ((relatorio?.row as RelatorioRow | undefined)?.status === 'emitido') return false;
+  if (await issued(db, suggestion)) return false;
+  if (target.family === 'sheet/test/cell') {
+    const entry = measurementSuggestions(block, [suggestion])[0];
+    const cell = entry === undefined ? null : storedTestCell(block, entry.address);
+    if (entry === undefined || entry.view !== 'none' || cell === null) return false;
+    await commitBatch(db, confirmSuggestionOps(author, suggestion, { auto: true, value: cell.value }), deps);
+    return true;
+  }
   const field = suggestionFieldDef(block, suggestion);
   const cell = block.sheet.nameplate[target.field_key];
   if (cell === undefined || suggestionView(cell, suggestion, field) !== 'none') return false;
   // The engineer's own value is written back as it is; only its provenance changes.
   await commitBatch(db, confirmSuggestionOps(author, suggestion, { auto: true, value: cell.value }), deps);
   return true;
+}
+
+async function issued(db: AppDatabase, suggestion: SuggestionRow): Promise<boolean> {
+  const relatorio = await db.entities.get(['relatorio', suggestion.relatorio_id]);
+  return (relatorio?.row as RelatorioRow | undefined)?.status === 'emitido';
+}
+
+/** Story 9.1: the cabine's own value when it equals the thermo-hygrometer suggestion, else undefined. */
+async function equalEnvValue(db: AppDatabase, locationId: string, suggestion: SuggestionRow): Promise<JsonValue | undefined> {
+  const record = await db.entities.get(['location', locationId]);
+  const location = record?.row as LocationRow | undefined;
+  if (location === undefined || location.kind !== 'cabine' || location.removed_at !== null) return undefined;
+  if (await issued(db, suggestion)) return undefined;
+  const entry = envSuggestions(location, [suggestion])[0];
+  if (entry === undefined || entry.view !== 'none') return undefined;
+  return location.env[entry.field] as JsonValue;
 }
 
 /** What `syncCounts` reads besides the outbox (Story 8.2): the suggestion statuses and the live photos' readings. */
@@ -86,17 +124,20 @@ export interface ReadingCountRows {
 
 /**
  * The device's pending suggestions on live blocks (the Sumário's own filter,
- * `livePendingSuggestions`) and its live photos' readings, for Sync status "Leituras".
+ * `livePendingSuggestions`) and on live cabines (Story 9.1, the thermo-hygrometer), and its
+ * live photos' readings, for Sync status "Leituras".
  */
 export async function readingCountRows(db: AppDatabase): Promise<ReadingCountRows> {
-  const [pending, blocks, files] = await Promise.all([
+  const [pending, blocks, locations, files] = await Promise.all([
     pendingRows(db),
     db.entities.where('entity').equals('block').toArray(),
+    db.entities.where('entity').equals('location').toArray(),
     db.entities.where('entity').equals('file').toArray(),
   ]);
   const live = livePendingSuggestions(
     blocks.map((record) => record.row as BlockRow),
     pending,
+    locations.map((record) => record.row as LocationRow),
   );
   return {
     suggestions: live.map((row) => ({ status: row.status })),

@@ -42,13 +42,14 @@ describe('OCR sidecar contract (Story 8.3)', () => {
 
   it('names the routes and the size limit', () => {
     expect(OCR_SERVICE_ROUTES.read).toEqual({ method: 'POST', path: '/read' });
+    expect(OCR_SERVICE_ROUTES.readDisplay).toEqual({ method: 'POST', path: '/read/display' });
     expect(OCR_SERVICE_ROUTES.health).toEqual({ method: 'GET', path: '/health' });
     expect(OCR_READ_MAX_BYTES).toBe(20 * 1024 * 1024);
   });
 
   it('exports the routes and the size limit for the sidecar to read (Story 8.4)', () => {
     expect(ocrContractJsonSchema()['x-ocr-service']).toEqual({
-      routes: { read: OCR_SERVICE_ROUTES.read.path, health: OCR_SERVICE_ROUTES.health.path },
+      routes: { read: OCR_SERVICE_ROUTES.read.path, read_display: OCR_SERVICE_ROUTES.readDisplay.path, health: OCR_SERVICE_ROUTES.health.path },
       read_max_bytes: OCR_READ_MAX_BYTES,
     });
   });

@@ -19,6 +19,10 @@ import type { FieldDef, FieldKind } from '../seed/schema.ts';
 /** The sidecar's routes, relative to `OCR_SERVICE_URL`. */
 export const OCR_SERVICE_ROUTES = {
   read: { method: 'POST', path: '/read' },
+  // Story 9.1: an instrument display (seven-segment or character LCD), read as whole lines
+  // (`services/ocr/app/display.py`, chosen by the spike in `docs/display-reading-spike.md`).
+  // Same body, limits and answer as `read`.
+  readDisplay: { method: 'POST', path: '/read/display' },
   health: { method: 'GET', path: '/health' },
 } as const;
 
@@ -107,9 +111,17 @@ export interface OcrImage {
   mime: 'image/jpeg' | 'image/png';
 }
 
+/**
+ * Story 9.1: how an image is read. `text` (the default) is the nameplate pipeline of `POST
+ * /read`; `display` is an instrument display, `POST /read/display`.
+ */
+export interface OcrReadOptions {
+  mode?: 'text' | 'display';
+}
+
 /** The OCR layer: `ocr-svc` (this sidecar) in the MVP, `textract` in Epic 11, `fake` in tests. */
 export interface OcrProvider {
-  read(image: OcrImage): Promise<OcrReadResult>;
+  read(image: OcrImage, options?: OcrReadOptions): Promise<OcrReadResult>;
 }
 
 // --- structuring (the LLM step) ------------------------------------------------
@@ -210,7 +222,7 @@ export function ocrContractJsonSchema(): Record<string, unknown> {
     // Story 8.4: the sidecar reads its routes and body limit from here, so the drift test
     // covers them too (no literal is repeated in services/ocr).
     'x-ocr-service': {
-      routes: { read: OCR_SERVICE_ROUTES.read.path, health: OCR_SERVICE_ROUTES.health.path },
+      routes: { read: OCR_SERVICE_ROUTES.read.path, read_display: OCR_SERVICE_ROUTES.readDisplay.path, health: OCR_SERVICE_ROUTES.health.path },
       read_max_bytes: OCR_READ_MAX_BYTES,
     },
     $defs,

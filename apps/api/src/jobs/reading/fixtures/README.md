@@ -45,6 +45,26 @@ back to the default fixture of its target block type (`DEFAULT_FIXTURE_BY_BLOCK_
 
 A photo's own fixture always wins over the default (the error and timeout images below).
 
+Story 9.1 generalizes the fallback by reading kind: each kind lists its defaults
+(`fakeDefaults` in `kinds/<kind>.ts`, flattened in `FAKE_FIXTURE_DEFAULTS` of `kinds/index.ts`),
+chosen by `(reading_kind, block_type?, table_key?)`, most specific first (block type and table
+together, then the block type, then the table, then the kind's catch-all). A display shot of
+the thermo-hygrometer has no block type and the table key `env`.
+
+| Kind | Block type | Table (`reading_target.table_key`) | Default fixture replays |
+|---|---|---|---|
+| plate | `transformador_forca` | - | `plate-transformador.jpg` |
+| display | `transformador_forca` | `isolacao` | `display-tres-valores.jpg` (1,20 / 1,45 / 1,80 GΩ: only 1 MINUTO is suggested) |
+| display | any | `isolacao` | `display-isolacao.jpg` (147 GΩ) |
+| display | any | `resistencia_contato` | `display-microhmimetro.jpg` (87 µΩ, read at 0.17: Verificar) |
+| display | any | `relacao_transformacao` | `display-ttr.jpg` (34,512) |
+| display | none | `env` | `display-termo.jpg` (23,4 °C at 0.26: Verificar; 58 %) |
+| display | any | anything else | `display-megohmetro.jpg` (3,42, no unit) |
+
+The six display fixtures are the sidecar's `POST /read/display` reads of the synthetic displays
+in `services/ocr/tests/fixtures/` (their table: `displays.md`); a display suggestion carries
+`prompt_version: display-1` (no model runs) and its run row has no model.
+
 ## Adding one
 
 1. Commit the image the fixture is for: the synthetic plate lives in

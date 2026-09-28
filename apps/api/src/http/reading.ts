@@ -12,12 +12,14 @@ import { and, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import type { Db } from '../db/client.ts';
 import { entities } from '../db/schema.ts';
+import { readingKindHandler } from '../jobs/reading/kinds/index.ts';
 import type { ReadingPayload } from '../jobs/reading/payload.ts';
 import { startReading } from '../jobs/reading/status.ts';
 import { type AppEnv, requireSession } from './session.ts';
 
 /*
- * Story 8.4: `POST /api/photos/{id}/reread` reads an uploaded plate photo again: one new
+ * Story 8.4: `POST /api/photos/{id}/reread` reads an uploaded reading photo again (Story 9.1:
+ * any kind the job has a handler for, the plate and the display): one new
  * reading job and `reading_status = running` (from `done` or `failed`; E78-Q5: a photo still
  * `running` answers 409 `reading_running`, no job sent, no run); the job
  * then discards the photo's previous pending suggestions and emits the new run's. The company
@@ -56,8 +58,9 @@ export function createReadingRoutes(db: Db, deps: ReadingRoutesDeps): Hono<AppEn
     }
     const photo = parsed.data;
     if (record.removed_at !== null || photo.removed_at !== null) return c.json(notFound, 404);
-    // Only plates are read in the MVP; another kind stays as the device queued it.
-    if (photo.reading_kind !== 'plate') return c.json(fail('invalid_request', 'This photo is not a plate reading.'), 400);
+    // Only a kind the job reads is read again; another stays as the device queued it.
+    const kind = photo.reading_kind;
+    if (kind === null || readingKindHandler(kind) === undefined) return c.json(fail('invalid_request', 'This photo is not a reading the job reads.'), 400);
     if (photo.uploaded_at === null) return c.json(fail('not_caught_up', 'The photo has not been uploaded yet.'), 409);
     // E78-Q5: a reading already running is not started again (every further tap was one more run).
     if (photo.reading_status === 'running') return c.json(fail('reading_running', 'This photo is being read.'), 409);
@@ -68,7 +71,7 @@ export function createReadingRoutes(db: Db, deps: ReadingRoutesDeps): Hono<AppEn
       { db, now: deps.now, newId: deps.newId, enqueue },
       session.companyId,
       { id, relatorioId: record.relatorio_id },
-      { company_id: session.companyId, photo_id: id, reading_kind: 'plate' },
+      { company_id: session.companyId, photo_id: id, reading_kind: kind },
     );
     const answer: ReadingRereadResponse = { photo_id: id, reading_status: 'running' };
     return c.json(answer, 202);

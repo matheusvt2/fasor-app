@@ -1,26 +1,19 @@
 import { buffer } from 'node:stream/consumers';
 import {
-  blockRowSchema,
-  buildReadingSuggestions,
-  getDefinition,
   normalizeBox,
   objectKey,
   photoFileRowSchema,
-  plateReadingTargetSchema,
-  registryRowSchema,
   suggestionPath,
   suggestionRowSchema,
   suggestionStatusPath,
   toIso,
-  type BlockRow,
   type Clock,
   type NewId,
   type OcrReadResult,
   type StructuringResult,
-  type WordRow,
 } from '@app/domain';
 import type { S3Client } from '@aws-sdk/client-s3';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import type { Db } from '../../db/client.ts';
 import { asCompanyId, type CompanyId } from '../../db/repositories/company-id.ts';
 import { entities, readingRuns } from '../../db/schema.ts';
@@ -28,20 +21,23 @@ import { log, logError } from '../../log.ts';
 import { getObject } from '../../storage/s3.ts';
 import { applyOps, applyServerBatch, ServerBatchRejectedError, type Tx } from '../../sync/apply.ts';
 import { exifOrientation, readingImage, type ReadingImage } from './image.ts';
+import { readingKindHandler } from './kinds/index.ts';
+import { entityRecord } from './kinds/shared.ts';
 import type { ReadingPayload } from './payload.ts';
 import { isPermanentReadingError, PermanentReadingError, ProviderError, type ReadingProvidersFactory } from './providers/index.ts';
 import { readingServerOp, readingStatusPath, type ReadingStatusValue } from './status.ts';
 
 /*
- * Stories 8.4 and 8.5: one attempt of a reading job. It loads the photo, its relatório, the
- * target block and the company's live registries (every lookup scoped by the payload's
- * company, AD-10), orients the `print` variant, calls the env-selected OCR and structuring
- * providers on the same bytes, and turns the values into pending suggestions through the
- * kernel (`buildReadingSuggestions`: digit coverage, registries, boxes, mode). The discards
- * of the photo's previous pending suggestions, the creates and `reading_status = done` are
- * one all-or-nothing server batch sharing one `batch_id`, committed with the run's `ok` row. Every attempt leaves one
- * `reading_runs` row. A transient failure before the last attempt rethrows for pg-boss to
- * retry; the last attempt and a permanent failure write `failed` and return.
+ * Stories 8.4 and 8.5: one attempt of a reading job. It loads the photo and its relatório
+ * (every lookup scoped by the payload's company, AD-10), lets the handler of the photo's
+ * reading kind check its target (Story 9.1, `kinds/`: the plate's block and registries, the
+ * display's table or cabine), orients the `print` variant, and lets the handler read it with
+ * the env-selected providers and turn what it read into pending suggestions through the
+ * kernel. The discards of the photo's previous pending suggestions, the creates and
+ * `reading_status = done` are one all-or-nothing server batch sharing one `batch_id`,
+ * committed with the run's `ok` row. Every attempt leaves one `reading_runs` row. A kind
+ * with no handler fails permanently; a transient failure before the last attempt rethrows
+ * for pg-boss to retry; the last attempt and a permanent failure write `failed` and return.
  */
 
 export interface ReadingJobDeps {
@@ -60,37 +56,6 @@ export interface ReadingAttempt {
   attempt: number;
   /** True on the attempt after which pg-boss retries no more. */
   lastAttempt: boolean;
-}
-
-interface EntityRecord {
-  row: unknown;
-  relatorio_id: string | null;
-  removed_at: string | null;
-}
-
-async function entityRecord(db: Db, companyId: CompanyId, entity: string, id: string): Promise<EntityRecord | null> {
-  const [record] = await db
-    .select({ row: entities.row, relatorio_id: entities.relatorio_id, removed_at: entities.removed_at })
-    .from(entities)
-    .where(and(eq(entities.company_id, companyId), eq(entities.entity, entity), eq(entities.id, id)))
-    .limit(1);
-  return record ?? null;
-}
-
-async function liveRegistry(db: Db, companyId: CompanyId): Promise<{ manufacturers: WordRow[]; voltageClasses: WordRow[] }> {
-  const records = await db
-    .select({ row: entities.row })
-    .from(entities)
-    .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'registry'), isNull(entities.removed_at)));
-  const manufacturers: WordRow[] = [];
-  const voltageClasses: WordRow[] = [];
-  for (const record of records) {
-    const parsed = registryRowSchema.safeParse(record.row);
-    if (!parsed.success || parsed.data.removed_at !== null) continue;
-    if (parsed.data.kind === 'manufacturer') manufacturers.push(parsed.data);
-    else if (parsed.data.kind === 'voltage_class') voltageClasses.push(parsed.data);
-  }
-  return { manufacturers, voltageClasses };
 }
 
 /** The ids of the photo's own pending suggestions in its relatório, which a new run replaces. */
@@ -182,8 +147,6 @@ export async function runReadingJob(deps: ReadingJobDeps, payload: ReadingPayloa
   }
 
   try {
-    if (payload.reading_kind !== 'plate') throw new PermanentReadingError(`reading kind ${payload.reading_kind} is not read yet`);
-
     const photoRecord = await entityRecord(deps.db, companyId, 'file', payload.photo_id);
     if (photoRecord === null) throw new PermanentReadingError('the photo does not exist');
     const photoParsed = photoFileRowSchema.safeParse(photoRecord.row);
@@ -193,31 +156,23 @@ export async function runReadingJob(deps: ReadingJobDeps, payload: ReadingPayloa
     facts.photoFound = true;
     if (photoRecord.removed_at !== null || photo.removed_at !== null) throw new PermanentReadingError('the photo was removed');
     if (photo.reading_kind !== payload.reading_kind) throw new PermanentReadingError('the photo is not a reading of this kind');
+    // Every queued kind is sent (Story 9.1); one the job does not read yet ends `failed`.
+    const handler = readingKindHandler(payload.reading_kind);
+    if (handler === undefined) throw new PermanentReadingError(`reading kind ${payload.reading_kind} is not read yet`);
     const relatorioId = photoRecord.relatorio_id;
     if (relatorioId === null) throw new PermanentReadingError('the photo has no relatorio');
 
     const relatorio = await entityRecord(deps.db, companyId, 'relatorio', relatorioId);
     if (relatorio === null || relatorio.removed_at !== null) throw new PermanentReadingError('the relatorio is missing or removed');
 
-    const target = plateReadingTargetSchema.safeParse(photo.reading_target);
-    if (!target.success) throw new PermanentReadingError('the photo has no plate reading target');
-    const blockRecord = await entityRecord(deps.db, companyId, 'block', target.data.block_id);
-    const blockParsed = blockRecord === null ? null : blockRowSchema.safeParse(blockRecord.row);
-    if (blockRecord === null || blockParsed === null || !blockParsed.success) throw new PermanentReadingError('the target block does not exist');
-    const block: BlockRow = blockParsed.data;
-    if (blockRecord.removed_at !== null) throw new PermanentReadingError('the target block was removed');
-    if (block.relatorio_id !== relatorioId || block.block_type !== target.data.block_type) {
-      throw new PermanentReadingError('the target block is not the photo relatorio block it names');
-    }
-    let fields;
-    try {
-      fields = getDefinition(block.seed_version, 'cabine_primaria', block.block_type).nameplate;
-    } catch (error) {
-      throw new PermanentReadingError('the target block has no nameplate definition', { cause: error });
-    }
-    const registry = await liveRegistry(deps.db, companyId);
+    const prepared = await handler.prepare({ db: deps.db, companyId, relatorioId, photo });
 
-    const providers = deps.providers({ photo_sha256: photo.sha256, block_type: block.block_type });
+    const providers = deps.providers({
+      photo_sha256: photo.sha256,
+      reading_kind: payload.reading_kind,
+      block_type: prepared.fixture.block_type,
+      table_key: prepared.fixture.table_key,
+    });
     facts.ocrName = providers.ocr_name;
 
     const print = await objectBytes(deps, objectKey(companyId, 'photo', photo.id, 'print', relatorioId));
@@ -227,26 +182,9 @@ export async function runReadingJob(deps: ReadingJobDeps, payload: ReadingPayloa
     const image = await readingImage({ print: print.bytes, printMime: print.contentType, orientation });
     facts.image = image;
 
-    const ocr = await providers.ocr.read({ bytes: image.bytes, mime: image.mime });
-    if (ocr.image.width !== image.width || ocr.image.height !== image.height) {
-      throw new ProviderError(`the OCR read a ${ocr.image.width}x${ocr.image.height} image, the job sent ${image.width}x${image.height}`);
-    }
-    facts.ocr = ocr;
-    const structuring = await providers.structuring.structure({ image: { bytes: image.bytes, mime: image.mime }, ocr, fields: [...fields] });
-    facts.structuring = structuring;
-
-    const built = buildReadingSuggestions({
-      relatorioId,
-      photoId: photo.id,
-      runId,
-      block,
-      ocr,
-      image,
-      output: structuring.output,
-      promptVersion: structuring.prompt_version,
-      registry,
-      newId: deps.newId,
-    });
+    const built = await prepared.run({ providers, image, runId, newId: deps.newId });
+    facts.ocr = built.ocr;
+    facts.structuring = built.structuring;
     for (const drop of built.dropped) log('reading value dropped', { ...logFields(), key: drop.key, reason: drop.reason });
 
     const batchId = deps.newId();

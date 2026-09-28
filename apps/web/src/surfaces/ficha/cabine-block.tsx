@@ -6,16 +6,19 @@ import {
   humidityNoteSurfaced,
   previousCabineEnv,
   quickNotes,
+  type EntityState,
   type FieldDef,
   type LocationRow,
   type RelatorioSnapshot,
 } from '@app/domain';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Chip, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { cabineEnvOp, cabineSeOp, sheetObservationsOp } from './ficha-ops.ts';
 import { firstFocusable, ReadOnlyField, SheetField } from './ficha-fields.tsx';
 import type { FichaApi } from './ficha-api.ts';
+import { envAfter, EnvReadDisplayButton, EnvSuggestionFill, useEnvDisplay } from './read-display.tsx';
+import type { CaptureTarget } from './use-photo-capture.ts';
 type Cabine = Extract<LocationRow, { kind: 'cabine' }>;
 
 /*
@@ -31,8 +34,29 @@ type Cabine = Extract<LocationRow, { kind: 'cabine' }>;
  * "Editar", so a cabine whose sheets are all not tested can still be filled. The altitude is the
  * relatório setup's own, read-only everywhere. "Copiar da cabine anterior" writes the
  * previous cabine's temperature and humidity as plain ops with an undo.
+ *
+ * Story 9.1: "Ler visor" on the thermo-hygrometer (`60-ficha.html` `.ficha-amb-actions`, with
+ * its reason "Termo-higrômetro") takes one shot of the cabine's environment; its temperature
+ * and humidity arrive as Suggestion fields (`read-display.tsx`), the queued line under the
+ * fields while the photo waits for signal.
  */
-export function CabineBlock({ api, snapshot, cabine, first }: { api: FichaApi; snapshot: RelatorioSnapshot; cabine: Cabine; first: boolean }) {
+export function CabineBlock({
+  api,
+  state,
+  snapshot,
+  cabine,
+  first,
+  envTarget,
+}: {
+  api: FichaApi;
+  /** Story 9.1: the device's rows, for the thermo-hygrometer suggestions. */
+  state: EntityState;
+  snapshot: RelatorioSnapshot;
+  cabine: Cabine;
+  first: boolean;
+  /** Story 9.1: the capture target of the thermo-hygrometer shot. */
+  envTarget: () => CaptureTarget;
+}) {
   const t = copy.ficha.cabine;
   const seHeading = useId();
   const envHeading = useId();
@@ -46,6 +70,7 @@ export function CabineBlock({ api, snapshot, cabine, first }: { api: FichaApi; s
     firstFocusable(host.current)?.focus();
   });
   const definition = getSeed(snapshot.relatorio.seed_version, 'cabine_primaria').cabine;
+  const envDisplay = useEnvDisplay({ api, state, snapshot, cabine });
   const progress = cabineProgress(snapshot, cabine.id);
   // Open while a field is empty; a focus inside keeps it open for the rest of the visit, so
   // the value that completes the cabine never folds the block under the finger (D-2).
@@ -76,13 +101,14 @@ export function CabineBlock({ api, snapshot, cabine, first }: { api: FichaApi; s
     );
   }
 
-  const fieldOf = (group: 'se' | 'env', field: FieldDef) => {
+  const fieldOf = (group: 'se' | 'env', field: FieldDef, after?: (value: unknown) => ReactNode) => {
     const value = (cabine[group] as Record<string, unknown>)[field.key] ?? null;
     return (
       <SheetField
         key={field.key}
         field={field}
         value={value}
+        after={after?.(value)}
         missing={missingKeys.has(`${group}/${field.key}`)}
         draft={{ entityId: cabine.id, field: `${group}-${field.key.replace(/_/g, '-')}` }}
         invalidText={t.invalidNumber}
@@ -122,22 +148,33 @@ export function CabineBlock({ api, snapshot, cabine, first }: { api: FichaApi; s
           <h2 id={envHeading}>{t.envTitle}</h2>
           <DaCabine name={cabine.name} />
         </div>
-        {previous === null ? null : (
-          <div className="ficha-amb-actions">
+        <div className="ficha-amb-actions">
+          {previous === null ? null : (
             <Chip onPress={copyPrevious}>
               <svg className="ico" aria-hidden="true">
                 <use href="/sprite.svg#i-repeat" />
               </svg>
               {t.copyPrevious}
             </Chip>
-          </div>
-        )}
+          )}
+          <EnvReadDisplayButton relatorioId={api.relatorioId} cabineId={cabine.id} target={envTarget} />
+        </div>
         <div className="nameplate-grid">
-          {definition.env.filter((field) => field.key !== 'altitude_m').map((field) => fieldOf('env', field))}
+          {definition.env
+            .filter((field) => field.key !== 'altitude_m')
+            .map((field) => {
+              const entry = envDisplay.entries.get(field.key);
+              return entry !== undefined && entry.view === 'fill' ? (
+                <EnvSuggestionFill key={field.key} model={envDisplay} field={field} suggestion={entry.suggestion} />
+              ) : (
+                fieldOf('env', field, (value) => envAfter(envDisplay, field, value))
+              );
+            })}
           {altitudeField === undefined ? null : (
             <ReadOnlyField field={altitudeField} value={altitude === null ? null : { raw: String(altitude), unit: 'm', state: 'measured' }} helper={t.altitudeHelper} />
           )}
         </div>
+        {envDisplay.viewer}
       </section>
     </>
   );

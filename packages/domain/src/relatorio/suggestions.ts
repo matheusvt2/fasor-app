@@ -4,9 +4,12 @@ import type { OpDraft } from '../ops/op.ts';
 import { safeParsePath, suggestionStatusPath } from '../ops/path.ts';
 import { canonicalDecimal, formatDecimalGroupedPtBr, parseDecimalPtBr } from '../parse/pt-br-number.ts';
 import { parseVoltageClassKv, type WordRow } from '../registry/word-row.ts';
-import type { BlockRow, Cell, JsonValue, PhotoFileRow, RelatorioStatus, SuggestionRow } from '../schemas/entities.ts';
+import { displayCellTargetSchema } from '../reading/target.ts';
+import type { BlockRow, Cell, JsonValue, LocationRow, PhotoFileRow, RelatorioStatus, SuggestionRow } from '../schemas/entities.ts';
 import { getDefinition } from '../seed/definitions.ts';
-import type { FieldDef } from '../seed/schema.ts';
+import type { BlockDefinition, FieldDef } from '../seed/schema.ts';
+import { evaluateSheetReadings, type CellAddress, type TestKey } from './readings.ts';
+import { screenLabel } from './screen-label.ts';
 import { normalizeRegistryName } from '../text/normalize-name.ts';
 import { plural } from '../text/plural.ts';
 import { relatorioOpEnvelope, type Author } from './ops.ts';
@@ -80,17 +83,39 @@ export function pendingByNameplateField(rows: readonly SuggestionRow[], blockId:
   return out;
 }
 
+/** Story 9.1: what a suggestion's target path names: a block (any `sheet/*` path) or a cabine's environment. */
+export type SuggestionTarget = { kind: 'block'; block_id: string } | { kind: 'location'; location_id: string };
+
+/** The owner of a suggestion's target (Story 9.1: `location/{id}/env/*` besides `sheet/*`), or null for any other path. */
+export function suggestionTarget(path: string): SuggestionTarget | null {
+  const parsed = safeParsePath(path);
+  if (parsed === null) return null;
+  if (parsed.family.startsWith('sheet/')) return { kind: 'block', block_id: (parsed as { block_id: string }).block_id };
+  if (parsed.family === 'location/env') return { kind: 'location', location_id: parsed.id };
+  return null;
+}
+
 /**
  * The pending rows that still wait on a live block of `blocks`: a row whose block was
  * removed (or is not among them) has nothing left to confirm, so it is neither counted nor
  * led to. Every pending count and "N sugestões por confirmar" read this one filter.
+ *
+ * Story 9.1: given `locations`, a thermo-hygrometer suggestion on a live cabine of them is
+ * kept too (Sync status counts it); without them (the pre-issue check, the Sumário) only
+ * sheet suggestions are.
  */
-export function livePendingSuggestions(blocks: readonly Pick<BlockRow, 'id' | 'removed_at'>[], pending: readonly SuggestionRow[]): SuggestionRow[] {
+export function livePendingSuggestions(
+  blocks: readonly Pick<BlockRow, 'id' | 'removed_at'>[],
+  pending: readonly SuggestionRow[],
+  locations: readonly Pick<LocationRow, 'id' | 'kind' | 'removed_at'>[] = [],
+): SuggestionRow[] {
   const live = new Set(blocks.filter((block) => block.removed_at === null).map((block) => block.id));
+  const cabines = new Set(locations.filter((location) => location.removed_at === null && location.kind === 'cabine').map((location) => location.id));
   return pending.filter((row) => {
     if (row.status !== 'pending') return false;
-    const blockId = suggestionBlockId(row);
-    return blockId !== null && live.has(blockId);
+    const target = suggestionTarget(row.target_path);
+    if (target === null) return false;
+    return target.kind === 'block' ? live.has(target.block_id) : cabines.has(target.location_id);
   });
 }
 
@@ -596,4 +621,236 @@ export function leiturasNaFilaText(n: number): string {
 /** The sheet's banner: "Sugestões prontas — 9 campos para confirmar". */
 export function sugestoesProntasBannerText(n: number): string {
   return `Sugestões prontas — ${plural(n, 'campo para confirmar', 'campos para confirmar')}`;
+}
+
+// --- Story 9.1: Measurement cells and the thermo-hygrometer ("Ler visor") -------------------
+
+/** A display reading's value is a number cell: `compareSuggestion` reads it as `{kind: 'number'}`. */
+const NUMBER_FIELD: Pick<FieldDef, 'kind'> = { kind: 'number' };
+
+/** The stored cell of a Measurement address, or null. */
+export function storedTestCell(block: Pick<BlockRow, 'sheet'>, address: CellAddress): Cell | null {
+  return block.sheet.test[address.testKey]?.cells[String(address.row)]?.[String(address.col)] ?? null;
+}
+
+/** A cabine's environment value as a cell, for the same comparison as a sheet cell's. */
+function envCell(value: unknown): Cell | null {
+  return value === null || value === undefined ? null : ({ value, source_suggestion_id: null, op_id: '' } as unknown as Cell);
+}
+
+export interface MeasurementSuggestion {
+  address: CellAddress;
+  suggestion: SuggestionRow;
+  /** `fill` on an empty cell, `replace` beside a different typed value, `none` beside an equal one (auto-confirmed). */
+  view: 'fill' | 'replace' | 'none';
+}
+
+function testOrder(block: Pick<BlockRow, 'seed_version' | 'block_type'>): readonly string[] {
+  try {
+    return getDefinition(block.seed_version, 'cabine_primaria', block.block_type).tests.map((test) => test.key);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * The pending suggestion each Measurement cell of `block` shows (the newest per cell, as on
+ * the nameplate), with its view, in reading order (test, row, column).
+ */
+export function measurementSuggestions(block: Pick<BlockRow, 'id' | 'seed_version' | 'block_type' | 'sheet'>, pending: readonly SuggestionRow[]): MeasurementSuggestion[] {
+  const byCell = new Map<string, { address: CellAddress; suggestion: SuggestionRow }>();
+  for (const row of pending) {
+    if (row.status !== 'pending') continue;
+    const path = safeParsePath(row.target_path);
+    if (path === null || path.family !== 'sheet/test/cell' || path.block_id !== block.id) continue;
+    const address: CellAddress = { testKey: path.test_key as TestKey, row: path.row, col: path.col };
+    const key = `${address.testKey}:${address.row}:${address.col}`;
+    const held = byCell.get(key);
+    if (held === undefined || row.id > held.suggestion.id) byCell.set(key, { address, suggestion: row });
+  }
+  const order = testOrder(block);
+  const rank = (key: string) => (order.indexOf(key) === -1 ? order.length : order.indexOf(key));
+  return [...byCell.values()]
+    .sort((a, b) => rank(a.address.testKey) - rank(b.address.testKey) || a.address.row - b.address.row || a.address.col - b.address.col)
+    .map(({ address, suggestion }) => ({ address, suggestion, view: suggestionView(storedTestCell(block, address), suggestion, NUMBER_FIELD) }));
+}
+
+/** The rows of one table of a test, across the test's tables (the op path's rows), or null. */
+function tableRows(block: Pick<BlockRow, 'seed_version' | 'block_type'>, testKey: string, tableKey: string): { from: number; to: number } | null {
+  try {
+    const test = getDefinition(block.seed_version, 'cabine_primaria', block.block_type).tests.find((t) => t.key === testKey);
+    if (test === undefined) return null;
+    let offset = 0;
+    for (const table of test.tables) {
+      if (table.key === tableKey) return { from: offset, to: offset + table.rows.length };
+      offset += table.rows.length;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A table's "Confirmar todos": every `suggested` fill of its cells, in reading order. A
+ * `verify` fill (its own tap) and a replace (the engineer's value is kept) are skipped.
+ */
+export function measurementConfirmAllCandidates(
+  block: Pick<BlockRow, 'id' | 'seed_version' | 'block_type' | 'sheet'>,
+  pending: readonly SuggestionRow[],
+  testKey: string,
+  tableKey: string,
+): SuggestionRow[] {
+  const rows = tableRows(block, testKey, tableKey);
+  if (rows === null) return [];
+  return measurementSuggestions(block, pending)
+    .filter((entry) => entry.address.testKey === testKey && entry.address.row >= rows.from && entry.address.row < rows.to)
+    .filter((entry) => entry.view === 'fill' && entry.suggestion.trust === 'suggested')
+    .map((entry) => entry.suggestion);
+}
+
+export type EnvSuggestionField = 'temperature_c' | 'humidity_pct' | 'altitude_m';
+
+export interface EnvSuggestion {
+  field: EnvSuggestionField;
+  suggestion: SuggestionRow;
+  view: 'fill' | 'replace' | 'none';
+}
+
+/** The pending thermo-hygrometer suggestion of each environment field of a cabine, newest wins. */
+export function envSuggestions(location: Pick<Extract<LocationRow, { kind: 'cabine' }>, 'id' | 'env'>, pending: readonly SuggestionRow[]): EnvSuggestion[] {
+  const byField = new Map<EnvSuggestionField, SuggestionRow>();
+  for (const row of pending) {
+    if (row.status !== 'pending') continue;
+    const path = safeParsePath(row.target_path);
+    if (path === null || path.family !== 'location/env' || path.id !== location.id) continue;
+    const field = path.field as EnvSuggestionField;
+    const held = byField.get(field);
+    if (held === undefined || row.id > held.id) byField.set(field, row);
+  }
+  return [...byField.entries()].map(([field, suggestion]) => ({ field, suggestion, view: suggestionView(envCell(location.env[field]), suggestion, NUMBER_FIELD) }));
+}
+
+export interface MismatchPart {
+  text: string;
+  /** The value a tap keeps: the display's (confirms the reading) or the typed one (drops the reading). */
+  pick?: 'visor' | 'typed';
+}
+
+function numberText(value: unknown): string {
+  const number = numberShape(value);
+  if (number === null) return typeof value === 'string' ? value : '';
+  if (number.state === 'not_measured') return '-';
+  const shown = formatDecimalGroupedPtBr(number.raw);
+  return number.unit === null ? shown : `${shown} ${number.unit}`;
+}
+
+/**
+ * EXPERIENCE.md › Measurement readings: a display reading that disagrees with what was typed,
+ * "Visor: 147 GΩ · digitado 14,7 GΩ — Conferir", the two values being the parts a tap picks.
+ */
+export function displayMismatchText(cellValue: unknown, s: Pick<SuggestionRow, 'value'>): { text: string; parts: MismatchPart[] } {
+  const parts: MismatchPart[] = [
+    { text: 'Visor: ' },
+    { text: numberText(s.value), pick: 'visor' },
+    { text: ' · digitado ' },
+    { text: numberText(cellValue), pick: 'typed' },
+    { text: ' — Conferir' },
+  ];
+  return { text: parts.map((part) => part.text).join(''), parts };
+}
+
+// --- the burst ---------------------------------------------------------------------------
+
+/** One row a "Ler visor" burst shoots: the first capture cell of a Measurement row. */
+export interface DisplayBurstStop {
+  testKey: TestKey;
+  tableKey: string;
+  /** The op path's row, across the test's tables. */
+  row: number;
+  /** The row's first capture column. */
+  col: number;
+  /** The table's title, else its test's ("Seccionadora contato aberto", "Ensaio de isolação"). */
+  tableTitle: string;
+  /** The row's name ("T1", "Fase A"). */
+  rowLabel: string;
+}
+
+/** Every row of the sheet's enabled tests a burst walks, in sheet order (tests, tables, rows). */
+export function displayBurstStops(block: BlockRow, definition: BlockDefinition): DisplayBurstStop[] {
+  const out: DisplayBurstStop[] = [];
+  for (const test of evaluateSheetReadings(block, definition)) {
+    for (const table of test.tables) {
+      const capture = table.columns.find((column) => column.role === 'capture');
+      if (capture === undefined) continue;
+      for (const row of table.rows) {
+        out.push({ testKey: test.testKey, tableKey: table.key, row: row.row, col: capture.col, tableTitle: table.title ?? test.title, rowLabel: row.label });
+      }
+    }
+  }
+  return out;
+}
+
+type DisplayPhotoLike = Pick<PhotoFileRow, 'reading_kind' | 'reading_target'> & { removed_at?: string | null };
+
+/**
+ * Where a burst opened on one table starts: the table's first row that no live display photo
+ * of the block targets yet (a typed row still gets its evidence shot, so typing does not
+ * skip it), else the table's first row; 0 when the table is not among the stops.
+ */
+export function displayBurstStart(stops: readonly DisplayBurstStop[], photos: readonly DisplayPhotoLike[], blockId: string, testKey: string, tableKey: string): number {
+  const targeted = new Set<string>();
+  for (const photo of photos) {
+    if ((photo.removed_at ?? null) !== null || photo.reading_kind !== 'display') continue;
+    const target = displayCellTargetSchema.safeParse(photo.reading_target);
+    if (target.success && target.data.block_id === blockId) targeted.add(`${target.data.table_key}:${target.data.start_cell.row}`);
+  }
+  const inTable = stops.flatMap((stop, index) => (stop.testKey === testKey && stop.tableKey === tableKey ? [index] : []));
+  const free = inTable.find((index) => !targeted.has(`${testKey}:${stops[index]!.row}`));
+  return free ?? inTable[0] ?? 0;
+}
+
+/** The stop of the burst's `shot`-th shot (0-based) from `start`; null past the sheet's last row. */
+export function displayBurstStop(stops: readonly DisplayBurstStop[], start: number, shot: number): DisplayBurstStop | null {
+  return stops[start + shot] ?? null;
+}
+
+/** The viewfinder's hint: "Próxima leitura: Seccionadora contato aberto · T1", "Nada mais a ler nesta ficha" past the last row. */
+export function displayBurstHintText(stop: DisplayBurstStop | null): string {
+  if (stop === null) return 'Nada mais a ler nesta ficha';
+  return `Próxima leitura: ${screenLabel(stop.tableTitle)} · ${screenLabel(stop.rowLabel)}`;
+}
+
+/** Where a display photo's reading stands on the cell it starts at: queued (no signal yet) or running. */
+export type DisplayQueuedState = 'queued' | 'running';
+
+type DisplayReadingPhoto = DisplayPhotoLike & Pick<PhotoFileRow, 'reading_status'>;
+
+/**
+ * The start cells of `blockId` whose display photo is still waiting for its reading: each
+ * shows "Foto guardada — leitura quando houver sinal" and stays typeable.
+ */
+export function displayQueuedCells(photos: readonly DisplayReadingPhoto[], blockId: string): { address: CellAddress; state: DisplayQueuedState }[] {
+  const out = new Map<string, { address: CellAddress; state: DisplayQueuedState }>();
+  for (const photo of photos) {
+    if ((photo.removed_at ?? null) !== null || photo.reading_kind !== 'display') continue;
+    if (photo.reading_status !== 'queued' && photo.reading_status !== 'running') continue;
+    const target = displayCellTargetSchema.safeParse(photo.reading_target);
+    if (!target.success || target.data.block_id !== blockId) continue;
+    const address: CellAddress = { testKey: target.data.table_key as TestKey, row: target.data.start_cell.row, col: target.data.start_cell.col };
+    out.set(`${address.testKey}:${address.row}:${address.col}`, { address, state: photo.reading_status });
+  }
+  return [...out.values()];
+}
+
+/** The reading state of a cabine's thermo-hygrometer photo still waiting, or null. */
+export function displayQueuedEnv(photos: readonly DisplayReadingPhoto[], locationId: string): DisplayQueuedState | null {
+  let state: DisplayQueuedState | null = null;
+  for (const photo of photos) {
+    if ((photo.removed_at ?? null) !== null || photo.reading_kind !== 'display') continue;
+    if (photo.reading_status !== 'queued' && photo.reading_status !== 'running') continue;
+    const target = photo.reading_target as { location_id?: unknown } | null;
+    if (target !== null && typeof target === 'object' && target.location_id === locationId) state = photo.reading_status;
+  }
+  return state;
 }

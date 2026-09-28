@@ -1,7 +1,7 @@
 // @vitest-environment node
 import 'fake-indexeddb/auto';
 import { makeOp, SERVER_DEVICE_ID, syncCounts, type BlockRow, type Op, type SuggestionRow } from '@app/domain';
-import { BLOCK_1_ID, COMPANY_ID, READING_RUN_ID, PHOTO_ID, RELATORIO_ID, replaySmall, USER_ID } from '@app/domain/fixtures/replay-small';
+import { BLOCK_1_ID, CABINE_ID, COMPANY_ID, READING_RUN_ID, PHOTO_ID, RELATORIO_ID, replaySmall, USER_ID } from '@app/domain/fixtures/replay-small';
 import { describe, expect, it, vi } from 'vitest';
 import { commitBatch } from './commit.ts';
 import { openDatabase, type AppDatabase } from './schema.ts';
@@ -229,6 +229,49 @@ describe('8.1/8.2-UNIT autoConfirmPending', () => {
     expect(rows.suggestions).toEqual([{ status: 'pending' }]);
     expect(rows.photos.map((row) => row.reading_status).sort()).toEqual(['done', 'queued', 'running']);
     expect(syncCounts([], rows)).toMatchObject({ readings_queued: 2, suggestions_pending: 1 });
+    db.close();
+  });
+});
+
+describe('9.1-UNIT autoConfirmPending for display readings', () => {
+  const cellPath = (row: number, col: number) => `sheet/${BLOCK_1_ID}/test/isolacao/cell/${row}/${col}`;
+  const put = (db: AppDatabase, path: string, value: unknown) =>
+    commitBatch(
+      db,
+      [{ kind: 'put', scope: 'relatorio', company_id: COMPANY_ID, project_id: null, relatorio_id: RELATORIO_ID, path, value: value as never, prev_op_id: null, batch_id: null, meta: null, actor_id: USER_ID }],
+      deps(),
+    );
+
+  it('an equal reading of a typed Measurement cell and of a cabine temperature confirms with the typed value; a different one stays', async () => {
+    const db = await freshDb();
+    await seed(db);
+    const typed = { raw: '2500', unit: 'M\u03a9', state: 'measured' };
+    await put(db, cellPath(0, 1), typed);
+    await put(db, cellPath(1, 1), { raw: '14.7', unit: 'G\u03a9', state: 'measured' });
+    const equal = serverSuggestion('x', { raw: '2500.0', unit: 'M\u03a9', state: 'measured' }, { target_path: cellPath(0, 1) });
+    const different = serverSuggestion('x', { raw: '147', unit: 'G\u03a9', state: 'measured' }, { target_path: cellPath(1, 1) });
+    const empty = serverSuggestion('x', { raw: '3', unit: 'G\u03a9', state: 'measured' }, { target_path: cellPath(2, 1) });
+    const env = serverSuggestion('x', { raw: '27', unit: 'C', state: 'measured' }, { target_path: `location/${CABINE_ID}/env/temperature_c` });
+    const envDifferent = serverSuggestion('x', { raw: '58', unit: '%', state: 'measured' }, { target_path: `location/${CABINE_ID}/env/humidity_pct` });
+    await applyPulled(db, [equal, different, empty, env, envDifferent]);
+
+    const confirmed = await autoConfirmPending(db, AUTHOR, deps());
+    expect(confirmed.sort()).toEqual([(equal.value as SuggestionRow).id, (env.value as SuggestionRow).id].sort());
+    const outbox = (await db.outbox.toArray()).filter((row) => row.meta?.auto === true);
+    const cellPut = outbox.find((row) => row.path === cellPath(0, 1))!;
+    expect(cellPut.value).toEqual(typed);
+    expect(cellPut.meta).toEqual({ source_suggestion_id: (equal.value as SuggestionRow).id, auto: true });
+    expect((await block(db)).sheet.test.isolacao!.cells['0']!['1']!.source_suggestion_id).toBe((equal.value as SuggestionRow).id);
+    expect(outbox.find((row) => row.path === `location/${CABINE_ID}/env/temperature_c`)!.value).toEqual({ raw: '27', unit: 'C', state: 'measured' });
+    expect(await autoConfirmPending(db, AUTHOR, deps())).toEqual([]);
+    db.close();
+  });
+
+  it('counts a live cabine reading in the Sync status', async () => {
+    const db = await freshDb();
+    await seed(db);
+    await applyPulled(db, [serverSuggestion('x', { raw: '58', unit: '%', state: 'measured' }, { target_path: `location/${CABINE_ID}/env/humidity_pct` })]);
+    expect((await readingCountRows(db)).suggestions).toEqual([{ status: 'pending' }]);
     db.close();
   });
 });

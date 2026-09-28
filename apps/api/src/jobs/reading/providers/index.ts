@@ -1,5 +1,6 @@
 import type { OcrProvider, StructuringProvider } from '@app/domain';
 import type { Config } from '../../../config.ts';
+import type { ReadingKind } from '../payload.ts';
 import { DEFAULT_FIXTURES_DIR, fakeOcrProvider, fakeStructuringProvider } from './fake.ts';
 import { ocrSvcProvider } from './ocr-svc.ts';
 import { unimplementedOcrProvider, unimplementedStructuringProvider } from './unimplemented.ts';
@@ -20,11 +21,20 @@ export interface ReadingProviders {
   ocr_name: string;
 }
 
+/** What one attempt's providers are chosen by. */
+export interface ReadingProvidersContext {
+  photo_sha256: string;
+  /** Story 9.1: the photo's reading kind, its target block type and table (`env` for a cabine). */
+  reading_kind: ReadingKind;
+  block_type: string | null;
+  table_key: string | null;
+}
+
 /**
  * The providers of one attempt; the fakes key their fixture by the photo's sha256, else by
- * the target block type (E78-Q2: the default fixture of that type).
+ * `(reading_kind, block_type, table_key)` (E78-Q2, Story 9.1: the kind's default fixture).
  */
-export type ReadingProvidersFactory = (ctx: { photo_sha256: string; block_type: string | null }) => ReadingProviders;
+export type ReadingProvidersFactory = (ctx: ReadingProvidersContext) => ReadingProviders;
 
 export interface ReadingProviderOptions {
   /** The fake fixtures directory; defaults to the committed `fixtures/`. */
@@ -38,11 +48,12 @@ export function createReadingProviders(
   options: ReadingProviderOptions = {},
 ): ReadingProvidersFactory {
   const fixturesDir = options.fixturesDir ?? DEFAULT_FIXTURES_DIR;
-  return ({ photo_sha256, block_type }) => {
+  return ({ photo_sha256, reading_kind, block_type, table_key }) => {
+    const fixtureKey = { reading_kind, block_type, table_key };
     const ocr = (() => {
       switch (config.OCR_PROVIDER) {
         case 'fake':
-          return fakeOcrProvider(fixturesDir, photo_sha256, block_type);
+          return fakeOcrProvider(fixturesDir, photo_sha256, fixtureKey);
         case 'ocr-svc':
           return ocrSvcProvider(config.OCR_SERVICE_URL, options.ocrTimeoutMs === undefined ? {} : { timeoutMs: options.ocrTimeoutMs });
         case 'textract':
@@ -52,7 +63,7 @@ export function createReadingProviders(
     const structuring = (() => {
       switch (config.LLM_PROVIDER) {
         case 'fake':
-          return fakeStructuringProvider(fixturesDir, photo_sha256, block_type);
+          return fakeStructuringProvider(fixturesDir, photo_sha256, fixtureKey);
         case 'anthropic':
         case 'bedrock':
           return unimplementedStructuringProvider(config.LLM_PROVIDER);
