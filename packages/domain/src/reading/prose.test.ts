@@ -129,6 +129,8 @@ describe('9.5-UNIT-001 the NC draft target and its run-time skip', () => {
     expect(ncObsSkipReason(block({ contatos: { result: cell(null) } }), 'contatos')).toBe('not_nc');
     expect(ncObsSkipReason(block(), 'contatos')).toBe('not_nc');
     expect(ncObsSkipReason(block({ contatos: { result: cell('NC'), observation: cell('Oxidado') } }), 'contatos')).toBe('observation_filled');
+    // A sheet marked not tested is read-only: no draft is read for it.
+    expect(ncObsSkipReason({ ...block({ contatos: { result: cell('NC') } }), not_tested: { reason: 'desenergizado', note: null } as never }, 'contatos')).toBe('not_tested');
     expect(checklistObservationFilled(block({ contatos: { observation: cell('Oxidado') } }), 'contatos')).toBe(true);
   });
 });

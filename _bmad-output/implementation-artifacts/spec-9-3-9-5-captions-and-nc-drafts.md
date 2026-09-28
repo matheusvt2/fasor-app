@@ -2,17 +2,24 @@
 title: 'Stories 9.3 and 9.5: Vision captions confirmed in batch, NC observation drafts'
 type: 'feature'
 created: '2026-09-28'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '2abf8db19201f12c644b89ce4b2f707dff33b163'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: medium
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-9-context.md'
 warnings: ['batched', 'oversized']
 batched_reason: 'Batch K of Epic 9: Stories 9.3 and 9.5 are the two prose reading kinds; they share one output shape ({text} | null, Conflict 8), one provider slot, one kernel build and the same Suggestion block pattern on the device.'
-deferred: []
+deferred:
+  - summary: >-
+      Pressing an observation chip on an NC row that shows a draft commits the draft's discard, but no test presses a chip there.
+    evidence: |-
+      checklist-section.tsx insert() calls discardDraft(); e2e/nc-draft.spec.ts covers keyboard typing only. If the call were lost the post-pull sweep would still discard the draft once the observation is filled, so the effect is a delay. Owner: Epic 9 integrated review.
+    location: >-
+      apps/web/src/surfaces/ficha/checklist-section.tsx
+    severity: low
 ---
 
 <intent-contract>
@@ -121,3 +128,12 @@ Open questions (conservative reading kept): the tile keeps the mock's "Confirmar
 - `docker compose --profile tools run --rm tools pnpm test:api` -- green, plate/display cases unmodified
 - `docker compose --profile tools run --rm tools pnpm exec tsx scripts/e2e.ts --project desktop-chrome e2e/captions.spec.ts e2e/nc-draft.spec.ts e2e/prose-reading-pipeline.spec.ts e2e/photos.spec.ts e2e/read-display-pipeline.spec.ts` (stack up) -- green
 - `docker compose --profile tools run --rm tools pnpm lint` and `pnpm static` -- green
+
+## Auto Run Result
+
+- **Summary:** two prose reading kinds on the Story 9.1 handler registry. `kinds/caption.ts` and `kinds/nc-obs.ts` re-check their target in `prepare` and skip without any provider call. A new prose provider slot (`contract/prose.ts`: `{text} | null`; `fake` replays the fixture `prose`; `anthropic`/`bedrock` are unimplemented). The kernel builds one `suggested` fill (`reading/prose.ts`) with a full-image bbox and no tokens. `PreparedReading.skip` and `ReadingKindRunResult.model` extend the handler interface. The device queues `caption` on every photo created with no block, no caption and no mark (`photoCreateDraft`), and `nc_obs` on NC-row photos (camera and import). `people_in_photo` is a client file field (contract 7, MIN 7). In the gallery, tiles show the suggested caption with "Confirmar"; the header has a "N legendas sugeridas" banner with "Confirmar todas" as one batch; the counter shows the suggested part; the composer's `.vision-line` has "Usar"; and "Pessoas na foto" is a chip on the tile and in the import batch. The NC draft sits above the Observation field with "Usar", and typing or a chip discards it. Section 7 gains the `captions_suggested` info row. The post-pull sweep discards stale prose suggestions and asks for one more cycle.
+- **Files:** kernel `contract/{prose,version}.ts`, `reading/{prose,target}.ts`, `photos/{captions,gallery}.ts`, `relatorio/pre-issue.ts`, `schemas/entities.ts`, `ops/path.ts`; api `jobs/reading/{job.ts,kinds/*,providers/*,fixtures/*}`; web `db/{file-commit,suggestion-store,photo-store}.ts`, `sync/engine.ts`, `files/photo-import.ts`, `components/{photo-row,suggestion-field}.tsx`, `surfaces/photos/*`, `surfaces/ficha/{checklist-section.tsx,use-ficha-photos.ts,ficha.css}`, copy, sprite; e2e `captions.spec.ts`, `nc-draft.spec.ts`, `prose-reading-pipeline.spec.ts`.
+- **Review:** 11 findings. 8 patched (3 medium, 5 low; the medium verification gaps count once each), 1 deferred (low), 2 rejected with reasons in the triage log.
+- **Follow-up review recommended:** true. Three medium entries were patched on a first pass. The named risk: stale-prose discards now change sync timing (an extra cycle after a pull), and the full e2e suite had not run on this tree when the review ended. `test:e2e:full` runs before the PR.
+- **Verification:** `pnpm static`, `pnpm lint`, the targeted unit suites and `pnpm test:api` (42 files) are green; the new e2e (`captions`, `nc-draft`, `prose-reading-pipeline`) and the related `photos`, `read-display-pipeline` and `plate-reading` specs are green (18/18). In the whole-suite `test:unit` run, the known load-dependent E7-A2 timeouts failed (template-composer-undo, relatorio-tree-edits, setup-surface, section-text) at a machine load average of 15-18; they are untouched by this batch.
+- **Residual risks:** gallery "Geral" photos now queue a `caption` reading. A spec that asserted a quiet gallery after sync could see a suggestion arrive; `test:e2e:full` checks this.

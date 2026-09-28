@@ -411,19 +411,19 @@ describe('8.4-INT the plate read end to end over the compose api', () => {
     ]);
     // Story 9.1: an uploaded photo of a kind the job does not read yet answers 400, no job sent
     // (Stories 9.3/9.5 read caption and nc_obs, so the unread kind is Story 9.2's panel).
-    const captionBytes = new Uint8Array(PLATE.byteLength + 1);
-    captionBytes.set(PLATE);
-    const caption = await photoCreate(relatorioId, transformer, captionBytes, 'panel');
-    expect((await put(companyA, caption, captionBytes)).status).toBe(200);
-    const captionJobs = async () => {
-      const [found] = await sql<{ n: number }[]>`select count(*)::int as n from pgboss.job where name = 'reading' and singleton_key = ${readingSingletonKey(caption, 'panel')}`;
+    const panelBytes = new Uint8Array(PLATE.byteLength + 1);
+    panelBytes.set(PLATE);
+    const panel = await photoCreate(relatorioId, transformer, panelBytes, 'panel');
+    expect((await put(companyA, panel, panelBytes)).status).toBe(200);
+    const panelJobs = async () => {
+      const [found] = await sql<{ n: number }[]>`select count(*)::int as n from pgboss.job where name = 'reading' and singleton_key = ${readingSingletonKey(panel, 'panel')}`;
       return found!.n;
     };
-    const jobsBefore = await captionJobs();
-    const notRead = await reread(companyA, caption);
+    const jobsBefore = await panelJobs();
+    const notRead = await reread(companyA, panel);
     expect(notRead.status).toBe(400);
     expect(errorResponseSchema.parse(await notRead.json()).code).toBe('invalid_request');
-    expect(await captionJobs()).toBe(jobsBefore);
+    expect(await panelJobs()).toBe(jobsBefore);
 
     const notPhoto = await reread(companyA, certificateId);
     expect(notPhoto.status).toBe(404);

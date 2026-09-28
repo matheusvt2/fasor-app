@@ -329,9 +329,20 @@ describe('9.3/9.5-UNIT the stale prose sweep', () => {
       [`suggestion/${ids(notNc)}/status`, 'discarded'],
     ].sort());
     expect(((await db.entities.get(['suggestion', ids(live)]))!.row as SuggestionRow).status).toBe('pending');
-    // The auto-confirm sweep runs it too; nothing more is stale.
-    expect(await autoConfirmPending(db, AUTHOR, deps())).toEqual([]);
+    // A second sweep finds nothing more stale.
     expect(await discardStaleProse(db, AUTHOR, deps())).toEqual([]);
+    db.close();
+  });
+
+  it('never discards on an issued relatório', async () => {
+    const db = await freshDb();
+    await seed(db);
+    const notNc = serverSuggestion('x', 'Isolador trincado.', { target_path: `sheet/${BLOCK_1_ID}/checklist/aterramento/observation` });
+    await applyPulled(db, [notNc]);
+    const record = (await db.entities.get(['relatorio', RELATORIO_ID]))!;
+    await db.entities.put({ ...record, row: { ...record.row, status: 'emitido' } as never });
+    expect(await discardStaleProse(db, AUTHOR, deps())).toEqual([]);
+    expect((await db.outbox.toArray()).filter((row) => row.path.startsWith('suggestion/'))).toEqual([]);
     db.close();
   });
 });

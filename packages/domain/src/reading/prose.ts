@@ -92,7 +92,7 @@ export function ncObsReadingOf(block: Pick<BlockRow, 'id' | 'block_type'>, itemK
   return { kind: 'nc_obs', target: { block_id: block.id, block_type: block.block_type, item_key: itemKey } };
 }
 
-export type NcObsSkipReason = 'not_nc' | 'observation_filled';
+export type NcObsSkipReason = 'not_tested' | 'not_nc' | 'observation_filled';
 
 /** True when the checklist row of `itemKey` holds a non-blank observation. */
 export function checklistObservationFilled(block: Pick<BlockRow, 'sheet'>, itemKey: string): boolean {
@@ -107,9 +107,11 @@ export function checklistRowIsNc(block: Pick<BlockRow, 'sheet'>, itemKey: string
 
 /**
  * Why an NC draft is not sent at run time (Conflict 10: the row turned C/NA or was cleared,
- * or its observation was typed before the job ran); null when it should run.
+ * or its observation was typed before the job ran; or the whole sheet was marked not tested,
+ * which makes it read-only); null when it should run.
  */
-export function ncObsSkipReason(block: Pick<BlockRow, 'sheet'>, itemKey: string): NcObsSkipReason | null {
+export function ncObsSkipReason(block: Pick<BlockRow, 'sheet' | 'not_tested'>, itemKey: string): NcObsSkipReason | null {
+  if (block.not_tested !== null) return 'not_tested';
   if (!checklistRowIsNc(block, itemKey)) return 'not_nc';
   if (checklistObservationFilled(block, itemKey)) return 'observation_filled';
   return null;

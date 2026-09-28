@@ -108,6 +108,15 @@ describe('6.4-UNIT-001 importPhotoFiles', () => {
     expect(committed[0]!.coords!.lng).toBeCloseTo(-46.6333, 4);
   });
 
+  it('9.5: a target that asks for a reading (an NC row) passes it to every photo it saves', async () => {
+    const { value, committed } = deps();
+    const reading = { kind: 'nc_obs' as const, target: { block_id: BLOCK_1_ID, block_type: 'chave_seccionadora', item_key: 'contatos' } };
+    await importPhotoFiles([new File([jpegWithExif()], 'nc.jpg', { type: 'image/jpeg' })], { ...target, itemKey: 'contatos', reading }, value);
+    expect(committed[0]).toMatchObject({ blockId: BLOCK_1_ID, itemKey: 'contatos', reading });
+    await importPhotoFiles([new File([jpegWithExif()], 'plain.jpg', { type: 'image/jpeg' })], target, value);
+    expect(committed[1]!.reading).toBeUndefined();
+  });
+
   it('with photo locations off (FR-8), the EXIF GPS is not kept; the EXIF time still is', async () => {
     const { value, committed } = deps({ withLocation: false });
     await importPhotoFiles([new File([jpegWithExif()], 'com-exif.jpg', { type: 'image/jpeg' })], target, value);

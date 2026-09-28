@@ -65,7 +65,7 @@ export function captionDiscardOps(author: Author, photoId: string, pending: read
 }
 
 /** The NC draft an NC checklist row shows above its Observation (newest wins); null when the row is not NC or its observation is filled. */
-export function ncDraftFor(block: Pick<BlockRow, 'id' | 'sheet'>, itemKey: string, pending: readonly SuggestionRow[]): SuggestionRow | null {
+export function ncDraftFor(block: Pick<BlockRow, 'id' | 'sheet' | 'not_tested'>, itemKey: string, pending: readonly SuggestionRow[]): SuggestionRow | null {
   if (ncObsSkipReason(block, itemKey) !== null) return null;
   let best: SuggestionRow | null = null;
   for (const row of pending) {
@@ -79,7 +79,7 @@ export function ncDraftFor(block: Pick<BlockRow, 'id' | 'sheet'>, itemKey: strin
 
 export interface StaleProseInput {
   photos: readonly CaptionPhotoLike[];
-  blocks: readonly Pick<BlockRow, 'id' | 'sheet' | 'removed_at'>[];
+  blocks: readonly Pick<BlockRow, 'id' | 'sheet' | 'removed_at' | 'not_tested'>[];
   pending: readonly SuggestionRow[];
 }
 

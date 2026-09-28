@@ -37,7 +37,7 @@ export function captionValue(text: string | null): string | null {
   return text === null || text.trim() === '' ? null : text.trim();
 }
 
-/** "Salvar legenda": one `file/{id}/caption` op, with the discard of the photo's pending caption suggestion (Story 9.3). */
+/** "Salvar legenda": one `file/{id}/caption` op, with the discard of the photo's pending caption suggestion when a caption was typed (Story 9.3). */
 export async function setPhotoCaption(
   db: AppDatabase,
   author: Author,
@@ -46,7 +46,9 @@ export async function setPhotoCaption(
   text: string | null,
   pending: readonly SuggestionRow[] = [],
 ): Promise<void> {
-  await commitBatch(db, [put(author, relatorioId, fileId, 'caption', captionValue(text)), ...captionDiscardOps(author, fileId, pending)], deps);
+  const value = captionValue(text);
+  // A blank save types nothing: the suggestion stays for a later Confirmar.
+  await commitBatch(db, [put(author, relatorioId, fileId, 'caption', value), ...(value === null ? [] : captionDiscardOps(author, fileId, pending))], deps);
 }
 
 /** Story 9.3: a tile's Confirmar, the composer's "Usar": the suggestion's confirm pair, one batch. */

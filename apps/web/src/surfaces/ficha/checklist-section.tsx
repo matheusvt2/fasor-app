@@ -277,7 +277,8 @@ function ChecklistRow({
     const held = readOnly ? null : ncDraftFor(block, item.key, pending);
     if (held === null || api.author === null || discardedId === held.id) return;
     setDiscardedId(held.id);
-    void api.commit([discardSuggestionOp(api.author, held)]);
+    // A refused write leaves the draft pending: it shows again.
+    void api.commit([discardSuggestionOp(api.author, held)]).catch(() => setDiscardedId(null));
   };
   const applyDraft = () => {
     if (draft === null || api.author === null) return;
