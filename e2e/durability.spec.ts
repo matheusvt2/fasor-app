@@ -282,11 +282,8 @@ test('@p1 1.8-E2E-005 work older than five days raises the banner, and a new she
   await signInForDurability(page, context, account.email);
   const user = { ...account, deviceId: await readDeviceId(page, database) };
 
-  // Nothing is waiting yet, so the launch promotes the waiting shell (AD-8), for this
-  // user: the worker refuses it while another user of the device still holds.
-  await expect
-    .poll(async () => shellMessages(page), { timeout: 15_000 })
-    .toEqual([{ type: 'activate-shell', user: account.userId }]);
+  // Nothing is waiting yet, so the launch promotes the waiting shell (AD-8).
+  await expect.poll(async () => shellMessages(page), { timeout: 15_000 }).toEqual([{ type: 'activate-shell' }]);
 
   // Work that never reached the server, with the tab still open six days later.
   await page.route(isApiRequest, (route) => route.abort('internetdisconnected'));

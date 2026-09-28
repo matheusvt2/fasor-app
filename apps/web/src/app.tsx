@@ -53,7 +53,7 @@ function Booting() {
 function SessionShell() {
   const session = useSession();
   const sync = useSync();
-  useShellUpdate(session.database, session.user?.id ?? null);
+  useShellUpdate(session.database);
   if (sync.outdated) return <ContractOutdatedSurface />;
   if (session.recoveryNeeded) return <EvictionRecoverySurface />;
   return <AppShell />;

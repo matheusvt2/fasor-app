@@ -250,19 +250,18 @@ export async function withoutPageErrors(page: Page, run: () => Promise<void>): P
 }
 
 /**
- * The shell pin the worker keeps in Cache Storage (`public/sw.js`), for the first user
- * holding: the shell version of the pinned build (or, from a page that did not name it, a
- * cache name; from a sentinel written before per-user holds, an entry chunk), or null
- * when nothing is held.
+ * The shell pin the worker keeps in Cache Storage (`public/sw.js`): the shell version of
+ * the pinned build (or, from a page that did not name it, a cache name; from a sentinel
+ * written before builds were named by version, an entry chunk), or null when nothing is
+ * held.
  */
 export async function readShellPin(page: Page): Promise<string | null> {
   return page.evaluate(async () => {
     const response = await caches.match('/__shell-hold', { cacheName: 'releng-hold' });
     if (response === undefined) return null;
-    const read = (await response.json()) as { holds?: unknown[] } & Record<string, unknown>;
-    const body = (Array.isArray(read.holds) ? read.holds[0] : read) as Record<string, unknown> | undefined;
+    const body = (await response.json()) as Record<string, unknown>;
     for (const key of ['version', 'entry', 'shell']) {
-      if (typeof body?.[key] === 'string') return body[key] as string;
+      if (typeof body[key] === 'string') return body[key] as string;
     }
     return null;
   });

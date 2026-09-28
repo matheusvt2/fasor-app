@@ -58,8 +58,7 @@ export type PromoteResult = 'promoted' | 'held-back' | 'nothing-waiting';
  * started on, or the network would hand the tab the new document and its new hashed
  * assets long before the swap is allowed to happen.
  *
- * The hold is the backlog alone (per user: each user's outbox is their own database),
- * whether or not a new shell is waiting right now. Once
+ * The hold is the backlog alone, whether or not a new shell is waiting right now. Once
  * every tab closes the browser activates a waiting worker by itself, and after that
  * nothing is waiting any more — yet the job must stay on its shell. The worker records
  * the hold as a pin in Cache Storage (`public/sw.js`), which every worker generation
@@ -94,39 +93,35 @@ export function currentShellVersion(
 }
 
 /**
- * Tells the active worker whether to hold for `user` (the owner of the outbox the
- * backlog was read from; the worker keeps one hold per user), and which build this page
- * runs (`version`, omitted when unknown). Returns what was sent, or null when nobody
- * heard.
+ * Tells the active worker whether to hold, and which build this page runs (`version`,
+ * omitted when unknown; an older worker ignores it). Returns what was sent, or null when
+ * nobody heard.
  */
 export function holdShell(
   registration: ServiceWorkerRegistration | null,
   backlog: number,
-  user: string,
   version: string | undefined = currentShellVersion(),
 ): boolean | null {
   const active = registration?.active;
   if (!active) return null;
   const hold = shouldHoldShell(backlog);
-  active.postMessage(version === undefined ? { type: 'hold-shell', hold, user } : { type: 'hold-shell', hold, user, version });
+  active.postMessage(version === undefined ? { type: 'hold-shell', hold } : { type: 'hold-shell', hold, version });
   return hold;
 }
 
 /**
  * AD-8: "the service worker activates a new shell on the next launch only when the
- * outbox is empty". A waiting worker is promoted only when `user`'s backlog is zero; with
- * work pending the page keeps running the old shell and the next launch tries again. The
- * worker itself refuses the promotion while another user of this device still holds.
+ * outbox is empty". A waiting worker is promoted only when the backlog is zero; with
+ * work pending the page keeps running the old shell and the next launch tries again.
  */
 export async function promoteWaitingShell(
   registration: ServiceWorkerRegistration | null,
   backlog: () => Promise<number>,
-  user: string,
 ): Promise<PromoteResult> {
   const waiting = registration?.waiting;
   if (!waiting) return 'nothing-waiting';
   const count = await backlog();
   if (count > 0) return 'held-back';
-  waiting.postMessage({ type: 'activate-shell', user });
+  waiting.postMessage({ type: 'activate-shell' });
   return 'promoted';
 }

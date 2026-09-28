@@ -2,7 +2,7 @@
 title: 'Epic 9 carry-over C2: deferred-work sweep of earlier epics'
 type: 'chore'
 created: '2026-09-28'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '2abf8db19201f12c644b89ce4b2f707dff33b163'
 review_loop_iteration: 0
 followup_review_recommended: false
