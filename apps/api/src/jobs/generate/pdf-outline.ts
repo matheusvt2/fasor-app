@@ -60,3 +60,25 @@ export async function readOutline(pdf: Buffer): Promise<PdfOutline> {
     await task.destroy();
   }
 }
+
+export interface PdfPageSize {
+  /** Width and height in PDF points (1/72 in), rotation applied. */
+  width: number;
+  height: number;
+}
+
+/** Story 7.3: the size of every page of a PDF, in order (section 11 rasterizes each at its own size). */
+export async function readPageSizes(pdf: Buffer): Promise<PdfPageSize[]> {
+  const task = getDocument({ data: new Uint8Array(pdf), useSystemFonts: true, verbosity: 0 });
+  try {
+    const doc = await task.promise;
+    const sizes: PdfPageSize[] = [];
+    for (let n = 1; n <= doc.numPages; n += 1) {
+      const viewport = (await doc.getPage(n)).getViewport({ scale: 1 });
+      sizes.push({ width: viewport.width, height: viewport.height });
+    }
+    return sizes;
+  } finally {
+    await task.destroy();
+  }
+}

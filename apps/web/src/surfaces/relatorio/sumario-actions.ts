@@ -163,7 +163,7 @@ export function useSumarioActions(context: SumarioContext, host: SumarioHost): S
       );
     },
     onOpen: (row) => {
-      if (row.kind === 'setup') void navigate(`/relatorio/${relatorioId}/setup?etapa=2`);
+      if (row.kind === 'setup') void navigate(`/relatorio/${relatorioId}/setup?etapa=${row.rowKey === 'section_10' ? 6 : 2}`);
       else if (row.kind === 'text' && row.blockId !== null) void navigate(`/relatorio/${relatorioId}/secao/${row.blockId}`);
       else if (row.rowKey === 'capa') void navigate(`/relatorio/${relatorioId}/setup?etapa=1`);
       else if (row.rowKey === 'section_7') void navigate(`/relatorio/${relatorioId}/fotos`);

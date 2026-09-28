@@ -17,6 +17,14 @@ export interface GenerateRoute {
 export const GENERATE_ROUTES = {
   generate: (relatorioId: string): GenerateRoute => ({ method: 'POST', path: `/api/relatorios/${relatorioId}/generate` }),
   revisionDocx: (revisionId: string): GenerateRoute => ({ method: 'GET', path: `/api/revisions/${revisionId}/docx` }),
+  // Story 7.5: the preview is the same job with `kind: preview`, behind the same barrier;
+  // its PDF (RASCUNHO on every page, no revision number) is served from the relatório's
+  // `preview_file_id`, `?v=<file id>` only busting a cached earlier preview.
+  preview: (relatorioId: string): GenerateRoute => ({ method: 'POST', path: `/api/relatorios/${relatorioId}/preview` }),
+  previewPdf: (relatorioId: string, fileId?: string): GenerateRoute => ({
+    method: 'GET',
+    path: `/api/relatorios/${relatorioId}/preview.pdf${fileId === undefined ? '' : `?v=${fileId}`}`,
+  }),
 } as const;
 
 /** The most files one generate request may name (a relatório's photos, certificates and brand images stay far below). */
@@ -43,6 +51,21 @@ export const generateResponseSchema = z.discriminatedUnion('outcome', [
   z.object({ outcome: z.literal('unchanged'), revision_id: uuidV7Schema, revision_number: revisionNumberSchema }),
 ]);
 export type GenerateResponse = z.infer<typeof generateResponseSchema>;
+
+/**
+ * Story 7.5: the preview answer. `queued`: a preview job was created; `running`: a preview
+ * of this relatório is already queued or running (an issue job never counts here). The
+ * request body is the generate barrier's own (`generateRequestSchema`).
+ */
+export const previewResponseSchema = z.discriminatedUnion('outcome', [
+  z.object({ outcome: z.literal('queued'), job_id: uuidV7Schema }),
+  z.object({ outcome: z.literal('running'), job_id: uuidV7Schema }),
+]);
+export type PreviewResponse = z.infer<typeof previewResponseSchema>;
+
+/** `details` of a `409 pre_issue_blocked`: the kinds of the blocking pre-issue rows. */
+export const preIssueBlockedDetailsSchema = z.object({ rows: z.array(z.string()) });
+export type PreIssueBlockedDetails = z.infer<typeof preIssueBlockedDetailsSchema>;
 
 /** `details` of a `409 not_caught_up`: what the server is still missing. */
 export const notCaughtUpDetailsSchema = z.object({

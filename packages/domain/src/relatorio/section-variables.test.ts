@@ -39,6 +39,7 @@ function baseSnapshot(overrides: Partial<RelatorioSnapshot> = {}): RelatorioSnap
         site_altitude_confirmed: false,
         next_intervention_date: null,
         next_intervention_justification: null,
+      parecer: null,
       },
       export: { scheme: 'por_local_e_tipo' },
       preview_file_id: null,

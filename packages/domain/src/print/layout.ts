@@ -9,7 +9,11 @@ import { getSeed, sectionText } from '../seed/definitions.ts';
 import type { TextBlock } from '../seed/schema.ts';
 import { sectionNumber } from '../templates/compose.ts';
 import { resolveSectionText } from '../templates/section-text.ts';
-import { documentControlRows, type DocumentControlRow } from './document-control.ts';
+import { documentControlRows, MISSING, REVISION_ROW_LABEL, type DocumentControlRow } from './document-control.ts';
+import { section10Layout, type LayoutSection10 } from './section-10.ts';
+import { section11Layout, type LayoutSectionCertificates } from './section-11.ts';
+import { section7Layout, type LayoutSectionPhotos } from './section-7.ts';
+import { section8Layout, type LayoutSectionPoints } from './section-8.ts';
 import { section9Layout, type LayoutSectionSheets } from './section-9.ts';
 
 /*
@@ -27,7 +31,9 @@ import { section9Layout, type LayoutSectionSheets } from './section-9.ts';
  * FO.SERV-03 order. A block's own `config.section_text` (the template's text, later Story
  * 4.7's per-relatório edit) wins over the seed default at the relatório's `seed_version`,
  * which is resolved per `TextBlock` so paragraphs, items and headings keep their kind.
- * Sections 7, 8, 9 and 11 print only their heading and a note until Epics 6 and 7.
+ * Sections 7, 8 and 11 are built by their own modules (`section-7.ts`, `section-8.ts`,
+ * `section-11.ts`, Stories 7.2 and 7.3) and print the note when they have nothing to
+ * print; section 9 prints only its heading and the note until Story 7.1.
  */
 
 /** What sections 7, 8, 9 and 11 print under their heading until Epics 6 and 7 fill them. */
@@ -58,7 +64,17 @@ export interface LayoutSectionEmpty {
   note: string;
 }
 
-export type LayoutSection = LayoutSectionText | LayoutSectionEmpty | LayoutSectionSheets;
+export type LayoutSection = LayoutSectionText | LayoutSectionEmpty | LayoutSection10 | LayoutSectionPhotos | LayoutSectionPoints | LayoutSectionCertificates | LayoutSectionSheets;
+
+/** Story 7.5: the word the preview prints behind every page; issued documents carry none. */
+export const DRAFT_WATERMARK = 'RASCUNHO';
+
+/** Stories 7.2/7.3: the sections built by their own module; a null return prints the empty note. */
+const SECTION_BUILDERS: Readonly<Partial<Record<number, (snapshot: RelatorioSnapshot, heading: { number: number; title: string }) => LayoutSection | null>>> = {
+  7: section7Layout,
+  8: section8Layout,
+  11: section11Layout,
+};
 
 export interface TocEntry {
   number: number;
@@ -77,6 +93,8 @@ export interface DocumentLayout {
   documentControl: DocumentControlRow[];
   toc: TocEntry[];
   sections: LayoutSection[];
+  /** Story 7.5: `RASCUNHO` on a preview (behind the text of every page), null on an issued document. */
+  watermark: typeof DRAFT_WATERMARK | null;
 }
 
 export interface LayoutInputs {
@@ -87,6 +105,8 @@ export interface LayoutInputs {
   sectionTextAt?: string;
   /** See `documentControlRows`. */
   art?: string | null;
+  /** Story 7.5: a preview: the RASCUNHO watermark and no revision number ("Revisão do documento" prints `—`). */
+  draft?: boolean;
 }
 
 const calendarDate = new Intl.DateTimeFormat('en-CA', {
@@ -183,11 +203,14 @@ export function layoutSpec(snapshot: RelatorioSnapshot, inputs: LayoutInputs): D
     const title = seed.section_titles[String(section)] ?? '';
     // Story 7.1: section 9 prints the equipment sheets (`print/section-9.ts`), else its note.
     if (section === 9) return section9Layout(snapshot, number, title) ?? { number, title, kind: 'empty', note: EMPTY_SECTION_NOTE };
+    const build = SECTION_BUILDERS[section];
+    if (build !== undefined) return build(snapshot, { number, title }) ?? { number, title, kind: 'empty', note: EMPTY_SECTION_NOTE };
     const composed = sectionType(section) !== null;
     // Section 3's own exclusion list (Story 4.2's `setup.exclusions`, AD-21) overrides the
     // seed's own three items when the relatório carries no per-relatório text edit of its own.
     const seeded = section === 3 ? section3Blocks(seedVersion, textDate, relatorio.setup.exclusions) : seededBlocks(seedVersion, section, textDate);
     const blocks = !composed ? null : ownText !== null ? ownParagraphs(ownText) : seeded;
+    if (section === 10) return section10Layout(snapshot, { number, title, paragraphs: (blocks ?? []).map((block) => ({ text: resolveSectionText(block.text, variables).resolved })) });
     if (blocks === null || blocks.length === 0) return { number, title, kind: 'empty', note: EMPTY_SECTION_NOTE };
     return {
       number,
@@ -213,9 +236,12 @@ export function layoutSpec(snapshot: RelatorioSnapshot, inputs: LayoutInputs): D
       table: { title: cover.title, rows: coverRows },
       coverPhotoFileId: relatorio.setup.cover_photo_file_id,
     },
-    documentControl: documentControlRows(snapshot, { revisionNumber: inputs.revisionNumber, issuedAt: inputs.issuedAt, art: inputs.art ?? null }),
+    documentControl: documentControlRows(snapshot, { revisionNumber: inputs.revisionNumber, issuedAt: inputs.issuedAt, art: inputs.art ?? null }).map((row) =>
+      inputs.draft === true && row.label === REVISION_ROW_LABEL ? { ...row, value: MISSING } : row,
+    ),
     toc: sections.map(({ number, title }) => ({ number, title })),
     sections,
+    watermark: inputs.draft === true ? DRAFT_WATERMARK : null,
   };
 }
 

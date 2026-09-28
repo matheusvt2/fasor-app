@@ -3,6 +3,7 @@ import type { EquipmentBlockType } from '../schemas/block-config.ts';
 import type { BlockRow } from '../schemas/entities.ts';
 import { getDefinition } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
+import { canonicalJson, fnv1a } from '../text/hash.ts';
 import { listPtBr } from '../text/plural.ts';
 import { evaluatedCells, evaluateSheetReadings, worstReadings, type TestKey, type WorstReading } from './readings.ts';
 import { checklistResultOf } from './sheet-progress.ts';
@@ -190,27 +191,7 @@ function readingClause(reading: WorstReading): string {
   return `${TEST_WORDS[reading.testKey].phrase} ${reading.valueText} em ${reading.where} (critério: ${reading.criterionText}, ${reading.sourceName})`;
 }
 
-/** Keys sorted at every level, so the same inputs always hash the same. */
-function canonicalJson(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-  if (typeof value === 'object' && value !== null) {
-    const entries = Object.entries(value as Record<string, unknown>)
-      .filter(([, v]) => v !== undefined)
-      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
-    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonicalJson(v)}`).join(',')}}`;
-  }
-  return JSON.stringify(value);
-}
-
-/** 32-bit FNV-1a over the UTF-16 code units, as 8 hex digits. */
-function fnv1a(text: string): string {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < text.length; i++) {
-    hash ^= text.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193) >>> 0;
-  }
-  return hash.toString(16).padStart(8, '0');
-}
+// The basis hash lives in `text/hash.ts` (shared with the parecer, Story 7.4).
 
 /**
  * FR-30: the conclusion paragraph composed on the device from the sheet's own values, one

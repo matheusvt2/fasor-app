@@ -75,9 +75,10 @@ export function rowMenu(row: Row, reorder: Reorder, actions: RowActions) {
 }
 
 /** One of the two fixed rows: no Position box, no Overflow, the `.sum-ro` note instead. */
-export function FixedRow({ row, onOpen }: { row: Row; onOpen?: (row: Row) => void }) {
+export function FixedRow({ row, onOpen, highlighted = false }: { row: Row; onOpen?: (row: Row) => void; highlighted?: boolean }) {
+  const className = ['sum-row', row.pending && 'has-pend', highlighted && 'is-highlighted'].filter(Boolean).join(' ');
   return (
-    <li className={row.pending ? 'sum-row has-pend' : 'sum-row'} data-row={row.rowKey}>
+    <li className={className} data-row={row.rowKey}>
       <span className="sum-pos-empty" aria-hidden="true" />
       <RowOpen row={row} onOpen={onOpen} />
       <span className="sum-ctrls">
@@ -93,10 +94,10 @@ export function FixedRow({ row, onOpen }: { row: Row; onOpen?: (row: Row) => voi
  * opens the object for the kinds that have one, and the Overflow holds the reorder
  * actions. Alt+Up/Down anywhere in the row moves it (`useReorder`).
  */
-export function NumberedRow({ row, actions, openable }: { row: Row; actions: RowActions; openable: boolean }) {
+export function NumberedRow({ row, actions, openable, highlighted = false }: { row: Row; actions: RowActions; openable: boolean; highlighted?: boolean }) {
   const reorder = useReorder({ itemKey: row.key, position: row.position, siblings: row.siblings, onMove: (to) => actions.onMove(row, to), focusFrames: LIST_FOCUS_WATCH_FRAMES });
   const menu = rowMenu(row, reorder, actions);
-  const className = ['sum-row', row.pending && 'has-pend'].filter(Boolean).join(' ');
+  const className = ['sum-row', row.pending && 'has-pend', highlighted && 'is-highlighted'].filter(Boolean).join(' ');
   return (
     <li className={className} data-row={row.rowKey} data-block-id={row.blockId ?? undefined} {...reorder.rowProps}>
       <PositionBox
@@ -125,14 +126,16 @@ export interface Section9RowProps {
   children: (treeId: string) => ReactNode;
   /** The chevron, so a header count can move the focus here. */
   chevronRef?: (element: HTMLButtonElement | null) => void;
+  /** Story 7.5: marked by the Export dialog's "Ver no sumário". */
+  highlighted?: boolean;
 }
 
 /** Row 9: the same row with the `.tree-chevron` in front, and the note and tree below when open. */
-export function Section9Row({ row, actions, expanded, onToggle, children, chevronRef }: Section9RowProps) {
+export function Section9Row({ row, actions, expanded, onToggle, children, chevronRef, highlighted = false }: Section9RowProps) {
   const reorder = useReorder({ itemKey: row.key, position: row.position, siblings: row.siblings, onMove: (to) => actions.onMove(row, to), focusFrames: LIST_FOCUS_WATCH_FRAMES });
   const menu = rowMenu(row, reorder, actions);
   const treeId = useId();
-  const className = ['sum-row', 'sum-s9', expanded && 'is-open', row.pending && 'has-pend'].filter(Boolean).join(' ');
+  const className = ['sum-row', 'sum-s9', expanded && 'is-open', row.pending && 'has-pend', highlighted && 'is-highlighted'].filter(Boolean).join(' ');
   return (
     <li className={className} data-row={row.rowKey} data-block-id={row.blockId ?? undefined} {...reorder.rowProps}>
       <div className="sum-s9-head">

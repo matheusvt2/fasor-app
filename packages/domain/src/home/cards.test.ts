@@ -81,6 +81,7 @@ function relatorio(
       site_altitude_confirmed: false,
       next_intervention_date: null,
       next_intervention_justification: null,
+      parecer: null,
       ...setup,
     },
     export: { scheme: 'por_local_e_tipo' },

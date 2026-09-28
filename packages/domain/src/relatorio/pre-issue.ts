@@ -1,27 +1,44 @@
+import { calibrationCheck, calibrationValidUntil } from '../checks/calibration.ts';
 import { clientPreIssueRows } from '../checks/pre-issue-client.ts';
 import { companyPreIssues } from '../checks/pre-issue.ts';
+import { calendarDateOfInstant, formatCalendarDate, formatShortDateTime } from '../format/datetime.ts';
+import { sortByOrderKey } from '../ops/order-key.ts';
 import { livePhotos } from '../photos/order.ts';
 import { photosAwaitingText, photosUncaptionedText } from '../photos/text.ts';
+import { artLabel } from '../print/document-control.ts';
+import { missingCertificates } from '../print/section-11.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
+import { sectionText, type SectionVariable } from '../seed/definitions.ts';
+import type { TextBlock } from '../seed/schema.ts';
+import { rejectedText } from '../sync/counts.ts';
+import { resolveSectionText, SECTION_VARIABLE_LABELS } from '../templates/section-text.ts';
 import { normalizeRegistryName } from '../text/normalize-name.ts';
+import { listPtBr, plural } from '../text/plural.ts';
 import { pointPhotoRemovedText, pointsSemAcaoText, pointsWithoutAction, pointsWithRemovedPhotos } from '../points/checks.ts';
+import { duplicateTagText } from './block-texts.ts';
 import { cabineMissingText, cabineProgress } from './cabine.ts';
-import type { RelatorioSectionType } from './instantiate.ts';
+import { conclusionTextForPrint } from './conclusion.ts';
+import { relatorioSectionNumber, type RelatorioSectionType } from './instantiate.ts';
+import { integrityFindings } from './integrity.ts';
+import { parecerOf } from './parecer.ts';
 import { cabineLocationIds, naoEnsaiadasText, progress, progressCounterText, type Progress } from './progress.ts';
-import { isEquipmentBlock } from './sheet-state.ts';
+import { section3Blocks, sectionVariables } from './section-variables.ts';
+import { setupGaps, type SetupGap } from './setup-complete.ts';
+import { enabledSubBlocksOf, isEquipmentBlock, sheetState } from './sheet-state.ts';
 
 /*
  * AD-15, Story 4.3: the one pre-issue check the Sumário rows and the Export dialog both
  * render (Epic 4 context: "never two implementations that could disagree"). Every rule
  * yields typed rows addressed to a Sumário row (`row`), with a severity and a `kind`, so
- * a later epic appends its family (photos without caption, points without action, the
- * parecer, expired certificates) by pushing rows here and the Sumário draws them without
- * changing. Nothing in this story blocks; "Parecer não preenchido" (Story 4.6/4.8) will be
- * the first `blocking` row.
+ * a later epic appends its family by pushing rows here and the Sumário draws them without
+ * changing. Story 7.5 closes the list: exactly one row may be `blocking`, "Parecer não
+ * preenchido" (section 10); everything else warns and the document prints its consequence.
+ * The `sync` rows (rejected ops, the other devices' last send) are what no Sumário row can
+ * say: only the Export dialog draws them.
  */
 
-/** Where a pre-issue row is drawn: the cover, the document control, or one numbered section. */
-export type SumarioRowKey = 'capa' | 'controle' | RelatorioSectionType;
+/** Where a pre-issue row is drawn: the cover, the document control, one numbered section, or the Export dialog's sync lines. */
+export type SumarioRowKey = 'capa' | 'controle' | RelatorioSectionType | 'sync';
 
 export type PreIssueSeverity = 'blocking' | 'pending' | 'info';
 
@@ -35,8 +52,17 @@ export type PreIssueKind =
   | 'client'
   | 'photos_uncaptioned'
   | 'photos_pending_upload'
+  | 'photos_upload_error'
   | 'points_sem_acao'
-  | 'point_photo_removed';
+  | 'point_photo_removed'
+  | 'parecer_missing'
+  | 'conclusion_unconfirmed'
+  | 'calibration'
+  | 'certificate_missing'
+  | 'duplicate_tag'
+  | 'section_variables'
+  | 'rejected'
+  | 'last_send';
 
 export interface PreIssueRow {
   /** Stable key of the rule and its subject, for React lists and tests; never shown. */
@@ -50,12 +76,26 @@ export interface PreIssueRow {
 
 // authored: the mocks draw the cover row only when it is complete; these name the gaps in
 // the same register as the Clientes tab's "CNPJ do contratante em branco".
-const SETUP_TEXTS = {
+const SETUP_TEXTS: Readonly<Record<Exclude<SetupGap, 'art_trt_number'>, string>> = {
   client: 'Cliente em branco',
   service_start: 'Início da parada em branco',
   service_end: 'Fim da parada em branco',
   responsible_user_id: 'Responsável técnico em branco',
-} as const;
+  registration_number: 'Registro profissional do responsável em branco',
+  instruments: 'Nenhum instrumento em Dados do relatório',
+};
+
+/** Where each setup gap is drawn: the instruments on section 11 (the certificates), the rest on the cover row. */
+function setupGapRow(gap: SetupGap): SumarioRowKey {
+  return gap === 'instruments' ? 'section_11' : 'capa';
+}
+
+/** The text of a setup gap's row; the ART/TRT one names the council's own document ("Número da ART em branco"). */
+export function setupGapText(gap: SetupGap, snapshot: Pick<RelatorioSnapshot, 'responsible'>): string {
+  // authored: "Número da ART em branco", "… da TRT …", "… da ART/TRT …" while the council is unknown.
+  if (gap === 'art_trt_number') return `Número da ${artLabel(snapshot.responsible?.council ?? null)} em branco`;
+  return SETUP_TEXTS[gap];
+}
 
 /**
  * "Cabine ⟨nome⟩ sem equipamento", or "⟨nome⟩ sem equipamento" when the name already says
@@ -72,31 +112,121 @@ export function cabineSemEquipamentoText(name: string): string {
 export interface PreIssueContext {
   /**
    * Ids of the photos whose local upload stopped with an error (`failed` or `dead`): their
-   * tile says "Erro", so section 7's "aguardando envio" does not count them. Default: none.
+   * tile says "Erro", so section 7's "aguardando envio" does not count them and the
+   * "com erro de envio" row does. Default: none.
    */
   photoErrors?: ReadonlySet<string>;
+  /**
+   * The caller's clock reading (TC-1: the kernel never reads the clock): the instant a
+   * calibration is judged at when the relatório has no service end, and the date the
+   * seeded section texts are chosen for. Without it, a calibration with no service end is
+   * not judged and the latest seeded texts are read.
+   */
+  now?: Date;
+  /** Ops of this device the server rejected (`dead`): the Export dialog's "N alterações rejeitadas" with "Reenviar". Default: 0. */
+  rejected?: number;
+  /** The other devices' last send, by the user's name ("Último envio de Eduardo: 06/09 18:10"). Default: none. */
+  lastPushes?: readonly { name: string; at: string }[];
 }
 
 const NO_PHOTO_ERRORS: ReadonlySet<string> = new Set();
+/** The date that selects the latest seeded section texts (the one `print/layout.ts` falls back to). */
+const LATEST_TEXT_DATE = '9999-12-31';
+/** A placeholder instant `calibrationCheck` never reads while a service end is given. */
+const EPOCH = new Date(0);
 
-/** Every pre-issue row of a relatório, in reading order: the cover, the control, section 8, then section 9. */
+/** The live section blocks in `order_key` order (the Sumário's numbered rows, `sumario.ts` `sectionBlocks`). */
+function liveSections(snapshot: RelatorioSnapshot) {
+  return sortByOrderKey(snapshot.blocks.filter((block) => block.removed_at === null && block.location_id === null && !isEquipmentBlock(block)));
+}
+
+/** The text blocks a section block prints: its own text, else the seed's in force on `date`; none for a generated section. */
+function sectionTextBlocks(snapshot: RelatorioSnapshot, block: RelatorioSnapshot['blocks'][number], section: number, date: string): readonly Pick<TextBlock, 'text'>[] {
+  const own = (block.config as { section_text?: unknown } | null)?.section_text;
+  if (typeof own === 'string') return own.split('\n').map((text) => ({ text }));
+  const seedVersion = snapshot.relatorio.seed_version;
+  try {
+    return section === 3 ? section3Blocks(seedVersion, date, snapshot.relatorio.setup.exclusions) : sectionText(seedVersion, section, date);
+  } catch {
+    return [];
+  }
+}
+
+/** "Dado do relatório em branco: Responsável", "Dados do relatório em branco: Cliente e Datas". */
+export function sectionVariablesText(labels: readonly string[]): string {
+  // authored: a section text prints `[Label]` for these (Story 4.7); the row names them.
+  return `${labels.length === 1 ? 'Dado do relatório em branco' : 'Dados do relatório em branco'}: ${listPtBr(labels)}`;
+}
+
+/** "2 fichas concluídas sem texto de conclusão confirmado". */
+export function conclusionUnconfirmedText(n: number): string {
+  // authored: the sheets whose conclusion text will not print (Story 5.8: nothing unconfirmed prints).
+  return plural(n, 'ficha concluída sem texto de conclusão confirmado', 'fichas concluídas sem texto de conclusão confirmado');
+}
+
+/** "3 com erro de envio": section 7's photos whose upload stopped with an error on this device. */
+export function photosUploadErrorText(n: number): string {
+  // authored: beside "N aguardando envio" on row 7; these photos are not on the server and do not print.
+  return `${n} com erro de envio`;
+}
+
+/** "MEG-01 — calibração vencida em 10/08/2026", "… vence em 20/09/2026". */
+export function calibrationText(code: string, status: 'expired' | 'expiring', validUntil: string): string {
+  // authored: the certificate prints as it is; the row says what the reader will see.
+  return `${code} — calibração ${status === 'expired' ? 'vencida' : 'vence'} em ${formatCalendarDate(validUntil)}`;
+}
+
+/** "MEG-01 sem certificado". */
+export function certificateMissingText(code: string): string {
+  // authored: section 11 prints a placeholder line for it.
+  return `${code} sem certificado`;
+}
+
+/** "Último envio de Eduardo: 06/09 18:10". */
+export function lastSendText(name: string, at: string): string {
+  // authored: the Sync status surface's "Último envio", as one line of the Export dialog.
+  return `Último envio de ${name}: ${formatShortDateTime(at)}`;
+}
+
+/** The one blocking row's text (`73-exportar.html` `#exportar-pc-parecer`). */
+export const PARECER_MISSING_TEXT = 'Parecer não preenchido';
+
+/** Every pre-issue row of a relatório, in reading order: the cover, the control, the sections in FO.SERV-03 order, then the sync lines. */
 export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progress(snapshot), context: PreIssueContext = {}): PreIssueRow[] {
   const photoErrors = context.photoErrors ?? NO_PHOTO_ERRORS;
+  const now = context.now ?? null;
   const rows: PreIssueRow[] = [];
   const setup = snapshot.relatorio.setup;
-  const missing: (keyof typeof SETUP_TEXTS)[] = [];
-  if (snapshot.client === null) missing.push('client');
-  if (setup.service_start === null) missing.push('service_start');
-  if (setup.service_end === null) missing.push('service_end');
-  if (setup.responsible_user_id === null) missing.push('responsible_user_id');
-  for (const field of missing) {
-    rows.push({ id: `setup_missing:${field}`, row: 'capa', severity: 'pending', text: SETUP_TEXTS[field], kind: 'setup_missing' });
+  const gaps = setupGaps(snapshot);
+  for (const gap of gaps) {
+    if (setupGapRow(gap) !== 'capa') continue;
+    rows.push({ id: `setup_missing:${gap}`, row: 'capa', severity: 'pending', text: setupGapText(gap, snapshot), kind: 'setup_missing' });
   }
   for (const warning of companyPreIssues(snapshot.empresa)) {
     rows.push({ id: `company:${warning.id}`, row: 'capa', severity: 'info', text: warning.text, kind: 'company' });
   }
   for (const warning of clientPreIssueRows(snapshot.client)) {
     rows.push({ id: `client:${warning.key}`, row: 'controle', severity: 'info', text: warning.text, kind: 'client' });
+  }
+
+  // Story 7.5: a section text with a variable that has no value prints `[Label]`; its row says which.
+  const variables = sectionVariables(snapshot, snapshot.responsible?.name ?? null);
+  const date = now === null ? LATEST_TEXT_DATE : calendarDateOfInstant(now);
+  for (const block of liveSections(snapshot)) {
+    const section = relatorioSectionNumber(block.block_type);
+    if (section === null) continue;
+    const unresolved: SectionVariable[] = [];
+    for (const text of sectionTextBlocks(snapshot, block, section, date)) {
+      for (const name of resolveSectionText(text.text, variables).unresolved) if (!unresolved.includes(name)) unresolved.push(name);
+    }
+    if (unresolved.length === 0) continue;
+    rows.push({
+      id: `section_variables:${block.id}`,
+      row: block.block_type as RelatorioSectionType,
+      severity: 'pending',
+      text: sectionVariablesText(unresolved.map((name) => SECTION_VARIABLE_LABELS[name])),
+      kind: 'section_variables',
+    });
   }
 
   // Stories 6.3/6.5: section 7's photo family. Photos never block "Gerar" (coordinator
@@ -110,6 +240,12 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
   const unsent = photos.filter((photo) => photo.uploaded_at === null && !photoErrors.has(photo.id)).length;
   if (unsent > 0) {
     rows.push({ id: 'photos_pending_upload', row: 'section_7', severity: 'info', text: photosAwaitingText(unsent), kind: 'photos_pending_upload' });
+  }
+  // Story 7.5 (carry-over): the photos the server does not hold because their upload failed
+  // here; the document prints without them. A warning, never blocking.
+  const failed = photos.filter((photo) => photo.uploaded_at === null && photoErrors.has(photo.id)).length;
+  if (failed > 0) {
+    rows.push({ id: 'photos_upload_error', row: 'section_7', severity: 'info', text: photosUploadErrorText(failed), kind: 'photos_upload_error' });
   }
   // Story 6.6: section 8. Manual points with no action are pending, never blocking; a point
   // whose text cites a removed photo gets its own row, so the Export dialog can name it.
@@ -126,6 +262,27 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
   }
   if (computed.not_tested > 0) {
     rows.push({ id: 'not_tested', row: 'section_9', severity: 'info', text: naoEnsaiadasText(computed.not_tested), kind: 'not_tested' });
+  }
+  // Story 7.5: a concluded sheet whose conclusion text is not confirmed prints without it.
+  const unconfirmed = snapshot.blocks.filter(
+    (block) =>
+      block.removed_at === null &&
+      isEquipmentBlock(block) &&
+      sheetState(block) === 'concluida' &&
+      enabledSubBlocksOf(block).has('conclusion') &&
+      conclusionTextForPrint(block) === null,
+  ).length;
+  if (unconfirmed > 0) {
+    rows.push({ id: 'conclusion_unconfirmed', row: 'section_9', severity: 'pending', text: conclusionUnconfirmedText(unconfirmed), kind: 'conclusion_unconfirmed' });
+  }
+  for (const finding of integrityFindings({ equipment: snapshot.equipment })) {
+    rows.push({
+      id: `duplicate_tag:${finding.tag}`,
+      row: 'section_9',
+      severity: 'pending',
+      text: duplicateTagText(finding.tag),
+      kind: 'duplicate_tag',
+    });
   }
   for (const location of snapshot.locations) {
     if (location.kind !== 'cabine') continue;
@@ -154,6 +311,49 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
       });
     }
   }
+
+  // Story 7.4/7.5: the one blocking row, only while section 10 prints: a live `section_10`
+  // block, or no live section block at all (the legacy snapshot prints the seed's eleven,
+  // `print/layout.ts` `printedSections`).
+  const printedSectionTypes = liveSections(snapshot)
+    .filter((block) => relatorioSectionNumber(block.block_type) !== null)
+    .map((block) => block.block_type);
+  const section10Prints = printedSectionTypes.length === 0 || printedSectionTypes.includes('section_10');
+  if (section10Prints && parecerOf(snapshot) === null) {
+    rows.push({ id: 'parecer_missing', row: 'section_10', severity: 'blocking', text: PARECER_MISSING_TEXT, kind: 'parecer_missing' });
+  }
+
+  // Section 11: the setup's instruments, the calibration of each instrument the sheets
+  // name (expired pending, about to expire a plain warning) and a missing certificate.
+  for (const gap of gaps) {
+    if (setupGapRow(gap) !== 'section_11') continue;
+    rows.push({ id: `setup_missing:${gap}`, row: 'section_11', severity: 'pending', text: setupGapText(gap, snapshot), kind: 'setup_missing' });
+  }
+  for (const instrument of snapshot.instruments) {
+    // The reference is the service end; the caller's `now` only when there is none.
+    if (setup.service_end === null && now === null) break;
+    const status = calibrationCheck(instrument, setup.service_end, now ?? EPOCH);
+    const validUntil = calibrationValidUntil(instrument.calibrated_at, instrument.calibration_interval_months);
+    if (status === 'valid' || validUntil === null) continue;
+    rows.push({
+      id: `calibration:${instrument.id}`,
+      row: 'section_11',
+      severity: status === 'expired' ? 'pending' : 'info',
+      text: calibrationText(instrument.code, status, validUntil),
+      kind: 'calibration',
+    });
+  }
+  // Story 7.3's rule (section 11 prints a placeholder line for each of these).
+  for (const entry of missingCertificates(snapshot)) {
+    rows.push({ id: `certificate_missing:${entry.instrument_id}`, row: 'section_11', severity: 'info', text: certificateMissingText(entry.code), kind: 'certificate_missing' });
+  }
+
+  // The Export dialog's own lines: what this device could not send, and when the others last sent.
+  const rejected = context.rejected ?? 0;
+  if (rejected > 0) rows.push({ id: 'rejected', row: 'sync', severity: 'pending', text: rejectedText(rejected), kind: 'rejected' });
+  (context.lastPushes ?? []).forEach((push, index) => {
+    rows.push({ id: `last_send:${index}`, row: 'sync', severity: 'info', text: lastSendText(push.name, push.at), kind: 'last_send' });
+  });
   return rows;
 }
 
@@ -171,4 +371,42 @@ export function preIssueRowsFor(rows: readonly PreIssueRow[], key: SumarioRowKey
 /** The blocking rows, the ones "Gerar relatório" names in its reason. */
 export function blockingRows(rows: readonly PreIssueRow[]): PreIssueRow[] {
   return rows.filter((row) => row.severity === 'blocking');
+}
+
+/** The kinds the Export dialog lists one by one: the photos the server does not hold and the sync lines. */
+const EXPLICIT_KINDS: ReadonlySet<PreIssueKind> = new Set(['photos_pending_upload', 'photos_upload_error', 'rejected', 'last_send']);
+
+export interface ExportPrecheck {
+  /** The rows that stop "Gerar relatório" (only "Parecer não preenchido"). */
+  blocking: PreIssueRow[];
+  /** The rows the dialog draws one per line. */
+  explicit: PreIssueRow[];
+  /** How many other rows stand on the Sumário ("N avisos — estão nas linhas do sumário"). */
+  summarizedCount: number;
+  /** "7 avisos", "1 aviso"; '' with none. */
+  countText: string;
+}
+
+/**
+ * Story 7.5 (`73-exportar.html` "Antes de emitir", v0.8): the Export dialog's pre-issue list
+ * from the same rows the Sumário draws: the blocking row, the rows only the dialog can say
+ * (photos not on the server, rejected ops, the other devices' last send) and a count of
+ * the rest, which stay on their Sumário rows.
+ */
+export function exportPrecheck(rows: readonly PreIssueRow[]): ExportPrecheck {
+  const blocking = blockingRows(rows);
+  const explicit = rows.filter((row) => row.severity !== 'blocking' && EXPLICIT_KINDS.has(row.kind));
+  const summarizedCount = rows.length - blocking.length - explicit.length;
+  return { blocking, explicit, summarizedCount, countText: summarizedCount === 0 ? '' : plural(summarizedCount, 'aviso', 'avisos') };
+}
+
+/**
+ * The reason beside a blocked "Gerar relatório" (`73-exportar.html`
+ * `#exportar-gen-blocked-reason`): "Preencha o parecer (linha 10 do sumário) para emitir a
+ * revisão 3. O rascunho pode ser visto antes." `line` is section 10's Sumário number; the
+ * parenthesis is left out when the relatório has no such row.
+ */
+export function parecerMissingReason(number: number, line: number | null): string {
+  const where = line === null ? '' : ` (linha ${line} do sumário)`;
+  return `Preencha o parecer${where} para emitir a revisão ${number}. O rascunho pode ser visto antes.`;
 }

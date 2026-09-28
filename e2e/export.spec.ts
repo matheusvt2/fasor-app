@@ -7,7 +7,7 @@ import { syncNow } from './support/sync.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.ts';
-import { createProjectFromHome, createRelatorio } from './support/relatorio-flow.ts';
+import { createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
 import { pushDrafts } from './support/relatorio-seed.ts';
 
 /*
@@ -82,12 +82,14 @@ test('@p0 4.8-E2E-001 a relatório born on Home: the Sumário\'s "Gerar relatór
   await expect(page.locator('.shortcut-sub', { hasText: '1 template' })).toBeVisible({ timeout: 30_000 });
   await createProjectFromHome(page);
   // Q3: what Etapa 1's "Informações adicionais" says is what the cover prints.
-  await createRelatorio(page, {
+  const relatorioId = await createRelatorio(page, {
     whileOnSetup: async () => {
       await page.getByLabel('Informações adicionais').fill(ADDITIONAL_INFO);
     },
   });
   await expect(headerPill(page)).toHaveText('Rascunho');
+  // Story 7.4: the parecer is set first; "Parecer não preenchido" is the one row that blocks.
+  await setParecer(page, relatorioId);
 
   // The foot's button opens the dialog: modal, labelled by its title, idle with no revision.
   await footButton(page).click();
@@ -162,6 +164,7 @@ test('@p0 4.8-E2E-004 an Em campo relatório: generate moves it to Em revisão, 
   await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
   await openFixtureSumario(page);
+  await setParecer(page, EXPORT_RELATORIO_ID);
 
   await footButton(page).click();
   await expect(reason(page)).toHaveText(IDLE_1);
@@ -193,6 +196,7 @@ test('@p1 4.8-E2E-002 offline, "Gerar relatório" waits with its reason and call
   await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
   await openFixtureSumario(page);
+  await setParecer(page, EXPORT_RELATORIO_ID);
   await footButton(page).click();
   await expect(dialog(page)).toBeVisible();
 
@@ -220,6 +224,7 @@ test('@p1 4.8-E2E-005 a failed request says nothing changed and no revision was 
   await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
   await openFixtureSumario(page);
+  await setParecer(page, EXPORT_RELATORIO_ID);
   await footButton(page).click();
 
   await page.route('**/api/relatorios/*/generate', (route) => route.abort('failed'));
@@ -262,6 +267,7 @@ test('@p0 E4-E2E-001 generate, edit, Em revisão, generate revision 2: listed an
   await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
   await openFixtureSumario(page);
+  await setParecer(page, EXPORT_RELATORIO_ID);
 
   // Revision 1 from Em campo: the relatório is issued.
   await footButton(page).click();
@@ -307,6 +313,8 @@ test('@p0 E4-E2E-001 generate, edit, Em revisão, generate revision 2: listed an
   await moveBackTo(page, 'Em revisão');
   await footButton(page).click();
   const again = dialog(page).getByRole('button', { name: 'Gerar de novo' });
+  // The dialog opens on its last state (ready, or idle): wait for either before deciding.
+  await expect(again.or(reason(page))).toBeVisible();
   if (await again.isVisible()) await again.click();
   await expect(reason(page)).toHaveText(IDLE_2);
   await generateButton(page).click();
@@ -409,6 +417,7 @@ test('@p1 E4-E2E-004 Etapa 2: an exclusion removed from its menu comes back with
   await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
   await openFixtureSumario(page);
+  await setParecer(page, EXPORT_RELATORIO_ID);
   await sumarioList(page).getByRole('button', { name: /^Capa e dados do relatório/ }).click();
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 1 — Capa' })).toBeFocused();
 

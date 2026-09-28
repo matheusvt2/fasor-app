@@ -7,6 +7,7 @@ import {
   filePutResponseSchema,
   GENERATE_ROUTES,
   generateResponseSchema,
+  previewResponseSchema,
   SYNC_ROUTES,
   syncPullResponseSchema,
   syncPushResponseSchema,
@@ -15,6 +16,7 @@ import {
   type GenerateRequest,
   type GenerateResponse,
   type Op,
+  type PreviewResponse,
   type SyncPullResponse,
   type SyncPushResponse,
   type SyncRoute,
@@ -78,6 +80,11 @@ export interface SyncClient {
    */
   generate(relatorioId: string, body: GenerateRequest): Promise<GenerateResponse>;
   /**
+   * Story 7.5: the preview job, behind the same barrier (`409 not_caught_up` the same way).
+   * Optional in the type only so the test doubles built before it existed still type-check.
+   */
+  preview?(relatorioId: string, body: GenerateRequest): Promise<PreviewResponse>;
+  /**
    * Story 8.2: "Tentar novamente" of a failed plate reading, `POST /api/photos/{id}/reread`
    * (the route and the new reading run are the reading job's, Story 8.4). Resolves on a 2xx;
    * any other answer is a `SyncRequestError`.
@@ -88,6 +95,11 @@ export interface SyncClient {
 /** Story 8.4's route, called by the sheet's "Tentar novamente" (Story 8.2). */
 export function rereadPhotoPath(photoId: string): string {
   return `/api/photos/${photoId}/reread`;
+}
+
+/** Story 7.5: where the preview tab opens the relatório's latest RASCUNHO PDF; the file id only busts a cached earlier one. */
+export function previewPdfUrl(relatorioId: string, fileId: string): string {
+  return GENERATE_ROUTES.previewPdf(relatorioId, fileId).path;
 }
 
 /** Where the browser opens a revision's DOCX (a new tab; the server answers it as a download). */
@@ -200,6 +212,7 @@ export function createSyncClient(deps: { fetch: FetchLike }): SyncClient {
       return response.blob();
     },
     generate: (relatorioId, body) => request(GENERATE_ROUTES.generate(relatorioId), generateResponseSchema, undefined, body),
+    preview: (relatorioId, body) => request(GENERATE_ROUTES.preview(relatorioId), previewResponseSchema, undefined, body),
     async rereadPhoto(photoId) {
       await send(rereadPhotoPath(photoId), 'POST', { headers: { accept: 'application/json' } });
     },

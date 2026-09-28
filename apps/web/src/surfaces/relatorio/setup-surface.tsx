@@ -7,6 +7,7 @@ import {
   statusTable,
   type BlockRow,
   type InstrumentRow,
+  type RelatorioParecer,
   type RelatorioSnapshot,
   type UserRow,
 } from '@app/domain';
@@ -30,6 +31,7 @@ import { Etapa2Escopo } from './setup/etapa2-escopo.tsx';
 import { Etapa3Responsavel } from './setup/etapa3-responsavel.tsx';
 import { Etapa4Instrumentos } from './setup/etapa4-instrumentos.tsx';
 import { Etapa5Local } from './setup/etapa5-local.tsx';
+import { Etapa6Parecer } from './setup/etapa6-parecer.tsx';
 import './relatorio.css';
 
 const NO_USERS: UserRow[] = [];
@@ -38,8 +40,10 @@ const NO_BLOCKS: BlockRow[] = [];
 
 /**
  * `/relatorio/:id/setup?etapa=n` (Story 4.2): the five Etapa bands the epics.md AC lists
- * (Capa, Objetivo e escopo, Responsável, Instrumentos, Local) plus the "Conclusão e
- * parecer" placeholder -- not the mock's own six-band structure (Design Notes).
+ * (Capa, Objetivo e escopo, Responsável, Instrumentos, Local) plus Story 7.4's Etapa 6,
+ * "Conclusão e parecer" -- not the mock's own six-band structure (Design Notes). Arriving
+ * with `?volta=exportar` (the Export dialog's "Editar em Dados do relatório"), Etapa 6 offers
+ * the way back to the dialog.
  */
 export function SetupSurface() {
   const { id = '' } = useParams();
@@ -94,14 +98,13 @@ function SetupContent({ relatorioId, snapshot, users, instruments, blocks }: Set
   const t = copy.setup;
   const relatorio = snapshot.relatorio;
   const setup = relatorio.setup;
-  const responsible = users.find((row) => row.id === setup.responsible_user_id) ?? null;
 
   const author = user === null ? null : { id: user.id, companyId: user.companyId };
 
   const bandRefs = useRef<Record<number, HTMLElement | null>>({});
   useEffect(() => {
     const etapa = Number.parseInt(search.get('etapa') ?? '', 10);
-    if (!Number.isInteger(etapa) || etapa < 1 || etapa > 5) return;
+    if (!Number.isInteger(etapa) || etapa < 1 || etapa > 6) return;
     const band = bandRefs.current[etapa];
     if (band === null || band === undefined) return;
     band.scrollIntoView?.({ block: 'start' });
@@ -143,6 +146,25 @@ function SetupContent({ relatorioId, snapshot, users, instruments, blocks }: Set
     await commitFields([[field, value]]);
   }
 
+  /**
+   * Story 7.4 (Design Notes): the parecer is one LWW value, so every tap or text action
+   * writes the whole object, built from the relatório row the store holds at the moment of
+   * the write (never the render's). A refused write is toasted by the queue.
+   */
+  async function writeParecer(build: (current: RelatorioParecer | null) => RelatorioParecer | null, options: { toast?: string } = {}): Promise<void> {
+    const batchId = await edits.write(async () => {
+      if (db === null || author === null) return null;
+      const current = (await relatorioRow(db, relatorioId))?.setup.parecer ?? null;
+      const next = build(current);
+      if (next === null) return null;
+      const draft = { ...relatorioOpEnvelope(author, relatorioId), kind: 'put' as const, path: relatorioSetupPath('parecer'), value: next as never };
+      return (await commitBatch(db, [draft], { newId, now })).batch_id;
+    });
+    if (batchId !== null && options.toast !== undefined) edits.notify(options.toast);
+  }
+
+  const backToExport = search.get('volta') === 'exportar' ? () => void navigate(`/relatorio/${relatorioId}?exportar=1`) : null;
+
   // E12-Q11: back from Cadastros' "Fechar" after "Cadastrar instrumento", the instrument just
   // registered there is checked here (one op), when it exists and is not listed yet. Read once
   // from the arrival, then forgotten, so a reload never checks it again.
@@ -158,7 +180,7 @@ function SetupContent({ relatorioId, snapshot, users, instruments, blocks }: Set
     void commitField('instrument_ids', [...setup.instrument_ids, registeredId]);
   });
 
-  const gapReason = setupIncompleteReason(snapshot, responsible);
+  const gapReason = setupIncompleteReason(snapshot);
   // AD-22 (Epic 4 retro item 12): the kernel's table says whether this status completes setup.
   const canComplete = statusTable(relatorio.status, 'setup_complete') !== null;
 
@@ -209,16 +231,13 @@ function SetupContent({ relatorioId, snapshot, users, instruments, blocks }: Set
       />
       <Etapa5Local snapshot={snapshot} onCommit={commitField} onCommitFields={commitFields} bandRef={(el) => (bandRefs.current[5] = el)} />
 
-      <section className="section-band" aria-labelledby="setup-parecer-band">
-        <div className="band-head">
-          <h2 className="band-title" id="setup-parecer-band" tabIndex={-1}>
-            {t.parecerTitle}
-          </h2>
-        </div>
-        <div className="band-body">
-          <p className="section-note">{t.parecerNote}</p>
-        </div>
-      </section>
+      <Etapa6Parecer
+        relatorioId={relatorioId}
+        snapshot={snapshot}
+        onWriteParecer={writeParecer}
+        onBackToExport={backToExport}
+        bandRef={(el) => (bandRefs.current[6] = el)}
+      />
 
       <div className="sticky-action-bar">
         {canComplete ? (

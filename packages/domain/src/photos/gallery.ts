@@ -5,6 +5,7 @@ import { locationPathText } from '../relatorio/location-path.ts';
 import { screenLabel } from '../relatorio/screen-label.ts';
 import { checklistResultOf } from '../relatorio/sheet-progress.ts';
 import { locationTree } from '../relatorio/tree.ts';
+import type { RevisionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { getDefinition } from '../seed/definitions.ts';
 import { plural } from '../text/plural.ts';
@@ -123,9 +124,29 @@ export function isUncaptioned(caption: string | null): boolean {
   return caption === null || caption.trim() === '';
 }
 
-/** The viewer's count: "4 de 20 · nº provisório". */
-export function viewerCountText(position: number, total: number): string {
-  return `${position} de ${total}${SEP}nº provisório`;
+/** The viewer's count: "4 de 20 · nº provisório"; "4 de 20" once a revision froze the numbers (Story 7.2 AC3). */
+export function viewerCountText(position: number, total: number, provisional = true): string {
+  return provisional ? `${position} de ${total}${SEP}nº provisório` : `${position} de ${total}`;
+}
+
+/**
+ * Story 7.2 (AC3): whether the gallery's numbers are still provisional. They are frozen
+ * with a revision (its snapshot numbered them) until anything is edited after it; before
+ * the first revision, and again after an edit, the next generation may renumber them.
+ */
+export function photoNumbersProvisional(latest: Pick<RevisionRow, 'number'> | null, edited: boolean): boolean {
+  return latest === null || edited;
+}
+
+/**
+ * Story 7.2 (AC3): the gallery's status line under its note. Null before any revision (the
+ * note already says the numbers are provisional); "Números da revisão 2" while nothing was
+ * edited since that revision; "Números provisórios — serão definidos na revisão 3" after an edit.
+ */
+export function photoNumbersStatusText(latest: Pick<RevisionRow, 'number'> | null, edited: boolean): string | null {
+  if (latest === null) return null;
+  // authored: no mock draws the line (open for Bruno).
+  return edited ? `Números provisórios — serão definidos na revisão ${latest.number + 1}` : `Números da revisão ${latest.number}`;
 }
 
 /** A gallery tile's accessible name: "Foto 4, abrir". */

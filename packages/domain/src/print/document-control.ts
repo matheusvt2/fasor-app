@@ -15,6 +15,9 @@ import { revisionTitle } from './revisions.ts';
 /** What a missing value prints as, in the document control only (section bodies print `[Label]`). */
 export const MISSING = '—';
 
+/** The row that names the revision, the one a preview prints as `—` (Story 7.5). */
+export const REVISION_ROW_LABEL = 'Revisão do documento';
+
 export interface DocumentControlRow {
   label: string;
   value: string;
@@ -73,7 +76,7 @@ export function documentControlRows(snapshot: RelatorioSnapshot, inputs: Documen
   const period = formatServiceDates(setup.service_start, setup.service_end);
   return [
     { label: 'Documento', value: documentLine(snapshot.empresa) },
-    { label: 'Revisão do documento', value: revisionTitle(inputs.revisionNumber) },
+    { label: REVISION_ROW_LABEL, value: revisionTitle(inputs.revisionNumber) },
     { label: 'Data de emissão', value: present(formatIssueDate(inputs.issuedAt)) ?? MISSING },
     { label: 'Contratante', value: partyLine(snapshot.client?.name, snapshot.client?.cnpj) },
     { label: 'Contratada', value: partyLine(snapshot.empresa?.name, snapshot.empresa?.cnpj) },

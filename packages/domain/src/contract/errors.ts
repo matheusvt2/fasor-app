@@ -42,6 +42,9 @@ export const errorCodeSchema = z.enum([
   // (retryable after a sync, AD-15's flush barrier).
   'invalid_request',
   'not_caught_up',
+  // Story 7.5: the issue route refuses while a pre-issue row is `blocking` ("Parecer não
+  // preenchido"); `details.rows` names the blocking rows' kinds. Never retryable by a sync.
+  'pre_issue_blocked',
   ...opRejectCodeSchema.options,
 ]);
 export type ErrorCode = z.infer<typeof errorCodeSchema>;
