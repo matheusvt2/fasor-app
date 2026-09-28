@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, syncBadge } from './merged-fixtures.ts';
+import { expect, syncBadge, timed } from './merged-fixtures.ts';
 import { readStore } from './outbox.ts';
 
 /*
@@ -31,7 +31,11 @@ async function pageNow(page: Page): Promise<number> {
  * button is back (the relatório and project pulls that follow it are done too), and
  * nothing is left pending. Leaves the tab on Sync status.
  */
-export async function syncNow(page: Page): Promise<void> {
+export function syncNow(page: Page): Promise<void> {
+  return timed('syncNow', () => syncNowSteps(page));
+}
+
+async function syncNowSteps(page: Page): Promise<void> {
   await syncBadge(page).click();
   const button = page.getByRole('button', { name: 'Sincronizar agora' });
   // A cycle already running (launch, `online`, the 60 s tick) keeps the button disabled.

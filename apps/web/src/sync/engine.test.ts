@@ -1250,6 +1250,47 @@ describe('6.2 photo uploads', () => {
     h.db.close();
   });
 
+  it('retryUpload waits out a cycle in flight however long it runs, then sends the cleared file in a cycle of its own', async () => {
+    const h = await harness();
+    await shoot(h, PHOTO_1, '2026-09-21T16:10:00.000Z');
+    h.server.failUpload = () => ({ kind: 'http', status: 413, code: 'file_too_large' });
+    await h.engine.runCycle();
+    expect((await h.db.files.get(PHOTO_1))!.upload_error).toMatchObject({ state: 'dead' });
+
+    // A cycle that is past its upload phase and then held in its pull for a long time (a
+    // slow network, a loaded device): the tile's retry comes while it runs.
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    let held = false;
+    const pull = h.server.pullCompany.bind(h.server);
+    h.server.pullCompany = async (since) => {
+      if (!held) {
+        held = true;
+        await gate;
+      }
+      return pull(since);
+    };
+    h.server.failUpload = () => null;
+    const long = h.engine.runCycle();
+    await waitFor(() => held, 'the cycle held in its pull');
+    const before = h.server.uploads.length;
+    let retried: string | null = null;
+    const retry = h.engine.retryUpload(PHOTO_1).then((result) => (retried = result));
+    // Far longer than any bounded wait, and short of the 60 s tick (not started here).
+    await h.clock.advance(30_000);
+    expect(retried).toBeNull();
+    expect(h.server.uploads.slice(before)).toEqual([]);
+
+    release();
+    expect(await long).toBe('ran');
+    await retry;
+    expect(retried).toBe('ran');
+    expect(h.server.uploads.slice(before)).toEqual([PHOTO_1]);
+    expect((await h.db.files.get(PHOTO_1))!.acked).toBe(true);
+    expect((await h.db.files.get(PHOTO_1))!.upload_error).toBeUndefined();
+    h.db.close();
+  });
+
   it('marks retries run out as failed, retries it next cycle and clears it on success', async () => {
     const h = await harness();
     await shoot(h, PHOTO_1, '2026-09-21T16:10:00.000Z');

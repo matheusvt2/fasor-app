@@ -34,13 +34,31 @@ export default defineConfig({
   testDir: 'e2e',
   // `list` for the terminal; the JSON report per group is what `scripts/e2e.ts` counts
   // (tests, outcomes, titles) for the run's summary.
-  reporter: [['list'], ['json', { outputFile: `test-results/e2e-report/${label}.json` }]],
+  // `timing-reporter.ts` writes where each test spent its time (hooks vs body) per group.
+  reporter: [
+    ['list'],
+    ['json', { outputFile: `test-results/e2e-report/${label}.json` }],
+    ['./e2e/support/timing-reporter.ts', { outputFile: `test-results/e2e-report/timings-${label}.json` }],
+  ],
   // Each group keeps its own artifacts: the serial run must not clean the parallel run's.
   outputDir: group === undefined ? 'test-results' : `test-results/${group}`,
   workers: group === 'parallel' ? PARALLEL_WORKERS : 1,
+  // Test-speed batch (2026-09-27): the parallel group hands out tests, not files, so one
+  // long file (ficha.spec.ts, about a fifth of the group's time) no longer keeps one
+  // worker busy after the others ran dry. Every test there already starts from its own
+  // reset of its worker's pair (none needs an earlier test of its file), and each worker
+  // keeps its own pair whatever file its tests come from.
+  fullyParallel: group === 'parallel',
   globalSetup: './e2e/support/global-setup.ts',
   globalTeardown: './e2e/support/global-teardown.ts',
-  use: { baseURL: 'http://localhost:5200' },
+  // Fail fast (test-speed batch, 2026-09-27): without an action timeout a click on a
+  // control that never becomes actionable (aria-disabled, covered, gone) waited out the
+  // whole test timeout, 360 s in one case, before failing. An action now gives up after
+  // 15 s and a navigation after 30 s; a spec that must wait longer for an element (a sync
+  // cycle, a generation) waits on it with its own `expect(...)` timeout first, as every
+  // spec already does. `expect` keeps Playwright's 5 s default, stated here.
+  use: { baseURL: 'http://localhost:5200', actionTimeout: 15_000, navigationTimeout: 30_000 },
+  expect: { timeout: 5_000 },
   projects: [
     {
       name: 'desktop-chrome',

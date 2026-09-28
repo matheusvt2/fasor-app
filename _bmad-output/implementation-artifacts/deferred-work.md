@@ -797,7 +797,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: With the push path fixed, `test:e2e:full --workers=3` still fails one test per run that the three serial runs pass. 12.3-E2E-004 failed twice: once "Ensaios, 9 faltando" with the values on screen (the device's reading commits land after the 5 s effect window), once an NC radio not checked within its window. 6.2-E2E-001 failed once (the retried upload past its 60 s bound). All pass alone, three times each. The gate stays at one worker (`PARALLEL_WORKERS = 1`), so `verify` stays over its 15-minute budget.
   evidence: PR of branch `fix/epic-8-carry-over`, validation table (3 serial + 3 parallel runs, 2026-09-26). A host Chrome renderer used about 200 % CPU during the runs. Next steps: find why a device's commit queue slows under three browsers (IndexedDB contention, the preview server or CPU), try two workers, or widen the effect windows of the two tests.
   class: deferred
-  state: open (owner: Epic 9 carry-over batch; blocks the ~13 min gate)
+  state: ~~open (owner: Epic 9 carry-over batch; blocks the ~13 min gate)~~ closed (2026-09-27, spec-test-speed.md: 6.2-E2E-001's retry waits out the cycle in flight (`SyncEngine.retryUpload`); 12.3-E2E-004's lost tap was `humanTap`'s 10-frame settle against a Combobox closing late, now time-bounded; the tap-timing specs run in the serial group; a PUT/retry race on file server ops (6.2-E2E-003) fixed in the api; `PARALLEL_WORKERS = 3`, validation runs in the spec; the remaining device cost is the entry below)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-6-fix-qa.md`
   summary: E6-R1. In a new point of attention, text typed right before a plain reload (no page-hidden event first) is neither committed nor kept as a draft; it is recovered when the page is hidden first (a phone going to the background).
@@ -967,6 +967,12 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: `apps/api/src/jobs/reading/worker.ts` computes `lastAttempt` only for attempts that run to completion; no `deadLetter` or failed-job handler (review pass 2026-09-27, Edge Case Hunter and Verification Gap).
   class: debt
   state: open (owner: Epic 8 integrated fix batch)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-test-speed.md`
+  summary: The gate still runs over its 15-minute budget on the 4-core laptop, and the e2e cost per step is the device's: each commit rebuilds the relatório's whole snapshot through its live query (`toSnapshot` + `buildSnapshot`, about 223 ops of a standard relatório), so under CPU contention a commit's render lands late. That is why the tap-timing specs (12.1-E2E-007 lost its tap in 1 of 5 repeats beside other workers) must run alone in the serial group, and why `signIn`/`pushDrafts` cost twice as much per call at 3 workers. An incremental snapshot (or a narrower live query per surface) would shorten every e2e step and the field device's own latency.
+  evidence: `spec-test-speed.md` measurements (timings reporter, repeat runs at 2 and 3 workers); `apps/web/src/db/snapshot.ts`.
+  class: deferred
+  state: open (owner: Epic 9 carry-over batch)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-8-2-8-6-plate-capture-and-confirm.md`
   summary: The "Fotografar placa" tile shows on every equipment sheet with a nameplate, but batch R reads only `transformador_forca` plates; a plate photo of any other type stays `queued` with "Foto guardada — leitura quando houver sinal" indefinitely.

@@ -177,6 +177,13 @@ describe('the e2e groups', () => {
     }
   });
 
+  it('keeps every spec that times a tap against a render in the serial group (test-speed batch)', () => {
+    const timed = /humanTap|touchPressAcross|tapCounter/;
+    for (const path of specs) {
+      if (timed.test(readFileSync(path, 'utf8'))) expect(SERIAL_SPEC_PATTERN.test(path), path).toBe(true);
+    }
+  });
+
   it('never names a fixed test company, user or e-mail: every spec takes its pair from `seed`', () => {
     const fixed = /TEST_SEED|test-seed\.ts|@teste\.local|0a000000-|0b000000-|e2e00000-/;
     const offenders = e2eFiles().filter((path) => fixed.test(readFileSync(path, 'utf8')));
