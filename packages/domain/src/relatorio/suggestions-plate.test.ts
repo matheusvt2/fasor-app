@@ -3,6 +3,7 @@ import { emptySheet, suggestionRowSchema, type BlockRow, type Cell, type Suggest
 import { TEST_RELATORIO } from '../test-support.ts';
 import {
   arrivedReadingsCount,
+  singleSourcePhotoId,
   confirmAllCandidates,
   criarText,
   hasCreateHint,
@@ -174,6 +175,14 @@ describe('8.2/8.6-UNIT the texts', () => {
     expect(suggestionGroupNoteText(9, 1, 3)).toBe('9 sugestões lidas da foto 3. Nada foi gravado: confirme um a um ou todos — o campo “Verificar” pede o seu toque.');
     expect(suggestionGroupNoteText(1, 0, 12)).toBe('1 sugestão lida da foto 12. Nada foi gravado até você confirmar.');
     expect(suggestionGroupNoteText(9, 1, null)).toBe('9 sugestões lidas. Nada foi gravado: confirme um a um ou todos — o campo “Verificar” pede o seu toque.');
+  });
+
+  it('names the one photo a group was read from, none when several or none', () => {
+    const one = [suggestion('tipo', 'A'), suggestion('tap_atual', 'B')];
+    expect(singleSourcePhotoId(one)).toBe(PHOTO);
+    const other = suggestion('n_serie', 'C', { source: { photo_id: '019966b0-0087-7000-8000-0000000000aa', bbox: [0, 0, 1, 1], ocr_token_ids: [], reading_run_id: RUN_2 } });
+    expect(singleSourcePhotoId([...one, other])).toBeNull();
+    expect(singleSourcePhotoId([])).toBeNull();
   });
 
   it('counts the readings that arrived by their runs, and writes the toast, the banner and the queue line', () => {

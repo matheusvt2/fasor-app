@@ -19,6 +19,7 @@ import {
   suggestionGroupCounts,
   suggestionGroupNoteText,
   suggestionRowsOf,
+  singleSourcePhotoId,
   suggestionValueText,
   unknownManufacturer,
   type BlockRow,
@@ -228,8 +229,8 @@ export function useNameplateSuggestions({
   const sourceOf = (id: string) => rows.find((row) => row.id === id) ?? snapshot.suggestions.find((row) => row.id === id) ?? null;
 
   // "da foto 3": the group's suggestions all came from one photo this device numbers.
-  const sources = new Set(list.filter((entry) => entry.view !== 'none').map((entry) => entry.suggestion.source.photo_id));
-  const photoNumber = sources.size === 1 ? (numbers.get([...sources][0]!) ?? null) : null;
+  const sourcePhoto = singleSourcePhotoId(list.filter((entry) => entry.view !== 'none').map((entry) => entry.suggestion));
+  const photoNumber = sourcePhoto === null ? null : (numbers.get(sourcePhoto) ?? null);
 
   return { entries, counts, sourceOf, confirm, confirmAll, type, openCrop, openPhoto, viewer, pending, tiles, numbers, photoNumber, createsEntry };
 }

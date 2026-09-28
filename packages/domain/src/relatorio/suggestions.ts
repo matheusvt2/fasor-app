@@ -559,6 +559,13 @@ export function regionWithin(outer: NormalizedBox, inner: NormalizedBox): { left
 
 // --- arrivals and counts (Stories 8.2 and 8.6) -------------------------------------------------
 
+/** "da foto 3": the one photo every row was read from, null when none or several. */
+export function singleSourcePhotoId(rows: readonly Pick<SuggestionRow, 'source'>[]): string | null {
+  const ids = new Set(rows.map((row) => row.source.photo_id));
+  if (ids.size !== 1) return null;
+  return [...ids][0]!;
+}
+
 /** How many readings arrived with these new suggestion rows: their distinct reading runs. */
 export function arrivedReadingsCount(newRows: readonly Pick<SuggestionRow, 'source'>[]): number {
   return new Set(newRows.map((row) => row.source.reading_run_id)).size;
