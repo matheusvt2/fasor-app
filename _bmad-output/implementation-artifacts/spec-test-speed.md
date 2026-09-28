@@ -2,7 +2,7 @@
 title: 'Gate: faster and fail-fast test suites'
 type: 'chore'
 created: '2026-09-27'
-status: 'in-review'
+status: 'done'
 baseline_revision: '842bb34'
 dev_model: 'opus'
 dev_effort: 'high'
@@ -78,7 +78,8 @@ are CPU-bound by their neighbours, not slow by themselves.
   `vitest.config.ts`, one pool instead of three sequential runs; `static` runs the package type checks in parallel.
 - `playwright.config.ts`: `actionTimeout` 15 s, `navigationTimeout` 30 s, `expect` 5 s stated; the parallel group
   is `fullyParallel` (ficha.spec.ts alone is a fifth of the group); the timing reporter.
-- `e2e/support/groups.ts`: `PARALLEL_WORKERS = 3`; the six tap-timing specs join the serial group.
+- `e2e/support/groups.ts`: the six tap-timing specs join the serial group. `PARALLEL_WORKERS` stays 1 (validation
+  below); `--workers=3` runs the parallel group on three pairs on demand.
 - AGENTS.md "Running and verifying" updated.
 
 ## Validation (coordinator plan of 2026-09-27)
@@ -92,19 +93,36 @@ Known serial numbers reused (PR #45: full 1255-1281 s; PR #48: three serial full
 | same, after the humanTap fix | 3 | 19/20, lost-taps 12.1-E2E-007 once | 258 s | clean |
 | same | 2 | 19/20, lost-taps 12.1-E2E-007 once | 287 s | clean |
 | `test:e2e:full` (tap specs serial) | 3 | 212/213 run, 6.2-E2E-003 failed (the api race above, fixed after) | 1015 s (parallel 624 s, serial 383 s) | clean |
-| `pnpm verify` #1 | 3 | RESULT_V1 | TIME_V1 | clean |
-| `pnpm verify` #2 | 3 | RESULT_V2 | TIME_V2 | clean |
+| `pnpm verify` #1 (after merging origin/main) | 3 | e2e 123/125: 12.4-E2E-001 (parallel, a Confirmar not applied in 5 s, load 12-14) and 12.1-E2E-007 (serial group, alone) failed | 1388 s (e2e 732 s: parallel 428 s, serial 299 s) | clean |
+| `pnpm verify` #2 (shipped setting) | 1 | green: 125/125 e2e, lint, static, unit, api | 1268 s (e2e 868 s: parallel 635 s, serial 229 s) | clean |
+
+Decision: the rule was "switch only when every run is green"; `verify` #1 was not, so `PARALLEL_WORKERS` stays 1
+and the second 3-worker gate run was not spent. Noise during #1: host Chrome about 150 % of a core and an
+unlocked `pip install` (another worktree's OCR build) during the first phase, load 15-19; the api suite took 435 s
+there against 157 s at baseline.
 
 ## Before / after per stage (`pnpm verify`)
 
-| Stage | Before (`base1`) | After (#1) | After (#2) |
+| Stage | Before (`base1`, 1 worker) | After #1 (3 workers, noisy) | After #2 (1 worker, shipped) |
 | --- | --- | --- | --- |
-| lint + static + api | 16 + 57 + 157 = 230 s (in sequence) | PHASE1_V1 | PHASE1_V2 |
-| unit | 196 s | UNIT_V1 | UNIT_V2 |
-| e2e `@p0` | 1072 s (116 + 4 tests) | E2E_V1 | E2E_V2 |
-| total | 1499 s | TOTAL_V1 | TOTAL_V2 |
+| lint + static + api | 16 + 57 + 157 = 230 s (in sequence) | 435 s (in parallel; api 435 s under load 15-19) | 232 s (in parallel; api 232 s, lint 38 s, static 71 s) |
+| unit | 196 s | 220 s | 167 s |
+| e2e `@p0` | 1072 s (116 + 4 tests) | 732 s (106 + 19 tests) | 868 s (106 + 19 tests) |
+| total | 1499 s | 1388 s | 1268 s |
+
+Machine during #2: load 2-3 at start and end, the quietest run of the batch; the api suite grew with Stories
+7.2-7.5 and 8.4-8.5 merged from main (preview, reading job), so its 232 s is not comparable to the 157 s baseline.
 
 ## Left open
+
+- 12.1-E2E-007 (lost-taps) failed alone in the serial group in `verify` #1 (round 2, finger down 528 ms, the
+  commit in the outbox at about 230 ms). It failed serially once before too (PR #48, s2). A likely mechanism:
+  `press-hold.ts` releases the held render `RELEASE_AFTER_UP_MS` (300 ms) after the pointer up when no click came,
+  and Chrome's touch click, 100-160 ms after the up on an idle machine, comes later on a loaded one, so the render
+  moves the action before the click lands. Whether the hold should wait for the click longer is a product timing
+  choice of Story 12.1 (OPEN QUESTION), not decided here.
+- 12.4-E2E-001 failed once on three workers under heavy unlocked load (a suggestion's Confirmar not reflected in
+  5 s); not reproduced alone.
 
 - The gate stays over 15 minutes on this laptop: the e2e serial group grew by the tap-timing specs, and the
   unit suite cannot share the CPU with anything. The next lever is the device cost behind every e2e step (the
