@@ -125,3 +125,12 @@ B7 sketch: the digest input is the sorted list of `path + sha256(bytes)` of ever
 - `docker compose --profile tools run --rm tools pnpm --filter @app/api exec vitest run <file>` -- per api item (Postgres and MinIO up).
 - `docker compose --profile tools run --rm tools pnpm lint` and `pnpm static` -- once per part.
 - `flock /tmp/fasor-verify.lock docker compose --profile tools run --rm tools pnpm verify` -- expected green (orchestrator).
+
+## Spec Change Log
+
+### 2026-09-28 — B6 withdrawn (orchestrator)
+- Trigger: coordinator relay of the B6/B7 helper's risk: with per-user holds and `activate-shell` refused while another user holds, a user who never signs in again keeps every other user of the device on the old shell forever.
+- Amended: B6 is not built; the ledger entry "Scope the shell pin per user" is re-owned to Matheus with the architect (AD-8 product choice). The I/O matrix row "B6 two users" is intentionally uncovered. B7 (version stamp) is kept on the original single device-wide hold.
+- KEEP: B7's `stampShell`, the `shell-version` meta, the version pin and its lifecycle tests.
+
+## Review Triage Log
