@@ -85,7 +85,7 @@ test('@p0 9.5-E2E-001 an NC row photo asks for the draft; the draft shows above 
 
   const contatosDraft = await draftOn(page, ids, 'contatos', DRAFT);
   const conexoesDraft = await draftOn(page, ids, 'conexoes', 'Conexão com sinais de aquecimento.');
-  await draftOn(page, ids, 'isoladores', 'Isolador trincado.');
+  const isoladoresDraft = await draftOn(page, ids, 'isoladores', 'Isolador trincado.');
   await syncNowAndReturn(page);
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
 
@@ -102,8 +102,9 @@ test('@p0 9.5-E2E-001 an NC row photo asks for the draft; the draft shows above 
   expect(draftBox!.y).toBeLessThan(fieldBox!.y);
   expect((await outbox(page)).some((op) => op.path === `sheet/${ids.blockId}/checklist/contatos/observation`)).toBe(false);
 
-  // A C row shows no draft.
+  // A C row shows no draft, and the sweep after the pull discards it (it would hold the sheet open).
   await expect(isoladores.locator('.nc-draft')).toHaveCount(0);
+  expect((await outbox(page)).find((op) => op.path === `suggestion/${isoladoresDraft}/status`)).toMatchObject({ value: 'discarded' });
 
   // "Usar": the observation written with its provenance, the draft confirmed, one batch.
   await draft.getByRole('button', { name: 'Usar o rascunho da observação do item 8' }).click();

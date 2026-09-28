@@ -61,7 +61,6 @@ async function pendingRows(db: AppDatabase): Promise<SuggestionRow[]> {
  * takes it again); the rows after it are still swept. Returns the ids it confirmed.
  */
 export async function autoConfirmPending(db: AppDatabase, author: Author, deps: CommitDeps): Promise<string[]> {
-  await discardStaleProse(db, author, deps);
   const confirmed: string[] = [];
   for (const candidate of await pendingRows(db)) {
     try {
