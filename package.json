@@ -8,8 +8,8 @@
   },
   "scripts": {
     "lint": "eslint .",
-    "static": "pnpm -r --workspace-concurrency=1 run typecheck && tsc -p tsconfig.json",
-    "test:unit": "pnpm --filter @app/domain --filter @app/web run test && vitest run",
+    "static": "pnpm -r --parallel run typecheck && tsc -p tsconfig.json",
+    "test:unit": "vitest run",
     "test:api": "pnpm --filter @app/api run test:fast",
     "test:e2e": "tsx scripts/e2e.ts --grep @p0 --project desktop-chrome --project durability-desktop-chrome",
     "test:e2e:full": "tsx scripts/e2e.ts --project desktop-chrome --project durability-desktop-chrome",
@@ -19,7 +19,7 @@
     "db:generate": "pnpm --filter @app/api exec drizzle-kit generate",
     "seed:users": "tsx scripts/seed-users.ts",
     "build:image": "bash scripts/build-tagged-image.sh",
-    "verify": "pnpm lint && pnpm static && pnpm test:unit && pnpm test:api && pnpm test:e2e"
+    "verify": "tsx scripts/verify.ts"
   },
   "devDependencies": {
     "@app/domain": "workspace:*",

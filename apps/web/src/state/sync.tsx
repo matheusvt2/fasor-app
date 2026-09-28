@@ -221,14 +221,15 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const retryUpload = useCallback(
     async (fileId: string) => {
       if (db === null) return;
-      await clearUploadError(db, fileId);
-      // A cycle already running may have read its queue before the error was cleared, so
-      // wait for it to end and run one of our own (bounded: the timer covers the rest).
-      for (let attempt = 0; attempt < 40; attempt++) {
-        const result = await engineRef.current?.runCycle();
-        if (result !== 'busy') return;
-        await new Promise((resolve) => globalThis.setTimeout(resolve, 250));
+      const engine = engineRef.current;
+      if (engine === null) {
+        await clearUploadError(db, fileId);
+        return;
       }
+      // The error is cleared and a cycle that starts after any cycle in flight runs, however
+      // long that one takes: a bounded wait here used to leave the retry to the 60 s tick
+      // whenever the cycle in flight outlasted it (6.2-E2E-001 under load).
+      await engine.retryUpload(fileId);
     },
     [db],
   );

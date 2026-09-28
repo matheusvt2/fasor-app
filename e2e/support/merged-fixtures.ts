@@ -36,8 +36,21 @@ export { expect, type SeedAccount, type WorkerSeed };
 /** The password of every worker user. */
 export const SEED_PASSWORD = E2E_WORKER_PASSWORD;
 
+/**
+ * A shared setup helper's work as one boxed step titled `setup: {title}`, so the timing
+ * reporter (`timing-reporter.ts`) can tell setup time from a test's own steps. It adds no
+ * wait and no assertion; an error still points at the caller's line.
+ */
+export function timed<T>(title: string, body: () => Promise<T>): Promise<T> {
+  return test.step(`setup: ${title}`, body, { box: true });
+}
+
 /** Fills the Login form and waits for Home. */
-export async function signIn(page: Page, email: string): Promise<void> {
+export function signIn(page: Page, email: string): Promise<void> {
+  return timed('signIn', () => signInSteps(page, email));
+}
+
+async function signInSteps(page: Page, email: string): Promise<void> {
   await page.goto('/login');
   await page.getByLabel('E-mail').fill(email);
   await page.getByLabel('Senha').fill(E2E_WORKER_PASSWORD);

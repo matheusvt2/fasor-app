@@ -3,7 +3,7 @@ import { parseTrustedOrigins } from '../../apps/api/src/auth/trusted-origins.ts'
 import { loadConfig } from '../../apps/api/src/config.ts';
 import { createDb, type Db } from '../../apps/api/src/db/client.ts';
 import { resetTestCompanyData, seedAccount } from '../../apps/api/src/db/seed.ts';
-import { SEED_PASSWORD, type SeedAccount } from './merged-fixtures.ts';
+import { SEED_PASSWORD, timed, type SeedAccount } from './merged-fixtures.ts';
 
 /**
  * Opens the compose Postgres, runs `work` with a database and an auth instance, and closes
@@ -34,9 +34,11 @@ export async function withSeedDb<T>(work: (db: Db, auth: ReturnType<typeof creat
  * the company belongs to this worker alone (E6-Q7) and no later spec needs data it held
  * before.
  */
-export async function resetEmpresaB(b: SeedAccount, { standard = false }: { standard?: boolean } = {}): Promise<void> {
-  await withSeedDb(async (db, auth) => {
-    await resetTestCompanyData(db, [b.companyId]);
-    await seedAccount(db, auth, b, SEED_PASSWORD, { standardTemplate: standard });
-  });
+export function resetEmpresaB(b: SeedAccount, { standard = false }: { standard?: boolean } = {}): Promise<void> {
+  return timed('resetEmpresaB', () =>
+    withSeedDb(async (db, auth) => {
+      await resetTestCompanyData(db, [b.companyId]);
+      await seedAccount(db, auth, b, SEED_PASSWORD, { standardTemplate: standard });
+    }),
+  );
 }
