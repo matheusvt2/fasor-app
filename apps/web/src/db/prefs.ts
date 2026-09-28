@@ -124,6 +124,19 @@ export async function clearGenerateAwaiting(db: AppDatabase, relatorioId: string
   await db.local_prefs.delete(generateAwaitingKey(relatorioId));
 }
 
+/** R4 (Story 7.5): every wait this device recorded, by relatório, for the app-level watcher. */
+export async function readAllGenerateAwaiting(db: AppDatabase): Promise<(GenerateAwaiting & { relatorioId: string })[]> {
+  const prefix = generateAwaitingKey('');
+  const rows = await db.local_prefs.where('key').startsWith(prefix).toArray();
+  const out: (GenerateAwaiting & { relatorioId: string })[] = [];
+  for (const row of rows) {
+    const value = row.value as Partial<GenerateAwaiting> | undefined;
+    if (typeof value?.number !== 'number' || typeof value.job_id !== 'string') continue;
+    out.push({ relatorioId: row.key.slice(prefix.length), number: value.number, job_id: value.job_id });
+  }
+  return out;
+}
+
 /**
  * AR-27, Story 4.3: the last sheet worked on this device, per relatório (`last_sheet:{id}`),
  * so an Em campo Sumário opens section 9 at the cabine that holds it. Written by the sheet

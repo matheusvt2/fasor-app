@@ -10,7 +10,6 @@ import {
   naoEnsaiadasText,
   ncAbertosText,
   pendingSuggestions,
-  preIssue,
   progress,
   restorableBlocks,
   sugestoesText,
@@ -27,14 +26,14 @@ import {
   type RevisionRow,
   type SectionBlockType,
   type SumarioRow,
+  type SumarioRowKey,
   type TemplateRow,
   type UserRow,
 } from '@app/domain';
-import { useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { Button, ConfirmDialog, OverflowMenu, StatusPill, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
-import { uploadErrorIds } from '../../db/file-store.ts';
 import { templateRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { readLastSheet } from '../../db/prefs.ts';
@@ -44,6 +43,8 @@ import { useBackTarget } from '../../state/back-target.tsx';
 import { useExtraBanner } from '../../state/extra-banner.tsx';
 import { usePageTitle } from '../../state/page-title.tsx';
 import { useSession } from '../../state/session.tsx';
+import { usePreIssue } from '../export/use-pre-issue.ts';
+import { usePreview } from '../export/use-preview.ts';
 import { AddSectionDialog } from './add-section-dialog.tsx';
 import { GenerateAction } from './generate-action.tsx';
 import { useProjectEquipment, useRelatorioEditor } from './relatorio-editor.ts';
@@ -56,7 +57,7 @@ import './relatorio.css';
 
 const NO_TEMPLATES: TemplateRow[] = [];
 const NO_USERS: UserRow[] = [];
-const NO_ERRORS: ReadonlySet<string> = new Set();
+const NO_HIGHLIGHT: ReadonlySet<SumarioRowKey> = new Set();
 
 /**
  * `/relatorio/:id` (`40-relatorio-overview.html`, Story 4.3): the Sumário of the relatório
@@ -100,11 +101,25 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   // never the snapshot (which holds only the suggestions a cell references).
   const pending = useMemo(() => pendingSuggestions(suggestionRowsOf(state, relatorioId)), [state, relatorioId]);
   const computed = useMemo(() => progress(snapshot, pending), [snapshot, pending]);
-  // The photos whose local upload stopped with an error: section 7's "aguardando envio" leaves them out.
-  const photoErrors = useLiveQuery(() => (db === null ? Promise.resolve(NO_ERRORS) : uploadErrorIds(db)), [db], NO_ERRORS);
-  const issues = useMemo(() => preIssue(snapshot, computed, { photoErrors }), [snapshot, computed, photoErrors]);
+  // The one pre-issue call the Export dialog makes too (photo upload errors, the clock reading).
+  const issues = usePreIssue(db, snapshot, computed);
   const rows = useMemo(() => sumarioRows(snapshot, issues, computed), [snapshot, issues, computed]);
-  const removable = useMemo(() => restorableBlocks(allBlocks, equipment, snapshot.locations), [allBlocks, equipment, snapshot.locations]);
+  // Epic 4 retro item 29: "Restaurar" offers only what was removed after the last revision.
+  const lastIssuedAt = latestRevision(revisions)?.created_at ?? null;
+  const removable = useMemo(() => restorableBlocks(allBlocks, equipment, snapshot.locations, lastIssuedAt), [allBlocks, equipment, snapshot.locations, lastIssuedAt]);
+  const preview = usePreview(relatorioId);
+  // Story 7.5: "Ver no sumário" marks the rows the dialog's warnings stand on, until the next tap.
+  const [highlighted, setHighlighted] = useState<ReadonlySet<SumarioRowKey>>(NO_HIGHLIGHT);
+  useEffect(() => {
+    if (highlighted.size === 0) return;
+    const clear = () => setHighlighted(NO_HIGHLIGHT);
+    document.addEventListener('pointerdown', clear, { once: true });
+    document.addEventListener('keydown', clear, { once: true });
+    return () => {
+      document.removeEventListener('pointerdown', clear);
+      document.removeEventListener('keydown', clear);
+    };
+  }, [highlighted]);
   const relatorio = snapshot.relatorio;
   const templateName = templates.find((row) => row.id === relatorio.template_id)?.name ?? null;
   const responsibleName = users.find((row) => row.id === relatorio.setup.responsible_user_id)?.name ?? null;
@@ -194,7 +209,6 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
     moveBack(backMove.to);
   }
 
-  const blocked = rows.some((row) => row.blocking);
   // Story 6.3: row 7 opens the gallery; Story 6.6: row 8 opens the Points surface (`/relatorio/:id/pontos`).
   const openable = (row: SumarioRow) => row.kind === 'setup' || row.kind === 'text' || row.rowKey === 'section_7' || row.rowKey === 'section_8';
 
@@ -239,13 +253,14 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
         >
           {rows.map((row) =>
             row.number === null ? (
-              <FixedRow key={row.key} row={row} onOpen={row.rowKey === 'capa' ? actions.onOpen : undefined} />
+              <FixedRow key={row.key} row={row} onOpen={row.rowKey === 'capa' ? actions.onOpen : undefined} highlighted={highlighted.has(row.rowKey)} />
             ) : row.expandable ? (
               <Section9Row
                 key={row.key}
                 row={row}
                 actions={actions}
                 expanded={expanded}
+                highlighted={highlighted.has(row.rowKey)}
                 onToggle={() => setExpanded((open) => !open)}
                 chevronRef={(element) => {
                   chevron.current = element;
@@ -267,7 +282,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
                 )}
               </Section9Row>
             ) : (
-              <NumberedRow key={row.key} row={row} actions={actions} openable={openable(row)} />
+              <NumberedRow key={row.key} row={row} actions={actions} openable={openable(row)} highlighted={highlighted.has(row.rowKey)} />
             ),
           )}
         </ol>
@@ -277,14 +292,24 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
         <span className="btn-reason" id={reasonId}>
           {generateReason(rows)}
         </span>
+        {preview.phase.kind === 'failed' ? (
+          <span className="btn-reason" role="alert">
+            {copy.export.previewFailed}
+          </span>
+        ) : null}
         <div className="bar-buttons">
-          <Button variant="secondary" isDisabled disabledReason={t.previewReason}>
+          <Button
+            variant="secondary"
+            isDisabled={!preview.online}
+            disabledReason={preview.online ? undefined : copy.export.offlineReason}
+            onPress={preview.start}
+          >
             <svg className="ico" aria-hidden="true">
               <use href="/sprite.svg#i-doc" />
             </svg>
-            {t.preview}
+            {preview.phase.kind === 'working' ? copy.export.previewing : t.preview}
           </Button>
-          <GenerateAction relatorioId={relatorioId} reasonId={reasonId} blocked={blocked} />
+          <GenerateAction relatorioId={relatorioId} reasonId={reasonId} onSeeInSumario={(keys) => setHighlighted(new Set(keys))} />
         </div>
       </div>
 

@@ -113,4 +113,7 @@
   <symbol id="i-chev-left" viewBox="0 0 24 24">
     <path d="M15 6l-6 6 6 6" />
   </symbol>
+  <symbol id="i-share" viewBox="0 0 24 24">
+    <path d="M12 15V4M8 8l4-4 4 4M5 12v7h14v-7" />
+  </symbol>
 </svg>

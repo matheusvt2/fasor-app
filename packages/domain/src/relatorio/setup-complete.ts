@@ -1,6 +1,5 @@
 import { artOrTrtLabel } from '../registration.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import type { UserRow } from '../schemas/entities.ts';
 
 /*
  * Story 4.2, AR-21: whether the relatório's office-side setup is complete enough to leave
@@ -22,21 +21,37 @@ const GAP_TEXTS: Readonly<Record<SetupGap, string>> = {
   instruments: 'um instrumento',
 };
 
-/** The first missing item, in the matrix's fixed order, or null when every gap is closed. */
-export function firstSetupGap(snapshot: RelatorioSnapshot, responsible: UserRow | null): SetupGap | null {
+/**
+ * Epic 4 retro item 14: every setup gap in the matrix's fixed order, read off the snapshot
+ * alone (its `responsible` is the `user` row the setup names). The one list both the setup
+ * page's "Concluir" reason (`firstSetupGap`) and the pre-issue rows (`preIssue`) derive
+ * from, so the two can no longer disagree. The registration number is a gap only once a
+ * responsible is named (before that, the responsible's own gap says it).
+ */
+export function setupGaps(snapshot: RelatorioSnapshot): SetupGap[] {
   const setup = snapshot.relatorio.setup;
-  if (snapshot.client === null) return 'client';
-  if (setup.service_start === null) return 'service_start';
-  if (setup.service_end === null) return 'service_end';
-  if (setup.responsible_user_id === null) return 'responsible_user_id';
-  if (responsible === null || responsible.registration_number === null || responsible.registration_number === '') return 'registration_number';
-  if (setup.art_trt_number === null || setup.art_trt_number === '') return 'art_trt_number';
-  if (setup.instrument_ids.length === 0) return 'instruments';
-  return null;
+  const gaps: SetupGap[] = [];
+  if (snapshot.client === null) gaps.push('client');
+  if (setup.service_start === null) gaps.push('service_start');
+  if (setup.service_end === null) gaps.push('service_end');
+  if (setup.responsible_user_id === null) gaps.push('responsible_user_id');
+  else if (blank(snapshot.responsible?.registration_number)) gaps.push('registration_number');
+  if (blank(setup.art_trt_number)) gaps.push('art_trt_number');
+  if (setup.instrument_ids.length === 0) gaps.push('instruments');
+  return gaps;
 }
 
-export function isSetupComplete(snapshot: RelatorioSnapshot, responsible: UserRow | null): boolean {
-  return firstSetupGap(snapshot, responsible) === null;
+function blank(value: string | null | undefined): boolean {
+  return value === null || value === undefined || value.trim() === '';
+}
+
+/** The first missing item, in the matrix's fixed order, or null when every gap is closed. */
+export function firstSetupGap(snapshot: RelatorioSnapshot): SetupGap | null {
+  return setupGaps(snapshot)[0] ?? null;
+}
+
+export function isSetupComplete(snapshot: RelatorioSnapshot): boolean {
+  return firstSetupGap(snapshot) === null;
 }
 
 /**
@@ -54,9 +69,10 @@ export function siteAltitudeText(m: number): string {
  * Q12): "o número da ART" (CREA) or "o número da TRT" (CRT), both feminine; "o número do
  * ART/TRT" only while the council is unknown.
  */
-export function setupIncompleteReason(snapshot: RelatorioSnapshot, responsible: UserRow | null): string | null {
-  const gap = firstSetupGap(snapshot, responsible);
+export function setupIncompleteReason(snapshot: RelatorioSnapshot): string | null {
+  const gap = firstSetupGap(snapshot);
   if (gap === null) return null;
-  const text = gap === 'art_trt_number' && responsible?.council != null ? `o número da ${artOrTrtLabel(responsible.council)}` : GAP_TEXTS[gap];
+  const council = snapshot.responsible?.council ?? null;
+  const text = gap === 'art_trt_number' && council !== null ? `o número da ${artOrTrtLabel(council)}` : GAP_TEXTS[gap];
   return `Concluir dados do relatório: falta ${text}`;
 }

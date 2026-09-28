@@ -24,13 +24,14 @@ function fresh(): RelatorioSnapshot {
 }
 
 describe('4.3-UNIT preIssue', () => {
-  it('names each missing setup field on the cover, "0 de 94" on section 9, nothing blocking', () => {
+  it('names each missing setup field on the cover, "0 de 94" on section 9, only the parecer blocking', () => {
     const rows = preIssue(fresh());
     expect(preIssueRowsFor(rows, 'capa').map((r) => [r.kind, r.text, r.severity])).toEqual([
       ['setup_missing', 'Cliente em branco', 'pending'],
       ['setup_missing', 'Início da parada em branco', 'pending'],
       ['setup_missing', 'Fim da parada em branco', 'pending'],
       ['setup_missing', 'Responsável técnico em branco', 'pending'],
+      ['setup_missing', 'Número da ART/TRT em branco', 'pending'],
       ['company', 'Razão social não cadastrada', 'info'],
       ['company', 'Logo da empresa não cadastrado', 'info'],
     ]);
@@ -38,7 +39,8 @@ describe('4.3-UNIT preIssue', () => {
       ['sheets', '0 de 94'],
       ...CABINES.map((name) => ['cabine_incompleta', `${name}: faltam 6 campos`]),
     ]);
-    expect(blockingRows(rows)).toEqual([]);
+    expect(preIssueRowsFor(rows, 'section_11').map((r) => [r.kind, r.text])).toEqual([['setup_missing', 'Nenhum instrumento em Dados do relatório']]);
+    expect(blockingRows(rows).map((r) => [r.kind, r.row, r.text])).toEqual([['parecer_missing', 'section_10', 'Parecer não preenchido']]);
     expect(rows.every((r) => r.id !== '')).toBe(true);
   });
 
@@ -65,7 +67,7 @@ describe('4.3-UNIT preIssue', () => {
     expect(cabineIncompletaText(' Cubículo Enel ', 'faltam 2 campos')).toBe('Cubículo Enel: faltam 2 campos');
     const complete = { ...withOne, locations: withOne.locations.map((l) => (l.id === enel.id ? { ...almost, env: { ...almost.env, humidity_pct: n('65', '%') } } : l)) };
     expect(preIssue(complete).some((r) => r.id === `cabine_incompleta:${enel.id}`)).toBe(false);
-    expect(blockingRows(preIssue(withOne))).toEqual([]);
+    expect(blockingRows(preIssue(withOne)).map((r) => r.kind)).toEqual(['parecer_missing']);
   });
 
   it('Q9: never says "Cabine" twice, whatever the case or accents of the name', () => {
@@ -85,7 +87,12 @@ describe('4.3-UNIT preIssue', () => {
   it('over the Porto Seguro fixture: the client has no warning beyond its CNPJ, sheets and not-tested rows on section 9', () => {
     const snapshot = buildSnapshot(replay(portoSeguro.log, { deadOpIds: portoSeguro.deadOpIds }), portoSeguro.relatorioId);
     const rows = preIssue(snapshot);
-    expect(preIssueRowsFor(rows, 'capa').map((r) => r.text)).toEqual(['Logo da empresa não cadastrado']);
+    // The fixture's log carries no `user` row for its responsible, so the registration is a gap too.
+    expect(preIssueRowsFor(rows, 'capa').map((r) => r.text)).toEqual([
+      'Registro profissional do responsável em branco',
+      'Número da ART/TRT em branco',
+      'Logo da empresa não cadastrado',
+    ]);
     expect(preIssueRowsFor(rows, 'controle').map((r) => r.text)).toEqual(snapshot.client?.cnpj === null ? ['CNPJ do contratante em branco'] : []);
     expect(preIssueRowsFor(rows, 'section_9').map((r) => r.text)).toEqual([
       '3 de 94',

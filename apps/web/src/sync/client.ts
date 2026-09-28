@@ -7,6 +7,7 @@ import {
   filePutResponseSchema,
   GENERATE_ROUTES,
   generateResponseSchema,
+  previewResponseSchema,
   SYNC_ROUTES,
   syncPullResponseSchema,
   syncPushResponseSchema,
@@ -15,6 +16,7 @@ import {
   type GenerateRequest,
   type GenerateResponse,
   type Op,
+  type PreviewResponse,
   type SyncPullResponse,
   type SyncPushResponse,
   type SyncRoute,
@@ -77,6 +79,16 @@ export interface SyncClient {
    * `code: 'not_caught_up'`, which the Export dialog answers with a sync and a retry.
    */
   generate(relatorioId: string, body: GenerateRequest): Promise<GenerateResponse>;
+  /**
+   * Story 7.5: the preview job, behind the same barrier (`409 not_caught_up` the same way).
+   * Optional in the type only so the test doubles built before it existed still type-check.
+   */
+  preview?(relatorioId: string, body: GenerateRequest): Promise<PreviewResponse>;
+}
+
+/** Story 7.5: where the preview tab opens the relatório's latest RASCUNHO PDF; the file id only busts a cached earlier one. */
+export function previewPdfUrl(relatorioId: string, fileId: string): string {
+  return GENERATE_ROUTES.previewPdf(relatorioId, fileId).path;
 }
 
 /** Where the browser opens a revision's DOCX (a new tab; the server answers it as a download). */
@@ -189,5 +201,6 @@ export function createSyncClient(deps: { fetch: FetchLike }): SyncClient {
       return response.blob();
     },
     generate: (relatorioId, body) => request(GENERATE_ROUTES.generate(relatorioId), generateResponseSchema, undefined, body),
+    preview: (relatorioId, body) => request(GENERATE_ROUTES.preview(relatorioId), previewResponseSchema, undefined, body),
   };
 }

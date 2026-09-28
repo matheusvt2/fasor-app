@@ -24,8 +24,12 @@
  * `file/{id}` create may carry `reading_kind`, `reading_target` and `reading_status:
  * 'queued'`; and the push route refuses a client photo create whose `reading_status` is
  * neither `none` nor `queued`, or `queued` without a `reading_kind` (`op_invalid`).
+ *
+ * 6 (2026-09-27, Stories 7.4/7.5): the relatório setup carries `parecer`, so the
+ * `relatorio/setup/parecer` put family is new, and the `generation_job` row carries
+ * `started_at`, so the server-only `generation_job/{id}/started_at` put is new.
  */
-export const CONTRACT_VERSION = 5;
+export const CONTRACT_VERSION = 6;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -39,6 +43,11 @@ export const CONTRACT_VERSION = 5;
  * version-5 stream carries -- its suggestion schema strips the unknown `hint` key, and the
  * photo row's reading fields were already in its schema -- so no pull is refused.
  */
-export const MIN_CONTRACT_VERSION = 4;
+/*
+ * 6 (2026-09-27): a version-5 (or older) bundle cannot parse a `relatorio/setup/parecer` put
+ * nor a `generation_job/{id}/started_at` put a relatório stream carries once a parecer is set
+ * or a job runs, so it updates too.
+ */
+export const MIN_CONTRACT_VERSION = 6;
 
 export const CONTRACT_VERSION_HEADER = 'x-contract-version';

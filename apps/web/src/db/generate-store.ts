@@ -41,14 +41,18 @@ export async function revisionRows(db: AppDatabase, relatorioId: string): Promis
   return sortRevisions(rows);
 }
 
-/** The relatório's newest generate job by `created_at` (then id), or null. */
-export async function latestGenerationJob(db: AppDatabase, relatorioId: string): Promise<GenerationJobRow | null> {
+/**
+ * The relatório's newest generate job of `kind` by `created_at` (then id), or null. Story
+ * 7.5: the Export dialog's issue flow reads `issue` jobs only, so a preview never reads as
+ * a running issue.
+ */
+export async function latestGenerationJob(db: AppDatabase, relatorioId: string, kind: GenerationJobRow['kind'] = 'issue'): Promise<GenerationJobRow | null> {
   const records = await db.entities.where('relatorio_id').equals(relatorioId).toArray();
   let latest: GenerationJobRow | null = null;
   for (const record of records) {
     if (record.entity !== 'generation_job') continue;
     const parsed = generationJobRowSchema.safeParse(record.row);
-    if (!parsed.success) continue;
+    if (!parsed.success || parsed.data.kind !== kind) continue;
     const job = parsed.data;
     if (latest === null || job.created_at > latest.created_at || (job.created_at === latest.created_at && job.id > latest.id)) latest = job;
   }
@@ -109,4 +113,17 @@ export function useRevisions(db: AppDatabase | null, relatorioId: string): Revis
 
 export function useLatestGenerationJob(db: AppDatabase | null, relatorioId: string): GenerationJobRow | null {
   return useLiveQuery(() => (db === null ? Promise.resolve(null) : latestGenerationJob(db, relatorioId)), [db, relatorioId], null);
+}
+
+/** One generate job by id, as pulled, or null. */
+export async function generationJobRow(db: AppDatabase, id: string): Promise<GenerationJobRow | null> {
+  const record = await db.entities.get(['generation_job', id]);
+  if (record === undefined) return null;
+  const parsed = generationJobRowSchema.safeParse(record.row);
+  return parsed.success ? parsed.data : null;
+}
+
+/** `generationJobRow`, live; null while there is no id or no row yet. */
+export function useGenerationJob(db: AppDatabase | null, id: string | null): GenerationJobRow | null {
+  return useLiveQuery(() => (db === null || id === null ? Promise.resolve(null) : generationJobRow(db, id)), [db, id], null);
 }
