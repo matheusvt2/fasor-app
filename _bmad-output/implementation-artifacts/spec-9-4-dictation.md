@@ -2,7 +2,7 @@
 title: 'Story 9.4: Dictate a caption, an observation or a reading'
 type: 'feature'
 created: '2026-09-28'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '7c0cb90326aa2fa79b2f36d4e336a335e436e4e9'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -107,6 +107,26 @@ deferred: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-09-28 — Review pass
+Layers run: Edge Case Hunter, Verification Gap Reviewer. Skipped: Blind Hunter, Intent Alignment (token economy; the integrated epic review covers them).
+- verdicts: 15 findings — high 0, medium 5, low 9, false 0, maybe-false 1
+- findings:
+  - `[medium]` `[patch]` Digit-by-digit "um quatro sete" sums to 12 (`parseWhole` has no magnitude order) — parts now accepted only in descending place order; unit tests added.
+  - `[low]` `[patch]` `tableDictationLabel` uses an ambiguous first-row label ("Primário") the parser refuses — first row with a unique label, else the sample alone; unit test added.
+  - `[medium]` `[patch]` "Usar" on the sheet observation drops the Story 12.4 suggested NC lines shown in the field — appends to the text the field shows.
+  - `[low]` `[reject]` Dictated text already contained in the observation: "Usar" writes nothing with no feedback — rare, and the fix adds a branch and copy.
+  - `[low]` `[reject]` Enter on an unchanged dictated cell does not confirm — deliberate: only the explicit "Confirmar" writes a heard value (nothing unconfirmed is written); an edited value commits on Enter.
+  - `[low]` `[reject]` "Confirmar" silent when `api.author` is null or the commit rejects — same as the existing `MeasurementField.write`; not reachable in a signed-in sheet.
+  - `[low]` `[reject]` A pending dictated reading whose target is filled by sync stays hidden and returns if the cell is cleared — rare two-device sequence; fix adds an effect.
+  - `[medium]` `[patch]` Microphone permission denied (`not-allowed`) keeps the mic visible and every tap errors — the webspeech engine remembers it and reports unavailable; unit test added.
+  - `[low]` `[reject]` Switching a row between NC and not NC while listening remounts the button and aborts the session — rare; the engineer taps again.
+  - `[maybe-false]` `[reject]` Row names spoken with "e" ("primário e secundário") unparsed — no seed row is named that way; would only be low.
+  - `[medium]` `[patch]` Claim check: the sheet observation "appends, never overwrites" is false while the 12.4 lines show — same root cause as the third row, same fix.
+  - `[medium]` `[patch]` Gap: the Observações-off branch of unparsed table speech has no test — Vitest added.
+  - `[medium]` `[patch]` Gap: the typed-override write of a dictated reading is covered only by a `@p1` e2e — Vitest for `DictatedMeasurementField` added; the composer, row and point wiring stay `@p1` and run in `test:e2e:full` before the PR.
+  - `[low]` `[reject]` The `dictation-announcer` keeps its last message until the next session — a live region is not re-read; harmless.
+  - `[low]` `[reject]` The thrown `recognition.start()` branch is untested — a two-line defensive catch.
 
 ## Design Notes
 

@@ -86,6 +86,19 @@ describe('9.4-UNIT the webspeech engine', () => {
     await expect(failed).resolves.toEqual({ kind: 'error', reason: 'network' });
   });
 
+  it('a refused microphone makes the engine unavailable from then on', async () => {
+    const engine = createWebSpeechEngine({ SpeechRecognition: StubRecognition });
+    const refused = engine.listen(new AbortController().signal);
+    StubRecognition.last!.onerror!({ error: 'not-allowed' });
+    await expect(refused).resolves.toEqual({ kind: 'error', reason: 'not-allowed' });
+    expect(engine.available()).toBe(false);
+    const other = createWebSpeechEngine({ SpeechRecognition: StubRecognition });
+    const service = other.listen(new AbortController().signal);
+    StubRecognition.last!.onerror!({ error: 'service-not-allowed' });
+    await service;
+    expect(other.available()).toBe(false);
+  });
+
   it('an end with nothing heard is no result', async () => {
     const engine = createWebSpeechEngine({ SpeechRecognition: StubRecognition });
     const heard = engine.listen(new AbortController().signal);

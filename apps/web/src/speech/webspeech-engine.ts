@@ -42,10 +42,15 @@ export function recognitionConstructor(scope: object = globalThis): RecognitionC
 
 const NONE: SpeechResult = { kind: 'none' };
 
+/** Errors that say the microphone or the service is refused: the engine is then unavailable. */
+const REFUSED = new Set(['not-allowed', 'service-not-allowed']);
+
 export function createWebSpeechEngine(scope: object = globalThis): SpeechEngine {
+  // A refused microphone (permission denied) hides the Dictation button from then on, as no engine does.
+  let refused = false;
   return {
     name: 'webspeech',
-    available: () => recognitionConstructor(scope) !== null,
+    available: () => !refused && recognitionConstructor(scope) !== null,
     listen: (signal) =>
       new Promise<SpeechResult>((resolve) => {
         const Recognition = recognitionConstructor(scope);
@@ -82,6 +87,7 @@ export function createWebSpeechEngine(scope: object = globalThis): SpeechEngine 
           finish(text.trim() === '' ? NONE : { kind: 'text', text });
         };
         recognition.onerror = (event) => {
+          if (REFUSED.has(event.error)) refused = true;
           finish(event.error === 'no-speech' || event.error === 'aborted' ? NONE : { kind: 'error', reason: event.error });
         };
         recognition.onend = () => finish(NONE);

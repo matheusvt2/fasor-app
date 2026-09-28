@@ -195,7 +195,8 @@ export function ConclusaoSection({
     const text = dictation.pending;
     dictation.discard();
     if (text === null) return;
-    observation.set(appendObservation(observation.text, text));
+    // After what the field shows: the Story 12.4 NC lines while they stand in it, else the text.
+    observation.set(appendObservation(observationSuggested ? suggestedObservation : observation.text, text));
   };
   const observationSuggested = suggestedObservation !== null && storedObservation.trim() === '' && observation.text.trim() === '' && !typing;
   const required = observationRequired(block) && observation.text.trim() === '' && !observationSuggested;

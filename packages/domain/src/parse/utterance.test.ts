@@ -103,6 +103,18 @@ describe('9.4-UNIT parseSpokenNumberPtBr', () => {
     expect(parseSpokenNumberPtBr('1 vírgula 2 vírgula 3')).toBeNull();
     expect(parseSpokenNumberPtBr('3.7 vírgula 1')).toBeNull();
   });
+
+  it('refuses parts out of place order: digit by digit is no number, never its sum', () => {
+    expect(parseSpokenNumberPtBr('um quatro sete')).toBeNull();
+    expect(parseSpokenNumberPtBr('vinte trinta')).toBeNull();
+    expect(parseSpokenNumberPtBr('dez cinco')).toBeNull();
+    expect(parseSpokenNumberPtBr('cinco cento')).toBeNull();
+    expect(parseSpokenNumberPtBr('147 e 5')).toBeNull();
+    expect(parseSpokenNumberPtBr('cento e quarenta e sete')).toBe('147');
+    expect(parseSpokenNumberPtBr('dois mil trezentos e um')).toBe('2301');
+    expect(parseSpokenNumberPtBr('trezentos e quinze')).toBe('315');
+    expect(parseTableUtterance('Fase A um quatro sete giga', FECHADO())).toMatchObject({ kind: 'unparsed' });
+  });
 });
 
 describe('9.4-UNIT parseSpokenUnit', () => {
@@ -252,6 +264,7 @@ describe('9.4-UNIT dictatedText and tableDictationLabel', () => {
     expect(tableDictationLabel(tableOf('tp', 'relacao_transformacao', 'relacao_transformacao'))).toBe('Ditar leitura — ex.: “Fase R, 120 vírgula 1”');
     expect(tableDictationLabel(tableOf('transformador_forca', 'relacao_transformacao', 'relacao_transformacao'))).toBe('Ditar leitura — ex.: “120 vírgula 1”');
     expect(tableDictationLabel(tableOf('cabos_entrada', 'isolacao', 'isolacao'))).toBe('Ditar leitura — ex.: “Fase A, 147 mega”');
-    expect(tableDictationLabel(tableOf('transformador_forca', 'isolacao', 'isolacao'))).toBe('Ditar leitura — ex.: “Primário, 147 giga”');
+    // Every transformer insulation label names more than one row ("Primário", "Secundário"): the sample alone.
+    expect(tableDictationLabel(tableOf('transformador_forca', 'isolacao', 'isolacao'))).toBe('Ditar leitura — ex.: “147 giga”');
   });
 });

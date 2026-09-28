@@ -1,4 +1,4 @@
-import type { CellAddress, EvaluatedTable } from '../relatorio/readings.ts';
+import type { CellAddress, EvaluatedRow, EvaluatedTable } from '../relatorio/readings.ts';
 import { canonicalDecimal, parseDecimalPtBr } from './pt-br-number.ts';
 
 /*
@@ -126,7 +126,34 @@ function inNumber(word: string): boolean {
   return startsNumber(word) || word === JOINER || DECIMAL_WORDS.has(word);
 }
 
-/** A whole number from its words ("cento e quarenta e sete", "dois mil e quinhentos", "2 mil"); null when they are no number. */
+/**
+ * The place of a part inside a group below "mil": hundreds, then tens or a teen, then units.
+ * Digits said as a number ("2" in "2 mil") fill the whole group.
+ */
+type Place = 'hundreds' | 'tens' | 'teen' | 'units' | 'digits';
+
+function placeOf(value: number, digits: boolean): Place {
+  if (digits) return 'digits';
+  if (value >= 100) return 'hundreds';
+  if (value >= 20) return 'tens';
+  if (value >= 10) return 'teen';
+  return 'units';
+}
+
+/** The places a part may take after `previous` in the same group (null: the group's first part). */
+function followsPlace(previous: Place | null, next: Place): boolean {
+  if (previous === null) return true;
+  if (previous === 'hundreds') return next === 'tens' || next === 'teen' || next === 'units';
+  if (previous === 'tens') return next === 'units';
+  return false;
+}
+
+/**
+ * A whole number from its words ("cento e quarenta e sete", "dois mil e quinhentos", "2 mil");
+ * null when they are no number. Inside a group below "mil" the parts must fall in place order
+ * (hundreds, tens or a teen, units), so words said digit by digit ("um quatro sete") are no
+ * number rather than their sum.
+ */
 function parseWhole(words: readonly string[]): string | null {
   if (words.length === 0) return null;
   if (words.length === 1 && DIGITS.test(words[0]!)) {
@@ -136,6 +163,7 @@ function parseWhole(words: readonly string[]): string | null {
   let total = 0;
   let current = 0;
   let previous: 'number' | 'joiner' | null = null;
+  let place: Place | null = null;
   for (const word of words) {
     if (word === JOINER) {
       if (previous !== 'number') return null;
@@ -145,10 +173,14 @@ function parseWhole(words: readonly string[]): string | null {
     if (word === THOUSAND) {
       total += (current === 0 ? 1 : current) * 1000;
       current = 0;
-    } else if (/^\d+$/.test(word)) {
-      current += Number(word);
-    } else if (word in CARDINALS) {
-      current += CARDINALS[word]!;
+      place = null;
+    } else if (/^\d+$/.test(word) || word in CARDINALS) {
+      const digits = /^\d+$/.test(word);
+      const value = digits ? Number(word) : CARDINALS[word]!;
+      const next = placeOf(value, digits);
+      if (!followsPlace(place, next)) return null;
+      place = next;
+      current += value;
     } else {
       return null;
     }
@@ -303,6 +335,15 @@ function isPrefix(head: readonly string[], words: readonly string[]): boolean {
   return head.length <= words.length && head.every((word, i) => word === words[i]);
 }
 
+/** The rows a spoken head names (see `parseTableUtterance`). */
+function rowsNamed(head: readonly string[], table: EvaluatedTable): EvaluatedRow[] {
+  return table.rows.filter((row) => {
+    if (head.length === 0) return table.rows.length === 1;
+    const cells = row.connection.map((text) => tokenize(text).map((token) => token.word)).filter((cell) => cell.length > 0);
+    return isPrefix(head, cells.flat()) || cells.some((cell) => sameWords(cell, head));
+  });
+}
+
 /**
  * A dictated reading on one Measurement table: the words before the first number name the
  * row, the number is the value, what follows it the unit. A row matches when the head is a
@@ -326,11 +367,7 @@ export function parseTableUtterance(transcript: string, table: EvaluatedTable): 
   if (raw === null) return unparsed;
   const head = words.slice(0, first);
 
-  const matches = table.rows.filter((row) => {
-    if (head.length === 0) return table.rows.length === 1;
-    const cells = row.connection.map((text) => tokenize(text).map((token) => token.word)).filter((cell) => cell.length > 0);
-    return isPrefix(head, cells.flat()) || cells.some((cell) => sameWords(cell, head));
-  });
+  const matches = rowsNamed(head, table);
   if (matches.length !== 1) return unparsed;
   const target = matches[0]!.cells.find((cell) => cell.role === 'capture' && cell.state === 'empty');
   if (target === undefined) return unparsed;
@@ -369,11 +406,17 @@ function sampleReading(unit: string | null): string {
   }
 }
 
-/** A Measurement table's Dictation button name: "Ditar leitura — ex.: “Fase A, 147 giga”". */
+/**
+ * A Measurement table's Dictation button name: "Ditar leitura — ex.: “Fase A, 147 giga”". The
+ * example names the first row whose label alone names only that row (the parser would refuse
+ * an ambiguous one, as "Primário" on the transformer insulation); with none, the sample alone.
+ */
 export function tableDictationLabel(table: EvaluatedTable): string {
-  const row = table.rows[0];
-  const cell = row?.cells.find((c) => c.role === 'capture');
+  const cell = table.rows[0]?.cells.find((c) => c.role === 'capture');
   const sample = sampleReading(cell?.unit ?? null);
-  const label = row?.label ?? '';
-  return `Ditar leitura — ex.: “${label === '' ? sample : `${label}, ${sample}`}”`;
+  const named = table.rows.find((row) => {
+    const head = tokenize(row.label).map((token) => token.word);
+    return head.length > 0 && rowsNamed(head, table).length === 1;
+  });
+  return `Ditar leitura — ex.: “${named === undefined ? sample : `${named.label}, ${sample}`}”`;
 }
