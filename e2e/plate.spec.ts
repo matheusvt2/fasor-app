@@ -2,7 +2,7 @@ import type { Locator, Page } from '@playwright/test';
 import { deviceDatabaseName, expect, horizontalOverflow, syncBadge, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { devicePhotos, expectCameraOpen, openChaveSheet } from './support/photos.ts';
-import { holdPhotoBytes, openTransformerSheet, pushPlateSuggestions, pushReadingStatus } from './support/reading-ops.ts';
+import { holdPhotoBytes, openTransformerSheet, pushPlateSuggestions, pushReadingStatus, transformerPlateFields } from './support/reading-ops.ts';
 import { officeDraft, pushDrafts } from './support/relatorio-seed.ts';
 import { syncNow, syncNowAndReturn } from './support/sync.ts';
 
@@ -134,7 +134,7 @@ test('@p0 8.2-E2E-002 the reading line follows the server: "Lendo…", then "Nã
   const rereads: string[] = [];
   await page.route('**/api/photos/*/reread', async (route) => {
     rereads.push(`${route.request().method()} ${new URL(route.request().url()).pathname}`);
-    await route.fulfill({ status: 202, contentType: 'application/json', body: '{}' });
+    await route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify({ photo_id: photoId, reading_status: 'running' }) });
   });
   await plateRow(page).getByRole('button', { name: 'Tentar novamente' }).click();
   await expect.poll(() => rereads).toEqual([`POST /api/photos/${photoId}/reread`]);
@@ -144,7 +144,7 @@ test('@p0 8.2-E2E-002 the reading line follows the server: "Lendo…", then "Nã
   await expect(field(page, 'identificacao').locator('input')).toBeFocused();
 });
 
-test('@p0 8.6-E2E-001 Flow 2b: the arrival toast opens the sheet, the crop outlines the focused field, one tap confirms seven, "Criar Celtta?" works offline and the Verificar field is fixed by hand', async ({ page, context }) => {
+test('@p0 8.6-E2E-001 Flow 2b: the arrival toast opens the sheet, the crop outlines the focused field, one tap confirms eight, "Criar Celtta?" works offline and the Verificar field is fixed by hand', async ({ page, context }) => {
   test.setTimeout(240_000);
   await holdPhotoBytes(page);
   const ids = await openTransformerSheet(page, account, database);
@@ -158,23 +158,11 @@ test('@p0 8.6-E2E-001 Flow 2b: the arrival toast opens the sheet, the crop outli
   const photoId = await shootPlate(page);
   await syncNow(page);
 
-  // The reading job's run over the fixture plate (`services/ocr/tests/fixtures/plate-transformador.md`).
-  const box = (row: number, col: number): [number, number, number, number] => [0.05 + col * 0.45, 0.12 + row * 0.12, 0.45 + col * 0.45, 0.2 + row * 0.12];
+  // The reading job's run over the fixture plate: eleven suggestions, TENSÃO NOMINAL AT a replace.
   const sid = await pushPlateSuggestions(account.companyId, ids.relatorioId, {
     blockId: ids.blockId,
     photoId,
-    fields: {
-      fabricacao: { value: 'Celtta', bbox: box(0, 1), hint: { create_registry_entry: { kind: 'manufacturer', name: 'Celtta' } } },
-      n_serie: { value: '240815-01', trust: 'verify', bbox: box(1, 0) },
-      tipo: { value: 'TSE-500/15', bbox: box(1, 1) },
-      tipo_de_isolacao: { value: 'EPÓXI', bbox: box(2, 0) },
-      potencia_nominal: { value: { raw: '500', unit: 'kVA', state: 'measured' }, bbox: box(2, 1) },
-      tap_atual: { value: '3', bbox: box(3, 0) },
-      data_fabricacao: { value: '2024-08', bbox: box(3, 1) },
-      tensao_nominal_at: { value: { raw: '15', unit: 'kV', state: 'measured' }, bbox: box(4, 0) },
-      tensao_nominal_bt: { value: { raw: '380', unit: 'V', state: 'measured' }, bbox: box(4, 1) },
-      ligacao_secundaria: { value: 'Dyn1', bbox: box(5, 0) },
-    },
+    fields: transformerPlateFields(['tensao_nominal_at']),
   });
 
   // The pull brings one reading: the toast says so, and "Ver" opens the sheet it fills.
@@ -184,7 +172,7 @@ test('@p0 8.6-E2E-001 Flow 2b: the arrival toast opens the sheet, the crop outli
   await expect(page).toHaveURL(new RegExp(`/relatorio/${ids.relatorioId}/ficha/${ids.blockId}$`));
 
   // The sheet's banner, the crop above the fields (at most 160 px) and the note naming the photo.
-  await expect(page.locator('[data-banner="suggestions-ready"]')).toContainText('Sugestões prontas — 10 campos para confirmar');
+  await expect(page.locator('[data-banner="suggestions-ready"]')).toContainText('Sugestões prontas — 11 campos para confirmar');
   const crop = section(page).getByRole('img', { name: 'Recorte da placa lida — as regiões marcam os campos sugeridos' });
   await expect(crop).toBeVisible();
   const cropBox = (await crop.boundingBox())!;
@@ -193,7 +181,7 @@ test('@p0 8.6-E2E-001 Flow 2b: the arrival toast opens the sheet, the crop outli
   await expect(section(page).locator('.plate-crop-view img')).toBeVisible();
   await expect(plateRow(page)).toHaveCount(0);
   await expect(section(page).locator('.suggestion-group-head .section-note')).toHaveText(
-    '10 sugestões lidas da foto 1. Nada foi gravado: confirme um a um ou todos — o campo “Verificar” pede o seu toque.',
+    '11 sugestões lidas da foto 1. Nada foi gravado: confirme um a um ou todos — o campo “Verificar” pede o seu toque.',
   );
 
   // Focusing a suggested field outlines its one region on the crop.
@@ -208,16 +196,18 @@ test('@p0 8.6-E2E-001 Flow 2b: the arrival toast opens the sheet, the crop outli
   await expect(field(page, 'tensao_nominal_at').locator('.suggestion-alt')).toContainText('Sugerido: 15 kV');
   await expect(field(page, 'tensao_nominal_at').locator('.suggestion-alt').getByRole('button', { name: 'Substituir' })).toBeVisible();
 
-  // "Confirmar todos (7)": the seven grounded fields in one batch; Verificar and Criar wait.
-  await section(page).locator('.suggestion-group-head').getByRole('button', { name: 'Confirmar todos (7)' }).click();
-  await expect(toast(page)).toContainText('7 campos confirmados — 1 campo pede verificação');
-  const seven = ['tipo', 'tipo_de_isolacao', 'potencia_nominal', 'tap_atual', 'data_fabricacao', 'tensao_nominal_bt', 'ligacao_secundaria'];
-  await expect.poll(async () => (await outbox(page)).filter((row) => row.path.startsWith('suggestion/')).length).toBe(7);
+  // "Confirmar todos (8)": the eight grounded fields without a hint in one batch; the
+  // replace, Verificar and Criar wait for their own taps.
+  await section(page).locator('.suggestion-group-head').getByRole('button', { name: 'Confirmar todos (8)' }).click();
+  await expect(toast(page)).toContainText('8 campos confirmados — 1 campo pede verificação');
+  const eight = ['identificacao', 'n_serie', 'tipo', 'tipo_de_isolacao', 'potencia_nominal', 'data_fabricacao', 'tensao_nominal_bt', 'ligacao_secundaria'];
+  await expect.poll(async () => (await outbox(page)).filter((row) => row.path.startsWith('suggestion/')).length).toBe(8);
   let rows = await outbox(page);
-  const confirmAll = rows.filter((row) => seven.some((key) => row.path === `suggestion/${sid[key]}/status` || row.path === `sheet/${ids.blockId}/nameplate/${key}`));
-  expect(confirmAll).toHaveLength(14);
+  const confirmAll = rows.filter((row) => eight.some((key) => row.path === `suggestion/${sid[key]}/status` || row.path === `sheet/${ids.blockId}/nameplate/${key}`));
+  expect(confirmAll).toHaveLength(16);
   expect(new Set(confirmAll.map((row) => row.batch_id)).size).toBe(1);
-  for (const key of seven) expect(rows.find((row) => row.path === `sheet/${ids.blockId}/nameplate/${key}`)?.meta).toMatchObject({ source_suggestion_id: sid[key] });
+  expect(rows.filter((row) => row.batch_id === confirmAll[0]!.batch_id)).toHaveLength(16);
+  for (const key of eight) expect(rows.find((row) => row.path === `sheet/${ids.blockId}/nameplate/${key}`)?.meta).toMatchObject({ source_suggestion_id: sid[key] });
   await expect(field(page, 'tensao_nominal_at').locator('.suggestion-alt')).toContainText('Sugerido: 15 kV');
   await expect(at).toHaveValue('13,8');
   // A field confirmed from the plate still outlines its own region while the crop stays.
@@ -241,29 +231,29 @@ test('@p0 8.6-E2E-001 Flow 2b: the arrival toast opens the sheet, the crop outli
   expect(new Set([status.batch_id, put.batch_id, registry.batch_id]).size).toBe(1);
   expect(rows.filter((row) => row.batch_id === status.batch_id)).toHaveLength(3);
 
-  // The Verificar field: one wrong digit fixed with two keystrokes, then its Confirmar.
-  const serie = suggestionOf(page, 'n_serie');
-  await expect(serie).toHaveAttribute('data-state', 'verify');
-  const guess = serie.locator('input.sv');
-  await expect(guess).toHaveValue('240815-01');
+  // The Verificar field: the wrong digit fixed with two keystrokes, then its Confirmar.
+  const tap = suggestionOf(page, 'tap_atual');
+  await expect(tap).toHaveAttribute('data-state', 'verify');
+  const guess = tap.locator('input.sv');
+  await expect(guess).toHaveValue('5');
   await guess.click();
   await guess.press('End');
   await guess.press('Backspace');
-  await guess.press('7');
-  await serie.getByRole('button', { name: 'Verificar, 240815-01, confirmar' }).click();
-  await expect.poll(async () => (await outbox(page)).some((row) => row.path === `suggestion/${sid.n_serie}/status`)).toBe(true);
+  await guess.press('3');
+  await tap.getByRole('button', { name: 'Verificar, 5, confirmar' }).click();
+  await expect.poll(async () => (await outbox(page)).some((row) => row.path === `suggestion/${sid.tap_atual}/status`)).toBe(true);
   rows = await outbox(page);
-  const discard = rows.find((row) => row.path === `suggestion/${sid.n_serie}/status`)!;
-  const typed = rows.find((row) => row.path === `sheet/${ids.blockId}/nameplate/n_serie`)!;
+  const discard = rows.find((row) => row.path === `suggestion/${sid.tap_atual}/status`)!;
+  const typed = rows.find((row) => row.path === `sheet/${ids.blockId}/nameplate/tap_atual`)!;
   expect(discard.value).toBe('discarded');
-  expect(typed.value).toBe('240815-07');
+  expect(typed.value).toBe('3');
   expect(typed.meta ?? null).toBeNull();
   expect(typed.batch_id).toBe(discard.batch_id);
   expect(rows.filter((row) => row.batch_id === discard.batch_id)).toHaveLength(2);
 
-  // Exactly the Story 8.1 batches: the typed-first value, the photo, 7 pairs, Criar, the fix.
+  // Exactly the Story 8.1 batches: the typed-first value, 8 pairs, Criar, the fix.
   const plateWrites = rows.filter((row) => row.path.startsWith(`sheet/${ids.blockId}/nameplate/`) || row.path.startsWith('suggestion/') || row.path.startsWith('registry/'));
-  expect(plateWrites).toHaveLength(1 + 14 + 3 + 2);
+  expect(plateWrites).toHaveLength(1 + 16 + 3 + 2);
   // The one replace still waits for its own tap, the engineer's value untouched.
   await expect(at).toHaveValue('13,8');
   await context.setOffline(false);

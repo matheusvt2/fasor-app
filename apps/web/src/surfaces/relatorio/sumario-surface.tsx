@@ -102,7 +102,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const pending = useMemo(() => pendingSuggestions(suggestionRowsOf(state, relatorioId)), [state, relatorioId]);
   const computed = useMemo(() => progress(snapshot, pending), [snapshot, pending]);
   // The one pre-issue call the Export dialog makes too (photo upload errors, the clock reading).
-  const issues = usePreIssue(db, snapshot, computed);
+  const issues = usePreIssue(db, snapshot, computed, pending);
   const rows = useMemo(() => sumarioRows(snapshot, issues, computed), [snapshot, issues, computed]);
   // Epic 4 retro item 29: "Restaurar" offers only what was removed after the last revision.
   const lastIssuedAt = latestRevision(revisions)?.created_at ?? null;

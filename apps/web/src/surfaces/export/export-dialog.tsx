@@ -8,10 +8,12 @@ import {
   idleReason,
   nextEditNote,
   parecerMissingReason,
+  pendingSuggestions,
   readyTitle,
   revisionMetaSegments,
   revisionRowSegments,
   sectionBlocks,
+  suggestionRowsOf,
   toIso,
   type RevisionRow,
   type SumarioRowKey,
@@ -83,7 +85,9 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
 
   const entityState = useLiveQuery(() => (db === null ? Promise.resolve(null) : relatorioState(db, relatorioId)), [db, relatorioId], null);
   const snapshot = useMemo(() => (entityState === null ? null : buildSnapshot(entityState, relatorioId)), [entityState, relatorioId]);
-  const issues = usePreIssue(db, snapshot);
+  // Story 8.6: the device's pending suggestion rows (section 9's warning and the sheets count).
+  const pending = useMemo(() => (entityState === null ? [] : pendingSuggestions(suggestionRowsOf(entityState, relatorioId))), [entityState, relatorioId]);
+  const issues = usePreIssue(db, snapshot, null, pending);
   const precheck = useMemo(() => exportPrecheck(issues), [issues]);
   const blocked = precheck.blocking.length > 0;
   const control = useMemo(

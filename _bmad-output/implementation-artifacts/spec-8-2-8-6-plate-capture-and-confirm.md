@@ -2,10 +2,10 @@
 title: 'Stories 8.2 and 8.6 (plus the web half of 8.5): Photograph the plate, keep it until there is signal, confirm it in one tap'
 type: 'feature'
 created: '2026-09-27'
-status: 'in-review'
+status: 'done'
 baseline_revision: '842bb34c25ddeb5cfa47fd4cc40cbac35f76f52c'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: high
 context:
@@ -13,7 +13,28 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/spec-8-1-suggestion-entity.md'
 warnings: ['batched', 'oversized', 'multiple-goals']
 batched_reason: 'Batch P of the Epic 8 delivery: 8.2 (plate tile, queued states, arrival) and 8.6 (plate crop, Flow 2b) share the nameplate group and one e2e walk; the web half of 8.5 ("Criar ⟨nome⟩?", verify rendering) is the same field.'
-deferred: []
+deferred:
+  - summary: >-
+      A second "Tentar novamente" tap after the POST resolved but before the pull moves the status can ask the server for another reading run.
+    evidence: |-
+      plate-photo.tsx FailedReading resets `asking` in finally; batch R's job uses a pg-boss singleton key (photo_id, reading_kind), which should collapse duplicates. Settle in the integrated QA against the real route.
+    location: >-
+      apps/web/src/surfaces/ficha/plate-photo.tsx
+    severity: low (unverified)
+  - summary: >-
+      The plate tile shows on every equipment type while batch R reads only transformador_forca plates.
+    evidence: |-
+      Coordinator message 2026-09-27; deferred-work.md entry (owner: integrated Epic 8 fix batch, open question for Matheus).
+    location: >-
+      apps/web/src/surfaces/ficha/nameplate-section.tsx
+    severity: medium
+  - summary: >-
+      A confirmed month-only date (2024-08) shows blank in the plain date field (Story 8.1 path).
+    evidence: |-
+      Seen by the implementation run on the fixture's DATA FABRICAÇÃO; deferred-work.md entry.
+    location: >-
+      apps/web/src/surfaces/ficha/ficha-fields.tsx
+    severity: medium
 ---
 
 <intent-contract>
@@ -108,7 +129,35 @@ deferred: []
 
 ## Spec Change Log
 
+- 2026-09-27 (orchestrator, coordinator message, not a review loop): batch R's final fixture yields eleven suggestions (nine grounded without hint, Celtta with the create hint, tap_atual `verify`); "Confirmar todos" takes the grounded fields without a hint. Flow 2b's "seven" became eight in the e2e (nine grounded minus TENSÃO NOMINAL AT typed first). The pre-issue row was added by the orchestrator after Stories 7.2 to 7.5 merged (`PreIssueContext.pendingSuggestions`, kind `suggestions_pending`).
+
 ## Review Triage Log
+
+### 2026-09-27 — Review pass
+Layers: Edge Case Hunter and Verification Gap Reviewer. Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 21 findings — high 0, medium 9, low 9, false 2, maybe-false 1
+- findings:
+  - `[medium]` `[patch]` ECH: single-shot camera shows "Foto salva" after a failed frame grab — the done toast now needs a successful grab.
+  - `[medium]` `[patch]` ECH: arrival toast fires before the post-pull sweep, announcing readings the sweep auto-confirms — arrivals wait until the cycle ends and only still-pending ids are announced.
+  - `[medium]` `[patch]` ECH: a fresh device announces every historical pending suggestion on its first pull — rows seen before the first finished sync are baseline.
+  - `[medium]` `[patch]` ECH: one throwing row aborts the sweep for every later row — try/catch per row, unit test with a poison row.
+  - `[low]` `[patch]` ECH: read-only sheet offers "Tentar novamente"/"Preencher manualmente" on a failed reading — row renders without actions when read-only.
+  - `[low]` `[reject]` ECH: double "Tentar novamente" after the POST resolves — pg-boss singleton key on the job; deferred as unverified low for QA.
+  - `[low]` `[patch]` ECH: double tap on "Criar Celtta?" creates two registry rows — in-flight set per suggestion id.
+  - `[low]` `[patch]` ECH: "Sugestões prontas" banner on a not-tested sheet — banner gated on `block.not_tested`.
+  - `[medium]` `[patch]` ECH + VG other: Sync status counts pending rows on removed blocks, unlike the Sumário — `readingCountRows` filters with `livePendingSuggestions`.
+  - `[false]` `[reject]` ECH: `plateCropRegion` zero width — boxes are normalized by the reading job's contract (8.1 rejected the same input); the degenerate branch keeps a sliver for in-range input.
+  - `[false]` `[reject]` ECH: `naturalWidth` 0 — `onLoad` does not fire for an undecodable blob.
+  - `[low]` `[patch]` ECH: "Preencher manualmente" does nothing when every field is filled — falls back to the first field.
+  - `[maybe-false]` `[reject]` ECH: removed company filter in the sweep — the device database is per user and holds one company (`deviceDatabaseName(userId)`); would be low if true.
+  - `[medium]` `[patch]` ECH claim: single shot closes "once it is saved" — same fix as the first row.
+  - `[medium]` `[patch]` VG: Sync "Leituras" chain only under `@p1` — `suggestion-store.test.ts` now seeds photo rows and asserts `syncCounts` through `readingCountRows`.
+  - `[medium]` `[patch]` VG: typed unregistered manufacturer batch untested — `@p1` 8.6-E2E-002 asserts create + put + discard.
+  - `[medium]` `[patch]` VG: registered-name hint fallback untested — 8.6-E2E-002 asserts plain "Confirmar" and a two-op batch.
+  - `[low]` `[patch]` VG: confirmed-field outline untested — Flow 2b focuses a confirmed field and expects one region.
+  - `[low]` `[patch]` VG other: an edited create-hint guess keeps "Criar Celtta?" — the create label shows only while the text equals the guess.
+  - `[low]` `[patch]` VG other: read-only plate controls — grouped with the ECH read-only row.
+  - `[low]` `[patch]` VG other: Sync/Sumário count mismatch — grouped with the ECH live-block row.
 
 ## Design Notes
 
@@ -126,3 +175,14 @@ deferred: []
 - `docker compose --profile tools run --rm tools pnpm lint` and `pnpm static` -- green.
 - One spec at a time through the repo runner, e.g. `docker compose --profile tools run --rm tools pnpm test:e2e -- e2e/plate.spec.ts` (check `scripts/e2e.ts` for the exact pass-through) -- green; also re-run `e2e/suggestions.spec.ts`.
 - The orchestrator runs `pnpm verify` and `pnpm test:e2e:full` under `flock /tmp/fasor-verify.lock`.
+
+## Auto Run Result
+
+Status: done
+
+- Summary: the "Fotografar placa" tile (single shot, photo created with `reading_kind: plate`, caption, target, `queued`), the plate photo row with its reading lines ("Foto guardada — leitura quando houver sinal", "Lendo…", "Não foi possível ler" with "Tentar novamente" -> `POST /api/photos/{id}/reread` and "Preencher manualmente"), the plate crop with the focused field's region, "da foto N", "Criar ⟨nome⟩?" (manufacturer create + confirm pair in one batch; typed unknown manufacturer likewise), the arrival toast, the sheet banner, Sync status "Leituras", the per-row auto-confirm sweep after each pull, and the section 9 pre-issue warning "N fichas com sugestões por confirmar".
+- Files: kernel `relatorio/suggestions.ts` (+ `suggestions-plate.test.ts`), `relatorio/pre-issue.ts` (+ test); web `plate-photo.tsx`, `nameplate-section.tsx`, `nameplate-suggestions.tsx`, `suggestion-field.tsx`, `crop-thumb.tsx`, `camera-view.tsx`, `photo-openers.tsx`, `use-photo-capture.ts`, `photo-store.ts`, `suggestion-store.ts`, `engine.ts`, `sync/client.ts`, `state/sync.tsx`, `state/reading-arrivals.tsx`, `app-shell.tsx`, `ficha-surface.tsx`, `sync-status-surface.tsx`, `use-pre-issue.ts`, `export-dialog.tsx`, `sumario-surface.tsx`, copy, CSS; e2e `plate.spec.ts`, `support/reading-ops.ts`, one assertion in `ficha.spec.ts`.
+- Review: 21 findings; 16 patched (medium 8, low 8 at entry verdict), 2 false and 2 low/maybe-false rejected with reasons above, 1 deferred plus 2 deferred from implementation.
+- Follow-up review recommended: true (two or more medium entries patched on a first pass). Unverified risk: the arrival watcher's cycle-end timing and baseline were written in the fix pass and are exercised by unit tests and one e2e toast only.
+- Verification: see the PR body (`pnpm verify`, `pnpm test:e2e:full`).
+- Residual risks: the deferred items above; the true job-driven walk (R merged) is the integrated QA's.

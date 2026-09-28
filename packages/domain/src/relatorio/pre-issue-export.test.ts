@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { makeOp } from '../ops/op.ts';
 import { replay } from '../ops/replay.ts';
 import type { InstrumentRow } from '../registry/instrument-row.ts';
-import type { BlockRow, Cell, RelatorioParecer, UserRow } from '../schemas/entities.ts';
+import type { BlockRow, Cell, RelatorioParecer, SuggestionRow, UserRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { standardTemplate } from '../seed/template.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-support.ts';
@@ -126,6 +126,38 @@ describe('7.5-UNIT preIssue: the rows the story adds', () => {
       b.concluded_by === null ? b : { ...b, sheet: { ...b.sheet, conclusion: { ...b.sheet.conclusion, text: cell(`Texto ${i}`), text_status: cell('confirmed') } } },
     );
     expect(preIssue({ ...snapshot, blocks: confirmed }, undefined, { now: NOW }).some((r) => r.kind === 'conclusion_unconfirmed')).toBe(false);
+  });
+
+  it('Story 8.6: sheets holding pending suggestions are one warning on section 9 that never blocks; removed blocks and confirmed rows do not count', () => {
+    const snapshot = fresh();
+    const equipment = snapshot.blocks.filter(isEquipmentBlock);
+    const suggestion = (id: string, blockId: string, status: 'pending' | 'confirmed' = 'pending'): SuggestionRow => ({
+      id,
+      relatorio_id: snapshot.relatorio.id,
+      target_path: `sheet/${blockId}/nameplate/fabricacao`,
+      value: 'Celtta',
+      trust: 'suggested',
+      mode: 'fill',
+      source: { photo_id: 'p', bbox: [0.1, 0.1, 0.2, 0.2], ocr_token_ids: ['t0'], reading_run_id: 'r' },
+      status,
+      prompt_version: 'test',
+      hint: null,
+    });
+    const removed = equipment[3]!;
+    const blocks = snapshot.blocks.map((b): BlockRow => (b.id === removed.id ? { ...b, removed_at: AT } : b));
+    const pending = [
+      suggestion('s1', equipment[0]!.id),
+      suggestion('s2', equipment[0]!.id),
+      suggestion('s3', equipment[1]!.id),
+      suggestion('s4', equipment[2]!.id),
+      suggestion('s5', equipment[2]!.id, 'confirmed'),
+      suggestion('s6', removed.id),
+    ];
+    const rows = preIssue({ ...snapshot, blocks }, undefined, { now: NOW, pendingSuggestions: pending });
+    expect(rows.find((r) => r.kind === 'suggestions_pending')).toMatchObject({ row: 'section_9', severity: 'pending', text: '3 fichas com sugestões por confirmar' });
+    expect(exportPrecheck(rows).blocking.some((r) => r.kind === 'suggestions_pending')).toBe(false);
+    expect(blockingRows(rows).some((r) => r.kind === 'suggestions_pending')).toBe(false);
+    expect(preIssue({ ...snapshot, blocks }, undefined, { now: NOW }).some((r) => r.kind === 'suggestions_pending')).toBe(false);
   });
 
   it('calibration per instrument on section 11: expired pending, about to expire a warning; a missing certificate a warning', () => {

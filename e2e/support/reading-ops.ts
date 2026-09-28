@@ -63,12 +63,40 @@ export async function pushReadingStatus(
   );
 }
 
-/** One field of a plate reading: its value, trust, source region and (for a new manufacturer) its hint. */
+/** One field of a plate reading: its value, trust, source region, mode and (for a new manufacturer) its hint. */
 export interface PlateField {
   value: JsonValue;
   trust?: SuggestionRow['trust'];
   bbox: SuggestionRow['source']['bbox'];
   hint?: SuggestionRow['hint'];
+  /** `replace` when the target cell was filled before the reading (the job writes it so). */
+  mode?: SuggestionRow['mode'];
+}
+
+/**
+ * The reading job's run over the fixture plate (`services/ocr/tests/fixtures/plate-transformador.md`,
+ * batch R's final fixture contract): eleven suggestions, all from the plate photo. Nine
+ * grounded `suggested` without hint, the unknown manufacturer "Celtta" `suggested` with its
+ * create hint, TAP ATUAL `verify` with one wrong digit ("5", the plate prints 3), none for
+ * VOL. ÓLEO; `mode: 'replace'` on the keys in `filled` (cells the engineer typed first).
+ */
+export function transformerPlateFields(filled: readonly string[] = []): Record<string, PlateField> {
+  const box = (row: number, col: number): [number, number, number, number] => [0.05 + col * 0.45, 0.12 + row * 0.12, 0.45 + col * 0.45, 0.2 + row * 0.12];
+  const fields: Record<string, PlateField> = {
+    identificacao: { value: 'TR-01', bbox: box(0, 0) },
+    fabricacao: { value: 'Celtta', bbox: box(0, 1), hint: { create_registry_entry: { kind: 'manufacturer', name: 'Celtta' } } },
+    n_serie: { value: '240815-07', bbox: box(1, 0) },
+    tipo: { value: 'TSE-500/15', bbox: box(1, 1) },
+    tipo_de_isolacao: { value: 'EPÓXI', bbox: box(2, 0) },
+    potencia_nominal: { value: { raw: '500', unit: 'kVA', state: 'measured' }, bbox: box(2, 1) },
+    tap_atual: { value: '5', trust: 'verify', bbox: box(3, 0) },
+    data_fabricacao: { value: '2024-08', bbox: box(3, 1) },
+    tensao_nominal_at: { value: { raw: '15', unit: 'kV', state: 'measured' }, bbox: box(4, 0) },
+    tensao_nominal_bt: { value: { raw: '380', unit: 'V', state: 'measured' }, bbox: box(4, 1) },
+    ligacao_secundaria: { value: 'Dyn1', bbox: box(5, 0) },
+  };
+  for (const key of filled) if (fields[key] !== undefined) fields[key] = { ...fields[key]!, mode: 'replace' };
+  return fields;
 }
 
 /**
@@ -91,7 +119,7 @@ export async function pushPlateSuggestions(
       target_path: `sheet/${plate.blockId}/nameplate/${key}`,
       value: field.value,
       trust: field.trust ?? 'suggested',
-      mode: 'fill',
+      mode: field.mode ?? 'fill',
       source: { photo_id: plate.photoId, bbox: field.bbox, ocr_token_ids: ['t0'], reading_run_id: run },
       status: 'pending',
       prompt_version: 'e2e-1',
