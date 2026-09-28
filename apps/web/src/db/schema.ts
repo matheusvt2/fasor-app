@@ -1,5 +1,5 @@
 import { targetsOf, type Entity, type EntityRow, type Op, type RelatorioSummary } from '@app/domain';
-import Dexie, { type Table, type Transaction } from 'dexie';
+import Dexie, { type DBCoreMutateRequest, type Table, type Transaction } from 'dexie';
 
 /*
  * AD-9: one Dexie database per user, `releng-{user_id}`, never dropped on
@@ -15,6 +15,13 @@ export interface EntityRecord {
   project_id: string | null;
   removed_at: string | null;
   row: EntityRow;
+  /**
+   * E7-A1/E8-A1: a stamp unique to this write, set on every write to `entities` whoever
+   * makes it (the `entity-rev` middleware below), so a reader knows a record it has seen is
+   * unchanged and can keep the row it parsed then (`relatorioState`). Not indexed, so no new
+   * Dexie version; absent on records written before it existed, which are parsed on every read.
+   */
+  rev?: string;
 }
 
 export type OutboxStatus = 'pending' | 'sent' | 'acked' | 'dead';
@@ -207,6 +214,33 @@ export const VERSIONS: readonly VersionDef[] = [
 
 export const LATEST_VERSION = VERSIONS[VERSIONS.length - 1]!.version;
 
+/*
+ * E7-A1/E8-A1: the `rev` stamp. The prefix is random per loaded bundle (two tabs never mint
+ * the same stamp) and the counter makes each write unique within it, so an equal `rev`
+ * always means the same written record.
+ */
+const REV_PREFIX = Math.random().toString(36).slice(2, 10);
+let revCounter = 0;
+
+/** A stamp no other record write of any tab shares. */
+export function nextRev(): string {
+  revCounter += 1;
+  return `${REV_PREFIX}.${revCounter.toString(36)}`;
+}
+
+/** Every add or put to `entities` gets a fresh `rev` on each record it writes. */
+function stampRevs(request: DBCoreMutateRequest): DBCoreMutateRequest {
+  if (request.type !== 'add' && request.type !== 'put') return request;
+  const revs = request.values.map(() => nextRev());
+  const stamped: DBCoreMutateRequest = {
+    ...request,
+    values: request.values.map((value: unknown, i) => (value !== null && typeof value === 'object' ? { ...(value as object), rev: revs[i] } : value)),
+  };
+  // A put carrying a common changeSpec (a `modify`) gets the same stamp as its one value.
+  if (stamped.type === 'put' && stamped.changeSpec !== undefined && revs.length === 1) stamped.changeSpec = { ...stamped.changeSpec, rev: revs[0] };
+  return stamped;
+}
+
 export class AppDatabase extends Dexie {
   /**
    * AD-8 eviction signal: true when this handle is the one that created the store.
@@ -231,6 +265,19 @@ export class AppDatabase extends Dexie {
       if (def.version > upToVersion) break;
       this.version(def.version).stores(def.stores).upgrade(def.upgrade);
     }
+    // E7-A1/E8-A1: every write to `entities`, through any path, stamps a fresh `rev`, so the
+    // parsed-row cache of `relatorioState` can never serve a record that changed.
+    this.use({
+      stack: 'dbcore',
+      name: 'entity-rev',
+      create: (down) => ({
+        ...down,
+        table: (name) => {
+          const table = down.table(name);
+          return name === 'entities' ? { ...table, mutate: (request) => table.mutate(stampRevs(request)) } : table;
+        },
+      }),
+    });
     // A fresh database runs no upgrade(); populate stamps the version it was born at,
     // and records that this open is the one that created the store (AD-8).
     this.on('populate', (tx) => {

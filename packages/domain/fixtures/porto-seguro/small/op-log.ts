@@ -1,4 +1,4 @@
-import { emptySheet, getDefinition, opSchema, type Op, type OpKind, type Scope } from '../../../src/index.ts';
+import { defaultBlockConfig, emptySheet, getDefinition, opSchema, type Op, type OpKind, type Scope } from '../../../src/index.ts';
 import { NA_ITEMS_BY_TYPE } from '../data.ts';
 import golden from './snapshot.golden.json' with { type: 'json' };
 import { CABINE_NAME, CHAVE_DATA, DISJUNTOR_DATA, TRANSFORMADOR_DATA } from './data.ts';
@@ -223,6 +223,15 @@ push({
   },
 });
 
+/**
+ * E7-A4: each sheet enables the sub-blocks its type's template enables (the standard
+ * template's `defaultBlockConfig`, as the full fixture's `templateBlock.sub_blocks`), so the
+ * tests it fills count and section 11 lists the instruments their headers name.
+ */
+function templateSubBlocks(blockType: 'chave_seccionadora' | 'disjuntor_mt' | 'transformador_forca') {
+  return defaultBlockConfig(SEED_VERSION, blockType).sub_blocks;
+}
+
 // --- chave_seccionadora ---------------------------------------------------------------------
 
 push({ kind: 'create', scope: 'project', path: `equipment/${EQUIPMENT_CHAVE_ID}`, value: { id: EQUIPMENT_CHAVE_ID, project_id: PROJECT_ID, tag: CHAVE_DATA.tag, type: 'chave_seccionadora', last_nameplate: null, removed_at: null } });
@@ -230,7 +239,7 @@ push({
   kind: 'create',
   scope: 'relatorio',
   path: `block/${BLOCK_CHAVE_ID}`,
-  value: blockRow(BLOCK_CHAVE_ID, 'chave_seccionadora', EQUIPMENT_CHAVE_ID, { block_type: 'chave_seccionadora', subtype: 'manual', sub_blocks: {}, na_defaults: ['motor', 'fusiveis'] }, 'a0'),
+  value: blockRow(BLOCK_CHAVE_ID, 'chave_seccionadora', EQUIPMENT_CHAVE_ID, { block_type: 'chave_seccionadora', subtype: 'manual', sub_blocks: templateSubBlocks('chave_seccionadora'), na_defaults: ['motor', 'fusiveis'] }, 'a0'),
 });
 nameplateSteps(BLOCK_CHAVE_ID, 'chave_seccionadora', CHAVE_DATA.np);
 checklistSteps(BLOCK_CHAVE_ID, 'chave_seccionadora');
@@ -249,7 +258,7 @@ push({
   kind: 'create',
   scope: 'relatorio',
   path: `block/${BLOCK_DISJUNTOR_ID}`,
-  value: blockRow(BLOCK_DISJUNTOR_ID, 'disjuntor_mt', EQUIPMENT_DISJUNTOR_ID, { block_type: 'disjuntor_mt', sub_blocks: {}, na_defaults: [] }, 'a1'),
+  value: blockRow(BLOCK_DISJUNTOR_ID, 'disjuntor_mt', EQUIPMENT_DISJUNTOR_ID, { block_type: 'disjuntor_mt', sub_blocks: templateSubBlocks('disjuntor_mt'), na_defaults: [] }, 'a1'),
 });
 nameplateSteps(BLOCK_DISJUNTOR_ID, 'disjuntor_mt', DISJUNTOR_DATA.np);
 push({ kind: 'put', scope: 'relatorio', path: `block/${BLOCK_DISJUNTOR_ID}/not_tested`, value: { reason: 'solicitacao_cliente', text: 'Ensaio não realizado nesta fixture reduzida (dado sintético).', at: fixedTs(30), by: USER_ID } });
@@ -261,7 +270,7 @@ push({
   kind: 'create',
   scope: 'relatorio',
   path: `block/${BLOCK_TRANSFORMADOR_ID}`,
-  value: blockRow(BLOCK_TRANSFORMADOR_ID, 'transformador_forca', EQUIPMENT_TRANSFORMADOR_ID, { block_type: 'transformador_forca', subtype: 'a_seco', sub_blocks: {}, na_defaults: NA_ITEMS_BY_TYPE.transformador_forca ?? [] }, 'a2'),
+  value: blockRow(BLOCK_TRANSFORMADOR_ID, 'transformador_forca', EQUIPMENT_TRANSFORMADOR_ID, { block_type: 'transformador_forca', subtype: 'a_seco', sub_blocks: templateSubBlocks('transformador_forca'), na_defaults: NA_ITEMS_BY_TYPE.transformador_forca ?? [] }, 'a2'),
 });
 nameplateSteps(BLOCK_TRANSFORMADOR_ID, 'transformador_forca', TRANSFORMADOR_DATA.np);
 checklistSteps(BLOCK_TRANSFORMADOR_ID, 'transformador_forca');

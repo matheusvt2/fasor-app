@@ -1,4 +1,4 @@
-import { captionPhotoMetaText, padCropToAspect, PLATE_CAPTION, regionWithin, type NormalizedBox, type PlateReadingView } from '@app/domain';
+import { captionPhotoMetaText, plateCropView, PLATE_CAPTION, regionWithin, type NormalizedBox, type PlateReadingView } from '@app/domain';
 import { useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { TextButton } from '../../components/index.ts';
@@ -143,8 +143,8 @@ const pct = (n: number): string => `${Math.round(n * 1000) / 1000}%`;
 
 /**
  * The plate crop (`60-ficha.html` `.plate-crop`, at most 160 px high, full width): the read
- * region of the plate photo fitted in the box with its aspect kept, and the focused field's
- * own region outlined as one `.region`. The picture is this device's original, else the
+ * region of the plate photo fitted in the box with its aspect kept, zoomed to the focused
+ * field's own region while one is focused (E78-R1), which is outlined as one `.region`. The picture is this device's original, else the
  * server's original kept as a `crop` blob; `.thumb-fake` meanwhile. A tap opens the Photo
  * viewer zoomed on the read region.
  */
@@ -153,9 +153,10 @@ export function PlateCrop({ photoId, region, focused, onOpen }: { photoId: strin
   const box = useRef<HTMLSpanElement>(null);
   const [size, setSize] = useState<{ src: string; width: number; height: number; boxRatio: number } | null>(null);
   const loaded = size !== null && size.src === src;
-  // E78-Q14: once the picture's size is known, the read region is widened to the box's own
-  // aspect (the kernel's `padCropToAspect`), so a tall narrow region fills the width.
-  const shown = loaded ? padCropToAspect(region, size, size.boxRatio) : region;
+  // E78-R1: while a field is focused the crop zooms to that field's region (with a margin);
+  // E78-Q14: once the picture's size is known, what is shown is widened to the box's own
+  // aspect, so a tall narrow region fills the width (the kernel's `plateCropView`).
+  const shown = plateCropView(region, focused, loaded ? size : null, loaded ? size.boxRatio : 0);
   const [x0, y0, x1, y1] = shown;
   const w = x1 - x0;
   const h = y1 - y0;

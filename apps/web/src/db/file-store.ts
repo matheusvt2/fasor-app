@@ -171,35 +171,47 @@ export async function localUploadError(db: AppDatabase, id: string): Promise<Upl
 
 /**
  * Story 6.2 (AR-6): deletes the local originals the kernel's `evictionPlan` names. Only
- * photo originals the server acknowledged are candidates; thumbs are never touched. The
- * relatórios' statuses come from this device's rows; `reading` sizes the pressure.
- * Returns the ids actually deleted.
+ * photo originals the server acknowledged are candidates, and (E8-A5) the crop sources
+ * `cropSourceBlob` kept: a server original held only to draw a suggestion's crop, sized by
+ * its bytes and aged from when it was fetched, re-downloaded on the next view. Thumbs are
+ * never touched. The relatórios' statuses come from this device's rows; `reading` sizes the
+ * pressure. Returns the ids actually deleted.
  */
 export async function runEviction(db: AppDatabase, reading: StorageReading | null): Promise<string[]> {
-  const acked = await db.files.filter((row) => row.acked && row.variant === 'original').toArray();
+  const evictable = (row: FileBlobRow) => row.acked && (row.variant === 'original' || row.variant === 'crop');
+  const acked = await db.files.filter(evictable).toArray();
   if (acked.length === 0) return [];
   const blobs: EvictionBlob[] = [];
   const relatorioStatus: Record<string, RelatorioStatus> = {};
   for (const blob of acked) {
     const row = await localFileRow(db, blob.id);
-    if (row === null || row.kind !== 'photo' || row.uploaded_at === null) continue;
+    // A crop source came from the server, so it is uploaded whatever this device's row says.
+    if (row === null || row.kind !== 'photo' || (blob.variant === 'original' && row.uploaded_at === null)) continue;
     const relatorioId = row.relatorio_id;
     if (relatorioId !== null && relatorioStatus[relatorioId] === undefined) {
       const record = await db.entities.get(['relatorio', relatorioId]);
       const status = relatorioStatusSchema.safeParse((record?.row as { status?: unknown } | undefined)?.status);
       if (status.success) relatorioStatus[relatorioId] = status.data;
     }
-    // The row's `size` is the original's byte count (the server checks the PUT against it).
-    blobs.push({ id: blob.id, acked: true, acked_at: blob.acked_at ?? null, size: row.size, relatorio_id: relatorioId });
+    // The row's `size` is the original's byte count (the server checks the PUT against it);
+    // a crop source is sized by the bytes kept and aged from when it was fetched.
+    const crop = blob.variant === 'crop';
+    blobs.push({
+      id: blob.id,
+      acked: true,
+      acked_at: blob.acked_at ?? (crop ? blob.created_at : null),
+      size: crop ? blob.blob.size : row.size,
+      relatorio_id: relatorioId,
+    });
   }
   const plan = evictionPlan({ blobs, relatorioStatus, pressure: storagePressureBytes(reading) });
   const deleted: string[] = [];
   if (plan.length > 0) {
     await db.transaction('rw', db.files, async () => {
       for (const id of plan) {
-        // Re-checked inside the write: an original is deleted only while it is still acked.
+        // Re-checked inside the write: an original (or crop source) is deleted only while it is still acked.
         const current = await db.files.get(id);
-        if (current?.acked === true && current.variant === 'original') {
+        if (current !== undefined && evictable(current)) {
           await db.files.delete(id);
           deleted.push(id);
         }
@@ -269,9 +281,11 @@ export async function previewBlob(
 /**
  * Story 8.1: the picture a suggestion's source crop is drawn from. The original this device
  * holds (picked here, or kept earlier as a crop source) is used as it is; otherwise the
- * server's original is fetched and kept as variant `crop` under the photo id, only when the
- * id is free (never over another rendering). Null when neither exists or the fetch fails:
- * the crop keeps its placeholder and a later render asks again.
+ * server's original is fetched and kept as variant `crop` under the photo id when the id is
+ * free or holds only a cached `thumb` (E8-A5: the original replaces that thumb, which the
+ * server serves again on demand, so the next mount reads it locally instead of fetching it
+ * again); never over an original this device holds. Null when neither exists or the fetch
+ * fails: the crop keeps its placeholder, a cached thumb stays, and a later render asks again.
  */
 export async function cropSourceBlob(
   db: AppDatabase,
@@ -286,6 +300,6 @@ export async function cropSourceBlob(
   } catch {
     return null;
   }
-  if (local === null) await putLocalBlob(db, { id, blob, variant: 'crop', createdAt: deps.nowIso, acked: true });
+  if (local === null || local.variant === 'thumb') await putLocalBlob(db, { id, blob, variant: 'crop', createdAt: deps.nowIso, acked: true });
   return blob;
 }

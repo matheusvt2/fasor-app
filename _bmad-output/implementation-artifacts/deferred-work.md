@@ -839,20 +839,20 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: The pre-issue calibration and certificate rows read `snapshot.instruments`, the instruments the sheets' copied headers name; an instrument checked in Etapa 4 that no sheet uses is not in the snapshot, so it gets no row. Section 11's union (`section11Instruments`, G2) is where both meet; wire the rows over it when it lands.
   evidence: `packages/domain/src/schemas/snapshot.ts` `buildSnapshot` (instruments from sheet headers only).
   class: deferred
-  state: open (owner: Epic 7 batch G2 or the integrated Epic 7/8 review)
+  state: ~~open (owner: Epic 7 batch G2 or the integrated Epic 7/8 review)~~ closed (2026-09-28, `spec-epic-9-carry-over.md`, batch C1, E7-A4: `preIssue`'s calibration rows iterate `section11Instruments(snapshot)` and judge each on its registry row, so they name exactly what section 11 prints; `pre-issue-export.test.ts` "the calibration rows follow section 11's own list")
 
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-7-2-7-3-photo-record-points-certificates.md`
   summary: Narrowing. Section 11 prints the placeholder line for an instrument with no certificate attached, but the pre-issue warning row for it is not built. The kernel list it reads is ready: `missingCertificates(snapshot)` in `packages/domain/src/print/section-11.ts`.
   evidence: Epic 7 context, coordinator decisions of 2026-09-26: the pre-issue rows are batch G3's (Stories 7.4/7.5), and batch G2 does not touch `preIssue`.
   class: deferred
-  state: open (owner: Epic 7 batch G3, Story 7.5)
+  state: ~~open (owner: Epic 7 batch G3, Story 7.5)~~ closed (2026-09-28, `spec-epic-9-carry-over.md`, batch C1, stale: `preIssue` already builds `certificate_missing` from `missingCertificates(snapshot)` (`pre-issue.ts`, Story 7.5); `pre-issue-export.test.ts` "calibration per instrument on section 11")
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-7-2-7-3-photo-record-points-certificates.md`
   summary: Narrowing. The `integrity` finding `cert_number_mismatch` exists (`integrityFindings` with `blocks` and `instruments`, `packages/domain/src/relatorio/integrity.ts`; `Section11Instrument.cert_mismatch`), but nothing shows it yet: no pre-issue row and no Sumário line. The print uses the registry's certificate either way.
   evidence: Same boundary as the entry above; batch G2 adds the finding only.
   class: deferred
-  state: open (owner: Epic 7 batch G3, Story 7.5)
+  state: ~~open (owner: Epic 7 batch G3, Story 7.5)~~ closed (2026-09-28, `spec-epic-9-carry-over.md`, batch C1, E7-A4: a `cert_number_mismatch` pre-issue row per `cert_mismatch` instrument, section 11, `info`, never blocking, listed one by one in the Export dialog; text "⟨código⟩: nº de certificado da ficha difere do cadastro" (`certNumberMismatchText`, authored, open for Bruno); `pre-issue-export.test.ts` "a sheet certificate number that differs from the registry". No Sumário line of its own beyond row 11's rows)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-7-2-7-3-photo-record-points-certificates.md`
   summary: Open questions for Bruno, conservative choice taken. (1) Stored `origin: not_tested` points print as their own bullets and are not merged like derived groups. (2) A point's Ação recomendada prints after its text in the same bullet. (3) A photo the server does not hold keeps its number in section 7 and prints "(foto não disponível no servidor)" in place of the image. (4) A sheet's copied `cert_number` with an empty registry value is not a mismatch. Authored printed strings awaiting his review: `PHOTO_UNAVAILABLE_TEXT`, `REMOVED_PHOTO_REF_TEXT` ("imagem removida"), the derived-group sentence (one and many), the certificate placeholder "Certificado não anexado: ⟨código⟩ — ⟨nome⟩ (nº ⟨certificado⟩)", `certificatesCountText` and the two gallery lines ("Números da revisão N", "Números provisórios — serão definidos na revisão N+1").
@@ -864,13 +864,13 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: The small Porto Seguro fixture's sheets carry `config.sub_blocks: {}`, so their test sub-blocks count as switched off and section 11 lists none of the instruments their headers name (only instruments checked at setup print). The full fixture is unaffected. Either the small fixture should enable the tests its sheets fill, or a stored header on a switched-off test should still count; the spec's rule (only enabled tests) was kept.
   evidence: `packages/domain/fixtures/porto-seguro/small/op-log.ts`; `job.integration.test.ts` and `e2e/photo-numbers.spec.ts` check the instruments at setup for that reason.
   class: deferred
-  state: open (owner: Epic 7 integrated review)
+  state: ~~open (owner: Epic 7 integrated review)~~ closed (2026-09-28, `spec-epic-9-carry-over.md`, batch C1, E7-A4: the small fixture's three sheets enable their type's template sub-blocks (`defaultBlockConfig(...).sub_blocks`, as the full fixture), `small/snapshot.golden.json` regenerated; the tests that checked instruments at setup for the old gap were left as they are)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-7-1-section-9-equipment-sheets.md`
   summary: Narrowing, Story 7.1. `groupForPrint` returns an `unpaired_cable` integrity warning for an alimentação cable that feeds no live transformer of its cabine (printed last in the transformer group), but no pre-issue row or Export row shows it yet.
   evidence: `packages/domain/src/print/group-for-print.ts` `PrintGroupWarning`; `LayoutSectionSheets.warnings` carries it into the layout.
   class: deferred
-  state: open (owner: Epic 7 batch G3, the pre-issue shape)
+  state: ~~open (owner: Epic 7 batch G3, the pre-issue shape)~~ open (owner: Matheus's decision on the `feeds_block_id` writer (entry below, "No surface writes `block/{id}/feeds_block_id`"); the row ships with that writer, because today every alimentação cable of an app-created relatório is unpaired and the user cannot act on the warning; re-owned 2026-09-28, batch C1)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-7-1-section-9-equipment-sheets.md`
   summary: Narrowing, Story 7.1. No surface writes `block/{id}/feeds_block_id`, so every alimentação cable of a relatório created in the app prints unpaired, last in its transformer group; only the Porto Seguro fixture pairs its five 1° Subsolo cables.
@@ -882,7 +882,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Narrowing, Story 7.1. The printed ÍNDICE lists the eleven sections only; FO.SERV-03's also lists 9.1-9.11. The PDF outline already carries them as level 2 (Heading 2).
   evidence: `apps/api/src/jobs/generate/toc.ts` pages TOC entries only; `layoutSpec(...).toc` holds the sections.
   class: deferred
-  state: open (owner: Epic 7 integrated fix batch)
+  state: ~~open (owner: Epic 7 integrated fix batch)~~ closed (2026-09-28, `spec-epic-9-carry-over.md`, batch C1, E7-A4: the ÍNDICE lists section 9's subsections 9.1 to 9.N at level 2, indented, after section 9, each placed from the outline's Heading 2 title (kernel `tocLines`; `toc.ts` keys by the printed number string); `toc.test.ts`, `docx.test.ts` "prints the AC parts" and "writes the page numbers", `generate.integration.test.ts` "its ÍNDICE pages equal the PDF outline")
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-7-1-section-9-equipment-sheets.md`
   summary: Narrowing, Story 7.2 AC2. A sheet marked Não ensaiado prints its plate and its reason band only, never the photos linked to it.
@@ -894,7 +894,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Found in Story 7.1's render check. Section 9's Heading 1 follows section 8 on the same page (no section starts a page), so the first sheet of section 9 starts mid-page and splits across two when the rest of that page is short. A page break before the first subsection leaves "9 RELATÓRIOS DOS ENSAIOS" alone at the foot of the page (LibreOffice does not carry a keep-with-next paragraph over a forced break), so the fix is a page break before the section's own Heading 1, in `docx.ts`'s sections loop.
   evidence: Porto Seguro render, pages 7-8; `apps/api/src/jobs/generate/sections/section-9.ts` breaks before every subsection after the first and every sheet after its subsection's first.
   class: deferred
-  state: open (owner: Epic 7 integrated fix batch, once sections 7 and 8 print)
+  state: ~~open (owner: Epic 7 integrated fix batch, once sections 7 and 8 print)~~ closed (2026-09-28, `spec-epic-9-carry-over.md`, batch C1, E7-A4: `docx.ts` breaks the page before section 9's own Heading 1 (the breaks inside section 9 stay); `docx.test.ts` "E7-A4 section 9 starts a page", asserted from the heading)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-7-1-section-9-equipment-sheets.md`
   summary: Found in Story 7.1. AMBIENTE DE ENSAIO prints the cabine's own `env.altitude_m` (the spec's reading); since Story 12.3 a relatório's altitude lives in its setup (`site_altitude_m`, Etapa 5) and no sheet asks the cabine's, so a relatório created in the app prints "-" for ALTITUDE.
@@ -930,7 +930,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: A crop source fetched from the server is kept as a `crop` blob under the photo id and the eviction pass (`runEviction`) never removes it (it deletes acked `original` rows only), so every plate photo a device only viewed through a crop keeps its full original on the device.
   evidence: `apps/web/src/db/file-store.ts` `cropSourceBlob`, `runEviction`.
   class: debt
-  state: open (owner: none)
+  state: ~~open (owner: none)~~ closed (2026-09-28, `spec-epic-9-carry-over.md`, batch C1, E8-A5: `runEviction` takes acked `crop` rows as candidates, sized by the blob and aged from when it was fetched; the next view downloads it again; `photo-store.test.ts` "evicts a kept crop source like an acked original")
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-8-1-suggestion-entity.md`
   summary: A pending suggestion whose target later receives an equal value by another path (a copy chip, another device's put) shows nothing on the sheet (`suggestionView` = `none`) yet stays pending and counted; auto-confirm runs only over pulled suggestion creates, and one that throws is not retried.
@@ -948,7 +948,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Unverified: `cropSourceBlob` re-downloads a photo's original on every crop mount when the id already holds another blob under `files` (it keeps the fetched bytes only when the id is free).
   evidence: `apps/web/src/db/file-store.ts` `cropSourceBlob`; settle by checking whether any path stores a photo thumb under `files` (tiles read `thumbs`).
   class: debt
-  state: open (owner: integrated Epic 8 review)
+  state: ~~open (owner: integrated Epic 8 review)~~ closed (2026-09-28, `spec-epic-9-carry-over.md`, batch C1, E8-A5: confirmed (`ensureLocalBlob` keeps a fetched `thumb` under `files` when the id is free); `cropSourceBlob` now replaces a cached `thumb` with the fetched original as `crop`, so it is fetched once, and a failed fetch keeps the thumb; `file-store.test.ts` "over a cached thumb")
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-8-4-8-5-reading-job.md`
   summary: Narrowing, Story 8.4. Only `plate` readings run. File receipt enqueues a job only for `reading_kind: plate`, a photo queued with another kind (`display`, `caption`, `panel`, `nc_obs`) stays `queued`, the reread route answers it `400 invalid_request`, and the job fails any other kind permanently.
@@ -960,7 +960,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: The `thumb` and `print` variants are still rendered without applying the original's EXIF orientation, so a photo stored sideways shows sideways in its tile and prints sideways in the document; only the reading job orients the image it sends to OCR.
   evidence: `apps/api/src/storage/variants.ts` `render` (no `.rotate()`); `apps/api/src/jobs/reading/image.ts` orients a copy for the reading alone.
   class: deferred
-  state: open (owner: none)
+  state: ~~open (owner: none)~~ open (owner: the batch that may change `apps/api/src/jobs/reading/image.ts`, Epic 9 batch D or later; re-owned 2026-09-28, batch C1: rotating `thumb` and `print` in `renderVariants` alone would turn every oriented plate sideways for OCR, because the reading job applies the original's EXIF orientation to the `print` bytes again (`readingImage`), and batch C1 may not touch `jobs/reading/*`; both sides must change in one batch)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-8-4-8-5-reading-job.md`
   summary: A reading whose last attempt never returns (the api process dies mid-read, or the attempt outlives `expireInSeconds: 300`) is failed by pg-boss without `runReadingJob` seeing it, so nothing writes `reading_status = failed` and the photo stays `running` on the device, where "Tentar novamente" never shows. A dead-letter queue (`deadLetter` on the `reading` queue, its worker writing `failed` when the status is still `running`) or a boot-time sweep would close it.
@@ -972,13 +972,13 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: The gate still runs over its 15-minute budget on the 4-core laptop, and the e2e cost per step is the device's: each commit rebuilds the relatório's whole snapshot through its live query (`toSnapshot` + `buildSnapshot`, about 223 ops of a standard relatório), so under CPU contention a commit's render lands late. That is why the tap-timing specs (12.1-E2E-007 lost its tap in 1 of 5 repeats beside other workers) must run alone in the serial group, and why `signIn`/`pushDrafts` cost twice as much per call at 3 workers. An incremental snapshot (or a narrower live query per surface) would shorten every e2e step and the field device's own latency.
   evidence: `spec-test-speed.md` measurements (timings reporter, repeat runs at 2 and 3 workers); `apps/web/src/db/snapshot.ts`.
   class: deferred
-  state: open (owner: Epic 9 carry-over batch)
+  state: ~~open (owner: Epic 9 carry-over batch)~~ closed (2026-09-28, `spec-epic-9-carry-over.md`, batch C1, E7-A1/E8-A1: the device snapshot is incremental (kernel `createSnapshotBuilder`, equal to `buildSnapshot`; `relatorioState` reads the relatório index once and keeps untouched rows identical by a per-write `rev`; every surface reads through `useRelatorioSnapshot`); commit-to-render before and after is in the spec's Design Notes (`e2e/commit-to-render.perf.spec.ts`); the gate time is measured by the orchestrator's `verify` runs)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-8-2-8-6-plate-capture-and-confirm.md`
   summary: The "Fotografar placa" tile shows on every equipment sheet with a nameplate, but batch R reads only `transformador_forca` plates; a plate photo of any other type stays `queued` with "Foto guardada — leitura quando houver sinal" indefinitely.
   evidence: `apps/web/src/surfaces/ficha/nameplate-section.tsx` (tile for any block); batch R contract (coordinator message 2026-09-27: "only `transformador_forca` plates are read").
   class: deferred
-  state: open (owner: integrated Epic 8 fix batch; open question for Matheus: hide the tile on other types, or have the server end their reading as `failed`)
+  state: ~~open (owner: integrated Epic 8 fix batch; open question for Matheus: hide the tile on other types, or have the server end their reading as `failed`)~~ closed (2026-09-28, `spec-epic-9-carry-over.md`, batch C1, stale: refuted by the Epic 7/8 QA (`reviews/epic-7-8-review-qa.md` line 30): the job reads any type with a nameplate definition and a photo with no fake fixture ends `failed`, never stuck; the remaining product question lives in E78-Q2 (entry "Under the `fake` providers only `transformador_forca` has a default fixture") and E8-A3)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-8-2-8-6-plate-capture-and-confirm.md`
   summary: A confirmed month-only date suggestion (`2024-08`, the fixture's DATA FABRICAÇÃO) shows blank in the plain date field once the cell holds it; found in Story 8.1's path, seen by batch P.
@@ -1020,7 +1020,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: E78-R1. The plate crop shrinks the plate text to about 7 px at 768 px (the crop is 297 px wide inside a 657 px box), and the focused field's outline covers the value it points at.
   evidence: `reviews/epic-7-8-review-qa.md` § Re-check (PR #55), screenshot R1.
   class: deferred
-  state: open (owner: Epic 9 carry-over batch)
+  state: ~~open (owner: Epic 9 carry-over batch)~~ closed (2026-09-28, `spec-epic-9-carry-over.md`, batch C1, E8-A5: while a field is focused the crop zooms to its region with a margin, padded to the box aspect (kernel `plateCropView`), and `.region` is an outline outside the field's box, at least 12 px high (`app.css`); `suggestions-plate.test.ts` "E78-R1 plateCropView", `plate-photo.test.tsx`, `@p1` 8.6-E2E-004 in `e2e/plate-reading.spec.ts`)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-7-8-fix-qa.md`
   summary: E78-R2. The Sumário header reads "3 de 94 fichas concluídas" while the parecer band reads "0 de 94": two definitions of a concluded sheet reach the screen.
@@ -1038,7 +1038,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   - a `@p0` Playwright test on Home and `/cadastros` at 390, 768, 1280 and 1906 px (the avatar's right edge within 16 px of the App bar's right edge; the column centered at 1280 and 1906 px);
   - a real-browser pass with screenshots at the four widths in light and dark, plus one dialog.
   class: bug
-  state: open (owner: the next carry-over batch between epics; not part of Epic 8 batch C, already running)
+  state: ~~open (owner: the next carry-over batch between epics; not part of Epic 8 batch C, already running)~~ closed (2026-09-28, `spec-epic-9-carry-over.md`, batch C1: `app.css` puts `.app-bar-right` in grid column 3 and centers the capped column of rail-less surfaces (`.screen > .content`, `.registry-main.is-narrow`); dated line beside DESIGN.md's `content-max` sentence; the same App bar rule in `key-home.html`; `@p0` HOME-LAYOUT-E2E-001 in `e2e/app-layout.spec.ts` at 390, 768, 1280 and 1906 px, with light and dark screenshots and one dialog attached)
 
 - source_spec: spec-epic-7-8-fix-qa.md
   summary: E78-Q10. Section 10's validity line prints the literal placeholder `[ART]` when the ART number is blank ("Este relatório tem validade apenas acompanhada da ART [ART]").
@@ -1056,7 +1056,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: E78-Q15. The Porto Seguro fixture stores the transformer TTR "V PRIMÁRIO" as raw `13200` with the seed unit kV, printing "13.200 kV"; VAL CALCULADO prints "-" because the dual secondary "380/220" does not parse.
   evidence: `reviews/epic-7-8-review-qa.md` E78-Q15; tracked under E7-A3 (2026-09-28).
   class: bug
-  state: open (owner: Epic 9 batch C1 fixes the fixture value to 13.2; the dual-voltage secondary stays with Matheus (E7-A5))
+  state: ~~open (owner: Epic 9 batch C1 fixes the fixture value to 13.2; the dual-voltage secondary stays with Matheus (E7-A5))~~ TTR half closed (2026-09-28, `spec-epic-9-carry-over.md`, batch C1, E7-A3: the seven transformer ratios store V PRIMÁRIO `13.2` and print "13,2 kV"; goldens regenerated; `op-log.test.ts` "E7-A3 ... TR-1"); open for the dual-voltage secondary "380/220" (owner: Matheus, E7-A5)
 
 - source_spec: spec-9-1-read-the-instrument-display-with-ler-visor.md
   summary: Story 9.1 narrowing: a thermo-hygrometer suggestion confirmed on the cabine environment gets no provenance glyph: `location/{id}/env/*` values are bare number values with no cell provenance (`source_suggestion_id`).

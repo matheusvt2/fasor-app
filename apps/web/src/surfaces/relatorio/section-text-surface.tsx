@@ -1,5 +1,4 @@
 import {
-  buildSnapshot,
   defaultSectionText,
   editedSectionTextConfig,
   putBlockOp,
@@ -13,7 +12,7 @@ import {
   type BlockRow,
   type RelatorioSnapshot,
 } from '@app/domain';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { Button, Chip, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -27,6 +26,7 @@ import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
 import { useUndoableEdits } from '../../state/use-undoable-edits.ts';
 import './relatorio.css';
+import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
 
 /** The section types this surface ever opens for; 1 and 3 route to Etapa 2 of the setup page instead. */
 const EDITABLE_TYPES = new Set(['section_2', 'section_4', 'section_5', 'section_6']);
@@ -44,7 +44,7 @@ export function SectionTextSurface() {
   const db = useSession().database;
   const state = useLiveQuery(() => (db === null ? undefined : relatorioState(db, id)), [db, id]);
   const templates = useLiveQuery(() => (db === null ? Promise.resolve(NO_TEMPLATES) : templateRows(db)), [db], NO_TEMPLATES);
-  const snapshot: RelatorioSnapshot | null = useMemo(() => (state === undefined || state === null ? null : buildSnapshot(state, id)), [state, id]);
+  const snapshot: RelatorioSnapshot | null = useRelatorioSnapshot(state, id);
   const block = snapshot?.blocks.find((row) => row.id === blockId) ?? null;
   const t = copy.sectionText;
 

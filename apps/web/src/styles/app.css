@@ -378,6 +378,22 @@ body {
      wins on the overlapping 1024-1279.98px range — so 440px never actually renders there. */
 }
 
+/* ---------- Home layout defect (deferred-work, found 2026-09-26, fixed 2026-09-28) ----------
+   (1) `key-home.html` renders Home's `h1` as `app-bar-title visually-hidden`; `.visually-hidden`
+   is `position: absolute`, so the `h1` leaves the `.app-bar` grid (`1fr auto 1fr`,
+   components.css) and `.app-bar-right` falls into the middle `auto` column. MOCK-GUIDE.md
+   § App bar puts the Sync badge and the avatar at the right edge: the right group always
+   takes the third column, whatever the title does. */
+.app-bar-right { grid-column: 3; }
+/* (2) The capped content column (`.content`, and the narrow registry column of /cadastros)
+   is centered in the viewport on surfaces without the Relatório tree rail (DESIGN.md
+   § Layout & Spacing, content-max, dated line of 2026-09-28). Only a column that is a
+   direct child of `.screen` is a rail-less surface's: the equipment sheet's column sits
+   beside the rail inside its own wrapper and keeps its place; `/project/:id` lifts the cap
+   at desktop (below), so centering changes nothing there. */
+.screen > .content,
+.registry-main.is-narrow { width: 100%; margin-inline: auto; }
+
 /* ---------- Desktop: `.frame-desktop X` -> 1280px and up ----------
    `.frame-desktop .screen { min-height: calc(800px - 44px) }` is not translated: it sizes
    the screen to the mock's 800px bezel minus its fake browser chrome. */
@@ -669,6 +685,11 @@ input.count { width: 40px; padding: 0; border: 0; background: transparent; color
 .plate-crop .plate-crop-view[data-fitted] { width: min(100cqw, calc(100cqh * var(--plate-crop-ratio))); height: min(100cqh, calc(100cqw / var(--plate-crop-ratio))); }
 .plate-crop .plate-crop-view img { position: absolute; max-width: none; }
 .plate-crop .plate-crop-view img[hidden] { display: none; }
+/* E78-R1 (QA re-check of PR #55: the focused field's `.region` measured 38 x 5.4 px at 768 px and its
+   2 px border sat over the value it points at): the mock's `.plate-crop .region` border is drawn as an
+   outline outside the field's box instead, so it never covers the plate text, and the box is at
+   least 12 px high. The crop zooms to the focused field (`plateCropView`), leaving room around it. */
+.plate-crop .region { border: 0; outline: 2px solid var(--fora-do-limite); outline-offset: 2px; min-height: 12px; }
 /* authored: the plate photo's row sits between the chips and the fields (`60-ficha.html` "queued"). */
 .ficha-np-photo { margin-bottom: var(--sp-2); }
 .ficha-np-photo .photo-tile { flex: none; padding: 0; border: 0; background: none; cursor: pointer; }
