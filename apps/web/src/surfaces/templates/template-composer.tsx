@@ -16,6 +16,7 @@ import {
   moveSection,
   removeNode,
   removeSection,
+  resolveSectionIndex,
   renameNode,
   isSectionBlockType,
   SECTION_BLOCK_TYPES,
@@ -259,18 +260,21 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
   function onAddSection(type: SectionBlockType): void {
     const below = insertBelow;
     setInsertBelow(null);
-    void edit((fresh) => [
-      [
-        'blocks',
-        below === null
-          ? addSection(withoutOrphans(fresh), type, fresh.seed_version)
-          : addSectionBelow(withoutOrphans(fresh), below.index, type, fresh.seed_version),
-      ],
-    ]).catch(() => undefined);
+    void edit((fresh) => {
+      const blocks = withoutOrphans(fresh);
+      if (below === null) return [['blocks', addSection(blocks, type, fresh.seed_version)]];
+      // E9 sweep B11: the section "Adicionar abaixo" was pressed on, wherever it is now.
+      const index = resolveSectionIndex(blocks, below);
+      return index === null ? null : [['blocks', addSectionBelow(blocks, index, type, fresh.seed_version)]];
+    }).catch(() => undefined);
   }
 
   async function onMoveSection(section: ComposerSection, toIndex: number): Promise<void> {
-    const batch = await edit((fresh) => [['blocks', moveSection(withoutOrphans(fresh), section.index, toIndex)]]).catch(() => null);
+    const batch = await edit((fresh) => {
+      const blocks = withoutOrphans(fresh);
+      const index = resolveSectionIndex(blocks, section);
+      return index === null ? null : [['blocks', moveSection(blocks, index, toIndex)]];
+    }).catch(() => null);
     if (batch !== null) announce(moveAnnouncement('section', String(section.number), toIndex + 1, section.siblings));
   }
 
@@ -284,7 +288,11 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
   }
 
   function onDuplicateSection(section: ComposerSection): void {
-    void edit((fresh) => [['blocks', duplicateSection(withoutOrphans(fresh), section.index)]]).catch(() => undefined);
+    void edit((fresh) => {
+      const blocks = withoutOrphans(fresh);
+      const index = resolveSectionIndex(blocks, section);
+      return index === null ? null : [['blocks', duplicateSection(blocks, index)]];
+    }).catch(() => undefined);
   }
 
   function onRemoveSection(section: ComposerSection): void {
@@ -296,7 +304,11 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
         const list = mainRef.current?.querySelector<HTMLElement>('[data-composer-list="sections"]') ?? null;
         const li = (list?.children[section.position - 1] as HTMLElement | undefined) ?? null;
         const heading = list?.closest('section')?.querySelector<HTMLElement>('h2') ?? null;
-        const batch = await edit((fresh) => [['blocks', removeSection(withoutOrphans(fresh), section.index)]]).catch(() => null);
+        const batch = await edit((fresh) => {
+          const blocks = withoutOrphans(fresh);
+          const index = resolveSectionIndex(blocks, section);
+          return index === null ? null : [['blocks', removeSection(blocks, index)]];
+        }).catch(() => null);
         if (batch !== null) focusRowAfterRemoval(li, heading);
         undoable(removedText('section', String(section.number)), batch);
       },
@@ -336,8 +348,9 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
   /**
    * Writes the text of the section the dialog was opened on, as the freshest row holds it.
    * An empty text, or one equal to the seed's text in force, is written as null, so the
-   * section keeps following the seed. `gone` is true when nothing was written because that
-   * section is no longer at its index (another device moved, retyped or removed it); an
+   * section keeps following the seed. The section is found where it is now (E9 sweep B11),
+   * so one another device moved is still written; `gone` is true when nothing was written
+   * because that section is no longer there (another device removed or retyped it); an
    * unchanged text writes nothing and is not `gone`.
    */
   async function writeSectionText(section: ComposerSection, text: string | null): Promise<{ batch: string | null; gone: boolean }> {
@@ -345,13 +358,14 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
     let gone = false;
     const batch = await edit((fresh) => {
       const blocks = withoutOrphans(fresh);
-      const current = blocks.filter((block) => isSectionBlockType(block.block_type))[section.index];
-      if (current === undefined || current.block_type !== section.block_type) {
+      const index = resolveSectionIndex(blocks, section);
+      const current = index === null ? undefined : blocks.filter((block) => isSectionBlockType(block.block_type))[index];
+      if (index === null || current === undefined) {
         gone = true;
         return null;
       }
       if (current.section_text === value) return null;
-      return [['blocks', setSectionText(blocks, section.index, value)]];
+      return [['blocks', setSectionText(blocks, index, value)]];
     });
     return { batch, gone };
   }

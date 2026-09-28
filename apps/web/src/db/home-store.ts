@@ -31,14 +31,36 @@ import { type AppDatabase, type EntityRecord } from './schema.ts';
  */
 
 async function rows<T>(db: AppDatabase, entity: keyof typeof entityRowSchemas): Promise<T[]> {
+  return (await liveRows<T>(db, entity)).rows;
+}
+
+/** Records already reported, so a live query re-running on every write logs each one once. */
+const warned = new Set<string>();
+
+/**
+ * The live rows of an entity that parse, and how many live records do not. A record that
+ * fails its schema is logged (`console.warn`, once per record) rather than dropped silently,
+ * and a surface whose empty state offers to create something counts it as present.
+ */
+async function liveRows<T>(db: AppDatabase, entity: keyof typeof entityRowSchemas): Promise<{ rows: T[]; unreadable: number }> {
   const records: EntityRecord[] = await db.entities.where('entity').equals(entity).toArray();
   const parsed: T[] = [];
+  let unreadable = 0;
   for (const record of records) {
     if (record.removed_at !== null) continue;
     const result = entityRowSchemas[entity].safeParse(record.row);
-    if (result.success) parsed.push(result.data as T);
+    if (result.success) {
+      parsed.push(result.data as T);
+      continue;
+    }
+    unreadable += 1;
+    const key = `${entity}:${record.id}`;
+    if (!warned.has(key)) {
+      warned.add(key);
+      console.warn(`home-store: ${key} does not fit its schema and is not shown`, result.error.issues);
+    }
   }
-  return parsed;
+  return { rows: parsed, unreadable };
 }
 
 export function relatorioRows(db: AppDatabase): Promise<RelatorioRow[]> {
@@ -86,6 +108,15 @@ export function blockRows(db: AppDatabase): Promise<BlockRow[]> {
 
 export function templateRows(db: AppDatabase): Promise<TemplateRow[]> {
   return rows<TemplateRow>(db, 'template');
+}
+
+/**
+ * The Templates list's read: the live templates that parse, plus how many live template
+ * records do not (a dev database holding rows from before Story 3.2). Those still count
+ * for the empty state, so "Criar template padrão" is never offered over them.
+ */
+export function templateList(db: AppDatabase): Promise<{ rows: TemplateRow[]; unreadable: number }> {
+  return liveRows<TemplateRow>(db, 'template');
 }
 
 /** One live row of an entity by id, or null: absent, removed, or no longer parsing. */

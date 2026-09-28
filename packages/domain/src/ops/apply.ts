@@ -92,7 +92,9 @@ function withSheet(block: BlockRow, update: (sheet: Sheet) => Sheet): BlockRow {
 }
 
 /**
- * E5-Q1: a `sheet/*` op whose seed key or cell address is outside the block's definition.
+ * E5-Q1: a `sheet/*` op whose seed key or cell address is outside the block's definition,
+ * or a create whose row id is not its path id (`createRow`, which re-checks the rule
+ * `opSchema` holds at the push boundary, for an emitter that bypasses it).
  * A permanent refusal, like a schema failure: the api answers it `op_invalid` (never a 500),
  * so the device drops it from the outbox instead of retrying it forever.
  */
@@ -249,8 +251,11 @@ export function readPath(state: EntityState, op: Op): unknown {
   }
 }
 
-function createRow(entity: Entity, op: Op): EntityRow {
+function createRow(entity: Entity, id: string, op: Op): EntityRow {
   const row = entityRowSchemas[entity].parse(op.value);
+  // The row is keyed by its path id: a value naming another id would materialize a row whose
+  // JSON id differs from its key.
+  if (row.id !== id) throw new SeedPathError(op.path, `the created row's id "${row.id}" is not the path id`);
   if (entity === 'block') {
     const block = row as BlockRow;
     return {
@@ -338,7 +343,7 @@ export function applyOp(state: EntityState, op: Op): EntityState {
 
   if (op.kind === 'create') {
     if (current) return next;
-    next.set(target.key, createRow(target.entity, op));
+    next.set(target.key, createRow(target.entity, target.id, op));
   } else {
     if (!current) return next;
     const written = writeRow(current, op, path);

@@ -4,7 +4,10 @@ import sharp from 'sharp';
  * AD-7: the server derives two sizes from an uploaded image — `thumb` for a tile and
  * `print` for the rendered document. `application/pdf` produces none (Epic 7's renderer
  * embeds the original); `image/svg+xml` is rasterized through sharp's `density` path so
- * a vector logo still has a bitmap the DOCX renderer can place.
+ * a vector logo still has a bitmap the DOCX renderer can place. Both variants are upright
+ * (Epic 9 A12): the original's EXIF orientation is applied to the pixels and the output
+ * carries no EXIF, so a phone portrait neither shows nor prints sideways, and every reader
+ * of a variant (the tile, the document, the reading job) takes its pixels as they are.
  */
 
 /** AD-7 and Story 6.2: the spine's sizes, thumb at most 512 px and print at most 2000 px on the long edge. */
@@ -38,7 +41,9 @@ async function render(source: Uint8Array, mime: string, maxPx: number): Promise<
   // A vector has no intrinsic pixel size: the density makes sharp rasterize it large
   // enough that the `resize` below is a downscale, never an upscale of a 72 dpi render.
   const input = mime === 'image/svg+xml' ? sharp(source, { density: 300 }) : sharp(source);
-  const pipeline = input.resize({ width: maxPx, height: maxPx, fit: 'inside', withoutEnlargement: true });
+  // `.rotate()` with no angle applies the EXIF orientation and drops the tag; it comes before
+  // `resize` so `fit: inside` bounds the upright dimensions.
+  const pipeline = input.rotate().resize({ width: maxPx, height: maxPx, fit: 'inside', withoutEnlargement: true });
   const bytes = await (format === 'jpeg' ? pipeline.jpeg({ quality: JPEG_QUALITY }) : pipeline.png()).toBuffer();
   return { bytes: new Uint8Array(bytes), contentType: format === 'jpeg' ? 'image/jpeg' : 'image/png' };
 }

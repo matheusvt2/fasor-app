@@ -1,4 +1,4 @@
-import { makeOp, type Op, type OpInput } from '@app/domain';
+import { applyOp, makeOp, SeedPathError, type Op, type OpInput } from '@app/domain';
 import { and, eq, inArray } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
 import { now } from '../clock.ts';
@@ -6,7 +6,7 @@ import { createDb, type Db } from '../db/client.ts';
 import { asCompanyId } from '../db/repositories/company-id.ts';
 import { entities, ops } from '../db/schema.ts';
 import { newId } from '../ids.ts';
-import { applyOps, applyServerBatch, ServerBatchRejectedError } from './apply.ts';
+import { applyOps, applyServerBatch, isPermanentRefusal, ServerBatchRejectedError } from './apply.ts';
 
 /*
  * Story 4.8: `applyServerBatch` is one transaction under the company lock. A batch whose
@@ -75,6 +75,27 @@ describe('4.8-INT-001 applyServerBatch', () => {
     });
     const logged = await db.select({ op_id: ops.op_id }).from(ops).where(eq(ops.op_id, create.op_id));
     expect(logged).toEqual([]);
+  });
+
+  it('refuses a create whose row id is not its path id as op_invalid; the kernel refusal behind it is a permanent one', async () => {
+    const id = newId();
+    const create = clientCreate(id);
+    const forged = { ...create, value: { ...(create.value as Record<string, unknown>), id: newId() } } as Op;
+    await expect(applyServerBatch(db, companyId, [forged], { now })).rejects.toMatchObject({
+      name: 'ServerBatchRejectedError',
+      rejected: [{ op_id: forged.op_id, code: 'op_invalid' }],
+    });
+    expect(await db.select({ op_id: ops.op_id }).from(ops).where(eq(ops.op_id, forged.op_id))).toEqual([]);
+    // An emitter that bypasses `opSchema` reaches `applyOp`, which refuses it too, with an
+    // error the apply loop answers `op_invalid` instead of a 500.
+    let refusal: unknown = null;
+    try {
+      applyOp(new Map(), forged);
+    } catch (error) {
+      refusal = error;
+    }
+    expect(refusal).toBeInstanceOf(SeedPathError);
+    expect(isPermanentRefusal(refusal)).toBe(true);
   });
 
   it('E5-Q1 refuses a seed-path op as op_invalid naming it, and rolls the batch back', async () => {

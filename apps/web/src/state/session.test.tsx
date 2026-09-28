@@ -150,16 +150,13 @@ describe('the remembered 401 (retro A8)', () => {
     await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent(`signed-in|ok|${profile.id}`));
   });
 
-  it('dismissing the banner hides it now and keeps it for the next open', async () => {
+  it('offers no dismissal: only a sign-in clears it, so the engine never resumes early', async () => {
     writeLastSession(profile);
     readSession.mockResolvedValue(null);
-    const view = renderSession();
+    renderSession();
     await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('signed-in|re-auth'));
-    act(() => current!.dismissReAuth());
-    await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('signed-in|ok'));
+    expect(current).not.toHaveProperty('dismissReAuth');
     expect(readReAuthRequired()).toBe(true);
-    await offlineReopen(view);
-    await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('signed-in|re-auth'));
   });
 });
 

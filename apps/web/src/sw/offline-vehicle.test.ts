@@ -75,9 +75,11 @@ describe('the service worker precaches the shell and leaves /api alone', () => {
   });
 
   it('never activates itself: the page decides when the outbox is empty (AD-8)', () => {
-    // It is called once, inside the `activate-shell` message handler.
+    // It is called once, by the `activate-shell` message handler (unless another user holds).
     expect(sw.match(/self\.skipWaiting\(\)/g)).toHaveLength(1);
-    expect(sw).toMatch(/'activate-shell'\) self\.skipWaiting\(\)/);
+    expect(sw).toMatch(/'activate-shell'\) event\.waitUntil\(activateUnlessHeld\(user\)\)/);
+    const gate = sw.slice(sw.indexOf('async function activateUnlessHeld'));
+    expect(gate.slice(0, gate.indexOf('\n}\n'))).toMatch(/self\.skipWaiting\(\)/);
     // `install` must not promote itself: everything between the install listener and
     // the next one is free of it.
     const install = sw.slice(sw.indexOf("addEventListener('install'"), sw.indexOf("addEventListener('activate'"));

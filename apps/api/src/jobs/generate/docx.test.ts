@@ -263,9 +263,41 @@ describe('4.8-UNIT-007 images', () => {
     expect(mediaFiles(entries)).toHaveLength(2);
     expect(entries.get('word/header1.xml')?.toString('utf8')).toContain('<w:drawing');
     expect(entries.get('word/document.xml')?.toString('utf8')).toContain('<w:drawing');
-    // The header keeps its two lines; the logo sits a tab before the title.
-    expect(extractStructure(docx).header).toEqual(['\tRelatório Técnico de Cabine Primária', 'FO.SERV-03 · Revisão 00']);
+    // The header keeps its two lines, both beside the logo (checked on the XML below).
+    expect(extractStructure(docx).header.filter((line) => line !== '')).toEqual(['Relatório Técnico de Cabine Primária', 'FO.SERV-03 · Revisão 00']);
   }, 30_000);
+
+  it('A11: with a logo, the header is a two-cell borderless table, the logo left and both lines right', async () => {
+    const layout = layoutSpec(snapshot(), { revisionNumber: 1, issuedAt: ISSUED_AT });
+    const docx = await buildDocx(layout, { tocPages: placeholderPages(layout), images: { logo: await jpeg() } });
+    const header = readZipEntries(docx).get('word/header1.xml')!.toString('utf8');
+    const tables = [...header.matchAll(/<w:tbl>([\s\S]*?)<\/w:tbl>/g)];
+    expect(tables).toHaveLength(1);
+    const table = tables[0]![0];
+    // Borderless: every table border is none.
+    const tableBorders = /<w:tblBorders>([\s\S]*?)<\/w:tblBorders>/.exec(table)?.[1] ?? '';
+    const borderStyles = [...tableBorders.matchAll(/<w:(\w+) w:val="([^"]+)"/g)].map((m) => [m[1], m[2]]);
+    expect(borderStyles.map(([side]) => side).sort()).toEqual(['bottom', 'insideH', 'insideV', 'left', 'right', 'top']);
+    expect(borderStyles.every(([, style]) => style === 'none' || style === 'nil')).toBe(true);
+    // One row, two cells: the logo alone on the left, the title and form lines on the right.
+    const cells = [...table.matchAll(/<w:tc>([\s\S]*?)<\/w:tc>/g)].map((m) => m[1]!);
+    expect(cells).toHaveLength(2);
+    expect(cells[0]).toContain('<w:drawing');
+    expect(paragraphText(cells[0]!)).toBe('');
+    expect(cells[1]).not.toContain('<w:drawing');
+    const rightLines = [...cells[1]!.matchAll(/<w:p(?:\s[^>]*)?>([\s\S]*?)<\/w:p>/g)].map((m) => paragraphText(m[0]));
+    expect(rightLines).toEqual(['Relatório Técnico de Cabine Primária', 'FO.SERV-03 · Revisão 00']);
+    // No tab stands in for the side-by-side layout any more.
+    expect(header).not.toContain('<w:tab/>');
+
+    // A draft with a logo: RASCUNHO rides in the paragraph after the table, behind the text.
+    const draftLayout = layoutSpec(snapshot(), { revisionNumber: 1, issuedAt: ISSUED_AT, draft: true });
+    const draft = await buildDocx(draftLayout, { tocPages: placeholderPages(draftLayout), images: { logo: await jpeg() } });
+    const draftHeader = readZipEntries(draft).get('word/header1.xml')!.toString('utf8');
+    const afterTable = draftHeader.slice(draftHeader.indexOf('</w:tbl>'));
+    expect(afterTable).toContain('<w:drawing');
+    expect(afterTable).toContain('behindDoc="1"');
+  }, 60_000);
 
   it('prints without an image sharp cannot read, and never throws for it', async () => {
     const layout = layoutSpec(snapshot(), { revisionNumber: 1, issuedAt: ISSUED_AT });
@@ -273,6 +305,8 @@ describe('4.8-UNIT-007 images', () => {
     const entries = readZipEntries(docx);
     expect(mediaFiles(entries)).toHaveLength(0);
     expect(entries.get('word/header1.xml')?.toString('utf8')).not.toContain('<w:drawing');
+    // Without a (readable) logo the header is the two paragraphs, no table.
+    expect(entries.get('word/header1.xml')?.toString('utf8')).not.toContain('<w:tbl>');
     expect(extractStructure(docx).header).toEqual(['Relatório Técnico de Cabine Primária', 'FO.SERV-03 · Revisão 00']);
   }, 30_000);
 });

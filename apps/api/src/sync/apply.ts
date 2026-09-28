@@ -228,10 +228,19 @@ async function mergeTarget(
   if (typeof incomingName !== 'string') return null;
   const normalized = normalizeRegistryName(incomingName);
   if (normalized === '') return null;
+  // Only the live rows of this kind are loaded (the JSON `kind` filtered in SQL); the JS check
+  // below stays as the guard of the rule.
   const candidates = await tx
     .select({ id: entities.id, row: entities.row })
     .from(entities)
-    .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'registry'), isNull(entities.removed_at)));
+    .where(
+      and(
+        eq(entities.company_id, companyId),
+        eq(entities.entity, 'registry'),
+        isNull(entities.removed_at),
+        sql`${entities.row}->>'kind' = ${kind}`,
+      ),
+    );
   const match = candidates.find((c) => {
     const row = c.row as RegistryRow;
     return c.id !== path.id && row.kind === kind && normalizeRegistryName(row.name) === normalized;
@@ -399,7 +408,7 @@ export interface ServerBatchDeps {
  * A refusal no retry can fix: a row schema failure, a seed key or cell outside the block's
  * definition (E5-Q1, `SeedPathError`), or an op_id another company holds. Each is `op_invalid`.
  */
-function isPermanentRefusal(error: unknown): boolean {
+export function isPermanentRefusal(error: unknown): boolean {
   return error instanceof ZodError || error instanceof SeedPathError || error instanceof ForeignOpIdError;
 }
 

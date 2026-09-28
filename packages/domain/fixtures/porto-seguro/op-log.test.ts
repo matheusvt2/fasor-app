@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
-import { buildSnapshot, relatorioSnapshotSchema, replay, serializeSnapshot, standardTemplate, templateTotals } from '../../src/index.ts';
+import { buildSnapshot, getDefinition, relatorioSnapshotSchema, replay, serializeSnapshot, standardTemplate, templateTotals } from '../../src/index.ts';
 import type { EquipmentBlockType } from '../../src/schemas/block-config.ts';
 import { NA_ITEMS_BY_TYPE, SECTION_7_PHOTOS, SECTION_8_POINTS, notTestedText } from './data.ts';
 import {
@@ -10,6 +10,7 @@ import {
   NOT_TESTED_SECCIONADORA_1_BLOCK_ID,
   NOT_TESTED_SECCIONADORA_2_BLOCK_ID,
   SECTION_7_PHOTO_NUMBERS,
+  assertInstanceFitsBlockType,
   portoSeguro,
 } from './op-log.ts';
 import { portoSeguroSmall } from './small/op-log.ts';
@@ -259,5 +260,26 @@ describe('3.7-UNIT-003 (TC-8) the small fixture: one cabine, three blocks', () =
     expect(referenced).toBeDefined();
     expect(referenced?.code).toBe(ratioCell?.code);
     expect(referenced?.model).toBe(ratioCell?.model);
+  });
+});
+
+describe('3.7-UNIT-004 per-instance fit of data.ts rows to their block type', () => {
+  const def = (type: EquipmentBlockType) => getDefinition('v1', 'cabine_primaria', type);
+
+  it('accepts an instance whose data fits its type', () => {
+    expect(() => assertInstanceFitsBlockType(0, def('para_raio'), { np: { tensao_nominal: '15' }, isoRows: ['1', '2', '3', null] })).not.toThrow();
+    expect(() => assertInstanceFitsBlockType(1, def('disjuntor_mt'), { contact: ['1', '2', '3'], rc: ['10', '11', '12'] })).not.toThrow();
+    expect(() => assertInstanceFitsBlockType(2, def('tp'), { isoRows: ['1', '2', '3'], ratio: { p: '13800', s: '115', cap: ['120', '120', '120'] } })).not.toThrow();
+  });
+
+  it.each([
+    ['an unknown nameplate key', 'cabos_entrada', { np: { tensao_nominal: '15' } }, /instance 7 \(cabos_entrada\).*unknown nameplate field "tensao_nominal"/],
+    ['contact insulation on a single-table type', 'tp', { contact: ['1', '2', '3'] }, /instance 7 \(tp\).*contact insulation/],
+    ['isoRows on a contact-form type', 'chave_seccionadora', { isoRows: ['1', '2', '3'] }, /instance 7 \(chave_seccionadora\).*isoRows/],
+    ['more isoRows than the table has rows', 'tc', { isoRows: ['1', '2', '3', '4'] }, /instance 7 \(tc\).*4 isoRows but the isolacao table has 3 rows/],
+    ['rc on a type without resistencia_contato', 'para_raio', { rc: ['1', '2', '3'] }, /instance 7 \(para_raio\).*rc/],
+    ['ratio on a type without relacao_transformacao', 'disjuntor_mt', { ratio: { p: '1', s: '1', cap: ['1'] } }, /instance 7 \(disjuntor_mt\).*ratio/],
+  ] as const)('throws with the index and type for %s', (_name, type, instance, message) => {
+    expect(() => assertInstanceFitsBlockType(7, def(type), instance)).toThrow(message);
   });
 });

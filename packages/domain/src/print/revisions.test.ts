@@ -16,7 +16,9 @@ import {
   isJobActive,
   jobExpiresAt,
   latestRevision,
+  missingFilesText,
   nextEditNote,
+  notCaughtUpRetryable,
   nextRevisionNumber,
   readyTitle,
   readyToast,
@@ -165,5 +167,26 @@ describe('4.8-UNIT-005 expectedFileIds', () => {
       removed_at: null,
     };
     expect(expectedFileIds({ ...snapshot, files: [...snapshot.files, certificate] })).toEqual([certificate.id]);
+  });
+});
+
+describe('E9 sweep B14: a not_caught_up this device cannot answer', () => {
+  const FILE_A = '019966b0-00b1-7000-8000-000000000001';
+  const FILE_B = '019966b0-00b1-7000-8000-000000000002';
+
+  it('retries while the server misses an op, or a file this device still uploads', () => {
+    expect(notCaughtUpRetryable({ missing_op: true, missing_files: [FILE_A] }, new Set())).toBe(true);
+    expect(notCaughtUpRetryable({ missing_op: false, missing_files: [FILE_A, FILE_B] }, new Set([FILE_B]))).toBe(true);
+    expect(notCaughtUpRetryable({ missing_op: false, missing_files: [] }, new Set())).toBe(true);
+  });
+
+  it('fails at once when every missing file has no pending upload here', () => {
+    expect(notCaughtUpRetryable({ missing_op: false, missing_files: [FILE_A] }, new Set())).toBe(false);
+    expect(notCaughtUpRetryable({ missing_op: false, missing_files: [FILE_A, FILE_B] }, new Set(['other']))).toBe(false);
+  });
+
+  it('names how many files have not reached the server', () => {
+    expect(missingFilesText(1)).toBe('1 arquivo ainda não chegou ao servidor');
+    expect(missingFilesText(3)).toBe('3 arquivos ainda não chegaram ao servidor');
   });
 });

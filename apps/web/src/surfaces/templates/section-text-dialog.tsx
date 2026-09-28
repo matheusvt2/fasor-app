@@ -1,4 +1,4 @@
-import { INSERTABLE_SECTION_VARIABLES, SECTION_VARIABLE_LABELS } from '@app/domain';
+import { INSERTABLE_SECTION_VARIABLES, sectionVariableChipLabel } from '@app/domain';
 import { useId, useState } from 'react';
 import { Button, Chip, FormDialog } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -69,7 +69,7 @@ export function SectionTextDialog({ sectionTitle, sectionNumber, text, onCommit,
         <div className="chip-row" role="group" aria-label={copy.composer.insertVariable}>
           {INSERTABLE_SECTION_VARIABLES.map((name) => (
             <Chip key={name} onPress={() => insert(name)}>
-              {SECTION_VARIABLE_LABELS[name].toLocaleLowerCase('pt-BR')}
+              {sectionVariableChipLabel(name)}
             </Chip>
           ))}
         </div>

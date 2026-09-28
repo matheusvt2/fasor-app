@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { emptyTemplate, moveSection, standardTemplate, type TemplateRow } from '@app/domain';
+import { emptyTemplate, moveSection, removeSection, standardTemplate, type TemplateRow } from '@app/domain';
 import { cleanup, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from '../../test-axe.ts';
@@ -43,7 +43,6 @@ const session = (): SessionState => ({
   signIn: vi.fn(),
   signOut: vi.fn(async () => {}),
   saveRegistration: vi.fn(async () => {}),
-  dismissReAuth: vi.fn(),
   recoveryNeeded: false,
   dismissRecovery: vi.fn(),
 });
@@ -212,7 +211,7 @@ describe('3.5 composer: sub-block defaults per type', () => {
 describe('3.6 composer: section text', () => {
   const area = (dialog: HTMLElement) => within(dialog).getByRole('textbox', { name: 'Texto da seção 1' });
 
-  it('writes nothing onto another section when the one it was opened on moved elsewhere, and says so', async () => {
+  it('E9 sweep B11: writes onto the same section when another device moved it, never onto the one now at its index', async () => {
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();
     await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de 1 Objetivo' }));
@@ -221,6 +220,24 @@ describe('3.6 composer: section text', () => {
     // The row this device reads at the moment of the write has section 2 at index 0.
     const stale = standardTemplate({ id: ID });
     vi.mocked(templateRow).mockImplementationOnce(async () => ({ ...stale, blocks: moveSection(stale.blocks, 0, 1) }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'cliente' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
+    await waitFor(async () => expect(await outboxPaths()).toEqual([`template/${ID}/blocks`]));
+    const blocks = (await templateRow(database!, ID))!.blocks;
+    expect(blocks.find((b) => b.block_type === 'section_1')!.section_text).toContain('{cliente}');
+    expect(blocks.find((b) => b.block_type === 'section_2')!.section_text).toBeNull();
+    expect(screen.queryByText('A seção mudou em outro aparelho; o texto não foi salvo.')).toBeNull();
+  });
+
+  it('writes nothing when another device removed the section it was opened on, and says so', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    renderComposer();
+    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de 1 Objetivo' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Editar texto' }));
+    const dialog = await screen.findByRole('dialog', { name: '1 Objetivo — texto fixo' });
+    // The row this device reads at the moment of the write no longer holds section 1.
+    const stale = standardTemplate({ id: ID });
+    vi.mocked(templateRow).mockImplementationOnce(async () => ({ ...stale, blocks: removeSection(stale.blocks, 0) }));
     await userEvent.click(within(dialog).getByRole('button', { name: 'cliente' }));
     await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
     expect(await screen.findByText('A seção mudou em outro aparelho; o texto não foi salvo.')).toBeVisible();

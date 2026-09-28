@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useLiveQuery } from '../db/live.ts';
 import { outboxBacklog } from '../db/sync-store.ts';
-import type { AppDatabase } from '../db/schema.ts';
+import { databaseName, type AppDatabase } from '../db/schema.ts';
 import { holdShell, promoteWaitingShell } from './register.ts';
 
 /*
@@ -23,7 +23,13 @@ import { holdShell, promoteWaitingShell } from './register.ts';
 /** Unknown until Dexie answers: neither promote nor release the hold on a guess. */
 const UNKNOWN: number | null = null;
 
-export function useShellUpdate(db: AppDatabase | null): void {
+/**
+ * `userId` is the signed-in user, whose outbox `db` is: the worker keeps one hold per
+ * user, so one user's empty outbox never releases another's (AD-8). Nothing is reported
+ * while the open database is not that user's (a sign-in switching users).
+ */
+export function useShellUpdate(db: AppDatabase | null, userId: string | null): void {
+  const owner = db !== null && userId !== null && db.name === databaseName(userId) ? userId : null;
   const backlog = useLiveQuery(
     () => (db === null ? Promise.resolve(UNKNOWN) : outboxBacklog(db)),
     [db],
@@ -31,15 +37,15 @@ export function useShellUpdate(db: AppDatabase | null): void {
   );
 
   useEffect(() => {
-    if (db === null || backlog === null) return;
+    if (db === null || owner === null || backlog === null) return;
     const container = typeof navigator === 'undefined' ? undefined : navigator.serviceWorker;
     if (container === undefined || container.ready === undefined) return;
     let cancelled = false;
     void container.ready
       .then(async (registration) => {
         if (cancelled) return;
-        holdShell(registration, backlog);
-        await promoteWaitingShell(registration, () => Promise.resolve(backlog));
+        holdShell(registration, backlog, owner);
+        await promoteWaitingShell(registration, () => Promise.resolve(backlog), owner);
       })
       // A refused worker, a closed database: the old shell keeps serving and the next
       // launch tries again. Never a reason to interrupt the session.
@@ -47,5 +53,5 @@ export function useShellUpdate(db: AppDatabase | null): void {
     return () => {
       cancelled = true;
     };
-  }, [db, backlog]);
+  }, [db, owner, backlog]);
 }

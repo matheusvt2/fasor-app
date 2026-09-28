@@ -54,7 +54,6 @@ const session = (): SessionState => ({
   signIn: vi.fn(),
   signOut: vi.fn(async () => {}),
   saveRegistration: vi.fn(async () => {}),
-  dismissReAuth: vi.fn(),
   recoveryNeeded: false,
   dismissRecovery: vi.fn(),
 });
@@ -553,6 +552,34 @@ describe('Export dialog (Story 4.8)', () => {
     await waitFor(() => expect(within(dialog()).getByRole('alert')).toBeInTheDocument());
     expect(stuck.generate).not.toHaveBeenCalled();
     expect((stuck.syncNow as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThanOrEqual(10);
+  });
+
+  it('E9 sweep B14: fails at once when the 409 names only files no upload here will bring, and names how many', async () => {
+    database = await freshDb();
+    const missing = [newId(), newId()];
+    const generate = vi
+      .fn<SyncState['generate']>()
+      .mockRejectedValue(new SyncRequestError({ kind: 'http', status: 409, code: 'not_caught_up', details: { missing_op: false, missing_files: missing } }));
+    const sync = syncState({ generate });
+    const { unmount } = render(<Harness sync={sync} />);
+    await userEvent.click(generateButton());
+    const alert = await within(dialog()).findByRole('alert');
+    expect(alert).toHaveTextContent('Não foi possível gerar o relatório. Os dados não foram alterados e nenhuma revisão foi criada.');
+    expect(alert).toHaveTextContent('2 arquivos ainda não chegaram ao servidor');
+    // No blind retry: one request, and only the flush's sync.
+    expect(generate).toHaveBeenCalledTimes(1);
+    expect(sync.syncNow).toHaveBeenCalledTimes(1);
+    unmount();
+
+    // An op still missing: retried as before, and the retry succeeds.
+    const retried = vi
+      .fn<SyncState['generate']>()
+      .mockRejectedValueOnce(new SyncRequestError({ kind: 'http', status: 409, code: 'not_caught_up', details: { missing_op: true, missing_files: missing } }))
+      .mockResolvedValueOnce({ outcome: 'queued', job_id: JOB_ID, revision_number: 1 });
+    render(<Harness sync={syncState({ generate: retried })} />);
+    await userEvent.click(generateButton());
+    await waitFor(() => expect(within(dialog()).getByRole('status')).toHaveTextContent('Gerando revisão 1…'));
+    expect(retried).toHaveBeenCalledTimes(2);
   });
 
   it('honours "pode fechar": the wait survives an unmount, and a remount after the revision arrived finishes it', async () => {

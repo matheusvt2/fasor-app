@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { ESLint } from 'eslint';
 import { describe, expect, it } from 'vitest';
-import { parseArgs, resolveCompanyId, validateCompanyId, wantsStandardTemplate } from './seed-users.ts';
+import { parseArgs, resolveCompanyId, validateCompanyId, wantsSampleRelatorio, wantsStandardTemplate } from './seed-users.ts';
 import { assertInCompose } from './test-reset.ts';
 
 const root = resolve(import.meta.dirname, '..');
@@ -146,6 +146,11 @@ describe('seed-users CLI', () => {
     expect(wantsStandardTemplate(parseArgs(['--standard-template']))).toBe(true);
     expect(wantsStandardTemplate(parseArgs(['--email', 'a@b.c']))).toBe(false);
     expect(() => wantsStandardTemplate(parseArgs(['--standard-template', 'yes']))).toThrow(/takes no value, got "yes"/);
+    // `--sample-relatorio` is a bare switch too, and only for a named company.
+    expect(wantsSampleRelatorio(parseArgs(['--sample-relatorio']))).toBe(true);
+    expect(wantsSampleRelatorio(parseArgs(['--email', 'a@b.c']))).toBe(false);
+    expect(() => wantsSampleRelatorio(parseArgs(['--sample-relatorio', 'yes']))).toThrow(/takes no value, got "yes"/);
+    expect(() => wantsSampleRelatorio(parseArgs(['--test', '--sample-relatorio']))).toThrow(/needs a named company/);
     expect(parseArgs(['--email', 'a@b.c', '--council', 'crea', '--test'])).toEqual({
       email: 'a@b.c',
       council: 'crea',

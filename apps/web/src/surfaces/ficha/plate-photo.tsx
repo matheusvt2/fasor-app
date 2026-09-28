@@ -5,7 +5,9 @@ import { TextButton } from '../../components/index.ts';
 import { useCropSource } from '../../components/crop-thumb.tsx';
 import { useObjectUrl } from '../../components/photo-row.tsx';
 import { copy } from '../../copy/pt-br.ts';
+import { useLiveQuery } from '../../db/live.ts';
 import type { PhotoTile } from '../../db/photo-store.ts';
+import { clearRereadAsked, readRereadAsked, writeRereadAsked } from '../../db/prefs.ts';
 import { useSession } from '../../state/session.tsx';
 import { requestSyncCycle, useSync } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
@@ -90,7 +92,12 @@ export function PlatePhotoRow({
         ) : null}
         {/* E78-Q5: keyed by the newest status op, so a tap waits for the next one (a `failed` over `failed` included). */}
         {view === 'failed' && onFillManually !== null ? (
-          <FailedReading key={tile.reading_status_op_id ?? 'create'} photoId={tile.id} onFillManually={onFillManually} />
+          <FailedReading
+            key={tile.reading_status_op_id ?? 'create'}
+            photoId={tile.id}
+            statusOpId={tile.reading_status_op_id}
+            onFillManually={onFillManually}
+          />
         ) : null}
       </div>
     </div>
@@ -102,24 +109,32 @@ export function PlatePhotoRow({
  * server for a new reading (offline it is disabled with its reason); "Preencher manualmente"
  * takes the engineer to the first empty field. E78-Q5: from the tap the button stays disabled
  * until the photo's reading status moves (the caller remounts this on every status op) or the
- * request fails, so a second tap never starts a second run.
+ * request fails, so a second tap never starts a second run. E9 sweep B16: the press is also
+ * recorded in `local_prefs` with the status op it answered (`statusOpId`), so a reload
+ * before the next status op arrives keeps the button disabled with its asked reason.
  */
-function FailedReading({ photoId, onFillManually }: { photoId: string; onFillManually: () => void }) {
+function FailedReading({ photoId, statusOpId, onFillManually }: { photoId: string; statusOpId: string | null; onFillManually: () => void }) {
   const t = copy.ficha.nameplate;
   const sync = useSync();
-  const online = useSession().online;
+  const session = useSession();
+  const online = session.online;
+  const db = session.database;
   const { showToast } = useToast();
   const [asking, setAsking] = useState(false);
+  const askedOpId = useLiveQuery(() => (db === null ? Promise.resolve(undefined) : readRereadAsked(db, photoId)), [db, photoId], undefined);
+  const asked = asking || (askedOpId !== undefined && askedOpId === statusOpId);
   const retry = () => {
-    if (asking || sync.rereadPhoto === undefined) return;
+    if (asked || sync.rereadPhoto === undefined) return;
+    const rereadPhoto = sync.rereadPhoto;
     setAsking(true);
-    void sync
-      .rereadPhoto(photoId)
+    void (db === null ? Promise.resolve() : writeRereadAsked(db, photoId, statusOpId))
+      .then(() => rereadPhoto(photoId))
       // The server moves the reading on (`running`, then suggestions or `failed` again); the
       // next pull brings it, now.
       .then(() => requestSyncCycle())
       .catch(() => {
         setAsking(false);
+        if (db !== null) void clearRereadAsked(db, photoId).catch(() => undefined);
         showToast(t.retryFailed);
       });
   };
@@ -129,7 +144,7 @@ function FailedReading({ photoId, onFillManually }: { photoId: string; onFillMan
         {t.readFailed}
       </p>
       <div className="row-wrap">
-        <TextButton isDisabled={!online || asking} disabledReason={!online ? t.retryOffline : asking ? t.retryAsked : undefined} onPress={retry}>
+        <TextButton isDisabled={!online || asked} disabledReason={!online ? t.retryOffline : asked ? t.retryAsked : undefined} onPress={retry}>
           {t.retryRead}
         </TextButton>
         <TextButton onPress={onFillManually}>{t.fillManually}</TextButton>

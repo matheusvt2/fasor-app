@@ -79,7 +79,7 @@ describe('the worker derives the hold from the pin', () => {
 
   it('writes the pin from a hold-shell message, inside waitUntil', () => {
     expect(source).toMatch(/data\.type === 'hold-shell'\)/);
-    expect(source).toMatch(/event\.waitUntil\(setHold\(data\.hold === true, entry\)\)/);
+    expect(source).toMatch(/event\.waitUntil\(setHold\(data\.hold === true, user, messageBuild\(data\)\)\)/);
   });
 
   it('keeps the sentinel out of the shell cache namespace', () => {

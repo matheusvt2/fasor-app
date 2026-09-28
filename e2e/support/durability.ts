@@ -250,17 +250,30 @@ export async function withoutPageErrors(page: Page, run: () => Promise<void>): P
 }
 
 /**
- * The shell pin the worker keeps in Cache Storage (`public/sw.js`): the entry chunk of the
- * pinned build (or, from a page that did not name it, a cache name), or null when nothing
- * is held.
+ * The shell pin the worker keeps in Cache Storage (`public/sw.js`), for the first user
+ * holding: the shell version of the pinned build (or, from a page that did not name it, a
+ * cache name; from a sentinel written before per-user holds, an entry chunk), or null
+ * when nothing is held.
  */
 export async function readShellPin(page: Page): Promise<string | null> {
   return page.evaluate(async () => {
     const response = await caches.match('/__shell-hold', { cacheName: 'releng-hold' });
     if (response === undefined) return null;
-    const body = (await response.json()) as { entry?: unknown; shell?: unknown };
-    if (typeof body.entry === 'string') return body.entry;
-    return typeof body.shell === 'string' ? body.shell : null;
+    const read = (await response.json()) as { holds?: unknown[] } & Record<string, unknown>;
+    const body = (Array.isArray(read.holds) ? read.holds[0] : read) as Record<string, unknown> | undefined;
+    for (const key of ['version', 'entry', 'shell']) {
+      if (typeof body?.[key] === 'string') return body[key] as string;
+    }
+    return null;
+  });
+}
+
+/** The shell version the build stamped into the document the page is running. */
+export async function runningVersion(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const version = document.querySelector('meta[name="shell-version"]')?.getAttribute('content');
+    if (version == null) throw new Error('the document carries no shell version');
+    return version;
   });
 }
 
@@ -283,10 +296,10 @@ const BUILT_DOCUMENT = fileURLToPath(new URL('../../apps/web/dist/index.html', i
 
 /**
  * Simulates a deploy without a second build: from now on the server hands out a `sw.js`
- * whose stamped `SHELL_VERSION` differs (a new cache name) and whose precache list names a
- * distinct entry chunk (`index-<hash>-next.js`, a copy of the current one), and a
- * document carrying `NEXT_BUILD_MARKER` that loads that entry. Returns the undo, which
- * the test must run.
+ * whose stamped `SHELL_VERSION` differs (`<version>-next`, a new cache name) and whose
+ * precache list names a distinct entry chunk (`index-<hash>-next.js`, a copy of the
+ * current one), and a document carrying `NEXT_BUILD_MARKER` and that version in its
+ * `shell-version` meta that loads that entry. Returns the undo, which the test must run.
  *
  * The worker script is rewritten on disk rather than routed: the browser's update check
  * for a worker's main script never reaches Playwright's routing (no request event, no
@@ -304,18 +317,20 @@ export async function serveNextBuild(context: BrowserContext): Promise<() => Pro
   await copyFile(fileURLToPath(new URL(`../../apps/web/dist${entry}`, import.meta.url)), nextEntryFile);
 
   const original = await readFile(BUILT_WORKER, 'utf8');
+  const version = /const SHELL_VERSION = "([0-9a-f]+)";/.exec(original)?.[1];
+  if (version === undefined) throw new Error(`${BUILT_WORKER} carries no stamped SHELL_VERSION`);
   const next = original
-    .replace(/const SHELL_VERSION = "([0-9a-f]+)";/, (_match, version: string) => `const SHELL_VERSION = "${version}-next";`)
+    .replace(`const SHELL_VERSION = "${version}";`, `const SHELL_VERSION = "${version}-next";`)
     .replaceAll(`"${entry}"`, `"${nextEntry}"`);
-  if (!next.includes('-next";') || !next.includes(`"${nextEntry}"`)) {
-    throw new Error(`${BUILT_WORKER} carries no stamped SHELL_VERSION or entry to change`);
-  }
+  if (!next.includes(`"${nextEntry}"`)) throw new Error(`${BUILT_WORKER} carries no entry to change`);
   await writeFile(BUILT_WORKER, next);
   const isDocument = (url: URL) => url.pathname === '/';
   const markDocument = async (route: Route) => {
     const response = await route.fetch();
+    // The next document names its build by the next version, as a real build stamps it.
     const body = (await response.text())
       .replace('<head>', `<head>${NEXT_BUILD_MARKER}`)
+      .replace(`<meta name="shell-version" content="${version}"`, `<meta name="shell-version" content="${version}-next"`)
       .replaceAll(entry, nextEntry);
     await route.fulfill({ response, body });
   };

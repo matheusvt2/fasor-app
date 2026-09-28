@@ -148,20 +148,34 @@ class FakeCacheStorage {
     return undefined;
   }
 
-  /** The sentinel, as the next worker would read it. */
-  async pin(): Promise<unknown> {
+  /**
+   * The sentinel's holds, as the next worker would read them, or null when there is no
+   * sentinel. A sentinel from before holds were per user (`{entry}` or `{shell}`) reads
+   * as one hold of no user.
+   */
+  async pin(): Promise<unknown[] | null> {
     const response = await this.store.get(HOLD_CACHE)?.match(HOLD_KEY);
-    return response === undefined ? null : response.json();
+    if (response === undefined) return null;
+    const body = (await response.json()) as { holds?: unknown[] };
+    return Array.isArray(body.holds) ? body.holds : legacy(body);
   }
 
+  /** A sentinel as a worker from before per-user holds wrote it. */
   async writePin(shell: string): Promise<void> {
+    await this.writeRaw({ shell });
+  }
+
+  async writeRaw(body: unknown): Promise<void> {
     const cache = await this.open(HOLD_CACHE);
-    await cache.put(HOLD_KEY, new Response(JSON.stringify({ shell })));
+    await cache.put(HOLD_KEY, new Response(JSON.stringify(body)));
   }
 }
 
 const HOLD_CACHE = 'releng-hold';
 const HOLD_KEY = '/__shell-hold';
+
+/** The holds of a page that names no user (one from before holds were per user). */
+const legacy = (build: object): unknown[] => [{ user: null, ...build }];
 
 type Handler = (event: unknown) => void;
 
@@ -313,7 +327,7 @@ describe('no new build, work pending', () => {
   it('pins its own cache and answers navigations from it', async () => {
     const worker = await firstVisit(BUILD_A);
     await worker.message({ type: 'hold-shell', hold: true });
-    expect(await caches.pin()).toEqual({ shell: A });
+    expect(await caches.pin()).toEqual(legacy({ shell: A }));
 
     // Same bytes as PR #8: while held, the cached document, never the network's.
     network.deploy({ ...BUILD_A.files, '/': 'document A, re-served by the server' });
@@ -382,7 +396,7 @@ describe('the browser activates the new worker while the job is pinned', () => {
     // The old document asks for the old hashed files, which the new list does not name.
     expect(await next.request('/assets/index-a.js')).toBe('script A');
     expect(await next.request('/sprite.svg')).toBe('sprite A');
-    expect(await caches.pin()).toEqual({ shell: A });
+    expect(await caches.pin()).toEqual(legacy({ shell: A }));
   });
 
   it('goes to the network for an asset the pinned shell does not have', async () => {
@@ -394,7 +408,7 @@ describe('the browser activates the new worker while the job is pinned', () => {
   it('survives its own restart, and a hold from the old page keeps the first pin', async () => {
     const next = await browserActivated();
     await next.message({ type: 'hold-shell', hold: true });
-    expect(await caches.pin()).toEqual({ shell: A });
+    expect(await caches.pin()).toEqual(legacy({ shell: A }));
 
     const restarted = startWorker(caches, network, BUILD_B);
     expect(await restarted.navigate()).toBe('document A');
@@ -489,7 +503,7 @@ describe('a stale or unreadable pin', () => {
     // writes a live pin.
     caches.afterNextHas = () => caches.writePin(A);
     await restarted.navigate();
-    expect(await caches.pin()).toEqual({ shell: A });
+    expect(await caches.pin()).toEqual(legacy({ shell: A }));
     // And the next worker generation is held by it.
     expect(await startWorker(caches, network, BUILD_A).navigate()).toBe('document A');
   });
@@ -535,7 +549,7 @@ describe('a stale or unreadable pin', () => {
     const worker = await firstVisit(BUILD_A);
     await caches.writePin('releng-shell-gone');
     await worker.message({ type: 'hold-shell', hold: true });
-    expect(await caches.pin()).toEqual({ shell: A });
+    expect(await caches.pin()).toEqual(legacy({ shell: A }));
   });
 
   it('behaves as unheld, with a warning and no throw, when Cache Storage fails', async () => {
@@ -577,6 +591,11 @@ describe('install never takes the pinned cache', () => {
  * C's document from the network under B, then work is captured. Pinning B's own, older
  * cache would flip the job back to B on the next navigation, and — with a newer Dexie
  * schema in C — leave B's shell unable to open the database and release the pin.
+ *
+ * These messages are the ones pages sent before shell versions and per-user holds (no
+ * `user`, the entry chunk in `shell`): a worker must still honor them, since the page a
+ * pinned older shell serves is exactly such a page. The version-based pin of today's
+ * pages is below, in "the pin names the build by its shell version".
  */
 describe('the pin names the build the page runs', () => {
   const ENTRY_C = '/assets/index-c.js';
@@ -606,7 +625,7 @@ describe('the pin names the build the page runs', () => {
     await untilCached(C, ENTRY_C);
 
     await b.message({ type: 'hold-shell', hold: true, shell: ENTRY_C });
-    expect(await caches.pin()).toEqual({ entry: ENTRY_C });
+    expect(await caches.pin()).toEqual(legacy({ entry: ENTRY_C }));
     // Nothing of C's document is cached yet, and B's own document is another build: the
     // network, where C came from, answers. C's assets come from C's cache.
     const navigating = b.navigate();
@@ -646,13 +665,13 @@ describe('the pin names the build the page runs', () => {
     // No worker has precached C: not held, and the sentinel is not treated as stale.
     expect(await b.navigate()).toBe('document C');
     expect(await startWorker(caches, network, BUILD_B).navigate()).toBe('document C');
-    expect(await caches.pin()).toEqual({ entry: ENTRY_C });
+    expect(await caches.pin()).toEqual(legacy({ entry: ENTRY_C }));
     expect(await shellCaches()).toEqual([B]);
 
     // A later hold for a build no cache holds either does not replace it (one that a cache
     // does hold would: see "replaces a pin whose build is gone").
     await b.message({ type: 'hold-shell', hold: true, shell: '/assets/index-other.js' });
-    expect(await caches.pin()).toEqual({ entry: ENTRY_C });
+    expect(await caches.pin()).toEqual(legacy({ entry: ENTRY_C }));
 
     // C's worker installs: resolved at the next read, with no new message.
     const c = startWorker(caches, network, BUILD_C);
@@ -678,7 +697,7 @@ describe('the pin names the build the page runs', () => {
   it('pins the receiving worker own cache for a page that does not name its build', async () => {
     const b = await pageOnNewerBuild();
     await b.message({ type: 'hold-shell', hold: true });
-    expect(await caches.pin()).toEqual({ shell: B });
+    expect(await caches.pin()).toEqual(legacy({ shell: B }));
     expect(await b.navigate()).toBe('document B');
   });
 
@@ -694,16 +713,16 @@ describe('the pin names the build the page runs', () => {
 
     // New work in that tab pins A, which nothing can resolve: unheld, network-first.
     await c.message({ type: 'hold-shell', hold: true, shell: ENTRY_A });
-    expect(await caches.pin()).toEqual({ entry: ENTRY_A });
+    expect(await caches.pin()).toEqual(legacy({ entry: ENTRY_A }));
     expect(await c.navigate()).toBe('document C');
 
     // The same tab reporting the same unresolved build keeps the pin.
     await c.message({ type: 'hold-shell', hold: true, shell: ENTRY_A });
-    expect(await caches.pin()).toEqual({ entry: ENTRY_A });
+    expect(await caches.pin()).toEqual(legacy({ entry: ENTRY_A }));
 
     // A reload moved the job to C, which a cache holds: the pin follows it.
     await c.message({ type: 'hold-shell', hold: true, shell: ENTRY_C });
-    expect(await caches.pin()).toEqual({ entry: ENTRY_C });
+    expect(await caches.pin()).toEqual(legacy({ entry: ENTRY_C }));
 
     // And a later deploy no longer moves it again.
     const later = await deployAndInstall(BUILD_B);
@@ -717,19 +736,204 @@ describe('the pin names the build the page runs', () => {
     const b = await firstVisit(BUILD_B);
     await b.message({ type: 'hold-shell', hold: true, shell: '/assets/index-gone.js' });
     await b.message({ type: 'hold-shell', hold: true });
-    expect(await caches.pin()).toEqual({ shell: B });
+    expect(await caches.pin()).toEqual(legacy({ shell: B }));
   });
 
   it('keeps an unresolved pin when the incoming build is unresolved too', async () => {
     const b = await firstVisit(BUILD_B);
     await b.message({ type: 'hold-shell', hold: true, shell: ENTRY_C });
     await b.message({ type: 'hold-shell', hold: true, shell: '/assets/index-other.js' });
-    expect(await caches.pin()).toEqual({ entry: ENTRY_C });
+    expect(await caches.pin()).toEqual(legacy({ entry: ENTRY_C }));
   });
 
   it('ignores a shell that is not a same-origin path', async () => {
     const b = await firstVisit(BUILD_B);
     await b.message({ type: 'hold-shell', hold: true, shell: 'https://elsewhere.test/x.js' });
-    expect(await caches.pin()).toEqual({ shell: B });
+    expect(await caches.pin()).toEqual(legacy({ shell: B }));
+  });
+});
+
+/*
+ * B7 (deferred-work 321, 327): the page names its build by the shell version stamped
+ * into its document, and the version digests every emitted file. So a deploy that
+ * changes only the document keeps the entry chunk's name but is a new version, and the
+ * pin must follow the version: resolving by entry chunk would find the older cache that
+ * holds the same chunk and serve the older document.
+ */
+describe('the pin names the build by its shell version', () => {
+  const BUILD_A2: Build = {
+    version: 'a2a2a2a2a2a2',
+    precache: BUILD_A.precache,
+    files: { ...BUILD_A.files, '/': 'document A2' },
+  };
+  const hold = (user: string, version: string) => ({ type: 'hold-shell', hold: true, user, version });
+
+  it('pins a markup-only deploy by its version, not the older cache holding the same entry chunk', async () => {
+    const a = await firstVisit(BUILD_A);
+    // A2 changes only the document; the first launch gets it from the network, under A.
+    network.deploy(BUILD_A2.files);
+    expect(await a.navigate()).toBe('document A2');
+    await startWorker(caches, network, BUILD_A2).install();
+
+    await a.message(hold('user-a', BUILD_A2.version));
+    expect(await caches.pin()).toEqual([{ user: 'user-a', version: BUILD_A2.version }]);
+    network.deploy({ ...BUILD_A2.files, '/': 'document A3' });
+    expect(await a.navigate()).toBe('document A2');
+    expect(await startWorker(caches, network, BUILD_A).navigate()).toBe('document A2');
+  });
+
+  it('stays network-first while no cache holds the version, and pins it once its worker installs', async () => {
+    const b = await firstVisit(BUILD_B);
+    network.deploy(BUILD_C.files);
+    await b.message(hold('user-a', BUILD_C.version));
+    expect(await caches.pin()).toEqual([{ user: 'user-a', version: BUILD_C.version }]);
+    // No worker has made C's cache: not held, and the hold is not stale.
+    expect(await b.navigate()).toBe('document C');
+    expect(await shellCaches()).toEqual([B]);
+
+    const c = startWorker(caches, network, BUILD_C);
+    await c.install();
+    network.deploy({ '/': 'document D', '/assets/index-d.js': 'script D', '/sprite.svg': 'sprite D' });
+    expect(await b.navigate()).toBe('document C');
+    expect(await b.request('/sprite.svg')).toBe('sprite C');
+
+    // Every tab closes: the browser activates C. Still C, and B's cache may go.
+    await c.activate();
+    expect(await c.navigate()).toBe('document C');
+    expect(await shellCaches()).toEqual([C]);
+
+    await c.message({ type: 'hold-shell', hold: false, user: 'user-a', version: BUILD_C.version });
+    expect(await caches.pin()).toBeNull();
+    expect(await c.navigate()).toBe('document D');
+  });
+
+  it('keeps an unresolved version against another unresolved one, and gives way to one that resolves', async () => {
+    const b = await firstVisit(BUILD_B);
+    await b.message(hold('user-a', BUILD_C.version));
+    await b.message(hold('user-a', 'dddddddddddd'));
+    expect(await caches.pin()).toEqual([{ user: 'user-a', version: BUILD_C.version }]);
+    await b.message(hold('user-a', BUILD_B.version));
+    expect(await caches.pin()).toEqual([{ user: 'user-a', version: BUILD_B.version }]);
+  });
+
+  it('pins its own cache for a page whose document carries no stamped version', async () => {
+    const b = await firstVisit(BUILD_B);
+    await b.message(hold('user-a', '__SHELL_VERSION__'));
+    expect(await caches.pin()).toEqual([{ user: 'user-a', shell: B }]);
+  });
+});
+
+/*
+ * B6 (deferred-work 315): the outbox is per user (`releng-{user_id}`), so the pin is too.
+ * One user's empty outbox must neither release another user's pin nor promote the new
+ * shell under that user's backlog.
+ */
+describe('holds are per user', () => {
+  const hold = (user: string, value: boolean, version = BUILD_A.version) => ({
+    type: 'hold-shell',
+    hold: value,
+    user,
+    version,
+  });
+
+  it("keeps user A's pin when user B signs in with an empty outbox, and refuses B's promotion", async () => {
+    const page = await firstVisit(BUILD_A);
+    await page.message(hold('user-a', true));
+    const next = await deployAndInstall(BUILD_B);
+
+    // User B signs in on the same device; their outbox is empty.
+    await page.message(hold('user-b', false));
+    await next.message({ type: 'activate-shell', user: 'user-b' });
+    expect(await caches.pin()).toEqual([{ user: 'user-a', version: BUILD_A.version }]);
+    expect(next.calls.skipWaiting).toBe(0);
+    expect(await page.navigate()).toBe('document A');
+    expect(await startWorker(caches, network, BUILD_A).navigate()).toBe('document A');
+
+    // A's outbox drains: the pin goes, and B's next promotion goes through.
+    await page.message(hold('user-a', false));
+    expect(await caches.pin()).toBeNull();
+    await next.message({ type: 'activate-shell', user: 'user-b' });
+    expect(next.calls.skipWaiting).toBe(1);
+    expect(await page.navigate()).toBe('document B');
+  });
+
+  it('keeps one hold per holding user, and a release clears only that user', async () => {
+    const page = await firstVisit(BUILD_A);
+    await page.message(hold('user-a', true));
+    await page.message(hold('user-b', true));
+    await page.message(hold('user-a', true));
+    expect(await caches.pin()).toEqual([
+      { user: 'user-a', version: BUILD_A.version },
+      { user: 'user-b', version: BUILD_A.version },
+    ]);
+
+    await page.message(hold('user-a', false));
+    expect(await caches.pin()).toEqual([{ user: 'user-b', version: BUILD_A.version }]);
+    network.deploy(BUILD_B.files);
+    expect(await page.navigate()).toBe('document A');
+
+    await page.message(hold('user-b', false));
+    expect(await caches.has(HOLD_CACHE)).toBe(false);
+    expect(await page.navigate()).toBe('document B');
+  });
+
+  it('keeps every pinned shell while two users hold different builds', async () => {
+    const a = await firstVisit(BUILD_A);
+    await a.message(hold('user-a', true));
+    // B's page came from the network before B's worker existed, and B holds on it.
+    network.deploy(BUILD_B.files);
+    await a.message(hold('user-b', true, BUILD_B.version));
+    const b = await deployAndInstall(BUILD_B);
+    await b.activate();
+    expect(await shellCaches()).toEqual([A, B]);
+    // The first-written hold answers navigations.
+    expect(await b.navigate()).toBe('document A');
+
+    await b.message(hold('user-a', false));
+    network.deploy({ '/': 'document D', '/assets/index-d.js': 'script D', '/sprite.svg': 'sprite D' });
+    expect(await b.navigate()).toBe('document B');
+  });
+
+  it('never refuses the promotion over the promoting user own hold or a stale one', async () => {
+    await firstVisit(BUILD_A);
+    const next = await deployAndInstall(BUILD_B);
+    await caches.writeRaw({
+      holds: [
+        { user: 'user-a', version: BUILD_A.version },
+        { user: 'user-b', shell: 'releng-shell-gone' },
+      ],
+    });
+    await next.message({ type: 'activate-shell', user: 'user-a' });
+    expect(next.calls.skipWaiting).toBe(1);
+  });
+
+  it('serves an unreadable sentinel as unheld: the promotion goes through, with a warning', async () => {
+    const page = await firstVisit(BUILD_A);
+    await page.message(hold('user-a', true));
+    const next = await deployAndInstall(BUILD_B);
+    caches.broken = true;
+    await next.message({ type: 'activate-shell', user: 'user-b' });
+    caches.broken = false;
+    expect(next.calls.skipWaiting).toBe(1);
+    expect(next.warnings.length).toBeGreaterThan(0);
+  });
+
+  it('reads a sentinel from before per-user holds, and the next user who reports adopts it', async () => {
+    await firstVisit(BUILD_A);
+    await caches.writeRaw({ entry: '/assets/index-a.js' });
+    const next = await deployAndInstall(BUILD_B);
+    await next.activate();
+    expect(await shellCaches()).toEqual([A, B]);
+    expect(await next.navigate()).toBe('document A');
+
+    // A hold of no user never refuses a promotion.
+    const third = await deployAndInstall(BUILD_C);
+    await third.message({ type: 'activate-shell', user: 'user-a' });
+    expect(third.calls.skipWaiting).toBe(1);
+
+    await next.message(hold('user-a', true, BUILD_B.version));
+    expect(await caches.pin()).toEqual([{ user: 'user-a', entry: '/assets/index-a.js' }]);
+    await next.message(hold('user-a', false));
+    expect(await caches.pin()).toBeNull();
   });
 });

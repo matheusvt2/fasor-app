@@ -162,6 +162,29 @@ export function failedReason(number: number): string {
   return `Gera o DOCX e o PDF juntos, como a revisão ${number}. Precisa de conexão.`;
 }
 
+/**
+ * E9 sweep B14: whether a `409 not_caught_up` can still be answered by syncing and asking
+ * again. It can while the server misses an op, or a file this device still has to upload
+ * (`pendingUploadIds`); a file named missing that no upload of this device will ever bring
+ * (another device's photo, or one this device no longer holds) keeps it refused however
+ * often the dialog retries, so the request fails at once.
+ */
+export function notCaughtUpRetryable(
+  details: { missing_op: boolean; missing_files: readonly string[] },
+  pendingUploadIds: ReadonlySet<string>,
+): boolean {
+  if (details.missing_op || details.missing_files.length === 0) return true;
+  return details.missing_files.some((id) => pendingUploadIds.has(id));
+}
+
+/**
+ * The failed line's addition when the server still misses files this device cannot send
+ * (E9 sweep B14). authored: the mock's failed state names no cause.
+ */
+export function missingFilesText(count: number): string {
+  return count === 1 ? '1 arquivo ainda não chegou ao servidor' : `${count} arquivos ainda não chegaram ao servidor`;
+}
+
 /** The progress counter's text while a job runs. */
 export function generatingText(number: number): string {
   return `Gerando revisão ${number}…`;

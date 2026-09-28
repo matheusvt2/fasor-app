@@ -6,6 +6,7 @@ import {
   generatingReason,
   generatingText,
   idleReason,
+  missingFilesText,
   nextEditNote,
   parecerMissingReason,
   pendingSuggestions,
@@ -216,6 +217,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
         {phase.kind === 'failed' ? (
           <div className="gen-error" role="alert">
             <span>{copy.export.failed}</span>
+            {phase.missingFiles === undefined ? null : <span>{missingFilesText(phase.missingFiles)}</span>}
             {blocked ? null : <TextButton onPress={state.start}>{copy.export.retry}</TextButton>}
           </div>
         ) : null}

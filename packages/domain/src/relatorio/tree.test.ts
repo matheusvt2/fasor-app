@@ -8,6 +8,7 @@ import {
   blockTypeLabel,
   duplicateTagSuggestion,
   equipmentPathText,
+  equipmentFreedByRemoval,
   equipmentSharedElsewhere,
   firstInTree,
   locationBlocks,
@@ -352,5 +353,41 @@ describe('Epic 4 QA Q4 equipmentSharedElsewhere', () => {
   it('is false when the block is its only live holder: removed and unrelated blocks do not count', () => {
     const blocks = [ref(1, EQ), ref(2, EQ, '2026-09-24T10:00:00.000Z'), ref(3, id(7002)), ref(4, null)];
     expect(equipmentSharedElsewhere(blocks, EQ, id(7101))).toBe(false);
+  });
+});
+
+describe('E9 sweep B15 equipmentFreedByRemoval', () => {
+  const EQ = id(7201);
+  const BLOCK = id(7301);
+  const PROJECT = id(7401);
+  const OTHER_PROJECT = id(7402);
+  const HERE = id(7501);
+  const PULLED = id(7502);
+  const NEVER_PULLED = id(7503);
+  const block = { id: BLOCK, equipment_id: EQ, removed_at: null };
+  const base = { blocks: [block], equipmentId: EQ, blockId: BLOCK, projectId: PROJECT, relatorioId: HERE };
+
+  it('frees the equipment when no other live block holds it and every relatório of the obra is on this device', () => {
+    const summaries = [
+      { id: HERE, project_id: PROJECT },
+      { id: PULLED, project_id: PROJECT },
+      { id: NEVER_PULLED, project_id: OTHER_PROJECT },
+    ];
+    expect(equipmentFreedByRemoval({ ...base, summaries, heldRelatorioIds: [HERE, PULLED] })).toBe(true);
+    // Before any company pull the summary is empty: only what this device holds counts.
+    expect(equipmentFreedByRemoval({ ...base, summaries: [], heldRelatorioIds: [HERE] })).toBe(true);
+  });
+
+  it('leaves the equipment live when the obra has a relatório this device never pulled', () => {
+    const summaries = [
+      { id: HERE, project_id: PROJECT },
+      { id: NEVER_PULLED, project_id: PROJECT },
+    ];
+    expect(equipmentFreedByRemoval({ ...base, summaries, heldRelatorioIds: [HERE] })).toBe(false);
+  });
+
+  it('leaves the equipment live when another live block on this device references it', () => {
+    const other = { id: id(7302), equipment_id: EQ, removed_at: null };
+    expect(equipmentFreedByRemoval({ ...base, blocks: [block, other], summaries: [], heldRelatorioIds: [HERE] })).toBe(false);
   });
 });

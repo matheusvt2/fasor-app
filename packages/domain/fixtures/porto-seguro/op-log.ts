@@ -319,6 +319,34 @@ if (Object.values(totals).reduce((a, b) => a + b, 0) !== 94) {
   throw new Error('porto-seguro fixture: standardTemplate() no longer totals 94 equipment blocks');
 }
 
+/**
+ * Per-instance guard for the 1:1 zip below: `data.ts` rows are matched to template blocks by
+ * position only, so a row shifted onto another block type is caught here, before any op is
+ * written, rather than by the total-count guard above (which a same-length shift passes).
+ * The instance's data must fit its block type: every nameplate key is one of the type's
+ * fields; `contact` only on a contact-form insulation (more than one table) and `isoRows` only
+ * on a single-table one, with no more readings than the table has rows; `rc` only on a type
+ * with `resistencia_contato`; `ratio` only on a type with `relacao_transformacao`.
+ */
+export function assertInstanceFitsBlockType(index: number, definition: BlockDefinition, instance: Instance): void {
+  const fail = (why: string): never => {
+    throw new Error(`porto-seguro fixture: instance ${index} (${definition.block_type}) does not fit its block type: ${why}`);
+  };
+  const testOf = (key: TestKey) => definition.tests.find((t) => t.key === key);
+  for (const key of Object.keys(instance.np ?? {})) {
+    if (!definition.nameplate.some((f) => f.key === key)) fail(`unknown nameplate field "${key}"`);
+  }
+  const isolacao = testOf('isolacao');
+  if (instance.contact && !(isolacao && isolacao.tables.length > 1)) fail('carries contact insulation but the type has no contact-form isolacao test');
+  if (instance.isoRows) {
+    if (!(isolacao && isolacao.tables.length === 1)) fail('carries isoRows but the type has no single-table isolacao test');
+    const rows = isolacao!.tables[0]!.rows.length;
+    if (instance.isoRows.length > rows) fail(`carries ${instance.isoRows.length} isoRows but the isolacao table has ${rows} rows`);
+  }
+  if (instance.rc && !testOf('resistencia_contato')) fail('carries rc but the type has no resistencia_contato test');
+  if (instance.ratio && !testOf('relacao_transformacao')) fail('carries ratio but the type has no relacao_transformacao test');
+}
+
 /** `sheet/nameplate/{field_key}` value, wrapped per the field's AD-11 kind. */
 function nameplateValue(definition: BlockDefinition, key: string, raw: string): unknown {
   const field = definition.nameplate.find((f) => f.key === key);
@@ -452,7 +480,9 @@ for (const templateBlock of equipmentTemplateBlocks) {
   const locationId = locationIdOf.get(templateBlock.skeleton_location_ref!)!;
   const definition = getDefinition(SEED_VERSION, 'cabine_primaria', blockType);
   for (let i = 0; i < templateBlock.quantity; i++) {
-    const instance = dataQueue[equipmentInstanceIndex++]!;
+    const instance = dataQueue[equipmentInstanceIndex]!;
+    assertInstanceFitsBlockType(equipmentInstanceIndex, definition, instance);
+    equipmentInstanceIndex++;
     const equipmentId = newId();
     const blockId = newId();
     const orderKey = nextOrderKey(locationId);

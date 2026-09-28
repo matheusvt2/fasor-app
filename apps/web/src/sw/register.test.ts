@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import {
-  currentShellEntry,
+  currentShellVersion,
   holdShell,
   promoteWaitingShell,
   registerServiceWorker,
@@ -56,20 +56,21 @@ describe('promoteWaitingShell', () => {
   it('promotes a waiting worker when nothing is on its way to the server', async () => {
     const postMessage = vi.fn();
     const backlog = vi.fn(async () => 0);
-    expect(await promoteWaitingShell(registration({ postMessage }), backlog)).toBe('promoted');
-    expect(postMessage).toHaveBeenCalledWith({ type: 'activate-shell' });
+    expect(await promoteWaitingShell(registration({ postMessage }), backlog, 'user-a')).toBe('promoted');
+    // The worker refuses it while another user holds, so it says whose outbox is empty.
+    expect(postMessage).toHaveBeenCalledWith({ type: 'activate-shell', user: 'user-a' });
   });
 
   it('holds a new shell back while the outbox still has work', async () => {
     const postMessage = vi.fn();
-    expect(await promoteWaitingShell(registration({ postMessage }), async () => 3)).toBe('held-back');
+    expect(await promoteWaitingShell(registration({ postMessage }), async () => 3, 'user-a')).toBe('held-back');
     expect(postMessage).not.toHaveBeenCalled();
   });
 
   it('never reads the backlog when no worker is waiting', async () => {
     const backlog = vi.fn(async () => 0);
-    expect(await promoteWaitingShell(registration(null), backlog)).toBe('nothing-waiting');
-    expect(await promoteWaitingShell(null, backlog)).toBe('nothing-waiting');
+    expect(await promoteWaitingShell(registration(null), backlog, 'user-a')).toBe('nothing-waiting');
+    expect(await promoteWaitingShell(null, backlog, 'user-a')).toBe('nothing-waiting');
     expect(backlog).not.toHaveBeenCalled();
   });
 });
@@ -93,50 +94,69 @@ describe('shouldHoldShell', () => {
 });
 
 describe('holdShell', () => {
-  it('tells the active worker to hold, and later to stop', () => {
+  it('tells the active worker to hold for this user, and later to stop', () => {
     const active = { postMessage: vi.fn() };
     const reg = registration({ postMessage: vi.fn() }, { active });
 
-    expect(holdShell(reg, 2)).toBe(true);
-    expect(active.postMessage).toHaveBeenLastCalledWith({ type: 'hold-shell', hold: true });
+    expect(holdShell(reg, 2, 'user-a')).toBe(true);
+    expect(active.postMessage).toHaveBeenLastCalledWith({ type: 'hold-shell', hold: true, user: 'user-a' });
 
-    expect(holdShell(reg, 0)).toBe(false);
-    expect(active.postMessage).toHaveBeenLastCalledWith({ type: 'hold-shell', hold: false });
+    expect(holdShell(reg, 0, 'user-a')).toBe(false);
+    expect(active.postMessage).toHaveBeenLastCalledWith({ type: 'hold-shell', hold: false, user: 'user-a' });
   });
 
   it('keeps holding with nothing waiting, as after the browser activated the new shell itself', () => {
     const active = { postMessage: vi.fn() };
-    expect(holdShell(registration(null, { active }), 3)).toBe(true);
-    expect(active.postMessage).toHaveBeenLastCalledWith({ type: 'hold-shell', hold: true });
-    expect(holdShell(registration(null, { active }), 0)).toBe(false);
-    expect(active.postMessage).toHaveBeenLastCalledWith({ type: 'hold-shell', hold: false });
+    expect(holdShell(registration(null, { active }), 3, 'user-a')).toBe(true);
+    expect(active.postMessage).toHaveBeenLastCalledWith({ type: 'hold-shell', hold: true, user: 'user-a' });
+    expect(holdShell(registration(null, { active }), 0, 'user-a')).toBe(false);
+    expect(active.postMessage).toHaveBeenLastCalledWith({ type: 'hold-shell', hold: false, user: 'user-a' });
   });
 
-  it('names the build the page runs, so the worker pins that one and not its own', () => {
+  it('names the build the page runs by its shell version, so the worker pins that one and not its own', () => {
     const active = { postMessage: vi.fn() };
-    expect(holdShell(registration(null, { active }), 1, '/assets/index-C.js')).toBe(true);
-    expect(active.postMessage).toHaveBeenLastCalledWith({ type: 'hold-shell', hold: true, shell: '/assets/index-C.js' });
-    expect(holdShell(registration(null, { active }), 0, '/assets/index-C.js')).toBe(false);
-    expect(active.postMessage).toHaveBeenLastCalledWith({ type: 'hold-shell', hold: false, shell: '/assets/index-C.js' });
+    expect(holdShell(registration(null, { active }), 1, 'user-a', '0123456789ab')).toBe(true);
+    expect(active.postMessage).toHaveBeenLastCalledWith({
+      type: 'hold-shell',
+      hold: true,
+      user: 'user-a',
+      version: '0123456789ab',
+    });
+    expect(holdShell(registration(null, { active }), 0, 'user-b', '0123456789ab')).toBe(false);
+    expect(active.postMessage).toHaveBeenLastCalledWith({
+      type: 'hold-shell',
+      hold: false,
+      user: 'user-b',
+      version: '0123456789ab',
+    });
   });
 
   it('says nothing when there is no active worker to say it to', () => {
-    expect(holdShell(registration({ postMessage: vi.fn() }), 2)).toBeNull();
-    expect(holdShell(null, 2)).toBeNull();
+    expect(holdShell(registration({ postMessage: vi.fn() }), 2, 'user-a')).toBeNull();
+    expect(holdShell(null, 2, 'user-a')).toBeNull();
   });
 });
 
-describe('currentShellEntry', () => {
-  it('is the path of the chunk running the code, which names the build', () => {
-    expect(currentShellEntry('https://tablet.local:8443/assets/index-Ab12Cd.js')).toBe('/assets/index-Ab12Cd.js');
-    expect(currentShellEntry('http://localhost:5200/assets/index-X.js')).toBe('/assets/index-X.js');
+describe('currentShellVersion', () => {
+  const doc = (content: string | null): Pick<Document, 'querySelector'> => ({
+    querySelector: (selector: string) =>
+      selector === 'meta[name="shell-version"]' && content !== null
+        ? ({ getAttribute: (name: string) => (name === 'content' ? content : null) } as unknown as Element)
+        : null,
   });
 
-  it('is unknown outside a served page', () => {
-    expect(currentShellEntry('file:///workspace/apps/web/src/sw/register.ts')).toBeUndefined();
-    expect(currentShellEntry('not a url')).toBeUndefined();
-    // Under vitest the module is a file, so the default sends no `shell`.
-    expect(currentShellEntry()).toBeUndefined();
+  it('is the version the build stamped into the document, which names the build', () => {
+    expect(currentShellVersion(doc('0123456789ab'))).toBe('0123456789ab');
+    expect(currentShellVersion(doc('0123456789ab-next'))).toBe('0123456789ab-next');
+  });
+
+  it('is unknown for a document the build did not stamp', () => {
+    // The dev server serves index.html as written, placeholder and all.
+    expect(currentShellVersion(doc('__SHELL_VERSION__'))).toBeUndefined();
+    expect(currentShellVersion(doc(''))).toBeUndefined();
+    expect(currentShellVersion(doc(null))).toBeUndefined();
+    // Under vitest (node) there is no document, so the default sends no `version`.
+    expect(currentShellVersion()).toBeUndefined();
   });
 });
 

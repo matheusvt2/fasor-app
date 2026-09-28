@@ -203,7 +203,7 @@ export function HomeSurface() {
           <h2 id={shortcutsHeadingId} className="visually-hidden">
             {copy.home.shortcutsHeading}
           </h2>
-          <ShortcutRow templateCount={templates.length} />
+          <ShortcutRow templates={templates} />
         </section>
       </div>
 

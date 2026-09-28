@@ -22,6 +22,7 @@ import {
   removeNode,
   removeSection,
   renameNode,
+  resolveSectionIndex,
   setAgruparPorTipo,
   setQuantity,
   setSectionText,
@@ -389,6 +390,49 @@ describe('3.5-UNIT sub-block defaults per equipment type', () => {
     expect(enabledSubBlocks(tp)).not.toContain('ia_ip_display');
     expect(enabledSubBlocks({ ...tp, sub_blocks: { ...tp.sub_blocks, ia_ip_display: { enabled: true } } })).toContain('ia_ip_display');
     expect(enabledSubBlocks(defaultBlockConfig('v1', 'section_1'))).toEqual([]);
+  });
+});
+
+describe('E9 sweep B11: a section action resolves the pressed section at write time', () => {
+  const sectionTypes = (blocks: readonly TemplateBlock[]) =>
+    blocks.filter((b) => b.skeleton_location_ref === null).map((b) => b.block_type);
+
+  it('the view names each section by its type and how many of that type come before it', () => {
+    const blocks = duplicateSection(standard.blocks, 1);
+    const view = composerView({ ...standard, blocks });
+    expect(view.sections.slice(0, 4).map((s) => [s.block_type, s.occurrence])).toEqual([
+      ['section_1', 0],
+      ['section_2', 0],
+      ['section_2', 1],
+      ['section_3', 0],
+    ]);
+    for (const section of view.sections) expect(resolveSectionIndex(blocks, section)).toBe(section.index);
+  });
+
+  it('a pull that reordered the sections acts on the same section', () => {
+    // Pressed on "2" (index 1); a pull then moved "11" to the top, so "2" is at index 2.
+    const pressed = composerView(standard).sections[1]!;
+    const pulled = moveSection(standard.blocks, 8, 0);
+    const index = resolveSectionIndex(pulled, pressed);
+    expect(index).toBe(2);
+    expect(sectionTypes(duplicateSection(pulled, index!)).slice(0, 4)).toEqual(['section_11', 'section_1', 'section_2', 'section_2']);
+    expect(sectionTypes(removeSection(pulled, index!))).not.toContain('section_2');
+    expect(setSectionText(pulled, index!, 'x').find((b) => b.block_type === 'section_2')!.section_text).toBe('x');
+    expect(sectionTypes(addSectionBelow(pulled, index!, 'section_10', 'v1')).slice(0, 4)).toEqual([
+      'section_11',
+      'section_1',
+      'section_2',
+      'section_10',
+    ]);
+  });
+
+  it('a pull that removed the section resolves to nothing, so the action writes nothing', () => {
+    const pressed = composerView(standard).sections[1]!;
+    expect(resolveSectionIndex(removeSection(standard.blocks, 1), pressed)).toBeNull();
+    // The second copy of a type is gone once only one of it is left.
+    const twice = duplicateSection(standard.blocks, 1);
+    const second = composerView({ ...standard, blocks: twice }).sections[2]!;
+    expect(resolveSectionIndex(removeSection(twice, 2), second)).toBeNull();
   });
 });
 

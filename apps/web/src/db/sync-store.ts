@@ -1,5 +1,6 @@
 import {
   blockFieldPath,
+  companyStreamDownloaded,
   materializeEntity,
   newRelatorioEquipmentReady,
   splitEntityKey,
@@ -10,7 +11,7 @@ import {
   type RelatorioSummary,
   type UserRow,
 } from '@app/domain';
-import { opOf, toRecord } from './commit.ts';
+import { byClientTsThenOpId, opOf, toRecord } from './commit.ts';
 import {
   COMPANY_STREAM,
   targetKeysOf,
@@ -30,9 +31,6 @@ import {
  */
 
 export { deviceId } from './device-id.ts';
-
-const byClientTsThenOpId = (a: OutboxRow, b: OutboxRow) =>
-  a.client_ts < b.client_ts ? -1 : a.client_ts > b.client_ts ? 1 : a.op_id < b.op_id ? -1 : a.op_id > b.op_id ? 1 : 0;
 
 /** Rows to push: `pending` plus `sent` (a request that never answered), in commit order. */
 export async function takePending(db: AppDatabase): Promise<OutboxRow[]> {
@@ -176,12 +174,11 @@ export function syncStateRows(db: AppDatabase): Promise<SyncStateRow[]> {
 }
 
 /**
- * True once the company stream has been pulled to the end at least once on this device:
- * before that, an empty company table here says nothing about what the company holds.
+ * True once the company stream has been pulled to the end at least once on this device;
+ * the kernel owns the rule (`companyStreamDownloaded`).
  */
 export async function companyDownloaded(db: AppDatabase): Promise<boolean> {
-  const row = await db.sync_state.get(COMPANY_STREAM);
-  return row !== undefined && row.downloaded_at !== null;
+  return companyStreamDownloaded(await db.sync_state.get(COMPANY_STREAM));
 }
 
 /**
@@ -206,6 +203,15 @@ export async function equipmentReadyFor(db: AppDatabase, projectId: string): Pro
     heldRelatorioIds: relatorios.map(([, id]) => id),
     downloadedStreamIds: states.filter((row) => row.downloaded_at !== null).map((row) => row.id),
   });
+}
+
+/**
+ * E9 sweep B15: what "Remover" of a sheet needs to know about the obra's relatórios this
+ * device cannot see: the company summary and the ids of the relatórios held here.
+ */
+export async function relatorioVisibility(db: AppDatabase): Promise<{ summaries: RelatorioSummary[]; heldRelatorioIds: string[] }> {
+  const [summaries, relatorios] = await Promise.all([companySummaries(db), db.entities.where('entity').equals('relatorio').primaryKeys()]);
+  return { summaries, heldRelatorioIds: relatorios.map(([, id]) => id) };
 }
 
 /** The company's user rows on this device, for names on Sync status. */

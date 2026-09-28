@@ -11,6 +11,7 @@ import { asCompanyId } from './repositories/company-id.ts';
 import { findUserProfile } from './repositories/users.ts';
 import { account, company, entities, ops, session, syncDevicePush, user } from './schema.ts';
 import { LEGACY_TEST_COMPANY_IDS, seedTestCompanies, seedUser, TEST_SEED } from './seed.ts';
+import { dropCompany } from './test-cleanup.ts';
 
 /**
  * A volume seeded before Story 1.5 holds the two test companies under v4-shaped ids.
@@ -250,4 +251,65 @@ describe('the user projection (retro A2)', () => {
     ).rejects.toThrow(/uuidv7/);
     expect(await db.select({ id: company.id }).from(company).where(eq(company.id, v4))).toEqual([]);
   });
+
+  it('logs exactly one user/{id} create when two seeds of a new user race on a fresh company', async () => {
+    const companyId = newId();
+    const userId = newId();
+    const input = {
+      companyId,
+      companyName: 'Empresa da Corrida',
+      email: `corrida-${companyId}@teste.local`,
+      password: TEST_SEED.password,
+      name: 'Rita Corrida',
+      council: 'crea' as const,
+      registrationNumber: 'SP 12',
+      userId,
+    };
+    try {
+      // The company lock is held while the three seeds run, so each reads "no user row"
+      // before any of them can apply: the race the lock-side re-check has to settle.
+      let seeds: Promise<unknown> = Promise.resolve();
+      await sql.begin(async (tx) => {
+        await tx`select pg_advisory_xact_lock(hashtext(${companyId}))`;
+        seeds = Promise.all([seedUser(db, auth, input), seedUser(db, auth, input), seedUser(db, auth, input)]);
+        for (let waited = 0; waited < 10_000; waited += 50) {
+          const [row] = await tx`select count(*)::int as waiting from pg_locks where locktype = 'advisory' and not granted`;
+          if ((row?.waiting as number) >= 3) break;
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+      });
+      await seeds;
+      const logged = await db
+        .select({ kind: ops.kind })
+        .from(ops)
+        .where(and(eq(ops.company_id, companyId), eq(ops.path, `user/${userId}`)));
+      expect(logged).toEqual([{ kind: 'create' }]);
+    } finally {
+      await dropCompany(db, companyId);
+    }
+  }, 30_000);
+});
+
+describe('revokeSessions on a re-seed', () => {
+  it('also drops the user session rows that carry no company id', async () => {
+    const companyId = newId();
+    const input = {
+      companyId,
+      companyName: 'Empresa da Sessão',
+      email: `sessao-${companyId}@teste.local`,
+      password: TEST_SEED.password,
+      name: 'Sara Sessão',
+      council: 'crea' as const,
+      registrationNumber: 'SP 13',
+    };
+    try {
+      const { userId } = await seedUser(db, auth, input);
+      const orphan = `orphan-session-${newId()}`;
+      await db.insert(session).values({ id: orphan, companyId: null, userId, token: newId(), expiresAt: new Date(Date.now() + 60_000) });
+      await seedUser(db, auth, { ...input, password: 'nova-senha-123456' });
+      expect(await db.select({ id: session.id }).from(session).where(eq(session.id, orphan))).toEqual([]);
+    } finally {
+      await dropCompany(db, companyId);
+    }
+  }, 30_000);
 });

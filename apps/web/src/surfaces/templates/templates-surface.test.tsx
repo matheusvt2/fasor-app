@@ -42,7 +42,6 @@ const session = (): SessionState => ({
   signIn: vi.fn(),
   signOut: vi.fn(async () => {}),
   saveRegistration: vi.fn(async () => {}),
-  dismissReAuth: vi.fn(),
   recoveryNeeded: false,
   dismissRecovery: vi.fn(),
 });
@@ -147,6 +146,24 @@ describe('Templates: empty state', () => {
     expect(container.querySelector('.screen[data-route="/templates"] > .tpl-content')).not.toBeNull();
     expect(screen.queryByRole('list')).toBeNull();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('B8: a live template that fails the schema is logged and still counts, so no standard one is offered', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      database = await freshDb();
+      // A row written by an older bundle: it no longer fits `templateRowSchema`.
+      const stale = { id: GONE, name: 'Antigo', seed_version: 'v0', removed_at: null } as unknown as TemplateRow;
+      await database.entities.put(toRecord(`template:${GONE}`, stale));
+      renderSurface();
+
+      expect(await screen.findByRole('heading', { level: 2, name: 'Templates (0)' })).toBeVisible();
+      expect(screen.queryByText('Nenhum template. Crie um a partir do relatório padrão FO.SERV-03.')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Criar template padrão' })).toBeNull();
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining(`template:${GONE}`), expect.anything());
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it('commits one template/{id} create of the standard template, then lists it', async () => {

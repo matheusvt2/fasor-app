@@ -8,6 +8,7 @@ import { newId } from '../ids.ts';
 import { createDb } from './client.ts';
 import { entities } from './schema.ts';
 import { dropCompany } from './test-cleanup.ts';
+import { removePortoSeguroSmall, SMALL_FIXTURE_RELATORIO_ID } from './test-fixtures.ts';
 import { TEST_SEED } from './test-seed.ts';
 
 /**
@@ -70,6 +71,48 @@ describe('seed-users CLI', () => {
         .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'template'), isNull(entities.removed_at)));
       expect(live.map((t) => (t.row as { name: string }).name)).toEqual([STANDARD_TEMPLATE_NAME]);
     } finally {
+      await dropCompany(db, companyId);
+    }
+  }, 120_000);
+
+  it('seeds the small Porto Seguro relatório onto the named company with --sample-relatorio', async () => {
+    const companyId = newId();
+    const args = [
+      '--company-id',
+      companyId,
+      '--company',
+      'Empresa da Amostra',
+      '--email',
+      `amostra-${companyId}@teste.local`,
+      '--password',
+      TEST_SEED.password,
+      '--name',
+      'Amanda Amostra',
+      '--council',
+      'crea',
+      '--number',
+      'SP 14',
+      '--sample-relatorio',
+    ];
+    try {
+      const run = seedUsers(args);
+      expect(run.status, `${run.stdout}\n${run.stderr}`).toBe(0);
+      expect(run.stdout).toContain(`seeded the sample relatório ${SMALL_FIXTURE_RELATORIO_ID} in company ${companyId}`);
+      const userId = /as user (\S+) in company/.exec(run.stdout)?.[1];
+
+      const [relatorio] = await db
+        .select({ company_id: entities.company_id, row: entities.row })
+        .from(entities)
+        .where(and(eq(entities.entity, 'relatorio'), eq(entities.id, SMALL_FIXTURE_RELATORIO_ID)));
+      expect(relatorio?.company_id).toBe(companyId);
+      expect((relatorio?.row as { setup: { responsible_user_id: string | null } }).setup.responsible_user_id).toBe(userId);
+      const blocks = await db
+        .select({ id: entities.id })
+        .from(entities)
+        .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'block')));
+      expect(blocks.length).toBeGreaterThan(0);
+    } finally {
+      await removePortoSeguroSmall(db);
       await dropCompany(db, companyId);
     }
   }, 120_000);

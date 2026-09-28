@@ -56,7 +56,6 @@ const session = (): SessionState => ({
   signIn: vi.fn(),
   signOut: vi.fn(async () => {}),
   saveRegistration: vi.fn(async () => {}),
-  dismissReAuth: vi.fn(),
   recoveryNeeded: false,
   dismissRecovery: vi.fn(),
 });

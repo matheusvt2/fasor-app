@@ -21,7 +21,7 @@ import { Button, ConfirmDialog, OverflowMenu, TextButton } from '../../component
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { commitBatch } from '../../db/commit.ts';
-import { relatorioRows, templateRows } from '../../db/home-store.ts';
+import { relatorioRows, templateList } from '../../db/home-store.ts';
 import { companyDownloaded, companySummaries } from '../../db/sync-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { newId } from '../../ids.ts';
@@ -91,7 +91,8 @@ export function TemplatesSurface() {
 
   // `undefined` until the first read lands, so the empty state never flashes (and never
   // offers its action) over a device that does hold templates.
-  const rows: TemplateRow[] | undefined = useLiveQuery(() => (db === null ? undefined : templateRows(db)), [db]);
+  const list = useLiveQuery(() => (db === null ? undefined : templateList(db)), [db]);
+  const rows: TemplateRow[] | undefined = list?.rows;
   const active = useMemo(() => (rows === undefined ? undefined : activeTemplates(rows)), [rows]);
   const archived = useMemo(() => (rows === undefined ? [] : archivedTemplates(rows)), [rows]);
   const summaries = useLiveQuery(() => (db === null ? NO_SUMMARIES : companySummaries(db)), [db]) ?? NO_SUMMARIES;
@@ -194,7 +195,8 @@ export function TemplatesSurface() {
     undoable(copy.templates.removed(row.name), batchId, () => primaryOf(rowIn(group, row.id)));
   }
 
-  const empty = active !== undefined && active.length === 0 && archived.length === 0;
+  // A live template this bundle cannot read is still a template: no standard one over it.
+  const empty = active !== undefined && active.length === 0 && archived.length === 0 && list?.unreadable === 0;
 
   return (
     <main className="screen" data-route="/templates" ref={mainRef}>

@@ -7,6 +7,7 @@ import {
   resolveSectionText,
   SECTION_VARIABLE_LABELS,
   sectionTextTokens,
+  sectionVariableChipLabel,
 } from './section-text.ts';
 
 const TODAY = new Date('2026-09-23T15:00:00.000Z');
@@ -108,5 +109,15 @@ describe('3.6-UNIT resolveSectionText', () => {
     expect(INSERTABLE_SECTION_VARIABLES).toEqual(['cliente', 'obra', 'datas', 'empresa_executora', 'responsavel']);
     expect(SECTION_VARIABLE_LABELS.responsavel).toBe('Responsável');
     expect(SECTION_VARIABLE_LABELS.empresa_executora).toBe('Empresa executora');
+  });
+
+  it('E9 sweep B13: names each insertable variable\'s chip in lower case, as the mock draws it', () => {
+    expect(INSERTABLE_SECTION_VARIABLES.map(sectionVariableChipLabel)).toEqual([
+      'cliente',
+      'obra',
+      'datas',
+      'empresa executora',
+      'responsável',
+    ]);
   });
 });
