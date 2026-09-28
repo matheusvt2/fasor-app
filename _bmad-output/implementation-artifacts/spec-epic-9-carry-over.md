@@ -2,7 +2,7 @@
 title: 'Epic 9 carry-over: gate time, offline tools image, Epic 7 and 8 leftovers, Home layout'
 type: 'chore'
 created: '2026-09-28'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'a2cd0534bee9371e1e76ca1f58da786800a8c902'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -12,7 +12,21 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-9-context.md'
 warnings: ['batched', 'multiple-goals', 'oversized']
 batched_reason: 'Epic 9 carry-over batch C1 (E6-A7): the agent-closable action items E7-A1/E8-A1, E7-A7/E8-A2, E7-A2, E7-A3, E7-A4, E8-A5 and the Home layout bug, one PR by coordinator decision.'
-deferred: []
+deferred:
+  - summary: >-
+      Task 15 (EXIF orientation of the thumb and print variants) is not done; the deferred-work entry is re-owned to the batch that may change jobs/reading/image.ts.
+    evidence: |-
+      jobs/reading/image.ts applies the original's EXIF orientation to the print bytes itself; rotating print in renderVariants alone would double-rotate every oriented plate for OCR, and this batch may not touch jobs/reading/*.
+    location: >-
+      apps/api/src/storage/variants.ts:51
+    severity: low
+  - summary: >-
+      The prefix-equality test compares the incremental builder with buildSnapshot at every 48th op of the full Porto Seguro log (every op of the small logs).
+    evidence: |-
+      A full comparison costs about 45 ms per op (3841 ops, about 3 min of test:unit); the builder still runs after every op.
+    location: >-
+      packages/domain/src/schemas/snapshot-builder.test.ts
+    severity: low
 ---
 
 <intent-contract>
@@ -174,3 +188,31 @@ Re-checked on HEAD after the `rev` stamp moved into a Dexie middleware (every `e
 - `flock /tmp/fasor-verify.lock docker compose --profile tools run --rm tools pnpm exec tsx scripts/e2e.ts --grep "commit-to-render" --project desktop-chrome` -- numbers written to `test-results/perf/commit-to-render.json`
 - `docker compose --profile tools run --rm tools pnpm exec tsx scripts/e2e.ts --grep "<new or touched spec ids>" --project desktop-chrome` -- green
 - The orchestrator runs `pnpm verify` twice and `test:e2e:full` under the lock after the review.
+
+## Review Triage Log
+
+### 2026-09-28 — Review pass
+
+Layers run: Edge Case Hunter, Verification Gap Reviewer (opus). Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+
+- verdicts: 9 findings — high 1, medium 0, low 6, false 1, maybe-false 0 (plus 1 deviation already recorded)
+- findings:
+  - `[low]` `[patch]` (verification gap) the E8-A5 eviction test set `uploaded_at`, so the crop exemption from `uploaded_at === null` never ran — added a crop whose file row keeps `uploaded_at: null` and asserted it is evicted (`photo-store.test.ts`).
+  - `[high]` `[patch]` a section 9 subsection heading with a trailing space, an empty cabine name or doubled spaces never matched the trimmed outline title, so generation failed with `toc_outline_missing` — `headingPages` now compares both sides trimmed with whitespace collapsed; `toc.test.ts` covers the three shapes.
+  - `[low]` `[patch]` `relatorioState`'s module maps kept a gone relatório's rows — both `return null` paths now delete its entries.
+  - `[low]` `[reject]` the kernel builder's `previous` map keeps one snapshot per relatório visited — bounded by the relatórios opened in one tab session, each already held by the live query; guarding it adds a cap for no observed harm.
+  - `[low]` `[patch]` a put with a `changeSpec` got a second, different `rev` — one rev per value, reused by the changeSpec.
+  - `[false]` `[reject]` a focused box beyond the picture edge collapsing the crop to zero width — suggestion bboxes are normalized within [0, 1] and the margin keeps the width at least 0.03 after clamping; no reachable input produces zero width.
+  - `[low]` `[defer]` task 15 (EXIF orientation of thumb/print) not done — reason recorded: the reading job re-orients the print itself and is off-limits here; deferred-work entry re-owned; frontmatter `deferred`.
+  - `[low]` `[patch]` no web test showed the `cert_number_mismatch` row in the Export dialog — `export-dialog.test.tsx` E7-A4 case lists it and keeps "Gerar relatório" enabled.
+  - `[low]` `[defer]` prefix equality over the full log is strided (every 48th op) — cost trade-off recorded in Design Notes; frontmatter `deferred`.
+
+## Auto Run Result
+
+Status: done.
+
+- Summary: incremental device snapshot (kernel `createSnapshotBuilder`, identity-stable `relatorioState` over a per-write `rev` stamped by a Dexie middleware, one shared `useRelatorioSnapshot`), commit-to-render 720.7 to 282.5 ms median on a checklist tap; offline-capable gate start (baked pnpm binary, `COREPACK_ENABLE_NETWORK=0`, `--trust-lockfile`); load-independent waits in three unit files; fixture TTR 13.2 kV; section 11 pre-issue rows over `section11Instruments` plus `cert_number_mismatch`; small fixture sub-blocks; ÍNDICE 9.x; section 9 page break; plate crop zoom and outline; crop blob reuse and eviction; Home App bar and centered column; deferred-work states.
+- Review: 5 patches applied (1 high, 4 low), 2 deferred, 2 rejected (reasons above).
+- Follow-up review recommended: false (the one high patch is a direct comparison fix covered by its test; the integrated epic review follows).
+- Verification: `test:unit` 2318/2318 before the patches; covering files after the patches (79 web tests, 8 api toc tests), lint and static clean; the orchestrator's `pnpm verify` and `test:e2e:full` follow and are reported in the PR.
+- Residual risks: `--trust-lockfile` needs Matheus's confirmation; the mismatch row's wording is authored (Bruno); EXIF orientation still open.
