@@ -184,6 +184,41 @@ describe('7.5-UNIT preIssue: the rows the story adds', () => {
     expect(preIssue(noEnd).some((r) => r.kind === 'calibration')).toBe(false);
   });
 
+  it('E7-A4: the calibration rows follow section 11\'s own list: an instrument the snapshot holds but section 11 does not print gets none', () => {
+    const base = fresh();
+    const snapshot = {
+      ...base,
+      relatorio: { ...base.relatorio, setup: { ...base.relatorio.setup, instrument_ids: ['019966b0-0085-7000-8000-000000000001'] } },
+      instruments: [
+        instrument({ id: '019966b0-0085-7000-8000-000000000001', code: 'MEG-01', calibrated_at: '2025-08-01' }),
+        // Expired, but neither checked at setup nor named by a live, tested sheet: section 11 does not print it.
+        instrument({ id: '019966b0-0085-7000-8000-000000000009', code: 'OLD-01', calibrated_at: '2024-01-01' }),
+      ],
+    };
+    const calibration = preIssue(snapshot, undefined, { now: NOW }).filter((r) => r.kind === 'calibration');
+    expect(calibration.map((r) => r.text)).toEqual(['MEG-01 — calibração vencida em 01/08/2026']);
+  });
+
+  it('E7-A4: a sheet certificate number that differs from the registry is a section 11 information row, listed by the Export dialog and never blocking', () => {
+    const base = fresh();
+    const sheet = base.blocks.find((b) => b.block_type === 'chave_seccionadora')!;
+    const header = { instrument_id: '019966b0-0085-7000-8000-000000000001', code: 'MEG-01', manufacturer: null, model: null, serial: null, cert_number: '111/26', calibrated_at: null, valid_until: null, test_parameter: null };
+    const blocks = base.blocks.map((b) => (b.id === sheet.id ? { ...b, sheet: { ...b.sheet, test: { ...b.sheet.test, isolacao: { cells: {}, instrument: cell(header) } } } } : b)) as BlockRow[];
+    const snapshot = withSetup(
+      { ...base, blocks, instruments: [instrument({ id: '019966b0-0085-7000-8000-000000000001', code: 'MEG-01', cert_number: '222/26', calibrated_at: '2026-06-01' })] },
+      { parecer: PARECER },
+    );
+    const rows = preIssue(snapshot, undefined, { now: NOW });
+    const mismatch = rows.filter((r) => r.kind === 'cert_number_mismatch');
+    expect(kinds(mismatch)).toEqual([['cert_number_mismatch', 'section_11', 'info', 'MEG-01: nº de certificado da ficha difere do cadastro']]);
+    const precheck = exportPrecheck(rows);
+    expect(precheck.blocking).toEqual([]);
+    expect(precheck.explicit.map((r) => r.kind)).toContain('cert_number_mismatch');
+    // The same number on both sides: no row.
+    const same = { ...snapshot, instruments: [instrument({ id: '019966b0-0085-7000-8000-000000000001', code: 'MEG-01', cert_number: '111/26', calibrated_at: '2026-06-01' })] };
+    expect(preIssue(same, undefined, { now: NOW }).some((r) => r.kind === 'cert_number_mismatch')).toBe(false);
+  });
+
   it('a TAG two live sheets carry is pending on section 9', () => {
     const snapshot = fresh();
     const [a, b] = snapshot.equipment;

@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { buildSnapshot, layoutSpec, numberPhotos, PHOTO_UNAVAILABLE_TEXT, replay, type LayoutSection, type RelatorioSnapshot } from '@app/domain';
+import { buildSnapshot, layoutSpec, numberPhotos, PHOTO_UNAVAILABLE_TEXT, replay, tocLines, type LayoutSection, type RelatorioSnapshot } from '@app/domain';
 import { portoSeguro } from '@app/domain/fixtures/porto-seguro';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
@@ -98,10 +98,13 @@ describe('4.8-UNIT-006 DOCX structure golden', () => {
     expect(control![1]![1]).toBe('Rev. 1');
     expect(control![2]![1]).toBe('23/09/2026');
     expect(control![5]![1]).toBe('—');
-    // The ÍNDICE: one entry per section with a right tab and the placeholder.
-    const toc = structure.paragraphs.filter((p) => /^\d+ .*\t00$/.test(p));
-    expect(toc).toHaveLength(11);
+    // The ÍNDICE: one entry per section with a right tab and the placeholder, and (E7-A4) section
+    // 9's eleven subsections 9.1 to 9.11 right after it, as FO.SERV-03 lists them.
+    const toc = structure.paragraphs.filter((p) => /^\d+(\.\d+)? .*\t00$/.test(p));
+    expect(toc).toHaveLength(22);
     expect(toc[0]).toBe(`1 OBJETIVO\t${TOC_PLACEHOLDER}`);
+    expect(toc.map((p) => p.split(' ', 1)[0])).toEqual(['1', '2', '3', '4', '5', '6', '7', '8', '9', ...Array.from({ length: 11 }, (_, i) => `9.${i + 1}`), '10', '11']);
+    expect(toc[9]).toBe(`9.1 Cubículo Enel\t${TOC_PLACEHOLDER}`);
     expect(structure.paragraphs).toContain('ÍNDICE');
     // Section 3's exclusions; every numbered section prints content on the fixture (7, 8, 9, 11 since Epic 7).
     expect(structure.paragraphs).toContain('Exclusões:');
@@ -114,12 +117,26 @@ describe('4.8-UNIT-006 DOCX structure golden', () => {
 
   it('writes the page numbers it is given into the ÍNDICE', async () => {
     const layout = layoutSpec(fixtureSnapshot(), { revisionNumber: 2, issuedAt: ISSUED_AT });
-    const pages = new Map(layout.toc.map((entry, i) => [entry.number, 4 + i]));
+    const lines = tocLines(layout);
+    const pages = new Map(lines.map((line, i) => [line.key, 4 + i]));
     const structure = extractStructure(await buildDocx(layout, { tocPages: pages }));
-    expect(structure.paragraphs.filter((p) => /^\d+ .*\t\d+$/.test(p)).map((p) => p.split('\t')[1])).toEqual(
-      layout.toc.map((_, i) => String(4 + i)),
-    );
+    expect(structure.paragraphs.filter((p) => /^\d+(\.\d+)? .*\t\d+$/.test(p)).map((p) => p.split('\t')[1])).toEqual(lines.map((_, i) => String(4 + i)));
+    // The subsection lines indent as level 2; the section lines do not.
+    const document = readZipEntries(await buildDocx(layout, { tocPages: pages })).get('word/document.xml')!.toString('utf8');
+    const paragraphOf = (start: string) => [...document.matchAll(/<w:p>([\s\S]*?)<\/w:p>/g)].map((m) => m[1]!).find((p) => paragraphText(p).startsWith(start))!;
+    expect(paragraphOf('9.1 Cubículo Enel\t')).toMatch(/<w:ind w:left="220"\/>/);
+    expect(paragraphOf('9 RELATÓRIOS DOS ENSAIOS\t')).not.toContain('<w:ind');
     expect(structure.tables[1]![1]![1]).toBe('Rev. 2');
+  }, 60_000);
+});
+
+describe('E7-A4 section 9 starts a page', () => {
+  it('breaks the page before section 9\'s own Heading 1, and before no other section heading', async () => {
+    const document = readZipEntries(await renderFixture()).get('word/document.xml')!.toString('utf8');
+    const headings = [...document.matchAll(/<w:p>([\s\S]*?)<\/w:p>/g)].map((m) => m[1]!).filter((p) => p.includes('<w:pStyle w:val="Heading1"/>'));
+    const section9 = headings.find((p) => paragraphText(p) === '9 RELATÓRIOS DOS ENSAIOS')!;
+    expect(section9).toContain('<w:pageBreakBefore/>');
+    expect(headings.filter((p) => p.includes('<w:pageBreakBefore/>')).map(paragraphText)).toEqual(['9 RELATÓRIOS DOS ENSAIOS']);
   }, 60_000);
 });
 
@@ -165,8 +182,8 @@ describe('7.1-UNIT section 9 in the DOCX', () => {
 
   it('starts each subsection after the first and each sheet after its subsection\'s first on a new page, never splits a row, and spans the bands', async () => {
     const document = readZipEntries(await renderFixture()).get('word/document.xml')!.toString('utf8');
-    // 11 subsections: 10 breaks; 94 sheets in 11 subsections: 83 breaks.
-    expect(document.match(/<w:pageBreakBefore\/>/g)).toHaveLength(10 + 83);
+    // Section 9's own heading: 1 break (E7-A4); 11 subsections: 10 breaks; 94 sheets in 11 subsections: 83 breaks.
+    expect(document.match(/<w:pageBreakBefore\/>/g)).toHaveLength(1 + 10 + 83);
     const tables = [...document.matchAll(/<w:tbl>([\s\S]*?)<\/w:tbl>/g)].map((match) => match[1]!);
     // The cover and the document control come first; section 7's photo tables, section 10's
     // parecer box and section 11 (Stories 7.2 to 7.4) never carry a row guard, the sheets always do.
@@ -337,8 +354,8 @@ describe('7.2/7.3-UNIT sections 7, 8 and 11', () => {
     const document = entries.get('word/document.xml')!.toString('utf8');
     // The first certificate page sits under the heading (kept with it); every later one
     // starts its own page, and each fits the content box (at most 18.46 x 23 cm in EMU).
-    // Plus section 9's 93 breaks (Story 7.1: 10 subsections after the first, 83 sheets).
-    expect(document.match(/<w:pageBreakBefore\/>/g) ?? []).toHaveLength(1 + 93);
+    // Plus section 9's 94 breaks (E7-A4: its own heading; Story 7.1: 10 subsections after the first, 83 sheets).
+    expect(document.match(/<w:pageBreakBefore\/>/g) ?? []).toHaveLength(1 + 94);
     const extents = [...document.matchAll(/<wp:extent cx="(\d+)" cy="(\d+)"\/>/g)].map((m) => [Number(m[1]), Number(m[2])]);
     expect(extents).toHaveLength(4);
     for (const [cx, cy] of extents.slice(2)) {

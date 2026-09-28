@@ -1,6 +1,5 @@
 import {
   arrivedReadingsCount,
-  buildSnapshot,
   firstSheetWithPendingSuggestions,
   leiturasProntasText,
   pendingSuggestions,
@@ -18,6 +17,7 @@ import type { AppDatabase } from '../db/schema.ts';
 import { useSession } from './session.tsx';
 import { useSync } from './sync.tsx';
 import { useToast } from './toast.tsx';
+import { relatorioSnapshotOf } from '../db/relatorio-snapshot.ts';
 
 /*
  * Story 8.2 (EXPERIENCE.md › Reading arrived): while the app is open, suggestions a pull
@@ -76,7 +76,7 @@ export function arrivalStep(
 export async function arrivalTarget(db: AppDatabase, relatorioId: string): Promise<string> {
   const state = await relatorioState(db, relatorioId);
   if (state === null) return `/relatorio/${relatorioId}`;
-  const snapshot = buildSnapshot(state, relatorioId);
+  const snapshot = relatorioSnapshotOf(state, relatorioId);
   const equipment = [...state.entries()].filter(([key]) => key.startsWith('equipment:')).map(([, row]) => row as EquipmentRow);
   const blockId = firstSheetWithPendingSuggestions({ ...snapshot, equipment }, pendingSuggestions(suggestionRowsOf(state, relatorioId)));
   return blockId === null ? `/relatorio/${relatorioId}` : `/relatorio/${relatorioId}/ficha/${blockId}`;

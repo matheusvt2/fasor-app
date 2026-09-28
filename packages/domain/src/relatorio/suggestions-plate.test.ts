@@ -12,6 +12,8 @@ import {
   leiturasProntasText,
   PLATE_CAPTION,
   padCropToAspect,
+  PLATE_FOCUS_MARGIN,
+  plateCropView,
   plateCropRegion,
   platePhotoOf,
   plateReadingView,
@@ -229,5 +231,29 @@ describe('E78-Q14 padCropToAspect', () => {
     const flat = [0.1, 0.4, 0.2, 0.4] as const;
     expect(padCropToAspect(flat, IMAGE, 3)).toBe(flat);
     expect(padCropToAspect(wide, { width: 0, height: 0 }, 3)).toBe(wide);
+  });
+});
+
+describe('E78-R1 plateCropView', () => {
+  const region = [0.1, 0.2, 0.9, 0.8] as const;
+  const focused = [0.4, 0.5, 0.6, 0.55] as const;
+
+  it('shows the read region while no field is focused, the focused field\'s region grown by the margin while one is', () => {
+    expect(plateCropView(region, null, null, 0)).toEqual(region);
+    expect(plateCropView(region, focused, null, 0)).toEqual([0.4 - PLATE_FOCUS_MARGIN, 0.5 - PLATE_FOCUS_MARGIN, 0.6 + PLATE_FOCUS_MARGIN, 0.55 + PLATE_FOCUS_MARGIN]);
+  });
+
+  it('clamps the grown region to the picture', () => {
+    expect(plateCropView(region, [0, 0.98, 0.05, 1], null, 0)).toEqual([0, 0.98 - PLATE_FOCUS_MARGIN, 0.05 + PLATE_FOCUS_MARGIN, 1]);
+  });
+
+  it('pads the result to the box aspect once the picture size is known', () => {
+    const image = { width: 1600, height: 1100 };
+    const zoomed = plateCropView(region, focused, image, 670 / 160);
+    expect(zoomed).toEqual(padCropToAspect(plateCropView(region, focused, null, 0), image, 670 / 160));
+    // The zoom keeps the focused field large: its share of the shown height is well above the read region's.
+    const share = (view: readonly number[]) => (focused[3] - focused[1]) / (view[3]! - view[1]!);
+    expect(share(zoomed)).toBeGreaterThan(0.4);
+    expect(share(plateCropView(region, null, image, 670 / 160))).toBeLessThan(0.1);
   });
 });

@@ -243,3 +243,30 @@ export function layoutSpec(snapshot: RelatorioSnapshot, inputs: LayoutInputs): D
 export function sectionHeading(entry: TocEntry): string {
   return `${entry.number} ${entry.title}`;
 }
+
+/**
+ * One printed line of the ÍNDICE: a section at level 1 ("9 RELATÓRIOS DOS ENSAIOS"), or one
+ * of section 9's subsections at level 2 ("9.1 Cubículo Enel"), as FO.SERV-03's automatic
+ * index lists them. `key` is the printed number ("9", "9.1"); `text` is the heading exactly
+ * as printed, which is also the PDF outline's title for it (Heading 1 or Heading 2).
+ */
+export interface TocLine {
+  key: string;
+  text: string;
+  level: 1 | 2;
+}
+
+/** E7-A4: the ÍNDICE's lines in print order: every section, section 9 followed by its subsections. */
+export function tocLines(layout: Pick<DocumentLayout, 'toc' | 'sections'>): TocLine[] {
+  const lines: TocLine[] = [];
+  for (const entry of layout.toc) {
+    lines.push({ key: String(entry.number), text: sectionHeading(entry), level: 1 });
+    const section = layout.sections.find((s) => s.number === entry.number);
+    if (section?.kind !== 'sheets') continue;
+    for (const subsection of section.subsections) {
+      const key = subsection.heading.split(' ', 1)[0]!;
+      lines.push({ key, text: subsection.heading, level: 2 });
+    }
+  }
+  return lines;
+}

@@ -1,4 +1,4 @@
-import { buildSnapshot, pendingSuggestions, progress, railHeadText, suggestionRowsOf, type EntityState, type RelatorioSnapshot } from '@app/domain';
+import { pendingSuggestions, progress, railHeadText, suggestionRowsOf, type EntityState, type RelatorioSnapshot } from '@app/domain';
 import { useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import { copy } from '../../copy/pt-br.ts';
@@ -9,6 +9,7 @@ import { useProjectEquipment, useRelatorioEditor } from './relatorio-editor.ts';
 import { RelatorioGate } from './relatorio-gate.tsx';
 import { RelatorioTree } from './relatorio-tree.tsx';
 import './relatorio.css';
+import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
 
 /**
  * `/relatorio/:id/arvore` (Story 4.4): the location tree in its rail presentation until
@@ -32,7 +33,7 @@ export function TreeSurface() {
 function Arvore({ relatorioId, state }: { relatorioId: string; state: EntityState }) {
   const t = copy.sumario.rail;
   const db = useSession().database;
-  const snapshot: RelatorioSnapshot = useMemo(() => buildSnapshot(state, relatorioId), [state, relatorioId]);
+  const snapshot: RelatorioSnapshot = useRelatorioSnapshot(state, relatorioId);
   const equipment = useProjectEquipment(state, snapshot.relatorio.project_id);
   const lastSheet = useLiveQuery(() => (db === null ? Promise.resolve(null) : readLastSheet(db, relatorioId)), [db, relatorioId], null);
   // Story 8.1: the same counts as the Sumário, over the device's pending suggestion rows.

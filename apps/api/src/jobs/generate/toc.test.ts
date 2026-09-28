@@ -11,18 +11,33 @@ const layout = {
     { number: 2, title: 'DEFINIÇÕES' },
     { number: 3, title: 'LIMITE DE ESCOPO' },
   ],
+  sections: [],
+} as unknown as DocumentLayout;
+
+/** E7-A4: a layout whose section 9 prints two subsections, which the ÍNDICE lists at level 2. */
+const withSubsections = {
+  toc: [
+    { number: 8, title: 'PONTOS' },
+    { number: 9, title: 'RELATÓRIOS DOS ENSAIOS' },
+    { number: 10, title: 'CONCLUSÃO' },
+  ],
+  sections: [{ number: 9, title: 'RELATÓRIOS DOS ENSAIOS', kind: 'sheets', subsections: [{ heading: '9.1 Cubículo Enel', sheets: [] }, { heading: '9.2 Oxigênio', sheets: [] }], warnings: [] }],
 } as unknown as DocumentLayout;
 
 const outline = (headings: PdfOutline['headings']): PdfOutline => ({ pages: 9, headings });
-const pages = (entries: [number, number | null][]): TocPages => new Map(entries);
+const pages = (entries: [number, number | null][]): TocPages => new Map(entries.map(([key, page]) => [String(key), page]));
 
 describe('placeholderPages', () => {
   it('lists every TOC entry unplaced', () => {
     expect([...placeholderPages(layout)]).toEqual([
-      [1, null],
-      [2, null],
-      [3, null],
+      ['1', null],
+      ['2', null],
+      ['3', null],
     ]);
+  });
+
+  it('lists section 9\'s subsections after it, keyed by their printed number (E7-A4)', () => {
+    expect([...placeholderPages(withSubsections).keys()]).toEqual(['8', '9', '9.1', '9.2', '10']);
   });
 });
 
@@ -38,16 +53,60 @@ describe('headingPages', () => {
       layout,
     );
     expect([...result]).toEqual([
-      [1, 4],
-      [2, 4],
-      [3, null],
+      ['1', 4],
+      ['2', 4],
+      ['3', null],
+    ]);
+  });
+
+  it('places the subsections from the outline\'s Heading 2 titles (E7-A4)', () => {
+    const result = headingPages(
+      outline([
+        { title: '8 PONTOS', page: 12 },
+        { title: '9 RELATÓRIOS DOS ENSAIOS', page: 13 },
+        { title: '9.1 Cubículo Enel', page: 13 },
+        { title: '9.2 Oxigênio', page: 20 },
+        { title: '10 CONCLUSÃO', page: 90 },
+      ]),
+      withSubsections,
+    );
+    expect([...result]).toEqual([
+      ['8', 12],
+      ['9', 13],
+      ['9.1', 13],
+      ['9.2', 20],
+      ['10', 90],
+    ]);
+  });
+});
+
+describe('headingPages with typed subsection titles', () => {
+  it('matches a subsection whose cabine name has a trailing space, doubled inner spaces or is empty, whatever the outline kept', () => {
+    const typed = {
+      toc: [{ number: 9, title: 'RELATÓRIOS DOS ENSAIOS' }],
+      sections: [{ number: 9, title: 'RELATÓRIOS DOS ENSAIOS', kind: 'sheets', subsections: [{ heading: '9.1 Oxigênio ', sheets: [] }, { heading: '9.2 ', sheets: [] }, { heading: '9.3 Cabine  A', sheets: [] }], warnings: [] }],
+    } as unknown as DocumentLayout;
+    const result = headingPages(
+      outline([
+        { title: '9 RELATÓRIOS DOS ENSAIOS', page: 13 },
+        { title: '9.1 Oxigênio', page: 13 },
+        { title: '9.2', page: 15 },
+        { title: '9.3 Cabine A', page: 17 },
+      ]),
+      typed,
+    );
+    expect([...result]).toEqual([
+      ['9', 13],
+      ['9.1', 13],
+      ['9.2', 15],
+      ['9.3', 17],
     ]);
   });
 });
 
 describe('missingHeadings', () => {
   it('lists exactly the unplaced entries', () => {
-    expect(missingHeadings(pages([[1, 4], [2, null], [3, null]]))).toEqual([2, 3]);
+    expect(missingHeadings(pages([[1, 4], [2, null], [3, null]]))).toEqual(['2', '3']);
     expect(missingHeadings(pages([[1, 4], [2, 5]]))).toEqual([]);
   });
 });

@@ -7,7 +7,7 @@ import { captionSuggestions, legendasSugeridasText } from '../photos/captions.ts
 import { livePhotos } from '../photos/order.ts';
 import { photosAwaitingText, photosUncaptionedText } from '../photos/text.ts';
 import { artLabel } from '../print/document-control.ts';
-import { missingCertificates } from '../print/section-11.ts';
+import { missingCertificates, section11Instruments } from '../print/section-11.ts';
 import type { SuggestionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { sectionText, type SectionVariable } from '../seed/definitions.ts';
@@ -64,6 +64,7 @@ export type PreIssueKind =
   | 'suggestions_pending'
   | 'calibration'
   | 'certificate_missing'
+  | 'cert_number_mismatch'
   | 'duplicate_tag'
   | 'section_variables'
   | 'rejected'
@@ -191,6 +192,13 @@ export function calibrationText(code: string, status: 'expired' | 'expiring', va
 export function certificateMissingText(code: string): string {
   // authored: section 11 prints a placeholder line for it.
   return `${code} sem certificado`;
+}
+
+/** "MG-01: nº de certificado da ficha difere do cadastro". */
+export function certNumberMismatchText(code: string): string {
+  // authored: a sheet copied another certificate number than the registry holds; section 11
+  // prints the registry's (open for Bruno).
+  return `${code}: nº de certificado da ficha difere do cadastro`;
 }
 
 /** "Último envio de Eduardo: 06/09 18:10". */
@@ -345,13 +353,20 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
     rows.push({ id: 'parecer_missing', row: 'section_10', severity: 'blocking', text: PARECER_MISSING_TEXT, kind: 'parecer_missing' });
   }
 
-  // Section 11: the setup's instruments, the calibration of each instrument the sheets
-  // name (expired pending, about to expire a plain warning) and a missing certificate.
+  // Section 11: the setup's instruments, the calibration of each instrument section 11
+  // prints (E7-A4: its own list, `section11Instruments`, so the rows name exactly what the
+  // section prints; each judged on its registry row), expired pending and about to expire a
+  // plain warning, a missing certificate, and a sheet whose copied certificate number
+  // differs from the registry's (information: the print uses the registry's).
   for (const gap of gaps) {
     if (setupGapRow(gap) !== 'section_11') continue;
     rows.push({ id: `setup_missing:${gap}`, row: 'section_11', severity: 'pending', text: setupGapText(gap, snapshot), kind: 'setup_missing' });
   }
-  for (const instrument of snapshot.instruments) {
+  const printedInstruments = section11Instruments(snapshot);
+  const registryInstruments = new Map(snapshot.instruments.filter((row) => row.removed_at === null).map((row) => [row.id, row]));
+  for (const entry of printedInstruments) {
+    const instrument = registryInstruments.get(entry.instrument_id);
+    if (instrument === undefined) continue;
     // The reference is the service end; the caller's `now` only when there is none.
     if (setup.service_end === null && now === null) break;
     const status = calibrationCheck(instrument, setup.service_end, now ?? EPOCH);
@@ -368,6 +383,10 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
   // Story 7.3's rule (section 11 prints a placeholder line for each of these).
   for (const entry of missingCertificates(snapshot)) {
     rows.push({ id: `certificate_missing:${entry.instrument_id}`, row: 'section_11', severity: 'info', text: certificateMissingText(entry.code), kind: 'certificate_missing' });
+  }
+  for (const entry of printedInstruments) {
+    if (!entry.cert_mismatch) continue;
+    rows.push({ id: `cert_number_mismatch:${entry.instrument_id}`, row: 'section_11', severity: 'info', text: certNumberMismatchText(entry.code), kind: 'cert_number_mismatch' });
   }
 
   // The Export dialog's own lines: what this device could not send, and when the others last sent.
@@ -395,8 +414,12 @@ export function blockingRows(rows: readonly PreIssueRow[]): PreIssueRow[] {
   return rows.filter((row) => row.severity === 'blocking');
 }
 
-/** The kinds the Export dialog lists one by one: the photos the server does not hold and the sync lines. */
-const EXPLICIT_KINDS: ReadonlySet<PreIssueKind> = new Set(['photos_pending_upload', 'photos_upload_error', 'rejected', 'last_send']);
+/**
+ * The kinds the Export dialog lists one by one: the photos the server does not hold, the
+ * sync lines and (E7-A4, 2026-09-28) a sheet certificate number that differs from the
+ * registry's, since the document then prints a certificate the sheet did not name.
+ */
+const EXPLICIT_KINDS: ReadonlySet<PreIssueKind> = new Set(['photos_pending_upload', 'photos_upload_error', 'cert_number_mismatch', 'rejected', 'last_send']);
 
 export interface ExportPrecheck {
   /** The rows that stop "Gerar relatório" (only "Parecer não preenchido"). */

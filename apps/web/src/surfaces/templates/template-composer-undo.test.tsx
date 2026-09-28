@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto';
 import { standardTemplate, type TemplateRow } from '@app/domain';
-import { cleanup, configure, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Link, MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -10,6 +10,7 @@ import { openDatabase, type AppDatabase } from '../../db/schema.ts';
 import type { SessionState } from '../../state/session.tsx';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
 import { TemplateComposerSurface } from './template-composer.tsx';
+import { loadIndependentWaits, untilStored } from '../../test/load.ts';
 
 /*
  * Story 3.4: the Template composer over a real device database. Every edit is one batch
@@ -55,8 +56,8 @@ vi.mock('../../db/home-store.ts', async (original) => {
 });
 
 // Each edit is an IndexedDB write plus a live-query round trip; under a full parallel run
-// that can outlast the one-second default.
-configure({ asyncUtilTimeout: 5000 });
+// that can outlast the one-second default (E7-A2: and a fixed five-second one).
+loadIndependentWaits();
 
 async function freshDb(row: TemplateRow | null): Promise<AppDatabase> {
   const user = `019966b0-0038-7000-8000-${(++counter).toString(16).padStart(12, '0')}`;
@@ -135,7 +136,7 @@ describe('3.4 composer: skeleton', () => {
     // Nothing of the undo lands before the queued edit.
     expect((await database.outbox.toArray()).filter((op) => op.path.endsWith('/skeleton'))).toHaveLength(1);
     release();
-    await waitFor(async () => expect(await database!.outbox.count()).toBe(5));
+    await untilStored(() => database!.outbox.count(), (count) => expect(count).toBe(5));
     const ops = (await database.outbox.toArray()).sort((a, b) => (a.client_ts < b.client_ts ? -1 : a.client_ts > b.client_ts ? 1 : a.op_id < b.op_id ? -1 : 1));
     // removal (skeleton, blocks), the toggle (skeleton), then the undo (blocks, skeleton).
     expect(ops[2]!.batch_id).not.toBe(ops[3]!.batch_id);
