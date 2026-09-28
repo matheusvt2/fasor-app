@@ -32,7 +32,7 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
   // CPU they share delays a commit's render past the windows these tests hold a finger for
   // (12.1-E2E-007 lost its tap in 1 of 5 repeats on both 2 and 3 workers). Alone on one
   // worker they measure the app, not the machine's load.
-  ...['lost-taps.durability.spec.ts', 'journeys-12-3-12-4.spec.ts', 'journey-taps.spec.ts', 'journey-forward.spec.ts', 'tap-budget.spec.ts', 'ficha.durability.spec.ts'].map((file) => ({
+  ...['lost-taps.durability.spec.ts', 'journeys-12-3-12-4.spec.ts', 'journey-taps.spec.ts', 'journey-forward.spec.ts', 'tap-budget.spec.ts', 'ficha.durability.spec.ts', 'commit-to-render.perf.spec.ts'].map((file) => ({
     file,
     why: 'times a tap against a render with the finger held for fixed windows, so it must not share the CPU with other workers',
   })),
