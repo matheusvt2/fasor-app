@@ -10,6 +10,8 @@ import {
 } from '@app/domain';
 import sharp from 'sharp';
 import { z } from 'zod';
+import { FAKE_FIXTURE_DEFAULTS } from '../kinds/index.ts';
+import type { ReadingKind } from '../payload.ts';
 import { PermanentReadingError, ProviderError, ProviderTimeoutError } from './errors.ts';
 
 /*
@@ -20,10 +22,13 @@ import { PermanentReadingError, ProviderError, ProviderTimeoutError } from './er
  * sleeping).
  *
  * E78-Q2: the device re-encodes every shot, so a plate taken through the app never has the
- * sha256 of a committed image. A photo without its own fixture falls back to the default
- * fixture of its target block type (`DEFAULT_FIXTURE_BY_BLOCK_TYPE`: the synthetic plate for
- * `transformador_forca`), its OCR boxes scaled to the size of the image the job sends; a photo
- * of any other type without a fixture fails permanently, at its first attempt.
+ * sha256 of a committed image. A photo without its own fixture falls back to a default
+ * fixture, its OCR boxes scaled to the size of the image the job sends. Story 9.1: the
+ * defaults are each reading kind's (`fakeDefaults` of `kinds/*.ts`, `FAKE_FIXTURE_DEFAULTS`),
+ * chosen by `(reading_kind, block_type?, table_key?)`, most specific first: a default naming
+ * both the block type and the table beats one naming either, the block type beats the table,
+ * and one naming neither is the kind's catch-all. A photo no default fits (a plate of any
+ * type but `transformador_forca`) fails permanently, at its first attempt.
  */
 
 export const DEFAULT_FIXTURES_DIR = join(import.meta.dirname, '..', 'fixtures');
@@ -41,11 +46,33 @@ export type FakeReadingFixture = z.infer<typeof fakeReadingFixtureSchema>;
 
 const SHA256 = /^[0-9a-f]{64}$/;
 
-/** E78-Q2: the fixture a photo of this target block type replays when it has none of its own. */
-export const DEFAULT_FIXTURE_BY_BLOCK_TYPE: Readonly<Partial<Record<string, string>>> = {
-  // The synthetic transformer plate (`services/ocr/tests/fixtures/plate-transformador.jpg`).
-  transformador_forca: 'a1eac9106f186a29ca82e896741922794eda7f86a231c4dcf942031d14dc26ac',
-};
+/** What a photo's default fixture is chosen by (Story 9.1). */
+export interface FakeFixtureKey {
+  reading_kind: ReadingKind;
+  block_type: string | null;
+  table_key: string | null;
+}
+
+/**
+ * E78-Q2: the fixture a plate of this target block type replays when it has none of its own
+ * (the plate kind's `fakeDefaults`, kept under its Story 8.4 name).
+ */
+export const DEFAULT_FIXTURE_BY_BLOCK_TYPE: Readonly<Partial<Record<string, string>>> = Object.fromEntries(
+  FAKE_FIXTURE_DEFAULTS.filter((entry) => entry.reading_kind === 'plate' && entry.block_type !== undefined && entry.table_key === undefined).map((entry) => [entry.block_type!, entry.sha256]),
+);
+
+/** The default fixture of a photo with none of its own, most specific first; undefined when none fits. */
+export function defaultFixtureFor(key: FakeFixtureKey): string | undefined {
+  let best: { sha256: string; score: number } | undefined;
+  for (const entry of FAKE_FIXTURE_DEFAULTS) {
+    if (entry.reading_kind !== key.reading_kind) continue;
+    if (entry.block_type !== undefined && entry.block_type !== key.block_type) continue;
+    if (entry.table_key !== undefined && entry.table_key !== key.table_key) continue;
+    const score = (entry.block_type === undefined ? 0 : 2) + (entry.table_key === undefined ? 0 : 1);
+    if (best === undefined || score > best.score) best = { sha256: entry.sha256, score };
+  }
+  return best?.sha256;
+}
 
 /** The fixture of one photo; a missing or malformed fixture is permanent (no retry adds a file). */
 export async function loadFakeFixture(dir: string, sha256: string): Promise<FakeReadingFixture> {
@@ -84,16 +111,18 @@ export interface ResolvedFakeFixture {
 }
 
 /**
- * The photo's own fixture, else the default fixture of its target block type, else a
- * permanent failure naming both (E78-Q2).
+ * The photo's own fixture, else the default fixture its kind, target block type and table
+ * choose (`defaultFixtureFor`), else a permanent failure naming both (E78-Q2).
  */
-export async function resolveFakeFixture(dir: string, sha256: string, blockType: string | null): Promise<ResolvedFakeFixture> {
+export async function resolveFakeFixture(dir: string, sha256: string, fixtureKey: FakeFixtureKey | null): Promise<ResolvedFakeFixture> {
   const own = await readFakeFixture(dir, sha256);
   if (own !== null) return { fixture: own, key: sha256, fallback: false };
-  const key = blockType === null ? undefined : DEFAULT_FIXTURE_BY_BLOCK_TYPE[blockType];
-  if (key === undefined) throw new PermanentReadingError(`fake reading: no fixture for ${sha256} and no fixture for block type ${blockType ?? '(none)'}`);
+  const key = fixtureKey === null ? undefined : defaultFixtureFor(fixtureKey);
+  const table = fixtureKey?.table_key == null ? '' : `, table ${fixtureKey.table_key}`;
+  const named = `block type ${fixtureKey?.block_type ?? '(none)'} (${fixtureKey?.reading_kind ?? 'no reading kind'}${table})`;
+  if (key === undefined) throw new PermanentReadingError(`fake reading: no fixture for ${sha256} and no fixture for ${named}`);
   const fallback = await readFakeFixture(dir, key);
-  if (fallback === null) throw new PermanentReadingError(`fake reading: no fixture for ${sha256}, and the default fixture ${key} of block type ${blockType} is missing`);
+  if (fallback === null) throw new PermanentReadingError(`fake reading: no fixture for ${sha256}, and the default fixture ${key} of ${named} is missing`);
   return { fixture: fallback, key, fallback: true };
 }
 
@@ -117,10 +146,11 @@ function failFor(fixture: FakeReadingFixture, sha256: string, step: string): voi
   if (fixture.outcome === 'timeout') throw new ProviderTimeoutError(`fake ${step}: fixture ${sha256} declares outcome timeout`);
 }
 
-export function fakeOcrProvider(dir: string, sha256: string, blockType: string | null = null): OcrProvider {
+export function fakeOcrProvider(dir: string, sha256: string, fixtureKey: FakeFixtureKey | null = null): OcrProvider {
   return {
+    // The read mode (text or display) chooses nothing here: the fixture is the read.
     async read(input): Promise<OcrReadResult> {
-      const { fixture, key, fallback } = await resolveFakeFixture(dir, sha256, blockType);
+      const { fixture, key, fallback } = await resolveFakeFixture(dir, sha256, fixtureKey);
       failFor(fixture, key, 'ocr');
       if (fixture.ocr === undefined) throw new PermanentReadingError(`fake ocr: fixture ${key} has no ocr`);
       if (!fallback) return fixture.ocr;
@@ -137,10 +167,10 @@ export function fakeOcrProvider(dir: string, sha256: string, blockType: string |
   };
 }
 
-export function fakeStructuringProvider(dir: string, sha256: string, blockType: string | null = null): StructuringProvider {
+export function fakeStructuringProvider(dir: string, sha256: string, fixtureKey: FakeFixtureKey | null = null): StructuringProvider {
   return {
     async structure(): Promise<StructuringResult> {
-      const { fixture, key } = await resolveFakeFixture(dir, sha256, blockType);
+      const { fixture, key } = await resolveFakeFixture(dir, sha256, fixtureKey);
       failFor(fixture, key, 'structuring');
       return {
         output: fixture.structuring ?? { values: [] },

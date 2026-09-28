@@ -1,0 +1,45 @@
+{
+  "outcome": "ok",
+  "ocr": {
+    "image": {
+      "width": 1200,
+      "height": 900
+    },
+    "tokens": [
+      {
+        "id": "t0",
+        "text": "MODELOSINTETICO",
+        "bbox": [
+          81.0,
+          64.0,
+          380.0,
+          91.0
+        ],
+        "confidence": 0.9883
+      },
+      {
+        "id": "t1",
+        "text": "147",
+        "bbox": [
+          278.0,
+          323.0,
+          615.0,
+          533.0
+        ],
+        "confidence": 0.9527
+      },
+      {
+        "id": "t2",
+        "text": "Gn",
+        "bbox": [
+          602.0,
+          444.0,
+          719.0,
+          513.0
+        ],
+        "confidence": 0.6492
+      }
+    ],
+    "preprocessing_applied": false
+  }
+}

@@ -1,10 +1,10 @@
-import { OCR_READ_MAX_BYTES, OCR_SERVICE_ROUTES, ocrReadResultSchema, type OcrImage, type OcrProvider, type OcrReadResult } from '@app/domain';
+import { OCR_READ_MAX_BYTES, OCR_SERVICE_ROUTES, ocrReadResultSchema, type OcrImage, type OcrProvider, type OcrReadOptions, type OcrReadResult } from '@app/domain';
 import { PermanentReadingError, ProviderError, ProviderTimeoutError } from './errors.ts';
 
 /*
  * Story 8.4: the `ocr-svc` provider, the `services/ocr` sidecar of Story 8.3 (compose
  * profile `ocr`) reached through `OCR_SERVICE_URL`. One `POST /read` with the raw image
- * bytes and their mime. A body over the sidecar's limit is refused before sending; the
+ * bytes and their mime (Story 9.1: `POST /read/display` for a display reading). A body over the sidecar's limit is refused before sending; the
  * sidecar's own 413 and 422 are permanent (no retry makes the image readable); a 5xx, a
  * dropped connection, an answer that does not parse and a call that outlives the timeout
  * are transient.
@@ -19,10 +19,12 @@ export interface OcrSvcOptions {
 }
 
 export function ocrSvcProvider(baseUrl: string, options: OcrSvcOptions = {}): OcrProvider {
-  const url = `${baseUrl.replace(/\/+$/, '')}${OCR_SERVICE_ROUTES.read.path}`;
+  const base = baseUrl.replace(/\/+$/, '');
   const timeoutMs = options.timeoutMs ?? OCR_SVC_TIMEOUT_MS;
   return {
-    async read(image: OcrImage): Promise<OcrReadResult> {
+    async read(image: OcrImage, readOptions: OcrReadOptions = {}): Promise<OcrReadResult> {
+      const route = readOptions.mode === 'display' ? OCR_SERVICE_ROUTES.readDisplay : OCR_SERVICE_ROUTES.read;
+      const url = `${base}${route.path}`;
       if (image.bytes.byteLength > OCR_READ_MAX_BYTES) {
         throw new PermanentReadingError(`ocr-svc: the image is ${image.bytes.byteLength} bytes, over the ${OCR_READ_MAX_BYTES} limit`);
       }
@@ -33,7 +35,7 @@ export function ocrSvcProvider(baseUrl: string, options: OcrSvcOptions = {}): Oc
         let text: string;
         try {
           response = await fetch(url, {
-            method: OCR_SERVICE_ROUTES.read.method,
+            method: route.method,
             headers: { 'content-type': image.mime },
             body: image.bytes,
             signal: controller.signal,

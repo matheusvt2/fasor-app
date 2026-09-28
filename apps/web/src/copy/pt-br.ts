@@ -841,6 +841,10 @@ export const copy = {
       selectEmpty: 'Selecione',
       // authored: a number the field cannot read (kept typed, not committed).
       invalidNumber: 'Número não reconhecido',
+      // Story 9.1 (`60-ficha.html` `.ficha-amb-actions`): the thermo-hygrometer's Read display
+      // button and its reason.
+      readDisplay: 'Ler visor',
+      readDisplayReason: 'Termo-higrômetro',
       quickNotesTitle: 'Observações rápidas',
       // `60-ficha.html` `.chips-recent` "Chuva e umidade elevada".
       rainNote: 'Chuva e umidade elevada',
@@ -933,6 +937,18 @@ export const copy = {
       cardCondition: (text: string) => `Condição: ${text}`,
       // authored: the toast after "Marcar Com restrições".
       restrictionMarked: 'Com restrições marcado na conclusão',
+      // Story 9.1 (`60-ficha.html` `.mt-actions`): the Read display button of a table.
+      readDisplay: 'Ler visor',
+      // `60-ficha.html` viewfinder: its closing button.
+      readDisplayDone: 'Concluir',
+      // `60-ficha.html` `.queued-banner` under a cell whose display photo waits for signal.
+      displayQueued: 'Foto guardada — leitura quando houver sinal',
+      // EXPERIENCE.md › Reading in progress: while the photo is being read.
+      displayRunning: 'Lendo…',
+      // authored: a mismatch line's group name (the two values to keep).
+      mismatchLabel: 'Leitura do visor diferente do valor digitado',
+      // authored: the toast after picking the typed value over the display's.
+      typedKept: 'Valor digitado mantido',
     },
     // The "Conclusão" step (Story 5.8): the Conclusion control, its suggestion row, the
     // sheet Observation field and the Generated text field.

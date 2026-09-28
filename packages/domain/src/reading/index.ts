@@ -4,3 +4,4 @@ export * from './assess.ts';
 export * from './boxes.ts';
 export * from './target.ts';
 export * from './build.ts';
+export * from './display.ts';

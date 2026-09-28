@@ -6,6 +6,7 @@
   "x-ocr-service": {
     "routes": {
       "read": "/read",
+      "read_display": "/read/display",
       "health": "/health"
     },
     "read_max_bytes": 20971520

@@ -19,6 +19,8 @@ const NO_SEED_WORDS: { atividades: readonly SeedWord[]; locais: readonly SeedWor
 export interface FichaPhotos {
   /** The capture target, read when a camera opens: the section on screen then, the item if any. */
   photoTarget: (itemKey: string | null) => CaptureTarget;
+  /** Story 9.1: the capture target of a shot taken for one step (and test) of the sheet, whatever is on screen ("Ler visor"). */
+  targetFor: (step: SheetStep, testKey: string | null) => CaptureTarget;
   sheetCamera: ReturnType<typeof useSheetCamera>;
   checklistPhotos: ChecklistPhotos;
   importTarget: CaptureTarget | null;
@@ -70,6 +72,11 @@ export function useFichaPhotos({
       caption: contextCaption({ block_id: blockId, item_key: itemKey }, snapshot, { step, testKey, words: seedWords, registry: localWords }),
     };
   };
+  const targetFor = (step: SheetStep, testKey: string | null): CaptureTarget => ({
+    blockId,
+    itemKey: null,
+    caption: contextCaption({ block_id: blockId, item_key: null }, snapshot, { step, testKey, words: seedWords, registry: localWords }),
+  });
   const sheetCamera = useSheetCamera(relatorioId, () => photoTarget(null));
   // E6-Q2, FR-61: a point typed in an NC row's dialog before a reload is offered back here.
   usePointDraftRecovery(relatorioId);
@@ -92,5 +99,5 @@ export function useFichaPhotos({
     if (db === null || api.author === null) return;
     void setPhotoCaption(db, api.author, relatorioId, tile.id, text).then(() => showToast(captionSavedText(numberPhotos(snapshot.files).get(tile.id) ?? null)));
   };
-  return { photoTarget, sheetCamera, checklistPhotos, importTarget, setImportTarget, captioning, setCaptioning, saveCaption, fichaMain, dragging };
+  return { photoTarget, targetFor, sheetCamera, checklistPhotos, importTarget, setImportTarget, captioning, setCaptioning, saveCaption, fichaMain, dragging };
 }

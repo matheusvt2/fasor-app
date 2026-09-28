@@ -36,6 +36,15 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file,
     why: 'times a tap against a render with the finger held for fixed windows, so it must not share the CPU with other workers',
   })),
+  // Story 9.1: "Ler visor" through the real reading job.
+  {
+    file: 'read-display-pipeline.spec.ts',
+    why: 'uploads display photos that the api reads on its one reading queue and worker, waiting for each job to land on the device',
+  },
+  {
+    file: 'tap-budget-signal.spec.ts',
+    why: 'times every tap of the SM-3 walk against a render and waits on nine readings of the one reading queue and worker',
+  },
 ];
 
 /** The group a Playwright run is in: set by `scripts/e2e.ts`; absent for a bare `playwright test`. */
