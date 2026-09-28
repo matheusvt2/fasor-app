@@ -83,7 +83,15 @@ docker compose --profile tools run --rm tools pnpm exec tsx scripts/seed-users.t
 ```
 
 `--test` provisions the two companies every automated suite seeds itself
-with. To provision a real company, pass its fields explicitly (a company id,
+with, one user each, both with the password `senha-de-teste-123456`
+(defined in `apps/api/src/db/test-seed.ts`):
+
+| E-mail | User | Company | Notes |
+| --- | --- | --- | --- |
+| `a@teste.local` | Ana Alves (CREA) | Empresa A de Teste | Seeded with the "Cabine primária — padrão" template; use this one to try the app |
+| `b@teste.local` | Bento Braga (CRT) | Empresa B de Teste | No template (the Templates empty state); the second tenant for the cross-tenant test |
+
+To provision a real company, pass its fields explicitly (a company id,
 a company name, an e-mail, a password, a full name, a council — `crea` or
 `crt` — and a registration number; an optional printed title):
 

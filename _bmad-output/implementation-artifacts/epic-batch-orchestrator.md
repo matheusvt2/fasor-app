@@ -135,6 +135,18 @@ overrides (they win over the workflow text):
   table or a wide control asserts its 390 px fit in an e2e (E5-A6). An identity or reuse rule gets a two-device
   test (E4-A8).
 
+- A batch touching `docx.ts`, `layout.ts`, a golden or the sync contract merges main and runs `test:e2e:full` before
+  its PR; document tests assert from their own section heading, never from a position that another section shifts
+  (E7-A6).
+- A batch cut by a usage limit or an API timeout leaves a handoff note in its worktree (`HANDOFF.md`: branch, last
+  green command, what remains) before anything else (E7-A6).
+- A PR touching `packages/domain/src/contract/ocr.ts`, the committed OCR schema or `services/ocr` builds the sidecar
+  and runs its pytest under the host lock and pastes the output in the PR body (E8-A4).
+- A feature with a server pipeline ships one `@p1` e2e from the UI entry through the real job under `fake`
+  providers, with no server-op seeding (E8-A6).
+- Before queueing for the full gate, run the targeted specs, the unit suite and the api suite; report the lock wait
+  and the gate time in the PR body (E7-A2).
+
 ## 3. Subagents
 
 - Every subagent call is BLOCKING (`run_in_background: false`). Never end your turn to wait for a notification.

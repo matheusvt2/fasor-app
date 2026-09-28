@@ -1027,3 +1027,33 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: `reviews/epic-7-8-review-qa.md` § Re-check (PR #55).
   class: deferred
   state: open (owner: Epic 9 carry-over batch)
+
+- source_spec: none (found by Matheus on the running app, 2026-09-26; investigated with Sally and Amelia the same day)
+  summary: Home layout at desktop width. (1) On Home the Sync badge and the avatar sit in the middle of the App bar instead of its right edge, at every width. (2) On wide screens the capped content column hugs the left edge, leaving the right half of the screen empty.
+  evidence: (1) Home renders its `h1` as `app-bar-title visually-hidden` (`apps/web/src/app.tsx` route handle `titleHidden`; `apps/web/src/surfaces/app-shell.tsx`, the `h1` in the header), taken from `mockups/key-home.html`. `.visually-hidden` is `position: absolute`, so the `h1` leaves the `.app-bar` grid (`1fr auto 1fr`, `components.css`), and `.app-bar-right` falls into the middle `auto` column. Measured on Home, right group: 142-266 px at 390, 284-484 at 768, 540-740 at 1280, 853-1053 at 1906. `/cadastros` (visible title) is correct. `key-home.html` carries the same markup and the same defect (287-481 px in its 768 frame), while `MOCK-GUIDE.md` § App bar says right = `sync-badge`, then `avatar-btn`. (2) `.content` is capped at `content-max` plus gutters with no horizontal margin: at 1906 px it ends at 928 px. `DESIGN.md` § Layout & Spacing caps the column at 880 px but does not say where it sits, and the mocks draw desktop only at 1280 px. Decisions (Matheus, 2026-09-26): the Home title stays visually hidden, because the wordmark with `aria-current` names the page and the `h1` stays for screen readers; on surfaces without the Relatório tree rail, the capped column is centered at every width, including 1280 px. Fix scope:
+  - one `app.css` rule placing `.app-bar-right` in the third grid column, with a comment naming the `key-home.html` defect; `tokens.css` and `components.css` stay byte-identical;
+  - a centering rule for the capped column on rail-less surfaces; `/project/:id` at desktop and the sheet beside the rail keep their current layout;
+  - a dated sentence beside `DESIGN.md`'s `content-max` sentence ("centered in the viewport when no rail is present");
+  - the same App bar correction in `key-home.html`'s page `<style>`;
+  - a `@p0` Playwright test on Home and `/cadastros` at 390, 768, 1280 and 1906 px (the avatar's right edge within 16 px of the App bar's right edge; the column centered at 1280 and 1906 px);
+  - a real-browser pass with screenshots at the four widths in light and dark, plus one dialog.
+  class: bug
+  state: open (owner: the next carry-over batch between epics; not part of Epic 8 batch C, already running)
+
+- source_spec: spec-epic-7-8-fix-qa.md
+  summary: E78-Q10. Section 10's validity line prints the literal placeholder `[ART]` when the ART number is blank ("Este relatório tem validade apenas acompanhada da ART [ART]").
+  evidence: `reviews/epic-7-8-review-qa.md` E78-Q10 (Rev. 1 PDF p.106); tracked under E7-A3 (2026-09-28).
+  class: question
+  state: open (owner: Matheus decides the blank-ART wording (E7-A5); the next batch touching section 10 applies it)
+
+- source_spec: spec-epic-7-8-fix-qa.md
+  summary: E78-Q12. "82 aguardando envio" (pre-issue row, gallery header, tiles) reads as if this device will send the photos; on an office device that never held them the server simply lacks them. The gallery's static note "Os números são provisórios até a exportação" sits beside "Números da revisão 1".
+  evidence: `reviews/epic-7-8-review-qa.md` E78-Q12; tracked under E7-A3 (2026-09-28).
+  class: question
+  state: open (owner: Matheus with Bruno for wording (E7-A5); then the next batch touching the gallery or pre-issue)
+
+- source_spec: spec-epic-7-8-fix-qa.md
+  summary: E78-Q15. The Porto Seguro fixture stores the transformer TTR "V PRIMÁRIO" as raw `13200` with the seed unit kV, printing "13.200 kV"; VAL CALCULADO prints "-" because the dual secondary "380/220" does not parse.
+  evidence: `reviews/epic-7-8-review-qa.md` E78-Q15; tracked under E7-A3 (2026-09-28).
+  class: bug
+  state: open (owner: Epic 9 batch C1 fixes the fixture value to 13.2; the dual-voltage secondary stays with Matheus (E7-A5))
