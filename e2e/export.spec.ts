@@ -88,6 +88,15 @@ test('@p0 4.8-E2E-001 a relatório born on Home: the Sumário\'s "Gerar relatór
     },
   });
   await expect(headerPill(page)).toHaveText('Rascunho');
+  // The field committed on its blur ("Voltar"), through the setup page's write queue; the
+  // Sumário can draw before that IndexedDB write lands, and `setParecer` reloads the page,
+  // which would abort a write still in flight. A person does not reload within those
+  // milliseconds: wait for the typed value to be stored on the device, as it must be.
+  await expect
+    .poll(async () =>
+      (await readStore<{ path: string; value: unknown }>(page, database, 'outbox')).filter((op) => op.path === 'relatorio/setup/additional_info').map((op) => op.value),
+    )
+    .toEqual([ADDITIONAL_INFO]);
   // Story 7.4: the parecer is set first; "Parecer não preenchido" is the one row that blocks.
   await setParecer(page, relatorioId);
 

@@ -84,7 +84,7 @@ export interface GenerateJobDeps {
 
 /** The PDF outline lacks a section heading, so the TOC cannot be written (never silently `00`). */
 export class TocOutlineMissingError extends Error {
-  constructor(sections: number[]) {
+  constructor(sections: string[]) {
     super(`PDF outline has no heading for section(s) ${sections.join(', ')}`);
     this.name = 'TocOutlineMissingError';
   }

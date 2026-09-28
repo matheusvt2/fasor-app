@@ -223,7 +223,8 @@ describe('cross-stream dedupe', () => {
     await applyPulled(db, [equipment, rename]);
     await applyPulled(db, [rename]);
     expect(await db.remote_ops.count()).toBe(2);
-    expect(await db.entities.get(['equipment', EQUIPMENT_1_ID])).toEqual(once);
+    // The row is the one applied once; each write stamps a fresh `rev` (E7-A1/E8-A1), so it is left out.
+    expect({ ...(await db.entities.get(['equipment', EQUIPMENT_1_ID]))!, rev: undefined }).toEqual({ ...once, rev: undefined });
     expect((once.row as EquipmentRow).project_id).toBe(PROJECT_ID);
     db.close();
   });
