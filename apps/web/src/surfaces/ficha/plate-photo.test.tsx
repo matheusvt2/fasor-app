@@ -1,4 +1,5 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { padCropToAspect, regionWithin } from '@app/domain';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -18,6 +19,12 @@ import { PlateCameraGroup, PlateCrop, PlatePhotoRow } from './plate-photo.tsx';
 
 const session = { database: null, user: null, online: true };
 vi.mock('../../state/session.tsx', () => ({ useSession: () => session }));
+/** E78-Q14: the picture the plate crop draws; null (the placeholder) unless a test sets it. */
+const cropSource: { blob: Blob | null } = { blob: null };
+vi.mock('../../components/crop-thumb.tsx', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../components/crop-thumb.tsx')>()),
+  useCropSource: () => cropSource.blob,
+}));
 
 const PHOTO = '019966b0-0088-7000-8000-000000000001';
 
@@ -186,5 +193,45 @@ describe('8.6-UNIT the plate crop', () => {
     expect(regions[0]!.style.top).toBe('50%');
     await userEvent.click(container.querySelector('.plate-crop-open')!);
     expect(onOpen).toHaveBeenCalledOnce();
+  });
+});
+
+describe('E78-Q14 the plate crop widened to the box', () => {
+  afterEach(() => {
+    cropSource.blob = null;
+    vi.unstubAllGlobals();
+  });
+
+  it('once the picture loads, a tall narrow region is padded to the box aspect: the picture and the outline follow the padded region', async () => {
+    cropSource.blob = new Blob(['jpeg'], { type: 'image/jpeg' });
+    vi.stubGlobal('URL', Object.assign(Object.create(URL) as typeof URL, { createObjectURL: () => 'blob:plate', revokeObjectURL: () => undefined }));
+    const region = [0.45, 0.4, 0.55, 0.6] as const;
+    const focused = [0.47, 0.45, 0.53, 0.5] as const;
+    const { container } = wrap(<PlateCrop photoId={PHOTO} region={region} focused={focused} onOpen={vi.fn()} />);
+    const img = await waitFor(() => {
+      const found = container.querySelector<HTMLImageElement>('.plate-crop-view img');
+      expect(found).not.toBeNull();
+      return found!;
+    });
+    const box = container.querySelector<HTMLElement>('.plate-crop')!;
+    Object.defineProperty(box, 'clientWidth', { value: 670 });
+    Object.defineProperty(box, 'clientHeight', { value: 160 });
+    Object.defineProperty(img, 'naturalWidth', { value: 1600 });
+    Object.defineProperty(img, 'naturalHeight', { value: 1100 });
+    fireEvent.load(img);
+
+    const shown = padCropToAspect(region, { width: 1600, height: 1100 }, 670 / 160);
+    expect(shown[2] - shown[0]).toBeGreaterThan(0.5);
+    const pct = (n: number) => `${Math.round(n * 1000) / 1000}%`;
+    const w = shown[2] - shown[0];
+    await waitFor(() => expect(img.style.width).toBe(pct(100 / w)));
+    expect(img.hidden).toBe(false);
+    expect(img.style.left).toBe(pct((-shown[0] / w) * 100));
+    // Not the unpadded region's (1000 % wide).
+    expect(img.style.width).not.toBe(pct(100 / (region[2] - region[0])));
+    const outline = regionWithin(shown, focused);
+    const drawn = container.querySelector<HTMLElement>('.plate-crop .region')!;
+    expect(drawn.style.left).toBe(pct(outline.left));
+    expect(drawn.style.width).toBe(pct(outline.width));
   });
 });

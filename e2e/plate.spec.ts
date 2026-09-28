@@ -146,6 +146,12 @@ test('@p0 8.2-E2E-002 the reading line follows the server: "Lendo…", then "Nã
   await page.waitForTimeout(1_000);
   expect(rereads).toEqual([`POST /api/photos/${photoId}/reread`]);
   await expect(retry).toHaveAttribute('aria-disabled', 'true');
+  // The reading ends failed again (a new status op over `failed`): pulled without leaving the
+  // sheet (an `online` event runs one sync cycle), the button is back.
+  await pushReadingStatus(account.companyId, ids.relatorioId, photoId, 'failed');
+  await page.evaluate(() => window.dispatchEvent(new Event('online')));
+  await expect(retry).not.toHaveAttribute('aria-disabled', 'true', { timeout: 30_000 });
+  await expect(plateRow(page).locator('.reading-line')).toHaveText('Não foi possível ler');
 
   // "Preencher manualmente" hands over to the first empty field.
   await plateRow(page).getByRole('button', { name: 'Preencher manualmente' }).click();

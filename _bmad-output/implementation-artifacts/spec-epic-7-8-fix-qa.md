@@ -2,7 +2,7 @@
 title: 'Epics 7 and 8 fixes: integrated review findings'
 type: 'bugfix'
 created: '2026-09-28'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '1922634738501401fbfc87d0ffbd6317076f79fa'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -14,7 +14,14 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-8-context.md'
 warnings: ['batched', 'multiple-goals', 'oversized']
 batched_reason: 'One fix batch for the integrated Epics 7 and 8 review (playbook section 6): the findings share the Sumário, the nameplate group and the reading job, and one gate run covers them.'
-deferred: []
+deferred:
+  - summary: >-
+      A confirmed parecer text taller than one page inside the cantSplit Parecer box row might be clipped by Word or LibreOffice.
+    evidence: |-
+      Edge Case Hunter, 2026-09-28 review pass (maybe-false). The composed summary states counts only and stays far under a page; settle by rendering a page-long edited summary through LibreOffice and checking the PDF.
+    location: >-
+      apps/api/src/jobs/generate/sections/section-10.ts
+    severity: medium (unverified)
 ---
 
 <intent-contract>
@@ -121,6 +128,24 @@ deferred: []
 
 ## Review Triage Log
 
+### 2026-09-28 — Review pass
+- Layers: Edge Case Hunter and Verification Gap Reviewer ran; Blind Hunter and Intent Alignment were skipped (token economy; the integrated epic review covers them).
+- verdicts: 13 findings — high 0, medium 2, low 8, false 1, maybe-false 2
+- findings:
+  - `[medium]` `[patch]` VG: `photo-store.ts` `readingStatusOpId` (the key that re-enables "Tentar novamente") is run by no test; a stale value leaves the button disabled after a failed-over-failed pull — patched: `photo-store.test.ts` case over two pulled status ops, and 8.2-E2E-002 pushes another `failed` and sees the button enabled again.
+  - `[medium]` `[patch]` VG: the padded plate crop is observed only by the `@p1` 8.6-E2E-003 and the unit test never fires `load` — patched: a jsdom case in `plate-photo.test.tsx` fires `load` with stubbed sizes and asserts the padded percentages and outline.
+  - `[low]` `[reject]` EC: removing every section block makes the Sumário draw eleven virtual rows — by design: `printedSections` already prints the seed's eleven for such a snapshot (unchanged since Story 4.8), so the rows now say what prints; removing all eleven sections is not an everyday path.
+  - `[maybe-false]` `[defer]` EC: a confirmed parecer text taller than a page inside the `cantSplit` row might be clipped by Word or LibreOffice — would be settled by rendering a page-long summary through LibreOffice; the composed summary is counts only, far under a page.
+  - `[low]` `[reject]` EC: a rejected local commit of the "Criar ⟨nome⟩?" registry create leaves the button hidden until remount — a local IndexedDB commit failure is not an everyday event, and the fix adds a promise contract and state.
+  - `[low]` `[reject]` EC: a stored manufacturer matching a removed registry row gets no "Criar" and no chip — removing a manufacturer still used on a sheet is rare; the invisibility itself predates this batch.
+  - `[false]` `[reject]` EC: a name registered meanwhile makes "Criar ⟨nome⟩?" write a duplicate registry row — registry names merge on the normalized name (AR-18, `registry-picker-field.tsx`), and a pulled row selects the name and removes the button.
+  - `[low]` `[reject]` EC: Enter then an immediate blur in the month-date text field may write the same put twice — an identical second put changes nothing the device or the document shows; the window is the few ms before the live read lands.
+  - `[low]` `[reject]` EC: a pulled date change while the engineer types in the month-date text field replaces the typed text — the same trade-off as the other plain fields; unlikely on one relatório edited by one engineer.
+  - `[low]` `[reject]` EC: the crop's box ratio is measured once at load (hidden box or a later rotation keeps a stale ratio) — the box has a fixed 160 px height; a rotation leaves a padded, not a sliver, view; a ResizeObserver is added complexity.
+  - `[low]` `[reject]` EC: a wall clock moved backwards keeps the 5 s cadence while a reading stays `running` — needs both a clock jump and a stuck reading, which E78-Q6 now ends.
+  - `[maybe-false]` `[reject]` EC: the dead-letter worker exhausting its own retries (database down about 15 s) leaves the photo `running` — if true it is low (a database outage during a dead-letter event); settled by a test with the database stopped.
+  - `[low]` `[reject]` EC: a send that throws after pg-boss committed the job writes `failed` while the job runs — pg-boss `send` is one insert; a throw after its commit (connection drop at the reply) is rare, and the job's own `done` then overrides.
+
 ## Design Notes
 
 - Q1 virtual rows are the review's second option ("render fallback rows 1 to 11 when a snapshot has no section blocks"); rows 1-11 match what the document prints for that snapshot, so "linha 10" is true on both surfaces.
@@ -147,3 +172,6 @@ deferred: []
   - Q7 (receipt no longer writes `failed`): `files-reading.integration.test.ts` both E78-Q7 tests failed.
   - Q8 (`observeReadings` skipped): `engine.test.ts` both E78-Q8 tests failed.
   - After the restores: `pnpm static`, `pnpm lint` and the touched web tests green.
+- Review pass (2026-09-28): 13 findings; 2 medium patched (both test gaps: `photo-store.test.ts` E78-Q5 case over pulled status ops, 8.2-E2E-002 re-enable after another `failed`; `plate-photo.test.tsx` E78-Q14 loaded-crop case, red with the padding removed), 1 deferred (cantSplit on an overlong parecer, unverified), 10 rejected with reasons in the triage log.
+- Follow-up review recommendation: false. The two patched mediums added tests only and changed no product code, so no unverified risk remains from the patches (patched counts: high 0, medium 2, low 0).
+- Residual risks: the rejected edge cases in the triage log; the full `pnpm verify` and `test:e2e:full` are run by the orchestrator under the host lock (results in the PR).
