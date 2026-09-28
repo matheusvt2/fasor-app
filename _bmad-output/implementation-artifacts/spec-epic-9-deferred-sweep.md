@@ -2,7 +2,7 @@
 title: 'Epic 9 carry-over C2: deferred-work sweep of earlier epics'
 type: 'chore'
 created: '2026-09-28'
-status: 'in-review'
+status: 'done'
 baseline_revision: '2abf8db19201f12c644b89ce4b2f707dff33b163'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -166,3 +166,14 @@ B7 sketch: the digest input is the sorted list of `path + sha256(bytes)` of ever
   - `[low]` `[defer]` VG B14: the preview press still retries blindly — deferred (ledger entry, Epic 9 integrated review).
   - `[low]` `[reject]` VG other: `seededTemplate` treats any live template as seeded — intended by A9 (every template carries `seed_version`) and the Templates empty-state rule; listed in the PR.
   - `[maybe-false]` `[patch]` VG other: the B16 loading window — same as the plate-photo finding above, patched there.
+
+## Auto Run Result
+
+Status: done (gate result in the PR body).
+
+- Implemented: A1-A14 and B1-B5, B7-B16 as specified; B6 withdrawn (Spec Change Log) and its ledger entry re-owned. Ledger: 51 entries of `deferred-work.md` updated (fixed, stale, re-owned), plus one new entry for the preview retry.
+- Files: api seed/sync/files/jobs (`seed.ts`, `apply.ts`, `docx.ts`, `variants.ts`, `image.ts`, `job.ts`, `worker.ts`), new api tests (`migrate`, `request-log`, `variants`), kernel (`ops/apply.ts`, `tree.ts`, `compose.ts`, `revisions.ts`, `cards.ts`, `streams.ts`, `section-text.ts`, fixture `op-log.ts`), web (`commit.ts`, `chip.tsx`, `toast.tsx`, `quantity-stepper.tsx`, `session.tsx`, `home-store.ts`, `sync-store.ts`, `prefs.ts`, `plate-photo.tsx`, `use-generate.ts`, `export-dialog.tsx`, `tree-actions.ts`, `template-composer.tsx`, `templates-surface.tsx`, `shortcut-row.tsx`), shell (`public/sw.js`, `register.ts`, `vite.config.ts`, `index.html`, `e2e/durability.spec.ts`, `e2e/support/durability.ts`), `scripts/seed-users.ts`, README, `extract-raw-sources.md`.
+- Review: 21 findings; 9 patched (4 medium, 3 low, 1 maybe-false merged, B15 pair counted once each), 1 deferred (preview retry), 11 rejected with reasons in the triage log.
+- Follow-up review recommended: false (no high patched; the patched mediums are tests and the B15 visibility rule, covered by new tests). Patched by verdict: medium 5, low 3, maybe-false 1.
+- Verification: narrow suites per item by the implementer (api 12 files 107 tests; kernel/tooling/SW 1489; web 959/961 with the 2 known E7-A2 flakes passing alone); lint and static clean after merging main; full gate below.
+- Residual risks: A12 leaves prints stored before the fix sideways on dev volumes; A13 writes pg-boss's `job` table directly; B7 changes the shell identity (covered by 1.8-E2E-006 and the lifecycle tests).
