@@ -20,6 +20,7 @@ import {
   type SyncPullResponse,
   type SyncPushResponse,
   type SyncRoute,
+  readingRereadPath,
 } from '@app/domain';
 
 /** The part of a zod schema the client uses; apps/web does not depend on zod itself. */
@@ -90,11 +91,6 @@ export interface SyncClient {
    * any other answer is a `SyncRequestError`.
    */
   rereadPhoto(photoId: string): Promise<void>;
-}
-
-/** Story 8.4's route, called by the sheet's "Tentar novamente" (Story 8.2). */
-export function rereadPhotoPath(photoId: string): string {
-  return `/api/photos/${photoId}/reread`;
 }
 
 /** Story 7.5: where the preview tab opens the relatório's latest RASCUNHO PDF; the file id only busts a cached earlier one. */
@@ -214,7 +210,7 @@ export function createSyncClient(deps: { fetch: FetchLike }): SyncClient {
     generate: (relatorioId, body) => request(GENERATE_ROUTES.generate(relatorioId), generateResponseSchema, undefined, body),
     preview: (relatorioId, body) => request(GENERATE_ROUTES.preview(relatorioId), previewResponseSchema, undefined, body),
     async rereadPhoto(photoId) {
-      await send(rereadPhotoPath(photoId), 'POST', { headers: { accept: 'application/json' } });
+      await send(readingRereadPath(photoId), 'POST', { headers: { accept: 'application/json' } });
     },
   };
 }

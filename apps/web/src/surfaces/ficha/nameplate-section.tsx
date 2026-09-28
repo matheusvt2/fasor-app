@@ -8,6 +8,7 @@ import {
   PLATE_CAPTION,
   plateCropRegion,
   platePhotoOf,
+  plateReadingTarget,
   plateReadingView,
   showsConfirmedGlyph,
   suggestNameplateCopy,
@@ -15,6 +16,7 @@ import {
   type BlockRow,
   type EntityState,
   type EquipmentRow,
+  type JsonValue,
   type RelatorioSnapshot,
   type WordRow,
 } from '@app/domain';
@@ -123,7 +125,7 @@ export function NameplateSection({
     blockId: block.id,
     itemKey: null,
     caption: PLATE_CAPTION,
-    reading: { kind: 'plate', target: { block_id: block.id, block_type: block.block_type } },
+    reading: { kind: 'plate', target: plateReadingTarget(block.id, block.block_type) as JsonValue },
   });
 
   /** The focused field's region on the plate: its pending suggestion's, else its confirmed source's (this photo only). */
