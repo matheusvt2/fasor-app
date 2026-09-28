@@ -159,9 +159,12 @@ export function equipmentSharedElsewhere(blocks: readonly Pick<BlockRow, 'id' | 
  * Whether removing the sheet `blockId` also frees (tombstones) its equipment `equipmentId`
  * (E9 sweep B15). Only when this device can see every sheet that could hold it: no other
  * live block in `blocks` (this relatório's and the obra's other relatórios on this device)
- * references it (`equipmentSharedElsewhere`), and every other relatório of the project the
- * company summary lists is held here. A relatório of the obra this device never pulled may
- * hold the equipment through a block this device cannot see, so the equipment stays live.
+ * references it (`equipmentSharedElsewhere`), the company stream was pulled to the end
+ * (`companyDownloaded`: before that an empty summary says nothing), and every other
+ * relatório of the project the company summary lists is held here with its stream pulled
+ * to the end (`downloadedStreamIds`, as `newRelatorioEquipmentReady` reads them). A
+ * relatório of the obra this device never pulled, or pulled only in part, may hold the
+ * equipment through a block this device cannot see, so the equipment stays live.
  */
 export function equipmentFreedByRemoval(input: {
   blocks: readonly Pick<BlockRow, 'id' | 'equipment_id' | 'removed_at'>[];
@@ -169,12 +172,18 @@ export function equipmentFreedByRemoval(input: {
   blockId: string;
   projectId: string;
   relatorioId: string;
+  companyDownloaded: boolean;
   summaries: readonly Pick<RelatorioSummary, 'id' | 'project_id'>[];
   heldRelatorioIds: ReadonlySet<string> | readonly string[];
+  downloadedStreamIds: ReadonlySet<string> | readonly string[];
 }): boolean {
   if (equipmentSharedElsewhere(input.blocks, input.equipmentId, input.blockId)) return false;
+  if (!input.companyDownloaded) return false;
   const held = new Set(input.heldRelatorioIds);
-  return input.summaries.every((row) => row.project_id !== input.projectId || row.id === input.relatorioId || held.has(row.id));
+  const downloaded = new Set(input.downloadedStreamIds);
+  return input.summaries.every(
+    (row) => row.project_id !== input.projectId || row.id === input.relatorioId || (held.has(row.id) && downloaded.has(row.id)),
+  );
 }
 
 /** The live locations of a relatório in `order_key` order. */

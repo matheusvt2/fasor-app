@@ -113,6 +113,10 @@ export function PlatePhotoRow({
  * recorded in `local_prefs` with the status op it answered (`statusOpId`), so a reload
  * before the next status op arrives keeps the button disabled with its asked reason.
  */
+/** `FailedReading`'s record of a reread press: not read yet, or read and none recorded (never an op id). */
+const NOT_READ = 'not-read';
+const NOT_ASKED = 'not-asked';
+
 function FailedReading({ photoId, statusOpId, onFillManually }: { photoId: string; statusOpId: string | null; onFillManually: () => void }) {
   const t = copy.ficha.nameplate;
   const sync = useSync();
@@ -121,10 +125,18 @@ function FailedReading({ photoId, statusOpId, onFillManually }: { photoId: strin
   const db = session.database;
   const { showToast } = useToast();
   const [asking, setAsking] = useState(false);
-  const askedOpId = useLiveQuery(() => (db === null ? Promise.resolve(undefined) : readRereadAsked(db, photoId)), [db, photoId], undefined);
-  const asked = asking || (askedOpId !== undefined && askedOpId === statusOpId);
+  // `null` until the recorded press has been read: right after a reload a fast tap must not
+  // start a second reread before the record says whether one was already asked.
+  const recorded = useLiveQuery(
+    () => (db === null ? Promise.resolve(NOT_ASKED) : readRereadAsked(db, photoId).then((opId) => (opId === undefined ? NOT_ASKED : opId))),
+    [db, photoId],
+    NOT_READ,
+  );
+  // With no database there is no record to wait for.
+  const loading = db !== null && recorded === NOT_READ;
+  const asked = asking || (recorded !== NOT_READ && recorded !== NOT_ASKED && recorded === statusOpId);
   const retry = () => {
-    if (asked || sync.rereadPhoto === undefined) return;
+    if (asked || loading || sync.rereadPhoto === undefined) return;
     const rereadPhoto = sync.rereadPhoto;
     setAsking(true);
     void (db === null ? Promise.resolve() : writeRereadAsked(db, photoId, statusOpId))
@@ -144,7 +156,7 @@ function FailedReading({ photoId, statusOpId, onFillManually }: { photoId: strin
         {t.readFailed}
       </p>
       <div className="row-wrap">
-        <TextButton isDisabled={!online || asked} disabledReason={!online ? t.retryOffline : asked ? t.retryAsked : undefined} onPress={retry}>
+        <TextButton isDisabled={!online || asked || loading} disabledReason={!online ? t.retryOffline : asked ? t.retryAsked : loading ? copy.common.loading : undefined} onPress={retry}>
           {t.retryRead}
         </TextButton>
         <TextButton onPress={onFillManually}>{t.fillManually}</TextButton>

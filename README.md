@@ -108,6 +108,9 @@ template once. `--sample-relatorio` also seeds a relatório with data (the
 small Porto Seguro fixture, with the seeded user as its responsible). Its ids
 are fixed, so it lives in one company at a time: seeding it for another
 company moves it there, and a re-run puts it back as the fixture has it.
+`test:api` and the e2e global setup seed the same fixture, so running them
+deletes the sample from your company, and a device that had pulled it keeps
+stale rows of it.
 
 ## Running the `prod` profile
 

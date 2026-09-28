@@ -582,6 +582,83 @@ describe('Export dialog (Story 4.8)', () => {
     expect(retried).toHaveBeenCalledTimes(2);
   });
 
+  /**
+   * A photo this device still has to upload: its blob, its row with no `uploaded_at` and
+   * its acked create (`pendingUploads`). `dead` marks the upload as one no cycle retries.
+   */
+  async function plantUpload(db: AppDatabase, fileId: string, dead: boolean): Promise<void> {
+    const create = serverOp({
+      kind: 'create',
+      path: `file/${fileId}`,
+      value: {
+        id: fileId,
+        company_id: COMPANY,
+        relatorio_id: REL,
+        kind: 'photo',
+        sha256: 'cd'.repeat(32),
+        mime: 'image/jpeg',
+        size: 10,
+        uploaded_at: null,
+        variants: null,
+        removed_at: null,
+        captured_at: '2026-09-06T12:00:00.000Z',
+        tz_offset: -180,
+        coords: null,
+        local_seq: 1,
+        block_id: BLOCK_CHAVE_ID,
+        item_key: null,
+        caption: null,
+        reading_kind: null,
+        reading_target: null,
+        reading_status: 'none',
+      },
+      client_ts: '2026-09-23T11:05:00.000Z',
+    });
+    await applyPulled(db, [create]);
+    await db.outbox.put({ ...create, status: 'acked', error_code: null, targets: [`file:${fileId}`] } as OutboxRow);
+    await db.files.put({
+      id: fileId,
+      variant: 'original',
+      blob: new Blob(['abcd']),
+      acked: false,
+      created_at: '2026-09-23T11:05:00.000Z',
+      ...(dead ? { upload_error: { state: 'dead' as const, code: 'file_too_large', at: '2026-09-23T11:06:00.000Z' } } : {}),
+    });
+  }
+
+  it('E9 sweep B14: retries while a file the 409 names is still on its way from this device, and fails at once once that upload is dead', async () => {
+    database = await freshDb();
+    const fileId = newId();
+    const notCaughtUp = new SyncRequestError({ kind: 'http', status: 409, code: 'not_caught_up', details: { missing_op: false, missing_files: [fileId] } });
+    // The upload appears after the first press, as a photo taken while the dialog was open.
+    const retried = vi
+      .fn<SyncState['generate']>()
+      .mockImplementationOnce(async () => {
+        await plantUpload(database!, fileId, false);
+        throw notCaughtUp;
+      })
+      .mockResolvedValueOnce({ outcome: 'queued', job_id: JOB_ID, revision_number: 1 });
+    const { unmount } = render(<Harness sync={syncState({ generate: retried })} />);
+    await userEvent.click(generateButton());
+    await waitFor(() => expect(within(dialog()).getByRole('status')).toHaveTextContent('Gerando revisão 1…'));
+    expect(retried).toHaveBeenCalledTimes(2);
+    unmount();
+    cleanup();
+    database.close();
+
+    database = await freshDb();
+    const deadId = newId();
+    const refused = vi.fn<SyncState['generate']>().mockImplementationOnce(async () => {
+      await plantUpload(database!, deadId, true);
+      throw new SyncRequestError({ kind: 'http', status: 409, code: 'not_caught_up', details: { missing_op: false, missing_files: [deadId] } });
+    });
+    render(<Harness sync={syncState({ generate: refused })} />);
+    await userEvent.click(generateButton());
+    const alert = await within(dialog()).findByRole('alert');
+    expect(alert).toHaveTextContent('1 arquivo ainda não chegou ao servidor');
+    expect(refused).toHaveBeenCalledTimes(1);
+  });
+
   it('honours "pode fechar": the wait survives an unmount, and a remount after the revision arrived finishes it', async () => {
     database = await freshDb();
     const sync = syncState();

@@ -73,6 +73,7 @@ describe('E9 sweep B16: "Tentar novamente" survives a reload', () => {
     session.database = await freshDb();
     const sync = makeSyncState();
     const first = render(row(OP_A, sync));
+    await waitFor(() => expect(retry()).not.toHaveAttribute('aria-disabled'), { timeout: 5000 });
     await userEvent.click(retry());
     await waitFor(() => expect(sync.rereadPhoto).toHaveBeenCalledWith(PHOTO));
     expect(await readRereadAsked(session.database, PHOTO)).toBe(OP_A);
@@ -81,6 +82,9 @@ describe('E9 sweep B16: "Tentar novamente" survives a reload', () => {
     // The reload: a fresh mount, no component state, the same status op.
     const reloaded = makeSyncState();
     const second = render(row(OP_A, reloaded));
+    // Before the record is read the button is already disabled: a fast tap starts nothing.
+    expect(retry()).toHaveAttribute('aria-disabled', 'true');
+    await userEvent.click(retry());
     await waitFor(() => expect(retry()).toHaveAttribute('aria-disabled', 'true'));
     expect(retry()).toHaveAccessibleDescription('Nova leitura pedida');
     await userEvent.click(retry());
@@ -99,6 +103,7 @@ describe('E9 sweep B16: "Tentar novamente" survives a reload', () => {
     session.database = await freshDb();
     const sync = makeSyncState({ rereadPhoto: vi.fn(async () => Promise.reject(new Error('503'))) });
     const first = render(row(null, sync));
+    await waitFor(() => expect(retry()).not.toHaveAttribute('aria-disabled'), { timeout: 5000 });
     await userEvent.click(retry());
     await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent('Não foi possível pedir a nova leitura'));
     await waitFor(async () => expect(await readRereadAsked(session.database!, PHOTO)).toBeUndefined());

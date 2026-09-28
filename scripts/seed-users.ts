@@ -44,7 +44,9 @@ import { assertInCompose } from './test-reset.ts';
  * the seeded user as its responsible. Its ids are fixed, so it lives in one company at a
  * time: a run for another company moves it there, and a re-run for the same company puts it
  * back as the fixture has it (any edit made on it is dropped). It is refused with `--test`,
- * whose companies the automated suites reset.
+ * whose companies the automated suites reset. The automated suites (`test:api` and the e2e
+ * global setup) seed the same fixture, so a run of them deletes the sample from the
+ * developer's company outright, and a device that pulled it keeps stale rows of it.
  */
 
 const USAGE = `usage:
@@ -54,7 +56,8 @@ const USAGE = `usage:
              [--standard-template] [--sample-relatorio]
   (the registration flags set a new user's initial values; a re-run resets the password and the name only;
    --standard-template also seeds the company's "Cabine primária — padrão" template once;
-   --sample-relatorio also seeds the small Porto Seguro relatório, fixed ids, one company at a time)`;
+   --sample-relatorio also seeds the small Porto Seguro relatório, fixed ids, one company at a time;
+   test:api and the e2e setup reclaim it, deleting it from your company while devices keep stale rows)`;
 
 export function parseArgs(argv: string[]): Record<string, string | true> {
   const out: Record<string, string | true> = {};

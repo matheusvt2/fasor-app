@@ -207,11 +207,25 @@ export async function equipmentReadyFor(db: AppDatabase, projectId: string): Pro
 
 /**
  * E9 sweep B15: what "Remover" of a sheet needs to know about the obra's relatórios this
- * device cannot see: the company summary and the ids of the relatórios held here.
+ * device cannot see: whether the company stream was pulled to the end, the company summary,
+ * the ids of the relatórios held here and the streams pulled to the end.
  */
-export async function relatorioVisibility(db: AppDatabase): Promise<{ summaries: RelatorioSummary[]; heldRelatorioIds: string[] }> {
-  const [summaries, relatorios] = await Promise.all([companySummaries(db), db.entities.where('entity').equals('relatorio').primaryKeys()]);
-  return { summaries, heldRelatorioIds: relatorios.map(([, id]) => id) };
+export async function relatorioVisibility(db: AppDatabase): Promise<RelatorioVisibility> {
+  const [states, relatorios] = await Promise.all([db.sync_state.toArray(), db.entities.where('entity').equals('relatorio').primaryKeys()]);
+  const company = states.find((row) => row.id === COMPANY_STREAM);
+  return {
+    companyDownloaded: companyStreamDownloaded(company),
+    summaries: company?.relatorios ?? [],
+    heldRelatorioIds: relatorios.map(([, id]) => id),
+    downloadedStreamIds: states.filter((row) => row.downloaded_at !== null).map((row) => row.id),
+  };
+}
+
+export interface RelatorioVisibility {
+  companyDownloaded: boolean;
+  summaries: RelatorioSummary[];
+  heldRelatorioIds: string[];
+  downloadedStreamIds: string[];
 }
 
 /** The company's user rows on this device, for names on Sync status. */

@@ -58,11 +58,13 @@ describe('Epic 4 QA Q4 removeSheetOps', () => {
   const NEVER_PULLED = id(103);
   // The company summary lists this relatório and another of the obra, both on this device.
   const allHere = {
+    companyDownloaded: true,
     summaries: [
       { id: relatorioId, project_id: projectId },
       { id: OTHER_RELATORIO, project_id: projectId },
     ],
     heldRelatorioIds: [relatorioId, OTHER_RELATORIO],
+    downloadedStreamIds: [relatorioId, OTHER_RELATORIO],
   };
 
   it('tombstones the block and its equipment when no other live block references it', () => {
@@ -84,7 +86,7 @@ describe('Epic 4 QA Q4 removeSheetOps', () => {
 
   it('E9 sweep B15: tombstones only the block when the obra has a relatório this device never pulled', () => {
     const only = pair(9, 'SEC-C09', 'a0');
-    const visibility = { summaries: [...allHere.summaries, { id: NEVER_PULLED, project_id: projectId }], heldRelatorioIds: allHere.heldRelatorioIds };
+    const visibility = { ...allHere, summaries: [...allHere.summaries, { id: NEVER_PULLED, project_id: projectId }] };
     const ops = removeSheetOps(author, relatorioId, projectId, [only.block], only.block, visibility);
     expect(ops.map((op) => [op.kind, op.path])).toEqual([['remove', `block/${only.block.id}/removed_at`]]);
   });

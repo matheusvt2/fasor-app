@@ -1,5 +1,13 @@
 import 'fake-indexeddb/auto';
-import { instantiateTemplate, newEquipmentBlock, standardTemplate, type BlockRow, type EquipmentRow, type LocationRow } from '@app/domain';
+import {
+  instantiateTemplate,
+  newEquipmentBlock,
+  standardTemplate,
+  type BlockRow,
+  type EquipmentRow,
+  type LocationRow,
+  type RelatorioSummary,
+} from '@app/domain';
 import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -7,7 +15,7 @@ import { axe } from '../../test-axe.ts';
 import { MemoryRouter, Route, Routes, useParams } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { toRecord } from '../../db/commit.ts';
-import { openDatabase, type AppDatabase } from '../../db/schema.ts';
+import { COMPANY_STREAM, openDatabase, type AppDatabase } from '../../db/schema.ts';
 import { applyPulled } from '../../db/sync-store.ts';
 import { BackTargetProvider } from '../../state/back-target.tsx';
 import type { SessionState } from '../../state/session.tsx';
@@ -82,9 +90,30 @@ function sectionBlocksFor(relatorioId: string): BlockRow[] {
     .map((b) => ({ ...b, relatorio_id: relatorioId }));
 }
 
-async function seeded(options: { status?: string; extraEquipment?: EquipmentRow[] } = {}): Promise<AppDatabase> {
+/** The company summary's row for a relatório of this obra. */
+const summaryOf = (relatorioId: string): RelatorioSummary => ({
+  id: relatorioId,
+  project_id: PROJECT,
+  status: 'em_campo',
+  template_id: null,
+  seed_version: 'v1',
+  updated_seq: 1,
+});
+
+async function seeded(options: { status?: string; extraEquipment?: EquipmentRow[]; companyRelatorios?: RelatorioSummary[] } = {}): Promise<AppDatabase> {
   const db = await freshDb();
   await applyPulled(db, portoSeguroSmall.log);
+  // The company stream pulled to the end, its summary listing the obra's relatórios (E9 sweep B15).
+  await db.sync_state.put({
+    id: COMPANY_STREAM,
+    cursor_seq: 1,
+    complete: true,
+    files_pending: 0,
+    downloaded_at: '2026-09-28T12:00:00.000Z',
+    last_sync_at: '2026-09-28T12:00:00.000Z',
+    last_push_at: [],
+    relatorios: options.companyRelatorios ?? [summaryOf(RELATORIO)],
+  });
   const cabine = (await db.entities.get(['location', CABINE]))!.row as LocationRow;
   const coluna: LocationRow = { id: COLUNA, relatorio_id: RELATORIO, parent_id: CABINE, kind: 'coluna', name: 'Coluna 1', order_key: 'a0', removed_at: null };
   const empty: LocationRow = { ...cabine, id: EMPTY_CABINE, name: 'Cabine Vazia', order_key: 'a5' } as LocationRow;
@@ -199,6 +228,16 @@ describe('4.4 location tree (Sumário presentation)', () => {
       orderKey: 'a0',
     });
     await database.entities.bulkPut([toRecord(`relatorio:${OTHER}`, { ...relatorio, id: OTHER } as never), toRecord(`block:${other.block.id}`, other.block)]);
+    await openCabine();
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de SEC-C01' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Remover' }));
+    await waitFor(() => expect(document.querySelector(`li[data-block-id="${SEC_C01}"]`)).toBeNull());
+    expect((await outbox()).map((op) => [op.path, op.kind])).toEqual([[`block/${SEC_C01}/removed_at`, 'remove']]);
+    expect(((await database.entities.get(['equipment', id(4)]))!.row as EquipmentRow).removed_at).toBeNull();
+  });
+
+  it('E9 sweep B15: removing a sheet while the obra has a relatório this device does not hold writes only the block tombstone', async () => {
+    database = await seeded({ companyRelatorios: [summaryOf(RELATORIO), summaryOf(id(60))] });
     await openCabine();
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de SEC-C01' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Remover' }));

@@ -32,7 +32,7 @@ import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { projectBlockRows } from '../../db/home-store.ts';
 import { writeLastSheet } from '../../db/prefs.ts';
-import { relatorioVisibility } from '../../db/sync-store.ts';
+import { relatorioVisibility, type RelatorioVisibility } from '../../db/sync-store.ts';
 import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
@@ -296,7 +296,10 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
       // and only when every relatório of the obra is here to be asked (E9 sweep B15).
       const elsewhere =
         db === null
-          ? Promise.resolve({ others: [], visibility: { summaries: [], heldRelatorioIds: [relatorioId] } })
+          ? Promise.resolve({
+              others: [],
+              visibility: { companyDownloaded: false, summaries: [], heldRelatorioIds: [relatorioId], downloadedStreamIds: [] } satisfies RelatorioVisibility,
+            })
           : Promise.all([projectBlockRows(db, projectId), relatorioVisibility(db)]).then(([rows, visibility]) => ({
               others: rows.filter((row) => row.relatorio_id !== relatorioId),
               visibility,
@@ -470,7 +473,7 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
  * "Remover" of an equipment sheet: the block's tombstone, plus its equipment's when no
  * other live block in `blocks` (this relatório's and the obra's other relatórios on this
  * device) references that equipment (Q4) and every relatório of the obra the company
- * summary lists is on this device (E9 sweep B15, `equipmentFreedByRemoval`).
+ * summary lists is on this device, pulled to the end (E9 sweep B15, `equipmentFreedByRemoval`).
  */
 export function removeSheetOps(
   author: Author,
@@ -478,7 +481,12 @@ export function removeSheetOps(
   projectId: string,
   blocks: readonly BlockRow[],
   block: Pick<BlockRow, 'id' | 'equipment_id'>,
-  visibility: { summaries: readonly Pick<RelatorioSummary, 'id' | 'project_id'>[]; heldRelatorioIds: readonly string[] },
+  visibility: {
+    companyDownloaded: boolean;
+    summaries: readonly Pick<RelatorioSummary, 'id' | 'project_id'>[];
+    heldRelatorioIds: readonly string[];
+    downloadedStreamIds: readonly string[];
+  },
 ): OpDraft[] {
   const ops: OpDraft[] = [removeBlockOp(author, relatorioId, block.id)];
   if (

@@ -208,6 +208,39 @@ describe('3.5 composer: sub-block defaults per type', () => {
   });
 });
 
+describe('E9 sweep B11: section actions after a pull reordered the sections', () => {
+  /** The section types of the row as written, in order. */
+  const writtenSections = async () =>
+    (await templateRow(database!, ID))!.blocks.map((b) => b.block_type).filter((type) => type.startsWith('section_'));
+
+  it('"Remover" removes the section it was pressed on, wherever the row read at write time holds it', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    renderComposer();
+    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de 8 Pontos de atenção' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Remover' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Remover 8 Pontos de atenção?' });
+    // The row this device reads at the moment of the write has section 8 first (index 6 now holds section 6).
+    const stale = standardTemplate({ id: ID });
+    vi.mocked(templateRow).mockImplementationOnce(async () => ({ ...stale, blocks: moveSection(stale.blocks, 6, 0) }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Remover' }));
+    await waitFor(async () => expect(await outboxPaths()).toEqual([`template/${ID}/blocks`]));
+    expect(await writtenSections()).toEqual(['section_1', 'section_2', 'section_3', 'section_4', 'section_5', 'section_6', 'section_10', 'section_11']);
+  });
+
+  it('"Descer" moves the section it was pressed on, wherever the row read at write time holds it', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    renderComposer();
+    await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de 1 Objetivo' }));
+    const descer = await screen.findByRole('menuitem', { name: 'Descer' });
+    // The row this device reads at the moment of the write has section 1 fourth: [2, 3, 4, 1, ...].
+    const stale = standardTemplate({ id: ID });
+    vi.mocked(templateRow).mockImplementationOnce(async () => ({ ...stale, blocks: moveSection(stale.blocks, 0, 3) }));
+    await userEvent.click(descer);
+    await waitFor(async () => expect(await outboxPaths()).toEqual([`template/${ID}/blocks`]));
+    expect(await writtenSections()).toEqual(['section_2', 'section_1', 'section_3', 'section_4', 'section_5', 'section_6', 'section_8', 'section_10', 'section_11']);
+  });
+});
+
 describe('3.6 composer: section text', () => {
   const area = (dialog: HTMLElement) => within(dialog).getByRole('textbox', { name: 'Texto da seção 1' });
 

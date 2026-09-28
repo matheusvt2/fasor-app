@@ -133,7 +133,10 @@ async function projectUser(db: Db, companyId: CompanyId, row: UserRow): Promise<
       });
       return;
     } catch (error) {
-      if (error instanceof ProjectionChanged && attempt === 1) continue;
+      if (error instanceof ProjectionChanged) {
+        if (attempt === 1) continue;
+        throw new Error(`could not project user ${row.id}: another seed changed its projection twice while this one ran`, { cause: error });
+      }
       if (error instanceof ServerBatchRejectedError) {
         throw new Error(`could not project user ${row.id}: ${error.rejected[0]?.code ?? 'op_invalid'}`, { cause: error });
       }

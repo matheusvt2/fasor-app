@@ -12,7 +12,14 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-9-context.md'
 warnings: ['batched', 'multiple-goals', 'oversized']
 batched_reason: 'Batch C2 of Epic 9: thirty small, independent hygiene fixes from the (a) triage list of epic-9-context.md, each a few lines plus its test, batched to pay one review and one gate.'
-deferred: []
+deferred:
+  - summary: >-
+      The preview press still retries a 409 not_caught_up blindly; B14 changed only the issue press.
+    evidence: |-
+      use-preview.ts MAX_ROUNDS loop parses no details; notCaughtUpRetryable and missingFilesText are ready to adopt. Ledger entry added, owner Epic 9 integrated review.
+    location: >-
+      apps/web/src/surfaces/export/use-preview.ts
+    severity: low
 ---
 
 <intent-contract>
@@ -134,3 +141,28 @@ B7 sketch: the digest input is the sorted list of `path + sha256(bytes)` of ever
 - KEEP: B7's `stampShell`, the `shell-version` meta, the version pin and its lifecycle tests.
 
 ## Review Triage Log
+
+### 2026-09-28 — Review pass
+- verdicts: 21 findings — high 0, medium 5, low 11, false 2, maybe-false 3
+- findings:
+  - `[low]` `[reject]` ECH QuantityStepper: a pulled value equal to a quantity sent in the same flight is taken as an own echo — rare (a concurrent pull landing on one of this device's own intermediate steps); the fix adds per-op tracking.
+  - `[low]` `[reject]` ECH QuantityStepper: a pull reverting to the flight's start value is not shown — same rarity and cost as above.
+  - `[maybe-false]` `[reject]` ECH use-generate: a missing file whose create is still `sent` fails at once — a file whose create the server lacks makes the server also miss the last op (`missing_op` true, retryable); would only be low if real.
+  - `[medium]` `[patch]` ECH tree.ts: a held relatório whose stream is not downloaded counts as visible — patched: the rule requires each other relatório of the project held and downloaded.
+  - `[medium]` `[patch]` ECH tree.ts: company stream never pulled leaves summaries empty and frees the equipment — patched with the finding above: the company stream must be downloaded.
+  - `[low]` `[reject]` ECH composer: a move's `toIndex` comes from the stale view — needs a pull during the drag on an office-only surface; the destination fix adds a second resolution.
+  - `[medium]` `[patch]` ECH plate-photo: a tap before the `reread_asked` read lands starts a second reread — patched: disabled until the read resolves.
+  - `[low]` `[reject]` ECH prefs: `reread_asked:{photo_id}` entries are never cleared — a few bytes per failed plate photo; no harm named.
+  - `[maybe-false]` `[reject]` ECH plate-photo: a later step of the chain rejecting after a successful reread — `requestSyncCycle` only schedules a cycle and does not reject in practice; would be low.
+  - `[low]` `[patch]` ECH seed.ts: a second `ProjectionChanged` escapes unnamed — patched into a descriptive Error.
+  - `[false]` `[reject]` ECH seed.ts: a nameless template sorts first — `templateRowSchema` requires `name`, so the comparison is never NULL.
+  - `[low]` `[patch]` ECH seed-users `--sample-relatorio`: the suites reclaim the fixed-id sample from the developer's company — patched: one sentence in the CLI usage and README.
+  - `[low]` `[reject]` ECH A12: prints stored before A12 reach OCR sideways — no production data (Design Notes); dev volumes only.
+  - `[low]` `[reject]` ECH A12 claim: duplicate of the finding above.
+  - `[low]` `[reject]` ECH B12 claim: duplicate of the first finding.
+  - `[medium]` `[patch]` VG B15: no test drives the hook through `relatorioVisibility` — patched: component test seeding the company sync row.
+  - `[medium]` `[patch]` VG B11: the four section handlers are untested against a reordered fresh row — patched: Remover and Mover composer tests.
+  - `[low]` `[patch]` VG B14: the pending-upload set of use-generate is untested — patched: retry and dead cases.
+  - `[low]` `[defer]` VG B14: the preview press still retries blindly — deferred (ledger entry, Epic 9 integrated review).
+  - `[low]` `[reject]` VG other: `seededTemplate` treats any live template as seeded — intended by A9 (every template carries `seed_version`) and the Templates empty-state rule; listed in the PR.
+  - `[maybe-false]` `[patch]` VG other: the B16 loading window — same as the plate-photo finding above, patched there.

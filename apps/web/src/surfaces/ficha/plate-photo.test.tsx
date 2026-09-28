@@ -45,6 +45,12 @@ const tile = (extra: Partial<PhotoTile> = {}): PhotoTile => ({
   ...extra,
 });
 
+/** "Tentar novamente" once its recorded press has been read (E9 sweep B16: disabled until then). */
+async function enabledRetry(): Promise<HTMLElement> {
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Tentar novamente' })).not.toHaveAttribute('aria-disabled'));
+  return screen.getByRole('button', { name: 'Tentar novamente' });
+}
+
 function wrap(children: ReactNode, sync: SyncState = makeSyncState()) {
   return render(
     <SyncContext value={sync}>
@@ -92,7 +98,7 @@ describe('8.2-UNIT the plate photo row', () => {
     const fill = vi.fn();
     wrap(<PlatePhotoRow tile={tile({ reading_status: 'failed' })} number={3} view="failed" onOpen={vi.fn()} onFillManually={fill} />, sync);
     expect(screen.getByRole('status')).toHaveTextContent('Não foi possível ler');
-    await userEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+    await userEvent.click(await enabledRetry());
     expect(sync.rereadPhoto).toHaveBeenCalledWith(PHOTO);
     await userEvent.click(screen.getByRole('button', { name: 'Preencher manualmente' }));
     expect(fill).toHaveBeenCalledOnce();
@@ -104,7 +110,7 @@ describe('8.2-UNIT the plate photo row', () => {
       <PlatePhotoRow tile={tile({ reading_status: 'failed', reading_status_op_id: opId })} number={3} view="failed" onOpen={vi.fn()} onFillManually={vi.fn()} />
     );
     const { rerender } = wrap(failed('019966b0-0088-7000-8000-0000000000a1'), sync);
-    await userEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+    await userEvent.click(await enabledRetry());
     await waitFor(() => expect(screen.getByRole('button', { name: 'Tentar novamente' })).toHaveAttribute('aria-disabled', 'true'));
     await userEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
     expect(sync.rereadPhoto).toHaveBeenCalledOnce();
@@ -121,13 +127,13 @@ describe('8.2-UNIT the plate photo row', () => {
         <ToastProvider>{failed('019966b0-0088-7000-8000-0000000000a2')}</ToastProvider>
       </SyncContext>,
     );
-    expect(screen.getByRole('button', { name: 'Tentar novamente' })).not.toHaveAttribute('aria-disabled');
+    await enabledRetry();
   });
 
   it('failed: a refused reread says so in a toast and the button comes back; offline the button waits with its reason', async () => {
     const sync = makeSyncState({ rereadPhoto: vi.fn(async () => Promise.reject(new Error('503'))) });
     wrap(<PlatePhotoRow tile={tile({ reading_status: 'failed' })} number={3} view="failed" onOpen={vi.fn()} onFillManually={vi.fn()} />, sync);
-    await userEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+    await userEvent.click(await enabledRetry());
     await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent('Não foi possível pedir a nova leitura'));
     expect(screen.getByRole('button', { name: 'Tentar novamente' })).not.toHaveAttribute('aria-disabled');
     cleanup();

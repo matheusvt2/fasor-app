@@ -365,29 +365,40 @@ describe('E9 sweep B15 equipmentFreedByRemoval', () => {
   const PULLED = id(7502);
   const NEVER_PULLED = id(7503);
   const block = { id: BLOCK, equipment_id: EQ, removed_at: null };
-  const base = { blocks: [block], equipmentId: EQ, blockId: BLOCK, projectId: PROJECT, relatorioId: HERE };
+  const base = { blocks: [block], equipmentId: EQ, blockId: BLOCK, projectId: PROJECT, relatorioId: HERE, companyDownloaded: true };
+  const summaries = [
+    { id: HERE, project_id: PROJECT },
+    { id: PULLED, project_id: PROJECT },
+    { id: NEVER_PULLED, project_id: OTHER_PROJECT },
+  ];
 
-  it('frees the equipment when no other live block holds it and every relatório of the obra is on this device', () => {
-    const summaries = [
-      { id: HERE, project_id: PROJECT },
-      { id: PULLED, project_id: PROJECT },
-      { id: NEVER_PULLED, project_id: OTHER_PROJECT },
-    ];
-    expect(equipmentFreedByRemoval({ ...base, summaries, heldRelatorioIds: [HERE, PULLED] })).toBe(true);
-    // Before any company pull the summary is empty: only what this device holds counts.
-    expect(equipmentFreedByRemoval({ ...base, summaries: [], heldRelatorioIds: [HERE] })).toBe(true);
+  it('frees the equipment when no other live block holds it and every relatório of the obra is on this device, downloaded', () => {
+    expect(equipmentFreedByRemoval({ ...base, summaries, heldRelatorioIds: [HERE, PULLED], downloadedStreamIds: [HERE, PULLED] })).toBe(true);
+    // A relatório of the obra alone in the summary.
+    expect(equipmentFreedByRemoval({ ...base, summaries: [summaries[0]!], heldRelatorioIds: [HERE], downloadedStreamIds: [] })).toBe(true);
+  });
+
+  it('leaves the equipment live before the company stream was pulled to the end: an empty summary says nothing', () => {
+    expect(
+      equipmentFreedByRemoval({ ...base, companyDownloaded: false, summaries: [], heldRelatorioIds: [HERE], downloadedStreamIds: [HERE] }),
+    ).toBe(false);
   });
 
   it('leaves the equipment live when the obra has a relatório this device never pulled', () => {
-    const summaries = [
-      { id: HERE, project_id: PROJECT },
-      { id: NEVER_PULLED, project_id: PROJECT },
-    ];
-    expect(equipmentFreedByRemoval({ ...base, summaries, heldRelatorioIds: [HERE] })).toBe(false);
+    const withMissing = [...summaries, { id: id(7504), project_id: PROJECT }];
+    expect(equipmentFreedByRemoval({ ...base, summaries: withMissing, heldRelatorioIds: [HERE, PULLED], downloadedStreamIds: [HERE, PULLED] })).toBe(
+      false,
+    );
+  });
+
+  it('leaves the equipment live when another relatório of the obra is held but its stream was not pulled to the end', () => {
+    expect(equipmentFreedByRemoval({ ...base, summaries, heldRelatorioIds: [HERE, PULLED], downloadedStreamIds: [HERE] })).toBe(false);
   });
 
   it('leaves the equipment live when another live block on this device references it', () => {
     const other = { id: id(7302), equipment_id: EQ, removed_at: null };
-    expect(equipmentFreedByRemoval({ ...base, blocks: [block, other], summaries: [], heldRelatorioIds: [HERE] })).toBe(false);
+    expect(
+      equipmentFreedByRemoval({ ...base, blocks: [block, other], summaries: [summaries[0]!], heldRelatorioIds: [HERE], downloadedStreamIds: [HERE] }),
+    ).toBe(false);
   });
 });
