@@ -20,6 +20,7 @@ import {
   type SyncPullResponse,
   type SyncPushResponse,
   type SyncRoute,
+  readingRereadPath,
 } from '@app/domain';
 
 /** The part of a zod schema the client uses; apps/web does not depend on zod itself. */
@@ -84,6 +85,12 @@ export interface SyncClient {
    * Optional in the type only so the test doubles built before it existed still type-check.
    */
   preview?(relatorioId: string, body: GenerateRequest): Promise<PreviewResponse>;
+  /**
+   * Story 8.2: "Tentar novamente" of a failed plate reading, `POST /api/photos/{id}/reread`
+   * (the route and the new reading run are the reading job's, Story 8.4). Resolves on a 2xx;
+   * any other answer is a `SyncRequestError`.
+   */
+  rereadPhoto(photoId: string): Promise<void>;
 }
 
 /** Story 7.5: where the preview tab opens the relatório's latest RASCUNHO PDF; the file id only busts a cached earlier one. */
@@ -202,5 +209,8 @@ export function createSyncClient(deps: { fetch: FetchLike }): SyncClient {
     },
     generate: (relatorioId, body) => request(GENERATE_ROUTES.generate(relatorioId), generateResponseSchema, undefined, body),
     preview: (relatorioId, body) => request(GENERATE_ROUTES.preview(relatorioId), previewResponseSchema, undefined, body),
+    async rereadPhoto(photoId) {
+      await send(readingRereadPath(photoId), 'POST', { headers: { accept: 'application/json' } });
+    },
   };
 }

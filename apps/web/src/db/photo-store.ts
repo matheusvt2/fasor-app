@@ -26,6 +26,10 @@ export interface PhotoTile {
   uploaded_at: string | null;
   thumb: Blob | null;
   upload_error: UploadError | null;
+  /** Story 8.2: the reading this photo asked for at capture (the plate tile's), null for a plain one. */
+  reading_kind: PhotoFileRow['reading_kind'];
+  /** Story 8.2: where that reading stands (`system:reading` server ops move it). */
+  reading_status: PhotoFileRow['reading_status'];
 }
 
 /** The live photos of one relatório matching `keep`, with their thumbs, in the kernel's capture order. */
@@ -52,6 +56,8 @@ async function photoTiles(db: AppDatabase, relatorioId: string, keep: (row: Phot
       uploaded_at: row.uploaded_at,
       thumb: thumb?.blob ?? null,
       upload_error: blob?.upload_error ?? null,
+      reading_kind: row.reading_kind,
+      reading_status: row.reading_status,
     });
   }
   return tiles.sort(comparePhotos);

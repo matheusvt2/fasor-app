@@ -14,6 +14,7 @@ import { BannerSlot, bannerCandidates } from '../state/banner-slot.tsx';
 import { useExtraBannerValue } from '../state/extra-banner.tsx';
 import { useForwardArrival } from '../state/forward-arrival.ts';
 import { usePageTitleValue } from '../state/page-title.tsx';
+import { ReadingArrivals } from '../state/reading-arrivals.tsx';
 import { useSession } from '../state/session.tsx';
 import { useStorageReading } from '../state/storage-reading.ts';
 import { useSync } from '../state/sync.tsx';
@@ -166,6 +167,8 @@ export function AppShell() {
       <BannerSlot banners={banners} onOpenSync={() => void navigate('/sync')} />
       <Outlet />
       <ToastOutlet />
+      {/* Story 8.2: "3 leituras prontas para confirmar — Ver" when a pull brings readings in. */}
+      <ReadingArrivals />
     </>
   );
 }

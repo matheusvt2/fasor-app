@@ -38,7 +38,13 @@ export interface CameraControl {
  * The camera behind one opener. `target` is read when the opener is pressed, so the caption
  * follows the section on screen at that moment; `opener` gets the focus back on close.
  */
-export function useCamera(relatorioId: string, target: () => CaptureTarget, opener: RefObject<HTMLElement | null>): CameraControl {
+export function useCamera(
+  relatorioId: string,
+  target: () => CaptureTarget,
+  opener: RefObject<HTMLElement | null>,
+  options: { singleShot?: boolean } = {},
+): CameraControl {
+  const single = options.singleShot === true;
   const capture = usePhotoCapture(relatorioId);
   const { showToast } = useToast();
   const [session, setSession] = useState<CameraSession | null>(null);
@@ -61,9 +67,26 @@ export function useCamera(relatorioId: string, target: () => CaptureTarget, open
     };
   }, []);
 
+  // Story 8.2: in single-shot mode (the plate tile) the first shutter tap is the only one.
+  const shotTaken = useRef(false);
+  // ...and whether its frame was actually read and handed to the capture (its done toast).
+  const shotGrabbed = useRef(false);
+
   const startSession = (next: CameraSession | null) => {
     sessionRef.current = next;
+    if (next !== null) {
+      shotTaken.current = false;
+      shotGrabbed.current = false;
+    }
     setSession(next);
+  };
+
+  /** The shutter's tap: counted, unless a single-shot session already has its shot. */
+  const shutter = (): boolean => {
+    if (single && shotTaken.current) return false;
+    shotTaken.current = true;
+    setBurst((n) => n + 1);
+    return true;
   };
 
   // The opener takes the focus back once the view is gone, after React Aria's own restore
@@ -130,6 +153,7 @@ export function useCamera(relatorioId: string, target: () => CaptureTarget, open
           bitmap.close();
           return;
         }
+        shotGrabbed.current = true;
         capture.shoot(bitmap, target);
       },
       () => {
@@ -139,6 +163,8 @@ export function useCamera(relatorioId: string, target: () => CaptureTarget, open
     );
     grabs.current.add(done);
     void done.finally(() => grabs.current.delete(done));
+    // Story 8.2: a single shot closes the camera by itself once it is saved.
+    if (single) finish();
   };
 
   const finishing = useRef(false);
@@ -168,7 +194,10 @@ export function useCamera(relatorioId: string, target: () => CaptureTarget, open
         finishing.current = false;
         end(ending);
         setBurst(0);
-        if (allSaved) showToast(copy.photos.doneToast);
+        // A single shot whose frame could not be read already said so ("failedToast").
+        if (!allSaved) return;
+        if (!single) showToast(copy.photos.doneToast);
+        else if (shotGrabbed.current) showToast(copy.photos.doneOneToast);
       });
   };
 
@@ -180,7 +209,7 @@ export function useCamera(relatorioId: string, target: () => CaptureTarget, open
     capture.shoot(file, context);
     void capture.settle().then((allSaved) => {
       setBurst(0);
-      if (allSaved) showToast(copy.photos.doneToast);
+      if (allSaved) showToast(single ? copy.photos.doneOneToast : copy.photos.doneToast);
       returnFocus();
     });
   };
@@ -206,7 +235,7 @@ export function useCamera(relatorioId: string, target: () => CaptureTarget, open
           stream={session.stream}
           caption={session.target.caption}
           count={burst}
-          onShutter={() => setBurst((n) => n + 1)}
+          onShutter={shutter}
           onGrab={grab}
           onDone={finish}
           onClose={close}
@@ -248,7 +277,8 @@ function CameraView({
   stream: MediaStream;
   caption: string | null;
   count: number;
-  onShutter: () => void;
+  /** Counts the tap; false when the tap takes no shot (a single-shot view already has it). */
+  onShutter: () => boolean;
   /** The frame being read for this tap (rejects when there is none). */
   onGrab: (frame: Promise<ImageBitmap>) => void;
   onDone: () => void;
@@ -276,7 +306,7 @@ function CameraView({
 
   const fire = () => {
     // The count moves at the tap (the badge and the status line); the shot saves behind it.
-    onShutter();
+    if (!onShutter()) return;
     const element = video.current;
     onGrab(element === null ? Promise.reject(new Error('no viewfinder')) : grabFrame(element));
   };

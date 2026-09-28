@@ -29,6 +29,11 @@ export interface SuggestionFieldProps {
   labelId?: string;
   /** Story 8.1: lines under the value (an invalid helper). */
   after?: ReactNode;
+  /**
+   * Story 8.6: the Confirmar button's visible word ("Criar Celtta?" for a suggestion that
+   * creates its manufacturer); its accessible name stays `announcement`. Default "Confirmar".
+   */
+  confirmLabel?: string;
 }
 
 /**
@@ -50,6 +55,7 @@ export function SuggestionField({
   bare = false,
   labelId: givenLabelId,
   after,
+  confirmLabel,
 }: SuggestionFieldProps) {
   const ownLabelId = useId();
   const labelId = givenLabelId ?? ownLabelId;
@@ -76,7 +82,7 @@ export function SuggestionField({
             aria-describedby={announcement === undefined && !bare ? valueId : undefined}
             onClick={onConfirm}
           >
-            {ui.suggestionField.confirm}
+            {confirmLabel ?? ui.suggestionField.confirm}
           </button>
         )}
       </div>

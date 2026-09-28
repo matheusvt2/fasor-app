@@ -37,7 +37,7 @@ function sourceOf(db: AppDatabase, photoId: string, fetchFile: Parameters<typeof
 }
 
 /** The picture a crop is drawn from, null meanwhile or when there is none. */
-function useCropSource(photoId: string): Blob | null {
+export function useCropSource(photoId: string): Blob | null {
   const db = useSession().database;
   const { fetchFile } = useSync();
   const [picture, setPicture] = useState<{ id: string; blob: Blob } | null>(null);

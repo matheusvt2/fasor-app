@@ -7,6 +7,7 @@ import { livePhotos } from '../photos/order.ts';
 import { photosAwaitingText, photosUncaptionedText } from '../photos/text.ts';
 import { artLabel } from '../print/document-control.ts';
 import { missingCertificates } from '../print/section-11.ts';
+import type { SuggestionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { sectionText, type SectionVariable } from '../seed/definitions.ts';
 import type { TextBlock } from '../seed/schema.ts';
@@ -25,6 +26,7 @@ import { cabineLocationIds, naoEnsaiadasText, progress, progressCounterText, typ
 import { section3Blocks, sectionVariables } from './section-variables.ts';
 import { setupGaps, type SetupGap } from './setup-complete.ts';
 import { enabledSubBlocksOf, isEquipmentBlock, sheetState } from './sheet-state.ts';
+import { blocksWithPendingSuggestions, fichasComSugestoesText, livePendingSuggestions } from './suggestions.ts';
 
 /*
  * AD-15, Story 4.3: the one pre-issue check the Sumário rows and the Export dialog both
@@ -57,6 +59,7 @@ export type PreIssueKind =
   | 'point_photo_removed'
   | 'parecer_missing'
   | 'conclusion_unconfirmed'
+  | 'suggestions_pending'
   | 'calibration'
   | 'certificate_missing'
   | 'duplicate_tag'
@@ -127,6 +130,12 @@ export interface PreIssueContext {
   rejected?: number;
   /** The other devices' last send, by the user's name ("Último envio de Eduardo: 06/09 18:10"). Default: none. */
   lastPushes?: readonly { name: string; at: string }[];
+  /**
+   * Story 8.6: the device's pending suggestion rows of this relatório (a snapshot holds only
+   * confirmed ones, coordinator conflict 3): section 9's "N fichas com sugestões por confirmar",
+   * a warning that never blocks. Default: none.
+   */
+  pendingSuggestions?: readonly SuggestionRow[];
 }
 
 const NO_PHOTO_ERRORS: ReadonlySet<string> = new Set();
@@ -262,6 +271,11 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
   }
   if (computed.not_tested > 0) {
     rows.push({ id: 'not_tested', row: 'section_9', severity: 'info', text: naoEnsaiadasText(computed.not_tested), kind: 'not_tested' });
+  }
+  // Story 8.6 (FR-73): sheets holding suggestions nobody confirmed yet; they print without them.
+  const withSuggestions = blocksWithPendingSuggestions(livePendingSuggestions(snapshot.blocks, context.pendingSuggestions ?? [])).size;
+  if (withSuggestions > 0) {
+    rows.push({ id: 'suggestions_pending', row: 'section_9', severity: 'pending', text: fichasComSugestoesText(withSuggestions), kind: 'suggestions_pending' });
   }
   // Story 7.5: a concluded sheet whose conclusion text is not confirmed prints without it.
   const unconfirmed = snapshot.blocks.filter(

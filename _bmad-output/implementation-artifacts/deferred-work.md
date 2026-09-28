@@ -906,25 +906,25 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Sync status lines "leituras na fila" and "sugestões por confirmar" are not rendered yet. `syncCounts(outbox, {suggestions, photos})` computes `readings_queued` and `suggestions_pending` (0 when the input is omitted), but `SyncProvider` still calls it with the outbox alone.
   evidence: `packages/domain/src/sync/counts.ts` `ReadingCountInputs`; `apps/web/src/state/sync.tsx` `syncCounts(rows)`.
   class: deferred
-  state: open (owner: Epic 8 batch P, Story 8.2)
+  state: ~~open (owner: Epic 8 batch P, Story 8.2)~~ closed (2026-09-27, batch P: `SyncProvider` feeds `syncCounts` from `readingCountRows` (live photos, pending rows on live blocks); Sync status shows the "Leituras" rows)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-8-1-suggestion-entity.md`
   summary: The pre-issue row "N fichas com sugestões por confirmar" (a warning that never blocks) is not in `preIssue` yet: its text is the kernel's `fichasComSugestoesText`, but `relatorio/pre-issue.ts` stayed untouched while the Epic 7 batches run.
   evidence: `packages/domain/src/relatorio/suggestions.ts` `fichasComSugestoesText`, `blocksWithPendingSuggestions`.
   class: deferred
-  state: open (owner: Epic 8 batch P, Story 8.6)
+  state: ~~open (owner: Epic 8 batch P, Story 8.6)~~ closed (2026-09-27, batch P: `preIssue` context `pendingSuggestions` adds the section 9 warning `suggestions_pending`; Sumário and Export dialog pass the device's pending rows)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-8-1-suggestion-entity.md`
   summary: The plate tile, the plate crop above the group (with the focused field's region), "da foto N" in the group note, the arrival toast "N leituras prontas para confirmar — Ver" and the "Sugestões prontas" banner are not built; the group note reads "N sugestões lidas. Nada foi gravado ..." without the photo number.
   evidence: `suggestionGroupNoteText` comment; `apps/web/src/surfaces/ficha/nameplate-suggestions.tsx`.
   class: deferred
-  state: open (owner: Epic 8 batch P, Stories 8.2 and 8.6)
+  state: ~~open (owner: Epic 8 batch P, Stories 8.2 and 8.6)~~ closed (2026-09-27, batch P: `plate-photo.tsx` tile, photo row, reading lines and plate crop; "da foto N" in the note; `reading-arrivals.tsx` toast; sheet banner `suggestions-ready`)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-8-1-suggestion-entity.md`
   summary: "Criar ⟨nome⟩?" from a suggestion's `hint.create_registry_entry` is not rendered; the row carries the hint (contract 5) and the device ignores it.
   evidence: `packages/domain/src/schemas/entities.ts` `suggestionHintSchema`.
   class: deferred
-  state: open (~~owner: Epic 8 batch R, Story 8.5~~ owner: Epic 8 batch P, Story 8.6, re-owned 2026-09-27: batch R emits the `hint` on the server, batch P renders "Criar ⟨nome⟩?")
+  state: ~~open (~~owner: Epic 8 batch R, Story 8.5~~ owner: Epic 8 batch P, Story 8.6, re-owned 2026-09-27: batch R emits the `hint` on the server, batch P renders "Criar ⟨nome⟩?")~~ closed (2026-09-27, batch P: `hasCreateHint`, "Criar ⟨nome⟩?" writes the manufacturer create with the confirm pair in one batch)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-8-1-suggestion-entity.md`
   summary: A crop source fetched from the server is kept as a `crop` blob under the photo id and the eviction pass (`runEviction`) never removes it (it deletes acked `original` rows only), so every plate photo a device only viewed through a crop keeps its full original on the device.
@@ -936,13 +936,13 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: A pending suggestion whose target later receives an equal value by another path (a copy chip, another device's put) shows nothing on the sheet (`suggestionView` = `none`) yet stays pending and counted; auto-confirm runs only over pulled suggestion creates, and one that throws is not retried.
   evidence: `apps/web/src/db/suggestion-store.ts` `autoConfirmPulled`; `apps/web/src/sync/engine.ts` `autoConfirm` (review pass 2026-09-26).
   class: deferred
-  state: open (owner: Epic 8 batch P, Story 8.2 typed-first exclusion)
+  state: ~~open (owner: Epic 8 batch P, Story 8.2 typed-first exclusion)~~ closed (2026-09-27, batch P: `autoConfirmPending` sweeps every local pending row after each pull, per row, so any path to an equal value confirms and a failed confirm is retried)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-8-1-suggestion-entity.md`
   summary: A manufacturer typed over a suggested guess is written as a name with no registry row, where the normal field offers "Criar" first.
   evidence: `packages/domain/src/relatorio/suggestions.ts` `parseFieldInput` default branch (review pass 2026-09-26).
   class: deferred
-  state: open (owner: Epic 8 batch P, Story 8.6 with the "Criar ⟨nome⟩?" path)
+  state: ~~open (owner: Epic 8 batch P, Story 8.6 with the "Criar ⟨nome⟩?" path)~~ closed (2026-09-27, batch P: a typed manufacturer absent from the registry is created in the same batch as the typed put and the discard, `unknownManufacturer`)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-8-1-suggestion-entity.md`
   summary: Unverified: `cropSourceBlob` re-downloads a photo's original on every crop mount when the id already holds another blob under `files` (it keeps the fetched bytes only when the id is free).
@@ -973,3 +973,21 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: `spec-test-speed.md` measurements (timings reporter, repeat runs at 2 and 3 workers); `apps/web/src/db/snapshot.ts`.
   class: deferred
   state: open (owner: Epic 9 carry-over batch)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-8-2-8-6-plate-capture-and-confirm.md`
+  summary: The "Fotografar placa" tile shows on every equipment sheet with a nameplate, but batch R reads only `transformador_forca` plates; a plate photo of any other type stays `queued` with "Foto guardada — leitura quando houver sinal" indefinitely.
+  evidence: `apps/web/src/surfaces/ficha/nameplate-section.tsx` (tile for any block); batch R contract (coordinator message 2026-09-27: "only `transformador_forca` plates are read").
+  class: deferred
+  state: open (owner: integrated Epic 8 fix batch; open question for Matheus: hide the tile on other types, or have the server end their reading as `failed`)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-8-2-8-6-plate-capture-and-confirm.md`
+  summary: A confirmed month-only date suggestion (`2024-08`, the fixture's DATA FABRICAÇÃO) shows blank in the plain date field once the cell holds it; found in Story 8.1's path, seen by batch P.
+  evidence: `apps/web/src/surfaces/ficha/ficha-fields.tsx` date kind; kernel `parseFieldInput` accepts `mm/aaaa`.
+  class: deferred
+  state: open (owner: integrated Epic 8 fix batch)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-8-2-8-6-plate-capture-and-confirm.md`
+  summary: `@p1` 7.3-E2E-001 (`e2e/photo-numbers.spec.ts`) fails in `test:e2e:full` and alone on the batch P branch: the Export dialog lists "Parecer não preenchido" and keeps "Gerar relatório" disabled while the Sumário foot says "Nada impede gerar". It fails the same with batch P's pre-issue and Export changes reverted, so it is read as pre-existing from Stories 7.2 to 7.5 (not in `verify`, which tags `@p0`).
+  evidence: batch P `test:e2e:full` 2026-09-28 (223 passed, 1 failed, 4 skipped); isolated reruns with and without `pre-issue.ts`/`surfaces/export/*` of this branch.
+  class: deferred
+  state: open (owner: Epic 8 integrated review; confirm on clean main first)

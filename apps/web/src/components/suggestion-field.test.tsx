@@ -87,6 +87,21 @@ describe('8.1-UNIT SuggestionField', () => {
   });
 });
 
+describe('8.6-UNIT SuggestionField create hint', () => {
+  it('reads "Criar Celtta?" on its Confirmar while the button keeps the kernel announcement as its name', async () => {
+    const onConfirm = vi.fn();
+    render(
+      <SuggestionField label="Fabricação" combobox announcement="Sugerido, Celtta, confirmar" confirmLabel="Criar Celtta?" onConfirm={onConfirm}>
+        Celtta
+      </SuggestionField>,
+    );
+    const button = screen.getByRole('button', { name: 'Sugerido, Celtta, confirmar' });
+    expect(button).toHaveTextContent('Criar Celtta?');
+    await userEvent.click(button);
+    expect(onConfirm).toHaveBeenCalledOnce();
+  });
+});
+
 describe('8.1-UNIT CropThumb', () => {
   const PHOTO = '019966b0-0081-7000-8000-0000000000c1';
 

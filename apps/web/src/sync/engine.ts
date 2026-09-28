@@ -22,7 +22,7 @@ import {
   writeSyncState,
 } from '../db/sync-store.ts';
 import { opOf } from '../db/commit.ts';
-import { autoConfirmPulled } from '../db/suggestion-store.ts';
+import { autoConfirmPending } from '../db/suggestion-store.ts';
 import {
   clearUploadError,
   markBlobAcked,
@@ -94,7 +94,7 @@ export interface SyncEngineDeps {
   readStorage?: () => Promise<StorageReading | null>;
   /**
    * Story 8.1: the signed-in user, who auto-confirms a pulled suggestion whose target
-   * already holds the same value (`autoConfirmPulled`). Without one nothing is confirmed.
+   * already holds the same value (`autoConfirmPending`). Without one nothing is confirmed.
    */
   author?: () => Author | null;
 }
@@ -386,18 +386,17 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
   }
 
   /**
-   * Story 8.1: after a page is applied, the suggestions it created whose target already
-   * holds the same value are confirmed as the signed-in user (`meta.auto`). A failure is
-   * logged and never stops the pull; the confirm ops go out with one more cycle right after.
+   * Stories 8.1 and 8.2: after the pull, every local pending suggestion whose target already
+   * holds the same value is confirmed as the signed-in user (`meta.auto`), whichever path
+   * wrote that value. A failure is logged and never stops the cycle; the rows it left pending
+   * are swept again after the next pull. The confirm ops go out with one more cycle right after.
    */
-  async function autoConfirm(ops: readonly Op[]): Promise<void> {
-    if (deps.author === undefined || ops.length === 0) return;
+  async function sweepSuggestions(): Promise<void> {
+    if (deps.author === undefined) return;
     try {
       const author = deps.author();
       if (author === null) return;
-      const own = ops.filter((op) => op.company_id === author.companyId);
-      if (own.length === 0) return;
-      const confirmed = await autoConfirmPulled(deps.db, own, author, { newId: deps.newId, now: deps.now });
+      const confirmed = await autoConfirmPending(deps.db, author, { newId: deps.newId, now: deps.now });
       // The confirm ops were committed after this cycle's push: one more cycle sends them now.
       if (confirmed.length > 0) onlineWhileRunning = true;
     } catch (error) {
@@ -425,7 +424,6 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
         if (error instanceof SyncRequestError) throw error;
         throw new PhaseEnd('stop', { kind: 'apply' });
       }
-      await autoConfirm(ops);
       const lastSeq = ops.at(-1)?.seq;
       const cursor = lastSeq === undefined ? previousCursor : Math.max(previousCursor, lastSeq);
       const complete = stoppedAt === undefined && cursor >= page.seq;
@@ -499,6 +497,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       if (!status.paused && !stopped) await runPhase(uploadPhase);
       // A 401 during the push pauses the engine: nothing else runs until sign-in.
       if (!status.paused && !stopped) await runPhase(pullPhase);
+      if (!status.paused && !stopped) await sweepSuggestions();
       if (!status.paused && !stopped && !status.outdated) await thumbPhase();
       if (!stopped) await evictionPhase();
     } finally {
