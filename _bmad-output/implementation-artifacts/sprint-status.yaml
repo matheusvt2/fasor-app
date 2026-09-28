@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 09-28-2026 06:30
+last_updated: 09-28-2026 09:30
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -97,22 +97,22 @@ development_status:
   6-6-record-findings-that-print-as-section-8-with-untested-equipm: done  # PR #42
   epic-6-retrospective: done  # no PR; commit f53ed18, epic-6-retro-2026-09-26.md
 
-  epic-7: in-progress  # stories PRs #50, #51; integrated QA with Epic 8 and the retro pending
+  epic-7: done  # retro 2026-09-28, accepted with open items
   7-1-print-the-equipment-sheets-as-native-tables-grouped-as-fo-se: done  # PR #50
   7-2-print-the-photo-record-and-the-photos-beside-their-equipment: done  # PR #51
   7-3-print-the-points-of-attention-and-the-certificates: done  # PR #51
   7-4-set-the-parecer-and-print-section-10-with-the-signature-bloc: done  # PR #51
   7-5-see-what-is-outstanding-preview-as-rascunho-and-issue-the-re: done  # PR #51
-  epic-7-retrospective: optional
+  epic-7-retrospective: done
 
-  epic-8: in-progress  # all six stories merged (#47, #49, #52, #54); integrated QA with Epic 7 and the retro pending  # stories PRs #47, #49; carry-over PR #48
+  epic-8: done  # retro 2026-09-28, accepted with open items
   8-1-a-suggestion-is-an-entity-nobody-can-write-without-a-tap: done  # PR #49
   8-2-photograph-the-plate-and-keep-the-photo-until-there-is-signa: done  # PR #54
   8-3-run-a-local-ocr-service-in-docker-behind-the-ocrprovider-con: done  # PR #47
   8-4-run-the-reading-job-end-to-end-with-fixture-driven-structuri: done  # PR #52
   8-5-accept-a-digit-only-when-the-ocr-saw-it-and-check-names-agai: done  # PR #52
   8-6-confirm-the-plate-in-one-tap-with-the-crop-in-view: done  # PR #54
-  epic-8-retrospective: optional
+  epic-8-retrospective: done
 
   epic-9: backlog
   9-1-read-the-instrument-display-with-ler-visor: backlog
@@ -349,7 +349,7 @@ action_items:
       4 in section 8, synthetic names in remaining tests, blank-rename message, open
       Editar texto from the card"
     owner: "dev"
-    status: in-progress  # PR #40; all but section 8 bullet 4 (Story 6.6 / Epic 7)
+    status: done  # section-8.ts derivedGroupText, PR #51 (Epic 7 retro)
     ref: "_bmad-output/implementation-artifacts/epic-3-retro-2026-09-23.md"
   - id: "epic-3-retro-item-27-e3-a10-tooling-remove-stale-worktrees-re"
     epic: 3
@@ -395,7 +395,7 @@ action_items:
       28, 30, 31; decide whether Rascunho may generate (25); schedule 29 and 14 with
       Epic 7"
     owner: "Matheus with the coordinator"
-    status: open
+    status: in-progress  # Epic 7 narrowings dated in epics.md; items 14 and 29 in #51; item 25 open
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
   - id: "epic-4-retro-item-33-e4-a6-bruno-reads-the-skeleton-docx-revi"
     epic: 4
@@ -551,7 +551,7 @@ action_items:
       vs 3 parallel full-run validation and switch the gate to 3 workers if it holds,
       bringing verify back under 15 min (measured 17-21 min)"
     owner: "Epic 7 carry-over batch (dev)"
-    status: in-progress  # PR #48; push applied in one transaction (worst 32.9 s -> 2.9 s); parallel runs still fail one timing spec each, gate stays at 1 worker
+    status: done  # #48 push fix, #53 1499 s -> 1268 s; the 900 s target is superseded by epic-8-retro-item-58
     ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
   - id: "epic-6-retro-item-52-e6-a2-gate-policy-one-verify-at-a-time-on-this"
     epic: 6
@@ -605,3 +605,93 @@ action_items:
     owner: "coordinator (batch instruction file); dev for the split"
     status: done  # PR #48 (split, dated narrowings); process rules in epic-batch-orchestrator.md (commit b08f622)
     ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
+  - id: "epic-7-retro-item-66-e7-a1-gate-time-device-snapshot-first"
+    epic: 7
+    action: "E7-A1 Gate time back under budget: stop the device rebuilding the whole relatório snapshot per commit (measure per-commit cost before/after), then re-validate 3 workers; target verify <= 900 s median of 3, e2e @p0 <= 600 s, test:e2e:full <= 1200 s, 0 timing failures in 3 consecutive --workers=3 full runs; otherwise a dated DoD budget line with the measured number"
+    owner: "Epic 9 carry-over batch (dev); coordinator accepts on the numbers"
+    status: open  # same work as epic-8-retro-item-58 (one owner)
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
+  - id: "epic-7-retro-item-67-e7-a2-gate-throughput-queue-and-load-flakes"
+    epic: 7
+    action: "E7-A2 Gate throughput: targeted specs, unit and api before queueing for the full gate; record lock wait and gate time per batch; load-independent waits in template-composer-undo, setup-surface, relatorio-tree-edits; target lock wait <= 10 min per batch and 0 unit-file timeouts in the next epic's gates"
+    owner: "coordinator (playbook); dev (unit files)"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
+  - id: "epic-7-retro-item-68-e7-a3-track-e78-q10-q12-q15"
+    epic: 7
+    action: "E7-A3 Add deferred-work entries with owners for E78-Q10, E78-Q12 and E78-Q15, and fix the fixture TTR value (13200 to 13.2) in the next batch touching the Porto Seguro fixture"
+    owner: "coordinator"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
+  - id: "epic-7-retro-item-69-e7-a4-re-own-epic-7-carry-over-rows"
+    epic: 7
+    action: "E7-A4 Re-own the open Epic 7 deferred-work rows (cert_number_mismatch and unpaired_cable rows, calibration row over section11Instruments, small-fixture sub-blocks, ÍNDICE 9.x, section 9 first-sheet split) and close the stale missing-certificate entry (pre-issue.ts:361)"
+    owner: "coordinator (re-own); Epic 9 carry-over batch (dev)"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
+  - id: "epic-7-retro-item-70-e7-a5-answer-the-epic-7-product-questions"
+    epic: 7
+    action: "E7-A5 Answer or date as deferred: Rascunho may generate (E4 item 25), blank ART line (E78-Q10), parecer suggestion timing, dual secondary for VAL CALCULADO, TAG in not-tested bullets, who writes feeds_block_id, SM-C1 logged vs stored, one 'concluídas' definition (E78-R2); before the Epic 9 carry-over batch"
+    owner: "Matheus (with Bruno for wording)"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
+  - id: "epic-7-retro-item-71-e7-a6-playbook-shared-renderer-and-cut-batches"
+    epic: 7
+    action: "E7-A6 Playbook: a batch touching docx.ts, layout.ts, the golden or the contract merges main and runs test:e2e:full before its PR; document tests assert from their own section heading; a batch cut by a usage limit or API timeout leaves a handoff note (branch, last green stage, failing tests, conflicts)"
+    owner: "coordinator"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
+  - id: "epic-7-retro-item-72-e7-a7-gate-without-the-network"
+    epic: 7
+    action: "E7-A7 Bake or cache the pnpm binary in the tools image so verify and test:e2e:matrix start without registry.npmjs.org; target: a gate started offline gets past install"
+    owner: "dev"
+    status: open  # same work as epic-8-retro-item-59 (one owner)
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
+  - id: "epic-8-retro-item-58-e8-a1-gate-under-budget-incremental-snapshot"
+    epic: 8
+    action: "E8-A1 Make the device relatório snapshot incremental (the whole-snapshot rebuild per commit is the next lever); target under the host lock: verify <= 900 s in two consecutive runs, e2e @p0 <= 600 s, commit-to-render before/after, workers raised only after three green `test:e2e:full --workers=3`; if 900 s is missed, Matheus decides a dated DoD clause 3 amendment or a split gate"
+    owner: "Epic 9 carry-over batch (dev); Matheus for the stop rule"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
+  - id: "epic-8-retro-item-59-e8-a2-bake-pnpm-into-the-tools-image"
+    epic: 8
+    action: "E8-A2 Bake the pinned pnpm binary into the tools image so no gate downloads at start; proof: a gate starts its first test with the network off"
+    owner: "Epic 9 carry-over batch (dev)"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
+  - id: "epic-8-retro-item-60-e8-a3-epic-8-product-questions"
+    epic: 8
+    action: "E8-A3 Add to the E5-A3 session: PARSeq vs PP-OCRv5, Confirmar todos and the create-hint manufacturer (and its toast), megôhmetro range source (Story 9.1), plate tile on other types, one concluded-sheet definition (E78-R2), 12.1 tap-guard timing, E6-A2 e2e:full rule, the carried Epic 7 questions; answers as dated lines"
+    owner: "Matheus (Bruno for wording); coordinator records"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
+  - id: "epic-8-retro-item-61-e8-a4-sidecar-contract-drift-gate"
+    epic: 8
+    action: "E8-A4 Owner for deferred 'OCR contract change passes verify without the sidecar': a PR touching contract/ocr.ts, the committed schema or services/ocr runs the sidecar build and pytest under the lock and pastes the output"
+    owner: "coordinator (playbook); dev for an optional tooling check"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
+  - id: "epic-8-retro-item-62-e8-a5-epic-9-carry-over-lows"
+    epic: 8
+    action: "E8-A5 Epic 9 carry-over lows: E78-R1 crop region, EXIF orientation of thumb/print, crop-blob eviction and re-download, close the stale 'tile stays queued' entry with the QA refutation"
+    owner: "Epic 9 carry-over batch (dev); coordinator for the stale entry"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
+  - id: "epic-8-retro-item-63-e8-a6-pipeline-e2e-through-the-real-job"
+    epic: 8
+    action: "E8-A6 A feature with a server pipeline gets one @p1 e2e from the UI entry through the real job under fake providers, no server-op seeding; playbook now, DoD wording for Matheus"
+    owner: "coordinator; Matheus approves the DoD wording"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
+  - id: "epic-8-retro-item-64-e8-a7-tc-12-plate-flow-on-a-device"
+    epic: 8
+    action: "E8-A7 Add the plate flow (offline shot, queued line, upload on signal, toast, Confirmar todos, Criar offline) to the E1-A1 script and run it with E6-A5 and E12-A3; evidence in test-artifacts/manual"
+    owner: "Matheus"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
+  - id: "epic-8-retro-item-65-e8-a8-story-9-1-dor-remaining-gaps"
+    epic: 8
+    action: "E8-A8 Story 9.1 DoR: range-source answer, real tablet photos of the four displays, a decision on the 2 ambiguous crops; dated line when ready"
+    owner: "Matheus; coordinator for the line"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
