@@ -16,6 +16,7 @@ import { relatorioState } from '../db/home-store.ts';
 import { useLiveQuery } from '../db/live.ts';
 import type { AppDatabase } from '../db/schema.ts';
 import { useSession } from './session.tsx';
+import { useSync } from './sync.tsx';
 import { useToast } from './toast.tsx';
 
 /*
@@ -24,8 +25,11 @@ import { useToast } from './toast.tsx';
  * readings, the distinct reading runs of the new rows, `arrivedReadingsCount`). "Ver" opens
  * the first sheet in tree order holding a pending suggestion of the relatório the newest
  * arrival belongs to (`firstSheetWithPendingSuggestions`), the Sumário when none is left.
- * The rows the device already held when this first looked never announce themselves: only
- * what arrives while it watches does.
+ * The rows the device already held when this first looked never announce themselves, nor do
+ * the rows a device that never finished a sync pulls in its first cycle (the backlog of a
+ * fresh sign-in): only what arrives afterwards does. New rows seen while a cycle runs wait
+ * for its end, so the post-pull sweep has auto-confirmed what the engineer had already typed
+ * and only the rows still pending then are announced.
  */
 
 /** The device's pending suggestion rows (every relatório). */
@@ -39,19 +43,33 @@ async function pendingRows(db: AppDatabase): Promise<SuggestionRow[]> {
   return rows;
 }
 
+/** What the watcher remembers: every id it has seen, and the new ones waiting for the cycle to end. */
+export interface ArrivalState {
+  seen: ReadonlySet<string>;
+  waiting: ReadonlySet<string>;
+}
+
 /**
- * One observation of the pending rows: the ones never seen before are the arrivals, except on
- * the first observation (`seen` null), which only records what is already there.
+ * One observation of the pending rows. A row never seen before is baseline (recorded, never
+ * announced) on the first observation (`state` null) or while the device has not finished a
+ * sync before (`synced` false); otherwise it waits. Once no cycle runs, the waiting rows still
+ * pending are the arrivals (a row the sweep confirmed meanwhile is gone from `rows`).
  */
-export function arrivalStep(seen: ReadonlySet<string> | null, rows: readonly SuggestionRow[]): { seen: Set<string>; arrived: SuggestionRow[] } {
-  const next = new Set(seen ?? []);
-  const arrived: SuggestionRow[] = [];
+export function arrivalStep(
+  state: ArrivalState | null,
+  rows: readonly SuggestionRow[],
+  sync: { running: boolean; synced: boolean },
+): { state: ArrivalState; arrived: SuggestionRow[] } {
+  const seen = new Set(state?.seen ?? []);
+  const waiting = new Set(state?.waiting ?? []);
+  const baseline = state === null || !sync.synced;
   for (const row of rows) {
-    if (next.has(row.id)) continue;
-    next.add(row.id);
-    if (seen !== null) arrived.push(row);
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    if (!baseline) waiting.add(row.id);
   }
-  return { seen: next, arrived };
+  if (sync.running || waiting.size === 0) return { state: { seen, waiting }, arrived: [] };
+  return { state: { seen, waiting: new Set() }, arrived: rows.filter((row) => waiting.has(row.id)) };
 }
 
 /** Where "Ver" goes: the first sheet with a pending suggestion of the relatório, else its Sumário. */
@@ -71,13 +89,23 @@ export function ReadingArrivals() {
   const { showToast } = useToast();
   // Tagged with its database, so an answer of the previous session is never read as this one's.
   const observed = useLiveQuery(async () => (db === null ? null : { db, rows: await pendingRows(db) }), [db], null);
+  const { running, lastSyncAt } = useSync();
+  // Whether a sync had finished before the cycle now running began (read at its start), so
+  // the first cycle of a fresh device stays baseline even once it stamps `lastSyncAt`.
+  const syncedAtStart = useRef(false);
+  const hadSynced = lastSyncAt !== null;
+  useEffect(() => {
+    // Declared before the watcher's effect, so it runs first in the commit that starts a cycle.
+    if (running) syncedAtStart.current = hadSynced;
+  }, [running]);
   // What this device's store held when first looked at, per database (a sign-in starts over).
-  const seen = useRef<{ db: AppDatabase; ids: Set<string> } | null>(null);
+  const memory = useRef<{ db: AppDatabase; state: ArrivalState } | null>(null);
 
   useEffect(() => {
     if (db === null || observed === null || observed.db !== db) return;
-    const step = arrivalStep(seen.current?.db === db ? seen.current.ids : null, observed.rows);
-    seen.current = { db, ids: step.seen };
+    const synced = running ? syncedAtStart.current : hadSynced;
+    const step = arrivalStep(memory.current?.db === db ? memory.current.state : null, observed.rows, { running, synced });
+    memory.current = { db, state: step.state };
     if (step.arrived.length === 0) return;
     const newest = step.arrived.reduce((a, b) => (a.id > b.id ? a : b));
     showToast(leiturasProntasText(arrivedReadingsCount(step.arrived)), {
@@ -90,7 +118,7 @@ export function ReadingArrivals() {
         },
       },
     });
-  }, [db, observed, navigate, showToast]);
+  }, [db, observed, running, hadSynced, navigate, showToast]);
 
   return null;
 }

@@ -1,8 +1,8 @@
 // @vitest-environment node
 import 'fake-indexeddb/auto';
-import { makeOp, SERVER_DEVICE_ID, type BlockRow, type Op, type SuggestionRow } from '@app/domain';
+import { makeOp, SERVER_DEVICE_ID, syncCounts, type BlockRow, type Op, type SuggestionRow } from '@app/domain';
 import { BLOCK_1_ID, COMPANY_ID, READING_RUN_ID, PHOTO_ID, RELATORIO_ID, replaySmall, USER_ID } from '@app/domain/fixtures/replay-small';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { commitBatch } from './commit.ts';
 import { openDatabase, type AppDatabase } from './schema.ts';
 import { autoConfirmPending, readingCountRows } from './suggestion-store.ts';
@@ -161,11 +161,17 @@ describe('8.1/8.2-UNIT autoConfirmPending', () => {
     expect(await autoConfirmPending(db, AUTHOR, deps())).toEqual([]);
     // A copy chip writes the same value (no suggestion meta): now equal.
     await type(db, 'n_serie', 'SU1240998');
-    // The commit throws once (the id source fails): nothing is written, the row stays pending.
-    const failing = { ...deps(), newId: () => {
-      throw new Error('storage refused');
-    } };
-    await expect(autoConfirmPending(db, AUTHOR, failing)).rejects.toThrow('storage refused');
+    // The commit throws once (the id source fails): logged, nothing written, the row stays pending.
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const failing = {
+      ...deps(),
+      newId: () => {
+        throw new Error('storage refused');
+      },
+    };
+    expect(await autoConfirmPending(db, AUTHOR, failing)).toEqual([]);
+    expect(error).toHaveBeenCalledWith('suggestion auto-confirm failed', expect.objectContaining({ id }));
+    error.mockRestore();
     expect(((await db.entities.get(['suggestion', id]))!.row as SuggestionRow).status).toBe('pending');
     // The next sweep takes it again.
     expect(await autoConfirmPending(db, AUTHOR, deps())).toEqual([id]);
@@ -173,13 +179,56 @@ describe('8.1/8.2-UNIT autoConfirmPending', () => {
     db.close();
   });
 
-  it('reads the suggestion statuses and the live photo readings for the Sync status counts', async () => {
+  it('a row whose commit throws never stops the sweep of the rows after it', async () => {
     const db = await freshDb();
     await seed(db);
-    await applyPulled(db, [serverSuggestion('n_serie', 'A'), serverSuggestion('tipo', 'B', { status: 'confirmed' })]);
+    await type(db, 'fabricacao', 'WEG');
+    await type(db, 'n_serie', 'SU1');
+    const poison = serverSuggestion('fabricacao', 'WEG');
+    const good = serverSuggestion('n_serie', 'SU1');
+    await applyPulled(db, [poison, good]);
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    // The first commit of the sweep (the poison row's, the lower id) fails; the next ones work.
+    const base = deps();
+    let calls = 0;
+    const once = {
+      ...base,
+      newId: () => {
+        if (calls++ === 0) throw new Error('poison');
+        return base.newId();
+      },
+    };
+    expect(await autoConfirmPending(db, AUTHOR, once)).toEqual([(good.value as SuggestionRow).id]);
+    expect(error).toHaveBeenCalledWith('suggestion auto-confirm failed', expect.objectContaining({ id: (poison.value as SuggestionRow).id }));
+    error.mockRestore();
+    expect(((await db.entities.get(['suggestion', (poison.value as SuggestionRow).id]))!.row as SuggestionRow).status).toBe('pending');
+    expect(((await db.entities.get(['suggestion', (good.value as SuggestionRow).id]))!.row as SuggestionRow).status).toBe('confirmed');
+    db.close();
+  });
+
+  it('reads the pending suggestions of live blocks and the live photo readings for the Sync status counts', async () => {
+    const db = await freshDb();
+    await seed(db);
+    // A removed block of the same relatório holding a pending suggestion.
+    const REMOVED_BLOCK = '019966b0-008a-7000-8000-000000000001';
+    const blockRecord = (await db.entities.get(['block', BLOCK_1_ID]))!;
+    await db.entities.put({ ...blockRecord, id: REMOVED_BLOCK, removed_at: '2026-09-26T17:00:00.000Z', row: { ...blockRecord.row, id: REMOVED_BLOCK, removed_at: '2026-09-26T17:00:00.000Z' } as never });
+    await applyPulled(db, [
+      serverSuggestion('n_serie', 'A'),
+      serverSuggestion('tipo', 'B', { status: 'confirmed' }),
+      serverSuggestion('tipo', 'C', { target_path: `sheet/${REMOVED_BLOCK}/nameplate/tipo` }),
+    ]);
+    const file = (id: string, row: Record<string, unknown>, removed: string | null = null) =>
+      db.entities.put({ entity: 'file', id, relatorio_id: RELATORIO_ID, project_id: null, removed_at: removed, row: { id, removed_at: removed, ...row } as never });
+    await file('019966b0-008a-7000-8000-000000000011', { kind: 'photo', reading_status: 'queued' });
+    await file('019966b0-008a-7000-8000-000000000012', { kind: 'photo', reading_status: 'running' });
+    await file('019966b0-008a-7000-8000-000000000013', { kind: 'photo', reading_status: 'done' });
+    await file('019966b0-008a-7000-8000-000000000014', { kind: 'photo', reading_status: 'queued' }, '2026-09-26T17:00:00.000Z');
+    await file('019966b0-008a-7000-8000-000000000015', { kind: 'certificate' });
     const rows = await readingCountRows(db);
-    expect(rows.suggestions.map((row) => row.status).sort()).toEqual(['other', 'pending']);
-    expect(rows.photos).toEqual([]);
+    expect(rows.suggestions).toEqual([{ status: 'pending' }]);
+    expect(rows.photos.map((row) => row.reading_status).sort()).toEqual(['done', 'queued', 'running']);
+    expect(syncCounts([], rows)).toMatchObject({ readings_queued: 2, suggestions_pending: 1 });
     db.close();
   });
 });

@@ -2,7 +2,7 @@
 title: 'Stories 8.2 and 8.6 (plus the web half of 8.5): Photograph the plate, keep it until there is signal, confirm it in one tap'
 type: 'feature'
 created: '2026-09-27'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '842bb34c25ddeb5cfa47fd4cc40cbac35f76f52c'
 review_loop_iteration: 0
 followup_review_recommended: false

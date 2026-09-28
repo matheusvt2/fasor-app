@@ -147,7 +147,9 @@ export function NameplateSection({
 
   /** "Preencher manualmente": the first empty field of the plate takes the focus. */
   const fillManually = () => {
-    const key = definition.nameplate.find((field) => !isCellFilled(block.sheet.nameplate[field.key]) && !(field.key === 'tag' && tagPrefill !== null))?.key;
+    // Every field filled: the first one (the engineer is taken to the plate either way).
+    const key =
+      definition.nameplate.find((field) => !isCellFilled(block.sheet.nameplate[field.key]) && !(field.key === 'tag' && tagPrefill !== null))?.key ?? definition.nameplate[0]?.key;
     if (key === undefined) return;
     const root = document.querySelector<HTMLElement>(`#ficha-nameplate .nameplate-grid [data-field-key="${key}"]`);
     const target = root === null ? null : firstFocusable(root);
@@ -199,7 +201,7 @@ export function NameplateSection({
             number={suggestions.numbers.get(plate.id) ?? null}
             view={view}
             onOpen={() => suggestions.openPhoto(plate.id)}
-            onFillManually={fillManually}
+            onFillManually={readOnly ? null : fillManually}
           />
           {view === 'queued' || view === 'running' ? <p className="section-note">{t.fieldsNote}</p> : null}
         </>

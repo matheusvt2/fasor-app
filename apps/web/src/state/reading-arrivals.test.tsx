@@ -6,6 +6,8 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { openDatabase, type AppDatabase } from '../db/schema.ts';
 import { arrivalStep, ReadingArrivals } from './reading-arrivals.tsx';
+import { makeSyncState } from '../test/sync-state.ts';
+import { SyncContext } from './sync.tsx';
 import { ToastOutlet, ToastProvider } from './toast.tsx';
 
 /*
@@ -52,15 +54,44 @@ afterEach(() => {
   session.database = null;
 });
 
+const idle = { running: false, synced: true };
+
 describe('8.2-UNIT arrivalStep', () => {
   it('records the first observation without arrivals, then reports only the rows never seen', () => {
     const a = row(PHOTO);
-    const first = arrivalStep(null, [a]);
+    const first = arrivalStep(null, [a], idle);
     expect(first.arrived).toEqual([]);
     const b = row(PHOTO);
-    const second = arrivalStep(first.seen, [a, b]);
+    const second = arrivalStep(first.state, [a, b], idle);
     expect(second.arrived.map((r) => r.id)).toEqual([b.id]);
-    expect(arrivalStep(second.seen, [a, b]).arrived).toEqual([]);
+    expect(arrivalStep(second.state, [a, b], idle).arrived).toEqual([]);
+  });
+
+  it('waits for the cycle to end and announces only the new rows still pending then (the sweep confirmed the rest)', () => {
+    const start = arrivalStep(null, [], { running: true, synced: true });
+    const run = nextId();
+    const kept = row(run);
+    const autoConfirmed = row(run);
+    // Pulled mid-cycle: nothing said yet.
+    const pulled = arrivalStep(start.state, [kept, autoConfirmed], { running: true, synced: true });
+    expect(pulled.arrived).toEqual([]);
+    // The sweep confirmed one before the cycle ended: only the other is announced, once.
+    const ended = arrivalStep(pulled.state, [kept], idle);
+    expect(ended.arrived.map((r) => r.id)).toEqual([kept.id]);
+    expect(arrivalStep(ended.state, [kept], idle).arrived).toEqual([]);
+    // Everything confirmed by the sweep: nothing to announce.
+    const all = arrivalStep(start.state, [row(run)], { running: true, synced: true });
+    expect(arrivalStep(all.state, [], idle).arrived).toEqual([]);
+  });
+
+  it('keeps the first sync of a fresh device as baseline, then announces what later pulls bring', () => {
+    const empty = arrivalStep(null, [], { running: true, synced: false });
+    const backlog = [row(nextId()), row(nextId())];
+    const first = arrivalStep(empty.state, backlog, { running: true, synced: false });
+    const done = arrivalStep(first.state, backlog, { running: false, synced: true });
+    expect(done.arrived).toEqual([]);
+    const later = row(nextId());
+    expect(arrivalStep(done.state, [...backlog, later], idle).arrived.map((r) => r.id)).toEqual([later.id]);
   });
 });
 
@@ -71,15 +102,17 @@ describe('8.2-UNIT ReadingArrivals', () => {
     session.database = openDatabase('reading-arrivals-1');
     await put(session.database, row(nextId()));
     render(
-      <MemoryRouter initialEntries={['/']}>
-        <ToastProvider>
-          <ReadingArrivals />
-          <ToastOutlet />
-          <Routes>
-            <Route path="*" element={<Where />} />
-          </Routes>
-        </ToastProvider>
-      </MemoryRouter>,
+      <SyncContext value={makeSyncState({ lastSyncAt: '2026-09-27T10:00:00.000Z' })}>
+        <MemoryRouter initialEntries={['/']}>
+          <ToastProvider>
+            <ReadingArrivals />
+            <ToastOutlet />
+            <Routes>
+              <Route path="*" element={<Where />} />
+            </Routes>
+          </ToastProvider>
+        </MemoryRouter>
+      </SyncContext>,
     );
     // Give the first observation time to land: nothing is said about what was already there.
     await act(async () => {

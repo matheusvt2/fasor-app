@@ -129,11 +129,12 @@ function FichaBody({
   const pending = useMemo(() => pendingSuggestions(suggestionRowsOf(state, relatorioId)), [state, relatorioId]);
   const observations = typeof block.sheet.observations?.value === 'string' ? block.sheet.observations.value : null;
   // Story 8.2 (EXPERIENCE.md › Reading arrived): a sheet holding suggestions to confirm says so
-  // in the one banner slot, "Sugestões prontas — N campos para confirmar".
+  // in the one banner slot, "Sugestões prontas — N campos para confirmar"; a read-only (not
+  // tested) sheet confirms nothing, so it says nothing.
   const shownSuggestions = useMemo(() => suggestionGroupCounts(block, pending, registries.manufacturer).shown, [block, pending, registries.manufacturer]);
   const banner = useMemo<Banner | null>(
-    () => (shownSuggestions === 0 ? null : { kind: 'suggestions-ready', variant: 'info', role: 'region', text: sugestoesProntasBannerText(shownSuggestions) }),
-    [shownSuggestions],
+    () => (shownSuggestions === 0 || block.not_tested !== null ? null : { kind: 'suggestions-ready', variant: 'info', role: 'region', text: sugestoesProntasBannerText(shownSuggestions) }),
+    [shownSuggestions, block.not_tested],
   );
   useExtraBanner(banner);
 

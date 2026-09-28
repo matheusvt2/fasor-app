@@ -127,7 +127,12 @@ export function useNameplateSuggestions({
     api.announce(text);
   };
 
+  // A second tap before the first confirm has landed (and the registry query caught up) writes
+  // nothing: "Criar Celtta?" tapped twice never creates two manufacturers.
+  const inFlight = useRef(new Set<string>());
   const confirm = (s: SuggestionRow, field: FieldDef) => {
+    if (inFlight.current.has(s.id)) return;
+    inFlight.current.add(s.id);
     const text = confirmedFieldToastText(screenLabel(field.label), suggestionValueText(field, s.value));
     const hint = hasCreateHint(s, registry) ? s.hint!.create_registry_entry : null;
     void api
@@ -136,7 +141,8 @@ export function useNameplateSuggestions({
       .then((batch) => {
         if (batch !== null) confirmed(text);
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => inFlight.current.delete(s.id));
   };
 
   const confirmAll = () => {
@@ -312,7 +318,8 @@ export function SuggestionFill({ model, field, suggestion }: { model: NameplateS
         labelId={labelId}
         state={suggestion.trust === 'verify' ? 'verify' : 'suggested'}
         announcement={suggestionAnnouncement(suggestion.trust, valueText)}
-        {...(model.createsEntry(suggestion) ? { confirmLabel: criarText(suggestion.hint!.create_registry_entry.name) } : {})}
+        // "Criar Celtta?" only while the guess is the one read: an edited guess confirms what was typed.
+        {...(model.createsEntry(suggestion) && text === initial ? { confirmLabel: criarText(suggestion.hint!.create_registry_entry.name) } : {})}
         combobox={COMBOBOX_KINDS.has(field.kind)}
         valueClassName={isNumber ? 'measurement-field' : 'input'}
         bare

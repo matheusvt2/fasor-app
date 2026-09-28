@@ -69,10 +69,15 @@ export function useCamera(
 
   // Story 8.2: in single-shot mode (the plate tile) the first shutter tap is the only one.
   const shotTaken = useRef(false);
+  // ...and whether its frame was actually read and handed to the capture (its done toast).
+  const shotGrabbed = useRef(false);
 
   const startSession = (next: CameraSession | null) => {
     sessionRef.current = next;
-    if (next !== null) shotTaken.current = false;
+    if (next !== null) {
+      shotTaken.current = false;
+      shotGrabbed.current = false;
+    }
     setSession(next);
   };
 
@@ -148,6 +153,7 @@ export function useCamera(
           bitmap.close();
           return;
         }
+        shotGrabbed.current = true;
         capture.shoot(bitmap, target);
       },
       () => {
@@ -188,7 +194,10 @@ export function useCamera(
         finishing.current = false;
         end(ending);
         setBurst(0);
-        if (allSaved) showToast(single ? copy.photos.doneOneToast : copy.photos.doneToast);
+        // A single shot whose frame could not be read already said so ("failedToast").
+        if (!allSaved) return;
+        if (!single) showToast(copy.photos.doneToast);
+        else if (shotGrabbed.current) showToast(copy.photos.doneOneToast);
       });
   };
 

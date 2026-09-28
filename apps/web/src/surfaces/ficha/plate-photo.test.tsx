@@ -108,6 +108,15 @@ describe('8.2-UNIT the plate photo row', () => {
   });
 });
 
+describe('8.2-UNIT the plate photo row on a read-only sheet', () => {
+  it('says the reading failed without offering its actions', () => {
+    wrap(<PlatePhotoRow tile={tile({ reading_status: 'failed' })} number={3} view="failed" onOpen={vi.fn()} onFillManually={null} />);
+    expect(screen.getByRole('status')).toHaveTextContent('Não foi possível ler');
+    expect(screen.queryByRole('button', { name: 'Tentar novamente' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Preencher manualmente' })).toBeNull();
+  });
+});
+
 describe('8.2-UNIT the empty plate', () => {
   it('draws the copy chips first, then the "Fotografar placa" tile, with no "Digitar"', () => {
     const { container } = wrap(

@@ -50,7 +50,8 @@ export function PlatePhotoRow({
   number: number | null;
   view: Exclude<PlateReadingView, 'ready'>;
   onOpen: () => void;
-  onFillManually: () => void;
+  /** The failure's actions ("Tentar novamente", "Preencher manualmente"); none on a read-only sheet. */
+  onFillManually: (() => void) | null;
 }) {
   const t = copy.ficha.nameplate;
   const src = useObjectUrl(tile.thumb);
@@ -82,7 +83,12 @@ export function PlatePhotoRow({
             {t.reading}
           </p>
         ) : null}
-        {view === 'failed' ? <FailedReading photoId={tile.id} onFillManually={onFillManually} /> : null}
+        {view === 'failed' && onFillManually === null ? (
+          <p className="reading-line" role="status">
+            {t.readFailed}
+          </p>
+        ) : null}
+        {view === 'failed' && onFillManually !== null ? <FailedReading photoId={tile.id} onFillManually={onFillManually} /> : null}
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import {
   confirmSuggestionOps,
+  livePendingSuggestions,
   safeParsePath,
   suggestionFieldDef,
   suggestionRowSchema,
@@ -38,34 +39,43 @@ async function pendingRows(db: AppDatabase): Promise<SuggestionRow[]> {
 /**
  * Auto-confirms each local pending suggestion whose nameplate target holds an equal value.
  * Skipped: a row no longer pending (confirmed or discarded before), a removed block, an
- * issued relatório. A commit that throws stops the sweep with the error (the engine logs
- * it); the rows left pending are taken again by the next sweep. Returns the ids it confirmed.
+ * issued relatório. A row whose commit throws is logged and left pending (the next sweep
+ * takes it again); the rows after it are still swept. Returns the ids it confirmed.
  */
 export async function autoConfirmPending(db: AppDatabase, author: Author, deps: CommitDeps): Promise<string[]> {
   const confirmed: string[] = [];
   for (const candidate of await pendingRows(db)) {
-    // Read again: an earlier confirm of this sweep may have changed the row or its block.
-    const record = await db.entities.get(['suggestion', candidate.id]);
-    const parsed = record === undefined ? null : suggestionRowSchema.safeParse(record.row);
-    if (parsed === null || !parsed.success || parsed.data.status !== 'pending') continue;
-    const suggestion = parsed.data;
-    const target = safeParsePath(suggestion.target_path);
-    if (target === null || target.family !== 'sheet/nameplate') continue;
-    const blockRecord = await db.entities.get(['block', target.block_id]);
-    if (blockRecord === undefined) continue;
-    const block = blockRecord.row as BlockRow;
-    if (block.removed_at !== null) continue;
-    // An issued relatório is never moved back to Em revisão by a write nobody tapped.
-    const relatorio = await db.entities.get(['relatorio', suggestion.relatorio_id]);
-    if ((relatorio?.row as RelatorioRow | undefined)?.status === 'emitido') continue;
-    const field = suggestionFieldDef(block, suggestion);
-    const cell = block.sheet.nameplate[target.field_key];
-    if (cell === undefined || suggestionView(cell, suggestion, field) !== 'none') continue;
-    // The engineer's own value is written back as it is; only its provenance changes.
-    await commitBatch(db, confirmSuggestionOps(author, suggestion, { auto: true, value: cell.value }), deps);
-    confirmed.push(suggestion.id);
+    try {
+      if (await sweepOne(db, candidate.id, author, deps)) confirmed.push(candidate.id);
+    } catch (error) {
+      console.error('suggestion auto-confirm failed', { id: candidate.id, error });
+    }
   }
   return confirmed;
+}
+
+/** One row of the sweep; true when it was confirmed. */
+async function sweepOne(db: AppDatabase, id: string, author: Author, deps: CommitDeps): Promise<boolean> {
+  // Read again: an earlier confirm of this sweep may have changed the row or its block.
+  const record = await db.entities.get(['suggestion', id]);
+  const parsed = record === undefined ? null : suggestionRowSchema.safeParse(record.row);
+  if (parsed === null || !parsed.success || parsed.data.status !== 'pending') return false;
+  const suggestion = parsed.data;
+  const target = safeParsePath(suggestion.target_path);
+  if (target === null || target.family !== 'sheet/nameplate') return false;
+  const blockRecord = await db.entities.get(['block', target.block_id]);
+  if (blockRecord === undefined) return false;
+  const block = blockRecord.row as BlockRow;
+  if (block.removed_at !== null) return false;
+  // An issued relatório is never moved back to Em revisão by a write nobody tapped.
+  const relatorio = await db.entities.get(['relatorio', suggestion.relatorio_id]);
+  if ((relatorio?.row as RelatorioRow | undefined)?.status === 'emitido') return false;
+  const field = suggestionFieldDef(block, suggestion);
+  const cell = block.sheet.nameplate[target.field_key];
+  if (cell === undefined || suggestionView(cell, suggestion, field) !== 'none') return false;
+  // The engineer's own value is written back as it is; only its provenance changes.
+  await commitBatch(db, confirmSuggestionOps(author, suggestion, { auto: true, value: cell.value }), deps);
+  return true;
 }
 
 /** What `syncCounts` reads besides the outbox (Story 8.2): the suggestion statuses and the live photos' readings. */
@@ -74,11 +84,22 @@ export interface ReadingCountRows {
   photos: { reading_status: string | null }[];
 }
 
-/** The device's suggestion statuses and live photo readings, for Sync status "Leituras". */
+/**
+ * The device's pending suggestions on live blocks (the Sumário's own filter,
+ * `livePendingSuggestions`) and its live photos' readings, for Sync status "Leituras".
+ */
 export async function readingCountRows(db: AppDatabase): Promise<ReadingCountRows> {
-  const [suggestions, files] = await Promise.all([db.entities.where('entity').equals('suggestion').toArray(), db.entities.where('entity').equals('file').toArray()]);
+  const [pending, blocks, files] = await Promise.all([
+    pendingRows(db),
+    db.entities.where('entity').equals('block').toArray(),
+    db.entities.where('entity').equals('file').toArray(),
+  ]);
+  const live = livePendingSuggestions(
+    blocks.map((record) => record.row as BlockRow),
+    pending,
+  );
   return {
-    suggestions: suggestions.map((record) => ({ status: (record.row as { status?: unknown }).status === 'pending' ? 'pending' : 'other' })),
+    suggestions: live.map((row) => ({ status: row.status })),
     photos: files
       .filter((record) => record.removed_at === null && (record.row as { removed_at?: unknown }).removed_at == null && (record.row as { kind?: unknown }).kind === 'photo')
       .map((record) => {

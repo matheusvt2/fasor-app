@@ -3,6 +3,7 @@ import { deviceDatabaseName, expect, horizontalOverflow, syncBadge, test, type S
 import { readStore } from './support/outbox.ts';
 import { devicePhotos, expectCameraOpen, openChaveSheet } from './support/photos.ts';
 import { holdPhotoBytes, openTransformerSheet, pushPlateSuggestions, pushReadingStatus } from './support/reading-ops.ts';
+import { officeDraft, pushDrafts } from './support/relatorio-seed.ts';
 import { syncNow, syncNowAndReturn } from './support/sync.ts';
 
 /*
@@ -219,6 +220,9 @@ test('@p0 8.6-E2E-001 Flow 2b: the arrival toast opens the sheet, the crop outli
   for (const key of seven) expect(rows.find((row) => row.path === `sheet/${ids.blockId}/nameplate/${key}`)?.meta).toMatchObject({ source_suggestion_id: sid[key] });
   await expect(field(page, 'tensao_nominal_at').locator('.suggestion-alt')).toContainText('Sugerido: 15 kV');
   await expect(at).toHaveValue('13,8');
+  // A field confirmed from the plate still outlines its own region while the crop stays.
+  await field(page, 'tipo').locator('input').focus();
+  await expect(crop.locator('.region')).toHaveCount(1);
 
   // Offline, "Criar Celtta?" creates the manufacturer and confirms the field in one batch.
   await context.setOffline(true);
@@ -315,4 +319,54 @@ test('@p1 8.2-E2E-004 the plate group with its photo row and its crop fits 390 p
   const cropBox = (await section(page).locator('.plate-crop').boundingBox())!;
   expect(cropBox.x).toBeGreaterThanOrEqual(0);
   expect(cropBox.x + cropBox.width).toBeLessThanOrEqual(390);
+});
+
+test('@p1 8.6-E2E-002 a manufacturer typed over a guess is created with the typed value; a create hint naming a registered manufacturer is a plain Confirmar', async ({ page }) => {
+  test.setTimeout(180_000);
+  const ids = await openChaveSheet(page, account, database);
+  const photoId = '019966b0-00a0-7000-8000-000000000002';
+  const target = `sheet/${ids.blockId}/nameplate/fabricacao`;
+  const hint = (name: string) => ({ create_registry_entry: { kind: 'manufacturer' as const, name } });
+  const first = await pushPlateSuggestions(account.companyId, ids.relatorioId, {
+    blockId: ids.blockId,
+    photoId,
+    fields: { fabricacao: { value: 'Celtta', bbox: [0.1, 0.1, 0.4, 0.2], hint: hint('Celtta') } },
+  });
+  await syncNowAndReturn(page);
+
+  // Typed over the guess, a name the registry does not hold: one batch, create + put + discard.
+  const guess = suggestionOf(page, 'fabricacao').locator('input.sv');
+  await guess.fill('Marca Nova');
+  // Edited, the guess no longer offers to create the manufacturer it read.
+  await expect(suggestionOf(page, 'fabricacao').getByRole('button', { name: 'Sugerido, Celtta, confirmar' })).toHaveText('Confirmar');
+  await guess.press('Enter');
+  await expect.poll(async () => (await outbox(page)).some((row) => row.path === `suggestion/${first.fabricacao}/status`)).toBe(true);
+  let rows = await outbox(page);
+  const discard = rows.find((row) => row.path === `suggestion/${first.fabricacao}/status`)!;
+  expect(discard.value).toBe('discarded');
+  const typedBatch = rows.filter((row) => row.batch_id === discard.batch_id);
+  expect(typedBatch.map((row) => row.path.split('/')[0]).sort()).toEqual(['registry', 'sheet', 'suggestion']);
+  expect(typedBatch.find((row) => row.path.startsWith('registry/manufacturer/'))).toMatchObject({ kind: 'create', value: { name: 'Marca Nova' } });
+  const typedPut = typedBatch.find((row) => row.path === target)!;
+  expect(typedPut.value).toBe('Marca Nova');
+  expect(typedPut.meta ?? null).toBeNull();
+  await syncNowAndReturn(page);
+
+  // The office empties the field; a new reading hints "Marca Nova", which the registry now holds.
+  await pushDrafts(page, database, [officeDraft(account, { relatorioId: ids.relatorioId }, target, null)]);
+  const second = await pushPlateSuggestions(account.companyId, ids.relatorioId, {
+    blockId: ids.blockId,
+    photoId,
+    fields: { fabricacao: { value: 'Marca Nova', bbox: [0.1, 0.1, 0.4, 0.2], hint: hint('Marca Nova') } },
+  });
+  await syncNowAndReturn(page);
+  const confirm = suggestionOf(page, 'fabricacao').getByRole('button', { name: 'Sugerido, Marca Nova, confirmar' });
+  await expect(confirm).toHaveText('Confirmar');
+  await confirm.click();
+  await expect.poll(async () => (await outbox(page)).some((row) => row.path === `suggestion/${second.fabricacao}/status`)).toBe(true);
+  rows = await outbox(page);
+  const status = rows.find((row) => row.path === `suggestion/${second.fabricacao}/status`)!;
+  const pair = rows.filter((row) => row.batch_id === status.batch_id);
+  expect(pair.map((row) => row.path).sort()).toEqual([target, `suggestion/${second.fabricacao}/status`].sort());
+  expect(rows.filter((row) => row.path.startsWith('registry/manufacturer/') && (row.value as { name?: string } | null)?.name === 'Marca Nova')).toHaveLength(1);
 });
