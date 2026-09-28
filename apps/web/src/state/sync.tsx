@@ -18,6 +18,7 @@ import { useLiveQuery } from '../db/live.ts';
 import { COMPANY_STREAM, type OutboxRow, type SyncStateRow } from '../db/schema.ts';
 import { deviceId, localUsers, outboxRows, resendDead as resendDeadRows, syncStateRows } from '../db/sync-store.ts';
 import { clearUploadError } from '../db/file-store.ts';
+import { readingCountRows, type ReadingCountRows } from '../db/suggestion-store.ts';
 import { storageHeadroom } from '../device/storage-estimate.ts';
 import { now } from '../clock.ts';
 import { newId } from '../ids.ts';
@@ -94,6 +95,12 @@ export interface SyncState {
    * network (AD-1).
    */
   generate: (relatorioId: string, body: GenerateRequest) => Promise<GenerateResponse>;
+  /**
+   * Story 8.2: "Tentar novamente" of a failed plate reading (`POST /api/photos/{id}/reread`).
+   * The engine's own client again (AD-1). Rejects on any answer but a 2xx. Optional in the
+   * type only so the test doubles built before it existed still type-check.
+   */
+  rereadPhoto?: (photoId: string) => Promise<void>;
 }
 
 export const SyncContext = createContext<SyncState | null>(null);
@@ -111,6 +118,7 @@ const NO_ROWS: OutboxRow[] = [];
 const NO_STATES: SyncStateRow[] = [];
 const NO_USERS: UserRow[] = [];
 const NO_SUMMARY: RelatorioSummary[] = [];
+const NO_READING: ReadingCountRows = { suggestions: [], photos: [] };
 
 const browserTimers = {
   setTimeout: (callback: () => void, ms: number) => globalThis.setTimeout(callback, ms),
@@ -199,7 +207,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const states = useLiveQuery(() => (db === null ? Promise.resolve(NO_STATES) : syncStateRows(db)), [db], NO_STATES);
   const users = useLiveQuery(() => (db === null ? Promise.resolve(NO_USERS) : localUsers(db)), [db], NO_USERS);
 
-  const counts = useMemo(() => syncCounts(rows), [rows]);
+  // Story 8.2: the readings still queued and the suggestions still pending on this device.
+  const reading = useLiveQuery(() => (db === null ? Promise.resolve(NO_READING) : readingCountRows(db)), [db], NO_READING);
+  const counts = useMemo(() => syncCounts(rows, reading), [rows, reading]);
   const company = states.find((s) => s.id === COMPANY_STREAM);
   const userNames = useMemo(() => Object.fromEntries(users.map((u) => [u.id, u.name])), [users]);
 
@@ -246,6 +256,12 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     return client.generate(relatorioId, body);
   }, []);
 
+  const rereadPhoto = useCallback(async (photoId: string): Promise<void> => {
+    const client = clientRef.current;
+    if (client === null) throw new Error('sync client is not running');
+    await client.rereadPhoto(photoId);
+  }, []);
+
   const unreachable = unreachableCause({ reAuthRequired: session.reAuthRequired, lastFailure: status.lastFailure });
 
   const value = useMemo<SyncState>(
@@ -273,8 +289,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       retryUpload,
       fetchFile,
       generate,
+      rereadPhoto,
     }),
-    [counts, session.online, unreachable, status, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate],
+    [counts, session.online, unreachable, status, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, rereadPhoto],
   );
 
   return <SyncContext value={value}>{children}</SyncContext>;

@@ -50,6 +50,35 @@ export function useSheetCamera(relatorioId: string, target: () => CaptureTarget)
 }
 
 /**
+ * Story 8.2 (`60-ficha.html` nameplate "empty" state): the "Fotografar placa" tile above the
+ * nameplate fields. The camera opens straight away and closes by itself after one shot; the
+ * shot is a normal sheet photo created with the plate reading (`target().reading`). A
+ * refused camera shows its reason under the tile. No "Digitar" link (D-6: the fields are
+ * always there).
+ */
+export function PlateCaptureTile({ relatorioId, target }: { relatorioId: string; target: () => CaptureTarget }) {
+  const opener = useRef<HTMLButtonElement>(null);
+  const camera = useCamera(relatorioId, target, opener, { singleShot: true });
+  const deniedId = useId();
+  return (
+    <>
+      <AriaButton ref={opener} className="camera-capture-tile" aria-describedby={camera.denied ? deniedId : undefined} onPress={camera.open}>
+        <svg className="ico" aria-hidden="true">
+          <use href="/sprite.svg#i-camera" />
+        </svg>
+        {copy.ficha.nameplate.takePlate}
+      </AriaButton>
+      {camera.denied ? (
+        <p className="camera-denied" id={deniedId} role="status">
+          {copy.photos.denied}
+        </p>
+      ) : null}
+      {camera.element}
+    </>
+  );
+}
+
+/**
  * Story 6.4: "Adicionar fotos" (`70-fotos.html` Sticky action bar, `btn btn-secondary` with
  * `i-image`), the import path beside the camera. Below 480 px its word is visually hidden so
  * the bar never runs wider than the phone (the button keeps its name).

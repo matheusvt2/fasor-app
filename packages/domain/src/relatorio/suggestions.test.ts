@@ -267,7 +267,7 @@ describe('8.1-UNIT the I/O matrix', () => {
     const withVerify = confirmAllCandidates(block, [...pending, icc]);
     expect(withVerify.map((s) => s.id)).not.toContain(icc.id);
     expect(withVerify.map((s) => s.id)).not.toContain(corrente.id);
-    expect(suggestionGroupCounts(block, [...pending, icc])).toEqual({ shown: 10, fills: 8, confirmable: 7, verify: 1 });
+    expect(suggestionGroupCounts(block, [...pending, icc])).toEqual({ shown: 10, fills: 8, confirmable: 7, verify: 1, create: 0 });
     // `identificacao` is filled with a different value: a replace, not a verify fill.
     expect(nameplateSuggestions(block, pending).find((e) => e.field.key === 'identificacao')!.view).toBe('replace');
   });
@@ -276,7 +276,7 @@ describe('8.1-UNIT the I/O matrix', () => {
     const block = chave({ fabricacao: cell('Schneider') });
     const equal = suggestion('fabricacao', 'SCHNEIDER');
     expect(nameplateSuggestions(block, [equal])[0]!.view).toBe('none');
-    expect(suggestionGroupCounts(block, [equal])).toEqual({ shown: 0, fills: 0, confirmable: 0, verify: 0 });
+    expect(suggestionGroupCounts(block, [equal])).toEqual({ shown: 0, fills: 0, confirmable: 0, verify: 0, create: 0 });
     expect(confirmAllCandidates(block, [equal])).toEqual([]);
   });
 });

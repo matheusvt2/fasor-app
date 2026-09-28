@@ -1,0 +1,171 @@
+import { captionPhotoMetaText, PLATE_CAPTION, regionWithin, type NormalizedBox, type PlateReadingView } from '@app/domain';
+import { useState, type CSSProperties, type ReactNode } from 'react';
+import { Button as AriaButton } from 'react-aria-components';
+import { TextButton } from '../../components/index.ts';
+import { useCropSource } from '../../components/crop-thumb.tsx';
+import { useObjectUrl } from '../../components/photo-row.tsx';
+import { copy } from '../../copy/pt-br.ts';
+import type { PhotoTile } from '../../db/photo-store.ts';
+import { useSession } from '../../state/session.tsx';
+import { requestSyncCycle, useSync } from '../../state/sync.tsx';
+import { useToast } from '../../state/toast.tsx';
+import { PlateCaptureTile } from './photo-openers.tsx';
+import type { CaptureTarget } from './use-photo-capture.ts';
+
+/*
+ * Stories 8.2 and 8.6 (`60-ficha.html` nameplate states "empty", "queued", "ready" and
+ * "fail", lines ~313-341; EXPERIENCE.md › Nameplate states): the plate photo above the
+ * nameplate fields, which stay typeable whatever happens here.
+ *
+ * - no plate photo: `.camera-group`, the copy chips then the "Fotografar placa" tile;
+ * - a plate photo whose reading is queued, running, failed or done: its `.photo-row` with
+ *   the reading line ("Foto guardada — leitura quando houver sinal", "Lendo…", "Não foi
+ *   possível ler" with "Tentar novamente" and "Preencher manualmente");
+ * - suggestions read from it waiting for a tap: the `.plate-crop` of the read region, the
+ *   focused field's own region outlined, which opens the Photo viewer zoomed on it.
+ *
+ * Which photo, which state and which region are the kernel's (`platePhotoOf`,
+ * `plateReadingView`, `plateCropRegion`, `regionWithin`); this only draws them.
+ */
+
+/** No plate photo yet: the copy chips (if any) and the tile under them. */
+export function PlateCameraGroup({ relatorioId, target, chips }: { relatorioId: string; target: () => CaptureTarget; chips: ReactNode }) {
+  return (
+    <div className="camera-group">
+      {chips}
+      <PlateCaptureTile relatorioId={relatorioId} target={target} />
+    </div>
+  );
+}
+
+/** The plate photo's row: the tile (opens the viewer), its caption and meta, and the reading line. */
+export function PlatePhotoRow({
+  tile,
+  number,
+  view,
+  onOpen,
+  onFillManually,
+}: {
+  tile: PhotoTile;
+  number: number | null;
+  view: Exclude<PlateReadingView, 'ready'>;
+  onOpen: () => void;
+  onFillManually: () => void;
+}) {
+  const t = copy.ficha.nameplate;
+  const src = useObjectUrl(tile.thumb);
+  return (
+    <div className="photo-row ficha-np-photo" data-reading={view}>
+      <AriaButton className="photo-tile" aria-label={t.plateTileLabel(number)} onPress={onOpen} data-photo-id={tile.id}>
+        <span className="thumb">
+          {src === null ? <span className="thumb-fake" /> : <img className="thumb-img" src={src} alt="" />}
+          {number === null ? null : (
+            <span className="number-badge" aria-hidden="true">
+              {number}
+            </span>
+          )}
+        </span>
+      </AriaButton>
+      <div className="photo-text">
+        <p className="photo-caption">{tile.caption ?? PLATE_CAPTION}</p>
+        <p className="photo-meta">{captionPhotoMetaText(number, tile.captured_at)}</p>
+        {view === 'queued' ? (
+          <span className="queued-banner">
+            <svg className="ico" aria-hidden="true">
+              <use href="/sprite.svg#i-image" />
+            </svg>
+            {t.queued}
+          </span>
+        ) : null}
+        {view === 'running' ? (
+          <p className="reading-line" role="status">
+            {t.reading}
+          </p>
+        ) : null}
+        {view === 'failed' ? <FailedReading photoId={tile.id} onFillManually={onFillManually} /> : null}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * "Não foi possível ler": the photo stays and nothing was written. "Tentar novamente" asks the
+ * server for a new reading (offline it is disabled with its reason); "Preencher manualmente"
+ * takes the engineer to the first empty field.
+ */
+function FailedReading({ photoId, onFillManually }: { photoId: string; onFillManually: () => void }) {
+  const t = copy.ficha.nameplate;
+  const sync = useSync();
+  const online = useSession().online;
+  const { showToast } = useToast();
+  const [asking, setAsking] = useState(false);
+  const retry = () => {
+    if (asking || sync.rereadPhoto === undefined) return;
+    setAsking(true);
+    void sync
+      .rereadPhoto(photoId)
+      // The server moves the reading on (`running`, then suggestions or `failed` again); the
+      // next pull brings it, now.
+      .then(() => requestSyncCycle())
+      .catch(() => showToast(t.retryFailed))
+      .finally(() => setAsking(false));
+  };
+  return (
+    <>
+      <p className="reading-line" role="status">
+        {t.readFailed}
+      </p>
+      <div className="row-wrap">
+        <TextButton isDisabled={!online} disabledReason={online ? undefined : t.retryOffline} onPress={retry}>
+          {t.retryRead}
+        </TextButton>
+        <TextButton onPress={onFillManually}>{t.fillManually}</TextButton>
+      </div>
+    </>
+  );
+}
+
+/** A percentage for a style, to a thousandth (no floating-point tail in the DOM). */
+const pct = (n: number): string => `${Math.round(n * 1000) / 1000}%`;
+
+/**
+ * The plate crop (`60-ficha.html` `.plate-crop`, at most 160 px high, full width): the read
+ * region of the plate photo fitted in the box with its aspect kept, and the focused field's
+ * own region outlined as one `.region`. The picture is this device's original, else the
+ * server's original kept as a `crop` blob; `.thumb-fake` meanwhile. A tap opens the Photo
+ * viewer zoomed on the read region.
+ */
+export function PlateCrop({ photoId, region, focused, onOpen }: { photoId: string; region: NormalizedBox; focused: NormalizedBox | null; onOpen: () => void }) {
+  const src = useObjectUrl(useCropSource(photoId));
+  const [size, setSize] = useState<{ src: string; width: number; height: number } | null>(null);
+  const loaded = size !== null && size.src === src;
+  const [x0, y0, x1, y1] = region;
+  const w = x1 - x0;
+  const h = y1 - y0;
+  // The region's own aspect, in pixels of the picture: the view keeps it inside the box.
+  const ratio = loaded ? (w * size.width) / Math.max(h * size.height, 1) : null;
+  const outline = focused === null ? null : regionWithin(region, focused);
+  const viewStyle = ratio === null ? undefined : ({ '--plate-crop-ratio': String(ratio) } as CSSProperties);
+  return (
+    <button type="button" className="plate-crop-open" onClick={onOpen} data-photo-id={photoId}>
+      <span className="plate-crop" role="img" aria-label={copy.ficha.nameplate.cropLabel}>
+        {/* Until the picture is drawn the view fills the box over the placeholder, outline included. */}
+        <span className="plate-crop-view" style={viewStyle} data-fitted={ratio === null ? undefined : ''}>
+          {loaded ? null : <i className="thumb-fake" />}
+          {src === null ? null : (
+            <img
+              src={src}
+              alt=""
+              hidden={!loaded}
+              style={{ width: pct(100 / w), height: pct(100 / h), left: pct((-x0 / w) * 100), top: pct((-y0 / h) * 100) }}
+              onLoad={(event) => setSize({ src, width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
+            />
+          )}
+          {outline === null ? null : (
+            <span className="region" data-testid="plate-crop-region" style={{ left: pct(outline.left), top: pct(outline.top), width: pct(outline.width), height: pct(outline.height) }} />
+          )}
+        </span>
+      </span>
+    </button>
+  );
+}

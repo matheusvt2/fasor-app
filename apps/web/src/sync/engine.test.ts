@@ -135,6 +135,11 @@ class FakeServer implements SyncClient {
     throw new Error('the sync engine never generates');
   }
 
+  /** Story 8.2: "Tentar novamente" of a failed reading is the sheet's, never the cycle's. */
+  async rereadPhoto(): Promise<void> {
+    throw new Error('the sync engine never asks for a reading');
+  }
+
   /** Epic 4 retro item 17: the project's own stream, its project-scope ops only. */
   async pullProject(id: string, since: number): Promise<SyncPullResponse> {
     this.pulls.push(`project:${id}:${since}`);
@@ -944,6 +949,40 @@ describe('sync engine', () => {
       expect(error).toHaveBeenCalledWith('suggestion auto-confirm failed', expect.any(Error));
       error.mockRestore();
       failing.db.close();
+    });
+
+    it('8.2 sweeps a pending suggestion whose target later holds an equal value, and takes it again after a failed sweep', async () => {
+      const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+      let failNext = false;
+      const h = await filled({
+        author: () => {
+          if (failNext) {
+            failNext = false;
+            throw new Error('once');
+          }
+          return { id: USER_ID, companyId: COMPANY_ID };
+        },
+      });
+      // A different value: the suggestion stays pending (the sheet shows the replace line).
+      serverSuggestion(h, 'ABB');
+      expect(await h.engine.runCycle()).toBe('ran');
+      expect(((await h.db.entities.get(['suggestion', SUGGESTION]))!.row as { status: string }).status).toBe('pending');
+      // The engineer's value becomes equal by another path (a local put, as a copy chip writes).
+      await commitOps(h.db, [localPut(ids('019966b0-0016-7000-8000-'), 'ABB')]);
+      failNext = true;
+      expect(await h.engine.runCycle()).toBe('ran');
+      expect(error).toHaveBeenCalledWith('suggestion auto-confirm failed', expect.any(Error));
+      expect(((await h.db.entities.get(['suggestion', SUGGESTION]))!.row as { status: string }).status).toBe('pending');
+      // The next pull sweeps it again, and confirms it once.
+      expect(await h.engine.runCycle()).toBe('ran');
+      expect(((await h.db.entities.get(['suggestion', SUGGESTION]))!.row as { status: string }).status).toBe('confirmed');
+      const auto = (await h.db.outbox.toArray()).filter((row) => row.meta?.auto === true);
+      expect(auto.map((row) => [row.path, row.value])).toEqual([
+        [`suggestion/${SUGGESTION}/status`, 'confirmed'],
+        [`sheet/${BLOCK_1_ID}/nameplate/fabricacao`, 'ABB'],
+      ]);
+      error.mockRestore();
+      h.db.close();
     });
   });
 });

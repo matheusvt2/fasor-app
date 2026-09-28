@@ -167,6 +167,8 @@ export const copy = {
     lastSync: 'Última sincronização',
     // authored: the mock always has a sync to show.
     neverSynced: 'Ainda não sincronizado',
+    // `85-sync.html` "Leituras" section heading (Story 8.2); its rows are the kernel's counts.
+    readingsHeading: 'Leituras',
   },
   // authored: there is no mock for the 426 state (AR-12); a UX pass may replace these
   // strings without touching behavior.
@@ -605,6 +607,8 @@ export const copy = {
     hint: 'Cada disparo é salvo neste aparelho com a legenda do contexto.',
     // `70-fotos.html` "Concluir fotos" toast, verbatim.
     doneToast: 'Fotos salvas neste aparelho — entram na fila de envio',
+    // authored: Story 8.2, the single shot of "Fotografar placa" (the burst's toast, in the singular).
+    doneOneToast: 'Foto salva neste aparelho — entra na fila de envio',
     // authored: EXPERIENCE.md › camera permission denied: the reason and the OS path under the button.
     denied: 'A câmera está bloqueada para este site. Para liberar: Configurações do navegador › Permissões do site › Câmera.',
     // authored: FR-57, the browser refused to store a shot while offline; it is kept in memory.
@@ -841,6 +845,23 @@ export const copy = {
       invalidDate: 'Data não reconhecida — use dd/mm/aaaa ou mm/aaaa',
       invalidOption: 'Opção não reconhecida',
       invalidVoltage: 'Tensão não reconhecida — use kV, ex.: 15',
+      // Stories 8.2 and 8.6: the plate photo above the fields (`60-ficha.html` nameplate
+      // states "empty", "queued" and "ready", lines ~313-328), verbatim unless marked.
+      takePlate: 'Fotografar placa',
+      queued: 'Foto guardada — leitura quando houver sinal',
+      fieldsNote: 'Os campos continuam digitáveis; o que você digitar não é sobrescrito pela leitura.',
+      // EXPERIENCE.md › Nameplate states: running and failed.
+      reading: 'Lendo…',
+      readFailed: 'Não foi possível ler',
+      retryRead: 'Tentar novamente',
+      fillManually: 'Preencher manualmente',
+      // authored: why "Tentar novamente" cannot ask for a new reading now.
+      retryOffline: 'Sem conexão',
+      // authored: the server did not take the new reading.
+      retryFailed: 'Não foi possível pedir a nova leitura',
+      cropLabel: 'Recorte da placa lida — as regiões marcam os campos sugeridos',
+      // authored: the plate photo tile's name (`60-ficha.html` "Foto 3, placa — abrir").
+      plateTileLabel: (n: number | null) => (n === null ? 'Foto da placa — abrir' : `Foto ${n}, placa — abrir`),
     },
     checklist: {
       title: 'Verificações gerais',

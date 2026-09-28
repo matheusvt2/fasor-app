@@ -1,4 +1,4 @@
-import { avatarInitial, formatShortDateTime, rejectedText, supersededText, syncBadgeLabel } from '@app/domain';
+import { avatarInitial, formatShortDateTime, leiturasNaFilaText, rejectedText, sugestoesText, supersededText, syncBadgeLabel } from '@app/domain';
 import { useId, useState } from 'react';
 import { Button, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -16,6 +16,7 @@ export function SyncStatusSurface() {
   const sync = useSync();
   const titleId = useId();
   const lastPushId = useId();
+  const readingsId = useId();
   const [resending, setResending] = useState(false);
 
   const word = syncBadgeLabel(sync.badgeState, sync.counts);
@@ -93,6 +94,34 @@ export function SyncStatusSurface() {
             </ul>
           ) : null}
         </section>
+
+        {/* Story 8.2 (`85-sync.html` "Leituras"): the readings still queued and the suggestions
+            still waiting for a tap on this device, each row only when it counts something. */}
+        {sync.counts.readings_queued > 0 || sync.counts.suggestions_pending > 0 ? (
+          <section className="section" aria-labelledby={readingsId} data-testid="sync-readings">
+            <div className="section-head">
+              <h2 id={readingsId}>{copy.sync.readingsHeading}</h2>
+            </div>
+            <ul className="sync-list">
+              {sync.counts.readings_queued > 0 ? (
+                <li className="sync-row" data-testid="sync-readings-queued">
+                  <span className="sr-body">
+                    <span className="sr-primary">{leiturasNaFilaText(sync.counts.readings_queued)}</span>
+                  </span>
+                  <span className="sr-state" data-tone="pending" />
+                </li>
+              ) : null}
+              {sync.counts.suggestions_pending > 0 ? (
+                <li className="sync-row" data-testid="sync-suggestions-pending">
+                  <span className="sr-body">
+                    <span className="sr-primary">{sugestoesText(sync.counts.suggestions_pending)}</span>
+                  </span>
+                  <span className="sr-state" data-tone="pending" />
+                </li>
+              ) : null}
+            </ul>
+          </section>
+        ) : null}
 
         <section className="section" aria-labelledby={lastPushId}>
           <div className="section-head">

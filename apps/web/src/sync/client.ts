@@ -77,6 +77,17 @@ export interface SyncClient {
    * `code: 'not_caught_up'`, which the Export dialog answers with a sync and a retry.
    */
   generate(relatorioId: string, body: GenerateRequest): Promise<GenerateResponse>;
+  /**
+   * Story 8.2: "Tentar novamente" of a failed plate reading, `POST /api/photos/{id}/reread`
+   * (the route and the new reading run are the reading job's, Story 8.4). Resolves on a 2xx;
+   * any other answer is a `SyncRequestError`.
+   */
+  rereadPhoto(photoId: string): Promise<void>;
+}
+
+/** Story 8.4's route, called by the sheet's "Tentar novamente" (Story 8.2). */
+export function rereadPhotoPath(photoId: string): string {
+  return `/api/photos/${photoId}/reread`;
 }
 
 /** Where the browser opens a revision's DOCX (a new tab; the server answers it as a download). */
@@ -189,5 +200,8 @@ export function createSyncClient(deps: { fetch: FetchLike }): SyncClient {
       return response.blob();
     },
     generate: (relatorioId, body) => request(GENERATE_ROUTES.generate(relatorioId), generateResponseSchema, undefined, body),
+    async rereadPhoto(photoId) {
+      await send(rereadPhotoPath(photoId), 'POST', { headers: { accept: 'application/json' } });
+    },
   };
 }

@@ -30,6 +30,11 @@ export interface CaptureTarget {
   itemKey: string | null;
   /** The kernel's `contextCaption`, fixed when the camera opened (null: no context). */
   caption: string | null;
+  /**
+   * Story 8.2: the reading this shot asks for (the "Fotografar placa" tile's): the photo is
+   * created with `reading_kind`, `reading_target` and `reading_status: queued`.
+   */
+  reading?: PhotoCaptureInput['reading'];
 }
 
 const EXIF_HEAD_BYTES = 256 * 1024;
@@ -129,6 +134,7 @@ export function usePhotoCapture(relatorioId: string): PhotoCapture {
             original: encoded.original,
             thumb: encoded.thumb,
             sha256: encoded.sha256,
+            ...(target.reading === undefined ? {} : { reading: target.reading }),
           };
           // FR-57: a shot the browser refused earlier is tried again once, on this shot.
           if (sessionCaptureRescue.heldCount() > 0) await sessionCaptureRescue.retryHeld(deps);

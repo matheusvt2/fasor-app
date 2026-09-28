@@ -3,8 +3,8 @@ import { splitEntityKey, type EntityState } from '../ops/apply.ts';
 import type { OpDraft } from '../ops/op.ts';
 import { safeParsePath, suggestionStatusPath } from '../ops/path.ts';
 import { canonicalDecimal, formatDecimalGroupedPtBr, parseDecimalPtBr } from '../parse/pt-br-number.ts';
-import { parseVoltageClassKv } from '../registry/word-row.ts';
-import type { BlockRow, Cell, JsonValue, RelatorioStatus, SuggestionRow } from '../schemas/entities.ts';
+import { parseVoltageClassKv, type WordRow } from '../registry/word-row.ts';
+import type { BlockRow, Cell, JsonValue, PhotoFileRow, RelatorioStatus, SuggestionRow } from '../schemas/entities.ts';
 import { getDefinition } from '../seed/definitions.ts';
 import type { FieldDef } from '../seed/schema.ts';
 import { normalizeRegistryName } from '../text/normalize-name.ts';
@@ -232,26 +232,67 @@ export function nameplateSuggestions(block: Pick<BlockRow, 'id' | 'seed_version'
   return out;
 }
 
+/** The registry rows a create hint is checked against (the device's manufacturer words). */
+export type RegistryNames = readonly Pick<WordRow, 'name' | 'removed_at'>[];
+
+function registryHolds(registry: RegistryNames, name: string): boolean {
+  const wanted = normalizeRegistryName(name);
+  return registry.some((row) => row.removed_at === null && normalizeRegistryName(row.name) === wanted);
+}
+
+/**
+ * Story 8.5: the suggestion carries a `create_registry_entry` hint whose name the device's
+ * live registry does not hold yet (normalized, `normalizeRegistryName`): its Confirmar reads
+ * "Criar ⟨nome⟩?" and writes the registry row with the confirm pair. A name the registry
+ * already holds (typed on another sheet since the reading) is a plain Confirmar.
+ */
+export function hasCreateHint(s: Pick<SuggestionRow, 'hint'>, registry: RegistryNames): boolean {
+  const name = s.hint?.create_registry_entry.name;
+  return name !== undefined && !registryHolds(registry, name);
+}
+
+/**
+ * Story 8.6: a manufacturer the engineer typed (over a guess) that the device's live registry
+ * does not hold: the typed put goes with the registry create, one batch, as the plain field's
+ * "Criar ⟨nome⟩" does. Any other kind, or an empty value, is never one.
+ */
+export function unknownManufacturer(field: Pick<FieldDef, 'kind'>, value: unknown, registry: RegistryNames): boolean {
+  if (field.kind !== 'manufacturer' || typeof value !== 'string' || value.trim() === '') return false;
+  return !registryHolds(registry, value);
+}
+
 /**
  * "Confirmar todos": every pending `suggested` suggestion of the group whose target cell
- * is empty, in definition order. Every `verify` one (it confirms only by its own tap) and
- * every replace one (the engineer's value is kept) are skipped.
+ * is empty, in definition order. Every `verify` one (it confirms only by its own tap), every
+ * replace one (the engineer's value is kept) and every one that would create a registry row
+ * (`hasCreateHint`: a new manufacturer takes its own "Criar ⟨nome⟩?" tap) are skipped.
+ * Without `registry` any hint counts as a create.
  */
-export function confirmAllCandidates(block: Pick<BlockRow, 'id' | 'seed_version' | 'block_type' | 'sheet'>, pending: readonly SuggestionRow[]): SuggestionRow[] {
+export function confirmAllCandidates(block: Pick<BlockRow, 'id' | 'seed_version' | 'block_type' | 'sheet'>, pending: readonly SuggestionRow[], registry: RegistryNames = []): SuggestionRow[] {
   return nameplateSuggestions(block, pending)
-    .filter((entry) => entry.view === 'fill' && entry.suggestion.trust === 'suggested')
+    .filter((entry) => entry.view === 'fill' && entry.suggestion.trust === 'suggested' && !hasCreateHint(entry.suggestion, registry))
     .map((entry) => entry.suggestion);
 }
 
-/** The group head's numbers: the suggestions shown (fill and replace), the confirmable ones and the `verify` fills. */
-export function suggestionGroupCounts(block: Pick<BlockRow, 'id' | 'seed_version' | 'block_type' | 'sheet'>, pending: readonly SuggestionRow[]): { shown: number; fills: number; confirmable: number; verify: number } {
+/**
+ * The group head's numbers: the suggestions shown (fill and replace), the confirmable ones,
+ * the `verify` fills and the fills that create a registry row (`create`, counted apart).
+ */
+export function suggestionGroupCounts(
+  block: Pick<BlockRow, 'id' | 'seed_version' | 'block_type' | 'sheet'>,
+  pending: readonly SuggestionRow[],
+  registry: RegistryNames = [],
+): { shown: number; fills: number; confirmable: number; verify: number; create: number } {
   const entries = nameplateSuggestions(block, pending);
   const fills = entries.filter((entry) => entry.view === 'fill');
+  const suggested = fills.filter((entry) => entry.suggestion.trust === 'suggested');
+  const create = suggested.filter((entry) => hasCreateHint(entry.suggestion, registry)).length;
   return {
     shown: entries.filter((entry) => entry.view !== 'none').length,
     fills: fills.length,
-    confirmable: fills.filter((entry) => entry.suggestion.trust === 'suggested').length,
+    confirmable: suggested.length - create,
     verify: fills.filter((entry) => entry.suggestion.trust === 'verify').length,
+    create,
   };
 }
 
@@ -401,12 +442,13 @@ export function confirmedFieldToastText(label: string, valueText: string): strin
 }
 
 /**
- * The group note (`60-ficha.html`'s ".section-note" of the nameplate): "9 sugestões lidas.
- * Nada foi gravado: confirme um a um ou todos — o campo “Verificar” pede o seu toque." The
- * mock's "da foto 3" is left out until Story 8.6 wires the plate photo's number.
+ * The group note (`60-ficha.html`'s ".section-note" of the nameplate): "9 sugestões lidas da
+ * foto 3. Nada foi gravado: confirme um a um ou todos — o campo “Verificar” pede o seu
+ * toque." Without the photo's number (none given, or a photo this device does not number)
+ * "da foto N" is left out.
  */
-export function suggestionGroupNoteText(n: number, verifyCount: number): string {
-  const read = plural(n, 'sugestão lida', 'sugestões lidas');
+export function suggestionGroupNoteText(n: number, verifyCount: number, photoNumber?: number | null): string {
+  const read = `${plural(n, 'sugestão lida', 'sugestões lidas')}${photoNumber == null ? '' : ` da foto ${photoNumber}`}`;
   const head = n === 1 ? `${read}. Nada foi gravado até você confirmar` : `${read}. Nada foi gravado: confirme um a um ou todos`;
   if (verifyCount === 0) return `${head}.`;
   return verifyCount === 1 ? `${head} — o campo “Verificar” pede o seu toque.` : `${head} — os campos “Verificar” pedem o seu toque.`;
@@ -425,4 +467,114 @@ export function replaceLineText(valueText: string): string {
 /** The pre-issue row (Story 8.6): "3 fichas com sugestões por confirmar". */
 export function fichasComSugestoesText(n: number): string {
   return plural(n, 'ficha com sugestões por confirmar', 'fichas com sugestões por confirmar');
+}
+
+/** "Criar Celtta?": the Confirmar of a suggestion that creates its manufacturer (Story 8.5). */
+export function criarText(name: string): string {
+  return `Criar ${name}?`;
+}
+
+// --- the plate photo (Stories 8.2 and 8.6) ---------------------------------------------------
+
+/** The caption of a plate photo, set at capture (it is a normal sheet photo otherwise). */
+export const PLATE_CAPTION = 'placa de identificação';
+
+/** What `platePhotoOf` reads of a photo row. */
+export type PlatePhotoLike = Pick<PhotoFileRow, 'id' | 'block_id' | 'reading_kind' | 'local_seq' | 'captured_at'> & { removed_at?: string | null };
+
+/**
+ * The plate photo of one sheet: the newest live photo taken with the "Fotografar placa" tile
+ * (`reading_kind = 'plate'`) on that block, by `local_seq` then `captured_at`; null when none.
+ */
+export function platePhotoOf<T extends PlatePhotoLike>(photos: readonly T[], blockId: string): T | null {
+  let best: T | null = null;
+  for (const photo of photos) {
+    if ((photo.removed_at ?? null) !== null || photo.reading_kind !== 'plate' || photo.block_id !== blockId) continue;
+    if (best === null || photo.local_seq > best.local_seq || (photo.local_seq === best.local_seq && photo.captured_at > best.captured_at)) best = photo;
+  }
+  return best;
+}
+
+export type PlateReadingView = 'queued' | 'running' | 'failed' | 'ready' | 'done';
+
+/**
+ * Where the plate photo's reading stands on the sheet: `ready` while any pending suggestion
+ * was read from it (whatever its stored status), else its `reading_status`: `queued`
+ * ("Foto guardada — leitura quando houver sinal"), `running` ("Lendo…"), `failed` ("Não foi
+ * possível ler"), and `done` (nothing left to confirm; `none` reads the same, no line).
+ */
+export function plateReadingView(photo: Pick<PhotoFileRow, 'id' | 'reading_status'>, pending: readonly Pick<SuggestionRow, 'status' | 'source'>[]): PlateReadingView {
+  if (pending.some((row) => row.status === 'pending' && row.source.photo_id === photo.id)) return 'ready';
+  switch (photo.reading_status) {
+    case 'queued':
+    case 'running':
+    case 'failed':
+      return photo.reading_status;
+    default:
+      return 'done';
+  }
+}
+
+/** A normalized region of a picture, `[x0, y0, x1, y1]`, each 0 to 1. */
+export type NormalizedBox = readonly [number, number, number, number];
+
+/** The margin around the read region of the plate crop, in normalized units. */
+export const PLATE_CROP_MARGIN = 0.02;
+
+const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
+
+/**
+ * The plate crop's region: the union of the `bbox`es of the pending suggestions read from
+ * `photoId`, grown by a small margin and clamped to the picture; null when none is.
+ */
+export function plateCropRegion(pending: readonly Pick<SuggestionRow, 'status' | 'source'>[], photoId: string, margin = PLATE_CROP_MARGIN): NormalizedBox | null {
+  let box: [number, number, number, number] | null = null;
+  for (const row of pending) {
+    if (row.status !== 'pending' || row.source.photo_id !== photoId) continue;
+    const [x0, y0, x1, y1] = row.source.bbox;
+    box = box === null ? [x0, y0, x1, y1] : [Math.min(box[0], x0), Math.min(box[1], y0), Math.max(box[2], x1), Math.max(box[3], y1)];
+  }
+  if (box === null) return null;
+  const out: [number, number, number, number] = [clamp01(box[0] - margin), clamp01(box[1] - margin), clamp01(box[2] + margin), clamp01(box[3] + margin)];
+  // A degenerate region still draws a sliver of the picture.
+  if (out[2] <= out[0]) out[0] = Math.max(0, out[2] - 0.01);
+  if (out[3] <= out[1]) out[1] = Math.max(0, out[3] - 0.01);
+  return out;
+}
+
+/**
+ * Where `inner` sits inside `outer` (both normalized boxes of one picture), in percent of
+ * `outer`: the outline of the focused field on the plate crop, clamped to the crop.
+ */
+export function regionWithin(outer: NormalizedBox, inner: NormalizedBox): { left: number; top: number; width: number; height: number } {
+  const w = outer[2] - outer[0];
+  const h = outer[3] - outer[1];
+  if (w <= 0 || h <= 0) return { left: 0, top: 0, width: 100, height: 100 };
+  const x0 = clamp01((inner[0] - outer[0]) / w);
+  const y0 = clamp01((inner[1] - outer[1]) / h);
+  const x1 = clamp01((inner[2] - outer[0]) / w);
+  const y1 = clamp01((inner[3] - outer[1]) / h);
+  return { left: x0 * 100, top: y0 * 100, width: Math.max(0, x1 - x0) * 100, height: Math.max(0, y1 - y0) * 100 };
+}
+
+// --- arrivals and counts (Stories 8.2 and 8.6) -------------------------------------------------
+
+/** How many readings arrived with these new suggestion rows: their distinct reading runs. */
+export function arrivedReadingsCount(newRows: readonly Pick<SuggestionRow, 'source'>[]): number {
+  return new Set(newRows.map((row) => row.source.reading_run_id)).size;
+}
+
+/** The arrival toast: "3 leituras prontas para confirmar" / "1 leitura pronta para confirmar". */
+export function leiturasProntasText(n: number): string {
+  return plural(n, 'leitura pronta para confirmar', 'leituras prontas para confirmar');
+}
+
+/** Sync status, "Leituras": "2 leituras na fila" / "1 leitura na fila". */
+export function leiturasNaFilaText(n: number): string {
+  return plural(n, 'leitura na fila', 'leituras na fila');
+}
+
+/** The sheet's banner: "Sugestões prontas — 9 campos para confirmar". */
+export function sugestoesProntasBannerText(n: number): string {
+  return `Sugestões prontas — ${plural(n, 'campo para confirmar', 'campos para confirmar')}`;
 }

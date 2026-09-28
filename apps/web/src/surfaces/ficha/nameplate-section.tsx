@@ -5,6 +5,10 @@ import {
   nameplateCopyFields,
   nameplateIsEmpty,
   nameplateTagPrefill,
+  PLATE_CAPTION,
+  plateCropRegion,
+  platePhotoOf,
+  plateReadingView,
   showsConfirmedGlyph,
   suggestNameplateCopy,
   type BlockDefinition,
@@ -14,16 +18,18 @@ import {
   type RelatorioSnapshot,
   type WordRow,
 } from '@app/domain';
-import { useId } from 'react';
+import { useId, useMemo, useState, type FocusEvent } from 'react';
 import { Chip } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { newId } from '../../ids.ts';
 import type { FichaApi } from './ficha-api.ts';
-import { ReadOnlyField, SheetField } from './ficha-fields.tsx';
+import { firstFocusable, ReadOnlyField, SheetField } from './ficha-fields.tsx';
 import { createWordOp, nameplateOp } from './ficha-ops.ts';
 import type { PhotoTile } from '../../db/photo-store.ts';
 import { NameplateField, ReplaceLine, SuggestionFill, SuggestionGroupHead, useNameplateSuggestions } from './nameplate-suggestions.tsx';
+import { PlateCameraGroup, PlateCrop, PlatePhotoRow } from './plate-photo.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
+import type { CaptureTarget } from './use-photo-capture.ts';
 
 /*
  * Stories 5.3 and 12.4 (FR-23, FR-34, AR-10, AR-24; `key-equipment-sheet-v09.html` "Dados
@@ -40,6 +46,11 @@ import { useSheetReadOnly } from './sheet-read-only.tsx';
  * a fill takes the field's place as a Suggestion field, a differing value keeps the field
  * and adds the replace line, a confirmed cell shows its crop glyph; while any fill is
  * pending the section is `.nameplate-extraction` with the group head above the fields.
+ *
+ * Stories 8.2 and 8.6 (`plate-photo.tsx`): above the fields, the "Fotografar placa" tile
+ * (with the copy chips) while the sheet has no plate photo; then the photo's row with its
+ * reading line; and, while suggestions read from it wait, the plate crop with the focused
+ * field's region outlined (focus inside the grid names the field by its `data-field-key`).
  */
 export function NameplateSection({
   api,
@@ -65,7 +76,19 @@ export function NameplateSection({
   const t = copy.ficha.nameplate;
   const headingId = useId();
   const readOnly = useSheetReadOnly();
-  const suggestions = useNameplateSuggestions({ api, state, snapshot, block, ...(onCaptionPhoto === undefined ? {} : { onCaptionPhoto }) });
+  const suggestions = useNameplateSuggestions({
+    api,
+    state,
+    snapshot,
+    block,
+    registry: registries.manufacturer,
+    ...(onCaptionPhoto === undefined ? {} : { onCaptionPhoto }),
+  });
+  // --- Stories 8.2/8.6: the plate photo, its reading and the crop ---------------------------
+  const plate = useMemo(() => platePhotoOf(suggestions.tiles, block.id), [suggestions.tiles, block.id]);
+  const view = plate === null ? null : plateReadingView(plate, suggestions.pending);
+  const region = plate === null || view !== 'ready' ? null : plateCropRegion(suggestions.pending, plate.id);
+  const [focusedKey, setFocusedKey] = useState<string | null>(null);
   if (definition.nameplate.length === 0) return null;
   const grouped = !readOnly && suggestions.counts.fills > 0;
 
@@ -95,39 +118,93 @@ export function NameplateSection({
       .catch(() => undefined);
   }
 
+  /** The plate tile's shot: a normal sheet photo, captioned and asking for the plate reading. */
+  const plateTarget = (): CaptureTarget => ({
+    blockId: block.id,
+    itemKey: null,
+    caption: PLATE_CAPTION,
+    reading: { kind: 'plate', target: { block_id: block.id, block_type: block.block_type } },
+  });
+
+  /** The focused field's region on the plate: its pending suggestion's, else its confirmed source's (this photo only). */
+  const focusedBox = (() => {
+    if (plate === null || region === null || focusedKey === null) return null;
+    const entry = suggestions.entries.get(focusedKey);
+    if (entry !== undefined && entry.suggestion.source.photo_id === plate.id) return entry.suggestion.source.bbox;
+    const sourceId = block.sheet.nameplate[focusedKey]?.source_suggestion_id ?? null;
+    const source = sourceId === null ? null : suggestions.sourceOf(sourceId);
+    return source !== null && source.source.photo_id === plate.id ? source.source.bbox : null;
+  })();
+
+  const trackFocus = (event: FocusEvent<HTMLDivElement>) => {
+    const key = event.target instanceof HTMLElement ? (event.target.closest('[data-field-key]')?.getAttribute('data-field-key') ?? null) : null;
+    setFocusedKey(key);
+  };
+  const dropFocus = (event: FocusEvent<HTMLDivElement>) => {
+    const next = event.relatedTarget;
+    if (!(next instanceof Node) || !event.currentTarget.contains(next)) setFocusedKey(null);
+  };
+
+  /** "Preencher manualmente": the first empty field of the plate takes the focus. */
+  const fillManually = () => {
+    const key = definition.nameplate.find((field) => !isCellFilled(block.sheet.nameplate[field.key]) && !(field.key === 'tag' && tagPrefill !== null))?.key;
+    if (key === undefined) return;
+    const root = document.querySelector<HTMLElement>(`#ficha-nameplate .nameplate-grid [data-field-key="${key}"]`);
+    const target = root === null ? null : firstFocusable(root);
+    target?.focus();
+  };
+
   function createWord(fieldKey: string, kind: 'manufacturer' | 'voltage_class', name: string): void {
     void api
       .edit((_blocks, by) => [createWordOp(by, kind, newId(), name), nameplateOp(by, api.relatorioId, block.id, fieldKey, name)])
       .catch(() => undefined);
   }
 
+  const chipRow =
+    same === null && (lastVisit.length === 0 || own === undefined) ? null : (
+      <div className="chip-row ficha-nameplate-chips" role="group" aria-label={t.chipsLabel}>
+        {same === null ? null : (
+          <Chip onPress={copySame}>
+            <svg className="ico" aria-hidden="true">
+              <use href="/sprite.svg#i-repeat" />
+            </svg>
+            {t.igualA(same.tag)}
+          </Chip>
+        )}
+        {lastVisit.length === 0 || own === undefined ? null : (
+          <Chip onPress={() => copyFrom(lastVisit, camposCopiadosText)}>
+            <svg className="ico" aria-hidden="true">
+              <use href="/sprite.svg#i-repeat" />
+            </svg>
+            {t.lastVisit(own.tag)}
+          </Chip>
+        )}
+      </div>
+    );
+
   return (
     <section className={grouped ? 'section nameplate-extraction' : 'section'} id="ficha-nameplate" aria-labelledby={headingId}>
       <div className="section-head">
         <h2 id={headingId}>{t.title}</h2>
       </div>
+      {plate !== null && region !== null && !readOnly ? (
+        <PlateCrop photoId={plate.id} region={region} focused={focusedBox} onOpen={() => suggestions.openPhoto(plate.id, region)} />
+      ) : null}
       {grouped ? <SuggestionGroupHead model={suggestions} /> : null}
-      {same === null && (lastVisit.length === 0 || own === undefined) ? null : (
-        <div className="chip-row ficha-nameplate-chips" role="group" aria-label={t.chipsLabel}>
-          {same === null ? null : (
-            <Chip onPress={copySame}>
-              <svg className="ico" aria-hidden="true">
-                <use href="/sprite.svg#i-repeat" />
-              </svg>
-              {t.igualA(same.tag)}
-            </Chip>
-          )}
-          {lastVisit.length === 0 || own === undefined ? null : (
-            <Chip onPress={() => copyFrom(lastVisit, camposCopiadosText)}>
-              <svg className="ico" aria-hidden="true">
-                <use href="/sprite.svg#i-repeat" />
-              </svg>
-              {t.lastVisit(own.tag)}
-            </Chip>
-          )}
-        </div>
-      )}
-      <div className="nameplate-grid">
+      {plate === null && !readOnly ? <PlateCameraGroup relatorioId={api.relatorioId} target={plateTarget} chips={chipRow} /> : chipRow}
+      {plate !== null && view !== null && view !== 'ready' ? (
+        <>
+          <PlatePhotoRow
+            tile={plate}
+            number={suggestions.numbers.get(plate.id) ?? null}
+            view={view}
+            onOpen={() => suggestions.openPhoto(plate.id)}
+            onFillManually={fillManually}
+          />
+          {view === 'queued' || view === 'running' ? <p className="section-note">{t.fieldsNote}</p> : null}
+        </>
+      ) : null}
+      <div className="nameplate-grid" onFocus={trackFocus} onBlur={dropFocus}>
         {definition.nameplate.map((field) => {
           const stored = block.sheet.nameplate[field.key];
           const prefilled = field.key === 'tag' && stored === undefined && tagPrefill !== null;

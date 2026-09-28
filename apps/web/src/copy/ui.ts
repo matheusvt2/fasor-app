@@ -100,6 +100,10 @@ export const ui = {
     cropLabel: (label: string) => `Ver recorte da placa — ${label}`,
     cropAlt: 'Recorte da placa',
   },
+  // Story 8.2: the arrival toast's action (EXPERIENCE.md › Reading arrived, "— Ver").
+  readingArrival: {
+    open: 'Ver',
+  },
   generatedText: {
     criteria: 'Critérios usados',
     confirm: 'Confirmar',

@@ -123,6 +123,29 @@ describe('Sync status surface', () => {
     expect(screen.getByTestId('sync-superseded-row')).toHaveTextContent('3 alterações mescladas pelo servidor');
   });
 
+  it('8.2 shows the "Leituras" rows from the counts, each only when it counts something', () => {
+    const { rerender } = renderWith(state({ counts: { readings_queued: 2, suggestions_pending: 9 } }));
+    const section = screen.getByTestId('sync-readings');
+    expect(section.querySelector('h2')).toHaveTextContent('Leituras');
+    expect(screen.getByTestId('sync-readings-queued')).toHaveTextContent('2 leituras na fila');
+    expect(screen.getByTestId('sync-suggestions-pending')).toHaveTextContent('9 sugestões por confirmar');
+
+    rerender(
+      <SyncContext value={state({ counts: { readings_queued: 1, suggestions_pending: 0 } })}>
+        <SyncStatusSurface />
+      </SyncContext>,
+    );
+    expect(screen.getByTestId('sync-readings-queued')).toHaveTextContent('1 leitura na fila');
+    expect(screen.queryByTestId('sync-suggestions-pending')).toBeNull();
+
+    rerender(
+      <SyncContext value={state()}>
+        <SyncStatusSurface />
+      </SyncContext>,
+    );
+    expect(screen.queryByTestId('sync-readings')).toBeNull();
+  });
+
   it('uses the singular for one rejected op and says when nothing was ever synced', () => {
     const { container } = renderWith(state({ counts: { dead: 1 }, lastSyncAt: null, lastPushAt: [] }));
     expect(screen.getByTestId('sync-rejected-row')).toHaveTextContent('1 alteração rejeitada');

@@ -4,8 +4,10 @@ import {
   confirmedAllToastText,
   confirmedFieldToastText,
   confirmSuggestionOps,
+  criarText,
   discardSuggestionOp,
   fieldInputText,
+  hasCreateHint,
   nameplateSuggestions,
   numberPhotos,
   parseFieldInput,
@@ -18,12 +20,15 @@ import {
   suggestionGroupNoteText,
   suggestionRowsOf,
   suggestionValueText,
+  unknownManufacturer,
   type BlockRow,
   type EntityState,
   type FieldDef,
   type NameplateSuggestion,
+  type NormalizedBox,
   type RelatorioSnapshot,
   type SuggestionRow,
+  type WordRow,
 } from '@app/domain';
 import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { CropThumb } from '../../components/crop-thumb.tsx';
@@ -37,7 +42,8 @@ import { removePhoto, restorePhoto } from '../photos/photo-ops.ts';
 import { PhotoViewer } from '../photos/photo-viewer.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { firstFocusable } from './ficha-fields.tsx';
-import { nameplateOp } from './ficha-ops.ts';
+import { createWordOp, nameplateOp } from './ficha-ops.ts';
+import { newId } from '../../ids.ts';
 
 /*
  * Story 8.1 (EXPERIENCE.md › Suggestion field, `60-ficha.html` nameplate lines ~312-341):
@@ -50,6 +56,13 @@ import { nameplateOp } from './ficha-ops.ts';
  *   discards this suggestion alone;
  * - a replace: the engineer's field as it is, plus "Sugerido: 15 kV — Substituir";
  * - a confirmed cell: the field in `data-state="confirmed"` with the 24 px crop glyph.
+ *
+ * Story 8.6: a suggestion carrying a create hint for a manufacturer the registry does not
+ * hold reads "Criar Celtta?" and writes the registry create with its confirm pair (one
+ * batch); "Confirmar todos" leaves it for its own tap. A manufacturer typed over a guess that
+ * the registry does not hold is created in the same batch as the typed put and the discard.
+ * The group note names the plate photo ("da foto 3") when all its suggestions came from one
+ * photo this device numbers.
  */
 
 export type SuggestionCrop = Pick<SuggestionRow, 'source'>;
@@ -68,8 +81,19 @@ export interface NameplateSuggestionsModel {
    */
   type: (s: SuggestionRow, field: FieldDef, text: string) => Promise<boolean> | 'invalid' | 'unchanged';
   openCrop: (s: SuggestionCrop) => void;
+  /** Story 8.6: opens the viewer on one photo, zoomed on a region when given (the plate crop). */
+  openPhoto: (photoId: string, zoom?: NormalizedBox | null) => void;
   /** The Photo viewer opened from a crop, zoomed on its region. */
   viewer: ReactNode;
+  /** Story 8.6: the device's pending rows of the relatório (the plate photo's reading reads them). */
+  pending: readonly SuggestionRow[];
+  /** Story 8.2: the relatório's live photos on this device, and their provisional numbers. */
+  tiles: readonly PhotoTile[];
+  numbers: ReadonlyMap<string, number>;
+  /** Story 8.6: the number of the one photo the group's suggestions were read from, else null. */
+  photoNumber: number | null;
+  /** Story 8.6: the suggestion's Confirmar creates its manufacturer ("Criar Celtta?"). */
+  createsEntry: (s: SuggestionRow) => boolean;
 }
 
 /** Everything the nameplate reads and writes of its suggestions. */
@@ -78,12 +102,15 @@ export function useNameplateSuggestions({
   state,
   snapshot,
   block,
+  registry,
   onCaptionPhoto,
 }: {
   api: FichaApi;
   state: EntityState;
   snapshot: RelatorioSnapshot;
   block: BlockRow;
+  /** The device's manufacturer words (the create hint and a typed manufacturer are checked against them). */
+  registry: readonly WordRow[];
   onCaptionPhoto?: (tile: PhotoTile) => void;
 }): NameplateSuggestionsModel {
   const { showToast } = useToast();
@@ -92,7 +119,8 @@ export function useNameplateSuggestions({
   const pending = useMemo(() => pendingSuggestions(rows), [rows]);
   const list = useMemo(() => nameplateSuggestions(block, pending), [block, pending]);
   const entries = useMemo(() => new Map(list.map((entry) => [entry.field.key, entry])), [list]);
-  const counts = useMemo(() => suggestionGroupCounts(block, pending), [block, pending]);
+  const counts = useMemo(() => suggestionGroupCounts(block, pending, registry), [block, pending, registry]);
+  const createsEntry = (s: SuggestionRow) => hasCreateHint(s, registry);
 
   const confirmed = (text: string) => {
     showToast(text);
@@ -101,8 +129,10 @@ export function useNameplateSuggestions({
 
   const confirm = (s: SuggestionRow, field: FieldDef) => {
     const text = confirmedFieldToastText(screenLabel(field.label), suggestionValueText(field, s.value));
+    const hint = hasCreateHint(s, registry) ? s.hint!.create_registry_entry : null;
     void api
-      .edit((_blocks, by) => confirmSuggestionOps(by, s))
+      // "Criar Celtta?": the registry row and the confirm pair, one batch.
+      .edit((_blocks, by) => (hint === null ? confirmSuggestionOps(by, s) : [createWordOp(by, hint.kind, newId(), hint.name), ...confirmSuggestionOps(by, s)]))
       .then((batch) => {
         if (batch !== null) confirmed(text);
       })
@@ -116,9 +146,9 @@ export function useNameplateSuggestions({
       .edit((blocks, by) => {
         // The freshest sheet decides: a field typed a moment ago is no longer a fill.
         const fresh = blocks.find((row) => row.id === block.id) ?? block;
-        const picked = confirmAllCandidates(fresh, pending);
+        const picked = confirmAllCandidates(fresh, pending, registry);
         done = picked.length;
-        skipped = suggestionGroupCounts(fresh, pending).verify;
+        skipped = suggestionGroupCounts(fresh, pending, registry).verify;
         return picked.length === 0 ? null : picked.flatMap((s) => confirmSuggestionOps(by, s));
       })
       .then((batch) => {
@@ -131,9 +161,18 @@ export function useNameplateSuggestions({
     if (text === fieldInputText(field, s.value)) return 'unchanged';
     const parsed = parseFieldInput(field, text);
     if (!parsed.ok) return 'invalid';
+    const value = parsed.value;
+    // A manufacturer the registry does not hold is created with the typed put (one batch).
+    const create = unknownManufacturer(field, value, registry);
     return api
       .edit((_blocks, by) =>
-        parsed.value === null ? [discardSuggestionOp(by, s)] : [nameplateOp(by, api.relatorioId, block.id, field.key, parsed.value), discardSuggestionOp(by, s)],
+        value === null
+          ? [discardSuggestionOp(by, s)]
+          : [
+              ...(create ? [createWordOp(by, 'manufacturer', newId(), value as string)] : []),
+              nameplateOp(by, api.relatorioId, block.id, field.key, value),
+              discardSuggestionOp(by, s),
+            ],
       )
       .then((batch) => batch !== null)
       .catch(() => false);
@@ -145,10 +184,11 @@ export function useNameplateSuggestions({
     () => numberPhotos(tiles.map((tile) => ({ id: tile.id, kind: 'photo', removed_at: null, captured_at: tile.captured_at, local_seq: tile.local_seq }))),
     [tiles],
   );
-  const [viewing, setViewing] = useState<{ photoId: string; zoom: SuggestionRow['source']['bbox'] | null } | null>(null);
-  const openCrop = (s: SuggestionCrop) => {
-    if (tiles.some((tile) => tile.id === s.source.photo_id)) setViewing({ photoId: s.source.photo_id, zoom: s.source.bbox });
+  const [viewing, setViewing] = useState<{ photoId: string; zoom: NormalizedBox | null } | null>(null);
+  const openPhoto = (photoId: string, zoom: NormalizedBox | null = null) => {
+    if (tiles.some((tile) => tile.id === photoId)) setViewing({ photoId, zoom });
   };
+  const openCrop = (s: SuggestionCrop) => openPhoto(s.source.photo_id, s.source.bbox);
   const remove = (tile: PhotoTile) => {
     if (db === null || api.author === null) return;
     const author = api.author;
@@ -181,7 +221,11 @@ export function useNameplateSuggestions({
 
   const sourceOf = (id: string) => rows.find((row) => row.id === id) ?? snapshot.suggestions.find((row) => row.id === id) ?? null;
 
-  return { entries, counts, sourceOf, confirm, confirmAll, type, openCrop, viewer };
+  // "da foto 3": the group's suggestions all came from one photo this device numbers.
+  const sources = new Set(list.filter((entry) => entry.view !== 'none').map((entry) => entry.suggestion.source.photo_id));
+  const photoNumber = sources.size === 1 ? (numbers.get([...sources][0]!) ?? null) : null;
+
+  return { entries, counts, sourceOf, confirm, confirmAll, type, openCrop, openPhoto, viewer, pending, tiles, numbers, photoNumber, createsEntry };
 }
 
 /** The group head: the note and "Confirmar todos (N)", the button only while N > 0. */
@@ -189,7 +233,7 @@ export function SuggestionGroupHead({ model }: { model: NameplateSuggestionsMode
   const { counts } = model;
   return (
     <div className="suggestion-group-head">
-      <p className="section-note">{suggestionGroupNoteText(counts.shown, counts.verify)}</p>
+      <p className="section-note">{suggestionGroupNoteText(counts.shown, counts.verify, model.photoNumber)}</p>
       {counts.confirmable > 0 ? (
         <button type="button" className="btn btn-secondary" onClick={model.confirmAll}>
           <svg className="ico" aria-hidden="true">
@@ -268,6 +312,7 @@ export function SuggestionFill({ model, field, suggestion }: { model: NameplateS
         labelId={labelId}
         state={suggestion.trust === 'verify' ? 'verify' : 'suggested'}
         announcement={suggestionAnnouncement(suggestion.trust, valueText)}
+        {...(model.createsEntry(suggestion) ? { confirmLabel: criarText(suggestion.hint!.create_registry_entry.name) } : {})}
         combobox={COMBOBOX_KINDS.has(field.kind)}
         valueClassName={isNumber ? 'measurement-field' : 'input'}
         bare

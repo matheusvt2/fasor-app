@@ -125,9 +125,9 @@ test('@p0 5.1-E2E-005 a tree row opens the sheet: App bar TAG, header, stepper w
   await expect(stepper(page).getByRole('button', { name: /^Verificações,/ })).toHaveAttribute('aria-current', 'step');
   await expect(page.getByRole('heading', { name: 'Verificações gerais' })).toBeInViewport();
 
-  // The empty plate shows its fields from the start (Story 12.4, D-6: no "Digitar", and no
-  // photo tile before Epic 8).
-  await expect(page.getByText('Fotografar placa')).toHaveCount(0);
+  // The empty plate shows its fields from the start (Story 12.4, D-6: no "Digitar"); Story
+  // 8.2's "Fotografar placa" tile sits above them, never in their place.
+  await expect(page.locator('#ficha-nameplate .camera-group .camera-capture-tile')).toHaveText('Fotografar placa');
   await expect(page.getByRole('button', { name: 'Digitar' })).toHaveCount(0);
   for (const f of PARA_RAIO.nameplate) await expect(field(page, f.key)).toBeVisible();
 

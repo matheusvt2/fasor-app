@@ -641,3 +641,20 @@ input.count { width: 40px; padding: 0; border: 0; background: transparent; color
 .ficha-suggestion-confirmed { display: flex; align-items: flex-end; min-width: 0; }
 .ficha-suggestion-confirmed > :first-child { flex: 1; min-width: 0; }
 .ficha-suggestion-confirmed[data-state="confirmed"] > .crop-thumb { margin-bottom: calc((var(--touch-field) - 24px) / 2); }
+
+/* Stories 8.2 and 8.6, the plate photo above the nameplate (`60-ficha.html` lines ~313-328,
+   `components.css` `.plate-crop`, `.photo-row`). */
+/* authored: the plate crop is `role="img"` (the mock's `.plate-crop`) inside a plain button that opens the
+   Photo viewer; the button draws nothing of its own and takes the mock's full width. */
+.plate-crop-open { display: block; width: 100%; padding: 0; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; margin-bottom: var(--sp-3); }
+.plate-crop-open > .plate-crop { display: block; container-type: size; }
+/* authored: the read region of the picture, fitted inside `.plate-crop` keeping its aspect (the component
+   sets `--plate-crop-ratio` once the picture's size is known); until then it fills the box over the
+   mock's `.thumb-fake`. The image is placed by the component so the region fills the view. */
+.plate-crop .plate-crop-view { position: absolute; inset: 0; margin: auto; width: 100%; height: 100%; overflow: hidden; }
+.plate-crop .plate-crop-view[data-fitted] { width: min(100cqw, calc(100cqh * var(--plate-crop-ratio))); height: min(100cqh, calc(100cqw / var(--plate-crop-ratio))); }
+.plate-crop .plate-crop-view img { position: absolute; max-width: none; }
+.plate-crop .plate-crop-view img[hidden] { display: none; }
+/* authored: the plate photo's row sits between the chips and the fields (`60-ficha.html` "queued"). */
+.ficha-np-photo { margin-bottom: var(--sp-2); }
+.ficha-np-photo .photo-tile { flex: none; padding: 0; border: 0; background: none; cursor: pointer; }

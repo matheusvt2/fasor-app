@@ -5,14 +5,15 @@ import { BLOCK_1_ID, COMPANY_ID, READING_RUN_ID, PHOTO_ID, RELATORIO_ID, replayS
 import { describe, expect, it } from 'vitest';
 import { commitBatch } from './commit.ts';
 import { openDatabase, type AppDatabase } from './schema.ts';
-import { autoConfirmPulled } from './suggestion-store.ts';
+import { autoConfirmPending, readingCountRows } from './suggestion-store.ts';
 import { applyPulled } from './sync-store.ts';
 
 /*
- * 8.1-UNIT: the device auto-confirm after a pull. A pulled suggestion create whose
- * nameplate target holds an equal value is confirmed once, as the signed-in user, with
- * `meta.auto`; a different value, an empty target, a row no longer pending, another
- * company's op or an issued relatório are left alone.
+ * 8.1/8.2-UNIT: the device auto-confirm sweep after a pull. A local pending suggestion whose
+ * nameplate target holds an equal value -- typed first, or written later by any path (a copy
+ * chip) -- is confirmed once, as the signed-in user, with `meta.auto`; a different value, an
+ * empty target, a row no longer pending, a removed block or an issued relatório are left
+ * alone, and a sweep whose commit threw takes the row again the next time.
  */
 
 let userCounter = 0;
@@ -102,7 +103,7 @@ async function block(db: AppDatabase): Promise<BlockRow> {
   return (await db.entities.get(['block', BLOCK_1_ID]))!.row as BlockRow;
 }
 
-describe('8.1-UNIT autoConfirmPulled', () => {
+describe('8.1/8.2-UNIT autoConfirmPending', () => {
   it('confirms an equal suggestion on a filled field once, with meta.auto, and leaves different and empty targets pending', async () => {
     const db = await freshDb();
     await seed(db);
@@ -114,7 +115,7 @@ describe('8.1-UNIT autoConfirmPulled', () => {
     const pulled = [equal, different, empty];
     await applyPulled(db, pulled);
 
-    expect(await autoConfirmPulled(db, pulled, AUTHOR, deps())).toEqual([(equal.value as SuggestionRow).id]);
+    expect(await autoConfirmPending(db, AUTHOR, deps())).toEqual([(equal.value as SuggestionRow).id]);
 
     const outbox = (await db.outbox.toArray()).filter((row) => row.meta?.auto === true);
     expect(outbox.map((row) => [row.path, row.value])).toEqual([
@@ -129,21 +130,56 @@ describe('8.1-UNIT autoConfirmPulled', () => {
     expect(((await db.entities.get(['suggestion', (different.value as SuggestionRow).id]))!.row as SuggestionRow).status).toBe('pending');
     expect(((await db.entities.get(['suggestion', (empty.value as SuggestionRow).id]))!.row as SuggestionRow).status).toBe('pending');
 
-    // The same pull seen again confirms nothing: the row is no longer pending.
-    expect(await autoConfirmPulled(db, pulled, AUTHOR, deps())).toEqual([]);
+    // A second sweep confirms nothing: the row is no longer pending.
+    expect(await autoConfirmPending(db, AUTHOR, deps())).toEqual([]);
     db.close();
   });
 
-  it('skips another company op and an issued relatório', async () => {
+  it('skips an issued relatório and a removed block', async () => {
     const db = await freshDb();
     await seed(db);
     await type(db, 'fabricacao', 'WEG S.A.');
     const equal = serverSuggestion('fabricacao', 'WEG S.A.');
     await applyPulled(db, [equal]);
-    expect(await autoConfirmPulled(db, [equal], { id: USER_ID, companyId: '019966b0-0089-7000-8000-000000000001' }, deps())).toEqual([]);
     const record = (await db.entities.get(['relatorio', RELATORIO_ID]))!;
     await db.entities.put({ ...record, row: { ...record.row, status: 'emitido' } as never });
-    expect(await autoConfirmPulled(db, [equal], AUTHOR, deps())).toEqual([]);
+    expect(await autoConfirmPending(db, AUTHOR, deps())).toEqual([]);
+    await db.entities.put(record);
+    const blockRecord = (await db.entities.get(['block', BLOCK_1_ID]))!;
+    await db.entities.put({ ...blockRecord, row: { ...blockRecord.row, removed_at: '2026-09-26T17:00:00.000Z' } as never });
+    expect(await autoConfirmPending(db, AUTHOR, deps())).toEqual([]);
+    db.close();
+  });
+
+  it('confirms a suggestion whose target a copy chip later filled with an equal value, and retries after a thrown commit', async () => {
+    const db = await freshDb();
+    await seed(db);
+    const pulled = serverSuggestion('n_serie', 'SU1240998');
+    await applyPulled(db, [pulled]);
+    const id = (pulled.value as SuggestionRow).id;
+    // An empty target: a fill, left for the engineer's tap.
+    expect(await autoConfirmPending(db, AUTHOR, deps())).toEqual([]);
+    // A copy chip writes the same value (no suggestion meta): now equal.
+    await type(db, 'n_serie', 'SU1240998');
+    // The commit throws once (the id source fails): nothing is written, the row stays pending.
+    const failing = { ...deps(), newId: () => {
+      throw new Error('storage refused');
+    } };
+    await expect(autoConfirmPending(db, AUTHOR, failing)).rejects.toThrow('storage refused');
+    expect(((await db.entities.get(['suggestion', id]))!.row as SuggestionRow).status).toBe('pending');
+    // The next sweep takes it again.
+    expect(await autoConfirmPending(db, AUTHOR, deps())).toEqual([id]);
+    expect((await block(db)).sheet.nameplate.n_serie).toMatchObject({ value: 'SU1240998', source_suggestion_id: id });
+    db.close();
+  });
+
+  it('reads the suggestion statuses and the live photo readings for the Sync status counts', async () => {
+    const db = await freshDb();
+    await seed(db);
+    await applyPulled(db, [serverSuggestion('n_serie', 'A'), serverSuggestion('tipo', 'B', { status: 'confirmed' })]);
+    const rows = await readingCountRows(db);
+    expect(rows.suggestions.map((row) => row.status).sort()).toEqual(['other', 'pending']);
+    expect(rows.photos).toEqual([]);
     db.close();
   });
 });

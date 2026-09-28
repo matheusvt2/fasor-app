@@ -1,6 +1,22 @@
-import { buildSnapshot, getDefinition, isEquipmentBlock, locationPathText, pendingSuggestions, shownSheetSteps, suggestionRowsOf, type BlockDefinition, type BlockRow, type EntityState, type RelatorioSnapshot } from '@app/domain';
+import {
+  buildSnapshot,
+  getDefinition,
+  isEquipmentBlock,
+  locationPathText,
+  pendingSuggestions,
+  shownSheetSteps,
+  sugestoesProntasBannerText,
+  suggestionGroupCounts,
+  suggestionRowsOf,
+  type BlockDefinition,
+  type BlockRow,
+  type EntityState,
+  type RelatorioSnapshot,
+} from '@app/domain';
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router';
+import type { Banner } from '../../state/banner-slot.tsx';
+import { useExtraBanner } from '../../state/extra-banner.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { useHeldWhilePressed } from '../../input/press-hold.ts';
 import { RelatorioGate } from '../relatorio/relatorio-gate.tsx';
@@ -112,6 +128,14 @@ function FichaBody({
   // Story 8.1: the rail's counters read the device's pending suggestion rows, as the Sumário's do.
   const pending = useMemo(() => pendingSuggestions(suggestionRowsOf(state, relatorioId)), [state, relatorioId]);
   const observations = typeof block.sheet.observations?.value === 'string' ? block.sheet.observations.value : null;
+  // Story 8.2 (EXPERIENCE.md › Reading arrived): a sheet holding suggestions to confirm says so
+  // in the one banner slot, "Sugestões prontas — N campos para confirmar".
+  const shownSuggestions = useMemo(() => suggestionGroupCounts(block, pending, registries.manufacturer).shown, [block, pending, registries.manufacturer]);
+  const banner = useMemo<Banner | null>(
+    () => (shownSuggestions === 0 ? null : { kind: 'suggestions-ready', variant: 'info', role: 'region', text: sugestoesProntasBannerText(shownSuggestions) }),
+    [shownSuggestions],
+  );
+  useExtraBanner(banner);
 
   return (
     <>
