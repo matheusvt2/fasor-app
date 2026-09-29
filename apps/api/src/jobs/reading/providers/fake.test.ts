@@ -164,8 +164,6 @@ describe('9.1-API the default fixture is chosen by kind, block type and table, m
     expect(defaultFixtureFor(plate('transformador_forca'))).toBe(SHA.plate);
     expect(defaultFixtureFor(plate('chave_seccionadora'))).toBeUndefined();
     // A display default never serves a plate, nor a plate default a display.
-    // A kind with no handler yet (Story 9.2's panel) has no default at all.
-    expect(defaultFixtureFor({ reading_kind: 'panel', block_type: null, table_key: null })).toBeUndefined();
     for (const sha of Object.values(SHA)) expect(readdirSync(DEFAULT_FIXTURES_DIR)).toContain(`${sha}.json`);
   });
 

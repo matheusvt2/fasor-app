@@ -285,12 +285,6 @@ describe('9.1-INT the display reading kind', () => {
       await expectPermanent(gone, 'target cabine was removed');
     }, 60_000);
 
-    it('a kind the job does not read yet ends failed (every queued kind is sent)', async () => {
-      const { relatorioId, blocks } = await relatorio();
-      const chave = blocks.find((b) => b.block_type === 'chave_seccionadora')!;
-      // Stories 9.3/9.5 read caption and nc_obs: the kind not read yet is Story 9.2's panel.
-      const id = await photo(relatorioId, chave.id, await shot('display-isolacao'), null, 'panel');
-      await expectPermanent(id, 'reading kind panel is not read yet', 'panel');
-    }, 60_000);
+    // Since Stories 9.2, 9.3 and 9.5 every reading kind has a handler: no kind is "not read yet".
   });
 });
