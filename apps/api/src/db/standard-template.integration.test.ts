@@ -194,6 +194,52 @@ describe('seedStandardTemplate', () => {
       await dropCompany(db, companyId);
     }
   }, 30_000);
+
+  it('seeds no second template once the seeded one was renamed', async () => {
+    const companyId = newId();
+    try {
+      await seedUser(db, auth, {
+        companyId,
+        companyName: 'Empresa Renomeada',
+        email: `template-renomeado-${companyId}@teste.local`,
+        password: TEST_SEED.password,
+        name: 'Rena Renomeada',
+        council: 'crea',
+        registrationNumber: 'SP 10',
+      });
+      const first = await seedStandardTemplate(db, asCompanyId(companyId));
+      await applyServer(companyId, [{ kind: 'put', path: `template/${first}/name`, value: 'Cabine da casa' }]);
+      const before = (await templateOps(companyId)).length;
+
+      expect(await seedStandardTemplate(db, asCompanyId(companyId))).toBeNull();
+      expect(await templateOps(companyId)).toHaveLength(before);
+      const live = (await templates(companyId)).filter((t) => t.removed_at === null);
+      expect(live.map((t) => (t.row as { name: string }).name)).toEqual(['Cabine da casa']);
+    } finally {
+      await dropCompany(db, companyId);
+    }
+  }, 30_000);
+
+  it('creates one template when two runs race on one company', async () => {
+    const companyId = newId();
+    try {
+      await seedUser(db, auth, {
+        companyId,
+        companyName: 'Empresa Concorrente',
+        email: `template-corrida-${companyId}@teste.local`,
+        password: TEST_SEED.password,
+        name: 'Cora Corrida',
+        council: 'crea',
+        registrationNumber: 'SP 11',
+      });
+      const ids = await Promise.all([1, 2, 3].map(() => seedStandardTemplate(db, asCompanyId(companyId))));
+      expect(ids.filter((id) => id !== null)).toHaveLength(1);
+      expect((await templates(companyId)).filter((t) => t.removed_at === null)).toHaveLength(1);
+      expect((await templateCreates(companyId)).filter((op) => op.kind === 'create')).toHaveLength(1);
+    } finally {
+      await dropCompany(db, companyId);
+    }
+  }, 30_000);
 });
 
 describe('seedStandardTemplate on a database seeded before the current seed version (E12-Q4)', () => {

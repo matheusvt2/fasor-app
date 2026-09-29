@@ -11,11 +11,11 @@ import {
   type Council,
   type UserRow,
 } from '@app/domain';
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import type { Auth } from '../auth/auth.ts';
 import { now } from '../clock.ts';
 import { newId } from '../ids.ts';
-import { applyOps, applyServerBatch, type Tx } from '../sync/apply.ts';
+import { applyServerBatch, ServerBatchRejectedError, type Tx } from '../sync/apply.ts';
 import type { Db } from './client.ts';
 import { ensureCompany } from './repositories/companies.ts';
 import { asCompanyId, type CompanyId } from './repositories/company-id.ts';
@@ -100,29 +100,61 @@ function provisioningEnvelope(companyId: CompanyId) {
  * run (a re-seed, which is also the password reset) puts only the identity-owned `name`,
  * and only when it changed: after the first projection the registration belongs to the
  * user, who edits it through their own ops, so a re-seed never writes it back. Every op
- * is a server op (`system:identity`, device `server`) with a fresh id; a second create
- * racing the first is a no-op (AD-3).
+ * is a server op (`system:identity`, device `server`) with a fresh id.
+ *
+ * The decision is taken outside the lock, then checked again under it (the batch's
+ * `before`): two seeds racing on a fresh company would otherwise both decide "create" and
+ * log two creates. A decision the lock shows stale is recomputed once from the row the
+ * other seed wrote.
  */
 async function projectUser(db: Db, companyId: CompanyId, row: UserRow): Promise<void> {
-  const [existing] = await db
-    .select({ row: entities.row })
-    .from(entities)
-    .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'user'), eq(entities.id, row.id)))
-    .limit(1);
-  const envelope = provisioningEnvelope(companyId);
-  const ops: unknown[] = [];
-  if (existing === undefined) {
-    ops.push({ ...envelope, op_id: newId(), kind: 'create', path: `user/${row.id}`, value: row });
-  } else {
-    const current = existing.row as Partial<UserRow>;
-    if (current.name !== row.name) {
-      ops.push({ ...envelope, op_id: newId(), kind: 'put', path: `user/${row.id}/name`, value: row.name });
+  const decide = async (reader: Db | Tx) => {
+    const [existing] = await reader
+      .select({ row: entities.row })
+      .from(entities)
+      .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'user'), eq(entities.id, row.id)))
+      .limit(1);
+    return projectionDecision(existing?.row as Partial<UserRow> | undefined, row);
+  };
+  for (let attempt = 1; ; attempt++) {
+    const decision = await decide(db);
+    if (decision === 'none') return;
+    const envelope = provisioningEnvelope(companyId);
+    const op =
+      decision === 'create'
+        ? { ...envelope, op_id: newId(), kind: 'create', path: `user/${row.id}`, value: row }
+        : { ...envelope, op_id: newId(), kind: 'put', path: `user/${row.id}/name`, value: row.name };
+    try {
+      await applyServerBatch(db, companyId, [op], {
+        now,
+        before: async (tx: Tx) => {
+          if ((await decide(tx)) !== decision) throw new ProjectionChanged();
+        },
+      });
+      return;
+    } catch (error) {
+      if (error instanceof ProjectionChanged) {
+        if (attempt === 1) continue;
+        throw new Error(`could not project user ${row.id}: another seed changed its projection twice while this one ran`, { cause: error });
+      }
+      if (error instanceof ServerBatchRejectedError) {
+        throw new Error(`could not project user ${row.id}: ${error.rejected[0]?.code ?? 'op_invalid'}`, { cause: error });
+      }
+      throw error;
     }
   }
-  if (ops.length === 0) return;
-  const result = await applyOps(db, companyId, ops, { now, origin: 'server' });
-  const rejected = result.rejected[0];
-  if (rejected !== undefined) throw new Error(`could not project user ${row.id}: ${rejected.code}`);
+}
+
+/** Thrown under the company lock when another seed changed the user's projection first. */
+class ProjectionChanged extends Error {}
+
+/**
+ * What a seed writes for one user: a create when the company stream holds no `user/{id}`
+ * row, a `name` put when the identity-owned name changed, else nothing.
+ */
+function projectionDecision(current: Partial<UserRow> | undefined, row: UserRow): 'create' | 'name' | 'none' {
+  if (current === undefined) return 'create';
+  return current.name !== row.name ? 'name' : 'none';
 }
 
 /**
@@ -226,8 +258,9 @@ export async function seedUser(
  * op log like every other row -- one server `template/{id}` create (`system:identity`)
  * whose value is the kernel's `standardTemplate`, the same builder the Templates
  * surface's empty state commits from a device. Idempotent: a company that already holds
- * a live template of that name gets nothing, so a second run adds no op. Returns the id
- * of the template it created, or null.
+ * a live seeded template (`seededTemplate`, renamed or not) gets nothing, so a second run
+ * adds no op, and the check is repeated under the company lock, so two concurrent runs
+ * create one. Returns the id of the template it created, or null.
  *
  * E12-Q4: a company seeded before the current `SEED_VERSION` holds its standard template at
  * the older version. When nobody has edited it (`version` still the seeded 1), the seed moves
@@ -235,20 +268,13 @@ export async function seedUser(
  * keeps its version (AR-20), and so does every relatório already made from it.
  */
 export async function seedStandardTemplate(db: Db, companyId: CompanyId): Promise<string | null> {
-  const [existing] = await db
-    .select({ id: entities.id, row: entities.row })
-    .from(entities)
-    .where(
-      and(
-        eq(entities.company_id, companyId),
-        eq(entities.entity, 'template'),
-        isNull(entities.removed_at),
-        sql`${entities.row}->>'name' = ${STANDARD_TEMPLATE_NAME}`,
-      ),
-    )
-    .limit(1);
+  const existing = await seededTemplate(db, companyId);
   if (existing !== undefined) {
-    await upgradeStandardTemplate(db, companyId, existing.id, existing.row as { seed_version?: unknown; version?: unknown });
+    // Only the template still named as the standard one is a candidate for the upgrade; a
+    // renamed one was edited (its version moved past 1) and keeps its seed (AR-20).
+    if (existing.named) {
+      await upgradeStandardTemplate(db, companyId, existing.id, existing.row as { seed_version?: unknown; version?: unknown });
+    }
     return null;
   }
   const id = newId();
@@ -259,10 +285,61 @@ export async function seedStandardTemplate(db: Db, companyId: CompanyId): Promis
     path: `template/${id}`,
     value: standardTemplate({ id }),
   };
-  const result = await applyOps(db, companyId, [op], { now, origin: 'server' });
-  const rejected = result.rejected[0];
-  if (rejected !== undefined) throw new Error(`could not seed the standard template: ${rejected.code}`);
+  try {
+    // The existence check again under the company lock: two runs racing on one company
+    // would otherwise both see none and both create one.
+    await applyServerBatch(db, companyId, [op], {
+      now,
+      before: async (tx: Tx) => {
+        if ((await seededTemplate(tx, companyId)) !== undefined) throw new AlreadySeeded();
+      },
+    });
+  } catch (error) {
+    if (error instanceof AlreadySeeded) return null;
+    if (error instanceof ServerBatchRejectedError) {
+      throw new Error(`could not seed the standard template: ${error.rejected[0]?.code ?? 'op_invalid'}`, { cause: error });
+    }
+    throw error;
+  }
   return id;
+}
+
+/** Thrown under the company lock when another run seeded the template first. */
+class AlreadySeeded extends Error {}
+
+/**
+ * The company's live seeded template: one named as the standard template, or any live
+ * template carrying a `seed_version`, so a renamed seeded template still counts and a re-run
+ * does not seed a second one. The name match is preferred. `templateRowSchema` requires
+ * `seed_version` on every template, so any live template counts: the rule the Templates
+ * surface's empty state follows, which offers the standard template only to a company that
+ * holds none.
+ */
+async function seededTemplate(
+  reader: Db | Tx,
+  companyId: CompanyId,
+): Promise<{ id: string; row: unknown; named: boolean } | undefined> {
+  const [row] = await reader
+    .select({
+      id: entities.id,
+      row: entities.row,
+      named: sql<boolean>`coalesce(${entities.row}->>'name' = ${STANDARD_TEMPLATE_NAME}, false)`,
+    })
+    .from(entities)
+    .where(
+      and(
+        eq(entities.company_id, companyId),
+        eq(entities.entity, 'template'),
+        isNull(entities.removed_at),
+        or(
+          sql`${entities.row}->>'name' = ${STANDARD_TEMPLATE_NAME}`,
+          sql`${entities.row}->>'seed_version' is not null`,
+        ),
+      ),
+    )
+    .orderBy(sql`(${entities.row}->>'name' = ${STANDARD_TEMPLATE_NAME}) desc`, entities.id)
+    .limit(1);
+  return row;
 }
 
 /** Thrown inside the batch's lock when the template no longer needs the upgrade: rolls back, then skipped. */
@@ -325,13 +402,19 @@ function needsUpgrade(row: { seed_version?: unknown; version?: unknown }): boole
   return row.seed_version !== SEED_VERSION && row.version === 1;
 }
 
-/** Removes every session of one user of this company, so a password reset takes effect. */
+/**
+ * Removes every session of one user of this company, so a password reset takes effect. A
+ * session row with no `company_id` (inserted outside better-auth's hook, which stamps it)
+ * belongs to no company, so it goes too: filtering on the company alone would let it live on.
+ */
 export async function revokeSessions(
   db: Db,
   companyId: CompanyId,
   userId: string,
 ): Promise<void> {
-  await db.delete(session).where(and(eq(session.companyId, companyId), eq(session.userId, userId)));
+  await db
+    .delete(session)
+    .where(and(eq(session.userId, userId), or(eq(session.companyId, companyId), isNull(session.companyId))));
 }
 
 /**

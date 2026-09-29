@@ -55,6 +55,14 @@ export function QuantityStepper({ value, label, onCommit, isDisabled = false, di
   /** The last quantity sent to `onCommit`, and how many of those writes are still in flight. */
   const target = useRef<number | null>(null);
   const inFlight = useRef(0);
+  /**
+   * While writes are in flight: the row's value when the first of them started, and every
+   * quantity this stepper sent. A row value that is neither, once the last write settles,
+   * was pulled meanwhile -- the value effect held it back, and nothing re-runs that effect
+   * when the row settles on it without another change.
+   */
+  const flightStart = useRef<number | null>(null);
+  const sent = useRef(new Set<number>());
   /** A stepping key (Enter, Space, an arrow) is down: its steps wait for the key's release. */
   const keyHeld = useRef(false);
   const keyPending = useRef(false);
@@ -85,18 +93,32 @@ export function QuantityStepper({ value, label, onCommit, isDisabled = false, di
     (n: number) => {
       if (n === (target.current ?? valueRef.current)) return;
       target.current = n;
+      if (inFlight.current === 0) flightStart.current = valueRef.current;
+      sent.current.add(n);
       inFlight.current += 1;
+      /** The flight is over: a value pulled meanwhile that the row still holds is the count. */
+      const land = () => {
+        if (inFlight.current > 0) return;
+        const pulled = valueRef.current !== flightStart.current && !sent.current.has(valueRef.current);
+        flightStart.current = null;
+        sent.current.clear();
+        if (!pulled || press.current?.armed) return;
+        target.current = null;
+        show(valueRef.current);
+      };
       void Promise.resolve()
         .then(() => onCommit(n))
         .then(
           () => {
             inFlight.current -= 1;
             setAnnouncement(label(n));
+            land();
           },
           () => {
             inFlight.current -= 1;
             target.current = null;
             show(valueRef.current);
+            land();
           },
         );
     },

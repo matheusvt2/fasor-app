@@ -42,7 +42,7 @@ interface ResponseSchema<T> {
  */
 export type SyncFailure =
   | { kind: 'network' }
-  | { kind: 'http'; status: number; code?: string }
+  | { kind: 'http'; status: number; code?: string; details?: unknown }
   | { kind: 'apply' };
 
 function describe(failure: SyncFailure): string {
@@ -139,6 +139,8 @@ export function createSyncClient(deps: { fetch: FetchLike }): SyncClient {
         kind: 'http',
         status: response.status,
         ...(envelope.success ? { code: envelope.data.code } : {}),
+        // E9 sweep B14: what a 409 says is missing, parsed by the caller that needs it.
+        ...(envelope.success && envelope.data.details !== undefined ? { details: envelope.data.details } : {}),
       });
     }
     const parsed = schema.safeParse(json);

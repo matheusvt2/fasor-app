@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -60,5 +61,54 @@ describe('FilterChipGroup', () => {
     expect(screen.getAllByRole('radio').filter((radio) => (radio as HTMLElement).getAttribute('aria-checked') === 'true')).toHaveLength(0);
     await userEvent.click(screen.getByRole('radio', { name: 'Cubículo Enel' }));
     expect(onChange).toHaveBeenCalledWith('enel');
+  });
+
+  it('B3: arrows, Home and End move focus and selection together, wrapping (APG radiogroup)', async () => {
+    const three = [...options, { id: 'cpfl', label: 'Cubículo CPFL' }];
+    const onChange = vi.fn();
+    function Controlled() {
+      const [selected, setSelected] = useState<string | null>('all');
+      return (
+        <FilterChipGroup
+          options={three}
+          selectedId={selected}
+          onChange={(id) => {
+            onChange(id);
+            setSelected(id);
+          }}
+          aria-label="Filtrar por cabine"
+        />
+      );
+    }
+    render(<Controlled />);
+    const radio = (name: string) => screen.getByRole('radio', { name });
+    const expectOn = (name: string) => {
+      expect(radio(name)).toHaveFocus();
+      expect(radio(name)).toBeChecked();
+      for (const other of three.filter((o) => o.label !== name)) expect(radio(other.label)).not.toBeChecked();
+    };
+    // One tab stop: the checked chip.
+    await userEvent.tab();
+    expectOn('Todas');
+    expect(radio('Cubículo Enel')).toHaveAttribute('tabindex', '-1');
+    await userEvent.keyboard('{ArrowRight}');
+    expectOn('Cubículo Enel');
+    await userEvent.keyboard('{ArrowDown}');
+    expectOn('Cubículo CPFL');
+    await userEvent.keyboard('{ArrowRight}');
+    expectOn('Todas');
+    await userEvent.keyboard('{ArrowLeft}');
+    expectOn('Cubículo CPFL');
+    await userEvent.keyboard('{Home}');
+    expectOn('Todas');
+    await userEvent.keyboard('{End}');
+    expectOn('Cubículo CPFL');
+    await userEvent.keyboard('{ArrowUp}');
+    expectOn('Cubículo Enel');
+    expect(onChange.mock.calls.map(([id]) => id)).toEqual(['enel', 'cpfl', 'all', 'cpfl', 'all', 'cpfl', 'enel']);
+    // Other keys change nothing.
+    await userEvent.keyboard('{Tab}');
+    expect(radio('Cubículo Enel')).toBeChecked();
+    expect(onChange).toHaveBeenCalledTimes(7);
   });
 });

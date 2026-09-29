@@ -118,7 +118,12 @@ describe('sync client failures', () => {
     expect(await createSyncClient({ fetch: async () => json(unchanged) }).generate('r', body)).toEqual(unchanged);
 
     const barrier = createSyncClient({ fetch: async () => json({ code: 'not_caught_up', message: 'x', details: { missing_op: true, missing_files: [] } }, 409) });
-    expect(await failureOf(barrier.generate('r', body))).toEqual({ kind: 'http', status: 409, code: 'not_caught_up' });
+    expect(await failureOf(barrier.generate('r', body))).toEqual({
+      kind: 'http',
+      status: 409,
+      code: 'not_caught_up',
+      details: { missing_op: true, missing_files: [] },
+    });
 
     expect(revisionDocxUrl('019966c1-0000-7000-8000-0000000000a1')).toBe('/api/revisions/019966c1-0000-7000-8000-0000000000a1/docx');
   });

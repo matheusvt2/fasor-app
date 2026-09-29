@@ -382,6 +382,18 @@ describe('batch and undo', () => {
     db.close();
   });
 
+  it('chains two overlapping commits on one path: the second names the first (B2)', async () => {
+    const db = await freshDb();
+    const d = deps();
+    const [first, second] = await Promise.all([
+      commitBatch(db, [put(FIELD, 'WEG')], d),
+      commitBatch(db, [put(FIELD, 'Siemens')], d),
+    ]);
+    expect(first.ops[0]!.prev_op_id).toBeNull();
+    expect(second.ops[0]!.prev_op_id).toBe(first.ops[0]!.op_id);
+    db.close();
+  });
+
   it('skips dead rows of the batch: the server never applied them', async () => {
     const db = await freshDb();
     await seed(db);

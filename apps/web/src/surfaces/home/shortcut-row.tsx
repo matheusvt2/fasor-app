@@ -1,9 +1,10 @@
-import { CADASTROS_SUBLINE, templatesSubline } from '@app/domain';
+import { CADASTROS_SUBLINE, templatesSubline, type TemplateRow } from '@app/domain';
 import { Link } from 'react-router';
 import { copy } from '../../copy/pt-br.ts';
 
 export interface ShortcutRowProps {
-  templateCount: number;
+  /** The templates on this device; the kernel counts the live, not archived ones. */
+  templates: readonly TemplateRow[];
 }
 
 /**
@@ -11,7 +12,7 @@ export interface ShortcutRowProps {
  * sub-line and never a badge or a dot (UX-DR64). Templates opens the Templates surface
  * (Story 3.2); Cadastros opens the Registries surface (Story 2.1).
  */
-export function ShortcutRow({ templateCount }: ShortcutRowProps) {
+export function ShortcutRow({ templates }: ShortcutRowProps) {
   return (
     <div className="shortcut-row">
       <Link className="shortcut-card" to="/templates">
@@ -20,7 +21,7 @@ export function ShortcutRow({ templateCount }: ShortcutRowProps) {
         </svg>
         <span>
           {copy.home.templates}
-          <span className="shortcut-sub">{templatesSubline(templateCount)}</span>
+          <span className="shortcut-sub">{templatesSubline(templates)}</span>
         </span>
         <svg className="ico chev" aria-hidden="true">
           <use href="/sprite.svg#i-chev-right" />

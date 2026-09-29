@@ -32,6 +32,14 @@ export const SECTION_VARIABLE_LABELS: Readonly<Record<SectionVariable, string>> 
  */
 export const INSERTABLE_SECTION_VARIABLES: readonly SectionVariable[] = ['cliente', 'obra', 'datas', 'empresa_executora', 'responsavel'];
 
+/**
+ * The words of a variable's chip in the editor's "Inserir dado do relatório" row: its
+ * printed name in lower case ("cliente", "empresa executora"), as the mock draws them.
+ */
+export function sectionVariableChipLabel(name: SectionVariable): string {
+  return SECTION_VARIABLE_LABELS[name].toLocaleLowerCase('pt-BR');
+}
+
 export function isSectionVariable(name: string): name is SectionVariable {
   return (SECTION_VARIABLES as readonly string[]).includes(name);
 }

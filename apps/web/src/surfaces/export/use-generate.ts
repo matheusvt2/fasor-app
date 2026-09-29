@@ -5,6 +5,8 @@ import {
   jobExpiresAt,
   latestRevision,
   nextRevisionNumber,
+  notCaughtUpDetailsSchema,
+  notCaughtUpRetryable,
   putRelatorioStatusOp,
   statusTable,
   toIso,
@@ -17,7 +19,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { now } from '../../clock.ts';
 import { commitBatch } from '../../db/commit.ts';
-import { pendingUploadCount } from '../../db/file-store.ts';
+import { pendingUploadCount, pendingUploads } from '../../db/file-store.ts';
 import {
   lastOpIdFor,
   relatorioRow,
@@ -55,7 +57,11 @@ export type GeneratePhase =
   | { kind: 'blocked' }
   | { kind: 'requesting'; number: number }
   | { kind: 'working'; number: number; jobId: string }
-  | { kind: 'failed' }
+  /**
+   * `missingFiles`: the server still misses that many files and no upload of this device
+   * will bring them (E9 sweep B14), so the request failed without retrying.
+   */
+  | { kind: 'failed'; missingFiles?: number }
   | {
       kind: 'ready';
       number: number;
@@ -311,8 +317,21 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
           }
           return;
         } catch (error) {
-          const notCaughtUp = error instanceof SyncRequestError && error.failure.kind === 'http' && error.failure.code === 'not_caught_up';
-          if (!notCaughtUp || ++attempts >= MAX_NOT_CAUGHT_UP_RETRIES) throw error;
+          const failure = error instanceof SyncRequestError && error.failure.kind === 'http' ? error.failure : null;
+          const notCaughtUp = failure?.code === 'not_caught_up';
+          if (!notCaughtUp) throw error;
+          // E9 sweep B14: files no upload of this device will bring keep the barrier shut
+          // however often it is asked again, so the request fails at once and says so.
+          const details = notCaughtUpDetailsSchema.safeParse(failure?.details);
+          if (details.success) {
+            const uploads = await pendingUploads(db);
+            const pending = new Set(uploads.filter((item) => item.upload_error?.state !== 'dead').map((item) => item.id));
+            if (!notCaughtUpRetryable(details.data, pending)) {
+              if (mounted.current) setPhase({ kind: 'failed', missingFiles: details.data.missing_files.length });
+              return;
+            }
+          }
+          if (++attempts >= MAX_NOT_CAUGHT_UP_RETRIES) throw error;
           await sync.syncNow();
           await new Promise((resolve) => setTimeout(resolve, timing.retryMs));
           if (!mounted.current) return;

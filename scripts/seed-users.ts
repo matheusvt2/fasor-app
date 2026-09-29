@@ -6,6 +6,7 @@ import { loadConfig } from '../apps/api/src/config.ts';
 import { createDb } from '../apps/api/src/db/client.ts';
 import { migrate } from '../apps/api/src/db/migrate.ts';
 import { seedStandardTemplate, seedTestCompanies, seedUser, TEST_SEED } from '../apps/api/src/db/seed.ts';
+import { seedPortoSeguroSmall, SMALL_FIXTURE_RELATORIO_ID } from '../apps/api/src/db/test-fixtures.ts';
 import { newId } from '../apps/api/src/ids.ts';
 import { assertInCompose } from './test-reset.ts';
 
@@ -21,7 +22,7 @@ import { assertInCompose } from './test-reset.ts';
  *   docker compose run --rm tools pnpm exec tsx scripts/seed-users.ts \
  *     --company-id 019966b0-5b6d-7e7f-9a0b-1c2d3e4f5a6b --company "Acme Engenharia" --email a@acme.com \
  *     --password "..." --name "Ana Alves" --council crea --number "SP 1234" [--title "..."] \
- *     [--standard-template]
+ *     [--standard-template] [--sample-relatorio]
  *
  * The company id is a uuidv7 (AD-4): every op carries it, and the op schema accepts no
  * other shape, so a company provisioned under a v4 id could never sync. Leave
@@ -37,15 +38,26 @@ import { assertInCompose } from './test-reset.ts';
  * `--standard-template` also gives the company the seeded "Cabine primária — padrão"
  * template (Story 3.2), through one server op; a company that already holds it gets
  * nothing, so the flag is safe on every run. `--test` gives it to Empresa A only.
+ *
+ * `--sample-relatorio` also gives the company a relatório with data: the small Porto Seguro
+ * fixture (`packages/domain/fixtures/porto-seguro/small`), applied through the op log with
+ * the seeded user as its responsible. Its ids are fixed, so it lives in one company at a
+ * time: a run for another company moves it there, and a re-run for the same company puts it
+ * back as the fixture has it (any edit made on it is dropped). It is refused with `--test`,
+ * whose companies the automated suites reset. The automated suites (`test:api` and the e2e
+ * global setup) seed the same fixture, so a run of them deletes the sample from the
+ * developer's company outright, and a device that pulled it keeps stale rows of it.
  */
 
 const USAGE = `usage:
   seed-users --test
   seed-users [--company-id <uuidv7>] --company <name> --email <email> --password <password> \\
              --name <full name> --council <crea|crt> --number <registration number> [--title <printed title>] \\
-             [--standard-template]
+             [--standard-template] [--sample-relatorio]
   (the registration flags set a new user's initial values; a re-run resets the password and the name only;
-   --standard-template also seeds the company's "Cabine primária — padrão" template once)`;
+   --standard-template also seeds the company's "Cabine primária — padrão" template once;
+   --sample-relatorio also seeds the small Porto Seguro relatório, fixed ids, one company at a time;
+   test:api and the e2e setup reclaim it, deleting it from your company while devices keep stale rows)`;
 
 export function parseArgs(argv: string[]): Record<string, string | true> {
   const out: Record<string, string | true> = {};
@@ -103,10 +115,24 @@ export function resolveCompanyId(
  * before the database is opened.
  */
 export function wantsStandardTemplate(args: Record<string, string | true>): boolean {
-  const value = args['standard-template'];
+  return bareSwitch(args, 'standard-template');
+}
+
+/**
+ * Whether `--sample-relatorio` was given: a bare switch like `--standard-template`, and only
+ * for a named company (never with `--test`). Checked before the database is opened.
+ */
+export function wantsSampleRelatorio(args: Record<string, string | true>): boolean {
+  const wanted = bareSwitch(args, 'sample-relatorio');
+  if (wanted && args.test === true) throw new Error(`--sample-relatorio needs a named company, not --test\n${USAGE}`);
+  return wanted;
+}
+
+function bareSwitch(args: Record<string, string | true>, key: string): boolean {
+  const value = args[key];
   if (value === undefined) return false;
   if (value === true) return true;
-  throw new Error(`--standard-template takes no value, got "${value}"\n${USAGE}`);
+  throw new Error(`--${key} takes no value, got "${value}"\n${USAGE}`);
 }
 
 async function main(): Promise<void> {
@@ -121,6 +147,7 @@ async function main(): Promise<void> {
   // Checked before the database is opened: a refused company id writes nothing.
   const company = args.test === true ? null : resolveCompanyId(args);
   const standardTemplate = wantsStandardTemplate(args);
+  const sampleRelatorio = wantsSampleRelatorio(args);
   const config = loadConfig();
   const { sql, db } = createDb(config.DATABASE_URL);
   try {
@@ -161,6 +188,10 @@ async function main(): Promise<void> {
           ? `company ${result.companyId} already has the standard template`
           : `seeded the standard template ${templateId} in company ${result.companyId}`,
       );
+    }
+    if (sampleRelatorio) {
+      await seedPortoSeguroSmall(db, result.companyId, { responsibleUserId: result.userId });
+      console.log(`seeded the sample relatório ${SMALL_FIXTURE_RELATORIO_ID} in company ${result.companyId}`);
     }
     if (company.minted) {
       console.log(`new company id ${result.companyId}: pass --company-id ${result.companyId} to add its next users`);

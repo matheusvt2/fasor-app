@@ -71,35 +71,41 @@ export function shouldHoldShell(backlog: number): boolean {
   return backlog > 0;
 }
 
+/** The `<meta name>` the build stamps the shell version into (`shellPrecache()` in `vite.config.ts`). */
+export const SHELL_VERSION_META = 'shell-version';
+
+/** A stamped version: a hex digest (or a test's suffixed one), never the unstamped token. */
+const VERSION_PATTERN = /^[0-9a-z][0-9a-z-]*$/i;
+
 /**
- * Which build this page is running: the same-origin path of the hashed chunk this code
- * was loaded from. In a build that is one of the precached `/assets/*` files, so the
- * worker can pin the cache holding it — which may be newer than the worker itself, when
- * this launch's document came from the network. Undefined outside http(s) (tests).
+ * Which build this page is running: the shell version the build stamped into this
+ * document. It digests every emitted file, the document included, so a deploy that only
+ * changes markup, styles or `public/` is a new version too, and it names the worker's
+ * cache of that build (`releng-shell-<version>`), which may be newer than the worker
+ * itself when this launch's document came from the network. Undefined when the document
+ * carries no stamped version (the dev server, tests).
  */
-export function currentShellEntry(moduleUrl: string = import.meta.url): string | undefined {
-  try {
-    const url = new URL(moduleUrl);
-    return url.protocol === 'http:' || url.protocol === 'https:' ? url.pathname : undefined;
-  } catch {
-    return undefined;
-  }
+export function currentShellVersion(
+  doc: Pick<Document, 'querySelector'> | undefined = typeof document === 'undefined' ? undefined : document,
+): string | undefined {
+  const content = doc?.querySelector(`meta[name="${SHELL_VERSION_META}"]`)?.getAttribute('content');
+  return content != null && VERSION_PATTERN.test(content) ? content : undefined;
 }
 
 /**
- * Tells the active worker whether to hold, and which build this page runs (`shell`,
+ * Tells the active worker whether to hold, and which build this page runs (`version`,
  * omitted when unknown; an older worker ignores it). Returns what was sent, or null when
  * nobody heard.
  */
 export function holdShell(
   registration: ServiceWorkerRegistration | null,
   backlog: number,
-  shell: string | undefined = currentShellEntry(),
+  version: string | undefined = currentShellVersion(),
 ): boolean | null {
   const active = registration?.active;
   if (!active) return null;
   const hold = shouldHoldShell(backlog);
-  active.postMessage(shell === undefined ? { type: 'hold-shell', hold } : { type: 'hold-shell', hold, shell });
+  active.postMessage(version === undefined ? { type: 'hold-shell', hold } : { type: 'hold-shell', hold, version });
   return hold;
 }
 

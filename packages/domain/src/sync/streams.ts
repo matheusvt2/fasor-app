@@ -22,3 +22,13 @@ export function isProjectStreamId(streamId: string): boolean {
 export function projectIdOfStream(streamId: string): string | null {
   return isProjectStreamId(streamId) ? streamId.slice(PROJECT_STREAM_PREFIX.length) : null;
 }
+
+/**
+ * True once the company stream has been pulled to the end at least once on this device
+ * (its sync row carries a `downloaded_at`): before that, an empty company table on the
+ * device says nothing about what the company holds. `row` is the device's `company` sync
+ * row, `undefined` before the first pull wrote one.
+ */
+export function companyStreamDownloaded(row: { downloaded_at: string | null } | undefined): boolean {
+  return row !== undefined && row.downloaded_at !== null;
+}

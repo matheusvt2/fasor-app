@@ -55,11 +55,22 @@ describe('4.5 restoreSheetOps', () => {
 
 describe('Epic 4 QA Q4 removeSheetOps', () => {
   const OTHER_RELATORIO = id(102);
+  const NEVER_PULLED = id(103);
+  // The company summary lists this relatório and another of the obra, both on this device.
+  const allHere = {
+    companyDownloaded: true,
+    summaries: [
+      { id: relatorioId, project_id: projectId },
+      { id: OTHER_RELATORIO, project_id: projectId },
+    ],
+    heldRelatorioIds: [relatorioId, OTHER_RELATORIO],
+    downloadedStreamIds: [relatorioId, OTHER_RELATORIO],
+  };
 
   it('tombstones the block and its equipment when no other live block references it', () => {
     const only = pair(5, 'SEC-C05', 'a0');
     const removedElsewhere = { ...pair(6, 'SEC-C05', 'a0').block, relatorio_id: OTHER_RELATORIO, equipment_id: only.equipment.id, removed_at: '2026-09-24T10:00:00.000Z' };
-    const ops = removeSheetOps(author, relatorioId, projectId, [only.block, removedElsewhere], only.block);
+    const ops = removeSheetOps(author, relatorioId, projectId, [only.block, removedElsewhere], only.block, allHere);
     expect(ops.map((op) => [op.kind, op.path, op.scope])).toEqual([
       ['remove', `block/${only.block.id}/removed_at`, 'relatorio'],
       ['remove', `equipment/${only.equipment.id}/removed_at`, 'project'],
@@ -69,7 +80,14 @@ describe('Epic 4 QA Q4 removeSheetOps', () => {
   it('keeps the equipment live when a live block of another relatório of the obra references it', () => {
     const mine = pair(7, 'SEC-C05', 'a0');
     const theirs = { ...pair(8, 'SEC-C05', 'a0').block, relatorio_id: OTHER_RELATORIO, equipment_id: mine.equipment.id };
-    const ops = removeSheetOps(author, relatorioId, projectId, [mine.block, theirs], mine.block);
+    const ops = removeSheetOps(author, relatorioId, projectId, [mine.block, theirs], mine.block, allHere);
     expect(ops.map((op) => op.path)).toEqual([`block/${mine.block.id}/removed_at`]);
+  });
+
+  it('E9 sweep B15: tombstones only the block when the obra has a relatório this device never pulled', () => {
+    const only = pair(9, 'SEC-C09', 'a0');
+    const visibility = { ...allHere, summaries: [...allHere.summaries, { id: NEVER_PULLED, project_id: projectId }] };
+    const ops = removeSheetOps(author, relatorioId, projectId, [only.block], only.block, visibility);
+    expect(ops.map((op) => [op.kind, op.path])).toEqual([['remove', `block/${only.block.id}/removed_at`]]);
   });
 });

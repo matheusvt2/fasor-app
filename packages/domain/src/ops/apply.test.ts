@@ -94,6 +94,19 @@ describe('1.4-UNIT-002 applyOp semantics', () => {
     expect(s2.get(entityKey('location', LOC))).toBe(s1.get(entityKey('location', LOC)));
   });
 
+  it('refuses a create whose row id is not its path id, as a SeedPathError carrying the path', () => {
+    const f = opFactory();
+    const path = `location/${LOC}`;
+    // Built past `opSchema` (which refuses it at the push boundary), as an emitter that bypasses it would.
+    const create = { ...f.op({ kind: 'create', path, value: cabine() }), value: { ...cabine(), id: COL } };
+    expect(() => applyOp(state(), create)).toThrow(SeedPathError);
+    try {
+      applyOp(state(), create);
+    } catch (error) {
+      expect((error as SeedPathError).path).toBe(path);
+    }
+  });
+
   it('remove sets removed_at from client_ts and put removed_at = null restores', () => {
     const f = opFactory();
     const key = entityKey('location', LOC);

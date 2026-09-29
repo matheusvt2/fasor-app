@@ -56,7 +56,6 @@ export interface SessionState {
    * refuses the write.
    */
   saveRegistration: (registration: Registration) => Promise<void>;
-  dismissReAuth: () => void;
   /** Hides the recovery screen and remembers it in `local_prefs`, so it is one-time. */
   dismissRecovery: () => void;
 }
@@ -302,9 +301,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       signIn: doSignIn,
       signOut: doSignOut,
       saveRegistration: doSaveRegistration,
-      // Hides the banner for now only: the session is still gone, so the persisted flag
-      // stays and the next cold open shows the banner again.
-      dismissReAuth: () => setReAuthRequired(false),
+      // No dismissal: only a new sign-in clears `reAuthRequired`, so the paused sync
+      // engine (state/sync.tsx) never resumes while the session is still gone.
       dismissRecovery,
     }),
     [

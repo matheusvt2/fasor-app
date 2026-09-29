@@ -353,9 +353,17 @@ describe('homeCards: empty input', () => {
 
 describe('shortcut sub-lines', () => {
   it('counts the templates on this device', () => {
-    expect(templatesSubline(0)).toBe('Nenhum template neste aparelho');
-    expect(templatesSubline(1)).toBe('1 template');
-    expect(templatesSubline(2)).toBe('2 templates');
+    const second: TemplateRow = { ...template, id: ids(), name: 'Outro template' };
+    expect(templatesSubline([])).toBe('Nenhum template neste aparelho');
+    expect(templatesSubline([template])).toBe('1 template');
+    expect(templatesSubline([template, second])).toBe('2 templates');
+  });
+
+  it('E9 sweep B10: leaves archived and removed templates out, the same count as "Templates (n)"', () => {
+    const archived: TemplateRow = { ...template, id: ids(), name: 'Arquivado', archived_at: '2026-09-20T10:00:00.000Z' };
+    const removed: TemplateRow = { ...template, id: ids(), name: 'Removido', removed_at: '2026-09-20T10:00:00.000Z' };
+    expect(templatesSubline([template, archived, removed])).toBe('1 template');
+    expect(templatesSubline([archived])).toBe('Nenhum template neste aparelho');
   });
 
   it('names the registries the mock names', () => {

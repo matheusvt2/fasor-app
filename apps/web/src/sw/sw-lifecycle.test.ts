@@ -733,3 +733,74 @@ describe('the pin names the build the page runs', () => {
     expect(await caches.pin()).toEqual({ shell: B });
   });
 });
+
+
+/*
+ * B7 (deferred-work 321, 327): the page names its build by the shell version stamped
+ * into its document, and the version digests every emitted file. So a deploy that
+ * changes only the document keeps the entry chunk's name but is a new version, and the
+ * pin must follow the version: resolving by entry chunk would find the older cache that
+ * holds the same chunk and serve the older document.
+ */
+describe('the pin names the build by its shell version', () => {
+  const BUILD_A2: Build = {
+    version: 'a2a2a2a2a2a2',
+    precache: BUILD_A.precache,
+    files: { ...BUILD_A.files, '/': 'document A2' },
+  };
+  const hold = (version: string) => ({ type: 'hold-shell', hold: true, version });
+
+  it('pins a markup-only deploy by its version, not the older cache holding the same entry chunk', async () => {
+    const a = await firstVisit(BUILD_A);
+    // A2 changes only the document; the first launch gets it from the network, under A.
+    network.deploy(BUILD_A2.files);
+    expect(await a.navigate()).toBe('document A2');
+    await startWorker(caches, network, BUILD_A2).install();
+
+    await a.message(hold(BUILD_A2.version));
+    expect(await caches.pin()).toEqual({ version: BUILD_A2.version });
+    network.deploy({ ...BUILD_A2.files, '/': 'document A3' });
+    expect(await a.navigate()).toBe('document A2');
+    expect(await startWorker(caches, network, BUILD_A).navigate()).toBe('document A2');
+  });
+
+  it('stays network-first while no cache holds the version, and pins it once its worker installs', async () => {
+    const b = await firstVisit(BUILD_B);
+    network.deploy(BUILD_C.files);
+    await b.message(hold(BUILD_C.version));
+    expect(await caches.pin()).toEqual({ version: BUILD_C.version });
+    // No worker has made C's cache: not held, and the hold is not stale.
+    expect(await b.navigate()).toBe('document C');
+    expect(await shellCaches()).toEqual([B]);
+
+    const c = startWorker(caches, network, BUILD_C);
+    await c.install();
+    network.deploy({ '/': 'document D', '/assets/index-d.js': 'script D', '/sprite.svg': 'sprite D' });
+    expect(await b.navigate()).toBe('document C');
+    expect(await b.request('/sprite.svg')).toBe('sprite C');
+
+    // Every tab closes: the browser activates C. Still C, and B's cache may go.
+    await c.activate();
+    expect(await c.navigate()).toBe('document C');
+    expect(await shellCaches()).toEqual([C]);
+
+    await c.message({ type: 'hold-shell', hold: false, version: BUILD_C.version });
+    expect(await caches.pin()).toBeNull();
+    expect(await c.navigate()).toBe('document D');
+  });
+
+  it('keeps an unresolved version against another unresolved one, and gives way to one that resolves', async () => {
+    const b = await firstVisit(BUILD_B);
+    await b.message(hold(BUILD_C.version));
+    await b.message(hold('dddddddddddd'));
+    expect(await caches.pin()).toEqual({ version: BUILD_C.version });
+    await b.message(hold(BUILD_B.version));
+    expect(await caches.pin()).toEqual({ version: BUILD_B.version });
+  });
+
+  it('pins its own cache for a page whose document carries no stamped version', async () => {
+    const b = await firstVisit(BUILD_B);
+    await b.message(hold('__SHELL_VERSION__'));
+    expect(await caches.pin()).toEqual({ shell: B });
+  });
+});

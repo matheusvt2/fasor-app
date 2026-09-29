@@ -52,13 +52,13 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Extend the cross-tenant sweep (1.3-API-002) to stream/file/generate/revision routes as they land.
   evidence: Only the sync and account routes exist today (`apps/api/src/sync/`, `apps/api/src/auth/`); file, generate and revision routes belong to later epics. This PR adds a standing Definition of Done clause (`epics.md`, "Every new API route is exercised by a cross-tenant test") so the sweep keeps extending automatically as those routes land.
   class: test-gap
-  state: open (those routes do not exist yet; covered going forward by this PR's new DoD clause)
+  state: ~~open (those routes do not exist yet; covered going forward by this PR's new DoD clause)~~ closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, A1: every route now has a cross-tenant test; the last one missing, company B's `POST /api/relatorios/{id}/preview`, answers 404 and queues no job (`preview.integration.test.ts`). The DoD clause keeps later routes covered)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-3-sign-in-and-hold-a-session-that-survives-offline.md`
   summary: Convert the registration save to a `user/{id}/{field}` op once the op log lands.
   evidence: `apps/web/src/api/auth-client.ts:139-144` (`saveRegistration`) still does a bare `fetch('/api/account/registration', { method: 'PUT', ... })`, not one of AD-1's five named op actions. Verified unchanged in the current tree. The op log shipped in Story 1.4, but this conversion was never done (tracked as Epic 1 retrospective A2, an architecture decision needed before Epic 2).
   class: debt
-  state: open (`auth-client.ts:139-144` still does a bare PUT fetch; op log shipped in 1.4 but this conversion was never done)
+  state: ~~open (`auth-client.ts:139-144` still does a bare PUT fetch; op log shipped in 1.4 but this conversion was never done)~~ closed (2026-09-28, stale: `state/session.tsx` `doSaveRegistration` commits `registrationPuts` as `user/{id}/{field}` ops (`registration-dialog.tsx:13`); `auth.integration.test.ts` "has no registration write route")
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-3-sign-in-and-hold-a-session-that-survives-offline.md`
   summary: Restore the sign-out dialog's pending-sync wording and count once Story 1.5 provides sync counts.
@@ -70,7 +70,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: `revokeSessions` filters on `session.company_id`, theoretically bypassable by a null-`company_id` row inserted another way.
   evidence: `apps/api/src/db/seed.ts:126-131` (`revokeSessions`) still deletes `where(and(eq(session.companyId, companyId), eq(session.userId, userId)))`; no additional guard was added. Verified unchanged since commit `be86c65` ("Story 1.3: Sign in and hold a session that survives offline (#5)"). Remains a theoretical edge case: better-auth's own hook is what stamps `company_id` on every session it creates, so the bypass needs a row inserted outside that hook.
   class: bug
-  state: open (unverified, theoretical edge case, unchanged since `be86c65`)
+  state: ~~open (unverified, theoretical edge case, unchanged since `be86c65`)~~ closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, A2: `revokeSessions` also deletes the user's sessions whose `company_id` is null; `seed.integration.test.ts`)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-4-every-change-is-an-operation-applied-locally-first.md`
   summary: Replay byte-equality test on the Porto Seguro fixture, once Story 3.7 ships it.
@@ -118,7 +118,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Feed the minted `device_id` into every committed op once a capture surface calls `commitBatch`.
   evidence: `apps/web/src/db/commit.ts:27-30` (`CommitDeps`) is still `{newId, now}`, no `deviceId` field; verified unchanged in the current tree. No production capture surface calls `commitBatch` yet (only the dev-only field fixture).
   class: post-mvp
-  state: open (`CommitDeps` in `apps/web/src/db/commit.ts:27-30` still `{newId, now}`)
+  state: ~~open (`CommitDeps` in `apps/web/src/db/commit.ts:27-30` still `{newId, now}`)~~ closed (2026-09-28, stale: `apps/web/src/db/commit.ts` stamps every op with `deviceId(db)` in `commitOps` and `buildBatch`, PR #9)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-5-what-i-did-on-the-tablet-reaches-the-office-by-itself.md`
   summary: Define outbox retention (acked rows never pruned).
@@ -130,13 +130,13 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Assert the request log carries `relatorio_id` for the relatório stream route.
   evidence: No structured-logging assertion for `relatorio_id` on `GET /api/sync/relatorios/{id}` was found in `apps/api/src/sync/*.test.ts`. Unverified either way beyond that absence.
   class: test-gap
-  state: open (unverified)
+  state: ~~open (unverified)~~ closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, A3: `apps/api/src/http/request-log.integration.test.ts` asserts the `http_request` line of a relatório stream pull and of a generate press carries its `relatorio_id`)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-5-what-i-did-on-the-tablet-reaches-the-office-by-itself.md`
   summary: Move Story 1.3 account calls onto contract route definitions.
   evidence: `apps/web/src/api/auth-client.ts` still calls literal path strings (`/api/account`, `/api/account/registration`); `packages/domain/src/contract/index.ts:28-34` documents the shapes but defines no `ACCOUNT_ROUTES` path constants the way other contract routes are defined. Verified unchanged in the current tree.
   class: debt
-  state: open (`auth-client.ts` still calls literal paths; no `ACCOUNT_ROUTES` in the contract)
+  state: ~~open (`auth-client.ts` still calls literal paths; no `ACCOUNT_ROUTES` in the contract)~~ closed (2026-09-28, stale: `ACCOUNT_ROUTES` in `packages/domain/src/contract/index.ts:47`, read by `apps/web/src/api/auth-client.ts`; the registration is written as ops, so no account write route is left, PR #9)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-5-what-i-did-on-the-tablet-reaches-the-office-by-itself.md`
   summary: Add the sync badge's short word for every state.
@@ -148,7 +148,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Re-auth banner dismiss must not fire a sync cycle at once.
   evidence: `dismissReAuth` exists at `apps/web/src/state/session.tsx:225` (added in commit `3395035`), but no UI surface calls it yet, and `apps/web/src/state/sync.tsx:120` still calls `engine.resume()` unconditionally on the online-status effect. Verified both facts in the current tree.
   class: bug
-  state: "open, partially advanced (`dismissReAuth` now exists, `apps/web/src/state/session.tsx:225`, added in `3395035`, but no UI surface calls it yet and `sync.tsx:120` still calls `engine.resume()` unconditionally)"
+  state: ~~open, partially advanced (`dismissReAuth` now exists, `apps/web/src/state/session.tsx:225`, added in `3395035`, but no UI surface calls it yet and `sync.tsx:120` still calls `engine.resume()` unconditionally)~~ closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, B1: the unused `dismissReAuth` is removed, so only a new sign-in clears `reAuthRequired` and the paused engine never resumes on a dismissal; `session.test.tsx` "offers no dismissal")
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-5-what-i-did-on-the-tablet-reaches-the-office-by-itself.md`
   summary: Define retention/compaction for `remote_ops`.
@@ -172,7 +172,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Decide whether `syncCounts` takes the snapshot beside the outbox.
   evidence: `packages/domain/src/sync/counts.ts` (`syncCounts`) still takes only the outbox array; no snapshot parameter. Verified unchanged in the current tree; no snapshot exists before Epic 5 (an accepted deviation recorded in the Epic 1 retrospective).
   class: debt
-  state: open
+  state: ~~open~~ closed (2026-09-28, stale: decided without a snapshot; `syncCounts(outbox, reading)` (`packages/domain/src/sync/counts.ts:54`) takes the outbox and explicit reading rows, Story 8.1)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-6-home-and-account-show-what-is-on-this-device.md`
   summary: Port Toggle, Checkbox and FilterChipGroup onto the ToggleButtonGroup/SegmentedControl fix pattern.
@@ -202,7 +202,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: `apps/api/src/db/migrate.ts` has no automated test and is not invoked by `pnpm verify`.
   evidence: No `migrate.test.ts` or `migrate*.integration.test.ts` exists under `apps/api/src/db/`. Migrations now exist (`apps/api/drizzle/0000_sweet_solo.sql`, `0001_identity.sql`, `0002_sync_device_push.sql`), but the `migrate()` function that applies them is still untested. Verified absence.
   class: test-gap
-  state: open (migrations now exist, but still untested)
+  state: ~~open (migrations now exist, but still untested)~~ closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, A4: `apps/api/src/db/migrate.integration.test.ts` runs `migrate()` on a scratch database: every journal entry applied, a second run applies nothing)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-8-nothing-captured-is-lost-when-the-tab-closes-the-network-dro.md`
   summary: Outbox retention (acked rows never pruned).
@@ -226,7 +226,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Draft sources are registered per-surface only by capture screens; only the fixture route registers one today.
   evidence: `apps/web/src/surfaces/dev/field-fixture-surface.tsx` is the only surface calling the draft-registration hook; no production capture surface (sheet, checklist, etc.) exists yet to register one.
   class: post-mvp
-  state: open
+  state: ~~open~~ closed (2026-09-28, stale: `ficha-fields.tsx`, `number-input.tsx`, `generated-text-field.tsx` and `point-editor.tsx` register draft sources)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-8-nothing-captured-is-lost-when-the-tab-closes-the-network-dro.md`
   summary: Offline cold open is asserted on Chromium only; WebKit's offline reopen is not covered.
@@ -250,7 +250,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: A "sample-relatorio" seed flag for `scripts/seed-users.ts`, so a developer can seed a relatório with data instead of an empty one.
   evidence: Investigated while writing this PR's README/AGENTS.md usage sections. Seeding a relatório needs new op-log-replay plumbing through `applyOp`, sourced from `packages/domain/fixtures/replay-small/op-log.ts`-style fixtures — not a flag flip on the existing `--test`/`--company-id` CLI, which only provisions identity rows.
   class: post-mvp
-  state: open
+  state: ~~open~~ closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, A5: `--sample-relatorio` seeds the small Porto Seguro fixture onto the named company through `seedPortoSeguroSmall` (fixed ids, one company at a time; refused with `--test`); README and CLI usage; `seed-cli.integration.test.ts`, `scripts/tooling.test.ts`)
 
 - source_spec: A6 investigation for this PR (epic-1-gate-docs-ledger), no source spec of its own
   summary: `pnpm audit --prod` reports one moderate advisory in a transitive dev-tooling dependency chain, unrelated to this epic's scope.
@@ -274,37 +274,37 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: projectUser checks the entity outside the per-company lock, so parallel seeds on a brand-new volume can log two user creates; a concurrent re-seed can put back a title a sync test changed.
   evidence: State is unaffected (second create is a no-op); the exactly-one-create assertion or the sync title test could flake on a fresh volume.
   class: test-gap
-  state: open
+  state: ~~open~~ closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, A6: `projectUser` decides create or name put again under the company lock (`applyServerBatch` `before`) and recomputes once; `seed.integration.test.ts` concurrent seeds log one create)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-1-fix-identity-and-kernel.md`
   summary: commitBatch looks up prev_op_id outside the commit transaction with per-op sequential queries over unpruned history; byClientTsThenOpId is defined twice.
   evidence: Overlapping commits on one path or a pull in between can name a stale prev_op_id (false "mescladas" row). Revisit with the first debounced field emitter.
   class: debt
-  state: open
+  state: ~~open~~ closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, B2: `commitBatch`, `commitFileBatch` and `commitPhotoBatch` build and apply in one Dexie rw transaction over the tables the build reads, so overlapping commits chain; one shared `byClientTsThenOpId`; `commit.test.ts` "chains two overlapping commits")
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-1-fix-identity-and-kernel.md`
   summary: Parallel api integration beforeAll re-seeds revoke the shared test users' sessions, so another file's push can get a 401 mid-test.
   evidence: Seen once in pnpm verify (1.5-API-002); re-run green. Pre-existing revocation, wider window now; belongs with retro A6. Likely closed by this PR's own fix for a related race -- `apps/api/vitest.config.ts`'s new `fileParallelism: false` (added to stop `resetTestCompanyData` from wiping a sibling file's rows) also serializes every `apps/api` integration file, which removes the interleaving this item describes. Left open rather than marked closed: no dedicated regression test proves this specific flake is gone, only that its root cause (file-level parallelism in that suite) no longer exists.
   class: test-gap
-  state: open (probably resolved as a side effect of this PR's fileParallelism fix; unverified by a dedicated test)
+  state: ~~open (probably resolved as a side effect of this PR's fileParallelism fix; unverified by a dedicated test)~~ closed (2026-09-28, stale: `apps/api/vitest.config.ts` `fileParallelism: false` runs the api files one at a time, so no other file's `beforeAll` re-seed can revoke a session mid-test; the flake was not seen again in the gates since PR #10)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-1-fix-ui-hygiene.md`
   summary: Grouped FilterChipGroup arrow keys move focus but not the selection (APG radiogroup expects selection to follow focus).
   evidence: Independent review of PR #12 measured aria-checked unchanged after ArrowRight; pre-existing (React Aria ToggleButtonGroup), no production caller yet. Fix with the first surface that renders filter chips, reusing the SegmentedControl keyboard contract.
   class: bug
-  state: open
+  state: ~~open~~ closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, B3: `FilterChipGroup` is a hand-rolled radiogroup with the SegmentedControl keyboard contract (arrows, Home, End move focus and selection together); `chip.test.tsx`)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-1-fix-ui-hygiene.md`
   summary: Esc on the draft toast leaves focus on body; on a cold load with the api down the badge reads "Sincronizado" for about 2 s until the first cycle ends.
   evidence: Independent review of PR #12. The toast has no opener to return focus to; the first-cycle window needs a "not yet confirmed" badge input the kernel does not have. Both low; revisit with the Epic 5 sheet toasts and the badge.
   class: bug
-  state: open
+  state: ~~open~~ partially closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, B4: Esc on a toast returns focus to the element focused before, else `main`; `toast.test.tsx`). The "Sincronizado" before the first cycle stays open, re-owned to Matheus (UX): what the badge says before the server has answered once is a new badge state, a product choice
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-1-register-a-test-instrument-with-its-calibration-record.md`
   summary: Component-level tests are missing for `registries-surface.tsx`, `instrumentos-tab.tsx`, `instrument-row.tsx` and the five placeholder tabs; coverage is kernel unit tests plus 4 e2e specs.
   evidence: Internal review pass 2026-09-22. `apps/web/src/surfaces/registries/instrument-panel.test.tsx` was added during triage for the most severe instance (the AC4 referenced/unreferenced branch); the remaining components have no `*.test.tsx`. Full coverage of every branch in the six new components was judged disproportionate for this pass under the story's token budget.
   class: test-gap
-  state: open
+  state: ~~open~~ closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, B5: `registries-surface.test.tsx` (tabs, phone selector, each tab's list and empty state) and `instrumentos-tab.test.tsx` (list, add, the row's code, due state and panel))
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-1-register-a-test-instrument-with-its-calibration-record.md`
   summary: A second device editing the same instrument while its panel is open on a first device shows stale text for untouched fields until that field is itself edited.
@@ -316,19 +316,19 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Scope the shell pin per user, or hold while any user on the device has a backlog.
   evidence: The pin is one sentinel per origin while the outbox is per user (releng-{user_id}). User B signing in with an empty outbox posts hold:false and promotes the waiting worker, releasing user A's pin. PR #8's promotion already behaved this way. Severity medium.
   class: bug
-  state: open
+  state: ~~open~~ open, re-owned 2026-09-28 by batch C2 (owner: Matheus with the architect, AD-8): a per-user pin with promotion refused while another user holds was built and withdrawn, because a user who never signs in again would keep every other user of the device on the old shell forever; the choice between that and the current device-wide pin (or an expiring hold) is a product decision
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-1-fix-sw-hold-persisted.md`
   summary: Identify the page's build by a version stamped into index.html, not only by its entry chunk name.
   evidence: sw.js cacheHolding resolves an {entry} pin to the oldest shell cache holding that file. A deploy that changes only index.html, CSS or public/ keeps the entry name, so a job started on the newer document can be served the older one after a reload (PR #11 review 2, L-1, reproduced with a same-entry rebuild). Any JS change, including a Dexie schema bump, renames the entry, so the effect is limited to markup and styles. Severity low.
   class: bug
-  state: open
+  state: ~~open~~ closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, B7: `shellPrecache()` (`stampShell`, `vite.config.ts`) digests every emitted file, `index.html` included, stamps the version into `<meta name="shell-version">` and `sw.js`; the page names its build by it and the worker pins `releng-shell-<version>`; `shell-version.test.ts`, `sw-lifecycle.test.ts` "pin by version", `durability.spec.ts` 1.8-E2E-006)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-1-fix-sw-hold-persisted.md`
   summary: Keep the page's build identity correct if code splitting moves register.ts out of the entry chunk.
   evidence: register.ts currentShellEntry uses import.meta.url of the chunk that runs it, which is the entry only because the build emits one JS chunk today. A shared chunk would still be a precached hashed file of that build, but shared across builds it would reintroduce the wrong-shell pin (PR #11 review 2, L-2). Stamping a build version (item above) removes the dependency. Severity low.
   class: bug
-  state: open
+  state: ~~open~~ closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, B7, with the entry above: the build is named by the stamped version, no longer by `import.meta.url`)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-4-2-5-2-6-registries-batch.md`
   summary: A device whose manufacturer/voltage_class create gets server-merged into another device's existing row keeps the merged-away id as a permanent, unreconciled duplicate row in its own local Dexie.
@@ -340,7 +340,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: The manufacturer/voltage_class normalized-name merge scans every live registry row for the company (all kinds) on every create, an O(n) scan with no SQL-level kind filter.
   evidence: Internal review pass 2026-09-22. `apps/api/src/sync/apply.ts`'s merge check loads all live `registry` entities per create and filters by kind in JS. Fine at MVP registry scale (a handful of manufacturers/voltage classes per company); revisit if registries grow large. Severity low.
   class: debt
-  state: open
+  state: ~~open~~ closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, A7: `mergeTarget` filters by `row->>'kind'` in SQL; `sync.integration.test.ts` same name under another kind does not merge)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-4-2-5-2-6-registries-batch.md`
   summary: The registry edit panels (Clientes, Fabricantes, Classes de tensão) offer two differently-labeled controls that both close the panel ("Fechar edição" icon button, "Fechar" footer button).
@@ -352,7 +352,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Concurrent PUTs of the same file can still emit two `file/{id}/uploaded_at` ops.
   evidence: Independent review + fix pass 2026-09-22. `apps/api/src/http/files.ts` re-reads the row immediately after storing the object and emits the op only while `uploaded_at` is still null, which narrows the window but does not close it; closing it needs a per-file advisory lock spanning the object store. Four concurrent PUTs in the review's probe all returned the same timestamp and produced exactly one op, so the window is hard to hit. Severity low.
   class: debt
-  state: open
+  state: ~~open~~ closed (2026-09-28, stale: `apps/api/src/http/files.ts` `emitServerOp` checks the field again under the company lock (`before`, `FieldAlreadySet`), PR #53; `files.integration.test.ts:468` sends four concurrent PUTs and gets one op)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-2-2-3-files-and-company-identity.md`
   summary: `sync_state.files_pending` is written by the upload phase and read by no surface.
@@ -382,13 +382,13 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: `applyOp`'s create path does not re-check `value.id` against the path id; the invariant is enforced only by `opSchema` at the push boundary.
   evidence: Independent review 2026-09-22. `packages/domain/src/ops/apply.ts:172` parses `op.value` without comparing ids. Any future server-side emitter that bypasses `opSchema` would materialize a row whose JSON id differs from its key; `apps/api/src/http/files.ts` now guards itself against such a row, but the kernel rule would be the general fix. Severity medium.
   class: bug
-  state: open
+  state: ~~open~~ closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, A8: `createRow` refuses a create whose row id is not its path id (`SeedPathError`, a permanent refusal answered `op_invalid`); `ops/apply.test.ts`, `apply-batch.integration.test.ts`)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-2-2-3-files-and-company-identity.md`
   summary: Epic 2 ends with two different `PreIssueRow` shapes in the kernel (`checks/pre-issue.ts`'s `CompanyPreIssueRow` and `checks/pre-issue-client.ts`'s `PreIssueRow`).
   evidence: Merge reconciliation 2026-09-22 between this batch and the parallel Stories 2.4-2.6 batch: both landed an isolated warning-row helper with its own row shape (`{id, severity, text, action?}` vs `{key, text}`). They were kept separate so neither batch's tests had to change; Epic 7's real `preIssue(snapshot)` aggregator (AD-15) unifies them when it reads both. Severity low.
   class: debt
-  state: open
+  state: ~~open~~ closed (2026-09-28, stale: as the entry planned, `preIssue` (`relatorio/pre-issue.ts:214-217`) maps both helpers' rows into its one `PreIssueRow`; no surface reads either helper shape)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-2-2-3-files-and-company-identity.md`
   summary: On phone the Empresa tab puts ~500 px of chrome above the first field, so only one of its eight fields is above the fold.
@@ -412,25 +412,25 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: A template row that fails the stricter schema is dropped silently by `home-store` `rows()`, so the Templates list can read empty and offer a second standard template.
   evidence: Independent review of PR #18. Only dev databases holding template rows written before Story 3.2 can hit it; no deployed data exists. Severity low.
   class: debt
-  state: open
+  state: ~~open~~ closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, B8: `templateList` counts live template records that fail the schema (logged once) and the Templates empty state treats them as present, so no second standard template is offered; `templates-surface.test.tsx` "B8")
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-1-3-2-seed-and-standard-template.md`
   summary: `seedStandardTemplate` is idempotent by template name only: a re-run after the seeded template was renamed seeds a second one; two concurrent runs can both create one.
   evidence: Internal and independent review of PR #18 (`apps/api/src/db/seed.ts`). Operator-only path, documented in the CLI usage. Severity low.
   class: debt
-  state: open
+  state: ~~open~~ closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, A9: any live template with a `seed_version` counts as seeded (a renamed one included; only the one still named is upgraded), and the check is repeated under the company lock; `standard-template.integration.test.ts` rename and concurrent runs)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-1-3-2-seed-and-standard-template.md`
   summary: `companyDownloaded` (the Templates empty-state gate) is a small rule living in `apps/web/src/db/sync-store.ts` rather than the kernel.
   evidence: Independent review of PR #18. It reads a sync_state column, not a sheet, so it does not break the AGENTS.md ownership rule outright; revisit when a second surface needs the same gate. Severity low.
   class: debt
-  state: open
+  state: ~~open~~ closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, B9: the rule is the kernel's `companyStreamDownloaded` (`sync/streams.ts`), read by `companyDownloaded`; `streams.test.ts`)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-7-porto-seguro-fixture.md`
   summary: `extract-raw-sources.md` §2.1's claim that all 94 FO.SERV-03 sheets carry zero C/NC/NA marks is false; the actual DOCX (read visually page by page, not text-extracted) shows real checkmarks throughout, uniform per block type. The fixture and its tests were built against the real marks, not the extract's claim; the extract itself is not corrected by this entry (out of this story's scope) but should be, so a future reader does not repeat the "zero marks" assumption.
   evidence: `packages/domain/fixtures/porto-seguro/data.ts` file header and `op-log.test.ts` file header record the finding and the resulting test-task deviation (no "zero checklist marks" assertion exists; instead the suite asserts the real, fixed-per-block-type NA/C pattern). Direct visual read of every one of the 94 converted DOCX pages in this story's session.
   class: docs
-  state: open (extract-raw-sources.md itself not amended by this story; flagged for whoever next touches it)
+  state: ~~open (extract-raw-sources.md itself not amended by this story; flagged for whoever next touches it)~~ closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, A14: the "zero marks" sentence of `extract-raw-sources.md` § 2.1 is struck through with a dated correction citing the fixture header)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-7-porto-seguro-fixture.md`
   summary: Section 8 bullet 4 names "algumas seccionadoras específicas" and "o disjuntor TIE" as not tested, but every one of the 94 real sheets (including both "DISJUNTOR DE ACOPLAMENTO" bus-tie breakers, 1° Subsolo colunas 3 and 16) carries full, real measured values -- no sheet in the delivered document is actually blank.
@@ -454,19 +454,19 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: The `ENSAIO DE RELAÇÃO DE TRANSFORMAÇÃO` grammar's `derived` columns (`VAL CALCULADO`, `CONDIÇÕES`) and the transformer ratio table's `connection_typed` `TAP Nº` value have no write path yet: no kernel function computes the derived columns, and no op-path family exists for a typed connection cell distinct from a measured value cell.
   evidence: `packages/domain/src/seed/schema.ts`'s own comment on `ColumnDef` ("derived: computed by the kernel, never typed"); `packages/domain/src/ops/path.ts`'s `sheet/test/cell` family addresses only `{row, col}` value cells, nothing for a row's own typed connection label. `op-log.ts` `tpTcRatioSteps`/`transformadorRatioSteps` write only the `input` and `capture` columns for this reason; the TAP number ("2 e 3" etc.) transcribed in `data.ts`'s comments is not written anywhere. Not a Story 3.7 gap to close (spec forbids touching `path.ts`/`schemas/entities.ts`); tracked for whichever Epic 5+ story adds the renderer and needs both.
   class: post-mvp
-  state: open (blocked on a renderer/derived-value story; no op-path change belongs in this story)
+  state: ~~open (blocked on a renderer/derived-value story; no op-path change belongs in this story)~~ closed for the derived columns (2026-09-28, stale: `packages/domain/src/relatorio/readings.ts` computes VAL CALCULADO and CONDIÇÕES, Story 5.6); the typed `TAP Nº` half lives on in the "Adicionar TAP" entry (Story 5.6 narrowing)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-7-porto-seguro-fixture.md`
   summary: The Porto Seguro fixture's `dataQueue` (`packages/domain/fixtures/porto-seguro/op-log.ts`) is zipped against `standardTemplate()`'s equipment blocks only by aggregate length (94 === 94), never validated per block-type/location segment.
   evidence: Edge Case Hunter review pass, 2026-09-23. A same-type reordering mistake in a future `data.ts` edit (e.g. during the not-tested-designation review already logged above) would not be caught by the total-count guard alone. A safe per-segment validation would need a tag-naming heuristic that does not exist today and risks false positives on real TAGs that don't follow a strict convention, so it is not a trivial fix to add now. Severity low.
   class: debt
-  state: open
+  state: ~~open~~ closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, A10: `assertInstanceFitsBlockType` checks each instance against its block type's definition before any op is written (nameplate keys, insulation form and rows, contact resistance, ratio); `op-log.test.ts` "3.7-UNIT-004". A same-type reorder is still not detectable without a TAG heuristic)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-7-porto-seguro-fixture.md`
   summary: Several `isoRows` entries in `packages/domain/fixtures/porto-seguro/data.ts` use the raw string `'2T'` for a `1 MINUTO` insulation capture cell (4 occurrences: `SUBSOLO_TRANSFORMERS` TR-1/2/4, both `COBERTURA_A`/`COBERTURA_B` TR-COB blocks), while the generator always tags that cell with unit `GΩ`, producing a composite that reads as neither a clean number nor a clear overflow marker.
   evidence: Blind Hunter review pass, 2026-09-23. Likely a field abbreviation for "> 2 TΩ" (an instrument overflow reading common on megohmmeters), but the correct value/unit representation is a domain judgment call, not a safely guessable code fix. Severity medium.
   class: debt
-  state: open (Matheus/Bruno review requested, alongside the not-tested-designation item above)
+  state: ~~open (Matheus/Bruno review requested, alongside the not-tested-designation item above)~~ open, re-owned 2026-09-28 by batch C2 (owner: Matheus with Bruno, E7-A5): what "2T" means (an overflow "> 2 TΩ" or a value) is a domain decision, and `data.ts` is being edited by batch C1
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-6-home-and-account-show-what-is-on-this-device.md`
   summary: The real client's full legal name, `'Porto Seguro Companhia de Seguros Gerais'`, appears in `apps/web/src/db/home-store.test.ts:65`, outside `packages/domain/fixtures/porto-seguro/` — the only path AGENTS.md's R-023 waiver permits real Porto Seguro client data.
@@ -478,7 +478,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: The Home Templates shortcut count (`templatesSubline`) still counts archived templates, so it can disagree with the list's "Templates (n)".
   evidence: Implementation report and independent review of PR #19, 2026-09-23. Cosmetic; one kernel filter change when Home is next touched. Severity low.
   class: debt
-  state: open
+  state: ~~open~~ closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, B10: `templatesSubline(templates)` counts `activeTemplates`, the list's own count; `cards.test.ts` "B10")
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-3-3-4-templates-list-and-composer.md`
   summary: `templateUseCount` reads only the company pull summary, so a relatório created on this device from a template and not yet synced does not make that template "referenced"; Epic 4 (relatório creation) must count local relatório rows too before offering "Remover".
@@ -490,31 +490,31 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Composer section actions (Adicionar abaixo, Duplicar, Remover) and drag drops work by index captured at render or press time; a pull that reorders sections in between acts on the wrong section.
   evidence: Internal review layers and independent review of PR #19 (`packages/domain/src/templates/compose.ts` section functions, `use-reorder.ts` centres measured at press). Needs a concurrent pull while a dialog or drag is open on an office-only surface; undo restores. Resolve by stable identity if it is ever seen. Severity low.
   class: debt
-  state: open
+  state: ~~open~~ closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, B11: section actions carry the section's (type, occurrence) and resolve its index at write time (`resolveSectionIndex`); a removed or retyped section writes nothing, a moved one is acted on where it is; `compose.test.ts` and composer tests)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-3-3-4-templates-list-and-composer.md`
   summary: The QuantityStepper's in-flight guard (`inFlight > 0 && value !== target`) can keep showing a local count if a pulled value lands during a write and the row then settles on it without another change.
   evidence: Independent review of PR #19 (`apps/web/src/components/quantity-stepper.tsx` value effect), reasoned from code, not reproduced. Severity low.
   class: bug
-  state: open
+  state: ~~open~~ closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, B12: when the last in-flight write settles and the row holds a value neither the start value nor one it sent (a pulled value), the stepper shows it; `quantity-stepper.test.tsx` "B12")
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-5-3-6-sub-block-defaults-and-boilerplate-editor.md`
   summary: Story 3.5's `enabledSubBlocks` is unwired: Epic 4/5's `progress`/`groupForPrint`/renderer must filter sheet fields and printed sub-blocks through it once they exist.
   evidence: `packages/domain/src/templates/compose.ts` `enabledSubBlocks(config)` is the pure helper the story AC names ("a switched-off sub-block is omitted, never printed empty"); `progress`, `groupForPrint` and the renderer are Epic 4+ and do not exist yet. Kernel test `3.5-UNIT enabledSubBlocks` pins the rule.
   class: debt
-  state: open
+  state: ~~open~~ closed (2026-09-28, stale: `enabledSubBlocksOf` (`relatorio/sheet-state.ts:42`) feeds `relatorio/readings.ts`, `print/section-9.ts` and `print/section-11.ts`)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-5-3-6-sub-block-defaults-and-boilerplate-editor.md`
   summary: Story 3.6's `resolveSectionText().unresolved` is unwired: the future kernel `integrity` surface (Epic 4+) must read it per relatório section and surface gaps in the Sumário/pre-issue check.
   evidence: `packages/domain/src/templates/section-text.ts` `resolveSectionText(text, relatorioInputs)` returns `{resolved, unresolved}`; no `integrity` surface exists yet. Kernel test `3.6-UNIT resolveSectionText` pins the bracketed label and the once-per-variable list.
   class: debt
-  state: open
+  state: ~~open~~ closed (2026-09-28, stale: `relatorio/pre-issue.ts:227-231` reads `unresolved` per section into its pre-issue rows)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-5-3-6-sub-block-defaults-and-boilerplate-editor.md`
   summary: `flattenSectionText` discards the seed's heading/item structure (`TextBlock.kind`) once a section's text is overridden in a template, so a future renderer cannot recover FO.SERV-03's heading/list formatting for an edited section from `section_text` alone.
   evidence: Review pass of PR (story/3-5-3-6), 2026-09-23. `packages/domain/src/templates/section-text.ts` `flattenSectionText` joins `TextBlock[]` into one plain string with no inverse parser; `section_text` on `templateBlockSchema` is a bare `string | null`. Storing structure conflicts with this story's plain-text-only mandate (FR-12/UX-DR69), so this is an accepted MVP tradeoff, not a defect to fix now; Epic 11's rich-text/renderer work must either re-derive structure from the flat text (headings/items inferred by line shape) or extend `section_text` to carry structure.
   class: debt
-  state: open
+  state: ~~open~~ closed (2026-09-28, stale: the renderer took the entry's first option: `print/layout.ts` `ownParagraphs` re-derives paragraphs and items from the flat text by line shape, PR #24; a chunk whose first line was an item prints as a paragraph, as documented there)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-3-5-3-6-sub-block-defaults-and-boilerplate-editor.md`
   summary: The FR-13 kernel test ("a template edit never touches a relatório made from it") only proves `applyOp` key-isolation on a hand-built relatório row with no `section_text` or type config of its own; it does not prove that the future `instantiateTemplate` (Epic 4) deep-copies a template's `section_text` and per-type `BlockConfig` into a relatório's own Block rows at creation, which is what FR-13 actually requires.
@@ -526,7 +526,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Three small, low-severity notes from PR #21's independent review, all accepted as-is rather than patched. (a) Dropping an equipment type's last placement to zero and re-adding it loses its customized subtype and sub-block toggles, reverting to the pristine seed defaults (`typeConfigFor` returns null when no placement exists) — intended by the "per-type config keyed by current placements" design, but nothing tells the user. (b) Clearing a section's whole text silently falls back to the seed default with no toast, unlike the explicit "Restaurar" action which does toast — consistent with the app's general silent-autosave pattern elsewhere, so left as-is. (c) `section-text-dialog.tsx` lowercases the domain's `SECTION_VARIABLE_LABELS` for chip button text in `apps/web`, a small presentational bend of the string-home rule (a capitalization choice, not new derived business text).
   evidence: Independent review of PR #21, 2026-09-23 (findings 6, 7, 8). Reviewer's verdict on the PR overall was "approve as-is"; these three were named as low and not blocking.
   class: debt
-  state: open
+  state: ~~open~~ partially closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, B13: (c) the chip label is the kernel's `sectionVariableChipLabel`, no lowercasing in `apps/web`; `section-text.test.ts`). (a) and (b) stay open, re-owned to Matheus (UX): whether to warn when a type's config is lost at zero placements, and whether clearing a section's text toasts like "Restaurar", are product choices
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-8-docx-skeleton-renderer.md`
   summary: The document control's ART/TRT row prints `—` until Story 4.2's setup field carries the typed number.
@@ -550,13 +550,13 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: The `unchanged` short-circuit follows AD-15's family set, so a registry edit (client name or CNPJ, Empresa lines) or a `user` edit (the responsible's registration) after a revision does not count as an edit: a second "Gerar relatório" answers the old revision although the printed document control would differ.
   evidence: `apps/api/src/http/generate.ts` `editedAfter` over `editedSince` (`packages/domain/src/status/edited-since.ts`, families `relatorio/setup, location, block, sheet, file (photo), point, equipment`). A design decision for the architect (AD-15): widen the set, or let the dialog offer a forced regeneration.
   class: debt
-  state: open
+  state: ~~open~~ open, re-owned 2026-09-28 by batch C2 (owner: Matheus with the architect): widening `EDITED_SINCE_FAMILIES` also moves the Emitido to Em revisão transition (AD-22), so it is an AD-15 decision, not a local fix
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-8-docx-skeleton-renderer.md`
   summary: A `409 not_caught_up` whose `missing_files` name files this device holds no pending upload for is retried blindly (sync, 2 s, ten times) and then ends in the failed state without naming the files.
   evidence: `apps/web/src/surfaces/export/use-generate.ts` `request` loop (`MAX_NOT_CAUGHT_UP_RETRIES`); the 409 details (`notCaughtUpDetailsSchema`) are parsed by the contract but not shown. Related to the `expectedFileIds` entry above.
   class: debt
-  state: open
+  state: ~~open~~ closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, B14: a `not_caught_up` whose op is not missing and whose files no pending upload here will bring fails at once (`notCaughtUpRetryable`), and the failed state says "N arquivos ainda não chegaram ao servidor" (`missingFilesText`, authored, for Bruno); `revisions.test.ts`, `export-dialog.test.tsx`)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-8-docx-skeleton-renderer.md`
   summary: Story 4.8's AC says `statusTable(Em campo, generate)` yields Em revisão "with a warning"; the dialog emits the status op, the warning banner is Story 4.6's (another batch).
@@ -568,19 +568,19 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: With a company logo, the header's second line (form code and revision) sits under the image rather than beside both lines; the fixture has no logo, so the structure golden does not cover it.
   evidence: `apps/api/src/jobs/generate/docx.ts` header: the logo rides in the title paragraph a tab before the title, the form line is its own paragraph. Needs a real logo upload and Bruno's look at the rendered page (R-009 read); a two-cell header table is the likely fix.
   class: debt
-  state: open
+  state: ~~open~~ closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, A11: with a logo the header is a two-cell borderless table (logo left, title and form lines right), unchanged without one (goldens unchanged); `docx.test.ts` "A11". The logo's width limit (half the content width) is an open question for Bruno's R-009 read)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-8-docx-skeleton-renderer.md`
   summary: "pode fechar — o aviso chega quando terminar" holds while the user stays on that relatório's Sumário: the watcher (`useGenerate` inside the Sumário's `ExportDialog`) reconciles the device's `generate_awaiting:<id>` entry on mount, so a user who leaves for Home or another relatório gets the toast and the `issue` status op only when they come back to that Sumário (reload included).
   evidence: `apps/web/src/surfaces/export/use-generate.ts` resume effect, `apps/web/src/surfaces/relatorio/generate-action.tsx`; 4.8-E2E-004 proves the reload-and-return path. An app-level watcher beside `SyncProvider` iterating the `generate_awaiting:*` prefs is the fix; it belongs with the `relatorio-exported` notification already tracked for Epic 7 (Story 1.6 ledger entry, "`suggestions-ready`/`relatorio-exported`/`conflict` remain"). Independent review R4, 2026-09-24. Owner: Epic 7 (Export and notifications).
   class: debt
-  state: open
+  state: ~~open~~ closed (2026-09-28, stale: `apps/web/src/state/generate-watcher.tsx`, mounted once per session beside the sync provider, pulls each waited relatório and raises the toast wherever the user is, Story 7.5, PR #51)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-8-docx-skeleton-renderer.md`
   summary: A generate job's expiry counts from its `created_at` (queue time) while pg-boss's `expireInSeconds` counts from the job's start, so a job that waits more than 15 minutes behind others counts as dead to the route and the dialog, and a second press can queue a duplicate that later allocates an extra revision number.
   evidence: `packages/domain/src/print/revisions.ts` `isJobActive`/`jobExpiresAt`; `apps/api/src/jobs/generate/worker.ts` `QUEUE_OPTIONS`. Unlikely in the MVP (one company, concurrency 1, seconds per job); stamping a `started_at` in the `running` put and expiring from it is the fix. Independent review R7, 2026-09-24. Owner: Epic 7 or Epic 11 (queue under load).
   class: debt
-  state: open
+  state: ~~open~~ closed (2026-09-28, stale: R7, `print/revisions.ts:114-125` expires a running job from its `started_at`, written by the `running` put (`jobs/generate/job.ts:239`); `preview.integration.test.ts` "R7", PR #51)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-8-docx-skeleton-renderer.md`
   summary: A pg-boss job whose payload fails the worker's schema is logged and skipped, and its `generation_job` row stays `queued` until the expiry makes it inactive.
@@ -616,7 +616,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: The "Conclusão e parecer" band at the foot of `apps/web/src/surfaces/relatorio/setup-surface.tsx` (Etapa 6 in position, unnumbered in copy) is an unnumbered `.section-band` with one `.section-note` "Disponível na próxima etapa deste épico" and no fields -- a tracked stub, not the parecer verdict/generated-summary content epics.md's own AC draws for it (Story 7.4's segmented Apto/Apto com restrições/Não apto, `suggestParecer`, `composeParecer`, the Generated text field and the Parecer box preview).
   evidence: Story 4.2 (batch C) builds only the five Etapa bands the epics.md AC lists; the parecer band's real content is Epic 7 (Story 7.4)'s.
   class: stub
-  state: open (owner: Epic 7, Story 7.4)
+  state: ~~open (owner: Epic 7, Story 7.4)~~ closed (2026-09-28, stale: `apps/web/src/surfaces/relatorio/setup/etapa6-parecer.tsx`, Story 7.4, PR #51)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-4-4-4-5-tree-and-blocks.md`
   summary: Opening a sheet from the tree is a stub. `openSheet(blockId)` in `apps/web/src/surfaces/relatorio/tree-actions.ts` (an equipment row's `.s9-eq-open` or the rail's `.tree-body`, and the cabine Overflow's "Abrir primeira ficha (dados da cabine)") expands the path, focuses the row, writes `last_sheet:{id}` and toasts "Abrir a ficha: disponível na próxima etapa" (authored).
@@ -653,7 +653,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Removing an equipment sheet frees (tombstones) its `equipment` row unless another live block this device holds references it (Epic 4 QA Q4, `removeSheetOps` over `projectBlockRows`). A later relatório of the obra now reuses the project's equipment, so an equipment shared with a relatório this device never pulled (another device's, not yet opened here) can still be tombstoned by a remove made here; the other relatório's block then points at a removed equipment row until someone restores it.
   evidence: `apps/web/src/surfaces/relatorio/tree-actions.ts` `removeBlock` reads only the blocks of the project's relatórios present in this device's Dexie (`projectBlockRows`); the company pull lists other relatórios by summary only, without their blocks (AD-8). Closing it needs either the server to answer "is this equipment referenced elsewhere" at remove time, a project-scope reference count, or the removal to stop tombstoning equipment altogether and leave TAG freeing to an explicit action; each is a design decision beyond the QA fix pass.
   class: bug
-  state: open (owner: Epic 5's equipment work, or whichever story next touches equipment removal)
+  state: ~~open (owner: Epic 5's equipment work, or whichever story next touches equipment removal)~~ closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, B15, the conservative reading: the equipment is freed only when no other live block holds it AND every other relatório of the obra the company summary lists is on this device (`equipmentFreedByRemoval`); otherwise the TAG stays taken; `tree.test.ts`, `tree-actions.test.ts` "never pulled")
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-5-1-5-4-sheet-shell-cabine-nameplate-checklist.md`
   summary: The sheet's "Ensaios" step host `apps/web/src/surfaces/ficha/ensaios-section.tsx` renders only the step's empty anchor (`#ficha-step-ensaios`); the Measurement table, the continuous run and the Instrument picker are not drawn. `sheetProgress` already counts the step's missing cells, so a sheet cannot reach Completa through the UI until they are.
@@ -725,13 +725,13 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Narrowing, Epic 8. The nameplate "Fotografar placa" single-shot tile is not built.
   evidence: `source-deltas.md` row 49; the camera's single-shot path exists only as the no-camera-API fallback (`camera-view.tsx`).
   class: deferred
-  state: open (owner: Epic 8)
+  state: ~~open (owner: Epic 8)~~ closed (2026-09-28, stale: `apps/web/src/surfaces/ficha/plate-photo.tsx`, Story 8.2)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-6-1-6-2-photo-capture-and-durability.md`
   summary: Narrowing, Epic 7. The Export dialog has no pre-issue warning row for photos the server does not hold yet; it drains pending uploads and generates with the photos the server holds.
   evidence: Coordinator decision 2026-09-25 (`epic-6-context.md`); photos do not print before Epic 7, so the warning row lands with the section 7 renderer. `pendingUploadCount` leaves `dead` files out so a refused photo never stalls the drain.
   class: deferred
-  state: open (owner: Epic 7)
+  state: ~~open (owner: Epic 7)~~ closed (2026-09-28, stale: `relatorio/pre-issue.ts:251` `photos_pending_upload`, shown by the Sumário and the Export dialog)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-6-1-6-2-photo-capture-and-durability.md`
   summary: Narrowing, Epic 11. A geolocation denial is recorded as the device-local pref `geolocation_denied`, not as an op on the account row.
@@ -827,7 +827,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: A contract change regenerated with `pnpm schema:ocr` passes `pnpm verify` without the sidecar being rebuilt and tested; only the manual `docker compose --profile ocr build ocr` and `run --rm ocr pytest` (AGENTS.md) catch a sidecar that no longer validates its own responses.
   evidence: Story 8.3 review, Verification Gap finding; the 1.9 GB image stays out of the 15-minute gate by decision.
   class: deferred
-  state: open (owner: none)
+  state: ~~open (owner: none)~~ closed (2026-09-28, stale: process rule E8-A4 in `epic-batch-orchestrator.md` § 2 and AGENTS.md: a PR touching `contract/ocr.ts`, the committed schema or `services/ocr` builds the sidecar and runs its pytest under the host lock and pastes the output; the image stays out of the gate by decision)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-7-4-7-5-parecer-export-preview.md`
   summary: Certificate-missing stub. The pre-issue row "⟨código⟩ sem certificado" (section 11, warning) reads `packages/domain/src/checks/certificate-missing-stub.ts`, which only asks whether the registry row names a `certificate_file_id`; the rule that decides a missing certificate is Epic 7 batch G2's (Story 7.3, section 11). When both batches are on main, point `preIssue` at G2's kernel function and delete the stub.
@@ -960,7 +960,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: The `thumb` and `print` variants are still rendered without applying the original's EXIF orientation, so a photo stored sideways shows sideways in its tile and prints sideways in the document; only the reading job orients the image it sends to OCR.
   evidence: `apps/api/src/storage/variants.ts` `render` (no `.rotate()`); `apps/api/src/jobs/reading/image.ts` orients a copy for the reading alone.
   class: deferred
-  state: ~~open (owner: none)~~ open (owner: the batch that may change `apps/api/src/jobs/reading/image.ts`, Epic 9 batch D or later; re-owned 2026-09-28, batch C1: rotating `thumb` and `print` in `renderVariants` alone would turn every oriented plate sideways for OCR, because the reading job applies the original's EXIF orientation to the `print` bytes again (`readingImage`), and batch C1 may not touch `jobs/reading/*`; both sides must change in one batch)
+  state: ~~open (owner: none)~~ ~~open (owner: the batch that may change `apps/api/src/jobs/reading/image.ts`, Epic 9 batch D or later; re-owned 2026-09-28, batch C1: rotating `thumb` and `print` in `renderVariants` alone would turn every oriented plate sideways for OCR, because the reading job applies the original's EXIF orientation to the `print` bytes again (`readingImage`), and batch C1 may not touch `jobs/reading/*`; both sides must change in one batch)~~ closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, A12: `renderVariants` auto-orients (`.rotate()` before the resize, no EXIF out) and the reading job sends the print as it is, so a plate is rotated once; `variants.test.ts` EXIF-6 original, `image.test.ts`)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-8-4-8-5-reading-job.md`
   summary: A reading whose last attempt never returns (the api process dies mid-read, or the attempt outlives `expireInSeconds: 300`) is failed by pg-boss without `runReadingJob` seeing it, so nothing writes `reading_status = failed` and the photo stays `running` on the device, where "Tentar novamente" never shows. A dead-letter queue (`deadLetter` on the `reading` queue, its worker writing `failed` when the status is still `running`) or a boot-time sweep would close it.
@@ -1008,13 +1008,13 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Narrowing, E78-Q5. "Tentar novamente" waits for the photo's next reading status op in component state: a reload before that op arrives offers it again. The route still answers 409 while the reading is `running`, so the only second run left is one asked after the job already ended.
   evidence: `apps/web/src/surfaces/ficha/plate-photo.tsx` `FailedReading` (keyed by `reading_status_op_id`); `apps/api/src/http/reading.ts`.
   class: deferred
-  state: open (owner: none)
+  state: ~~open (owner: none)~~ closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, B16: the press records the photo's current status op in `local_prefs` (`reread_asked:{photo_id}`), so after a reload the button stays disabled until the next status op; `plate-photo-reread.test.tsx`)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-7-8-fix-qa.md`
   summary: Narrowing, E78-Q6. A reading job sent before its queue got the `reading-dead` dead letter (a job already queued when the api first runs this code) carries no dead letter, so its dying last attempt still leaves the photo `running`; every job sent after it is covered.
   evidence: pg-boss copies the queue's dead letter onto a job at send time (`COALESCE(deadLetter, q.dead_letter)`); `apps/api/src/jobs/reading/worker.ts` `ensureReadingQueue`.
   class: deferred
-  state: open (owner: none)
+  state: ~~open (owner: none)~~ closed (2026-09-28, `spec-epic-9-deferred-sweep.md`, batch C2, A13: `ensureReadingQueue` gives the queue's live jobs that lack it the dead letter (`pgboss.job`, created/retry/active); `job.integration.test.ts` "A13")
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-7-8-fix-qa.md`
   summary: E78-R1. The plate crop shrinks the plate text to about 7 px at 768 px (the crop is 297 px wide inside a 657 px box), and the focused field's outline covers the value it points at.
@@ -1115,6 +1115,12 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
 - source_spec: spec-9-2-create-a-block-by-photographing-the-equipment.md
   summary: Story 9.2 review (known open): "Desfazer" after a photo-backed create is exercised by no test; it reverts the whole batch (photo back to a panel photo with no block, suggestion back to pending, a panel reading re-queued).
   evidence: `apps/web/src/surfaces/relatorio/tree-actions.ts` `createPair` puts `panelRetargetOps` and the suggestion status put in the undoable batch; `e2e/panel-capture*.spec.ts` never click "Desfazer".
+  class: debt
+  state: open (owner: Epic 9 integrated review)
+
+- source_spec: spec-epic-9-deferred-sweep.md
+  summary: The Export dialog's preview press ("Pré-visualizar") still retries a `409 not_caught_up` blindly; batch C2 (B14) made only the issue press fail at once, with "N arquivos ainda não chegaram ao servidor", when the missing files are ones no upload of this device will bring.
+  evidence: `apps/web/src/surfaces/export/use-preview.ts` retry loop (`MAX_ROUNDS`) parses no `details`; the kernel rule `notCaughtUpRetryable` and `missingFilesText` (`print/revisions.ts`) are ready to adopt. Verification Gap review of batch C2.
   class: debt
   state: open (owner: Epic 9 integrated review)
 
