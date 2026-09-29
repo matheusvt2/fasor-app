@@ -1,5 +1,5 @@
 import {
-  decisionCount,
+  decisionTotal,
   mergeInfoText,
   pendingSummaryCount,
   pendingSummaryText,
@@ -237,8 +237,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const reading = useLiveQuery(() => (db === null ? Promise.resolve(NO_READING) : readingCountRows(db)), [db], NO_READING);
   // Stories 10.2/10.3: the open decisions on this device; the badge reads "Conflito" while any wait.
   const decisions = useLiveQuery(() => (db === null ? Promise.resolve(NO_DECISIONS) : heldDecisions(db)), [db], NO_DECISIONS);
-  const decisionTotal = useMemo(() => decisions.reduce((sum, entry) => sum + decisionCount(entry.decisions), 0), [decisions]);
-  const counts = useMemo(() => syncCounts(rows, reading, status.merges, decisionTotal), [rows, reading, status.merges, decisionTotal]);
+  // A duplicate TAG referenced by two held relatórios of one project counts once.
+  const decisionCount = useMemo(() => decisionTotal(decisions), [decisions]);
+  const counts = useMemo(() => syncCounts(rows, reading, status.merges, decisionCount), [rows, reading, status.merges, decisionCount]);
   // Story 10.1: the rows each merge row names (block, TAG, author, photo), read live.
   const mergeContext = useLiveQuery(
     () => (db === null ? Promise.resolve(NO_CONTEXT) : mergeTextContext(db, status.merges)),

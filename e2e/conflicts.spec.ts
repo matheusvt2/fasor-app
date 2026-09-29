@@ -451,6 +451,58 @@ test('@p0 10.3-E2E-003 the same TAG created on both tablets: the Sumário Banner
   }
 });
 
+test('@p0 10.3-E2E-006 the same TAG created on both tablets: "Renomear uma" from the Sync status row opens the Sumário rename dialog on the later one; saving renames it on both tablets and the server', async ({
+  page,
+  browser,
+  seed,
+}) => {
+  test.setTimeout(300_000);
+  const { devices, relatorioId } = await twoDevices(page, browser, seed);
+  const { ana, eduardo } = devices;
+  const tcRows = async (device: Device) =>
+    (await entities<EquipmentRow>(device)).filter((record) => record.entity === 'equipment' && record.row.tag.startsWith('TC-C01')).map((record) => record.row);
+  try {
+    for (const device of [eduardo, ana]) {
+      await openTreeForPalette(device.page, relatorioId);
+      await device.context.setOffline(true);
+      await addBlock(device.page, 'TC-C01');
+    }
+    const [eEquipment] = await tcRows(eduardo);
+    const [aEquipment] = await tcRows(ana);
+    await syncAll(devices);
+
+    // Eduardo is on Sync status: "Renomear uma" leads to the Sumário, the dialog on the later one (Ana's).
+    await eduardo.page.setViewportSize({ width: 1280, height: 900 });
+    const row = decisionRows(eduardo.page);
+    await expect(row.locator('.banner-text')).toHaveText('TC-C01 foi criada em dois aparelhos');
+    await row.getByRole('button', { name: 'Renomear uma' }).click();
+    await expect(eduardo.page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
+    const rename = eduardo.page.getByRole('dialog', { name: 'Renomear TAG TC-C01' });
+    await expect(rename).toBeVisible();
+    await rename.getByRole('textbox', { name: 'TAG' }).fill('TC-C01-B');
+    await rename.getByRole('button', { name: 'Salvar' }).click();
+    await expect(rename).toBeHidden();
+    await expect(conflictBanner(eduardo.page)).toHaveCount(0);
+
+    await syncNow(eduardo.page);
+    await expect(decisionRows(eduardo.page)).toHaveCount(0);
+    await syncNow(ana.page);
+    await expect(decisionRows(ana.page)).toHaveCount(0);
+    const server = (await serverRow(ana.account.companyId, 'equipment', aEquipment!.id)) as unknown as EquipmentRow;
+    expect(server.tag).toBe('TC-C01-B');
+    for (const device of [ana, eduardo]) {
+      const rows = await tcRows(device);
+      expect(rows.find((equipment) => equipment.id === aEquipment!.id)).toEqual(server);
+      expect(rows.find((equipment) => equipment.id === eEquipment!.id)!.tag).toBe('TC-C01');
+    }
+    await ana.page.goto(`/relatorio/${relatorioId}`);
+    await expect(ana.page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible();
+    await expect(conflictBanner(ana.page)).toHaveCount(0);
+  } finally {
+    await eduardo.context.close();
+  }
+});
+
 test('@p1 10.3-E2E-004 a contradiction and a removal conflict at once: the badge says Conflito, the Banner ranks them, each resolves on its own; the view fits 390 px', async ({
   page,
   browser,

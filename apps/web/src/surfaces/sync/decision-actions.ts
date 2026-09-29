@@ -2,6 +2,7 @@ import {
   applyPickOps,
   keepBothTag,
   keptBothText,
+  normalizeTag,
   removalKeptText,
   removalRemovedText,
   type BlockRemovalDecision,
@@ -150,7 +151,8 @@ export function useDecisionActions(): DecisionActions {
       await run(async () => {
         const equipment = await equipmentRows(db, entry.projectId);
         const later = equipment.find((row) => row.id === decision.later_equipment_id && row.removed_at === null);
-        if (later === undefined) return null;
+        // A second tap, or a rename already made elsewhere: nothing left to keep apart.
+        if (later === undefined || normalizeTag(later.tag) !== normalizeTag(decision.tag)) return null;
         const tag = keepBothTag(decision, equipment);
         return { ops: [putEquipmentTagOp(author, entry.projectId, later.id, tag)], text: keptBothText(decision, tag, context) };
       });

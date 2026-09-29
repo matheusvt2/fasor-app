@@ -2,9 +2,10 @@
 title: 'Stories 10.2 + 10.3: Contradictions and structure conflicts'
 type: 'feature'
 created: '2026-09-29'
-status: 'in-progress'
+status: 'done'
 baseline_revision: 'e14229de12beda030e59864fb11144f369fc9878'
 review_loop_iteration: 0
+followup_review_recommended: true
 dev_model: opus
 dev_effort: high
 warnings: ['batched', 'multiple-goals', 'oversized']
@@ -129,3 +130,35 @@ Open questions (list in the PR, do not decide): a contradiction as a pre-issue r
 
 ## Spec Change Log
 
+
+## Review Triage Log
+
+### 2026-09-29 — Review pass
+- verdicts: 16 findings — high 0, medium 4, low 9, false 1, maybe-false 2
+- layers run: Edge Case Hunter, Verification Gap Reviewer (Blind Hunter and Intent Alignment skipped: token economy; the integrated epic review covers them)
+- findings:
+  - `[medium]` `[patch]` VG: nothing pins that a coalesced outbox row keeps the first op's stamps — test added (two stamped puts on a filled cell keep the first `standing_op_id`/`seen_conflict_op_id`).
+  - `[medium]` `[patch]` VG: the Sumário rename save path and the Sync status "Renomear uma" navigation are never exercised — e2e extended: from the Decisões row, rename the later equipment, assert both devices and the server, the Banner and row gone.
+  - `[low]` `[patch]` VG: the `block_added` row's location is covered only by a @p1 e2e — unit test of `mergeTextContext` returning the location.
+  - `[low]` `[reject]` VG other: a failed commit after `build()` is silent — commit failures are rare and a notice needs new error copy; the existing actions share the pattern.
+  - `[low]` `[reject]` VG other: the Home card badge never reads Conflito — the spec asks only for the device-wide badge; the card's counts carry no decisions by design.
+  - `[medium]` `[patch]` ECH: the displayed side's device rewriting its cell before a pull silently drops `conflict` — new commit stamp `meta.seen_conflict_op_id`; a sequential put keeps the conflict when the stamp differs from the record (unit + api test).
+  - `[medium]` `[patch]` ECH: a removed block still holding a cell conflict yields a cell decision whose "Aplicar" lands on the tombstone and marks a spurious removal conflict — cell decisions listed for live blocks only.
+  - `[low]` `[reject]` ECH: any later device edit on an already-removed block marks a removal conflict even when the device saw the removal — with the previous patch no app path edits a removed block; a guard needs a third stamp.
+  - `[low]` `[patch]` ECH: a duplicate-TAG decision counted and listed once per held relatório of the project — deduped by (project, earlier, later) for the count and the rows.
+  - `[low]` `[reject]` ECH: three equipment sharing a TAG with first and last created on one device — three-way duplicates across devices are rare; the fix adds a selection rule the spec does not define.
+  - `[low]` `[patch]` ECH: "Manter as duas" tapped twice renames again to -3 — returns null once the later TAG no longer matches.
+  - `[maybe-false]` `[reject]` ECH: "Aplicar" after the sides changed while the dialog was open — the pick carries the value the user saw, so the write is what they chose; the case needs a pull during an open dialog; would be low.
+  - `[maybe-false]` `[reject]` ECH: radio stays checked on a side whose value changed — same root as the previous row; would be low.
+  - `[low]` `[reject]` ECH: `commitBatch` throwing after `build()` is silent — same as the VG other row.
+  - `[low]` `[reject]` ECH: the Sumário rename refusal (TAG taken meanwhile) is not shown — the dialog refuses inline before saving; only a pull between typing and saving reaches it.
+  - `[false]` `[reject]` ECH: coalescing keeps the first stamps so a deliberate overwrite becomes a false contradiction — the merged op carries the run's first `prev_op_id` and the first stamps consistently (what the device saw before the run), which is the coalescing contract; an overwrite after a pull folds as the run's first op would have.
+
+## Auto Run Result
+
+- Summary: the kernel fold marks a true cell contradiction (`cell.conflict`, the displaced side; the `seq`-later value shows) and a block removed on one device and edited on the other (`block.removal_conflict`, `removed_by`), identically on device and server; three commit stamps (`meta.standing_op_id`, `meta.seen_conflict_op_id`, `meta.seen_modified_at`) tell what the device saw. `merge/conflicts.ts` lists every open decision (`openDecisions`, cell / block_removal / duplicate_tag) with its texts and counts; the badge reads Conflito first; conflict Banners on the sheet and the Sumário; a React Aria Conflict view (mock 86 `.cv-*`, "Aplicar"; removal variant with two `.conflict-column`); a minimal "Decisões" section in Sync status; `block_added` info rows. Contract 11/11. Ledger "merge fold's known limits": two parts closed, the third re-owned.
+- Files: kernel `merge/{policy,stamp,conflicts,info,rules}.ts`, `ops/{apply,op,outbox}.ts`, `schemas/entities.ts`, `sync/counts.ts`, `contract/version.ts`; web `db/{commit,sync-store,decision-store}.ts`, `sync/engine.ts`, `state/sync.tsx`, `surfaces/sync/{conflict-dialog,conflict-banner,decision-actions,sync-status-surface}`, `sync.css`, `ficha-surface.tsx`, `sumario-surface.tsx`, `components/crop-thumb.tsx`, `copy/pt-br.ts`; tests `merge/conflicts.test.ts`, `apps/api/src/sync/conflicts.integration.test.ts`, `e2e/conflicts.spec.ts`.
+- Review: 16 findings; 7 patched (4 medium, 3 low), 0 deferred, 8 rejected (reasons in the triage log), 1 false.
+- Follow-up review recommended: true. Four medium entries were patched in one pass; the unverified risk is the interplay of the three commit stamps with outbox coalescing and undo inverses beyond the tested cases (the integrated epic review covers it).
+- Verification: targeted unit and api suites green (after patches: 109 targeted unit tests, conflicts api 8/8, `conflicts.spec` 8/8, `merge.spec` 4/4); mutation runs: contradiction without `conflict` (2 api + 2 @p0 red), removal mark dropped (3 api + 2 @p0 red), standing check dropped (api ledger test + 2 unit red), each restored. Full `pnpm verify` and `test:e2e:full` run by the orchestrator before the PR.
+- Residual risks: the decisions live query reads every block and equipment row on each database change; the X/S seam in Sync status (Story 10.4) is reconciled by the second merger.

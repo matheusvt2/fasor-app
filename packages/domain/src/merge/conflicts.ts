@@ -230,7 +230,9 @@ export function openDecisions(input: OpenDecisionsInput): Decision[] {
   const cells: CellDecision[] = [];
   const removals: BlockRemovalDecision[] = [];
   for (const block of sorted) {
-    const conflicts = cellConflictsOf(block, input.opOf);
+    // A removed block's cells are not decided: its sheet is out of the tree (and a put on it
+    // would mark a removal conflict); its removal decision, if any, comes first.
+    const conflicts = block.removed_at === null ? cellConflictsOf(block, input.opOf) : [];
     if (conflicts.length > 0) cells.push({ kind: 'cell', relatorio_id: input.relatorioId, block_id: block.id, cells: conflicts });
     const mark = block.removal_conflict;
     if (mark !== undefined && block.removed_at !== null) {
@@ -303,6 +305,30 @@ export function conflictOpIds(blocks: readonly Pick<BlockRow, 'sheet'>[]): strin
 /** How many decisions wait: one per contradicting cell, one per structure case. */
 export function decisionCount(decisions: readonly Decision[]): number {
   return decisions.reduce((sum, decision) => sum + (decision.kind === 'cell' ? decision.cells.length : 1), 0);
+}
+
+/**
+ * The held relatórios' decisions with each duplicate TAG kept once: the same two equipment
+ * rows of one project are listed by every held relatório that references them, but they are
+ * one decision (the first relatório's). For the badge count and the Sync status rows.
+ */
+export function uniqueHeldDecisions<T extends { projectId: string; decisions: readonly Decision[] }>(entries: readonly T[]): T[] {
+  const seen = new Set<string>();
+  return entries.map((entry) => ({
+    ...entry,
+    decisions: entry.decisions.filter((decision) => {
+      if (decision.kind !== 'duplicate_tag') return true;
+      const key = `${entry.projectId}:${decisionKey(decision)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }),
+  }));
+}
+
+/** The badge's count over every held relatório (`uniqueHeldDecisions`, then `decisionCount`). */
+export function decisionTotal(entries: readonly { projectId: string; decisions: readonly Decision[] }[]): number {
+  return uniqueHeldDecisions(entries).reduce((sum, entry) => sum + decisionCount(entry.decisions), 0);
 }
 
 /** A stable key of one decision (for a list row). */

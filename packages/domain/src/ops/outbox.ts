@@ -8,7 +8,7 @@ import { familyDef, parsePath, safeParsePath } from './path.ts';
  */
 
 /** Stories 10.2/10.3: the keys a device stamps on every op it commits (`merge/stamp.ts`); they alone never block coalescing. */
-const SEEN_STAMP_KEYS: ReadonlySet<string> = new Set(['standing_op_id', 'seen_modified_at']);
+const SEEN_STAMP_KEYS: ReadonlySet<string> = new Set(['standing_op_id', 'seen_conflict_op_id', 'seen_modified_at']);
 
 /** No `meta`, or one holding only the device's commit stamps. */
 function plainMeta(meta: Op['meta']): boolean {

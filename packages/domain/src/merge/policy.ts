@@ -116,8 +116,9 @@ export interface MergeCellContext {
 
 /**
  * The cell `applyOp` writes for a `sheet/*` put.
- * - Sequential: the op's own cell, with no `merge` and no `conflict` record (the "Aplicar"
- *   of the Conflict view resolves this way).
+ * - Sequential: the op's own cell, with no `merge` record; it drops `conflict` unless its
+ *   `meta.seen_conflict_op_id` names another one (the "Aplicar" of the Conflict view, which
+ *   saw it, resolves this way).
  * - Contradiction (Story 10.2): the op's own cell (the `seq`-later value stands, as in
  *   10.1) plus `conflict`, the cell it displaced. A second contradiction replaces the
  *   record with the cell it displaces (three writers: the oldest side drops out).
@@ -127,7 +128,15 @@ export interface MergeCellContext {
  */
 export function mergeCell(current: Cell | null | undefined, op: Op, context: MergeCellContext): Cell {
   const outcome = mergePolicy({ path: context.path, current, op, result: context.result });
-  if (outcome.kind === 'sequential') return plainCell(op);
+  if (outcome.kind === 'sequential') {
+    // A sequential put clears a `conflict` it saw ("Aplicar"). One stamped with another (or
+    // none: the device whose value shows rewrote its cell before pulling the mark) keeps it,
+    // so the displaced side is never lost without a decision. An unstamped op clears it.
+    const seen = op.meta?.seen_conflict_op_id;
+    const conflict = current?.conflict;
+    if (conflict !== undefined && seen !== undefined && (seen ?? null) !== conflict.op_id) return { ...plainCell(op), conflict };
+    return plainCell(op);
+  }
   if (outcome.kind === 'contradiction') {
     const displaced = current!;
     return { ...plainCell(op), conflict: { op_id: displaced.op_id, value: displaced.value, source_suggestion_id: displaced.source_suggestion_id } };

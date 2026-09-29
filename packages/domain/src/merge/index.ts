@@ -14,6 +14,8 @@ export {
   decisionCount,
   decisionKey,
   decisionText,
+  decisionTotal,
+  uniqueHeldDecisions,
   keepBothTag,
   keptBothText,
   openDecisions,

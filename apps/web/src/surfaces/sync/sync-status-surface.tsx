@@ -8,9 +8,10 @@ import {
   sugestoesText,
   supersededText,
   syncBadgeLabel,
+  uniqueHeldDecisions,
   type Decision,
 } from '@app/domain';
-import { useId, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Button, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -209,7 +210,8 @@ export function SyncStatusSurface() {
 function DecisionsSection() {
   const sync = useSync();
   const headingId = useId();
-  const held = sync.decisions ?? [];
+  // A duplicate TAG referenced by two held relatórios of one project is one row.
+  const held = useMemo(() => uniqueHeldDecisions(sync.decisions ?? []), [sync.decisions]);
   const actions = useDecisionActions();
   const [open, setOpen] = useState<{ relatorioId: string; key: string } | null>(null);
   const openEntry = open === null ? undefined : held.find((entry) => entry.relatorioId === open.relatorioId);

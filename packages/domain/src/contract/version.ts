@@ -56,8 +56,9 @@
  * (`cell.conflict`, the displaced side) and a block removed on one device and edited on the
  * other (`block.removal_conflict`, plus `block.removed_by`, the actor of the latest
  * `removed_at` write). A device stamps what it saw on its ops, `meta.standing_op_id` on a
- * `sheet/*` put and `meta.seen_modified_at` on a `block/{id}/removed_at` write, and the fold
- * reads both. The session information gains the `block_added` rule (a `MergeInfo` whose
+ * `sheet/*` put (with `meta.seen_conflict_op_id`, the `conflict` it saw: a sequential put
+ * keeps a `conflict` it did not see) and `meta.seen_modified_at` on a `block/{id}/removed_at`
+ * write, and the fold reads them. The session information gains the `block_added` rule (a `MergeInfo` whose
  * `over_op_id` is null). No new family, but the reducer and two row shapes changed:
  * `MIN_CONTRACT_VERSION` goes to 11 too.
  */

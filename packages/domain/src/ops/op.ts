@@ -27,6 +27,9 @@ export type OpKind = z.infer<typeof opKindSchema>;
  * - `standing_op_id`: on a `sheet/*` put, the `op_id` of the cell the device's row held
  *   (null when the slot was empty). The fold treats the put as concurrent when it is not
  *   the cell's current `op_id`, even when `prev_op_id` is the path's head.
+ * - `seen_conflict_op_id`: on the same put, the `op_id` of that cell's `conflict` (null
+ *   when none). A sequential put clears a `conflict` only when it saw that one ("Aplicar");
+ *   a device that rewrites its cell before pulling the mark keeps it.
  * - `seen_modified_at`: on a `block/{id}/removed_at` write, the block's `last_modified_at`
  *   as the device held it (null when never edited). A removal that did not see the latest
  *   edit marks the block with a removal conflict.
@@ -36,6 +39,7 @@ export const opMetaSchema = z.looseObject({
   source_suggestion_id: uuidV7Schema.optional(),
   auto: z.boolean().optional(),
   standing_op_id: uuidV7Schema.nullable().optional(),
+  seen_conflict_op_id: uuidV7Schema.nullable().optional(),
   seen_modified_at: isoTimestampSchema.nullable().optional(),
 });
 export type OpMeta = z.infer<typeof opMetaSchema>;

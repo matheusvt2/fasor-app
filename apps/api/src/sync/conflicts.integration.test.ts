@@ -239,6 +239,28 @@ describe('10.2-API-001 a cell contradiction, through the sync route', () => {
     expect(await deviceFold(block.id)).toEqual(after);
   });
 
+  it('the device whose value shows rewrites its cell before pulling the mark: the conflict stays; "Aplicar", having seen it, clears it', async () => {
+    const block = blocks[0]!;
+    const path = resultPath(block.id);
+    const stamps = (standing: string | null, conflict: string | null) => ({ standing_op_id: standing, seen_conflict_op_id: conflict });
+    const e = deviceOp(E_DEVICE, { kind: 'put', path, value: 'C', prev_op_id: null, meta: stamps(null, null) });
+    const a = deviceOp(A_DEVICE, { kind: 'put', path, value: 'NA', prev_op_id: null, meta: stamps(null, null) });
+    await push([e]);
+    await push([a]);
+    // Ana has not pulled: her row shows her NA with no conflict, and she rewrites it.
+    const rewrite = deviceOp(A_DEVICE, { kind: 'put', path, value: 'NC', prev_op_id: a.op_id, meta: stamps(a.op_id, null) });
+    expect((await push([rewrite])).superseded).toEqual([]);
+    const kept = await serverRow<BlockRow>('block', block.id);
+    expect(kept.sheet.checklist[item]?.result).toEqual({ value: 'NC', source_suggestion_id: null, op_id: rewrite.op_id, conflict: { op_id: e.op_id, value: 'C', source_suggestion_id: null } });
+    expect(await deviceFold(block.id)).toEqual(kept);
+
+    const apply = deviceOp(A_DEVICE, { kind: 'put', path, value: 'C', prev_op_id: rewrite.op_id, meta: stamps(rewrite.op_id, e.op_id) });
+    await push([apply]);
+    const cleared = await serverRow<BlockRow>('block', block.id);
+    expect(cleared.sheet.checklist[item]?.result).toEqual({ value: 'C', source_suggestion_id: null, op_id: apply.op_id });
+    expect(await deviceFold(block.id)).toEqual(cleared);
+  });
+
   it('ledger (10.1 known limit): the losing device taps C again before its pull, stamped with its own merged-away C: NC stays', async () => {
     const block = blocks[1]!;
     const path = resultPath(block.id);

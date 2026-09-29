@@ -9,7 +9,8 @@ import type { BlockRow } from '../schemas/entities.ts';
  * names), and read by the fold (`isConcurrent`, the block removal branch of `applyOp`):
  *
  * - a `sheet/*` put: `meta.standing_op_id`, the `op_id` of the cell the row held (null when
- *   the slot was empty);
+ *   the slot was empty), and `meta.seen_conflict_op_id`, the `op_id` of that cell's
+ *   `conflict` (null when none);
  * - a `block/{id}/removed_at` write (a `remove` or a put): `meta.seen_modified_at`, the
  *   block's `last_modified_at` (null when never edited).
  *
@@ -20,11 +21,15 @@ export function stampSeen(op: Op, state: EntityState): Op {
   const path = safeParsePath(op.path);
   if (path === null) return op;
   if (path.family.startsWith('sheet/')) {
-    if (op.kind !== 'put' || op.meta?.standing_op_id !== undefined) return op;
+    if (op.kind !== 'put') return op;
     const blockId = (path as { block_id: string }).block_id;
     const block = state.get(entityKey('block', blockId)) as BlockRow | undefined;
     const cell = block === undefined ? undefined : sheetCellAt(block.sheet, path);
-    return { ...op, meta: { ...(op.meta ?? {}), standing_op_id: cell?.op_id ?? null } };
+    const stamps = {
+      standing_op_id: op.meta?.standing_op_id !== undefined ? op.meta.standing_op_id : (cell?.op_id ?? null),
+      seen_conflict_op_id: op.meta?.seen_conflict_op_id !== undefined ? op.meta.seen_conflict_op_id : (cell?.conflict?.op_id ?? null),
+    };
+    return { ...op, meta: { ...(op.meta ?? {}), ...stamps } };
   }
   if (path.family === 'block/field' && path.field === 'removed_at') {
     if (op.meta?.seen_modified_at !== undefined) return op;

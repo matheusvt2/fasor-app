@@ -14,6 +14,7 @@ import {
   conflictViewTitle,
   decisionCount,
   decisionText,
+  decisionTotal,
   holdsConflictMarks,
   keepBothTag,
   keptBothText,
@@ -21,6 +22,7 @@ import {
   removalColumnTitles,
   removalKeptText,
   removalRemovedText,
+  uniqueHeldDecisions,
   type CellDecision,
   type DecisionTextContext,
   type OpFacts,
@@ -171,6 +173,26 @@ describe('10.2 the contradiction mark', () => {
     expect(replaced.sheet.test[TEST]?.cells['0']?.['0']).toMatchObject({ op_id: third.op_id, conflict: { op_id: a.op_id, value: measured('3300') } });
   });
 
+  it('a sequential rewrite by the device whose value shows, before it pulled the mark, keeps the conflict; "Aplicar" (which saw it) clears it', () => {
+    const { create, eduardo, ana } = world();
+    const e = eduardo(reading, measured('330'));
+    const a = ana(reading, measured('3300'));
+    // Ana's device had not pulled Eduardo's op: her cell showed her own value, no conflict.
+    const rewrite = ana(reading, measured('3400'), a.op_id, { standing_op_id: a.op_id, seen_conflict_op_id: null });
+    const kept = fold([create, e, a, rewrite]);
+    expect(kept.sheet.test[TEST]?.cells['0']?.['0']).toEqual({
+      value: measured('3400'),
+      source_suggestion_id: null,
+      op_id: rewrite.op_id,
+      conflict: { op_id: e.op_id, value: measured('330'), source_suggestion_id: null },
+    });
+    const apply = ana(reading, measured('330'), rewrite.op_id, { standing_op_id: rewrite.op_id, seen_conflict_op_id: e.op_id });
+    expect(fold([create, e, a, rewrite, apply]).sheet.test[TEST]?.cells['0']?.['0']).toEqual({ value: measured('330'), source_suggestion_id: null, op_id: apply.op_id });
+    // An op without the stamp (fixtures, older logs) clears it as before.
+    const unstamped = ana(reading, measured('33'), a.op_id);
+    expect(fold([create, e, a, unstamped]).sheet.test[TEST]?.cells['0']?.['0']?.conflict).toBeUndefined();
+  });
+
   it('ledger: the losing device writes C again before its pull (standing mismatch): concurrent, NC stays; after the pull a deliberate C applies', () => {
     const { create, eduardo, ana } = world();
     const e = eduardo(result, 'NC');
@@ -275,9 +297,14 @@ describe('stampSeen', () => {
     const x = ana(result, 'C');
     const row = fold([create, x]);
     const state = new Map([[entityKey('block', BLOCK), row]]);
-    expect(stampSeen(ana(result, 'NC', x.op_id), state).meta).toEqual({ standing_op_id: x.op_id });
-    expect(stampSeen(ana(otherResult, 'NC'), state).meta).toEqual({ standing_op_id: null });
-    expect(stampSeen(ana(result, 'NC', x.op_id, { standing_op_id: null }), state).meta).toEqual({ standing_op_id: null });
+    expect(stampSeen(ana(result, 'NC', x.op_id), state).meta).toEqual({ standing_op_id: x.op_id, seen_conflict_op_id: null });
+    expect(stampSeen(ana(otherResult, 'NC'), state).meta).toEqual({ standing_op_id: null, seen_conflict_op_id: null });
+    expect(stampSeen(ana(result, 'NC', x.op_id, { standing_op_id: null }), state).meta).toEqual({ standing_op_id: null, seen_conflict_op_id: null });
+    // A cell holding a contradiction: the conflict the device saw is stamped too.
+    const e = ana(result, 'NA');
+    const marked = fold([create, x, { ...e, device_id: E_DEVICE }]);
+    const markedState = new Map([[entityKey('block', BLOCK), marked]]);
+    expect(stampSeen(ana(result, 'C', e.op_id), markedState).meta).toEqual({ standing_op_id: e.op_id, seen_conflict_op_id: x.op_id });
     expect(stampSeen(ana(removedAt, null, null, null, 'remove'), state).meta).toEqual({ seen_modified_at: x.client_ts });
     const order = ana(`block/${BLOCK}/order_key`, 'b0');
     expect(stampSeen(order, state)).toBe(order);
@@ -342,6 +369,30 @@ describe('openDecisions and its words', () => {
     expect(removalColumnTitles(removalDecision, removedWords).edited).toMatch(/^Alterado por você · /);
     expect(removalKeptText(removalDecision, { ...removedWords, viewerActorId: EDUARDO })).toBe('SEC-C12 mantido na Coluna 12 com as alterações de Ana');
     expect(removalRemovedText(removalDecision, { ...removedWords, viewerActorId: EDUARDO })).toBe('SEC-C12 removido — a edição de Ana fica recuperável');
+  });
+
+  it('a removed block\'s contradicting cells are no decision (its removal decision comes first)', () => {
+    const { create, eduardo, ana } = world();
+    const e = eduardo(result, 'C');
+    const a = ana(result, 'NA');
+    const removal = eduardo(removedAt, null, null, { seen_modified_at: null }, 'remove');
+    const row = fold([create, e, a, removal]);
+    expect(row.sheet.checklist[ITEM]?.result?.conflict).toBeDefined();
+    const decisions = openDecisions({ relatorioId: TEST_RELATORIO, blocks: [row], locations: [], equipment: [], opOf: () => undefined, createOpOf: () => undefined });
+    expect(decisions.map((decision) => decision.kind)).toEqual(['block_removal']);
+  });
+
+  it('a duplicate TAG held by two relatórios of one project is counted and listed once', () => {
+    const tag = { kind: 'duplicate_tag' as const, relatorio_id: TEST_RELATORIO, tag: 'SEC-C09', earlier_equipment_id: EQUIPMENT, later_equipment_id: EQUIPMENT_2, later_block_id: null, earlier: { actor_id: ANA, device_id: A_DEVICE, client_ts: '2026-09-21T11:40:00.000Z' }, later: { actor_id: EDUARDO, device_id: E_DEVICE, client_ts: '2026-09-21T11:55:00.000Z' } };
+    const cell: CellDecision = { kind: 'cell', relatorio_id: TEST_RELATORIO, block_id: BLOCK, cells: [] };
+    const entries = [
+      { projectId: PROJECT, relatorioId: 'r1', decisions: [tag] },
+      { projectId: PROJECT, relatorioId: 'r2', decisions: [cell, { ...tag, relatorio_id: 'r2' }] },
+      { projectId: 'another-project', relatorioId: 'r3', decisions: [tag] },
+    ];
+    expect(uniqueHeldDecisions(entries).map((entry) => entry.decisions.length)).toEqual([1, 1, 1]);
+    expect(uniqueHeldDecisions(entries)[1]!.relatorioId).toBe('r2');
+    expect(decisionTotal(entries)).toBe(2);
   });
 
   it('a TAG created on two devices is a decision (later = higher seq, an unpushed create is later); on one device it is not', () => {
