@@ -414,6 +414,42 @@ test('@p0 9.4-E2E-011 at 390 px a dictated reading over a pending display readin
   await within(line);
 });
 
+test('@p0 9.4-E2E-013 at 390 px a dictated reading over a verify display fill: "Confirmar todos" confirms the suggested one alone and its toast counts only the verify fill the table still shows', async ({ page }) => {
+  test.setTimeout(180_000);
+  const { relatorioId, blockId } = await openChaveSheet(page, account, database, { width: 390 });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const cellPath = (row: number) => `sheet/${blockId}/test/isolacao/cell/${row}/0`;
+  // Ledger 1155: contato fechado with Fase A and Fase C display fills to verify, Fase B suggested.
+  const faseA = await pushSuggestion(account.companyId, relatorioId, { targetPath: cellPath(3), value: reading('147'), trust: 'verify', actorId: account.userId });
+  const faseB = await pushSuggestion(account.companyId, relatorioId, { targetPath: cellPath(4), value: reading('200'), actorId: account.userId });
+  const faseC = await pushSuggestion(account.companyId, relatorioId, { targetPath: cellPath(5), value: reading('210'), trust: 'verify', actorId: account.userId });
+  await syncNowAndReturn(page);
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  const fechado = table(page, 'contato_fechado');
+  const confirmAll = fechado.locator('.mt-actions').getByRole('button', { name: /^Confirmar todos/ });
+  await expect(confirmAll).toHaveText('Confirmar todos (1)');
+
+  // Fase A dictated: the cell shows the heard value instead of its verify display fill.
+  await fechado.getByRole('button', { name: FECHADO_MIC }).click();
+  await speak(page, 'Fase A, 150 giga');
+  await expect(fechado.locator('[data-cell="isolacao:3:0"] .suggestion-field[data-state="suggested"] input.mf-value')).toHaveValue('150');
+  await expect(confirmAll).toHaveText('Confirmar todos (1)');
+
+  // The toast counts Fase C alone as left for verification: Fase A shows the dictated reading, not its display fill.
+  await confirmAll.click();
+  await expect(page.getByTestId('toast')).toContainText('1 campo confirmado — 1 campo pede verificação');
+  await expect.poll(async () => (await readStore<OutboxRow>(page, database, 'outbox')).find((op) => op.path === `suggestion/${faseB}/status`)?.value ?? null).toBe('confirmed');
+  const rows = await readStore<OutboxRow>(page, database, 'outbox');
+  const batch = rows.find((op) => op.path === `suggestion/${faseB}/status`)!.batch_id;
+  expect(rows.filter((op) => op.batch_id === batch).map((op) => op.path).sort()).toEqual([cellPath(4), `suggestion/${faseB}/status`].sort());
+  const untouched = [cellPath(3), `suggestion/${faseA}/status`, cellPath(5), `suggestion/${faseC}/status`];
+  expect(rows.some((op) => untouched.includes(op.path))).toBe(false);
+  await expect.poll(async () => cellValue(await storedBlock(page, blockId), 'isolacao', 4, 0)).toEqual(reading('200'));
+  const stored = await storedBlock(page, blockId);
+  expect(cellValue(stored, 'isolacao', 3, 0)).toBeNull();
+  expect(cellValue(stored, 'isolacao', 5, 0)).toBeNull();
+});
+
 test('@p1 9.4-E2E-012 Enter on a dictated reading writes it as heard and runs on to the next cell', async ({ page }) => {
   test.setTimeout(150_000);
   const { blockId } = await openChaveSheet(page, account, database);

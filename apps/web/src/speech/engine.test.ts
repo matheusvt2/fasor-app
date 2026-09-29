@@ -9,9 +9,9 @@ import { createWebSpeechEngine, type RecognitionLike } from './webspeech-engine.
  */
 
 describe('9.4-UNIT speechEngineName and createSpeechEngine', () => {
-  it('reads unset as webspeech and an unknown name as none', () => {
-    expect(speechEngineName(undefined)).toBe('webspeech');
-    expect(speechEngineName('')).toBe('webspeech');
+  it('reads unset, empty and an unknown name as none (E9-A9: webspeech is opt-in)', () => {
+    expect(speechEngineName(undefined)).toBe('none');
+    expect(speechEngineName('')).toBe('none');
     expect(speechEngineName('webspeech')).toBe('webspeech');
     expect(speechEngineName('fake')).toBe('fake');
     expect(speechEngineName('none')).toBe('none');
