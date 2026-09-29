@@ -300,7 +300,7 @@ test('@p1 10.4-E2E-004 while a relatório stream is still coming down, Sync stat
   await expect(page.getByTestId('sync-download-row')).toHaveCount(0);
 });
 
-test('@p1 10.4-E2E-005 a photo refused by the server is listed with "Erro — Tentar novamente"; the tap uploads it and the row goes', async ({ page, seed }) => {
+test('@p0 10.4-E2E-005 a photo refused by the server is listed with "Erro — Tentar novamente"; the tap uploads it and the row goes', async ({ page, seed }) => {
   test.setTimeout(150_000);
   const account = seed.companies[1];
   const database = deviceDatabaseName(account.userId);

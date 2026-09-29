@@ -100,9 +100,12 @@ export function syncCounts(
   const merged = new Set(merges.map((entry) => `${entry.op_id}:${entry.over_op_id}`)).size;
   let uploadErrors = 0;
   if (uploads !== undefined) {
+    // A photo whose upload stopped counts as an error only, even while its create op waits.
+    for (const upload of uploads) if (!upload.error) photoIds.add(upload.id);
     for (const upload of uploads) {
-      if (upload.error) uploadErrors++;
-      else photoIds.add(upload.id);
+      if (!upload.error) continue;
+      uploadErrors++;
+      photoIds.delete(upload.id);
     }
   }
   return {

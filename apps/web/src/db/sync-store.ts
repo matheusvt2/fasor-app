@@ -399,7 +399,7 @@ export async function unackedPhotoUploads(db: AppDatabase): Promise<PendingPhoto
   const out: PendingPhotoInput[] = [];
   blobs.forEach((blob, index) => {
     const row = records[index]?.row as FileRow | undefined;
-    if (row === undefined || row.kind !== 'photo' || row.removed_at !== null || row.uploaded_at !== null) return;
+    if (row === undefined || row.kind !== 'photo' || row.removed_at != null || row.uploaded_at != null) return;
     out.push({
       id: blob.id,
       caption: row.caption,

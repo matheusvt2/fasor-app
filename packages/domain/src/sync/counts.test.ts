@@ -81,6 +81,10 @@ describe('syncCounts', () => {
     // Omitted, the old count: photo creates only, no errors.
     expect(syncCounts([row(`file/${FILE_1}`, 'pending', photo)]).photos_pending).toBe(1);
     expect(syncCounts([]).upload_errors).toBe(0);
+    // A photo whose create is still unsent and whose upload stopped counts once, as an error.
+    const both = syncCounts([row(`file/${FILE_3}`, 'pending', photo)], {}, [], [{ id: FILE_3, error: true }]);
+    expect(both.photos_pending).toBe(0);
+    expect(both.upload_errors).toBe(1);
     // Uploads waiting do not make the badge pending: it counts ops only (Design Notes (1)).
     expect(syncBadgeState(syncCounts([], {}, [], [{ id: FILE_2, error: false }]), { online: true })).toBe('ok');
   });

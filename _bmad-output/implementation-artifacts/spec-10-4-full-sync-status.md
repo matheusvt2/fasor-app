@@ -2,7 +2,7 @@
 title: 'Story 10.4: See everything the sync did or is waiting to do'
 type: 'feature'
 created: '2026-09-29'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'e14229de12beda030e59864fb11144f369fc9878'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -106,6 +106,21 @@ deferred: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-09-29 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer ran; Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 10 findings — high 0, medium 5, low 5, false 0, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` `useLiveReseed` skips a live change that lands while the field is focused but clean, and never applies it after blur — fixed: blur re-seeds when the row key changed while focused and the field is not dirty.
+  - `[low]` `[patch]` a photo with a pending create op and an `upload_error` counts in both `photos_pending` and `upload_errors` — fixed: error ids excluded from `photoIds`, kernel test added.
+  - `[low]` `[reject]` the "Fotos (n)" group counts error rows while the headline "aguardando" excludes them — the group counts the rows it lists (errors included, with their pill); the headline counts waiting photos and the summary badge counts errors apart. Different quantities by design.
+  - `[low]` `[reject]` `void sync.retryUpload?.(id)` can leave an unhandled rejection — reached only when IndexedDB is closed mid-tap; the same pattern is used by the gallery's pill (Story 6.2).
+  - `[low]` `[patch]` `unackedPhotoUploads` compares `removed_at`/`uploaded_at` with `!== null`, dropping rows whose field is undefined — fixed: `!= null`, as `readingCountRows`.
+  - `[medium]` `[patch]` claim: ledger 310 closure says fields re-seed after focus leaves, which the code did not do — same root cause as the first row; fixed there.
+  - `[medium]` `[patch]` gap: the uploads input wiring of `state/sync.tsx` is pinned only by an `@p1` e2e — fixed: `unackedPhotoUploads` Dexie unit test, 10.4-E2E-005 tagged `@p0`.
+  - `[medium]` `[patch]` gap: the Home counted form and the download rows are pinned only by an `@p1` e2e — fixed: `home-surface.test.tsx` asserts the exact "Baixando… n de m fichas" with a summary `progress`.
+  - `[medium]` `[patch]` gap: `useLiveReseed` tested only on TextField and only focused — fixed: NumberField, TestDefaultField, dirty-after-refusal and focus-then-blur cases.
+  - `[low]` `[reject]` the Account sign-out sentence now counts photos whose bytes wait — intended: that work is still on the tablet, which is what the sentence warns about.
 
 ## Design Notes
 

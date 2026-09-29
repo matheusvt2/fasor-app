@@ -34,6 +34,7 @@ import {
   notTestedSynced,
   resendDead,
   takePending,
+  unackedPhotoUploads,
 } from './sync-store.ts';
 
 let userCounter = 0;
@@ -417,6 +418,51 @@ describe('5.9-UNIT notTestedSynced', () => {
     const undo = makeOp(put(`block/${BLOCK_1_ID}/not_tested`, null), { newId: d.newId, now: d.now() });
     await commitOps(db, [undo]);
     expect(await notTestedSynced(db, BLOCK_1_ID)).toBe(false);
+    db.close();
+  });
+});
+
+describe('10.4-UNIT unackedPhotoUploads', () => {
+  it('lists the unacked originals of live photos the server does not hold, with the error flag from upload_error', async () => {
+    const db = await freshDb();
+    const id = (n: number) => `019966b0-00a4-7000-8000-${n.toString(16).padStart(12, '0')}`;
+    const photoRow = (n: number, extra: Record<string, unknown> = {}) => ({
+      id: id(n),
+      kind: 'photo',
+      relatorio_id: RELATORIO_ID,
+      caption: `Foto ${n}`,
+      captured_at: `2026-09-07T17:0${n}:00.000Z`,
+      reading_status: 'none',
+      removed_at: null,
+      uploaded_at: null,
+      ...extra,
+    });
+    const put = async (n: number, row: Record<string, unknown>, blob: { acked?: boolean; variant?: 'original' | 'thumb'; error?: boolean } = {}) => {
+      await db.entities.put({ entity: 'file', id: id(n), relatorio_id: RELATORIO_ID, project_id: null, removed_at: (row.removed_at as string | null) ?? null, row: row as never });
+      await db.files.put({
+        id: id(n),
+        variant: blob.variant ?? 'original',
+        blob: new Blob(['x']),
+        acked: blob.acked ?? false,
+        created_at: '2026-09-07T17:00:00.000Z',
+        ...(blob.error ? { upload_error: { state: 'dead' as const, code: 'file_too_large', at: '2026-09-07T17:10:00.000Z' } } : {}),
+      });
+    };
+    await put(1, photoRow(1));
+    await put(2, photoRow(2), { error: true });
+    await put(3, photoRow(3, { removed_at: '2026-09-07T17:20:00.000Z' }));
+    await put(4, photoRow(4, { uploaded_at: '2026-09-07T17:20:00.000Z' }));
+    await put(5, photoRow(5), { acked: true });
+    await put(6, { id: id(6), kind: 'certificate', relatorio_id: null, removed_at: null, uploaded_at: null });
+    await put(7, photoRow(7), { variant: 'thumb' });
+    await put(8, photoRow(8, { removed_at: undefined, uploaded_at: undefined }));
+
+    const rows = (await unackedPhotoUploads(db)).sort((a, b) => (a.id < b.id ? -1 : 1));
+    expect(rows).toEqual([
+      { id: id(1), caption: 'Foto 1', captured_at: '2026-09-07T17:01:00.000Z', reading_status: 'none', error: false },
+      { id: id(2), caption: 'Foto 2', captured_at: '2026-09-07T17:02:00.000Z', reading_status: 'none', error: true },
+      { id: id(8), caption: 'Foto 8', captured_at: '2026-09-07T17:08:00.000Z', reading_status: 'none', error: false },
+    ]);
     db.close();
   });
 });
