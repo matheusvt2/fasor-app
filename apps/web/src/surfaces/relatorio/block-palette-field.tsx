@@ -9,6 +9,7 @@ import {
   type EquipmentRow,
   type LocationRow,
   type PaletteItem,
+  type SuggestionRow,
 } from '@app/domain';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from '../../components/index.ts';
@@ -28,6 +29,9 @@ import { tagReason, tagRefusalText, TagField } from './tag-dialogs.tsx';
  * edited afterwards through "Renomear TAG"). From 1280 px (the desktop, office variant)
  * each type opens its `.type-confirm`, which asks the TAG and the Local, both prefilled.
  * Both rows are drawn and CSS shows one (`relatorio.css`), never a JS `matchMedia`.
+ *
+ * Story 9.2: above the types, at every width, the "Fotografar equipamento" camera row
+ * (`.pal-camera`, `panel-capture.tsx`).
  */
 
 /** Where the palette puts the block: a location, and the block it goes right after ("Adicionar abaixo"). */
@@ -36,12 +40,23 @@ export interface PaletteTarget {
   anchorBlockId: string | null;
 }
 
+/**
+ * Story 9.2: the panel photo a "Fotografar equipamento" create re-targets to the new block's
+ * plate in the same batch, and what its panel suggestion becomes (none offline).
+ */
+export interface PanelPhotoInput {
+  id: string;
+  suggestion: { row: SuggestionRow; status: 'confirmed' | 'discarded' } | null;
+}
+
 /** One creation the palette asks for: `tag` null means the suggestion, computed again when written. */
 export interface PaletteCreate {
   type: EquipmentBlockType;
   locationId: string;
   anchorBlockId: string | null;
   tag: string | null;
+  /** Story 9.2: the photo that becomes the new block's plate. */
+  photo?: PanelPhotoInput;
 }
 
 export interface FieldPaletteProps {
@@ -54,11 +69,17 @@ export interface FieldPaletteProps {
   equipment: readonly EquipmentRow[];
   onCreate: (input: PaletteCreate) => void;
   onClose: () => void;
+  /**
+   * Story 9.2: the first row, "Fotografar equipamento" (`.pal-camera`), opens the camera for a
+   * block placed where this palette places it; absent, the row is not drawn.
+   */
+  onPhotograph?: (target: PaletteTarget) => void;
 }
 
-export function FieldPalette({ target, seedVersion, locations, blocks, equipment, onCreate, onClose }: FieldPaletteProps) {
+export function FieldPalette({ target, seedVersion, locations, blocks, equipment, onCreate, onClose, onPhotograph }: FieldPaletteProps) {
   const t = copy.sumario.palette;
   const headingId = useId();
+  const cameraSubId = useId();
   // EXPERIENCE.md › Accessibility: a palette opens on its first option, not on "Fechar" (review
   // F-9). The shell focuses the first reachable control a frame after mounting; this takes the
   // focus to the first type row the width shows (the field row below 1280 px, the office row
@@ -99,6 +120,24 @@ export function FieldPalette({ target, seedVersion, locations, blocks, equipment
       </div>
       <div className="palette-items" ref={itemsRef}>
         <p className="palette-group palette-where">{t.where(locationPathText(locations, location.id))}</p>
+        {onPhotograph === undefined ? null : (
+          <div className="pal-camera">
+            <button
+              type="button"
+              className="camera-capture-tile"
+              aria-describedby={cameraSubId}
+              onClick={() => onPhotograph({ locationId: location.id, anchorBlockId: target.anchorBlockId })}
+            >
+              <svg className="ico" aria-hidden="true">
+                <use href="/sprite.svg#i-camera" />
+              </svg>
+              {t.photograph}
+            </button>
+            <p className="camera-sub" id={cameraSubId}>
+              {t.photographSub}
+            </p>
+          </div>
+        )}
         <p className="palette-group">{t.chooseType}</p>
         {items.map((item) => (
           <div key={item.type} className="palette-type">

@@ -19,8 +19,8 @@ export interface CropThumbProps {
   label: string;
   /** Opens the Photo viewer on the region; absent, the tap does nothing. */
   onPress?: () => void;
-  /** Story 9.1: what the picture is of, for its names ("Ver recorte do visor"); default `plate`. */
-  source?: 'plate' | 'display';
+  /** Story 9.1: what the picture is of, for its names ("Ver recorte do visor"); default `plate`. Story 9.2: `panel` ("Ver recorte da etiqueta"). */
+  source?: 'plate' | 'display' | 'panel';
 }
 
 /*
@@ -87,9 +87,10 @@ export function CropThumb({ photoId, bbox, label, onPress, source = 'plate' }: C
   const src = useObjectUrl(useCropSource(photoId));
   const [size, setSize] = useState<{ src: string; width: number; height: number } | null>(null);
   const loaded = size !== null && size.src === src;
-  const alt = source === 'display' ? t.cropDisplayAlt : t.cropAlt;
+  const alt = source === 'display' ? t.cropDisplayAlt : source === 'panel' ? t.cropPanelAlt : t.cropAlt;
+  const name = source === 'display' ? t.cropDisplayLabel(label) : source === 'panel' ? t.cropPanelLabel : t.cropLabel(label);
   return (
-    <button type="button" className="crop-thumb" aria-label={source === 'display' ? t.cropDisplayLabel(label) : t.cropLabel(label)} onClick={onPress} data-photo-id={photoId}>
+    <button type="button" className="crop-thumb" aria-label={name} onClick={onPress} data-photo-id={photoId}>
       {loaded ? null : <i className="thumb-fake" role="img" aria-label={alt} />}
       {src === null ? null : (
         <span className="crop-picture" hidden={!loaded}>
