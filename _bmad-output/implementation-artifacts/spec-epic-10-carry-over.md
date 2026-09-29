@@ -2,7 +2,7 @@
 title: 'Epic 10 carry-over: ledger ownership, suggestions split, speech default none'
 type: 'chore'
 created: '2026-09-29'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '256f358c2202f6ddcf061b126501bec658cd69df'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -96,6 +96,11 @@ deferred: []
 
 ## Review Triage Log
 
+### 2026-09-29 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer ran; Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 0 findings — high 0, medium 0, low 0, false 0, maybe-false 0
+- findings: none (Edge Case Hunter returned an empty list; Verification Gap found no gaps: the moved code lines match the baseline as multisets both ways, barrels keep shared helpers out, no import cycle, the new tests go red on the old default and without the `exclude`).
+
 ## Design Notes
 
 - Why 1065, 1077, 1095 go to Epic 11: 1065 needs provenance on `location/{id}/env/*` values, a row shape change with a contract bump that Epic 10's batches already hold; 1077 needs a failed-display state, a kernel line, a reread wiring with `local_prefs` persistence (as B16 did for the plate) and a failing-fake e2e, a feature not a fix; 1095 needs a product choice (offer the dialog again or sweep the orphan photo) that is Matheus's, then a recovery path.
@@ -117,3 +122,10 @@ deferred: []
 - Export comparison (`.scratch-e10c/exports.ts`, tools container): `@app/domain` 955, `suggestions.ts` 56, `readings.ts` 13 runtime exports, identical before and after.
 - Speech default mutation: with the `webspeech` fallback restored in `engine.ts`, the new `dictation.test.tsx` case fails (a stubbed `SpeechRecognition` makes the old default render the button); restored.
 - `pnpm static`, `pnpm lint`: green. `pnpm test:unit`: 228 files, 2516 tests passed.
+
+### Finalize (orchestrator)
+
+- Summary: E9-A5 ledger ownership (18 state lines; 1113, 1125, 1149, 1155 closed; the rest re-owned to Story 10.1 (batch M), Story 10.4 (batch S), Epic 11 with reasons, E9-A1 and Matheus); ledger 1155 e2e `@p0` 9.4-E2E-013; E9-A7 split of `suggestions.ts` into `suggestion-rows.ts`, `suggestion-group.ts`, `suggestion-ops.ts`, `plate-suggestions.ts`, `measurement-suggestions.ts`, `env-suggestions.ts` and of `readings.ts` into `reading-cells.ts`, `reading-evaluation.ts`, `reading-run.ts`, both old files kept as explicit re-export barrels; E9-A9 speech default `none` (compose, `.env.example`, `engine.ts`) with a unit and a tooling test.
+- Review: 0 patches, 0 deferred, 0 rejected.
+- Follow-up review recommended: false (nothing patched).
+- Residual risk: a default dev stack now shows no Dictation button; set `VITE_SPEECH_ENGINE=webspeech` to try Web Speech.
