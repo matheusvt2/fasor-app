@@ -41,7 +41,7 @@ graph LR
   web[apps/web]
   api[apps/api]
   ocr[services/ocr]
-  infra[infra: AWS CDK]
+  infra[infra: Terraform]
   web --> domain
   api --> domain
   web -- "contract routes only (typed in domain/contract)" --> api
@@ -220,7 +220,7 @@ Dependency direction is a rule (AD-13): arrows only point as drawn.
 
 - **Binds:** `apps/api` and `services/ocr` images, `docker-compose`, `infra/`, CI, every environment, every external service the system calls
 - **Prevents:** "works on my machine" drift on the pieces that live in the image (Node, LibreOffice and its fonts, sharp's native binaries, the Python OCR stack); a cloud host that needs hand-installed runtimes; services scattered across providers with three IAM models and three bills.
-- **Rule:** local development always runs through `docker-compose` (web dev server, api, Postgres 18, MinIO, and the OCR sidecar once it exists); no service is expected to run natively on a developer machine. The cloud is AWS, and every managed service the system uses comes from AWS unless AWS has no equivalent, in which case the exception is recorded here with its reason: containers on ECS Fargate behind an ALB with images in ECR (api + in-process worker as one service, the OCR sidecar as a second service later); RDS for PostgreSQL 18; S3 with bucket versioning; Secrets Manager; CloudWatch Logs; Amazon Bedrock for Claude; Amazon Textract for cloud OCR. Region `sa-east-1` for data at rest `[ASSUMPTION]`, with Bedrock through a global cross-Region inference profile where the model is not served locally. Infrastructure is code in `infra/` (AWS CDK in TypeScript `[ASSUMPTION]`); one image is built once per commit in CI and promoted `staging → production` unchanged; configuration enters only through environment variables and Secrets Manager. Switching a service inside AWS changes `infra/`, never application code, because every external call goes through an adapter (`src/storage`, `OcrProvider`, the LLM client).
+- **Rule:** local development always runs through `docker-compose` (web dev server, api, Postgres 18, MinIO, and the OCR sidecar once it exists); no service is expected to run natively on a developer machine. The cloud is AWS, and every managed service the system uses comes from AWS unless AWS has no equivalent, in which case the exception is recorded here with its reason: containers on ECS Fargate behind an ALB with images in ECR (api + in-process worker as one service, the OCR sidecar as a second service later); RDS for PostgreSQL 18; S3 with bucket versioning; Secrets Manager; CloudWatch Logs; Amazon Bedrock for Claude; Amazon Textract for cloud OCR. Region `sa-east-1` for data at rest `[ASSUMPTION]`, with Bedrock through a global cross-Region inference profile where the model is not served locally. Infrastructure is code in `infra/` (~~AWS CDK in TypeScript `[ASSUMPTION]`~~ Terraform, decided *(2026-09-29, Matheus)*); one image is built once per commit in CI and promoted `staging → production` unchanged; configuration enters only through environment variables and Secrets Manager. Switching a service inside AWS changes `infra/`, never application code, because every external call goes through an adapter (`src/storage`, `OcrProvider`, the LLM client).
 
 ## Consistency Conventions
 
@@ -266,7 +266,8 @@ Verified current on 2026-09-21 (memlog and `reviews/review-versions.md`); the co
 | @aws-sdk/client-s3, @aws-sdk/client-textract | 3.1134 |
 | @anthropic-ai/bedrock-sdk (Mantle client) | 0.33 |
 | @anthropic-ai/sdk (fallback client) | 0.127 |
-| aws-cdk-lib (`infra/`) | 2.269 `[ASSUMPTION]` |
+| ~~aws-cdk-lib (`infra/`)~~ | ~~2.269 `[ASSUMPTION]`~~ |
+| Terraform + AWS provider (`infra/`) *(2026-09-29, Matheus)* | pinned at Story 11.8 start |
 | Cloud (AD-27) | AWS: ECS Fargate + ALB + ECR, RDS for PostgreSQL, S3, Secrets Manager, CloudWatch, Bedrock, Textract; region `sa-east-1` `[ASSUMPTION]` |
 | Local (AD-27) | docker-compose: web, api, Postgres 18, MinIO, OCR sidecar |
 | Vitest | 5.0 |
@@ -303,7 +304,7 @@ fasor/
     src/storage/            # S3 adapter: immutable keys, no delete in MVP (MinIO locally)
     Dockerfile              # node:24 + LibreOffice 26.2 (TDF .deb) + fonts
   services/ocr/             # post-slice Python sidecar (FR-36): FastAPI + PaddleOCR/PARSeq + OpenCV; stateless; pydantic from contract/ocr JSON Schema; python:3.13
-  infra/                    # AWS CDK (TypeScript): VPC, ECS Fargate services, ALB, RDS, S3, Secrets Manager, IAM for Bedrock and Textract (AD-27)
+  infra/                    # Terraform (2026-09-29; was AWS CDK): VPC, ECS Fargate services, ALB, RDS, S3, Secrets Manager, IAM for Bedrock and Textract (AD-27)
   docker-compose.yml        # local: web, api, postgres:18, minio, ocr (profile)
   scripts/seed-users.ts     # provisioning and password reset
 ```
