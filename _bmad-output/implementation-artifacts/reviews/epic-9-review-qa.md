@@ -120,3 +120,38 @@ Batch `e9fx`, branch `fix/epic-9-qa`, PR #62. Spec: `_bmad-output/implementation
 | E9-Q13 | fixed with test | 8.1-E2E-002's 8th op was a real double write: the after-pull auto-confirm sweep read a suggestion as pending, then saw the cell "Confirmar todos" had just filled, and confirmed it again. The sweep and the stale-prose discard now commit through `commitBatchIf`, which re-checks inside the commit transaction (`suggestion-store.test.ts` race tests, red without the guard). E4-E2E-001 waits for focus in the dialog before Escape; 12.1-E2E-009 waits until the target is the element at its centre. Each 5/5 with `--repeat-each=5`, and all green in `test:e2e:full`. |
 | E9-Q14 | fixed with test | One reason line, the "Continuar" button's; the Local field points at it (`Combobox` `disabledReasonId`); `home-surface.test.tsx`. The line still sits after the buttons in `.dialog-actions` at 1906 px (its position was not changed). |
 | E9-Q15 to Q18 | open questions | Matheus (out of scope). |
+
+## Re-check (PR #62)
+
+Date: 2026-09-29. Base: `origin/main` at `7b34bf9`, the same worktree stack (`fasor-e9qa`, port base 47, `fake` providers, `VITE_SPEECH_ENGINE=fake`). I did not re-run the full gates: PR #62's own gates were green (verify `@p0` 147/147; `test:e2e:full` 261 passed, 0 failed). Each run below took the host lock on its own.
+
+| Run | Result |
+|---|---|
+| Targeted unit files (kernel `suggestions-display`, `retarget`, `apply`, `panel`, `prose`; web `suggestion-store`, `dictation`, `dictation-surfaces`, `home-surface`) | 9 files, 101 tests passed (36 s) |
+| `panel-retarget.integration.test.ts` through the sync route | 7/7 passed (12 s) |
+| e2e `--repeat-each=2`, 10 tests: 9.4-E2E-011, 9.4-E2E-012, 9.2-E2E-005, 9.2-E2E-006, 9.1-E2E-006, 9.1-E2E-002, 9.4-E2E-007, 8.1-E2E-002, E4-E2E-001, 12.1-E2E-009 | 20/20 runs passed, 0 flaky (216 s) |
+| Throwaway human-style suite `qa-e9/` (15 tests, 390/768/1280/1906 px, light and dark, probes) | 15/15 passed (3.2 min) |
+
+| Finding | Verdict | Evidence |
+|---|---|---|
+| E9-Q1 | verified | Probe 1 in the browser: a dictated 150 GΩ, then the display reading for the same cell arrives. The table offers no "Confirmar todos", and nothing is written to the cell (`recheck-e9-94-dictated-vs-display-1280.png`). 9.4-E2E-011 passed 2/2. |
+| E9-Q2 | verified | The kernel's `clientReadingKindPutAllowed` allows only `plate` on a `panel` photo, or null. The push route refuses anything else with `op_invalid` (`apps/api/src/sync/apply.ts`, `assertClientReadingKindPut`). `readingKindPutStatus` re-queues only when the kind changes. The integration test (queued, running, done; nothing sent) passed 7/7. |
+| E9-Q3 | verified | Probe 2 in the browser: after "Desfazer" the photo is left as `reading_kind` null, `reading_status` none and `block_id` null. The panel suggestion is `discarded`, and two syncs later nothing is re-queued or added and no dialog reopens. 9.2-E2E-006 passed 2/2. |
+| E9-Q4 | verified | At 390 px, with a dictated suggested cell focused, no `.ficha-mt` scroll container is left (it was 418/358 before). The title row stays at x=16, width 358, and the page overflow is 0. 9.1-E2E-002 and 9.4-E2E-011 (390 px fit asserts) passed 2/2. |
+| E9-Q5 | verified | 9.4-E2E-007 passed 2/2 here (5/5 in PR #62). |
+| E9-Q6 | open (Matheus) | Not in the fix batch's scope. PR #62's verify took 1611 s, still over the 15-minute budget. |
+| E9-Q7 | verified (narrowed) | 9.1-E2E-006 (a failed grab is said, and the next shot retries its row) passed 2/2. The narrowing (only when the failure lands before the next tap) is in `deferred-work.md`. |
+| E9-Q8 | verified | 9.4-E2E-012 (Enter writes the heard value and moves on) passed 2/2. |
+| E9-Q9 | verified | `useTableDictation` drops the held reading in the render that sees its cell filled. The unit test in `dictation-surfaces.test.tsx` passed. |
+| E9-Q10 | verified | The kernel now owns `panelReadingLine`, `offersPeopleMark` and `suggestionValueText` for the dictated cell; no `reading_status` check is left in `panel-capture.tsx`. 9.2-E2E-005 passed 2/2. |
+| E9-Q11 | verified | A `visually-hidden` `aria-live` span holds "Ouvindo…" only while listening, and the visible word is `aria-hidden`. The visible word still shows (`recheck-e9-94-listening-390.png`). The unit test passed. |
+| E9-Q12 | verified | `panel.typeGroup` is removed. The chip row stays `role="group"` with `aria-pressed` chips, a valid ARIA shape. |
+| E9-Q13 | verified | 8.1-E2E-002, E4-E2E-001 and 12.1-E2E-009 each passed 2/2. The `suggestion-store.test.ts` race tests (`commitBatchIf`) passed. |
+| E9-Q14 | verified | Only one "Continuar: falta o cliente" line remains (`recheck-e9-home-1906-dark-dialog.png`). It still sits after the buttons, as the fix batch notes. |
+| E9-Q15 to Q18 | open (Matheus) | Out of scope. |
+
+No regression shows on the 9.x key states. At 390, 768 and 1280 px the queued cell, the "Conferir" line, the panel dialog, the caption banner, the NC draft and the mics all show page overflow 0. Every mic is still 48x48 and round. Probe 3 (the people mark set late in an online import batch) matches the accepted narrowing E9-Q16: the reading runs, and the device discards its suggestion. Probe 4 ("Ler visor · 3") is unchanged.
+
+One observation that is not a regression, since the first pass's screenshot `e9-91-conferir-1280.png` shows the same thing: at 1280 px the "Visor: 147 GΩ · digitado 150 GΩ — Conferir" line spreads its parts across the cell width, and "— Conferir" wraps to its own line. It is cosmetic and low severity, for the fix-batch backlog.
+
+Re-check screenshots, in `epic-9-qa/`: `recheck-e9-91-queued-390.png`, `recheck-e9-94-listening-390.png`, `recheck-e9-94-dictated-vs-display-1280.png`, `recheck-e9-home-1906-dark-dialog.png`.
