@@ -146,6 +146,12 @@ overrides (they win over the workflow text):
 - A batch touching `docx.ts`, `layout.ts`, a golden or the sync contract merges main and runs `test:e2e:full` before
   its PR; document tests assert from their own section heading, never from a position that another section shifts
   (E7-A6).
+- (E10-A2, 2026-09-29) Push your branch to origin after every commit that precedes a gate run and before any long
+  wait (`git push -u origin <branch>`; an ordinary push, the PR comes later). A machine restart wipes `/tmp` and an
+  unpushed branch is at risk.
+- (E10-A4, 2026-09-29) A batch that changes the op fold, the commit path (`apps/web/src/db/commit.ts`, the outbox) or a
+  live query on the ficha runs the durability specs it touches on `pnpm test:e2e:matrix` (three projects, targeted
+  with `--grep` or the spec path) under the lock before its PR.
 - A batch cut by a usage limit or an API timeout leaves a handoff note in its worktree (`HANDOFF.md`: branch, last
   green command, what remains) before anything else (E7-A6).
 - A PR touching `packages/domain/src/contract/ocr.ts`, the committed OCR schema or `services/ocr` builds the sidecar
@@ -205,6 +211,8 @@ overrides (they win over the workflow text):
 
 - One coordinator per checkout. The epic context is compiled once, with the coordinator decisions, and committed
   before any worktree is created.
+- (E10-A3, 2026-09-29) The epic context's cross-story table names one assertion per shared item (cell, entity, op
+  path, undo batch, surface), and the undo of every new op kind or resolution is always listed as a pair.
 - Keep a carry-over batch first in each epic for the agent-closable action items and deferred entries of earlier
   epics (E6-A7).
 - Batches are cut along surfaces and data dependencies; dependent batches run in series, independent ones in

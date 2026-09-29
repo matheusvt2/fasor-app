@@ -122,12 +122,12 @@ development_status:
   9-5-draft-the-nc-observation-from-the-row-s-photo: done  # PR #61
   epic-9-retrospective: done
 
-  epic-10: in-progress
+  epic-10: done
   10-1-merge-the-same-sheet-from-two-devices-by-rule: done  # PR #64
   10-2-decide-a-true-cell-contradiction-and-nothing-else: done  # PR #66
   10-3-resolve-a-removed-versus-edited-block-and-a-duplicate-tag: done  # PR #66
   10-4-see-everything-the-sync-did-or-is-waiting-to-do: done  # PR #65
-  epic-10-retrospective: optional
+  epic-10-retrospective: done  # epic-10-retro-2026-09-29.md, accepted-with-open-items
 
   epic-11: backlog
   11-1-download-the-pdf-beside-the-docx: backlog
@@ -717,7 +717,7 @@ action_items:
     epic: 9
     action: "E9-A4 The epic context lists every story pair sharing a cell, entity, op path or undo batch, and the later batch owns an e2e for each pair; 390 px checks assert table scroll containers, not only the page"
     owner: "coordinator"
-    status: open
+    status: done  # Epic 10 retro: pairs owned and tested; per-item gap carried by E10-A3
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
   - id: "epic-9-retro-item-77-e9-a5-deferred-ledger-ownership"
     epic: 9
@@ -755,3 +755,45 @@ action_items:
     owner: "Matheus"
     status: open
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+  - id: "epic-10-retro-item-83-e10-a1-gate-decision-draft"
+    epic: 10
+    action: "E10-A1 Draft the E9-A1 decision from Epic 10 data: split gate (story PR = lint, static, unit, api, @p0 e2e plus touched specs and their durability specs on the matrix; e2e:full and full matrix once per wave on integrated main and at the epic QA; #68 precedent), with X's two 70-min cycles and the 948-2162 s wave-2 lock waits"
+    owner: "coordinator drafts; Matheus decides"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"
+  - id: "epic-10-retro-item-84-e10-a2-push-wip-checkpoints"
+    epic: 10
+    action: "E10-A2 Batches push their branch to origin after each commit that precedes a gate run and before any long wait, not only commit (the 18:10 restart wiped /tmp with the fix branch unpushed); Epic 11 target: every gate run starts from a commit on origin"
+    owner: "coordinator (playbook)"
+    status: done  # applied by the coordinator 2026-09-29
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"
+  - id: "epic-10-retro-item-85-e10-a3-one-test-per-shared-item"
+    epic: 10
+    action: "E10-A3 Refine E9-A4: every item in a pair's 'What they share' cell gets its own named assertion in the epic context, and the undo of each new op kind or resolution against the Epic 5 inverse is always a listed pair (E10-Q2, E10-Q3 fell between batches)"
+    owner: "coordinator"
+    status: done  # applied by the coordinator 2026-09-29
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"
+  - id: "epic-10-retro-item-86-e10-a4-targeted-matrix-per-batch"
+    epic: 10
+    action: "E10-A4 A batch changing the fold, the commit path or a live query on the ficha runs its touched durability specs on test:e2e:matrix (three projects, targeted) before its PR; Epic 11 target 0 matrix regressions first found at the epic QA"
+    owner: "coordinator (playbook)"
+    status: done  # applied by the coordinator 2026-09-29
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"
+  - id: "epic-10-retro-item-87-e10-a5-relocate-story-10-4-narrowing"
+    epic: 10
+    action: "E10-A5 Move the PR #65 narrowing from epics.md:489 (Epic List overview, stray leading '#') to under Story 10.4 with a dated relocation note"
+    owner: "coordinator"
+    status: done  # applied by the coordinator 2026-09-29
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"
+  - id: "epic-10-retro-item-88-e10-a6-epic-10-product-questions"
+    epic: 10
+    action: "E10-A6 Add to the E5-A3 session: undoable resolutions (E10-Q2, option (b) built), NC vs NA contradiction, contradiction/merge as pre-issue row, 'de {nome}' for the viewer, 'contradição/decisão' wording (E10-Q4), waiting photo bytes and the badge, 'leituras prontas', three-device last-two values, ledger 1071, 370 and the third merge-fold limit; dated answers under Stories 10.1-10.4"
+    owner: "Matheus (Bruno for wording)"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"
+  - id: "epic-10-retro-item-89-e10-a7-device-script-two-tablets"
+    epic: 10
+    action: "E10-A7 Add to the E1-A1 manual device script a two-tablet NC/C merge, a cell contradiction with Aplicar and Desfazer, and a removed-versus-edited block via Sincronizar agora; run it with E6-A5, E8-A7, E9-A10, E12-A3; evidence in test-artifacts/manual/"
+    owner: "Matheus"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"

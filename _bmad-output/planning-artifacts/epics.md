@@ -486,9 +486,7 @@ Two engineers work the same relatório on two devices: sheets merge by sub-block
 **FRs covered:** FR-58, FR-59, FR-60 (full surface)
 **Also covers:** AR-3 (`prev_op_id` dispatch), AR-23 (`superseded`); UX-DR12, UX-DR13
 
-#*(2026-09-29, coordinator, PR #65 narrowing: "Enviando" rows carry no location, thumbnail or photo number, and there is no sent-photos counter or per-sheet progress track; "Último envio" shows the kernel sentence, not the mock's name and time columns; error rows cover photo upload errors only; the "Decisões" banners carry no `role="alert"`. Open questions for Matheus: waiting photo bytes do not turn the badge to pending; "leituras prontas" counts pending suggestions; ledger 1071 is re-owned to Matheus.)*
-
-## Epic 11: Completions after the slice and the dated post-MVP items
+### Epic 11: Completions after the slice and the dated post-MVP items
 The remaining product scope the slice deferred: the PDF download beside the DOCX, moving a block between locations, saving a relatório as a template, the rich text editor in the Template composer, the photo location switch, and, dated for NR-10 10.7.11 before 2027-06-01, the priority-driven deadline and the printed action-plan table on points of attention.
 **FRs covered:** FR-8, FR-12 (rich text editor), FR-14, FR-20, FR-62 (PDF download), FR-50 (post-MVP), FR-52 (post-MVP)
 **Also covers:** UX-DR55 (priority pill and picker), UX-DR65 (location switch), AR-26 (AWS: ECS Fargate, RDS, S3, Secrets Manager, CloudWatch, Bedrock, Textract via ~~CDK~~ Terraform *(2026-09-29, Matheus)* in `infra/`, CI image promotion), AR-29
@@ -2330,6 +2328,8 @@ So that I can judge on Monday whether a colleague's work may still be on their t
 **Given** the Sync status surface as in `85-sync.html` and `key-sync-status.html`
 **When** it opens from the badge
 **Then** the headline shows the state word and counts ("3 fichas e 12 fotos aguardando · 2 leituras na fila"), and rows list uploads pending (sheets, photos, photos queued for reading with "Leitura na fila"), downloads in progress with a progress line, last sync, per-user "Último envio de Eduardo: 06/09 18:10", errors with "Tentar novamente", rejected ops with "Reenviar", merged changes for the session, and contradictions opening the Conflict view; explanations sit behind "Como funciona"; the surface is not `aria-live` (FR-60, UX-DR13)
+
+*(2026-09-29, coordinator, PR #65 narrowing: "Enviando" rows carry no location, thumbnail or photo number, and there is no sent-photos counter or per-sheet progress track; "Último envio" shows the kernel sentence, not the mock's name and time columns; error rows cover photo upload errors only; the "Decisões" banners carry no `role="alert"`. Open questions for Matheus: waiting photo bytes do not turn the badge to pending; "leituras prontas" counts pending suggestions; ledger 1071 is re-owned to Matheus. Moved here from the Epic List overview on 2026-09-29, retro E10-A5.)*
 
 ## Epic 11: Completions after the slice and the dated post-MVP items
 
