@@ -2419,6 +2419,8 @@ So that the pipeline proven on fixtures reads real plates with one config change
 **When** the reading job runs
 **Then** it calls Claude with structured output given the image, the OCR tokens and the field definitions, requiring cited `ocr_token_ids` per value, never accepting coordinates from the model, logging tokens and USD per run; `LLM_PROVIDER=bedrock` uses `@anthropic-ai/bedrock-sdk` with `anthropic.claude-opus-5` and `anthropic.claude-sonnet-5` as the cost fallback by config; prompts carry a `prompt_version` (FR-33, FR-36, FR-39, AR-13, NFR-12)
 
+*(2026-09-29, Matheus: Bedrock only; the `anthropic` Console-key provider is dropped and no Console key is created. Model choice is the builder's within the USD 100/month ceiling. `source-deltas.md`.)*
+
 ### Story 11.7: Use Amazon Textract as the cloud OCR
 
 **Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** medium · Textract adapter behind the existing contract
@@ -2448,6 +2450,10 @@ So that the design partner uses the product outside the office network without a
 **Then** it creates a VPC, ECS Fargate behind an ALB with HTTPS for the api image (with in-process worker) and a second service for `services/ocr`, RDS for PostgreSQL 18, S3 with versioning, Secrets Manager, CloudWatch Logs, IAM for Bedrock and Textract; CI pushes each commit's images to ECR and promotes staging → production unchanged; migrations run as a one-shot ECS task before the service rolls; switching any service changes `infra/` only (AR-26, NFR-18; no FR: delivery of the same product outside the office network)
 
 *(2026-09-29, Matheus, Definition of Ready for this story: the AWS account exists. Before the story starts, Matheus logs the AWS CLI into that account on the development machine, so the agent can reach it through the profile in `~/.aws`; the agent never asks for, stores or commits access keys. Infrastructure is Terraform, not CDK (`source-deltas.md`). Per AD-27 neither tool is installed on the host: the AWS CLI and Terraform run in containers (a `tools`-profile service or the official `amazon/aws-cli` and `hashicorp/terraform` images) with `~/.aws` mounted read-only. The Terraform state lives in an S3 backend with S3-native locking, one state per environment; the state bucket and the provider versions are pinned when the story starts, verified against current releases.)*
+
+*(2026-09-29, Matheus: total AWS spend for the project stays below USD 100 per month, all environments, Bedrock and Textract included. The topology above is re-costed against that ceiling before the story is built, and any part that does not fit is replaced and recorded in `source-deltas.md`. The account `fasor` (profile `--profile fasor`) is the one to use.)*
+
+*(2026-09-29, Matheus: region `us-east-1`, not `sa-east-1`; lean topology for at most 10 concurrent users, one Graviton EC2 instance in ECS with Caddy HTTPS instead of Fargate behind an ALB, no NAT, RDS `db.t4g.micro`, `staging` on demand. `source-deltas.md`.)*
 
 ### Story 11.9: Let the priority suggest the deadline on a point of attention (post-MVP, before 2027-06-01)
 

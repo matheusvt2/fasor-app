@@ -1,0 +1,2 @@
+# Local credentials never enter an image build context
+secrets/
