@@ -123,7 +123,7 @@ development_status:
   epic-9-retrospective: done
 
   epic-10: in-progress
-  10-1-merge-the-same-sheet-from-two-devices-by-rule: backlog
+  10-1-merge-the-same-sheet-from-two-devices-by-rule: done  # PR #64
   10-2-decide-a-true-cell-contradiction-and-nothing-else: backlog
   10-3-resolve-a-removed-versus-edited-block-and-a-duplicate-tag: backlog
   10-4-see-everything-the-sync-did-or-is-waiting-to-do: backlog
