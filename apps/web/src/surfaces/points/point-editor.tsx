@@ -19,6 +19,7 @@ import { useDraftAutosave } from '../../state/draft-autosave.ts';
 import { useDraftSource } from '../../state/drafts.tsx';
 import { useSession } from '../../state/session.tsx';
 import { useUndoableEdits } from '../../state/use-undoable-edits.ts';
+import { DictatedSuggestion, DictationButton, useProseDictation } from '../../speech/dictation.tsx';
 import { PhotoRefTile } from './photo-ref-tile.tsx';
 import { actionValue, pointDraftValue, pointPlace, POINT_DRAFT_SURFACE, writePoint, type NewPointLink, type PointValues } from './point-writes.ts';
 import { insertPhotoChip, insertPlainText, quickTextAt, relabelPhotoChips, renderPointText } from './point-text-editor.ts';
@@ -30,8 +31,10 @@ import './points.css';
  * stored as `[[foto:<id>]]`, never a number), the "Textos rápidos" chips insert the seed's
  * recurring findings as plain text at the caret, "Fotos referenciadas" lists the cited
  * photos and opens the picker of the relatório's live photos, and "Ação recomendada" is a
- * plain field. No priority, deadline or owner field (`source-deltas.md` row 29), no
- * Dictation button (Epic 9), no photo draft (FR-75).
+ * plain field. No priority, deadline or owner field (`source-deltas.md` row 29), no photo
+ * draft (FR-75). Story 9.4 adds "Ditar o texto" beside the Texto label: the dictated text
+ * waits under the text as a Suggestion field and "Usar" appends it the way a quick text
+ * lands, at the end.
  *
  * E6-Q2: every field autosaves like the rest of the app (EXPERIENCE.md › Autosave): a
  * change commits through `useFieldCommit` (blur or 500 ms idle), a new point is created
@@ -194,9 +197,14 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
     },
   };
 
+  // Story 9.4: a dictated text, held until "Usar"; typing into the text discards it.
+  const dictation = useProseDictation();
+  const discardDictation = dictation.discard;
+
   const area = useSectionTextArea({
     initialText,
     onChange: (next) => {
+      discardDictation();
       setText(next);
       values.current.text = next;
       touched.current = true;
@@ -304,6 +312,13 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
   const actionId = useId();
 
   const insertQuick = (value: string) => editAtCaret((element, range) => insertPlainText(element, range, quickTextAt(element, range, value)));
+  /** "Usar": the dictated text at the end of the text, spaced as a quick text is. */
+  const applyDictated = () => {
+    const value = dictation.pending;
+    dictation.discard();
+    if (value === null) return;
+    editAtCaret((element) => insertPlainText(element, null, quickTextAt(element, null, value)));
+  };
 
   const pick = (id: string) => {
     editAtCaret((element, range) => insertPhotoChip(element, range, id, labelOf(id)));
@@ -331,9 +346,12 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
       </div>
 
       <div className="field">
-        <span className="field-label" id={textLabelId}>
-          {t.textLabel}
-        </span>
+        <div className="poa-text-head">
+          <span className="field-label" id={textLabelId}>
+            {t.textLabel}
+          </span>
+          <DictationButton label={t.dictateText} onStart={dictation.discard} onResult={dictation.offer} />
+        </div>
         {findings.length === 0 ? null : (
           <>
             <p className="section-note poa-quick-note" aria-hidden="true">
@@ -349,6 +367,7 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
           </>
         )}
         <div {...area.areaProps} className="observation-field poa-text-area" aria-labelledby={textLabelId} aria-describedby={helperId} />
+        {dictation.pending === null ? null : <DictatedSuggestion text={dictation.pending} onUse={applyDictated} />}
         <span className="helper" id={helperId}>
           {t.textHelper}
         </span>

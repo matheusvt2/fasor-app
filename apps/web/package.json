@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "build:e2e": "NODE_ENV=development vite build --mode development",
+    "build:e2e": "NODE_ENV=development VITE_SPEECH_ENGINE=fake vite build --mode development",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
   },
