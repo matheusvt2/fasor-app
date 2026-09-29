@@ -27,8 +27,8 @@ import type { CompanyId } from '../db/repositories/company-id.ts';
 import { entities } from '../db/schema.ts';
 import { newId } from '../ids.ts';
 import type { ReadingKind, ReadingPayload } from '../jobs/reading/payload.ts';
-import { ReadingSendError, startReading, writeReadingFailed } from '../jobs/reading/status.ts';
-import { log, logError } from '../log.ts';
+import { sendReading } from '../jobs/reading/send.ts';
+import { logError } from '../log.ts';
 import { getObject, headObject, putObject } from '../storage/s3.ts';
 import { hasVariants, renderVariants } from '../storage/variants.ts';
 import { applyServerBatch, type Tx } from '../sync/apply.ts';
@@ -187,35 +187,14 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
     }
   }
 
-  /**
-   * Sends the photo's reading (of its own kind, Story 9.1) and writes `running`
-   * (`jobs/reading/status.ts`); a failure is logged, never answered. E78-Q7: when the send
-   * itself fails (nothing was queued) the photo is marked `failed`, so the device offers
-   * "Tentar novamente" instead of waiting forever.
-   */
+  /** Sends the photo's reading (of its own kind, Story 9.1; `jobs/reading/send.ts`). */
   async function queueReading(companyId: CompanyId, lookup: FileRowLookup, readingKind: ReadingKind): Promise<void> {
-    const fields = { company_id: companyId, relatorio_id: lookup.relatorioId, file_id: lookup.row.id };
-    const enqueue = deps.enqueueReading;
-    if (enqueue === undefined) {
-      log('reading not enqueued: no queue', fields);
-      return;
-    }
-    try {
-      await startReading(
-        { db, now: deps.now, newId, enqueue },
-        companyId,
-        { id: lookup.row.id, relatorioId: lookup.relatorioId },
-        { company_id: companyId, photo_id: lookup.row.id, reading_kind: readingKind },
-      );
-    } catch (error) {
-      logError('reading enqueue failed', { ...fields, error: String(error) });
-      if (!(error instanceof ReadingSendError)) return;
-      try {
-        await writeReadingFailed({ db, now: deps.now, newId }, companyId, { id: lookup.row.id, relatorioId: lookup.relatorioId }, 'queued');
-      } catch (writeError) {
-        logError('reading failed status not written', { ...fields, error: String(writeError) });
-      }
-    }
+    await sendReading(
+      { db, now: deps.now, newId, ...(deps.enqueueReading === undefined ? {} : { enqueue: deps.enqueueReading }) },
+      companyId,
+      { id: lookup.row.id, relatorioId: lookup.relatorioId },
+      readingKind,
+    );
   }
 
   routes.put('/api/files/:id', async (c) => {

@@ -292,7 +292,11 @@ function writeRow(row: EntityRow, op: Op, path: OpPath): EntityRow {
     case 'file/field': {
       const file = row as FileRow;
       if (file.kind !== 'photo' && path.field !== 'removed_at') return row;
-      return { ...file, [path.field]: value } as FileRow;
+      // Story 9.2 (contract 7): a new reading kind on a photo queues its reading, here, on the
+      // device and on the server alike (the `template/field` version-bump precedent); the
+      // server sends it once the bytes are there. No client ever writes `reading_status`.
+      const queued = path.field === 'reading_kind' && value !== null && value !== undefined ? { reading_status: 'queued' } : {};
+      return { ...file, ...queued, [path.field]: value } as FileRow;
     }
     case 'suggestion/status':
       return { ...r, status: value } as EntityRow;

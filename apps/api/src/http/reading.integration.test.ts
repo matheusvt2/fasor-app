@@ -144,7 +144,7 @@ async function relatorio(): Promise<{ relatorioId: string; transformer: BlockRow
 }
 
 /** The device's photo create for `block` (a plate reading by default). */
-async function photoCreate(relatorioId: string, block: BlockRow, bytes: Uint8Array, reading: 'plate' | 'panel' | null = 'plate'): Promise<string> {
+async function photoCreate(relatorioId: string, block: BlockRow, bytes: Uint8Array, reading: 'plate' | null = 'plate'): Promise<string> {
   const id = newId();
   written.entityIds.add(id);
   written.photoIds.add(id);
@@ -409,21 +409,8 @@ describe('8.4-INT the plate read end to end over the compose api', () => {
         }),
       ),
     ]);
-    // Story 9.1: an uploaded photo of a kind the job does not read yet answers 400, no job sent
-    // (Stories 9.3/9.5 read caption and nc_obs, so the unread kind is Story 9.2's panel).
-    const panelBytes = new Uint8Array(PLATE.byteLength + 1);
-    panelBytes.set(PLATE);
-    const panel = await photoCreate(relatorioId, transformer, panelBytes, 'panel');
-    expect((await put(companyA, panel, panelBytes)).status).toBe(200);
-    const panelJobs = async () => {
-      const [found] = await sql<{ n: number }[]>`select count(*)::int as n from pgboss.job where name = 'reading' and singleton_key = ${readingSingletonKey(panel, 'panel')}`;
-      return found!.n;
-    };
-    const jobsBefore = await panelJobs();
-    const notRead = await reread(companyA, panel);
-    expect(notRead.status).toBe(400);
-    expect(errorResponseSchema.parse(await notRead.json()).code).toBe('invalid_request');
-    expect(await panelJobs()).toBe(jobsBefore);
+    // Story 9.1 checked here that an uploaded photo of a kind the job did not read yet answered
+    // 400; since Stories 9.2, 9.3 and 9.5 every reading kind has a handler, so that case is gone.
 
     const notPhoto = await reread(companyA, certificateId);
     expect(notPhoto.status).toBe(404);

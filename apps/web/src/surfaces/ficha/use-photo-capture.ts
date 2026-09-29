@@ -35,6 +35,11 @@ export interface CaptureTarget {
    * created with `reading_kind`, `reading_target` and `reading_status: queued`.
    */
   reading?: PhotoCaptureInput['reading'];
+  /**
+   * Story 9.2: the photo's id, minted by the caller that must find the row once it is saved
+   * ("Fotografar equipamento" opens its result on it); minted at the shot otherwise.
+   */
+  fileId?: string;
 }
 
 const EXIF_HEAD_BYTES = 256 * 1024;
@@ -124,7 +129,7 @@ export function usePhotoCapture(relatorioId: string): PhotoCapture {
             companyId: user.companyId,
             relatorioId,
             actorId: user.id,
-            fileId: newId(),
+            fileId: target.fileId ?? newId(),
             blockId: target.blockId,
             itemKey: target.itemKey,
             caption: target.caption,

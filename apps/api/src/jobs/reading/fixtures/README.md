@@ -66,6 +66,7 @@ the thermo-hygrometer has no block type and the table key `env`.
 | display | any | anything else | `display-megohmetro.jpg` (3,42, no unit) |
 | caption | - | - | `images/caption-default.png` (prose "Vista geral da cabine primária") |
 | nc_obs | any | - | `images/nc-obs-default.png` (prose "Oxidação aparente na estrutura do equipamento.") |
+| panel | - | - | `images/panel-seccionadora.png` (Chave seccionadora at 0.93, column `C09` at 0.95) |
 
 The six display fixtures are the sidecar's `POST /read/display` reads of the synthetic displays
 in `services/ocr/tests/fixtures/` (their table: `displays.md`); a display suggestion carries
@@ -125,3 +126,22 @@ three-attempt failure and the "Tentar novamente" path.
 `caption` and `nc_obs` defaults above (a photo taken through the app replays them); the third
 answers `prose: null`, the photo the job cannot caption (no suggestion, the photo stays "Sem
 legenda"). The texts are authored pt-BR, not read from any real photo.
+
+## The synthetic panel front (Story 9.2)
+
+`36f3fca9...json` replays `images/panel-seccionadora.png` (1200 x 900), a panel door with a
+white column label "C09" and a plate reading "SECCIONADORA". It is the `panel` kind's only
+default, so every "Fotografar equipamento" shot taken through the app under the `fake`
+providers reads as a Chave seccionadora on column 9: two OCR tokens (`t0` "C09", `t1`
+"SECCIONADORA", confidence 0.99) and two structured values, `block_type`
+`chave_seccionadora` (0.93, cites `t1`) and `column` `C09` (0.95, cites `t0`). The job emits
+one pending suggestion on the photo's `file/{id}/block_id` with the value
+`{block_type: chave_seccionadora, column: 9, column_text: "C09"}`.
+
+The image was made once with sharp from an inline SVG, in the `tools` container:
+
+```sh
+docker compose --profile tools run --rm -w /workspace/apps/api tools node --input-type=module -e "import sharp from 'sharp'; const svg = '<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1200\" height=\"900\"><rect width=\"1200\" height=\"900\" fill=\"#5A6068\"/><rect x=\"60\" y=\"40\" width=\"1080\" height=\"820\" rx=\"12\" fill=\"#8A9099\" stroke=\"#3A3F46\" stroke-width=\"8\"/><rect x=\"120\" y=\"90\" width=\"240\" height=\"120\" fill=\"#FFFFFF\" stroke=\"#222222\" stroke-width=\"4\"/><text x=\"240\" y=\"178\" font-family=\"sans-serif\" font-size=\"80\" font-weight=\"bold\" text-anchor=\"middle\" fill=\"#111111\">C09</text><rect x=\"340\" y=\"390\" width=\"520\" height=\"130\" fill=\"#F2F2F2\" stroke=\"#222222\" stroke-width=\"3\"/><text x=\"600\" y=\"478\" font-family=\"sans-serif\" font-size=\"56\" font-weight=\"bold\" text-anchor=\"middle\" fill=\"#111111\">SECCIONADORA</text><circle cx=\"1040\" cy=\"450\" r=\"30\" fill=\"#3A3F46\"/></svg>'; await sharp(Buffer.from(svg)).png().toFile('src/jobs/reading/fixtures/images/panel-seccionadora.png');"
+```
+
+The token boxes were placed by hand over the rendered text.

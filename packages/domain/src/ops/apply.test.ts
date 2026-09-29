@@ -139,6 +139,20 @@ describe('1.4-UNIT-002 applyOp semantics', () => {
     expect(cab.se.type).toBe('abrigada');
   });
 
+  it('9.2-UNIT a reading_kind put on a photo re-queues its reading; reading_target is written as it is; null queues nothing', () => {
+    const f = opFactory();
+    const key = entityKey('file', PHOTO);
+    const panel = { ...photo(null), reading_kind: 'panel', reading_target: { location_id: LOC }, reading_status: 'done' } as FileRow;
+    const s1 = fold(state([key, panel]), [
+      f.op({ path: `file/${PHOTO}/reading_target`, value: { block_id: B1, block_type: 'chave_seccionadora' } }),
+      f.op({ path: `file/${PHOTO}/reading_kind`, value: 'plate' }),
+    ]);
+    expect(s1.get(key)).toMatchObject({ reading_kind: 'plate', reading_target: { block_id: B1, block_type: 'chave_seccionadora' }, reading_status: 'queued' });
+    const s2 = applyOp(state([key, panel]), f.op({ path: `file/${PHOTO}/reading_kind`, value: null }));
+    expect(s2.get(key)).toMatchObject({ reading_kind: null, reading_status: 'done' });
+    expect(() => applyOp(state([key, panel]), f.op({ path: `file/${PHOTO}/reading_kind`, value: 'bogus' }))).toThrow();
+  });
+
   it('ignores caption, block_id and item_key on a non-photo file but removes it', () => {
     const f = opFactory();
     const logo: FileRow = { ...photo(null), id: LOGO, kind: 'logo', relatorio_id: null } as FileRow;

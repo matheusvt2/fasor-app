@@ -222,6 +222,24 @@ describe('9.3/9.5-API the prose fixtures and their fallback', () => {
   });
 });
 
+describe('9.2-API the panel default fixture', () => {
+  it('a panel photo with no fixture of its own replays the synthetic panel front: C09 and SECCIONADORA, its boxes scaled', async () => {
+    const PANEL = '36f3fca92f329117f736195e6bcdcae60ba683a82a7d3dcd0aff154b158d3d51';
+    const key: FakeFixtureKey = { reading_kind: 'panel', block_type: null, table_key: null };
+    expect(defaultFixtureFor(key)).toBe(PANEL);
+    expect(sha256(join(IMAGES, 'panel-seccionadora.png'))).toBe(PANEL);
+    const jpeg = { bytes: new Uint8Array(await sharp({ create: { width: 600, height: 450, channels: 3, background: { r: 9, g: 9, b: 9 } } }).jpeg().toBuffer()), mime: 'image/jpeg' as const };
+    const read = await fakeOcrProvider(DEFAULT_FIXTURES_DIR, 'f'.repeat(64), key).read(jpeg, { mode: 'text' });
+    expect(read.tokens.map((token) => token.text)).toEqual(['C09', 'SECCIONADORA']);
+    expect(read.tokens[0]!.bbox).toEqual([77.5, 59, 162.5, 91]);
+    const structured = await fakeStructuringProvider(DEFAULT_FIXTURES_DIR, 'f'.repeat(64), key).structure({ image: jpeg, ocr: read, fields: [] });
+    expect(structured.output.values.map((value) => [value.key, value.value, value.confidence])).toEqual([
+      ['block_type', 'chave_seccionadora', 0.93],
+      ['column', 'C09', 0.95],
+    ]);
+  });
+});
+
 describe('8.4-API provider switch', () => {
   const ctx = { photo_sha256: PLATE_SHA, reading_kind: 'plate' as const, block_type: null, table_key: null };
   const base = { OCR_SERVICE_URL: 'http://ocr:8000' };

@@ -23,7 +23,7 @@ import { entities, ops } from '../db/schema.ts';
 import { newId } from '../ids.ts';
 
 /*
- * Story 9.3 (contract 7): the photo's "Pessoas na foto" mark travels through the sync route.
+ * Story 9.3 (contract 8): the photo's "Pessoas na foto" mark travels through the sync route.
  * A photo create carrying `people_in_photo` and a `file/{id}/people_in_photo` put are accepted
  * on push, materialized on the server row and pulled back identical; a version-6 bundle is
  * answered `426` on the pull.
@@ -174,8 +174,8 @@ describe('9.3-API-001 the people mark through the sync route', () => {
         expect(photoFileRowSchema.parse(stored!.row).people_in_photo).toBe(true);
       }
 
-      // A version-6 bundle cannot parse the people_in_photo put: its pull is refused (AD-13).
-      expect((await authed(`/api/sync/relatorios/${relatorioId}?since=0`, {}, '6')).status).toBe(426);
+      // A version-7 bundle cannot parse the people_in_photo put: its pull is refused (AD-13).
+      expect((await authed(`/api/sync/relatorios/${relatorioId}?since=0`, {}, String(CONTRACT_VERSION - 1))).status).toBe(426);
     },
     60_000,
   );

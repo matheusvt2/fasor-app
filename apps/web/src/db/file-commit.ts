@@ -84,7 +84,7 @@ export interface PhotoCaptureInput {
    * 'queued'`. Omitted, the photo is a plain one (`reading_status: 'none'`).
    */
   reading?: { kind: NonNullable<PhotoFileRow['reading_kind']>; target: JsonValue };
-  /** Story 9.3 (contract 7): "Pessoas na foto" set at capture; such a photo is never sent to the prose provider. */
+  /** Story 9.3 (contract 8): "Pessoas na foto" set at capture; such a photo is never sent to the prose provider. */
   peopleInPhoto?: boolean;
 }
 

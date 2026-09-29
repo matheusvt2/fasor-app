@@ -61,6 +61,7 @@ export * from './relatorio/conclusion.ts';
 export * from './relatorio/parecer.ts';
 export * from './relatorio/instrument-pick.ts';
 export * from './relatorio/suggestions.ts';
+export * from './relatorio/panel.ts';
 export * from './parse/pt-br-number.ts';
 export * from './parse/utterance.ts';
 export * from './files/candidate.ts';

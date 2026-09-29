@@ -618,3 +618,182 @@ describe('E78-Q6 a reading whose last attempt dies ends failed (the dead letter 
     }
   }, 60_000);
 });
+
+describe('9.2-INT the panel reading', () => {
+  let color = 60;
+  const C09_SECCIONADORA = {
+    values: [
+      { key: 'block_type', value: 'chave_seccionadora', ocr_token_ids: ['t1'], confidence: 0.93 },
+      { key: 'column', value: 'C09', ocr_token_ids: ['t0'], confidence: 0.95 },
+    ],
+  };
+
+  /** A panel photo taken from the palette on `target` (a `{location_id}`, or anything else to break it), its fixture a C09 seccionadora. */
+  async function panelPhoto(relatorioId: string, target: unknown): Promise<string> {
+    const bytes = await solidPng(90, 40, color++);
+    fixture(bytes, {
+      ocr: {
+        image: { width: 200, height: 100 },
+        tokens: [
+          { id: 't0', text: 'C09', bbox: [10, 10, 50, 30], confidence: 0.99 },
+          { id: 't1', text: 'SECCIONADORA', bbox: [60, 50, 180, 70], confidence: 0.99 },
+        ],
+        preprocessing_applied: false,
+      },
+      structuring: C09_SECCIONADORA,
+    });
+    const id = newId();
+    await apply([
+      {
+        kind: 'create',
+        scope: 'relatorio',
+        company_id: companyId,
+        project_id: null,
+        relatorio_id: relatorioId,
+        path: `file/${id}`,
+        value: {
+          id,
+          company_id: companyId,
+          relatorio_id: relatorioId,
+          kind: 'photo',
+          sha256: sha256(bytes),
+          mime: 'image/png',
+          size: bytes.byteLength,
+          uploaded_at: null,
+          variants: null,
+          removed_at: null,
+          captured_at: '2026-09-28T10:00:00.000Z',
+          tz_offset: -180,
+          coords: null,
+          local_seq: 1,
+          block_id: null,
+          item_key: null,
+          caption: null,
+          reading_kind: 'panel',
+          reading_target: target,
+          reading_status: 'queued',
+        } as never,
+        prev_op_id: null,
+        batch_id: null,
+        meta: null,
+        actor_id: ACTOR,
+      },
+    ]);
+    await putObject(s3, bucket, objectKey(companyId, 'photo', id, 'original', relatorioId), bytes, 'image/png');
+    const variants = (await renderVariants(bytes, 'image/png'))!;
+    await putObject(s3, bucket, objectKey(companyId, 'photo', id, 'print', relatorioId), variants.print.bytes, variants.print.contentType);
+    return id;
+  }
+
+  const runPanel = (id: string) => runReadingJob(deps, { company_id: companyId, photo_id: id, reading_kind: 'panel' }, { jobId: 'direct-panel', attempt: 1, lastAttempt: false });
+
+  it('reads the type and the column into one pending suggestion on file/{id}/block_id, and ends done', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const coluna = blocks.find((b) => b.block_type === 'chave_seccionadora')!.location_id!;
+    const id = await panelPhoto(relatorioId, { location_id: coluna });
+    await runPanel(id);
+    expect(await status(id)).toBe('done');
+    const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+    expect(mine).toHaveLength(1);
+    expect(mine[0]).toMatchObject({
+      target_path: `file/${id}/block_id`,
+      value: { block_type: 'chave_seccionadora', column: 9, column_text: 'C09' },
+      trust: 'suggested',
+      status: 'pending',
+      source: { photo_id: id, bbox: [0.05, 0.1, 0.9, 0.7], ocr_token_ids: ['t0', 't1'] },
+    });
+    const [run] = await runs(id);
+    expect(run).toMatchObject({ outcome: 'ok', reading_kind: 'panel', model: 'fake' });
+  }, 60_000);
+
+  it('a photo re-targeted to plate before its panel job runs: the panel job ends superseded, writing neither failed nor done', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'chave_seccionadora')!;
+    const id = await panelPhoto(relatorioId, { location_id: block.location_id });
+    await apply([
+      relatorioPut(relatorioId, `file/${id}/reading_target`, plateReadingTarget(block.id, block.block_type)),
+      relatorioPut(relatorioId, `file/${id}/reading_kind`, 'plate'),
+    ]);
+    await runPanel(id);
+    expect(await row('file', id)).toMatchObject({ reading_kind: 'plate', reading_status: 'queued' });
+    const statusOps = await db.select({ value: ops.value }).from(ops).where(and(eq(ops.company_id, companyId), eq(ops.path, readingStatusPath(id))));
+    expect(statusOps).toEqual([]);
+    const rows = await runs(id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ outcome: 'error', error: 'superseded', reading_kind: 'panel' });
+    expect((await suggestions(relatorioId)).filter((s) => s.source.photo_id === id)).toEqual([]);
+  }, 60_000);
+
+  /** Runs the panel job with a structuring step that re-targets the photo to `block`'s plate mid-run, then answers or throws `fail`. */
+  async function runRetargetedMidRun(relatorioId: string, id: string, block: BlockRow, fail: Error | null): Promise<void> {
+    const midRun: ReadingJobDeps = {
+      ...deps,
+      providers: (ctx) => {
+        const real = deps.providers(ctx);
+        return {
+          ...real,
+          structuring: {
+            async structure(input) {
+              await apply([
+                relatorioPut(relatorioId, `file/${id}/reading_target`, plateReadingTarget(block.id, block.block_type)),
+                relatorioPut(relatorioId, `file/${id}/reading_kind`, 'plate'),
+              ]);
+              if (fail !== null) throw fail;
+              return real.structuring.structure(input);
+            },
+          },
+        };
+      },
+    };
+    await runReadingJob(midRun, { company_id: companyId, photo_id: id, reading_kind: 'panel' }, { jobId: 'direct-panel-mid', attempt: 1, lastAttempt: false });
+  }
+
+  async function expectSuperseded(relatorioId: string, id: string): Promise<void> {
+    expect(await row('file', id)).toMatchObject({ reading_kind: 'plate', reading_status: 'queued' });
+    expect(await db.select({ value: ops.value }).from(ops).where(and(eq(ops.company_id, companyId), eq(ops.path, readingStatusPath(id))))).toEqual([]);
+    const rows = await runs(id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ outcome: 'error', error: 'superseded', reading_kind: 'panel' });
+    expect((await suggestions(relatorioId)).filter((s) => s.source.photo_id === id)).toEqual([]);
+  }
+
+  it('re-targeted while the panel job runs: the check inside the batch ends it superseded, no status and no suggestion', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'chave_seccionadora')!;
+    const id = await panelPhoto(relatorioId, { location_id: block.location_id });
+    await runRetargetedMidRun(relatorioId, id, block, null);
+    await expectSuperseded(relatorioId, id);
+  }, 60_000);
+
+  it('re-targeted while the panel job runs, which then fails permanently: superseded, no failed written over the plate', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'chave_seccionadora')!;
+    const id = await panelPhoto(relatorioId, { location_id: block.location_id });
+    await runRetargetedMidRun(relatorioId, id, block, new PermanentReadingError('stub: the model refused'));
+    await expectSuperseded(relatorioId, id);
+  }, 60_000);
+
+  it('a target that does not parse, a location gone or one of another relatório fails permanently', async () => {
+    const own = await relatorio();
+    const other = await relatorio();
+    const coluna = own.blocks.find((b) => b.block_type === 'chave_seccionadora')!.location_id!;
+    const cases: [unknown, string][] = [
+      [{ block_id: coluna }, 'no panel reading target'],
+      [{ location_id: other.blocks.find((b) => b.block_type === 'chave_seccionadora')!.location_id }, 'not of the photo relatorio'],
+      [{ location_id: newId() }, 'target location does not exist'],
+    ];
+    for (const [target, reason] of cases) {
+      const id = await panelPhoto(own.relatorioId, target);
+      await runPanel(id);
+      const rows = await runs(id);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]!.error).toContain(reason);
+      expect(await status(id)).toBe('failed');
+    }
+    const id = await panelPhoto(own.relatorioId, { location_id: coluna });
+    await apply([{ ...relatorioPut(own.relatorioId, `location/${coluna}/removed_at`, null), kind: 'remove' }]);
+    await runPanel(id);
+    expect((await runs(id))[0]!.error).toContain('target location was removed');
+    expect(await status(id)).toBe('failed');
+  }, 60_000);
+});

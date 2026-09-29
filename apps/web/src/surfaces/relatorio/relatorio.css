@@ -184,6 +184,37 @@
   .field-palette .lo-type.pf-office { display: block; }
 }
 
+/* ---------- "Fotografar equipamento" (Story 9.2; 40-relatorio-overview.html lines 25-27 and 39-60) ----------
+   The palette's camera row and the result dialog, both portaled out of the route: the mock's
+   `[data-route="/relatorio/porto-seguro"] .block-palette` scope becomes `.field-palette`, and its
+   `[data-route=…] .detect-dialog` / `.detect-result` stay on their own classes. The mock's
+   simulated viewfinder (`.viewfinder`, `.vf-*`) is not rendered: the app's camera view stands in. */
+.field-palette .pal-camera { padding: var(--sp-2) var(--sp-4) var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-2); }
+.field-palette .pal-camera .camera-capture-tile { cursor: pointer; }
+.field-palette .pal-camera .camera-sub { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); text-align: center; }
+.detect-dialog { width: min(560px, 100%); }
+.detect-result { display: flex; flex-direction: column; gap: var(--sp-3); }
+.detect-result .suggestion-field > .input { min-height: var(--touch-field); padding-left: var(--sp-3); }
+.detect-result .suggestion-field .sv { display: flex; flex-direction: column; gap: 2px; }
+.detect-result .suggestion-field .sv-main { font-size: var(--t-value-size); font-weight: var(--t-value-weight); font-variant-numeric: tabular-nums; }
+.detect-result .suggestion-field .sv-sub { font-size: var(--t-meta-size); color: var(--ink-secondary); }
+.detect-result .confirm-btn { cursor: pointer; }
+.detect-result .crop-thumb { margin-left: 0; }
+.detect-result .prov-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--sp-2); }
+.detect-result .prov-list li { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+.detect-result .prov-list b { display: block; color: var(--ink-primary); font-weight: 600; }
+.detect-result .chip-row { padding-top: var(--sp-1); }
+/* authored: the Sumário's `.t-body`-sized waiting line while the server reads the photo ("Lendo a foto…"). */
+.detect-result .detect-waiting { font-size: var(--t-body-size); line-height: var(--t-body-lh); color: var(--ink-secondary); }
+/* the mock's `.frame-phone` rules (AGENTS.md "Mock container selectors"): below 768 px the result
+   is a bottom sheet (`#relatorio-dlg-detect-result` is the `.detect-scrim` here) and the
+   provenance list is one column. */
+@media (max-width: 767.98px) {
+  .dialog-scrim.detect-scrim { padding: 0; align-items: flex-end; }
+  .detect-dialog { border-radius: var(--r-lg) var(--r-lg) 0 0; }
+  .detect-result .prov-list { grid-template-columns: 1fr; }
+}
+
 /* ---------- /relatorio/:id/arvore: the rail until Epic 5 mounts it in a sheet (Story 4.4) ----------
    authored from EXPERIENCE.md › Responsive & Platform and DESIGN.md › Collapsed rail (the
    prototype's `proto.css` rail modes, which components.css does not carry): below 768 px the
