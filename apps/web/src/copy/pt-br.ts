@@ -145,7 +145,6 @@ export const copy = {
   // `pendingSummaryText`), never from here.
   sync: {
     title: 'Sincronização',
-    nothingPending: 'Nada pendente neste aparelho.',
     waiting: (pending: string) => `${pending} aguardando envio`,
     syncNow: 'Sincronizar agora',
     syncing: 'Sincronizando…',
@@ -169,6 +168,33 @@ export const copy = {
     neverSynced: 'Ainda não sincronizado',
     // `85-sync.html` "Leituras" section heading (Story 8.2); its rows are the kernel's counts.
     readingsHeading: 'Leituras',
+    // Story 10.4: the rest of `85-sync.html`, verbatim. Every count, row and state word is
+    // the kernel's (`packages/domain/src/sync/status.ts`).
+    how: {
+      label: 'Como funciona a mesclagem',
+      intro: 'Dois aparelhos podem editar a mesma ficha. Na sincronização, cada sub-bloco é mesclado por regras fixas — nada é perguntado:',
+      rules: [
+        { strong: 'Preenchido vence vazio.', text: 'Uma célula preenchida num aparelho completa a vazia no outro.' },
+        { strong: 'NC vence C.', text: 'Um item marcado Não conforme em qualquer aparelho fica Não conforme, com a observação e a foto dele.' },
+        { strong: 'Fotos nunca se perdem.', text: 'Vínculos de foto dos dois lados são mantidos; a galeria intercala por hora de captura.' },
+        { strong: 'Texto: a edição mais recente vence.', text: 'Observações, motivos e legendas; a outra versão continua legível aqui durante a sessão.' },
+      ],
+      closing: {
+        before: 'Só uma',
+        strong: 'contradição real',
+        after:
+          '— dois valores preenchidos e diferentes na mesma célula (duas leituras, duas conclusões, C contra NA) — pede decisão, célula a célula. Estrutura (blocos, ordem, legendas, pontos de atenção, dados do relatório) é mesclada sozinha; só remoção contra edição e TAG duplicada perguntam.',
+      },
+    },
+    sendingHeading: 'Enviando',
+    sendingNote: 'Fichas primeiro, fotos depois — fotos para leitura na frente. Continua sozinho quando houver sinal; nada sai deste aparelho até o servidor confirmar.',
+    downloadingHeading: 'Baixando',
+    downloadingNote: 'Relatórios em Rascunho ou Em campo chegam sozinhos a este aparelho quando há conexão.',
+    decisionsHeading: 'Decisões',
+    decisionsNote:
+      'Fichas são mescladas por sub-bloco sozinhas (preenchido vence vazio · NC vence C · fotos nunca se perdem · texto: mais recente vence). Só contradições reais e dois casos de estrutura pedem decisão.',
+    mergedLabel: 'Mesclado automaticamente',
+    footNote: 'Tudo o que está neste aparelho fica salvo até o servidor confirmar.',
   },
   // authored: there is no mock for the 426 state (AR-12); a UX pass may replace these
   // strings without touching behavior.

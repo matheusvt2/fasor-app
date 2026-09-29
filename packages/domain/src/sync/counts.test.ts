@@ -30,7 +30,7 @@ describe('syncCounts', () => {
       row(`sheet/${BLOCK_A}/observations`, 'dead'),
       row(`registry/client/${CLIENT}/contact_name`, 'pending'),
     ]);
-    expect(counts).toEqual({ pending: 3, sent: 1, dead: 1, sheets_pending: 2, photos_pending: 0, suggestions_pending: 0, readings_queued: 0, merged: 0 });
+    expect(counts).toEqual({ pending: 3, sent: 1, dead: 1, sheets_pending: 2, photos_pending: 0, suggestions_pending: 0, readings_queued: 0, merged: 0, upload_errors: 0 });
   });
 
   it('counts photo creates only when unsent and not dead', () => {
@@ -63,12 +63,35 @@ describe('syncCounts', () => {
       suggestions_pending: 0,
       readings_queued: 0,
       merged: 0,
+      upload_errors: 0,
     });
+  });
+
+  it('10.4: with the uploads input, photos waiting are the distinct ids of unsent photo creates and error-free unacked originals; errors count apart', () => {
+    const photo = { kind: 'create' as const, value: { kind: 'photo' } };
+    const FILE_2 = '019966b0-0000-7000-8000-000000000061';
+    const FILE_3 = '019966b0-0000-7000-8000-000000000062';
+    const counts = syncCounts([row(`file/${FILE_1}`, 'pending', photo)], {}, [], [
+      { id: FILE_1, error: false },
+      { id: FILE_2, error: false },
+      { id: FILE_3, error: true },
+    ]);
+    expect(counts.photos_pending).toBe(2);
+    expect(counts.upload_errors).toBe(1);
+    // Omitted, the old count: photo creates only, no errors.
+    expect(syncCounts([row(`file/${FILE_1}`, 'pending', photo)]).photos_pending).toBe(1);
+    expect(syncCounts([]).upload_errors).toBe(0);
+    // A photo whose create is still unsent and whose upload stopped counts once, as an error.
+    const both = syncCounts([row(`file/${FILE_3}`, 'pending', photo)], {}, [], [{ id: FILE_3, error: true }]);
+    expect(both.photos_pending).toBe(0);
+    expect(both.upload_errors).toBe(1);
+    // Uploads waiting do not make the badge pending: it counts ops only (Design Notes (1)).
+    expect(syncBadgeState(syncCounts([], {}, [], [{ id: FILE_2, error: false }]), { online: true })).toBe('ok');
   });
 });
 
 describe('syncBadgeState', () => {
-  const base = { pending: 0, sent: 0, dead: 0, sheets_pending: 0, photos_pending: 0, suggestions_pending: 0, readings_queued: 0, merged: 0 };
+  const base = { pending: 0, sent: 0, dead: 0, sheets_pending: 0, photos_pending: 0, suggestions_pending: 0, readings_queued: 0, merged: 0, upload_errors: 0 };
   it('is ok with nothing pending and online', () => {
     expect(syncBadgeState(base, { online: true })).toBe('ok');
   });
@@ -89,6 +112,10 @@ describe('syncBadgeState', () => {
   it('keeps error ahead of an unreachable server', () => {
     expect(syncBadgeState({ ...base, dead: 1 }, { online: true, reachable: false })).toBe('error');
   });
+  it('10.4: any open contradiction reads conflict first, ahead of error, offline and pending', () => {
+    expect(syncBadgeState({ ...base, dead: 1, pending: 2 }, { online: false, conflicts: 1 })).toBe('conflict');
+    expect(syncBadgeState(base, { online: true, conflicts: 0 })).toBe('ok');
+  });
   it('returns to ok or pending once the server answers again', () => {
     expect(syncBadgeState(base, { online: true, reachable: true })).toBe('ok');
     expect(syncBadgeState({ ...base, pending: 1 }, { online: true, reachable: true })).toBe('pending');
@@ -96,7 +123,7 @@ describe('syncBadgeState', () => {
 });
 
 describe('pendingSummaryText and syncBadgeLabel', () => {
-  const base = { pending: 0, sent: 0, dead: 0, sheets_pending: 0, photos_pending: 0, suggestions_pending: 0, readings_queued: 0, merged: 0 };
+  const base = { pending: 0, sent: 0, dead: 0, sheets_pending: 0, photos_pending: 0, suggestions_pending: 0, readings_queued: 0, merged: 0, upload_errors: 0 };
   it('names sheets and photos, or plain changes, or nothing', () => {
     expect(pendingSummaryText({ ...base, pending: 3, sheets_pending: 3 })).toBe('3 fichas');
     expect(pendingSummaryText({ ...base, pending: 3, sheets_pending: 1, photos_pending: 2 })).toBe('1 ficha e 2 fotos');

@@ -45,7 +45,20 @@ export const lastPushAtSchema = z.object({
 });
 export type LastPushAt = z.infer<typeof lastPushAtSchema>;
 
-/** AD-8: the minimal relatorio row that scopes a stream; `progress` is appended by a later epic. */
+/**
+ * Story 10.4 (ledger 106): what the server holds of one relatório, its live blocks (sheets)
+ * and live photo files, so a device downloading it can say "Baixando… 12 de 30 fichas".
+ */
+export const relatorioProgressSchema = z.object({
+  sheets: z.number().int().nonnegative(),
+  photos: z.number().int().nonnegative(),
+});
+export type RelatorioProgress = z.infer<typeof relatorioProgressSchema>;
+
+/**
+ * AD-8: the minimal relatorio row that scopes a stream. Non-strict on purpose: an additive
+ * field (Story 10.4's optional `progress`, contract 11) is tolerated by an older device.
+ */
 export const relatorioSummarySchema = z.object({
   id: z.string().min(1),
   project_id: z.string().min(1),
@@ -53,6 +66,7 @@ export const relatorioSummarySchema = z.object({
   template_id: z.string().nullable(),
   seed_version: z.string(),
   updated_seq: seqSchema,
+  progress: relatorioProgressSchema.optional(),
 });
 export type RelatorioSummary = z.infer<typeof relatorioSummarySchema>;
 

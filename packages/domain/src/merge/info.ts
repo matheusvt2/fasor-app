@@ -151,7 +151,7 @@ export interface MergeInfoContext {
 }
 
 /** The block as the sheet names it: its equipment's TAG, else its type's name. authored: "Relatório" off any block. */
-function blockName(blockId: string | null, context: MergeInfoContext): string {
+export function blockName(blockId: string | null, context: Pick<MergeInfoContext, 'blocks' | 'equipment'>): string {
   const block = blockId === null ? undefined : context.blocks.find((row) => row.id === blockId);
   if (block === undefined) return 'Relatório';
   const tag = block.equipment_id === null ? '' : (context.equipment.find((row) => row.id === block.equipment_id)?.tag.trim() ?? '');

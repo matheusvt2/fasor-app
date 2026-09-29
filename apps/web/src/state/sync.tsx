@@ -1,9 +1,23 @@
 import {
+  downloadRows,
   mergeInfoText,
+  mergeRowSecondaryText,
+  pendingPhotoRows,
+  pendingSheetRows,
   pendingSummaryCount,
   pendingSummaryText,
+  queuedReadingRows,
   syncBadgeState,
   syncCounts,
+  syncHeadlineText,
+  syncSummaryBadges,
+  type DownloadRow,
+  type PendingPhotoRow,
+  type PendingSheetContext,
+  type PendingSheetRow,
+  type QueuedReadingRow,
+  type SyncDecisionRow,
+  type SyncSummaryBadge,
   type GenerateRequest,
   type GenerateResponse,
   type PreviewResponse,
@@ -20,7 +34,18 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { publishReAuth } from '../api/auth-client.ts';
 import { useLiveQuery } from '../db/live.ts';
 import { COMPANY_STREAM, type OutboxRow, type SyncStateRow } from '../db/schema.ts';
-import { deviceId, localUsers, mergeTextContext, outboxRows, resendDead as resendDeadRows, syncStateRows } from '../db/sync-store.ts';
+import {
+  deviceId,
+  downloadRowsContext,
+  localUsers,
+  mergeTextContext,
+  outboxRows,
+  pendingSheetContext,
+  resendDead as resendDeadRows,
+  syncStateRows,
+  unackedPhotoUploads,
+  type DownloadRowsContext,
+} from '../db/sync-store.ts';
 import { clearUploadError } from '../db/file-store.ts';
 import { readingCountRows, type ReadingCountRows } from '../db/suggestion-store.ts';
 import { storageHeadroom } from '../device/storage-estimate.ts';
@@ -42,7 +67,7 @@ import { useSession } from './session.tsx';
 
 export interface SyncState {
   counts: SyncCounts;
-  badgeState: Exclude<SyncBadgeState, 'conflict'>;
+  badgeState: SyncBadgeState;
   /** "3 fichas", "1 ficha e 2 fotos", "5 alterações" or '' (kernel). */
   pendingText: string;
   pendingCount: number;
@@ -68,9 +93,32 @@ export interface SyncState {
   supersededCount: number;
   /**
    * Story 10.1: the merges by rule of this tab session (engine memory; a reload clears
-   * them), each with its Sync status row words (`mergeInfoText`, kernel).
+   * them), each with its Sync status row words (`mergeInfoText`, kernel); Story 10.4 adds
+   * the secondary line (`mergeRowSecondaryText`).
    */
-  merges: readonly { key: string; info: MergeInfo; text: string }[];
+  merges: readonly { key: string; info: MergeInfo; text: string; secondary?: string }[];
+  /**
+   * Story 10.4 (FR-60): the rows of the full Sync status surface, each derived by the kernel.
+   * Optional in the type only so the test doubles built before them still type-check; the
+   * provider always supplies them.
+   */
+  /** The headline's counts ("3 fichas e 12 fotos aguardando · 2 leituras na fila"). */
+  headline?: string;
+  /** The `.sync-summary` compact badges. */
+  summaryBadges?: readonly SyncSummaryBadge[];
+  /** "Enviando › Fichas": one row per block with unsent ops. */
+  pendingSheets?: readonly PendingSheetRow[];
+  /** "Enviando › Fotos": the originals still to upload (at most ten) and how many more. */
+  uploads?: { rows: readonly PendingPhotoRow[]; more: number };
+  /** "Leituras": the photos whose reading is queued or running. */
+  readingsQueued?: readonly QueuedReadingRow[];
+  /** "Baixando": each relatório stream not pulled to its end. */
+  downloads?: readonly DownloadRow[];
+  /**
+   * "Decisões": the open contradictions. Stories 10.2/10.3 (batch X) own its source and the
+   * row buttons; until they merge the provider always gives `[]`.
+   */
+  decisions?: readonly SyncDecisionRow[];
   deviceId: string | null;
   /** User names known on this device, by user id, for "Último envio". */
   userNames: Readonly<Record<string, string>>;
@@ -136,6 +184,11 @@ const NO_USERS: UserRow[] = [];
 const NO_SUMMARY: RelatorioSummary[] = [];
 const NO_READING: ReadingCountRows = { suggestions: [], photos: [] };
 const NO_CONTEXT: MergeInfoContext = { blocks: [], equipment: [], users: [], files: [] };
+const NO_SHEET_CONTEXT: PendingSheetContext = { blocks: [], equipment: [], users: [] };
+const NO_UPLOADS: Awaited<ReturnType<typeof unackedPhotoUploads>> = [];
+const NO_DOWNLOAD_CONTEXT: DownloadRowsContext = { projects: [], clients: [], local: new Map() };
+/** Batch X (Stories 10.2/10.3) replaces this with its kernel list of open contradictions. */
+const NO_DECISIONS: readonly SyncDecisionRow[] = [];
 
 const browserTimers = {
   setTimeout: (callback: () => void, ms: number) => globalThis.setTimeout(callback, ms),
@@ -226,7 +279,16 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
   // Story 8.2: the readings still queued and the suggestions still pending on this device.
   const reading = useLiveQuery(() => (db === null ? Promise.resolve(NO_READING) : readingCountRows(db)), [db], NO_READING);
-  const counts = useMemo(() => syncCounts(rows, reading, status.merges), [rows, reading, status.merges]);
+  // Story 10.4: the photo originals still to upload, counted with the ops and listed.
+  const photoUploads = useLiveQuery(() => (db === null ? Promise.resolve(NO_UPLOADS) : unackedPhotoUploads(db)), [db], NO_UPLOADS);
+  const counts = useMemo(
+    () => syncCounts(rows, reading, status.merges, photoUploads.map((upload) => ({ id: upload.id, error: upload.error }))),
+    [rows, reading, status.merges, photoUploads],
+  );
+  const sheetContext = useLiveQuery(() => (db === null ? Promise.resolve(NO_SHEET_CONTEXT) : pendingSheetContext(db, rows)), [db, rows], NO_SHEET_CONTEXT);
+  const pendingSheets = useMemo(() => pendingSheetRows(rows, sheetContext), [rows, sheetContext]);
+  const uploads = useMemo(() => pendingPhotoRows(photoUploads), [photoUploads]);
+  const readingsQueued = useMemo(() => queuedReadingRows(reading.photos), [reading.photos]);
   // Story 10.1: the rows each merge row names (block, TAG, author, photo), read live.
   const mergeContext = useLiveQuery(
     () => (db === null ? Promise.resolve(NO_CONTEXT) : mergeTextContext(db, status.merges)),
@@ -234,10 +296,31 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     NO_CONTEXT,
   );
   const merges = useMemo(
-    () => status.merges.map((info) => ({ key: `${info.op_id}:${info.over_op_id}`, info, text: mergeInfoText(info, mergeContext) })),
+    () =>
+      status.merges.map((info) => ({
+        key: `${info.op_id}:${info.over_op_id}`,
+        info,
+        text: mergeInfoText(info, mergeContext),
+        secondary: mergeRowSecondaryText(info),
+      })),
     [status.merges, mergeContext],
   );
   const company = states.find((s) => s.id === COMPANY_STREAM);
+  // Story 10.4: the relatório streams still downloading, named and counted against the summary.
+  const downloadingKey = states
+    .filter((s) => !s.complete)
+    .map((s) => s.id)
+    .sort()
+    .join(',');
+  const downloadContext = useLiveQuery(
+    () => (db === null || downloadingKey === '' ? Promise.resolve(NO_DOWNLOAD_CONTEXT) : downloadRowsContext(db, downloadingKey.split(','))),
+    [db, downloadingKey],
+    NO_DOWNLOAD_CONTEXT,
+  );
+  const downloads = useMemo(
+    () => downloadRows({ states, summaries: company?.relatorios ?? NO_SUMMARY, ...downloadContext }),
+    [states, company, downloadContext],
+  );
   const userNames = useMemo(() => Object.fromEntries(users.map((u) => [u.id, u.name])), [users]);
 
   const syncNow = useCallback(async () => engineRef.current?.runCycle() ?? 'paused', []);
@@ -301,7 +384,14 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const value = useMemo<SyncState>(
     () => ({
       counts,
-      badgeState: syncBadgeState(counts, { online: session.online, reachable: unreachable === null }),
+      badgeState: syncBadgeState(counts, { online: session.online, reachable: unreachable === null, conflicts: NO_DECISIONS.length }),
+      headline: syncHeadlineText({ counts, contradictions: NO_DECISIONS.length }),
+      summaryBadges: syncSummaryBadges({ counts, contradictions: NO_DECISIONS.length }),
+      pendingSheets,
+      uploads,
+      readingsQueued,
+      downloads,
+      decisions: NO_DECISIONS,
       pendingText: pendingSummaryText(counts),
       pendingCount: pendingSummaryCount(counts),
       online: session.online,
@@ -327,7 +417,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       preview,
       rereadPhoto,
     }),
-    [counts, session.online, unreachable, status, merges, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto],
+    [counts, session.online, unreachable, status, merges, pendingSheets, uploads, readingsQueued, downloads, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto],
   );
 
   return <SyncContext value={value}>{children}</SyncContext>;

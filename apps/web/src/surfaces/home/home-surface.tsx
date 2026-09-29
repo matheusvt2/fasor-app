@@ -22,7 +22,7 @@ import { now } from '../../clock.ts';
 import { blockRows, clientRows, projectRows, relatorioRows, relatorioState, templateRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { readLastSheet } from '../../db/prefs.ts';
-import { outboxRows, syncStateRows } from '../../db/sync-store.ts';
+import { localFileRows, outboxRows, syncStateRows } from '../../db/sync-store.ts';
 import type { OutboxRow, SyncStateRow } from '../../db/schema.ts';
 import { useSession } from '../../state/session.tsx';
 import { useSync } from '../../state/sync.tsx';
@@ -48,6 +48,7 @@ const NO_TEMPLATES: TemplateRow[] = [];
 const NO_OUTBOX: OutboxRow[] = [];
 const NO_STATES: SyncStateRow[] = [];
 const NO_BLOCKS: BlockRow[] = [];
+const NO_FILES: Awaited<ReturnType<typeof localFileRows>> = [];
 
 /** The key of the cold-open offline toast: once for this page session, not once per visit. */
 const OFFLINE_TOAST_KEY = 'offline-cold-open';
@@ -82,6 +83,8 @@ export function HomeSurface() {
   // Story 12.2: the blocks this device holds, for the on-device cards' `.progress-counter`.
   // Undefined until read, so no card counts "0 de 0" for a frame.
   const blocks = useLiveQuery(() => (db === null ? Promise.resolve(NO_BLOCKS) : blockRows(db)), [db], null) ?? undefined;
+  // Story 10.4 (ledger 166): the file rows, so a downloading card counts its sheets ("Baixando… 12 de 30 fichas").
+  const files = useLiveQuery(() => (db === null ? Promise.resolve(NO_FILES) : localFileRows(db)), [db], null) ?? undefined;
 
   const states = useLiveQuery(() => (db === null ? Promise.resolve(NO_STATES) : syncStateRows(db)), [db], NO_STATES);
   const syncStates = useMemo(
@@ -100,11 +103,12 @@ export function HomeSurface() {
       syncStates,
       outbox,
       blocks,
+      files,
       online: sync.online,
       reachable: sync.unreachable === null,
       now: now(),
     }),
-    [relatorios, sync.summaryRelatorios, projects, clients, templates, syncStates, outbox, blocks, sync.online, sync.unreachable],
+    [relatorios, sync.summaryRelatorios, projects, clients, templates, syncStates, outbox, blocks, files, sync.online, sync.unreachable],
   );
 
   // The board counts every relatório the device knows of, whatever the tile filter says;

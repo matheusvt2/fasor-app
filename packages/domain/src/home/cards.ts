@@ -13,6 +13,7 @@ import {
   type SyncBadgeState,
   type SyncCounts,
 } from '../sync/counts.ts';
+import { downloadProgress, localDownloadTotals, type DownloadFileLike, type DownloadTotals } from '../sync/status.ts';
 
 /*
  * AD-2: Home is a rendering of this module. Every count, every order and every
@@ -47,7 +48,7 @@ export interface HomeCard {
   /** `.card-meta`: "⟨datas⟩ · ⟨template⟩"; '' when neither part exists. */
   meta: string;
   device: HomeCardDevice;
-  badgeState: Exclude<SyncBadgeState, 'conflict'>;
+  badgeState: SyncBadgeState;
   badgeCounts: SyncCounts;
   /** The relatório Em campo on this device: sorts first and carries `.is-current`. */
   isCurrent: boolean;
@@ -78,6 +79,11 @@ export interface HomeCardsInput {
   now: Date;
   /** Every block this device holds (Story 12.2): the counter of an on-device card. Omitted means no counter. */
   blocks?: readonly BlockRow[];
+  /**
+   * Story 10.4 (ledger 166): the file rows this device holds, so a downloading card counts its
+   * live photos against the summary's `progress`. Omitted (with `blocks`) means the bare word.
+   */
+  files?: readonly DownloadFileLike[];
 }
 
 // authored: the mock never draws a relatório without a client and a local, but a
@@ -88,8 +94,8 @@ const UNTITLED = 'Relatório sem identificação';
 const DEVICE_TEXT = {
   // Verbatim from `20-home.html` and `key-home.html` frame 3.
   onDevice: (stamp: string) => (stamp === '' ? 'No aparelho' : `No aparelho · atualizado ${stamp}`),
-  // AD-8's counted form ("Baixando… n de m") waits for the summary's `progress(snapshot)`;
-  // until then the honest word is the state alone (Design Notes).
+  // Story 10.4 (ledger 166): the counted form "Baixando… 12 de 30 fichas" comes from
+  // `downloadProgress` when the summary carries `progress`; this is the word alone.
   downloading: 'Baixando…',
   absentOnline: 'Não está neste aparelho · baixa ao abrir',
   absentOffline: 'Não está neste aparelho — conecte para baixar',
@@ -155,11 +161,16 @@ function updatedStamp(lastSyncAt: string | null, now: Date): string {
     : short;
 }
 
-function deviceOf(state: SyncStateLike | undefined, online: boolean, now: Date): HomeCardDevice {
+function deviceOf(
+  state: SyncStateLike | undefined,
+  online: boolean,
+  now: Date,
+  download: { totals: DownloadTotals | undefined; local: DownloadTotals | undefined },
+): HomeCardDevice {
   if (state !== undefined) {
-    return state.complete
-      ? { kind: 'on-device', text: DEVICE_TEXT.onDevice(updatedStamp(state.last_sync_at, now)) }
-      : { kind: 'downloading', text: DEVICE_TEXT.downloading };
+    if (state.complete) return { kind: 'on-device', text: DEVICE_TEXT.onDevice(updatedStamp(state.last_sync_at, now)) };
+    const text = download.local === undefined ? DEVICE_TEXT.downloading : downloadProgress(download.totals, download.local).short;
+    return { kind: 'downloading', text };
   }
   return online
     ? { kind: 'absent-online', text: DEVICE_TEXT.absentOnline }
@@ -199,6 +210,9 @@ export function homeCards(input: HomeCardsInput): HomeCard[] {
     else bucket.push(row);
   }
 
+  const progressOf = new Map(input.summary.map((entry) => [entry.id, entry.progress]));
+  const local = input.blocks === undefined || input.files === undefined ? null : localDownloadTotals(input.blocks, input.files);
+
   const blocksByRelatorio = new Map<string, BlockRow[]>();
   for (const block of input.blocks ?? []) {
     const bucket = blocksByRelatorio.get(block.relatorio_id);
@@ -225,7 +239,10 @@ export function homeCards(input: HomeCardsInput): HomeCard[] {
       source.template_id === null ? null : (templates.get(source.template_id) ?? null),
     ]);
     const counts = syncCounts(outboxByRelatorio.get(source.id) ?? []);
-    const device = deviceOf(states.get(source.id), input.online, input.now);
+    const device = deviceOf(states.get(source.id), input.online, input.now, {
+      totals: progressOf.get(source.id),
+      local: local === null ? undefined : (local.get(source.id) ?? { sheets: 0, photos: 0 }),
+    });
     cards.push({
       id: source.id,
       status: source.status,

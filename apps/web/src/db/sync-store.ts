@@ -1,19 +1,25 @@
 import {
   blockFieldPath,
   companyStreamDownloaded,
+  localDownloadTotals,
   materializeEntity,
   mergeInfoOf,
   newRelatorioEquipmentReady,
+  outboxBlockId,
   splitEntityKey,
   userFieldPath,
   userRowSchema,
   type BlockRow,
+  type DownloadTotals,
   type EntityKey,
   type EquipmentRow,
   type FileRow,
   type MergeInfo,
   type MergeInfoContext,
   type Op,
+  type PendingPhotoInput,
+  type PendingSheetContext,
+  type ProjectRow,
   type RelatorioSummary,
   type UserRow,
 } from '@app/domain';
@@ -359,4 +365,80 @@ export async function mergeTextContext(db: AppDatabase, merges: readonly MergeIn
           .filter((record) => record.entity === 'file')
           .map((record) => record.row as FileRow);
   return { blocks, equipment, users: await localUsers(db), files };
+}
+
+// --- Story 10.4: the rows of the full Sync status surface -------------------------------
+
+/** The rows the "Enviando › Fichas" rows are named from: the blocks with unsent ops, their equipment, the users. */
+export async function pendingSheetContext(db: AppDatabase, outbox: readonly OutboxRow[]): Promise<PendingSheetContext> {
+  const blockIds = new Set<string>();
+  for (const row of outbox) {
+    if (row.status !== 'pending' && row.status !== 'sent') continue;
+    const id = outboxBlockId(row.path);
+    if (id !== null) blockIds.add(id);
+  }
+  if (blockIds.size === 0) return { blocks: [], equipment: [], users: [] };
+  const blockRecords = await db.entities.bulkGet([...blockIds].map((id) => ['block', id] as ['block', string]));
+  const blocks = blockRecords.flatMap((record) => (record === undefined ? [] : [record.row as BlockRow]));
+  const equipmentIds = [...new Set(blocks.flatMap((block) => (block.equipment_id === null ? [] : [block.equipment_id])))];
+  const equipmentRecords = await db.entities.bulkGet(equipmentIds.map((id) => ['equipment', id] as ['equipment', string]));
+  const equipment = equipmentRecords.flatMap((record) => (record === undefined ? [] : [record.row as EquipmentRow]));
+  return { blocks, equipment, users: await localUsers(db) };
+}
+
+/**
+ * The photo originals this device still has to upload: a blob the server has not acked, of a
+ * live photo whose row says the server does not hold its bytes. `error` when its upload
+ * stopped (`upload_error`, retried by "Erro — Tentar novamente"). Scanned, not indexed: the
+ * `acked` flag is a boolean (`pendingUploads` scans for the same reason).
+ */
+export async function unackedPhotoUploads(db: AppDatabase): Promise<PendingPhotoInput[]> {
+  const blobs = await db.files.filter((row) => !row.acked && row.variant === 'original').toArray();
+  if (blobs.length === 0) return [];
+  const records = await db.entities.bulkGet(blobs.map((blob) => ['file', blob.id] as ['file', string]));
+  const out: PendingPhotoInput[] = [];
+  blobs.forEach((blob, index) => {
+    const row = records[index]?.row as FileRow | undefined;
+    if (row === undefined || row.kind !== 'photo' || row.removed_at != null || row.uploaded_at != null) return;
+    out.push({
+      id: blob.id,
+      caption: row.caption,
+      captured_at: row.captured_at,
+      reading_status: row.reading_status,
+      error: blob.upload_error !== undefined && blob.upload_error !== null,
+    });
+  });
+  return out;
+}
+
+/** What the "Baixando" rows read besides the sync rows: the obra and client names, and what this device holds of each relatório still downloading. */
+export interface DownloadRowsContext {
+  projects: ProjectRow[];
+  clients: { id: string; name: string }[];
+  local: Map<string, DownloadTotals>;
+}
+
+export async function downloadRowsContext(db: AppDatabase, relatorioIds: readonly string[]): Promise<DownloadRowsContext> {
+  if (relatorioIds.length === 0) return { projects: [], clients: [], local: new Map() };
+  const [records, projects, registries] = await Promise.all([
+    db.entities.where('relatorio_id').anyOf([...relatorioIds]).toArray(),
+    db.entities.where('entity').equals('project').toArray(),
+    db.entities.where('entity').equals('registry').toArray(),
+  ]);
+  const blocks = records.filter((record) => record.entity === 'block').map((record) => record.row as BlockRow);
+  const files = records.filter((record) => record.entity === 'file').map((record) => record.row as FileRow);
+  return {
+    projects: projects.map((record) => record.row as ProjectRow),
+    clients: registries
+      .map((record) => record.row as { id: string; kind?: unknown; name?: unknown })
+      .filter((row) => row.kind === 'client' && typeof row.name === 'string')
+      .map((row) => ({ id: row.id, name: row.name as string })),
+    local: localDownloadTotals(blocks, files),
+  };
+}
+
+/** Story 10.4 (ledger 166): the file rows this device holds, for Home's "Baixando… n de m" (`homeCards`). */
+export async function localFileRows(db: AppDatabase): Promise<FileRow[]> {
+  const records = await db.entities.where('entity').equals('file').toArray();
+  return records.map((record) => record.row as FileRow);
 }

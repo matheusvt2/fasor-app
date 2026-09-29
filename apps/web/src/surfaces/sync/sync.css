@@ -1,14 +1,144 @@
 /* Page-only layout of the Sync status surface, copied from the screen-scoped block of
-   `mockups/prototype/screens/85-sync.html`. Everything else comes from components.css. */
+   `mockups/prototype/screens/85-sync.html` (lines 7-27). Everything else comes from components.css. */
 
 [data-route='/sync'] .sync-headline {
   margin-bottom: var(--sp-4);
+}
+
+[data-route='/sync'] .sync-how {
+  margin-top: var(--sp-1);
+}
+
+[data-route='/sync'] .sync-how > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-height: var(--touch-min);
+  margin-left: calc(-1 * var(--sp-3));
+  padding: 0 var(--sp-3);
+  cursor: pointer;
+  list-style: none;
+  color: var(--primary);
+  font-size: var(--t-body-size);
+  font-weight: 600;
+  border-radius: var(--r-md);
+}
+
+[data-route='/sync'] .sync-how > summary::-webkit-details-marker {
+  display: none;
+}
+
+[data-route='/sync'] .sync-how > summary .ico {
+  width: 20px;
+  height: 20px;
+  transition: transform 0.15s;
+}
+
+[data-route='/sync'] .sync-how[open] > summary .ico {
+  transform: rotate(180deg);
+}
+
+[data-route='/sync'] .sync-how .how-body {
+  margin-top: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--r-sm);
+  background: var(--surface-raised);
+  font-size: var(--t-body-size);
+  line-height: var(--t-body-lh);
+}
+
+[data-route='/sync'] .sync-how .how-body ul {
+  margin: var(--sp-2) 0 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+[data-route='/sync'] .sync-how .how-body p + p {
+  margin-top: var(--sp-2);
+}
+
+[data-route='/sync'] .conflict-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+[data-route='/sync'] .conflict-list .banner .banner-actions {
+  flex-wrap: wrap;
+}
+
+[data-route='/sync'] .banner .banner-text .merged-word {
+  display: block;
+  font-size: var(--t-label-size);
+  font-weight: var(--t-label-weight);
+  line-height: var(--t-label-lh);
+  color: var(--sync-ok);
+  margin-bottom: 2px;
 }
 
 [data-route='/sync'] .sync-foot {
   margin-top: var(--sp-6);
   font-size: var(--t-meta-size);
   color: var(--ink-secondary);
+}
+
+[data-route='/sync'] .sync-row .photo-tile {
+  flex: none;
+}
+
+[data-route='/sync'] .sync-row .sr-secondary .was {
+  text-decoration: line-through;
+}
+
+[data-route='/sync'] .readings-banner > .ico {
+  width: 24px;
+  height: 24px;
+  flex: none;
+}
+
+/* The mock's inline styles on the group labels ("Fichas (3)", "Fotos (31)", "Mesclado
+   automaticamente": `style="margin-bottom: var(--sp-1)"` and `style="margin: var(--sp-4) 0
+   var(--sp-1)"`), as classes. */
+[data-route='/sync'] .sync-group-label {
+  margin-bottom: var(--sp-1);
+}
+
+[data-route='/sync'] .sync-list + .sync-group-label,
+[data-route='/sync'] .sync-group-label.is-spaced {
+  margin: var(--sp-4) 0 var(--sp-1);
+}
+
+/* The mock's `.sync-summary` sits between the headline and the next block; this app puts
+   "Sincronizar agora" there (decision C-4), so the summary keeps the headline's rhythm. */
+[data-route='/sync'] .sync-summary {
+  margin-bottom: var(--sp-4);
+}
+
+/* `.frame-phone [data-route="/sync"] X` (85-sync.html lines 23-27), AGENTS.md "Mock container selectors". */
+@media (max-width: 767.98px) {
+  [data-route='/sync'] .sync-row {
+    flex-wrap: wrap;
+  }
+
+  [data-route='/sync'] .sync-row .sr-body {
+    flex-basis: calc(100% - var(--thumb-inline) - var(--sp-3));
+  }
+
+  [data-route='/sync'] .sync-row .sr-state {
+    align-items: flex-start;
+    white-space: normal;
+  }
+
+  [data-route='/sync'] .sync-row .sr-state .progress-track {
+    width: 160px;
+  }
+
+  [data-route='/sync'] .sync-headline .sh-counts {
+    font-size: var(--t-meta-size);
+  }
 }
 
 /* The primary action at the top of the surface (decision C-4), with its reason beside it. */
