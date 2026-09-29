@@ -4,7 +4,7 @@ import { safeParsePath } from '../ops/path.ts';
 import type { BlockRow } from '../schemas/entities.ts';
 
 /*
- * Stories 10.2 and 10.3 (contract 11): what a device saw when it wrote, stamped on the op
+ * Stories 10.2 and 10.3 (contract 12): what a device saw when it wrote, stamped on the op
  * at commit from the device's own materialized rows (`state`, the rows `targetsOf(op)`
  * names), and read by the fold (`isConcurrent`, the block removal branch of `applyOp`):
  *

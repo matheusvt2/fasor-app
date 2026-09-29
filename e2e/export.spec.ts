@@ -395,7 +395,9 @@ test('@p0 E4-E2E-002 a second relatório of an obra whose Emitido relatório thi
 
   // After "Sincronizar agora", nothing is duplicated: not on Sync status, not in R2's tree.
   await syncNow(page);
-  await expect(page.getByText(/duplicada/)).toHaveCount(0);
+  // Story 10.4: Sync status holds the collapsed "Como funciona a mesclagem" text, which names
+  // "TAG duplicada" as a case that asks; only a row or a Decisões banner would be a duplicate.
+  await expect(page.locator('main :is(.sync-row, .banner)', { hasText: /duplicada/ })).toHaveCount(0);
   await page.goto(`/relatorio/${r2}`);
   // Story 12.5 (J-17): the App bar names the relatório; the Sumário list says where we are.
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });

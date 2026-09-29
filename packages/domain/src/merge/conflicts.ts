@@ -15,6 +15,7 @@ import { relatorioOpEnvelope, type Author } from '../relatorio/ops.ts';
 import type { BlockRow, Cell, EquipmentRow, JsonValue, LocationRow } from '../schemas/entities.ts';
 import { getDefinition } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
+import type { SyncDecisionRow } from '../sync/status.ts';
 import { plural } from '../text/plural.ts';
 
 /*
@@ -329,6 +330,24 @@ export function uniqueHeldDecisions<T extends { projectId: string; decisions: re
 /** The badge's count over every held relatório (`uniqueHeldDecisions`, then `decisionCount`). */
 export function decisionTotal(entries: readonly { projectId: string; decisions: readonly Decision[] }[]): number {
   return uniqueHeldDecisions(entries).reduce((sum, entry) => sum + decisionCount(entry.decisions), 0);
+}
+
+/**
+ * The Sync status "Decisões" rows (the X/S seam, `SyncDecisionRow`): one per decision of
+ * `uniqueHeldDecisions(entries)`, keyed `⟨relatório⟩:⟨decisionKey⟩`, worded by `decisionText`
+ * against each relatório's own rows.
+ */
+export function syncDecisionRows(
+  entries: readonly ({ relatorioId: string; projectId: string; decisions: readonly Decision[] } & Pick<DecisionTextContext, 'blocks' | 'equipment' | 'locations'>)[],
+  viewer: Pick<DecisionTextContext, 'users' | 'viewerActorId' | 'viewerDeviceId'>,
+): SyncDecisionRow[] {
+  return uniqueHeldDecisions(entries).flatMap((entry) =>
+    entry.decisions.map((decision) => ({
+      key: `${entry.relatorioId}:${decisionKey(decision)}`,
+      kind: decision.kind === 'block_removal' ? ('removal' as const) : decision.kind,
+      text: decisionText(decision, { blocks: entry.blocks, equipment: entry.equipment, locations: entry.locations, ...viewer }),
+    })),
+  );
 }
 
 /** A stable key of one decision (for a list row). */

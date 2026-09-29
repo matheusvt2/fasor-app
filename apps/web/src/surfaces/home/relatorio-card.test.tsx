@@ -12,7 +12,7 @@ function card(counter: HomeCard['counter']): HomeCard {
     meta: '',
     device: { kind: 'absent-online', text: 'Não está neste aparelho' },
     badgeState: 'ok',
-    badgeCounts: { pending: 0, sent: 0, dead: 0, sheets_pending: 0, photos_pending: 0, suggestions_pending: 0, readings_queued: 0, merged: 0, conflicts: 0 },
+    badgeCounts: { pending: 0, sent: 0, dead: 0, sheets_pending: 0, photos_pending: 0, suggestions_pending: 0, readings_queued: 0, merged: 0, upload_errors: 0 },
     isCurrent: false,
     isUnavailable: false,
     counter,

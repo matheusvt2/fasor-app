@@ -54,7 +54,7 @@ export const cellMergeSchema = z.object({
 export type CellMerge = z.infer<typeof cellMergeSchema>;
 
 /**
- * Story 10.2 (contract 11, epic-10 Conflict 4): written only by a concurrent fold whose
+ * Story 10.2 (contract 12, epic-10 Conflict 4): written only by a concurrent fold whose
  * two values contradict (`merge/policy.ts`, the `contradiction` branch). The cell shows the
  * `seq`-later value; `conflict` is the side it displaced (its op, value and provenance).
  * Author, device and time of either side are read from the op log, not stored here. A
@@ -429,7 +429,7 @@ export const blockRowSchema = z.object({
   last_modified_by: actorIdSchema.nullable(),
   last_modified_at: nullableIso,
   removed_at: nullableIso,
-  // Story 10.3 (contract 11), derived by applyOp like the columns above: the actor of the
+  // Story 10.3 (contract 12), derived by applyOp like the columns above: the actor of the
   // latest `removed_at` write (absent once the block is restored), and the mark of a block
   // removed on one device and edited on another (`blockRemovalConflictSchema`).
   removed_by: actorIdSchema.optional(),

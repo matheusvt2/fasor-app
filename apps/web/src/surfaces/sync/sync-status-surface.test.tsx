@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from '../../test-axe.ts';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { SyncContext, type SyncState } from '../../state/sync.tsx';
 import { makeSyncState, type SyncStateOverrides } from '../../test/sync-state.ts';
 import { SyncStatusSurface } from './sync-status-surface.tsx';
@@ -36,7 +36,7 @@ describe('Sync status surface: server unreachable or session expired (retro U5)'
       }),
     );
     expect(container.querySelector('.sh-state')).toHaveTextContent('Sem conexão');
-    expect(container.querySelector('.sh-counts')).toHaveTextContent('2 alterações aguardando envio');
+    expect(container.querySelector('.sh-counts')).toHaveTextContent('2 alterações aguardando');
     expect(screen.getByTestId('sync-unreachable')).toHaveTextContent(
       'Não foi possível falar com o servidor. Tudo fica salvo neste aparelho.',
     );
@@ -83,10 +83,9 @@ describe('Sync status surface', () => {
     expect(screen.getByRole('heading', { level: 2, name: 'Último envio' })).toBeInTheDocument();
     const rows = container.querySelectorAll('.sync-list .sync-row');
     expect(rows).toHaveLength(2);
-    expect(rows[0]).toHaveTextContent('Bruno');
+    expect(rows[0]!.querySelector('.sr-primary')).toHaveTextContent('Último envio de Bruno: 07/09 14:32');
     expect(rows[0]).toHaveTextContent('Este aparelho');
-    expect(rows[0]!.querySelector('time')).toHaveTextContent('07/09 14:32');
-    expect(rows[1]).toHaveTextContent('u-eduardo');
+    expect(rows[1]!.querySelector('.sr-primary')).toHaveTextContent('Último envio de u-eduardo: 06/09 18:10');
     expect(rows[1]).toHaveTextContent('Outro aparelho');
     expect(container.querySelector('.sync-foot')).toHaveTextContent('Última sincronização 07/09 14:35');
     expect(screen.queryByText('Reenviar')).toBeNull();
@@ -102,7 +101,7 @@ describe('Sync status surface', () => {
     expect(screen.getByText('Sincronizando…')).toHaveClass('btn-reason');
     await userEvent.click(button);
     expect(value.syncNow).not.toHaveBeenCalled();
-    expect(container.querySelector('.sh-counts')).toHaveTextContent('3 fichas aguardando envio');
+    expect(container.querySelector('.sh-counts')).toHaveTextContent('3 fichas aguardando');
     expect(container.querySelector('.sync-headline')).toHaveAttribute('data-tone', 'pending');
   });
 
@@ -169,5 +168,114 @@ describe('Sync status surface', () => {
     expect(screen.getByTestId('sync-rejected-row')).toHaveTextContent('1 alteração rejeitada');
     expect(container.querySelector('.sync-foot')).toHaveTextContent('Ainda não sincronizado');
     expect(screen.getByText('Nenhum envio registrado ainda.')).toBeInTheDocument();
+  });
+});
+
+describe('Sync status surface: the full 85-sync surface (Story 10.4)', () => {
+  const full = (over: SyncStateOverrides = {}) =>
+    state({
+      badgeState: 'pending',
+      counts: { pending: 4, sheets_pending: 2, photos_pending: 12, readings_queued: 1, suggestions_pending: 3, upload_errors: 1 },
+      headline: '2 fichas e 12 fotos aguardando · 1 leitura na fila',
+      summaryBadges: [
+        { state: 'pending', text: '2 fichas e 12 fotos aguardando envio' },
+        { state: 'error', text: '1 erro' },
+        { state: 'ok', text: '3 leituras prontas · 1 na fila' },
+      ],
+      pendingSheets: [
+        { block_id: 'b1', primary: 'SEC-C12 — Chave seccionadora', secondary: 'Alterada por Bruno · 07/09 14:31', state: 'sending', stateText: 'Enviando…' },
+        { block_id: 'b2', primary: 'Chave seccionadora', secondary: 'Alterada por Bruno · 07/09 14:26', state: 'waiting', stateText: 'Aguardando envio' },
+      ],
+      uploads: {
+        rows: [
+          { id: 'f1', primary: 'Detalhe dos contatos', secondary: '07/09 14:30', state: 'pending' },
+          { id: 'f2', primary: 'Detalhe do ensaio', secondary: '06/09 14:40', state: 'error' },
+        ],
+        more: 11,
+      },
+      readingsQueued: [{ id: 'f3', primary: 'Placa de identificação', secondary: '07/09 14:29', stateText: 'Leitura na fila' }],
+      downloads: [{ relatorio_id: 'r1', primary: 'Porto Seguro · Oxigênio', secondary: 'Baixando… 12 de 30 fichas · 8 de 20 fotos', percent: 40, percentText: '40 %' }],
+      decisions: [{ key: 'd1', kind: 'cell', text: 'SEC-C12: 1 célula em contradição' }],
+      retryUpload: vi.fn(async () => {}),
+      ...over,
+    });
+
+  it('renders every section in the mock order with the kernel rows', () => {
+    const { container } = renderWith(full());
+    expect(container.querySelector('.sh-counts')).toHaveTextContent('2 fichas e 12 fotos aguardando · 1 leitura na fila');
+    expect([...container.querySelectorAll('.sync-summary .sync-badge')].map((b) => [b.getAttribute('data-state'), b.textContent])).toEqual([
+      ['pending', '2 fichas e 12 fotos aguardando envio'],
+      ['error', '1 erro'],
+      ['ok', '3 leituras prontas · 1 na fila'],
+    ]);
+    expect([...container.querySelectorAll('main h2')].map((h) => h.textContent)).toEqual([
+      'Sincronização',
+      'Leituras',
+      'Enviando',
+      'Baixando',
+      'Último envio',
+      'Decisões',
+    ]);
+    expect(screen.getByTestId('sync-reading-row')).toHaveTextContent('Placa de identificação');
+    expect(screen.getByTestId('sync-reading-row').querySelector('.sr-state')).toHaveTextContent('Leitura na fila');
+    const sheets = screen.getAllByTestId('sync-sheet-row');
+    expect(sheets.map((row) => row.querySelector('.sr-state')!.textContent)).toEqual(['Enviando…', 'Aguardando envio']);
+    expect(screen.getByText('Fichas (2)')).toHaveClass('field-label');
+    expect(screen.getByText('Fotos (13)')).toHaveClass('field-label');
+    expect(screen.getAllByTestId('sync-photo-row')[0]!.querySelector('.upload-pill')).toHaveTextContent('Aguardando envio');
+    expect(screen.getByTestId('sync-photo-more')).toHaveTextContent('+ 11 fotos aguardando envio');
+    const download = screen.getByTestId('sync-download-row');
+    expect(download.querySelector('.sr-secondary')).toHaveTextContent('Baixando… 12 de 30 fichas · 8 de 20 fotos');
+    expect(download.querySelector('.sr-state')).toHaveTextContent('40 %');
+    expect(download.querySelector('.progress-track > i')).toHaveStyle({ width: '40%' });
+    const decisions = screen.getByTestId('sync-decisions');
+    expect(decisions.querySelector('.section-head .sync-badge')).toHaveTextContent('1 aguarda decisão');
+    expect(screen.getByTestId('sync-decision-row')).toHaveAttribute('data-variant', 'conflict');
+  });
+
+  it('the error pill retries that photo', async () => {
+    const value = full();
+    renderWith(value);
+    await userEvent.click(screen.getByRole('button', { name: 'Erro — Tentar novamente' }));
+    expect(value.retryUpload).toHaveBeenCalledWith('f2');
+  });
+
+  it('the merge rows sit under "Mesclado automaticamente" with the rule words and "Mesclado"', () => {
+    const info = {
+      op_id: '019966b0-0020-7000-8000-000000000001',
+      over_op_id: '019966b0-0020-7000-8000-000000000002',
+      relatorio_id: null,
+      block_id: null,
+      path: 'sheet/x',
+      rule: 'nc_over_c' as const,
+      standing: { value: 'NC', op_id: '019966b0-0020-7000-8000-000000000002', actor_id: 'u', client_ts: '2026-09-29T12:00:00.000Z' },
+      overridden: null,
+    };
+    renderWith(state({ merges: [{ key: 'k', info, text: 'SEC-C12: item 10 NC de Eduardo (com foto) mesclado', secondary: '29/09 09:00 · NC vence C' }] }));
+    const section = screen.getByTestId('sync-decisions');
+    expect(section).toHaveTextContent('Mesclado automaticamente');
+    expect(section.querySelector('.section-head .sync-badge')).toBeNull();
+    const row = screen.getByTestId('sync-merge-row');
+    expect(row.querySelector('.sr-secondary')).toHaveTextContent('29/09 09:00 · NC vence C');
+    expect(row.querySelector('.sr-state')).toHaveTextContent('Mesclado');
+  });
+
+  it('hides the sections with nothing to list, and "Decisões" with neither decisions nor merges', () => {
+    renderWith(state());
+    for (const id of ['sync-sending', 'sync-downloading', 'sync-decisions', 'sync-readings', 'sync-summary']) expect(screen.queryByTestId(id)).toBeNull();
+  });
+
+  it('has no live region and keeps the explanations behind the collapsed "Como funciona a mesclagem"', async () => {
+    const { container } = renderWith(full());
+    const main = container.querySelector('main[data-route="/sync"]')!;
+    expect(main.querySelectorAll('[aria-live], [role="status"], [role="alert"]')).toHaveLength(0);
+    const details = main.querySelector('details.sync-how')!;
+    expect(details).not.toHaveAttribute('open');
+    const summary = details.querySelector('summary.sh-how')!;
+    expect(summary).toHaveTextContent('Como funciona a mesclagem');
+    await userEvent.click(summary);
+    expect(details).toHaveAttribute('open');
+    expect(details.querySelector('.how-body')).toHaveTextContent('NC vence C.');
+    expect(await axe(container)).toHaveNoViolations();
   });
 });

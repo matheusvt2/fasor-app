@@ -20,16 +20,20 @@ export interface SyncCounts {
   dead: number;
   /** Distinct blocks with an unsent, non-dead `sheet/*` or `block/*` op. */
   sheets_pending: number;
-  /** Unsent, non-dead `file/{id}` photo creates (0 until Epic 6 emits them). */
+  /**
+   * Unsent, non-dead `file/{id}` photo creates; with the `uploads` input (Story 10.4), the
+   * distinct photo ids of those creates united with the original blobs still waiting to
+   * upload without an error.
+   */
   photos_pending: number;
+  /** Story 10.4: the original blobs whose upload stopped with an error (0 when `uploads` is not given). */
+  upload_errors: number;
   /** Story 8.1: the device's suggestion rows with `status = pending` (0 when not given). */
   suggestions_pending: number;
   /** Story 8.1: the device's photo rows whose reading is `queued` or `running` (0 when not given). */
   readings_queued: number;
   /** Story 10.1: the merges by rule this tab listed since it opened (`MergeInfo` entries, 0 when not given). */
   merged: number;
-  /** Stories 10.2/10.3: the open decisions on this device (`decisionCount`: one per contradicting cell, one per structure case; 0 when not given). */
-  conflicts: number;
 }
 
 /**
@@ -41,7 +45,14 @@ export interface ReadingCountInputs {
   photos?: readonly { reading_status?: string | null }[];
 }
 
-function blockIdOf(path: string): string | null {
+/** Story 10.4: one original blob this device has not seen acked by the server; `error` when its upload stopped. */
+export interface UploadCountInput {
+  id: string;
+  error: boolean;
+}
+
+/** The block an outbox path writes on (`sheet/*`, `block/*`), or null. */
+export function outboxBlockId(path: string): string | null {
   const parsed = safeParsePath(path);
   if (!parsed) return null;
   if (parsed.family === 'block' || parsed.family === 'block/field') return parsed.id;
@@ -64,8 +75,9 @@ export function syncCounts(
   outbox: readonly OutboxLike[],
   reading: ReadingCountInputs = {},
   merges: readonly Pick<MergeInfo, 'op_id' | 'over_op_id'>[] = [],
-  decisions = 0,
+  uploads?: readonly UploadCountInput[],
 ): SyncCounts {
+  const photoIds = new Set<string>();
   let pending = 0;
   let sent = 0;
   let dead = 0;
@@ -76,23 +88,36 @@ export function syncCounts(
     else if (row.status === 'sent') sent++;
     else if (row.status === 'dead') dead++;
     if (row.status !== 'pending' && row.status !== 'sent') continue;
-    const blockId = blockIdOf(row.path);
+    const blockId = outboxBlockId(row.path);
     if (blockId) blocks.add(blockId);
-    if (isPhotoCreate(row)) photos++;
+    if (isPhotoCreate(row)) {
+      photos++;
+      photoIds.add(row.path.slice('file/'.length));
+    }
   }
   const suggestions = (reading.suggestions ?? []).filter((row) => row.status === 'pending').length;
   const readings = (reading.photos ?? []).filter((row) => row.reading_status === 'queued' || row.reading_status === 'running').length;
   const merged = new Set(merges.map((entry) => `${entry.op_id}:${entry.over_op_id}`)).size;
+  let uploadErrors = 0;
+  if (uploads !== undefined) {
+    // A photo whose upload stopped counts as an error only, even while its create op waits.
+    for (const upload of uploads) if (!upload.error) photoIds.add(upload.id);
+    for (const upload of uploads) {
+      if (!upload.error) continue;
+      uploadErrors++;
+      photoIds.delete(upload.id);
+    }
+  }
   return {
     pending,
     sent,
     dead,
     sheets_pending: blocks.size,
-    photos_pending: photos,
+    photos_pending: uploads === undefined ? photos : photoIds.size,
+    upload_errors: uploadErrors,
     suggestions_pending: suggestions,
     readings_queued: readings,
     merged,
-    conflicts: decisions,
   };
 }
 
@@ -108,17 +133,23 @@ export interface SyncBadgeInputs {
    * cannot send anything either, so it must not read "Sincronizado". Omitted means true.
    */
   reachable?: boolean;
+  /**
+   * Story 10.4 (epic-10 Conflict 12): the open decisions this device holds (Stories
+   * 10.2/10.3: `decisionTotal` of the held relatórios; omitted means 0). Any turns the
+   * badge to `conflict` first.
+   */
+  conflicts?: number;
 }
 
 /**
- * Stories 10.2/10.3 (epic-10 Conflict 12): conflict first, as in the banner priority, then
- * error before offline before pending: a rejected op needs attention wherever the device is.
+ * Conflict before error before offline before pending (epic-10 Conflict 12, the banner
+ * priority). A rejected op needs attention wherever the device is.
  * An unreachable server reads as `offline` ("Sem conexão"): EXPERIENCE.md has five badge
  * states and no sixth for it, and "no connection; still saving locally" is exactly what
  * the user needs to know then. Sync status names the actual cause.
  */
-export function syncBadgeState(counts: Pick<SyncCounts, 'dead' | 'pending' | 'sent'> & { conflicts?: number }, deps: SyncBadgeInputs): SyncBadgeState {
-  if ((counts.conflicts ?? 0) > 0) return 'conflict';
+export function syncBadgeState(counts: Pick<SyncCounts, 'dead' | 'pending' | 'sent'>, deps: SyncBadgeInputs): SyncBadgeState {
+  if ((deps.conflicts ?? 0) > 0) return 'conflict';
   if (counts.dead > 0) return 'error';
   if (!deps.online || deps.reachable === false) return 'offline';
   if (counts.pending + counts.sent > 0) return 'pending';

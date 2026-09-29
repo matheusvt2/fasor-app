@@ -17,7 +17,7 @@ export type { MergeRule } from './rules.ts';
 /**
  * A `put` on a `sheet/*` path, from a device (never the server), onto a cell that exists,
  * that did not see the value it lands on: its `prev_op_id` is not the cell's head op, or
- * (Story 10.2, contract 11) its `meta.standing_op_id` (the cell `op_id` the device's row
+ * (Story 10.2, contract 12) its `meta.standing_op_id` (the cell `op_id` the device's row
  * held at commit) is not the cell's current `op_id`. The second check closes the case a
  * `prev_op_id` cannot tell apart: a device whose own put was merged away writes again (or
  * undoes it) before it pulls, chaining on its own head. An op without the stamp (fixtures,

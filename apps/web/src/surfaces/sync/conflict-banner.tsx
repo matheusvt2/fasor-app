@@ -41,7 +41,7 @@ export function useConflictBanner(input: {
 }): ConflictBanner {
   const { relatorioId, blockId, onRenameOne } = input;
   const sync = useSync();
-  const entry = sync.decisions?.find((row) => row.relatorioId === relatorioId);
+  const entry = sync.heldDecisions?.find((row) => row.relatorioId === relatorioId);
   const decision = pickDecision(entry, blockId);
   const context = useDecisionTextContext(entry ?? null);
   const actions = useDecisionActions();

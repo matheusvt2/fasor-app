@@ -349,6 +349,32 @@ describe('Home: relatório cards', () => {
     await waitFor(() => expect(cards()[0]?.querySelector('.card-device')).toHaveTextContent('Baixando…'));
   });
 
+  it('10.4 (ledger 166): counts the sheets held against the summary progress while it comes down', async () => {
+    database = await freshDb();
+    await seedCompany(database);
+    await database.entities.put(toRecord(`relatorio:${R_DRAFT}`, relatorio(R_DRAFT, 'rascunho', 'Oxigênio', null)));
+    const sheet = (tag: string) =>
+      newEquipmentBlock({
+        blockId: ids(),
+        equipmentId: ids(),
+        relatorioId: R_DRAFT,
+        projectId: PROJECT,
+        locationId: ids(),
+        type: 'chave_seccionadora',
+        tag,
+        seedVersion: 'v1',
+        orderKey: 'a0',
+      }).block;
+    const photoId = ids();
+    const held = [sheet('SEC-01'), sheet('SEC-02')];
+    await database.entities.bulkPut(held.map((block) => toRecord(`block:${block.id}`, block)));
+    await database.entities.put({ entity: 'file', id: photoId, relatorio_id: R_DRAFT, project_id: null, removed_at: null, row: { id: photoId, kind: 'photo', relatorio_id: R_DRAFT, removed_at: null } as never });
+    await database.sync_state.put(onDevice(R_DRAFT, false));
+
+    renderHome(syncState({ summaryRelatorios: [{ ...summary(R_DRAFT, 'rascunho'), progress: { sheets: 30, photos: 20 } }] }));
+    await waitFor(() => expect(cards()[0]?.querySelector('.card-device')).toHaveTextContent(/^Baixando… 2 de 30 fichas$/));
+  });
+
   it('online, a relatório not on this device starts its pull when tapped', async () => {
     database = await freshDb();
     await seedCompany(database);

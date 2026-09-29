@@ -634,6 +634,7 @@ describe('1.5-API-004 pulls', () => {
       template_id: null,
       seed_version: 'v1',
       updated_seq: relatorioSeq,
+      progress: { sheets: 0, photos: 0 },
     });
     // No row of company B.
     expect(summary.last_push_at.some((p) => p.user_id === companyB.userId)).toBe(false);
@@ -1051,6 +1052,79 @@ describe('1.5-API-005 contract skew', () => {
     expect(res.status).toBe(200);
     for (const o of batch) written.opIds.add(o.op_id);
     expect(syncPushResponseSchema.parse(await res.json()).applied).toHaveLength(1);
+  });
+});
+
+/** A relatório-scoped file row of `kind` (a photo, or another relatório file such as a cover photo). */
+function relatorioFileCreate(ids: Ids, relatorioId: string, fileId: string, kind: 'photo' | 'cover_photo'): Op {
+  written.entityIds.add(fileId);
+  const base = {
+    id: fileId,
+    company_id: ids.company,
+    relatorio_id: relatorioId,
+    sha256: 'cd'.repeat(32),
+    mime: 'image/jpeg',
+    size: 1024,
+    uploaded_at: null,
+    variants: null,
+    removed_at: null,
+  };
+  const value =
+    kind === 'photo'
+      ? {
+          ...base,
+          kind,
+          captured_at: '2026-09-06T11:12:30.000Z',
+          tz_offset: -180,
+          coords: null,
+          local_seq: 1,
+          block_id: null,
+          item_key: null,
+          caption: null,
+          reading_kind: null,
+          reading_target: null,
+          reading_status: 'none',
+        }
+      : { ...base, kind };
+  return op(ids, { kind: 'create', scope: 'relatorio', relatorio_id: relatorioId, path: `file/${fileId}`, value: value as Op['value'] });
+}
+
+describe('10.4-API-001 the company summary carries each relatório\'s progress', () => {
+  it('counts live blocks and live photo files per relatório, never a removed one, another file kind or another company\'s rows', async () => {
+    const relatorioId = newId();
+    const blocks = [newId(), newId(), newId()];
+    const photos = [newId(), newId(), newId()];
+    const cover = newId();
+    const removedAt = '2026-09-29T12:00:00.000Z';
+    const pushed = await pushOk(companyA, [
+      relatorioCreate(idsA, relatorioId, newId()),
+      ...blocks.map((id) => blockCreate(idsA, relatorioId, id, 'disjuntor_mt')),
+      ...photos.map((id) => relatorioFileCreate(idsA, relatorioId, id, 'photo')),
+      relatorioFileCreate(idsA, relatorioId, cover, 'cover_photo'),
+      op(idsA, { kind: 'put', scope: 'relatorio', relatorio_id: relatorioId, path: `block/${blocks[2]}/removed_at`, value: removedAt }),
+      op(idsA, { kind: 'put', scope: 'relatorio', relatorio_id: relatorioId, path: `file/${photos[2]}/removed_at`, value: removedAt }),
+    ]);
+    expect(pushed.rejected).toEqual([]);
+
+    // Company B's relatório with its own rows: never counted in A's summary, and A's never in B's.
+    const otherId = newId();
+    const other = await pushOk(companyB, [
+      relatorioCreate(idsB, otherId, newId()),
+      blockCreate(idsB, otherId, newId(), 'disjuntor_mt'),
+      relatorioFileCreate(idsB, otherId, newId(), 'photo'),
+    ]);
+    expect(other.rejected).toEqual([]);
+
+    const summaryOf = async (company: Company) => {
+      const page = await pullOk(company, `/api/sync/company?since=0`);
+      return page.summary!.relatorios;
+    };
+    const a = await summaryOf(companyA);
+    expect(a.find((r) => r.id === relatorioId)?.progress).toEqual({ sheets: 2, photos: 2 });
+    expect(a.some((r) => r.id === otherId)).toBe(false);
+    const b = await summaryOf(companyB);
+    expect(b.find((r) => r.id === otherId)?.progress).toEqual({ sheets: 1, photos: 1 });
+    expect(b.some((r) => r.id === relatorioId)).toBe(false);
   });
 });
 

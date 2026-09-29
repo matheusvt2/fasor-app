@@ -23,6 +23,7 @@ export {
   removalColumnTitles,
   removalKeptText,
   removalRemovedText,
+  syncDecisionRows,
   type BlockRemovalDecision,
   type CellConflict,
   type CellDecision,

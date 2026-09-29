@@ -1,8 +1,11 @@
+import 'fake-indexeddb/auto';
 import type { InstrumentRow } from '@app/domain';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ToastProvider } from '../../state/toast.tsx';
+import { commitBatch } from '../../db/commit.ts';
+import { openDatabase } from '../../db/schema.ts';
+import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
 import type { SessionState } from '../../state/session.tsx';
 import { InstrumentPanel } from './instrument-panel.tsx';
 
@@ -38,6 +41,11 @@ const session: SessionState = {
 };
 
 vi.mock('../../state/session.tsx', () => ({ useSession: () => session }));
+// Ledger 310: a test can refuse one write (a pending, refused value); every other write goes through.
+vi.mock('../../db/commit.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../db/commit.ts')>();
+  return { ...actual, commitBatch: vi.fn(actual.commitBatch) };
+});
 vi.mock('../../state/sync.tsx', async () => {
   const { makeSyncState } = await import('../../test/sync-state.ts');
   return { useSync: () => makeSyncState() };
@@ -71,7 +79,10 @@ function renderPanel(referenced: boolean) {
   );
 }
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  session.database = null;
+});
 
 describe('InstrumentPanel — AC4 referenced vs unreferenced deletion', () => {
   it('offers only Arquivar, with the reason line, and no Remover button when referenced', () => {
@@ -93,5 +104,71 @@ describe('InstrumentPanel — AC4 referenced vs unreferenced deletion', () => {
 
     const dialog = await screen.findByRole('dialog');
     expect(dialog).toHaveTextContent('Remover 2E?');
+  });
+});
+
+describe('InstrumentPanel — ledger 310, another device edits the open instrument', () => {
+  const panel = (row: InstrumentRow) => (
+    <ToastProvider>
+      <InstrumentPanel instrumentId={row.id} instrument={row} referenced={false} onClose={vi.fn()} />
+    </ToastProvider>
+  );
+
+  it('re-seeds the fields nobody is editing from the live row; the field being edited keeps its text', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(panel(instrument));
+    const model = screen.getByRole('textbox', { name: 'Tipo / modelo' });
+    const serial = screen.getByRole('textbox', { name: 'Nº de série' });
+    await user.click(model);
+    await user.keyboard('MD-5060');
+
+    rerender(panel({ ...instrument, name: 'Megôhmetro', model: 'DMG10Ki', serial: 'IN919021' }));
+    expect(screen.getByRole('textbox', { name: 'Nome' })).toHaveValue('Megôhmetro');
+    expect(serial).toHaveValue('IN919021');
+    expect(model).toHaveValue('MD-5060');
+  });
+  it('re-seeds a number field and a test default field nobody is editing', () => {
+    const { rerender } = render(panel({ ...instrument, calibration_interval_months: 12 }));
+    const interval = screen.getByRole('spinbutton', { name: /^Intervalo de calibração \(meses\)/ });
+    expect(interval).toHaveValue(12);
+    rerender(panel({ ...instrument, calibration_interval_months: 24, test_isolacao: { raw: '5', unit: 'kV' } }));
+    expect(interval).toHaveValue(24);
+    expect(screen.getByRole('textbox', { name: 'Padrão de ensaio — Isolação — Valor' })).toHaveValue('5');
+    expect(screen.getByRole('textbox', { name: 'Padrão de ensaio — Isolação — Unidade' })).toHaveValue('kV');
+  });
+
+  it('a change that lands while the field is focused but untouched is applied when the field is left', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(panel({ ...instrument, serial: 'A-1' }));
+    const serial = screen.getByRole('textbox', { name: 'Nº de série' });
+    await user.click(serial);
+    rerender(panel({ ...instrument, serial: 'B-2' }));
+    expect(serial).toHaveValue('A-1');
+    await user.tab();
+    expect(serial).toHaveValue('B-2');
+  });
+
+  it('a left field holding a refused write keeps its text over the live row', async () => {
+    const user = userEvent.setup();
+    const database = openDatabase('0a000000-0000-7000-8000-0000000000c9');
+    await database.delete();
+    session.database = openDatabase('0a000000-0000-7000-8000-0000000000c9');
+    vi.mocked(commitBatch).mockRejectedValueOnce(Object.assign(new Error('refused'), { name: 'UnknownError' }));
+    const withToasts = (row: InstrumentRow) => (
+      <ToastProvider>
+        <InstrumentPanel instrumentId={row.id} instrument={row} referenced={false} onClose={vi.fn()} />
+        <ToastOutlet />
+      </ToastProvider>
+    );
+    const { rerender } = render(withToasts(instrument));
+    const model = screen.getByRole('textbox', { name: 'Tipo / modelo' });
+    await user.click(model);
+    await user.keyboard('MD-5060');
+    await user.tab();
+    await waitFor(() => expect(screen.getByText('Não foi possível salvar. Tente de novo.')).toBeInTheDocument());
+
+    rerender(withToasts({ ...instrument, model: 'DMG10Ki' }));
+    expect(model).toHaveValue('MD-5060');
+    session.database.close();
   });
 });

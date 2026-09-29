@@ -230,6 +230,30 @@ describe('8.1/8.2-UNIT autoConfirmPending', () => {
     expect(rows.suggestions).toEqual([{ status: 'pending' }]);
     expect(rows.photos.map((row) => row.reading_status).sort()).toEqual(['done', 'queued', 'running']);
     expect(syncCounts([], rows)).toMatchObject({ readings_queued: 2, suggestions_pending: 1 });
+    // Story 10.4: each photo carries what its "Leituras" row names.
+    expect(rows.photos.find((row) => row.id === '019966b0-008a-7000-8000-000000000011')).toEqual({
+      id: '019966b0-008a-7000-8000-000000000011',
+      caption: null,
+      captured_at: null,
+      reading_status: 'queued',
+    });
+    db.close();
+  });
+
+  it('10.4 (ledger 1137): counts the caption suggestion a live photo shows, never one on a captioned or removed photo', async () => {
+    const db = await freshDb();
+    await seed(db);
+    const file = (id: string, row: Record<string, unknown>, removed: string | null = null) =>
+      db.entities.put({ entity: 'file', id, relatorio_id: RELATORIO_ID, project_id: null, removed_at: removed, row: { id, removed_at: removed, ...row } as never });
+    const SHOWN = '019966b0-008b-7000-8000-000000000011';
+    const CAPTIONED = '019966b0-008b-7000-8000-000000000012';
+    const REMOVED = '019966b0-008b-7000-8000-000000000013';
+    await file(SHOWN, { kind: 'photo', reading_status: 'done', block_id: null, caption: null, people_in_photo: false });
+    await file(CAPTIONED, { kind: 'photo', reading_status: 'done', block_id: null, caption: 'Vista geral', people_in_photo: false });
+    await file(REMOVED, { kind: 'photo', reading_status: 'done', block_id: null, caption: null, people_in_photo: false }, '2026-09-26T17:00:00.000Z');
+    const caption = (id: string) => serverSuggestion('x', 'Vista geral da cabine', { target_path: `file/${id}/caption` });
+    await applyPulled(db, [caption(SHOWN), caption(CAPTIONED), caption(REMOVED)]);
+    expect((await readingCountRows(db)).suggestions).toEqual([{ status: 'pending' }]);
     db.close();
   });
 });

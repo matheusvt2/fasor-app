@@ -262,7 +262,7 @@ test('@p0 8.6-E2E-001 Flow 2b: the arrival toast opens the sheet, the crop outli
   const typed = rows.find((row) => row.path === `sheet/${ids.blockId}/nameplate/tap_atual`)!;
   expect(discard.value).toBe('discarded');
   expect(typed.value).toBe('3');
-  // Contract 11: a plain put carries only the commit stamps (`merge/stamp.ts`), never a confirm's meta.
+  // Contract 12: a plain put carries only the commit stamps (`merge/stamp.ts`), never a confirm's meta.
   expect(typed.meta?.source_suggestion_id).toBeUndefined();
   expect(typed.meta?.auto).toBeUndefined();
   expect(typed.batch_id).toBe(discard.batch_id);
@@ -356,7 +356,7 @@ test('@p1 8.6-E2E-002 a manufacturer typed over a guess is created with the type
   expect(typedBatch.find((row) => row.path.startsWith('registry/manufacturer/'))).toMatchObject({ kind: 'create', value: { name: 'Marca Nova' } });
   const typedPut = typedBatch.find((row) => row.path === target)!;
   expect(typedPut.value).toBe('Marca Nova');
-  // Contract 11: a plain put carries only the commit stamps (`merge/stamp.ts`), never a confirm's meta.
+  // Contract 12: a plain put carries only the commit stamps (`merge/stamp.ts`), never a confirm's meta.
   expect(typedPut.meta?.source_suggestion_id).toBeUndefined();
   expect(typedPut.meta?.auto).toBeUndefined();
   await syncNowAndReturn(page);

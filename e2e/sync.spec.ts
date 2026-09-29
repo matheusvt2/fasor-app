@@ -45,7 +45,8 @@ async function openSyncStatusWithRowsWaiting(page: Page, expectedBadge: string):
   await expect(page.getByTestId('sync-unreachable')).toHaveText(
     'Não foi possível falar com o servidor. Tudo fica salvo neste aparelho.',
   );
-  await expect(page.locator('.sync-headline .sh-counts')).toContainText('aguardando envio');
+  // Story 10.4: the kernel's headline ("2 alterações aguardando"; `syncHeadlineText`).
+  await expect(page.locator('.sync-headline .sh-counts')).toContainText('aguardando');
   // The same count the badge read before the cycle ("2 pendentes") is still on it.
   await expect(syncBadge(page)).toHaveAttribute('data-pending', expectedBadge.split(' ')[0]!);
   await page.unroute(isApiRequest);
@@ -94,9 +95,9 @@ test('@p0 1.5-E2E-001 work done offline reaches the server on "Sincronizar agora
   // from the `user/{id}` row the company stream carries (retro A2), never by a raw id.
   const mine = page.locator('.sync-row', { hasText: user.name }).filter({ hasText: 'Este aparelho' });
   await expect(mine).toHaveCount(1);
-  await expect(mine.locator('.sr-primary')).toHaveText(user.name);
+  // Story 10.4: the row is the kernel's sentence, "Último envio de ⟨nome⟩: dd/mm hh:mm".
+  await expect(mine.locator('.sr-primary')).toHaveText(new RegExp(`^Último envio de ${user.name}: \\d{2}/\\d{2} \\d{2}:\\d{2}$`));
   await expect(page.locator('.sync-row', { hasText: user.userId })).toHaveCount(0);
-  await expect(mine.locator('time')).toHaveAttribute('datetime', /^\d{4}-\d{2}-\d{2}T/);
 
   // The server holds both ops in their streams, through the contract.
   const company = await pullAll(page.request, '/api/sync/company');

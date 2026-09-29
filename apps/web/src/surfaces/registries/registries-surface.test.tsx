@@ -175,11 +175,14 @@ describe('Cadastros tabs (B5)', () => {
     ['instrumentos', r.tabInstrumentos, r.instrumentos.emptyText, r.instrumentos.empty, r.instrumentos.newInstrument],
     ['fabricantes', r.tabFabricantes, r.fabricantes.emptyText, r.fabricantes.empty, r.fabricantes.panel.newRow],
     ['classes-tensao', r.tabClassesTensao, r.classesTensao.emptyText, r.classesTensao.empty, r.classesTensao.panel.newRow],
-  ])('%s: an empty registry shows its sentence and one action opening a new entry', async (_id, tabName, emptyText, action, heading) => {
+  ])('%s: an empty registry shows its sentence and one action opening a new entry', async (id, tabName, emptyText, action, heading) => {
     const user = userEvent.setup();
     database = await freshDb();
     renderSurface();
     await user.click(tab(tabName));
+    // The tab choice is written to `local_prefs` asynchronously; wait for it so the
+    // teardown's `close()` never lands under that write (a DatabaseClosedError under load).
+    await waitFor(async () => expect(await readRegistryTab(database!)).toBe(id));
     expect(await within(panel()).findByText(emptyText)).toBeInTheDocument();
     await user.click(within(panel()).getByRole('button', { name: action }));
     expect(within(panel()).getByRole('heading', { name: heading })).toBeInTheDocument();
@@ -190,12 +193,13 @@ describe('Cadastros tabs (B5)', () => {
     ['instrumentos', r.tabInstrumentos, '2E — Microhmímetro', r.instrumentos.newInstrument, '2E — Microhmímetro'],
     ['fabricantes', r.tabFabricantes, 'WEG', r.fabricantes.newRow, 'WEG'],
     ['classes-tensao', r.tabClassesTensao, '15 kV', r.classesTensao.newRow, '15 kV'],
-  ])('%s: lists its rows, opens one, and adds from the toolbar', async (_id, tabName, rowName, toolbarAction, rowHeading) => {
+  ])('%s: lists its rows, opens one, and adds from the toolbar', async (id, tabName, rowName, toolbarAction, rowHeading) => {
     const user = userEvent.setup();
     database = await freshDb();
     await seed(database);
     renderSurface();
     await user.click(tab(tabName));
+    await waitFor(async () => expect(await readRegistryTab(database!)).toBe(id));
 
     const list = await within(panel()).findByRole('list', { name: tabName });
     await waitFor(() => expect(within(list).getAllByRole('button')).toHaveLength(1));

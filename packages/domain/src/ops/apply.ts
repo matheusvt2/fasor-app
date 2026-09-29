@@ -109,7 +109,7 @@ const TEMPLATE_CONTENT_FIELDS: ReadonlySet<string> = new Set(['name', 'blocks', 
 
 /**
  * AD-18 attribution of an edit (a sheet put, `not_tested`, a photo carrying the block).
- * Story 10.3 (contract 11): an edit from a device that lands on a tombstone is kept (as
+ * Story 10.3 (contract 12): an edit from a device that lands on a tombstone is kept (as
  * before) and marks the block with a removal conflict: that device edited a block another
  * one removed without having seen the removal. Server ops never mark.
  */
@@ -136,7 +136,7 @@ function withoutRemovalMarks(block: BlockRow): BlockRow {
 }
 
 /**
- * Story 10.3 (contract 11): a `block/{id}/removed_at` write (a `remove`, or a put). A removal
+ * Story 10.3 (contract 12): a `block/{id}/removed_at` write (a `remove`, or a put). A removal
  * records its actor (`removed_by`); a restore drops it. A removal from a device that lands on
  * a live block whose latest edit it did not see (`meta.seen_modified_at`, the block's
  * `last_modified_at` as that device held it, differs from the row's) applies and marks the

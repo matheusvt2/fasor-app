@@ -22,6 +22,7 @@ import {
   removalColumnTitles,
   removalKeptText,
   removalRemovedText,
+  syncDecisionRows,
   uniqueHeldDecisions,
   type CellDecision,
   type DecisionTextContext,
@@ -444,11 +445,29 @@ describe('10.3 a block added elsewhere', () => {
   });
 });
 
-describe('10.2 the badge', () => {
-  it('reads conflict first while any decision waits', () => {
-    const counts = syncCounts([{ path: result, status: 'dead' }], {}, [], 2);
-    expect(counts.conflicts).toBe(2);
-    expect(syncBadgeState(counts, { online: false })).toBe('conflict');
-    expect(syncBadgeState(syncCounts([{ path: result, status: 'dead' }]), { online: true })).toBe('error');
+describe('10.2 the badge and the Decisões rows (the X/S seam)', () => {
+  it('reads conflict first while any decision waits (the count is decisionTotal)', () => {
+    const counts = syncCounts([{ path: result, status: 'dead' }]);
+    expect(syncBadgeState(counts, { online: false, conflicts: 2 })).toBe('conflict');
+    expect(syncBadgeState(counts, { online: true })).toBe('error');
+  });
+
+  it('maps the held decisions to one SyncDecisionRow each, a duplicate TAG once, worded by decisionText', () => {
+    const { create, eduardo, ana } = world();
+    const conflicted = fold([create, eduardo(result, 'C'), ana(result, 'NA'), eduardo(reading, measured('1')), ana(reading, measured('2'))]);
+    const equipment: EquipmentRow[] = [{ id: EQUIPMENT, project_id: PROJECT, tag: 'SEC-C12', type: 'chave_seccionadora', last_nameplate: null, removed_at: null }];
+    const cells = openDecisions({ relatorioId: TEST_RELATORIO, blocks: [conflicted], locations: [], equipment, opOf: () => undefined, createOpOf: () => undefined });
+    const tag = { kind: 'duplicate_tag' as const, relatorio_id: TEST_RELATORIO, tag: 'SEC-C09', earlier_equipment_id: EQUIPMENT, later_equipment_id: EQUIPMENT_2, later_block_id: null, earlier: { actor_id: ANA, device_id: A_DEVICE, client_ts: '2026-09-21T11:40:00.000Z' }, later: { actor_id: EDUARDO, device_id: E_DEVICE, client_ts: '2026-09-21T11:55:00.000Z' } };
+    const entries = [
+      { relatorioId: 'r1', projectId: PROJECT, decisions: [...cells, tag], blocks: [conflicted], equipment, locations: [] },
+      { relatorioId: 'r2', projectId: PROJECT, decisions: [{ ...tag, relatorio_id: 'r2' }], blocks: [], equipment, locations: [] },
+    ];
+    const rows = syncDecisionRows(entries, { users: [], viewerActorId: ANA, viewerDeviceId: A_DEVICE });
+    expect(rows).toEqual([
+      { key: `r1:cell:${BLOCK}`, kind: 'cell', text: 'SEC-C12: 2 células em contradição' },
+      { key: `r1:tag:${EQUIPMENT}:${EQUIPMENT_2}`, kind: 'duplicate_tag', text: 'SEC-C09 foi criada em dois aparelhos' },
+    ]);
+    // Two cells and one TAG: the headline's contradictions and the badge count 3.
+    expect(decisionTotal(entries)).toBe(3);
   });
 });
