@@ -2160,6 +2160,8 @@ The engineer reads instrument displays by camera so a sheet costs at most 20 tap
 
 *(2026-09-28, DoR addendum: 54 public web references added under `docs/media/display-spike/web/` (sources in its `SOURCES.md`, internal reference only). The DMG10Ki manual confirms a 3 1/2-digit LCD with no unit, range or voltage on screen: the unit and the test voltage come from two knobs, the decimal point moves with the range, and "1 . 0" / "-1 . 0" mean over and under range, so the reading needs the range from the engineer or the table header, not from the photo. Thermo-hygrometer LCDs print their units (°C, %UR); six real-reading photos found. Doubtful crops reviewed: 3 confirmed, 1 kept with a last-digit caveat, 2 still ambiguous; ground truth now covers 15 of 19. The story is still not started.)*
 
+*(2026-09-29, delivered in PR #56, narrowings: the unit comes from the display only when printed, else from the cell unit slot, the previous row or the column default, with `verify` when the magnitude depends on an unseen range (range source open, E8-A3); stored values of print-only columns (30 s, 10 min) are dropped and logged, only capture cells fill; thermo-hygrometer suggestions carry no provenance glyph and are not counted in pre-issue; no retry UI for a failed display reading; the spike reads 6/6 synthetic displays and 6 of 15 scored real crops (`docs/display-reading-spike.md`), 2 ambiguous crops excluded; SM-3 walk measured 20 taps and 9 keystrokes.)*
+
 As a field engineer,
 I want to photograph the megôhmetro display and have the value and unit land in the next empty cells as suggestions, and when I typed first, have the photo check my value,
 So that with signal the readings cost no keystrokes and without signal they still cost me nothing extra.
@@ -2186,6 +2188,8 @@ So that with signal the readings cost no keystrokes and without signal they stil
 
 **Dev model:** opus · **Effort:** medium · panel photo to block creation with fallback
 
+*(2026-09-29, delivered in PR #59, narrowings: the app's real camera replaces the mock's viewfinder; the create keeps the palette's reveal and undo toast instead of opening the ficha; an unmatched column falls back to the palette's location flagged Verificar; a panel photo left behind by navigation stays as an orphan photo; open questions for Matheus in the PR.)*
+
 As a field engineer,
 I want to photograph a panel front and get its type, column and TAG as one confirmation that creates the block,
 So that an equipment missing from the drawing costs one shot and one tap.
@@ -2203,6 +2207,8 @@ So that an equipment missing from the drawing costs one shot and one tap.
 ### Story 9.3: Caption context-less photos by vision, confirmed in batch
 
 **Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** medium · caption reading kind, batch confirm and the manual people mark
+
+*(2026-09-29, delivered in PR #61, narrowings: "Pessoas na foto" is a user-set chip stored as `people_in_photo` (no face detection); a photo in an import batch left open online can reach the caption provider before the mark lands (to Epic 11 with the provider purge); unmarking does not ask for a caption again; caption suggestions are not counted in Sync status "Leituras"; the pre-issue row `captions_suggested` is info; the tile says "Confirmar" while the composer says "Usar" (open question).)*
 
 As a user,
 I want photos without a sheet context to receive a suggested caption on sync that I confirm one by one or all at once,
@@ -2222,6 +2228,8 @@ So that Eduardo's twelve gate photos are captioned in the van, not on Monday.
 
 **Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** ~~medium~~ high *(2026-09-24, Matheus: effort review)* · speech engine behind an interface, parsed table utterances
 
+*(2026-09-29, delivered in PR #58, narrowings: the engine is chosen by `VITE_SPEECH_ENGINE` (`webspeech` default, `fake` in tests, `none`); `webspeech` sends audio to the browser vendor with no consent text (open question for Matheus); dictated observations append while captions replace; unparsed table speech is announced only when Observações is off; the conclusion-text and parecer mics are not built.)*
+
 As a field engineer,
 I want to speak a caption or an observation, or say "Fase A, 147 giga", and see it as a suggestion,
 So that the free text I cannot pick from a chip still costs no typing.
@@ -2239,6 +2247,8 @@ So that the free text I cannot pick from a chip still costs no typing.
 ### Story 9.5: Draft the NC observation from the row's photo
 
 **Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** medium · one more reading kind on the existing pipeline
+
+*(2026-09-29, delivered in PR #61, narrowings: `nc_obs` is set only on a photo taken from a row marked NC; the job re-checks at run time that the row is still NC with an empty observation and otherwise emits nothing; the draft is prose with `trust: suggested` and no OCR call.)*
 
 As a field engineer,
 I want a one-sentence description of what my NC photo shows, offered as a suggestion on that row's observation,
