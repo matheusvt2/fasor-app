@@ -126,7 +126,7 @@ development_status:
   10-1-merge-the-same-sheet-from-two-devices-by-rule: done  # PR #64
   10-2-decide-a-true-cell-contradiction-and-nothing-else: backlog
   10-3-resolve-a-removed-versus-edited-block-and-a-duplicate-tag: backlog
-  10-4-see-everything-the-sync-did-or-is-waiting-to-do: backlog
+  10-4-see-everything-the-sync-did-or-is-waiting-to-do: done  # PR #65
   epic-10-retrospective: optional
 
   epic-11: backlog
