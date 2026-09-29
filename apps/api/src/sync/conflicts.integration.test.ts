@@ -418,3 +418,56 @@ describe('10.2/10.3-API-003 replay', () => {
     }
   });
 });
+
+describe('E10-Q6 a client older than contract 12 cannot settle a mark it never saw', () => {
+  /** A push as an older bundle sends it: its own contract header, no stamps. */
+  async function pushAs(version: string, batch: readonly Op[]): Promise<Response> {
+    for (const op of batch) written.opIds.add(op.op_id);
+    return authed('/api/sync/ops', { method: 'POST', body: JSON.stringify({ ops: batch }), headers: { [CONTRACT_VERSION_HEADER]: version } });
+  }
+
+  it('a put on a cell holding `conflict`, or a removal write on a block holding `removal_conflict`, is answered 426 and nothing applies; an unmarked cell is accepted', async () => {
+    const open = blocks[4]!;
+    const marked = await serverRow<BlockRow>('block', open.id);
+    const conflict = marked.sheet.checklist[item]?.result?.conflict;
+    expect(conflict).toBeDefined();
+    const head = marked.sheet.checklist[item]!.result!.op_id;
+
+    // Two ops: the marked cell and a harmless one; the whole push is refused.
+    const plain = deviceOp(A_DEVICE, { kind: 'put', path: resultPath(open.id), value: 'C', prev_op_id: head });
+    const other = deviceOp(A_DEVICE, { kind: 'put', path: cellPath(open.id), value: measured('7'), prev_op_id: null });
+    for (const version of ['11', '']) {
+      const res = await pushAs(version, [plain, other]);
+      expect(res.status, await res.clone().text()).toBe(426);
+      expect(await res.json()).toMatchObject({ code: 'contract_outdated' });
+    }
+    const after = await serverRow<BlockRow>('block', open.id);
+    expect(after.sheet.checklist[item]?.result).toEqual(marked.sheet.checklist[item]?.result);
+    expect(after.sheet.test.isolacao?.cells['0']?.['0']).toEqual(marked.sheet.test.isolacao?.cells['0']?.['0']);
+    const stored = await db.select({ op_id: ops.op_id }).from(ops).where(inArray(ops.op_id, [plain.op_id, other.op_id]));
+    expect(stored).toEqual([]);
+
+    const removed = blocks[5]!;
+    expect((await serverRow<BlockRow>('block', removed.id)).removal_conflict).toBeDefined();
+    const restore = deviceOp(A_DEVICE, { kind: 'put', path: `block/${removed.id}/removed_at`, value: null, prev_op_id: null });
+    expect((await pushAs('11', [restore])).status).toBe(426);
+    expect((await serverRow<BlockRow>('block', removed.id)).removal_conflict).toBeDefined();
+
+    // The same old client writing a cell that holds no mark is accepted as before (AD-13).
+    const unmarked = await pushAs('11', [other]);
+    expect(unmarked.status, await unmarked.clone().text()).toBe(200);
+    expect(syncPushResponseSchema.parse(await unmarked.json()).applied.map((row) => row.op_id)).toEqual([other.op_id]);
+    expect((await serverRow<BlockRow>('block', open.id)).sheet.checklist[item]?.result?.conflict).toEqual(conflict);
+
+    // A current client's "Aplicar", stamped with what it saw, still settles it.
+    const pick = deviceOp(A_DEVICE, {
+      kind: 'put',
+      path: resultPath(open.id),
+      value: 'C',
+      prev_op_id: head,
+      meta: { standing_op_id: head, seen_conflict_op_id: conflict!.op_id },
+    });
+    await push([pick]);
+    expect((await serverRow<BlockRow>('block', open.id)).sheet.checklist[item]?.result?.conflict).toBeUndefined();
+  });
+});

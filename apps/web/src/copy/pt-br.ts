@@ -153,8 +153,8 @@ export const copy = {
     // reached although the device is online; these lines say which cause it is.
     serverUnreachable: 'Não foi possível falar com o servidor. Tudo fica salvo neste aparelho.',
     sessionExpired: 'Sua sessão expirou. Entre de novo para enviar.',
-    // The dead-op row ("3 alterações rejeitadas") and the server's `superseded` row are
-    // counts, so the kernel writes them (`rejectedText`, `supersededText`).
+    // The dead-op row ("3 alterações rejeitadas") is a count, so the kernel writes it
+    // (`rejectedText`).
     resend: 'Reenviar',
     lastPushHeading: 'Último envio',
     lastPushNote: 'O servidor não sabe o que ainda está em outro aparelho; a hora do último envio é o sinal honesto.',

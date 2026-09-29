@@ -27,18 +27,34 @@ export const SYNC_ROW_STATE_TEXT = {
 /** What the headline and the summary badges read besides the counts. */
 export interface SyncStatusInputs {
   counts: SyncCounts;
-  /** The open contradictions (Stories 10.2/10.3 fill it; 0 until then). */
+  /** The open cell contradictions, one per cell (`decisionSplit`; omitted means 0). */
   contradictions?: number;
+  /** E10-Q4: the open structure decisions (removed versus edited, duplicate TAG; omitted means 0). */
+  decisions?: number;
+}
+
+/**
+ * E10-Q4: what waits for a decision, cells and structure worded apart: "1 contradição",
+ * "2 decisões", "1 contradição e 2 decisões"; '' when nothing waits.
+ */
+function toResolveText(contradictions: number, decisions: number): string {
+  const parts: string[] = [];
+  if (contradictions > 0) parts.push(plural(contradictions, 'contradição', 'contradições'));
+  // authored: a structure case (removed versus edited, duplicate TAG) is a decision, not a contradiction.
+  if (decisions > 0) parts.push(plural(decisions, 'decisão', 'decisões'));
+  return parts.join(' e ');
 }
 
 /**
  * The headline's `.sh-counts` (epic-10 Conflict 9): "1 contradição para resolver · 3 fichas e
  * 12 fotos aguardando · 2 leituras na fila", each part only when it counts something; the
- * mock's sentence for nothing at all.
+ * mock's sentence for nothing at all. E10-Q4: structure decisions are worded apart ("1
+ * contradição e 2 decisões para resolver", "2 decisões para resolver").
  */
-export function syncHeadlineText({ counts, contradictions = 0 }: SyncStatusInputs): string {
+export function syncHeadlineText({ counts, contradictions = 0, decisions = 0 }: SyncStatusInputs): string {
   const parts: string[] = [];
-  if (contradictions > 0) parts.push(`${plural(contradictions, 'contradição', 'contradições')} para resolver`);
+  const toResolve = toResolveText(contradictions, decisions);
+  if (toResolve !== '') parts.push(`${toResolve} para resolver`);
   const pending = pendingSummaryText(counts);
   if (pending !== '') parts.push(`${pending} aguardando`);
   if (counts.readings_queued > 0) parts.push(leiturasNaFilaText(counts.readings_queued));
@@ -52,12 +68,13 @@ export interface SyncSummaryBadge {
 
 /**
  * The `.sync-summary` compact badges of `85-sync.html` (lines 51-55), in its order, each
- * only when it counts something: contradictions, work waiting, errors (rejected ops and
+ * only when it counts something: contradictions and decisions (E10-Q4), work waiting, errors (rejected ops and
  * stopped uploads), readings ready (suggestions to confirm) and queued.
  */
-export function syncSummaryBadges({ counts, contradictions = 0 }: SyncStatusInputs): SyncSummaryBadge[] {
+export function syncSummaryBadges({ counts, contradictions = 0, decisions = 0 }: SyncStatusInputs): SyncSummaryBadge[] {
   const badges: SyncSummaryBadge[] = [];
-  if (contradictions > 0) badges.push({ state: 'conflict', text: plural(contradictions, 'contradição', 'contradições') });
+  const toResolve = toResolveText(contradictions, decisions);
+  if (toResolve !== '') badges.push({ state: 'conflict', text: toResolve });
   const pending = pendingSummaryText(counts);
   if (pending !== '') badges.push({ state: 'pending', text: `${pending} aguardando envio` });
   const errors = counts.dead + counts.upload_errors;
@@ -103,12 +120,23 @@ function sheetLabel(blockId: string, context: PendingSheetContext): string {
   return name === type ? type : `${name} — ${type}`;
 }
 
+/** E10-Q5: whether a push request can be open now (the engine runs, online, the server answered). */
+export interface PendingSheetOptions {
+  requestOpen: boolean;
+}
+
 /**
  * The "Enviando › Fichas" rows: one per block with an unsent, non-dead `sheet/*` or `block/*`
  * op, the most recently changed first; "Enviando…" while any of its ops is in a request that
- * has not answered (`sent`), else "Aguardando envio".
+ * has not answered (`sent`) and a request can be open (E10-Q5: `requestOpen`; a `sent` row
+ * outlives an aborted push, so offline or with the server unreachable it waits), else
+ * "Aguardando envio".
  */
-export function pendingSheetRows(outbox: readonly PendingSheetOutboxLike[], context: PendingSheetContext): PendingSheetRow[] {
+export function pendingSheetRows(
+  outbox: readonly PendingSheetOutboxLike[],
+  context: PendingSheetContext,
+  options: PendingSheetOptions,
+): PendingSheetRow[] {
   const byBlock = new Map<string, { latest: PendingSheetOutboxLike; sent: boolean }>();
   for (const row of outbox) {
     if (row.status !== 'pending' && row.status !== 'sent') continue;
@@ -123,13 +151,16 @@ export function pendingSheetRows(outbox: readonly PendingSheetOutboxLike[], cont
   }
   return [...byBlock.entries()]
     .sort(([a, x], [b, y]) => (x.latest.client_ts === y.latest.client_ts ? (a < b ? -1 : 1) : x.latest.client_ts < y.latest.client_ts ? 1 : -1))
-    .map(([blockId, entry]) => ({
-      block_id: blockId,
-      primary: sheetLabel(blockId, context),
-      secondary: `Alterada por ${userName(entry.latest.actor_id, context.users)} · ${formatShortDateTime(entry.latest.client_ts)}`,
-      state: entry.sent ? 'sending' : 'waiting',
-      stateText: entry.sent ? SYNC_ROW_STATE_TEXT.sending : SYNC_ROW_STATE_TEXT.waiting,
-    }));
+    .map(([blockId, entry]) => {
+      const sending = entry.sent && options.requestOpen;
+      return {
+        block_id: blockId,
+        primary: sheetLabel(blockId, context),
+        secondary: `Alterada por ${userName(entry.latest.actor_id, context.users)} · ${formatShortDateTime(entry.latest.client_ts)}`,
+        state: sending ? 'sending' : 'waiting',
+        stateText: sending ? SYNC_ROW_STATE_TEXT.sending : SYNC_ROW_STATE_TEXT.waiting,
+      };
+    });
 }
 
 // --- Enviando: photos -----------------------------------------------------------------------
@@ -177,6 +208,14 @@ export function pendingPhotoRows(photos: readonly PendingPhotoInput[]): { rows: 
     })),
     more: Math.max(0, ordered.length - PENDING_PHOTO_ROWS_MAX),
   };
+}
+
+/**
+ * E10-Q7: the figures of the "Enviando" group labels, from the kernel's row lists: one per
+ * sheet row, and every original still to upload (the rows shown plus the `more` behind them).
+ */
+export function sendingCounts(sheets: readonly PendingSheetRow[], uploads: { rows: readonly PendingPhotoRow[]; more: number }): { sheets: number; photos: number } {
+  return { sheets: sheets.length, photos: uploads.rows.length + uploads.more };
 }
 
 /** The "Enviando" group labels of `85-sync.html`: "Fichas (3)", "Fotos (31)". */

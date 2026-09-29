@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { isAutoPulled, statusLabel, statusTileLabel } from '../status/table.ts';
 import { storageLine } from '../device/storage.ts';
-import { pendingNotSentText, rejectedText, serverHoldsText, supersededText } from '../sync/counts.ts';
+import { pendingNotSentText, rejectedText, serverHoldsText } from '../sync/counts.ts';
 import { peopleCount, plural, relatoriosCount } from './plural.ts';
 
 /*
@@ -32,8 +32,6 @@ describe('plural and the count phrases', () => {
   it('writes the Sync status rows and the recovery sentence', () => {
     expect(rejectedText(1)).toBe('1 alteração rejeitada');
     expect(rejectedText(4)).toBe('4 alterações rejeitadas');
-    expect(supersededText(1)).toBe('1 alteração mesclada pelo servidor');
-    expect(supersededText(2)).toBe('2 alterações mescladas pelo servidor');
     expect(serverHoldsText(3, 2)).toBe('O servidor tem 3 relatórios e 2 pessoas da equipe.');
     expect(serverHoldsText(1, 1)).toBe('O servidor tem 1 relatório e 1 pessoa da equipe.');
   });

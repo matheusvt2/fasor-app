@@ -2,6 +2,7 @@ import {
   CONTRACT_VERSION_HEADER,
   photoFileRowSchema,
   safeParsePath,
+  MARK_AWARE_CONTRACT_VERSION,
   MIN_CONTRACT_VERSION,
   sinceQuerySchema,
   syncPushBodySchema,
@@ -24,12 +25,16 @@ import type { ReadingPayload } from '../jobs/reading/payload.ts';
 import { sendReading } from '../jobs/reading/send.ts';
 import { logError } from '../log.ts';
 import { applyOps } from './apply.ts';
+import { pushTouchesConflictMark } from './marks.ts';
 import { companySummary, pullCompany, pullProject, pullRelatorio, recordPush } from './pull.ts';
 
 /*
  * AD-13, AD-24: the sync routes of `packages/domain/contract`. A push is
- * accepted from any client (families are append-only); only a pull checks the
- * contract header and answers `426 contract_outdated`.
+ * accepted from any client (families are append-only); a pull checks the
+ * contract header and answers `426 contract_outdated`. One exception (2026-09-29,
+ * E10-Q6): a push from a client older than `MARK_AWARE_CONTRACT_VERSION` (or with no
+ * header) that writes a cell or block holding a conflict mark is answered 426 whole,
+ * nothing applied, since its unstamped write would settle a decision it never saw.
  */
 
 export interface SyncRouteDeps {
@@ -110,6 +115,12 @@ function isOutdated(c: Context<AppEnv>): boolean {
   return version === null || version < MIN_CONTRACT_VERSION;
 }
 
+/** E10-Q6: a client that stamps nothing it saw (older than contract 12, or no header). */
+function isMarkBlind(c: Context<AppEnv>): boolean {
+  const version = contractVersionOf(c);
+  return version === null || version < MARK_AWARE_CONTRACT_VERSION;
+}
+
 /** `entities.id` is a uuid column: anything else is "no such relatorio", never a cast error. */
 const relatorioIdSchema = z.uuid();
 
@@ -121,6 +132,7 @@ export function createSyncRoutes(db: Db, deps: SyncRouteDeps): Hono<AppEnv> {
     const body: unknown = await c.req.json().catch(() => undefined);
     const parsed = syncPushBodySchema.safeParse(body);
     if (!parsed.success) return c.json(batchInvalid, 400);
+    if (isMarkBlind(c) && (await pushTouchesConflictMark(db, session.companyId, parsed.data.ops))) return c.json(outdated, 426);
 
     const result = await applyOps(db, session.companyId, parsed.data.ops, {
       now: deps.now,

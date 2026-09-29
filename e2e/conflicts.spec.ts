@@ -132,6 +132,18 @@ async function lastWritten(device: Device, path: string): Promise<OutboxOp> {
   return found!;
 }
 
+/** The first op this device writes on `path` after `previous` (the last one before an action). */
+async function writtenAfter(device: Device, path: string, previous: string): Promise<OutboxOp> {
+  let found: OutboxOp | undefined;
+  await expect
+    .poll(async () => {
+      found = (await outbox(device)).filter((op) => op.path === path).at(-1);
+      return found !== undefined && found.op_id !== previous;
+    }, { timeout: 15_000 })
+    .toBe(true);
+  return found!;
+}
+
 async function mark(row: Locator, name: 'Conforme' | 'Não conforme' | 'Não se aplica'): Promise<void> {
   const radio = row.getByRole('radio', { name, exact: true });
   await radio.click();
@@ -599,3 +611,132 @@ test('@p1 10.3-E2E-005 a block added on the other tablet appears in the tree and
     await eduardo.context.close();
   }
 });
+
+// --- E10-Q2: "Desfazer" after a resolution brings the decision back (contract 13) --------------
+
+test('@p0 10.2-E2E-003 "Aplicar" then "Desfazer": the cell, its contradiction and each side\'s author come back on both tablets and the server; the Banner and the Decisões row return', async ({
+  page,
+  browser,
+  seed,
+}) => {
+  test.setTimeout(300_000);
+  const { devices, relatorioId, blockId } = await twoDevices(page, browser, seed);
+  const { ana, eduardo } = devices;
+  const path = `sheet/${blockId}/checklist/${ITEM}/result`;
+  try {
+    // Ana's NA pushed first, Eduardo's C second: his value shows, hers is the displaced side.
+    for (const device of [eduardo, ana]) {
+      await openSheet(device.page, relatorioId, blockId);
+      await device.context.setOffline(true);
+    }
+    await mark(rowOf(ana.page, ITEM), 'Não se aplica');
+    const a = await lastWritten(ana, path);
+    await mark(rowOf(eduardo.page, ITEM), 'Conforme');
+    const e = await lastWritten(eduardo, path);
+    await ana.context.setOffline(false);
+    await syncNow(ana.page);
+    await eduardo.context.setOffline(false);
+    await syncNow(eduardo.page);
+    await syncNow(ana.page);
+    const marked = await expectConverged(devices, blockId);
+    expect(marked.sheet.checklist[ITEM]?.result).toMatchObject({ value: 'C', op_id: e.op_id, conflict: { op_id: a.op_id, value: 'NA' } });
+
+    // Ana keeps her own NA, then undoes it from the toast.
+    await openSheet(ana.page, relatorioId, blockId);
+    await conflictBanner(ana.page).getByRole('button', { name: 'Ver', exact: true }).click();
+    const view = conflictView(ana.page);
+    // Eduardo's C shows (the standing side), Ana's NA is the displaced one.
+    await expect(view.getByRole('radio', { name: /A de Eduardo/ })).toHaveAttribute('data-side', 'standing');
+    await expect(view.getByRole('radio', { name: /A minha/ })).toHaveAttribute('data-side', 'displaced');
+    await view.getByRole('radio', { name: /A minha/ }).click();
+    await view.getByRole('button', { name: 'Aplicar' }).click();
+    await expect(view).toBeHidden();
+    await expect(conflictBanner(ana.page)).toHaveCount(0);
+    const pick = await writtenAfter(ana, path, a.op_id);
+    expect(pick.value).toBe('NA');
+    await toast(ana.page).getByRole('button', { name: 'Desfazer' }).click();
+
+    // The undo put carries the marks the pick cleared, and the cell is marked again on Ana's tablet.
+    const undo = await writtenAfter(ana, path, pick.op_id);
+    expect(undo.value).toBe('C');
+    expect(undo.meta).toMatchObject({ restore: { conflict: { op_id: a.op_id, value: 'NA' }, shown_op_id: e.op_id } });
+    await expect
+      .poll(async () => (await deviceBlock(ana, blockId)).sheet.checklist[ITEM]?.result, { timeout: 15_000 })
+      .toEqual({ value: 'C', source_suggestion_id: null, op_id: undo.op_id, shown_op_id: e.op_id, conflict: marked.sheet.checklist[ITEM]!.result!.conflict });
+    await expect(conflictBanner(ana.page).locator('.banner-text')).toHaveText('SEC-C12: 1 célula em contradição');
+    await expect(syncWord(ana.page)).toHaveText('Conflito');
+    // The Conflict view names each side by its original author again (the value shown is
+    // Eduardo's, although Ana's undo op wrote it back).
+    await conflictBanner(ana.page).getByRole('button', { name: 'Ver', exact: true }).click();
+    await expect(view.getByRole('radio')).toHaveCount(2);
+    await expect(view.getByRole('radio', { name: /A de Eduardo/ })).toHaveAttribute('data-side', 'standing');
+    await expect(view.getByRole('radio', { name: /A minha/ })).toHaveAttribute('data-side', 'displaced');
+    await ana.page.keyboard.press('Escape');
+    await expect(view).toBeHidden();
+
+    await syncNow(ana.page);
+    await syncNow(eduardo.page);
+    const restored = await expectConverged(devices, blockId);
+    expect(restored.sheet.checklist[ITEM]?.result).toEqual({ value: 'C', source_suggestion_id: null, op_id: undo.op_id, shown_op_id: e.op_id, conflict: marked.sheet.checklist[ITEM]!.result!.conflict });
+    await expect(decisionRows(ana.page).locator('.banner-text')).toHaveText(['SEC-C12: 1 célula em contradição']);
+    await expect(decisionRows(eduardo.page).locator('.banner-text')).toHaveText(['SEC-C12: 1 célula em contradição']);
+    // Eduardo's view: his C is "A minha", Ana's NA is hers.
+    await decisionRows(eduardo.page).getByRole('button', { name: 'Resolver' }).click();
+    const eView = conflictView(eduardo.page);
+    await expect(eView.getByRole('radio')).toHaveCount(2);
+    await expect(eView.getByRole('radio', { name: /A minha/ })).toHaveAttribute('data-side', 'standing');
+    await expect(eView.getByRole('radio', { name: /A de Ana/ })).toHaveAttribute('data-side', 'displaced');
+    await eduardo.page.keyboard.press('Escape');
+  } finally {
+    await eduardo.context.close();
+  }
+});
+
+for (const choice of ['Manter', 'Remover'] as const) {
+  test(`@p0 10.3-E2E-00${choice === 'Manter' ? 7 : 8} "${choice}" then "Desfazer" on a removed-versus-edited block: removed_at, removed_by and the mark come back on both tablets and the server; the Sumário Banner returns`, async ({
+    page,
+    browser,
+    seed,
+  }) => {
+    test.setTimeout(300_000);
+    const { devices, relatorioId, blockId } = await twoDevices(page, browser, seed);
+    const { ana, eduardo } = devices;
+    try {
+      await removedVersusEdited(devices, relatorioId, blockId);
+      const marked = await expectConverged(devices, blockId);
+      expect(marked.removal_conflict).toBeDefined();
+
+      await ana.page.goto(`/relatorio/${relatorioId}`);
+      const banner = conflictBanner(ana.page);
+      await expect(banner.locator('.banner-text')).toHaveText('SEC-C12: removido por Eduardo, alterado por você');
+      const removalPath = `block/${blockId}/removed_at`;
+      await banner.getByRole('button', { name: choice }).click();
+      await expect(conflictBanner(ana.page)).toHaveCount(0);
+      const decision = await lastWritten(ana, removalPath);
+      await toast(ana.page).getByRole('button', { name: 'Desfazer' }).click();
+
+      const undo = await writtenAfter(ana, removalPath, decision.op_id);
+      expect(undo.meta).toMatchObject({ restore: { removed_by: eduardo.account.userId, removal_conflict: marked.removal_conflict } });
+      await expect
+        .poll(async () => {
+          const row = await deviceBlock(ana, blockId);
+          return { removed_at: row.removed_at, removed_by: row.removed_by, removal_conflict: row.removal_conflict };
+        }, { timeout: 15_000 })
+        .toEqual({ removed_at: marked.removed_at, removed_by: marked.removed_by, removal_conflict: marked.removal_conflict });
+      await expect(conflictBanner(ana.page).locator('.banner-text')).toHaveText('SEC-C12: removido por Eduardo, alterado por você');
+      await expect(syncWord(ana.page)).toHaveText('Conflito');
+
+      await syncNow(ana.page);
+      await syncNow(eduardo.page);
+      const restored = await expectConverged(devices, blockId);
+      expect(restored.removed_at).toBe(marked.removed_at);
+      expect(restored.removed_by).toBe(eduardo.account.userId);
+      expect(restored.removal_conflict).toEqual(marked.removal_conflict);
+      expect(restored.sheet.checklist[ITEM]?.result?.value).toBe('C');
+      await expect(decisionRows(eduardo.page).locator('.banner-text')).toHaveText(['SEC-C12: removido por você, alterado por Ana']);
+      await expect(decisionRows(ana.page).locator('.banner-text')).toHaveText(['SEC-C12: removido por Eduardo, alterado por você']);
+    } finally {
+      await eduardo.context.close();
+    }
+  });
+}

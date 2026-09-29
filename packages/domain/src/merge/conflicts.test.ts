@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SERVER_DEVICE_ID } from '../ids.ts';
-import { entityKey, type EntityKey } from '../ops/apply.ts';
+import { applyOp, entityKey, readPath, type EntityKey, type EntityState } from '../ops/apply.ts';
+import { invertBatch } from '../ops/outbox.ts';
 import { materializeEntity } from '../ops/materialize.ts';
 import type { Op } from '../ops/op.ts';
 import { emptySheet, type BlockRow, type EquipmentRow, type JsonValue } from '../schemas/entities.ts';
@@ -13,6 +14,7 @@ import {
   conflictSideView,
   conflictViewTitle,
   decisionCount,
+  decisionSplit,
   decisionText,
   decisionTotal,
   holdsConflictMarks,
@@ -30,6 +32,7 @@ import {
 } from './conflicts.ts';
 import { mergeInfoText, pulledAdditions } from './info.ts';
 import { isConcurrent } from './policy.ts';
+import { clearedMarks } from './restore.ts';
 import { stampSeen } from './stamp.ts';
 
 /*
@@ -467,7 +470,122 @@ describe('10.2 the badge and the Decisões rows (the X/S seam)', () => {
       { key: `r1:cell:${BLOCK}`, kind: 'cell', text: 'SEC-C12: 2 células em contradição' },
       { key: `r1:tag:${EQUIPMENT}:${EQUIPMENT_2}`, kind: 'duplicate_tag', text: 'SEC-C09 foi criada em dois aparelhos' },
     ]);
-    // Two cells and one TAG: the headline's contradictions and the badge count 3.
+    // Two cells and one TAG: the badge count 3; E10-Q4 words them apart.
     expect(decisionTotal(entries)).toBe(3);
+    expect(decisionSplit(entries)).toEqual({ contradictions: 2, decisions: 1 });
+  });
+});
+
+describe('E10-Q2 the undo of a resolution brings the decision back (contract 13)', () => {
+  const key = entityKey('block', BLOCK);
+  const facts = (log: readonly Op[]) => (id: string): OpFacts | undefined => {
+    const op = log.find((row) => row.op_id === id);
+    return op === undefined ? undefined : { actor_id: op.actor_id, device_id: op.device_id, client_ts: op.client_ts };
+  };
+
+  /** "Desfazer" on the device: the kernel inverse with the value and marks the op replaced, stamped from the rows after it. */
+  function undoOf(f: ReturnType<typeof world>['f'], log: readonly Op[], op: Op): Op {
+    const state: EntityState = new Map([[key, fold(log)]]);
+    const next = applyOp(state, op);
+    const marks = clearedMarks(state, op, next);
+    const [inverse] = invertBatch(
+      [op],
+      new Map([[op.op_id, readPath(state, op)]]),
+      { newId: f.newId, now: new Date('2026-09-21T15:00:00.000Z') },
+      marks === undefined ? new Map() : new Map([[op.op_id, marks]]),
+    );
+    return stampSeen(inverse!, next);
+  }
+
+  it('clearedMarks names the conflict an "Aplicar" clears, and nothing for a plain write', () => {
+    const { create, eduardo, ana } = world();
+    const a = ana(reading, measured('3300'));
+    const e = eduardo(reading, measured('330'));
+    const marked = new Map([[key, fold([create, a, e])]]) as EntityState;
+    const pick = ana(reading, measured('3300'), e.op_id, { standing_op_id: e.op_id, seen_conflict_op_id: a.op_id });
+    expect(clearedMarks(marked, pick)).toEqual({ conflict: { op_id: a.op_id, value: measured('3300'), source_suggestion_id: null }, shown_op_id: e.op_id });
+    // A rewrite that did not see the mark keeps it: nothing cleared.
+    expect(clearedMarks(marked, ana(reading, measured('1'), e.op_id, { standing_op_id: e.op_id, seen_conflict_op_id: null }))).toBeUndefined();
+    expect(clearedMarks(marked, ana(result, 'C'))).toBeUndefined();
+  });
+
+  it('"Aplicar" then "Desfazer": the value, the conflict and the displayed side\'s author come back; device and server fold alike; "Aplicar" again clears it', () => {
+    const { create, eduardo, ana, f } = world();
+    const a = ana(reading, measured('3300'));
+    const e = eduardo(reading, measured('330'));
+    const before = fold([create, a, e]);
+    const pick = ana(reading, measured('3300'), e.op_id, { standing_op_id: e.op_id, seen_conflict_op_id: a.op_id });
+    expect(fold([create, a, e, pick]).sheet.test[TEST]?.cells['0']?.['0']?.conflict).toBeUndefined();
+    const undo = undoOf(f, [create, a, e], pick);
+    expect(undo.meta?.restore).toEqual({ conflict: { op_id: a.op_id, value: measured('3300'), source_suggestion_id: null }, shown_op_id: e.op_id });
+    const log = [create, a, e, pick, undo];
+    const row = fold(log);
+    expect(row.sheet.test[TEST]?.cells['0']?.['0']).toEqual({
+      value: measured('330'),
+      source_suggestion_id: null,
+      op_id: undo.op_id,
+      shown_op_id: e.op_id,
+      conflict: { op_id: a.op_id, value: measured('3300'), source_suggestion_id: null },
+    });
+    expect(fold([create, a, e, pick], [undo])).toEqual(row);
+    expect(holdsConflictMarks(row)).toBe(true);
+    expect(conflictOpIds([row]).sort()).toEqual([a.op_id, e.op_id].sort());
+
+    // The Conflict view names each side's original author, as before "Aplicar".
+    const [decision] = openDecisions({ relatorioId: TEST_RELATORIO, blocks: [row], locations: [], equipment: [], opOf: facts(log), createOpOf: () => undefined }) as CellDecision[];
+    const [beforeDecision] = openDecisions({ relatorioId: TEST_RELATORIO, blocks: [before], locations: [], equipment: [], opOf: facts(log), createOpOf: () => undefined }) as CellDecision[];
+    expect(decision!.cells[0]!.standing).toEqual(beforeDecision!.cells[0]!.standing);
+    expect(decision!.cells[0]!.displaced).toEqual(beforeDecision!.cells[0]!.displaced);
+    expect(decision!.cells[0]!.standing.actor_id).toBe(EDUARDO);
+
+    // "Aplicar" again (stamped from the restored row) clears it; its own undo would restore the same side.
+    const again = stampSeen(ana(reading, measured('3300'), undo.op_id), new Map([[key, row]]));
+    expect(clearedMarks(new Map([[key, row]]), again)).toEqual({ conflict: row.sheet.test[TEST]!.cells['0']!['0']!.conflict, shown_op_id: e.op_id });
+    expect(fold([...log, again]).sheet.test[TEST]?.cells['0']?.['0']).toEqual({ value: measured('3300'), source_suggestion_id: null, op_id: again.op_id });
+  });
+
+  it('an undo that lands after another device wrote the cell is concurrent: it merges as any write and restores nothing', () => {
+    const { create, eduardo, ana, f } = world();
+    const a = ana(reading, measured('3300'));
+    const e = eduardo(reading, measured('330'));
+    const pick = ana(reading, measured('3300'), e.op_id, { standing_op_id: e.op_id, seen_conflict_op_id: a.op_id });
+    const undo = undoOf(f, [create, a, e], pick);
+    const between = eduardo(reading, measured('331'), pick.op_id, { standing_op_id: pick.op_id, seen_conflict_op_id: null });
+    const cell = fold([create, a, e, pick, between, undo]).sheet.test[TEST]?.cells['0']?.['0'];
+    expect(cell).toMatchObject({ value: measured('330'), op_id: undo.op_id, conflict: { op_id: between.op_id, value: measured('331') } });
+    expect(cell?.shown_op_id).toBeUndefined();
+  });
+
+  it('"Manter" or "Remover", then "Desfazer": removed_at, removed_by and removal_conflict as before the decision; device and server alike', () => {
+    const { create, eduardo, ana, f } = world();
+    const edit = ana(result, 'C');
+    const removal = eduardo(removedAt, null, null, { seen_modified_at: null }, 'remove');
+    const marked = fold([create, edit, removal]);
+    expect(marked.removal_conflict).toBeDefined();
+    const keep = ana(removedAt, null, removal.op_id, { seen_modified_at: marked.last_modified_at });
+    const again = ana(removedAt, null, removal.op_id, { seen_modified_at: marked.last_modified_at }, 'remove');
+    for (const decision of [keep, again]) {
+      const undo = undoOf(f, [create, edit, removal], decision);
+      expect(undo.meta?.restore).toEqual({ removed_by: EDUARDO, removal_conflict: marked.removal_conflict });
+      const row = fold([create, edit, removal, decision, undo]);
+      expect(row.removed_at).toBe(removal.client_ts);
+      expect(row.removed_by).toBe(EDUARDO);
+      expect(row.removal_conflict).toEqual(marked.removal_conflict);
+      expect(holdsConflictMarks(row)).toBe(true);
+      expect(fold([create, edit, removal, decision], [undo])).toEqual(row);
+    }
+  });
+
+  it('the undo of "Manter" after an edit it did not see marks as a fresh removal would, not with the old mark', () => {
+    const { create, eduardo, ana, f } = world();
+    const edit = ana(result, 'C');
+    const removal = eduardo(removedAt, null, null, { seen_modified_at: null }, 'remove');
+    const marked = fold([create, edit, removal]);
+    const keep = ana(removedAt, null, removal.op_id, { seen_modified_at: marked.last_modified_at });
+    const undo = undoOf(f, [create, edit, removal], keep);
+    const later = eduardo(otherResult, 'NC', null, { standing_op_id: null, seen_conflict_op_id: null });
+    const row = fold([create, edit, removal, keep, later, undo]);
+    expect(row.removed_by).toBe(ANA);
+    expect(row.removal_conflict).toEqual({ removed_by: ANA, removed_at: removal.client_ts, edited_by: EDUARDO, edited_at: later.client_ts });
   });
 });

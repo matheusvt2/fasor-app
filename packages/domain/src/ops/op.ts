@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { isoTimestampSchema, toIso } from '../clock.ts';
 import { actorIdSchema, deviceIdSchema, uuidV7Schema, type NewId } from '../ids.ts';
 import {
+  blockRemovalConflictSchema,
+  cellConflictSchema,
   ENTITY_SCOPE,
   entityRowSchemas,
   jsonValueSchema,
@@ -34,13 +36,38 @@ export type OpKind = z.infer<typeof opKindSchema>;
  *   as the device held it (null when never edited). A removal that did not see the latest
  *   edit marks the block with a removal conflict.
  * An op without the key (fixtures, server ops, older bundles) folds as before.
+ *
+ * E10-Q2 (contract 13): `restore`, set only on the undo inverse of an op that cleared a
+ * conflict mark (`invertBatch`, from `clearedMarks`), carries the marks back:
+ * - on a `sheet/*` put, `{conflict, shown_op_id}`: the cell's `conflict` and the op whose
+ *   value it showed (the "Desfazer" of "Aplicar");
+ * - on a `block/{id}/removed_at` write, `{removed_by, removal_conflict}` (the "Desfazer" of
+ *   "Manter" or "Remover").
+ * The fold writes them back only when the inverse lands sequentially; a concurrent one
+ * folds as any other write.
  */
+export const cellRestoreSchema = z.object({
+  conflict: cellConflictSchema,
+  shown_op_id: uuidV7Schema.nullable(),
+});
+export type CellRestore = z.infer<typeof cellRestoreSchema>;
+
+export const blockRestoreSchema = z.object({
+  removed_by: actorIdSchema.nullable(),
+  removal_conflict: blockRemovalConflictSchema,
+});
+export type BlockRestore = z.infer<typeof blockRestoreSchema>;
+
+export const restoreMarksSchema = z.union([cellRestoreSchema, blockRestoreSchema]);
+export type RestoreMarks = z.infer<typeof restoreMarksSchema>;
+
 export const opMetaSchema = z.looseObject({
   source_suggestion_id: uuidV7Schema.optional(),
   auto: z.boolean().optional(),
   standing_op_id: uuidV7Schema.nullable().optional(),
   seen_conflict_op_id: uuidV7Schema.nullable().optional(),
   seen_modified_at: isoTimestampSchema.nullable().optional(),
+  restore: restoreMarksSchema.optional(),
 });
 export type OpMeta = z.infer<typeof opMetaSchema>;
 

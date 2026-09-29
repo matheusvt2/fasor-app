@@ -13,6 +13,7 @@ import {
   pendingPhotoRows,
   pendingSheetRows,
   percentText,
+  sendingCounts,
   sendingGroupText,
   queuedReadingRows,
   SYNC_ROW_STATE_TEXT,
@@ -45,6 +46,13 @@ describe('syncHeadlineText', () => {
     expect(syncHeadlineText({ counts: base, contradictions: 2 })).toBe('2 contradições para resolver');
   });
 
+  it('E10-Q4: words structure decisions apart from cell contradictions', () => {
+    expect(syncHeadlineText({ counts: base, contradictions: 1, decisions: 2 })).toBe('1 contradição e 2 decisões para resolver');
+    expect(syncHeadlineText({ counts: base, decisions: 2 })).toBe('2 decisões para resolver');
+    expect(syncHeadlineText({ counts: base, decisions: 1 })).toBe('1 decisão para resolver');
+    expect(syncHeadlineText({ counts: { ...base, pending: 1, sheets_pending: 1 }, contradictions: 2, decisions: 1 })).toBe('2 contradições e 1 decisão para resolver · 1 ficha aguardando');
+  });
+
   it('uses the singulars and says so when nothing waits', () => {
     expect(syncHeadlineText({ counts: { ...base, pending: 1, sheets_pending: 1, readings_queued: 1 } })).toBe('1 ficha aguardando · 1 leitura na fila');
     expect(syncHeadlineText({ counts: { ...base, pending: 2 } })).toBe('2 alterações aguardando');
@@ -62,6 +70,12 @@ describe('syncSummaryBadges', () => {
       { state: 'ok', text: '3 leituras prontas · 2 na fila' },
     ]);
     expect(syncSummaryBadges({ counts: base })).toEqual([]);
+  });
+
+  it('E10-Q4: the conflict badge words cells and structure apart', () => {
+    expect(syncSummaryBadges({ counts: base, contradictions: 1, decisions: 2 })).toEqual([{ state: 'conflict', text: '1 contradição e 2 decisões' }]);
+    expect(syncSummaryBadges({ counts: base, decisions: 2 })).toEqual([{ state: 'conflict', text: '2 decisões' }]);
+    expect(syncSummaryBadges({ counts: base, contradictions: 2 })).toEqual([{ state: 'conflict', text: '2 contradições' }]);
   });
 
   it('counts rejected ops and stopped uploads as errors, and names readings alone', () => {
@@ -99,6 +113,7 @@ describe('pendingSheetRows', () => {
         op('registry/client/019966b0-0000-7000-8000-000000000003/name', 'pending', '2026-09-07T18:02:00.000Z'),
       ],
       context,
+      { requestOpen: true },
     );
     expect(rows).toEqual([
       { block_id: BLOCK_A, primary: `SEC-C12 — ${type}`, secondary: 'Alterada por Ana Alves · 07/09 14:31', state: 'sending', stateText: 'Enviando…' },
@@ -106,6 +121,20 @@ describe('pendingSheetRows', () => {
       // A block and a user this device does not hold: "Ficha" and the user id.
       { block_id: BLOCK_C, primary: 'Ficha', secondary: 'Alterada por u-other · 07/09 14:20', state: 'waiting', stateText: 'Aguardando envio' },
     ]);
+  });
+
+  it('E10-Q5: a `sent` row left by an aborted push waits while no request can be open (offline, server unreachable)', () => {
+    const rows = pendingSheetRows([op(`sheet/${BLOCK_A}/observations`, 'sent', '2026-09-07T17:31:00.000Z')], context, { requestOpen: false });
+    expect(rows.map((row) => [row.state, row.stateText])).toEqual([['waiting', 'Aguardando envio']]);
+  });
+});
+
+describe('sendingCounts (E10-Q7)', () => {
+  it('counts one per sheet row and every original still to upload, the ones behind "+ n" included', () => {
+    const sheet = { block_id: 'b', primary: 'Ficha', secondary: '', state: 'waiting' as const, stateText: 'Aguardando envio' };
+    const photo = { id: 'f', primary: 'Foto', secondary: '', state: 'pending' as const };
+    expect(sendingCounts([sheet, { ...sheet, block_id: 'c' }], { rows: [photo], more: 11 })).toEqual({ sheets: 2, photos: 12 });
+    expect(sendingCounts([], { rows: [], more: 0 })).toEqual({ sheets: 0, photos: 0 });
   });
 });
 
