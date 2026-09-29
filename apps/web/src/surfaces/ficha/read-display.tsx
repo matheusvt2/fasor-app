@@ -125,8 +125,9 @@ export interface DisplayModel {
   /** The typed value over a suggestion: the put and this suggestion's discard, one batch. */
   type: (s: SuggestionRow, cell: EvaluatedCell, text: string, label: string) => Promise<boolean> | 'invalid';
   keepTyped: (s: SuggestionRow) => void;
-  confirmAll: (testKey: string, tableKey: string) => void;
-  confirmable: (testKey: string, tableKey: string) => number;
+  /** E9-Q1: `exclude` names the cells that show a dictated reading (never confirmed in bulk, never counted). */
+  confirmAll: (testKey: string, tableKey: string, exclude: readonly CellAddress[]) => void;
+  confirmable: (testKey: string, tableKey: string, exclude: readonly CellAddress[]) => number;
   openCrop: (s: SuggestionRow) => void;
   viewer: ReactNode;
   photos: readonly DisplayPhoto[];
@@ -198,16 +199,17 @@ export function useDisplaySuggestions({
     );
   };
 
-  const confirmAll = (testKey: string, tableKey: string) => {
+  const confirmAll = (testKey: string, tableKey: string, exclude: readonly CellAddress[]) => {
     let done = 0;
     let skipped = 0;
     void api
       .edit((blocks, by) => {
-        // The freshest sheet decides: a cell typed a moment ago is no longer a fill.
+        // The freshest sheet decides: a cell typed a moment ago is no longer a fill; a cell
+        // showing a dictated reading is left out as the button's count left it out.
         const fresh = blocks.find((row) => row.id === block.id) ?? block;
-        const picked = measurementConfirmAllCandidates(fresh, pending, testKey, tableKey);
+        const picked = measurementConfirmAllCandidates(fresh, pending, testKey, tableKey, exclude);
         done = picked.length;
-        skipped = measurementTableVerifyCount(fresh, pending, testKey, tableKey);
+        skipped = measurementTableVerifyCount(fresh, pending, testKey, tableKey, exclude);
         return picked.length === 0 ? null : picked.flatMap((s) => confirmSuggestionOps(by, s));
       })
       .then((batch) => {
@@ -216,7 +218,7 @@ export function useDisplaySuggestions({
       .catch(() => undefined);
   };
 
-  const confirmable = (testKey: string, tableKey: string) => measurementConfirmAllCandidates(block, pending, testKey, tableKey).length;
+  const confirmable = (testKey: string, tableKey: string, exclude: readonly CellAddress[]) => measurementConfirmAllCandidates(block, pending, testKey, tableKey, exclude).length;
   const sourceOf = (id: string) => rows.find((row) => row.id === id) ?? snapshot.suggestions.find((row) => row.id === id) ?? null;
 
   return { block, entries, queued, sourceOf, relatorioStatus: snapshot.relatorio.status, confirm, type, keepTyped, confirmAll, confirmable, openCrop, viewer, photos };
@@ -492,12 +494,15 @@ export function ReadDisplayButton({
   );
 }
 
-/** A table's "Confirmar todos (N)" for its suggested fills, only while there is one. */
-export function ConfirmTableButton({ model, testKey, tableKey }: { model: DisplayModel; testKey: string; tableKey: string }) {
-  const n = model.confirmable(testKey, tableKey);
+/**
+ * A table's "Confirmar todos (N)" for its suggested fills, only while there is one. E9-Q1: the
+ * cells in `exclude` show a dictated reading, so their display fill is neither counted nor confirmed.
+ */
+export function ConfirmTableButton({ model, testKey, tableKey, exclude }: { model: DisplayModel; testKey: string; tableKey: string; exclude: readonly CellAddress[] }) {
+  const n = model.confirmable(testKey, tableKey, exclude);
   if (n === 0) return null;
   return (
-    <button type="button" className="btn btn-secondary" onClick={() => model.confirmAll(testKey, tableKey)}>
+    <button type="button" className="btn btn-secondary" onClick={() => model.confirmAll(testKey, tableKey, exclude)}>
       <svg className="ico" aria-hidden="true">
         <use href="/sprite.svg#i-check-all" />
       </svg>

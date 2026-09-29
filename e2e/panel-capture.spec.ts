@@ -5,9 +5,10 @@ import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, type Seed
 import { readStore } from './support/outbox.ts';
 import { devicePhotos } from './support/photos.ts';
 import { pushSuggestion } from './support/push-server-ops.ts';
-import { holdPhotoBytes, READING_ACTOR } from './support/reading-ops.ts';
+import { holdPhotoBytes, pushReadingStatus, READING_ACTOR, serverRow } from './support/reading-ops.ts';
 import { pushNewRelatorio } from './support/relatorio-seed.ts';
 import { resetEmpresaB as resetCompany } from './support/reset-empresa-b.ts';
+import { syncNow } from './support/sync.ts';
 
 /*
  * 9.2-E2E: "Fotografar equipamento", driven as a person does it. The field Block palette's
@@ -258,4 +259,92 @@ test('@p0 9.2-E2E-003 at 390 px the result dialog and its eight chips fit with n
   await expect.poll(async () => (await photoRecord(page, second)) as { removed_at?: string | null }).toMatchObject({ removed_at: expect.any(String) });
   await expect(page.locator('[data-tree-chevron]:focus')).toHaveCount(1);
   await expect(tagsIn(coluna(page, 'Coluna 1'))).toHaveText(['SEC-C01']);
+});
+
+/** One sync cycle while the result dialog is up (the Sync badge is under its scrim): the signal dropping and coming back. */
+async function cycle(page: Page): Promise<void> {
+  await page.context().setOffline(true);
+  await page.context().setOffline(false);
+}
+
+test('@p1 9.2-E2E-005 online, a panel reading that ends with nothing, or fails, says why under the title and never "Lendo a foto…"; the chips still create the block', async ({ page }) => {
+  test.setTimeout(180_000);
+  const { relatorioId } = await openRelatorio(page, 768);
+  await holdPhotoBytes(page);
+  const photoId = await shootPanel(page, await openPalette(page));
+  const dialog = result(page);
+  await expect(dialog.getByRole('status')).toHaveText('Lendo a foto…');
+  // The photo row reaches the server (its bytes are held on the device, so no real job runs).
+  await cycle(page);
+  await expect.poll(() => serverRow(account.companyId, 'file', photoId), { timeout: 60_000 }).toMatchObject({ reading_kind: 'panel' });
+
+  // The reading ended with no suggestion.
+  await pushReadingStatus(account.companyId, relatorioId, photoId, 'done');
+  await cycle(page);
+  await expect(dialog.locator('.btn-reason')).toHaveText('A foto não mostrou o tipo do equipamento.', { timeout: 60_000 });
+  await expect(dialog.getByRole('status')).toHaveCount(0);
+  await expect(dialog.getByText('Lendo a foto…')).toHaveCount(0);
+  // Read again, and failed this time.
+  await pushReadingStatus(account.companyId, relatorioId, photoId, 'failed');
+  await cycle(page);
+  await expect(dialog.locator('.btn-reason')).toHaveText('Não foi possível ler a foto.', { timeout: 60_000 });
+  await expect(dialog.getByText('Lendo a foto…')).toHaveCount(0);
+  expect((await readStore<EntityRecord>(page, database, 'entities')).find((record) => record.entity === 'file' && record.id === photoId)!.row).toMatchObject({ reading_status: 'failed' });
+
+  // The chips give the block all the same.
+  await expect(dialog.getByText('Toque no tipo do equipamento')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Disjuntor MT' }).click();
+  const field = dialog.locator('.suggestion-field');
+  await expect(field.locator('.sv-main')).toHaveText('Criar DJ-C01 · Disjuntor MT · Coluna 1?');
+  await field.getByRole('button', { name: 'Confirmar' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(tagsIn(coluna(page, 'Coluna 1'))).toHaveText(['SEC-C01', 'DJ-C01']);
+  const { blockId } = await confirmBatch(page, photoId);
+  expect(await photoRecord(page, photoId)).toMatchObject({ reading_kind: 'plate', reading_status: 'queued', block_id: blockId });
+});
+
+test('@p1 9.2-E2E-006 "Desfazer" right after a photo-backed create removes the block, leaves the photo a plain one and discards the panel suggestion; the server holds it so, no reading queued', async ({ page }) => {
+  test.setTimeout(180_000);
+  const { relatorioId } = await openRelatorio(page, 768);
+  await holdPhotoBytes(page);
+  const photoId = await shootPanel(page, await openPalette(page));
+  const dialog = result(page);
+  await expect(dialog).toBeVisible();
+  const suggestionId = await pushSuggestion(account.companyId, relatorioId, {
+    targetPath: `file/${photoId}/block_id`,
+    value: { block_type: 'chave_seccionadora', column: 9, column_text: 'C09' },
+    photoId,
+    bbox: [0.13, 0.13, 0.71, 0.54],
+    actorId: READING_ACTOR,
+  });
+  await cycle(page);
+  const field = dialog.locator('.suggestion-field');
+  await expect(field.locator('.sv-main')).toHaveText('Criar SEC-C09 · Chave seccionadora · Coluna 9?', { timeout: 60_000 });
+  await field.getByRole('button', { name: 'Confirmar' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(tagsIn(coluna(page, 'Coluna 9'))).toHaveText(['SEC-C09']);
+  const { blockId } = await confirmBatch(page, photoId);
+
+  await page.locator('.toast').getByRole('button', { name: 'Desfazer' }).click();
+  await expect(tagsIn(coluna(page, 'Coluna 9'))).toHaveCount(0);
+  // The undo batch: the re-target put back to nothing (never the panel kind again) and the suggestion discarded.
+  await expect
+    .poll(async () => (await readStore<OutboxRow>(page, database, 'outbox')).filter((op) => op.path === `file/${photoId}/reading_kind`).map((op) => op.value))
+    .toEqual(['plate', null]);
+  const outbox = await readStore<OutboxRow>(page, database, 'outbox');
+  const undoBatch = outbox.filter((op) => op.path === `file/${photoId}/reading_kind`)[1]!.batch_id;
+  const undo = outbox.filter((op) => op.batch_id === undoBatch);
+  expect(undo.find((op) => op.path === `suggestion/${suggestionId}/status`)?.value).toBe('discarded');
+  expect(undo.find((op) => op.path === `file/${photoId}/reading_target`)?.value).toBeNull();
+  expect(undo.find((op) => op.path === `file/${photoId}/block_id`)?.value).toBeNull();
+  expect(undo.some((op) => op.path === `block/${blockId}/removed_at`)).toBe(true);
+  expect(await photoRecord(page, photoId)).toMatchObject({ reading_kind: null, reading_target: null, reading_status: 'none', block_id: null });
+  const suggestion = (await readStore<{ entity: string; id: string; row: { status: string } }>(page, database, 'entities')).find((record) => record.entity === 'suggestion' && record.id === suggestionId)!;
+  expect(suggestion.row.status).toBe('discarded');
+
+  // "Sincronizar agora": the server holds the same, with no reading queued for the photo.
+  await syncNow(page);
+  expect(await serverRow(account.companyId, 'file', photoId)).toMatchObject({ reading_kind: null, reading_target: null, reading_status: 'none', block_id: null });
+  expect(await serverRow(account.companyId, 'suggestion', suggestionId)).toMatchObject({ status: 'discarded' });
+  expect(await serverRow(account.companyId, 'block', blockId)).toMatchObject({ removed_at: expect.any(String) });
 });

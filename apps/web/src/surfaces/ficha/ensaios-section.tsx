@@ -164,11 +164,11 @@ function TestSection({
       onRun={onRun}
       readOnly={readOnly}
       display={display}
-      actions={
+      actions={(dictated) =>
         readOnly ? null : (
           <>
             <ReadDisplayButton api={api} snapshot={snapshot} block={block} definition={definition} testKey={test.testKey} tableKey={table.key} targetFor={targetFor} />
-            <ConfirmTableButton model={display} testKey={test.testKey} tableKey={table.key} />
+            <ConfirmTableButton model={display} testKey={test.testKey} tableKey={table.key} exclude={dictated === null ? [] : [dictated]} />
           </>
         )
       }
@@ -203,24 +203,31 @@ function MeasurementTable({
   onRun: (from: CellAddress, direction: RunDirection) => boolean;
   readOnly: boolean;
   display: DisplayModel;
-  /** Story 9.1: the title row's `.mt-actions` ("Ler visor", "Confirmar todos"); null on a read-only sheet. Story 9.4 adds the Dictation button after them. */
-  actions: ReactNode;
+  /**
+   * Story 9.1: the title row's `.mt-actions` ("Ler visor", "Confirmar todos"); null on a
+   * read-only sheet. Story 9.4 adds the Dictation button after them. E9-Q1: drawn from the cell
+   * that shows this table's dictated reading, which "Confirmar todos" leaves out.
+   */
+  actions: (dictated: CellAddress | null) => ReactNode;
 }) {
   const t = copy.ficha.ensaios;
   const titleId = useId();
   // Story 9.4: the reading dictated on this table, held until its cell's "Confirmar" (never a row).
   const { dictated, setDictated, onDictated } = useTableDictation(table, api.announce);
+  // The cell the dictated reading is drawn on (held only while that cell is empty).
+  const dictatedCell = dictated?.address ?? null;
   const cellOf = (row: EvaluatedRow, col: number): EvaluatedCell | undefined => row.cells.find((cell) => cell.address.col === col);
   const field = (row: EvaluatedRow, cell: EvaluatedCell, presentation: 'table' | 'card') =>
     readOnly ? (
       <ReadOnlyMeasurementField cell={cell} label={t.cellLabel(screenLabel(row.label), screenLabel(cell.column))} />
-    ) : dictated !== null && cell.state === 'empty' && sameAddress(dictated.address, cell.address) ? (
+    ) : sameAddress(dictatedCell, cell.address) && dictated !== null ? (
       <DictatedMeasurementField
         api={api}
         cell={cell}
         label={t.cellLabel(screenLabel(row.label), screenLabel(cell.column))}
         reading={dictated}
         onDone={() => setDictated(null)}
+        onRun={onRun}
       />
     ) : (
       <ReadingCell
@@ -255,7 +262,7 @@ function MeasurementTable({
         </details>
         {readOnly ? null : (
           <div className="mt-actions">
-            {actions}
+            {actions(dictatedCell)}
             <DictationButton label={tableDictationLabel(table)} onStart={() => setDictated(null)} onResult={onDictated} />
           </div>
         )}

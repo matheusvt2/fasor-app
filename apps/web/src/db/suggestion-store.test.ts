@@ -1,6 +1,6 @@
 // @vitest-environment node
 import 'fake-indexeddb/auto';
-import { makeOp, SERVER_DEVICE_ID, syncCounts, type BlockRow, type Op, type SuggestionRow } from '@app/domain';
+import { confirmSuggestionOps, makeOp, SERVER_DEVICE_ID, syncCounts, type BlockRow, type Op, type SuggestionRow } from '@app/domain';
 import { BLOCK_1_ID, CABINE_ID, COMPANY_ID, READING_RUN_ID, PHOTO_ID, RELATORIO_ID, replaySmall, USER_ID } from '@app/domain/fixtures/replay-small';
 import { describe, expect, it, vi } from 'vitest';
 import { commitBatch } from './commit.ts';
@@ -344,5 +344,26 @@ describe('9.3/9.5-UNIT the stale prose sweep', () => {
     expect(await discardStaleProse(db, AUTHOR, deps())).toEqual([]);
     expect((await db.outbox.toArray()).filter((row) => row.path.startsWith('suggestion/'))).toEqual([]);
     db.close();
+  });
+});
+
+describe('E9-Q13 the sweep and a confirm tapped while it runs', () => {
+  it('never write two status ops for one suggestion, whichever lands first ("Confirmar todos" right after the launch pull)', async () => {
+    // The confirm lands at several points of the sweep (before it, between its reads, after it).
+    for (let delay = 0; delay < 12; delay++) {
+      const db = await freshDb();
+      await seed(db);
+      const pulled = [serverSuggestion('fabricacao', 'Schneider'), serverSuggestion('n_serie', 'SU1240998'), serverSuggestion('tipo', 'Manual')];
+      await applyPulled(db, pulled);
+      const rows = pulled.map((op) => op.value as SuggestionRow);
+      const confirmAll = (async () => {
+        for (let i = 0; i < delay; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+        await commitBatch(db, rows.flatMap((row) => confirmSuggestionOps(AUTHOR, row)), deps());
+      })();
+      await Promise.all([autoConfirmPending(db, AUTHOR, deps()), confirmAll]);
+      const outbox = await db.outbox.toArray();
+      for (const row of rows) expect(outbox.filter((op) => op.path === `suggestion/${row.id}/status`), `delay ${delay}`).toHaveLength(1);
+      db.close();
+    }
   });
 });

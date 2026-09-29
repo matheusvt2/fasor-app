@@ -157,6 +157,27 @@ export async function commitBatch(
 }
 
 /**
+ * E9-Q13: `commitBatch` for a write decided from rows read before it (the device's own sweep
+ * after a pull): `stillValid` re-reads them inside the commit's transaction, and when it says
+ * no, nothing is written and null is returned. A batch the engineer tapped meanwhile (the
+ * same suggestion confirmed, the same cell typed) lands wholly before the check or wholly after
+ * the write, never between them.
+ */
+export async function commitBatchIf(
+  db: AppDatabase,
+  stillValid: () => Promise<boolean>,
+  inputs: readonly OpDraft[],
+  deps: CommitDeps,
+): Promise<{ batch_id: string; ops: Op[] } | null> {
+  return db.transaction('rw', batchTables(db), async () => {
+    if (!(await stillValid())) return null;
+    const { batch_id, ops } = await buildBatch(db, inputs, deps);
+    for (const op of ops) await applyOne(db, op);
+    return { batch_id, ops };
+  });
+}
+
+/**
  * Every table `buildBatch` reads (`local_prefs` for the device id, `entities` for the
  * relatórios it advances, `outbox` and `remote_ops` for `prev_op_id`) plus the ones the
  * apply writes. Building and applying under one `rw` transaction over them serializes

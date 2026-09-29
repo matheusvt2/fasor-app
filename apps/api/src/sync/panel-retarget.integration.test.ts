@@ -6,10 +6,12 @@ import {
   CONTRACT_VERSION,
   CONTRACT_VERSION_HEADER,
   instantiateTemplate,
+  invertBatch,
   makeOp,
   newEquipmentBlock,
   panelReadingTarget,
   panelRetargetOps,
+  SERVER_DEVICE_ID,
   standardTemplate,
   syncPushResponseSchema,
   type LocationRow,
@@ -233,6 +235,8 @@ describe('9.2-INT the panel photo re-targeted to the new block plate', () => {
     expect((await push(app, [photo.op])).rejected).toEqual([]);
     await upload(app, photo.id, photo.bytes);
     expect(calls).toEqual([{ company_id: companyA.companyId, photo_id: photo.id, reading_kind: 'panel' }]);
+    // E9-Q2: the create batch lands while the panel reading runs (that job ends superseded).
+    expect(await fileRow(companyA.companyId, photo.id)).toMatchObject({ reading_kind: 'panel', reading_status: 'running' });
 
     const { batch, blockId } = confirmBatch(relatorioId, projectId, coluna, photo.id);
     const result = await push(app, batch);
@@ -272,7 +276,7 @@ describe('9.2-INT the panel photo re-targeted to the new block plate', () => {
     expect(await fileRow(companyA.companyId, photo.id)).toMatchObject({ reading_status: 'running' });
   }, 60_000);
 
-  it('refuses a reading_kind that is not one of the five kinds, and a reading_target that is not an object, as op_invalid', async () => {
+  it('refuses a reading_kind other than plate or null, and a reading_target that is neither an object nor null, as op_invalid', async () => {
     const calls: ReadingPayload[] = [];
     const app = appWith(calls);
     const { relatorioId, coluna } = await relatorio(app);
@@ -286,7 +290,17 @@ describe('9.2-INT the panel photo re-targeted to the new block plate', () => {
       written.opIds.add(op.op_id);
       return op;
     };
-    const bad = [put('reading_kind', 'bogus'), put('reading_kind', null), put('reading_target', 'x'), put('reading_target', [1]), put('reading_target', null), remove('reading_kind'), remove('reading_target')];
+    const bad = [
+      put('reading_kind', 'bogus'),
+      put('reading_kind', 'display'),
+      put('reading_kind', 'caption'),
+      put('reading_kind', 'panel'),
+      put('reading_kind', 'nc_obs'),
+      put('reading_target', 'x'),
+      put('reading_target', [1]),
+      remove('reading_kind'),
+      remove('reading_target'),
+    ];
     const result = await push(app, bad);
     expect(result.applied).toEqual([]);
     expect(result.rejected).toEqual(bad.map((op) => ({ op_id: op.op_id, code: 'op_invalid' })));
@@ -346,9 +360,92 @@ describe('9.2-INT the panel photo re-targeted to the new block plate', () => {
     const mismatch = stamp({ ...envelope, company_id: companyB.companyId, path: `file/${foreignId}/reading_kind`, value: 'plate' });
     const ownScope = stamp({ ...envelope, company_id: companyA.companyId, path: `file/${foreignId}/reading_kind`, value: 'plate' });
     const result = await push(app, [mismatch, ownScope]);
-    expect(result.rejected).toEqual([{ op_id: mismatch.op_id, code: 'op_tenant_mismatch' }]);
+    // E9-Q2: in company A the id names no panel photo, so its plate put is refused too.
+    expect(result.rejected).toEqual([
+      { op_id: mismatch.op_id, code: 'op_tenant_mismatch' },
+      { op_id: ownScope.op_id, code: 'op_invalid' },
+    ]);
     expect(await fileRow(companyB.companyId, foreignId)).toMatchObject({ reading_kind: 'panel', reading_status: 'queued' });
     expect(await fileRow(companyA.companyId, foreignId)).toBeUndefined();
     expect(calls).toEqual([]);
+  }, 60_000);
+
+  it('E9-Q2 refuses a client reading_kind put of the stored kind (queued, running, done) or any other kind on a plate photo, with nothing sent and the row unchanged', async () => {
+    const calls: ReadingPayload[] = [];
+    const app = appWith(calls);
+    const { relatorioId, projectId, coluna } = await relatorio(app);
+    const photo = await panelPhoto(relatorioId, coluna.id);
+    const { batch } = confirmBatch(relatorioId, projectId, coluna, photo.id);
+    // Not uploaded: the plate reading waits `queued`, nothing sent.
+    expect((await push(app, [photo.op, ...batch])).rejected).toEqual([]);
+    const put = (value: unknown): Op =>
+      stamp({ scope: 'relatorio', company_id: companyA.companyId, project_id: null, relatorio_id: relatorioId, prev_op_id: null, batch_id: null, meta: null, actor_id: companyA.userId, kind: 'put', path: `file/${photo.id}/reading_kind`, value: value as never });
+    const refusedEvery = async (status: string) => {
+      const before = await fileRow(companyA.companyId, photo.id);
+      expect(before).toMatchObject({ reading_kind: 'plate', reading_status: status });
+      const bad = ['plate', 'display', 'panel', 'caption', 'nc_obs'].map(put);
+      const result = await push(app, bad);
+      expect(result.applied).toEqual([]);
+      expect(result.rejected).toEqual(bad.map((op) => ({ op_id: op.op_id, code: 'op_invalid' })));
+      expect(await fileRow(companyA.companyId, photo.id)).toEqual(before);
+    };
+    await refusedEvery('queued');
+    expect(calls).toEqual([]);
+    // The upload sends plate once and the send writes `running`.
+    await upload(app, photo.id, photo.bytes);
+    expect(calls).toEqual([{ company_id: companyA.companyId, photo_id: photo.id, reading_kind: 'plate' }]);
+    await refusedEvery('running');
+    // The reading job's own `done`, as the job writes it.
+    const done = makeOp(
+      { kind: 'put', scope: 'relatorio', company_id: companyA.companyId, project_id: null, relatorio_id: relatorioId, path: `file/${photo.id}/reading_status`, value: 'done', prev_op_id: null, batch_id: null, meta: null, actor_id: 'system:reading', device_id: SERVER_DEVICE_ID },
+      { newId, now: now() },
+    );
+    written.opIds.add(done.op_id);
+    expect((await applyOps(db, asCompanyId(companyA.companyId), [done], { origin: 'server', now })).rejected).toEqual([]);
+    await refusedEvery('done');
+    expect(calls).toEqual([{ company_id: companyA.companyId, photo_id: photo.id, reading_kind: 'plate' }]);
+  }, 60_000);
+
+  it('E9-Q2 a null reading_kind put is applied as a plain photo (none) and sends nothing', async () => {
+    const calls: ReadingPayload[] = [];
+    const app = appWith(calls);
+    const { relatorioId, coluna } = await relatorio(app);
+    const photo = await panelPhoto(relatorioId, coluna.id);
+    expect((await push(app, [photo.op])).rejected).toEqual([]);
+    const envelope = { scope: 'relatorio' as const, company_id: companyA.companyId, project_id: null, relatorio_id: relatorioId, prev_op_id: null, batch_id: null, meta: null, actor_id: companyA.userId, kind: 'put' as const };
+    const nulls = [stamp({ ...envelope, path: `file/${photo.id}/reading_kind`, value: null }), stamp({ ...envelope, path: `file/${photo.id}/reading_target`, value: null })];
+    const result = await push(app, nulls);
+    expect(result.rejected).toEqual([]);
+    expect(await fileRow(companyA.companyId, photo.id)).toMatchObject({ reading_kind: null, reading_target: null, reading_status: 'none' });
+    await upload(app, photo.id, photo.bytes);
+    expect(calls).toEqual([]);
+  }, 60_000);
+
+  it('E9-Q3 the undo of the create batch removes the block, leaves the photo a plain one (none) and sends no reading', async () => {
+    const calls: ReadingPayload[] = [];
+    const app = appWith(calls);
+    const { relatorioId, projectId, coluna } = await relatorio(app);
+    const photo = await panelPhoto(relatorioId, coluna.id);
+    expect((await push(app, [photo.op])).rejected).toEqual([]);
+    await upload(app, photo.id, photo.bytes);
+    const { batch, blockId } = confirmBatch(relatorioId, projectId, coluna, photo.id);
+    expect((await push(app, batch)).rejected).toEqual([]);
+    expect(calls.map((call) => call.reading_kind)).toEqual(['panel', 'plate']);
+
+    // The device's undo: the kernel's inverse of the batch, its `before` the values each op replaced.
+    const before = new Map<string, unknown>(batch.map((op) => [op.op_id, op.path.endsWith('/reading_kind') ? 'panel' : op.path.endsWith('/reading_target') ? panelReadingTarget(coluna.id) : null]));
+    const undo = invertBatch(batch, before, { newId, now: now() });
+    for (const op of undo) written.opIds.add(op.op_id);
+    const result = await push(app, undo);
+    expect(result.rejected).toEqual([]);
+    expect(result.applied).toHaveLength(undo.length);
+    expect(await fileRow(companyA.companyId, photo.id)).toMatchObject({ block_id: null, caption: null, reading_kind: null, reading_target: null, reading_status: 'none' });
+    const [block] = await db
+      .select({ removed_at: entities.removed_at })
+      .from(entities)
+      .where(and(eq(entities.company_id, companyA.companyId), eq(entities.entity, 'block'), eq(entities.id, blockId)));
+    expect(block?.removed_at).not.toBeNull();
+    // No new reading: the plate job already sent ends superseded (its kind changed).
+    expect(calls.map((call) => call.reading_kind)).toEqual(['panel', 'plate']);
   }, 60_000);
 });

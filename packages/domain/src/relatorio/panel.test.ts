@@ -7,6 +7,7 @@ import {
   panelLocation,
   panelProposal,
   panelProvenance,
+  panelReadingLine,
   panelRetargetOps,
   panelSuggestionOf,
   panelSuggestionStatusOp,
@@ -153,5 +154,23 @@ describe('9.2-UNIT the panel proposal', () => {
       [`suggestion/${row.id}/status`, 'discarded'],
     ]);
     expect(panelCancelOps(author, RELATORIO, PHOTO, null, '2026-09-28T10:00:00.000Z')).toHaveLength(1);
+  });
+});
+
+describe('E9-Q10 the result dialog line while no panel suggestion is there', () => {
+  it('offline: the mock line; online: "Lendo a foto…" while queued or running, a reason once failed or done with nothing; none once a suggestion is there', () => {
+    const line = (online: boolean, reading_status: 'none' | 'queued' | 'running' | 'done' | 'failed', read: PanelSuggestion | null = null) =>
+      panelReadingLine({ online, photo: { reading_status }, suggestion: read });
+    for (const status of ['queued', 'running', 'done', 'failed'] as const) {
+      expect(line(false, status)).toEqual({ kind: 'offline', text: 'Sem sinal, a foto fica guardada: o bloco é criado pelo tipo e a foto já vira a placa dele.' });
+    }
+    expect(line(true, 'queued')).toEqual({ kind: 'waiting', text: 'Lendo a foto…' });
+    expect(line(true, 'running')).toEqual({ kind: 'waiting', text: 'Lendo a foto…' });
+    expect(line(true, 'failed')).toEqual({ kind: 'failed', text: 'Não foi possível ler a foto.' });
+    expect(line(true, 'done')).toEqual({ kind: 'empty', text: 'A foto não mostrou o tipo do equipamento.' });
+    expect(line(true, 'none')).toBeNull();
+    const read = suggestion({ block_type: 'chave_seccionadora', column: 9, column_text: 'C09' });
+    expect(line(true, 'done', read)).toBeNull();
+    expect(line(false, 'queued', read)).toBeNull();
   });
 });

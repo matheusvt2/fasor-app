@@ -12,6 +12,7 @@ import {
   type RelatorioRow,
   type Sheet,
 } from '../schemas/entities.ts';
+import { readingKindPutStatus } from '../reading/retarget.ts';
 import type { Op } from './op.ts';
 import { familyDef, formatPath, parsePath, targetOf, type OpPath } from './path.ts';
 
@@ -270,6 +271,11 @@ function createRow(entity: Entity, id: string, op: Op): EntityRow {
   return row;
 }
 
+/** E9-Q2/Q3: the `reading_status` a `reading_kind` put writes with it (`readingKindPutStatus`). */
+function readingKindStatus(file: FileRow, field: string, value: unknown): Record<string, unknown> {
+  return field === 'reading_kind' ? readingKindPutStatus(file as { reading_kind?: unknown }, value) : {};
+}
+
 /** Applies a put or remove to its target row; returns the row unchanged when the op does not apply. */
 function writeRow(row: EntityRow, op: Op, path: OpPath): EntityRow {
   const value = op.kind === 'remove' ? op.client_ts : op.value;
@@ -300,8 +306,12 @@ function writeRow(row: EntityRow, op: Op, path: OpPath): EntityRow {
       // Story 9.2 (contract 7): a new reading kind on a photo queues its reading, here, on the
       // device and on the server alike (the `template/field` version-bump precedent); the
       // server sends it once the bytes are there. No client ever writes `reading_status`.
-      const queued = path.field === 'reading_kind' && value !== null && value !== undefined ? { reading_status: 'queued' } : {};
-      return { ...file, ...queued, [path.field]: value } as FileRow;
+      // E9-Q2/Q3 (contract 9): only a kind that differs from the stored one queues (a put of
+      // the same kind re-applied, or pushed again, never re-queues a paid reading), and a null
+      // kind (the undo of a re-target) leaves the photo a plain one, `reading_status: none`.
+      // This never throws: the push route refuses a client put it does not allow
+      // (`clientReadingKindPutAllowed`), while a replay on the device must always apply.
+      return { ...file, ...readingKindStatus(file, path.field, value), [path.field]: value } as FileRow;
     }
     case 'suggestion/status':
       return { ...r, status: value } as EntityRow;

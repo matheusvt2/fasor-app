@@ -69,8 +69,8 @@ describe('contract examples (ADR readiness 1.4)', () => {
 });
 
 describe('contract constants', () => {
-  it('speaks version 8 and accepts only version 8 (the photo people_in_photo put is new)', () => {
-    expect(CONTRACT_VERSION).toBe(8);
+  it('speaks version 9 and still accepts version 8 (E9-Q2/Q3 narrowed the client reading puts; no new family)', () => {
+    expect(CONTRACT_VERSION).toBe(9);
     expect(MIN_CONTRACT_VERSION).toBe(8);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');
   });

@@ -88,6 +88,36 @@ export async function humanTap(page: Page, target: Locator, info: TestInfo, befo
 }
 
 /**
+ * E9-Q13: waits (by polling, no sleep) until `target`'s centre hits it: on a loaded machine the
+ * sheet's layout can still be settling past `humanTap`'s own settle budget, with a neighbour
+ * (the nameplate grid) under the centre. Each poll does what `humanTap` does first: a target
+ * not hit (off screen, or under the Sticky action bar) is scrolled to the middle; one already
+ * hit is never scrolled. What the tap then tests is unchanged: the pointer goes down only once
+ * the page is there.
+ */
+export async function waitForTapTarget(target: Locator, timeout = 15_000): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        target.evaluate((element) => {
+          const hits = () => {
+            const rect = element.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+            if (y < 0 || y >= window.innerHeight || x < 0 || x >= window.innerWidth) return false;
+            const hit = document.elementFromPoint(x, y);
+            return hit !== null && (hit === element || element.contains(hit));
+          };
+          if (hits()) return true;
+          element.scrollIntoView({ block: 'center', inline: 'nearest' });
+          return hits();
+        }),
+      { timeout },
+    )
+    .toBe(true);
+}
+
+/**
  * Stories 12.1-12.4: counts a journey's taps and keystrokes the way the journey review
  * counted them (`review-journey-2026-09-24.md` § 6). Every tap is a `humanTap` whose effect
  * must show on the first try within `effectMs`: a lost tap fails instead of costing a

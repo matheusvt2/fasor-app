@@ -161,9 +161,23 @@ describe('1.4-UNIT-002 applyOp semantics', () => {
       f.op({ path: `file/${PHOTO}/reading_kind`, value: 'plate' }),
     ]);
     expect(s1.get(key)).toMatchObject({ reading_kind: 'plate', reading_target: { block_id: B1, block_type: 'chave_seccionadora' }, reading_status: 'queued' });
-    const s2 = applyOp(state([key, panel]), f.op({ path: `file/${PHOTO}/reading_kind`, value: null }));
-    expect(s2.get(key)).toMatchObject({ reading_kind: null, reading_status: 'done' });
     expect(() => applyOp(state([key, panel]), f.op({ path: `file/${PHOTO}/reading_kind`, value: 'bogus' }))).toThrow();
+  });
+
+  it('E9-Q2/Q3 a reading_kind put queues only a changed kind; the same kind keeps the status; null leaves a plain photo (none)', () => {
+    const f = opFactory();
+    const key = entityKey('file', PHOTO);
+    for (const status of ['queued', 'running', 'done', 'failed'] as const) {
+      const plate = { ...photo(null), reading_kind: 'plate', reading_target: { block_id: B1, block_type: 'chave_seccionadora' }, reading_status: status } as FileRow;
+      // The same kind, re-applied or pushed again: nothing re-queues.
+      expect(applyOp(state([key, plate]), f.op({ path: `file/${PHOTO}/reading_kind`, value: 'plate' })).get(key)).toMatchObject({ reading_kind: 'plate', reading_status: status });
+      // Null: a plain photo, whatever it was.
+      expect(applyOp(state([key, plate]), f.op({ path: `file/${PHOTO}/reading_kind`, value: null })).get(key)).toMatchObject({ reading_kind: null, reading_status: 'none' });
+    }
+    const running = { ...photo(null), reading_kind: 'panel', reading_target: { location_id: LOC }, reading_status: 'running' } as FileRow;
+    expect(applyOp(state([key, running]), f.op({ path: `file/${PHOTO}/reading_kind`, value: 'plate' })).get(key)).toMatchObject({ reading_kind: 'plate', reading_status: 'queued' });
+    // A reading_target put never touches the status.
+    expect(applyOp(state([key, running]), f.op({ path: `file/${PHOTO}/reading_target`, value: null })).get(key)).toMatchObject({ reading_target: null, reading_status: 'running' });
   });
 
   it('ignores caption, block_id and item_key on a non-photo file but removes it', () => {

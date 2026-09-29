@@ -64,6 +64,11 @@ export interface ComboboxProps {
   placeholder?: string;
   isDisabled?: boolean;
   disabledReason?: string;
+  /**
+   * The id of a reason already on the page (the `Button` prop of the same name): the field
+   * points at it instead of rendering a copy of its own (E9-Q14, one reason line per dialog).
+   */
+  disabledReasonId?: string;
   /** The text input, for a caller that moves the focus into it (E12-Q11). */
   inputRef?: Ref<HTMLInputElement>;
 }
@@ -84,9 +89,10 @@ export function Combobox({
   placeholder,
   isDisabled,
   disabledReason,
+  disabledReasonId,
   inputRef,
 }: ComboboxProps) {
-  if (isDisabled && !disabledReason) {
+  if (isDisabled && !disabledReason && !disabledReasonId) {
     throw new Error('Combobox: isDisabled requires a disabledReason shown beside the control.');
   }
   const reasonId = useId();
@@ -128,7 +134,7 @@ export function Combobox({
           className="input"
           placeholder={placeholder}
           aria-disabled={isDisabled || undefined}
-          aria-describedby={isDisabled && disabledReason ? reasonId : undefined}
+          aria-describedby={!isDisabled ? undefined : disabledReasonId !== undefined ? disabledReasonId : disabledReason ? reasonId : undefined}
         />
         <Button className="combobox-chevron" aria-label={ui.combobox.openList}>
           <svg className="ico" viewBox="0 0 24 24" aria-hidden="true">
@@ -151,7 +157,7 @@ export function Combobox({
           </ListBox>
         </Popover>
       </ComboBox>
-      {isDisabled && disabledReason ? (
+      {isDisabled && disabledReason && disabledReasonId === undefined ? (
         <span className="btn-reason" id={reasonId}>
           {disabledReason}
         </span>

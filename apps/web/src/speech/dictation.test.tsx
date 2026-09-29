@@ -67,14 +67,19 @@ describe('9.4-UNIT DictationButton', () => {
     expect(button).toHaveAttribute('aria-pressed', 'false');
     expect(button.querySelector('use')).toHaveAttribute('href', '/sprite.svg#i-mic');
     expect(container.querySelector('.dictation > .listening-word')).toHaveTextContent('Ouvindo…');
-    expect(container.querySelector('.listening-word')).toHaveAttribute('aria-live', 'polite');
+    // E9-Q11: the live region exists before listening, empty, and says the word once it listens.
+    const live = container.querySelector('.dictation > [aria-live="polite"]');
+    expect(live).not.toBeNull();
+    expect(live).toHaveTextContent(/^$/);
 
     await userEvent.click(button);
     expect(button).toHaveAttribute('aria-pressed', 'true');
+    expect(live).toHaveTextContent('Ouvindo…');
     expect(globalThis.__fakeSpeech!.listening).toBe(true);
     await say('detalhe da limpeza dos cubículos');
     expect(onResult).toHaveBeenCalledWith('detalhe da limpeza dos cubículos');
     expect(button).toHaveAttribute('aria-pressed', 'false');
+    expect(live).toHaveTextContent(/^$/);
   });
 
   it('a second tap on the pressed button stops listening with no result', async () => {

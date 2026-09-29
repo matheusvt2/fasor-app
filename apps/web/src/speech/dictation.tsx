@@ -127,7 +127,7 @@ export function useDictation(onText: (text: string) => void, onStart?: () => voi
 
 /**
  * The Dictation button (`70-fotos.html` 419, `60-ficha.html` 384): round, 48 px, outlined,
- * `aria-pressed="true"` while listening with "Ouvindo…" beside it. Null when hidden.
+ * `aria-pressed="true"` while listening with "Ouvindo…" beside it, said by a live region. Null when hidden.
  */
 export function DictationButton({ label, onResult, onStart, className }: { label: string; onResult: (text: string) => void; onStart?: () => void; className?: string }) {
   const { visible, listening, toggle } = useDictation(onResult, onStart);
@@ -139,8 +139,13 @@ export function DictationButton({ label, onResult, onStart, className }: { label
           <use href="/sprite.svg#i-mic" />
         </svg>
       </button>
-      <span className="listening-word" aria-live="polite">
+      {/* The word as the mock draws it (CSS shows it while pressed), and, E9-Q11, a live region
+          that always exists and holds the word only while listening, so it is announced. */}
+      <span className="listening-word" aria-hidden="true">
         {ui.dictation.listening}
+      </span>
+      <span className="visually-hidden" aria-live="polite">
+        {listening ? ui.dictation.listening : ''}
       </span>
     </span>
   );

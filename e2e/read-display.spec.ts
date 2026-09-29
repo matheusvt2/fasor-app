@@ -124,3 +124,40 @@ test('@p0 9.1-E2E-002 at 390 px the title row keeps "Ler visor" on its own line 
   await expect(cell.locator('.queued-banner')).toBeVisible();
   expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
 });
+
+test('@p1 9.1-E2E-006 a frame the camera fails to grab mid-burst is said, and the next shot retries its row (none skipped)', async ({ page, context }) => {
+  test.setTimeout(180_000);
+  await openChaveSheet(page, account, database);
+  await context.setOffline(true);
+  await opener(page, 'contato_aberto').click();
+  const view = await expectCameraOpen(page);
+  const hint = view.locator('.cam-hint');
+  const shutter = view.getByRole('button', { name: 'Disparar' });
+  await shutter.click();
+  await expect(hint).toHaveText('Próxima leitura: Seccionadora contato aberto · T3');
+  await expect.poll(async () => (await displayPhotos(page)).length, { timeout: 15_000 }).toBe(1);
+
+  // The next frame cannot be read (the viewfinder gives no picture for it): one grab fails.
+  await page.evaluate(() => {
+    const real = window.createImageBitmap.bind(window);
+    let armed = true;
+    window.createImageBitmap = ((...args: Parameters<typeof createImageBitmap>) => {
+      if (!armed) return real(...args);
+      armed = false;
+      return Promise.reject(new Error('e2e: no frame'));
+    }) as typeof createImageBitmap;
+  });
+  await shutter.click();
+  await expect(page.getByTestId('toast')).toContainText('Não foi possível salvar a foto. Tente de novo.');
+  await expect(opener(page, 'contato_aberto')).toHaveAttribute('data-count', '1');
+  await expect(hint).toHaveText('Próxima leitura: Seccionadora contato aberto · T3');
+
+  // The next shot reads T3, the row the failed grab left.
+  await shutter.click();
+  await expect(hint).toHaveText('Próxima leitura: Seccionadora contato aberto · T5');
+  await expect(opener(page, 'contato_aberto')).toHaveAttribute('data-count', '2');
+  await view.getByRole('button', { name: 'Concluir', exact: true }).click();
+  await expect(camera(page)).toHaveCount(0, { timeout: 15_000 });
+  await expect.poll(async () => (await displayPhotos(page)).length, { timeout: 15_000 }).toBe(2);
+  expect((await displayPhotos(page)).map((photo) => (photo.reading_target as { start_cell: { row: number } }).start_cell.row)).toEqual([0, 1]);
+});
