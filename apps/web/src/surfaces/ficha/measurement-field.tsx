@@ -1,6 +1,16 @@
-import { formatDecimalGroupedPtBr, isInsulationFamily, nextUnit, numberEchoText, parseReadingPtBr, type CellAddress, type EvaluatedCell } from '@app/domain';
+import {
+  formatDecimalGroupedPtBr,
+  isInsulationFamily,
+  nextUnit,
+  numberEchoText,
+  parseReadingPtBr,
+  suggestionAnnouncement,
+  type CellAddress,
+  type EvaluatedCell,
+} from '@app/domain';
 import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { OverflowMenu, TextButton } from '../../components/index.ts';
+import { SuggestionField } from '../../components/suggestion-field.tsx';
 import { useNumberInput } from '../../components/number-input.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
@@ -218,6 +228,111 @@ export function MeasurementField({
         </div>
       ) : null}
       {after}
+    </div>
+  );
+}
+
+/**
+ * Story 9.4: a dictated reading on its empty target cell, drawn as the Story 8.1 measurement
+ * Suggestion field (amber, "Sugerido", "Confirmar"), the value editable in place. Nothing is
+ * written before "Confirmar", which writes the reading as heard; a different value typed
+ * (committed on blur or Enter) is written instead and the dictation dropped; a field emptied
+ * drops it with nothing written.
+ */
+export function DictatedMeasurementField({
+  api,
+  cell,
+  label,
+  reading,
+  onDone,
+}: {
+  api: FichaApi;
+  cell: EvaluatedCell;
+  label: string;
+  reading: { raw: string; unit: string | null };
+  /** The dictation is over (written or dropped). */
+  onDone: () => void;
+}) {
+  const t = ui.measurementField;
+  const labelId = useId();
+  const helperId = useId();
+  const { address } = cell;
+  const initial = formatDecimalGroupedPtBr(reading.raw);
+  const [text, setText] = useState(initial);
+  const [invalid, setInvalid] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  /** While a value is being written, a second blur or tap writes nothing. */
+  const written = useRef(false);
+  const valueText = reading.unit === null ? initial : `${initial} ${reading.unit}`;
+
+  const write = (value: { raw: string; unit: string | null }) => {
+    if (api.author === null || written.current) return;
+    written.current = true;
+    void api.commit([testCellOp(api.author, api.relatorioId, api.blockId, address.testKey, address.row, address.col, { raw: value.raw, unit: value.unit, state: 'measured' })]).then(onDone, () => {
+      written.current = false;
+    });
+  };
+
+  /** A typed value: written when it differs from what was heard; an empty field drops the dictation. */
+  const commitTyped = () => {
+    if (written.current || text === initial) return;
+    const parsed = parseReadingPtBr(text, { units: cell.units, defaultUnit: reading.unit });
+    if (parsed === 'invalid') {
+      setInvalid(true);
+      return;
+    }
+    if (parsed === null) {
+      onDone();
+      return;
+    }
+    write(parsed);
+  };
+
+  return (
+    <div className="ficha-cell ficha-dictated" data-cell={cellKey(address)} ref={root}>
+      <SuggestionField
+        label={label}
+        labelId={labelId}
+        bare
+        valueClassName="measurement-field"
+        announcement={suggestionAnnouncement('suggested', valueText)}
+        onConfirm={() => (text === initial ? write(reading) : commitTyped())}
+        after={
+          invalid ? (
+            <span className="helper" id={helperId}>
+              {t.invalid}
+            </span>
+          ) : null
+        }
+      >
+        <input
+          className="mf-value"
+          aria-labelledby={labelId}
+          aria-invalid={invalid || undefined}
+          aria-describedby={invalid ? helperId : undefined}
+          inputMode="decimal"
+          value={text}
+          data-cell-input={cellKey(address)}
+          onChange={(event) => {
+            setText(event.target.value);
+            if (invalid) setInvalid(false);
+          }}
+          onBlur={(event) => {
+            // A tap on this field's "Confirmar" decides on its own, never twice.
+            const next = event.relatedTarget;
+            if (next instanceof HTMLElement && next.classList.contains('confirm-btn') && root.current?.contains(next)) return;
+            commitTyped();
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') commitTyped();
+          }}
+        />
+        {reading.unit === null ? null : (
+          <span className="mf-unit" aria-label={t.unitNames[reading.unit] ?? reading.unit}>
+            {reading.unit}
+          </span>
+        )}
+      </SuggestionField>
     </div>
   );
 }

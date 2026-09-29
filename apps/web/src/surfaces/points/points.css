@@ -58,3 +58,6 @@
 .point-editor-dialog .chip-row .chip { max-width: 100%; white-space: normal; text-align: left; }
 .poa-picker-dialog .poa-picker-grid { display: flex; flex-wrap: wrap; gap: var(--sp-3); margin-bottom: var(--sp-4); }
 .poa-picker-dialog .photo-tile { cursor: pointer; }
+/* mirrors `[data-route="/relatorio/porto-seguro/pontos"] .poa-text-head` (`72-pontos.html` 45): the Texto label and its Dictation button (Story 9.4) */
+[data-route="/relatorio/:id/pontos"] .poa-text-head,
+.point-editor-dialog .poa-text-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }

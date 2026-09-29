@@ -163,3 +163,6 @@
 }
 /* authored (Story 8.1): the viewer opened from a suggestion's crop, zoomed on its region; the outline is the crop's (`components.css` `.plate-crop .region`). */
 .photo-viewer .viewer-photo .viewer-zoom-region { fill: none; stroke: var(--fora-do-limite); stroke-width: 3; }
+/* authored: Story 9.4, `70-fotos.html` 419 puts the batch caption and its Dictation button on one
+   `.row-wrap`; the caption takes what the button leaves. */
+.photo-capture-sheet .capture-caption .row-wrap > .observation-field { flex: 1 1 0; min-width: 0; }

@@ -24,6 +24,7 @@ import { readLastSheet } from '../../db/prefs.ts';
 import { importPhotoFiles, PHOTO_ACCEPT, splitImportable, type ImportResult, type ImportTarget } from '../../files/photo-import.ts';
 import { encodePhoto } from '../../files/photo-encode.ts';
 import { newId } from '../../ids.ts';
+import { DictatedSuggestion, DictationButton, useProseDictation } from '../../speech/dictation.tsx';
 import { useSession } from '../../state/session.tsx';
 import { requestStorageCheck } from '../../state/storage-reading.ts';
 import { requestSyncCycle } from '../../state/sync.tsx';
@@ -400,6 +401,8 @@ function EquipmentStep({
   // `undefined`: nothing chosen yet; `null`: "Geral".
   const [chosen, setChosen] = useState<string | null | undefined>(undefined);
   const [caption, setCaption] = useState('');
+  // Story 9.4: a dictated caption waits under the field until "Usar"; it replaces the caption ("fale para trocar").
+  const dictation = useProseDictation();
   const [composing, setComposing] = useState(false);
   const [saving, setSaving] = useState(false);
   const fieldId = useId();
@@ -409,6 +412,7 @@ function EquipmentStep({
   const showGroups = expanded || nearby.length === 0;
 
   const choose = (blockId: string | null) => {
+    dictation.discard();
     setChosen(blockId);
     setCaption(blockId === null ? '' : (contextCaption({ block_id: blockId, item_key: null }, snapshot, meta) ?? ''));
   };
@@ -457,8 +461,29 @@ function EquipmentStep({
             {batchCaptionLabel(n)}
           </label>
           <div className="field">
-            <textarea id={fieldId} className="observation-field" value={caption} aria-describedby={noteId} onChange={(event) => setCaption(event.target.value)} />
+            <div className="row-wrap">
+              <textarea
+                id={fieldId}
+                className="observation-field"
+                value={caption}
+                aria-describedby={noteId}
+                onChange={(event) => {
+                  dictation.discard();
+                  setCaption(event.target.value);
+                }}
+              />
+              <DictationButton label={t.dictate} onStart={dictation.discard} onResult={dictation.offer} />
+            </div>
           </div>
+          {dictation.pending === null ? null : (
+            <DictatedSuggestion
+              text={dictation.pending}
+              onUse={() => {
+                setCaption(dictation.pending ?? '');
+                dictation.discard();
+              }}
+            />
+          )}
           <p className="capture-reason" id={noteId}>
             {batchCaptionNote(n)}
           </p>
@@ -472,7 +497,10 @@ function EquipmentStep({
             prefill={contextCaptionParts({ block_id: chosen, item_key: null }, snapshot, meta)}
             stored={caption.trim() === '' ? null : caption}
             sources={sources}
-            onSave={(text) => setCaption(text ?? '')}
+            onSave={(text) => {
+              dictation.discard();
+              setCaption(text ?? '');
+            }}
           />
         </div>
       )}

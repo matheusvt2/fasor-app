@@ -1,4 +1,5 @@
 import {
+  appendObservation,
   composeConclusion,
   conclusionBasisMatches,
   conclusionRestrictionOf,
@@ -26,6 +27,8 @@ import { DRAFT_SURFACE, useTypedText } from './ficha-fields.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { conclusionOp, sheetObservationsOp } from './ficha-ops.ts';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
+import { DictatedSuggestion, DictationButton } from '../../speech/dictation.tsx';
+import { useSheetObservationDictation } from './sheet-observation-dictation.tsx';
 
 /*
  * The "Conclusão" step (Story 5.8, FR-29/30, UX-DR43-47; `60-ficha.html` "Observações" and
@@ -42,7 +45,9 @@ import { useSheetReadOnly } from './sheet-read-only.tsx';
  * field stays editable (Story 5.9 AC 2). Story 12.4 (D-7): while the sheet observation is
  * empty and NC items carry observations, the field is a Suggestion field holding the
  * kernel's "Item ⟨n⟩: ⟨observação⟩" lines, written by its "Confirmar" or together with the
- * conclusion text's confirm; Com restrições then needs no typing.
+ * conclusion text's confirm; Com restrições then needs no typing. Story 9.4: the section head
+ * carries "Ditar observações"; a dictated text (or a table utterance the kernel could not
+ * read) waits under the field as a Suggestion field and "Usar" appends it (`appendObservation`).
  */
 
 type Segment<T extends string> = { value: T; attr: string; label: string };
@@ -184,6 +189,15 @@ export function ConclusaoSection({
   // replaces it. `typing` holds from the focus until a blur leaves the field empty.
   const suggestedObservation = useMemo(() => suggestedSheetObservation(block, definition), [block, definition]);
   const [typing, setTyping] = useState(false);
+  const dictation = useSheetObservationDictation();
+  /** "Usar": the dictated text appended after what the field holds, written now. */
+  const applyDictated = () => {
+    const text = dictation.pending;
+    dictation.discard();
+    if (text === null) return;
+    // After what the field shows: the Story 12.4 NC lines while they stand in it, else the text.
+    observation.set(appendObservation(observationSuggested ? suggestedObservation : observation.text, text));
+  };
   const observationSuggested = suggestedObservation !== null && storedObservation.trim() === '' && observation.text.trim() === '' && !typing;
   const required = observationRequired(block) && observation.text.trim() === '' && !observationSuggested;
   const observationMissing = observationRequired(block) && result !== null && restriction !== null;
@@ -267,6 +281,7 @@ export function ConclusaoSection({
         <section className="section" aria-labelledby={obsHeading}>
           <div className="section-head">
             <h2 id={obsHeading}>{t.observationTitle}</h2>
+            <DictationButton label={t.dictateObservations} onStart={dictation.discard} onResult={dictation.offer} />
           </div>
           {/* The textarea keeps its place among the children, so the focus survives the switch between suggested and typed. */}
           <div className={observationSuggested ? 'field suggestion-field' : 'field'} data-state={observationSuggested ? 'suggested' : undefined}>
@@ -289,6 +304,7 @@ export function ConclusaoSection({
               }}
               onChange={(event) => {
                 setTyping(true);
+                dictation.discard();
                 observation.change(event.target.value);
               }}
               onBlur={() => {
@@ -321,6 +337,7 @@ export function ConclusaoSection({
               </span>
             ) : null}
           </div>
+          {dictation.pending === null ? null : <DictatedSuggestion text={dictation.pending} onUse={applyDictated} />}
         </section>
       ) : null}
       {enabled.has('conclusion') ? (

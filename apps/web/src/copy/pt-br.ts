@@ -715,6 +715,8 @@ export const copy = {
     // list grouped as the tree, in place, instead of leaving for the tree.
     otherEquipment: 'Outro equipamento',
     caption: 'Legendar',
+    // Story 9.4, `70-fotos.html` 419: the batch caption's Dictation button.
+    dictate: 'Ditar a legenda',
   },
   // Story 6.5: the Caption composer (`71-legenda.html`, `key-photos.html` frame 3).
   captionComposer: {
@@ -731,6 +733,9 @@ export const copy = {
     previewLabel: 'Legenda gerada',
     editText: 'Editar texto',
     editReason: 'Ao editar, a legenda deixa de ser regenerada',
+    // Story 9.4, `71-legenda.html` 155-160: the Dictation button while "Editar texto" is on, and the note a dictated text adds.
+    dictate: 'Ditar a legenda',
+    dictatedNote: ' · o ditado entrou como sugestão — Salvar confirma',
     // authored: E6-R2, under the toggle while "Editar texto" is on and the chips do nothing.
     editingNote: 'Texto editado à mão. Desligue Editar texto para montar pelas opções.',
     textLabel: 'Texto da legenda',
@@ -753,6 +758,8 @@ export const copy = {
     // `72-pontos.html`, verbatim.
     listLabel: 'Pontos de atenção da seção 8',
     textLabel: 'Texto',
+    // Story 9.4, `72-pontos.html` 196-201: the text's Dictation button.
+    dictateText: 'Ditar o texto',
     quickTexts: 'Textos rápidos',
     textHelper: 'Referências a fotos entram pela seleção abaixo; o número é definido na exportação.',
     photosLabel: 'Fotos referenciadas',
@@ -926,6 +933,8 @@ export const copy = {
       legendText: 'C Conforme · NC Não conforme · NA Não se aplica',
       // `60-ficha.html` NC row: the Observation field and its required reason.
       observationLabel: (n: number) => `Observação do item ${n}`,
+      // Story 9.4, `60-ficha.html` 384: the row observation's Dictation button.
+      dictateObservation: (n: number) => `Ditar observação do item ${n}`,
       observationRequired: 'Obrigatória em item não conforme',
       // authored: the NC chip row's name.
       chipsLabel: (n: number) => `Observações sugeridas do item ${n}`,
@@ -991,6 +1000,8 @@ export const copy = {
       // authored: the suggestion row's field label.
       suggestionLabel: 'Sugestão',
       observationTitle: 'Observações',
+      // Story 9.4, `60-ficha.html` 745: the section head's Dictation button.
+      dictateObservations: 'Ditar observações',
       // `60-ficha.html` "Observações da ficha".
       observationLabel: 'Observações da ficha',
       // EXPERIENCE.md › Observation field.
