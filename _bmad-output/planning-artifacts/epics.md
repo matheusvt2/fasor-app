@@ -2279,6 +2279,8 @@ So that splitting a job across two tablets never asks me to arbitrate 94 sheets.
 **Then** a checklist result NC on one and C on the other resolves to NC keeping the NC device's photo link and observation; a filled cell beats an empty one; photos and captions are all kept and ordered by capture time; free text takes the latest edit with the other version kept readable for the session; additions, moves, reorders, captions, points and setup edits merge with additions from both kept (FR-58)
 **And** every merge is emitted as a `merge_info` entry read by `syncCounts` and shown as a Sync status row "SEC-C12: item 10 NC de Eduardo (com foto) mesclado"
 
+*(2026-09-29, coordinator, PR #64 narrowing: the Sync status merge rows are minimal here, the kernel sentence only; Story 10.4 builds the full surface. The merge fold's known limits in `deferred-work.md` go to Story 10.2, the savepoint cost to Epic 11, and ledger 370 (two `empresa` rows) to Epic 11 or Matheus. Open questions for Matheus: "de {nome}" names the author even when it is the viewer; NC vs NA is a contradiction, not a merge; whether a merge or contradiction becomes a pre-issue row.)*
+
 ### Story 10.2: Decide a true cell contradiction, and nothing else
 
 **Dev model:** opus · **Effort:** ~~medium~~ high *(2026-09-24, Matheus: effort review)* · conflict state, banner and the per-cell Conflict view
