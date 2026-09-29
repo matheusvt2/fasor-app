@@ -205,7 +205,9 @@ test('@p0 8.1-E2E-003 typing over a suggested guess writes the typed value and d
   const typed = rows.find((row) => row.path === `sheet/${ids.blockId}/nameplate/n_serie`)!;
   expect(discard.value).toBe('discarded');
   expect(typed.value).toBe('SU1240999');
-  expect(typed.meta ?? null).toBeNull();
+  // Contract 11: a plain put carries only the commit stamps (`merge/stamp.ts`), never a confirm's meta.
+  expect(typed.meta?.source_suggestion_id).toBeUndefined();
+  expect(typed.meta?.auto).toBeUndefined();
   expect(typed.batch_id).toBe(discard.batch_id);
   // The field is the plain one with the typed value; the others still wait.
   await expect(field(page, 'n_serie').locator('input')).toHaveValue('SU1240999');
@@ -230,7 +232,9 @@ test('@p0 8.1-E2E-009 an edited guess confirmed with its "Confirmar" writes the 
   expect(statuses.map((row) => row.value)).toEqual(['discarded']);
   const typed = rows.filter((row) => row.path === `sheet/${ids.blockId}/nameplate/n_serie`);
   expect(typed.map((row) => row.value)).toEqual(['SU1240999']);
-  expect(typed[0]!.meta ?? null).toBeNull();
+  // Contract 11: a plain put carries only the commit stamps (`merge/stamp.ts`), never a confirm's meta.
+  expect(typed[0]!.meta?.source_suggestion_id).toBeUndefined();
+  expect(typed[0]!.meta?.auto).toBeUndefined();
   expect(typed[0]!.batch_id).toBe(statuses[0]!.batch_id);
   await expect(field(page, 'n_serie').locator('input')).toHaveValue('SU1240999');
   expect((await cell(page, ids.blockId, 'n_serie'))?.source_suggestion_id ?? null).toBeNull();
