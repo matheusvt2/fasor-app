@@ -174,6 +174,15 @@ describe('mergeInfoOf', () => {
     expect(mergeInfoText(info, context())).toBe('SEC-C12: alteração de Ana mantida (a mais recente prevalece)');
   });
 
+  it('a non-cell pair that wrote the same value (or removed on both sides) is no merge', () => {
+    const { e, a, f } = scenario();
+    const path = `block/${BLOCK}/order_key`;
+    expect(mergeInfoOf(a(path, 'a1'), e(path, 'a1'), null)).toBeNull();
+    const removed = `block/${BLOCK}/removed_at`;
+    const removeBy = (actor: string, device: string) => f.op({ kind: 'remove', path: removed, value: null, actor_id: actor, device_id: device });
+    expect(mergeInfoOf(removeBy(ANA, A_DEVICE), removeBy(EDUARDO, E_DEVICE), null)).toBeNull();
+  });
+
   it('is counted by syncCounts once per pair', () => {
     const { create, e, a } = scenario();
     const nc = e(result, 'NC');

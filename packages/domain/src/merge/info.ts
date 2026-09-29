@@ -6,6 +6,7 @@ import { safeParsePath, type OpPath } from '../ops/path.ts';
 import { blockTypeLabel } from '../relatorio/tree.ts';
 import type { BlockRow, Cell, EquipmentRow, FileRow } from '../schemas/entities.ts';
 import { getDefinition } from '../seed/definitions.ts';
+import { canonicalJson } from '../text/hash.ts';
 import { isEmptyValue } from './policy.ts';
 import type { MergeRule } from './rules.ts';
 
@@ -67,7 +68,7 @@ function overriddenOf(op: OpSide): MergeInfo['overridden'] {
  */
 export function mergeInfoOf(
   op: Pick<Op, 'op_id' | 'path' | 'relatorio_id' | 'value' | 'actor_id' | 'device_id' | 'client_ts' | 'kind'>,
-  overOp: Pick<Op, 'op_id' | 'value' | 'actor_id' | 'device_id' | 'client_ts'>,
+  overOp: Pick<Op, 'op_id' | 'value' | 'actor_id' | 'device_id' | 'client_ts'> & { kind?: Op['kind'] },
   rowAfter: unknown,
 ): MergeInfo | null {
   if (op.op_id === overOp.op_id || op.device_id === overOp.device_id) return null;
@@ -93,6 +94,9 @@ export function mergeInfoOf(
   }
 
   if (!LATEST_EDIT_FAMILIES.has(path.family)) return null;
+  // Both sides wrote the same value (two removes count as one): nothing merged.
+  const written = (side: { kind?: Op['kind']; value: unknown }) => (side.kind === 'remove' ? 'remove' : canonicalJson(side.value));
+  if (written(op) === written(overOp)) return null;
   return {
     ...base,
     rule: 'latest_edit',

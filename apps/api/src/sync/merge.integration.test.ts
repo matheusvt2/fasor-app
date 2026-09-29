@@ -302,4 +302,23 @@ describe('10.1-API-002 ledger 1161: a client batch is atomic in a push', () => {
     expect(server.sheet.conclusion.result?.value).toBe('aprovado');
     expect(server.sheet.conclusion.restriction?.value).toBe('sem_restricoes');
   });
+
+  it('a member refused by validation (another tenant) refuses its batch: the valid member op_invalid and unlogged, the forged one op_tenant_mismatch, a separate op applies', async () => {
+    const block = blocks[2]!;
+    const batch = newId();
+    const valid = deviceOp(NC_DEVICE, { kind: 'put', path: `sheet/${block.id}/checklist/${item}/observation`, value: 'Do lote recusado', prev_op_id: null, batch_id: batch });
+    const forged = { ...deviceOp(NC_DEVICE, { kind: 'put', path: `sheet/${block.id}/checklist/${item}/result`, value: 'NC', prev_op_id: null, batch_id: batch }), company_id: newId() };
+    const separate = deviceOp(NC_DEVICE, { kind: 'put', path: `sheet/${block.id}/nameplate/fabricacao`, value: 'Fora do lote', prev_op_id: null });
+
+    const response = await push([valid, forged, separate]);
+    expect(response.rejected).toEqual([
+      { op_id: valid.op_id, code: 'op_invalid' },
+      { op_id: forged.op_id, code: 'op_tenant_mismatch' },
+    ]);
+    expect(response.applied.map((a) => a.op_id)).toEqual([separate.op_id]);
+    expect(await db.select({ op_id: ops.op_id }).from(ops).where(inArray(ops.op_id, [valid.op_id, forged.op_id]))).toEqual([]);
+    const server = await serverBlock(block.id);
+    expect(server.sheet.checklist[item]?.observation).toBeUndefined();
+    expect(server.sheet.nameplate.fabricacao?.value).toBe('Fora do lote');
+  });
 });

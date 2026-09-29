@@ -911,6 +911,21 @@ describe('sync engine', () => {
       h.db.close();
     });
 
+    it('a concurrent pair already in the log at the first download is history, never an entry', async () => {
+      const h = await harness();
+      // The office logged the relatório; two other devices wrote the same cell concurrently.
+      for (const op of seedLog()) h.server.log.push({ ...op, seq: h.server.log.length + 1 });
+      h.server.relatorios.push({ id: RELATORIO_ID, project_id: PROJECT_ID, status: 'rascunho' });
+      const newId = ids('019966b0-0016-7000-8000-');
+      otherDevicePut(h.server, newId, 'WEG', null);
+      const concurrent = { ...localPut(newId, 'x', { device_id: 'tablet-c', actor_id: OTHER_USER, prev_op_id: null }), value: null, seq: h.server.log.length + 1 };
+      h.server.log.push(concurrent);
+      expect(await h.engine.runCycle()).toBe('ran');
+      expect(await h.db.remote_ops.get(concurrent.op_id)).toBeDefined();
+      expect(h.engine.status().merges).toEqual([]);
+      h.db.close();
+    });
+
     it('a pulled op of another device that did not see the op before it becomes one entry', async () => {
       const h = await harness();
       await commitOps(h.db, seedLog());

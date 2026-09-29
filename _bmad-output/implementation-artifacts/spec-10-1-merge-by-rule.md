@@ -2,7 +2,7 @@
 title: 'Story 10.1: Merge the same sheet from two devices by rule'
 type: 'feature'
 created: '2026-09-29'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '256f358c2202f6ddcf061b126501bec658cd69df'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -18,6 +18,27 @@ deferred:
   - 'Known limit (open question): whether an NC vs NA pair should merge is open; it is treated as a contradiction (seq-later applies, no entry; Story 10.2).'
   - 'Reading taken: "empty" follows isCellFilled (null, absent, a blank string, or an AD-11 number whose state is empty), a superset of the spec''s list; the web never writes the last form (a cleared cell is null).'
   - 'Reading taken: a stream''s first download (every page until the stream was complete once) yields no pulled merge pairs (history, not this session''s merges); pairs whose ops never both reach the device are dropped after 3 cycles.'
+  - summary: >-
+      A device that lost a kept merge and writes the same cell again before it pulls (push ok, pull failed or not yet run) chains on its own merged-away head, so the fold treats it as sequential and its value replaces the standing NC with no entry.
+    evidence: |-
+      Edge Case Hunter (policy.ts isConcurrent). prev_op_id cannot tell "saw the standing value" from "did not"; the proposed guard (same device + prev = kept head -> concurrent) would also block the deliberate override the story requires. Needs a device-side stamp of the standing op_id plus a two-id check in the fold; Story 10.2 (batch X) touches the same branch.
+    location: >-
+      packages/domain/src/merge/policy.ts isConcurrent
+    severity: medium
+  - summary: >-
+      Savepoint per multi-op client batch (ledger 1161): a push holding more than 64 multi-op batches overflows the Postgres subxact cache (the pg_subtrans slowdown applyOps' comment cites).
+    evidence: |-
+      Edge Case Hunter. Porto Seguro replay measured 24.4 s before, 24.9 s after (its log carries no multi-op batches). A dry-run of the batch in memory before a savepoint-free apply would avoid it; unmeasured for a 500-op offline-day push.
+    location: >-
+      apps/api/src/sync/apply.ts applyOps
+    severity: medium (unverified)
+  - summary: >-
+      batches() and applyOps move a batch's later ops to the position of its first op; an op interleaved between members on the same path would fold in another order than the device's own pending fold until the next pull.
+    evidence: |-
+      Edge Case Hunter and Verification Gap (other findings). Not shown reachable: commitBatch writes a batch in one transaction with one client_ts; outbox coalescing is the only way to interleave. Settle with a test of coalescing against a batch.
+    location: >-
+      apps/web/src/sync/policy.ts batches
+    severity: medium (unverified)
 ---
 
 <intent-contract>
@@ -122,3 +143,27 @@ Known limits (list them in the spec's deferred section and the PR as open questi
 - `docker compose --profile tools run --rm tools pnpm test:api` -- green, including the new integration tests and the replay/Porto Seguro ones
 - `docker compose --profile tools run --rm tools pnpm test:e2e -- --grep merge` -- green
 - A mutation run: make `mergePolicy` return `sequential` for every pair, show the api merge test and `e2e/merge.spec.ts` @p0 red, restore.
+
+## Spec Change Log
+
+## Review Triage Log
+
+### 2026-09-29 — Review pass
+- verdicts: 15 findings — high 0, medium 4, low 7, false 1, maybe-false 3
+- layers run: Edge Case Hunter, Verification Gap Reviewer (Blind Hunter and Intent Alignment skipped: token economy; the integrated epic review covers them)
+- findings:
+  - `[medium]` `[defer]` ECH: the losing device's next write before a pull chains on its merged-away head and replaces NC — the proposed guard would block the required deliberate override; deferred with the redesign it needs.
+  - `[low]` `[defer]` ECH: C device's observation before its result is not caught — already a documented known limit (deferred list).
+  - `[low]` `[reject]` ECH: a third device writing the observation — the rule is defined for two devices; three-writer items are rare and the fix adds a device lookup the fold does not have.
+  - `[false]` `[reject]` ECH: nc_observation fires on a filled_over_empty result record — the NC side is still well defined (the filled NC device), which is the story's intent.
+  - `[low]` `[patch]` ECH: latest_edit same-value pair listed as a merge — mergeInfoOf returns null for equal values (with test).
+  - `[low]` `[reject]` ECH: a later op on a non-sheet path before resolve makes the entry stale — info only, rare, fix adds a field comparison per family.
+  - `[low]` `[reject]` ECH: a third concurrent op on a kept cell yields no entry — three writers on one cell, info row only.
+  - `[maybe-false]` `[defer]` ECH: >64 multi-op batches per push hit the subxact cache — medium if true; settle with a measured 500-op push.
+  - `[maybe-false]` `[defer]` ECH: batch reordering vs an interleaved chained op — medium if true; settle with a coalescing test.
+  - `[low]` `[reject]` ECH claim: a validation-refused batch member keeps its own code instead of op_invalid — more informative, device handles every code as dead.
+  - `[low]` `[patch]` ECH claim: same as the latest_edit same-value finding (same root cause, same patch).
+  - `[medium]` `[defer]` ECH claim: NC erased by a follow-up from the C device — same root cause as the first finding.
+  - `[medium]` `[patch]` VG: first-download skip of pulled merge pairs untested — engine test added.
+  - `[medium]` `[patch]` VG: batch atomicity untested for a validation-refused member — api integration test added.
+  - `[maybe-false]` `[defer]` VG other: batch reordering — grouped with the ECH reordering entry.
