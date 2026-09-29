@@ -358,7 +358,9 @@ test('@p1 8.6-E2E-002 a manufacturer typed over a guess is created with the type
   await syncNowAndReturn(page);
 
   // The office empties the field; a new reading hints "Marca Nova", which the registry now holds.
-  await pushDrafts(page, database, [officeDraft(account, { relatorioId: ids.relatorioId }, target, null)]);
+  // Story 10.1: the office saw the typed value (its `prev_op_id`), so the clear is a sequential
+  // edit; with no `prev_op_id` it would be a concurrent empty, which "filled beats empty" drops.
+  await pushDrafts(page, database, [{ ...officeDraft(account, { relatorioId: ids.relatorioId }, target, null), prev_op_id: typedPut.op_id }]);
   const second = await pushPlateSuggestions(account.companyId, ids.relatorioId, {
     blockId: ids.blockId,
     photoId,

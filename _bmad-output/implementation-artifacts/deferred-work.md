@@ -334,7 +334,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: A device whose manufacturer/voltage_class create gets server-merged into another device's existing row keeps the merged-away id as a permanent, unreconciled duplicate row in its own local Dexie.
   evidence: Internal review pass 2026-09-22. The sync protocol has no "your create was superseded, rewrite to id X" signal, so the creating device's optimistic local row is never corrected by a later pull. The same pass's fix (an in-request id-redirect map in `apps/api/src/sync/apply.ts`) covers a put/remove arriving in the *same* push batch as the merging create, but not this client-side residue. Fixing it needs a sync-protocol extension (e.g. a redirect/tombstone instruction in the pull response). Severity medium.
   class: debt
-  state: ~~open~~ open (owner: Story 10.1 (batch M); 2026-09-29, E9-A5)
+  state: ~~open~~ closed (2026-09-29, Story 10.1: already fixed by the Epic 2 retro D-1 pull path; the pulled `system:registry` remove of the minted id, with the create logged on the survivor, rematerializes the minting device's row to nothing, so no duplicate remains, whether the push was acked first or its answer was lost; proven by the two tests of "a server merge converges on the device that sent the merged ops (Epic 2 retro D-1)" in `apps/web/src/db/sync-store.test.ts`, the second added by Story 10.1)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-4-2-5-2-6-registries-batch.md`
   summary: The manufacturer/voltage_class normalized-name merge scans every live registry row for the company (all kinds) on every create, an O(n) scan with no SQL-level kind filter.
@@ -370,7 +370,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Two devices creating the first Empresa row offline produce two `empresa` rows, with no convergence rule.
   evidence: `apps/web/src/db/home-store.ts`'s `empresaRow` picks the first row of kind `empresa`, and `empresa-tab.tsx` mints a fresh id per mount until a row has been pulled. A singleton or lowest-uuid-wins rule belongs with Epic 7's consumer of the company profile. Severity medium.
   class: debt
-  state: ~~open~~ open (owner: Story 10.1 (batch M); 2026-09-29, E9-A5)
+  state: ~~open~~ open (2026-09-29, re-owned by Story 10.1 to Epic 11 or Matheus: the merge fold of Story 10.1 decides two writes of one path, and two devices' `empresa` creates are two distinct entity ids, so no fold sees them as a pair; converging them needs a company-singleton rule for the Empresa registry, a product decision outside the merge policy)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-2-2-3-files-and-company-identity.md`
   summary: MinIO's `ListObjectsV2` hides variant keys because the `{id}` object shadows the `{id}/` prefix.
@@ -1158,4 +1158,16 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: E9-Q2 residual (2026-09-29): client pushes are applied per op (E6-A1), so if the `plate` put of a Story 9.2 create batch were refused (its photo row absent or no longer a panel photo) the batch's other ops (equipment, block, `block_id`, caption, plate target) still land and the photo keeps its panel kind. Not reachable from the app's own flow (the create always follows the panel photo's create); a per-batch savepoint was not added.
   evidence: `apps/api/src/sync/apply.ts` `applyOps` (per-op refusal) and `assertClientReadingKindPut`; Edge Case Hunter review of the Epic 9 fix batch.
   class: debt
-  state: ~~open (owner: Epic 9 retrospective)~~ open (owner: Story 10.1 (batch M); 2026-09-29, E9-A5: per-batch atomic apply; the merge fold and "Aplicar" depend on batch semantics)
+  state: ~~open (owner: Epic 9 retrospective)~~ closed (2026-09-29, Story 10.1, `spec-10-1-merge-by-rule.md`: a client batch is atomic in a push; `applyOps` applies each multi-op `batch_id` under one savepoint and a permanent refusal of any of its ops rolls the batch back and answers every op of it `op_invalid`, while other ops of the push apply; the device never splits a batch across pushes, `batches` in `apps/web/src/sync/policy.ts`; test `10.1-API-002` in `apps/api/src/sync/merge.integration.test.ts`)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-10-1-merge-by-rule.md`
+  summary: Story 10.1 known limits of the merge fold (2026-09-29): a device that lost a kept merge (the C device) and writes the same cell again before it pulls chains on its merged-away head, so the fold treats the write as sequential and it replaces the standing NC with no entry; the undo of a merged-away put does the same; an observation the C device wrote before its C result is not caught by `nc_observation`.
+  evidence: `packages/domain/src/merge/policy.ts` `isConcurrent` compares `prev_op_id` with the head only, and `prev_op_id` cannot tell "saw the standing value" from "did not"; a guard on (same device, prev = kept head) would also block the deliberate override the story requires. Needs a device-side stamp of the standing `op_id` and a two-id check in the fold. Edge Case Hunter review of Story 10.1. Severity medium.
+  class: debt
+  state: open (owner: Story 10.2, batch X, which reworks the same `mergePolicy` branch)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-10-1-merge-by-rule.md`
+  summary: The per-batch savepoint of ledger 1161 opens one Postgres subtransaction per multi-op client batch; a push holding more than 64 of them overflows the subxact cache (the `pg_subtrans` slowdown `applyOps` documents). Also unverified: `batches()` and `applyOps` move a batch's later ops to its first op's position, which reorders an interleaved same-path op, if outbox coalescing can produce one.
+  evidence: Porto Seguro replay 24.4 s before, 24.9 s after (its log holds no multi-op batch); a 500-op offline-day push was not measured. A dry-run of the batch in memory before a savepoint-free apply would avoid it. Edge Case Hunter and Verification Gap review of Story 10.1. Severity medium (unverified).
+  class: debt
+  state: open (owner: Epic 11, sync performance and retention)

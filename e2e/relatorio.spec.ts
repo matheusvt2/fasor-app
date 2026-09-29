@@ -303,7 +303,7 @@ test('@p0 4.3-E2E-001 the Sumário: order, rows that open, the Position box, Ove
   await page.getByRole('button', { name: 'Voltar' }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
 
-  // Rows 1 and 3 open the setup at Etapa 2; row 2 opens the section text; 7, 8, 10, 11 have no control.
+  // Rows 1 and 3 open the setup at Etapa 2; row 2 opens the section text; 7, 8 and 10 open their surfaces; 11 has no control.
   await rows.nth(2).getByRole('button', { name: /^Objetivo/ }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/setup\\?etapa=2$`));
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 2 — Objetivo e escopo' })).toBeFocused();
@@ -322,7 +322,12 @@ test('@p0 4.3-E2E-001 the Sumário: order, rows that open, the Position box, Ove
   await expect(page.getByRole('textbox', { name: 'Texto da seção' })).not.toBeEmpty();
   await page.getByRole('button', { name: 'Voltar ao sumário' }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}$`));
-  for (const i of [8, 9, 11, 12]) await expect(rows.nth(i).locator('button.sum-open')).toHaveCount(0);
+  // Story 10.1 gate fix: the list is re-rendered after the navigation back, and a `toHaveCount(0)`
+  // on a row not drawn yet passes at once, so the check waits for the 13 rows first. Rows 7, 8
+  // and 10 open (Stories 6.3, 6.6, 7.4, as `sumario-surface.test.tsx` says); only row 11 has no control.
+  await expect(sumarioTitles(page)).toHaveText(TITLES);
+  for (const i of [8, 9, 11]) await expect(rows.nth(i).locator('button.sum-open')).toHaveCount(1);
+  await expect(rows.nth(12).locator('button.sum-open')).toHaveCount(0);
 
   // "Gerar relatório" opens the Export dialog (Story 4.8, `e2e/export.spec.ts`); Esc closes it
   // and the focus returns to the foot's button.

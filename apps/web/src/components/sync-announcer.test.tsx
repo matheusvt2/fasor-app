@@ -11,6 +11,7 @@ const counts = (over: Partial<SyncCounts> = {}): SyncCounts => ({
   photos_pending: 0,
   suggestions_pending: 0,
   readings_queued: 0,
+  merged: 0,
   ...over,
 });
 

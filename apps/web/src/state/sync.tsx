@@ -1,4 +1,5 @@
 import {
+  mergeInfoText,
   pendingSummaryCount,
   pendingSummaryText,
   syncBadgeState,
@@ -7,6 +8,8 @@ import {
   type GenerateResponse,
   type PreviewResponse,
   type LastPushAt,
+  type MergeInfo,
+  type MergeInfoContext,
   type RelatorioSummary,
   type SyncBadgeState,
   type FileVariantName,
@@ -17,7 +20,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { publishReAuth } from '../api/auth-client.ts';
 import { useLiveQuery } from '../db/live.ts';
 import { COMPANY_STREAM, type OutboxRow, type SyncStateRow } from '../db/schema.ts';
-import { deviceId, localUsers, outboxRows, resendDead as resendDeadRows, syncStateRows } from '../db/sync-store.ts';
+import { deviceId, localUsers, mergeTextContext, outboxRows, resendDead as resendDeadRows, syncStateRows } from '../db/sync-store.ts';
 import { clearUploadError } from '../db/file-store.ts';
 import { readingCountRows, type ReadingCountRows } from '../db/suggestion-store.ts';
 import { storageHeadroom } from '../device/storage-estimate.ts';
@@ -63,6 +66,11 @@ export interface SyncState {
   lastSyncAt: string | null;
   lastPushAt: LastPushAt[];
   supersededCount: number;
+  /**
+   * Story 10.1: the merges by rule of this tab session (engine memory; a reload clears
+   * them), each with its Sync status row words (`mergeInfoText`, kernel).
+   */
+  merges: readonly { key: string; info: MergeInfo; text: string }[];
   deviceId: string | null;
   /** User names known on this device, by user id, for "Último envio". */
   userNames: Readonly<Record<string, string>>;
@@ -119,6 +127,7 @@ const IDLE: EngineStatus = {
   lastResult: null,
   lastFailure: null,
   supersededCount: 0,
+  merges: [],
 };
 
 const NO_ROWS: OutboxRow[] = [];
@@ -126,6 +135,7 @@ const NO_STATES: SyncStateRow[] = [];
 const NO_USERS: UserRow[] = [];
 const NO_SUMMARY: RelatorioSummary[] = [];
 const NO_READING: ReadingCountRows = { suggestions: [], photos: [] };
+const NO_CONTEXT: MergeInfoContext = { blocks: [], equipment: [], users: [], files: [] };
 
 const browserTimers = {
   setTimeout: (callback: () => void, ms: number) => globalThis.setTimeout(callback, ms),
@@ -216,7 +226,17 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
   // Story 8.2: the readings still queued and the suggestions still pending on this device.
   const reading = useLiveQuery(() => (db === null ? Promise.resolve(NO_READING) : readingCountRows(db)), [db], NO_READING);
-  const counts = useMemo(() => syncCounts(rows, reading), [rows, reading]);
+  const counts = useMemo(() => syncCounts(rows, reading, status.merges), [rows, reading, status.merges]);
+  // Story 10.1: the rows each merge row names (block, TAG, author, photo), read live.
+  const mergeContext = useLiveQuery(
+    () => (db === null ? Promise.resolve(NO_CONTEXT) : mergeTextContext(db, status.merges)),
+    [db, status.merges],
+    NO_CONTEXT,
+  );
+  const merges = useMemo(
+    () => status.merges.map((info) => ({ key: `${info.op_id}:${info.over_op_id}`, info, text: mergeInfoText(info, mergeContext) })),
+    [status.merges, mergeContext],
+  );
   const company = states.find((s) => s.id === COMPANY_STREAM);
   const userNames = useMemo(() => Object.fromEntries(users.map((u) => [u.id, u.name])), [users]);
 
@@ -293,6 +313,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       lastSyncAt: company?.last_sync_at ?? null,
       lastPushAt: company?.last_push_at ?? [],
       supersededCount: status.supersededCount,
+      merges,
       deviceId: device,
       userNames,
       summaryRelatorios: company?.relatorios ?? NO_SUMMARY,
@@ -306,7 +327,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       preview,
       rereadPhoto,
     }),
-    [counts, session.online, unreachable, status, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto],
+    [counts, session.online, unreachable, status, merges, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto],
   );
 
   return <SyncContext value={value}>{children}</SyncContext>;

@@ -81,6 +81,7 @@ export * from './points/derived.ts';
 export * from './points/summary.ts';
 export * from './drafts/key.ts';
 export * from './sync/counts.ts';
+export * from './merge/index.ts';
 export * from './format/datetime.ts';
 export * from './status/table.ts';
 export * from './status/edited-since.ts';

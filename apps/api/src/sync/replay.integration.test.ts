@@ -1,4 +1,4 @@
-import { buildSnapshot, relatorioSnapshotSchema, replay, serializeSnapshot, type Op } from '@app/domain';
+import { buildSnapshot, getDefinition, relatorioSnapshotSchema, replay, serializeSnapshot, type JsonValue, type Op } from '@app/domain';
 import { BLOCK_1_ID, PHOTO_ID, replaySmall } from '@app/domain/fixtures/replay-small';
 import { eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -31,6 +31,9 @@ const { sql, db } = createDb(databaseUrl);
 // is applied as the server's own jobs would apply it; the client origin is covered by
 // `sync.integration.test.ts`.
 const deps = { now, origin: 'server' as const };
+
+/** The ops the tests below append to the fixture, in order, for the pure replay they compare with. */
+const priorExtras: Op[] = [];
 
 describe('1.4-INT-001 replay byte-equality (Drizzle layer)', () => {
   beforeAll(async () => {
@@ -110,6 +113,7 @@ describe('1.4-INT-001 replay byte-equality (Drizzle layer)', () => {
     };
     const result = await applyOps(db, companyId, [...users, edit], deps);
     expect(result.rejected).toEqual([]);
+    priorExtras.push(...users, edit);
 
     const snapshot = await toSnapshot(db, companyId, replaySmall.relatorioId);
     expect(snapshot.responsible?.id).toBe(replaySmall.userId);
@@ -118,6 +122,46 @@ describe('1.4-INT-001 replay byte-equality (Drizzle layer)', () => {
     expect(editorId).not.toBe(replaySmall.userId);
     expect(snapshot.actors.find((row) => row.id === editorId)?.name).toBe('Bruno Silva');
     const pure = buildSnapshot(replay([...replaySmall.log, ...users, edit], { deadOpIds: dead }), replaySmall.relatorioId);
+    expect(serializeSnapshot(snapshot)).toBe(serializeSnapshot(pure));
+  });
+
+  // Story 10.1: concurrent sheet puts from two devices merge in the fold on both layers.
+  it('merges concurrent sheet puts by rule, byte-equal to the pure replay (Story 10.1)', async () => {
+    const block = replaySmall.log.find((op) => op.kind === 'create' && op.path === `block/${BLOCK_1_ID}`)!.value as { seed_version: string; block_type: string };
+    const itemKey = getDefinition(block.seed_version, 'cabine_primaria', block.block_type).checklist![0]!.key;
+    const device = (device_id: string, path: string, value: JsonValue, prev_op_id: string | null = null): Op => ({
+      op_id: newId(),
+      kind: 'put',
+      scope: 'relatorio',
+      company_id: companyId,
+      project_id: null,
+      relatorio_id: replaySmall.relatorioId,
+      path,
+      value,
+      prev_op_id,
+      batch_id: null,
+      meta: null,
+      actor_id: replaySmall.userId,
+      device_id,
+      client_ts: now().toISOString(),
+    });
+    const result = `sheet/${BLOCK_1_ID}/checklist/${itemKey}/result`;
+    // The NC device saw whatever the log already held on the item: its write is sequential.
+    const seen = [...replaySmall.log, ...priorExtras].filter((op) => op.path === result).at(-1)?.op_id ?? null;
+    const nc = device('tablet-nc', result, 'NC', seen);
+    const c = device('tablet-c', result, 'C');
+    // The fixture's last fabricacao is 'WEG S.A.'; a device that never saw it clears it.
+    const cleared = device('tablet-c', `sheet/${BLOCK_1_ID}/nameplate/fabricacao`, null);
+    const pair = [nc, c, cleared];
+    const applied = await applyOps(db, companyId, pair, deps);
+    expect(applied.rejected).toEqual([]);
+    expect(applied.superseded.map((s) => s.op_id).sort()).toEqual([c.op_id, cleared.op_id].sort());
+
+    const snapshot = await toSnapshot(db, companyId, replaySmall.relatorioId);
+    const sheet = snapshot.blocks.find((row) => row.id === BLOCK_1_ID)!.sheet;
+    expect(sheet.checklist[itemKey]?.result).toMatchObject({ value: 'NC', op_id: nc.op_id, merge: { head_op_id: c.op_id, kept: true, rule: 'nc_over_c' } });
+    expect(sheet.nameplate.fabricacao).toMatchObject({ value: 'WEG S.A.', merge: { head_op_id: cleared.op_id, kept: true, rule: 'filled_over_empty' } });
+    const pure = buildSnapshot(replay([...replaySmall.log, ...priorExtras, ...pair], { deadOpIds: dead }), replaySmall.relatorioId);
     expect(serializeSnapshot(snapshot)).toBe(serializeSnapshot(pure));
   });
 

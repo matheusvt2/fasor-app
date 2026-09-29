@@ -14,7 +14,7 @@ export const FAKE_JOB_ID = '019966b0-0000-7000-8000-0000000000e1';
 
 /** An idle, online, clean `SyncState` with every action a `vi.fn`; `overrides` win, `counts` merge. */
 export function makeSyncState(overrides: SyncStateOverrides = {}): SyncState {
-  const counts = { pending: 0, sent: 0, dead: 0, sheets_pending: 0, photos_pending: 0, suggestions_pending: 0, readings_queued: 0, ...overrides.counts };
+  const counts = { pending: 0, sent: 0, dead: 0, sheets_pending: 0, photos_pending: 0, suggestions_pending: 0, readings_queued: 0, merged: 0, ...overrides.counts };
   return {
     badgeState: 'ok',
     pendingText: '',
@@ -28,6 +28,7 @@ export function makeSyncState(overrides: SyncStateOverrides = {}): SyncState {
     lastSyncAt: null,
     lastPushAt: [],
     supersededCount: 0,
+    merges: [],
     deviceId: 'tablet-1',
     userNames: {},
     summaryRelatorios: [],

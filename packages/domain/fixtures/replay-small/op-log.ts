@@ -416,6 +416,24 @@ const steps: Step[] = [
 
 const DEAD_STEP_INDEX = steps.findIndex((s) => s.value === 'MUST NOT APPEAR');
 
+/**
+ * Story 10.1: a `sheet/*` put carries the op before it on its path as `prev_op_id`, as a
+ * real device stamps it (`lastAppliedOpId`), so the fold reads a second write of a path as
+ * sequential, never as a concurrent merge. Dead ops were never applied and are skipped.
+ */
+function sheetPrevOpIds(skip: ReadonlySet<number> = new Set()): (string | null)[] {
+  const last = new Map<string, string>();
+  return steps.map((step, index) => {
+    const opId = fixedOpId(index + 1);
+    if (!step.path.startsWith('sheet/') || step.kind !== 'put') return null;
+    const prev = last.get(step.path) ?? null;
+    if (!skip.has(index)) last.set(step.path, opId);
+    return prev;
+  });
+}
+
+const SHEET_PREV = sheetPrevOpIds(new Set([DEAD_STEP_INDEX]));
+
 /** The op log in `seq` order (`seq` = position, starting at 1). */
 export const opLog: Op[] = steps.map((step, index) => {
   const n = index + 1;
@@ -428,7 +446,7 @@ export const opLog: Op[] = steps.map((step, index) => {
     relatorio_id: step.scope === 'relatorio' ? RELATORIO_ID : null,
     path: step.path,
     value: step.value,
-    prev_op_id: step.prev_op_id ?? null,
+    prev_op_id: step.prev_op_id ?? SHEET_PREV[index] ?? null,
     batch_id: step.batch_id ?? null,
     meta: step.meta ?? null,
     actor_id: step.actor ?? USER_ID,

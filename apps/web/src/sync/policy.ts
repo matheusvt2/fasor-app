@@ -74,10 +74,40 @@ export function backoffMs(attempt: number, random: () => number): number {
   return Math.round(base * (1 + BACKOFF_JITTER * Math.min(Math.max(random(), 0), 1)));
 }
 
-/** Consecutive slices of at most `size`, in the input order. */
-export function batches<T>(items: readonly T[], size: number): T[][] {
+/**
+ * The pushes of a queue: slices of at most `size`, in the input order, that never split a
+ * client batch (ledger 1161, Story 10.1). The ops of one `batch_id` travel together, at the
+ * position of the batch's first op, so the server can apply or refuse the batch as one; only
+ * a batch that alone holds more than `size` ops is cut, in `size` chunks.
+ */
+export function batches<T extends { batch_id?: string | null }>(items: readonly T[], size: number): T[][] {
+  const units: T[][] = [];
+  const byBatch = new Map<string, T[]>();
+  for (const item of items) {
+    const batchId = item.batch_id ?? null;
+    const unit = batchId === null ? undefined : byBatch.get(batchId);
+    if (unit !== undefined) {
+      unit.push(item);
+      continue;
+    }
+    const fresh = [item];
+    units.push(fresh);
+    if (batchId !== null) byBatch.set(batchId, fresh);
+  }
   const out: T[][] = [];
-  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  let current: T[] = [];
+  for (const unit of units) {
+    if (current.length > 0 && current.length + unit.length > size) {
+      out.push(current);
+      current = [];
+    }
+    if (unit.length > size) {
+      for (let i = 0; i < unit.length; i += size) out.push(unit.slice(i, i + size));
+      continue;
+    }
+    current.push(...unit);
+  }
+  if (current.length > 0) out.push(current);
   return out;
 }
 

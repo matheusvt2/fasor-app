@@ -874,6 +874,82 @@ describe('sync engine', () => {
     h.db.close();
   });
 
+  describe('10.1 merge information in engine memory', () => {
+    const OTHER_USER = '019966b0-0013-7000-8000-0000000000b1';
+    const fabricacao = `sheet/${BLOCK_1_ID}/nameplate/fabricacao`;
+
+    /** Another device's put, appended to the server log as the api would log it. */
+    function otherDevicePut(server: FakeServer, newId: () => string, value: string | null, prev: string | null): Op {
+      const op = { ...localPut(newId, 'x', { device_id: 'tablet-b', actor_id: OTHER_USER, prev_op_id: prev }), value, seq: server.log.length + 1 };
+      server.log.push(op);
+      return op;
+    }
+
+    it('a pushed op the server superseded becomes one entry once the op it landed on is pulled', async () => {
+      const h = await harness();
+      await commitOps(h.db, seedLog());
+      await h.engine.runCycle();
+      const newId = ids('019966b0-0014-7000-8000-');
+      // The other device filled the cell; this device, not having seen it, clears it.
+      const filled = otherDevicePut(h.server, newId, 'WEG', null);
+      const [cleared] = await commitOps(h.db, [localPut(newId, 'x', { value: null } as Partial<OpInput>)]);
+      const original = h.server.pushOps.bind(h.server);
+      h.server.pushOps = async (ops) => {
+        const res = await original(ops);
+        res.superseded.push({ op_id: cleared!.op_id, over_op_id: filled.op_id });
+        return res;
+      };
+      expect(await h.engine.runCycle()).toBe('ran');
+      const block = (await h.db.entities.get(['block', BLOCK_1_ID]))!.row as { sheet: { nameplate: Record<string, { value: unknown; op_id: string }> } };
+      expect(block.sheet.nameplate.fabricacao).toMatchObject({ value: 'WEG', op_id: filled.op_id });
+      const merges = h.engine.status().merges;
+      expect(merges).toHaveLength(1);
+      expect(merges[0]).toMatchObject({ op_id: cleared!.op_id, over_op_id: filled.op_id, rule: 'filled_over_empty', standing: { value: 'WEG', actor_id: OTHER_USER } });
+      // Another cycle never lists the same pair twice.
+      await h.engine.runCycle();
+      expect(h.engine.status().merges).toHaveLength(1);
+      h.db.close();
+    });
+
+    it('a concurrent pair already in the log at the first download is history, never an entry', async () => {
+      const h = await harness();
+      // The office logged the relatório; two other devices wrote the same cell concurrently.
+      for (const op of seedLog()) h.server.log.push({ ...op, seq: h.server.log.length + 1 });
+      h.server.relatorios.push({ id: RELATORIO_ID, project_id: PROJECT_ID, status: 'rascunho' });
+      const newId = ids('019966b0-0016-7000-8000-');
+      otherDevicePut(h.server, newId, 'WEG', null);
+      const concurrent = { ...localPut(newId, 'x', { device_id: 'tablet-c', actor_id: OTHER_USER, prev_op_id: null }), value: null, seq: h.server.log.length + 1 };
+      h.server.log.push(concurrent);
+      expect(await h.engine.runCycle()).toBe('ran');
+      expect(await h.db.remote_ops.get(concurrent.op_id)).toBeDefined();
+      expect(h.engine.status().merges).toEqual([]);
+      h.db.close();
+    });
+
+    it('a pulled op of another device that did not see the op before it becomes one entry', async () => {
+      const h = await harness();
+      await commitOps(h.db, seedLog());
+      await h.engine.runCycle();
+      const newId = ids('019966b0-0015-7000-8000-');
+      await commitOps(h.db, [localPut(newId, 'GOOD')]);
+      await h.engine.runCycle();
+      const good = h.server.log.find((op) => op.path === fabricacao && op.value === 'GOOD')!;
+      // The other device clears the cell with no knowledge of GOOD: the filled value stands.
+      const cleared = otherDevicePut(h.server, newId, null, null);
+      await h.engine.runCycle();
+      const merges = h.engine.status().merges;
+      expect(merges).toHaveLength(1);
+      expect(merges[0]).toMatchObject({ op_id: cleared.op_id, over_op_id: good.op_id, rule: 'filled_over_empty', standing: { value: 'GOOD' } });
+      // A deliberate write of the other device, having seen the head, is no merge.
+      otherDevicePut(h.server, newId, 'ABB', cleared.op_id);
+      await h.engine.runCycle();
+      expect(h.engine.status().merges).toHaveLength(1);
+      const block = (await h.db.entities.get(['block', BLOCK_1_ID]))!.row as { sheet: { nameplate: Record<string, { value: unknown }> } };
+      expect(block.sheet.nameplate.fabricacao?.value).toBe('ABB');
+      h.db.close();
+    });
+  });
+
   describe('8.1 auto-confirm after a pull', () => {
     const SUGGESTION = '019966b0-0081-7000-8000-0000000000a1';
 

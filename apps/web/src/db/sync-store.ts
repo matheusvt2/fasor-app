@@ -2,11 +2,17 @@ import {
   blockFieldPath,
   companyStreamDownloaded,
   materializeEntity,
+  mergeInfoOf,
   newRelatorioEquipmentReady,
   splitEntityKey,
   userFieldPath,
   userRowSchema,
+  type BlockRow,
   type EntityKey,
+  type EquipmentRow,
+  type FileRow,
+  type MergeInfo,
+  type MergeInfoContext,
   type Op,
   type RelatorioSummary,
   type UserRow,
@@ -281,4 +287,76 @@ export async function notTestedSynced(db: AppDatabase, blockId: string): Promise
   if (rows.length === 0) return true;
   const latest = rows.sort(byClientTsThenOpId).at(-1)!;
   return latest.status === 'acked';
+}
+
+// --- Story 10.1: merge information (engine memory, never stored) -----------
+
+/**
+ * What this device already holds of the log on the paths of a pulled page (the ops
+ * `pulledMergePairs` compares the page with), read before the page is stored.
+ */
+export async function heldOpsOnPaths(db: AppDatabase, pulled: readonly Op[]): Promise<RemoteOpRow[]> {
+  const paths = new Set(pulled.map((op) => op.path));
+  const keys = new Set<string>();
+  for (const op of pulled) {
+    const key = targetKeysOf(op)[0];
+    if (key !== undefined) keys.add(key);
+  }
+  const held: RemoteOpRow[] = [];
+  for (const key of keys) {
+    for (const row of await db.remote_ops.where('targets').equals(key).toArray()) if (paths.has(row.path)) held.push(row);
+  }
+  return held;
+}
+
+/** An op this device holds, pulled or its own. */
+async function heldOp(db: AppDatabase, opId: string): Promise<Op | undefined> {
+  const remote = await db.remote_ops.get(opId);
+  if (remote !== undefined) return remote;
+  const own = await db.outbox.get(opId);
+  return own === undefined ? undefined : opOf(own);
+}
+
+/**
+ * Story 10.1: the kernel's entry of each op pair, read against the rows this device now
+ * holds (`mergeInfoOf`). A pair whose ops are not both here yet comes back unresolved.
+ */
+export async function resolveMergePairs(
+  db: AppDatabase,
+  pairs: readonly { op_id: string; over_op_id: string }[],
+): Promise<{ infos: MergeInfo[]; unresolved: { op_id: string; over_op_id: string }[] }> {
+  const infos: MergeInfo[] = [];
+  const unresolved: { op_id: string; over_op_id: string }[] = [];
+  for (const pair of pairs) {
+    const [op, over] = await Promise.all([heldOp(db, pair.op_id), heldOp(db, pair.over_op_id)]);
+    if (op === undefined || over === undefined) {
+      unresolved.push(pair);
+      continue;
+    }
+    const key = targetKeysOf(op)[0];
+    const ref = key === undefined ? null : splitEntityKey(key as EntityKey);
+    const record = ref === null ? undefined : await db.entities.get([ref.entity, ref.id]);
+    const info = mergeInfoOf(op, over, record?.row ?? null);
+    if (info !== null) infos.push(info);
+  }
+  return { infos, unresolved };
+}
+
+/** The rows the words of the merge entries are read from (`mergeInfoText`). */
+export async function mergeTextContext(db: AppDatabase, merges: readonly MergeInfo[]): Promise<MergeInfoContext> {
+  if (merges.length === 0) return { blocks: [], equipment: [], users: [], files: [] };
+  const blockIds = [...new Set(merges.flatMap((m) => (m.block_id === null ? [] : [m.block_id])))];
+  const relatorioIds = [...new Set(merges.flatMap((m) => (m.relatorio_id === null ? [] : [m.relatorio_id])))];
+  const blockRecords = await db.entities.bulkGet(blockIds.map((id) => ['block', id] as ['block', string]));
+  const blocks = blockRecords.flatMap((record) => (record === undefined ? [] : [record.row as BlockRow]));
+  const equipmentIds = [...new Set(blocks.flatMap((block) => (block.equipment_id === null ? [] : [block.equipment_id])))];
+  const equipmentRecords = await db.entities.bulkGet(equipmentIds.map((id) => ['equipment', id] as ['equipment', string]));
+  const equipment = equipmentRecords.flatMap((record) => (record === undefined ? [] : [record.row as EquipmentRow]));
+  const files =
+    relatorioIds.length === 0
+      ? []
+      : (await db.entities.where('relatorio_id').anyOf(relatorioIds).toArray())
+          .filter((record) => record.entity === 'file')
+          .map((record) => record.row as FileRow);
+  return { blocks, equipment, users: await localUsers(db), files };
 }

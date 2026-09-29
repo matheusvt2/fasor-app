@@ -59,13 +59,27 @@ describe('1.5-UNIT-002 retry classification', () => {
 
 describe('1.5-UNIT-003 push batching', () => {
   it('splits 501 ops into two requests in apply order', () => {
-    const ops = Array.from({ length: 501 }, (_, i) => i);
+    const ops = Array.from({ length: 501 }, (_, i) => ({ i, batch_id: null }));
     const split = batches(ops, 500);
     expect(split.map((b) => b.length)).toEqual([500, 1]);
-    expect(split[0]![0]).toBe(0);
-    expect(split[0]![499]).toBe(499);
-    expect(split[1]![0]).toBe(500);
+    expect(split[0]![0]!.i).toBe(0);
+    expect(split[0]![499]!.i).toBe(499);
+    expect(split[1]![0]!.i).toBe(500);
     expect(batches([], 500)).toEqual([]);
+  });
+
+  it('ledger 1161: never splits a client batch across pushes, unless the batch alone is over the limit', () => {
+    const single = (i: number) => ({ i, batch_id: null as string | null });
+    const inBatch = (i: number, batch: string) => ({ i, batch_id: batch });
+    // 3 singles, then a batch of 3 that would straddle a 4-op limit.
+    const queue = [single(0), single(1), single(2), inBatch(3, 'b'), inBatch(4, 'b'), inBatch(5, 'b')];
+    expect(batches(queue, 4).map((b) => b.map((x) => x.i))).toEqual([[0, 1, 2], [3, 4, 5]]);
+    // A batch's ops travel together at the position of its first op, even when interleaved.
+    const interleaved = [inBatch(0, 'b'), single(1), inBatch(2, 'b')];
+    expect(batches(interleaved, 500).map((b) => b.map((x) => x.i))).toEqual([[0, 2, 1]]);
+    // A batch over the limit is cut in limit-sized chunks.
+    const big = Array.from({ length: 5 }, (_, i) => inBatch(i, 'big'));
+    expect(batches([single(9), ...big], 2).map((b) => b.map((x) => x.i))).toEqual([[9], [0, 1], [2, 3], [4]]);
   });
 });
 

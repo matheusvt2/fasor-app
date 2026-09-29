@@ -333,6 +333,28 @@ describe('a server merge converges on the device that sent the merged ops (Epic 
     });
     db.close();
   });
+
+  it('ledger 334: the pulled system:registry remove alone retires the minting device merged-away row, its create still pending (the push answer was lost)', async () => {
+    const db = await freshDb();
+    const survivorCreate = registryOp({ kind: 'create', path: `registry/manufacturer/${SURVIVOR}`, value: manufacturer(SURVIVOR, 'Schneider') }, 11);
+    await applyPulled(db, [{ ...survivorCreate, seq: 1 }]);
+    const ghostCreate = registryOp({ kind: 'create', path: `registry/manufacturer/${GHOST}`, value: manufacturer(GHOST, 'schneider') }, 12);
+    await commitOps(db, [ghostCreate]);
+    expect(await db.entities.get(['registry', GHOST])).toBeDefined();
+    // No ack ever reached the device: the pull carries the create logged on the survivor
+    // and the server's retirement of the minted id.
+    const retire: Op = {
+      ...registryOp({ kind: 'remove', path: `registry/manufacturer/${GHOST}/removed_at`, value: null, meta: { merged_into: SURVIVOR } }, 13),
+      actor_id: 'system:registry',
+      device_id: 'server',
+      seq: 3,
+    };
+    await applyPulled(db, [{ ...ghostCreate, path: `registry/manufacturer/${SURVIVOR}`, value: manufacturer(SURVIVOR, 'schneider'), seq: 2 }, retire]);
+    expect(await db.entities.get(['registry', GHOST])).toBeUndefined();
+    expect((await db.entities.where('entity').equals('registry').toArray()).map((record) => record.id)).toEqual([SURVIVOR]);
+    expect((await db.outbox.get(ghostCreate.op_id))?.status).toBe('acked');
+    db.close();
+  });
 });
 
 describe('5.9-UNIT notTestedSynced', () => {

@@ -65,7 +65,7 @@ export function SyncStatusSurface() {
             </Button>
           </div>
 
-          {sync.counts.dead > 0 || sync.supersededCount > 0 ? (
+          {sync.counts.dead > 0 || sync.supersededCount > 0 || sync.merges.length > 0 ? (
             <ul className="sync-list">
               {sync.counts.dead > 0 ? (
                 <li className="sync-row" data-testid="sync-rejected-row">
@@ -91,6 +91,17 @@ export function SyncStatusSurface() {
                   <span className="sr-state" data-tone="ok" />
                 </li>
               ) : null}
+              {/* Story 10.1: one row per merge by rule of this session (`85-sync.html` "Mesclado
+                  automaticamente" rows, minimal: the kernel's sentence only; Story 10.4 builds
+                  the full section). */}
+              {sync.merges.map((merge) => (
+                <li className="sync-row" key={merge.key} data-testid="sync-merge-row" data-rule={merge.info.rule}>
+                  <span className="sr-body">
+                    <span className="sr-primary">{merge.text}</span>
+                  </span>
+                  <span className="sr-state" data-tone="ok" />
+                </li>
+              ))}
             </ul>
           ) : null}
         </section>
