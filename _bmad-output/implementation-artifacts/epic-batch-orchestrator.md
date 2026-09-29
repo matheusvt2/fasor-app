@@ -115,11 +115,19 @@ overrides (they win over the workflow text):
 
 - Never let full test or build output into your context. Redirect to a log and read the tail.
 - The machine runs ONE gate at a time (E6-A2): wrap every `pnpm verify`, `pnpm test:e2e:full` and
-  `pnpm test:e2e:matrix` in the host lock, and run it in the foreground:
-  `flock /tmp/fasor-verify.lock docker compose --profile tools run --rm tools pnpm verify > /tmp/verify-<tag>.log 2>&1; echo EXIT=$?; tail -60 /tmp/verify-<tag>.log`
-  then `grep -n -E 'FAIL|failed|Error' /tmp/verify-<tag>.log | head -40` only when it failed. If the command would
-  outlive the tool timeout, run it with `run_in_background: true` and then block on it with a Monitor until-loop
-  on the log's EXIT line; never end your turn to wait.
+  `pnpm test:e2e:matrix` in the host lock. ~~Run it in the foreground.~~ *(2026-09-29, E9-A3: agents blocking a
+  stream on `flock` were killed by the 600 s watchdog.)* Never block a tool call on the lock or the gate. Start the
+  gate with `run_in_background: true`, writing the lock wait and the exit code into a tagged log:
+  `(t0=$(date +%s); flock /tmp/fasor-verify.lock sh -c 'echo LOCKED_AFTER=$(( $(date +%s) - '$t0' ))s; docker compose --profile tools run --rm tools pnpm verify'; echo EXIT=$?) > /tmp/verify-<tag>.log 2>&1`
+  then poll with short foreground calls of at most 60 s each (`timeout 55 sh -c 'until grep -q EXIT= /tmp/verify-<tag>.log; do sleep 5; done'; tail -3 /tmp/verify-<tag>.log`),
+  repeated until the EXIT line appears, and read `tail -60` of the log. Run
+  `grep -n -E 'FAIL|failed|Error' /tmp/verify-<tag>.log | head -40` only when it failed. Never end your turn to wait.
+- (E9-A3) Every helper script, log or scratch file of a batch carries the batch tag in its name
+  (`/tmp/verify-<tag>.log`, `<worktree>/.scratch-<tag>/`, excluded in `.git/info/exclude`); never write a shared
+  name. Reports go only to your parent. Record the lock wait (`LOCKED_AFTER`) and the gate time in the PR body.
+- (E9-A2) Never open a PR, and the coordinator never merges one, with a red or partial gate pasted. A failure called
+  a flake needs its failing state explained and a green full `verify` on the same commit. A PR that merges main after
+  its gate re-runs the full `verify` before the merge.
 - While iterating, run the narrowest suite (`pnpm test:unit -- <path>`, one Playwright spec with `--grep`), not the
   whole gate. Run the full `pnpm verify` once at the end, and once more only if you merged a changed main.
 - A batch that touches the sheet, an overlay or shared layout also runs `pnpm test:e2e:full` (under the lock)
