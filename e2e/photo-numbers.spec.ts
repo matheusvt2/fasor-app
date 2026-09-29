@@ -85,6 +85,14 @@ async function closeDialog(page: Page): Promise<void> {
   await expect(dialog(page)).toBeHidden();
 }
 
+/**
+ * Tile `n` of the gallery. Since Story 9.3 a "Geral" photo asks for a vision caption, so once
+ * it is uploaded its suggested caption may arrive and the tile reads "Foto n, legenda sugerida, abrir".
+ */
+function galleryTile(page: Page, n: number): Locator {
+  return page.getByRole('button', { name: new RegExp(`^Foto ${n}, (legenda sugerida, )?abrir$`) });
+}
+
 /** Opens the viewer on `tile`, reads its count, closes it. */
 async function viewerCount(page: Page, tile: Locator): Promise<string> {
   await tile.click();
@@ -130,7 +138,7 @@ test('@p0 7.2-E2E-001 an issued revision freezes the gallery numbers; a photo ad
   expect(first).toMatchObject({ kind: 'photo', relatorio_id: EXPORT_RELATORIO_ID, block_id: null, caption: null, removed_at: null });
   const outbox = await readStore<{ path: string; kind: string }>(page, database, 'outbox');
   expect(outbox.some((op) => op.kind === 'create' && op.path === `file/${first!.id}`)).toBe(true);
-  expect(await viewerCount(page, page.getByRole('button', { name: 'Foto 1, abrir', exact: true }))).toBe('1 de 1 · nº provisório');
+  expect(await viewerCount(page, galleryTile(page, 1))).toBe('1 de 1 · nº provisório');
 
   // Issue revision 1 through the Export dialog (it drains the photo's upload first); the
   // parecer is the one blocking row since Story 7.4, so it is set first (and opens the Sumário).
@@ -143,7 +151,7 @@ test('@p0 7.2-E2E-001 an issued revision freezes the gallery numbers; a photo ad
   await openGallery(page);
   await expect(numbersStatus(page)).toHaveText('Números da revisão 1', { timeout: 30_000 });
   await expect(numbersStatus(page)).toHaveClass('section-note');
-  expect(await viewerCount(page, page.getByRole('button', { name: 'Foto 1, abrir', exact: true }))).toBe('1 de 1');
+  expect(await viewerCount(page, galleryTile(page, 1))).toBe('1 de 1');
 
   // A photo added afterwards: provisional again, until revision 2.
   await addGeneralPhoto(page, 'depois.jpg');
