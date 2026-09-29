@@ -124,3 +124,38 @@ Went badly:
 3. Headline wording when the pending decisions are structural: "contradições" or "decisões" (E10-Q4)?
 4. Should a pre-contract-12 client's pushes be refused, since it can silently settle a contradiction (E10-Q6)?
 5. Carried from the PRs: does a contradiction become a pre-issue row, does NC vs NA stay a contradiction, and does "de {nome}" name the viewer too?
+
+## 6. Re-check after PR #68 (2026-09-29)
+
+Tree: `qa/epic-10-review` merged with `origin/main` 888935b (PR #68, contract 13, MIN 13). The `e10q` stack was rebuilt after the machine restart. I did not re-run `pnpm verify` or `test:e2e:full`; the batch ran verify green on the same tree in 2108 s.
+
+| Gate | Lock wait | Time | Result |
+|---|---|---|---|
+| `pnpm test:e2e:matrix` | 0 s | 471 s gate (468.4 s e2e) | **PASSED (EXIT 0)**: 66 tests, 58 passed, 0 failed, 8 skipped, 0 flaky. Parallel group 33 tests (26 passed, 7 skipped) in 111.7 s. Serial group 33 tests (32 passed, 1 skipped) in 353.1 s. E5-A2-E2E-002 passed on all three projects and is now `@p0`, with a settled re-read of the outbox. |
+
+I ran the browser walk after the matrix finished, not during it, as two users of worker pair 1: Ana (`e2e-w1-a`) and Eduardo (`e2e-w1-a2`). The relatório was new, created through the app. Offline was simulated by aborting `/api/(sync|files|...)`.
+
+| Finding | Verified | Evidence |
+|---|---|---|
+| E10-Q1 | **Yes** | In the browser at 390 px on SEC-C13 T1: tap the reading, chip T, type 2, chip M (echo "= 2 MΩ"), Enter. The outbox holds exactly one pending put `{raw:'2', unit:'MΩ'}`, and the focus moves on to the next reading (screenshot 09). The matrix is green. |
+| E10-Q2 | **Yes** | Two contradictions were set up at once: T1 on SEC-C12 (3.300 vs 330) and SEC-C11 (removed by Ana, edited by Eduardo). "Aplicar" (pick Eduardo) then "Desfazer": the cell is back to 3.300, `conflict` 330 is back, and the Banner "SEC-C12: 1 célula em contradição" is back. "Manter" then "Desfazer": `removed_at` and `removal_conflict` are back, with `removed_by` Ana and `edited_by` Eduardo, and the Sumário Banner has Ver / Manter / Remover again. After Ana, Eduardo, Ana syncs, both tablets hold the same marks, and Eduardo sees "SEC-C11: removido por Ana, alterado por você". His "Remover" then settled the block on both tablets ("SEC-C11 removido — a sua edição fica recuperável"). |
+| E10-Q3 | **Yes** (reading and screen) | `supersededText`/`supersededCount` are gone from `apps/web` and `packages/domain`, and no "mescladas pelo servidor" line appears after the syncs (screenshot 08). |
+| E10-Q4 | **Yes** | With one cell and one structure case, the headline reads "1 contradição e 1 decisão para resolver" and the badge "1 contradição e 1 decisão" (screenshot 08). |
+| E10-Q5 | **Yes** | Offline with two pending sheets, the first view taken while a cycle was still running showed "Sincronizando…" with one row "Enviando…". Once the failed request settled, 4 polls over 20 s read "Sem conexão", "Não foi possível falar com o servidor" and both rows "Aguardando envio", with no "Enviando…" (screenshot 07). |
+| E10-Q6 | **Yes** (reading) | `apps/api/src/sync/marks.ts` `pushTouchesConflictMark` and `routes.ts` answer 426 to a push with no header or below `MARK_AWARE_CONTRACT_VERSION` (12) that writes a marked cell or block. `conflicts.integration.test.ts:429` covers a marked cell, a marked removal and an unmarked cell that is accepted. Behavior note, not a defect: the old client's whole push is refused, so its unrelated ops wait on the device until it updates. It is already blocked from pulling by MIN 13 and shows "Atualizar". |
+| E10-Q7 | **Yes** (reading) | `sync-sections.tsx` and `sync-status-surface.tsx` keep only `.length` checks for emptiness. Counts come from the kernel (`sendingCounts`, the headline and badge inputs `contradictions`/`decisions`). |
+
+Regressions looked for around the fixes:
+- The undo round trip converges on both devices and the server marks.
+- The chip keeps focus and the echo.
+- Sync status keeps the "Último envio" and Decisões rows.
+- No console errors on either tablet besides the expected offline network errors.
+
+No new finding (no E10-Q8).
+
+Observed, not a finding: the first open of a sheet URL by the second tablet right after its first sync bounced to the Sumário while the relatório stream was still landing. It opened after a second sync. This is the known pull timing that the e2e wait helpers already handle.
+
+Screenshots:
+- `reviews/epic-10-qa/07-recheck-q5-offline-1280.png`
+- `08-recheck-q4-decisions-1280.png`
+- `09-recheck-q1-chip-390.png`
