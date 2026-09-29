@@ -82,8 +82,9 @@ const CELL_PATH = sheetTestCellPath(ID, 'isolacao', 3, 0);
 
 function renderDictated(onDone = vi.fn()) {
   const { api, commits } = fichaApi();
-  render(<DictatedMeasurementField api={api} cell={faseA()} label="Fase A, Valores" reading={{ raw: '147', unit: 'GΩ' }} onDone={onDone} />);
-  return { commits, onDone, input: screen.getByRole('textbox', { name: 'Fase A, Valores' }) };
+  const onRun = vi.fn(() => true);
+  render(<DictatedMeasurementField api={api} cell={faseA()} label="Fase A, Valores" reading={{ raw: '147', unit: 'GΩ' }} onDone={onDone} onRun={onRun} />);
+  return { commits, onDone, onRun, input: screen.getByRole('textbox', { name: 'Fase A, Valores' }) };
 }
 
 describe('9.4-UNIT DictatedMeasurementField', () => {
@@ -101,6 +102,32 @@ describe('9.4-UNIT DictatedMeasurementField', () => {
     await userEvent.type(input, '210{Enter}');
     expect(commits).toHaveLength(1);
     expect(commits[0]).toEqual([expect.objectContaining({ path: CELL_PATH, value: { raw: '210', unit: 'GΩ', state: 'measured' } })]);
+  });
+
+  it('E9-Q8 Enter on the reading as heard writes it and runs on to the next cell; Shift+Enter runs back and writes nothing', async () => {
+    const { commits, onRun, input } = renderDictated();
+    await userEvent.click(input);
+    await userEvent.keyboard('{Shift>}{Enter}{/Shift}');
+    expect(commits).toHaveLength(0);
+    expect(onRun).toHaveBeenLastCalledWith({ testKey: 'isolacao', row: 3, col: 0 }, 'previous');
+    await userEvent.keyboard('{Enter}');
+    expect(commits).toEqual([[expect.objectContaining({ kind: 'put', path: CELL_PATH, value: { raw: '147', unit: 'GΩ', state: 'measured' } })]]);
+    expect(onRun).toHaveBeenLastCalledWith({ testKey: 'isolacao', row: 3, col: 0 }, 'next');
+    // A second Enter (or the blur the run causes) writes nothing more.
+    await userEvent.keyboard('{Enter}');
+    expect(commits).toHaveLength(1);
+  });
+
+  it('E9-Q8 Enter on a typed value writes it and runs on; an invalid one stays put', async () => {
+    const { commits, onRun, input } = renderDictated();
+    await userEvent.clear(input);
+    await userEvent.type(input, 'abc{Enter}');
+    expect(commits).toHaveLength(0);
+    expect(onRun).not.toHaveBeenCalled();
+    await userEvent.clear(input);
+    await userEvent.type(input, '210{Enter}');
+    expect(commits).toEqual([[expect.objectContaining({ path: CELL_PATH, value: { raw: '210', unit: 'GΩ', state: 'measured' } })]]);
+    expect(onRun).toHaveBeenCalledWith({ testKey: 'isolacao', row: 3, col: 0 }, 'next');
   });
 
   it('an emptied field drops the dictation and writes nothing', async () => {
@@ -139,6 +166,27 @@ describe('9.4-UNIT useTableDictation: unparsed table speech', () => {
     expect(announce).toHaveBeenCalledWith(ui.dictation.unparsedNoObservations);
     expect(result.current.dictated).toBeNull();
     expect(seen.pending).toBeNull();
+  });
+
+  it('E9-Q9 a dictated reading is dropped once its cell is filled another way, and does not come back when the cell is emptied', () => {
+    const announce = vi.fn();
+    const empty = fechado();
+    const filledBlock = block();
+    filledBlock.sheet = { ...filledBlock.sheet, test: { isolacao: { cells: { '3': { '0': { value: { raw: '150', unit: 'GΩ', state: 'measured' }, source_suggestion_id: null, op_id: 'x' } } } } } } as BlockRow['sheet'];
+    const filled = evaluateSheetReadings(filledBlock, SEC).find((t) => t.testKey === 'isolacao')!.tables.find((t) => t.key === 'contato_fechado')!;
+    expect(filled.rows[0]!.cells[0]!.state).toBe('measured');
+    const { result, rerender } = renderHook(({ table }) => useTableDictation(table, announce), {
+      initialProps: { table: empty },
+      wrapper: ({ children }) => <SheetObservationDictationProvider enabled>{children}</SheetObservationDictationProvider>,
+    });
+    act(() => result.current.onDictated('Fase A, 147 giga'));
+    expect(result.current.dictated).toMatchObject({ raw: '147', address: { row: 3, col: 0 } });
+    // "Confirmar todos", a pull: the cell is filled.
+    rerender({ table: filled });
+    expect(result.current.dictated).toBeNull();
+    // Emptied later: the old reading stays gone.
+    rerender({ table: empty });
+    expect(result.current.dictated).toBeNull();
   });
 
   it('with "Observações" on, becomes the observation suggestion and is announced', () => {

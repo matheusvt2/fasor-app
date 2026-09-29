@@ -1,10 +1,12 @@
 import type { BlockRow, PointRow } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { plainJpeg, type FilePayload } from './fixtures/photos/synthetic.ts';
-import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
+import { deviceDatabaseName, expect, horizontalOverflow, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { devicePhotos, openChaveSheet } from './support/photos.ts';
+import { pushSuggestion } from './support/push-server-ops.ts';
 import { disableSpeech, failSpeech, isListening, speak } from './support/speech.ts';
+import { syncNowAndReturn } from './support/sync.ts';
 
 /*
  * 9.4-E2E: dictation driven as a person would, on the fake speech engine of the `build:e2e`
@@ -27,6 +29,8 @@ interface OutboxRow {
   kind: string;
   path: string;
   value: unknown;
+  batch_id?: string | null;
+  meta?: { source_suggestion_id?: string } | null;
 }
 
 /** The block row this device holds. */
@@ -253,6 +257,8 @@ test('@p1 9.4-E2E-007 an NC row: "Ditar observação do item N" and "Usar" write
   await expect(field).toHaveValue('');
   await suggestion.getByRole('button', { name: 'Usar' }).click();
   await expect(field).toHaveValue('Contato com oxidação');
+  // E9-Q5: "Usar" commits through an async IndexedDB write; the reload waits until it has landed.
+  await expect.poll(async () => (await storedBlock(page, blockId)).sheet.checklist.contatos?.observation?.value).toBe('Contato com oxidação');
 
   await page.reload();
   const again = page.locator('#ficha-step-verificacoes li.checklist-row[data-item-key="contatos"]');
@@ -345,4 +351,82 @@ test('@p1 9.4-E2E-010 a different value typed over a dictated reading is written
   await guess.press('Enter');
   await expect(cell.locator('.suggestion-field')).toHaveCount(0);
   await expect.poll(async () => cellValue(await storedBlock(page, blockId), 'isolacao', 4, 0)).toEqual({ raw: '210', unit: 'MΩ', state: 'measured' });
+});
+
+const GOHM = 'G\u03a9';
+const reading = (raw: string) => ({ raw, unit: GOHM, state: 'measured' });
+
+test('@p0 9.4-E2E-011 at 390 px a dictated reading over a pending display reading: "Confirmar todos" leaves it out; its "Confirmar" writes the heard value and the display shows as "Conferir"; every table fits', async ({ page }) => {
+  test.setTimeout(180_000);
+  const { relatorioId, blockId } = await openChaveSheet(page, account, database, { width: 390 });
+  await page.setViewportSize({ width: 390, height: 844 });
+  const cellPath = (row: number) => `sheet/${blockId}/test/isolacao/cell/${row}/0`;
+  // Two display readings on the contato fechado table (Fase A and Fase B), as the reading job writes them.
+  const faseA = await pushSuggestion(account.companyId, relatorioId, { targetPath: cellPath(3), value: reading('147'), actorId: account.userId });
+  const faseB = await pushSuggestion(account.companyId, relatorioId, { targetPath: cellPath(4), value: reading('200'), actorId: account.userId });
+  await syncNowAndReturn(page);
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
+  const fechado = table(page, 'contato_fechado');
+  const confirmAll = fechado.locator('.mt-actions').getByRole('button', { name: /^Confirmar todos/ });
+  await expect(confirmAll).toHaveText('Confirmar todos (2)');
+
+  // Fase A dictated as 150: the cell shows the heard value, and "Confirmar todos" no longer counts it.
+  await fechado.getByRole('button', { name: FECHADO_MIC }).click();
+  await speak(page, 'Fase A, 150 giga');
+  const cellA = fechado.locator('[data-cell="isolacao:3:0"]');
+  const dictated = cellA.locator('.suggestion-field[data-state="suggested"]');
+  await expect(dictated.locator('input.mf-value')).toHaveValue('150');
+  await expect(confirmAll).toHaveText('Confirmar todos (1)');
+
+  // E9-Q4: a dictated cell and a display suggested cell fit the table at 390 px, "Confirmar" inside it.
+  const overflow = () => fechado.evaluate((element) => element.scrollWidth - element.clientWidth);
+  const within = async (target: Locator) => {
+    const box = (await target.boundingBox())!;
+    const host = (await fechado.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(host.x - 0.5);
+    expect(box.x + box.width).toBeLessThanOrEqual(host.x + host.width + 0.5);
+  };
+  await expect(fechado.locator('[data-cell="isolacao:4:0"] .field.suggestion-field[data-state="suggested"]')).toBeVisible();
+  expect(await overflow()).toBeLessThanOrEqual(0);
+  await within(dictated.getByRole('button', { name: `Sugerido, 150 ${GOHM}, confirmar` }));
+  await within(fechado.locator('[data-cell="isolacao:4:0"] .confirm-btn'));
+  expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
+
+  // "Confirmar todos (1)": Fase B alone, one batch; nothing for Fase A.
+  await confirmAll.click();
+  await expect.poll(async () => (await readStore<OutboxRow>(page, database, 'outbox')).find((op) => op.path === `suggestion/${faseB}/status`)?.value ?? null).toBe('confirmed');
+  let rows = await readStore<OutboxRow>(page, database, 'outbox');
+  const batch = rows.find((op) => op.path === `suggestion/${faseB}/status`)!.batch_id;
+  expect(rows.filter((op) => op.batch_id === batch).map((op) => op.path).sort()).toEqual([cellPath(4), `suggestion/${faseB}/status`].sort());
+  expect(rows.some((op) => op.path === cellPath(3) || op.path === `suggestion/${faseA}/status`)).toBe(false);
+  expect(cellValue(await storedBlock(page, blockId), 'isolacao', 3, 0)).toBeNull();
+
+  // The dictated "Confirmar": the heard value, with no provenance; the display reading becomes the "Conferir" line.
+  await dictated.getByRole('button', { name: `Sugerido, 150 ${GOHM}, confirmar` }).click();
+  await expect.poll(async () => cellValue(await storedBlock(page, blockId), 'isolacao', 3, 0)).toEqual(reading('150'));
+  expect((await storedBlock(page, blockId)).sheet.test.isolacao!.cells['3']!['0']!.source_suggestion_id).toBeNull();
+  rows = await readStore<OutboxRow>(page, database, 'outbox');
+  expect(rows.filter((op) => op.path === cellPath(3)).map((op) => op.meta?.source_suggestion_id ?? null)).toEqual([null]);
+  const line = cellA.getByRole('group', { name: 'Leitura do visor diferente do valor digitado' });
+  await expect(line).toHaveText(`Visor: 147 ${GOHM} · digitado 150 ${GOHM} — Conferir`);
+  // E9-Q4: the "Conferir" cell fits as well.
+  expect(await overflow()).toBeLessThanOrEqual(0);
+  await within(line);
+});
+
+test('@p1 9.4-E2E-012 Enter on a dictated reading writes it as heard and runs on to the next cell', async ({ page }) => {
+  test.setTimeout(150_000);
+  const { blockId } = await openChaveSheet(page, account, database);
+  const fechado = table(page, 'contato_fechado');
+  await fechado.getByRole('button', { name: FECHADO_MIC }).click();
+  await speak(page, 'Fase A, 147 giga');
+  const guess = fechado.locator('[data-cell="isolacao:3:0"] .suggestion-field[data-state="suggested"] input.mf-value');
+  await expect(guess).toHaveValue('147');
+  await guess.click();
+  await guess.press('Enter');
+  await expect
+    .poll(async () => (await readStore<OutboxRow>(page, database, 'outbox')).find((op) => op.path === `sheet/${blockId}/test/isolacao/cell/3/0`)?.value ?? null)
+    .toEqual(reading('147'));
+  await expect(fechado.locator('[data-cell="isolacao:4:0"] input.mf-value')).toBeFocused();
+  await expect(fechado.locator('[data-cell="isolacao:3:0"] .suggestion-field')).toHaveCount(0);
 });

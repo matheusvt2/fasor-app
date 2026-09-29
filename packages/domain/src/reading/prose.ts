@@ -87,6 +87,15 @@ export function captionSkipReason(photo: CaptionCandidate): CaptionSkipReason | 
   return null;
 }
 
+/**
+ * Story 9.3 (E9-Q10): whether a gallery tile offers the "Pessoas na foto" chip: a photo with no
+ * sheet (the one a caption reading would be sent for), or one already marked (so the mark can
+ * be taken back).
+ */
+export function offersPeopleMark(photo: Pick<PhotoFileRow, 'block_id'> & { people_in_photo?: boolean | null }): boolean {
+  return photo.block_id === null || photo.people_in_photo === true;
+}
+
 /** Story 9.5: the reading of a photo taken from an NC checklist row of `block`. */
 export function ncObsReadingOf(block: Pick<BlockRow, 'id' | 'block_type'>, itemKey: string): { kind: 'nc_obs'; target: NcObsReadingTarget } {
   return { kind: 'nc_obs', target: { block_id: block.id, block_type: block.block_type, item_key: itemKey } };

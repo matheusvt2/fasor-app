@@ -5,6 +5,7 @@ import {
   legendaConfirmadaText,
   legendasConfirmadasText,
   legendasSugeridasText,
+  offersPeopleMark,
   pendingSuggestions,
   suggestionRowsOf,
   captionWordFor,
@@ -275,7 +276,7 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
                       )
                     }
                     people={
-                      tile.block_id === null || marked ? (
+                      offersPeopleMark(tile) ? (
                         <div className="chip-row photo-people">
                           <Chip isSelected={marked} onSelectedChange={(on) => markPeople(tile, on)}>
                             {t.peopleInPhoto}

@@ -5,6 +5,7 @@ import {
   numberEchoText,
   parseReadingPtBr,
   suggestionAnnouncement,
+  suggestionValueText,
   type CellAddress,
   type EvaluatedCell,
 } from '@app/domain';
@@ -33,6 +34,9 @@ import { conclusionOp, testCellOp } from './ficha-ops.ts';
  */
 
 export type RunDirection = 'next' | 'previous' | 'right';
+
+/** A dictated reading's value is a number cell (`suggestionValueText`). */
+const NUMBER_FIELD = { kind: 'number' } as const;
 
 /** The data attribute the continuous run finds a cell's input by. */
 export function cellKey(address: CellAddress): string {
@@ -237,7 +241,8 @@ export function MeasurementField({
  * Suggestion field (amber, "Sugerido", "Confirmar"), the value editable in place. Nothing is
  * written before "Confirmar", which writes the reading as heard; a different value typed
  * (committed on blur or Enter) is written instead and the dictation dropped; a field emptied
- * drops it with nothing written.
+ * drops it with nothing written. E9-Q8: Enter confirms it as heard (or writes what was typed)
+ * and runs on, Shift+Enter runs back, as on a display reading's suggested cell.
  */
 export function DictatedMeasurementField({
   api,
@@ -245,6 +250,7 @@ export function DictatedMeasurementField({
   label,
   reading,
   onDone,
+  onRun,
 }: {
   api: FichaApi;
   cell: EvaluatedCell;
@@ -252,6 +258,8 @@ export function DictatedMeasurementField({
   reading: { raw: string; unit: string | null };
   /** The dictation is over (written or dropped). */
   onDone: () => void;
+  /** Moves the focus along the continuous run; false when there is nowhere to go. */
+  onRun: (from: CellAddress, direction: RunDirection) => boolean;
 }) {
   const t = ui.measurementField;
   const labelId = useId();
@@ -263,7 +271,7 @@ export function DictatedMeasurementField({
   const root = useRef<HTMLDivElement>(null);
   /** While a value is being written, a second blur or tap writes nothing. */
   const written = useRef(false);
-  const valueText = reading.unit === null ? initial : `${initial} ${reading.unit}`;
+  const valueText = suggestionValueText(NUMBER_FIELD, { raw: reading.raw, unit: reading.unit, state: 'measured' });
 
   const write = (value: { raw: string; unit: string | null }) => {
     if (api.author === null || written.current) return;
@@ -273,19 +281,28 @@ export function DictatedMeasurementField({
     });
   };
 
-  /** A typed value: written when it differs from what was heard; an empty field drops the dictation. */
-  const commitTyped = () => {
-    if (written.current || text === initial) return;
+  /** A typed value: written when it differs from what was heard; an empty field drops the dictation. False when nothing could be decided (unchanged, invalid). */
+  const commitTyped = (): boolean => {
+    if (written.current) return true;
+    if (text === initial) return false;
     const parsed = parseReadingPtBr(text, { units: cell.units, defaultUnit: reading.unit });
     if (parsed === 'invalid') {
       setInvalid(true);
-      return;
+      return false;
     }
     if (parsed === null) {
       onDone();
-      return;
+      return true;
     }
     write(parsed);
+    return true;
+  };
+
+  /** "Confirmar" and Enter: the reading as heard when unchanged, else what was typed. */
+  const confirm = (): boolean => {
+    if (text !== initial) return commitTyped();
+    write(reading);
+    return true;
   };
 
   return (
@@ -296,7 +313,7 @@ export function DictatedMeasurementField({
         bare
         valueClassName="measurement-field"
         announcement={suggestionAnnouncement('suggested', valueText)}
-        onConfirm={() => (text === initial ? write(reading) : commitTyped())}
+        onConfirm={() => void confirm()}
         after={
           invalid ? (
             <span className="helper" id={helperId}>
@@ -324,7 +341,13 @@ export function DictatedMeasurementField({
             commitTyped();
           }}
           onKeyDown={(event) => {
-            if (event.key === 'Enter') commitTyped();
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            if (event.shiftKey) {
+              onRun(address, 'previous');
+              return;
+            }
+            if (confirm()) onRun(address, 'next');
           }}
         />
         {reading.unit === null ? null : (

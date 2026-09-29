@@ -43,6 +43,7 @@ export function invertBatch(ops: readonly Op[], before: ReadonlyMap<string, unkn
   const batch_id = deps.newId();
   const client_ts = toIso(deps.now);
   const inverses: Op[] = [];
+  const retargets = ops.some((op) => op.kind === 'put' && isReadingPut(op.path, 'reading_kind'));
   for (const op of [...ops].reverse()) {
     const base = {
       scope: op.scope,
@@ -64,10 +65,31 @@ export function invertBatch(ops: readonly Op[], before: ReadonlyMap<string, unkn
       continue;
     }
     parsePath(op.path);
-    const value = before.get(op.op_id);
+    const value = op.kind === 'put' ? readingInverse(op.path, retargets) : undefined;
+    const previous = value === undefined ? before.get(op.op_id) : value;
     inverses.push(
-      opSchema.parse({ ...base, op_id: deps.newId(), kind: 'put', path: op.path, value: value === undefined ? null : value }),
+      opSchema.parse({ ...base, op_id: deps.newId(), kind: 'put', path: op.path, value: previous === undefined ? null : previous }),
     );
   }
   return inverses;
+}
+
+/** Whether `path` is the `file/{id}/{field}` put of a photo's reading. */
+function isReadingPut(path: string, field: 'reading_kind' | 'reading_target'): boolean {
+  const parsed = parsePath(path);
+  return parsed.family === 'file/field' && parsed.field === field;
+}
+
+/**
+ * E9-Q3 (contract 9): the inverse a reading re-target gets instead of the previous value, or
+ * undefined. An undo never re-queues a provider reading nor leaves a suggestion nobody can
+ * resolve: the inverse of a `reading_kind` put is null (the photo becomes a plain one,
+ * `reading_status: none`, `applyOp`), of a `reading_target` put null, and a suggestion status
+ * put in a batch that also re-targets a photo (the Story 9.2 create's panel suggestion) is
+ * undone to `discarded`, never back to `pending`.
+ */
+function readingInverse(path: string, retargets: boolean): unknown {
+  if (isReadingPut(path, 'reading_kind') || isReadingPut(path, 'reading_target')) return null;
+  if (retargets && parsePath(path).family === 'suggestion/status') return 'discarded';
+  return undefined;
 }

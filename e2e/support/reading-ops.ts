@@ -33,6 +33,18 @@ async function applyAsServer(companyId: string, inputs: readonly OpInput[], what
   }
 }
 
+/** E9-Q3: the row the server holds for `entity`/`id` in `companyId`, or undefined. */
+export async function serverRow(companyId: string, entity: 'file' | 'suggestion' | 'block', id: string): Promise<Record<string, unknown> | undefined> {
+  const config = loadConfig();
+  const { sql } = createDb(config.DATABASE_URL);
+  try {
+    const [found] = await sql<{ row: Record<string, unknown> }[]>`select row from entities where company_id = ${companyId} and entity = ${entity} and id = ${id}`;
+    return found?.row;
+  } finally {
+    await sql.end();
+  }
+}
+
 /** The reading job moving a photo's reading on: `file/{id}/reading_status = status`. */
 export async function pushReadingStatus(
   companyId: string,

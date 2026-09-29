@@ -411,10 +411,14 @@ describe('Home: empty state and shortcuts', () => {
     await userEvent.click(novo);
     const dialog = await screen.findByRole('dialog', { name: 'Novo relatório' });
     expect(within(dialog).getByRole('combobox', { name: 'Cliente' })).toBeVisible();
-    expect(within(dialog).getByRole('combobox', { name: 'Local (obra)' })).toHaveAttribute('aria-disabled', 'true');
+    const site = within(dialog).getByRole('combobox', { name: 'Local (obra)' });
+    expect(site).toHaveAttribute('aria-disabled', 'true');
     const proceed = within(dialog).getByRole('button', { name: 'Continuar' });
     expect(proceed).toHaveAttribute('aria-disabled', 'true');
     expect(proceed).toHaveAccessibleDescription('Continuar: falta o cliente');
+    // E9-Q14: the reason is said once on screen, beside "Continuar"; the Local field points at it.
+    expect(within(dialog).getAllByText('Continuar: falta o cliente')).toHaveLength(1);
+    expect(site).toHaveAccessibleDescription('Continuar: falta o cliente');
     expect(await axe(container)).toHaveNoViolations();
   });
 

@@ -4,7 +4,7 @@ import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, signIn, syncBadge, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { newRelatorioDrafts, pushDrafts } from './support/relatorio-seed.ts';
-import { humanTap } from './support/taps.ts';
+import { humanTap, waitForTapTarget } from './support/taps.ts';
 
 /*
  * Story 12.1: journeys J1 (SEC-ENEL, the plate typed) and J3 (SEC-ENEL-2, "Igual à" and
@@ -74,6 +74,7 @@ function counter(page: Page) {
   return {
     async tap(what: string, target: Locator, effect: () => Promise<void>): Promise<void> {
       taps += 1;
+      await waitForTapTarget(target);
       await humanTap(page, target, info);
       await test.step(`tap ${taps}: ${what}`, effect);
     },

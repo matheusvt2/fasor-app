@@ -155,6 +155,20 @@ describe('9.1-UNIT Measurement cell suggestions', () => {
     expect(measurementTableVerifyCount(block, rows, 'isolacao', 'contato_aberto')).toBe(1);
     expect(measurementTableVerifyCount(block, rows, 'isolacao', 'contato_fechado')).toBe(0);
   });
+
+  it('E9-Q1 "Confirmar todos" leaves out a cell that shows a dictated reading, in its count and its batch', () => {
+    const block = chave({});
+    const dictatedOver = suggestion(cellPath('isolacao', 0, 0), n('147'));
+    const other = suggestion(cellPath('isolacao', 1, 0), n('150'));
+    const verify = suggestion(cellPath('isolacao', 2, 0), n('147'), { trust: 'verify' });
+    const rows = [dictatedOver, other, verify];
+    expect(measurementConfirmAllCandidates(block, rows, 'isolacao', 'contato_aberto')).toEqual([dictatedOver, other]);
+    expect(measurementConfirmAllCandidates(block, rows, 'isolacao', 'contato_aberto', [{ testKey: 'isolacao', row: 0, col: 0 }])).toEqual([other]);
+    // Another test's address with the same row and column excludes nothing here.
+    expect(measurementConfirmAllCandidates(block, rows, 'isolacao', 'contato_aberto', [{ testKey: 'resistencia_contato', row: 0, col: 0 }])).toEqual([dictatedOver, other]);
+    expect(measurementTableVerifyCount(block, rows, 'isolacao', 'contato_aberto', [{ testKey: 'isolacao', row: 2, col: 0 }])).toBe(0);
+    expect(measurementTableVerifyCount(block, rows, 'isolacao', 'contato_aberto')).toBe(1);
+  });
 });
 
 describe('9.1-UNIT thermo-hygrometer suggestions', () => {

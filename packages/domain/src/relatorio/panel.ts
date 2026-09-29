@@ -3,7 +3,7 @@ import type { OpDraft } from '../ops/op.ts';
 import { panelSuggestionValueSchema, type PanelSuggestionValue } from '../reading/panel.ts';
 import { plateReadingTarget } from '../reading/target.ts';
 import { EQUIPMENT_BLOCK_TYPES, type EquipmentBlockType } from '../schemas/block-config.ts';
-import type { BlockRow, JsonValue, LocationRow, SuggestionRow } from '../schemas/entities.ts';
+import type { BlockRow, JsonValue, LocationRow, PhotoFileRow, SuggestionRow } from '../schemas/entities.ts';
 import { locationPathText } from './location-path.ts';
 import { relatorioOpEnvelope, type Author } from './ops.ts';
 import { discardSuggestionOp, PLATE_CAPTION } from './suggestions.ts';
@@ -39,6 +39,48 @@ export function panelSuggestionOf(pending: readonly SuggestionRow[], photoId: st
     if (best === null || row.id > best.row.id) best = { row, value: value.data };
   }
   return best;
+}
+
+/** The line under the result dialog's title while no panel suggestion is there, and why. */
+export interface PanelReadingLine {
+  /** `waiting`: the server is reading it (online); `offline`: no signal; `failed`: the reading failed; `empty`: it read nothing usable. */
+  kind: 'waiting' | 'offline' | 'failed' | 'empty';
+  text: string;
+}
+
+/** `40-relatorio-overview.html` line 398, verbatim. */
+const PANEL_OFFLINE_TEXT = 'Sem sinal, a foto fica guardada: o bloco é criado pelo tipo e a foto já vira a placa dele.';
+const PANEL_READING_TEXTS: Record<PanelReadingLine['kind'], string> = {
+  // authored: while the server reads the photo, online.
+  waiting: 'Lendo a foto…',
+  offline: PANEL_OFFLINE_TEXT,
+  // authored (E9-Q10): the reading ended with an error; the chips below still give the block.
+  failed: 'Não foi possível ler a foto.',
+  // authored (E9-Q10): the reading ended without a type or a column.
+  empty: 'A foto não mostrou o tipo do equipamento.',
+};
+
+/**
+ * E9-Q10: what the result dialog says while it holds no panel suggestion: offline, the mock's
+ * reason line; online, "Lendo a foto…" while the photo is queued or read, else why nothing came
+ * (the reading failed, or it ended with nothing). Null once a suggestion is there (the proposal
+ * speaks for itself) or while the photo holds no reading.
+ */
+export function panelReadingLine(input: { online: boolean; photo: Pick<PhotoFileRow, 'reading_status'>; suggestion: PanelSuggestion | null }): PanelReadingLine | null {
+  if (input.suggestion !== null) return null;
+  const line = (kind: PanelReadingLine['kind']): PanelReadingLine => ({ kind, text: PANEL_READING_TEXTS[kind] });
+  if (!input.online) return line('offline');
+  switch (input.photo.reading_status) {
+    case 'queued':
+    case 'running':
+      return line('waiting');
+    case 'failed':
+      return line('failed');
+    case 'done':
+      return line('empty');
+    default:
+      return null;
+  }
 }
 
 /** Where the proposal puts the block, and whether it is the coluna the label named. */

@@ -144,6 +144,11 @@ body {
   .checklist-row .tri-state { width: 100%; display: grid; order: 3; }
   /* `.frame-phone .mt-title-row .mt-actions` */
   .mt-title-row .mt-actions { margin-left: 0; flex-basis: 100%; }
+  /* authored (E9-Q4): "Ler visor", the Dictation button and "Confirmar todos (N)" are wider
+     together than a 358 px table box, so the row wraps (`.ficha-mt` never scrolls sideways);
+     the mock hides phone tables and never draws the three on one phone line. Its own selector:
+     the mirrored rule above stays verbatim. */
+  .mt-title-row > .mt-actions { flex-wrap: wrap; }
   /* `.frame-phone .conclusion-pair.is-verdict` (+ `.seg + .seg`) */
   .conclusion-pair.is-verdict { grid-template-columns: 1fr; }
   .conclusion-pair.is-verdict .seg + .seg { border-left: 0; border-top: 2px solid var(--border-strong); }
@@ -693,3 +698,17 @@ input.count { width: 40px; padding: 0; border: 0; background: transparent; color
 /* authored: the plate photo's row sits between the chips and the fields (`60-ficha.html` "queued"). */
 .ficha-np-photo { margin-bottom: var(--sp-2); }
 .ficha-np-photo .photo-tile { flex: none; padding: 0; border: 0; background: none; cursor: pointer; }
+
+/* E9-Q4: below 768 px a suggested Measurement cell (a display reading or a dictated one) fits its
+   table, where the mock draws phone tables as cards (`.frame-phone .measurement-table { display:
+   none }`) and the app keeps a table (EXPERIENCE.md › Measurement table). It takes the mock's
+   narrow-table wrapping, declarations verbatim from components.css
+   `.measurement-table.is-wide td.cell-value .suggestion-field > * { flex-wrap: wrap; max-width: 100%; }` and
+   `.measurement-table.is-wide td.cell-value .measurement-field, .measurement-table.is-wide td.cell-value .suggestion-field { flex-wrap: wrap; min-width: 0; }`
+   (scoped to the suggested cell), so "Confirmar" moves to a second line when the line is full, and
+   the compact confirm of `60-ficha.html`'s `.measurement-field .confirm-btn { padding: 0 var(--sp-3); }`. */
+@media (max-width: 767.98px) {
+  .measurement-table td.cell-value .suggestion-field > * { flex-wrap: wrap; max-width: 100%; }
+  .measurement-table td.cell-value .suggestion-field > .measurement-field, .measurement-table td.cell-value .suggestion-field { flex-wrap: wrap; min-width: 0; }
+  .measurement-table td.cell-value .suggestion-field .confirm-btn { padding: 0 var(--sp-3); }
+}

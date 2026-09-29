@@ -10,7 +10,7 @@ import {
   type OpDraft,
   type ProjectRow,
 } from '@app/domain';
-import { useMemo, useRef, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Button, Combobox, FormDialog } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -133,6 +133,9 @@ export function NewProjectDialog({ clients, projects, onClose }: NewProjectDialo
   }
 
   const reason = clientId === null ? t.needsClient : projectId === null ? t.needsSite : undefined;
+  // E9-Q14: one reason line, the "Continuar" button's (EXPERIENCE.md › Button: the reason beside
+  // the disabled primary); the Local field, disabled for the same reason, points at it.
+  const reasonId = useId();
 
   function proceed(): void {
     if (projectId === null) return;
@@ -192,16 +195,21 @@ export function NewProjectDialog({ clients, projects, onClose }: NewProjectDialo
         }}
         onCreate={clientId === null ? undefined : (text) => void createProject(text)}
         isDisabled={clientId === null}
-        disabledReason={clientId === null ? t.needsClient : undefined}
+        disabledReasonId={clientId === null ? reasonId : undefined}
         inputRef={siteInput}
       />
       <div className="dialog-actions">
         <Button variant="secondary" onPress={onClose}>
           {t.cancel}
         </Button>
-        <Button variant="primary" isDisabled={reason !== undefined} disabledReason={reason} onPress={proceed}>
+        <Button variant="primary" isDisabled={reason !== undefined} disabledReasonId={reason === undefined ? undefined : reasonId} onPress={proceed}>
           {t.continue}
         </Button>
+        {reason === undefined ? null : (
+          <span className="btn-reason" id={reasonId}>
+            {reason}
+          </span>
+        )}
       </div>
     </FormDialog>
   );

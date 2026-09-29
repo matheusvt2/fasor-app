@@ -11,6 +11,7 @@ import {
   FULL_IMAGE_BBOX,
   ncObsReadingOf,
   ncObsSkipReason,
+  offersPeopleMark,
   proseText,
 } from './prose.ts';
 import { ncObsReadingTargetSchema } from './target.ts';
@@ -110,6 +111,13 @@ describe('9.3-UNIT-003 which photo is read as caption, and the run-time skip', (
     expect(captionSkipReason({ block_id: BLOCK, caption: 'x' })).toBe('captioned');
     expect(captionSkipReason({ block_id: BLOCK, caption: null })).toBe('has_block');
     expect(captionSkipReason({ block_id: null, caption: null })).toBeNull();
+  });
+
+  it('E9-Q10 a tile offers "Pessoas na foto" with no sheet, or once marked (to take it back)', () => {
+    expect(offersPeopleMark({ block_id: null, people_in_photo: false })).toBe(true);
+    expect(offersPeopleMark({ block_id: null })).toBe(true);
+    expect(offersPeopleMark({ block_id: BLOCK, people_in_photo: true })).toBe(true);
+    expect(offersPeopleMark({ block_id: BLOCK, people_in_photo: false })).toBe(false);
   });
 });
 
