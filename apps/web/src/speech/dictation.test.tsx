@@ -141,3 +141,27 @@ describe('9.4-UNIT DictationButton', () => {
     expect(screen.getByTestId('dictation-announcer')).toHaveTextContent('Não foi possível ouvir. Digite ou tente de novo.');
   });
 });
+
+describe('E9-A9 the default build', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    vi.resetModules();
+  });
+
+  it('with VITE_SPEECH_ENGINE unset, a provider with no engine renders no Dictation button, online', async () => {
+    vi.stubEnv('VITE_SPEECH_ENGINE', undefined);
+    // A browser with Web Speech: were `webspeech` still the default, the button would show.
+    vi.stubGlobal('SpeechRecognition', class {});
+    vi.resetModules();
+    // A fresh module, so its build engine is made from the stubbed (unset) variable.
+    const fresh = await import('./dictation.tsx');
+    const { container } = render(
+      <fresh.SpeechEngineProvider online={true}>
+        <fresh.DictationButton label="Ditar a legenda" onResult={() => undefined} />
+      </fresh.SpeechEngineProvider>,
+    );
+    expect(screen.queryByRole('button', { name: 'Ditar a legenda' })).toBeNull();
+    expect(container.querySelector('.dictation')).toBeNull();
+  });
+});
