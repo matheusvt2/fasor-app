@@ -541,6 +541,7 @@ describe('E78-Q6 a reading whose last attempt dies ends failed (the dead letter 
     providers: () => ({
       ocr: { read: () => hanging },
       structuring: { structure: () => hanging },
+      prose: { describe: () => hanging },
       ocr_name: 'fake',
     }),
   };

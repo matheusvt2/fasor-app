@@ -1,5 +1,12 @@
 import {
+  captionConfirmAnnouncement,
   captionSavedText,
+  captionSuggestions,
+  legendaConfirmadaText,
+  legendasConfirmadasText,
+  legendasSugeridasText,
+  pendingSuggestions,
+  suggestionRowsOf,
   captionWordFor,
   contextCaptionParts,
   GALLERY_ALL,
@@ -20,11 +27,15 @@ import {
   skippedFilesText,
   type EntityState,
   type RelatorioSnapshot,
+  type SuggestionRow,
 } from '@app/domain';
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { Button as AriaButton } from 'react-aria-components';
 import { useParams } from 'react-router';
-import { Button, FilterChipGroup, PhotoRow } from '../../components/index.ts';
+import { Button, Chip, FilterChipGroup, PhotoRow } from '../../components/index.ts';
+import { SuggestionBlock } from '../../components/suggestion-field.tsx';
 import { copy } from '../../copy/pt-br.ts';
+import { ui } from '../../copy/ui.ts';
 import { useEditedSince, useRevisions } from '../../db/generate-store.ts';
 import { useRelatorioPhotoTiles, type PhotoTile } from '../../db/photo-store.ts';
 import { splitImportable } from '../../files/photo-import.ts';
@@ -35,7 +46,7 @@ import { useSheetCamera } from '../ficha/photo-openers.tsx';
 import { RelatorioGate } from '../relatorio/relatorio-gate.tsx';
 import { CaptionComposer } from './caption-composer.tsx';
 import { DropHint, PhotoCaptureSheet, useDropZone } from './capture-sheet.tsx';
-import { removePhoto, restorePhoto, setPhotoCaption } from './photo-ops.ts';
+import { confirmAllCaptionSuggestions, confirmCaptionSuggestion, removePhoto, restorePhoto, setPeopleInPhoto, setPhotoCaption } from './photo-ops.ts';
 import { PhotoViewer } from './photo-viewer.tsx';
 import { useCaptionSources } from './use-caption-sources.ts';
 import './photos.css';
@@ -48,6 +59,13 @@ import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
  * tile, "Legendar" on each row (Story 6.5), and the Sticky action bar with the Camera capture
  * button (a gallery shot is "Geral": no sheet, no caption) and "Adicionar fotos" (Story 6.4),
  * plus a drop zone on a computer. Numbers, counts, stamps and texts are the kernel's.
+ *
+ * Story 9.3 (FR-39): a photo with no context gets a vision caption on sync. It shows on its
+ * tile as the Suggestion field's block variant with "Confirmar", in the composer with "Usar",
+ * and the banner "N legendas sugeridas" offers "Confirmar todas" (one batch, every shown
+ * suggestion of the relatório). A tile with no sheet (or already marked) carries the "Pessoas
+ * na foto" chip: pressing it on writes the mark and discards the photo's pending caption in
+ * one batch. Which suggestion shows is the kernel's (`captionSuggestions`).
  */
 export function GallerySurface() {
   const { id = '' } = useParams();
@@ -107,9 +125,37 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const cabineName = options.find((option) => option.id === filter && filter !== GALLERY_ALL)?.label ?? null;
   const filterText = galleryFilterText(shown.length, cabineName === null ? null : captionWordFor(cabineName, 'local', sources.locais, sources.registry));
 
+  // --- Story 9.3: the vision captions ----------------------------------------------------------
+  const pending = useMemo(() => pendingSuggestions(suggestionRowsOf(state, relatorioId)), [state, relatorioId]);
+  const suggested = useMemo(
+    () =>
+      captionSuggestions(
+        all.map((tile) => ({ id: tile.id, block_id: tile.block_id, caption: tile.caption, people_in_photo: tile.people_in_photo ?? false, removed_at: null })),
+        pending,
+      ),
+    [all, pending],
+  );
+  const author = user === null ? null : { id: user.id, companyId: user.companyId };
+  const confirmOne = (tile: PhotoTile, suggestion: SuggestionRow, toast: string) => {
+    if (db === null || author === null) return;
+    void confirmCaptionSuggestion(db, author, suggestion).then(() => showToast(toast));
+  };
+  const confirmAll = () => {
+    if (db === null || author === null) return;
+    const rows = [...suggested.values()];
+    void confirmAllCaptionSuggestions(db, author, rows).then(() => {
+      showToast(legendasConfirmadasText(rows.length));
+      heading.current?.focus();
+    });
+  };
+  const markPeople = (tile: PhotoTile, marked: boolean) => {
+    if (db === null || author === null) return;
+    void setPeopleInPhoto(db, author, relatorioId, tile.id, marked, pending);
+  };
+
   // --- the header counter -------------------------------------------------------------------
   // E6-Q12: the counts are the kernel's.
-  const counter = galleryCounterText(galleryCounts(all));
+  const counter = galleryCounterText(galleryCounts(all, suggested));
 
   // --- the viewer, the composer, the import ---------------------------------------------------
   const [viewing, setViewing] = useState<string | null>(null);
@@ -157,7 +203,7 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
 
   const saveCaption = (tile: PhotoTile, text: string | null) => {
     if (db === null || user === null) return;
-    void setPhotoCaption(db, { id: user.id, companyId: user.companyId }, relatorioId, tile.id, text).then(() => showToast(captionSavedText(numbers.get(tile.id) ?? null)));
+    void setPhotoCaption(db, { id: user.id, companyId: user.companyId }, relatorioId, tile.id, text, pending).then(() => showToast(captionSavedText(numbers.get(tile.id) ?? null)));
   };
 
   const composerMeta = { step: null, testKey: null, words: { atividades: sources.atividades, locais: sources.locais }, registry: sources.registry };
@@ -183,6 +229,25 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
               {numbersStatus}
             </p>
           )}
+          {suggested.size === 0 ? null : (
+            <div className="banner sug-banner" data-variant="info" role="status">
+              <svg className="ico" aria-hidden="true">
+                <use href="/sprite.svg#i-sparkles" />
+              </svg>
+              <span className="banner-text">
+                <strong>{legendasSugeridasText(suggested.size)}</strong>
+                {t.suggestedTail}
+              </span>
+              <span className="banner-actions">
+                <AriaButton className="btn btn-text fotos-confirm-all" onPress={confirmAll}>
+                  <svg className="ico" aria-hidden="true">
+                    <use href="/sprite.svg#i-check-all" />
+                  </svg>
+                  {t.confirmAll}
+                </AriaButton>
+              </span>
+            </div>
+          )}
           {options.length > 1 ? <FilterChipGroup aria-label={t.filterLabel} options={options} selectedId={filter} onChange={setPicked} /> : null}
           <p className="visually-hidden" role="status" data-testid="gallery-filter-status">
             {filterText}
@@ -191,10 +256,33 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
           <div className="gallery-grid" role="list" aria-label={t.listLabel}>
             {shown.map((tile) => {
               const number = numbers.get(tile.id) ?? 0;
+              const suggestion = suggested.get(tile.id);
+              const suggestionText = suggestion === undefined ? null : String(suggestion.value);
+              const marked = tile.people_in_photo === true;
               return (
                 <div key={tile.id} role="listitem" className="gallery-item" data-photo-id={tile.id}>
                   <PhotoRow
-                    label={photoTileLabel(number)}
+                    label={photoTileLabel(number, { suggested: suggestion !== undefined })}
+                    suggestion={
+                      suggestion === undefined || suggestionText === null ? undefined : (
+                        <SuggestionBlock
+                          label={t.suggestedCaption}
+                          text={suggestionText}
+                          confirmLabel={ui.suggestionField.confirm}
+                          announcement={captionConfirmAnnouncement(suggestionText)}
+                          onConfirm={() => confirmOne(tile, suggestion, legendaConfirmadaText(numbers.get(tile.id) ?? null))}
+                        />
+                      )
+                    }
+                    people={
+                      tile.block_id === null || marked ? (
+                        <div className="chip-row photo-people">
+                          <Chip isSelected={marked} onSelectedChange={(on) => markPeople(tile, on)}>
+                            {t.peopleInPhoto}
+                          </Chip>
+                        </div>
+                      ) : undefined
+                    }
                     number={number}
                     stamp={{ text: photoStampShort(tile.captured_at), gps: tile.coords !== null }}
                     caption={tile.caption}
@@ -251,6 +339,17 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
           stored={captioning.caption}
           sources={sources}
           onSave={(text) => saveCaption(captioning, text)}
+          {...(() => {
+            const suggestion = suggested.get(captioning.id);
+            if (suggestion === undefined) return {};
+            const tile = captioning;
+            return {
+              suggestion: {
+                text: String(suggestion.value),
+                onUse: () => confirmOne(tile, suggestion, captionSavedText(numbers.get(tile.id) ?? null)),
+              },
+            };
+          })()}
         />
       )}
       <PhotoCaptureSheet

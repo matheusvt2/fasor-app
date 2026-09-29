@@ -1,5 +1,7 @@
 import type { ReadingKind } from '../payload.ts';
+import { captionHandler } from './caption.ts';
 import { displayHandler } from './display.ts';
+import { ncObsHandler } from './nc-obs.ts';
 import { panelHandler } from './panel.ts';
 import { plateHandler } from './plate.ts';
 import type { FakeFixtureDefault, ReadingKindHandler } from './types.ts';
@@ -14,6 +16,8 @@ export type * from './types.ts';
 export const READING_KIND_HANDLERS: Readonly<Partial<Record<ReadingKind, ReadingKindHandler>>> = {
   plate: plateHandler,
   display: displayHandler,
+  caption: captionHandler,
+  nc_obs: ncObsHandler,
   panel: panelHandler,
 };
 

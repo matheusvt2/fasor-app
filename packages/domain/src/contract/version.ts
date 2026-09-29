@@ -33,8 +33,11 @@
  * the `file/{id}/reading_kind` and `file/{id}/reading_target` put families are new; a
  * `reading_kind` put on a photo also sets its `reading_status` to `queued` (`applyOp`), and
  * the push route sends the reading when the photo's bytes are already stored.
+ *
+ * 8 (2026-09-28, Story 9.3): the photo row carries `people_in_photo` ("Pessoas na foto", a
+ * photo never sent to the prose provider), so the `file/{id}/people_in_photo` put family is new.
  */
-export const CONTRACT_VERSION = 7;
+export const CONTRACT_VERSION = 8;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -57,7 +60,11 @@ export const CONTRACT_VERSION = 7;
  * 7 (2026-09-28, Story 9.2): a version-6 (or older) bundle cannot parse a
  * `file/{id}/reading_kind` or `file/{id}/reading_target` put, which a relatório stream carries
  * once a block is created by photographing the equipment, so it updates too.
+ *
+ * 8 (2026-09-28, Story 9.3): a version-7 (or older) bundle cannot parse a
+ * `file/{id}/people_in_photo` put a relatório stream carries once a photo is marked
+ * "Pessoas na foto", so it updates too.
  */
-export const MIN_CONTRACT_VERSION = 7;
+export const MIN_CONTRACT_VERSION = 8;
 
 export const CONTRACT_VERSION_HEADER = 'x-contract-version';

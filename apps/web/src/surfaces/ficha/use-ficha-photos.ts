@@ -1,4 +1,16 @@
-import { captionSavedText, contextCaption, getSeed, numberPhotos, type BlockRow, type RelatorioSnapshot, type SeedWord, type SheetStep } from '@app/domain';
+import {
+  captionSavedText,
+  checklistRowIsNc,
+  contextCaption,
+  getSeed,
+  ncObsReadingOf,
+  numberPhotos,
+  type BlockRow,
+  type JsonValue,
+  type RelatorioSnapshot,
+  type SeedWord,
+  type SheetStep,
+} from '@app/domain';
 import { useMemo, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from 'react';
 import { useBlockPhotoTiles, useLocalWordRows, type PhotoTile } from '../../db/photo-store.ts';
 import type { AppDatabase } from '../../db/schema.ts';
@@ -66,11 +78,11 @@ export function useFichaPhotos({
     const onScreen = stepOnScreen();
     const step: SheetStep = itemKey !== null ? 'verificacoes' : isSheetStep(onScreen) ? onScreen : current;
     const testKey = step === 'ensaios' ? testKeyOnScreen() : null;
-    return {
-      blockId,
-      itemKey,
-      caption: contextCaption({ block_id: blockId, item_key: itemKey }, snapshot, { step, testKey, words: seedWords, registry: localWords }),
-    };
+    const caption = contextCaption({ block_id: blockId, item_key: itemKey }, snapshot, { step, testKey, words: seedWords, registry: localWords });
+    // Story 9.5 (Conflict 10): a photo taken from an NC row asks for that row's observation draft.
+    if (itemKey === null || !checklistRowIsNc(block, itemKey)) return { blockId, itemKey, caption };
+    const reading = ncObsReadingOf(block, itemKey);
+    return { blockId, itemKey, caption, reading: { kind: reading.kind, target: reading.target as JsonValue } };
   };
   const targetFor = (step: SheetStep, testKey: string | null): CaptureTarget => ({
     blockId,

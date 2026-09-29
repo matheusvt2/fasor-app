@@ -13,7 +13,7 @@ import {
 } from '@app/domain';
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type RefObject } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
-import { Button } from '../../components/index.ts';
+import { Button, Chip } from '../../components/index.ts';
 import { DialogShell } from '../../components/dialog-shell.tsx';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -206,6 +206,13 @@ interface Batch {
 
 const GERAL: ImportTarget = { blockId: null, itemKey: null, caption: null };
 
+/** "Adicionar N fotos": the sheet, the caption and (Story 9.3) the "Pessoas na foto" mark of the whole batch. */
+interface BatchAnswer {
+  blockId: string | null;
+  caption: string | null;
+  peopleInPhoto: boolean;
+}
+
 function SheetBody({
   relatorioId,
   mode,
@@ -280,7 +287,7 @@ function SheetBody({
     // Once, on open: `startBatch` reads the latest props through its own closure.
   }, []);
 
-  const finish = (ids: string[], skipped: number, target: { blockId: string | null; caption: string | null } | null) => {
+  const finish = (ids: string[], skipped: number, target: BatchAnswer | null) => {
     answered.current = true;
     if (target === null) {
       const text = photosKeptGeneralText(ids.length, skipped);
@@ -288,7 +295,7 @@ function SheetBody({
       return;
     }
     if (db === null || user === null) return;
-    void assignPhotoBatch(db, { id: user.id, companyId: user.companyId }, relatorioId, ids, target.blockId, target.caption).then(
+    void assignPhotoBatch(db, { id: user.id, companyId: user.companyId }, relatorioId, ids, target.blockId, target.caption, target.peopleInPhoto).then(
       () => {
         const text = photosImportedText(ids.length, skipped);
         if (text !== null) showToast(text);
@@ -298,7 +305,7 @@ function SheetBody({
   };
 
   /** "Adicionar N fotos": the puts now, or as soon as the batch is saved. */
-  const add = (target: { blockId: string | null; caption: string | null }) => {
+  const add = (target: BatchAnswer) => {
     if (batch === null) return;
     if (batch.ids !== null) finish(batch.ids, batch.skipped, target);
     else settled.current = (ids, skipped) => finish(ids, skipped, target);
@@ -384,7 +391,7 @@ function EquipmentStep({
   count: number;
   titleId: string;
   onCancel: () => void;
-  onAdd: (target: { blockId: string | null; caption: string | null }) => void;
+  onAdd: (target: BatchAnswer) => void;
 }) {
   const t = copy.captureSheet;
   const db = useSession().database;
@@ -405,6 +412,8 @@ function EquipmentStep({
   const dictation = useProseDictation();
   const [composing, setComposing] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Story 9.3: "Pessoas na foto" for the whole batch (a marked photo is never sent to the vision caption).
+  const [people, setPeople] = useState(false);
   const fieldId = useId();
   const noteId = useId();
   const n = count;
@@ -420,7 +429,7 @@ function EquipmentStep({
   const add = () => {
     if (saving || chosen === undefined) return;
     setSaving(true);
-    onAdd({ blockId: chosen, caption: caption.trim() === '' ? null : caption.trim() });
+    onAdd({ blockId: chosen, caption: caption.trim() === '' ? null : caption.trim(), peopleInPhoto: people });
   };
 
   return (
@@ -487,6 +496,11 @@ function EquipmentStep({
           <p className="capture-reason" id={noteId}>
             {batchCaptionNote(n)}
           </p>
+          <div className="chip-row capture-people">
+            <Chip isSelected={people} onSelectedChange={setPeople}>
+              {t.peopleInPhoto}
+            </Chip>
+          </div>
           <LegendarButton onPress={() => setComposing(true)} />
           <Button variant="primary" block onPress={add}>
             {addPhotosButtonText(n)}

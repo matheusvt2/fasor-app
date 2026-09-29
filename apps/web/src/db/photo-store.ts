@@ -36,6 +36,8 @@ export interface PhotoTile {
    * `failed` written over `failed` included, so a control can wait for the next one.
    */
   reading_status_op_id: string | null;
+  /** Story 9.3: the "Pessoas na foto" mark (absent reads false). */
+  people_in_photo?: boolean;
 }
 
 /** The newest pulled `file/{id}/reading_status` op of a photo, by server `seq`; null when none. */
@@ -78,6 +80,7 @@ async function photoTiles(db: AppDatabase, relatorioId: string, keep: (row: Phot
       reading_kind: row.reading_kind,
       reading_status: row.reading_status,
       reading_status_op_id: statusOpId,
+      people_in_photo: row.people_in_photo,
     });
   }
   return tiles.sort(comparePhotos);

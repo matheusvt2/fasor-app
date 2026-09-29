@@ -5,7 +5,16 @@ import { join, relative, resolve } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { isPermanentReadingError, PermanentReadingError, ProviderError, ProviderNotImplementedError, ProviderTimeoutError } from './errors.ts';
 import sharp from 'sharp';
-import { DEFAULT_FIXTURE_BY_BLOCK_TYPE, DEFAULT_FIXTURES_DIR, defaultFixtureFor, fakeOcrProvider, fakeReadingFixtureSchema, fakeStructuringProvider, type FakeFixtureKey } from './fake.ts';
+import {
+  DEFAULT_FIXTURE_BY_BLOCK_TYPE,
+  DEFAULT_FIXTURES_DIR,
+  defaultFixtureFor,
+  fakeOcrProvider,
+  fakeProseProvider,
+  fakeReadingFixtureSchema,
+  fakeStructuringProvider,
+  type FakeFixtureKey,
+} from './fake.ts';
 import { createReadingProviders } from './index.ts';
 
 /*
@@ -155,7 +164,6 @@ describe('9.1-API the default fixture is chosen by kind, block type and table, m
     expect(defaultFixtureFor(plate('transformador_forca'))).toBe(SHA.plate);
     expect(defaultFixtureFor(plate('chave_seccionadora'))).toBeUndefined();
     // A display default never serves a plate, nor a plate default a display.
-    expect(defaultFixtureFor({ reading_kind: 'caption', block_type: null, table_key: null })).toBeUndefined();
     for (const sha of Object.values(SHA)) expect(readdirSync(DEFAULT_FIXTURES_DIR)).toContain(`${sha}.json`);
   });
 
@@ -165,6 +173,50 @@ describe('9.1-API the default fixture is chosen by kind, block type and table, m
     expect(read.image).toEqual({ width: 600, height: 450 });
     expect(read.tokens.map((token) => token.text)).toEqual(['MODELOSINTETICO', '147', 'Gn']);
     expect(read.tokens[1]!.bbox).toEqual([139, 161.5, 307.5, 266.5]);
+  });
+});
+
+describe('9.3/9.5-API the prose fixtures and their fallback', () => {
+  const SHA = {
+    caption: '1c9e7aafc2603b61d76e54c08f36183ff2ebdcf14bd58621bdb12483244139e8',
+    ncObs: '14f52bebef057c7290ef65ff6951b4c56447f1d7e9e94d3d35ac8d39f197a312',
+    none: '2dd03fe0930c0161fd2c190b150aef541c47b855f51f244e5499438334fddf67',
+  };
+  const key = (kind: 'caption' | 'nc_obs', blockType: string | null = null): FakeFixtureKey => ({ reading_kind: kind, block_type: blockType, table_key: null });
+  const input = (kind: 'caption' | 'nc_obs') => ({ image, kind, context: { block_type: null, item_label: null } });
+
+  it('the committed images are the ones the fixtures name', () => {
+    expect(sha256(join(IMAGES, 'caption-default.png'))).toBe(SHA.caption);
+    expect(sha256(join(IMAGES, 'nc-obs-default.png'))).toBe(SHA.ncObs);
+    expect(sha256(join(IMAGES, 'caption-none.png'))).toBe(SHA.none);
+  });
+
+  it('a photo with no fixture of its own replays its kind default, whatever the block type', async () => {
+    expect(defaultFixtureFor(key('caption'))).toBe(SHA.caption);
+    expect(defaultFixtureFor(key('nc_obs', 'chave_seccionadora'))).toBe(SHA.ncObs);
+    const caption = await fakeProseProvider(DEFAULT_FIXTURES_DIR, 'e'.repeat(64), key('caption')).describe(input('caption'));
+    expect(caption).toEqual({ output: { text: 'Vista geral da cabine primária' }, model: 'fake', prompt_version: 'fake-1', usage: { input_tokens: 0, output_tokens: 0, usd: 0 } });
+    const draft = await fakeProseProvider(DEFAULT_FIXTURES_DIR, 'e'.repeat(64), key('nc_obs', 'tp')).describe(input('nc_obs'));
+    expect(draft.output).toEqual({ text: 'Oxidação aparente na estrutura do equipamento.' });
+  });
+
+  it('prose null, an absent prose (a plate fixture) read null; error and timeout fail transiently', async () => {
+    expect((await fakeProseProvider(DEFAULT_FIXTURES_DIR, SHA.none, key('caption')).describe(input('caption'))).output).toBeNull();
+    expect((await fakeProseProvider(DEFAULT_FIXTURES_DIR, PLATE_SHA).describe(input('caption'))).output).toBeNull();
+    const error = await failure(fakeProseProvider(DEFAULT_FIXTURES_DIR, sha256(join(IMAGES, 'plate-error.png')), key('caption')).describe(input('caption')));
+    expect(error).toBeInstanceOf(ProviderError);
+    expect(isPermanentReadingError(error)).toBe(false);
+    const timeout = await failure(fakeProseProvider(DEFAULT_FIXTURES_DIR, sha256(join(IMAGES, 'plate-timeout.png')), key('caption')).describe(input('caption')));
+    expect(timeout).toBeInstanceOf(ProviderTimeoutError);
+  });
+
+  it('anthropic and bedrock prose slots fail permanently', async () => {
+    for (const llm of ['anthropic', 'bedrock'] as const) {
+      const providers = createReadingProviders({ OCR_SERVICE_URL: 'http://ocr:8000', OCR_PROVIDER: 'fake', LLM_PROVIDER: llm })({ photo_sha256: SHA.caption, reading_kind: 'caption', block_type: null, table_key: null });
+      const refused = await failure(providers.prose.describe(input('caption')));
+      expect(refused).toBeInstanceOf(ProviderNotImplementedError);
+      expect(isPermanentReadingError(refused)).toBe(true);
+    }
   });
 });
 

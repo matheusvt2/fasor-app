@@ -1,9 +1,11 @@
 import {
   confirmSuggestionOps,
+  discardSuggestionOp,
   envSuggestions,
   livePendingSuggestions,
   measurementSuggestions,
   safeParsePath,
+  staleProseSuggestions,
   storedTestCell,
   suggestionFieldDef,
   suggestionRowSchema,
@@ -12,6 +14,7 @@ import {
   type BlockRow,
   type JsonValue,
   type LocationRow,
+  type PhotoFileRow,
   type RelatorioRow,
   type SuggestionRow,
 } from '@app/domain';
@@ -33,6 +36,12 @@ import type { AppDatabase } from './schema.ts';
  * Story 9.1: the same for a display reading on a Measurement cell (the typed value checked
  * by the photo: an equal one gains the crop silently) and on a cabine's temperature or
  * humidity, compared as numbers (`measurementSuggestions`, `envSuggestions`).
+ *
+ * Stories 9.3 and 9.5: the same sweep discards the prose suggestions nothing will show again
+ * (`staleProseSuggestions`): a vision caption whose photo got a caption, a sheet, the people
+ * mark or was removed; an NC draft whose row is no longer NC or whose observation was typed
+ * before it arrived (a pending draft would hold the sheet as not concluded). Never on an
+ * issued relatório.
  */
 
 async function pendingRows(db: AppDatabase): Promise<SuggestionRow[]> {
@@ -98,6 +107,35 @@ async function sweepOne(db: AppDatabase, id: string, author: Author, deps: Commi
   // The engineer's own value is written back as it is; only its provenance changes.
   await commitBatch(db, confirmSuggestionOps(author, suggestion, { auto: true, value: cell.value }), deps);
   return true;
+}
+
+/**
+ * Stories 9.3 and 9.5: discards each local pending prose suggestion nothing will show again,
+ * one batch per row; skipped on an issued relatório. A row whose commit throws is logged and
+ * left pending (the next sweep takes it again). Returns the ids it discarded.
+ */
+export async function discardStaleProse(db: AppDatabase, author: Author, deps: CommitDeps): Promise<string[]> {
+  const pending = await pendingRows(db);
+  if (pending.length === 0) return [];
+  const [blocks, files] = await Promise.all([db.entities.where('entity').equals('block').toArray(), db.entities.where('entity').equals('file').toArray()]);
+  const photos = files
+    .filter((record) => (record.row as { kind?: unknown }).kind === 'photo')
+    .map((record) => {
+      const row = record.row as PhotoFileRow;
+      return { ...row, removed_at: record.removed_at ?? row.removed_at ?? null };
+    });
+  const stale = staleProseSuggestions({ photos, blocks: blocks.map((record) => record.row as BlockRow), pending });
+  const discarded: string[] = [];
+  for (const suggestion of stale) {
+    try {
+      if (await issued(db, suggestion)) continue;
+      await commitBatch(db, [discardSuggestionOp(author, suggestion)], deps);
+      discarded.push(suggestion.id);
+    } catch (error) {
+      console.error('stale suggestion discard failed', { id: suggestion.id, error });
+    }
+  }
+  return discarded;
 }
 
 async function issued(db: AppDatabase, suggestion: SuggestionRow): Promise<boolean> {

@@ -3,6 +3,7 @@ import { clientPreIssueRows } from '../checks/pre-issue-client.ts';
 import { companyPreIssues } from '../checks/pre-issue.ts';
 import { calendarDateOfInstant, formatCalendarDate, formatShortDateTime } from '../format/datetime.ts';
 import { sortByOrderKey } from '../ops/order-key.ts';
+import { captionSuggestions, legendasSugeridasText } from '../photos/captions.ts';
 import { livePhotos } from '../photos/order.ts';
 import { photosAwaitingText, photosUncaptionedText } from '../photos/text.ts';
 import { artLabel } from '../print/document-control.ts';
@@ -53,6 +54,7 @@ export type PreIssueKind =
   | 'company'
   | 'client'
   | 'photos_uncaptioned'
+  | 'captions_suggested'
   | 'photos_pending_upload'
   | 'photos_upload_error'
   | 'points_sem_acao'
@@ -252,6 +254,12 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
   const uncaptioned = photos.filter((photo) => photo.caption === null || photo.caption.trim() === '').length;
   if (uncaptioned > 0) {
     rows.push({ id: 'photos_uncaptioned', row: 'section_7', severity: 'pending', text: photosUncaptionedText(uncaptioned), kind: 'photos_uncaptioned' });
+  }
+  // Story 9.3 (FR-39): vision captions nobody confirmed yet; those photos print without them.
+  // A warning, never blocking; `photos_uncaptioned` still counts them (nothing is written yet).
+  const suggestedCaptions = captionSuggestions(photos, context.pendingSuggestions ?? []).size;
+  if (suggestedCaptions > 0) {
+    rows.push({ id: 'captions_suggested', row: 'section_7', severity: 'info', text: legendasSugeridasText(suggestedCaptions), kind: 'captions_suggested' });
   }
   // A photo with a local upload error is not waiting: `photoUploadState` reads it as `error`.
   const unsent = photos.filter((photo) => photo.uploaded_at === null && !photoErrors.has(photo.id)).length;

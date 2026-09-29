@@ -53,6 +53,7 @@ function photo(snapshot: RelatorioSnapshot, overrides: Partial<SnapshotPhoto> = 
     reading_kind: null,
     reading_target: null,
     reading_status: 'none',
+    people_in_photo: false,
     ...overrides,
   };
 }

@@ -22,7 +22,7 @@ import {
   writeSyncState,
 } from '../db/sync-store.ts';
 import { opOf } from '../db/commit.ts';
-import { autoConfirmPending, hasRunningReading } from '../db/suggestion-store.ts';
+import { autoConfirmPending, discardStaleProse, hasRunningReading } from '../db/suggestion-store.ts';
 import {
   clearUploadError,
   markBlobAcked,
@@ -405,9 +405,11 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     try {
       const author = deps.author();
       if (author === null) return;
+      // Stories 9.3/9.5: prose suggestions the engineer already overtook are discarded first.
+      const discarded = await discardStaleProse(deps.db, author, { newId: deps.newId, now: deps.now });
       const confirmed = await autoConfirmPending(deps.db, author, { newId: deps.newId, now: deps.now });
-      // The confirm ops were committed after this cycle's push: one more cycle sends them now.
-      if (confirmed.length > 0) onlineWhileRunning = true;
+      // The confirm and discard ops were committed after this cycle's push: one more cycle sends them now.
+      if (confirmed.length > 0 || discarded.length > 0) onlineWhileRunning = true;
     } catch (error) {
       console.error('suggestion auto-confirm failed', error);
     }

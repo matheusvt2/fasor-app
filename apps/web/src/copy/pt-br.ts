@@ -686,6 +686,15 @@ export const copy = {
     empty: 'Nenhuma foto. Tire fotos a partir da ficha do equipamento para já sair com legenda.',
     // `70-fotos.html` `.cam-reason`, verbatim.
     camReason: 'Abre a câmera direto; rajada até "Concluir fotos". A legenda nasce do contexto.',
+    // Story 9.3: the suggestions banner (`70-fotos.html` `.sug-banner`): the kernel's "12
+    // legendas sugeridas" in bold, then this tail (the mock's, without the photographer's name).
+    suggestedTail: ' pela leitura das fotos.',
+    // `70-fotos.html` `.fotos-confirm-all`, verbatim.
+    confirmAll: 'Confirmar todas',
+    // authored: no mock draws the mark (Conflict 7 of the Epic 9 context).
+    peopleInPhoto: 'Pessoas na foto',
+    // authored: the tile's suggestion group name.
+    suggestedCaption: 'Legenda sugerida',
   },
   // Story 6.3: the Photo viewer (`70-fotos.html` "Photo viewer").
   viewer: {
@@ -715,6 +724,8 @@ export const copy = {
     // list grouped as the tree, in place, instead of leaving for the tree.
     otherEquipment: 'Outro equipamento',
     caption: 'Legendar',
+    // authored (Story 9.3): the batch's people mark, under its caption field.
+    peopleInPhoto: 'Pessoas na foto',
     // Story 9.4, `70-fotos.html` 419: the batch caption's Dictation button.
     dictate: 'Ditar a legenda',
   },
@@ -741,6 +752,12 @@ export const copy = {
     textLabel: 'Texto da legenda',
     back: 'Voltar sem alterar',
     save: 'Salvar legenda',
+    // Story 9.3: `71-legenda.html` `.vision-line .sv-kicker`, verbatim.
+    suggestedKicker: 'Sugerida pela foto',
+    // Story 9.3 (the story's word; the mock says "Confirmar", Conflict 8).
+    use: 'Usar',
+    // authored: the vision line's group name.
+    suggestedLabel: 'Legenda sugerida',
   },
   // Story 6.6: the Points surface (`72-pontos.html`) and the point editor. Counts, titles,
   // order lines and the derived entries' texts are the kernel's (`points/*.ts`).
@@ -936,6 +953,12 @@ export const copy = {
       // Story 9.4, `60-ficha.html` 384: the row observation's Dictation button.
       dictateObservation: (n: number) => `Ditar observação do item ${n}`,
       observationRequired: 'Obrigatória em item não conforme',
+      // Story 9.5: `72-pontos.html` `.poa-draft .sv-kicker`, verbatim.
+      draftKicker: 'Rascunho pela foto',
+      // Story 9.5 (the story's word).
+      draftUse: 'Usar',
+      // authored: the draft's group name.
+      draftLabel: (n: number) => `Rascunho da observação do item ${n}`,
       // authored: the NC chip row's name.
       chipsLabel: (n: number) => `Observações sugeridas do item ${n}`,
       // The row Overflow (`60-ficha.html` "Opções do item 1: Limpar · Observação").

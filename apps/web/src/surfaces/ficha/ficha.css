@@ -173,6 +173,12 @@
    laid out as the mock's `.suggestion-alt` line (flex, wrapping, the same gaps). */
 [data-route="/relatorio/:id/ficha/:blockId"] .word-unregistered { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); }
 [data-route="/relatorio/:id/ficha/:blockId"] .word-unregistered-name { color: var(--ink-primary); font-weight: 600; }
+
+/* ---------- Story 9.5: the NC observation draft (`72-pontos.html` lines 23-26, the `.poa-draft` pattern) ---------- */
+[data-route="/relatorio/:id/ficha/:blockId"] .nc-draft .suggestion-block { align-items: flex-start; }
+[data-route="/relatorio/:id/ficha/:blockId"] .nc-draft .suggestion-block > .ico { width: 24px; height: 24px; flex: none; color: var(--fora-do-limite); margin-top: 2px; }
+[data-route="/relatorio/:id/ficha/:blockId"] .nc-draft .sv-kicker { display: block; font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--fora-do-limite); margin-bottom: 2px; }
+[data-route="/relatorio/:id/ficha/:blockId"] .nc-draft > .suggestion-block ~ .suggested-pill { top: -2px; }
 /* authored: Story 9.4, a dictated reading's Suggestion field inside a Measurement cell draws no
    label (the mock's suggested cell, `60-ficha.html` 521); the label stays as its accessible
    name. Declarations of `.visually-hidden`. */

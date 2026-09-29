@@ -1,9 +1,9 @@
-import type { OcrProvider, StructuringProvider } from '@app/domain';
+import type { OcrProvider, ProseProvider, StructuringProvider } from '@app/domain';
 import type { Config } from '../../../config.ts';
 import type { ReadingKind } from '../payload.ts';
-import { DEFAULT_FIXTURES_DIR, fakeOcrProvider, fakeStructuringProvider } from './fake.ts';
+import { DEFAULT_FIXTURES_DIR, fakeOcrProvider, fakeProseProvider, fakeStructuringProvider } from './fake.ts';
 import { ocrSvcProvider } from './ocr-svc.ts';
-import { unimplementedOcrProvider, unimplementedStructuringProvider } from './unimplemented.ts';
+import { unimplementedOcrProvider, unimplementedProseProvider, unimplementedStructuringProvider } from './unimplemented.ts';
 
 export * from './errors.ts';
 
@@ -17,6 +17,8 @@ export * from './errors.ts';
 export interface ReadingProviders {
   ocr: OcrProvider;
   structuring: StructuringProvider;
+  /** Stories 9.3 and 9.5: the prose step (vision caption, NC draft), chosen by `LLM_PROVIDER`; no OCR call. */
+  prose: ProseProvider;
   /** The `reading_runs.ocr_provider` of the attempt. */
   ocr_name: string;
 }
@@ -69,6 +71,15 @@ export function createReadingProviders(
           return unimplementedStructuringProvider(config.LLM_PROVIDER);
       }
     })();
-    return { ocr, structuring, ocr_name: config.OCR_PROVIDER };
+    const prose = (() => {
+      switch (config.LLM_PROVIDER) {
+        case 'fake':
+          return fakeProseProvider(fixturesDir, photo_sha256, fixtureKey);
+        case 'anthropic':
+        case 'bedrock':
+          return unimplementedProseProvider(config.LLM_PROVIDER);
+      }
+    })();
+    return { ocr, structuring, prose, ocr_name: config.OCR_PROVIDER };
   };
 }

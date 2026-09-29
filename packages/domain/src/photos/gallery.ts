@@ -10,6 +10,7 @@ import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { getDefinition } from '../seed/definitions.ts';
 import { plural } from '../text/plural.ts';
 import type { CaptionWord } from './caption.ts';
+import { legendasSugeridasText } from './captions.ts';
 import { photosPendingText, photosUncaptionedText, photoUploadState } from './text.ts';
 
 /*
@@ -110,11 +111,16 @@ export function galleryHeadingText(n: number): string {
   return `Registro fotográfico (${n})`;
 }
 
-/** The gallery header's counter: "3 fotos aguardando envio · 1 com erro · 1 sem legenda"; null when all are zero. */
-export function galleryCounterText(counts: { pending: number; error: number; uncaptioned: number }): string | null {
+/**
+ * The gallery header's counter: "3 fotos aguardando envio · 1 com erro · 12 legendas
+ * sugeridas · 1 sem legenda" (`70-fotos.html`); null when all are zero. Story 9.3: `suggested`
+ * counts the caption suggestions shown (absent reads 0).
+ */
+export function galleryCounterText(counts: { pending: number; error: number; uncaptioned: number; suggested?: number }): string | null {
   const parts: string[] = [];
   if (counts.pending > 0) parts.push(photosPendingText(counts.pending));
   if (counts.error > 0) parts.push(`${counts.error} com erro`);
+  if ((counts.suggested ?? 0) > 0) parts.push(legendasSugeridasText(counts.suggested!));
   if (counts.uncaptioned > 0) parts.push(photosUncaptionedText(counts.uncaptioned));
   return parts.length === 0 ? null : parts.join(SEP);
 }
@@ -149,9 +155,9 @@ export function photoNumbersStatusText(latest: Pick<RevisionRow, 'number'> | nul
   return edited ? `Números provisórios — serão definidos na revisão ${latest.number + 1}` : `Números da revisão ${latest.number}`;
 }
 
-/** A gallery tile's accessible name: "Foto 4, abrir". */
-export function photoTileLabel(n: number): string {
-  return `Foto ${n}, abrir`;
+/** A gallery tile's accessible name: "Foto 4, abrir"; "Foto 1, legenda sugerida, abrir" with a caption suggestion (`70-fotos.html`). */
+export function photoTileLabel(n: number, opts: { suggested?: boolean } = {}): string {
+  return opts.suggested === true ? `Foto ${n}, legenda sugerida, abrir` : `Foto ${n}, abrir`;
 }
 
 /** The viewer's accessible name: "Foto 4 de 20". */
@@ -279,14 +285,22 @@ export function photoEquipmentGroups(snapshot: Pick<RelatorioSnapshot, 'blocks' 
   return { nearby: ranked.slice(0, PHOTO_EQUIPMENT_NEARBY_MAX).map((node) => optionOf.get(node.blockId)!), groups };
 }
 
-/** E6-Q12: the gallery header's counts, from the tiles' upload state and caption. */
-export function galleryCounts(tiles: readonly { uploaded_at: string | null; upload_error?: unknown; caption: string | null }[]): { pending: number; error: number; uncaptioned: number } {
-  const counts = { pending: 0, error: 0, uncaptioned: 0 };
+/**
+ * E6-Q12: the gallery header's counts, from the tiles' upload state and caption. Story 9.3:
+ * given the photos showing a caption suggestion (`captionSuggestions`), those count as
+ * `suggested` and not as `uncaptioned`.
+ */
+export function galleryCounts(
+  tiles: readonly { id?: string; uploaded_at: string | null; upload_error?: unknown; caption: string | null }[],
+  suggested: ReadonlySet<string> | ReadonlyMap<string, unknown> = new Set(),
+): { pending: number; error: number; uncaptioned: number; suggested: number } {
+  const counts = { pending: 0, error: 0, uncaptioned: 0, suggested: 0 };
   for (const tile of tiles) {
     const state = photoUploadState({ uploaded_at: tile.uploaded_at, localError: tile.upload_error });
     if (state === 'pending') counts.pending += 1;
     else if (state === 'error') counts.error += 1;
-    if (isUncaptioned(tile.caption)) counts.uncaptioned += 1;
+    if (tile.id !== undefined && suggested.has(tile.id)) counts.suggested += 1;
+    else if (isUncaptioned(tile.caption)) counts.uncaptioned += 1;
   }
   return counts;
 }

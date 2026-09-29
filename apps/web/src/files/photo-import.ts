@@ -54,6 +54,8 @@ export interface ImportTarget {
   blockId: string | null;
   itemKey: string | null;
   caption: string | null;
+  /** Story 9.5: the reading the photos ask for (an NC row's `nc_obs`); omitted, the kernel's rule chooses. */
+  reading?: PhotoCaptureInput['reading'];
 }
 
 export interface ImportDeps {
@@ -109,6 +111,7 @@ export async function importPhotoFiles(files: readonly File[], target: ImportTar
         blockId: target.blockId,
         itemKey: target.itemKey,
         caption: target.caption,
+        ...(target.reading === undefined ? {} : { reading: target.reading }),
         capturedAt: time.captured_at,
         tzOffset: time.tz_offset,
         coords,

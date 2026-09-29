@@ -37,6 +37,51 @@ export interface SuggestionFieldProps {
   confirmLabel?: string;
 }
 
+export interface SuggestionBlockProps {
+  /** The group's accessible name ("Legenda sugerida"); the block draws no visible label. */
+  label: string;
+  /** The suggested prose, as it will be written. */
+  text: string;
+  /** Writes the suggestion (the caller's ops); nothing is written before. */
+  onConfirm: () => void;
+  /** The button's visible word: "Confirmar" (a gallery tile) or "Usar" (composer, NC draft). */
+  confirmLabel: string;
+  /** The button's accessible name, starting with its visible word. */
+  announcement: string;
+  /** The kicker above the text ("Sugerida pela foto", "Rascunho pela foto") and the sparkles glyph; none on a tile. */
+  kicker?: string;
+  /** Extra classes on the field (`vision-line`, `nc-draft`). */
+  className?: string;
+}
+
+/**
+ * Stories 9.3 and 9.5: the Suggestion field's block variant (`components.css` "Block variant";
+ * `70-fotos.html` tile, `71-legenda.html` `.vision-line`, `72-pontos.html` `.poa-draft`): a
+ * vision caption or an NC observation draft, always `suggested` (prose is never guessed, so
+ * never "Verificar"), with its one action. Nothing is written until the tap.
+ */
+export function SuggestionBlock({ label, text, onConfirm, confirmLabel, announcement, kicker, className }: SuggestionBlockProps) {
+  return (
+    <div className={className === undefined ? 'field suggestion-field' : `field suggestion-field ${className}`} data-state="suggested" role="group" aria-label={label}>
+      <div className="suggestion-block">
+        {kicker === undefined ? null : (
+          <svg className="ico" aria-hidden="true">
+            <use href="/sprite.svg#i-sparkles" />
+          </svg>
+        )}
+        <span className="sv">
+          {kicker === undefined ? null : <span className="sv-kicker">{kicker}</span>}
+          {text}
+        </span>
+        <button type="button" className="confirm-btn" aria-label={announcement} onClick={onConfirm}>
+          {confirmLabel}
+        </button>
+      </div>
+      <span className="suggested-pill">{ui.suggestionField.suggested}</span>
+    </div>
+  );
+}
+
 /**
  * The Suggestion field (UX-DR45, `components.css` Suggestion field; built in Story 5.8 as the
  * shared component): a value the engineer did not enter, drawn in the amber fill with the

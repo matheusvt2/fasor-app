@@ -73,6 +73,7 @@ export * from './photos/eviction.ts';
 export * from './photos/text.ts';
 export * from './photos/order.ts';
 export * from './photos/gallery.ts';
+export * from './photos/captions.ts';
 export * from './photos/numbering.ts';
 export * from './points/refs.ts';
 export * from './points/checks.ts';

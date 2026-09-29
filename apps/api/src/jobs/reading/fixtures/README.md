@@ -24,6 +24,10 @@ One file per photo, named `<sha256 of the photo's original bytes>.json`:
   refuses a read of another size), and its boxes are in that variant's pixels.
 - `structuring`: a `StructuringOutput`. Absent means no values. The fake reports
   `model: "fake"`, `prompt_version: "fake-1"` and zero usage.
+- `prose` (Stories 9.3 and 9.5): the prose step's answer, `{"text": "..."}` or `null`
+  (`proseOutputSchema`, `packages/domain/src/contract/prose.ts`). Absent reads `null`. A
+  caption or an NC draft makes no OCR call, so its fixture needs no `ocr`. The fake reports the
+  same model, prompt version and usage as the structuring step.
 
 The file is validated by `fakeReadingFixtureSchema` (`providers/fake.ts`). A fixture that
 does not validate fails permanently (one attempt).
@@ -60,6 +64,8 @@ the thermo-hygrometer has no block type and the table key `env`.
 | display | any | `relacao_transformacao` | `display-ttr.jpg` (34,512) |
 | display | none | `env` | `display-termo.jpg` (23,4 °C at 0.26: Verificar; 58 %) |
 | display | any | anything else | `display-megohmetro.jpg` (3,42, no unit) |
+| caption | - | - | `images/caption-default.png` (prose "Vista geral da cabine primária") |
+| nc_obs | any | - | `images/nc-obs-default.png` (prose "Oxidação aparente na estrutura do equipamento.") |
 | panel | - | - | `images/panel-seccionadora.png` (Chave seccionadora at 0.93, column `C09` at 0.95) |
 
 The six display fixtures are the sidecar's `POST /read/display` reads of the synthetic displays
@@ -112,6 +118,14 @@ the registry's spelling and no hint.
 once with sharp. Their fixtures (`d99b945b...json` and `17d23086...json`) declare only
 `outcome: error` and `outcome: timeout`. A plate photo taken from either exercises the
 three-attempt failure and the "Tentar novamente" path.
+
+## The prose images (Stories 9.3 and 9.5)
+
+`images/caption-default.png`, `images/nc-obs-default.png` and `images/caption-none.png` are
+64 x 48 single-colour PNGs made once with sharp (green, red and slate). The first two are the
+`caption` and `nc_obs` defaults above (a photo taken through the app replays them); the third
+answers `prose: null`, the photo the job cannot caption (no suggestion, the photo stays "Sem
+legenda"). The texts are authored pt-BR, not read from any real photo.
 
 ## The synthetic panel front (Story 9.2)
 

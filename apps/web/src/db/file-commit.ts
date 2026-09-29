@@ -1,4 +1,4 @@
-import { filePath, type JsonValue, type OpDraft, type PhotoFileRow, type UploadFileKind } from '@app/domain';
+import { captionReadingOf, filePath, type JsonValue, type OpDraft, type PhotoFileRow, type UploadFileKind } from '@app/domain';
 import type { PickedFile } from '../components/upload-tile.tsx';
 import { commitFileBatch, commitPhotoBatch, type CommitDeps } from './commit.ts';
 import { readLocalBlob, localFileRow } from './file-store.ts';
@@ -84,6 +84,8 @@ export interface PhotoCaptureInput {
    * 'queued'`. Omitted, the photo is a plain one (`reading_status: 'none'`).
    */
   reading?: { kind: NonNullable<PhotoFileRow['reading_kind']>; target: JsonValue };
+  /** Story 9.3 (contract 8): "Pessoas na foto" set at capture; such a photo is never sent to the prose provider. */
+  peopleInPhoto?: boolean;
 }
 
 /**
@@ -105,6 +107,10 @@ export async function commitPhotoCapture(
 
 /** The photo's `file/{id}` create draft: relatório scope, the full `photoFileRowSchema` row. */
 export function photoCreateDraft(input: Omit<PhotoCaptureInput, 'thumb'>, localSeq: number): OpDraft {
+  const peopleInPhoto = input.peopleInPhoto === true;
+  // Story 9.3: a photo with no reading of its own and no context (no sheet, no caption, no
+  // people mark) asks for a vision caption (the kernel's rule, `captionReadingOf`).
+  const reading = input.reading ?? captionReadingOf({ block_id: input.blockId, caption: input.caption, people_in_photo: peopleInPhoto }) ?? undefined;
   return {
     scope: 'relatorio',
     company_id: input.companyId,
@@ -134,9 +140,10 @@ export function photoCreateDraft(input: Omit<PhotoCaptureInput, 'thumb'>, localS
       block_id: input.blockId,
       item_key: input.itemKey,
       caption: input.caption,
-      reading_kind: input.reading?.kind ?? null,
-      reading_target: input.reading?.target ?? null,
-      reading_status: input.reading === undefined ? 'none' : 'queued',
+      reading_kind: reading?.kind ?? null,
+      reading_target: reading?.target ?? null,
+      reading_status: reading === undefined ? 'none' : 'queued',
+      people_in_photo: peopleInPhoto,
     } as never,
   };
 }

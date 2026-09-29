@@ -878,7 +878,7 @@ describe('sync engine', () => {
     const SUGGESTION = '019966b0-0081-7000-8000-0000000000a1';
 
     /** The reading job's `suggestion/{id}` create, appended to the server log. */
-    function serverSuggestion(h: Harness, value: string): void {
+    function serverSuggestion(h: Harness, value: string, targetPath = `sheet/${BLOCK_1_ID}/nameplate/fabricacao`): void {
       const op = makeOp(
         {
           kind: 'create',
@@ -893,7 +893,7 @@ describe('sync engine', () => {
           value: {
             id: SUGGESTION,
             relatorio_id: RELATORIO_ID,
-            target_path: `sheet/${BLOCK_1_ID}/nameplate/fabricacao`,
+            target_path: targetPath,
             value,
             trust: 'suggested',
             mode: 'fill',
@@ -928,6 +928,22 @@ describe('sync engine', () => {
       // One more cycle runs right after the one that confirmed, and pushes the pair.
       await h.clock.advance(0);
       await waitFor(async () => h.server.log.filter((op) => op.meta?.auto === true).length === 2 && (await h.db.outbox.where('status').equals('acked').count()) === (await h.db.outbox.count()), 'the auto-confirm push');
+      h.db.close();
+    });
+
+    it('9.5: discards a pulled NC draft whose row is not NC, pushed on the next cycle', async () => {
+      const h = await filled({ author: () => ({ id: USER_ID, companyId: COMPANY_ID }) });
+      serverSuggestion(h, 'Oxidação aparente.', `sheet/${BLOCK_1_ID}/checklist/limpeza/observation`);
+      expect(await h.engine.runCycle()).toBe('ran');
+      expect(((await h.db.entities.get(['suggestion', SUGGESTION]))!.row as { status: string }).status).toBe('discarded');
+      // One more cycle runs right after the one that discarded, and pushes the discard.
+      await h.clock.advance(0);
+      await waitFor(
+        async () =>
+          h.server.log.some((op) => op.path === `suggestion/${SUGGESTION}/status` && op.value === 'discarded') &&
+          (await h.db.outbox.where('status').equals('acked').count()) === (await h.db.outbox.count()),
+        'the stale discard push',
+      );
       h.db.close();
     });
 

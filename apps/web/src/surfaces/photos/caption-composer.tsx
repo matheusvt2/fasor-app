@@ -1,4 +1,5 @@
 import {
+  captionUsarAnnouncement,
   captionChipOptions,
   dictatedText,
   captionPhotoLabel,
@@ -14,6 +15,7 @@ import { useId, useRef, useState } from 'react';
 import { Button as AriaButton, ToggleButton } from 'react-aria-components';
 import { Button, Chip, Combobox, InactiveChip } from '../../components/index.ts';
 import { DialogShell } from '../../components/dialog-shell.tsx';
+import { SuggestionBlock } from '../../components/suggestion-field.tsx';
 import { useObjectUrl } from '../../components/photo-row.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
@@ -67,6 +69,11 @@ export interface CaptionComposerProps {
   stored: string | null;
   sources: CaptionComposerSources;
   onSave: (text: string | null, parts: CaptionParts) => void;
+  /**
+   * Story 9.3: the photo's vision caption waiting for a tap (`71-legenda.html` `.vision-line`):
+   * "Usar" confirms it (the caller's ops) and closes; saving a caption instead discards it.
+   */
+  suggestion?: { text: string; onUse: () => void };
 }
 
 function sameName(a: string, b: string): boolean {
@@ -108,7 +115,7 @@ function PhotoPreview({ photo }: { photo: CaptionComposerPhoto }) {
   );
 }
 
-function ComposerBody({ prefill, stored, sources, onSave, onClose, headingId, photo }: CaptionComposerProps & { headingId: string }) {
+function ComposerBody({ prefill, stored, sources, onSave, onClose, headingId, photo, suggestion }: CaptionComposerProps & { headingId: string }) {
   const t = copy.captionComposer;
   const [parts, setParts] = useState<CaptionParts>(prefill);
   const generated = composeCaption(parts);
@@ -169,6 +176,20 @@ function ComposerBody({ prefill, stored, sources, onSave, onClose, headingId, ph
       <div className="section-head">
         <h2 id={headingId}>{t.heading}</h2>
       </div>
+      {suggestion === undefined ? null : (
+        <SuggestionBlock
+          className="vision-line"
+          label={t.suggestedLabel}
+          kicker={t.suggestedKicker}
+          text={suggestion.text}
+          confirmLabel={t.use}
+          announcement={captionUsarAnnouncement(suggestion.text)}
+          onConfirm={() => {
+            suggestion.onUse();
+            onClose();
+          }}
+        />
+      )}
       <div className="caption-head">
         {photo === undefined ? null : <PhotoPreview photo={photo} />}
         <div

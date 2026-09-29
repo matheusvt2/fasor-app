@@ -163,6 +163,36 @@
 }
 /* authored (Story 8.1): the viewer opened from a suggestion's crop, zoomed on its region; the outline is the crop's (`components.css` `.plate-crop .region`). */
 .photo-viewer .viewer-photo .viewer-zoom-region { fill: none; stroke: var(--fora-do-limite); stroke-width: 3; }
+
+/* ---------- Story 9.3: vision captions (`70-fotos.html` lines 25-30, 80-82; `71-legenda.html` lines 13-16, 21-23) ---------- */
+/* mirrors `[data-route] .sug-banner` (+ `> .ico`, `.banner-actions`) */
+[data-route="/relatorio/:id/fotos"] .sug-banner { margin-top: var(--sp-3); }
+[data-route="/relatorio/:id/fotos"] .sug-banner > .ico { width: 24px; height: 24px; flex: none; }
+[data-route="/relatorio/:id/fotos"] .sug-banner .banner-actions { flex-wrap: wrap; }
+/* mirrors `[data-route] .photo-text .suggestion-field` and its pill and padding */
+[data-route="/relatorio/:id/fotos"] .photo-text .suggestion-field { align-self: stretch; }
+[data-route="/relatorio/:id/fotos"] .photo-text .suggestion-field > .suggestion-block ~ .suggested-pill { top: -2px; }
+[data-route="/relatorio/:id/fotos"] .photo-text .suggestion-field .suggestion-block { padding-top: var(--sp-2); padding-bottom: var(--sp-2); }
+@media (max-width: 767.98px) {
+  /* mirrors `.frame-phone [data-route] .photo-text .suggestion-block` (+ `> .sv`, `.confirm-btn`) */
+  [data-route="/relatorio/:id/fotos"] .photo-text .suggestion-block { flex-wrap: wrap; padding-bottom: 0; }
+  [data-route="/relatorio/:id/fotos"] .photo-text .suggestion-block > .sv { flex: 1 1 100%; }
+  [data-route="/relatorio/:id/fotos"] .photo-text .suggestion-block .confirm-btn { flex: 1 1 100%; margin-left: calc(-1 * var(--sp-4)); justify-content: center; border-left: 0; border-top: 2px solid var(--fora-do-limite); min-height: var(--touch-min); }
+}
+/* The Caption composer is portaled: `[data-route="/relatorio/porto-seguro/legenda"] .vision-line` becomes bare. */
+.vision-line { margin-bottom: var(--sp-4); }
+.vision-line .suggestion-block > .ico { width: 24px; height: 24px; flex: none; color: var(--fora-do-limite); }
+.vision-line .sv-kicker { display: block; font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--fora-do-limite); }
+.vision-line > .suggestion-block ~ .suggested-pill { top: -2px; }
+@media (max-width: 767.98px) {
+  /* mirrors `.frame-phone [data-route] .vision-line .suggestion-block` (+ `> .sv`, `.confirm-btn`) */
+  .vision-line .suggestion-block { flex-wrap: wrap; padding-bottom: 0; }
+  .vision-line .suggestion-block > .sv { flex: 1 1 calc(100% - 24px - var(--sp-3)); }
+  .vision-line .suggestion-block .confirm-btn { flex: 1 1 100%; margin-left: calc(-1 * var(--sp-4)); justify-content: center; border-left: 0; border-top: 2px solid var(--fora-do-limite); min-height: var(--touch-min); }
+}
+/* authored (Story 9.3, no mock draws the mark): the "Pessoas na foto" chip under a tile's text and under the batch caption. */
+[data-route="/relatorio/:id/fotos"] .photo-text .photo-people { margin-top: var(--sp-1); }
+.capture-people { margin-bottom: var(--sp-3); }
 /* authored: Story 9.4, `70-fotos.html` 419 puts the batch caption and its Dictation button on one
    `.row-wrap`; the caption takes what the button leaves. */
 .photo-capture-sheet .capture-caption .row-wrap > .observation-field { flex: 1 1 0; min-width: 0; }

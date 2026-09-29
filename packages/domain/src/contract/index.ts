@@ -14,6 +14,7 @@ export * from './generate.ts';
 export * from './examples.ts';
 export * from './ocr.ts';
 export * from './reading.ts';
+export * from './prose.ts';
 
 export const componentStatusSchema = z.enum(['up', 'down']);
 

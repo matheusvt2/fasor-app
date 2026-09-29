@@ -5,6 +5,7 @@ import { instantiateTemplate } from '../relatorio/instantiate.ts';
 import { preIssue, preIssueRowsFor } from '../relatorio/pre-issue.ts';
 import { progress } from '../relatorio/progress.ts';
 import { sumarioRows } from '../relatorio/sumario.ts';
+import { suggestionRowSchema } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { getDefinition } from '../seed/definitions.ts';
 import { standardTemplate } from '../seed/template.ts';
@@ -229,7 +230,7 @@ describe('6.3-UNIT-005 gallery texts', () => {
         { uploaded_at: T0.toISOString(), upload_error: null, caption: '  ' },
         { uploaded_at: null, caption: 'Detalhe' },
       ]),
-    ).toEqual({ pending: 2, error: 1, uncaptioned: 2 });
+    ).toEqual({ pending: 2, error: 1, uncaptioned: 2, suggested: 0 });
     expect(photosImportedText(3, 0)).toBe('3 fotos adicionadas — legenda aplicada');
     expect(photosImportedText(3, 1)).toBe('3 fotos adicionadas — legenda aplicada. 1 arquivo não pôde ser lido como foto e ficou de fora');
     expect(photosImportedText(0, 2)).toBe(skippedFilesText(2));
@@ -294,6 +295,37 @@ describe('6.3-UNIT-006 section 7 on the Sumário and in preIssue', () => {
     const allErrors = preIssue(snapshot, computed, { photoErrors: new Set(files.map((f) => f.id)) });
     expect(allErrors.some((r) => r.kind === 'photos_pending_upload')).toBe(false);
     expect(preIssueRowsFor(preIssue(snapshot, computed), 'section_7').find((r) => r.kind === 'photos_pending_upload')?.text).toBe('4 aguardando envio');
+  });
+});
+
+describe('9.3-UNIT-005 section 7 lists the caption suggestions (a warning, never blocking)', () => {
+  it('"N legendas sugeridas" counts the shown caption suggestions; photos_uncaptioned is unchanged', () => {
+    const a = photo({ caption: null, uploaded_at: '2026-09-06T18:00:00.000Z' });
+    const b = photo({ caption: null, uploaded_at: '2026-09-06T18:00:00.000Z' });
+    const marked = { ...photo({ caption: null, uploaded_at: '2026-09-06T18:00:00.000Z' }), people_in_photo: true };
+    const snapshot = { ...base, files: [a, b, marked] } as RelatorioSnapshot;
+    const pendingSuggestions = [a, b, marked].map((p, i) =>
+      suggestionRowSchema.parse({
+        id: `019966b0-0097-7000-8000-${String(i + 1).padStart(12, '0')}`,
+        relatorio_id: base.relatorio.id,
+        target_path: `file/${p.id}/caption`,
+        value: 'Vista geral',
+        trust: 'suggested',
+        mode: 'fill',
+        source: { photo_id: p.id, bbox: [0, 0, 1, 1], ocr_token_ids: [], reading_run_id: '019966b0-0097-7000-8000-00000000ffff' },
+        status: 'pending',
+        prompt_version: 'fake-1',
+      }),
+    );
+    const computed = progress(snapshot);
+    const issues = preIssue(snapshot, computed, { pendingSuggestions });
+    const rows = preIssueRowsFor(issues, 'section_7').map((r) => [r.kind, r.severity, r.text]);
+    expect(rows).toEqual([
+      ['photos_uncaptioned', 'pending', '3 sem legenda'],
+      ['captions_suggested', 'info', '2 legendas sugeridas'],
+    ]);
+    expect(issues.some((r) => r.severity === 'blocking' && r.row === 'section_7')).toBe(false);
+    expect(preIssue(snapshot, computed).some((r) => r.kind === 'captions_suggested')).toBe(false);
   });
 });
 
