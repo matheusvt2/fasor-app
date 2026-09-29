@@ -101,7 +101,7 @@ In `_bmad-output/implementation-artifacts/reviews/epic-9-qa/`: `e9-91-queued-390
 
 ## Fix batch (2026-09-29)
 
-Batch `e9fx`, branch `fix/epic-9-qa`, PR PRNUM. Spec: `_bmad-output/implementation-artifacts/spec-epic-9-fix-qa.md` (root causes in its Design Notes). Gates under the host lock: `test:e2e:full` 265 tests, 261 passed, 4 skipped, 0 failed, 0 flaky (2094.5 s); `pnpm verify` PASSED in 1611.4 s (lint 39.5, static 58.5, test:api 293.5, test:unit 190.9, test:e2e 1126.9 s; `@p0` 147/147).
+Batch `e9fx`, branch `fix/epic-9-qa`, PR #62. Spec: `_bmad-output/implementation-artifacts/spec-epic-9-fix-qa.md` (root causes in its Design Notes). Gates under the host lock: `test:e2e:full` 265 tests, 261 passed, 4 skipped, 0 failed, 0 flaky (2094.5 s); `pnpm verify` PASSED in 1611.4 s (lint 39.5, static 58.5, test:api 293.5, test:unit 190.9, test:e2e 1126.9 s; `@p0` 147/147).
 
 | ID | Outcome | Fix and evidence |
 |---|---|---|
