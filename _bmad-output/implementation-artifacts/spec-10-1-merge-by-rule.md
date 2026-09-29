@@ -2,7 +2,7 @@
 title: 'Story 10.1: Merge the same sheet from two devices by rule'
 type: 'feature'
 created: '2026-09-29'
-status: 'in-review'
+status: 'done'
 baseline_revision: '256f358c2202f6ddcf061b126501bec658cd69df'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -167,3 +167,12 @@ Known limits (list them in the spec's deferred section and the PR as open questi
   - `[medium]` `[patch]` VG: first-download skip of pulled merge pairs untested — engine test added.
   - `[medium]` `[patch]` VG: batch atomicity untested for a validation-refused member — api integration test added.
   - `[maybe-false]` `[defer]` VG other: batch reordering — grouped with the ECH reordering entry.
+
+## Auto Run Result
+
+- Summary: kernel merge (`packages/domain/src/merge/`) runs inside `applyOp` for `sheet/*` puts keyed on `prev_op_id` against the cell's head (`cell.merge`), so the device fold and the server agree; NC over C, filled over empty, the NC device's observation, latest free text; contradictions keep seq-later (Story 10.2 hook). Merge entries (`MergeInfo`) live in the sync engine's memory, are counted by `syncCounts(...).merged` and shown as Sync status rows (`mergeInfoText`). Contract 10/10. Ledger 1161 (atomic client batches) done, 334 closed with a test, 370 re-owned. Second e2e user per worker company A (Eduardo Esteves, `SeedAccount.colleague`, `colleagueContext`).
+- Files: see the PR; kernel `merge/{rules,policy,info}.ts`, `ops/apply.ts`, `schemas/entities.ts`, `sync/counts.ts`, `contract/version.ts`; web `sync/engine.ts`, `sync/policy.ts`, `db/sync-store.ts`, `state/sync.tsx`, `surfaces/sync/sync-status-surface.tsx`; api `sync/apply.ts`, `db/e2e-worker-seed.ts`, `db/e2e-leak-check.ts`, `db/seed.ts`; tests `merge.integration.test.ts`, `e2e/merge.spec.ts`, `e2e/support/colleague.ts`.
+- Review: 15 findings; 3 patched (1 low, 2 medium), 4 deferred (2 medium, 2 maybe-false medium), 7 rejected (see the triage log), 1 false.
+- Follow-up review recommended: false (two medium test-gap patches, no code-risk patch left unverified; the integrated epic review follows).
+- Verification: unit 229 files, api 48 files, merge e2e 4/4, mutation run (mergePolicy forced sequential: api merge tests and both merge @p0 red, restored), first-download guard mutation (engine test red, restored).
+- Residual risks: the deferred entries above; a second seeded user in company A changes people counts other suites may read.
