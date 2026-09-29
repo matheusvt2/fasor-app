@@ -7,10 +7,19 @@ import { familyDef, parsePath, safeParsePath } from './path.ts';
  * AD-3 outbox rules. The kernel decides; the Dexie layer stores.
  */
 
+/** Stories 10.2/10.3: the keys a device stamps on every op it commits (`merge/stamp.ts`); they alone never block coalescing. */
+const SEEN_STAMP_KEYS: ReadonlySet<string> = new Set(['standing_op_id', 'seen_modified_at']);
+
+/** No `meta`, or one holding only the device's commit stamps. */
+function plainMeta(meta: Op['meta']): boolean {
+  return meta == null || Object.keys(meta).every((key) => SEEN_STAMP_KEYS.has(key));
+}
+
 /**
  * Coalescing rule: two consecutive pending `put` ops on one path from the same
- * device merge only when neither carries `meta` or `batch_id`. The merged op
- * keeps the last `op_id`, `value` and `client_ts` and the first `prev_op_id`.
+ * device merge only when neither carries `meta` (beyond the commit stamps) or
+ * `batch_id`. The merged op keeps the last `op_id`, `value` and `client_ts` and
+ * the first `prev_op_id` and stamps (what the device saw before the run).
  * Returns null when the pair must stay two rows.
  */
 export function coalesce(prev: Op, next: Op): Op | null {
@@ -20,9 +29,9 @@ export function coalesce(prev: Op, next: Op): Op | null {
   if (prev.company_id !== next.company_id || prev.scope !== next.scope) return null;
   if ((prev.relatorio_id ?? null) !== (next.relatorio_id ?? null)) return null;
   if ((prev.project_id ?? null) !== (next.project_id ?? null)) return null;
-  if (prev.meta != null || next.meta != null) return null;
+  if (!plainMeta(prev.meta) || !plainMeta(next.meta)) return null;
   if (prev.batch_id != null || next.batch_id != null) return null;
-  return { ...next, prev_op_id: prev.prev_op_id ?? null };
+  return { ...next, prev_op_id: prev.prev_op_id ?? null, meta: prev.meta ?? null };
 }
 
 export interface InvertDeps {

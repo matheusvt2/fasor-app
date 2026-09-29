@@ -47,7 +47,7 @@ export interface HomeCard {
   /** `.card-meta`: "⟨datas⟩ · ⟨template⟩"; '' when neither part exists. */
   meta: string;
   device: HomeCardDevice;
-  badgeState: Exclude<SyncBadgeState, 'conflict'>;
+  badgeState: SyncBadgeState;
   badgeCounts: SyncCounts;
   /** The relatório Em campo on this device: sorts first and carries `.is-current`. */
   isCurrent: boolean;

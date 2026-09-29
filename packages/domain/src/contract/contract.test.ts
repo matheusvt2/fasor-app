@@ -69,9 +69,9 @@ describe('contract examples (ADR readiness 1.4)', () => {
 });
 
 describe('contract constants', () => {
-  it('speaks version 10 and accepts only version 10 (Story 10.1 merges concurrent sheet puts in the fold)', () => {
-    expect(CONTRACT_VERSION).toBe(10);
-    expect(MIN_CONTRACT_VERSION).toBe(10);
+  it('speaks version 11 and accepts only version 11 (Stories 10.2/10.3 mark conflicts in the fold)', () => {
+    expect(CONTRACT_VERSION).toBe(11);
+    expect(MIN_CONTRACT_VERSION).toBe(11);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');
   });
 

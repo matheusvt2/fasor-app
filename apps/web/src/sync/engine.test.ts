@@ -950,6 +950,36 @@ describe('sync engine', () => {
     });
   });
 
+  describe('10.3 a block added on another device', () => {
+    it('a pulled block create of another device, past the first download, is one block_added entry; its own is not', async () => {
+      const h = await harness();
+      await commitOps(h.db, seedLog());
+      await h.engine.runCycle();
+      const created = replaySmall.log.find((op) => op.path === `block/${BLOCK_1_ID}` && op.kind === 'create')!;
+      const newId = ids('019966b0-0017-7000-8000-');
+      const blockId = newId();
+      const other = {
+        ...created,
+        op_id: newId(),
+        path: `block/${blockId}`,
+        value: { ...(created.value as Record<string, unknown>), id: blockId },
+        device_id: 'tablet-b',
+        actor_id: '019966b0-0017-7000-8000-0000000000b1',
+        seq: h.server.log.length + 1,
+      } as Op;
+      h.server.log.push(other);
+      await h.engine.runCycle();
+      expect(h.engine.status().merges).toEqual([
+        expect.objectContaining({ op_id: other.op_id, over_op_id: null, rule: 'block_added', block_id: blockId, relatorio_id: RELATORIO_ID }),
+      ]);
+      expect(await h.db.entities.get(['block', blockId])).toBeDefined();
+      // Another cycle never lists it twice.
+      await h.engine.runCycle();
+      expect(h.engine.status().merges).toHaveLength(1);
+      h.db.close();
+    });
+  });
+
   describe('8.1 auto-confirm after a pull', () => {
     const SUGGESTION = '019966b0-0081-7000-8000-0000000000a1';
 

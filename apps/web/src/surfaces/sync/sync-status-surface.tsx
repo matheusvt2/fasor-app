@@ -1,8 +1,23 @@
-import { avatarInitial, formatShortDateTime, leiturasNaFilaText, rejectedText, sugestoesText, supersededText, syncBadgeLabel } from '@app/domain';
+import {
+  avatarInitial,
+  decisionKey,
+  decisionText,
+  formatShortDateTime,
+  leiturasNaFilaText,
+  rejectedText,
+  sugestoesText,
+  supersededText,
+  syncBadgeLabel,
+  type Decision,
+} from '@app/domain';
 import { useId, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { Button, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
+import type { HeldDecisions } from '../../db/decision-store.ts';
 import { useSync } from '../../state/sync.tsx';
+import { ConflictDialog, type ConflictDialogDecision } from './conflict-dialog.tsx';
+import { useDecisionActions, useDecisionTextContext, type DecisionActions } from './decision-actions.ts';
 import './sync.css';
 
 /**
@@ -165,6 +180,10 @@ export function SyncStatusSurface() {
           )}
         </section>
 
+        {/* Mounted whenever the provider lists decisions (an empty list included), so the undo
+            toast of the last resolved one outlives its row. */}
+        {sync.decisions === undefined ? null : <DecisionsSection />}
+
         <p className="sync-foot">
           {sync.lastSyncAt === null ? (
             copy.sync.neverSynced
@@ -176,5 +195,83 @@ export function SyncStatusSurface() {
         </p>
       </div>
     </main>
+  );
+}
+
+/**
+ * Stories 10.2/10.3 (`85-sync.html` lines 111-124, the X side of the X/S seam): the open
+ * decisions of every relatório held on this device, one `.banner[data-variant=conflict]`
+ * row each, never `role="alert"` (the surface is not live, epic-10 Conflict 8). A cell row
+ * opens the Conflict view ("Resolver"); a removal row resolves in place ("Manter" /
+ * "Remover"); a TAG row renames ("Renomear uma" opens the relatório's Sumário on the rename
+ * dialog of the later one) or keeps both ("Manter as duas"). Rendered only when one waits.
+ */
+function DecisionsSection() {
+  const sync = useSync();
+  const headingId = useId();
+  const held = sync.decisions ?? [];
+  const actions = useDecisionActions();
+  const [open, setOpen] = useState<{ relatorioId: string; key: string } | null>(null);
+  const openEntry = open === null ? undefined : held.find((entry) => entry.relatorioId === open.relatorioId);
+  const openDecision = openEntry?.decisions.find((decision) => decisionKey(decision) === open?.key);
+  if (held.length === 0) return null;
+  return (
+    <section className="section" aria-labelledby={headingId} data-testid="sync-decisions">
+      <div className="section-head">
+        <h2 id={headingId}>{copy.sync.decisionsHeading}</h2>
+      </div>
+      <p className="section-note">{copy.sync.decisionsNote}</p>
+      <div className="conflict-list">
+        {held.flatMap((entry) =>
+          entry.decisions.map((decision) => (
+            <DecisionRow
+              key={`${entry.relatorioId}:${decisionKey(decision)}`}
+              entry={entry}
+              decision={decision}
+              onOpen={() => setOpen({ relatorioId: entry.relatorioId, key: decisionKey(decision) })}
+              actions={actions}
+            />
+          )),
+        )}
+      </div>
+      {openEntry === undefined || openDecision === undefined || openDecision.kind === 'duplicate_tag' ? null : (
+        <DecisionDialog entry={openEntry} decision={openDecision} actions={actions} onClose={() => setOpen(null)} />
+      )}
+    </section>
+  );
+}
+
+function DecisionDialog({ entry, decision, actions, onClose }: { entry: HeldDecisions; decision: ConflictDialogDecision; actions: DecisionActions; onClose: () => void }) {
+  const context = useDecisionTextContext(entry);
+  return <ConflictDialog entry={entry} decision={decision} context={context} actions={actions} onClose={onClose} />;
+}
+
+function DecisionRow({ entry, decision, onOpen, actions }: { entry: HeldDecisions; decision: Decision; onOpen: () => void; actions: DecisionActions }) {
+  const t = copy.conflict;
+  const context = useDecisionTextContext(entry);
+  const navigate = useNavigate();
+  return (
+    <div className="banner" data-variant="conflict" data-banner="decision" data-kind={decision.kind} data-testid="sync-decision-row">
+      <span className="banner-text">{decisionText(decision, context)}</span>
+      <span className="banner-actions">
+        {decision.kind === 'cell' ? <TextButton onPress={onOpen}>{copy.sync.resolve}</TextButton> : null}
+        {decision.kind === 'block_removal' ? (
+          <>
+            <TextButton onPress={() => void actions.keep(entry, decision, context)}>{t.keep}</TextButton>
+            <TextButton tone="red" onPress={() => void actions.remove(entry, decision, context)}>
+              {t.remove}
+            </TextButton>
+          </>
+        ) : null}
+        {decision.kind === 'duplicate_tag' ? (
+          <>
+            <TextButton onPress={() => void navigate(`/relatorio/${entry.relatorioId}`, { state: { renameEquipmentId: decision.later_equipment_id } })}>
+              {t.renameOne}
+            </TextButton>
+            <TextButton onPress={() => void actions.keepBoth(entry, decision, context)}>{t.keepBoth}</TextButton>
+          </>
+        ) : null}
+      </span>
+    </div>
   );
 }

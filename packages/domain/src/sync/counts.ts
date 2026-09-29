@@ -28,6 +28,8 @@ export interface SyncCounts {
   readings_queued: number;
   /** Story 10.1: the merges by rule this tab listed since it opened (`MergeInfo` entries, 0 when not given). */
   merged: number;
+  /** Stories 10.2/10.3: the open decisions on this device (`decisionCount`: one per contradicting cell, one per structure case; 0 when not given). */
+  conflicts: number;
 }
 
 /**
@@ -62,6 +64,7 @@ export function syncCounts(
   outbox: readonly OutboxLike[],
   reading: ReadingCountInputs = {},
   merges: readonly Pick<MergeInfo, 'op_id' | 'over_op_id'>[] = [],
+  decisions = 0,
 ): SyncCounts {
   let pending = 0;
   let sent = 0;
@@ -89,10 +92,11 @@ export function syncCounts(
     suggestions_pending: suggestions,
     readings_queued: readings,
     merged,
+    conflicts: decisions,
   };
 }
 
-/** The five badge states of `key-sync-status.html`; `conflict` waits for the deferred merge policy. */
+/** The five badge states of `key-sync-status.html`. */
 export type SyncBadgeState = 'ok' | 'pending' | 'offline' | 'error' | 'conflict';
 
 export interface SyncBadgeInputs {
@@ -107,12 +111,14 @@ export interface SyncBadgeInputs {
 }
 
 /**
- * Error before offline before pending: a rejected op needs attention wherever the device is.
+ * Stories 10.2/10.3 (epic-10 Conflict 12): conflict first, as in the banner priority, then
+ * error before offline before pending: a rejected op needs attention wherever the device is.
  * An unreachable server reads as `offline` ("Sem conexão"): EXPERIENCE.md has five badge
  * states and no sixth for it, and "no connection; still saving locally" is exactly what
  * the user needs to know then. Sync status names the actual cause.
  */
-export function syncBadgeState(counts: SyncCounts, deps: SyncBadgeInputs): Exclude<SyncBadgeState, 'conflict'> {
+export function syncBadgeState(counts: Pick<SyncCounts, 'dead' | 'pending' | 'sent'> & { conflicts?: number }, deps: SyncBadgeInputs): SyncBadgeState {
+  if ((counts.conflicts ?? 0) > 0) return 'conflict';
   if (counts.dead > 0) return 'error';
   if (!deps.online || deps.reachable === false) return 'offline';
   if (counts.pending + counts.sent > 0) return 'pending';

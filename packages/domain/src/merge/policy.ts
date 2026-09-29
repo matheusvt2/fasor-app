@@ -16,14 +16,23 @@ export type { MergeRule } from './rules.ts';
 
 /**
  * A `put` on a `sheet/*` path, from a device (never the server), onto a cell that exists,
- * whose `prev_op_id` is not the cell's head op: the device did not see the value it lands
- * on. Everything else folds exactly as before (a sequential put replaces the cell).
+ * that did not see the value it lands on: its `prev_op_id` is not the cell's head op, or
+ * (Story 10.2, contract 11) its `meta.standing_op_id` (the cell `op_id` the device's row
+ * held at commit) is not the cell's current `op_id`. The second check closes the case a
+ * `prev_op_id` cannot tell apart: a device whose own put was merged away writes again (or
+ * undoes it) before it pulls, chaining on its own head. An op without the stamp (fixtures,
+ * server ops) is judged by `prev_op_id` alone. Everything else folds as before.
  */
-export function isConcurrent(op: Pick<Op, 'kind' | 'path' | 'prev_op_id' | 'device_id'>, cell: Cell | null | undefined): cell is Cell {
+export function isConcurrent(
+  op: Pick<Op, 'kind' | 'path' | 'prev_op_id' | 'device_id'> & { meta?: Op['meta'] },
+  cell: Cell | null | undefined,
+): cell is Cell {
   if (cell === null || cell === undefined) return false;
   if (op.kind !== 'put' || !op.path.startsWith('sheet/')) return false;
   if (op.device_id === SERVER_DEVICE_ID) return false;
-  return (op.prev_op_id ?? null) !== (cell.merge?.head_op_id ?? cell.op_id);
+  if ((op.prev_op_id ?? null) !== (cell.merge?.head_op_id ?? cell.op_id)) return true;
+  const standing = op.meta?.standing_op_id;
+  return standing !== undefined && (standing ?? null) !== cell.op_id;
 }
 
 export type MergeOutcome =
@@ -36,7 +45,7 @@ export interface MergePolicyInput {
   path: OpPath;
   /** The cell at the path before `op`; absent when the path holds nothing yet. */
   current: Cell | null | undefined;
-  op: Pick<Op, 'kind' | 'path' | 'prev_op_id' | 'device_id' | 'value'>;
+  op: Pick<Op, 'kind' | 'path' | 'prev_op_id' | 'device_id' | 'value'> & { meta?: Op['meta'] };
   /** For a checklist observation: the item's result cell, as it stands. */
   result?: Cell | null | undefined;
 }
@@ -66,8 +75,8 @@ function isNcDevice(result: Cell, deviceId: string): boolean {
 /**
  * The rule for one concurrent pair, in the story's order: same value, filled over empty,
  * NC over C, the NC device's observation, latest free text, and anything else a
- * contradiction. Story 10.1 applies a contradiction as before (the `seq`-later op) and
- * Story 10.2 turns this one branch into the cell's conflict state.
+ * contradiction. A contradiction keeps the `seq`-later op's value on display and (Story
+ * 10.2) marks the cell with the side it displaced (`mergeCell`, the one branch).
  */
 export function mergePolicy(input: MergePolicyInput): MergeOutcome {
   const { path, current, op } = input;
@@ -106,17 +115,32 @@ export interface MergeCellContext {
 }
 
 /**
- * The cell `applyOp` writes for a `sheet/*` put. Sequential, a same value or a contradiction
- * (Story 10.1): the op's own cell, with no `merge` record. A rule merge: the standing value's
- * cell (the op's when it applies, the current one when it is kept) plus the `merge` record
- * naming the op as the path's head.
+ * The cell `applyOp` writes for a `sheet/*` put.
+ * - Sequential: the op's own cell, with no `merge` and no `conflict` record (the "Aplicar"
+ *   of the Conflict view resolves this way).
+ * - Contradiction (Story 10.2): the op's own cell (the `seq`-later value stands, as in
+ *   10.1) plus `conflict`, the cell it displaced. A second contradiction replaces the
+ *   record with the cell it displaces (three writers: the oldest side drops out).
+ * - A rule merge: the standing value's cell (the op's when it applies, the current one when
+ *   it is kept) plus the `merge` record naming the op as the path's head. A kept cell keeps
+ *   its `conflict`; an applied one (a same value included) drops it.
  */
 export function mergeCell(current: Cell | null | undefined, op: Op, context: MergeCellContext): Cell {
   const outcome = mergePolicy({ path: context.path, current, op, result: context.result });
-  if (outcome.kind === 'sequential' || outcome.kind === 'contradiction') return plainCell(op);
+  if (outcome.kind === 'sequential') return plainCell(op);
+  if (outcome.kind === 'contradiction') {
+    const displaced = current!;
+    return { ...plainCell(op), conflict: { op_id: displaced.op_id, value: displaced.value, source_suggestion_id: displaced.source_suggestion_id } };
+  }
   if (outcome.rule === 'same_value') return plainCell(op);
   const record = { head_op_id: op.op_id, device_id: op.device_id, kept: outcome.kind === 'keep', rule: outcome.rule as CellMergeRule };
   if (outcome.kind === 'apply') return { ...plainCell(op), merge: record };
   const standing = current!;
-  return { value: standing.value, source_suggestion_id: standing.source_suggestion_id, op_id: standing.op_id, merge: record };
+  return {
+    value: standing.value,
+    source_suggestion_id: standing.source_suggestion_id,
+    op_id: standing.op_id,
+    merge: record,
+    ...(standing.conflict === undefined ? {} : { conflict: standing.conflict }),
+  };
 }

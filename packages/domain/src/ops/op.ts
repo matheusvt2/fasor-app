@@ -20,10 +20,23 @@ import { familyDef, isCreateFamily, pathField, PathError, parsePath, targetOf } 
 export const opKindSchema = z.enum(['create', 'put', 'remove']);
 export type OpKind = z.infer<typeof opKindSchema>;
 
-/** AD-12: `source_suggestion_id` marks a confirm; `auto` marks a device auto-confirm. */
+/**
+ * AD-12: `source_suggestion_id` marks a confirm; `auto` marks a device auto-confirm.
+ * Stories 10.2/10.3 (contract 11): what the writing device saw, stamped at commit
+ * (`apps/web/src/db/commit.ts`) and read by the fold (`merge/policy.ts`, `ops/apply.ts`):
+ * - `standing_op_id`: on a `sheet/*` put, the `op_id` of the cell the device's row held
+ *   (null when the slot was empty). The fold treats the put as concurrent when it is not
+ *   the cell's current `op_id`, even when `prev_op_id` is the path's head.
+ * - `seen_modified_at`: on a `block/{id}/removed_at` write, the block's `last_modified_at`
+ *   as the device held it (null when never edited). A removal that did not see the latest
+ *   edit marks the block with a removal conflict.
+ * An op without the key (fixtures, server ops, older bundles) folds as before.
+ */
 export const opMetaSchema = z.looseObject({
   source_suggestion_id: uuidV7Schema.optional(),
   auto: z.boolean().optional(),
+  standing_op_id: uuidV7Schema.nullable().optional(),
+  seen_modified_at: isoTimestampSchema.nullable().optional(),
 });
 export type OpMeta = z.infer<typeof opMetaSchema>;
 

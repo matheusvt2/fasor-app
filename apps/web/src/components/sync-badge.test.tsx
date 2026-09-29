@@ -13,6 +13,7 @@ const counts = (over: Partial<Parameters<typeof SyncBadge>[0]['counts']> = {}) =
   suggestions_pending: 0,
   readings_queued: 0,
   merged: 0,
+  conflicts: 0,
   ...over,
 });
 

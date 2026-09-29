@@ -20,8 +20,8 @@ import type { MergeRule } from './rules.ts';
 export interface MergeInfo {
   /** The later op of the pair (the one that landed on the other). */
   op_id: string;
-  /** The op it landed on: the latest op on the path before it. */
-  over_op_id: string;
+  /** The op it landed on: the latest op on the path before it; null for a `block_added` entry (no pair). */
+  over_op_id: string | null;
   relatorio_id: string | null;
   block_id: string | null;
   path: string;
@@ -142,12 +142,45 @@ export function pulledMergePairs(
   return pairs;
 }
 
+type AdditionOp = Pick<Op, 'op_id' | 'kind' | 'path' | 'relatorio_id' | 'actor_id' | 'device_id' | 'client_ts' | 'seq'>;
+
+/**
+ * Story 10.3 (FR-59): the blocks another device added, among `pulled`, as information
+ * entries (`block_added`, no pair: `over_op_id` is null). `previous` is what the device
+ * already held of the log; a create it held already, the device's own and a server op are
+ * left out. The caller applies the first-download rule (history is not this session's).
+ */
+export function pulledAdditions(previous: readonly Pick<Op, 'op_id'>[], pulled: readonly AdditionOp[], ownDeviceId: string): MergeInfo[] {
+  const known = new Set(previous.map((op) => op.op_id));
+  const out: MergeInfo[] = [];
+  for (const op of [...pulled].sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0))) {
+    if (known.has(op.op_id) || op.kind !== 'create') continue;
+    known.add(op.op_id);
+    if (op.device_id === ownDeviceId || op.device_id === SERVER_DEVICE_ID) continue;
+    const path = safeParsePath(op.path);
+    if (path === null || path.family !== 'block') continue;
+    out.push({
+      op_id: op.op_id,
+      over_op_id: null,
+      relatorio_id: op.relatorio_id ?? null,
+      block_id: path.id,
+      path: op.path,
+      rule: 'block_added',
+      standing: { value: null, op_id: op.op_id, actor_id: op.actor_id, client_ts: op.client_ts },
+      overridden: null,
+    });
+  }
+  return out;
+}
+
 /** What the words of an entry are read from: the device's own rows. */
 export interface MergeInfoContext {
-  blocks: readonly Pick<BlockRow, 'id' | 'equipment_id' | 'block_type' | 'seed_version'>[];
+  blocks: readonly (Pick<BlockRow, 'id' | 'equipment_id' | 'block_type' | 'seed_version'> & { location_id?: string | null })[];
   equipment: readonly Pick<EquipmentRow, 'id' | 'tag'>[];
   users: readonly { id: string; name: string }[];
   files: readonly FileRow[];
+  /** Story 10.3: the locations the blocks sit in (a `block_added` entry names its location); none when omitted. */
+  locations?: readonly { id: string; name: string }[];
 }
 
 /** The block as the sheet names it: its equipment's TAG, else its type's name. authored: "Relatório" off any block. */
@@ -196,6 +229,14 @@ export function mergeInfoText(info: MergeInfo, context: MergeInfoContext): strin
   const who = authorName(info.standing.actor_id, context);
   const other = info.overridden === null ? null : authorName(info.overridden.actor_id, context);
   if (path === null) return `${name}: alteração de ${who} mesclada`; // authored
+
+  if (info.rule === 'block_added') {
+    // Story 10.3, verbatim from `85-sync.html`: "Eduardo adicionou TP-C09 em Coluna 9".
+    const block = context.blocks.find((row) => row.id === info.block_id);
+    const location = block?.location_id == null ? undefined : context.locations?.find((row) => row.id === block.location_id);
+    const where = location === undefined || location.name.trim() === '' ? '' : ` em ${location.name.trim()}`;
+    return `${who} adicionou ${name}${where}`;
+  }
 
   if (path.family === 'sheet/checklist') {
     const n = itemNumber(info.block_id, path.item_key, context);

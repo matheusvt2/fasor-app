@@ -11,6 +11,7 @@ import {
   rowIndexColumns,
   rowRemovedAt,
   splitEntityKey,
+  stampSeen,
   targetsOf,
   toIso,
   type Clock,
@@ -52,13 +53,21 @@ export function opOf(row: OutboxRow): Op {
   return op as Op;
 }
 
-async function applyOne(db: AppDatabase, op: Op): Promise<void> {
-  const refs = targetsOf(op);
+/**
+ * Applies one op to its rows and appends it to the outbox; returns the op as committed.
+ * Stories 10.2/10.3: the op is first stamped with what this device's rows held
+ * (`stampSeen`: the standing cell's op on a `sheet/*` put, the block's `last_modified_at`
+ * on a `removed_at` write), read here, right before the apply, so a later op of the same
+ * batch sees the earlier one; commits and undo inverses alike.
+ */
+async function applyOne(db: AppDatabase, input: Op): Promise<Op> {
+  const refs = targetsOf(input);
   const records = await db.entities.bulkGet(refs.map((r) => [r.entity, r.id] as [typeof r.entity, string]));
   const state = new Map<EntityKey, EntityRow>();
   records.forEach((record, i) => {
     if (record) state.set(refs[i]!.key, record.row);
   });
+  const op = stampSeen(input, state);
   const prev_value = readPath(state, op);
   const next = applyOp(state, op);
   const changed: EntityRecord[] = [];
@@ -78,7 +87,7 @@ async function applyOne(db: AppDatabase, op: Op): Promise<void> {
         targets: targetKeysOf(merged),
         ...('prev_value' in last ? { prev_value: last.prev_value } : {}),
       });
-      return;
+      return op;
     }
   }
   await db.outbox.put({
@@ -88,6 +97,7 @@ async function applyOne(db: AppDatabase, op: Op): Promise<void> {
     targets,
     ...(prev_value === undefined ? {} : { prev_value }),
   });
+  return op;
 }
 
 /**
@@ -102,10 +112,11 @@ export async function commitOps(
 ): Promise<Op[]> {
   const device_id = await deviceId(db, deps.newId);
   const stamped = ops.map((op) => ({ ...op, device_id }));
+  const committed: Op[] = [];
   await db.transaction('rw', db.entities, db.outbox, async () => {
-    for (const op of stamped) await applyOne(db, op);
+    for (const op of stamped) committed.push(await applyOne(db, op));
   });
-  return stamped;
+  return committed;
 }
 
 /** Commit order of this device's ops: `client_ts`, then `op_id` for a tie. The one comparator of `src/db`. */
@@ -151,9 +162,15 @@ export async function commitBatch(
     // `buildBatch` stamped every op with this device's id; they are applied right here, in
     // this transaction, rather than through `commitOps` and a nested one.
     const { batch_id, ops } = await buildBatch(db, inputs, deps);
-    for (const op of ops) await applyOne(db, op);
-    return { batch_id, ops };
+    return { batch_id, ops: await applyAll(db, ops) };
   });
+}
+
+/** Applies a built batch in order; returns the ops as committed (stamped). */
+async function applyAll(db: AppDatabase, ops: readonly Op[]): Promise<Op[]> {
+  const committed: Op[] = [];
+  for (const op of ops) committed.push(await applyOne(db, op));
+  return committed;
 }
 
 /**
@@ -172,8 +189,7 @@ export async function commitBatchIf(
   return db.transaction('rw', batchTables(db), async () => {
     if (!(await stillValid())) return null;
     const { batch_id, ops } = await buildBatch(db, inputs, deps);
-    for (const op of ops) await applyOne(db, op);
-    return { batch_id, ops };
+    return { batch_id, ops: await applyAll(db, ops) };
   });
 }
 
@@ -270,9 +286,9 @@ export async function commitFileBatch(
 ): Promise<{ batch_id: string; ops: Op[] }> {
   return db.transaction('rw', [...batchTables(db), db.files], async () => {
     // `buildBatch` already stamped every op with this device's id (Epic 2 retro D-8).
-    const { batch_id, ops } = await buildBatch(db, input.ops, deps);
+    const { batch_id, ops: built } = await buildBatch(db, input.ops, deps);
     const created_at = toIso(deps.now());
-    for (const op of ops) await applyOne(db, op);
+    const ops = await applyAll(db, built);
     await db.files.put({
       id: input.fileId,
       variant: 'original',
@@ -316,10 +332,10 @@ export async function commitPhotoBatch(
     const ops = built.map((op) =>
       op.kind === 'create' && op.path === createPath ? { ...op, value: { ...(op.value as Record<string, unknown>), local_seq: localSeq } as Op['value'] } : op,
     );
-    for (const op of ops) await applyOne(db, op);
+    const committed = await applyAll(db, ops);
     await db.files.put({ id: input.fileId, variant: 'original', blob: input.original, acked: false, created_at });
     await db.thumbs.put({ id: input.fileId, blob: input.thumb, source: 'device', created_at });
-    return { batch_id, ops, localSeq };
+    return { batch_id, ops: committed, localSeq };
   });
 }
 

@@ -125,7 +125,8 @@ describe('8.1/8.2-UNIT autoConfirmPending', () => {
     ]);
     expect(new Set(outbox.map((row) => row.batch_id)).size).toBe(1);
     expect(outbox.every((row) => row.actor_id === USER_ID)).toBe(true);
-    expect(outbox[1]!.meta).toEqual({ source_suggestion_id: (equal.value as SuggestionRow).id, auto: true });
+    // Stories 10.2/10.3: the commit also stamps the standing cell the confirm was written over.
+    expect(outbox[1]!.meta).toEqual({ source_suggestion_id: (equal.value as SuggestionRow).id, auto: true, standing_op_id: expect.any(String) });
     expect((await block(db)).sheet.nameplate.fabricacao).toMatchObject({ value: 'WEG S.A.', source_suggestion_id: (equal.value as SuggestionRow).id });
     expect(((await db.entities.get(['suggestion', (different.value as SuggestionRow).id]))!.row as SuggestionRow).status).toBe('pending');
     expect(((await db.entities.get(['suggestion', (empty.value as SuggestionRow).id]))!.row as SuggestionRow).status).toBe('pending');
@@ -260,7 +261,7 @@ describe('9.1-UNIT autoConfirmPending for display readings', () => {
     const outbox = (await db.outbox.toArray()).filter((row) => row.meta?.auto === true);
     const cellPut = outbox.find((row) => row.path === cellPath(0, 1))!;
     expect(cellPut.value).toEqual(typed);
-    expect(cellPut.meta).toEqual({ source_suggestion_id: (equal.value as SuggestionRow).id, auto: true });
+    expect(cellPut.meta).toEqual({ source_suggestion_id: (equal.value as SuggestionRow).id, auto: true, standing_op_id: expect.any(String) });
     expect((await block(db)).sheet.test.isolacao!.cells['0']!['1']!.source_suggestion_id).toBe((equal.value as SuggestionRow).id);
     expect(outbox.find((row) => row.path === `location/${CABINE_ID}/env/temperature_c`)!.value).toEqual({ raw: '27', unit: 'C', state: 'measured' });
     expect(await autoConfirmPending(db, AUTHOR, deps())).toEqual([]);

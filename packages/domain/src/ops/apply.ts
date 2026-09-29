@@ -12,6 +12,7 @@ import {
   type RelatorioRow,
   type Sheet,
 } from '../schemas/entities.ts';
+import { SERVER_DEVICE_ID } from '../ids.ts';
 import { mergeCell } from '../merge/policy.ts';
 import { readingKindPutStatus } from '../reading/retarget.ts';
 import type { Op } from './op.ts';
@@ -106,12 +107,52 @@ function cellOf(block: BlockRow, op: Op, path: OpPath): Cell {
 /** The template fields whose put is a content edit (D-4): every relatório copies these at creation. */
 const TEMPLATE_CONTENT_FIELDS: ReadonlySet<string> = new Set(['name', 'blocks', 'skeleton']);
 
+/**
+ * AD-18 attribution of an edit (a sheet put, `not_tested`, a photo carrying the block).
+ * Story 10.3 (contract 11): an edit from a device that lands on a tombstone is kept (as
+ * before) and marks the block with a removal conflict: that device edited a block another
+ * one removed without having seen the removal. Server ops never mark.
+ */
 function attributed(block: BlockRow, op: Op): BlockRow {
-  return {
+  const next: BlockRow = {
     ...block,
     first_edited_at: block.first_edited_at ?? op.client_ts,
     last_modified_by: op.actor_id,
     last_modified_at: op.client_ts,
+  };
+  if (block.removed_at === null || op.device_id === SERVER_DEVICE_ID) return next;
+  return {
+    ...next,
+    removal_conflict: { removed_by: block.removed_by ?? null, removed_at: block.removed_at, edited_by: op.actor_id, edited_at: op.client_ts },
+  };
+}
+
+/** The block without its derived removal columns (`removed_by`, `removal_conflict`). */
+function withoutRemovalMarks(block: BlockRow): BlockRow {
+  const rest: BlockRow = { ...block };
+  delete rest.removed_by;
+  delete rest.removal_conflict;
+  return rest;
+}
+
+/**
+ * Story 10.3 (contract 11): a `block/{id}/removed_at` write (a `remove`, or a put). A removal
+ * records its actor (`removed_by`); a restore drops it. A removal from a device that lands on
+ * a live block whose latest edit it did not see (`meta.seen_modified_at`, the block's
+ * `last_modified_at` as that device held it, differs from the row's) applies and marks the
+ * block with a removal conflict. Any other `removed_at` write (a sequential "Remover", the
+ * "Manter" restore, an op without the stamp) drops the mark.
+ */
+function writeRemovedAt(block: BlockRow, op: Op, value: string | null): BlockRow {
+  const rest = withoutRemovalMarks(block);
+  if (value === null) return { ...rest, removed_at: null };
+  const removed: BlockRow = { ...rest, removed_at: value, removed_by: op.actor_id };
+  const seen = op.meta?.seen_modified_at;
+  const unseenEdit = seen !== undefined && (seen ?? null) !== block.last_modified_at;
+  if (block.removed_at !== null || op.device_id === SERVER_DEVICE_ID || !unseenEdit) return removed;
+  return {
+    ...removed,
+    removal_conflict: { removed_by: op.actor_id, removed_at: value, edited_by: block.last_modified_by, edited_at: block.last_modified_at },
   };
 }
 
@@ -280,7 +321,8 @@ function createRow(entity: Entity, id: string, op: Op): EntityRow {
   // JSON id differs from its key.
   if (row.id !== id) throw new SeedPathError(op.path, `the created row's id "${row.id}" is not the path id`);
   if (entity === 'block') {
-    const block = row as BlockRow;
+    // The derived columns are the reducer's: a created row never brings its own.
+    const block = withoutRemovalMarks(row as BlockRow);
     return {
       ...block,
       sheet: block.sheet ?? emptySheet(),
@@ -348,6 +390,7 @@ function writeRow(row: EntityRow, op: Op, path: OpPath): EntityRow {
       assertSeedPath(row as BlockRow, path);
       return attributed(putSheet(row as BlockRow, path, cellOf(row as BlockRow, op, path)), op);
     case 'block/field': {
+      if (path.field === 'removed_at') return writeRemovedAt(row as BlockRow, op, value as string | null);
       const block = { ...(row as BlockRow), [path.field]: value } as BlockRow;
       return path.field === 'not_tested' ? attributed(block, op) : block;
     }

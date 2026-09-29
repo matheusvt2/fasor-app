@@ -51,8 +51,17 @@
  * observation over the other), and a sheet cell may carry an optional `merge` record
  * (`cellMergeSchema`). No new family, but the reducer and the cell shape changed:
  * `MIN_CONTRACT_VERSION` goes to 10 too.
+ *
+ * 11 (2026-09-29, Stories 10.2 and 10.3): the fold marks a true contradiction on the cell
+ * (`cell.conflict`, the displaced side) and a block removed on one device and edited on the
+ * other (`block.removal_conflict`, plus `block.removed_by`, the actor of the latest
+ * `removed_at` write). A device stamps what it saw on its ops, `meta.standing_op_id` on a
+ * `sheet/*` put and `meta.seen_modified_at` on a `block/{id}/removed_at` write, and the fold
+ * reads both. The session information gains the `block_added` rule (a `MergeInfo` whose
+ * `over_op_id` is null). No new family, but the reducer and two row shapes changed:
+ * `MIN_CONTRACT_VERSION` goes to 11 too.
  */
-export const CONTRACT_VERSION = 10;
+export const CONTRACT_VERSION = 11;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -87,7 +96,11 @@ export const CONTRACT_VERSION = 10;
  * 10 (2026-09-29, Story 10.1): a version-9 bundle's `applyOp` lets a concurrent C land over
  * an NC (or a clear over a filled cell) that a version-10 fold keeps, and its cell schema
  * strips the `merge` record, so its rows would diverge from the server's: it updates too.
+ *
+ * 11 (2026-09-29, Stories 10.2 and 10.3): a version-10 bundle's cell and block schemas strip
+ * `conflict`, `removal_conflict` and `removed_by`, and its fold ignores the two meta stamps,
+ * so its rows would diverge from the server's: it updates too.
  */
-export const MIN_CONTRACT_VERSION = 10;
+export const MIN_CONTRACT_VERSION = 11;
 
 export const CONTRACT_VERSION_HEADER = 'x-contract-version';

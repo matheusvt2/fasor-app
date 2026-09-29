@@ -11,6 +11,7 @@ import {
   type EntityKey,
   type EquipmentRow,
   type FileRow,
+  type LocationRow,
   type MergeInfo,
   type MergeInfoContext,
   type Op,
@@ -344,7 +345,7 @@ export async function resolveMergePairs(
 
 /** The rows the words of the merge entries are read from (`mergeInfoText`). */
 export async function mergeTextContext(db: AppDatabase, merges: readonly MergeInfo[]): Promise<MergeInfoContext> {
-  if (merges.length === 0) return { blocks: [], equipment: [], users: [], files: [] };
+  if (merges.length === 0) return { blocks: [], equipment: [], users: [], files: [], locations: [] };
   const blockIds = [...new Set(merges.flatMap((m) => (m.block_id === null ? [] : [m.block_id])))];
   const relatorioIds = [...new Set(merges.flatMap((m) => (m.relatorio_id === null ? [] : [m.relatorio_id])))];
   const blockRecords = await db.entities.bulkGet(blockIds.map((id) => ['block', id] as ['block', string]));
@@ -352,11 +353,9 @@ export async function mergeTextContext(db: AppDatabase, merges: readonly MergeIn
   const equipmentIds = [...new Set(blocks.flatMap((block) => (block.equipment_id === null ? [] : [block.equipment_id])))];
   const equipmentRecords = await db.entities.bulkGet(equipmentIds.map((id) => ['equipment', id] as ['equipment', string]));
   const equipment = equipmentRecords.flatMap((record) => (record === undefined ? [] : [record.row as EquipmentRow]));
-  const files =
-    relatorioIds.length === 0
-      ? []
-      : (await db.entities.where('relatorio_id').anyOf(relatorioIds).toArray())
-          .filter((record) => record.entity === 'file')
-          .map((record) => record.row as FileRow);
-  return { blocks, equipment, users: await localUsers(db), files };
+  const inRelatorios = relatorioIds.length === 0 ? [] : await db.entities.where('relatorio_id').anyOf(relatorioIds).toArray();
+  const files = inRelatorios.filter((record) => record.entity === 'file').map((record) => record.row as FileRow);
+  // Story 10.3: a `block_added` entry names the location its block sits in.
+  const locations = inRelatorios.filter((record) => record.entity === 'location').map((record) => record.row as LocationRow);
+  return { blocks, equipment, users: await localUsers(db), files, locations };
 }

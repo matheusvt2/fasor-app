@@ -1,5 +1,6 @@
 import {
   isAutoPulled,
+  pulledAdditions,
   pulledMergePairs,
   projectIdOfStream,
   projectStreamId,
@@ -283,7 +284,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
   }
 
   /** A pair already listed, or already waiting, is not queued twice. */
-  const pairKey = (pair: { op_id: string; over_op_id: string }) => `${pair.op_id}:${pair.over_op_id}`;
+  const pairKey = (pair: { op_id: string; over_op_id: string | null }) => `${pair.op_id}:${pair.over_op_id}`;
 
   function queueMergePairs(pairs: readonly { op_id: string; over_op_id: string }[]): void {
     const known = new Set([...status.merges.map(pairKey), ...mergePairs.map(pairKey)]);
@@ -323,13 +324,21 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
    * Story 10.1: the pulled ops of another device that did not see the op before them on
    * their path (`pulledMergePairs`), read before the page is stored. A stream's first
    * download (every page until it has been complete once, `downloaded_at`) is history, not
-   * this session's merges, so it is skipped.
+   * this session's merges, so it is skipped. Story 10.3: the blocks another device added
+   * (`pulledAdditions`) are listed the same way, as entries with no pair.
    */
   async function queuePulledPairs(ops: readonly Op[], downloadedBefore: boolean): Promise<void> {
     if (!downloadedBefore || ops.length === 0) return;
     try {
       const own = await deviceId(deps.db, deps.newId);
-      queueMergePairs(pulledMergePairs(await heldOpsOnPaths(deps.db, ops), ops, own));
+      const held = await heldOpsOnPaths(deps.db, ops);
+      queueMergePairs(pulledMergePairs(held, ops, own));
+      const listed = new Set(status.merges.map(pairKey));
+      const added = pulledAdditions(held, ops, own).filter((info) => !listed.has(pairKey(info)));
+      if (added.length > 0) {
+        status.merges = [...status.merges, ...added];
+        emit();
+      }
     } catch (error) {
       console.error('merge pairs of a pull failed', error);
     }
