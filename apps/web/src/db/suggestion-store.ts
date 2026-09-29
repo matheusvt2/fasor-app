@@ -1,4 +1,5 @@
 import {
+  captionSuggestions,
   confirmSuggestionOps,
   discardSuggestionOp,
   envSuggestions,
@@ -187,12 +188,14 @@ async function equalEnvValue(db: AppDatabase, locationId: string, suggestion: Su
 /** What `syncCounts` reads besides the outbox (Story 8.2): the suggestion statuses and the live photos' readings. */
 export interface ReadingCountRows {
   suggestions: { status: string }[];
-  photos: { reading_status: string | null }[];
+  /** Story 10.4: each live photo with what its "Leituras" row names (`queuedReadingRows`). */
+  photos: { id: string; caption: string | null; captured_at: string | null; reading_status: string | null }[];
 }
 
 /**
  * The device's pending suggestions on live blocks (the Sumário's own filter,
- * `livePendingSuggestions`) and on live cabines (Story 9.1, the thermo-hygrometer), and its
+ * `livePendingSuggestions`), on live cabines (Story 9.1, the thermo-hygrometer) and on live
+ * photos' captions (ledger 1137: the ones the gallery shows, `captionSuggestions`), and its
  * live photos' readings, for Sync status "Leituras".
  */
 export async function readingCountRows(db: AppDatabase): Promise<ReadingCountRows> {
@@ -207,14 +210,18 @@ export async function readingCountRows(db: AppDatabase): Promise<ReadingCountRow
     pending,
     locations.map((record) => record.row as LocationRow),
   );
+  const photos = files
+    .filter((record) => record.removed_at === null && (record.row as { removed_at?: unknown }).removed_at == null && (record.row as { kind?: unknown }).kind === 'photo')
+    .map((record) => record.row as PhotoFileRow);
+  const captions = captionSuggestions(photos, pending);
   return {
-    suggestions: live.map((row) => ({ status: row.status })),
-    photos: files
-      .filter((record) => record.removed_at === null && (record.row as { removed_at?: unknown }).removed_at == null && (record.row as { kind?: unknown }).kind === 'photo')
-      .map((record) => {
-        const status = (record.row as { reading_status?: unknown }).reading_status;
-        return { reading_status: typeof status === 'string' ? status : null };
-      }),
+    suggestions: [...live, ...captions.values()].map((row) => ({ status: row.status })),
+    photos: photos.map((row) => ({
+      id: row.id,
+      caption: typeof row.caption === 'string' ? row.caption : null,
+      captured_at: typeof row.captured_at === 'string' ? row.captured_at : null,
+      reading_status: typeof row.reading_status === 'string' ? row.reading_status : null,
+    })),
   };
 }
 

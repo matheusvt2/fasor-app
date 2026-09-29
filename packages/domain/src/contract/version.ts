@@ -51,8 +51,13 @@
  * observation over the other), and a sheet cell may carry an optional `merge` record
  * (`cellMergeSchema`). No new family, but the reducer and the cell shape changed:
  * `MIN_CONTRACT_VERSION` goes to 10 too.
+ *
+ * 11 (2026-09-29, Story 10.4): the company pull summary's relatório entries carry an optional
+ * `progress: {sheets, photos}` (the server's live blocks and photo files of each), for the
+ * "Baixando… 12 de 30 fichas" line. Additive on a non-strict object: a version-10 bundle
+ * ignores it and reads "Baixando…" alone, so `MIN_CONTRACT_VERSION` stays 10.
  */
-export const CONTRACT_VERSION = 10;
+export const CONTRACT_VERSION = 11;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).

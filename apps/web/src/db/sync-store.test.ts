@@ -204,6 +204,33 @@ describe('dead-op re-materialization (1.4 deferred settling test)', () => {
     expect(await resendDead(db)).toBe(0);
     db.close();
   });
+
+  it('10.4 (ledger 160): "Reenviar" re-queues every dead op of a rejected batch in commit order; a later put the server acked stays acked and is not re-sent', async () => {
+    const db = await freshDb();
+    const d = deps();
+    await commitOps(db, seedLog());
+    const batchId = d.newId();
+    const first = makeOp(put(FIELD, 'LOTE-1', { batch_id: batchId }), { newId: d.newId, now: d.now() });
+    const second = makeOp(put(`sheet/${BLOCK_1_ID}/observations`, 'LOTE-2', { batch_id: batchId }), { newId: d.newId, now: d.now() });
+    const later = makeOp(put(`sheet/${BLOCK_1_ID}/nameplate/tipo`, 'DEPOIS'), { newId: d.newId, now: d.now() });
+    await commitOps(db, [first, second, later]);
+    for (const row of await takePending(db)) if (![first.op_id, second.op_id, later.op_id].includes(row.op_id)) await markAcked(db, [{ op_id: row.op_id, seq: 1 }]);
+    // Story 10.1 made a client batch atomic: the server rejects both ops of it together.
+    await markDead(db, [
+      { op_id: first.op_id, code: 'op_invalid' },
+      { op_id: second.op_id, code: 'op_invalid' },
+    ]);
+    await markAcked(db, [{ op_id: later.op_id, seq: 99 }]);
+
+    expect(await resendDead(db)).toBe(2);
+    expect((await takePending(db)).map((row) => row.op_id)).toEqual([first.op_id, second.op_id]);
+    expect(await db.outbox.get(later.op_id)).toMatchObject({ status: 'acked', seq: 99 });
+    const row = await block(db);
+    expect(row.sheet.nameplate.fabricacao?.value).toBe('LOTE-1');
+    expect(row.sheet.observations?.value).toBe('LOTE-2');
+    expect(row.sheet.nameplate.tipo?.value).toBe('DEPOIS');
+    db.close();
+  });
 });
 
 describe('cross-stream dedupe', () => {

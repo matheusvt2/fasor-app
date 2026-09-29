@@ -10,7 +10,7 @@ import {
   type OpDraft,
   type WordRow,
 } from '@app/domain';
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import {
   Button,
   ConfirmDialog,
@@ -407,12 +407,39 @@ interface TextFieldProps {
   className?: string;
 }
 
+/**
+ * Ledger 310 (Story 10.4): a field seeds its text from the live row once, and re-seeds it when
+ * the row changes under it (another device edited the instrument) while the person is not in
+ * the field and has no unsaved change of their own; the field they are editing keeps its text.
+ */
+function useLiveReseed(key: string, reseed: () => void, dirty: () => boolean): { onFocus: () => void; onBlur: () => void } {
+  const focused = useRef(false);
+  const latest = useRef({ reseed, dirty });
+  latest.current = { reseed, dirty };
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    if (!focused.current && !latest.current.dirty()) latest.current.reseed();
+  }, [key]);
+  return {
+    onFocus: () => {
+      focused.current = true;
+    },
+    onBlur: () => {
+      focused.current = false;
+    },
+  };
+}
+
 function TextField({ label, value, onCommit, type = 'text', className }: TextFieldProps) {
-  // No external sync needed beyond the initial value: the panel remounts (`key={openId}`)
-  // whenever the open instrument changes, and the one field a person is editing already
-  // holds its own optimistic text — the live row catches up to the same value, never past it.
+  // The panel remounts (`key={openId}`) whenever the open instrument changes; within one
+  // instrument the live row re-seeds a field nobody is editing (`useLiveReseed`, ledger 310).
   const [text, setText] = useState(value);
   const committer = useFieldCommit<string>({ commit: onCommit });
+  const live = useLiveReseed(value, () => setText(value), () => committer.pending);
   return (
     <label className={['field', className].filter(Boolean).join(' ')}>
       <span className="field-label">{label}</span>
@@ -424,7 +451,11 @@ function TextField({ label, value, onCommit, type = 'text', className }: TextFie
           setText(event.target.value);
           committer.change(event.target.value);
         }}
-        onBlur={() => committer.blur()}
+        onFocus={live.onFocus}
+        onBlur={() => {
+          live.onBlur();
+          committer.blur();
+        }}
         onKeyDown={(event) => {
           if (event.key === 'Enter') committer.enter();
         }}
@@ -443,6 +474,7 @@ interface NumberFieldProps {
 function NumberField({ label, helper, value, onCommit }: NumberFieldProps) {
   const [text, setText] = useState(value === null ? '' : String(value));
   const committer = useFieldCommit<number | null>({ commit: onCommit });
+  const live = useLiveReseed(String(value), () => setText(value === null ? '' : String(value)), () => committer.pending);
   return (
     <label className="field">
       <span className="field-label">{label}</span>
@@ -462,7 +494,9 @@ function NumberField({ label, helper, value, onCommit }: NumberFieldProps) {
           const parsed = Number(raw);
           if (Number.isInteger(parsed) && parsed > 0) committer.change(parsed);
         }}
+        onFocus={live.onFocus}
         onBlur={() => {
+          live.onBlur();
           committer.blur();
           // A value that never became a valid positive integer (a decimal, zero, a
           // negative, stray text) was never queued for commit above; leaving it on
@@ -497,6 +531,14 @@ function TestDefaultField({ label, helper, value, onCommit }: TestDefaultFieldPr
   const [raw, setRaw] = useState(value?.raw ?? '');
   const [unit, setUnit] = useState(value?.unit ?? '');
   const committer = useFieldCommit<{ raw: string | null; unit: string | null } | null>({ commit: onCommit });
+  const live = useLiveReseed(
+    JSON.stringify(value),
+    () => {
+      setRaw(value?.raw ?? '');
+      setUnit(value?.unit ?? '');
+    },
+    () => committer.pending,
+  );
 
   function commitNext(nextRaw: string, nextUnit: string): void {
     const next = nextRaw === '' && nextUnit === '' ? null : { raw: nextRaw === '' ? null : nextRaw, unit: nextUnit === '' ? null : nextUnit };
@@ -515,7 +557,11 @@ function TestDefaultField({ label, helper, value, onCommit }: TestDefaultFieldPr
             setRaw(event.target.value);
             commitNext(event.target.value, unit);
           }}
-          onBlur={() => committer.blur()}
+          onFocus={live.onFocus}
+          onBlur={() => {
+            live.onBlur();
+            committer.blur();
+          }}
           onKeyDown={(event) => {
             if (event.key === 'Enter') committer.enter();
           }}
@@ -528,7 +574,11 @@ function TestDefaultField({ label, helper, value, onCommit }: TestDefaultFieldPr
             setUnit(event.target.value);
             commitNext(raw, event.target.value);
           }}
-          onBlur={() => committer.blur()}
+          onFocus={live.onFocus}
+          onBlur={() => {
+            live.onBlur();
+            committer.blur();
+          }}
           onKeyDown={(event) => {
             if (event.key === 'Enter') committer.enter();
           }}

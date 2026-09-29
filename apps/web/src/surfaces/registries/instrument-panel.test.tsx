@@ -95,3 +95,25 @@ describe('InstrumentPanel — AC4 referenced vs unreferenced deletion', () => {
     expect(dialog).toHaveTextContent('Remover 2E?');
   });
 });
+
+describe('InstrumentPanel — ledger 310, another device edits the open instrument', () => {
+  const panel = (row: InstrumentRow) => (
+    <ToastProvider>
+      <InstrumentPanel instrumentId={row.id} instrument={row} referenced={false} onClose={vi.fn()} />
+    </ToastProvider>
+  );
+
+  it('re-seeds the fields nobody is editing from the live row; the field being edited keeps its text', async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(panel(instrument));
+    const model = screen.getByRole('textbox', { name: 'Tipo / modelo' });
+    const serial = screen.getByRole('textbox', { name: 'Nº de série' });
+    await user.click(model);
+    await user.keyboard('MD-5060');
+
+    rerender(panel({ ...instrument, name: 'Megôhmetro', model: 'DMG10Ki', serial: 'IN919021' }));
+    expect(screen.getByRole('textbox', { name: 'Nome' })).toHaveValue('Megôhmetro');
+    expect(serial).toHaveValue('IN919021');
+    expect(model).toHaveValue('MD-5060');
+  });
+});

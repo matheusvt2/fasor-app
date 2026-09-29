@@ -3,6 +3,7 @@ import { ACCOUNT_ROUTES, accountResponseSchema } from './index.ts';
 import { contractExamples } from './examples.ts';
 import { errorCodeSchema, errorResponseSchema, OP_REJECT_CODES } from './errors.ts';
 import {
+  relatorioSummarySchema,
   sinceQuerySchema,
   SYNC_PUSH_MAX_OPS,
   SYNC_ROUTES,
@@ -68,9 +69,23 @@ describe('contract examples (ADR readiness 1.4)', () => {
   });
 });
 
+describe('relatório summary progress (Story 10.4)', () => {
+  const entry = { id: 'r', project_id: 'p', status: 'em_campo', template_id: null, seed_version: '2026.1', updated_seq: 3 };
+
+  it('parses an entry without progress (an older server) and one with it', () => {
+    expect(relatorioSummarySchema.parse(entry).progress).toBeUndefined();
+    expect(relatorioSummarySchema.parse({ ...entry, progress: { sheets: 30, photos: 20 } }).progress).toEqual({ sheets: 30, photos: 20 });
+  });
+
+  it('refuses a negative or fractional total', () => {
+    expect(relatorioSummarySchema.safeParse({ ...entry, progress: { sheets: -1, photos: 0 } }).success).toBe(false);
+    expect(relatorioSummarySchema.safeParse({ ...entry, progress: { sheets: 1.5, photos: 0 } }).success).toBe(false);
+  });
+});
+
 describe('contract constants', () => {
-  it('speaks version 10 and accepts only version 10 (Story 10.1 merges concurrent sheet puts in the fold)', () => {
-    expect(CONTRACT_VERSION).toBe(10);
+  it('speaks version 11 and still accepts version 10 (Story 10.4 adds an optional summary field; 10.1 raised the minimum)', () => {
+    expect(CONTRACT_VERSION).toBe(11);
     expect(MIN_CONTRACT_VERSION).toBe(10);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');
   });

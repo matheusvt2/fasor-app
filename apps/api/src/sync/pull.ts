@@ -99,9 +99,36 @@ export async function pullProject(
   return page(db, filter, since, limit);
 }
 
+/**
+ * Story 10.4 (ledger 106): the live blocks (sheets) and live photo files of each relatório
+ * of the company, in one grouped query, for the summary's `progress`.
+ */
+async function relatorioTotals(db: Db, companyId: CompanyId): Promise<Map<string, { sheets: number; photos: number }>> {
+  const rows = await db
+    .select({ relatorio_id: entities.relatorio_id, entity: entities.entity, n: sql<number>`count(*)::int` })
+    .from(entities)
+    .where(
+      and(
+        eq(entities.company_id, companyId),
+        isNull(entities.removed_at),
+        or(eq(entities.entity, 'block'), and(eq(entities.entity, 'file'), sql`${entities.row}->>'kind' = 'photo'`)),
+      ),
+    )
+    .groupBy(entities.relatorio_id, entities.entity);
+  const out = new Map<string, { sheets: number; photos: number }>();
+  for (const row of rows) {
+    if (row.relatorio_id === null) continue;
+    const entry = out.get(row.relatorio_id) ?? { sheets: 0, photos: 0 };
+    if (row.entity === 'block') entry.sheets = Number(row.n);
+    else entry.photos = Number(row.n);
+    out.set(row.relatorio_id, entry);
+  }
+  return out;
+}
+
 /** AD-8: `last_push_at` rows plus the company's live relatorio rows in the summary shape. */
 export async function companySummary(db: Db, companyId: CompanyId): Promise<SyncSummary> {
-  const [pushes, relatorios] = await Promise.all([
+  const [pushes, relatorios, totals] = await Promise.all([
     db
       .select({ user_id: syncDevicePush.user_id, device_id: syncDevicePush.device_id, at: syncDevicePush.last_push_at })
       .from(syncDevicePush)
@@ -113,6 +140,7 @@ export async function companySummary(db: Db, companyId: CompanyId): Promise<Sync
       .from(entities)
       .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'relatorio'), isNull(entities.removed_at)))
       .orderBy(asc(entities.updated_seq)),
+    relatorioTotals(db, companyId),
   ]);
   const last_push_at: LastPushAt[] = pushes.map((p) => ({ user_id: p.user_id, device_id: p.device_id, at: p.at }));
   const list: RelatorioSummary[] = relatorios.map(({ id, row, updated_seq }) => {
@@ -124,6 +152,7 @@ export async function companySummary(db: Db, companyId: CompanyId): Promise<Sync
       template_id: r.template_id,
       seed_version: r.seed_version,
       updated_seq,
+      progress: totals.get(id) ?? { sheets: 0, photos: 0 },
     };
   });
   return { last_push_at, relatorios: list };

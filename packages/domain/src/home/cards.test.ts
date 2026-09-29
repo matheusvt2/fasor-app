@@ -205,6 +205,27 @@ describe('homeCards: device availability (AD-7, AD-8)', () => {
     });
   }
 
+  it('10.4 (ledger 166): a downloading card counts its sheets against the summary progress; without progress, the word alone', () => {
+    const summaryEntry = (progress?: { sheets: number; photos: number }): RelatorioSummary => ({
+      id: R_DRAFT,
+      project_id: PROJECT,
+      status: 'rascunho',
+      template_id: TEMPLATE,
+      seed_version: 'v1',
+      updated_seq: 9,
+      ...(progress === undefined ? {} : { progress }),
+    });
+    const downloading = { syncStates: [{ id: R_DRAFT, complete: false, last_sync_at: null }] };
+    const held = {
+      blocks: [{ relatorio_id: R_DRAFT, removed_at: null }, { relatorio_id: R_DRAFT, removed_at: '2026-09-07T10:00:00.000Z' }] as never,
+      files: [{ relatorio_id: R_DRAFT, kind: 'photo', removed_at: null }],
+    };
+    const [counted] = homeCards(input({ relatorios: [relatorio(R_DRAFT, 'rascunho')], summary: [summaryEntry({ sheets: 3, photos: 2 })], ...downloading, ...held }));
+    expect(counted!.device).toEqual({ kind: 'downloading', text: 'Baixando… 1 de 3 fichas' });
+    const [older] = homeCards(input({ relatorios: [relatorio(R_DRAFT, 'rascunho')], summary: [summaryEntry()], ...downloading, ...held }));
+    expect(older!.device).toEqual({ kind: 'downloading', text: 'Baixando…' });
+  });
+
   it('a copy that came down on another day carries its date, not just a time of day', () => {
     const [card] = homeCards(
       input({

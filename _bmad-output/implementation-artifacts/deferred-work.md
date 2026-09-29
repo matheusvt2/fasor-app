@@ -106,7 +106,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Per-relatório progress in the company pull summary, once the kernel's `progress(snapshot)` exists.
   evidence: No `progress(snapshot)` function exists in `packages/domain/src/` yet; it is an Epic 4+ kernel function. Duplicate of `spec-1-6` item 1, cross-referenced there.
   class: post-mvp
-  state: ~~open~~ open (owner: Story 10.4 (batch S); 2026-09-29, E9-A5)
+  state: ~~open~~ ~~open (owner: Story 10.4 (batch S); 2026-09-29, E9-A5)~~ closed (2026-09-29, Story 10.4: the company pull summary carries an optional `progress: {sheets, photos}` per relatório (`relatorioProgressSchema`, contract 11, `apps/api/src/sync/pull.ts` `relatorioTotals`); Sync status "Baixando" reads it through `downloadProgress`)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-5-what-i-did-on-the-tablet-reaches-the-office-by-itself.md`
   summary: Coalescing option (a) stays open for the architect to reconsider.
@@ -160,13 +160,13 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Decide whether "Reenviar" of a dead create must re-send later acked puts on the same entity.
   evidence: Not reachable with the current single-op batches; needs Epic 5's multi-op batches to construct the scenario.
   class: post-mvp
-  state: ~~open (not reachable until Epic 5 multi-op batches)~~ open (owner: Story 10.4 (batch S); 2026-09-29, E9-A5)
+  state: ~~open (not reachable until Epic 5 multi-op batches)~~ ~~open (owner: Story 10.4 (batch S); 2026-09-29, E9-A5)~~ closed (2026-09-29, Story 10.4: with Story 10.1's atomic client batches a rejected batch is dead as a whole, and "Reenviar" (`resendDead`) returns every dead row to `pending` in commit order; a later put the server acked on its own stays `acked`, keeps its effect and is not re-sent, since the server already applied it. Proven by `apps/web/src/db/sync-store.test.ts` "10.4 (ledger 160)")
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-6-home-and-account-show-what-is-on-this-device.md`
   summary: Home card counted forms ("Baixando… n de m") once the company summary carries `progress(snapshot)`.
   evidence: Duplicate of `spec-1-5` item 1, cross-referenced there. No `progress(snapshot)` kernel function exists yet.
   class: post-mvp
-  state: ~~open (duplicate of `spec-1-5` item 1, cross-reference)~~ open (owner: Story 10.4 (batch S); 2026-09-29, E9-A5)
+  state: ~~open (duplicate of `spec-1-5` item 1, cross-reference)~~ ~~open (owner: Story 10.4 (batch S); 2026-09-29, E9-A5)~~ closed (2026-09-29, Story 10.4: `homeCards` takes the file rows and words a downloading card "Baixando… 12 de 30 fichas" from the summary `progress` (`downloadProgress().short`); without `progress` the word alone)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-6-home-and-account-show-what-is-on-this-device.md`
   summary: Decide whether `syncCounts` takes the snapshot beside the outbox.
@@ -310,7 +310,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: A second device editing the same instrument while its panel is open on a first device shows stale text for untouched fields until that field is itself edited.
   evidence: Internal review pass 2026-09-22. `apps/web/src/surfaces/registries/instrument-panel.tsx`'s `TextField`/`NumberField`/`TestDefaultField` each seed local state once at mount (`useState(value)`) and never resync from the live row prop. Real but unconfirmed by any test; the same seed-once-never-resync pattern is already used by every other Epic 1 field editor (e.g. `RegistrationDialog`), so it predates and is not unique to this story.
   class: debt
-  state: ~~open~~ open (owner: Story 10.4 (batch S); 2026-09-29, E9-A5)
+  state: ~~open~~ ~~open (owner: Story 10.4 (batch S); 2026-09-29, E9-A5)~~ closed (2026-09-29, Story 10.4: `instrument-panel.tsx` `useLiveReseed` re-seeds `TextField`, `NumberField` and `TestDefaultField` from the live row when it changes while the field is not focused and holds no unsaved change; `instrument-panel.test.tsx` "ledger 310")
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-1-fix-sw-hold-persisted.md`
   summary: Scope the shell pin per user, or hold while any user on the device has a backlog.
@@ -1068,7 +1068,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Story 9.1 narrowing: pending thermo-hygrometer suggestions count in Sync status ("Leituras") but not in the pre-issue section 9 row or the Sumário, which read sheet suggestions only.
   evidence: `livePendingSuggestions(blocks, pending, locations)` keeps env rows only when `locations` is given; `db/suggestion-store.ts` `readingCountRows` passes them, `relatorio/pre-issue.ts` does not.
   class: question
-  state: ~~open (owner: Epic 9 integrated review)~~ open (owner: Story 10.4 (batch S); 2026-09-29, E9-A5)
+  state: ~~open (owner: Epic 9 integrated review)~~ ~~open (owner: Story 10.4 (batch S); 2026-09-29, E9-A5)~~ open (owner: Matheus, product question; 2026-09-29, Story 10.4: not small. The section 9 row "N fichas com sugestões" counts sheets, and a thermo-hygrometer suggestion sits on a cabine, not a sheet, so counting it there needs a new row or wording, a product decision; Sync status keeps counting it under "Leituras")
 
 - source_spec: spec-9-1-read-the-instrument-display-with-ler-visor.md
   summary: Story 9.1 narrowing: a display reading that failed has no retry UI on the cell (the plate's "Tentar novamente" has no display counterpart); `POST /api/photos/{id}/reread` already accepts display photos.
@@ -1134,7 +1134,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Story 9.3 narrowings: unmarking "Pessoas na foto" does not request a caption (no client reread of `caption`); caption suggestions are not in the Sync status "Leituras" counts (`livePendingSuggestions` reads `sheet/*` and cabine targets only); the tile's "Pessoas na foto" chip shows only on tiles with no equipment or already marked.
   evidence: `apps/web/src/surfaces/photos/gallery-surface.tsx` (people chip condition); `apps/web/src/db/suggestion-store.ts` `readingCountRows`.
   class: question
-  state: ~~open (owner: Epic 9 integrated review)~~ open (owner: Story 10.4 (batch S); 2026-09-29, E9-A5)
+  state: ~~open (owner: Epic 9 integrated review)~~ ~~open (owner: Story 10.4 (batch S); 2026-09-29, E9-A5)~~ closed for the Sync status counts (2026-09-29, Story 10.4: `readingCountRows` adds the caption suggestion each live photo shows (`captionSuggestions`) to the "Leituras" count; `suggestion-store.test.ts` "ledger 1137"). The other two narrowings of this entry (unmarking "Pessoas na foto" does not request a caption; the chip condition) stay as the 9.3 conservative reading, open for Matheus
 
 - source_spec: spec-9-3-9-5-captions-and-nc-drafts.md
   summary: Stories 9.3/9.5 open questions (conservative reading kept): the tile keeps the mock's "Confirmar" while the composer and the NC draft say "Usar" (the story); "Confirmar todas" confirms every suggestion of the relatório, not only the filtered cabine; `captions_suggested` is an `info` row (a warning, never blocking) beside the unchanged `photos_uncaptioned`, and the Export dialog counts it among its "N avisos" (not an explicit kind), while the Sumário row 7 names it.
