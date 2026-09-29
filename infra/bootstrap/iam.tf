@@ -21,12 +21,21 @@ resource "aws_iam_policy" "app" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "InvokeClaudeThroughUsInferenceProfiles"
+        # The Story 11.6 evaluation candidates: Claude and Nova through the us.
+        # and global. inference profiles, Qwen3 VL and Mistral Large 3 on demand.
+        # Narrowed to the chosen models once the evaluation picks them.
+        Sid    = "InvokeEvaluationCandidates"
         Effect = "Allow"
         Action = ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"]
         Resource = [
           "arn:aws:bedrock:us-east-1:${var.account_id}:inference-profile/us.anthropic.claude-*",
+          "arn:aws:bedrock:us-east-1:${var.account_id}:inference-profile/global.anthropic.claude-*",
+          "arn:aws:bedrock:us-east-1:${var.account_id}:inference-profile/us.amazon.nova-*",
+          "arn:aws:bedrock:us-east-1:${var.account_id}:inference-profile/global.amazon.nova-*",
           "arn:aws:bedrock:*::foundation-model/anthropic.claude-*",
+          "arn:aws:bedrock:*::foundation-model/amazon.nova-*",
+          "arn:aws:bedrock:us-east-1::foundation-model/qwen.qwen3-vl-*",
+          "arn:aws:bedrock:us-east-1::foundation-model/mistral.mistral-large-3-*",
         ]
       },
       {

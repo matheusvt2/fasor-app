@@ -6,7 +6,7 @@ The whole project's AWS spend stays below USD 100 per month (AGENTS.md Policy); 
 
 ## Stacks
 
-- `bootstrap/` (applied 2026-09-29, state in `s3://fasor-tfstate-673409896745/bootstrap/terraform.tfstate`): the AWS Organization with the AI services opt-out policy on its root, the Terraform state bucket (versioned, encrypted, private, S3-native locking), the `fasor-admin` user (console password and MFA, no access keys), the `fasor-app` role that only `fasor-admin` may assume (Bedrock `InvokeModel` on Claude and Textract `DetectDocumentText` in `us-east-1`, one-hour sessions), and the `fasor-monthly` budget (alerts at 50/80/100 % actual and 100 % forecast). Cost Anomaly Detection waits behind `enable_anomaly_detection` until Cost Explorer is enabled on the account.
+- `bootstrap/` (applied 2026-09-29, state in `s3://fasor-tfstate-673409896745/bootstrap/terraform.tfstate`): the AWS Organization with the AI services opt-out policy on its root, the Terraform state bucket (versioned, encrypted, private, S3-native locking), the `fasor-admin` user (console password and MFA, no access keys), the `fasor-app` role that only `fasor-admin` may assume (Bedrock `InvokeModel` on the Story 11.6 evaluation candidates, Claude, Nova, Qwen3 VL and Mistral Large 3, narrowed once the evaluation picks; Textract `DetectDocumentText` in `us-east-1`; one-hour sessions), and the `fasor-monthly` budget (alerts at 50/80/100 % actual and 100 % forecast). Cost Anomaly Detection waits behind `enable_anomaly_detection` until Cost Explorer is enabled on the account.
 - The application stack (Story 11.8) lands beside it with its own state key per environment.
 
 ## Profiles
