@@ -1,6 +1,6 @@
 # infra
 
-Cloud infrastructure as Terraform (AD-27, `source-deltas.md` 2026-09-29). Terraform and the AWS CLI run in containers, never on the host: `infra/bin/tf <stack> <terraform args>` exports the `aws login` session of `AWS_PROFILE` (default `fasor`) through the pinned `amazon/aws-cli` image and runs the pinned `hashicorp/terraform` image in `infra/<stack>`.
+Cloud infrastructure as Terraform (AD-27, `source-deltas.md` 2026-09-29). Terraform and the AWS CLI run in containers, never on the host: `infra/bin/tf <stack> <terraform args>` exports the `aws login` session of `AWS_PROFILE` (default `fasor-admin`) through the pinned `amazon/aws-cli` image and runs the pinned `hashicorp/terraform` image in `infra/<stack>`.
 
 The whole project's AWS spend stays below USD 100 per month (AGENTS.md Policy); every change here is costed against that ceiling first.
 
@@ -12,13 +12,13 @@ The whole project's AWS spend stays below USD 100 per month (AGENTS.md Policy); 
 ## Profiles
 
 ```ini
-[profile fasor]
+[profile fasor-admin]
 region = us-east-1
-# login_session is written by `aws login --profile fasor`, signed in as fasor-admin
+# login_session is written by `aws login --profile fasor-admin` (passkey MFA); the root user is never used
 
 [profile fasor-app]
 role_arn = arn:aws:iam::673409896745:role/fasor-app
-source_profile = fasor
+source_profile = fasor-admin
 region = us-east-1
 duration_seconds = 3600
 ```

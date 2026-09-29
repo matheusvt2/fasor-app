@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Runs Terraform in a container (AD-27: nothing on the host) against the AWS login
 # session of one profile. Usage: infra/bin/tf <dir under infra/> <terraform args...>
-# AWS_PROFILE picks the profile (default: fasor). The session is read by the
+# AWS_PROFILE picks the profile (default: fasor-admin). The session is read by the
 # pinned aws-cli image as the calling user, so ~/.aws never gets root-owned files.
 set -euo pipefail
 dir="$1"; shift
 root="$(cd "$(dirname "$0")/.." && pwd)"
-profile="${AWS_PROFILE:-fasor}"
+profile="${AWS_PROFILE:-fasor-admin}"
 creds="$(docker run --rm --user "$(id -u):$(id -g)" -e HOME=/home/aws \
   -v "$HOME/.aws:/home/aws/.aws" amazon/aws-cli:2.37.6 \
   configure export-credentials --profile "$profile" --format env-no-export)"
