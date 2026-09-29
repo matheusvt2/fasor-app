@@ -123,6 +123,24 @@ describe('Sync status surface', () => {
     expect(screen.getByTestId('sync-superseded-row')).toHaveTextContent('3 alterações mescladas pelo servidor');
   });
 
+  it('10.1 lists one row per merge of the session with the kernel sentence', () => {
+    const info = {
+      op_id: '019966b0-0020-7000-8000-000000000001',
+      over_op_id: '019966b0-0020-7000-8000-000000000002',
+      relatorio_id: null,
+      block_id: null,
+      path: 'sheet/x',
+      rule: 'nc_over_c' as const,
+      standing: { value: 'NC', op_id: '019966b0-0020-7000-8000-000000000002', actor_id: 'u', client_ts: '2026-09-29T12:00:00.000Z' },
+      overridden: null,
+    };
+    renderWith(state({ merges: [{ key: 'k', info, text: 'SEC-C12: item 10 NC de Eduardo (com foto) mesclado' }] }));
+    const rows = screen.getAllByTestId('sync-merge-row');
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.querySelector('.sr-primary')).toHaveTextContent('SEC-C12: item 10 NC de Eduardo (com foto) mesclado');
+    expect(rows[0]).toHaveAttribute('data-rule', 'nc_over_c');
+  });
+
   it('8.2 shows the "Leituras" rows from the counts, each only when it counts something', () => {
     const { rerender } = renderWith(state({ counts: { readings_queued: 2, suggestions_pending: 9 } }));
     const section = screen.getByTestId('sync-readings');

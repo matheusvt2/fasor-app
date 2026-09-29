@@ -14,7 +14,12 @@
  * current time in ms), and the worker index sits in the last 12 hex digits:
  *
  *   company A_i  e2e00000-000a-7000-8000-{i}     user A_i  e2e00000-00a1-7000-8000-{i}
+ *                                                colleague e2e00000-00a2-7000-8000-{i}
  *   company B_i  e2e00000-000b-7000-8000-{i}     user B_i  e2e00000-00b1-7000-8000-{i}
+ *
+ * Story 10.1 (epic-10 Conflict 13): company A also holds a second user, the colleague
+ * Eduardo Esteves (`SeedAccount.colleague`), so a two-device merge names another author of
+ * the same company. It belongs to the same pair, so the leak check treats it like A_i.
  */
 
 export type SeedCouncil = 'crea' | 'crt';
@@ -30,6 +35,8 @@ export interface SeedAccount {
   readonly userId: string;
   /** Seeded with the "Cabine primária — padrão" template (A); B starts without one. */
   readonly standardTemplate: boolean;
+  /** Story 10.1: a second user of the same company (company A only), for two-device specs. */
+  readonly colleague?: SeedAccount;
 }
 
 /** One worker's pair: `companies[0]` is its Empresa A, `companies[1]` its Empresa B. */
@@ -46,7 +53,7 @@ export const E2E_WORKER_PASSWORD = 'senha-de-teste-123456';
 const MAX_INDEX = 0xffff;
 
 const COMPANY_ID = /^e2e00000-000([ab])-7000-8000-([0-9a-f]{12})$/;
-const USER_ID = /^e2e00000-00([ab])1-7000-8000-([0-9a-f]{12})$/;
+const USER_ID = /^e2e00000-00(?:a1|a2|b1)-7000-8000-([0-9a-f]{12})$/;
 
 function suffix(index: number): string {
   if (!Number.isInteger(index) || index < 0 || index > MAX_INDEX) {
@@ -71,6 +78,16 @@ export function workerSeed(index: number): WorkerSeed {
         registrationNumber: 'SP 1000000001',
         userId: `e2e00000-00a1-7000-8000-${tail}`,
         standardTemplate: true,
+        colleague: {
+          companyId: `e2e00000-000a-7000-8000-${tail}`,
+          companyName: 'Empresa A de Teste',
+          email: `e2e-w${index}-a2@teste.local`,
+          name: 'Eduardo Esteves',
+          council: 'crea',
+          registrationNumber: 'SP 1000000003',
+          userId: `e2e00000-00a2-7000-8000-${tail}`,
+          standardTemplate: false,
+        },
       },
       {
         companyId: `e2e00000-000b-7000-8000-${tail}`,
@@ -95,7 +112,7 @@ export function workerIndexOfCompany(companyId: string): number | null {
 /** The worker index a user id of this scheme belongs to, or null for any other user. */
 export function workerIndexOfUser(userId: string): number | null {
   const match = USER_ID.exec(userId);
-  return match === null ? null : Number.parseInt(match[2]!, 16);
+  return match === null ? null : Number.parseInt(match[1]!, 16);
 }
 
 /** True for a company of an e2e worker pair: the only companies besides `TEST_SEED` a test reset may empty. */
@@ -105,4 +122,7 @@ export function isE2eWorkerCompany(companyId: string): boolean {
 
 /** The SQL `LIKE` patterns of the scheme's company and user ids, for the leak check. */
 export const E2E_WORKER_COMPANY_LIKE = 'e2e00000-000_-7000-8000-%';
-export const E2E_WORKER_USER_LIKE = 'e2e00000-00_1-7000-8000-%';
+export const E2E_WORKER_USER_LIKE = 'e2e00000-00__-7000-8000-%';
+
+/** The Postgres regexp of the scheme's user ids (A_i, the colleague of A_i, B_i), for the leak check. */
+export const E2E_WORKER_USER_REGEXP = '(e2e00000-00(?:a1|a2|b1)-7000-8000-[0-9a-f]{12})';

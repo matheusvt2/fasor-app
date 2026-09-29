@@ -1,6 +1,12 @@
 import { sql } from 'drizzle-orm';
 import type { Db } from './client.ts';
-import { E2E_WORKER_COMPANY_LIKE, E2E_WORKER_USER_LIKE, workerIndexOfCompany, workerIndexOfUser } from './e2e-worker-seed.ts';
+import {
+  E2E_WORKER_COMPANY_LIKE,
+  E2E_WORKER_USER_LIKE,
+  E2E_WORKER_USER_REGEXP,
+  workerIndexOfCompany,
+  workerIndexOfUser,
+} from './e2e-worker-seed.ts';
 
 /**
  * E6-Q7: the check that parallel Playwright workers stayed apart. Every worker signs in
@@ -24,8 +30,11 @@ export interface E2eLeak {
   what: string;
 }
 
-/** True when the company is one of the two companies of this worker user's pair. */
-function inOwnPair(companyId: string, userId: string): boolean {
+/**
+ * True when the company is one of the two companies of this worker user's pair (the
+ * colleague of Empresa A, Story 10.1, belongs to the pair like A's first user).
+ */
+export function inOwnPair(companyId: string, userId: string): boolean {
   const company = workerIndexOfCompany(companyId);
   return company !== null && company === workerIndexOfUser(userId);
 }
@@ -59,7 +68,7 @@ export async function findE2eLeaks(db: Db): Promise<E2eLeak[]> {
   const entityRows = await db.execute<{ company_id: string; entity: string; id: string; user_id: string }>(
     sql`select distinct e.company_id::text as company_id, e.entity, e.id::text as id, m.user_id
         from entities e,
-             lateral (select (regexp_matches(e.row::text, '(e2e00000-00[ab]1-7000-8000-[0-9a-f]{12})', 'g'))[1] as user_id) m
+             lateral (select (regexp_matches(e.row::text, ${E2E_WORKER_USER_REGEXP}, 'g'))[1] as user_id) m
         where e.row::text like ${'%' + E2E_WORKER_USER_LIKE}
           and not (e.company_id::text like ${E2E_WORKER_COMPANY_LIKE} and right(e.company_id::text, 12) = right(m.user_id, 12))`,
   );

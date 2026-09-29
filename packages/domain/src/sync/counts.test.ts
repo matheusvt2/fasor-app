@@ -30,7 +30,7 @@ describe('syncCounts', () => {
       row(`sheet/${BLOCK_A}/observations`, 'dead'),
       row(`registry/client/${CLIENT}/contact_name`, 'pending'),
     ]);
-    expect(counts).toEqual({ pending: 3, sent: 1, dead: 1, sheets_pending: 2, photos_pending: 0, suggestions_pending: 0, readings_queued: 0 });
+    expect(counts).toEqual({ pending: 3, sent: 1, dead: 1, sheets_pending: 2, photos_pending: 0, suggestions_pending: 0, readings_queued: 0, merged: 0 });
   });
 
   it('counts photo creates only when unsent and not dead', () => {
@@ -62,12 +62,13 @@ describe('syncCounts', () => {
       photos_pending: 0,
       suggestions_pending: 0,
       readings_queued: 0,
+      merged: 0,
     });
   });
 });
 
 describe('syncBadgeState', () => {
-  const base = { pending: 0, sent: 0, dead: 0, sheets_pending: 0, photos_pending: 0, suggestions_pending: 0, readings_queued: 0 };
+  const base = { pending: 0, sent: 0, dead: 0, sheets_pending: 0, photos_pending: 0, suggestions_pending: 0, readings_queued: 0, merged: 0 };
   it('is ok with nothing pending and online', () => {
     expect(syncBadgeState(base, { online: true })).toBe('ok');
   });
@@ -95,7 +96,7 @@ describe('syncBadgeState', () => {
 });
 
 describe('pendingSummaryText and syncBadgeLabel', () => {
-  const base = { pending: 0, sent: 0, dead: 0, sheets_pending: 0, photos_pending: 0, suggestions_pending: 0, readings_queued: 0 };
+  const base = { pending: 0, sent: 0, dead: 0, sheets_pending: 0, photos_pending: 0, suggestions_pending: 0, readings_queued: 0, merged: 0 };
   it('names sheets and photos, or plain changes, or nothing', () => {
     expect(pendingSummaryText({ ...base, pending: 3, sheets_pending: 3 })).toBe('3 fichas');
     expect(pendingSummaryText({ ...base, pending: 3, sheets_pending: 1, photos_pending: 2 })).toBe('1 ficha e 2 fotos');

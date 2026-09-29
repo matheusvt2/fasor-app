@@ -12,6 +12,7 @@ import {
   type RelatorioRow,
   type Sheet,
 } from '../schemas/entities.ts';
+import { mergeCell } from '../merge/policy.ts';
 import { readingKindPutStatus } from '../reading/retarget.ts';
 import type { Op } from './op.ts';
 import { familyDef, formatPath, parsePath, targetOf, type OpPath } from './path.ts';
@@ -72,8 +73,34 @@ export function targetsOf(op: Op): ResolvedRef[] {
   return refs;
 }
 
-function cellOf(op: Op): Cell {
-  return { value: op.value, source_suggestion_id: op.meta?.source_suggestion_id ?? null, op_id: op.op_id };
+/** The cell a `sheet/*` path addresses on a sheet, or undefined when the slot holds none. */
+export function sheetCellAt(sheet: Sheet, path: OpPath): Cell | undefined {
+  switch (path.family) {
+    case 'sheet/nameplate':
+      return sheet.nameplate[path.field_key];
+    case 'sheet/checklist':
+      return sheet.checklist[path.item_key]?.[path.field];
+    case 'sheet/test':
+      return sheet.test[path.test_key]?.[path.field];
+    case 'sheet/test/cell':
+      return sheet.test[path.test_key]?.cells[String(path.row)]?.[String(path.col)];
+    case 'sheet/conclusion':
+      return sheet.conclusion[path.field];
+    case 'sheet/observations':
+      return sheet.observations ?? undefined;
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * Story 10.1: the cell a `sheet/*` put writes, through the kernel merge (`mergeCell`): the
+ * op's own cell when it is sequential, the rule's standing cell when two devices wrote the
+ * path concurrently (judged by `op.prev_op_id` against the cell's head op).
+ */
+function cellOf(block: BlockRow, op: Op, path: OpPath): Cell {
+  const result = path.family === 'sheet/checklist' && path.field === 'observation' ? block.sheet.checklist[path.item_key]?.result : undefined;
+  return mergeCell(sheetCellAt(block.sheet, path), op, { path, result });
 }
 
 /** The template fields whose put is a content edit (D-4): every relatório copies these at creation. */
@@ -236,17 +263,12 @@ export function readPath(state: EntityState, op: Op): unknown {
     case 'equipment/last_nameplate':
       return r.last_nameplate;
     case 'sheet/nameplate':
-      return (row as BlockRow).sheet.nameplate[path.field_key]?.value;
     case 'sheet/checklist':
-      return (row as BlockRow).sheet.checklist[path.item_key]?.[path.field]?.value;
     case 'sheet/test':
-      return (row as BlockRow).sheet.test[path.test_key]?.[path.field]?.value;
     case 'sheet/test/cell':
-      return (row as BlockRow).sheet.test[path.test_key]?.cells[String(path.row)]?.[String(path.col)]?.value;
     case 'sheet/conclusion':
-      return (row as BlockRow).sheet.conclusion[path.field]?.value;
     case 'sheet/observations':
-      return (row as BlockRow).sheet.observations?.value;
+      return sheetCellAt((row as BlockRow).sheet, path)?.value;
     default:
       return typeof (path as { field?: string }).field === 'string' ? r[(path as { field: string }).field] : undefined;
   }
@@ -324,7 +346,7 @@ function writeRow(row: EntityRow, op: Op, path: OpPath): EntityRow {
     case 'sheet/conclusion':
     case 'sheet/observations':
       assertSeedPath(row as BlockRow, path);
-      return attributed(putSheet(row as BlockRow, path, cellOf(op)), op);
+      return attributed(putSheet(row as BlockRow, path, cellOf(row as BlockRow, op, path)), op);
     case 'block/field': {
       const block = { ...(row as BlockRow), [path.field]: value } as BlockRow;
       return path.field === 'not_tested' ? attributed(block, op) : block;

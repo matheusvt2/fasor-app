@@ -69,9 +69,9 @@ describe('contract examples (ADR readiness 1.4)', () => {
 });
 
 describe('contract constants', () => {
-  it('speaks version 9 and accepts only version 9 (E9-Q2/Q3 changed what a reading_kind put derives)', () => {
-    expect(CONTRACT_VERSION).toBe(9);
-    expect(MIN_CONTRACT_VERSION).toBe(9);
+  it('speaks version 10 and accepts only version 10 (Story 10.1 merges concurrent sheet puts in the fold)', () => {
+    expect(CONTRACT_VERSION).toBe(10);
+    expect(MIN_CONTRACT_VERSION).toBe(10);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');
   });
 

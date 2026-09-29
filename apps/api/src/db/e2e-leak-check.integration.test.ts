@@ -23,11 +23,13 @@ const { sql, db } = createDb(config.DATABASE_URL);
 
 const mine = workerSeed(0xff00);
 const theirs = workerSeed(0xff01);
-const probeUsers = [mine.companies[0].userId, mine.companies[1].userId];
+const colleague = mine.companies[0].colleague!;
+const probeUsers = [mine.companies[0].userId, mine.companies[1].userId, colleague.userId];
 const probeCompanies = [
   mine.companies[0].companyId,
   mine.companies[1].companyId,
   theirs.companies[0].companyId,
+  theirs.companies[1].companyId,
   TEST_SEED.companies[0].companyId,
 ];
 
@@ -88,6 +90,11 @@ describe('the e2e worker id scheme', () => {
     expect(workerIndexOfCompany(workerSeed(7).companies[1].companyId)).toBe(7);
     expect(workerIndexOfUser(workerSeed(7).companies[0].userId)).toBe(7);
     expect(workerIndexOfUser(workerSeed(7).companies[0].companyId)).toBeNull();
+    // Story 10.1: the colleague of Empresa A is a user of the same pair.
+    const pal = workerSeed(7).companies[0].colleague!;
+    expect(pal).toMatchObject({ companyId: workerSeed(7).companies[0].companyId, userId: 'e2e00000-00a2-7000-8000-000000000007', email: 'e2e-w7-a2@teste.local', name: 'Eduardo Esteves' });
+    expect(workerIndexOfUser(pal.userId)).toBe(7);
+    expect(workerSeed(7).companies[1].colleague).toBeUndefined();
   });
 });
 
@@ -125,6 +132,28 @@ describe('findE2eLeaks', () => {
       );
       const message = describeE2eLeaks(leaks);
       expect(message).toContain(`user ${a.userId} wrote probe/other-worker into company ${theirs.companies[0].companyId}`);
+    } finally {
+      await cleanUp();
+    }
+  });
+
+  it('Story 10.1: the colleague writing into company A passes; into another worker pair it is a leak', async () => {
+    const [a] = mine.companies;
+    try {
+      await plantOp(a.companyId, colleague.userId, 'probe/colleague-own');
+      await plantEntity(a.companyId, colleague.userId);
+      expect((await findE2eLeaks(db)).filter((leak) => leak.userId === colleague.userId)).toEqual([]);
+
+      await plantOp(theirs.companies[0].companyId, colleague.userId, 'probe/colleague-other');
+      const entityId = await plantEntity(theirs.companies[1].companyId, colleague.userId);
+      const leaks = (await findE2eLeaks(db)).filter((leak) => leak.userId === colleague.userId);
+      expect(leaks).toEqual(
+        expect.arrayContaining([
+          { table: 'ops', companyId: theirs.companies[0].companyId, userId: colleague.userId, what: 'probe/colleague-other' },
+          { table: 'entities', companyId: theirs.companies[1].companyId, userId: colleague.userId, what: `e2e_leak_probe/${entityId}` },
+        ]),
+      );
+      expect(leaks).toHaveLength(2);
     } finally {
       await cleanUp();
     }

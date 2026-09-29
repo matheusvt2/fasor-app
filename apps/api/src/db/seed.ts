@@ -544,6 +544,10 @@ export async function seedE2eWorkerPairs(db: Db, auth: Auth, count: number): Pro
     pairs.flatMap((pair) => pair.companies.map((c) => c.companyId)),
   );
   for (const pair of pairs) {
-    for (const seeded of pair.companies) await seedAccount(db, auth, seeded, pair.password);
+    for (const seeded of pair.companies) {
+      await seedAccount(db, auth, seeded, pair.password);
+      // Story 10.1: the colleague of Empresa A, a second author in the same company.
+      if (seeded.colleague !== undefined) await seedAccount(db, auth, seeded.colleague, pair.password);
+    }
   }
 }

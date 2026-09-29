@@ -44,8 +44,15 @@
  * null one sets `reading_status: none` (`applyOp`, `readingKindPutStatus`). The undo of a
  * re-target puts both null and a settled panel suggestion `discarded` (`invertBatch`). No new
  * family, but the reducer changed: `MIN_CONTRACT_VERSION` goes to 9 too.
+ *
+ * 10 (2026-09-29, Story 10.1): the fold merges a concurrent `sheet/*` put by rule
+ * (`merge/policy.ts`): a put whose `prev_op_id` is not the cell's head op no longer simply
+ * replaces the cell (NC stands over C, a filled cell over an empty one, the NC device's
+ * observation over the other), and a sheet cell may carry an optional `merge` record
+ * (`cellMergeSchema`). No new family, but the reducer and the cell shape changed:
+ * `MIN_CONTRACT_VERSION` goes to 10 too.
  */
-export const CONTRACT_VERSION = 9;
+export const CONTRACT_VERSION = 10;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -76,7 +83,11 @@ export const CONTRACT_VERSION = 9;
  * 9 (2026-09-29, E9-Q2/Q3): a version-8 bundle's `applyOp` derives a different
  * `reading_status` from a null or same-kind `reading_kind` put, and its undo of a 9.2 create
  * pushes a `panel` put the route now refuses, so it updates too.
+ *
+ * 10 (2026-09-29, Story 10.1): a version-9 bundle's `applyOp` lets a concurrent C land over
+ * an NC (or a clear over a filled cell) that a version-10 fold keeps, and its cell schema
+ * strips the `merge` record, so its rows would diverge from the server's: it updates too.
  */
-export const MIN_CONTRACT_VERSION = 9;
+export const MIN_CONTRACT_VERSION = 10;
 
 export const CONTRACT_VERSION_HEADER = 'x-contract-version';

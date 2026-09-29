@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { isoTimestampSchema } from '../clock.ts';
 import { actorIdSchema, uuidV7Schema } from '../ids.ts';
+import { CELL_MERGE_RULES } from '../merge/rules.ts';
 import { NOT_TESTED_REASON_KEYS } from '../seed/definitions.ts';
 import { checkTemplateRow } from '../seed/template-rules.ts';
 import { nodeNameSchema, skeletonNodeSchema, templateBlockSchema } from './block-config.ts';
@@ -37,11 +38,27 @@ export const fieldValueSchema = jsonValueSchema;
 /** AR-18: an instrument's default test voltage/current for one test type, or unset. */
 export const instrumentTestDefaultSchema = z.object({ raw: nullableString, unit: nullableString }).nullable();
 
+/**
+ * Story 10.1 (contract 10): written only by a concurrent fold (`merge/policy.ts`). The
+ * cell's `op_id`, `value` and `source_suggestion_id` stay the standing value's op (AD-12);
+ * `head_op_id` is the latest op folded at the path (what a device stamps as `prev_op_id`
+ * and the server compares `superseded` with), `device_id` that op's device, and `kept`
+ * true when that head op was merged away. A later sequential put drops the record.
+ */
+export const cellMergeSchema = z.object({
+  head_op_id: uuidV7Schema,
+  device_id: z.string().min(1),
+  kept: z.boolean(),
+  rule: z.enum(CELL_MERGE_RULES),
+});
+export type CellMerge = z.infer<typeof cellMergeSchema>;
+
 /** Every sheet cell carries its provenance (AD-12). */
 export const cellSchema = z.object({
   value: fieldValueSchema,
   source_suggestion_id: nullableId,
   op_id: uuidV7Schema,
+  merge: cellMergeSchema.optional(),
 });
 export type Cell = z.infer<typeof cellSchema>;
 

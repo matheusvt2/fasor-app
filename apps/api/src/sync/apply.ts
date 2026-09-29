@@ -503,20 +503,45 @@ export async function applyServerBatch(
   return result;
 }
 
+/** The client batch a raw op names (`batch_id`), read before validation so a refused op still names its batch. */
+function rawBatchId(raw: unknown): string | null {
+  const batchId = (raw as { batch_id?: unknown } | null)?.batch_id;
+  return typeof batchId === 'string' ? batchId : null;
+}
+
+/** Thrown inside a multi-op batch's savepoint to roll it back: an op of it was refused permanently. */
+class BatchRefusedError extends Error {
+  readonly opId: string;
+  constructor(opId: string, options?: { cause?: unknown }) {
+    super(`batch refused at op ${opId}`, options);
+    this.name = 'BatchRefusedError';
+    this.opId = opId;
+  }
+}
+
+type Step = ({ ok: true; op: Op } | { ok: false; op_id: string; code: OpRejectCode }) & { batch_id: string | null };
+
 /**
  * Applies ops in array order for one tenant; one rejected op never blocks the rest.
  *
  * E6-A1: the whole push is ONE transaction under ONE company lock. A permanent refusal
  * (`isPermanentRefusal`) is raised before the op wrote anything but its own log row, which
  * `applyOneIn` removes, so it is answered `op_invalid` and the ops before and after it land;
- * no savepoint is needed (a savepoint per op made the 2500-op Porto Seguro replay six times
- * slower: every one is a Postgres subtransaction, and past 64 of them in one transaction
- * each visibility check goes through `pg_subtrans`).
+ * no savepoint is needed for a single op (a savepoint per op made the 2500-op Porto Seguro
+ * replay six times slower: every one is a Postgres subtransaction, and past 64 of them in
+ * one transaction each visibility check goes through `pg_subtrans`).
  * Anything else (connection, lock, pool) rolls the whole push back and propagates, so the
  * device retries the push as it is (a re-sent `op_id` answers its existing seq). Holding
  * the lock for the push keeps seq order equal to commit order within the company, and the
  * push pays one commit (one WAL flush) instead of one per op: with one transaction per op,
  * overlapping pushes of a few hundred ops each queued on the flushes and slowed sharply.
+ *
+ * Ledger 1161 (Story 10.1): a client batch (FR-32, one `batch_id`) is atomic. Its ops are
+ * applied together, at the position of its first op in the push, under ONE savepoint per
+ * multi-op batch (never one per op); a permanent refusal of any of its ops rolls back that
+ * batch alone and answers every op of it `op_invalid` (an op the validation refused keeps
+ * its own code), while the ops of other batches in the push apply. The device never splits
+ * a batch across pushes (`batches` in `apps/web/src/sync/policy.ts`).
  */
 export async function applyOps(
   db: Db,
@@ -525,20 +550,76 @@ export async function applyOps(
   deps: ApplyDeps,
 ): Promise<ApplyResult> {
   // Shape, origin and tenant checks need no database: done first, in array order.
-  const steps: ({ ok: true; op: Op } | { ok: false; op_id: string; code: OpRejectCode })[] = rawOps.map((raw) => {
+  const steps: Step[] = rawOps.map((raw) => {
+    const batch_id = rawBatchId(raw);
     const validation = validate(raw, companyId, deps);
-    if (validation.ok) return validation;
+    if (validation.ok) return { ...validation, batch_id };
     const rawId = (raw as { op_id?: unknown } | null)?.op_id;
-    return { ok: false, op_id: typeof rawId === 'string' ? rawId : '', code: validation.code };
+    return { ok: false, op_id: typeof rawId === 'string' ? rawId : '', code: validation.code, batch_id };
   });
   const result: ApplyResult = { applied: [], rejected: [], superseded: [] };
+  // The steps of each batch that has more than one op in this push, in array order.
+  const groups = new Map<string, Step[]>();
+  for (const step of steps) {
+    if (step.batch_id === null) continue;
+    const group = groups.get(step.batch_id);
+    if (group === undefined) groups.set(step.batch_id, [step]);
+    else group.push(step);
+  }
+  for (const [batchId, group] of groups) if (group.length < 2) groups.delete(batchId);
+  const opIdOf = (step: Step) => (step.ok ? step.op.op_id : step.op_id);
+
+  /** Every op of a refused batch: `op_invalid`, or the code the validation gave the op itself. */
+  const refuseAll = (group: readonly Step[]) => {
+    for (const member of group) result.rejected.push({ op_id: opIdOf(member), code: member.ok ? 'op_invalid' : member.code });
+  };
+
+  /** One multi-op batch: all of it under one savepoint, or none of it. */
+  const applyBatchIn = async (tx: Tx, group: readonly Step[]): Promise<void> => {
+    if (group.some((member) => !member.ok)) {
+      refuseAll(group);
+      return;
+    }
+    const applied: ApplyResult['applied'] = [];
+    const superseded: ApplyResult['superseded'] = [];
+    try {
+      await tx.transaction(async (savepoint) => {
+        for (const member of group) {
+          const op = (member as { op: Op }).op;
+          try {
+            const { seq, supersededOver } = await applyOneIn(savepoint, companyId, op, toIso(deps.now()), deps.origin);
+            applied.push({ op_id: op.op_id, seq });
+            if (supersededOver !== null) superseded.push({ op_id: op.op_id, over_op_id: supersededOver });
+          } catch (error) {
+            if (isPermanentRefusal(error)) throw new BatchRefusedError(op.op_id, { cause: error });
+            throw error;
+          }
+        }
+      });
+    } catch (error) {
+      if (!(error instanceof BatchRefusedError)) throw error;
+      refuseAll(group);
+      return;
+    }
+    result.applied.push(...applied);
+    result.superseded.push(...superseded);
+  };
+
   if (!steps.some((step) => step.ok)) {
     for (const step of steps) if (!step.ok) result.rejected.push({ op_id: step.op_id, code: step.code });
     return result;
   }
   await db.transaction(async (tx) => {
     await lockCompany(tx, companyId);
+    const handled = new Set<Step>();
     for (const step of steps) {
+      if (handled.has(step)) continue;
+      const group = step.batch_id === null ? undefined : groups.get(step.batch_id);
+      if (group !== undefined) {
+        for (const member of group) handled.add(member);
+        await applyBatchIn(tx, group);
+        continue;
+      }
       if (!step.ok) {
         result.rejected.push({ op_id: step.op_id, code: step.code });
         continue;

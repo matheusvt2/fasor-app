@@ -1,3 +1,4 @@
+import type { MergeInfo } from '../merge/info.ts';
 import type { Op } from '../ops/op.ts';
 import { safeParsePath } from '../ops/path.ts';
 import { peopleCount, plural, relatoriosCount } from '../text/plural.ts';
@@ -25,6 +26,8 @@ export interface SyncCounts {
   suggestions_pending: number;
   /** Story 8.1: the device's photo rows whose reading is `queued` or `running` (0 when not given). */
   readings_queued: number;
+  /** Story 10.1: the merges by rule this tab listed since it opened (`MergeInfo` entries, 0 when not given). */
+  merged: number;
 }
 
 /**
@@ -51,7 +54,15 @@ function isPhotoCreate(row: OutboxLike): boolean {
   return (row.value as { kind?: unknown } | null | undefined)?.kind === 'photo';
 }
 
-export function syncCounts(outbox: readonly OutboxLike[], reading: ReadingCountInputs = {}): SyncCounts {
+/**
+ * Story 10.1 (epic-10 Conflict 3): `merges` are the sync engine's in-memory merge entries
+ * (`MergeInfo`), an explicit input like `reading`; each counts once.
+ */
+export function syncCounts(
+  outbox: readonly OutboxLike[],
+  reading: ReadingCountInputs = {},
+  merges: readonly Pick<MergeInfo, 'op_id' | 'over_op_id'>[] = [],
+): SyncCounts {
   let pending = 0;
   let sent = 0;
   let dead = 0;
@@ -68,7 +79,17 @@ export function syncCounts(outbox: readonly OutboxLike[], reading: ReadingCountI
   }
   const suggestions = (reading.suggestions ?? []).filter((row) => row.status === 'pending').length;
   const readings = (reading.photos ?? []).filter((row) => row.reading_status === 'queued' || row.reading_status === 'running').length;
-  return { pending, sent, dead, sheets_pending: blocks.size, photos_pending: photos, suggestions_pending: suggestions, readings_queued: readings };
+  const merged = new Set(merges.map((entry) => `${entry.op_id}:${entry.over_op_id}`)).size;
+  return {
+    pending,
+    sent,
+    dead,
+    sheets_pending: blocks.size,
+    photos_pending: photos,
+    suggestions_pending: suggestions,
+    readings_queued: readings,
+    merged,
+  };
 }
 
 /** The five badge states of `key-sync-status.html`; `conflict` waits for the deferred merge policy. */

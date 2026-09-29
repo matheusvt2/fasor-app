@@ -1,5 +1,6 @@
 import {
   isAutoPulled,
+  pulledMergePairs,
   projectIdOfStream,
   projectStreamId,
   SYNC_PUSH_MAX_OPS,
@@ -7,6 +8,7 @@ import {
   type Author,
   type Clock,
   type NewId,
+  type MergeInfo,
   type Op,
   type StorageReading,
   type SyncSummary,
@@ -14,10 +16,13 @@ import {
 import { COMPANY_STREAM, type AppDatabase, type SyncStateRow } from '../db/schema.ts';
 import {
   applyPulled,
+  deviceId,
+  heldOpsOnPaths,
   markAcked,
   markDead,
   markSent,
   readSyncState,
+  resolveMergePairs,
   takePending,
   writeSyncState,
 } from '../db/sync-store.ts';
@@ -71,6 +76,13 @@ export interface EngineStatus {
   lastFailure: SyncFailure | null;
   /** `superseded` entries reported since the tab opened (shown, never persisted). */
   supersededCount: number;
+  /**
+   * Story 10.1 (epic-10 Conflict 3): the merges by rule this tab saw since it opened, one
+   * kernel `MergeInfo` per op pair, from the push's `superseded` answer and from pulled ops
+   * of another device. Kept in memory for the tab session only: never an entity, never
+   * synced, and a reload clears them.
+   */
+  merges: readonly MergeInfo[];
 }
 
 export interface SyncEngineDeps {
@@ -180,7 +192,10 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     lastResult: null,
     lastFailure: null,
     supersededCount: 0,
+    merges: [],
   };
+  /** Story 10.1: op pairs waiting for both ops (and the row after them) to be on this device. */
+  let mergePairs: { op_id: string; over_op_id: string; tries: number }[] = [];
   let timer: unknown = null;
   /** E78-Q8: when the first cycle of this burst saw a `running` reading (ms of `deps.now()`); null when the last one saw none. */
   let readingSince: number | null = null;
@@ -262,7 +277,61 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       await markAcked(deps.db, response.applied);
       await markDead(deps.db, response.rejected);
       status.supersededCount += response.superseded.length;
+      queueMergePairs(response.superseded);
       emit();
+    }
+  }
+
+  /** A pair already listed, or already waiting, is not queued twice. */
+  const pairKey = (pair: { op_id: string; over_op_id: string }) => `${pair.op_id}:${pair.over_op_id}`;
+
+  function queueMergePairs(pairs: readonly { op_id: string; over_op_id: string }[]): void {
+    const known = new Set([...status.merges.map(pairKey), ...mergePairs.map(pairKey)]);
+    for (const pair of pairs) {
+      if (known.has(pairKey(pair))) continue;
+      known.add(pairKey(pair));
+      mergePairs.push({ op_id: pair.op_id, over_op_id: pair.over_op_id, tries: 0 });
+    }
+  }
+
+  /** How many cycles a pair waits for its ops before it is dropped (an op of a stream this device does not follow). */
+  const MERGE_PAIR_TRIES = 3;
+
+  /**
+   * Story 10.1: after the pull, each queued pair becomes the kernel's entry, read against the
+   * rows this device now holds (the op a push was superseded by may only arrive with the
+   * pull). Never fails the cycle.
+   */
+  async function resolveMerges(): Promise<void> {
+    if (mergePairs.length === 0) return;
+    try {
+      const { infos, unresolved } = await resolveMergePairs(deps.db, mergePairs);
+      const waiting = new Set(unresolved.map(pairKey));
+      mergePairs = mergePairs.filter((pair) => waiting.has(pairKey(pair)) && ++pair.tries < MERGE_PAIR_TRIES);
+      const listed = new Set(status.merges.map(pairKey));
+      const fresh = infos.filter((info) => !listed.has(pairKey(info)));
+      if (fresh.length > 0) {
+        status.merges = [...status.merges, ...fresh];
+        emit();
+      }
+    } catch (error) {
+      console.error('merge information failed', error);
+    }
+  }
+
+  /**
+   * Story 10.1: the pulled ops of another device that did not see the op before them on
+   * their path (`pulledMergePairs`), read before the page is stored. A stream's first
+   * download (every page until it has been complete once, `downloaded_at`) is history, not
+   * this session's merges, so it is skipped.
+   */
+  async function queuePulledPairs(ops: readonly Op[], downloadedBefore: boolean): Promise<void> {
+    if (!downloadedBefore || ops.length === 0) return;
+    try {
+      const own = await deviceId(deps.db, deps.newId);
+      queueMergePairs(pulledMergePairs(await heldOpsOnPaths(deps.db, ops), ops, own));
+    } catch (error) {
+      console.error('merge pairs of a pull failed', error);
     }
   }
 
@@ -427,6 +496,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       const page = await withRetry(() => fetchPage(previousCursor));
       summary ??= page.summary;
       const { ops, stoppedAt } = parsePulled(page.ops);
+      await queuePulledPairs(ops, state.downloaded_at !== null);
       try {
         await applyPulled(deps.db, ops);
       } catch (error) {
@@ -508,6 +578,7 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       if (!status.paused && !stopped) await runPhase(uploadPhase);
       // A 401 during the push pauses the engine: nothing else runs until sign-in.
       if (!status.paused && !stopped) await runPhase(pullPhase);
+      if (!stopped) await resolveMerges();
       if (!status.paused && !stopped) await sweepSuggestions();
       if (!status.paused && !stopped && !status.outdated) await thumbPhase();
       if (!stopped) await evictionPhase();

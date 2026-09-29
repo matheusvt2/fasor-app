@@ -16,14 +16,14 @@ import {
   type OpDraft,
   type SuggestionRow,
 } from '@app/domain';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq } from 'drizzle-orm';
 import sharp from 'sharp';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { now } from '../../clock.ts';
 import { loadConfig } from '../../config.ts';
 import { createDb } from '../../db/client.ts';
 import { asCompanyId } from '../../db/repositories/company-id.ts';
-import { entities, readingRuns } from '../../db/schema.ts';
+import { entities, ops, readingRuns } from '../../db/schema.ts';
 import { dropCompany } from '../../db/test-cleanup.ts';
 import { newId } from '../../ids.ts';
 import { createS3, putObject } from '../../storage/s3.ts';
@@ -76,8 +76,29 @@ const deps: ReadingJobDeps = { db, s3, bucket, now, newId, providers: spied };
 const sha256 = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
 const stamp = (draft: OpDraft): Op => makeOp({ ...draft, device_id: DEVICE }, { newId, now: now() });
 
+/**
+ * Story 10.1: a put carries the last op on its path as `prev_op_id`, as the device stamps it
+ * (`lastAppliedOpId`), so this one device's second write of a cell is sequential for the
+ * fold, never a concurrent merge.
+ */
+async function withPrev(drafts: OpDraft[]): Promise<Op[]> {
+  const last = new Map<string, string>();
+  const out: Op[] = [];
+  for (const d of drafts) {
+    let prev = d.prev_op_id ?? null;
+    if (d.kind === 'put' && prev === null) {
+      const [latest] = await db.select({ op_id: ops.op_id }).from(ops).where(and(eq(ops.company_id, companyId), eq(ops.path, d.path))).orderBy(desc(ops.seq)).limit(1);
+      prev = last.get(d.path) ?? latest?.op_id ?? null;
+    }
+    const op = stamp({ ...d, prev_op_id: prev });
+    last.set(d.path, op.op_id);
+    out.push(op);
+  }
+  return out;
+}
+
 async function apply(drafts: OpDraft[]): Promise<void> {
-  const result = await applyOps(db, company, drafts.map(stamp), { origin: 'client', actorId: ACTOR, now });
+  const result = await applyOps(db, company, await withPrev(drafts), { origin: 'client', actorId: ACTOR, now });
   expect(result.rejected).toEqual([]);
 }
 

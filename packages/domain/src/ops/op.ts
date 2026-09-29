@@ -11,7 +11,10 @@ import { familyDef, isCreateFamily, pathField, PathError, parsePath, targetOf } 
 
 /*
  * AD-3: the unit of change. Shape, families and kind rules are the spine's;
- * `seq` is set only by the server; `prev_op_id` is recorded, never interpreted.
+ * `seq` is set only by the server. `prev_op_id` is the last op the device had applied on
+ * the path: the server compares it for `superseded` (AD-24), and since Story 10.1
+ * (contract 10) the fold reads it for a `sheet/*` put, where it differing from the cell's
+ * head op makes the put concurrent and merged by rule (`merge/policy.ts`).
  */
 
 export const opKindSchema = z.enum(['create', 'put', 'remove']);
