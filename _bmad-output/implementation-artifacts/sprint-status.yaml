@@ -122,7 +122,7 @@ development_status:
   9-5-draft-the-nc-observation-from-the-row-s-photo: done  # PR #61
   epic-9-retrospective: done
 
-  epic-10: backlog
+  epic-10: in-progress
   10-1-merge-the-same-sheet-from-two-devices-by-rule: backlog
   10-2-decide-a-true-cell-contradiction-and-nothing-else: backlog
   10-3-resolve-a-removed-versus-edited-block-and-a-duplicate-tag: backlog
@@ -705,13 +705,13 @@ action_items:
     epic: 9
     action: "E9-A2 No merge with a red or partial gate: a flake needs a green verify on the same commit and an explained failing state; a PR that merges main after its gate re-runs full verify; Epic 10 target 0 such merges"
     owner: "coordinator (playbook)"
-    status: open
+    status: done  # playbook 2026-09-29
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
   - id: "epic-9-retro-item-75-e9-a3-lock-aware-agents"
     epic: 9
     action: "E9-A3 Agents never block a stream on flock (gate in the background, polls of at most 60 s); per-batch scratchpad/<batch>/; reports go only to the parent; lock wait recorded per PR; Epic 10 target 0 watchdog kills, 0 shared-file overwrites"
     owner: "coordinator (playbook)"
-    status: open
+    status: done  # playbook 2026-09-29
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
   - id: "epic-9-retro-item-76-e9-a4-cross-story-interaction-tests"
     epic: 9
@@ -723,7 +723,7 @@ action_items:
     epic: 9
     action: "E9-A5 deferred-work: close 1113 (fixed E9-Q2) and 1125 (refuted by QA (g)); re-own 1065-1137; route 1149 (accept), 1155 (add verify-fill-under-dictation e2e), 1161 (Epic 10); target 0 entries owned by a finished review or retro"
     owner: "Epic 10 carry-over batch"
-    status: open
+    status: done  # PR #63
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
   - id: "epic-9-retro-item-78-e9-a6-real-display-accuracy"
     epic: 9
@@ -735,7 +735,7 @@ action_items:
     epic: 9
     action: "E9-A7 Split packages/domain/src/relatorio/suggestions.ts (905 lines, 68 exports) by concern (plate crop, measurement/display, env, text), no behavior change; no relatorio/ file over 500 lines"
     owner: "Epic 10 carry-over batch"
-    status: open
+    status: done  # PR #63
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
   - id: "epic-9-retro-item-80-e9-a8-epic-9-product-questions"
     epic: 9
@@ -747,7 +747,7 @@ action_items:
     epic: 9
     action: "E9-A9 Until vendor audio is approved (Q18), default VITE_SPEECH_ENGINE to none in docker-compose.yml and .env.example, or add consent text before the first dictation"
     owner: "dev; Matheus approves"
-    status: open
+    status: done  # PR #63
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
   - id: "epic-9-retro-item-82-e9-a10-device-script-epic-9-flows"
     epic: 9
