@@ -303,7 +303,7 @@ test('@p1 10.1-E2E-003 the sheet observations edited on both tablets: the later 
   }
 });
 
-test('@p1 10.1-E2E-004 a block added on each tablet is kept on both; the same block moved on both: the later move stands and is listed', async ({ page, browser, seed }) => {
+test('@p1 10.1-E2E-004 blocks added on each tablet are kept on both; the same block moved on both to different places: the later move stands and is listed', async ({ page, browser, seed }) => {
   test.setTimeout(240_000);
   const { devices, relatorioId } = await twoDevices(page, browser, seed);
   const { ana, eduardo } = devices;
@@ -320,13 +320,14 @@ test('@p1 10.1-E2E-004 a block added on each tablet is kept on both; the same bl
     if ((await expand.count()) > 0) await expand.click();
     await expect(tagsIn(p)).toContainText(['SEC-C01']);
   };
-  const addBlock = async (p: Page, tag: string) => {
+  const addBlock = async (p: Page, tag: string, count: number) => {
     await p.getByRole('button', { name: 'Mais opções de Coluna 1', exact: true }).click();
     await p.getByRole('menuitem', { name: 'Adicionar bloco' }).click();
     const palette = p.getByRole('dialog', { name: 'Adicionar bloco' });
     await palette.locator('button.palette-item.pf-field').filter({ has: p.locator('.pi-meta', { hasText: new RegExp(`^${tag}$`) }) }).click();
     await expect(palette).toBeHidden();
-    await expect(tagsIn(p)).toHaveText(['SEC-C01', tag]);
+    await expect(eqRow(p, tag)).toBeVisible();
+    await expect(tagsIn(p)).toHaveCount(count);
   };
   const moveLast = async (p: Page) => {
     const box = eqRow(p, 'SEC-C01').getByRole('textbox', { name: 'Posição de SEC-C01' });
@@ -341,12 +342,18 @@ test('@p1 10.1-E2E-004 a block added on each tablet is kept on both; the same bl
       await openColuna1(device.page);
       await device.context.setOffline(true);
     }
-    await addBlock(eduardo.page, 'TC-C01');
+    // Eduardo adds one block and moves SEC-C01 after it; Ana adds two and moves SEC-C01 after
+    // both, so the two moves of the same block write different order keys (a same key would be
+    // no merge at all).
+    await addBlock(eduardo.page, 'TC-C01', 2);
     await moveLast(eduardo.page);
-    await addBlock(ana.page, 'DJ-C01');
+    await addBlock(ana.page, 'DJ-C01', 2);
+    await addBlock(ana.page, 'TP-C01', 3);
     await moveLast(ana.page);
     const secId = (await eqRow(ana.page, 'SEC-C01').getAttribute('data-block-id'))!;
+    const eMove = await lastWritten(eduardo.page, eduardo.database, `block/${secId}/order_key`);
     const aMove = await lastWritten(ana.page, ana.database, `block/${secId}/order_key`);
+    expect(aMove.value).not.toEqual(eMove.value);
 
     await eduardo.context.setOffline(false);
     await syncNow(eduardo.page);
@@ -361,9 +368,9 @@ test('@p1 10.1-E2E-004 a block added on each tablet is kept on both; the same bl
       const row = mergeRows(device.page).filter({ has: device.page.locator('.sr-primary', { hasText: 'SEC-C01: alteração de Ana mantida (a mais recente prevalece)' }) });
       await expect(row).toHaveAttribute('data-rule', 'latest_edit');
       await openColuna1(device.page);
-      // The two new blocks' relative order follows their order keys; both are there.
-      await expect(tagsIn(device.page)).toHaveCount(3);
-      expect(new Set(await tagsIn(device.page).allTextContents())).toEqual(new Set(['SEC-C01', 'DJ-C01', 'TC-C01']));
+      // Every new block of both tablets is there; their relative order follows their order keys.
+      await expect(tagsIn(device.page)).toHaveCount(4);
+      expect(new Set(await tagsIn(device.page).allTextContents())).toEqual(new Set(['SEC-C01', 'DJ-C01', 'TP-C01', 'TC-C01']));
     }
   } finally {
     await eduardo.context.close();
