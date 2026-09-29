@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 09-29-2026 06:00
+last_updated: 09-29-2026 12:00
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -114,13 +114,13 @@ development_status:
   8-6-confirm-the-plate-in-one-tap-with-the-crop-in-view: done  # PR #54
   epic-8-retrospective: done
 
-  epic-9: in-progress
+  epic-9: done  # retro 2026-09-29, accepted with open items
   9-1-read-the-instrument-display-with-ler-visor: done  # PR #56; E8-A3 range source and E8-A8 DoR gaps stay open questions
   9-2-create-a-block-by-photographing-the-equipment: done  # PR #59
   9-3-caption-context-less-photos-by-vision-confirmed-in-batch: done  # PR #61
   9-4-dictate-a-caption-an-observation-or-a-reading: done  # PR #58
   9-5-draft-the-nc-observation-from-the-row-s-photo: done  # PR #61
-  epic-9-retrospective: optional
+  epic-9-retrospective: done
 
   epic-10: backlog
   10-1-merge-the-same-sheet-from-two-devices-by-rule: backlog
@@ -675,7 +675,7 @@ action_items:
     epic: 8
     action: "E8-A5 Epic 9 carry-over lows: E78-R1 crop region, EXIF orientation of thumb/print, crop-blob eviction and re-download, close the stale 'tile stays queued' entry with the QA refutation"
     owner: "Epic 9 carry-over batch (dev); coordinator for the stale entry"
-    status: in-progress  # PR #57 (crop region, eviction, re-download, stale entry); EXIF with batch C2
+    status: done  # PR #57 (crop region, eviction, re-download, stale entry); EXIF in PR #60
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
   - id: "epic-8-retro-item-63-e8-a6-pipeline-e2e-through-the-real-job"
     epic: 8
@@ -695,3 +695,63 @@ action_items:
     owner: "Matheus; coordinator for the line"
     status: open
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
+  - id: "epic-9-retro-item-73-e9-a1-gate-budget-stop-rule"
+    epic: 9
+    action: "E9-A1 Decide the gate-budget stop rule (E9-Q6): a dated AGENTS.md/DoD amendment to a measured budget, or a split gate; name the lock-wait target; supersedes the 900 s targets of E7-A1/E8-A1, before Epic 10's first story PR"
+    owner: "Matheus"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+  - id: "epic-9-retro-item-74-e9-a2-no-merge-on-red-gate"
+    epic: 9
+    action: "E9-A2 No merge with a red or partial gate: a flake needs a green verify on the same commit and an explained failing state; a PR that merges main after its gate re-runs full verify; Epic 10 target 0 such merges"
+    owner: "coordinator (playbook)"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+  - id: "epic-9-retro-item-75-e9-a3-lock-aware-agents"
+    epic: 9
+    action: "E9-A3 Agents never block a stream on flock (gate in the background, polls of at most 60 s); per-batch scratchpad/<batch>/; reports go only to the parent; lock wait recorded per PR; Epic 10 target 0 watchdog kills, 0 shared-file overwrites"
+    owner: "coordinator (playbook)"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+  - id: "epic-9-retro-item-76-e9-a4-cross-story-interaction-tests"
+    epic: 9
+    action: "E9-A4 The epic context lists every story pair sharing a cell, entity, op path or undo batch, and the later batch owns an e2e for each pair; 390 px checks assert table scroll containers, not only the page"
+    owner: "coordinator"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+  - id: "epic-9-retro-item-77-e9-a5-deferred-ledger-ownership"
+    epic: 9
+    action: "E9-A5 deferred-work: close 1113 (fixed E9-Q2) and 1125 (refuted by QA (g)); re-own 1065-1137; route 1149 (accept), 1155 (add verify-fill-under-dictation e2e), 1161 (Epic 10); target 0 entries owned by a finished review or retro"
+    owner: "Epic 10 carry-over batch"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+  - id: "epic-9-retro-item-78-e9-a6-real-display-accuracy"
+    epic: 9
+    action: "E9-A6 Run the plate and display paths and keep the higher-confidence value; re-score on real crops and tablet photos (E8-A8); target at least 8/15 real, with the tablet set scored in docs/display-reading-spike.md"
+    owner: "dev batch; Matheus for photos"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+  - id: "epic-9-retro-item-79-e9-a7-split-suggestions-ts"
+    epic: 9
+    action: "E9-A7 Split packages/domain/src/relatorio/suggestions.ts (905 lines, 68 exports) by concern (plate crop, measurement/display, env, text), no behavior change; no relatorio/ file over 500 lines"
+    owner: "Epic 10 carry-over batch"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+  - id: "epic-9-retro-item-80-e9-a8-epic-9-product-questions"
+    epic: 9
+    action: "E9-A8 Add to the E5-A3 session: E9-Q15, Q16 (a blocker before Epic 11), Q17, Q18 (range source, display walk across rows, print-only values), the Conferir line layout at 1280, the per-user SW pin (AD-8); dated answers under Stories 9.1-9.5"
+    owner: "Matheus (Bruno for wording)"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+  - id: "epic-9-retro-item-81-e9-a9-speech-engine-default"
+    epic: 9
+    action: "E9-A9 Until vendor audio is approved (Q18), default VITE_SPEECH_ENGINE to none in docker-compose.yml and .env.example, or add consent text before the first dictation"
+    owner: "dev; Matheus approves"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
+  - id: "epic-9-retro-item-82-e9-a10-device-script-epic-9-flows"
+    epic: 9
+    action: "E9-A10 Add Ler visor on real displays, dictation on a real tablet (Chrome/Safari) and Fotografar equipamento to the E1-A1 device script; run it with E6-A5, E8-A7, E12-A3; evidence in test-artifacts/manual/"
+    owner: "Matheus"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
