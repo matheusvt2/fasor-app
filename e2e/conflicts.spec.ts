@@ -690,7 +690,15 @@ test('@p0 10.2-E2E-003 "Aplicar" then "Desfazer": the cell, its contradiction an
     await expect(eView.getByRole('radio')).toHaveCount(2);
     await expect(eView.getByRole('radio', { name: /A minha/ })).toHaveAttribute('data-side', 'standing');
     await expect(eView.getByRole('radio', { name: /A de Ana/ })).toHaveAttribute('data-side', 'displaced');
-    await eduardo.page.keyboard.press('Escape');
+    // Settle it again, so the worker's company holds no open decision for the specs after this one.
+    await eView.getByRole('radio', { name: /A minha/ }).click();
+    await eView.getByRole('button', { name: 'Aplicar' }).click();
+    await expect(eView).toBeHidden();
+    await syncNow(eduardo.page);
+    await syncNow(ana.page);
+    await expect(decisionRows(eduardo.page)).toHaveCount(0);
+    await expect(decisionRows(ana.page)).toHaveCount(0);
+    await expect(syncWord(ana.page)).not.toHaveText('Conflito');
   } finally {
     await eduardo.context.close();
   }
@@ -739,6 +747,16 @@ for (const choice of ['Manter', 'Remover'] as const) {
       expect(restored.sheet.checklist[ITEM]?.result?.value).toBe('C');
       await expect(decisionRows(eduardo.page).locator('.banner-text')).toHaveText(['SEC-C12: removido por você, alterado por Ana']);
       await expect(decisionRows(ana.page).locator('.banner-text')).toHaveText(['SEC-C12: removido por Eduardo, alterado por você']);
+
+      // Settle it again, so the worker's company holds no open decision for the specs after this one.
+      await ana.page.goto(`/relatorio/${relatorioId}`);
+      await conflictBanner(ana.page).getByRole('button', { name: choice }).click();
+      await expect(conflictBanner(ana.page)).toHaveCount(0);
+      await syncNow(ana.page);
+      await syncNow(eduardo.page);
+      await expect(decisionRows(ana.page)).toHaveCount(0);
+      await expect(decisionRows(eduardo.page)).toHaveCount(0);
+      await expect(syncWord(ana.page)).not.toHaveText('Conflito');
     } finally {
       await eduardo.context.close();
     }
