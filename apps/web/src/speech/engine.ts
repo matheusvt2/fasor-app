@@ -5,8 +5,10 @@ import { createWebSpeechEngine } from './webspeech-engine.ts';
  * Story 9.4 (FR-40, UX-DR18; epic-9-context Conflict 9): the one speech engine interface.
  * Dictation is online-only and optional: `webspeech` is the browser's Web Speech API in
  * pt-BR, `fake` the test engine Playwright drives, `none` no engine at all. The engine is
- * picked at build time by `VITE_SPEECH_ENGINE` (unset: `webspeech`; an unknown name:
- * `none`). No audio and no transcript ever reaches the api.
+ * picked at build time by `VITE_SPEECH_ENGINE` (unset, empty or an unknown name: `none`).
+ * No audio and no transcript ever reaches the api. E9-A9: `webspeech` is opt-in, because on
+ * Chrome it sends the audio to the browser vendor's service; a default build dictates nothing
+ * until Matheus approves vendor audio (Q18).
  */
 
 export type SpeechEngineName = 'webspeech' | 'fake' | 'none';
@@ -26,9 +28,9 @@ const NONE: SpeechEngine = {
   listen: () => Promise.resolve({ kind: 'none' }),
 };
 
-/** The engine name a build carries: unset reads `webspeech`, an unknown name `none`. */
+/** The engine name a build carries: unset, empty or an unknown name reads `none` (E9-A9: `webspeech` is opt-in). */
 export function speechEngineName(value: string | undefined = import.meta.env.VITE_SPEECH_ENGINE as string | undefined): SpeechEngineName {
-  if (value === undefined || value === '') return 'webspeech';
+  if (value === undefined || value === '') return 'none';
   return value === 'webspeech' || value === 'fake' || value === 'none' ? value : 'none';
 }
 

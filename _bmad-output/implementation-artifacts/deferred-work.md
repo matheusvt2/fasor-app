@@ -106,7 +106,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Per-relatório progress in the company pull summary, once the kernel's `progress(snapshot)` exists.
   evidence: No `progress(snapshot)` function exists in `packages/domain/src/` yet; it is an Epic 4+ kernel function. Duplicate of `spec-1-6` item 1, cross-referenced there.
   class: post-mvp
-  state: open
+  state: ~~open~~ open (owner: Story 10.4 (batch S); 2026-09-29, E9-A5)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-5-what-i-did-on-the-tablet-reaches-the-office-by-itself.md`
   summary: Coalescing option (a) stays open for the architect to reconsider.
@@ -160,13 +160,13 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Decide whether "Reenviar" of a dead create must re-send later acked puts on the same entity.
   evidence: Not reachable with the current single-op batches; needs Epic 5's multi-op batches to construct the scenario.
   class: post-mvp
-  state: open (not reachable until Epic 5 multi-op batches)
+  state: ~~open (not reachable until Epic 5 multi-op batches)~~ open (owner: Story 10.4 (batch S); 2026-09-29, E9-A5)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-6-home-and-account-show-what-is-on-this-device.md`
   summary: Home card counted forms ("Baixando… n de m") once the company summary carries `progress(snapshot)`.
   evidence: Duplicate of `spec-1-5` item 1, cross-referenced there. No `progress(snapshot)` kernel function exists yet.
   class: post-mvp
-  state: open (duplicate of `spec-1-5` item 1, cross-reference)
+  state: ~~open (duplicate of `spec-1-5` item 1, cross-reference)~~ open (owner: Story 10.4 (batch S); 2026-09-29, E9-A5)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-6-home-and-account-show-what-is-on-this-device.md`
   summary: Decide whether `syncCounts` takes the snapshot beside the outbox.
@@ -310,7 +310,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: A second device editing the same instrument while its panel is open on a first device shows stale text for untouched fields until that field is itself edited.
   evidence: Internal review pass 2026-09-22. `apps/web/src/surfaces/registries/instrument-panel.tsx`'s `TextField`/`NumberField`/`TestDefaultField` each seed local state once at mount (`useState(value)`) and never resync from the live row prop. Real but unconfirmed by any test; the same seed-once-never-resync pattern is already used by every other Epic 1 field editor (e.g. `RegistrationDialog`), so it predates and is not unique to this story.
   class: debt
-  state: open
+  state: ~~open~~ open (owner: Story 10.4 (batch S); 2026-09-29, E9-A5)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-1-fix-sw-hold-persisted.md`
   summary: Scope the shell pin per user, or hold while any user on the device has a backlog.
@@ -334,7 +334,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: A device whose manufacturer/voltage_class create gets server-merged into another device's existing row keeps the merged-away id as a permanent, unreconciled duplicate row in its own local Dexie.
   evidence: Internal review pass 2026-09-22. The sync protocol has no "your create was superseded, rewrite to id X" signal, so the creating device's optimistic local row is never corrected by a later pull. The same pass's fix (an in-request id-redirect map in `apps/api/src/sync/apply.ts`) covers a put/remove arriving in the *same* push batch as the merging create, but not this client-side residue. Fixing it needs a sync-protocol extension (e.g. a redirect/tombstone instruction in the pull response). Severity medium.
   class: debt
-  state: open
+  state: ~~open~~ open (owner: Story 10.1 (batch M); 2026-09-29, E9-A5)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-4-2-5-2-6-registries-batch.md`
   summary: The manufacturer/voltage_class normalized-name merge scans every live registry row for the company (all kinds) on every create, an O(n) scan with no SQL-level kind filter.
@@ -370,7 +370,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Two devices creating the first Empresa row offline produce two `empresa` rows, with no convergence rule.
   evidence: `apps/web/src/db/home-store.ts`'s `empresaRow` picks the first row of kind `empresa`, and `empresa-tab.tsx` mints a fresh id per mount until a row has been pulled. A singleton or lowest-uuid-wins rule belongs with Epic 7's consumer of the company profile. Severity medium.
   class: debt
-  state: open
+  state: ~~open~~ open (owner: Story 10.1 (batch M); 2026-09-29, E9-A5)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-2-2-3-files-and-company-identity.md`
   summary: MinIO's `ListObjectsV2` hides variant keys because the `{id}` object shadows the `{id}/` prefix.
@@ -1026,7 +1026,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: E78-R2. The Sumário header reads "3 de 94 fichas concluídas" while the parecer band reads "0 de 94": two definitions of a concluded sheet reach the screen.
   evidence: `reviews/epic-7-8-review-qa.md` § Re-check (PR #55).
   class: deferred
-  state: open (owner: Epic 9 carry-over batch)
+  state: ~~open (owner: Epic 9 carry-over batch)~~ open (owner: Matheus decides the one definition of a concluded ficha (`progress.ts:142` vs `parecer.ts:148`); then the next batch touching the Sumário header or the parecer band; 2026-09-29, E9-A5)
 
 - source_spec: none (found by Matheus on the running app, 2026-09-26; investigated with Sally and Amelia the same day)
   summary: Home layout at desktop width. (1) On Home the Sync badge and the avatar sit in the middle of the App bar instead of its right edge, at every width. (2) On wide screens the capped content column hugs the left edge, leaving the right half of the screen empty.
@@ -1062,19 +1062,19 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Story 9.1 narrowing: a thermo-hygrometer suggestion confirmed on the cabine environment gets no provenance glyph: `location/{id}/env/*` values are bare number values with no cell provenance (`source_suggestion_id`).
   evidence: `packages/domain/src/schemas/entities.ts` `locationEnvSchema`; `apps/web/src/surfaces/ficha/read-display.tsx` (no confirmed crop on env fields).
   class: question
-  state: open (owner: Epic 9 integrated review)
+  state: ~~open (owner: Epic 9 integrated review)~~ open (owner: Epic 11; 2026-09-29, E9-A5: needs provenance on `location/{id}/env/*` values, a row shape change with a contract bump that Epic 10's batches already hold)
 
 - source_spec: spec-9-1-read-the-instrument-display-with-ler-visor.md
   summary: Story 9.1 narrowing: pending thermo-hygrometer suggestions count in Sync status ("Leituras") but not in the pre-issue section 9 row or the Sumário, which read sheet suggestions only.
   evidence: `livePendingSuggestions(blocks, pending, locations)` keeps env rows only when `locations` is given; `db/suggestion-store.ts` `readingCountRows` passes them, `relatorio/pre-issue.ts` does not.
   class: question
-  state: open (owner: Epic 9 integrated review)
+  state: ~~open (owner: Epic 9 integrated review)~~ open (owner: Story 10.4 (batch S); 2026-09-29, E9-A5)
 
 - source_spec: spec-9-1-read-the-instrument-display-with-ler-visor.md
   summary: Story 9.1 narrowing: a display reading that failed has no retry UI on the cell (the plate's "Tentar novamente" has no display counterpart); `POST /api/photos/{id}/reread` already accepts display photos.
   evidence: `apps/web/src/surfaces/ficha/read-display.tsx` `QueuedBanner` shows queued and running only; `apps/api/src/http/reading.ts`.
   class: debt
-  state: open (owner: Epic 9 integrated review)
+  state: ~~open (owner: Epic 9 integrated review)~~ open (owner: Epic 11; 2026-09-29, E9-A5: needs a failed-display state, a kernel line, a reread wiring with `local_prefs` persistence (as B16 did for the plate) and a failing-fake e2e; a feature, not a fix)
 
 - source_spec: spec-9-1-read-the-instrument-display-with-ler-visor.md
   summary: Story 9.1 spike finding: the plate pipeline reads the tiny real display crops better than the chosen display path (8 of 15 against 6 of 15, cleaner confidences); running both and keeping the higher-confidence value is the next experiment, once real tablet photos exist.
@@ -1092,13 +1092,13 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Story 9.2 narrowing: a panel photo whose result dialog is left by navigation (another route, a reload) stays a live "Geral" photo with no caption, `reading_kind: panel` and its pending panel suggestion; nothing offers the dialog again and nothing removes it.
   evidence: `apps/web/src/surfaces/relatorio/panel-capture.tsx` (the dialog state lives in the mounted tree; only "Cancelar", Esc, the scrim and "Fotografar de novo" remove the photo).
   class: debt
-  state: open (owner: Epic 9 integrated review)
+  state: ~~open (owner: Epic 9 integrated review)~~ open (owner: Epic 11; 2026-09-29, E9-A5: needs a product choice that is Matheus's (offer the dialog again or sweep the orphan photo), then a recovery path)
 
 - source_spec: spec-9-2-create-a-block-by-photographing-the-equipment.md
   summary: Story 9.2 narrowing: the `@p1` pipeline e2e (`e2e/panel-capture-pipeline.spec.ts`, the real panel and plate jobs under `fake`) runs only in `test:e2e:full`, not in the `verify` gate.
   evidence: `e2e/panel-capture-pipeline.spec.ts` is tagged `@p1` and listed in `SERIAL_SPECS` (`e2e/support/groups.ts`).
   class: debt
-  state: open (owner: Epic 9 integrated review)
+  state: ~~open (owner: Epic 9 integrated review)~~ open (owner: E9-A1, the gate budget decision (Matheus); 2026-09-29, E9-A5)
 
 - source_spec: spec-9-2-create-a-block-by-photographing-the-equipment.md
   summary: Story 9.2 open questions (conservative readings taken): the app's single-shot camera replaces the mock's simulated viewfinder, so "Escolher o tipo" is no viewfinder action (the type chips are always in the result dialog); the create keeps the palette's reveal and "Desfazer" toast instead of the mock's jump to the ficha; the tile shows at every palette width; a read column with no live coluna under the palette's cabine falls back to the palette's location flagged Verificar (no column is created); "Desfazer" reverts the whole batch, which puts `reading_kind` back to `panel` and so re-queues a panel reading.
@@ -1110,7 +1110,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Story 9.2 review (known open): a client may put any of the five reading kinds on its own company's photo (`file/{id}/reading_kind`), re-queueing or re-reading it; only `plate` is needed by the "Fotografar equipamento" re-target. Hardening: accept only `plate`, or only a kind with a handler and a matching `reading_target`.
   evidence: `apps/api/src/sync/apply.ts` `clientReadingPutIsValid` accepts every kind of `READING_KINDS`; the tenant check runs first, so no cross-company effect.
   class: debt
-  state: open (owner: Epic 9 integrated review)
+  state: ~~open (owner: Epic 9 integrated review)~~ closed (2026-09-29, E9-A5): fixed by E9-Q2 in PR #62, `clientReadingPutIsValid` (`apps/api/src/sync/apply.ts`) accepts only `plate` or null for a client `reading_kind` put, and `assertClientReadingKindPut` checks the photo's stored state
 
 - source_spec: spec-9-2-create-a-block-by-photographing-the-equipment.md
   summary: Story 9.2 review (known open): "Desfazer" after a photo-backed create is exercised by no test; it reverts the whole batch (photo back to a panel photo with no block, suggestion back to pending, a panel reading re-queued).
@@ -1122,7 +1122,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: The Export dialog's preview press ("Pré-visualizar") still retries a `409 not_caught_up` blindly; batch C2 (B14) made only the issue press fail at once, with "N arquivos ainda não chegaram ao servidor", when the missing files are ones no upload of this device will bring.
   evidence: `apps/web/src/surfaces/export/use-preview.ts` retry loop (`MAX_ROUNDS`) parses no `details`; the kernel rule `notCaughtUpRetryable` and `missingFilesText` (`print/revisions.ts`) are ready to adopt. Verification Gap review of batch C2.
   class: debt
-  state: open (owner: Epic 9 integrated review)
+  state: ~~open (owner: Epic 9 integrated review)~~ closed (2026-09-29, E9-A5): refuted by the Epic 9 QA, known-open (g) of `reviews/epic-9-review-qa.md` (the retry loop stops after `MAX_ROUNDS`; not a defect)
 
 - source_spec: spec-9-3-9-5-captions-and-nc-drafts.md
   summary: Stories 9.3/9.5 narrowing: an import batch's photos are committed as "Geral" at pick time (E6-Q8), so a people mark or an equipment chosen in a batch left open while online may reach the server after the job read the photo. The run-time re-check and the device's stale sweep drop the suggestion, but the image already went to the prose provider (`fake` now); this must close before a cloud LLM is wired.
@@ -1134,7 +1134,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Story 9.3 narrowings: unmarking "Pessoas na foto" does not request a caption (no client reread of `caption`); caption suggestions are not in the Sync status "Leituras" counts (`livePendingSuggestions` reads `sheet/*` and cabine targets only); the tile's "Pessoas na foto" chip shows only on tiles with no equipment or already marked.
   evidence: `apps/web/src/surfaces/photos/gallery-surface.tsx` (people chip condition); `apps/web/src/db/suggestion-store.ts` `readingCountRows`.
   class: question
-  state: open (owner: Epic 9 integrated review)
+  state: ~~open (owner: Epic 9 integrated review)~~ open (owner: Story 10.4 (batch S); 2026-09-29, E9-A5)
 
 - source_spec: spec-9-3-9-5-captions-and-nc-drafts.md
   summary: Stories 9.3/9.5 open questions (conservative reading kept): the tile keeps the mock's "Confirmar" while the composer and the NC draft say "Usar" (the story); "Confirmar todas" confirms every suggestion of the relatório, not only the filtered cabine; `captions_suggested` is an `info` row (a warning, never blocking) beside the unchanged `photos_uncaptioned`, and the Export dialog counts it among its "N avisos" (not an explicit kind), while the Sumário row 7 names it.
@@ -1146,16 +1146,16 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: E9-Q7 narrowing (2026-09-29): a failed frame grab in a "Ler visor" burst makes the next shutter retry its row only when the failure lands before the next tap; when the engineer already tapped again, the failed row stays without a photo in that burst (the failure toast still shows). A retry queue of failed rows was judged more machinery than a rare grab failure warrants.
   evidence: `apps/web/src/surfaces/ficha/camera-view.tsx` `grab` failure branch (`taken.current === shot + 1`). Edge Case Hunter review of the Epic 9 fix batch.
   class: debt
-  state: open (owner: Epic 9 retrospective)
+  state: ~~open (owner: Epic 9 retrospective)~~ closed (2026-09-29, E9-A5): narrowing accepted by the Epic 9 retrospective
 
 - source_spec: spec-epic-9-fix-qa.md
   summary: E9-Q1 narrowing (2026-09-29): a pending display reading under a cell that shows a dictated reading is not drawn as a second line before the dictation is confirmed; it becomes the existing "Visor … Conferir" line once the dictated value is stored. The "Confirmar todos" toast's "a conferir" count leaving out that cell is covered by the kernel unit test only (no e2e with a `verify` fill under a dictated cell).
   evidence: `apps/web/src/surfaces/ficha/ensaios-section.tsx` (`actions(dictatedCell)`), `read-display.tsx` `confirmAll` (`measurementTableVerifyCount(..., exclude)`); Verification Gap review of the Epic 9 fix batch.
   class: debt
-  state: open (owner: Epic 9 retrospective)
+  state: ~~open (owner: Epic 9 retrospective)~~ closed (2026-09-29, E9-A5): by the Epic 10 carry-over batch (`spec-epic-10-carry-over.md`), `@p0` 9.4-E2E-013 in `e2e/dictation.spec.ts` (a `verify` display fill under a dictated cell: "Confirmar todos (1)", the toast counts only the verify fill still shown, the batch holds the suggested cell alone; red when the `exclude` is dropped from the toast count)
 
 - source_spec: spec-epic-9-fix-qa.md
   summary: E9-Q2 residual (2026-09-29): client pushes are applied per op (E6-A1), so if the `plate` put of a Story 9.2 create batch were refused (its photo row absent or no longer a panel photo) the batch's other ops (equipment, block, `block_id`, caption, plate target) still land and the photo keeps its panel kind. Not reachable from the app's own flow (the create always follows the panel photo's create); a per-batch savepoint was not added.
   evidence: `apps/api/src/sync/apply.ts` `applyOps` (per-op refusal) and `assertClientReadingKindPut`; Edge Case Hunter review of the Epic 9 fix batch.
   class: debt
-  state: open (owner: Epic 9 retrospective)
+  state: ~~open (owner: Epic 9 retrospective)~~ open (owner: Story 10.1 (batch M); 2026-09-29, E9-A5: per-batch atomic apply; the merge fold and "Aplicar" depend on batch semantics)

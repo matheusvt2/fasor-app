@@ -110,7 +110,9 @@ services:
       <<: *app-env
       API_PROXY_TARGET: http://api:3000
       # Story 9.4: the Dictation engine (`webspeech`, `fake` or `none`); `build:e2e` sets `fake`.
-      VITE_SPEECH_ENGINE: ${VITE_SPEECH_ENGINE:-webspeech}
+      # E9-A9: default `none`; `webspeech` sends audio to the browser vendor and stays opt-in
+      # until Matheus approves vendor audio (Q18).
+      VITE_SPEECH_ENGINE: ${VITE_SPEECH_ENGINE:-none}
     command: pnpm --filter @app/web dev
     ports:
       - '5173:5173'
