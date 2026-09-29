@@ -350,6 +350,10 @@ for (const choice of ['Remover', 'Manter'] as const) {
       expect(marked.sheet.checklist[ITEM]?.result?.value).toBe('C');
 
       await expect(decisionRows(eduardo.page).locator('.banner-text')).toHaveText(['SEC-C12: removido por você, alterado por Ana']);
+      // E10-Q4: a structure case is worded as a decision, never as a contradiction.
+      await syncBadge(ana.page).click();
+      await expect(ana.page.locator('main[data-route="/sync"] .sh-counts')).toContainText('1 decisão para resolver');
+      await expect(ana.page.locator('main[data-route="/sync"] .sync-summary .sync-badge[data-state="conflict"]')).toHaveText('1 decisão');
       await ana.page.goto(`/relatorio/${relatorioId}`);
       const banner = conflictBanner(ana.page);
       await expect(banner).toHaveAttribute('role', 'alert');

@@ -544,6 +544,40 @@ describe('E10-Q2 the undo of a resolution brings the decision back (contract 13)
     expect(fold([...log, again]).sheet.test[TEST]?.cells['0']?.['0']).toEqual({ value: measured('3300'), source_suggestion_id: null, op_id: again.op_id });
   });
 
+  it('a restored cell (`shown_op_id`) then a contradicting write from a third device: the displaced side is the shown op, named by its author', () => {
+    const { create, eduardo, ana, f } = world();
+    const a = ana(reading, measured('3300'));
+    const e = eduardo(reading, measured('330'));
+    const pick = ana(reading, measured('3300'), e.op_id, { standing_op_id: e.op_id, seen_conflict_op_id: a.op_id });
+    const undo = undoOf(f, [create, a, e], pick);
+    const third = f.op({ path: reading, value: measured('33'), prev_op_id: null, actor_id: ANA, device_id: 'phone-ana', meta: { standing_op_id: null, seen_conflict_op_id: null } });
+    const log = [create, a, e, pick, undo, third];
+    const row = fold(log);
+    const cell = row.sheet.test[TEST]?.cells['0']?.['0'];
+    expect(cell).toMatchObject({ value: measured('33'), op_id: third.op_id, conflict: { op_id: e.op_id, value: measured('330') } });
+    expect(cell?.shown_op_id).toBeUndefined();
+    const [decision] = openDecisions({ relatorioId: TEST_RELATORIO, blocks: [row], locations: [], equipment: [], opOf: facts(log), createOpOf: () => undefined }) as CellDecision[];
+    expect(decision!.cells[0]!.displaced).toMatchObject({ op_id: e.op_id, actor_id: EDUARDO, device_id: E_DEVICE });
+    expect(decision!.cells[0]!.standing).toMatchObject({ op_id: third.op_id, actor_id: ANA, device_id: 'phone-ana' });
+  });
+
+  it('a restored cell then a rule merge that keeps it (filled over empty): `shown_op_id` and the conflict stay', () => {
+    const { create, eduardo, ana, f } = world();
+    const a = ana(reading, measured('3300'));
+    const e = eduardo(reading, measured('330'));
+    const pick = ana(reading, measured('3300'), e.op_id, { standing_op_id: e.op_id, seen_conflict_op_id: a.op_id });
+    const undo = undoOf(f, [create, a, e], pick);
+    const cleared = f.op({ path: reading, value: null, prev_op_id: null, actor_id: EDUARDO, device_id: 'phone-eduardo', meta: { standing_op_id: null, seen_conflict_op_id: null } });
+    const cell = fold([create, a, e, pick, undo, cleared]).sheet.test[TEST]?.cells['0']?.['0'];
+    expect(cell).toMatchObject({
+      value: measured('330'),
+      op_id: undo.op_id,
+      shown_op_id: e.op_id,
+      conflict: { op_id: a.op_id, value: measured('3300') },
+      merge: { head_op_id: cleared.op_id, kept: true, rule: 'filled_over_empty' },
+    });
+  });
+
   it('an undo that lands after another device wrote the cell is concurrent: it merges as any write and restores nothing', () => {
     const { create, eduardo, ana, f } = world();
     const a = ana(reading, measured('3300'));

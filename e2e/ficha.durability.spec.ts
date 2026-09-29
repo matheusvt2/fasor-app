@@ -121,7 +121,7 @@ test('@p1 E5-A2-E2E-001 the tri-state checklist by tap: set, change, re-tap keep
   await expect.poll(() => written(page, path)).toEqual(['C', 'NC', null]);
 });
 
-test('@p1 E5-A2-E2E-002 phone 390: the M · G · T chips under a focused insulation reading set its unit by tap, the focus stays in the reading', async ({ page, context }, info) => {
+test('@p0 E5-A2-E2E-002 phone 390: the M · G · T chips under a focused insulation reading set its unit by tap, the focus stays in the reading', async ({ page, context }, info) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: 390, height: 844 });
   const { blockId } = await openSeccionadora(page, context);

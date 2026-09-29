@@ -452,6 +452,9 @@ describe('E10-Q6 a client older than contract 12 cannot settle a mark it never s
     const restore = deviceOp(A_DEVICE, { kind: 'put', path: `block/${removed.id}/removed_at`, value: null, prev_op_id: null });
     expect((await pushAs('11', [restore])).status).toBe(426);
     expect((await serverRow<BlockRow>('block', removed.id)).removal_conflict).toBeDefined();
+    const removeAgain = deviceOp(A_DEVICE, { kind: 'remove', path: `block/${removed.id}/removed_at`, value: null, prev_op_id: null });
+    expect((await pushAs('11', [removeAgain])).status).toBe(426);
+    expect((await serverRow<BlockRow>('block', removed.id)).removal_conflict).toBeDefined();
 
     // The same old client writing a cell that holds no mark is accepted as before (AD-13).
     const unmarked = await pushAs('11', [other]);

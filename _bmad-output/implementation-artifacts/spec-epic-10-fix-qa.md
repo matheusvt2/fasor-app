@@ -2,10 +2,10 @@
 title: 'Epic 10 fixes: integrated review findings (E10-Q1..Q7)'
 type: 'bugfix'
 created: '2026-09-29'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '9a60dd5d33bcd849950d61160562873505b687a8'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: 'opus'
 dev_effort: 'high'
 context:
@@ -98,6 +98,21 @@ deferred: []
 
 ## Review Triage Log
 
+### 2026-09-29 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer (opus); Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 9 findings — high 0, medium 2, low 5, false 2, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` E10-Q1 chip-then-Enter on the real MeasurementField is tested only by `@p1` E5-A2-E2E-002, outside `verify` — retagged `@p0`.
+  - `[low]` `[patch]` E10-Q4 provider wiring (`decisionSplit` into headline and badges) has no e2e — headline and badge assertions added to the 10.3 removed-versus-edited e2e.
+  - `[medium]` `[patch]` `shown_op_id` through a later contradiction or rule merge untested — two kernel cases added in `conflicts.test.ts`.
+  - `[low]` `[patch]` E10-Q6 api test covers `put` on `removed_at` only, not `remove` — one `remove` case added.
+  - `[low]` `[reject]` Old client batch whose first put creates a contradiction and whose second plain put clears it in the same push passes the pre-apply check — a pre-contract-12 client after MIN 13 is rare and the fix needs a per-op check inside the apply transaction; listed as known open in the PR.
+  - `[false]` `[reject]` Coalesced outbox row keeps only the earlier row's `prev_marks` — every resolution is a `commitBatch` with a `batch_id`, and `coalesce` refuses any op with a `batch_id`, so a mark-clearing op never coalesces.
+  - `[low]` `[reject]` During a retry cycle after a failed one, a `sent` row reads "Aguardando envio" — momentary; dropping `unreachable === null` from `requestOpen` would bring back the QA case ("Enviando…" beside "Não foi possível falar com o servidor").
+  - `[false]` `[reject]` The cell restore lacks the `SERVER_DEVICE_ID` guard `writeRemovedAt` has — server ops never carry `meta.restore` (only `invertBatch` on a device sets it).
+  - `[low]` `[patch]` `e2e/auth.spec.ts:346` asserts the removed `sync-superseded-row` has count 0 (vacuous) — assertion deleted.
+- note: the edge-case claims check found no falsified spec claim.
+
 ## Design Notes
 
 Undo restore, sheet cell (contract 13):
@@ -118,3 +133,27 @@ Desfazer put A, meta.restore = prev_marks, sequential -> {value:A, op_id:W, show
 - `docker compose --profile tools run --rm tools pnpm exec tsx scripts/e2e.ts --project durability-desktop-chrome --project durability-webkit --project durability-android-chrome --grep "E5-A2-E2E-002"` -- green on all three
 - `docker compose --profile tools run --rm tools pnpm exec tsx scripts/e2e.ts --project desktop-chrome --grep "conflicts|sync-status|10\\.[1-4]-E2E"` -- green
 - `docker compose --profile tools run --rm tools pnpm lint` and `pnpm static` -- green
+
+## Auto Run Result
+
+Status: done
+
+**Summary.** The seven Epic 10 QA findings are fixed. E10-Q1: the measurement field's unit chip commits through `useNumberInput.commitValue`, which marks the text clean, so Enter no longer writes the same reading twice (the double write had been present since Epic 5; E5-A2-E2E-002 only passed when its first poll sampled before Enter's commit). E10-Q2: an undo inverse carries the conflict marks its op cleared (`meta.restore`, from the kernel's `clearedMarks`, kept on the outbox row as `prev_marks`), and the fold writes them back on a sequential apply; a cell may carry `shown_op_id` for provenance. This is contract 13, MIN 13. E10-Q3: the superseded line, `supersededCount` and `supersededText` are gone. E10-Q4: `decisionSplit` words cells as "contradição" and structure as "decisão". E10-Q5: `pendingSheetRows(..., {requestOpen})`. E10-Q6: the push route answers 426 when a client below `MARK_AWARE_CONTRACT_VERSION` (12), or one with no header, touches a marked cell or block. E10-Q7: `sendingCounts`, a required `decisionCount`/`headline`/`summaryBadges` on `SyncState`, and no `.length` fallbacks.
+
+**Files.**
+- Kernel: `ops/op.ts`, `ops/outbox.ts`, `ops/apply.ts`, `merge/policy.ts`, `merge/restore.ts` (new), `merge/conflicts.ts`, `merge/index.ts`, `schemas/entities.ts`, `contract/version.ts`, `sync/status.ts`, `sync/counts.ts`.
+- Web: `components/number-input.tsx`, `surfaces/ficha/measurement-field.tsx`, `db/commit.ts`, `db/schema.ts`, `state/sync.tsx`, `sync/engine.ts`, `surfaces/sync/sync-status-surface.tsx`, `surfaces/sync/sync-sections.tsx`, `copy/pt-br.ts`, `test/sync-state.ts`.
+- Api: `sync/routes.ts`, `sync/marks.ts` (new).
+- Tests: unit, api (`conflicts.integration.test.ts`, `replay.integration.test.ts`) and e2e (`conflicts.spec.ts` 10.2-E2E-003, 10.3-E2E-007/008; `sync-status.spec.ts` 10.4-E2E-009; `ficha.durability.spec.ts` E5-A2-E2E-002 strengthened and now `@p0`; `auth.spec.ts`).
+
+**Review.** Two layers ran; 9 findings. Five were patched (two medium, three low), none were deferred, and four were rejected (see the triage log).
+
+**Follow-up review recommendation:** `true`. Two medium entries were patched, both test gaps (E5-A2-E2E-002 outside `verify`, and the provenance of `shown_op_id` through later merges). The unverified risk is the new reducer branch under three-device sequences beyond the two kernel cases; the integrated QA re-check covers it.
+
+**Verification.** The implementer ran the targeted suites: `test:api` 49/49 files, lint, static, the touched unit files, E5-A2-E2E-002 on all three durability projects, and the conflicts and sync-status e2e on desktop-chrome. Mutation runs were red for Q1 (desktop Chrome), Q2 (all three new @p0) and Q6 (api test). The gates on the PR head are recorded in the PR body.
+
+**Residual risks.**
+- An undo op carries no `source_suggestion_id`, so after "Desfazer" the displayed side has no reading crop. This was already the case before this batch.
+- An undo of "Manter" that did not see a later edit writes a fresh removal conflict, not the old mark.
+- A pre-12 client whose single push creates a contradiction and then clears it passes the pre-apply check (rejected low).
+
