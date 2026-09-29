@@ -152,6 +152,21 @@ export const ui = {
   registryTabPlaceholder: {
     text: 'Disponível em uma próxima etapa.',
   },
+  // Story 9.4: the Dictation button and what it hands over (UX-DR18, `components.css` Dictation button).
+  dictation: {
+    // Verbatim from the mocks' `.listening-word`.
+    listening: 'Ouvindo…',
+    // Story 9.4: a dictated prose result's action.
+    use: 'Usar',
+    // authored: the label of the Suggestion field that holds a dictated text under its field.
+    resultLabel: 'Ditado',
+    // authored: a recognition error (spec I/O matrix "Engine error").
+    failed: 'Não foi possível ouvir. Digite ou tente de novo.',
+    // authored: a table utterance the kernel could not read, sent to the sheet observation.
+    unparsed: 'Leitura não reconhecida. O ditado ficou como sugestão em Observações.',
+    // authored: the same with the sheet's Observações sub-block off (spec open question Q3).
+    unparsedNoObservations: 'Leitura não reconhecida. Digite o valor na tabela.',
+  },
   photoRow: {
     // `70-fotos.html` tile row `.photo-text .btn-text`, verbatim.
     caption: 'Legendar',

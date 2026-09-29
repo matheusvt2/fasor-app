@@ -109,6 +109,8 @@ services:
     environment:
       <<: *app-env
       API_PROXY_TARGET: http://api:3000
+      # Story 9.4: the Dictation engine (`webspeech`, `fake` or `none`); `build:e2e` sets `fake`.
+      VITE_SPEECH_ENGINE: ${VITE_SPEECH_ENGINE:-webspeech}
     command: pnpm --filter @app/web dev
     ports:
       - '5173:5173'

@@ -3,6 +3,7 @@ import {
   evaluatedCells,
   runTarget,
   screenLabel,
+  tableDictationLabel,
   type BlockDefinition,
   type BlockRow,
   type CellAddress,
@@ -19,10 +20,12 @@ import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
 import type { FichaApi } from './ficha-api.ts';
 import { InstrumentPicker } from './instrument-picker.tsx';
-import { cellKey, ReadOnlyMeasurementField, type RunDirection } from './measurement-field.tsx';
+import { cellKey, DictatedMeasurementField, ReadOnlyMeasurementField, type RunDirection } from './measurement-field.tsx';
 import { ConfirmTableButton, ReadDisplayButton, ReadingCell, useDisplaySuggestions, type DisplayModel } from './read-display.tsx';
+import { useTableDictation } from './sheet-observation-dictation.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
+import { DictationButton } from '../../speech/dictation.tsx';
 
 /*
  * The "Ensaios" step (Stories 5.5-5.7, FR-27, UX-DR39/40/42; `60-ficha.html`): one section
@@ -35,8 +38,11 @@ import type { CaptureTarget } from './use-photo-capture.ts';
  * cell of what follows, and "Concluir ficha"/"Próxima ficha" after the last. Everything
  * shown is the kernel's one evaluation (`evaluateSheetReadings`). Story 9.1: each table's
  * title row carries "Ler visor" and, while it holds suggested readings, "Confirmar todos"
- * (`.mt-actions`); each cell shows its display reading (`read-display.tsx`). Dictation is a
- * later story's and is not drawn. On a sheet marked not tested (Story 5.9)
+ * (`.mt-actions`); each cell shows its display reading (`read-display.tsx`). Story 9.4: the
+ * same `.mt-actions` ends with the table's Dictation button; the kernel reads the utterance
+ * (`parseTableUtterance`) into a Suggestion on its target cell, never over a filled cell, and
+ * speech it cannot read goes to the sheet observation as a suggestion, announced. On a sheet
+ * marked not tested (Story 5.9)
  * every section is `.is-readonly` with the reason line: the cells show their stored
  * readings as read-only text and the Instrument picker its stored instrument, unchangeable.
  */
@@ -160,10 +166,10 @@ function TestSection({
       display={display}
       actions={
         readOnly ? null : (
-          <div className="mt-actions">
+          <>
             <ReadDisplayButton api={api} snapshot={snapshot} block={block} definition={definition} testKey={test.testKey} tableKey={table.key} targetFor={targetFor} />
             <ConfirmTableButton model={display} testKey={test.testKey} tableKey={table.key} />
-          </div>
+          </>
         )
       }
     />
@@ -197,15 +203,25 @@ function MeasurementTable({
   onRun: (from: CellAddress, direction: RunDirection) => boolean;
   readOnly: boolean;
   display: DisplayModel;
-  /** Story 9.1: the title row's `.mt-actions` ("Ler visor", "Confirmar todos"). */
+  /** Story 9.1: the title row's `.mt-actions` ("Ler visor", "Confirmar todos"); null on a read-only sheet. Story 9.4 adds the Dictation button after them. */
   actions: ReactNode;
 }) {
   const t = copy.ficha.ensaios;
   const titleId = useId();
+  // Story 9.4: the reading dictated on this table, held until its cell's "Confirmar" (never a row).
+  const { dictated, setDictated, onDictated } = useTableDictation(table, api.announce);
   const cellOf = (row: EvaluatedRow, col: number): EvaluatedCell | undefined => row.cells.find((cell) => cell.address.col === col);
   const field = (row: EvaluatedRow, cell: EvaluatedCell, presentation: 'table' | 'card') =>
     readOnly ? (
       <ReadOnlyMeasurementField cell={cell} label={t.cellLabel(screenLabel(row.label), screenLabel(cell.column))} />
+    ) : dictated !== null && cell.state === 'empty' && sameAddress(dictated.address, cell.address) ? (
+      <DictatedMeasurementField
+        api={api}
+        cell={cell}
+        label={t.cellLabel(screenLabel(row.label), screenLabel(cell.column))}
+        reading={dictated}
+        onDone={() => setDictated(null)}
+      />
     ) : (
       <ReadingCell
         model={display}
@@ -237,7 +253,12 @@ function MeasurementTable({
           </summary>
           <p>{test.sourceName}</p>
         </details>
-        {actions}
+        {readOnly ? null : (
+          <div className="mt-actions">
+            {actions}
+            <DictationButton label={tableDictationLabel(table)} onStart={() => setDictated(null)} onResult={onDictated} />
+          </div>
+        )}
       </div>
       <table className={table.ratio ? 'measurement-table ficha-ttr is-wide' : 'measurement-table'} aria-labelledby={table.title === null ? undefined : titleId} aria-label={table.title === null ? screenLabel(test.title) : undefined}>
         <thead>
