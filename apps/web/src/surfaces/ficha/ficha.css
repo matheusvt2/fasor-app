@@ -179,3 +179,7 @@
 [data-route="/relatorio/:id/ficha/:blockId"] .nc-draft .suggestion-block > .ico { width: 24px; height: 24px; flex: none; color: var(--fora-do-limite); margin-top: 2px; }
 [data-route="/relatorio/:id/ficha/:blockId"] .nc-draft .sv-kicker { display: block; font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--fora-do-limite); margin-bottom: 2px; }
 [data-route="/relatorio/:id/ficha/:blockId"] .nc-draft > .suggestion-block ~ .suggested-pill { top: -2px; }
+/* authored: Story 9.4, a dictated reading's Suggestion field inside a Measurement cell draws no
+   label (the mock's suggested cell, `60-ficha.html` 521); the label stays as its accessible
+   name. Declarations of `.visually-hidden`. */
+[data-route="/relatorio/:id/ficha/:blockId"] .ficha-dictated > .suggestion-field > .field-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

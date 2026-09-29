@@ -1,6 +1,7 @@
 import {
   captionUsarAnnouncement,
   captionChipOptions,
+  dictatedText,
   captionPhotoLabel,
   captionPhotoMetaText,
   captionWordFor,
@@ -17,7 +18,9 @@ import { DialogShell } from '../../components/dialog-shell.tsx';
 import { SuggestionBlock } from '../../components/suggestion-field.tsx';
 import { useObjectUrl } from '../../components/photo-row.tsx';
 import { copy } from '../../copy/pt-br.ts';
+import { ui } from '../../copy/ui.ts';
 import type { CaptionRecents } from '../../db/photo-store.ts';
+import { DictationButton } from '../../speech/dictation.tsx';
 import './photos.css';
 
 /*
@@ -119,6 +122,9 @@ function ComposerBody({ prefill, stored, sources, onSave, onClose, headingId, ph
   // A stored caption the rows do not compose (typed by hand) opens as free text; no caption opens on the rows.
   const [editing, setEditing] = useState(() => stored !== null && stored !== composeCaption(prefill));
   const [text, setText] = useState(() => stored ?? composeCaption(prefill) ?? '');
+  // Story 9.4 (`71-legenda.html` 148-160): a dictated caption lands in the text as a suggestion;
+  // "Salvar legenda" confirms it, typing makes it the engineer's own.
+  const [dictated, setDictated] = useState(false);
   const textId = useId();
   const reasonId = useId();
   const area = useRef<HTMLTextAreaElement>(null);
@@ -146,6 +152,7 @@ function ComposerBody({ prefill, stored, sources, onSave, onClose, headingId, ph
 
   const toggleEditing = (on: boolean) => {
     setEditing(on);
+    setDictated(false);
     if (on) {
       // Free editing starts from the caption the rows compose now.
       setText(generated ?? '');
@@ -185,7 +192,11 @@ function ComposerBody({ prefill, stored, sources, onSave, onClose, headingId, ph
       )}
       <div className="caption-head">
         {photo === undefined ? null : <PhotoPreview photo={photo} />}
-        <div className="field caption-field" data-editing={editing ? '' : undefined}>
+        <div
+          className={dictated ? 'field suggestion-field caption-field' : 'field caption-field'}
+          data-editing={editing ? '' : undefined}
+          data-state={dictated ? 'suggested' : undefined}
+        >
           <span className="field-label">{t.previewLabel}</span>
           {editing ? (
             <>
@@ -198,7 +209,10 @@ function ComposerBody({ prefill, stored, sources, onSave, onClose, headingId, ph
                 className="observation-field caption-edit"
                 value={text}
                 aria-describedby={reasonId}
-                onChange={(event) => setText(event.target.value)}
+                onChange={(event) => {
+                  setDictated(false);
+                  setText(event.target.value);
+                }}
               />
             </>
           ) : (
@@ -206,6 +220,7 @@ function ComposerBody({ prefill, stored, sources, onSave, onClose, headingId, ph
               {generated ?? ''}
             </p>
           )}
+          {dictated ? <span className="suggested-pill">{ui.suggestionField.suggested}</span> : null}
           <div className="caption-actions">
             <ToggleButton className="btn btn-text caption-edit-toggle" isSelected={editing} onChange={toggleEditing}>
               <svg className="ico" aria-hidden="true">
@@ -213,8 +228,21 @@ function ComposerBody({ prefill, stored, sources, onSave, onClose, headingId, ph
               </svg>
               {t.editText}
             </ToggleButton>
+            {editing ? (
+              <DictationButton
+                className="caption-dictation"
+                label={t.dictate}
+                onResult={(heard) => {
+                  const next = dictatedText(heard);
+                  if (next === '') return;
+                  setText(next);
+                  setDictated(true);
+                }}
+              />
+            ) : null}
             <span className="btn-reason" id={reasonId}>
               {t.editReason}
+              {dictated ? <span className="dictated-note">{t.dictatedNote}</span> : null}
             </span>
           </div>
           {editing ? <p className="helper caption-edit-note">{t.editingNote}</p> : null}

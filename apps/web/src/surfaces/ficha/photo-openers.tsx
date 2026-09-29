@@ -95,7 +95,18 @@ export function AddPhotosButton({ onPress }: { onPress: () => void }) {
 }
 
 /** The NC row's "Adicionar foto" with its reason, and the denied reason under it (then "Adicionar fotos", Story 6.4). */
-export function RowPhotoAction({ relatorioId, target, onAddPhotos }: { relatorioId: string; target: () => CaptureTarget; onAddPhotos?: () => void }) {
+export function RowPhotoAction({
+  relatorioId,
+  target,
+  onAddPhotos,
+  before,
+}: {
+  relatorioId: string;
+  target: () => CaptureTarget;
+  onAddPhotos?: () => void;
+  /** Story 9.4 (`60-ficha.html` 384): the row's Dictation button, first on the same `.row-wrap`. */
+  before?: ReactNode;
+}) {
   const t = copy.photos;
   const opener = useRef<HTMLButtonElement>(null);
   const camera = useCamera(relatorioId, target, opener);
@@ -104,6 +115,7 @@ export function RowPhotoAction({ relatorioId, target, onAddPhotos }: { relatorio
   return (
     <>
       <div className="row-wrap">
+        {before}
         <AriaButton
           ref={opener}
           className="btn btn-secondary"

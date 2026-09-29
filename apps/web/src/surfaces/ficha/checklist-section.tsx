@@ -21,7 +21,7 @@ import {
   type RelatorioSnapshot,
   type SuggestionRow,
 } from '@app/domain';
-import { useId, useRef, useState } from 'react';
+import { useId, useRef, useState, type ReactNode } from 'react';
 import { Chip, OverflowMenu, TextButton, TriStateControl, type OverflowMenuAction, type TriStateValue } from '../../components/index.ts';
 import { SuggestionBlock } from '../../components/suggestion-field.tsx';
 import { copy } from '../../copy/pt-br.ts';
@@ -32,6 +32,7 @@ import { RowPhotoAction, RowPhotoList } from './photo-openers.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
 import { checklistObservationOp, checklistResultOp } from './ficha-ops.ts';
 import { CreatePointAction } from '../points/create-point-action.tsx';
+import { DictatedSuggestion, DictationButton, useProseDictation, useSpeechAvailable } from '../../speech/dictation.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
 
 /*
@@ -44,8 +45,10 @@ import { useSheetReadOnly } from './sheet-read-only.tsx';
  * Observation field. Story 6.1 adds the NC row's "Adicionar foto" (the burst camera, the
  * caption "verificação de ⟨item⟩") and the item's Photo tile rows under the row's buttons;
  * Story 6.6 adds "Criar ponto de atenção" beside it (the point editor in a Form dialog,
- * pre-linked with the sheet's equipment and a token per photo of the item). The Dictation
- * button has no engine: absent, never disabled.
+ * pre-linked with the sheet's equipment and a token per photo of the item). Story 9.4 adds
+ * the row's Dictation button ("Ditar observação do item N"): the dictated text waits under
+ * the field as a Suggestion field and "Usar" appends it the way a chip does; hidden, never
+ * disabled, with no engine or no signal.
  *
  * Story 9.5 (FR-75): an NC row whose photo was read shows the one-sentence draft above its
  * Observation field (the Suggestion field's block variant, "Rascunho pela foto", "Usar"):
@@ -227,6 +230,12 @@ export function ChecklistSection({
 
 const NO_PENDING: readonly SuggestionRow[] = [];
 
+/** The row's Dictation button on its own `.row-wrap` (a row with no photo action); nothing when the button is hidden. */
+function DictationRow({ children }: { children: ReactNode }) {
+  if (!useSpeechAvailable()) return null;
+  return <div className="row-wrap">{children}</div>;
+}
+
 function ChecklistRow({
   api,
   block,
@@ -267,6 +276,8 @@ function ChecklistRow({
       api.author === null ? undefined : api.commit([checklistObservationOp(api.author, api.relatorioId, block.id, item.key, text.trim() === '' ? null : text)]),
     { entityId: block.id, field: `obs-${item.key.replace(/_/g, '-')}` },
   );
+  // Story 9.4: a dictated observation, held until "Usar"; a keystroke into the field discards it.
+  const dictation = useProseDictation();
   const nc = result === 'NC';
   const empty = typed.text.trim() === '';
   // Story 9.5: the row's NC draft, while nothing is typed; a draft discarded here is not shown again before its echo.
@@ -302,6 +313,17 @@ function ChecklistRow({
     void api.edit((_blocks, by) => [checklistResultOp(by, api.relatorioId, block.id, item.key, value)]).catch(() => undefined);
   };
 
+  /** "Usar": the dictated text appended at the end, as a chip inserts. */
+  const applyDictated = () => {
+    const text = dictation.pending;
+    dictation.discard();
+    if (text === null) return;
+    // Story 9.5: dictated text is typed text: the NC draft goes.
+    discardDraft();
+    const next = insertPhrase(typed.text, text, typed.text.length);
+    typed.set(next.text);
+  };
+
   const insert = (phrase: string) => {
     discardDraft();
     const element = area.current;
@@ -313,6 +335,8 @@ function ChecklistRow({
       area.current?.setSelectionRange(next.caret, next.caret);
     });
   };
+
+  const dictationButton = readOnly ? null : <DictationButton label={t.dictateObservation(number)} onStart={dictation.discard} onResult={dictation.offer} />;
 
   const menu: OverflowMenuAction[] = [];
   if (result !== null) menu.push({ id: 'clear', label: t.clear, onAction: () => choose(null) });
@@ -373,6 +397,7 @@ function ChecklistRow({
               aria-describedby={required ? reasonId : undefined}
               onChange={(event) => {
                 discardDraft();
+                dictation.discard();
                 typed.change(event.target.value);
               }}
               onBlur={typed.blur}
@@ -383,11 +408,17 @@ function ChecklistRow({
               </span>
             ) : null}
           </div>
-          {nc && !readOnly && photos !== undefined ? <RowPhotoAction
+          {dictation.pending === null || readOnly ? null : <DictatedSuggestion text={dictation.pending} onUse={applyDictated} />}
+          {nc && !readOnly && photos !== undefined ? (
+            <RowPhotoAction
               relatorioId={api.relatorioId}
               target={() => photos.target(item.key)}
               {...(photos.addPhotos === undefined ? {} : { onAddPhotos: () => photos.addPhotos?.(item.key) })}
-            /> : null}
+              before={dictationButton}
+            />
+          ) : readOnly ? null : (
+            <DictationRow>{dictationButton}</DictationRow>
+          )}
           {nc && (!readOnly || rowPoints !== null) ? (
             <div className="row-wrap">
               {readOnly ? null : <CreatePointAction

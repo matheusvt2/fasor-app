@@ -193,3 +193,6 @@
 /* authored (Story 9.3, no mock draws the mark): the "Pessoas na foto" chip under a tile's text and under the batch caption. */
 [data-route="/relatorio/:id/fotos"] .photo-text .photo-people { margin-top: var(--sp-1); }
 .capture-people { margin-bottom: var(--sp-3); }
+/* authored: Story 9.4, `70-fotos.html` 419 puts the batch caption and its Dictation button on one
+   `.row-wrap`; the caption takes what the button leaves. */
+.photo-capture-sheet .capture-caption .row-wrap > .observation-field { flex: 1 1 0; min-width: 0; }
