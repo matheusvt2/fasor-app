@@ -2421,6 +2421,8 @@ So that the pipeline proven on fixtures reads real plates with one config change
 
 *(2026-09-29, Matheus: Bedrock only; the `anthropic` Console-key provider is dropped and no Console key is created. Model choice is the builder's within the USD 100/month ceiling. `source-deltas.md`.)*
 
+*(2026-09-29, Matheus: not limited to Anthropic. The provider uses the Bedrock Converse API; an evaluation over the Porto Seguro fixture photos picks the cheapest model that matches Claude Sonnet 5.5 within 1-2 accuracy points, with a larger model on low confidence. `source-deltas.md`.)*
+
 ### Story 11.7: Use Amazon Textract as the cloud OCR
 
 **Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** medium · Textract adapter behind the existing contract
