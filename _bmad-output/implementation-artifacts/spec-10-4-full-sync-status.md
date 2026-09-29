@@ -2,7 +2,7 @@
 title: 'Story 10.4: See everything the sync did or is waiting to do'
 type: 'feature'
 created: '2026-09-29'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'e14229de12beda030e59864fb11144f369fc9878'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -12,7 +12,22 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-10-context.md'
 warnings: ['batched', 'oversized']
 batched_why: 'Ledger entries 106, 166, 160, 310, 1071 and 1137 routed to 10.4 by PR #63 share the Sync status surface, its counts and the pull summary.'
-deferred: []
+deferred:
+  - summary: >-
+      Open question: photo bytes waiting do not turn the badge to pending (it counts ops only), so the headline may read "Sincronizado" beside "n fotos aguardando".
+    evidence: |-
+      syncBadgeState unchanged by design (spec Never); product choice for Matheus.
+    severity: low
+  - summary: >-
+      Narrowing: sheet and photo rows in "Enviando" carry no location, thumbnail or provisional photo number; the "12 de 31 fotos enviadas" counter and per-sheet progress track are omitted (no per-op progress on the device).
+    evidence: |-
+      apps/web/src/surfaces/sync/sync-sections.tsx; spec Design Notes (3), (5).
+    severity: low
+  - summary: >-
+      Open question: the "leituras prontas" summary badge counts pending suggestions; error rows cover photo upload errors only.
+    evidence: |-
+      packages/domain/src/sync/status.ts syncSummaryBadges; spec Design Notes (4).
+    severity: low
 ---
 
 <intent-contract>
@@ -134,3 +149,14 @@ X/S seam: `SyncState.decisions: readonly {key: string; kind: 'cell' | 'removal' 
 - `docker compose --profile tools run --rm tools pnpm test:unit -- packages/domain/src/sync apps/web/src/surfaces/sync` -- green
 - `docker compose --profile tools run --rm tools pnpm test:api` -- green
 - `docker compose --profile tools run --rm tools pnpm test:e2e -- e2e/sync-status.spec.ts e2e/sync.spec.ts e2e/merge.spec.ts` -- green (targeted; the full gate is run by the orchestrator)
+
+## Auto Run Result
+
+Status: done
+
+- **Change:** the full Sync status surface of `85-sync.html` (headline composed in the kernel, "Como funciona a mesclagem", `.sync-summary`, Leituras per photo, Enviando sheets and photos with "Tentar novamente", Baixando with a progress line, Último envio sentences, Decisões with an empty X seam list and "Mesclado automaticamente"); the pull summary's optional `progress {sheets, photos}` (CONTRACT_VERSION 11, MIN 10); Home's counted "Baixando… n de m fichas"; ledger 106, 160, 166, 310 closed, 1137 fixed, 1071 re-owned to Matheus.
+- **Files:** kernel `packages/domain/src/sync/{status,counts}.ts`, `contract/{sync,version}.ts`, `home/cards.ts`, `merge/info.ts`; api `apps/api/src/sync/pull.ts`; web `state/sync.tsx`, `db/{sync-store,suggestion-store}.ts`, `surfaces/sync/*`, `surfaces/home/home-surface.tsx`, `surfaces/registries/instrument-panel.tsx`, `copy/pt-br.ts`; tests beside each; `e2e/sync-status.spec.ts` (8 tests, 3 @p0).
+- **Review:** 10 findings; 7 patched (4 medium, 3 low incl. grouped), 3 rejected (see triage log), 0 deferred from review; 3 open questions in `deferred`.
+- **Follow-up review recommended:** false (no high patched; the medium patches are test additions and one blur re-seed covered by its own tests).
+- **Verification:** unit and api suites green by the implementer; targeted e2e `sync-status`, `sync`, `merge` (all tags) 17 passed; full `pnpm verify` and `test:e2e:full` run by the orchestrator (PR body).
+- **Residual risks:** the X/S seam (`SyncState.decisions`, `contradictions`) is resolved by whichever batch merges second.
