@@ -24,6 +24,17 @@ describe('1.4-UNIT-003 coalescing', () => {
     expect(merged?.client_ts).toBe(b.client_ts);
   });
 
+  it('10.2 merges two puts that carry only the commit stamps, keeping the FIRST op\'s stamps (what the device saw before the run)', () => {
+    const f = opFactory();
+    const standing = '019966b0-0005-7000-8000-000000000005';
+    const displaced = '019966b0-0005-7000-8000-000000000006';
+    // The cell held `standing` with a `conflict` of `displaced`; the second put was stamped with the first.
+    const a = f.op({ path, value: 'W', prev_op_id: PREV, meta: { standing_op_id: standing, seen_conflict_op_id: displaced } });
+    const b = f.op({ path, value: 'WEG', prev_op_id: a.op_id, meta: { standing_op_id: a.op_id, seen_conflict_op_id: displaced } });
+    const merged = coalesce(a, b);
+    expect(merged).toEqual({ ...b, prev_op_id: PREV, meta: { standing_op_id: standing, seen_conflict_op_id: displaced } });
+  });
+
   it('keeps two rows when either op has meta or batch_id', () => {
     const f = opFactory();
     const plain = () => f.op({ path, value: 'x' });

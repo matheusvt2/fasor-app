@@ -18,7 +18,11 @@ import {
   sumarioRows,
   sumarioTitle,
   suggestionRowsOf,
+  tagRenamedText,
+  tagTakenText,
+  tagVerdict,
   type BlockRow,
+  type DuplicateTagDecision,
   type EntityState,
   type RelatorioSnapshot,
   type RestorableBlock,
@@ -29,7 +33,7 @@ import {
   type TemplateRow,
   type UserRow,
 } from '@app/domain';
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { Button, ConfirmDialog, OverflowMenu, StatusPill, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -39,6 +43,7 @@ import { readLastSheet } from '../../db/prefs.ts';
 import { localUsers } from '../../db/sync-store.ts';
 import { useForgetArrivalState } from '../../state/arrival-state.ts';
 import { useBackTarget } from '../../state/back-target.tsx';
+import { pickBanner, type Banner } from '../../state/banner-slot.tsx';
 import { useExtraBanner } from '../../state/extra-banner.tsx';
 import { usePageTitle } from '../../state/page-title.tsx';
 import { useSession } from '../../state/session.tsx';
@@ -50,6 +55,9 @@ import { useProjectEquipment, useRelatorioEditor } from './relatorio-editor.ts';
 import { RelatorioGate } from './relatorio-gate.tsx';
 import { RelatorioTree, type RelatorioTreeHandle } from './relatorio-tree.tsx';
 import { RestoreDialog } from './restore-dialog.tsx';
+import { putEquipmentTagOp } from './relatorio-ops.ts';
+import { TagDialog } from './tag-dialogs.tsx';
+import { useConflictBanner } from '../sync/conflict-banner.tsx';
 import { useSumarioActions } from './sumario-actions.ts';
 import { FixedRow, NumberedRow, Section9Row } from './sumario-row.tsx';
 import './relatorio.css';
@@ -72,11 +80,18 @@ export function SumarioSurface() {
   );
 }
 
-/** The navigation state the Sumário is opened with (setup "Concluir", a sheet's "Voltar"). */
-function arrivalOf(state: unknown): { openSection9: boolean; focusBlockId: string | null } {
-  if (typeof state !== 'object' || state === null) return { openSection9: false, focusBlockId: null };
+/**
+ * The navigation state the Sumário is opened with (setup "Concluir", a sheet's "Voltar", and
+ * Story 10.3's Sync status "Renomear uma", which opens the rename dialog on an equipment).
+ */
+function arrivalOf(state: unknown): { openSection9: boolean; focusBlockId: string | null; renameEquipmentId: string | null } {
+  if (typeof state !== 'object' || state === null) return { openSection9: false, focusBlockId: null, renameEquipmentId: null };
   const raw = state as Record<string, unknown>;
-  return { openSection9: raw.openSection9 === true, focusBlockId: typeof raw.focusBlockId === 'string' ? raw.focusBlockId : null };
+  return {
+    openSection9: raw.openSection9 === true,
+    focusBlockId: typeof raw.focusBlockId === 'string' ? raw.focusBlockId : null,
+    renameEquipmentId: typeof raw.renameEquipmentId === 'string' ? raw.renameEquipmentId : null,
+  };
 }
 
 function Sumario({ relatorioId, state }: { relatorioId: string; state: EntityState }) {
@@ -145,9 +160,19 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const [restoring, setRestoring] = useState(false);
   const [confirmingBack, setConfirmingBack] = useState(false);
   const bannerText = useMemo(() => issuedBannerText(relatorio.status, latestRevision(revisions)), [relatorio.status, revisions]);
-  const banner = useMemo(
+  const issuedBanner = useMemo<Banner | null>(
     () => (bannerText === null ? null : { kind: 'relatorio-exported' as const, variant: 'warning' as const, role: 'region' as const, text: bannerText }),
     [bannerText],
+  );
+  // Story 10.3: "Renomear uma" of a TAG created on two devices opens the rename dialog on the
+  // later equipment, here or on arriving from Sync status.
+  const [renamingId, setRenamingId] = useState<string | null>(arrival.renameEquipmentId);
+  const onRenameOne = useCallback((decision: DuplicateTagDecision) => setRenamingId(decision.later_equipment_id), []);
+  // Stories 10.2/10.3: the relatório's first decision takes the one slot over any other banner.
+  const conflict = useConflictBanner({ relatorioId, onRenameOne });
+  const banner = useMemo(
+    () => pickBanner([conflict.banner, issuedBanner].filter((row): row is Banner => row !== null)),
+    [conflict.banner, issuedBanner],
   );
   useExtraBanner(banner);
   const backMove = useMemo(() => backwardMoveLabel(relatorio.status), [relatorio.status]);
@@ -182,6 +207,29 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
     setAdding(null);
     if (below === null) return;
     addSection(below, type);
+  }
+
+  const renaming = renamingId === null ? undefined : equipment.find((row) => row.id === renamingId && row.removed_at === null);
+
+  /** The rename dialog's save: one `equipment/{id}/tag` put, the tree's own rule (`tagVerdict`). */
+  function onRename(equipmentId: string, tag: string): void {
+    setRenamingId(null);
+    const out: { refusal: string | null } = { refusal: null };
+    void editor
+      .edit((_blocks, by, fresh) => {
+        const row = fresh.equipment.find((e) => e.id === equipmentId && e.removed_at === null);
+        if (row === undefined || row.tag === tag.trim()) return null;
+        const verdict = tagVerdict(tag, fresh.equipment, equipmentId);
+        if (verdict !== null) {
+          out.refusal = verdict.reason === 'empty' ? t.tagDialogs.emptyTag : tagTakenText(verdict.holder.tag, null);
+          return null;
+        }
+        return [putEquipmentTagOp(by, relatorio.project_id, equipmentId, tag.trim())];
+      })
+      .then((batch) => {
+        if (batch !== null) editor.undoable(tagRenamedText(tag.trim()), batch);
+      })
+      .catch(() => undefined);
   }
 
   function onRestore(block: RestorableBlock): void {
@@ -321,6 +369,20 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
 
       {adding === null ? null : <AddSectionDialog below={adding.title} onPick={onPickSection} onClose={() => setAdding(null)} />}
       {restoring ? <RestoreDialog blocks={removable} onRestore={onRestore} onClose={() => setRestoring(false)} /> : null}
+      {conflict.dialog}
+      {renaming === undefined ? null : (
+        <TagDialog
+          title={t.tagDialogs.renameTagTitle(renaming.tag)}
+          action={t.tagDialogs.save}
+          initial={renaming.tag}
+          equipment={equipment}
+          blocks={snapshot.blocks}
+          locations={snapshot.locations}
+          selfId={renaming.id}
+          onClose={() => setRenamingId(null)}
+          onSubmit={(tag) => onRename(renaming.id, tag)}
+        />
+      )}
       {backMove === null ? null : (
         <ConfirmDialog
           isOpen={confirmingBack}

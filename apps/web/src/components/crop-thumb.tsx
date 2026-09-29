@@ -21,6 +21,11 @@ export interface CropThumbProps {
   onPress?: () => void;
   /** Story 9.1: what the picture is of, for its names ("Ver recorte do visor"); default `plate`. Story 9.2: `panel` ("Ver recorte da etiqueta"). */
   source?: 'plate' | 'display' | 'panel';
+  /**
+   * Story 10.2: drawn inside another control (a Conflict view option, `role="radio"`), so it
+   * is a picture (`span[role=img]`, `86-sync-conflito.html`), never a nested button.
+   */
+  presentational?: boolean;
 }
 
 /*
@@ -82,13 +87,30 @@ function regionStyle(bbox: Bbox, size: { width: number; height: number }): CSSPr
  * mock's `.thumb-fake` stands in meanwhile. 48 px beside a suggestion, a 24 px glyph (the
  * hit area stays 48 px) once confirmed; the tap opens the Photo viewer on the region.
  */
-export function CropThumb({ photoId, bbox, label, onPress, source = 'plate' }: CropThumbProps) {
+export function CropThumb({ photoId, bbox, label, onPress, source = 'plate', presentational = false }: CropThumbProps) {
   const t = ui.suggestionField;
   const src = useObjectUrl(useCropSource(photoId));
   const [size, setSize] = useState<{ src: string; width: number; height: number } | null>(null);
   const loaded = size !== null && size.src === src;
   const alt = source === 'display' ? t.cropDisplayAlt : source === 'panel' ? t.cropPanelAlt : t.cropAlt;
   const name = source === 'display' ? t.cropDisplayLabel(label) : source === 'panel' ? t.cropPanelLabel : t.cropLabel(label);
+  if (presentational) {
+    return (
+      <span className="crop-thumb" role="img" aria-label={alt} data-photo-id={photoId}>
+        {loaded ? null : <i className="thumb-fake" aria-hidden="true" />}
+        {src === null ? null : (
+          <span className="crop-picture" hidden={!loaded} aria-hidden="true">
+            <img
+              src={src}
+              alt=""
+              style={loaded ? regionStyle(bbox, size) : undefined}
+              onLoad={(event) => setSize({ src, width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
+            />
+          </span>
+        )}
+      </span>
+    );
+  }
   return (
     <button type="button" className="crop-thumb" aria-label={name} onClick={onPress} data-photo-id={photoId}>
       {loaded ? null : <i className="thumb-fake" role="img" aria-label={alt} />}

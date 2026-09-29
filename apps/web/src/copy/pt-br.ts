@@ -195,6 +195,31 @@ export const copy = {
       'Fichas são mescladas por sub-bloco sozinhas (preenchido vence vazio · NC vence C · fotos nunca se perdem · texto: mais recente vence). Só contradições reais e dois casos de estrutura pedem decisão.',
     mergedLabel: 'Mesclado automaticamente',
     footNote: 'Tudo o que está neste aparelho fica salvo até o servidor confirmar.',
+    // Stories 10.2/10.3: a cell row's action (`85-sync.html` line 116).
+    resolve: 'Resolver',
+  },
+  // Stories 10.2/10.3: the conflict Banner's and the Conflict view's fixed words
+  // (`86-sync-conflito.html`, `85-sync.html` lines 116-124, the story ACs). Every sentence
+  // that names a TAG, a person or a count is the kernel's (`merge/conflicts.ts`).
+  conflict: {
+    see: 'Ver',
+    keep: 'Manter',
+    remove: 'Remover',
+    renameOne: 'Renomear uma',
+    keepBoth: 'Manter as duas',
+    apply: 'Aplicar',
+    close: 'Voltar sem decidir',
+    desc: 'O resto da ficha já foi mesclado por sub-bloco. Escolha só na célula em contradição; nada mais muda.',
+    // authored: the removal variant's description (86 draws only the cell pick).
+    removalDesc: 'A ficha foi removida em um aparelho e alterada em outro. Escolha se ela fica ou sai; a edição fica recuperável.',
+    reason: 'Só a célula escolhida é gravada; o resto da ficha já está mesclado. Voltar sem resolver mantém a contradição listada.',
+    // authored: why "Aplicar" waits.
+    pickEveryCell: 'Escolha um valor em cada célula',
+    // `86-sync-conflito.html` foot toast.
+    resolved: 'Contradição resolvida — ficha mesclada',
+    undo: 'Desfazer',
+    // authored: a decision whose rows changed before the tap (another device resolved it).
+    gone: 'Esta decisão já foi resolvida',
   },
   // authored: there is no mock for the 426 state (AR-12); a UX pass may replace these
   // strings without touching behavior.

@@ -1,6 +1,8 @@
 import {
+  decisionTotal,
   downloadRows,
   mergeInfoText,
+  syncDecisionRows,
   mergeRowSecondaryText,
   pendingPhotoRows,
   pendingSheetRows,
@@ -34,6 +36,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { publishReAuth } from '../api/auth-client.ts';
 import { useLiveQuery } from '../db/live.ts';
 import { COMPANY_STREAM, type OutboxRow, type SyncStateRow } from '../db/schema.ts';
+import { heldDecisions, type HeldDecisions } from '../db/decision-store.ts';
 import {
   deviceId,
   downloadRowsContext,
@@ -115,10 +118,18 @@ export interface SyncState {
   /** "Baixando": each relatório stream not pulled to its end. */
   downloads?: readonly DownloadRow[];
   /**
-   * "Decisões": the open contradictions. Stories 10.2/10.3 (batch X) own its source and the
-   * row buttons; until they merge the provider always gives `[]`.
+   * "Decisões" (the X/S seam): one row per open decision on this device, the kernel's
+   * `syncDecisionRows` over `heldDecisions` (a duplicate TAG held by two relatórios of one
+   * project is one row). Their count is `decisionTotal`, which feeds the headline and the badge.
    */
   decisions?: readonly SyncDecisionRow[];
+  /**
+   * Stories 10.2/10.3: the open decisions of every relatório held on this device (kernel
+   * `openDecisions`, read live from IndexedDB), per relatório with the rows they name: the
+   * sheet and Sumário Banners read their own relatório's, and the "Decisões" rows resolve
+   * through them. Optional in the type only so the older test doubles still type-check.
+   */
+  heldDecisions?: readonly HeldDecisions[];
   deviceId: string | null;
   /** User names known on this device, by user id, for "Último envio". */
   userNames: Readonly<Record<string, string>>;
@@ -187,8 +198,7 @@ const NO_CONTEXT: MergeInfoContext = { blocks: [], equipment: [], users: [], fil
 const NO_SHEET_CONTEXT: PendingSheetContext = { blocks: [], equipment: [], users: [] };
 const NO_UPLOADS: Awaited<ReturnType<typeof unackedPhotoUploads>> = [];
 const NO_DOWNLOAD_CONTEXT: DownloadRowsContext = { projects: [], clients: [], local: new Map() };
-/** Batch X (Stories 10.2/10.3) replaces this with its kernel list of open contradictions. */
-const NO_DECISIONS: readonly SyncDecisionRow[] = [];
+const NO_HELD: HeldDecisions[] = [];
 
 const browserTimers = {
   setTimeout: (callback: () => void, ms: number) => globalThis.setTimeout(callback, ms),
@@ -322,6 +332,15 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     [states, company, downloadContext],
   );
   const userNames = useMemo(() => Object.fromEntries(users.map((u) => [u.id, u.name])), [users]);
+  // Stories 10.2/10.3 (the X/S seam): the open decisions on this device, one source for the
+  // "Decisões" rows, the headline's contradiction count and the badge's "Conflito".
+  const held = useLiveQuery(() => (db === null ? Promise.resolve(NO_HELD) : heldDecisions(db)), [db], NO_HELD);
+  const viewerId = session.user?.id ?? null;
+  const decisions = useMemo(
+    () => syncDecisionRows(held, { users, viewerActorId: viewerId, viewerDeviceId: device }),
+    [held, users, viewerId, device],
+  );
+  const decisionCount = useMemo(() => decisionTotal(held), [held]);
 
   const syncNow = useCallback(async () => engineRef.current?.runCycle() ?? 'paused', []);
   const syncRelatorio = useCallback(
@@ -384,14 +403,15 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const value = useMemo<SyncState>(
     () => ({
       counts,
-      badgeState: syncBadgeState(counts, { online: session.online, reachable: unreachable === null, conflicts: NO_DECISIONS.length }),
-      headline: syncHeadlineText({ counts, contradictions: NO_DECISIONS.length }),
-      summaryBadges: syncSummaryBadges({ counts, contradictions: NO_DECISIONS.length }),
+      badgeState: syncBadgeState(counts, { online: session.online, reachable: unreachable === null, conflicts: decisionCount }),
+      headline: syncHeadlineText({ counts, contradictions: decisionCount }),
+      summaryBadges: syncSummaryBadges({ counts, contradictions: decisionCount }),
       pendingSheets,
       uploads,
       readingsQueued,
       downloads,
-      decisions: NO_DECISIONS,
+      decisions,
+      heldDecisions: held,
       pendingText: pendingSummaryText(counts),
       pendingCount: pendingSummaryCount(counts),
       online: session.online,
@@ -417,7 +437,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       preview,
       rereadPhoto,
     }),
-    [counts, session.online, unreachable, status, merges, pendingSheets, uploads, readingsQueued, downloads, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto],
+    [counts, session.online, unreachable, status, merges, pendingSheets, uploads, readingsQueued, downloads, held, decisions, decisionCount, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto],
   );
 
   return <SyncContext value={value}>{children}</SyncContext>;

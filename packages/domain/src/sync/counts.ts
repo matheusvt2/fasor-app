@@ -134,8 +134,9 @@ export interface SyncBadgeInputs {
    */
   reachable?: boolean;
   /**
-   * Story 10.4 (epic-10 Conflict 12): the open contradictions this device holds (Stories
-   * 10.2/10.3 fill it; omitted means 0). Any turns the badge to `conflict` first.
+   * Story 10.4 (epic-10 Conflict 12): the open decisions this device holds (Stories
+   * 10.2/10.3: `decisionTotal` of the held relatórios; omitted means 0). Any turns the
+   * badge to `conflict` first.
    */
   conflicts?: number;
 }
@@ -147,7 +148,7 @@ export interface SyncBadgeInputs {
  * states and no sixth for it, and "no connection; still saving locally" is exactly what
  * the user needs to know then. Sync status names the actual cause.
  */
-export function syncBadgeState(counts: SyncCounts, deps: SyncBadgeInputs): SyncBadgeState {
+export function syncBadgeState(counts: Pick<SyncCounts, 'dead' | 'pending' | 'sent'>, deps: SyncBadgeInputs): SyncBadgeState {
   if ((deps.conflicts ?? 0) > 0) return 'conflict';
   if (counts.dead > 0) return 'error';
   if (!deps.online || deps.reachable === false) return 'offline';

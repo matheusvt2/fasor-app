@@ -53,12 +53,27 @@ export const cellMergeSchema = z.object({
 });
 export type CellMerge = z.infer<typeof cellMergeSchema>;
 
+/**
+ * Story 10.2 (contract 12, epic-10 Conflict 4): written only by a concurrent fold whose
+ * two values contradict (`merge/policy.ts`, the `contradiction` branch). The cell shows the
+ * `seq`-later value; `conflict` is the side it displaced (its op, value and provenance).
+ * Author, device and time of either side are read from the op log, not stored here. A
+ * sequential put (the "Aplicar" of the Conflict view) drops it.
+ */
+export const cellConflictSchema = z.object({
+  op_id: uuidV7Schema,
+  value: fieldValueSchema,
+  source_suggestion_id: nullableId,
+});
+export type CellConflictRecord = z.infer<typeof cellConflictSchema>;
+
 /** Every sheet cell carries its provenance (AD-12). */
 export const cellSchema = z.object({
   value: fieldValueSchema,
   source_suggestion_id: nullableId,
   op_id: uuidV7Schema,
   merge: cellMergeSchema.optional(),
+  conflict: cellConflictSchema.optional(),
 });
 export type Cell = z.infer<typeof cellSchema>;
 
@@ -376,6 +391,20 @@ export const emptySheet = (): Sheet => ({
 });
 
 /**
+ * Story 10.3 (epic-10 Conflict 5): a block removed on one device while another edited it
+ * without having seen the removal (or removed without having seen the edit). The removal
+ * applies (the row is a tombstone) and the edit is kept on it; a sequential `removed_at`
+ * write ("Manter" restores, "Remover" removes again) drops the mark.
+ */
+export const blockRemovalConflictSchema = z.object({
+  removed_by: actorIdSchema.nullable(),
+  removed_at: isoTimestampSchema,
+  edited_by: actorIdSchema.nullable(),
+  edited_at: nullableIso,
+});
+export type BlockRemovalConflict = z.infer<typeof blockRemovalConflictSchema>;
+
+/**
  * A block of a relatório: an equipment sheet placed in a location, or (Story 4.1) a
  * section block, born from the template's section blocks plus the synthesized sections 7
  * and 9, which lives in the relatório with no location (`location_id: null`) and no
@@ -400,6 +429,11 @@ export const blockRowSchema = z.object({
   last_modified_by: actorIdSchema.nullable(),
   last_modified_at: nullableIso,
   removed_at: nullableIso,
+  // Story 10.3 (contract 12), derived by applyOp like the columns above: the actor of the
+  // latest `removed_at` write (absent once the block is restored), and the mark of a block
+  // removed on one device and edited on another (`blockRemovalConflictSchema`).
+  removed_by: actorIdSchema.optional(),
+  removal_conflict: blockRemovalConflictSchema.optional(),
 });
 
 export const fileVariantsSchema = z.object({ thumb: z.string(), print: z.string() });

@@ -14,8 +14,9 @@ import {
 } from '@app/domain';
 import { useMemo, useState } from 'react';
 import { useParams } from 'react-router';
-import type { Banner } from '../../state/banner-slot.tsx';
+import { pickBanner, type Banner } from '../../state/banner-slot.tsx';
 import { useExtraBanner } from '../../state/extra-banner.tsx';
+import { useConflictBanner } from '../sync/conflict-banner.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { useHeldWhilePressed } from '../../input/press-hold.ts';
 import { RelatorioGate } from '../relatorio/relatorio-gate.tsx';
@@ -133,9 +134,16 @@ function FichaBody({
   // in the one banner slot, "Sugestões prontas — N campos para confirmar"; a read-only (not
   // tested) sheet confirms nothing, so it says nothing.
   const shownSuggestions = useMemo(() => suggestionGroupCounts(block, pending, registries.manufacturer).shown, [block, pending, registries.manufacturer]);
-  const banner = useMemo<Banner | null>(
+  const suggestionsBanner = useMemo<Banner | null>(
     () => (shownSuggestions === 0 || block.not_tested !== null ? null : { kind: 'suggestions-ready', variant: 'info', role: 'region', text: sugestoesProntasBannerText(shownSuggestions) }),
     [shownSuggestions, block.not_tested],
+  );
+  // Story 10.2: the open sheet's contradicting cells, "SEC-C12: 1 célula em contradição" with
+  // "Ver"; the conflict Banner outranks every other candidate of the one slot.
+  const conflict = useConflictBanner({ relatorioId, blockId });
+  const banner = useMemo(
+    () => pickBanner([conflict.banner, suggestionsBanner].filter((row): row is Banner => row !== null)),
+    [conflict.banner, suggestionsBanner],
   );
   useExtraBanner(banner);
 
@@ -234,6 +242,7 @@ function FichaBody({
         {editor.announcement}
       </p>
 
+      {conflict.dialog}
       <FichaDialogs relatorioId={relatorioId} snapshot={snapshot} block={block} equipment={equipment} own={own} tag={tag} photos={photos} actions={actions} />
     </>
   );

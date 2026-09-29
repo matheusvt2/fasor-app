@@ -12,6 +12,7 @@ export const MERGE_RULES = [
   'latest_text',
   'contradiction',
   'latest_edit',
+  'block_added',
 ] as const;
 
 /**
@@ -23,6 +24,8 @@ export const MERGE_RULES = [
  * - `contradiction`: two different filled values (Story 10.2 turns it into a conflict).
  * - `latest_edit`: a non-cell field (block, location, equipment, file, point, setup);
  *   last-writer-wins by `seq`.
+ * - `block_added`: Story 10.3, a block another device added, pulled after this device's
+ *   first download of the stream (information only, no pair: `over_op_id` is null).
  */
 export type MergeRule = (typeof MERGE_RULES)[number];
 

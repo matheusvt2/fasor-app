@@ -13,7 +13,7 @@ import {
   type QueuedReadingRow,
   type SyncDecisionRow,
 } from '@app/domain';
-import { useId } from 'react';
+import { useId, type ReactNode } from 'react';
 import { UploadPill } from '../../components/photo-row.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import type { SyncState } from '../../state/sync.tsx';
@@ -238,7 +238,19 @@ export function LastSendSection({ sync }: { sync: SyncState }) {
  * wire the buttons; the banners are not `role="alert"` here, the surface is not live), then
  * "Mesclado automaticamente", the merges by rule of this tab session (Story 10.1).
  */
-export function DecisionsSection({ decisions, merges }: { decisions: readonly SyncDecisionRow[]; merges: SyncState['merges'] }) {
+export function DecisionsSection({
+  decisions,
+  merges,
+  count = decisions.length,
+  actions,
+}: {
+  decisions: readonly SyncDecisionRow[];
+  merges: SyncState['merges'];
+  /** Stories 10.2/10.3: how many decisions wait (`decisionTotal`: one per contradicting cell); the rows' length when omitted. */
+  count?: number;
+  /** Stories 10.2/10.3: a row's buttons (`.banner-actions`), from the host that resolves it. */
+  actions?: (row: SyncDecisionRow) => ReactNode;
+}) {
   const headingId = useId();
   if (decisions.length === 0 && merges.length === 0) return null;
   return (
@@ -249,7 +261,7 @@ export function DecisionsSection({ decisions, merges }: { decisions: readonly Sy
           <span className="sync-badge is-compact" data-state="conflict">
             <span className="pill">
               <span className="dot" aria-hidden="true" />
-              {decisionsCountText(decisions.length)}
+              {decisionsCountText(count)}
             </span>
           </span>
         ) : null}
@@ -260,6 +272,7 @@ export function DecisionsSection({ decisions, merges }: { decisions: readonly Sy
           {decisions.map((decision) => (
             <div className="banner" data-variant="conflict" key={decision.key} data-testid="sync-decision-row" data-kind={decision.kind}>
               <span className="banner-text">{decision.text}</span>
+              {actions === undefined ? null : <span className="banner-actions">{actions(decision)}</span>}
             </div>
           ))}
         </div>

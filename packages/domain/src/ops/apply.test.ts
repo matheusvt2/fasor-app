@@ -259,7 +259,8 @@ describe('1.4-UNIT-004 provenance and attribution', () => {
       source_suggestion_id: SUG,
       op_id: confirm.op_id,
     });
-    const plain = f.op({ path: `sheet/${B1}/nameplate/tensao_nominal`, value: '13.8' });
+    // Chained on the confirm, as a device stamps it (a put that did not see it would be a contradiction, Story 10.2).
+    const plain = f.op({ path: `sheet/${B1}/nameplate/tensao_nominal`, value: '13.8', prev_op_id: confirm.op_id });
     const s2 = applyOp(s1, plain);
     expect((s2.get(key) as BlockRow).sheet.nameplate.tensao_nominal).toEqual({
       value: '13.8',

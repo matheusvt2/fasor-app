@@ -149,3 +149,70 @@
   gap: var(--sp-2);
   margin-bottom: var(--sp-5);
 }
+
+/* ---------- Conflict view (Stories 10.2/10.3) ----------
+   Translated from the screen-scoped block of `prototype/screens/86-sync-conflito.html`
+   (lines 7-32) per AGENTS.md "Mock container selectors": the mock's
+   `[data-route="/sync/conflito"]` page prefix becomes the dialog's own class
+   `.conflict-dialog` (the view is a modal dialog, epic-10 Conflict 7), and each
+   `.frame-phone X` rule a `@media (max-width: 767.98px)` rule. Declarations verbatim. The
+   `.cv-merged` rules (lines 33-38) are not translated: the dialog lists no merged rows. */
+.conflict-dialog .conflict-page { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.conflict-dialog .conflict-head { display: flex; align-items: flex-start; gap: var(--sp-3); padding: var(--sp-3) var(--sp-2) var(--sp-3) var(--gutter-tablet); border-bottom: 1px solid var(--border-hairline); background: var(--surface-raised); }
+.conflict-dialog .conflict-head .dialog-title { flex: 1; min-width: 0; }
+.conflict-dialog .conflict-head .cv-desc { display: block; font-weight: 400; margin-top: var(--sp-1); }
+.conflict-dialog .conflict-scroll { flex: 1; min-height: 0; padding: var(--sp-5) var(--gutter-tablet); display: flex; flex-direction: column; gap: var(--sp-5); max-width: calc(var(--content-max) + 2 * var(--gutter-tablet)); }
+.conflict-dialog .cv-cell { padding: var(--sp-4); }
+.conflict-dialog .cv-cell .cc-label { font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--ink-secondary); }
+.conflict-dialog .cv-cell .cc-name { font-size: var(--t-heading-size); font-weight: var(--t-heading-weight); line-height: var(--t-heading-lh); margin-bottom: var(--sp-3); }
+.conflict-dialog .cv-pick { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
+.conflict-dialog .cv-option { display: flex; align-items: center; gap: var(--sp-3); min-height: 56px; padding: var(--sp-2) var(--sp-3); border: 2px solid var(--border-strong); border-radius: var(--r-md); background: var(--surface-raised); text-align: left; cursor: pointer; }
+.conflict-dialog .cv-option[aria-checked="true"] { border-color: var(--primary); background: var(--focus-fill); box-shadow: inset 0 0 0 1px var(--primary); }
+.conflict-dialog .cv-option[aria-checked="true"] .radio { border-color: var(--primary); }
+.conflict-dialog .cv-option[aria-checked="true"] .radio::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--primary); }
+.conflict-dialog .cv-option .crop-thumb { margin: 0; }
+.conflict-dialog .cv-option .cvo-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.conflict-dialog .cv-option .cvo-who { display: inline-flex; align-items: center; gap: var(--sp-1); font-size: var(--t-label-size); font-weight: var(--t-label-weight); line-height: var(--t-label-lh); color: var(--ink-secondary); }
+.conflict-dialog .cv-option .cvo-who .avatar { width: 24px; height: 24px; font-size: 11px; }
+.conflict-dialog .cv-option .cvo-value { font-size: var(--t-value-size); font-weight: var(--t-value-weight); font-variant-numeric: tabular-nums; }
+.conflict-dialog .cv-option .cvo-meta { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+.conflict-dialog .cv-cell .cc-hint { margin-top: var(--sp-3); font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+@media (max-width: 767.98px) {
+  /* `.frame-phone [data-route="/sync/conflito"] .conflict-head` */
+  .conflict-dialog .conflict-head { padding-left: var(--gutter-phone); }
+  /* `.frame-phone [data-route="/sync/conflito"] .conflict-scroll` */
+  .conflict-dialog .conflict-scroll { padding: var(--sp-4) var(--gutter-phone); }
+  /* `.frame-phone [data-route="/sync/conflito"] .cv-pick` */
+  .conflict-dialog .cv-pick { grid-template-columns: 1fr; }
+}
+
+/* authored: the dialog box itself. 86 draws the view as a whole page region; as a modal it
+   takes the Form dialog's surface (components.css `.form-dialog`) at the content width,
+   its head fixed, its scroll area scrolling, and the Sticky action bar at its foot. The
+   option rows reset the button's own font and color, and long values wrap. */
+.dialog-modal > .conflict-dialog {
+  background: var(--surface-raised);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-float);
+  width: min(calc(var(--content-max) + 2 * var(--gutter-tablet)), 100%);
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.conflict-dialog .conflict-page { min-height: 0; }
+.conflict-dialog .conflict-scroll { overflow-y: auto; min-width: 0; }
+.conflict-dialog .conflict-view { min-width: 0; }
+.conflict-dialog .cv-option { min-width: 0; color: inherit; font: inherit; }
+.conflict-dialog .cvo-value,
+.conflict-dialog .cvo-meta,
+.conflict-dialog .conflict-cell { overflow-wrap: anywhere; }
+@media (max-width: 767.98px) {
+  .dialog-scrim:has(> .dialog-modal > .conflict-dialog) { padding: 0; }
+  .dialog-modal > .conflict-dialog { width: 100%; height: 100%; border-radius: 0; }
+}
+
+/* ---------- Decisões (Stories 10.2/10.3, `85-sync.html` lines 111-124) ----------
+   authored: the rows are `.banner[data-variant=conflict]` stacked in `.conflict-list`
+   (components.css draws the banner; the mock's list has no rule of its own). */
+[data-route='/sync'] .conflict-list { display: flex; flex-direction: column; gap: var(--sp-3); }

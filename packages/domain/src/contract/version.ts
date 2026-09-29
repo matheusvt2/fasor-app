@@ -56,8 +56,18 @@
  * `progress: {sheets, photos}` (the server's live blocks and photo files of each), for the
  * "Baixando… 12 de 30 fichas" line. Additive on a non-strict object: a version-10 bundle
  * ignores it and reads "Baixando…" alone, so `MIN_CONTRACT_VERSION` stays 10.
+ *
+ * 12 (2026-09-29, Stories 10.2 and 10.3): the fold marks a true contradiction on the cell
+ * (`cell.conflict`, the displaced side) and a block removed on one device and edited on the
+ * other (`block.removal_conflict`, plus `block.removed_by`, the actor of the latest
+ * `removed_at` write). A device stamps what it saw on its ops, `meta.standing_op_id` on a
+ * `sheet/*` put (with `meta.seen_conflict_op_id`, the `conflict` it saw: a sequential put
+ * keeps a `conflict` it did not see) and `meta.seen_modified_at` on a `block/{id}/removed_at`
+ * write, and the fold reads them. The session information gains the `block_added` rule (a
+ * `MergeInfo` whose `over_op_id` is null). No new family, but the reducer and two row shapes
+ * changed: `MIN_CONTRACT_VERSION` goes to 12 too.
  */
-export const CONTRACT_VERSION = 11;
+export const CONTRACT_VERSION = 12;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -92,7 +102,13 @@ export const CONTRACT_VERSION = 11;
  * 10 (2026-09-29, Story 10.1): a version-9 bundle's `applyOp` lets a concurrent C land over
  * an NC (or a clear over a filled cell) that a version-10 fold keeps, and its cell schema
  * strips the `merge` record, so its rows would diverge from the server's: it updates too.
+ *
+ * Stays 10 at contract 11 (2026-09-29, Story 10.4): the summary's `progress` is additive.
+ *
+ * 12 (2026-09-29, Stories 10.2 and 10.3): a version-11 (or older) bundle's cell and block
+ * schemas strip `conflict`, `removal_conflict` and `removed_by`, and its fold ignores the meta
+ * stamps, so its rows would diverge from the server's: it updates too.
  */
-export const MIN_CONTRACT_VERSION = 10;
+export const MIN_CONTRACT_VERSION = 12;
 
 export const CONTRACT_VERSION_HEADER = 'x-contract-version';

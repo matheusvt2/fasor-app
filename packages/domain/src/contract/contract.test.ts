@@ -84,9 +84,9 @@ describe('relatório summary progress (Story 10.4)', () => {
 });
 
 describe('contract constants', () => {
-  it('speaks version 11 and still accepts version 10 (Story 10.4 adds an optional summary field; 10.1 raised the minimum)', () => {
-    expect(CONTRACT_VERSION).toBe(11);
-    expect(MIN_CONTRACT_VERSION).toBe(10);
+  it('speaks version 12 and accepts only version 12 (Stories 10.2/10.3 mark conflicts in the fold)', () => {
+    expect(CONTRACT_VERSION).toBe(12);
+    expect(MIN_CONTRACT_VERSION).toBe(12);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');
   });
 

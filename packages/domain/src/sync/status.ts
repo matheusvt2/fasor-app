@@ -350,6 +350,9 @@ export function mergeRuleText(rule: MergeRule): string {
     case 'contradiction':
       // authored: Stories 10.2/10.3 list contradictions under Decisões.
       return 'contradição';
+    case 'block_added':
+      // Story 10.3, verbatim from `85-sync.html` line 134 ("07/09 14:18 · bloco novo, sem conflito").
+      return 'bloco novo, sem conflito';
   }
 }
 

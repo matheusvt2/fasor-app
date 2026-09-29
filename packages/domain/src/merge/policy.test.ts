@@ -198,11 +198,16 @@ describe('the fold of two devices on one sheet', () => {
     expect(standing(fold([create, a, e]).sheet.observations ?? undefined)).toEqual({ value: 'texto de Eduardo', op_id: e.op_id });
   });
 
-  it('a contradiction applies the seq-later op with no record (Story 10.2 owns it)', () => {
+  it('10.2 a contradiction shows the seq-later op and marks the cell with the side it displaced', () => {
     const { create, eduardo, ana } = world();
     const e = eduardo(result, 'C');
     const a = ana(result, 'NA');
-    expect(fold([create, e, a]).sheet.checklist[ITEM]?.result).toEqual({ value: 'NA', source_suggestion_id: null, op_id: a.op_id });
+    expect(fold([create, e, a]).sheet.checklist[ITEM]?.result).toEqual({
+      value: 'NA',
+      source_suggestion_id: null,
+      op_id: a.op_id,
+      conflict: { op_id: e.op_id, value: 'C', source_suggestion_id: null },
+    });
   });
 
   it('a server op is never merged', () => {

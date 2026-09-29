@@ -7,8 +7,11 @@ import {
   materializeEntity,
   replay,
   serializeSnapshot,
+  mergeInfoText,
   type BlockRow,
   type EquipmentRow,
+  type LocationRow,
+  type MergeInfo,
   type Op,
   type OpInput,
 } from '@app/domain';
@@ -31,6 +34,7 @@ import {
   markAcked,
   markDead,
   markSent,
+  mergeTextContext,
   notTestedSynced,
   resendDead,
   takePending,
@@ -418,6 +422,31 @@ describe('5.9-UNIT notTestedSynced', () => {
     const undo = makeOp(put(`block/${BLOCK_1_ID}/not_tested`, null), { newId: d.newId, now: d.now() });
     await commitOps(db, [undo]);
     expect(await notTestedSynced(db, BLOCK_1_ID)).toBe(false);
+    db.close();
+  });
+});
+
+describe('10.3-UNIT mergeTextContext for a block added elsewhere', () => {
+  it('reads the block\'s location, so the row names where it was added ("… adicionou ⟨TAG⟩ em ⟨local⟩")', async () => {
+    const db = await freshDb();
+    await commitOps(db, seedLog(), deps());
+    const added = await block(db);
+    const location = (await db.entities.get(['location', added.location_id!]))!.row as LocationRow;
+    const equipment = (await db.entities.get(['equipment', added.equipment_id!]))!.row as EquipmentRow;
+    const create = replaySmall.log.find((op) => op.path === `block/${BLOCK_1_ID}` && op.kind === 'create')!;
+    const info: MergeInfo = {
+      op_id: create.op_id,
+      over_op_id: null,
+      relatorio_id: RELATORIO_ID,
+      block_id: BLOCK_1_ID,
+      path: create.path,
+      rule: 'block_added',
+      standing: { value: null, op_id: create.op_id, actor_id: USER_ID, client_ts: create.client_ts },
+      overridden: null,
+    };
+    const context = await mergeTextContext(db, [info]);
+    expect(context.locations).toEqual(expect.arrayContaining([expect.objectContaining({ id: location.id, name: location.name })]));
+    expect(mergeInfoText(info, context)).toMatch(new RegExp(` adicionou ${equipment.tag} em ${location.name}$`));
     db.close();
   });
 });

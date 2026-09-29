@@ -4,6 +4,7 @@ import { Button, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { useSync } from '../../state/sync.tsx';
 import { DecisionsSection, DownloadingSection, HowItWorks, LastSendSection, ReadingsSection, SendingSection } from './sync-sections.tsx';
+import { ResolvableDecisions } from './resolvable-decisions.tsx';
 import './sync.css';
 
 const NO_ROWS: readonly never[] = [];
@@ -125,7 +126,14 @@ export function SyncStatusSurface() {
         />
         <DownloadingSection rows={sync.downloads ?? NO_ROWS} />
         <LastSendSection sync={sync} />
-        <DecisionsSection decisions={decisions} merges={sync.merges} />
+        {/* Stories 10.2/10.3 (the X/S seam): with the provider's held decisions the rows carry
+            their resolutions; the host stays mounted while the list is empty, so the undo toast
+            of the last resolved one outlives its row. */}
+        {sync.heldDecisions === undefined ? (
+          <DecisionsSection decisions={decisions} merges={sync.merges} />
+        ) : (
+          <ResolvableDecisions held={sync.heldDecisions} decisions={decisions} merges={sync.merges} />
+        )}
 
         <p className="sync-foot">
           {sync.lastSyncAt === null ? (
