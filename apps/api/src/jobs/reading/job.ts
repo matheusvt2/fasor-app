@@ -36,7 +36,8 @@ import { readingServerOp, readingStatusPath, type ReadingStatusValue } from './s
  * kernel. The discards of the photo's previous pending suggestions, the creates and
  * `reading_status = done` are one all-or-nothing server batch sharing one `batch_id`,
  * committed with the run's `ok` row. Every attempt leaves one `reading_runs` row. A kind
- * with no handler fails permanently; a transient failure before the last attempt rethrows
+ * with no handler fails permanently; a photo whose kind moved on (Story 9.2) ends superseded,
+ * writing no status; a transient failure before the last attempt rethrows
  * for pg-boss to retry; the last attempt and a permanent failure write `failed` and return.
  */
 
@@ -92,6 +93,26 @@ interface RunFacts {
   structuring: StructuringResult | null;
   /** True once the batch and its `ok` run row committed. */
   committed: boolean;
+}
+
+/**
+ * Story 9.2: the photo's `reading_kind` is no longer the payload's (the "Fotografar
+ * equipamento" confirm re-targeted a panel photo to its new block's plate while this job was
+ * queued or running). The reading of the new kind owns the photo's status now, so this one
+ * ends writing neither `done` nor `failed`: its run row says `superseded`, and nothing else.
+ */
+class ReadingSupersededError extends Error {
+  constructor() {
+    super('superseded');
+    this.name = 'ReadingSupersededError';
+  }
+}
+
+/** The photo's stored `reading_kind`, read inside the batch transaction. */
+async function readingKindOf(tx: Db | Tx, companyId: CompanyId, photoId: string): Promise<string | null> {
+  const record = await entityRecord(tx, companyId, 'file', photoId);
+  const parsed = record === null ? null : photoFileRowSchema.safeParse(record.row);
+  return parsed === null || !parsed.success ? null : parsed.data.reading_kind;
 }
 
 /** The photo's pending suggestions changed between the read and the batch: transient, the next attempt reads them again. */
@@ -155,7 +176,7 @@ export async function runReadingJob(deps: ReadingJobDeps, payload: ReadingPayloa
     facts.relatorioId = photoRecord.relatorio_id;
     facts.photoFound = true;
     if (photoRecord.removed_at !== null || photo.removed_at !== null) throw new PermanentReadingError('the photo was removed');
-    if (photo.reading_kind !== payload.reading_kind) throw new PermanentReadingError('the photo is not a reading of this kind');
+    if (photo.reading_kind !== payload.reading_kind) throw new ReadingSupersededError();
     // Every queued kind is sent (Story 9.1); one the job does not read yet ends `failed`.
     const handler = readingKindHandler(payload.reading_kind);
     if (handler === undefined) throw new PermanentReadingError(`reading kind ${payload.reading_kind} is not read yet`);
@@ -202,6 +223,7 @@ export async function runReadingJob(deps: ReadingJobDeps, payload: ReadingPayloa
       await applyServerBatch(deps.db, companyId, batch, {
         now: deps.now,
         before: async (tx) => {
+          if ((await readingKindOf(tx, companyId, photo.id)) !== payload.reading_kind) throw new ReadingSupersededError();
           const current = await pendingOfPhoto(tx, companyId, relatorioId, photo.id);
           if (current.join() !== previous.join()) throw new PendingChangedError();
           await recordRun('ok', null, tx);
@@ -220,6 +242,25 @@ export async function runReadingJob(deps: ReadingJobDeps, payload: ReadingPayloa
       return;
     }
     const permanent = isPermanentReadingError(error);
+    // A failure about to write `failed` on a photo re-targeted meanwhile ends superseded too:
+    // the new kind's reading owns the status.
+    let superseded = error instanceof ReadingSupersededError;
+    if (!superseded && facts.photoFound && (permanent || attempt.lastAttempt)) {
+      try {
+        superseded = (await readingKindOf(deps.db, companyId, payload.photo_id)) !== payload.reading_kind;
+      } catch (readError) {
+        logError('reading kind not re-read', { ...logFields(), error: errorText(readError) });
+      }
+    }
+    if (superseded) {
+      try {
+        await recordRun('error', 'superseded');
+      } catch (recordError) {
+        logError('reading run row not written', { ...logFields(), error: errorText(recordError) });
+      }
+      log('reading superseded', logFields());
+      return;
+    }
     try {
       await recordRun('error', errorText(error));
     } catch (recordError) {

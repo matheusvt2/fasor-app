@@ -1,0 +1,40 @@
+{
+  "outcome": "ok",
+  "ocr": {
+    "image": {
+      "width": 1200,
+      "height": 900
+    },
+    "tokens": [
+      {
+        "id": "t0",
+        "text": "C09",
+        "bbox": [155, 118, 325, 182],
+        "confidence": 0.99
+      },
+      {
+        "id": "t1",
+        "text": "SECCIONADORA",
+        "bbox": [352, 435, 848, 482],
+        "confidence": 0.99
+      }
+    ],
+    "preprocessing_applied": false
+  },
+  "structuring": {
+    "values": [
+      {
+        "key": "block_type",
+        "value": "chave_seccionadora",
+        "ocr_token_ids": ["t1"],
+        "confidence": 0.93
+      },
+      {
+        "key": "column",
+        "value": "C09",
+        "ocr_token_ids": ["t0"],
+        "confidence": 0.95
+      }
+    ]
+  }
+}

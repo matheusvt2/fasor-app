@@ -12,6 +12,8 @@ import {
   newEquipmentBlock,
   newLocation,
   orderKeyForMove,
+  panelRetargetOps,
+  panelSuggestionStatusOp,
   renamedText,
   siblingLocations,
   suggestTag,
@@ -37,7 +39,7 @@ import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { notTestedOp } from '../ficha/ficha-ops.ts';
-import type { PaletteCreate } from './block-palette-field.tsx';
+import type { PaletteCreate, PanelPhotoInput } from './block-palette-field.tsx';
 import type { RelatorioEditor } from './relatorio-editor.ts';
 import { focusAfterRemoval, restoreFocus } from '../../input/focus-restore.ts';
 import {
@@ -214,7 +216,7 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
 
   /** One equipment + block pair, as the palette or "Duplicar" asks for it; `copyFrom` names the block whose config is copied. */
   const createPair = useCallback(
-    (input: { type: string; locationId: string; anchorBlockId: string | null; tag: string | null; copyFrom?: string }) => {
+    (input: { type: string; locationId: string; anchorBlockId: string | null; tag: string | null; copyFrom?: string; photo?: PanelPhotoInput }) => {
       const out: { refusal: string | null; created: { tag: string; blockId: string; location: { kind: 'cabine' | 'coluna'; name: string } } | null } = { refusal: null, created: null };
       void edit((blocks, by, fresh) => {
         const location = fresh.locations.find((row) => row.id === input.locationId);
@@ -247,7 +249,14 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
           ...(source === undefined ? {} : { config: source.config }),
         });
         out.created = { tag: pair.equipment.tag, blockId: pair.block.id, location: { kind: location.kind, name: location.name } };
-        return [createEquipmentOp(by, pair.equipment), createBlockOp(by, relatorioId, pair.block)];
+        // Story 9.2: "Fotografar equipamento" re-targets its photo to the new block's plate, and
+        // settles its panel suggestion, in the same batch ("Desfazer" reverts all of it).
+        const photo = input.photo;
+        const retarget =
+          photo === undefined
+            ? []
+            : [...panelRetargetOps(by, relatorioId, photo.id, pair.block), ...(photo.suggestion === null ? [] : [panelSuggestionStatusOp(by, photo.suggestion.row, photo.suggestion.status)])];
+        return [createEquipmentOp(by, pair.equipment), createBlockOp(by, relatorioId, pair.block), ...retarget];
       })
         .then((batch) => {
           const made = out.created;

@@ -139,12 +139,20 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
 
   app.use('/api/*', sessionMiddleware(options.auth));
   app.route('/', createAccountRoutes(options.db));
-  app.route('/', createSyncRoutes(options.db, { now: options.now ?? clock }));
-  // AD-7: mounted after the sync routes so it sits behind the same `/api/*` session
-  // middleware; every handler resolves its company from the session (AD-10).
   const boss = options.boss;
   const sendReading =
     options.enqueueReading ?? (boss === undefined ? undefined : (payload: ReadingPayload) => enqueueReading(boss, payload));
+  // Story 9.2: a push that re-targets an uploaded photo's reading sends it.
+  app.route(
+    '/',
+    createSyncRoutes(options.db, {
+      now: options.now ?? clock,
+      newId: options.newId ?? mintId,
+      ...(sendReading === undefined ? {} : { enqueueReading: sendReading }),
+    }),
+  );
+  // AD-7: mounted after the sync routes so it sits behind the same `/api/*` session
+  // middleware; every handler resolves its company from the session (AD-10).
   app.route(
     '/',
     createFileRoutes(options.db, options.s3, options.bucket, {

@@ -22,6 +22,7 @@ import { DragHandle, PositionBox } from '../templates/reorder-controls.tsx';
 import { LIST_FOCUS_WATCH_FRAMES } from '../../input/focus-restore.ts';
 import { useReorder, type Reorder } from '../templates/use-reorder.ts';
 import { FieldPalette, type PaletteTarget } from './block-palette-field.tsx';
+import { PanelCapture, type PanelCaptureHandle } from './panel-capture.tsx';
 import { blockOpen, blockRow, blockTrigger, locationChevron, useTreeActions, type TreeActions, type TreeContext } from './tree-actions.ts';
 import { NameDialog, TagDialog } from './tag-dialogs.tsx';
 import { NotTestedDialog } from './not-tested-dialog.tsx';
@@ -169,6 +170,8 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
   const footRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState<ReadonlyMap<string, boolean>>(() => new Map());
   const [palette, setPalette] = useState<PaletteTarget | null>(null);
+  // Story 9.2: "Fotografar equipamento" outlives the palette, which closes when its tile is tapped.
+  const panelRef = useRef<PanelCaptureHandle>(null);
   const [dialog, setDialog] = useState<Dialog | null>(null);
 
   // The parents of every location, so a reveal works for a location the tree does not draw yet.
@@ -329,8 +332,27 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
             setPalette(null);
             actions.createBlock(input);
           }}
+          {...(presentation === 'sumario'
+            ? {
+                onPhotograph: (target: PaletteTarget) => {
+                  panelRef.current?.open(target);
+                  setPalette(null);
+                },
+              }
+            : {})}
         />
       )}
+      {presentation === 'sumario' ? (
+        <PanelCapture
+          ref={panelRef}
+          relatorioId={context.relatorioId}
+          seedVersion={context.seedVersion}
+          locations={snapshot.locations}
+          equipment={equipment}
+          onConfirm={(input) => actions.createBlock({ ...input, tag: null })}
+          focusAfter={(target) => locationChevron(rootRef.current, target.locationId)}
+        />
+      ) : null}
 
       {dialog?.kind === 'remove' ? (
         <ConfirmDialog

@@ -1,5 +1,6 @@
 import type { ReadingKind } from '../payload.ts';
 import { displayHandler } from './display.ts';
+import { panelHandler } from './panel.ts';
 import { plateHandler } from './plate.ts';
 import type { FakeFixtureDefault, ReadingKindHandler } from './types.ts';
 
@@ -13,6 +14,7 @@ export type * from './types.ts';
 export const READING_KIND_HANDLERS: Readonly<Partial<Record<ReadingKind, ReadingKindHandler>>> = {
   plate: plateHandler,
   display: displayHandler,
+  panel: panelHandler,
 };
 
 /** The handler of a reading kind, or undefined when the kind is not read yet. */

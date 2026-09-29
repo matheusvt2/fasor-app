@@ -102,6 +102,10 @@ export const ui = {
     // Story 9.1: `60-ficha.html` "Ver recorte do visor"; EXPERIENCE.md › Accessibility, the alt "Recorte do visor".
     cropDisplayLabel: (label: string) => `Ver recorte do visor — ${label}`,
     cropDisplayAlt: 'Recorte do visor',
+    // Story 9.2: `40-relatorio-overview.html` `.detect-result .crop-thumb` "Ver recorte da etiqueta".
+    cropPanelLabel: 'Ver recorte da etiqueta',
+    // authored: the alt of the panel crop, after "Recorte da placa".
+    cropPanelAlt: 'Recorte da etiqueta',
   },
   // Story 8.2: the arrival toast's action (EXPERIENCE.md › Reading arrived, "— Ver").
   readingArrival: {
