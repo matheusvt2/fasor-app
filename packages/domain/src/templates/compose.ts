@@ -317,6 +317,38 @@ function slotOf(blocks: readonly TemplateBlock[], index: number): number {
   return slot;
 }
 
+/**
+ * A section as a press captures it (E9 sweep B11): its type and how many sections of that
+ * type come before it, the identity the section list keys its rows by. A section block
+ * carries no id, so this is what survives a pull that reorders the sections; two sections
+ * of one type that trade places cannot be told apart and never could be.
+ */
+export interface SectionRef {
+  block_type: SectionBlockType;
+  /** How many sections of `block_type` come before this one. */
+  occurrence: number;
+}
+
+/**
+ * The current index, among the section blocks, of the section a press captured: resolved
+ * at write time, so a pull that reordered the sections in between acts on the same section.
+ * Null when that section is no longer there (a pull removed it or changed its type): the
+ * action then writes nothing.
+ */
+export function resolveSectionIndex(blocks: readonly TemplateBlock[], section: SectionRef): number | null {
+  let seen = 0;
+  let index = 0;
+  for (const block of blocks) {
+    if (!isSectionBlockType(block.block_type)) continue;
+    if (block.block_type === section.block_type) {
+      if (seen === section.occurrence) return index;
+      seen += 1;
+    }
+    index += 1;
+  }
+  return null;
+}
+
 /** Appends a section block after every other section (the palette's "Seções" tap), under the row's seed version. */
 export function addSection(blocks: readonly TemplateBlock[], type: SectionBlockType, seedVersion: string): TemplateBlock[] {
   const slots = sectionSlots(blocks);
@@ -405,8 +437,11 @@ export interface ComposerCabine extends ComposerNodeBase {
 
 export type ComposerNode = ComposerCabine | ComposerColuna;
 
-export interface ComposerSection {
-  /** Index among the section blocks, the argument `moveSection` and friends take. */
+export interface ComposerSection extends SectionRef {
+  /**
+   * Index among the section blocks when the view was drawn. An action resolves the index
+   * again at write time (`resolveSectionIndex`) rather than trusting this one.
+   */
   index: number;
   block_type: SectionBlockType;
   /** The FO.SERV-03 section number. */
@@ -484,10 +519,12 @@ export function composerView(template: Composition): ComposerView {
   });
 
   const sectionBlocks = template.blocks.filter((b) => isSectionBlockType(b.block_type));
+  const occurrences = sectionBlocks.map((block, index) => sectionBlocks.slice(0, index).filter((b) => b.block_type === block.block_type).length);
   const sections = sectionBlocks.map(
     (block, index): ComposerSection => ({
       index,
       block_type: block.block_type as SectionBlockType,
+      occurrence: occurrences[index]!,
       number: sectionNumber(block.block_type as SectionBlockType),
       position: index + 1,
       siblings: sectionBlocks.length,

@@ -150,3 +150,27 @@ export async function readLastSheet(db: AppDatabase, relatorioId: string): Promi
 export async function writeLastSheet(db: AppDatabase, relatorioId: string, blockId: string): Promise<void> {
   await db.local_prefs.put({ key: LAST_SHEET_PREF(relatorioId), value: blockId });
 }
+
+/**
+ * E9 sweep B16: "Tentar novamente" on a failed plate reading, recorded per photo
+ * (`reread_asked:{photo_id}`) with the photo's reading status op current at the press, so a
+ * reload before the next status op arrives still shows the reading as asked for and never
+ * offers a second run. A later status op makes the entry stale: it no longer matches.
+ */
+const rereadAskedKey = (photoId: string) => `reread_asked:${photoId}`;
+
+/** The status op id current when the reread was asked (null: the photo's create), or `undefined` when none is recorded. */
+export async function readRereadAsked(db: AppDatabase, photoId: string): Promise<string | null | undefined> {
+  const value = (await db.local_prefs.get(rereadAskedKey(photoId)))?.value as { status_op_id?: unknown } | undefined;
+  if (value === undefined || value === null || typeof value !== 'object') return undefined;
+  const opId = value.status_op_id;
+  return typeof opId === 'string' || opId === null ? opId : undefined;
+}
+
+export async function writeRereadAsked(db: AppDatabase, photoId: string, statusOpId: string | null): Promise<void> {
+  await db.local_prefs.put({ key: rereadAskedKey(photoId), value: { status_op_id: statusOpId } });
+}
+
+export async function clearRereadAsked(db: AppDatabase, photoId: string): Promise<void> {
+  await db.local_prefs.delete(rereadAskedKey(photoId));
+}

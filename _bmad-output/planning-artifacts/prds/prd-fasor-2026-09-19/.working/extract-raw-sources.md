@@ -305,7 +305,7 @@ Every `VERIFICAÇÕES GERAIS` block is a table with a numbered item list and **t
 - `ÍTEM | C | NC | NA | OBSERVAÇÕES` — used on 55 sheets (seccionadoras, disjuntores, TP/TC, transformadores)
 - `ÍTEM | OBSERVAÇÕES | C | NC | NA` — used on 36 sheets (cabos, para-raios)
 
-`C` = Conforme, `NC` = Não Conforme, `NA` = Não Aplicável. The mark itself is a cell entry in the Excel source; **in this delivered instance all C/NC/NA cells are blank** — zero marks extracted across all 94 sheets, consistent with Bruno saying this report was not finished ("esse eu não terminei, esse aqui eu tô revisando ele").
+`C` = Conforme, `NC` = Não Conforme, `NA` = Não Aplicável. The mark itself is a cell entry in the Excel source; ~~**in this delivered instance all C/NC/NA cells are blank** — zero marks extracted across all 94 sheets, consistent with Bruno saying this report was not finished ("esse eu não terminei, esse aqui eu tô revisando ele").~~ (2026-09-28, correction) The sheets are EMF pictures, so the text extraction above could not see the marks; reading the rendered DOCX pages shows real checkmarks on every sheet: C on each applicable item and NA on a fixed set of items per equipment type, the same pattern on all 94 sheets. See the header comment of `packages/domain/fixtures/porto-seguro/data.ts`, which records this correction and reproduces the marks (`NA_ITEMS_BY_TYPE`).
 
 ### 2.2 How conclusions are stated
 

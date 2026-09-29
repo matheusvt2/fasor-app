@@ -9,9 +9,10 @@ import {
   type RelatorioRow,
   type RevisionRow,
 } from '@app/domain';
+import { byClientTsThenOpId } from './commit.ts';
 import { blockRowsOf } from './home-store.ts';
 import { useLiveQuery } from './live.ts';
-import type { AppDatabase, OutboxRow } from './schema.ts';
+import type { AppDatabase } from './schema.ts';
 
 /*
  * Story 4.8: what the Export dialog reads from the device store (AD-1): the relatório
@@ -84,9 +85,6 @@ export function useEditedSince(db: AppDatabase | null, relatorioId: string, snap
     true,
   );
 }
-
-const byClientTsThenOpId = (a: OutboxRow, b: OutboxRow) =>
-  a.client_ts < b.client_ts ? -1 : a.client_ts > b.client_ts ? 1 : a.op_id < b.op_id ? -1 : a.op_id > b.op_id ? 1 : 0;
 
 /**
  * AD-15's `last_op_id`: the newest op this device wrote for the relatório (its own stream

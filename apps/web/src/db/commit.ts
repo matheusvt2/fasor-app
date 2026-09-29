@@ -108,7 +108,8 @@ export async function commitOps(
   return stamped;
 }
 
-const byClientTsThenOpId = (a: OutboxRow, b: OutboxRow) =>
+/** Commit order of this device's ops: `client_ts`, then `op_id` for a tie. The one comparator of `src/db`. */
+export const byClientTsThenOpId = (a: { client_ts: string; op_id: string }, b: { client_ts: string; op_id: string }) =>
   a.client_ts < b.client_ts ? -1 : a.client_ts > b.client_ts ? 1 : a.op_id < b.op_id ? -1 : a.op_id > b.op_id ? 1 : 0;
 
 /**
@@ -146,11 +147,27 @@ export async function commitBatch(
   inputs: readonly OpDraft[],
   deps: CommitDeps,
 ): Promise<{ batch_id: string; ops: Op[] }> {
-  const { batch_id, ops } = await buildBatch(db, inputs, deps);
-  return { batch_id, ops: await commitOps(db, ops, deps) };
+  return db.transaction('rw', batchTables(db), async () => {
+    // `buildBatch` stamped every op with this device's id; they are applied right here, in
+    // this transaction, rather than through `commitOps` and a nested one.
+    const { batch_id, ops } = await buildBatch(db, inputs, deps);
+    for (const op of ops) await applyOne(db, op);
+    return { batch_id, ops };
+  });
 }
 
-/** The ops of a batch, chained and stamped, before anything is written. */
+/**
+ * Every table `buildBatch` reads (`local_prefs` for the device id, `entities` for the
+ * relatórios it advances, `outbox` and `remote_ops` for `prev_op_id`) plus the ones the
+ * apply writes. Building and applying under one `rw` transaction over them serializes
+ * overlapping commits, so a second batch on a path sees the first one's op and chains on
+ * it, and a pull cannot land between the lookup and the write.
+ */
+function batchTables(db: AppDatabase) {
+  return [db.entities, db.outbox, db.remote_ops, db.local_prefs];
+}
+
+/** The ops of a batch, chained and stamped, before anything is written. Runs inside the caller's transaction. */
 async function buildBatch(
   db: AppDatabase,
   inputs: readonly OpDraft[],
@@ -230,10 +247,10 @@ export async function commitFileBatch(
   input: FileBatchInput,
   deps: CommitDeps,
 ): Promise<{ batch_id: string; ops: Op[] }> {
-  // `buildBatch` already stamped every op with this device's id (Epic 2 retro D-8).
-  const { batch_id, ops } = await buildBatch(db, input.ops, deps);
-  const created_at = toIso(deps.now());
-  await db.transaction('rw', db.entities, db.outbox, db.files, async () => {
+  return db.transaction('rw', [...batchTables(db), db.files], async () => {
+    // `buildBatch` already stamped every op with this device's id (Epic 2 retro D-8).
+    const { batch_id, ops } = await buildBatch(db, input.ops, deps);
+    const created_at = toIso(deps.now());
     for (const op of ops) await applyOne(db, op);
     await db.files.put({
       id: input.fileId,
@@ -243,8 +260,8 @@ export async function commitFileBatch(
       created_at,
       ...(input.fileName === undefined ? {} : { name: input.fileName }),
     });
+    return { batch_id, ops };
   });
-  return { batch_id, ops };
 }
 
 export interface PhotoBatchInput {
@@ -268,23 +285,21 @@ export async function commitPhotoBatch(
   input: PhotoBatchInput,
   deps: CommitDeps,
 ): Promise<{ batch_id: string; ops: Op[]; localSeq: number }> {
-  const { batch_id, ops: built } = await buildBatch(db, [input.create], deps);
-  const created_at = toIso(deps.now());
   const createPath = `file/${input.fileId}`;
-  let ops: Op[] = built;
-  let localSeq = 0;
-  await db.transaction('rw', [db.entities, db.outbox, db.files, db.thumbs, db.local_prefs], async () => {
+  return db.transaction('rw', [...batchTables(db), db.files, db.thumbs], async () => {
+    const { batch_id, ops: built } = await buildBatch(db, [input.create], deps);
+    const created_at = toIso(deps.now());
     const pref = await db.local_prefs.get(PHOTO_SEQ_PREF);
-    localSeq = typeof pref?.value === 'number' && Number.isInteger(pref.value) && pref.value >= 0 ? pref.value + 1 : 1;
+    const localSeq = typeof pref?.value === 'number' && Number.isInteger(pref.value) && pref.value >= 0 ? pref.value + 1 : 1;
     await db.local_prefs.put({ key: PHOTO_SEQ_PREF, value: localSeq });
-    ops = built.map((op) =>
+    const ops = built.map((op) =>
       op.kind === 'create' && op.path === createPath ? { ...op, value: { ...(op.value as Record<string, unknown>), local_seq: localSeq } as Op['value'] } : op,
     );
     for (const op of ops) await applyOne(db, op);
     await db.files.put({ id: input.fileId, variant: 'original', blob: input.original, acked: false, created_at });
     await db.thumbs.put({ id: input.fileId, blob: input.thumb, source: 'device', created_at });
+    return { batch_id, ops, localSeq };
   });
-  return { batch_id, ops, localSeq };
 }
 
 /** Undo: N inverse ops in a new batch, built from the outbox rows of the batch (dead rows never applied, AD-24). */

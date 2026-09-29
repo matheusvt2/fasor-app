@@ -7,8 +7,8 @@ import {
   isSectionBlockType,
   nextTextSection,
   relatorioSectionNumber,
-  SECTION_VARIABLE_LABELS,
   sectionRowTitle,
+  sectionVariableChipLabel,
   type BlockRow,
   type RelatorioSnapshot,
 } from '@app/domain';
@@ -188,7 +188,7 @@ function SectionTextEditor({ relatorioId, block, seedVersion, templateName, next
           <div className="chip-row" role="group" aria-label={t.insertVariable}>
             {INSERTABLE_SECTION_VARIABLES.map((name) => (
               <Chip key={name} onPress={() => insert(name)}>
-                {SECTION_VARIABLE_LABELS[name].toLocaleLowerCase('pt-BR')}
+                {sectionVariableChipLabel(name)}
               </Chip>
             ))}
           </div>

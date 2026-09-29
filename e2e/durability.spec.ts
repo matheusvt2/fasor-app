@@ -13,6 +13,7 @@ import {
   isApiRequest,
   readShellPin,
   runningEntry,
+  runningVersion,
   serveNextBuild,
   setWritesRefused,
   shellCacheNames,
@@ -332,10 +333,12 @@ test('@p0 1.8-E2E-006 a pending job keeps its shell through a worker restart and
   await page.reload();
   await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
   // The page reported the backlog, and the worker pinned the build the job runs on: the
-  // entry chunk of this document.
+  // shell version stamped into this document.
   const entry = await runningEntry(page);
   expect(entry).toMatch(/^\/assets\/index-.+\.js$/);
-  await expect.poll(() => readShellPin(page), { timeout: 15_000 }).toBe(entry);
+  const version = await runningVersion(page);
+  expect(original).toBe(`releng-shell-${version}`);
+  await expect.poll(() => readShellPin(page), { timeout: 15_000 }).toBe(version);
 
   // A new build is deployed and its worker installs and waits.
   const restoreBuild = await serveNextBuild(context);
@@ -360,7 +363,8 @@ test('@p0 1.8-E2E-006 a pending job keeps its shell through a worker restart and
     // settled on an activated worker, and its cache is there beside the pinned one.
     await waitForSettledShell(tab);
     expect(await shellCacheNames(tab)).toEqual([original, `${original}-next`]);
-    expect(await readShellPin(tab)).toBe(entry);
+    expect(await readShellPin(tab)).toBe(version);
+    expect(await runningVersion(tab)).toBe(version);
     expect(await runningEntry(tab)).toBe(entry);
 
     // The job finishes: the push goes through and the outbox drains.
@@ -382,6 +386,7 @@ test('@p0 1.8-E2E-006 a pending job keeps its shell through a worker restart and
     await expect(tab.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
     await expect(tab.locator('meta[name="shell-build"]')).toHaveCount(1);
     expect(await runningEntry(tab)).toBe(entry.replace(/\.js$/, '-next.js'));
+    expect(await runningVersion(tab)).toBe(`${version}-next`);
     await waitForSettledShell(tab);
     await expect.poll(() => shellCacheNames(tab), { timeout: 15_000 }).toEqual([`${original}-next`]);
   } finally {

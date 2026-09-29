@@ -859,6 +859,21 @@ describe('2.5-API-004 manufacturer/voltage_class normalized-name merge', () => {
     expect(again.filter((o) => o.path === `registry/manufacturer/${ghostId}/removed_at`)).toHaveLength(1);
   });
 
+  it('never merges across kinds: a manufacturer and a voltage_class of the same normalized name both stay live', async () => {
+    const manufacturerId = newId();
+    const voltageClassId = newId();
+    const name = `KindProbe ${newId().slice(-6)}`;
+    await pushOk(companyA, [manufacturerCreate(idsA, manufacturerId, name)]);
+    const second = await pushOk(companyA, [voltageClassCreate(idsA, voltageClassId, name.toUpperCase())]);
+    expect(second.rejected).toEqual([]);
+
+    const rows = await db
+      .select({ id: entities.id, removed_at: entities.removed_at })
+      .from(entities)
+      .where(and(eq(entities.company_id, companyA.companyId), eq(entities.entity, 'registry'), inArray(entities.id, [manufacturerId, voltageClassId])));
+    expect(rows.filter((r) => r.removed_at === null).map((r) => r.id).sort()).toEqual([manufacturerId, voltageClassId].sort());
+  });
+
   it('never merges across companies: two companies with the same normalized name each keep their own row (AD-10)', async () => {
     const idA = newId();
     const idB = newId();

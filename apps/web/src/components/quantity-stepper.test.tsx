@@ -239,6 +239,40 @@ describe('QuantityStepper (UX-DR30)', () => {
     await waitFor(() => expect(count()).toHaveValue('3'));
   });
 
+  it('B12: a value pulled during a write shows once the last write settles, with no further change', async () => {
+    const writes: Array<() => void> = [];
+    const onCommit = vi.fn(() => new Promise<void>((resolve) => writes.push(resolve)));
+    const view = render(<QuantityStepper value={2} label={label} onCommit={onCommit} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Mais um' }));
+    await waitFor(() => expect(onCommit).toHaveBeenCalledWith(3));
+    expect(count()).toHaveValue('3');
+    // Another device's 5 lands while this write is in flight: held back for now.
+    view.rerender(<QuantityStepper value={5} label={label} onCommit={onCommit} />);
+    expect(count()).toHaveValue('3');
+    // The write settles and the row stays on the pulled 5 (it won): the count follows it.
+    await act(async () => writes.shift()!());
+    await waitFor(() => expect(count()).toHaveValue('5'));
+    expect(group()).toHaveAccessibleName('Seccionadoras, 5');
+  });
+
+  it('B12: this device\'s own older quantity arriving late never flashes back when the writes settle', async () => {
+    const writes: Array<() => void> = [];
+    const onCommit = vi.fn(() => new Promise<void>((resolve) => writes.push(resolve)));
+    const view = render(<QuantityStepper value={2} label={label} onCommit={onCommit} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Mais um' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Mais um' }));
+    await waitFor(() => expect(onCommit.mock.calls).toEqual([[3], [4]]));
+    // The row reaches the first write's 3 while the second is still on its way.
+    view.rerender(<QuantityStepper value={3} label={label} onCommit={onCommit} />);
+    await act(async () => {
+      writes.shift()!();
+      writes.shift()!();
+    });
+    expect(count()).toHaveValue('4');
+    view.rerender(<QuantityStepper value={4} label={label} onCommit={onCommit} />);
+    expect(count()).toHaveValue('4');
+  });
+
   it('a disabled stepper writes nothing and points at its reason', async () => {
     const onCommit = vi.fn();
     render(

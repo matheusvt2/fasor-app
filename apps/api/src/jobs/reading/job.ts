@@ -20,7 +20,7 @@ import { entities, readingRuns } from '../../db/schema.ts';
 import { log, logError } from '../../log.ts';
 import { getObject } from '../../storage/s3.ts';
 import { applyOps, applyServerBatch, ServerBatchRejectedError, type Tx } from '../../sync/apply.ts';
-import { exifOrientation, readingImage, type ReadingImage } from './image.ts';
+import { readingImage, type ReadingImage } from './image.ts';
 import { readingKindHandler } from './kinds/index.ts';
 import { entityRecord } from './kinds/shared.ts';
 import type { ReadingPayload } from './payload.ts';
@@ -198,9 +198,8 @@ export async function runReadingJob(deps: ReadingJobDeps, payload: ReadingPayloa
 
     const print = await objectBytes(deps, objectKey(companyId, 'photo', photo.id, 'print', relatorioId));
     if (print === null) throw new PermanentReadingError('the photo has no print variant');
-    const original = await objectBytes(deps, objectKey(companyId, 'photo', photo.id, 'original', relatorioId));
-    const orientation = original === null ? undefined : await exifOrientation(original.bytes);
-    const image = await readingImage({ print: print.bytes, printMime: print.contentType, orientation });
+    // The print is upright already (its variant applied the original's EXIF orientation, A12).
+    const image = await readingImage({ print: print.bytes, printMime: print.contentType });
     facts.image = image;
 
     const built = await prepared.run({ providers, image, runId, newId: deps.newId });

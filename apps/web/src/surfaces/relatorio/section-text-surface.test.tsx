@@ -34,7 +34,6 @@ const session = (): SessionState => ({
   signIn: vi.fn(),
   signOut: vi.fn(async () => {}),
   saveRegistration: vi.fn(async () => {}),
-  dismissReAuth: vi.fn(),
   recoveryNeeded: false,
   dismissRecovery: vi.fn(),
 });
@@ -179,7 +178,10 @@ describe('4.7 SectionTextSurface', () => {
     await userEvent.tab();
     const configOf = async () => ((await database!.entities.get(['block', seed.section2.id]))!.row as BlockRow).config as { section_text?: unknown; section_text_edited?: unknown };
     await waitFor(async () => expect((await configOf()).section_text_edited).toBe(true));
-    await userEvent.click(screen.getByRole('button', { name: 'Restaurar texto do template' }));
+    // The button is enabled once the surface renders the saved override, which can trail the write.
+    const restore = screen.getByRole('button', { name: 'Restaurar texto do template' });
+    await waitFor(() => expect(restore).not.toHaveAttribute('aria-disabled'));
+    await userEvent.click(restore);
     await waitFor(async () => expect(await configOf()).toMatchObject({ section_text: null, section_text_edited: false }));
   });
 

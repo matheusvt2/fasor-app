@@ -616,6 +616,23 @@ describe('E78-Q6 a reading whose last attempt dies ends failed (the dead letter 
       await boss.deleteQueue(readingDeadLetterQueue(old));
     }
   }, 60_000);
+
+  it('A13: a job sent before the queue had its dead letter gets it with the queue', async () => {
+    const old = `reading-old-${newId()}`;
+    await boss.createQueue(old, { policy: 'stately' });
+    try {
+      const payload = { company_id: companyId, photo_id: newId(), reading_kind: 'plate' as const };
+      const jobId = await boss.send(old, payload);
+      expect(jobId).not.toBeNull();
+      const deadLetterOf = async () => (await boss.findJobs(old, { id: jobId! }))[0]?.deadLetter ?? null;
+      expect(await deadLetterOf()).toBeNull();
+      await ensureReadingQueue(boss, { queue: old });
+      expect(await deadLetterOf()).toBe(readingDeadLetterQueue(old));
+    } finally {
+      await boss.deleteQueue(old);
+      await boss.deleteQueue(readingDeadLetterQueue(old));
+    }
+  }, 60_000);
 });
 
 describe('9.2-INT the panel reading', () => {

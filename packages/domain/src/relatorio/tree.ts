@@ -1,3 +1,4 @@
+import type { RelatorioSummary } from '../contract/sync.ts';
 import { orderKeyBetween, sortByOrderKey } from '../ops/order-key.ts';
 import { EQUIPMENT_BLOCK_TYPES, isEquipmentBlockType, type EquipmentBlockType } from '../schemas/block-config.ts';
 import { emptySheet, type BlockRow, type EquipmentRow, type JsonValue, type LocationRow, type SuggestionRow } from '../schemas/entities.ts';
@@ -152,6 +153,37 @@ export function blockHoldsData(block: BlockRow): boolean {
  */
 export function equipmentSharedElsewhere(blocks: readonly Pick<BlockRow, 'id' | 'equipment_id' | 'removed_at'>[], equipmentId: string, blockId: string): boolean {
   return blocks.some((block) => block.id !== blockId && block.removed_at === null && block.equipment_id === equipmentId);
+}
+
+/**
+ * Whether removing the sheet `blockId` also frees (tombstones) its equipment `equipmentId`
+ * (E9 sweep B15). Only when this device can see every sheet that could hold it: no other
+ * live block in `blocks` (this relatório's and the obra's other relatórios on this device)
+ * references it (`equipmentSharedElsewhere`), the company stream was pulled to the end
+ * (`companyDownloaded`: before that an empty summary says nothing), and every other
+ * relatório of the project the company summary lists is held here with its stream pulled
+ * to the end (`downloadedStreamIds`, as `newRelatorioEquipmentReady` reads them). A
+ * relatório of the obra this device never pulled, or pulled only in part, may hold the
+ * equipment through a block this device cannot see, so the equipment stays live.
+ */
+export function equipmentFreedByRemoval(input: {
+  blocks: readonly Pick<BlockRow, 'id' | 'equipment_id' | 'removed_at'>[];
+  equipmentId: string;
+  blockId: string;
+  projectId: string;
+  relatorioId: string;
+  companyDownloaded: boolean;
+  summaries: readonly Pick<RelatorioSummary, 'id' | 'project_id'>[];
+  heldRelatorioIds: ReadonlySet<string> | readonly string[];
+  downloadedStreamIds: ReadonlySet<string> | readonly string[];
+}): boolean {
+  if (equipmentSharedElsewhere(input.blocks, input.equipmentId, input.blockId)) return false;
+  if (!input.companyDownloaded) return false;
+  const held = new Set(input.heldRelatorioIds);
+  const downloaded = new Set(input.downloadedStreamIds);
+  return input.summaries.every(
+    (row) => row.project_id !== input.projectId || row.id === input.relatorioId || (held.has(row.id) && downloaded.has(row.id)),
+  );
 }
 
 /** The live locations of a relatório in `order_key` order. */

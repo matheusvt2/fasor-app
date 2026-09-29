@@ -3,7 +3,7 @@ import {
   agruparToggledText,
   blockCreatedText,
   blockMovedText,
-  equipmentSharedElsewhere,
+  equipmentFreedByRemoval,
   isEquipmentBlockType,
   locationBlocks,
   moveAnnouncement,
@@ -24,6 +24,7 @@ import {
   type BlockRow,
   type EquipmentRow,
   type OpDraft,
+  type RelatorioSummary,
   type TreeEquipmentNode,
   type TreeLocationNode,
 } from '@app/domain';
@@ -33,6 +34,7 @@ import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { projectBlockRows } from '../../db/home-store.ts';
 import { writeLastSheet } from '../../db/prefs.ts';
+import { relatorioVisibility, type RelatorioVisibility } from '../../db/sync-store.ts';
 import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
@@ -299,14 +301,24 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
       const li = blockRow(root, node.blockId);
       const parentId = node.locationId;
       // The obra's other relatórios on this device: a later relatório reuses the project's
-      // equipment (Q4), so a sheet's TAG is freed only when no other live block holds it.
-      const elsewhere = db === null ? Promise.resolve([]) : projectBlockRows(db, projectId).then((rows) => rows.filter((row) => row.relatorio_id !== relatorioId));
+      // equipment (Q4), so a sheet's TAG is freed only when no other live block holds it,
+      // and only when every relatório of the obra is here to be asked (E9 sweep B15).
+      const elsewhere =
+        db === null
+          ? Promise.resolve({
+              others: [],
+              visibility: { companyDownloaded: false, summaries: [], heldRelatorioIds: [relatorioId], downloadedStreamIds: [] } satisfies RelatorioVisibility,
+            })
+          : Promise.all([projectBlockRows(db, projectId), relatorioVisibility(db)]).then(([rows, visibility]) => ({
+              others: rows.filter((row) => row.relatorio_id !== relatorioId),
+              visibility,
+            }));
       void elsewhere
-        .then((others) =>
+        .then(({ others, visibility }) =>
           edit((blocks, by) => {
             const block = blocks.find((row) => row.id === node.blockId && row.removed_at === null);
             if (block === undefined) return null;
-            return removeSheetOps(by, relatorioId, projectId, [...blocks, ...others], block);
+            return removeSheetOps(by, relatorioId, projectId, [...blocks, ...others], block, visibility);
           }),
         )
         .then((batch) => {
@@ -469,11 +481,27 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
 /**
  * "Remover" of an equipment sheet: the block's tombstone, plus its equipment's when no
  * other live block in `blocks` (this relatório's and the obra's other relatórios on this
- * device) references that equipment (Q4, `equipmentSharedElsewhere`).
+ * device) references that equipment (Q4) and every relatório of the obra the company
+ * summary lists is on this device, pulled to the end (E9 sweep B15, `equipmentFreedByRemoval`).
  */
-export function removeSheetOps(author: Author, relatorioId: string, projectId: string, blocks: readonly BlockRow[], block: Pick<BlockRow, 'id' | 'equipment_id'>): OpDraft[] {
+export function removeSheetOps(
+  author: Author,
+  relatorioId: string,
+  projectId: string,
+  blocks: readonly BlockRow[],
+  block: Pick<BlockRow, 'id' | 'equipment_id'>,
+  visibility: {
+    companyDownloaded: boolean;
+    summaries: readonly Pick<RelatorioSummary, 'id' | 'project_id'>[];
+    heldRelatorioIds: readonly string[];
+    downloadedStreamIds: readonly string[];
+  },
+): OpDraft[] {
   const ops: OpDraft[] = [removeBlockOp(author, relatorioId, block.id)];
-  if (block.equipment_id !== null && !equipmentSharedElsewhere(blocks, block.equipment_id, block.id)) {
+  if (
+    block.equipment_id !== null &&
+    equipmentFreedByRemoval({ blocks, equipmentId: block.equipment_id, blockId: block.id, projectId, relatorioId, ...visibility })
+  ) {
     ops.push(equipmentRemovedOp(author, projectId, block.equipment_id, true));
   }
   return ops;

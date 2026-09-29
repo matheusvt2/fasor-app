@@ -1,7 +1,7 @@
 /// <reference types="vitest/config" />
 import { createHash } from 'node:crypto';
 import { readdir, readFile, writeFile } from 'node:fs/promises';
-import { join, relative, resolve } from 'node:path';
+import { join, relative, resolve, sep } from 'node:path';
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
 
@@ -9,6 +9,8 @@ const apiTarget = process.env.API_PROXY_TARGET ?? 'http://localhost:3000';
 
 const PRECACHE_TOKEN = "'__PRECACHE_MANIFEST__'";
 const VERSION_TOKEN = "'__SHELL_VERSION__'";
+/** The version placeholder in `index.html` (`<meta name="shell-version">`). */
+const DOCUMENT_VERSION_TOKEN = '__SHELL_VERSION__';
 
 /** Every file under `dir`, recursively, sorted so the hash does not depend on readdir order. */
 async function filesUnder(dir: string): Promise<string[]> {
@@ -22,26 +24,58 @@ async function filesUnder(dir: string): Promise<string[]> {
 }
 
 /**
+ * Stamps a built shell in `outDir` and answers its version. The version digests every
+ * emitted file's bytes — the document (with its version placeholder still in place), the
+ * hashed chunks and assets, and everything copied from `public/` — as the sorted list of
+ * `path sha256(bytes)`; only `sw.js` is left out, since it is about to carry the result.
+ * So a deploy that changes nothing but markup, styles or `sprite.svg` is a new version:
+ * a new `sw.js` (the browser installs a new worker) and a new cache name.
+ *
+ * The version is then written into `index.html`'s `<meta name="shell-version">`, which
+ * is how the page names its build to the worker (`currentShellVersion` in
+ * `src/sw/register.ts`), and into `sw.js`, whose cache is `releng-shell-<version>`.
+ */
+export async function stampShell(outDir: string, precache: readonly string[]): Promise<string> {
+  const document = resolve(outDir, 'index.html');
+  const worker = resolve(outDir, 'sw.js');
+  const html = await readFile(document, 'utf8');
+  if (!html.includes(DOCUMENT_VERSION_TOKEN)) {
+    throw new Error(`${document} does not carry the shell version placeholder; index.html changed shape`);
+  }
+  const source = await readFile(worker, 'utf8');
+  if (!source.includes(PRECACHE_TOKEN) || !source.includes(VERSION_TOKEN)) {
+    throw new Error(`${worker} does not carry the precache tokens; public/sw.js changed shape`);
+  }
+  const lines: string[] = [];
+  for (const file of await filesUnder(outDir)) {
+    const path = relative(outDir, file).split(sep).join('/');
+    if (path === 'sw.js') continue;
+    lines.push(`${path} ${createHash('sha256').update(await readFile(file)).digest('hex')}`);
+  }
+  const version = createHash('sha256').update(lines.sort().join('\n')).digest('hex').slice(0, 12);
+  await writeFile(document, html.replaceAll(DOCUMENT_VERSION_TOKEN, version));
+  await writeFile(
+    worker,
+    source.replace(PRECACHE_TOKEN, JSON.stringify(precache)).replace(VERSION_TOKEN, JSON.stringify(version)),
+  );
+  return version;
+}
+
+/**
  * AR-7: `public/sw.js` is copied verbatim by Vite, so the built copy is rewritten here,
  * after the bundle exists and its hashed filenames are known. The precache list is the
  * app shell and nothing else — the document, every emitted chunk and asset (the hashed
- * JS and CSS and the self-hosted Inter woff2), and `/sprite.svg`.
- *
- * The cache name carries a hash of that list *and of the content that is not hashed into
- * a filename* — the document and everything copied from `public/`. Without that, a change
- * to `sprite.svg` or to `index.html` alone would produce a byte-identical `sw.js`: no new
- * worker would install, and the stale sprite would be served cache-first forever.
+ * JS and CSS and the self-hosted Inter woff2), and `/sprite.svg`. The version, which
+ * names the cache and is stamped into the document, is `stampShell`'s digest.
  */
 function shellPrecache(): Plugin {
   let outDir = 'dist';
-  let publicDir: string | false = false;
   let precache: string[] = [];
   return {
     name: 'shell-precache',
     apply: 'build',
     configResolved(config) {
       outDir = resolve(config.root, config.build.outDir);
-      publicDir = config.publicDir;
     },
     generateBundle(_options, bundle) {
       const emitted = Object.values(bundle)
@@ -55,25 +89,11 @@ function shellPrecache(): Plugin {
       precache = ['/', ...emitted, '/sprite.svg'];
     },
     async closeBundle() {
-      const target = resolve(outDir, 'sw.js');
-      const source = await readFile(target, 'utf8');
-      if (!source.includes(PRECACHE_TOKEN) || !source.includes(VERSION_TOKEN)) {
-        this.error(`${target} does not carry the precache tokens; public/sw.js changed shape`);
+      try {
+        await stampShell(outDir, precache);
+      } catch (error) {
+        this.error(error instanceof Error ? error.message : String(error));
       }
-      const digest = createHash('sha256').update(precache.join('\n'));
-      // The document, plus every file copied verbatim from `public/` except this script
-      // (which is about to carry the hash we are computing).
-      digest.update(await readFile(resolve(outDir, 'index.html')));
-      for (const file of publicDir === false ? [] : await filesUnder(publicDir)) {
-        if (relative(publicDir as string, file) === 'sw.js') continue;
-        digest.update(relative(publicDir as string, file));
-        digest.update(await readFile(file));
-      }
-      const version = digest.digest('hex').slice(0, 12);
-      const stamped = source
-        .replace(PRECACHE_TOKEN, JSON.stringify(precache))
-        .replace(VERSION_TOKEN, JSON.stringify(version));
-      await writeFile(target, stamped);
     },
   };
 }

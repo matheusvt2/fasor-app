@@ -1,73 +1,40 @@
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
-import { exifOrientation, readingImage } from './image.ts';
+import { renderVariants } from '../../storage/variants.ts';
+import { readingImage } from './image.ts';
 
 /*
- * Story 8.4: the reading image. A photo stored sideways (EXIF orientation 6, the usual phone
- * portrait) reaches OCR upright; an upright one passes through byte for byte.
+ * Story 8.4, amended by Epic 9 A12: the reading image. The `print` variant is upright already
+ * (the variants apply the original's EXIF orientation), so the job sends its bytes as they
+ * are: a photo stored sideways is rotated once, when its variants are rendered, never again.
  */
 
-/** A 60 x 20 image whose four corners have four colours, so every orientation is visible. */
-async function corners(): Promise<Buffer> {
-  const w = 60;
-  const h = 20;
-  const pixels = Buffer.alloc(w * h * 3);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const i = (y * w + x) * 3;
-      const right = x >= w / 2;
-      const bottom = y >= h / 2;
-      pixels[i] = right ? 255 : 0;
-      pixels[i + 1] = bottom ? 255 : 0;
-      pixels[i + 2] = right && bottom ? 255 : 40;
-    }
-  }
-  return sharp(pixels, { raw: { width: w, height: h, channels: 3 } }).png().toBuffer();
-}
-
-async function rawPixels(bytes: Uint8Array): Promise<{ data: Buffer; width: number; height: number }> {
-  const { data, info } = await sharp(bytes).removeAlpha().raw().toBuffer({ resolveWithObject: true });
-  return { data, width: info.width, height: info.height };
-}
-
 describe('8.4-API readingImage', () => {
-  it('orientation 6: the print comes out rotated, width and height swapped, JPEG without EXIF', async () => {
-    const print = await sharp(await corners()).jpeg({ quality: 90 }).toBuffer();
-    const original = await sharp(print).withMetadata({ orientation: 6 }).jpeg().toBuffer();
-    const orientation = await exifOrientation(original);
-    expect(orientation).toBe(6);
-    const image = await readingImage({ print, printMime: 'image/jpeg', orientation });
-    expect(image).toMatchObject({ mime: 'image/jpeg', width: 20, height: 60 });
-    const metadata = await sharp(image.bytes).metadata();
-    expect(metadata.format).toBe('jpeg');
-    expect(metadata.width).toBe(20);
-    expect(metadata.height).toBe(60);
-    expect(metadata.orientation).toBeUndefined();
+  it('A12: the print of an EXIF-6 original reaches OCR upright, the print bytes unchanged (not rotated a second time)', async () => {
+    // Stored 200 x 100 with EXIF orientation 6: upright it is 100 x 200.
+    const original = new Uint8Array(
+      await sharp({ create: { width: 200, height: 100, channels: 3, background: { r: 61, g: 6, b: 16 } } })
+        .withMetadata({ orientation: 6 })
+        .jpeg()
+        .toBuffer(),
+    );
+    const { print } = (await renderVariants(original, 'image/jpeg'))!;
+    const image = await readingImage({ print: print.bytes, printMime: print.contentType });
+    expect(image.bytes).toBe(print.bytes);
+    expect(image).toMatchObject({ mime: 'image/jpeg', width: 100, height: 200 });
   });
 
-  it('orientation 1 or none: the print bytes pass through', async () => {
-    const print = new Uint8Array(await sharp(await corners()).jpeg().toBuffer());
-    for (const orientation of [1, undefined]) {
-      const image = await readingImage({ print, printMime: 'image/jpeg', orientation });
-      expect(image.bytes).toBe(print);
-      expect(image).toMatchObject({ mime: 'image/jpeg', width: 60, height: 20 });
-    }
+  it('a JPEG or PNG print passes through byte for byte', async () => {
+    const jpeg = new Uint8Array(await sharp({ create: { width: 60, height: 20, channels: 3, background: { r: 9, g: 9, b: 9 } } }).jpeg().toBuffer());
+    expect(await readingImage({ print: jpeg, printMime: 'image/jpeg' })).toMatchObject({ bytes: jpeg, mime: 'image/jpeg', width: 60, height: 20 });
+    const png = new Uint8Array(await sharp({ create: { width: 30, height: 40, channels: 3, background: { r: 9, g: 9, b: 9 } } }).png().toBuffer());
+    expect(await readingImage({ print: png, printMime: 'image/png' })).toMatchObject({ bytes: png, mime: 'image/png', width: 30, height: 40 });
   });
 
-  it('every orientation 2 to 8 matches sharp auto-orienting the same pixels', async () => {
-    const png = await corners();
-    for (let orientation = 2; orientation <= 8; orientation++) {
-      const tagged = await sharp(png).withMetadata({ orientation }).png().toBuffer();
-      const reference = await rawPixels(await sharp(tagged).rotate().png().toBuffer());
-      const image = await readingImage({ print: png, printMime: 'image/png', orientation });
-      expect(image.mime).toBe('image/png');
-      const ours = await rawPixels(image.bytes);
-      expect({ width: ours.width, height: ours.height }, `orientation ${orientation}`).toEqual({ width: reference.width, height: reference.height });
-      expect(ours.data.equals(reference.data), `orientation ${orientation}`).toBe(true);
-    }
-  });
-
-  it('reads no orientation from bytes that are not an image', async () => {
-    expect(await exifOrientation(new Uint8Array([1, 2, 3]))).toBeUndefined();
+  it('a print in another format is re-encoded as its declared type', async () => {
+    const webp = new Uint8Array(await sharp({ create: { width: 30, height: 10, channels: 3, background: { r: 9, g: 9, b: 9 } } }).webp().toBuffer());
+    const image = await readingImage({ print: webp, printMime: 'image/png' });
+    expect(image).toMatchObject({ mime: 'image/png', width: 30, height: 10 });
+    expect((await sharp(image.bytes).metadata()).format).toBe('png');
   });
 });

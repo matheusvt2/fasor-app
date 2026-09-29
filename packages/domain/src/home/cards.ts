@@ -5,6 +5,7 @@ import { fichasCountText, progress, progressCounterState } from '../relatorio/pr
 import { sumarioTitle } from '../relatorio/project.ts';
 import type { BlockRow, ProjectRow, RegistryRow, RelatorioRow, RelatorioStatus, TemplateRow } from '../schemas/entities.ts';
 import { RELATORIO_STATUSES, statusPillId, type StatusPillId } from '../status/table.ts';
+import { activeTemplates } from '../templates/list.ts';
 import {
   syncBadgeState,
   syncCounts,
@@ -262,8 +263,13 @@ export function homeCards(input: HomeCardsInput): HomeCard[] {
   return input.filter === null ? cards : cards.filter((card) => card.status === input.filter);
 }
 
-/** `.shortcut-sub` of the Templates card; the count is live, the wording is the mock's. */
-export function templatesSubline(count: number): string {
+/**
+ * `.shortcut-sub` of the Templates card; the count is live, the wording is the mock's. It
+ * counts the live, not archived templates, the same count as the list's "Templates (n)"
+ * (`activeTemplates`), so the two never disagree.
+ */
+export function templatesSubline(templates: readonly TemplateRow[]): string {
+  const count = activeTemplates(templates).length;
   // authored: the mock only draws the plural with two templates on the device.
   if (count === 0) return 'Nenhum template neste aparelho';
   return count === 1 ? '1 template' : `${count} templates`;

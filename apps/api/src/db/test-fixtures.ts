@@ -8,8 +8,9 @@ import { asCompanyId } from './repositories/company-id.ts';
 import { entities, ops } from './schema.ts';
 
 /*
- * Test support only (Story 4.8): the small Porto Seguro fixture seeded onto a company as
- * the server would apply it, for the generate suites and the Export e2e. The fixture's op
+ * Test support (Story 4.8): the small Porto Seguro fixture seeded onto a company as the
+ * server would apply it, for the generate suites and the Export e2e, and for a developer
+ * through `scripts/seed-users.ts --sample-relatorio`. The fixture's op
  * ids are fixed, so an earlier run's rows are reclaimed first; the same removal cleans up
  * afterwards, including the server's own generate ops of that relatório.
  */

@@ -1,4 +1,5 @@
-import { Button as AriaButton, ToggleButton, ToggleButtonGroup, type Selection } from 'react-aria-components';
+import { useRef, type KeyboardEvent } from 'react';
+import { Button as AriaButton, ToggleButton } from 'react-aria-components';
 
 export interface ChipProps {
   children: React.ReactNode;
@@ -62,9 +63,15 @@ export interface FilterChipGroupProps {
  * Exactly one pressed chip once one is chosen (none before, with `selectedId` null): tapping
  * another moves the selection, tapping the pressed one does nothing — no clearing by re-tap
  * (Component Patterns › Filter chip).
- * `ToggleButtonGroup` in single-selection mode gives the roving-tabindex keyboard behavior
- * (Design Notes) as a real, valid `radiogroup`/`radio` (a button with its role reassigned,
- * fully valid — unlike Switch/Checkbox/Radio, no hidden input is involved here).
+ *
+ * A real `radiogroup`/`radio` with the APG radiogroup keyboard contract, the one
+ * `SegmentedControl` implements (hand-rolled for the same reason: React Aria's
+ * `ToggleButtonGroup` is a toolbar whose arrows move focus but not the selection):
+ *
+ * - Tab lands on the checked chip, or the first one while none is, and nowhere else.
+ * - ArrowLeft/ArrowUp and ArrowRight/ArrowDown move focus and selection together, wrapping.
+ * - Home and End move focus and selection to the first and last chip.
+ * - Space and Enter select the focused chip (a `<button>` raises `click` for both).
  *
  * On state: `components.css` styles the selected look as `.chip[aria-pressed="true"]`; a
  * grouped filter chip's real, correct state is `role="radio" aria-checked` (verified with
@@ -75,24 +82,55 @@ export interface FilterChipGroupProps {
  * above keeps `aria-pressed` natively and gets the mock rule directly.
  */
 export function FilterChipGroup({ options, selectedId, onChange, ...rest }: FilterChipGroupProps) {
+  const chips = useRef(new Map<string, HTMLButtonElement | null>());
+  const selectedIndex = options.findIndex((option) => option.id === selectedId);
+  const tabbableIndex = selectedIndex === -1 ? 0 : selectedIndex;
+
+  function moveTo(index: number) {
+    const target = options[(index + options.length) % options.length];
+    if (target === undefined) return;
+    chips.current.get(target.id)?.focus();
+    if (target.id !== selectedId) onChange(target.id);
+  }
+
+  function onKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    const to = KEY_STEP.get(event.key)?.(index, options.length);
+    if (to === undefined) return;
+    event.preventDefault();
+    moveTo(to);
+  }
+
   return (
-    <ToggleButtonGroup
-      selectionMode="single"
-      disallowEmptySelection
-      selectedKeys={selectedId === null ? [] : [selectedId]}
-      onSelectionChange={(keys: Selection) => {
-        if (keys === 'all') return;
-        const [first] = Array.from(keys);
-        if (first != null) onChange(String(first));
-      }}
-      className="chip-row"
-      {...rest}
-    >
-      {options.map((option) => (
-        <ToggleButton key={option.id} id={option.id} className="chip">
+    <div role="radiogroup" className="chip-row" {...rest}>
+      {options.map((option, index) => (
+        <button
+          key={option.id}
+          type="button"
+          role="radio"
+          aria-checked={option.id === selectedId}
+          tabIndex={index === tabbableIndex ? 0 : -1}
+          className="chip"
+          ref={(element) => {
+            chips.current.set(option.id, element);
+          }}
+          onClick={() => {
+            if (option.id !== selectedId) onChange(option.id);
+          }}
+          onKeyDown={(event) => onKeyDown(event, index)}
+        >
           {option.label}
-        </ToggleButton>
+        </button>
       ))}
-    </ToggleButtonGroup>
+    </div>
   );
 }
+
+/** The index each radiogroup key moves to from `index` in a group of `count` (wrapping is `moveTo`'s). */
+const KEY_STEP = new Map<string, (index: number, count: number) => number>([
+  ['ArrowLeft', (index) => index - 1],
+  ['ArrowUp', (index) => index - 1],
+  ['ArrowRight', (index) => index + 1],
+  ['ArrowDown', (index) => index + 1],
+  ['Home', () => 0],
+  ['End', (_index, count) => count - 1],
+]);

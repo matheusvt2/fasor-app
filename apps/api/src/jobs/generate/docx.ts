@@ -14,13 +14,15 @@ import {
   PageBreak,
   PageNumber,
   Paragraph,
-  Tab,
   Table,
+  TableBorders,
   TableCell,
+  TableLayoutType,
   TableRow,
   TabStopType,
   TextRun,
   TextWrappingType,
+  VerticalAlignTable,
   VerticalPositionAlign,
   VerticalPositionRelativeFrom,
   WidthType,
@@ -52,6 +54,12 @@ export const CONTENT_WIDTH_TWIPS = A4.width - 2 * MARGIN_TWIPS;
 /** Printed at 96 px per inch, the scale `docx` assumes for an image's `transformation`. */
 export const PX_PER_CM = 96 / 2.54;
 const LOGO_MAX_HEIGHT_PX = Math.round(3 * PX_PER_CM);
+/** The logo takes at most half the header's width: the title and form lines keep the other half. */
+const LOGO_MAX_WIDTH_PX = Math.round((CONTENT_WIDTH_TWIPS / 2 / 1440) * 96);
+/** Twips per px at the 96 px per inch `docx` assumes (1440 twips per inch). */
+const TWIPS_PER_PX = 1440 / 96;
+/** Word's default left plus right cell margin (0.19 cm each side), kept around the logo. */
+const CELL_MARGINS_TWIPS = 2 * 108;
 const COVER_MAX_WIDTH_PX = Math.round((CONTENT_WIDTH_TWIPS / 1440) * 96);
 const COVER_MAX_HEIGHT_PX = Math.round(12 * PX_PER_CM);
 
@@ -207,20 +215,53 @@ async function watermarkRun(data: Buffer): Promise<ImageRun> {
   });
 }
 
+type HeaderLines = DocumentLayout['header'];
+
+/** Without a logo: the title line (bold, the watermark riding in it) over the form line. */
+function plainHeader(lines: HeaderLines, watermark: ImageRun | null): Paragraph[] {
+  return [new Paragraph({ children: [...(watermark === null ? [] : [watermark]), text(lines.titleLine, { bold: true })] }), plain(lines.formLine)];
+}
+
+/**
+ * With a logo (Epic 9 A11): a two-cell borderless table, the logo in the left cell and the
+ * title and form lines stacked in the right one, both centred vertically, so both lines sit
+ * beside the logo rather than the form line falling under it. A header must end in a
+ * paragraph, so a 1 pt empty one follows the table and carries the watermark.
+ */
+function logoHeader(lines: HeaderLines, logo: SizedImage, watermark: ImageRun | null): (Table | Paragraph)[] {
+  const logoWidth = Math.min(CONTENT_WIDTH_TWIPS / 2, Math.ceil(logo.width * TWIPS_PER_PX) + CELL_MARGINS_TWIPS);
+  const linesWidth = CONTENT_WIDTH_TWIPS - logoWidth;
+  const table = new Table({
+    width: { size: CONTENT_WIDTH_TWIPS, type: WidthType.DXA },
+    columnWidths: [logoWidth, linesWidth],
+    layout: TableLayoutType.FIXED,
+    borders: TableBorders.NONE,
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({ width: { size: logoWidth, type: WidthType.DXA }, verticalAlign: VerticalAlignTable.CENTER, children: [new Paragraph({ children: [image(logo)] })] }),
+          new TableCell({
+            width: { size: linesWidth, type: WidthType.DXA },
+            verticalAlign: VerticalAlignTable.CENTER,
+            children: [plain(lines.titleLine, { bold: true }), plain(lines.formLine)],
+          }),
+        ],
+      }),
+    ],
+  });
+  const tail = new Paragraph({ spacing: { before: 0, after: 0, line: 20 }, run: { size: 2 }, children: watermark === null ? [] : [watermark] });
+  return [table, tail];
+}
+
 /** Renders the layout into DOCX bytes. */
 export async function buildDocx(layout: DocumentLayout, options: BuildDocxOptions): Promise<Buffer> {
-  const logo = options.images?.logo === undefined ? null : await sizedImage(options.images.logo, COVER_MAX_WIDTH_PX, LOGO_MAX_HEIGHT_PX);
+  const logo = options.images?.logo === undefined ? null : await sizedImage(options.images.logo, LOGO_MAX_WIDTH_PX, LOGO_MAX_HEIGHT_PX);
   const cover = options.images?.cover === undefined ? null : await sizedImage(options.images.cover, COVER_MAX_WIDTH_PX, COVER_MAX_HEIGHT_PX);
 
-  // Header: the logo beside the two lines (the image rides in the title paragraph, a tab
-  // apart, so the header stays two paragraphs whether or not a logo exists).
-  const titleRun = logo === null ? text(layout.header.titleLine, { bold: true }) : new TextRun({ children: [new Tab(), layout.header.titleLine], bold: true });
-  // Story 7.5: a preview's RASCUNHO rides in the same paragraph, floating behind the text at
+  // Story 7.5: a preview's RASCUNHO rides in a header paragraph, floating behind the text at
   // the page's centre, so every page carries it and the header's lines do not change.
   const watermark = layout.watermark === null ? null : await watermarkRun(options.images?.watermark ?? (await watermarkPng(layout.watermark)));
-  const header = new Header({
-    children: [new Paragraph({ children: [...(watermark === null ? [] : [watermark]), ...(logo === null ? [] : [image(logo)]), titleRun] }), plain(layout.header.formLine)],
-  });
+  const header = new Header({ children: logo === null ? plainHeader(layout.header, watermark) : logoHeader(layout.header, logo, watermark) });
 
   // Footer: the company lines that exist, then the page line, all in the footer style.
   const footerParagraph = (children: TextRun[], alignment?: (typeof AlignmentType)[keyof typeof AlignmentType]) =>

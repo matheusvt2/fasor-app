@@ -18,22 +18,24 @@
  *     stops an idle worker whenever it likes, taking every module variable with it. So
  *     the hold is a *pin* kept in Cache Storage: while the page reports a non-empty
  *     outbox (`hold-shell`, hold true) a sentinel records the build the page is running
- *     — the path of its hashed entry chunk, which the page sends — so the pin follows the
- *     shell the job started on, even when that is newer than the worker receiving the
- *     message (a first launch whose document came from the network). Every worker
- *     generation — the old one restarted with a fresh scope, or a new one the browser
- *     activated — reads that sentinel and, on every read, resolves it to the shell cache
- *     holding that entry (installing, waiting or active alike). That cache is never
- *     deleted, and navigations and shell assets are answered from it. While no cache
- *     holds the entry yet, navigations stay network-first, where that build came from.
- *     A page that does not name its build pins the receiving worker's own cache.
+ *     — the shell version stamped into its document, which the page sends — so the pin
+ *     follows the shell the job started on, even when that is newer than the worker
+ *     receiving the message (a first launch whose document came from the network). Every
+ *     worker generation — the old one restarted with a fresh scope, or a new one the
+ *     browser activated — reads that sentinel and, on every read, resolves it to that
+ *     version's shell cache (`releng-shell-<version>`, installing, waiting or active
+ *     alike). That cache is never deleted, and navigations and shell assets are answered
+ *     from it. While no cache of that version exists yet, navigations stay network-first,
+ *     where that build came from. A page that does not name its build pins the receiving
+ *     worker's own cache.
  *   - When the page reports an empty outbox (hold false) the sentinel is deleted, the
  *     next navigation is network-first again, which is how the new build is served on
  *     the next launch, and the older shell caches are dropped then.
  *
  * The two quoted tokens below are rewritten in `dist/sw.js` by the `shellPrecache()`
- * plugin in `vite.config.ts`, which knows the hashed filenames. While they are still
- * strings this is the dev copy, and the fallback list keeps the dev server usable.
+ * plugin in `vite.config.ts`, which knows the hashed filenames and digests every emitted
+ * file into the version (the same version it stamps into `index.html`). While they are
+ * still strings this is the dev copy, and the fallback list keeps the dev server usable.
  */
 
 const PRECACHE = '__PRECACHE_MANIFEST__';
@@ -64,21 +66,27 @@ const ASSET_DIRS = [
 
 /**
  * The pin. Its own cache, whose name does not start with `releng-shell-`, so no shell
- * cache cleanup can ever take it. Body: `{"entry": "/assets/index-<hash>.js"}`, the
- * hashed chunk the page is running, which names the build; or, from a page that does not
+ * cache cleanup can ever take it. Body: `{"version": "<shell version>"}`, the build the
+ * page is running (its cache is `releng-shell-<version>`); or, from a page that does not
  * say which build it runs, `{"shell": "<cache name>"}`, the receiving worker's own cache.
+ * A sentinel written before builds were named by version, `{"entry":
+ * "/assets/index-<hash>.js"}`, is still read: it resolves to the oldest shell cache
+ * holding that chunk.
  */
 const HOLD_CACHE = 'releng-hold';
 const HOLD_KEY = '/__shell-hold';
 
-const NO_SENTINEL = { present: false, entry: null, shell: null };
+const NO_SENTINEL = { present: false, version: null, entry: null, shell: null };
+
+/** A version as the build stamps it: a hex digest, or a test's suffixed one. Never a token. */
+const VERSION_PATTERN = /^[0-9a-z][0-9a-z-]*$/i;
 
 /**
  * This worker's copy of the sentinel: a promise of what is on disk. Only a cache of it —
  * a fresh worker scope starts without it and reads the sentinel on the first request
  * that needs it. The cache it pins is resolved from it on every read, not memoized,
- * because the cache holding a build's entry can appear later (its worker still
- * installing when the page reported it).
+ * because the cache of a build can appear later (its worker still installing when the
+ * page reported it).
  */
 let sentinelMemo;
 
@@ -108,16 +116,34 @@ async function readSentinel() {
   if (!response) return NO_SENTINEL;
   const body = await response.json().catch(() => null);
   const text = (key) => (body !== null && typeof body[key] === 'string' ? body[key] : null);
-  return { present: true, entry: text('entry'), shell: text('shell') };
+  const version = text('version');
+  return {
+    present: true,
+    version: version !== null && VERSION_PATTERN.test(version) ? version : null,
+    entry: text('entry'),
+    shell: text('shell'),
+  };
 }
+
+/** Whether a sentinel (or a page's build) names a build: its version, or a legacy entry chunk. */
+const namesBuild = (sentinel) => sentinel.version !== null || sentinel.entry !== null;
 
 /**
  * A sentinel is stale when it can never pin anything again: unparseable, or naming a
- * cache that is gone. A sentinel naming a build's entry is never stale — no cache may
- * hold that entry *yet* — and waits for `hold: false` or for its cache to appear.
+ * cache that is gone. A sentinel naming a build is never stale — no cache may hold that
+ * build *yet* — and waits for `hold: false` or for its cache to appear.
  */
 const isStale = async (sentinel) =>
-  sentinel.present && sentinel.entry === null && (sentinel.shell === null || !(await caches.has(sentinel.shell)));
+  sentinel.present && !namesBuild(sentinel) && (sentinel.shell === null || !(await caches.has(sentinel.shell)));
+
+/** The cache holding a named build now — its version's own cache, or a legacy entry's — or null. */
+async function cacheOfBuild(build) {
+  if (build.version !== null) {
+    const cacheName = `${SHELL_PREFIX}${build.version}`;
+    return (await caches.has(cacheName)) ? cacheName : null;
+  }
+  return cacheHolding(build.entry);
+}
 
 /** The oldest shell cache holding `entry` — installing, waiting or active alike — or null. */
 async function cacheHolding(entry) {
@@ -137,7 +163,7 @@ async function cacheHolding(entry) {
  */
 async function resolvePin(sentinel) {
   if (!sentinel.present) return null;
-  if (sentinel.entry !== null) return cacheHolding(sentinel.entry);
+  if (namesBuild(sentinel)) return cacheOfBuild(sentinel);
   if (!(await isStale(sentinel))) return sentinel.shell;
   await queueHoldWrite(() => dropStalePin(sentinel));
   return null;
@@ -146,7 +172,7 @@ async function resolvePin(sentinel) {
 async function dropStalePin(stale) {
   try {
     const now = await readSentinel();
-    if (now.entry === stale.entry && now.shell === stale.shell && (await isStale(now))) {
+    if (now.version === stale.version && now.entry === stale.entry && now.shell === stale.shell && (await isStale(now))) {
       await caches.delete(HOLD_CACHE);
       sentinelMemo = undefined;
     }
@@ -205,19 +231,19 @@ function queueHoldWrite(write) {
  * activated later must keep serving that one, not pin itself. A stale sentinel is
  * overwritten. A page that does not say which build it runs pins this worker's cache.
  */
-async function pinIfAbsent(entry) {
+async function pinIfAbsent(build) {
   const existing = await readSentinel();
   if (existing.present && !(await isStale(existing))) {
-    // An entry pin that no cache holds (its build was deleted under a tab that kept
+    // A build pin that no cache holds (its build was deleted under a tab that kept
     // running it, or has not been precached yet) gives way to a hold that does resolve:
-    // the page's entry when a cache holds it, or — from a page that does not name its
+    // the page's build when a cache holds it, or — from a page that does not name its
     // build — this worker's own cache. A hold naming a build no cache holds either keeps
     // the existing pin: that build may still be installing.
-    if (existing.entry === null || (await cacheHolding(existing.entry)) !== null) return existing;
-    if (entry !== null && (await cacheHolding(entry)) === null) return existing;
+    if (!namesBuild(existing) || (await cacheOfBuild(existing)) !== null) return existing;
+    if (build !== null && (await cacheOfBuild(build)) === null) return existing;
   }
-  const sentinel = entry !== null ? { present: true, entry, shell: null } : { present: true, entry: null, shell: CACHE_NAME };
-  const body = entry !== null ? { entry } : { shell: CACHE_NAME };
+  const sentinel = build !== null ? { present: true, ...build, shell: null } : { present: true, version: null, entry: null, shell: CACHE_NAME };
+  const body = build === null ? { shell: CACHE_NAME } : build.version !== null ? { version: build.version } : { entry: build.entry };
   const cache = await caches.open(HOLD_CACHE);
   await cache.put(HOLD_KEY, new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } }));
   return sentinel;
@@ -233,8 +259,8 @@ async function releasePin() {
  * A failed write or release serves as unheld for now but is not memoized: the next
  * request re-reads the sentinel, so the memo never disagrees with the disk for long.
  */
-function setHold(hold, entry) {
-  const write = queueHoldWrite(() => (hold ? pinIfAbsent(entry) : releasePin()));
+function setHold(hold, build) {
+  const write = queueHoldWrite(() => (hold ? pinIfAbsent(build) : releasePin()));
   const memo = write.catch((error) => {
     console.warn('could not record the shell hold; serving as unheld', error);
     if (sentinelMemo === memo) sentinelMemo = undefined;
@@ -314,17 +340,23 @@ self.addEventListener('activate', (event) => {
  * per-user Dexie database:
  *   - `activate-shell`, posted to the *waiting* worker when the backlog is zero (AD-8);
  *   - `hold-shell`, posted to the *active* worker on every backlog change: hold true
- *     while the outbox holds work, false once it is empty, and `shell`, the path of the
- *     hashed chunk the page runs (absent from older pages). Written to the sentinel
+ *     while the outbox holds work, false once it is empty, and `version`, the shell
+ *     version stamped into the page's document (absent when it has none; older pages
+ *     sent `shell`, the path of the hashed chunk they run). Written to the sentinel
  *     inside `waitUntil`, so a worker stopped right after the message cannot lose it.
  */
+function messageBuild(data) {
+  if (typeof data.version === 'string' && VERSION_PATTERN.test(data.version)) return { version: data.version, entry: null };
+  if (typeof data.shell === 'string' && data.shell.startsWith('/')) return { version: null, entry: data.shell };
+  return null;
+}
+
 self.addEventListener('message', (event) => {
   const data = event.data;
   if (!data) return;
   if (data.type === 'activate-shell') self.skipWaiting();
   else if (data.type === 'hold-shell') {
-    const entry = typeof data.shell === 'string' && data.shell.startsWith('/') ? data.shell : null;
-    event.waitUntil(setHold(data.hold === true, entry));
+    event.waitUntil(setHold(data.hold === true, messageBuild(data)));
   }
 });
 

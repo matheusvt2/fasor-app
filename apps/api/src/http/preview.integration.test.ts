@@ -245,6 +245,14 @@ describe('7.4/7.5-INT parecer, preview and the blocked issue', () => {
     expect(jobs).toHaveLength(jobsBefore);
   });
 
+  it("answers another company's preview press with 404 and queues no job", async () => {
+    const jobsBefore = await db.select({ id: entities.id }).from(entities).where(and(eq(entities.entity, 'generation_job'), eq(entities.relatorio_id, RELATORIO_ID)));
+    const res = await post(companyB, `/api/relatorios/${RELATORIO_ID}/preview`, BARRIER);
+    expect(res.status, await res.clone().text()).toBe(404);
+    const jobs = await db.select({ id: entities.id }).from(entities).where(and(eq(entities.entity, 'generation_job'), eq(entities.relatorio_id, RELATORIO_ID)));
+    expect(jobs).toHaveLength(jobsBefore.length);
+  });
+
   it(
     'queues a preview even while an issue job runs; it renders the RASCUNHO PDF, served at preview.pdf, and changes nothing else',
     async () => {

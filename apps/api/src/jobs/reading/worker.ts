@@ -65,10 +65,29 @@ async function createQueueOnce(boss: PgBoss, name: string, options: Parameters<P
   }
 }
 
+/** The schema pg-boss keeps its tables in: `jobs/queue.ts` constructs it with the default. */
+const PGBOSS_SCHEMA = 'pgboss';
+
+/**
+ * Epic 9 A13: pg-boss copies the queue's dead letter onto a job only at send time, so a job
+ * sent before the queue got one would die without reaching `reading-dead` and leave its
+ * photo `running`. Once the queue has its dead letter, the live jobs (created, retry or
+ * active) that carry none get it too. Returns how many jobs were updated.
+ */
+async function backfillDeadLetter(boss: PgBoss, queue: string, deadLetter: string): Promise<number> {
+  const result = await boss
+    .getDb()
+    .executeSql(
+      `UPDATE ${PGBOSS_SCHEMA}.job SET dead_letter = $2 WHERE name = $1 AND dead_letter IS NULL AND state IN ('created', 'retry', 'active') RETURNING id`,
+      [queue, deadLetter],
+    );
+  return result.rows.length;
+}
+
 /**
  * Creates the queue when it does not exist yet (pg-boss 12 refuses `send` on an unknown
  * queue), its dead letter queue first (the queue names it); an existing queue created before
- * the dead letter existed gets it set (E78-Q6).
+ * the dead letter existed gets it set (E78-Q6), and so do its live jobs (A13).
  */
 export async function ensureReadingQueue(boss: PgBoss, target: ReadingQueueTarget = {}): Promise<void> {
   const queue = target.queue ?? READING_QUEUE;
@@ -79,6 +98,10 @@ export async function ensureReadingQueue(boss: PgBoss, target: ReadingQueueTarge
   if (existing === null) await createQueueOnce(boss, queue, { policy: 'stately', ...(target.queueOptions ?? READING_QUEUE_OPTIONS), deadLetter });
   const current = await boss.getQueue(queue);
   if (current !== null && current.deadLetter !== deadLetter) await boss.updateQueue(queue, { deadLetter });
+  if (existing !== null) {
+    const updated = await backfillDeadLetter(boss, queue, deadLetter);
+    if (updated > 0) log('reading jobs given the dead letter', { queue, dead_letter: deadLetter, jobs: updated });
+  }
 }
 
 /** Sends one reading job. A null id means one is already queued for the key: that is success. */
