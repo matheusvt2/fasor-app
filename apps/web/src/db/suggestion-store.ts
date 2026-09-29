@@ -18,7 +18,7 @@ import {
   type RelatorioRow,
   type SuggestionRow,
 } from '@app/domain';
-import { commitBatch, type CommitDeps } from './commit.ts';
+import { commitBatchIf, type CommitDeps } from './commit.ts';
 import type { AppDatabase } from './schema.ts';
 
 /*
@@ -72,6 +72,32 @@ export async function autoConfirmPending(db: AppDatabase, author: Author, deps: 
   return confirmed;
 }
 
+/**
+ * E9-Q13: the sweep reads a row and its target, decides, then commits; a confirm the engineer
+ * tapped in between ("Confirmar todos" right after the launch pull, which fills the cell and
+ * confirms this very suggestion) made the sweep see the row still pending and the cell already
+ * equal, and confirm it a second time. The commit now re-reads, in its own transaction, that
+ * the row is still pending and the target still holds the value the confirm writes back.
+ */
+function confirmIfUnchanged(db: AppDatabase, suggestion: SuggestionRow, target: () => Promise<unknown>, value: unknown, author: Author, deps: CommitDeps): Promise<boolean> {
+  const same = JSON.stringify(value ?? null);
+  return commitBatchIf(
+    db,
+    async () => (await stillPending(db, suggestion.id)) && JSON.stringify((await target()) ?? null) === same,
+    confirmSuggestionOps(author, suggestion, { auto: true, value: value as JsonValue }),
+    deps,
+  ).then((batch) => batch !== null);
+}
+
+async function stillPending(db: AppDatabase, id: string): Promise<boolean> {
+  const record = await db.entities.get(['suggestion', id]);
+  return (record?.row as { status?: unknown } | undefined)?.status === 'pending';
+}
+
+async function blockOf(db: AppDatabase, id: string): Promise<BlockRow | null> {
+  return ((await db.entities.get(['block', id]))?.row as BlockRow | undefined) ?? null;
+}
+
 /** One row of the sweep; true when it was confirmed. */
 async function sweepOne(db: AppDatabase, id: string, author: Author, deps: CommitDeps): Promise<boolean> {
   // Read again: an earlier confirm of this sweep may have changed the row or its block.
@@ -84,8 +110,8 @@ async function sweepOne(db: AppDatabase, id: string, author: Author, deps: Commi
   if (target.family === 'location/env') {
     const value = await equalEnvValue(db, target.id, suggestion);
     if (value === undefined) return false;
-    await commitBatch(db, confirmSuggestionOps(author, suggestion, { auto: true, value }), deps);
-    return true;
+    const field = target.field;
+    return confirmIfUnchanged(db, suggestion, async () => ((await db.entities.get(['location', target.id]))?.row as { env?: Record<string, unknown> } | undefined)?.env?.[field], value, author, deps);
   }
   if (target.family !== 'sheet/nameplate' && target.family !== 'sheet/test/cell') return false;
   const blockRecord = await db.entities.get(['block', target.block_id]);
@@ -98,15 +124,18 @@ async function sweepOne(db: AppDatabase, id: string, author: Author, deps: Commi
     const entry = measurementSuggestions(block, [suggestion])[0];
     const cell = entry === undefined ? null : storedTestCell(block, entry.address);
     if (entry === undefined || entry.view !== 'none' || cell === null) return false;
-    await commitBatch(db, confirmSuggestionOps(author, suggestion, { auto: true, value: cell.value }), deps);
-    return true;
+    const address = entry.address;
+    return confirmIfUnchanged(db, suggestion, async () => {
+      const again = await blockOf(db, target.block_id);
+      return again === null ? undefined : storedTestCell(again, address)?.value;
+    }, cell.value, author, deps);
   }
   const field = suggestionFieldDef(block, suggestion);
   const cell = block.sheet.nameplate[target.field_key];
   if (cell === undefined || suggestionView(cell, suggestion, field) !== 'none') return false;
   // The engineer's own value is written back as it is; only its provenance changes.
-  await commitBatch(db, confirmSuggestionOps(author, suggestion, { auto: true, value: cell.value }), deps);
-  return true;
+  const key = target.field_key;
+  return confirmIfUnchanged(db, suggestion, async () => (await blockOf(db, target.block_id))?.sheet.nameplate[key]?.value, cell.value, author, deps);
 }
 
 /**
@@ -129,7 +158,8 @@ export async function discardStaleProse(db: AppDatabase, author: Author, deps: C
   for (const suggestion of stale) {
     try {
       if (await issued(db, suggestion)) continue;
-      await commitBatch(db, [discardSuggestionOp(author, suggestion)], deps);
+      // E9-Q13: a row the engineer confirmed or discarded since the scan above is left alone.
+      if ((await commitBatchIf(db, () => stillPending(db, suggestion.id), [discardSuggestionOp(author, suggestion)], deps)) === null) continue;
       discarded.push(suggestion.id);
     } catch (error) {
       console.error('stale suggestion discard failed', { id: suggestion.id, error });

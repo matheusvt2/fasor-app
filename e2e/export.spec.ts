@@ -261,6 +261,17 @@ const IDLE_2 = 'Gera o DOCX e o PDF juntos, a partir dos dados do app, como a re
 const sumarioList = (page: Page) => page.getByRole('list', { name: 'Sumário do relatório' });
 const banner = (page: Page) => page.locator('.banner-slot .banner');
 
+/**
+ * E9-Q13: Escape reaches the dialog only from a focused element inside it. Under load the
+ * dialog's "pronta" render can land a moment after its text, with the focus still on its way,
+ * so the key waits until the focus is in the dialog, then the dialog must close.
+ */
+async function escapeDialog(page: Page): Promise<void> {
+  await expect.poll(() => dialog(page).evaluate((element) => element.contains(document.activeElement))).toBe(true);
+  await page.keyboard.press('Escape');
+  await expect(dialog(page)).toBeHidden();
+}
+
 /** Opens the header Overflow and confirms the one-step backward move to `to`. */
 async function moveBackTo(page: Page, to: string): Promise<void> {
   await page.getByRole('button', { name: 'Mais opções do relatório' }).click();
@@ -284,8 +295,7 @@ test('@p0 E4-E2E-001 generate, edit, Em revisão, generate revision 2: listed an
   await generateButton(page).click();
   await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX', { timeout: JOB_TIMEOUT });
   await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Emitido');
-  await page.keyboard.press('Escape');
-  await expect(dialog(page)).toBeHidden();
+  await escapeDialog(page);
   await expect(headerPill(page)).toHaveText('Emitido');
 
   // An edit in the setup, typed as a person would: the status advances to Em revisão and
@@ -314,7 +324,7 @@ test('@p0 E4-E2E-001 generate, edit, Em revisão, generate revision 2: listed an
   await expect(dialog(page).getByRole('heading', { level: 2, name: 'Revisão 2 pronta' })).toBeVisible();
   await expect(dialog(page).locator('.revision-row')).toHaveCount(2);
   await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Emitido');
-  await page.keyboard.press('Escape');
+  await escapeDialog(page);
   await expect(headerPill(page)).toHaveText('Emitido');
 
   // Item 20: moved back to Em revisão with nothing edited, "Gerar relatório" answers the
@@ -330,7 +340,7 @@ test('@p0 E4-E2E-001 generate, edit, Em revisão, generate revision 2: listed an
   await expect(dialog(page).getByRole('heading', { level: 2, name: 'Revisão 2 pronta' })).toBeVisible({ timeout: 30_000 });
   await expect(dialog(page).locator('.revision-row')).toHaveCount(2);
   await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Emitido');
-  await page.keyboard.press('Escape');
+  await escapeDialog(page);
   await expect(headerPill(page)).toHaveText('Emitido');
 });
 

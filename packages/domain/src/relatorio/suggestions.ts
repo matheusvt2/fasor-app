@@ -713,36 +713,49 @@ function tableRows(block: Pick<BlockRow, 'seed_version' | 'block_type'>, testKey
   }
 }
 
+/** The fills of one table the sheet shows as such: a cell in `exclude` (it shows a dictated reading) is not one. */
+function tableFills(
+  block: Pick<BlockRow, 'id' | 'seed_version' | 'block_type' | 'sheet'>,
+  pending: readonly SuggestionRow[],
+  testKey: string,
+  tableKey: string,
+  exclude: readonly CellAddress[],
+): MeasurementSuggestion[] {
+  const rows = tableRows(block, testKey, tableKey);
+  if (rows === null) return [];
+  const excluded = (address: CellAddress) => exclude.some((cell) => cell.testKey === address.testKey && cell.row === address.row && cell.col === address.col);
+  return measurementSuggestions(block, pending).filter(
+    (entry) => entry.address.testKey === testKey && entry.address.row >= rows.from && entry.address.row < rows.to && entry.view === 'fill' && !excluded(entry.address),
+  );
+}
+
 /**
  * A table's "Confirmar todos": every `suggested` fill of its cells, in reading order. A
- * `verify` fill (its own tap) and a replace (the engineer's value is kept) are skipped.
+ * `verify` fill (its own tap) and a replace (the engineer's value is kept) are skipped, and so
+ * is a cell in `exclude` (E9-Q1: a cell that shows a dictated reading, whose display fill the
+ * sheet does not draw, so the count and the batch match what the table shows).
  */
 export function measurementConfirmAllCandidates(
   block: Pick<BlockRow, 'id' | 'seed_version' | 'block_type' | 'sheet'>,
   pending: readonly SuggestionRow[],
   testKey: string,
   tableKey: string,
+  exclude: readonly CellAddress[] = [],
 ): SuggestionRow[] {
-  const rows = tableRows(block, testKey, tableKey);
-  if (rows === null) return [];
-  return measurementSuggestions(block, pending)
-    .filter((entry) => entry.address.testKey === testKey && entry.address.row >= rows.from && entry.address.row < rows.to)
-    .filter((entry) => entry.view === 'fill' && entry.suggestion.trust === 'suggested')
+  return tableFills(block, pending, testKey, tableKey, exclude)
+    .filter((entry) => entry.suggestion.trust === 'suggested')
     .map((entry) => entry.suggestion);
 }
 
-/** The `verify` fills of one table, which its "Confirmar todos" leaves for their own tap. */
+/** The `verify` fills of one table, which its "Confirmar todos" leaves for their own tap (a cell in `exclude` is not counted). */
 export function measurementTableVerifyCount(
   block: Pick<BlockRow, 'id' | 'seed_version' | 'block_type' | 'sheet'>,
   pending: readonly SuggestionRow[],
   testKey: string,
   tableKey: string,
+  exclude: readonly CellAddress[] = [],
 ): number {
-  const rows = tableRows(block, testKey, tableKey);
-  if (rows === null) return 0;
-  return measurementSuggestions(block, pending).filter(
-    (entry) => entry.address.testKey === testKey && entry.address.row >= rows.from && entry.address.row < rows.to && entry.view === 'fill' && entry.suggestion.trust === 'verify',
-  ).length;
+  return tableFills(block, pending, testKey, tableKey, exclude).filter((entry) => entry.suggestion.trust === 'verify').length;
 }
 
 export type EnvSuggestionField = 'temperature_c' | 'humidity_pct' | 'altitude_m';

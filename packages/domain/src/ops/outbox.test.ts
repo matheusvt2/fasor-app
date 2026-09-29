@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { emptySheet, type BlockRow } from '../schemas/entities.ts';
-import { idSequence, opFactory, T0, T1, TEST_RELATORIO } from '../test-support.ts';
+import { emptySheet, type BlockRow, type FileRow } from '../schemas/entities.ts';
+import { idSequence, opFactory, T0, T1, TEST_COMPANY, TEST_RELATORIO } from '../test-support.ts';
 import { applyOp, entityKey, readPath, type EntityState } from './apply.ts';
 import type { Op } from './op.ts';
 import { coalesce, invertBatch } from './outbox.ts';
@@ -130,5 +130,89 @@ describe('1.4-UNIT-002 batch and undo', () => {
     const after = replay([...[relatorioCreate, create], ...inverses]);
     expect((after.get(entityKey('block', B1)) as BlockRow).removed_at).toBe(T0.toISOString());
     expect(state.get(entityKey('relatorio', TEST_RELATORIO))).toBeDefined();
+  });
+});
+
+describe('E9-Q3 undo of a photo-backed create (Story 9.2)', () => {
+  const PHOTO = '019966b0-0005-7000-8000-000000000010';
+  const SUGGESTION = '019966b0-0005-7000-8000-000000000011';
+  const panelPhoto = (status: 'queued' | 'running' | 'done'): FileRow =>
+    ({
+      id: PHOTO,
+      company_id: TEST_COMPANY,
+      relatorio_id: TEST_RELATORIO,
+      kind: 'photo',
+      sha256: 'c'.repeat(64),
+      mime: 'image/jpeg',
+      size: 10,
+      uploaded_at: null,
+      variants: null,
+      removed_at: null,
+      captured_at: '2026-09-21T12:00:00.000Z',
+      tz_offset: -180,
+      coords: null,
+      local_seq: 1,
+      block_id: null,
+      item_key: null,
+      caption: null,
+      reading_kind: 'panel',
+      reading_target: { location_id: L1 },
+      reading_status: status,
+      people_in_photo: false,
+    }) as FileRow;
+  const suggestion = {
+    id: SUGGESTION,
+    relatorio_id: TEST_RELATORIO,
+    target_path: `file/${PHOTO}/block_id`,
+    value: { block_type: 'chave_seccionadora', column: 9, column_text: 'C9' },
+    trust: 'suggested',
+    mode: 'fill',
+    status: 'pending',
+    source: { photo_id: PHOTO, bbox: [0, 0, 1, 1], ocr_token_ids: [], reading_run_id: '019966b0-0005-7000-8000-000000000012' },
+    prompt_version: 'panel-v1',
+    hint: null,
+  };
+
+  it('puts reading_kind and reading_target null (the photo becomes a plain one, none) and the panel suggestion discarded', () => {
+    for (const status of ['queued', 'running', 'done'] as const) {
+      const f = opFactory();
+      const fileKey = entityKey('file', PHOTO);
+      const suggestionKey = entityKey('suggestion', SUGGESTION);
+      const initial: EntityState = new Map<never, never>([
+        [fileKey, panelPhoto(status)],
+        [suggestionKey, suggestion],
+      ] as never);
+      const batch = [
+        f.op({ path: `file/${PHOTO}/block_id`, value: B1, batch_id: BATCH }),
+        f.op({ path: `file/${PHOTO}/caption`, value: 'placa de identificação', batch_id: BATCH }),
+        f.op({ path: `file/${PHOTO}/reading_target`, value: { block_id: B1, block_type: 'chave_seccionadora' }, batch_id: BATCH }),
+        f.op({ path: `file/${PHOTO}/reading_kind`, value: 'plate', batch_id: BATCH }),
+        f.op({ path: `suggestion/${SUGGESTION}/status`, value: 'confirmed', batch_id: BATCH }),
+      ];
+      const { state, before } = applyRecording(initial, batch);
+      expect(state.get(fileKey)).toMatchObject({ reading_kind: 'plate', reading_status: 'queued' });
+
+      const inverses = invertBatch(batch, before, { newId: idSequence('019966b0-0007-7000-8000-'), now: T1 });
+      expect(inverses.map((op) => [op.path, op.value])).toEqual([
+        [`suggestion/${SUGGESTION}/status`, 'discarded'],
+        [`file/${PHOTO}/reading_kind`, null],
+        [`file/${PHOTO}/reading_target`, null],
+        [`file/${PHOTO}/caption`, null],
+        [`file/${PHOTO}/block_id`, null],
+      ]);
+      const undone = inverses.reduce((s, op) => applyOp(s, op), state);
+      expect(undone.get(fileKey)).toMatchObject({ block_id: null, caption: null, reading_kind: null, reading_target: null, reading_status: 'none' });
+      expect(undone.get(suggestionKey)).toMatchObject({ status: 'discarded' });
+    }
+  });
+
+  it('undoes a suggestion status put to its previous value in a batch that re-targets no photo', () => {
+    const f = opFactory();
+    const suggestionKey = entityKey('suggestion', SUGGESTION);
+    const initial: EntityState = new Map([[suggestionKey, suggestion]] as never);
+    const batch = [f.op({ path: `suggestion/${SUGGESTION}/status`, value: 'confirmed', batch_id: BATCH })];
+    const { before } = applyRecording(initial, batch);
+    const inverses = invertBatch(batch, before, { newId: idSequence('019966b0-0008-7000-8000-'), now: T1 });
+    expect(inverses.map((op) => op.value)).toEqual(['pending']);
   });
 });

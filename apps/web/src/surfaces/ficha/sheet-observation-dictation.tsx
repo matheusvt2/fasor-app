@@ -43,12 +43,20 @@ export type DictatedReading = Extract<TableDictation, { kind: 'cell' }>;
  * One Measurement table's dictation: the kernel reads the utterance (`parseTableUtterance`);
  * a reading waits on its cell until "Confirmar"; speech it cannot read becomes the sheet
  * observation's suggestion and is announced, or, with "Observações" off, is only announced.
+ * E9-Q9: a reading whose cell is filled some other way ("Confirmar todos", a pull, a typed
+ * value) is dropped then, so it never comes back if the cell is emptied later.
  */
 export function useTableDictation(
   table: EvaluatedTable,
   announce: (text: string) => void,
 ): { dictated: DictatedReading | null; setDictated: (reading: DictatedReading | null) => void; onDictated: (transcript: string) => void } {
-  const [dictated, setDictated] = useState<DictatedReading | null>(null);
+  const [held, setDictated] = useState<DictatedReading | null>(null);
+  const waits =
+    held !== null &&
+    table.rows.some((row) => row.cells.some((cell) => cell.state === 'empty' && cell.address.testKey === held.address.testKey && cell.address.row === held.address.row && cell.address.col === held.address.col));
+  // Dropped in the render that sees its cell filled (React's "adjust state while rendering").
+  if (held !== null && !waits) setDictated(null);
+  const dictated = waits ? held : null;
   const observation = useSheetObservationDictation();
   const onDictated = (transcript: string) => {
     const parsed = parseTableUtterance(transcript, table);

@@ -2,6 +2,7 @@ import {
   panelCancelOps,
   panelProposal,
   panelProvenance,
+  panelReadingLine,
   panelReadingTarget,
   panelSuggestionOf,
   panelTypeChips,
@@ -39,7 +40,8 @@ import type { PaletteTarget, PanelPhotoInput } from './block-palette-field.tsx';
  * the app's single-shot camera (the real viewfinder stands in for the mock's simulated one);
  * the shot is a relatório photo created with the `panel` reading of the palette's location.
  * Once its row is on the device the result dialog opens: while the server reads it (online),
- * "Lendo a foto…"; offline, the mock's reason line; the type chips are usable at once. The
+ * "Lendo a foto…"; offline, the mock's reason line; online after a reading that failed or read
+ * nothing, why (`panelReadingLine`); the type chips are usable at once. The
  * kernel composes everything shown ("Criar SEC-C09-2 · Chave seccionadora · Coluna 9?", the
  * chips, the provenance lines); "Confirmar" hands the proposal to the tree's create, which
  * commits equipment + block + the photo re-targeted to the new plate in one batch. "Cancelar"
@@ -183,8 +185,8 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, o
   const first = suggestion?.value.block_type ?? null;
   const { chips, other } = panelTypeChips(seedVersion, first, expanded);
   const current = picked ?? first;
-  const offline = !session.online && suggestion === null;
-  const waiting = session.online && suggestion === null && (photo.reading_status === 'queued' || photo.reading_status === 'running');
+  // E9-Q10: the kernel says why no proposal is there yet (reading, offline, failed, nothing read).
+  const readingLine = panelReadingLine({ online: session.online, photo, suggestion });
 
   const confirm = () => {
     if (proposal === null) return;
@@ -224,12 +226,13 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, o
           {t.title}
         </h2>
         <div className="detect-result">
-          {waiting ? (
-            <p className="detect-waiting" role="status">
-              {t.waiting}
-            </p>
-          ) : null}
-          {offline ? <span className="btn-reason">{t.offline}</span> : null}
+          {/* One live region for every kind: the same element stays while "Lendo a foto…" turns
+              into the failed or empty reason, so the change is announced (E9-Q10). */}
+          {readingLine === null ? null : (
+            <div className="detect-line" role="status">
+              {readingLine.kind === 'waiting' ? <p className="detect-waiting">{readingLine.text}</p> : <span className="btn-reason">{readingLine.text}</span>}
+            </div>
+          )}
           {proposal === null ? null : (
             <SuggestionField
               label={t.newBlock}

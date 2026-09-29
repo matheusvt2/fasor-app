@@ -1,5 +1,6 @@
 import {
   applyOp,
+  clientReadingKindPutAllowed,
   entityKey,
   FILE_SERVER_FIELDS,
   formatPath,
@@ -35,7 +36,9 @@ import { newId } from '../ids.ts';
  * (E6-A1): per op, insert the op (an existing `op_id` returns its `seq`), load the
  * target rows, call the same `applyOp`, upsert `entities`. Rejected only for shape, unknown path,
  * origin (a server-only family, a spoofed device or actor), ownership (a user
- * row written by anyone but that user) or tenant; never for a domain rule.
+ * row written by anyone but that user) or tenant; never for a domain rule, the one exception
+ * being a client `reading_kind` put its photo does not allow (E9-Q2: it would queue a paid
+ * reading).
  */
 
 export interface ApplyResult {
@@ -85,18 +88,38 @@ function clientReadingFieldsAreValid(value: unknown): boolean {
   return row.reading_status === 'queued' && row.reading_kind !== null && row.reading_kind !== undefined;
 }
 
-/** The reading kinds a photo row names (`photoFileRowSchema`). */
-const READING_KINDS: ReadonlySet<unknown> = new Set(['plate', 'display', 'caption', 'panel', 'nc_obs']);
-
 /**
- * Story 9.2 (contract 7): a device re-targets a photo's reading with a
- * `file/{id}/reading_kind` put naming one of the five kinds (which queues it, `applyOp`) and a
- * `file/{id}/reading_target` put holding an object; anything else is `op_invalid`.
+ * Story 9.2 (contract 7), narrowed by E9-Q2 (contract 9): a device re-targets a panel photo to
+ * its new block's plate with a `file/{id}/reading_kind` put of `plate` (which queues it,
+ * `applyOp`) and a `file/{id}/reading_target` put holding an object; its undo puts both null.
+ * Anything else is `op_invalid`. Which photo may take a `plate` put is the row's state,
+ * checked where the row is loaded (`clientReadingKindPutAllowed`, `applyOneIn`).
  */
 function clientReadingPutIsValid(field: string, value: unknown): boolean {
-  if (field === 'reading_kind') return READING_KINDS.has(value);
-  if (field === 'reading_target') return typeof value === 'object' && value !== null && !Array.isArray(value);
+  if (field === 'reading_kind') return value === 'plate' || value === null;
+  if (field === 'reading_target') return value === null || (typeof value === 'object' && !Array.isArray(value));
   return true;
+}
+
+/** E9-Q2: a client `reading_kind` put the photo's stored state does not allow (`op_invalid`, a permanent refusal). */
+class ReadingKindPutRefusedError extends Error {
+  constructor(path: string) {
+    super(`reading_kind put refused on ${path}`);
+    this.name = 'ReadingKindPutRefusedError';
+  }
+}
+
+/**
+ * E9-Q2: refuses a client `file/{id}/reading_kind` put its photo's stored row does not allow
+ * (a kind other than the 9.2 re-target, or `plate` on a photo that is not a panel one), before
+ * `applyOp` would queue a second paid reading. Server ops are never checked here.
+ */
+function assertClientReadingKindPut(op: Op, state: ReadonlyMap<EntityKey, EntityRow>, origin: ApplyDeps['origin']): void {
+  if (origin !== 'client' || op.kind !== 'put') return;
+  const path = parsePath(op.path);
+  if (path.family !== 'file/field' || path.field !== 'reading_kind') return;
+  const photo = state.get(entityKey('file', path.id)) as { kind?: unknown; reading_kind?: unknown } | undefined;
+  if (!clientReadingKindPutAllowed(photo, op.value)) throw new ReadingKindPutRefusedError(op.path);
 }
 
 function validate(raw: unknown, companyId: CompanyId, deps: ApplyDeps): Validation {
@@ -297,7 +320,7 @@ async function insertOp(tx: Tx, companyId: CompanyId, op: Op, receivedAt: string
  * commit order. `applyOps` runs every op of a push in one transaction under one lock;
  * `applyServerBatch` runs several under one lock so they land together or not at all.
  */
-async function applyOneIn(tx: Tx, companyId: CompanyId, received: Op, receivedAt: string): Promise<Applied> {
+async function applyOneIn(tx: Tx, companyId: CompanyId, received: Op, receivedAt: string, origin: ApplyDeps['origin']): Promise<Applied> {
   // Epic 2 retro D-1: an op on a merged-away id is rewritten onto the survivor, and a
   // create that merges is rewritten onto the row it merges into, *before* the op is
   // logged. The log then holds what was applied, so every device that pulls it (the one
@@ -351,6 +374,7 @@ async function applyOneIn(tx: Tx, companyId: CompanyId, received: Op, receivedAt
   for (const row of rows) state.set(entityKey(row.entity as Entity, row.id), row.row);
   let next: ReturnType<typeof applyOp>;
   try {
+    assertClientReadingKindPut(op, state, origin);
     next = applyOp(state, { ...op, seq });
   } catch (error) {
     // E6-A1: a refusal by `applyOp` (row schema, seed path) comes before any entity write,
@@ -423,10 +447,11 @@ export interface ServerBatchDeps {
 
 /**
  * A refusal no retry can fix: a row schema failure, a seed key or cell outside the block's
- * definition (E5-Q1, `SeedPathError`), or an op_id another company holds. Each is `op_invalid`.
+ * definition (E5-Q1, `SeedPathError`), an op_id another company holds, or a client
+ * `reading_kind` put its photo does not allow (E9-Q2). Each is `op_invalid`.
  */
 export function isPermanentRefusal(error: unknown): boolean {
-  return error instanceof ZodError || error instanceof SeedPathError || error instanceof ForeignOpIdError;
+  return error instanceof ZodError || error instanceof SeedPathError || error instanceof ForeignOpIdError || error instanceof ReadingKindPutRefusedError;
 }
 
 /**
@@ -463,7 +488,7 @@ export async function applyServerBatch(
       if (deps.before !== undefined) await deps.before(tx);
       for (const op of validated) {
         applying = op;
-        const { seq, supersededOver } = await applyOneIn(tx, companyId, op, receivedAt);
+        const { seq, supersededOver } = await applyOneIn(tx, companyId, op, receivedAt, 'server');
         result.applied.push({ op_id: op.op_id, seq });
         if (supersededOver !== null) result.superseded.push({ op_id: op.op_id, over_op_id: supersededOver });
       }
@@ -519,7 +544,7 @@ export async function applyOps(
         continue;
       }
       try {
-        const { seq, supersededOver } = await applyOneIn(tx, companyId, step.op, toIso(deps.now()));
+        const { seq, supersededOver } = await applyOneIn(tx, companyId, step.op, toIso(deps.now()), deps.origin);
         result.applied.push({ op_id: step.op.op_id, seq });
         if (supersededOver !== null) result.superseded.push({ op_id: step.op.op_id, over_op_id: supersededOver });
       } catch (error) {

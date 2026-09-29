@@ -98,3 +98,25 @@ Review (b) claimed that "Ler visor · 3" exists only in CSS `::after`. In the br
 ## Screenshots
 
 In `_bmad-output/implementation-artifacts/reviews/epic-9-qa/`: `e9-91-queued-390.png`, `e9-91-conferir-1280.png`, `e9-92-panel-390.png`, `e9-92-undo-gallery.png`, `e9-93-gallery-768.png`, `e9-93-export-dialog-no-captions-row.png`, `e9-94-listening-390.png`, `e9-94-probe1-dictated-vs-display.png`, `e9-94-enter-dictated-cell-390.png`, `e9-95-nc-draft-390.png`, `e9-home-1906-dark-dialog.png`, `e9-cadastros-390-dark.png`.
+
+## Fix batch (2026-09-29)
+
+Batch `e9fx`, branch `fix/epic-9-qa`, PR #62. Spec: `_bmad-output/implementation-artifacts/spec-epic-9-fix-qa.md` (root causes in its Design Notes). Gates under the host lock: `test:e2e:full` 265 tests, 261 passed, 4 skipped, 0 failed, 0 flaky (2094.5 s); `pnpm verify` PASSED in 1611.4 s (lint 39.5, static 58.5, test:api 293.5, test:unit 190.9, test:e2e 1126.9 s; `@p0` 147/147).
+
+| ID | Outcome | Fix and evidence |
+|---|---|---|
+| E9-Q1 | fixed with test | `measurementConfirmAllCandidates`/`measurementTableVerifyCount` take `exclude`; the table passes its dictated cell. `@p0` 9.4-E2E-011 (count 2 -> 1, batch holds Fase B only, dictated value stored with no provenance, display becomes "Conferir"). Mutation: `exclude={[]}` -> 9.4-E2E-011 red. |
+| E9-Q2 | fixed with test | Kernel `readingKindPutStatus` (only a changed kind queues; null -> `none`) and `clientReadingKindPutAllowed` (client puts: `plate` on a panel photo, or null); the push route answers anything else `op_invalid`. Contract 9, `MIN_CONTRACT_VERSION` 9. `panel-retarget.integration.test.ts` "E9-Q2 ..." through `POST /api/sync/ops` (queued, running, done; nothing sent). Mutation: refusal removed -> 2 of 7 red. |
+| E9-Q3 | fixed with test | `invertBatch`: a re-target's undo puts `reading_kind`/`reading_target` null and the panel suggestion `discarded`. `@p1` 9.2-E2E-006 and api "E9-Q3 the undo of the create batch ..." (no reading sent, photo `none`). |
+| E9-Q4 | fixed with test | Most of the overflow was the title row (`.mt-actions` did not wrap); `app.css` wraps it below 768 px and wraps the suggested cell's confirm. `@p0` 9.4-E2E-011 asserts `.ficha-mt` scrollWidth <= clientWidth at 390 px for a dictated, a display suggested and a "Conferir" cell. |
+| E9-Q5 | fixed | 9.4-E2E-007 polls the stored observation before the reload; 5/5 with `--repeat-each=5`. |
+| E9-Q6 | open question | Matheus (out of scope). |
+| E9-Q7 | fixed with test, narrowed | A failed grab steps the burst back, so the next shutter retries its row; `@p1` 9.1-E2E-006. Narrowed: only when the failure lands before the next tap (`deferred-work.md`). |
+| E9-Q8 | fixed with test | Enter on a dictated cell confirms it (or writes the typed value) and runs on; `@p1` 9.4-E2E-012 and unit tests. |
+| E9-Q9 | fixed with test | `useTableDictation` drops the reading once its cell is filled; unit test in `dictation-surfaces.test.tsx`. |
+| E9-Q10 | fixed with test | Kernel `panelReadingLine` (waiting, offline, failed, empty, in one `role="status"` line), `offersPeopleMark`, and `suggestionValueText` for the dictated cell; `@p1` 9.2-E2E-005 and kernel tests. |
+| E9-Q11 | fixed with test | The word sits in a live region only while listening; unit test in `dictation.test.tsx`. |
+| E9-Q12 | fixed | `panel.typeGroup` removed. The chip row stays `role="group"`: its chips are `aria-pressed` toggle buttons, which a `radiogroup` cannot own. The "Tipo trocado" toast stays unbuilt. |
+| E9-Q13 | fixed with test | 8.1-E2E-002's 8th op was a real double write: the after-pull auto-confirm sweep read a suggestion as pending, then saw the cell "Confirmar todos" had just filled, and confirmed it again. The sweep and the stale-prose discard now commit through `commitBatchIf`, which re-checks inside the commit transaction (`suggestion-store.test.ts` race tests, red without the guard). E4-E2E-001 waits for focus in the dialog before Escape; 12.1-E2E-009 waits until the target is the element at its centre. Each 5/5 with `--repeat-each=5`, and all green in `test:e2e:full`. |
+| E9-Q14 | fixed with test | One reason line, the "Continuar" button's; the Local field points at it (`Combobox` `disabledReasonId`); `home-surface.test.tsx`. The line still sits after the buttons in `.dialog-actions` at 1906 px (its position was not changed). |
+| E9-Q15 to Q18 | open questions | Matheus (out of scope). |

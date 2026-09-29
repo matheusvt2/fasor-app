@@ -601,16 +601,12 @@ export const copy = {
       title: 'Fotografar equipamento',
       // The viewfinder's `.t-body` (line 386), shown by the app's camera view.
       cameraHint: 'Enquadre a frente do painel com a etiqueta da coluna. Uma foto basta.',
-      // authored: while the server reads the photo, online.
-      waiting: 'Lendo a foto…',
-      // Line 398, verbatim.
-      offline: 'Sem sinal, a foto fica guardada: o bloco é criado pelo tipo e a foto já vira a placa dele.',
+      // "Lendo a foto…", the offline line (398) and the failed and empty reasons are the kernel's (`panelReadingLine`).
       newBlock: 'Novo bloco',
       provLabel: 'Origem de cada sugestão',
       wrongType: 'Tipo errado? Toque no certo',
       // authored: the chip row's label when nothing was read (offline, or no type on the photo).
       pickType: 'Toque no tipo do equipamento',
-      typeGroup: 'Tipo do equipamento',
       other: 'Outro…',
       helper: 'A foto entra na ficha como placa de identificação e na fila de leitura.',
       again: 'Fotografar de novo',

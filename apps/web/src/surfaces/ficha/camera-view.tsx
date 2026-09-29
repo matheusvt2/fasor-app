@@ -178,6 +178,8 @@ export function useCamera(
   const grab = (frame: Promise<ImageBitmap>) => {
     const target = tapTarget.current ?? sessionRef.current?.target ?? null;
     tapTarget.current = null;
+    // The index this tap's target was taken at (`shutter` counted it just before).
+    const shot = taken.current - 1;
     const done: Promise<void> = frame.then(
       (bitmap) => {
         if (target === null) {
@@ -189,6 +191,12 @@ export function useCamera(
       },
       () => {
         setBurst((n) => Math.max(0, n - 1));
+        // E9-Q7: no photo for this tap, so the next shutter retries its row (a later tap that
+        // already moved on keeps its own row).
+        if (taken.current === shot + 1) {
+          taken.current = shot;
+          setTakenCount(shot);
+        }
         showToast(copy.photos.failedToast);
       },
     );
