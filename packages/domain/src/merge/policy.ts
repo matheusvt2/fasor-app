@@ -118,7 +118,8 @@ export interface MergeCellContext {
  * The cell `applyOp` writes for a `sheet/*` put.
  * - Sequential: the op's own cell, with no `merge` record; it drops `conflict` unless its
  *   `meta.seen_conflict_op_id` names another one (the "Aplicar" of the Conflict view, which
- *   saw it, resolves this way).
+ *   saw it, resolves this way). E10-Q2: one carrying `meta.restore` (the undo of "Aplicar")
+ *   writes the `conflict` and `shown_op_id` it carries.
  * - Contradiction (Story 10.2): the op's own cell (the `seq`-later value stands, as in
  *   10.1) plus `conflict`, the cell it displaced. A second contradiction replaces the
  *   record with the cell it displaces (three writers: the oldest side drops out).
@@ -129,6 +130,12 @@ export interface MergeCellContext {
 export function mergeCell(current: Cell | null | undefined, op: Op, context: MergeCellContext): Cell {
   const outcome = mergePolicy({ path: context.path, current, op, result: context.result });
   if (outcome.kind === 'sequential') {
+    // E10-Q2 (contract 13): the undo of "Aplicar" puts the value back with the marks the
+    // resolution cleared (`meta.restore`), so the decision is open again on every device.
+    const restore = op.meta?.restore;
+    if (restore !== undefined && 'conflict' in restore) {
+      return { ...plainCell(op), conflict: restore.conflict, ...(restore.shown_op_id === null ? {} : { shown_op_id: restore.shown_op_id }) };
+    }
     // A sequential put clears a `conflict` it saw ("Aplicar"). One stamped with another (or
     // none: the device whose value shows rewrote its cell before pulling the mark) keeps it,
     // so the displaced side is never lost without a decision. An unstamped op clears it.
@@ -139,7 +146,9 @@ export function mergeCell(current: Cell | null | undefined, op: Op, context: Mer
   }
   if (outcome.kind === 'contradiction') {
     const displaced = current!;
-    return { ...plainCell(op), conflict: { op_id: displaced.op_id, value: displaced.value, source_suggestion_id: displaced.source_suggestion_id } };
+    // The displaced side is named by the op whose value it showed (E10-Q2: `shown_op_id`).
+    const displacedOp = displaced.shown_op_id ?? displaced.op_id;
+    return { ...plainCell(op), conflict: { op_id: displacedOp, value: displaced.value, source_suggestion_id: displaced.source_suggestion_id } };
   }
   if (outcome.rule === 'same_value') return plainCell(op);
   const record = { head_op_id: op.op_id, device_id: op.device_id, kept: outcome.kind === 'keep', rule: outcome.rule as CellMergeRule };
@@ -151,5 +160,6 @@ export function mergeCell(current: Cell | null | undefined, op: Op, context: Mer
     op_id: standing.op_id,
     merge: record,
     ...(standing.conflict === undefined ? {} : { conflict: standing.conflict }),
+    ...(standing.shown_op_id === undefined ? {} : { shown_op_id: standing.shown_op_id }),
   };
 }

@@ -1,6 +1,24 @@
-import { buildSnapshot, getDefinition, relatorioSnapshotSchema, replay, serializeSnapshot, type JsonValue, type Op } from '@app/domain';
+import {
+  applyOp,
+  buildSnapshot,
+  canonicalJson,
+  clearedMarks,
+  entityKey,
+  getDefinition,
+  invertBatch,
+  readPath,
+  relatorioSnapshotSchema,
+  replay,
+  serializeSnapshot,
+  stampSeen,
+  type BlockRow,
+  type JsonValue,
+  type Op,
+  type OpMeta,
+  type RestoreMarks,
+} from '@app/domain';
 import { BLOCK_1_ID, PHOTO_ID, replaySmall } from '@app/domain/fixtures/replay-small';
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { now } from '../clock.ts';
 import { createDb } from '../db/client.ts';
@@ -163,6 +181,88 @@ describe('1.4-INT-001 replay byte-equality (Drizzle layer)', () => {
     expect(sheet.nameplate.fabricacao).toMatchObject({ value: 'WEG S.A.', merge: { head_op_id: cleared.op_id, kept: true, rule: 'filled_over_empty' } });
     const pure = buildSnapshot(replay([...replaySmall.log, ...priorExtras, ...pair], { deadOpIds: dead }), replaySmall.relatorioId);
     expect(serializeSnapshot(snapshot)).toBe(serializeSnapshot(pure));
+    priorExtras.push(...pair);
+  });
+
+  // E10-Q2 (contract 13): the undo of a resolution carries the marks back (`meta.restore`),
+  // and both layers fold it to the same rows.
+  it('undoes "Aplicar" and "Manter" with the marks restored, byte-equal to the pure replay (E10-Q2)', async () => {
+    const block = replaySmall.log.find((op) => op.kind === 'create' && op.path === `block/${BLOCK_1_ID}`)!.value as { seed_version: string; block_type: string };
+    const itemKey = getDefinition(block.seed_version, 'cabine_primaria', block.block_type).checklist![1]!.key;
+    const result = `sheet/${BLOCK_1_ID}/checklist/${itemKey}/result`;
+    const removedAt = `block/${BLOCK_1_ID}/removed_at`;
+    const device = (device_id: string, kind: 'put' | 'remove', path: string, value: JsonValue, prev_op_id: string | null, meta: OpMeta | null, batch_id: string | null = null): Op => ({
+      op_id: newId(),
+      kind,
+      scope: 'relatorio',
+      company_id: companyId,
+      project_id: null,
+      relatorio_id: replaySmall.relatorioId,
+      path,
+      value,
+      prev_op_id,
+      batch_id,
+      meta,
+      actor_id: replaySmall.userId,
+      device_id,
+      client_ts: now().toISOString(),
+    });
+    const logSoFar = (extra: readonly Op[]) => [...replaySmall.log, ...priorExtras, ...extra];
+    const blockKey = entityKey('block', BLOCK_1_ID);
+    const stateOf = (extra: readonly Op[]) => {
+      const row = replay(logSoFar(extra), { deadOpIds: dead }).get(blockKey)!;
+      return new Map([[blockKey, row]]);
+    };
+    /** The device's undo of one op: the kernel inverse with the value and marks it replaced. */
+    const undo = (op: Op, extra: readonly Op[]): Op => {
+      const state = stateOf(extra);
+      const marks = clearedMarks(state, op, applyOp(state, op));
+      expect(marks).toBeDefined();
+      const [inverse] = invertBatch([op], new Map([[op.op_id, readPath(state, op)]]), { newId, now: now() }, new Map<string, RestoreMarks>([[op.op_id, marks!]]));
+      // Stamped as `commit.ts` stamps it, from the rows after the resolution.
+      return stampSeen(inverse!, applyOp(state, op));
+    };
+
+    // A contradiction (C against NA over the same head), then "Aplicar" and its undo.
+    const head = logSoFar([]).filter((op) => op.path === result).at(-1)?.op_id ?? null;
+    const e = device('tablet-e', 'put', result, 'C', head, null);
+    const a = device('tablet-a', 'put', result, 'NA', head, null);
+    const pick = device('tablet-a', 'put', result, 'C', a.op_id, { standing_op_id: a.op_id, seen_conflict_op_id: e.op_id }, newId());
+    const undoPick = undo(pick, [e, a]);
+    const cellOps = [e, a, pick, undoPick];
+
+    // A removal that did not see the latest edit, then "Manter" and its undo.
+    const before = stateOf(cellOps).get(blockKey) as BlockRow;
+    const removal = device('tablet-e', 'remove', removedAt, null, null, { seen_modified_at: null });
+    const afterRemoval = applyOp(stateOf(cellOps), removal).get(blockKey) as BlockRow;
+    expect(before.last_modified_at).not.toBeNull();
+    const keep = device('tablet-a', 'put', removedAt, null, removal.op_id, { seen_modified_at: afterRemoval.last_modified_at }, newId());
+    const undoKeep = undo(keep, [...cellOps, removal]);
+    const extras = [...cellOps, removal, keep, undoKeep];
+
+    const applied = await applyOps(db, companyId, extras, deps);
+    expect(applied.rejected).toEqual([]);
+    // The block ends removed, so it is read from `entities` (the snapshot lists live blocks).
+    const [stored] = await db
+      .select({ row: entities.row })
+      .from(entities)
+      .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'block'), eq(entities.id, BLOCK_1_ID)));
+    const row = stored!.row as BlockRow;
+    expect(row.sheet.checklist[itemKey]?.result).toEqual({
+      value: 'NA',
+      source_suggestion_id: null,
+      op_id: undoPick.op_id,
+      shown_op_id: a.op_id,
+      conflict: { op_id: e.op_id, value: 'C', source_suggestion_id: null },
+    });
+    expect(row.removed_at).toBe(removal.client_ts);
+    expect(row.removal_conflict).toEqual(afterRemoval.removal_conflict);
+    expect(row.removed_by).toBe(replaySmall.userId);
+    const pureState = replay(logSoFar(extras), { deadOpIds: dead });
+    expect(canonicalJson(row)).toBe(canonicalJson(pureState.get(blockKey)));
+    const snapshot = await toSnapshot(db, companyId, replaySmall.relatorioId);
+    expect(serializeSnapshot(snapshot)).toBe(serializeSnapshot(buildSnapshot(pureState, replaySmall.relatorioId)));
+    priorExtras.push(...extras);
   });
 
   it('rejects by code without blocking the rest and never stores a rejected op', async () => {

@@ -58,6 +58,12 @@ export interface NumberInputState {
   inputProps: InputHTMLAttributes<HTMLInputElement> & { ref: Ref<HTMLInputElement> };
   /** Commits the text now if it changed (a unit chip or the tap-cycle, before it acts). */
   commitNow: () => void;
+  /**
+   * Commits a given value now and marks the text clean (a unit chip or the tap-cycle that
+   * rewrites the typed value in its unit): Enter or blur afterwards has nothing left to
+   * commit, and typing again dirties the text as usual (E10-Q1).
+   */
+  commitValue: (value: ParsedNumber) => void;
 }
 
 const rawOf = (parsed: ParsedNumber | null | 'invalid'): string | null => (parsed === null || parsed === 'invalid' ? null : parsed.raw);
@@ -70,6 +76,8 @@ export function useNumberInput(options: NumberInputOptions): NumberInputState {
   const element = useRef<HTMLInputElement | null>(null);
   const focusedRef = useRef(false);
   const dirty = useRef(false);
+  /** A value `commitValue` wrote while focused: its echo stays until the focus leaves. */
+  const echoKept = useRef(false);
   const current = useRef(text);
   current.current = text;
   const latest = useRef(options);
@@ -108,6 +116,16 @@ export function useNumberInput(options: NumberInputOptions): NumberInputState {
     if (value !== null && format !== undefined) setText(format(value));
   };
 
+  const commitValue = (value: ParsedNumber): void => {
+    movedWhileFocused.current = false;
+    setInvalid(false);
+    dirty.current = false;
+    echoKept.current = focusedRef.current;
+    committer.immediate(value);
+    const format = latest.current.format;
+    if (format !== undefined) setText(format(value));
+  };
+
   useDraftSource({
     surface: draft.surface,
     entityId: draft.entityId,
@@ -124,7 +142,7 @@ export function useNumberInput(options: NumberInputOptions): NumberInputState {
 
   const parsed = parse(text);
   const echoFn = options.echo;
-  const echo = focused && echoFn !== undefined && parsed !== null && parsed !== 'invalid' && dirty.current ? echoFn(parsed) : null;
+  const echo = focused && echoFn !== undefined && parsed !== null && parsed !== 'invalid' && (dirty.current || echoKept.current) ? echoFn(parsed) : null;
 
   return {
     text,
@@ -133,6 +151,7 @@ export function useNumberInput(options: NumberInputOptions): NumberInputState {
     echo,
     parsed,
     commitNow: settle,
+    commitValue,
     inputProps: {
       ref: element,
       value: text,
@@ -140,6 +159,7 @@ export function useNumberInput(options: NumberInputOptions): NumberInputState {
       autoComplete: 'off',
       onChange: (event) => {
         dirty.current = true;
+        echoKept.current = false;
         setInvalid(false);
         setText(event.target.value);
       },
@@ -150,6 +170,7 @@ export function useNumberInput(options: NumberInputOptions): NumberInputState {
       },
       onBlur: () => {
         focusedRef.current = false;
+        echoKept.current = false;
         setFocused(false);
         settle();
         latest.current.onFocusChange?.(false);

@@ -75,8 +75,6 @@ export interface EngineStatus {
    * it flash back to ok before the server has actually answered.
    */
   lastFailure: SyncFailure | null;
-  /** `superseded` entries reported since the tab opened (shown, never persisted). */
-  supersededCount: number;
   /**
    * Story 10.1 (epic-10 Conflict 3): the merges by rule this tab saw since it opened, one
    * kernel `MergeInfo` per op pair, from the push's `superseded` answer and from pulled ops
@@ -192,7 +190,6 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     outdated: false,
     lastResult: null,
     lastFailure: null,
-    supersededCount: 0,
     merges: [],
   };
   /** Story 10.1: op pairs waiting for both ops (and the row after them) to be on this device. */
@@ -277,7 +274,8 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       const response = await withRetry(() => deps.client.pushOps(ops));
       await markAcked(deps.db, response.applied);
       await markDead(deps.db, response.rejected);
-      status.supersededCount += response.superseded.length;
+      // E10-Q3: `superseded` feeds only the merge rows ("Mesclado automaticamente"); it is
+      // no count of its own, since a contradiction is superseded too.
       queueMergePairs(response.superseded);
       emit();
     }

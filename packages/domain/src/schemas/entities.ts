@@ -67,13 +67,20 @@ export const cellConflictSchema = z.object({
 });
 export type CellConflictRecord = z.infer<typeof cellConflictSchema>;
 
-/** Every sheet cell carries its provenance (AD-12). */
+/**
+ * Every sheet cell carries its provenance (AD-12).
+ * E10-Q2 (contract 13): `shown_op_id`, written only by the undo of a resolution
+ * (`meta.restore`, `merge/policy.ts`), is the op whose value the cell shows when that is not
+ * its head `op_id` (the undo op re-puts the value another device wrote). It feeds provenance
+ * only (the Conflict view's author and time); any later plain put drops it.
+ */
 export const cellSchema = z.object({
   value: fieldValueSchema,
   source_suggestion_id: nullableId,
   op_id: uuidV7Schema,
   merge: cellMergeSchema.optional(),
   conflict: cellConflictSchema.optional(),
+  shown_op_id: uuidV7Schema.optional(),
 });
 export type Cell = z.infer<typeof cellSchema>;
 

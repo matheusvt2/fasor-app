@@ -1,6 +1,6 @@
 import { toIso } from '../clock.ts';
 import type { NewId } from '../ids.ts';
-import { opSchema, type Op } from './op.ts';
+import { opSchema, type Op, type RestoreMarks } from './op.ts';
 import { familyDef, parsePath, safeParsePath } from './path.ts';
 
 /*
@@ -47,8 +47,16 @@ export interface InvertDeps {
  * maps each original `op_id` to the value its path held before it applied
  * (`readPath`); a create is undone by a remove, a put or remove by a put of the
  * previous value. Ops with no inverse family (`relatorio/{id}`) are skipped.
+ * E10-Q2 (contract 13): `marks` maps an original `op_id` to the conflict marks its apply
+ * cleared (`clearedMarks`); that op's inverse carries them as `meta.restore`, so undoing a
+ * resolution opens the decision again.
  */
-export function invertBatch(ops: readonly Op[], before: ReadonlyMap<string, unknown>, deps: InvertDeps): Op[] {
+export function invertBatch(
+  ops: readonly Op[],
+  before: ReadonlyMap<string, unknown>,
+  deps: InvertDeps,
+  marks: ReadonlyMap<string, RestoreMarks> = new Map(),
+): Op[] {
   const batch_id = deps.newId();
   const client_ts = toIso(deps.now);
   const inverses: Op[] = [];
@@ -76,8 +84,16 @@ export function invertBatch(ops: readonly Op[], before: ReadonlyMap<string, unkn
     parsePath(op.path);
     const value = op.kind === 'put' ? readingInverse(op.path, retargets) : undefined;
     const previous = value === undefined ? before.get(op.op_id) : value;
+    const restore = marks.get(op.op_id);
     inverses.push(
-      opSchema.parse({ ...base, op_id: deps.newId(), kind: 'put', path: op.path, value: previous === undefined ? null : previous }),
+      opSchema.parse({
+        ...base,
+        ...(restore === undefined ? {} : { meta: { restore } }),
+        op_id: deps.newId(),
+        kind: 'put',
+        path: op.path,
+        value: previous === undefined ? null : previous,
+      }),
     );
   }
   return inverses;

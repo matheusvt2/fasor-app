@@ -118,10 +118,12 @@ function definitionOf(block: Pick<BlockRow, 'seed_version' | 'block_type'>): Blo
   }
 }
 
-function sideOf(cell: Pick<Cell, 'op_id' | 'value' | 'source_suggestion_id'>, opOf: OpenDecisionsInput['opOf']): DecisionSide {
-  const facts = opOf(cell.op_id);
+/** One side of a contradiction, named by the op whose value it shows (E10-Q2: `shown_op_id`, after the undo of "Aplicar"). */
+function sideOf(cell: Pick<Cell, 'op_id' | 'value' | 'source_suggestion_id' | 'shown_op_id'>, opOf: OpenDecisionsInput['opOf']): DecisionSide {
+  const opId = cell.shown_op_id ?? cell.op_id;
+  const facts = opOf(opId);
   return {
-    op_id: cell.op_id,
+    op_id: opId,
     value: cell.value,
     source_suggestion_id: cell.source_suggestion_id,
     actor_id: facts?.actor_id ?? null,
@@ -296,7 +298,7 @@ export function conflictOpIds(blocks: readonly Pick<BlockRow, 'sheet'>[]): strin
   for (const block of blocks) {
     for (const cell of sheetCells(block)) {
       if (cell.conflict === undefined) continue;
-      ids.add(cell.op_id);
+      ids.add(cell.shown_op_id ?? cell.op_id);
       ids.add(cell.conflict.op_id);
     }
   }
@@ -330,6 +332,23 @@ export function uniqueHeldDecisions<T extends { projectId: string; decisions: re
 /** The badge's count over every held relatório (`uniqueHeldDecisions`, then `decisionCount`). */
 export function decisionTotal(entries: readonly { projectId: string; decisions: readonly Decision[] }[]): number {
   return uniqueHeldDecisions(entries).reduce((sum, entry) => sum + decisionCount(entry.decisions), 0);
+}
+
+/**
+ * E10-Q4: the badge's total split for the words: `contradictions`, one per contradicting cell,
+ * and `decisions`, one per structure case (a block removed versus edited, a duplicate TAG),
+ * over `uniqueHeldDecisions(entries)`. Their sum is `decisionTotal`.
+ */
+export function decisionSplit(entries: readonly { projectId: string; decisions: readonly Decision[] }[]): { contradictions: number; decisions: number } {
+  let contradictions = 0;
+  let decisions = 0;
+  for (const entry of uniqueHeldDecisions(entries)) {
+    for (const decision of entry.decisions) {
+      if (decision.kind === 'cell') contradictions += decision.cells.length;
+      else decisions += 1;
+    }
+  }
+  return { contradictions, decisions };
 }
 
 /**

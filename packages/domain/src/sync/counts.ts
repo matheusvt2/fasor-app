@@ -191,11 +191,6 @@ export function rejectedText(count: number): string {
   return plural(count, 'alteração rejeitada', 'alterações rejeitadas');
 }
 
-/** Sync status, the server's `superseded` signal: "1 alteração mesclada pelo servidor". */
-export function supersededText(count: number): string {
-  return plural(count, 'alteração mesclada pelo servidor', 'alterações mescladas pelo servidor');
-}
-
 /** AD-8 eviction screen, from the company pull: "O servidor tem 3 relatórios e 2 pessoas da equipe." */
 export function serverHoldsText(relatorios: number, users: number): string {
   return `O servidor tem ${relatoriosCount(relatorios)} e ${peopleCount(users)}.`;
