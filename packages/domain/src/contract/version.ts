@@ -43,7 +43,7 @@
  * `op_invalid`. A `reading_kind` put queues only a kind that differs from the stored one, and a
  * null one sets `reading_status: none` (`applyOp`, `readingKindPutStatus`). The undo of a
  * re-target puts both null and a settled panel suggestion `discarded` (`invertBatch`). No new
- * family: `MIN_CONTRACT_VERSION` stays 8.
+ * family, but the reducer changed: `MIN_CONTRACT_VERSION` goes to 9 too.
  */
 export const CONTRACT_VERSION = 9;
 
@@ -72,7 +72,11 @@ export const CONTRACT_VERSION = 9;
  * 8 (2026-09-28, Story 9.3): a version-7 (or older) bundle cannot parse a
  * `file/{id}/people_in_photo` put a relatório stream carries once a photo is marked
  * "Pessoas na foto", so it updates too.
+ *
+ * 9 (2026-09-29, E9-Q2/Q3): a version-8 bundle's `applyOp` derives a different
+ * `reading_status` from a null or same-kind `reading_kind` put, and its undo of a 9.2 create
+ * pushes a `panel` put the route now refuses, so it updates too.
  */
-export const MIN_CONTRACT_VERSION = 8;
+export const MIN_CONTRACT_VERSION = 9;
 
 export const CONTRACT_VERSION_HEADER = 'x-contract-version';

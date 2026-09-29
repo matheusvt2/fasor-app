@@ -2,17 +2,38 @@
 title: 'Epic 9 fixes: integrated review findings (E9-Q1..Q5, Q7..Q14)'
 type: 'bugfix'
 created: '2026-09-29'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '6134dd4cecc8491f6a74e01b7a61ff7b97721dfb'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: 'opus'
 dev_effort: 'high'
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/reviews/epic-9-review-qa.md'
 warnings: ['batched', 'multiple-goals', 'oversized']
 batched_reason: 'One fix batch for the Epic 9 integrated review (playbook section 6): thirteen small findings on the same surfaces (sheet cells, panel dialog, reading re-target), one PR.'
-deferred: []
+deferred:
+  - summary: >-
+      E9-Q7 retries the failed row only when the grab fails before the next tap.
+    evidence: |-
+      camera-view.tsx grab failure branch checks taken.current === shot + 1; a later tap keeps its own row.
+    location: >-
+      apps/web/src/surfaces/ficha/camera-view.tsx
+    severity: low
+  - summary: >-
+      The "Confirmar todos" toast's verify count with exclude has no web or e2e test.
+    evidence: |-
+      Only the kernel unit test covers measurementTableVerifyCount with exclude; 9.4-E2E-011 has no verify fill.
+    location: >-
+      apps/web/src/surfaces/ficha/read-display.tsx
+    severity: low
+  - summary: >-
+      A refused plate put leaves the other ops of a 9.2 create batch applied (per-op client push).
+    evidence: |-
+      applyOps rejects per op (E6-A1); not reachable from the app's own flow.
+    location: >-
+      apps/api/src/sync/apply.ts
+    severity: low
 ---
 
 <intent-contract>
@@ -103,6 +124,22 @@ deferred: []
 
 ## Review Triage Log
 
+### 2026-09-29 — Review pass
+
+Layers: Edge Case Hunter and Verification Gap Reviewer (opus). Blind Hunter and Intent Alignment skipped: token economy; the integrated epic review covers them.
+
+- verdicts: 11 findings — high 0, medium 4, low 6, false 1, maybe-false 0 (VG other, ECH 2 and ECH 4 share one root cause and one row below; ECH 1 and ECH 8 likewise)
+- findings:
+  - `[low]` `[patch]` VG: the `discardStaleProse` race guard is exercised by no test — added "never write two status ops for one stale prose suggestion when the engineer confirms it while the discard sweep runs" (mutation: `stillPending` -> `true` fails at delay 0; restored, 12/12).
+  - `[low]` `[defer]` VG: the "Confirmar todos" toast's verify count with `exclude` has no web/e2e test — cosmetic; the batch and button count are covered by 9.4-E2E-011; `deferred-work.md` entry.
+  - `[medium]` `[patch]` VG other + ECH 2 + ECH 4 (one root cause): contract 9 changed the reducer but `MIN_CONTRACT_VERSION` stayed 8, so a v8 bundle diverges (null put keeps `queued`; its undo pushes a now-refused `panel` put while the target put lands) — `MIN_CONTRACT_VERSION` raised to 9 with a dated note; `contract.test.ts` pins 9/9; the people-in-photo 426 check sends `'7'`.
+  - `[low]` `[defer]` ECH 1: Q7 retry holds only when the grab fails before the next tap — narrowing, `deferred-work.md` entry (a retry queue is more machinery than a rare grab failure warrants).
+  - `[low]` `[defer]` ECH 3: a refused `plate` put leaves the rest of a 9.2 create batch applied (client pushes are per op, E6-A1) — not reachable from the app's flow; `deferred-work.md` entry.
+  - `[medium]` `[patch]` ECH 5: the failed/empty panel reason replaced the `role="status"` line with a non-live span, so it was never announced — every reading-line kind now renders in one persistent `div.detect-line[role=status]`; 9.2-E2E-005 asserts the reasons through `getByRole('status')`.
+  - `[low]` `[reject]` ECH 6: Enter on a dictated cell runs on even if the commit later rejects or `author` is null — same optimistic run-on as the display `SuggestedCell`; a signed-in sheet always has an author and a Dexie commit failure is exceptional; the fix adds async branching.
+  - `[false]` `[reject]` ECH 7: "confirm-all still reads render-time pending, contrary to the spec" — the double write was the sweep's (Design Notes); confirm-all picks only `fill` cells of the fresh block (empty cells) while the sweep confirms only cells already holding an equal value, so one suggestion cannot be picked by both; the spec made the fresh-pending read conditional on the root cause.
+  - `[low]` `[defer]` ECH 8: the Q7 matrix row holds only for non-overlapping taps — same as ECH 1, grouped.
+
 ## Design Notes
 
 Q2/Q3 are one rule set. The kernel's `applyOp` runs on device replay too, so it never throws on a `reading_kind` put (an acked op re-applied over a snapshot must not break the device); it only decides whether the put queues. The refusal is the api's, for client ops, from a pure kernel predicate. Allowed client puts are exactly the 9.2 re-target (`panel -> plate`, allowed while the panel reading runs: that job ends superseded) and the undo's null. A refused put rolls its batch back, so the 9.2 create batch must never contain a refusable put -- keep a test for the create batch while the panel photo is `running`.
@@ -125,3 +162,13 @@ Q14 choice (2026-09-29, implementation): EXPERIENCE.md › Button keeps the reas
 - `docker compose --profile tools run --rm tools pnpm test:e2e -- --grep "<ids>"` -- green; flaky ones with `--repeat-each=5`.
 - `docker compose --profile tools run --rm tools pnpm lint` and `pnpm static` -- green.
 - The full gates (`test:e2e:full`, `verify`) are run by the orchestrator under `flock /tmp/fasor-verify.lock`, not by the implementer.
+
+## Auto Run Result
+
+Status: done (2026-09-29).
+
+- Summary: E9-Q1 to Q5 and Q7 to Q14 fixed as the spec says; Q13's 8.1-E2E-002 was a real double write by the after-pull auto-confirm sweep (Design Notes), now guarded by `commitBatchIf`; contract 9 (and `MIN_CONTRACT_VERSION` 9 after review).
+- Files: kernel `reading/retarget.ts` (new: `readingKindPutStatus`, `clientReadingKindPutAllowed`), `ops/apply.ts`, `ops/outbox.ts` (`invertBatch` reading inverses), `relatorio/suggestions.ts` (`exclude`), `relatorio/panel.ts` (`panelReadingLine`), `reading/prose.ts` (`offersPeopleMark`), `contract/version.ts`; api `sync/apply.ts` (client `reading_kind` refusal); web `db/commit.ts` (`commitBatchIf`), `db/suggestion-store.ts`, `ficha/*` (dictation, confirm-all, Enter, camera), `relatorio/panel-capture.tsx`, `photos/gallery-surface.tsx`, `speech/dictation.tsx`, `home/new-project-dialog.tsx`, `components/combobox.tsx`, `styles/app.css`, `copy/pt-br.ts`; tests in domain, web, api and e2e.
+- Review: 3 patches applied (discard-sweep race test, MIN 9, panel reason live region); 3 deferred (Q7 overlapping taps, toast verify count test, refused plate put in a per-op push), all in `deferred-work.md`; 1 low rejected (Enter run-on is as optimistic as the display cell), 1 false rejected (confirm-all render-time pending).
+- Follow-up review: recommended (2 medium patched). Unverified risk: the MIN 9 bump sends every open version-8 bundle to "Atualizar" on its next pull; no e2e exercises an upgrade across it.
+- Verification: targeted unit, api and e2e runs green; mutation runs for Q1 (9.4-E2E-011 red with `exclude={[]}`), Q2 (`panel-retarget.integration.test.ts` 2 of 7 red without the refusal), Q13 (sweep race red without the guard) and the discard-sweep guard (red at delay 0); the four flaky tests 5/5 with `--repeat-each=5`. Full gates recorded in the PR.

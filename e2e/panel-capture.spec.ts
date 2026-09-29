@@ -281,13 +281,13 @@ test('@p1 9.2-E2E-005 online, a panel reading that ends with nothing, or fails, 
   // The reading ended with no suggestion.
   await pushReadingStatus(account.companyId, relatorioId, photoId, 'done');
   await cycle(page);
-  await expect(dialog.locator('.btn-reason')).toHaveText('A foto não mostrou o tipo do equipamento.', { timeout: 60_000 });
-  await expect(dialog.getByRole('status')).toHaveCount(0);
+  // Said in the dialog's live region, where "Lendo a foto…" was.
+  await expect(dialog.getByRole('status').locator('.btn-reason')).toHaveText('A foto não mostrou o tipo do equipamento.', { timeout: 60_000 });
   await expect(dialog.getByText('Lendo a foto…')).toHaveCount(0);
   // Read again, and failed this time.
   await pushReadingStatus(account.companyId, relatorioId, photoId, 'failed');
   await cycle(page);
-  await expect(dialog.locator('.btn-reason')).toHaveText('Não foi possível ler a foto.', { timeout: 60_000 });
+  await expect(dialog.getByRole('status').locator('.btn-reason')).toHaveText('Não foi possível ler a foto.', { timeout: 60_000 });
   await expect(dialog.getByText('Lendo a foto…')).toHaveCount(0);
   expect((await readStore<EntityRecord>(page, database, 'entities')).find((record) => record.entity === 'file' && record.id === photoId)!.row).toMatchObject({ reading_status: 'failed' });
 

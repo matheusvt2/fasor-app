@@ -226,12 +226,12 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, o
           {t.title}
         </h2>
         <div className="detect-result">
-          {readingLine === null ? null : readingLine.kind === 'waiting' ? (
-            <p className="detect-waiting" role="status">
-              {readingLine.text}
-            </p>
-          ) : (
-            <span className="btn-reason">{readingLine.text}</span>
+          {/* One live region for every kind: the same element stays while "Lendo a foto…" turns
+              into the failed or empty reason, so the change is announced (E9-Q10). */}
+          {readingLine === null ? null : (
+            <div className="detect-line" role="status">
+              {readingLine.kind === 'waiting' ? <p className="detect-waiting">{readingLine.text}</p> : <span className="btn-reason">{readingLine.text}</span>}
+            </div>
           )}
           {proposal === null ? null : (
             <SuggestionField

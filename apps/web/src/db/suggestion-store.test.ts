@@ -3,7 +3,7 @@ import 'fake-indexeddb/auto';
 import { confirmSuggestionOps, makeOp, SERVER_DEVICE_ID, syncCounts, type BlockRow, type Op, type SuggestionRow } from '@app/domain';
 import { BLOCK_1_ID, CABINE_ID, COMPANY_ID, READING_RUN_ID, PHOTO_ID, RELATORIO_ID, replaySmall, USER_ID } from '@app/domain/fixtures/replay-small';
 import { describe, expect, it, vi } from 'vitest';
-import { commitBatch } from './commit.ts';
+import { commitBatch, commitBatchIf } from './commit.ts';
 import { openDatabase, type AppDatabase } from './schema.ts';
 import { autoConfirmPending, discardStaleProse, readingCountRows } from './suggestion-store.ts';
 import { applyPulled } from './sync-store.ts';
@@ -361,6 +361,35 @@ describe('E9-Q13 the sweep and a confirm tapped while it runs', () => {
         await commitBatch(db, rows.flatMap((row) => confirmSuggestionOps(AUTHOR, row)), deps());
       })();
       await Promise.all([autoConfirmPending(db, AUTHOR, deps()), confirmAll]);
+      const outbox = await db.outbox.toArray();
+      for (const row of rows) expect(outbox.filter((op) => op.path === `suggestion/${row.id}/status`), `delay ${delay}`).toHaveLength(1);
+      db.close();
+    }
+  });
+
+  it('never write two status ops for one stale prose suggestion when the engineer confirms it while the discard sweep runs', async () => {
+    for (let delay = 0; delay < 12; delay++) {
+      const db = await freshDb();
+      await seed(db);
+      // Stale on this device (rows not NC, a photo it does not hold): the sweep would discard them.
+      const pulled = [
+        serverSuggestion('x', 'Isolador trincado.', { target_path: `sheet/${BLOCK_1_ID}/checklist/aterramento/observation` }),
+        serverSuggestion('x', 'Oxidação aparente.', { target_path: `sheet/${BLOCK_1_ID}/checklist/limpeza/observation` }),
+        serverSuggestion('x', 'Vista geral', { target_path: 'file/019966b0-0087-7000-8000-000000000002/caption' }),
+      ];
+      await applyPulled(db, pulled);
+      const rows = pulled.map((op) => op.value as SuggestionRow);
+      // The engineer's tap acts on what the screen shows: a row the sweep already discarded is
+      // gone from it, so the tap confirms only the rows still pending (checked with its commit).
+      const pendingNow = async () => {
+        for (const row of rows) if (((await db.entities.get(['suggestion', row.id]))!.row as SuggestionRow).status !== 'pending') return false;
+        return true;
+      };
+      const confirm = (async () => {
+        for (let i = 0; i < delay; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+        await commitBatchIf(db, pendingNow, rows.flatMap((row) => confirmSuggestionOps(AUTHOR, row)), deps());
+      })();
+      await Promise.all([discardStaleProse(db, AUTHOR, deps()), confirm]);
       const outbox = await db.outbox.toArray();
       for (const row of rows) expect(outbox.filter((op) => op.path === `suggestion/${row.id}/status`), `delay ${delay}`).toHaveLength(1);
       db.close();
