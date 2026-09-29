@@ -1,6 +1,7 @@
 import {
   advanceOnEdit,
   applyOp,
+  clearedMarks,
   coalesce,
   inRelatorioStream,
   invertBatch,
@@ -21,6 +22,7 @@ import {
   type Op,
   type OpDraft,
   type RelatorioRow,
+  type RestoreMarks,
 } from '@app/domain';
 import { blockRowsOf, relatoriosOfProject } from './home-store.ts';
 import { PHOTO_SEQ_PREF, targetKeysOf, type AppDatabase, type EntityRecord, type OutboxRow } from './schema.ts';
@@ -44,7 +46,7 @@ export function toRecord(key: EntityKey, row: EntityRow): EntityRecord {
   return { entity, id, ...rowIndexColumns(entity, row), removed_at: rowRemovedAt(row), row };
 }
 
-const OUTBOX_ONLY_KEYS = ['status', 'error_code', 'prev_value', 'targets'] as const;
+const OUTBOX_ONLY_KEYS = ['status', 'error_code', 'prev_value', 'prev_marks', 'targets'] as const;
 
 /** The op an outbox row carries, without the outbox-only columns. */
 export function opOf(row: OutboxRow): Op {
@@ -70,6 +72,8 @@ async function applyOne(db: AppDatabase, input: Op): Promise<Op> {
   const op = stampSeen(input, state);
   const prev_value = readPath(state, op);
   const next = applyOp(state, op);
+  // E10-Q2: the conflict marks this apply cleared, kept for the undo (`undoBatch`).
+  const prev_marks = clearedMarks(state, op, next);
   const changed: EntityRecord[] = [];
   for (const [key, row] of next) if (row !== state.get(key)) changed.push(toRecord(key, row));
   if (changed.length > 0) await db.entities.bulkPut(changed);
@@ -86,6 +90,7 @@ async function applyOne(db: AppDatabase, input: Op): Promise<Op> {
         error_code: null,
         targets: targetKeysOf(merged),
         ...('prev_value' in last ? { prev_value: last.prev_value } : {}),
+        ...(last.prev_marks === undefined ? {} : { prev_marks: last.prev_marks }),
       });
       return op;
     }
@@ -96,6 +101,7 @@ async function applyOne(db: AppDatabase, input: Op): Promise<Op> {
     error_code: null,
     targets,
     ...(prev_value === undefined ? {} : { prev_value }),
+    ...(prev_marks === undefined ? {} : { prev_marks }),
   });
   return op;
 }
@@ -343,7 +349,8 @@ export async function commitPhotoBatch(
 export async function undoBatch(db: AppDatabase, batchId: string, deps: CommitDeps): Promise<Op[]> {
   const rows = (await db.outbox.where('batch_id').equals(batchId).sortBy('client_ts')).filter((row) => row.status !== 'dead');
   const before = new Map<string, unknown>(rows.map((row) => [row.op_id, row.prev_value]));
-  const inverses = invertBatch(rows.map(opOf), before, { newId: deps.newId, now: deps.now() });
+  const marks = new Map<string, RestoreMarks>(rows.flatMap((row) => (row.prev_marks === undefined ? [] : [[row.op_id, row.prev_marks] as const])));
+  const inverses = invertBatch(rows.map(opOf), before, { newId: deps.newId, now: deps.now() }, marks);
   return commitOps(db, inverses, deps);
 }
 

@@ -1,4 +1,4 @@
-import { formatShortDateTime, rejectedText, supersededText, syncBadgeLabel, syncHeadlineText, syncSummaryBadges } from '@app/domain';
+import { formatShortDateTime, rejectedText, syncBadgeLabel } from '@app/domain';
 import { useId, useState } from 'react';
 import { Button, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -15,7 +15,7 @@ const NO_UPLOADS = { rows: NO_ROWS, more: 0 };
  * the headline with the badge word and the kernel's counts, "Como funciona a mesclagem"
  * behind a collapsed disclosure, the compact summary badges, the primary "Sincronizar
  * agora" (decision C-4 puts it at the top, over the mock's foot text button), the cause
- * line, the rejected and superseded rows, then Leituras, Enviando, Baixando, Último envio,
+ * line, the rejected row, then Leituras, Enviando, Baixando, Último envio,
  * Decisões (with "Mesclado automaticamente") and the foot. Every row, count and word is the
  * kernel's; nothing here is a live region (epic-10 Conflict 8: the badge announces).
  */
@@ -26,8 +26,9 @@ export function SyncStatusSurface() {
 
   const word = syncBadgeLabel(sync.badgeState, sync.counts);
   const decisions = sync.decisions ?? NO_ROWS;
-  const headline = sync.headline ?? syncHeadlineText({ counts: sync.counts, contradictions: decisions.length });
-  const badges = sync.summaryBadges ?? syncSummaryBadges({ counts: sync.counts, contradictions: decisions.length });
+  // E10-Q7: the headline, the badges and the Decisões count are the state's (kernel), never recounted here.
+  const headline = sync.headline;
+  const badges = sync.summaryBadges;
   const disabledReason = sync.running ? copy.sync.syncing : !sync.online ? copy.sync.offlineReason : undefined;
 
   async function resend() {
@@ -88,32 +89,22 @@ export function SyncStatusSurface() {
             </p>
           ) : null}
 
-          {sync.counts.dead > 0 || sync.supersededCount > 0 ? (
+          {sync.counts.dead > 0 ? (
             <ul className="sync-list">
-              {sync.counts.dead > 0 ? (
-                <li className="sync-row" data-testid="sync-rejected-row">
-                  <span className="sr-body">
-                    <span className="sr-primary">{rejectedText(sync.counts.dead)}</span>
-                  </span>
-                  <span className="sr-state">
-                    <TextButton
-                      isDisabled={resending || !sync.online}
-                      disabledReason={resending ? copy.sync.syncing : !sync.online ? copy.sync.offlineReason : undefined}
-                      onPress={() => void resend()}
-                    >
-                      {copy.sync.resend}
-                    </TextButton>
-                  </span>
-                </li>
-              ) : null}
-              {sync.supersededCount > 0 ? (
-                <li className="sync-row" data-testid="sync-superseded-row">
-                  <span className="sr-body">
-                    <span className="sr-primary">{supersededText(sync.supersededCount)}</span>
-                  </span>
-                  <span className="sr-state" data-tone="ok" />
-                </li>
-              ) : null}
+              <li className="sync-row" data-testid="sync-rejected-row">
+                <span className="sr-body">
+                  <span className="sr-primary">{rejectedText(sync.counts.dead)}</span>
+                </span>
+                <span className="sr-state">
+                  <TextButton
+                    isDisabled={resending || !sync.online}
+                    disabledReason={resending ? copy.sync.syncing : !sync.online ? copy.sync.offlineReason : undefined}
+                    onPress={() => void resend()}
+                  >
+                    {copy.sync.resend}
+                  </TextButton>
+                </span>
+              </li>
             </ul>
           ) : null}
         </section>
@@ -130,7 +121,7 @@ export function SyncStatusSurface() {
             their resolutions; the host stays mounted while the list is empty, so the undo toast
             of the last resolved one outlives its row. */}
         {sync.heldDecisions === undefined ? (
-          <DecisionsSection decisions={decisions} merges={sync.merges} />
+          <DecisionsSection decisions={decisions} merges={sync.merges} count={sync.decisionCount} />
         ) : (
           <ResolvableDecisions held={sync.heldDecisions} decisions={decisions} merges={sync.merges} />
         )}

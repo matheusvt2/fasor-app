@@ -121,7 +121,7 @@ test('@p1 E5-A2-E2E-001 the tri-state checklist by tap: set, change, re-tap keep
   await expect.poll(() => written(page, path)).toEqual(['C', 'NC', null]);
 });
 
-test('@p1 E5-A2-E2E-002 phone 390: the M · G · T chips under a focused insulation reading set its unit by tap, the focus stays in the reading', async ({ page, context }, info) => {
+test('@p0 E5-A2-E2E-002 phone 390: the M · G · T chips under a focused insulation reading set its unit by tap, the focus stays in the reading', async ({ page, context }, info) => {
   test.setTimeout(120_000);
   await page.setViewportSize({ width: 390, height: 844 });
   const { blockId } = await openSeccionadora(page, context);
@@ -144,9 +144,15 @@ test('@p1 E5-A2-E2E-002 phone 390: the M · G · T chips under a focused insulat
   await expect(reading).toBeFocused();
   await expect(page.locator('.ficha-cell[data-cell="isolacao:0:0"]').filter({ visible: true }).locator('.mf-echo')).toHaveText('= 2 MΩ');
   await page.keyboard.press('Enter');
-  await expect.poll(() => written(page, `sheet/${blockId}/test/isolacao/cell/0/0`)).toEqual([{ raw: '2', unit: 'MΩ', state: 'measured' }]);
+  const cellPath = `sheet/${blockId}/test/isolacao/cell/0/0`;
+  await expect.poll(() => written(page, cellPath)).toEqual([{ raw: '2', unit: 'MΩ', state: 'measured' }]);
   // The Enter run moved on to the next reading: the chips went with the focus.
   await expect(reading).not.toBeFocused();
+  // E10-Q1: the chip already wrote the value, so Enter commits nothing more. A poll passes
+  // on its first matching sample and hid a second, identical row; once the run settled the
+  // outbox is read again and must still hold exactly one put.
+  await page.waitForTimeout(1_000);
+  expect(await written(page, cellPath)).toEqual([{ raw: '2', unit: 'MΩ', state: 'measured' }]);
   await expect(page.locator('.ficha-cell[data-cell="isolacao:0:0"] .unit-suffix-row')).toHaveCount(0);
   await expect(chips).toHaveCount(1);
   expect(await chips.evaluate((group) => group.closest('.ficha-cell')?.contains(document.activeElement) ?? false)).toBe(true);

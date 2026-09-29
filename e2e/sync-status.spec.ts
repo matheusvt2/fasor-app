@@ -389,3 +389,32 @@ test('@p1 10.4-E2E-008 at 390 px no list scrolls sideways, the disclosure opens,
   expect(await surface(page).locator('[aria-live], [role="status"], [role="alert"]').count()).toBe(0);
   await page.context().setOffline(false);
 });
+
+test('@p0 10.4-E2E-009 a push that never reached the server leaves its sheet "Aguardando envio", never "Enviando…" (E10-Q5)', async ({ page, seed }) => {
+  test.setTimeout(150_000);
+  const account = seed.companies[1];
+  const database = deviceDatabaseName(account.userId);
+  const { blockId } = await openChaveSheet(page, account, database);
+  // The server cannot be reached: every push fails at the network, after the device marked its rows sent.
+  const pushRoute = (url: URL) => url.pathname === '/api/sync/ops';
+  await page.route(pushRoute, (route) => route.abort('connectionrefused'));
+  await markFirst(page, 'Conforme');
+
+  await openSyncStatus(page);
+  const button = page.getByRole('button', { name: 'Sincronizar agora' });
+  await expect(button).not.toHaveAttribute('aria-disabled', 'true', { timeout: 60_000 });
+  await button.click();
+  await expect(page.getByTestId('sync-unreachable')).toHaveText('Não foi possível falar com o servidor. Tudo fica salvo neste aparelho.', { timeout: 60_000 });
+  await expect(button).not.toHaveAttribute('aria-disabled', 'true', { timeout: 60_000 });
+  const mine = async () => (await readStore<OutboxRecord>(page, database, 'outbox')).filter((row) => row.path.startsWith(`sheet/${blockId}/`));
+  await expect.poll(async () => (await mine()).map((row) => row.status), { timeout: 15_000 }).toContain('sent');
+
+  const row = sheetRows(page).and(page.locator(`[data-block-id="${blockId}"]`));
+  await expect(row.locator('.sr-state')).toHaveText('Aguardando envio');
+
+  // The server is back: the next cycle sends it and the row goes.
+  await page.unroute(pushRoute);
+  await syncNow(page);
+  await expect(sheetRows(page)).toHaveCount(0);
+  expect((await mine()).every((record) => record.status === 'acked')).toBe(true);
+});

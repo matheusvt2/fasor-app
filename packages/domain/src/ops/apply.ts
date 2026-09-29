@@ -141,7 +141,8 @@ function withoutRemovalMarks(block: BlockRow): BlockRow {
  * a live block whose latest edit it did not see (`meta.seen_modified_at`, the block's
  * `last_modified_at` as that device held it, differs from the row's) applies and marks the
  * block with a removal conflict. Any other `removed_at` write (a sequential "Remover", the
- * "Manter" restore, an op without the stamp) drops the mark.
+ * "Manter" restore, an op without the stamp) drops the mark, except the undo of a resolution
+ * (E10-Q2, `meta.restore`), which writes back the mark it carries.
  */
 function writeRemovedAt(block: BlockRow, op: Op, value: string | null): BlockRow {
   const rest = withoutRemovalMarks(block);
@@ -149,6 +150,14 @@ function writeRemovedAt(block: BlockRow, op: Op, value: string | null): BlockRow
   const removed: BlockRow = { ...rest, removed_at: value, removed_by: op.actor_id };
   const seen = op.meta?.seen_modified_at;
   const unseenEdit = seen !== undefined && (seen ?? null) !== block.last_modified_at;
+  // E10-Q2 (contract 13): the undo of "Manter" or "Remover" (`meta.restore`) puts the removal
+  // back with the author and the mark the resolution cleared, when it saw the block's latest
+  // edit; one that did not folds as any other removal.
+  const restore = op.meta?.restore;
+  if (restore !== undefined && 'removal_conflict' in restore && op.device_id !== SERVER_DEVICE_ID && !unseenEdit) {
+    const restored: BlockRow = { ...rest, removed_at: value, removal_conflict: restore.removal_conflict };
+    return restore.removed_by === null ? restored : { ...restored, removed_by: restore.removed_by };
+  }
   if (block.removed_at !== null || op.device_id === SERVER_DEVICE_ID || !unseenEdit) return removed;
   return {
     ...removed,

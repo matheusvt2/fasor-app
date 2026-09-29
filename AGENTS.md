@@ -57,6 +57,7 @@ Releng (codename fasor): a tablet-first, offline-first web app that captures med
 - 2026-09-21, Matheus: waiver of test-design risk R-023. The Porto Seguro fixture and golden documents use the real client material of the delivered relatório without restriction; the public exposure is accepted consciously. Source: `_bmad-output/test-artifacts/test-design-architecture.md`.
 - 2026-09-21, Matheus: `pnpm verify` is the merge gate (R-011); CI stays out of the MVP.
 - 2026-09-21, Matheus: Sync status gains a visible "Sincronizar agora" action (C-4); tests use it instead of the 60 s timer.
+- 2026-09-29, Matheus: all AWS infrastructure is Terraform in `infra/`, never AWS CDK, CloudFormation written by hand or changes made in the console; Terraform and the AWS CLI run in containers. The AWS account exists: before any AWS work (Story 11.8) Matheus logs the AWS CLI into it and the agent uses that `~/.aws` profile, never stored keys. Source: `source-deltas.md`.
 
 ## Where a new user-facing string goes (kept outside the managed block)
 

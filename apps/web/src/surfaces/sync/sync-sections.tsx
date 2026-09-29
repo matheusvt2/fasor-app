@@ -4,6 +4,7 @@ import {
   lastSendText,
   leiturasNaFilaText,
   morePhotosText,
+  sendingCounts,
   sendingGroupText,
   SYNC_ROW_STATE_TEXT,
   sugestoesText,
@@ -116,17 +117,18 @@ export function SendingSection({
 }) {
   const headingId = useId();
   const moreId = useId();
-  const photoTotal = uploads.rows.length + uploads.more;
-  if (sheets.length === 0 && photoTotal === 0) return null;
+  // E10-Q7: the group figures are the kernel's.
+  const totals = sendingCounts(sheets, uploads);
+  if (totals.sheets === 0 && totals.photos === 0) return null;
   return (
     <section className="section" aria-labelledby={headingId} data-testid="sync-sending">
       <div className="section-head">
         <h2 id={headingId}>{copy.sync.sendingHeading}</h2>
       </div>
       <p className="section-note">{copy.sync.sendingNote}</p>
-      {sheets.length > 0 ? (
+      {totals.sheets > 0 ? (
         <>
-          <p className="field-label sync-group-label">{sendingGroupText('sheets', sheets.length)}</p>
+          <p className="field-label sync-group-label">{sendingGroupText('sheets', totals.sheets)}</p>
           <ul className="sync-list">
             {sheets.map((row) => (
               <li className="sync-row" key={row.block_id} data-testid="sync-sheet-row" data-block-id={row.block_id}>
@@ -142,9 +144,9 @@ export function SendingSection({
           </ul>
         </>
       ) : null}
-      {photoTotal > 0 ? (
+      {totals.photos > 0 ? (
         <>
-          <p className="field-label sync-group-label">{sendingGroupText('photos', photoTotal)}</p>
+          <p className="field-label sync-group-label">{sendingGroupText('photos', totals.photos)}</p>
           <ul className="sync-list">
             {uploads.rows.map((row) => (
               <li className="sync-row" key={row.id} data-testid="sync-photo-row" data-photo-id={row.id}>
@@ -241,13 +243,13 @@ export function LastSendSection({ sync }: { sync: SyncState }) {
 export function DecisionsSection({
   decisions,
   merges,
-  count = decisions.length,
+  count,
   actions,
 }: {
   decisions: readonly SyncDecisionRow[];
   merges: SyncState['merges'];
-  /** Stories 10.2/10.3: how many decisions wait (`decisionTotal`: one per contradicting cell); the rows' length when omitted. */
-  count?: number;
+  /** Stories 10.2/10.3: how many decisions wait (`decisionTotal`: one per contradicting cell, one per structure case; E10-Q7, never the rows' length). */
+  count: number;
   /** Stories 10.2/10.3: a row's buttons (`.banner-actions`), from the host that resolves it. */
   actions?: (row: SyncDecisionRow) => ReactNode;
 }) {

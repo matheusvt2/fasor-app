@@ -1,4 +1,4 @@
-import { targetsOf, type Entity, type EntityRow, type Op, type RelatorioSummary } from '@app/domain';
+import { targetsOf, type Entity, type EntityRow, type Op, type RelatorioSummary, type RestoreMarks } from '@app/domain';
 import Dexie, { type DBCoreMutateRequest, type Table, type Transaction } from 'dexie';
 
 /*
@@ -32,6 +32,8 @@ export interface OutboxRow extends Op {
   error_code: string | null;
   /** The value the op replaced, for `undoBatch`; absent for creates. */
   prev_value?: unknown;
+  /** E10-Q2: the conflict marks the op's apply cleared (`clearedMarks`), for `undoBatch`; absent when none. */
+  prev_marks?: RestoreMarks;
   /** Entity keys (`entity:id`) of `targetsOf(op)`: the multi-entry index re-materialization reads. */
   targets: string[];
 }

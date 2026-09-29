@@ -1,3 +1,4 @@
+import { syncHeadlineText, syncSummaryBadges } from '@app/domain';
 import { vi } from 'vitest';
 import type { SyncState } from '../state/sync.tsx';
 
@@ -27,7 +28,10 @@ export function makeSyncState(overrides: SyncStateOverrides = {}): SyncState {
     unreachable: null,
     lastSyncAt: null,
     lastPushAt: [],
-    supersededCount: 0,
+    // The provider derives these from the counts (kernel); a test with decisions supplies its own.
+    headline: syncHeadlineText({ counts }),
+    summaryBadges: syncSummaryBadges({ counts }),
+    decisionCount: 0,
     merges: [],
     deviceId: 'tablet-1',
     userNames: {},

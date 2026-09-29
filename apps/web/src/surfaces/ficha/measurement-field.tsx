@@ -129,7 +129,9 @@ export function MeasurementField({
   const chooseUnit = (unit: string | null) => {
     setUnitChoice(unit);
     const parsed = number.parsed;
-    if (parsed !== null && parsed !== 'invalid') void write({ raw: parsed.raw, unit, state: 'measured' });
+    // Through the input, so the text is clean afterwards and Enter does not commit the
+    // same value a second time (E10-Q1).
+    if (parsed !== null && parsed !== 'invalid') number.commitValue({ raw: parsed.raw, unit });
   };
 
   const markRestricted = () => {

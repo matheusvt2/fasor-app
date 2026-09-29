@@ -322,7 +322,7 @@ describe('sync engine', () => {
     expect(await h.db.remote_ops.count()).toBe(h.server.log.length);
     expect(await h.db.entities.get(['equipment', EQUIPMENT_1_ID])).toBeDefined();
     expect((await h.db.entities.get(['relatorio', RELATORIO_ID]))?.project_id).toBe(PROJECT_ID);
-    expect(h.engine.status()).toMatchObject({ running: false, outdated: false, lastResult: 'ran', supersededCount: 0 });
+    expect(h.engine.status()).toMatchObject({ running: false, outdated: false, lastResult: 'ran', merges: [] });
     h.db.close();
   });
 
@@ -850,7 +850,7 @@ describe('sync engine', () => {
     h.db.close();
   });
 
-  it('marks rejected ops dead with their code and counts superseded', async () => {
+  it('marks rejected ops dead with their code; a superseded answer is no count of its own (E10-Q3)', async () => {
     const h = await harness();
     await commitOps(h.db, seedLog());
     await h.engine.runCycle();
@@ -868,7 +868,7 @@ describe('sync engine', () => {
     expect(await h.engine.runCycle()).toBe('ran');
     expect(await h.db.outbox.get(bad.op_id)).toMatchObject({ status: 'dead', error_code: 'op_invalid', value: 'BAD' });
     expect(await h.db.outbox.get(good.op_id)).toMatchObject({ status: 'acked' });
-    expect(h.engine.status().supersededCount).toBe(1);
+    expect(h.engine.status()).not.toHaveProperty('supersededCount');
     const block = (await h.db.entities.get(['block', BLOCK_1_ID]))!.row as { sheet: { nameplate: Record<string, { value: unknown }> } };
     expect(block.sheet.nameplate.fabricacao?.value).toBe('GOOD');
     h.db.close();

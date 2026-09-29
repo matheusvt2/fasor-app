@@ -12,7 +12,7 @@ import {
   syncPushRequestSchema,
   syncPushResponseSchema,
 } from './sync.ts';
-import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, MIN_CONTRACT_VERSION } from './version.ts';
+import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, MARK_AWARE_CONTRACT_VERSION, MIN_CONTRACT_VERSION } from './version.ts';
 import { DOCX_MIME, GENERATE_MAX_EXPECTED_FILES, GENERATE_ROUTES, generateRequestSchema, generateResponseSchema, notCaughtUpDetailsSchema } from './generate.ts';
 
 describe('generate contract (Story 4.8)', () => {
@@ -84,9 +84,11 @@ describe('relatório summary progress (Story 10.4)', () => {
 });
 
 describe('contract constants', () => {
-  it('speaks version 12 and accepts only version 12 (Stories 10.2/10.3 mark conflicts in the fold)', () => {
-    expect(CONTRACT_VERSION).toBe(12);
-    expect(MIN_CONTRACT_VERSION).toBe(12);
+  it('speaks version 13 and accepts only version 13 (E10-Q2: the undo of a resolution restores its marks in the fold)', () => {
+    expect(CONTRACT_VERSION).toBe(13);
+    expect(MIN_CONTRACT_VERSION).toBe(13);
+    // E10-Q6: the push refuses an older client only where it would settle a mark.
+    expect(MARK_AWARE_CONTRACT_VERSION).toBe(12);
     expect(CONTRACT_VERSION_HEADER).toBe('x-contract-version');
   });
 
