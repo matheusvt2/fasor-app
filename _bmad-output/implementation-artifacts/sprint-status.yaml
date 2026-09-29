@@ -124,8 +124,8 @@ development_status:
 
   epic-10: in-progress
   10-1-merge-the-same-sheet-from-two-devices-by-rule: done  # PR #64
-  10-2-decide-a-true-cell-contradiction-and-nothing-else: backlog
-  10-3-resolve-a-removed-versus-edited-block-and-a-duplicate-tag: backlog
+  10-2-decide-a-true-cell-contradiction-and-nothing-else: done  # PR #66
+  10-3-resolve-a-removed-versus-edited-block-and-a-duplicate-tag: done  # PR #66
   10-4-see-everything-the-sync-did-or-is-waiting-to-do: done  # PR #65
   epic-10-retrospective: optional
 

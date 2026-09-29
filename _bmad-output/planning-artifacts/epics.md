@@ -2315,6 +2315,8 @@ So that nothing is silently lost or duplicated.
 **When** `integrity` detects it after the pull
 **Then** the row reads "SEC-C09 foi criada em dois aparelhos — Renomear uma / Manter as duas" and "Manter as duas" suffixes the later one with "-2"; a block added elsewhere appears in the tree and is listed as information only (FR-7, FR-59)
 
+*(2026-09-29, coordinator, PR #66 narrowing for Stories 10.2 and 10.3: author and time come from the op log; when three devices write one cell only the last two values are kept; the Sumário Banner carries an extra "Ver" button; "Renomear uma" opens the rename dialog on the Sumário, not the sheet; the Sumário shows one decision at a time. The third part of the merge fold's known limits in `deferred-work.md` goes to Matheus or Epic 11. Open questions for Matheus: whether a contradiction also becomes a pre-issue row; whether NC vs NA stays a contradiction.)*
+
 ### Story 10.4: See everything the sync did or is waiting to do
 
 **Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** medium · full sync status surface from syncCounts
