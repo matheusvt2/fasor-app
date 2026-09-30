@@ -44,6 +44,7 @@ import {
 } from './point-writes.ts';
 import { PriorityPicker } from './priority-picker.tsx';
 import { insertPhotoChip, insertPlainText, quickTextAt, relabelPhotoChips, renderPointText } from './point-text-editor.ts';
+import { endRange, placeCaret } from '../templates/section-text-editor.ts';
 import './points.css';
 
 /*
@@ -463,8 +464,15 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
   }, [numbers, areaRef, labelOf]);
 
   // The text is where the editor starts: typing is the first thing a person does here.
+  // F-09: with the caret at the end of the text, so a photo or a quick text picked before the
+  // engineer places it lands after the words, not at position 0.
   useEffect(() => {
-    const frame = requestAnimationFrame(() => areaRef.current?.focus());
+    const frame = requestAnimationFrame(() => {
+      const element = areaRef.current;
+      if (element === null) return;
+      element.focus();
+      placeCaret(element, endRange(element));
+    });
     return () => cancelAnimationFrame(frame);
   }, [areaRef]);
 

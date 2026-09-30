@@ -238,6 +238,17 @@ describe('homeCards: device availability (AD-7, AD-8)', () => {
     expect(card!.device.text).toBe('No aparelho · atualizado 07/09 21:40');
   });
 
+  it('K-5: a copy that came down on the same day and month of an earlier year carries its date', () => {
+    const [card] = homeCards(
+      input({
+        relatorios: [relatorio(R_DRAFT, 'rascunho')],
+        syncStates: [onDevice(R_DRAFT, '2025-09-30T15:00:00.000Z')],
+        now: new Date('2026-09-30T18:00:00.000Z'),
+      }),
+    );
+    expect(card!.device.text).toBe('No aparelho · atualizado 30/09 12:00');
+  });
+
   it('a copy that came down today keeps the bare time', () => {
     const [card] = homeCards(
       input({

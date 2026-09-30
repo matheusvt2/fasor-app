@@ -16,6 +16,7 @@ import { commitBatch } from '../../db/commit.ts';
 import type { AppDatabase } from '../../db/schema.ts';
 import { newId } from '../../ids.ts';
 import { aiFeaturesOn } from '../../state/ai-features.tsx';
+import { writeErrorText } from '../../state/use-undoable-edits.ts';
 
 /*
  * Stories 6.3-6.5: the edits a photo takes after it is born, each a `file/{id}/{field}` put
@@ -115,4 +116,14 @@ export async function removePhoto(db: AppDatabase, author: Author, relatorioId: 
 /** The toast's "Desfazer": the tombstone cleared, the photo back with its number. */
 export async function restorePhoto(db: AppDatabase, author: Author, relatorioId: string, fileId: string): Promise<void> {
   await commitBatch(db, [put(author, relatorioId, fileId, 'removed_at', null)], deps);
+}
+
+/**
+ * W-9 (review 2026-09-30; AD-8, FR-54): the `.catch` of every photo edit the gallery and the
+ * sheet start (a caption, a removal and its undo, "Pessoas na foto", a vision caption
+ * confirmed): a write the device refuses (quota, a closed database) raises the refused-write
+ * toast instead of an unhandled rejection nobody sees.
+ */
+export function toastPhotoWriteFailure(showToast: (text: string) => void): (error: unknown) => void {
+  return (error) => showToast(writeErrorText(error));
 }

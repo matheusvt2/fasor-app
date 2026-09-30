@@ -216,7 +216,7 @@ export function ChecklistSection({
             block={block}
             item={item}
             number={index + 1}
-            recents={recentChecklistObservations(snapshot, item.key, item.nc_phrases)}
+            recents={recentChecklistObservations(snapshot, item.key, item.nc_phrases, block.id)}
             readOnly={readOnly}
             photos={photos}
             snapshot={snapshot}

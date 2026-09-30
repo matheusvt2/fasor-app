@@ -4,6 +4,7 @@ import {
   dictatedText,
   captionPhotoLabel,
   captionPhotoMetaText,
+  captionPartsOf,
   captionWordFor,
   composeCaption,
   type CaptionParts,
@@ -76,6 +77,11 @@ export interface CaptionComposerProps {
   suggestion?: { text: string; onUse: () => void };
 }
 
+/** A seed word as a caption part: its name and agreement only. */
+function asWord(word: CaptionWord): CaptionWord {
+  return { name: word.name, gender: word.gender, number: word.number };
+}
+
 function sameName(a: string, b: string): boolean {
   return a.trim().toLocaleLowerCase('pt-BR') === b.trim().toLocaleLowerCase('pt-BR');
 }
@@ -117,11 +123,25 @@ function PhotoPreview({ photo }: { photo: CaptionComposerPhoto }) {
 
 function ComposerBody({ prefill, stored, sources, onSave, onClose, headingId, photo, suggestion }: CaptionComposerProps & { headingId: string }) {
   const t = copy.captionComposer;
-  const [parts, setParts] = useState<CaptionParts>(prefill);
+  // The parts the stored caption was composed of (`captionPartsOf`): a caption composed at
+  // capture with an activity the prefill no longer carries opens on the rows with that
+  // activity chosen; one the rows cannot compose (typed by hand) opens as free text; no
+  // caption opens on the prefill.
+  const [opening] = useState<CaptionParts | null>(() =>
+    captionPartsOf(stored, prefill, {
+      atividades: sources.atividades.map(asWord),
+      equipamentos: sources.equipamentos.map(asWord),
+      locais: [
+        ...sources.extraLocais.map((name) => captionWordFor(name, 'local', sources.locais, sources.registry)).filter((word): word is CaptionWord => word !== null),
+        ...sources.locais.map(asWord),
+      ],
+    }),
+  );
+  const start = opening ?? prefill;
+  const [parts, setParts] = useState<CaptionParts>(start);
   const generated = composeCaption(parts);
-  // A stored caption the rows do not compose (typed by hand) opens as free text; no caption opens on the rows.
-  const [editing, setEditing] = useState(() => stored !== null && stored !== composeCaption(prefill));
-  const [text, setText] = useState(() => stored ?? composeCaption(prefill) ?? '');
+  const [editing, setEditing] = useState(() => opening === null);
+  const [text, setText] = useState(() => stored ?? composeCaption(start) ?? '');
   // Story 9.4 (`71-legenda.html` 148-160): a dictated caption lands in the text as a suggestion;
   // "Salvar legenda" confirms it, typing makes it the engineer's own.
   const [dictated, setDictated] = useState(false);
@@ -130,6 +150,8 @@ function ComposerBody({ prefill, stored, sources, onSave, onClose, headingId, ph
   const area = useRef<HTMLTextAreaElement>(null);
 
   const wordFor = (kind: Kind, name: string): CaptionWord | null => {
+    const opened = start[kind];
+    if (opened !== null && sameName(opened.name, name)) return opened;
     const prefilled = prefill[kind];
     if (prefilled !== null && sameName(prefilled.name, name)) return prefilled;
     const words = kind === 'atividade' ? sources.atividades : kind === 'local' ? sources.locais : sources.equipamentos;
@@ -147,7 +169,7 @@ function ComposerBody({ prefill, stored, sources, onSave, onClose, headingId, ph
         : kind === 'local'
           ? [...sources.extraLocais, ...sources.locais.map((word) => word.name)]
           : sources.equipamentos.map((word) => word.name);
-    return captionChipOptions(prefill[kind]?.name ?? null, sources.recents[kind], seed);
+    return captionChipOptions(prefill[kind]?.name ?? null, sources.recents[kind], seed, opening?.[kind]?.name ?? null);
   };
 
   const toggleEditing = (on: boolean) => {

@@ -1230,4 +1230,34 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Edge Case Hunter (2026-09-30): a DOCX/PDF file fetch answered 401 (session expired) is worded with the same "could not download" line as a network failure, not as a session problem with a way to sign in again.
   evidence: `apps/web/src/surfaces/export/revision-file.ts` and `export-dialog.tsx` word every fetch failure alike; `fetchRevisionBlob` in `apps/web/src/sync/client.ts` already carries the HTTP status in `SyncRequestError`.
   class: debt
-  state: open (owner: Matheus, low; the next Export dialog change)
+  state: ~~open (owner: Matheus, low; the next Export dialog change)~~ closed 2026-09-30 by the review fixes batch rff (W-23, F-12): a 401 on a revision file, a preview or "Gerar relatório" raises the re-auth banner (`publishReAuth`) and the dialog says "Sua sessão expirou. Entre de novo para enviar." with "Entrar de novo" (`surfaces/export/session-expired.tsx`); `export-dialog.test.tsx` asserts the three paths
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-field-defects.md`
+  summary: F-06 (review 2026-09-30): bulk actions and copies on a 94-block relatório take 2 to 8 s to show any feedback ("Marcar os restantes como Conforme" 7.9 s, "Repetir da ficha anterior" 2.6 s, "Igual à" 2.3 s, an instrument tick in Etapa 4 2.0 s). The cost is the commit path and the live queries (K-1, K-2, W-1, W-3, W-5, W-6, W-8, batch rfp); optimistic sheet state would break AD-13, so batch rff does not change it.
+  evidence: `reviews/full-review-2026-09-30/2-ux-review.md` F-06 and section 2's timings; `reviews/full-review-2026-09-30/1-code-quality.md` K-1, K-2, W-1 to W-8.
+  class: debt
+  state: open (owner: wave-2 QA: re-measure the four taps on a 94-block relatório with `commit-to-render.perf.spec.ts` after rfp merges; reopen as a bug if any still takes over 1 s)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-field-defects.md`
+  summary: F-09, renderer half (review 2026-09-30): a point's photo reference prints "Imagem N" where § Capture-to-Document › 8 Pontos de atenção writes "conforme Imagem 5". Batch rff fixed the editor half (the chip lands spaced, after the text); whether the renderer adds "conforme" or the engineer types it is an open question, and `print/section-8.ts` is batch rfp's with the goldens byte-identical in wave 1.
+  evidence: `reviews/full-review-2026-09-30/2-ux-review.md` F-09; `packages/domain/src/print/section-8.ts`; `apps/web/src/surfaces/points/point-text-editor.ts` `insertPhotoChip`.
+  class: question
+  state: open (owner: wave 2, batch rfr, with Matheus's answer; regenerate the goldens with `scripts/regen-goldens.ts` if the renderer changes)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-field-defects.md`
+  summary: F-12, badge half (review 2026-09-30): after a 401 the Sync badge still reads "Sincronização: sem conexão" beside the "Sua sessão expirou" banner. A session state on the badge is a new product state no mock draws, and the badge's state is `state/sync.tsx` and `sync/policy.ts` (batch rfp). Batch rff fixed the Export dialog half (the session words and "Entrar de novo").
+  evidence: `reviews/full-review-2026-09-30/2-ux-review.md` F-12 (`01d-home-session-expired-1280.png`); `apps/web/src/state/sync.tsx`, `apps/web/src/sync/policy.ts`.
+  class: question
+  state: open (owner: Matheus for the badge's words; then batch rfp or wave 2)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-field-defects.md`
+  summary: K-13 (review 2026-09-30): three readers of `block.not_tested` against the seed's reasons, each with its own "Outro"/typed-text rule: `relatorio/tree.ts` `notTestedReasonText`, `relatorio/parecer.ts` `notTestedReason` (prints in the golden), `points/derived.ts` `reasonOf`. One `notTestedReasonOf(block)` in `relatorio/not-tested.ts` is the fix; two of the three files are batch rfp's and one prints in the golden, so wave 1 leaves it.
+  evidence: `reviews/full-review-2026-09-30/1-code-quality.md` K-13.
+  class: debt
+  state: open (owner: wave 2, batch rfr)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-field-defects.md`
+  summary: W-22 (review 2026-09-30): the Export dialog's DOCX and PDF prefetch continues after the dialog closes; no fetch in the app is abortable. Threading an `AbortSignal` needs a `signal` parameter in `sync/client.ts` (`fetchRevisionBlob`, batch rfp).
+  evidence: `reviews/full-review-2026-09-30/1-code-quality.md` W-22; `apps/web/src/surfaces/export/export-dialog.tsx` prefetch effect; `apps/web/src/sync/client.ts`.
+  class: debt
+  state: open (owner: batch rfp adds the `signal` parameter; the dialog passes it in wave 2 (rfr))

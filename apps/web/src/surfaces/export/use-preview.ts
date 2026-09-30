@@ -7,6 +7,8 @@ import { toSnapshot } from '../../db/snapshot.ts';
 import { useSession } from '../../state/session.tsx';
 import { useSync } from '../../state/sync.tsx';
 import { previewPdfUrl, SyncRequestError } from '../../sync/client.ts';
+import { publishReAuth } from '../../api/auth-client.ts';
+import { isSessionExpired, isUnauthorized, SessionExpiredError } from './session-expired.tsx';
 import { DEFAULT_TIMING, type GenerateTiming } from './use-generate.ts';
 
 /*
@@ -18,7 +20,7 @@ import { DEFAULT_TIMING, type GenerateTiming } from './use-generate.ts';
  * tab and says so beside the button.
  */
 
-export type PreviewPhase = { kind: 'idle' } | { kind: 'working' } | { kind: 'failed' };
+export type PreviewPhase = { kind: 'idle' } | { kind: 'working' } | { kind: 'failed'; sessionExpired?: boolean };
 
 export interface PreviewState {
   phase: PreviewPhase;
@@ -46,7 +48,11 @@ function openBlankTab(): Tab {
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export function usePreview(relatorioId: string, timing: GenerateTiming = DEFAULT_TIMING): PreviewState {
-  const db = useSession().database;
+  const session = useSession();
+  const db = session.database;
+  // F-12: a session already known to be gone stops the press at once (its words, not a drain that cannot finish).
+  const reAuthRequired = useRef(session.reAuthRequired);
+  reAuthRequired.current = session.reAuthRequired;
   const sync = useSync();
   const syncRef = useRef(sync);
   syncRef.current = sync;
@@ -72,6 +78,7 @@ export function usePreview(relatorioId: string, timing: GenerateTiming = DEFAULT
       if (engine.preview === undefined) throw new Error('no preview route');
       // Drain: the outbox and the uploads, a bounded number of cycles.
       for (let round = 0; ; round++) {
+        if (reAuthRequired.current) throw new SessionExpiredError();
         await engine.syncNow().catch(() => undefined);
         const unsent = await db.outbox.where('status').anyOf('pending', 'sent').count();
         if (unsent === 0 && (await pendingUploadCount(db)) === 0) break;
@@ -128,7 +135,10 @@ export function usePreview(relatorioId: string, timing: GenerateTiming = DEFAULT
         (error: unknown) => {
           console.error('preview failed', error);
           tab?.close();
-          if (mounted.current) setPhase({ kind: 'failed' });
+          // F-12 / W-23: a 401 is a session that expired: the re-auth banner and its own words.
+          const expired = isSessionExpired(error) || reAuthRequired.current;
+          if (isUnauthorized(error)) publishReAuth();
+          if (mounted.current) setPhase(expired ? { kind: 'failed', sessionExpired: true } : { kind: 'failed' });
         },
       )
       .finally(() => {

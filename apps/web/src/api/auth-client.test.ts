@@ -40,6 +40,18 @@ describe('signIn classifies failures', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('L10: reads a 429 as too many attempts, never as a wrong password', async () => {
+    signInEmail.mockResolvedValue({ data: null, error: { status: 429, message: 'Too many requests' } });
+    const result = await signIn('a@teste.local', 'right');
+    expect(result).toEqual({ ok: false, reason: 'rate-limited', message: 'Muitas tentativas. Tente novamente em alguns minutos.' });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('keeps a 400 and a 401 as the wrong-password text', async () => {
+    signInEmail.mockResolvedValue({ data: null, error: { status: 400, message: 'Bad' } });
+    expect(await signIn('a@teste.local', 'x')).toMatchObject({ ok: false, reason: 'credentials', message: 'Senha incorreta' });
+  });
+
   it('reads a 500 as the server being unavailable, never as a wrong password or no connection', async () => {
     signInEmail.mockResolvedValue({ data: null, error: { status: 500, message: 'db down' } });
     const result = await signIn('a@teste.local', 'right');

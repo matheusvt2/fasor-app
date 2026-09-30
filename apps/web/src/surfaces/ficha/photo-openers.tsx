@@ -1,9 +1,10 @@
-import { photoUploadState } from '@app/domain';
-import { useId, useRef, type ReactNode } from 'react';
+import { PLATE_CAPTION, photoUploadState } from '@app/domain';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { PhotoRow } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import type { PhotoTile } from '../../db/photo-store.ts';
+import { useSession } from '../../state/session.tsx';
 import { useCamera } from './camera-view.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
 
@@ -60,6 +61,47 @@ export function PlateCaptureTile({ relatorioId, target }: { relatorioId: string;
   const opener = useRef<HTMLButtonElement>(null);
   const camera = useCamera(relatorioId, target, opener, { singleShot: true });
   const deniedId = useId();
+  const online = useSession().online;
+  // F-13: from the shutter on, the plate's row shows its reading state at once ("Lendo…", or
+  // the queued words offline), before the photo's committed row replaces this group. A shot
+  // that never lands gives the tile back.
+  const [shot, setShot] = useState(false);
+  if (camera.burst > 0 && !shot) setShot(true);
+  useEffect(() => {
+    if (!shot || camera.burst > 0) return;
+    const timer = setTimeout(() => setShot(false), PLATE_SHOT_GRACE_MS);
+    return () => clearTimeout(timer);
+  }, [shot, camera.burst]);
+  if (shot) {
+    const t = copy.ficha.nameplate;
+    return (
+      <>
+        <div className="photo-row ficha-np-photo" data-reading={online ? 'running' : 'queued'} data-pending-shot="">
+          <span className="photo-tile">
+            <span className="thumb">
+              <span className="thumb-fake" />
+            </span>
+          </span>
+          <div className="photo-text">
+            <p className="photo-caption">{PLATE_CAPTION}</p>
+            {online ? (
+              <p className="reading-line" role="status">
+                {t.reading}
+              </p>
+            ) : (
+              <span className="queued-banner" role="status">
+                <svg className="ico" aria-hidden="true">
+                  <use href="/sprite.svg#i-image" />
+                </svg>
+                {t.queued}
+              </span>
+            )}
+          </div>
+        </div>
+        {camera.element}
+      </>
+    );
+  }
   return (
     <>
       <AriaButton ref={opener} className="camera-capture-tile" aria-describedby={camera.denied ? deniedId : undefined} onPress={camera.open}>
@@ -77,6 +119,9 @@ export function PlateCaptureTile({ relatorioId, target }: { relatorioId: string;
     </>
   );
 }
+
+/** F-13: how long a shot that has not landed as the plate's photo row keeps the pending row before the tile comes back. */
+const PLATE_SHOT_GRACE_MS = 15_000;
 
 /**
  * Story 6.4: "Adicionar fotos" (`70-fotos.html` Sticky action bar, `btn btn-secondary` with

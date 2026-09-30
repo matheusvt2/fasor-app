@@ -1,3 +1,5 @@
+import { calendarDateOfInstant } from '../format/datetime.ts';
+
 /*
  * AR-18: an instrument's calibration validity never blocks anything; it only drives a
  * picker's warning and the registry row's amber "Vencida em dd/mm/aaaa". Both functions
@@ -36,26 +38,22 @@ function formatCalendarParts(parts: DateParts): string {
   return `${y}-${m}-${d}`;
 }
 
-/** `YYYY-MM-DD` of a `Date`, in UTC (calendar comparisons never move a day by time zone). */
-function isoDateOnly(now: Date): string {
-  return now.toISOString().slice(0, 10);
-}
-
 /**
  * `calibratedAt + intervalMonths` calendar months, via `Date.UTC` so no time zone can
- * move the day (AD-17's rule for the `date` value shape). Null when either input is
- * missing: the instrument has nothing to flag yet, per the I/O matrix.
+ * move the day (AD-17's rule for the `date` value shape). K-4: a day the target month does
+ * not have is clamped to its last day (31/01 + 1 month is 28/02, or 29/02 in a leap year),
+ * never rolled into the month after. Null when either input is missing: the instrument has
+ * nothing to flag yet, per the I/O matrix.
  */
 export function calibrationValidUntil(calibratedAt: string | null, intervalMonths: number | null): string | null {
   if (calibratedAt === null || intervalMonths === null) return null;
   const parts = parseCalendarDate(calibratedAt);
   if (parts === null) return null;
-  const shifted = new Date(Date.UTC(parts.year, parts.month - 1 + intervalMonths, parts.day));
-  return formatCalendarParts({
-    year: shifted.getUTCFullYear(),
-    month: shifted.getUTCMonth() + 1,
-    day: shifted.getUTCDate(),
-  });
+  const month = new Date(Date.UTC(parts.year, parts.month - 1 + intervalMonths, 1));
+  const year = month.getUTCFullYear();
+  const monthIndex = month.getUTCMonth();
+  const lastDay = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
+  return formatCalendarParts({ year, month: monthIndex + 1, day: Math.min(parts.day, lastDay) });
 }
 
 function daysBetween(a: string, b: string): number {
@@ -88,7 +86,8 @@ export function calibrationCheck(
  */
 export function calibrationStatusOf(validUntil: string | null, servicePeriodEnd: string | null, now: Date): CalibrationStatus {
   if (validUntil === null || parseCalendarDate(validUntil) === null) return 'valid';
-  const reference = servicePeriodEnd ?? isoDateOnly(now);
+  // K-3: "today" is the America/Sao_Paulo calendar day, as every other date decision.
+  const reference = servicePeriodEnd ?? calendarDateOfInstant(now);
   const delta = daysBetween(reference, validUntil);
   if (delta < 0) return 'expired';
   if (delta <= CALIBRATION_EXPIRING_WINDOW_DAYS) return 'expiring';

@@ -1,4 +1,4 @@
-import { useRef, useState, type InputHTMLAttributes, type KeyboardEvent, type Ref } from 'react';
+import { useLayoutEffect, useRef, useState, type InputHTMLAttributes, type KeyboardEvent, type Ref } from 'react';
 import { useFieldCommit } from '../input/use-field-commit.ts';
 import { useDraftSource } from '../state/drafts.tsx';
 
@@ -44,6 +44,11 @@ export interface NumberInputOptions {
   /** Any other key, before the default handling (Shift+Enter, Tab). Return true when handled. */
   onKey?: (event: KeyboardEvent<HTMLInputElement>) => boolean;
   onFocusChange?: (focused: boolean) => void;
+  /**
+   * F-01: typed text not committed yet is committed when the input leaves the page (a plate
+   * suggestion landing on this empty field swaps it out), never silently dropped.
+   */
+  flushOnUnmount?: boolean;
 }
 
 export interface NumberInputState {
@@ -115,6 +120,16 @@ export function useNumberInput(options: NumberInputOptions): NumberInputState {
     const format = latest.current.format;
     if (value !== null && format !== undefined) setText(format(value));
   };
+
+  const settleLatest = useRef(settle);
+  settleLatest.current = settle;
+  // Layout cleanup: it runs before `useFieldCommit`'s own (passive) dispose drops the value.
+  useLayoutEffect(
+    () => () => {
+      if (latest.current.flushOnUnmount === true && dirty.current) settleLatest.current();
+    },
+    [],
+  );
 
   const commitValue = (value: ParsedNumber): void => {
     movedWhileFocused.current = false;

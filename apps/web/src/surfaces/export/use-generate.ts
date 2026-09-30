@@ -37,6 +37,8 @@ import { useSession } from '../../state/session.tsx';
 import { useSync } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { SyncRequestError } from '../../sync/client.ts';
+import { publishReAuth } from '../../api/auth-client.ts';
+import { isSessionExpired, isUnauthorized } from './session-expired.tsx';
 
 /*
  * Story 4.8 (AD-15, UX-DR58): the Export dialog's state machine. "Gerar relatório" first
@@ -61,7 +63,7 @@ export type GeneratePhase =
    * `missingFiles`: the server still misses that many files and no upload of this device
    * will bring them (E9 sweep B14), so the request failed without retrying.
    */
-  | { kind: 'failed'; missingFiles?: number }
+  | { kind: 'failed'; missingFiles?: number; sessionExpired?: boolean }
   | {
       kind: 'ready';
       number: number;
@@ -337,8 +339,11 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
           if (!mounted.current) return;
         }
       }
-    } catch {
-      if (mounted.current) setPhase({ kind: 'failed' });
+    } catch (error) {
+      // F-12 / W-23: a 401 is a session that expired: the re-auth banner and its own words.
+      const expired = isSessionExpired(error);
+      if (isUnauthorized(error)) publishReAuth();
+      if (mounted.current) setPhase(expired ? { kind: 'failed', sessionExpired: true } : { kind: 'failed' });
     }
   }, [db, relatorioId, revisions, sync, timing.retryMs]);
   const requestRef = useRef(request);

@@ -25,6 +25,8 @@ export const copy = {
     // authored: online, but the server did not answer or answered 5xx (database down).
     // Not the offline sentence (the device has a network) and never the password.
     serverUnavailable: 'Não foi possível falar com o servidor. Tente de novo em instantes.',
+    // authored (review 2026-09-30, L10): the server answered 429 (too many sign-in attempts); Matheus may reword it.
+    rateLimited: 'Muitas tentativas. Tente novamente em alguns minutos.',
     // authored: checked on the device before any request is sent.
     emailRequired: 'Informe o e-mail',
     emailInvalid: 'E-mail inválido',
@@ -489,6 +491,8 @@ export const copy = {
     // authored: the Sync status surface's own word for resending rejected changes.
     resend: 'Reenviar',
     docControlLabel: 'Controle do documento',
+    // authored (F-15, review 2026-09-30): the company has no razão social yet, so Documento and Contratada print "—".
+    empresaMissing: 'Cadastre a empresa em Cadastros › Empresa',
     docControlAria: 'Controle do documento — impresso após a capa',
     sec9NoteBefore: 'Seção 9 impressa no agrupamento do FO.SERV-03 (por local e tipo, com a flag ',
     sec9NoteFlag: 'Agrupar por tipo',

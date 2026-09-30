@@ -32,7 +32,7 @@ import {
   type SuggestionRow,
   type WordRow,
 } from '@app/domain';
-import { useId, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { CropThumb } from '../../components/crop-thumb.tsx';
 import { SuggestionField } from '../../components/suggestion-field.tsx';
 import { copy } from '../../copy/pt-br.ts';
@@ -182,6 +182,19 @@ export function useNameplateSuggestions({
     showToast(text);
     api.announce(text);
   };
+  // F-25: a confirmation is said once the fields it confirmed are drawn confirmed (their
+  // suggestions no longer pending on this device), never while a pill still shows.
+  const [saying, setSaying] = useState<readonly { ids: readonly string[]; text: string }[]>([]);
+  const sayWhenDrawn = (ids: readonly string[], text: string) => setSaying((current) => [...current, { ids, text }]);
+  useEffect(() => {
+    if (saying.length === 0) return;
+    const waiting = new Set(pending.map((row) => row.id));
+    const drawn = saying.filter((entry) => entry.ids.every((id) => !waiting.has(id)));
+    if (drawn.length === 0) return;
+    setSaying((current) => current.filter((entry) => !drawn.includes(entry)));
+    for (const entry of drawn) confirmed(entry.text);
+    // `confirmed` reads the latest toast and announcer; the pending rows and the queue decide.
+  }, [pending, saying]);
 
   // A second tap before the first confirm has landed (and the registry query caught up) writes
   // nothing: "Criar Celtta?" tapped twice never creates two manufacturers.
@@ -195,7 +208,7 @@ export function useNameplateSuggestions({
       // "Criar Celtta?": the registry row and the confirm pair, one batch.
       .edit((_blocks, by) => (hint === null ? confirmSuggestionOps(by, s) : [createWordOp(by, hint.kind, newId(), hint.name), ...confirmSuggestionOps(by, s)]))
       .then((batch) => {
-        if (batch !== null) confirmed(text);
+        if (batch !== null) sayWhenDrawn([s.id], text);
       })
       .catch(() => undefined)
       .finally(() => inFlight.current.delete(s.id));
@@ -204,6 +217,7 @@ export function useNameplateSuggestions({
   const confirmAll = () => {
     let done = 0;
     let skipped = 0;
+    let ids: string[] = [];
     void api
       .edit((blocks, by) => {
         // The freshest sheet decides: a field typed a moment ago is no longer a fill.
@@ -211,10 +225,11 @@ export function useNameplateSuggestions({
         const picked = confirmAllCandidates(fresh, pending, registry);
         done = picked.length;
         skipped = suggestionGroupCounts(fresh, pending, registry).verify;
+        ids = picked.map((s) => s.id);
         return picked.length === 0 ? null : picked.flatMap((s) => confirmSuggestionOps(by, s));
       })
       .then((batch) => {
-        if (batch !== null) confirmed(confirmedAllToastText(done, skipped));
+        if (batch !== null) sayWhenDrawn(ids, confirmedAllToastText(done, skipped));
       })
       .catch(() => undefined);
   };
@@ -289,6 +304,12 @@ export function SuggestionFill({ model, field, suggestion }: { model: NameplateS
   const root = useRef<HTMLDivElement>(null);
   /** While a typed value is being written (and once it is), a second blur or tap writes nothing. */
   const written = useRef(false);
+  /**
+   * F-01: a pointer press on this field's own "Confirmar" is in progress. Only then does the
+   * input's blur leave the decision to the button (one write, never two); Tab onto the
+   * button, a tap on another field or anywhere else commits the typed value on the blur.
+   */
+  const pressingConfirm = useRef(false);
 
   const commit = (refocus: boolean) => {
     if (written.current) return;
@@ -318,10 +339,9 @@ export function SuggestionFill({ model, field, suggestion }: { model: NameplateS
         setText(event.target.value);
         if (invalid) setInvalid(false);
       }}
-      onBlur={(event) => {
-        // A tap on this field's "Confirmar" decides on its own (below), never twice.
-        const next = event.relatedTarget;
-        if (next instanceof HTMLElement && next.classList.contains('confirm-btn') && root.current?.contains(next)) return;
+      onBlur={() => {
+        // A press on this field's "Confirmar" decides on its own (below), never twice.
+        if (pressingConfirm.current) return;
         commit(false);
       }}
       onKeyDown={(event) => {
@@ -332,7 +352,23 @@ export function SuggestionFill({ model, field, suggestion }: { model: NameplateS
   const creates = model.createsEntry(suggestion) && text === initial;
   const createName = suggestion.hint?.create_registry_entry.name ?? '';
   return (
-    <div ref={root} data-field-key={field.key} className="ficha-suggestion" data-suggestion-id={suggestion.id}>
+    <div
+      ref={root}
+      data-field-key={field.key}
+      className="ficha-suggestion"
+      data-suggestion-id={suggestion.id}
+      onPointerDownCapture={(event) => {
+        pressingConfirm.current = event.target instanceof Element && event.target.closest('.confirm-btn') !== null;
+      }}
+      onBlur={(event) => {
+        // F-01: the focus left the field for good (a press on "Confirmar" that did not land,
+        // then a tap elsewhere): whatever was typed is committed, never dropped.
+        const next = event.relatedTarget;
+        if (next instanceof Node && root.current?.contains(next)) return;
+        pressingConfirm.current = false;
+        commit(false);
+      }}
+    >
       <SuggestionField
         label={label}
         labelId={labelId}
@@ -347,7 +383,11 @@ export function SuggestionFill({ model, field, suggestion }: { model: NameplateS
         bare
         crop={<CropThumb photoId={suggestion.source.photo_id} bbox={suggestion.source.bbox} label={label} onPress={() => model.openCrop(suggestion)} />}
         // An edited guess confirms what the engineer sees: the typed value, this suggestion discarded.
-        onConfirm={() => (text === initial ? model.confirm(suggestion, field) : commit(false))}
+        onConfirm={() => {
+          pressingConfirm.current = false;
+          if (text === initial) model.confirm(suggestion, field);
+          else commit(false);
+        }}
         after={
           invalid ? (
             <span className="helper" data-tone="red" id={helperId}>

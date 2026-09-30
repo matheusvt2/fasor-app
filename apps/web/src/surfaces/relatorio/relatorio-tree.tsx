@@ -77,6 +77,8 @@ export interface RelatorioTreeProps {
    * scrolled into view and its open button takes the focus.
    */
   focusBlockId?: string | null;
+  /** F-24: a new value asks for `focusBlockId` again (a Sumário header count tapped once more). */
+  focusToken?: number;
   context: TreeContext;
   ref?: Ref<RelatorioTreeHandle>;
   /** Story 8.1: the device's pending suggestion rows; a block holding one is not concluded in the counters. */
@@ -169,7 +171,7 @@ function treeKeys(event: KeyboardEvent<HTMLElement>, open: boolean | null, setOp
   else focusParentChevron(target);
 }
 
-export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, id, expandToLastSheet = false, focusBlockId = null, context, ref, pending }: RelatorioTreeProps) {
+export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, id, expandToLastSheet = false, focusBlockId = null, focusToken = 0, context, ref, pending }: RelatorioTreeProps) {
   const t = copy.sumario.tree;
   const tree = useMemo(() => locationTree(snapshot, equipment, pending), [snapshot, equipment, pending]);
   const rootRef = useRef<HTMLUListElement>(null);
@@ -238,6 +240,13 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
   // Story 12.2: back from a sheet, its row opens, scrolls into view and takes the focus, once.
   const focusSeeded = useRef(false);
   const focusPending = useRef(false);
+  // F-24: each new token is a new request for the row (declared first, so it runs before the seeding below).
+  const focusRequest = useRef(focusToken);
+  useEffect(() => {
+    if (focusRequest.current === focusToken) return;
+    focusRequest.current = focusToken;
+    focusSeeded.current = false;
+  }, [focusToken]);
   useEffect(() => {
     if (focusSeeded.current || focusBlockId === null) return;
     const path = treePathTo(tree, { blockId: focusBlockId });
@@ -245,7 +254,7 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
     focusSeeded.current = true;
     focusPending.current = true;
     reveal(path.at(-1)!);
-  }, [focusBlockId, tree, reveal]);
+  }, [focusBlockId, focusToken, tree, reveal]);
   useEffect(() => {
     if (!focusPending.current || focusBlockId === null) return;
     const open = blockOpen(rootRef.current, focusBlockId);

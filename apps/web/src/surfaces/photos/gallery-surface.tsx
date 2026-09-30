@@ -47,7 +47,15 @@ import { useSheetCamera } from '../ficha/photo-openers.tsx';
 import { RelatorioGate } from '../relatorio/relatorio-gate.tsx';
 import { CaptionComposer } from './caption-composer.tsx';
 import { DropHint, PhotoCaptureSheet, useDropZone } from './capture-sheet.tsx';
-import { confirmAllCaptionSuggestions, confirmCaptionSuggestion, removePhoto, restorePhoto, setPeopleInPhoto, setPhotoCaption } from './photo-ops.ts';
+import {
+  confirmAllCaptionSuggestions,
+  confirmCaptionSuggestion,
+  removePhoto,
+  restorePhoto,
+  setPeopleInPhoto,
+  setPhotoCaption,
+  toastPhotoWriteFailure,
+} from './photo-ops.ts';
 import { PhotoViewer } from './photo-viewer.tsx';
 import { useCaptionSources } from './use-caption-sources.ts';
 import './photos.css';
@@ -137,21 +145,27 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
     [all, pending],
   );
   const author = user === null ? null : { id: user.id, companyId: user.companyId };
+  // W-9 (AD-8, FR-54): a photo write the device refuses says so, never an unhandled rejection.
+  const writeFailed = toastPhotoWriteFailure(showToast);
   const confirmOne = (tile: PhotoTile, suggestion: SuggestionRow, toast: string) => {
     if (db === null || author === null) return;
-    void confirmCaptionSuggestion(db, author, suggestion).then(() => showToast(toast));
+    void confirmCaptionSuggestion(db, author, suggestion)
+      .then(() => showToast(toast))
+      .catch(writeFailed);
   };
   const confirmAll = () => {
     if (db === null || author === null) return;
     const rows = [...suggested.values()];
-    void confirmAllCaptionSuggestions(db, author, rows).then(() => {
-      showToast(legendasConfirmadasText(rows.length));
-      heading.current?.focus();
-    });
+    void confirmAllCaptionSuggestions(db, author, rows)
+      .then(() => {
+        showToast(legendasConfirmadasText(rows.length));
+        heading.current?.focus();
+      })
+      .catch(writeFailed);
   };
   const markPeople = (tile: PhotoTile, marked: boolean) => {
     if (db === null || author === null) return;
-    void setPeopleInPhoto(db, author, relatorioId, tile.id, marked, pending);
+    void setPeopleInPhoto(db, author, relatorioId, tile.id, marked, pending).catch(writeFailed);
   };
 
   // --- the header counter -------------------------------------------------------------------
@@ -189,22 +203,28 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
     const at = shown.findIndex((row) => row.id === tile.id);
     const neighbour = shown[at + 1] ?? shown[at - 1] ?? null;
     setViewing(null);
-    void removePhoto(db, author, relatorioId, tile.id).then(() => {
-      focusTileSoon(neighbour?.id ?? null, heading.current);
-      showToast(photoRemovedText(number), {
-        action: {
-          label: copy.viewer.undo,
-          onPress: () => {
-            void restorePhoto(db, author, relatorioId, tile.id).then(() => focusTileSoon(tile.id, heading.current));
+    void removePhoto(db, author, relatorioId, tile.id)
+      .then(() => {
+        focusTileSoon(neighbour?.id ?? null, heading.current);
+        showToast(photoRemovedText(number), {
+          action: {
+            label: copy.viewer.undo,
+            onPress: () => {
+              void restorePhoto(db, author, relatorioId, tile.id)
+                .then(() => focusTileSoon(tile.id, heading.current))
+                .catch(writeFailed);
+            },
           },
-        },
-      });
-    });
+        });
+      })
+      .catch(writeFailed);
   };
 
   const saveCaption = (tile: PhotoTile, text: string | null) => {
     if (db === null || user === null) return;
-    void setPhotoCaption(db, { id: user.id, companyId: user.companyId }, relatorioId, tile.id, text, pending).then(() => showToast(captionSavedText(numbers.get(tile.id) ?? null)));
+    void setPhotoCaption(db, { id: user.id, companyId: user.companyId }, relatorioId, tile.id, text, pending)
+      .then(() => showToast(captionSavedText(numbers.get(tile.id) ?? null)))
+      .catch(writeFailed);
   };
 
   const composerMeta = { step: null, testKey: null, words: { atividades: sources.atividades, locais: sources.locais }, registry: sources.registry };

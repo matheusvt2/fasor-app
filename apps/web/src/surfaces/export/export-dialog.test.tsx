@@ -16,6 +16,8 @@ import { makeSyncState, type SyncStateOverrides } from '../../test/sync-state.ts
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
 import { SyncRequestError } from '../../sync/client.ts';
 import { ExportDialog } from './export-dialog.tsx';
+import { onReAuthRequired } from '../../api/auth-client.ts';
+import { MemoryRouter } from 'react-router';
 
 /*
  * Story 4.8: the Export dialog over a real device database (the small Porto Seguro
@@ -99,14 +101,32 @@ const syncState = (over: SyncStateOverrides = {}): SyncState =>
 
 function Harness({ sync, open = true }: { sync: SyncState; open?: boolean }) {
   return (
-    <SyncContext value={sync}>
-      <ToastProvider>
-        <button type="button">Abrir</button>
-        <ExportDialog relatorioId={REL} isOpen={open} onOpenChange={() => {}} timing={TIMING} />
-        <ToastOutlet />
-      </ToastProvider>
-    </SyncContext>
+    <MemoryRouter>
+      <SyncContext value={sync}>
+        <ToastProvider>
+          <button type="button">Abrir</button>
+          <ExportDialog relatorioId={REL} isOpen={open} onOpenChange={() => {}} timing={TIMING} />
+          <ToastOutlet />
+        </ToastProvider>
+      </SyncContext>
+    </MemoryRouter>
   );
+}
+
+const SESSION_EXPIRED = 'Sua sessão expirou. Entre de novo para enviar.';
+
+/** Counts the re-auth banner raises (`publishReAuth`) while `body` runs. */
+async function countReAuth(body: () => Promise<void>): Promise<number> {
+  let raised = 0;
+  const stop = onReAuthRequired(() => {
+    raised += 1;
+  });
+  try {
+    await body();
+  } finally {
+    stop();
+  }
+  return raised;
 }
 
 let seq = 20_000;
@@ -833,6 +853,8 @@ describe('Export dialog (Story 7.5)', () => {
     const pairs = [...dl.querySelectorAll('.dc-row')].map((row) => [row.querySelector('dt')!.textContent, row.querySelector('dd')!.textContent]);
     expect(pairs.map(([label]) => label)).toEqual(['Documento', 'Revisão do documento', 'Data de emissão', 'Contratante', 'Contratada', 'Responsável técnico', 'ART/TRT', 'Período do serviço']);
     expect(pairs[1]![1]).toBe('Rev. 1');
+    // F-15: the fixture has no Empresa: the note under the table says where to fill it in.
+    expect(modal.querySelector('.export-empresa-missing')).toHaveTextContent('Cadastre a empresa em Cadastros › Empresa');
     expect(modal.querySelector('.export-sec9-note')).toHaveTextContent('Seção 9 impressa no agrupamento do FO.SERV-03 (por local e tipo, com a flag Agrupar por tipo de cada cabine).');
     expect(await axe(modal)).toHaveNoViolations();
   });
@@ -869,6 +891,37 @@ describe('Export dialog (Story 7.5)', () => {
     // A preview job never reads as a running issue.
     expect(within(modal).queryByText(/Gerando revisão/)).toBeNull();
     open.mockRestore();
+  });
+
+  it('F-12: a preview refused with 401 closes its tab and says the session expired, with "Entrar de novo"', async () => {
+    database = await freshDb();
+    const sync = syncState({ preview: vi.fn(async () => Promise.reject(new SyncRequestError({ kind: 'http', status: 401 }))) });
+    const tab = { location: { href: '' }, close: vi.fn(), opener: {} };
+    const open = vi.spyOn(window, 'open').mockImplementation(() => tab as unknown as Window);
+    render(<Harness sync={sync} />);
+    const raised = await countReAuth(async () => {
+      await userEvent.click(within(dialog()).getByRole('button', { name: 'Pré-visualizar' }));
+      await waitFor(() => expect(within(dialog()).getByText(SESSION_EXPIRED)).toBeVisible());
+    });
+    expect(raised).toBe(1);
+    expect(within(dialog()).getByRole('button', { name: 'Entrar de novo' })).toBeVisible();
+    expect(within(dialog()).queryByText('Não foi possível gerar o rascunho. Os dados não foram alterados.')).toBeNull();
+    expect(tab.close).toHaveBeenCalled();
+    open.mockRestore();
+  });
+
+  it('F-12: "Gerar relatório" refused with 401 says the session expired, with "Entrar de novo", never the generic failure', async () => {
+    database = await freshDb();
+    const sync = syncState({ generate: vi.fn(async () => Promise.reject(new SyncRequestError({ kind: 'http', status: 401 }))) });
+    render(<Harness sync={sync} />);
+    const raised = await countReAuth(async () => {
+      await userEvent.click(generateButton());
+      await waitFor(() => expect(within(dialog()).getByRole('alert')).toHaveTextContent(SESSION_EXPIRED));
+    });
+    expect(raised).toBe(1);
+    expect(within(dialog()).getByRole('button', { name: 'Entrar de novo' })).toBeVisible();
+    expect(within(dialog()).queryByRole('button', { name: 'Tentar novamente' })).toBeNull();
+    expect(within(dialog()).queryByText(/Não foi possível gerar o relatório/)).toBeNull();
   });
 
   it('a failed preview closes its tab and says so', async () => {
@@ -1097,7 +1150,7 @@ describe('Export dialog (Story 7.5)', () => {
     }
   });
 
-  it('E11-Q1: a failed fetch words the failure beside the row and saves nothing; the next press clears it', async () => {
+  it('W-23: a revision file refused with 401 says the session expired with "Entrar de novo" and raises the re-auth banner', async () => {
     database = await freshDb();
     const first = revisionOf(1);
     await applyPulled(database, [first.op]);
@@ -1107,6 +1160,29 @@ describe('Export dialog (Story 7.5)', () => {
     const saved = recordSaves();
     try {
       saved.fetch.mockImplementation(async () => new Response('', { status: 401 }));
+      const raised = await countReAuth(async () => {
+        await userEvent.click(within(modal).getByRole('button', { name: 'PDF' }));
+        await waitFor(() => expect(within(modal).getByRole('alert')).toHaveTextContent(SESSION_EXPIRED));
+      });
+      expect(raised).toBe(1);
+      expect(within(within(modal).getByRole('alert')).getByRole('button', { name: 'Entrar de novo' })).toBeVisible();
+      expect(within(modal).queryByText('Não foi possível baixar o arquivo. Verifique a conexão e tente de novo.')).toBeNull();
+      expect(saved.names).toEqual([]);
+    } finally {
+      saved.restore();
+    }
+  });
+
+  it('E11-Q1: a failed fetch words the failure beside the row and saves nothing; the next press clears it', async () => {
+    database = await freshDb();
+    const first = revisionOf(1);
+    await applyPulled(database, [first.op]);
+    render(<Harness sync={syncState()} />);
+    const modal = dialog();
+    await waitFor(() => expect(modal.querySelectorAll('.revision-row')).toHaveLength(1));
+    const saved = recordSaves();
+    try {
+      saved.fetch.mockImplementation(async () => new Response('', { status: 503 }));
       await userEvent.click(within(modal).getByRole('button', { name: 'PDF' }));
       await waitFor(() => expect(within(modal).getByRole('alert')).toHaveTextContent('Não foi possível baixar o arquivo. Verifique a conexão e tente de novo.'));
       expect(saved.names).toEqual([]);

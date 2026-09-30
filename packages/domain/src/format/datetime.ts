@@ -93,11 +93,6 @@ function formatDate(parts: DateParts): string {
   return parts.day === null ? `${parts.month}/${parts.year}` : `${parts.day}/${parts.month}/${parts.year}`;
 }
 
-/**
- * The service period as the Home card and the document control table write it:
- * `06–08/09/2026` when both dates fall in one month, `28/07/2026 – 02/08/2026`
- * otherwise, the single date when only one is present, `''` when neither is.
- */
 /** `dd/mm/aaaa` (or `mm/aaaa`) of a `date` value, or `''` when null/unparseable. */
 export function formatCalendarDate(value: string | null): string {
   const parts = splitDate(value);
@@ -153,36 +148,40 @@ export function dateFieldText(value: string | null | undefined): string {
   return formatCalendarDate(canonical) || value;
 }
 
-export function formatServiceDates(start: string | null, end: string | null): string {
+/**
+ * K-12: the one service-period formatter, in two styles.
+ *
+ * - `full` (the Home card and the document control table): `06–08/09/2026` when both dates
+ *   fall in one month, `28/07/2026 – 02/08/2026` otherwise;
+ * - `compact` (the Project row, the Sumário header, the "Novo relatório" dialog, Story 4.1):
+ *   `06–08/09/2026` inside one month, `06/09–02/10/2026` across months of one year,
+ *   `28/12/2026–02/01/2027` across years.
+ *
+ * Both write the single date when the two are one day or only one is present, and `''`
+ * when neither is.
+ */
+export function formatDateRange(start: string | null, end: string | null, style: 'full' | 'compact'): string {
   const from = splitDate(start);
   const to = splitDate(end);
   if (from === null && to === null) return '';
   if (from === null) return formatDate(to!);
   if (to === null) return formatDate(from);
   if (from.year === to.year && from.month === to.month && from.day === to.day) return formatDate(from);
-  if (from.year === to.year && from.month === to.month && from.day !== null && to.day !== null) {
-    return `${from.day}–${to.day}/${from.month}/${from.year}`;
-  }
-  return `${formatDate(from)} – ${formatDate(to)}`;
+  const bothDays = from.day !== null && to.day !== null;
+  if (bothDays && from.year === to.year && from.month === to.month) return `${from.day}–${to.day}/${from.month}/${from.year}`;
+  if (style === 'full') return `${formatDate(from)} – ${formatDate(to)}`;
+  if (bothDays && from.year === to.year) return `${from.day}/${from.month}–${to.day}/${to.month}/${from.year}`;
+  return `${formatDate(from)}–${formatDate(to)}`;
 }
 
-/**
- * The service period as the Project row, the Sumário header and the "Novo relatório"
- * dialog write it (Story 4.1): `06–08/09/2026` inside one month, `06/09–02/10/2026` across
- * months of one year, `28/12/2026–02/01/2027` across years, the single date when the two
- * are one day or only one is present, `''` when neither is.
- */
+/** The service period as the Home card and the document control table write it (`formatDateRange`, `full`). */
+export function formatServiceDates(start: string | null, end: string | null): string {
+  return formatDateRange(start, end, 'full');
+}
+
+/** The service period as the Project row, the Sumário header and the "Novo relatório" dialog write it (`formatDateRange`, `compact`). */
 export function dateRangeText(start: string | null, end: string | null): string {
-  const from = splitDate(start);
-  const to = splitDate(end);
-  if (from === null && to === null) return '';
-  if (from === null) return formatDate(to!);
-  if (to === null) return formatDate(from);
-  if (from.year === to.year && from.month === to.month && from.day === to.day) return formatDate(from);
-  if (from.day === null || to.day === null) return `${formatDate(from)}–${formatDate(to)}`;
-  if (from.year === to.year && from.month === to.month) return `${from.day}–${to.day}/${from.month}/${from.year}`;
-  if (from.year === to.year) return `${from.day}/${from.month}–${to.day}/${to.month}/${from.year}`;
-  return `${formatDate(from)}–${formatDate(to)}`;
+  return formatDateRange(start, end, 'compact');
 }
 
 const calendarDate = new Intl.DateTimeFormat('pt-BR', {

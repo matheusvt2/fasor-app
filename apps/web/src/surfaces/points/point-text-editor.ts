@@ -43,13 +43,46 @@ export function renderPointText(area: HTMLElement, text: string, labelOf: PhotoL
   if (area.lastChild instanceof HTMLElement && area.lastChild.tagName === 'BR') area.append(doc.createElement('br'));
 }
 
-/** Inserts a photo chip at `range` (or at the end of the text), the caret after it. */
+/**
+ * Inserts a photo chip at `range` (or at the end of the text), the caret after it. F-09: it
+ * lands spaced as a quick text is (`spacingAt`): a space before it after a word, a space
+ * after it before a word, so "Imagem 1" never reads glued to the text.
+ */
 export function insertPhotoChip(area: HTMLElement, range: Range | null, id: string, label: string): void {
+  const doc = area.ownerDocument;
   const target = rangeInside(area, range) ? range : endRange(area);
   target.deleteContents();
-  const chip = photoChipElement(area.ownerDocument, id, label);
-  target.insertNode(chip);
-  placeCaret(area, caretAfter(area, chip));
+  const { lead, tail } = spacingAt(area, target);
+  const chip = photoChipElement(doc, id, label);
+  const fragment = doc.createDocumentFragment();
+  if (lead !== '') fragment.append(doc.createTextNode(lead));
+  fragment.append(chip);
+  const after = tail === '' ? null : doc.createTextNode(tail);
+  if (after !== null) fragment.append(after);
+  target.insertNode(fragment);
+  if (after === null) {
+    placeCaret(area, caretAfter(area, chip));
+    return;
+  }
+  const caret = doc.createRange();
+  caret.setStart(after, after.length);
+  caret.collapse(true);
+  placeCaret(area, caret);
+}
+
+/** The spaces an insert at `range` needs: one before after a word, one after before a word. */
+function spacingAt(area: HTMLElement, range: Range): { lead: string; tail: string } {
+  const before = range.cloneRange();
+  before.setStart(area, 0);
+  const preceding = before.toString();
+  const after = range.cloneRange();
+  after.collapse(false);
+  after.setEnd(area, area.childNodes.length);
+  const following = after.toString();
+  return {
+    lead: preceding === '' || /\s$/.test(preceding) ? '' : ' ',
+    tail: following === '' || /^\s/.test(following) ? '' : ' ',
+  };
 }
 
 /**
@@ -81,16 +114,7 @@ export function insertPlainText(area: HTMLElement, range: Range | null, text: st
  * and a space after it when a word follows the caret.
  */
 export function quickTextAt(area: HTMLElement, range: Range | null, text: string): string {
-  const target = rangeInside(area, range) ? range : endRange(area);
-  const before = target.cloneRange();
-  before.setStart(area, 0);
-  const preceding = before.toString();
-  const after = target.cloneRange();
-  after.collapse(false);
-  after.setEnd(area, area.childNodes.length);
-  const following = after.toString();
-  const lead = preceding === '' || /\s$/.test(preceding) ? '' : ' ';
-  const tail = following === '' || /^\s/.test(following) ? '' : ' ';
+  const { lead, tail } = spacingAt(area, rangeInside(area, range) ? range : endRange(area));
   return `${lead}${text}${tail}`;
 }
 
