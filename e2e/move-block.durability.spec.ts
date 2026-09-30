@@ -1,5 +1,5 @@
 import type { BlockRow } from '@app/domain';
-import type { Locator, Page } from '@playwright/test';
+import type { Locator, Page, Route } from '@playwright/test';
 import { signInForDurability, waitForShellCache } from './support/durability.ts';
 import { deviceDatabaseName, expect, test } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
@@ -28,7 +28,7 @@ async function openSubsolo(page: Page): Promise<void> {
   await expect(coluna(page, 'Coluna 5')).toBeVisible();
 }
 
-test('@p1 11.2-E2E-007 a move made offline survives a reload and reaches the server once online', async ({ page, context, seed }) => {
+test('@p1 11.2-E2E-007 a move made offline survives a reload and reaches the server once online', async ({ page, context, seed, browserName }) => {
   test.setTimeout(150_000);
   const account = seed.companies[1];
   const database = deviceDatabaseName(account.userId);
@@ -49,12 +49,23 @@ test('@p1 11.2-E2E-007 a move made offline survives a reload and reaches the ser
   await dialog.getByRole('button', { name: 'Mover', exact: true }).click();
   await expect(tagsIn(coluna(page, 'Coluna 9'))).toHaveText(['SEC-C05']);
 
+  // Playwright's WebKit cuts the network below the service worker, so an offline reload
+  // fails with an internal error there (`durability.spec.ts`, the same limit). On WebKit the
+  // reload runs online with every sync request refused, which keeps the batch in the outbox
+  // just as offline does; the Chromium projects reload truly offline.
+  const isSync = (url: URL) => url.pathname.startsWith('/api/sync');
+  const refuseSync = (route: Route) => route.abort('internetdisconnected');
+  if (browserName === 'webkit') {
+    await page.route(isSync, refuseSync);
+    await context.setOffline(false);
+  }
   await page.reload();
   await openSubsolo(page);
   await expect(tagsIn(coluna(page, 'Coluna 9'))).toHaveText(['SEC-C05']);
   const pending = await readStore<{ path: string; value: unknown }>(page, database, 'outbox');
   expect(pending.find((op) => op.path === `block/${blockId}/location_id`)?.value).toBe(coluna9Id);
 
+  if (browserName === 'webkit') await page.unroute(isSync, refuseSync);
   await context.setOffline(false);
   await syncNow(page);
   const server = (await serverRow(account.companyId, 'block', blockId)) as unknown as BlockRow;
