@@ -359,7 +359,7 @@ test('@p0 11.10-E2E-001 the DOCX section 8 carries the action-plan table: the po
   const generate = dialog.locator('.generate-row').getByRole('button', { name: 'Gerar relatório' });
   await expect(generate).toBeEnabled({ timeout: 30_000 });
   await generate.click();
-  await expect(toast(page)).toHaveText('Revisão 1 pronta — DOCX', { timeout: JOB_TIMEOUT });
+  await expect(toast(page)).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
   const download = await downloadFrom(page, context, () => dialog.getByRole('button', { name: 'DOCX — abrir no Word' }).click());
   const response = await page.request.get(download.url());
   expect(response.status()).toBe(200);
