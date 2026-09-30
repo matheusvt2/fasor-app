@@ -356,6 +356,34 @@ describe('3.6 composer: section text', () => {
     expect(await outboxPaths()).toHaveLength(2);
   });
 
+  it('11.4: a section whose seed has items (3), edited and brought back to the seed content, is stored as null', async () => {
+    database = await freshDb(standardTemplate({ id: ID }));
+    renderComposer();
+    const section3 = () => templateRow(database!, ID).then((row) => row!.blocks.find((b) => b.block_type === 'section_3')!.section_text);
+    const open = async () => {
+      await userEvent.click(await screen.findByRole('button', { name: 'Mais opções de 3 Limite de escopo' }));
+      await userEvent.click(await screen.findByRole('menuitem', { name: 'Editar texto' }));
+      return screen.findByRole('dialog', { name: '3 Limite de escopo — texto fixo' });
+    };
+    let dialog = await open();
+    await userEvent.click(await chipButton(dialog, 'cliente'));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
+    // The editor stores the kernel markup: the seed's items as "- " lines, the chip in front.
+    await waitFor(async () => expect(await section3()).toMatch(/^\{cliente\}[\s\S]*\n- /));
+
+    dialog = await open();
+    const textbox = within(dialog).getByRole('textbox', { name: 'Texto da seção 3' });
+    const chip = textbox.querySelector('.var-chip')!;
+    const range = document.createRange();
+    range.setStartAfter(chip);
+    range.collapse(true);
+    document.getSelection()!.removeAllRanges();
+    document.getSelection()!.addRange(range);
+    fireEvent.keyDown(textbox, { key: 'Backspace' });
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
+    await waitFor(async () => expect(await section3()).toBeNull());
+  });
+
   it('offers "Editar texto" only on a section with text, opening the seed\'s text with its variables as chips', async () => {
     database = await freshDb(standardTemplate({ id: ID }));
     renderComposer();

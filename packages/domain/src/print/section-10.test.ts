@@ -46,7 +46,7 @@ describe('7.4-UNIT section 10 layout', () => {
       title: 'CONCLUSÃO E OBSERVAÇÕES TÉCNICAS',
       kind: 'section_10',
       parecer: { title: 'Apto com restrições', text: 'Resumo confirmado.' },
-      bullets: sectionText('v1', 10, '2026-09-23').map((block) => ({ text: block.text, runs: [{ text: block.text }] })),
+      bullets: sectionText('v1', 10, '2026-09-23').map((block) => ({ kind: 'item', text: block.text, runs: [{ text: block.text }] })),
       validityLine: 'Este relatório tem validade apenas acompanhada da ART 2620262602583',
       signature: { name: 'Rafael Lamonde', title: 'Eng. Eletricista', registration: 'CREA 5063583141' },
     });
@@ -60,6 +60,23 @@ describe('7.4-UNIT section 10 layout', () => {
     const unconfirmed = section10Layout(withParecer(base(), { verdict: 'apto', text: 'composto', text_status: null, text_basis: null }), { number: 10, title: 'T' });
     expect(unconfirmed.parecer).toEqual({ title: 'Apto', text: null });
     expect(unconfirmed.bullets).toEqual([]);
+  });
+
+  it('11.4: carries each own-text item\'s runs, and a numbered item\'s kind and position', () => {
+    const section = section10Layout(base(), {
+      number: 10,
+      title: 'T',
+      paragraphs: [
+        { kind: 'paragraph', text: 'Negrito fim', runs: [{ text: 'Negrito', bold: true }, { text: ' fim' }] },
+        { kind: 'numbered', number: 1, text: 'Um', runs: [{ text: 'Um', italic: true }] },
+        { kind: 'numbered', number: 2, text: 'Dois', runs: [{ text: 'Dois' }] },
+      ],
+    });
+    expect(section.bullets).toEqual([
+      { kind: 'item', text: 'Negrito fim', runs: [{ text: 'Negrito', bold: true }, { text: ' fim' }] },
+      { kind: 'numbered', number: 1, text: 'Um', runs: [{ text: 'Um', italic: true }] },
+      { kind: 'numbered', number: 2, text: 'Dois', runs: [{ text: 'Dois' }] },
+    ]);
   });
 
   it('signs with the typed title, the CRT default, or the council alone when the number is blank', () => {

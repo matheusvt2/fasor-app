@@ -340,6 +340,23 @@ describe('11.5 Account: "Localização nas fotos"', () => {
     }
   });
 
+  it('a switch the device refuses to store says so, and stays as it was', async () => {
+    const savePhotoLocation = vi.fn(async () => {
+      throw new Error('refused');
+    });
+    session = { ...signedIn, savePhotoLocation };
+    try {
+      renderAccount(syncState('', 0));
+      const toggle = screen.getByRole('switch', { name: 'Gravar coordenadas em cada foto' });
+      await userEvent.click(toggle);
+      expect(savePhotoLocation).toHaveBeenCalledWith(false);
+      expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível salvar. Tente de novo.');
+      expect(toggle).toHaveAttribute('aria-checked', 'true');
+    } finally {
+      session = signedIn;
+    }
+  });
+
   it('reads the device row: off shows the "off" helper', async () => {
     const db = await withDevice({ photo_location_enabled: false }, false);
     session = { ...signedIn, database: db };

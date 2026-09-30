@@ -7,6 +7,7 @@ import {
   htmlToRichBlocks,
   insertVariable,
   pasteBlocks,
+  pastedBlocks,
   placeSelection,
   readArea,
   readBlocks,
@@ -147,6 +148,16 @@ describe('11.4-UNIT toolbar edits', () => {
     expect(joined.selection).toEqual(at(0, 12));
   });
 
+  it('on an empty area, Negrito and Lista apply to what is typed next (an empty paragraph first)', () => {
+    const bold = toggleMark([], at(0, 0), 'bold');
+    expect(bold.lines).toHaveLength(1);
+    expect(bold.lines[0]!.chars).toEqual([{ c: ZERO_WIDTH, bold: true, italic: false }]);
+    expect(formatState(bold.lines, bold.selection).bold).toBe(true);
+    const list = toggleList([], at(0, 0), 'numbered');
+    expect(list.lines).toEqual([{ kind: 'numbered', chars: [] }]);
+    expect(formatState(list.lines, list.selection).numbered).toBe(true);
+  });
+
   it('a chip inserted inside bold text is bold', () => {
     const bold = toggleMark(lines(), span(0, 0, 2), 'bold');
     const chip = insertVariable(bold.lines, at(0, 2), 'obra');
@@ -165,6 +176,15 @@ describe('11.4-UNIT paste', () => {
       { kind: 'numbered', runs: [{ text: 'c' }] },
     ]);
     expect(storedText(blocks)).toBe('Título\n\nNeg x \\*y\\* link {obra}\n- a\n- b\n1. c');
+  });
+
+  it('falls back to the plain text when the HTML yields no block, and uses the plain text with no HTML', () => {
+    expect(pastedBlocks('<img src="x.png">', 'texto simples')).toEqual([{ kind: 'paragraph', runs: [{ text: 'texto simples' }] }]);
+    expect(pastedBlocks('', 'a\nb')).toEqual([
+      { kind: 'paragraph', runs: [{ text: 'a' }] },
+      { kind: 'paragraph', runs: [{ text: 'b' }] },
+    ]);
+    expect(pastedBlocks('<ul><li>item</li></ul>', 'outro')).toEqual([{ kind: 'bullet', runs: [{ text: 'item' }] }]);
   });
 
   it('lands one pasted paragraph inline, unformatted, and several blocks split the block at the caret', () => {

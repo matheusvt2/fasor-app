@@ -1,4 +1,4 @@
-import { isSectionVariable, sectionTextTokens, serializeRichText, type RichBlock, type RichBlockKind, type RichRun } from '@app/domain';
+import { isSectionVariable, plainTextToRichBlocks, sectionTextTokens, serializeRichText, type RichBlock, type RichBlockKind, type RichRun } from '@app/domain';
 import { chipElement, isChip } from './section-text-editor.ts';
 
 /*
@@ -340,6 +340,15 @@ export function htmlToRichBlocks(html: string, doc: Document = document): RichBl
   return fromLines(lines.filter((line) => line.chars.some((char) => char.c.trim() !== '' && char.c !== ZERO_WIDTH)));
 }
 
+/**
+ * What a paste lands as: the HTML's text and lists; HTML that yields nothing (an image,
+ * markup with no text) or no HTML at all falls back to the plain text, line by line.
+ */
+export function pastedBlocks(html: string, plain: string, doc: Document = document): RichBlock[] {
+  const fromHtml = html.trim() !== '' ? htmlToRichBlocks(html, doc) : [];
+  return fromHtml.length > 0 ? fromHtml : plainTextToRichBlocks(plain);
+}
+
 // --- selection in the DOM ---------------------------------------------------------------
 
 function domPoint(element: HTMLElement, offset: number): { node: Node; offset: number } {
@@ -412,6 +421,9 @@ const at = (pos: Pos): Selection => ({ start: pos, end: pos });
 const copyLines = (lines: readonly Line[]): Line[] => lines.map((line) => ({ kind: line.kind, chars: line.chars.map((char) => ({ ...char })) }));
 const visible = (chars: readonly Char[]) => chars.filter((char) => char.c !== ZERO_WIDTH);
 
+/** A copy of the lines; an empty area gets one empty paragraph, so a command applies to what is typed next. */
+const withALine = (source: readonly Line[]): Line[] => (source.length === 0 ? [{ kind: 'paragraph', chars: [] }] : copyLines(source));
+
 /** The document's end: the caret an edit with no selection in the area lands at. */
 export function endSelection(lines: readonly Line[]): Selection {
   return at(clampPos(lines, null));
@@ -476,7 +488,7 @@ export function formatState(lines: readonly Line[], selection: Selection | null)
  * toggled mark (a zero-width space holds it).
  */
 export function toggleMark(source: readonly Line[], selection: Selection, mark: Mark): Edit {
-  const lines = copyLines(source);
+  const lines = withALine(source);
   if (collapsed(selection)) {
     const pos = selection.start;
     const chars = lines[pos.block]?.chars;
@@ -503,7 +515,7 @@ export function toggleMark(source: readonly Line[], selection: Selection, mark: 
 
 /** "Lista" / "Numeração": the selected blocks become that list, or paragraphs when all already are. */
 export function toggleList(source: readonly Line[], selection: Selection, kind: ListKind): Edit {
-  const lines = copyLines(source);
+  const lines = withALine(source);
   const range = lines.slice(selection.start.block, selection.end.block + 1);
   const next: RichBlockKind = range.length > 0 && range.every((line) => line.kind === kind) ? 'paragraph' : kind;
   for (const line of range) line.kind = next;

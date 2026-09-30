@@ -2,7 +2,7 @@
 title: 'Stories 11.4 + 11.5: Rich text boilerplate and the photo location stamp switch'
 type: 'feature'
 created: '2026-09-30'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '9614e0a2b25154cdc0fe661baa24ec76269fa5b8'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -12,7 +12,28 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-11-context.md'
 warnings: ['batched', 'multiple-goals', 'oversized']
 batched_reason: 'Epic 11 batch E (coordinator decision 1): two small office/account surfaces with no shared code, batched for token economy.'
-deferred: []
+deferred:
+  - summary: >-
+      Text typed in the plain per-relatorio Section text surface (or written by 3.6 before markup existed) is now read as markup, so paired asterisks, a leading "- " or "N. ", or a backslash before * - . print formatted or as list items.
+    evidence: |-
+      layout.ts ownParagraphs parses every own section_text through parseRichText; the plain surface saves raw text. Designed trade-off of markup-in-string (spec Design Notes); legacy compatibility is pinned for seed texts only. Edge Case Hunter and Verification Gap reviewers, 2026-09-30.
+    location: >-
+      packages/domain/src/print/layout.ts (ownParagraphs)
+    severity: low
+  - summary: >-
+      The position tracker latches a PERMISSION_DENIED for the life of the capture hook, so a permission granted in the OS while the ficha stays mounted gives coordinates only after the sheet is reopened.
+    evidence: |-
+      apps/web/src/files/geolocation.ts sets denied = true and never resets it (Story 6.1 behavior, pre-existing). A remount (any navigation) clears it; the Account copy says the pin returns "na proxima foto".
+    location: >-
+      apps/web/src/files/geolocation.ts
+    severity: medium
+  - summary: >-
+      On a virtual keyboard that sends keydown "Unidentified" for Backspace, the rich editor's own list-exit and block-join logic does not run and the browser's native deletion runs instead.
+    evidence: |-
+      use-rich-text-area.ts handles Backspace/Delete in keydown only. Unverified whether the DOM read-back then yields a different text than the editor's own join; would be settled by a beforeinput deleteContentBackward test on Android Chrome. Office surface, desktop first.
+    location: >-
+      apps/web/src/input/use-rich-text-area.ts
+    severity: medium (unverified)
 ---
 
 <intent-contract>
@@ -105,6 +126,29 @@ deferred: []
 - Given a template text without markup (every seeded or 3.6-written text), when a relatório prints, then the document is unchanged (golden green).
 - Given the relatório's Section text surface, when opened on formatted text, then it is the plain editor with no toolbar and saving keeps the markup.
 - Given Account, when "Localização nas fotos" is off, then new photos carry date and time only; when the OS denied location, the denied line shows and the switch stays on; capture is never blocked (FR-8).
+
+## Spec Change Log
+
+## Review Triage Log
+
+### 2026-09-30 — Review pass
+- verdicts: 14 findings — high 0, medium 5, low 7, false 0, maybe-false 2
+- skipped layers: Blind Hunter and Intent Alignment (token economy; the integrated epic review covers them)
+- findings:
+  - `[medium]` `[patch]` VG: formatted section 10 text has no test of its runs — added a section_10 case to docx-rich-text.test.ts and a layout test.
+  - `[medium]` `[patch]` VG: sameRichText seed-equal path tested only on section 1 — composer test on section 3 added.
+  - `[low]` `[patch]` VG: the capture's onGranted clearing is masked by Account's Permissions API query in 11.5-E2E-002 — the spec now reads local_prefs right after the granted shot.
+  - `[low]` `[patch]` VG: locationSaveFailed path untested — account-surface test with a rejecting savePhotoLocation.
+  - `[medium]` `[patch]` VG other + ECH: a Numeracao list in section 10 printed as bullets — section 10 bullets carry kind/number and print numbered.
+  - `[low]` `[defer]` VG other + ECH: plain-typed asterisks, leading markers or backslashes in the relatorio surface now format — designed trade-off, deferred with evidence.
+  - `[low]` `[patch]` VG other: docx.ts and sections/section-10.ts import each other — richRuns moved to a leaf module.
+  - `[medium]` `[defer]` ECH: tracker latches a denial while the ficha stays mounted — pre-existing Story 6.1 behavior, deferred.
+  - `[low]` `[reject]` ECH: Permissions API "prompt" after a reset keeps the denied line — rare (a reset permission), and headless Chromium reports "prompt" for an ungranted context, so clearing on it would hide a real denial; the next fix clears the line anyway.
+  - `[low]` `[patch]` ECH: formatting commands on an empty area do nothing — an empty paragraph is pushed first.
+  - `[medium]` `[patch]` ECH: Backspace/Delete handled during IME composition — early return on isComposing.
+  - `[maybe-false]` `[defer]` ECH: virtual keyboard "Unidentified" Backspace skips the editor's own join — deferred, medium unverified.
+  - `[low]` `[patch]` ECH: HTML clipboard yielding no blocks inserts nothing — falls back to the plain text.
+  - `[maybe-false]` `[patch]` ECH claim: 11.5-E2E-002 cannot tell whether the shot cleared the pref — same fix as the VG onGranted row.
 
 ## Design Notes
 

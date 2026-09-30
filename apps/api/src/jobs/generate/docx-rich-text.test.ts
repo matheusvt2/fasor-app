@@ -2,7 +2,8 @@ import { buildSnapshot, layoutSpec, replay, type BlockRow, type RelatorioSnapsho
 import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { Document, Packer, Paragraph } from 'docx';
 import { describe, expect, it } from 'vitest';
-import { buildDocx, richRuns, text } from './docx.ts';
+import { buildDocx, text } from './docx.ts';
+import { richRuns } from './rich-runs.ts';
 import { extractStructure, readZipEntries } from './docx-structure.ts';
 import { placeholderPages } from './toc.ts';
 
@@ -16,16 +17,16 @@ import { placeholderPages } from './toc.ts';
 const ISSUED_AT = '2026-09-23T12:00:00.000Z';
 const RICH_SECTION_1 = 'Serviços para **{cliente}**:\n- **Termografia** dos painéis\n- Inspeção *visual*\n1. Limpeza\n2. Reaperto *quando aplicável*\n\nFim.\n1. Outra lista';
 
-/** The small fixture with one section block, section 1, holding `sectionText`: only it prints. */
-function withSection1(sectionText: string): RelatorioSnapshot {
+/** The small fixture with one section block (section 1 unless named) holding `sectionText`: only it prints. */
+function withSection1(sectionText: string, blockType = 'section_1'): RelatorioSnapshot {
   const snapshot = buildSnapshot(replay(portoSeguroSmall.log, { deadOpIds: portoSeguroSmall.deadOpIds }), portoSeguroSmall.relatorioId);
   const block: BlockRow = {
     id: '019966c1-00f3-7000-8000-000000000001',
     relatorio_id: snapshot.relatorio.id,
     location_id: null,
     equipment_id: null,
-    block_type: 'section_1',
-    config: { block_type: 'section_1', sub_blocks: {}, na_defaults: [], section_text: sectionText },
+    block_type: blockType,
+    config: { block_type: blockType, sub_blocks: {}, na_defaults: [], section_text: sectionText },
     seed_version: snapshot.relatorio.seed_version,
     order_key: 'a0',
     feeds_block_id: null,
@@ -87,6 +88,23 @@ describe('11.4-UNIT a formatted section text in the DOCX', () => {
     const structure = extractStructure(docx);
     expect(structure.paragraphs).toContain('Serviços para Cliente de Testes Ltda:');
     expect(structure.paragraphs).toContain('Reaperto quando aplicável');
+  });
+
+  it('prints section 10\'s own formatted items: bold and italic runs, and its numbered items in the decimal list', async () => {
+    const { entries } = await render(withSection1('**Negrito** no fim\n- item *itálico*\n1. Um\n2. Dois', 'section_10'));
+    const document = xml(entries, 'word/document.xml');
+    const paragraphs = [...document.matchAll(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g)].map((m) => m[0]);
+    const heading = paragraphs.findIndex((p) => p.includes('w:val="Heading1"') && p.includes('CONCLUSÃO E OBSERVAÇÕES TÉCNICAS'));
+    expect(heading).toBeGreaterThanOrEqual(0);
+    const after = paragraphs.slice(heading + 1);
+    const find = (words: string) => after.find((p) => p.includes(`>${words}</w:t>`))!;
+    expect(runOf(find('Negrito'), 'Negrito')).toContain('<w:b/>');
+    expect(runOf(find('itálico'), 'itálico')).toContain('<w:i/>');
+    const numId = (p: string) => /<w:numId w:val="(\d+)"\/>/.exec(p)?.[1];
+    expect(numId(find('Um'))).toBeDefined();
+    expect(numId(find('Um'))).toBe(numId(find('Dois')));
+    expect(numId(find('Um'))).not.toBe(numId(find('Negrito')));
+    expect(xml(entries, 'word/numbering.xml')).toContain('w:val="decimal"');
   });
 
   it('adds no decimal list to a document without a numbered item', async () => {

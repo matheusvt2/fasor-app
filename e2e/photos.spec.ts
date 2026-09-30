@@ -476,6 +476,10 @@ test.describe('without the position permission', () => {
     await expect(page.locator('.sheet-header .sheet-title')).toBeVisible();
     await shootOnce(page);
     await expect.poll(async () => (await devicePhotos(page, database)).filter((photo) => photo.coords !== null).length, { timeout: 15_000 }).toBe(1);
+    // The fix itself clears the device's denial, before Account's own permission check runs.
+    await expect
+      .poll(async () => (await readStore<{ key: string }>(page, database, 'local_prefs')).some((pref) => pref.key === 'geolocation_denied'), { timeout: 10_000 })
+      .toBe(false);
     await openAccount(page);
     await expect(page.getByText(HELPER_ON)).toBeVisible();
     await expect(page.getByText(DENIED)).toHaveCount(0);

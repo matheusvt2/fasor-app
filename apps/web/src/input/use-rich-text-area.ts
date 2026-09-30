@@ -1,13 +1,13 @@
-import { normalizeRichText, parseRichText, plainTextToRichBlocks, type SectionVariable } from '@app/domain';
+import { normalizeRichText, parseRichText, type SectionVariable } from '@app/domain';
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
 import {
   deleteAt,
   endSelection,
   formatState,
   fromLines,
-  htmlToRichBlocks,
   insertVariable,
   pasteBlocks,
+  pastedBlocks,
   placeSelection,
   readArea,
   renderBlocks,
@@ -233,7 +233,7 @@ export function useRichTextArea(options: UseRichTextAreaOptions): UseRichTextAre
       event.preventDefault();
       const html = event.clipboardData?.getData('text/html') ?? '';
       const plain = event.clipboardData?.getData('text/plain') ?? '';
-      const blocks = html.trim() !== '' ? htmlToRichBlocks(html) : plainTextToRichBlocks(plain);
+      const blocks = pastedBlocks(html, plain);
       latestCommands.current.apply((lines, s) => pasteBlocks(lines, s, blocks));
     };
     element.addEventListener('beforeinput', onBeforeInput);
@@ -267,6 +267,8 @@ export function useRichTextArea(options: UseRichTextAreaOptions): UseRichTextAre
       return;
     }
     if (event.key === 'Backspace' || event.key === 'Delete') {
+      // A deletion inside an IME composition is the input method's.
+      if (event.nativeEvent.isComposing) return;
       const direction = event.key === 'Backspace' ? 'backward' : 'forward';
       if (apply((lines, s) => deleteAt(lines, s, direction))) event.preventDefault();
     }

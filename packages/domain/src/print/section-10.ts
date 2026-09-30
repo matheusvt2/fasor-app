@@ -28,8 +28,10 @@ export interface LayoutSection10 {
   /**
    * The section's fixed items, in order: each its plain `text` and, Story 11.4, its printed
    * runs (bold and italic from the template's formatted text; a seed item is one plain run).
+   * A numbered item of the own text keeps `numbered` and its position; every other block
+   * prints as a bullet (`item`).
    */
-  bullets: { text: string; runs: RichRun[] }[];
+  bullets: { kind: 'item' | 'numbered'; number?: number; text: string; runs: RichRun[] }[];
   validityLine: string;
   signature: { name: string; title: string; registration: string };
 }
@@ -67,7 +69,7 @@ function signatureOf(responsible: RelatorioSnapshot['responsible']): LayoutSecti
  */
 export function section10Layout(
   snapshot: RelatorioSnapshot,
-  base: { number: number; title: string; paragraphs?: readonly { text: string; runs?: readonly RichRun[] }[] },
+  base: { number: number; title: string; paragraphs?: readonly { kind?: string; number?: number; text: string; runs?: readonly RichRun[] }[] },
 ): LayoutSection10 {
   const parecer = parecerOf(snapshot);
   return {
@@ -78,7 +80,11 @@ export function section10Layout(
       title: parecer === null ? PARECER_MISSING_TITLE : parecerVerdictLabel(parecer.verdict),
       text: parecerTextForPrint(snapshot),
     },
-    bullets: (base.paragraphs ?? []).map((paragraph) => ({ text: paragraph.text, runs: paragraph.runs === undefined ? [{ text: paragraph.text }] : [...paragraph.runs] })),
+    bullets: (base.paragraphs ?? []).map((paragraph) => ({
+      ...(paragraph.kind === 'numbered' ? { kind: 'numbered' as const, ...(paragraph.number === undefined ? {} : { number: paragraph.number }) } : { kind: 'item' as const }),
+      text: paragraph.text,
+      runs: paragraph.runs === undefined ? [{ text: paragraph.text }] : [...paragraph.runs],
+    })),
     validityLine: validityLine(snapshot.responsible?.council ?? null, snapshot.relatorio.setup.art_trt_number),
     signature: signatureOf(snapshot.responsible),
   };

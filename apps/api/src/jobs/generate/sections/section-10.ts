@@ -1,6 +1,6 @@
 import type { LayoutSection10 } from '@app/domain';
 import { AlignmentType, BorderStyle, Paragraph, Table, TableCell, TableRow, TextRun, WidthType, type IBorderOptions } from 'docx';
-import { richRuns } from '../docx.ts';
+import { numberedItem, richRuns, type NumberedLists } from '../rich-runs.ts';
 
 /*
  * Story 7.4 (FR-72): section 10 as the `docx` library draws it, from the kernel's
@@ -14,7 +14,7 @@ const border: IBorderOptions = { style: BorderStyle.SINGLE, size: 8, color: '404
 const borders = { top: border, bottom: border, left: border, right: border };
 
 /** Renders section 10's body (everything under its heading), inside a content width in twips. */
-export function section10Children(section: LayoutSection10, contentWidthTwips: number): (Paragraph | Table)[] {
+export function section10Children(section: LayoutSection10, contentWidthTwips: number, lists: NumberedLists): (Paragraph | Table)[] {
   // E78-Q11: the box never splits across pages: its row cannot split, and its title keeps with the summary.
   const hasText = section.parecer.text !== null;
   const boxChildren: Paragraph[] = [
@@ -40,7 +40,11 @@ export function section10Children(section: LayoutSection10, contentWidthTwips: n
   });
 
   const out: (Paragraph | Table)[] = [box, new Paragraph({ spacing: { after: 120 } })];
-  for (const bullet of section.bullets) out.push(new Paragraph({ children: richRuns(bullet.runs), bullet: { level: 0 }, spacing: { after: 60 } }));
+  for (const bullet of section.bullets) {
+    // Story 11.4: a numbered item of the section's own text prints in the document's decimal list.
+    const list = bullet.kind === 'numbered' ? { numbering: numberedItem(lists, bullet.number) } : { bullet: { level: 0 } };
+    out.push(new Paragraph({ children: richRuns(bullet.runs), ...list, spacing: { after: 60 } }));
+  }
   out.push(new Paragraph({ children: [new TextRun({ text: section.validityLine })], spacing: { before: 240, after: 120 } }));
 
   const signature = [
