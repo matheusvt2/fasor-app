@@ -2455,6 +2455,8 @@ So that the design partner uses the product outside the office network without a
 
 *(2026-09-29, Matheus: region `us-east-1`, not `sa-east-1`; lean topology for at most 10 concurrent users, one Graviton EC2 instance in ECS with Caddy HTTPS instead of Fargate behind an ALB, no NAT, RDS `db.t4g.micro`, `staging` on demand. `source-deltas.md`.)*
 
+*(2026-09-30, Matheus: secrets in SSM Parameter Store `SecureString` instead of Secrets Manager; the USD 100 ceiling holds at list price, without Free Tier or promotional credits. `source-deltas.md`.)*
+
 ### Story 11.9: Let the priority suggest the deadline on a point of attention (post-MVP, before 2027-06-01)
 
 **Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** medium · priority picker and deadline suggestion
