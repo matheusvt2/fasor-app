@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Toast, type ToastAction, type ToastMessage } from '../components/toast.tsx';
 import type { Timers } from '../input/field-commit.ts';
 
@@ -46,6 +46,10 @@ export function ToastProvider({ children, timers = browserTimers }: { children: 
     if (handle.current !== null) timers.clearTimeout(handle.current);
     handle.current = null;
   }, [timers]);
+
+  // A plain toast's expiry never outlives the provider: its setState would land after the
+  // page (or a test's environment) is gone.
+  useEffect(() => clearTimer, [clearTimer]);
 
   const dismissToast = useCallback(() => {
     clearTimer();
