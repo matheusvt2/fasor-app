@@ -260,7 +260,9 @@ test('@p0 6.3/6.4-E2E-002 files added from a sheet save at once with its caption
   const add = page.locator('.sticky-action-bar').getByRole('button', { name: 'Adicionar fotos' });
   await pickFiles(page, add, [await plainJpeg(page, 'a.jpg'), await plainJpeg(page, 'b.jpg'), await png(page, 'c.png')]);
   await expect(page.getByRole('dialog', { name: 'Adicionar fotos' })).toHaveCount(0);
-  await expect(toast(page)).toContainText('3 fotos adicionadas — legenda aplicada');
+  // The toast follows the last save, and the PNG is converted first: a loaded machine takes
+  // longer than the default 5 s (it failed identically on the unchanged base, 2026-09-30).
+  await expect(toast(page)).toContainText('3 fotos adicionadas — legenda aplicada', { timeout: 20_000 });
   await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(3);
   for (const photo of await devicePhotos(page, database)) {
     expect(photo).toMatchObject({ block_id: blockId, item_key: null, caption: SHEET_CAPTION, mime: 'image/jpeg', coords: null });
