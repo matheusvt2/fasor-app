@@ -208,7 +208,7 @@ describe('4.4 location tree (Sumário presentation)', () => {
     // "Adicionar bloco em ⟨cabine⟩" under the open cabine; "Adicionar cabine" at the foot.
     expect(within(cabines[0]!).getByRole('button', { name: 'Adicionar bloco em Cabine de Testes' })).toHaveClass('s9-add');
     expect(screen.getByRole('button', { name: 'Adicionar cabine' })).toBeInTheDocument();
-    // "Mover para…" is never drawn.
+    // Story 11.2: "Mover para…" lives in the equipment Overflow only, never drawn on the row.
     expect(screen.queryByText(/Mover para/)).toBeNull();
     expect(await axe(container)).toHaveNoViolations();
   });
@@ -263,7 +263,7 @@ describe('4.4 location tree (Sumário presentation)', () => {
     ]);
     expect(await itemsOf('Mais opções de Cabine Vazia')).toEqual(['Agrupar por tipo na seção 9', 'Adicionar bloco', 'Adicionar coluna', 'Renomear', 'Subir']);
     expect(await itemsOf('Mais opções de Coluna 1')).toEqual(['Adicionar bloco', 'Renomear']);
-    expect(await itemsOf('Mais opções de DJ-TEST')).toEqual(['Adicionar abaixo', 'Subir', 'Descer', 'Duplicar', 'Renomear TAG', 'Remover']);
+    expect(await itemsOf('Mais opções de DJ-TEST')).toEqual(['Adicionar abaixo', 'Subir', 'Descer', 'Mover para…', 'Duplicar', 'Renomear TAG', 'Remover']);
 
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de Cabine de Testes' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Abrir primeira ficha (dados da cabine)' }));

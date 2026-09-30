@@ -260,7 +260,9 @@ test('@p0 6.3/6.4-E2E-002 files added from a sheet save at once with its caption
   const add = page.locator('.sticky-action-bar').getByRole('button', { name: 'Adicionar fotos' });
   await pickFiles(page, add, [await plainJpeg(page, 'a.jpg'), await plainJpeg(page, 'b.jpg'), await png(page, 'c.png')]);
   await expect(page.getByRole('dialog', { name: 'Adicionar fotos' })).toHaveCount(0);
-  await expect(toast(page)).toContainText('3 fotos adicionadas — legenda aplicada');
+  // The toast follows the last save, and the PNG is converted first: a loaded machine takes
+  // longer than the default 5 s (it failed identically on the unchanged base, 2026-09-30).
+  await expect(toast(page)).toContainText('3 fotos adicionadas — legenda aplicada', { timeout: 20_000 });
   await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(3);
   for (const photo of await devicePhotos(page, database)) {
     expect(photo).toMatchObject({ block_id: blockId, item_key: null, caption: SHEET_CAPTION, mime: 'image/jpeg', coords: null });
@@ -555,8 +557,12 @@ test('@p0 6.4-E2E-008 E6-Q8: "Cancelar" on "De qual equipamento?" keeps the save
   await expect(toast(page)).toContainText('3 fotos ficaram como Geral, sem legenda');
   await expect(galleryItems(page)).toHaveCount(3);
   for (const photo of await devicePhotos(page, database)) expect(photo).toMatchObject({ block_id: null, item_key: null, caption: null });
+  // Ledger 1131: "Geral" photos with nothing else ask for their caption reading now, and only that.
+  const photos = await devicePhotos(page, database);
   const puts = (await readStore<OutboxOp>(page, database, 'outbox')).filter((op) => op.kind === 'put' && op.path.startsWith('file/'));
-  expect(puts).toHaveLength(0);
+  expect(puts.map((op) => op.path).sort()).toEqual(photos.map((photo) => `file/${photo.id}/reading_kind`).sort());
+  expect(puts.every((op) => op.value === 'caption')).toBe(true);
+  expect(new Set(puts.map((op) => op.batch_id)).size).toBe(1);
 });
 
 test('@p1 6.4-E2E-010 E6-Q8: Esc on "De qual equipamento?" keeps the saved batch as "Geral", as "Cancelar" does', async ({ page }) => {

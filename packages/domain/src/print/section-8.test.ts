@@ -13,7 +13,7 @@ import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { standardTemplate } from '../seed/template.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-support.ts';
 import { EMPTY_SECTION_NOTE, layoutSpec } from './layout.ts';
-import { derivedGroupText, REMOVED_PHOTO_REF_TEXT, resolvePhotoTokens, resolveSection8, section8Layout } from './section-8.ts';
+import { ACTION_PLAN_COLUMNS, derivedGroupText, REMOVED_PHOTO_REF_TEXT, resolveActionPlan, resolvePhotoTokens, resolveSection8, section8Layout } from './section-8.ts';
 
 /*
  * 7.3-UNIT: section 8's bullets (the I/O rows S8 manual, token of a removed photo, derived,
@@ -156,7 +156,13 @@ describe('7.3-UNIT-004 section 8 layout', () => {
     });
     const snapshot = addPoint({ ...base, files: [photo(B, '2026-09-06T18:00:00.000Z'), photo(A, '2026-09-06T17:00:00.000Z')] }, { text: `Ver ${photoToken(B)} e ${photoToken(A)}.` });
     expect(numberPhotos(snapshot.files).get(B)).toBe(2);
-    expect(section8Layout(snapshot, heading)).toEqual({ number: 8, title: heading.title, kind: 'points', bullets: ['Ver Imagem 2 e Imagem 1.'] });
+    expect(section8Layout(snapshot, heading)).toEqual({
+      number: 8,
+      title: heading.title,
+      kind: 'points',
+      bullets: ['Ver Imagem 2 e Imagem 1.'],
+      table: [{ number: '1', point: 'Ver Imagem 2 e Imagem 1.', local: '—', priority: '—', deadline: '—', action: '—', owner: '—', images: '2, 1' }],
+    });
   });
 });
 
@@ -173,5 +179,88 @@ describe('7.3-UNIT-005 section 8 on the Porto Seguro fixture', () => {
     expect(section.bullets).toEqual(stored.map((p) => p.text));
     expect(derivedPoints(snapshot)).toEqual([]);
     expect(stored.map((p) => p.origin)).toEqual(['manual', 'manual', 'manual', 'not_tested', 'not_tested', 'not_tested', 'manual']);
+  });
+});
+
+describe('11.10-UNIT action-plan table', () => {
+  it('names its eight columns', () => {
+    expect(ACTION_PLAN_COLUMNS).toEqual(['Nº', 'Ponto de atenção', 'Local/TAG', 'Prioridade', 'Prazo', 'Ação recomendada', 'Responsável', 'Imagens']);
+  });
+
+  it('a manual row: resolved text, the equipment and its place, priority, dd/mm/aaaa, action, owner and the cited photo numbers', () => {
+    const base = fresh();
+    const node = sheetOrder(base)[0]!;
+    const equipmentId = base.blocks.find((b) => b.id === node.blockId)!.equipment_id;
+    let snapshot = addPoint(base, {
+      text: `Aquecimento na base, conforme ${photoToken(B)} e ${photoToken(A)}; ver ${photoToken(GONE)} e ${photoToken(B)}.`,
+      equipment_id: equipmentId,
+      priority: 'P1',
+      deadline: '2026-10-08',
+      action: '  Substituir o fusível  ',
+      owner: 'Manutenção predial',
+    });
+    snapshot = addPoint(snapshot, { text: 'Geral, sem nada.' });
+    const rows = resolveActionPlan(snapshot, numbering);
+    const title = rows[0]!.local;
+    expect(title).not.toBe('—');
+    expect(title).toContain(' · ');
+    expect(rows).toEqual([
+      {
+        number: '1',
+        point: 'Aquecimento na base, conforme Imagem 12 e Imagem 5; ver imagem removida e Imagem 12.',
+        local: title,
+        priority: 'P1 · Curto prazo',
+        deadline: '08/10/2026',
+        action: 'Substituir o fusível',
+        owner: 'Manutenção predial',
+        images: '12, 5',
+      },
+      { number: '2', point: 'Geral, sem nada.', local: '—', priority: '—', deadline: '—', action: '—', owner: '—', images: '—' },
+    ]);
+  });
+
+  it('prints a month-only deadline as mm/aaaa', () => {
+    const snapshot = addPoint(fresh(), { priority: 'P4', deadline: '2027-09' });
+    expect(resolveActionPlan(snapshot, numbering)[0]).toMatchObject({ priority: 'P4 · Próxima manutenção', deadline: '09/2027' });
+  });
+
+  it('derived rows follow the manual ones, numbered continuously, one per bullet with the titles joined', () => {
+    let snapshot = withNotTested(fresh(), {
+      0: notTested('impossibilidade_desligamento'),
+      1: notTested('impossibilidade_desligamento'),
+      4: notTested('solicitacao_cliente'),
+    });
+    snapshot = addPoint(snapshot, { text: 'Manual um.' });
+    snapshot = addPoint(snapshot, { text: 'Manual dois.' });
+    const entries = derivedPoints(snapshot);
+    const bullets = resolveSection8(snapshot, numbering);
+    const rows = resolveActionPlan(snapshot, numbering);
+    expect(rows.map((r) => r.number)).toEqual(['1', '2', '3', '4']);
+    expect(rows.map((r) => r.point)).toEqual(bullets.map((b) => b.text));
+    expect(rows[2]).toEqual({
+      number: '3',
+      point: bullets[2]!.text,
+      local: `${entries[0]!.title}; ${entries[1]!.title}`,
+      priority: '—',
+      deadline: '—',
+      action: '—',
+      owner: '—',
+      images: '—',
+    });
+    expect(rows[3]!.local).toBe(entries[2]!.title);
+  });
+
+  it('follows a move: the rows take the new order_key order', () => {
+    let snapshot = addPoint(fresh(), { text: 'Primeiro.' });
+    snapshot = addPoint(snapshot, { text: 'Segundo.' });
+    const second = livePoints(snapshot.points)[1]!;
+    snapshot = { ...snapshot, points: snapshot.points.map((p) => (p.id === second.id ? { ...p, order_key: '0' } : p)) };
+    expect(resolveActionPlan(snapshot, numbering).map((r) => `${r.number} ${r.point}`)).toEqual(['1 Segundo.', '2 Primeiro.']);
+  });
+
+  it('is in the layout beside the bullets, one row per bullet', () => {
+    const snapshot = addPoint(withNotTested(fresh(), { 0: notTested('solicitacao_cliente') }), { text: 'Manual.' });
+    const layout = section8Layout(snapshot, heading)!;
+    expect(layout.table).toHaveLength(layout.bullets.length);
   });
 });

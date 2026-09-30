@@ -21,6 +21,7 @@ describe('generate contract (Story 4.8)', () => {
   it('names the generate barrier and the DOCX download', () => {
     expect(GENERATE_ROUTES.generate(id)).toEqual({ method: 'POST', path: `/api/relatorios/${id}/generate` });
     expect(GENERATE_ROUTES.revisionDocx(id)).toEqual({ method: 'GET', path: `/api/revisions/${id}/docx` });
+    expect(GENERATE_ROUTES.revisionPdf(id)).toEqual({ method: 'GET', path: `/api/revisions/${id}/pdf` });
     expect(DOCX_MIME).toBe('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
   });
 
@@ -84,8 +85,8 @@ describe('relatório summary progress (Story 10.4)', () => {
 });
 
 describe('contract constants', () => {
-  it('speaks version 13 and accepts only version 13 (E10-Q2: the undo of a resolution restores its marks in the fold)', () => {
-    expect(CONTRACT_VERSION).toBe(13);
+  it('speaks version 14 and still accepts version 13 (ledger 1131: the client caption put is parsed and folded by a version-13 bundle)', () => {
+    expect(CONTRACT_VERSION).toBe(14);
     expect(MIN_CONTRACT_VERSION).toBe(13);
     // E10-Q6: the push refuses an older client only where it would settle a mark.
     expect(MARK_AWARE_CONTRACT_VERSION).toBe(12);

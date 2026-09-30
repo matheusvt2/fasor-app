@@ -1,0 +1,261 @@
+{
+ "DocumentMetadata": {
+  "Pages": 1
+ },
+ "DetectDocumentTextModelVersion": "1.0",
+ "Blocks": [
+  {
+   "BlockType": "PAGE",
+   "Id": "page",
+   "Geometry": {
+    "BoundingBox": {
+     "Width": 1,
+     "Height": 1,
+     "Left": 0,
+     "Top": 0
+    },
+    "Polygon": [
+     {
+      "X": 0,
+      "Y": 0
+     },
+     {
+      "X": 1,
+      "Y": 0
+     },
+     {
+      "X": 1,
+      "Y": 1
+     },
+     {
+      "X": 0,
+      "Y": 1
+     }
+    ]
+   },
+   "Relationships": [
+    {
+     "Type": "CHILD",
+     "Ids": [
+      "la",
+      "lb"
+     ]
+    }
+   ]
+  },
+  {
+   "BlockType": "LINE",
+   "Id": "la",
+   "Text": "TR-01 SECCIONADORA",
+   "Confidence": 99.0,
+   "Geometry": {
+    "BoundingBox": {
+     "Width": 0.05,
+     "Height": 0.8,
+     "Left": 0.6,
+     "Top": 0.1
+    },
+    "Polygon": [
+     {
+      "X": 0.65,
+      "Y": 0.1
+     },
+     {
+      "X": 0.65,
+      "Y": 0.9
+     },
+     {
+      "X": 0.6,
+      "Y": 0.9
+     },
+     {
+      "X": 0.6,
+      "Y": 0.1
+     }
+    ]
+   },
+   "Relationships": [
+    {
+     "Type": "CHILD",
+     "Ids": [
+      "a1",
+      "a2"
+     ]
+    }
+   ]
+  },
+  {
+   "BlockType": "LINE",
+   "Id": "lb",
+   "Text": "15 kV",
+   "Confidence": 99.0,
+   "Geometry": {
+    "BoundingBox": {
+     "Width": 0.05,
+     "Height": 0.24,
+     "Left": 0.3,
+     "Top": 0.1
+    },
+    "Polygon": [
+     {
+      "X": 0.35,
+      "Y": 0.1
+     },
+     {
+      "X": 0.35,
+      "Y": 0.33999999999999997
+     },
+     {
+      "X": 0.3,
+      "Y": 0.33999999999999997
+     },
+     {
+      "X": 0.3,
+      "Y": 0.1
+     }
+    ]
+   },
+   "Relationships": [
+    {
+     "Type": "CHILD",
+     "Ids": [
+      "b1",
+      "b2"
+     ]
+    }
+   ]
+  },
+  {
+   "BlockType": "WORD",
+   "Id": "b2",
+   "Text": "kV",
+   "TextType": "PRINTED",
+   "Confidence": 95.0,
+   "Geometry": {
+    "BoundingBox": {
+     "Width": 0.05,
+     "Height": 0.1,
+     "Left": 0.3,
+     "Top": 0.24
+    },
+    "Polygon": [
+     {
+      "X": 0.35,
+      "Y": 0.24
+     },
+     {
+      "X": 0.35,
+      "Y": 0.33999999999999997
+     },
+     {
+      "X": 0.3,
+      "Y": 0.33999999999999997
+     },
+     {
+      "X": 0.3,
+      "Y": 0.24
+     }
+    ]
+   }
+  },
+  {
+   "BlockType": "WORD",
+   "Id": "a2",
+   "Text": "SECCIONADORA",
+   "TextType": "PRINTED",
+   "Confidence": 97.0,
+   "Geometry": {
+    "BoundingBox": {
+     "Width": 0.05,
+     "Height": 0.5,
+     "Left": 0.6,
+     "Top": 0.4
+    },
+    "Polygon": [
+     {
+      "X": 0.65,
+      "Y": 0.4
+     },
+     {
+      "X": 0.65,
+      "Y": 0.9
+     },
+     {
+      "X": 0.6,
+      "Y": 0.9
+     },
+     {
+      "X": 0.6,
+      "Y": 0.4
+     }
+    ]
+   }
+  },
+  {
+   "BlockType": "WORD",
+   "Id": "b1",
+   "Text": "15",
+   "TextType": "PRINTED",
+   "Confidence": 96.0,
+   "Geometry": {
+    "BoundingBox": {
+     "Width": 0.05,
+     "Height": 0.1,
+     "Left": 0.3,
+     "Top": 0.1
+    },
+    "Polygon": [
+     {
+      "X": 0.35,
+      "Y": 0.1
+     },
+     {
+      "X": 0.35,
+      "Y": 0.2
+     },
+     {
+      "X": 0.3,
+      "Y": 0.2
+     },
+     {
+      "X": 0.3,
+      "Y": 0.1
+     }
+    ]
+   }
+  },
+  {
+   "BlockType": "WORD",
+   "Id": "a1",
+   "Text": "TR-01",
+   "TextType": "PRINTED",
+   "Confidence": 98.0,
+   "Geometry": {
+    "BoundingBox": {
+     "Width": 0.05,
+     "Height": 0.2,
+     "Left": 0.6,
+     "Top": 0.1
+    },
+    "Polygon": [
+     {
+      "X": 0.65,
+      "Y": 0.1
+     },
+     {
+      "X": 0.65,
+      "Y": 0.30000000000000004
+     },
+     {
+      "X": 0.6,
+      "Y": 0.30000000000000004
+     },
+     {
+      "X": 0.6,
+      "Y": 0.1
+     }
+    ]
+   }
+  }
+ ]
+}

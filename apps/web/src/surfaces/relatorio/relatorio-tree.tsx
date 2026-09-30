@@ -4,6 +4,7 @@ import {
   duplicateTagText,
   locationPathText,
   locationTree,
+  moveTargets,
   paletteLocationFor,
   removeBlockTitle,
   treePathTo,
@@ -26,6 +27,7 @@ import { PanelCapture, type PanelCaptureHandle } from './panel-capture.tsx';
 import { blockOpen, blockRow, blockTrigger, locationChevron, useTreeActions, type TreeActions, type TreeContext } from './tree-actions.ts';
 import { NameDialog, TagDialog } from './tag-dialogs.tsx';
 import { NotTestedDialog } from './not-tested-dialog.tsx';
+import { MoveBlockDialog } from './move-block-dialog.tsx';
 
 /*
  * Stories 4.4 and 4.5: the location tree, ONE component in two presentations
@@ -85,6 +87,7 @@ type Dialog =
   | { kind: 'duplicate'; node: TreeEquipmentNode }
   | { kind: 'rename-tag'; node: TreeEquipmentNode }
   | { kind: 'not-tested'; node: TreeEquipmentNode }
+  | { kind: 'move'; node: TreeEquipmentNode }
   | { kind: 'rename-location'; node: TreeLocationNode };
 
 /** What every row of one render shares. */
@@ -101,6 +104,8 @@ interface Shared {
   /** "1° Subsolo › Coluna 5": a location's path (the duplicate line's accessible name). */
   pathOf: (locationId: string) => string;
   openDialog: (dialog: Dialog) => void;
+  /** Story 11.2: another live location exists for the block to move to (the kernel's `moveTargets`). */
+  canMove: (node: TreeEquipmentNode) => boolean;
   requestRemove: (node: TreeEquipmentNode) => void;
 }
 
@@ -279,6 +284,7 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
       paletteLocation: (node) => (node.kind === 'cabine' ? paletteLocationFor(latestSnapshot.current, node.id, lastSheetId) : node.id),
       pathOf: (locationId) => locationPathText(latestSnapshot.current.locations, locationId),
       openDialog: setDialog,
+      canMove: (node) => moveTargets(latestSnapshot.current.locations, { location_id: node.locationId }).length > 0,
       requestRemove: (node) => {
         // EXPERIENCE.md › Block Model: only a sheet holding data asks first (the kernel's `holdsData`).
         if (node.holdsData) setDialog({ kind: 'remove', node });
@@ -413,6 +419,21 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
             const node = dialog.node;
             setDialog(null);
             actions.markNotTested(node, reason, text);
+          }}
+        />
+      ) : null}
+      {dialog?.kind === 'move' ? (
+        <MoveBlockDialog
+          name={dialog.node.name}
+          blockId={dialog.node.blockId}
+          locations={snapshot.locations}
+          blocks={snapshot.blocks}
+          equipment={equipment}
+          onClose={() => closeDialog(() => blockTrigger(blockRow(rootRef.current, dialog.node.blockId)))}
+          onSubmit={(targetId, rename) => {
+            const node = dialog.node;
+            setDialog(null);
+            actions.moveToLocation(node, targetId, rename);
           }}
         />
       ) : null}
@@ -570,6 +591,8 @@ function equipmentMenu(node: TreeEquipmentNode, shared: Shared, reorder: Reorder
   const items: OverflowMenuAction[] = [{ id: 'add-below', label: s.addBelow, onAction: () => shared.openPalette({ locationId: node.locationId, anchorBlockId: node.blockId }) }];
   if (node.position > 1) items.push({ id: 'up', label: s.moveUp, onAction: () => void reorder.moveTo(node.position - 2, trigger) });
   if (node.position < node.siblings) items.push({ id: 'down', label: s.moveDown, onAction: () => void reorder.moveTo(node.position, trigger) });
+  // Story 11.2 (EXPERIENCE.md: "Mover para…" beside "Subir · Descer" wherever a location can change).
+  if (shared.canMove(node)) items.push({ id: 'move-to', label: t.moveTo, onAction: () => shared.openDialog({ kind: 'move', node }) });
   items.push({ id: 'duplicate', label: s.duplicate, onAction: () => shared.openDialog({ kind: 'duplicate', node }) });
   // DESIGN.md Block card row: "Marcar não ensaiado" right after "Duplicar"; kept available
   // whatever `concluded_by` holds (AR-17 precedence lets not_tested override it), hidden

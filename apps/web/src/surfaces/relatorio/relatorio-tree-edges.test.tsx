@@ -171,7 +171,7 @@ afterEach(() => {
 
 describe('4.4/4.5 tree edge paths', () => {
   /** Tombstones a row in the device store as another device's pull would. */
-  async function tombstone(entity: 'block' | 'equipment', entityId: string) {
+  async function tombstone(entity: 'block' | 'equipment' | 'location', entityId: string) {
     const record = (await database!.entities.get([entity, entityId]))!;
     const at = '2026-09-08T10:00:00.000Z';
     await database!.entities.put({ ...record, removed_at: at, row: { ...(record.row as object), removed_at: at } as never });
@@ -199,6 +199,20 @@ describe('4.4/4.5 tree edge paths', () => {
     await database.entities.put(toRecord(`equipment:${twin.id}`, twin));
     fireEvent.click(submit);
     await waitFor(() => expect(document.querySelector('.toast')).toHaveTextContent('TAG já existe nesta obra — SEC-C01-2'));
+    expect(await outbox()).toHaveLength(0);
+  });
+
+  it('11.2: "Mover para…" submitted after its target coluna was removed elsewhere says the location changed and writes nothing', async () => {
+    database = await seeded();
+    await openCabine();
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções de SEC-TEST' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Mover para…' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Mover SEC-TEST para…' });
+    await userEvent.click(within(dialog).getByRole('radio', { name: 'Cabine de Testes › Coluna 1' }));
+    const submit = within(dialog).getByRole('button', { name: 'Mover' });
+    await tombstone('location', COLUNA);
+    fireEvent.click(submit);
+    await waitFor(() => expect(document.querySelector('.toast')).toHaveTextContent('O local mudou em outro aparelho; nada foi alterado.'));
     expect(await outbox()).toHaveLength(0);
   });
 

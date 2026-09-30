@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { buildSnapshot, layoutSpec, numberPhotos, PHOTO_UNAVAILABLE_TEXT, replay, tocLines, type LayoutSection, type RelatorioSnapshot } from '@app/domain';
+import { ACTION_PLAN_COLUMNS, buildSnapshot, layoutSpec, livePoints, numberPhotos, PHOTO_UNAVAILABLE_TEXT, replay, tocLines, type LayoutSection, type RelatorioSnapshot } from '@app/domain';
 import { portoSeguro } from '@app/domain/fixtures/porto-seguro';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
@@ -187,7 +187,10 @@ describe('7.1-UNIT section 9 in the DOCX', () => {
     const tables = [...document.matchAll(/<w:tbl>([\s\S]*?)<\/w:tbl>/g)].map((match) => match[1]!);
     // The cover and the document control come first; section 7's photo tables, section 10's
     // parecer box and section 11 (Stories 7.2 to 7.4) never carry a row guard, the sheets always do.
-    const sheetRows = tables.slice(2).filter((table) => table.includes('<w:cantSplit/>')).flatMap((table) => [...table.matchAll(/<w:tr(?:\s[^>]*)?>([\s\S]*?)<\/w:tr>/g)].map((match) => match[1]!));
+    // Section 8's action-plan table (Story 11.10) guards only its repeated header row.
+    const sheetRows = tables
+      .slice(2)
+      .filter((table) => table.includes('<w:cantSplit/>') && !table.includes('<w:tblHeader/>')).flatMap((table) => [...table.matchAll(/<w:tr(?:\s[^>]*)?>([\s\S]*?)<\/w:tr>/g)].map((match) => match[1]!));
     expect(sheetRows.length).toBeGreaterThan(94 * 10);
     for (const row of sheetRows) expect(row).toContain('<w:cantSplit/>');
     const bands = sheetRows.filter((row) => paragraphText(row) === 'DADOS DO EQUIPAMENTO');
@@ -415,4 +418,51 @@ describe('docx-structure helpers', () => {
       ),
     ).toBe('Página {PAGE}\ta & b');
   });
+});
+
+describe('11.10-UNIT section 8 action-plan table', () => {
+  /** The body XML between section `n`'s Heading 1 and the next Heading 1 (E7-A6: read from the heading, never by position). */
+  function sectionXml(document: string, n: number): string {
+    const headings = [...document.matchAll(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g)].filter((m) => m[0].includes('w:val="Heading1"'));
+    const at = headings.findIndex((m) => paragraphText(m[0]).startsWith(`${n} `));
+    expect(at).toBeGreaterThanOrEqual(0);
+    const start = headings[at]!.index!;
+    const end = headings[at + 1]?.index ?? document.length;
+    return document.slice(start, end);
+  }
+
+  it('prints the header row and one row per bullet directly after the last bullet', async () => {
+    const base = fixtureSnapshot();
+    const [first, second] = livePoints(base.points);
+    const snapshot: RelatorioSnapshot = {
+      ...base,
+      points: base.points.map((point) =>
+        point.id === first!.id ? { ...point, priority: 'P1' as const, deadline: '2026-10-08', owner: 'Manutenção predial' } : point.id === second!.id ? { ...point, deadline: null } : point,
+      ),
+    };
+    const layout = layoutSpec(snapshot, { revisionNumber: 1, issuedAt: ISSUED_AT });
+    const section = layout.sections.find((s): s is Extract<LayoutSection, { kind: 'points' }> => s.kind === 'points')!;
+    const docx = await buildDocx(layout, { tocPages: placeholderPages(layout) });
+    const document = readZipEntries(docx).get('word/document.xml')!.toString('utf8');
+    const xml = sectionXml(document, 8);
+    // The last bullet, then the table: nothing between them.
+    const lastBullet = section.bullets.at(-1)!;
+    const tableAt = xml.indexOf('<w:tbl>');
+    expect(tableAt).toBeGreaterThan(0);
+    const before = [...xml.slice(0, tableAt).matchAll(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g)].map((m) => paragraphText(m[0]));
+    expect(before.at(-1)).toBe(lastBullet);
+    const rows = [...xml.slice(tableAt).matchAll(/<w:tr(?:\s[^>]*)?>([\s\S]*?)<\/w:tr>/g)].map((row) =>
+      [...row[1]!.matchAll(/<w:tc(?:\s[^>]*)?>([\s\S]*?)<\/w:tc>/g)].map((cell) => paragraphText(cell[1]!)),
+    );
+    expect(rows[0]).toEqual([...ACTION_PLAN_COLUMNS]);
+    expect(rows).toHaveLength(1 + section.bullets.length);
+    expect(rows.slice(1).map((row) => row[0])).toEqual(section.bullets.map((_, i) => String(i + 1)));
+    expect(rows[1]!.slice(3, 5)).toEqual(['P1 · Curto prazo', '08/10/2026']);
+    expect(rows[1]![6]).toBe('Manutenção predial');
+    expect(rows[2]![4]).toBe('—');
+    // The header row repeats on every page and never splits; a body row taller than a page may split.
+    const table = xml.slice(tableAt);
+    expect(table.match(/<w:tblHeader\/>/g) ?? []).toHaveLength(1);
+    expect(table.match(/<w:cantSplit\/>/g) ?? []).toHaveLength(1);
+  }, 60_000);
 });

@@ -99,7 +99,7 @@ No protótipo navegável, o botão **Recorte do MVP** na barra de controles liga
 
 ### O que está marcado hoje
 
-66 elementos, em onze grupos, derivados de PRD §7.3 "Waits, in this order":
+~~66 elementos, em onze grupos~~ 64 elementos, em dez grupos (2026-09-30, Story 11.1: os 2 botões PDF das revisões entraram e perderam a marca), derivados de PRD §7.3 "Waits, in this order":
 
 | Grupo | FR | Onde |
 | --- | --- | --- |
@@ -109,7 +109,7 @@ No protótipo navegável, o botão **Recorte do MVP** na barra de controles liga
 | "Fotografar equipamento" na paleta de campo | FR-38 | `40-relatorio-overview` |
 | Merge por sub-bloco e conflito | FR-58, FR-59 | `86-sync-conflito` (tela inteira) + rota no mapa |
 | Tela de status de sincronização | FR-60 | `85-sync` (tela inteira) + rota no mapa |
-| PDF ao lado do DOCX | — | `73-exportar` (2 botões nas revisões) |
+| ~~PDF ao lado do DOCX~~ | ~~—~~ | ~~`73-exportar` (2 botões nas revisões)~~ Entregue em 2026-09-30 (Story 11.1): marca removida dos 2 botões, desenho mantido |
 | Mover bloco entre locais | FR-20 | `60-ficha` (menu overflow) |
 | Editor de texto rico | FR-12 | `42-template-composer` |
 | Localização nas fotos | FR-8 | `90-account` (seção inteira) |
