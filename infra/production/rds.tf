@@ -31,7 +31,11 @@ resource "aws_db_instance" "this" {
   db_subnet_group_name   = aws_db_subnet_group.this.name
   vpc_security_group_ids = [aws_security_group.database.id]
 
-  backup_retention_period      = 7
+  backup_retention_period = 7
+  # UTC, after the 05:00 America/Sao_Paulo start (07:40 UTC): the default us-east-1 windows
+  # overlap the night stop, when no backup or maintenance can run.
+  backup_window                = "08:00-08:30"
+  maintenance_window           = "sun:08:40-sun:09:10"
   copy_tags_to_snapshot        = true
   deletion_protection          = true
   skip_final_snapshot          = false

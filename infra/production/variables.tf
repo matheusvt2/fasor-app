@@ -31,18 +31,33 @@ variable "ocr_provider" {
   description = "OCR_PROVIDER of the api (fake, ocr-svc, textract)."
   type        = string
   default     = "ocr-svc"
+
+  validation {
+    condition     = contains(["fake", "ocr-svc", "textract"], var.ocr_provider)
+    error_message = "ocr_provider must be one of the api's OCR_PROVIDER values: fake, ocr-svc, textract."
+  }
 }
 
 variable "llm_provider" {
   description = "LLM_PROVIDER of the api. Stays fake until Story 11.6 passes its Definition of Ready."
   type        = string
   default     = "fake"
+
+  validation {
+    condition     = contains(["fake", "bedrock"], var.llm_provider)
+    error_message = "llm_provider must be fake or bedrock (the anthropic value is dropped by Story 11.6)."
+  }
 }
 
 variable "enable_ocr_service" {
   description = "Runs the ocr sidecar service (services/ocr). Off frees its memory when OCR_PROVIDER is not ocr-svc."
   type        = bool
   default     = true
+
+  validation {
+    condition     = var.enable_ocr_service || var.ocr_provider != "ocr-svc"
+    error_message = "ocr_provider = \"ocr-svc\" needs enable_ocr_service = true (the api would call a dead 127.0.0.1:8000)."
+  }
 }
 
 variable "enable_night_schedule" {

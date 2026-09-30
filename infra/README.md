@@ -91,9 +91,10 @@ Run it from a clean tree after a story's merge to main, with the `aws login` ses
 2. reads the stack's outputs (platform, ECR repositories, cluster, services, migrate task family, public URL);
 3. builds `apps/api/Dockerfile.prod` (build context the repository root), `services/ocr` and `infra/caddy` with `docker buildx build --platform <linux/amd64|linux/arm64> --load`;
 4. logs Docker in to ECR through the aws-cli container and pushes the three images;
-5. applies only the `migrate` task definition with the new tag, waits for the instance to be in the cluster, runs the migration task (EC2 launch type) and waits for it to stop; a non-zero exit stops the deploy before any roll and prints the CloudWatch log stream `migrate/migrate/<task id>` in `/fasor/production/migrate`;
-6. applies the whole stack with the new tag (the services roll), records the tag in `/fasor/production/image-tag`, and waits for `services-stable`;
-7. polls `GET https://<Elastic IP>/api/health` until it answers `status: up` (database, queue, storage and LibreOffice all up).
+5. applies only the `migrate` task definition with the new tag, waits for the instance's ECS agent to be connected, runs the migration task (EC2 launch type) and waits for it to stop; a non-zero exit stops the deploy before any roll and prints the CloudWatch log stream `migrate/migrate/<task id>` in `/fasor/production/migrate`;
+6. applies the whole stack with the new tag (the services roll) and waits for `services-stable`;
+7. polls `GET https://<Elastic IP>/api/health` until it answers `status: up` (database, queue, storage and LibreOffice all up); a 503 answer is printed so the down component is named;
+8. only then records the tag in `/fasor/production/image-tag`, so a later plain `terraform apply` keeps a tag that proved healthy.
 
 `--dry-run` prints every step's command prefixed `DRY-RUN:` with placeholder outputs and touches nothing: no build, no push, no AWS or Terraform call. `--skip-build --tag <sha>` redeploys images already in ECR (a rollback). The api still migrates at boot, idempotently; after the one-shot task it finds nothing to do.
 

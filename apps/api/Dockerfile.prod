@@ -79,6 +79,8 @@ RUN case "${TARGETARCH}" in \
 
 WORKDIR /app
 COPY --from=api-deps /app/ ./
+# apps/api/tsconfig.json extends it; tsx reads the project tsconfig as in dev.
+COPY tsconfig.base.json ./
 COPY packages/domain/ packages/domain/
 COPY apps/api/ apps/api/
 COPY --from=web /app/apps/web/dist/ apps/web/dist/

@@ -137,7 +137,8 @@ if [ "$dry_run" = 1 ]; then
   printf 'DRY-RUN: wait until %q ecs list-container-instances --cluster %q lists one instance\n' "$bin/aws" "$cluster"
 else
   for attempt in $(seq 1 60); do
-    count="$("${aws[@]}" ecs list-container-instances --cluster "$cluster" --status ACTIVE --query 'length(containerInstanceArns)' --output text)"
+    # A stopped instance stays ACTIVE with its agent disconnected; only a connected agent counts.
+    count="$("${aws[@]}" ecs list-container-instances --cluster "$cluster" --status ACTIVE --filter 'agentConnected==true' --query 'length(containerInstanceArns)' --output text)"
     [ "$count" -ge 1 ] && break
     [ "$attempt" = 60 ] && fail "no container instance joined $cluster in 10 minutes (is the instance stopped?)"
     sleep 10
@@ -149,8 +150,21 @@ task_arn="$(capture "arn:aws:ecs:us-east-1:673409896745:task/$cluster/0123456789
 if [ -z "$task_arn" ] || [ "$task_arn" = "None" ]; then
   fail "the migration task did not start (aws ecs run-task returned no task; see its failures)"
 fi
-run "${aws[@]}" ecs wait tasks-stopped --cluster "$cluster" --tasks "$task_arn"
-exit_code="$(capture 0 "${aws[@]}" ecs describe-tasks --cluster "$cluster" --tasks "$task_arn" \
+# Own wait instead of `ecs wait tasks-stopped` (which gives up after about 10 minutes while
+# the migration keeps running, so a rerun would start a second one): up to 30 minutes.
+if [ "$dry_run" = 1 ]; then
+  printf 'DRY-RUN: wait until %q ecs describe-tasks --cluster %q --tasks %q reports STOPPED\n' "$bin/aws" "$cluster" "$task_arn"
+else
+  for attempt in $(seq 1 180); do
+    last_status="$("${aws[@]}" ecs describe-tasks --cluster "$cluster" --tasks "$task_arn" --query 'tasks[0].lastStatus' --output text)"
+    [ "$last_status" = "STOPPED" ] && break
+    [ "$attempt" = 180 ] && fail "the migration task ${task_arn##*/} is still $last_status after 30 minutes; do not rerun the deploy until it stops (its log: group $migrate_log_group)"
+    sleep 10
+  done
+fi
+# DEPLOY_DRY_RUN_MIGRATION_EXIT: the placeholder exit code of a dry run (default 0), so the
+# gate below can be exercised without AWS (scripts/deploy.test.ts).
+exit_code="$(capture "${DEPLOY_DRY_RUN_MIGRATION_EXIT:-0}" "${aws[@]}" ecs describe-tasks --cluster "$cluster" --tasks "$task_arn" \
   --query 'tasks[0].containers[0].exitCode' --output text)"
 if [ "$exit_code" != "0" ]; then
   echo "deploy: the migration task exited with '$exit_code'; the services were not rolled" >&2
@@ -162,7 +176,6 @@ echo "migrations applied (task ${task_arn##*/})"
 # --- roll ----------------------------------------------------------------------------
 step "roll the services to $tag"
 run "${tf[@]}" apply -input=false -auto-approve -var "image_tag=$tag"
-run "${aws[@]}" ssm put-parameter --name "$image_tag_parameter" --value "$tag" --overwrite
 run "${aws[@]}" ecs wait services-stable --cluster "$cluster" --services "${service_list[@]}"
 
 # --- health --------------------------------------------------------------------------
@@ -172,7 +185,8 @@ if [ "$dry_run" = 1 ]; then
 else
   # The first deploy waits for Caddy's first certificate, so give it a few minutes.
   for attempt in $(seq 1 60); do
-    body="$(curl -fsS --max-time 10 "$public_url/api/health" 2>/dev/null || true)"
+    # No -f: a 503 "degraded" body names the component that is down.
+    body="$(curl -sS --max-time 10 "$public_url/api/health" 2>/dev/null || true)"
     if [[ "$body" == *'"status":"up"'* ]]; then
       echo "$body"
       break
@@ -181,5 +195,9 @@ else
     sleep 5
   done
 fi
+
+# Only a healthy roll becomes the tag a later plain `terraform apply` keeps (ssm.tf).
+step "record $tag as the deployed tag"
+run "${aws[@]}" ssm put-parameter --name "$image_tag_parameter" --value "$tag" --overwrite
 
 printf '\ndeployed %s to %s\n' "$tag" "$public_url"

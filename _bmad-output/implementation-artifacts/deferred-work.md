@@ -196,7 +196,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: `build-tagged-image.sh` should produce byte-identical tags (no `COPY`, bind-mount only).
   evidence: `scripts/build-tagged-image.sh` runs `pnpm verify` then `docker compose build api` and tags the result with the commit SHA — a real build step, not a byte-identical bind-mount reuse. Explicitly deferred to Epic 11 (image promotion pipeline) per the spec.
   class: post-mvp
-  state: "resolved by Story 11.8, superseded (2026-09-30): `scripts/build-tagged-image.sh` and the root `build:image` script are deleted; `infra/bin/deploy` builds the self-contained `apps/api/Dockerfile.prod` (COPY, no bind mount), the ocr and caddy images for the instance's platform, tags them with the HEAD commit SHA and pushes them to ECR"
+  state: "resolved by Story 11.8, superseded (2026-09-30): the root `build:image` script is deleted and `scripts/build-tagged-image.sh` is orphaned, left for Matheus to delete (a guard hook refused the deletion in batch e11d); `infra/bin/deploy` builds the self-contained `apps/api/Dockerfile.prod` (COPY, no bind mount), the ocr and caddy images for the instance's platform, tags them with the HEAD commit SHA and pushes them to ECR"
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-1-7-reach-the-local-stack-from-a-tablet-over-https.md`
   summary: `apps/api/src/db/migrate.ts` has no automated test and is not invoked by `pnpm verify`.

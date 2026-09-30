@@ -2,7 +2,7 @@
 title: 'Story 11.8: Deploy the same images to AWS'
 type: 'feature'
 created: '2026-09-30'
-status: 'in-progress'
+status: 'done'
 baseline_revision: 'd7beb605ccc7cc22c1537c05cac945e78e799650'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -11,7 +11,10 @@ dev_effort: high
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-11-context.md'
 warnings: ['batched: single-story batch e11d (Epic 11 wave 1); oversized: infra story spanning Terraform, images, deploy script, app config and docs']
-deferred: []
+deferred:
+  - summary: 'main.ts boot wiring to prepareStorage (probe-only on AWS) has no test; caught by the first real deploy health step'
+    location: 'apps/api/src/main.ts:40'
+    severity: medium
 ---
 
 <intent-contract>
@@ -113,3 +116,23 @@ deferred: []
 - `docker buildx build --platform linux/amd64 -f apps/api/Dockerfile.prod -t app-api-prod-e11d --load .` then run it on the `fasor-e11d_default` network with the compose env (static MinIO keys, `NODE_ENV=production`) and `curl` `/api/health` -- expected: all components ok.
 - `docker stats --no-stream` on the running prod api container (after one DOCX+PDF generation if practical) and, if the ocr image is already built locally (`docker images`), on an ocr container -- expected: numbers recorded in the README next to the instance choice (4 GB budget).
 - `docker compose --profile tools run --rm tools pnpm test:unit -- apps/api` and `pnpm test:api` (under the host lock, logs tagged e11d) -- expected: green.
+
+## Review Triage Log
+
+### 2026-09-30 — Review pass
+- layers: Edge Case Hunter, Verification Gap Reviewer (Blind Hunter and Intent Alignment skipped: token economy; the integrated epic review covers them)
+- verdicts: 13 findings — high 1, medium 8, low 4, false 0, maybe-false 0 (1 deferred, 1 rejected)
+- findings:
+  - `[medium]` `[patch]` deploy waited for an ACTIVE container instance, which a stopped instance still is — added `--filter 'agentConnected==true'`.
+  - `[high]` `[patch]` the image tag was recorded in SSM before the roll proved healthy, so a later plain apply could redeploy a broken tag — `ssm put-parameter` moved after `services-stable` and the health loop.
+  - `[medium]` `[patch]` `ecs wait tasks-stopped` gives up after about 10 minutes while the migration keeps running — own 30-minute loop with a "do not rerun" message.
+  - `[low]` `[patch]` `curl -f` hid the 503 "degraded" body — `-f` dropped.
+  - `[medium]` `[patch]` RDS default backup/maintenance windows overlap the night stop — `backup_window 08:00-08:30`, `maintenance_window sun:08:40-sun:09:10` UTC.
+  - `[medium]` `[patch]` `enable_ocr_service = false` with `ocr_provider = ocr-svc` — cross-variable validation.
+  - `[medium]` `[patch]` provider variables accepted values the api rejects — validations (`fake|ocr-svc|textract`, `fake|bedrock`).
+  - `[low]` `[patch]` nested `.env*` files could enter the build context — `**/.env`, `**/.env.*` in the dockerignore.
+  - `[low]` `[patch]` runtime stage lacked `tsconfig.base.json` that `apps/api/tsconfig.json` extends — copied; image rebuilt, health all up, `/` 200.
+  - `[medium]` `[patch]` ledger said `scripts/build-tagged-image.sh` was deleted while it still exists (a guard hook refused the deletion) — ledger corrected, script marked superseded, deletion left to Matheus.
+  - `[medium]` `[patch]` (verification gap) deploy gates untested — `scripts/deploy.test.ts` (tooling project) drives `--dry-run` with stub `git`/`docker`/`curl`: step order, the migration gate via `DEPLOY_DRY_RUN_MIGRATION_EXIT`, the non-HEAD tag refusal, the dirty-tree refusal; 5 tests green.
+  - `[low]` `[reject]` (same root as the ledger row) orphaned script lacks `--profile tools` and the lock — moot once deleted.
+  - `[medium]` `[defer]` (verification gap) no test observes `main.ts` taking the probe-only path without an endpoint — top-level boot script with no seam; `prepareStorage` is unit-tested and the first real deploy's health step catches a regression.

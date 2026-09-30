@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SUPERSEDED (Story 11.8, 2026-09-30): infra/bin/deploy builds and pushes the production
+# images; nothing calls this script any more and it is kept only until it is deleted.
 # Local, docker-compose-only build+tag script. There is no CI in the MVP
 # (AGENTS.md, 2026-09-21); this stands in for "image tagged with the commit"
 # by gating on the merge gate and tagging the api image with the commit SHA,
