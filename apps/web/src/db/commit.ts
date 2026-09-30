@@ -1,8 +1,9 @@
+import Dexie from 'dexie';
 import {
   advanceOnEdit,
   applyOp,
+  byClientTsThenOpId,
   clearedMarks,
-  coalesce,
   inRelatorioStream,
   invertBatch,
   makeOp,
@@ -78,23 +79,11 @@ async function applyOne(db: AppDatabase, input: Op): Promise<Op> {
   for (const [key, row] of next) if (row !== state.get(key)) changed.push(toRecord(key, row));
   if (changed.length > 0) await db.entities.bulkPut(changed);
 
+  // W-2 (full review 2026-09-30): no coalescing here. Every op reaching this point carries a
+  // `batch_id` (`buildBatch` mints one per batch, and `undoBatch`'s inverses carry theirs), and
+  // the kernel's `coalesce` never merges an op with one, so the branch never fired; it read the
+  // newest outbox row on every op. The rule itself stays the kernel's (`coalesce`).
   const targets = refs.map((r) => r.key);
-  const last = await db.outbox.orderBy('client_ts').last();
-  if (last?.status === 'pending') {
-    const merged = coalesce(opOf(last), op);
-    if (merged) {
-      await db.outbox.delete(last.op_id);
-      await db.outbox.put({
-        ...merged,
-        status: 'pending',
-        error_code: null,
-        targets: targetKeysOf(merged),
-        ...('prev_value' in last ? { prev_value: last.prev_value } : {}),
-        ...(last.prev_marks === undefined ? {} : { prev_marks: last.prev_marks }),
-      });
-      return op;
-    }
-  }
   await db.outbox.put({
     ...op,
     status: 'pending',
@@ -125,9 +114,8 @@ export async function commitOps(
   return committed;
 }
 
-/** Commit order of this device's ops: `client_ts`, then `op_id` for a tie. The one comparator of `src/db`. */
-export const byClientTsThenOpId = (a: { client_ts: string; op_id: string }, b: { client_ts: string; op_id: string }) =>
-  a.client_ts < b.client_ts ? -1 : a.client_ts > b.client_ts ? 1 : a.op_id < b.op_id ? -1 : a.op_id > b.op_id ? 1 : 0;
+/** Commit order of this device's ops: `client_ts`, then `op_id` for a tie. The kernel's comparator (K-8), the one of `src/db`. */
+export { byClientTsThenOpId };
 
 /**
  * AD-3's `prev_op_id`: the last op this device applied on the op's path, or null when
@@ -140,15 +128,22 @@ export const byClientTsThenOpId = (a: { client_ts: string; op_id: string }, b: {
 export async function lastAppliedOpId(db: AppDatabase, op: Op): Promise<string | null> {
   const sameSlot = (other: { path: string; relatorio_id?: string | null }) =>
     other.path === op.path && (!op.relatorio_id || other.relatorio_id === op.relatorio_id);
+  // W-3 (full review 2026-09-30): this device's own rows on the path (few: the outbox is
+  // pruned), each checked against the server log by id, and the server log's head on the
+  // path read through `[path+seq]` from the top, never every op of the entity.
   const key = targetKeysOf(op)[0];
-  const remote = key === undefined ? [] : (await db.remote_ops.where('targets').equals(key).toArray()).filter(sameSlot);
-  const pulled = new Set(remote.map((row) => row.op_id));
-  const local = (await db.outbox.where('path').equals(op.path).toArray()).filter(
-    (row) => row.status !== 'dead' && sameSlot(row) && !pulled.has(row.op_id),
-  );
+  const own = (await db.outbox.where('path').equals(op.path).toArray()).filter((row) => row.status !== 'dead' && sameSlot(row));
+  const pulled = own.length === 0 ? [] : await db.remote_ops.bulkGet(own.map((row) => row.op_id));
+  // A copy the server logged on another row (a registry merge, Epic 2 retro D-1) is not this
+  // slot's: the row stays this device's own op on the path.
+  const pulledHere = (i: number) => {
+    const copy = pulled[i];
+    return copy !== undefined && key !== undefined && copy.targets.includes(key) && sameSlot(copy);
+  };
+  const local = own.filter((_, i) => !pulledHere(i));
   if (local.length > 0) return local.sort(byClientTsThenOpId).at(-1)!.op_id;
-  if (remote.length > 0) return remote.sort((a, b) => a.seq - b.seq).at(-1)!.op_id;
-  return null;
+  const head = await db.remote_ops.where('[path+seq]').between([op.path, Dexie.minKey], [op.path, Dexie.maxKey]).reverse().filter(sameSlot).first();
+  return head?.op_id ?? null;
 }
 
 /**

@@ -1,11 +1,14 @@
+import Dexie from 'dexie';
 import {
   blockFieldPath,
   companyStreamDownloaded,
+  LIVE_OUTBOX_STATUSES,
   localDownloadTotals,
   materializeEntity,
   mergeInfoOf,
   newRelatorioEquipmentReady,
   outboxBlockId,
+  prunableOutboxRow,
   splitEntityKey,
   userFieldPath,
   userRowSchema,
@@ -27,6 +30,7 @@ import {
 import { byClientTsThenOpId, opOf, toRecord } from './commit.ts';
 import {
   COMPANY_STREAM,
+  DEVICE_ID_PREF,
   targetKeysOf,
   type AppDatabase,
   type OutboxRow,
@@ -95,6 +99,8 @@ export async function applyPulled(db: AppDatabase, pulled: readonly Op[]): Promi
     }
     await db.remote_ops.bulkPut(rows);
     const own = await db.outbox.bulkGet(rows.map((r) => r.op_id));
+    // W-26 (full review 2026-09-30): the page's seqs by op id, read once per own row.
+    const seqOf = new Map(rows.map((r) => [r.op_id, r.seq]));
     for (const row of own) {
       if (!row) continue;
       // The server may have logged this device's op on another row than the one it was
@@ -103,8 +109,7 @@ export async function applyPulled(db: AppDatabase, pulled: readonly Op[]): Promi
       // is rebuilt too, so the pulled version replaces the local one (`rematerialize`).
       for (const key of row.targets) refs.add(key);
       if (row.status === 'acked') continue;
-      const seq = rows.find((r) => r.op_id === row.op_id)!.seq;
-      await db.outbox.update(row.op_id, { status: 'acked', seq, error_code: null });
+      await db.outbox.update(row.op_id, { status: 'acked', seq: seqOf.get(row.op_id)!, error_code: null });
     }
     await rematerialize(db, [...refs]);
   });
@@ -166,10 +171,40 @@ export async function resendDead(db: AppDatabase): Promise<number> {
   });
 }
 
+/**
+ * W-1 (full review 2026-09-30): deletes the outbox rows the kernel says may go
+ * (`prunableOutboxRow`: `acked`, pulled back into `remote_ops`, older than the retention), in
+ * one transaction over `outbox` and `remote_ops`. The sync engine runs it after every cycle.
+ * Returns how many rows it deleted.
+ */
+export async function pruneOutbox(db: AppDatabase, now: Date): Promise<number> {
+  return db.transaction('rw', db.outbox, db.remote_ops, async () => {
+    const acked = await db.outbox.where('status').equals('acked').toArray();
+    if (acked.length === 0) return 0;
+    const pulled = await db.remote_ops.bulkGet(acked.map((row) => row.op_id));
+    const prunable = acked.filter((row, i) => prunableOutboxRow(row, { pulledBack: pulled[i] !== undefined, now })).map((row) => row.op_id);
+    if (prunable.length > 0) await db.outbox.bulkDelete(prunable);
+    return prunable.length;
+  });
+}
+
+/**
+ * This device's id as stored, or null before it ever committed (no op of its own exists).
+ * Read only, never minted: the readers below use it to find their own pulled ops.
+ */
+async function storedDeviceId(db: AppDatabase): Promise<string | null> {
+  const row = await db.local_prefs.get(DEVICE_ID_PREF);
+  return typeof row?.value === 'string' && row.value !== '' ? row.value : null;
+}
+
 // --- live reads for `useLiveQuery` -----------------------------------------
 
+/**
+ * The outbox rows every live reader shows (W-1): the kernel's `LIVE_OUTBOX_STATUSES`, every
+ * status but `acked`, which no count, row or badge reads. Read through the `status` index.
+ */
 export function outboxRows(db: AppDatabase): Promise<OutboxRow[]> {
-  return db.outbox.toArray();
+  return db.outbox.where('status').anyOf([...LIVE_OUTBOX_STATUSES]).toArray();
 }
 
 /**
@@ -279,10 +314,6 @@ export async function unsentRegistration(db: AppDatabase, userId: string): Promi
   return out;
 }
 
-export async function remoteOpRows(db: AppDatabase): Promise<RemoteOpRow[]> {
-  return db.remote_ops.toArray();
-}
-
 /**
  * Story 5.9's Desfazer gate: whether the sheet's own `block/{id}/not_tested` write is
  * synced (Design Notes: a per-write gate, not the whole relatório's backlog). True with
@@ -290,7 +321,16 @@ export async function remoteOpRows(db: AppDatabase): Promise<RemoteOpRow[]> {
  * (by `client_ts`) reads `acked`; false while it is still `pending`, `sent` or `dead`.
  */
 export async function notTestedSynced(db: AppDatabase, blockId: string): Promise<boolean> {
-  const rows = await db.outbox.where('path').equals(blockFieldPath(blockId, 'not_tested')).toArray();
+  const path = blockFieldPath(blockId, 'not_tested');
+  const rows: { op_id: string; client_ts: string; status: OutboxRow['status'] }[] = await db.outbox.where('path').equals(path).toArray();
+  // W-1: this device's writes the prune removed are in the server log, acked; they still count
+  // as its latest write, so a dead older row never outlives an acked newer one.
+  const device = await storedDeviceId(db);
+  if (device !== null) {
+    const held = new Set(rows.map((row) => row.op_id));
+    const pulled = await db.remote_ops.where('[path+seq]').between([path, Dexie.minKey], [path, Dexie.maxKey]).toArray();
+    for (const op of pulled) if (op.device_id === device && !held.has(op.op_id)) rows.push({ op_id: op.op_id, client_ts: op.client_ts, status: 'acked' });
+  }
   if (rows.length === 0) return true;
   const latest = rows.sort(byClientTsThenOpId).at(-1)!;
   return latest.status === 'acked';

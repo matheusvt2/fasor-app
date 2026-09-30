@@ -1,7 +1,7 @@
 import type { PointRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { naoEnsaiadasText } from '../relatorio/progress.ts';
-import { locationTree, treeNodes } from '../relatorio/tree.ts';
+import { locationTree, treeNodes, type TreeEquipmentNode, type TreeLocationNode } from '../relatorio/tree.ts';
 import { plural } from '../text/plural.ts';
 import { derivedPoints, equipmentPointTitle, type DerivedPoint } from './derived.ts';
 import { livePoints, pointsWithoutAction } from './checks.ts';
@@ -29,14 +29,33 @@ export function sectionEightEntries(snapshot: PointsSnapshot): SectionEightEntry
 // authored: the title of a point linked to no equipment (the mock's free "Título" is not in the entity).
 export const POINT_TITLE_GENERAL = 'Geral';
 
+/*
+ * K-15 (full review 2026-09-30): the equipment nodes of a tree by equipment id, the first in
+ * drawing order standing, built once per tree (`locationTree` is memoized, so every card of
+ * one render reads one index).
+ */
+const equipmentIndexByTree = new WeakMap<readonly TreeLocationNode[], Map<string, TreeEquipmentNode>>();
+
+function equipmentNodeIndex(tree: readonly TreeLocationNode[]): Map<string, TreeEquipmentNode> {
+  let index = equipmentIndexByTree.get(tree);
+  if (index === undefined) {
+    index = new Map();
+    for (const node of treeNodes(tree)) {
+      if (node.kind === 'equipment' && node.equipmentId !== null && !index.has(node.equipmentId)) index.set(node.equipmentId, node);
+    }
+    equipmentIndexByTree.set(tree, index);
+  }
+  return index;
+}
+
 /**
  * A point's card title: its linked equipment as section 8 names it ("SEC-C12 · 1° Subsolo ›
  * Coluna 12"), else "Geral" (also for equipment no live sheet of this relatório holds).
  */
 export function pointTitle(point: Pick<PointRow, 'equipment_id'>, snapshot: Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment'>): string {
   if (point.equipment_id === null) return POINT_TITLE_GENERAL;
-  const node = treeNodes(locationTree(snapshot)).find((n) => n.kind === 'equipment' && n.equipmentId === point.equipment_id);
-  if (node === undefined || node.kind !== 'equipment') return POINT_TITLE_GENERAL;
+  const node = equipmentNodeIndex(locationTree(snapshot)).get(point.equipment_id);
+  if (node === undefined) return POINT_TITLE_GENERAL;
   return equipmentPointTitle(node, snapshot);
 }
 

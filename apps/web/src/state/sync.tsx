@@ -33,7 +33,7 @@ import {
   type SyncCounts,
   type UserRow,
 } from '@app/domain';
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { publishReAuth } from '../api/auth-client.ts';
 import { useLiveQuery } from '../db/live.ts';
 import { COMPANY_STREAM, type OutboxRow, type SyncStateRow } from '../db/schema.ts';
@@ -61,6 +61,7 @@ import { unreachableCause } from '../sync/policy.ts';
 import { createSyncEngine, type CycleResult, type EngineStatus, type SyncEngine } from '../sync/engine.ts';
 import { followOnlineEvents } from '../sync/online.ts';
 import { useSession } from './session.tsx';
+import { SyncActionsContext, type SyncActions } from './sync-actions.ts';
 
 /*
  * AD-1, UX-DR10: the sync badge, the counts and the Sync status surface render
@@ -353,7 +354,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   // E10-Q4: cells and structure are worded apart; the badge state counts the total.
   const split = useMemo(() => decisionSplit(held), [held]);
 
-  const syncNow = useCallback(async () => engineRef.current?.runCycle() ?? 'paused', []);
+  // W-4 (full review 2026-09-30): "Sincronizar agora" and "Reenviar" run a cycle that starts
+  // after any cycle in flight, never answer `busy` and leave the work to the 60 s tick.
+  const syncNow = useCallback(async () => (await engineRef.current?.runFreshCycle()) ?? 'paused', []);
   const syncRelatorio = useCallback(
     async (relatorioId: string) => (await engineRef.current?.syncRelatorio(relatorioId)) ?? 'paused',
     [],
@@ -365,7 +368,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
   const resendDead = useCallback(async () => {
     if (db === null) return;
     await resendDeadRows(db);
-    await engineRef.current?.runCycle();
+    await engineRef.current?.runFreshCycle();
   }, [db]);
 
   const retryUpload = useCallback(
@@ -409,6 +412,12 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     await client.rereadPhoto(photoId);
   }, []);
 
+  // W-8: the callbacks alone, stable for the session, for the components that only act.
+  const actions = useMemo<SyncActions>(
+    () => ({ syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto }),
+    [syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto],
+  );
+
   const value = useMemo<SyncState>(
     () => ({
       counts,
@@ -450,11 +459,16 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     [counts, outboxRead, session.online, unreachable, status, merges, pendingSheets, uploads, readingsQueued, downloads, held, decisions, decisionCount, split, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto],
   );
 
-  return <SyncContext value={value}>{children}</SyncContext>;
+  return (
+    <SyncActionsContext value={actions}>
+      <SyncContext value={value}>{children}</SyncContext>
+    </SyncActionsContext>
+  );
 }
 
+/** The whole sync state, live data and actions. Read with `use`, so `useSyncActions` may fall back to it after a condition. */
 export function useSync(): SyncState {
-  const value = useContext(SyncContext);
+  const value = use(SyncContext);
   if (value === null) throw new Error('useSync must be used inside SyncProvider');
   return value;
 }

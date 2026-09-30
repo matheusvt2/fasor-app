@@ -92,9 +92,12 @@ export async function importPhotoFiles(files: readonly File[], target: ImportTar
       continue;
     }
     try {
-      // A HEIC keeps its Exif item anywhere in the file: read it whole.
-      const exif = parseExif(isHeic(file) ? new Uint8Array(await file.arrayBuffer()) : await readHead(file));
-      const source = isHeic(file) ? await (deps.convertHeic ?? heicToJpeg)(file) : file;
+      // A HEIC keeps its Exif item anywhere in the file: it is read whole, once, and the
+      // converter gets those same bytes (W-24). The EXIF is read from the HEIC itself: the
+      // converted JPEG (`heic-to` draws it on a canvas) carries none.
+      const heic = isHeic(file) ? await file.arrayBuffer() : null;
+      const exif = parseExif(heic === null ? await readHead(file) : new Uint8Array(heic));
+      const source = heic === null ? file : await (deps.convertHeic ?? heicToJpeg)(new Blob([heic], { type: file.type }));
       const encoded = await deps.encode(source);
       const clock = deps.now();
       const deviceOffset = -clock.getTimezoneOffset();

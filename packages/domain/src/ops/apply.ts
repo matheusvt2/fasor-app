@@ -1,7 +1,8 @@
-import { getDefinition } from '../seed/definitions.ts';
+import { findDefinition } from '../seed/definitions.ts';
 import type { TestDef } from '../seed/schema.ts';
 import {
-  emptySheet,
+  blockRowSchema,
+  cellSchema,
   entityRowSchemas,
   type BlockRow,
   type Cell,
@@ -202,11 +203,10 @@ function assertSeedPath(block: BlockRow, path: OpPath): void {
   ) {
     return;
   }
-  let definition;
-  try {
-    definition = getDefinition(block.seed_version, 'cabine_primaria', block.block_type);
-  } catch {
-    throw new SeedPathError(formatPath(path), 
+  const definition = findDefinition(block.seed_version, block.block_type);
+  if (definition === null) {
+    throw new SeedPathError(
+      formatPath(path),
       `${path.family}: block ${block.id} has no equipment definition for block_type "${block.block_type}" at seed_version "${block.seed_version}"`,
     );
   }
@@ -246,6 +246,31 @@ function assertCellGeometry(block: BlockRow, test: TestDef, path: OpPath & { fam
   throw new SeedPathError(formatPath(path), `sheet/test/cell: row ${row} is outside ${block.block_type}/${test.key}`);
 }
 
+/*
+ * K-1 (full review 2026-09-30): a sheet put no longer re-parses the whole block row. The
+ * row it starts from was itself produced by a parse (the create) or by a previous validated
+ * write, so only what the put adds is validated: the written cell (`cellSchema`) and the
+ * attribution columns (`attributionSchema`). The fixed-shape objects the put rebuilds are
+ * written in their schema's key order, as the whole-row parse wrote them, so the stored row
+ * is the one the parse produced.
+ */
+const CHECKLIST_ITEM_KEYS = Object.keys(blockRowSchema.shape.sheet.shape.checklist.valueType.shape);
+const TEST_ENTRY_KEYS = Object.keys(blockRowSchema.shape.sheet.shape.test.valueType.shape);
+const CONCLUSION_KEYS = Object.keys(blockRowSchema.shape.sheet.shape.conclusion.shape);
+const attributionSchema = blockRowSchema.pick({
+  first_edited_at: true,
+  last_modified_by: true,
+  last_modified_at: true,
+  removal_conflict: true,
+});
+
+/** `value` with its own keys in `keys` order (the zod object parse's order); keys outside `keys` are dropped, as the parse strips them. */
+function inShapeOrder<T extends object>(value: T, keys: readonly string[]): T {
+  const out: Record<string, unknown> = {};
+  for (const key of keys) if (key in value) out[key] = (value as Record<string, unknown>)[key];
+  return out as T;
+}
+
 function putSheet(block: BlockRow, path: OpPath, cell: Cell): BlockRow {
   switch (path.family) {
     case 'sheet/nameplate':
@@ -253,12 +278,12 @@ function putSheet(block: BlockRow, path: OpPath, cell: Cell): BlockRow {
     case 'sheet/checklist':
       return withSheet(block, (s) => ({
         ...s,
-        checklist: { ...s.checklist, [path.item_key]: { ...s.checklist[path.item_key], [path.field]: cell } },
+        checklist: { ...s.checklist, [path.item_key]: inShapeOrder({ ...s.checklist[path.item_key], [path.field]: cell }, CHECKLIST_ITEM_KEYS) },
       }));
     case 'sheet/test':
       return withSheet(block, (s) => ({
         ...s,
-        test: { ...s.test, [path.test_key]: { cells: {}, ...s.test[path.test_key], [path.field]: cell } },
+        test: { ...s.test, [path.test_key]: inShapeOrder({ cells: {}, ...s.test[path.test_key], [path.field]: cell }, TEST_ENTRY_KEYS) },
       }));
     case 'sheet/test/cell': {
       return withSheet(block, (s) => {
@@ -274,12 +299,25 @@ function putSheet(block: BlockRow, path: OpPath, cell: Cell): BlockRow {
       });
     }
     case 'sheet/conclusion':
-      return withSheet(block, (s) => ({ ...s, conclusion: { ...s.conclusion, [path.field]: cell } }));
+      return withSheet(block, (s) => ({ ...s, conclusion: inShapeOrder({ ...s.conclusion, [path.field]: cell }, CONCLUSION_KEYS) }));
     case 'sheet/observations':
       return withSheet(block, (s) => ({ ...s, observations: cell }));
     default:
       return block;
   }
+}
+
+/**
+ * K-1: a sheet put (seed path checked, cell merged), validating only what it adds: the cell
+ * through `cellSchema` and the attribution columns through `attributionSchema`. Throws the
+ * same `ZodError` the whole-row parse threw for a value that is not a JSON value.
+ */
+function writeSheet(block: BlockRow, op: Op, path: OpPath): BlockRow {
+  assertSeedPath(block, path);
+  const cell = cellSchema.parse(cellOf(block, op, path));
+  const next = attributed(putSheet(block, path, cell), op);
+  attributionSchema.parse(next);
+  return next;
 }
 
 /** The value a put/remove op replaces at its path (`undefined` when the row or slot is absent). */
@@ -334,7 +372,6 @@ function createRow(entity: Entity, id: string, op: Op): EntityRow {
     const block = withoutRemovalMarks(row as BlockRow);
     return {
       ...block,
-      sheet: block.sheet ?? emptySheet(),
       created_by: op.actor_id,
       first_edited_at: null,
       last_modified_by: null,
@@ -396,8 +433,7 @@ function writeRow(row: EntityRow, op: Op, path: OpPath): EntityRow {
     case 'sheet/test/cell':
     case 'sheet/conclusion':
     case 'sheet/observations':
-      assertSeedPath(row as BlockRow, path);
-      return attributed(putSheet(row as BlockRow, path, cellOf(row as BlockRow, op, path)), op);
+      return writeSheet(row as BlockRow, op, path);
     case 'block/field': {
       if (path.field === 'removed_at') return writeRemovedAt(row as BlockRow, op, value as string | null);
       const block = { ...(row as BlockRow), [path.field]: value } as BlockRow;
@@ -417,11 +453,17 @@ function writeRow(row: EntityRow, op: Op, path: OpPath): EntityRow {
   }
 }
 
+/** The `sheet/*` families: `writeSheet` validates what they write, so the row is not parsed again. */
+function isSheetFamily(family: OpPath['family']): boolean {
+  return family.startsWith('sheet/');
+}
+
 /**
  * The single reducer. `state` holds the rows named by `targetsOf(op)`; the
  * result is a new map with the changed rows replaced (unchanged rows keep
  * their identity). A second create is a no-op; a put or remove on a missing
- * row is a no-op; an op whose value breaks the row schema throws.
+ * row is a no-op; an op whose value breaks the row schema throws. A `sheet/*`
+ * put validates what it writes (K-1); every other family re-parses the row.
  */
 export function applyOp(state: EntityState, op: Op): EntityState {
   const path = parsePath(op.path);
@@ -436,7 +478,7 @@ export function applyOp(state: EntityState, op: Op): EntityState {
     if (!current) return next;
     const written = writeRow(current, op, path);
     if (written === current) return next;
-    next.set(target.key, entityRowSchemas[target.entity].parse(written));
+    next.set(target.key, isSheetFamily(path.family) ? written : entityRowSchemas[target.entity].parse(written));
   }
 
   const blockId = carriedBlockId(op, path);

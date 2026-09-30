@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { EQUIPMENT_BLOCK_TYPES, ITEM_KEYS } from '../schemas/block-config.ts';
 import { SEEDED_CRITERIA } from './criteria.ts';
 import {
+  findDefinition,
+  findSeed,
   getDefinition,
   getSeed,
   naDefaultsFor,
@@ -687,3 +689,15 @@ describe('seed v3 (Story 6.6): v2 plus the recurring-finding chips', () => {
     expect(recurringFindings('v99')).toEqual(v3.recurring_findings);
   });
 });
+
+describe('K-20 (full review 2026-09-30) findDefinition and findSeed', () => {
+  it('answer getDefinition and getSeed, and null where those throw', () => {
+    expect(findDefinition('v1', 'tp')).toBe(getDefinition('v1', 'cabine_primaria', 'tp'));
+    expect(findDefinition('v1', 'tp')).toBe(findDefinition('v1', 'tp'));
+    expect(findDefinition('v1', 'section_1')).toBeNull();
+    expect(findDefinition('v999', 'tp')).toBeNull();
+    expect(findSeed('v1')).toBe(getSeed('v1', 'cabine_primaria'));
+    expect(findSeed('v999')).toBeNull();
+  });
+});
+

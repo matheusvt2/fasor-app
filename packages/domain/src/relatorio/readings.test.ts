@@ -8,7 +8,6 @@ import { getDefinition } from '../seed/definitions.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
 import {
   cellAddressesOf,
-  cellAt,
   effectiveCriterion,
   evaluatedCells,
   evaluateSheetReadings,
@@ -322,7 +321,8 @@ describe('5.6-UNIT the continuous run', () => {
   it('the run skips ratio inputs that read the nameplate', () => {
     const tp = evaluateSheetReadings(block('tp', { nameplate: { tensao_nominal_at: measured('13.8', 'kV'), tensao_nominal_bt: measured('115', 'V') } }), TP);
     expect(runTarget(tp, at('isolacao', 2, 1), 'next')).toEqual(at('relacao_transformacao', 0, 3));
-    expect(cellAt(tp, at('relacao_transformacao', 0, 0))?.source).toBe('nameplate');
+    const address = at('relacao_transformacao', 0, 0);
+    expect(evaluatedCells(tp).find((c) => c.address.testKey === address.testKey && c.address.row === address.row && c.address.col === address.col)?.source).toBe('nameplate');
   });
 });
 

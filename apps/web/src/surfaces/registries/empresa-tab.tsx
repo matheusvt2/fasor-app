@@ -12,7 +12,7 @@ import type { AppDatabase } from '../../db/schema.ts';
 import { newId } from '../../ids.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { useSession } from '../../state/session.tsx';
-import { useSync } from '../../state/sync.tsx';
+import { useSyncActions } from '../../state/sync-actions.ts';
 import { BrandPreview } from './brand-preview.tsx';
 import { CnpjField } from './cnpj-field.tsx';
 import { sameFieldValue } from './field-value.ts';
@@ -252,7 +252,7 @@ export function EmpresaTab() {
  * sync cycle (AC 2.2-3).
  */
 function useAssetUrl(db: AppDatabase | null, fileId: string | null): string | null {
-  const { fetchFile } = useSync();
+  const { fetchFile } = useSyncActions();
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     if (db === null || fileId === null) {

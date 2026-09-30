@@ -1,4 +1,3 @@
-import { MAX_FILE_BYTES } from './candidate.ts';
 
 /*
  * The pt-BR line an upload tile shows under its control. Derived text, so it lives
@@ -50,5 +49,3 @@ export function fileTileLine(input: FileTileInput): string {
 /** The empty tile's line, the same sentence for every kind. */
 export const NO_FILE_TEXT = 'Nenhum arquivo';
 
-/** The helper that states the limit, shared by every tile. */
-export const FILE_LIMIT_TEXT = `Até ${fileSizeText(MAX_FILE_BYTES)}`;

@@ -50,10 +50,6 @@ export function firstSetupGap(snapshot: RelatorioSnapshot): SetupGap | null {
   return setupGaps(snapshot)[0] ?? null;
 }
 
-export function isSetupComplete(snapshot: RelatorioSnapshot): boolean {
-  return firstSetupGap(snapshot) === null;
-}
-
 /**
  * FR-16: the site altitude as it prints/displays, "< 1000 m" below the threshold, else
  * "⟨m⟩ m" -- the one place this rule decides, so the Setup page (Etapa 5) and Epic 5's

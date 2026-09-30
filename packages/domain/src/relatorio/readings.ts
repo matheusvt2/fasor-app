@@ -22,5 +22,5 @@ export {
   type TestKey,
   type VisibleColumn,
 } from './reading-cells.ts';
-export { cellAddressesOf, cellAt, effectiveCriterion, evaluatedCells, evaluateSheetReadings, evaluateTest, unitDefaultFor } from './reading-evaluation.ts';
+export { cellAddressesOf, effectiveCriterion, evaluatedCells, evaluateSheetReadings, evaluateTest, unitDefaultFor } from './reading-evaluation.ts';
 export { firstRunCell, runTarget, worstReadings, type WorstReading } from './reading-run.ts';

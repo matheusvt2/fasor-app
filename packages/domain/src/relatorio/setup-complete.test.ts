@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import type { RelatorioSetup, UserRow } from '../schemas/entities.ts';
-import { firstSetupGap, isSetupComplete, setupGaps, setupIncompleteReason, siteAltitudeText } from './setup-complete.ts';
+import { firstSetupGap, setupGaps, setupIncompleteReason, siteAltitudeText } from './setup-complete.ts';
 
 const RESPONSIBLE: UserRow = {
   id: '019966b0-0061-7000-8000-000000000003',
@@ -32,7 +32,7 @@ const COMPLETE_SETUP: RelatorioSetup = {
   parecer: null,
 };
 
-/** A minimal snapshot: only the fields `isSetupComplete` reads are given real shapes. */
+/** A minimal snapshot: only the fields `setupGaps` reads are given real shapes. */
 function snapshotWith(overrides: { client?: RelatorioSnapshot['client']; setup?: Partial<RelatorioSetup>; responsible?: UserRow | null }): RelatorioSnapshot {
   return {
     relatorio: {
@@ -62,10 +62,10 @@ function snapshotWith(overrides: { client?: RelatorioSnapshot['client']; setup?:
   };
 }
 
-describe('4.2-UNIT isSetupComplete / setupIncompleteReason', () => {
+describe('4.2-UNIT firstSetupGap / setupIncompleteReason', () => {
   it('is complete once client, dates, responsible, registration, ART/TRT and an instrument all exist', () => {
     const snapshot = snapshotWith({});
-    expect(isSetupComplete(snapshot)).toBe(true);
+    expect(firstSetupGap(snapshot)).toBeNull();
     expect(setupIncompleteReason(snapshot)).toBeNull();
     expect(setupGaps(snapshot)).toEqual([]);
   });

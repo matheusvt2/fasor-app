@@ -5,8 +5,7 @@ import { ui } from '../copy/ui.ts';
 import { cropSourceBlob } from '../db/file-store.ts';
 import type { AppDatabase } from '../db/schema.ts';
 import { useSession } from '../state/session.tsx';
-import { useSync } from '../state/sync.tsx';
-import { useObjectUrl } from './photo-row.tsx';
+import { useSyncActions } from '../state/sync-actions.ts';
 
 /** A normalized region of a picture: `[x0, y0, x1, y1]`, each 0 to 1 (AD-12 `source.bbox`). */
 export type Bbox = readonly [number, number, number, number];
@@ -46,7 +45,7 @@ function sourceOf(db: AppDatabase, photoId: string, fetchFile: Parameters<typeof
 /** The picture a crop is drawn from, null meanwhile or when there is none. */
 export function useCropSource(photoId: string): Blob | null {
   const db = useSession().database;
-  const { fetchFile } = useSync();
+  const { fetchFile } = useSyncActions();
   const [picture, setPicture] = useState<{ id: string; blob: Blob } | null>(null);
   useEffect(() => {
     if (db === null) return;
@@ -61,6 +60,65 @@ export function useCropSource(photoId: string): Blob | null {
     };
   }, [db, fetchFile, photoId]);
   return picture !== null && picture.id === photoId ? picture.blob : null;
+}
+
+/*
+ * W-11 (full review 2026-09-30): one object URL per source picture, shared by every
+ * `CropThumb` of that photo on screen (a plate has up to nine fields), so the full-size
+ * original is decoded once, not once per field. Counted by mount; the last unmount revokes it.
+ */
+interface SharedSource {
+  mounts: number;
+  url: string | null;
+  listeners: Set<() => void>;
+}
+
+const sharedSources = new Map<string, SharedSource>();
+
+function acquireSource(key: string, load: () => Promise<Blob | null>): SharedSource {
+  let entry = sharedSources.get(key);
+  if (entry === undefined) {
+    const created: SharedSource = { mounts: 0, url: null, listeners: new Set() };
+    sharedSources.set(key, created);
+    void load()
+      .then((blob) => {
+        // Every thumb of the photo unmounted meanwhile: nothing to hand the picture to.
+        if (sharedSources.get(key) !== created || blob === null || typeof URL.createObjectURL !== 'function') return;
+        created.url = URL.createObjectURL(blob);
+        for (const listener of created.listeners) listener();
+      })
+      .catch(() => undefined);
+    entry = created;
+  }
+  entry.mounts += 1;
+  return entry;
+}
+
+function releaseSource(key: string, entry: SharedSource): void {
+  entry.mounts -= 1;
+  if (entry.mounts > 0) return;
+  if (sharedSources.get(key) === entry) sharedSources.delete(key);
+  if (entry.url !== null) URL.revokeObjectURL(entry.url);
+}
+
+/** The shared object URL of the picture a crop is drawn from, null meanwhile or when there is none. */
+function useSharedCropUrl(photoId: string): string | null {
+  const db = useSession().database;
+  const { fetchFile } = useSyncActions();
+  const key = db === null ? null : `${db.name}:${photoId}`;
+  const [held, setHeld] = useState<{ key: string; url: string | null } | null>(null);
+  useEffect(() => {
+    if (db === null || key === null) return;
+    const entry = acquireSource(key, () => sourceOf(db, photoId, fetchFile));
+    const update = () => setHeld({ key, url: entry.url });
+    entry.listeners.add(update);
+    update();
+    return () => {
+      entry.listeners.delete(update);
+      releaseSource(key, entry);
+    };
+  }, [db, key, photoId, fetchFile]);
+  return held !== null && held.key === key ? held.url : null;
 }
 
 /**
@@ -89,7 +147,7 @@ function regionStyle(bbox: Bbox, size: { width: number; height: number }): CSSPr
  */
 export function CropThumb({ photoId, bbox, label, onPress, source = 'plate', presentational = false }: CropThumbProps) {
   const t = ui.suggestionField;
-  const src = useObjectUrl(useCropSource(photoId));
+  const src = useSharedCropUrl(photoId);
   const [size, setSize] = useState<{ src: string; width: number; height: number } | null>(null);
   const loaded = size !== null && size.src === src;
   const alt = source === 'display' ? t.cropDisplayAlt : source === 'panel' ? t.cropPanelAlt : t.cropAlt;

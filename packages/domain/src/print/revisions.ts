@@ -68,12 +68,6 @@ export function revisionRowSegments(row: RevisionRow, whoName: string | null): R
   };
 }
 
-/** The same row as one string. */
-export function revisionRowText(row: RevisionRow, whoName: string | null): string {
-  const s = revisionRowSegments(row, whoName);
-  return `${s.before}${s.dateText}${s.after}`;
-}
-
 export interface RevisionMetaSegments {
   /** The `datetime` attribute of the line's `<time>`. */
   datetime: string;
@@ -87,12 +81,6 @@ export interface RevisionMetaSegments {
 export function revisionMetaSegments(row: RevisionRow, whoName: string | null): RevisionMetaSegments {
   const who = whoName?.trim() ?? '';
   return { datetime: row.created_at, dateText: formatDateTime(row.created_at), after: who === '' ? '' : ` · ${who}` };
-}
-
-/** The result block's meta line as one string: "10/09/2026 11:03 · Bruno" (the date alone when nobody is known). */
-export function revisionMetaText(row: RevisionRow, whoName: string | null): string {
-  const s = revisionMetaSegments(row, whoName);
-  return `${s.dateText}${s.after}`;
 }
 
 /**

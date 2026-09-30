@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { draftKey, draftTargetSchema, parseDraftKey, type DraftTarget } from './key.ts';
+import { draftKey, draftTargetSchema, type DraftTarget } from './key.ts';
 
 /* Test 1.8-UNIT-001: AD-2's "keyed by surface and entity". */
 
@@ -33,27 +33,6 @@ describe('draftKey', () => {
     for (const bad of ['', 'Ficha', 'fi cha', 'ficha/x', '-ficha', 'ficha.x', 'ação']) {
       expect(() => draftKey({ surface: bad, entity_id: ENTITY })).toThrow();
       expect(() => draftKey({ surface: 'ficha', entity_id: ENTITY, field: bad })).toThrow();
-    }
-  });
-});
-
-describe('parseDraftKey', () => {
-  it('round-trips every key it produces', () => {
-    for (const target of [
-      { surface: 'ficha', entity_id: ENTITY },
-      { surface: 'ficha', entity_id: ENTITY, field: 'observacoes' },
-      { surface: 'fixture-field', entity_id: 'b1', field: 'local' },
-    ] satisfies DraftTarget[]) {
-      const key = draftKey(target);
-      const parsed = parseDraftKey(key);
-      expect(parsed).toEqual(target);
-      expect(draftKey(parsed!)).toBe(key);
-    }
-  });
-
-  it('returns null for anything that is not one of our keys', () => {
-    for (const bad of ['', 'ficha', 'a/b/c/d', 'A/b', 'a//b', 'a/b/', '/a/b']) {
-      expect(parseDraftKey(bad)).toBeNull();
     }
   });
 });

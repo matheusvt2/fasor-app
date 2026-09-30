@@ -6,6 +6,7 @@ import {
   type RegistryRow,
   type UserRow,
 } from '@app/domain';
+import Dexie from 'dexie';
 import { useLiveQuery } from './live.ts';
 import { CAPTION_RECENTS_PREF, GEOLOCATION_DENIED_PREF, PHOTO_SEQ_PREF, type AppDatabase, type UploadError } from './schema.ts';
 
@@ -40,49 +41,49 @@ export interface PhotoTile {
   people_in_photo?: boolean;
 }
 
-/** The newest pulled `file/{id}/reading_status` op of a photo, by server `seq`; null when none. */
+/** The newest pulled `file/{id}/reading_status` op of a photo, by server `seq`; null when none. Read from the top of `[path+seq]`. */
 async function readingStatusOpId(db: AppDatabase, photoId: string): Promise<string | null> {
   const path = `file/${photoId}/reading_status`;
-  const pulled = await db.remote_ops.where('targets').equals(`file:${photoId}`).toArray();
-  let latest: { op_id: string; seq: number } | null = null;
-  for (const op of pulled) if (op.path === path && (latest === null || op.seq > latest.seq)) latest = op;
+  const latest = await db.remote_ops.where('[path+seq]').between([path, Dexie.minKey], [path, Dexie.maxKey]).last();
   return latest?.op_id ?? null;
 }
 
 /** The live photos of one relatório matching `keep`, with their thumbs, in the kernel's capture order. */
 async function photoTiles(db: AppDatabase, relatorioId: string, keep: (row: PhotoFileRow) => boolean): Promise<PhotoTile[]> {
-  // Read through the `entity` index, so the live query behind a sheet re-runs on a file
-  // change only, never on each reading the sheet commits.
-  const records = await db.entities.where('entity').equals('file').toArray();
-  const tiles: PhotoTile[] = [];
+  // W-7 (full review 2026-09-30): the relatório's file rows through `[entity+relatorio_id]`,
+  // so the live query behind a sheet re-runs on a file change of this relatório only (never
+  // on each reading the sheet commits), and the thumbs and blobs in one read each.
+  const records = await db.entities.where('[entity+relatorio_id]').equals(['file', relatorioId]).toArray();
+  const rows: PhotoFileRow[] = [];
   for (const record of records) {
-    if (record.relatorio_id !== relatorioId) continue;
     const parsed = photoFileRowSchema.safeParse(record.row);
     if (!parsed.success) continue;
     const row = parsed.data;
     if (row.removed_at !== null || !keep(row)) continue;
-    const [thumb, blob, statusOpId] = await Promise.all([
-      db.thumbs.get(row.id),
-      db.files.get(row.id),
-      row.reading_kind === null ? Promise.resolve(null) : readingStatusOpId(db, row.id),
-    ]);
-    tiles.push({
-      id: row.id,
-      block_id: row.block_id,
-      item_key: row.item_key,
-      caption: row.caption,
-      captured_at: row.captured_at,
-      local_seq: row.local_seq,
-      coords: row.coords,
-      uploaded_at: row.uploaded_at,
-      thumb: thumb?.blob ?? null,
-      upload_error: blob?.upload_error ?? null,
-      reading_kind: row.reading_kind,
-      reading_status: row.reading_status,
-      reading_status_op_id: statusOpId,
-      people_in_photo: row.people_in_photo,
-    });
+    rows.push(row);
   }
+  const ids = rows.map((row) => row.id);
+  const [thumbs, blobs, statusOpIds] = await Promise.all([
+    db.thumbs.bulkGet(ids),
+    db.files.bulkGet(ids),
+    Promise.all(rows.map((row) => (row.reading_kind === null ? Promise.resolve(null) : readingStatusOpId(db, row.id)))),
+  ]);
+  const tiles: PhotoTile[] = rows.map((row, i) => ({
+    id: row.id,
+    block_id: row.block_id,
+    item_key: row.item_key,
+    caption: row.caption,
+    captured_at: row.captured_at,
+    local_seq: row.local_seq,
+    coords: row.coords,
+    uploaded_at: row.uploaded_at,
+    thumb: thumbs[i]?.blob ?? null,
+    upload_error: blobs[i]?.upload_error ?? null,
+    reading_kind: row.reading_kind,
+    reading_status: row.reading_status,
+    reading_status_op_id: statusOpIds[i] ?? null,
+    people_in_photo: row.people_in_photo,
+  }));
   return tiles.sort(comparePhotos);
 }
 

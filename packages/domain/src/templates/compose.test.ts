@@ -18,7 +18,6 @@ import {
   moveSection,
   parsePositionInput,
   parseQuantityInput,
-  quantityAt,
   removeNode,
   removeSection,
   renameNode,
@@ -128,13 +127,6 @@ describe('3.4-UNIT skeleton edits', () => {
 });
 
 describe('3.4-UNIT quantities per node', () => {
-  it('counts every entry of a type at a node: the Enel para-raio entrada + saída is 2', () => {
-    expect(quantityAt(standard, 'enel', 'para_raio')).toBe(2);
-    expect(quantityAt(standard, 'subsolo-1/coluna-3', 'disjuntor_mt')).toBe(2);
-    expect(quantityAt(standard, 'subsolo-1/coluna-9', 'disjuntor_mt')).toBe(0);
-    expect(quantityAt(standard, 'nowhere', 'tp')).toBe(0);
-  });
-
   it('"+" raises the last entry of the type at the node; "−" takes from the last entry backwards (Design Notes)', () => {
     const template = frozen(structuredClone(standard));
     const enelPr = (blocks: readonly TemplateBlock[]) =>
@@ -176,7 +168,7 @@ describe('3.4-UNIT quantities per node', () => {
   it('clamps to 0..99, and zero removes the type from the node', () => {
     const template = withColunas(1);
     const blocks = setQuantity(template, 'k1', 'tc', 250);
-    expect(quantityAt({ ...template, blocks }, 'k1', 'tc')).toBe(99);
+    expect(blocks.filter((b) => b.skeleton_location_ref === 'k1' && b.block_type === 'tc').reduce((n, b) => n + b.quantity, 0)).toBe(99);
     expect(setQuantity({ ...template, blocks }, 'k1', 'tc', 0)).toEqual([]);
     expect(setQuantity({ ...template, blocks }, 'k1', 'tc', -3)).toEqual([]);
     expect(() => setQuantity(template, 'nowhere', 'tc', 1)).toThrow(/no node/);

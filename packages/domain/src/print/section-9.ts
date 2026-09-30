@@ -26,10 +26,9 @@ import { blockTypeLabel, notTestedReasonText } from '../relatorio/tree.ts';
 import type { SubBlockKey } from '../schemas/block-config.ts';
 import type { BlockRow, UserRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { getDefinition, getSeed } from '../seed/definitions.ts';
+import { findDefinition, getSeed } from '../seed/definitions.ts';
 import type { BlockDefinition, CabineDefinition, ColumnDef, FieldDef, TableDef, TestDef } from '../seed/schema.ts';
 import { blockRoleOf, groupForPrint, type PrintGroupWarning } from './group-for-print.ts';
-import type { DocumentLayout } from './layout.ts';
 
 /*
  * Story 7.1 (FR-68, AR-11, NFR-17), Story 7.2 AC2 and E12-A2: section 9 as data. Every sheet
@@ -233,11 +232,7 @@ function contextOf(snapshot: RelatorioSnapshot): Context {
 }
 
 function definitionOf(block: Pick<BlockRow, 'seed_version' | 'block_type'>): BlockDefinition | null {
-  try {
-    return getDefinition(block.seed_version, 'cabine_primaria', block.block_type);
-  } catch {
-    return null;
-  }
+  return findDefinition(block.seed_version, block.block_type);
 }
 
 /** What a sheet reads of its seed version beyond its block definition: the cabine's fields and the checklist's columns. */
@@ -658,16 +653,3 @@ export function section9Layout(snapshot: RelatorioSnapshot, number: number, titl
   return { number, title, kind: 'sheets', subsections, warnings: grouping.warnings };
 }
 
-/** Every photo a sheet of the layout prints, once, in print order: the `print` variants the job loads. */
-export function layoutPhotoIds(layout: Pick<DocumentLayout, 'sections'>): string[] {
-  const ids: string[] = [];
-  for (const section of layout.sections) {
-    if (section.kind !== 'sheets') continue;
-    for (const subsection of section.subsections) {
-      for (const sheet of subsection.sheets) {
-        for (const part of sheet.parts) if (part.kind === 'photos') for (const photo of part.photos) if (!ids.includes(photo.fileId)) ids.push(photo.fileId);
-      }
-    }
-  }
-  return ids;
-}

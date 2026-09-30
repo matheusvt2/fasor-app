@@ -30,7 +30,7 @@ import { useLiveQuery } from '../../db/live.ts';
 import { newId } from '../../ids.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { useSession } from '../../state/session.tsx';
-import { useSync } from '../../state/sync.tsx';
+import { useSyncActions } from '../../state/sync-actions.ts';
 import { useToast } from '../../state/toast.tsx';
 import { sameFieldValue } from './field-value.ts';
 
@@ -89,7 +89,7 @@ export function InstrumentPanel({ instrumentId, instrument, referenced, onClose 
   const t = copy.registries.instrumentos;
   const titleId = useId();
   const certificate = useAttachedFile(db, instrument?.certificate_file_id ?? null);
-  const { fetchFile } = useSync();
+  const { fetchFile } = useSyncActions();
 
   const manufacturers = useLiveQuery(() => (db === null ? Promise.resolve(NO_WORDS) : manufacturerRows(db)), [db], NO_WORDS);
   const instruments = useLiveQuery(
