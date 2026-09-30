@@ -1,5 +1,5 @@
 import { numberEchoText, parseReadingPtBr } from '@app/domain';
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
@@ -15,7 +15,7 @@ function Harness({ onCommit, delay = 0, external }: { onCommit: (value: ParsedNu
   const number = useNumberInput({
     storedText: raw ?? '',
     storedRaw: raw,
-    parse: (text) => parseReadingPtBr(text, { units: ['A'], defaultUnit: 'A' }),
+    parse: (text) => parseReadingPtBr(text, { units: ['A', 'mA'], defaultUnit: 'A' }),
     commit: (value) => {
       onCommit(value);
       setTimeout(() => setRaw(value?.raw ?? null), delay);
@@ -28,6 +28,15 @@ function Harness({ onCommit, delay = 0, external }: { onCommit: (value: ParsedNu
       <input aria-label="Corrente" {...number.inputProps} />
       {number.echo === null ? null : <span data-testid="echo">{number.echo}</span>}
       {number.invalid ? <span data-testid="invalid" /> : null}
+      <button
+        type="button"
+        onClick={() => {
+          const parsed = number.parsed;
+          if (parsed !== null && parsed !== 'invalid') number.commitValue({ raw: parsed.raw, unit: 'mA' });
+        }}
+      >
+        chip
+      </button>
       <button type="button">fora</button>
     </div>
   );
@@ -86,5 +95,40 @@ describe('useNumberInput (Story 5.5; PR #30 carry-over)', () => {
     expect(onCommit).not.toHaveBeenCalled();
     expect(input).toHaveValue('abc');
     expect(screen.getByTestId('invalid')).toBeInTheDocument();
+  });
+
+  // E10-Q1: a unit chip commits the typed value in its unit; Enter afterwards must not
+  // commit the same value again (each commit is its own batch, so the outbox held two rows).
+  it('a unit chip then Enter commits once', async () => {
+    const user = userEvent.setup();
+    const onCommit = vi.fn();
+    renderField({ onCommit, delay: 50 });
+    const input = screen.getByRole('textbox', { name: 'Corrente' });
+    await user.type(input, '2');
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'chip' }));
+    });
+    expect(input).toHaveFocus();
+    await user.keyboard('{Enter}');
+    await user.click(screen.getByRole('button', { name: 'fora' }));
+    await act(async () => new Promise((resolve) => setTimeout(resolve, 100)));
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    expect(onCommit).toHaveBeenCalledWith({ raw: '2', unit: 'mA' });
+  });
+
+  it('a unit chip, more typing, then Enter commits twice (a real change still commits)', async () => {
+    const user = userEvent.setup();
+    const onCommit = vi.fn();
+    renderField({ onCommit, delay: 50 });
+    const input = screen.getByRole('textbox', { name: 'Corrente' });
+    await user.type(input, '2');
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'chip' }));
+    });
+    await user.type(input, '5');
+    await user.keyboard('{Enter}');
+    expect(onCommit).toHaveBeenCalledTimes(2);
+    expect(onCommit).toHaveBeenNthCalledWith(1, { raw: '2', unit: 'mA' });
+    expect(onCommit.mock.calls[1]?.[0]).toMatchObject({ raw: '25' });
   });
 });

@@ -1,9 +1,15 @@
 /*
  * AD-13 contract skew. Families and routes are append-only, so the push route
- * never reads the version header: every client's ops are accepted. Only a
- * pull compares the header with `MIN_CONTRACT_VERSION` and answers
- * `426 contract_outdated` to an outdated client, which keeps pushing, stops
- * pulling and shows the "Atualizar" state.
+ * accepts every client's ops. A pull compares the header with `MIN_CONTRACT_VERSION`
+ * and answers `426 contract_outdated` to an outdated client, which keeps pushing,
+ * stops pulling and shows the "Atualizar" state.
+ *
+ * One exception on the push (2026-09-29, E10-Q6): a client older than
+ * `MARK_AWARE_CONTRACT_VERSION` (or one sending no header) does not stamp what it saw, so
+ * its plain edit would settle a contradiction it never saw. A push of such a client that
+ * writes a `sheet/*` put on a cell holding `conflict`, or a `block/{id}/removed_at` write on
+ * a block holding `removal_conflict`, is answered `426 contract_outdated` whole, with
+ * nothing applied; its other pushes are accepted as before.
  */
 
 /**
@@ -66,8 +72,15 @@
  * write, and the fold reads them. The session information gains the `block_added` rule (a
  * `MergeInfo` whose `over_op_id` is null). No new family, but the reducer and two row shapes
  * changed: `MIN_CONTRACT_VERSION` goes to 12 too.
+ *
+ * 13 (2026-09-29, E10-Q2): the undo of a resolution brings the decision back. An op may
+ * carry `meta.restore` (the marks its original cleared: `{conflict, shown_op_id}` on a
+ * `sheet/*` put, `{removed_by, removal_conflict}` on a `block/{id}/removed_at` write), which
+ * a sequential fold writes back, and a sheet cell may carry an optional `shown_op_id` (the
+ * op whose value it shows when that is not its head). No new family, but the reducer and
+ * the cell shape changed: `MIN_CONTRACT_VERSION` goes to 13 too.
  */
-export const CONTRACT_VERSION = 12;
+export const CONTRACT_VERSION = 13;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -108,7 +121,19 @@ export const CONTRACT_VERSION = 12;
  * 12 (2026-09-29, Stories 10.2 and 10.3): a version-11 (or older) bundle's cell and block
  * schemas strip `conflict`, `removal_conflict` and `removed_by`, and its fold ignores the meta
  * stamps, so its rows would diverge from the server's: it updates too.
+ *
+ * 13 (2026-09-29, E10-Q2): a version-12 bundle's fold ignores `meta.restore` and its cell
+ * schema strips `shown_op_id`, so it would fold the undo of a resolution without the marks
+ * the server writes back: it updates too.
  */
-export const MIN_CONTRACT_VERSION = 12;
+export const MIN_CONTRACT_VERSION = 13;
+
+/**
+ * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes
+ * (`meta.standing_op_id`, `seen_conflict_op_id`, `seen_modified_at`, contract 12). The push
+ * route refuses a push from an older client (or one with no header) that touches a cell or
+ * block holding a conflict mark, since its plain write would clear a mark it never saw.
+ */
+export const MARK_AWARE_CONTRACT_VERSION = 12;
 
 export const CONTRACT_VERSION_HEADER = 'x-contract-version';

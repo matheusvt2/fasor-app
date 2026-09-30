@@ -1,4 +1,5 @@
 import {
+  decisionSplit,
   decisionTotal,
   downloadRows,
   mergeInfoText,
@@ -93,7 +94,6 @@ export interface SyncState {
   lastFailure: SyncFailure | null;
   lastSyncAt: string | null;
   lastPushAt: LastPushAt[];
-  supersededCount: number;
   /**
    * Story 10.1: the merges by rule of this tab session (engine memory; a reload clears
    * them), each with its Sync status row words (`mergeInfoText`, kernel); Story 10.4 adds
@@ -106,9 +106,11 @@ export interface SyncState {
    * provider always supplies them.
    */
   /** The headline's counts ("3 fichas e 12 fotos aguardando · 2 leituras na fila"). */
-  headline?: string;
+  headline: string;
   /** The `.sync-summary` compact badges. */
-  summaryBadges?: readonly SyncSummaryBadge[];
+  summaryBadges: readonly SyncSummaryBadge[];
+  /** E10-Q7: how many decisions wait (`decisionTotal`: one per contradicting cell, one per structure case), the Decisões head badge's figure. */
+  decisionCount: number;
   /** "Enviando › Fichas": one row per block with unsent ops. */
   pendingSheets?: readonly PendingSheetRow[];
   /** "Enviando › Fotos": the originals still to upload (at most ten) and how many more. */
@@ -185,7 +187,6 @@ const IDLE: EngineStatus = {
   outdated: false,
   lastResult: null,
   lastFailure: null,
-  supersededCount: 0,
   merges: [],
 };
 
@@ -295,8 +296,11 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     () => syncCounts(rows, reading, status.merges, photoUploads.map((upload) => ({ id: upload.id, error: upload.error }))),
     [rows, reading, status.merges, photoUploads],
   );
+  const unreachable = unreachableCause({ reAuthRequired: session.reAuthRequired, lastFailure: status.lastFailure });
+  // E10-Q5: a `sent` row reads "Enviando…" only while a push can actually be in flight.
+  const requestOpen = status.running && session.online && unreachable === null;
   const sheetContext = useLiveQuery(() => (db === null ? Promise.resolve(NO_SHEET_CONTEXT) : pendingSheetContext(db, rows)), [db, rows], NO_SHEET_CONTEXT);
-  const pendingSheets = useMemo(() => pendingSheetRows(rows, sheetContext), [rows, sheetContext]);
+  const pendingSheets = useMemo(() => pendingSheetRows(rows, sheetContext, { requestOpen }), [rows, sheetContext, requestOpen]);
   const uploads = useMemo(() => pendingPhotoRows(photoUploads), [photoUploads]);
   const readingsQueued = useMemo(() => queuedReadingRows(reading.photos), [reading.photos]);
   // Story 10.1: the rows each merge row names (block, TAG, author, photo), read live.
@@ -341,6 +345,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     [held, users, viewerId, device],
   );
   const decisionCount = useMemo(() => decisionTotal(held), [held]);
+  // E10-Q4: cells and structure are worded apart; the badge state counts the total.
+  const split = useMemo(() => decisionSplit(held), [held]);
 
   const syncNow = useCallback(async () => engineRef.current?.runCycle() ?? 'paused', []);
   const syncRelatorio = useCallback(
@@ -398,14 +404,13 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     await client.rereadPhoto(photoId);
   }, []);
 
-  const unreachable = unreachableCause({ reAuthRequired: session.reAuthRequired, lastFailure: status.lastFailure });
-
   const value = useMemo<SyncState>(
     () => ({
       counts,
       badgeState: syncBadgeState(counts, { online: session.online, reachable: unreachable === null, conflicts: decisionCount }),
-      headline: syncHeadlineText({ counts, contradictions: decisionCount }),
-      summaryBadges: syncSummaryBadges({ counts, contradictions: decisionCount }),
+      headline: syncHeadlineText({ counts, ...split }),
+      summaryBadges: syncSummaryBadges({ counts, ...split }),
+      decisionCount,
       pendingSheets,
       uploads,
       readingsQueued,
@@ -422,7 +427,6 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       lastFailure: status.lastFailure,
       lastSyncAt: company?.last_sync_at ?? null,
       lastPushAt: company?.last_push_at ?? [],
-      supersededCount: status.supersededCount,
       merges,
       deviceId: device,
       userNames,
@@ -437,7 +441,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       preview,
       rereadPhoto,
     }),
-    [counts, session.online, unreachable, status, merges, pendingSheets, uploads, readingsQueued, downloads, held, decisions, decisionCount, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto],
+    [counts, session.online, unreachable, status, merges, pendingSheets, uploads, readingsQueued, downloads, held, decisions, decisionCount, split, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto],
   );
 
   return <SyncContext value={value}>{children}</SyncContext>;

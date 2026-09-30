@@ -113,13 +113,14 @@ describe('Sync status surface', () => {
   });
 
   it('lists the rejected ops with "Reenviar", which resends and runs a cycle', async () => {
-    const value = state({ badgeState: 'error', counts: { dead: 2, pending: 1 }, pendingText: '1 alteração', supersededCount: 3 });
-    renderWith(value);
+    const value = state({ badgeState: 'error', counts: { dead: 2, pending: 1 }, pendingText: '1 alteração' });
+    const { container } = renderWith(value);
     const row = screen.getByTestId('sync-rejected-row');
     expect(row).toHaveTextContent('2 alterações rejeitadas');
     await userEvent.click(screen.getByRole('button', { name: 'Reenviar' }));
     expect(value.resendDead).toHaveBeenCalledTimes(1);
-    expect(screen.getByTestId('sync-superseded-row')).toHaveTextContent('3 alterações mescladas pelo servidor');
+    // E10-Q3: no "alterações mescladas pelo servidor" line; merges are only "Mesclado automaticamente" rows.
+    expect(container).not.toHaveTextContent(/mesclad[ao]s? pelo servidor/);
   });
 
   it('10.1 lists one row per merge of the session with the kernel sentence', () => {
@@ -196,6 +197,7 @@ describe('Sync status surface: the full 85-sync surface (Story 10.4)', () => {
       readingsQueued: [{ id: 'f3', primary: 'Placa de identificação', secondary: '07/09 14:29', stateText: 'Leitura na fila' }],
       downloads: [{ relatorio_id: 'r1', primary: 'Porto Seguro · Oxigênio', secondary: 'Baixando… 12 de 30 fichas · 8 de 20 fotos', percent: 40, percentText: '40 %' }],
       decisions: [{ key: 'd1', kind: 'cell', text: 'SEC-C12: 1 célula em contradição' }],
+      decisionCount: 1,
       retryUpload: vi.fn(async () => {}),
       ...over,
     });

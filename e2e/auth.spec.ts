@@ -341,9 +341,6 @@ test('@p1 1.3-E2E-003b offline, Salvar commits the registration on the device an
   await restore.getByRole('button', { name: 'Salvar' }).click();
   await expect(row).toHaveText(seededRow);
   await syncNow(page);
-  // Two saves from this device, each chained to its own previous op (AD-3 prev_op_id):
-  // the server merged nothing, so Sync status shows no "mescladas" row.
-  await expect(page.getByTestId('sync-superseded-row')).toHaveCount(0);
   await expect
     .poll(async () => (await (await page.request.get('/api/account')).json()).user, { timeout: 20_000 })
     .toMatchObject({ registrationNumber: user.registrationNumber, title: 'Técnico(a) em Eletrotécnica' });

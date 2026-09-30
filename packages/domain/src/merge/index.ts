@@ -14,6 +14,7 @@ export {
   decisionCount,
   decisionKey,
   decisionText,
+  decisionSplit,
   decisionTotal,
   uniqueHeldDecisions,
   keepBothTag,
@@ -37,3 +38,4 @@ export {
   type OpenDecisionsInput,
 } from './conflicts.ts';
 export { stampSeen } from './stamp.ts';
+export { clearedMarks } from './restore.ts';
