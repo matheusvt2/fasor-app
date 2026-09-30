@@ -1,3 +1,4 @@
+import './zod-config.ts';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { PRODUTO } from '@app/domain';

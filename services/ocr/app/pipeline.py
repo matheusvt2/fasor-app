@@ -8,6 +8,7 @@ on a working copy and their boxes are mapped back through the inverse transform;
 either sets `preprocessing_applied`.
 """
 
+import bisect
 import math
 from dataclasses import dataclass
 from typing import Protocol
@@ -15,6 +16,7 @@ from typing import Protocol
 import cv2
 import numpy as np
 
+from . import MAX_IMAGE_PIXELS
 from .recognizer import Reading
 
 MAX_SIDE = 4000
@@ -65,6 +67,10 @@ def decode(data: bytes) -> np.ndarray:
         raise InvalidImage("not a decodable image") from error
     if image is None or image.size == 0 or image.shape[0] < 2 or image.shape[1] < 2:
         raise InvalidImage("not a decodable image")
+    # Belt and braces for a process whose environment raised the OpenCV cap: nothing larger
+    # than the package's own cap reaches the pipeline.
+    if image.shape[0] * image.shape[1] > MAX_IMAGE_PIXELS:
+        raise InvalidImage("image over the pixel cap")
     return image
 
 
@@ -113,6 +119,32 @@ def _runs(flags: np.ndarray) -> list[tuple[int, int]]:
     return runs
 
 
+def quad_size(quad: np.ndarray) -> tuple[int, int]:
+    """Width and height of the rectangle a detected quad (tl, tr, br, bl) is rectified to."""
+    tl, tr, br, bl = quad
+    width = int(round(max(np.linalg.norm(tr - tl), np.linalg.norm(br - bl))))
+    height = int(round(max(np.linalg.norm(bl - tl), np.linalg.norm(br - tr))))
+    return width, height
+
+
+def rectify(image: np.ndarray, quad: np.ndarray, width: int, height: int) -> tuple[np.ndarray, np.ndarray]:
+    """The quad's pixels warped upright to `width` x `height`, and the inverse transform back."""
+    dst = np.array([[0, 0], [width, 0], [width, height], [0, height]], dtype=np.float32)
+    forward = cv2.getPerspectiveTransform(quad, dst)
+    inverse = cv2.getPerspectiveTransform(dst, quad)
+    line = cv2.warpPerspective(image, forward, (width, height), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+    return line, inverse
+
+
+def clamp_box(x0: float, y0: float, x1: float, y1: float, width: int, height: int) -> tuple[float, float, float, float] | None:
+    """The box clamped to the image and rounded to 0.1 px, or None when less than 1 px survives."""
+    x0, y0 = max(0.0, x0), max(0.0, y0)
+    x1, y1 = min(float(width), x1), min(float(height), y1)
+    if x1 - x0 < 1 or y1 - y0 < 1:
+        return None
+    return (round(x0, 1), round(y0, 1), round(x1, 1), round(y1, 1))
+
+
 def _widen(crop: np.ndarray) -> np.ndarray:
     """Pad a short word with its own edge colour up to MIN_CROP_ASPECT (width / height).
 
@@ -133,15 +165,10 @@ class _Word:
 
 
 def _split_line(work: np.ndarray, quad: np.ndarray) -> list[_Word]:
-    tl, tr, br, bl = quad
-    width = int(round(max(np.linalg.norm(tr - tl), np.linalg.norm(br - bl))))
-    height = int(round(max(np.linalg.norm(bl - tl), np.linalg.norm(br - tr))))
+    width, height = quad_size(quad)
     if width < MIN_WORD_WIDTH or height < 4:
         return []
-    dst = np.array([[0, 0], [width, 0], [width, height], [0, height]], dtype=np.float32)
-    forward = cv2.getPerspectiveTransform(quad, dst)
-    inverse = cv2.getPerspectiveTransform(dst, quad)
-    line = cv2.warpPerspective(work, forward, (width, height), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+    line, inverse = rectify(work, quad, width, height)
     gray = cv2.cvtColor(line, cv2.COLOR_BGR2GRAY)
     ink = _ink_mask(gray)
     ink_rows = np.flatnonzero(ink.any(axis=1))
@@ -178,21 +205,33 @@ def _split_line(work: np.ndarray, quad: np.ndarray) -> list[_Word]:
     return words
 
 
+def _median(sorted_values: list[float]) -> float:
+    n = len(sorted_values)
+    mid = n // 2
+    return sorted_values[mid] if n % 2 else (sorted_values[mid - 1] + sorted_values[mid]) / 2
+
+
 def _reading_order(boxes: list[tuple[float, float, float, float]]) -> list[int]:
-    """Indices in reading order: rows top to bottom (by vertical overlap), words left to right."""
+    """Indices in reading order: rows top to bottom (by vertical overlap), words left to right.
+
+    A word joins the open row when its vertical centre lies between the row's median top and
+    median bottom. The open row keeps its tops and bottoms sorted (review fixes 2026-09-30,
+    O-8), so each word costs a bisect instead of a median over the whole row.
+    """
     order = sorted(range(len(boxes)), key=lambda i: ((boxes[i][1] + boxes[i][3]) / 2, boxes[i][0]))
     rows: list[list[int]] = []
+    tops: list[float] = []
+    bottoms: list[float] = []
     for i in order:
         x0, y0, x1, y1 = boxes[i]
         cy = (y0 + y1) / 2
-        if rows:
-            row = rows[-1]
-            top = float(np.median([boxes[j][1] for j in row]))
-            bottom = float(np.median([boxes[j][3] for j in row]))
-            if top <= cy <= bottom:
-                row.append(i)
-                continue
-        rows.append([i])
+        if rows and _median(tops) <= cy <= _median(bottoms):
+            rows[-1].append(i)
+        else:
+            rows.append([i])
+            tops, bottoms = [], []
+        bisect.insort(tops, y0)
+        bisect.insort(bottoms, y1)
     return [i for row in rows for i in sorted(row, key=lambda j: boxes[j][0])]
 
 
@@ -243,11 +282,7 @@ def read_image(image: np.ndarray, detector: Detector, recognizer: Recognizer) ->
         c = word.corners
         work_boxes.append((float(c[:, 0].min()), float(c[:, 1].min()), float(c[:, 0].max()), float(c[:, 1].max())))
         pts = np.hstack([c, np.ones((4, 1))]) @ to_source.T
-        x0 = max(0.0, float(pts[:, 0].min()))
-        y0 = max(0.0, float(pts[:, 1].min()))
-        x1 = min(float(width), float(pts[:, 0].max()))
-        y1 = min(float(height), float(pts[:, 1].max()))
-        source_boxes.append((round(x0, 1), round(y0, 1), round(x1, 1), round(y1, 1)) if x1 - x0 >= 1 and y1 - y0 >= 1 else None)
+        source_boxes.append(clamp_box(float(pts[:, 0].min()), float(pts[:, 1].min()), float(pts[:, 0].max()), float(pts[:, 1].max()), width, height))
 
     tokens: list[Token] = []
     for i in _reading_order(work_boxes):

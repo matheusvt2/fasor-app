@@ -1,6 +1,9 @@
-FROM node:24-bookworm-slim
+# Pinned by digest (security review 2026-09-30, O-7/I-9); bump tag and digest together.
+FROM node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6
 
 ARG LIBREOFFICE_VERSION=26.2.6
+# The sha256 The Document Foundation publishes beside the tarball (`<file>.sha256`); bump it with the version.
+ARG LIBREOFFICE_SHA256=fd0e8f8f2408dd2e5b90286e60f3f97cf566ba441cd48cfc5bcc68067303e0bc
 
 # LibreOffice from The Document Foundation (Debian apt ships an older release) plus fonts.
 RUN apt-get update \
@@ -8,8 +11,10 @@ RUN apt-get update \
       fontconfig fonts-liberation fonts-dejavu-core fonts-crosextra-carlito fonts-crosextra-caladea \
       libxinerama1 libfontconfig1 libdbus-1-3 libcairo2 libcups2 libglu1-mesa libsm6 libxrender1 libxext6 libglib2.0-0 libnss3 libnspr4 libxml2 libxslt1.1 libx11-6 libxt6 libgl1 libexpat1 libxcb1 \
  && mkdir /tmp/lo \
- && curl -fsSL "https://download.documentfoundation.org/libreoffice/stable/${LIBREOFFICE_VERSION}/deb/x86_64/LibreOffice_${LIBREOFFICE_VERSION}_Linux_x86-64_deb.tar.gz" \
-    | tar -xz -C /tmp/lo --strip-components=1 \
+ && curl -fsSL -o /tmp/lo.tar.gz "https://download.documentfoundation.org/libreoffice/stable/${LIBREOFFICE_VERSION}/deb/x86_64/LibreOffice_${LIBREOFFICE_VERSION}_Linux_x86-64_deb.tar.gz" \
+ && echo "${LIBREOFFICE_SHA256}  /tmp/lo.tar.gz" | sha256sum -c - \
+ && tar -xzf /tmp/lo.tar.gz -C /tmp/lo --strip-components=1 \
+ && rm /tmp/lo.tar.gz \
  && apt-get install -y --no-install-recommends /tmp/lo/DEBS/*.deb \
  && ln -s "$(ls -d /opt/libreoffice*/program/soffice | head -n1)" /usr/local/bin/soffice \
  && rm -rf /tmp/lo \

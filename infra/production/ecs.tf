@@ -139,6 +139,9 @@ resource "aws_ecs_task_definition" "caddy" {
       { name = "ACME_EMAIL", value = var.acme_email },
       { name = "FALLBACK_HOST", value = local.fallback_host },
     ]
+    secrets = [
+      { name = "FALLBACK_ORIGIN_SECRET", valueFrom = aws_ssm_parameter.fallback_origin_secret.arn },
+    ]
     mountPoints = [
       { sourceVolume = "caddy-data", containerPath = "/data", readOnly = false },
       { sourceVolume = "caddy-config", containerPath = "/config", readOnly = false },
@@ -189,6 +192,13 @@ resource "aws_ecs_service" "this" {
 
   deployment_minimum_healthy_percent = 0
   deployment_maximum_percent         = 100
+
+  # Security review 2026-09-30 (I-6): a task that dies at boot stops the roll and brings the
+  # last working task definition back, instead of relaunching forever.
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
 
   # The deploy script waits for services-stable itself and then checks /api/health.
   wait_for_steady_state = false

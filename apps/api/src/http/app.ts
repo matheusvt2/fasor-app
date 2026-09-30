@@ -2,7 +2,8 @@ import { readFile, stat } from 'node:fs/promises';
 import { extname, join, resolve, sep } from 'node:path';
 import type { Clock, ErrorResponse, NewId } from '@app/domain';
 import type { S3Client } from '@aws-sdk/client-s3';
-import { Hono } from 'hono';
+import { Hono, type MiddlewareHandler } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 import type { PgBoss } from 'pg-boss';
 import type { Auth } from '../auth/auth.ts';
 import { now as clock } from '../clock.ts';
@@ -19,6 +20,8 @@ import { createFileRoutes } from './files.ts';
 import { createGenerateRoutes } from './generate.ts';
 import { createHealthRoutes, type HealthProbes } from './health.ts';
 import { createReadingRoutes } from './reading.ts';
+import { pushRateLimit, signInRateLimit, type RateLimitRule } from './rate-limit.ts';
+import { htmlContentSecurityPolicy, securityHeaders } from './security-headers.ts';
 import { type AppEnv, sessionMiddleware, UnauthenticatedError, unauthenticatedError } from './session.ts';
 
 // `apps/web/dist` is bind-mounted alongside the api source; api commands run
@@ -99,6 +102,30 @@ export interface AppOptions {
   enqueueReading?: (payload: ReadingPayload) => Promise<void>;
   /** Story 11.8 follow-up: `config.AI_FEATURES === 'on'`; absent reads as on (every existing test). */
   aiFeatures?: boolean;
+  /**
+   * Security review 2026-09-30 (E11-A5): the sign-in and push limits (`rate-limit.ts`);
+   * absent, no request is limited (every existing test, and the gates outside production).
+   */
+  rateLimits?: { signIn: RateLimitRule; push: RateLimitRule; trustProxy: boolean };
+  /** The body cap of the JSON routes; absent, `DEFAULT_API_BODY_LIMIT_BYTES`. */
+  bodyLimitBytes?: number;
+}
+
+/** `config.API_BODY_LIMIT_BYTES`'s default: far above the largest push (500 ops), far below a memory exhaustion. */
+export const DEFAULT_API_BODY_LIMIT_BYTES = 16 * 1024 * 1024;
+/** Sign-in and get-session bodies are an e-mail and a password. */
+export const AUTH_BODY_LIMIT_BYTES = 64 * 1024;
+
+function bodyTooLarge(maxSize: number): MiddlewareHandler {
+  return bodyLimit({
+    maxSize,
+    onError: (c) => c.json({ code: 'body_too_large', message: `The request body is over the ${maxSize} byte limit.` } satisfies ErrorResponse, 413),
+  });
+}
+
+/** `PUT /api/files/:id` reads its body under its own 25 MB cap (`files.ts`), never under the JSON one. */
+function isFileUpload(method: string, path: string): boolean {
+  return method === 'PUT' && path.startsWith('/api/files/');
 }
 
 const notFoundBody: ErrorResponse = { code: 'not_found', message: 'No such route.' };
@@ -106,6 +133,9 @@ const notFoundBody: ErrorResponse = { code: 'not_found', message: 'No such route
 export function createApp(options: AppOptions): Hono<AppEnv> {
   const staticDir = options.staticDir ?? DEFAULT_STATIC_DIR;
   const app = new Hono<AppEnv>();
+
+  // Outermost after the request log: every answer carries the headers, errors included.
+  app.use('*', securityHeaders());
 
   app.use('*', async (c, next) => {
     const start = Date.now();
@@ -135,11 +165,17 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
 
   // better-auth owns /api/auth/*: sign-in, sign-out and get-session. Sign-up is refused
   // by the emailAndPassword config, not by a route that is missing here.
+  app.use('/api/auth/*', bodyTooLarge(AUTH_BODY_LIMIT_BYTES));
+  const jsonBodyLimit = bodyTooLarge(options.bodyLimitBytes ?? DEFAULT_API_BODY_LIMIT_BYTES);
+  app.use('/api/*', async (c, next) => (c.req.path.startsWith('/api/auth/') || isFileUpload(c.req.method, c.req.path) ? next() : jsonBodyLimit(c, next)));
+  const limits = options.rateLimits;
+  if (limits !== undefined) app.use('/api/auth/sign-in/*', signInRateLimit({ rule: limits.signIn, trustProxy: limits.trustProxy }));
   app.on(['GET', 'POST'], '/api/auth/*', (c) => options.auth.handler(c.req.raw));
 
   app.route('/', createHealthRoutes(options.probes));
 
   app.use('/api/*', sessionMiddleware(options.auth));
+  if (limits !== undefined) app.use('/api/sync/ops', pushRateLimit({ rule: limits.push }));
   const aiFeatures = options.aiFeatures ?? true;
   app.route('/', createAccountRoutes(options.db, { aiFeatures }));
   const boss = options.boss;
@@ -207,6 +243,8 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
     const contentType = MIME_TYPES[extname(target)] ?? 'application/octet-stream';
     return c.body(body, 200, {
       'content-type': contentType,
+      // Security review 2026-09-30: the shell's own policy, its inline theme script hashed.
+      ...(extname(target) === '.html' ? { 'content-security-policy': htmlContentSecurityPolicy(body.toString('utf8')) } : {}),
       // AD-8: the shell activates a new version on the next launch, which only happens
       // if the browser notices there is one. A cached worker script would pin the old
       // shell; every other response keeps its default caching.

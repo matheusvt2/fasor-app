@@ -14,7 +14,7 @@ import {
   type OpInput,
 } from '@app/domain';
 import { inArray } from 'drizzle-orm';
-import sharp from 'sharp';
+import sharp, { type Metadata } from 'sharp';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createAuth } from '../auth/auth.ts';
 import { parseTrustedOrigins } from '../auth/trusted-origins.ts';
@@ -736,7 +736,7 @@ describe('6.2-API-001 a photo through the sync route and PUT', () => {
     expect(await getObject(s3, config.S3_BUCKET, objectKey(companyA.companyId, 'photo', id))).toBeNull();
 
     // The variants: long edge at most 512 and 2000, JPEG.
-    const sizes: Record<string, sharp.Metadata> = {};
+    const sizes: Record<string, Metadata> = {};
     for (const variant of ['thumb', 'print'] as const) {
       const got = await authed(companyA, `/api/files/${id}/${variant}`);
       expect(got.status, `${variant} should be readable`).toBe(200);

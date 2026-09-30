@@ -20,6 +20,9 @@ READ_DISPLAY_PATH: str = SCHEMA_DOC["x-ocr-service"]["routes"]["read_display"]
 HEALTH_PATH: str = SCHEMA_DOC["x-ocr-service"]["routes"]["health"]
 READ_MAX_BYTES: int = SCHEMA_DOC["x-ocr-service"]["read_max_bytes"]
 
+# The plate-accuracy floor every plate test asserts: at least 95% of the expected tokens match.
+MIN_ACCURACY = 0.95
+
 # Lines a test wants in the run's output whatever the capture mode (see the hook below).
 SUMMARY: list[str] = []
 

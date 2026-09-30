@@ -127,6 +127,11 @@ docker compose --profile prod up -d
 
 `curl http://localhost:3001/api/health` should return the health JSON.
 
+`api-prod` runs with `NODE_ENV=production`, so it refuses the public development
+`SESSION_SECRET` of `docker-compose.yml` and turns the sign-in and push rate limits on
+(security review 2026-09-30). Put a secret of your own (32 or more characters) in `.env`
+as `SESSION_SECRET=` before `up`; `RATE_LIMIT=off` there turns the limits off.
+
 ## Trusting the local HTTPS certificate
 
 Tablets, and a desktop browser that wants the same no-warning origin, need

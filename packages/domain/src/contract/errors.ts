@@ -49,6 +49,10 @@ export const errorCodeSchema = z.enum([
   'reading_running',
   // Story 11.8 follow-up: the server's AI_FEATURES flag is off and the photo's kind needs the LLM step.
   'ai_features_off',
+  // Security review 2026-09-30 (E11-A5): a request body over the route's limit, and a
+  // client over a request limit (sign-in attempts, pushes); `retry-after` says when to retry.
+  'body_too_large',
+  'rate_limited',
   ...opRejectCodeSchema.options,
 ]);
 export type ErrorCode = z.infer<typeof errorCodeSchema>;

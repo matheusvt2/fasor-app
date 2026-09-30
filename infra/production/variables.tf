@@ -89,9 +89,13 @@ variable "enable_cloudfront_fallback" {
 }
 
 variable "acme_email" {
-  description = "Contact address of the Let's Encrypt ACME account Caddy creates."
+  description = "Contact address of the Let's Encrypt ACME account Caddy creates. No default: set in the untracked terraform.tfvars."
   type        = string
-  default     = "bruno@fasorengenharia.com.br"
+
+  validation {
+    condition     = can(regex("^[^@ ]+@[^@ ]+$", var.acme_email))
+    error_message = "acme_email must be an e-mail address."
+  }
 }
 
 variable "budget_name" {
@@ -100,10 +104,14 @@ variable "budget_name" {
   default     = "fasor-monthly"
 }
 
-variable "budget_alert_email" {
-  description = "Notified when the budget action runs."
-  type        = string
-  default     = "bruno@fasorengenharia.com.br"
+variable "budget_alert_emails" {
+  description = "Receive the notice when the budget action runs. No default: set in the untracked terraform.tfvars (see terraform.tfvars.example)."
+  type        = list(string)
+
+  validation {
+    condition     = length(var.budget_alert_emails) > 0 && alltrue([for e in var.budget_alert_emails : can(regex("^[^@ ]+@[^@ ]+$", e))])
+    error_message = "budget_alert_emails needs at least one e-mail address."
+  }
 }
 
 variable "bootstrap_app_role_name" {

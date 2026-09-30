@@ -1,7 +1,7 @@
 import { serve } from '@hono/node-server';
 import { createAuth } from './auth/auth.ts';
 import { parseTrustedOrigins } from './auth/trusted-origins.ts';
-import { loadConfigOrExit } from './config.ts';
+import { loadConfigOrExit, rateLimitEnabled, requestLimits } from './config.ts';
 import { createDb } from './db/client.ts';
 import { migrate } from './db/migrate.ts';
 import { createApp } from './http/app.ts';
@@ -73,6 +73,7 @@ const auth = createAuth({
   trustedOrigins: parseTrustedOrigins(config.TRUSTED_ORIGINS),
 });
 
+const rateLimits = requestLimits(config);
 const app = createApp({
   auth,
   db,
@@ -80,6 +81,8 @@ const app = createApp({
   bucket: config.S3_BUCKET,
   boss,
   aiFeatures: config.AI_FEATURES === 'on',
+  bodyLimitBytes: config.API_BODY_LIMIT_BYTES,
+  ...(rateLimits === undefined ? {} : { rateLimits }),
   probes: {
     db: () => sql`select 1`,
     queue: () => boss.getQueues(),
@@ -89,5 +92,5 @@ const app = createApp({
 });
 
 serve({ fetch: app.fetch, port: config.PORT }, (info) => {
-  log('api listening', { port: info.port });
+  log('api listening', { port: info.port, rate_limit: rateLimitEnabled(config) ? 'on' : 'off' });
 });

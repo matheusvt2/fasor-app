@@ -63,12 +63,46 @@ resource "aws_s3_bucket_lifecycle_configuration" "files" {
   depends_on = [aws_s3_bucket_versioning.files]
 }
 
+# Security review 2026-09-30: the bucket refuses every request that is not over TLS. The
+# api reaches it over HTTPS already; this makes a plain-HTTP client (a misconfigured SDK,
+# a script) fail instead of moving relatório files in clear.
+data "aws_iam_policy_document" "files_tls_only" {
+  statement {
+    sid     = "DenyInsecureTransport"
+    effect  = "Deny"
+    actions = ["s3:*"]
+    resources = [
+      aws_s3_bucket.files.arn,
+      "${aws_s3_bucket.files.arn}/*",
+    ]
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+    condition {
+      test     = "Bool"
+      variable = "aws:SecureTransport"
+      values   = ["false"]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "files" {
+  bucket = aws_s3_bucket.files.id
+  policy = data.aws_iam_policy_document.files_tls_only.json
+
+  # The public access block is in place first.
+  depends_on = [aws_s3_bucket_public_access_block.files]
+}
+
 # One repository per image; the deploy script pushes each tagged with the commit SHA.
 resource "aws_ecr_repository" "this" {
   for_each = toset(["api", "ocr", "caddy"])
 
-  name                 = "fasor/${each.key}"
-  image_tag_mutability = "MUTABLE"
+  name = "fasor/${each.key}"
+  # Security review 2026-09-30 (I-7): a pushed commit tag is never overwritten, so the image
+  # a rollback names is the one that was tested; the deploy skips the build of a tag already here.
+  image_tag_mutability = "IMMUTABLE"
 
   image_scanning_configuration {
     scan_on_push = true

@@ -4,11 +4,9 @@ image's pixel space, matching the generator's expected tokens (rules in matching
 Pass: at least 95% of the expected tokens match and every value token matches.
 """
 
-from conftest import SUMMARY, assert_read_result, fold
+from conftest import MIN_ACCURACY, SUMMARY, assert_read_result, fold
 from make_plate import value_words
 from matching import match, value_flags
-
-MIN_ACCURACY = 0.95
 
 
 def test_plate_matches_expected_tokens(plate_response, expected_tokens):

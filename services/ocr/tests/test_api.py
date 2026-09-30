@@ -5,7 +5,7 @@ import math
 import cv2
 import numpy as np
 
-from conftest import HEALTH_PATH, READ_MAX_BYTES, READ_PATH, SUMMARY, assert_read_result, validate
+from conftest import HEALTH_PATH, MIN_ACCURACY, READ_MAX_BYTES, READ_PATH, SUMMARY, assert_read_result, validate
 from make_plate import BACKGROUND, value_words
 from matching import match, value_flags
 
@@ -63,7 +63,7 @@ def test_rotated_plate_is_deskewed_and_mapped_back(client, plate_jpeg, expected_
     SUMMARY.append(report.line(f"plate rotated {ROTATION_DEG:g} deg"))
     for miss in report.misses:
         SUMMARY.append(f"  miss: {miss}")
-    assert report.accuracy >= 0.95, report.misses
+    assert report.accuracy >= MIN_ACCURACY, report.misses
     assert report.values_matched == report.values_total, report.misses
 
 
@@ -94,7 +94,7 @@ def test_large_plate_is_downscaled_and_mapped_back(client, plate_jpeg, expected_
     SUMMARY.append(report.line("plate upscaled to 4400 px"))
     for miss in report.misses:
         SUMMARY.append(f"  miss: {miss}")
-    assert report.accuracy >= 0.95, report.misses
+    assert report.accuracy >= MIN_ACCURACY, report.misses
     assert report.values_matched == report.values_total, report.misses
 
 
