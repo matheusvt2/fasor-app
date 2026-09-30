@@ -191,11 +191,12 @@ describe('6.6-UNIT pointsSummary and row 8', () => {
     expect(pointsSummaryText(summary)).toBe('5 pontos · 1 sem ação · 3 não ensaiadas');
     const computed = progress(snapshot);
     const row8 = sumarioRows(snapshot, preIssue(snapshot, computed), computed).find((row) => row.rowKey === 'section_8')!;
-    expect(row8.meta).toBe('5 pontos · 1 sem ação · 3 não ensaiadas');
+    expect(row8.meta).toBe('5 pontos · 1 sem ação · 3 não ensaiadas · 2 pontos sem prazo');
     expect(row8.kind).toBe('generated');
     expect(row8.pending).toBe(true);
     expect(preIssue(snapshot, computed).filter((row) => row.row === 'section_8')).toEqual([
       { id: 'points_sem_acao', row: 'section_8', severity: 'pending', text: '1 ponto sem ação', kind: 'points_sem_acao' },
+      { id: 'points_sem_prazo', row: 'section_8', severity: 'info', text: '2 pontos sem prazo', kind: 'points_sem_prazo' },
     ]);
   });
 
@@ -271,7 +272,7 @@ describe('6.6-UNIT a token citing a removed photo', () => {
     expect(pointsWithRemovedPhotos({ ...snapshot, files: [] }).map((entry) => entry.position)).toEqual([1, 2]);
     const computed = progress(snapshot);
     const row8 = sumarioRows(snapshot, preIssue(snapshot, computed), computed).find((row) => row.rowKey === 'section_8')!;
-    expect(row8.meta).toBe('3 pontos · Ponto 2 cita uma foto removida');
+    expect(row8.meta).toBe('3 pontos · Ponto 2 cita uma foto removida · 3 pontos sem prazo');
   });
 });
 

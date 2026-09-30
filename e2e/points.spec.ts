@@ -4,6 +4,7 @@ import { newId } from '../apps/api/src/ids.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
+import { typeDate } from './support/relatorio-flow.ts';
 import { newRelatorioDrafts, officeDraft, pushDrafts, type SeededSheet } from './support/relatorio-seed.ts';
 
 /*
@@ -190,7 +191,7 @@ test('@p0 6.6-E2E-001 row 8 opens the empty Points surface; "Criar" writes one p
   await expect(card.locator('.poa-order')).toHaveText('1 de 1');
   await expect(card.locator('.poa-title')).toHaveText('Geral');
   await expect(card.locator('.poa-text .photo-ref')).toHaveText('Imagem 1');
-  await expect(card.locator('.poa-fields dd')).toHaveText('Instalar plaquetas de identificação');
+  await expect(card.locator('.poa-fields dd').first()).toHaveText('Instalar plaquetas de identificação');
 
   await page.reload();
   await expect(cards(page)).toHaveCount(1, { timeout: 30_000 });
@@ -198,7 +199,7 @@ test('@p0 6.6-E2E-001 row 8 opens the empty Points surface; "Criar" writes one p
   await expect(page.getByRole('heading', { level: 2, name: 'Pontos de atenção (1)' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Voltar' }).click();
-  await expect(row8(page).locator('.sum-status')).toHaveText('1 ponto');
+  await expect(row8(page).locator('.sum-status')).toHaveText('1 ponto · 1 ponto sem prazo');
 });
 
 test('@p0 6.6-E2E-002 an NC row\'s "Criar ponto de atenção" links the sheet\'s equipment and the item\'s photo, and the focus returns to the row', async ({ page }) => {
@@ -349,7 +350,7 @@ test('@p0 6.6-E2E-008 "Editar" then "Concluir" writes only the changed text and 
   await page.reload();
   const card = cards(page).first();
   await expect(card.locator('.poa-text')).toHaveText('Texto novo', { timeout: 30_000 });
-  await expect(card.locator('.poa-fields dd')).toHaveText('Ação nova');
+  await expect(card.locator('.poa-fields dd').first()).toHaveText('Ação nova');
 });
 
 /**
@@ -537,6 +538,54 @@ test('@p1 6.6-E2E-012 E6-Q2: a stored point edited on the Points surface and rel
   expect((await outbox(page)).filter((op) => op.path === `point/${point!.id}/action`)).toHaveLength(0);
 });
 
+/** Hides the tab the way a closing tablet does: the draft sources are read, nothing more. */
+async function hideTab(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+}
+
+test('@p0 11.9-E2E-009 FR-61: a Responsável and a typed Prazo not yet committed when the tab dies are offered back; "Recuperar" writes the owner and deadline puts', async ({ page }) => {
+  test.setTimeout(200_000);
+  let point: PointRow | null = null;
+  await setUp(page, (scope) => {
+    const built = pointDrafts(scope, [{ text: 'Texto', action: 'Ação' }]);
+    point = built.rows[0]!;
+    return built.drafts;
+  });
+  await openPoints(page);
+  const pointDraftValues = async () =>
+    (await readStore<{ surface: string; value: { owner?: string; pending?: { deadline?: string | null } } }>(page, database, 'drafts')).filter((draft) => draft.surface === 'point').map((draft) => draft.value);
+
+  // Round 1: Responsável typed, the tab gone before the 500 ms idle commit.
+  await page.getByRole('button', { name: 'Editar o ponto 1, Geral' }).click();
+  let editor = page.getByRole('article', { name: 'Ponto de atenção 1 em edição' });
+  await editor.getByRole('textbox', { name: 'Responsável' }).fill('Manutenção predial');
+  await hideTab(page);
+  await expect.poll(async () => (await pointDraftValues()).map((value) => value.owner)).toContain('Manutenção predial');
+  await page.reload();
+  await expect(page.locator('.poa-list')).toBeAttached({ timeout: 30_000 });
+  await expect(toast(page)).toContainText('Rascunho encontrado');
+  await toast(page).getByRole('button', { name: 'Recuperar' }).click();
+  await expect.poll(async () => (await outbox(page)).filter((op) => op.path === `point/${point!.id}/owner`).map((op) => [op.kind, op.value])).toEqual([['put', 'Manutenção predial']]);
+  await expect(cards(page).first().locator('.poa-fields')).toContainText('Manutenção predial');
+
+  // Round 2: a Prazo typed (the focus still in the field, so no blur commits it), the tab gone.
+  await page.getByRole('button', { name: 'Editar o ponto 1, Geral' }).click();
+  editor = page.getByRole('article', { name: 'Ponto de atenção 1 em edição' });
+  await typeDate(editor, 'Prazo', '15032031');
+  await hideTab(page);
+  await expect.poll(async () => (await pointDraftValues()).map((value) => value.pending?.deadline)).toContain('2031-03-15');
+  expect((await outbox(page)).filter((op) => op.path === `point/${point!.id}/deadline`)).toHaveLength(0);
+  await page.reload();
+  await expect(page.locator('.poa-list')).toBeAttached({ timeout: 30_000 });
+  await expect(toast(page)).toContainText('Rascunho encontrado');
+  await toast(page).getByRole('button', { name: 'Recuperar' }).click();
+  await expect.poll(async () => (await outbox(page)).filter((op) => op.path === `point/${point!.id}/deadline`).map((op) => [op.kind, op.value])).toEqual([['put', '2031-03-15']]);
+  await expect(cards(page).first().locator('.poa-fields')).toContainText('15/03/2031');
+});
+
 test('@p1 6.6-E2E-011 E6-Q11: removing a photo a point cites names that point in the confirm', async ({ page }) => {
   test.setTimeout(150_000);
   const cited = newId();
@@ -573,12 +622,12 @@ test('@p0 6.6-E2E-005 Sumário row 8 reads "5 pontos · 1 sem ação · 3 não e
     ]).drafts,
     ...all.slice(0, 3).map((sheet) => notTestedDraft(scope, sheet.blockId)),
   ]);
-  await expect(row8(page).locator('.sum-status')).toHaveText('5 pontos · 1 sem ação · 3 não ensaiadas');
+  await expect(row8(page).locator('.sum-status')).toHaveText('5 pontos · 1 sem ação · 3 não ensaiadas · 2 pontos sem prazo');
   await openPoints(page);
   await expect(page.getByRole('heading', { level: 2, name: 'Pontos de atenção (2 + 3 automáticos)' })).toBeVisible();
   await expect(cards(page)).toHaveCount(2);
   await expect(autoCards(page)).toHaveCount(3);
-  await expect(cards(page).nth(1).locator('.poa-fields dd')).toHaveText('—');
+  await expect(cards(page).nth(1).locator('.poa-fields dd').first()).toHaveText('—');
 });
 
 test('@p1 6.6-E2E-006 a point citing a removed photo is named on row 8; "Remover" asks, tombstones it and "Desfazer" brings it back', async ({ page }) => {
@@ -590,7 +639,7 @@ test('@p1 6.6-E2E-006 a point citing a removed photo is named on row 8; "Remover
     point = built.rows[0]!;
     return [photoDraft(scope, photoId, 3), { ...officeDraft(account, scope, `file/${photoId}/removed_at`, null), kind: 'remove' as const }, ...built.drafts];
   });
-  await expect(row8(page).locator('.sum-status')).toHaveText('1 ponto · Ponto 1 cita uma foto removida');
+  await expect(row8(page).locator('.sum-status')).toHaveText('1 ponto · Ponto 1 cita uma foto removida · 1 ponto sem prazo');
   await openPoints(page);
   await expect(cards(page).first().locator('.poa-text .photo-ref')).toHaveText('Foto removida');
 

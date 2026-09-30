@@ -26,6 +26,11 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'photo-numbers.spec.ts',
     why: 'loads the same fixed-id Porto Seguro fixture and generates revisions through the shared queue and LibreOffice, whose certificate rasterization shares the one soffice chain',
   },
+  // Stories 11.9/11.10: 11.10-E2E-001 generates the DOCX its action-plan table is read from.
+  {
+    file: 'action-plan.spec.ts',
+    why: 'generates a revision through the shared queue and LibreOffice to read section 8\'s action-plan table from the DOCX',
+  },
   // Test-speed batch (2026-09-27): the specs that time a tap against a render (`humanTap`,
   // `touchPressAcross`, `tapCounter` in `taps.ts`). They measure the device, and the device
   // is the one thing the per-worker pairs cannot separate: beside two other browsers the

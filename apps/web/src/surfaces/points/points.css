@@ -7,8 +7,8 @@
  * portaled out of the route (from an NC row or an untested sheet), so its rules are scoped
  * to `.point-editor-dialog` as well, and the photo picker's to `.poa-picker-dialog`.
  * The `.frame-*` variants live in `app.css` (AGENTS.md "Mock container selectors").
- * Rules for parts the MVP does not build (the photo draft, the priority picker, Prazo, the
- * action-plan table) are left out.
+ * Rules for parts not built (the photo draft, the "Como imprime na seção 8" preview) are
+ * left out. Story 11.9 adds the Priority picker and Prazo rules.
  */
 
 [data-route="/relatorio/:id/pontos"] .poa-list { display: flex; flex-direction: column; gap: var(--sp-4); }
@@ -61,3 +61,26 @@
 /* mirrors `[data-route="/relatorio/porto-seguro/pontos"] .poa-text-head` (`72-pontos.html` 45): the Texto label and its Dictation button (Story 9.4) */
 [data-route="/relatorio/:id/pontos"] .poa-text-head,
 .point-editor-dialog .poa-text-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+
+/* Story 11.9. mirrors `[data-route="/relatorio/porto-seguro/pontos"] .poa-prazo-sf > .input ~ .suggested-pill` and
+   `... .poa-prazo-sf .input` (`72-pontos.html` 48-49): Prazo as a Suggestion field filled by the Priority picker. */
+[data-route="/relatorio/:id/pontos"] .poa-prazo-sf > .input ~ .suggested-pill,
+.point-editor-dialog .poa-prazo-sf > .input ~ .suggested-pill { top: calc(var(--t-label-size) * var(--t-label-lh) + var(--sp-1)); }
+[data-route="/relatorio/:id/pontos"] .poa-prazo-sf .input,
+.point-editor-dialog .poa-prazo-sf .input { padding-right: 96px; }
+/* mirrors the page-only `... .priority-picker .option-row { cursor: pointer; }` and the checked radio
+   (`72-pontos.html` 64-66); the app also sets `.radio.is-on`, so components.css draws the same dot. */
+[data-route="/relatorio/:id/pontos"] .priority-picker .option-row,
+.point-editor-dialog .priority-picker .option-row { cursor: pointer; }
+[data-route="/relatorio/:id/pontos"] .priority-picker .option-row[aria-checked="true"] .radio,
+.point-editor-dialog .priority-picker .option-row[aria-checked="true"] .radio { border-color: var(--primary); }
+[data-route="/relatorio/:id/pontos"] .priority-picker .option-row[aria-checked="true"] .radio::after,
+.point-editor-dialog .priority-picker .option-row[aria-checked="true"] .radio::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--primary); }
+/* authored: Prazo carries its helper (and the "Substituir" line) inside the field, so the
+   calendar glyph is placed from the top of the `.input`, not from the field's bottom. */
+[data-route="/relatorio/:id/pontos"] .poa-prazo-sf .date-ico,
+.point-editor-dialog .poa-prazo-sf .date-ico { bottom: auto; top: calc(var(--t-label-size) * var(--t-label-lh) + var(--field-gap) + (var(--touch-field) - 24px) / 2); }
+/* authored: Story 11.9 makes the editor taller than a desktop viewport (picker, Prazo,
+   Responsável); in its Form dialog the dialog keeps inside the scrim and scrolls itself,
+   so "Concluir" stays reachable. */
+.point-editor-dialog { max-height: 100%; overflow-y: auto; }

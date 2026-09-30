@@ -184,9 +184,13 @@ function metaOfSection(block: Pick<BlockRow, 'block_type' | 'config'>, issues: r
   const own = issues.map((row) => row.text);
   if (block.block_type === 'section_9') return own.length > 0 ? join(own) : progressCounterText(computed);
   // Story 6.6: row 8 always counts its entries; the "sem ação" count is already in that
-  // line, so only the rows naming a point with a removed photo follow it.
+  // line, so only the rows naming a point with a removed photo follow it, and (Story 11.10)
+  // the "pontos sem prazo" count.
   if (block.block_type === 'section_8') {
-    return join([pointsSummaryText(pointsSummary(snapshot)), ...issues.filter((row) => row.kind === 'point_photo_removed').map((row) => row.text)]);
+    return join([
+      pointsSummaryText(pointsSummary(snapshot)),
+      ...issues.filter((row) => row.kind === 'point_photo_removed' || row.kind === 'points_sem_prazo').map((row) => row.text),
+    ]);
   }
   // Stories 6.3/6.5: "82 fotos · 1 sem legenda · 3 aguardando envio", like section 9's counter.
   if (block.block_type === 'section_7') return join([photoCountText(livePhotos(snapshot).length), ...own]);
