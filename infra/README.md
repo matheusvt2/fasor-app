@@ -10,6 +10,8 @@ The whole project's AWS spend stays below USD 100 per month (AGENTS.md Policy); 
 - `production/` (Story 11.8, state in `s3://fasor-tfstate-673409896745/production/terraform.tfstate`): the only environment. There is no `staging` and no CI (`source-deltas.md` 2026-09-30).
 - `caddy/`: the production Caddy image (Dockerfile and Caddyfile), built and pushed by the deploy script.
 
+Each stack reads its e-mail recipients from an untracked `terraform.tfvars` in its own directory (`*.tfvars` is git-ignored; security review 2026-09-30, I-1): copy `terraform.tfvars.example` beside it and put the real addresses there before any `plan` or `apply`. `budget_alert_emails` is a list, so the operator and the client can both receive the budget alerts; `acme_email` (production) is the Let's Encrypt contact. None of them has a default.
+
 ## Profiles
 
 ```ini
@@ -42,7 +44,7 @@ Region `us-east-1`, sized for at most ten concurrent users.
 | Logs (`storage.tf`) | CloudWatch log groups `/fasor/production/{api,ocr,caddy,migrate}`, kept 14 days. |
 | IAM (`iam.tf`) | Execution role (image pull, logs, `ssm:GetParameters` on `/fasor/production/*`, `kms:Decrypt` through SSM only); task role `fasor-production-app` (the bootstrap Bedrock/Textract policy, `s3:ListBucket` on the bucket, `s3:GetObject`/`s3:PutObject` on its objects, nothing else); the instance role keeps only the ECS agent and Session Manager policies. |
 | Night schedule (`schedule.tf`) | EventBridge Scheduler, America/Sao_Paulo: stop the instance 00:00, stop the database 00:05, start the database 04:40, start the instance 05:00 (`enable_night_schedule`). |
-| Budget action (`budget.tf`) | On `fasor-monthly` at 100 % of actual spend, automatically: attach a deny policy on `bedrock:InvokeModel*`, `bedrock:Converse*` and `textract:*` to `fasor-app` and `fasor-production-app`. |
+| Budget action (`budget.tf`) | On `fasor-monthly` at 90 % of actual spend (security review 2026-09-30, I-3: actual spend lags up to a day), automatically: attach a deny policy on `bedrock:InvokeModel*`, `bedrock:Converse*` and `textract:*` to `fasor-app` and `fasor-production-app`. |
 | HTTPS fallback (`cloudfront.tf`) | Off by default (`enable_cloudfront_fallback`): a CloudFront distribution on its default `*.cloudfront.net` name in front of the instance. |
 
 The api's configuration on AWS sets no `S3_ENDPOINT` and no static keys: the S3 client then gets only its region, reaches S3 virtual-hosted style, and the AWS SDK default credential chain supplies the task role's credentials (`apps/api/src/storage/s3.ts`). Locally, compose keeps MinIO with its endpoint and static keys, unchanged.
@@ -125,7 +127,7 @@ List prices for `us-east-1` as the builder knows them on 2026-09-30 (not re-read
 | Bedrock allowance (Story 11.6 picks the model) | allowance | 30.00 |
 | **Total** | | **78.83** |
 
-The total stays below USD 100 with Textract and a Bedrock allowance included; the 100 % budget action stops Bedrock and Textract before the ceiling is crossed. Without the night schedule the instance costs 730 h x 0.0376 = USD 27.45 and the database 730 h x 0.016 = USD 11.68 (total USD 86.78). With `arm64` (`t4g.medium`, 577.9 h x 0.0336) the instance costs USD 19.42. With `t3a.large` (577.9 h x 0.0752 = USD 43.46) the total becomes USD 100.56, so that switch also needs the Bedrock allowance cut to about USD 29 or less.
+The total stays below USD 100 with Textract and a Bedrock allowance included; the 90 % budget action stops Bedrock and Textract before the ceiling is crossed. Without the night schedule the instance costs 730 h x 0.0376 = USD 27.45 and the database 730 h x 0.016 = USD 11.68 (total USD 86.78). With `arm64` (`t4g.medium`, 577.9 h x 0.0336) the instance costs USD 19.42. With `t3a.large` (577.9 h x 0.0752 = USD 43.46) the total becomes USD 100.56, so that switch also needs the Bedrock allowance cut to about USD 29 or less.
 
 ## Runbook
 
@@ -134,7 +136,7 @@ The total stays below USD 100 with Textract and a Bedrock allowance included; th
 - **A shell on the instance:** Session Manager (the AWS CLI container lacks the Session Manager plugin, so use the console's Session Manager "Connect", which changes nothing); `docker ps`, `docker logs`, `dmesg` for OOM kills.
 - **Roll back:** `infra/bin/deploy --skip-build --tag <previous sha>` (ECR keeps the last 5 images). Migrations are forward-only, so a rollback across a migration needs the older code to tolerate the newer schema.
 - **Before 05:00 or during the night:** the app is down by design; `infra/bin/aws rds start-db-instance --db-instance-identifier fasor-production`, then `infra/bin/aws ec2 start-instances --instance-ids <instance_id output>` brings it up early; `enable_night_schedule = false` removes the schedule.
-- **Budget action fired:** Bedrock and Textract calls fail with AccessDenied and readings fall back to manual entry. Once the spend is understood, detach the policy `fasor-production-deny-bedrock-textract` from both roles with `infra/bin/aws iam detach-role-policy` (or reset the action in AWS Budgets); it applies again at the next 100 %.
+- **Budget action fired:** Bedrock and Textract calls fail with AccessDenied and readings fall back to manual entry. Once the spend is understood, detach the policy `fasor-production-deny-bedrock-textract` from both roles with `infra/bin/aws iam detach-role-policy` (or reset the action in AWS Budgets); it applies again at the next 90 %.
 - **Restore the database:** RDS point-in-time restore or the final snapshot `fasor-production-final` into a new instance, then point `database-url` at it (Terraform import or a changed `identifier`); `deletion_protection` must be turned off in `rds.tf` before any destroy.
 - **Rotate a secret:** `infra/bin/tf production apply -replace=random_password.session_secret` (signs every user out) or `-replace=random_password.database` (also changes the RDS password), then `infra/bin/deploy --skip-build --tag <current sha>` so the tasks read the new value.
 - **Caddy certificate trouble:** `infra/bin/aws logs tail /fasor/production/caddy`; port 80 must stay open for HTTP-01; the fallback above bypasses it.

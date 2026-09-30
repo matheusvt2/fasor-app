@@ -14,7 +14,7 @@ resource "aws_budgets_budget" "monthly" {
       threshold                  = notification.value
       threshold_type             = "PERCENTAGE"
       notification_type          = "ACTUAL"
-      subscriber_email_addresses = [var.budget_alert_email]
+      subscriber_email_addresses = var.budget_alert_emails
     }
   }
 
@@ -23,7 +23,7 @@ resource "aws_budgets_budget" "monthly" {
     threshold                  = 100
     threshold_type             = "PERCENTAGE"
     notification_type          = "FORECASTED"
-    subscriber_email_addresses = [var.budget_alert_email]
+    subscriber_email_addresses = var.budget_alert_emails
   }
 }
 
@@ -40,9 +40,12 @@ resource "aws_ce_anomaly_subscription" "daily" {
   frequency        = "DAILY"
   monitor_arn_list = [aws_ce_anomaly_monitor.services[0].arn]
 
-  subscriber {
-    type    = "EMAIL"
-    address = var.budget_alert_email
+  dynamic "subscriber" {
+    for_each = var.budget_alert_emails
+    content {
+      type    = "EMAIL"
+      address = subscriber.value
+    }
   }
 
   threshold_expression {
