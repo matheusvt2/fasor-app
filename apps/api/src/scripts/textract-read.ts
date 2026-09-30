@@ -23,7 +23,8 @@ import { TEXTRACT_DEFAULT_REGION, textractProvider } from '../jobs/reading/provi
  *     tools pnpm --filter @app/api exec tsx src/scripts/textract-read.ts /workspace/path/to/plate.jpg
  *   rm secrets/aws-session.env
  *
- * The region is TEXTRACT_REGION, default us-east-1.
+ * The region is TEXTRACT_REGION, default us-east-1. The compose env anchor does not pass it,
+ * so an override goes on the run command: `-e TEXTRACT_REGION=us-west-2` after `--no-deps`.
  */
 
 function mimeOf(path: string): string {

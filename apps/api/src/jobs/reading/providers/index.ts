@@ -49,8 +49,11 @@ export interface ReadingProviderOptions {
   fixturesDir?: string;
   /** The `ocr-svc` timeout in ms; defaults to 60 s. */
   ocrTimeoutMs?: number;
-  /** Story 11.7: an injected Textract client (tests; nothing then reaches AWS) and the call timeout in ms. */
-  textract?: { client?: TextractLike; timeoutMs?: number };
+  /**
+   * Story 11.7: an injected Textract client (tests; nothing then reaches AWS), the call timeout
+   * in ms, and how the client is built from the region (tests spy on it).
+   */
+  textract?: { client?: TextractLike; timeoutMs?: number; createClient?: (region: string) => TextractLike };
 }
 
 export function createReadingProviders(
@@ -66,6 +69,7 @@ export function createReadingProviders(
           region: config.TEXTRACT_REGION ?? TEXTRACT_DEFAULT_REGION,
           ...(options.textract?.client === undefined ? {} : { client: options.textract.client }),
           ...(options.textract?.timeoutMs === undefined ? {} : { timeoutMs: options.textract.timeoutMs }),
+          ...(options.textract?.createClient === undefined ? {} : { createClient: options.textract.createClient }),
         })
       : null;
   return ({ photo_sha256, reading_kind, block_type, table_key }) => {

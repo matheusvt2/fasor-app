@@ -148,6 +148,21 @@ describe('11.7 Textract WORD blocks to contract tokens', () => {
     ]);
   });
 
+  it('a non-finite or missing Confidence reads 0, and the read still parses', async () => {
+    const box = { Geometry: { BoundingBox: { Left: 0.1, Top: 0.1, Width: 0.2, Height: 0.1 } } };
+    const blocks: Block[] = [
+      { BlockType: 'WORD', Id: 'a', Text: 'NAN', Confidence: Number.NaN, ...box },
+      { BlockType: 'WORD', Id: 'b', Text: 'INF', Confidence: Number.POSITIVE_INFINITY, ...box },
+      { BlockType: 'WORD', Id: 'c', Text: 'NONE', ...box },
+    ];
+    const result = await read(fakeClient(async () => ({ Blocks: blocks })), wide);
+    expect(result.tokens.map((token) => [token.text, token.confidence])).toEqual([
+      ['NAN', 0],
+      ['INF', 0],
+      ['NONE', 0],
+    ]);
+  });
+
   it('no text: only a PAGE block reads no token', async () => {
     const result = await read(replying('empty'), wide);
     expect(result).toEqual({ image: { width: 1000, height: 500 }, tokens: [], preprocessing_applied: false });
@@ -184,6 +199,12 @@ describe('11.7 Textract failures', () => {
     ['AccessDeniedException', new AccessDeniedException(meta)],
     ['InvalidS3ObjectException', new InvalidS3ObjectException(meta)],
     ['CredentialsProviderError', credentials],
+    ['UnrecognizedClientException', Object.assign(new Error('refused'), { name: 'UnrecognizedClientException', $fault: 'client' })],
+    ['ExpiredTokenException', Object.assign(new Error('refused'), { name: 'ExpiredTokenException', $fault: 'client' })],
+    ['InvalidSignatureException', Object.assign(new Error('refused'), { name: 'InvalidSignatureException', $fault: 'client' })],
+    ['ValidationException', Object.assign(new Error('refused'), { name: 'ValidationException', $fault: 'client' })],
+    // A client fault no list names: permanent by its $fault.
+    ['SignatureDoesNotMatch', Object.assign(new Error('SignatureDoesNotMatch: refused'), { name: 'SignatureDoesNotMatch', $fault: 'client' })],
   ];
   for (const [name, thrown] of permanent) {
     it(`${name} is permanent and named`, async () => {
@@ -202,6 +223,8 @@ describe('11.7 Textract failures', () => {
     ['LimitExceededException', new LimitExceededException(meta)],
     ['InternalServerError', new InternalServerError(meta)],
     ['a server fault', serverFault],
+    ['an unlisted server fault (ServiceUnavailable)', Object.assign(new Error('unavailable'), { name: 'ServiceUnavailable', $fault: 'server' })],
+    ['a client fault the SDK marks retryable', Object.assign(new Error('try again'), { name: 'RequestTimeoutException', $fault: 'client', $retryable: {} })],
     ['a network error', network],
   ];
   for (const [name, thrown] of transient) {

@@ -281,6 +281,22 @@ describe('8.4-API provider switch', () => {
     for (const reading_kind of ['plate', 'panel', 'display'] as const) {
       expect(createReadingProviders(defaults)({ ...ctx, reading_kind }).ocr_name).toBe('fake');
     }
+    // TEXTRACT_REGION reaches the client builder, on the first Textract read and not before.
+    const regions: string[] = [];
+    const west = createReadingProviders(
+      { ...base, OCR_PROVIDER: 'textract', LLM_PROVIDER: 'fake', TEXTRACT_REGION: 'us-west-2' },
+      {
+        textract: {
+          createClient: (region) => {
+            regions.push(region);
+            return client;
+          },
+        },
+      },
+    );
+    expect(regions).toEqual([]);
+    await west({ ...ctx, reading_kind: 'plate' }).ocr.read(png, { mode: 'text' });
+    expect(regions).toEqual(['us-west-2']);
     for (const reading_kind of ['plate', 'panel', 'display'] as const) {
       expect(createReadingProviders({ ...base, OCR_PROVIDER: 'ocr-svc', LLM_PROVIDER: 'fake' })({ ...ctx, reading_kind }).ocr_name).toBe('ocr-svc');
     }

@@ -2,10 +2,10 @@
 title: 'Story 11.7: Use Amazon Textract as the cloud OCR'
 type: 'feature'
 created: '2026-09-30'
-status: 'in-progress'
+status: 'done'
 baseline_revision: 'd7beb605ccc7cc22c1537c05cac945e78e799650'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: medium
 context: []
@@ -112,3 +112,29 @@ deferred: []
 - `docker compose --profile tools run --rm tools pnpm --filter @app/api exec vitest run src/jobs/reading/providers src/config.test.ts` -- expected: green.
 - `docker compose --profile tools run --rm tools pnpm test:api` -- expected: green (needs compose Postgres and MinIO up).
 - `docker compose --profile tools run --rm tools pnpm lint` and `pnpm static` -- expected: green.
+
+### 2026-09-30 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer; Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 10 findings — high 0, medium 3, low 5, false 2, maybe-false 0
+- findings:
+  - `[medium]` `[patch]` TEXTRACT_REGION never verified from factory to client builder — `createClient` passthrough on `ReadingProviderOptions.textract` plus a us-west-2 routing test.
+  - `[low]` `[patch]` Four permanent error names untested — added to the permanent table.
+  - `[low]` `[defer]` The compose env anchor does not pass TEXTRACT_REGION to api/tools — `docker-compose.yml` is out of this batch (batch D owns the deploy env); the script header says to pass `-e TEXTRACT_REGION`; default us-east-1 is the intended region.
+  - `[medium]` `[patch]` An unlisted SDK client fault (e.g. SignatureDoesNotMatch) was classed transient — `$fault === 'client'` is permanent unless `$retryable` or a throttle/limit name.
+  - `[medium]` `[patch]` A mapped read failing the schema was transient — now `PermanentReadingError`.
+  - `[low]` `[patch]` Non-finite Confidence gave NaN and rejected the whole read — non-finite becomes 0.
+  - `[low]` `[reject]` `createClient` throwing escapes unclassified — the SDK constructor does not throw on a region string; unlikely, and a guard adds a branch.
+  - `[low]` `[reject]` TEXTRACT_REGION accepts an invalid region — operator config with a correct default; a regex adds surface for no everyday case.
+  - `[false]` `[reject]` Duplicate WORD Ids shift order — Textract block Ids are unique UUIDs per response; the hand-built fixtures are the only other source.
+  - `[false]` `[reject]` EXIF orientation 5-8 swaps width/height — the job sends the print variant, already upright with no EXIF orientation (`job.ts:210`, `renderVariants` `.rotate()`), and `readOcr` checks the size against `readingImage`'s own metadata read.
+
+## Auto Run Result
+
+Status: done
+
+- Summary: `OCR_PROVIDER=textract` now reads through Amazon Textract `DetectDocumentText` (`providers/textract.ts`), WORD blocks to contract tokens in the received pixel grid, `preprocessing_applied: false`; the factory routes `display` to `ocr-svc` and every other kind to Textract, `ocr_name` naming the provider used; `TEXTRACT_REGION` (default `us-east-1`); a manual live script `apps/api/src/scripts/textract-read.ts`.
+- Files: `apps/api/package.json`, `pnpm-lock.yaml` (client-textract 3.1134.0); `config.ts`/`config.test.ts` (region); `main.ts` (log); `providers/index.ts` (routing, injected client/createClient); `providers/unimplemented.ts` (OCR stub removed); `providers/textract.ts` + `textract.test.ts` (adapter, mapping, error classes); `providers/fixtures/textract/` (seven hand-built responses + README); `fake.test.ts` (11.7-ROUTING); `job.integration.test.ts` (11.7-INT, stub row removed); `scripts/textract-read.ts`.
+- Review: 5 patches applied (medium 3, low 2), 1 deferred as known open (compose anchor lacks TEXTRACT_REGION), 4 rejected with reasons in the triage log.
+- Follow-up review recommended: true. Named risk: the error classification relies on the SDK's `$fault`/`$retryable`/`name` shapes, exercised only with hand-built errors; the first live call (PR "Waits for AWS") and the integrated epic review should confirm them.
+- Verification: provider tests 60/60, lint, api typecheck green in the tools container; full gate in the PR body.
+- Residual risk: no live Textract call has been made; the fixtures are hand-built from the API reference, not recorded. Panel routing (Textract) is an open question for Matheus.

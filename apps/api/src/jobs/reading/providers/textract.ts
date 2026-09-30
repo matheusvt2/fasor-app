@@ -61,6 +61,9 @@ const PERMANENT_ERRORS = new Set([
   'ValidationException',
 ]);
 
+/** Client faults that are throttles or limits: a later attempt may pass. */
+const THROTTLE_ERRORS = new Set(['ThrottlingException', 'ProvisionedThroughputExceededException', 'LimitExceededException']);
+
 /** A pixel coordinate of a normalized one; the rounding drops float noise before floor/ceil. */
 function pixel(normalized: number, size: number, round: (n: number) => number): number {
   const value = round(Math.round(normalized * size * 1e6) / 1e6);
@@ -78,7 +81,8 @@ function token(block: Block, width: number, height: number): Omit<OcrToken, 'id'
   const x1 = pixel(Left + Width, width, Math.ceil);
   const y1 = pixel(Top + Height, height, Math.ceil);
   if (x0 >= x1 || y0 >= y1) return null;
-  const confidence = Math.min(1, Math.max(0, (block.Confidence ?? 0) / 100));
+  const raw = block.Confidence;
+  const confidence = typeof raw === 'number' && Number.isFinite(raw) ? Math.min(1, Math.max(0, raw / 100)) : 0;
   return { text, bbox: [x0, y0, x1, y1], confidence };
 }
 
@@ -122,9 +126,14 @@ export function textractTokens(blocks: readonly Block[], width: number, height: 
 export function classifyTextractError(error: unknown): Error {
   const name = error instanceof Error ? error.name : 'UnknownError';
   const message = error instanceof Error ? error.message : String(error);
+  const fault = (error as { $fault?: unknown } | null)?.$fault;
+  const retryable = (error as { $retryable?: unknown } | null)?.$retryable;
   if (PERMANENT_ERRORS.has(name)) return new PermanentReadingError(`textract: ${name}: ${message}`, { cause: error });
-  // Throttling, quota, any `$fault: 'server'`, a dropped connection and any fault not named
-  // above are transient: pg-boss tries again.
+  // Any other client fault (a signature mismatch, a new validation error) is permanent too,
+  // unless the SDK marks it retryable or it is a throttle or limit.
+  if (fault === 'client' && !retryable && !THROTTLE_ERRORS.has(name)) return new PermanentReadingError(`textract: ${name}: ${message}`, { cause: error });
+  // Throttling, quota, any `$fault: 'server'`, a dropped connection and anything else are
+  // transient: pg-boss tries again.
   return new ProviderError(`textract: ${name}: ${message}`, { cause: error });
 }
 
@@ -159,7 +168,8 @@ export function textractProvider(options: TextractProviderOptions): OcrProvider 
       }
       const result = { image: size, tokens: textractTokens(output.Blocks ?? [], size.width, size.height), preprocessing_applied: false };
       const parsed = ocrReadResultSchema.safeParse(result);
-      if (!parsed.success) throw new ProviderError(`textract: the mapped read is not an OcrReadResult: ${parsed.error.message.slice(0, 300)}`);
+      // The mapping is deterministic: the same answer fails the same way on every attempt.
+      if (!parsed.success) throw new PermanentReadingError(`textract: the mapped read is not an OcrReadResult: ${parsed.error.message.slice(0, 300)}`);
       return parsed.data;
     },
   };
