@@ -2,7 +2,7 @@
 title: 'Story 11.1: Download the PDF beside the DOCX'
 type: 'feature'
 created: '2026-09-30'
-status: 'in-review'
+status: 'done'
 baseline_revision: 'd7beb605ccc7cc22c1537c05cac945e78e799650'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -123,3 +123,14 @@ Open question (kept conservative, listed in the PR): the share sheet shares the 
 - `docker compose --profile tools run --rm tools pnpm test:api` -- expected: green (needs `docker compose up -d postgres minio`).
 - `docker compose --profile tools run --rm tools pnpm lint` and `pnpm static` -- expected: green.
 - Targeted e2e under the host lock: `flock /tmp/fasor-verify.lock docker compose --profile tools run --rm tools pnpm test:e2e:full e2e/export.spec.ts e2e/parecer-export.spec.ts e2e/photo-numbers.spec.ts` (every tag of the touched specs) -- expected: green.
+
+## Auto Run Result
+
+Status: done
+
+- **Summary:** `GET /api/revisions/{id}/pdf` serves the stored revision PDF (company-scoped, key derived from the session company and `pdf_file_id`, attachment `relatorio-rev-{n}.pdf`); `GENERATE_ROUTES.revisionPdf` and `revisionPdfUrl` expose it; the Export dialog renders the mock's "PDF — enviar ao cliente" result row with "Compartilhar PDF" where `navigator.share` exists, and a "PDF" button on each revision row; `readyToast` reads "Revisão N pronta — DOCX e PDF"; the draft-equals-issued rule covers the PDF (11.1-INT).
+- **Files:** `packages/domain/src/contract/generate.ts` (route), `packages/domain/src/print/revisions.ts` (toast), `apps/api/src/http/generate.ts` (route + `pdfFilename`), `apps/web/src/sync/client.ts` (URL), `apps/web/src/copy/pt-br.ts` (three strings), `apps/web/src/surfaces/export/export-dialog.tsx` (rows and share); tests in `contract.test.ts`, `revisions.test.ts`, `generate.integration.test.ts`, `preview.integration.test.ts`, `client.test.ts`, `export-dialog.test.tsx`, `generate-watcher.test.tsx`, `e2e/export.spec.ts`, `e2e/parecer-export.spec.ts`, `e2e/photo-numbers.spec.ts`; mocks `73-exportar.html`, `prototype/index.html`, `MOCK-GUIDE.md` (slice marks removed, dated note).
+- **Review:** 5 findings; 1 patch applied (prototype `index.html` slice marks); 0 deferred; rejected: 3 false (fake-job worker, company filter, time mask) and 1 low (JSON 404 tab on a missing object, pre-existing DOCX behavior). Patched counts: high 0, medium 0, low 1.
+- **Follow-up review recommended:** false.
+- **Verification:** `pnpm verify` green on 4e6058a (lint, static, test:api 325 tests, test:unit 2618 tests, test:e2e 164 @p0 tests including `11.1-E2E-001`), 2119.8 s after a lock wait of 8721 s.
+- **Residual risks:** the share sheet shares the authenticated URL (open question for Matheus, same as the DOCX share).
