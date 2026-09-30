@@ -3,6 +3,7 @@ import {
   conclusionRestrictionOf,
   conclusionResultOf,
   filledByText,
+  moveTargets,
   sheetProgress,
   suggestedInstruments,
   tagRenamedText,
@@ -181,7 +182,7 @@ export function useFichaActions({
   if (block.equipment_id !== null) menu.push({ id: 'rename-tag', label: t.menuRenameTag, onAction: () => setRenaming(true) });
   if (block.not_tested === null) menu.push({ id: 'nao-ensaiado', label: copy.sumario.tree.markNotTested, onAction: () => setNotTestedDialogOpen(true) });
   // Story 11.2 (`60-ficha.html` sheet Overflow): an equipment block placed in a location moves.
-  if (block.location_id !== null) menu.push({ id: 'mover', label: copy.sumario.tree.moveTo, onAction: () => setMoveDialogOpen(true) });
+  if (block.location_id !== null && moveTargets(snapshot.locations, block).length > 0) menu.push({ id: 'mover', label: copy.sumario.tree.moveTo, onAction: () => setMoveDialogOpen(true) });
   // E5-Q17 (EXPERIENCE › Conclusion control: "Limpar" via Delete/Backspace or the sheet
   // Overflow menu): clears the result and the restriction in one edit, undoable like any
   // other; the stored text stays, hidden while the result is empty.
@@ -250,7 +251,8 @@ export function useFichaActions({
     void commitMove(editor.edit, { relatorioId, projectId, blockId, targetId, rename })
       .then(({ batch, plan }) => {
         if (batch === null || plan.kind !== 'move') {
-          showToast(plan.kind === 'refused' && plan.reason === 'location-gone' ? copy.sumario.tree.locationGone : copy.sumario.tree.gone);
+          // Already there (another device moved it first): nothing to write, nothing to say.
+          if (plan.kind === 'refused' && plan.reason !== 'same-location') showToast(plan.reason === 'location-gone' ? copy.sumario.tree.locationGone : copy.sumario.tree.gone);
           return;
         }
         // The header's cabine line reads the moved block's location live; the sentence is said and undoable.

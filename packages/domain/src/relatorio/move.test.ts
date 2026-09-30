@@ -97,6 +97,13 @@ describe('11.2-UNIT movePlan', () => {
     expect(movePlan({ ...base, equipment: taken, rename: true })).toMatchObject({ rename: { tag: 'SEC-C09-2' }, text: 'SEC-C09-2 movida para a Coluna 9' });
   });
 
+  it('names the block by its type when it has no live equipment row or a blank TAG', () => {
+    const noEquipment = snapshot.equipment.filter((row) => row.id !== sec.equipment_id);
+    expect(movePlan({ ...base, equipment: noEquipment, rename: false })).toMatchObject({ text: 'Chave seccionadora movida para a Coluna 9' });
+    const blank = snapshot.equipment.map((row) => (row.id === sec.equipment_id ? { ...row, tag: '  ' } : row));
+    expect(movePlan({ ...base, equipment: blank, rename: false })).toMatchObject({ text: 'Chave seccionadora movida para a Coluna 9' });
+  });
+
   it('refuses a gone block, a gone target and the same location', () => {
     const removed = snapshot.blocks.map((row) => (row.id === sec.id ? { ...row, removed_at: T0.toISOString() } : row));
     expect(movePlan({ ...base, blocks: removed, rename: false })).toEqual({ kind: 'refused', reason: 'gone' });

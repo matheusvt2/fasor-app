@@ -223,7 +223,8 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
       void commitMove(edit, { relatorioId, projectId, blockId: node.blockId, targetId, rename })
         .then(({ batch, plan }) => {
           if (batch === null || plan.kind !== 'move') {
-            showToast(plan.kind === 'refused' && plan.reason === 'location-gone' ? t.locationGone : t.gone);
+            // Already there (another device moved it first): nothing to write, nothing to say.
+            if (plan.kind === 'refused' && plan.reason !== 'same-location') showToast(plan.reason === 'location-gone' ? t.locationGone : t.gone);
             return;
           }
           host.reveal(targetId);

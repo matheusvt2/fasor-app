@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { applyOp, type EntityState } from '../ops/apply.ts';
 import { makeOp } from '../ops/op.ts';
 import { replay } from '../ops/replay.ts';
-import { blockConfigSchema } from '../schemas/block-config.ts';
+import { blockConfigSchema, MAX_QUANTITY } from '../schemas/block-config.ts';
 import { templateRowSchema, type BlockRow, type JsonValue, type LocationRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { standardTemplate } from '../seed/template.ts';
@@ -146,6 +146,21 @@ describe('11.3-UNIT what is carried and what is not', () => {
     const template = templateFromRelatorio(after, { id: NEW_TEMPLATE, name: 'T' });
     expect(count(template, coluna5.id)).toBe(count(before, coluna5.id) - 1);
     expect(count(template, coluna9.id)).toBe(count(before, coluna9.id) + 1);
+  });
+
+  it('splits a run longer than MAX_QUANTITY into 99 plus the rest, and still parses', () => {
+    const { snapshot } = build();
+    const coluna9 = snapshot.locations.find((row) => row.name === 'Coluna 9')!;
+    const source = snapshot.blocks.find((row) => row.block_type === 'chave_seccionadora')!;
+    const many: BlockRow[] = Array.from({ length: 101 }, (_, i) => ({
+      ...source,
+      id: `019966b0-0067-7000-8000-${i.toString(16).padStart(12, '0')}`,
+      location_id: coluna9.id,
+      order_key: `b${i.toString().padStart(3, '0')}`,
+    }));
+    const template = templateFromRelatorio({ relatorio: snapshot.relatorio, locations: snapshot.locations, blocks: [...snapshot.blocks, ...many] }, { id: NEW_TEMPLATE, name: 'T' });
+    expect(template.blocks.filter((block) => block.skeleton_location_ref === coluna9.id).map((block) => block.quantity)).toEqual([MAX_QUANTITY, 2]);
+    expect(templateRowSchema.safeParse(template).success).toBe(true);
   });
 
   it('templateSavedText', () => {

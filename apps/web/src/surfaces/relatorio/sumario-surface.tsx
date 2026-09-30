@@ -251,6 +251,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
         createTemplateOp(by, templateFromRelatorio({ relatorio, locations: fresh.locations, blocks }, { id: newId(), name })),
       ])
       .then((batch) => {
+        if (batch === null) return;
         const text = templateSavedText(name);
         editor.announce(text);
         editor.undoable(text, batch, focusMenu);

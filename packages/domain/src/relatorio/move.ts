@@ -1,6 +1,6 @@
 import { isEquipmentBlockType } from '../schemas/block-config.ts';
 import type { BlockRow, EquipmentRow, LocationRow } from '../schemas/entities.ts';
-import { locationChoices, newBlockOrderKey, type LocationChoice } from './tree.ts';
+import { blockTypeLabel, locationChoices, newBlockOrderKey, type LocationChoice } from './tree.ts';
 import { normalizeTag, suggestTag, type TagLocation } from './tag.ts';
 
 /*
@@ -104,7 +104,10 @@ export function movePlan(input: {
   const own = block.equipment_id === null ? undefined : input.equipment.find((row) => row.id === block.equipment_id && row.removed_at === null);
   const suggestion = input.rename ? moveTagSuggestion(block, own, target, input.equipment) : null;
   const rename = suggestion === null || own === undefined ? null : { equipmentId: own.id, tag: suggestion.tag };
-  const tag = rename?.tag ?? own?.tag ?? block.block_type;
+  // The name the sentence gives the block: its TAG, else (no live equipment row here, or a
+  // blank TAG) the seed's name of its type, never the raw slug.
+  const current = rename?.tag ?? own?.tag ?? '';
+  const tag = current.trim() === '' ? blockTypeLabel(block.seed_version, block.block_type) : current;
   return {
     kind: 'move',
     blockId: block.id,

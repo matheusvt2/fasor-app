@@ -221,6 +221,8 @@ test('@p1 11.2-E2E-003 "Mover para…" from the sheet header, after "Marcar não
   await page.goto(`/relatorio/${relatorioId}/ficha/${sec.blockId}`);
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('.sheet-header .sheet-meta').first()).toContainText('Coluna 5');
+  const database = deviceDatabaseName(account.userId);
+  const before = (await deviceRow<BlockRow>(page, database, 'block', sec.blockId))!;
 
   await page.getByRole('button', { name: 'Mais opções da ficha SEC-C05' }).click();
   const labels = await page.getByRole('menu').getByRole('menuitem').allTextContents();
@@ -233,6 +235,16 @@ test('@p1 11.2-E2E-003 "Mover para…" from the sheet header, after "Marcar não
   await expect(toast(page)).toContainText('SEC-C05 movida para a Coluna 9');
   await expect(page.locator('.sheet-header .sheet-meta').first()).toContainText('Coluna 9');
   await expect(page.locator('.sheet-header .sheet-title')).toContainText('SEC-C05');
+
+  // "Desfazer" puts it back: the header names Coluna 5 again and the row's location is restored.
+  await toast(page).getByRole('button', { name: 'Desfazer' }).click();
+  await expect(page.locator('.sheet-header .sheet-meta').first()).toContainText('Coluna 5');
+  await expect
+    .poll(async () => {
+      const row = await deviceRow<BlockRow>(page, database, 'block', sec.blockId);
+      return [row?.location_id, row?.order_key];
+    })
+    .toEqual([before.location_id, before.order_key]);
 });
 
 test('@p1 11.2-E2E-004 keyboard only: the Overflow, the target, the rename and "Mover" by keys; the focus lands on the moved row', async ({ page, seed }) => {

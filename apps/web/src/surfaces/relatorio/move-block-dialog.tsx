@@ -50,7 +50,16 @@ export function MoveBlockDialog({ name, blockId, locations, blocks, equipment, o
       title={t.moveTitle(name)}
       className="move-dialog"
     >
-      <FilterChipGroup options={targets.map((row) => ({ id: row.id, label: row.label }))} selectedId={targetId} onChange={setTargetId} aria-label={t.moveTargetsLabel} />
+      <FilterChipGroup
+        options={targets.map((row) => ({ id: row.id, label: row.label }))}
+        selectedId={targetId}
+        onChange={(id) => {
+          // A rename accepted for one target is never carried to another whose TAG was not shown.
+          if (id !== targetId) setRename(false);
+          setTargetId(id);
+        }}
+        aria-label={t.moveTargetsLabel}
+      />
       {suggestion === null ? null : (
         <>
           <p className="t-body">{suggestion.question}</p>
