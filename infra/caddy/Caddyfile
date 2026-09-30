@@ -7,6 +7,9 @@
 # /data (ACME account, certificates) is a host volume that survives restarts.
 {
 	email {$ACME_EMAIL}
+	# A client that reaches an IP address sends no SNI; without a default the TLS
+	# handshake finds no certificate and fails with an internal-error alert.
+	default_sni {$PUBLIC_IP}
 }
 
 {$PUBLIC_IP} {
