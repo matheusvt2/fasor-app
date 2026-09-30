@@ -1,6 +1,6 @@
 import { formatShortDateTime, rejectedText, syncBadgeLabel } from '@app/domain';
 import { useId, useState } from 'react';
-import { Button, TextButton } from '../../components/index.ts';
+import { Button, LoadingNote, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { useSync } from '../../state/sync.tsx';
 import { DecisionsSection, DownloadingSection, HowItWorks, LastSendSection, ReadingsSection, SendingSection } from './sync-sections.tsx';
@@ -39,6 +39,16 @@ export function SyncStatusSurface() {
     } finally {
       setResending(false);
     }
+  }
+
+  if (sync.outboxRead === false) {
+    return (
+      <main className="screen" data-route="/sync">
+        <div className="content">
+          <LoadingNote what={copy.loadingWhat.sync} />
+        </div>
+      </main>
+    );
   }
 
   return (

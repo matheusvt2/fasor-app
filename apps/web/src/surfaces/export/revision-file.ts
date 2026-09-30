@@ -75,22 +75,38 @@ export async function downloadRevisionFile(ref: RevisionFileRef, deps: RevisionF
 }
 
 /**
- * "Compartilhar DOCX/PDF": the file to the system share sheet when it takes files, else the
- * file saved. The person closing the sheet is `cancelled` and silent; a sheet that refuses
- * the file for another reason (its user activation expired while the bytes came) saves it.
+ * A file already in hand to the system share sheet, else saved. `navigator.share` is called
+ * synchronously, before this function awaits anything, so a press handler that calls it
+ * keeps its user activation (iPadOS Safari refuses a share whose activation expired). The
+ * person closing the sheet is `cancelled` and silent; a sheet that refuses the file for
+ * another reason saves it.
  */
-export async function shareRevisionFile(ref: RevisionFileRef, title: string, deps: RevisionFileDeps = {}): Promise<ShareOutcome> {
-  const file = await fetchRevisionFile(ref, deps);
+export function shareFile(file: File, title: string): Promise<ShareOutcome> {
   if (!canShareFile(file)) {
     saveFile(file);
-    return 'downloaded';
+    return Promise.resolve('downloaded');
   }
+  let sharing: Promise<void>;
   try {
-    await navigator.share({ files: [file], title });
-    return 'shared';
+    sharing = navigator.share({ files: [file], title });
   } catch (error) {
-    if (isAbort(error)) return 'cancelled';
-    saveFile(file);
-    return 'downloaded';
+    sharing = Promise.reject(error);
   }
+  return sharing.then(
+    () => 'shared' as const,
+    (error: unknown) => {
+      if (isAbort(error)) return 'cancelled' as const;
+      saveFile(file);
+      return 'downloaded' as const;
+    },
+  );
+}
+
+/**
+ * "Compartilhar DOCX/PDF" without a prefetched file: fetches it, then `shareFile`. The Export
+ * dialog prefetches the result block's files where a share sheet exists, so this path is the
+ * fallback (a press before the prefetch landed, or a failed prefetch).
+ */
+export async function shareRevisionFile(ref: RevisionFileRef, title: string, deps: RevisionFileDeps = {}): Promise<ShareOutcome> {
+  return shareFile(await fetchRevisionFile(ref, deps), title);
 }

@@ -132,6 +132,8 @@ export interface SyncState {
    * through them. Optional in the type only so the older test doubles still type-check.
    */
   heldDecisions?: readonly HeldDecisions[];
+  /** False while the device's outbox has not been read yet (the Sync status surface says it is loading). Optional for the older test doubles. */
+  outboxRead?: boolean;
   deviceId: string | null;
   /** User names known on this device, by user id, for "Último envio". */
   userNames: Readonly<Record<string, string>>;
@@ -284,7 +286,10 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     else engine.resume();
   }, [session.reAuthRequired, db]);
 
-  const rows = useLiveQuery(() => (db === null ? Promise.resolve(NO_ROWS) : outboxRows(db)), [db], NO_ROWS);
+  const loadedRows = useLiveQuery(() => (db === null ? Promise.resolve(NO_ROWS) : outboxRows(db)), [db]);
+  const rows = loadedRows ?? NO_ROWS;
+  // Matheus, 2026-09-30: the Sync status surface says it is loading until the outbox is read.
+  const outboxRead = db === null || loadedRows !== undefined;
   const states = useLiveQuery(() => (db === null ? Promise.resolve(NO_STATES) : syncStateRows(db)), [db], NO_STATES);
   const users = useLiveQuery(() => (db === null ? Promise.resolve(NO_USERS) : localUsers(db)), [db], NO_USERS);
 
@@ -417,6 +422,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       downloads,
       decisions,
       heldDecisions: held,
+      outboxRead,
       pendingText: pendingSummaryText(counts),
       pendingCount: pendingSummaryCount(counts),
       online: session.online,
@@ -441,7 +447,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       preview,
       rereadPhoto,
     }),
-    [counts, session.online, unreachable, status, merges, pendingSheets, uploads, readingsQueued, downloads, held, decisions, decisionCount, split, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto],
+    [counts, outboxRead, session.online, unreachable, status, merges, pendingSheets, uploads, readingsQueued, downloads, held, decisions, decisionCount, split, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto],
   );
 
   return <SyncContext value={value}>{children}</SyncContext>;

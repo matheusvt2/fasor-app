@@ -181,7 +181,7 @@ beforeAll(async () => {
           block_type: 'section_8',
           config: { block_type: 'section_8', sub_blocks: {}, na_defaults: [], section_text: null },
           seed_version: 'v1',
-          order_key: 'a1',
+          order_key: 'z0',
           feeds_block_id: null,
           not_tested: null,
           concluded_by: null,
@@ -301,7 +301,9 @@ describe('11.4-PRINT-BOTH a formatted section text in the issued DOCX and PDF', 
       expect(at8).toBeGreaterThan(at);
       const end8 = trimmed.findIndex((str, i) => i > at8 && /^\d+ \p{Lu}/u.test(str));
       const section8 = trimmed.slice(at8 + 1, end8 === -1 ? undefined : end8);
-      const table = section8.slice(section8.indexOf('Nº'));
+      const start = section8.findIndex((str) => str.startsWith('N'));
+      expect(start).toBeGreaterThanOrEqual(0);
+      const table = section8.slice(start);
       expect(table.length).toBeGreaterThan(ACTION_PLAN_COLUMNS.length);
       // E11-Q4: every header word is drawn whole, in one text item (never "Responsá" / "vel").
       for (const word of ACTION_PLAN_COLUMNS.flatMap((title) => title.split(' '))) {

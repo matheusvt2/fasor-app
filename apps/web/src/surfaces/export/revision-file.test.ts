@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SyncRequestError } from '../../sync/client.ts';
-import { downloadRevisionFile, fetchRevisionFile, shareRevisionFile } from './revision-file.ts';
+import { downloadRevisionFile, fetchRevisionFile, shareFile, shareRevisionFile } from './revision-file.ts';
 
 /*
  * E11-Q1: the Export dialog's rows save or share the revision file itself. `fetch`,
@@ -117,6 +117,17 @@ describe('revision files (E11-Q1)', () => {
     });
     await expect(shareRevisionFile(PDF, 'Revisão 3 pronta')).resolves.toBe('downloaded');
     expect(saved.map((s) => s.name)).toEqual(['relatorio-rev-3.pdf']);
+  });
+
+  it('shares a file in hand synchronously, inside the press (iPadOS keeps the user activation), with no fetch', async () => {
+    const share = installShare(() => true);
+    const file = new File(['%PDF'], 'relatorio-rev-3.pdf', { type: 'application/pdf' });
+    const outcome = shareFile(file, 'Revisão 3 pronta');
+    // Called before anything was awaited.
+    expect(share).toHaveBeenCalledTimes(1);
+    expect(share.mock.calls[0]![0].files![0]).toBe(file);
+    await expect(outcome).resolves.toBe('shared');
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('rejects a share whose fetch fails, before any sheet opens', async () => {

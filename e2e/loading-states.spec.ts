@@ -86,9 +86,12 @@ test('@p1 Home says "Carregando relatórios…" while the device store has not a
   const note = page.getByRole('status').filter({ hasText: 'Carregando relatórios…' });
   await expect(note).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('.home-empty')).toHaveCount(0);
+  // No status tiles reading zero while the store has not answered.
+  await expect(page.getByRole('group', { name: 'Relatórios por status' })).toHaveCount(0);
   await holder.evaluate(() => (window as unknown as { __releaseStore: () => void }).__releaseStore());
   await expect(note).toHaveCount(0);
   await expect(page.locator('.home-empty')).toHaveText('Nenhum relatório ainda.');
+  await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
   await holder.close();
 });
 

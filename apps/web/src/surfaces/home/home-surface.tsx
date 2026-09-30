@@ -71,6 +71,7 @@ export function HomeSurface() {
   // than flashing the empty state (Matheus, 2026-09-30).
   const loadedRelatorios = useLiveQuery(() => (db === null ? Promise.resolve(NO_RELATORIOS) : relatorioRows(db)), [db]);
   const relatorios = loadedRelatorios ?? NO_RELATORIOS;
+  const relatoriosPending = db !== null && loadedRelatorios === undefined;
   const projects = useLiveQuery(() => (db === null ? Promise.resolve(NO_PROJECTS) : projectRows(db)), [db], NO_PROJECTS);
   const clients = useLiveQuery(() => (db === null ? Promise.resolve(NO_CLIENTS) : clientRows(db)), [db], NO_CLIENTS);
   const templates = useLiveQuery(
@@ -168,11 +169,14 @@ export function HomeSurface() {
           <h2 id={statusHeadingId} className="visually-hidden">
             {copy.home.statusHeading}
           </h2>
-          <StatusBoard
-            counts={counts}
-            filter={filter}
-            onFilter={(status) => setFilter((current) => (current === status ? null : status))}
-          />
+          {/* No zero counts while the device store has not answered: the list below says it is loading. */}
+          {relatoriosPending ? null : (
+            <StatusBoard
+              counts={counts}
+              filter={filter}
+              onFilter={(status) => setFilter((current) => (current === status ? null : status))}
+            />
+          )}
         </section>
 
         <section className="section" aria-labelledby={listHeadingId}>
@@ -181,7 +185,7 @@ export function HomeSurface() {
             <Button onPress={() => setCreating(true)}>{copy.home.newRelatorio}</Button>
           </div>
 
-          {db !== null && loadedRelatorios === undefined ? (
+          {relatoriosPending ? (
             <LoadingNote what={copy.loadingWhat.relatorios} />
           ) : cards.length === 0 ? (
             // A pressed tile can read zero, so an empty list is not always an empty

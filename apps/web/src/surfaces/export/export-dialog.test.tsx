@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { SERVER_DEVICE_ID, type GenerateResponse, type Op, type RevisionRow } from '@app/domain';
 import { BLOCK_CHAVE_ID, EQUIPMENT_CHAVE_ID, portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
-import { act, cleanup, configure, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, configure, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from '../../test-axe.ts';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -1014,6 +1014,58 @@ describe('Export dialog (Story 7.5)', () => {
       saved.restore();
       delete (navigator as { share?: unknown }).share;
       delete (navigator as { canShare?: unknown }).canShare;
+    }
+  });
+
+  it('E11-Q1 review: with a share sheet the result files are prefetched, and "Compartilhar PDF" shares the file in hand within the press, with no fetch of its own', async () => {
+    database = await freshDb();
+    const { row, op } = revisionOf(1);
+    await applyPulled(database, [...jobOps('done'), op]);
+    const share = vi.fn<(data: ShareData) => Promise<void>>(async () => {});
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true, writable: true });
+    Object.defineProperty(navigator, 'canShare', { value: () => true, configurable: true, writable: true });
+    const saved = recordSaves();
+    try {
+      const answer: GenerateResponse = { outcome: 'unchanged', revision_id: row.id, revision_number: 1 };
+      render(<Harness sync={syncState({ generate: vi.fn(async () => answer) })} />);
+      await userEvent.click(generateButton());
+      const modal = dialog();
+      const button = await waitFor(() => within(modal).getByRole('button', { name: 'Compartilhar PDF' }));
+      // Both files fetched once, as soon as the revision is known.
+      await waitFor(() => expect(saved.fetch.mock.calls.map((call) => call[0]).sort()).toEqual([`/api/revisions/${row.id}/docx`, `/api/revisions/${row.id}/pdf`]));
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      button.focus();
+      fireEvent.keyDown(button, { key: 'Enter' });
+      fireEvent.keyUp(button, { key: 'Enter' });
+      // The sheet opened in the same task as the press: no await came between them.
+      expect(share).toHaveBeenCalledTimes(1);
+      expect(share.mock.calls[0]![0].files!.map((f) => f.name)).toEqual(['relatorio-rev-1.pdf']);
+      expect(saved.fetch).toHaveBeenCalledTimes(2);
+    } finally {
+      saved.restore();
+      delete (navigator as { share?: unknown }).share;
+      delete (navigator as { canShare?: unknown }).canShare;
+    }
+  });
+
+  it('E11-Q1 review: a failed download line goes when the dialog closes, so it never stands beside another revision', async () => {
+    database = await freshDb();
+    const first = revisionOf(1);
+    await applyPulled(database, [first.op]);
+    const { rerender } = render(<Harness sync={syncState()} />);
+    const modal = dialog();
+    await waitFor(() => expect(modal.querySelectorAll('.revision-row')).toHaveLength(1));
+    const saved = recordSaves();
+    try {
+      saved.fetch.mockImplementation(async () => new Response('', { status: 500 }));
+      await userEvent.click(within(modal).getByRole('button', { name: 'PDF' }));
+      await waitFor(() => expect(within(modal).getByRole('alert')).toHaveTextContent('Não foi possível baixar o arquivo.'));
+      rerender(<Harness sync={syncState()} open={false} />);
+      rerender(<Harness sync={syncState()} />);
+      await waitFor(() => expect(dialog().querySelectorAll('.revision-row')).toHaveLength(1));
+      expect(within(dialog()).queryByRole('alert')).toBeNull();
+    } finally {
+      saved.restore();
     }
   });
 

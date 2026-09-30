@@ -501,6 +501,8 @@ export const copy = {
     sharePdf: 'Compartilhar PDF',
     // authored (E11-Q1, 2026-09-30): a file row while its bytes come from the server.
     fileBusy: 'Baixando…',
+    // authored (E11-Q1 review): the share button's name while its file is being prepared.
+    sharing: 'Preparando o arquivo para compartilhar…',
     // authored (E11-Q1): the file could not be fetched (offline, session, server); nothing was saved.
     fileFailed: 'Não foi possível baixar o arquivo. Verifique a conexão e tente de novo.',
     // authored (Matheus, 2026-09-30: a waiting button says so): "Gerar relatório" while it sends and the job runs.
@@ -1287,6 +1289,9 @@ export const copy = {
     clientes: 'clientes',
     instrumentos: 'instrumentos',
     registry: 'cadastro',
+    empresa: 'empresa',
+    account: 'conta',
+    sync: 'sincronização',
   },
   // Registries (`80-cadastros.html`, `key-registries.html`). Empresa and Instrumentos are
   // the real tabs; the other four are placeholders (Stories 2.4-2.6), whose one shared

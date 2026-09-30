@@ -17,10 +17,11 @@ import {
   sumarioLineOf,
   sumarioRows,
   toIso,
+  type RevisionFileFormat,
   type RevisionRow,
   type SumarioRowKey,
 } from '@app/domain';
-import { Fragment, useId, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { Button, StatusPill, TextButton } from '../../components/index.ts';
 import { DialogShell } from '../../components/dialog-shell.tsx';
@@ -30,7 +31,7 @@ import { relatorioState } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { useSession } from '../../state/session.tsx';
 import { useSync } from '../../state/sync.tsx';
-import { downloadRevisionFile, hasShareSheet, shareRevisionFile, type RevisionFileRef } from './revision-file.ts';
+import { downloadRevisionFile, fetchRevisionFile, hasShareSheet, shareFile, shareRevisionFile, type RevisionFileRef } from './revision-file.ts';
 import { DEFAULT_TIMING, useGenerate, type GenerateTiming } from './use-generate.ts';
 import { usePreIssue } from './use-pre-issue.ts';
 import { usePreview } from './use-preview.ts';
@@ -74,29 +75,79 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
   const generateReasonId = useId();
   const db = useSession().database;
   const { resendDead } = useSync();
-  // E11-Q1: the one file press in flight (its row reads the waiting word) and the row whose last press failed.
-  const [file, setFile] = useState<{ busy: string | null; failed: string | null }>({ busy: null, failed: null });
-  const fileInFlight = useRef<string | null>(null);
+  // The revision the result block offers, once this device holds its row.
+  const readyRevision =
+    phase.kind === 'ready' ? (revisions.find((r) => r.id === phase.revisionId) ?? revisions.find((r) => r.number === phase.number) ?? null) : null;
+  const readyRevisionId = readyRevision?.id ?? null;
+  const readyRevisionNumber = readyRevision?.number ?? null;
+
+  // E11-Q1: the file presses in flight (each row reads its waiting word; presses on other
+  // rows run beside it) and the row whose last press failed. Closing the dialog or another
+  // revision in the result block clears both, and an answer from before that is ignored.
+  const [busy, setBusy] = useState<ReadonlySet<string>>(() => new Set());
+  const [failed, setFailed] = useState<string | null>(null);
+  const fileEpoch = useRef(0);
+  useEffect(() => {
+    fileEpoch.current++;
+    setBusy(new Set());
+    setFailed(null);
+  }, [isOpen, readyRevisionId]);
   const runFile = (key: string, action: () => Promise<unknown>) => {
-    if (fileInFlight.current !== null) return;
-    fileInFlight.current = key;
-    setFile({ busy: key, failed: null });
+    if (busy.has(key)) return;
+    const epoch = fileEpoch.current;
+    const settle = (error: boolean) => {
+      if (epoch !== fileEpoch.current) return;
+      setBusy((current) => {
+        const next = new Set(current);
+        next.delete(key);
+        return next;
+      });
+      setFailed((current) => (error ? key : current === key ? null : current));
+    };
+    setBusy((current) => new Set(current).add(key));
+    setFailed((current) => (current === key ? null : current));
     void action().then(
-      () => {
-        fileInFlight.current = null;
-        setFile({ busy: null, failed: null });
-      },
-      () => {
-        fileInFlight.current = null;
-        setFile({ busy: null, failed: key });
-      },
+      () => settle(false),
+      () => settle(true),
     );
   };
+
+  // Where a share sheet exists, the result block's two files are fetched as soon as the
+  // revision is known, so "Compartilhar" hands a file in hand to the sheet inside the press
+  // itself (iPadOS Safari drops a share whose user activation expired during a fetch).
+  const [prefetched, setPrefetched] = useState<{ revisionId: string; files: Partial<Record<RevisionFileFormat, File>> } | null>(null);
+  useEffect(() => {
+    if (!isOpen || readyRevisionId === null || readyRevisionNumber === null || !hasShareSheet()) return;
+    let cancelled = false;
+    for (const format of ['docx', 'pdf'] as const) {
+      fetchRevisionFile({ revisionId: readyRevisionId, number: readyRevisionNumber, format }).then(
+        (fetched) => {
+          if (cancelled) return;
+          setPrefetched((current) =>
+            current !== null && current.revisionId === readyRevisionId
+              ? { revisionId: readyRevisionId, files: { ...current.files, [format]: fetched } }
+              : { revisionId: readyRevisionId, files: { [format]: fetched } },
+          );
+        },
+        // A failed prefetch leaves the press to fetch the file itself.
+        () => undefined,
+      );
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, readyRevisionId, readyRevisionNumber]);
+
   const download = (key: string, ref: RevisionFileRef) => runFile(key, () => downloadRevisionFile(ref));
-  const share = (key: string, ref: RevisionFileRef, title: string) => runFile(key, () => shareRevisionFile(ref, title));
-  const fileLabel = (key: string, label: string) => (file.busy === key ? copy.export.fileBusy : label);
-  const fileError = (key: string) =>
-    file.failed === key ? (
+  const share = (ref: RevisionFileRef, title: string) => {
+    const inHand = prefetched !== null && prefetched.revisionId === ref.revisionId ? prefetched.files[ref.format] : undefined;
+    // `shareFile` calls the sheet synchronously, inside this press.
+    runFile(`share:${ref.format}`, () => (inHand === undefined ? shareRevisionFile(ref, title) : shareFile(inHand, title)));
+  };
+  const fileLabel = (key: string, label: string) => (busy.has(key) ? copy.export.fileBusy : label);
+  const shareLabel = (format: RevisionFileFormat, label: string) => (busy.has(`share:${format}`) ? copy.export.sharing : label);
+  const fileError = (...keys: string[]) =>
+    failed !== null && keys.includes(failed) ? (
       <div className="gen-error" role="alert">
         <span>{copy.export.fileFailed}</span>
       </div>
@@ -157,7 +208,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
 
   let body: React.ReactNode;
   if (phase.kind === 'ready') {
-    const revision = revisions.find((r) => r.id === phase.revisionId) ?? revisions.find((r) => r.number === phase.number) ?? null;
+    const revision = readyRevision;
     const meta = revision === null ? null : revisionMetaSegments(revision, whoOf(revision));
     const docxRef: RevisionFileRef | null = revision === null ? null : { revisionId: revision.id, number: revision.number, format: 'docx' };
     const pdfRef: RevisionFileRef | null = revision === null ? null : { revisionId: revision.id, number: revision.number, format: 'pdf' };
@@ -189,7 +240,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
                 {copy.export.downloadingRevision}
               </span>
             ) : hasShareSheet() && docxRef !== null ? (
-              <AriaButton className="icon-btn" aria-label={copy.export.shareDocx} onPress={() => share('result:docx', docxRef, readyTitle(phase.number))}>
+              <AriaButton className="icon-btn" aria-label={shareLabel('docx', copy.export.shareDocx)} aria-busy={busy.has('share:docx') || undefined} onPress={() => share(docxRef, readyTitle(phase.number))}>
                 <svg className="ico" aria-hidden="true">
                   <use href="/sprite.svg#i-share" />
                 </svg>
@@ -210,7 +261,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
               <span className="rr-text">{fileLabel('result:pdf', copy.export.openPdf)}</span>
             </AriaButton>
             {pdfRef !== null && hasShareSheet() ? (
-              <AriaButton className="icon-btn" aria-label={copy.export.sharePdf} onPress={() => share('result:pdf', pdfRef, readyTitle(phase.number))}>
+              <AriaButton className="icon-btn" aria-label={shareLabel('pdf', copy.export.sharePdf)} aria-busy={busy.has('share:pdf') || undefined} onPress={() => share(pdfRef, readyTitle(phase.number))}>
                 <svg className="ico" aria-hidden="true">
                   <use href="/sprite.svg#i-share" />
                 </svg>
@@ -218,8 +269,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
             ) : null}
           </div>
         </div>
-        {fileError('result:docx')}
-        {fileError('result:pdf')}
+        {fileError('result:docx', 'share:docx', 'result:pdf', 'share:pdf')}
         <div className="row-wrap">
           {/* The status after the issue op (Q11): the hook's until the live row re-renders. */}
           {phase.status !== undefined ? <StatusPill status={phase.status} /> : relatorio === null ? null : <StatusPill status={relatorio.status} />}
@@ -393,8 +443,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
                     </TextButton>
                   </span>
                 </div>
-                {fileError(docxKey)}
-                {fileError(pdfKey)}
+                {fileError(docxKey, pdfKey)}
               </Fragment>
             );
           })

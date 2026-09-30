@@ -90,6 +90,19 @@ deferred: []
 - Given AI_FEATURES off, when the Add block palette opens, then the heading has no leading "Ou".
 - Given a slow boot or a pending query, when the user looks at the screen, then a worded "Carregando …" is visible, never blank; given a server-bound button is waiting, then its label says so.
 
+## Review Triage Log
+
+2026-09-30, pass 1. Only the Edge Case Hunter ran; Blind Hunter, Verification Gap and Intent Alignment were skipped for token economy (the integrated epic review covers them). Verdicts: 9 patch, 1 defer.
+
+- A stale fetch-failed alert survives a dialog close or a revision change. Patch: reset on close and on revision change.
+- A second file press while one is busy is dropped silently. Patch.
+- A share press reuses the download row's busy key, so the share icon gives no feedback. Patch: a separate key and a waiting label.
+- iPadOS: after the awaited fetch the user activation is gone, so `navigator.share` may refuse. Patch: prefetch the File where a share sheet exists and share synchronously from the cache.
+- Home tiles show zero counts while loading. Patch.
+- Test: the section_8 `order_key` collides with the fixture's, and the header start index can be -1. Patch.
+- Empresa, Account and Sync render default content while pending. Patch: LoadingNote.
+- A 401 (expired session) is worded as a connection failure. Deferred, low: the offline line still tells the person something failed. The deferred-work entry is owned by Matheus.
+
 ## Verification
 
 **Commands (inside the tools container, never on the host):**
