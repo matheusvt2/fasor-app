@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { instantiateTemplate, standardTemplate, type BlockRow } from '@app/domain';
 import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from '../../test-axe.ts';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
@@ -168,6 +168,35 @@ describe('4.7 SectionTextSurface', () => {
     });
     // E3-A8: the toast that carried "Desfazer" closes; focus does not fall to <body>.
     expect(screen.getByRole('textbox', { name: 'Texto da seção' })).toHaveFocus();
+  });
+
+  it('E11-Q5: a formatted own text opens in the rich editor, bold and italic drawn, no stored markup shown; Negrito formats and autosaves as markup', async () => {
+    const seed = await seeded();
+    database = seed.db;
+    await database.entities.put(
+      toRecord(`block:${seed.section2.id}`, { ...seed.section2, config: { ...(seed.section2.config as object), section_text: 'A **manutenção** caracteriza-se *assim*.' } } as never),
+    );
+    const { container } = render(tree(RELATORIO, seed.section2.id));
+    const area = await screen.findByRole('textbox', { name: 'Texto da seção' });
+    await waitFor(() => expect(area.querySelector('strong')).toHaveTextContent('manutenção'));
+    expect(area.querySelector('em')).toHaveTextContent('assim');
+    expect(area.textContent).not.toContain('*');
+    expect(area).toHaveClass('rt-area');
+    const toolbar = screen.getByRole('toolbar', { name: 'Formatação' });
+    for (const name of ['Negrito', 'Itálico', 'Lista', 'Numeração']) expect(within(toolbar).getByRole('button', { name })).toBeInTheDocument();
+    // The chip row is always shown here, so the toolbar has no "Variável".
+    expect(within(toolbar).queryByRole('button', { name: /Variável/ })).toBeNull();
+    expect(screen.getByText('Salvo automaticamente. Negrito, itálico e listas saem no documento como aparecem aqui.')).toBeInTheDocument();
+    expect(await axe(container)).toHaveNoViolations();
+
+    // The whole line to a bulleted list: the stored text gains the kernel's "- " marker.
+    area.focus();
+    await userEvent.click(within(toolbar).getByRole('button', { name: 'Lista' }));
+    await userEvent.tab();
+    await waitFor(async () => {
+      const row = await database!.entities.get(['block', seed.section2.id]);
+      expect(((row!.row as BlockRow).config as { section_text: unknown }).section_text).toBe('- A **manutenção** caracteriza-se *assim*.');
+    });
   });
 
   it('E4 retro item 22: an edit writes the edited marker beside the text; "Restaurar" clears it', async () => {

@@ -15,6 +15,7 @@ import {
   referencedEquipmentIds,
   relatorioEditedSince,
   relatorioRowSchema,
+  revisionFileName,
   revisionRowSchema,
   SERVER_DEVICE_ID,
   toIso,
@@ -80,12 +81,12 @@ class AlreadyRunningError extends Error {
 
 /** A revision's DOCX filename: `relatorio-rev-{n}.docx`. */
 export function docxFilename(number: number): string {
-  return `relatorio-rev-${number}.docx`;
+  return revisionFileName(number, 'docx');
 }
 
 /** A revision's PDF filename: `relatorio-rev-{n}.pdf` (Story 11.1). */
 export function pdfFilename(number: number): string {
-  return `relatorio-rev-${number}.pdf`;
+  return revisionFileName(number, 'pdf');
 }
 
 export function createGenerateRoutes(db: Db, s3: S3Client, bucket: string, deps: GenerateRouteDeps): Hono<AppEnv> {

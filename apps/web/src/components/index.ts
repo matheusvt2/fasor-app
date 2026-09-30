@@ -59,3 +59,6 @@ export type { TriStateControlProps, TriStateValue } from './tri-state-control.ts
 
 export { PhotoRow, PhotoStamp, UploadPill } from './photo-row.tsx';
 export type { PhotoRowProps, UploadPillProps } from './photo-row.tsx';
+
+export { LoadingNote } from './loading-note.tsx';
+export type { LoadingNoteProps } from './loading-note.tsx';

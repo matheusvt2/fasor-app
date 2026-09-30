@@ -79,3 +79,14 @@ export type NotCaughtUpDetails = z.infer<typeof notCaughtUpDetailsSchema>;
 /** The mime type of the stored DOCX, as the `file` row and the download carry it. */
 export const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 export const PDF_MIME = 'application/pdf';
+
+/** A revision file's format, as its route and its name say it. */
+export type RevisionFileFormat = 'docx' | 'pdf';
+
+/** The mime type of a revision file of `format`. */
+export const revisionFileMime = (format: RevisionFileFormat): string => (format === 'docx' ? DOCX_MIME : PDF_MIME);
+
+/** A revision file's name, `relatorio-rev-{n}.docx` or `.pdf`: the api's download and the file the web saves or shares (E11-Q1). */
+export function revisionFileName(number: number, format: RevisionFileFormat): string {
+  return `relatorio-rev-${number}.${format}`;
+}

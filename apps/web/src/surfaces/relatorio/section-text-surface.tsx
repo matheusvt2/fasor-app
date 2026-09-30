@@ -12,16 +12,17 @@ import {
   type BlockRow,
   type RelatorioSnapshot,
 } from '@app/domain';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { Button, Chip, TextButton } from '../../components/index.ts';
+import { Button, Chip, LoadingNote, TextButton } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { now } from '../../clock.ts';
 import { commitBatch } from '../../db/commit.ts';
 import { blockRowsOf, relatorioState, templateRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
-import { useSectionTextArea } from '../../input/use-section-text-area.ts';
+import { RichTextField } from '../../input/rich-text-field.tsx';
+import { useRichTextArea } from '../../input/use-rich-text-area.ts';
 import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
 import { useUndoableEdits } from '../../state/use-undoable-edits.ts';
@@ -34,8 +35,10 @@ const EDITABLE_TYPES = new Set(['section_2', 'section_4', 'section_5', 'section_
 const NO_TEMPLATES: { id: string; name: string }[] = [];
 
 /**
- * `/relatorio/:id/secao/:blockId` (Story 4.7): the section's own plain-text boilerplate,
- * with variable chips, autosaving to `block/{id}/config.section_text`. Rows 1 and 3 never
+ * `/relatorio/:id/secao/:blockId` (Story 4.7): the section's own boilerplate, with variable
+ * chips, autosaving to `block/{id}/config.section_text`. E11-Q5: on the same rich editor as
+ * the Template composer (`RichTextField`), so bold, italic and lists show as they print and
+ * the stored markup never shows. Rows 1 and 3 never
  * route here (the Sumário's `onOpen` sends them to `/setup?etapa=2`); reached with any
  * other block type (a stale link), it shows the not-found copy.
  */
@@ -52,9 +55,7 @@ export function SectionTextSurface() {
     <main className="screen" data-route="/relatorio/:id/secao/:blockId">
       {state === undefined ? (
         <div className="content">
-          <p className="section-note" role="status">
-            {copy.common.loading}
-          </p>
+          <LoadingNote what={copy.loadingWhat.section} />
         </div>
       ) : block === null || snapshot === null || !EDITABLE_TYPES.has(block.block_type) ? (
         <div className="content">
@@ -116,7 +117,8 @@ function SectionTextEditor({ relatorioId, block, seedVersion, templateName, next
     commit: (text) => edits.write(() => writeConfig((current) => editedSectionTextConfig(current, text)), { quiet: true }).then(() => undefined),
   });
 
-  const { areaRef, areaProps, insert, setText } = useSectionTextArea({
+  const [focused, setFocused] = useState(false);
+  const editor = useRichTextArea({
     initialText,
     onChange: (text) => {
       // Typing over a restore takes its "Desfazer" away at once: an undo now would put the
@@ -125,7 +127,10 @@ function SectionTextEditor({ relatorioId, block, seedVersion, templateName, next
       committer.change(text);
     },
     onBlur: () => committer.blur(),
+    onFocusChange: setFocused,
   });
+  const { insert, setText } = editor;
+  const areaRef = editor.areaProps.ref;
 
   async function onRestore(): Promise<void> {
     if (own === null) return;
@@ -133,7 +138,7 @@ function SectionTextEditor({ relatorioId, block, seedVersion, templateName, next
     committer.flush();
     const batch = await edits.write(() => writeConfig(restoredSectionTextConfig)).catch(() => null);
     if (batch === null) return;
-    // The area is uncontrolled (Story 3.6): a restore/undo changes what is shown for a
+    // The area is uncontrolled (Story 11.4): a restore/undo changes what is shown for a
     // reason other than typing in it, so the visible text is set here rather than relying
     // on a remount, which would also fire on every ordinary autosave (`own` changes then too).
     setText(seeded ?? '');
@@ -178,7 +183,7 @@ function SectionTextEditor({ relatorioId, block, seedVersion, templateName, next
           <p className="field-label" id="secao-lbl">
             {t.fieldLabel}
           </p>
-          <div {...areaProps} className="secao-text" aria-labelledby="secao-lbl" />
+          <RichTextField editor={editor} focused={focused} labelledBy="secao-lbl" areaClassName="secao-text" />
         </div>
 
         <div>

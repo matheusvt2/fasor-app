@@ -1,6 +1,7 @@
 import { STANDARD_TEMPLATE_NAME, templateRowSchema } from '@app/domain';
-import type { BrowserContext, Download, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.ts';
+import { downloadBytes, downloadFrom } from './support/download.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
 import { createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
@@ -8,10 +9,11 @@ import { resetEmpresaB } from './support/reset-empresa-b.ts';
 
 /*
  * 11.4-E2E-002 (Story 11.4, FR-12): a template's section text formatted in the composer's
- * rich editor reaches a relatório made from it and its printed document. The relatório's
- * Section text surface stays the plain editor of Story 4.7: no toolbar, the markup shown as
- * the characters it is stored as, and kept by an edit there. The DOCX of the relatório's
- * revision carries the bold run. It generates through the api's one queue and LibreOffice,
+ * rich editor reaches a relatório made from it and its printed document. E11-Q5: the
+ * relatório's Section text surface is the same rich editor, so the bold word shows bold with
+ * its toolbar, the stored `**` never shows, and an edit there keeps the formatting. The DOCX
+ * of the relatório's revision carries the bold run, and "PDF — enviar ao cliente" saves its PDF
+ * (the PDF's fonts are read in the api's `rich-text.integration.test.ts`). It generates through the api's one queue and LibreOffice,
  * so it runs in the serial group (`e2e/support/groups.ts`).
  */
 
@@ -39,27 +41,8 @@ async function deviceRelatorioSection2(page: Page, relatorioId: string): Promise
   return typeof text === 'string' ? text : null;
 }
 
-/** Presses a DOCX button and returns the download it starts (in the page or a new tab). */
-async function downloadFrom(page: Page, context: BrowserContext, press: () => Promise<void>): Promise<Download> {
-  const downloadPromise = new Promise<Download>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('no download started within 30 s')), 30_000);
-    const settle = (download: Download) => {
-      clearTimeout(timer);
-      resolve(download);
-    };
-    context.once('page', (popup) => popup.once('download', settle));
-    page.once('download', settle);
-  });
-  await press();
-  const download = await downloadPromise;
-  for (const extra of context.pages()) if (extra !== page) await extra.close().catch(() => undefined);
-  await page.bringToFront();
-  return download;
-}
-
-test('@p1 11.4-E2E-002 a relatório made from a formatted template: section 2 opens plain, no toolbar, the markup kept by an edit, and its DOCX prints the bold run', async ({
+test('@p1 11.4-E2E-002 a relatório made from a formatted template: section 2 opens in the rich editor, bold shown and no markup, kept by an edit, and its DOCX prints the bold run', async ({
   page,
-  context,
 }) => {
   test.setTimeout(360_000);
   await resetEmpresaB(account, { standard: true });
@@ -90,14 +73,19 @@ test('@p1 11.4-E2E-002 a relatório made from a formatted template: section 2 op
   const relatorioId = await createRelatorio(page);
   await expect.poll(() => deviceRelatorioSection2(page, relatorioId), { timeout: 30_000 }).toMatch(/^A \*\*manutenção\*\* caracteriza-se/);
 
-  // Its section 2: the plain surface, no toolbar, the markup shown as stored.
+  // Its section 2: the rich editor, "manutenção" drawn bold, no stored markup shown.
   await page.getByRole('list', { name: 'Sumário do relatório' }).getByRole('button', { name: /^Definições/ }).click();
   await expect(page).toHaveURL(new RegExp(`/relatorio/${relatorioId}/secao/[0-9a-f-]{36}$`));
   const plain = page.getByRole('textbox', { name: 'Texto da seção' });
-  await expect(plain).toContainText('A **manutenção** caracteriza-se');
-  await expect(page.getByRole('toolbar', { name: 'Formatação' })).toHaveCount(0);
-  await expect(page.locator('.rt-toolbar')).toHaveCount(0);
-  // An edit there keeps the markup as it is.
+  await expect(plain).toContainText('A manutenção caracteriza-se');
+  await expect(plain.locator('strong')).toHaveText('manutenção');
+  await expect(plain).not.toContainText('**');
+  const toolbar = page.getByRole('toolbar', { name: 'Formatação' });
+  await expect(toolbar.getByRole('button', { name: 'Negrito' })).toBeVisible();
+  // The caret on the bold word: Negrito reads pressed.
+  await plain.locator('strong').click();
+  await expect(toolbar.getByRole('button', { name: 'Negrito' })).toHaveAttribute('aria-pressed', 'true');
+  // An edit there keeps the formatting.
   await plain.click();
   await page.keyboard.press('Control+End');
   await page.keyboard.type(' Nota deste relatório.');
@@ -112,10 +100,8 @@ test('@p1 11.4-E2E-002 a relatório made from a formatted template: section 2 op
   const modal = page.getByRole('dialog', { name: 'Gerar relatório' });
   await modal.locator('.generate-row').getByRole('button', { name: 'Gerar relatório' }).click();
   await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
-  const download = await downloadFrom(page, context, () => modal.getByRole('button', { name: 'DOCX — abrir no Word' }).click());
-  const response = await page.request.get(download.url());
-  expect(response.status()).toBe(200);
-  const document = readZipEntries(Buffer.from(await response.body())).get('word/document.xml')!.toString('utf8');
+  const download = await downloadFrom(page, () => modal.getByRole('button', { name: 'DOCX — abrir no Word' }).click());
+  const document = readZipEntries(await downloadBytes(download)).get('word/document.xml')!.toString('utf8');
   const paragraphs = [...document.matchAll(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g)].map((m) => m[0]);
   const heading = paragraphs.findIndex((p) => p.includes('w:val="Heading1"') && p.includes('>2 DEFINIÇÕES<'));
   expect(heading).toBeGreaterThanOrEqual(0);
@@ -123,4 +109,8 @@ test('@p1 11.4-E2E-002 a relatório made from a formatted template: section 2 op
   const runs = [...first.matchAll(/<w:r>[\s\S]*?<\/w:r>/g)].map((m) => m[0]);
   expect(runs.find((run) => run.includes('>manutenção</w:t>'))).toContain('<w:b/>');
   expect(runs.find((run) => run.includes('>A </w:t>'))).not.toContain('<w:b/>');
+  // 11.4-PRINT-BOTH, the UI half: the PDF of the same revision, saved from the dialog.
+  const pdf = await downloadFrom(page, () => modal.getByRole('button', { name: 'PDF — enviar ao cliente' }).click());
+  expect(pdf.suggestedFilename()).toBe('relatorio-rev-1.pdf');
+  expect((await downloadBytes(pdf)).subarray(0, 4).toString('latin1')).toBe('%PDF');
 });

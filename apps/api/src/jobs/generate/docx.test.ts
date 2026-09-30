@@ -465,4 +465,36 @@ describe('11.10-UNIT section 8 action-plan table', () => {
     expect(table.match(/<w:tblHeader\/>/g) ?? []).toHaveLength(1);
     expect(table.match(/<w:cantSplit\/>/g) ?? []).toHaveLength(1);
   }, 60_000);
+
+  /**
+   * Advance widths of Arial Bold in 1/1000 em (the Helvetica-Bold AFM; Liberation Sans Bold,
+   * which prints in the api image, is metric-compatible) for the header's characters. An
+   * unknown character counts a full em, so a new header word can only fail safe.
+   */
+  const ARIAL_BOLD: Record<string, number> = {
+    N: 722, 'º': 365, P: 667, L: 611, T: 611, A: 722, G: 778, R: 722, I: 278, '/': 278,
+    a: 556, 'á': 556, 'ã': 556, c: 556, 'ç': 556, d: 611, e: 556, g: 611, i: 278, l: 278, m: 889, n: 611, o: 611, r: 389, s: 556, t: 333, v: 556, z: 500,
+  };
+  /** A word's width in twips at 9 pt (180 twips to the em), with 5 % for kerning and hinting. */
+  const boldWidth9pt = (word: string) => ([...word].reduce((sum, ch) => sum + (ARIAL_BOLD[ch] ?? 1000), 0) / 1000) * 180 * 1.05;
+
+  it('E11-Q4: every header word fits its column at 9 pt bold inside the cell margins, so no word breaks in the PDF', async () => {
+    const layout = layoutSpec(fixtureSnapshot(), { revisionNumber: 1, issuedAt: ISSUED_AT });
+    const docx = await buildDocx(layout, { tocPages: placeholderPages(layout) });
+    const xml = sectionXml(readZipEntries(docx).get('word/document.xml')!.toString('utf8'), 8);
+    const table = xml.slice(xml.indexOf('<w:tbl>'));
+    const grid = [...table.matchAll(/<w:gridCol w:w="(\d+)"\/>/g)].map((m) => Number(m[1]));
+    expect(grid).toHaveLength(ACTION_PLAN_COLUMNS.length);
+    const header = /<w:tr(?:\s[^>]*)?>([\s\S]*?)<\/w:tr>/.exec(table)![1]!;
+    const margins = [...header.matchAll(/<w:tcMar>([\s\S]*?)<\/w:tcMar>/g)].map((m) => {
+      const side = (names: string) => Number(new RegExp(`<w:(?:${names})\\b[^>]*\\bw:w="(\\d+)"`).exec(m[1]!)![1]);
+      return side('left|start') + side('right|end');
+    });
+    expect(margins).toHaveLength(ACTION_PLAN_COLUMNS.length);
+    ACTION_PLAN_COLUMNS.forEach((title, i) => {
+      for (const word of title.split(' ')) expect({ word, fits: boldWidth9pt(word) <= grid[i]! - margins[i]! }).toEqual({ word, fits: true });
+    });
+    // The two words QA saw broken (E11-Q4) are the tightest; the measure is not vacuous.
+    expect(boldWidth9pt('Responsável')).toBeGreaterThan(1100);
+  }, 60_000);
 });

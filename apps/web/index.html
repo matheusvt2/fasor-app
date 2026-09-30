@@ -31,9 +31,17 @@
         }
       })();
     </script>
+    <style>
+      /* Matheus, 2026-09-30: the page is never blank while the bundle loads. The boot splash
+         lives inside #root, so React's first render replaces it; before tokens.css arrives it
+         carries the tokens' own surface-base and ink-primary values, light and dark. */
+      .boot-splash { box-sizing: border-box; min-height: 100vh; margin: 0; padding: 24px 16px; font: 400 16px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; background: #F7F8FA; color: #15181D; }
+      @media (prefers-color-scheme: dark) { :root:not([data-theme='light']) .boot-splash { background: #101317; color: #F3F4F6; } }
+      :root[data-theme='dark'] .boot-splash { background: #101317; color: #F3F4F6; }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><p class="boot-splash" role="status">Carregando PRODUTO…</p></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

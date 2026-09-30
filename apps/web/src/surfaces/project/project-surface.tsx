@@ -16,7 +16,7 @@ import {
 } from '@app/domain';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
-import { Button, StatusPill } from '../../components/index.ts';
+import { Button, LoadingNote, StatusPill } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { blockRowsOf, clientRows, projectRow, relatoriosOfProject, templateRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
@@ -82,9 +82,7 @@ export function ProjectSurface() {
     return (
       <main className="screen" data-route="/project/:id">
         <div className="content">
-          <p className="section-note" role="status">
-            {copy.common.loading}
-          </p>
+          <LoadingNote what={copy.loadingWhat.project} />
         </div>
       </main>
     );

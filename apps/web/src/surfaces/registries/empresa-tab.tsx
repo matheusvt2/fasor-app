@@ -1,6 +1,6 @@
 import { defaultEmpresaRow, registryFieldPath, registryPath, toIso, type EmpresaRow, type OpDraft, type UploadFileKind } from '@app/domain';
 import { useEffect, useId, useRef, useState } from 'react';
-import { UploadTile, type PickedFile } from '../../components/index.ts';
+import { LoadingNote, UploadTile, type PickedFile } from '../../components/index.ts';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { commitBatch } from '../../db/commit.ts';
@@ -34,7 +34,10 @@ export function EmpresaTab() {
   const db = session.database;
   const user = session.user;
   const t = copy.registries.empresa;
-  const empresa = useLiveQuery(() => (db === null ? Promise.resolve(null) : empresaRow(db)), [db], null) ?? null;
+  // Undefined until the device store answers: the tab says so instead of an empty form (Matheus, 2026-09-30).
+  const loaded = useLiveQuery(() => (db === null ? Promise.resolve(null) : empresaRow(db)), [db]);
+  const empresa = loaded ?? null;
+  const pending = db !== null && loaded === undefined;
 
   // The id of the row this tab edits: the stored one, or the one the first committed
   // field will create (AD-3, the same rule the Instrumentos panel follows).
@@ -122,6 +125,14 @@ export function EmpresaTab() {
   const coverSrc = useAssetUrl(db, empresa?.cover_background_file_id ?? null);
 
   const imagesLabelId = useId();
+
+  if (pending) {
+    return (
+      <div className="registry-main">
+        <LoadingNote what={copy.loadingWhat.empresa} />
+      </div>
+    );
+  }
 
   return (
     <div className="registry-main">

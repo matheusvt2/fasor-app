@@ -363,7 +363,7 @@ describe('11.5 Account: "Localização nas fotos"', () => {
     session = { ...signedIn, database: db };
     try {
       renderAccount(syncState('', 0));
-      const toggle = screen.getByRole('switch', { name: 'Gravar coordenadas em cada foto' });
+      const toggle = await screen.findByRole('switch', { name: 'Gravar coordenadas em cada foto' });
       await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'false'));
       expect(toggle).toHaveAccessibleDescription('Fotos sem coordenadas — a seção 7 imprime só a data e a hora de cada imagem.');
     } finally {

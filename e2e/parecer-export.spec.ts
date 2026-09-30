@@ -29,7 +29,8 @@ test.beforeEach(({ seed }) => {
 const JOB_TIMEOUT = 150_000;
 const footButton = (page: Page) => page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' });
 const dialog = (page: Page) => page.getByRole('dialog', { name: 'Gerar relatório' });
-const generateButton = (page: Page) => dialog(page).locator('.generate-row').getByRole('button', { name: 'Gerar relatório' });
+/** The primary: "Gerar relatório", or "Gerando…" while it sends and the job runs. */
+const generateButton = (page: Page) => dialog(page).locator('.generate-row').getByRole('button', { name: /^(Gerar relatório|Gerando…)$/ });
 const previewButton = (page: Page) => dialog(page).locator('.generate-row').getByRole('button', { name: /^(Pré-visualizar|Gerando rascunho…)$/ });
 const headerPill = (page: Page) => page.locator('.sheet-meta .status-pill');
 const sumario = (page: Page) => page.getByRole('list', { name: 'Sumário do relatório' });

@@ -57,6 +57,8 @@ export const copy = {
     syncStatusLink: 'Ver status de sincronização',
     sessionHeading: 'Sessão',
     signOut: 'Sair',
+    // authored (Matheus, 2026-09-30: a waiting button says so): "Sair" while the server ends the session.
+    signingOut: 'Saindo…',
     // With nothing pending only the second sentence of the mock's note applies; with
     // pending work the kernel's summary text ("31 fotos e 3 fichas") leads it.
     signOutNote: 'Sair antes do envio pede confirmação; nada é apagado deste aparelho.',
@@ -415,13 +417,7 @@ export const copy = {
     // authored: autosave replaces the mock's "Salvar texto / Cancelar" pair (EXPERIENCE.md);
     // Story 11.4: the text carries formatting now, so the "texto simples" half is gone.
     textAutosave: 'Salvo automaticamente.',
-    // Story 11.4: verbatim from the mock's `#tc-dlg-rich` `.rt-toolbar` (`aria-label` and the five words).
-    formatToolbar: 'Formatação',
-    formatBold: 'Negrito',
-    formatItalic: 'Itálico',
-    formatBullets: 'Lista',
-    formatNumbered: 'Numeração',
-    formatVariable: 'Variável',
+    // The toolbar's words are the shared rich editor's own (`ui.ts` `richText`, E11-Q5).
     close: 'Fechar',
     // authored: the Confirm dialogs of a removal, one sentence of consequence each.
     removeConfirmTitle: (name: string) => `Remover ${name}?`,
@@ -503,6 +499,14 @@ export const copy = {
     previewFailed: 'Não foi possível gerar o rascunho. Os dados não foram alterados.',
     shareDocx: 'Compartilhar DOCX',
     sharePdf: 'Compartilhar PDF',
+    // authored (E11-Q1, 2026-09-30): a file row while its bytes come from the server.
+    fileBusy: 'Baixando…',
+    // authored (E11-Q1 review): the share button's name while its file is being prepared.
+    sharing: 'Preparando o arquivo para compartilhar…',
+    // authored (E11-Q1): the file could not be fetched (offline, session, server); nothing was saved.
+    fileFailed: 'Não foi possível baixar o arquivo. Verifique a conexão e tente de novo.',
+    // authored (Matheus, 2026-09-30: a waiting button says so): "Gerar relatório" while it sends and the job runs.
+    generating: 'Gerando…',
   },
   // Project (`30-project.html`, Story 4.1). The heading's count, the row lines, the
   // dates and the counter are the kernel's (`projectRelatoriosHeading`, `relatorioTitle`,
@@ -673,6 +677,8 @@ export const copy = {
       where: (path: string) => `Em: ${path}`,
       // `40-relatorio-overview.html` line 303 (Story 9.2: the camera tile above it is built).
       chooseType: 'Ou escolha o tipo · TAG sugerida por tipo + coluna',
+      // authored (E11-Q6): the same heading when the camera row is absent (AI features off).
+      chooseTypeOnly: 'Escolha o tipo · TAG sugerida por tipo + coluna',
       // Story 9.2: the `.pal-camera` row (lines 297-300).
       photograph: 'Fotografar equipamento',
       photographSub: 'Uma foto da frente do painel: tipo, coluna e TAG sugeridos; a mesma foto vira a placa da ficha.',
@@ -1260,12 +1266,32 @@ export const copy = {
     metaLead: (templateName: string | null) => `Texto do template${templateName === null ? '' : ` ${templateName}`}. `,
     metaStrong: 'O que você mudar aqui fica só neste relatório',
     metaTail: '; o template e os próximos relatórios não mudam.',
-    autosaveNote: 'Salvo automaticamente. Texto simples; negrito e listas ficam para depois.',
+    // authored (E11-Q5, 2026-09-30): the mock's "Texto simples; negrito e listas ficam para
+    // depois." no longer holds; the surface is the rich editor and prints what it shows.
+    autosaveNote: 'Salvo automaticamente. Negrito, itálico e listas saem no documento como aparecem aqui.',
   },
   // authored: the mocks are static frames and draw no boot state.
   common: {
     back: 'Voltar',
     loading: 'Carregando…',
+  },
+  // authored (Matheus, 2026-09-30: a loading screen never looks frozen, EXPERIENCE.md "Blank
+  // screen or spinner with no words" is forbidden): what each surface's "Carregando …" names
+  // (`LoadingNote`, whose sentence is `ui.ts` `loadingNote`).
+  loadingWhat: {
+    relatorios: 'relatórios',
+    relatorio: 'relatório',
+    templates: 'templates',
+    template: 'template',
+    setup: 'dados do relatório',
+    section: 'seção',
+    project: 'obra',
+    clientes: 'clientes',
+    instrumentos: 'instrumentos',
+    registry: 'cadastro',
+    empresa: 'empresa',
+    account: 'conta',
+    sync: 'sincronização',
   },
   // Registries (`80-cadastros.html`, `key-registries.html`). Empresa and Instrumentos are
   // the real tabs; the other four are placeholders (Stories 2.4-2.6), whose one shared

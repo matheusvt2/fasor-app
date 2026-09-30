@@ -16,8 +16,13 @@ import { CONTENT_WIDTH_TWIPS, text } from '../docx.ts';
 const hairline: IBorderOptions = { style: BorderStyle.SINGLE, size: 4, color: '808080' };
 const borders = { top: hairline, bottom: hairline, left: hairline, right: hairline };
 
-/** Relative column widths, in the order of `ACTION_PLAN_COLUMNS` (the two prose columns widest). */
-const WEIGHTS = [5, 25, 15, 11, 10, 18, 10, 6];
+/**
+ * Relative column widths, in the order of `ACTION_PLAN_COLUMNS` (the two prose columns
+ * widest). E11-Q4: every header word fits its cell at 9 pt bold, so LibreOffice never breaks
+ * "Responsável" or "Imagens" mid-word (`docx.test.ts` measures it); Prazo keeps the width a
+ * dd/mm/aaaa date needs on one line.
+ */
+const WEIGHTS = [5, 22, 13, 11, 10, 16, 13, 10];
 /** 9 pt: eight columns across the A4 content width. */
 const TABLE_TEXT_SIZE = 18;
 const CELL_MARGINS = { top: 40, bottom: 40, left: 60, right: 60 };

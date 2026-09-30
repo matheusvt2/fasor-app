@@ -64,12 +64,15 @@ afterEach(() => {
 });
 
 /** The tab under the Toast provider `useFieldCommit` needs. */
-function renderTab() {
-  return render(
+/** The tab, once the device store has answered (until then it reads "Carregando empresa…"). */
+async function renderTab() {
+  const result = render(
     <ToastProvider>
       <EmpresaTab />
     </ToastProvider>,
   );
+  await screen.findByLabelText('Razão social');
+  return result;
 }
 
 async function outboxPaths(): Promise<string[]> {
@@ -78,7 +81,7 @@ async function outboxPaths(): Promise<string[]> {
 
 describe('2.3-UNIT-003 Empresa tab', () => {
   it('has no Save button and commits one op per field, the first one creating the row', async () => {
-    renderTab();
+    await renderTab();
     expect(screen.queryByRole('button', { name: 'Salvar' })).toBeNull();
 
     await userEvent.type(screen.getByLabelText('Razão social'), 'Empresa Exemplo');
@@ -119,7 +122,7 @@ describe('2.3-UNIT-003 Empresa tab', () => {
       row: stored as RegistryRow,
     });
 
-    renderTab();
+    await renderTab();
     await waitFor(() => expect(screen.getByLabelText('Razão social')).toHaveValue('Empresa Guardada'));
     expect(screen.getByLabelText('Telefone')).toHaveValue('(11) 0000-0000');
     expect(screen.getByLabelText('E-mail')).toHaveValue('contato@exemplo.local');
@@ -128,7 +131,7 @@ describe('2.3-UNIT-003 Empresa tab', () => {
   });
 
   it('shows the form defaults before any field is committed, and leaving them untouched writes nothing (Epic 2 retro D-5)', async () => {
-    renderTab();
+    await renderTab();
     expect(screen.getByLabelText('Título do formulário')).toHaveValue('Relatório Técnico de Cabine Primária');
     expect(screen.getByLabelText('Código do formulário')).toHaveValue('FO.SERV-03');
     expect(screen.getByLabelText('Revisão do formulário')).toHaveValue('Revisão 01');
@@ -138,7 +141,7 @@ describe('2.3-UNIT-003 Empresa tab', () => {
   });
 
   it('refuses a CNPJ that is not 14 digits, inline, and never commits it (Epic 2 retro D-8)', async () => {
-    renderTab();
+    await renderTab();
     await userEvent.type(screen.getByLabelText('CNPJ'), '0000000000001');
     await userEvent.tab();
     expect(screen.getByRole('alert')).toHaveTextContent('CNPJ inválido — informe 14 dígitos');
@@ -146,7 +149,7 @@ describe('2.3-UNIT-003 Empresa tab', () => {
   });
 
   it('draws both brand tiles, one control each, and no watermark control', async () => {
-    const { container } = renderTab();
+    const { container } = await renderTab();
     // The native inputs are `aria-hidden` mechanisms; the visible buttons are the
     // controls, one per tile and not a phantom second one each.
     expect(screen.getByTestId('upload-input-logo')).toBeInTheDocument();

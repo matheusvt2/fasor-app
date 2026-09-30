@@ -1182,13 +1182,13 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: 11.4-TEMPLATE-FORMAT (Epic 11 cross-story table, 11.3 x 11.4): a template saved from a relatório ("Salvar como template", Story 11.3, batch B) keeps the formatted section text and prints it. Not asserted by batch E: Story 11.3 is not on this branch.
   evidence: `epic-11-context.md` Cross-Story Dependencies; the markup lives in `section_text` as a string (`packages/domain/src/templates/rich-text.ts`), so the 11.3 projection carries it unchanged if it copies `section_text`.
   class: deferred
-  state: open (owner: the Epic 11 coordinator's integrated QA, once batches B and E are both on main)
+  state: ~~open (owner: the Epic 11 coordinator's integrated QA, once batches B and E are both on main)~~ closed 2026-09-30 by the Epic 11 fix batch (`spec-epic-11-qa-fixes.md`, E11-Q3): `packages/domain/src/templates/from-relatorio.test.ts` "11.4-TEMPLATE-FORMAT: bold, italic and list markup in a relatório section text survive into the template verbatim"; the manual pass is in `reviews/epic-11-review-qa.md`
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-11-4-11-5-rich-text-and-location-stamp.md`
   summary: 11.4-PRINT-BOTH, the PDF half through the UI: the formatted text downloaded as the revision's PDF from the Export dialog needs Story 11.1's PDF route and button (batch A). Batch E covers the renderer half only: `apps/api/src/jobs/generate/rich-text.integration.test.ts` reads the stored PDF and finds the bold and italic words in bold and italic fonts.
   evidence: `epic-11-context.md` Cross-Story Dependencies (11.4 x renderer / 11.1).
   class: deferred
-  state: open (owner: the Epic 11 coordinator's integrated QA, once batches A and E are both on main)
+  state: ~~open (owner: the Epic 11 coordinator's integrated QA, once batches A and E are both on main)~~ closed 2026-09-30 by the Epic 11 fix batch (E11-Q3): `e2e/rich-text-print.spec.ts` 11.4-E2E-002 saves the revision's PDF through "PDF — enviar ao cliente" (`relatorio-rev-1.pdf`, `%PDF`), and `apps/api/src/jobs/generate/rich-text.integration.test.ts` reads that stored PDF's bold and italic fonts; the manual font check is in `reviews/epic-11-review-qa.md`
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-11-2-11-3-move-block-and-save-as-template.md`
   summary: Story 11.2 narrowing (2026-09-30): "Mover para…" sits on the Sumário's Block card (section 9 expansion) and the sheet header Overflow; the 320 px rail tree rows carry no Overflow in `shell-foot.html` nor in code, so they get none. The AC's "tree row" is read as the Sumário tree's equipment row.
@@ -1200,16 +1200,34 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: A `block/{id}/location_id` put is not checked against the relatório's live locations: a target coluna removed on another device while a move is pending leaves the block under a removed location, hidden from the tree until moved back or restored.
   evidence: `packages/domain/src/ops/apply.ts` `block/field` branch writes any id; the device refuses a gone target at commit (`movePlan`), but a concurrent removal is not caught. A fold or push refusal would be a reducer change and a contract bump. Edge Case Hunter review of Stories 11.2/11.3. Severity medium (unverified).
   class: debt
-  state: open (owner: Epic 11 integrated review)
+  state: ~~open (owner: Epic 11 integrated review)~~ re-owned 2026-09-30 (E11-Q8): owner Matheus, latent until a relatório can remove a location. A relatório has no location-removal op today (`apps/web/src/surfaces/relatorio/relatorio-ops.ts` offers only the `location/{id}` create, `name`/`order_key` puts and `agrupar_por_tipo`; the only removal is the Template composer's), so no UI path produces the state (`reviews/epic-11-review-qa.md` E11-Q8)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-11-9-11-10-priority-deadline-and-action-plan.md`
   summary: 11.10-PDF (2026-09-30): the action-plan table in the downloaded PDF is not asserted. The PDF is LibreOffice's conversion of the same DOCX, so the table is already in it, but there is no download route for it until Story 11.1 (`GET /api/revisions/{id}/pdf`).
   evidence: `e2e/action-plan.spec.ts` 11.10-E2E-001 reads the DOCX only; Epic 11 context, Cross-Story Dependencies row 11.10 x 11.1.
   class: test-gap
-  state: open (owner: batch A, Story 11.1, or the Epic 11 QA once A merges)
+  state: ~~open (owner: batch A, Story 11.1, or the Epic 11 QA once A merges)~~ closed 2026-09-30 by the Epic 11 fix batch (E11-Q3, E11-Q4): `apps/api/src/jobs/generate/rich-text.integration.test.ts` reads the stored PDF's action-plan table under the section 8 heading (every header word whole, the row's priority, deadline, action and owner), and `e2e/action-plan.spec.ts` 11.10-E2E-001 saves the PDF through "PDF — enviar ao cliente"
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-11-9-11-10-priority-deadline-and-action-plan.md`
   summary: Stories 11.9/11.10 open questions (2026-09-30): the P4 hint word "próxima intervenção" (authored; the mock's "365 dias" is overridden by source-deltas row 29); the undo toast texts "Prioridade gravada", "Prioridade removida", "Prazo substituído" (authored); whether "pontos sem prazo" should count points without priority instead (EXPERIENCE says priority, the story says prazo; built as prazo); whether the table prints when no row carries an action-plan value (built: always); the Points surface "Como imprime na seção 8" preview (`72-pontos.html` 290-318, named by neither story, not built); a P4 deadline stored as a month only (`YYYY-MM`) shows as read-only `mm/aaaa` in Prazo, since the Date field holds whole days.
   evidence: `packages/domain/src/points/priority.ts`, `apps/web/src/copy/pt-br.ts` (`points.priorityWritten` and neighbours), `apps/web/src/surfaces/points/point-editor.tsx` `PrazoField`.
   class: question
   state: open (owner: Matheus and Bruno)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-11-qa-fixes.md`
+  summary: Flake ledger (E11-Q7, 2026-09-30): in the Epic 11 QA's `test:e2e:matrix`, `durability-desktop-chrome` `e2e/durability.spec.ts:61` (1.8-E2E-001) failed after 31.6 s, the first test after the bundle build: `signInForDurability` (`e2e/support/durability.ts:74`) hit "Protocol error (Runtime.callFunctionOn): Internal server error, session closed". The re-run passed on all three projects (3/3, 94 s); no app defect reproduced.
+  evidence: `reviews/epic-11-review-qa.md` E11-Q7; `/tmp/verify-e11q-matrix.log` and `/tmp/verify-e11q-matrix-rerun.log` on the QA machine.
+  class: bug
+  state: open (owner: the Epic 12 coordinator if it recurs: a warm-up navigation in the global setup, or `retries: 1` on the durability projects' first spec only)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-11-qa-fixes.md`
+  summary: DEPLOY-SMOKE and 11.8-ROLE were never asserted live (E11-Q2, 2026-09-30): no batch ran `infra/bin/deploy`, so DEPLOY-SMOKE-{tag} has no evidence, the live half of 11.7 (a real `DetectDocumentText`) waits, and neither the budget action's deny on `bedrock:InvokeModel*`/`textract:*` nor the task role's Bedrock/Textract policy was proved against the account.
+  evidence: `reviews/epic-11-review-qa.md` E11-Q2; `sprint-status.yaml` 11-8 and 11-7 comments; `infra/production/budget.tf:6-16,52-75`, `infra/production/iam.tf:58-67`.
+  class: test-gap
+  state: open (owner: Matheus: the first deploy with `fasor-admin`, then DEPLOY-SMOKE once for the wave (migration task exit 0, `GET /api/health` over HTTPS with every component up) and 11.8-ROLE (one `DetectDocumentText` through the task role, one Converse call outside the allow list denied, `aws iam simulate-principal-policy` for both roles with the deny attached); 11.8 closes only then)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-11-qa-fixes.md`
+  summary: Edge Case Hunter (2026-09-30): a DOCX/PDF file fetch answered 401 (session expired) is worded with the same "could not download" line as a network failure, not as a session problem with a way to sign in again.
+  evidence: `apps/web/src/surfaces/export/revision-file.ts` and `export-dialog.tsx` word every fetch failure alike; `fetchRevisionBlob` in `apps/web/src/sync/client.ts` already carries the HTTP status in `SyncRequestError`.
+  class: debt
+  state: open (owner: Matheus, low; the next Export dialog change)

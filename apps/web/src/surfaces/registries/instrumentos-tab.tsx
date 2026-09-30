@@ -1,6 +1,6 @@
 import { isInstrumentReferenced, sortInstrumentRegistryRows, type BlockRow, type InstrumentRow } from '@app/domain';
 import { useEffect, useMemo, useState } from 'react';
-import { Button } from '../../components/index.ts';
+import { Button, LoadingNote } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { now } from '../../clock.ts';
 import { newId } from '../../ids.ts';
@@ -53,11 +53,9 @@ export function InstrumentosTab({ openNew = false, onEntryEnd }: InstrumentosTab
     // Once per arrival.
   }, []);
 
-  const instruments = useLiveQuery(
-    () => (db === null ? Promise.resolve(NO_INSTRUMENTS) : instrumentRows(db)),
-    [db],
-    NO_INSTRUMENTS,
-  );
+  // Undefined until the device store answers: "Carregando instrumentos…", never the empty state's flash.
+  const loaded = useLiveQuery(() => (db === null ? Promise.resolve(NO_INSTRUMENTS) : instrumentRows(db)), [db]);
+  const instruments = loaded ?? NO_INSTRUMENTS;
   const blocks = useLiveQuery(() => (db === null ? Promise.resolve(NO_BLOCKS) : blockRows(db)), [db], NO_BLOCKS);
 
   const sorted = useMemo(() => sortInstrumentRegistryRows(instruments, now()), [instruments]);
@@ -74,7 +72,9 @@ export function InstrumentosTab({ openNew = false, onEntryEnd }: InstrumentosTab
         )}
         <p className="section-note">{copy.registries.instrumentos.note}</p>
 
-        {sorted.length === 0 ? (
+        {db !== null && loaded === undefined ? (
+          <LoadingNote what={copy.loadingWhat.instrumentos} />
+        ) : sorted.length === 0 ? (
           // One action only on an empty registry (Epic 2 retro D-8): the empty state's.
           <div className="home-empty">
             <p className="section-note">{copy.registries.instrumentos.emptyText}</p>

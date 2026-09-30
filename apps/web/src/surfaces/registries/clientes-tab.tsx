@@ -1,6 +1,6 @@
 import { clientRegistryRowText, isClientReferenced, sortClientRegistryRows, type ClientRow, type ProjectRow } from '@app/domain';
 import { useMemo, useState } from 'react';
-import { Button } from '../../components/index.ts';
+import { Button, LoadingNote } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { newId } from '../../ids.ts';
 import { clientRows, projectRows } from '../../db/home-store.ts';
@@ -58,7 +58,9 @@ export function ClientesTab() {
   const [openId, setOpenId] = useState<string | null>(null);
   const t = copy.registries.clientes;
 
-  const clients = useLiveQuery(() => (db === null ? Promise.resolve(NO_CLIENTS) : clientRows(db)), [db], NO_CLIENTS);
+  // Undefined until the device store answers: "Carregando clientes…", never the empty state's flash.
+  const loaded = useLiveQuery(() => (db === null ? Promise.resolve(NO_CLIENTS) : clientRows(db)), [db]);
+  const clients = loaded ?? NO_CLIENTS;
   const projects = useLiveQuery(() => (db === null ? Promise.resolve(NO_PROJECTS) : projectRows(db)), [db], NO_PROJECTS);
 
   const sorted = useMemo(() => sortClientRegistryRows(clients), [clients]);
@@ -75,7 +77,9 @@ export function ClientesTab() {
         )}
         <p className="section-note">{t.note}</p>
 
-        {sorted.length === 0 ? (
+        {db !== null && loaded === undefined ? (
+          <LoadingNote what={copy.loadingWhat.clientes} />
+        ) : sorted.length === 0 ? (
           // One action only on an empty registry (Epic 2 retro D-8): the empty state's.
           <div className="home-empty">
             <p className="section-note">{t.emptyText}</p>

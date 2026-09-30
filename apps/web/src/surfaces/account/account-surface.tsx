@@ -10,7 +10,7 @@ import {
 } from '@app/domain';
 import { useEffect, useId, useState } from 'react';
 import { Link } from 'react-router';
-import { Button, ConfirmDialog, SegmentedControl, TextButton, Toggle } from '../../components/index.ts';
+import { Button, ConfirmDialog, LoadingNote, SegmentedControl, TextButton, Toggle } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { relatorioRows, originalFileCount } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
@@ -72,11 +72,10 @@ export function AccountSurface() {
   // (offline or not) shows at once. Until the company pull brings the row, the profile
   // the session read from the server stands in.
   const userId = session.user?.id ?? null;
-  const userRow = useLiveQuery(
-    () => (db === null || userId === null ? Promise.resolve(null) : localUser(db, userId)),
-    [db, userId],
-    null,
-  );
+  // Undefined until the device store answers: the surface says so (Matheus, 2026-09-30).
+  const loadedUserRow = useLiveQuery(() => (db === null || userId === null ? Promise.resolve(null) : localUser(db, userId)), [db, userId]);
+  const userRow = loadedUserRow ?? null;
+  const userRowPending = db !== null && userId !== null && loadedUserRow === undefined;
 
   const geolocationDenied = useGeolocationDenied(db);
   const [locationError, setLocationError] = useState<string | null>(null);
@@ -124,9 +123,19 @@ export function AccountSurface() {
   const [editing, setEditing] = useState(false);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
 
   const user = session.user;
   if (user === null) return null;
+  if (userRowPending) {
+    return (
+      <main className="screen">
+        <div className="content">
+          <LoadingNote what={copy.loadingWhat.account} />
+        </div>
+      </main>
+    );
+  }
 
   const storage =
     usageBytes === undefined ? null : storageLine({ usage_bytes: usageBytes, relatorios: relatorios.length, photos });
@@ -159,11 +168,15 @@ export function AccountSurface() {
 
   /** A sign-out the server never confirmed keeps the session and says so. */
   async function signOut() {
+    if (signingOut) return;
     setSignOutError(null);
+    setSigningOut(true);
     try {
       await session.signOut();
     } catch {
       setSignOutError(copy.account.signOutFailed);
+    } finally {
+      setSigningOut(false);
     }
   }
 
@@ -332,9 +345,11 @@ export function AccountSurface() {
               aria-describedby={signOutNoteId}
               isDisabled={!session.online}
               disabledReason={copy.account.signOutOfflineReason}
-              onPress={() => setConfirmingSignOut(true)}
+              onPress={() => {
+                if (!signingOut) setConfirmingSignOut(true);
+              }}
             >
-              {copy.account.signOut}
+              {signingOut ? copy.account.signingOut : copy.account.signOut}
             </Button>
             <span className="btn-reason" id={signOutNoteId}>
               {signOutNote}

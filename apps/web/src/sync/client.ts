@@ -110,6 +110,30 @@ export function revisionPdfUrl(revisionId: string): string {
 
 export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
 
+/**
+ * E11-Q1: a revision's DOCX or PDF as bytes, fetched with the session cookie so the Export
+ * dialog can save or share the file itself (a URL needs a session the client lacks). The
+ * request never completing is a `network` failure; any non-2xx is an `http` one.
+ */
+export async function fetchRevisionBlob(path: string, fetchImpl: FetchLike = (input, init) => fetch(input, init)): Promise<Blob> {
+  let response: Response;
+  try {
+    response = await fetchImpl(path, {
+      method: 'GET',
+      credentials: 'same-origin',
+      headers: { accept: '*/*', [CONTRACT_VERSION_HEADER]: String(CONTRACT_VERSION) },
+    });
+  } catch {
+    throw new SyncRequestError({ kind: 'network' });
+  }
+  if (!response.ok) throw new SyncRequestError({ kind: 'http', status: response.status });
+  try {
+    return await response.blob();
+  } catch {
+    throw new SyncRequestError({ kind: 'network' });
+  }
+}
+
 /** The client over the browser's `fetch`; built here because only `src/sync` may call the network (AD-1). */
 export function createBrowserSyncClient(): SyncClient {
   return createSyncClient({ fetch: (input, init) => fetch(input, init) });

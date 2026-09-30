@@ -1,6 +1,7 @@
 import { sortWordRegistryRows, wordRegistryRowText, type WordRow } from '@app/domain';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Button } from '../../components/index.ts';
+import { Button, LoadingNote } from '../../components/index.ts';
+import { copy } from '../../copy/pt-br.ts';
 import { newId } from '../../ids.ts';
 import { manufacturerRows, voltageClassRows } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
@@ -65,7 +66,9 @@ export function WordRegistryTab(props: WordRegistryTabProps) {
   const [openId, setOpenId] = useState<string | null>(null);
   const source = kind === 'manufacturer' ? manufacturerRows : voltageClassRows;
 
-  const rows = useLiveQuery(() => (db === null ? Promise.resolve(NO_ROWS) : source(db)), [db, source], NO_ROWS);
+  // Undefined until the device store answers: "Carregando cadastro…", never the empty state's flash.
+  const loaded = useLiveQuery(() => (db === null ? Promise.resolve(NO_ROWS) : source(db)), [db, source]);
+  const rows = loaded ?? NO_ROWS;
   const sorted = useMemo(() => sortWordRegistryRows(rows), [rows]);
   const openRow = useMemo(() => rows.find((row) => row.id === openId) ?? null, [rows, openId]);
 
@@ -88,7 +91,9 @@ export function WordRegistryTab(props: WordRegistryTabProps) {
         )}
         <p className="section-note">{note}</p>
 
-        {sorted.length === 0 ? (
+        {db !== null && loaded === undefined ? (
+          <LoadingNote what={copy.loadingWhat.registry} />
+        ) : sorted.length === 0 ? (
           // One action only on an empty registry (Epic 2 retro D-8): the empty state's.
           <div className="home-empty">
             <p className="section-note">{emptyText}</p>

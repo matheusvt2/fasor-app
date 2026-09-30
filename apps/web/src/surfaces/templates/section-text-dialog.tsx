@@ -1,8 +1,9 @@
 import { INSERTABLE_SECTION_VARIABLES, sectionVariableChipLabel } from '@app/domain';
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Button, Chip, FormDialog } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
+import { RichTextField } from '../../input/rich-text-field.tsx';
 import { useRichTextArea } from '../../input/use-rich-text-area.ts';
 
 export interface SectionTextDialogProps {
@@ -65,23 +66,13 @@ export function SectionTextDialog({ sectionTitle, sectionNumber, text, onCommit,
       <p className="dialog-meta" id={noteId}>
         {copy.composer.textNote}
       </p>
-      <div className={focused ? 'rich-text is-focus' : 'rich-text'}>
-        <Toolbar
-          tools={[
-            { label: copy.composer.formatBold, pressed: editor.pressed.bold, onPress: () => editor.toggleMark('bold') },
-            { label: copy.composer.formatItalic, pressed: editor.pressed.italic, onPress: () => editor.toggleMark('italic') },
-            { label: copy.composer.formatBullets, pressed: editor.pressed.bullet, onPress: () => editor.toggleList('bullet') },
-            { label: copy.composer.formatNumbered, pressed: editor.pressed.numbered, onPress: () => editor.toggleList('numbered') },
-            { label: copy.composer.formatVariable, variable: { expanded: varsOpen, controls: varsId }, onPress: () => setVarsOpen((open) => !open) },
-          ]}
-        />
-        <div
-          {...editor.areaProps}
-          className="rt-area"
-          aria-label={copy.composer.sectionTextLabel(sectionNumber)}
-          aria-describedby={noteId}
-        />
-      </div>
+      <RichTextField
+        editor={editor}
+        focused={focused}
+        label={copy.composer.sectionTextLabel(sectionNumber)}
+        describedBy={noteId}
+        variable={{ expanded: varsOpen, controls: varsId, onPress: () => setVarsOpen((open) => !open) }}
+      />
       <div id={varsId} hidden={!varsOpen}>
         <p className="field-label" aria-hidden="true">
           {copy.composer.insertVariable}
@@ -111,68 +102,5 @@ export function SectionTextDialog({ sectionTitle, sectionNumber, text, onCommit,
         </Button>
       </div>
     </FormDialog>
-  );
-}
-
-interface ToolSpec {
-  label: string;
-  onPress: () => void;
-  /** A formatting toggle's state (`aria-pressed`). */
-  pressed?: boolean;
-  /** "Variável": whether its chip row is open (`aria-expanded`) and which row it controls. */
-  variable?: { expanded: boolean; controls: string };
-}
-
-/**
- * The mock's `.rt-toolbar` (`role="toolbar"`, "Formatação") of `.rt-tool` word buttons:
- * one tab stop, the arrow keys, Home and End move between its buttons (APG toolbar). A
- * mouse press on a formatting toggle never takes the focus from the text, so its selection
- * stays; "Variável" takes it, so the chip row it opens is next in the tab order.
- */
-function Toolbar({ tools }: { tools: readonly ToolSpec[] }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [active, setActive] = useState(0);
-  const buttons = () => Array.from(ref.current?.querySelectorAll<HTMLButtonElement>('.rt-tool') ?? []);
-
-  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    const all = buttons();
-    const index = all.indexOf(event.target as HTMLButtonElement);
-    if (index === -1) return;
-    let next: number | null = null;
-    if (event.key === 'ArrowRight') next = (index + 1) % all.length;
-    else if (event.key === 'ArrowLeft') next = (index - 1 + all.length) % all.length;
-    else if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = all.length - 1;
-    if (next === null) return;
-    event.preventDefault();
-    setActive(next);
-    all[next]!.focus();
-  };
-
-  return (
-    <div ref={ref} className="rt-toolbar" role="toolbar" aria-label={copy.composer.formatToolbar} onKeyDown={onKeyDown}>
-      {tools.map((tool, index) => (
-        <button
-          key={tool.label}
-          type="button"
-          className={tool.variable === undefined ? 'rt-tool' : 'rt-tool rt-var'}
-          tabIndex={index === active ? 0 : -1}
-          {...(tool.pressed === undefined ? {} : { 'aria-pressed': tool.pressed })}
-          {...(tool.variable === undefined ? {} : { 'aria-expanded': tool.variable.expanded, 'aria-controls': tool.variable.controls })}
-          onFocus={() => setActive(index)}
-          onMouseDown={(event) => {
-            if (tool.variable === undefined) event.preventDefault();
-          }}
-          onClick={tool.onPress}
-        >
-          {tool.variable === undefined ? null : (
-            <svg className="ico" aria-hidden="true">
-              <use href="/sprite.svg#i-plus" />
-            </svg>
-          )}
-          {tool.label}
-        </button>
-      ))}
-    </div>
   );
 }

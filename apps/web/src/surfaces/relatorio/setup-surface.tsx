@@ -12,7 +12,7 @@ import {
 } from '@app/domain';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams, useParams } from 'react-router';
-import { Button } from '../../components/index.ts';
+import { Button, LoadingNote } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { now } from '../../clock.ts';
 import { commitBatch } from '../../db/commit.ts';
@@ -58,9 +58,7 @@ export function SetupSurface() {
     <main className="screen" data-route="/relatorio/:id/setup">
       {state === undefined ? (
         <div className="setup-content">
-          <p className="section-note" role="status">
-            {copy.common.loading}
-          </p>
+          <LoadingNote what={copy.loadingWhat.setup} />
         </div>
       ) : snapshot === null ? (
         <div className="setup-content">

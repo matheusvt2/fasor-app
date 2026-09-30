@@ -148,6 +148,16 @@ describe('11.3-UNIT what is carried and what is not', () => {
     expect(count(template, coluna9.id)).toBe(count(before, coluna9.id) + 1);
   });
 
+  it('11.4-TEMPLATE-FORMAT: bold, italic and list markup in a relatório section text survive into the template verbatim', () => {
+    const { relatorioId, state } = build();
+    const section2 = buildSnapshot(state, relatorioId).blocks.find((row) => row.block_type === 'section_2')!;
+    const formatted = 'Nota com **negrito** e *itálico* para {cliente}.\n- **Termografia** dos painéis\n1. Limpeza *quando aplicável*';
+    const after = buildSnapshot(applyOp(state, putOp(relatorioId, `block/${section2.id}/config`, { ...(section2.config as object), section_text: formatted })), relatorioId);
+    const template = templateFromRelatorio(after, { id: NEW_TEMPLATE, name: 'T' });
+    expect(templateRowSchema.safeParse(template).success).toBe(true);
+    expect(template.blocks.find((block) => block.skeleton_location_ref === null && block.block_type === 'section_2')!.section_text).toBe(formatted);
+  });
+
   it('splits a run longer than MAX_QUANTITY into 99 plus the rest, and still parses', () => {
     const { snapshot } = build();
     const coluna9 = snapshot.locations.find((row) => row.name === 'Coluna 9')!;

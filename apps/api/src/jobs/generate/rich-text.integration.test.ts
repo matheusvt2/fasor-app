@@ -1,5 +1,6 @@
 import { createRequire } from 'node:module';
 import {
+  ACTION_PLAN_COLUMNS,
   CONTRACT_VERSION,
   CONTRACT_VERSION_HEADER,
   generateResponseSchema,
@@ -33,7 +34,13 @@ import { readZipEntries } from './docx-structure.ts';
  * and a numbered list. The stored DOCX has the bold and italic runs, the bullets and a
  * decimal list; the stored PDF holds the words and draws the bold and italic ones in bold
  * and italic fonts. Everything is found from section 1's heading, never by position (E7-A6).
- * The PDF download through the UI is Story 11.1's (`deferred-work.md`).
+ * The block is the relatório's own (its `config.section_text`), the text the Section text
+ * surface edits; the PDF saved through the Export dialog is `e2e/export.spec.ts`'s.
+ *
+ * 11.10-PDF (E11-Q3, E11-Q4): the same revision carries one point of attention with a
+ * priority, a deadline, an owner and an action; the stored PDF prints the action-plan table
+ * under section 8's heading with every header word whole (never "Responsá" / "vel") and the
+ * row's values.
  */
 
 const apiUrl = process.env.API_URL ?? 'http://api:3000';
@@ -46,6 +53,8 @@ const auth = createAuth({ db, secret: config.SESSION_SECRET, baseURL: config.AUT
 
 const RELATORIO_ID = SMALL_FIXTURE_RELATORIO_ID;
 const BLOCK_ID = newId();
+const SECTION_8_BLOCK_ID = newId();
+const POINT_ID = newId();
 const SECTION_TEXT = 'Serviços para **{cliente}**:\n- **Termografia** dos painéis\n- Inspeção *visual*\n1. Limpeza\n2. Reaperto *quando aplicável*';
 const extraOpIds: string[] = [];
 
@@ -159,6 +168,49 @@ beforeAll(async () => {
           removed_at: null,
         },
       }),
+      // Section 8 prints only where the relatório has its block.
+      op({
+        kind: 'create',
+        scope: 'relatorio',
+        path: `block/${SECTION_8_BLOCK_ID}`,
+        value: {
+          id: SECTION_8_BLOCK_ID,
+          relatorio_id: RELATORIO_ID,
+          location_id: null,
+          equipment_id: null,
+          block_type: 'section_8',
+          config: { block_type: 'section_8', sub_blocks: {}, na_defaults: [], section_text: null },
+          seed_version: 'v1',
+          order_key: 'z0',
+          feeds_block_id: null,
+          not_tested: null,
+          concluded_by: null,
+          sheet: { nameplate: {}, checklist: {}, test: {}, conclusion: {}, observations: null },
+          created_by: null,
+          first_edited_at: null,
+          last_modified_by: null,
+          last_modified_at: null,
+          removed_at: null,
+        },
+      }),
+      op({
+        kind: 'create',
+        scope: 'relatorio',
+        path: `point/${POINT_ID}`,
+        value: {
+          id: POINT_ID,
+          relatorio_id: RELATORIO_ID,
+          text: 'Isolador trincado na entrada.',
+          equipment_id: null,
+          origin: 'manual',
+          order_key: 'zz',
+          removed_at: null,
+          action: 'Trocar isolador',
+          priority: 'P1',
+          deadline: '2026-10-30',
+          owner: 'Cliente QA',
+        },
+      }),
     ],
     { now, origin: 'server' },
   );
@@ -173,7 +225,7 @@ afterAll(async () => {
 
 describe('11.4-PRINT-BOTH a formatted section text in the issued DOCX and PDF', () => {
   it(
-    'prints bold, italic, the bullets and the decimal list in the DOCX, and bold and italic fonts in the PDF',
+    'prints bold, italic, the bullets and the decimal list in the DOCX, and bold and italic fonts in the PDF; 11.10-PDF: the action-plan table with every header word whole',
     async () => {
       const cookie = await signIn();
       const res = await call(`/api/relatorios/${RELATORIO_ID}/generate`, {
@@ -241,6 +293,26 @@ describe('11.4-PRINT-BOTH a formatted section text in the issued DOCX and PDF', 
       // The decimal list's numbers print.
       expect(body.some((i) => i.str.trim() === '1.')).toBe(true);
       expect(body.some((i) => i.str.trim() === '2.')).toBe(true);
+
+      // 11.10-PDF: from section 8's heading ("⟨n⟩ PONTOS DE ATENÇÃO …", numbered in print
+      // order; the last one, past the TOC) to the next section heading.
+      const trimmed = items.map((i) => i.str.trim());
+      const at8 = trimmed.findLastIndex((str) => /^\d+ PONTOS DE ATENÇÃO/.test(str));
+      expect(at8).toBeGreaterThan(at);
+      const end8 = trimmed.findIndex((str, i) => i > at8 && /^\d+ \p{Lu}/u.test(str));
+      const section8 = trimmed.slice(at8 + 1, end8 === -1 ? undefined : end8);
+      const start = section8.findIndex((str) => str.startsWith('N'));
+      expect(start).toBeGreaterThanOrEqual(0);
+      const table = section8.slice(start);
+      expect(table.length).toBeGreaterThan(ACTION_PLAN_COLUMNS.length);
+      // E11-Q4: every header word is drawn whole, in one text item (never "Responsá" / "vel").
+      for (const word of ACTION_PLAN_COLUMNS.flatMap((title) => title.split(' '))) {
+        expect({ word, whole: table.some((str) => str.split(/\s+/).includes(word)) }).toEqual({ word, whole: true });
+      }
+      // The row of the point: its priority, deadline, action and owner.
+      for (const value of ['P1 · Curto', '30/10/2026', 'Trocar isolador', 'Cliente QA']) {
+        expect({ value, printed: table.some((str) => str.includes(value)) }).toEqual({ value, printed: true });
+      }
     },
     200_000,
   );

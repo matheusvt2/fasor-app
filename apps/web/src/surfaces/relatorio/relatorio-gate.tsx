@@ -1,7 +1,7 @@
 import type { EntityState } from '@app/domain';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { Button } from '../../components/index.ts';
+import { Button, LoadingNote } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { relatorioState } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
@@ -40,9 +40,14 @@ export function RelatorioGate({ id, children }: { id: string; children: (state: 
   if (state === undefined || (state === null && phase !== 'done')) {
     return (
       <div className="overview-content">
-        <p className="section-note" role="status">
-          {state === null ? copy.sumario.loading : copy.common.loading}
-        </p>
+        {/* Read from the device, or pulled from the server ("Baixando o relatório…"). */}
+        {state === null ? (
+          <p className="section-note" role="status">
+            {copy.sumario.loading}
+          </p>
+        ) : (
+          <LoadingNote what={copy.loadingWhat.relatorio} />
+        )}
       </div>
     );
   }

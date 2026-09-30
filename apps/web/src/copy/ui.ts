@@ -33,6 +33,21 @@ export const ui = {
     /** Default label for the non-destructive action; initial focus lands here. */
     cancel: 'Cancelar',
   },
+  // Story 11.4: verbatim from the mock's `#tc-dlg-rich` `.rt-toolbar` (`aria-label` and the
+  // five words). E11-Q5: owned by the shared rich editor (`input/rich-text-field.tsx`), which
+  // the Template composer and the relatório's Section text surface both render.
+  richText: {
+    toolbar: 'Formatação',
+    bold: 'Negrito',
+    italic: 'Itálico',
+    bullets: 'Lista',
+    numbered: 'Numeração',
+    variable: 'Variável',
+  },
+  loadingNote: {
+    // authored (Matheus, 2026-09-30): a surface whose rows are still being read names them.
+    text: (what: string) => `Carregando ${what}…`,
+  },
   overflowMenu: {
     /** `aria-label` template for the trigger button, e.g. "Mais opções de SEC-C09". */
     triggerLabel: (name: string) => `Mais opções de ${name}`,

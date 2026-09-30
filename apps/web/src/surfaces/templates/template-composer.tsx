@@ -39,7 +39,7 @@ import {
 } from '@app/domain';
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { Button, ConfirmDialog, FormDialog } from '../../components/index.ts';
+import { Button, ConfirmDialog, FormDialog, LoadingNote } from '../../components/index.ts';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { commitBatch } from '../../db/commit.ts';
@@ -71,9 +71,7 @@ export function TemplateComposerSurface() {
     <main className="screen" data-route="/templates/:id">
       {row === undefined ? (
         <div className="composer-main">
-          <p className="section-note" role="status">
-            {copy.common.loading}
-          </p>
+          <LoadingNote what={copy.loadingWhat.template} />
         </div>
       ) : row === null ? (
         <div className="composer-main">
