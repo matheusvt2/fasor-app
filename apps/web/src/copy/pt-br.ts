@@ -810,10 +810,10 @@ export const copy = {
   // order lines and the derived entries' texts are the kernel's (`points/*.ts`).
   points: {
     title: 'Pontos de atenção',
-    // `72-pontos.html` `.section-note`, verbatim minus the sentences about the photo draft,
-    // the priority and the action-plan table, none of which the MVP builds (source-deltas row 29).
+    // `72-pontos.html` `.section-note`, verbatim minus the sentence about the photo draft
+    // (Story 11.9 builds the priority and Story 11.10 the action-plan table).
     sectionNote:
-      'A ordem aqui é a ordem da seção 8 do relatório. Reordene arrastando, pelo menu ⋯ ou com Alt+↑/↓. Um ponto criado de um item não conforme já traz a foto e o equipamento. Equipamentos marcados como Não ensaiado entram sozinhos ao final, com o motivo.',
+      'A ordem aqui é a ordem da seção 8 do relatório. Reordene arrastando, pelo menu ⋯ ou com Alt+↑/↓. Um ponto criado de um item não conforme já traz a foto e o equipamento. Equipamentos marcados como Não ensaiado entram sozinhos ao final, com o motivo. A prioridade (P0 a P4) sugere o prazo; a seção 8 imprime, depois dos pontos, a tabela do plano de ação.',
     // Story 6.6 AC, verbatim.
     empty: 'Nenhum ponto de atenção.',
     create: 'Criar',
@@ -830,6 +830,24 @@ export const copy = {
     choosePhotos: 'Escolher fotos',
     photosMeta: 'Números provisórios — definidos na exportação',
     actionDt: 'Ação',
+    // Story 11.9: `72-pontos.html` `.poa-fields` and the editor's Prioridade, Prazo and Responsável, verbatim.
+    deadlineDt: 'Prazo',
+    priorityDt: 'Prioridade',
+    ownerDt: 'Responsável',
+    priorityLabel: 'Prioridade',
+    // `72-pontos.html` 241 helper; the creation date is the kernel's (`pointCreatedDate`).
+    priorityHelper: (createdDate: string) =>
+      `Um toque: a prioridade preenche o prazo abaixo como sugestão a partir da data de criação do ponto${createdDate === '' ? '' : ` (${createdDate})`}`,
+    deadlineLabel: 'Prazo',
+    // `72-pontos.html` 248 helper, verbatim.
+    deadlineHelper: 'Edite a data se o combinado com o cliente for outro; imprime só a data',
+    // authored: P4 picked on a relatório without a next intervention date (Epic 11 conflict 2).
+    deadlineNoNextIntervention: 'O relatório não tem data da próxima intervenção: informe-a em Dados do relatório ou digite o prazo.',
+    ownerLabel: 'Responsável',
+    // authored: the undo toasts of a pick, a clear and "Substituir" (open for Bruno).
+    priorityWritten: 'Prioridade gravada',
+    priorityCleared: 'Prioridade removida',
+    deadlineReplaced: 'Prazo substituído',
     none: '—',
     removePoint: 'Remover ponto',
     removed: 'Ponto removido',

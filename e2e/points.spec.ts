@@ -190,7 +190,7 @@ test('@p0 6.6-E2E-001 row 8 opens the empty Points surface; "Criar" writes one p
   await expect(card.locator('.poa-order')).toHaveText('1 de 1');
   await expect(card.locator('.poa-title')).toHaveText('Geral');
   await expect(card.locator('.poa-text .photo-ref')).toHaveText('Imagem 1');
-  await expect(card.locator('.poa-fields dd')).toHaveText('Instalar plaquetas de identificação');
+  await expect(card.locator('.poa-fields dd').first()).toHaveText('Instalar plaquetas de identificação');
 
   await page.reload();
   await expect(cards(page)).toHaveCount(1, { timeout: 30_000 });
@@ -198,7 +198,7 @@ test('@p0 6.6-E2E-001 row 8 opens the empty Points surface; "Criar" writes one p
   await expect(page.getByRole('heading', { level: 2, name: 'Pontos de atenção (1)' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Voltar' }).click();
-  await expect(row8(page).locator('.sum-status')).toHaveText('1 ponto');
+  await expect(row8(page).locator('.sum-status')).toHaveText('1 ponto · 1 ponto sem prazo');
 });
 
 test('@p0 6.6-E2E-002 an NC row\'s "Criar ponto de atenção" links the sheet\'s equipment and the item\'s photo, and the focus returns to the row', async ({ page }) => {
@@ -349,7 +349,7 @@ test('@p0 6.6-E2E-008 "Editar" then "Concluir" writes only the changed text and 
   await page.reload();
   const card = cards(page).first();
   await expect(card.locator('.poa-text')).toHaveText('Texto novo', { timeout: 30_000 });
-  await expect(card.locator('.poa-fields dd')).toHaveText('Ação nova');
+  await expect(card.locator('.poa-fields dd').first()).toHaveText('Ação nova');
 });
 
 /**
@@ -573,12 +573,12 @@ test('@p0 6.6-E2E-005 Sumário row 8 reads "5 pontos · 1 sem ação · 3 não e
     ]).drafts,
     ...all.slice(0, 3).map((sheet) => notTestedDraft(scope, sheet.blockId)),
   ]);
-  await expect(row8(page).locator('.sum-status')).toHaveText('5 pontos · 1 sem ação · 3 não ensaiadas');
+  await expect(row8(page).locator('.sum-status')).toHaveText('5 pontos · 1 sem ação · 3 não ensaiadas · 2 pontos sem prazo');
   await openPoints(page);
   await expect(page.getByRole('heading', { level: 2, name: 'Pontos de atenção (2 + 3 automáticos)' })).toBeVisible();
   await expect(cards(page)).toHaveCount(2);
   await expect(autoCards(page)).toHaveCount(3);
-  await expect(cards(page).nth(1).locator('.poa-fields dd')).toHaveText('—');
+  await expect(cards(page).nth(1).locator('.poa-fields dd').first()).toHaveText('—');
 });
 
 test('@p1 6.6-E2E-006 a point citing a removed photo is named on row 8; "Remover" asks, tombstones it and "Desfazer" brings it back', async ({ page }) => {
@@ -590,7 +590,7 @@ test('@p1 6.6-E2E-006 a point citing a removed photo is named on row 8; "Remover
     point = built.rows[0]!;
     return [photoDraft(scope, photoId, 3), { ...officeDraft(account, scope, `file/${photoId}/removed_at`, null), kind: 'remove' as const }, ...built.drafts];
   });
-  await expect(row8(page).locator('.sum-status')).toHaveText('1 ponto · Ponto 1 cita uma foto removida');
+  await expect(row8(page).locator('.sum-status')).toHaveText('1 ponto · Ponto 1 cita uma foto removida · 1 ponto sem prazo');
   await openPoints(page);
   await expect(cards(page).first().locator('.poa-text .photo-ref')).toHaveText('Foto removida');
 
