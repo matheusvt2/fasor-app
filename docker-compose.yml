@@ -234,7 +234,9 @@ services:
     build:
       context: services/ocr
     image: app-ocr
-    mem_limit: 3g
+    # A bound on a runaway, not a tight budget: the pytest run of this image peaked at 6.3 GiB
+    # (measured 2026-09-30, no limit); 3 GiB killed it (exit 137).
+    mem_limit: 8g
     ports:
       - '127.0.0.1:8000:8000'
     # Its health check is the image's own HEALTHCHECK (services/ocr/Dockerfile).
