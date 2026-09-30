@@ -1225,3 +1225,9 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: `reviews/epic-11-review-qa.md` E11-Q2; `sprint-status.yaml` 11-8 and 11-7 comments; `infra/production/budget.tf:6-16,52-75`, `infra/production/iam.tf:58-67`.
   class: test-gap
   state: open (owner: Matheus: the first deploy with `fasor-admin`, then DEPLOY-SMOKE once for the wave (migration task exit 0, `GET /api/health` over HTTPS with every component up) and 11.8-ROLE (one `DetectDocumentText` through the task role, one Converse call outside the allow list denied, `aws iam simulate-principal-policy` for both roles with the deny attached); 11.8 closes only then)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-epic-11-qa-fixes.md`
+  summary: Edge Case Hunter (2026-09-30): a DOCX/PDF file fetch answered 401 (session expired) is worded with the same "could not download" line as a network failure, not as a session problem with a way to sign in again.
+  evidence: `apps/web/src/surfaces/export/revision-file.ts` and `export-dialog.tsx` word every fetch failure alike; `fetchRevisionBlob` in `apps/web/src/sync/client.ts` already carries the HTTP status in `SyncRequestError`.
+  class: debt
+  state: open (owner: Matheus, low; the next Export dialog change)

@@ -2,7 +2,7 @@
 title: 'Epic 11 fixes: integrated review findings and loading states'
 type: 'bugfix'
 created: '2026-09-30'
-status: 'in-progress'
+status: 'done'
 baseline_revision: 'a99e0978f1ee738528367b11adc99617ce9446ce'
 review_loop_iteration: 0
 followup_review_recommended: false
