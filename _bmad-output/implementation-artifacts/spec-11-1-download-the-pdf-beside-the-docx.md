@@ -2,7 +2,7 @@
 title: 'Story 11.1: Download the PDF beside the DOCX'
 type: 'feature'
 created: '2026-09-30'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'd7beb605ccc7cc22c1537c05cac945e78e799650'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -99,6 +99,18 @@ deferred: []
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-09-30 — Review pass
+
+Layers run: Edge Case Hunter, Verification Gap Reviewer. Skipped: Blind Hunter and Intent Alignment (token economy; the integrated epic review covers them).
+
+- verdicts: 5 findings — high 0, medium 0, low 2, false 3, maybe-false 0
+- findings:
+  - `[low]` `[patch]` The navigable prototype `mockups/prototype/index.html:3854-3855` still carried `data-slice="out"` on both revision PDF buttons, so MOCK-GUIDE's new count disagreed with the prototype — patched: the same edit applied to `index.html`; a `build.py` run in a `python:3-slim` container reproduces the edited file byte for byte.
+  - `[false]` `[reject]` A leftover running job's worker could later overwrite `preview_file_id` in the 11.1-INT preview test — the leftovers are rows written by `fakeJob` (`preview.integration.test.ts:150`) with no worker behind them; every real job of the file is awaited to `done` by `waitForJob`.
+  - `[false]` `[reject]` The leftover filter lacks a company predicate, so `endJob` could be rejected for another company's job — `RELATORIO_ID` is company A's; the only company B press on it answers 404 and queues no job (`preview.integration.test.ts:248`), so no other company's job row names it.
+  - `[false]` `[reject]` The draft-equals-issued PDF comparison masks dates but not hh:mm times — the document prints no time: the DOCX rule (`docx-section-10.test.ts:52,79-95`) compares body and header with dates masked only and passes byte for byte.
+  - `[low]` `[reject]` A revision whose PDF object is missing opens a tab with the JSON 404 — the DOCX button has the same pre-existing behavior; the object is written in the same job that creates the revision row, so the state is abnormal, and a guard would add a new error surface for both buttons.
 
 ## Design Notes
 
