@@ -42,4 +42,10 @@ resource "aws_db_instance" "this" {
   final_snapshot_identifier    = "${local.name}-final"
   performance_insights_enabled = false
   auto_minor_version_upgrade   = true
+
+  # Security review 2026-09-30 (I-4): like the buckets, the database is never destroyed by a
+  # plan; deletion_protection alone lets a destroy tear its dependents down first.
+  lifecycle {
+    prevent_destroy = true
+  }
 }

@@ -26,7 +26,7 @@ for stack in "${stacks[@]}"; do
     ghcr.io/terraform-linters/tflint:v0.59.1 --config=/infra/.tflint.hcl --no-color
 done
 check "shellcheck infra/bin" docker run --rm -v "$root/bin:/bin-under-check:ro" -w /bin-under-check \
-  koalaman/shellcheck:v0.11.0 --shell=bash --severity=style tf aws deploy check
+  koalaman/shellcheck:v0.11.0 --shell=bash --severity=style --external-sources tf aws deploy check lib.sh
 
 printf '\n'
 if [ ${#failed[@]} -gt 0 ]; then

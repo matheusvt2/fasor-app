@@ -25,6 +25,14 @@ resource "aws_cloudfront_distribution" "fallback" {
     origin_id   = "instance"
     domain_name = aws_eip.this.public_dns
 
+    # Security review 2026-09-30 (I-8): port 80 is open to the world for ACME, so without a
+    # shared secret anyone could send `Host: <id>.cloudfront.net` to the Elastic IP over plain
+    # HTTP and get the app unencrypted. CloudFront overwrites a viewer's header of this name.
+    custom_header {
+      name  = "X-Origin-Verify"
+      value = random_password.fallback_origin.result
+    }
+
     custom_origin_config {
       http_port              = 80
       https_port             = 443

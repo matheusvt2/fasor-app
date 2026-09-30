@@ -107,10 +107,23 @@ echo "platform $platform, cluster $cluster, services: $services, url $public_url
 read -r -a service_list <<<"$services"
 
 # --- build and push ------------------------------------------------------------------
+# The ECR tags are immutable (storage.tf): a tag already pushed is deployed as it is, never
+# rebuilt and pushed again (the push would be refused). A dry run never asks ECR.
+images_in_ecr() {
+  [ "$dry_run" = 1 ] && return 1
+  local repository
+  for repository in fasor/api fasor/ocr fasor/caddy; do
+    "${aws[@]}" ecr describe-images --repository-name "$repository" --image-ids "imageTag=$tag" >/dev/null 2>&1 || return 1
+  done
+}
+if [ "$skip_build" = 0 ] && images_in_ecr; then
+  echo "tag $tag is already in ECR (immutable tags): deploying it without a rebuild"
+  skip_build=1
+fi
 if [ "$skip_build" = 0 ]; then
   step "build the images for $platform"
   run docker buildx build --platform "$platform" -f "$root/apps/api/Dockerfile.prod" -t "$ecr_api:$tag" --load "$root"
-  run docker buildx build --platform "$platform" -t "$ecr_ocr:$tag" --load "$root/services/ocr"
+  run docker buildx build --platform "$platform" --target runtime -t "$ecr_ocr:$tag" --load "$root/services/ocr"
   run docker buildx build --platform "$platform" -t "$ecr_caddy:$tag" --load "$root/infra/caddy"
 
   step "push the images to ECR"

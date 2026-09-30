@@ -99,8 +99,10 @@ resource "aws_s3_bucket_policy" "files" {
 resource "aws_ecr_repository" "this" {
   for_each = toset(["api", "ocr", "caddy"])
 
-  name                 = "fasor/${each.key}"
-  image_tag_mutability = "MUTABLE"
+  name = "fasor/${each.key}"
+  # Security review 2026-09-30 (I-7): a pushed commit tag is never overwritten, so the image
+  # a rollback names is the one that was tested; the deploy skips the build of a tag already here.
+  image_tag_mutability = "IMMUTABLE"
 
   image_scanning_configuration {
     scan_on_push = true
