@@ -48,6 +48,7 @@ export function MoveBlockDialog({ name, blockId, locations, blocks, equipment, o
         if (!open) onClose();
       }}
       title={t.moveTitle(name)}
+      className="move-dialog"
     >
       <FilterChipGroup options={targets.map((row) => ({ id: row.id, label: row.label }))} selectedId={targetId} onChange={setTargetId} aria-label={t.moveTargetsLabel} />
       {suggestion === null ? null : (

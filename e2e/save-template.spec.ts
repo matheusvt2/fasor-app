@@ -61,7 +61,10 @@ async function templateCreates(page: Page, account: SeedAccount): Promise<Templa
   return ops.filter((op) => op.kind === 'create' && op.path.startsWith('template/')).map((op) => templateRowSchema.parse(op.value));
 }
 
+/** Back to Home as a person would (the Sumário has no Templates link), then its "Templates" link. */
 async function openTemplates(page: Page): Promise<void> {
+  await page.goto('/');
+  await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible({ timeout: 30_000 });
   await page.getByRole('link', { name: /Templates/ }).click();
   await expect(page).toHaveURL(/\/templates$/);
 }

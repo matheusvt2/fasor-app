@@ -1,4 +1,4 @@
-import type { BlockRow, EquipmentRow, RelatorioSnapshot } from '@app/domain';
+import { blockTypeLabel, type BlockRow, type EquipmentRow, type RelatorioSnapshot } from '@app/domain';
 import { copy } from '../../copy/pt-br.ts';
 import { NotTestedDialog } from '../relatorio/not-tested-dialog.tsx';
 import { MoveBlockDialog } from '../relatorio/move-block-dialog.tsx';
@@ -75,7 +75,7 @@ export function FichaDialogs({
 
       {moveDialogOpen ? (
         <MoveBlockDialog
-          name={tag === '' ? block.block_type : tag}
+          name={tag === '' ? blockTypeLabel(block.seed_version, block.block_type) : tag}
           blockId={block.id}
           locations={snapshot.locations}
           blocks={snapshot.blocks}

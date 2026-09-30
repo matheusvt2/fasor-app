@@ -278,21 +278,27 @@ test('@p1 11.2-E2E-005 at 390 px the Move dialog fits: no sideways scroll on the
   const account = seed.companies[1];
   await resetEmpresaB(account, { standard: true });
   await openWithSec05(page, account, 390);
+  // The Sumário behind may already scroll sideways at 390 (not this dialog's doing): the dialog must add nothing.
+  const before = await horizontalOverflow(page);
   await menuOf(page, 'SEC-C05').click();
   await page.getByRole('menuitem', { name: 'Mover para…' }).click();
   const dialog = moveDialog(page, 'SEC-C05');
   await expect(dialog).toBeVisible();
   await dialog.getByRole('radio', { name: '1° Subsolo › Coluna 9', exact: true }).click();
   await expect(dialog.getByRole('checkbox', { name: 'Renomear para SEC-C09' })).toBeVisible();
-  expect(await horizontalOverflow(page)).toBe(0);
+  expect(await horizontalOverflow(page)).toBeLessThanOrEqual(Math.max(before, 0));
   const box = (await dialog.boundingBox())!;
   expect(box.x).toBeGreaterThanOrEqual(0);
   expect(box.x + box.width).toBeLessThanOrEqual(390);
-  // Every scroll container inside the dialog scrolls vertically only.
+  // Every scroll container inside the dialog (overflow-x auto or scroll: an `overflow: hidden`
+  // box clips, it never scrolls) scrolls vertically only, and no chip or row is wider than the dialog.
   const sideways = await dialog.evaluate((root) =>
-    [root, ...root.querySelectorAll('*')].filter((el) => el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).overflowX !== 'visible').length,
+    [root, ...root.querySelectorAll('*')].filter((el) => ['auto', 'scroll'].includes(getComputedStyle(el).overflowX) && el.scrollWidth > el.clientWidth + 1).length,
   );
   expect(sideways).toBe(0);
+  const right = box.x + box.width;
+  const wider = await dialog.locator('.chip, .checkbox, .dialog-actions .btn').evaluateAll((els, edge) => els.filter((el) => el.getBoundingClientRect().right > edge + 0.5).length, right);
+  expect(wider).toBe(0);
   const move = dialog.getByRole('button', { name: 'Mover', exact: true });
   await move.scrollIntoViewIfNeeded();
   await expect(move).toBeInViewport();

@@ -227,16 +227,21 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
             return;
           }
           host.reveal(targetId);
+          // The moved row's open button, only once it is drawn under the target: the row in
+          // its old place is unmounted by the move, so focusing it would drop the focus on body.
+          const moved = () => {
+            const row = blockRow(host.root(), node.blockId);
+            return row !== null && row.closest(`li[data-location-id="${esc(targetId)}"]`) !== null ? blockOpen(host.root(), node.blockId) : null;
+          };
+          // Watched from now, not from the settle: the Move dialog's own focus return and a
+          // slow re-render (the settle's fallback fires before the row is drawn) must not win.
+          restoreFocus(moved, { mode: 'settled', frames: 600 });
           // Said, and the toast shown, in the render that draws the row under its new
-          // location (Q7); the focus goes to the moved row's open button once drawn.
+          // location (Q7).
           settle(
-            () => {
-              const row = blockRow(host.root(), node.blockId);
-              return row === null || row.closest(`li[data-location-id="${esc(targetId)}"]`) !== null;
-            },
+            () => blockRow(host.root(), node.blockId) === null || moved() !== null,
             plan.text,
             () => {
-              restoreFocus(() => blockOpen(host.root(), node.blockId), { mode: 'settled' });
               // "Desfazer" puts it back: the focus goes to its Overflow trigger under the old location.
               undoable(
                 plan.text,
