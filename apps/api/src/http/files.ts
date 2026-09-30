@@ -129,6 +129,8 @@ export interface FileRoutesDeps {
    * runs without a queue: the upload still succeeds and the photo stays `queued`.
    */
   enqueueReading?: (payload: ReadingPayload) => Promise<void>;
+  /** Story 11.8 follow-up: `false` when `AI_FEATURES=off` (`jobs/reading/send.ts`); absent reads as on. */
+  aiFeatures?: boolean;
 }
 
 export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: FileRoutesDeps): Hono<AppEnv> {
@@ -190,7 +192,7 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
   /** Sends the photo's reading (of its own kind, Story 9.1; `jobs/reading/send.ts`). */
   async function queueReading(companyId: CompanyId, lookup: FileRowLookup, readingKind: ReadingKind): Promise<void> {
     await sendReading(
-      { db, now: deps.now, newId, ...(deps.enqueueReading === undefined ? {} : { enqueue: deps.enqueueReading }) },
+      { db, now: deps.now, newId, ...(deps.enqueueReading === undefined ? {} : { enqueue: deps.enqueueReading }), ...(deps.aiFeatures === undefined ? {} : { aiFeatures: deps.aiFeatures }) },
       companyId,
       { id: lookup.row.id, relatorioId: lookup.relatorioId },
       readingKind,

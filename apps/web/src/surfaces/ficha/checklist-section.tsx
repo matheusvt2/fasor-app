@@ -34,6 +34,7 @@ import { checklistObservationOp, checklistResultOp } from './ficha-ops.ts';
 import { CreatePointAction } from '../points/create-point-action.tsx';
 import { DictatedSuggestion, DictationButton, useProseDictation, useSpeechAvailable } from '../../speech/dictation.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
+import { useAiFeatures } from '../../state/ai-features.tsx';
 
 /*
  * Story 5.4 (FR-25, FR-26, UX-DR36-38, UX-DR44; `60-ficha.html` "Verificações gerais"):
@@ -282,7 +283,9 @@ function ChecklistRow({
   const empty = typed.text.trim() === '';
   // Story 9.5: the row's NC draft, while nothing is typed; a draft discarded here is not shown again before its echo.
   const [discardedId, setDiscardedId] = useState<string | null>(null);
-  const kernelDraft = readOnly || !empty ? null : ncDraftFor(block, item.key, pending);
+  // Story 11.8 follow-up: no NC draft while the server's AI features are off.
+  const aiFeatures = useAiFeatures();
+  const kernelDraft = readOnly || !empty || !aiFeatures ? null : ncDraftFor(block, item.key, pending);
   const draft = kernelDraft !== null && kernelDraft.id === discardedId ? null : kernelDraft;
   const discardDraft = () => {
     const held = readOnly ? null : ncDraftFor(block, item.key, pending);

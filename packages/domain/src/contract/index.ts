@@ -34,7 +34,14 @@ export type HealthResponse = z.infer<typeof healthResponseSchema>;
  * registration fields of their kernel `user` entity. The registration is written only
  * as `user/{id}/{field}` ops through the sync push; there is no account write route.
  */
-export const accountResponseSchema = z.object({ user: userProfileSchema });
+export const accountResponseSchema = z.object({
+  user: userProfileSchema,
+  /**
+   * Story 11.8 follow-up: the server's `AI_FEATURES` flag. While `ai` is false the web hides
+   * every entry point of a reading kind `readingNeedsAi` names.
+   */
+  features: z.object({ ai: z.boolean() }),
+});
 
 export type AccountResponse = z.infer<typeof accountResponseSchema>;
 

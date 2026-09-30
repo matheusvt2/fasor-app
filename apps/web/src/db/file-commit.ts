@@ -1,4 +1,5 @@
-import { captionReadingOf, filePath, type JsonValue, type OpDraft, type PhotoFileRow, type UploadFileKind } from '@app/domain';
+import { captionReadingOf, filePath, readingNeedsAi, type JsonValue, type OpDraft, type PhotoFileRow, type UploadFileKind } from '@app/domain';
+import { readAiFeatures } from '../state/last-session.ts';
 import type { PickedFile } from '../components/upload-tile.tsx';
 import { commitFileBatch, commitPhotoBatch, type CommitDeps } from './commit.ts';
 import { readLocalBlob, localFileRow } from './file-store.ts';
@@ -113,10 +114,13 @@ export function photoCreateDraft(input: Omit<PhotoCaptureInput, 'thumb'>, localS
   // Story 9.3: a photo with no reading of its own and no context (no sheet, no caption, no
   // people mark) asks for a vision caption (the kernel's rule, `captionReadingOf`).
   // A null `reading` asks for none (a gallery import batch, which asks once answered).
-  const reading =
+  const asked =
     input.reading === null
       ? undefined
       : (input.reading ?? captionReadingOf({ block_id: input.blockId, caption: input.caption, people_in_photo: peopleInPhoto }) ?? undefined);
+  // Story 11.8 follow-up: while the server's AI features are off (the cached `features.ai`),
+  // a kind that needs the LLM step is not asked for; the photo is saved with no reading.
+  const reading = asked !== undefined && readingNeedsAi(asked.kind) && readAiFeatures() === false ? undefined : asked;
   return {
     scope: 'relatorio',
     company_id: input.companyId,

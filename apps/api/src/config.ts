@@ -36,6 +36,12 @@ export const configSchema = z
     AUTH_BASE_URL: z.string().url().optional(),
     LLM_PROVIDER: z.enum(['fake', 'anthropic', 'bedrock']).default('fake'),
     OCR_PROVIDER: z.enum(['fake', 'textract', 'ocr-svc']).default('fake'),
+    /**
+     * Story 11.8 follow-up: `off` refuses every reading whose pipeline needs the LLM step
+     * (`readingNeedsAi`: plate, panel, caption, nc_obs) and tells the web to hide their entry
+     * points; `display` (OCR only) stays. Production runs `off` until the Bedrock quota (Story 11.6).
+     */
+    AI_FEATURES: z.preprocess(unsetWhenEmpty, z.enum(['on', 'off']).default('on')),
     /** Story 8.3: base URL of the `services/ocr` sidecar (compose profile `ocr`), read by the `ocr-svc` provider. */
     OCR_SERVICE_URL: z.string().url().default('http://ocr:8000'),
     /** Story 11.7: the region of the `textract` provider; Textract has no `sa-east-1` endpoint. */

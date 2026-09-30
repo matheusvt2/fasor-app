@@ -97,6 +97,8 @@ export interface AppOptions {
    * neither, file receipt leaves a plate photo `queued` and the reread route answers 500.
    */
   enqueueReading?: (payload: ReadingPayload) => Promise<void>;
+  /** Story 11.8 follow-up: `config.AI_FEATURES === 'on'`; absent reads as on (every existing test). */
+  aiFeatures?: boolean;
 }
 
 const notFoundBody: ErrorResponse = { code: 'not_found', message: 'No such route.' };
@@ -138,7 +140,8 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
   app.route('/', createHealthRoutes(options.probes));
 
   app.use('/api/*', sessionMiddleware(options.auth));
-  app.route('/', createAccountRoutes(options.db));
+  const aiFeatures = options.aiFeatures ?? true;
+  app.route('/', createAccountRoutes(options.db, { aiFeatures }));
   const boss = options.boss;
   const sendReading =
     options.enqueueReading ?? (boss === undefined ? undefined : (payload: ReadingPayload) => enqueueReading(boss, payload));
@@ -149,6 +152,7 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
       now: options.now ?? clock,
       newId: options.newId ?? mintId,
       ...(sendReading === undefined ? {} : { enqueueReading: sendReading }),
+      aiFeatures,
     }),
   );
   // AD-7: mounted after the sync routes so it sits behind the same `/api/*` session
@@ -158,6 +162,7 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
     createFileRoutes(options.db, options.s3, options.bucket, {
       now: options.now ?? clock,
       ...(sendReading === undefined ? {} : { enqueueReading: sendReading }),
+      aiFeatures,
     }),
   );
   // Story 8.4: the reread route, behind the same session middleware.
@@ -167,6 +172,7 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
       now: options.now ?? clock,
       newId: options.newId ?? mintId,
       ...(sendReading === undefined ? {} : { enqueueReading: sendReading }),
+      aiFeatures,
     }),
   );
   // AD-15: the generate barrier and the revision download, behind the same session middleware.

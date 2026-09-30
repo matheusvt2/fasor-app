@@ -1,9 +1,9 @@
 import 'fake-indexeddb/auto';
-import type { UserProfile } from '@app/domain';
+import type { AccountResponse, UserProfile } from '@app/domain';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { databaseName, openDatabase } from '../db/schema.ts';
-import { readLastSession, readReAuthRequired, writeLastSession, writeReAuthRequired } from './last-session.ts';
+import { clearLastSession, readAiFeatures, readLastSession, readReAuthRequired, writeAiFeatures, writeLastSession, writeReAuthRequired } from './last-session.ts';
 import { SessionProvider, useSession, withUnsentRegistration, type SessionState } from './session.tsx';
 
 /*
@@ -13,7 +13,7 @@ import { SessionProvider, useSession, withUnsentRegistration, type SessionState 
  * with no network call.
  */
 
-const readSession = vi.fn<() => Promise<UserProfile | null>>();
+const readSession = vi.fn<() => Promise<AccountResponse | null>>();
 const signIn = vi.fn();
 /** The listener the provider registers for a 401 mid-use (the sync engine publishes it). */
 let reAuthListener: (() => void) | null = null;
@@ -101,7 +101,7 @@ describe('boot with a session the server dropped (retro A8)', () => {
   it('a later boot the server confirms clears the remembered 401', async () => {
     writeLastSession(profile);
     writeReAuthRequired(true);
-    readSession.mockResolvedValue(profile);
+    readSession.mockResolvedValue({ user: profile, features: { ai: true } });
     renderSession();
     await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent(`signed-in|ok|${profile.id}`));
     expect(readReAuthRequired()).toBe(false);
@@ -126,7 +126,7 @@ describe('the remembered 401 (retro A8)', () => {
 
   it('a 401 mid-use is remembered, so an offline reopen shows the banner', async () => {
     writeLastSession(profile);
-    readSession.mockResolvedValue(profile);
+    readSession.mockResolvedValue({ user: profile, features: { ai: true } });
     const view = renderSession();
     await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('signed-in|ok'));
     act(() => reAuthListener?.());
@@ -142,7 +142,7 @@ describe('the remembered 401 (retro A8)', () => {
     readSession.mockResolvedValue(null);
     const view = renderSession();
     await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('signed-in|re-auth'));
-    signIn.mockResolvedValue({ ok: true, user: profile });
+    signIn.mockResolvedValue({ ok: true, user: profile, features: { ai: true } });
     await act(() => current!.signIn(profile.email, 'senha').then(() => undefined));
     await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent('signed-in|ok'));
     expect(readReAuthRequired()).toBe(false);
@@ -173,7 +173,7 @@ describe('boot with a registration saved offline and not pushed yet (retro A5 it
 
     // Reload online: the server answers with the profile it had before the save, and the
     // company pull has not brought the user row yet.
-    readSession.mockResolvedValue(profile);
+    readSession.mockResolvedValue({ user: profile, features: { ai: true } });
     const second = renderSession();
     await waitFor(() => expect(screen.getByTestId('probe')).toHaveTextContent(`signed-in|ok|${profile.id}`));
     await waitFor(() => expect(current!.user).toMatchObject(saved));
@@ -197,7 +197,7 @@ describe('boot with a registration saved offline and not pushed yet (retro A5 it
     await act(() => current!.saveRegistration(saved));
 
     // The server answers the sign-in with the profile it had before the save.
-    signIn.mockResolvedValue({ ok: true, user: profile });
+    signIn.mockResolvedValue({ ok: true, user: profile, features: { ai: true } });
     await act(async () => {
       await current!.signIn(profile.email, 'senha');
     });
@@ -258,5 +258,34 @@ describe('saveRegistration (retro A2)', () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe('the server AI features flag (Story 11.8 follow-up)', () => {
+  it('defaults on, takes the fresh read and caches it', async () => {
+    readSession.mockResolvedValue({ user: profile, features: { ai: false } });
+    renderSession();
+    await waitFor(() => expect(current?.status).toBe('signed-in'));
+    expect(current?.aiFeatures).toBe(false);
+    expect(readAiFeatures()).toBe(false);
+  });
+
+  it('an offline boot uses the cached flag; sign-out clears it', async () => {
+    writeLastSession(profile);
+    writeAiFeatures(false);
+    readSession.mockRejectedValue(new TypeError('Failed to fetch'));
+    renderSession();
+    await waitFor(() => expect(current?.status).toBe('signed-in'));
+    expect(current?.aiFeatures).toBe(false);
+    clearLastSession();
+    expect(readAiFeatures()).toBeNull();
+  });
+
+  it('with no read and no cache the flag is on', async () => {
+    readSession.mockRejectedValue(new TypeError('Failed to fetch'));
+    writeLastSession(profile);
+    renderSession();
+    await waitFor(() => expect(current?.status).toBe('signed-in'));
+    expect(current?.aiFeatures).toBe(true);
   });
 });

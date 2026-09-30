@@ -29,6 +29,7 @@ import { firstFocusable, ReadOnlyField, SheetField } from './ficha-fields.tsx';
 import { createWordOp, nameplateOp } from './ficha-ops.ts';
 import type { PhotoTile } from '../../db/photo-store.ts';
 import { NameplateField, ReplaceLine, SuggestionFill, SuggestionGroupHead, useNameplateSuggestions } from './nameplate-suggestions.tsx';
+import { useAiFeatures } from '../../state/ai-features.tsx';
 import { PlateCameraGroup, PlateCrop, PlatePhotoRow } from './plate-photo.tsx';
 import { useSheetReadOnly } from './sheet-read-only.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
@@ -76,6 +77,8 @@ export function NameplateSection({
   onCaptionPhoto?: (tile: PhotoTile) => void;
 }) {
   const t = copy.ficha.nameplate;
+  // Story 11.8 follow-up: "Fotografar placa" (the plate reading) is hidden while the server's AI features are off.
+  const aiFeatures = useAiFeatures();
   const headingId = useId();
   const readOnly = useSheetReadOnly();
   const suggestions = useNameplateSuggestions({
@@ -200,7 +203,7 @@ export function NameplateSection({
         <PlateCrop photoId={plate.id} region={region} focused={focusedBox} onOpen={() => suggestions.openPhoto(plate.id, region)} />
       ) : null}
       {grouped ? <SuggestionGroupHead model={suggestions} /> : null}
-      {plate === null && !readOnly ? <PlateCameraGroup relatorioId={api.relatorioId} target={plateTarget} chips={chipRow} /> : chipRow}
+      {plate === null && !readOnly && aiFeatures ? <PlateCameraGroup relatorioId={api.relatorioId} target={plateTarget} chips={chipRow} /> : chipRow}
       {plate !== null && view !== null && view !== 'ready' ? (
         <>
           <PlatePhotoRow

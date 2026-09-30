@@ -13,6 +13,8 @@ import { userProfileSchema, type UserProfile } from '@app/domain';
  */
 const KEY = 'releng.last-session';
 const RE_AUTH_KEY = 'releng.re-auth-required';
+/** Story 11.8 follow-up: the server's `features.ai`, cached for an offline boot like the profile. */
+const AI_FEATURES_KEY = 'releng.ai-features';
 
 export function readLastSession(): UserProfile | null {
   try {
@@ -38,6 +40,7 @@ export function clearLastSession(): void {
   try {
     window.localStorage.removeItem(KEY);
     window.localStorage.removeItem(RE_AUTH_KEY);
+    window.localStorage.removeItem(AI_FEATURES_KEY);
   } catch {
     // Nothing to do: the pointer is a convenience, never a source of truth.
   }
@@ -64,5 +67,23 @@ export function writeReAuthRequired(required: boolean): void {
     else window.localStorage.removeItem(RE_AUTH_KEY);
   } catch {
     // Blocked storage: the banner still shows for this session, only not across a reopen.
+  }
+}
+
+/** Story 11.8 follow-up: the last `features.ai` the server answered, or null when never read. */
+export function readAiFeatures(): boolean | null {
+  try {
+    const raw = window.localStorage.getItem(AI_FEATURES_KEY);
+    return raw === 'on' ? true : raw === 'off' ? false : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeAiFeatures(on: boolean): void {
+  try {
+    window.localStorage.setItem(AI_FEATURES_KEY, on ? 'on' : 'off');
+  } catch {
+    // Blocked storage: the flag holds for this session, only not across an offline reopen.
   }
 }

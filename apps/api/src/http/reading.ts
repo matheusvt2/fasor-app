@@ -1,6 +1,7 @@
 import {
   fileRowSchema,
   READING_REREAD_PATH,
+  readingNeedsAi,
   uuidV7Schema,
   type Clock,
   type ErrorCode,
@@ -32,6 +33,8 @@ export interface ReadingRoutesDeps {
   newId: NewId;
   /** Sends the job; absent when the app runs without a queue (the route then answers 500). */
   enqueueReading?: (payload: ReadingPayload) => Promise<void>;
+  /** Story 11.8 follow-up: `false` when `AI_FEATURES=off`; a kind `readingNeedsAi` names then answers 409. */
+  aiFeatures?: boolean;
 }
 
 function fail(code: ErrorCode, message: string): ErrorResponse {
@@ -61,6 +64,7 @@ export function createReadingRoutes(db: Db, deps: ReadingRoutesDeps): Hono<AppEn
     // Only a kind the job reads is read again; another stays as the device queued it.
     const kind = photo.reading_kind;
     if (kind === null || readingKindHandler(kind) === undefined) return c.json(fail('invalid_request', 'This photo is not a reading the job reads.'), 400);
+    if (deps.aiFeatures === false && readingNeedsAi(kind)) return c.json(fail('ai_features_off', 'AI features are off on this server.'), 409);
     if (photo.uploaded_at === null) return c.json(fail('not_caught_up', 'The photo has not been uploaded yet.'), 409);
     // E78-Q5: a reading already running is not started again (every further tap was one more run).
     if (photo.reading_status === 'running') return c.json(fail('reading_running', 'This photo is being read.'), 409);

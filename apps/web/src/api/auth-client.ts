@@ -1,4 +1,4 @@
-import { ACCOUNT_ROUTES, accountResponseSchema, type UserProfile } from '@app/domain';
+import { ACCOUNT_ROUTES, accountResponseSchema, type AccountResponse, type UserProfile } from '@app/domain';
 import { createAuthClient } from 'better-auth/client';
 import { copy } from '../copy/pt-br.ts';
 
@@ -43,10 +43,10 @@ export function publishReAuth(): void {
 export type SignInFailure = 'credentials' | 'server' | 'offline';
 
 export type SignInResult =
-  | { ok: true; user: UserProfile }
+  | { ok: true; user: UserProfile; features: AccountResponse['features'] }
   | { ok: false; reason: SignInFailure; message: string };
 
-async function readAccount(): Promise<UserProfile | null> {
+async function readAccount(): Promise<AccountResponse | null> {
   const route = ACCOUNT_ROUTES.read;
   const response = await fetch(route.path, {
     method: route.method,
@@ -55,15 +55,16 @@ async function readAccount(): Promise<UserProfile | null> {
   });
   if (response.status === 401) return null;
   if (!response.ok) throw new Error(`${route.method} ${route.path} failed with ${response.status}`);
-  return accountResponseSchema.parse(await response.json()).user;
+  return accountResponseSchema.parse(await response.json());
 }
 
 /**
  * Boot read. A 401 here only means "no session yet", so it raises no banner: the router
  * sends the visitor to Login instead. A thrown error means the server was unreachable,
- * which the caller tells apart from a 401.
+ * which the caller tells apart from a 401. Story 11.8 follow-up: the server's feature flags
+ * travel beside the profile.
  */
-export function readSession(): Promise<UserProfile | null> {
+export function readSession(): Promise<AccountResponse | null> {
   return readAccount();
 }
 
@@ -120,9 +121,9 @@ export async function signIn(email: string, password: string): Promise<SignInRes
     return isClientRejection(error.status) ? credentialsRejected : unreachable();
   }
   try {
-    const user = await readAccount();
-    if (user === null) return credentialsRejected;
-    return { ok: true, user };
+    const account = await readAccount();
+    if (account === null) return credentialsRejected;
+    return { ok: true, user: account.user, features: account.features };
   } catch {
     return unreachable();
   }

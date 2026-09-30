@@ -55,7 +55,7 @@ if (config.WORKER === '1') {
   // Story 8.4: the plate reading worker, on the providers the env names (both `fake` by default);
   // Story 11.7: `OCR_PROVIDER=textract` reads through TEXTRACT_REGION.
   await registerReadingWorker(boss, { db, s3, bucket: config.S3_BUCKET, now, newId, providers: createReadingProviders(config) });
-  log('reading worker registered', { ocr_provider: config.OCR_PROVIDER, llm_provider: config.LLM_PROVIDER, textract_region: config.TEXTRACT_REGION });
+  log('reading worker registered', { ocr_provider: config.OCR_PROVIDER, llm_provider: config.LLM_PROVIDER, ai_features: config.AI_FEATURES, textract_region: config.TEXTRACT_REGION });
 }
 
 const auth = createAuth({
@@ -71,6 +71,7 @@ const app = createApp({
   s3,
   bucket: config.S3_BUCKET,
   boss,
+  aiFeatures: config.AI_FEATURES === 'on',
   probes: {
     db: () => sql`select 1`,
     queue: () => boss.getQueues(),

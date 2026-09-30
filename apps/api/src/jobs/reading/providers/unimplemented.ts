@@ -1,5 +1,5 @@
 import type { ProseProvider, StructuringProvider } from '@app/domain';
-import { ProviderNotImplementedError } from './errors.ts';
+import { AiFeaturesOffError, ProviderNotImplementedError } from './errors.ts';
 
 /*
  * Story 8.4: the provider slots Epic 11 fills (the Claude structuring call through the
@@ -21,6 +21,24 @@ export function unimplementedProseProvider(name: 'anthropic' | 'bedrock'): Prose
   return {
     async describe() {
       throw new ProviderNotImplementedError(name);
+    },
+  };
+}
+
+/** Story 11.8 follow-up: the structuring slot while `AI_FEATURES=off`; every call fails permanently. */
+export function aiFeaturesOffStructuringProvider(): StructuringProvider {
+  return {
+    async structure() {
+      throw new AiFeaturesOffError();
+    },
+  };
+}
+
+/** Story 11.8 follow-up: the prose slot while `AI_FEATURES=off`; every call fails permanently. */
+export function aiFeaturesOffProseProvider(): ProseProvider {
+  return {
+    async describe() {
+      throw new AiFeaturesOffError();
     },
   };
 }
