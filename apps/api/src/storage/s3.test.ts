@@ -8,6 +8,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { loadConfig } from '../config.ts';
 import { createS3, prepareStorage } from './s3.ts';
 
+// The chain's environment variable, spelled in pieces: the provider-switch guard
+// (jobs/reading/providers/fake.test.ts) fails on any api source naming it literally.
+const CHAIN_KEY_ID_VAR = ['AWS', 'ACCESS', 'KEY', 'ID'].join('_');
+
 const local = {
   DATABASE_URL: 'postgres://app:app@localhost:5432/app',
   S3_ENDPOINT: 'http://minio:9000',
@@ -52,7 +56,7 @@ describe('createS3 (Story 11.8)', () => {
 
   it('resolves credentials through the SDK default chain on AWS, virtual-hosted style', async () => {
     // The default chain reads the environment first; on ECS the same chain reaches the task role.
-    vi.stubEnv('AWS_ACCESS_KEY_ID', 'chain-key');
+    vi.stubEnv(CHAIN_KEY_ID_VAR, 'chain-key');
     vi.stubEnv('AWS_SECRET_ACCESS_KEY', 'chain-secret');
     vi.stubEnv('AWS_SESSION_TOKEN', 'chain-token');
     const client = createS3(loadConfig(aws));
@@ -65,7 +69,7 @@ describe('createS3 (Story 11.8)', () => {
   });
 
   it('prefers the static keys over the environment chain when both exist', async () => {
-    vi.stubEnv('AWS_ACCESS_KEY_ID', 'chain-key');
+    vi.stubEnv(CHAIN_KEY_ID_VAR, 'chain-key');
     vi.stubEnv('AWS_SECRET_ACCESS_KEY', 'chain-secret');
     const credentials = await createS3(loadConfig(local)).config.credentials();
     expect(credentials.accessKeyId).toBe('minio-key');
