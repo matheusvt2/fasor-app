@@ -2,7 +2,7 @@
 title: 'Stories 11.2 + 11.3: Move a block and save a relatório as a template'
 type: 'feature'
 created: '2026-09-30'
-status: 'in-progress'
+status: 'done'
 baseline_revision: 'd7beb605ccc7cc22c1537c05cac945e78e799650'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -12,7 +12,21 @@ context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-11-context.md'
 warnings: ['batched', 'multiple-goals', 'oversized']
 batched_reason: 'Both stories work on the relatório location/block structure: 11.3 projects the location skeleton that 11.2 changes (11.3-AFTER-MOVE), so one batch owns both sides of that pair.'
-deferred: []
+deferred:
+  - summary: >-
+      The rename suggestion shown in the Move dialog can differ from the TAG committed when it was taken meanwhile.
+    evidence: |-
+      movePlan recomputes the suggestion on fresh rows (intended, unit-tested); the toast names the committed TAG but the user is not told it differs from the checkbox label.
+    location: >-
+      apps/web/src/surfaces/relatorio/move-block-dialog.tsx
+    severity: low
+  - summary: >-
+      No server-side check that a block/{id}/location_id put names a live location of the same relatório.
+    evidence: |-
+      The UI offers only live locations of the relatório, but a concurrent removal of the target coluna on another device leaves the block under a removed location (hidden from the tree). No new refusal was added to keep the contract at 13.
+    location: >-
+      packages/domain/src/ops/apply.ts
+    severity: medium (unverified)
 ---
 
 <intent-contract>
@@ -98,6 +112,25 @@ deferred: []
 - Given the Sumário header Overflow, when the user taps "Salvar como template", names it and confirms, then one `template/{id}` create carries the live locations, each cabine's `agrupar_por_tipo`, each block's `BlockConfig` and quantity per column, and none of the relatório's data; the template appears in /templates, and "Desfazer" removes it (11.3-UNDO).
 - Given a move then a save, then the template's quantity per column reflects the moved block (11.3-AFTER-MOVE).
 
+## Review Triage Log
+
+### 2026-09-30 — Review pass
+- Skipped layers: Blind Hunter and Intent Alignment (token economy; the integrated epic review covers them).
+- verdicts: 12 findings — high 0, medium 3, low 7, false 1, maybe-false 1
+- findings:
+  - `[medium]` `[patch]` Save-template toasts "salvo" when edit resolves null — early return on a null batch.
+  - `[low]` `[patch]` Move text used raw block_type slug without equipment — falls back to blockTypeLabel.
+  - `[low]` `[patch]` Move text had no subject with a blank TAG — same fallback, unit case added.
+  - `[low]` `[patch]` "Mover para…" offered with no targets — item shown only when moveTargets is non-empty (tree and ficha).
+  - `[medium]` `[patch]` Accepted rename carried to a newly picked target — rename resets on target change.
+  - `[low]` `[defer]` Shown suggestion can differ from committed TAG — intended recompute; deferred with note.
+  - `[low]` `[patch]` same-location refusal showed the "gone" toast — now a silent no-op.
+  - `[false]` `[reject]` Blank location name breaks the template schema — location rows use nodeNameSchema, a live location cannot be blank.
+  - `[maybe-false]` `[reject]` Blocks under an orphan coluna silently dropped — unreachable through the UI (colunas only under cabines); would be low.
+  - `[medium]` `[patch]` Refused move toast untested — unit case in relatorio-tree-edges.test.tsx (target removed, toast, empty outbox).
+  - `[low]` `[patch]` Ficha-header move undo untested — 11.2-E2E-003 now presses "Desfazer" and checks location_id/order_key.
+  - `[low]` `[patch]` MAX_QUANTITY split never exercised — 101 equal blocks give [99, 2] and parse.
+
 ## Design Notes
 
 "Tree row" vs "Block card" vs "Sumário expansion": in code the Sumário expansion IS the location tree in its `sumario` presentation, whose equipment row is the Block card (`not-tested-dialog.tsx` names it so); the ficha header is where the mock draws the item. The rail presentation has no Overflow on equipment rows in mock or code, so it gets none (open question).
@@ -111,3 +144,7 @@ The 11.2-MERGE assertion's "one info row" cannot come from a move against a cell
 - `docker compose --profile tools run --rm tools pnpm lint` and `pnpm static` -- green
 - `docker compose --profile tools run --rm tools pnpm test:api -- move-block` -- green
 - `docker compose --profile tools run --rm tools pnpm test:e2e -- e2e/move-block.spec.ts e2e/save-template.spec.ts` (check `scripts/e2e.ts` for how to pass specs and to include `@p1`) -- green
+
+## Auto Run Result
+
+Status: done. Stories 11.2 and 11.3 implemented with existing op families (no contract bump). Kernel: `relatorio/move.ts` (moveTargets, moveTagSuggestion, movePlan, texts), `templates/from-relatorio.ts` (templateFromRelatorio, templateSavedText). Web: Move dialog (Sumário Block card and ficha header), Save-as-template dialog (Sumário header). Tests: kernel units, api integration through the sync route, e2e move-block (7), save-template (3), move-block durability (1). Review: 9 patches, 1 deferred, 2 rejected. followup_review_recommended: false (no high patched; medium patches were small guards verified by tests). Residual risk: no server check that a location_id put names a live location (deferred).
