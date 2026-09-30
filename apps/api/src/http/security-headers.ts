@@ -79,7 +79,9 @@ export function htmlContentSecurityPolicy(html: string): string {
     "connect-src 'self'",
     "worker-src 'self'",
     "manifest-src 'self'",
-    "object-src 'none'",
+    // A certificate PDF opens as a `blob:` tab that inherits this policy; Chrome's PDF viewer
+    // is governed by object-src, so blobs (always created by this origin's own script) pass.
+    "object-src 'self' blob:",
     "base-uri 'none'",
     "form-action 'self'",
     "frame-src 'none'",

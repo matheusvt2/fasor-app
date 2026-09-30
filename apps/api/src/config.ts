@@ -106,6 +106,30 @@ export const configSchema = z
 
 export type Config = z.infer<typeof configSchema>;
 
+/**
+ * The request limits `createApp` gets from the configuration (`main.ts`): absent when they
+ * are off, else the sign-in and push rules and whether a proxy is trusted.
+ */
+export function requestLimits(
+  config: Pick<
+    Config,
+    | 'RATE_LIMIT'
+    | 'NODE_ENV'
+    | 'SIGN_IN_RATE_LIMIT_MAX'
+    | 'SIGN_IN_RATE_LIMIT_WINDOW_SECONDS'
+    | 'PUSH_RATE_LIMIT_MAX'
+    | 'PUSH_RATE_LIMIT_WINDOW_SECONDS'
+    | 'TRUST_PROXY'
+  >,
+): { signIn: { max: number; windowMs: number }; push: { max: number; windowMs: number }; trustProxy: boolean } | undefined {
+  if (!rateLimitEnabled(config)) return undefined;
+  return {
+    signIn: { max: config.SIGN_IN_RATE_LIMIT_MAX, windowMs: config.SIGN_IN_RATE_LIMIT_WINDOW_SECONDS * 1000 },
+    push: { max: config.PUSH_RATE_LIMIT_MAX, windowMs: config.PUSH_RATE_LIMIT_WINDOW_SECONDS * 1000 },
+    trustProxy: config.TRUST_PROXY === '1',
+  };
+}
+
 /** Whether the request limits run: `RATE_LIMIT` when set, else on exactly in production. */
 export function rateLimitEnabled(config: Pick<Config, 'RATE_LIMIT' | 'NODE_ENV'>): boolean {
   return config.RATE_LIMIT === undefined ? config.NODE_ENV === 'production' : config.RATE_LIMIT === 'on';

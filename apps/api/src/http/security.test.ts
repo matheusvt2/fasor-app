@@ -52,6 +52,18 @@ describe('security headers', () => {
     expect(auth.headers.get('x-frame-options')).toBe('DENY');
   });
 
+  it('sets the base headers on a 500 from a route that throws', async () => {
+    const app = new Hono();
+    app.use('*', securityHeaders());
+    app.onError((_error, c) => c.json({ code: 'internal_error' }, 500));
+    app.get('/api/boom', () => {
+      throw new Error('boom');
+    });
+    const res = await app.request('/api/boom');
+    expect(res.status).toBe(500);
+    for (const [name, value] of Object.entries(BASE_SECURITY_HEADERS)) expect(res.headers.get(name), name).toBe(value);
+  });
+
   it('keeps a header the route set itself', async () => {
     const app = new Hono();
     app.use('*', securityHeaders());
@@ -87,7 +99,7 @@ describe('security headers', () => {
       const shell = await app.request('/some/client/route');
       const csp = shell.headers.get('content-security-policy') ?? '';
       expect(csp).toContain("default-src 'self'");
-      expect(csp).toContain("object-src 'none'");
+      expect(csp).toContain("object-src 'self' blob:");
       expect(csp).toContain("frame-ancestors 'none'");
       expect(csp).toContain(inlineScriptHashes(html)[0]);
       expect(shell.headers.get('x-content-type-options')).toBe('nosniff');
@@ -189,6 +201,35 @@ describe('rate limits', () => {
     const refused = await push();
     expect(refused.status).toBe(429);
     expect(await refused.json()).toMatchObject({ code: 'rate_limited' });
+  });
+
+  it('refuses a sign-in body that is not JSON with 415, so no e-mail escapes its key', async () => {
+    const app = makeApp({ rateLimits });
+    const res = await app.request('/api/auth/sign-in/email', {
+      method: 'POST',
+      headers: { 'content-type': 'application/x-www-form-urlencoded', 'x-forwarded-for': '10.0.2.1' },
+      body: 'email=victim%40review.test&password=guess',
+    });
+    expect(res.status).toBe(415);
+    expect(await res.json()).toMatchObject({ code: 'invalid_request' });
+  });
+
+  it('does not count an attempt the address limit refused against the e-mail', async () => {
+    const app = makeApp({ rateLimits });
+    for (let i = 0; i < 3; i++) await app.request('/api/auth/sign-in/email', signIn(`noise${i}@review.test`, '10.0.3.1'));
+    // The address is spent: these never reach the e-mail limiter.
+    for (let i = 0; i < 5; i++) expect((await app.request('/api/auth/sign-in/email', signIn('owner@review.test', '10.0.3.1'))).status).toBe(429);
+    // So the owner, from their own address, still has all their attempts.
+    for (let i = 0; i < 3; i++) expect((await app.request('/api/auth/sign-in/email', signIn('owner@review.test', `10.0.4.${i}`))).status).toBe(401);
+  });
+
+  it('holds at most maxKeys keys, dropping the oldest', () => {
+    const limiter = new FixedWindowLimiter({ max: 1, windowMs: 60_000 }, () => 0, 3);
+    for (const key of ['a', 'b', 'c', 'd']) limiter.consume(key);
+    expect(limiter.size).toBe(3);
+    // `a` was dropped, so it starts a fresh window; `d` is still counted.
+    expect(limiter.consume('a').allowed).toBe(true);
+    expect(limiter.consume('d').allowed).toBe(false);
   });
 
   it('opens a new window once the old one ends', () => {

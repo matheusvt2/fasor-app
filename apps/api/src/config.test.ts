@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { ConfigError, KNOWN_DEV_SESSION_SECRETS, loadConfig, rateLimitEnabled } from './config.ts';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { ConfigError, KNOWN_DEV_SESSION_SECRETS, loadConfig, rateLimitEnabled, requestLimits } from './config.ts';
 
 const valid = {
   DATABASE_URL: 'postgres://app:app@localhost:5432/app',
@@ -145,5 +147,24 @@ describe('config', () => {
     expect(config.API_BODY_LIMIT_BYTES).toBe(16 * 1024 * 1024);
     expect(loadConfig({ ...valid, SIGN_IN_RATE_LIMIT_MAX: '5', API_BODY_LIMIT_BYTES: '' }).SIGN_IN_RATE_LIMIT_MAX).toBe(5);
     expect(() => loadConfig({ ...valid, PUSH_RATE_LIMIT_MAX: '0' })).toThrow(/PUSH_RATE_LIMIT_MAX/);
+  });
+
+  it('hands main.ts the limits from the configuration, and none when they are off (review fixes 2026-09-30)', () => {
+    expect(requestLimits(loadConfig(valid))).toBeUndefined();
+    expect(
+      requestLimits(loadConfig({ ...valid, NODE_ENV: 'production', SIGN_IN_RATE_LIMIT_MAX: '7', PUSH_RATE_LIMIT_WINDOW_SECONDS: '30', TRUST_PROXY: '0' })),
+    ).toEqual({ signIn: { max: 7, windowMs: 300_000 }, push: { max: 120, windowMs: 30_000 }, trustProxy: false });
+  });
+
+  it('knows every development SESSION_SECRET this repository commits', () => {
+    const repo = resolve(import.meta.dirname, '../../..');
+    const committed = [
+      /SESSION_SECRET: \$\{SESSION_SECRET:-([^}]+)\}/.exec(readFileSync(resolve(repo, 'docker-compose.yml'), 'utf8'))?.[1],
+      /^SESSION_SECRET=(.+)$/m.exec(readFileSync(resolve(repo, '.env.example'), 'utf8'))?.[1],
+    ];
+    for (const secret of committed) {
+      expect(secret).toBeDefined();
+      expect(KNOWN_DEV_SESSION_SECRETS.has(secret!.trim())).toBe(true);
+    }
   });
 });
