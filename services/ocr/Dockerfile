@@ -34,9 +34,19 @@ RUN --mount=type=cache,target=/root/.cache/uv uv sync --frozen --no-install-proj
 ENV PATH=/opt/venv/bin:$PATH
 # Download the detection model once (PaddleX official model store) and keep it under /opt/models.
 ENV PADDLE_PDX_MODEL_SOURCE=huggingface
+# Security review 2026-09-30: the download names no revision, so the files the image keeps are
+# pinned by checksum (the ones the 2026-09-28 image was built and tested with); a changed
+# upstream model fails the build here instead of shipping unreviewed weights.
 RUN python -c "from paddleocr import TextDetection; TextDetection(model_name='PP-OCRv5_server_det')" \
  && mkdir -p /opt/models \
- && cp -r /root/.paddlex/official_models/PP-OCRv5_server_det /opt/models/PP-OCRv5_server_det
+ && cp -r /root/.paddlex/official_models/PP-OCRv5_server_det /opt/models/PP-OCRv5_server_det \
+ && cd /opt/models/PP-OCRv5_server_det \
+ && printf '%s\n' \
+      'af5876933d8806a1b50d895867e0781e135cd92ff37381992828fc8d1b842d28  inference.json' \
+      '183146fe9d9910352f68482f623bcbbb9fa7b9e8fa1463b9ad288cef00524d2d  inference.pdiparams' \
+      '28fb721efc3634fc8aa677e474b9602cb815a91cf569ef357a7a553d7b3ce685  inference.yml' \
+      '436bf19010fe3879477e8599a870a0ec8ccd14ca39056805ec4ed20ab318ec04  config.json' \
+    | sha256sum -c -
 # The pydantic models the responses are built through, generated from the kernel's JSON Schema.
 COPY contract/ ./contract/
 RUN mkdir -p /opt/generated && datamodel-codegen \

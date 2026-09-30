@@ -15,6 +15,7 @@ from typing import Protocol
 import cv2
 import numpy as np
 
+from . import MAX_IMAGE_PIXELS
 from .recognizer import Reading
 
 MAX_SIDE = 4000
@@ -65,6 +66,10 @@ def decode(data: bytes) -> np.ndarray:
         raise InvalidImage("not a decodable image") from error
     if image is None or image.size == 0 or image.shape[0] < 2 or image.shape[1] < 2:
         raise InvalidImage("not a decodable image")
+    # Belt and braces for a process whose environment raised the OpenCV cap: nothing larger
+    # than the package's own cap reaches the pipeline.
+    if image.shape[0] * image.shape[1] > MAX_IMAGE_PIXELS:
+        raise InvalidImage("image over the pixel cap")
     return image
 
 

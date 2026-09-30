@@ -6,13 +6,19 @@ POST /read/display  the same body, answers and limits, read as an instrument dis
                     (Story 9.1, `app/display.py`)
 GET  /health        -> 200 {status: "up", detection, recognition} once the models are loaded
 
+Both read routes also answer 503 {error: internal} (with retry-after) when every admission
+slot is taken, and 504 {error: internal} when the inference outlives
+OCR_INFERENCE_TIMEOUT_SECONDS (security review 2026-09-30); the api retries both.
+
 Stateless: nothing is written to disk or kept between requests. Responses are built
 through the pydantic models generated from the kernel's JSON Schema
 (`app/contract_models.py`, generated at image build time).
 """
 
+import asyncio
 import json
 import logging
+import os
 import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -41,6 +47,16 @@ log = logging.getLogger("ocr")
 models: dict[str, object] = {}
 # One inference at a time: the Paddle predictor is not shared across threads.
 _inference = threading.Lock()
+
+# Security review 2026-09-30: the work the sidecar admits at once. A request takes a slot
+# before its body is read and gives it back only when its inference thread has finished
+# (not when the answer is sent), so neither a burst of bodies (each up to READ_MAX_BYTES,
+# decoded to pixels) nor an inference abandoned by its timeout can pile up. A request that
+# finds no slot answers 503 at once, which the api's `ocr-svc` provider retries.
+MAX_IN_FLIGHT = max(1, int(os.environ.get("OCR_MAX_IN_FLIGHT", "2")))
+# Below the api's 60 s abort (`ocr-svc.ts`), so the sidecar answers before the caller gives up.
+INFERENCE_TIMEOUT_S = float(os.environ.get("OCR_INFERENCE_TIMEOUT_SECONDS", "55"))
+_slots = threading.BoundedSemaphore(MAX_IN_FLIGHT)
 
 
 @asynccontextmanager
@@ -89,8 +105,28 @@ def _run(reader, image):
         return reader(image, models["detector"], models["recognizer"])
 
 
+def _busy() -> Response:
+    response = _error("internal", 503)
+    response.headers["retry-after"] = "5"
+    return response
+
+
 async def _answer(request: Request, reader) -> Response:
-    """One read of the request body with `reader` (the text or the display pipeline)."""
+    """One read of the request body with `reader` (the text or the display pipeline), in one slot."""
+    if not _slots.acquire(blocking=False):
+        return _busy()
+    request.state.handed_off = False
+    try:
+        return await _admitted(request, reader)
+    finally:
+        # Once an inference thread started it owns the slot and releases it when it ends, even
+        # when this request was cancelled (the caller went away) while it ran.
+        if not request.state.handed_off:
+            _slots.release()
+
+
+async def _admitted(request: Request, reader) -> Response:
+    """The read itself; `request.state.handed_off` says whether an inference thread took the slot over."""
     body = await _read_body(request)
     if body is None:
         return _error("too_large", 413)
@@ -101,8 +137,34 @@ async def _answer(request: Request, reader) -> Response:
         image = await run_in_threadpool(decode, body)
     except InvalidImage:
         return _error("invalid_image", 422)
+    del body
+    loop = asyncio.get_running_loop()
+    done: asyncio.Future = loop.create_future()
+
+    def settle(outcome) -> None:
+        if not done.done():
+            done.set_result(outcome)
+
+    def work() -> None:
+        try:
+            outcome = (True, _run(reader, image))
+        except Exception as error:  # noqa: BLE001 - handed to the awaiting request
+            outcome = (False, error)
+        finally:
+            _slots.release()
+        loop.call_soon_threadsafe(settle, outcome)
+
+    request.state.handed_off = True
+    threading.Thread(target=work, name="ocr-inference", daemon=True).start()
     try:
-        result = await run_in_threadpool(_run, reader, image)
+        ok, result = await asyncio.wait_for(asyncio.shield(done), INFERENCE_TIMEOUT_S)
+    except asyncio.TimeoutError:
+        log.error("read timed out after %.0f s; its slot stays taken until the inference ends", INFERENCE_TIMEOUT_S)
+        return _error("internal", 504)
+    if not ok:
+        log.error("read failed", exc_info=result)
+        return _error("internal", 500)
+    try:
         payload = {
             "image": {"width": result.width, "height": result.height},
             "tokens": [
