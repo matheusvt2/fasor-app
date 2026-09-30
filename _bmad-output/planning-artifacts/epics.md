@@ -2460,6 +2460,8 @@ So that the design partner uses the product outside the office network without a
 
 *(2026-09-29, Matheus: region `us-east-1`, not `sa-east-1`; lean topology for at most 10 concurrent users, one Graviton EC2 instance in ECS with Caddy HTTPS instead of Fargate behind an ALB, no NAT, RDS `db.t4g.micro`, `staging` on demand. `source-deltas.md`.)*
 
+*(2026-09-30, Matheus: secrets in SSM Parameter Store `SecureString` instead of Secrets Manager; the USD 100 ceiling holds at list price, without Free Tier or promotional credits. `source-deltas.md`.)*
+
 *(2026-09-30, Matheus: one environment only, `production`; no `staging`, not even on demand, and no CI promotion. The deliverables are Terraform in `infra/` for the whole infrastructure and a shell deploy script that builds the images in containers, pushes them to ECR, runs the migrations as a one-shot task and rolls the services; every later Epic 11 story is deployed with it after its merge. There is no domain yet: the service is reached at a free, temporary AWS-provided address with HTTPS (the builder picks the mechanism ~~the tablets' PWA accepts~~ the tablets' browser accepts, since the product is web only with no install (`source-deltas.md`) *(2026-09-30, coordinator)*, for example a Let's Encrypt certificate for the Elastic IP through Caddy, and records it); a domain replaces it later by changing `infra/` only.)*
 
 ### Story 11.9: Let the priority suggest the deadline on a point of attention (post-MVP, before 2027-06-01)

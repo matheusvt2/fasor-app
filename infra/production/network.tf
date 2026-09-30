@@ -117,7 +117,7 @@ resource "aws_vpc_security_group_ingress_rule" "cloudfront" {
 
 resource "aws_vpc_security_group_egress_rule" "instance_all" {
   security_group_id = aws_security_group.instance.id
-  description       = "ECR, ECS, SSM, CloudWatch, S3, RDS, Bedrock, Textract, Let's Encrypt"
+  description       = "ECR, ECS, SSM, CloudWatch, S3, RDS, Bedrock, Textract, Lets Encrypt"
   cidr_ipv4         = "0.0.0.0/0"
   ip_protocol       = "-1"
 }
