@@ -20,6 +20,7 @@ import json
 import logging
 import os
 import threading
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -58,6 +59,17 @@ MAX_IN_FLIGHT = max(1, int(os.environ.get("OCR_MAX_IN_FLIGHT", "2")))
 # Below the api's 60 s abort (`ocr-svc.ts`), so the sidecar answers before the caller gives up.
 INFERENCE_TIMEOUT_S = float(os.environ.get("OCR_INFERENCE_TIMEOUT_SECONDS", "55"))
 _slots = threading.BoundedSemaphore(MAX_IN_FLIGHT)
+# When each running inference thread started (monotonic seconds), for /health.
+_running: dict[int, float] = {}
+_running_lock = threading.Lock()
+
+
+def _stuck() -> bool:
+    """Every slot is held by an inference running past twice the timeout: only a restart frees them."""
+    now = time.monotonic()
+    with _running_lock:
+        starts = list(_running.values())
+    return len(starts) >= MAX_IN_FLIGHT and all(now - start > 2 * INFERENCE_TIMEOUT_S for start in starts)
 
 
 @asynccontextmanager
@@ -83,6 +95,8 @@ def _error(code: str, status: int) -> Response:
 async def health() -> Response:
     if "detector" not in models or "recognizer" not in models:
         return JSONResponse({"status": "starting"}, status_code=503)
+    if _stuck():
+        return JSONResponse({"status": "stuck"}, status_code=503)
     return _json(OcrHealthResponse.model_validate({"status": "up", "detection": DETECTION_MODEL, "recognition": RECOGNITION_MODEL}))
 
 
@@ -153,16 +167,22 @@ async def _admitted(request: Request, reader) -> Response:
             done.set_result(outcome)
 
     def work() -> None:
+        me = threading.get_ident()
+        with _running_lock:
+            _running[me] = time.monotonic()
         try:
             outcome = (True, _run(reader, image))
         except Exception as error:  # noqa: BLE001 - handed to the awaiting request
             outcome = (False, error)
         finally:
+            with _running_lock:
+                _running.pop(me, None)
             _slots.release()
         loop.call_soon_threadsafe(settle, outcome)
 
-    request.state.handed_off = True
     threading.Thread(target=work, name="ocr-inference", daemon=True).start()
+    # Only once the thread runs does it own the slot (a failed start leaves it to `_answer`).
+    request.state.handed_off = True
     try:
         ok, result = await asyncio.wait_for(asyncio.shield(done), INFERENCE_TIMEOUT_S)
     except asyncio.TimeoutError:

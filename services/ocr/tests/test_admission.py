@@ -1,6 +1,8 @@
 """Security review 2026-09-30: the sidecar's decode cap, admission slots and inference timeout."""
 
 import os
+import subprocess
+import sys
 import time
 
 import cv2
@@ -10,7 +12,7 @@ import pytest
 import app.main as main
 import app.pipeline as pipeline
 from app import MAX_IMAGE_PIXELS
-from conftest import READ_PATH
+from conftest import HEALTH_PATH, READ_PATH
 
 
 def _png(width: int, height: int) -> bytes:
@@ -36,6 +38,33 @@ def _all_slots_free() -> bool:
 
 def test_the_package_sets_the_opencv_decode_cap():
     assert int(os.environ["OPENCV_IO_MAX_IMAGE_PIXELS"]) <= MAX_IMAGE_PIXELS
+
+
+def test_the_package_cap_holds_without_the_image_environment():
+    """Outside the Dockerfile's ENV: importing the package alone sets the OpenCV cap."""
+    env = {k: v for k, v in os.environ.items() if k != "OPENCV_IO_MAX_IMAGE_PIXELS"}
+    code = "import os, app; print(os.environ['OPENCV_IO_MAX_IMAGE_PIXELS'])"
+    service_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    out = subprocess.run([sys.executable, "-c", code], env=env, capture_output=True, text=True, check=True, cwd=service_root)
+    assert int(out.stdout.strip()) == MAX_IMAGE_PIXELS
+
+
+def test_health_says_stuck_when_every_slot_is_held_past_twice_the_timeout(client, monkeypatch):
+    monkeypatch.setattr(main, "INFERENCE_TIMEOUT_S", 0.1)
+    started = time.monotonic() - 1.0
+    fake_threads = [-1 - n for n in range(main.MAX_IN_FLIGHT)]
+    with main._running_lock:
+        for fake in fake_threads:
+            main._running[fake] = started
+    try:
+        response = client.get(HEALTH_PATH)
+        assert response.status_code == 503
+        assert response.json() == {"status": "stuck"}
+    finally:
+        with main._running_lock:
+            for fake in fake_threads:
+                main._running.pop(fake, None)
+    assert client.get(HEALTH_PATH).status_code == 200
 
 
 def test_decode_refuses_an_image_over_the_pixel_cap(monkeypatch):

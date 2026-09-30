@@ -100,5 +100,7 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 # --- stage 4: test (the default target; compose builds it) ---------------------------
 FROM runtime AS test
-COPY --from=builder /opt/venv-dev /opt/venv
+# uv writes absolute shebangs, so the dev venv keeps the path it was built at.
+COPY --from=builder /opt/venv-dev /opt/venv-dev
+ENV PATH=/opt/venv-dev/bin:$PATH
 COPY tests/ ./tests/
