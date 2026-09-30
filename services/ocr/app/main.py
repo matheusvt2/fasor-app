@@ -26,6 +26,7 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, Response
+from starlette.requests import ClientDisconnect
 
 from .contract_models import OcrErrorResponse, OcrHealthResponse, OcrReadResult
 from .detector import DETECTION_MODEL, load_detector
@@ -127,7 +128,13 @@ async def _answer(request: Request, reader) -> Response:
 
 async def _admitted(request: Request, reader) -> Response:
     """The read itself; `request.state.handed_off` says whether an inference thread took the slot over."""
-    body = await _read_body(request)
+    try:
+        body = await _read_body(request)
+    except ClientDisconnect:
+        # Review fixes 2026-09-30 (O-8): the api gave up (its 60 s abort) while the body was
+        # still arriving; nobody reads this answer, and it is no server error to log.
+        log.info("client went away before its body arrived")
+        return Response(status_code=499)
     if body is None:
         return _error("too_large", 413)
     mime = (request.headers.get("content-type") or "application/octet-stream").split(";")[0].strip().lower()

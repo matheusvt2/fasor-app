@@ -21,7 +21,7 @@ token means is the kernel's job (`packages/domain/src/reading/display.ts`).
 import cv2
 import numpy as np
 
-from .pipeline import MAX_SIDE, Detector, ReadResult, Recognizer, Token, _order_quad, _reading_order
+from .pipeline import MAX_SIDE, Detector, ReadResult, Recognizer, Token, _order_quad, _reading_order, clamp_box, quad_size, rectify
 
 MIN_SHORT_SIDE = 320
 BRIDGE_DIVISOR = 150
@@ -53,13 +53,10 @@ def read_display(image: np.ndarray, detector: Detector, recognizer: Recognizer) 
     crops: list[np.ndarray] = []
     boxes: list[tuple[float, float, float, float]] = []
     for quad in (_order_quad(p) for p in detector.detect(work)):
-        tl, tr, br, bl = quad
-        line_w = int(round(max(np.linalg.norm(tr - tl), np.linalg.norm(br - bl))))
-        line_h = int(round(max(np.linalg.norm(bl - tl), np.linalg.norm(br - tr))))
+        line_w, line_h = quad_size(quad)
         if line_w < MIN_LINE_SIDE or line_h < MIN_LINE_SIDE:
             continue
-        dst = np.array([[0, 0], [line_w, 0], [line_w, line_h], [0, line_h]], dtype=np.float32)
-        line = cv2.warpPerspective(work, cv2.getPerspectiveTransform(quad, dst), (line_w, line_h), borderMode=cv2.BORDER_REPLICATE)
+        line, _ = rectify(work, quad, line_w, line_h)
         crops.append(cv2.cvtColor(line, cv2.COLOR_BGR2RGB))
         boxes.append((float(quad[:, 0].min()), float(quad[:, 1].min()), float(quad[:, 0].max()), float(quad[:, 1].max())))
     if not crops:
@@ -70,9 +67,8 @@ def read_display(image: np.ndarray, detector: Detector, recognizer: Recognizer) 
     for i in _reading_order(boxes):
         text = "".join(readings[i].text.split())
         x0, y0, x1, y1 = (v / scale for v in boxes[i])
-        x0, y0 = max(0.0, x0), max(0.0, y0)
-        x1, y1 = min(float(width), x1), min(float(height), y1)
-        if not text or x1 - x0 < 1 or y1 - y0 < 1:
+        box = clamp_box(x0, y0, x1, y1, width, height)
+        if not text or box is None:
             continue
-        tokens.append(Token(text=text, bbox=(round(x0, 1), round(y0, 1), round(x1, 1), round(y1, 1)), confidence=round(readings[i].confidence, 4)))
+        tokens.append(Token(text=text, bbox=box, confidence=round(readings[i].confidence, 4)))
     return ReadResult(width, height, tokens, scale != 1.0)
