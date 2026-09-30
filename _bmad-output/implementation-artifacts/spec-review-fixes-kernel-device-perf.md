@@ -2,7 +2,7 @@
 title: 'Review fixes: kernel fold, location tree and device outbox performance'
 type: 'refactor'
 created: '2026-09-30'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: '6b219098f2881aee6487cd57bfc8396b76141ea8'
 review_loop_iteration: 0
 followup_review_recommended: false
