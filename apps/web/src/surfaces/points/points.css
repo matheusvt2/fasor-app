@@ -80,3 +80,7 @@
    calendar glyph is placed from the top of the `.input`, not from the field's bottom. */
 [data-route="/relatorio/:id/pontos"] .poa-prazo-sf .date-ico,
 .point-editor-dialog .poa-prazo-sf .date-ico { bottom: auto; top: calc(var(--t-label-size) * var(--t-label-lh) + var(--field-gap) + (var(--touch-field) - 24px) / 2); }
+/* authored: Story 11.9 makes the editor taller than a desktop viewport (picker, Prazo,
+   Responsável); in its Form dialog the dialog keeps inside the scrim and scrolls itself,
+   so "Concluir" stays reachable. */
+.point-editor-dialog { max-height: 100%; overflow-y: auto; }

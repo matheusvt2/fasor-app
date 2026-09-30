@@ -42,6 +42,13 @@
     "kind": "points_sem_acao"
   },
   {
+    "id": "points_sem_prazo",
+    "row": "section_8",
+    "severity": "info",
+    "text": "7 pontos sem prazo",
+    "kind": "points_sem_prazo"
+  },
+  {
     "id": "sheets",
     "row": "section_9",
     "severity": "pending",
