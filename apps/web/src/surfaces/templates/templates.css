@@ -111,6 +111,10 @@
    browser then typed there differed from what was saved); `pre-wrap` keeps every space
    while still wrapping. Line breaks stay the editor's `<br>`s and chips are unaffected. */
 .rich-dialog .rich-text .rt-area { white-space: pre-wrap; }
+/* authored (Story 11.4): the formatted text's lists, spaced like the mock's `.rt-area p + p`
+   (`var(--sp-3)` between blocks), indented so the bullet or number sits inside the box. */
+.rich-dialog .rich-text .rt-area :is(ul, ol) { margin: 0; padding-left: var(--sp-5); }
+.rich-dialog .rich-text .rt-area :is(p, ul, ol) + :is(p, ul, ol) { margin-top: var(--sp-3); }
 
 /* The type defaults panel: the mock draws it inside an expanded equipment `.block-card`;
    here it is a Form dialog, so the card's page rules are scoped to `.defaults-dialog`. */

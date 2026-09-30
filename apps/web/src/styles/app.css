@@ -712,3 +712,8 @@ input.count { width: 40px; padding: 0; border: 0; background: transparent; color
   .measurement-table td.cell-value .suggestion-field > .measurement-field, .measurement-table td.cell-value .suggestion-field { flex-wrap: wrap; min-width: 0; }
   .measurement-table td.cell-value .suggestion-field .confirm-btn { padding: 0 var(--sp-3); }
 }
+
+/* Story 11.4 (FR-12, UX-DR69): the Template composer's rich text toolbar. DESIGN.md › Rich text
+   editor ("48px buttons Negrito · Itálico · Lista · Numeração · Variável") wins over the mock's
+   `.rich-text .rt-tool { min-height: 40px }` (components.css): every tool is a 48 px target. */
+.rich-text .rt-tool { min-height: var(--touch-min); }

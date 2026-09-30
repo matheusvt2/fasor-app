@@ -6,7 +6,7 @@ import { axe } from '../../test-axe.ts';
 import { MemoryRouter } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { toRecord } from '../../db/commit.ts';
-import { openDatabase } from '../../db/schema.ts';
+import { GEOLOCATION_DENIED_PREF, openDatabase } from '../../db/schema.ts';
 import { ThemeProvider } from '../../state/theme.tsx';
 import type { SessionState } from '../../state/session.tsx';
 import { SyncContext, type SyncState } from '../../state/sync.tsx';
@@ -38,6 +38,7 @@ const signedIn: SessionState = {
   signIn: vi.fn(),
   signOut: vi.fn(async () => {}),
   saveRegistration: vi.fn(async () => {}),
+  savePhotoLocation: vi.fn(async () => {}),
   recoveryNeeded: false,
   dismissRecovery: vi.fn(),
 };
@@ -298,5 +299,120 @@ describe('Account: the two dialogs share one modal shell (retro F-DUP-1, F-UNVER
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(signedIn.saveRegistration).toHaveBeenCalled();
     await waitFor(() => expect(editar).toHaveFocus());
+  });
+});
+
+describe('11.5 Account: "Localização nas fotos"', () => {
+  async function withDevice(row: Partial<UserRow>, denied: boolean): Promise<ReturnType<typeof openDatabase>> {
+    const db = openDatabase(signedIn.user!.id);
+    await db.open();
+    const user: UserRow = {
+      id: signedIn.user!.id,
+      name: 'Ana Alves',
+      email: 'a@teste.local',
+      council: 'crea',
+      registration_number: 'SP 1000000001',
+      title: 'Eng. Eletricista',
+      photo_location_enabled: true,
+      ...row,
+    };
+    await db.entities.put(toRecord(entityKey('user', user.id), user));
+    if (denied) await db.local_prefs.put({ key: GEOLOCATION_DENIED_PREF, value: true });
+    return db;
+  }
+
+  it('is on by default with the "on" helper; a press commits the switch through the session, with no undo toast', async () => {
+    const savePhotoLocation = vi.fn(async () => {});
+    session = { ...signedIn, savePhotoLocation };
+    try {
+      const { baseElement } = renderAccount(syncState('', 0));
+      const toggle = screen.getByRole('switch', { name: 'Gravar coordenadas em cada foto' });
+      expect(screen.getByRole('heading', { name: 'Localização nas fotos' })).toBeVisible();
+      expect(toggle).toHaveAttribute('aria-checked', 'true');
+      expect(toggle).toHaveAccessibleDescription(/O aparelho pede permissão na primeira foto/);
+      expect(screen.getByText(/Impressas na seção 7 com a data e a hora/)).toBeVisible();
+      await userEvent.click(toggle);
+      expect(savePhotoLocation).toHaveBeenCalledWith(false);
+      expect(screen.queryByRole('button', { name: 'Desfazer' })).toBeNull();
+      expect(await axe(baseElement)).toHaveNoViolations();
+    } finally {
+      session = signedIn;
+    }
+  });
+
+  it('a switch the device refuses to store says so, and stays as it was', async () => {
+    const savePhotoLocation = vi.fn(async () => {
+      throw new Error('refused');
+    });
+    session = { ...signedIn, savePhotoLocation };
+    try {
+      renderAccount(syncState('', 0));
+      const toggle = screen.getByRole('switch', { name: 'Gravar coordenadas em cada foto' });
+      await userEvent.click(toggle);
+      expect(savePhotoLocation).toHaveBeenCalledWith(false);
+      expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível salvar. Tente de novo.');
+      expect(toggle).toHaveAttribute('aria-checked', 'true');
+    } finally {
+      session = signedIn;
+    }
+  });
+
+  it('reads the device row: off shows the "off" helper', async () => {
+    const db = await withDevice({ photo_location_enabled: false }, false);
+    session = { ...signedIn, database: db };
+    try {
+      renderAccount(syncState('', 0));
+      const toggle = screen.getByRole('switch', { name: 'Gravar coordenadas em cada foto' });
+      await waitFor(() => expect(toggle).toHaveAttribute('aria-checked', 'false'));
+      expect(toggle).toHaveAccessibleDescription('Fotos sem coordenadas — a seção 7 imprime só a data e a hora de cada imagem.');
+    } finally {
+      session = signedIn;
+      db.close();
+      await db.delete();
+    }
+  });
+
+  it('an OS denial shows the amber denied line in place of the "on" helper, and the switch stays on', async () => {
+    const db = await withDevice({ photo_location_enabled: true }, true);
+    session = { ...signedIn, database: db };
+    try {
+      renderAccount(syncState('', 0));
+      const line = await screen.findByText(/^Permissão negada no aparelho — as fotos saem sem coordenadas\./);
+      expect(line).toHaveAttribute('data-tone', 'amber');
+      const toggle = screen.getByRole('switch', { name: 'Gravar coordenadas em cada foto' });
+      expect(toggle).toHaveAttribute('aria-checked', 'true');
+      expect(toggle).toHaveAccessibleDescription(/Permissão negada no aparelho/);
+      expect(screen.queryByText(/O aparelho pede permissão na primeira foto/)).toBeNull();
+    } finally {
+      session = signedIn;
+      db.close();
+      await db.delete();
+    }
+  });
+
+  it('a Permissions API state of granted clears the denial; denied records it', async () => {
+    const db = await withDevice({ photo_location_enabled: true }, true);
+    session = { ...signedIn, database: db };
+    let state: PermissionState = 'granted';
+    const original = Object.getOwnPropertyDescriptor(navigator, 'permissions');
+    Object.defineProperty(navigator, 'permissions', {
+      configurable: true,
+      value: { query: async () => ({ state, addEventListener: () => {}, removeEventListener: () => {} }) },
+    });
+    try {
+      renderAccount(syncState('', 0));
+      await waitFor(() => expect(screen.getByText(/O aparelho pede permissão na primeira foto/)).toBeVisible());
+      expect(await db.local_prefs.get(GEOLOCATION_DENIED_PREF)).toBeUndefined();
+      cleanup();
+      state = 'denied';
+      renderAccount(syncState('', 0));
+      expect(await screen.findByText(/^Permissão negada no aparelho/)).toBeVisible();
+    } finally {
+      if (original === undefined) Reflect.deleteProperty(navigator, 'permissions');
+      else Object.defineProperty(navigator, 'permissions', original);
+      session = signedIn;
+      db.close();
+      await db.delete();
+    }
   });
 });

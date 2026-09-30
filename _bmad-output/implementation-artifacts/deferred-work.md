@@ -737,7 +737,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Narrowing, Epic 11. A geolocation denial is recorded as the device-local pref `geolocation_denied`, not as an op on the account row.
   evidence: `apps/web/src/db/photo-store.ts` `writeGeolocationDenied`; the location switch surface (FR-8) that would read it is Epic 11's.
   class: deferred
-  state: open (owner: Epic 11)
+  state: ~~open (owner: Epic 11)~~ closed (2026-09-30, Story 11.5, `spec-11-4-11-5-rich-text-and-location-stamp.md`: Account's "Localização nas fotos" row reads the pref (`useGeolocationDenied`) and shows "Permissão negada no aparelho" with the switch still on; a fix that arrives (`onGranted` of the position tracker) or a Permissions API state of `granted` clears it, `denied` sets it. It stays device-local by design: the OS permission is per device, so it is never an op on the account row. Tests: 11.5-E2E-002 in `e2e/photos.spec.ts`, `11.5 Account` in `account-surface.test.tsx`)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-6-1-6-2-photo-capture-and-durability.md`
   summary: AD-17's `device_id` tie-breaker is not a column of the photo row; Story 6.3's `numberPhotos` must take it from the create op's `device_id` (or the UUIDv7 `id`).
@@ -1201,3 +1201,15 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: `packages/domain/src/ops/apply.ts` `block/field` branch writes any id; the device refuses a gone target at commit (`movePlan`), but a concurrent removal is not caught. A fold or push refusal would be a reducer change and a contract bump. Edge Case Hunter review of Stories 11.2/11.3. Severity medium (unverified).
   class: debt
   state: open (owner: Epic 11 integrated review)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-4-11-5-rich-text-and-location-stamp.md`
+  summary: 11.4-TEMPLATE-FORMAT (Epic 11 cross-story table, 11.3 x 11.4): a template saved from a relatório ("Salvar como template", Story 11.3, batch B) keeps the formatted section text and prints it. Not asserted by batch E: Story 11.3 is not on this branch.
+  evidence: `epic-11-context.md` Cross-Story Dependencies; the markup lives in `section_text` as a string (`packages/domain/src/templates/rich-text.ts`), so the 11.3 projection carries it unchanged if it copies `section_text`.
+  class: deferred
+  state: open (owner: the Epic 11 coordinator's integrated QA, once batches B and E are both on main)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-4-11-5-rich-text-and-location-stamp.md`
+  summary: 11.4-PRINT-BOTH, the PDF half through the UI: the formatted text downloaded as the revision's PDF from the Export dialog needs Story 11.1's PDF route and button (batch A). Batch E covers the renderer half only: `apps/api/src/jobs/generate/rich-text.integration.test.ts` reads the stored PDF and finds the bold and italic words in bold and italic fonts.
+  evidence: `epic-11-context.md` Cross-Story Dependencies (11.4 x renderer / 11.1).
+  class: deferred
+  state: open (owner: the Epic 11 coordinator's integrated QA, once batches A and E are both on main)

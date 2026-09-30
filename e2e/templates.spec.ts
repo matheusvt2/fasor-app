@@ -725,7 +725,14 @@ test('@p0 3.6-E2E-001 section text: a chip inserted at the caret is one atomic t
   const chips = area.locator('.var-chip');
   await expect(area).toBeFocused();
   await expect(chips).toHaveText(['{empresa_executora}', '{obra}', '{cliente}']);
-  await expect(dialog.locator('.rt-toolbar')).toHaveCount(0);
+  // Story 11.4: the toolbar over the text; "Variável" opens the chip row, hidden until then.
+  const toolbar = dialog.getByRole('toolbar', { name: 'Formatação' });
+  await expect(toolbar.getByRole('button')).toHaveText(['Negrito', 'Itálico', 'Lista', 'Numeração', 'Variável']);
+  await expect(dialog.getByRole('group', { name: 'Inserir dado do relatório' })).toBeHidden();
+  const variavel = toolbar.getByRole('button', { name: 'Variável' });
+  await expect(variavel).toHaveAttribute('aria-expanded', 'false');
+  await variavel.click();
+  await expect(variavel).toHaveAttribute('aria-expanded', 'true');
   await expect(dialog.getByRole('group', { name: 'Inserir dado do relatório' }).getByRole('button')).toHaveText([
     'cliente',
     'obra',
@@ -736,6 +743,7 @@ test('@p0 3.6-E2E-001 section text: a chip inserted at the caret is one atomic t
 
   // The caret at the end of the text (the second paragraph); "datas" inserts there, and
   // typing goes on beside it.
+  await area.click();
   await page.keyboard.press('Control+End');
   await dialog.getByRole('button', { name: 'datas', exact: true }).click();
   await expect(chips).toHaveText(['{empresa_executora}', '{obra}', '{cliente}', '{datas}']);
@@ -760,8 +768,9 @@ test('@p0 3.6-E2E-001 section text: a chip inserted at the caret is one atomic t
   // The chip cannot be edited character by character: its text is not editable.
   await expect(chips.last()).toHaveAttribute('contenteditable', 'false');
 
-  // Enter makes exactly one line break; a paste from the clipboard lands as plain text, its
-  // Windows line ending as one break and its `{name}` token as a chip.
+  // Story 11.4: Enter starts a new paragraph; a paste from the clipboard lands as plain
+  // text, its first line beside the caret, its Windows line ending as one more paragraph
+  // and its `{name}` token as a chip.
   await page.keyboard.press('Enter');
   await page.keyboard.type('Linha ');
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -772,7 +781,7 @@ test('@p0 3.6-E2E-001 section text: a chip inserted at the caret is one atomic t
   // Autosave (500 ms idle), then a reload keeps it.
   await expect
     .poll(async () => (await deviceTemplate(page, account.userId, templateId)).blocks[0]!.section_text, { timeout: 10_000 })
-    .toMatch(/atividades realizadas\.\{cliente\} e mais\nLinha colada da \{obra\}\nfim$/);
+    .toMatch(/atividades realizadas\.\{cliente\} e mais\n\nLinha colada da \{obra\}\n\nfim$/);
   await page.reload();
   await page.getByRole('button', { name: 'Mais opções de 1 Objetivo' }).click();
   await page.getByRole('menuitem', { name: 'Editar texto' }).click();
@@ -827,7 +836,7 @@ test('@p1 3.6-E2E-002 "Restaurar texto padrão" puts the seed text back and "Des
   await expect(area).toContainText('Texto próprio.');
 });
 
-test('@p0 3.6-E2E-003 section text: browser undo cannot corrupt the text, and spaces typed in it show as typed on reopen', async ({
+test('@p0 3.6-E2E-003 section text: undo is the editor\'s own and never corrupts the text, and spaces typed in it show as typed on reopen', async ({
   page,
   seed,
 }) => {
@@ -843,6 +852,7 @@ test('@p0 3.6-E2E-003 section text: browser undo cannot corrupt the text, and sp
     await page.getByRole('menuitem', { name: 'Editar texto' }).click();
     return page.getByRole('dialog', { name: '1 Objetivo — texto fixo' });
   };
+  const stored = async () => (await deviceTemplate(page, account.userId, templateId)).blocks[0]!.section_text;
 
   const dialog = await openText();
   const area = dialog.getByRole('textbox', { name: 'Texto da seção 1' });
@@ -850,22 +860,35 @@ test('@p0 3.6-E2E-003 section text: browser undo cannot corrupt the text, and sp
   await expect(area).toBeFocused();
   await page.keyboard.press('Control+End');
   await page.keyboard.type(' Texto A    B');
+  await dialog.getByRole('button', { name: 'Variável' }).click();
   await dialog.getByRole('button', { name: 'datas', exact: true }).click();
   await expect(chips).toHaveText(['{empresa_executora}', '{obra}', '{cliente}', '{datas}']);
   await page.keyboard.press('Backspace');
   await expect(chips).toHaveCount(3);
+  await expect.poll(stored, { timeout: 10_000 }).toMatch(/ Texto A {4}B$/);
 
-  // The browser's undo never saw the chip go in or out: it would take back the typing
-  // instead. It is stopped, by every shortcut, and the text stays as it is.
-  const before = await area.innerText();
-  for (const shortcut of ['Control+z', 'Control+Shift+z', 'Control+y']) {
-    await page.keyboard.press(shortcut);
-    await expect(chips).toHaveCount(3);
-    expect(await area.innerText(), `${shortcut} leaves the text alone`).toBe(before);
-  }
-  await expect
-    .poll(async () => (await deviceTemplate(page, account.userId, templateId)).blocks[0]!.section_text, { timeout: 10_000 })
-    .toMatch(/ Texto A {4}B$/);
+  // Story 11.4: Ctrl+Z walks the editor's own history (the browser's never saw the chip go
+  // in or out): the chip back, then the chip gone again as before it, then the typing gone
+  // (the seed text, stored as null); Ctrl+Shift+Z and Ctrl+Y walk forward. Each step is
+  // drawn and autosaved.
+  await page.keyboard.press('Control+z');
+  await expect(chips).toHaveCount(4);
+  await expect.poll(stored, { timeout: 10_000 }).toMatch(/ Texto A {4}B\{datas\}$/);
+  await page.keyboard.press('Control+z');
+  await expect(chips).toHaveCount(3);
+  await expect.poll(stored, { timeout: 10_000 }).toMatch(/ Texto A {4}B$/);
+  await page.keyboard.press('Control+z');
+  await expect(chips).toHaveCount(3);
+  await expect(area).not.toContainText('Texto A');
+  await expect.poll(stored, { timeout: 10_000 }).toBeNull();
+  await page.keyboard.press('Control+Shift+z');
+  await expect(area).toContainText('Texto A');
+  await expect(chips).toHaveCount(3);
+  await page.keyboard.press('Control+y');
+  await expect(chips).toHaveCount(4);
+  await page.keyboard.press('Control+y');
+  await expect(chips).toHaveCount(3);
+  await expect.poll(stored, { timeout: 10_000 }).toMatch(/ Texto A {4}B$/);
   await dialog.getByRole('button', { name: 'Fechar' }).click();
   await expect(dialog).toBeHidden();
 
@@ -920,4 +943,158 @@ test('@p1 E3-A9-E2E-001 composer polish: a tap on a section card body opens "Edi
   await expect(rename).toBeHidden();
   await expect(cabines.first()).toHaveText(first);
   expect((await outboxPaths(page, account.userId)).filter((path) => path === `template/${templateId}/skeleton`)).toEqual([]);
+});
+
+// --- Story 11.4 ------------------------------------------------------------------------
+
+test('@p0 11.4-E2E-001 rich text: Negrito, Ctrl+I, Lista, Numeração and a chip inside bold store the kernel markup, survive a reload, undo by Ctrl+Z, and a rich paste keeps only text and lists', async ({
+  page,
+  seed,
+}) => {
+  test.setTimeout(180_000);
+  await resetEmpresaB(seed.companies[1], { standard: true });
+  const account = seed.companies[1];
+  await signIn(page, account.email);
+  await deviceHoldsTemplate(page, account.userId, STANDARD_TEMPLATE_NAME);
+  await openTemplates(page);
+  await expect(names(activeList(page))).toHaveText([STANDARD_TEMPLATE_NAME], { timeout: 30_000 });
+  await openComposer(page, STANDARD_TEMPLATE_NAME);
+  const templateId = page.url().split('/').at(-1)!;
+  const stored = async () => (await deviceTemplate(page, account.userId, templateId)).blocks[0]!.section_text;
+  const openText = async () => {
+    await page.getByRole('button', { name: 'Mais opções de 1 Objetivo' }).click();
+    await page.getByRole('menuitem', { name: 'Editar texto' }).click();
+    return page.getByRole('dialog', { name: '1 Objetivo — texto fixo' });
+  };
+
+  const dialog = await openText();
+  const area = dialog.getByRole('textbox', { name: 'Texto da seção 1' });
+  const toolbar = dialog.getByRole('toolbar', { name: 'Formatação' });
+  const tool = (name: string) => toolbar.getByRole('button', { name, exact: true });
+  await expect(area).toBeFocused();
+  await expect(area).toContainText(/^O presente relatório/);
+  for (const name of ['Negrito', 'Itálico', 'Lista', 'Numeração']) await expect(tool(name)).toHaveAttribute('aria-pressed', 'false');
+
+  // Select "presente" (after "O ") and press Negrito: the selection keeps, the tool is pressed.
+  await page.keyboard.press('Control+Home');
+  for (let i = 0; i < 2; i++) await page.keyboard.press('ArrowRight');
+  for (let i = 0; i < 8; i++) await page.keyboard.press('Shift+ArrowRight');
+  await tool('Negrito').click();
+  await expect(tool('Negrito')).toHaveAttribute('aria-pressed', 'true');
+  await expect(area.locator('strong')).toHaveText(['presente']);
+  await expect.poll(stored, { timeout: 10_000 }).toMatch(/^O \*\*presente\*\* relatório/);
+
+  // 11.4-UNDO: Ctrl+Z after Negrito restores the prior stored text (the seed's: null), Ctrl+Y redoes it.
+  await page.keyboard.press('Control+z');
+  await expect(area.locator('strong')).toHaveCount(0);
+  await expect.poll(stored, { timeout: 10_000 }).toBeNull();
+  await page.keyboard.press('Control+y');
+  await expect(area.locator('strong')).toHaveText(['presente']);
+  await expect.poll(stored, { timeout: 10_000 }).toMatch(/^O \*\*presente\*\* relatório/);
+
+  // Ctrl+I on "relatório".
+  await page.keyboard.press('Control+Home');
+  for (let i = 0; i < 11; i++) await page.keyboard.press('ArrowRight');
+  for (let i = 0; i < 9; i++) await page.keyboard.press('Shift+ArrowRight');
+  await page.keyboard.press('Control+i');
+  await expect(tool('Itálico')).toHaveAttribute('aria-pressed', 'true');
+  await expect(area.locator('em')).toHaveText(['relatório']);
+  await expect.poll(stored, { timeout: 10_000 }).toMatch(/^O \*\*presente\*\* \*relatório\* tem/);
+
+  // A Lista line, then a Numeração line under it.
+  await page.keyboard.press('Control+End');
+  await page.keyboard.press('Enter');
+  await page.keyboard.type('Item de lista');
+  await tool('Lista').click();
+  await expect(tool('Lista')).toHaveAttribute('aria-pressed', 'true');
+  await expect(area.locator('ul > li')).toHaveText(['Item de lista']);
+  await expect.poll(stored, { timeout: 10_000 }).toMatch(/\n- Item de lista$/);
+  // 11.4-UNDO: Ctrl+Z after Lista restores the prior stored text: the line is a paragraph again.
+  await page.keyboard.press('Control+z');
+  await expect(area.locator('ul')).toHaveCount(0);
+  await expect.poll(stored, { timeout: 10_000 }).toMatch(/\n\nItem de lista$/);
+  await page.keyboard.press('Control+Shift+z');
+  await expect(area.locator('ul > li')).toHaveText(['Item de lista']);
+  // Enter in a list adds an item; Numeração turns it into a numbered one.
+  await page.keyboard.press('Enter');
+  await tool('Numeração').click();
+  await expect(tool('Numeração')).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.type('Item numerado');
+  await expect(area.locator('ol > li')).toHaveText(['Item numerado']);
+
+  // Enter twice leaves the list; Negrito with nothing selected makes what is typed next bold,
+  // and a chip inserted there is bold too.
+  await page.keyboard.press('Enter');
+  await page.keyboard.press('Enter');
+  await expect(tool('Numeração')).toHaveAttribute('aria-pressed', 'false');
+  await tool('Negrito').click();
+  await page.keyboard.type('Cliente: ');
+  await tool('Variável').click();
+  await dialog.getByRole('button', { name: 'cliente', exact: true }).click();
+  await expect(area.locator('strong .var-chip')).toHaveText(['{cliente}']);
+  const expectedTail = /\n- Item de lista\n1\. Item numerado\n\n\*\*Cliente: \{cliente\}\*\*$/;
+  await expect.poll(stored, { timeout: 10_000 }).toMatch(expectedTail);
+  const formatted = (await stored())!;
+  expect(formatted).toMatch(/^O \*\*presente\*\* \*relatório\* tem/);
+
+  // A reload keeps it, drawn as bold, italic, the two lists and the bold chip.
+  await page.reload();
+  await openText();
+  await expect(area.locator('strong')).toHaveText(['presente', 'Cliente: {cliente}']);
+  await expect(area.locator('em')).toHaveText(['relatório']);
+  await expect(area.locator('ul > li')).toHaveText(['Item de lista']);
+  await expect(area.locator('ol > li')).toHaveText(['Item numerado']);
+  await expect(area.locator('strong .var-chip')).toHaveText(['{cliente}']);
+  expect(await stored()).toBe(formatted);
+
+  // A paste of rich HTML keeps the text and the list only: no bold from its <b>.
+  await area.click();
+  await page.keyboard.press('Control+End');
+  await page.keyboard.press('Enter');
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.evaluate(async () => {
+    const html = '<p><b>Colado</b> em <i>negrito</i></p><ul><li><b>item a</b></li><li>item *b*</li></ul>';
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        'text/html': new Blob([html], { type: 'text/html' }),
+        'text/plain': new Blob(['Colado em negrito\nitem a\nitem *b*'], { type: 'text/plain' }),
+      }),
+    ]);
+  });
+  await page.keyboard.press('Control+V');
+  await expect.poll(stored, { timeout: 10_000 }).toMatch(/\n\nColado em negrito\n- item a\n- item \\\*b\\\*$/);
+  await expect(area.locator('ul').last().locator('li')).toHaveText(['item a', 'item *b*']);
+
+  expect((await outboxPaths(page, account.userId)).every((path) => path === `template/${templateId}/blocks`)).toBe(true);
+});
+
+test('@p0 11.4-E2E-001b at 390 px the rich text toolbar wraps inside the dialog, with no horizontal scroll and every tool at least 48 px tall', async ({ page, seed }) => {
+  await resetEmpresaB(seed.companies[1], { standard: true });
+  const account = seed.companies[1];
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIn(page, account.email);
+  await deviceHoldsTemplate(page, account.userId, STANDARD_TEMPLATE_NAME);
+  await openTemplates(page);
+  await expect(names(activeList(page))).toHaveText([STANDARD_TEMPLATE_NAME], { timeout: 30_000 });
+  await openComposer(page, STANDARD_TEMPLATE_NAME);
+  await page.getByRole('button', { name: 'Mais opções de 1 Objetivo' }).click();
+  await page.getByRole('menuitem', { name: 'Editar texto' }).click();
+  const dialog = page.getByRole('dialog', { name: '1 Objetivo — texto fixo' });
+  const toolbar = dialog.getByRole('toolbar', { name: 'Formatação' });
+  await expect(toolbar).toBeVisible();
+
+  const dialogBox = (await dialog.boundingBox())!;
+  const tools = toolbar.locator('.rt-tool');
+  await expect(tools).toHaveCount(5);
+  const boxes = await tools.evaluateAll((elements) => elements.map((e) => e.getBoundingClientRect().toJSON() as DOMRect));
+  for (const box of boxes) {
+    expect(box.height).toBeGreaterThanOrEqual(48);
+    expect(box.left).toBeGreaterThanOrEqual(dialogBox.x - 0.5);
+    expect(box.right).toBeLessThanOrEqual(dialogBox.x + dialogBox.width + 0.5);
+  }
+  // The five words do not fit one 390 px line: the toolbar wraps onto a second one.
+  expect(new Set(boxes.map((box) => Math.round(box.top))).size).toBeGreaterThan(1);
+  expect(await toolbar.evaluate((e) => e.scrollWidth - e.clientWidth)).toBeLessThanOrEqual(0);
+  expect(await dialog.evaluate((e) => e.scrollWidth - e.clientWidth)).toBeLessThanOrEqual(0);
+  expect(await horizontalOverflow(page)).toBeLessThanOrEqual(0);
 });

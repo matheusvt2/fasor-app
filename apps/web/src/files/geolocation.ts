@@ -22,6 +22,8 @@ export interface GeolocationDeps {
   setTimeout: (callback: () => void, ms: number) => unknown;
   /** The browser answered PERMISSION_DENIED: the caller records it (the device-local pref). */
   onDenied?: () => void;
+  /** Story 11.5: a fix arrived, so the position is allowed again: the caller clears that pref. */
+  onGranted?: () => void;
 }
 
 interface Fix {
@@ -63,6 +65,7 @@ export function createPositionTracker(deps: GeolocationDeps): PositionTracker {
               // The fix's own time: a cached position (`maximumAge`) is as old as it says.
               at: Number.isFinite(position.timestamp) ? position.timestamp : deps.now(),
             };
+            deps.onGranted?.();
             resolve(last);
           },
           (error) => {
@@ -101,11 +104,12 @@ export function createPositionTracker(deps: GeolocationDeps): PositionTracker {
 }
 
 /** The tracker over the browser's Geolocation API. */
-export function browserPositionTracker(onDenied?: () => void): PositionTracker {
+export function browserPositionTracker(onDenied?: () => void, onGranted?: () => void): PositionTracker {
   return createPositionTracker({
     geolocation: typeof navigator !== 'undefined' && 'geolocation' in navigator ? navigator.geolocation : null,
     now: () => Date.now(),
     setTimeout: (callback, ms) => globalThis.setTimeout(callback, ms),
     ...(onDenied === undefined ? {} : { onDenied }),
+    ...(onGranted === undefined ? {} : { onGranted }),
   });
 }

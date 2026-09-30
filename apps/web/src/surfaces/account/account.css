@@ -69,3 +69,15 @@
   align-items: baseline;
   gap: var(--sp-1) var(--sp-3);
 }
+
+/* Story 11.5: "Localização nas fotos" (`90-account.html` D6 `#acc-loc-row`). The mock's
+   page-scoped `[data-route="/account"] .toggle-row { border-top: 0; }`: the row sits under
+   the section head with no rule of its own. The helper under it is the mock's `.helper-on`
+   / `.helper-off` (or the denied line), one at a time, rendered rather than toggled by CSS. */
+.location-row .toggle-row {
+  border-top: 0;
+}
+
+.location-row .helper {
+  display: block;
+}
