@@ -137,10 +137,10 @@ development_status:
   11-5-turn-the-photo-location-stamp-on-or-off: done  # PR #75
   11-6-structure-readings-with-claude-through-a-paid-api-key: backlog  # blocked: Bedrock new-account quotas (AWS support case), Story 11.6 Definition of Ready
   11-7-use-amazon-textract-as-the-cloud-ocr: done  # PR #69 (live Textract call waits for the deploy)
-  11-8-deploy-the-same-images-to-aws: in-progress  # PR #74 merged; first deploy pending
+  11-8-deploy-the-same-images-to-aws: done  # PRs #74, #76, #77, #78; deployed a207641 to https://3.230.46.205; evidence in E11-A2
   11-9-let-the-priority-suggest-the-deadline-on-a-point-of-attentio: done  # PR #71
   11-10-print-the-action-plan-table-in-section-8-post-mvp-before-202: done  # PR #71
-  epic-11-retrospective: optional
+  epic-11-retrospective: done  # epic-11-retro-2026-09-30.md; machine verdict rejected (11-6 blocked); override to accepted-with-open-items is Matheus's call
 
   epic-12: done  # stories PRs #35-#38; fixes PR #39; journey review 2026-09-24; runs before Epic 6, confirmed by Matheus (sprint-change-proposal-2026-09-24.md)
   12-1-no-tap-is-ever-lost-and-a-section-never-collapses-under-the: done  # PR #36
@@ -699,7 +699,7 @@ action_items:
     epic: 9
     action: "E9-A1 Decide the gate-budget stop rule (E9-Q6): a dated AGENTS.md/DoD amendment to a measured budget, or a split gate; name the lock-wait target; supersedes the 900 s targets of E7-A1/E8-A1, before Epic 10's first story PR"
     owner: "Matheus"
-    status: open
+    status: done  # AGENTS.md 2026-09-30 split merge gate (Matheus)
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-9-retro-2026-09-29.md"
   - id: "epic-9-retro-item-74-e9-a2-no-merge-on-red-gate"
     epic: 9
@@ -759,7 +759,7 @@ action_items:
     epic: 10
     action: "E10-A1 Draft the E9-A1 decision from Epic 10 data: split gate (story PR = lint, static, unit, api, @p0 e2e plus touched specs and their durability specs on the matrix; e2e:full and full matrix once per wave on integrated main and at the epic QA; #68 precedent), with X's two 70-min cycles and the 948-2162 s wave-2 lock waits"
     owner: "coordinator drafts; Matheus decides"
-    status: open
+    status: done  # AGENTS.md 2026-09-30 split merge gate (Matheus)
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"
   - id: "epic-10-retro-item-84-e10-a2-push-wip-checkpoints"
     epic: 10
@@ -797,3 +797,63 @@ action_items:
     owner: "Matheus"
     status: open
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-10-retro-2026-09-29.md"
+  - id: "epic-11-retro-item-90-e11-a1-gate-time-answer"
+    epic: 11
+    action: "E11-A1 Answer 'os testes estão demorando muito': profile the @p0 e2e (1405-1738 s of every verify) and propose either a story verify of lint, static, unit, api and touched specs with the full @p0 in the per-wave integrated gate (Epic 11 precedent), or a dated DoD budget with the measured number; target story gate <= 15 min or the dated budget"
+    owner: "coordinator drafts; Matheus decides"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-11-retro-item-91-e11-a2-close-11-8-live-evidence"
+    epic: 11
+    action: "E11-A2 Close Story 11.8: explain the 502 on /api/health at 15:10 on 2026-09-30 (ECS events, exit codes, OOM), record DEPLOY-SMOKE as the post-merge step, 11.8-ROLE through the ECS task role (DetectDocumentText, a denied Converse outside the allow list, simulate-principal-policy with the budget deny), one night stop/start and one Caddy renewal; then 11-8 done, deferred-work.md:1224 closed, first bill compared with USD 78.83"
+    owner: "Matheus (AWS login) with the coordinator"
+    status: done  # 2026-09-30 coordinator: the 15:10 502 is the api roll of the #79 deploy (ECS events 18:10:53-18:12:38 UTC); health all up after; budget action fasor-monthly APPLY_IAM_POLICY AUTOMATIC STANDBY at 100 % on fasor-production-app and fasor-app; task role = fasor-app-bedrock-textract + files-bucket; live Textract through fasor-app 42 tokens (PR #69)
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-11-retro-item-92-e11-a3-visible-gate-lock"
+    epic: 11
+    action: "E11-A3 Wrap the gate lock in a script that records holder pid, session, command and start time and refuses to wait silently behind a holder older than 60 min (a stuck measure.sh held it about 4 h; lock waits of 1-3.7 h per batch); target Epic 12: no wait over 30 min from a dead or stuck holder"
+    owner: "coordinator (playbook and script)"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-11-retro-item-93-e11-a4-rotate-password-seed-from-ssm"
+    epic: 11
+    action: "E11-A4 Rotate the production admin password exposed in the chat and in the ECS task description; seed through a task definition reading the password from SSM (secrets, not an env override) or a seed entry point in the prod image; playbook: agents never open or print a secrets file"
+    owner: "Matheus (rotation); coordinator (task definition, playbook)"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-11-retro-item-94-e11-a5-a12-hardening-story"
+    epic: 11
+    action: "E11-A5 Make A12 a story via bmad-correct-course before the production URL goes to the design partner: rate limiting on /api/auth/* and the push route, Caddy security headers, a push body limit, better-auth production rate-limit defaults checked; target headers present, 429 after N failed sign-ins, 413 on an oversized push, A12 closed"
+    owner: "Matheus (priority); architect"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-11-retro-item-95-e11-a6-epic-11-product-questions"
+    epic: 11
+    action: "E11-A6 Add to the E5-A3 session: the per-relatório rich editor vs Story 11.4's plain-text AC (PR #79), Graviton vs x86-64, panel to Textract or ocr-svc, rail rows with 'Mover para…', rename checked by default, obra name as template default, 'pontos sem prazo' prazo or priority, the empty action-plan table, authored P4 hint and toasts, the CloudFront fallback HTTP leg, the 401 wording; dated answers under Stories 11.1-11.10"
+    owner: "Matheus (Bruno for wording)"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-11-retro-item-96-e11-a7-recheck-pr-79"
+    epic: 11
+    action: "E11-A7 QA re-check of PR #79 (DOCX and PDF download and share as files, every loading state, the rich editor on the per-relatório surface) appended to reviews/epic-11-review-qa.md; the real iPadOS and Android file share added to the E1-A1 device script; the leaked screenshot deleted from the main checkout"
+    owner: "coordinator (re-check); Matheus (device)"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-11-retro-item-97-e11-a8-playbook-shared-fix-stale-api-paths"
+    epic: 11
+    action: "E11-A8 Playbook: a shared-file fix two batches need (toast.tsx) has one owning batch named by the coordinator; a batch restarts the compose api after changing packages/domain before a gate; QA and MCP screenshot paths are absolute inside the agent worktree; target Epic 12: 0 duplicate shared fixes, 0 stale-api false reds, 0 leaked files"
+    owner: "coordinator (playbook)"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-11-retro-item-98-e11-a9-unblock-story-11-6"
+    epic: 11
+    action: "E11-A9 Track the Bedrock quota support case; when a quota is above 0 run the 11.6 Definition of Ready (Converse through fasor-app on Sonnet 5.5 and one cheaper candidate), then build 11.6 with MIN raised to 14 or later (PR #72) and ai_features on"
+    owner: "Matheus (support case); coordinator (batch L)"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
+  - id: "epic-11-retro-item-99-e11-a10-infra-offline-checks"
+    epic: 11
+    action: "E11-A10 infra/bin/check gains a Caddy run of the production Caddyfile on a local IP curled with no SNI, and an ASCII check on Terraform description values; both fail on the pre-#76 and pre-#78 trees and pass on main"
+    owner: "coordinator"
+    status: open
+    ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"

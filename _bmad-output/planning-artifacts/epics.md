@@ -489,7 +489,7 @@ Two engineers work the same relatório on two devices: sheets merge by sub-block
 ### Epic 11: Completions after the slice and the dated post-MVP items
 The remaining product scope the slice deferred: the PDF download beside the DOCX, moving a block between locations, saving a relatório as a template, the rich text editor in the Template composer, the photo location switch, and, dated for NR-10 10.7.11 before 2027-06-01, the priority-driven deadline and the printed action-plan table on points of attention.
 **FRs covered:** FR-8, FR-12 (rich text editor), FR-14, FR-20, FR-62 (PDF download), FR-50 (post-MVP), FR-52 (post-MVP)
-**Also covers:** UX-DR55 (priority pill and picker), UX-DR65 (location switch), AR-26 (AWS: ECS Fargate, RDS, S3, Secrets Manager, CloudWatch, Bedrock, Textract via ~~CDK~~ Terraform *(2026-09-29, Matheus)* in `infra/`, CI image promotion), AR-29
+**Also covers:** UX-DR55 (priority pill and picker), UX-DR65 (location switch), AR-26 (AWS: ~~ECS Fargate~~ ECS on one EC2 instance *(2026-09-30, coordinator, PR #74)*, RDS, S3, ~~Secrets Manager~~ SSM Parameter Store *(2026-09-30, Matheus)*, CloudWatch, Bedrock, Textract via ~~CDK~~ Terraform *(2026-09-29, Matheus)* in `infra/`, ~~CI image promotion~~ the `infra/bin/deploy` script *(2026-09-30, Matheus: no CI, no staging)*), AR-29
 **Decisions (Matheus, 2026-09-21):** the MVP runs 100% locally in Docker; the AWS deployment, the real Claude structuring call (`LLM_PROVIDER=anthropic` with a Console key, then `bedrock`) and Amazon Textract as an `OcrProvider` are stories of this epic, after the MVP, and no earlier epic depends on a cloud account or on paid API credits.
 **Order and gates (Matheus with John and Amelia, 2026-09-30):** Bedrock is blocked by the account's new-account quotas (AWS support case open), so the deploy comes first and the LLM last. Entry gate G0: the Epic 10 retrospective closed (done 2026-09-29), the AWS bootstrap PR merged with a green `pnpm verify`, the USD 100 budget active (done). Wave 1: Story 11.8 (deploy), with the Epic 10 carry-over batch and Story 11.1 in parallel. Wave 2: Story 11.7 and the product stories 11.2, 11.3, 11.4, 11.5, 11.9, 11.10, each deployed to the account after its merge with the deploy script. Last: Story 11.6, behind its own Definition of Ready gate; if that gate is still closed when every other story is done, the epic closes with 11.6 blocked and the retrospective records it.
 
@@ -2350,6 +2350,8 @@ So that I send the client the closed document the same morning.
 **When** the user taps "PDF — enviar ao cliente" or the PDF glyph of a past revision
 **Then** `GET /api/revisions/{id}/pdf` serves it, a share sheet is offered on mobile, and the draft-equals-issued test covers the PDF too (FR-62, FR-74)
 
+*(2026-09-30, coordinator, PR #70 narrowing for Story 11.1: none. PR #70 shared the authenticated PDF URL on mobile, as the DOCX share of Story 7.5 did, so a recipient without a session got 401 (integrated QA E11-Q1). Matheus decided on 2026-09-30 that both formats are delivered as files: PR #79 saves `relatorio-rev-N.docx` and `.pdf` through the session fetch and shares the file with `navigator.share({ files })` when `canShare({ files })` allows it, else downloads it, never a URL. Open question: the iPadOS share is covered only with a stubbed navigator; the real-device check belongs to the next human QA pass.)*
+
 ### Story 11.2: Move a block to another location
 
 **Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** medium · move block op with TAG re-suggestion
@@ -2363,6 +2365,8 @@ So that a block placed in the wrong column is fixed without retyping.
 **Given** "Mover para…" on a Block card, a tree row and the Sumário expansion
 **When** the user picks a location
 **Then** `block/{id}/location_id` is emitted, the block's photos, checks, measurements and observations move with it, "Sugerir TAG para Coluna 9?" offers the re-suggestion, and the move is announced and undoable (FR-20)
+
+*(2026-09-30, coordinator, PR #73 narrowing for Story 11.2: "Mover para…" sits on the Sumário's Block card (section 9 expansion) and the sheet header Overflow; the 320 px rail tree rows carry no Overflow in `shell-foot.html` nor in code, so they get none, and the AC's "tree row" is read as the Sumário tree's equipment row (`deferred-work.md`, owner Matheus). The rename checkbox starts unchecked: the TAG re-suggestion is offered, not applied by default. 11.2-MERGE asserts the one info row for two concurrent moves of one block, since a move against a cell edit takes different paths (`merge/info.ts`). A `location_id` put is not checked against live locations; the entry is re-owned to Matheus as latent until a relatório can remove a location (E11-Q8). Open questions for Matheus: should the rail rows get an Overflow with "Mover para…"; should the rename be checked by default.)*
 
 ### Story 11.3: Save a relatório as a template
 
@@ -2378,6 +2382,8 @@ So that the next visit to the same site starts from what was actually there.
 **When** the user names the template
 **Then** a `template/{id}` create carries the locations, each cabine's `agrupar_por_tipo`, each block's `BlockConfig` with sub-block and subtype overrides and its quantity per column; TAGs are regenerated at instantiation; filled data, photos and points are not carried (FR-14)
 
+*(2026-09-30, coordinator, PR #73 narrowing for Story 11.3: the template name is prefilled with the project (obra) name; a blank name disables "Salvar" with the reason "Salvar: falta o nome". Open question for Matheus: keep the obra name as the default.)*
+
 ### Story 11.4: Edit section boilerplate in a rich text editor
 
 **Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** medium · rich text editor limited to renderer-shared formatting
@@ -2392,6 +2398,10 @@ So that the boilerplate prints with the formatting the company form uses.
 **When** the user formats text
 **Then** formatting is limited to what the DOCX and PDF renderers share, pasted text is stripped to plain text plus lists, variable chips behave as in Story 3.6, and the renderer prints the formatting; the per-relatório Section text surface stays plain text (FR-12, UX-DR69)
 
+*(2026-09-30, coordinator, PR #75 narrowing for Story 11.4: formatting is stored as markup inside the `section_text` string (`packages/domain/src/templates/rich-text.ts`); "Variável" hides the chip row until pressed (as the mock and `EXPERIENCE.md:348`); undo of formatting is the editor's own Ctrl+Z history, not a toast. 11.4-TEMPLATE-FORMAT and the PDF half of 11.4-PRINT-BOTH waited for Stories 11.3 and 11.1 and were closed by PR #79 (a kernel test in `from-relatorio.test.ts`; the PDF saved through the UI in `e2e/rich-text-print.spec.ts`). Known open: on virtual keyboards a Backspace arriving as "Unidentified" is not handled (unverified).)*
+
+*(2026-09-30, coordinator, the as-built after PR #79 departs from this AC: the AC keeps the per-relatório Section text surface plain text, and PR #75 did, showing the markup raw (`A **manutenção**`); the integrated QA found typed `*`, `- ` and `N. ` printing as formatting there (E11-Q5), and PR #79 gave that surface the composer's rich editor (the shared `input/rich-text-field.tsx`). The AC sentence is not struck: Matheus confirms or reverts the as-built (Epic 11 retro E11-A6).)*
+
 ### Story 11.5: Turn the photo location stamp on or off
 
 **Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** ~~low~~ medium *(2026-09-24, Matheus: effort floor is medium)* · account toggle
@@ -2405,6 +2415,8 @@ So that I control what prints under my photos.
 **Given** Account's Toggle row "Localização nas fotos" (default on) writing `user/{id}/photo_location_enabled`
 **When** it is off
 **Then** photos carry date and time only; when the OS denied location the sub-line reads "Permissão negada no aparelho" with the OS path and the switch stays on so it works once granted; capture is never blocked (FR-8, UX-DR65)
+
+*(2026-09-30, coordinator, PR #75 narrowing for Story 11.5: the switch offers no undo toast (11.5-UNDO asserts no undo by design); a second tap restores it. Known open, pre-existing from Story 6.1: the position tracker latches a denial while the ficha stays mounted.)*
 
 ### Story 11.6: Structure readings with Claude through a paid API key
 
@@ -2426,6 +2438,10 @@ So that the pipeline proven on fixtures reads real plates with one config change
 
 *(2026-09-30, Matheus, Definition of Ready for this story, the LLM gate: the AWS support case on the new-account Bedrock quotas is resolved, and one real Converse call through the `fasor-app` role succeeds on Claude Sonnet 5.5 and on at least one cheaper candidate. The story is built last in Epic 11.)*
 
+*(2026-09-30, coordinator, PR #72 narrowing for this story (Epic 11 carry-over, ledger 1131): a gallery import batch now asks for the caption reading only when the batch is answered or closed, and a batch never answered (reload, killed tab) keeps no caption reading. `MIN_CONTRACT_VERSION` stays 13, so a version-13 bundle still asks at pick time: this story raises MIN to 14 or later before a cloud LLM is wired.)*
+
+*(2026-09-30, coordinator, blocked at the Epic 11 close: every Bedrock model quota of the new account is applied at 0 (AWS support case open), while the Marketplace agreements for Claude Sonnet 5.5, Haiku 4.5 and Opus 5.5 are active. The Definition of Ready gate above stays closed, so Epic 11 closes with this story blocked, as the epic's order and gates allow; production runs with `AI_FEATURES=off` (Story 11.8, PR #77) and local OCR. Turning the flag on is `llm_provider = "bedrock"` and `ai_features = "on"` in `infra/`, after this story.)*
+
 ### Story 11.7: Use Amazon Textract as the cloud OCR
 
 **Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** medium · Textract adapter behind the existing contract
@@ -2440,9 +2456,11 @@ So that nameplates and printed text can use a managed OCR once the AWS account e
 **When** the provider runs
 **Then** WORD blocks map to tokens with normalized boxes in the original image space, `preprocessing_applied: false`, the per-`reading_kind` routing picks it for plates and `ocr-svc` for displays, and the AWS account carries the AI services opt-out policy (FR-33, AR-13, NFR-11)
 
+*(2026-09-30, coordinator, PR #69 narrowing for Story 11.7: no e2e spec was added, since there is no UI change and the provider cannot run without AWS; the reading pipeline's UI-to-job specs stay on `fake`. The compose env anchor does not pass `TEXTRACT_REGION`, so the default `us-east-1` applies locally. `panel` follows `plate` to Textract (both read printed text); open question for Matheus whether `panel` should go to `ocr-svc` instead (one line in `providers/index.ts`). The error classification relies on the SDK's `name`/`$fault`/`$retryable` shapes, exercised only with hand-built errors. Live check after the deploy: one `DetectDocumentText` through the `fasor-app` role read 42 tokens of the plate fixture; the call through the ECS task role (11.8-ROLE) is still to be recorded.)*
+
 ### Story 11.8: Deploy the same images to AWS
 
-**Dev model:** opus · **Effort:** ~~medium~~ high *(2026-09-24, Matheus: effort review)* · ~~CDK stack~~ Terraform configuration *(2026-09-29, Matheus)* for ECS, RDS, S3 and CI promotion
+**Dev model:** opus · **Effort:** ~~medium~~ high *(2026-09-24, Matheus: effort review)* · ~~CDK stack~~ Terraform configuration *(2026-09-29, Matheus)* for ECS, RDS, S3 ~~and CI promotion~~ and a deploy script *(2026-09-30, coordinator, per the 2026-09-30 note below)*
 
 As a builder,
 I want the docker-compose images to run on AWS managed container services from infrastructure code,
@@ -2451,18 +2469,26 @@ So that the design partner uses the product outside the office network without a
 **Acceptance Criteria:**
 
 **Given** `infra/` as ~~AWS CDK in TypeScript~~ Terraform *(2026-09-29, Matheus)*
-**When** ~~`cdk deploy`~~ `terraform apply` *(2026-09-29, Matheus)* runs for `staging` and later `production` in `sa-east-1`
-**Then** it creates a VPC, ECS Fargate behind an ALB with HTTPS for the api image (with in-process worker) and a second service for `services/ocr`, RDS for PostgreSQL 18, S3 with versioning, Secrets Manager, CloudWatch Logs, IAM for Bedrock and Textract; CI pushes each commit's images to ECR and promotes staging → production unchanged; migrations run as a one-shot ECS task before the service rolls; switching any service changes `infra/` only (AR-26, NFR-18; no FR: delivery of the same product outside the office network)
+**When** ~~`cdk deploy`~~ `terraform apply` *(2026-09-29, Matheus)* runs for ~~`staging` and later `production` in `sa-east-1`~~ `production` only in `us-east-1` *(2026-09-30, coordinator, per the dated notes below)*
+**Then** it creates a VPC, ~~ECS Fargate behind an ALB with HTTPS~~ one EC2 instance in ECS behind Caddy with HTTPS *(2026-09-30, coordinator, PR #74)* for the api image (with in-process worker) and a second service for `services/ocr`, RDS for PostgreSQL 18, S3 with versioning, ~~Secrets Manager~~ SSM Parameter Store *(2026-09-30, Matheus)*, CloudWatch Logs, IAM for Bedrock and Textract; ~~CI pushes each commit's images to ECR and promotes staging → production unchanged~~ `infra/bin/deploy` builds the images in containers and pushes them to ECR *(2026-09-30, coordinator, PR #74)*; migrations run as a one-shot ECS task before the service rolls; switching any service changes `infra/` only (AR-26, NFR-18; no FR: delivery of the same product outside the office network)
 
 *(2026-09-29, Matheus, Definition of Ready for this story: the AWS account exists. Before the story starts, Matheus logs the AWS CLI into that account on the development machine, so the agent can reach it through the profile in `~/.aws`; the agent never asks for, stores or commits access keys. Infrastructure is Terraform, not CDK (`source-deltas.md`). Per AD-27 neither tool is installed on the host: the AWS CLI and Terraform run in containers (a `tools`-profile service or the official `amazon/aws-cli` and `hashicorp/terraform` images) with `~/.aws` mounted read-only. The Terraform state lives in an S3 backend with S3-native locking, one state per environment; the state bucket and the provider versions are pinned when the story starts, verified against current releases.)*
 
 *(2026-09-29, Matheus: total AWS spend for the project stays below USD 100 per month, all environments, Bedrock and Textract included. The topology above is re-costed against that ceiling before the story is built, and any part that does not fit is replaced and recorded in `source-deltas.md`. ~~The account `fasor` (profile `--profile fasor`) is the one to use.~~ The account is 673409896745, reached through the profile `fasor-admin` (IAM administrator with MFA) and the role profile `fasor-app`; the root profile `fasor` is never used *(2026-09-30, coordinator)*.)*
 
-*(2026-09-29, Matheus: region `us-east-1`, not `sa-east-1`; lean topology for at most 10 concurrent users, one Graviton EC2 instance in ECS with Caddy HTTPS instead of Fargate behind an ALB, no NAT, RDS `db.t4g.micro`, `staging` on demand. `source-deltas.md`.)*
+*(2026-09-29, Matheus: region `us-east-1`, not `sa-east-1`; lean topology for at most 10 concurrent users, one ~~Graviton~~ x86-64 `t3a.medium` *(2026-09-30, coordinator, PR #74: `paddlepaddle` has no aarch64 wheel)* EC2 instance in ECS with Caddy HTTPS instead of Fargate behind an ALB, no NAT, RDS `db.t4g.micro`, `staging` on demand. `source-deltas.md`.)*
 
 *(2026-09-30, Matheus: secrets in SSM Parameter Store `SecureString` instead of Secrets Manager; the USD 100 ceiling holds at list price, without Free Tier or promotional credits. `source-deltas.md`.)*
 
 *(2026-09-30, Matheus: one environment only, `production`; no `staging`, not even on demand, and no CI promotion. The deliverables are Terraform in `infra/` for the whole infrastructure and a shell deploy script that builds the images in containers, pushes them to ECR, runs the migrations as a one-shot task and rolls the services; every later Epic 11 story is deployed with it after its merge. There is no domain yet: the service is reached at a free, temporary AWS-provided address with HTTPS (the builder picks the mechanism ~~the tablets' PWA accepts~~ the tablets' browser accepts, since the product is web only with no install (`source-deltas.md`) *(2026-09-30, coordinator)*, for example a Let's Encrypt certificate for the Elastic IP through Caddy, and records it); a domain replaces it later by changing `infra/` only.)*
+
+*(2026-09-30, coordinator, PR #67, the AWS bootstrap before this story: `infra/bootstrap` applied to account 673409896745 with the organization and its AI services opt-out policy, the state bucket `fasor-tfstate-673409896745`, `fasor-admin` (console with passkey MFA, no keys), the `fasor-app` role assumable only by `fasor-admin`, and the `fasor-monthly` USD 100 budget; no narrowing.)*
+
+*(2026-09-30, coordinator, PR #74 narrowings: (1) architecture x86-64 `t3a.medium` by default instead of Graviton `t4g.medium`, because `paddlepaddle==3.3.1` (the `ocr` image) has no linux aarch64 wheel; `var.architecture = "arm64"` switches it in one line (open question for Matheus: keep x86-64 or move ocr to an arm64-capable stack, about USD 2.3/month less). (2) The api takes its AWS credentials from the ECS task role `fasor-production-app` through the SDK default chain, not from the instance role, which keeps only the ECS agent and Session Manager policies; the bootstrap Bedrock/Textract statements are attached to the task role. (3) Night schedule: EventBridge Scheduler stops and starts the instance (00:00 to 04:40) and RDS (00:05 to 05:00, America/Sao_Paulo) instead of scaling to zero through an Auto Scaling group, so the root volume keeps Caddy's certificate storage and the image cache. (4) Each roll has a few seconds of downtime (host network, one instance, minimum healthy 0 %). (5) `scripts/build-tagged-image.sh` is superseded by `infra/bin/deploy` and left on disk for Matheus to delete. Estimated cost USD 78.83/month at list price (`infra/README.md` "Cost"), below the USD 100 ceiling.)*
+
+*(2026-09-30, coordinator, PR #77 narrowing (Matheus, 2026-09-30): production goes up with `AI_FEATURES=off`, because the account has no Bedrock quota and the `fake` LLM provider must never run in production (it invents readings). With the flag off the web hides "Fotografar placa", the palette's "Fotografar equipamento", the NC draft, the vision caption and "Tentar novamente" on a failed AI reading, and the api refuses AI reading kinds (409 `ai_features_off`); "Ler visor" stays on because `display` is OCR only, and local OCR (`OCR_PROVIDER=ocr-svc`) stays on. Terraform `ai_features` defaults to `off`, and `on` requires `llm_provider != "fake"`; there is no boot-time guard against `fake` in `NODE_ENV=production`. The web reads the flag at boot and sign-in only.)*
+
+*(2026-09-30, coordinator, PR #76 and PR #78: HTTPS is a Let's Encrypt IP-address certificate for the Elastic IP (the `shortlived` profile, HTTP-01, renewed by Caddy 2.11.4 on its own, stored on the root volume), trusted by the tablets' browsers with no install. The first `terraform apply` failed on an apostrophe in a security group rule description (PR #76), and the first deploy obtained the certificate but failed the TLS handshake because clients reaching an IP send no SNI; `default_sni {$PUBLIC_IP}` fixed it (PR #78). Deployed to production at `https://3.230.46.205` (us-east-1, 70 Terraform resources) with `GET /api/health` all up. Still to record (Epic 11 retro E11-A2): DEPLOY-SMOKE as the repeatable post-merge check, 11.8-ROLE through the task role, and the budget action's deny.)*
 
 ### Story 11.9: Let the priority suggest the deadline on a point of attention (post-MVP, before 2027-06-01)
 
@@ -2478,6 +2504,8 @@ So that the report carries the compliance schedule NR-10 10.7.11 will require.
 **When** a level is chosen
 **Then** the Prazo field shows the date as a Suggestion (P0 that day, P1 +30, P2 +90, P3 +180, P4 the relatório's next recommended intervention, never a hard-coded year), a typed date is never overwritten and a differing suggestion offers "Substituir"; the Priority pill is text first, tone second; Responsável is free text (FR-50, UX-DR55)
 
+*(2026-09-30, coordinator, PR #71 narrowing for Story 11.9: the P4 hint "próxima intervenção" is authored (the mock's "365 dias" is overridden by source-deltas row 29); the undo toast texts and the month-only helper "Prazo: 09/2027 (mês da próxima intervenção)" are authored; a pick on a blank new point is held until the first text, action or Responsável creates the point. Known open (EC5, low): a typed-Prazo commit pending in the 500 ms idle window can override a sync or undo landing in that window (the shared `useFieldCommit` pattern). Open questions for Matheus and Bruno in `deferred-work.md`.)*
+
 ### Story 11.10: Print the action-plan table in section 8 (post-MVP, before 2027-06-01)
 
 **Dev model:** ~~sonnet~~ opus *(2026-09-24, Matheus: sonnet replaced by opus)* · **Effort:** medium · action-plan table in the renderer
@@ -2491,6 +2519,8 @@ So that the client receives the schedule the new NR-10 names.
 **Given** points with priority, deadline and owner
 **When** the generate job renders section 8
 **Then** beneath the bullets a table prints with columns Nº · Ponto de atenção · Local/TAG · Prioridade · Prazo · Ação recomendada · Responsável · Imagens, manual then derived rows numbered continuously, "—" where a value is missing, images as the same resolved numbers; `preIssue` counts "pontos sem prazo" as information (FR-52, AR-25)
+
+*(2026-09-30, coordinator, PR #71 narrowing for Story 11.10: "pontos sem prazo" counts live points with no deadline (the story says prazo, `EXPERIENCE.md` says priority; open question); the table prints whenever section 8 prints, even with no action-plan value; the Points surface "Como imprime na seção 8" preview (`72-pontos.html:290-318`) is not built, since neither story names it. 11.10-PDF waited for Story 11.1 and was closed by PR #79, which also rebalanced the column weights to `[5,22,13,11,10,16,13,10]` so no header word breaks in the PDF (E11-Q4).)*
 
 ## Epic 12: Field journey and visual refresh (journey review 2026-09-24)
 
