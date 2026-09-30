@@ -113,9 +113,15 @@ describe('contract constants', () => {
       registrationNumber: 'SP 1',
       title: 'Eng. Eletricista',
     };
-    expect(accountResponseSchema.safeParse({ user }).success).toBe(true);
+    const features = { ai: true };
+    expect(accountResponseSchema.safeParse({ user, features }).success).toBe(true);
+    // Story 11.8 follow-up: an api from before the flag (no `features`) had AI on.
+    expect(accountResponseSchema.parse({ user }).features).toEqual({ ai: true });
+    expect(accountResponseSchema.parse({ user, features: { ai: false } }).features).toEqual({ ai: false });
+    expect(accountResponseSchema.safeParse({ user, features: {} }).success).toBe(false);
+    expect(errorCodeSchema.safeParse('ai_features_off').success).toBe(true);
     // Identity user ids are uuidv7 like every other kernel id (AD-4): a slug is refused.
-    expect(accountResponseSchema.safeParse({ user: { ...user, id: 'seed-user-a-teste-local' } }).success).toBe(false);
+    expect(accountResponseSchema.safeParse({ user: { ...user, id: 'seed-user-a-teste-local' }, features }).success).toBe(false);
   });
 
   it('enumerates the per-op rejection codes inside the error codes', () => {

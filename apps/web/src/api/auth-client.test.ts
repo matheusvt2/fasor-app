@@ -77,13 +77,13 @@ describe('signIn classifies failures', () => {
   it('returns the profile after an accepted pair', async () => {
     signInEmail.mockResolvedValue({ data: { user: { id: profile.id } }, error: null });
     fetchMock.mockResolvedValue(
-      new Response(JSON.stringify({ user: profile }), {
+      new Response(JSON.stringify({ user: profile, features: { ai: false } }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       }),
     );
     const result = await signIn('a@teste.local', 'right');
-    expect(result).toMatchObject({ ok: true, user: { id: profile.id, council: 'crea' } });
+    expect(result).toMatchObject({ ok: true, user: { id: profile.id, council: 'crea' }, features: { ai: false } });
     // The account read goes through the contract route (AD-13), not a literal of its own.
     expect(fetchMock).toHaveBeenCalledWith('/api/account', expect.objectContaining({ method: 'GET' }));
   });

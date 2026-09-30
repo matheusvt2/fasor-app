@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PhotoTile } from '../../db/photo-store.ts';
+import { AiFeaturesContext } from '../../state/ai-features.tsx';
 import { SyncContext, type SyncState } from '../../state/sync.tsx';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
 import { makeSyncState } from '../../test/sync-state.ts';
@@ -146,6 +147,21 @@ describe('8.2-UNIT the plate photo row', () => {
     expect(retry).toHaveAccessibleDescription('Sem conexão');
     await userEvent.click(retry);
     expect(offline.rereadPhoto).not.toHaveBeenCalled();
+  });
+});
+
+describe('11.8 follow-up: a failed plate reading while the server AI features are off', () => {
+  it('offers only "Preencher manualmente", no "Tentar novamente"', async () => {
+    const fill = vi.fn();
+    wrap(
+      <AiFeaturesContext value={false}>
+        <PlatePhotoRow tile={tile({ reading_status: 'failed' })} number={3} view="failed" onOpen={vi.fn()} onFillManually={fill} />
+      </AiFeaturesContext>,
+    );
+    expect(screen.getByRole('status')).toHaveTextContent('Não foi possível ler');
+    expect(screen.queryByRole('button', { name: 'Tentar novamente' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: 'Preencher manualmente' }));
+    expect(fill).toHaveBeenCalledOnce();
   });
 });
 

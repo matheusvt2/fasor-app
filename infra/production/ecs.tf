@@ -41,6 +41,7 @@ locals {
       OCR_PROVIDER    = var.ocr_provider
       OCR_SERVICE_URL = "http://127.0.0.1:8000"
       LLM_PROVIDER    = var.llm_provider
+      AI_FEATURES     = var.ai_features
       AWS_REGION      = local.region
     } : { name = name, value = value }
   ]

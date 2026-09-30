@@ -24,6 +24,7 @@ import { LIST_FOCUS_WATCH_FRAMES } from '../../input/focus-restore.ts';
 import { useReorder, type Reorder } from '../templates/use-reorder.ts';
 import { FieldPalette, type PaletteTarget } from './block-palette-field.tsx';
 import { PanelCapture, type PanelCaptureHandle } from './panel-capture.tsx';
+import { useAiFeatures } from '../../state/ai-features.tsx';
 import { blockOpen, blockRow, blockTrigger, locationChevron, useTreeActions, type TreeActions, type TreeContext } from './tree-actions.ts';
 import { NameDialog, TagDialog } from './tag-dialogs.tsx';
 import { NotTestedDialog } from './not-tested-dialog.tsx';
@@ -177,6 +178,8 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
   const [palette, setPalette] = useState<PaletteTarget | null>(null);
   // Story 9.2: "Fotografar equipamento" outlives the palette, which closes when its tile is tapped.
   const panelRef = useRef<PanelCaptureHandle>(null);
+  // Story 11.8 follow-up: "Fotografar equipamento" (the panel reading) is hidden while the server's AI features are off.
+  const aiFeatures = useAiFeatures();
   const [dialog, setDialog] = useState<Dialog | null>(null);
 
   // The parents of every location, so a reveal works for a location the tree does not draw yet.
@@ -338,7 +341,7 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
             setPalette(null);
             actions.createBlock(input);
           }}
-          {...(presentation === 'sumario'
+          {...(presentation === 'sumario' && aiFeatures
             ? {
                 onPhotograph: (target: PaletteTarget) => {
                   panelRef.current?.open(target);

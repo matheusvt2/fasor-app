@@ -4,7 +4,7 @@ import type { ReadingKind } from '../payload.ts';
 import { DEFAULT_FIXTURES_DIR, fakeOcrProvider, fakeProseProvider, fakeStructuringProvider } from './fake.ts';
 import { ocrSvcProvider } from './ocr-svc.ts';
 import { TEXTRACT_DEFAULT_REGION, textractProvider, type TextractLike } from './textract.ts';
-import { unimplementedProseProvider, unimplementedStructuringProvider } from './unimplemented.ts';
+import { aiFeaturesOffProseProvider, aiFeaturesOffStructuringProvider, unimplementedProseProvider, unimplementedStructuringProvider } from './unimplemented.ts';
 
 export * from './errors.ts';
 
@@ -57,7 +57,7 @@ export interface ReadingProviderOptions {
 }
 
 export function createReadingProviders(
-  config: Pick<Config, 'OCR_PROVIDER' | 'LLM_PROVIDER' | 'OCR_SERVICE_URL'> & Partial<Pick<Config, 'TEXTRACT_REGION'>>,
+  config: Pick<Config, 'OCR_PROVIDER' | 'LLM_PROVIDER' | 'OCR_SERVICE_URL'> & Partial<Pick<Config, 'TEXTRACT_REGION' | 'AI_FEATURES'>>,
   options: ReadingProviderOptions = {},
 ): ReadingProvidersFactory {
   const fixturesDir = options.fixturesDir ?? DEFAULT_FIXTURES_DIR;
@@ -85,7 +85,11 @@ export function createReadingProviders(
           return reading_kind === 'display' ? { ocr: ocrSvc(), ocr_name: 'ocr-svc' } : { ocr: textract!, ocr_name: 'textract' };
       }
     })();
+    // Story 11.8 follow-up: with AI_FEATURES=off no LLM step runs, whatever LLM_PROVIDER says
+    // (a job queued before the flag flipped fails permanently without calling `fake`).
+    const aiOff = config.AI_FEATURES === 'off';
     const structuring = (() => {
+      if (aiOff) return aiFeaturesOffStructuringProvider();
       switch (config.LLM_PROVIDER) {
         case 'fake':
           return fakeStructuringProvider(fixturesDir, photo_sha256, fixtureKey);
@@ -95,6 +99,7 @@ export function createReadingProviders(
       }
     })();
     const prose = (() => {
+      if (aiOff) return aiFeaturesOffProseProvider();
       switch (config.LLM_PROVIDER) {
         case 'fake':
           return fakeProseProvider(fixturesDir, photo_sha256, fixtureKey);

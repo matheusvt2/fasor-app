@@ -519,6 +519,29 @@ describe('8.4-INT provider stubs and foreign payloads', () => {
     }, 60_000);
   }
 
+  it('11.8 follow-up: with AI features off a queued plate job fails permanently before OCR; no provider is built', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
+    const bytes = await solidPng(1, 2, Math.floor(Math.random() * 250));
+    const id = await photo(relatorioId, block, bytes, 'image/png');
+    let built = 0;
+    const offDeps = {
+      ...deps,
+      aiFeatures: false,
+      providers: (ctx: Parameters<typeof deps.providers>[0]) => {
+        built += 1;
+        return deps.providers(ctx);
+      },
+    };
+    await runReadingJob(offDeps, { company_id: companyId, photo_id: id, reading_kind: 'plate' }, { jobId: 'direct', attempt: 1, lastAttempt: false });
+    expect(built).toBe(0);
+    expect(await status(id)).toBe('failed');
+    const rows = await runs(id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.error).toContain('AiFeaturesOffError');
+    expect(rows[0]!.ocr_provider).toBe('none');
+  }, 60_000);
+
   it('a payload naming a photo the company does not hold writes a run row and no status', async () => {
     const photoId = newId();
     await runReadingJob(deps, { company_id: companyId, photo_id: photoId, reading_kind: 'plate' }, { jobId: 'direct', attempt: 1, lastAttempt: false });

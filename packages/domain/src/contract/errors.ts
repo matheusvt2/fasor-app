@@ -47,6 +47,8 @@ export const errorCodeSchema = z.enum([
   'pre_issue_blocked',
   // E78-Q5: the reread route refuses while the photo's reading is `running` (one run at a time).
   'reading_running',
+  // Story 11.8 follow-up: the server's AI_FEATURES flag is off and the photo's kind needs the LLM step.
+  'ai_features_off',
   ...opRejectCodeSchema.options,
 ]);
 export type ErrorCode = z.infer<typeof errorCodeSchema>;

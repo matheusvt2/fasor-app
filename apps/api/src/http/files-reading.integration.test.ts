@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, makeOp, readingRereadPath, syncPushResponseSchema, type Op } from '@app/domain';
+import { accountResponseSchema, CONTRACT_VERSION, CONTRACT_VERSION_HEADER, errorResponseSchema, makeOp, readingRereadPath, syncPushResponseSchema, type Op } from '@app/domain';
 import { and, eq, inArray, like } from 'drizzle-orm';
 import sharp from 'sharp';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -218,5 +218,68 @@ describe('8.4-INT file receipt and the reading queue', () => {
     }
     expect(calls).toEqual([{ company_id: companyA.companyId, photo_id: display.id, reading_kind: 'display' }]);
     expect(await statusOf(display.id)).toEqual({ reading_status: 'running', statusOps: 1 });
+  }, 60_000);
+});
+
+describe('11.8-INT AI_FEATURES=off: the LLM kinds are refused, display stays, the account says so', () => {
+  function offApp(calls: ReadingPayload[]): App {
+    return createApp({ probes, auth, db, s3, bucket: config.S3_BUCKET, staticDir, aiFeatures: false, enqueueReading: async (payload) => void calls.push(payload) });
+  }
+
+  it('GET /api/account answers features.ai false when off and true by default', async () => {
+    const off = await request(offApp([]), '/api/account', { method: 'GET' });
+    expect(off.status).toBe(200);
+    expect(accountResponseSchema.parse(await off.json()).features).toEqual({ ai: false });
+    const on = await request(createApp({ probes, auth, db, s3, bucket: config.S3_BUCKET, staticDir }), '/api/account', { method: 'GET' });
+    expect(accountResponseSchema.parse(await on.json()).features).toEqual({ ai: true });
+  }, 60_000);
+
+  it('file receipt of a plate, panel, caption or nc_obs photo sends no job and marks it failed; a display photo is sent', async () => {
+    const calls: ReadingPayload[] = [];
+    const app = offApp(calls);
+    for (const kind of ['plate', 'panel', 'caption', 'nc_obs'] as const) {
+      const { id, bytes } = await photo(app, { reading_kind: kind, reading_status: 'queued' });
+      const res = await request(app, `/api/files/${id}`, { method: 'PUT', headers: { 'content-type': 'application/octet-stream' }, body: bytes });
+      expect(res.status, await res.clone().text()).toBe(200);
+      expect(await statusOf(id), kind).toEqual({ reading_status: 'failed', statusOps: 1 });
+    }
+    expect(calls).toEqual([]);
+    const display = await photo(app, { reading_kind: 'display', reading_status: 'queued' });
+    const res = await request(app, `/api/files/${display.id}`, { method: 'PUT', headers: { 'content-type': 'application/octet-stream' }, body: display.bytes });
+    expect(res.status).toBe(200);
+    expect(calls).toEqual([{ company_id: companyA.companyId, photo_id: display.id, reading_kind: 'display' }]);
+    expect(await statusOf(display.id)).toEqual({ reading_status: 'running', statusOps: 1 });
+  }, 60_000);
+
+  it('a reread of a plate photo answers 409 ai_features_off with no job; a display photo answers 202', async () => {
+    const calls: ReadingPayload[] = [];
+    const app = offApp(calls);
+    const plate = await photo(app, { reading_kind: 'plate', reading_status: 'queued' });
+    await request(app, `/api/files/${plate.id}`, { method: 'PUT', headers: { 'content-type': 'application/octet-stream' }, body: plate.bytes });
+    const refused = await request(app, readingRereadPath(plate.id), { method: 'POST' });
+    expect(refused.status).toBe(409);
+    expect(errorResponseSchema.parse(await refused.json())).toEqual({ code: 'ai_features_off', message: 'AI features are off on this server.' });
+    expect(calls).toEqual([]);
+    expect(await statusOf(plate.id)).toEqual({ reading_status: 'failed', statusOps: 1 });
+
+    // A display photo whose first send failed is read again.
+    const failing = createApp({
+      probes,
+      auth,
+      db,
+      s3,
+      bucket: config.S3_BUCKET,
+      staticDir,
+      aiFeatures: false,
+      enqueueReading: async () => {
+        throw new Error('queue down');
+      },
+    });
+    const display = await photo(failing, { reading_kind: 'display', reading_status: 'queued' });
+    await request(failing, `/api/files/${display.id}`, { method: 'PUT', headers: { 'content-type': 'application/octet-stream' }, body: display.bytes });
+    expect((await statusOf(display.id)).reading_status).toBe('failed');
+    const reread = await request(app, readingRereadPath(display.id), { method: 'POST' });
+    expect(reread.status, await reread.clone().text()).toBe(202);
+    expect(calls).toEqual([{ company_id: companyA.companyId, photo_id: display.id, reading_kind: 'display' }]);
   }, 60_000);
 });

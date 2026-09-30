@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 import * as authClient from '../api/auth-client.ts';
+import { AiFeaturesContext, setAiFeaturesValue } from './ai-features.tsx';
 import { now } from '../clock.ts';
 import { commitBatch } from '../db/commit.ts';
 import { readRecoveryNotice, writeRecoveryNotice } from '../db/prefs.ts';
@@ -18,8 +19,10 @@ import { databaseName, openDatabase, type AppDatabase } from '../db/schema.ts';
 import { newId } from '../ids.ts';
 import {
   clearLastSession,
+  readAiFeatures,
   readLastSession,
   readReAuthRequired,
+  writeAiFeatures,
   writeLastSession,
   writeReAuthRequired,
 } from './last-session.ts';
@@ -41,6 +44,12 @@ export interface SessionState {
   user: UserProfile | null;
   online: boolean;
   reAuthRequired: boolean;
+  /**
+   * Story 11.8 follow-up: the server's `features.ai` (its `AI_FEATURES` flag). The fresh
+   * account read wins, else the cached value, else `true`. While false every entry point of
+   * a reading kind `readingNeedsAi` names is hidden.
+   */
+  aiFeatures: boolean;
   /**
    * AD-8: the cookie survived but the store did not. Set only on the cold-open branch
    * that had no local pointer, was confirmed by the server, and opened a database that
@@ -90,6 +99,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [online, setOnline] = useState<boolean>(readOnline);
   const [reAuthRequired, setReAuthRequired] = useState(false);
+  const [aiFeatures, setAiFeatures] = useState<boolean>(() => readAiFeatures() ?? true);
   const [recoveryNeeded, setRecoveryNeeded] = useState(false);
   const [database, setDatabase] = useState<AppDatabase | null>(null);
   const databaseRef = useRef<AppDatabase | null>(null);
@@ -146,7 +156,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
       let fresh: UserProfile | null | 'unreachable';
       try {
-        fresh = await authClient.readSession();
+        const account = await authClient.readSession();
+        if (account !== null) {
+          writeAiFeatures(account.features.ai);
+          if (!cancelled) {
+            setAiFeaturesValue(account.features.ai);
+            setAiFeatures(account.features.ai);
+          }
+        }
+        fresh = account === null ? null : account.user;
       } catch {
         fresh = 'unreachable';
       }
@@ -230,6 +248,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     async (email: string, password: string) => {
       const result = await authClient.signIn(email, password);
       if (result.ok) {
+        writeAiFeatures(result.features.ai);
+        setAiFeaturesValue(result.features.ai);
+        setAiFeatures(result.features.ai);
         // The form path never raises the recovery screen: a first sign-in always comes
         // through here, and a fresh database is then exactly what is expected.
         await attachDatabase(result.user.id);
@@ -257,6 +278,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const doSignOut = useCallback(async () => {
     await authClient.signOut();
     clearLastSession();
+    setAiFeaturesValue(null);
+    setAiFeatures(true);
     // The handle is closed, the database is kept: `Dexie.delete` is never called.
     databaseRef.current?.close();
     databaseRef.current = null;
@@ -310,6 +333,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       user,
       online,
       reAuthRequired,
+      aiFeatures,
       recoveryNeeded,
       database,
       signIn: doSignIn,
@@ -325,6 +349,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       user,
       online,
       reAuthRequired,
+      aiFeatures,
       recoveryNeeded,
       database,
       doSignIn,
@@ -335,7 +360,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     ],
   );
 
-  return <SessionContext value={value}>{children}</SessionContext>;
+  return (
+    <SessionContext value={value}>
+      <AiFeaturesContext value={aiFeatures}>{children}</AiFeaturesContext>
+    </SessionContext>
+  );
 }
 
 export function useSession(): SessionState {

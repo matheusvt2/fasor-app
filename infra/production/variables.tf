@@ -28,13 +28,13 @@ variable "image_tag" {
 }
 
 variable "ocr_provider" {
-  description = "OCR_PROVIDER of the api (fake, ocr-svc, textract)."
+  description = "OCR_PROVIDER of the api (ocr-svc, textract). The fake provider never runs in production."
   type        = string
   default     = "ocr-svc"
 
   validation {
-    condition     = contains(["fake", "ocr-svc", "textract"], var.ocr_provider)
-    error_message = "ocr_provider must be one of the api's OCR_PROVIDER values: fake, ocr-svc, textract."
+    condition     = contains(["ocr-svc", "textract"], var.ocr_provider)
+    error_message = "ocr_provider must be ocr-svc or textract (fake invents readings and never runs in production)."
   }
 }
 
@@ -46,6 +46,22 @@ variable "llm_provider" {
   validation {
     condition     = contains(["fake", "bedrock"], var.llm_provider)
     error_message = "llm_provider must be fake or bedrock (the anthropic value is dropped by Story 11.6)."
+  }
+}
+
+variable "ai_features" {
+  description = "AI_FEATURES of the api. off refuses the readings that need the LLM step (plate, panel, caption, NC draft) and hides their entry points; on waits for Story 11.6 (Bedrock quota)."
+  type        = string
+  default     = "off"
+
+  validation {
+    condition     = contains(["on", "off"], var.ai_features)
+    error_message = "ai_features must be on or off."
+  }
+
+  validation {
+    condition     = var.ai_features == "off" || var.llm_provider != "fake"
+    error_message = "ai_features = \"on\" needs llm_provider = \"bedrock\" (the fake provider invents readings and never runs in production)."
   }
 }
 

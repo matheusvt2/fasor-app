@@ -45,6 +45,8 @@ export interface SyncRouteDeps {
    * and its bytes are already stored (file receipt sends it otherwise). Absent without a queue.
    */
   enqueueReading?: (payload: ReadingPayload) => Promise<void>;
+  /** Story 11.8 follow-up: `false` when `AI_FEATURES=off` (`jobs/reading/send.ts`); absent reads as on. */
+  aiFeatures?: boolean;
 }
 
 /** The photo ids of the applied client `file/{id}/reading_kind` puts of a push, once each. */
@@ -76,7 +78,7 @@ async function sendRetargetedReading(db: Db, companyId: CompanyId, photoId: stri
   const photo = parsed.data;
   if (photo.removed_at !== null || photo.uploaded_at === null || photo.reading_status !== 'queued' || photo.reading_kind === null) return;
   await sendReading(
-    { db, now: deps.now, newId: deps.newId ?? mintId, ...(deps.enqueueReading === undefined ? {} : { enqueue: deps.enqueueReading }) },
+    { db, now: deps.now, newId: deps.newId ?? mintId, ...(deps.enqueueReading === undefined ? {} : { enqueue: deps.enqueueReading }), ...(deps.aiFeatures === undefined ? {} : { aiFeatures: deps.aiFeatures }) },
     companyId,
     { id: photo.id, relatorioId: record.relatorio_id },
     photo.reading_kind,

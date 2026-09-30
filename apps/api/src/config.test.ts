@@ -21,6 +21,13 @@ describe('config', () => {
     expect(config.OCR_PROVIDER).toBe('fake');
   });
 
+  it('defaults AI features on and reads off (Story 11.8 follow-up)', () => {
+    expect(loadConfig(valid).AI_FEATURES).toBe('on');
+    expect(loadConfig({ ...valid, AI_FEATURES: '' }).AI_FEATURES).toBe('on');
+    expect(loadConfig({ ...valid, AI_FEATURES: 'off' }).AI_FEATURES).toBe('off');
+    expect(() => loadConfig({ ...valid, AI_FEATURES: 'maybe' })).toThrow(/AI_FEATURES/);
+  });
+
   it('defaults the OCR sidecar URL and reads an override (Story 8.3)', () => {
     expect(loadConfig(valid).OCR_SERVICE_URL).toBe('http://ocr:8000');
     expect(loadConfig({ ...valid, OCR_SERVICE_URL: 'http://localhost:32800' }).OCR_SERVICE_URL).toBe('http://localhost:32800');

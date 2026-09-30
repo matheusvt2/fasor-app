@@ -20,6 +20,14 @@ export class ProviderNotImplementedError extends PermanentReadingError {
   }
 }
 
+/** Story 11.8 follow-up: the LLM step of a reading while the server's `AI_FEATURES` is `off`. */
+export class AiFeaturesOffError extends PermanentReadingError {
+  constructor() {
+    super('the LLM step is disabled on this server (AI_FEATURES=off)');
+    this.name = 'AiFeaturesOffError';
+  }
+}
+
 /** A provider call that failed in a way a later attempt may not (a 5xx, a dropped connection, a fake `error`). */
 export class ProviderError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {

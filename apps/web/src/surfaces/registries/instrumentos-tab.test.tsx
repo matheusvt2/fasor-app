@@ -33,6 +33,7 @@ const session = (): SessionState => ({
   },
   online: true,
   reAuthRequired: false,
+  aiFeatures: true,
   database,
   signIn: vi.fn(),
   signOut: vi.fn(async () => {}),

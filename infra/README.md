@@ -47,6 +47,10 @@ Region `us-east-1`, sized for at most ten concurrent users.
 
 The api's configuration on AWS sets no `S3_ENDPOINT` and no static keys: the S3 client then gets only its region, reaches S3 virtual-hosted style, and the AWS SDK default credential chain supplies the task role's credentials (`apps/api/src/storage/s3.ts`). Locally, compose keeps MinIO with its endpoint and static keys, unchanged.
 
+### AI features flag
+
+Production runs with `ai_features = "off"` (the api's `AI_FEATURES=off`), decided 2026-09-30 because the account has no Bedrock quota yet. The api then refuses every reading whose pipeline needs the LLM step (the plate, the panel photo, the vision caption and the NC draft): nothing is queued, the photo is marked failed, the reread route answers `409 ai_features_off`, and `GET /api/account` answers `features.ai = false`, so the web hides "Fotografar placa", "Fotografar equipamento", the caption suggestion and the NC draft. "Ler visor" (OCR only), dictation (in the browser) and manual entry stay. `llm_provider` stays `fake`, unreachable while the flag is off; a validation refuses `ai_features = "on"` with `llm_provider = "fake"`, and `ocr_provider` accepts only `ocr-svc` or `textract`. Turning the flag on waits for Story 11.6 (the Bedrock provider and its quota, `llm_provider = "bedrock"`).
+
 The generated database password and session secret land in the Terraform state, which lives only in the private, encrypted, versioned state bucket; nothing secret is in git.
 
 ### Architecture: x86-64 by default

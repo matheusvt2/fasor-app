@@ -34,6 +34,7 @@ const signedIn: SessionState = {
   },
   online: true,
   reAuthRequired: false,
+  aiFeatures: true,
   database: null,
   signIn: vi.fn(),
   signOut: vi.fn(async () => {}),

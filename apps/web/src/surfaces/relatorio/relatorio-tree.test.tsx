@@ -10,6 +10,7 @@ import { toRecord } from '../../db/commit.ts';
 import { LAST_SHEET_PREF, openDatabase, type AppDatabase } from '../../db/schema.ts';
 import { applyPulled } from '../../db/sync-store.ts';
 import { BackTargetProvider } from '../../state/back-target.tsx';
+import { AiFeaturesContext } from '../../state/ai-features.tsx';
 import type { SessionState } from '../../state/session.tsx';
 import { SyncContext, type SyncState } from '../../state/sync.tsx';
 import { makeSyncState } from '../../test/sync-state.ts';
@@ -46,6 +47,7 @@ const session = (): SessionState => ({
   user: { id: USER, name: 'Bento Braga', email: 'b@teste.local', companyId: COMPANY, companyName: 'Empresa B de Teste', council: null, registrationNumber: null, title: null },
   online: true,
   reAuthRequired: false,
+  aiFeatures: true,
   database,
   signIn: vi.fn(),
   signOut: vi.fn(async () => {}),
@@ -390,5 +392,39 @@ describe('4.4 rail presentation (/relatorio/:id/arvore)', () => {
     await userEvent.keyboard('{ArrowLeft}');
     await waitFor(() => expect(within(rail).getByRole('button', { name: 'Expandir Cabine de Testes' })).toHaveAttribute('aria-expanded', 'false'));
     expect(rail.querySelector(`li[data-block-id="${SEC_TEST}"]`)).toBeNull();
+  });
+});
+
+describe('11.8 follow-up: the AI entry points follow the server flag', () => {
+  async function paletteCamera(ai: boolean): Promise<HTMLElement | null> {
+    database = await seeded();
+    render(
+      <AiFeaturesContext value={ai}>
+        <MemoryRouter initialEntries={[`/relatorio/${RELATORIO}`]}>
+          <SyncContext value={syncState()}>
+            <ToastProvider>
+              <BackTargetProvider>
+                <Routes>
+                  <Route path="/relatorio/:id" element={<SumarioSurface />} />
+                </Routes>
+              </BackTargetProvider>
+            </ToastProvider>
+          </SyncContext>
+        </MemoryRouter>
+      </AiFeaturesContext>,
+    );
+    await userEvent.click(await screen.findByRole('button', { name: 'Expandir Cabine de Testes' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Adicionar bloco em Cabine de Testes' }));
+    await screen.findByRole('dialog');
+    return screen.queryByRole('button', { name: /Fotografar equipamento/ });
+  }
+
+  it('draws "Fotografar equipamento" in the palette while on', async () => {
+    expect(await paletteCamera(true)).not.toBeNull();
+  });
+
+  it('hides "Fotografar equipamento" (not disabled) while off', async () => {
+    expect(await paletteCamera(false)).toBeNull();
+    expect(document.querySelector('.pal-camera')).toBeNull();
   });
 });

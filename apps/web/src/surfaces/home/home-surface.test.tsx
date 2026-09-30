@@ -42,6 +42,7 @@ const session = (): SessionState => ({
   user: { id: 'u1', name: 'Bruno Matsui', email: 'b@teste.local', companyId: 'c1', companyName: 'Empresa', council: null, registrationNumber: null, title: null },
   online: true,
   reAuthRequired: false,
+  aiFeatures: true,
   database,
   signIn: vi.fn(),
   signOut: vi.fn(async () => {}),
