@@ -2,7 +2,7 @@
 title: 'Stories 11.4 + 11.5: Rich text boilerplate and the photo location stamp switch'
 type: 'feature'
 created: '2026-09-30'
-status: 'in-review'
+status: 'done'
 baseline_revision: '9614e0a2b25154cdc0fe661baa24ec76269fa5b8'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -166,3 +166,12 @@ Open questions (conservative choice taken): (1) the per-relatório plain surface
 - `docker compose --profile tools run --rm tools pnpm exec tsx scripts/e2e.ts --project desktop-chrome e2e/templates.spec.ts e2e/account.spec.ts e2e/photos.spec.ts` (targeted, all tags, one worker; add `--grep` while iterating) -- green
 - `pnpm verify` under `flock /tmp/fasor-verify.lock` -- green (the orchestrator runs it; the implementer does not)
 - Every command runs in Docker from the worktree (its `.env` names the compose project `fasor-e11e`); never pnpm/node on the host. Redirect output to `.scratch-e11e/*.log` and read tails.
+
+## Auto Run Result
+
+Status: done
+
+- **Summary:** 11.4: kernel markup for `section_text` (`templates/rich-text.ts`), printed runs and numbered lists in the layout (sections 1-6 and 10) and the DOCX (`rich-runs.ts` leaf module), the composer's rich editor (`rich-text-editor.ts`, `use-rich-text-area.ts`, toolbar in `section-text-dialog.tsx`, editor-owned undo). 11.5: `photoLocationPut`, `session.savePhotoLocation`, the Account "Localização nas fotos" Toggle row with on/off/denied helpers, the denial pref cleared by a fix or a Permissions API `granted`.
+- **Review:** two layers (Edge Case Hunter, Verification Gap); 14 triaged rows: 10 patched in one loop, 3 deferred (frontmatter `deferred`), 1 rejected (Permissions API "prompt" clearing). Follow-up review: false (no high patched; the medium patches are covered by the tests they added).
+- **Verification:** targeted e2e `templates`, `account`, `photos`, `rich-text-print` 29/29 green; document specs `export`, `parecer-export`, `export-visual` 17/17 green; unit and api suites run by the implementer on the touched files; full `pnpm verify` run by the orchestrator (PR body).
+- **Residual risks:** the deferred rows; the per-relatório plain surface shows markup characters raw (open question 1).
