@@ -295,7 +295,12 @@ function SheetBody({
 
   const finish = (ids: string[], skipped: number, target: BatchAnswer | null) => {
     answered.current = true;
-    if (db === null || user === null) return;
+    if (db === null || user === null) {
+      // No session to write with: "Cancelar" still says what became of the saved batch.
+      const text = target === null ? photosKeptGeneralText(ids.length, skipped) : null;
+      if (text !== null) showToast(text);
+      return;
+    }
     // "Cancelar" keeps the batch as "Geral": only the caption reading puts (ledger 1131).
     const answer = target ?? { blockId: null, caption: null, peopleInPhoto: false };
     void assignPhotoBatch(db, { id: user.id, companyId: user.companyId }, relatorioId, ids, answer.blockId, answer.caption, answer.peopleInPhoto).then(

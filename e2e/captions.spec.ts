@@ -247,7 +247,7 @@ test('@p0 9.3-E2E-003 "Pessoas na foto" in an import batch marks every photo of 
   expect(create.value).toMatchObject({ block_id: null, caption: null, reading_kind: 'caption', reading_target: null, reading_status: 'queued', people_in_photo: false });
 });
 
-test('@p0 9.3-E2E-004 ledger 1131: a batch answered "Geral" with "Adicionar" asks for its caption readings only then, in one batch', async ({ page }) => {
+test('@p0 9.3-E2E-005 ledger 1131: a batch answered "Geral" with "Adicionar" asks for its caption readings only then, in one batch', async ({ page }) => {
   test.setTimeout(180_000);
   await holdPhotoBytes(page);
   const { relatorioId } = await openChaveSheet(page, account, database);

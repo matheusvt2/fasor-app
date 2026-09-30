@@ -2,7 +2,7 @@
 title: 'Epic 11 carry-over (batch C): an import batch queues its caption readings only once answered'
 type: 'bugfix'
 created: '2026-09-30'
-status: 'in-progress'
+status: 'done'
 baseline_revision: 'd7beb605ccc7cc22c1537c05cac945e78e799650'
 review_loop_iteration: 0
 followup_review_recommended: false
