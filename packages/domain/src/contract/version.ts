@@ -79,8 +79,16 @@
  * a sequential fold writes back, and a sheet cell may carry an optional `shown_op_id` (the
  * op whose value it shows when that is not its head). No new family, but the reducer and
  * the cell shape changed: `MIN_CONTRACT_VERSION` goes to 13 too.
+ *
+ * 14 (2026-09-30, ledger 1131, batch C): a gallery import batch creates its photos with no
+ * reading and, once the batch is answered or closed, asks for the caption reading of each
+ * photo left with no sheet, caption or "Pessoas na foto" mark with a client
+ * `file/{id}/reading_kind = 'caption'` put. The push route accepts that put only on a photo
+ * with no reading and no context (`clientReadingKindPutAllowed`); a version-13 server refuses
+ * it (`op_invalid`), so a version-14 client must not talk to one. No new family and no row
+ * shape change; `MIN_CONTRACT_VERSION` stays 13.
  */
-export const CONTRACT_VERSION = 13;
+export const CONTRACT_VERSION = 14;
 
 /**
  * The oldest version the server still answers pulls for (a constant, not an env variable).
@@ -125,6 +133,10 @@ export const CONTRACT_VERSION = 13;
  * 13 (2026-09-29, E10-Q2): a version-12 bundle's fold ignores `meta.restore` and its cell
  * schema strips `shown_op_id`, so it would fold the undo of a resolution without the marks
  * the server writes back: it updates too.
+ *
+ * Stays 13 at contract 14 (2026-09-30, ledger 1131, batch C): a version-13 bundle parses the
+ * `file/{id}/reading_kind = 'caption'` put a relatório stream now carries and its `applyOp`
+ * derives the same `queued` status from it (`readingKindPutStatus`), so no pull is refused.
  */
 export const MIN_CONTRACT_VERSION = 13;
 
