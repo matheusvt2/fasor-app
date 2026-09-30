@@ -83,6 +83,11 @@ export function docxFilename(number: number): string {
   return `relatorio-rev-${number}.docx`;
 }
 
+/** A revision's PDF filename: `relatorio-rev-{n}.pdf` (Story 11.1). */
+export function pdfFilename(number: number): string {
+  return `relatorio-rev-${number}.pdf`;
+}
+
 export function createGenerateRoutes(db: Db, s3: S3Client, bucket: string, deps: GenerateRouteDeps): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
 
@@ -375,6 +380,29 @@ export function createGenerateRoutes(db: Db, s3: S3Client, bucket: string, deps:
     return c.body(Readable.toWeb(stored.body) as ReadableStream, 200, {
       'content-type': DOCX_MIME,
       'content-disposition': `attachment; filename="${docxFilename(revision.data.number)}"`,
+      'x-content-type-options': 'nosniff',
+      ...(stored.contentLength === null ? {} : { 'content-length': String(stored.contentLength) }),
+    });
+  });
+
+  // Story 11.1: the revision's closed PDF, the DOCX route's twin. The job stores it under
+  // `objectKey(companyId, 'pdf', pdf_file_id)` beside the DOCX; the route serves it as is.
+  routes.get('/api/revisions/:id/pdf', async (c) => {
+    const session = requireSession(c);
+    const id = c.req.param('id');
+    if (!uuidV7Schema.safeParse(id).success) return c.json(notFound, 404);
+    const [record] = await db
+      .select({ row: entities.row })
+      .from(entities)
+      .where(and(eq(entities.company_id, session.companyId), eq(entities.entity, 'revision'), eq(entities.id, id)))
+      .limit(1);
+    const revision = record === undefined ? null : revisionRowSchema.safeParse(record.row);
+    if (revision === null || !revision.success || revision.data.id !== id) return c.json(notFound, 404);
+    const stored = await getObject(s3, bucket, objectKey(session.companyId, 'pdf', revision.data.pdf_file_id));
+    if (stored === null) return c.json(notFound, 404);
+    return c.body(Readable.toWeb(stored.body) as ReadableStream, 200, {
+      'content-type': PDF_MIME,
+      'content-disposition': `attachment; filename="${pdfFilename(revision.data.number)}"`,
       'x-content-type-options': 'nosniff',
       ...(stored.contentLength === null ? {} : { 'content-length': String(stored.contentLength) }),
     });

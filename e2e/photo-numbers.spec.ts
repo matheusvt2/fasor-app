@@ -76,7 +76,7 @@ async function generateRevision(page: Page, n: number): Promise<void> {
   // A blocked "Gerar relatório" is aria-disabled: fail in seconds, not at the test timeout.
   await expect(generateButton(page)).toBeEnabled({ timeout: 30_000 });
   await generateButton(page).click();
-  await expect(toast(page)).toHaveText(`Revisão ${n} pronta — DOCX`, { timeout: JOB_TIMEOUT });
+  await expect(toast(page)).toHaveText(`Revisão ${n} pronta — DOCX e PDF`, { timeout: JOB_TIMEOUT });
   await expect(dialog(page).getByRole('heading', { level: 2, name: `Revisão ${n} pronta` })).toBeVisible();
 }
 

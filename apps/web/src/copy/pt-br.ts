@@ -436,8 +436,8 @@ export const copy = {
   // Export dialog (`73-exportar.html`, Story 4.8). Every sentence that carries a revision
   // number is the kernel's (`idleReason`, `generatingText`, `generatingReason`,
   // `readyTitle`, `readyToast`, `nextEditNote`, `revisionRowSegments`); only the static
-  // words live here. The pre-issue list, the document control summary, "Pré-visualizar",
-  // the share buttons and the PDF row are out of this story's slice.
+  // words live here. Story 11.1 adds the PDF result row, its share button and the PDF
+  // button of each revision row (`openPdf`, `sharePdf`, `revisionPdf`).
   export: {
     title: 'Gerar relatório',
     generate: 'Gerar relatório',
@@ -446,9 +446,11 @@ export const copy = {
     failed: 'Não foi possível gerar o relatório. Os dados não foram alterados e nenhuma revisão foi criada.',
     retry: 'Tentar novamente',
     openDocx: 'DOCX — abrir no Word',
+    openPdf: 'PDF — enviar ao cliente',
     generateAgain: 'Gerar de novo',
     revisionsLabel: 'Revisões',
     revisionDocx: 'DOCX',
+    revisionPdf: 'PDF',
     // authored: UX-DR58, the reason while the outbox is drained before the request.
     flushing: 'Enviando…',
     // authored: generation needs a connection and says so (EXPERIENCE.md › Export dialog).
@@ -480,6 +482,7 @@ export const copy = {
     // authored: the preview job failed or the tab could not be filled; nothing changed.
     previewFailed: 'Não foi possível gerar o rascunho. Os dados não foram alterados.',
     shareDocx: 'Compartilhar DOCX',
+    sharePdf: 'Compartilhar PDF',
   },
   // Project (`30-project.html`, Story 4.1). The heading's count, the row lines, the
   // dates and the counter are the kernel's (`projectRelatoriosHeading`, `relatorioTitle`,
