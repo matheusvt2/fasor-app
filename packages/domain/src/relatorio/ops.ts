@@ -35,7 +35,7 @@ export function putRelatorioStatusOp(author: Author, relatorioId: string, status
   return { ...relatorioOpEnvelope(author, relatorioId), kind: 'put', path: relatorioStatusPath(), value: status };
 }
 
-export type BlockField = 'order_key' | 'removed_at' | 'config' | 'concluded_by' | 'not_tested';
+export type BlockField = 'location_id' | 'order_key' | 'removed_at' | 'config' | 'concluded_by' | 'not_tested';
 
 /** `block/{id}/{field}` put. */
 export function putBlockOp(author: Author, relatorioId: string, blockId: string, field: BlockField, value: unknown): OpDraft {

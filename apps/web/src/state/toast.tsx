@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Toast, type ToastAction, type ToastMessage } from '../components/toast.tsx';
 import type { Timers } from '../input/field-commit.ts';
 
@@ -46,6 +46,11 @@ export function ToastProvider({ children, timers = browserTimers }: { children: 
     if (handle.current !== null) timers.clearTimeout(handle.current);
     handle.current = null;
   }, [timers]);
+
+  // A plain toast's expiry timer never outlives the provider: firing after an unmount set
+  // state on a torn-down tree (seen as "window is not defined" after a test environment's
+  // teardown in the e11b gate, 2026-09-30).
+  useEffect(() => clearTimer, [clearTimer]);
 
   const dismissToast = useCallback(() => {
     clearTimer();
