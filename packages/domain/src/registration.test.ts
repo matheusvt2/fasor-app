@@ -6,6 +6,7 @@ import {
   artOrTrtLabel,
   artTrtEchoText,
   avatarInitial,
+  photoLocationPut,
   registrationOfUserRow,
   registrationPuts,
   userProfileSchema,
@@ -161,6 +162,19 @@ describe('registration as user ops (retro A2)', () => {
     const next = state.get(entityKey('user', USER)) as UserRow;
     expect(registrationOfUserRow(next)).toEqual({ council: 'crt', registrationNumber: 'SP 7777', title: 'Téc.' });
     expect(registrationRowText(registrationOfUserRow(next))).toBe('CRT SP 7777 · Téc.');
+  });
+
+  it('11.5: the location switch is one user/{id}/photo_location_enabled put, applied to the own row only', () => {
+    const put = photoLocationPut({ userId: USER, companyId: COMPANY, enabled: false });
+    expect(put).toMatchObject({ kind: 'put', scope: 'company', company_id: COMPANY, actor_id: USER, path: `user/${USER}/photo_location_enabled`, value: false });
+    expect('device_id' in put).toBe(false);
+    const on = { ...row, photo_location_enabled: true };
+    let n = 0;
+    const newId = () => `019966b0-0002-7000-8000-${String(++n).padStart(12, '0')}`;
+    const state = applyOp(new Map([[entityKey('user', USER), on]]), makeOp({ ...put, device_id: 'tablet-a' }, { newId, now: new Date('2026-09-30T12:00:00Z') }));
+    expect((state.get(entityKey('user', USER)) as UserRow).photo_location_enabled).toBe(false);
+    const back = applyOp(state, makeOp({ ...photoLocationPut({ userId: USER, companyId: COMPANY, enabled: true }), device_id: 'tablet-a' }, { newId, now: new Date('2026-09-30T12:01:00Z') }));
+    expect((back.get(entityKey('user', USER)) as UserRow).photo_location_enabled).toBe(true);
   });
 
   it('carries uuidv7 identity ids on the profile', () => {

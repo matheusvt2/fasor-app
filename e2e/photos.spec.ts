@@ -1,15 +1,18 @@
+import { photoStampFull, photoStampShort } from '@app/domain';
 import type { Page } from '@playwright/test';
 import { deviceDatabaseName, expect, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { devicePhotos, expectCameraOpen, openChaveSheet, shoot } from './support/photos.ts';
 import { plainJpeg } from './fixtures/photos/synthetic.ts';
-import { pullAll } from './support/outbox.ts';
+import { pullAll, readStore } from './support/outbox.ts';
 import { syncNow } from './support/sync.ts';
 
 /*
  * 6.1/6.2-E2E: the burst camera on a sheet, driven as a person would -- the Sticky action
  * bar's "Tirar foto" and an NC row's "Adicionar foto", the denied camera, the upload pills
- * (a refused photo and its retry) and the low-storage banner. Chromium's fake camera and a
- * fixed position stand in for the tablet's; each test starts from a fresh device store.
+ * (a refused photo and its retry) and the low-storage banner. 11.5-E2E: Account's
+ * "Localização nas fotos" switch and the refused position, seen from the next shot.
+ * Chromium's fake camera and a fixed position stand in for the tablet's; each test starts
+ * from a fresh device store.
  */
 
 const SAO_PAULO = { latitude: -23.5505, longitude: -46.6333 };
@@ -342,4 +345,140 @@ test('@p1 6.2-E2E-005 E6-Q14: online, a shot and a file added from the sheet go 
   await (await chooser).setFiles(await plainJpeg(page, 'depois.jpg'));
   await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(2);
   await expect.poll(uploaded, { timeout: 10_000 }).toBe(2);
+});
+
+// --- Story 11.5: "Localização nas fotos" -------------------------------------------------
+
+const locationSwitch = (page: Page) => page.getByRole('switch', { name: 'Gravar coordenadas em cada foto' });
+const HELPER_ON = 'O aparelho pede permissão na primeira foto. Se negar, as fotos ficam sem coordenadas e este ajuste mostra "Permissão negada no aparelho".';
+const HELPER_OFF = 'Fotos sem coordenadas — a seção 7 imprime só a data e a hora de cada imagem.';
+const DENIED = 'Permissão negada no aparelho — as fotos saem sem coordenadas. Libere em Ajustes › Localização e o pino volta na próxima foto.';
+
+async function openAccount(page: Page): Promise<void> {
+  await page.goto('/account');
+  await expect(page.getByRole('heading', { level: 2, name: 'Localização nas fotos' })).toBeVisible({ timeout: 30_000 });
+}
+
+/** One shot from the sheet's bar; returns once the camera is closed again. */
+async function shootOnce(page: Page): Promise<void> {
+  await cameraButton(page).click();
+  const camera = await expectCameraOpen(page);
+  await shoot(page, 1);
+  await camera.getByRole('button', { name: 'Concluir fotos' }).click();
+  await expect(page.getByRole('dialog', { name: 'Câmera' })).toHaveCount(0);
+}
+
+/** Counts every position request the page makes (`window.__geolocationRequests`). */
+async function countPositionRequests(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const geolocation = navigator.geolocation;
+    const original = geolocation.getCurrentPosition.bind(geolocation);
+    (window as unknown as { __geolocationRequests: number }).__geolocationRequests = 0;
+    geolocation.getCurrentPosition = (...args: Parameters<Geolocation['getCurrentPosition']>) => {
+      (window as unknown as { __geolocationRequests: number }).__geolocationRequests++;
+      original(...args);
+    };
+  });
+}
+
+test('@p0 11.5-E2E-001 11.5-OFF-STAMP: "Localização nas fotos" off (by keyboard) is one user op with no undo, survives a reload, and the next photo carries date and time only', async ({ page }) => {
+  test.setTimeout(180_000);
+  await countPositionRequests(page);
+  const { relatorioId } = await openChaveSheet(page, account, database);
+  const sheetUrl = page.url();
+
+  // On by default, with the "on" helper describing it.
+  await openAccount(page);
+  const toggle = locationSwitch(page);
+  await expect(toggle).toHaveAttribute('aria-checked', 'true');
+  await expect(toggle.locator('.toggle-word')).toHaveText('Ativado');
+  await expect(page.getByText('Impressas na seção 7 com a data e a hora: "Imagem 5 · 06/09/2026 14:32 · −23,5505, −46,6333"')).toBeVisible();
+  await expect(page.getByText(HELPER_ON)).toBeVisible();
+  await expect(toggle).toHaveAccessibleDescription(HELPER_ON);
+
+  // Off by keyboard: Space on the focused switch.
+  await toggle.focus();
+  await page.keyboard.press('Space');
+  await expect(toggle).toHaveAttribute('aria-checked', 'false');
+  await expect(toggle.locator('.toggle-word')).toHaveText('Desativado');
+  await expect(page.getByText(HELPER_OFF)).toBeVisible();
+  await expect(page.getByText(HELPER_ON)).toHaveCount(0);
+  await expect(toggle).toHaveAccessibleDescription(HELPER_OFF);
+  // 11.5-UNDO: a switch is its own inverse; no "Desfazer" is offered, by design.
+  await expect(page.getByRole('button', { name: 'Desfazer' })).toHaveCount(0);
+  await expect(page.getByTestId('toast')).toHaveCount(0);
+
+  // One op in the outbox: the user's own row, by this device.
+  await expect
+    .poll(async () =>
+      (await readStore<{ path: string; value: unknown }>(page, database, 'outbox'))
+        .filter((op) => op.path === `user/${account.userId}/photo_location_enabled`)
+        .map((op) => op.value),
+    )
+    .toEqual([false]);
+
+  // A reload keeps it off.
+  await page.reload();
+  await expect(locationSwitch(page)).toHaveAttribute('aria-checked', 'false', { timeout: 30_000 });
+  await expect(page.getByText(HELPER_OFF)).toBeVisible();
+
+  // The next shot: no position asked, no coordinates stored.
+  await page.goto(sheetUrl);
+  await expect(page.locator('.sheet-header .sheet-title')).toBeVisible();
+  await shootOnce(page);
+  await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(1);
+  const [photo] = await devicePhotos(page, database);
+  expect(photo!.coords).toBeNull();
+  expect(await page.evaluate(() => (window as unknown as { __geolocationRequests: number }).__geolocationRequests)).toBe(0);
+
+  // Its tile and its viewer stamp carry the date and time only: no pin, no "GPS".
+  await page.goto(`/relatorio/${relatorioId}/fotos`);
+  const item = page.locator('[data-route="/relatorio/:id/fotos"] .gallery-item').first();
+  await expect(item.locator('.photo-stamp')).toHaveText(photoStampShort(photo!.captured_at));
+  await expect(item.locator('.photo-stamp .pin')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Foto 1, abrir', exact: true }).click();
+  const viewer = page.getByRole('dialog', { name: 'Foto 1 de 1' });
+  await expect(viewer.locator('.viewer-stamp')).toHaveText(photoStampFull({ captured_at: photo!.captured_at, coords: null }));
+  await expect(viewer.locator('.viewer-stamp .pin')).toHaveCount(0);
+});
+
+test.describe('without the position permission', () => {
+  test.use({ permissions: ['camera'] });
+
+  test('@p0 11.5-E2E-002 11.5-DENIED: a refused position never blocks the shot; Account shows "Permissão negada no aparelho" with the switch still on; granted again, the next shot clears it', async ({
+    page,
+    context,
+  }) => {
+    test.setTimeout(180_000);
+    await openChaveSheet(page, account, database);
+    const sheetUrl = page.url();
+
+    // The shot is taken and saved, with no coordinates.
+    await shootOnce(page);
+    await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(1);
+    expect((await devicePhotos(page, database))[0]!.coords).toBeNull();
+
+    // Account: the denied line in place of the "on" helper, amber, and the switch stays on.
+    await openAccount(page);
+    const toggle = locationSwitch(page);
+    const denied = page.getByText(DENIED);
+    await expect(denied).toBeVisible();
+    await expect(denied).toHaveAttribute('data-tone', 'amber');
+    await expect(toggle).toHaveAttribute('aria-checked', 'true');
+    await expect(toggle).toHaveAccessibleDescription(DENIED);
+    await expect(page.getByText(HELPER_ON)).toHaveCount(0);
+    await expect(page.getByText(/Erro de GPS/)).toHaveCount(0);
+
+    // Granted in the device's settings: the next shot has its position, and the line goes.
+    await context.grantPermissions(['camera', 'geolocation']);
+    await context.setGeolocation(SAO_PAULO);
+    await page.goto(sheetUrl);
+    await expect(page.locator('.sheet-header .sheet-title')).toBeVisible();
+    await shootOnce(page);
+    await expect.poll(async () => (await devicePhotos(page, database)).filter((photo) => photo.coords !== null).length, { timeout: 15_000 }).toBe(1);
+    await openAccount(page);
+    await expect(page.getByText(HELPER_ON)).toBeVisible();
+    await expect(page.getByText(DENIED)).toHaveCount(0);
+    await expect(locationSwitch(page)).toHaveAttribute('aria-checked', 'true');
+  });
 });

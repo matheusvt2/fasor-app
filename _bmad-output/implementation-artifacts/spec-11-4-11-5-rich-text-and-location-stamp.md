@@ -2,7 +2,8 @@
 title: 'Stories 11.4 + 11.5: Rich text boilerplate and the photo location stamp switch'
 type: 'feature'
 created: '2026-09-30'
-status: 'ready-for-dev'
+status: 'in-progress'
+baseline_revision: '9614e0a2b25154cdc0fe661baa24ec76269fa5b8'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: opus

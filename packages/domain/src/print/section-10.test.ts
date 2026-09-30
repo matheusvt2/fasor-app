@@ -46,7 +46,7 @@ describe('7.4-UNIT section 10 layout', () => {
       title: 'CONCLUSÃO E OBSERVAÇÕES TÉCNICAS',
       kind: 'section_10',
       parecer: { title: 'Apto com restrições', text: 'Resumo confirmado.' },
-      bullets: sectionText('v1', 10, '2026-09-23').map((block) => block.text),
+      bullets: sectionText('v1', 10, '2026-09-23').map((block) => ({ text: block.text, runs: [{ text: block.text }] })),
       validityLine: 'Este relatório tem validade apenas acompanhada da ART 2620262602583',
       signature: { name: 'Rafael Lamonde', title: 'Eng. Eletricista', registration: 'CREA 5063583141' },
     });

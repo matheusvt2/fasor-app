@@ -1,4 +1,4 @@
-import { PAGE_LINE, PRODUTO, sectionHeading, TOC_TITLE, tocLines, type DocumentLayout, type LayoutParagraph, type TocLine } from '@app/domain';
+import { PAGE_LINE, PRODUTO, sectionHeading, TOC_TITLE, tocLines, type DocumentLayout, type LayoutParagraph, type LayoutRun, type TocLine } from '@app/domain';
 import {
   AlignmentType,
   BorderStyle,
@@ -10,6 +10,7 @@ import {
   HorizontalPositionRelativeFrom,
   ImageRun,
   LeaderType,
+  LevelFormat,
   Packer,
   PageBreak,
   PageNumber,
@@ -173,14 +174,33 @@ function keyValueTable(rows: readonly { label: string; value: string }[], option
   });
 }
 
-function sectionParagraph(block: LayoutParagraph): Paragraph {
+/**
+ * Story 11.4: a paragraph's runs as `TextRun`s, bold and italic from the kernel's runs (a
+ * heading is bold throughout). A plain run is written exactly as `text()` writes it, so a
+ * text without formatting renders byte for byte as before.
+ */
+export function richRuns(runs: readonly LayoutRun[], options: { bold?: boolean } = {}): TextRun[] {
+  return runs.map((run) => new TextRun({ text: run.text, bold: options.bold === true || run.bold === true ? true : undefined, italics: run.italic }));
+}
+
+/** Story 11.4: the decimal list a numbered item prints in (1., 2., 3.), one `instance` per list. */
+export const NUMBERED_LIST_REFERENCE = 'rich-numbered';
+
+const NUMBERED_LIST_CONFIG = {
+  reference: NUMBERED_LIST_REFERENCE,
+  levels: [{ level: 0, format: LevelFormat.DECIMAL, text: '%1.', alignment: AlignmentType.START, style: { paragraph: { indent: { left: 720, hanging: 360 } } } }],
+};
+
+function sectionParagraph(block: LayoutParagraph, listInstance: number): Paragraph {
   switch (block.kind) {
     case 'heading':
-      return new Paragraph({ children: [text(block.text, { bold: true })], spacing: { before: 160, after: 80 } });
+      return new Paragraph({ children: richRuns(block.runs, { bold: true }), spacing: { before: 160, after: 80 } });
     case 'item':
-      return new Paragraph({ children: [text(block.text)], bullet: { level: 0 }, spacing: { after: 60 } });
+      return new Paragraph({ children: richRuns(block.runs), bullet: { level: 0 }, spacing: { after: 60 } });
+    case 'numbered':
+      return new Paragraph({ children: richRuns(block.runs), numbering: { reference: NUMBERED_LIST_REFERENCE, level: 0, instance: listInstance }, spacing: { after: 60 } });
     default:
-      return new Paragraph({ children: [text(block.text)], spacing: { after: 120 } });
+      return new Paragraph({ children: richRuns(block.runs), spacing: { after: 120 } });
   }
 }
 
@@ -305,7 +325,9 @@ export async function buildDocx(layout: DocumentLayout, options: BuildDocxOption
   for (const line of tocLines(layout)) children.push(tocParagraph(line, options.tocPages.get(line.key) ?? null));
   children.push(pageBreak());
 
-  // Sections.
+  // Sections. Story 11.4: each numbered list (its item numbered 1 starts one) restarts at 1.
+  let listInstance = 0;
+  let numbered = false;
   for (const section of layout.sections) {
     // E7-A4: section 9 starts a page from its own heading, so its first sheet never splits
     // across the page section 8 ends on (a break before its first subsection would leave
@@ -317,13 +339,24 @@ export async function buildDocx(layout: DocumentLayout, options: BuildDocxOption
     else if (section.kind === 'points') children.push(...section8Children(section));
     else if (section.kind === 'certificates') children.push(...(await section11Children(section, options.images?.certificates ?? new Map())));
     else if (section.kind === 'sheets') children.push(...(await section9Children(section, options.images?.photos ?? new Map())));
-    else for (const block of section.paragraphs) children.push(sectionParagraph(block));
+    else {
+      for (const block of section.paragraphs) {
+        if (block.kind === 'numbered') {
+          numbered = true;
+          if (block.number === 1) listInstance++;
+        }
+        children.push(sectionParagraph(block, listInstance));
+      }
+    }
   }
 
   const document = new Document({
     creator: PRODUTO,
     // Without it the `docx` library writes its own "Un-named" into cp:lastModifiedBy (Q13).
     lastModifiedBy: PRODUTO,
+    // Story 11.4: only a layout with a numbered item carries the numbering definition, so a
+    // document without one renders byte for byte as before (the golden).
+    ...(numbered ? { numbering: { config: [NUMBERED_LIST_CONFIG] } } : {}),
     styles: {
       default: { document: { run: { font: BODY_FONT, size: BODY_SIZE } } },
       paragraphStyles: [

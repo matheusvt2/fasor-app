@@ -1,5 +1,6 @@
 import type { LayoutSection10 } from '@app/domain';
 import { AlignmentType, BorderStyle, Paragraph, Table, TableCell, TableRow, TextRun, WidthType, type IBorderOptions } from 'docx';
+import { richRuns } from '../docx.ts';
 
 /*
  * Story 7.4 (FR-72): section 10 as the `docx` library draws it, from the kernel's
@@ -39,7 +40,7 @@ export function section10Children(section: LayoutSection10, contentWidthTwips: n
   });
 
   const out: (Paragraph | Table)[] = [box, new Paragraph({ spacing: { after: 120 } })];
-  for (const bullet of section.bullets) out.push(new Paragraph({ children: [new TextRun({ text: bullet })], bullet: { level: 0 }, spacing: { after: 60 } }));
+  for (const bullet of section.bullets) out.push(new Paragraph({ children: richRuns(bullet.runs), bullet: { level: 0 }, spacing: { after: 60 } }));
   out.push(new Paragraph({ children: [new TextRun({ text: section.validityLine })], spacing: { before: 240, after: 120 } }));
 
   const signature = [

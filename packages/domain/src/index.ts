@@ -34,6 +34,7 @@ export * from './templates/list.ts';
 export * from './templates/compose.ts';
 export * from './templates/text.ts';
 export * from './templates/section-text.ts';
+export * from './templates/rich-text.ts';
 export * from './relatorio/tag.ts';
 export * from './relatorio/integrity.ts';
 export * from './relatorio/instantiate.ts';

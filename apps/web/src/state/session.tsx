@@ -1,4 +1,4 @@
-import { councilSchema, registrationOfUserRow, registrationPuts, type Registration, type UserProfile } from '@app/domain';
+import { councilSchema, photoLocationPut, registrationOfUserRow, registrationPuts, type Registration, type UserProfile } from '@app/domain';
 import {
   createContext,
   useCallback,
@@ -56,6 +56,11 @@ export interface SessionState {
    * refuses the write.
    */
   saveRegistration: (registration: Registration) => Promise<void>;
+  /**
+   * Story 11.5 (FR-8): commits Account's "Localização nas fotos" switch as the user's own
+   * `user/{id}/photo_location_enabled` op, local and immediate like `saveRegistration`.
+   */
+  savePhotoLocation: (enabled: boolean) => Promise<void>;
   /** Hides the recovery screen and remembers it in `local_prefs`, so it is one-time. */
   dismissRecovery: () => void;
 }
@@ -290,6 +295,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [user],
   );
 
+  const doSavePhotoLocation = useCallback(
+    async (enabled: boolean) => {
+      const db = databaseRef.current;
+      if (db === null || user === null) throw new Error('no device database to commit the location switch to');
+      await commitBatch(db, [photoLocationPut({ userId: user.id, companyId: user.companyId, enabled })], { newId, now });
+    },
+    [user],
+  );
+
   const value = useMemo<SessionState>(
     () => ({
       status,
@@ -301,6 +315,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       signIn: doSignIn,
       signOut: doSignOut,
       saveRegistration: doSaveRegistration,
+      savePhotoLocation: doSavePhotoLocation,
       // No dismissal: only a new sign-in clears `reAuthRequired`, so the paused sync
       // engine (state/sync.tsx) never resumes while the session is still gone.
       dismissRecovery,
@@ -315,6 +330,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       doSignIn,
       doSignOut,
       doSaveRegistration,
+      doSavePhotoLocation,
       dismissRecovery,
     ],
   );

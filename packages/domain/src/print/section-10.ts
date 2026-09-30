@@ -2,6 +2,7 @@ import { councilLabel, defaultTitleForCouncil } from '../registration.ts';
 import { parecerOf, parecerTextForPrint, parecerVerdictLabel } from '../relatorio/parecer.ts';
 import type { Council } from '../schemas/council.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
+import type { RichRun } from '../templates/rich-text.ts';
 import { SECTION_VARIABLE_LABELS } from '../templates/section-text.ts';
 import { artLabel } from './document-control.ts';
 
@@ -24,8 +25,11 @@ export interface LayoutSection10 {
     /** The confirmed or edited summary; null while unconfirmed. */
     text: string | null;
   };
-  /** The section's fixed items, in order. */
-  bullets: string[];
+  /**
+   * The section's fixed items, in order: each its plain `text` and, Story 11.4, its printed
+   * runs (bold and italic from the template's formatted text; a seed item is one plain run).
+   */
+  bullets: { text: string; runs: RichRun[] }[];
   validityLine: string;
   signature: { name: string; title: string; registration: string };
 }
@@ -63,7 +67,7 @@ function signatureOf(responsible: RelatorioSnapshot['responsible']): LayoutSecti
  */
 export function section10Layout(
   snapshot: RelatorioSnapshot,
-  base: { number: number; title: string; paragraphs?: readonly { text: string }[] },
+  base: { number: number; title: string; paragraphs?: readonly { text: string; runs?: readonly RichRun[] }[] },
 ): LayoutSection10 {
   const parecer = parecerOf(snapshot);
   return {
@@ -74,7 +78,7 @@ export function section10Layout(
       title: parecer === null ? PARECER_MISSING_TITLE : parecerVerdictLabel(parecer.verdict),
       text: parecerTextForPrint(snapshot),
     },
-    bullets: (base.paragraphs ?? []).map((paragraph) => paragraph.text),
+    bullets: (base.paragraphs ?? []).map((paragraph) => ({ text: paragraph.text, runs: paragraph.runs === undefined ? [{ text: paragraph.text }] : [...paragraph.runs] })),
     validityLine: validityLine(snapshot.responsible?.council ?? null, snapshot.relatorio.setup.art_trt_number),
     signature: signatureOf(snapshot.responsible),
   };

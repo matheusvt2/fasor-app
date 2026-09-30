@@ -73,6 +73,18 @@ export const copy = {
     // authored: the mock has no offline or failure state for "Sair".
     signOutOfflineReason: 'Sair precisa de conexão',
     signOutFailed: 'Não foi possível sair. Tente de novo.',
+    // Story 11.5 (FR-8): "Localização nas fotos", verbatim from `90-account.html` `#acc-loc-row`.
+    locationHeading: 'Localização nas fotos',
+    locationLabel: 'Gravar coordenadas em cada foto',
+    locationSub: 'Impressas na seção 7 com a data e a hora: "Imagem 5 · 06/09/2026 14:32 · −23,5505, −46,6333"',
+    locationHelperOn:
+      'O aparelho pede permissão na primeira foto. Se negar, as fotos ficam sem coordenadas e este ajuste mostra "Permissão negada no aparelho".',
+    locationHelperOff: 'Fotos sem coordenadas — a seção 7 imprime só a data e a hora de cada imagem.',
+    // Verbatim from `key-account.html` (`data-tone="amber"`): the OS refused the position.
+    locationDenied:
+      'Permissão negada no aparelho — as fotos saem sem coordenadas. Libere em Ajustes › Localização e o pino volta na próxima foto.',
+    // authored: the switch's save is a local commit, so only a refused device write fails it.
+    locationSaveFailed: 'Não foi possível salvar. Tente de novo.',
     // Tema and Armazenamento from `mockups/prototype/screens/90-account.html`.
     themeHeading: 'Tema',
     themeNote: 'Segue a preferência do aparelho. Os dois temas mantêm o contraste para uso ao sol.',
@@ -400,8 +412,16 @@ export const copy = {
     textRestored: 'Texto padrão restaurado',
     // authored: the section the editor was opened on was moved or removed on another device.
     textGone: 'A seção mudou em outro aparelho; o texto não foi salvo.',
-    // authored: autosave replaces the mock's "Salvar texto / Cancelar" pair (EXPERIENCE.md).
-    textAutosave: 'Salvo automaticamente. Texto simples; negrito e listas ficam para depois.',
+    // authored: autosave replaces the mock's "Salvar texto / Cancelar" pair (EXPERIENCE.md);
+    // Story 11.4: the text carries formatting now, so the "texto simples" half is gone.
+    textAutosave: 'Salvo automaticamente.',
+    // Story 11.4: verbatim from the mock's `#tc-dlg-rich` `.rt-toolbar` (`aria-label` and the five words).
+    formatToolbar: 'Formatação',
+    formatBold: 'Negrito',
+    formatItalic: 'Itálico',
+    formatBullets: 'Lista',
+    formatNumbered: 'Numeração',
+    formatVariable: 'Variável',
     close: 'Fechar',
     // authored: the Confirm dialogs of a removal, one sentence of consequence each.
     removeConfirmTitle: (name: string) => `Remover ${name}?`,

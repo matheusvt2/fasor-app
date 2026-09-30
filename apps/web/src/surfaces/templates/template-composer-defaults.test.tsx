@@ -43,6 +43,7 @@ const session = (): SessionState => ({
   signIn: vi.fn(),
   signOut: vi.fn(async () => {}),
   saveRegistration: vi.fn(async () => {}),
+  savePhotoLocation: vi.fn(async () => {}),
   recoveryNeeded: false,
   dismissRecovery: vi.fn(),
 });
@@ -243,6 +244,12 @@ describe('E9 sweep B11: section actions after a pull reordered the sections', ()
 
 describe('3.6 composer: section text', () => {
   const area = (dialog: HTMLElement) => within(dialog).getByRole('textbox', { name: 'Texto da seção 1' });
+  /** Story 11.4: the "Inserir dado do relatório" row opens from the toolbar's "Variável". */
+  const chipButton = async (dialog: HTMLElement, name: string) => {
+    const variavel = within(dialog).getByRole('button', { name: 'Variável' });
+    if (variavel.getAttribute('aria-expanded') !== 'true') await userEvent.click(variavel);
+    return within(dialog).getByRole('button', { name });
+  };
 
   it('E9 sweep B11: writes onto the same section when another device moved it, never onto the one now at its index', async () => {
     database = await freshDb(standardTemplate({ id: ID }));
@@ -253,7 +260,7 @@ describe('3.6 composer: section text', () => {
     // The row this device reads at the moment of the write has section 2 at index 0.
     const stale = standardTemplate({ id: ID });
     vi.mocked(templateRow).mockImplementationOnce(async () => ({ ...stale, blocks: moveSection(stale.blocks, 0, 1) }));
-    await userEvent.click(within(dialog).getByRole('button', { name: 'cliente' }));
+    await userEvent.click(await chipButton(dialog, 'cliente'));
     await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
     await waitFor(async () => expect(await outboxPaths()).toEqual([`template/${ID}/blocks`]));
     const blocks = (await templateRow(database!, ID))!.blocks;
@@ -271,7 +278,7 @@ describe('3.6 composer: section text', () => {
     // The row this device reads at the moment of the write no longer holds section 1.
     const stale = standardTemplate({ id: ID });
     vi.mocked(templateRow).mockImplementationOnce(async () => ({ ...stale, blocks: removeSection(stale.blocks, 0) }));
-    await userEvent.click(within(dialog).getByRole('button', { name: 'cliente' }));
+    await userEvent.click(await chipButton(dialog, 'cliente'));
     await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
     expect(await screen.findByText('A seção mudou em outro aparelho; o texto não foi salvo.')).toBeVisible();
     // The dialog closes, so later autosaves cannot repeat the toast.
@@ -290,7 +297,7 @@ describe('3.6 composer: section text', () => {
     };
     // An older committed text: the seed text with a chip in front.
     let dialog = await open();
-    await userEvent.click(within(dialog).getByRole('button', { name: 'cliente' }));
+    await userEvent.click(await chipButton(dialog, 'cliente'));
     await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
     await waitFor(async () => expect((await templateRow(database!, ID))!.blocks[0]!.section_text).toMatch(/^\{cliente\}O presente/));
 
@@ -314,7 +321,7 @@ describe('3.6 composer: section text', () => {
       return screen.findByRole('dialog', { name: '1 Objetivo — texto fixo' });
     };
     let dialog = await open();
-    await userEvent.click(within(dialog).getByRole('button', { name: 'cliente' }));
+    await userEvent.click(await chipButton(dialog, 'cliente'));
     await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
     await waitFor(async () => expect((await templateRow(database!, ID))!.blocks[0]!.section_text).toMatch(/^\{cliente\}O presente/));
 
@@ -364,7 +371,13 @@ describe('3.6 composer: section text', () => {
     expect(textbox).toHaveAttribute('contenteditable', 'true');
     expect(textbox).toHaveAttribute('aria-multiline', 'true');
     expect([...textbox.querySelectorAll('.var-chip')].map((c) => c.textContent)).toEqual(['{empresa_executora}', '{obra}', '{cliente}']);
-    expect(dialog.querySelector('.rt-toolbar')).toBeNull();
+    // Story 11.4: the toolbar, the chip row hidden until "Variável" opens it.
+    const toolbar = within(dialog).getByRole('toolbar', { name: 'Formatação' });
+    expect(within(toolbar).getAllByRole('button').map((b) => b.textContent)).toEqual(['Negrito', 'Itálico', 'Lista', 'Numeração', 'Variável']);
+    expect(within(toolbar).getAllByRole('button').slice(0, 4).map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'false', 'false', 'false']);
+    expect(within(dialog).queryByRole('group', { name: 'Inserir dado do relatório' })).toBeNull();
+    await userEvent.click(within(toolbar).getByRole('button', { name: 'Variável' }));
+    expect(within(toolbar).getByRole('button', { name: 'Variável' })).toHaveAttribute('aria-expanded', 'true');
     const row = within(dialog).getByRole('group', { name: 'Inserir dado do relatório' });
     expect(within(row).getAllByRole('button').map((b) => b.textContent)).toEqual([
       'cliente',
@@ -383,7 +396,7 @@ describe('3.6 composer: section text', () => {
     await userEvent.click(await screen.findByRole('menuitem', { name: 'Editar texto' }));
     let dialog = await screen.findByRole('dialog', { name: '1 Objetivo — texto fixo' });
     // The dialog opens with the focus, and so the caret, at the start of the text: the chip goes there.
-    await userEvent.click(within(dialog).getByRole('button', { name: 'responsável' }));
+    await userEvent.click(await chipButton(dialog, 'responsável'));
     expect(area(dialog).querySelectorAll('.var-chip')).toHaveLength(4);
     await userEvent.click(within(dialog).getByRole('button', { name: 'Fechar' }));
     await waitFor(async () => expect((await templateRow(database!, ID))!.blocks[0]!.section_text).toMatch(/^\{responsavel\}O presente/));

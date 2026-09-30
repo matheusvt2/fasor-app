@@ -185,9 +185,24 @@ export async function photoLocationEnabled(db: AppDatabase, userId: string): Pro
   return row?.photo_location_enabled ?? true;
 }
 
-/** Story 6.1: the browser refused the position (read by Epic 11's location switch surface). */
+/** Story 6.1: the browser refused the position (read by Account's location switch, Story 11.5). */
 export async function writeGeolocationDenied(db: AppDatabase): Promise<void> {
   await db.local_prefs.put({ key: GEOLOCATION_DENIED_PREF, value: true });
+}
+
+/** Story 11.5: the position was given again (a fix arrived, or the Permissions API says granted). */
+export async function clearGeolocationDenied(db: AppDatabase): Promise<void> {
+  await db.local_prefs.delete(GEOLOCATION_DENIED_PREF);
+}
+
+/** Story 11.5: whether this device's browser last refused the position. Device-local: the OS permission is per device. */
+export async function geolocationDenied(db: AppDatabase): Promise<boolean> {
+  const row = await db.local_prefs.get(GEOLOCATION_DENIED_PREF);
+  return row?.value === true;
+}
+
+export function useGeolocationDenied(db: AppDatabase | null): boolean {
+  return useLiveQuery(() => (db === null ? Promise.resolve(false) : geolocationDenied(db)), [db], false) ?? false;
 }
 
 /** The current per-device photo counter (the capture rescue numbers a shot it cannot store with it). */

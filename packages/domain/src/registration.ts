@@ -129,6 +129,27 @@ export function registrationPuts(input: {
 }
 
 /**
+ * Story 11.5 (FR-8): Account's "Localização nas fotos" switch as the one `user/{id}/photo_location_enabled`
+ * put the device commits, written by the user about their own row (`apply.ts` refuses it
+ * on anyone else's). Off: the next photos carry date and time only.
+ */
+export function photoLocationPut(input: { userId: string; companyId: string; enabled: boolean }): OpDraft {
+  return {
+    kind: 'put',
+    scope: 'company',
+    company_id: input.companyId,
+    project_id: null,
+    relatorio_id: null,
+    path: formatPath({ family: 'user/field', id: input.userId, field: 'photo_location_enabled' }),
+    value: input.enabled,
+    prev_op_id: null,
+    batch_id: null,
+    meta: null,
+    actor_id: input.userId,
+  };
+}
+
+/**
  * The responsável técnico a new relatório is born with (Epic 4 QA Q2, EXPERIENCE.md
  * Account row: the registration is "the default responsável of every new relatório"): the
  * signed-in user when they carry a registration (a council and a number), else nobody.

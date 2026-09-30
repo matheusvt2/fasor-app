@@ -23,6 +23,10 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     why: 'loads the same fixed-id Porto Seguro fixture and generates a revision through the shared queue and LibreOffice',
   },
   {
+    file: 'rich-text-print.spec.ts',
+    why: 'Story 11.4: issues a revision of a relatório made from a formatted template through the shared queue and LibreOffice',
+  },
+  {
     file: 'photo-numbers.spec.ts',
     why: 'loads the same fixed-id Porto Seguro fixture and generates revisions through the shared queue and LibreOffice, whose certificate rasterization shares the one soffice chain',
   },

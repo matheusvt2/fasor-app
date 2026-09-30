@@ -22,6 +22,7 @@ import {
   SECTION_BLOCK_TYPES,
   setAgruparPorTipo,
   setQuantity,
+  sameRichText,
   setSectionText,
   setTypeDefaults,
   TemplateTargetGoneError,
@@ -354,7 +355,10 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
    * unchanged text writes nothing and is not `gone`.
    */
   async function writeSectionText(section: ComposerSection, text: string | null): Promise<{ batch: string | null; gone: boolean }> {
-    const value = text === null || text.trim() === '' || text === seedTextOf(section) ? null : text;
+    // Story 11.4: equal "in meaning" is the kernel's call (`sameRichText`): the seed's flat
+    // text and the editor's markup of the same content differ as strings.
+    const seed = seedTextOf(section);
+    const value = text === null || text.trim() === '' || (seed !== null && sameRichText(text, seed)) ? null : text;
     let gone = false;
     const batch = await edit((fresh) => {
       const blocks = withoutOrphans(fresh);
@@ -364,7 +368,7 @@ function TemplateComposer({ row }: { row: TemplateRow }) {
         gone = true;
         return null;
       }
-      if (current.section_text === value) return null;
+      if (current.section_text === value || (current.section_text !== null && value !== null && sameRichText(current.section_text, value))) return null;
       return [['blocks', setSectionText(blocks, index, value)]];
     });
     return { batch, gone };
