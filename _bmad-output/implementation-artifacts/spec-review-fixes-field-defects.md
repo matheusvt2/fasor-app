@@ -2,7 +2,7 @@
 title: 'Review fixes: field defects from the hands-on review'
 type: 'bugfix'
 created: '2026-09-30'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'b2caf768182089d5e7b03b914ce735a93c32d980'
 review_loop_iteration: 0
 followup_review_recommended: false
