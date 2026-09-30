@@ -1,19 +1,17 @@
 import { createHash } from 'node:crypto';
+import { buffer } from 'node:stream/consumers';
 import {
   confirmedCellsLaterEdited,
   DOCX_MIME,
-  fileRowSchema,
   lastNameplates,
   layoutSpec,
+  livePhotos,
   nextRevisionNumber,
   objectKey,
   PDF_MIME,
-  revisionRowSchema,
-  SERVER_DEVICE_ID,
   toIso,
   type Clock,
   type DocumentLayout,
-  type FileRow,
   type GenerationResult,
   type LayoutSectionCertificates,
   type NewId,
@@ -22,13 +20,16 @@ import {
   type RevisionRow,
 } from '@app/domain';
 import type { S3Client } from '@aws-sdk/client-s3';
-import { and, eq, isNull, like } from 'drizzle-orm';
+import { and, eq, like } from 'drizzle-orm';
 import type { Db } from '../../db/client.ts';
 import { asCompanyId, type CompanyId } from '../../db/repositories/company-id.ts';
-import { entities, ops as opsTable } from '../../db/schema.ts';
+import { findFileRows, type FileRowLookup } from '../../db/repositories/files.ts';
+import { liveRevisions } from '../../db/repositories/revisions.ts';
+import { ops as opsTable } from '../../db/schema.ts';
 import { log, logError } from '../../log.ts';
 import { getObject, putObject } from '../../storage/s3.ts';
 import { applyOps, applyServerBatch, lockCompany, type Tx } from '../../sync/apply.ts';
+import { serverOp } from '../../sync/server-op.ts';
 import { freezeSnapshot } from '../../sync/snapshot.ts';
 import { buildDocx, type DocxImages } from './docx.ts';
 import { convertToPdf, DEFAULT_CONVERT_TIMEOUT_MS, LibreOfficeTimeoutError, type GenerateFault } from './libreoffice.ts';
@@ -36,6 +37,7 @@ import { readOutline } from './pdf-outline.ts';
 import { loadCertificatePages, type StoredOriginal } from './sections/section-11.ts';
 import { loadPhotoImages } from './sections/section-7.ts';
 import { headingPages, missingHeadings, placeholderPages, tocConverged, type TocPages } from './toc.ts';
+import { watermarkPng } from './watermark.ts';
 
 /*
  * AD-15: the one renderer. The job freezes the snapshot under the company lock, renders
@@ -116,81 +118,57 @@ function sha256(bytes: Buffer): string {
   return createHash('sha256').update(bytes).digest('hex');
 }
 
-function serverOp(
+/** One `system:generate` op (A-28: the shared envelope), of the job's relatório unless `scope` says otherwise. */
+function generateOp(
   payload: GeneratePayload,
   now: string,
   newId: NewId,
-  input: { kind: Op['kind']; scope: Op['scope']; path: string; value: unknown },
+  input: { kind: Op['kind']; path: string; value: unknown; scope?: 'relatorio' | 'project'; projectId?: string },
 ): Op {
-  return {
-    op_id: newId(),
+  const project = input.scope === 'project';
+  return serverOp({
+    opId: newId(),
+    companyId: payload.company_id,
+    actorId: GENERATE_ACTOR,
+    clientTs: now,
     kind: input.kind,
-    scope: input.scope,
-    company_id: payload.company_id,
-    project_id: null,
-    relatorio_id: payload.relatorio_id,
     path: input.path,
-    value: input.value as Op['value'],
-    prev_op_id: null,
-    batch_id: null,
-    meta: null,
-    actor_id: GENERATE_ACTOR,
-    device_id: SERVER_DEVICE_ID,
-    client_ts: now,
-  };
-}
-
-function jobPut(payload: GeneratePayload, now: string, newId: NewId, field: 'status' | 'error' | 'result' | 'result_file_id' | 'started_at', value: unknown): Op {
-  return serverOp(payload, now, newId, { kind: 'put', scope: 'relatorio', path: `generation_job/${payload.job_id}/${field}`, value });
-}
-
-/** The live revision rows of the relatório, read through `reader` (the pool or a transaction). */
-async function liveRevisions(reader: Pick<Db, 'select'>, companyId: CompanyId, relatorioId: string): Promise<RevisionRow[]> {
-  const rows = await reader
-    .select({ row: entities.row })
-    .from(entities)
-    .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'revision'), eq(entities.relatorio_id, relatorioId), isNull(entities.removed_at)));
-  return rows.flatMap((r) => {
-    const parsed = revisionRowSchema.safeParse(r.row);
-    return parsed.success ? [parsed.data] : [];
+    value: input.value,
+    scope: input.scope ?? 'relatorio',
+    projectId: project ? (input.projectId ?? null) : null,
+    relatorioId: project ? null : payload.relatorio_id,
   });
 }
 
+function jobPut(payload: GeneratePayload, now: string, newId: NewId, field: 'status' | 'error' | 'result' | 'result_file_id' | 'started_at', value: unknown): Op {
+  return generateOp(payload, now, newId, { kind: 'put', path: `generation_job/${payload.job_id}/${field}`, value });
+}
+
 /**
- * A company-scope or relatório-scope `file` row by id, parsed, with the `relatorio_id`
- * column it is filed under (the one the file routes key a photo's object by), or null.
+ * A-8: the `file` rows the job reads bytes of (the logo, the cover, every live photo and
+ * every attached certificate), in one query instead of one per file.
  */
-async function fileRow(db: Db, companyId: CompanyId, id: string): Promise<{ row: FileRow; relatorioId: string | null } | null> {
-  const [record] = await db
-    .select({ row: entities.row, relatorio_id: entities.relatorio_id })
-    .from(entities)
-    .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'file'), eq(entities.id, id)))
-    .limit(1);
-  const parsed = record === undefined ? null : fileRowSchema.safeParse(record.row);
-  return parsed !== null && parsed.success ? { row: parsed.data, relatorioId: record!.relatorio_id } : null;
+function fileIdsToLoad(snapshot: RelatorioSnapshot, certificates: LayoutSectionCertificates | undefined): string[] {
+  const ids = [snapshot.empresa?.logo_file_id ?? null, snapshot.relatorio.setup.cover_photo_file_id, ...livePhotos(snapshot).map((photo) => photo.id)];
+  for (const certificate of certificates?.certificates ?? []) ids.push(certificate.certificateFileId);
+  return ids.filter((id): id is string => id !== null);
 }
 
-async function readAll(body: NodeJS.ReadableStream): Promise<Buffer> {
-  const chunks: Buffer[] = [];
-  for await (const chunk of body) chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
-  return Buffer.concat(chunks);
-}
-
-/** The `print` variant bytes of a file whose row says the variants were rendered; null otherwise. */
-async function printVariant(deps: GenerateJobDeps, companyId: CompanyId, fileId: string | null): Promise<Buffer | undefined> {
+/** The `print` variant bytes of a file whose row says the variants were rendered; undefined otherwise. A failing read throws. */
+async function printVariant(deps: GenerateJobDeps, companyId: CompanyId, files: ReadonlyMap<string, FileRowLookup>, fileId: string | null): Promise<Buffer | undefined> {
   if (fileId === null) return undefined;
-  const found = await fileRow(deps.db, companyId, fileId);
-  if (found === null || found.row.uploaded_at === null || found.row.variants === null) return undefined;
+  const found = files.get(fileId);
+  if (found === undefined || found.row.uploaded_at === null || found.row.variants === null) return undefined;
   const stored = await getObject(deps.s3, deps.bucket, objectKey(companyId, found.row.kind, fileId, 'print', found.relatorioId));
-  return stored === null ? undefined : readAll(stored.body);
+  return stored === null ? undefined : buffer(stored.body);
 }
 
-/** Story 7.3: the original bytes and type of an uploaded file (a certificate), or undefined when the server holds none. */
-async function readOriginal(deps: GenerateJobDeps, companyId: CompanyId, fileId: string): Promise<StoredOriginal | undefined> {
-  const found = await fileRow(deps.db, companyId, fileId);
-  if (found === null || found.row.uploaded_at === null || found.row.removed_at !== null) return undefined;
+/** Story 7.3: the original bytes and type of an uploaded file (a certificate), or undefined when the server holds none. A failing read throws. */
+async function readOriginal(deps: GenerateJobDeps, companyId: CompanyId, files: ReadonlyMap<string, FileRowLookup>, fileId: string): Promise<StoredOriginal | undefined> {
+  const found = files.get(fileId);
+  if (found === undefined || found.row.uploaded_at === null || found.row.removed_at !== null) return undefined;
   const stored = await getObject(deps.s3, deps.bucket, objectKey(companyId, found.row.kind, fileId, 'original', found.relatorioId));
-  return stored === null ? undefined : { bytes: await readAll(stored.body), mime: found.row.mime };
+  return stored === null ? undefined : { bytes: await buffer(stored.body), mime: found.row.mime };
 }
 
 /**
@@ -253,16 +231,20 @@ export async function runGenerateJob(deps: GenerateJobDeps, payload: GeneratePay
       art: frozen.snapshot.relatorio.setup.art_trt_number,
       draft: kind === 'preview',
     });
+    const certificatesSection = layout.sections.find((section): section is LayoutSectionCertificates => section.kind === 'certificates');
+    const files = await findFileRows(deps.db, companyId, fileIdsToLoad(frozen.snapshot, certificatesSection));
     const images: DocxImages = {};
-    const logo = await printVariant(deps, companyId, frozen.snapshot.empresa?.logo_file_id ?? null);
+    const logo = await printVariant(deps, companyId, files, frozen.snapshot.empresa?.logo_file_id ?? null);
     if (logo !== undefined) images.logo = logo;
-    const cover = await printVariant(deps, companyId, frozen.snapshot.relatorio.setup.cover_photo_file_id);
+    const cover = await printVariant(deps, companyId, files, frozen.snapshot.relatorio.setup.cover_photo_file_id);
     if (cover !== undefined) images.cover = cover;
     // Stories 7.2/7.3: the photos' print bytes and the certificates' page images, loaded
-    // once before the passes; the loaders log and skip what they cannot read, never throw.
-    images.photos = await loadPhotoImages(frozen.snapshot, (fileId) => printVariant(deps, companyId, fileId), fields);
-    const certificatesSection = layout.sections.find((section): section is LayoutSectionCertificates => section.kind === 'certificates');
-    images.certificates = await loadCertificatePages(certificatesSection, (fileId) => readOriginal(deps, companyId, fileId), { jobId: payload.job_id, timeoutMs: deps.timeoutMs, context: fields });
+    // once before the passes. The loaders log and skip what the server does not hold or
+    // cannot decode; a read that throws fails the job (A-4), never issues without it.
+    images.photos = await loadPhotoImages(frozen.snapshot, (fileId) => printVariant(deps, companyId, files, fileId), fields);
+    images.certificates = await loadCertificatePages(certificatesSection, (fileId) => readOriginal(deps, companyId, files, fileId), { jobId: payload.job_id, timeoutMs: deps.timeoutMs, context: fields });
+    // A-24: a preview's RASCUNHO image is drawn once per job, not once per TOC pass.
+    if (layout.watermark !== null) images.watermark = await watermarkPng(layout.watermark);
 
     const rendered = await renderDocument(layout, images, { jobId: payload.job_id, timeoutMs: deps.timeoutMs, fault: deps.fault });
 
@@ -325,9 +307,8 @@ async function commitPreview(
 ): Promise<void> {
   const now = toIso(deps.now());
   const batch: Op[] = [
-    serverOp(payload, now, deps.newId, {
+    generateOp(payload, now, deps.newId, {
       kind: 'create',
-      scope: 'relatorio',
       path: `file/${outputs.previewId}`,
       value: {
         id: outputs.previewId,
@@ -342,7 +323,7 @@ async function commitPreview(
         removed_at: null,
       },
     }),
-    serverOp(payload, now, deps.newId, { kind: 'put', scope: 'relatorio', path: 'relatorio/preview_file_id', value: outputs.previewId }),
+    generateOp(payload, now, deps.newId, { kind: 'put', path: 'relatorio/preview_file_id', value: outputs.previewId }),
     jobPut(payload, now, deps.newId, 'result_file_id', outputs.previewId),
     jobPut(payload, now, deps.newId, 'status', 'done'),
     jobPut(payload, now, deps.newId, 'result', outputs.result),
@@ -368,9 +349,8 @@ async function commitRevision(
 ): Promise<void> {
   const now = toIso(deps.now());
   const fileCreate = (id: string, kind: 'docx' | 'pdf', bytes: Buffer, mime: string): Op =>
-    serverOp(payload, now, deps.newId, {
+    generateOp(payload, now, deps.newId, {
       kind: 'create',
-      scope: 'relatorio',
       path: `file/${id}`,
       value: {
         id,
@@ -399,15 +379,13 @@ async function commitRevision(
   // AD-25: the issued plates, projected onto their equipment rows (project scope) in the
   // same batch as the revision, so "Copiar da última visita" appears on the next visit.
   const projectId = frozen.snapshot.relatorio.project_id;
-  const lastNameplateOps: Op[] = lastNameplates(frozen.snapshot, { revisionNumber: frozen.number, issuedAt: now }).map((entry) => ({
-    ...serverOp(payload, now, deps.newId, { kind: 'put', scope: 'project', path: `equipment/${entry.equipmentId}/last_nameplate`, value: entry.value }),
-    project_id: projectId,
-    relatorio_id: null,
-  }));
+  const lastNameplateOps: Op[] = lastNameplates(frozen.snapshot, { revisionNumber: frozen.number, issuedAt: now }).map((entry) =>
+    generateOp(payload, now, deps.newId, { kind: 'put', scope: 'project', projectId, path: `equipment/${entry.equipmentId}/last_nameplate`, value: entry.value }),
+  );
   const batch: Op[] = [
     fileCreate(outputs.docxId, 'docx', outputs.docx, DOCX_MIME),
     fileCreate(outputs.pdfId, 'pdf', outputs.pdf, PDF_MIME),
-    serverOp(payload, now, deps.newId, { kind: 'create', scope: 'relatorio', path: `revision/${revisionId}`, value: revision }),
+    generateOp(payload, now, deps.newId, { kind: 'create', path: `revision/${revisionId}`, value: revision }),
     ...lastNameplateOps,
     jobPut(payload, now, deps.newId, 'status', 'done'),
     jobPut(payload, now, deps.newId, 'result', outputs.result),

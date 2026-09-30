@@ -112,7 +112,7 @@ describe('seed-users CLI', () => {
         .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'block')));
       expect(blocks.length).toBeGreaterThan(0);
     } finally {
-      await removePortoSeguroSmall(db);
+      await removePortoSeguroSmall(db, { allowCompanyId: companyId });
       await dropCompany(db, companyId);
     }
   }, 120_000);

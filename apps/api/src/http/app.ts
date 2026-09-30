@@ -19,7 +19,7 @@ import { createFileRoutes } from './files.ts';
 import { createGenerateRoutes } from './generate.ts';
 import { createHealthRoutes, type HealthProbes } from './health.ts';
 import { createReadingRoutes } from './reading.ts';
-import { type AppEnv, sessionMiddleware, UnauthenticatedError, unauthenticatedError } from './session.ts';
+import { type AppEnv, sessionMiddleware, SessionUnavailableError, sessionUnavailableError, UnauthenticatedError, unauthenticatedError } from './session.ts';
 
 // `apps/web/dist` is bind-mounted alongside the api source; api commands run
 // with cwd = apps/api (pnpm --filter cds into the package), so the built web
@@ -128,6 +128,7 @@ export function createApp(options: AppOptions): Hono<AppEnv> {
 
   app.onError((error, c) => {
     if (error instanceof UnauthenticatedError) return c.json(unauthenticatedError, 401);
+    if (error instanceof SessionUnavailableError) return c.json(sessionUnavailableError, 503);
     logError('unhandled route error', { path: c.req.path, error: String(error) });
     const body: ErrorResponse = { code: 'internal_error', message: 'Unexpected server error.' };
     return c.json(body, 500);

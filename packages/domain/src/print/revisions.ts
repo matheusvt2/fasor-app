@@ -226,3 +226,11 @@ export function expectedFileIds(snapshot: RelatorioSnapshot): string[] {
   if (cover !== null) ids.add(cover);
   return [...ids];
 }
+
+/**
+ * A-25 (review 2026-09-30): the download name of a relatório's latest preview PDF, beside
+ * `revisionFileName` (`contract/generate.ts`), so the api composes no document name of its own.
+ */
+export function previewFileName(): string {
+  return 'relatorio-rascunho.pdf';
+}

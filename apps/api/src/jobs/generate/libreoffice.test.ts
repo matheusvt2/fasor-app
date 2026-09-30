@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { convertToPdf, LibreOfficeFailedError, LibreOfficeTimeoutError, MAX_CERTIFICATE_PAGES, pageRangeFilter, pngSizeFilter, rasterizePdfPages } from './libreoffice.ts';
-import { samplePdf } from './sample-pdf.ts';
+import { samplePdf } from './sample-pdf.test-support.ts';
 
 /*
  * `convertToPdf` without LibreOffice: a fake `soffice` shell script on the PATH plays the
@@ -156,5 +156,65 @@ describe('rasterizePdfPages over a fake soffice', () => {
     await expect(rasterizePdfPages(samplePdf(MAX_CERTIFICATE_PAGES + 1), { jobId: 'job-cap' })).rejects.toBeInstanceOf(LibreOfficeFailedError);
     expect(existsSync(marker)).toBe(false);
     expect(rasterDirs('job-cap')).toEqual([]);
+  });
+});
+
+/*
+ * Review 2026-09-30, A-5 and A-17 over the same fake soffice.
+ */
+describe('A-5 the certificate rasterization budget', () => {
+  it('stops at the deadline with LibreOfficeTimeoutError instead of running every page', async () => {
+    fakeSoffice(
+      [
+        'sleep 0.4',
+        'out=""; conv=""',
+        'while [ $# -gt 0 ]; do case "$1" in --outdir) out="$2"; shift;; --convert-to) conv="$2"; shift;; esac; shift; done',
+        'case "$conv" in pdf:*) printf "%%PDF-page" > "$out/certificado.pdf";; png:*) printf "PNG" > "$out/certificado.png";; esac',
+      ].join('\n'),
+    );
+    const started = Date.now();
+    // Five pages are ten runs of 0.4 s: 4 s without a budget.
+    await expect(rasterizePdfPages(samplePdf(5), { jobId: 'raster-budget', timeoutMs: 5000, deadline: started + 1000 })).rejects.toBeInstanceOf(LibreOfficeTimeoutError);
+    expect(Date.now() - started).toBeLessThan(2500);
+  }, 20_000);
+
+  it('caps a run at the time left in the budget', async () => {
+    fakeSoffice('sleep 5');
+    const started = Date.now();
+    await expect(rasterizePdfPages(samplePdf(1), { jobId: 'raster-cap', timeoutMs: 60_000, deadline: started + 500 })).rejects.toBeInstanceOf(LibreOfficeTimeoutError);
+    expect(Date.now() - started).toBeLessThan(4000);
+  }, 20_000);
+});
+
+describe('A-17 one soffice profile per process', () => {
+  const argLog = join(binDir, 'profile-args.log');
+  const profileOf = (line: string) => /-env:UserInstallation=(\S+)/.exec(line)?.[1];
+  const profiles = () =>
+    readFileSync(argLog, 'utf8')
+      .split('\n')
+      .map((line) => profileOf(line))
+      .filter((profile): profile is string => profile !== undefined);
+  const writing = (exit: string) =>
+    [
+      `echo "$*" >> "${argLog}"`,
+      'out=""',
+      'while [ $# -gt 0 ]; do if [ "$1" = "--outdir" ]; then out="$2"; fi; shift; done',
+      exit === '0' ? 'printf "%%PDF-fake" > "$out/relatorio.pdf"' : `exit ${exit}`,
+    ].join('\n');
+
+  it('reuses the profile across conversions, and starts a fresh one after a failed run', async () => {
+    rmSync(argLog, { force: true });
+    fakeSoffice(writing('0'));
+    await convertToPdf(input, { jobId: 'profile-1', timeoutMs: 2000 });
+    await convertToPdf(input, { jobId: 'profile-2', timeoutMs: 2000 });
+    fakeSoffice(writing('1'));
+    await expect(convertToPdf(input, { jobId: 'profile-3', timeoutMs: 2000 })).rejects.toBeInstanceOf(LibreOfficeFailedError);
+    fakeSoffice(writing('0'));
+    await convertToPdf(input, { jobId: 'profile-4', timeoutMs: 2000 });
+    const [first, second, third, fourth] = profiles();
+    expect(first).toMatch(/^file:\/\/.*\/profile$/);
+    expect(second).toBe(first);
+    expect(third).toBe(first);
+    expect(fourth).not.toBe(first);
   });
 });

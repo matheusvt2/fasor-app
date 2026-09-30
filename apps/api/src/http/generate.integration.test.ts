@@ -33,7 +33,7 @@ import { entities } from '../db/schema.ts';
 import { seedTestCompanies, TEST_SEED } from '../db/seed.ts';
 import { removePortoSeguroSmall, seedPortoSeguroSmall, SMALL_FIXTURE_PROJECT_ID, SMALL_FIXTURE_RELATORIO_ID } from '../db/test-fixtures.ts';
 import { newId } from '../ids.ts';
-import { extractStructure, paragraphText, readZipEntries } from '../jobs/generate/docx-structure.ts';
+import { extractStructure, paragraphText, readZipEntries } from '../jobs/generate/docx-structure.test-support.ts';
 import { readOutline } from '../jobs/generate/pdf-outline.ts';
 import { createS3, getObject, putObject } from '../storage/s3.ts';
 import { applyOps } from '../sync/apply.ts';

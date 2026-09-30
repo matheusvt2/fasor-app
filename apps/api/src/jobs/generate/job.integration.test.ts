@@ -27,8 +27,8 @@ import { removePortoSeguroSmall, seedPortoSeguroSmall, SMALL_FIXTURE_RELATORIO_I
 import { newId } from '../../ids.ts';
 import { createS3, getObject, putObject } from '../../storage/s3.ts';
 import { applyOps } from '../../sync/apply.ts';
-import { extractStructure, readZipEntries } from './docx-structure.ts';
-import { samplePdf } from './sample-pdf.ts';
+import { extractStructure, readZipEntries } from './docx-structure.test-support.ts';
+import { samplePdf } from './sample-pdf.test-support.ts';
 
 /*
  * 7.2/7.3-INT: a generate job through the api (its worker, its LibreOffice) over the small

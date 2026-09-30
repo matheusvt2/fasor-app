@@ -1,0 +1,1 @@
+CREATE INDEX "entities_company_relatorio_entity_live_idx" ON "entities" USING btree ("company_id","relatorio_id","entity") WHERE "entities"."removed_at" is null;

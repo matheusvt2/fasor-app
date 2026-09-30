@@ -8,12 +8,13 @@ import { entities } from '../db/schema.ts';
  * E10-Q6 (2026-09-29, AD-13): a client older than `MARK_AWARE_CONTRACT_VERSION` stamps
  * nothing it saw, so the fold takes its plain `sheet/*` put as one that saw the cell's
  * `conflict` and clears it, and its `removed_at` write as one that saw the block's removal
- * conflict. The push route asks this before applying such a client's push: true when one of
+ * conflict. The push route asks this under the push's company lock, before the first op is
+ * applied (the apply's `before` hook, A-10), for such a client's push: true when one of
  * its ops writes a cell that holds `conflict` (a `sheet/*` put) or a block that holds
  * `removal_conflict` (a `block/{id}/removed_at` write), as the server's rows stand. The ops
  * are raw (validated later, per op, by `applyOps`): anything unparseable is left to it.
  */
-export async function pushTouchesConflictMark(db: Db, companyId: CompanyId, rawOps: readonly unknown[]): Promise<boolean> {
+export async function pushTouchesConflictMark(db: Pick<Db, 'select'>, companyId: CompanyId, rawOps: readonly unknown[]): Promise<boolean> {
   const cells: { blockId: string; path: NonNullable<ReturnType<typeof safeParsePath>> }[] = [];
   const removals = new Set<string>();
   for (const raw of rawOps) {

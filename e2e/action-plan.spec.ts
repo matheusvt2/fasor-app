@@ -1,7 +1,7 @@
 import { deadlineFromPriority, formatCalendarDate, newPointRow, pointCreatedDate, type OpDraft, type PointRow } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
-import { paragraphText, readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.ts';
+import { paragraphText, readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { downloadBytes, downloadFrom } from './support/download.ts';
 import { readStore } from './support/outbox.ts';

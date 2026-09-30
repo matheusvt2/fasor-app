@@ -5,7 +5,7 @@ import { portoSeguro } from '@app/domain/fixtures/porto-seguro';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 import { buildDocx, TOC_PLACEHOLDER } from './docx.ts';
-import { extractStructure, paragraphText, readZipEntries, type DocxStructure } from './docx-structure.ts';
+import { extractStructure, paragraphText, readZipEntries, type DocxStructure } from './docx-structure.test-support.ts';
 import { placeholderPages } from './toc.ts';
 
 /*

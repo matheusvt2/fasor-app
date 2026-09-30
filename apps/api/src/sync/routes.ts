@@ -1,6 +1,5 @@
 import {
   CONTRACT_VERSION_HEADER,
-  photoFileRowSchema,
   safeParsePath,
   MARK_AWARE_CONTRACT_VERSION,
   MIN_CONTRACT_VERSION,
@@ -15,16 +14,15 @@ import {
 } from '@app/domain';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
-import { and, eq } from 'drizzle-orm';
 import type { Db } from '../db/client.ts';
 import type { CompanyId } from '../db/repositories/company-id.ts';
-import { entities } from '../db/schema.ts';
+import { findFileRow } from '../db/repositories/files.ts';
 import { type AppEnv, requireSession } from '../http/session.ts';
 import { newId as mintId } from '../ids.ts';
 import type { ReadingPayload } from '../jobs/reading/payload.ts';
 import { sendReading } from '../jobs/reading/send.ts';
 import { logError } from '../log.ts';
-import { applyOps } from './apply.ts';
+import { applyOps, type Tx } from './apply.ts';
 import { pushTouchesConflictMark } from './marks.ts';
 import { companySummary, pullCompany, pullProject, pullRelatorio, recordPush } from './pull.ts';
 
@@ -67,20 +65,14 @@ function retargetedPhotos(ops: readonly unknown[], applied: ReadonlySet<string>)
  * receipt when its bytes land. Scoped by the session's company (AD-10). Never fatal to the push.
  */
 async function sendRetargetedReading(db: Db, companyId: CompanyId, photoId: string, deps: SyncRouteDeps): Promise<void> {
-  const [record] = await db
-    .select({ row: entities.row, relatorio_id: entities.relatorio_id, removed_at: entities.removed_at })
-    .from(entities)
-    .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'file'), eq(entities.id, photoId)))
-    .limit(1);
-  if (record === undefined || record.removed_at !== null) return;
-  const parsed = photoFileRowSchema.safeParse(record.row);
-  if (!parsed.success) return;
-  const photo = parsed.data;
+  const record = await findFileRow(db, companyId, photoId);
+  if (record === null || record.removedAt !== null || record.row.kind !== 'photo') return;
+  const photo = record.row;
   if (photo.removed_at !== null || photo.uploaded_at === null || photo.reading_status !== 'queued' || photo.reading_kind === null) return;
   await sendReading(
     { db, now: deps.now, newId: deps.newId ?? mintId, ...(deps.enqueueReading === undefined ? {} : { enqueue: deps.enqueueReading }), ...(deps.aiFeatures === undefined ? {} : { aiFeatures: deps.aiFeatures }) },
     companyId,
-    { id: photo.id, relatorioId: record.relatorio_id },
+    { id: photo.id, relatorioId: record.relatorioId },
     photo.reading_kind,
   );
 }
@@ -123,6 +115,14 @@ function isMarkBlind(c: Context<AppEnv>): boolean {
   return version === null || version < MARK_AWARE_CONTRACT_VERSION;
 }
 
+/** Thrown under the push's lock when a mark-blind client's push writes a marked cell or block: the route answers 426. */
+class MarkBlindPushError extends Error {
+  constructor() {
+    super('a mark-blind push writes a cell or block holding a conflict mark');
+    this.name = 'MarkBlindPushError';
+  }
+}
+
 /** `entities.id` is a uuid column: anything else is "no such relatorio", never a cast error. */
 const relatorioIdSchema = z.uuid();
 
@@ -134,13 +134,26 @@ export function createSyncRoutes(db: Db, deps: SyncRouteDeps): Hono<AppEnv> {
     const body: unknown = await c.req.json().catch(() => undefined);
     const parsed = syncPushBodySchema.safeParse(body);
     if (!parsed.success) return c.json(batchInvalid, 400);
-    if (isMarkBlind(c) && (await pushTouchesConflictMark(db, session.companyId, parsed.data.ops))) return c.json(outdated, 426);
-
-    const result = await applyOps(db, session.companyId, parsed.data.ops, {
-      now: deps.now,
-      origin: 'client',
-      actorId: session.userId,
-    });
+    // A-10 (review 2026-09-30): the mark-blind check reads the rows under the company lock the
+    // apply takes (its `before` hook), so a mark another push stamps while this one waits for
+    // the lock is seen, never cleared by a client that could not have seen it.
+    const guard = isMarkBlind(c)
+      ? async (tx: Tx) => {
+          if (await pushTouchesConflictMark(tx, session.companyId, parsed.data.ops)) throw new MarkBlindPushError();
+        }
+      : undefined;
+    let result: Awaited<ReturnType<typeof applyOps>>;
+    try {
+      result = await applyOps(db, session.companyId, parsed.data.ops, {
+        now: deps.now,
+        origin: 'client',
+        actorId: session.userId,
+        ...(guard === undefined ? {} : { before: guard }),
+      });
+    } catch (error) {
+      if (error instanceof MarkBlindPushError) return c.json(outdated, 426);
+      throw error;
+    }
 
     if (result.applied.length > 0) {
       const appliedIds = new Set(result.applied.map((a) => a.op_id));
@@ -152,7 +165,15 @@ export function createSyncRoutes(db: Db, deps: SyncRouteDeps): Hono<AppEnv> {
         }
       }
       const at = toIso(deps.now());
-      for (const deviceId of devices) await recordPush(db, session.companyId, session.userId, deviceId, at);
+      for (const deviceId of devices) {
+        try {
+          await recordPush(db, session.companyId, session.userId, deviceId, at);
+        } catch (error) {
+          // A-15: the ops are committed; a failed "last push" stamp must not answer 500 and
+          // make the device send them again. It is logged, and the next push stamps it.
+          logError('push not recorded', { company_id: session.companyId, device_id: deviceId, error: String(error) });
+        }
+      }
       for (const photoId of retargetedPhotos(parsed.data.ops, appliedIds)) {
         try {
           await sendRetargetedReading(db, session.companyId, photoId, deps);

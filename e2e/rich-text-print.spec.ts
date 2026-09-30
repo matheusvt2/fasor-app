@@ -1,6 +1,6 @@
 import { STANDARD_TEMPLATE_NAME, templateRowSchema } from '@app/domain';
 import type { Page } from '@playwright/test';
-import { readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.ts';
+import { readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { downloadBytes, downloadFrom } from './support/download.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';

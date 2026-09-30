@@ -32,7 +32,7 @@ import { entities } from '../db/schema.ts';
 import { seedTestCompanies, TEST_SEED } from '../db/seed.ts';
 import { removePortoSeguroSmall, seedPortoSeguroSmall, SMALL_FIXTURE_PROJECT_ID, SMALL_FIXTURE_RELATORIO_ID } from '../db/test-fixtures.ts';
 import { newId } from '../ids.ts';
-import { extractStructure } from '../jobs/generate/docx-structure.ts';
+import { extractStructure } from '../jobs/generate/docx-structure.test-support.ts';
 import { applyOps } from '../sync/apply.ts';
 
 /*

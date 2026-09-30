@@ -7,7 +7,7 @@ import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './su
 import { syncNow } from './support/sync.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
-import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.ts';
+import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
 import { pushDrafts } from './support/relatorio-seed.ts';
 

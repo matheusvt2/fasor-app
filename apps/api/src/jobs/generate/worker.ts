@@ -1,4 +1,4 @@
-import { GENERATE_JOB_EXPIRE_S, GENERATE_JOB_QUEUE_RETENTION_S, SERVER_DEVICE_ID, toIso, uuidV7Schema, type Op } from '@app/domain';
+import { GENERATE_JOB_EXPIRE_S, GENERATE_JOB_QUEUE_RETENTION_S, toIso, uuidV7Schema, type Op } from '@app/domain';
 import { and, eq } from 'drizzle-orm';
 import type { PgBoss } from 'pg-boss';
 import { z } from 'zod';
@@ -6,6 +6,8 @@ import { asCompanyId } from '../../db/repositories/company-id.ts';
 import { entities } from '../../db/schema.ts';
 import { log, logError } from '../../log.ts';
 import { applyOps } from '../../sync/apply.ts';
+import { serverOp } from '../../sync/server-op.ts';
+import { createQueueOnce } from '../queue.ts';
 import { GENERATE_ACTOR, runGenerateJob, type GenerateJobDeps, type GeneratePayload } from './job.ts';
 
 /*
@@ -33,18 +35,9 @@ const payloadSchema = z.object({
   kind: z.enum(['issue', 'preview']).optional(),
 });
 
-/**
- * Creates the queue when it does not exist yet (pg-boss 12 refuses `send` on an unknown
- * queue). Two first sends may race here: a `createQueue` that fails because the other
- * one just won is fine as long as the queue exists afterwards.
- */
+/** Creates the queue when it does not exist yet (`createQueueOnce`, shared with the reading queue). */
 export async function ensureGenerateQueue(boss: PgBoss): Promise<void> {
-  if ((await boss.getQueue(GENERATE_QUEUE)) !== null) return;
-  try {
-    await boss.createQueue(GENERATE_QUEUE, QUEUE_OPTIONS);
-  } catch (error) {
-    if ((await boss.getQueue(GENERATE_QUEUE)) === null) throw error;
-  }
+  await createQueueOnce(boss, GENERATE_QUEUE, QUEUE_OPTIONS);
 }
 
 export async function enqueueGenerate(boss: PgBoss, payload: GeneratePayload): Promise<void> {
@@ -79,22 +72,17 @@ async function recordInvalidPayload(deps: GenerateJobDeps, data: unknown, queueJ
       return;
     }
     const now = toIso(deps.now());
-    const put = (field: 'status' | 'error', value: string): Op => ({
-      op_id: deps.newId(),
-      kind: 'put',
-      scope: 'relatorio',
-      company_id,
-      project_id: null,
-      relatorio_id: record.relatorio_id,
-      path: `generation_job/${job_id}/${field}`,
-      value,
-      prev_op_id: null,
-      batch_id: null,
-      meta: null,
-      actor_id: GENERATE_ACTOR,
-      device_id: SERVER_DEVICE_ID,
-      client_ts: now,
-    });
+    const put = (field: 'status' | 'error', value: string): Op =>
+      serverOp({
+        opId: deps.newId(),
+        companyId: company_id,
+        actorId: GENERATE_ACTOR,
+        clientTs: now,
+        kind: 'put',
+        path: `generation_job/${job_id}/${field}`,
+        value,
+        relatorioId: record.relatorio_id,
+      });
     const result = await applyOps(deps.db, companyId, [put('status', 'failed'), put('error', 'render_failed')], { now: deps.now, origin: 'server' });
     if (result.rejected.length > 0) logError('generate invalid payload could not fail its job row', { ...fields, rejected: result.rejected });
   } catch (error) {

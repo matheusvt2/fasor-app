@@ -107,18 +107,35 @@ function imageType(data: Buffer): 'png' | 'jpg' {
   return data.length > 3 && data[0] === 0xff && data[1] === 0xd8 ? 'jpg' : 'png';
 }
 
+/*
+ * A-24 (review 2026-09-30): the dimensions sharp read, by image buffer. The job hands every
+ * TOC pass the same buffers, so each image's header is read once per job, not once per
+ * placement per pass; the cache holds nothing once the job drops its buffers.
+ */
+const dimensions = new WeakMap<Buffer, Promise<{ width?: number; height?: number } | null>>();
+
+function dimensionsOf(data: Buffer): Promise<{ width?: number; height?: number } | null> {
+  let known = dimensions.get(data);
+  if (known === undefined) {
+    known = sharp(data)
+      .metadata()
+      .then(
+        (meta) => ({ width: meta.width, height: meta.height }),
+        () => null,
+      );
+    dimensions.set(data, known);
+  }
+  return known;
+}
+
 /**
  * The image scaled to fit the box, keeping its aspect (`sharp` reads the dimensions).
  * Bytes sharp cannot read (a corrupt upload) yield null: the document prints without
  * that image rather than failing the revision.
  */
 export async function sizedImage(data: Buffer, maxWidth: number, maxHeight: number): Promise<SizedImage | null> {
-  let meta: { width?: number; height?: number };
-  try {
-    meta = await sharp(data).metadata();
-  } catch {
-    return null;
-  }
+  const meta = await dimensionsOf(data);
+  if (meta === null) return null;
   const width = meta.width ?? 0;
   const height = meta.height ?? 0;
   if (width <= 0 || height <= 0) return null;

@@ -41,8 +41,9 @@ function flatten(nodes: readonly OutlineNode[]): OutlineNode[] {
 /** The page count and the outline headings with their pages. */
 export async function readOutline(pdf: Buffer): Promise<PdfOutline> {
   const task = getDocument({ data: new Uint8Array(pdf), useSystemFonts: true, verbosity: 0 });
-  const doc = await task.promise;
   try {
+    // A-16: inside the `try`, so a PDF that does not open still destroys its task.
+    const doc = await task.promise;
     const outline = ((await doc.getOutline()) ?? []) as OutlineNode[];
     const headings: OutlineHeading[] = [];
     for (const node of flatten(outline)) {

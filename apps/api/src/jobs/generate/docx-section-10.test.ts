@@ -3,7 +3,7 @@ import { portoSeguro } from '@app/domain/fixtures/porto-seguro';
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 import { buildDocx } from './docx.ts';
-import { extractStructure, readZipEntries } from './docx-structure.ts';
+import { extractStructure, readZipEntries } from './docx-structure.test-support.ts';
 import { placeholderPages } from './toc.ts';
 import { watermarkPng, WATERMARK_SIZE_PX } from './watermark.ts';
 
@@ -114,4 +114,18 @@ describe('7.5-UNIT draft equals issued', () => {
     expect(stats.channels[3]!.max).toBe(255);
     expect(stats.channels[3]!.mean).toBeLessThan(64);
   }, 30_000);
+});
+
+/*
+ * Review 2026-09-30, A-24: the job draws the RASCUNHO image once and hands it to every TOC
+ * pass (`images.watermark`); the preview it builds is the one the layout alone would draw.
+ */
+describe('A-24 the watermark drawn once per job', () => {
+  it('a draft given the drawn watermark is the draft that draws its own', async () => {
+    const layout = layoutSpec(fixture(), { revisionNumber: 1, issuedAt: ISSUED_AT, draft: true });
+    const own = readZipEntries(await buildDocx(layout, { tocPages: placeholderPages(layout) }));
+    const given = readZipEntries(await buildDocx(layout, { tocPages: placeholderPages(layout), images: { watermark: await watermarkPng('RASCUNHO') } }));
+    expect([...given.keys()].sort()).toEqual([...own.keys()].sort());
+    for (const name of own.keys()) if (name.startsWith('word/media/') || name === headerName(own)) expect(given.get(name)!.equals(own.get(name)!), name).toBe(true);
+  }, 60_000);
 });
