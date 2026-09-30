@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Offline checks of everything in infra/ (Story 11.8); needs no AWS login and calls no AWS
+# API. Every tool runs in a pinned container:
+#   terraform fmt -check -recursive, then init -backend=false and validate per stack;
+#   tflint per stack (infra/.tflint.hcl);
+#   ShellCheck over infra/bin/*.
+# Exits non-zero when any check fails, after running all of them.
+set -uo pipefail
+root="$(cd "$(dirname "$0")/.." && pwd)"
+bin="$root/bin"
+stacks=(bootstrap production)
+failed=()
+
+check() {
+  local name="$1"; shift
+  printf '\n==> %s\n' "$name"
+  if "$@"; then echo "ok: $name"; else echo "FAILED: $name"; failed+=("$name"); fi
+}
+
+export TF_OFFLINE=1
+check "terraform fmt" "$bin/tf" . fmt -check -recursive -diff
+for stack in "${stacks[@]}"; do
+  check "terraform init $stack" "$bin/tf" "$stack" init -backend=false -input=false -no-color
+  check "terraform validate $stack" "$bin/tf" "$stack" validate -no-color
+  check "tflint $stack" docker run --rm --user "$(id -u):$(id -g)" -v "$root:/infra" -w "/infra/$stack" \
+    ghcr.io/terraform-linters/tflint:v0.59.1 --config=/infra/.tflint.hcl --no-color
+done
+check "shellcheck infra/bin" docker run --rm -v "$root/bin:/bin-under-check:ro" -w /bin-under-check \
+  koalaman/shellcheck:v0.11.0 --shell=bash --severity=style tf aws deploy check
+
+printf '\n'
+if [ ${#failed[@]} -gt 0 ]; then
+  echo "infra/bin/check: ${#failed[@]} failed: ${failed[*]}"
+  exit 1
+fi
+echo "infra/bin/check: all passed"

@@ -1,0 +1,97 @@
+# Story 11.8: the self-contained production image of the api. It serves /api/*, runs the
+# in-process generate and reading workers (WORKER=1) and serves the built web bundle
+# from ../web/dist (apps/api/src/http/app.ts), so one image is the whole app behind Caddy.
+# Build context is the repository root:
+#
+#   docker buildx build --platform linux/amd64 -f apps/api/Dockerfile.prod -t app-api-prod --load .
+#
+# The dev image (apps/api/Dockerfile) stays as it is for docker-compose; this one copies
+# the sources in instead of bind-mounting them. The same image runs the one-shot
+# migration task on ECS with the command `./node_modules/.bin/tsx src/db/migrate-cli.ts`.
+
+ARG NODE_IMAGE=node:24-bookworm-slim
+ARG PNPM_VERSION=12.5.1
+
+# --- stage 1: the whole workspace installed, the web bundle built ---------------------
+# The bundle is architecture independent, so it builds on the build host's platform and
+# never under emulation.
+FROM --platform=$BUILDPLATFORM ${NODE_IMAGE} AS web
+ARG PNPM_VERSION
+ENV npm_config_store_dir=/pnpm-store
+RUN corepack enable && corepack prepare "pnpm@${PNPM_VERSION}" --activate && pnpm --version
+WORKDIR /app
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/domain/package.json packages/domain/
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+# `--trust-lockfile` as in the compose `install` service: the frozen lockfile cannot change.
+RUN --mount=type=cache,id=fasor-pnpm-store,target=/pnpm-store \
+    pnpm install --frozen-lockfile --trust-lockfile --filter @app/web...
+COPY tsconfig.base.json ./
+COPY packages/domain/ packages/domain/
+COPY apps/web/ apps/web/
+# E9-A9: the Dictation engine stays off in production until vendor audio is approved.
+RUN VITE_SPEECH_ENGINE=none pnpm --filter @app/web build
+
+# --- stage 2: the api's production dependencies, for the target platform --------------
+# Native modules (sharp, esbuild under tsx) resolve for the target architecture here.
+FROM ${NODE_IMAGE} AS api-deps
+ARG PNPM_VERSION
+ENV npm_config_store_dir=/pnpm-store
+RUN corepack enable && corepack prepare "pnpm@${PNPM_VERSION}" --activate && pnpm --version
+WORKDIR /app
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/domain/package.json packages/domain/
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+RUN --mount=type=cache,id=fasor-pnpm-store,target=/pnpm-store \
+    pnpm install --frozen-lockfile --trust-lockfile --prod --filter @app/api...
+
+# --- stage 3: runtime --------------------------------------------------------------
+FROM ${NODE_IMAGE}
+ARG TARGETARCH
+ARG LIBREOFFICE_VERSION=26.2.6
+
+# LibreOffice from The Document Foundation (Debian apt ships an older release) plus the
+# fonts of the dev image, for the image's own architecture; then the RDS certificate
+# bundle, so `sslmode=verify-full` verifies the database (NODE_EXTRA_CA_CERTS below).
+RUN case "${TARGETARCH}" in \
+      amd64) lo_dir=x86_64; lo_file=x86-64 ;; \
+      arm64) lo_dir=aarch64; lo_file=aarch64 ;; \
+      *) echo "unsupported TARGETARCH '${TARGETARCH}'" >&2; exit 1 ;; \
+    esac \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates curl \
+      fontconfig fonts-liberation fonts-dejavu-core fonts-crosextra-carlito fonts-crosextra-caladea \
+      libxinerama1 libfontconfig1 libdbus-1-3 libcairo2 libcups2 libglu1-mesa libsm6 libxrender1 libxext6 libglib2.0-0 libnss3 libnspr4 libxml2 libxslt1.1 libx11-6 libxt6 libgl1 libexpat1 libxcb1 \
+ && mkdir /tmp/lo \
+ && curl -fsSL "https://download.documentfoundation.org/libreoffice/stable/${LIBREOFFICE_VERSION}/deb/${lo_dir}/LibreOffice_${LIBREOFFICE_VERSION}_Linux_${lo_file}_deb.tar.gz" \
+    | tar -xz -C /tmp/lo --strip-components=1 \
+ && apt-get install -y --no-install-recommends /tmp/lo/DEBS/*.deb \
+ && ln -s "$(ls -d /opt/libreoffice*/program/soffice | head -n1)" /usr/local/bin/soffice \
+ && rm -rf /tmp/lo \
+ && mkdir -p /usr/local/share/rds \
+ && curl -fsSL -o /usr/local/share/rds/global-bundle.pem https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem \
+ && chmod 0644 /usr/local/share/rds/global-bundle.pem \
+ && grep -q 'BEGIN CERTIFICATE' /usr/local/share/rds/global-bundle.pem \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY --from=api-deps /app/ ./
+# apps/api/tsconfig.json extends it; tsx reads the project tsconfig as in dev.
+COPY tsconfig.base.json ./
+COPY packages/domain/ packages/domain/
+COPY apps/api/ apps/api/
+COPY --from=web /app/apps/web/dist/ apps/web/dist/
+
+ENV NODE_ENV=production \
+    NODE_EXTRA_CA_CERTS=/usr/local/share/rds/global-bundle.pem \
+    HOME=/home/node
+# cwd stays apps/api: migrations resolve from the source file, the web bundle from ../web/dist.
+WORKDIR /app/apps/api
+USER node
+EXPOSE 3000
+# The `start` script of apps/api/package.json, without pnpm at run time. No HEALTHCHECK:
+# the ECS task definition declares it (infra/production/ecs.tf).
+CMD ["./node_modules/.bin/tsx", "src/main.ts"]

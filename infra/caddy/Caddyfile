@@ -1,0 +1,27 @@
+# Story 11.8: the production edge. One secure-context origin, https://<Elastic IP>,
+# serving the web bundle and /api/* from the api on the same host (host network mode).
+# The certificate is a Let's Encrypt IP address certificate: the `shortlived` ACME
+# profile (about six days, renewed by Caddy on its own) is the only profile Let's Encrypt
+# issues IP certificates under, validated by HTTP-01 on port 80. Browsers trust it with
+# no manual install on the tablets (docs/tablet-https-setup.md, production).
+# /data (ACME account, certificates) is a host volume that survives restarts.
+{
+	email {$ACME_EMAIL}
+}
+
+{$PUBLIC_IP} {
+	tls {
+		issuer acme {
+			profile shortlived
+		}
+	}
+
+	reverse_proxy 127.0.0.1:3000
+}
+
+# The CloudFront fallback (infra/production/cloudfront.tf): CloudFront terminates TLS on
+# its own *.cloudfront.net name and reaches this site over plain HTTP with that Host.
+# Unset, the name matches nothing.
+http://{$FALLBACK_HOST:fallback.invalid} {
+	reverse_proxy 127.0.0.1:3000
+}

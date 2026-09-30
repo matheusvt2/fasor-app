@@ -268,7 +268,7 @@ Verified current on 2026-09-21 (memlog and `reviews/review-versions.md`); the co
 | @anthropic-ai/sdk (fallback client) | 0.127 |
 | ~~aws-cdk-lib (`infra/`)~~ | ~~2.269 `[ASSUMPTION]`~~ |
 | Terraform + AWS provider (`infra/`) *(2026-09-29, Matheus)* | pinned at Story 11.8 start |
-| Cloud (AD-27) | AWS: ECS Fargate + ALB + ECR, RDS for PostgreSQL, S3, Secrets Manager, CloudWatch, Bedrock, Textract; region `sa-east-1` `[ASSUMPTION]` |
+| Cloud (AD-27) | ~~AWS: ECS Fargate + ALB + ECR, RDS for PostgreSQL, S3, Secrets Manager, CloudWatch, Bedrock, Textract; region `sa-east-1` `[ASSUMPTION]`~~ *(2026-09-30, Story 11.8)* AWS `us-east-1`, one `production` environment: one EC2 instance in an ECS cluster (api with its worker, `ocr`, Caddy with a Let's Encrypt IP certificate; no ALB, no NAT), ECR, RDS for PostgreSQL 18 `db.t4g.micro`, S3, SSM Parameter Store SecureString, CloudWatch Logs, Bedrock, Textract; `infra/production` (source-deltas 2026-09-29/30) |
 | Local (AD-27) | docker-compose: web, api, Postgres 18, MinIO, OCR sidecar |
 | Vitest | 5.0 |
 | Playwright | 1.63 |
@@ -304,7 +304,7 @@ fasor/
     src/storage/            # S3 adapter: immutable keys, no delete in MVP (MinIO locally)
     Dockerfile              # node:24 + LibreOffice 26.2 (TDF .deb) + fonts
   services/ocr/             # post-slice Python sidecar (FR-36): FastAPI + PaddleOCR/PARSeq + OpenCV; stateless; pydantic from contract/ocr JSON Schema; python:3.13
-  infra/                    # Terraform (2026-09-29; was AWS CDK): VPC, ECS Fargate services, ALB, RDS, S3, Secrets Manager, IAM for Bedrock and Textract (AD-27)
+  infra/                    # Terraform (2026-09-29; was AWS CDK): ~~VPC, ECS Fargate services, ALB, RDS, S3, Secrets Manager, IAM for Bedrock and Textract (AD-27)~~ (2026-09-30, Story 11.8) bootstrap/ and production/: VPC without NAT, one EC2 instance in ECS, RDS, S3, SSM Parameter Store, ECR, IAM for Bedrock and Textract; bin/deploy (AD-27)
   docker-compose.yml        # local: web, api, postgres:18, minio, ocr (profile)
   scripts/seed-users.ts     # provisioning and password reset
 ```
@@ -371,7 +371,7 @@ erDiagram
   RELATORIO ||--o{ GENERATION_JOB : status
 ```
 
-Environments (AD-27): `local` is docker-compose (web, api, Postgres 18, MinIO, OCR sidecar when present); `staging` and `production` are two AWS accounts or stacks in `sa-east-1` `[ASSUMPTION]` running the same images on ECS Fargate — one service for api + in-process worker (`WORKER=1`), a second service for the OCR sidecar when it exists — with RDS for PostgreSQL 18, S3 and Secrets Manager, all from `infra/`. CI builds each image once per commit, pushes to ECR and promotes it. Backups: RDS automated snapshots plus S3 bucket versioning; the adapter has no delete in the MVP. Observability: structured logs to CloudWatch plus `GET /api/health`; no APM in the MVP.
+Environments (AD-27): `local` is docker-compose (web, api, Postgres 18, MinIO, OCR sidecar when present); ~~`staging` and `production` are two AWS accounts or stacks in `sa-east-1` `[ASSUMPTION]` running the same images on ECS Fargate — one service for api + in-process worker (`WORKER=1`), a second service for the OCR sidecar when it exists — with RDS for PostgreSQL 18, S3 and Secrets Manager, all from `infra/`. CI builds each image once per commit, pushes to ECR and promotes it.~~ *(2026-09-30, Story 11.8)* `production` is the only AWS environment, in `us-east-1`, from `infra/production`: one EC2 instance in an ECS cluster runs the same images as three host-network services (api + in-process worker `WORKER=1`, the OCR sidecar, Caddy terminating HTTPS with a Let's Encrypt IP certificate), with RDS for PostgreSQL 18 over TLS `verify-full`, S3 reached through the ECS task role, SSM Parameter Store SecureString for secrets, and a night stop from 00:00 to 05:00 America/Sao_Paulo; there is no `staging` and no CI: `infra/bin/deploy` builds each image once per commit, pushes it to ECR tagged with the SHA, runs the migrations as a one-shot task and rolls the services (source-deltas 2026-09-29/30). Backups: RDS automated snapshots plus S3 bucket versioning; the adapter has no delete in the MVP. Observability: structured logs to CloudWatch plus `GET /api/health`; no APM in the MVP.
 
 ## Capability → Architecture Map
 

@@ -1,0 +1,203 @@
+#!/usr/bin/env bash
+# Deploys the committed HEAD to the production stack (Story 11.8): builds the api, ocr and
+# caddy images for the instance's platform, pushes them to ECR tagged with the commit SHA,
+# runs the migrations as a one-shot ECS task, rolls the services and waits for
+# GET /api/health over HTTPS to report every component up. Everything runs in containers
+# (infra/bin/tf, infra/bin/aws, docker buildx); the AWS login session of AWS_PROFILE
+# (default fasor-admin) must be active for a real run.
+#
+#   infra/bin/deploy [--dry-run] [--skip-build] [--tag <sha>]
+#
+#   --dry-run     print every step's command, prefixed DRY-RUN:, with placeholder outputs;
+#                 touches nothing (no build, no push, no AWS or Terraform call)
+#   --skip-build  deploy images already in ECR under the tag (no build, no push)
+#   --tag <sha>   the tag to deploy; default the HEAD commit. Building needs it to be HEAD.
+set -euo pipefail
+
+root="$(cd "$(dirname "$0")/../.." && pwd)"
+bin="$root/infra/bin"
+stack=production
+
+dry_run=0
+skip_build=0
+tag=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --dry-run) dry_run=1 ;;
+    --skip-build) skip_build=1 ;;
+    --tag)
+      [ $# -ge 2 ] || { echo "deploy: --tag needs a value" >&2; exit 2; }
+      tag="$2"; shift ;;
+    -h|--help) sed -n '2,15p' "$0"; exit 0 ;;
+    *) echo "deploy: unknown argument '$1'" >&2; exit 2 ;;
+  esac
+  shift
+done
+
+step_number=0
+step() {
+  step_number=$((step_number + 1))
+  printf '\n==> %d. %s\n' "$step_number" "$*"
+}
+
+# run <command...>: runs it, or prints it in a dry run.
+run() {
+  if [ "$dry_run" = 1 ]; then
+    printf 'DRY-RUN:'; printf ' %q' "$@"; printf '\n'
+  else
+    "$@"
+  fi
+}
+
+# capture <placeholder> <command...>: prints the command's output, or the placeholder in
+# a dry run (after printing the command).
+capture() {
+  local placeholder="$1"; shift
+  if [ "$dry_run" = 1 ]; then
+    printf 'DRY-RUN:' >&2; printf ' %q' "$@" >&2; printf '  -> %s\n' "$placeholder" >&2
+    printf '%s' "$placeholder"
+  else
+    "$@"
+  fi
+}
+
+tf=("$bin/tf" "$stack")
+aws=("$bin/aws")
+output() { capture "$2" "${tf[@]}" output -raw "$1"; }
+
+fail() {
+  echo "deploy: $*" >&2
+  exit 1
+}
+
+# --- preflight -----------------------------------------------------------------------
+step "preflight: clean tree, tag, tools"
+head_sha="$(git -C "$root" rev-parse HEAD)"
+dirty="$(git -C "$root" status --porcelain)"
+if [ -n "$dirty" ]; then
+  if [ "$dry_run" = 1 ]; then
+    echo "the working tree has uncommitted changes: a real run would refuse here"
+  else
+    fail "the working tree has uncommitted changes; commit or stash them first (only committed code is deployed)"
+  fi
+fi
+[ -n "$tag" ] || tag="$head_sha"
+if [ "$skip_build" = 0 ] && [ "$tag" != "$head_sha" ]; then
+  fail "--tag $tag is not HEAD ($head_sha); building tags HEAD only (use --skip-build to deploy an already pushed tag)"
+fi
+command -v docker >/dev/null || fail "docker is required"
+command -v curl >/dev/null || fail "curl is required"
+echo "tag: $tag"
+run "${tf[@]}" init -input=false
+
+# --- read the stack ------------------------------------------------------------------
+step "read the Terraform outputs"
+platform="$(output platform linux/amd64)"
+registry="$(output ecr_registry 673409896745.dkr.ecr.us-east-1.amazonaws.com)"
+ecr_api="$(output ecr_api_url "$registry/fasor/api")"
+ecr_ocr="$(output ecr_ocr_url "$registry/fasor/ocr")"
+ecr_caddy="$(output ecr_caddy_url "$registry/fasor/caddy")"
+cluster="$(output cluster_name fasor-production)"
+services="$(output service_names 'api caddy ocr')"
+migrate_family="$(output migrate_task_family fasor-production-migrate)"
+migrate_log_group="$(output migrate_log_group /fasor/production/migrate)"
+image_tag_parameter="$(output image_tag_parameter /fasor/production/image-tag)"
+public_url="$(output public_url https://203.0.113.10)"
+echo "platform $platform, cluster $cluster, services: $services, url $public_url"
+read -r -a service_list <<<"$services"
+
+# --- build and push ------------------------------------------------------------------
+if [ "$skip_build" = 0 ]; then
+  step "build the images for $platform"
+  run docker buildx build --platform "$platform" -f "$root/apps/api/Dockerfile.prod" -t "$ecr_api:$tag" --load "$root"
+  run docker buildx build --platform "$platform" -t "$ecr_ocr:$tag" --load "$root/services/ocr"
+  run docker buildx build --platform "$platform" -t "$ecr_caddy:$tag" --load "$root/infra/caddy"
+
+  step "push the images to ECR"
+  if [ "$dry_run" = 1 ]; then
+    printf 'DRY-RUN: %q ecr get-login-password | docker login --username AWS --password-stdin %q\n' "$bin/aws" "$registry"
+  else
+    "${aws[@]}" ecr get-login-password | docker login --username AWS --password-stdin "$registry"
+  fi
+  run docker push "$ecr_api:$tag"
+  run docker push "$ecr_ocr:$tag"
+  run docker push "$ecr_caddy:$tag"
+else
+  step "check the images are in ECR (--skip-build)"
+  for repository in fasor/api fasor/ocr fasor/caddy; do
+    run "${aws[@]}" ecr describe-images --repository-name "$repository" --image-ids "imageTag=$tag" --query 'imageDetails[0].imageTags' --output text
+  done
+fi
+
+# --- migrate -------------------------------------------------------------------------
+step "migrate: one-shot ECS task on the new api image"
+run "${tf[@]}" apply -input=false -auto-approve -var "image_tag=$tag" -target=aws_ecs_task_definition.migrate
+# After a night stop or on the first deploy the instance may still be joining the cluster.
+if [ "$dry_run" = 1 ]; then
+  printf 'DRY-RUN: wait until %q ecs list-container-instances --cluster %q lists one instance\n' "$bin/aws" "$cluster"
+else
+  for attempt in $(seq 1 60); do
+    # A stopped instance stays ACTIVE with its agent disconnected; only a connected agent counts.
+    count="$("${aws[@]}" ecs list-container-instances --cluster "$cluster" --status ACTIVE --filter 'agentConnected==true' --query 'length(containerInstanceArns)' --output text)"
+    [ "$count" -ge 1 ] && break
+    [ "$attempt" = 60 ] && fail "no container instance joined $cluster in 10 minutes (is the instance stopped?)"
+    sleep 10
+  done
+fi
+task_arn="$(capture "arn:aws:ecs:us-east-1:673409896745:task/$cluster/0123456789abcdef0123456789abcdef" \
+  "${aws[@]}" ecs run-task --cluster "$cluster" --launch-type EC2 --task-definition "$migrate_family" \
+  --started-by "deploy-${tag:0:12}" --query 'tasks[0].taskArn' --output text)"
+if [ -z "$task_arn" ] || [ "$task_arn" = "None" ]; then
+  fail "the migration task did not start (aws ecs run-task returned no task; see its failures)"
+fi
+# Own wait instead of `ecs wait tasks-stopped` (which gives up after about 10 minutes while
+# the migration keeps running, so a rerun would start a second one): up to 30 minutes.
+if [ "$dry_run" = 1 ]; then
+  printf 'DRY-RUN: wait until %q ecs describe-tasks --cluster %q --tasks %q reports STOPPED\n' "$bin/aws" "$cluster" "$task_arn"
+else
+  for attempt in $(seq 1 180); do
+    last_status="$("${aws[@]}" ecs describe-tasks --cluster "$cluster" --tasks "$task_arn" --query 'tasks[0].lastStatus' --output text)"
+    [ "$last_status" = "STOPPED" ] && break
+    [ "$attempt" = 180 ] && fail "the migration task ${task_arn##*/} is still $last_status after 30 minutes; do not rerun the deploy until it stops (its log: group $migrate_log_group)"
+    sleep 10
+  done
+fi
+# DEPLOY_DRY_RUN_MIGRATION_EXIT: the placeholder exit code of a dry run (default 0), so the
+# gate below can be exercised without AWS (scripts/deploy.test.ts).
+exit_code="$(capture "${DEPLOY_DRY_RUN_MIGRATION_EXIT:-0}" "${aws[@]}" ecs describe-tasks --cluster "$cluster" --tasks "$task_arn" \
+  --query 'tasks[0].containers[0].exitCode' --output text)"
+if [ "$exit_code" != "0" ]; then
+  echo "deploy: the migration task exited with '$exit_code'; the services were not rolled" >&2
+  echo "deploy: its log: group $migrate_log_group, stream migrate/migrate/${task_arn##*/}" >&2
+  exit 1
+fi
+echo "migrations applied (task ${task_arn##*/})"
+
+# --- roll ----------------------------------------------------------------------------
+step "roll the services to $tag"
+run "${tf[@]}" apply -input=false -auto-approve -var "image_tag=$tag"
+run "${aws[@]}" ecs wait services-stable --cluster "$cluster" --services "${service_list[@]}"
+
+# --- health --------------------------------------------------------------------------
+step "health: GET $public_url/api/health until every component is up"
+if [ "$dry_run" = 1 ]; then
+  printf 'DRY-RUN: curl -fsS %q  -> {"status":"up","db":"up","queue":"up","storage":"up","libreoffice":"up"}\n' "$public_url/api/health"
+else
+  # The first deploy waits for Caddy's first certificate, so give it a few minutes.
+  for attempt in $(seq 1 60); do
+    # No -f: a 503 "degraded" body names the component that is down.
+    body="$(curl -sS --max-time 10 "$public_url/api/health" 2>/dev/null || true)"
+    if [[ "$body" == *'"status":"up"'* ]]; then
+      echo "$body"
+      break
+    fi
+    [ "$attempt" = 60 ] && fail "health never reported every component up; last answer: ${body:-none}"
+    sleep 5
+  done
+fi
+
+# Only a healthy roll becomes the tag a later plain `terraform apply` keeps (ssm.tf).
+step "record $tag as the deployed tag"
+run "${aws[@]}" ssm put-parameter --name "$image_tag_parameter" --value "$tag" --overwrite
+
+printf '\ndeployed %s to %s\n' "$tag" "$public_url"
