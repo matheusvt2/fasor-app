@@ -1,0 +1,153 @@
+{
+ "DocumentMetadata": {
+  "Pages": 1
+ },
+ "DetectDocumentTextModelVersion": "1.0",
+ "Blocks": [
+  {
+   "BlockType": "PAGE",
+   "Id": "page",
+   "Geometry": {
+    "BoundingBox": {
+     "Width": 1,
+     "Height": 1,
+     "Left": 0,
+     "Top": 0
+    },
+    "Polygon": [
+     {
+      "X": 0,
+      "Y": 0
+     },
+     {
+      "X": 1,
+      "Y": 0
+     },
+     {
+      "X": 1,
+      "Y": 1
+     },
+     {
+      "X": 0,
+      "Y": 1
+     }
+    ]
+   },
+   "Relationships": [
+    {
+     "Type": "CHILD",
+     "Ids": [
+      "l0"
+     ]
+    }
+   ]
+  },
+  {
+   "BlockType": "LINE",
+   "Id": "l0",
+   "Text": "TR-01 SECCIONADORA",
+   "Confidence": 99.0,
+   "Geometry": {
+    "BoundingBox": {
+     "Width": 0.6456,
+     "Height": 0.12,
+     "Left": 0.1,
+     "Top": 0.0811
+    },
+    "Polygon": [
+     {
+      "X": 0.1,
+      "Y": 0.10110000000000001
+     },
+     {
+      "X": 0.7455999999999999,
+      "Y": 0.0811
+     },
+     {
+      "X": 0.7455999999999999,
+      "Y": 0.1811
+     },
+     {
+      "X": 0.1,
+      "Y": 0.2011
+     }
+    ]
+   },
+   "Relationships": [
+    {
+     "Type": "CHILD",
+     "Ids": [
+      "w0",
+      "w1"
+     ]
+    }
+   ]
+  },
+  {
+   "BlockType": "WORD",
+   "Id": "w0",
+   "Text": "TR-01",
+   "TextType": "PRINTED",
+   "Confidence": 99.5,
+   "Geometry": {
+    "BoundingBox": {
+     "Width": 0.2,
+     "Height": 0.1,
+     "Left": 0.1,
+     "Top": 0.1
+    },
+    "Polygon": [
+     {
+      "X": 0.1,
+      "Y": 0.12000000000000001
+     },
+     {
+      "X": 0.30000000000000004,
+      "Y": 0.1
+     },
+     {
+      "X": 0.30000000000000004,
+      "Y": 0.18000000000000002
+     },
+     {
+      "X": 0.1,
+      "Y": 0.2
+     }
+    ]
+   }
+  },
+  {
+   "BlockType": "WORD",
+   "Id": "w1",
+   "Text": "SECCIONADORA",
+   "TextType": "PRINTED",
+   "Confidence": 88.25,
+   "Geometry": {
+    "BoundingBox": {
+     "Width": 0.4,
+     "Height": 0.12,
+     "Left": 0.3456,
+     "Top": 0.0811
+    },
+    "Polygon": [
+     {
+      "X": 0.3456,
+      "Y": 0.10110000000000001
+     },
+     {
+      "X": 0.7456,
+      "Y": 0.0811
+     },
+     {
+      "X": 0.7456,
+      "Y": 0.1811
+     },
+     {
+      "X": 0.3456,
+      "Y": 0.2011
+     }
+    ]
+   }
+  }
+ ]
+}

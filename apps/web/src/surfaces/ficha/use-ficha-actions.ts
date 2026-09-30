@@ -3,6 +3,7 @@ import {
   conclusionRestrictionOf,
   conclusionResultOf,
   filledByText,
+  moveTargets,
   sheetProgress,
   suggestedInstruments,
   tagRenamedText,
@@ -27,6 +28,7 @@ import type { SessionState } from '../../state/session.tsx';
 import type { ToastState } from '../../state/toast.tsx';
 import type { RelatorioEditor } from '../relatorio/relatorio-editor.ts';
 import { putEquipmentTagOp } from '../relatorio/relatorio-ops.ts';
+import { commitMove } from '../relatorio/tree-actions.ts';
 import type { FichaApi } from './ficha-api.ts';
 import { concludedByOp, conclusionOp, notTestedOp, testInstrumentOp } from './ficha-ops.ts';
 
@@ -68,6 +70,10 @@ export interface FichaActions {
   setNotTestedDialogOpen: (open: boolean) => void;
   markNotTested: (reason: string, text: string | null) => void;
   rename: (value: string) => void;
+  /** Story 11.2: the "Mover para…" dialog, and the move it commits. */
+  moveDialogOpen: boolean;
+  setMoveDialogOpen: (open: boolean) => void;
+  moveTo: (targetId: string, rename: boolean) => void;
 }
 
 export function useFichaActions({
@@ -165,6 +171,7 @@ export function useFichaActions({
   // --- the header -----------------------------------------------------------------------
   const [renaming, setRenaming] = useState(false);
   const [notTestedDialogOpen, setNotTestedDialogOpen] = useState(false);
+  const [moveDialogOpen, setMoveDialogOpen] = useState(false);
   const nameOf = (actorId: string | null) => (actorId === null ? null : (users.find((row) => row.id === actorId)?.name ?? (sessionUser?.id === actorId ? sessionUser.name : null)));
   const filledName = nameOf(block.last_modified_by);
   const filledBy = filledName === null || block.last_modified_at === null ? null : filledByText(filledName, block.last_modified_at);
@@ -174,6 +181,8 @@ export function useFichaActions({
   if (block.concluded_by === null && block.not_tested === null) menu.push({ id: 'concluir', label: t.menuConcluir, onAction: () => conclude() });
   if (block.equipment_id !== null) menu.push({ id: 'rename-tag', label: t.menuRenameTag, onAction: () => setRenaming(true) });
   if (block.not_tested === null) menu.push({ id: 'nao-ensaiado', label: copy.sumario.tree.markNotTested, onAction: () => setNotTestedDialogOpen(true) });
+  // Story 11.2 (`60-ficha.html` sheet Overflow): an equipment block placed in a location moves.
+  if (block.location_id !== null && moveTargets(snapshot.locations, block).length > 0) menu.push({ id: 'mover', label: copy.sumario.tree.moveTo, onAction: () => setMoveDialogOpen(true) });
   // E5-Q17 (EXPERIENCE › Conclusion control: "Limpar" via Delete/Backspace or the sheet
   // Overflow menu): clears the result and the restriction in one edit, undoable like any
   // other; the stored text stays, hidden while the result is empty.
@@ -237,5 +246,36 @@ export function useFichaActions({
       .catch(() => undefined);
   };
 
-  return { primaryLabel, primary, menu, filledBy, concludedBy, renaming, setRenaming, notTestedDialogOpen, setNotTestedDialogOpen, markNotTested, rename };
+  const moveTo = (targetId: string, rename: boolean) => {
+    setMoveDialogOpen(false);
+    void commitMove(editor.edit, { relatorioId, projectId, blockId, targetId, rename })
+      .then(({ batch, plan }) => {
+        if (batch === null || plan.kind !== 'move') {
+          // Already there (another device moved it first): nothing to write, nothing to say.
+          if (plan.kind === 'refused' && plan.reason !== 'same-location') showToast(plan.reason === 'location-gone' ? copy.sumario.tree.locationGone : copy.sumario.tree.gone);
+          return;
+        }
+        // The header's cabine line reads the moved block's location live; the sentence is said and undoable.
+        editor.announce(plan.text);
+        editor.undoable(plan.text, batch);
+      })
+      .catch(() => undefined);
+  };
+
+  return {
+    primaryLabel,
+    primary,
+    menu,
+    filledBy,
+    concludedBy,
+    renaming,
+    setRenaming,
+    notTestedDialogOpen,
+    setNotTestedDialogOpen,
+    markNotTested,
+    rename,
+    moveDialogOpen,
+    setMoveDialogOpen,
+    moveTo,
+  };
 }

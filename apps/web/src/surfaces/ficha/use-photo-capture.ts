@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { commitPhotoCapture, type PhotoCaptureInput } from '../../db/file-commit.ts';
-import { photoLocationEnabled, readPhotoSeq, writeGeolocationDenied, writePhotoSeqAtLeast } from '../../db/photo-store.ts';
+import { clearGeolocationDenied, photoLocationEnabled, readPhotoSeq, writeGeolocationDenied, writePhotoSeqAtLeast } from '../../db/photo-store.ts';
 import { deviceId } from '../../db/sync-store.ts';
 import { reserveDirectSeq, sendPhotoDirect, sessionCaptureRescue, type RescueDeps } from '../../files/capture-rescue.ts';
 import { browserPositionTracker, type PositionTracker } from '../../files/geolocation.ts';
@@ -71,9 +71,15 @@ export function usePhotoCapture(relatorioId: string): PhotoCapture {
 
   const trackerOf = useCallback((): PositionTracker => {
     if (tracker.current === null) {
-      tracker.current = browserPositionTracker(() => {
-        if (db !== null) void writeGeolocationDenied(db).catch(() => undefined);
-      });
+      tracker.current = browserPositionTracker(
+        () => {
+          if (db !== null) void writeGeolocationDenied(db).catch(() => undefined);
+        },
+        // Story 11.5: a fix clears Account's "Permissão negada no aparelho" line.
+        () => {
+          if (db !== null) void clearGeolocationDenied(db).catch(() => undefined);
+        },
+      );
     }
     return tracker.current;
   }, [db]);

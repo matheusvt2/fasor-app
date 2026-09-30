@@ -17,6 +17,7 @@ import { resolveSectionText, SECTION_VARIABLE_LABELS } from '../templates/sectio
 import { normalizeRegistryName } from '../text/normalize-name.ts';
 import { listPtBr, plural } from '../text/plural.ts';
 import { pointPhotoRemovedText, pointsSemAcaoText, pointsWithoutAction, pointsWithRemovedPhotos } from '../points/checks.ts';
+import { pointsSemPrazo, pointsSemPrazoText } from '../points/priority.ts';
 import { duplicateTagText } from './block-texts.ts';
 import { cabineMissingText, cabineProgress } from './cabine.ts';
 import { conclusionTextForPrint } from './conclusion.ts';
@@ -59,6 +60,7 @@ export type PreIssueKind =
   | 'photos_upload_error'
   | 'points_sem_acao'
   | 'point_photo_removed'
+  | 'points_sem_prazo'
   | 'parecer_missing'
   | 'conclusion_unconfirmed'
   | 'suggestions_pending'
@@ -280,6 +282,12 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
   }
   for (const { point, position } of pointsWithRemovedPhotos(snapshot)) {
     rows.push({ id: `point_photo_removed:${point.id}`, row: 'section_8', severity: 'pending', text: pointPhotoRemovedText(position), kind: 'point_photo_removed' });
+  }
+  // Story 11.10 (FR-52): live points with no deadline print "—" in the action-plan table;
+  // information only, never pending or blocking.
+  const semPrazo = pointsSemPrazo(snapshot.points).length;
+  if (semPrazo > 0) {
+    rows.push({ id: 'points_sem_prazo', row: 'section_8', severity: 'info', text: pointsSemPrazoText(semPrazo), kind: 'points_sem_prazo' });
   }
 
   if (computed.sheets_concluded < computed.sheets_total) {

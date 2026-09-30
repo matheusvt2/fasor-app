@@ -30,7 +30,7 @@ import { relatorioState } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { useSession } from '../../state/session.tsx';
 import { useSync } from '../../state/sync.tsx';
-import { revisionDocxUrl } from '../../sync/client.ts';
+import { revisionDocxUrl, revisionPdfUrl } from '../../sync/client.ts';
 import { DEFAULT_TIMING, useGenerate, type GenerateTiming } from './use-generate.ts';
 import { usePreIssue } from './use-pre-issue.ts';
 import { usePreview } from './use-preview.ts';
@@ -65,6 +65,17 @@ function shareDocx(revisionId: string, title: string): void {
   void navigator.share({ title, url }).catch(() => undefined);
 }
 
+/** Story 11.1: opens a revision's PDF in a new tab; the server answers it as a download. */
+function openPdf(revisionId: string): void {
+  window.open(revisionPdfUrl(revisionId), '_blank', 'noopener');
+}
+
+/** Story 11.1: shares the absolute PDF URL, as the DOCX share does (the recipient needs a session). */
+function sharePdf(revisionId: string, title: string): void {
+  const url = new URL(revisionPdfUrl(revisionId), window.location.origin).toString();
+  void navigator.share({ title, url }).catch(() => undefined);
+}
+
 /**
  * The Export dialog of `73-exportar.html` (Stories 4.8 and 7.5, FR-62, FR-73, FR-74):
  * "Antes de emitir" (the one blocking row with its way to Dados do relatório, the lines only
@@ -72,9 +83,9 @@ function shareDocx(revisionId: string, title: string): void {
  * read-only document control summary (a `dl`, UX-DR67), the section 9 fact line,
  * "Pré-visualizar" (the RASCUNHO draft in a new tab) beside "Gerar relatório" with its
  * reason, the working line, the failed line, the result block with "DOCX — abrir no Word"
- * (and share where the system has it) and the "Revisões" list. Mounted by the Sumário's
- * "Gerar relatório" (`surfaces/relatorio/generate-action.tsx`). Out of the slice: the PDF
- * row (Epic 11).
+ * and "PDF — enviar ao cliente" (each with share where the system has it, Story 11.1) and
+ * the "Revisões" list with a DOCX and a PDF button per revision. Mounted by the Sumário's
+ * "Gerar relatório" (`surfaces/relatorio/generate-action.tsx`).
  */
 export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup, onSeeInSumario, timing = DEFAULT_TIMING }: ExportDialogProps) {
   const state = useGenerate(relatorioId, timing);
@@ -172,6 +183,27 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
               </span>
             ) : canShare() ? (
               <AriaButton className="icon-btn" aria-label={copy.export.shareDocx} onPress={() => shareDocx(revision.id, readyTitle(phase.number))}>
+                <svg className="ico" aria-hidden="true">
+                  <use href="/sprite.svg#i-share" />
+                </svg>
+              </AriaButton>
+            ) : null}
+          </div>
+          <div className="result-row">
+            {/* The PDF waits on the same pulled revision, described by the DOCX row's reason. */}
+            <AriaButton
+              className="rr-open"
+              aria-disabled={revision === null || undefined}
+              aria-describedby={revision === null ? downloadingReasonId : undefined}
+              onPress={() => revision !== null && openPdf(revision.id)}
+            >
+              <svg className="ico" aria-hidden="true">
+                <use href="/sprite.svg#i-download" />
+              </svg>
+              <span className="rr-text">{copy.export.openPdf}</span>
+            </AriaButton>
+            {revision !== null && canShare() ? (
+              <AriaButton className="icon-btn" aria-label={copy.export.sharePdf} onPress={() => sharePdf(revision.id, readyTitle(phase.number))}>
                 <svg className="ico" aria-hidden="true">
                   <use href="/sprite.svg#i-share" />
                 </svg>
@@ -340,6 +372,12 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
                       <use href="/sprite.svg#i-download" />
                     </svg>
                     {copy.export.revisionDocx}
+                  </TextButton>
+                  <TextButton onPress={() => openPdf(row.id)}>
+                    <svg className="ico" aria-hidden="true">
+                      <use href="/sprite.svg#i-download" />
+                    </svg>
+                    {copy.export.revisionPdf}
                   </TextButton>
                 </span>
               </div>

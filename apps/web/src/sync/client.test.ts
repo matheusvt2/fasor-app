@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { CONTRACT_VERSION, CONTRACT_VERSION_HEADER, contractExamples, GENERATE_ROUTES, SYNC_ROUTES, type Op } from '@app/domain';
 import { describe, expect, it } from 'vitest';
-import { createSyncClient, revisionDocxUrl, SyncRequestError, type FetchLike, type SyncFailure } from './client.ts';
+import { createSyncClient, revisionDocxUrl, revisionPdfUrl, SyncRequestError, type FetchLike, type SyncFailure } from './client.ts';
 
 /*
  * The real client over a captured `fetch`: request building from the contract's route
@@ -126,6 +126,7 @@ describe('sync client failures', () => {
     });
 
     expect(revisionDocxUrl('019966c1-0000-7000-8000-0000000000a1')).toBe('/api/revisions/019966c1-0000-7000-8000-0000000000a1/docx');
+    expect(revisionPdfUrl('019966c1-0000-7000-8000-0000000000a1')).toBe('/api/revisions/019966c1-0000-7000-8000-0000000000a1/pdf');
   });
 
   it('treats a 2xx whose body is not the contract shape as invalid_response, never a retry', async () => {

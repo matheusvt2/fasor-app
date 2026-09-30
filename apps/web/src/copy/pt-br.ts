@@ -73,6 +73,18 @@ export const copy = {
     // authored: the mock has no offline or failure state for "Sair".
     signOutOfflineReason: 'Sair precisa de conexão',
     signOutFailed: 'Não foi possível sair. Tente de novo.',
+    // Story 11.5 (FR-8): "Localização nas fotos", verbatim from `90-account.html` `#acc-loc-row`.
+    locationHeading: 'Localização nas fotos',
+    locationLabel: 'Gravar coordenadas em cada foto',
+    locationSub: 'Impressas na seção 7 com a data e a hora: "Imagem 5 · 06/09/2026 14:32 · −23,5505, −46,6333"',
+    locationHelperOn:
+      'O aparelho pede permissão na primeira foto. Se negar, as fotos ficam sem coordenadas e este ajuste mostra "Permissão negada no aparelho".',
+    locationHelperOff: 'Fotos sem coordenadas — a seção 7 imprime só a data e a hora de cada imagem.',
+    // Verbatim from `key-account.html` (`data-tone="amber"`): the OS refused the position.
+    locationDenied:
+      'Permissão negada no aparelho — as fotos saem sem coordenadas. Libere em Ajustes › Localização e o pino volta na próxima foto.',
+    // authored: the switch's save is a local commit, so only a refused device write fails it.
+    locationSaveFailed: 'Não foi possível salvar. Tente de novo.',
     // Tema and Armazenamento from `mockups/prototype/screens/90-account.html`.
     themeHeading: 'Tema',
     themeNote: 'Segue a preferência do aparelho. Os dois temas mantêm o contraste para uso ao sol.',
@@ -400,8 +412,16 @@ export const copy = {
     textRestored: 'Texto padrão restaurado',
     // authored: the section the editor was opened on was moved or removed on another device.
     textGone: 'A seção mudou em outro aparelho; o texto não foi salvo.',
-    // authored: autosave replaces the mock's "Salvar texto / Cancelar" pair (EXPERIENCE.md).
-    textAutosave: 'Salvo automaticamente. Texto simples; negrito e listas ficam para depois.',
+    // authored: autosave replaces the mock's "Salvar texto / Cancelar" pair (EXPERIENCE.md);
+    // Story 11.4: the text carries formatting now, so the "texto simples" half is gone.
+    textAutosave: 'Salvo automaticamente.',
+    // Story 11.4: verbatim from the mock's `#tc-dlg-rich` `.rt-toolbar` (`aria-label` and the five words).
+    formatToolbar: 'Formatação',
+    formatBold: 'Negrito',
+    formatItalic: 'Itálico',
+    formatBullets: 'Lista',
+    formatNumbered: 'Numeração',
+    formatVariable: 'Variável',
     close: 'Fechar',
     // authored: the Confirm dialogs of a removal, one sentence of consequence each.
     removeConfirmTitle: (name: string) => `Remover ${name}?`,
@@ -436,8 +456,8 @@ export const copy = {
   // Export dialog (`73-exportar.html`, Story 4.8). Every sentence that carries a revision
   // number is the kernel's (`idleReason`, `generatingText`, `generatingReason`,
   // `readyTitle`, `readyToast`, `nextEditNote`, `revisionRowSegments`); only the static
-  // words live here. The pre-issue list, the document control summary, "Pré-visualizar",
-  // the share buttons and the PDF row are out of this story's slice.
+  // words live here. Story 11.1 adds the PDF result row, its share button and the PDF
+  // button of each revision row (`openPdf`, `sharePdf`, `revisionPdf`).
   export: {
     title: 'Gerar relatório',
     generate: 'Gerar relatório',
@@ -446,9 +466,11 @@ export const copy = {
     failed: 'Não foi possível gerar o relatório. Os dados não foram alterados e nenhuma revisão foi criada.',
     retry: 'Tentar novamente',
     openDocx: 'DOCX — abrir no Word',
+    openPdf: 'PDF — enviar ao cliente',
     generateAgain: 'Gerar de novo',
     revisionsLabel: 'Revisões',
     revisionDocx: 'DOCX',
+    revisionPdf: 'PDF',
     // authored: UX-DR58, the reason while the outbox is drained before the request.
     flushing: 'Enviando…',
     // authored: generation needs a connection and says so (EXPERIENCE.md › Export dialog).
@@ -480,6 +502,7 @@ export const copy = {
     // authored: the preview job failed or the tab could not be filled; nothing changed.
     previewFailed: 'Não foi possível gerar o rascunho. Os dados não foram alterados.',
     shareDocx: 'Compartilhar DOCX',
+    sharePdf: 'Compartilhar PDF',
   },
   // Project (`30-project.html`, Story 4.1). The heading's count, the row lines, the
   // dates and the counter are the kernel's (`projectRelatoriosHeading`, `relatorioTitle`,
@@ -553,6 +576,13 @@ export const copy = {
     // authored: the toast after a restore.
     restored: 'Ficha restaurada — numeração refeita',
     close: 'Fechar',
+    // `40-relatorio-overview.html` `#sum-menu-rel`, after "Restaurar ficha removida" (Story 11.3).
+    saveTemplate: 'Salvar como template',
+    // authored: the name dialog of "Salvar como template".
+    saveTemplateTitle: 'Salvar como template',
+    saveTemplateNameLabel: 'Nome do template',
+    saveTemplateSave: 'Salvar',
+    saveTemplateMissingName: 'Salvar: falta o nome',
     // "Adicionar abaixo" dialog.
     addSectionTitle: 'Adicionar seção abaixo',
     addSectionListLabel: 'Seções',
@@ -613,6 +643,13 @@ export const copy = {
       // authored: the sheet or the location the action names changed on another device.
       gone: 'A ficha mudou em outro aparelho; nada foi alterado.',
       locationGone: 'O local mudou em outro aparelho; nada foi alterado.',
+      // `60-ficha.html` sheet Overflow (Story 11.2): the Block card and the sheet header share it.
+      moveTo: 'Mover para…',
+      // authored: the Move dialog's title, its target group, its primary and the primary's reason.
+      moveTitle: (name: string) => `Mover ${name} para…`,
+      moveTargetsLabel: 'Local de destino',
+      moveAction: 'Mover',
+      movePickReason: 'Escolha o local de destino',
     },
     // The TAG and name dialogs of the tree (authored: no mock draws them; EXPERIENCE.md ›
     // Equipment identity and Form dialog).
@@ -810,10 +847,10 @@ export const copy = {
   // order lines and the derived entries' texts are the kernel's (`points/*.ts`).
   points: {
     title: 'Pontos de atenção',
-    // `72-pontos.html` `.section-note`, verbatim minus the sentences about the photo draft,
-    // the priority and the action-plan table, none of which the MVP builds (source-deltas row 29).
+    // `72-pontos.html` `.section-note`, verbatim minus the sentence about the photo draft
+    // (Story 11.9 builds the priority and Story 11.10 the action-plan table).
     sectionNote:
-      'A ordem aqui é a ordem da seção 8 do relatório. Reordene arrastando, pelo menu ⋯ ou com Alt+↑/↓. Um ponto criado de um item não conforme já traz a foto e o equipamento. Equipamentos marcados como Não ensaiado entram sozinhos ao final, com o motivo.',
+      'A ordem aqui é a ordem da seção 8 do relatório. Reordene arrastando, pelo menu ⋯ ou com Alt+↑/↓. Um ponto criado de um item não conforme já traz a foto e o equipamento. Equipamentos marcados como Não ensaiado entram sozinhos ao final, com o motivo. A prioridade (P0 a P4) sugere o prazo; a seção 8 imprime, depois dos pontos, a tabela do plano de ação.',
     // Story 6.6 AC, verbatim.
     empty: 'Nenhum ponto de atenção.',
     create: 'Criar',
@@ -830,6 +867,26 @@ export const copy = {
     choosePhotos: 'Escolher fotos',
     photosMeta: 'Números provisórios — definidos na exportação',
     actionDt: 'Ação',
+    // Story 11.9: `72-pontos.html` `.poa-fields` and the editor's Prioridade, Prazo and Responsável, verbatim.
+    deadlineDt: 'Prazo',
+    priorityDt: 'Prioridade',
+    ownerDt: 'Responsável',
+    priorityLabel: 'Prioridade',
+    // `72-pontos.html` 241 helper; the creation date is the kernel's (`pointCreatedDate`).
+    priorityHelper: (createdDate: string) =>
+      `Um toque: a prioridade preenche o prazo abaixo como sugestão a partir da data de criação do ponto${createdDate === '' ? '' : ` (${createdDate})`}`,
+    deadlineLabel: 'Prazo',
+    // `72-pontos.html` 248 helper, verbatim.
+    deadlineHelper: 'Edite a data se o combinado com o cliente for outro; imprime só a data',
+    // authored: a P4 deadline that is a month only (the next intervention stored as mm/aaaa).
+    deadlineMonth: (month: string) => `Prazo: ${month} (mês da próxima intervenção)`,
+    // authored: P4 picked on a relatório without a next intervention date (Epic 11 conflict 2).
+    deadlineNoNextIntervention: 'O relatório não tem data da próxima intervenção: informe-a em Dados do relatório ou digite o prazo.',
+    ownerLabel: 'Responsável',
+    // authored: the undo toasts of a pick, a clear and "Substituir" (open for Bruno).
+    priorityWritten: 'Prioridade gravada',
+    priorityCleared: 'Prioridade removida',
+    deadlineReplaced: 'Prazo substituído',
     none: '—',
     removePoint: 'Remover ponto',
     removed: 'Ponto removido',

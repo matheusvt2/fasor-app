@@ -1,6 +1,7 @@
 import {
   derivedPointReasonText,
   extractPhotoRefs,
+  formatCalendarDate,
   moveLandingIndex,
   numberPhotos,
   photoRefLabel,
@@ -11,6 +12,8 @@ import {
   pointSavedText,
   pointTextTokens,
   pointTitle,
+  priorityLabel,
+  priorityTone,
   putPointOp,
   removePointOp,
   sectionEightEntries,
@@ -324,6 +327,27 @@ function PointCard({
           <div>
             <dt>{t.actionDt}</dt>
             <dd>{point.action === null || point.action.trim() === '' ? t.none : point.action}</dd>
+          </div>
+          {/* Story 11.9: `72-pontos.html` 89-94. */}
+          <div>
+            <dt>{t.deadlineDt}</dt>
+            <dd className={point.deadline === null ? undefined : 'tabular'}>{point.deadline === null ? t.none : formatCalendarDate(point.deadline)}</dd>
+          </div>
+          <div>
+            <dt>{t.priorityDt}</dt>
+            <dd>
+              {point.priority === null ? (
+                t.none
+              ) : (
+                <span className="priority-pill" data-p={priorityTone(point.priority)}>
+                  {priorityLabel(point.priority)}
+                </span>
+              )}
+            </dd>
+          </div>
+          <div>
+            <dt>{t.ownerDt}</dt>
+            <dd>{point.owner === null || point.owner.trim() === '' ? t.none : point.owner}</dd>
           </div>
         </dl>
         {/* While another point is open in edit mode, "Editar" is absent: one editor at a time. */}

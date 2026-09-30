@@ -184,7 +184,7 @@ test('@p0 7.4-E2E-002 with a parecer set, "Gerar relatório" issues revision 1: 
   await footButton(page).click();
   await expect(dialog(page).locator('.generate-row .btn-reason')).toHaveText(IDLE_1);
   await generateButton(page).click();
-  await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX', { timeout: JOB_TIMEOUT });
+  await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
   await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Emitido');
   await page.keyboard.press('Escape');
   await expect(headerPill(page)).toHaveText('Emitido');
@@ -262,7 +262,7 @@ test('@p0 7.5-E2E-002 E5-Q18b: after revision 1 of project P, a second relatóri
   await footButton(page).click();
   await expect(generateButton(page)).toBeEnabled({ timeout: 30_000 });
   await generateButton(page).click();
-  await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX', { timeout: JOB_TIMEOUT });
+  await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
   await page.keyboard.press('Escape');
 
   // A second relatório of the same obra, born on the office device: its one cabine and the
@@ -318,7 +318,7 @@ test('@p1 7.5-E2E-003 R4: pressed and left for Home, the ready toast and the iss
   await expect(page).toHaveURL(/\/project\/[0-9a-f-]{36}$/);
   await page.getByRole('button', { name: 'Voltar' }).click();
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX', { timeout: JOB_TIMEOUT });
+  await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
   await expect.poll(async () => (await outboxOps(page, 'relatorio/status')).map((op) => op.value)).toEqual(['em_revisao', 'emitido']);
   // A while later, still once.
   await page.waitForTimeout(4_000);
@@ -339,7 +339,7 @@ test('@p1 7.5-E2E-004 Epic 4 item 29: "Restaurar" lists only the block removed a
   await setParecer(page, relatorioId);
   await footButton(page).click();
   await generateButton(page).click();
-  await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX', { timeout: JOB_TIMEOUT });
+  await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
   await page.keyboard.press('Escape');
   // Removed after it: "Requisitos básicos".
   await page.getByRole('button', { name: 'Mais opções de Requisitos básicos' }).click();

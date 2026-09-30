@@ -349,4 +349,47 @@ describe('7.4/7.5-INT parecer, preview and the blocked issue', () => {
     },
     180_000,
   );
+
+  it(
+    '11.1-INT draft equals issued PDF: a preview of the unedited issued snapshot has the same pages and text but the revision label, and only the draft carries the watermark',
+    async () => {
+      // Runs after the issue above; nothing is edited in between. The fake jobs earlier tests
+      // left queued or running are ended first, so the press queues a real preview.
+      const leftovers = (await db.select({ row: entities.row }).from(entities).where(and(eq(entities.entity, 'generation_job'), eq(entities.relatorio_id, RELATORIO_ID))))
+        .map((r) => generationJobRowSchema.parse(r.row))
+        .filter((job) => job.status === 'queued' || job.status === 'running');
+      for (const job of leftovers) await endJob(job.id);
+
+      const pulled = await pullRelatorio();
+      const revisions = pulled.filter((op) => op.kind === 'create' && op.path.startsWith('revision/')).map((op) => revisionRowSchema.parse(op.value));
+      expect(revisions.length).toBeGreaterThan(0);
+      const revision = revisions.reduce((a, b) => (b.number > a.number ? b : a));
+
+      const res = await post(companyA, `/api/relatorios/${RELATORIO_ID}/preview`, BARRIER);
+      expect(res.status, await res.clone().text()).toBe(202);
+      const answer = previewResponseSchema.parse(await res.json());
+      if (answer.outcome !== 'queued') throw new Error(`expected queued, got ${answer.outcome}`);
+      const job = await waitForJob(answer.job_id);
+      expect(job.status, job.error ?? '').toBe('done');
+
+      const draftRes = await authed(companyA, `/api/relatorios/${RELATORIO_ID}/preview.pdf?v=${job.result_file_id}`);
+      expect(draftRes.status).toBe(200);
+      const issuedRes = await authed(companyA, `/api/revisions/${revision.id}/pdf`);
+      expect(issuedRes.status).toBe(200);
+      const draft = await readPdf(Buffer.from(await draftRes.arrayBuffer()));
+      const issued = await readPdf(Buffer.from(await issuedRes.arrayBuffer()));
+
+      // The same masking as the DOCX rule (7.5-UNIT): the revision label becomes "—", dates are masked.
+      const label = new RegExp(`Rev\\.\\s*${revision.number}(?!\\d)`, 'g');
+      const normalize = (text: string) => text.replace(/\s+/g, ' ').replace(/\d{2}\/\d{2}\/\d{4}/g, 'DD/MM/AAAA').trim();
+      const labelOnce = new RegExp(label.source);
+      expect(issued.pages.join('\n')).toMatch(labelOnce);
+      expect(draft.pages.join('\n')).not.toMatch(labelOnce);
+      expect(draft.pages).toHaveLength(issued.pages.length);
+      expect(draft.pages.map(normalize)).toEqual(issued.pages.map((page) => normalize(page.replace(label, '—'))));
+      expect(draft.firstPageHasImage).toBe(true);
+      expect(issued.firstPageHasImage).toBe(false);
+    },
+    180_000,
+  );
 });

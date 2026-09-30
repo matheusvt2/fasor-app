@@ -21,6 +21,8 @@ import {
   tagRenamedText,
   tagTakenText,
   tagVerdict,
+  templateFromRelatorio,
+  templateSavedText,
   type BlockRow,
   type DuplicateTagDecision,
   type EntityState,
@@ -57,6 +59,9 @@ import { RelatorioTree, type RelatorioTreeHandle } from './relatorio-tree.tsx';
 import { RestoreDialog } from './restore-dialog.tsx';
 import { putEquipmentTagOp } from './relatorio-ops.ts';
 import { TagDialog } from './tag-dialogs.tsx';
+import { SaveTemplateDialog } from './save-template-dialog.tsx';
+import { createTemplateOp } from '../templates/template-ops.ts';
+import { newId } from '../../ids.ts';
 import { useConflictBanner } from '../sync/conflict-banner.tsx';
 import { useSumarioActions } from './sumario-actions.ts';
 import { FixedRow, NumberedRow, Section9Row } from './sumario-row.tsx';
@@ -158,6 +163,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const treeRef = useRef<RelatorioTreeHandle>(null);
   const [adding, setAdding] = useState<SumarioRow | null>(null);
   const [restoring, setRestoring] = useState(false);
+  const [savingTemplate, setSavingTemplate] = useState(false);
   const [confirmingBack, setConfirmingBack] = useState(false);
   const bannerText = useMemo(() => issuedBannerText(relatorio.status, latestRevision(revisions)), [relatorio.status, revisions]);
   const issuedBanner = useMemo<Banner | null>(
@@ -232,6 +238,27 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
       .catch(() => undefined);
   }
 
+  /**
+   * Story 11.3: "Salvar como template" commits one company-scope `template/{id}` create of
+   * the kernel's projection of the relatório as this device holds it now; "Desfazer"
+   * removes it again.
+   */
+  function onSaveTemplate(name: string): void {
+    setSavingTemplate(false);
+    const focusMenu = () => headerMenuRef.current?.querySelector<HTMLElement>('.overflow-trigger') ?? null;
+    void editor
+      .edit((blocks, by, fresh) => [
+        createTemplateOp(by, templateFromRelatorio({ relatorio, locations: fresh.locations, blocks }, { id: newId(), name })),
+      ])
+      .then((batch) => {
+        if (batch === null) return;
+        const text = templateSavedText(name);
+        editor.announce(text);
+        editor.undoable(text, batch, focusMenu);
+      })
+      .catch(() => undefined);
+  }
+
   function onRestore(block: RestorableBlock): void {
     setRestoring(false);
     restore(block);
@@ -284,6 +311,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
             label={t.headerMenu}
             items={[
               { id: 'restore', label: t.restore, onAction: () => setRestoring(true) },
+              { id: 'save-template', label: t.saveTemplate, onAction: () => setSavingTemplate(true) },
               ...(backMove === null ? [] : [{ id: 'back', label: backMove.label, onAction: () => setConfirmingBack(true) }]),
             ]}
           />
@@ -368,6 +396,16 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
       </p>
 
       {adding === null ? null : <AddSectionDialog below={adding.title} onPick={onPickSection} onClose={() => setAdding(null)} />}
+      {savingTemplate ? (
+        <SaveTemplateDialog
+          initial={snapshot.project?.name ?? ''}
+          onSubmit={onSaveTemplate}
+          onClose={() => {
+            setSavingTemplate(false);
+            requestAnimationFrame(() => headerMenuRef.current?.querySelector<HTMLElement>('.overflow-trigger')?.focus());
+          }}
+        />
+      ) : null}
       {restoring ? <RestoreDialog blocks={removable} onRestore={onRestore} onClose={() => setRestoring(false)} /> : null}
       {conflict.dialog}
       {renaming === undefined ? null : (
