@@ -15,6 +15,7 @@ import {
   type OpDraft,
   type SuggestionRow,
 } from '@app/domain';
+import { AccessDeniedException, type Block } from '@aws-sdk/client-textract';
 import { and, asc, desc, eq } from 'drizzle-orm';
 import { PgBoss } from 'pg-boss';
 import sharp from 'sharp';
@@ -34,6 +35,7 @@ import { DEFAULT_FIXTURE_BY_BLOCK_TYPE, DEFAULT_FIXTURES_DIR } from './providers
 import { createReadingProviders } from './providers/index.ts';
 import { readingServerOp, readingStatusPath, startReading } from './status.ts';
 import { PermanentReadingError } from './providers/index.ts';
+import { textractTokens, type TextractLike } from './providers/textract.ts';
 import { enqueueReading, ensureReadingQueue, failDeadReading, readingDeadLetterQueue, registerReadingWorker, type ReadingQueueOptions } from './worker.ts';
 
 /*
@@ -498,7 +500,6 @@ describe('8.5-INT registry verdicts on a Chave seccionadora', () => {
 
 describe('8.4-INT provider stubs and foreign payloads', () => {
   for (const [ocr, llm] of [
-    ['textract', 'fake'],
     ['fake', 'anthropic'],
     ['fake', 'bedrock'],
   ] as const) {
@@ -525,6 +526,73 @@ describe('8.4-INT provider stubs and foreign payloads', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ outcome: 'error', relatorio_id: null });
     expect(await row('file', photoId)).toBeUndefined();
+  }, 60_000);
+});
+
+describe('11.7-INT the textract provider through an injected client (nothing reaches AWS)', () => {
+  const answer = JSON.parse(readFileSync(join(import.meta.dirname, 'providers/fixtures/textract/plate-upright.json'), 'utf8')) as { Blocks: Block[] };
+  // Every WORD shifted right by 1% of the width, so these boxes differ from the fake fixture's.
+  const shifted: Block[] = answer.Blocks.map((block) =>
+    block.BlockType === 'WORD' && block.Geometry?.BoundingBox !== undefined
+      ? { ...block, Geometry: { ...block.Geometry, BoundingBox: { ...block.Geometry.BoundingBox, Left: block.Geometry.BoundingBox.Left! + 0.01 } } }
+      : block,
+  );
+  const textractDeps = (client: TextractLike): ReadingJobDeps => ({
+    ...deps,
+    providers: createReadingProviders({ OCR_PROVIDER: 'textract', LLM_PROVIDER: 'fake', OCR_SERVICE_URL: 'http://127.0.0.1:9', TEXTRACT_REGION: 'us-east-1' }, { fixturesDir, textract: { client } }),
+  });
+  const platePhoto = async (relatorioId: string, block: BlockRow) => {
+    const bytes = new Uint8Array(await sharp(readFileSync(join(repoRoot, 'services/ocr/tests/fixtures/plate-transformador.jpg'))).resize({ width: 1200 }).jpeg({ quality: 82 }).toBuffer());
+    return photo(relatorioId, block, bytes, 'image/jpeg');
+  };
+
+  it('a plate photo reads to done, its suggestions boxed by the Textract tokens, the run naming textract', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
+    const id = await platePhoto(relatorioId, block);
+    const sent: Uint8Array[] = [];
+    const client: TextractLike = {
+      async send(command) {
+        sent.push(command.input.Document!.Bytes!);
+        return { Blocks: shifted };
+      },
+    };
+    await runReadingJob(textractDeps(client), { company_id: companyId, photo_id: id, reading_kind: 'plate' }, { jobId: 'direct', attempt: 1, lastAttempt: false });
+    expect(await status(id)).toBe('done');
+    expect(sent).toHaveLength(1);
+    const size = await sharp(sent[0]!).metadata();
+    const expected = textractTokens(shifted, size.width, size.height);
+    const [run] = await runs(id);
+    expect(run).toMatchObject({ attempt: 1, outcome: 'ok', ocr_provider: 'textract', model: 'fake' });
+    const stored = (run!.ocr_result as { tokens: { text: string; bbox: number[] }[] }).tokens;
+    expect(stored.map((token) => token.text)).toEqual(expected.map((token) => token.text));
+    const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+    expect(mine).toHaveLength(11);
+    const identificacao = mine.find((s) => s.target_path.endsWith('/identificacao'))!;
+    expect(identificacao).toMatchObject({ value: 'TR-01', status: 'pending' });
+    expect(identificacao.source.ocr_token_ids).toEqual(['t4']);
+    const [x0, y0, x1, y1] = expected[4]!.bbox;
+    const normalized = [x0 / size.width, y0 / size.height, x1 / size.width, y1 / size.height];
+    identificacao.source.bbox!.forEach((value, corner) => expect(value).toBeCloseTo(normalized[corner]!, 3));
+    stored[4]!.bbox.forEach((value, corner) => expect(value).toBeCloseTo(normalized[corner]!, 3));
+  }, 60_000);
+
+  it('AccessDeniedException ends failed in one attempt, permanent, the run naming textract', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
+    const id = await platePhoto(relatorioId, block);
+    const client: TextractLike = {
+      async send() {
+        throw new AccessDeniedException({ $metadata: {}, message: 'explicit deny' });
+      },
+    };
+    await runReadingJob(textractDeps(client), { company_id: companyId, photo_id: id, reading_kind: 'plate' }, { jobId: 'direct', attempt: 1, lastAttempt: false });
+    expect(await status(id)).toBe('failed');
+    const rows = await runs(id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ attempt: 1, outcome: 'error', ocr_provider: 'textract' });
+    expect(rows[0]!.error).toContain('AccessDeniedException');
+    expect(await suggestions(relatorioId)).toEqual([]);
   }, 60_000);
 });
 
