@@ -14,4 +14,4 @@ sources: [ARCHITECTURE-SPINE.md#ad-12, ARCHITECTURE-SPINE.md#ad-14]
 
 Providers by environment: `LLM_PROVIDER` in fake, anthropic, bedrock; `OCR_PROVIDER` in fake, textract, ocr-svc. Both default to `fake`, which replays fixtures from `apps/api/src/jobs/reading/fixtures` so dev, tests and compose need no cloud or key. The backend never uses a personal Claude subscription. Real providers are post-MVP and behind a flag (Story 11.8, AI features off in production until the Bedrock quota).
 
-Code: `apps/api/src/jobs/reading/` (job, kinds, providers), `packages/domain/src/reading/`, `services/ocr/`, web `apps/web/src/db/suggestion-store.ts`.
+Code: kernel `packages/domain/src/relatorio/` (`suggestions.ts`, `suggestion-rows.ts`, `plate-suggestions.ts`, `measurement-suggestions.ts`, `env-suggestions.ts`, `reading-cells.ts`, `reading-evaluation.ts`), `reading/`, `contract/ocr.ts`, `contract/reading.ts`; device `apps/web/src/db/suggestion-store.ts`; server `apps/api/src/jobs/reading/` (`job.ts`, `kinds/`, `providers/`, `fixtures/`, `worker.ts`), `apps/api/src/http/reading.ts`; sidecar `services/ocr/`.

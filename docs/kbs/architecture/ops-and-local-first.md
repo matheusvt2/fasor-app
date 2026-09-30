@@ -14,3 +14,5 @@ sources: [ARCHITECTURE-SPINE.md#ad-1, ARCHITECTURE-SPINE.md#ad-3, ARCHITECTURE-S
 - **AD-20**: removal is a `remove` op setting `removed_at`; "Restaurar" clears it; snapshot, renderer and counters ignore tombstones; purge is a deferred server policy.
 
 To add a new writable field: extend the entity zod schema, add the path family (append-only), handle it in `applyOp`, emit it from web, never from a component's fetch. Code: `packages/domain/src/ops/`, `apps/web/src/db/commit.ts`.
+
+Code: `packages/domain/src/ops/` (`path.ts` OpPath families, `apply.ts` applyOp, `materialize.ts`, `replay.ts`, `outbox.ts`, `order-key.ts`); web write path `apps/web/src/db/commit.ts` and Dexie `schema.ts`; server apply `apps/api/src/sync/apply.ts`.
