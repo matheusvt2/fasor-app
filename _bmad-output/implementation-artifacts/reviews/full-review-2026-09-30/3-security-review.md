@@ -16,8 +16,10 @@ Sources of evidence:
 |---|---|---|---|
 | High | 2 | 2 | 0 |
 | Medium | 7 | 6 (M5 and M7 only partly) | 1 (M3), plus the rest of M5 and M7 |
-| Low | 12 | 3 | 9 |
-| **Total** | **21** | **11** | **10** |
+| Low | 12 | ~~3~~ 6 (round 2 added L8, L9, L11) | ~~9~~ 6 (L2, L5, L6, L7, L10, L12) |
+| **Total** | **21** | ~~**11**~~ **14** | ~~**10**~~ **7** |
+
+Round 2 (2026-09-30, review fixes batch `sec`) also fixed I-1 to I-10 and O-4 to O-9 of `1-code-quality.md`; see "Round 2" at the end.
 
 Commits on the branch:
 
@@ -440,3 +442,107 @@ The branch was checked in the isolated project `fasor-sec`, port base 62, with `
    - the web's sign-in form shows its refusal message (L10);
    - a sync after 120 pushes in a minute resumes after the window.
 5. After merge, before any deploy: `infra/bin/tf bootstrap apply`, a production `apply` (bucket policies), and a deploy (HSTS Caddy). Rotate the admin password first (M5).
+
+## Round 2: review fixes batch `sec` (2026-09-30)
+
+Matheus asked to fix the review findings. Hard rule for this round: the application password was not changed, locally or in production. There was no rotation, no seed run, no AWS call and no Terraform apply. The `SEED_USER_PASSWORD` option (`e9c92f3`) only adds a way to pass the password, and nothing ran with it.
+
+### Security lows
+
+| Item | Fix | Commit | Evidence |
+|---|---|---|---|
+| L8 esbuild dev-server advisory | pnpm `overrides` puts `@esbuild-kit/core-utils>esbuild` at 0.25.12 | `8a90e01` | `pnpm audit` and `pnpm audit --prod` report nothing; `migrations-match.test.ts` (drizzle-kit) passes; `scripts/security-pins.test.ts` fails on any esbuild below 0.25 or sharp below 0.35.5 |
+| L9 mutable tags, unpinned bases | ECR `IMMUTABLE`, and the deploy pushes only a missing tag. Every base image is pinned by digest (api dev and prod, tools, OCR, mkcert, production Caddy, compose postgres, minio and caddy). | `4ffbad6`, `8ceedbb`, `138820e` | `scripts/deploy.test.ts` (dry run, runtime target), `infra/bin/check` |
+| L11 zod eval probe under the CSP | `useJitlessZod()` (new kernel entry `@app/domain/zod-jitless`) runs as the first import of `apps/web/src/main.tsx`, before any schema is built | `8a90e01` | `apps/web/src/zod-config.test.ts`: jitless, no `Function` call on an object parse, first import. It went red when the config ran after the schemas. |
+
+Still open, as recommendations:
+
+- M3 (what a signed-out tablet keeps), session lifetime, retention and quotas: product decisions.
+- L2 (IMDS under host networking): a decision.
+- Rotating the production password (M5): a manual action, excluded by the hard rule.
+- L5 (`op_id` primary key): a migration.
+- L6 (`noopener` on the certificate tab): the file belongs to batch `rff`.
+- L7 (length bound on the LLM prose): Story 11.6.
+- L10 (a pt-BR sentence for 429): batch `rff`.
+- L12 (CloudFront viewer address): only matters with the fallback on.
+
+### I-1 to I-10 (`1-code-quality.md` section 1.6)
+
+| Item | Fix | Commit | Check |
+|---|---|---|---|
+| I-1 committed e-mail | `budget_alert_emails` (a list) and `acme_email` are required with no default and validated. `*.tfvars` is git-ignored, and `terraform.tfvars.example` with a placeholder address is committed in both stacks. Git history is not rewritten, so the old default stays in history. | `7ccbc2c` | `infra/bin/check` (validate, tflint) |
+| I-2 floating compose images | postgres `18.6`, minio `RELEASE.2025-06-13T11-33-47Z` and caddy `2.11.4-alpine`, each with its digest | `8ceedbb` | `docker compose config` |
+| I-3 budget action lag | The action fires at 90 % of actual spend | `7ccbc2c` | `infra/bin/check` |
+| I-4 RDS destroy | `lifecycle { prevent_destroy = true }`, and the runbook says so | `4ffbad6`, `138820e` | `infra/bin/check` |
+| I-5 compose hygiene | `restart: unless-stopped` on postgres, minio, api, web and caddy. web and caddy wait for a healthy api. postgres gets `stop_grace_period: 30s`. The credentials are spelled once (`POSTGRES_*` feeds `DATABASE_URL`). Vite is on loopback (`7955f5d`), and `api-prod` refuses the dev secret (`7955f5d`). | `8ceedbb` | `docker compose config`, `pnpm verify` |
+| I-6 ECS roll | `deployment_circuit_breaker { enable, rollback }` | `4ffbad6` | `infra/bin/check` |
+| I-7 mutable ECR | See L9 | `4ffbad6` | |
+| I-8 CloudFront origin bypass | CloudFront sends `X-Origin-Verify`, a secret held in SSM and passed to Caddy as a task secret. Caddy's fallback site answers 403 without it and strips it before proxying. | `4ffbad6` | `infra/bin/check` "caddy fallback origin secret": 403 without the header, 403 with a wrong one, 502 (proxied) with the right one |
+| I-9 unverified downloads | LibreOffice tarballs are checked against the sha256 that The Document Foundation publishes (amd64 and arm64); mkcert is pinned at v1.4.4 by checksum | `8ceedbb` | The dev api image and the mkcert image were rebuilt, and both checksums matched |
+| I-10 duplication | `infra/bin/lib.sh` holds the AWS CLI image, the region and the session export for `tf` and `aws`. One compose anchor for the api health check. The OCR health check now lives in its Dockerfile. | `4ffbad6`, `8ceedbb`, `5093e9c` | `infra/bin/check` (ShellCheck) |
+
+Known open inside I-6, I-9 and I-10, all low:
+
+- The deploy's 10-minute `services-stable` wait, and the SSM tag that then stays at the previous SHA.
+- The RDS CA bundle is only grep-checked. AWS rotates that bundle, so a pinned checksum would break later builds.
+- The account id in two Terraform `default`s and two backend blocks, which cannot take variables.
+- The duplicated `versions.tf`.
+- The duplicated LibreOffice install between the dev and prod Dockerfiles.
+
+### O-4 to O-9 (`1-code-quality.md` section 1.5)
+
+| Item | Fix | Commit | Test |
+|---|---|---|---|
+| O-4 detector input size | `limit_side_len=2000, limit_type="max"` (env `OCR_DET_LIMIT_SIDE_LEN`). `enable_mkldnn` stays off because its numerics were not re-validated. | `5093e9c` | `tests/test_review_fixes.py` (kwargs), `tests/test_api.py` (plate accuracy, including the 4400 px plate) |
+| O-5 unpinned weights | Checksums, from round 1 | `46f73ec` | The image build |
+| O-6 dev dependencies in production | The runtime venv is built `--no-dev`. A `test` stage (the compose default target) adds the dev venv at `/opt/venv-dev` and `tests/`. The deploy builds `--target runtime`. | `5093e9c`, `138820e` | The OCR build and pytest below; `scripts/deploy.test.ts` |
+| O-7 digests, HEALTHCHECK, layer order | Base images by digest, an image `HEALTHCHECK`, and onnxruntime installed before the large `ADD`s | `5093e9c` | The OCR build |
+| O-8 reading order, disconnect | The reading order is O(W log W), with the open row's medians kept sorted. A `ClientDisconnect` answers 499 instead of logging a 500. | `5093e9c` | `test_reading_order_matches_the_reference_on_random_layouts` (300 random layouts against the old implementation), `test_a_client_that_goes_away_mid_body_gets_no_500_and_frees_its_slot` |
+| O-9 duplication | `quad_size`, `rectify` and `clamp_box` are shared by the plate and display pipelines; `MIN_ACCURACY` is defined once, in `conftest.py` | `5093e9c` | `tests/test_review_fixes.py`, `tests/test_display.py`, `tests/test_api.py` |
+
+Known open: the display erosion kernel still scales with the image (O-8, second half). Changing it changes display accuracy, and needs the Story 9.1 spike fixtures to judge.
+
+### Review loop
+
+This round ran two review layers: Edge Case Hunter and Verification Gap Reviewer. Blind Hunter and Intent Alignment were skipped for token economy; the integrated review covers them. Their findings were fixed in `0190b40` (api) and `138820e` (OCR, infra):
+
+- **OCR test stage.** It copied a uv venv to a new path, but uv writes absolute shebangs. The dev venv now keeps its path.
+- **Sign-in limiter memory.** It could grow within one window. Now:
+  - the e-mail key is a sha256;
+  - an attempt the address limit already refused is not counted against the e-mail;
+  - the limiter holds at most 50 000 keys, dropping the oldest.
+- **Form-encoded sign-in.** It escaped the per-e-mail key. A non-JSON sign-in body now answers 415.
+- **Partial push.** An earlier run that pushed only some images made every retry fail on the immutable tags. The deploy now pushes only the missing images.
+- **Stuck OCR slots.** They kept `/health` green. `/health` now answers 503 `stuck` once every slot has been held past twice the timeout.
+- **Inference thread start.** The slot's hand-off flag is now set after `Thread.start()` returns.
+- **Certificate PDF.** It opens as a `blob:` tab that inherits the CSP, so `object-src` is now `'self' blob:`.
+- **Test gaps**, now tested:
+  - the `main.ts` wiring, through `requestLimits(config)`;
+  - the decode cap without the image's environment, in a subprocess;
+  - the committed dev secrets against the refusal list;
+  - headers on a thrown 500;
+  - the lockfile pins;
+  - Caddy validation and the origin-secret behavior in `infra/bin/check`.
+
+Known open from the review:
+
+- L12 (CloudFront viewer address; the fallback is off by default).
+- `POSTGRES_PASSWORD` must be URL-safe, because it is interpolated into `DATABASE_URL`. This is local only, where the default is `app`.
+- `mem_limit` for the sidecar: 3 GiB killed the pytest run (exit 137); its measured peak with no limit was 6.3 GiB, so the limit is now 8 GiB, a bound on a runaway rather than a budget.
+
+### New environment variables (all rounds)
+
+| Variable | Where | Default |
+|---|---|---|
+| `RATE_LIMIT` | api | unset: on when `NODE_ENV=production`, off otherwise; `on` or `off` overrides |
+| `SIGN_IN_RATE_LIMIT_MAX` / `SIGN_IN_RATE_LIMIT_WINDOW_SECONDS` | api | 10 / 300 |
+| `PUSH_RATE_LIMIT_MAX` / `PUSH_RATE_LIMIT_WINDOW_SECONDS` | api | 120 / 60 |
+| `TRUST_PROXY` | api | `1` (the last `X-Forwarded-For` entry is the client) |
+| `API_BODY_LIMIT_BYTES` | api | 16777216 (16 MiB); `/api/auth/*` is fixed at 64 KiB |
+| `SEED_USER_PASSWORD` | `scripts/seed-users.ts` | unset (then `--password` is required) |
+| `OCR_MAX_IN_FLIGHT` | OCR sidecar | 2 |
+| `OCR_INFERENCE_TIMEOUT_SECONDS` | OCR sidecar | 55 |
+| `OCR_DET_LIMIT_SIDE_LEN` | OCR sidecar | 2000 |
+| `OPENCV_IO_MAX_IMAGE_PIXELS` | OCR sidecar (set by the package when absent) | 50000000 |
+| `FALLBACK_ORIGIN_SECRET` | production Caddy (an ECS secret from SSM `/fasor/production/fallback-origin-secret`) | `fallback-disabled` when unset |
+| Terraform `budget_alert_emails`, `acme_email` | `infra/*/terraform.tfvars` (untracked) | none (required) |
