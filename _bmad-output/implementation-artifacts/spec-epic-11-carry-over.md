@@ -11,7 +11,13 @@ dev_effort: medium
 context: []
 warnings: ['batched']
 batched_reason: 'Batch C carries the Epic 11 carry-over ledger entries; only ledger 1131 needs code, the others are re-owned in deferred-work.md by the orchestrator.'
-deferred: []
+deferred:
+  - summary: 'A batch whose sheet is never answered nor closed (reload, tab killed) keeps no caption reading.'
+    evidence: 'capture-sheet.tsx finish runs only on Adicionar/Cancelar/Esc/scrim; ledger 1131 closing note.'
+  - summary: 'A version-13 bundle still queues the caption at pick time; MIN_CONTRACT_VERSION stays 13. Story 11.6 (batch L) raises MIN before a cloud LLM is wired.'
+    evidence: 'packages/domain/src/contract/version.ts; ledger 1131 closing note.'
+  - summary: 'A plain-Geral answer whose photo another device marked first is refused as a whole batch (op_invalid); rare two-device case, the refusal is the safe side.'
+    evidence: 'Edge Case Hunter; apply.ts assertClientReadingKindPut, atomic client batches (Story 10.1).'
 ---
 
 <intent-contract>
