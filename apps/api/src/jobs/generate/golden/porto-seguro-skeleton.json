@@ -86,6 +86,16 @@
       ["(foto não disponível no servidor)\nImagem 81: Detalhe das verificações e limpeza realizados no QGBT.\n10/09/2026 10:20","(foto não disponível no servidor)\nImagem 82: Detalhe das verificações e limpeza realizados no QGBT.\n10/09/2026 10:21"]
     ],
     [
+      ["Nº","Ponto de atenção","Local/TAG","Prioridade","Prazo","Ação recomendada","Responsável","Imagens"],
+      ["1","As duas cabines (Primária e Transformação) deverão passar por processo de identificação via plaquetas de segurança: Função da Cabine, Tensão, Potência, Função dos Transformadores, etc.;","—","—","—","—","—","—"],
+      ["2","Emoldurar e pendurar nas cabines primária e de transformação diagrama unifilar atualizado (faz parte do PIE);","—","—","—","—","—","—"],
+      ["3","Recomenda-se o acompanhamento nas próximas manutenções preventivas os resultados dos ensaios de resistência de isolação dos cabos de alimentação e dos para-raios, uma vez que ambos apresentaram valores inferiores ao valor de referência de 400 MΩ. Ressalta-se que os ensaios foram realizados em condições climáticas de chuva e elevada umidade, fatores que podem influenciar negativamente os resultados dos ensaios de resistência de isolamento;","—","—","—","—","—","—"],
+      ["4","Não foi possível realizar os ensaios elétricos nesta seccionadora devido à impossibilidade de realizar a desenergização completa da edificação, em razão da necessidade de continuidade operacional das instalações, conforme solicitação do cliente. Recomenda-se que os ensaios pendentes sejam programados e realizados na próxima intervenção.","SEC-C1 · 1° Subsolo › Coluna 1","—","—","—","—","—"],
+      ["5","Não foi possível realizar os ensaios elétricos neste disjuntor (TIE) devido à impossibilidade de realizar a desenergização completa da edificação, em razão da necessidade de continuidade operacional das instalações, conforme solicitação do cliente. Recomenda-se que os ensaios pendentes sejam programados e realizados na próxima intervenção.","DJ-TIE-1 · 1° Subsolo › Coluna 3","—","—","—","—","—"],
+      ["6","Não foi possível realizar os ensaios elétricos nesta seccionadora devido à impossibilidade de realizar a desenergização completa da edificação, em razão da necessidade de continuidade operacional das instalações, conforme solicitação do cliente. Recomenda-se que os ensaios pendentes sejam programados e realizados na próxima intervenção.","SEC-C17 · 1° Subsolo › Coluna 17","—","—","—","—","—"],
+      ["7","Conforme orientação do cliente, não foram realizados os serviços de reaperto das conexões e limpeza interna nos QGBT’s das Torres A e B, em razão da impossibilidade de desenergização dos equipamentos e da necessidade de continuidade operacional da edificação. Ressalta-se que, conforme informado pelo cliente, os QGBT’s foram submetidos previamente à inspeção termográfica por empresa terceira, não tendo sido identificados pontos de anomalia térmica.","—","—","—","—","—","—"]
+    ],
+    [
       ["CARACTERÍSTICAS DA SE"],
       ["TIPO DE SE","TENSÃO PRIMÁRIA","TENSÃO SECUNDÁRIA","POTÊNCIA INSTALADA"],
       ["BLINDADA","13,8 kV","-","10 kVA"]

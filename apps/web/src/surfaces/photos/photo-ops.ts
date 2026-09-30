@@ -1,5 +1,6 @@
 import {
   captionConfirmAllOps,
+  captionReadingOf,
   captionDiscardOps,
   confirmSuggestionOps,
   fileFieldPath,
@@ -26,7 +27,7 @@ import { newId } from '../../ids.ts';
  * (`captionDiscardOps`), so the suggestion never outlives what the engineer wrote.
  */
 
-function put(author: Author, relatorioId: string, fileId: string, field: 'caption' | 'removed_at' | 'block_id' | 'people_in_photo', value: JsonValue): OpDraft {
+function put(author: Author, relatorioId: string, fileId: string, field: 'caption' | 'removed_at' | 'block_id' | 'people_in_photo' | 'reading_kind', value: JsonValue): OpDraft {
   return { ...relatorioOpEnvelope(author, relatorioId), kind: 'put', path: fileFieldPath(fileId, field), value };
 }
 
@@ -78,6 +79,10 @@ export async function setPeopleInPhoto(
  * and the caption, as `file/{id}/block_id` and `file/{id}/caption` puts on every photo, in
  * one batch. A part left at its saved value ("Geral", no caption) writes nothing. Story 9.3:
  * "Pessoas na foto" pressed puts `people_in_photo: true` on every photo of the batch.
+ * Ledger 1131 (contract 14): the batch's photos were created with no reading, so a photo the
+ * answer leaves with no sheet, no caption and no mark (`captionReadingOf`) asks for its
+ * caption reading here, with a `file/{id}/reading_kind = 'caption'` put after its other puts.
+ * "Cancelar" (kept as "Geral") calls this with nothing chosen, so it writes only those puts.
  */
 export async function assignPhotoBatch(
   db: AppDatabase,
@@ -93,6 +98,9 @@ export async function assignPhotoBatch(
     ...(blockId === null ? [] : [put(author, relatorioId, id, 'block_id', blockId)]),
     ...(value === null ? [] : [put(author, relatorioId, id, 'caption', value)]),
     ...(peopleInPhoto ? [put(author, relatorioId, id, 'people_in_photo', true)] : []),
+    ...(captionReadingOf({ block_id: blockId, caption: value, people_in_photo: peopleInPhoto }) === null
+      ? []
+      : [put(author, relatorioId, id, 'reading_kind', 'caption')]),
   ]);
   if (drafts.length > 0) await commitBatch(db, drafts, deps);
 }

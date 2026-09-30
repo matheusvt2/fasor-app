@@ -115,6 +115,9 @@ describe('6.4-UNIT-001 importPhotoFiles', () => {
     expect(committed[0]).toMatchObject({ blockId: BLOCK_1_ID, itemKey: 'contatos', reading });
     await importPhotoFiles([new File([jpegWithExif()], 'plain.jpg', { type: 'image/jpeg' })], target, value);
     expect(committed[1]!.reading).toBeUndefined();
+    // Ledger 1131: a gallery batch asks for no reading at create.
+    await importPhotoFiles([new File([jpegWithExif()], 'batch.jpg', { type: 'image/jpeg' })], { ...target, reading: null }, value);
+    expect(committed[2]!.reading).toBeNull();
   });
 
   it('with photo locations off (FR-8), the EXIF GPS is not kept; the EXIF time still is', async () => {

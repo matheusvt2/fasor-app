@@ -81,9 +81,11 @@ export interface PhotoCaptureInput {
   /**
    * Story 8.1 (contract 5): the reading this shot asks for (the plate tile's), set at
    * capture: the create carries `reading_kind`, `reading_target` and `reading_status:
-   * 'queued'`. Omitted, the photo is a plain one (`reading_status: 'none'`).
+   * 'queued'`. Omitted, the kernel's caption rule decides (`captionReadingOf`). Null (ledger
+   * 1131, contract 14): no reading at create, whatever the context; a gallery import batch
+   * asks for the caption with a `reading_kind` put once it is answered (`assignPhotoBatch`).
    */
-  reading?: { kind: NonNullable<PhotoFileRow['reading_kind']>; target: JsonValue };
+  reading?: { kind: NonNullable<PhotoFileRow['reading_kind']>; target: JsonValue } | null;
   /** Story 9.3 (contract 8): "Pessoas na foto" set at capture; such a photo is never sent to the prose provider. */
   peopleInPhoto?: boolean;
 }
@@ -110,7 +112,11 @@ export function photoCreateDraft(input: Omit<PhotoCaptureInput, 'thumb'>, localS
   const peopleInPhoto = input.peopleInPhoto === true;
   // Story 9.3: a photo with no reading of its own and no context (no sheet, no caption, no
   // people mark) asks for a vision caption (the kernel's rule, `captionReadingOf`).
-  const reading = input.reading ?? captionReadingOf({ block_id: input.blockId, caption: input.caption, people_in_photo: peopleInPhoto }) ?? undefined;
+  // A null `reading` asks for none (a gallery import batch, which asks once answered).
+  const reading =
+    input.reading === null
+      ? undefined
+      : (input.reading ?? captionReadingOf({ block_id: input.blockId, caption: input.caption, people_in_photo: peopleInPhoto }) ?? undefined);
   return {
     scope: 'relatorio',
     company_id: input.companyId,

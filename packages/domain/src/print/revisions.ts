@@ -200,9 +200,9 @@ export function readyTitle(number: number): string {
   return `Revisão ${number} pronta`;
 }
 
-/** The toast when the revision arrives; the mock says "— DOCX e PDF", and the PDF download is out of the slice. */
+/** The toast when the revision arrives, verbatim from the mock (`73-exportar.html`): both files ship (Story 11.1). */
 export function readyToast(number: number): string {
-  return `Revisão ${number} pronta — DOCX`;
+  return `Revisão ${number} pronta — DOCX e PDF`;
 }
 
 /** The note beside the status pill in the result block. */

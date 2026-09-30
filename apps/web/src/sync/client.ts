@@ -103,6 +103,11 @@ export function revisionDocxUrl(revisionId: string): string {
   return GENERATE_ROUTES.revisionDocx(revisionId).path;
 }
 
+/** Story 11.1: where the browser opens a revision's PDF (a new tab; the server answers it as a download). */
+export function revisionPdfUrl(revisionId: string): string {
+  return GENERATE_ROUTES.revisionPdf(revisionId).path;
+}
+
 export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
 
 /** The client over the browser's `fetch`; built here because only `src/sync` may call the network (AD-1). */

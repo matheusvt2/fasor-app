@@ -1,5 +1,5 @@
 import { CalendarDate, parseDate } from '@internationalized/date';
-import { useId } from 'react';
+import { useId, type ReactNode } from 'react';
 import { DateField as AriaDateField, DateInput, DateSegment, Label } from 'react-aria-components';
 
 export interface DateFieldProps {
@@ -13,6 +13,12 @@ export interface DateFieldProps {
   autoFocus?: boolean;
   /** Focus left the field: a caller debouncing its commit (`useFieldCommit`) settles it now. */
   onBlur?: () => void;
+  /** Story 11.9: extra classes on the `.field` (the Suggestion field `suggestion-field poa-prazo-sf`). */
+  className?: string;
+  /** Story 11.9: the Suggestion field's `data-state` on the `.field`. */
+  state?: 'suggested' | 'confirmed';
+  /** Story 11.9: siblings after the `.input` (the "Sugerido" pill, a helper). */
+  after?: ReactNode;
 }
 
 function toCalendarDate(value: string | null): CalendarDate | null {
@@ -30,11 +36,12 @@ function toCalendarDate(value: string | null): CalendarDate | null {
  * and typed digits) and the `#i-calendar` sprite glyph. ISO strings in and out; the app
  * root's `I18nProvider locale="pt-BR"` orders the segments.
  */
-export function DateField({ label, value, onChange, isInvalid, describedBy, autoFocus, onBlur }: DateFieldProps) {
+export function DateField({ label, value, onChange, isInvalid, describedBy, autoFocus, onBlur, className, state, after }: DateFieldProps) {
   const labelId = useId();
   return (
     <AriaDateField
-      className="field"
+      className={className === undefined ? 'field' : `field ${className}`}
+      data-state={state}
       value={toCalendarDate(value)}
       onChange={(next) => onChange(next === null ? null : next.toString())}
       isInvalid={isInvalid}
@@ -52,6 +59,7 @@ export function DateField({ label, value, onChange, isInvalid, describedBy, auto
       <svg className="ico date-ico" aria-hidden="true">
         <use href="/sprite.svg#i-calendar" />
       </svg>
+      {after}
     </AriaDateField>
   );
 }
