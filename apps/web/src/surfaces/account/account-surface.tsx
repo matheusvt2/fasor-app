@@ -124,6 +124,7 @@ export function AccountSurface() {
   const [editing, setEditing] = useState(false);
   const [confirmingSignOut, setConfirmingSignOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
 
   const user = session.user;
   if (user === null) return null;
@@ -159,11 +160,15 @@ export function AccountSurface() {
 
   /** A sign-out the server never confirmed keeps the session and says so. */
   async function signOut() {
+    if (signingOut) return;
     setSignOutError(null);
+    setSigningOut(true);
     try {
       await session.signOut();
     } catch {
       setSignOutError(copy.account.signOutFailed);
+    } finally {
+      setSigningOut(false);
     }
   }
 
@@ -332,9 +337,11 @@ export function AccountSurface() {
               aria-describedby={signOutNoteId}
               isDisabled={!session.online}
               disabledReason={copy.account.signOutOfflineReason}
-              onPress={() => setConfirmingSignOut(true)}
+              onPress={() => {
+                if (!signingOut) setConfirmingSignOut(true);
+              }}
             >
-              {copy.account.signOut}
+              {signingOut ? copy.account.signingOut : copy.account.signOut}
             </Button>
             <span className="btn-reason" id={signOutNoteId}>
               {signOutNote}

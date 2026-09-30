@@ -138,7 +138,8 @@ export function FieldPalette({ target, seedVersion, locations, blocks, equipment
             </p>
           </div>
         )}
-        <p className="palette-group">{t.chooseType}</p>
+        {/* E11-Q6: the "Ou" answers the camera row above; without it the heading stands alone. */}
+        <p className="palette-group">{onPhotograph === undefined ? t.chooseTypeOnly : t.chooseType}</p>
         {items.map((item) => (
           <div key={item.type} className="palette-type">
             <button

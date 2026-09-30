@@ -1,6 +1,7 @@
 import { DOCX_MIME, instantiateTemplate, PDF_MIME, standardTemplate, type OpDraft } from '@app/domain';
-import type { BrowserContext, Download, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
+import { downloadBytes, downloadFrom } from './support/download.ts';
 import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-fixture.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { syncNow } from './support/sync.ts';
@@ -31,7 +32,8 @@ test.beforeEach(({ seed }) => {
 
 const footButton = (page: Page) => page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' });
 const dialog = (page: Page) => page.getByRole('dialog', { name: 'Gerar relatório' });
-const generateButton = (page: Page) => dialog(page).locator('.generate-row').getByRole('button', { name: 'Gerar relatório' });
+/** The primary: "Gerar relatório", or "Gerando…" while it sends and the job runs. */
+const generateButton = (page: Page) => dialog(page).locator('.generate-row').getByRole('button', { name: /^(Gerar relatório|Gerando…)$/ });
 const reason = (page: Page) => dialog(page).locator('.generate-row .btn-reason');
 const headerPill = (page: Page) => page.locator('.sheet-meta .status-pill');
 
@@ -50,43 +52,26 @@ async function openFixtureSumario(page: Page): Promise<void> {
   await expect(headerPill(page)).toHaveText('Em campo', { timeout: 30_000 });
 }
 
-/**
- * Presses "DOCX — abrir no Word" or "PDF — enviar ao cliente" (or a row's "DOCX" or "PDF") and returns the download it starts in
- * the new tab. The listener is attached before the click: the download can begin before a
- * later `waitForEvent` would be registered.
- */
-async function downloadFrom(page: Page, context: BrowserContext, press: () => Promise<void>): Promise<Download> {
-  const downloadPromise = new Promise<Download>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('no download started within 30 s')), 30_000);
-    const settle = (download: Download) => {
-      clearTimeout(timer);
-      resolve(download);
-    };
-    context.once('page', (popup) => popup.once('download', settle));
-    page.once('download', settle);
-  });
-  await press();
-  const download = await downloadPromise;
-  for (const extra of context.pages()) if (extra !== page) await extra.close().catch(() => undefined);
-  await page.bringToFront();
-  return download;
-}
-
 test('@p0 4.8-E2E-001 11.1-E2E-001 a relatório born on Home: the Sumário\'s "Gerar relatório" generates revision 1, the DOCX and the PDF download and share, the row lists it, and a second press answers the same revision', async ({
   page,
-  context,
 }) => {
   test.setTimeout(300_000);
-  // Story 11.1: a recording share sheet, as a mobile browser has one; installed before the
-  // first navigation so the dialog sees it and renders the share buttons.
+  // Story 11.1 and E11-Q1: a recording share sheet, as a mobile browser has one, that takes
+  // files while `__canShareFiles` is true; installed before the first navigation so the dialog
+  // sees it and renders the share buttons. Each call is recorded with its keys and its files.
   await page.addInitScript(() => {
-    const shares: unknown[] = [];
-    (window as unknown as { __shares: unknown[] }).__shares = shares;
+    const w = window as unknown as { __shares: unknown[]; __canShareFiles: boolean };
+    w.__shares = [];
+    w.__canShareFiles = true;
     Object.defineProperty(navigator, 'share', {
       configurable: true,
-      value: async (data: unknown) => {
-        shares.push(data);
+      value: async (data: ShareData) => {
+        w.__shares.push({ keys: Object.keys(data).sort(), title: data.title, files: (data.files ?? []).map((file) => ({ name: file.name, type: file.type, size: file.size })) });
       },
+    });
+    Object.defineProperty(navigator, 'canShare', {
+      configurable: true,
+      value: (data: ShareData) => w.__canShareFiles && (data.files ?? []).length > 0,
     });
   });
   await resetEmpresaB(account, { standard: true });
@@ -127,6 +112,8 @@ test('@p0 4.8-E2E-001 11.1-E2E-001 a relatório born on Home: the Sumário\'s "G
   await expect(modal.locator('.gen-progress[role="status"]')).toContainText('Gerando revisão 1…', { timeout: 60_000 });
   await expect(modal.locator('.gen-progress')).toContainText('pode fechar — o aviso chega quando terminar');
   await expect(generateButton(page)).toHaveAttribute('aria-disabled', 'true');
+  // Matheus, 2026-09-30: a waiting button says so.
+  await expect(generateButton(page)).toHaveText('Gerando…');
   await expect(reason(page)).toHaveText('Gerando a revisão 1 — DOCX e PDF juntos');
 
   // "pode fechar": Esc closes, the focus returns to the foot's button, and reopening shows
@@ -148,39 +135,48 @@ test('@p0 4.8-E2E-001 11.1-E2E-001 a relatório born on Home: the Sumário\'s "G
   await expect(row).toHaveCount(1);
   await expect(row.locator('.rev-text')).toHaveText(new RegExp(`^Rev\\. 1 — \\d{2}/\\d{2}/\\d{4} \\d{2}:\\d{2} — ${account.name}$`));
 
-  // "DOCX — abrir no Word" downloads the revision's DOCX from the api.
-  const download = await downloadFrom(page, context, () => modal.getByRole('button', { name: 'DOCX — abrir no Word' }).click());
-  expect(download.url()).toMatch(/\/api\/revisions\/[0-9a-f-]{36}\/docx$/);
+  // E11-Q1: "DOCX — abrir no Word" saves the revision's DOCX itself, fetched with the session.
+  const download = await downloadFrom(page, () => modal.getByRole('button', { name: 'DOCX — abrir no Word' }).click());
   expect(download.suggestedFilename()).toBe('relatorio-rev-1.docx');
-  const response = await page.request.get(download.url());
-  expect(response.status()).toBe(200);
-  expect(response.headers()['content-type']).toBe(DOCX_MIME);
-  const bytes = await response.body();
+  const bytes = await downloadBytes(download);
+  expect(bytes.subarray(0, 2).toString('latin1')).toBe('PK');
   expect(bytes.byteLength).toBeGreaterThan(1000);
-  const cover = extractStructure(Buffer.from(bytes)).tables[0]!;
+  const cover = extractStructure(bytes).tables[0]!;
   expect(cover.find((row) => row[0] === 'Informações adicionais')).toEqual(['Informações adicionais', ADDITIONAL_INFO]);
   // The Revisões row's own "DOCX" is the same file.
-  const again = await downloadFrom(page, context, () => row.locator('.rev-files').getByRole('button', { name: 'DOCX' }).click());
-  expect(again.url()).toBe(download.url());
+  const again = await downloadFrom(page, () => row.locator('.rev-files').getByRole('button', { name: 'DOCX' }).click());
+  expect(again.suggestedFilename()).toBe('relatorio-rev-1.docx');
+  expect((await downloadBytes(again)).equals(bytes)).toBe(true);
 
-  // Story 11.1: "PDF — enviar ao cliente" downloads the revision's closed PDF from the api.
-  const pdf = await downloadFrom(page, context, () => modal.getByRole('button', { name: 'PDF — enviar ao cliente' }).click());
-  expect(pdf.url()).toMatch(/\/api\/revisions\/[0-9a-f-]{36}\/pdf$/);
-  expect(pdf.url().replace(/\/pdf$/, '')).toBe(download.url().replace(/\/docx$/, ''));
+  // Story 11.1: "PDF — enviar ao cliente" saves the revision's closed PDF.
+  const pdf = await downloadFrom(page, () => modal.getByRole('button', { name: 'PDF — enviar ao cliente' }).click());
   expect(pdf.suggestedFilename()).toBe('relatorio-rev-1.pdf');
-  const pdfResponse = await page.request.get(pdf.url());
-  expect(pdfResponse.status()).toBe(200);
-  expect(pdfResponse.headers()['content-type']).toBe(PDF_MIME);
-  expect((await pdfResponse.body()).subarray(0, 4).toString('latin1')).toBe('%PDF');
+  const pdfBytes = await downloadBytes(pdf);
+  expect(pdfBytes.subarray(0, 4).toString('latin1')).toBe('%PDF');
   // The Revisões row's own "PDF" is the same file.
-  const pdfAgain = await downloadFrom(page, context, () => row.locator('.rev-files').getByRole('button', { name: 'PDF' }).click());
-  expect(pdfAgain.url()).toBe(pdf.url());
-  // "Compartilhar PDF" hands the system share sheet the revision's title and the absolute PDF URL.
+  const pdfAgain = await downloadFrom(page, () => row.locator('.rev-files').getByRole('button', { name: 'PDF' }).click());
+  expect(pdfAgain.suggestedFilename()).toBe('relatorio-rev-1.pdf');
+  expect((await downloadBytes(pdfAgain)).equals(pdfBytes)).toBe(true);
+
+  // E11-Q1: where the sheet takes files, "Compartilhar PDF" and "Compartilhar DOCX" hand it the
+  // file itself with the revision's title, and never a URL.
+  const shares = () => page.evaluate(() => (window as unknown as { __shares: unknown[] }).__shares);
   await modal.getByRole('button', { name: 'Compartilhar PDF' }).click();
-  await expect
-    .poll(() => page.evaluate(() => (window as unknown as { __shares: unknown[] }).__shares))
-    .toEqual([{ title: 'Revisão 1 pronta', url: pdf.url() }]);
-  expect(new URL(pdf.url()).origin).toBe(new URL(page.url()).origin);
+  await expect.poll(shares).toEqual([{ keys: ['files', 'title'], title: 'Revisão 1 pronta', files: [{ name: 'relatorio-rev-1.pdf', type: PDF_MIME, size: pdfBytes.byteLength }] }]);
+  await modal.getByRole('button', { name: 'Compartilhar DOCX' }).click();
+  await expect.poll(async () => ((await shares()) as unknown[]).length).toBe(2);
+  expect(((await shares()) as unknown[])[1]).toEqual({ keys: ['files', 'title'], title: 'Revisão 1 pronta', files: [{ name: 'relatorio-rev-1.docx', type: DOCX_MIME, size: bytes.byteLength }] });
+  // Where it cannot take files, each share saves the file instead and the sheet never opens.
+  await page.evaluate(() => {
+    (window as unknown as { __canShareFiles: boolean }).__canShareFiles = false;
+  });
+  const sharedPdf = await downloadFrom(page, () => modal.getByRole('button', { name: 'Compartilhar PDF' }).click());
+  expect(sharedPdf.suggestedFilename()).toBe('relatorio-rev-1.pdf');
+  expect((await downloadBytes(sharedPdf)).subarray(0, 4).toString('latin1')).toBe('%PDF');
+  const sharedDocx = await downloadFrom(page, () => modal.getByRole('button', { name: 'Compartilhar DOCX' }).click());
+  expect(sharedDocx.suggestedFilename()).toBe('relatorio-rev-1.docx');
+  expect((await downloadBytes(sharedDocx)).subarray(0, 2).toString('latin1')).toBe('PK');
+  expect(((await shares()) as unknown[]).length).toBe(2);
 
   // Esc closes; the focus is back on the foot's button.
   await page.keyboard.press('Escape');

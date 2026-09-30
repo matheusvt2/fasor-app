@@ -20,7 +20,7 @@ import {
   type RevisionRow,
   type SumarioRowKey,
 } from '@app/domain';
-import { useId, useMemo } from 'react';
+import { Fragment, useId, useMemo, useRef, useState } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { Button, StatusPill, TextButton } from '../../components/index.ts';
 import { DialogShell } from '../../components/dialog-shell.tsx';
@@ -30,7 +30,7 @@ import { relatorioState } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { useSession } from '../../state/session.tsx';
 import { useSync } from '../../state/sync.tsx';
-import { revisionDocxUrl, revisionPdfUrl } from '../../sync/client.ts';
+import { downloadRevisionFile, hasShareSheet, shareRevisionFile, type RevisionFileRef } from './revision-file.ts';
 import { DEFAULT_TIMING, useGenerate, type GenerateTiming } from './use-generate.ts';
 import { usePreIssue } from './use-pre-issue.ts';
 import { usePreview } from './use-preview.ts';
@@ -52,30 +52,6 @@ export interface ExportDialogProps {
 /** The dialog's title element, which labels it. */
 const TITLE_ID = 'export-title';
 
-/** Opens a revision's DOCX in a new tab; the server answers it as a download. */
-function openDocx(revisionId: string): void {
-  window.open(revisionDocxUrl(revisionId), '_blank', 'noopener');
-}
-
-/** The system share sheet, only where the browser has one (mobile). */
-const canShare = (): boolean => typeof navigator !== 'undefined' && typeof navigator.share === 'function';
-
-function shareDocx(revisionId: string, title: string): void {
-  const url = new URL(revisionDocxUrl(revisionId), window.location.origin).toString();
-  void navigator.share({ title, url }).catch(() => undefined);
-}
-
-/** Story 11.1: opens a revision's PDF in a new tab; the server answers it as a download. */
-function openPdf(revisionId: string): void {
-  window.open(revisionPdfUrl(revisionId), '_blank', 'noopener');
-}
-
-/** Story 11.1: shares the absolute PDF URL, as the DOCX share does (the recipient needs a session). */
-function sharePdf(revisionId: string, title: string): void {
-  const url = new URL(revisionPdfUrl(revisionId), window.location.origin).toString();
-  void navigator.share({ title, url }).catch(() => undefined);
-}
-
 /**
  * The Export dialog of `73-exportar.html` (Stories 4.8 and 7.5, FR-62, FR-73, FR-74):
  * "Antes de emitir" (the one blocking row with its way to Dados do relatório, the lines only
@@ -84,7 +60,9 @@ function sharePdf(revisionId: string, title: string): void {
  * "Pré-visualizar" (the RASCUNHO draft in a new tab) beside "Gerar relatório" with its
  * reason, the working line, the failed line, the result block with "DOCX — abrir no Word"
  * and "PDF — enviar ao cliente" (each with share where the system has it, Story 11.1) and
- * the "Revisões" list with a DOCX and a PDF button per revision. Mounted by the Sumário's
+ * the "Revisões" list with a DOCX and a PDF button per revision. Every file button hands over
+ * the file itself (E11-Q1, `revision-file.ts`): it reads "Baixando…" while the bytes come and
+ * words a failure beside its row. Mounted by the Sumário's
  * "Gerar relatório" (`surfaces/relatorio/generate-action.tsx`).
  */
 export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup, onSeeInSumario, timing = DEFAULT_TIMING }: ExportDialogProps) {
@@ -96,6 +74,33 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
   const generateReasonId = useId();
   const db = useSession().database;
   const { resendDead } = useSync();
+  // E11-Q1: the one file press in flight (its row reads the waiting word) and the row whose last press failed.
+  const [file, setFile] = useState<{ busy: string | null; failed: string | null }>({ busy: null, failed: null });
+  const fileInFlight = useRef<string | null>(null);
+  const runFile = (key: string, action: () => Promise<unknown>) => {
+    if (fileInFlight.current !== null) return;
+    fileInFlight.current = key;
+    setFile({ busy: key, failed: null });
+    void action().then(
+      () => {
+        fileInFlight.current = null;
+        setFile({ busy: null, failed: null });
+      },
+      () => {
+        fileInFlight.current = null;
+        setFile({ busy: null, failed: key });
+      },
+    );
+  };
+  const download = (key: string, ref: RevisionFileRef) => runFile(key, () => downloadRevisionFile(ref));
+  const share = (key: string, ref: RevisionFileRef, title: string) => runFile(key, () => shareRevisionFile(ref, title));
+  const fileLabel = (key: string, label: string) => (file.busy === key ? copy.export.fileBusy : label);
+  const fileError = (key: string) =>
+    file.failed === key ? (
+      <div className="gen-error" role="alert">
+        <span>{copy.export.fileFailed}</span>
+      </div>
+    ) : null;
 
   const entityState = useLiveQuery(() => (db === null ? Promise.resolve(null) : relatorioState(db, relatorioId)), [db, relatorioId], null);
   const snapshot = useRelatorioSnapshot(entityState, relatorioId);
@@ -139,7 +144,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
         disabledReasonId={options.disabledReason === undefined ? undefined : generateReasonId}
         onPress={state.start}
       >
-        {copy.export.generate}
+        {phase.kind === 'flushing' || phase.kind === 'requesting' || phase.kind === 'working' ? copy.export.generating : copy.export.generate}
       </Button>
       {options.disabledReason === undefined ? null : (
         <span className="btn-reason" id={generateReasonId}>
@@ -154,6 +159,8 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
   if (phase.kind === 'ready') {
     const revision = revisions.find((r) => r.id === phase.revisionId) ?? revisions.find((r) => r.number === phase.number) ?? null;
     const meta = revision === null ? null : revisionMetaSegments(revision, whoOf(revision));
+    const docxRef: RevisionFileRef | null = revision === null ? null : { revisionId: revision.id, number: revision.number, format: 'docx' };
+    const pdfRef: RevisionFileRef | null = revision === null ? null : { revisionId: revision.id, number: revision.number, format: 'pdf' };
     body = (
       <>
         <h2 className="t-display">{readyTitle(phase.number)}</h2>
@@ -170,19 +177,19 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
               className="rr-open"
               aria-disabled={revision === null || undefined}
               aria-describedby={revision === null ? downloadingReasonId : undefined}
-              onPress={() => revision !== null && openDocx(revision.id)}
+              onPress={() => docxRef !== null && download('result:docx', docxRef)}
             >
               <svg className="ico" aria-hidden="true">
                 <use href="/sprite.svg#i-download" />
               </svg>
-              <span className="rr-text">{copy.export.openDocx}</span>
+              <span className="rr-text">{fileLabel('result:docx', copy.export.openDocx)}</span>
             </AriaButton>
             {revision === null ? (
               <span className="btn-reason" id={downloadingReasonId}>
                 {copy.export.downloadingRevision}
               </span>
-            ) : canShare() ? (
-              <AriaButton className="icon-btn" aria-label={copy.export.shareDocx} onPress={() => shareDocx(revision.id, readyTitle(phase.number))}>
+            ) : hasShareSheet() && docxRef !== null ? (
+              <AriaButton className="icon-btn" aria-label={copy.export.shareDocx} onPress={() => share('result:docx', docxRef, readyTitle(phase.number))}>
                 <svg className="ico" aria-hidden="true">
                   <use href="/sprite.svg#i-share" />
                 </svg>
@@ -195,15 +202,15 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
               className="rr-open"
               aria-disabled={revision === null || undefined}
               aria-describedby={revision === null ? downloadingReasonId : undefined}
-              onPress={() => revision !== null && openPdf(revision.id)}
+              onPress={() => pdfRef !== null && download('result:pdf', pdfRef)}
             >
               <svg className="ico" aria-hidden="true">
                 <use href="/sprite.svg#i-download" />
               </svg>
-              <span className="rr-text">{copy.export.openPdf}</span>
+              <span className="rr-text">{fileLabel('result:pdf', copy.export.openPdf)}</span>
             </AriaButton>
-            {revision !== null && canShare() ? (
-              <AriaButton className="icon-btn" aria-label={copy.export.sharePdf} onPress={() => sharePdf(revision.id, readyTitle(phase.number))}>
+            {pdfRef !== null && hasShareSheet() ? (
+              <AriaButton className="icon-btn" aria-label={copy.export.sharePdf} onPress={() => share('result:pdf', pdfRef, readyTitle(phase.number))}>
                 <svg className="ico" aria-hidden="true">
                   <use href="/sprite.svg#i-share" />
                 </svg>
@@ -211,6 +218,8 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
             ) : null}
           </div>
         </div>
+        {fileError('result:docx')}
+        {fileError('result:pdf')}
         <div className="row-wrap">
           {/* The status after the issue op (Q11): the hook's until the live row re-renders. */}
           {phase.status !== undefined ? <StatusPill status={phase.status} /> : relatorio === null ? null : <StatusPill status={relatorio.status} />}
@@ -359,28 +368,34 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
         ) : (
           revisions.map((row) => {
             const segments = revisionRowSegments(row, whoOf(row));
+            const docxKey = `revision:${row.id}:docx`;
+            const pdfKey = `revision:${row.id}:pdf`;
             return (
-              <div className="revision-row" key={row.id}>
-                <span className="rev-text">
-                  {segments.before}
-                  <time dateTime={segments.datetime}>{segments.dateText}</time>
-                  {segments.after}
-                </span>
-                <span className="rev-files">
-                  <TextButton onPress={() => openDocx(row.id)}>
-                    <svg className="ico" aria-hidden="true">
-                      <use href="/sprite.svg#i-download" />
-                    </svg>
-                    {copy.export.revisionDocx}
-                  </TextButton>
-                  <TextButton onPress={() => openPdf(row.id)}>
-                    <svg className="ico" aria-hidden="true">
-                      <use href="/sprite.svg#i-download" />
-                    </svg>
-                    {copy.export.revisionPdf}
-                  </TextButton>
-                </span>
-              </div>
+              <Fragment key={row.id}>
+                <div className="revision-row">
+                  <span className="rev-text">
+                    {segments.before}
+                    <time dateTime={segments.datetime}>{segments.dateText}</time>
+                    {segments.after}
+                  </span>
+                  <span className="rev-files">
+                    <TextButton onPress={() => download(docxKey, { revisionId: row.id, number: row.number, format: 'docx' })}>
+                      <svg className="ico" aria-hidden="true">
+                        <use href="/sprite.svg#i-download" />
+                      </svg>
+                      {fileLabel(docxKey, copy.export.revisionDocx)}
+                    </TextButton>
+                    <TextButton onPress={() => download(pdfKey, { revisionId: row.id, number: row.number, format: 'pdf' })}>
+                      <svg className="ico" aria-hidden="true">
+                        <use href="/sprite.svg#i-download" />
+                      </svg>
+                      {fileLabel(pdfKey, copy.export.revisionPdf)}
+                    </TextButton>
+                  </span>
+                </div>
+                {fileError(docxKey)}
+                {fileError(pdfKey)}
+              </Fragment>
             );
           })
         )}

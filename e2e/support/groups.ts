@@ -30,6 +30,11 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'photo-numbers.spec.ts',
     why: 'loads the same fixed-id Porto Seguro fixture and generates revisions through the shared queue and LibreOffice, whose certificate rasterization shares the one soffice chain',
   },
+  // Matheus, 2026-09-30 (Epic 11 fix batch): the waiting labels.
+  {
+    file: 'loading-states.spec.ts',
+    why: 'presses "Gerar relatório" and holds its generate request at the network (answered 503 there, so no job runs), which the generate guard counts as a document spec',
+  },
   // Stories 11.9/11.10: 11.10-E2E-001 generates the DOCX its action-plan table is read from.
   {
     file: 'action-plan.spec.ts',

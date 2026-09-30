@@ -17,7 +17,7 @@ import {
 } from '@app/domain';
 import { useId, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Button, ConfirmDialog, OverflowMenu, TextButton } from '../../components/index.ts';
+import { Button, ConfirmDialog, LoadingNote, OverflowMenu, TextButton } from '../../components/index.ts';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { commitBatch } from '../../db/commit.ts';
@@ -202,9 +202,7 @@ export function TemplatesSurface() {
     <main className="screen" data-route="/templates" ref={mainRef}>
       <div className="tpl-content">
         {active === undefined ? (
-          <p className="section-note" role="status">
-            {copy.common.loading}
-          </p>
+          <LoadingNote what={copy.loadingWhat.templates} />
         ) : (
           <>
             <section className="section" aria-labelledby={headingId}>

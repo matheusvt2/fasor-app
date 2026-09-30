@@ -14,7 +14,7 @@ import type { SessionState } from '../../state/session.tsx';
 import { SyncContext, type SyncState } from '../../state/sync.tsx';
 import { makeSyncState, type SyncStateOverrides } from '../../test/sync-state.ts';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
-import { revisionDocxUrl, revisionPdfUrl, SyncRequestError } from '../../sync/client.ts';
+import { SyncRequestError } from '../../sync/client.ts';
 import { ExportDialog } from './export-dialog.tsx';
 
 /*
@@ -157,7 +157,49 @@ function revisionOf(number: number): { row: RevisionRow; op: Op } {
 }
 
 const dialog = () => screen.getByRole('dialog');
-const generateButton = () => within(dialog()).getByRole('button', { name: 'Gerar relatório' });
+/** The primary: "Gerar relatório", or "Gerando…" while it sends and the job runs. */
+const generateButton = () => within(dialog()).getByRole('button', { name: /^(Gerar relatório|Gerando…)$/ });
+
+/**
+ * E11-Q1: stubs `fetch` (the revision file's bytes), the object URL and the anchor click
+ * that saves a file, recording each saved name. `hold()` keeps the next fetch pending.
+ */
+function recordSaves() {
+  const names: string[] = [];
+  let gate: Promise<void> | null = null;
+  const fetch = vi.fn<(input: string, init?: RequestInit) => Promise<Response>>(async () => {
+    if (gate !== null) await gate;
+    return new Response('bytes', { status: 200 });
+  });
+  vi.stubGlobal('fetch', fetch);
+  const create = URL.createObjectURL;
+  const revoke = URL.revokeObjectURL;
+  URL.createObjectURL = () => 'blob:saved';
+  URL.revokeObjectURL = () => undefined;
+  const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+    names.push(this.download);
+  });
+  return {
+    names,
+    fetch,
+    hold() {
+      let open = () => {};
+      gate = new Promise<void>((resolve) => {
+        open = () => {
+          gate = null;
+          resolve();
+        };
+      });
+      return { release: () => open() };
+    },
+    restore() {
+      vi.unstubAllGlobals();
+      click.mockRestore();
+      URL.createObjectURL = create;
+      URL.revokeObjectURL = revoke;
+    },
+  };
+}
 const statusOps = async (db: AppDatabase): Promise<unknown[]> =>
   (await db.outbox.where('path').equals('relatorio/status').toArray()).sort((a: OutboxRow, b: OutboxRow) => (a.client_ts < b.client_ts ? -1 : 1)).map((r) => r.value);
 
@@ -203,6 +245,8 @@ describe('Export dialog (Story 4.8)', () => {
     expect(pending.syncNow).toHaveBeenCalled();
     await waitFor(() => expect(generateButton()).toHaveAttribute('aria-disabled', 'true'));
     expect(within(dialog()).getByText('Enviando…')).toHaveClass('btn-reason');
+    // Matheus, 2026-09-30: the waiting button says so.
+    expect(generateButton()).toHaveTextContent('Gerando…');
     await new Promise((resolve) => setTimeout(resolve, TIMING.retryMs * 3));
     expect(pending.generate).not.toHaveBeenCalled();
 
@@ -285,13 +329,18 @@ describe('Export dialog (Story 4.8)', () => {
     expect(within(rowElement as HTMLElement).getByRole('button', { name: 'DOCX' })).toHaveClass('btn-text');
     expect(within(rowElement as HTMLElement).getByRole('button', { name: 'PDF' })).toHaveClass('btn-text');
 
-    // Both open the download in a new tab.
-    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
-    await userEvent.click(within(modal).getByRole('button', { name: 'DOCX — abrir no Word' }));
-    expect(open).toHaveBeenCalledWith(`/api/revisions/${row.id}/docx`, '_blank', 'noopener');
-    await userEvent.click(within(modal).getByRole('button', { name: 'PDF — enviar ao cliente' }));
-    expect(open).toHaveBeenLastCalledWith(`/api/revisions/${row.id}/pdf`, '_blank', 'noopener');
-    open.mockRestore();
+    // E11-Q1: each saves the file itself, fetched with the session: relatorio-rev-1.docx and .pdf.
+    const saved = recordSaves();
+    try {
+      await userEvent.click(within(modal).getByRole('button', { name: 'DOCX — abrir no Word' }));
+      await waitFor(() => expect(saved.names).toEqual(['relatorio-rev-1.docx']));
+      expect(saved.fetch).toHaveBeenLastCalledWith(`/api/revisions/${row.id}/docx`, expect.objectContaining({ credentials: 'same-origin' }));
+      await userEvent.click(within(modal).getByRole('button', { name: 'PDF — enviar ao cliente' }));
+      await waitFor(() => expect(saved.names).toEqual(['relatorio-rev-1.docx', 'relatorio-rev-1.pdf']));
+      expect(saved.fetch).toHaveBeenLastCalledWith(`/api/revisions/${row.id}/pdf`, expect.anything());
+    } finally {
+      saved.restore();
+    }
 
     expect(await axe(modal)).toHaveNoViolations();
 
@@ -724,10 +773,10 @@ describe('Export dialog (Story 4.8)', () => {
     expect(openPdf).toHaveAttribute('aria-disabled', 'true');
     expect(openPdf).toHaveAccessibleDescription('Baixando a revisão…');
     expect(modal.querySelectorAll('.result-row .btn-reason')).toHaveLength(1);
-    const windowOpen = vi.spyOn(window, 'open').mockImplementation(() => null);
+    const saved = recordSaves();
     await userEvent.click(openPdf);
-    expect(windowOpen).not.toHaveBeenCalled();
-    windowOpen.mockRestore();
+    expect(saved.fetch).not.toHaveBeenCalled();
+    saved.restore();
     await waitFor(() => expect(sync.syncRelatorio).toHaveBeenCalled());
 
     await act(async () => {
@@ -930,50 +979,45 @@ describe('Export dialog (Story 7.5)', () => {
     open.mockRestore();
   });
 
-  it('shares the DOCX of the ready revision by its absolute URL where the system has a share sheet', async () => {
+  it.each([
+    ['DOCX', 'Compartilhar DOCX', 'relatorio-rev-1.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+    ['PDF', 'Compartilhar PDF', 'relatorio-rev-1.pdf', 'application/pdf'],
+  ])('E11-Q1: shares the %s file itself, never a URL, where the sheet takes files; saves it where it does not', async (_format, label, name, type) => {
     database = await freshDb();
     const { row, op } = revisionOf(1);
     await applyPulled(database, [...jobOps('done'), op]);
-    const share = vi.fn(async () => {});
+    const share = vi.fn<(data: ShareData) => Promise<void>>(async () => {});
+    let takesFiles = true;
     Object.defineProperty(navigator, 'share', { value: share, configurable: true, writable: true });
+    Object.defineProperty(navigator, 'canShare', { value: () => takesFiles, configurable: true, writable: true });
+    const saved = recordSaves();
     try {
       const answer: GenerateResponse = { outcome: 'unchanged', revision_id: row.id, revision_number: 1 };
       render(<Harness sync={syncState({ generate: vi.fn(async () => answer) })} />);
       await userEvent.click(generateButton());
       const modal = dialog();
-      const button = await waitFor(() => within(modal).getByRole('button', { name: 'Compartilhar DOCX' }));
-      await userEvent.click(button);
-      const url = new URL(revisionDocxUrl(row.id), window.location.origin).toString();
-      expect(url).toMatch(/^https?:\/\//);
-      expect(share).toHaveBeenCalledWith({ title: 'Revisão 1 pronta', url });
-    } finally {
-      delete (navigator as { share?: unknown }).share;
-    }
-  });
-
-  it('Story 11.1: shares the PDF of the ready revision by its absolute URL where the system has a share sheet', async () => {
-    database = await freshDb();
-    const { row, op } = revisionOf(1);
-    await applyPulled(database, [...jobOps('done'), op]);
-    const share = vi.fn(async () => {});
-    Object.defineProperty(navigator, 'share', { value: share, configurable: true, writable: true });
-    try {
-      const answer: GenerateResponse = { outcome: 'unchanged', revision_id: row.id, revision_number: 1 };
-      render(<Harness sync={syncState({ generate: vi.fn(async () => answer) })} />);
-      await userEvent.click(generateButton());
-      const modal = dialog();
-      const button = await waitFor(() => within(modal).getByRole('button', { name: 'Compartilhar PDF' }));
+      const button = await waitFor(() => within(modal).getByRole('button', { name: label }));
       expect(button).toHaveClass('icon-btn');
       await userEvent.click(button);
-      const url = new URL(revisionPdfUrl(row.id), window.location.origin).toString();
-      expect(url).toMatch(/^https?:\/\/.*\/api\/revisions\/.*\/pdf$/);
-      expect(share).toHaveBeenCalledWith({ title: 'Revisão 1 pronta', url });
+      await waitFor(() => expect(share).toHaveBeenCalledTimes(1));
+      const data = share.mock.calls[0]![0];
+      expect(data).not.toHaveProperty('url');
+      expect(data.title).toBe('Revisão 1 pronta');
+      expect(data.files!.map((f) => [f.name, f.type])).toEqual([[name, type]]);
+      expect(saved.names).toEqual([]);
+      // A sheet that cannot take files: the file is saved instead, and the sheet never opens.
+      takesFiles = false;
+      await userEvent.click(button);
+      await waitFor(() => expect(saved.names).toEqual([name]));
+      expect(share).toHaveBeenCalledTimes(1);
     } finally {
+      saved.restore();
       delete (navigator as { share?: unknown }).share;
+      delete (navigator as { canShare?: unknown }).canShare;
     }
   });
 
-  it("Story 11.1: each revision row's PDF opens that revision's own PDF", async () => {
+  it("E11-Q1: each revision row's DOCX and PDF save that revision's own file, reading \"Baixando…\" while it comes", async () => {
     database = await freshDb();
     const first = revisionOf(1);
     const second = revisionOf(2);
@@ -981,17 +1025,45 @@ describe('Export dialog (Story 7.5)', () => {
     render(<Harness sync={syncState()} />);
     const modal = dialog();
     await waitFor(() => expect(modal.querySelectorAll('.revision-row')).toHaveLength(2));
-    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+    const saved = recordSaves();
     try {
       for (const { row } of [first, second]) {
         const rowElement = [...modal.querySelectorAll<HTMLElement>('.revision-row')].find((el) => el.querySelector('.rev-text')?.textContent?.startsWith(`Rev. ${row.number} `));
         expect(rowElement).toBeDefined();
+        const held = saved.hold();
         await userEvent.click(within(rowElement!).getByRole('button', { name: 'PDF' }));
-        expect(open).toHaveBeenLastCalledWith(`/api/revisions/${row.id}/pdf`, '_blank', 'noopener');
+        await waitFor(() => expect(within(rowElement!).getByRole('button', { name: 'Baixando…' })).toBeInTheDocument());
+        held.release();
+        await waitFor(() => expect(within(rowElement!).getByRole('button', { name: 'PDF' })).toBeInTheDocument());
+        expect(saved.fetch).toHaveBeenLastCalledWith(`/api/revisions/${row.id}/pdf`, expect.anything());
+        await userEvent.click(within(rowElement!).getByRole('button', { name: 'DOCX' }));
+        await waitFor(() => expect(saved.fetch).toHaveBeenLastCalledWith(`/api/revisions/${row.id}/docx`, expect.anything()));
       }
-      expect(open).toHaveBeenCalledTimes(2);
+      await waitFor(() => expect(saved.names).toEqual(['relatorio-rev-1.pdf', 'relatorio-rev-1.docx', 'relatorio-rev-2.pdf', 'relatorio-rev-2.docx']));
     } finally {
-      open.mockRestore();
+      saved.restore();
+    }
+  });
+
+  it('E11-Q1: a failed fetch words the failure beside the row and saves nothing; the next press clears it', async () => {
+    database = await freshDb();
+    const first = revisionOf(1);
+    await applyPulled(database, [first.op]);
+    render(<Harness sync={syncState()} />);
+    const modal = dialog();
+    await waitFor(() => expect(modal.querySelectorAll('.revision-row')).toHaveLength(1));
+    const saved = recordSaves();
+    try {
+      saved.fetch.mockImplementation(async () => new Response('', { status: 401 }));
+      await userEvent.click(within(modal).getByRole('button', { name: 'PDF' }));
+      await waitFor(() => expect(within(modal).getByRole('alert')).toHaveTextContent('Não foi possível baixar o arquivo. Verifique a conexão e tente de novo.'));
+      expect(saved.names).toEqual([]);
+      saved.fetch.mockImplementation(async () => new Response('%PDF', { status: 200 }));
+      await userEvent.click(within(modal).getByRole('button', { name: 'PDF' }));
+      await waitFor(() => expect(saved.names).toEqual(['relatorio-rev-1.pdf']));
+      expect(within(modal).queryByRole('alert')).toBeNull();
+    } finally {
+      saved.restore();
     }
   });
 

@@ -134,8 +134,15 @@
 /* ---------- 45-secao.html (Story 4.7's editor) ---------- */
 [data-route="/relatorio/:id/secao/:blockId"] .section-text-title { font-size: var(--t-title-size); font-weight: var(--t-title-weight); line-height: var(--t-title-lh); margin-bottom: var(--sp-4); }
 [data-route="/relatorio/:id/secao/:blockId"] .secao-content { flex: 1; min-width: 0; padding: var(--sp-5) var(--gutter-tablet); display: flex; flex-direction: column; gap: var(--sp-4); }
-[data-route="/relatorio/:id/secao/:blockId"] .secao-text { min-height: 280px; padding: var(--sp-3) var(--sp-4); border: 2px solid var(--border-strong); border-radius: var(--r-sm); background: var(--surface-raised); font-size: var(--t-body-size); line-height: 1.55; color: var(--ink-primary); white-space: pre-line; }
-[data-route="/relatorio/:id/secao/:blockId"] .secao-text:focus { outline: 3px solid var(--focus); outline-offset: 1px; }
+/* E11-Q5: the area sits inside the shared `.rich-text` box (its border, its `.is-focus`); from
+   the mock's `.secao-text` it keeps the height, the size and the line height. */
+[data-route="/relatorio/:id/secao/:blockId"] .rich-text .secao-text { min-height: 280px; font-size: var(--t-body-size); line-height: 1.55; overflow-wrap: anywhere; }
+[data-route="/relatorio/:id/secao/:blockId"] .rich-text .secao-text:focus { outline: none; }
+/* The composer dialog's rules for the same editor (`templates.css` `.rich-dialog .rich-text
+   .rt-area`): every stored space kept, lists indented inside the box and spaced like blocks. */
+[data-route="/relatorio/:id/secao/:blockId"] .rich-text .secao-text { white-space: pre-wrap; }
+[data-route="/relatorio/:id/secao/:blockId"] .rich-text .secao-text :is(ul, ol) { margin: 0; padding-left: var(--sp-5); }
+[data-route="/relatorio/:id/secao/:blockId"] .rich-text .secao-text :is(p, ul, ol) + :is(p, ul, ol) { margin-top: var(--sp-3); }
 [data-route="/relatorio/:id/secao/:blockId"] .var-chip { display: inline-block; padding: 0 var(--sp-2); border-radius: 999px; background: var(--focus-fill); color: var(--primary); font-weight: 600; }
 [data-route="/relatorio/:id/secao/:blockId"] .secao-note { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-4); font-size: var(--t-meta-size); color: var(--ink-secondary); }
 [data-route="/relatorio/:id/secao/:blockId"] .secao-note .btn-text { margin-left: auto; }

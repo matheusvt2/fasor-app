@@ -54,7 +54,8 @@ describe('4.5 FieldPalette', () => {
     expect(within(palette).getByText('Em: 1° Subsolo › Coluna 9')).toHaveClass('palette-group');
     // Review F-9: the palette opens on its first type row (jsdom draws both variants; the field row comes first).
     await waitFor(() => expect(palette.querySelector('.pf-field')).toHaveFocus());
-    expect(within(palette).getByText('Ou escolha o tipo · TAG sugerida por tipo + coluna')).toBeInTheDocument();
+    // E11-Q6: no camera row here (no onPhotograph), so the heading has no leading "Ou".
+    expect(within(palette).getByText('Escolha o tipo · TAG sugerida por tipo + coluna')).toBeInTheDocument();
     const rows = [...palette.querySelectorAll<HTMLElement>('.pf-field')];
     expect(rows.map((row) => row.querySelector('.pi-text > span:first-child')?.textContent)).toEqual([
       'Cabos de entrada',
@@ -108,6 +109,24 @@ describe('4.5 FieldPalette', () => {
     await userEvent.click(confirm);
     await waitFor(() => expect(onCreate).toHaveBeenCalledWith({ type: 'chave_seccionadora', locationId: col9.id, anchorBlockId: null, tag: 'SEC-X1' }));
     expect(await axe(palette)).toHaveNoViolations();
+  });
+
+  it('E11-Q6: with the camera row, the heading answers it with "Ou"', () => {
+    render(
+      <FieldPalette
+        target={{ locationId: col9.id, anchorBlockId: null }}
+        seedVersion="v1"
+        locations={[cabine, col5, col9]}
+        blocks={[sec05.block]}
+        equipment={[sec05.equipment, removed]}
+        onCreate={vi.fn()}
+        onClose={vi.fn()}
+        onPhotograph={vi.fn()}
+      />,
+    );
+    const palette = screen.getByRole('dialog', { name: 'Adicionar bloco' });
+    expect(within(palette).getByRole('button', { name: /Fotografar equipamento/ })).toBeInTheDocument();
+    expect(within(palette).getByText('Ou escolha o tipo · TAG sugerida por tipo + coluna')).toBeInTheDocument();
   });
 
   it('closes from its head', async () => {

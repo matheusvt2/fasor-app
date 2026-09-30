@@ -25,9 +25,9 @@ import {
 } from '../surfaces/templates/rich-text-editor.ts';
 
 /*
- * Story 11.4 (FR-12, UX-DR69): the Template composer's rich text area, the only rich editor
- * of the product (the relatório's Section text surface and the point editor keep Story
- * 3.6's plain `useSectionTextArea`). The area is uncontrolled, filled once from the stored
+ * Story 11.4 (FR-12, UX-DR69): the rich text area of the Template composer and, since E11-Q5,
+ * of the relatório's Section text surface (both through `rich-text-field.tsx`); the point
+ * editor keeps Story 3.6's plain `useSectionTextArea`. The area is uncontrolled, filled once from the stored
  * text as the kernel parses it; typing is the browser's, and every other edit (Negrito,
  * Itálico, Lista, Numeração, Ctrl+B / Ctrl+I, Enter, a chip, a paste, Backspace at a block
  * edge or beside a chip) reads the area into blocks, edits them at the selection and draws
@@ -65,6 +65,12 @@ export interface RichTextAreaProps {
 
 export interface UseRichTextArea {
   areaProps: RichTextAreaProps;
+  /**
+   * E11-Q5: replaces what the area shows outside the change cycle (no `onChange`), for a
+   * caller whose text changed for a reason other than typing in it ("Restaurar texto do
+   * template" and its "Desfazer"); the editor's own undo history starts again from it.
+   */
+  setText: (text: string) => void;
   /** What the toolbar shows pressed for the selection. */
   pressed: FormatState;
   toggleMark: (mark: Mark) => void;
@@ -278,7 +284,17 @@ export function useRichTextArea(options: UseRichTextAreaOptions): UseRichTextAre
     apply((lines, s) => insertVariable(lines, s, name));
   };
 
+  const setText = (text: string) => {
+    const element = area.current;
+    if (element === null) return;
+    renderBlocks(element, parseRichText(text));
+    history.current = { entries: [normalizeRichText(text)], index: 0, last: null };
+    saved.current = null;
+    refreshPressed();
+  };
+
   return {
+    setText,
     pressed,
     toggleMark: commands.toggleMark,
     toggleList: commands.toggleList,

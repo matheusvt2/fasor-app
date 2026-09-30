@@ -1,5 +1,5 @@
 import { photoToken, type OpDraft } from '@app/domain';
-import type { BrowserContext, Download, Locator, Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { extractStructure, readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.ts';
 import { samplePdf } from '../apps/api/src/jobs/generate/sample-pdf.ts';
@@ -8,6 +8,7 @@ import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readFileBlobs, readStore } from './support/outbox.ts';
 import { devicePhotos } from './support/photos.ts';
+import { downloadBytes, downloadFrom } from './support/download.ts';
 import { setParecer } from './support/relatorio-flow.ts';
 import { pushDrafts } from './support/relatorio-seed.ts';
 import { syncNow } from './support/sync.ts';
@@ -34,7 +35,8 @@ const toast = (page: Page) => page.getByTestId('toast');
 const headerPill = (page: Page) => page.locator('.sheet-meta .status-pill');
 const footButton = (page: Page) => page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' });
 const dialog = (page: Page) => page.getByRole('dialog', { name: 'Gerar relatório' });
-const generateButton = (page: Page) => dialog(page).locator('.generate-row').getByRole('button', { name: 'Gerar relatório' });
+/** The primary: "Gerar relatório", or "Gerando…" while it sends and the job runs. */
+const generateButton = (page: Page) => dialog(page).locator('.generate-row').getByRole('button', { name: /^(Gerar relatório|Gerando…)$/ });
 const banner = (page: Page) => page.locator('.banner-slot .banner');
 const numbersStatus = (page: Page) => page.getByTestId('photo-numbers-status');
 const galleryItems = (page: Page) => page.locator('[data-route="/relatorio/:id/fotos"] .gallery-item');
@@ -103,23 +105,6 @@ async function viewerCount(page: Page, tile: Locator): Promise<string> {
   return text;
 }
 
-/** Presses the button and returns the download it starts (in this tab or a new one). */
-async function downloadFrom(page: Page, context: BrowserContext, press: () => Promise<void>): Promise<Download> {
-  const downloadPromise = new Promise<Download>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('no download started within 30 s')), 30_000);
-    const settle = (download: Download) => {
-      clearTimeout(timer);
-      resolve(download);
-    };
-    context.once('page', (popup) => popup.once('download', settle));
-    page.once('download', settle);
-  });
-  await press();
-  const download = await downloadPromise;
-  for (const extra of context.pages()) if (extra !== page) await extra.close().catch(() => undefined);
-  await page.bringToFront();
-  return download;
-}
 
 test('@p0 7.2-E2E-001 an issued revision freezes the gallery numbers; a photo added afterwards makes them provisional again and the Sumário names revision 2', async ({ page }) => {
   test.setTimeout(360_000);
@@ -169,7 +154,7 @@ test('@p0 7.2-E2E-001 an issued revision freezes the gallery numbers; a photo ad
   await expect(banner(page)).toContainText('(revisão 1). Alterações geram a revisão 2.');
 });
 
-test('@p1 7.3-E2E-001 the DOCX prints "Imagem 1:" in section 7, the point citing it as "Imagem 1" in section 8, and the certificate checked at setup as rasterized pages in section 11', async ({ page, context }) => {
+test('@p1 7.3-E2E-001 the DOCX prints "Imagem 1:" in section 7, the point citing it as "Imagem 1" in section 8, and the certificate checked at setup as rasterized pages in section 11', async ({ page }) => {
   test.setTimeout(420_000);
   await resetEmpresaBWithFixture(account);
   await signIn(page, account.email);
@@ -232,10 +217,8 @@ test('@p1 7.3-E2E-001 the DOCX prints "Imagem 1:" in section 7, the point citing
   await setParecer(page, EXPORT_RELATORIO_ID);
   await openSumario(page);
   await generateRevision(page, 1);
-  const download = await downloadFrom(page, context, () => dialog(page).getByRole('button', { name: 'DOCX — abrir no Word' }).click());
-  const response = await page.request.get(download.url());
-  expect(response.status()).toBe(200);
-  const docx = Buffer.from(await response.body());
+  const download = await downloadFrom(page, () => dialog(page).getByRole('button', { name: 'DOCX — abrir no Word' }).click());
+  const docx = await downloadBytes(download);
   const structure = extractStructure(docx);
 
   // Section 7: the photo embedded, "Imagem 1." (no caption) under it.

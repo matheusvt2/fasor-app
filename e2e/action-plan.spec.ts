@@ -1,8 +1,9 @@
 import { deadlineFromPriority, formatCalendarDate, newPointRow, pointCreatedDate, type OpDraft, type PointRow } from '@app/domain';
-import type { BrowserContext, Download, Locator, Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { paragraphText, readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
+import { downloadBytes, downloadFrom } from './support/download.ts';
 import { readStore } from './support/outbox.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 import { setParecer, typeDate } from './support/relatorio-flow.ts';
@@ -316,25 +317,8 @@ test('@p0 11.9-E2E-012 the card after P4 on a month-only next intervention shows
   await expect(card.locator('.poa-fields')).toContainText('09/2027');
 });
 
-/** Presses the button and returns the download it starts (in this tab or a new one). */
-async function downloadFrom(page: Page, context: BrowserContext, press: () => Promise<void>): Promise<Download> {
-  const downloadPromise = new Promise<Download>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('no download started within 30 s')), 30_000);
-    const settle = (download: Download) => {
-      clearTimeout(timer);
-      resolve(download);
-    };
-    context.once('page', (popup) => popup.once('download', settle));
-    page.once('download', settle);
-  });
-  await press();
-  const download = await downloadPromise;
-  for (const extra of context.pages()) if (extra !== page) await extra.close().catch(() => undefined);
-  await page.bringToFront();
-  return download;
-}
 
-test('@p0 11.10-E2E-001 the DOCX section 8 carries the action-plan table: the point prioritized in the UI with its suggested Prazo, a point without one as "—", derived rows after; the Sumário counts "1 ponto sem prazo"', async ({ page, context }) => {
+test('@p0 11.10-E2E-001 the DOCX section 8 carries the action-plan table: the point prioritized in the UI with its suggested Prazo, a point without one as "—", derived rows after; the Sumário counts "1 ponto sem prazo"', async ({ page }) => {
   test.setTimeout(420_000);
   const { relatorioId, points } = await setUp(page, {
     texts: ['Plaquetas de identificação ausentes.', 'Diagrama unifilar desatualizado.'],
@@ -360,10 +344,9 @@ test('@p0 11.10-E2E-001 the DOCX section 8 carries the action-plan table: the po
   await expect(generate).toBeEnabled({ timeout: 30_000 });
   await generate.click();
   await expect(toast(page)).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
-  const download = await downloadFrom(page, context, () => dialog.getByRole('button', { name: 'DOCX — abrir no Word' }).click());
-  const response = await page.request.get(download.url());
-  expect(response.status()).toBe(200);
-  const document = readZipEntries(Buffer.from(await response.body())).get('word/document.xml')!.toString('utf8');
+  const download = await downloadFrom(page, () => dialog.getByRole('button', { name: 'DOCX — abrir no Word' }).click());
+  expect(download.suggestedFilename()).toBe('relatorio-rev-1.docx');
+  const document = readZipEntries(await downloadBytes(download)).get('word/document.xml')!.toString('utf8');
 
   // From section 8's heading to the next one (E7-A6: never by position).
   const headings = [...document.matchAll(/<w:p(?:\s[^>]*)?>[\s\S]*?<\/w:p>/g)].filter((m) => m[0].includes('w:val="Heading1"'));
@@ -381,6 +364,13 @@ test('@p0 11.10-E2E-001 the DOCX section 8 carries the action-plan table: the po
   expect(rows[3]![0]).toBe('3');
   expect(rows[3]![1]).toMatch(/^Equipamento não ensaiado: /);
   expect(rows[3]!.slice(3)).toEqual(['—', '—', '—', '—', '—']);
+
+  // 11.10-PDF (E11-Q3): "PDF — enviar ao cliente" saves the issued PDF of the same revision.
+  // Its text (the action-plan headers unbroken, the rows) is read in the api's
+  // `rich-text.integration.test.ts`, where pdfjs lives.
+  const pdf = await downloadFrom(page, () => dialog.getByRole('button', { name: 'PDF — enviar ao cliente' }).click());
+  expect(pdf.suggestedFilename()).toBe('relatorio-rev-1.pdf');
+  expect((await downloadBytes(pdf)).subarray(0, 4).toString('latin1')).toBe('%PDF');
 });
 
 test('@p1 11.9-E2E-008 at 390 px the picker, Prazo and the card fields fit: the editor never scrolls sideways', async ({ page }) => {

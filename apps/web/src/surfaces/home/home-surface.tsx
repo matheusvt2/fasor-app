@@ -16,7 +16,7 @@ import {
 } from '@app/domain';
 import { useEffect, useId, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Button } from '../../components/index.ts';
+import { Button, LoadingNote } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { now } from '../../clock.ts';
 import { blockRows, clientRows, projectRows, relatorioRows, relatorioState, templateRows } from '../../db/home-store.ts';
@@ -67,11 +67,10 @@ export function HomeSurface() {
 
   const [filter, setFilter] = useState<RelatorioStatus | null>(null);
 
-  const relatorios = useLiveQuery(
-    () => (db === null ? Promise.resolve(NO_RELATORIOS) : relatorioRows(db)),
-    [db],
-    NO_RELATORIOS,
-  );
+  // Undefined until the device store answers: the list says "Carregando relatórios…" rather
+  // than flashing the empty state (Matheus, 2026-09-30).
+  const loadedRelatorios = useLiveQuery(() => (db === null ? Promise.resolve(NO_RELATORIOS) : relatorioRows(db)), [db]);
+  const relatorios = loadedRelatorios ?? NO_RELATORIOS;
   const projects = useLiveQuery(() => (db === null ? Promise.resolve(NO_PROJECTS) : projectRows(db)), [db], NO_PROJECTS);
   const clients = useLiveQuery(() => (db === null ? Promise.resolve(NO_CLIENTS) : clientRows(db)), [db], NO_CLIENTS);
   const templates = useLiveQuery(
@@ -182,7 +181,9 @@ export function HomeSurface() {
             <Button onPress={() => setCreating(true)}>{copy.home.newRelatorio}</Button>
           </div>
 
-          {cards.length === 0 ? (
+          {db !== null && loadedRelatorios === undefined ? (
+            <LoadingNote what={copy.loadingWhat.relatorios} />
+          ) : cards.length === 0 ? (
             // A pressed tile can read zero, so an empty list is not always an empty
             // device: say which of the two it is instead of leaving a blank area.
             <div className="home-empty">

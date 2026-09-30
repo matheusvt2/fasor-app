@@ -1,4 +1,6 @@
+import { PRODUTO } from '@app/domain';
 import { I18nProvider } from 'react-aria-components';
+import { LoadingNote } from './components/index.ts';
 import { createBrowserRouter, Navigate, Outlet, RouterProvider, type RouteObject } from 'react-router';
 import { copy } from './copy/pt-br.ts';
 import { BackTargetProvider } from './state/back-target.tsx';
@@ -32,14 +34,12 @@ import { TemplateComposerSurface } from './surfaces/templates/template-composer.
 import { TemplatesSurface } from './surfaces/templates/templates-surface.tsx';
 import { GallerySurface } from './surfaces/photos/gallery-surface.tsx';
 
-/** While the cookie is being read, render nothing decisive: never flash Login. */
+/** While the cookie is being read, render nothing decisive: never flash Login; say what loads (Matheus, 2026-09-30). */
 function Booting() {
   return (
     <main className="screen">
       <div className="content">
-        <p className="section-note" role="status">
-          {copy.common.loading}
-        </p>
+        <LoadingNote what={PRODUTO} />
       </div>
     </main>
   );
