@@ -40,7 +40,7 @@ function run(args: string[], env: Record<string, string> = {}) {
   return { status: result.status, out: `${result.stdout}${result.stderr}` };
 }
 
-const headers = (out: string) => [...out.matchAll(/^==> \d+\. (.*)$/gm)].map((match) => match[1]);
+const headers = (out: string) => [...out.matchAll(/^==> \d+\. (.*)$/gm)].map((match) => match[1] ?? '');
 
 describe('Story 11.8 infra/bin/deploy --dry-run', () => {
   it('runs build, push, migrate, roll, health and record in that order, touching nothing', () => {
