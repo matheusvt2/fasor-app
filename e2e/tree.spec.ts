@@ -106,11 +106,11 @@ test('@p0 4.4-E2E-001 section 9 at 1280: chevrons and Left/Right, coluna and equ
   await expect(page.getByRole('dialog', { name: 'Adicionar bloco' }).getByText('Em: 1° Subsolo › Coluna 17')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  // "Mover para…" is hidden until Epic 11: absent from an open equipment Overflow.
+  // Story 11.2: "Mover para…" sits in the equipment Overflow, after "Descer" (DESIGN.md Block card).
   await menuOf(page, 'SEC-C01').click();
   await expect(page.getByRole('menu')).toBeVisible();
   await expect(page.getByRole('menuitem', { name: 'Duplicar' })).toBeVisible();
-  await expect(page.getByRole('menuitem', { name: /Mover para/ })).toHaveCount(0);
+  await expect(page.getByRole('menuitem', { name: 'Mover para…' })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('menu')).toHaveCount(0);
 

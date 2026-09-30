@@ -51,6 +51,8 @@ export * from './relatorio/location-path.ts';
 export * from './relatorio/tree.ts';
 export * from './relatorio/resume.ts';
 export * from './relatorio/block-texts.ts';
+export * from './relatorio/move.ts';
+export * from './templates/from-relatorio.ts';
 export * from './relatorio/cabine.ts';
 export * from './relatorio/sheet-progress.ts';
 export * from './relatorio/screen-label.ts';

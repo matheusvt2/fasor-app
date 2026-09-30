@@ -26,6 +26,7 @@ import { PanelCapture, type PanelCaptureHandle } from './panel-capture.tsx';
 import { blockOpen, blockRow, blockTrigger, locationChevron, useTreeActions, type TreeActions, type TreeContext } from './tree-actions.ts';
 import { NameDialog, TagDialog } from './tag-dialogs.tsx';
 import { NotTestedDialog } from './not-tested-dialog.tsx';
+import { MoveBlockDialog } from './move-block-dialog.tsx';
 
 /*
  * Stories 4.4 and 4.5: the location tree, ONE component in two presentations
@@ -85,6 +86,7 @@ type Dialog =
   | { kind: 'duplicate'; node: TreeEquipmentNode }
   | { kind: 'rename-tag'; node: TreeEquipmentNode }
   | { kind: 'not-tested'; node: TreeEquipmentNode }
+  | { kind: 'move'; node: TreeEquipmentNode }
   | { kind: 'rename-location'; node: TreeLocationNode };
 
 /** What every row of one render shares. */
@@ -416,6 +418,21 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
           }}
         />
       ) : null}
+      {dialog?.kind === 'move' ? (
+        <MoveBlockDialog
+          name={dialog.node.name}
+          blockId={dialog.node.blockId}
+          locations={snapshot.locations}
+          blocks={snapshot.blocks}
+          equipment={equipment}
+          onClose={() => closeDialog(() => blockTrigger(blockRow(rootRef.current, dialog.node.blockId)))}
+          onSubmit={(targetId, rename) => {
+            const node = dialog.node;
+            setDialog(null);
+            actions.moveToLocation(node, targetId, rename);
+          }}
+        />
+      ) : null}
       {dialog?.kind === 'rename-location' ? (
         <NameDialog
           title={copy.sumario.tagDialogs.renameTitle(dialog.node.name)}
@@ -570,6 +587,8 @@ function equipmentMenu(node: TreeEquipmentNode, shared: Shared, reorder: Reorder
   const items: OverflowMenuAction[] = [{ id: 'add-below', label: s.addBelow, onAction: () => shared.openPalette({ locationId: node.locationId, anchorBlockId: node.blockId }) }];
   if (node.position > 1) items.push({ id: 'up', label: s.moveUp, onAction: () => void reorder.moveTo(node.position - 2, trigger) });
   if (node.position < node.siblings) items.push({ id: 'down', label: s.moveDown, onAction: () => void reorder.moveTo(node.position, trigger) });
+  // Story 11.2 (EXPERIENCE.md: "Mover para…" beside "Subir · Descer" wherever a location can change).
+  items.push({ id: 'move-to', label: t.moveTo, onAction: () => shared.openDialog({ kind: 'move', node }) });
   items.push({ id: 'duplicate', label: s.duplicate, onAction: () => shared.openDialog({ kind: 'duplicate', node }) });
   // DESIGN.md Block card row: "Marcar não ensaiado" right after "Duplicar"; kept available
   // whatever `concluded_by` holds (AR-17 precedence lets not_tested override it), hidden

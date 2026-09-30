@@ -1,6 +1,7 @@
 import type { BlockRow, EquipmentRow, RelatorioSnapshot } from '@app/domain';
 import { copy } from '../../copy/pt-br.ts';
 import { NotTestedDialog } from '../relatorio/not-tested-dialog.tsx';
+import { MoveBlockDialog } from '../relatorio/move-block-dialog.tsx';
 import { TagDialog } from '../relatorio/tag-dialogs.tsx';
 import { PhotoCaptureSheet } from '../photos/capture-sheet.tsx';
 import { PhotoCaptionDialog } from '../photos/photo-caption-dialog.tsx';
@@ -28,7 +29,7 @@ export function FichaDialogs({
   actions: FichaActions;
 }) {
   const { importTarget, setImportTarget, photoTarget, captioning, setCaptioning, saveCaption } = photos;
-  const { renaming, setRenaming, rename, notTestedDialogOpen, setNotTestedDialogOpen, markNotTested } = actions;
+  const { renaming, setRenaming, rename, notTestedDialogOpen, setNotTestedDialogOpen, markNotTested, moveDialogOpen, setMoveDialogOpen, moveTo } = actions;
   return (
     <>
       {renaming && own !== undefined ? (
@@ -69,6 +70,18 @@ export function FichaDialogs({
             setNotTestedDialogOpen(false);
             markNotTested(reason, text);
           }}
+        />
+      ) : null}
+
+      {moveDialogOpen ? (
+        <MoveBlockDialog
+          name={tag === '' ? block.block_type : tag}
+          blockId={block.id}
+          locations={snapshot.locations}
+          blocks={snapshot.blocks}
+          equipment={equipment}
+          onClose={() => setMoveDialogOpen(false)}
+          onSubmit={moveTo}
         />
       ) : null}
     </>

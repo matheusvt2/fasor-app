@@ -8,6 +8,7 @@ import {
   locationBlocks,
   moveAnnouncement,
   moveLandingIndex,
+  movePlan,
   newBlockOrderKey,
   newEquipmentBlock,
   newLocation,
@@ -23,6 +24,7 @@ import {
   toIso,
   type BlockRow,
   type EquipmentRow,
+  type MovePlan,
   type OpDraft,
   type RelatorioSummary,
   type TreeEquipmentNode,
@@ -40,7 +42,7 @@ import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { notTestedOp } from '../ficha/ficha-ops.ts';
 import type { PaletteCreate, PanelPhotoInput } from './block-palette-field.tsx';
-import type { RelatorioEditor } from './relatorio-editor.ts';
+import type { Build, RelatorioEditor } from './relatorio-editor.ts';
 import { focusAfterRemoval, restoreFocus } from '../../input/focus-restore.ts';
 import {
   createBlockOp,
@@ -87,6 +89,8 @@ export interface TreeActions {
   openSheet: (blockId: string) => void;
   moveBlock: (node: TreeEquipmentNode, toIndex: number) => Promise<void>;
   moveLocation: (node: TreeLocationNode, toIndex: number) => Promise<void>;
+  /** Story 11.2: "Mover para…" to another location, with the TAG re-suggested when `rename`. */
+  moveToLocation: (node: TreeEquipmentNode, targetId: string, rename: boolean) => void;
   createBlock: (input: PaletteCreate) => void;
   removeBlock: (node: TreeEquipmentNode) => void;
   duplicateBlock: (node: TreeEquipmentNode, tag: string) => void;
@@ -212,6 +216,40 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
       );
     },
     [edit, relatorioId, showToast, t.locationGone, settle, undoable, host],
+  );
+
+  const moveToLocation = useCallback(
+    (node: TreeEquipmentNode, targetId: string, rename: boolean) => {
+      void commitMove(edit, { relatorioId, projectId, blockId: node.blockId, targetId, rename })
+        .then(({ batch, plan }) => {
+          if (batch === null || plan.kind !== 'move') {
+            showToast(plan.kind === 'refused' && plan.reason === 'location-gone' ? t.locationGone : t.gone);
+            return;
+          }
+          host.reveal(targetId);
+          // Said, and the toast shown, in the render that draws the row under its new
+          // location (Q7); the focus goes to the moved row's open button once drawn.
+          settle(
+            () => {
+              const row = blockRow(host.root(), node.blockId);
+              return row === null || row.closest(`li[data-location-id="${esc(targetId)}"]`) !== null;
+            },
+            plan.text,
+            () => {
+              restoreFocus(() => blockOpen(host.root(), node.blockId), { mode: 'settled' });
+              // "Desfazer" puts it back: the focus goes to its Overflow trigger under the old location.
+              undoable(
+                plan.text,
+                batch,
+                () => blockTrigger(blockRow(host.root(), node.blockId)),
+                () => host.reveal(node.locationId),
+              );
+            },
+          );
+        })
+        .catch(() => undefined);
+    },
+    [edit, relatorioId, projectId, showToast, t.gone, t.locationGone, host, settle, undoable],
   );
 
   /** One equipment + block pair, as the palette or "Duplicar" asks for it; `copyFrom` names the block whose config is copied. */
@@ -473,8 +511,8 @@ export function useTreeActions(context: TreeContext, host: TreeHost): TreeAction
   );
 
   return useMemo(
-    () => ({ openSheet, moveBlock, moveLocation, createBlock, removeBlock, duplicateBlock, renameTag, markNotTested, addLocation, renameLocation, toggleAgrupar }),
-    [openSheet, moveBlock, moveLocation, createBlock, removeBlock, duplicateBlock, renameTag, markNotTested, addLocation, renameLocation, toggleAgrupar],
+    () => ({ openSheet, moveBlock, moveLocation, moveToLocation, createBlock, removeBlock, duplicateBlock, renameTag, markNotTested, addLocation, renameLocation, toggleAgrupar }),
+    [openSheet, moveBlock, moveLocation, moveToLocation, createBlock, removeBlock, duplicateBlock, renameTag, markNotTested, addLocation, renameLocation, toggleAgrupar],
   );
 }
 
@@ -526,4 +564,29 @@ export function restoreSheetOps(
   const live = equipment.some((row) => row.id === equipmentId && row.removed_at === null);
   if (equipmentId !== null && !live) ops.push(equipmentRemovedOp(author, projectId, equipmentId, false));
   return ops;
+}
+
+/**
+ * Story 11.2: the one write of "Mover para…", shared by the tree and the sheet header. The
+ * kernel's `movePlan` runs on the fresh rows inside the edit (the block or the target
+ * removed meanwhile refuses; a TAG taken meanwhile is re-suggested), and one batch carries
+ * `block/{id}/location_id`, `block/{id}/order_key` and, when accepted, `equipment/{id}/tag`.
+ */
+export async function commitMove(
+  edit: (build: Build) => Promise<string | null>,
+  input: { relatorioId: string; projectId: string; blockId: string; targetId: string; rename: boolean },
+): Promise<{ batch: string | null; plan: MovePlan }> {
+  const out: { plan: MovePlan } = { plan: { kind: 'refused', reason: 'gone' } };
+  const batch = await edit((blocks, by, fresh) => {
+    const plan = movePlan({ blocks, locations: fresh.locations, equipment: fresh.equipment, blockId: input.blockId, targetId: input.targetId, rename: input.rename });
+    out.plan = plan;
+    if (plan.kind !== 'move') return null;
+    const ops: OpDraft[] = [
+      putBlockOp(by, input.relatorioId, plan.blockId, 'location_id', plan.targetId),
+      putBlockOp(by, input.relatorioId, plan.blockId, 'order_key', plan.orderKey),
+    ];
+    if (plan.rename !== null) ops.push(putEquipmentTagOp(by, input.projectId, plan.rename.equipmentId, plan.rename.tag));
+    return ops;
+  });
+  return { batch, plan: out.plan };
 }
