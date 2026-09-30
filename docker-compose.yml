@@ -36,6 +36,10 @@ x-app-env: &app-env
   # An unset NODE_ENV is non-production for config.ts; only `api-prod` sets it.
   WORKER: ${WORKER:-1}
   GENERATE_FAULT: ${GENERATE_FAULT:-}
+  # Security review 2026-09-30 (E11-A5): the sign-in and push request limits. Unset they are
+  # off here (the gates sign in and push far faster than a person) and on in production;
+  # `on` turns them on locally. Their sizes and the JSON body cap default in config.ts.
+  RATE_LIMIT: ${RATE_LIMIT:-}
   npm_config_store_dir: /pnpm-store
 
 services:
@@ -114,8 +118,11 @@ services:
       # until Matheus approves vendor audio (Q18).
       VITE_SPEECH_ENGINE: ${VITE_SPEECH_ENGINE:-none}
     command: pnpm --filter @app/web dev
+    # Security review 2026-09-30: loopback only. Vite listens on every interface inside the
+    # container (`host: true`, which the published port needs), and a tablet on the LAN
+    # reaches the app through Caddy (HTTPS, docs/tablet-https-setup.md), never the dev server.
     ports:
-      - '5173:5173'
+      - '127.0.0.1:5173:5173'
     depends_on:
       install: { condition: service_completed_successfully }
       api: { condition: service_started }
@@ -172,6 +179,8 @@ services:
     environment:
       <<: *app-env
       # The prod profile never honours GENERATE_FAULT (config.ts reads it only outside production).
+      # Production also refuses the public default SESSION_SECRET above: set your own in .env
+      # (README "Running the prod profile"), and it turns the request limits on (RATE_LIMIT).
       NODE_ENV: production
     command: pnpm --filter @app/api start
     ports:

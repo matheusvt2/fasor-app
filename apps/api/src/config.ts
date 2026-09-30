@@ -1,6 +1,12 @@
 import { z } from 'zod';
 import { logError } from './log.ts';
 
+/**
+ * The session secrets committed to this public repository (`docker-compose.yml`,
+ * `.env.example`): anyone can forge a session cookie signed with one of them.
+ */
+export const KNOWN_DEV_SESSION_SECRETS: ReadonlySet<string> = new Set(['change-me-change-me-change-me-32ch']);
+
 /** Compose passes an unset variable as `''` (`${VAR:-}`); an empty value is unset. */
 const unsetWhenEmpty = (value: unknown) => (value === '' ? undefined : value);
 
@@ -54,8 +60,38 @@ export const configSchema = z
      * `NODE_ENV !== 'production'` (`main.ts` drops it otherwise). An empty value is unset.
      */
     GENERATE_FAULT: z.preprocess(unsetWhenEmpty, z.enum(['libreoffice_timeout']).optional()),
+    /**
+     * Security review 2026-09-30 (E11-A5): the request limits of `http/rate-limit.ts`. Unset,
+     * they are on in production and off elsewhere, where the gates sign in and push far faster
+     * than a person; `on` or `off` overrides that.
+     */
+    RATE_LIMIT: z.preprocess(unsetWhenEmpty, z.enum(['on', 'off']).optional()),
+    /** Sign-in attempts per client address, and per e-mail, in one window. */
+    SIGN_IN_RATE_LIMIT_MAX: z.preprocess(unsetWhenEmpty, z.coerce.number().int().positive().default(10)),
+    SIGN_IN_RATE_LIMIT_WINDOW_SECONDS: z.preprocess(unsetWhenEmpty, z.coerce.number().int().positive().default(300)),
+    /** Pushes (`POST /api/sync/ops`) per signed-in user in one window. */
+    PUSH_RATE_LIMIT_MAX: z.preprocess(unsetWhenEmpty, z.coerce.number().int().positive().default(120)),
+    PUSH_RATE_LIMIT_WINDOW_SECONDS: z.preprocess(unsetWhenEmpty, z.coerce.number().int().positive().default(60)),
+    /**
+     * `1`: the api sits behind one reverse proxy (Caddy) and the client address is the last
+     * `X-Forwarded-For` entry; `0`: the socket address. Only the rate limits read it.
+     */
+    TRUST_PROXY: z.preprocess(unsetWhenEmpty, z.enum(['0', '1']).default('1')),
+    /**
+     * The largest body a JSON route of the api reads (the push, the generate barrier and the
+     * reread); `PUT /api/files/:id` keeps its own 25 MB cap and `/api/auth/*` a 64 KiB one.
+     */
+    API_BODY_LIMIT_BYTES: z.preprocess(unsetWhenEmpty, z.coerce.number().int().positive().default(16 * 1024 * 1024)),
   })
   .superRefine((config, ctx) => {
+    // The compose default is public (this repository is): a production process refuses it.
+    if (config.NODE_ENV === 'production' && KNOWN_DEV_SESSION_SECRETS.has(config.SESSION_SECRET)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['SESSION_SECRET'],
+        message: 'is the public development default; production needs its own secret',
+      });
+    }
     // Half a key pair is a misconfiguration, never a silent fall back to the default chain.
     const pair = ['S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY'] as const;
     const [first, second] = pair.map((name) => config[name] !== undefined);
@@ -69,6 +105,11 @@ export const configSchema = z
   });
 
 export type Config = z.infer<typeof configSchema>;
+
+/** Whether the request limits run: `RATE_LIMIT` when set, else on exactly in production. */
+export function rateLimitEnabled(config: Pick<Config, 'RATE_LIMIT' | 'NODE_ENV'>): boolean {
+  return config.RATE_LIMIT === undefined ? config.NODE_ENV === 'production' : config.RATE_LIMIT === 'on';
+}
 
 export class ConfigError extends Error {
   readonly variables: string[];
