@@ -3,7 +3,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { ESLint } from 'eslint';
 import { describe, expect, it } from 'vitest';
-import { parseArgs, resolveCompanyId, validateCompanyId, wantsSampleRelatorio, wantsStandardTemplate } from './seed-users.ts';
+import { parseArgs, resolveCompanyId, resolvePassword, validateCompanyId, wantsSampleRelatorio, wantsStandardTemplate } from './seed-users.ts';
 import { assertInCompose } from './test-reset.ts';
 
 const root = resolve(import.meta.dirname, '..');
@@ -138,6 +138,15 @@ describe('seed-users CLI', () => {
     expect(result.status).not.toBe(0);
     expect(result.stderr).toMatch(/uuidv7/);
     expect(result.stderr).toMatch(/--company-id [0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/);
+  });
+
+  it('reads the password from --password or SEED_USER_PASSWORD, never both (E11-A4)', () => {
+    expect(resolvePassword(parseArgs(['--password', 'from-flag-123']), {})).toBe('from-flag-123');
+    expect(resolvePassword(parseArgs(['--email', 'a@b.c']), { SEED_USER_PASSWORD: 'from-env-12345' })).toBe('from-env-12345');
+    expect(() => resolvePassword(parseArgs(['--password', 'x-12345678']), { SEED_USER_PASSWORD: 'y-12345678' })).toThrow(/not both/);
+    expect(() => resolvePassword(parseArgs(['--email', 'a@b.c']), { SEED_USER_PASSWORD: '' })).toThrow(/missing --password \(or SEED_USER_PASSWORD\)/);
+    // A refusal never echoes the password it was given.
+    expect(() => resolvePassword(parseArgs(['--password', 'secret-value-1']), { SEED_USER_PASSWORD: 'secret-value-2' })).not.toThrow(/secret-value/);
   });
 
   it('parses long flags and bare switches', () => {
