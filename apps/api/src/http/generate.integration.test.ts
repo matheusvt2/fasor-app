@@ -9,6 +9,7 @@ import {
   makeOp,
   notCaughtUpDetailsSchema,
   objectKey,
+  PDF_MIME,
   revisionRowSchema,
   SERVER_DEVICE_ID,
   syncPushResponseSchema,
@@ -19,6 +20,7 @@ import {
 } from '@app/domain';
 import { BLOCK_CHAVE_ID, EQUIPMENT_CHAVE_ID, portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import { and, eq } from 'drizzle-orm';
+import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import sharp from 'sharp';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createAuth } from '../auth/auth.ts';
@@ -58,6 +60,22 @@ const auth = createAuth({
 });
 
 const RELATORIO_ID = SMALL_FIXTURE_RELATORIO_ID;
+
+/** Every page's text of a PDF, joined (pdfjs's worker source is set by `pdf-outline.ts`, imported above). */
+async function readPdfText(pdf: Buffer): Promise<string> {
+  const task = getDocument({ data: new Uint8Array(pdf), useSystemFonts: true, verbosity: 0 });
+  const doc = await task.promise;
+  try {
+    const pages: string[] = [];
+    for (let n = 1; n <= doc.numPages; n++) {
+      const content = await (await doc.getPage(n)).getTextContent();
+      pages.push(content.items.map((item) => ('str' in item ? item.str : '')).join(' '));
+    }
+    return pages.join('\n');
+  } finally {
+    await task.destroy();
+  }
+}
 
 type Company = (typeof TEST_SEED.companies)[number];
 
@@ -469,6 +487,23 @@ describe('4.8-INT-002 POST /api/relatorios/:id/generate and GET /api/revisions/:
     expect(line).toBeLessThan(next);
   }, 60_000);
 
+  it('11.1-INT serves the stored PDF with the download headers; it is the revision, Rev. 1 printed', async () => {
+    const res = await authed(companyA, `/api/revisions/${firstRevision.id}/pdf`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe(PDF_MIME);
+    expect(res.headers.get('content-disposition')).toBe('attachment; filename="relatorio-rev-1.pdf"');
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff');
+    const bytes = Buffer.from(await res.arrayBuffer());
+    expect(bytes.subarray(0, 4).toString('latin1')).toBe('%PDF');
+    expect(res.headers.get('content-length')).toBe(String(bytes.length));
+    // The bytes the job stored, served as is.
+    const stored = await getObject(s3, config.S3_BUCKET, objectKey(companyA.companyId, 'pdf', firstRevision.pdf_file_id));
+    const chunks: Buffer[] = [];
+    for await (const chunk of stored!.body) chunks.push(chunk as Buffer);
+    expect(bytes.equals(Buffer.concat(chunks))).toBe(true);
+    expect((await readPdfText(bytes)).replace(/\s+/g, ' ')).toMatch(/Rev\.\s*1(?!\d)/);
+  }, 60_000);
+
   it('answers unchanged with the last revision when nothing was edited since its snapshot', async () => {
     const res = await generate(companyA, { last_op_id: null, file_ids_expected: [] });
     expect(res.status).toBe(200);
@@ -602,5 +637,11 @@ describe('4.8-INT-002 POST /api/relatorios/:id/generate and GET /api/revisions/:
     expect(otherGenerate.status).toBe(404);
     expect((await call(`/api/revisions/${firstRevision.id}/docx`)).status).toBe(401);
     expect((await call(`/api/revisions/not-a-uuid/docx`, { headers: { cookie: cookies.get(companyA.email) ?? '' } })).status).toBe(404);
+    // Story 11.1: the PDF route answers the same way.
+    const otherPdf = await authed(companyB, `/api/revisions/${firstRevision.id}/pdf`);
+    expect(otherPdf.status).toBe(404);
+    expect(errorResponseSchema.parse(await otherPdf.json()).code).toBe('not_found');
+    expect((await call(`/api/revisions/${firstRevision.id}/pdf`)).status).toBe(401);
+    expect((await call(`/api/revisions/not-a-uuid/pdf`, { headers: { cookie: cookies.get(companyA.email) ?? '' } })).status).toBe(404);
   });
 });

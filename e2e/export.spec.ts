@@ -1,4 +1,4 @@
-import { DOCX_MIME, instantiateTemplate, standardTemplate, type OpDraft } from '@app/domain';
+import { DOCX_MIME, instantiateTemplate, PDF_MIME, standardTemplate, type OpDraft } from '@app/domain';
 import type { BrowserContext, Download, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-fixture.ts';
@@ -51,7 +51,7 @@ async function openFixtureSumario(page: Page): Promise<void> {
 }
 
 /**
- * Presses "DOCX — abrir no Word" (or a row's "DOCX") and returns the download it starts in
+ * Presses "DOCX — abrir no Word" or "PDF — enviar ao cliente" (or a row's "DOCX" or "PDF") and returns the download it starts in
  * the new tab. The listener is attached before the click: the download can begin before a
  * later `waitForEvent` would be registered.
  */
@@ -72,11 +72,23 @@ async function downloadFrom(page: Page, context: BrowserContext, press: () => Pr
   return download;
 }
 
-test('@p0 4.8-E2E-001 a relatório born on Home: the Sumário\'s "Gerar relatório" generates revision 1, the DOCX downloads, the row lists it, and a second press answers the same revision', async ({
+test('@p0 4.8-E2E-001 11.1-E2E-001 a relatório born on Home: the Sumário\'s "Gerar relatório" generates revision 1, the DOCX and the PDF download and share, the row lists it, and a second press answers the same revision', async ({
   page,
   context,
 }) => {
   test.setTimeout(300_000);
+  // Story 11.1: a recording share sheet, as a mobile browser has one; installed before the
+  // first navigation so the dialog sees it and renders the share buttons.
+  await page.addInitScript(() => {
+    const shares: unknown[] = [];
+    (window as unknown as { __shares: unknown[] }).__shares = shares;
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      value: async (data: unknown) => {
+        shares.push(data);
+      },
+    });
+  });
   await resetEmpresaB(account, { standard: true });
   await signIn(page, account.email);
   await expect(page.locator('.shortcut-sub', { hasText: '1 template' })).toBeVisible({ timeout: 30_000 });
@@ -126,7 +138,7 @@ test('@p0 4.8-E2E-001 a relatório born on Home: the Sumário\'s "Gerar relatór
   await expect(dialog(page).locator('.gen-progress')).toContainText('Gerando revisão 1…');
 
   // The revision arrives: the toast, the result block, the row.
-  await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX', { timeout: JOB_TIMEOUT });
+  await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
   await expect(modal.getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeVisible();
   await expect(modal.locator('.t-meta time')).toHaveText(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/);
   // A Rascunho relatório has no `generate` row in the status table: the pill stays.
@@ -150,6 +162,25 @@ test('@p0 4.8-E2E-001 a relatório born on Home: the Sumário\'s "Gerar relatór
   // The Revisões row's own "DOCX" is the same file.
   const again = await downloadFrom(page, context, () => row.locator('.rev-files').getByRole('button', { name: 'DOCX' }).click());
   expect(again.url()).toBe(download.url());
+
+  // Story 11.1: "PDF — enviar ao cliente" downloads the revision's closed PDF from the api.
+  const pdf = await downloadFrom(page, context, () => modal.getByRole('button', { name: 'PDF — enviar ao cliente' }).click());
+  expect(pdf.url()).toMatch(/\/api\/revisions\/[0-9a-f-]{36}\/pdf$/);
+  expect(pdf.url().replace(/\/pdf$/, '')).toBe(download.url().replace(/\/docx$/, ''));
+  expect(pdf.suggestedFilename()).toBe('relatorio-rev-1.pdf');
+  const pdfResponse = await page.request.get(pdf.url());
+  expect(pdfResponse.status()).toBe(200);
+  expect(pdfResponse.headers()['content-type']).toBe(PDF_MIME);
+  expect((await pdfResponse.body()).subarray(0, 4).toString('latin1')).toBe('%PDF');
+  // The Revisões row's own "PDF" is the same file.
+  const pdfAgain = await downloadFrom(page, context, () => row.locator('.rev-files').getByRole('button', { name: 'PDF' }).click());
+  expect(pdfAgain.url()).toBe(pdf.url());
+  // "Compartilhar PDF" hands the system share sheet the revision's title and the absolute PDF URL.
+  await modal.getByRole('button', { name: 'Compartilhar PDF' }).click();
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __shares: unknown[] }).__shares))
+    .toEqual([{ title: 'Revisão 1 pronta', url: pdf.url() }]);
+  expect(new URL(pdf.url()).origin).toBe(new URL(page.url()).origin);
 
   // Esc closes; the focus is back on the foot's button.
   await page.keyboard.press('Escape');
@@ -190,7 +221,7 @@ test('@p0 4.8-E2E-004 an Em campo relatório: generate moves it to Em revisão, 
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
 
   // The revision lands with nobody watching the dialog: the toast, and `statusTable(Em revisão, issue)`.
-  await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX', { timeout: JOB_TIMEOUT });
+  await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
   await expect(headerPill(page)).toHaveText('Emitido');
   await footButton(page).click();
   await expect(dialog(page).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeVisible();
@@ -293,7 +324,7 @@ test('@p0 E4-E2E-001 generate, edit, Em revisão, generate revision 2: listed an
   await footButton(page).click();
   await expect(reason(page)).toHaveText(IDLE_1);
   await generateButton(page).click();
-  await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX', { timeout: JOB_TIMEOUT });
+  await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
   await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Emitido');
   await escapeDialog(page);
   await expect(headerPill(page)).toHaveText('Emitido');
@@ -320,7 +351,7 @@ test('@p0 E4-E2E-001 generate, edit, Em revisão, generate revision 2: listed an
   await footButton(page).click();
   await expect(reason(page)).toHaveText(IDLE_2);
   await generateButton(page).click();
-  await expect(page.getByTestId('toast')).toHaveText('Revisão 2 pronta — DOCX', { timeout: JOB_TIMEOUT });
+  await expect(page.getByTestId('toast')).toHaveText('Revisão 2 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
   await expect(dialog(page).getByRole('heading', { level: 2, name: 'Revisão 2 pronta' })).toBeVisible();
   await expect(dialog(page).locator('.revision-row')).toHaveCount(2);
   await expect(dialog(page).locator('.row-wrap .status-pill')).toHaveText('Emitido');
