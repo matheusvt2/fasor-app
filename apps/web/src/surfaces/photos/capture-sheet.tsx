@@ -205,6 +205,12 @@ interface Batch {
 }
 
 const GERAL: ImportTarget = { blockId: null, itemKey: null, caption: null };
+/**
+ * Ledger 1131 (contract 14): a gallery batch is saved as "Geral" with no reading; its caption
+ * reading is asked for once the batch is answered or closed (`assignPhotoBatch`), so a photo
+ * later marked, captioned or given a sheet is never sent to the prose provider.
+ */
+const GERAL_BATCH: ImportTarget = { ...GERAL, reading: null };
 
 /** "Adicionar N fotos": the sheet, the caption and (Story 9.3) the "Pessoas na foto" mark of the whole batch. */
 interface BatchAnswer {
@@ -251,7 +257,7 @@ function SheetBody({
       return;
     }
     setBatch({ count: images.length, skipped, ids: null });
-    void importFiles(images, GERAL, { quiet: true }).then(
+    void importFiles(images, GERAL_BATCH, { quiet: true }).then(
       (result) => {
         const ids = result?.saved ?? [];
         const left = skipped + (result?.skipped ?? images.length);
@@ -289,15 +295,12 @@ function SheetBody({
 
   const finish = (ids: string[], skipped: number, target: BatchAnswer | null) => {
     answered.current = true;
-    if (target === null) {
-      const text = photosKeptGeneralText(ids.length, skipped);
-      if (text !== null) showToast(text);
-      return;
-    }
     if (db === null || user === null) return;
-    void assignPhotoBatch(db, { id: user.id, companyId: user.companyId }, relatorioId, ids, target.blockId, target.caption, target.peopleInPhoto).then(
+    // "Cancelar" keeps the batch as "Geral": only the caption reading puts (ledger 1131).
+    const answer = target ?? { blockId: null, caption: null, peopleInPhoto: false };
+    void assignPhotoBatch(db, { id: user.id, companyId: user.companyId }, relatorioId, ids, answer.blockId, answer.caption, answer.peopleInPhoto).then(
       () => {
-        const text = photosImportedText(ids.length, skipped);
+        const text = target === null ? photosKeptGeneralText(ids.length, skipped) : photosImportedText(ids.length, skipped);
         if (text !== null) showToast(text);
       },
       (error: unknown) => showToast(writeErrorText(error)),

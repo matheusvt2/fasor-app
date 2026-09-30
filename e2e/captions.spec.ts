@@ -9,8 +9,10 @@ import { syncNowAndReturn } from './support/sync.ts';
 
 /*
  * 9.3-E2E: vision captions on the gallery, driven as a person would. The photos are added to
- * the gallery as "Geral" (no sheet, no caption), so their creates ask for a caption reading;
- * their bytes stay on the device (`holdPhotoBytes`: no reading job runs), and the suggestions
+ * the gallery as "Geral" (no sheet, no caption); ledger 1131 (contract 14): their creates ask
+ * for no reading while "De qual equipamento?" is open, and the answer (or "Cancelar") asks for
+ * the caption reading of each photo it leaves with no context with a `reading_kind` put; their
+ * bytes stay on the device (`holdPhotoBytes`: no reading job runs), and the suggestions
  * are written the way the reading job writes them (`pushSuggestion`) and pulled with
  * "Sincronizar agora". From there: the tile's Suggestion block and "Confirmar", "Confirmar
  * todas" as one batch, the composer's "Usar", a typed caption that discards, and the "Pessoas
@@ -62,10 +64,16 @@ async function pickFiles(page: Page, files: FilePayload[]): Promise<Locator> {
   return which;
 }
 
+/** The `file/{id}/reading_kind` puts in the outbox. */
+const readingPuts = async (page: Page): Promise<OutboxRow[]> => (await outbox(page)).filter((op) => op.kind === 'put' && op.path.endsWith('/reading_kind'));
+
 const byCapture = (photos: PhotoRowRecord[]) => [...photos].sort((a, b) => (a.local_seq === b.local_seq ? (a.id < b.id ? -1 : 1) : a.local_seq - b.local_seq));
 
-/** Resets Empresa B, opens the gallery and adds `n` pictures as "Geral" ("Cancelar" on the batch). */
-async function geralPhotos(page: Page, n: number): Promise<{ relatorioId: string; photos: PhotoRowRecord[] }> {
+/**
+ * Resets Empresa B, opens the gallery and adds `n` pictures as "Geral" ("Cancelar" on the batch);
+ * `whileOpen` runs once the batch is saved and the sheet is still open.
+ */
+async function geralPhotos(page: Page, n: number, whileOpen?: () => Promise<void>): Promise<{ relatorioId: string; photos: PhotoRowRecord[] }> {
   await holdPhotoBytes(page);
   const { relatorioId } = await openChaveSheet(page, account, database);
   await openGallery(page, relatorioId);
@@ -73,8 +81,10 @@ async function geralPhotos(page: Page, n: number): Promise<{ relatorioId: string
   for (let i = 0; i < n; i++) files.push(await plainJpeg(page, `geral-${i}.jpg`));
   const which = await pickFiles(page, files);
   await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(n);
+  if (whileOpen !== undefined) await whileOpen();
   await which.getByRole('button', { name: 'Cancelar' }).click();
   await expect(which).toHaveCount(0);
+  await expect.poll(async () => (await readingPuts(page)).length, { timeout: 15_000 }).toBe(n);
   return { relatorioId, photos: byCapture(await devicePhotos(page, database)) };
 }
 
@@ -89,14 +99,22 @@ async function suggestCaptions(page: Page, relatorioId: string, photos: readonly
   return ids;
 }
 
-test('@p0 9.3-E2E-001 a Geral import asks for a caption reading; the suggested caption shows on its tile and nothing is written until Confirmar; Sumário row 7 lists them; "Confirmar todas" is one batch; 390 px keeps the banner in the page', async ({ page }) => {
+test('@p0 9.3-E2E-001 a Geral import asks for a caption reading once closed; the suggested caption shows on its tile and nothing is written until Confirmar; Sumário row 7 lists them; "Confirmar todas" is one batch; 390 px keeps the banner in the page', async ({ page }) => {
   test.setTimeout(240_000);
-  const { relatorioId, photos } = await geralPhotos(page, 3);
+  const { relatorioId, photos } = await geralPhotos(page, 3, async () => {
+    // Ledger 1131: while "De qual equipamento?" is open the creates ask for no reading.
+    const creates = (await outbox(page)).filter((op) => op.kind === 'create' && /^file\/[^/]+$/.test(op.path));
+    expect(creates).toHaveLength(3);
+    for (const op of creates) expect(op.value).toMatchObject({ block_id: null, caption: null, reading_kind: null, reading_target: null, reading_status: 'none', people_in_photo: false });
+    expect(await readingPuts(page)).toEqual([]);
+  });
 
-  // Each create asks for the vision caption: no sheet, no caption, no people mark.
-  const creates = (await outbox(page)).filter((op) => op.kind === 'create' && /^file\/[^/]+$/.test(op.path));
-  expect(creates).toHaveLength(3);
-  for (const op of creates) expect(op.value).toMatchObject({ block_id: null, caption: null, reading_kind: 'caption', reading_target: null, reading_status: 'queued', people_in_photo: false });
+  // "Cancelar" keeps them as "Geral" with no context: one batch of caption puts, one per photo.
+  const asked = await readingPuts(page);
+  expect(asked.map((op) => op.path).sort()).toEqual(photos.map((photo) => `file/${photo.id}/reading_kind`).sort());
+  expect(asked.every((op) => op.value === 'caption')).toBe(true);
+  expect(new Set(asked.map((op) => op.batch_id)).size).toBe(1);
+  for (const photo of await devicePhotos(page, database)) expect(photo.reading_status).toBe('queued');
 
   const ids = await suggestCaptions(page, relatorioId, photos);
 
@@ -214,6 +232,9 @@ test('@p0 9.3-E2E-003 "Pessoas na foto" in an import batch marks every photo of 
   expect(marks.every((op) => op.value === true)).toBe(true);
   expect(new Set(marks.map((op) => op.batch_id)).size).toBe(1);
   for (const photo of batch) await expect(itemOf(page, photo.id).getByRole('button', { name: 'Pessoas na foto' })).toHaveAttribute('aria-pressed', 'true');
+  // Ledger 1131: a marked batch never asks for a caption reading.
+  expect(await readingPuts(page)).toEqual([]);
+  for (const photo of batch) expect(photo.reading_status).toBe('none');
 
   // The gallery's camera: a "Geral" shot, created asking for the vision caption.
   await page.getByRole('button', { name: 'Tirar foto', exact: true }).click();
@@ -224,4 +245,30 @@ test('@p0 9.3-E2E-003 "Pessoas na foto" in an import batch marks every photo of 
   const shot = (await devicePhotos(page, database)).find((photo) => !batch.some((b) => b.id === photo.id))!;
   const create = (await outbox(page)).find((op) => op.kind === 'create' && op.path === `file/${shot.id}`)!;
   expect(create.value).toMatchObject({ block_id: null, caption: null, reading_kind: 'caption', reading_target: null, reading_status: 'queued', people_in_photo: false });
+});
+
+test('@p0 9.3-E2E-004 ledger 1131: a batch answered "Geral" with "Adicionar" asks for its caption readings only then, in one batch', async ({ page }) => {
+  test.setTimeout(180_000);
+  await holdPhotoBytes(page);
+  const { relatorioId } = await openChaveSheet(page, account, database);
+  await openGallery(page, relatorioId);
+  const which = await pickFiles(page, [await plainJpeg(page, 'a.jpg'), await plainJpeg(page, 'b.jpg')]);
+  await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(2);
+
+  // Saved, the sheet still open: no reading asked for yet.
+  expect(await readingPuts(page)).toEqual([]);
+  for (const photo of await devicePhotos(page, database)) expect(photo.reading_status).toBe('none');
+
+  await which.getByRole('radio', { name: 'Geral (sem equipamento)' }).click();
+  await which.getByRole('button', { name: 'Adicionar 2 fotos' }).click();
+  await expect(which).toHaveCount(0);
+  await expect.poll(async () => (await readingPuts(page)).length, { timeout: 15_000 }).toBe(2);
+  const batch = await devicePhotos(page, database);
+  const asked = await readingPuts(page);
+  expect(asked.map((op) => op.path).sort()).toEqual(batch.map((photo) => `file/${photo.id}/reading_kind`).sort());
+  expect(asked.every((op) => op.value === 'caption')).toBe(true);
+  expect(new Set(asked.map((op) => op.batch_id)).size).toBe(1);
+  // No other put: "Geral" and no caption leave the saved values as they are.
+  expect((await outbox(page)).filter((op) => op.kind === 'put' && op.path.startsWith('file/')).length).toBe(2);
+  for (const photo of batch) expect(photo.reading_status).toBe('queued');
 });

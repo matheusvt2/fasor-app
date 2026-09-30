@@ -84,8 +84,8 @@ describe('relatório summary progress (Story 10.4)', () => {
 });
 
 describe('contract constants', () => {
-  it('speaks version 13 and accepts only version 13 (E10-Q2: the undo of a resolution restores its marks in the fold)', () => {
-    expect(CONTRACT_VERSION).toBe(13);
+  it('speaks version 14 and still accepts version 13 (ledger 1131: the client caption put is parsed and folded by a version-13 bundle)', () => {
+    expect(CONTRACT_VERSION).toBe(14);
     expect(MIN_CONTRACT_VERSION).toBe(13);
     // E10-Q6: the push refuses an older client only where it would settle a mark.
     expect(MARK_AWARE_CONTRACT_VERSION).toBe(12);
