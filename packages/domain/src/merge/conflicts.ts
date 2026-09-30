@@ -10,10 +10,11 @@ import { sheetState, sheetStateLabel } from '../relatorio/sheet-state.ts';
 import { integrityFindings } from '../relatorio/integrity.ts';
 import { isTagTaken } from '../relatorio/tag.ts';
 import { blockTypeLabel } from '../relatorio/tree.ts';
+import { equipmentBlockName } from './info.ts';
 import type { OpDraft } from '../ops/op.ts';
 import { relatorioOpEnvelope, type Author } from '../relatorio/ops.ts';
 import type { BlockRow, Cell, EquipmentRow, JsonValue, LocationRow } from '../schemas/entities.ts';
-import { getDefinition } from '../seed/definitions.ts';
+import { findDefinition } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import type { SyncDecisionRow } from '../sync/status.ts';
 import { plural } from '../text/plural.ts';
@@ -111,11 +112,7 @@ export interface OpenDecisionsInput {
 // --- listing -----------------------------------------------------------------------------
 
 function definitionOf(block: Pick<BlockRow, 'seed_version' | 'block_type'>): BlockDefinition | null {
-  try {
-    return getDefinition(block.seed_version, 'cabine_primaria', block.block_type);
-  } catch {
-    return null;
-  }
+  return findDefinition(block.seed_version, block.block_type);
 }
 
 /** One side of a contradiction, named by the op whose value it shows (E10-Q2: `shown_op_id`, after the undo of "Aplicar"). */
@@ -426,8 +423,7 @@ export interface DecisionTextContext {
 export function decisionBlockName(blockId: string | null, context: Pick<DecisionTextContext, 'blocks' | 'equipment'>): string {
   const block = context.blocks.find((row) => row.id === blockId);
   if (block === undefined) return 'Ficha'; // authored: a block this device does not hold
-  const tag = block.equipment_id === null ? '' : (context.equipment.find((row) => row.id === block.equipment_id)?.tag.trim() ?? '');
-  return tag === '' ? blockTypeLabel(block.seed_version, block.block_type) : tag;
+  return equipmentBlockName(block, context.equipment);
 }
 
 function locationName(blockId: string | null, context: Pick<DecisionTextContext, 'blocks' | 'locations'>): string {

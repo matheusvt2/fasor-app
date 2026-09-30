@@ -213,6 +213,19 @@ export const VERSIONS: readonly VersionDef[] = [
     stores: { thumbs: 'id' },
     upgrade: stamp(5),
   },
+  {
+    // Full review 2026-09-30 (W-1 to W-7): indexes only, no row changes shape. `entities`
+    // by kind within a relatório (the photo tiles, the held decisions); `remote_ops` by path
+    // and by relatório in `seq` order (the latest op on a path, a stream past a snapshot);
+    // the outbox by relatório (the generate barrier's last op).
+    version: 6,
+    stores: {
+      entities: '[entity+id], entity, relatorio_id, project_id, [entity+relatorio_id]',
+      remote_ops: 'op_id, seq, *targets, relatorio_id, project_id, [path+seq], [relatorio_id+seq]',
+      outbox: 'op_id, status, path, client_ts, batch_id, *targets, seq, relatorio_id',
+    },
+    upgrade: stamp(6),
+  },
 ];
 
 export const LATEST_VERSION = VERSIONS[VERSIONS.length - 1]!.version;

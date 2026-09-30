@@ -275,3 +275,14 @@ describe('Epic 4 retro item 29: Restaurar lists only the blocks removed after th
     expect(restorableBlocks(blocks, [], [], '2026-09-10T08:47:00.000Z').map((r) => r.name)).toEqual(['4 Requisitos básicos']);
   });
 });
+
+describe('K-9 (full review 2026-09-30) the pre-issue check on a seed version this device does not ship', () => {
+  it('names it once on the cover row instead of dropping the section-text and cabine checks silently', () => {
+    const base = fresh();
+    expect(preIssue(base).some((row) => row.kind === 'seed_unknown')).toBe(false);
+    const unknown = { ...base, relatorio: { ...base.relatorio, seed_version: 'v999' } };
+    const rows = preIssue(unknown).filter((row) => row.kind === 'seed_unknown');
+    expect(rows).toEqual([{ id: 'seed_unknown', row: 'capa', severity: 'pending', text: 'Conteúdo padrão v999 indisponível neste aparelho', kind: 'seed_unknown' }]);
+  });
+});
+

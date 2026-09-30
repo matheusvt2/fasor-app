@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { canonicalJson } from '../text/hash.ts';
 import { entityKey, splitEntityKey, type EntityState } from '../ops/apply.ts';
 import {
   blockRowSchema,
@@ -84,6 +85,22 @@ function cellsOf(block: BlockRow): { value: unknown; source_suggestion_id: strin
 }
 
 /**
+ * Story 7.1: the `user` rows the blocks name as their concluder or their last editor, sorted
+ * by id; an actor with no row in the state is left out. Both snapshot builders read this one.
+ */
+function actorRows(blocks: readonly BlockRow[], state: EntityState): UserRow[] {
+  const actorIds = new Set<string>();
+  for (const block of blocks) {
+    if (block.concluded_by !== null) actorIds.add(block.concluded_by.actor_id);
+    if (block.last_modified_by !== null) actorIds.add(block.last_modified_by);
+  }
+  return [...actorIds]
+    .map((id) => state.get(entityKey('user', id)) as UserRow | undefined)
+    .filter((row): row is UserRow => row !== undefined)
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+
+/**
  * Builds the snapshot of one relatorio from a state map holding at least: the
  * relatorio row, its project, the rows with that `relatorio_id`, the project's
  * equipment and the company registry rows. Extra rows are ignored.
@@ -139,15 +156,7 @@ export function buildSnapshot(state: EntityState, relatorioId: string): Relatori
   const responsibleId = relatorio.setup.responsible_user_id;
   const responsible = responsibleId === null ? null : ((state.get(entityKey('user', responsibleId)) as UserRow | undefined) ?? null);
 
-  const actorIds = new Set<string>();
-  for (const block of blocks) {
-    if (block.concluded_by !== null) actorIds.add(block.concluded_by.actor_id);
-    if (block.last_modified_by !== null) actorIds.add(block.last_modified_by);
-  }
-  const actors = [...actorIds]
-    .map((id) => state.get(entityKey('user', id)) as UserRow | undefined)
-    .filter((row): row is UserRow => row !== undefined)
-    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const actors = actorRows(blocks, state);
 
   return relatorioSnapshotSchema.parse({
     relatorio,
@@ -271,15 +280,10 @@ export function createSnapshotBuilder(): SnapshotBuilder {
     const equipmentIds = new Set(liveBlocks.map((b) => b.equipment_id).filter((id): id is string => id !== null));
     const suggestionIds = new Set<string>();
     const instrumentIds = new Set<string>(relatorioRaw.setup.instrument_ids);
-    const actorIds = new Set<string>();
     for (const block of liveBlocks) {
       const r = refs(block);
       for (const id of r.suggestionIds) suggestionIds.add(id);
       for (const id of r.instrumentIds) instrumentIds.add(id);
-    }
-    for (const block of liveBlocks) {
-      if (block.concluded_by !== null) actorIds.add(block.concluded_by.actor_id);
-      if (block.last_modified_by !== null) actorIds.add(block.last_modified_by);
     }
 
     const liveRegistry = (kind: RegistryRow['kind']) => live(registryRows.filter((r) => r.kind === kind));
@@ -288,10 +292,7 @@ export function createSnapshotBuilder(): SnapshotBuilder {
     const instrumentRaws = liveRegistry('instrument').filter((i) => instrumentIds.has(i.id));
     const responsibleId = relatorioRaw.setup.responsible_user_id;
     const responsibleRaw = responsibleId === null ? null : ((state.get(entityKey('user', responsibleId)) as UserRow | undefined) ?? null);
-    const actorRaws = [...actorIds]
-      .map((id) => state.get(entityKey('user', id)) as UserRow | undefined)
-      .filter((row): row is UserRow => row !== undefined)
-      .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    const actorRaws = actorRows(liveBlocks, state);
 
     const prev = previous.get(relatorioId);
     const next: RelatorioSnapshot = {
@@ -342,20 +343,7 @@ export function createSnapshotBuilder(): SnapshotBuilder {
   };
 }
 
-function canonical(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(canonical);
-  if (value && typeof value === 'object') {
-    const out: Record<string, unknown> = {};
-    for (const key of Object.keys(value as object).sort()) {
-      const v = (value as Record<string, unknown>)[key];
-      if (v !== undefined) out[key] = canonical(v);
-    }
-    return out;
-  }
-  return value;
-}
-
-/** Canonical JSON: object keys sorted recursively, arrays in snapshot order, no whitespace. */
+/** Canonical JSON: object keys sorted recursively, arrays in snapshot order, no whitespace (`canonicalJson`). */
 export function serializeSnapshot(snapshot: RelatorioSnapshot): string {
-  return JSON.stringify(canonical(snapshot));
+  return canonicalJson(snapshot);
 }

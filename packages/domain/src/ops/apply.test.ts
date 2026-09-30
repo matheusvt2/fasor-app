@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { emptySheet, type BlockRow, type FileRow, type LocationRow } from '../schemas/entities.ts';
+import { ZodError } from 'zod';
+import { blockRowSchema, emptySheet, type BlockRow, type FileRow, type LocationRow } from '../schemas/entities.ts';
 import { opFactory, TEST_COMPANY, TEST_RELATORIO, TEST_USER } from '../test-support.ts';
 import { applyOp, entityKey, readPath, SeedPathError, targetsOf, type EntityState } from './apply.ts';
 import type { Op } from './op.ts';
@@ -460,6 +461,55 @@ describe('E3-A3 assertSeedPath: sheet writes checked against getDefinition', () 
     const row = s.get(key) as BlockRow;
     expect(row.sheet.conclusion.result?.value).toBe('aprovado');
     expect(row.sheet.observations?.value).toBe('ok');
+  });
+});
+
+describe('K-1 a sheet put validates what it writes, not the whole row', () => {
+  const key = entityKey('block', B1);
+
+  it('still throws on a sheet put whose value is not a JSON value (undefined, a Date)', () => {
+    const f = opFactory();
+    const base = f.op({ path: `sheet/${B1}/nameplate/tensao_nominal`, value: '13800' });
+    expect(() => applyOp(state([key, block(B1)]), { ...base, value: undefined } as unknown as Op)).toThrow(ZodError);
+    expect(() => applyOp(state([key, block(B1)]), { ...base, value: new Date() } as unknown as Op)).toThrow(ZodError);
+    const cell = f.op({ path: `sheet/${B1}/test/isolacao/cell/0/0`, value: '1' });
+    expect(() => applyOp(state([key, block(B1)]), { ...cell, value: new Date() } as unknown as Op)).toThrow(ZodError);
+  });
+
+  it('still throws when the attribution it writes breaks the row schema', () => {
+    const f = opFactory();
+    const op = f.op({ path: `sheet/${B1}/observations`, value: 'ok' });
+    expect(() => applyOp(state([key, block(B1)]), { ...op, client_ts: 'not a timestamp' })).toThrow(ZodError);
+  });
+
+  it('writes exactly the row the whole-row parse wrote (same keys, same key order)', () => {
+    const f = opFactory();
+    // Fields written out of their schema order: observation before result, criterion_override
+    // before instrument, text before result.
+    const s = fold(state([key, block(B1)]), [
+      f.op({ path: `sheet/${B1}/checklist/limpeza_e_lubrificacao/observation`, value: 'obs' }),
+      f.op({ path: `sheet/${B1}/checklist/limpeza_e_lubrificacao/result`, value: 'C' }),
+      f.op({ path: `sheet/${B1}/test/isolacao/criterion_override`, value: 'x' }),
+      f.op({ path: `sheet/${B1}/test/isolacao/instrument`, value: { instrument_id: B2 } }),
+      f.op({ path: `sheet/${B1}/test/isolacao/cell/1/0`, value: '2' }),
+      f.op({ path: `sheet/${B1}/conclusion/text`, value: 'texto' }),
+      f.op({ path: `sheet/${B1}/conclusion/result`, value: 'aprovado' }),
+      f.op({ path: `sheet/${B1}/observations`, value: 'ok' }),
+    ]);
+    const row = s.get(key) as BlockRow;
+    expect(JSON.stringify(row)).toBe(JSON.stringify(blockRowSchema.parse(row)));
+    expect(Object.keys(row.sheet.checklist.limpeza_e_lubrificacao!)).toEqual(['result', 'observation']);
+    expect(Object.keys(row.sheet.test.isolacao!)).toEqual(['instrument', 'criterion_override', 'cells']);
+    expect(Object.keys(row.sheet.conclusion)).toEqual(['result', 'text']);
+  });
+
+  it('keeps the identity of the rows it does not change', () => {
+    const f = opFactory();
+    const other = block(B2);
+    const before = state([key, block(B1)], [entityKey('block', B2), other]);
+    const after = applyOp(before, f.op({ path: `sheet/${B1}/observations`, value: 'ok' }));
+    expect(after).not.toBe(before);
+    expect(after.get(entityKey('block', B2))).toBe(other);
   });
 });
 

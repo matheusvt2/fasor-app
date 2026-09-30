@@ -2,8 +2,10 @@
 import 'fake-indexeddb/auto';
 import { portoSeguro } from '@app/domain/fixtures/porto-seguro';
 import { portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
+import { relatorioSnapshotSchema, serializeSnapshot } from '@app/domain';
 import { describe, expect, it } from 'vitest';
 import { openDatabase, type AppDatabase } from './schema.ts';
+import { toSnapshot } from './snapshot.ts';
 import { applyPulled } from './sync-store.ts';
 
 /*
@@ -34,9 +36,13 @@ describe('Porto Seguro fixture loads into Dexie', () => {
     expect(locations).toHaveLength(1);
   });
 
-  it('applyPulled(db, portoSeguro.log) resolves without throwing and the full 94-block relatorio reads back', async () => {
+  it('applyPulled(db, portoSeguro.log) resolves without throwing, the full 94-block relatorio reads back, and toSnapshot is the golden byte for byte (audit 1.4)', async () => {
     const db = await freshDb();
     await expect(applyPulled(db, portoSeguro.log)).resolves.toBeUndefined();
+    // Audit 2026-09-30 item 1.4: the device's snapshot of the pulled log serializes exactly as
+    // the committed golden (`snapshot.golden.json`), as the kernel's replay does.
+    const golden = serializeSnapshot(relatorioSnapshotSchema.parse(portoSeguro.golden));
+    expect(serializeSnapshot(await toSnapshot(db, portoSeguro.relatorioId))).toBe(golden);
 
     const relatorio = await db.entities.get(['relatorio', portoSeguro.relatorioId]);
     expect(relatorio).toBeDefined();
@@ -53,5 +59,6 @@ describe('Porto Seguro fixture loads into Dexie', () => {
     const registry = await db.entities.where('entity').equals('registry').toArray();
     // 1 empresa + 1 client + 3 instruments.
     expect(registry).toHaveLength(5);
-  });
+    // 3841 ops through fake-indexeddb: well under a minute, whatever else the machine runs.
+  }, 60_000);
 });

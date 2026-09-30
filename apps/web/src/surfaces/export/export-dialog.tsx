@@ -30,7 +30,7 @@ import { now } from '../../clock.ts';
 import { relatorioState } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { useSession } from '../../state/session.tsx';
-import { useSync } from '../../state/sync.tsx';
+import { useSyncActions } from '../../state/sync-actions.ts';
 import { downloadRevisionFile, fetchRevisionFile, hasShareSheet, shareFile, shareRevisionFile, type RevisionFileRef } from './revision-file.ts';
 import { DEFAULT_TIMING, useGenerate, type GenerateTiming } from './use-generate.ts';
 import { usePreIssue } from './use-pre-issue.ts';
@@ -74,7 +74,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
   const downloadingReasonId = useId();
   const generateReasonId = useId();
   const db = useSession().database;
-  const { resendDead } = useSync();
+  const { resendDead } = useSyncActions();
   // The revision the result block offers, once this device holds its row.
   const readyRevision =
     phase.kind === 'ready' ? (revisions.find((r) => r.id === phase.revisionId) ?? revisions.find((r) => r.number === phase.number) ?? null) : null;

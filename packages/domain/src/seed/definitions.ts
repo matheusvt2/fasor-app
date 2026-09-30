@@ -94,6 +94,39 @@ export function getDefinition(seedVersion: string, reportType: string, blockType
 }
 
 /**
+ * K-20 (full review 2026-09-30): the one non-throwing lookup of a cabine_primaria seed, for
+ * the callers that treat a seed version this bundle does not ship as "no seed". Null when the
+ * version is unknown.
+ */
+export function findSeed(seedVersion: string): ReportSeed | null {
+  try {
+    return getSeed(seedVersion, 'cabine_primaria');
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * K-20: the one non-throwing `getDefinition` of a cabine_primaria block, for every caller that
+ * reads "no definition" as a fallback (a section block, an unknown type or seed version).
+ */
+export function findDefinition(seedVersion: string, blockType: string): BlockDefinition | null {
+  const key = `${seedVersion}\u0000${blockType}`;
+  const known = definitionCache.get(key);
+  if (known !== undefined) return known;
+  try {
+    const definition = getDefinition(seedVersion, 'cabine_primaria', blockType);
+    // Only a resolved pair is kept: the seeds are frozen and finite, so the cache is bounded.
+    definitionCache.set(key, definition);
+    return definition;
+  } catch {
+    return null;
+  }
+}
+
+const definitionCache = new Map<string, BlockDefinition>();
+
+/**
  * Story 6.6: the recurring-finding chips ("Textos rápidos") of a relatório's seed version.
  * A version that ships none (v1, v2) or is unknown falls back to the current
  * `SEED_VERSION`'s list, so a relatório created before v3 still offers the chips.

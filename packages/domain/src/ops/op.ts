@@ -61,6 +61,11 @@ export type BlockRestore = z.infer<typeof blockRestoreSchema>;
 export const restoreMarksSchema = z.union([cellRestoreSchema, blockRestoreSchema]);
 export type RestoreMarks = z.infer<typeof restoreMarksSchema>;
 
+/**
+ * K-10 (full review 2026-09-30): meta keys are open on purpose. An op keeps every key its
+ * emitter stamped and the server stores it as it came; the kernel reads only the keys below.
+ * An unknown key is a reason not to coalesce (`ops/outbox.ts`): merging could drop it.
+ */
 export const opMetaSchema = z.looseObject({
   source_suggestion_id: uuidV7Schema.optional(),
   auto: z.boolean().optional(),

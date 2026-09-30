@@ -7,6 +7,15 @@ export interface ReplayOptions {
   deadOpIds?: Iterable<string>;
 }
 
+/**
+ * A device's commit order of its own ops (K-8): `client_ts`, then `op_id` for a tie. The one
+ * comparator for unsequenced local ops, on the device (`apps/web/src/db`) and in the kernel
+ * (`materializeEntity`): a second tab can mint a smaller `op_id` for a later put, so the id
+ * alone is not the commit order.
+ */
+export const byClientTsThenOpId = (a: { client_ts: string; op_id: string }, b: { client_ts: string; op_id: string }): number =>
+  a.client_ts < b.client_ts ? -1 : a.client_ts > b.client_ts ? 1 : a.op_id < b.op_id ? -1 : a.op_id > b.op_id ? 1 : 0;
+
 /** Ops in `seq` order; ops without `seq` come after every sequenced op, in array order (stable). */
 export function orderLog(log: readonly Op[]): Op[] {
   return log

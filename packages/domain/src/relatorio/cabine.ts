@@ -1,7 +1,7 @@
 import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
 import type { LocationRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { getSeed } from '../seed/definitions.ts';
+import { findSeed } from '../seed/definitions.ts';
 import type { CabineDefinition } from '../seed/schema.ts';
 
 /*
@@ -42,14 +42,16 @@ export interface CabineProgress {
   /** The empty fields, in the seed's order (SE first, then the environment). */
   missing: CabineMissingField[];
   complete: boolean;
+  /**
+   * K-9 (full review 2026-09-30): present when the relatório's seed version is not one this
+   * app ships, so the fields could not be checked (`missing` is then empty); `preIssue`
+   * names it once (`seed_unknown`). Absent whenever the fields were checked.
+   */
+  unresolvedSeed?: true;
 }
 
 function cabineDefinition(seedVersion: string): CabineDefinition | null {
-  try {
-    return getSeed(seedVersion, 'cabine_primaria').cabine;
-  } catch {
-    return null;
-  }
+  return findSeed(seedVersion)?.cabine ?? null;
 }
 
 /** A cabine column holds a value: a non-blank text, or a number that is not empty. */
@@ -65,13 +67,14 @@ function cabineValueFilled(value: unknown): boolean {
 
 /**
  * The cabine's required fields still empty (the altitude excluded: the setup's). A cabine
- * that is not on this device, or a seed that does not resolve, is complete: nothing can be
- * asked of it.
+ * that is not on this device is complete: nothing can be asked of it. A seed version that
+ * does not resolve asks nothing either, and says so (`unresolvedSeed`, K-9).
  */
 export function cabineProgress(snapshot: Pick<RelatorioSnapshot, 'relatorio' | 'locations'>, cabineId: string): CabineProgress {
   const cabine = snapshot.locations.find((row): row is CabineLocation => row.id === cabineId && row.kind === 'cabine' && row.removed_at === null);
   const definition = cabineDefinition(snapshot.relatorio.seed_version);
-  if (cabine === undefined || definition === null) return { missing: [], complete: true };
+  if (cabine === undefined) return { missing: [], complete: true };
+  if (definition === null) return { missing: [], complete: true, unresolvedSeed: true };
   const missing: CabineMissingField[] = [];
   for (const group of ['se', 'env'] as const) {
     const values = cabine[group] as Record<string, unknown>;

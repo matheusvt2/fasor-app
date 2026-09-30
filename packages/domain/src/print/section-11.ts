@@ -5,7 +5,7 @@ import { enabledSubBlocksOf } from '../relatorio/sheet-state.ts';
 import { SUB_BLOCK_KEYS, type SubBlockKey } from '../schemas/block-config.ts';
 import type { BlockRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { getDefinition } from '../seed/definitions.ts';
+import { findDefinition } from '../seed/definitions.ts';
 import { plural } from '../text/plural.ts';
 
 /*
@@ -56,12 +56,7 @@ function present(value: string | null | undefined): string | null {
 
 /** The block's test keys in the definition's order, then any other stored key. */
 function testKeysOf(block: BlockRow): string[] {
-  let defined: string[] = [];
-  try {
-    defined = getDefinition(block.seed_version, 'cabine_primaria', block.block_type).tests.map((test) => test.key);
-  } catch {
-    defined = [];
-  }
+  const defined: string[] = findDefinition(block.seed_version, block.block_type)?.tests.map((test) => test.key) ?? [];
   return [...defined, ...Object.keys(block.sheet.test).filter((key) => !defined.includes(key))];
 }
 

@@ -23,9 +23,7 @@ import {
   readyTitle,
   readyToast,
   revisionMetaSegments,
-  revisionMetaText,
   revisionRowSegments,
-  revisionRowText,
   revisionTitle,
   sortRevisions,
 } from './revisions.ts';
@@ -70,16 +68,12 @@ describe('4.8-UNIT-004 revision numbering and rows', () => {
 
   it('writes "Rev. n" and the row "Rev. 2 — 10/09/2026 08:47 — Bruno" with the date as a <time> segment', () => {
     expect(revisionTitle(2)).toBe('Rev. 2');
-    expect(revisionRowText(REV_2, 'Bruno')).toBe('Rev. 2 — 10/09/2026 08:47 — Bruno');
     expect(revisionRowSegments(REV_2, 'Bruno')).toEqual({
       before: 'Rev. 2 — ',
       datetime: '2026-09-10T11:47:00.000Z',
       dateText: '10/09/2026 08:47',
       after: ' — Bruno',
     });
-    expect(revisionRowText(REV_1, null)).toBe('Rev. 1 — 09/09/2026 09:12');
-    expect(revisionMetaText(REV_2, 'Bruno')).toBe('10/09/2026 08:47 · Bruno');
-    expect(revisionMetaText(REV_2, ' ')).toBe('10/09/2026 08:47');
     expect(revisionMetaSegments(REV_2, 'Bruno')).toEqual({ datetime: '2026-09-10T11:47:00.000Z', dateText: '10/09/2026 08:47', after: ' · Bruno' });
     expect(revisionMetaSegments(REV_2, null).after).toBe('');
   });

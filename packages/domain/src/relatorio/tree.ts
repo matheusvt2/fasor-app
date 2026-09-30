@@ -3,13 +3,13 @@ import { orderKeyBetween, sortByOrderKey } from '../ops/order-key.ts';
 import { EQUIPMENT_BLOCK_TYPES, isEquipmentBlockType, type EquipmentBlockType } from '../schemas/block-config.ts';
 import { emptySheet, type BlockRow, type EquipmentRow, type JsonValue, type LocationRow, type SuggestionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { getDefinition, getSeed } from '../seed/definitions.ts';
+import { findDefinition, findSeed } from '../seed/definitions.ts';
 import { defaultBlockConfig } from '../seed/template.ts';
 import { defaultCabineName, defaultColunaName } from '../templates/text.ts';
 import { plural } from '../text/plural.ts';
 import { integrityFindings } from './integrity.ts';
 import { locationPathText } from './location-path.ts';
-import { locationProgress, progressCounterState, progressCounterText } from './progress.ts';
+import { locationProgressIndex, progressCounterState, progressCounterText } from './progress.ts';
 import { isEquipmentBlock, sheetState, sheetStateLabel, type SheetState } from './sheet-state.ts';
 import { cabineMissingText, cabineProgress } from './cabine.ts';
 import { cabineMetaText } from './sumario.ts';
@@ -122,11 +122,7 @@ export type TreeNode = TreeLocationNode | TreeEquipmentNode;
 /** The seed's name of a block type ("Chave seccionadora"), the type itself when the seed has none. */
 export function blockTypeLabel(seedVersion: string, blockType: string): string {
   if (!isEquipmentBlockType(blockType)) return blockType;
-  try {
-    return getDefinition(seedVersion, 'cabine_primaria', blockType).label;
-  } catch {
-    return blockType;
-  }
+  return findDefinition(seedVersion, blockType)?.label ?? blockType;
 }
 
 /** Why a sheet was not tested, as the seed words it (or the typed text of "Outro"); null when it was tested. */
@@ -134,11 +130,7 @@ export function notTestedReasonText(block: Pick<BlockRow, 'not_tested' | 'seed_v
   const notTested = block.not_tested;
   if (notTested === null) return null;
   if (notTested.reason === 'outro' && notTested.text !== null && notTested.text.trim() !== '') return notTested.text.trim();
-  try {
-    return getSeed(block.seed_version, 'cabine_primaria').not_tested_reasons.find((r) => r.key === notTested.reason)?.label ?? notTested.reason;
-  } catch {
-    return notTested.reason;
-  }
+  return findSeed(block.seed_version)?.not_tested_reasons.find((r) => r.key === notTested.reason)?.label ?? notTested.reason;
 }
 
 /** A sheet holds something the engineer would lose: any state but empty (the remove Confirm asks). */
@@ -201,6 +193,61 @@ export function locationBlocks(blocks: readonly BlockRow[], locationId: string):
   return sortByOrderKey(blocks.filter((block) => block.removed_at === null && block.location_id === locationId && isEquipmentBlock(block)));
 }
 
+/** The live equipment blocks of every location, each in `order_key` order: `locationBlocks` for all locations in one pass. */
+function liveBlocksByLocation(blocks: readonly BlockRow[]): Map<string, BlockRow[]> {
+  const out = new Map<string, BlockRow[]>();
+  for (const block of blocks) {
+    if (block.removed_at !== null || block.location_id === null || !isEquipmentBlock(block)) continue;
+    const bucket = out.get(block.location_id);
+    if (bucket === undefined) out.set(block.location_id, [block]);
+    else bucket.push(block);
+  }
+  for (const [id, bucket] of out) out.set(id, sortByOrderKey(bucket));
+  return out;
+}
+
+/** Live locations (already in `order_key` order) grouped by `parent_id`, each group keeping that order. */
+function childrenByParent(locations: readonly LocationRow[]): Map<string, LocationRow[]> {
+  const out = new Map<string, LocationRow[]>();
+  for (const location of locations) {
+    if (location.parent_id === null) continue;
+    const bucket = out.get(location.parent_id);
+    if (bucket === undefined) out.set(location.parent_id, [location]);
+    else bucket.push(location);
+  }
+  return out;
+}
+
+/*
+ * K-17/K-2 (full review 2026-09-30): `locationTree` is memoized on the identity of what it
+ * reads -- the `blocks`, `locations` and `equipment` arrays of the snapshot, the `equipment`
+ * argument, the relatório row and the `pending` rows -- in nested WeakMaps. The device's
+ * incremental snapshot builder keeps an array's identity while its rows do not change, so
+ * the surfaces, the Sumário, the parecer and the points of one render share one build, and a
+ * commit (a new `blocks` array) pays one. A caller that wraps the same arrays in a new
+ * object still hits the cache: the key is the arrays, never the wrapper. The returned tree is
+ * shared: callers read it and never mutate it.
+ */
+const NONE: object = {};
+const treeMemo = new WeakMap<object, unknown>();
+
+function memoized<T>(keys: readonly object[], compute: () => T): T {
+  let map = treeMemo;
+  for (const key of keys.slice(0, -1)) {
+    let next = map.get(key) as WeakMap<object, unknown> | undefined;
+    if (next === undefined) {
+      next = new WeakMap();
+      map.set(key, next);
+    }
+    map = next;
+  }
+  const last = keys[keys.length - 1]!;
+  if (map.has(last)) return map.get(last) as T;
+  const value = compute();
+  map.set(last, value);
+  return value;
+}
+
 /**
  * The location tree of a snapshot: its root locations (the cabines), each with its own
  * blocks and the locations under it. `equipment` is the project's (removed rows included);
@@ -213,6 +260,16 @@ export function locationTree(
   /** Story 8.1: the device's pending suggestion rows; a block holding one is not concluded in the counters. */
   pending?: readonly SuggestionRow[],
 ): TreeLocationNode[] {
+  return memoized([snapshot.blocks, snapshot.locations, snapshot.equipment, equipment, snapshot.relatorio ?? NONE, pending ?? NONE], () =>
+    buildLocationTree(snapshot, equipment, pending),
+  );
+}
+
+function buildLocationTree(
+  snapshot: Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment'> & Partial<Pick<RelatorioSnapshot, 'relatorio'>>,
+  equipment: readonly Pick<EquipmentRow, 'id' | 'tag' | 'removed_at'>[],
+  pending: readonly SuggestionRow[] | undefined,
+): TreeLocationNode[] {
   const locations = liveLocations(snapshot.locations);
   // The cabine's missing fields need the seed version; a caller without the relatório row gets none.
   const relatorio = snapshot.relatorio;
@@ -220,6 +277,9 @@ export function locationTree(
   const tags = new Map<string, string>();
   for (const row of [...snapshot.equipment, ...equipment]) tags.set(row.id, row.tag);
   const duplicated = new Set(integrityFindings({ equipment }).flatMap((finding) => finding.equipment_ids));
+  const blocksAt = liveBlocksByLocation(snapshot.blocks);
+  const childrenOf = childrenByParent(locations);
+  const progressOf = locationProgressIndex(snapshot, pending);
 
   const equipmentNode = (block: BlockRow, position: number, siblings: number, level: number): TreeEquipmentNode => {
     const state = sheetState(block);
@@ -252,10 +312,10 @@ export function locationTree(
   };
 
   const build = (location: LocationRow, depth: number, position: number, siblings: number): TreeLocationNode => {
-    const own = locationBlocks(snapshot.blocks, location.id);
-    const children = locations.filter((row) => row.parent_id === location.id);
+    const own = blocksAt.get(location.id) ?? [];
+    const children = childrenOf.get(location.id) ?? [];
     const childNodes = children.map((child, i) => build(child, depth + 1, i + 1, children.length));
-    const counts = locationProgress(snapshot, location.id, pending);
+    const counts = progressOf(location.id);
     const equipmentNodes = own.map((block, i) => equipmentNode(block, i + 1, own.length, Math.min(depth + 1, TREE_MAX_LEVEL)));
     return {
       kind: location.kind,
@@ -313,13 +373,49 @@ export function treePathTo(tree: readonly TreeLocationNode[], target: { blockId?
   return [];
 }
 
+/*
+ * K-2 (full review 2026-09-30): each tree node's `firstBlockId` found by one direct scan
+ * with no tree build -- a location's own live equipment blocks by `order_key`, then its live
+ * child locations by `order_key`, depth first, from the tree's roots -- memoized on the
+ * `blocks` and `locations` arrays. A location the tree does not draw (removed, or in a parent
+ * cycle no root reaches) has none.
+ */
+const firstMemo = new WeakMap<object, WeakMap<object, Map<string, string | null>>>();
+
+function firstBlockIndex(blocks: readonly BlockRow[], rawLocations: readonly LocationRow[]): Map<string, string | null> {
+  let byLocations = firstMemo.get(blocks);
+  if (byLocations === undefined) {
+    byLocations = new WeakMap();
+    firstMemo.set(blocks, byLocations);
+  }
+  const held = byLocations.get(rawLocations);
+  if (held !== undefined) return held;
+  const locations = liveLocations(rawLocations);
+  const liveIds = new Set(locations.map((location) => location.id));
+  const blocksAt = liveBlocksByLocation(blocks);
+  const childrenOf = childrenByParent(locations);
+  const index = new Map<string, string | null>();
+  const visit = (location: LocationRow): string | null => {
+    // Every child is visited, as the tree builds every node; the first one found stands.
+    let first = blocksAt.get(location.id)?.[0]?.id ?? null;
+    for (const child of childrenOf.get(location.id) ?? []) {
+      const found = visit(child);
+      if (first === null) first = found;
+    }
+    index.set(location.id, first);
+    return first;
+  };
+  for (const root of locations) if (root.parent_id === null || !liveIds.has(root.parent_id)) visit(root);
+  byLocations.set(rawLocations, index);
+  return index;
+}
+
 /**
  * The cabine's first equipment block in depth-first tree order (its own blocks, then its
  * colunas'): where "Abrir primeira ficha (dados da cabine)" goes; null when it holds none.
  */
 export function firstInTree(snapshot: Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment'>, cabineId: string): string | null {
-  const node = treeNodes(locationTree(snapshot)).find((n): n is TreeLocationNode => n.kind !== 'equipment' && n.id === cabineId);
-  return node?.firstBlockId ?? null;
+  return firstBlockIndex(snapshot.blocks, snapshot.locations).get(cabineId) ?? null;
 }
 
 /**

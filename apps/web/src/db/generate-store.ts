@@ -1,5 +1,7 @@
+import Dexie from 'dexie';
 import {
   editedOnDevice,
+  entityKey,
   referencedEquipmentIds,
   generationJobRowSchema,
   relatorioRowSchema,
@@ -12,7 +14,7 @@ import {
 import { byClientTsThenOpId } from './commit.ts';
 import { blockRowsOf } from './home-store.ts';
 import { useLiveQuery } from './live.ts';
-import type { AppDatabase } from './schema.ts';
+import { DEVICE_ID_PREF, type AppDatabase, type RemoteOpRow } from './schema.ts';
 
 /*
  * Story 4.8: what the Export dialog reads from the device store (AD-1): the relatório
@@ -70,7 +72,16 @@ export async function latestGenerationJob(db: AppDatabase, relatorioId: string, 
 export async function editedSinceSnapshot(db: AppDatabase, relatorioId: string, snapshotSeq: number): Promise<boolean> {
   const blocks = await blockRowsOf(db, relatorioId);
   const stream = { relatorioId, equipmentIds: referencedEquipmentIds(blocks) };
-  const pulled = await db.remote_ops.where('seq').above(snapshotSeq).toArray();
+  // Full review 2026-09-30: only what the stream can hold is read -- the relatório's own ops
+  // past the snapshot through `[relatorio_id+seq]`, and the ops on the equipment its live
+  // blocks reference through `targets` -- never every stream's ops past that seq.
+  const [ownPulled, equipmentPulled] = await Promise.all([
+    db.remote_ops.where('[relatorio_id+seq]').between([relatorioId, snapshotSeq], [relatorioId, Dexie.maxKey], false, true).toArray(),
+    stream.equipmentIds.size === 0
+      ? Promise.resolve([] as RemoteOpRow[])
+      : db.remote_ops.where('targets').anyOf([...stream.equipmentIds].map((id) => entityKey('equipment', id))).filter((op) => op.seq > snapshotSeq).toArray(),
+  ]);
+  const pulled = [...ownPulled, ...equipmentPulled];
   // An op of this device the server acked (its `seq` known) before the pull brought it back.
   const acked = (await db.outbox.where('seq').above(snapshotSeq).toArray()).filter((op) => op.status === 'acked');
   const unsent = await db.outbox.where('status').anyOf('pending', 'sent').toArray();
@@ -93,12 +104,33 @@ export function useEditedSince(db: AppDatabase | null, relatorioId: string, snap
  */
 export async function lastOpIdFor(db: AppDatabase, relatorioId: string): Promise<string | null> {
   const relatorio = await relatorioRow(db, relatorioId);
-  const rows = (await db.outbox.toArray()).filter(
-    (row) =>
-      row.status !== 'dead' &&
-      (row.relatorio_id === relatorioId || (relatorio !== null && row.project_id !== null && row.project_id === relatorio.project_id)),
-  );
-  return rows.sort(byClientTsThenOpId).at(-1)?.op_id ?? null;
+  const projectId = relatorio?.project_id ?? null;
+  const inScope = (row: { relatorio_id?: string | null; project_id?: string | null }) =>
+    row.relatorio_id === relatorioId || (projectId !== null && row.project_id != null && row.project_id === projectId);
+  // Full review 2026-09-30: the relatório's own rows through the outbox's `relatorio_id`
+  // index; the project's rows (an equipment op carries no relatório) from the rest of the
+  // outbox, which the prune keeps small.
+  const [ownRows, projectRows] = await Promise.all([
+    db.outbox.where('relatorio_id').equals(relatorioId).toArray(),
+    projectId === null ? Promise.resolve([]) : db.outbox.filter((row) => row.relatorio_id !== relatorioId && inScope(row)).toArray(),
+  ]);
+  const candidates: { op_id: string; client_ts: string }[] = [...ownRows, ...projectRows].filter((row) => row.status !== 'dead');
+  // W-1: this device's ops the prune removed are in the server log (they were acked and
+  // pulled back); they are still among the ops this device wrote for the relatório.
+  const device = await db.local_prefs.get(DEVICE_ID_PREF);
+  if (typeof device?.value === 'string' && device.value !== '') {
+    const held = new Set(candidates.map((row) => row.op_id));
+    const [ownPulled, projectPulled] = await Promise.all([
+      db.remote_ops.where('relatorio_id').equals(relatorioId).toArray(),
+      projectId === null ? Promise.resolve([] as RemoteOpRow[]) : db.remote_ops.where('project_id').equals(projectId).toArray(),
+    ]);
+    for (const op of [...ownPulled, ...projectPulled]) {
+      if (op.device_id !== device.value || held.has(op.op_id) || !inScope(op)) continue;
+      held.add(op.op_id);
+      candidates.push(op);
+    }
+  }
+  return candidates.sort(byClientTsThenOpId).at(-1)?.op_id ?? null;
 }
 
 export function useRelatorio(db: AppDatabase | null, relatorioId: string): RelatorioRow | null {
@@ -119,9 +151,4 @@ export async function generationJobRow(db: AppDatabase, id: string): Promise<Gen
   if (record === undefined) return null;
   const parsed = generationJobRowSchema.safeParse(record.row);
   return parsed.success ? parsed.data : null;
-}
-
-/** `generationJobRow`, live; null while there is no id or no row yet. */
-export function useGenerationJob(db: AppDatabase | null, id: string | null): GenerationJobRow | null {
-  return useLiveQuery(() => (db === null || id === null ? Promise.resolve(null) : generationJobRow(db, id)), [db, id], null);
 }

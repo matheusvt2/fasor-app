@@ -71,7 +71,7 @@ describe('1.5-UNIT-001 materializeEntity', () => {
     expect(materializeEntity({ entity: 'block', id: BLOCK_1_ID }, [], [])).toBeNull();
   });
 
-  it('applies local ops in op_id order and skips those already among the remote ids', () => {
+  it('applies local ops in commit order (op_id breaks a client_ts tie) and skips those already among the remote ids', () => {
     const key = entityKey('block', BLOCK_1_ID);
     const remote = targeting(key, opLog);
     const template = remote.find((op) => op.path === FIELD)!;
@@ -82,5 +82,17 @@ describe('1.5-UNIT-001 materializeEntity', () => {
     const acked = materializeEntity(splitEntityKey(key), [...remote, { ...b, seq: 1 }], [b, a]) as BlockRow;
     // b is now remote (seq 1, before every fixture op); a is the only local op and lands last.
     expect(acked.sheet.nameplate.fabricacao?.value).toBe('A');
+  });
+  it('K-8 a later local put carrying a smaller op_id still lands last (client_ts, then op_id)', () => {
+    const key = entityKey('block', BLOCK_1_ID);
+    const remote = targeting(key, opLog);
+    const template = remote.find((op) => op.path === FIELD)!;
+    // A second tab minted a smaller id for the later put.
+    const earlier: Op = { ...template, op_id: '019966b0-0001-7000-8000-00000000ff09', value: 'EARLIER', seq: undefined, client_ts: '2026-09-21T09:00:00.000Z' };
+    const later: Op = { ...template, op_id: '019966b0-0001-7000-8000-00000000ff01', value: 'LATER', seq: undefined, client_ts: '2026-09-21T09:00:01.000Z' };
+    for (const local of [[earlier, later], [later, earlier]]) {
+      const row = materializeEntity(splitEntityKey(key), remote, local) as BlockRow;
+      expect(row.sheet.nameplate.fabricacao?.value).toBe('LATER');
+    }
   });
 });

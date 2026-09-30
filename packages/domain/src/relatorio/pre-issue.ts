@@ -2,7 +2,6 @@ import { calibrationCheck, calibrationValidUntil } from '../checks/calibration.t
 import { clientPreIssueRows } from '../checks/pre-issue-client.ts';
 import { companyPreIssues } from '../checks/pre-issue.ts';
 import { calendarDateOfInstant, formatCalendarDate, formatShortDateTime } from '../format/datetime.ts';
-import { sortByOrderKey } from '../ops/order-key.ts';
 import { captionSuggestions, legendasSugeridasText } from '../photos/captions.ts';
 import { livePhotos } from '../photos/order.ts';
 import { photosAwaitingText, photosUncaptionedText } from '../photos/text.ts';
@@ -10,7 +9,7 @@ import { artLabel } from '../print/document-control.ts';
 import { missingCertificates, section11Instruments } from '../print/section-11.ts';
 import type { SuggestionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { sectionText, type SectionVariable } from '../seed/definitions.ts';
+import { findSeed, sectionText, type SectionVariable } from '../seed/definitions.ts';
 import type { TextBlock } from '../seed/schema.ts';
 import { rejectedText } from '../sync/counts.ts';
 import { resolveSectionText, SECTION_VARIABLE_LABELS } from '../templates/section-text.ts';
@@ -29,6 +28,7 @@ import { section3Blocks, sectionVariables } from './section-variables.ts';
 import { setupGaps, type SetupGap } from './setup-complete.ts';
 import { enabledSubBlocksOf, isEquipmentBlock, sheetState } from './sheet-state.ts';
 import { blocksWithPendingSuggestions, fichasComSugestoesText, livePendingSuggestions } from './suggestions.ts';
+import { sectionBlocks } from './sumario.ts';
 
 /*
  * AD-15, Story 4.3: the one pre-issue check the Sumário rows and the Export dialog both
@@ -69,6 +69,7 @@ export type PreIssueKind =
   | 'cert_number_mismatch'
   | 'duplicate_tag'
   | 'section_variables'
+  | 'seed_unknown'
   | 'rejected'
   | 'last_send';
 
@@ -149,21 +150,28 @@ const LATEST_TEXT_DATE = '9999-12-31';
 /** A placeholder instant `calibrationCheck` never reads while a service end is given. */
 const EPOCH = new Date(0);
 
-/** The live section blocks in `order_key` order (the Sumário's numbered rows, `sumario.ts` `sectionBlocks`). */
-function liveSections(snapshot: RelatorioSnapshot) {
-  return sortByOrderKey(snapshot.blocks.filter((block) => block.removed_at === null && block.location_id === null && !isEquipmentBlock(block)));
-}
-
-/** The text blocks a section block prints: its own text, else the seed's in force on `date`; none for a generated section. */
+/**
+ * The text blocks a section block prints: its own text, else the seed's in force on `date`;
+ * none for a generated section or a section with no seeded text on `date` (the print leaves
+ * it empty too). K-9: a seed version this device does not ship is never read as "no text":
+ * `preIssue` names it once (`seed_unknown`), so its section texts are not checked here.
+ */
 function sectionTextBlocks(snapshot: RelatorioSnapshot, block: RelatorioSnapshot['blocks'][number], section: number, date: string): readonly Pick<TextBlock, 'text'>[] {
   const own = (block.config as { section_text?: unknown } | null)?.section_text;
   if (typeof own === 'string') return own.split('\n').map((text) => ({ text }));
   const seedVersion = snapshot.relatorio.seed_version;
+  if (findSeed(seedVersion) === null) return [];
   try {
     return section === 3 ? section3Blocks(seedVersion, date, snapshot.relatorio.setup.exclusions) : sectionText(seedVersion, section, date);
   } catch {
     return [];
   }
+}
+
+/** "Conteúdo padrão v9 indisponível neste aparelho": the relatório's seed version is not one this app ships. */
+export function seedUnknownText(seedVersion: string): string {
+  // authored: K-9, the section texts and the cabine fields cannot be checked on this device.
+  return `Conteúdo padrão ${seedVersion} indisponível neste aparelho`;
 }
 
 /** "Dado do relatório em branco: Responsável", "Dados do relatório em branco: Cliente e Datas". */
@@ -223,6 +231,11 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
     if (setupGapRow(gap) !== 'capa') continue;
     rows.push({ id: `setup_missing:${gap}`, row: 'capa', severity: 'pending', text: setupGapText(gap, snapshot), kind: 'setup_missing' });
   }
+  // K-9: a seed version this device does not ship leaves the section texts and the cabine
+  // fields unchecked; one row says so instead of every check reading "nothing missing".
+  if (findSeed(snapshot.relatorio.seed_version) === null) {
+    rows.push({ id: 'seed_unknown', row: 'capa', severity: 'pending', text: seedUnknownText(snapshot.relatorio.seed_version), kind: 'seed_unknown' });
+  }
   for (const warning of companyPreIssues(snapshot.empresa)) {
     rows.push({ id: `company:${warning.id}`, row: 'capa', severity: 'info', text: warning.text, kind: 'company' });
   }
@@ -233,7 +246,7 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
   // Story 7.5: a section text with a variable that has no value prints `[Label]`; its row says which.
   const variables = sectionVariables(snapshot, snapshot.responsible?.name ?? null);
   const date = now === null ? LATEST_TEXT_DATE : calendarDateOfInstant(now);
-  for (const block of liveSections(snapshot)) {
+  for (const block of sectionBlocks(snapshot.blocks)) {
     const section = relatorioSectionNumber(block.block_type);
     if (section === null) continue;
     const unresolved: SectionVariable[] = [];
@@ -353,7 +366,7 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
   // Story 7.4/7.5: the one blocking row, only while section 10 prints: a live `section_10`
   // block, or no live section block at all (the legacy snapshot prints the seed's eleven,
   // `print/layout.ts` `printedSections`).
-  const printedSectionTypes = liveSections(snapshot)
+  const printedSectionTypes = sectionBlocks(snapshot.blocks)
     .filter((block) => relatorioSectionNumber(block.block_type) !== null)
     .map((block) => block.block_type);
   const section10Prints = printedSectionTypes.length === 0 || printedSectionTypes.includes('section_10');
@@ -372,11 +385,12 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
   }
   const printedInstruments = section11Instruments(snapshot);
   const registryInstruments = new Map(snapshot.instruments.filter((row) => row.removed_at === null).map((row) => [row.id, row]));
-  for (const entry of printedInstruments) {
+  // The reference is the service end; the caller's `now` only when there is none (K-6: with
+  // neither, no calibration is judged).
+  const judgesCalibration = setup.service_end !== null || now !== null;
+  for (const entry of judgesCalibration ? printedInstruments : []) {
     const instrument = registryInstruments.get(entry.instrument_id);
     if (instrument === undefined) continue;
-    // The reference is the service end; the caller's `now` only when there is none.
-    if (setup.service_end === null && now === null) break;
     const status = calibrationCheck(instrument, setup.service_end, now ?? EPOCH);
     const validUntil = calibrationValidUntil(instrument.calibrated_at, instrument.calibration_interval_months);
     if (status === 'valid' || validUntil === null) continue;

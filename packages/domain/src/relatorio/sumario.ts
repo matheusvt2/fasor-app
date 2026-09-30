@@ -337,11 +337,6 @@ export function nextTextSection(snapshot: Pick<RelatorioSnapshot, 'blocks'>, blo
   return next?.id ?? null;
 }
 
-/** The numbered rows, the ones the Position box and Alt+arrows move among. */
-export function numberedSiblings(rows: readonly SumarioRow[]): SumarioRow[] {
-  return rows.filter((row) => row.number !== null);
-}
-
 /**
  * The foot's `.btn-reason`: nothing blocks, or the blocking rows named by line. E78-Q1: every
  * row a blocking pre-issue row addresses is named, the rows drawn blocking and the keys of

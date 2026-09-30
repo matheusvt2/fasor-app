@@ -14,7 +14,6 @@ import {
   cabineMetaText,
   fixedRowNote,
   generateReason,
-  numberedSiblings,
   printsSeedSections,
   restorableBlocks,
   sectionMovedText,
@@ -24,6 +23,7 @@ import {
   sumarioReadingMode,
   sumarioLineOf,
   sumarioRows,
+  type SumarioRow,
 } from './sumario.ts';
 import { exportPrecheck, type PreIssueRow } from './pre-issue.ts';
 import type { RelatorioParecer } from '../schemas/entities.ts';
@@ -46,6 +46,9 @@ import {
   templateBlocksText,
   templateHelperText,
 } from './project.ts';
+
+/** The numbered rows (the ones the Position box and Alt+arrows move among). */
+const numberedRows = (rows: readonly SumarioRow[]): SumarioRow[] => rows.filter((row) => row.number !== null);
 
 const TEMPLATE_ID = '019966b0-0054-7000-8000-000000000001';
 
@@ -103,8 +106,8 @@ describe('4.3-UNIT sumarioRows', () => {
       'generated',
     ]);
     expect(rows.filter((r) => r.expandable).map((r) => r.blockType)).toEqual(['section_9']);
-    expect(numberedSiblings(rows)).toHaveLength(11);
-    expect(numberedSiblings(rows).every((r) => r.siblings === 11 && r.blockId !== null)).toBe(true);
+    expect(numberedRows(rows)).toHaveLength(11);
+    expect(numberedRows(rows).every((r) => r.siblings === 11 && r.blockId !== null)).toBe(true);
     expect(fixedRowNote('capa')).toBe('sempre no início');
     expect(fixedRowNote('controle')).toBe('montado sozinho');
   });
@@ -149,8 +152,8 @@ describe('4.3-UNIT sumarioRows', () => {
     expect(after.map((r) => r.number)).toEqual([null, null, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     expect(after[6]!.title).toBe('Verificações e ensaios aplicáveis');
     const moved = { ...snapshot, blocks: snapshot.blocks.map((b) => (b.block_type === 'section_2' ? { ...b, order_key: 'zz' } : b)) };
-    expect(numberedSiblings(rowsOf(moved)).map((r) => r.title).at(-1)).toBe('Definições');
-    expect(numberedSiblings(rowsOf(moved)).map((r) => r.number)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    expect(numberedRows(rowsOf(moved)).map((r) => r.title).at(-1)).toBe('Definições');
+    expect(numberedRows(rowsOf(moved)).map((r) => r.number)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
   });
 
   it('names the blocking rows in the generate reason', () => {
@@ -246,7 +249,7 @@ describe('E78-Q1 sumarioRows on a snapshot with no section block', () => {
   it('draws the eleven sections the document prints as virtual rows, row 10 blocking', () => {
     expect(printsSeedSections(ps.blocks)).toBe(true);
     const { rows, issues } = both(ps);
-    const numbered = numberedSiblings(rows);
+    const numbered = numberedRows(rows);
     expect(numbered.map((r) => [r.number, r.rowKey, r.virtual, r.blockId])).toEqual(Array.from({ length: 11 }, (_, i) => [i + 1, `section_${i + 1}`, true, null]));
     expect(numbered.map((r) => r.title)).toEqual(rowsOf(fresh()).slice(2).map((r) => r.title));
     expect(numbered.map((r) => r.kind)).toEqual(rowsOf(fresh()).slice(2).map((r) => r.kind));
@@ -279,7 +282,7 @@ describe('E78-Q1 sumarioRows on a snapshot with no section block', () => {
     expect(printsSeedSections(some.blocks)).toBe(false);
     const partial = both(some).rows;
     expect(partial.some((r) => r.virtual)).toBe(false);
-    expect(numberedSiblings(partial).map((r) => r.rowKey)).toEqual(['section_1', 'section_9']);
+    expect(numberedRows(partial).map((r) => r.rowKey)).toEqual(['section_1', 'section_9']);
     expect(sumarioLineOf(partial, 'section_10')).toBeNull();
   });
 

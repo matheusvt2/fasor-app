@@ -263,7 +263,7 @@ describe('cross-stream dedupe', () => {
 });
 
 describe('convergence after the pull-back (replaces the 1.4 first_edited_at pin)', () => {
-  it('the device row equals the server replay of the pushed (coalesced) log once pulled back', async () => {
+  it('the device row equals the server replay of the pushed log once pulled back', async () => {
     const db = await freshDb();
     const dead = new Set(replaySmall.deadOpIds);
     const live = replaySmall.log.filter((op) => !dead.has(op.op_id));
@@ -271,12 +271,10 @@ describe('convergence after the pull-back (replaces the 1.4 first_edited_at pin)
 
     const outbox = await takePending(db);
     expect(live).toHaveLength(64);
-    expect(outbox).toHaveLength(63);
-    // Before the pull-back the device shows the first op it applied; the server only saw the merged one.
+    // W-2: no coalescing in the store, so the server sees every op the device applied.
+    expect(outbox).toHaveLength(64);
     const pushed: Op[] = outbox.map((row, index) => ({ ...opOf(row), seq: index + 1 }));
     const server = replay(pushed);
-    const before = await block(db);
-    expect(before.first_edited_at).not.toBe((server.get(entityKey('block', BLOCK_1_ID)) as BlockRow).first_edited_at);
 
     // The server acks every op and the device pulls them back with their seqs.
     await markSent(db, outbox.map((r) => r.op_id));
@@ -288,7 +286,7 @@ describe('convergence after the pull-back (replaces the 1.4 first_edited_at pin)
     expect(serializeSnapshot(await toSnapshot(db, RELATORIO_ID))).toBe(
       serializeSnapshot(buildSnapshot(server, RELATORIO_ID)),
     );
-    expect((await db.outbox.where('status').equals('acked').count())).toBe(63);
+    expect((await db.outbox.where('status').equals('acked').count())).toBe(64);
     db.close();
   });
 });

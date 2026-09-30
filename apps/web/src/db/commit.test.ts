@@ -218,8 +218,8 @@ describe('commitOps', () => {
   });
 });
 
-describe('1.4-UNIT-003 outbox coalescing in the store', () => {
-  it('merges two consecutive plain puts on one path from the same device into one row', async () => {
+describe('1.4-UNIT-003 / W-2 the store never coalesces (the rule stays the kernel\'s `coalesce`)', () => {
+  it('two consecutive plain puts on one path from the same device stay two rows (W-2: every committed op carries a batch_id)', async () => {
     const db = await freshDb();
     await seed(db);
     const before = await db.outbox.count();
@@ -228,12 +228,12 @@ describe('1.4-UNIT-003 outbox coalescing in the store', () => {
     const second = makeOp(put(FIELD, 'WEG'), { newId: d.newId, now: d.now() });
     await commitOps(db, [first]);
     await commitOps(db, [second]);
-    expect(await db.outbox.count()).toBe(before + 1);
-    expect(await db.outbox.get(first.op_id)).toBeUndefined();
+    expect(await db.outbox.count()).toBe(before + 2);
+    expect(await db.outbox.get(first.op_id)).toMatchObject({ value: 'W', status: 'pending' });
     const row = await db.outbox.get(second.op_id);
-    expect(row).toMatchObject({ value: 'WEG', client_ts: second.client_ts, prev_op_id: first.prev_op_id, status: 'pending' });
-    // prev_value is the value before the first put (the cell did not exist), so undo restores that.
-    expect(row?.prev_value).toBeUndefined();
+    expect(row).toMatchObject({ value: 'WEG', client_ts: second.client_ts, status: 'pending' });
+    // prev_value is the value the first put wrote, so undo of the second restores it.
+    expect(row?.prev_value).toBe('W');
     const block = (await db.entities.get(['block', BLOCK_1_ID]))!.row as BlockRow;
     expect(block.sheet.nameplate.fabricacao?.op_id).toBe(second.op_id);
     db.close();
@@ -407,12 +407,11 @@ describe('batch and undo', () => {
   });
 });
 
-describe('coalescing vs first_edited_at (option b: re-materialization on pull)', () => {
-  // Until the block's own ops are acked and pulled back, the device shows the first op it applied
-  // (AD-18) while the server only ever sees the merged op (AD-3 coalescing). Story 1.5 resolves the
-  // divergence by re-materializing from the server log: see "convergence after the pull-back" in
-  // sync-store.test.ts. This block keeps the coalescing assertions themselves.
-  it('the device row carries the first applied client_ts until the pull-back', async () => {
+describe('first_edited_at with no coalescing in the store (W-2)', () => {
+  // The store appends every committed op (W-2), so the server sees each put the device applied
+  // and both sides carry the first applied client_ts; "convergence after the pull-back" in
+  // sync-store.test.ts checks the device row against the server replay.
+  it('the device row carries the first applied client_ts and the latest put, one outbox row per op', async () => {
     const db = await freshDb();
     const dead = new Set(replaySmall.deadOpIds);
     const live = replaySmall.log.filter((op) => !dead.has(op.op_id));
@@ -420,13 +419,16 @@ describe('coalescing vs first_edited_at (option b: re-materialization on pull)',
 
     const outbox = await db.outbox.orderBy('client_ts').toArray();
     expect(live).toHaveLength(64);
-    expect(outbox).toHaveLength(63);
-    const merged = outbox.find((row) => row.path === FIELD)!;
-    expect(merged).toMatchObject({ value: 'WEG S.A.', client_ts: fixedTs(27), prev_op_id: null });
+    expect(outbox).toHaveLength(64);
+    const onField = outbox.filter((row) => row.path === FIELD);
+    expect(onField.map((row) => [row.value, row.client_ts])).toEqual([
+      ['WEG', fixedTs(26)],
+      ['WEG S.A.', fixedTs(27)],
+    ]);
 
     const device = (await db.entities.get(['block', BLOCK_1_ID]))!.row as BlockRow;
     expect(device.first_edited_at).toBe(fixedTs(26));
-    expect(device.sheet.nameplate.fabricacao?.op_id).toBe(merged.op_id);
+    expect(device.sheet.nameplate.fabricacao?.op_id).toBe(onField[1]!.op_id);
     db.close();
   });
 });

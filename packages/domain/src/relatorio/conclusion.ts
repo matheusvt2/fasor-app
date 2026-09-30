@@ -1,7 +1,7 @@
 import { formatDecimalGroupedPtBr } from '../parse/pt-br-number.ts';
 import type { EquipmentBlockType } from '../schemas/block-config.ts';
 import type { BlockRow } from '../schemas/entities.ts';
-import { getDefinition } from '../seed/definitions.ts';
+import { findDefinition } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import { canonicalJson, fnv1a } from '../text/hash.ts';
 import { listPtBr } from '../text/plural.ts';
@@ -24,8 +24,6 @@ export type ConclusionResult = 'aprovado' | 'reprovado';
 export type ConclusionRestriction = 'sem_restricoes' | 'com_restricoes';
 export type ConclusionTextStatus = 'confirmed' | 'edited';
 
-export const CONCLUSION_RESULTS: readonly ConclusionResult[] = ['aprovado', 'reprovado'];
-export const CONCLUSION_RESTRICTIONS: readonly ConclusionRestriction[] = ['sem_restricoes', 'com_restricoes'];
 
 export interface ConclusionPair {
   result: ConclusionResult;
@@ -33,11 +31,7 @@ export interface ConclusionPair {
 }
 
 function definitionOf(block: Pick<BlockRow, 'seed_version' | 'block_type'>): BlockDefinition | null {
-  try {
-    return getDefinition(block.seed_version, 'cabine_primaria', block.block_type);
-  } catch {
-    return null;
-  }
+  return findDefinition(block.seed_version, block.block_type);
 }
 
 /** The stored result, or null. */

@@ -1,6 +1,6 @@
 import type { JsonValue } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { getDefinition } from '../seed/definitions.ts';
+import { findDefinition } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
 import { enabledSubBlocksOf, isCellFilled, isEquipmentBlock } from '../relatorio/sheet-state.ts';
 import type { EquipmentRow } from '../schemas/entities.ts';
@@ -23,11 +23,7 @@ export interface LastNameplateEntry {
 }
 
 function definitionOf(seedVersion: string, blockType: string): BlockDefinition | null {
-  try {
-    return getDefinition(seedVersion, 'cabine_primaria', blockType);
-  } catch {
-    return null;
-  }
+  return findDefinition(seedVersion, blockType);
 }
 
 /**

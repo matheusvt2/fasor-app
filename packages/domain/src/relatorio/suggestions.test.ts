@@ -9,7 +9,7 @@ import { portoSeguro } from '../../fixtures/porto-seguro/op-log.ts';
 import { replay } from '../ops/replay.ts';
 import { buildSnapshot } from '../schemas/snapshot.ts';
 import { firstSheetWithPendingSuggestions, sheetOrder } from './ficha.ts';
-import { cabineSheetsProgress, locationProgress, progress } from './progress.ts';
+import { locationProgress, progress } from './progress.ts';
 import {
   blocksWithPendingSuggestions,
   compareSuggestion,
@@ -358,7 +358,6 @@ describe('8.1-UNIT progress over the device pending rows', () => {
     expect(progress({ blocks, suggestions: [] }, pending)).toMatchObject({ sheets_concluded: 1, sheets_total: 2, suggestions_pending: 2 });
     expect(progress({ blocks, suggestions: [] })).toMatchObject({ sheets_concluded: 2, suggestions_pending: 0 });
     expect(progress({ blocks, suggestions: [] }, [])).toMatchObject({ sheets_concluded: 2, suggestions_pending: 0 });
-    expect(cabineSheetsProgress({ blocks, locations: [cabine], suggestions: [] }, LOC, pending)).toMatchObject({ sheets_concluded: 1, suggestions_pending: 2 });
     expect(locationProgress({ blocks, locations: [cabine] }, LOC, pending)).toMatchObject({ sheets_concluded: 1, suggestions_pending: 2 });
     // A pending row on a removed block, or on a block the snapshot does not hold, counts nothing and holds nothing.
     const removed = { ...concluded(OTHER_BLOCK), removed_at: '2026-09-26T11:00:00.000Z' };

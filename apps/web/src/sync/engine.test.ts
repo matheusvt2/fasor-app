@@ -295,6 +295,18 @@ function localPut(newId: () => string, value: string, extra: Partial<OpInput> = 
 
 const companyPulls = (h: Harness) => h.server.pulls.filter((p) => p.startsWith('company:'));
 
+/**
+ * Every op went through: nothing is left to push, and the server log is back on the device.
+ * W-1: an acked row pulled back is pruned at the end of the cycle once its `client_ts` is past
+ * the retention (the fixture's ops are a day older than the harness clock), so "acked" is read
+ * off the pulled log, not the outbox.
+ */
+async function pushedThrough(h: Harness, ops: readonly Op[]): Promise<boolean> {
+  const waiting = await h.db.outbox.where('status').anyOf('pending', 'sent', 'dead').count();
+  const pulled = await h.db.remote_ops.bulkGet(ops.map((op) => op.op_id));
+  return waiting === 0 && pulled.every((row) => row !== undefined);
+}
+
 describe('sync engine', () => {
   it('runs push, pull company and pull each relatorio in one cycle and records sync_state', async () => {
     const h = await harness();
@@ -304,8 +316,11 @@ describe('sync engine', () => {
 
     expect(await h.engine.runCycle()).toBe('ran');
 
-    // Every row acked with its seq; the pushed batch is in commit order.
-    expect(await h.db.outbox.where('status').equals('acked').count()).toBe(pendingBefore);
+    // Every row acked with its seq and pulled back; the pushed batch is in commit order. W-1: the
+    // cycle then prunes them (their client_ts is a day before the harness clock).
+    expect(await pushedThrough(h, seedLog())).toBe(true);
+    expect(await h.db.outbox.count()).toBe(0);
+    expect(pendingBefore).toBe(seedLog().length);
     expect(h.server.pushes).toHaveLength(1);
     expect(h.server.pushes[0]!.map((o) => o.op_id)).toEqual(seedLog().map((o) => o.op_id));
     // The company stream, then the relatorio stream (rascunho), each to its head.
@@ -579,7 +594,7 @@ describe('sync engine', () => {
     h.fireOnline();
     await waitFor(() => h.server.pushes.length === 1, 'the online push');
     await waitFor(() => !h.engine.status().running, 'the cycle to end');
-    expect(await h.db.outbox.where('status').equals('acked').count()).toBe(seedLog().length);
+    expect(await pushedThrough(h, seedLog())).toBe(true);
     h.engine.stop();
     h.db.close();
   });
@@ -623,7 +638,7 @@ describe('sync engine', () => {
     // The next trigger pushes the `sent` rows again (crash recovery path) and the server dedupes.
     expect(await h.engine.runCycle()).toBe('ran');
     expect(h.server.pushes).toHaveLength(1);
-    expect(await h.db.outbox.where('status').equals('acked').count()).toBe(seedLog().length);
+    expect(await pushedThrough(h, seedLog())).toBe(true);
     h.db.close();
   });
 
@@ -1541,5 +1556,39 @@ describe('6.2 photo uploads', () => {
     await h.engine.runCycle();
     expect(h.server.fetches).toEqual([PHOTO_1]);
     h.db.close();
+  });
+});
+
+describe('W-4 / W-10 (full review 2026-09-30) the public engine calls', () => {
+  it('runFreshCycle asked during a cycle runs a fresh cycle right after it, not on the 60 s tick', async () => {
+    const h = await harness();
+    await commitOps(h.db, seedLog());
+    const running = h.engine.runCycle();
+    // Committed while the first cycle may already be past its push.
+    const late = localPut(ids('019966b0-0013-7000-8000-'), 'LATE');
+    await commitOps(h.db, [late]);
+    const fresh = h.engine.runFreshCycle();
+    expect(await running).toBe('ran');
+    expect(await fresh).toBe('ran');
+    expect(h.server.log.some((op) => op.op_id === late.op_id)).toBe(true);
+    expect(companyPulls(h).length).toBeGreaterThanOrEqual(2);
+    h.db.close();
+  });
+
+  it('every public call resolves on a closed database: no rejection reaches the caller', async () => {
+    const h = await harness();
+    await commitOps(h.db, seedLog());
+    h.db.close();
+    const results = await Promise.allSettled([
+      h.engine.runCycle(),
+      h.engine.runFreshCycle(),
+      h.engine.syncRelatorio(RELATORIO_ID),
+      h.engine.syncProject(PROJECT_ID),
+      h.engine.retryUpload('019966b0-0000-7000-8000-0000000000f1'),
+    ]);
+    expect(results.map((result) => result.status)).toEqual(['fulfilled', 'fulfilled', 'fulfilled', 'fulfilled', 'fulfilled']);
+    // The cycle that met the closed store ends as one that failed on the device.
+    expect(h.engine.status().lastFailure).toEqual({ kind: 'apply' });
+    expect(h.engine.status().running).toBe(false);
   });
 });

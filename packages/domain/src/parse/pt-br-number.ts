@@ -47,11 +47,6 @@ export function parseDecimalPtBr(input: string): string | null {
   return `${sign}${normalized}`;
 }
 
-/** A dot-decimal `raw` as pt-BR shows it again: "13.8" -> "13,8". */
-export function formatDecimalPtBr(raw: string): string {
-  return raw.replace('.', ',');
-}
-
 /** Groups the digits of an integer part by thousands with dots: "3300" -> "3.300". */
 function groupThousands(digits: string): string {
   return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');

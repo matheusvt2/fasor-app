@@ -22,6 +22,7 @@ import {
   markAcked,
   markDead,
   markSent,
+  pruneOutbox,
   readSyncState,
   resolveMergePairs,
   takePending,
@@ -55,9 +56,9 @@ import {
 /*
  * AD-8, AD-24: one fixed cycle, push -> pull company -> pull each relatorio (and each
  * followed project stream, Epic 4 retro item 17), run on launch, on `online`, every
- * 60 s and on "Sincronizar agora". The timer, the
- * button and the events all call the same `runCycle()`; a mutex makes a
- * concurrent call a no-op.
+ * 60 s and on "Sincronizar agora". The timer and the events call `runCycle()`; a mutex
+ * makes a concurrent call a no-op. The button and "Reenviar" call `runFreshCycle()` (W-4),
+ * which waits out a cycle in flight and runs its own.
  */
 
 export type CycleResult = 'ran' | 'busy' | 'offline' | 'paused';
@@ -111,7 +112,14 @@ export interface SyncEngineDeps {
 }
 
 export interface SyncEngine {
+  /** One cycle now, or `busy` while one runs. Never rejects (W-10): an unexpected error ends the cycle as a failed one. */
   runCycle(): Promise<CycleResult>;
+  /**
+   * W-4 (full review 2026-09-30): one cycle that starts after the caller's write, however long
+   * a cycle in flight runs ("Sincronizar agora", "Reenviar"): that cycle may have read its
+   * queue before the write, so this waits for it to end and runs its own. Never rejects.
+   */
+  runFreshCycle(): Promise<CycleResult>;
   /**
    * AD-8's "Em revisão and Emitido relatórios are pulled on open": creates the stream's
    * `sync_state` row and runs one cycle. From then on the existing pull rule — every
@@ -562,6 +570,16 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
   }
 
   async function runCycle(): Promise<CycleResult> {
+    try {
+      return await cycle();
+    } catch (error) {
+      // W-10: nothing the cycle's own guard missed reaches the caller as a rejection.
+      console.error('sync cycle failed', error);
+      return stopped || status.paused ? 'paused' : 'ran';
+    }
+  }
+
+  async function cycle(): Promise<CycleResult> {
     if (status.running) return 'busy';
     if (status.paused || stopped) return 'paused';
     if (!deps.isOnline()) {
@@ -590,6 +608,12 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
       if (!status.paused && !stopped && !status.outdated) await thumbPhase();
       if (!stopped) await evictionPhase();
       if (!stopped) await observeReadings();
+      if (!stopped) await prunePhase();
+    } catch (error) {
+      // W-10: a store error mid-cycle (a database closed by sign-out, a quota) ends the cycle
+      // as one that failed on the device, like a pulled page that could not be applied.
+      console.error('sync cycle failed', error);
+      recordFailure({ kind: 'apply' });
     } finally {
       status.running = false;
       endCycle();
@@ -622,6 +646,18 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
           deps.onOutdated();
         }
       }
+    }
+  }
+
+  /**
+   * W-1 (full review 2026-09-30): after every cycle, the outbox rows the kernel says may go
+   * (`prunableOutboxRow`). A failure leaves them for the next cycle.
+   */
+  async function prunePhase(): Promise<void> {
+    try {
+      await pruneOutbox(deps.db, deps.now());
+    } catch (error) {
+      console.error('outbox prune failed', error);
     }
   }
 
@@ -670,6 +706,16 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     schedule();
   }
 
+  /** W-10: a public call whose own store write fails resolves as `runCycle` does, never rejects. */
+  async function guarded(run: () => Promise<CycleResult>): Promise<CycleResult> {
+    try {
+      return await run();
+    } catch (error) {
+      console.error('sync call failed', error);
+      return stopped || status.paused ? 'paused' : 'ran';
+    }
+  }
+
   async function syncRelatorio(relatorioId: string): Promise<CycleResult> {
     const existing = await readSyncState(deps.db, relatorioId);
     if (existing === undefined) await writeSyncState(deps.db, emptyState(relatorioId));
@@ -710,9 +756,10 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
 
   return {
     runCycle,
-    syncRelatorio,
-    syncProject,
-    retryUpload,
+    runFreshCycle: () => guarded(runFreshCycle),
+    syncRelatorio: (relatorioId) => guarded(() => syncRelatorio(relatorioId)),
+    syncProject: (projectId) => guarded(() => syncProject(projectId)),
+    retryUpload: (fileId) => guarded(() => retryUpload(fileId)),
     start() {
       if (started) return;
       started = true;

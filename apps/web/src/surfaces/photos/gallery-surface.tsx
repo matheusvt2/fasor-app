@@ -41,7 +41,7 @@ import { useEditedSince, useRevisions } from '../../db/generate-store.ts';
 import { useRelatorioPhotoTiles, type PhotoTile } from '../../db/photo-store.ts';
 import { splitImportable } from '../../files/photo-import.ts';
 import { useSession } from '../../state/session.tsx';
-import { useSync } from '../../state/sync.tsx';
+import { useSyncActions } from '../../state/sync-actions.ts';
 import { useToast } from '../../state/toast.tsx';
 import { useSheetCamera } from '../ficha/photo-openers.tsx';
 import { RelatorioGate } from '../relatorio/relatorio-gate.tsx';
@@ -100,7 +100,7 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const db = session.database;
   const user = session.user;
   const { showToast } = useToast();
-  const { retryUpload } = useSync();
+  const { retryUpload } = useSyncActions();
   const snapshot: RelatorioSnapshot = useRelatorioSnapshot(state, relatorioId);
   const tiles = useRelatorioPhotoTiles(db, relatorioId);
   const all = tiles;
