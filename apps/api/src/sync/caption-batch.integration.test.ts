@@ -250,6 +250,20 @@ describe('ledger 1131 a gallery batch asks for its caption reading once answered
     expect(calls).toHaveLength(1);
   }, 60_000);
 
+  it('the answer of a three-photo batch is one multi-op batch: every caption put is applied and queues its photo', async () => {
+    const calls: ReadingPayload[] = [];
+    const app = appWith(calls);
+    const { relatorioId } = await relatorio(app);
+    const shots = [await photo(relatorioId), await photo(relatorioId), await photo(relatorioId)];
+    expect((await push(app, shots.map((shot) => shot.op))).rejected).toEqual([]);
+    const batchId = newId();
+    const answer = shots.map((shot) => ({ ...put(relatorioId, shot.id, 'reading_kind', 'caption'), batch_id: batchId }));
+    const result = await push(app, answer);
+    expect(result.rejected).toEqual([]);
+    expect(result.applied.map((a) => a.op_id)).toEqual(answer.map((op) => op.op_id));
+    for (const shot of shots) expect(await fileRow(shot.id)).toMatchObject({ reading_kind: 'caption', reading_status: 'queued' });
+  }, 60_000);
+
   it('the put pushed before the upload queues the photo; the upload sends the caption reading once', async () => {
     const calls: ReadingPayload[] = [];
     const app = appWith(calls);
