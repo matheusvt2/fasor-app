@@ -27,6 +27,12 @@ describe('config', () => {
     expect(() => loadConfig({ ...valid, OCR_SERVICE_URL: 'not-a-url' })).toThrow(/OCR_SERVICE_URL/);
   });
 
+  it('defaults the Textract region to us-east-1 and reads an override (Story 11.7)', () => {
+    expect(loadConfig(valid).TEXTRACT_REGION).toBe('us-east-1');
+    expect(loadConfig({ ...valid, TEXTRACT_REGION: 'us-west-2' }).TEXTRACT_REGION).toBe('us-west-2');
+    expect(() => loadConfig({ ...valid, TEXTRACT_REGION: '' })).toThrow(/TEXTRACT_REGION/);
+  });
+
   it('defaults the worker on and reads the generate fault only when set (Story 4.8)', () => {
     const config = loadConfig(valid);
     expect(config.WORKER).toBe('1');

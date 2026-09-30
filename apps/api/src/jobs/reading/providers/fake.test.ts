@@ -15,6 +15,7 @@ import {
   fakeStructuringProvider,
   type FakeFixtureKey,
 } from './fake.ts';
+import { loadConfig } from '../../../config.ts';
 import { createReadingProviders } from './index.ts';
 
 /*
@@ -247,11 +248,45 @@ describe('8.4-API provider switch', () => {
     expect(createReadingProviders({ ...base, OCR_PROVIDER: 'ocr-svc', LLM_PROVIDER: 'fake' })(ctx).ocr_name).toBe('ocr-svc');
   });
 
-  it('textract, anthropic and bedrock fail permanently with ProviderNotImplementedError', async () => {
-    const textract = createReadingProviders({ ...base, OCR_PROVIDER: 'textract', LLM_PROVIDER: 'fake' })(ctx);
-    const error = await failure(textract.ocr.read(image));
-    expect(error).toBeInstanceOf(ProviderNotImplementedError);
-    expect(isPermanentReadingError(error)).toBe(true);
+  it('11.7-ROUTING: textract reads plate and panel through Textract and display through ocr-svc; no OCR_PROVIDER is fake', async () => {
+    const sent: unknown[] = [];
+    const client = {
+      async send(command: { input: unknown }) {
+        sent.push(command.input);
+        return { Blocks: [] };
+      },
+    };
+    const factory = createReadingProviders({ ...base, OCR_PROVIDER: 'textract', LLM_PROVIDER: 'fake' }, { textract: { client } });
+    const of = (reading_kind: 'plate' | 'panel' | 'display') => factory({ ...ctx, reading_kind });
+    expect(of('plate').ocr_name).toBe('textract');
+    expect(of('panel').ocr_name).toBe('textract');
+    expect(of('display').ocr_name).toBe('ocr-svc');
+    // One Textract provider per factory: every text kind shares it (and its one client).
+    expect(of('plate').ocr).toBe(of('panel').ocr);
+    expect(of('display').ocr).not.toBe(of('plate').ocr);
+    const png = { bytes: new Uint8Array(await sharp({ create: { width: 40, height: 20, channels: 3, background: { r: 1, g: 2, b: 3 } } }).png().toBuffer()), mime: 'image/png' as const };
+    expect(await of('panel').ocr.read(png, { mode: 'text' })).toEqual({ image: { width: 40, height: 20 }, tokens: [], preprocessing_applied: false });
+    expect(sent).toHaveLength(1);
+    const defaults = loadConfig({
+      DATABASE_URL: 'postgres://app:app@localhost:5432/app',
+      S3_ENDPOINT: 'http://localhost:9000',
+      S3_REGION: 'us-east-1',
+      S3_ACCESS_KEY_ID: 'key',
+      S3_SECRET_ACCESS_KEY: 'secret',
+      S3_BUCKET: 'app-files',
+      PORT: '3000',
+      SESSION_SECRET: 'x'.repeat(32),
+      TRUSTED_ORIGINS: 'http://localhost:5173',
+    });
+    for (const reading_kind of ['plate', 'panel', 'display'] as const) {
+      expect(createReadingProviders(defaults)({ ...ctx, reading_kind }).ocr_name).toBe('fake');
+    }
+    for (const reading_kind of ['plate', 'panel', 'display'] as const) {
+      expect(createReadingProviders({ ...base, OCR_PROVIDER: 'ocr-svc', LLM_PROVIDER: 'fake' })({ ...ctx, reading_kind }).ocr_name).toBe('ocr-svc');
+    }
+  });
+
+  it('anthropic and bedrock fail permanently with ProviderNotImplementedError', async () => {
     for (const llm of ['anthropic', 'bedrock'] as const) {
       const providers = createReadingProviders({ ...base, OCR_PROVIDER: 'fake', LLM_PROVIDER: llm })(ctx);
       const ocr = await providers.ocr.read(image);
