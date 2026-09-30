@@ -110,7 +110,7 @@ describe('R4 GenerateWatcher', () => {
     await act(async () => {
       await applyPulled(database!, [...job('done'), op]);
     });
-    await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent('Revisão 1 pronta — DOCX'));
+    await waitFor(() => expect(screen.getByTestId('toast')).toHaveTextContent('Revisão 1 pronta — DOCX e PDF'));
     await waitFor(async () => expect(await issueOps(database!)).toEqual(['emitido']));
     await waitFor(async () => expect(await readGenerateAwaiting(database!, REL)).toBeNull());
     // A later pull re-renders the watcher: nothing is written twice.
@@ -163,7 +163,7 @@ describe('R4 GenerateWatcher', () => {
     expect([first.won, second.won].sort()).toEqual([false, true]);
     expect(first.ops).toEqual(['emitido']);
     expect(second.ops).toEqual(['emitido']);
-    expect(toasts).toEqual(['Revisão 1 pronta — DOCX']);
+    expect(toasts).toEqual(['Revisão 1 pronta — DOCX e PDF']);
     expect(await issueOps(database)).toEqual(['emitido']);
   });
 });

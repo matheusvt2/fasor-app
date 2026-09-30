@@ -103,3 +103,25 @@ docker compose --profile prod up -d
 
 `curl http://localhost:3001/api/health` should return the health JSON, and
 `docker compose logs api-prod` should show JSON log lines.
+
+## Production (AWS, Story 11.8)
+
+The production app needs none of the steps above. There is no certificate to install
+on any tablet: Caddy on the production instance serves `https://<Elastic IP>` with a
+Let's Encrypt certificate for the IP address itself (the `shortlived` profile, renewed
+automatically every few days), and Let's Encrypt's root is already trusted by Android
+Chrome and iPadOS Safari. The origin is a secure context, so the service worker, the
+camera and geolocation work as they do locally.
+
+- **URL:** `https://<Elastic IP>`, printed as the `public_url` output of
+  `infra/bin/tf production output` and at the end of every `infra/bin/deploy`. The
+  address stays the same across the night stop and every deploy.
+- **Fallback URL:** if a tablet browser ever rejects the IP certificate, the stack can
+  turn on a CloudFront distribution (`enable_cloudfront_fallback = true`); the app is
+  then also served at `https://<id>.cloudfront.net` (the `cloudfront_url` output), with
+  Amazon's certificate.
+- **Hours:** the instance and the database stop from 00:00 to 05:00
+  (America/Sao_Paulo); the app answers again a few minutes after 05:00. Work captured
+  offline in that window syncs once it is back.
+
+See `infra/README.md` for the mechanism, the fallback and the runbook.

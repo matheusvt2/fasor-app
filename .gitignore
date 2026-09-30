@@ -47,3 +47,9 @@ apps/api/.drizzle-check/
 
 # Local credentials (never committed, never in a build context)
 secrets/
+
+# Terraform working dirs and local state (state lives in S3; the lock file is committed)
+.terraform/
+*.tfstate
+*.tfstate.*
+tfplan

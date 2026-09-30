@@ -14,7 +14,7 @@ import type { SessionState } from '../../state/session.tsx';
 import { SyncContext, type SyncState } from '../../state/sync.tsx';
 import { makeSyncState, type SyncStateOverrides } from '../../test/sync-state.ts';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
-import { revisionDocxUrl, SyncRequestError } from '../../sync/client.ts';
+import { revisionDocxUrl, revisionPdfUrl, SyncRequestError } from '../../sync/client.ts';
 import { ExportDialog } from './export-dialog.tsx';
 
 /*
@@ -54,6 +54,7 @@ const session = (): SessionState => ({
   signIn: vi.fn(),
   signOut: vi.fn(async () => {}),
   saveRegistration: vi.fn(async () => {}),
+  savePhotoLocation: vi.fn(async () => {}),
   recoveryNeeded: false,
   dismissRecovery: vi.fn(),
 });
@@ -261,25 +262,34 @@ describe('Export dialog (Story 4.8)', () => {
 
     const modal = dialog();
     await waitFor(() => expect(within(modal).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeInTheDocument());
-    expect(screen.getByTestId('toast')).toHaveTextContent('Revisão 1 pronta — DOCX');
+    expect(screen.getByTestId('toast')).toHaveTextContent('Revisão 1 pronta — DOCX e PDF');
     expect(modal.querySelector('.t-meta time')).toHaveAttribute('datetime', row.created_at);
     expect(modal.querySelector('p.t-meta')).toHaveTextContent('23/09/2026 09:00 · Bento Braga');
     expect(within(modal).getByRole('button', { name: 'DOCX — abrir no Word' })).toHaveClass('rr-open');
+    // Story 11.1: the second result row, the PDF for the client.
+    expect(within(modal).getByRole('button', { name: 'PDF — enviar ao cliente' })).toHaveClass('rr-open');
+    expect(modal.querySelectorAll('.result-block .result-row')).toHaveLength(2);
+    // No share sheet in this browser: neither share button renders.
+    expect(within(modal).queryByRole('button', { name: 'Compartilhar DOCX' })).toBeNull();
+    expect(within(modal).queryByRole('button', { name: 'Compartilhar PDF' })).toBeNull();
     expect(within(modal).getByText('Qualquer alteração a partir de agora gera a revisão 2.')).toBeInTheDocument();
     // Em revisão --issue--> Emitido, the device's second op; the pill follows the row.
     await waitFor(async () => expect(await statusOps(database!)).toEqual(['em_revisao', 'emitido']));
     await waitFor(() => expect(modal.querySelector('.row-wrap .status-pill')).toHaveTextContent('Emitido'));
 
-    // The Revisões list: "Rev. 1 — dd/mm/aaaa hh:mm — Bento Braga" with a DOCX button.
+    // The Revisões list: "Rev. 1 — dd/mm/aaaa hh:mm — Bento Braga" with a DOCX and a PDF button.
     const rowElement = modal.querySelector('.revision-row')!;
     expect(rowElement.querySelector('.rev-text')).toHaveTextContent('Rev. 1 — 23/09/2026 09:00 — Bento Braga');
     expect(rowElement.querySelector('.rev-text time')).toHaveAttribute('datetime', row.created_at);
     expect(within(rowElement as HTMLElement).getByRole('button', { name: 'DOCX' })).toHaveClass('btn-text');
+    expect(within(rowElement as HTMLElement).getByRole('button', { name: 'PDF' })).toHaveClass('btn-text');
 
     // Both open the download in a new tab.
     const open = vi.spyOn(window, 'open').mockImplementation(() => null);
     await userEvent.click(within(modal).getByRole('button', { name: 'DOCX — abrir no Word' }));
     expect(open).toHaveBeenCalledWith(`/api/revisions/${row.id}/docx`, '_blank', 'noopener');
+    await userEvent.click(within(modal).getByRole('button', { name: 'PDF — enviar ao cliente' }));
+    expect(open).toHaveBeenLastCalledWith(`/api/revisions/${row.id}/pdf`, '_blank', 'noopener');
     open.mockRestore();
 
     expect(await axe(modal)).toHaveNoViolations();
@@ -675,7 +685,7 @@ describe('Export dialog (Story 4.8)', () => {
     render(<Harness sync={sync} />);
     const modal = dialog();
     await waitFor(() => expect(within(modal).getByRole('heading', { level: 2, name: 'Revisão 1 pronta' })).toBeInTheDocument());
-    expect(screen.getByTestId('toast')).toHaveTextContent('Revisão 1 pronta — DOCX');
+    expect(screen.getByTestId('toast')).toHaveTextContent('Revisão 1 pronta — DOCX e PDF');
     await waitFor(async () => expect(await statusOps(database!)).toEqual(['em_revisao', 'emitido']));
     await waitFor(async () => expect(await readGenerateAwaiting(database!, REL)).toBeNull());
   });
@@ -708,12 +718,22 @@ describe('Export dialog (Story 4.8)', () => {
     expect(open).toHaveAttribute('aria-disabled', 'true');
     expect(open).toHaveAccessibleDescription('Baixando a revisão…');
     expect(modal.querySelector('.result-row .btn-reason')).toHaveTextContent('Baixando a revisão…');
+    // Story 11.1: the PDF row waits on the same revision, described by the same reason, and a press opens nothing.
+    const openPdf = within(modal).getByRole('button', { name: 'PDF — enviar ao cliente' });
+    expect(openPdf).toHaveAttribute('aria-disabled', 'true');
+    expect(openPdf).toHaveAccessibleDescription('Baixando a revisão…');
+    expect(modal.querySelectorAll('.result-row .btn-reason')).toHaveLength(1);
+    const windowOpen = vi.spyOn(window, 'open').mockImplementation(() => null);
+    await userEvent.click(openPdf);
+    expect(windowOpen).not.toHaveBeenCalled();
+    windowOpen.mockRestore();
     await waitFor(() => expect(sync.syncRelatorio).toHaveBeenCalled());
 
     await act(async () => {
       await applyPulled(database!, [...jobOps('done'), op]);
     });
     await waitFor(() => expect(within(modal).getByRole('button', { name: 'DOCX — abrir no Word' })).not.toHaveAttribute('aria-disabled'));
+    expect(within(modal).getByRole('button', { name: 'PDF — enviar ao cliente' })).not.toHaveAttribute('aria-disabled');
     expect(modal.querySelector('.result-row .btn-reason')).toBeNull();
     expect(modal.querySelector('p.t-meta')).toHaveTextContent('23/09/2026 09:00 · Bento Braga');
   });
@@ -927,6 +947,50 @@ describe('Export dialog (Story 7.5)', () => {
       expect(share).toHaveBeenCalledWith({ title: 'Revisão 1 pronta', url });
     } finally {
       delete (navigator as { share?: unknown }).share;
+    }
+  });
+
+  it('Story 11.1: shares the PDF of the ready revision by its absolute URL where the system has a share sheet', async () => {
+    database = await freshDb();
+    const { row, op } = revisionOf(1);
+    await applyPulled(database, [...jobOps('done'), op]);
+    const share = vi.fn(async () => {});
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true, writable: true });
+    try {
+      const answer: GenerateResponse = { outcome: 'unchanged', revision_id: row.id, revision_number: 1 };
+      render(<Harness sync={syncState({ generate: vi.fn(async () => answer) })} />);
+      await userEvent.click(generateButton());
+      const modal = dialog();
+      const button = await waitFor(() => within(modal).getByRole('button', { name: 'Compartilhar PDF' }));
+      expect(button).toHaveClass('icon-btn');
+      await userEvent.click(button);
+      const url = new URL(revisionPdfUrl(row.id), window.location.origin).toString();
+      expect(url).toMatch(/^https?:\/\/.*\/api\/revisions\/.*\/pdf$/);
+      expect(share).toHaveBeenCalledWith({ title: 'Revisão 1 pronta', url });
+    } finally {
+      delete (navigator as { share?: unknown }).share;
+    }
+  });
+
+  it("Story 11.1: each revision row's PDF opens that revision's own PDF", async () => {
+    database = await freshDb();
+    const first = revisionOf(1);
+    const second = revisionOf(2);
+    await applyPulled(database, [first.op, second.op]);
+    render(<Harness sync={syncState()} />);
+    const modal = dialog();
+    await waitFor(() => expect(modal.querySelectorAll('.revision-row')).toHaveLength(2));
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null);
+    try {
+      for (const { row } of [first, second]) {
+        const rowElement = [...modal.querySelectorAll<HTMLElement>('.revision-row')].find((el) => el.querySelector('.rev-text')?.textContent?.startsWith(`Rev. ${row.number} `));
+        expect(rowElement).toBeDefined();
+        await userEvent.click(within(rowElement!).getByRole('button', { name: 'PDF' }));
+        expect(open).toHaveBeenLastCalledWith(`/api/revisions/${row.id}/pdf`, '_blank', 'noopener');
+      }
+      expect(open).toHaveBeenCalledTimes(2);
+    } finally {
+      open.mockRestore();
     }
   });
 

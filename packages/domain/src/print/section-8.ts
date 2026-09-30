@@ -1,7 +1,11 @@
+import { formatCalendarDate } from '../format/datetime.ts';
 import { numberPhotos, photoRefLabel } from '../photos/numbering.ts';
 import { livePoints } from '../points/checks.ts';
 import { derivedPoints, groupDerivedPoints, type DerivedPoint, type DerivedPointGroup } from '../points/derived.ts';
-import { pointTextTokens } from '../points/refs.ts';
+import { priorityLabel } from '../points/priority.ts';
+import { extractPhotoRefs, pointTextTokens } from '../points/refs.ts';
+import { POINT_TITLE_GENERAL, pointTitle } from '../points/summary.ts';
+import type { PointRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { listPtBr } from '../text/plural.ts';
 
@@ -12,8 +16,13 @@ import { listPtBr } from '../text/plural.ts';
  * one space. A stored point written from an untested sheet (`origin: not_tested`) is a
  * bullet of its own, never merged (open question 1). Then the derived Não ensaiado entries
  * in tree order, consecutive entries with the same reason and justification as one bullet
- * (`groupDerivedPoints`, E3-A9 bullet 4). No action-plan table, no priority, deadline or
- * owner (`source-deltas.md` row 29).
+ * (`groupDerivedPoints`, E3-A9 bullet 4).
+ *
+ * Story 11.10 (FR-52, AR-25): beneath the bullets, whenever section 8 prints, the
+ * action-plan table: one row per bullet in bullet order, numbered 1..n continuously
+ * (manual rows first, then the derived groups), with the point's resolved text, where it
+ * sits, its priority, deadline, action, owner and the numbers of the photos it cites; "—"
+ * for every missing value.
  */
 
 /** authored: what a token prints when its photo is not numbered (removed since it was cited) (open for Bruno). */
@@ -23,14 +32,40 @@ export type Section8Bullet =
   | { kind: 'point'; text: string; point_id: string }
   | { kind: 'derived'; text: string; block_ids: string[] };
 
+/** One row of the action-plan table, every cell ready to print ("—" when missing). */
+export interface ActionPlanRow {
+  number: string;
+  point: string;
+  local: string;
+  priority: string;
+  deadline: string;
+  action: string;
+  owner: string;
+  images: string;
+}
+
+/** The action-plan table's column titles, in print order (FR-52). */
+export const ACTION_PLAN_COLUMNS: readonly string[] = ['Nº', 'Ponto de atenção', 'Local/TAG', 'Prioridade', 'Prazo', 'Ação recomendada', 'Responsável', 'Imagens'];
+
+/** What an empty action-plan cell prints. */
+export const ACTION_PLAN_NONE = '—';
+
 export interface LayoutSectionPoints {
   number: number;
   title: string;
   kind: 'points';
   bullets: string[];
+  /** Story 11.10: the action-plan table under the bullets, one row per bullet. */
+  table: ActionPlanRow[];
 }
 
 type Section8Snapshot = Pick<RelatorioSnapshot, 'locations' | 'blocks' | 'equipment' | 'points'>;
+
+/** A cell value: trimmed, "—" when blank or missing. */
+function cell(value: string | null | undefined): string {
+  const trimmed = value?.trim() ?? '';
+  return trimmed === '' ? ACTION_PLAN_NONE : trimmed;
+}
 
 /** A text with each photo token replaced by "Imagem N", or `REMOVED_PHOTO_REF_TEXT` for a photo the numbering lacks. */
 export function resolvePhotoTokens(text: string, numbering: ReadonlyMap<string, number>): string {
@@ -82,8 +117,58 @@ export function resolveSection8(snapshot: Section8Snapshot, numbering: ReadonlyM
   return [...points, ...derived];
 }
 
+/** The photo numbers a point cites (text, then action), first-seen order, each once; photos the numbering lacks are left out. */
+function pointImages(point: Pick<PointRow, 'text' | 'action'>, numbering: ReadonlyMap<string, number>): string {
+  const ids = extractPhotoRefs(`${point.text} ${point.action ?? ''}`);
+  const numbers = ids.map((id) => numbering.get(id)).filter((n): n is number => n !== undefined);
+  return numbers.length === 0 ? ACTION_PLAN_NONE : numbers.join(', ');
+}
+
+/** Where a point sits: its equipment as section 8 names it ("SEC-C12 · 1° Subsolo › Coluna 12"); "—" for a general point. */
+function pointLocal(point: Pick<PointRow, 'equipment_id'>, snapshot: Section8Snapshot): string {
+  if (point.equipment_id === null) return ACTION_PLAN_NONE;
+  const title = pointTitle(point, snapshot);
+  return title === POINT_TITLE_GENERAL ? ACTION_PLAN_NONE : title;
+}
+
+/**
+ * The action-plan rows, one per section 8 bullet in the same order (`resolveSection8`):
+ * the live points, then the derived groups (their bullet text, their sheets' titles joined
+ * by "; ", nothing else), numbered 1..n.
+ */
+export function resolveActionPlan(snapshot: Section8Snapshot, numbering: ReadonlyMap<string, number>): ActionPlanRow[] {
+  const points = livePoints(snapshot.points).map((point) => ({
+    point: cell(resolvePhotoTokens(point.text, numbering)),
+    local: pointLocal(point, snapshot),
+    priority: point.priority === null ? ACTION_PLAN_NONE : priorityLabel(point.priority),
+    deadline: cell(formatCalendarDate(point.deadline)),
+    action: cell(resolvePhotoTokens(point.action ?? '', numbering)),
+    owner: cell(point.owner),
+    images: pointImages(point, numbering),
+  }));
+  const entries = derivedPoints(snapshot);
+  const byBlock = new Map(entries.map((entry) => [entry.block_id, entry]));
+  const derived = groupDerivedPoints(entries).map((group) => ({
+    point: derivedGroupText(group, entries),
+    local: cell(
+      group.block_ids
+        .map((id) => byBlock.get(id)?.title)
+        .filter((title): title is string => title !== undefined)
+        .join('; '),
+    ),
+    priority: ACTION_PLAN_NONE,
+    deadline: ACTION_PLAN_NONE,
+    action: ACTION_PLAN_NONE,
+    owner: ACTION_PLAN_NONE,
+    images: ACTION_PLAN_NONE,
+  }));
+  return [...points, ...derived].map((row, i) => ({ number: String(i + 1), ...row }));
+}
+
 /** Section 8's layout under its heading; null when there is no point and no derived entry (the section prints the empty note). */
 export function section8Layout(snapshot: Section8Snapshot & Pick<RelatorioSnapshot, 'files'>, heading: { number: number; title: string }): LayoutSectionPoints | null {
-  const bullets = resolveSection8(snapshot, numberPhotos(snapshot.files)).map((bullet) => bullet.text);
-  return bullets.length === 0 ? null : { number: heading.number, title: heading.title, kind: 'points', bullets };
+  const numbering = numberPhotos(snapshot.files);
+  const bullets = resolveSection8(snapshot, numbering).map((bullet) => bullet.text);
+  if (bullets.length === 0) return null;
+  return { number: heading.number, title: heading.title, kind: 'points', bullets, table: resolveActionPlan(snapshot, numbering) };
 }

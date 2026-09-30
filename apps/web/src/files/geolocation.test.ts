@@ -14,6 +14,7 @@ function harness() {
   const timers: { at: number; run: () => void }[] = [];
   const requests: { ok: Success; fail: Failure }[] = [];
   const onDenied = vi.fn();
+  const onGranted = vi.fn();
   const tracker = createPositionTracker({
     geolocation: {
       getCurrentPosition: (ok: Success, fail?: Failure | null) => {
@@ -23,12 +24,14 @@ function harness() {
     now: () => clock,
     setTimeout: (run, ms) => timers.push({ at: clock + ms, run }),
     onDenied,
+    onGranted,
   });
   const position = (lat: number) => ({ coords: { latitude: lat, longitude: -46.6333, accuracy: 12 } }) as GeolocationPosition;
   return {
     tracker,
     requests,
     onDenied,
+    onGranted,
     position,
     advance(ms: number) {
       clock += ms;
@@ -86,6 +89,19 @@ describe('6.1-UNIT-007 positionAtCapture', () => {
     expect(h.onDenied).toHaveBeenCalledTimes(1);
     expect(await h.tracker.positionAtCapture()).toBeNull();
     expect(h.requests).toHaveLength(1);
+  });
+
+  it('11.5: reports each fix that arrives, so the denial line clears; a denial reports none', async () => {
+    const h = harness();
+    h.tracker.warm();
+    h.requests[0]!.ok(h.position(-23.5505));
+    await Promise.resolve();
+    expect(h.onGranted).toHaveBeenCalledTimes(1);
+    const denied = harness();
+    const pending = denied.tracker.positionAtCapture();
+    denied.requests[0]!.fail({ code: 1, message: 'denied' } as GeolocationPositionError);
+    await pending;
+    expect(denied.onGranted).not.toHaveBeenCalled();
   });
 
   it('is null on a device with no Geolocation API', async () => {

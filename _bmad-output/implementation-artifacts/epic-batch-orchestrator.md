@@ -130,8 +130,10 @@ overrides (they win over the workflow text):
   its gate re-runs the full `verify` before the merge.
 - While iterating, run the narrowest suite (`pnpm test:unit -- <path>`, one Playwright spec with `--grep`), not the
   whole gate. Run the full `pnpm verify` once at the end, and once more only if you merged a changed main.
-- A batch that touches the sheet, an overlay or shared layout also runs `pnpm test:e2e:full` (under the lock)
-  before its PR, and so does the epic's last story PR (E6-A2).
+- ~~A batch that touches the sheet, an overlay or shared layout also runs `pnpm test:e2e:full` (under the lock)
+  before its PR, and so does the epic's last story PR (E6-A2).~~ *(2026-09-30, Matheus, split gate E10-A1: a batch
+  runs `pnpm verify` plus the Playwright specs it touched, targeted; `test:e2e:full` and the full matrix run once per
+  wave on the integrated main, launched by the coordinator, and at the epic QA.)*
 - Read files with offset/limit; do not re-read a file you just edited; do not cat whole large files.
 - No Playwright MCP browser pass in the batch (the integrated QA after the last merge does the human-style pass).
   The batch still covers each story's main ACs with Playwright specs tagged `@p0` (as a human would: clicks,
@@ -143,7 +145,7 @@ overrides (they win over the workflow text):
   table or a wide control asserts its 390 px fit in an e2e (E5-A6). An identity or reuse rule gets a two-device
   test (E4-A8).
 
-- A batch touching `docx.ts`, `layout.ts`, a golden or the sync contract merges main and runs `test:e2e:full` before
+- A batch touching `docx.ts`, `layout.ts`, a golden or the sync contract merges main and runs ~~`test:e2e:full`~~ its touched document and sync specs *(2026-09-30, split gate)* before
   its PR; document tests assert from their own section heading, never from a position that another section shifts
   (E7-A6).
 - (E10-A2, 2026-09-29) Push your branch to origin after every commit that precedes a gate run and before any long

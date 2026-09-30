@@ -10,10 +10,11 @@ import {
 } from '@app/domain';
 import { useEffect, useId, useState } from 'react';
 import { Link } from 'react-router';
-import { Button, ConfirmDialog, SegmentedControl, TextButton } from '../../components/index.ts';
+import { Button, ConfirmDialog, SegmentedControl, TextButton, Toggle } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { relatorioRows, originalFileCount } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
+import { clearGeolocationDenied, useGeolocationDenied, writeGeolocationDenied } from '../../db/photo-store.ts';
 import { localUser } from '../../db/sync-store.ts';
 import { estimateStorageUsage } from '../../device/storage-estimate.ts';
 import { useSession } from '../../state/session.tsx';
@@ -24,14 +25,20 @@ import './account.css';
 
 /**
  * Account (UX-DR22, UX-DR65) from `mockups/key-account.html`: identity rows, the
- * "Registro profissional" settings row with its Form dialog, the "Aguardando envio" row
- * that opens Sync status, and the destructive "Sair" with its Confirm dialog, whose
+ * "Registro profissional" settings row with its Form dialog, the "Localização nas fotos"
+ * Toggle row (Story 11.5, FR-8, `90-account.html` `#acc-loc-row`), the "Aguardando envio"
+ * row that opens Sync status, and the destructive "Sair" with its Confirm dialog, whose
  * wording carries the kernel's pending summary when something waits to be sent.
  *
  * There is no "Instalar na tela inicial" row: `source-deltas.md` removed it (web only,
- * no install), even though the mock still draws it. "Localização nas fotos" (FR-8) and
- * "Leituras por IA" are marked out of the slice in the mock and are not built here
- * either.
+ * no install), even though the mock still draws it. "Leituras por IA" is marked out of
+ * the slice in the mock and is not built here either.
+ *
+ * "Localização nas fotos" writes the user's own `photo_location_enabled` (default on; off,
+ * the next photos carry date and time only). When the browser refused the position (the
+ * device-local `geolocation_denied` pref the capture records, or a Permissions API state of
+ * `denied`), the denied line replaces the "on" helper and the switch stays on, so a later
+ * permission works again at once. A switch is its own inverse: no undo toast.
  */
 
 const THEME_OPTIONS: ReadonlyArray<{ value: ThemePreference; label: string }> = [
@@ -44,6 +51,9 @@ export function AccountSurface() {
   const sync = useSync();
   const identityHeadingId = useId();
   const registrationHeadingId = useId();
+  const locationHeadingId = useId();
+  const locationLabelId = useId();
+  const locationHelperId = useId();
   const themeHeadingId = useId();
   const storageHeadingId = useId();
   const sessionHeadingId = useId();
@@ -67,6 +77,37 @@ export function AccountSurface() {
     [db, userId],
     null,
   );
+
+  const geolocationDenied = useGeolocationDenied(db);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
+  // Story 11.5: the Permissions API, where the browser has it, says at once whether the
+  // position is refused or allowed again (the capture's own answer also sets and clears it).
+  useEffect(() => {
+    if (db === null || typeof navigator === 'undefined' || navigator.permissions?.query === undefined) return;
+    let status: PermissionStatus | null = null;
+    let cancelled = false;
+    const apply = (state: PermissionState) => {
+      if (state === 'denied') void writeGeolocationDenied(db).catch(() => undefined);
+      else if (state === 'granted') void clearGeolocationDenied(db).catch(() => undefined);
+    };
+    const onChange = () => {
+      if (status !== null) apply(status.state);
+    };
+    navigator.permissions
+      .query({ name: 'geolocation' })
+      .then((result) => {
+        if (cancelled) return;
+        status = result;
+        apply(result.state);
+        result.addEventListener('change', onChange);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+      status?.removeEventListener('change', onChange);
+    };
+  }, [db]);
 
   // One measurement per visit; `estimateStorageUsage` never throws, so a browser
   // without the API simply leaves the value null and the kernel writes the sentence.
@@ -99,6 +140,17 @@ export function AccountSurface() {
     registrationNumber: registration.registrationNumber ?? '',
     title: registration.title ?? defaultTitleForCouncil(council),
   };
+
+  const locationEnabled = userRow?.photo_location_enabled ?? true;
+
+  async function saveLocation(enabled: boolean) {
+    setLocationError(null);
+    try {
+      await session.savePhotoLocation(enabled);
+    } catch {
+      setLocationError(copy.account.locationSaveFailed);
+    }
+  }
 
   async function save(registration: Registration) {
     await session.saveRegistration(registration);
@@ -175,6 +227,47 @@ export function AccountSurface() {
               <TextButton onPress={() => setEditing(true)}>{copy.account.edit}</TextButton>
             </li>
           </ul>
+        </section>
+
+        <section className="section" aria-labelledby={locationHeadingId}>
+          <div className="section-head">
+            <h2 id={locationHeadingId}>{copy.account.locationHeading}</h2>
+          </div>
+          <div className="location-row">
+            <div className="toggle-row">
+              <span>
+                <span className="toggle-label" id={locationLabelId}>
+                  {copy.account.locationLabel}
+                </span>
+                <br />
+                <span className="toggle-sub">{copy.account.locationSub}</span>
+              </span>
+              <Toggle
+                isSelected={locationEnabled}
+                aria-labelledby={locationLabelId}
+                aria-describedby={locationHelperId}
+                onChange={(enabled) => void saveLocation(enabled)}
+              />
+            </div>
+            {!locationEnabled ? (
+              <span className="helper helper-off" id={locationHelperId}>
+                {copy.account.locationHelperOff}
+              </span>
+            ) : geolocationDenied ? (
+              <span className="helper helper-denied" id={locationHelperId} data-tone="amber">
+                {copy.account.locationDenied}
+              </span>
+            ) : (
+              <span className="helper helper-on" id={locationHelperId}>
+                {copy.account.locationHelperOn}
+              </span>
+            )}
+            {locationError === null ? null : (
+              <span className="login-error" role="alert">
+                {locationError}
+              </span>
+            )}
+          </div>
         </section>
 
         <section className="section" aria-labelledby={themeHeadingId}>

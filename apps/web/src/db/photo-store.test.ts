@@ -113,6 +113,17 @@ describe('6.1-UNIT-006 commitPhotoCapture', () => {
     db.close();
   });
 
+  it('ledger 1131: a Geral photo asks for its caption reading at create unless the caller says no reading (a gallery batch)', async () => {
+    const db = await freshDb();
+    const geral = { blockId: null, caption: null };
+    await commitPhotoCapture(db, shot(PHOTO_A, '2026-09-25T11:00:00.000Z', geral), { newId, now });
+    await commitPhotoCapture(db, shot(PHOTO_B, '2026-09-25T11:01:00.000Z', { ...geral, reading: null }), { newId, now });
+    const rowOf = async (id: string) => photoFileRowSchema.parse((await db.entities.get(['file', id]))!.row);
+    expect(await rowOf(PHOTO_A)).toMatchObject({ reading_kind: 'caption', reading_status: 'queued' });
+    expect(await rowOf(PHOTO_B)).toMatchObject({ reading_kind: null, reading_target: null, reading_status: 'none' });
+    db.close();
+  });
+
   it('lists a sheet photos in capture order with their thumb and item', async () => {
     const db = await freshDb();
     await commitPhotoCapture(db, shot(PHOTO_B, '2026-09-25T11:05:00.000Z', { itemKey: 'contatos' }), { newId, now });

@@ -22,6 +22,7 @@ import {
   type EntityRow,
   type Op,
   type OpRejectCode,
+  type ReadingKindPutPhoto,
   type RegistryRow,
 } from '@app/domain';
 import { and, desc, eq, isNull, or, sql } from 'drizzle-orm';
@@ -92,11 +93,13 @@ function clientReadingFieldsAreValid(value: unknown): boolean {
  * Story 9.2 (contract 7), narrowed by E9-Q2 (contract 9): a device re-targets a panel photo to
  * its new block's plate with a `file/{id}/reading_kind` put of `plate` (which queues it,
  * `applyOp`) and a `file/{id}/reading_target` put holding an object; its undo puts both null.
- * Anything else is `op_invalid`. Which photo may take a `plate` put is the row's state,
- * checked where the row is loaded (`clientReadingKindPutAllowed`, `applyOneIn`).
+ * Contract 14 (ledger 1131): a gallery import batch asks for its photos' caption reading with a
+ * `file/{id}/reading_kind` put of `caption` once the batch is answered. Anything else is
+ * `op_invalid`. Which photo may take a `plate` or `caption` put is the row's state, checked
+ * where the row is loaded (`clientReadingKindPutAllowed`, `applyOneIn`).
  */
 function clientReadingPutIsValid(field: string, value: unknown): boolean {
-  if (field === 'reading_kind') return value === 'plate' || value === null;
+  if (field === 'reading_kind') return value === 'plate' || value === 'caption' || value === null;
   if (field === 'reading_target') return value === null || (typeof value === 'object' && !Array.isArray(value));
   return true;
 }
@@ -111,14 +114,16 @@ class ReadingKindPutRefusedError extends Error {
 
 /**
  * E9-Q2: refuses a client `file/{id}/reading_kind` put its photo's stored row does not allow
- * (a kind other than the 9.2 re-target, or `plate` on a photo that is not a panel one), before
- * `applyOp` would queue a second paid reading. Server ops are never checked here.
+ * (a kind other than the 9.2 re-target or the contract-14 caption request, `plate` on a photo
+ * that is not a panel one, or `caption` on a photo that has a reading already or a sheet, a
+ * caption or the "Pessoas na foto" mark), before `applyOp` would queue a second paid reading or
+ * send a marked photo to the prose provider. Server ops are never checked here.
  */
 function assertClientReadingKindPut(op: Op, state: ReadonlyMap<EntityKey, EntityRow>, origin: ApplyDeps['origin']): void {
   if (origin !== 'client' || op.kind !== 'put') return;
   const path = parsePath(op.path);
   if (path.family !== 'file/field' || path.field !== 'reading_kind') return;
-  const photo = state.get(entityKey('file', path.id)) as { kind?: unknown; reading_kind?: unknown } | undefined;
+  const photo = state.get(entityKey('file', path.id)) as ReadingKindPutPhoto | undefined;
   if (!clientReadingKindPutAllowed(photo, op.value)) throw new ReadingKindPutRefusedError(op.path);
 }
 

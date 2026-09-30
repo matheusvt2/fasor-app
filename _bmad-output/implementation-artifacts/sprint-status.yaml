@@ -129,17 +129,17 @@ development_status:
   10-4-see-everything-the-sync-did-or-is-waiting-to-do: done  # PR #65
   epic-10-retrospective: done  # epic-10-retro-2026-09-29.md, accepted-with-open-items
 
-  epic-11: backlog
-  11-1-download-the-pdf-beside-the-docx: backlog
-  11-2-move-a-block-to-another-location: backlog
-  11-3-save-a-relatório-as-a-template: backlog
-  11-4-edit-section-boilerplate-in-a-rich-text-editor: backlog
-  11-5-turn-the-photo-location-stamp-on-or-off: backlog
-  11-6-structure-readings-with-claude-through-a-paid-api-key: backlog
-  11-7-use-amazon-textract-as-the-cloud-ocr: backlog
-  11-8-deploy-the-same-images-to-aws: backlog
-  11-9-let-the-priority-suggest-the-deadline-on-a-point-of-attentio: backlog
-  11-10-print-the-action-plan-table-in-section-8-post-mvp-before-202: backlog
+  epic-11: in-progress
+  11-1-download-the-pdf-beside-the-docx: done  # PR #70
+  11-2-move-a-block-to-another-location: done  # PR #73
+  11-3-save-a-relatório-as-a-template: done  # PR #73
+  11-4-edit-section-boilerplate-in-a-rich-text-editor: done  # PR #75
+  11-5-turn-the-photo-location-stamp-on-or-off: done  # PR #75
+  11-6-structure-readings-with-claude-through-a-paid-api-key: backlog  # blocked: Bedrock new-account quotas (AWS support case), Story 11.6 Definition of Ready
+  11-7-use-amazon-textract-as-the-cloud-ocr: done  # PR #69 (live Textract call waits for the deploy)
+  11-8-deploy-the-same-images-to-aws: in-progress  # PR #74 merged; first deploy pending
+  11-9-let-the-priority-suggest-the-deadline-on-a-point-of-attentio: done  # PR #71
+  11-10-print-the-action-plan-table-in-section-8-post-mvp-before-202: done  # PR #71
   epic-11-retrospective: optional
 
   epic-12: done  # stories PRs #35-#38; fixes PR #39; journey review 2026-09-24; runs before Epic 6, confirmed by Matheus (sprint-change-proposal-2026-09-24.md)

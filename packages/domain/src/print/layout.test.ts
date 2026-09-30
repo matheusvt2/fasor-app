@@ -104,7 +104,7 @@ describe('4.8-UNIT-001 layoutSpec on the full fixture', () => {
   it('keeps the seed headings inside section 4 as headings, not flattened', () => {
     const fourth = layout.sections[3]!;
     if (fourth.kind !== 'text') throw new Error('section 4 is text');
-    expect(fourth.paragraphs[0]).toEqual({ kind: 'heading', text: 'Documentação' });
+    expect(fourth.paragraphs[0]).toEqual({ kind: 'heading', text: 'Documentação', runs: [{ text: 'Documentação' }] });
     expect(fourth.paragraphs.filter((p) => p.kind === 'heading').map((p) => p.text)).toEqual([
       'Documentação',
       'EPC’s',
@@ -262,10 +262,10 @@ describe('4.8-UNIT-007 layoutSpec follows the relatório\'s section blocks (Sum�
     expect(third.kind).toBe('text');
     if (third.kind === 'text') {
       expect(third.paragraphs).toEqual([
-        { kind: 'paragraph', text: 'Texto próprio de Cliente de Testes Ltda.' },
-        { kind: 'paragraph', text: 'Exclusões:' },
-        { kind: 'item', text: 'item a' },
-        { kind: 'item', text: 'item b' },
+        { kind: 'paragraph', text: 'Texto próprio de Cliente de Testes Ltda.', runs: [{ text: 'Texto próprio de Cliente de Testes Ltda.' }] },
+        { kind: 'paragraph', text: 'Exclusões:', runs: [{ text: 'Exclusões:' }] },
+        { kind: 'item', text: 'item a', runs: [{ text: 'item a' }] },
+        { kind: 'item', text: 'item b', runs: [{ text: 'item b' }] },
       ]);
     }
     // The moved 8 prints its bullets (Story 7.3); the sections the seed fills stay text.

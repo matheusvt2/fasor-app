@@ -59,6 +59,7 @@ Releng (codename fasor): a tablet-first, offline-first web app that captures med
 - 2026-09-21, Matheus: `pnpm verify` is the merge gate (R-011); CI stays out of the MVP.
 - 2026-09-21, Matheus: Sync status gains a visible "Sincronizar agora" action (C-4); tests use it instead of the 60 s timer.
 - 2026-09-29, Matheus: all AWS infrastructure is Terraform in `infra/`, never AWS CDK, CloudFormation written by hand or changes made in the console; Terraform and the AWS CLI run in containers. The AWS account exists: before any AWS work (Story 11.8) Matheus logs the AWS CLI into it and the agent uses that `~/.aws` profile, never stored keys. Source: `source-deltas.md`.
+- 2026-09-30, Matheus: split merge gate (E10-A1, closes E9-A1). A story PR runs `pnpm verify` (lint, static, unit, api, `@p0` e2e) plus the specs it touched, and, when it changes the op fold, the commit path or a live query on the ficha, those durability specs on `test:e2e:matrix`. `test:e2e:full` and the full `test:e2e:matrix` run once per wave on the integrated main and again at the epic QA, no longer per batch. PR #68 is the precedent. Source: `epic-10-retro-2026-09-29.md` R10-1 to R10-3.
 
 ## Where a new user-facing string goes (kept outside the managed block)
 

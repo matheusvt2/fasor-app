@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Runs Terraform in a container (AD-27: nothing on the host) against the AWS login
+# session of one profile. Usage: infra/bin/tf <dir under infra/> <terraform args...>
+# AWS_PROFILE picks the profile (default: fasor-admin). The session is read by the
+# pinned aws-cli image as the calling user, so ~/.aws never gets root-owned files.
+# TF_OFFLINE=1 skips the session export, for the commands that never reach AWS
+# (`init -backend=false`, `validate`, `fmt`, `providers lock`); infra/bin/check uses it.
+set -euo pipefail
+dir="$1"; shift
+root="$(cd "$(dirname "$0")/.." && pwd)"
+profile="${AWS_PROFILE:-fasor-admin}"
+creds=""
+if [ "${TF_OFFLINE:-0}" != "1" ]; then
+  creds="$(docker run --rm --user "$(id -u):$(id -g)" -e HOME=/home/aws \
+    -v "$HOME/.aws:/home/aws/.aws" amazon/aws-cli:2.37.6 \
+    configure export-credentials --profile "$profile" --format env-no-export)"
+fi
+# A terminal only when both ends are one, so `$(infra/bin/tf ... output -raw x)` in the
+# deploy script never gets carriage returns.
+tty=(); [ -t 0 ] && [ -t 1 ] && tty=(-it)
+exec docker run --rm "${tty[@]}" --user "$(id -u):$(id -g)" -e HOME=/tmp \
+  --env-file <(printf '%s\nAWS_REGION=us-east-1\n' "$creds") \
+  -v "$root:/infra" -w "/infra/$dir" hashicorp/terraform:1.16.4 "$@"

@@ -13,7 +13,7 @@ import { createReadingProviders } from './jobs/reading/providers/index.ts';
 import { registerReadingWorker } from './jobs/reading/worker.ts';
 import { startQueue } from './jobs/queue.ts';
 import { log, logError } from './log.ts';
-import { createS3, ensureBucket, probeStorage } from './storage/s3.ts';
+import { createS3, prepareStorage, probeStorage } from './storage/s3.ts';
 
 const config = loadConfigOrExit();
 
@@ -36,7 +36,8 @@ async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
 // nothing below (queue, auth) sees a database without its tables.
 await withRetry('database', () => migrate(db));
 log('migrations applied');
-await withRetry('storage', () => ensureBucket(s3, config.S3_BUCKET));
+// Story 11.8: ensure the bucket against a local endpoint, only probe it on AWS.
+await withRetry('storage', () => prepareStorage(config, s3));
 const boss = await withRetry('queue', () => startQueue(config.DATABASE_URL));
 
 // AD-15: the generate worker runs in this process (`WORKER=1`, the compose default). The
@@ -51,9 +52,10 @@ if (config.WORKER === '1') {
     fault: config.NODE_ENV === 'production' ? undefined : config.GENERATE_FAULT,
   });
   log('generate worker registered', { fault: config.NODE_ENV === 'production' ? null : (config.GENERATE_FAULT ?? null) });
-  // Story 8.4: the plate reading worker, on the providers the env names (both `fake` by default).
+  // Story 8.4: the plate reading worker, on the providers the env names (both `fake` by default);
+  // Story 11.7: `OCR_PROVIDER=textract` reads through TEXTRACT_REGION.
   await registerReadingWorker(boss, { db, s3, bucket: config.S3_BUCKET, now, newId, providers: createReadingProviders(config) });
-  log('reading worker registered', { ocr_provider: config.OCR_PROVIDER, llm_provider: config.LLM_PROVIDER });
+  log('reading worker registered', { ocr_provider: config.OCR_PROVIDER, llm_provider: config.LLM_PROVIDER, textract_region: config.TEXTRACT_REGION });
 }
 
 const auth = createAuth({
