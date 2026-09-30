@@ -47,9 +47,18 @@ export function ToastProvider({ children, timers = browserTimers }: { children: 
     handle.current = null;
   }, [timers]);
 
-  // A plain toast's expiry never outlives the provider: its setState would land after the
-  // page (or a test's environment) is gone.
-  useEffect(() => clearTimer, [clearTimer]);
+  // A plain toast's expiry never sets state after the provider unmounted (seen as "window is
+  // not defined" after a test environment's teardown in the e11b gate, 2026-09-30). The timer
+  // itself is left alone: StrictMode's mount, unmount and remount would otherwise clear the
+  // expiry of a toast a child showed on mount, which then never left (1.6-E2E-003, integrated
+  // Epic 11 gate, 2026-09-30).
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const dismissToast = useCallback(() => {
     clearTimer();
@@ -65,6 +74,7 @@ export function ToastProvider({ children, timers = browserTimers }: { children: 
       if (options.action === undefined) {
         handle.current = timers.setTimeout(() => {
           handle.current = null;
+          if (!mounted.current) return;
           setToast((current) => (current?.id === id ? null : current));
         }, TOAST_TIMEOUT_MS);
       }

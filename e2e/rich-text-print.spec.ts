@@ -111,7 +111,7 @@ test('@p1 11.4-E2E-002 a relatório made from a formatted template: section 2 op
   await page.locator('.sticky-action-bar').getByRole('button', { name: 'Gerar relatório' }).click();
   const modal = page.getByRole('dialog', { name: 'Gerar relatório' });
   await modal.locator('.generate-row').getByRole('button', { name: 'Gerar relatório' }).click();
-  await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX', { timeout: JOB_TIMEOUT });
+  await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
   const download = await downloadFrom(page, context, () => modal.getByRole('button', { name: 'DOCX — abrir no Word' }).click());
   const response = await page.request.get(download.url());
   expect(response.status()).toBe(200);
