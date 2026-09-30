@@ -10,8 +10,8 @@ import { syncNowAndReturn } from './support/sync.ts';
  * Story 11.8 follow-up (AI_FEATURES): a server whose AI features are off. `GET /api/account` is
  * the real answer with `features.ai = false` laid over it (the way other specs stub a server
  * fact). Driven as a person would: the sheet shows no "Fotografar placa", keeps "Ler visor" and
- * "Ditar observações", commits a typed plate value; a photo from an NC row asks for no draft and
- * a draft already on the server does not show; the Sumário's palette has no "Fotografar
+ * "Ditar observações", commits a typed plate value; a photo from an NC row asks for no draft,
+ * while a draft already on the server still shows (settling it calls no LLM); the Sumário's palette has no "Fotografar
  * equipamento"; and after an offline reload the cached flag keeps every entry hidden.
  */
 
@@ -90,7 +90,7 @@ test('@p0 11.8-E2E-001 AI features off: no plate, panel or NC-draft entry; "Ler 
   const create = (await outbox(page)).find((op) => op.kind === 'create' && op.path === `file/${photo!.id}`)!;
   expect(create.value).toMatchObject({ block_id: ids.blockId, item_key: 'contatos', reading_kind: null, reading_status: 'none' });
 
-  // A draft the server already holds does not show either.
+  // A draft the server already holds still shows: settling it calls no LLM.
   await pushSuggestion(account.companyId, ids.relatorioId, {
     targetPath: `sheet/${ids.blockId}/checklist/contatos/observation`,
     value: 'Oxidação aparente na estrutura do equipamento.',
@@ -99,8 +99,7 @@ test('@p0 11.8-E2E-001 AI features off: no plate, panel or NC-draft entry; "Ler 
   });
   await syncNowAndReturn(page);
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible({ timeout: 30_000 });
-  await expect(contatos.getByRole('textbox', { name: 'Observação do item 8' })).toBeVisible();
-  await expect(contatos.locator('.nc-draft')).toHaveCount(0);
+  await expect(contatos.getByRole('group', { name: 'Rascunho da observação do item 8' })).toBeVisible({ timeout: 30_000 });
 
   // The Sumário's field palette: the eight types, no "Fotografar equipamento".
   await page.goto(`/relatorio/${ids.relatorioId}`);

@@ -40,7 +40,6 @@ import { ui } from '../../copy/ui.ts';
 import { useEditedSince, useRevisions } from '../../db/generate-store.ts';
 import { useRelatorioPhotoTiles, type PhotoTile } from '../../db/photo-store.ts';
 import { splitImportable } from '../../files/photo-import.ts';
-import { useAiFeatures } from '../../state/ai-features.tsx';
 import { useSession } from '../../state/session.tsx';
 import { useSync } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
@@ -98,8 +97,6 @@ function focusTileSoon(photoId: string | null, fallback: HTMLElement | null) {
 function Gallery({ relatorioId, state }: { relatorioId: string; state: EntityState }) {
   const t = copy.gallery;
   const session = useSession();
-  // Story 11.8 follow-up: no vision caption line while the server's AI features are off.
-  const aiFeatures = useAiFeatures();
   const db = session.database;
   const user = session.user;
   const { showToast } = useToast();
@@ -130,7 +127,7 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const filterText = galleryFilterText(shown.length, cabineName === null ? null : captionWordFor(cabineName, 'local', sources.locais, sources.registry));
 
   // --- Story 9.3: the vision captions ----------------------------------------------------------
-  const pending = useMemo(() => (aiFeatures ? pendingSuggestions(suggestionRowsOf(state, relatorioId)) : []), [aiFeatures, state, relatorioId]);
+  const pending = useMemo(() => pendingSuggestions(suggestionRowsOf(state, relatorioId)), [state, relatorioId]);
   const suggested = useMemo(
     () =>
       captionSuggestions(

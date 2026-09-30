@@ -1,4 +1,4 @@
-import { captionPhotoMetaText, plateCropView, PLATE_CAPTION, regionWithin, type NormalizedBox, type PlateReadingView } from '@app/domain';
+import { captionPhotoMetaText, plateCropView, PLATE_CAPTION, readingNeedsAi, regionWithin, type NormalizedBox, type PlateReadingView } from '@app/domain';
 import { useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { TextButton } from '../../components/index.ts';
@@ -8,6 +8,7 @@ import { copy } from '../../copy/pt-br.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import type { PhotoTile } from '../../db/photo-store.ts';
 import { clearRereadAsked, readRereadAsked, writeRereadAsked } from '../../db/prefs.ts';
+import { useAiFeatures } from '../../state/ai-features.tsx';
 import { useSession } from '../../state/session.tsx';
 import { requestSyncCycle, useSync } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
@@ -56,6 +57,7 @@ export function PlatePhotoRow({
   onFillManually: (() => void) | null;
 }) {
   const t = copy.ficha.nameplate;
+  const aiFeatures = useAiFeatures();
   const src = useObjectUrl(tile.thumb);
   return (
     <div className="photo-row ficha-np-photo" data-reading={view}>
@@ -96,6 +98,7 @@ export function PlatePhotoRow({
             key={tile.reading_status_op_id ?? 'create'}
             photoId={tile.id}
             statusOpId={tile.reading_status_op_id}
+            canRetry={aiFeatures || tile.reading_kind === null || !readingNeedsAi(tile.reading_kind)}
             onFillManually={onFillManually}
           />
         ) : null}
@@ -117,7 +120,18 @@ export function PlatePhotoRow({
 const NOT_READ = 'not-read';
 const NOT_ASKED = 'not-asked';
 
-function FailedReading({ photoId, statusOpId, onFillManually }: { photoId: string; statusOpId: string | null; onFillManually: () => void }) {
+function FailedReading({
+  photoId,
+  statusOpId,
+  canRetry,
+  onFillManually,
+}: {
+  photoId: string;
+  statusOpId: string | null;
+  /** Story 11.8 follow-up: false while the server's AI features are off (a reread would be refused); only "Preencher manualmente" stays. */
+  canRetry: boolean;
+  onFillManually: () => void;
+}) {
   const t = copy.ficha.nameplate;
   const sync = useSync();
   const session = useSession();
@@ -156,9 +170,11 @@ function FailedReading({ photoId, statusOpId, onFillManually }: { photoId: strin
         {t.readFailed}
       </p>
       <div className="row-wrap">
-        <TextButton isDisabled={!online || asked || loading} disabledReason={!online ? t.retryOffline : asked ? t.retryAsked : loading ? copy.common.loading : undefined} onPress={retry}>
-          {t.retryRead}
-        </TextButton>
+        {canRetry ? (
+          <TextButton isDisabled={!online || asked || loading} disabledReason={!online ? t.retryOffline : asked ? t.retryAsked : loading ? copy.common.loading : undefined} onPress={retry}>
+            {t.retryRead}
+          </TextButton>
+        ) : null}
         <TextButton onPress={onFillManually}>{t.fillManually}</TextButton>
       </div>
     </>

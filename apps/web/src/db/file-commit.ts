@@ -1,5 +1,5 @@
 import { captionReadingOf, filePath, readingNeedsAi, type JsonValue, type OpDraft, type PhotoFileRow, type UploadFileKind } from '@app/domain';
-import { readAiFeatures } from '../state/last-session.ts';
+import { aiFeaturesOn } from '../state/ai-features.tsx';
 import type { PickedFile } from '../components/upload-tile.tsx';
 import { commitFileBatch, commitPhotoBatch, type CommitDeps } from './commit.ts';
 import { readLocalBlob, localFileRow } from './file-store.ts';
@@ -118,9 +118,9 @@ export function photoCreateDraft(input: Omit<PhotoCaptureInput, 'thumb'>, localS
     input.reading === null
       ? undefined
       : (input.reading ?? captionReadingOf({ block_id: input.blockId, caption: input.caption, people_in_photo: peopleInPhoto }) ?? undefined);
-  // Story 11.8 follow-up: while the server's AI features are off (the cached `features.ai`),
+  // Story 11.8 follow-up: while the server's AI features are off (the session's `aiFeatures`),
   // a kind that needs the LLM step is not asked for; the photo is saved with no reading.
-  const reading = asked !== undefined && readingNeedsAi(asked.kind) && readAiFeatures() === false ? undefined : asked;
+  const reading = asked !== undefined && readingNeedsAi(asked.kind) && !aiFeaturesOn() ? undefined : asked;
   return {
     scope: 'relatorio',
     company_id: input.companyId,

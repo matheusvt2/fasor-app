@@ -115,8 +115,9 @@ describe('contract constants', () => {
     };
     const features = { ai: true };
     expect(accountResponseSchema.safeParse({ user, features }).success).toBe(true);
-    // Story 11.8 follow-up: the server always sends its AI features flag.
-    expect(accountResponseSchema.safeParse({ user }).success).toBe(false);
+    // Story 11.8 follow-up: an api from before the flag (no `features`) had AI on.
+    expect(accountResponseSchema.parse({ user }).features).toEqual({ ai: true });
+    expect(accountResponseSchema.parse({ user, features: { ai: false } }).features).toEqual({ ai: false });
     expect(accountResponseSchema.safeParse({ user, features: {} }).success).toBe(false);
     expect(errorCodeSchema.safeParse('ai_features_off').success).toBe(true);
     // Identity user ids are uuidv7 like every other kernel id (AD-4): a slug is refused.

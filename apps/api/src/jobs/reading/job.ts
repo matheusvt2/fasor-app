@@ -3,6 +3,7 @@ import {
   normalizeBox,
   objectKey,
   photoFileRowSchema,
+  readingNeedsAi,
   suggestionPath,
   suggestionRowSchema,
   suggestionStatusPath,
@@ -24,7 +25,7 @@ import { readingImage, type ReadingImage } from './image.ts';
 import { readingKindHandler, type ReadingKindRunResult } from './kinds/index.ts';
 import { entityRecord } from './kinds/shared.ts';
 import type { ReadingPayload } from './payload.ts';
-import { isPermanentReadingError, PermanentReadingError, ProviderError, type ReadingProvidersFactory } from './providers/index.ts';
+import { AiFeaturesOffError, isPermanentReadingError, PermanentReadingError, ProviderError, type ReadingProvidersFactory } from './providers/index.ts';
 import { readingServerOp, readingStatusPath, type ReadingStatusValue } from './status.ts';
 
 /*
@@ -48,6 +49,12 @@ export interface ReadingJobDeps {
   now: Clock;
   newId: NewId;
   providers: ReadingProvidersFactory;
+  /**
+   * Story 11.8 follow-up: `false` when `AI_FEATURES=off`. A queued job of a kind that needs the
+   * LLM step then fails permanently before any provider (no OCR spend) and the photo ends
+   * `failed`. Absent reads as on.
+   */
+  aiFeatures?: boolean;
 }
 
 export interface ReadingAttempt {
@@ -179,6 +186,7 @@ export async function runReadingJob(deps: ReadingJobDeps, payload: ReadingPayloa
     facts.photoFound = true;
     if (photoRecord.removed_at !== null || photo.removed_at !== null) throw new PermanentReadingError('the photo was removed');
     if (photo.reading_kind !== payload.reading_kind) throw new ReadingSupersededError();
+    if (deps.aiFeatures === false && readingNeedsAi(payload.reading_kind)) throw new AiFeaturesOffError();
     // Every queued kind is sent (Story 9.1); one the job does not read yet ends `failed`.
     const handler = readingKindHandler(payload.reading_kind);
     if (handler === undefined) throw new PermanentReadingError(`reading kind ${payload.reading_kind} is not read yet`);

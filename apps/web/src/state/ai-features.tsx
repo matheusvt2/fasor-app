@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react';
+import { readAiFeatures } from './last-session.ts';
 
 /**
  * Story 11.8 follow-up: whether the AI entry points render (`SessionState.aiFeatures`, the
@@ -10,4 +11,21 @@ export const AiFeaturesContext = createContext<boolean>(true);
 
 export function useAiFeatures(): boolean {
   return useContext(AiFeaturesContext);
+}
+
+/**
+ * The same value outside React (a photo create in `db/file-commit.ts`, a batch in
+ * `photo-ops.ts`): the session's setter writes it (`setAiFeaturesValue`) beside its state, so
+ * the two never diverge, even when storage is blocked; before any session read it is the
+ * cached server fact, else on.
+ */
+let current: boolean | null = null;
+
+export function aiFeaturesOn(): boolean {
+  return current ?? readAiFeatures() ?? true;
+}
+
+/** Called by the session only; null forgets the value (sign-out). */
+export function setAiFeaturesValue(on: boolean | null): void {
+  current = on;
 }

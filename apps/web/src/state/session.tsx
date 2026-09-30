@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 import * as authClient from '../api/auth-client.ts';
-import { AiFeaturesContext } from './ai-features.tsx';
+import { AiFeaturesContext, setAiFeaturesValue } from './ai-features.tsx';
 import { now } from '../clock.ts';
 import { commitBatch } from '../db/commit.ts';
 import { readRecoveryNotice, writeRecoveryNotice } from '../db/prefs.ts';
@@ -159,7 +159,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const account = await authClient.readSession();
         if (account !== null) {
           writeAiFeatures(account.features.ai);
-          if (!cancelled) setAiFeatures(account.features.ai);
+          if (!cancelled) {
+            setAiFeaturesValue(account.features.ai);
+            setAiFeatures(account.features.ai);
+          }
         }
         fresh = account === null ? null : account.user;
       } catch {
@@ -246,6 +249,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const result = await authClient.signIn(email, password);
       if (result.ok) {
         writeAiFeatures(result.features.ai);
+        setAiFeaturesValue(result.features.ai);
         setAiFeatures(result.features.ai);
         // The form path never raises the recovery screen: a first sign-in always comes
         // through here, and a fresh database is then exactly what is expected.
@@ -274,6 +278,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const doSignOut = useCallback(async () => {
     await authClient.signOut();
     clearLastSession();
+    setAiFeaturesValue(null);
+    setAiFeatures(true);
     // The handle is closed, the database is kept: `Dexie.delete` is never called.
     databaseRef.current?.close();
     databaseRef.current = null;

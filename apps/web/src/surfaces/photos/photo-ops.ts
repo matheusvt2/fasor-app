@@ -15,7 +15,7 @@ import { now } from '../../clock.ts';
 import { commitBatch } from '../../db/commit.ts';
 import type { AppDatabase } from '../../db/schema.ts';
 import { newId } from '../../ids.ts';
-import { readAiFeatures } from '../../state/last-session.ts';
+import { aiFeaturesOn } from '../../state/ai-features.tsx';
 
 /*
  * Stories 6.3-6.5: the edits a photo takes after it is born, each a `file/{id}/{field}` put
@@ -100,7 +100,7 @@ export async function assignPhotoBatch(
     ...(value === null ? [] : [put(author, relatorioId, id, 'caption', value)]),
     ...(peopleInPhoto ? [put(author, relatorioId, id, 'people_in_photo', true)] : []),
     // Story 11.8 follow-up: no caption reading while the server's AI features are off.
-    ...(captionReadingOf({ block_id: blockId, caption: value, people_in_photo: peopleInPhoto }) === null || readAiFeatures() === false
+    ...(captionReadingOf({ block_id: blockId, caption: value, people_in_photo: peopleInPhoto }) === null || !aiFeaturesOn()
       ? []
       : [put(author, relatorioId, id, 'reading_kind', 'caption')]),
   ]);

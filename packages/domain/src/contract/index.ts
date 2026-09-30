@@ -38,9 +38,10 @@ export const accountResponseSchema = z.object({
   user: userProfileSchema,
   /**
    * Story 11.8 follow-up: the server's `AI_FEATURES` flag. While `ai` is false the web hides
-   * every entry point of a reading kind `readingNeedsAi` names.
+   * every entry point of a reading kind `readingNeedsAi` names. An api from before the flag
+   * sends no `features`: it had the AI features on, so the field defaults to on.
    */
-  features: z.object({ ai: z.boolean() }),
+  features: z.object({ ai: z.boolean() }).default({ ai: true }),
 });
 
 export type AccountResponse = z.infer<typeof accountResponseSchema>;

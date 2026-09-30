@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { databaseName, openDatabase } from '../db/schema.ts';
 import { clearLastSession, readAiFeatures, readLastSession, readReAuthRequired, writeAiFeatures, writeLastSession, writeReAuthRequired } from './last-session.ts';
 import { SessionProvider, useSession, withUnsentRegistration, type SessionState } from './session.tsx';
+import { aiFeaturesOn, setAiFeaturesValue } from './ai-features.tsx';
 
 /*
  * The session's two contracts with the device (retro A2, A8): a 401 at boot keeps the
@@ -268,6 +269,10 @@ describe('the server AI features flag (Story 11.8 follow-up)', () => {
     await waitFor(() => expect(current?.status).toBe('signed-in'));
     expect(current?.aiFeatures).toBe(false);
     expect(readAiFeatures()).toBe(false);
+    // The value photo creates read is the session's own, even with the cache gone.
+    window.localStorage.clear();
+    expect(aiFeaturesOn()).toBe(false);
+    setAiFeaturesValue(null);
   });
 
   it('an offline boot uses the cached flag; sign-out clears it', async () => {
