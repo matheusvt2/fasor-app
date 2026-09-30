@@ -2,10 +2,10 @@
 title: 'Stories 11.9 + 11.10: Priority-driven deadline and the action-plan table'
 type: 'feature'
 created: '2026-09-30'
-status: 'in-progress'
+status: 'done'
 baseline_revision: 'd7beb605ccc7cc22c1537c05cac945e78e799650'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: medium
 context:
@@ -114,6 +114,29 @@ deferred: []
 - Given a Responsável typed, when the field blurs, then `point/{id}/owner` is in the outbox and the card shows it after reload.
 - Given a point prioritized in the UI and another with no deadline, when the office generates the relatório and downloads the DOCX, then section 8 carries the table with the eight headers, the first row with "P1 · Curto prazo" and the suggested date, the second with "—" in Prazo, derived rows after manual ones numbered continuously, and the Sumário section 8 row lists "1 ponto sem prazo" (11.10-TABLE-FROM-PICKER).
 
+## Spec Change Log
+
+## Review Triage Log
+
+### 2026-09-30 — Review pass
+
+Layers: Edge Case Hunter and Verification Gap Reviewer. Blind Hunter and Intent Alignment were skipped (token economy; the integrated epic review covers them).
+
+- verdicts: 12 findings — high 1, medium 6, low 3, false 2, maybe-false 0
+- findings:
+  - `[high]` `[patch]` VG: "Recuperar" with the editor closed drops a recovered Responsável on stored points (`point-draft-recovery.ts` passes `['text','action']`). Fix: pass `owner` too, plus an e2e recovery case.
+  - `[medium]` `[patch]` VG: no test covers the month-only Prazo branch. Grouped with EC4. Fix: an e2e with next intervention `2027-09`.
+  - `[medium]` `[patch]` VG other (grouped with EC4): a month-only deadline renders read-only, so Prazo cannot be typed or cleared. Fix: show the month value and render an empty DateField with it.
+  - `[medium]` `[patch]` EC1 (grouped with EC9): a pick on a blank new point creates an empty-text point, which prints an empty bullet; `writePoint` refuses that create. Fix: gate the create and keep the pick pending until the first text, action or owner commit.
+  - `[false]` `[reject]` EC2: a refused pick or deadline write closes the editor "silently". `useUndoableEdits.write` toasts every refusal (`writeErrorText`) and rethrows, which is the same path Ação already uses.
+  - `[medium]` `[patch]` EC3: a typed Prazo that has not committed is not in the FR-61 draft, so a reload loses it. Fix: carry it in the draft and write it on apply and on recovery.
+  - `[medium]` `[patch]` EC4: month-only deadline blocks typing/clearing Prazo — same root and fix as the VG other row.
+  - `[low]` `[reject]` EC5: a pending typed-Prazo commit can later override an external change. This needs a sync or undo landing inside the 500 ms idle window. It is the existing `useFieldCommit` pattern every autosaved field shares, and the fix adds cancel logic.
+  - `[low]` `[patch]` EC6: a pick or "Substituir" on a point removed elsewhere gives no feedback. Fix: return `gone` and notify, as `persist` does.
+  - `[low]` `[patch]` EC7: a table row taller than a page cannot split. Fix: `cantSplit` only on the header row (a direct deletion).
+  - `[false]` `[reject]` EC8: arrow keys only move focus. The spec says "roving focus with arrow keys; one tap/Space selects and writes", and `EXPERIENCE.md` says "one tap selects and writes". Selecting on every arrow press would write a batch per key.
+  - `[medium]` `[patch]` EC9: the picker create path disagrees with `writePoint`'s gated create. Same root and fix as EC1.
+
 ## Design Notes
 
 Deferred with owners (PR "Narrowings"): **11.10-PDF** (the table in the downloaded PDF) waits for batch A's `GET /api/revisions/{id}/pdf` (Story 11.1); the PDF is LibreOffice's conversion of the same DOCX, so the table is already in it; owner batch A or the epic QA. Open questions for Matheus/Bruno: the P4 hint word ("próxima intervenção", authored), the undo toast text (authored), whether "pontos sem prazo" should count points without priority instead (EXPERIENCE says priority, the story says prazo; the story wins here), whether the table prints when no row has any action-plan value (the story reading: always), and the Points surface "Como imprime na seção 8" preview (drawn in `72-pontos.html:290-318`, named by neither story).
@@ -125,3 +148,26 @@ Deferred with owners (PR "Narrowings"): **11.10-PDF** (the table in the download
 - `docker compose --profile tools run --rm tools pnpm test:api -- docx` -- green.
 - `docker compose --profile tools run --rm tools pnpm test:e2e -- e2e/action-plan.spec.ts e2e/points.spec.ts` (and any spec whose "N avisos" count changed) -- green.
 - `pnpm verify` under `flock /tmp/fasor-verify.lock` (the orchestrator runs it).
+
+## Auto Run Result
+
+Status: done.
+
+**Summary:** The kernel module `points/priority.ts` holds the labels, `deadlineFromPriority` and the rule for a typed versus a suggested deadline. The pick, clear and replace writes also live there, as does "pontos sem prazo". The action-plan rows sit in `print/section-8.ts` (`resolveActionPlan`, `LayoutSectionPoints.table`), and the DOCX table in `apps/api/.../sections/section-8.ts`. The point editor gains the Priority picker (`priority-picker.tsx`), Prazo (a Suggestion field with "Substituir") and Responsável. The read-mode card shows Prazo, the Prioridade pill and Responsável. The pre-issue list gains the `points_sem_prazo` info row. The goldens are regenerated: the skeleton now carries the section 8 table, and the pre-issue golden reads "7 pontos sem prazo". No contract bump.
+
+**Review findings:** 12 in total.
+- 8 patched: VG-owner-recovery (high), VG-month-test, VG-month-readonly/EC4, EC1/EC9 (the pick stays pending until the first text), EC3 (typed Prazo in the draft), EC6 (gone toast), EC7 (only the header row is `cantSplit`).
+- 0 deferred.
+- 4 rejected: EC2, EC8 and the original EC9 claim are false; EC5 is low and uses the shared `useFieldCommit` pattern.
+
+**Follow-up review:** `true` by the rule, since one high was patched. The risk is the pending-pick path added to `point-writes.ts`/`point-editor.tsx` in the fix loop, which only the orchestrator's e2e run verifies. The playbook allows one fix loop, so this goes to the integrated epic review.
+
+**Verification:**
+- `static` and `lint` are green. `docx.test.ts` passes 17/17. The api suite passes 324/324 after the golden update.
+- `test:unit` has 26 failures under load average ~30, all timeouts in files this batch does not touch. They pass 166/166 when run sequentially.
+- `e2e/action-plan.spec.ts` and `e2e/points.spec.ts` pass 23/23, and `e2e/dictation.spec.ts` passes 6/6.
+- The full gate is recorded in the PR.
+
+**Residual risks:**
+- 11.10-PDF is deferred to batch A.
+- The @p1 390 px spec (11.9-E2E-008) is not part of `verify`; it runs in the wave's `test:e2e:full`.

@@ -8,7 +8,7 @@ import { CONTENT_WIDTH_TWIPS, text } from '../docx.ts';
  * `resolveSection8` composed it (tokens already "Imagem N", derived groups already a
  * sentence). Story 11.10 (FR-52): directly after the last bullet, the action-plan table
  * (`resolveActionPlan`): a header row with the eight column titles, repeated on every page,
- * then one row per bullet, never split across pages, hairline-ruled like the document's
+ * then one row per bullet (a body row may split across pages; the header never does), hairline-ruled like the document's
  * other tables. Every printed string is the layout's; this module only decides widths,
  * borders and sizes.
  */
@@ -31,8 +31,8 @@ function columnWidths(): number[] {
 
 function row(cells: readonly string[], widths: readonly number[], header: boolean): TableRow {
   return new TableRow({
-    cantSplit: true,
-    tableHeader: header,
+    // Only the header row: it never splits and repeats on every page.
+    ...(header ? { cantSplit: true, tableHeader: true } : {}),
     children: cells.map(
       (value, i) =>
         new TableCell({

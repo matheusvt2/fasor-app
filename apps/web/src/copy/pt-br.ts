@@ -841,6 +841,8 @@ export const copy = {
     deadlineLabel: 'Prazo',
     // `72-pontos.html` 248 helper, verbatim.
     deadlineHelper: 'Edite a data se o combinado com o cliente for outro; imprime só a data',
+    // authored: a P4 deadline that is a month only (the next intervention stored as mm/aaaa).
+    deadlineMonth: (month: string) => `Prazo: ${month} (mês da próxima intervenção)`,
     // authored: P4 picked on a relatório without a next intervention date (Epic 11 conflict 2).
     deadlineNoNextIntervention: 'O relatório não tem data da próxima intervenção: informe-a em Dados do relatório ou digite o prazo.',
     ownerLabel: 'Responsável',

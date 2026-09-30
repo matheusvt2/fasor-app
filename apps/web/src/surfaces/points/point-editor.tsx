@@ -10,6 +10,7 @@ import {
   recurringFindings,
   replaceLineText,
   type PointPriority,
+  type PointPriorityWrites,
   type PointRow,
   type RelatorioSnapshot,
 } from '@app/domain';
@@ -179,21 +180,43 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
     [],
   );
 
+  /** "Este ponto não está mais neste relatório", once. */
+  const showGone = () => {
+    if (mounted.current && !goneShown.current) {
+      goneShown.current = true;
+      edits.notify(t.gone);
+    }
+  };
+
+  /**
+   * Story 11.9: a priority or deadline not stored yet: picked or typed on a new point that
+   * holds nothing to print (it is created with them by its first text, action or
+   * Responsável), or a typed Prazo recovered from a draft. The ref is what the writes read.
+   */
+  const pendingRef = useRef<PointPriorityWrites>({});
+  const [pending, setPendingState] = useState<PointPriorityWrites>({});
+  const setPending = (next: PointPriorityWrites) => {
+    pendingRef.current = next;
+    setPendingState(next);
+  };
+
   const persist = (fields: readonly (keyof PointValues)[]): Promise<void> => {
     if (db === null || user === null) return Promise.resolve();
     const author = { id: user.id, companyId: user.companyId };
     const taken = { ...values.current };
     const run = edits.write(
       async () => {
-        const result = await writePoint(db, author, relatorioId, pointId, taken, fields, link);
+        const held = pendingRef.current;
+        const result = await writePoint(db, author, relatorioId, pointId, taken, fields, link, held);
         if (result.kind === 'gone') {
-          if (mounted.current && !goneShown.current) {
-            goneShown.current = true;
-            edits.notify(t.gone);
-          }
+          showGone();
           return null;
         }
-        if (result.kind === 'written') wrote.current = true;
+        if (result.kind === 'written') {
+          wrote.current = true;
+          // The pending priority and deadline went into this batch.
+          if (pendingRef.current === held && Object.keys(held).length > 0) setPending({});
+        }
         // A create stores both fields; a put (or nothing to write) the fields it names.
         for (const field of result.kind === 'written' && result.created ? (['text', 'action', 'owner'] as const) : fields) stored.current[field] = taken[field];
         // E6-R1: the draft written while typing is now stored text: rewritten from what is
@@ -222,26 +245,45 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
   // --- Story 11.9: priority and Prazo -------------------------------------------------------
   const nextIntervention = snapshot.relatorio.setup.next_intervention_date;
   const liveRow = snapshot.points.find((row) => row.id === pointId) ?? null;
-  const priority = liveRow?.priority ?? null;
-  const deadline = liveRow?.deadline ?? null;
+  // A point not stored yet shows what is pending for it.
+  const priority = liveRow !== null ? liveRow.priority : (pending.priority ?? null);
+  const deadline = liveRow !== null ? liveRow.deadline : (pending.deadline ?? null);
   const prazo = deadlineState({ id: pointId, priority, deadline }, nextIntervention);
-  /** The Prazo field's value: the stored deadline, or what is being typed until it commits. */
-  const [typedDeadline, setTypedDeadline] = useState(deadline);
+  /** The Prazo field's value: the shown deadline, or what is being typed until it commits. */
+  const [typedDeadline, setTypedDeadlineState] = useState(deadline);
+  /** The typed value, for the draft source (FR-61): a typed Prazo not committed yet is a draft. */
+  const typedRef = useRef(deadline);
+  const setTypedDeadline = (next: string | null) => {
+    typedRef.current = next;
+    setTypedDeadlineState(next);
+  };
   const shownDeadline = useRef(deadline);
   if (deadline !== shownDeadline.current) {
     shownDeadline.current = deadline;
-    if (deadline !== typedDeadline) setTypedDeadline(deadline);
+    typedRef.current = deadline;
+    if (deadline !== typedDeadline) setTypedDeadlineState(deadline);
   }
 
-  /** A priority/deadline batch wrote: the editor wrote the point (and, when it created it, stored what it held). */
-  const noteFieldsWrite = (result: PointFieldsWrite | null, taken: PointValues): string | null => {
-    if (result === null) return null;
-    wrote.current = true;
-    if (result.created) {
-      stored.current = taken;
-      void saveDraftRef.current();
+  /** What a priority/deadline write did, for the editor: the batch to offer for undo, or null. */
+  const noteFieldsWrite = (result: PointFieldsWrite, taken: PointValues, held: PointPriorityWrites): string | null => {
+    switch (result.kind) {
+      case 'gone':
+        showGone();
+        return null;
+      case 'pending':
+        setPending(result.pending);
+        return null;
+      case 'unchanged':
+        return null;
+      case 'written':
+        wrote.current = true;
+        if (result.created) {
+          stored.current = taken;
+          if (pendingRef.current === held) setPending({});
+          void saveDraftRef.current();
+        }
+        return result.batchId;
     }
-    return result.batchId;
   };
 
   const persistDeadline = (next: string | null): Promise<void> => {
@@ -249,14 +291,16 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
     const author = { id: user.id, companyId: user.companyId };
     const taken = { ...values.current };
     return edits.commit(async () => {
-      noteFieldsWrite(await writeDeadline(db, author, relatorioId, pointId, next, link, taken), taken);
+      const held = pendingRef.current;
+      noteFieldsWrite(await writeDeadline(db, author, relatorioId, pointId, next, link, taken, held), taken, held);
+      void saveDraftRef.current();
     });
   };
   const deadlineCommit = useFieldCommit<string | null>({ commit: (next) => persistDeadline(next) });
 
   /** A pick, a clear or "Substituir": one batch, offered for undo with `toast`. */
   const writeFields = (
-    run: (database: NonNullable<typeof db>, author: { id: string; companyId: string }, taken: PointValues) => Promise<PointFieldsWrite | null>,
+    run: (database: NonNullable<typeof db>, author: { id: string; companyId: string }, taken: PointValues, held: PointPriorityWrites) => Promise<PointFieldsWrite>,
     toast: string,
   ) => {
     if (db === null || user === null) return;
@@ -264,19 +308,26 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
     // A Prazo being typed lands first, so the pick reads it as typed.
     deadlineCommit.flush();
     const taken = { ...values.current };
-    void edits.write(async () => noteFieldsWrite(await run(db, author, taken), taken)).then(
+    void edits
+      .write(async () => {
+        const held = pendingRef.current;
+        return noteFieldsWrite(await run(db, author, taken, held), taken, held);
+      })
+      .then(
       (batchId) => edits.undoable(toast, batchId, { label: t.undo }),
       () => undefined,
     );
   };
   const pickPriority = (next: PointPriority) =>
-    writeFields((database, author, taken) => writePriorityPick(database, author, relatorioId, pointId, next, link, taken), t.priorityWritten);
+    writeFields((database, author, taken, held) => writePriorityPick(database, author, relatorioId, pointId, next, link, taken, held), t.priorityWritten);
   const clearPriority = () =>
-    writeFields((database, author, taken) => writePriorityPick(database, author, relatorioId, pointId, null, link, taken), t.priorityCleared);
-  const replaceDeadline = () => writeFields((database, author) => writeReplaceDeadline(database, author, relatorioId, pointId), t.deadlineReplaced);
+    writeFields((database, author, taken, held) => writePriorityPick(database, author, relatorioId, pointId, null, link, taken, held), t.priorityCleared);
+  const replaceDeadline = () =>
+    writeFields((database, author, taken, held) => writeReplaceDeadline(database, author, relatorioId, pointId, link, taken, held), t.deadlineReplaced);
   const changeDeadline = (next: string | null) => {
     setTypedDeadline(next);
     deadlineCommit.change(next);
+    draftAutosave.changed();
   };
   committers.current = {
     flush: () => {
@@ -331,12 +382,19 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
     read: () => {
       const now = values.current;
       const before = stored.current;
+      // Story 11.9: a typed Prazo not committed yet, and what a point not stored holds pending.
+      const heldPending: PointPriorityWrites = { ...pendingRef.current };
+      if (typedRef.current !== shownDeadline.current) heldPending.deadline = typedRef.current;
       const unsaved =
         link !== null && !wrote.current
           ? touched.current && (now.text.trim() !== '' || actionValue(now.action) !== null || ownerValue(now.owner) !== null)
-          : now.text !== before.text || actionValue(now.action) !== actionValue(before.action) || ownerValue(now.owner) !== ownerValue(before.owner);
+          : now.text !== before.text ||
+            actionValue(now.action) !== actionValue(before.action) ||
+            ownerValue(now.owner) !== ownerValue(before.owner) ||
+            Object.keys(heldPending).length > 0;
       if (!unsaved) return null;
       return {
+        pending: heldPending,
         relatorio_id: relatorioId,
         text: now.text,
         action: now.action,
@@ -355,6 +413,11 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
       setText(draft.text);
       setAction(draft.action);
       setOwner(draft.owner);
+      // Story 11.9: a recovered typed Prazo (or pending pick) is written with the fields.
+      if (Object.keys(draft.pending).length > 0) {
+        setPending({ ...pendingRef.current, ...draft.pending });
+        if (draft.pending.deadline !== undefined) setTypedDeadline(draft.pending.deadline);
+      }
       void persist(['text', 'action', 'owner']);
     },
   });
@@ -416,7 +479,6 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
   const actionId = useId();
   const priorityLabelId = useId();
   const priorityHelperId = useId();
-  const deadlineLabelId = useId();
   const deadlineHelperId = useId();
   const ownerId = useId();
 
@@ -530,7 +592,6 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
         </div>
 
         <PrazoField
-          labelId={deadlineLabelId}
           helperId={deadlineHelperId}
           stored={deadline}
           value={typedDeadline}
@@ -581,10 +642,10 @@ const FULL_DATE = /^\d{4}-\d{2}-\d{2}$/;
  * with "Sugerido" while it is the priority's suggestion, neutral once typed; beside a typed
  * date, the differing suggestion with "Substituir" (the ficha's `.suggestion-alt` line). A
  * month-only deadline (a P4 next intervention stored as `YYYY-MM`) is shown as it prints
- * (`mm/aaaa`): the Date field holds whole days only.
+ * (`mm/aaaa`) under an empty Date field (it holds whole days only), where a typed date
+ * replaces it.
  */
 function PrazoField({
-  labelId,
   helperId,
   stored,
   value,
@@ -595,7 +656,6 @@ function PrazoField({
   onBlur,
   onReplace,
 }: {
-  labelId: string;
   helperId: string;
   stored: string | null;
   value: string | null;
@@ -608,9 +668,16 @@ function PrazoField({
 }) {
   const t = copy.points;
   const state = suggested ? 'suggested' : 'confirmed';
+  const monthId = useId();
+  const month = stored !== null && !FULL_DATE.test(stored) ? formatCalendarDate(stored) : null;
   const after = (
     <>
       {suggested ? <span className="suggested-pill">{ui.suggestionField.suggested}</span> : null}
+      {month === null ? null : (
+        <span className="helper tabular poa-prazo-month" id={monthId}>
+          {t.deadlineMonth(month)}
+        </span>
+      )}
       <span className="helper" id={helperId}>
         {helper}
       </span>
@@ -624,19 +691,6 @@ function PrazoField({
       )}
     </>
   );
-  if (stored !== null && !FULL_DATE.test(stored)) {
-    return (
-      <div className="field suggestion-field poa-prazo-sf" data-state={state}>
-        <span className="field-label" id={labelId}>
-          {t.deadlineLabel}
-        </span>
-        <div className="input tabular" role="textbox" aria-readonly="true" aria-labelledby={labelId} aria-describedby={helperId}>
-          {formatCalendarDate(stored)}
-        </div>
-        {after}
-      </div>
-    );
-  }
   return (
     <DateField
       className="suggestion-field poa-prazo-sf"
@@ -645,7 +699,7 @@ function PrazoField({
       value={value !== null && FULL_DATE.test(value) ? value : null}
       onChange={onChange}
       onBlur={onBlur}
-      describedBy={helperId}
+      describedBy={month === null ? helperId : `${monthId} ${helperId}`}
       after={after}
     />
   );

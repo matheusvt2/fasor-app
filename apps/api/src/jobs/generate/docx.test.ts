@@ -187,7 +187,10 @@ describe('7.1-UNIT section 9 in the DOCX', () => {
     const tables = [...document.matchAll(/<w:tbl>([\s\S]*?)<\/w:tbl>/g)].map((match) => match[1]!);
     // The cover and the document control come first; section 7's photo tables, section 10's
     // parecer box and section 11 (Stories 7.2 to 7.4) never carry a row guard, the sheets always do.
-    const sheetRows = tables.slice(2).filter((table) => table.includes('<w:cantSplit/>')).flatMap((table) => [...table.matchAll(/<w:tr(?:\s[^>]*)?>([\s\S]*?)<\/w:tr>/g)].map((match) => match[1]!));
+    // Section 8's action-plan table (Story 11.10) guards only its repeated header row.
+    const sheetRows = tables
+      .slice(2)
+      .filter((table) => table.includes('<w:cantSplit/>') && !table.includes('<w:tblHeader/>')).flatMap((table) => [...table.matchAll(/<w:tr(?:\s[^>]*)?>([\s\S]*?)<\/w:tr>/g)].map((match) => match[1]!));
     expect(sheetRows.length).toBeGreaterThan(94 * 10);
     for (const row of sheetRows) expect(row).toContain('<w:cantSplit/>');
     const bands = sheetRows.filter((row) => paragraphText(row) === 'DADOS DO EQUIPAMENTO');
@@ -457,7 +460,9 @@ describe('11.10-UNIT section 8 action-plan table', () => {
     expect(rows[1]!.slice(3, 5)).toEqual(['P1 · Curto prazo', '08/10/2026']);
     expect(rows[1]![6]).toBe('Manutenção predial');
     expect(rows[2]![4]).toBe('—');
-    // The header row repeats on every page; no row splits.
-    expect(xml).toContain('<w:tblHeader/>');
+    // The header row repeats on every page and never splits; a body row taller than a page may split.
+    const table = xml.slice(tableAt);
+    expect(table.match(/<w:tblHeader\/>/g) ?? []).toHaveLength(1);
+    expect(table.match(/<w:cantSplit\/>/g) ?? []).toHaveLength(1);
   }, 60_000);
 });

@@ -250,17 +250,70 @@ test('@p0 11.9-E2E-006 Responsável typed is in the outbox when the field blurs,
   await expect(cards(page).first().locator('.poa-fields')).toContainText('Manutenção predial', { timeout: 30_000 });
 });
 
-test('@p0 11.9-E2E-007 a pick on a new point creates it in the same batch', async ({ page }) => {
+test('@p0 11.9-E2E-007 a pick on a blank new point writes nothing; the first text creates the point with that priority and deadline in one batch', async ({ page }) => {
   test.setTimeout(150_000);
   await setUp(page, { texts: [] as string[] });
   await page.getByRole('button', { name: 'Criar', exact: true }).click();
   const editor = page.getByRole('article', { name: 'Novo ponto de atenção em edição' });
   await radio(editor, 'P0, Imediata, hoje').click();
-  await expect.poll(async () => (await pointOps(page)).map((op) => op.kind)).toEqual(['create', 'put', 'put']);
+  await expect(radio(editor, 'P0, Imediata, hoje')).toHaveAttribute('aria-checked', 'true');
+  await expect(prazo(editor).locator('.suggested-pill')).toHaveText('Sugerido');
+  // Nothing to print yet: nothing is stored.
+  expect(await pointOps(page)).toEqual([]);
+
+  await editor.getByRole('textbox', { name: 'Texto' }).click();
+  await page.keyboard.type('Fusível com aquecimento.');
+  await editor.getByRole('textbox', { name: 'Ação recomendada' }).click();
+  await expect.poll(async () => (await pointOps(page)).length).toBeGreaterThan(0);
   const ops = await pointOps(page);
-  const id = (ops[0]!.value as PointRow).id;
-  expect(new Set(ops.map((op) => op.batch_id)).size).toBe(1);
-  expect(await storedPoint(page, id)).toMatchObject({ priority: 'P0', deadline: pointCreatedDate(id) });
+  expect(ops.map((op) => op.kind)).toEqual(['create']);
+  const row = ops[0]!.value as PointRow;
+  expect(row).toMatchObject({ text: 'Fusível com aquecimento.', priority: 'P0', deadline: pointCreatedDate(row.id) });
+  expect(await storedPoint(page, row.id)).toMatchObject({ priority: 'P0', deadline: pointCreatedDate(row.id) });
+});
+
+test('@p0 11.9-E2E-010 Concluir on a new point with only a pick writes nothing', async ({ page }) => {
+  test.setTimeout(150_000);
+  await setUp(page, { texts: [] as string[] });
+  await page.getByRole('button', { name: 'Criar', exact: true }).click();
+  const editor = page.getByRole('article', { name: 'Novo ponto de atenção em edição' });
+  await radio(editor, 'P2, Médio prazo, 90 dias').click();
+  await expect(radio(editor, 'P2, Médio prazo, 90 dias')).toHaveAttribute('aria-checked', 'true');
+  await editor.getByRole('button', { name: 'Concluir' }).click();
+  await expect(editor).toHaveCount(0);
+  expect(await pointOps(page)).toEqual([]);
+  await expect(cards(page)).toHaveCount(0);
+});
+
+test('@p0 11.9-E2E-011 P4 on a month-only next intervention stores it verbatim, shows mm/aaaa, and a typed date replaces it', async ({ page }) => {
+  test.setTimeout(150_000);
+  const { points } = await setUp(page, { nextIntervention: '2027-09' });
+  const point = points[0]!;
+  const editor = await openEditor(page, 1);
+  await radio(editor, 'P4, Próxima manutenção, próxima intervenção').click();
+  await expect.poll(async () => await storedPoint(page, point.id)).toMatchObject({ priority: 'P4', deadline: '2027-09' });
+  await expect(prazo(editor)).toContainText('09/2027');
+  await expect(prazo(editor).locator('.suggested-pill')).toHaveText('Sugerido');
+
+  await typeDate(editor, 'Prazo', '20092027');
+  await editor.getByRole('textbox', { name: 'Responsável' }).click();
+  await expect.poll(async () => (await storedPoint(page, point.id))?.deadline).toBe('2027-09-20');
+  expect((await pointOps(page)).at(-1)).toMatchObject({ kind: 'put', path: `point/${point.id}/deadline`, value: '2027-09-20' });
+  await editor.getByRole('button', { name: 'Concluir' }).click();
+  await expect(cards(page).first().locator('.poa-fields')).toContainText('20/09/2027');
+});
+
+test('@p0 11.9-E2E-012 the card after P4 on a month-only next intervention shows mm/aaaa', async ({ page }) => {
+  test.setTimeout(150_000);
+  const { points } = await setUp(page, { nextIntervention: '2027-09' });
+  const editor = await openEditor(page, 1);
+  await radio(editor, 'P4, Próxima manutenção, próxima intervenção').click();
+  await expect.poll(async () => (await storedPoint(page, points[0]!.id))?.deadline).toBe('2027-09');
+  await editor.getByRole('button', { name: 'Concluir' }).click();
+  await expect(editor).toHaveCount(0);
+  const card = cards(page).first();
+  await expect(card.locator('.priority-pill')).toHaveText('P4 · Próxima manutenção');
+  await expect(card.locator('.poa-fields')).toContainText('09/2027');
 });
 
 /** Presses the button and returns the download it starts (in this tab or a new one). */
