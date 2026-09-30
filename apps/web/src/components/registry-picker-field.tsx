@@ -66,9 +66,17 @@ export function RegistryPickerField({
     // scroll landing after it would close (`combobox.tsx`).
     input.scrollIntoView?.({ block: 'center' });
   };
-  const [inputValue, setInputValue] = useState(
-    () => initialText ?? (value === null ? '' : (byId.get(value)?.label ?? '')),
-  );
+  const textOf = (): string => initialText ?? (value === null ? '' : (byId.get(value)?.label ?? ''));
+  const [inputValue, setInputValue] = useState(textOf);
+  // F-07: a value that changes from outside while the engineer is not typing here ("Igual à
+  // ⟨TAG⟩?", an undo, a pull) shows at once; the text being typed is never replaced.
+  const shown = useRef({ value, initialText });
+  if (shown.current.value !== value || shown.current.initialText !== initialText) {
+    shown.current = { value, initialText };
+    const typing = comboboxHost.current !== null && typeof document !== 'undefined' && comboboxHost.current.contains(document.activeElement);
+    const next = textOf();
+    if (!typing && next !== inputValue) setInputValue(next);
+  }
   const chipsLabelId = useId();
   // "Criar" only for a name the registry does not hold yet, by the same normalized
   // comparison the server merges on (case and accents folded, trimmed; AR-18).

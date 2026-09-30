@@ -18,7 +18,7 @@ import { useSync } from '../../state/sync.tsx';
 import type { ToastState } from '../../state/toast.tsx';
 import { usePointDraftRecovery } from '../points/point-draft-recovery.ts';
 import { useDropZone, usePhotoImport } from '../photos/capture-sheet.tsx';
-import { setPhotoCaption } from '../photos/photo-ops.ts';
+import { setPhotoCaption, toastPhotoWriteFailure } from '../photos/photo-ops.ts';
 import type { ChecklistPhotos } from './checklist-section.tsx';
 import type { FichaApi } from './ficha-api.ts';
 import { useSheetCamera } from './photo-openers.tsx';
@@ -109,7 +109,10 @@ export function useFichaPhotos({
   };
   const saveCaption = (tile: PhotoTile, text: string | null) => {
     if (db === null || api.author === null) return;
-    void setPhotoCaption(db, api.author, relatorioId, tile.id, text).then(() => showToast(captionSavedText(numberPhotos(snapshot.files).get(tile.id) ?? null)));
+    // W-9: a refused write says so (AD-8, FR-54).
+    void setPhotoCaption(db, api.author, relatorioId, tile.id, text)
+      .then(() => showToast(captionSavedText(numberPhotos(snapshot.files).get(tile.id) ?? null)))
+      .catch(toastPhotoWriteFailure(showToast));
   };
   return { photoTarget, targetFor, sheetCamera, checklistPhotos, importTarget, setImportTarget, captioning, setCaptioning, saveCaption, fichaMain, dragging };
 }

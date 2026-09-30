@@ -170,6 +170,36 @@ describe('4.7 SectionTextSurface', () => {
     expect(screen.getByRole('textbox', { name: 'Texto da seção' })).toHaveFocus();
   });
 
+  it('F-03/K-14: "Restaurar texto do template" restores the relatório template\'s own text for the section, shown and stored, not the seed', async () => {
+    const seed = await seeded();
+    database = seed.db;
+    const relatorio = (await database.entities.get(['relatorio', RELATORIO]))!.row as { template_id: string | null };
+    const templateId = relatorio.template_id ?? '019966c1-0012-7000-8000-0000000000f1';
+    if (relatorio.template_id === null) {
+      const record = (await database.entities.get(['relatorio', RELATORIO]))!;
+      await database.entities.put({ ...record, row: { ...(record.row as object), template_id: templateId } as never });
+    }
+    const CUSTOM = '[UX-CUSTOM] Definições próprias da empresa.';
+    const standard = standardTemplate({ id: templateId });
+    await database.entities.put(
+      toRecord(`template:${templateId}`, { ...standard, blocks: standard.blocks.map((block) => (block.block_type === 'section_2' ? { ...block, section_text: CUSTOM } : block)) } as never),
+    );
+    await database.entities.put(
+      toRecord(`block:${seed.section2.id}`, { ...seed.section2, config: { ...(seed.section2.config as object), section_text: 'Texto editado no relatório.', section_text_edited: true } } as never),
+    );
+    render(tree(RELATORIO, seed.section2.id));
+    const area = await screen.findByRole('textbox', { name: 'Texto da seção' });
+    await waitFor(() => expect(area).toHaveTextContent('Texto editado no relatório.'));
+    await userEvent.click(screen.getByRole('button', { name: 'Restaurar texto do template' }));
+    await waitFor(async () => {
+      const row = await database!.entities.get(['block', seed.section2.id]);
+      expect((row!.row as BlockRow).config).toMatchObject({ section_text: CUSTOM, section_text_edited: false });
+    });
+    expect(area).toHaveTextContent(CUSTOM);
+    // Back on the template's text, there is nothing left to restore.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Restaurar texto do template' })).toHaveAttribute('aria-disabled'));
+  });
+
   it('E11-Q5: a formatted own text opens in the rich editor, bold and italic drawn, no stored markup shown; Negrito formats and autosaves as markup', async () => {
     const seed = await seeded();
     database = seed.db;

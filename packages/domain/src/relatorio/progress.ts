@@ -28,7 +28,8 @@ export interface Progress {
 /** The value of a checklist "result" cell that names a non-conformity. */
 const NC = 'NC';
 
-function ncCount(block: BlockRow): number {
+/** Checklist items of one sheet answered NC (what `Progress.nc_open` adds up; F-24 finds the sheets holding one). */
+export function ncCount(block: BlockRow): number {
   const cells = new Set(enabledCells(block));
   let n = 0;
   for (const item of Object.values(block.sheet.checklist)) {

@@ -9,7 +9,9 @@ import {
   relatorioSectionNumber,
   sectionRowTitle,
   sectionVariableChipLabel,
+  templateSectionText,
   type BlockRow,
+  type TemplateRow,
   type RelatorioSnapshot,
 } from '@app/domain';
 import { useEffect, useRef, useState } from 'react';
@@ -32,7 +34,7 @@ import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
 /** The section types this surface ever opens for; 1 and 3 route to Etapa 2 of the setup page instead. */
 const EDITABLE_TYPES = new Set(['section_2', 'section_4', 'section_5', 'section_6']);
 
-const NO_TEMPLATES: { id: string; name: string }[] = [];
+const NO_TEMPLATES: TemplateRow[] = [];
 
 /**
  * `/relatorio/:id/secao/:blockId` (Story 4.7): the section's own boilerplate, with variable
@@ -69,6 +71,10 @@ export function SectionTextSurface() {
           block={block}
           seedVersion={snapshot.relatorio.seed_version}
           templateName={templates.find((row) => row.id === snapshot.relatorio.template_id)?.name ?? null}
+          templateText={templateSectionText(
+            templates.find((row) => row.id === snapshot.relatorio.template_id),
+            block.block_type,
+          )}
           nextBlockId={nextTextSection(snapshot, block.id)}
         />
       )}
@@ -81,11 +87,13 @@ interface SectionTextEditorProps {
   block: BlockRow;
   seedVersion: string;
   templateName: string | null;
+  /** F-03/K-14: the relatório template's own text for this section (`templateSectionText`), null when the seed's is in force. */
+  templateText: string | null;
   /** The next section text in Sumário order (`nextTextSection`), null on the last one. */
   nextBlockId: string | null;
 }
 
-function SectionTextEditor({ relatorioId, block, seedVersion, templateName, nextBlockId }: SectionTextEditorProps) {
+function SectionTextEditor({ relatorioId, block, seedVersion, templateName, templateText, nextBlockId }: SectionTextEditorProps) {
   const db = useSession().database;
   const user = useSession().user;
   const navigate = useNavigate();
@@ -96,6 +104,9 @@ function SectionTextEditor({ relatorioId, block, seedVersion, templateName, next
   const own = typeof config?.section_text === 'string' ? config.section_text : null;
   const seeded = isSectionBlockType(block.block_type) ? defaultSectionText(seedVersion, block.block_type, now()) : null;
   const initialText = own ?? seeded ?? '';
+  // F-03/K-14: "Restaurar" puts back the template's own text (the seed's when it has none),
+  // so it is offered only while the section holds something else.
+  const canRestore = own !== null && own !== templateText;
 
   const author = user === null ? null : { id: user.id, companyId: user.companyId };
 
@@ -133,15 +144,15 @@ function SectionTextEditor({ relatorioId, block, seedVersion, templateName, next
   const areaRef = editor.areaProps.ref;
 
   async function onRestore(): Promise<void> {
-    if (own === null) return;
+    if (!canRestore || own === null) return;
     const editedText = own;
     committer.flush();
-    const batch = await edits.write(() => writeConfig(restoredSectionTextConfig)).catch(() => null);
+    const batch = await edits.write(() => writeConfig((current) => restoredSectionTextConfig(current, templateText))).catch(() => null);
     if (batch === null) return;
     // The area is uncontrolled (Story 11.4): a restore/undo changes what is shown for a
     // reason other than typing in it, so the visible text is set here rather than relying
     // on a remount, which would also fire on every ordinary autosave (`own` changes then too).
-    setText(seeded ?? '');
+    setText(templateText ?? seeded ?? '');
     edits.undoable(t.restored, batch, {
       label: t.undo,
       onUndo: () => {
@@ -201,7 +212,7 @@ function SectionTextEditor({ relatorioId, block, seedVersion, templateName, next
 
         <div className="secao-note">
           <span>{t.autosaveNote}</span>
-          <TextButton isDisabled={own === null} disabledReason={t.nothingToRestore} onPress={() => void onRestore()}>
+          <TextButton isDisabled={!canRestore} disabledReason={t.nothingToRestore} onPress={() => void onRestore()}>
             {t.restore}
           </TextButton>
         </div>

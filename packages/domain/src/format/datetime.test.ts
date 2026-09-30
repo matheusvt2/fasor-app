@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { formatDateTime, formatIssueDate, formatServiceDates, formatShortDateTime, formatTimeOfDay } from './datetime.ts';
-import { dateFieldText, dateRangeText, formatDateOfInstant, normalizeDateValue, parseCalendarDate, uuidV7Instant } from './datetime.ts';
+import { dateFieldText, dateRangeText, formatDateOfInstant, formatDateRange, normalizeDateValue, parseCalendarDate, uuidV7Instant } from './datetime.ts';
 
 describe('formatDateTime and formatIssueDate (Story 4.8)', () => {
   it('render dd/mm/aaaa HH:mm and dd/mm/aaaa in America/Sao_Paulo', () => {
@@ -62,6 +62,30 @@ describe('formatServiceDates', () => {
     expect(formatServiceDates('2026-09', null)).toBe('09/2026');
     expect(formatServiceDates(null, null)).toBe('');
     expect(formatServiceDates('setembro', null)).toBe('');
+  });
+});
+
+describe('K-12 formatDateRange: one range implementation behind both names', () => {
+  const cases: [string | null, string | null][] = [
+    ['2026-09-06', '2026-09-08'],
+    ['2026-09-06', '2026-10-02'],
+    ['2026-07-28', '2026-08-02'],
+    ['2026-12-28', '2027-01-02'],
+    ['2026-09-06', '2026-09-06'],
+    ['2026-09-06', null],
+    [null, '2026-09-08'],
+    [null, null],
+    ['2026-09', '2026-10'],
+    ['2026-09', null],
+    ['setembro', null],
+  ];
+  it('the "full" style is formatServiceDates and the "compact" style is dateRangeText, for every shape', () => {
+    for (const [start, end] of cases) {
+      expect(formatDateRange(start, end, 'full')).toBe(formatServiceDates(start, end));
+      expect(formatDateRange(start, end, 'compact')).toBe(dateRangeText(start, end));
+    }
+    expect(formatDateRange('2026-07-28', '2026-08-02', 'full')).toBe('28/07/2026 – 02/08/2026');
+    expect(formatDateRange('2026-07-28', '2026-08-02', 'compact')).toBe('28/07–02/08/2026');
   });
 });
 

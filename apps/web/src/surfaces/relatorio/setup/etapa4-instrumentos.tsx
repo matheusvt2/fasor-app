@@ -82,7 +82,7 @@ export function Etapa4Instrumentos({
                 <Checkbox isSelected={isSelected} onChange={(checked) => onToggle(instrument.id, checked)} aria-describedby={describedBy}>
                   <span className="ip-code">{text.code}</span>
                   <span className="ip-text">
-                    <span className="ip-name">{text.primaryRest}</span>
+                    <span className="ip-name">{text.primaryName}</span>
                     <span className="ip-detail">
                       {text.secondaryLead}
                       {instrumentDetailSeparator(text)}

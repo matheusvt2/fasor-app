@@ -57,6 +57,21 @@ describe('6.6-UNIT point text editor', () => {
     expect(serializeArea(element)).not.toMatch(/Imagem/);
   });
 
+  it('F-09: a photo picked right against words lands spaced on both sides, never glued ("Imagem 1Emoldurar")', () => {
+    const start = area('Emoldurar e pendurar');
+    insertPhotoChip(start, caretAt(start.firstChild!, 0), A, labelOf(A));
+    expect(serializeArea(start)).toBe(`${photoToken(A)} Emoldurar e pendurar`);
+    const end = area('Emoldurar e pendurar');
+    insertPhotoChip(end, null, A, labelOf(A));
+    expect(serializeArea(end)).toBe(`Emoldurar e pendurar ${photoToken(A)}`);
+    const middle = area('Emoldurar e pendurar');
+    insertPhotoChip(middle, caretAt(middle.firstChild!, 9), B, labelOf(B));
+    expect(serializeArea(middle)).toBe(`Emoldurar ${photoToken(B)} e pendurar`);
+    const empty = area('');
+    insertPhotoChip(empty, null, A, labelOf(A));
+    expect(serializeArea(empty)).toBe(photoToken(A));
+  });
+
   it('inserts plain text at the caret, a pasted token staying literal, and a quick text as its own sentence', () => {
     const element = area('Início.');
     const range = caretAt(element.firstChild!, 7);

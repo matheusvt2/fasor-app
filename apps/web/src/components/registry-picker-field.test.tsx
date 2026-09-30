@@ -27,6 +27,25 @@ describe('RegistryPickerField', () => {
     expect(screen.getByRole('button', { name: 'Outro…' })).toBeInTheDocument();
   });
 
+  it('F-07: a value set from outside ("Igual à", an undo, a pull) shows in the field at once; typing is never replaced', async () => {
+    const props = { label: 'Fabricante', options: OPTIONS, recentIds: [], onChange: vi.fn(), onCreate: vi.fn() };
+    const { rerender } = render(<RegistryPickerField {...props} value={null} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Outro…' }));
+    const input = screen.getByRole('combobox', { name: 'Fabricante' });
+    expect(input).toHaveValue('');
+    input.blur();
+    rerender(<RegistryPickerField {...props} value="siemens" />);
+    expect(input).toHaveValue('Siemens');
+    // A by-value text the registry does not hold (a copied manufacturer) shows as it is.
+    rerender(<RegistryPickerField {...props} value={null} initialText="Celtta" />);
+    expect(input).toHaveValue('Celtta');
+    // While the engineer types, a value landing elsewhere does not rewrite the text.
+    await userEvent.clear(input);
+    await userEvent.type(input, 'We');
+    rerender(<RegistryPickerField {...props} value="schneider" />);
+    expect(input).toHaveValue('We');
+  });
+
   it('tapping a recent chip calls onChange with its id', async () => {
     const onChange = vi.fn();
     render(

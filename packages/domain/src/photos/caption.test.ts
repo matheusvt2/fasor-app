@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { RegistryRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { getSeed } from '../seed/definitions.ts';
-import { cameraContextText, captionWordFor, composeCaption, contextCaption, contextCaptionParts, type ContextCaptionMeta } from './caption.ts';
+import { cameraContextText, captionChipOptions, captionPartsOf, captionWordFor, composeCaption, contextCaption, contextCaptionParts, type CaptionParts, type ContextCaptionMeta } from './caption.ts';
 
 /*
  * 6.1-UNIT: the context caption, row by row of the spec's I/O matrix.
@@ -174,5 +174,46 @@ describe('6.1-UNIT-002 cameraContextText', () => {
   it('prefixes the caption, and says "foto geral" when there is none', () => {
     expect(cameraContextText('Detalhe da chave seccionadora do Cubículo Enel')).toBe('Contexto: Detalhe da chave seccionadora do Cubículo Enel');
     expect(cameraContextText(null)).toBe('Contexto: foto geral');
+  });
+});
+
+describe('review 2026-09-30: captionPartsOf, the chip parts a stored caption was composed of', () => {
+  const chave = { name: 'chave seccionadora', gender: 'f', number: 'singular' } as const;
+  const enel = { name: 'Cubículo Enel', gender: 'm', number: 'singular' } as const;
+  const isolacao = { name: 'ensaios de resistência de isolação', gender: 'm', number: 'plural' } as const;
+  // The composer's prefill off the sheet: no activity (no section on screen), the equipment and the local.
+  const prefill: CaptionParts = { atividade: null, equipamento: chave, local: enel };
+
+  it('a caption composed at capture with an activity the prefill no longer carries opens on those parts', () => {
+    const stored = composeCaption({ atividade: isolacao, equipamento: chave, local: enel })!;
+    expect(stored).toBe('Detalhe dos ensaios de resistência de isolação realizados na chave seccionadora do Cubículo Enel');
+    expect(captionPartsOf(stored, prefill)).toEqual({ atividade: isolacao, equipamento: chave, local: enel });
+  });
+
+  it('an activity of an NC row ("verificação de …", in no word list) is read with the agreement its article gives', () => {
+    const verificacao = { name: 'verificação de contatos', gender: 'f', number: 'singular' } as const;
+    const stored = composeCaption({ atividade: verificacao, equipamento: chave, local: enel })!;
+    expect(captionPartsOf(stored, prefill)).toEqual({ atividade: verificacao, equipamento: chave, local: enel });
+  });
+
+  it('a caption the prefill composes opens on the prefill; no caption opens on the prefill', () => {
+    expect(captionPartsOf(composeCaption(prefill), prefill)).toEqual(prefill);
+    expect(captionPartsOf(null, prefill)).toEqual(prefill);
+  });
+
+  it('a caption made of a candidate word with a part left out is found', () => {
+    const cubiculo = { name: 'Cubículo 2', gender: 'm', number: 'singular' } as const;
+    const stored = composeCaption({ atividade: null, equipamento: null, local: cubiculo })!;
+    expect(captionPartsOf(stored, prefill, { locais: [cubiculo] })).toEqual({ atividade: null, equipamento: null, local: cubiculo });
+  });
+
+  it('a hand-typed caption the rows cannot compose is null (the composer opens it as free text)', () => {
+    expect(captionPartsOf('Painel com fiação solta', prefill)).toBeNull();
+    expect(captionPartsOf('Detalhe dos ensaios de resistência de isolação realizados na chave seccionadora do Cubículo Enel, lado B', prefill)).toBeNull();
+  });
+
+  it('the chip row puts the opened value first, then the prefill, the recents and the seed', () => {
+    expect(captionChipOptions('chave seccionadora', ['disjuntor'], ['para-raio'], 'ensaios de isolação')).toEqual(['ensaios de isolação', 'chave seccionadora', 'disjuntor', 'para-raio']);
+    expect(captionChipOptions('chave seccionadora', [], [], null)).toEqual(['chave seccionadora']);
   });
 });

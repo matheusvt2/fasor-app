@@ -2,7 +2,9 @@ import {
   backwardMoveConsequenceText,
   backwardMoveLabel,
   fichasConcluidasText,
+  firstCountedBlock,
   firstSheetWithPendingSuggestions,
+  locationTree,
   generateReason,
   issuedBannerText,
   latestRevision,
@@ -30,6 +32,7 @@ import {
   type RestorableBlock,
   type RevisionRow,
   type SectionBlockType,
+  type SumarioCountKind,
   type SumarioRow,
   type SumarioRowKey,
   type TemplateRow,
@@ -270,6 +273,22 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
     requestAnimationFrame(() => chevron.current?.focus());
   }
 
+  /**
+   * F-24: a sheet count ("fichas concluídas", "NC abertos", "não ensaiadas") opens section 9
+   * on the first sheet it counts (`firstCountedBlock`), its path expanded, the row scrolled
+   * into view and focused; with none, section 9's own row.
+   */
+  const [countFocus, setCountFocus] = useState<{ blockId: string; n: number } | null>(null);
+  function openCount(kind: SumarioCountKind): void {
+    const blockId = firstCountedBlock(locationTree(snapshot, equipment, pending), snapshot.blocks, kind, pending);
+    if (blockId === null) {
+      openSection9();
+      return;
+    }
+    setExpanded(true);
+    setCountFocus((current) => ({ blockId, n: (current?.n ?? 0) + 1 }));
+  }
+
   /** "N sugestões por confirmar": the first sheet holding one, section 9 when none does. */
   const navigate = useNavigate();
   function openSuggestions(): void {
@@ -299,9 +318,9 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
             {sumarioMetaText({ start: relatorio.setup.service_start, end: relatorio.setup.service_end, templateName, responsibleName })}
           </p>
           <p className="sum-summary" role="group" aria-label={t.summaryLabel}>
-            <TextButton onPress={openSection9}>{fichasConcluidasText(computed)}</TextButton>
-            <TextButton onPress={openSection9}>{ncAbertosText(computed.nc_open)}</TextButton>
-            <TextButton onPress={openSection9}>{naoEnsaiadasText(computed.not_tested)}</TextButton>
+            <TextButton onPress={() => openCount('concluded')}>{fichasConcluidasText(computed)}</TextButton>
+            <TextButton onPress={() => openCount('nc_open')}>{ncAbertosText(computed.nc_open)}</TextButton>
+            <TextButton onPress={() => openCount('not_tested')}>{naoEnsaiadasText(computed.not_tested)}</TextButton>
             <TextButton onPress={openSuggestions}>{sugestoesText(computed.suggestions_pending)}</TextButton>
           </p>
         </div>
@@ -352,7 +371,8 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
                     lastSheetId={lastSheet}
                     id={treeId}
                     expandToLastSheet={openedByStatus}
-                    focusBlockId={arrival.focusBlockId}
+                    focusBlockId={countFocus?.blockId ?? arrival.focusBlockId}
+                    focusToken={countFocus?.n ?? 0}
                     context={treeContext}
                     ref={treeRef}
                     pending={pending}

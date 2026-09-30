@@ -197,6 +197,37 @@ describe('4.1 NewProjectDialog', () => {
     expect(await optionNames()).toEqual(['Torre Norte']);
   });
 
+  it('F-05: the chosen client\'s registered sites are offered in "Local (obra)"; picking one creates its obra and continues', async () => {
+    database = await freshDb();
+    await seed(database);
+    await database.entities.put(
+      toRecord(`registry:${CLIENT_B}`, {
+        ...client(CLIENT_B, 'Condomínio Beta'),
+        sites: [
+          { id: '019966b0-0064-7000-8000-000000000031', address: 'Obra UX' },
+          { id: '019966b0-0064-7000-8000-000000000032', address: 'Torre Norte' },
+        ],
+      }),
+    );
+    const onClose = renderDialog();
+    await pickClient('Condomínio Beta');
+    await openList(1);
+    // The obra already there, then the site that has none (the site named like the obra is that obra).
+    expect(await optionNames()).toEqual(['Torre Norte', 'Obra UX']);
+    await userEvent.click(screen.getByRole('option', { name: 'Obra UX' }));
+    await waitFor(() => expect(siteBox()).toHaveValue('Obra UX'));
+    await waitFor(async () => expect(await database!.outbox.count()).toBe(1));
+    const ops = await database.outbox.toArray();
+    expect(ops[0]!.path).toMatch(/^project\/[0-9a-f-]{36}$/);
+    expect(ops[0]!.value).toMatchObject({ client_id: CLIENT_B, site: 'Obra UX', name: 'Obra UX', removed_at: null });
+    const projectId = ops[0]!.path.split('/')[1]!;
+    await settleLists();
+    await waitFor(() => expect(proceed()).not.toHaveAttribute('aria-disabled'));
+    await userEvent.click(proceed());
+    expect(onClose).toHaveBeenCalled();
+    expect(await screen.findByTestId('project-route')).toHaveTextContent(`/project/${projectId} {"openNew":true}`);
+  });
+
   it('an existing client and obra continue to the Project with no openNew state and no op', async () => {
     database = await freshDb();
     await seed(database);

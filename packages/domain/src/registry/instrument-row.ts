@@ -18,6 +18,8 @@ export interface InstrumentRowText {
   code: string;
   /** `.rr-primary` after the code, e.g. "— Megôhmetro digital DMG10Ki". */
   primaryRest: string;
+  /** F-20: the name and model alone, for a row that draws the code in its own column (the setup picker, `50-relatorio-setup.html` `.ip-name`). */
+  primaryName: string;
   /** `.rr-secondary` up to the validity: manufacturer · série · RBC, skipping missing parts. */
   secondaryLead: string;
   /** The validity clause, or null with no calibration data yet (I/O matrix: never flagged). */
@@ -43,9 +45,11 @@ export function instrumentRegistryRowText(instrument: InstrumentRow, status: Cal
       : status === 'expired'
         ? { text: `Vencida em ${validUntil}`, expired: true }
         : { text: `Válida até ${validUntil}`, expired: false };
+  const primaryName = [instrument.name, instrument.model].filter((p): p is string => p !== null && p !== '').join(' ');
   return {
     code: instrument.code,
-    primaryRest: `— ${[instrument.name, instrument.model].filter((p): p is string => p !== null && p !== '').join(' ')}`,
+    primaryRest: `— ${primaryName}`,
+    primaryName,
     secondaryLead: joinParts([
       instrument.manufacturer,
       instrument.serial === null ? null : `série ${instrument.serial}`,

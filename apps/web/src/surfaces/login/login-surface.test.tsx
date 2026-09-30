@@ -72,6 +72,34 @@ describe('Login surface', () => {
     expect(password).toHaveAccessibleDescription('Senha incorreta');
   });
 
+  it('L10: too many attempts (429) has its own sentence, marks no field and never says "Senha incorreta"', async () => {
+    signIn.mockResolvedValue({ ok: false, reason: 'rate-limited', message: 'Muitas tentativas. Tente novamente em alguns minutos.' });
+    const { container } = render(<LoginSurface />);
+    await fillAndSubmit('a@teste.local', 'certa');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Muitas tentativas. Tente novamente em alguns minutos.');
+    expect(screen.getByLabelText('Senha')).not.toHaveAttribute('aria-invalid');
+    expect(container).not.toHaveTextContent('Senha incorreta');
+  });
+
+  it('F-23: after an expired session the e-mail of that account is already typed', () => {
+    session = { ...session, status: 'signed-in', reAuthRequired: true, user: { id: 'u', name: 'Ana', email: 'ana@teste.local', companyId: 'c', companyName: 'E', council: null, registrationNumber: null, title: null } };
+    render(<LoginSurface />);
+    expect(screen.getByLabelText('E-mail')).toHaveValue('ana@teste.local');
+  });
+
+  it('F-23: with no user in the session, the e-mail of the last session on this device is typed', () => {
+    window.localStorage.setItem(
+      'releng.last-session',
+      JSON.stringify({ id: '0a000000-0000-7000-8000-0000000000a1', name: 'Bento', email: 'bento@teste.local', companyId: '0a000000-0000-7000-8000-00000000000a', companyName: 'E', council: null, registrationNumber: null, title: null }),
+    );
+    try {
+      render(<LoginSurface />);
+      expect(screen.getByLabelText('E-mail')).toHaveValue('bento@teste.local');
+    } finally {
+      window.localStorage.removeItem('releng.last-session');
+    }
+  });
+
   it('a server that does not answer has its own sentence and marks no field', async () => {
     signIn.mockResolvedValue({
       ok: false,

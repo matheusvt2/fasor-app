@@ -14,8 +14,12 @@ describe('calibrationValidUntil', () => {
     expect(calibrationValidUntil('2026-01-15', null)).toBeNull();
   });
 
-  it('rolls an overflowing day into the next month, never a time-zone drift', () => {
-    expect(calibrationValidUntil('2026-01-31', 1)).toBe('2026-03-03');
+  it('K-4: clamps a month-end day to the target month, never rolls into the next one', () => {
+    expect(calibrationValidUntil('2026-01-31', 1)).toBe('2026-02-28');
+    expect(calibrationValidUntil('2028-01-31', 1)).toBe('2028-02-29');
+    expect(calibrationValidUntil('2026-03-31', 1)).toBe('2026-04-30');
+    expect(calibrationValidUntil('2026-08-31', 6)).toBe('2027-02-28');
+    expect(calibrationValidUntil('2026-01-15', 1)).toBe('2026-02-15');
   });
 });
 
@@ -35,6 +39,14 @@ describe('calibrationCheck', () => {
   it('expired: validUntil before the service period end', () => {
     const status = calibrationCheck({ calibrated_at: '2025-01-01', calibration_interval_months: 12 }, '2026-06-01', now);
     expect(status).toBe('expired');
+  });
+
+  it('K-3: with no period, "now" is the America/Sao_Paulo calendar day, not the UTC one', () => {
+    // 22:30 of 29/09 in São Paulo is already 30/09 in UTC.
+    const evening = new Date('2026-09-30T01:30:00.000Z');
+    expect(calibrationStatusOf('2026-09-29', null, evening)).not.toBe('expired');
+    expect(calibrationStatusOf('2026-09-29', null, evening)).toBe('expiring');
+    expect(calibrationStatusOf('2026-09-28', null, evening)).toBe('expired');
   });
 
   it('no period context compares against now', () => {

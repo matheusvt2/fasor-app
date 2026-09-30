@@ -51,3 +51,12 @@ export function empresaFormLine(empresa: EmpresaRow | null): string {
   if (empresa === null) return '';
   return [empresa.form_code, empresa.form_revision].filter((part) => part !== null && part.trim() !== '').join(' · ');
 }
+
+/**
+ * F-15 (review 2026-09-30): the company is registered once it has a razão social. Until
+ * then the document control prints "—" for Documento and Contratada, and the Export dialog
+ * says where to fill it in.
+ */
+export function empresaRegistered(empresa: EmpresaRow | null): boolean {
+  return empresa !== null && empresa.name.trim() !== '';
+}

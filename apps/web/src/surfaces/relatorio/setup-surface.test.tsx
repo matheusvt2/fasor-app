@@ -118,6 +118,8 @@ function renderSetup(id = RELATORIO, search = '') {
 afterEach(() => {
   database?.close();
   database = null;
+  // F-11: the kept geolocation answer of a relatório lives in this device's storage.
+  window.localStorage.clear();
 });
 
 describe('4.2 SetupSurface', () => {
@@ -423,6 +425,53 @@ describe('4.2 SetupSurface', () => {
     }
   });
 
+  it('F-11: the device is asked for its position once per relatório, however often the page mounts; the reading stays a suggestion', async () => {
+    const getCurrentPosition = vi.fn((ok: PositionCallback) => ok({ coords: { altitude: 763.6 } } as GeolocationPosition));
+    Object.defineProperty(navigator, 'geolocation', { configurable: true, value: { getCurrentPosition } });
+    try {
+      database = await seeded();
+      const first = renderSetup();
+      await waitFor(() => expect(screen.getByRole('spinbutton', { name: 'Altitude do site' })).toHaveValue(764));
+      first.unmount();
+      renderSetup();
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      await waitFor(() => expect(input).toHaveValue(764));
+      expect(input.closest('.altitude-field')).toHaveAttribute('data-state', 'suggested');
+      expect(getCurrentPosition).toHaveBeenCalledTimes(1);
+    } finally {
+      // @ts-expect-error jsdom has no geolocation; the property above added it.
+      delete navigator.geolocation;
+    }
+  });
+
+  it('F-11: a denied position is an answer too: the next visit does not ask again', async () => {
+    const getCurrentPosition = vi.fn((_ok: PositionCallback, fail?: PositionErrorCallback | null) => fail?.({ code: 1 } as GeolocationPositionError));
+    Object.defineProperty(navigator, 'geolocation', { configurable: true, value: { getCurrentPosition } });
+    try {
+      database = await seeded();
+      const first = renderSetup();
+      await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      await waitFor(() => expect(getCurrentPosition).toHaveBeenCalledTimes(1));
+      first.unmount();
+      renderSetup();
+      const input = await screen.findByRole('spinbutton', { name: 'Altitude do site' });
+      expect(input).toHaveValue(null);
+      expect(getCurrentPosition).toHaveBeenCalledTimes(1);
+    } finally {
+      // @ts-expect-error jsdom has no geolocation; the property above added it.
+      delete navigator.geolocation;
+    }
+  });
+
+  it('F-20: the instrument picker draws the code in its column and the name without a dangling "—"', async () => {
+    database = await seeded();
+    renderSetup();
+    const checkbox = await screen.findByRole('checkbox', { name: /Megôhmetro/ });
+    const name = checkbox.closest('li')!.querySelector('.ip-name')!;
+    expect(name.textContent).not.toMatch(/^\s*—/);
+    expect(name.textContent).toMatch(/^Megôhmetro/);
+  });
+
   it('Q8: a confirmed geolocation reading reopened by "Alterar" is a plain field, not "Sugerido" again', async () => {
     const getCurrentPosition = vi.fn((ok: PositionCallback) => ok({ coords: { altitude: 763.6 } } as GeolocationPosition));
     Object.defineProperty(navigator, 'geolocation', { configurable: true, value: { getCurrentPosition } });
@@ -478,6 +527,23 @@ describe('4.2 SetupSurface', () => {
     await untilStored(() => database!.entities.get(['relatorio', RELATORIO]), (row) => {
       expect((row!.row as RelatorioRow).setup.exclusions?.[0]).toBe('Item alterado');
     });
+  });
+
+  it('W-12: removing an exclusion keeps every other row on its own input (stable keys, never shifted to the neighbour)', async () => {
+    database = await seeded();
+    const record = await database.entities.get(['relatorio', RELATORIO]);
+    const row = record!.row as RelatorioRow;
+    await database.entities.put({ ...record!, row: { ...row, setup: { ...row.setup, exclusions: ['Item A', 'Item B', 'Item C'] } } });
+    renderSetup();
+    const second = await screen.findByRole('textbox', { name: 'Exclusão 2' });
+    await waitFor(() => expect(second).toHaveValue('Item B'));
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções da exclusão 1' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Remover' }));
+    await waitFor(() => expect(screen.getAllByRole('textbox', { name: /^Exclusão \d$/ })).toHaveLength(2));
+    // The element that held "Item B" still holds it (now the first row); with index keys it would show "Item C".
+    expect(second).toBeInTheDocument();
+    expect(second).toHaveValue('Item B');
+    expect(second).toHaveAccessibleName('Exclusão 1');
   });
 
   it('E4 retro item 24: "Remover" in an exclusion\'s menu writes the list without it; "Desfazer" puts it back', async () => {

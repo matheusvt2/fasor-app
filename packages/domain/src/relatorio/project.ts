@@ -67,6 +67,27 @@ export function projectNamed(rows: readonly ProjectRow[], name: string): Project
   return rows.find((row) => normalizeRegistryName(projectLabel(row)) === wanted) ?? null;
 }
 
+/**
+ * F-05 (review 2026-09-30; Story 4.1, EXPERIENCE.md › Registries › Clients): the sites of a
+ * registered client that none of its obras names yet, in registry order, each once. The
+ * "Novo relatório" dialog offers them in "Local (obra)" beside the obras: picking one creates
+ * the obra of that site, so a registered site is never typed again.
+ */
+export function unprojectedSites(
+  client: { sites: readonly { id: string; address: string }[] } | null | undefined,
+  clientProjects: readonly ProjectRow[],
+): { id: string; address: string }[] {
+  if (client === null || client === undefined) return [];
+  const out: { id: string; address: string }[] = [];
+  for (const site of client.sites) {
+    const address = site.address.trim();
+    if (address === '' || projectNamed(clientProjects, address) !== null) continue;
+    if (out.some((known) => normalizeRegistryName(known.address) === normalizeRegistryName(address))) continue;
+    out.push({ id: site.id, address });
+  }
+  return out;
+}
+
 /** `.lr-sub`: "criado em 23/09/2026 · ⟨template⟩" (the parts it has). */
 export function relatorioSubText(row: Pick<RelatorioRow, 'id'>, templateName: string | null): string {
   const born = uuidV7Instant(row.id);

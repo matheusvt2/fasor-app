@@ -6,6 +6,7 @@ import {
   printedExclusions,
   restoredSectionTextConfig,
   section3Blocks,
+  templateSectionText,
   section3Text,
   sectionTextEdited,
   sectionVariables,
@@ -155,5 +156,26 @@ describe('E4 retro item 22: the section text edited marker', () => {
     expect(restored).toEqual({ block_type: 'section_2', section_text: null, section_text_edited: false });
     expect(sectionTextEdited(restored)).toBe(false);
     expect(sectionTextEdited(null)).toBe(false);
+  });
+
+  it('F-03/K-14: a restore writes the template block text of that section when the template has one', () => {
+    const restored = restoredSectionTextConfig({ block_type: 'section_2', section_text: 'editado', section_text_edited: true }, '[UX-CUSTOM] Definições de {cliente}');
+    expect(restored).toEqual({ block_type: 'section_2', section_text: '[UX-CUSTOM] Definições de {cliente}', section_text_edited: false });
+    expect(sectionTextEdited(restored)).toBe(false);
+  });
+
+  it('F-03/K-14: templateSectionText finds the section block of the template by its type, null without one', () => {
+    const template = {
+      blocks: [
+        { block_type: 'section_2', section_text: 'Texto do template' },
+        { block_type: 'section_4', section_text: null },
+        { block_type: 'chave_seccionadora', section_text: null },
+      ],
+    };
+    expect(templateSectionText(template, 'section_2')).toBe('Texto do template');
+    expect(templateSectionText(template, 'section_4')).toBeNull();
+    expect(templateSectionText(template, 'section_5')).toBeNull();
+    expect(templateSectionText(null, 'section_2')).toBeNull();
+    expect(templateSectionText({ blocks: [{ block_type: 'section_2', section_text: '   ' }] }, 'section_2')).toBeNull();
   });
 });

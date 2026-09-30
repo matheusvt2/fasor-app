@@ -9,6 +9,7 @@ import {
   numberFieldValue,
   parseFieldInput,
   parseVoltageClassKv,
+  plateDateAccepted,
   screenLabel,
   wordRegistryRowText,
   wordRowByName,
@@ -16,9 +17,10 @@ import {
   type FieldDef,
   type WordRow,
 } from '@app/domain';
-import { useId, useRef, useState, type ReactNode } from 'react';
+import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { DateField, RegistryPickerField } from '../../components/index.ts';
 import { useNumberInput } from '../../components/number-input.tsx';
+import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { useFieldCommit } from '../../input/use-field-commit.ts';
 import { useDraftSource } from '../../state/drafts.tsx';
@@ -57,7 +59,7 @@ export function firstFocusable(root: HTMLElement): HTMLElement | null {
  * draft while it differs from the committed value. `setup-surface.tsx`'s `useTextField`
  * idiom plus the draft registration of `field-fixture-surface.tsx`.
  */
-export function useTypedText(value: string, commit: (text: string) => void | Promise<void>, draft: DraftKey) {
+export function useTypedText(value: string, commit: (text: string) => void | Promise<void>, draft: DraftKey, options: { flushOnUnmount?: boolean } = {}) {
   const [text, setText] = useState(value);
   const committed = useRef(value);
   const current = useRef(text);
@@ -79,6 +81,7 @@ export function useTypedText(value: string, commit: (text: string) => void | Pro
       if (value !== text) setText(value);
     }
   }
+  useFlushOnUnmount(committer, options.flushOnUnmount === true);
   useDraftSource({
     surface: DRAFT_SURFACE,
     entityId: draft.entityId,
@@ -104,6 +107,23 @@ export function useTypedText(value: string, commit: (text: string) => void | Pro
     blur: () => committer.blur(),
     enter: () => committer.enter(),
   };
+}
+
+/**
+ * F-01: a field that leaves the page with typed text still waiting for its idle commit
+ * commits it then (a plate suggestion landing on the empty field swaps it out), never drops
+ * it. A layout cleanup, so it runs before `useFieldCommit`'s passive dispose.
+ */
+function useFlushOnUnmount(committer: { flush: () => void; pending: boolean }, on: boolean): void {
+  const latest = useRef({ committer, on });
+  latest.current = { committer, on };
+  useLayoutEffect(
+    () => () => {
+      const { committer: current, on: enabled } = latest.current;
+      if (enabled && current.pending) current.flush();
+    },
+    [],
+  );
 }
 
 export interface FieldProps {
@@ -135,6 +155,8 @@ export interface FieldProps {
   onRegisterWord?: (kind: 'manufacturer' | 'voltage_class', name: string) => void;
   /** Story 8.1: a line at the end of the field (the replace line of a differing suggestion). */
   after?: ReactNode;
+  /** F-01: typed text still waiting for its commit is committed when the field leaves the page. */
+  flushOnUnmount?: boolean;
 }
 
 /** One sheet field, editable, rendered by its kind. */
@@ -154,10 +176,10 @@ export function SheetField(props: FieldProps) {
   }
 }
 
-function TextField({ field, value, commit, draft, missing, label, helper, after }: FieldProps) {
+function TextField({ field, value, commit, draft, missing, label, helper, after, flushOnUnmount }: FieldProps) {
   const id = useId();
   const helperId = useId();
-  const typed = useTypedText(typeof value === 'string' ? value : '', (text) => commit(text.trim() === '' ? null : text), draft);
+  const typed = useTypedText(typeof value === 'string' ? value : '', (text) => commit(text.trim() === '' ? null : text), draft, { flushOnUnmount: flushOnUnmount === true });
   return (
     <div className="field" data-field-key={field.key}>
       <label className="field-label" htmlFor={id}>
@@ -190,7 +212,7 @@ function TextField({ field, value, commit, draft, missing, label, helper, after 
  * `useNumberInput`, so the text is parsed and committed on blur or Enter only and never
  * rewritten while the engineer types ("3.3", a pause, "00" commits 3300).
  */
-function NumberField({ field, value, commit, draft, missing, label, invalidText, after }: FieldProps) {
+function NumberField({ field, value, commit, draft, missing, label, invalidText, after, flushOnUnmount }: FieldProps) {
   const id = useId();
   const helperId = useId();
   const unit = field.unit ?? null;
@@ -204,6 +226,7 @@ function NumberField({ field, value, commit, draft, missing, label, invalidText,
     echo: (parsed) => numberEchoText(parsed.raw, unit),
     format: (parsed) => formatDecimalGroupedPtBr(parsed.raw),
     draft: { surface: DRAFT_SURFACE, entityId: draft.entityId, field: draft.field },
+    flushOnUnmount: flushOnUnmount === true,
   });
   const describedBy = [number.invalid ? helperId : null, number.echo === null ? null : `${helperId}-echo`].filter(Boolean).join(' ') || undefined;
   return (
@@ -272,7 +295,8 @@ function DateTextField({ field, value, commit, missing, label, after }: FieldPro
   const submit = () => {
     if (text === storedText) return;
     const parsed = parseFieldInput(field, text);
-    if (!parsed.ok) {
+    // F-22: a date outside 1900 .. next year is refused like one the kernel cannot read.
+    if (!parsed.ok || (typeof parsed.value === 'string' && !plateDateAccepted(parsed.value, now()))) {
       setInvalid(true);
       return;
     }
@@ -310,25 +334,51 @@ function DateTextField({ field, value, commit, missing, label, after }: FieldPro
   );
 }
 
-function DatePickerField({ field, value, commit, missing, label, after }: FieldProps) {
+function DatePickerField({ field, value, commit, missing, label, after, flushOnUnmount }: FieldProps) {
   const stored = typeof value === 'string' && FULL_DATE.test(value) ? value : null;
   const [date, setDate] = useState(stored);
   const committed = useRef(stored);
   const committer = useFieldCommit<string | null>({ commit: (next) => commit(next) });
+  useFlushOnUnmount(committer, flushOnUnmount === true);
+  // F-22: a date outside 1900 .. next year ("20/02/0001") writes nothing and, once the focus
+  // leaves (a year typed digit by digit passes through 0002 and 0202), shows the invalid helper.
+  const [outOfRange, setOutOfRange] = useState(false);
+  const refused = useRef(false);
+  const helperId = useId();
   if (stored !== committed.current) {
     committed.current = stored;
     if (stored !== date) setDate(stored);
+    refused.current = false;
+    setOutOfRange(false);
   }
   return (
     <div data-field-key={field.key} data-missing-field={missing ? '' : undefined}>
       <DateField
         label={screenLabel(label ?? field.label)}
         value={date}
+        isInvalid={outOfRange}
+        {...(outOfRange ? { describedBy: helperId } : {})}
         onChange={(next) => {
           setDate(next);
+          refused.current = next !== null && !plateDateAccepted(next, now());
+          if (refused.current) {
+            committer.dispose();
+            return;
+          }
+          setOutOfRange(false);
           committer.change(next);
         }}
-        onBlur={() => committer.blur()}
+        onBlur={() => {
+          if (refused.current) setOutOfRange(true);
+          committer.blur();
+        }}
+        after={
+          outOfRange ? (
+            <span className="helper" data-tone="red" id={helperId}>
+              {copy.ficha.nameplate.invalidDate}
+            </span>
+          ) : undefined
+        }
       />
       {after}
     </div>

@@ -1,5 +1,5 @@
 import type { RelatorioSummary } from '../contract/sync.ts';
-import { formatServiceDates, formatShortDateTime, formatTimeOfDay } from '../format/datetime.ts';
+import { formatDateOfInstant, formatServiceDates, formatShortDateTime, formatTimeOfDay } from '../format/datetime.ts';
 import type { Op } from '../ops/op.ts';
 import { fichasCountText, progress, progressCounterState } from '../relatorio/progress.ts';
 import { sumarioTitle } from '../relatorio/project.ts';
@@ -156,9 +156,8 @@ function updatedStamp(lastSyncAt: string | null, now: Date): string {
   if (lastSyncAt === null) return '';
   const short = formatShortDateTime(lastSyncAt);
   if (short === '') return '';
-  return short.slice(0, 5) === formatShortDateTime(now.toISOString()).slice(0, 5)
-    ? formatTimeOfDay(lastSyncAt)
-    : short;
+  // K-5: the whole date decides, so the same day and month of another year is not "today".
+  return formatDateOfInstant(lastSyncAt) === formatDateOfInstant(now.toISOString()) ? formatTimeOfDay(lastSyncAt) : short;
 }
 
 function deviceOf(

@@ -50,6 +50,7 @@ import { CropThumb } from '../../components/crop-thumb.tsx';
 import { SuggestionField } from '../../components/suggestion-field.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
+import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { useCamera } from './camera-view.tsx';
 import type { FichaApi } from './ficha-api.ts';
@@ -224,15 +225,20 @@ export function useDisplaySuggestions({
   return { block, entries, queued, sourceOf, relatorioStatus: snapshot.relatorio.status, confirm, type, keepTyped, confirmAll, confirmable, openCrop, viewer, photos };
 }
 
-/** "Foto guardada — leitura quando houver sinal" (queued) or "Lendo…" (running) under a cell or a field. */
+/**
+ * "Foto guardada — leitura quando houver sinal" (queued, offline) or "Lendo…" (running) under
+ * a cell or a field. F-17: a queued reading on a device with signal reads "Lendo…" (State
+ * Patterns › Reading in progress); the waiting words are for a device without one.
+ */
 export function QueuedBanner({ state }: { state: DisplayQueuedState }) {
   const t = copy.ficha.ensaios;
+  const online = useSession().online;
   return (
     <span className="queued-banner">
       <svg className="ico" aria-hidden="true">
         <use href="/sprite.svg#i-image" />
       </svg>
-      {state === 'queued' ? t.displayQueued : t.displayRunning}
+      {state === 'queued' && !online ? t.displayQueued : t.displayRunning}
     </span>
   );
 }

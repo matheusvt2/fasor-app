@@ -227,9 +227,16 @@ export function useCamera(
     const ending = sessionRef.current;
     // A shot whose frame is still being read joins the commit queue before it is awaited,
     // and the stream stays live until then.
+    // W-13: whatever happens to the settle (a refused commit that rejects), the view closes,
+    // the stream stops and the next "Concluir fotos" is not swallowed by a stuck flag.
+    let allSaved = false;
     void Promise.allSettled([...grabs.current])
       .then(() => capture.settle())
-      .then((allSaved) => {
+      .then((saved) => {
+        allSaved = saved;
+      })
+      .catch(() => undefined)
+      .finally(() => {
         finishing.current = false;
         end(ending);
         setBurst(0);

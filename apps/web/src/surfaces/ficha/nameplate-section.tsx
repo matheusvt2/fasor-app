@@ -243,6 +243,9 @@ export function NameplateSection({
               onRegisterWord={registerWord}
               commit={(next) => (api.author === null ? undefined : api.commit([nameplateOp(api.author, api.relatorioId, block.id, field.key, next)]))}
               after={after}
+              // F-01: a suggestion landing on this field while it holds uncommitted typing
+              // swaps it out; the typed text is committed then, never replaced by the guess.
+              flushOnUnmount
             />
           );
           // One wrapper for every field, confirmed or not, so the field keeps its place in the

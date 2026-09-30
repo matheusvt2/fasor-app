@@ -91,9 +91,28 @@ export function editedSectionTextConfig(config: unknown, text: string): Record<s
   return { ...asObject(config), section_text: text, section_text_edited: true };
 }
 
-/** A section block's config after "Restaurar texto do template": the seed text in force again, the marker cleared. */
-export function restoredSectionTextConfig(config: unknown): Record<string, unknown> {
-  return { ...asObject(config), section_text: null, section_text_edited: false };
+/**
+ * A section block's config after "Restaurar texto do template", the marker cleared.
+ * F-03/K-14: the text is the relatório's template's own text for that section
+ * (`templateSectionText`), which instantiation copied; `null` (the seed text in force) when
+ * the template has none or is not on the device.
+ */
+export function restoredSectionTextConfig(config: unknown, templateText: string | null = null): Record<string, unknown> {
+  return { ...asObject(config), section_text: templateText, section_text_edited: false };
+}
+
+/**
+ * F-03/K-14: the text a template holds for one section type (its section block's
+ * `section_text`), or null when the template is absent, has no such block or holds none
+ * (the seed text in force). F-03 narrowing: the template's current text on the device, not
+ * the text at the relatório's `template_version`.
+ */
+export function templateSectionText(
+  template: { blocks: readonly { block_type: string; section_text?: string | null }[] } | null | undefined,
+  blockType: string,
+): string | null {
+  const text = template?.blocks.find((block) => block.block_type === blockType)?.section_text ?? null;
+  return text === null || text.trim() === '' ? null : text;
 }
 
 /** True when the relatório's own text of this section block was edited (and not restored since). */

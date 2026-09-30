@@ -5,7 +5,7 @@ import { BLOCK_1_ID, COMPANY_ID, RELATORIO_ID, USER_ID } from '@app/domain/fixtu
 import { describe, expect, it } from 'vitest';
 import { commitPhotoCapture } from '../../db/file-commit.ts';
 import { openDatabase, type AppDatabase } from '../../db/schema.ts';
-import { assignPhotoBatch } from './photo-ops.ts';
+import { assignPhotoBatch, toastPhotoWriteFailure } from './photo-ops.ts';
 
 /*
  * Ledger 1131 (contract 14): a gallery import batch is created with no reading; its answer
@@ -91,5 +91,15 @@ describe('ledger 1131 assignPhotoBatch', () => {
       expect(written.some((op) => op.path.endsWith('/reading_kind'))).toBe(false);
       db.close();
     }
+  });
+});
+
+describe('W-9 a photo edit the device refuses', () => {
+  it('raises the refused-write toast: the quota words for a full device, the general ones otherwise', () => {
+    const shown: string[] = [];
+    const onError = toastPhotoWriteFailure((text) => shown.push(text));
+    onError(Object.assign(new Error('full'), { name: 'QuotaExceededError' }));
+    onError(Object.assign(new Error('closed'), { name: 'DatabaseClosedError' }));
+    expect(shown).toEqual(['Não foi possível salvar neste aparelho. Libere espaço e tente de novo.', 'Não foi possível salvar. Tente de novo.']);
   });
 });

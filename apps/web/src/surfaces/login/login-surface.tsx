@@ -3,6 +3,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { Button } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
 import type { SignInFailure } from '../../api/auth-client.ts';
+import { readLastSession } from '../../state/last-session.ts';
 import { useSession } from '../../state/session.tsx';
 import './login.css';
 
@@ -48,7 +49,9 @@ export function LoginSurface() {
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
 
-  const [email, setEmail] = useState('');
+  // F-23: after "Entrar de novo" the app knows the account: the e-mail of the expired
+  // session (or of the last one on this device) is already typed.
+  const [email, setEmail] = useState(() => session.user?.email ?? readLastSession()?.email ?? '');
   const [password, setPassword] = useState('');
   const [revealed, setRevealed] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>(NO_FIELD_ERRORS);
