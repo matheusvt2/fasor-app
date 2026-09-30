@@ -5,9 +5,10 @@ import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { relatorioSectionNumber } from '../relatorio/instantiate.ts';
 import { section3Blocks, sectionVariables } from '../relatorio/section-variables.ts';
 import { printsSeedSections, sectionBlocks, seedSectionNumbers } from '../relatorio/sumario.ts';
-import { getSeed, sectionText } from '../seed/definitions.ts';
+import { getSeed, sectionText, type SectionVariable } from '../seed/definitions.ts';
 import type { TextBlock } from '../seed/schema.ts';
 import { sectionNumber } from '../templates/compose.ts';
+import { parseRichText, richBlockNumbers, richRunsResolved, richRunsText, type RichRun } from '../templates/rich-text.ts';
 import { resolveSectionText } from '../templates/section-text.ts';
 import { documentControlRows, MISSING, REVISION_ROW_LABEL, type DocumentControlRow } from './document-control.ts';
 import { section10Layout, type LayoutSection10 } from './section-10.ts';
@@ -45,9 +46,18 @@ export const TOC_TITLE = 'ÍNDICE';
 /** The footer's page line: "Página X de Y", with the two fields the renderer fills. */
 export const PAGE_LINE = { before: 'Página ', between: ' de ' } as const;
 
+/** Story 11.4: one printed run of a paragraph, bold and/or italic (the kernel's `RichRun`). */
+export type LayoutRun = RichRun;
+
 export interface LayoutParagraph {
-  kind: TextBlock['kind'];
+  /** Story 11.4: `numbered` is an item of a numbered list (FR-12); `item` a bullet item. */
+  kind: TextBlock['kind'] | 'numbered';
+  /** The plain text of the paragraph: its runs' text, concatenated. */
   text: string;
+  /** A numbered item's position in its list (1, 2, 3...); absent on every other kind. */
+  number?: number;
+  /** The paragraph's printed runs; a seed paragraph is one plain run. */
+  runs: LayoutRun[];
 }
 
 export interface LayoutSectionText {
@@ -141,20 +151,27 @@ function sectionType(section: number): SectionBlockType | null {
 }
 
 /**
- * A section's own flat text (`config.section_text`, the shape `flattenSectionText`
- * writes) as printable paragraphs: blank-line-separated chunks, the first line of a chunk
- * a paragraph, the lines under it items. The flat text cannot say whether a chunk's first
- * line was an item; it prints as a paragraph.
+ * Story 11.4: a section's own text (`config.section_text`) as printable paragraphs, through
+ * the kernel's markup (`templates/rich-text.ts`): a flat text of Story 3.6 keeps its meaning
+ * (blank-line-separated chunks, the first line of a chunk a paragraph, the lines under it
+ * items), and a formatted one prints its bold, italic, bullet and numbered items. Variables
+ * resolve per run, after parsing.
  */
-function ownParagraphs(text: string): { kind: TextBlock['kind']; text: string }[] {
-  const out: { kind: TextBlock['kind']; text: string }[] = [];
-  for (const chunk of text.split(/\n{2,}/)) {
-    chunk
-      .split('\n')
-      .filter((line) => line.trim() !== '')
-      .forEach((line, index) => out.push({ kind: index === 0 ? 'paragraph' : 'item', text: line }));
-  }
-  return out;
+function ownParagraphs(text: string, variables: Partial<Record<SectionVariable, string>>): LayoutParagraph[] {
+  const blocks = parseRichText(text);
+  const numbers = richBlockNumbers(blocks);
+  return blocks.map((block, index) => {
+    const runs = richRunsResolved(block.runs, variables);
+    const kind = block.kind === 'bullet' ? 'item' : block.kind;
+    const number = numbers[index];
+    return { kind, text: richRunsText(runs), ...(number === null || number === undefined ? {} : { number }), runs };
+  });
+}
+
+/** A seed paragraph (or item, or heading), resolved, as one plain run. */
+function seedParagraph(block: { kind: TextBlock['kind']; text: string }, variables: Partial<Record<SectionVariable, string>>): LayoutParagraph {
+  const text = resolveSectionText(block.text, variables).resolved;
+  return { kind: block.kind, text, runs: [{ text }] };
 }
 
 /** The printed sections as (FO.SERV-03 section, own text) pairs: the live section blocks, else the seed's eleven. */
@@ -203,15 +220,10 @@ export function layoutSpec(snapshot: RelatorioSnapshot, inputs: LayoutInputs): D
     // Section 3's own exclusion list (Story 4.2's `setup.exclusions`, AD-21) overrides the
     // seed's own three items when the relatório carries no per-relatório text edit of its own.
     const seeded = section === 3 ? section3Blocks(seedVersion, textDate, relatorio.setup.exclusions) : seededBlocks(seedVersion, section, textDate);
-    const blocks = !composed ? null : ownText !== null ? ownParagraphs(ownText) : seeded;
-    if (section === 10) return section10Layout(snapshot, { number, title, paragraphs: (blocks ?? []).map((block) => ({ text: resolveSectionText(block.text, variables).resolved })) });
-    if (blocks === null || blocks.length === 0) return { number, title, kind: 'empty', note: EMPTY_SECTION_NOTE };
-    return {
-      number,
-      title,
-      kind: 'text',
-      paragraphs: blocks.map((block) => ({ kind: block.kind, text: resolveSectionText(block.text, variables).resolved })),
-    };
+    const paragraphs = !composed ? null : ownText !== null ? ownParagraphs(ownText, variables) : seeded?.map((block) => seedParagraph(block, variables)) ?? null;
+    if (section === 10) return section10Layout(snapshot, { number, title, paragraphs: paragraphs ?? [] });
+    if (paragraphs === null || paragraphs.length === 0) return { number, title, kind: 'empty', note: EMPTY_SECTION_NOTE };
+    return { number, title, kind: 'text', paragraphs };
   });
 
   return {
