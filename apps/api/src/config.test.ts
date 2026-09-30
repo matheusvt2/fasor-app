@@ -56,4 +56,53 @@ describe('config', () => {
       'http://localhost:5173',
     );
   });
+
+  describe('S3 endpoint and static keys (Story 11.8)', () => {
+    const aws: Record<string, string | undefined> = { ...valid };
+    delete aws.S3_ENDPOINT;
+    delete aws.S3_ACCESS_KEY_ID;
+    delete aws.S3_SECRET_ACCESS_KEY;
+
+    function offending(env: Record<string, string | undefined>): string[] {
+      try {
+        loadConfig(env);
+      } catch (error) {
+        if (error instanceof ConfigError) return error.variables;
+        throw error;
+      }
+      return [];
+    }
+
+    it('keeps the local endpoint and both static keys', () => {
+      const config = loadConfig(valid);
+      expect(config.S3_ENDPOINT).toBe('http://localhost:9000');
+      expect(config.S3_ACCESS_KEY_ID).toBe('key');
+      expect(config.S3_SECRET_ACCESS_KEY).toBe('secret');
+    });
+
+    it('accepts no endpoint and no keys (AWS: default credential chain)', () => {
+      const config = loadConfig(aws);
+      expect(config.S3_ENDPOINT).toBeUndefined();
+      expect(config.S3_ACCESS_KEY_ID).toBeUndefined();
+      expect(config.S3_SECRET_ACCESS_KEY).toBeUndefined();
+    });
+
+    it('treats empty strings as unset', () => {
+      const config = loadConfig({ ...valid, S3_ENDPOINT: '', S3_ACCESS_KEY_ID: '', S3_SECRET_ACCESS_KEY: '' });
+      expect(config.S3_ENDPOINT).toBeUndefined();
+      expect(config.S3_ACCESS_KEY_ID).toBeUndefined();
+      expect(config.S3_SECRET_ACCESS_KEY).toBeUndefined();
+    });
+
+    it('names the missing half of a key pair', () => {
+      expect(() => loadConfig({ ...aws, S3_ACCESS_KEY_ID: 'key' })).toThrow(ConfigError);
+      expect(offending({ ...aws, S3_ACCESS_KEY_ID: 'key' })).toEqual(['S3_SECRET_ACCESS_KEY']);
+      expect(offending({ ...aws, S3_SECRET_ACCESS_KEY: 'secret' })).toEqual(['S3_ACCESS_KEY_ID']);
+      expect(offending({ ...valid, S3_ACCESS_KEY_ID: '' })).toEqual(['S3_ACCESS_KEY_ID']);
+    });
+
+    it('still rejects a malformed endpoint', () => {
+      expect(() => loadConfig({ ...valid, S3_ENDPOINT: 'not-a-url' })).toThrow(/S3_ENDPOINT/);
+    });
+  });
 });

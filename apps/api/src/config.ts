@@ -1,40 +1,64 @@
 import { z } from 'zod';
 import { logError } from './log.ts';
 
-export const configSchema = z.object({
-  DATABASE_URL: z.string().url(),
-  S3_ENDPOINT: z.string().url(),
-  S3_REGION: z.string().min(1),
-  S3_ACCESS_KEY_ID: z.string().min(1),
-  S3_SECRET_ACCESS_KEY: z.string().min(1),
-  S3_BUCKET: z.string().min(3),
-  PORT: z.coerce.number().int().min(1).max(65535),
-  SESSION_SECRET: z.string().min(32),
-  /**
-   * Origins allowed to post to /api/auth/* (better-auth CSRF check). Comma separated;
-   * locally the Vite dev server (5173), the Playwright preview server (5200) and the api
-   * itself. Same origin in production, so this stays a local-development list.
-   */
-  TRUSTED_ORIGINS: z.string().min(1),
-  /**
-   * The origin better-auth treats as its own. Optional: when unset, the first entry of
-   * TRUSTED_ORIGINS is used. Never derived from the request, so a forged Host header
-   * cannot widen the allowlist.
-   */
-  AUTH_BASE_URL: z.string().url().optional(),
-  LLM_PROVIDER: z.enum(['fake', 'anthropic', 'bedrock']).default('fake'),
-  OCR_PROVIDER: z.enum(['fake', 'textract', 'ocr-svc']).default('fake'),
-  /** Story 8.3: base URL of the `services/ocr` sidecar (compose profile `ocr`), read by the `ocr-svc` provider. */
-  OCR_SERVICE_URL: z.string().url().default('http://ocr:8000'),
-  /** Story 4.8: `1` registers the pg-boss generate worker in this process (the compose default). */
-  WORKER: z.enum(['0', '1']).default('1'),
-  NODE_ENV: z.string().optional(),
-  /**
-   * TC-3: a fault the generate job injects at its conversion step, honoured only when
-   * `NODE_ENV !== 'production'` (`main.ts` drops it otherwise). An empty value is unset.
-   */
-  GENERATE_FAULT: z.preprocess((value) => (value === '' ? undefined : value), z.enum(['libreoffice_timeout']).optional()),
-});
+/** Compose passes an unset variable as `''` (`${VAR:-}`); an empty value is unset. */
+const unsetWhenEmpty = (value: unknown) => (value === '' ? undefined : value);
+
+export const configSchema = z
+  .object({
+    DATABASE_URL: z.string().url(),
+    /**
+     * Story 11.8: the S3-compatible endpoint (MinIO locally). Unset on AWS, where the SDK
+     * reaches S3 itself (virtual-hosted style) and boot only probes the bucket.
+     */
+    S3_ENDPOINT: z.preprocess(unsetWhenEmpty, z.string().url().optional()),
+    S3_REGION: z.string().min(1),
+    /**
+     * Story 11.8: static keys, both or neither. Unset on AWS, where the SDK default
+     * credential chain supplies the ECS task role's credentials.
+     */
+    S3_ACCESS_KEY_ID: z.preprocess(unsetWhenEmpty, z.string().min(1).optional()),
+    S3_SECRET_ACCESS_KEY: z.preprocess(unsetWhenEmpty, z.string().min(1).optional()),
+    S3_BUCKET: z.string().min(3),
+    PORT: z.coerce.number().int().min(1).max(65535),
+    SESSION_SECRET: z.string().min(32),
+    /**
+     * Origins allowed to post to /api/auth/* (better-auth CSRF check). Comma separated;
+     * locally the Vite dev server (5173), the Playwright preview server (5200) and the api
+     * itself. Same origin in production, so this stays a local-development list.
+     */
+    TRUSTED_ORIGINS: z.string().min(1),
+    /**
+     * The origin better-auth treats as its own. Optional: when unset, the first entry of
+     * TRUSTED_ORIGINS is used. Never derived from the request, so a forged Host header
+     * cannot widen the allowlist.
+     */
+    AUTH_BASE_URL: z.string().url().optional(),
+    LLM_PROVIDER: z.enum(['fake', 'anthropic', 'bedrock']).default('fake'),
+    OCR_PROVIDER: z.enum(['fake', 'textract', 'ocr-svc']).default('fake'),
+    /** Story 8.3: base URL of the `services/ocr` sidecar (compose profile `ocr`), read by the `ocr-svc` provider. */
+    OCR_SERVICE_URL: z.string().url().default('http://ocr:8000'),
+    /** Story 4.8: `1` registers the pg-boss generate worker in this process (the compose default). */
+    WORKER: z.enum(['0', '1']).default('1'),
+    NODE_ENV: z.string().optional(),
+    /**
+     * TC-3: a fault the generate job injects at its conversion step, honoured only when
+     * `NODE_ENV !== 'production'` (`main.ts` drops it otherwise). An empty value is unset.
+     */
+    GENERATE_FAULT: z.preprocess(unsetWhenEmpty, z.enum(['libreoffice_timeout']).optional()),
+  })
+  .superRefine((config, ctx) => {
+    // Half a key pair is a misconfiguration, never a silent fall back to the default chain.
+    const pair = ['S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY'] as const;
+    const [first, second] = pair.map((name) => config[name] !== undefined);
+    if (first === second) return;
+    const [present, missing] = first ? pair : [pair[1], pair[0]];
+    ctx.addIssue({
+      code: 'custom',
+      path: [missing],
+      message: `required when ${present} is set (static S3 keys are both or neither)`,
+    });
+  });
 
 export type Config = z.infer<typeof configSchema>;
 

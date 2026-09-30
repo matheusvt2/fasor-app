@@ -18,7 +18,6 @@
     "schema:ocr": "tsx scripts/export-ocr-schema.ts",
     "db:generate": "pnpm --filter @app/api exec drizzle-kit generate",
     "seed:users": "tsx scripts/seed-users.ts",
-    "build:image": "bash scripts/build-tagged-image.sh",
     "verify": "tsx scripts/verify.ts"
   },
   "devDependencies": {

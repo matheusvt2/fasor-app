@@ -13,7 +13,7 @@ import { createReadingProviders } from './jobs/reading/providers/index.ts';
 import { registerReadingWorker } from './jobs/reading/worker.ts';
 import { startQueue } from './jobs/queue.ts';
 import { log, logError } from './log.ts';
-import { createS3, ensureBucket, probeStorage } from './storage/s3.ts';
+import { createS3, prepareStorage, probeStorage } from './storage/s3.ts';
 
 const config = loadConfigOrExit();
 
@@ -36,7 +36,8 @@ async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
 // nothing below (queue, auth) sees a database without its tables.
 await withRetry('database', () => migrate(db));
 log('migrations applied');
-await withRetry('storage', () => ensureBucket(s3, config.S3_BUCKET));
+// Story 11.8: ensure the bucket against a local endpoint, only probe it on AWS.
+await withRetry('storage', () => prepareStorage(config, s3));
 const boss = await withRetry('queue', () => startQueue(config.DATABASE_URL));
 
 // AD-15: the generate worker runs in this process (`WORKER=1`, the compose default). The
