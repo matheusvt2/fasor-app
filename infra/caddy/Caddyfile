@@ -19,6 +19,14 @@
 		}
 	}
 
+	# Security review 2026-09-30: HSTS is the edge's (the api sends every other security
+	# header itself, apps/api/src/http/security-headers.ts); no preload, no subdomains, as
+	# the origin is a bare IP address. `-Server` drops the Caddy banner.
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+
 	reverse_proxy 127.0.0.1:3000
 }
 
@@ -26,5 +34,11 @@
 # its own *.cloudfront.net name and reaches this site over plain HTTP with that Host.
 # Unset, the name matches nothing.
 http://{$FALLBACK_HOST:fallback.invalid} {
+	# CloudFront redirects viewers to HTTPS; the browser sees this header on its HTTPS name.
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+
 	reverse_proxy 127.0.0.1:3000
 }
