@@ -124,7 +124,7 @@ describe('4.8-UNIT-004 revision numbering and rows', () => {
     expect(generatingText(3)).toBe('Gerando revisão 3…');
     expect(generatingReason(3)).toBe('Gerando a revisão 3 — DOCX e PDF juntos');
     expect(readyTitle(3)).toBe('Revisão 3 pronta');
-    expect(readyToast(3)).toBe('Revisão 3 pronta — DOCX');
+    expect(readyToast(3)).toBe('Revisão 3 pronta — DOCX e PDF');
     expect(nextEditNote(3)).toBe('Qualquer alteração a partir de agora gera a revisão 4.');
   });
 });

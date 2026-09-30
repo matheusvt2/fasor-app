@@ -21,6 +21,7 @@ describe('generate contract (Story 4.8)', () => {
   it('names the generate barrier and the DOCX download', () => {
     expect(GENERATE_ROUTES.generate(id)).toEqual({ method: 'POST', path: `/api/relatorios/${id}/generate` });
     expect(GENERATE_ROUTES.revisionDocx(id)).toEqual({ method: 'GET', path: `/api/revisions/${id}/docx` });
+    expect(GENERATE_ROUTES.revisionPdf(id)).toEqual({ method: 'GET', path: `/api/revisions/${id}/pdf` });
     expect(DOCX_MIME).toBe('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
   });
 

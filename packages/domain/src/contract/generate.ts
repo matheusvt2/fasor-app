@@ -6,7 +6,7 @@ import { uuidV7Schema } from '../ids.ts';
  * is the flush barrier: the device names the newest op it holds and the files it expects
  * the server to have stored, and the server answers `409 not_caught_up` until both are
  * true, else enqueues one generate job. `GET /api/revisions/{id}/docx` serves the stored
- * DOCX of a revision; the PDF download waits for Epic 11.
+ * DOCX of a revision and `GET /api/revisions/{id}/pdf` its stored PDF (Story 11.1).
  */
 
 export interface GenerateRoute {
@@ -17,6 +17,8 @@ export interface GenerateRoute {
 export const GENERATE_ROUTES = {
   generate: (relatorioId: string): GenerateRoute => ({ method: 'POST', path: `/api/relatorios/${relatorioId}/generate` }),
   revisionDocx: (revisionId: string): GenerateRoute => ({ method: 'GET', path: `/api/revisions/${revisionId}/docx` }),
+  // Story 11.1: the revision's closed PDF, from the stored `pdf_file_id`.
+  revisionPdf: (revisionId: string): GenerateRoute => ({ method: 'GET', path: `/api/revisions/${revisionId}/pdf` }),
   // Story 7.5: the preview is the same job with `kind: preview`, behind the same barrier;
   // its PDF (RASCUNHO on every page, no revision number) is served from the relatório's
   // `preview_file_id`, `?v=<file id>` only busting a cached earlier preview.
