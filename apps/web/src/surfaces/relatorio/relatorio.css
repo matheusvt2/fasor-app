@@ -242,3 +242,12 @@
   [data-route="/relatorio/:id/arvore"] [data-rail="open"] > .rail-collapsed { display: none; }
   [data-route="/relatorio/:id/arvore"] [data-rail="closed"] > .rail { display: none; }
 }
+
+/* ---------- "Mover para…" (Story 11.2) ----------
+   authored: the Move dialog lists every live location as a Filter chip (the standard
+   template has 23), which at 390 px is taller than the screen. The `.form-dialog` of
+   `components.css` has no height limit, so centred in the fixed scrim its top and its
+   "Mover" were cut off; here it is held to the scrim and scrolls inside itself, vertically
+   only (the chips already wrap in their `.chip-row`). */
+.form-dialog.move-dialog { max-height: 100%; overflow-y: auto; overflow-x: hidden; }
+.form-dialog.move-dialog > * { flex-shrink: 0; }

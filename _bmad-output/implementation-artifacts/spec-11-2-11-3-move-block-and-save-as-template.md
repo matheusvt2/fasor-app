@@ -1,0 +1,150 @@
+---
+title: 'Stories 11.2 + 11.3: Move a block and save a relatório as a template'
+type: 'feature'
+created: '2026-09-30'
+status: 'done'
+baseline_revision: 'd7beb605ccc7cc22c1537c05cac945e78e799650'
+review_loop_iteration: 0
+followup_review_recommended: false
+dev_model: opus
+dev_effort: medium
+context:
+  - '{project-root}/_bmad-output/implementation-artifacts/epic-11-context.md'
+warnings: ['batched', 'multiple-goals', 'oversized']
+batched_reason: 'Both stories work on the relatório location/block structure: 11.3 projects the location skeleton that 11.2 changes (11.3-AFTER-MOVE), so one batch owns both sides of that pair.'
+deferred:
+  - summary: >-
+      The rename suggestion shown in the Move dialog can differ from the TAG committed when it was taken meanwhile.
+    evidence: |-
+      movePlan recomputes the suggestion on fresh rows (intended, unit-tested); the toast names the committed TAG but the user is not told it differs from the checkbox label.
+    location: >-
+      apps/web/src/surfaces/relatorio/move-block-dialog.tsx
+    severity: low
+  - summary: >-
+      No server-side check that a block/{id}/location_id put names a live location of the same relatório.
+    evidence: |-
+      The UI offers only live locations of the relatório, but a concurrent removal of the target coluna on another device leaves the block under a removed location (hidden from the tree). No new refusal was added to keep the contract at 13.
+    location: >-
+      packages/domain/src/ops/apply.ts
+    severity: medium (unverified)
+---
+
+<intent-contract>
+
+## Intent
+
+**Problem:** A block placed in the wrong column can only be fixed by removing it and retyping its sheet (FR-20), and a finished relatório's structure cannot seed the next visit's template (FR-14).
+
+**Approach:** 11.2: a "Mover para…" overflow item opens a Move dialog that picks a live location; one batch puts `block/{id}/location_id` and `block/{id}/order_key` (end of the target), plus, when the user accepts the kernel's re-suggestion, `equipment/{id}/tag`; photos, checks, measurements and observations follow because they hang off the block id. 11.3: "Salvar como template" in the Sumário header Overflow opens a name dialog; the kernel projects the relatório into a `TemplateRow` and one company-scope `template/{id}` create commits it. Both use existing op families: no new family, no reducer or row-shape change, so `CONTRACT_VERSION` stays 13 (say so in the PR body).
+
+## Boundaries & Constraints
+
+**Always:**
+- Kernel owns every derived value (AD-1/AD-13): the move targets, the TAG re-suggestion and its texts, the move announcement, the template projection and its toast text live in `packages/domain`; `apps/web` writes ops only.
+- Each action is ONE batch through the existing edit queue, announced, and undoable from the toast ("Desfazer") through `invertBatch` (Epic 5).
+- UI copy pt-BR: menu words verbatim from the mocks ("Mover para…" `60-ficha.html:834`; "Salvar como template" `40-relatorio-overview.html:285`); other static words marked `// authored:` in `apps/web/src/copy/pt-br.ts`; derived words in domain.
+- Remove the `data-slice="out"` / `slice-inline` / `data-slice-note` marks from those two mock lines (MOCK-GUIDE: keep the drawing, change the mark).
+- Dialogs reuse `FormDialog`, `Button` (with `disabledReason`), `FilterChipGroup`, `Checkbox`; mock class names only; no new CSS unless a 390 px fit needs it (then in `relatorio.css`).
+
+**Never:**
+- No new op family, no change to `applyOp`, no server refusal, no contract bump.
+- No "Mover para…" on section blocks or on the 320 px rail rows (rail rows carry no Overflow in `shell-foot.html` nor in code: OPEN QUESTION, listed in the PR).
+- The template never carries sheet values, not_tested, concluded_by, photos, points, equipment ids or TAGs.
+- No Playwright MCP pass; no `test:e2e:full`; no full matrix.
+
+## I/O & Edge-Case Matrix
+
+| Scenario | Input / State | Expected Output / Behavior | Error Handling |
+|----------|--------------|---------------------------|----------------|
+| Move, keep TAG | SEC-C05 in Coluna 5 with filled cells and 2 photos; pick "Coluna 9", leave rename unchecked | batch = `location_id` put + `order_key` put (after Coluna 9's last block); sheet and photos unchanged and now shown under Coluna 9; toast+announce "SEC-C05 movida para a Coluna 9" with "Desfazer" | -- |
+| Move with rename | same, check "Renomear para SEC-C09" | batch also carries `equipment/{id}/tag` = SEC-C09 (free among live project equipment excluding self); text uses the new TAG | -- |
+| No re-suggestion | transformer (TR-n), or suggestion equals current TAG | no rename question shown | -- |
+| Undo move | "Desfazer" | location_id, order_key and TAG restored in IndexedDB and on the server after sync | -- |
+| Block gone / target gone meanwhile | block removed or target location removed before commit | no op; toast `copy.sumario.tree.gone` / `locationGone` | fresh state read inside `edit` |
+| TAG taken meanwhile | suggested TAG became taken before commit | recompute inside `edit`; commit the fresh suggestion | -- |
+| Save as template | relatório with 2 cabines (one `agrupar_por_tipo`), colunas, blocks with sub-block/subtype overrides, removed blocks, section 3 removed | `template/{id}` create: skeleton = live cabines (order_key order) each followed by its live colunas; equipment entries per node in order_key order, adjacent blocks with equal `BlockConfig` merged into one entry with `quantity` = run length; section entries for live section blocks except 7 and 9, with `section_text` from config; `seed_version` = relatório's; `version: 1`; parses with `templateRowSchema` | -- |
+| Round trip | `instantiateTemplate(templateFromRelatorio(r))` | same skeleton names/flags, same block types/configs/count per column in the same order; TAGs regenerated by `suggestTag` | -- |
+| Blank name | name field empty/blank | primary "Salvar" disabled with reason | -- |
+| Undo save | "Desfazer" on the toast | template `removed_at` set; gone from /templates | -- |
+
+</intent-contract>
+
+## Code Map
+
+- `packages/domain/src/ops/path.ts:35-43` -- `BLOCK_FIELDS` already has `location_id`, `order_key`; `EQUIPMENT_FIELDS` has `tag`. Read-only.
+- `packages/domain/src/ops/apply.ts:401-405` -- generic `block/field` put; no change. `ops/outbox.ts:54` `invertBatch`: create -> `removed_at` remove, put -> previous value.
+- `packages/domain/src/relatorio/tag.ts:79` `suggestTag` (TR is location-independent); `block-texts.ts:11-51` `blockMovedText`, `blockCreatedText` (cabine vs coluna wording precedent), `tagVerdict`.
+- `packages/domain/src/relatorio/tree.ts:200` `locationBlocks`, `:467` `newBlockOrderKey(blocks, locationId, null)` (end of target); `relatorio/location-path.ts` `locationPathText`, `cabineOf`.
+- `packages/domain/src/relatorio/instantiate.ts:96-117,147` `blockConfigOf`, `canonicalNodes`, `instantiateTemplate` (the inverse to round-trip). `templates/list.ts:87-107` `duplicateTemplate`/`emptyTemplate` (row shape precedent). `seed/template-rules.ts:29` constraints the projection must satisfy. `schemas/block-config.ts:150-206`.
+- `apps/web/src/surfaces/relatorio/tree-actions.ts:122-376` -- `useTreeActions`: `moveBlock` (settle/announce/undoable pattern), `renameTag` (fresh-state refusal pattern); add `moveToLocation`.
+- `apps/web/src/surfaces/relatorio/relatorio-tree.tsx:566-580` `equipmentMenu` (Sumário expansion Block card): add item "Mover para…" after "Descer" (DESIGN.md Block card order); dialogs are opened via `shared.openDialog({kind,…})` -- add `kind: 'move'`.
+- `apps/web/src/surfaces/relatorio/relatorio-ops.ts` -- `putBlockOp`, `putEquipmentTagOp`.
+- `apps/web/src/surfaces/ficha/use-ficha-actions.ts:170-185` -- ficha header menu (mock `60-ficha.html:834`, "Opções da ficha"): add "Mover para…" for an equipment block, after "Marcar não ensaiado"; reuse the same dialog and a shared move helper.
+- `apps/web/src/surfaces/relatorio/not-tested-dialog.tsx` -- dialog pattern to copy for `move-block-dialog.tsx`.
+- `apps/web/src/surfaces/relatorio/sumario-surface.tsx:282-289` -- header Overflow: add `{id:'save-template'}` right after `restore` (mock order).
+- `apps/web/src/surfaces/templates/templates-surface.tsx:107-190` + `template-ops.ts:31` -- company-scope commit, `createTemplateOp`, undo precedent for a template create.
+- `apps/web/src/copy/pt-br.ts` -- `copy.sumario` (527-547), `copy.sumario.tree` (589-621), `copy.ficha`.
+- e2e precedents: `e2e/tree.spec.ts`, `e2e/templates.spec.ts`, `e2e/merge.spec.ts` + `e2e/support/colleague.ts` (two contexts), `e2e/support/outbox.ts` (assert committed ops), `e2e/ficha.durability.spec.ts`.
+- api precedents: `apps/api/src/sync/merge.integration.test.ts`, `sync.integration.test.ts`.
+
+## Tasks & Acceptance
+
+**Execution:**
+- `packages/domain/src/relatorio/move.ts` (new, exported from `index.ts`) -- `moveTargets(locations, block)` (live cabines and colunas in tree order with `locationPathText` labels, the block's own location excluded); `moveTagSuggestion(block, equipment, target, allEquipment)` -> `{tag, question, renameLabel} | null` (null for a section block, TR, no equipment row, or same TAG; computed over live equipment excluding self); `blockMovedToText(tag, location)` ("⟨tag⟩ movida para a ⟨Coluna⟩" / "movida para ⟨cabine⟩", authored), `moveTagQuestion(location)` = "Sugerir TAG para ⟨nome⟩?", `renameToText(tag)` = "Renomear para ⟨tag⟩"; `moveBlockOps` inputs computed as pure data (target order_key via `newBlockOrderKey`). Unit tests in `move.test.ts`.
+- `packages/domain/src/templates/from-relatorio.ts` (new, exported) -- `templateFromRelatorio(snapshot, {id, name})` per the matrix, plus `templateSavedText(name)` ("Template ⟨nome⟩ salvo", authored). Tests `from-relatorio.test.ts`: schema parse, adjacent-run merge, removed rows skipped, orphan coluna skipped, no sheet data carried, round trip through `instantiateTemplate`, 11.3-AFTER-MOVE (project after a `location_id` put via `applyOp`).
+- `apps/web/src/surfaces/relatorio/move-block-dialog.tsx` (new) -- title "Mover ⟨TAG⟩ para…" (authored); `FilterChipGroup` of `moveTargets`; once a target is picked and `moveTagSuggestion` is non-null, a `p` with the question and a `Checkbox` "Renomear para ⟨tag⟩" (unchecked by default: OPEN QUESTION); primary "Mover" disabled with reason until a target is picked.
+- `apps/web/src/surfaces/relatorio/tree-actions.ts` -- `moveToLocation(blockId, targetId, rename)`: inside `edit` re-read fresh rows, refuse gone block/target, recompute order_key and suggestion, emit the batch; announce + `undoable` toast; focus back to the row trigger (or the moved row once drawn). Export a helper the ficha reuses.
+- `apps/web/src/surfaces/relatorio/relatorio-tree.tsx` -- menu item + dialog wiring.
+- `apps/web/src/surfaces/ficha/use-ficha-actions.ts`, `ficha-surface.tsx`/`ficha-dialogs.tsx` -- menu item + dialog; the header's cabine line updates live.
+- `apps/web/src/surfaces/relatorio/save-template-dialog.tsx` (new) + `sumario-surface.tsx` -- name field (label "Nome do template", authored) prefilled with the project name when known; "Salvar" disabled with reason when blank; commit `createTemplateOp(templateFromRelatorio(...))`; toast `templateSavedText` with "Desfazer" (removes it).
+- `apps/web/src/copy/pt-br.ts` -- menu words, dialog titles, labels, disabled reasons.
+- Mocks `60-ficha.html:834`, `40-relatorio-overview.html:285` -- drop the out-of-slice marks.
+- `apps/api/src/sync/move-block.integration.test.ts` (new) -- through the sync push/pull route: a move batch (location_id + order_key + tag) materializes on the server; its `invertBatch` undo restores all three; a `template/{id}` create from `templateFromRelatorio` is accepted and its undo sets `removed_at`.
+- `e2e/move-block.spec.ts` (new) -- `@p0` 11.2 main path from the Sumário expansion (pick Coluna, accept rename, block + its filled cell + photo count shown under the new column; outbox holds the three puts), `@p0` 11.2-UNDO (toast "Desfazer", then sync, server state restored via pull on reload), `@p1` from the ficha header, `@p1` 11.2-MERGE (two contexts: move on A, edit a cell on B, sync both: block in the new column with B's value, no conflict mark; concurrent moves of one block on A and B -> one `latest_edit` info row), `@p1` keyboard-only move, `@p1` 390 px dialog fit.
+- `e2e/save-template.spec.ts` (new) -- `@p0` save from the Sumário header, template listed in /templates, outbox holds the create with the projected skeleton; `@p0` 11.3-UNDO; `@p1` 11.3-AFTER-MOVE (move then save: the composer shows the moved column's quantity).
+- `e2e/move-block.durability.spec.ts` (new, `@p1`) -- move offline, reload, block still in the new column and the op still in the outbox; back online, sync, server holds it.
+
+**Acceptance Criteria:**
+- Given an equipment block in the Sumário expansion or an open ficha, when the user opens its Overflow, then "Mover para…" is listed (Sumário: after "Descer"; ficha: after "Marcar não ensaiado").
+- Given the Move dialog, when the user picks a location and taps "Mover", then exactly one batch with `block/{id}/location_id` (+ `order_key`, + `equipment/{id}/tag` when accepted) is in the outbox, the block's sheet values and photos show under the new location, and the move is announced and offered for undo.
+- Given a move just made, when "Desfazer" is tapped and the device syncs, then location, order and TAG are back in IndexedDB and on the server (11.2-UNDO).
+- Given A moves a block and B edits a cell of it, when both sync, then both devices show the block in the new location with B's value and no contradiction (11.2-MERGE).
+- Given the Sumário header Overflow, when the user taps "Salvar como template", names it and confirms, then one `template/{id}` create carries the live locations, each cabine's `agrupar_por_tipo`, each block's `BlockConfig` and quantity per column, and none of the relatório's data; the template appears in /templates, and "Desfazer" removes it (11.3-UNDO).
+- Given a move then a save, then the template's quantity per column reflects the moved block (11.3-AFTER-MOVE).
+
+## Review Triage Log
+
+### 2026-09-30 — Review pass
+- Skipped layers: Blind Hunter and Intent Alignment (token economy; the integrated epic review covers them).
+- verdicts: 12 findings — high 0, medium 3, low 7, false 1, maybe-false 1
+- findings:
+  - `[medium]` `[patch]` Save-template toasts "salvo" when edit resolves null — early return on a null batch.
+  - `[low]` `[patch]` Move text used raw block_type slug without equipment — falls back to blockTypeLabel.
+  - `[low]` `[patch]` Move text had no subject with a blank TAG — same fallback, unit case added.
+  - `[low]` `[patch]` "Mover para…" offered with no targets — item shown only when moveTargets is non-empty (tree and ficha).
+  - `[medium]` `[patch]` Accepted rename carried to a newly picked target — rename resets on target change.
+  - `[low]` `[defer]` Shown suggestion can differ from committed TAG — intended recompute; deferred with note.
+  - `[low]` `[patch]` same-location refusal showed the "gone" toast — now a silent no-op.
+  - `[false]` `[reject]` Blank location name breaks the template schema — location rows use nodeNameSchema, a live location cannot be blank.
+  - `[maybe-false]` `[reject]` Blocks under an orphan coluna silently dropped — unreachable through the UI (colunas only under cabines); would be low.
+  - `[medium]` `[patch]` Refused move toast untested — unit case in relatorio-tree-edges.test.tsx (target removed, toast, empty outbox).
+  - `[low]` `[patch]` Ficha-header move undo untested — 11.2-E2E-003 now presses "Desfazer" and checks location_id/order_key.
+  - `[low]` `[patch]` MAX_QUANTITY split never exercised — 101 equal blocks give [99, 2] and parse.
+
+## Design Notes
+
+"Tree row" vs "Block card" vs "Sumário expansion": in code the Sumário expansion IS the location tree in its `sumario` presentation, whose equipment row is the Block card (`not-tested-dialog.tsx` names it so); the ficha header is where the mock draws the item. The rail presentation has no Overflow on equipment rows in mock or code, so it gets none (open question).
+
+The 11.2-MERGE assertion's "one info row" cannot come from a move against a cell edit (different paths, no pair, `merge/info.ts:63`); it does come from two concurrent moves of one block (`block/field` is in `LATEST_EDIT_FAMILIES`). The spec asserts both; the reading is an open question for the PR.
+
+## Verification
+
+**Commands:**
+- `docker compose --profile tools run --rm tools pnpm test:unit -- packages/domain/src/relatorio/move.test.ts packages/domain/src/templates/from-relatorio.test.ts` -- green
+- `docker compose --profile tools run --rm tools pnpm lint` and `pnpm static` -- green
+- `docker compose --profile tools run --rm tools pnpm test:api -- move-block` -- green
+- `docker compose --profile tools run --rm tools pnpm test:e2e -- e2e/move-block.spec.ts e2e/save-template.spec.ts` (check `scripts/e2e.ts` for how to pass specs and to include `@p1`) -- green
+
+## Auto Run Result
+
+Status: done. Stories 11.2 and 11.3 implemented with existing op families (no contract bump). Kernel: `relatorio/move.ts` (moveTargets, moveTagSuggestion, movePlan, texts), `templates/from-relatorio.ts` (templateFromRelatorio, templateSavedText). Web: Move dialog (Sumário Block card and ficha header), Save-as-template dialog (Sumário header). Tests: kernel units, api integration through the sync route, e2e move-block (7), save-template (3), move-block durability (1). Review: 9 patches, 1 deferred, 2 rejected. followup_review_recommended: false (no high patched; medium patches were small guards verified by tests). Residual risk: no server check that a location_id put names a live location (deferred).

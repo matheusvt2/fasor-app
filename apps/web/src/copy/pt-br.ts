@@ -556,6 +556,13 @@ export const copy = {
     // authored: the toast after a restore.
     restored: 'Ficha restaurada — numeração refeita',
     close: 'Fechar',
+    // `40-relatorio-overview.html` `#sum-menu-rel`, after "Restaurar ficha removida" (Story 11.3).
+    saveTemplate: 'Salvar como template',
+    // authored: the name dialog of "Salvar como template".
+    saveTemplateTitle: 'Salvar como template',
+    saveTemplateNameLabel: 'Nome do template',
+    saveTemplateSave: 'Salvar',
+    saveTemplateMissingName: 'Salvar: falta o nome',
     // "Adicionar abaixo" dialog.
     addSectionTitle: 'Adicionar seção abaixo',
     addSectionListLabel: 'Seções',
@@ -616,6 +623,13 @@ export const copy = {
       // authored: the sheet or the location the action names changed on another device.
       gone: 'A ficha mudou em outro aparelho; nada foi alterado.',
       locationGone: 'O local mudou em outro aparelho; nada foi alterado.',
+      // `60-ficha.html` sheet Overflow (Story 11.2): the Block card and the sheet header share it.
+      moveTo: 'Mover para…',
+      // authored: the Move dialog's title, its target group, its primary and the primary's reason.
+      moveTitle: (name: string) => `Mover ${name} para…`,
+      moveTargetsLabel: 'Local de destino',
+      moveAction: 'Mover',
+      movePickReason: 'Escolha o local de destino',
     },
     // The TAG and name dialogs of the tree (authored: no mock draws them; EXPERIENCE.md ›
     // Equipment identity and Form dialog).
