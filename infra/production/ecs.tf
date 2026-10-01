@@ -24,7 +24,7 @@ locals {
     }
   }
 
-  trusted_origins = compact([local.public_url, local.cloudfront_url])
+  trusted_origins = compact([local.app_url, local.public_url, local.cloudfront_url])
 
   # The api's environment, shared by the service and the migration task (migrate-cli.ts
   # loads the full configuration). No S3_ENDPOINT and no static keys: the SDK default
@@ -36,7 +36,7 @@ locals {
       WORKER          = "1"
       S3_BUCKET       = aws_s3_bucket.files.bucket
       S3_REGION       = local.region
-      AUTH_BASE_URL   = local.public_url
+      AUTH_BASE_URL   = local.primary_url
       TRUSTED_ORIGINS = join(",", local.trusted_origins)
       OCR_PROVIDER    = var.ocr_provider
       OCR_SERVICE_URL = "http://127.0.0.1:8000"
@@ -136,6 +136,7 @@ resource "aws_ecs_task_definition" "caddy" {
     ]
     environment = [
       { name = "PUBLIC_IP", value = local.public_ip },
+      { name = "APP_DOMAIN", value = coalesce(var.app_domain, "localhost") },
       { name = "ACME_EMAIL", value = var.acme_email },
       { name = "FALLBACK_HOST", value = local.fallback_host },
     ]

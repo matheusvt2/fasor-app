@@ -89,7 +89,7 @@ curl -s https://<public_url>/api/health
 infra/bin/aws logs tail /fasor/production/api --since 15m
 ```
 
-`<public_url>` is the stack's `public_url` output (`infra/bin/tf production output public_url`). Then sign in from a tablet and open one relatório. A sign-in answering 429 after several wrong passwords is the rate limit working; it is on in production.
+`<public_url>` is the stack's `public_url` output (`infra/bin/tf production output public_url`); with `app_domain` set, `app_url` is the domain's URL and answers the same health check once its certificate is issued (the first request can take a minute). Then sign in from a tablet and open one relatório. A sign-in answering 429 after several wrong passwords is the rate limit working; it is on in production.
 
 ### 8. Tag the release
 
