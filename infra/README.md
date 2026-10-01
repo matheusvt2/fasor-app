@@ -87,6 +87,8 @@ Runs, each in a pinned container: `terraform fmt -check -recursive`; `terraform 
 
 ## Deploy
 
+The step-by-step publishing procedure (prerequisites, bootstrap, dry run, deploy, checks, release tag, rollback) is [PUBLISHING.md](PUBLISHING.md); this section describes what the script does.
+
 ```sh
 infra/bin/deploy [--dry-run] [--skip-build] [--tag <sha>]
 ```
