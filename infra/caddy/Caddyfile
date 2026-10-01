@@ -19,12 +19,34 @@
 		}
 	}
 
+	# Security review 2026-09-30: HSTS is the edge's (the api sends every other security
+	# header itself, apps/api/src/http/security-headers.ts); no preload, no subdomains, as
+	# the origin is a bare IP address. `-Server` drops the Caddy banner.
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+
 	reverse_proxy 127.0.0.1:3000
 }
 
 # The CloudFront fallback (infra/production/cloudfront.tf): CloudFront terminates TLS on
 # its own *.cloudfront.net name and reaches this site over plain HTTP with that Host.
 # Unset, the name matches nothing.
+# Security review 2026-09-30 (I-8): only a request carrying CloudFront's origin secret
+# (X-Origin-Verify, infra/production/cloudfront.tf) is proxied; port 80 is open to the world
+# for ACME, and anything else sent with this Host over plain HTTP gets 403.
 http://{$FALLBACK_HOST:fallback.invalid} {
-	reverse_proxy 127.0.0.1:3000
+	@cloudfront header X-Origin-Verify {$FALLBACK_ORIGIN_SECRET:fallback-disabled}
+	handle @cloudfront {
+		# CloudFront redirects viewers to HTTPS; the browser sees this header on its HTTPS name.
+		header {
+			Strict-Transport-Security "max-age=31536000"
+			-Server
+		}
+		reverse_proxy 127.0.0.1:3000 {
+			header_up -X-Origin-Verify
+		}
+	}
+	respond 403
 }

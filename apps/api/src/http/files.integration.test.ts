@@ -14,7 +14,7 @@ import {
   type OpInput,
 } from '@app/domain';
 import { inArray } from 'drizzle-orm';
-import sharp from 'sharp';
+import sharp, { type Metadata } from 'sharp';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createAuth } from '../auth/auth.ts';
 import { parseTrustedOrigins } from '../auth/trusted-origins.ts';
@@ -24,7 +24,7 @@ import { createDb } from '../db/client.ts';
 import { entities, ops } from '../db/schema.ts';
 import { TEST_SEED, seedTestCompanies } from '../db/seed.ts';
 import { newId } from '../ids.ts';
-import { createS3, getObject } from '../storage/s3.ts';
+import { createS3, getObject, headObject } from '../storage/s3.ts';
 
 /**
  * 2.2-API: `PUT /api/files/{id}` and `GET /api/files/{id}/{variant}` over the compose api
@@ -486,6 +486,27 @@ describe('2.2-API-003 variants', () => {
     expect(thumb.headers.get('content-type')).toContain('image/png');
   });
 
+  it('audit 2.2: writes thumb and print for a cover_background upload, and both objects exist in the store', async () => {
+    const png = await pngBytes();
+    const { id, op: createOp } = fileCreate(idsA, 'cover_background', 'image/png', png);
+    await pushOk(companyA, [createOp]);
+
+    const body = filePutResponseSchema.parse(await (await put(companyA, id, png)).json());
+    expect(body.variants).toEqual({
+      thumb: objectKey(companyA.companyId, 'cover_background', id, 'thumb'),
+      print: objectKey(companyA.companyId, 'cover_background', id, 'print'),
+    });
+    for (const variant of ['thumb', 'print'] as const) {
+      expect(await headObject(s3, config.S3_BUCKET, objectKey(companyA.companyId, 'cover_background', id, variant)), `${variant} object`).toBe(true);
+      const got = await authed(companyA, `/api/files/${id}/${variant}`);
+      expect(got.status, `${variant} should be readable`).toBe(200);
+      expect((await got.arrayBuffer()).byteLength).toBeGreaterThan(0);
+    }
+    const rows = await db.select({ op_id: ops.op_id }).from(ops).where(inArray(ops.path, [`file/${id}/variants`]));
+    for (const row of rows) written.opIds.add(row.op_id);
+    expect(rows).toHaveLength(1);
+  });
+
   it('leaves a pdf certificate without variants', async () => {
     const { id, op: createOp } = fileCreate(idsA, 'certificate', 'application/pdf', PDF_BYTES);
     await pushOk(companyA, [createOp]);
@@ -736,7 +757,7 @@ describe('6.2-API-001 a photo through the sync route and PUT', () => {
     expect(await getObject(s3, config.S3_BUCKET, objectKey(companyA.companyId, 'photo', id))).toBeNull();
 
     // The variants: long edge at most 512 and 2000, JPEG.
-    const sizes: Record<string, sharp.Metadata> = {};
+    const sizes: Record<string, Metadata> = {};
     for (const variant of ['thumb', 'print'] as const) {
       const got = await authed(companyA, `/api/files/${id}/${variant}`);
       expect(got.status, `${variant} should be readable`).toBe(200);

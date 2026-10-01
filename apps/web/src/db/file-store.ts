@@ -10,6 +10,7 @@ import {
   type RelatorioStatus,
   type StorageReading,
 } from '@app/domain';
+import Dexie from 'dexie';
 import type { AppDatabase, FileBlobRow, ThumbRow, UploadError } from './schema.ts';
 
 /*
@@ -81,14 +82,25 @@ export async function putServerThumb(db: AppDatabase, id: string, blob: Blob, cr
  */
 export async function thumbsToRefresh(db: AppDatabase): Promise<string[]> {
   const records = await db.entities.where('entity').equals('file').toArray();
-  const wanted: string[] = [];
+  const candidates: string[] = [];
   for (const record of records) {
     const parsed = fileRowSchema.safeParse(record.row);
     if (!parsed.success || parsed.data.kind !== 'photo' || parsed.data.variants === null || parsed.data.removed_at !== null) continue;
-    const thumb = await db.thumbs.get(parsed.data.id);
-    if (thumb === undefined || thumb.source === 'device') wanted.push(parsed.data.id);
+    candidates.push(parsed.data.id);
   }
-  return wanted;
+  // W-25 (full review 2026-09-30): the thumbs in one read, not one per photo.
+  const thumbs = await db.thumbs.bulkGet(candidates);
+  return candidates.filter((_, i) => thumbs[i] === undefined || thumbs[i]!.source === 'device');
+}
+
+/** The kernel `file` rows of several ids, in order; null where absent or not parsing (`localFileRow` for each, in one read). */
+async function localFileRows(db: AppDatabase, ids: readonly string[]): Promise<(FileRow | null)[]> {
+  const records = await db.entities.bulkGet(ids.map((id) => ['file', id] as ['file', string]));
+  return records.map((record) => {
+    if (record === undefined) return null;
+    const parsed = fileRowSchema.safeParse(record.row);
+    return parsed.success ? parsed.data : null;
+  });
 }
 
 /** The kernel `file` row of an id on this device, or null when it does not parse or is absent. */
@@ -122,15 +134,17 @@ export interface PendingUpload {
 export async function pendingUploads(db: AppDatabase): Promise<PendingUpload[]> {
   // Scanned, not indexed: IndexedDB has no boolean key, so the `acked` index of
   // version 1 cannot answer this (`home-store.ts` scans for the same reason).
-  const blobs = await db.files.filter((row) => !row.acked).toArray();
+  const blobs = (await db.files.filter((row) => !row.acked).toArray()).filter((blob) => blob.variant === 'original');
   if (blobs.length === 0) return [];
+  const rows = await localFileRows(db, blobs.map((blob) => blob.id));
   const out: PendingUpload[] = [];
-  for (const blob of blobs) {
-    if (blob.variant !== 'original') continue;
-    const row = await localFileRow(db, blob.id);
+  for (const [index, blob] of blobs.entries()) {
+    const row = rows[index]!;
     if (row === null || row.uploaded_at !== null) continue;
     const createOp = await db.outbox.where('path').equals(filePath(blob.id)).first();
-    if (createOp === undefined || createOp.status !== 'acked') continue;
+    // W-1: an acked create the prune removed is in the server log, so the server holds the row.
+    const serverHoldsRow = createOp === undefined ? (await db.remote_ops.where('[path+seq]').between([filePath(blob.id), Dexie.minKey], [filePath(blob.id), Dexie.maxKey]).count()) > 0 : createOp.status === 'acked';
+    if (!serverHoldsRow) continue;
     out.push({
       id: blob.id,
       blob: blob.blob,
@@ -164,11 +178,6 @@ export async function uploadErrorIds(db: AppDatabase): Promise<ReadonlySet<strin
   return new Set(rows.map((row) => row.id));
 }
 
-/** Story 6.1/6.2: one photo's upload view for its tile: the persisted error, if any. */
-export async function localUploadError(db: AppDatabase, id: string): Promise<UploadError | null> {
-  return (await db.files.get(id))?.upload_error ?? null;
-}
-
 /**
  * Story 6.2 (AR-6): deletes the local originals the kernel's `evictionPlan` names. Only
  * photo originals the server acknowledged are candidates, and (E8-A5) the crop sources
@@ -183,16 +192,19 @@ export async function runEviction(db: AppDatabase, reading: StorageReading | nul
   if (acked.length === 0) return [];
   const blobs: EvictionBlob[] = [];
   const relatorioStatus: Record<string, RelatorioStatus> = {};
-  for (const blob of acked) {
-    const row = await localFileRow(db, blob.id);
+  // W-25 (full review 2026-09-30): the file rows, then their relatórios, in one read each.
+  const rows = await localFileRows(db, acked.map((blob) => blob.id));
+  const relatorioIds = [...new Set(rows.flatMap((row) => (row === null || row.relatorio_id === null ? [] : [row.relatorio_id])))];
+  const relatorioRecords = await db.entities.bulkGet(relatorioIds.map((id) => ['relatorio', id] as ['relatorio', string]));
+  relatorioIds.forEach((id, i) => {
+    const status = relatorioStatusSchema.safeParse((relatorioRecords[i]?.row as { status?: unknown } | undefined)?.status);
+    if (status.success) relatorioStatus[id] = status.data;
+  });
+  for (const [index, blob] of acked.entries()) {
+    const row = rows[index]!;
     // A crop source came from the server, so it is uploaded whatever this device's row says.
     if (row === null || row.kind !== 'photo' || (blob.variant === 'original' && row.uploaded_at === null)) continue;
     const relatorioId = row.relatorio_id;
-    if (relatorioId !== null && relatorioStatus[relatorioId] === undefined) {
-      const record = await db.entities.get(['relatorio', relatorioId]);
-      const status = relatorioStatusSchema.safeParse((record?.row as { status?: unknown } | undefined)?.status);
-      if (status.success) relatorioStatus[relatorioId] = status.data;
-    }
     // The row's `size` is the original's byte count (the server checks the PUT against it);
     // a crop source is sized by the bytes kept and aged from when it was fetched.
     const crop = blob.variant === 'crop';

@@ -6,6 +6,7 @@ import {
   projectsOfClient,
   registryPath,
   sortClientRegistryRows,
+  unprojectedSites,
   type ClientRow,
   type OpDraft,
   type ProjectRow,
@@ -20,6 +21,9 @@ import { newId } from '../../ids.ts';
 import { useSession } from '../../state/session.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { writeErrorText } from '../templates/template-ops.ts';
+
+/** F-05: the option key of a registered site that has no obra yet. */
+const SITE_KEY = 'site:';
 
 export interface NewProjectDialogProps {
   clients: readonly ClientRow[];
@@ -50,7 +54,13 @@ export function NewProjectDialog({ clients, projects, onClose }: NewProjectDialo
 
   const clientOptions = useMemo(() => sortClientRegistryRows(clients).map((row) => ({ id: row.id, label: row.name })), [clients]);
   const clientProjects = useMemo(() => projectsOfClient(projects, clientId), [projects, clientId]);
-  const projectOptions = useMemo(() => clientProjects.map((row) => ({ id: row.id, label: projectLabel(row) })), [clientProjects]);
+  // F-05: the client's registered sites no obra names yet are offered beside the obras
+  // (`site:` keys); picking one creates the obra of that site.
+  const sites = useMemo(() => unprojectedSites(clients.find((row) => row.id === clientId), clientProjects), [clients, clientId, clientProjects]);
+  const projectOptions = useMemo(
+    () => [...clientProjects.map((row) => ({ id: row.id, label: projectLabel(row) })), ...sites.map((site) => ({ id: `${SITE_KEY}${site.id}`, label: site.address }))],
+    [clientProjects, sites],
+  );
 
   const author = (): Omit<OpDraft, 'kind' | 'path' | 'value'> | null =>
     user === null
@@ -190,6 +200,12 @@ export function NewProjectDialog({ clients, projects, onClose }: NewProjectDialo
         }}
         onSelectionChange={(key) => {
           if (key === null && projectId !== null && stillLanding(projectOptions, projectId)) return;
+          const site = key !== null && key.startsWith(SITE_KEY) ? sites.find((row) => `${SITE_KEY}${row.id}` === key) : undefined;
+          if (site !== undefined) {
+            setProjectText(site.address);
+            void createProject(site.address);
+            return;
+          }
           setProjectId(key);
           setProjectText(projectOptions.find((o) => o.id === key)?.label ?? projectText);
         }}

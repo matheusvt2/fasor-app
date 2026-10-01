@@ -290,11 +290,6 @@ export function sameAddress(a: CellAddress, b: CellAddress): boolean {
   return a.testKey === b.testKey && a.row === b.row && a.col === b.col;
 }
 
-/** The evaluated cell at an address, or null. */
-export function cellAt(evaluations: readonly TestEvaluation[], address: CellAddress): EvaluatedCell | null {
-  return evaluatedCells(evaluations).find((cell) => sameAddress(cell.address, address)) ?? null;
-}
-
 /** Story 5.5 AC 2: the unit a cell's slot shows before it holds a value: the previous row's, else the column's. */
 export function unitDefaultFor(evaluation: TestEvaluation, address: CellAddress): string | null {
   for (const table of evaluation.tables) {

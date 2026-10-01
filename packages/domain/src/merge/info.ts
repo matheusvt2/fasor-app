@@ -5,7 +5,7 @@ import type { Op } from '../ops/op.ts';
 import { safeParsePath, type OpPath } from '../ops/path.ts';
 import { blockTypeLabel } from '../relatorio/tree.ts';
 import type { BlockRow, Cell, EquipmentRow, FileRow } from '../schemas/entities.ts';
-import { getDefinition } from '../seed/definitions.ts';
+import { findDefinition } from '../seed/definitions.ts';
 import { canonicalJson } from '../text/hash.ts';
 import { isEmptyValue } from './policy.ts';
 import type { MergeRule } from './rules.ts';
@@ -187,7 +187,19 @@ export interface MergeInfoContext {
 export function blockName(blockId: string | null, context: Pick<MergeInfoContext, 'blocks' | 'equipment'>): string {
   const block = blockId === null ? undefined : context.blocks.find((row) => row.id === blockId);
   if (block === undefined) return 'Relatório';
-  const tag = block.equipment_id === null ? '' : (context.equipment.find((row) => row.id === block.equipment_id)?.tag.trim() ?? '');
+  return equipmentBlockName(block, context.equipment);
+}
+
+/**
+ * K-20 (full review 2026-09-30): a held block as the sheet names it, its equipment's TAG, else
+ * its type's name; the one lookup of the merge entries (`blockName`) and the decisions
+ * (`decisionBlockName`), which differ only in what they say for a block this device lacks.
+ */
+export function equipmentBlockName(
+  block: Pick<BlockRow, 'equipment_id' | 'seed_version' | 'block_type'>,
+  equipment: readonly Pick<EquipmentRow, 'id' | 'tag'>[],
+): string {
+  const tag = block.equipment_id === null ? '' : (equipment.find((row) => row.id === block.equipment_id)?.tag.trim() ?? '');
   return tag === '' ? blockTypeLabel(block.seed_version, block.block_type) : tag;
 }
 
@@ -195,12 +207,8 @@ export function blockName(blockId: string | null, context: Pick<MergeInfoContext
 function itemNumber(blockId: string | null, itemKey: string, context: MergeInfoContext): number | null {
   const block = blockId === null ? undefined : context.blocks.find((row) => row.id === blockId);
   if (block === undefined) return null;
-  try {
-    const index = getDefinition(block.seed_version, 'cabine_primaria', block.block_type).checklist?.findIndex((item) => item.key === itemKey) ?? -1;
-    return index < 0 ? null : index + 1;
-  } catch {
-    return null;
-  }
+  const index = findDefinition(block.seed_version, block.block_type)?.checklist?.findIndex((item) => item.key === itemKey) ?? -1;
+  return index < 0 ? null : index + 1;
 }
 
 /** The author's first name ("Eduardo"); authored: "um colega" when the device does not hold the user. */

@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import type { BlockRow, Cell, EquipmentRow, LocationRow, SuggestionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { TEST_PROJECT, TEST_RELATORIO, TEST_USER } from '../test-support.ts';
+import { portoSeguro } from '../../fixtures/porto-seguro/op-log.ts';
+import { replay } from '../ops/replay.ts';
+import { equipmentPointTitle } from '../points/derived.ts';
+import { POINT_TITLE_GENERAL, pointTitle } from '../points/summary.ts';
+import { buildSnapshot } from '../schemas/snapshot.ts';
 import { locationPathText } from './location-path.ts';
+import { locationProgress, progressCounterState, progressCounterText } from './progress.ts';
 import {
   blockHoldsData,
   blockTypeLabel,
@@ -400,5 +406,72 @@ describe('E9 sweep B15 equipmentFreedByRemoval', () => {
     expect(
       equipmentFreedByRemoval({ ...base, blocks: [block, other], summaries: [summaries[0]!], heldRelatorioIds: [HERE], downloadedStreamIds: [HERE] }),
     ).toBe(false);
+  });
+});
+
+describe('K-16/K-17/K-2 (full review 2026-09-30) one tree build per input, the same tree', () => {
+  const porto = buildSnapshot(replay(portoSeguro.log, { deadOpIds: portoSeguro.deadOpIds }), portoSeguro.relatorioId);
+
+  /** Every location node of a tree, depth first. */
+  const locationNodes = (tree: readonly TreeLocationNode[]) => treeNodes(tree).filter((node): node is TreeLocationNode => node.kind !== 'equipment');
+
+  it('every counter equals locationProgress of its node, a removed location in between included', () => {
+    const base = relatorio();
+    // Coluna 4 removed: the Nicho under it is drawn as a root and still counts under Cabine B.
+    const locations = base.locations.map((row) => (row.id === id(4) ? { ...row, removed_at: '2026-09-07T12:00:00.000Z' } : row));
+    const pending = [{ id: id(7001), status: 'pending', target_path: `sheet/${id(1003)}/nameplate/fabricante` } as unknown as SuggestionRow];
+    for (const snapshot of [base, { ...base, locations }, porto]) {
+      for (const held of [undefined, pending]) {
+        for (const node of locationNodes(locationTree(snapshot, snapshot.equipment, held))) {
+          const counts = locationProgress(snapshot, node.id, held);
+          expect(node.counterText).toBe(progressCounterText(counts));
+          expect(node.counterState).toBe(progressCounterState(counts));
+        }
+      }
+    }
+    // The pending row holds DJ-C05, so Coluna 5 counts it as not concluded.
+    const coluna5 = locationNodes(locationTree(base, base.equipment, pending)).find((node) => node.id === id(3))!;
+    expect(coluna5.counterText).toBe('1 de 2');
+  });
+
+  it('firstInTree answers each node\'s firstBlockId with no tree build, and null off the tree', () => {
+    for (const snapshot of [relatorio(), porto]) {
+      for (const node of locationNodes(locationTree(snapshot))) expect(firstInTree(snapshot, node.id)).toBe(node.firstBlockId);
+    }
+    const base = relatorio();
+    const removed = { ...base, locations: base.locations.map((row) => (row.id === id(2) ? { ...row, removed_at: '2026-09-07T12:00:00.000Z' } : row)) };
+    expect(firstInTree(removed, id(2))).toBeNull();
+    expect(firstInTree(base, id(9999))).toBeNull();
+    // Cabine B: its own CE-B first; Coluna 5: DJ-C05 (a0) before SEC-C05 (a1).
+    expect(firstInTree(base, id(2))).toBe(id(1001));
+    expect(firstInTree(base, id(3))).toBe(id(1003));
+    expect(firstInTree(base, id(6))).toBeNull();
+  });
+
+  it('the same arrays give the same tree object, even through a new wrapper; a new blocks array builds once more', () => {
+    const snapshot = relatorio();
+    const tree = locationTree(snapshot);
+    expect(locationTree(snapshot)).toBe(tree);
+    expect(locationTree({ blocks: snapshot.blocks, locations: snapshot.locations, equipment: snapshot.equipment })).toBe(tree);
+    const edited = {
+      ...snapshot,
+      blocks: snapshot.blocks.map((block, i) => (i === 0 ? { ...block, not_tested: { reason: 'solicitacao_cliente' as const, text: null, at: '2026-09-07T10:00:00.000Z', by: TEST_USER } } : block)),
+    };
+    const rebuilt = locationTree(edited);
+    expect(rebuilt).not.toBe(tree);
+    expect(locationTree(edited)).toBe(rebuilt);
+    expect(rebuilt[0]!.equipment[0]!.state).toBe('nao_ensaiada');
+    expect(tree[0]!.equipment[0]!.state).toBe('vazia');
+    // Another equipment argument, other pending rows or a relatório row are other inputs.
+    expect(locationTree(snapshot, [...snapshot.equipment])).not.toBe(tree);
+    expect(locationTree(snapshot, snapshot.equipment, [])).not.toBe(tree);
+    expect(locationTree({ ...snapshot, relatorio: porto.relatorio })).not.toBe(tree);
+  });
+
+  it('pointTitle reads the same equipment node the tree draws', () => {
+    const node = treeNodes(locationTree(porto)).find((n): n is TreeEquipmentNode => n.kind === 'equipment' && n.equipmentId !== null)!;
+    expect(pointTitle({ equipment_id: node.equipmentId }, porto)).toBe(equipmentPointTitle(node, porto));
+    expect(pointTitle({ equipment_id: id(9999) }, porto)).toBe(POINT_TITLE_GENERAL);
+    expect(pointTitle({ equipment_id: null }, porto)).toBe(POINT_TITLE_GENERAL);
   });
 });

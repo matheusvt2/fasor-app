@@ -275,7 +275,7 @@ body {
   }
   .registry-layout:has(> .registry-panel) > .registry-main { display: none; }
   /* `.frame-phone [data-route="/cadastros"] .field-grid` (+ `.span-2`) */
-  .field-grid { grid-template-columns: 1fr; }
+  .field-grid { grid-template-columns: minmax(0, 1fr); } /* F-08: `minmax(0, 1fr)` so no field runs past the phone */
   .field-grid .span-2 { grid-column: auto; }
   /* `.frame-phone [data-route="/cadastros"] .registry-toolbar .btn-primary` */
   .registry-toolbar .btn-primary { width: 100%; }
@@ -717,3 +717,27 @@ input.count { width: 40px; padding: 0; border: 0; background: transparent; color
    editor ("48px buttons Negrito · Itálico · Lista · Numeração · Variável") wins over the mock's
    `.rich-text .rt-tool { min-height: 40px }` (components.css): every tool is a 48 px target. */
 .rich-text .rt-tool { min-height: var(--touch-min); }
+
+/* ---------- Review fixes 2026-09-30 (batch rff) ---------- */
+
+/* F-02: mirrors `components.css` `.toast` (`position: absolute; left: 50%; bottom: calc(var(--touch-field)
+   + var(--sp-5)); max-width: calc(100% - 2 * var(--gutter-phone))`). The mock's `.screen` is the scroller,
+   so its absolute toast stays in view; the app scrolls the document, so the toast is fixed to the
+   viewport, and keeps above the Sticky action bar, whose covered height `toast.tsx` measures into
+   `--toast-bar` (the mock's own distance when no bar is in view). */
+.toast {
+  position: fixed;
+  bottom: max(calc(var(--touch-field) + var(--sp-5)), calc(var(--toast-bar, 0px) + var(--sp-3)));
+  max-width: calc(100vw - 2 * var(--gutter-phone));
+}
+
+/* F-10: `components.css` `.tree-body` (`flex: 1; min-width: 0`) and `.tree-state` (`white-space: nowrap`):
+   in the 320 px rail the label wraps inside its own column and the state keeps its width, so
+   "Chave seccionadora" never runs under "Em preenchimento". */
+.relatorio-tree .tree-body { overflow-wrap: anywhere; }
+.relatorio-tree .tree-state { flex: none; }
+
+/* F-14: `components.css` `.rich-text` is a column flex box with `overflow: hidden`; its `.rt-toolbar`
+   (`flex-wrap: wrap`) must not shrink, or at 390 px the wrapped second row ("Numeração",
+   "Variável") is cut off. */
+.rich-text .rt-toolbar { flex: none; }

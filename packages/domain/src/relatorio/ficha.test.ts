@@ -185,6 +185,14 @@ describe('5.4-UNIT the checklist', () => {
     expect(recentChecklistObservations({ blocks }, 'isoladores')).toEqual([]);
   });
 
+  it('F-26: never offers the current block its own observation as a chip', () => {
+    const r = relatorio();
+    const withObs = (row: BlockRow, text: string, op: number): BlockRow => ({ ...row, sheet: { ...row.sheet, checklist: { contatos: { result: cell('NC'), observation: cell(text, op) } } } });
+    const blocks = [withObs(r.blocks[0]!, 'contato queimado', 1), withObs(r.blocks[1]!, 'oxidação, desgaste', 2)];
+    expect(recentChecklistObservations({ blocks }, 'contatos', [], blocks[1]!.id)).toEqual(['contato queimado']);
+    expect(recentChecklistObservations({ blocks }, 'contatos', [])).toEqual(['oxidação, desgaste', 'contato queimado']);
+  });
+
   it('inserts a chip phrase at the caret without duplicating it', () => {
     expect(insertPhrase('', 'oxidação')).toEqual({ text: 'oxidação', caret: 8 });
     expect(insertPhrase('contatos com', 'oxidação')).toEqual({ text: 'contatos com, oxidação', caret: 22 });

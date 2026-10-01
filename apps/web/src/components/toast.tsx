@@ -1,4 +1,4 @@
-import { useRef, type FocusEvent, type KeyboardEvent } from 'react';
+import { useLayoutEffect, useRef, type FocusEvent, type KeyboardEvent } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { ui } from '../copy/ui';
 
@@ -40,6 +40,8 @@ export function Toast({
   // The element that held focus before focus entered the toast: Esc hands focus back to it,
   // so a keyboard user is not left on `body` once the toast is gone.
   const returnTo = useRef<HTMLElement | null>(null);
+  const element = useRef<HTMLDivElement>(null);
+  useStickyBarClearance(element);
 
   function onFocus(event: FocusEvent<HTMLDivElement>) {
     const from = event.relatedTarget;
@@ -55,7 +57,7 @@ export function Toast({
   }
 
   return (
-    <div className="toast" role="status" data-testid="toast" onKeyDown={onKeyDown} onFocus={onFocus}>
+    <div ref={element} className="toast" role="status" data-testid="toast" onKeyDown={onKeyDown} onFocus={onFocus}>
       <span>{toast.text}</span>
       {toast.action === undefined ? null : (
         <>
@@ -75,6 +77,39 @@ export function Toast({
       )}
     </div>
   );
+}
+
+/**
+ * F-02 (review 2026-09-30): the toast is fixed to the viewport (`app.css`) and sits above the
+ * page's Sticky action bar, whose height varies (one row of buttons, a phone's stacked
+ * column, the compact bulk bar). `--toast-bar` carries how much of the viewport's bottom
+ * the bar covers, measured now and whenever the page scrolls or resizes; `app.css` keeps the
+ * mock's own distance when no bar is in view.
+ */
+function useStickyBarClearance(element: { current: HTMLDivElement | null }): void {
+  useLayoutEffect(() => {
+    const toast = element.current;
+    if (toast === null || typeof window === 'undefined') return;
+    const place = () => {
+      let covered = 0;
+      for (const bar of document.querySelectorAll<HTMLElement>('.sticky-action-bar')) {
+        const box = bar.getBoundingClientRect();
+        if (box.height === 0 || box.top >= window.innerHeight || box.bottom <= 0) continue;
+        covered = Math.max(covered, window.innerHeight - box.top);
+      }
+      toast.style.setProperty('--toast-bar', `${Math.max(0, Math.round(covered))}px`);
+    };
+    place();
+    window.addEventListener('scroll', place, { passive: true, capture: true });
+    window.addEventListener('resize', place);
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(place);
+    for (const bar of document.querySelectorAll<HTMLElement>('.sticky-action-bar')) observer?.observe(bar);
+    return () => {
+      window.removeEventListener('scroll', place, { capture: true });
+      window.removeEventListener('resize', place);
+      observer?.disconnect();
+    };
+  });
 }
 
 /**

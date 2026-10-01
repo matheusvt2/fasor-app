@@ -25,7 +25,7 @@ import { removePortoSeguroSmall, seedPortoSeguroSmall, SMALL_FIXTURE_RELATORIO_I
 import { newId } from '../../ids.ts';
 import { createS3, getObject } from '../../storage/s3.ts';
 import { applyOps } from '../../sync/apply.ts';
-import { readZipEntries } from './docx-structure.ts';
+import { readZipEntries } from './docx-structure.test-support.ts';
 
 /*
  * 11.4-PRINT-BOTH (renderer half, Story 11.4, FR-12): a generate job through the api (its

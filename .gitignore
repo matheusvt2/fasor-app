@@ -53,3 +53,6 @@ secrets/
 *.tfstate
 *.tfstate.*
 tfplan
+# Variable values (e-mail recipients and the like) stay local; the *.tfvars.example files are committed.
+*.tfvars
+!*.tfvars.example

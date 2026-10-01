@@ -1,9 +1,9 @@
 import type { SubBlockKey } from '../schemas/block-config.ts';
 import type { BlockRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { getDefinition } from '../seed/definitions.ts';
+import { findDefinition } from '../seed/definitions.ts';
 import type { BlockDefinition } from '../seed/schema.ts';
-import { plural } from '../text/plural.ts';
+import { listPtBr, plural } from '../text/plural.ts';
 import { formatShortDateTime } from '../format/datetime.ts';
 import { cabineOf, cabineProgress } from './cabine.ts';
 import { nameplateTagPrefill } from './nameplate-copy.ts';
@@ -88,14 +88,6 @@ const NC = 'NC';
 /** The restriction value that makes the sheet observation required (`relatorio/conclusion.ts`). */
 const COM_RESTRICOES = 'com_restricoes';
 
-function definitionOf(block: BlockRow): BlockDefinition | null {
-  try {
-    return getDefinition(block.seed_version, 'cabine_primaria', block.block_type);
-  } catch {
-    return null;
-  }
-}
-
 /** The item keys the block's config pre-marks NA (display default, never a cell). */
 export function naDefaultsOf(block: Pick<BlockRow, 'config'>): ReadonlySet<string> {
   const config = block.config;
@@ -173,7 +165,7 @@ function conclusaoMissing(block: BlockRow, enabled: ReadonlySet<SubBlockKey>): n
 /** One sheet's progress; every step empty-handed (0) for a block that is not an equipment sheet. */
 export function sheetProgress(snapshot: SheetProgressSnapshot, blockId: string): SheetProgress {
   const block = snapshot.blocks.find((row) => row.id === blockId);
-  const definition = block === undefined ? null : definitionOf(block);
+  const definition = block === undefined ? null : findDefinition(block.seed_version, block.block_type);
   const steps: Record<SheetStep, SheetStepProgress> = {
     placa: { missing: 0, outOfLimit: 0 },
     verificacoes: { missing: 0, outOfLimit: 0 },
@@ -273,13 +265,7 @@ function summaryMissingParts(step: SheetStep, counts: { missing: number; cabine?
   }
 }
 
-/** "a", "a e b", "a, b e c". */
-function joinPtBr(parts: readonly string[]): string {
-  if (parts.length <= 1) return parts.join('');
-  return `${parts.slice(0, -1).join(', ')} e ${parts[parts.length - 1]}`;
-}
-
-/** `joinPtBr` over lists of parts, the separators as text parts. */
+/** `listPtBr` over lists of parts, the separators as text parts. */
 function joinPartsPtBr(items: readonly SheetSummaryPart[][]): SheetSummaryPart[] {
   return items.flatMap((item, index) => {
     if (index === 0) return item;
@@ -314,7 +300,7 @@ export function sheetSummaryParts(p: SummaryCounts, shown: readonly SheetStep[] 
   const missingParts = joinPartsPtBr(items);
   if (done.length === 0) return [{ text: `${capitalise(verb)} `, kind: 'text' }, ...missingParts];
   const adjective = done.length === 1 && SUMMARY_DONE[done[0]!].singular ? 'pronta' : 'prontas';
-  return [{ text: `${capitalise(joinPtBr(done.map((step) => SUMMARY_DONE[step].noun)))} ${adjective} · ${verb} `, kind: 'text' }, ...missingParts];
+  return [{ text: `${capitalise(listPtBr(done.map((step) => SUMMARY_DONE[step].noun)))} ${adjective} · ${verb} `, kind: 'text' }, ...missingParts];
 }
 
 /** `sheetSummaryParts` as one string. */

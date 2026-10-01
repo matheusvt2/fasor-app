@@ -9,8 +9,11 @@ import { CONTENT_WIDTH_TWIPS, image, PX_PER_CM, sizedImage, text } from '../docx
  * `LayoutSectionPhotos`. A borderless two-column table, two photos per row, each row kept
  * whole on a page; in each cell the `print` variant fitted into 8.5 x 6.4 cm keeping its
  * aspect, then the caption (the bold "Imagem 5:" run and the caption run) and, at 9 pt,
- * the stamp line and the checklist item line. A photo whose bytes the job could not load
- * prints the kernel's `PHOTO_UNAVAILABLE_TEXT` in place of the image and keeps its number.
+ * the stamp line and the checklist item line. A photo the server does not hold (no print
+ * variant, no object) or whose bytes sharp cannot read prints the kernel's
+ * `PHOTO_UNAVAILABLE_TEXT` in place of the image and keeps its number (epics.md 2026-09-28,
+ * Story 7.2). A read that throws (the store or the pool failing) fails the job instead
+ * (review 2026-09-30, A-4): a transient fault never issues a revision without its photos.
  * No string is composed here.
  */
 
@@ -23,8 +26,9 @@ const LOAD_CONCURRENCY = 8;
 
 /**
  * The `print` variant of every live photo of the snapshot, by file id, read with
- * `readPrint` (the job's S3 reader). A photo with no stored bytes, or bytes sharp cannot
- * read, is left out and logged; nothing here throws, so no photo can fail the revision.
+ * `readPrint` (the job's S3 reader). A photo with no stored bytes (`undefined`), or bytes
+ * sharp cannot read, is left out and logged. A `readPrint` that throws rejects the whole
+ * load (A-4): the job fails with `render_failed` and no revision number is consumed.
  */
 export async function loadPhotoImages(
   snapshot: Pick<RelatorioSnapshot, 'files'>,
@@ -35,15 +39,23 @@ export async function loadPhotoImages(
   const out = new Map<string, Buffer>();
   const missing: string[] = [];
   let next = 0;
+  let failed = false;
   const worker = async () => {
-    while (next < ids.length) {
+    while (!failed && next < ids.length) {
       const id = ids[next++]!;
+      let bytes: Buffer | undefined;
       try {
-        const bytes = await readPrint(id);
-        if (bytes === undefined) {
-          missing.push(id);
-          continue;
-        }
+        bytes = await readPrint(id);
+      } catch (error) {
+        // The other readers stop at their next photo; the first failure rejects the load.
+        failed = true;
+        throw error;
+      }
+      if (bytes === undefined) {
+        missing.push(id);
+        continue;
+      }
+      try {
         await sharp(bytes).metadata();
         out.set(id, bytes);
       } catch (error) {

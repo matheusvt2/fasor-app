@@ -9,7 +9,7 @@ import { copy } from '../../copy/pt-br.ts';
 import { ensureLocalBlob, readLocalBlob } from '../../db/file-store.ts';
 import type { PhotoTile } from '../../db/photo-store.ts';
 import { useSession } from '../../state/session.tsx';
-import { useSync } from '../../state/sync.tsx';
+import { useSyncActions } from '../../state/sync-actions.ts';
 import './photos.css';
 
 /*
@@ -45,7 +45,7 @@ export interface PhotoViewerProps {
 /** The best picture this device can show: its original, else the server's print copy, the thumb meanwhile. */
 function useViewerPicture(tile: PhotoTile): Blob | null {
   const db = useSession().database;
-  const { fetchFile } = useSync();
+  const { fetchFile } = useSyncActions();
   const [picture, setPicture] = useState<{ id: string; blob: Blob } | null>(null);
   useEffect(() => {
     if (db === null) return;

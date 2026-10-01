@@ -14,7 +14,7 @@ import {
   type StructuringResult,
 } from '@app/domain';
 import type { S3Client } from '@aws-sdk/client-s3';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import type { Db } from '../../db/client.ts';
 import { asCompanyId, type CompanyId } from '../../db/repositories/company-id.ts';
 import { entities, readingRuns } from '../../db/schema.ts';
@@ -66,12 +66,24 @@ export interface ReadingAttempt {
   lastAttempt: boolean;
 }
 
-/** The ids of the photo's own pending suggestions in its relatório, which a new run replaces. */
-async function pendingOfPhoto(db: Db | Tx, companyId: CompanyId, relatorioId: string, photoId: string): Promise<string[]> {
+/**
+ * The ids of the photo's own pending suggestions in its relatório, which a new run replaces.
+ * The status and the photo are filtered in SQL (review 2026-09-30, A-21: not every suggestion
+ * of the relatório read and parsed, twice per run); the parse below stays as the rule's guard.
+ */
+export async function pendingOfPhoto(db: Db | Tx, companyId: CompanyId, relatorioId: string, photoId: string): Promise<string[]> {
   const records = await db
     .select({ row: entities.row })
     .from(entities)
-    .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'suggestion'), eq(entities.relatorio_id, relatorioId)));
+    .where(
+      and(
+        eq(entities.company_id, companyId),
+        eq(entities.entity, 'suggestion'),
+        eq(entities.relatorio_id, relatorioId),
+        sql`${entities.row}->>'status' = 'pending'`,
+        sql`${entities.row}->'source'->>'photo_id' = ${photoId}`,
+      ),
+    );
   const ids: string[] = [];
   for (const record of records) {
     const parsed = suggestionRowSchema.safeParse(record.row);

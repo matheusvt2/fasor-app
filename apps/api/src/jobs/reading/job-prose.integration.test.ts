@@ -18,7 +18,7 @@ import {
 } from '@app/domain';
 import { and, asc, desc, eq } from 'drizzle-orm';
 import sharp from 'sharp';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { now } from '../../clock.ts';
 import { loadConfig } from '../../config.ts';
 import { createDb } from '../../db/client.ts';
@@ -236,6 +236,35 @@ describe('9.3-INT the caption reading kind', () => {
     // The job never writes the caption itself.
     expect((await row<{ caption: string | null }>('file', id))!.caption).toBeNull();
     expect(await callsFor(id)).toBe(1);
+  }, 60_000);
+
+  it('audit 8.4: the attempt logs one structured line naming the company, relatório, job, photo, kind, run and attempt, with its outcome', async () => {
+    const { relatorioId } = await relatorio();
+    const id = await photo({ relatorioId, image: await shot(9), kind: 'caption' });
+    const lines = vi.spyOn(console, 'log');
+    try {
+      await runReadingJob(deps, { company_id: companyId, photo_id: id, reading_kind: 'caption' }, { jobId: 'job-audit-8-4', attempt: 2, lastAttempt: false });
+      const logged = lines.mock.calls
+        .map((args) => JSON.parse(String(args[0])) as Record<string, unknown>)
+        .filter((line) => line.photo_id === id && typeof line.msg === 'string' && line.msg.startsWith('reading '));
+      const [attempt] = await runs(id);
+      expect(logged).toEqual([
+        expect.objectContaining({
+          level: 'info',
+          msg: 'reading done',
+          company_id: companyId,
+          relatorio_id: relatorioId,
+          job_id: 'job-audit-8-4',
+          photo_id: id,
+          reading_kind: 'caption',
+          run_id: attempt!.id,
+          attempt: 2,
+        }),
+      ]);
+      expect(attempt).toMatchObject({ outcome: 'ok', job_id: 'job-audit-8-4', attempt: 2 });
+    } finally {
+      lines.mockRestore();
+    }
   }, 60_000);
 
   it('the provider cannot caption (prose null): done, no suggestion', async () => {

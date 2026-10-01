@@ -54,7 +54,8 @@ const USAGE = `usage:
   seed-users [--company-id <uuidv7>] --company <name> --email <email> --password <password> \\
              --name <full name> --council <crea|crt> --number <registration number> [--title <printed title>] \\
              [--standard-template] [--sample-relatorio]
-  (the registration flags set a new user's initial values; a re-run resets the password and the name only;
+  (--password may be left out when SEED_USER_PASSWORD holds it: prefer the variable, it stays off the command line;
+   the registration flags set a new user's initial values; a re-run resets the password and the name only;
    --standard-template also seeds the company's "Cabine primária — padrão" template once;
    --sample-relatorio also seeds the small Porto Seguro relatório, fixed ids, one company at a time;
    test:api and the e2e setup reclaim it, deleting it from your company while devices keep stale rows)`;
@@ -82,6 +83,27 @@ function required(args: Record<string, string | true>, key: string): string {
     throw new Error(`missing --${key}\n${USAGE}`);
   }
   return value;
+}
+
+/** The environment variable a password can come from instead of `--password`. */
+export const SEED_PASSWORD_ENV = 'SEED_USER_PASSWORD';
+
+/**
+ * Security review 2026-09-30 (E11-A4): the new user's password, from `--password` or, when
+ * that flag is left out, from `SEED_USER_PASSWORD`. A flag value is on the command line (shell
+ * history, `ps`, an ECS command override readable through `ecs:DescribeTasks`); the variable
+ * can come from an ECS task definition's `secrets` (SSM SecureString), so the password never
+ * appears in any task description. Both at once is a usage error. Never printed.
+ */
+export function resolvePassword(args: Record<string, string | true>, env: Record<string, string | undefined> = process.env): string {
+  const fromEnv = env[SEED_PASSWORD_ENV];
+  const hasEnv = fromEnv !== undefined && fromEnv !== '';
+  if (args.password !== undefined && hasEnv) {
+    throw new Error(`give the password through --password or ${SEED_PASSWORD_ENV}, not both\n${USAGE}`);
+  }
+  if (args.password !== undefined) return required(args, 'password');
+  if (hasEnv) return fromEnv;
+  throw new Error(`missing --password (or ${SEED_PASSWORD_ENV})\n${USAGE}`);
 }
 
 /**
@@ -174,7 +196,7 @@ async function main(): Promise<void> {
       companyId: company.companyId,
       companyName: required(args, 'company'),
       email: required(args, 'email'),
-      password: required(args, 'password'),
+      password: resolvePassword(args),
       name: required(args, 'name'),
       council: councilSchema.parse(required(args, 'council')),
       registrationNumber: required(args, 'number'),

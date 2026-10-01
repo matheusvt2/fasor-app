@@ -12,7 +12,8 @@ x-workspace: &workspace
 
 x-app-env: &app-env
   RUNNING_IN_COMPOSE: '1'
-  DATABASE_URL: ${DATABASE_URL:-postgres://app:app@postgres:5432/app}
+  # One spelling of the database credentials: the postgres service reads the same variables.
+  DATABASE_URL: ${DATABASE_URL:-postgres://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-app}@postgres:5432/${POSTGRES_DB:-app}}
   S3_ENDPOINT: ${S3_ENDPOINT:-http://minio:9000}
   S3_REGION: ${S3_REGION:-us-east-1}
   S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-minioadmin}
@@ -36,28 +37,45 @@ x-app-env: &app-env
   # An unset NODE_ENV is non-production for config.ts; only `api-prod` sets it.
   WORKER: ${WORKER:-1}
   GENERATE_FAULT: ${GENERATE_FAULT:-}
+  # Security review 2026-09-30 (E11-A5): the sign-in and push request limits. Unset they are
+  # off here (the gates sign in and push far faster than a person) and on in production;
+  # `on` turns them on locally. Their sizes and the JSON body cap default in config.ts.
+  RATE_LIMIT: ${RATE_LIMIT:-}
   npm_config_store_dir: /pnpm-store
+
+# The api's health check, shared by `api` and `api-prod` (ECS declares its own, ecs.tf).
+x-api-healthcheck: &api-healthcheck
+  test: ['CMD', 'node', '-e', "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
+  interval: 5s
+  timeout: 5s
+  retries: 30
 
 services:
   postgres:
-    image: postgres:18
+    # Pinned (security review 2026-09-30, I-2): tag for the reader, digest for the pull.
+    image: postgres:18.6@sha256:86c951e05bf56c93d95d397747fb8820ac76cc3bedb78f43abd83eedbe3666ae
     environment:
-      POSTGRES_USER: app
-      POSTGRES_PASSWORD: app
-      POSTGRES_DB: app
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-app}
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+    # Security review 2026-09-30 (I-5): long-running services come back after a daemon or
+    # machine restart (a stopped project stays stopped); Postgres gets time to checkpoint.
+    restart: unless-stopped
+    stop_grace_period: 30s
     volumes:
       - pgdata:/var/lib/postgresql
     ports:
       - '127.0.0.1:5432:5432'
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U app -d app']
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
       interval: 3s
       timeout: 3s
       retries: 20
 
   minio:
-    image: minio/minio
+    image: minio/minio:RELEASE.2025-06-13T11-33-47Z@sha256:064117214caceaa8d8a90ef7caa58f2b2aeb316b5156afe9ee8da5b4d83e12c8
     command: server /data --console-address ':9001'
+    restart: unless-stopped
     environment:
       MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-minioadmin}
       MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-minioadmin}
@@ -91,17 +109,14 @@ services:
     <<: *workspace
     environment: *app-env
     command: pnpm --filter @app/api dev
+    restart: unless-stopped
     ports:
       - '127.0.0.1:3000:3000'
     depends_on:
       install: { condition: service_completed_successfully }
       postgres: { condition: service_healthy }
       minio: { condition: service_healthy }
-    healthcheck:
-      test: ['CMD', 'node', '-e', "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
-      interval: 5s
-      timeout: 5s
-      retries: 30
+    healthcheck: *api-healthcheck
 
   web:
     image: app-api
@@ -114,11 +129,15 @@ services:
       # until Matheus approves vendor audio (Q18).
       VITE_SPEECH_ENGINE: ${VITE_SPEECH_ENGINE:-none}
     command: pnpm --filter @app/web dev
+    restart: unless-stopped
+    # Security review 2026-09-30: loopback only. Vite listens on every interface inside the
+    # container (`host: true`, which the published port needs), and a tablet on the LAN
+    # reaches the app through Caddy (HTTPS, docs/tablet-https-setup.md), never the dev server.
     ports:
-      - '5173:5173'
+      - '127.0.0.1:5173:5173'
     depends_on:
       install: { condition: service_completed_successfully }
-      api: { condition: service_started }
+      api: { condition: service_healthy }
 
   # One-shot: generates the local CA + a leaf cert for $TABLET_HOST under
   # ./certs, which Caddy below mounts. No `image:` tag, so this never
@@ -133,7 +152,8 @@ services:
   # Always-on TLS termination for tablets on the LAN: one secure-context
   # origin serving web + /api/* from the api container, no CORS.
   caddy:
-    image: caddy:2-alpine
+    # The production edge's Caddy (infra/caddy/Dockerfile), same version and digest.
+    image: caddy:2.11.4-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b
     environment:
       TABLET_HOST: ${TABLET_HOST:-localhost}
     volumes:
@@ -144,7 +164,8 @@ services:
       - '${CADDY_HTTPS_PORT:-443}:443'
     depends_on:
       mkcert: { condition: service_completed_successfully }
-      api: { condition: service_started }
+      api: { condition: service_healthy }
+    restart: unless-stopped
 
   # `prod` profile only -- forward-only Drizzle migrations as a one-shot
   # container before the prod api starts. `api-prod` below depends on this
@@ -172,6 +193,8 @@ services:
     environment:
       <<: *app-env
       # The prod profile never honours GENERATE_FAULT (config.ts reads it only outside production).
+      # Production also refuses the public default SESSION_SECRET above: set your own in .env
+      # (README "Running the prod profile"), and it turns the request limits on (RATE_LIMIT).
       NODE_ENV: production
     command: pnpm --filter @app/api start
     ports:
@@ -181,11 +204,7 @@ services:
       postgres: { condition: service_healthy }
       minio: { condition: service_healthy }
       migrate: { condition: service_completed_successfully }
-    healthcheck:
-      test: ['CMD', 'node', '-e', "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"]
-      interval: 5s
-      timeout: 5s
-      retries: 30
+    healthcheck: *api-healthcheck
 
   # Runs the merge gate: docker compose run --rm tools pnpm verify
   tools:
@@ -215,14 +234,12 @@ services:
     build:
       context: services/ocr
     image: app-ocr
+    # A bound on a runaway, not a tight budget: the pytest run of this image peaked at 6.3 GiB
+    # (measured 2026-09-30, no limit); 3 GiB killed it (exit 137).
+    mem_limit: 8g
     ports:
       - '127.0.0.1:8000:8000'
-    healthcheck:
-      test: ['CMD', 'python', '-c', "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health', timeout=4).status == 200 else 1)"]
-      interval: 5s
-      timeout: 5s
-      start_period: 60s
-      retries: 30
+    # Its health check is the image's own HEALTHCHECK (services/ocr/Dockerfile).
 
 volumes:
   pgdata:

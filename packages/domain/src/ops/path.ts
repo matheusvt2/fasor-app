@@ -347,8 +347,24 @@ function matchFamily(def: FamilyDef, segments: readonly string[]): Match {
   return { ok: true, value };
 }
 
+/*
+ * K-1 (full review 2026-09-30): the fold parses each op's path twice in a row (`targetsOf`,
+ * then `applyOp`), so the last path parsed is kept: the same string yields the same frozen
+ * object. A parsed path is plain data (strings and numbers), never mutated by a reader.
+ */
+let lastPath: string | null = null;
+let lastParsed: OpPath | null = null;
+
 /** Parses a path string into its family and typed segments; throws PathError otherwise. */
 export function parsePath(path: string): OpPath {
+  if (path === lastPath && lastParsed !== null) return lastParsed;
+  const parsed = Object.freeze(parsePathUncached(path));
+  lastPath = path;
+  lastParsed = parsed;
+  return parsed;
+}
+
+function parsePathUncached(path: string): OpPath {
   const segments = path.split('/');
   const head = segments[0] ?? '';
   const candidates = FAMILIES.filter((f) => 'lit' in f.segments[0]! && f.segments[0].lit === head);

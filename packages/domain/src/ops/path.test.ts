@@ -231,3 +231,19 @@ describe('E5-A5 typed path builders round-trip through parsePath', () => {
     expect([...built].sort()).toEqual([...deviceFamilies].sort());
   });
 });
+
+describe('K-1 (full review 2026-09-30) the last parsed path is kept', () => {
+  it('the same string twice in a row gives the same frozen object; another string parses on its own', () => {
+    const [a, b] = opLog.map((op) => op.path).filter((path, i, all) => all.indexOf(path) === i);
+    const first = parsePath(a!);
+    expect(parsePath(a!)).toBe(first);
+    expect(Object.isFrozen(first)).toBe(true);
+    const other = parsePath(b!);
+    expect(other).not.toBe(first);
+    expect(formatPath(other)).toBe(b);
+    expect(formatPath(parsePath(a!))).toBe(a);
+    expect(() => parsePath('nope/x')).toThrow(PathError);
+    expect(parsePath(b!)).toEqual(other);
+  });
+});
+

@@ -258,3 +258,8 @@
    only (the chips already wrap in their `.chip-row`). */
 .form-dialog.move-dialog { max-height: 100%; overflow-y: auto; overflow-x: hidden; }
 .form-dialog.move-dialog > * { flex-shrink: 0; }
+
+/* F-21 (review 2026-09-30): the setup cover tile (`registries.css` `.brand-tile .tile-name`, one line
+   with an ellipsis in a 200 px tile) names its label and file in full: "Foto de capa · Nenhum
+   arquivo" wraps instead of reading "Foto de capa · Nenhum arqu…". */
+[data-route="/relatorio/:id/setup"] .brand-tile .tile-name { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }

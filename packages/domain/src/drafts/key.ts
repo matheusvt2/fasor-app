@@ -36,14 +36,3 @@ export function draftKey(target: DraftTarget): string {
   return field === undefined ? `${surface}${SEP}${entity_id}` : `${surface}${SEP}${entity_id}${SEP}${field}`;
 }
 
-/** The target a key was built from, or null when the string is not one of ours. */
-export function parseDraftKey(key: string): DraftTarget | null {
-  const parts = key.split(SEP);
-  if (parts.length !== 2 && parts.length !== 3) return null;
-  const parsed = draftTargetSchema.safeParse({
-    surface: parts[0],
-    entity_id: parts[1],
-    ...(parts.length === 3 ? { field: parts[2] } : {}),
-  });
-  return parsed.success ? parsed.data : null;
-}

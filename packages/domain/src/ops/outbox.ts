@@ -34,6 +34,34 @@ export function coalesce(prev: Op, next: Op): Op | null {
   return { ...next, prev_op_id: prev.prev_op_id ?? null, meta: prev.meta ?? null };
 }
 
+/*
+ * W-1 (full review 2026-09-30): the device outbox is pruned. An `acked` row whose op the
+ * server log already holds on this device (pulled back into `remote_ops`) is represented by
+ * the pulled op everywhere the device reads it (`materializeEntity` drops it by id, and every
+ * reader of "this device's own ops" reads the pulled copy), so it can go once it is older
+ * than the retention: well past the 6 s undo toast, so `undoBatch` still finds every row of a
+ * batch the toast can undo. `pending`, `sent` and `dead` rows always stay.
+ */
+
+/** How long an acked, pulled-back outbox row is kept after its `client_ts` (10 minutes). */
+export const OUTBOX_ACKED_RETENTION_MS = 10 * 60 * 1000;
+
+/** The outbox statuses a live read of the outbox shows: every one but `acked`, which no count, row or badge reads. */
+export const LIVE_OUTBOX_STATUSES = ['pending', 'sent', 'dead'] as const;
+
+/**
+ * Whether an outbox row may be deleted: only an `acked` row the server log holds on this
+ * device (`pulledBack`) whose `client_ts` is older than `OUTBOX_ACKED_RETENTION_MS` at `now`.
+ */
+export function prunableOutboxRow(
+  row: { status: 'pending' | 'sent' | 'acked' | 'dead'; client_ts: string },
+  context: { pulledBack: boolean; now: Date },
+): boolean {
+  if (row.status !== 'acked' || !context.pulledBack) return false;
+  const at = Date.parse(row.client_ts);
+  return !Number.isNaN(at) && context.now.getTime() - at > OUTBOX_ACKED_RETENTION_MS;
+}
+
 export interface InvertDeps {
   newId: NewId;
   now: Date;

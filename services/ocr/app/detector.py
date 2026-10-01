@@ -10,6 +10,12 @@ from pathlib import Path
 import numpy as np
 
 DETECTION_MODEL = "PP-OCRv5_server_det"
+# Review fixes 2026-09-30 (O-4): the detector resizes its input so the longer side is at most
+# this many pixels (PaddleOCR `limit_type="max"`); its polygons come back in the input's own
+# pixels. The model's default keeps a 4000 px working image whole, tens of seconds on CPU and
+# twice when the pipeline deskews. The accuracy tests (`tests/test_api.py`, the 4400 px plate)
+# hold at this size.
+DET_LIMIT_SIDE_LEN = int(os.environ.get("OCR_DET_LIMIT_SIDE_LEN", "2000"))
 
 
 class Pp5Detector:
@@ -21,6 +27,8 @@ class Pp5Detector:
             model_dir=str(model_dir),
             device="cpu",
             enable_mkldnn=False,
+            limit_side_len=DET_LIMIT_SIDE_LEN,
+            limit_type="max",
             cpu_threads=int(os.environ.get("OMP_NUM_THREADS", "4")),
         )
 

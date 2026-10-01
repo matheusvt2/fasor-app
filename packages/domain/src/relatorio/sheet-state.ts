@@ -38,11 +38,30 @@ export function isCellFilled(cell: Cell | null | undefined): boolean {
   return true;
 }
 
-/** The sub-blocks the block's own config enables; every one when the config does not parse. */
-export function enabledSubBlocksOf(block: Pick<BlockRow, 'config'>): ReadonlySet<SubBlockKey> {
-  const parsed = blockConfigSchema.safeParse(block.config);
+/*
+ * K-16 (full review 2026-09-30): rows are immutable (`applyOp` returns a new object for a row
+ * it changes, and a sheet put keeps the block's `config` object), so the parsed config's
+ * enabled sub-blocks are kept per `config` object and a block's state per block object.
+ */
+const enabledByConfig = new WeakMap<object, ReadonlySet<SubBlockKey>>();
+const stateByBlock = new WeakMap<BlockRow, SheetState>();
+
+function parseEnabled(config: unknown): ReadonlySet<SubBlockKey> {
+  const parsed = blockConfigSchema.safeParse(config);
   if (!parsed.success) return new Set(SUB_BLOCK_KEYS);
   return new Set(enabledSubBlocks(parsed.data));
+}
+
+/** The sub-blocks the block's own config enables; every one when the config does not parse. */
+export function enabledSubBlocksOf(block: Pick<BlockRow, 'config'>): ReadonlySet<SubBlockKey> {
+  const config = block.config;
+  if (typeof config !== 'object' || config === null) return parseEnabled(config);
+  let out = enabledByConfig.get(config);
+  if (out === undefined) {
+    out = parseEnabled(config);
+    enabledByConfig.set(config, out);
+  }
+  return out;
 }
 
 /** Every cell of the sheet's enabled sub-blocks. */
@@ -69,8 +88,12 @@ export function enabledCells(block: BlockRow): Cell[] {
 export function sheetState(block: BlockRow): SheetState {
   if (block.not_tested !== null) return 'nao_ensaiada';
   if (block.concluded_by !== null) return 'concluida';
-  if (enabledCells(block).some(isCellFilled)) return 'em_preenchimento';
-  return 'vazia';
+  let state = stateByBlock.get(block);
+  if (state === undefined) {
+    state = enabledCells(block).some(isCellFilled) ? 'em_preenchimento' : 'vazia';
+    stateByBlock.set(block, state);
+  }
+  return state;
 }
 
 /** True for a block that is an equipment sheet (a section block has no sheet state). */

@@ -336,11 +336,12 @@ describe('4.3 SumarioSurface', () => {
     expect(scrollIntoView.mock.instances[0]).toBe(current);
     expect(cabines()[0]!.querySelector('.s9-cab-row .progress-counter')).toHaveTextContent('1 de 3');
     expect(cabines()[0]!.querySelector('.s9-cab-name')).toHaveTextContent('Cabine de Testes');
-    // The chevron collapses it; a header count opens it again and moves the focus to the chevron.
+    // The chevron collapses it; a header count that counts no sheet opens it again and moves the
+    // focus to the chevron (F-24: a count that counts one focuses that sheet's row instead).
     await userEvent.click(chevron);
     expect(container.querySelector('.sum-s9')).not.toHaveClass('is-open');
     expect(chevron).toHaveAttribute('aria-expanded', 'false');
-    await userEvent.click(screen.getByRole('button', { name: '1 de 3 fichas concluídas' }));
+    await userEvent.click(screen.getByRole('button', { name: '0 NC abertos' }));
     await waitFor(() => expect(container.querySelector('.sum-s9')).toHaveClass('is-open'));
     await waitFor(() => expect(chevron).toHaveFocus());
     cleanup();
@@ -373,6 +374,28 @@ describe('4.3 SumarioSurface', () => {
     expect(container.querySelector('.sum-s9')).toHaveClass('is-open');
     expect(screen.getByRole('button', { name: 'Expandir ou recolher a seção 9' })).toHaveAttribute('aria-expanded', 'true');
     await waitFor(() => expect(container.querySelector(`li.s9-eq[data-block-id="${chaveBlockId}"] [data-tree-open]`)).toHaveFocus());
+  });
+
+  it('F-24: a sheet count opens section 9 on the first sheet it counts and focuses its row; a count of none focuses section 9', async () => {
+    database = await seeded();
+    const record = (await database.entities.get(['relatorio', RELATORIO]))!;
+    await database.entities.put({ ...record, row: { ...(record.row as { status: string }), status: 'rascunho' } as never });
+    const { container } = renderSumario();
+    await waitFor(() => expect(rows()).toHaveLength(13));
+    expect(container.querySelector('.sum-s9')).not.toHaveClass('is-open');
+    const summary = screen.getByRole('group', { name: 'Resumo do relatório' });
+    await userEvent.click(within(summary).getByRole('button', { name: '1 não ensaiada' }));
+    await waitFor(() => expect(document.activeElement?.closest('li.s9-eq')).not.toBeNull());
+    expect(container.querySelector('.sum-s9')).toHaveClass('is-open');
+    const notTested = document.activeElement!.closest('li.s9-eq')!;
+    expect(notTested).toHaveTextContent(/Não ensaiada/);
+    // The fixture's one concluded sheet is that same not-tested one; tapped again, it is focused again.
+    (document.activeElement as HTMLElement).blur();
+    await userEvent.click(within(summary).getByRole('button', { name: '1 de 3 fichas concluídas' }));
+    await waitFor(() => expect(document.activeElement?.closest('li.s9-eq')).toBe(notTested));
+    // No sheet holds an NC: section 9's own row takes the focus.
+    await userEvent.click(within(summary).getByRole('button', { name: '0 NC abertos' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Expandir ou recolher a seção 9' })).toHaveFocus());
   });
 
   it('"Desfazer" after Remover brings the row back and hands the focus to its Overflow trigger', async () => {

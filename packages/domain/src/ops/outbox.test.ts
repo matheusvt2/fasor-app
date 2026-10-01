@@ -3,7 +3,7 @@ import { emptySheet, type BlockRow, type FileRow } from '../schemas/entities.ts'
 import { idSequence, opFactory, T0, T1, TEST_COMPANY, TEST_RELATORIO } from '../test-support.ts';
 import { applyOp, entityKey, readPath, type EntityState } from './apply.ts';
 import type { Op } from './op.ts';
-import { coalesce, invertBatch } from './outbox.ts';
+import { coalesce, invertBatch, LIVE_OUTBOX_STATUSES, OUTBOX_ACKED_RETENTION_MS, prunableOutboxRow } from './outbox.ts';
 import { replay } from './replay.ts';
 
 const B1 = '019966b0-0005-7000-8000-000000000001';
@@ -225,5 +225,34 @@ describe('E9-Q3 undo of a photo-backed create (Story 9.2)', () => {
     const { before } = applyRecording(initial, batch);
     const inverses = invertBatch(batch, before, { newId: idSequence('019966b0-0008-7000-8000-'), now: T1 });
     expect(inverses.map((op) => op.value)).toEqual(['pending']);
+  });
+});
+
+describe('W-1 prunableOutboxRow', () => {
+  const now = new Date('2026-09-30T12:00:00.000Z');
+  const old = new Date(now.getTime() - OUTBOX_ACKED_RETENTION_MS - 1).toISOString();
+  const young = new Date(now.getTime() - OUTBOX_ACKED_RETENTION_MS + 1000).toISOString();
+
+  it('prunes an acked row pulled back and older than the retention', () => {
+    expect(prunableOutboxRow({ status: 'acked', client_ts: old }, { pulledBack: true, now })).toBe(true);
+  });
+
+  it('keeps an acked row the server log does not hold here yet', () => {
+    expect(prunableOutboxRow({ status: 'acked', client_ts: old }, { pulledBack: false, now })).toBe(false);
+  });
+
+  it('keeps an acked row younger than the retention (the undo window)', () => {
+    expect(prunableOutboxRow({ status: 'acked', client_ts: young }, { pulledBack: true, now })).toBe(false);
+  });
+
+  it('keeps every pending, sent and dead row, however old', () => {
+    for (const status of ['pending', 'sent', 'dead'] as const) {
+      expect(prunableOutboxRow({ status, client_ts: old }, { pulledBack: true, now })).toBe(false);
+    }
+  });
+
+  it('keeps the retention well past the 6 s undo toast', () => {
+    expect(OUTBOX_ACKED_RETENTION_MS).toBe(10 * 60 * 1000);
+    expect(LIVE_OUTBOX_STATUSES).toEqual(['pending', 'sent', 'dead']);
   });
 });

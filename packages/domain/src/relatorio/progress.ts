@@ -28,7 +28,8 @@ export interface Progress {
 /** The value of a checklist "result" cell that names a non-conformity. */
 const NC = 'NC';
 
-function ncCount(block: BlockRow): number {
+/** Checklist items of one sheet answered NC (what `Progress.nc_open` adds up; F-24 finds the sheets holding one). */
+export function ncCount(block: BlockRow): number {
   const cells = new Set(enabledCells(block));
   let n = 0;
   for (const item of Object.values(block.sheet.checklist)) {
@@ -80,21 +81,6 @@ export function cabineLocationIds(locations: readonly Pick<LocationRow, 'id' | '
 }
 
 /**
- * One cabine's sheet progress: the blocks on it and on its colunas. (Named
- * `cabineProgress` until Story 12.3, which gave that name to the cabine's own required
- * fields, `cabine.ts`.)
- */
-export function cabineSheetsProgress(
-  snapshot: Pick<RelatorioSnapshot, 'blocks' | 'locations' | 'suggestions'>,
-  cabineId: string,
-  pending?: readonly SuggestionRow[],
-): Progress {
-  const ids = cabineLocationIds(snapshot.locations, cabineId);
-  const blocks = snapshot.blocks.filter((block) => block.location_id !== null && ids.has(block.location_id));
-  return over(blocks, ...scoped(blocks, pending));
-}
-
-/**
  * The location ids of a node and every location under it, at any depth (Story 4.4: a
  * block may attach to any node, and the tree's coluna counters count what hangs below).
  */
@@ -118,6 +104,64 @@ export function locationProgress(snapshot: Pick<RelatorioSnapshot, 'blocks' | 'l
   const ids = descendantLocationIds(snapshot.locations, locationId);
   const blocks = snapshot.blocks.filter((block) => block.location_id !== null && ids.has(block.location_id));
   return over(blocks, ...scoped(blocks, pending));
+}
+
+/**
+ * K-16 (full review 2026-09-30): `locationProgress` for every location of one input at once.
+ * The blocks are bucketed by `location_id` and the locations by `parent_id` once; each
+ * location's progress is the sum of its subtree's buckets (every count of `Progress` adds up
+ * over disjoint sets of blocks, and a pending suggestion names one block), with the subtree
+ * read exactly as `descendantLocationIds` reads it (every location of the input, removed ones
+ * included). The answer for an id equals `locationProgress(snapshot, id, pending)`.
+ */
+export function locationProgressIndex(
+  snapshot: Pick<RelatorioSnapshot, 'blocks' | 'locations'>,
+  pending?: readonly SuggestionRow[],
+): (locationId: string) => Progress {
+  const blocksAt = new Map<string, BlockRow[]>();
+  for (const block of snapshot.blocks) {
+    if (block.location_id === null) continue;
+    const bucket = blocksAt.get(block.location_id);
+    if (bucket === undefined) blocksAt.set(block.location_id, [block]);
+    else bucket.push(block);
+  }
+  const childrenOf = new Map<string, string[]>();
+  for (const location of snapshot.locations) {
+    if (location.parent_id === null) continue;
+    const bucket = childrenOf.get(location.parent_id);
+    if (bucket === undefined) childrenOf.set(location.parent_id, [location.id]);
+    else bucket.push(location.id);
+  }
+  const own = new Map<string, Progress>();
+  const ownProgress = (id: string): Progress => {
+    let out = own.get(id);
+    if (out === undefined) {
+      const blocks = blocksAt.get(id) ?? [];
+      out = over(blocks, ...scoped(blocks, pending));
+      own.set(id, out);
+    }
+    return out;
+  };
+  return (locationId) => {
+    const total: Progress = { sheets_concluded: 0, sheets_total: 0, nc_open: 0, not_tested: 0, suggestions_pending: 0 };
+    const seen = new Set([locationId]);
+    const stack = [locationId];
+    while (stack.length > 0) {
+      const id = stack.pop()!;
+      const p = ownProgress(id);
+      total.sheets_concluded += p.sheets_concluded;
+      total.sheets_total += p.sheets_total;
+      total.nc_open += p.nc_open;
+      total.not_tested += p.not_tested;
+      total.suggestions_pending += p.suggestions_pending;
+      for (const child of childrenOf.get(id) ?? []) {
+        if (seen.has(child)) continue;
+        seen.add(child);
+        stack.push(child);
+      }
+    }
+    return total;
+  };
 }
 
 // --- the texts -------------------------------------------------------------------------

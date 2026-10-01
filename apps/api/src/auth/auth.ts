@@ -1,3 +1,4 @@
+import { PRODUTO } from '@app/domain';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { eq } from 'drizzle-orm';
@@ -35,7 +36,7 @@ export function createAuth(options: AuthOptions) {
   const baseURL = options.baseURL ?? options.trustedOrigins[0];
   if (baseURL === undefined) throw new Error('auth needs AUTH_BASE_URL or one trusted origin');
   return betterAuth({
-    appName: 'PRODUTO',
+    appName: PRODUTO,
     baseURL,
     basePath: '/api/auth',
     secret: options.secret,

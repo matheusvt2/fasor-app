@@ -105,6 +105,21 @@ describe('E6-R2 the Caption composer chips while "Editar texto" is on', () => {
     expect(parts.atividade?.name).toBe('termografia');
   });
 
+  it('review 2026-09-30: a caption composed at capture with an activity the prefill no longer carries opens on the rows, that activity pressed', async () => {
+    const isolacao = { name: 'ensaios de resistência de isolação', gender: 'm' as const, number: 'plural' as const };
+    const stored = composeCaption({ atividade: isolacao, equipamento: chave, local: cubiculo })!;
+    const { dialog, chips, onSave } = renderComposer(stored);
+    expect(within(dialog).queryByRole('textbox', { name: 'Texto da legenda' })).toBeNull();
+    expect(within(dialog).getByRole('button', { name: 'Editar texto' })).not.toHaveAttribute('aria-pressed', 'true');
+    expect(dialog.querySelector('.caption-preview')).toHaveTextContent(stored);
+    for (const chip of chips()) expect(chip).not.toHaveAttribute('aria-disabled');
+    const atividade = within(dialog).getByRole('group', { name: 'Atividade' });
+    expect(within(atividade).getByRole('button', { name: 'ensaios de resistência de isolação' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(atividade).getByRole('button', { name: 'verificação de contatos' })).not.toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Salvar legenda' }));
+    expect(onSave).toHaveBeenCalledWith(stored, { atividade: isolacao, equipamento: chave, local: cubiculo });
+  });
+
   it('a caption the rows compose opens on the rows, chips active, no note', () => {
     const { dialog, chips } = renderComposer(composeCaption(prefill));
     expect(within(dialog).queryAllByText(NOTE)).toEqual([]);

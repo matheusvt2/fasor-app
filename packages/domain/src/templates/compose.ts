@@ -176,16 +176,6 @@ export function removeNode(template: Composition, ref: string): Composition {
 
 // --- quantities per node -----------------------------------------------------
 
-/** How many blocks of one equipment type a node holds, over every entry of that type there. */
-export function quantityAt(template: Composition, ref: string, type: EquipmentBlockType): number {
-  if (!template.skeleton.some((n) => n.ref === ref)) return 0;
-  let total = 0;
-  for (const block of template.blocks) {
-    if (block.block_type === type && block.skeleton_location_ref === ref) total += block.quantity;
-  }
-  return total;
-}
-
 /**
  * Sets the quantity of one equipment type at one node (clamped to 0..MAX_QUANTITY) and
  * returns the new `blocks`. A node may hold several entries of one type (the standard

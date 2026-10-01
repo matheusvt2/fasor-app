@@ -45,10 +45,15 @@ describe('7.3-UNIT-009 image certificates', () => {
     expect([small.width, small.height]).toEqual([800, 600]);
   });
 
-  it('never throws when the reader throws: the certificate is left out', async () => {
-    const pages = await loadCertificatePages(section(['boom']), async () => {
+  it('A-4 (review 2026-09-30): rejects when the reader throws, so the job fails instead of printing the placeholder', async () => {
+    const load = loadCertificatePages(section(['boom']), async () => {
       throw new Error('s3 down');
     }, { jobId: 'job-throw' });
+    await expect(load).rejects.toThrow('s3 down');
+  });
+
+  it('leaves out an image certificate sharp cannot read, without throwing', async () => {
+    const pages = await loadCertificatePages(section(['broken']), async () => ({ bytes: Buffer.from('not a jpeg'), mime: 'image/jpeg' }), { jobId: 'job-broken' });
     expect(pages.size).toBe(0);
   });
 

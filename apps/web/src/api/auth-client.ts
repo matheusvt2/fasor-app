@@ -40,7 +40,7 @@ export function publishReAuth(): void {
  * `offline` is a device with no network at all. Only `credentials` may mark a field
  * invalid, and only `offline` may say "Sem conexão".
  */
-export type SignInFailure = 'credentials' | 'server' | 'offline';
+export type SignInFailure = 'credentials' | 'server' | 'offline' | 'rate-limited';
 
 export type SignInResult =
   | { ok: true; user: UserProfile; features: AccountResponse['features'] }
@@ -72,6 +72,13 @@ const credentialsRejected = {
   ok: false as const,
   reason: 'credentials' as const,
   message: copy.login.wrongPassword,
+};
+
+/** L10 (review 2026-09-30): 429, too many attempts; never the wrong-password text, and no field is marked. */
+const rateLimited = {
+  ok: false as const,
+  reason: 'rate-limited' as const,
+  message: copy.login.rateLimited,
 };
 
 const serverUnavailable = {
@@ -118,6 +125,7 @@ export async function signIn(email: string, password: string): Promise<SignInRes
     // Only a 4xx is the server rejecting what was typed (401 for the pair, 400 for a
     // malformed e-mail). A 5xx (database down) or no status at all (transport failure)
     // is the server not answering, and must never read as a wrong password.
+    if (error.status === 429) return rateLimited;
     return isClientRejection(error.status) ? credentialsRejected : unreachable();
   }
   try {

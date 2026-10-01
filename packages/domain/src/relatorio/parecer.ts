@@ -2,7 +2,7 @@ import { artLabel } from '../print/document-control.ts';
 import { pointsSummary } from '../points/summary.ts';
 import type { BlockRow, RelatorioParecer } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { getDefinition, getSeed } from '../seed/definitions.ts';
+import { findDefinition, findSeed } from '../seed/definitions.ts';
 import { canonicalJson, fnv1a } from '../text/hash.ts';
 import { listPtBr, plural } from '../text/plural.ts';
 import { conclusionRestrictionOf, conclusionResultOf } from './conclusion.ts';
@@ -91,13 +91,8 @@ function restricted(block: BlockRow): boolean {
 /** The enabled checklist's NC items of a live sheet: their 1-based number and label. */
 function ncItemsOf(block: BlockRow): { n: number; label: string }[] {
   if (!enabledSubBlocksOf(block).has('checklist')) return [];
-  let definition;
-  try {
-    definition = getDefinition(block.seed_version, 'cabine_primaria', block.block_type);
-  } catch {
-    return [];
-  }
-  if (definition.checklist === null) return [];
+  const definition = findDefinition(block.seed_version, block.block_type);
+  if (definition === null || definition.checklist === null) return [];
   return definition.checklist.flatMap((item, index) => (checklistResultOf(block, item.key) === 'NC' ? [{ n: index + 1, label: item.label }] : []));
 }
 
@@ -107,12 +102,7 @@ function notTestedReason(block: BlockRow): string | null {
   if (mark === null) return null;
   const typed = mark.text !== null && mark.text.trim() !== '' ? mark.text.trim() : null;
   if (mark.reason === 'outro' && typed !== null) return typed;
-  let label: string | undefined;
-  try {
-    label = getSeed(block.seed_version, 'cabine_primaria').not_tested_reasons.find((reason) => reason.key === mark.reason)?.label;
-  } catch {
-    label = undefined;
-  }
+  const label = findSeed(block.seed_version)?.not_tested_reasons.find((reason) => reason.key === mark.reason)?.label;
   return (label ?? mark.reason).toLocaleLowerCase('pt-BR');
 }
 

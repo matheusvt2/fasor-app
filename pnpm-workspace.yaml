@@ -19,3 +19,7 @@ minimumReleaseAgeExclude:
   - drizzle-kit@0.31.11
   - drizzle-orm@0.45.3
   - docx@9.7.2
+# Review fixes 2026-09-30 (security L8, GHSA-67mh-4wv8-2f99): drizzle-kit's @esbuild-kit loader
+# pins esbuild 0.18; its transform API is unchanged in 0.25, which carries the dev-server fix.
+overrides:
+  '@esbuild-kit/core-utils>esbuild': 0.25.12

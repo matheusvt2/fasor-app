@@ -168,9 +168,6 @@ export const ui = {
     // authored: the Position box's name (EXPERIENCE.md › Block card).
     position: (name: string) => `Posição de ${name}`,
   },
-  registryTabPlaceholder: {
-    text: 'Disponível em uma próxima etapa.',
-  },
   // Story 9.4: the Dictation button and what it hands over (UX-DR18, `components.css` Dictation button).
   dictation: {
     // Verbatim from the mocks' `.listening-word`.

@@ -1,8 +1,11 @@
 // @vitest-environment node
 import 'fake-indexeddb/auto';
-import { opLog } from '@app/domain/fixtures/replay-small';
+import { replay } from '@app/domain';
+import { BLOCK_1_ID, opLog, RELATORIO_ID } from '@app/domain/fixtures/replay-small';
+import Dexie from 'dexie';
 import { describe, expect, it } from 'vitest';
-import { databaseName, LATEST_VERSION, openDatabase, VERSIONS, type OutboxRow } from './schema.ts';
+import { toRecord } from './commit.ts';
+import { databaseName, LATEST_VERSION, openDatabase, targetKeysOf, VERSIONS, type OutboxRow } from './schema.ts';
 
 const USER = '019966b0-0009-7000-8000-000000000001';
 
@@ -15,8 +18,8 @@ describe('Dexie store', () => {
   });
 
   it('declares append-only versions, each with an upgrade()', () => {
-    expect(VERSIONS.map((v) => v.version)).toEqual([1, 2, 3, 4, 5]);
-    expect(LATEST_VERSION).toBe(5);
+    expect(VERSIONS.map((v) => v.version)).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(LATEST_VERSION).toBe(6);
     for (const v of VERSIONS) expect(typeof v.upgrade).toBe('function');
   });
 
@@ -66,7 +69,7 @@ describe('Dexie store', () => {
     expect(v4.tables.map((t) => t.name)).not.toContain('thumbs');
     v4.close();
 
-    const v5 = openDatabase(user);
+    const v5 = openDatabase(user, { upToVersion: 5 });
     await v5.open();
     expect(v5.verno).toBe(5);
     expect(v5.tables.map((t) => t.name)).toContain('thumbs');
@@ -78,6 +81,46 @@ describe('Dexie store', () => {
     expect(await v5.thumbs.count()).toBe(1);
     expect(await v5.local_prefs.get('db_version')).toEqual({ key: 'db_version', value: 5 });
     v5.close();
+  });
+
+  it('full review 2026-09-30: a version 5 store with rows gains the v6 indexes, every row intact and reachable through them', async () => {
+    const user = '019966b0-0009-7000-8000-000000000008';
+    const v5 = openDatabase(user, { upToVersion: 5 });
+    const replayed = replay(opLog);
+    const records = [...replayed].map(([key, row]) => toRecord(key, row));
+    await v5.entities.bulkAdd(records);
+    const pulled = opLog.slice(0, 30).map((op, i) => ({ ...op, seq: i + 1, targets: targetKeysOf(op) }));
+    await v5.remote_ops.bulkAdd(pulled);
+    const own = opLog.slice(30, 35).map((op) => ({ ...op, status: 'pending' as const, error_code: null, targets: targetKeysOf(op) }));
+    await v5.outbox.bulkAdd(own);
+    v5.close();
+
+    const v6 = openDatabase(user);
+    await v6.open();
+    expect(v6.verno).toBe(6);
+    expect(await v6.local_prefs.get('db_version')).toEqual({ key: 'db_version', value: 6 });
+    expect(await v6.entities.count()).toBe(records.length);
+    expect(await v6.remote_ops.count()).toBe(pulled.length);
+    expect(await v6.outbox.count()).toBe(own.length);
+
+    // entities [entity+relatorio_id]
+    const blocks = records.filter((r) => r.entity === 'block' && r.relatorio_id === RELATORIO_ID);
+    expect(blocks.length).toBeGreaterThan(0);
+    const viaIndex = await v6.entities.where('[entity+relatorio_id]').equals(['block', RELATORIO_ID]).toArray();
+    expect(viaIndex.map((r) => r.id).sort()).toEqual(blocks.map((r) => r.id).sort());
+    // remote_ops [path+seq] and [relatorio_id+seq]
+    const path = `sheet/${BLOCK_1_ID}/nameplate/fabricacao`;
+    expect(pulled.filter((r) => r.path === path).length).toBe(2);
+    const onPath = await v6.remote_ops.where('[path+seq]').between([path, Dexie.minKey], [path, Dexie.maxKey]).toArray();
+    expect(onPath.map((r) => r.op_id)).toEqual(pulled.filter((r) => r.path === path).map((r) => r.op_id));
+    const ofRelatorio = await v6.remote_ops.where('[relatorio_id+seq]').between([RELATORIO_ID, 12], [RELATORIO_ID, Dexie.maxKey], false, true).toArray();
+    expect(ofRelatorio.length).toBeGreaterThan(0);
+    expect(ofRelatorio.map((r) => r.op_id)).toEqual(pulled.filter((r) => r.relatorio_id === RELATORIO_ID && r.seq > 12).map((r) => r.op_id));
+    // outbox relatorio_id
+    const ownOfRelatorio = await v6.outbox.where('relatorio_id').equals(RELATORIO_ID).toArray();
+    expect(ownOfRelatorio.map((r) => r.op_id).sort()).toEqual(own.filter((r) => r.relatorio_id === RELATORIO_ID).map((r) => r.op_id).sort());
+    expect(ownOfRelatorio.length).toBeGreaterThan(0);
+    v6.close();
   });
 
   // AD-8's eviction signal: only the open that brings the store into existence says so.

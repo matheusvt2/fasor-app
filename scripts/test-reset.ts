@@ -1,13 +1,8 @@
 import { existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import {
-  DeleteObjectsCommand,
-  ListObjectVersionsCommand,
-  S3Client,
-} from '@aws-sdk/client-s3';
+import { S3Client } from '@aws-sdk/client-s3';
 import { createDb } from '../apps/api/src/db/client.ts';
-import { resetCompanyJobs } from '../apps/api/src/db/reset-company-jobs.ts';
-import { resetTestCompanyData } from '../apps/api/src/db/seed.ts';
+import { resetTestCompany } from '../apps/api/src/db/reset-test-company.ts';
 import { TEST_SEED } from '../apps/api/src/db/test-seed.ts';
 
 export function assertInCompose(
@@ -34,10 +29,7 @@ async function main(): Promise<void> {
     console.error('usage: test-reset <company-id>');
     process.exit(1);
   }
-  // `resetTestCompanyData` only ever clears the two hardcoded `TEST_SEED` companies (it takes
-  // no company argument); passing anything else would silently leave that company's ops/
-  // entities/sync_device_push rows untouched while this script still logged success and still
-  // cleared its pgboss/S3 state. Fail loudly instead of half-resetting.
+  // Only a seeded test company is ever reset (`resetTestCompany` refuses any other id too).
   if (!TEST_SEED.companies.some((c) => c.companyId === companyId)) {
     console.error(
       `test-reset only resets the seeded test companies; ${companyId} is not one of ${TEST_SEED.companies.map((c) => c.companyId).join(', ')}.`,
@@ -53,43 +45,19 @@ async function main(): Promise<void> {
     return value;
   };
 
-  // The `ops`/`entities`/`sync_device_push` reset is the same mechanism `apps/api/src/db/seed.ts`
-  // (`resetTestCompanyData`) uses to clean up between the two seeded `TEST_SEED` companies
-  // (F-DUP-3): one reset mechanism instead of a guessed, partly-nonexistent table list. It
-  // always clears both `TEST_SEED` companies in one transaction, independent of the
-  // `company-id` argument below, which still scopes the pgboss queue and object storage
-  // cleanup that `resetTestCompanyData` does not cover.
+  // E-3 (review 2026-09-30): this company alone, its object versions first (every listing
+  // page), then its ops, entities, push register and reading runs, then its pg-boss jobs.
   const { sql, db } = createDb(need('DATABASE_URL'));
-  try {
-    await resetTestCompanyData(db);
-    await resetCompanyJobs(sql, companyId);
-  } finally {
-    await sql.end();
-  }
-
   const s3 = new S3Client({
     endpoint: need('S3_ENDPOINT'),
     region: need('S3_REGION'),
     forcePathStyle: true,
     credentials: { accessKeyId: need('S3_ACCESS_KEY_ID'), secretAccessKey: need('S3_SECRET_ACCESS_KEY') },
   });
-  const bucket = need('S3_BUCKET');
-  const prefix = `company/${companyId}/`;
-  for (;;) {
-    const page = await s3.send(new ListObjectVersionsCommand({ Bucket: bucket, Prefix: prefix }));
-    const objects = [...(page.Versions ?? []), ...(page.DeleteMarkers ?? [])].map((o) => ({
-      Key: o.Key!,
-      VersionId: o.VersionId,
-    }));
-    if (objects.length === 0) break;
-    const deleted = await s3.send(
-      new DeleteObjectsCommand({ Bucket: bucket, Delete: { Objects: objects } }),
-    );
-    if (deleted.Errors?.length) {
-      throw new Error(
-        `failed to delete ${deleted.Errors.length} object(s): ${deleted.Errors.map((e) => `${e.Key}: ${e.Code}`).join(', ')}`,
-      );
-    }
+  try {
+    await resetTestCompany({ db, sql, s3, bucket: need('S3_BUCKET') }, companyId);
+  } finally {
+    await sql.end();
   }
   console.log(`reset company ${companyId}`);
 }

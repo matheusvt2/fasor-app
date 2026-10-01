@@ -55,6 +55,10 @@ describe('Story 11.8 infra/bin/deploy --dry-run', () => {
     // Every real action is only printed.
     expect(out).toMatch(/^DRY-RUN: docker buildx build --platform linux\/amd64 /m);
     expect(out).toMatch(/^DRY-RUN: docker push .*fasor\/api:0123456789abcdef/m);
+    // Review fixes 2026-09-30 (O-6): production ships the sidecar's runtime stage, never its test stage.
+    expect(out).toMatch(/^DRY-RUN: docker buildx build --platform linux\/amd64 --target runtime -t \S*fasor\/ocr:/m);
+    // A dry run never asks ECR whether the (immutable) tag is already there.
+    expect(out).not.toMatch(/already in ECR/);
     expect(out).toMatch(/-target=aws_ecs_task_definition\.migrate/);
     expect(out).toMatch(/ecs run-task .*--launch-type EC2/);
     expect(out).toMatch(/ssm put-parameter .*--value 0123456789abcdef/);

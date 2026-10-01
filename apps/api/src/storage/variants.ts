@@ -55,6 +55,10 @@ async function render(source: Uint8Array, mime: string, maxPx: number): Promise<
  */
 export async function renderVariants(source: Uint8Array, mime: string): Promise<RenderedVariants | null> {
   if (!hasVariants(mime)) return null;
-  const [thumb, print] = await Promise.all([render(source, mime, THUMB_MAX_PX), render(source, mime, PRINT_MAX_PX)]);
+  // A-7 (review 2026-09-30): the original is decoded once, for the print; the thumb is cut
+  // from the print's bytes (at most 2000 px, upright, no EXIF), not from a second full
+  // decode of a 24 MP original.
+  const print = await render(source, mime, PRINT_MAX_PX);
+  const thumb = await render(print.bytes, print.contentType, THUMB_MAX_PX);
   return { thumb, print };
 }

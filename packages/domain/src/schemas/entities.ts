@@ -32,7 +32,13 @@ export const numberValueSchema = z.object({
 /** AD-11 `date` value shape: `YYYY-MM-DD` or `YYYY-MM`. */
 export const dateValueSchema = z.string().regex(/^\d{4}-\d{2}(-\d{2})?$/);
 
-/** A field whose definition (AD-11) resolves through the seed: any JSON until Story 3.1. */
+/**
+ * A field whose definition (AD-11) resolves through the seed. K-10 (full review 2026-09-30):
+ * any JSON by design. The value shape a field takes is the seed's (number, date, choice,
+ * instrument pick), and each reader narrows the shape it expects from that definition; a
+ * per-field union here would duplicate the seed in the row schema. `applyOp` validates only
+ * that a cell value is JSON. Replacing this with a per-AD-11 union is a contract change.
+ */
 export const fieldValueSchema = jsonValueSchema;
 
 /** AR-18: an instrument's default test voltage/current for one test type, or unset. */
@@ -614,7 +620,6 @@ export const entityRowSchemas = {
 
 export type Entity = keyof typeof entityRowSchemas;
 export const ENTITIES = Object.keys(entityRowSchemas) as Entity[];
-export const entitySchema = z.enum(ENTITIES as [Entity, ...Entity[]]);
 
 export type EntityRowOf<E extends Entity> = z.infer<(typeof entityRowSchemas)[E]>;
 export type ProjectRow = EntityRowOf<'project'>;

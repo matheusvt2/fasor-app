@@ -4,6 +4,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./zod-jitless": "./src/zod-jitless.ts",
     "./fixtures/replay-small": "./fixtures/replay-small/op-log.ts",
     "./fixtures/porto-seguro": "./fixtures/porto-seguro/op-log.ts",
     "./fixtures/porto-seguro/small": "./fixtures/porto-seguro/small/op-log.ts"

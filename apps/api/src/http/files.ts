@@ -2,36 +2,32 @@ import { createHash } from 'node:crypto';
 import { Readable } from 'node:stream';
 import {
   checkFileCandidate,
-  fileRowSchema,
   FILE_SHA256_HEADER,
   fileVariantSchema,
   isUploadFileKind,
   MAX_FILE_BYTES,
   objectKey,
-  SERVER_DEVICE_ID,
-  uuidV7Schema,
   toIso,
   type Clock,
   type ErrorCode,
   type ErrorResponse,
   type FilePutResponse,
-  type FileRow,
   type FileVariantName,
   type FileVariants,
 } from '@app/domain';
 import type { S3Client } from '@aws-sdk/client-s3';
-import { and, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import type { Db } from '../db/client.ts';
 import type { CompanyId } from '../db/repositories/company-id.ts';
-import { entities } from '../db/schema.ts';
+import { findFileRow, type FileRowLookup } from '../db/repositories/files.ts';
 import { newId } from '../ids.ts';
 import type { ReadingKind, ReadingPayload } from '../jobs/reading/payload.ts';
 import { sendReading } from '../jobs/reading/send.ts';
 import { logError } from '../log.ts';
 import { getObject, headObject, putObject } from '../storage/s3.ts';
 import { hasVariants, renderVariants } from '../storage/variants.ts';
-import { applyServerBatch, type Tx } from '../sync/apply.ts';
+import { applyServerBatch } from '../sync/apply.ts';
+import { serverOp } from '../sync/server-op.ts';
 import { type AppEnv, requireSession } from './session.ts';
 
 /*
@@ -53,35 +49,14 @@ function fail(code: ErrorCode, message: string): ErrorResponse {
 
 const notFound = fail('not_found', 'No such file.');
 
-interface FileRowLookup {
-  row: FileRow;
-  relatorioId: string | null;
-}
-
-/**
- * The company's own `file` row, or null — for any other company's id, for an unknown one,
- * and for an id that is not a uuid at all. The shape is checked before the query because
- * `entities.id` is a uuid column and a malformed value would raise a cast error the route
- * would answer 500 to, which is also a way to tell a bad id from an unknown one
- * (`sync/routes.ts` guards its own `:id` the same way).
- *
- * The stored `row` is the create op's client-supplied JSON, so its `id` is *claimed*, not
- * proven. A row whose claimed id is not the id it is filed under is refused here: every
- * caller builds object keys from it, and a forged `id` would otherwise let one file's
- * bytes be written over another file's key.
+/*
+ * Every file row is read through `findFileRow` (`db/repositories/files.ts`): the company's
+ * own row, or null for any other company's id, an unknown one, a malformed one (checked
+ * before the query, since `entities.id` is a uuid column and a cast error would answer 500),
+ * and a row whose claimed id is not the id it is filed under (every caller builds object
+ * keys from it, and a forged `id` would otherwise let one file's bytes be written over
+ * another file's key).
  */
-async function readFileRow(db: Db | Tx, companyId: CompanyId, id: string): Promise<FileRowLookup | null> {
-  if (!uuidV7Schema.safeParse(id).success) return null;
-  const [record] = await db
-    .select({ row: entities.row, relatorio_id: entities.relatorio_id })
-    .from(entities)
-    .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'file'), eq(entities.id, id)))
-    .limit(1);
-  if (record === undefined) return null;
-  const parsed = fileRowSchema.safeParse(record.row);
-  if (!parsed.success || parsed.data.id !== id) return null;
-  return { row: parsed.data, relatorioId: record.relatorio_id };
-}
 
 /** Thrown inside the write's lock when another PUT of the same file already set the field. */
 class FieldAlreadySet extends Error {}
@@ -142,49 +117,45 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
    * takes (`applyServerBatch`'s `before`), so of two PUTs of the same file at once (a
    * retry whose first answer was lost) exactly one writes it: reading the row before the
    * lock let both see it unset and both emit (6.2-E2E-003 under load, 2026-09-27).
-   * Returns whether this call wrote the field.
+   * Returns whether this call wrote the field and the row as the lock saw it before the
+   * write (A-20: the caller reads it instead of the row once more).
    */
   async function emitServerOp(
     companyId: CompanyId,
     lookup: FileRowLookup,
     field: 'uploaded_at' | 'variants',
     value: unknown,
-  ): Promise<boolean> {
+  ): Promise<{ wrote: boolean; current: FileRowLookup | null }> {
     const relatorioId = lookup.relatorioId;
     const id = lookup.row.id;
+    let current: FileRowLookup | null = null;
     try {
       await applyServerBatch(
         db,
         companyId,
         [
-          {
-            op_id: newId(),
-            company_id: companyId,
-            scope: relatorioId === null ? 'company' : 'relatorio',
-            project_id: null,
-            relatorio_id: relatorioId,
+          serverOp({
+            opId: newId(),
+            companyId,
+            actorId: FILES_ACTOR,
+            clientTs: toIso(deps.now()),
             kind: 'put',
-            path: `file/${lookup.row.id}/${field}`,
+            path: `file/${id}/${field}`,
             value,
-            prev_op_id: null,
-            batch_id: null,
-            meta: null,
-            actor_id: FILES_ACTOR,
-            device_id: SERVER_DEVICE_ID,
-            client_ts: toIso(deps.now()),
-          },
+            relatorioId,
+          }),
         ],
         {
           now: deps.now,
           before: async (tx) => {
-            const current = await readFileRow(tx, companyId, id);
+            current = await findFileRow(tx, companyId, id);
             if (current !== null && current.row[field] != null) throw new FieldAlreadySet();
           },
         },
       );
-      return true;
+      return { wrote: true, current };
     } catch (error) {
-      if (error instanceof FieldAlreadySet) return false;
+      if (error instanceof FieldAlreadySet) return { wrote: false, current };
       throw error;
     }
   }
@@ -210,7 +181,7 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
       return c.json(fail('file_too_large', 'File is over the 25 MB limit.'), 413);
     }
 
-    const lookup = await readFileRow(db, session.companyId, id);
+    const lookup = await findFileRow(db, session.companyId, id);
     // AD-7: a file row this company does not hold is the device's own file whose create
     // op has not reached the server yet, and the answer is the *retryable* 409. Another
     // company's id lands here too and gets that same answer, byte for byte: AD-10 scopes
@@ -243,9 +214,6 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
       }
       throw error;
     }
-    if (body.byteLength > MAX_FILE_BYTES) {
-      return c.json(fail('file_too_large', 'File is over the 25 MB limit.'), 413);
-    }
 
     const digest = sha256Of(body);
     const claimed = c.req.header(FILE_SHA256_HEADER);
@@ -268,15 +236,22 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
     if (row.uploaded_at === null || !(await headObject(s3, bucket, key))) {
       await putObject(s3, bucket, key, body, row.mime);
     }
-    // Re-read after the store: two PUTs of the same file can both have seen
-    // `uploaded_at: null` above, and only one of them may emit the op (`emitServerOp`
-    // decides under the company lock; the one that did not write answers the stored time).
-    const stored = await readFileRow(db, session.companyId, id);
-    let uploadedAt = stored?.row.uploaded_at ?? null;
-    if (uploadedAt === null) {
+    // The row as it stands after the store: two PUTs of the same file can both have seen
+    // `uploaded_at: null` above, and only one of them may emit the op. `emitServerOp`
+    // decides under the company lock and hands back the row as the lock saw it, so the one
+    // that did not write answers the stored time (A-20: that row is not read again here).
+    // A row already uploaded is read once more, after the body, so the reading check below
+    // sees a `running` a concurrent PUT wrote meanwhile.
+    let stored: FileRowLookup | null;
+    let uploadedAt: string;
+    if (lookup.row.uploaded_at === null) {
       const now = toIso(deps.now());
-      if (await emitServerOp(session.companyId, lookup, 'uploaded_at', now)) uploadedAt = now;
-      else uploadedAt = (await readFileRow(db, session.companyId, id))?.row.uploaded_at ?? now;
+      const emitted = await emitServerOp(session.companyId, lookup, 'uploaded_at', now);
+      stored = emitted.current;
+      uploadedAt = emitted.wrote ? now : (emitted.current?.row.uploaded_at ?? now);
+    } else {
+      stored = await findFileRow(db, session.companyId, id);
+      uploadedAt = stored?.row.uploaded_at ?? lookup.row.uploaded_at;
     }
 
     // The keys are derived, never read back from the row, and whether they hold anything
@@ -330,7 +305,7 @@ export function createFileRoutes(db: Db, s3: S3Client, bucket: string, deps: Fil
     if (!parsedVariant.success) return c.json(notFound, 404);
     const variant: FileVariantName = parsedVariant.data;
 
-    const lookup = await readFileRow(db, session.companyId, id);
+    const lookup = await findFileRow(db, session.companyId, id);
     if (lookup === null) return c.json(notFound, 404);
     const { row, relatorioId } = lookup;
     if (row.uploaded_at === null) return c.json(notFound, 404);

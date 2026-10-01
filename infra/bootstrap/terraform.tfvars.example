@@ -1,0 +1,3 @@
+# Copy to terraform.tfvars (untracked, .gitignore) and put the real recipients there.
+# Every address below receives the monthly budget and anomaly alerts.
+budget_alert_emails = ["operator@example.com"]

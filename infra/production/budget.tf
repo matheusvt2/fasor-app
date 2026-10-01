@@ -57,8 +57,10 @@ resource "aws_budgets_budget_action" "deny_ai" {
   execution_role_arn = aws_iam_role.budget_action.arn
 
   action_threshold {
-    action_threshold_type  = "PERCENTAGE"
-    action_threshold_value = 100
+    action_threshold_type = "PERCENTAGE"
+    # Security review 2026-09-30 (I-3): 90 %, not 100 %: actual spend is reported with up to a
+    # day of lag, so acting at 100 % could land after the ceiling is already passed.
+    action_threshold_value = 90
   }
 
   definition {
@@ -68,8 +70,11 @@ resource "aws_budgets_budget_action" "deny_ai" {
     }
   }
 
-  subscriber {
-    subscription_type = "EMAIL"
-    address           = var.budget_alert_email
+  dynamic "subscriber" {
+    for_each = var.budget_alert_emails
+    content {
+      subscription_type = "EMAIL"
+      address           = subscriber.value
+    }
   }
 }

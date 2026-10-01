@@ -59,3 +59,22 @@ describe('Toast Esc (B4)', () => {
     expect(main).toHaveAttribute('tabindex', '-1');
   });
 });
+
+describe('F-02 the toast keeps above the Sticky action bar', () => {
+  it('carries the height the bar covers at the bottom of the viewport as --toast-bar, 0 px with no bar in view', () => {
+    const bar = document.createElement('div');
+    bar.className = 'sticky-action-bar';
+    document.body.append(bar);
+    const height = window.innerHeight;
+    vi.spyOn(bar, 'getBoundingClientRect').mockReturnValue({ top: height - 136, bottom: height, height: 136, left: 0, right: 390, width: 390, x: 0, y: height - 136, toJSON: () => ({}) } as DOMRect);
+    try {
+      const { unmount } = render(<Toast toast={message} onClose={() => undefined} onDismiss={() => undefined} />);
+      expect(screen.getByTestId('toast').style.getPropertyValue('--toast-bar')).toBe('136px');
+      unmount();
+    } finally {
+      bar.remove();
+    }
+    render(<Toast toast={message} onClose={() => undefined} onDismiss={() => undefined} />);
+    expect(screen.getByTestId('toast').style.getPropertyValue('--toast-bar')).toBe('0px');
+  });
+});

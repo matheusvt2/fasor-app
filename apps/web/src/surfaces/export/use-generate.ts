@@ -37,6 +37,8 @@ import { useSession } from '../../state/session.tsx';
 import { useSync } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { SyncRequestError } from '../../sync/client.ts';
+import { publishReAuth } from '../../api/auth-client.ts';
+import { isSessionExpired, isUnauthorized } from './session-expired.tsx';
 
 /*
  * Story 4.8 (AD-15, UX-DR58): the Export dialog's state machine. "Gerar relatório" first
@@ -61,7 +63,7 @@ export type GeneratePhase =
    * `missingFiles`: the server still misses that many files and no upload of this device
    * will bring them (E9 sweep B14), so the request failed without retrying.
    */
-  | { kind: 'failed'; missingFiles?: number }
+  | { kind: 'failed'; missingFiles?: number; sessionExpired?: boolean }
   | {
       kind: 'ready';
       number: number;
@@ -337,8 +339,11 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
           if (!mounted.current) return;
         }
       }
-    } catch {
-      if (mounted.current) setPhase({ kind: 'failed' });
+    } catch (error) {
+      // F-12 / W-23: a 401 is a session that expired: the re-auth banner and its own words.
+      const expired = isSessionExpired(error);
+      if (isUnauthorized(error)) publishReAuth();
+      if (mounted.current) setPhase(expired ? { kind: 'failed', sessionExpired: true } : { kind: 'failed' });
     }
   }, [db, relatorioId, revisions, sync, timing.retryMs]);
   const requestRef = useRef(request);
@@ -347,9 +352,13 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
   // Flushing: wait for the outbox to drain and the uploads to land, then request. A
   // dead op stops it, going offline hands the button back with the offline reason, and a
   // cycle that leaves work behind is kicked again, a bounded number of times.
-  const { counts, running, syncNow, online } = sync;
+  const { counts, running, syncNow, online, outboxRead } = sync;
   useEffect(() => {
     if (phase.kind !== 'flushing' || db === null) return;
+    // Until the provider's first read of the outbox lands, its counts are empty, not zero: a
+    // press then must wait for the read, never send a relatório the server does not hold yet
+    // (a 404, 4.8-E2E-001 on the rfp branch, whose launch delayed that first read).
+    if (outboxRead === false) return;
     if (!online) {
       setPhase({ kind: 'idle' });
       return;
@@ -392,7 +401,7 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
       cancelled = true;
       if (timer !== null) clearTimeout(timer);
     };
-  }, [phase.kind, db, online, counts.dead, counts.pending, counts.sent, running, syncNow, timing.retryMs]);
+  }, [phase.kind, db, online, outboxRead, counts.dead, counts.pending, counts.sent, running, syncNow, timing.retryMs]);
 
   // Working: pull the stream until the revision arrives or the job ends without one.
   const { syncRelatorio } = sync;

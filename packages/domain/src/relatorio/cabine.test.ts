@@ -143,3 +143,14 @@ function tagPrefilled(snapshot: RelatorioSnapshot, blockId: string): boolean {
   const block = snapshot.blocks.find((b) => b.id === blockId)!;
   return ['chave_seccionadora', 'disjuntor_mt'].includes(block.block_type) && block.sheet.nameplate.tag === undefined;
 }
+
+describe('K-9 (full review 2026-09-30) a seed version this device does not ship', () => {
+  it('asks nothing and says so (`unresolvedSeed`), instead of reading as a checked, complete cabine', () => {
+    const base = fresh();
+    const enel = base.locations.find((l) => l.kind === 'cabine' && l.name === 'Cubículo Enel')!;
+    expect(cabineProgress(base, enel.id).unresolvedSeed).toBeUndefined();
+    const unknown = { ...base, relatorio: { ...base.relatorio, seed_version: 'v999' } };
+    expect(cabineProgress(unknown, enel.id)).toEqual({ missing: [], complete: true, unresolvedSeed: true });
+  });
+});
+

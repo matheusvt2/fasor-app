@@ -18,14 +18,13 @@ import {
   latestRevision,
   missingFilesText,
   nextEditNote,
+  previewFileName,
   notCaughtUpRetryable,
   nextRevisionNumber,
   readyTitle,
   readyToast,
   revisionMetaSegments,
-  revisionMetaText,
   revisionRowSegments,
-  revisionRowText,
   revisionTitle,
   sortRevisions,
 } from './revisions.ts';
@@ -70,16 +69,12 @@ describe('4.8-UNIT-004 revision numbering and rows', () => {
 
   it('writes "Rev. n" and the row "Rev. 2 — 10/09/2026 08:47 — Bruno" with the date as a <time> segment', () => {
     expect(revisionTitle(2)).toBe('Rev. 2');
-    expect(revisionRowText(REV_2, 'Bruno')).toBe('Rev. 2 — 10/09/2026 08:47 — Bruno');
     expect(revisionRowSegments(REV_2, 'Bruno')).toEqual({
       before: 'Rev. 2 — ',
       datetime: '2026-09-10T11:47:00.000Z',
       dateText: '10/09/2026 08:47',
       after: ' — Bruno',
     });
-    expect(revisionRowText(REV_1, null)).toBe('Rev. 1 — 09/09/2026 09:12');
-    expect(revisionMetaText(REV_2, 'Bruno')).toBe('10/09/2026 08:47 · Bruno');
-    expect(revisionMetaText(REV_2, ' ')).toBe('10/09/2026 08:47');
     expect(revisionMetaSegments(REV_2, 'Bruno')).toEqual({ datetime: '2026-09-10T11:47:00.000Z', dateText: '10/09/2026 08:47', after: ' · Bruno' });
     expect(revisionMetaSegments(REV_2, null).after).toBe('');
   });
@@ -188,5 +183,11 @@ describe('E9 sweep B14: a not_caught_up this device cannot answer', () => {
   it('names how many files have not reached the server', () => {
     expect(missingFilesText(1)).toBe('1 arquivo ainda não chegou ao servidor');
     expect(missingFilesText(3)).toBe('3 arquivos ainda não chegaram ao servidor');
+  });
+});
+
+describe('A-25 previewFileName', () => {
+  it('names the preview PDF download relatorio-rascunho.pdf, as the preview route always served it', () => {
+    expect(previewFileName()).toBe('relatorio-rascunho.pdf');
   });
 });

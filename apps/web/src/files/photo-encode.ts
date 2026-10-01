@@ -24,23 +24,23 @@ export function fitWithin(width: number, height: number, max: number): { width: 
   return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) };
 }
 
-async function drawJpeg(source: ImageBitmap, max: number, quality: number): Promise<Blob> {
-  const { width, height } = fitWithin(source.width, source.height, max);
-  if (typeof OffscreenCanvas !== 'undefined') {
-    const canvas = new OffscreenCanvas(width, height);
-    const context = canvas.getContext('2d');
-    if (context === null) throw new Error('no 2d context');
-    context.drawImage(source, 0, 0, width, height);
-    return canvas.convertToBlob({ type: 'image/jpeg', quality });
-  }
-  const canvas = document.createElement('canvas');
+type Canvas = OffscreenCanvas | HTMLCanvasElement;
+
+/** `source` drawn at `width` x `height` on a new canvas. */
+function drawn(source: CanvasImageSource, width: number, height: number): Canvas {
+  const canvas = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(width, height) : document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
-  const context = canvas.getContext('2d');
+  const context = canvas.getContext('2d') as OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D | null;
   if (context === null) throw new Error('no 2d context');
   context.drawImage(source, 0, 0, width, height);
+  return canvas;
+}
+
+function jpegOf(canvas: Canvas, quality: number): Promise<Blob> {
+  if (typeof OffscreenCanvas !== 'undefined' && canvas instanceof OffscreenCanvas) return canvas.convertToBlob({ type: 'image/jpeg', quality });
   return new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((blob) => (blob === null ? reject(new Error('jpeg encode failed')) : resolve(blob)), 'image/jpeg', quality);
+    (canvas as HTMLCanvasElement).toBlob((blob) => (blob === null ? reject(new Error('jpeg encode failed')) : resolve(blob)), 'image/jpeg', quality);
   });
 }
 
@@ -58,8 +58,13 @@ export async function encodePhoto(source: Blob | ImageBitmap): Promise<EncodedPh
   const owned = source instanceof Blob;
   const bitmap = owned ? await createImageBitmap(source, { imageOrientation: 'from-image' }) : source;
   try {
-    const original = await drawJpeg(bitmap, ORIGINAL_MAX_PX, ORIGINAL_QUALITY);
-    const thumb = await drawJpeg(bitmap, THUMB_MAX_PX, THUMB_QUALITY);
+    const size = fitWithin(bitmap.width, bitmap.height, ORIGINAL_MAX_PX);
+    const large = drawn(bitmap, size.width, size.height);
+    const original = await jpegOf(large, ORIGINAL_QUALITY);
+    // W-24 (full review 2026-09-30): the thumb is drawn from the resized canvas, never from
+    // the full-size picture again; its size is still fitted to the picture's own.
+    const thumbSize = fitWithin(bitmap.width, bitmap.height, THUMB_MAX_PX);
+    const thumb = await jpegOf(drawn(large, thumbSize.width, thumbSize.height), THUMB_QUALITY);
     return { original, thumb, sha256: await sha256Hex(original) };
   } finally {
     if (owned) bitmap.close();

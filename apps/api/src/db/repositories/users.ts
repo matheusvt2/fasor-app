@@ -74,16 +74,3 @@ export async function findUserProfile(
   const [profile] = await compose(db, companyId, rows);
   return profile;
 }
-
-/** Every user of one company. Used by the cross-tenant test and by provisioning. */
-export async function listUserProfiles(
-  db: Db,
-  companyId: CompanyId,
-): Promise<UserProfile[]> {
-  const rows = await db
-    .select(identityColumns)
-    .from(user)
-    .innerJoin(company, eq(company.id, user.companyId))
-    .where(eq(user.companyId, companyId));
-  return compose(db, companyId, rows);
-}

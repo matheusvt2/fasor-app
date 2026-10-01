@@ -67,23 +67,36 @@ async function createFacts(db: AppDatabase, keys: readonly EntityKey[]): Promise
  * store; only the relatórios with at least one decision are returned.
  */
 export async function heldDecisions(db: AppDatabase): Promise<HeldDecisions[]> {
-  const [blockRecords, equipmentRecords, relatorioRecords] = await Promise.all([
-    db.entities.where('entity').equals('block').toArray(),
+  const [equipmentRecords, relatorioRecords] = await Promise.all([
     db.entities.where('entity').equals('equipment').toArray(),
     db.entities.where('entity').equals('relatorio').toArray(),
   ]);
-  const blocks = blockRecords.map((record) => record.row as BlockRow);
-  const equipment = equipmentRecords.map((record) => record.row as EquipmentRow);
+  const relatorios = relatorioRecords.map((record) => record.row as RelatorioRow).filter((relatorio) => relatorio.removed_at === null);
+  // W-5 (full review 2026-09-30): the blocks of the live relatórios only, through
+  // `[entity+relatorio_id]`, grouped by relatório once (no filter per relatório).
+  const blockRecords =
+    relatorios.length === 0 ? [] : await db.entities.where('[entity+relatorio_id]').anyOf(relatorios.map((relatorio) => ['block', relatorio.id])).toArray();
+  const blocksOf = new Map<string, BlockRow[]>();
+  for (const record of blockRecords) {
+    const block = record.row as BlockRow;
+    const bucket = blocksOf.get(block.relatorio_id);
+    if (bucket === undefined) blocksOf.set(block.relatorio_id, [block]);
+    else bucket.push(block);
+  }
   const byProject = new Map<string, EquipmentRow[]>();
-  for (const row of equipment) byProject.set(row.project_id, [...(byProject.get(row.project_id) ?? []), row]);
+  for (const record of equipmentRecords) {
+    const row = record.row as EquipmentRow;
+    const bucket = byProject.get(row.project_id);
+    if (bucket === undefined) byProject.set(row.project_id, [row]);
+    else bucket.push(row);
+  }
   const duplicated = new Set<string>();
   for (const [projectId, rows] of byProject) if (integrityFindings({ equipment: rows }).length > 0) duplicated.add(projectId);
 
   const out: HeldDecisions[] = [];
-  for (const record of relatorioRecords) {
-    const relatorio = record.row as RelatorioRow;
-    if (relatorio.removed_at !== null) continue;
-    const own = blocks.filter((block) => block.relatorio_id === relatorio.id);
+  for (const relatorio of relatorios) {
+    const own = blocksOf.get(relatorio.id) ?? [];
+    // A relatório with no conflict mark and no duplicate TAG in its project has no decision.
     if (!own.some(holdsConflictMarks) && !duplicated.has(relatorio.project_id)) continue;
     const projectEquipment = byProject.get(relatorio.project_id) ?? [];
     const duplicates = integrityFindings({ equipment: projectEquipment }).flatMap((finding) => finding.equipment_ids);

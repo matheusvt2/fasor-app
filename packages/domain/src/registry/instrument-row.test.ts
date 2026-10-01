@@ -40,6 +40,8 @@ describe('instrumentRegistryRowText', () => {
     const text = instrumentRegistryRowText(instrument(), 'valid');
     expect(text.code).toBe('2E');
     expect(text.primaryRest).toBe('— Megôhmetro digital DMG10Ki DMG10Ki');
+    // F-20: the name part alone, for a layout that puts the code in its own column.
+    expect(text.primaryName).toBe('Megôhmetro digital DMG10Ki DMG10Ki');
     expect(text.secondaryLead).toBe('Instrum · série IN919021-25945 · RBC 37428/26');
     expect(text.validity).toEqual({ text: 'Válida até 28/08/2027', expired: false });
   });

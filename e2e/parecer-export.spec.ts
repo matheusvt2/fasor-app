@@ -2,7 +2,7 @@ import type { OpDraft } from '@app/domain';
 import { BLOCK_CHAVE_ID, CABINE_ID, EQUIPMENT_CHAVE_ID, portoSeguroSmall } from '@app/domain/fixtures/porto-seguro/small';
 import type { Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
-import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.ts';
+import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
 import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-fixture.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';

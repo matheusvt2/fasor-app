@@ -41,6 +41,11 @@ export function Etapa2Escopo({
     setExclusions(setup.exclusions ?? seedExclusions);
   }
   const exclusionsCommitter = useFieldCommit<string[]>({ commit: (value) => onCommit('exclusions', value) });
+  // W-12: every row keeps a stable key of its own, so removing one never hands its input (its
+  // focus, its DOM) to the neighbour below; a row added, restored or synced in gets a new key.
+  const rowKeys = useRef<string[]>([]);
+  while (rowKeys.current.length < exclusions.length) rowKeys.current.push(newRowKey());
+  if (rowKeys.current.length > exclusions.length) rowKeys.current = rowKeys.current.slice(0, exclusions.length);
 
   // No "Escopo" field (Epic 4 QA Q3): in seed v1 `{escopo}` prints only on the cover, and
   // resolves from Etapa 1's "Informações adicionais"; `setup.escopo` would print nowhere.
@@ -73,11 +78,14 @@ export function Etapa2Escopo({
     exclusionsCommitter.flush();
     const before = exclusions.length;
     const next = withoutExclusion(exclusions, index);
+    const keysBefore = rowKeys.current;
+    rowKeys.current = keysBefore.filter((_, i) => i !== index);
     setExclusions(next);
     const batchId = await onWriteExclusions(next).catch(() => null);
     if (batchId === null) {
       // Nothing was written: the store still holds the row, so the view shows it again
       // (a later autosave of the list must not drop it silently).
+      rowKeys.current = keysBefore;
       setExclusions(exclusions);
       return;
     }
@@ -120,7 +128,7 @@ export function Etapa2Escopo({
         </div>
         <ul className="exclusion-list" aria-label={t.exclusionsLabel} ref={listRef}>
           {exclusions.map((text, i) => (
-            <li key={i}>
+            <li key={rowKeys.current[i]}>
               <span className="exclusion-num" aria-hidden="true">
                 {i + 1}.
               </span>
@@ -148,4 +156,11 @@ export function Etapa2Escopo({
       </div>
     </section>
   );
+}
+
+let rowKeySeq = 0;
+/** W-12: a key for one exclusion row, unique on this page. */
+function newRowKey(): string {
+  rowKeySeq += 1;
+  return `exclusion-${rowKeySeq}`;
 }

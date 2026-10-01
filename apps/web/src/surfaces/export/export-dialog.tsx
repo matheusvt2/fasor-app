@@ -1,5 +1,6 @@
 import {
   documentControlRows,
+  empresaRegistered,
   exportPrecheck,
   failedReason,
   generatingReason,
@@ -30,11 +31,13 @@ import { now } from '../../clock.ts';
 import { relatorioState } from '../../db/home-store.ts';
 import { useLiveQuery } from '../../db/live.ts';
 import { useSession } from '../../state/session.tsx';
-import { useSync } from '../../state/sync.tsx';
+import { useSyncActions } from '../../state/sync-actions.ts';
 import { downloadRevisionFile, fetchRevisionFile, hasShareSheet, shareFile, shareRevisionFile, type RevisionFileRef } from './revision-file.ts';
 import { DEFAULT_TIMING, useGenerate, type GenerateTiming } from './use-generate.ts';
 import { usePreIssue } from './use-pre-issue.ts';
 import { usePreview } from './use-preview.ts';
+import { isSessionExpired, isUnauthorized, SessionExpiredNote } from './session-expired.tsx';
+import { publishReAuth } from '../../api/auth-client.ts';
 import './export.css';
 import { useRelatorioSnapshot } from '../../db/relatorio-snapshot.ts';
 
@@ -74,7 +77,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
   const downloadingReasonId = useId();
   const generateReasonId = useId();
   const db = useSession().database;
-  const { resendDead } = useSync();
+  const { resendDead } = useSyncActions();
   // The revision the result block offers, once this device holds its row.
   const readyRevision =
     phase.kind === 'ready' ? (revisions.find((r) => r.id === phase.revisionId) ?? revisions.find((r) => r.number === phase.number) ?? null) : null;
@@ -86,6 +89,8 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
   // revision in the result block clears both, and an answer from before that is ignored.
   const [busy, setBusy] = useState<ReadonlySet<string>>(() => new Set());
   const [failed, setFailed] = useState<string | null>(null);
+  /** F-12 / W-23: the last failed file press failed because the session is gone. */
+  const [failedSession, setFailedSession] = useState(false);
   const fileEpoch = useRef(0);
   useEffect(() => {
     fileEpoch.current++;
@@ -95,20 +100,25 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
   const runFile = (key: string, action: () => Promise<unknown>) => {
     if (busy.has(key)) return;
     const epoch = fileEpoch.current;
-    const settle = (error: boolean) => {
+    const settle = (error: unknown | null) => {
       if (epoch !== fileEpoch.current) return;
       setBusy((current) => {
         const next = new Set(current);
         next.delete(key);
         return next;
       });
-      setFailed((current) => (error ? key : current === key ? null : current));
+      setFailed((current) => (error !== null ? key : current === key ? null : current));
+      if (error !== null) setFailedSession(isSessionExpired(error));
     };
     setBusy((current) => new Set(current).add(key));
     setFailed((current) => (current === key ? null : current));
     void action().then(
-      () => settle(false),
-      () => settle(true),
+      () => settle(null),
+      (error: unknown) => {
+        // W-23: a 401 raises the re-auth banner and words the session, not the connection.
+        if (isUnauthorized(error)) publishReAuth();
+        settle(error ?? new Error('file failed'));
+      },
     );
   };
 
@@ -148,9 +158,13 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
   const shareLabel = (format: RevisionFileFormat, label: string) => (busy.has(`share:${format}`) ? copy.export.sharing : label);
   const fileError = (...keys: string[]) =>
     failed !== null && keys.includes(failed) ? (
-      <div className="gen-error" role="alert">
-        <span>{copy.export.fileFailed}</span>
-      </div>
+      failedSession ? (
+        <SessionExpiredNote />
+      ) : (
+        <div className="gen-error" role="alert">
+          <span>{copy.export.fileFailed}</span>
+        </div>
+      )
     ) : null;
 
   const entityState = useLiveQuery(() => (db === null ? Promise.resolve(null) : relatorioState(db, relatorioId)), [db, relatorioId], null);
@@ -305,7 +319,8 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
       phase.kind === 'blocked' ? copy.export.deadOpsReason : phase.kind === 'failed' ? failedReason(idleNumber) : idleReason(idleNumber);
     body = (
       <>
-        {phase.kind === 'failed' ? (
+        {phase.kind === 'failed' && phase.sessionExpired === true ? <SessionExpiredNote /> : null}
+        {phase.kind === 'failed' && phase.sessionExpired !== true ? (
           <div className="gen-error" role="alert">
             <span>{copy.export.failed}</span>
             {phase.missingFiles === undefined ? null : <span>{missingFilesText(phase.missingFiles)}</span>}
@@ -392,6 +407,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
                 </div>
               ))}
             </dl>
+            {snapshot === null || empresaRegistered(snapshot.empresa) ? null : <p className="pc-meta export-empresa-missing">{copy.export.empresaMissing}</p>}
           </div>
         )}
 
@@ -406,9 +422,13 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
         {body}
 
         {preview.phase.kind === 'failed' ? (
-          <div className="gen-error" role="alert">
-            <span>{copy.export.previewFailed}</span>
-          </div>
+          preview.phase.sessionExpired === true ? (
+            <SessionExpiredNote />
+          ) : (
+            <div className="gen-error" role="alert">
+              <span>{copy.export.previewFailed}</span>
+            </div>
+          )
         ) : null}
       </div>
       <div>

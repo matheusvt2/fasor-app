@@ -1,8 +1,8 @@
 import { photoToken, type OpDraft } from '@app/domain';
 import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
-import { extractStructure, readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.ts';
-import { samplePdf } from '../apps/api/src/jobs/generate/sample-pdf.ts';
+import { extractStructure, readZipEntries } from '../apps/api/src/jobs/generate/docx-structure.test-support.ts';
+import { samplePdf } from '../apps/api/src/jobs/generate/sample-pdf.test-support.ts';
 import { plainJpeg } from './fixtures/photos/synthetic.ts';
 import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-fixture.ts';
 import { deviceDatabaseName, expect, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';

@@ -165,12 +165,18 @@ export function repeatChecklistPattern(
 /**
  * The NC chips of a row beyond the seed's own phrases: the five most recent observations
  * typed for this item on any sheet of this relatório (cells ordered by their uuidv7 op id),
- * without repeats and without the phrases already offered.
+ * without repeats and without the phrases already offered. F-26: never the observation of
+ * `currentBlockId` itself (the sheet on screen), which the field already holds.
  */
-export function recentChecklistObservations(snapshot: Pick<RelatorioSnapshot, 'blocks'>, itemKey: string, seeded: readonly string[] = []): string[] {
+export function recentChecklistObservations(
+  snapshot: Pick<RelatorioSnapshot, 'blocks'>,
+  itemKey: string,
+  seeded: readonly string[] = [],
+  currentBlockId: string | null = null,
+): string[] {
   const cells: { text: string; opId: string }[] = [];
   for (const block of snapshot.blocks) {
-    if (block.removed_at !== null) continue;
+    if (block.removed_at !== null || block.id === currentBlockId) continue;
     const cell = block.sheet.checklist[itemKey]?.observation;
     if (cell === undefined || !isCellFilled(cell) || typeof cell.value !== 'string') continue;
     cells.push({ text: cell.value.trim(), opId: cell.op_id });

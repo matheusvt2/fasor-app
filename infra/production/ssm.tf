@@ -20,6 +20,20 @@ resource "aws_ssm_parameter" "session_secret" {
   value       = random_password.session_secret.result
 }
 
+# Security review 2026-09-30 (I-8): the header CloudFront sends to the origin and Caddy's
+# fallback site requires. Always generated (free), read only when the fallback is on.
+resource "random_password" "fallback_origin" {
+  length  = 48
+  special = false
+}
+
+resource "aws_ssm_parameter" "fallback_origin_secret" {
+  name        = "${local.ssm_prefix}/fallback-origin-secret"
+  description = "X-Origin-Verify value shared by the CloudFront fallback and Caddy"
+  type        = "SecureString"
+  value       = random_password.fallback_origin.result
+}
+
 # The tag of the last deploy. The deploy script writes it after a successful roll, so a
 # later apply without -var image_tag keeps the running images.
 resource "aws_ssm_parameter" "image_tag" {

@@ -4,9 +4,10 @@ import {
   PutBucketVersioningCommand,
   type S3Client,
 } from '@aws-sdk/client-s3';
+import { createServer, type Server, type Socket } from 'node:net';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { loadConfig } from '../config.ts';
-import { createS3, prepareStorage } from './s3.ts';
+import { createS3, getObject, prepareStorage } from './s3.ts';
 
 // The chain's environment variable, spelled in pieces: the provider-switch guard
 // (jobs/reading/providers/fake.test.ts) fails on any api source naming it literally.
@@ -101,4 +102,39 @@ describe('prepareStorage (Story 11.8)', () => {
     await prepareStorage(loadConfig(local), client);
     expect(commandTypes(sent)).toEqual([HeadBucketCommand, CreateBucketCommand, PutBucketVersioningCommand]);
   });
+});
+
+/*
+ * Review 2026-09-30, A-6: a stalled store never hangs a read. A local server accepts the
+ * connection and never answers; `getObject` through `createS3` rejects within the request
+ * timeout it was given (production: 5 s to connect, 120 s per request).
+ */
+describe('A-6 S3 request timeouts', () => {
+  it('rejects a GetObject the endpoint never answers, within the request timeout', async () => {
+    const sockets = new Set<Socket>();
+    const server: Server = createServer((socket) => {
+      sockets.add(socket);
+      socket.on('error', () => undefined);
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    const port = typeof address === 'object' && address !== null ? address.port : 0;
+    try {
+      const s3 = createS3(loadConfig({ ...local, S3_ENDPOINT: `http://127.0.0.1:${port}` }), { requestTimeoutMs: 300, connectionTimeoutMs: 300 });
+      const started = Date.now();
+      const outcome = await Promise.race([
+        getObject(s3, 'app-files', 'company/x/photo/y/print').then(
+          () => 'resolved',
+          (error: unknown) => `rejected: ${String(error)}`,
+        ),
+        new Promise<string>((resolve) => setTimeout(() => resolve('still hanging'), 5000)),
+      ]);
+      expect(outcome).toMatch(/^rejected/);
+      expect(Date.now() - started).toBeLessThan(4000);
+      s3.destroy();
+    } finally {
+      for (const socket of sockets) socket.destroy();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  }, 15_000);
 });

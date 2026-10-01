@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   canonicalDecimal,
   formatDecimalGroupedPtBr,
-  formatDecimalPtBr,
   INSULATION_UNITS,
   numberEchoText,
   parseDecimalPtBr,
@@ -42,11 +41,6 @@ describe('5.3-UNIT parseDecimalPtBr (EXPERIENCE.md › Measurement field, Parsin
     expect(parseDecimalPtBr('13,8,1')).toBeNull();
     expect(parseDecimalPtBr('12.34,5')).toBeNull();
     expect(parseDecimalPtBr('15 kV')).toBeNull();
-  });
-
-  it('formats a dot-decimal raw back to pt-BR', () => {
-    expect(formatDecimalPtBr('13.8')).toBe('13,8');
-    expect(formatDecimalPtBr('630')).toBe('630');
   });
 });
 

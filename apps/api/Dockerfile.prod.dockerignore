@@ -29,6 +29,7 @@ docker/
 apps/api/.drizzle-check/
 **/*.test.ts
 **/*.test.tsx
+**/*.test-support.ts
 **/*.tfstate
 **/*.tfstate.*
 **/tfplan

@@ -221,6 +221,51 @@ export function composeCaption(parts: CaptionParts): string | null {
   return out.length === 0 ? null : out.join(' ');
 }
 
+/** An activity read off a composed caption: "Detalhe d⟨o/a⟩(s) ⟨atividade⟩ realizad⟨o/a⟩(s)…", its agreement from the article. */
+const COMPOSED_ACTIVITY = /^Detalhe d(o|a)(s?) (.+?) realizad(?:o|a)s?(?: |$)/u;
+
+function activityInCaption(text: string): CaptionWord | null {
+  const match = COMPOSED_ACTIVITY.exec(text);
+  if (match === null) return null;
+  return { name: match[3]!, gender: match[1] === 'a' ? 'f' : 'm', number: match[2] === 's' ? 'plural' : 'singular' };
+}
+
+/**
+ * Review 2026-09-30 (the caption composer opened in "Editar texto"): the chip parts a stored
+ * caption was composed of, or null when no parts compose it (a caption typed by hand, which
+ * the composer opens as free text). The prefill wins, then the activity the caption itself
+ * names (a capture-time activity such as "verificação de contatos" or a test table's, which
+ * the composer no longer prefills, with the agreement its article gives), then the
+ * `candidates`; any part may also have been left out. No caption: the prefill.
+ */
+export function captionPartsOf(
+  stored: string | null,
+  prefill: CaptionParts,
+  candidates: { atividades?: readonly CaptionWord[]; equipamentos?: readonly CaptionWord[]; locais?: readonly CaptionWord[] } = {},
+): CaptionParts | null {
+  if (stored === null) return prefill;
+  const text = stored.trim();
+  const options = (first: CaptionWord | null, more: readonly (CaptionWord | null)[]): (CaptionWord | null)[] => {
+    const out: (CaptionWord | null)[] = [];
+    for (const word of [first, null, ...more]) {
+      if (!out.some((known) => (known === null ? word === null : word !== null && known.name === word.name && known.gender === word.gender && known.number === word.number))) out.push(word);
+    }
+    return out;
+  };
+  const atividades = options(prefill.atividade, [activityInCaption(text), ...(candidates.atividades ?? [])]);
+  const equipamentos = options(prefill.equipamento, candidates.equipamentos ?? []);
+  const locais = options(prefill.local, candidates.locais ?? []);
+  for (const atividade of atividades) {
+    for (const equipamento of equipamentos) {
+      for (const local of locais) {
+        const parts = { atividade, equipamento, local };
+        if (composeCaption(parts) === text) return parts;
+      }
+    }
+  }
+  return null;
+}
+
 /**
  * The caption of a photo taken where the engineer stands: equipment and location from its
  * sheet, activity from the section on screen (an NC row's item, or the test table). Null
@@ -277,14 +322,16 @@ export const CAPTION_RECENTS_MAX = 5;
 
 /**
  * Story 6.5: one chip row of the composer: the prefilled value, then up to five recents,
- * then the seed names, deduplicated case-insensitively (the UI appends "Outro…").
+ * then the seed names, deduplicated case-insensitively (the UI appends "Outro…"). `opened`
+ * (the part a stored caption was composed of, `captionPartsOf`) comes first when given.
  */
-export function captionChipOptions(prefill: string | null, recents: readonly string[], seed: readonly string[]): string[] {
+export function captionChipOptions(prefill: string | null, recents: readonly string[], seed: readonly string[], opened: string | null = null): string[] {
   const out: string[] = [];
   const add = (name: string) => {
     const trimmed = name.trim();
     if (trimmed !== '' && !out.some((known) => sameName(known, trimmed))) out.push(trimmed);
   };
+  if (opened !== null) add(opened);
   if (prefill !== null) add(prefill);
   recents.slice(0, CAPTION_RECENTS_MAX).forEach(add);
   seed.forEach(add);

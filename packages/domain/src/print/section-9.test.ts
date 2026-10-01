@@ -13,7 +13,7 @@ import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { getDefinition } from '../seed/definitions.ts';
 import { TEST_PROJECT } from '../test-support.ts';
 import { EMPTY_SECTION_NOTE, layoutSpec } from './layout.ts';
-import { layoutPhotoIds, section9Layout, type LayoutSectionSheets, type PrintSheet, type PrintTable, type SheetPart } from './section-9.ts';
+import { section9Layout, type LayoutSectionSheets, type PrintSheet, type PrintTable, type SheetPart } from './section-9.ts';
 
 /*
  * Story 7.1 (+ 7.2 AC2, E12-A2): the section 9 layout over small hand-built relatórios,
@@ -239,8 +239,6 @@ describe('7.1 section9Layout: one sheet in FO.SERV-03 order', () => {
       [id(3003), numbers.get(id(3003))],
     ]);
     expect(photos.map((p) => p.caption)).toEqual(['Imagem 4.', 'Imagem 3: Detalhe dos contatos.', 'Imagem 2.', 'Imagem 5: Vista geral.']);
-    // Every photo a sheet prints, in print order: this sheet's, then the disjuntor's.
-    expect(layoutPhotoIds({ sections: [layout] })).toEqual([id(3002), id(3001), id(3004), id(3003), id(3005)]);
   });
 
   it('prints DADOS DO EQUIPAMENTO three pairs a row, labels in caps, values as stored with their units, "-" when empty', () => {
@@ -300,7 +298,6 @@ describe('7.1 section9Layout: one sheet in FO.SERV-03 order', () => {
   it('prints the cabine block on its first sheet only, and no photo that belongs to another sheet or was removed', () => {
     const second = sheetOf(layout, block(2));
     expect(second.parts.map(partName)).not.toContain('CARACTERÍSTICAS DA SE');
-    expect(layoutPhotoIds({ sections: [layout] })).not.toContain(id(3006));
     expect(second.parts.some((p) => p.kind === 'photos')).toBe(true);
   });
 });
@@ -383,7 +380,6 @@ describe('7.1 section9Layout: the I/O matrix', () => {
     // With the nameplate switched off, the band alone.
     const plateOff = snapshotOf([cabine(1, 'Cabine A', 'a0')], [sheet(9, 1, 'tp', 'a0'), edit(marked(2, 'disjuntor_mt', 'outro', 'Equipamento energizado'), withSubBlocks({ nameplate: false }))]);
     expect(sheetOf(layoutOf(plateOff), block(2)).parts.map(partName)).toEqual(['NÃO ENSAIADO — Equipamento energizado']);
-    expect(layoutPhotoIds({ sections: [section] })).toEqual([]);
   });
 
   it('TAG prefill (E12-A2): the TAG field prints the block\'s TAG while it has no cell; a stored TAG wins; an empty stored cell prints "-"; nothing is written', () => {
@@ -486,7 +482,6 @@ describe('7.1 section9Layout: the I/O matrix', () => {
     expect(section9Layout(snapshotOf([cabine(1, 'Cabine A', 'a0')], []), 9, TITLE)).toBeNull();
     const layout = layoutSpec(snapshotOf([cabine(1, 'Cabine A', 'a0')], []), { revisionNumber: 1, issuedAt: ISSUED_AT });
     expect(layout.sections.find((s) => s.number === 9)).toEqual({ number: 9, title: TITLE, kind: 'empty', note: EMPTY_SECTION_NOTE });
-    expect(layoutPhotoIds(layout)).toEqual([]);
   });
 });
 
@@ -585,7 +580,6 @@ describe('7.1 section9Layout: sub-blocks, grids and words', () => {
     const printed = sheetOf(section, block(1));
     expect(printed.parts.map(partName)).toEqual(['photos 1']);
     expect(printed.parts[0]).toEqual({ kind: 'photos', photos: [{ fileId: id(3001), number: 1, caption: 'Imagem 1: Limpeza do TP.' }] });
-    expect(layoutPhotoIds({ sections: [section] })).toEqual([id(3001)]);
   });
 
   it('marks NA the checklist items the block\'s config pre-marks, and leaves an unanswered item blank', () => {

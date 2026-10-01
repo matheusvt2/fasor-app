@@ -21,6 +21,7 @@ import {
   type EntityKey,
   type EntityRow,
   type Op,
+  type OpPath,
   type OpRejectCode,
   type ReadingKindPutPhoto,
   type RegistryRow,
@@ -54,9 +55,18 @@ export interface ApplyResult {
  * the session's user id; the server's own emitters pass `server` (provisioning's
  * `user/{id}` projection today, the Epic 6 files, reading and generate jobs later).
  */
-export type ApplyDeps = { now: Clock } & ({ origin: 'client'; actorId: string } | { origin: 'server' });
+export type ApplyDeps = {
+  now: Clock;
+  /**
+   * Runs inside the push's transaction, right after the company lock and before the first
+   * op (A-10: the push route's mark-blind check reads the rows it guards under the same lock
+   * as the writes). Whatever it throws rolls the push back and propagates as is.
+   */
+  before?: (tx: Tx) => Promise<void>;
+} & ({ origin: 'client'; actorId: string } | { origin: 'server' });
 
-type Validation = { ok: true; op: Op } | { ok: false; code: OpRejectCode };
+/** A valid op carries its parsed path, so the apply path parses it once (A-23). */
+type Validation = { ok: true; op: Op; path: OpPath } | { ok: false; code: OpRejectCode };
 
 /**
  * The `file/server` fields a create may not carry a value for. `reading_status` is left
@@ -119,26 +129,26 @@ class ReadingKindPutRefusedError extends Error {
  * caption or the "Pessoas na foto" mark), before `applyOp` would queue a second paid reading or
  * send a marked photo to the prose provider. Server ops are never checked here.
  */
-function assertClientReadingKindPut(op: Op, state: ReadonlyMap<EntityKey, EntityRow>, origin: ApplyDeps['origin']): void {
+function assertClientReadingKindPut(op: Op, path: OpPath, state: ReadonlyMap<EntityKey, EntityRow>, origin: ApplyDeps['origin']): void {
   if (origin !== 'client' || op.kind !== 'put') return;
-  const path = parsePath(op.path);
   if (path.family !== 'file/field' || path.field !== 'reading_kind') return;
   const photo = state.get(entityKey('file', path.id)) as ReadingKindPutPhoto | undefined;
   if (!clientReadingKindPutAllowed(photo, op.value)) throw new ReadingKindPutRefusedError(op.path);
 }
 
 function validate(raw: unknown, companyId: CompanyId, deps: ApplyDeps): Validation {
-  const path = (raw as { path?: unknown } | null)?.path;
-  if (typeof path === 'string') {
+  const rawPath = (raw as { path?: unknown } | null)?.path;
+  let path: OpPath | null = null;
+  if (typeof rawPath === 'string') {
     try {
-      parsePath(path);
+      path = parsePath(rawPath);
     } catch (error) {
       if (error instanceof PathError) return { ok: false, code: 'op_path_unknown' };
       throw error;
     }
   }
   const parsed = opSchema.safeParse(raw);
-  if (!parsed.success) return { ok: false, code: 'op_invalid' };
+  if (!parsed.success || path === null) return { ok: false, code: 'op_invalid' };
   const op = parsed.data;
   if (op.company_id !== companyId) return { ok: false, code: 'op_tenant_mismatch' };
   if (isServerOnly(op.path) && op.device_id !== SERVER_DEVICE_ID) return { ok: false, code: 'op_server_only' };
@@ -151,7 +161,6 @@ function validate(raw: unknown, companyId: CompanyId, deps: ApplyDeps): Validati
     // A user row is written only by that user (CAP-6): the registration of a colleague,
     // in this company or any other, is refused per op. The name is identity-owned
     // (provisioning writes it), so no client may write it, not even its own.
-    const path = parsePath(op.path);
     if (path.family === 'user/field' && (path.id !== deps.actorId || path.field === 'name')) {
       return { ok: false, code: 'op_forbidden' };
     }
@@ -169,7 +178,7 @@ function validate(raw: unknown, companyId: CompanyId, deps: ApplyDeps): Validati
       return { ok: false, code: 'op_invalid' };
     }
   }
-  return { ok: true, op };
+  return { ok: true, op, path };
 }
 
 /** The op_id is already taken by another company's op: the insert can never succeed. */
@@ -226,15 +235,22 @@ async function mergedInto(tx: Tx, companyId: CompanyId, kind: MergeKind, id: str
   return typeof target === 'string' ? target : null;
 }
 
+/** An op with its parsed path (A-23: parsed once per op along the apply). */
+interface PathedOp {
+  op: Op;
+  path: OpPath;
+}
+
 /** The same registry op on another id of the same kind (a create's row id follows its path). */
-function retarget(op: Op, id: string): Op {
-  const path = parsePath(op.path);
-  if (path.family !== 'registry' && path.family !== 'registry/field') return op;
+function retarget(target: PathedOp, id: string): PathedOp {
+  const { op, path } = target;
+  if (path.family !== 'registry' && path.family !== 'registry/field') return target;
   const value =
     op.kind === 'create' && op.value !== null && typeof op.value === 'object' && !Array.isArray(op.value)
       ? { ...(op.value as Record<string, unknown>), id }
       : op.value;
-  return { ...op, path: formatPath({ ...path, id }), value };
+  const moved = { ...path, id };
+  return { op: { ...op, path: formatPath(moved), value }, path: moved };
 }
 
 /**
@@ -243,12 +259,69 @@ function retarget(op: Op, id: string): Op {
  * missing entity and `applyOp` would silently no-op it (AD-3), and the device that sent
  * it would get an ack for an edit nobody holds.
  */
-async function redirectOp(tx: Tx, companyId: CompanyId, op: Op): Promise<Op> {
-  const path = parsePath(op.path);
-  if (path.family !== 'registry' && path.family !== 'registry/field') return op;
-  if (!isMergeKind(path.kind)) return op;
+async function redirectOp(tx: Tx, companyId: CompanyId, target: PathedOp): Promise<PathedOp> {
+  const { path } = target;
+  if (path.family !== 'registry' && path.family !== 'registry/field') return target;
+  if (!isMergeKind(path.kind)) return target;
   const survivor = await mergedInto(tx, companyId, path.kind, path.id);
-  return survivor === null ? op : retarget(op, survivor);
+  return survivor === null ? target : retarget(target, survivor);
+}
+
+/**
+ * A-1 (review 2026-09-30): the live manufacturer/voltage_class rows of the company by
+ * normalized name, loaded once per kind per call of `applyOps`/`applyServerBatch` (never at
+ * module level: a concurrent push of the company waits on the lock and builds its own).
+ * A create that inserted a new row adds it; any other applied op on a row of the kind drops
+ * that kind (the next create reloads it); a rolled-back batch savepoint drops every kind.
+ */
+type RegistryNames = Map<MergeKind, Map<string, string[]>>;
+
+async function registryNames(tx: Tx, companyId: CompanyId, kind: MergeKind, cache: RegistryNames): Promise<Map<string, string[]>> {
+  const known = cache.get(kind);
+  if (known !== undefined) return known;
+  // Only the live rows of this kind are loaded (the JSON `kind` filtered in SQL); the check
+  // below stays as the guard of the rule.
+  const candidates = await tx
+    .select({ id: entities.id, row: entities.row })
+    .from(entities)
+    .where(
+      and(
+        eq(entities.company_id, companyId),
+        eq(entities.entity, 'registry'),
+        isNull(entities.removed_at),
+        sql`${entities.row}->>'kind' = ${kind}`,
+      ),
+    );
+  const names = new Map<string, string[]>();
+  for (const candidate of candidates) {
+    const row = candidate.row as RegistryRow;
+    if (row.kind !== kind) continue;
+    addName(names, normalizeRegistryName(row.name), candidate.id);
+  }
+  cache.set(kind, names);
+  return names;
+}
+
+function addName(names: Map<string, string[]>, normalized: string, id: string): void {
+  const ids = names.get(normalized);
+  if (ids === undefined) names.set(normalized, [id]);
+  else if (!ids.includes(id)) ids.push(id);
+}
+
+/** Keeps the cache current after an op was applied (the entity writes are done). */
+function noteRegistryWrite(cache: RegistryNames, target: PathedOp, existedBefore: boolean): void {
+  const { op, path } = target;
+  if (path.family !== 'registry' && path.family !== 'registry/field') return;
+  if (!isMergeKind(path.kind)) return;
+  const names = cache.get(path.kind);
+  if (names === undefined) return;
+  const name = (op.value as { name?: unknown } | null)?.name;
+  if (path.family === 'registry' && op.kind === 'create' && !existedBefore && typeof name === 'string') {
+    const normalized = normalizeRegistryName(name);
+    if (normalized !== '') addName(names, normalized, path.id);
+    return;
+  }
+  cache.delete(path.kind);
 }
 
 /**
@@ -263,34 +336,19 @@ async function redirectOp(tx: Tx, companyId: CompanyId, op: Op): Promise<Op> {
 async function mergeTarget(
   tx: Tx,
   companyId: CompanyId,
-  op: Op,
+  target: PathedOp,
+  cache: RegistryNames,
 ): Promise<{ kind: MergeKind; from: string; into: string } | null> {
+  const { op, path } = target;
   if (op.kind !== 'create') return null;
-  const path = parsePath(op.path);
   if (path.family !== 'registry' || !isMergeKind(path.kind)) return null;
   const kind = path.kind;
   const incomingName = (op.value as { name?: unknown } | null)?.name;
   if (typeof incomingName !== 'string') return null;
   const normalized = normalizeRegistryName(incomingName);
   if (normalized === '') return null;
-  // Only the live rows of this kind are loaded (the JSON `kind` filtered in SQL); the JS check
-  // below stays as the guard of the rule.
-  const candidates = await tx
-    .select({ id: entities.id, row: entities.row })
-    .from(entities)
-    .where(
-      and(
-        eq(entities.company_id, companyId),
-        eq(entities.entity, 'registry'),
-        isNull(entities.removed_at),
-        sql`${entities.row}->>'kind' = ${kind}`,
-      ),
-    );
-  const match = candidates.find((c) => {
-    const row = c.row as RegistryRow;
-    return c.id !== path.id && row.kind === kind && normalizeRegistryName(row.name) === normalized;
-  });
-  return match === undefined ? null : { kind, from: path.id, into: match.id };
+  const match = (await registryNames(tx, companyId, kind, cache)).get(normalized)?.find((id) => id !== path.id);
+  return match === undefined ? null : { kind, from: path.id, into: match };
 }
 
 /** Inserts one op into the log; `undefined` when its `op_id` is already there (a dedupe hit). */
@@ -325,7 +383,14 @@ async function insertOp(tx: Tx, companyId: CompanyId, op: Op, receivedAt: string
  * commit order. `applyOps` runs every op of a push in one transaction under one lock;
  * `applyServerBatch` runs several under one lock so they land together or not at all.
  */
-async function applyOneIn(tx: Tx, companyId: CompanyId, received: Op, receivedAt: string, origin: ApplyDeps['origin']): Promise<Applied> {
+async function applyOneIn(
+  tx: Tx,
+  companyId: CompanyId,
+  received: PathedOp,
+  receivedAt: string,
+  origin: ApplyDeps['origin'],
+  cache: RegistryNames,
+): Promise<Applied> {
   // Epic 2 retro D-1: an op on a merged-away id is rewritten onto the survivor, and a
   // create that merges is rewritten onto the row it merges into, *before* the op is
   // logged. The log then holds what was applied, so every device that pulls it (the one
@@ -333,24 +398,30 @@ async function applyOneIn(tx: Tx, companyId: CompanyId, received: Op, receivedAt
   // ack and the dedupe still work, and the device's `rematerialize` lets the pulled
   // version stand in for its own outbox copy (`sync-store.ts`).
   const redirected = await redirectOp(tx, companyId, received);
-  const merge = await mergeTarget(tx, companyId, redirected);
-  const op = merge === null ? redirected : retarget(redirected, merge.into);
+  const merge = await mergeTarget(tx, companyId, redirected, cache);
+  const target = merge === null ? redirected : retarget(redirected, merge.into);
+  const op = target.op;
 
   // The server's current op on this path, read before the insert. Implicit-relatorio
   // families (`relatorio/status`, `relatorio/setup/*`) share one path across relatorios,
-  // so the relatorio id narrows the lookup whenever the op carries one.
-  const [latest] = await tx
-    .select({ op_id: ops.op_id })
-    .from(ops)
-    .where(
-      and(
-        eq(ops.company_id, companyId),
-        eq(ops.path, op.path),
-        op.relatorio_id ? eq(ops.relatorio_id, op.relatorio_id) : undefined,
-      ),
-    )
-    .orderBy(desc(ops.seq))
-    .limit(1);
+  // so the relatorio id narrows the lookup whenever the op carries one. A-23: not for a
+  // create, whose `prev_op_id` is always null and whose superseded pair the kernel never
+  // shows (`mergeInfoOf` returns null for a create).
+  const [latest] =
+    op.kind === 'create'
+      ? []
+      : await tx
+          .select({ op_id: ops.op_id })
+          .from(ops)
+          .where(
+            and(
+              eq(ops.company_id, companyId),
+              eq(ops.path, op.path),
+              op.relatorio_id ? eq(ops.relatorio_id, op.relatorio_id) : undefined,
+            ),
+          )
+          .orderBy(desc(ops.seq))
+          .limit(1);
 
   const seq = await insertOp(tx, companyId, op, receivedAt);
   if (seq === undefined) {
@@ -379,7 +450,7 @@ async function applyOneIn(tx: Tx, companyId: CompanyId, received: Op, receivedAt
   for (const row of rows) state.set(entityKey(row.entity as Entity, row.id), row.row);
   let next: ReturnType<typeof applyOp>;
   try {
-    assertClientReadingKindPut(op, state, origin);
+    assertClientReadingKindPut(op, target.path, state, origin);
     next = applyOp(state, { ...op, seq });
   } catch (error) {
     // E6-A1: a refusal by `applyOp` (row schema, seed path) comes before any entity write,
@@ -397,6 +468,7 @@ async function applyOneIn(tx: Tx, companyId: CompanyId, received: Op, receivedAt
       .values({ company_id: companyId, entity, id, ...columns })
       .onConflictDoUpdate({ target: [entities.company_id, entities.entity, entities.id], set: columns });
   }
+  noteRegistryWrite(cache, target, target.path.family === 'registry' && state.has(entityKey('registry', target.path.id)));
 
   if (merge !== null) {
     // The system op that retires the merged-away id on every device and persists the
@@ -473,11 +545,11 @@ export async function applyServerBatch(
   rawOps: readonly unknown[],
   deps: ServerBatchDeps,
 ): Promise<ApplyResult> {
-  const validated: Op[] = [];
+  const validated: PathedOp[] = [];
   const rejected: { op_id: string; code: OpRejectCode }[] = [];
   for (const raw of rawOps) {
     const validation = validate(raw, companyId, { now: deps.now, origin: 'server' });
-    if (validation.ok) validated.push(validation.op);
+    if (validation.ok) validated.push({ op: validation.op, path: validation.path });
     else {
       const rawId = (raw as { op_id?: unknown } | null)?.op_id;
       rejected.push({ op_id: typeof rawId === 'string' ? rawId : '', code: validation.code });
@@ -487,13 +559,15 @@ export async function applyServerBatch(
   const receivedAt = toIso(deps.now());
   const result: ApplyResult = { applied: [], rejected: [], superseded: [] };
   let applying: Op | null = null;
+  const cache: RegistryNames = new Map();
   try {
     await db.transaction(async (tx) => {
       await lockCompany(tx, companyId);
       if (deps.before !== undefined) await deps.before(tx);
-      for (const op of validated) {
+      for (const target of validated) {
+        const op = target.op;
         applying = op;
-        const { seq, supersededOver } = await applyOneIn(tx, companyId, op, receivedAt, 'server');
+        const { seq, supersededOver } = await applyOneIn(tx, companyId, target, receivedAt, 'server', cache);
         result.applied.push({ op_id: op.op_id, seq });
         if (supersededOver !== null) result.superseded.push({ op_id: op.op_id, over_op_id: supersededOver });
       }
@@ -524,7 +598,7 @@ class BatchRefusedError extends Error {
   }
 }
 
-type Step = ({ ok: true; op: Op } | { ok: false; op_id: string; code: OpRejectCode }) & { batch_id: string | null };
+type Step = ({ ok: true; op: Op; path: OpPath } | { ok: false; op_id: string; code: OpRejectCode }) & { batch_id: string | null };
 
 /**
  * Applies ops in array order for one tenant; one rejected op never blocks the rest.
@@ -579,6 +653,8 @@ export async function applyOps(
     for (const member of group) result.rejected.push({ op_id: opIdOf(member), code: member.ok ? 'op_invalid' : member.code });
   };
 
+  const cache: RegistryNames = new Map();
+
   /** One multi-op batch: all of it under one savepoint, or none of it. */
   const applyBatchIn = async (tx: Tx, group: readonly Step[]): Promise<void> => {
     if (group.some((member) => !member.ok)) {
@@ -590,9 +666,10 @@ export async function applyOps(
     try {
       await tx.transaction(async (savepoint) => {
         for (const member of group) {
-          const op = (member as { op: Op }).op;
+          const target = member as { op: Op; path: OpPath };
+          const op = target.op;
           try {
-            const { seq, supersededOver } = await applyOneIn(savepoint, companyId, op, toIso(deps.now()), deps.origin);
+            const { seq, supersededOver } = await applyOneIn(savepoint, companyId, target, toIso(deps.now()), deps.origin, cache);
             applied.push({ op_id: op.op_id, seq });
             if (supersededOver !== null) superseded.push({ op_id: op.op_id, over_op_id: supersededOver });
           } catch (error) {
@@ -602,6 +679,8 @@ export async function applyOps(
         }
       });
     } catch (error) {
+      // The savepoint rolled back what the batch wrote, rows the registry cache may name.
+      cache.clear();
       if (!(error instanceof BatchRefusedError)) throw error;
       refuseAll(group);
       return;
@@ -610,12 +689,13 @@ export async function applyOps(
     result.superseded.push(...superseded);
   };
 
-  if (!steps.some((step) => step.ok)) {
+  if (!steps.some((step) => step.ok) && deps.before === undefined) {
     for (const step of steps) if (!step.ok) result.rejected.push({ op_id: step.op_id, code: step.code });
     return result;
   }
   await db.transaction(async (tx) => {
     await lockCompany(tx, companyId);
+    if (deps.before !== undefined) await deps.before(tx);
     const handled = new Set<Step>();
     for (const step of steps) {
       if (handled.has(step)) continue;
@@ -630,7 +710,7 @@ export async function applyOps(
         continue;
       }
       try {
-        const { seq, supersededOver } = await applyOneIn(tx, companyId, step.op, toIso(deps.now()), deps.origin);
+        const { seq, supersededOver } = await applyOneIn(tx, companyId, step, toIso(deps.now()), deps.origin, cache);
         result.applied.push({ op_id: step.op.op_id, seq });
         if (supersededOver !== null) result.superseded.push({ op_id: step.op.op_id, over_op_id: supersededOver });
       } catch (error) {

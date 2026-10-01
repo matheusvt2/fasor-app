@@ -10,6 +10,7 @@ import {
   storedTestCell,
   suggestionFieldDef,
   suggestionRowSchema,
+  suggestionTarget,
   suggestionView,
   type Author,
   type BlockRow,
@@ -199,16 +200,24 @@ export interface ReadingCountRows {
  * live photos' readings, for Sync status "Leituras".
  */
 export async function readingCountRows(db: AppDatabase): Promise<ReadingCountRows> {
-  const [pending, blocks, locations, files] = await Promise.all([
-    pendingRows(db),
-    db.entities.where('entity').equals('block').toArray(),
-    db.entities.where('entity').equals('location').toArray(),
-    db.entities.where('entity').equals('file').toArray(),
+  const [pending, files] = await Promise.all([pendingRows(db), db.entities.where('entity').equals('file').toArray()]);
+  // W-6 (full review 2026-09-30): only the blocks and cabines the pending rows name are read
+  // (`livePendingSuggestions` asks nothing else of them), never every block with its sheet.
+  const blockIds = new Set<string>();
+  const locationIds = new Set<string>();
+  for (const row of pending) {
+    const target = suggestionTarget(row.target_path);
+    if (target?.kind === 'block') blockIds.add(target.block_id);
+    else if (target?.kind === 'location') locationIds.add(target.location_id);
+  }
+  const [blockRecords, locationRecords] = await Promise.all([
+    db.entities.bulkGet([...blockIds].map((id) => ['block', id] as ['block', string])),
+    db.entities.bulkGet([...locationIds].map((id) => ['location', id] as ['location', string])),
   ]);
   const live = livePendingSuggestions(
-    blocks.map((record) => record.row as BlockRow),
+    blockRecords.flatMap((record) => (record === undefined ? [] : [record.row as BlockRow])),
     pending,
-    locations.map((record) => record.row as LocationRow),
+    locationRecords.flatMap((record) => (record === undefined ? [] : [record.row as LocationRow])),
   );
   const photos = files
     .filter((record) => record.removed_at === null && (record.row as { removed_at?: unknown }).removed_at == null && (record.row as { kind?: unknown }).kind === 'photo')

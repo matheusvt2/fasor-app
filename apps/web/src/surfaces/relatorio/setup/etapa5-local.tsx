@@ -3,6 +3,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Button, DateField, TextButton } from '../../../components/index.ts';
 import { copy } from '../../../copy/pt-br.ts';
 import { restoreFocus } from '../../../input/focus-restore.ts';
+import { siteAltitudeReading } from './altitude-reading.ts';
 import { useDateField, useTextField, type BandRef, type CommitField, type CommitFields } from './setup-fields.ts';
 
 // --- Etapa 5 — Local -------------------------------------------------------------------------
@@ -37,20 +38,25 @@ export function Etapa5Local({
   const [reading, setReading] = useState<string | null>(null);
   const altitudeInput = useRef<HTMLInputElement | null>(null);
 
+  // F-11 / W-14: the device is asked once per relatório (`siteAltitudeReading` keeps the first
+  // answer); a later mount shows the kept reading without asking, and an answer arriving after
+  // the page is gone sets nothing.
+  const relatorioId = snapshot.relatorio.id;
   useEffect(() => {
     if (setup.site_altitude_m !== null || setup.site_altitude_confirmed) return;
-    const geolocation = (globalThis.navigator as Navigator | undefined)?.geolocation;
-    if (geolocation === undefined) return;
-    geolocation.getCurrentPosition(
-      (position) => {
-        if (altitudeUserEdited.current || position.coords.altitude === null) return;
-        const text = String(Math.round(position.coords.altitude));
-        setReading(text);
-        setAltitudeText(text);
-      },
-      () => undefined,
-    );
-    // Asked once per relatório, on mount only.
+    const answer = siteAltitudeReading(relatorioId, (globalThis.navigator as Navigator | undefined)?.geolocation);
+    if (answer === null) return;
+    let cancelled = false;
+    void answer.then(({ altitude }) => {
+      if (cancelled || altitudeUserEdited.current || altitude === null) return;
+      const text = String(altitude);
+      setReading(text);
+      setAltitudeText(text);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // On mount only: the relatório of this page does not change under it.
   }, []);
 
   const parsedAltitude = altitudeText.trim() === '' ? null : Number(altitudeText);
