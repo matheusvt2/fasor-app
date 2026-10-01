@@ -3,3 +3,6 @@
 budget_alert_emails = ["operator@example.com"]
 # Contact of the Let's Encrypt ACME account Caddy creates.
 acme_email = "operator@example.com"
+# Host name of the app, with an A record to the Elastic IP in the domain's DNS (apply only
+# once it resolves). Omit to serve the IP URL only.
+# app_domain = "app.example.com"

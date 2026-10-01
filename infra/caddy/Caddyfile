@@ -30,6 +30,14 @@
 	reverse_proxy 127.0.0.1:3000
 }
 
+# The domain (Terraform `app_domain`): a regular Let's Encrypt certificate (about 90 days,
+# renewed by Caddy), validated by HTTP-01 on port 80 once the domain's A record points at
+# the Elastic IP. Unset, the name is `localhost`, which Caddy serves from its own internal
+# CA and never asks Let's Encrypt for.
+{$APP_DOMAIN:localhost} {
+	reverse_proxy 127.0.0.1:3000
+}
+
 # The CloudFront fallback (infra/production/cloudfront.tf): CloudFront terminates TLS on
 # its own *.cloudfront.net name and reaches this site over plain HTTP with that Host.
 # Unset, the name matches nothing.

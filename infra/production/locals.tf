@@ -23,8 +23,12 @@ locals {
   # The tag of the running images: the one this apply deploys, else the last deploy's.
   image_tag = coalesce(var.image_tag, data.aws_ssm_parameter.image_tag.insecure_value)
 
-  public_ip      = aws_eip.this.public_ip
-  public_url     = "https://${aws_eip.this.public_ip}"
+  public_ip  = aws_eip.this.public_ip
+  public_url = "https://${aws_eip.this.public_ip}"
+  app_url    = var.app_domain == null ? null : "https://${var.app_domain}"
+  # The api's own origin (better-auth never derives it from the request Host): the domain
+  # when there is one, else the IP URL. The deploy script still polls the IP URL.
+  primary_url    = coalesce(local.app_url, local.public_url)
   cloudfront_url = var.enable_cloudfront_fallback ? "https://${aws_cloudfront_distribution.fallback[0].domain_name}" : null
   # Caddy answers the CloudFront Host on plain HTTP; unset, the site name matches nothing.
   fallback_host = var.enable_cloudfront_fallback ? aws_cloudfront_distribution.fallback[0].domain_name : "fallback.invalid"

@@ -57,6 +57,11 @@ output "public_url" {
   value = local.public_url
 }
 
+output "app_url" {
+  description = "The domain URL, or null when app_domain is unset."
+  value       = local.app_url
+}
+
 output "cloudfront_url" {
   value = local.cloudfront_url == null ? "" : local.cloudfront_url
 }

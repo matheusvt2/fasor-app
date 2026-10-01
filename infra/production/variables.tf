@@ -88,6 +88,17 @@ variable "enable_cloudfront_fallback" {
   default     = false
 }
 
+variable "app_domain" {
+  description = "Host name the app is served under (for example app.example.com), with an A record to the Elastic IP in the domain's DNS. Caddy gets a regular Let's Encrypt certificate for it and the api takes it as its own origin; the IP URL keeps working. Null serves the IP URL only. Set in the untracked terraform.tfvars; apply only once the A record resolves, or the ACME validation fails."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.app_domain == null || can(regex("^([a-z0-9]([a-z0-9-]*[a-z0-9])?\\.)+[a-z]{2,}$", var.app_domain))
+    error_message = "app_domain must be a lower-case host name such as app.example.com."
+  }
+}
+
 variable "acme_email" {
   description = "Contact address of the Let's Encrypt ACME account Caddy creates. No default: set in the untracked terraform.tfvars."
   type        = string
