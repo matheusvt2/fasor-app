@@ -84,4 +84,30 @@ describe('W-11 CropThumb shares one source picture per photo', () => {
     expect(revokeObjectURL).toHaveBeenCalledTimes(1);
     expect(revokeObjectURL).toHaveBeenCalledWith([...sources][0]);
   });
+  it('a load that found no picture is retried by the next thumb that mounts, while the first stays mounted', async () => {
+    database = await freshDb();
+    let online = false;
+    const fetchFile = vi.fn(async () => {
+      if (!online) throw new Error('offline');
+      return new Blob(['plate-original'], { type: 'image/jpeg' });
+    });
+    const actions = actionsWith(fetchFile);
+    const thumbs = (n: number) => (
+      <SyncActionsContext value={actions}>
+        {Array.from({ length: n }, (_, i) => (
+          <CropThumb key={i} photoId={PHOTO} bbox={[0, 0, 0.5, 0.5]} label={`Campo ${i + 1}`} />
+        ))}
+      </SyncActionsContext>
+    );
+    const view = render(thumbs(1));
+    await waitFor(() => expect(fetchFile).toHaveBeenCalledTimes(1));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(createObjectURL).not.toHaveBeenCalled();
+
+    online = true;
+    view.rerender(thumbs(2));
+    await waitFor(() => expect(fetchFile).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(createObjectURL).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(view.container.querySelectorAll('img').length).toBeGreaterThan(0));
+  });
 });
