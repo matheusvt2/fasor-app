@@ -1,149 +1,58 @@
-# Fasor
+# Releng
 
-Sistema para relatórios técnicos de inspeção elétrica em campo: um aplicativo
-web tablet-first e offline-first que captura fichas de ensaio de subestação
-de média tensão em campo e gera o relatório final (FO.SERV-03) em DOCX e PDF.
-O nome visível no produto é o placeholder `PRODUTO`; o codename interno do
-projeto nunca aparece em texto voltado ao usuário.
+A tablet-first, offline-first web app that captures medium-voltage substation test sheets on site and generates the FO.SERV-03 relatório as DOCX and PDF. The engineer fills each equipment's ficha on a tablet, with or without signal; the office receives every change through sync and issues numbered revisions of the document.
 
-## Estrutura
+The product name users see is the placeholder `PRODUTO`, defined once in `packages/domain`. The internal codename never appears in a user-visible string, document or file name.
 
-- `packages/domain` — kernel puro em TypeScript (zod apenas): status, cálculos, regras de negócio.
-- `apps/web` — cliente React 19 + Vite 8 + Dexie, offline-first, service worker.
-- `apps/api` — Hono 4 + Drizzle + PostgreSQL 18 + pg-boss, na porta `3000`.
-- `docker-compose.yml` — todo o stack local (web, api, PostgreSQL 18, MinIO, Caddy/mkcert para HTTPS).
-- `docs/` — documentação operacional (este arquivo, `docs/tablet-https-setup.md`).
-- `_bmad-output/planning-artifacts/` — brief, pesquisas, PRD, épicos e UX.
-- `_bmad/` e `.claude/skills/` — configuração do BMAD e skills do Claude Code.
+Status: MVP, release `v0.1.0`. Everything runs locally in Docker; one AWS production stack exists (`infra/`).
 
-Os arquivos brutos do cliente (`docs/context/`, `docs/media/`) ficam fora do repositório.
+## Quick start
 
-## Running the stack
+You need Docker with the Compose plugin. Nothing else is installed on the host: Node, pnpm, Playwright, LibreOffice and Terraform all run in containers.
 
-Everything runs in Docker through docker-compose; nothing is installed or run
-natively on the host.
-
-```
+```sh
 docker compose up -d
-```
-
-This starts `web` (Vite dev server, `:5173`), `api` (Hono, `:3000`),
-`postgres` (`:5432`) and `minio` (`:9000`/`:9001`), plus the one-shot
-`install` step (`pnpm install`) and the `mkcert`/`caddy` services that give
-the stack an HTTPS origin for tablets (see
-[`docs/tablet-https-setup.md`](docs/tablet-https-setup.md)). Health:
-
-```
+docker compose --profile tools run --rm tools pnpm exec tsx scripts/seed-users.ts --test
 curl http://localhost:3000/api/health
 ```
 
-returns `{status, db, queue, storage, libreoffice}`, each `up`.
+Open http://localhost:5173 and sign in as `a@teste.local` with the password `senha-de-teste-123456`. Health answers `{status, db, queue, storage, libreoffice}`, each `up`.
 
-## Verifying (the merge gate)
+## Documentation
 
-There is no CI by policy; `pnpm verify` is the merge gate, run inside the
-`tools` container and pasted into every PR:
+| Document | Read it to |
+| --- | --- |
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | run the stack, seed users, use the `prod` profile, reach it from a tablet, work in parallel worktrees, fix common problems |
+| [docs/TESTING.md](docs/TESTING.md) | run the merge gate (`pnpm verify`), single suites, targeted Playwright tests, the durability matrix and the OCR sidecar tests |
+| [infra/PUBLISHING.md](infra/PUBLISHING.md) | publish a release: Terraform, the deploy script, the checks after it, rollback |
+| [infra/README.md](infra/README.md) | what the AWS stack contains, its cost and its runbook |
+| [docs/tablet-https-setup.md](docs/tablet-https-setup.md) | trust the local HTTPS certificate on iPadOS, Android and desktop |
+| [services/ocr/README.md](services/ocr/README.md) | the OCR sidecar (FastAPI, PaddleOCR and PARSeq) |
+| [AGENTS.md](AGENTS.md) | the project's policies and conventions, for people and coding agents |
+| [docs/kbs/index.md](docs/kbs/index.md) | a map of the planning documents and code for agents |
 
-```
-docker compose --profile tools run --rm tools pnpm verify
-```
+## Repository layout
 
-`verify` runs, in order: `lint`, `static` (typecheck), `test:unit` (kernel
-and web Vitest, plus this repo's own tooling tests), `test:api` (the api's
-Vitest suite, including its `*.integration.test.ts` files against the
-compose Postgres and MinIO), and `test:e2e` (Playwright, tagged `@p0`, on
-`desktop-chrome` and `durability-desktop-chrome`). Each step can also be run
-on its own the same way, for example:
-
-```
-docker compose --profile tools run --rm tools pnpm test:unit
-docker compose --profile tools run --rm tools pnpm test:api
-docker compose --profile tools run --rm tools pnpm test:e2e
-docker compose --profile tools run --rm tools pnpm test:e2e:matrix
-```
-
-`test:e2e:matrix` runs the full durability suite across desktop Chrome,
-Android Chrome emulation and WebKit; it is not part of `verify` and is run
-at epic close. `pnpm audit --prod` is not part of `verify` today: it runs
-reliably in the `tools` container, but as of this writing it reports one
-moderate advisory in a transitive dev-tooling dependency
-(`better-auth > drizzle-kit > ... > esbuild`) that is unrelated to this
-epic's scope; it is tracked in
-`_bmad-output/implementation-artifacts/deferred-work.md` rather than
-silently gating every merge on it.
-
-## Seeding test users
-
-There is no signup route and no outbound e-mail: `scripts/seed-users.ts`
-(run through the `tools` container, never on the host) is how a company and
-its users are provisioned, and how a password is reset.
-
-```
-docker compose --profile tools run --rm tools pnpm exec tsx scripts/seed-users.ts --test
-```
-
-`--test` provisions the two companies every automated suite seeds itself
-with, one user each, both with the password `senha-de-teste-123456`
-(defined in `apps/api/src/db/test-seed.ts`):
-
-| E-mail | User | Company | Notes |
-| --- | --- | --- | --- |
-| `a@teste.local` | Ana Alves (CREA) | Empresa A de Teste | Seeded with the "Cabine primária — padrão" template; use this one to try the app |
-| `b@teste.local` | Bento Braga (CRT) | Empresa B de Teste | No template (the Templates empty state); the second tenant for the cross-tenant test |
-
-To provision a real company, pass its fields explicitly (a company id,
-a company name, an e-mail, a password, a full name, a council — `crea` or
-`crt` — and a registration number; an optional printed title):
-
-```
-docker compose --profile tools run --rm tools pnpm exec tsx scripts/seed-users.ts \
-  --company-id <uuid> --company "<nome da empresa>" --email <email> \
-  --password "<senha>" --name "<nome completo>" --council <crea|crt> \
-  --number "<número de registro>" [--title "<título impresso>"] \
-  [--standard-template] [--sample-relatorio]
-```
-
-`--standard-template` also seeds the company's "Cabine primária — padrão"
-template once. `--sample-relatorio` also seeds a relatório with data (the
-small Porto Seguro fixture, with the seeded user as its responsible). Its ids
-are fixed, so it lives in one company at a time: seeding it for another
-company moves it there, and a re-run puts it back as the fixture has it.
-`test:api` and the e2e global setup seed the same fixture, so running them
-deletes the sample from your company, and a device that had pulled it keeps
-stale rows of it.
-
-## Running the `prod` profile
-
-The `prod` profile approximates the future cloud image: one container serves
-the built web bundle and `/api/*`, migrations run forward-only before it
-starts, and logs are JSON lines on stdout. It is Docker-only, like
-everything else — build the web bundle inside the `tools` container first:
-
-```
-docker compose --profile tools run --rm tools pnpm --filter @app/web build
-docker compose --profile prod up migrate
-docker compose --profile prod up -d
-```
-
-`curl http://localhost:3001/api/health` should return the health JSON.
-
-`api-prod` runs with `NODE_ENV=production`, so it refuses the public development
-`SESSION_SECRET` of `docker-compose.yml` and turns the sign-in and push rate limits on
-(security review 2026-09-30). Put a secret of your own (32 or more characters) in `.env`
-as `SESSION_SECRET=` before `up`; `RATE_LIMIT=off` there turns the limits off.
-
-## Trusting the local HTTPS certificate
-
-Tablets, and a desktop browser that wants the same no-warning origin, need
-the mkcert CA installed once. See
-[`docs/tablet-https-setup.md`](docs/tablet-https-setup.md) for the full
-setup (`TABLET_HOST`, per-device trust steps for iPadOS, Android and
-desktop).
+| Path | What it holds |
+| --- | --- |
+| `packages/domain` | The pure TypeScript kernel (zod only): op schemas, `applyOp`, every status, count, verdict and derived pt-BR text. |
+| `apps/web` | React 19, Vite 8 and Dexie: the offline-first client. It renders from IndexedDB and writes only ops to its outbox. |
+| `apps/api` | Hono 4, Drizzle, PostgreSQL 18 and pg-boss: applies ops, serves sync, stores files in S3 or MinIO and generates the documents with LibreOffice. |
+| `services/ocr` | The OCR sidecar, under the `ocr` compose profile. |
+| `e2e/` | Playwright end-to-end and durability tests. |
+| `scripts/` | The gate (`verify.ts`, `e2e.ts`), user seeding, test resets and golden regeneration. |
+| `infra/` | Terraform for AWS (`bootstrap`, `production`), the production Caddy image and the deploy scripts. |
+| `docker/`, `docker-compose.yml` | The local stack: web, api, PostgreSQL, MinIO, Caddy and mkcert, plus the `tools`, `prod` and `ocr` profiles. |
+| `docs/` | Operational guides and the knowledge base. Client material in `docs/context/` and `docs/media/` is git-ignored and never committed. |
+| `_bmad-output/` | Planning: the spec, PRD, architecture, UX, epics, sprint status, retrospectives and reviews. |
+| `_bmad/`, `.claude/` | BMAD configuration and Claude Code skills. |
 
 ## Conventions
 
-- Everything runs in Docker through docker-compose; never install or run a service natively on the machine.
-- No emoji anywhere in UI, documents or code comments.
-- The user-visible product name is the placeholder `PRODUTO`; the project's internal codename never appears in a user-visible string.
-- The backend never uses a personal Claude subscription; local reading providers default to `fake`.
-- See `AGENTS.md` for the full set of policies and pointers agents and contributors work from.
+- Everything runs in Docker through docker-compose; never install or run a service natively on the host.
+- One branch and one pull request per story, merged after a green `pnpm verify`. There is no CI.
+- No emoji anywhere: UI, documents, code, commits.
+- The deliverable is a relatório: code, routes and UI say `relatorio`, never `laudo`.
+- The backend never uses a personal Claude subscription; the reading providers default to `fake`.
+
+`AGENTS.md` has the full set.
