@@ -83,3 +83,7 @@ Decided 2026-09-22 (Epic 1 retro A5, F-PAT-2). This extends "Conventions that di
 - On states: the ARIA state lives on the element the mock CSS styles. When a valid ARIA shape cannot carry the mock's attribute (a `role="radio"` cannot carry `aria-pressed`), `app.css` mirrors the mock rule's declarations for the attribute it does carry. No invented look.
 
 A new mock rule with a `.frame-*` selector gets its translation in the same change that first renders it, and the real-browser pass checks 390, 768 and 1280 px plus a dialog.
+
+## Knowledge base (kept outside the managed block)
+
+Decided 2026-09-30. `docs/kbs/` is an Open Knowledge Format (Google OKF v0.1) bundle that maps this repository for agents: start at `docs/kbs/index.md`, open the one directory index that matches the task, then one concept file, and only then the canonical document for the exact section you need. It names the files too large to read whole (`epics.md`, `ARCHITECTURE-SPINE.md`, `SPEC.md`). Update the matching concept and `docs/kbs/log.md` in the same change that alters a document the KB summarizes.
