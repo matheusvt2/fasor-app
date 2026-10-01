@@ -2,7 +2,7 @@
 title: 'Review fixes 2026-09-30: api robustness, queries and jobs (batch rfa)'
 type: 'bugfix'
 created: '2026-09-30'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '6b219098f2881aee6487cd57bfc8396b76141ea8'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -139,3 +139,55 @@ Open question (do not decide): should a certificate rasterization timeout or an 
 - `docker compose --profile tools run --rm tools pnpm lint` and `pnpm static` -- expected: green.
 
 Implementer notes go below this line: "Finding verdicts", "Mutation runs", "Measurements".
+
+### Finding verdicts
+
+- A-2 refined. On the compose Postgres the old relatório page is not a BitmapOr: the planner walks `ops_pkey` in `seq` order with the `OR` as a filter (EXPLAIN: "Index Scan using ops_pkey ... Rows Removed by Filter"), so its cost is the number of other ops (other relatórios, other companies) interleaved before the 500th match, not the stream length. The fix is kept: each page now reads only the two streams' own indexes. Measured neutral on a dense stream, 20-30 % faster on a sparse one (Measurements).
+- A-13 confirmed. The 503 body uses the existing `internal_error` code with its own message: adding a `session_unavailable` code would touch `packages/domain/src/contract`, outside this batch; the web already retries any 5xx (`apps/web/src/sync/policy.ts`). `http/app.ts` changed by two lines (the import and one `onError` branch): unavoidable, `onError` answers every thrown error.
+- A-23 confirmed with one consequence: a create is no longer reported in `superseded` (a merged registry create used to be, over the survivor's create). Nothing reads it: the kernel's `mergeInfoOf` returns null for any create.
+- A-20 refined. The row is read under the lock once (`emitServerOp` returns it); a row already uploaded at the start of the PUT is still re-read once after the body, so a concurrent PUT's `running` is seen before a second reading is sent.
+- A-26: two lines (the import and the use), not one.
+- E-3 refined. Paging with `KeyMarker`/`VersionIdMarker` alone left objects behind on MinIO: a file's `{id}/thumb` and `{id}/print` are listed only once the `{id}` original is gone. The purge lists every page, deletes, and lists again until empty (bounded at 10 rounds). It now also runs before the database reset, so a failing delete leaves the rows as they were.
+- A-14: the invalid payload's photo is failed from `running`, or from `queued` when the job was picked up before `running` landed.
+- A-5: the budget is per job (`CERTIFICATE_RASTERIZE_BUDGET_MS`, 300 s for all certificates together, so it plus three conversions stays under the queue's 900 s expiry). A certificate past it prints the placeholder (current behaviour).
+- A-19 confirmed dead (`readCappedBody` throws at the first byte past the limit); removed, pinned by the existing body-over-limit test.
+- A-27: `apps/api/Dockerfile.prod.dockerignore` gained `**/*.test-support.ts`; flag for the security batch merge.
+- Open question (not decided): should a certificate rasterization timeout or an exceeded total budget fail the issue job like A-4, instead of printing the certificate placeholder?
+
+### Mutation runs
+
+Each fix reverted in the working tree (the pre-fix file as committed at the baseline revision, or the named lines removed), its test run in the tools container, the fix restored (the working-tree diff stat identical before and after):
+
+| Fix | Mutation | Test | Result |
+|---|---|---|---|
+| A-4 | `section-7.ts`, `section-11.ts` at the baseline | `sections/section-7.test.ts`, `section-11.test.ts` | 2 failed |
+| A-4 | same | `job-photo-read.integration.test.ts` (the two failing-read cases) | 2 failed (the read error swallowed as "generate photo/certificate unreadable") |
+| A-10 | `sync/routes.ts` at the baseline | `push-route.integration.test.ts` | 1 failed (200 instead of 426) |
+| A-12 | `http/generate.ts` at the baseline | `generate-lock.integration.test.ts` | 1 failed (202 queued instead of 200 unchanged) |
+| A-1 cache invalidation | `cache.clear()` and `cache.delete(kind)` removed | `registry-names.integration.test.ts` | 1 failed (renamed row) |
+| A-14 | `failInvalidPayload` call removed | `worker-invalid.integration.test.ts` | 1 failed (photo stays running) |
+| A-15 | `recordPush` try/catch removed | `push-record.integration.test.ts` | 1 failed (500) |
+| E-3 | `resetTestCompanyData(db)` without `[companyId]` | `test-reset.integration.test.ts -t E-3` | 1 failed (company B wiped) |
+
+Tests first seen red against the unfixed code before the fix landed: A-4 units, A-1 (23 candidate queries, expected 2), A-5, A-6 (hung), A-10, A-13, A-16, A-17, A-25, E-4, E-11.
+
+### Measurements
+
+Tools container (api container for A-17), compose Postgres and MinIO, a machine shared with other agents (load average 25-70): medians, before then after.
+
+| Finding | What | Before | After |
+|---|---|---|---|
+| A-1 + A-23 | one push of 200 manufacturer creates over 300 live rows | 1203 statements, 1941 ms | 804 statements, 1116 ms |
+| A-8 | issue job with 20 photos, up to the injected conversion fault | 54 statements, 1027 ms | 30 statements, 447 ms |
+| A-22 | `toSnapshot` beside 40 sibling relatórios of 100 rows | 49.4 ms | 15.1 ms |
+| A-3 | `companySummary` (partial index `entities_company_relatorio_entity_live_idx`, pool 5 to 10) | 13.6 ms | 8.2 ms |
+| A-2 | relatório page, dense (40k own, 20k project ops) | 25.1 / 24.9 ms | 24.0 / 21.9 ms |
+| A-2 | relatório page, very sparse (2k own, 500 project, 300k sibling ops) | 46.7 / 36.5 ms | 38.0 / 26.5 ms |
+| A-7 | `renderVariants` of a 24 MP JPEG (one full decode instead of two) | 980 ms | 356 ms |
+| A-17 | DOCX to PDF, four conversions in a row | 4716, 2770, 2306, 2584 ms | 2557, 2096, 1674, 1633 ms |
+| A-24 | RASCUNHO rasterization (53 ms, then 24 ms per call) | once per TOC pass (2-3 per preview) | once per job; image dimensions read once per buffer |
+| A-9 | job rows read per press (counted from code) | every job row of the relatório, twice | queued/running rows of the kind, once, under the lock |
+| A-20 | file-row reads per first image PUT (counted from code) | 4 (5 when a concurrent PUT won) | 3 |
+| A-21 | suggestion rows read per reading run (counted from code) | every suggestion of the relatório, twice | the photo's pending ones, twice |
+
+Behaviour pins for the perf-only items: A-2 and A-22 `sync/pull-stream.integration.test.ts`; A-7 `storage/variants.test.ts`; A-24 `docx-section-10.test.ts`; A-8 `job.integration.test.ts` and `job-photo-read.integration.test.ts`; A-9 `preview.integration.test.ts` (R7); A-20 `files.integration.test.ts` (concurrent PUTs); A-21 `job-prose.integration.test.ts` (rerun discards); A-17 `libreoffice.test.ts`; A-23 the sync suites; A-1 `registry-names.integration.test.ts`; A-3 `migrations-match.test.ts` and the summary tests. Goldens unchanged (`docx.test.ts` skeleton golden and `sync/porto-seguro.integration.test.ts` green).
