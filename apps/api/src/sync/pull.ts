@@ -56,6 +56,26 @@ export function pullCompany(db: Db, companyId: CompanyId, since: number, limit: 
   return page(db, and(eq(ops.company_id, companyId), eq(ops.scope, 'company')), since, limit);
 }
 
+/**
+ * A-2 (review 2026-09-30): the relatório stream is the union of two streams, each walked in
+ * `seq` order on its own index (`ops_company_relatorio_seq_idx`, `ops_company_project_seq_idx`),
+ * each read at most `limit` ops past `since`; the page is the first `limit` of the two merged
+ * (an op in both is kept once) and the head the larger of the two heads. The `OR` of the two
+ * filters this replaces could walk neither index in order: every page read both streams whole.
+ */
+async function unionPage(db: Db, streams: readonly [StreamFilter, StreamFilter], since: number, limit: number): Promise<PulledPage> {
+  const [first, second, [firstHead], [secondHead]] = await Promise.all([
+    db.select().from(ops).where(and(streams[0], gt(ops.seq, since))).orderBy(asc(ops.seq)).limit(limit),
+    db.select().from(ops).where(and(streams[1], gt(ops.seq, since))).orderBy(asc(ops.seq)).limit(limit),
+    db.select({ head: max(ops.seq) }).from(ops).where(streams[0]),
+    db.select({ head: max(ops.seq) }).from(ops).where(streams[1]),
+  ]);
+  const bySeq = new Map<number, OpRow>();
+  for (const row of [...first, ...second]) bySeq.set(row.seq, row);
+  const rows = [...bySeq.values()].sort((a, b) => a.seq - b.seq).slice(0, limit);
+  return { ops: rows.map(toOp), head: Math.max(firstHead?.head ?? 0, secondHead?.head ?? 0) };
+}
+
 /** `null` when the relatorio is unknown to this company (the route answers 404). */
 export async function pullRelatorio(
   db: Db,
@@ -70,11 +90,12 @@ export async function pullRelatorio(
     .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'relatorio'), eq(entities.id, relatorioId)));
   if (!relatorio) return null;
   const projectId = (relatorio.row as RelatorioRow).project_id;
-  const filter = and(
-    eq(ops.company_id, companyId),
-    or(eq(ops.relatorio_id, relatorioId), and(eq(ops.scope, 'project'), eq(ops.project_id, projectId))),
+  return unionPage(
+    db,
+    [and(eq(ops.company_id, companyId), eq(ops.relatorio_id, relatorioId)), and(eq(ops.company_id, companyId), eq(ops.scope, 'project'), eq(ops.project_id, projectId))],
+    since,
+    limit,
   );
-  return page(db, filter, since, limit);
 }
 
 /**
@@ -101,7 +122,8 @@ export async function pullProject(
 
 /**
  * Story 10.4 (ledger 106): the live blocks (sheets) and live photo files of each relatório
- * of the company, in one grouped query, for the summary's `progress`.
+ * of the company, in one grouped query, for the summary's `progress`. A-3: read through the
+ * partial index `entities_company_relatorio_entity_live_idx` (live rows only).
  */
 async function relatorioTotals(db: Db, companyId: CompanyId): Promise<Map<string, { sheets: number; photos: number }>> {
   const rows = await db

@@ -2,7 +2,6 @@ import { Readable } from 'node:stream';
 import {
   blockingRows,
   blockRowSchema,
-  DOCX_MIME,
   fileRowSchema,
   generateRequestSchema,
   generationJobRowSchema,
@@ -12,12 +11,13 @@ import {
   objectKey,
   PDF_MIME,
   preIssue,
+  previewFileName,
   referencedEquipmentIds,
   relatorioEditedSince,
   relatorioRowSchema,
+  revisionFileMime,
   revisionFileName,
   revisionRowSchema,
-  SERVER_DEVICE_ID,
   toIso,
   uuidV7Schema,
   type Clock,
@@ -30,20 +30,23 @@ import {
   type Op,
   type PreIssueBlockedDetails,
   type PreviewResponse,
+  type RevisionFileFormat,
   type RevisionRow,
 } from '@app/domain';
 import type { S3Client } from '@aws-sdk/client-s3';
-import { and, eq, gt, inArray, isNull, or } from 'drizzle-orm';
-import { Hono } from 'hono';
+import { and, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm';
+import { Hono, type Context } from 'hono';
 import type { Db } from '../db/client.ts';
 import type { CompanyId } from '../db/repositories/company-id.ts';
+import { liveRevisions } from '../db/repositories/revisions.ts';
 import { entities, ops } from '../db/schema.ts';
 import { GENERATE_ACTOR, type GenerateKind, type GeneratePayload } from '../jobs/generate/job.ts';
 import { logError } from '../log.ts';
 import { getObject } from '../storage/s3.ts';
 import { applyOps, applyServerBatch, type Tx } from '../sync/apply.ts';
-import { freezeSnapshot } from '../sync/snapshot.ts';
-import { type AppEnv, requireSession } from './session.ts';
+import { serverOp } from '../sync/server-op.ts';
+import { toSnapshot } from '../sync/snapshot.ts';
+import { type AppEnv, requireSession, type SessionContext } from './session.ts';
 
 /*
  * AD-15: `POST /api/relatorios/:id/generate` is the flush barrier and the one place an
@@ -79,15 +82,21 @@ class AlreadyRunningError extends Error {
   }
 }
 
-/** A revision's DOCX filename: `relatorio-rev-{n}.docx`. */
-export function docxFilename(number: number): string {
-  return revisionFileName(number, 'docx');
+/** Thrown inside the issue-job transaction when nothing was edited since the latest revision: the route answers `unchanged`. */
+class UnchangedError extends Error {
+  readonly revision: RevisionRow;
+  constructor(revision: RevisionRow) {
+    super(`nothing was edited since revision ${revision.number}`);
+    this.name = 'UnchangedError';
+    this.revision = revision;
+  }
 }
 
-/** A revision's PDF filename: `relatorio-rev-{n}.pdf` (Story 11.1). */
-export function pdfFilename(number: number): string {
-  return revisionFileName(number, 'pdf');
-}
+/** What `createJob` decided under the company lock. */
+type CreateOutcome =
+  | { outcome: 'queued'; jobId: string; revisionNumber: number }
+  | { outcome: 'running'; job: GenerationJobRow; revisionNumber: number }
+  | { outcome: 'unchanged'; revision: RevisionRow };
 
 export function createGenerateRoutes(db: Db, s3: S3Client, bucket: string, deps: GenerateRouteDeps): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
@@ -106,30 +115,29 @@ export function createGenerateRoutes(db: Db, s3: S3Client, bucket: string, deps:
 
   /**
    * The relatório's job of `kind` that still counts as running (`isJobActive`), or null. A
-   * preview never holds an issue back, nor an issue a preview (Story 7.5).
+   * preview never holds an issue back, nor an issue a preview (Story 7.5). Only the queued
+   * and running rows of that kind are read (A-9: job rows are never removed, so reading
+   * every one of them grew with every press); the age rule stays the kernel's.
    */
   async function activeJob(reader: Pick<Db, 'select'>, companyId: CompanyId, relatorioId: string, kind: GenerateKind): Promise<GenerationJobRow | null> {
     const rows = await reader
       .select({ row: entities.row })
       .from(entities)
-      .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'generation_job'), eq(entities.relatorio_id, relatorioId)));
+      .where(
+        and(
+          eq(entities.company_id, companyId),
+          eq(entities.entity, 'generation_job'),
+          eq(entities.relatorio_id, relatorioId),
+          sql`${entities.row}->>'kind' = ${kind}`,
+          sql`${entities.row}->>'status' in ('queued', 'running')`,
+        ),
+      );
     const nowIso = toIso(deps.now());
     for (const r of rows) {
       const parsed = generationJobRowSchema.safeParse(r.row);
       if (parsed.success && parsed.data.kind === kind && isJobActive(parsed.data, nowIso)) return parsed.data;
     }
     return null;
-  }
-
-  async function revisionsOf(companyId: CompanyId, relatorioId: string): Promise<RevisionRow[]> {
-    const rows = await db
-      .select({ row: entities.row })
-      .from(entities)
-      .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'revision'), eq(entities.relatorio_id, relatorioId), isNull(entities.removed_at)));
-    return rows.flatMap((r) => {
-      const parsed = revisionRowSchema.safeParse(r.row);
-      return parsed.success ? [parsed.data] : [];
-    });
   }
 
   /** The barrier: is the named op in the log, and is every named file stored? */
@@ -162,23 +170,21 @@ export function createGenerateRoutes(db: Db, s3: S3Client, bucket: string, deps:
    * The stream is the relatório's own ops plus the project-scope ops of the equipment its
    * live blocks reference (Epic 4 retro items 18, Q15): the kernel decides both.
    */
-  async function editedAfter(companyId: CompanyId, relatorioId: string, projectId: string, snapshotSeq: number): Promise<boolean> {
-    const [blockRows, rows] = await Promise.all([
-      db
-        .select({ row: entities.row })
-        .from(entities)
-        .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'block'), eq(entities.relatorio_id, relatorioId), isNull(entities.removed_at))),
-      db
-        .select({ path: ops.path, actor_id: ops.actor_id, kind: ops.kind, value: ops.value, seq: ops.seq, scope: ops.scope, relatorio_id: ops.relatorio_id })
-        .from(ops)
-        .where(
-          and(
-            eq(ops.company_id, companyId),
-            gt(ops.seq, snapshotSeq),
-            or(eq(ops.relatorio_id, relatorioId), and(eq(ops.scope, 'project'), eq(ops.project_id, projectId))),
-          ),
+  async function editedAfter(reader: Pick<Db, 'select'>, companyId: CompanyId, relatorioId: string, projectId: string, snapshotSeq: number): Promise<boolean> {
+    const blockRows = await reader
+      .select({ row: entities.row })
+      .from(entities)
+      .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'block'), eq(entities.relatorio_id, relatorioId), isNull(entities.removed_at)));
+    const rows = await reader
+      .select({ path: ops.path, actor_id: ops.actor_id, kind: ops.kind, value: ops.value, seq: ops.seq, scope: ops.scope, relatorio_id: ops.relatorio_id })
+      .from(ops)
+      .where(
+        and(
+          eq(ops.company_id, companyId),
+          gt(ops.seq, snapshotSeq),
+          or(eq(ops.relatorio_id, relatorioId), and(eq(ops.scope, 'project'), eq(ops.project_id, projectId))),
         ),
-    ]);
+      );
     const blocks = blockRows.flatMap((r) => {
       const parsed = blockRowSchema.safeParse(r.row);
       return parsed.success ? [parsed.data] : [];
@@ -199,36 +205,28 @@ export function createGenerateRoutes(db: Db, s3: S3Client, bucket: string, deps:
   }
 
   function jobOp(companyId: CompanyId, relatorioId: string, input: { kind: Op['kind']; path: string; value: unknown }): Op {
-    return {
-      op_id: deps.newId(),
+    return serverOp({
+      opId: deps.newId(),
+      companyId,
+      actorId: GENERATE_ACTOR,
+      clientTs: toIso(deps.now()),
       kind: input.kind,
-      scope: 'relatorio',
-      company_id: companyId,
-      project_id: null,
-      relatorio_id: relatorioId,
       path: input.path,
-      value: input.value as Op['value'],
-      prev_op_id: null,
-      batch_id: null,
-      meta: null,
-      actor_id: GENERATE_ACTOR,
-      device_id: SERVER_DEVICE_ID,
-      client_ts: toIso(deps.now()),
-    };
+      value: input.value,
+      relatorioId,
+    });
   }
 
   /**
-   * Creates one job of `kind` under the company lock, with the "already running" check of
-   * that kind re-read inside the same transaction (two presses that interleave cannot queue
-   * two jobs), then sends it to the queue; an enqueue failure marks the job `failed` and
-   * rethrows.
+   * Creates one job of `kind` under the company lock, then sends it to the queue; an enqueue
+   * failure marks the job `failed` and rethrows. Every decision is read inside the lock the
+   * create takes (Design Notes, review 2026-09-30): (1) a job of that kind still active
+   * answers `running` (two presses that interleave cannot queue two jobs); (2) for an issue,
+   * a latest revision nothing was edited after answers `unchanged` (A-12: read before the
+   * lock, a job committing revision N in between left a stale answer and queued an identical
+   * N+1); (3) otherwise the job is created.
    */
-  async function createJob(
-    companyId: CompanyId,
-    relatorioId: string,
-    actorId: string,
-    kind: GenerateKind,
-  ): Promise<{ outcome: 'queued'; jobId: string } | { outcome: 'running'; job: GenerationJobRow }> {
+  async function createJob(companyId: CompanyId, relatorioId: string, projectId: string, actorId: string, kind: GenerateKind): Promise<CreateOutcome> {
     const jobId = deps.newId();
     const create = jobOp(companyId, relatorioId, {
       kind: 'create',
@@ -245,16 +243,22 @@ export function createGenerateRoutes(db: Db, s3: S3Client, bucket: string, deps:
         started_at: null,
       },
     });
+    let revisionNumber = 1;
     try {
       await applyServerBatch(db, companyId, [create], {
         now: deps.now,
         before: async (tx: Tx) => {
+          const revisions = kind === 'issue' ? await liveRevisions(tx, companyId, relatorioId) : [];
+          revisionNumber = nextRevisionNumber(revisions);
           const other = await activeJob(tx, companyId, relatorioId, kind);
           if (other !== null) throw new AlreadyRunningError(other);
+          const latest = latestRevision(revisions);
+          if (latest !== null && !(await editedAfter(tx, companyId, relatorioId, projectId, latest.snapshot_seq))) throw new UnchangedError(latest);
         },
       });
     } catch (error) {
-      if (error instanceof AlreadyRunningError) return { outcome: 'running', job: error.job };
+      if (error instanceof AlreadyRunningError) return { outcome: 'running', job: error.job, revisionNumber };
+      if (error instanceof UnchangedError) return { outcome: 'unchanged', revision: error.revision };
       throw error;
     }
 
@@ -275,75 +279,99 @@ export function createGenerateRoutes(db: Db, s3: S3Client, bucket: string, deps:
       );
       throw error;
     }
-    return { outcome: 'queued', jobId };
+    return { outcome: 'queued', jobId, revisionNumber };
   }
 
-  routes.post('/api/relatorios/:id/generate', async (c) => {
+  /**
+   * The preamble both job routes share (A-28): the session, a live relatório of its company
+   * (404 otherwise), the `{last_op_id, file_ids_expected}` body (400) and the flush barrier
+   * (409 `not_caught_up`). Answers the response to send, or what the route goes on with.
+   */
+  async function caughtUpRequest(
+    c: Context<AppEnv>,
+  ): Promise<{ response: Response } | { session: SessionContext; relatorioId: string; relatorio: { project_id: string } }> {
     const session = requireSession(c);
-    const relatorioId = c.req.param('id');
+    const relatorioId = c.req.param('id') ?? '';
     c.set('relatorioId', relatorioId);
     const relatorio = await readRelatorio(session.companyId, relatorioId);
-    if (relatorio === null) return c.json(notFound, 404);
+    if (relatorio === null) return { response: c.json(notFound, 404) };
 
     const body: unknown = await c.req.json().catch(() => undefined);
     const parsed = generateRequestSchema.safeParse(body);
-    if (!parsed.success) return c.json(fail('invalid_request', 'The body must be {last_op_id, file_ids_expected}.'), 400);
+    if (!parsed.success) return { response: c.json(fail('invalid_request', 'The body must be {last_op_id, file_ids_expected}.'), 400) };
 
     const details = await missing(session.companyId, parsed.data.last_op_id, parsed.data.file_ids_expected);
     if (details.missing_op || details.missing_files.length > 0) {
-      return c.json(fail('not_caught_up', 'The server has not applied every op or stored every file yet.', details), 409);
+      return { response: c.json(fail('not_caught_up', 'The server has not applied every op or stored every file yet.', details), 409) };
     }
+    return { session, relatorioId, relatorio };
+  }
+
+  /** `GET /api/revisions/:id/docx` and `/pdf` (A-28): the revision's stored file, as a download. */
+  function serveRevisionFile(format: RevisionFileFormat) {
+    return async (c: Context<AppEnv>) => {
+      const session = requireSession(c);
+      const id = c.req.param('id') ?? '';
+      if (!uuidV7Schema.safeParse(id).success) return c.json(notFound, 404);
+      const [record] = await db
+        .select({ row: entities.row })
+        .from(entities)
+        .where(and(eq(entities.company_id, session.companyId), eq(entities.entity, 'revision'), eq(entities.id, id)))
+        .limit(1);
+      const revision = record === undefined ? null : revisionRowSchema.safeParse(record.row);
+      if (revision === null || !revision.success || revision.data.id !== id) return c.json(notFound, 404);
+      // The key is derived from the session's company and the id the revision names, never
+      // read out of a row (`files.ts` follows the same rule).
+      const fileId = format === 'docx' ? revision.data.docx_file_id : revision.data.pdf_file_id;
+      const stored = await getObject(s3, bucket, objectKey(session.companyId, format, fileId));
+      if (stored === null) return c.json(notFound, 404);
+      return c.body(Readable.toWeb(stored.body) as ReadableStream, 200, {
+        'content-type': revisionFileMime(format),
+        'content-disposition': `attachment; filename="${revisionFileName(revision.data.number, format)}"`,
+        'x-content-type-options': 'nosniff',
+        ...(stored.contentLength === null ? {} : { 'content-length': String(stored.contentLength) }),
+      });
+    };
+  }
+
+  routes.post('/api/relatorios/:id/generate', async (c) => {
+    const request = await caughtUpRequest(c);
+    if ('response' in request) return request.response;
+    const { session, relatorioId, relatorio } = request;
 
     // Story 7.5: the one blocking pre-issue row stops the issue here too, never only in the
-    // dialog; the rule is the kernel's, over the snapshot the server holds.
-    const snapshot = (await db.transaction((tx: Tx) => freezeSnapshot(tx, session.companyId, relatorioId))).snapshot;
+    // dialog; the rule is the kernel's, over the snapshot the server holds. A check, not the
+    // job's frozen input: read without a transaction or a head scan (A-11).
+    const snapshot = await toSnapshot(db, session.companyId, relatorioId);
     const blocking = blockingRows(preIssue(snapshot, undefined, { now: deps.now() }));
     if (blocking.length > 0) {
       const blocked: PreIssueBlockedDetails = { rows: blocking.map((row) => row.kind) };
       return c.json(fail('pre_issue_blocked', 'A blocking pre-issue row stands; the revision cannot be issued.', blocked), 409);
     }
 
-    const revisions = await revisionsOf(session.companyId, relatorioId);
-    const number = nextRevisionNumber(revisions);
-    const running = (job: GenerationJobRow): GenerateResponse => ({ outcome: 'running', job_id: job.id, revision_number: number });
-
-    const active = await activeJob(db, session.companyId, relatorioId, 'issue');
-    if (active !== null) return c.json(running(active), 200);
-
-    const latest = latestRevision(revisions);
-    if (latest !== null && !(await editedAfter(session.companyId, relatorioId, relatorio.project_id, latest.snapshot_seq))) {
-      const answer: GenerateResponse = { outcome: 'unchanged', revision_id: latest.id, revision_number: latest.number };
+    // A-9, A-12: "already running", "unchanged" and the create are all decided under the
+    // company lock the create takes; nothing is read for them on the pool first.
+    const created = await createJob(session.companyId, relatorioId, relatorio.project_id, session.userId, 'issue');
+    if (created.outcome === 'unchanged') {
+      const answer: GenerateResponse = { outcome: 'unchanged', revision_id: created.revision.id, revision_number: created.revision.number };
       return c.json(answer, 200);
     }
-
-    const created = await createJob(session.companyId, relatorioId, session.userId, 'issue');
-    if (created.outcome === 'running') return c.json(running(created.job), 200);
-    const jobId = created.jobId;
-
-    const answer: GenerateResponse = { outcome: 'queued', job_id: jobId, revision_number: number };
+    if (created.outcome === 'running') {
+      const answer: GenerateResponse = { outcome: 'running', job_id: created.job.id, revision_number: created.revisionNumber };
+      return c.json(answer, 200);
+    }
+    const answer: GenerateResponse = { outcome: 'queued', job_id: created.jobId, revision_number: created.revisionNumber };
     return c.json(answer, 202);
   });
 
   routes.post('/api/relatorios/:id/preview', async (c) => {
-    const session = requireSession(c);
-    const relatorioId = c.req.param('id');
-    c.set('relatorioId', relatorioId);
-    const relatorio = await readRelatorio(session.companyId, relatorioId);
-    if (relatorio === null) return c.json(notFound, 404);
+    const request = await caughtUpRequest(c);
+    if ('response' in request) return request.response;
+    const { session, relatorioId, relatorio } = request;
 
-    const body: unknown = await c.req.json().catch(() => undefined);
-    const parsed = generateRequestSchema.safeParse(body);
-    if (!parsed.success) return c.json(fail('invalid_request', 'The body must be {last_op_id, file_ids_expected}.'), 400);
-
-    const details = await missing(session.companyId, parsed.data.last_op_id, parsed.data.file_ids_expected);
-    if (details.missing_op || details.missing_files.length > 0) {
-      return c.json(fail('not_caught_up', 'The server has not applied every op or stored every file yet.', details), 409);
-    }
-
-    const active = await activeJob(db, session.companyId, relatorioId, 'preview');
-    if (active !== null) return c.json({ outcome: 'running', job_id: active.id } satisfies PreviewResponse, 200);
-    const created = await createJob(session.companyId, relatorioId, session.userId, 'preview');
+    const created = await createJob(session.companyId, relatorioId, relatorio.project_id, session.userId, 'preview');
     if (created.outcome === 'running') return c.json({ outcome: 'running', job_id: created.job.id } satisfies PreviewResponse, 200);
+    if (created.outcome === 'unchanged') throw new Error('a preview job is never answered unchanged');
     return c.json({ outcome: 'queued', job_id: created.jobId } satisfies PreviewResponse, 202);
   });
 
@@ -356,58 +384,17 @@ export function createGenerateRoutes(db: Db, s3: S3Client, bucket: string, deps:
     if (stored === null) return c.json(notFound, 404);
     return c.body(Readable.toWeb(stored.body) as ReadableStream, 200, {
       'content-type': PDF_MIME,
-      'content-disposition': 'inline; filename="relatorio-rascunho.pdf"',
+      'content-disposition': `inline; filename="${previewFileName()}"`,
       'cache-control': 'no-store',
       'x-content-type-options': 'nosniff',
       ...(stored.contentLength === null ? {} : { 'content-length': String(stored.contentLength) }),
     });
   });
 
-  routes.get('/api/revisions/:id/docx', async (c) => {
-    const session = requireSession(c);
-    const id = c.req.param('id');
-    if (!uuidV7Schema.safeParse(id).success) return c.json(notFound, 404);
-    const [record] = await db
-      .select({ row: entities.row })
-      .from(entities)
-      .where(and(eq(entities.company_id, session.companyId), eq(entities.entity, 'revision'), eq(entities.id, id)))
-      .limit(1);
-    const revision = record === undefined ? null : revisionRowSchema.safeParse(record.row);
-    if (revision === null || !revision.success || revision.data.id !== id) return c.json(notFound, 404);
-    // The key is derived from the session's company and the id the revision names, never
-    // read out of a row (`files.ts` follows the same rule).
-    const stored = await getObject(s3, bucket, objectKey(session.companyId, 'docx', revision.data.docx_file_id));
-    if (stored === null) return c.json(notFound, 404);
-    return c.body(Readable.toWeb(stored.body) as ReadableStream, 200, {
-      'content-type': DOCX_MIME,
-      'content-disposition': `attachment; filename="${docxFilename(revision.data.number)}"`,
-      'x-content-type-options': 'nosniff',
-      ...(stored.contentLength === null ? {} : { 'content-length': String(stored.contentLength) }),
-    });
-  });
-
+  routes.get('/api/revisions/:id/docx', serveRevisionFile('docx'));
   // Story 11.1: the revision's closed PDF, the DOCX route's twin. The job stores it under
   // `objectKey(companyId, 'pdf', pdf_file_id)` beside the DOCX; the route serves it as is.
-  routes.get('/api/revisions/:id/pdf', async (c) => {
-    const session = requireSession(c);
-    const id = c.req.param('id');
-    if (!uuidV7Schema.safeParse(id).success) return c.json(notFound, 404);
-    const [record] = await db
-      .select({ row: entities.row })
-      .from(entities)
-      .where(and(eq(entities.company_id, session.companyId), eq(entities.entity, 'revision'), eq(entities.id, id)))
-      .limit(1);
-    const revision = record === undefined ? null : revisionRowSchema.safeParse(record.row);
-    if (revision === null || !revision.success || revision.data.id !== id) return c.json(notFound, 404);
-    const stored = await getObject(s3, bucket, objectKey(session.companyId, 'pdf', revision.data.pdf_file_id));
-    if (stored === null) return c.json(notFound, 404);
-    return c.body(Readable.toWeb(stored.body) as ReadableStream, 200, {
-      'content-type': PDF_MIME,
-      'content-disposition': `attachment; filename="${pdfFilename(revision.data.number)}"`,
-      'x-content-type-options': 'nosniff',
-      ...(stored.contentLength === null ? {} : { 'content-length': String(stored.contentLength) }),
-    });
-  });
+  routes.get('/api/revisions/:id/pdf', serveRevisionFile('pdf'));
 
   return routes;
 }

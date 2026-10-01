@@ -1,10 +1,12 @@
-import { photoFileRowSchema, SERVER_DEVICE_ID, toIso, type Clock, type NewId } from '@app/domain';
+import { toIso, type Clock, type NewId, type Op } from '@app/domain';
 import { and, desc, eq } from 'drizzle-orm';
 import type { Db } from '../../db/client.ts';
 import type { CompanyId } from '../../db/repositories/company-id.ts';
-import { entities, ops } from '../../db/schema.ts';
+import { findFileRow } from '../../db/repositories/files.ts';
+import { ops } from '../../db/schema.ts';
 import { log } from '../../log.ts';
 import { applyServerBatch, ServerBatchRejectedError, type Tx } from '../../sync/apply.ts';
+import { serverOp } from '../../sync/server-op.ts';
 import type { ReadingPayload } from './payload.ts';
 
 /*
@@ -32,23 +34,18 @@ export function readingServerOp(input: {
   batchId: string | null;
   now: Clock;
   newId: NewId;
-}): Record<string, unknown> {
-  return {
-    op_id: input.newId(),
-    company_id: input.companyId,
-    scope: input.relatorioId === null ? 'company' : 'relatorio',
-    project_id: null,
-    relatorio_id: input.relatorioId,
+}): Op {
+  return serverOp({
+    opId: input.newId(),
+    companyId: input.companyId,
+    actorId: READING_ACTOR,
+    clientTs: toIso(input.now()),
     kind: input.kind,
     path: input.path,
     value: input.value,
-    prev_op_id: null,
-    batch_id: input.batchId,
-    meta: null,
-    actor_id: READING_ACTOR,
-    device_id: SERVER_DEVICE_ID,
-    client_ts: toIso(input.now()),
-  };
+    relatorioId: input.relatorioId,
+    batchId: input.batchId,
+  });
 }
 
 /** The newest op on a photo's `reading_status` path, or null when only its create set one. */
@@ -73,13 +70,8 @@ export class ReadingSendError extends Error {}
 
 /** The photo's stored `reading_status`, or null when the company holds no such photo row. */
 async function storedStatus(db: Db | Tx, companyId: CompanyId, photoId: string): Promise<string | null> {
-  const [found] = await db
-    .select({ row: entities.row })
-    .from(entities)
-    .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'file'), eq(entities.id, photoId)))
-    .limit(1);
-  const parsed = found === undefined ? null : photoFileRowSchema.safeParse(found.row);
-  return parsed === null || !parsed.success ? null : parsed.data.reading_status;
+  const found = await findFileRow(db, companyId, photoId);
+  return found === null || found.row.kind !== 'photo' ? null : found.row.reading_status;
 }
 
 /** Why `writeReadingFailed` wrote nothing: the status moved (or the photo is gone), or `stillLive` said a job will write. */

@@ -4,7 +4,7 @@ import { Document, Packer, Paragraph } from 'docx';
 import { describe, expect, it } from 'vitest';
 import { buildDocx, text } from './docx.ts';
 import { richRuns } from './rich-runs.ts';
-import { extractStructure, readZipEntries } from './docx-structure.ts';
+import { extractStructure, readZipEntries } from './docx-structure.test-support.ts';
 import { placeholderPages } from './toc.ts';
 
 /*

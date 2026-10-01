@@ -66,3 +66,24 @@ describe('A12 renderVariants auto-orients', () => {
     await expect(renderVariants(new Uint8Array([1, 2, 3]), 'image/jpeg')).rejects.toThrow();
   });
 });
+
+/*
+ * Review 2026-09-30, A-7: the thumb is cut from the print rather than from a second decode of
+ * the original. The sizes and formats stay what they were for a 3:2 photo and a vector logo.
+ */
+describe('A-7 the thumb from the print', () => {
+  it('keeps the sizes and the format of a 3:2 JPEG and of an SVG', async () => {
+    const jpeg = new Uint8Array(await sharp({ create: { width: 3000, height: 2000, channels: 3, background: '#336699' } }).jpeg().toBuffer());
+    const photo = (await renderVariants(jpeg, 'image/jpeg'))!;
+    const print = await sharp(photo.print.bytes).metadata();
+    const thumb = await sharp(photo.thumb.bytes).metadata();
+    expect([print.format, print.width, print.height]).toEqual(['jpeg', PRINT_MAX_PX, 1333]);
+    expect([thumb.format, thumb.width, thumb.height]).toEqual(['jpeg', THUMB_MAX_PX, 341]);
+
+    const svg = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200"><rect width="400" height="200" fill="#123"/></svg>');
+    const logo = (await renderVariants(svg, 'image/svg+xml'))!;
+    expect([logo.print.contentType, logo.thumb.contentType]).toEqual(['image/png', 'image/png']);
+    const logoThumb = await sharp(logo.thumb.bytes).metadata();
+    expect([logoThumb.width, logoThumb.height]).toEqual([THUMB_MAX_PX, THUMB_MAX_PX / 2]);
+  });
+});

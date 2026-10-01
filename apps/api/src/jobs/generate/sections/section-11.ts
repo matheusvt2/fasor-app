@@ -3,15 +3,17 @@ import { AlignmentType, Paragraph } from 'docx';
 import sharp from 'sharp';
 import { logError } from '../../../log.ts';
 import { CONTENT_WIDTH_TWIPS, image, PX_PER_CM, sizedImage, text } from '../docx.ts';
-import { DEFAULT_CONVERT_TIMEOUT_MS, rasterizePdfPages } from '../libreoffice.ts';
+import { CERTIFICATE_RASTERIZE_BUDGET_MS, DEFAULT_CONVERT_TIMEOUT_MS, rasterizePdfPages } from '../libreoffice.ts';
 
 /*
  * Story 7.3 (AC2): section 11, the calibration certificates, rendered from the kernel's
  * `LayoutSectionCertificates`. Each certificate prints as full-page images, one per page:
  * a PDF rasterized page by page at 150 dpi by LibreOffice (`rasterizePdfPages`), a JPEG or
  * PNG through sharp (EXIF orientation applied). No caption above the pages, as in the
- * source. A certificate with no file, or one that cannot be read or rasterized, prints the
- * kernel's placeholder line; the failure is logged and never fails the revision.
+ * source. A certificate with no file, one the server does not hold, or one that cannot be
+ * rasterized prints the kernel's placeholder line; the failure is logged and never fails the
+ * revision. A read of a stored certificate that throws (the store or the pool failing) fails
+ * the job instead, like a photo read (review 2026-09-30, A-4).
  */
 
 /** The certificate box: the content width by about 23 cm, so a page image never spills onto the next page. */
@@ -29,6 +31,12 @@ export interface StoredOriginal {
 export interface CertificateLoadOptions {
   jobId: string;
   timeoutMs?: number;
+  /**
+   * A-5: the time all the certificates of the section may spend rasterizing together;
+   * default `CERTIFICATE_RASTERIZE_BUDGET_MS`. A certificate past it prints its placeholder
+   * (open question, review 2026-09-30: should it fail the issue job instead?).
+   */
+  budgetMs?: number;
   /** Fields every log line carries (company, relatório, job). */
   context?: Record<string, unknown>;
 }
@@ -42,6 +50,7 @@ async function imagePages(bytes: Buffer, mime: string): Promise<Buffer[]> {
  * The page images of every attached certificate of the section, by certificate file id.
  * A certificate the server does not hold, whose type is neither PDF nor image, or whose
  * pages cannot be produced is left out (and logged): the section prints its placeholder.
+ * A `readOriginal` that throws rejects the load (A-4).
  */
 export async function loadCertificatePages(
   section: LayoutSectionCertificates | undefined,
@@ -51,18 +60,19 @@ export async function loadCertificatePages(
   const out = new Map<string, Buffer[]>();
   if (section === undefined) return out;
   const context = options.context ?? {};
+  const deadline = Date.now() + (options.budgetMs ?? CERTIFICATE_RASTERIZE_BUDGET_MS);
   for (const certificate of section.certificates) {
     const fileId = certificate.certificateFileId;
     if (fileId === null || out.has(fileId)) continue;
+    const stored = await readOriginal(fileId);
+    if (stored === undefined) {
+      logError('generate certificate not on the server', { ...context, instrument_id: certificate.instrumentId, file_id: fileId });
+      continue;
+    }
     try {
-      const stored = await readOriginal(fileId);
-      if (stored === undefined) {
-        logError('generate certificate not on the server', { ...context, instrument_id: certificate.instrumentId, file_id: fileId });
-        continue;
-      }
       let pages: Buffer[];
       if (stored.mime === 'application/pdf' || stored.bytes.subarray(0, 5).toString('latin1') === '%PDF-') {
-        pages = await rasterizePdfPages(stored.bytes, { jobId: options.jobId, timeoutMs: options.timeoutMs ?? DEFAULT_CONVERT_TIMEOUT_MS });
+        pages = await rasterizePdfPages(stored.bytes, { jobId: options.jobId, timeoutMs: options.timeoutMs ?? DEFAULT_CONVERT_TIMEOUT_MS, deadline });
       } else if (stored.mime.startsWith('image/')) {
         pages = await imagePages(stored.bytes, stored.mime);
       } else {
@@ -71,6 +81,7 @@ export async function loadCertificatePages(
       }
       if (pages.length > 0) out.set(fileId, pages);
     } catch (error) {
+      // A PDF LibreOffice cannot rasterize (in time or at all), or an image sharp cannot read.
       logError('generate certificate unreadable', { ...context, instrument_id: certificate.instrumentId, file_id: fileId, error: String(error) });
     }
   }

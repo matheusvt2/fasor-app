@@ -18,6 +18,7 @@ import {
   latestRevision,
   missingFilesText,
   nextEditNote,
+  previewFileName,
   notCaughtUpRetryable,
   nextRevisionNumber,
   readyTitle,
@@ -182,5 +183,11 @@ describe('E9 sweep B14: a not_caught_up this device cannot answer', () => {
   it('names how many files have not reached the server', () => {
     expect(missingFilesText(1)).toBe('1 arquivo ainda não chegou ao servidor');
     expect(missingFilesText(3)).toBe('3 arquivos ainda não chegaram ao servidor');
+  });
+});
+
+describe('A-25 previewFileName', () => {
+  it('names the preview PDF download relatorio-rascunho.pdf, as the preview route always served it', () => {
+    expect(previewFileName()).toBe('relatorio-rascunho.pdf');
   });
 });

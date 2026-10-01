@@ -7,7 +7,7 @@ import {
   type RelatorioRow,
   type RelatorioSnapshot,
 } from '@app/domain';
-import { and, eq, max, or } from 'drizzle-orm';
+import { and, eq, isNull, max, or } from 'drizzle-orm';
 import type { Db } from '../db/client.ts';
 import type { CompanyId } from '../db/repositories/company-id.ts';
 import { entities, ops } from '../db/schema.ts';
@@ -33,7 +33,9 @@ export async function toSnapshot(db: Reader, companyId: CompanyId, relatorioId: 
         eq(entities.company_id, companyId),
         or(
           eq(entities.relatorio_id, relatorioId),
-          eq(entities.project_id, projectId),
+          // A-22 (review 2026-09-30): the project's own rows (its equipment), not the rows of
+          // its other relatórios, which `buildSnapshot` would only discard.
+          and(eq(entities.project_id, projectId), isNull(entities.relatorio_id)),
           and(eq(entities.entity, 'project'), eq(entities.id, projectId)),
           eq(entities.entity, 'registry'),
           // Stories 4.8 and 7.1: the company's `user` rows, as the device's state holds them:

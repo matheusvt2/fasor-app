@@ -2,13 +2,13 @@ import {
   councilSchema,
   defaultTitleForCouncil,
   SEED_VERSION,
-  SERVER_DEVICE_ID,
   STANDARD_TEMPLATE_NAME,
   standardTemplate,
   SYSTEM_IDENTITY_ACTOR,
   toIso,
   uuidV7Schema,
   type Council,
+  type Op,
   type UserRow,
 } from '@app/domain';
 import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm';
@@ -16,6 +16,7 @@ import type { Auth } from '../auth/auth.ts';
 import { now } from '../clock.ts';
 import { newId } from '../ids.ts';
 import { applyServerBatch, ServerBatchRejectedError, type Tx } from '../sync/apply.ts';
+import { serverOp } from '../sync/server-op.ts';
 import type { Db } from './client.ts';
 import { ensureCompany } from './repositories/companies.ts';
 import { asCompanyId, type CompanyId } from './repositories/company-id.ts';
@@ -78,20 +79,19 @@ async function dropLegacyUser(db: Db, companyId: CompanyId, userId: string): Pro
   });
 }
 
-/** The envelope of a provisioning op in the company stream: server device, `system:identity`. */
-function provisioningEnvelope(companyId: CompanyId) {
-  return {
+/** A provisioning op in the company stream: server device, `system:identity` (A-28: the shared envelope). */
+function provisioningOp(companyId: CompanyId, input: { kind: Op['kind']; path: string; value: unknown; batchId?: string }): Op {
+  return serverOp({
+    opId: newId(),
+    companyId,
+    actorId: SYSTEM_IDENTITY_ACTOR,
+    clientTs: toIso(now()),
+    kind: input.kind,
+    path: input.path,
+    value: input.value,
     scope: 'company',
-    company_id: companyId,
-    project_id: null,
-    relatorio_id: null,
-    prev_op_id: null,
-    batch_id: null,
-    meta: null,
-    actor_id: SYSTEM_IDENTITY_ACTOR,
-    device_id: SERVER_DEVICE_ID,
-    client_ts: toIso(now()),
-  } as const;
+    batchId: input.batchId ?? null,
+  });
 }
 
 /**
@@ -119,11 +119,10 @@ async function projectUser(db: Db, companyId: CompanyId, row: UserRow): Promise<
   for (let attempt = 1; ; attempt++) {
     const decision = await decide(db);
     if (decision === 'none') return;
-    const envelope = provisioningEnvelope(companyId);
     const op =
       decision === 'create'
-        ? { ...envelope, op_id: newId(), kind: 'create', path: `user/${row.id}`, value: row }
-        : { ...envelope, op_id: newId(), kind: 'put', path: `user/${row.id}/name`, value: row.name };
+        ? provisioningOp(companyId, { kind: 'create', path: `user/${row.id}`, value: row })
+        : provisioningOp(companyId, { kind: 'put', path: `user/${row.id}/name`, value: row.name });
     try {
       await applyServerBatch(db, companyId, [op], {
         now,
@@ -278,13 +277,7 @@ export async function seedStandardTemplate(db: Db, companyId: CompanyId): Promis
     return null;
   }
   const id = newId();
-  const op = {
-    ...provisioningEnvelope(companyId),
-    op_id: newId(),
-    kind: 'create',
-    path: `template/${id}`,
-    value: standardTemplate({ id }),
-  };
+  const op = provisioningOp(companyId, { kind: 'create', path: `template/${id}`, value: standardTemplate({ id }) });
   try {
     // The existence check again under the company lock: two runs racing on one company
     // would otherwise both see none and both create one.
@@ -362,14 +355,7 @@ async function upgradeStandardTemplate(
   if (!needsUpgrade(row)) return;
   const target = standardTemplate({ id });
   const batchId = newId();
-  const put = (field: string, value: unknown) => ({
-    ...provisioningEnvelope(companyId),
-    batch_id: batchId,
-    op_id: newId(),
-    kind: 'put',
-    path: `template/${id}/${field}`,
-    value,
-  });
+  const put = (field: string, value: unknown) => provisioningOp(companyId, { kind: 'put', path: `template/${id}/${field}`, value, batchId });
   const batch = [
     put('seed_version', target.seed_version),
     put('blocks', target.blocks),

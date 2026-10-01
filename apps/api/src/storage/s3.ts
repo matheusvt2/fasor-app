@@ -18,9 +18,30 @@ type StorageConfig = Pick<Config, 'S3_ENDPOINT' | 'S3_REGION' | 'S3_ACCESS_KEY_I
  * with those keys. On AWS (Story 11.8) all three are unset: the client gets only its
  * region, reaches S3 virtual-hosted style, and the SDK default credential chain supplies
  * the ECS task role's credentials. No static key ever exists in production.
+ *
+ * Review 2026-09-30, A-6: the HTTP handler has timeouts, so a stalled socket rejects a
+ * `GetObject` or `PutObject` instead of hanging it (and the generate job waiting on it)
+ * forever: 5 s to connect, 120 s per request. Tests pass shorter ones.
  */
-export function createS3(config: StorageConfig): S3Client {
-  const options: S3ClientConfig = { region: config.S3_REGION };
+export const S3_CONNECTION_TIMEOUT_MS = 5_000;
+export const S3_REQUEST_TIMEOUT_MS = 120_000;
+
+export interface S3Timeouts {
+  connectionTimeoutMs?: number;
+  requestTimeoutMs?: number;
+}
+
+export function createS3(config: StorageConfig, timeouts: S3Timeouts = {}): S3Client {
+  const options: S3ClientConfig = {
+    region: config.S3_REGION,
+    // The SDK builds its `NodeHttpHandler` from these options. Without
+    // `throwOnRequestTimeout` the handler only logs a warning past `requestTimeout`.
+    requestHandler: {
+      connectionTimeout: timeouts.connectionTimeoutMs ?? S3_CONNECTION_TIMEOUT_MS,
+      requestTimeout: timeouts.requestTimeoutMs ?? S3_REQUEST_TIMEOUT_MS,
+      throwOnRequestTimeout: true,
+    },
+  };
   if (config.S3_ENDPOINT !== undefined) {
     options.endpoint = config.S3_ENDPOINT;
     options.forcePathStyle = true;

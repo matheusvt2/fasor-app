@@ -1,9 +1,11 @@
-import { accountResponseSchema } from '@app/domain';
+import { accountResponseSchema, type UserProfile } from '@app/domain';
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadConfig } from '../config.ts';
-import { createDb } from '../db/client.ts';
-import { findUserProfile, listUserProfiles } from '../db/repositories/users.ts';
-import { asCompanyId } from '../db/repositories/company-id.ts';
+import { createDb, type Db } from '../db/client.ts';
+import { findUserProfile } from '../db/repositories/users.ts';
+import { asCompanyId, type CompanyId } from '../db/repositories/company-id.ts';
+import { user } from '../db/schema.ts';
 import { seedTestCompanies, TEST_SEED } from '../db/seed.ts';
 import { createAuth } from './auth.ts';
 import { parseTrustedOrigins } from './trusted-origins.ts';
@@ -12,6 +14,16 @@ import { parseTrustedOrigins } from './trusted-origins.ts';
  * 1.3-API-001 and 1.3-API-002 against the live compose stack. The suite seeds itself
  * (TC-9) and then speaks HTTP, so it exercises the same cookie the browser gets.
  */
+
+/**
+ * Every user of one company, through the repository's own `findUserProfile` (A-27, review
+ * 2026-09-30: the listing lived in the repository for this test alone).
+ */
+async function listUserProfiles(db: Db, companyId: CompanyId): Promise<UserProfile[]> {
+  const ids = await db.select({ id: user.id }).from(user).where(eq(user.companyId, companyId));
+  const profiles = await Promise.all(ids.map((row) => findUserProfile(db, companyId, row.id)));
+  return profiles.filter((profile): profile is UserProfile => profile !== undefined);
+}
 
 const apiUrl = process.env.API_URL ?? 'http://api:3000';
 const companyA = TEST_SEED.companies[0];

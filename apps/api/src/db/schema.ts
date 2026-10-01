@@ -103,6 +103,9 @@ export const entities = pgTable(
     primaryKey({ columns: [t.company_id, t.entity, t.id] }),
     index('entities_company_relatorio_idx').on(t.company_id, t.relatorio_id),
     index('entities_company_project_idx').on(t.company_id, t.project_id),
+    // A-3 (review 2026-09-30): the company pull's per-relatório totals of live blocks and
+    // photos (`relatorioTotals`) read only live rows, grouped by relatório and entity.
+    index('entities_company_relatorio_entity_live_idx').on(t.company_id, t.relatorio_id, t.entity).where(sql`${t.removed_at} is null`),
   ],
 );
 
