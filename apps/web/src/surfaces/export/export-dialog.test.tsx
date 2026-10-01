@@ -257,6 +257,26 @@ describe('Export dialog (Story 4.8)', () => {
     expect(pending.generate).toHaveBeenCalledWith(REL, { last_op_id: null, file_ids_expected: [] });
   });
 
+  it('waits for the first read of the outbox: empty counts before it are not a drained outbox', async () => {
+    database = await freshDb();
+    // The provider has not read the outbox yet: its counts are the empty ones.
+    const unread = syncState({ outboxRead: false });
+    const { rerender } = render(<Harness sync={unread} />);
+    await userEvent.click(generateButton());
+    await new Promise((resolve) => setTimeout(resolve, TIMING.retryMs * 3));
+    expect(unread.generate).not.toHaveBeenCalled();
+
+    // The read lands with work still to send: the dialog keeps waiting for the drain.
+    const pending = syncState({ outboxRead: true, counts: { pending: 3 }, generate: unread.generate, syncNow: unread.syncNow, syncRelatorio: unread.syncRelatorio });
+    rerender(<Harness sync={pending} />);
+    await new Promise((resolve) => setTimeout(resolve, TIMING.retryMs * 3));
+    expect(unread.generate).not.toHaveBeenCalled();
+
+    // Drained: the request goes out.
+    rerender(<Harness sync={syncState({ outboxRead: true, generate: unread.generate, syncNow: unread.syncNow, syncRelatorio: unread.syncRelatorio })} />);
+    await waitFor(() => expect(unread.generate).toHaveBeenCalledTimes(1));
+  });
+
   it('stops on a dead op with the sentence beside the re-enabled button', async () => {
     database = await freshDb();
     const dead = syncState({ counts: { dead: 1 } });

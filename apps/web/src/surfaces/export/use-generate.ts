@@ -347,9 +347,13 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
   // Flushing: wait for the outbox to drain and the uploads to land, then request. A
   // dead op stops it, going offline hands the button back with the offline reason, and a
   // cycle that leaves work behind is kicked again, a bounded number of times.
-  const { counts, running, syncNow, online } = sync;
+  const { counts, running, syncNow, online, outboxRead } = sync;
   useEffect(() => {
     if (phase.kind !== 'flushing' || db === null) return;
+    // Until the provider's first read of the outbox lands, its counts are empty, not zero: a
+    // press then must wait for the read, never send a relatório the server does not hold yet
+    // (a 404, 4.8-E2E-001 on the rfp branch, whose launch delayed that first read).
+    if (outboxRead === false) return;
     if (!online) {
       setPhase({ kind: 'idle' });
       return;
@@ -392,7 +396,7 @@ export function useGenerate(relatorioId: string, timing: GenerateTiming = DEFAUL
       cancelled = true;
       if (timer !== null) clearTimeout(timer);
     };
-  }, [phase.kind, db, online, counts.dead, counts.pending, counts.sent, running, syncNow, timing.retryMs]);
+  }, [phase.kind, db, online, outboxRead, counts.dead, counts.pending, counts.sent, running, syncNow, timing.retryMs]);
 
   // Working: pull the stream until the revision arrives or the job ends without one.
   const { syncRelatorio } = sync;
