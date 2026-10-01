@@ -1,7 +1,12 @@
 # Runs `pnpm verify` and other workspace tooling; carries the Playwright browser.
 FROM node:24-bookworm@sha256:64af3819f9275802414d7cdc38c27e9d82bd564dec4d4da87d008255d36c63b4
+# poppler-utils: `pdftoppm`, which the api tests of the certificate rasterizer run.
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
-RUN corepack enable \
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends poppler-utils \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/* \
+ && corepack enable \
  && npx --yes playwright@1.63.0 install --with-deps chromium webkit
 WORKDIR /workspace
 RUN mkdir -p /pnpm-store /workspace/node_modules /workspace/packages/domain/node_modules \

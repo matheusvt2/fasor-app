@@ -5,10 +5,11 @@ ARG LIBREOFFICE_VERSION=26.2.6
 # The sha256 The Document Foundation publishes beside the tarball (`<file>.sha256`); bump it with the version.
 ARG LIBREOFFICE_SHA256=fd0e8f8f2408dd2e5b90286e60f3f97cf566ba441cd48cfc5bcc68067303e0bc
 
-# LibreOffice from The Document Foundation (Debian apt ships an older release) plus fonts.
+# LibreOffice from The Document Foundation (Debian apt ships an older release) plus fonts, and
+# poppler-utils for `pdftoppm` (section 11 rasterizes certificate PDFs with it).
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl \
-      fontconfig fonts-liberation fonts-dejavu-core fonts-crosextra-carlito fonts-crosextra-caladea \
+      fontconfig fonts-liberation fonts-dejavu-core fonts-crosextra-carlito fonts-crosextra-caladea poppler-utils \
       libxinerama1 libfontconfig1 libdbus-1-3 libcairo2 libcups2 libglu1-mesa libsm6 libxrender1 libxext6 libglib2.0-0 libnss3 libnspr4 libxml2 libxslt1.1 libx11-6 libxt6 libgl1 libexpat1 libxcb1 \
  && mkdir /tmp/lo \
  && curl -fsSL -o /tmp/lo.tar.gz "https://download.documentfoundation.org/libreoffice/stable/${LIBREOFFICE_VERSION}/deb/x86_64/LibreOffice_${LIBREOFFICE_VERSION}_Linux_x86-64_deb.tar.gz" \

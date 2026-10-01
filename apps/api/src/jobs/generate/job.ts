@@ -31,9 +31,11 @@ import { getObject, putObject } from '../../storage/s3.ts';
 import { applyOps, applyServerBatch, lockCompany, type Tx } from '../../sync/apply.ts';
 import { serverOp } from '../../sync/server-op.ts';
 import { freezeSnapshot } from '../../sync/snapshot.ts';
+import { s3PagesCache } from './certificate-cache.ts';
 import { buildDocx, type DocxImages } from './docx.ts';
 import { convertToPdf, DEFAULT_CONVERT_TIMEOUT_MS, LibreOfficeTimeoutError, type GenerateFault } from './libreoffice.ts';
 import { readOutline } from './pdf-outline.ts';
+import type { Rasterizer } from './pdf-raster.ts';
 import { loadCertificatePages, type StoredOriginal } from './sections/section-11.ts';
 import { loadPhotoImages } from './sections/section-7.ts';
 import { headingPages, missingHeadings, placeholderPages, tocConverged, type TocPages } from './toc.ts';
@@ -82,6 +84,8 @@ export interface GenerateJobDeps {
   newId: NewId;
   fault?: GenerateFault | undefined;
   timeoutMs?: number;
+  /** Section 11's PDF rasterizer; default pdftoppm (`rasterizePdfPages`). Tests inject a failing or counting one. */
+  rasterize?: Rasterizer;
 }
 
 /** The PDF outline lacks a section heading, so the TOC cannot be written (never silently `00`). */
@@ -240,9 +244,15 @@ export async function runGenerateJob(deps: GenerateJobDeps, payload: GeneratePay
     if (cover !== undefined) images.cover = cover;
     // Stories 7.2/7.3: the photos' print bytes and the certificates' page images, loaded
     // once before the passes. The loaders log and skip what the server does not hold or
-    // cannot decode; a read that throws fails the job (A-4), never issues without it.
+    // cannot decode; a read that throws, or certificate pages not produced in time, fail
+    // the job (A-4; Matheus 2026-09-30), never issue without them.
     images.photos = await loadPhotoImages(frozen.snapshot, (fileId) => printVariant(deps, companyId, files, fileId), fields);
-    images.certificates = await loadCertificatePages(certificatesSection, (fileId) => readOriginal(deps, companyId, files, fileId), { jobId: payload.job_id, timeoutMs: deps.timeoutMs, context: fields });
+    images.certificates = await loadCertificatePages(certificatesSection, (fileId) => readOriginal(deps, companyId, files, fileId), {
+      jobId: payload.job_id,
+      context: fields,
+      cache: s3PagesCache(deps.s3, deps.bucket, companyId),
+      ...(deps.rasterize === undefined ? {} : { rasterize: deps.rasterize }),
+    });
     // A-24: a preview's RASCUNHO image is drawn once per job, not once per TOC pass.
     if (layout.watermark !== null) images.watermark = await watermarkPng(layout.watermark);
 
