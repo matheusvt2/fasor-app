@@ -80,14 +80,20 @@ function acquireSource(key: string, load: () => Promise<Blob | null>): SharedSou
   if (entry === undefined) {
     const created: SharedSource = { mounts: 0, url: null, listeners: new Set() };
     sharedSources.set(key, created);
+    // A load that finds no picture (offline, fetch failed) leaves the map, so the next thumb
+    // that mounts tries again, as each thumb did on its own before the source was shared.
+    const forget = () => {
+      if (sharedSources.get(key) === created) sharedSources.delete(key);
+    };
     void load()
       .then((blob) => {
         // Every thumb of the photo unmounted meanwhile: nothing to hand the picture to.
-        if (sharedSources.get(key) !== created || blob === null || typeof URL.createObjectURL !== 'function') return;
+        if (sharedSources.get(key) !== created) return;
+        if (blob === null || typeof URL.createObjectURL !== 'function') return forget();
         created.url = URL.createObjectURL(blob);
         for (const listener of created.listeners) listener();
       })
-      .catch(() => undefined);
+      .catch(forget);
     entry = created;
   }
   entry.mounts += 1;

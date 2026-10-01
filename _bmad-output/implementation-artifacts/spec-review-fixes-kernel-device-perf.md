@@ -2,7 +2,7 @@
 title: 'Review fixes: kernel fold, location tree and device outbox performance'
 type: 'refactor'
 created: '2026-09-30'
-status: 'in-review'
+status: 'done'
 baseline_revision: '6b219098f2881aee6487cd57bfc8396b76141ea8'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -12,7 +12,49 @@ context:
   - '{project-root}/AGENTS.md'
 warnings: ['batched', 'multiple-goals', 'oversized']
 batched_why: 'Review-fix batch rfp of 2026-09-30: one PR for the kernel fold, location-tree and device outbox findings the coordinator assigned to this batch (review-fixes-2026-09-30-context.md).'
-deferred: []
+deferred:
+  - summary: >-
+      readingCountRows has no test for a pending thermo-hygrometer suggestion on a cabine (the new location bulkGet branch).
+    evidence: |-
+      Verification-gap layer: both readingCountRows tests use sheet and caption suggestions only; dropping the location branch keeps them green.
+    location: >-
+      apps/web/src/db/suggestion-store.ts:202-221
+    severity: medium
+  - summary: >-
+      lastOpIdFor's fallback for a pruned project-scope op (equipment tag) has no test.
+    evidence: |-
+      Verification-gap layer: outbox-prune.test.ts commits relatorio-scope puts only; generate-store.test.ts never prunes its equipment op.
+    location: >-
+      apps/web/src/db/generate-store.ts:105-133
+    severity: low
+  - summary: >-
+      syncRelatorio called while a cycle runs answers busy and leaves the new stream to the 60 s tick (pre-existing; syncProject already uses the fresh cycle).
+    evidence: |-
+      Edge-case layer; syncRelatorio calls runCycle as it did before this change.
+    location: >-
+      apps/web/src/sync/engine.ts:719-723
+    severity: low
+  - summary: >-
+      A public engine call whose own store write throws before any cycle resolves 'ran' (it used to reject).
+    evidence: |-
+      Edge-case layer; guarded() maps any throw to 'ran' unless stopped or paused.
+    location: >-
+      apps/web/src/sync/engine.ts:709-716
+    severity: low
+  - summary: >-
+      The prune does not run on a cycle whose earlier phase threw; the outbox waits for the next clean cycle.
+    evidence: |-
+      Edge-case layer; prunePhase sits inside the try after the other phases.
+    location: >-
+      apps/web/src/sync/engine.ts:599-617
+    severity: low
+  - summary: >-
+      K-9 names an unknown relatorio seed_version only; a block whose own seed_version is unknown still reads complete in sheetProgress.
+    evidence: |-
+      Edge-case layer; blocks share the relatorio seed in every fixture, so this is latent.
+    location: >-
+      packages/domain/src/relatorio/sheet-progress.ts:168-188
+    severity: low
 ---
 
 <intent-contract>
@@ -106,6 +148,20 @@ Device (`apps/web/src`):
 
 ## Review Triage Log
 
+### 2026-09-30 — Review pass
+- Layers: Edge Case Hunter and Verification Gap Reviewer. Blind Hunter and Intent Alignment were skipped for token economy; the integrated review covers them. The coordinator's change of plan (2026-09-30) allows a fix loop only for a high finding.
+- verdicts: 9 findings — high 0, medium 2, low 7, false 0, maybe-false 0
+- findings:
+  - `[medium]` `[defer]` readingCountRows location branch untested. Left as known open, per the coordinator's "no fix loop unless high".
+  - `[low]` `[defer]` lastOpIdFor's project-scope prune fallback untested. Known open.
+  - `[low]` `[reject]` Retention is measured from the device `client_ts`. The `now` it is compared with comes from the same device clock. The retention is 10 min and the undo toast lasts 6 s (`state/toast.tsx:11`), so the only failure needs a toast held open more than 100 times its lifetime.
+  - `[low]` `[defer]` syncRelatorio answers busy during a cycle. This predates the change.
+  - `[low]` `[defer]` guarded() maps a pre-cycle throw to 'ran'.
+  - `[low]` `[defer]` The prune is skipped on a cycle where an earlier phase threw.
+  - `[medium]` `[patch]` CropThumb's shared source kept a failed load, so every later thumb of that photo stayed blank. Fixed by the orchestrator: a load that finds no picture, or one that rejects, removes its entry from the map, so the next mount retries. Test added in `crop-thumb.test.tsx`.
+  - `[low]` `[reject]` W-24 claim mismatch (EXIF from the converted head). `heic-to` redraws through a canvas and drops the EXIF, so it is read from the HEIC once. The PR body lists this as a narrowing.
+  - `[low]` `[defer]` K-9 at block level (per-block unknown seed). Latent.
+
 ## Design Notes
 
 The tree memo keys on array identity, which the web's incremental snapshot builder (`schemas/snapshot.ts:209-345 createSnapshotBuilder`) keeps across commits for untouched arrays; a commit yields a new `blocks` array, so each keystroke pays exactly one tree build (today three in `use-ficha-data.ts:64-67`, a fourth on "Concluir"). Callers wrapping the same arrays in a fresh object (`{ blocks, locations, equipment }`) still hit the cache because the key is the arrays, not the wrapper.
@@ -122,3 +178,22 @@ Open questions (keep current behaviour, list in the PR): none known at planning 
 - `pnpm lint` and `pnpm static` -- expected: green.
 - `pnpm exec tsx test-results/full-review-2026-09-30/kernel-timing.ts` -- expected: the AC numbers.
 - Do NOT run `pnpm verify`, `test:e2e*` or the perf spec; the orchestrator runs the gates under the host lock.
+
+## Auto Run Result
+
+Status: done.
+
+**What changed**
+- Every finding in the batch is implemented: K-1, K-2, K-6 to K-11, K-15 to K-20, W-1 to W-8, W-10, W-11, W-24 to W-27, and audit 1.4. Narrowings are listed in the PR body.
+- One patch came from review: the retry of the W-11 shared source.
+
+**Verification**
+- The implementer ran `pnpm test:unit` (2795 tests), `pnpm test:api` (395), lint and static, all green. The orchestrator ran the crop-thumb tests and lint/static after the patch.
+- The gates (`verify`, e2e, matrix) and the mutation runs are deferred to the integrated validation, per Matheus on 2026-09-30.
+
+**Follow-up review:** false. No high finding was patched; one medium was patched.
+
+**Residual risks**
+- The tree and sheet-state memos assume that snapshot arrays and rows are never mutated in place.
+- An unexpected mid-cycle error now sets `lastFailure: apply`.
+
