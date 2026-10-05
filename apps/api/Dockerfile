@@ -2,18 +2,28 @@
 FROM node:24-bookworm-slim@sha256:0e0ff40c39bc087845bfb27465a0df4ea419520094bc35842ff83dd8cbe6f9b6
 
 ARG LIBREOFFICE_VERSION=26.2.6
-# The sha256 The Document Foundation publishes beside the tarball (`<file>.sha256`); bump it with the version.
-ARG LIBREOFFICE_SHA256=fd0e8f8f2408dd2e5b90286e60f3f97cf566ba441cd48cfc5bcc68067303e0bc
+# The sha256 sums The Document Foundation publishes beside each tarball (`<file>.sha256`); bump them with the version.
+# TARGETARCH picks the x86-64 or aarch64 build, as in Dockerfile.prod, so the image also builds natively on
+# Apple silicon; without BuildKit TARGETARCH is empty and the base image's own architecture decides.
+ARG TARGETARCH
+ARG LIBREOFFICE_SHA256_AMD64=fd0e8f8f2408dd2e5b90286e60f3f97cf566ba441cd48cfc5bcc68067303e0bc
+ARG LIBREOFFICE_SHA256_ARM64=f8e8b1d30abde0d530d727ce1b26909ccbedc3d76bcf75d93b3dd5fcd5b8d278
 
 # LibreOffice from The Document Foundation (Debian apt ships an older release) plus fonts, and
 # poppler-utils for `pdftoppm` (section 11 rasterizes certificate PDFs with it).
-RUN apt-get update \
+RUN arch="${TARGETARCH:-$(dpkg --print-architecture)}" \
+ && case "${arch}" in \
+      amd64) lo_dir=x86_64; lo_file=x86-64; lo_sha256="${LIBREOFFICE_SHA256_AMD64}" ;; \
+      arm64) lo_dir=aarch64; lo_file=aarch64; lo_sha256="${LIBREOFFICE_SHA256_ARM64}" ;; \
+      *) echo "unsupported architecture '${arch}'" >&2; exit 1 ;; \
+    esac \
+ && apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates curl \
       fontconfig fonts-liberation fonts-dejavu-core fonts-crosextra-carlito fonts-crosextra-caladea poppler-utils \
       libxinerama1 libfontconfig1 libdbus-1-3 libcairo2 libcups2 libglu1-mesa libsm6 libxrender1 libxext6 libglib2.0-0 libnss3 libnspr4 libxml2 libxslt1.1 libx11-6 libxt6 libgl1 libexpat1 libxcb1 \
  && mkdir /tmp/lo \
- && curl -fsSL -o /tmp/lo.tar.gz "https://download.documentfoundation.org/libreoffice/stable/${LIBREOFFICE_VERSION}/deb/x86_64/LibreOffice_${LIBREOFFICE_VERSION}_Linux_x86-64_deb.tar.gz" \
- && echo "${LIBREOFFICE_SHA256}  /tmp/lo.tar.gz" | sha256sum -c - \
+ && curl -fsSL -o /tmp/lo.tar.gz "https://download.documentfoundation.org/libreoffice/stable/${LIBREOFFICE_VERSION}/deb/${lo_dir}/LibreOffice_${LIBREOFFICE_VERSION}_Linux_${lo_file}_deb.tar.gz" \
+ && echo "${lo_sha256}  /tmp/lo.tar.gz" | sha256sum -c - \
  && tar -xzf /tmp/lo.tar.gz -C /tmp/lo --strip-components=1 \
  && rm /tmp/lo.tar.gz \
  && apt-get install -y --no-install-recommends /tmp/lo/DEBS/*.deb \
