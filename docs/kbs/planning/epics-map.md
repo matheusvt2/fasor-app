@@ -20,5 +20,5 @@ Open one story: `grep -n '### Story 5.3' _bmad-output/planning-artifacts/epics.m
 8. **Nameplate from a photo**: 8.1 Suggestion entity, 8.2 plate capture, 8.3 local OCR service, 8.4 reading job, 8.5 digit coverage and registry check, 8.6 one-tap confirm.
 9. **More assists**: 9.1 "Ler visor", 9.2 block from photo, 9.3 vision captions, 9.4 dictation, 9.5 NC drafts.
 10. **Two devices**: 10.1 merge by rule, 10.2 true contradictions, 10.3 removed-vs-edited and duplicate TAG, 10.4 full sync status.
-11. **Completions and AWS**: 11.1 PDF download, 11.2 move block, 11.3 save as template, 11.4 rich text, 11.5 location stamp switch, 11.6 Claude structuring (blocked on Bedrock quota), 11.7 Textract, 11.8 AWS deploy and AI flag, 11.9 priority suggests deadline, 11.10 action-plan table.
+11. **Completions and AWS**: 11.1 PDF download, 11.2 move block, 11.3 save as template, 11.4 rich text, 11.5 location stamp switch, 11.6 Bedrock structuring (unblocked 2026-10-05, Haiku 4.5 as reference), 11.7 Textract, 11.8 AWS deploy and AI flag, 11.9 priority suggests deadline, 11.10 action-plan table.
 12. **Field journey and visual refresh**: 12.1 no lost taps, 12.2 forward never back, 12.3 sheet repeats nothing, 12.4 plate and NC in fewer taps, 12.5 v0.9 visual direction, 12.6 tap budget as a test. Ran before Epic 6 (`sprint-change-proposal-2026-09-24.md`).

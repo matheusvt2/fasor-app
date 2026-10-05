@@ -135,7 +135,7 @@ development_status:
   11-3-save-a-relatório-as-a-template: done  # PR #73
   11-4-edit-section-boilerplate-in-a-rich-text-editor: done  # PR #75
   11-5-turn-the-photo-location-stamp-on-or-off: done  # PR #75
-  11-6-structure-readings-with-claude-through-a-paid-api-key: backlog  # blocked: Bedrock new-account quotas (AWS support case), Story 11.6 Definition of Ready
+  11-6-structure-readings-with-claude-through-a-paid-api-key: backlog  # unblocked 2026-10-05, Matheus: Haiku 4.5 replaces Sonnet 5.5 as reference; Definition of Ready met (Converse through fasor-app on Haiku 4.5 and Nova 2 Lite); was blocked on Bedrock quotas
   11-7-use-amazon-textract-as-the-cloud-ocr: done  # PR #69 (live Textract call waits for the deploy)
   11-8-deploy-the-same-images-to-aws: done  # PRs #74, #76, #77, #78; deployed a207641 to https://3.230.46.205; evidence in E11-A2
   11-9-let-the-priority-suggest-the-deadline-on-a-point-of-attentio: done  # PR #71
