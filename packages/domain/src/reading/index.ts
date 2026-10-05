@@ -9,3 +9,4 @@ export * from './prose.ts';
 export * from './panel.ts';
 export * from './retarget.ts';
 export * from './ai.ts';
+export * from './escalate.ts';

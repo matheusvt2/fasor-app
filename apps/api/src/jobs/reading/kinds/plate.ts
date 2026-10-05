@@ -1,8 +1,18 @@
-import { buildReadingSuggestions, getDefinition, plateReadingTargetSchema, registryRowSchema, type WordRow } from '@app/domain';
+import {
+  betterReading,
+  buildReadingSuggestions,
+  getDefinition,
+  plateReadingTargetSchema,
+  registryRowSchema,
+  shouldEscalate,
+  type StructuringResult,
+  type WordRow,
+} from '@app/domain';
 import { and, eq, isNull } from 'drizzle-orm';
 import type { Db } from '../../../db/client.ts';
 import type { CompanyId } from '../../../db/repositories/company-id.ts';
 import { entities } from '../../../db/schema.ts';
+import { log } from '../../../log.ts';
 import { PermanentReadingError } from '../providers/errors.ts';
 import { readOcr, targetBlock } from './shared.ts';
 import type { ReadingKindHandler } from './types.ts';
@@ -13,6 +23,13 @@ import type { ReadingKindHandler } from './types.ts';
  * the image goes through the text OCR and the structuring step, and the kernel turns the
  * values into pending suggestions (`buildReadingSuggestions`: digit coverage, registries,
  * boxes, mode).
+ *
+ * Story 11.6: when the providers carry an escalation model and the first reading is more than
+ * half `verify` or empty (`shouldEscalate`), the same image, OCR and fields are structured once more on
+ * it and the better reading is kept (`betterReading`: more `suggested`, the first on a tie). The
+ * run row then names the model of the kept reading with the usage of both calls summed. A first
+ * reading with no suggestion escalates too, unless the OCR found no word; an escalation call
+ * that fails keeps the first.
  */
 
 async function liveRegistry(db: Db, companyId: CompanyId): Promise<{ manufacturers: WordRow[]; voltageClasses: WordRow[] }> {
@@ -52,20 +69,45 @@ export const plateHandler: ReadingKindHandler = {
       fixture: { block_type: block.block_type, table_key: null },
       async run({ providers, image, runId, newId }) {
         const ocr = await readOcr(providers, image, { mode: 'text' });
-        const structuring = await providers.structuring.structure({ image: { bytes: image.bytes, mime: image.mime }, ocr, fields: [...fields] });
-        const built = buildReadingSuggestions({
-          relatorioId,
-          photoId: photo.id,
-          runId,
-          block,
-          ocr,
-          image,
-          output: structuring.output,
-          promptVersion: structuring.prompt_version,
-          registry,
-          newId,
-        });
-        return { ocr, structuring, rows: built.rows, dropped: built.dropped };
+        const input = { image: { bytes: image.bytes, mime: image.mime }, ocr, fields: [...fields] };
+        const build = (structuring: StructuringResult) =>
+          buildReadingSuggestions({
+            relatorioId,
+            photoId: photo.id,
+            runId,
+            block,
+            ocr,
+            image,
+            output: structuring.output,
+            promptVersion: structuring.prompt_version,
+            registry,
+            newId,
+          });
+        const first = await providers.structuring.structure(input);
+        const built = build(first);
+        // An OCR read with no word leaves nothing a second model could cite: no paid second call.
+        if (providers.escalation === undefined || ocr.tokens.length === 0 || !shouldEscalate(built.rows)) {
+          return { ocr, structuring: first, rows: built.rows, dropped: built.dropped };
+        }
+
+        // A failed escalation (throttled, denied, an answer the schema refuses) keeps the first
+        // reading with its own usage; it never fails an attempt the first call already read.
+        let second: StructuringResult;
+        try {
+          second = await providers.escalation.structure(input);
+        } catch (error) {
+          log('reading escalation failed', { photo_id: photo.id, run_id: runId, error: error instanceof Error ? `${error.name}: ${error.message}` : String(error) });
+          return { ocr, structuring: first, rows: built.rows, dropped: built.dropped };
+        }
+        const escalated = build(second);
+        const keptSecond = betterReading(built.rows, escalated.rows) === escalated.rows;
+        const kept = keptSecond ? { structuring: second, built: escalated } : { structuring: first, built };
+        const usage = {
+          input_tokens: first.usage.input_tokens + second.usage.input_tokens,
+          output_tokens: first.usage.output_tokens + second.usage.output_tokens,
+          usd: Math.round((first.usage.usd + second.usage.usd) * 1e6) / 1e6,
+        };
+        return { ocr, structuring: { ...kept.structuring, usage }, rows: kept.built.rows, dropped: kept.built.dropped };
       },
     };
   },

@@ -12,14 +12,6 @@ export class PermanentReadingError extends Error {
   }
 }
 
-/** A provider slot that exists behind the env switch but is not built (Epic 11). */
-export class ProviderNotImplementedError extends PermanentReadingError {
-  constructor(provider: string) {
-    super(`reading provider "${provider}" is not implemented`);
-    this.name = 'ProviderNotImplementedError';
-  }
-}
-
 /** Story 11.8 follow-up: the LLM step of a reading while the server's `AI_FEATURES` is `off`. */
 export class AiFeaturesOffError extends PermanentReadingError {
   constructor() {

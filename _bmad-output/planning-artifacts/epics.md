@@ -2436,7 +2436,9 @@ So that the pipeline proven on fixtures reads real plates with one config change
 
 *(2026-09-29, Matheus: not limited to Anthropic. The provider uses the Bedrock Converse API; an evaluation over the Porto Seguro fixture photos picks the cheapest model that matches Claude Sonnet 5.5 within 1-2 accuracy points, with a larger model on low confidence. `source-deltas.md`.)*
 
-*(2026-09-30, Matheus, Definition of Ready for this story, the LLM gate: the AWS support case on the new-account Bedrock quotas is resolved, and one real Converse call through the `fasor-app` role succeeds on Claude Sonnet 5.5 and on at least one cheaper candidate. The story is built last in Epic 11.)*
+*(2026-09-30, Matheus, Definition of Ready for this story, the LLM gate: ~~the AWS support case on the new-account Bedrock quotas is resolved, and one real Converse call through the `fasor-app` role succeeds on Claude Sonnet 5.5 and on at least one cheaper candidate~~ one real Converse call through the `fasor-app` role succeeds on Claude Haiku 4.5 and on at least one cheaper candidate (2026-10-05). The story is built last in Epic 11.)*
+
+*(2026-10-05, Matheus: Claude Haiku 4.5 replaces Sonnet 5.5 as the reference model of the evaluation, which picks the cheapest candidate within 1-2 accuracy points of Haiku 4.5. Sonnet 5.5 is still at 0 TPM and denied to the account; it rejoins as reference and escalation model when AWS enables it, and Sonnet 4.6 is not used. The gate is met: on 2026-10-05 image Converse calls through `fasor-app` succeeded on Haiku 4.5 (`global.anthropic.claude-haiku-4-5-20251001-v1:0`), Nova 2 Lite, Nova Lite, Nova Pro, Qwen3 VL 235B and Mistral Large 3. `source-deltas.md`.)*
 
 *(2026-09-30, coordinator, PR #72 narrowing for this story (Epic 11 carry-over, ledger 1131): a gallery import batch now asks for the caption reading only when the batch is answered or closed, and a batch never answered (reload, killed tab) keeps no caption reading. `MIN_CONTRACT_VERSION` stays 13, so a version-13 bundle still asks at pick time: this story raises MIN to 14 or later before a cloud LLM is wired.)*
 

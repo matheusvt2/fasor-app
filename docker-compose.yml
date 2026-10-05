@@ -28,6 +28,14 @@ x-app-env: &app-env
   TRUSTED_ORIGINS: ${TRUSTED_ORIGINS:-http://localhost:5173,http://localhost:*,http://127.0.0.1:*,http://api:3000,http://web:5173,https://${TABLET_HOST:-localhost},https://${TABLET_HOST:-localhost}:${CADDY_HTTPS_PORT:-443}}
   LLM_PROVIDER: ${LLM_PROVIDER:-fake}
   OCR_PROVIDER: ${OCR_PROVIDER:-fake}
+  # Story 11.6: the `bedrock` LLM provider's region and models (read only with LLM_PROVIDER=bedrock).
+  # Unset or empty, config.ts defaults them (Claude Haiku 4.5; prose on the same model). The
+  # escalation model is passed only when set, so its default (Amazon Nova Pro) holds; set it
+  # empty (BEDROCK_ESCALATION_MODEL_ID=) to turn the plate escalation off.
+  BEDROCK_REGION: ${BEDROCK_REGION:-}
+  BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:-}
+  BEDROCK_PROSE_MODEL_ID: ${BEDROCK_PROSE_MODEL_ID:-}
+  BEDROCK_ESCALATION_MODEL_ID: ${BEDROCK_ESCALATION_MODEL_ID-us.amazon.nova-pro-v1:0}
   # Story 8.3: the OCR sidecar below (profile `ocr`); only the `ocr-svc` provider calls it.
   OCR_SERVICE_URL: ${OCR_SERVICE_URL:-http://ocr:8000}
   # Story 4.8: the generate worker runs in the api process; GENERATE_FAULT (TC-3) is

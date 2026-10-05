@@ -6,3 +6,10 @@ acme_email = "operator@example.com"
 # Host name of the app, with an A record to the Elastic IP in the domain's DNS (apply only
 # once it resolves). Omit to serve the IP URL only.
 # app_domain = "app.example.com"
+# Story 11.6: the AI features. Turned on after the 11.6 merge and deploy (README.md, "AI features flag").
+# llm_provider = "bedrock"
+# ai_features  = "on"
+# The Bedrock models; the defaults are Claude Haiku 4.5 (structuring and prose) and Amazon Nova Pro (escalation).
+# bedrock_model_id            = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+# bedrock_prose_model_id      = ""
+# bedrock_escalation_model_id = "us.amazon.nova-pro-v1:0"
