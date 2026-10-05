@@ -31,6 +31,7 @@ import { renderVariants } from '../../storage/variants.ts';
 import { applyOps } from '../../sync/apply.ts';
 import { runReadingJob, type ReadingJobDeps } from './job.ts';
 import { DEFAULT_FIXTURES_DIR } from './providers/fake.ts';
+import type { BedrockConverseOutput, BedrockLike } from './providers/bedrock.ts';
 import { createReadingProviders, type ReadingProvidersFactory } from './providers/index.ts';
 
 /*
@@ -394,4 +395,79 @@ describe('9.5-INT the nc_obs reading kind', () => {
       await expectPermanent(gone, 'target block was removed');
     }, 60_000);
   });
+});
+
+describe('11.6-INT the prose kinds through the bedrock provider (an injected client; nothing reaches AWS)', () => {
+  const HAIKU = 'global.anthropic.claude-haiku-4-5-20251001-v1:0';
+  const NOVA_LITE = 'global.amazon.nova-2-lite-v1:0';
+
+  /** A client answering `record_text` with this text, recording each request's model and text. */
+  function converse(text: string | null): BedrockLike & { calls: { modelId: string; prompt: string }[] } {
+    const calls: { modelId: string; prompt: string }[] = [];
+    return {
+      calls,
+      async send(command): Promise<BedrockConverseOutput> {
+        calls.push({ modelId: command.input.modelId!, prompt: command.input.messages![0]!.content![1]!.text! });
+        return {
+          output: { message: { role: 'assistant', content: [{ toolUse: { toolUseId: 'u1', name: 'record_text', input: { text } } }] } },
+          stopReason: 'tool_use',
+          usage: { inputTokens: 1500, outputTokens: 20, totalTokens: 1520 },
+        };
+      },
+    };
+  }
+  const bedrockDeps = (client: BedrockLike, proseModel?: string): ReadingJobDeps => ({
+    ...deps,
+    providers: createReadingProviders(
+      { OCR_PROVIDER: 'fake', LLM_PROVIDER: 'bedrock', OCR_SERVICE_URL: 'http://127.0.0.1:9', ...(proseModel === undefined ? {} : { BEDROCK_PROSE_MODEL_ID: proseModel }) },
+      { fixturesDir, bedrock: { client, createClient: () => { throw new Error('a real BedrockRuntimeClient was built'); } } },
+    ),
+  });
+  const runWith = (jobDeps: ReadingJobDeps, photoId: string, kind: 'caption' | 'nc_obs') =>
+    runReadingJob(jobDeps, { company_id: companyId, photo_id: photoId, reading_kind: kind }, { jobId: 'direct', attempt: 1, lastAttempt: false });
+
+  it('a caption reads to done: one suggested fill from the model sentence, the run row with model, prompt_version, tokens and USD', async () => {
+    const { relatorioId } = await relatorio();
+    const id = await photo({ relatorioId, image: await shot(41), kind: 'caption' });
+    const client = converse('Vista geral do painel de média tensão');
+    await runWith(bedrockDeps(client), id, 'caption');
+    expect(await status(id)).toBe('done');
+    expect(client.calls.map((call) => call.modelId)).toEqual([HAIKU]);
+    const [suggestion, ...rest] = await suggestionsOf(id);
+    expect(rest).toEqual([]);
+    expect(suggestion).toMatchObject({ target_path: fileFieldPath(id, 'caption'), value: 'Vista geral do painel de média tensão', trust: 'suggested', prompt_version: 'bedrock-prose-1' });
+    expect((await runs(id))[0]).toMatchObject({
+      outcome: 'ok',
+      reading_kind: 'caption',
+      ocr_result: null,
+      model: HAIKU,
+      prompt_version: 'bedrock-prose-1',
+      llm_usage: { input_tokens: 1500, output_tokens: 20, usd: (1500 * 1.0 + 20 * 5.0) / 1e6 },
+    });
+  }, 60_000);
+
+  it('an NC draft reads to done on BEDROCK_PROSE_MODEL_ID, the prompt naming the checklist item', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const chave = blocks.find((b) => b.block_type === 'chave_seccionadora')!;
+    await apply([setResult(relatorioId, chave.id, 'NC')]);
+    const id = await photo({ relatorioId, image: await shot(42), kind: 'nc_obs', target: ncObsReadingOf(chave, ITEM).target, blockId: chave.id, itemKey: ITEM });
+    const client = converse('Oxidação aparente no mecanismo de manobra.');
+    await runWith(bedrockDeps(client, NOVA_LITE), id, 'nc_obs');
+    expect(await status(id)).toBe('done');
+    expect(client.calls.map((call) => call.modelId)).toEqual([NOVA_LITE]);
+    expect(client.calls[0]!.prompt).toContain('"Chave seccionadora"');
+    const all = await suggestionsOf(id);
+    expect(all).toHaveLength(1);
+    expect(all[0]).toMatchObject({ target_path: sheetChecklistPath(chave.id, ITEM, 'observation'), value: 'Oxidação aparente no mecanismo de manobra.', trust: 'suggested' });
+    expect((await runs(id))[0]).toMatchObject({ outcome: 'ok', model: NOVA_LITE, prompt_version: 'bedrock-prose-1', llm_usage: { input_tokens: 1500, output_tokens: 20, usd: (1500 * 0.3 + 20 * 2.5) / 1e6 } });
+  }, 60_000);
+
+  it('an empty sentence is nothing to suggest: done, no row, the usage still on the run row', async () => {
+    const { relatorioId } = await relatorio();
+    const id = await photo({ relatorioId, image: await shot(43), kind: 'caption' });
+    await runWith(bedrockDeps(converse('')), id, 'caption');
+    expect(await status(id)).toBe('done');
+    expect(await suggestionsOf(id)).toEqual([]);
+    expect((await runs(id))[0]).toMatchObject({ outcome: 'ok', model: HAIKU, llm_usage: { input_tokens: 1500, output_tokens: 20 } });
+  }, 60_000);
 });

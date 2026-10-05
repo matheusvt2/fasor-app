@@ -136,9 +136,16 @@ export const CONTRACT_VERSION = 14;
  *
  * Stays 13 at contract 14 (2026-09-30, ledger 1131, batch C): a version-13 bundle parses the
  * `file/{id}/reading_kind = 'caption'` put a relatório stream now carries and its `applyOp`
- * derives the same `queued` status from it (`readingKindPutStatus`), so no pull is refused.
+ * derives the same `queued` status from it (`readingKindPutStatus`), ~~so no pull is refused~~.
+ * Superseded on 2026-10-05 by the 14 paragraph below: MIN goes to 14 all the same.
+ *
+ * 14 (2026-10-05, Story 11.6): `LLM_PROVIDER=bedrock` sends a caption reading's photo to a
+ * cloud model. A version-13 bundle queues that reading at pick time, before the import batch
+ * is answered, so a photo later marked "Pessoas na foto" or given a caption could already be
+ * on its way; a version-14 bundle asks only once the batch is answered or closed (ledger 1131).
+ * No contract change at 14, but a version-13 bundle must update before a cloud LLM is wired.
  */
-export const MIN_CONTRACT_VERSION = 13;
+export const MIN_CONTRACT_VERSION = 14;
 
 /**
  * E10-Q6 (2026-09-29): the first version whose client stamps what it saw on its writes

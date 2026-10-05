@@ -43,6 +43,13 @@ locals {
       LLM_PROVIDER    = var.llm_provider
       AI_FEATURES     = var.ai_features
       AWS_REGION      = local.region
+      # Story 11.6: the Bedrock models (read only with LLM_PROVIDER=bedrock). An empty prose model
+      # is the structuring one; an empty escalation model turns the plate escalation off. The
+      # region is pinned: the IAM ARNs (infra/bootstrap/iam.tf) and the adapter's price table are us-east-1's.
+      BEDROCK_REGION              = "us-east-1"
+      BEDROCK_MODEL_ID            = var.bedrock_model_id
+      BEDROCK_PROSE_MODEL_ID      = var.bedrock_prose_model_id
+      BEDROCK_ESCALATION_MODEL_ID = var.bedrock_escalation_model_id
     } : { name = name, value = value }
   ]
 

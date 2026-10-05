@@ -15,6 +15,7 @@ import {
   type OpDraft,
   type SuggestionRow,
 } from '@app/domain';
+import { AccessDeniedException as BedrockAccessDeniedException, ThrottlingException as BedrockThrottlingException } from '@aws-sdk/client-bedrock-runtime';
 import { AccessDeniedException, type Block } from '@aws-sdk/client-textract';
 import { and, asc, desc, eq } from 'drizzle-orm';
 import { PgBoss } from 'pg-boss';
@@ -36,6 +37,7 @@ import { createReadingProviders } from './providers/index.ts';
 import { readingServerOp, readingStatusPath, startReading } from './status.ts';
 import { PermanentReadingError } from './providers/index.ts';
 import { textractTokens, type TextractLike } from './providers/textract.ts';
+import type { BedrockConverseOutput, BedrockLike } from './providers/bedrock.ts';
 import { enqueueReading, ensureReadingQueue, failDeadReading, readingDeadLetterQueue, registerReadingWorker, type ReadingQueueOptions } from './worker.ts';
 
 /*
@@ -106,16 +108,21 @@ async function registry(kind: 'manufacturer' | 'voltage_class', name: string, ow
 
 /**
  * A plate photo of `block` with these bytes: the device's create, the original and both
- * variants in the store (`print: false` leaves the print variant out; `target` names another block).
+ * variants in the store (`print: false` leaves the print variant out; `target` names another block;
+ * `panel` makes it a panel front shot from the block's location instead).
  */
 async function photo(
   relatorioId: string,
   block: BlockRow,
   bytes: Uint8Array,
   mime: 'image/png' | 'image/jpeg',
-  options: { print?: boolean; target?: Pick<BlockRow, 'id' | 'block_type'> } = {},
+  options: { print?: boolean; target?: Pick<BlockRow, 'id' | 'block_type'>; panel?: boolean } = {},
 ): Promise<string> {
   const target = options.target ?? block;
+  // Story 9.2: a panel front photographed from the palette of the block's location.
+  const reading = options.panel
+    ? { block_id: null, caption: null, reading_kind: 'panel', reading_target: { location_id: block.location_id } }
+    : { block_id: block.id, caption: 'Placa de identificação', reading_kind: 'plate', reading_target: plateReadingTarget(target.id, target.block_type) };
   const id = newId();
   await apply([
     {
@@ -140,11 +147,8 @@ async function photo(
         tz_offset: -180,
         coords: null,
         local_seq: 1,
-        block_id: block.id,
         item_key: null,
-        caption: 'Placa de identificação',
-        reading_kind: 'plate',
-        reading_target: plateReadingTarget(target.id, target.block_type),
+        ...reading,
         reading_status: 'queued',
       } as never,
       prev_op_id: null,
@@ -498,27 +502,7 @@ describe('8.5-INT registry verdicts on a Chave seccionadora', () => {
   }, 60_000);
 });
 
-describe('8.4-INT provider stubs and foreign payloads', () => {
-  for (const [ocr, llm] of [
-    ['fake', 'anthropic'],
-    ['fake', 'bedrock'],
-  ] as const) {
-    it(`OCR_PROVIDER=${ocr} LLM_PROVIDER=${llm} fails permanently with ProviderNotImplementedError`, async () => {
-      const { relatorioId, blocks } = await relatorio();
-      const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
-      const bytes = await solidPng(1, 2, Math.floor(Math.random() * 250));
-      fixture(bytes, { ocr: { image: { width: 200, height: 100 }, tokens: [], preprocessing_applied: false } });
-      const id = await photo(relatorioId, block, bytes, 'image/png');
-      const stubDeps = { ...deps, providers: createReadingProviders({ OCR_PROVIDER: ocr, LLM_PROVIDER: llm, OCR_SERVICE_URL: 'http://127.0.0.1:9' }, { fixturesDir }) };
-      await runReadingJob(stubDeps, { company_id: companyId, photo_id: id, reading_kind: 'plate' }, { jobId: 'direct', attempt: 1, lastAttempt: false });
-      expect(await status(id)).toBe('failed');
-      const rows = await runs(id);
-      expect(rows).toHaveLength(1);
-      expect(rows[0]!.error).toContain('ProviderNotImplementedError');
-      expect(rows[0]!.ocr_provider).toBe(ocr);
-    }, 60_000);
-  }
-
+describe('8.4-INT foreign payloads and the AI flag', () => {
   it('11.8 follow-up: with AI features off a queued plate job fails permanently before OCR; no provider is built', async () => {
     const { relatorioId, blocks } = await relatorio();
     const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
@@ -903,5 +887,201 @@ describe('9.2-INT the panel reading', () => {
     await runPanel(id);
     expect((await runs(id))[0]!.error).toContain('target location was removed');
     expect(await status(id)).toBe('failed');
+  }, 60_000);
+});
+
+describe('11.6-INT the bedrock provider through an injected client (nothing reaches AWS)', () => {
+  const HAIKU = 'global.anthropic.claude-haiku-4-5-20251001-v1:0';
+  const NOVA_PRO = 'us.amazon.nova-pro-v1:0';
+  const PANEL = '36f3fca92f329117f736195e6bcdcae60ba683a82a7d3dcd0aff154b158d3d51';
+  const fixtureOf = (sha: string) => JSON.parse(readFileSync(join(DEFAULT_FIXTURES_DIR, `${sha}.json`), 'utf8')) as { structuring: unknown };
+  /** The synthetic plate's eleven values (one `verify`: the TAP the fixture misreads). */
+  const plateAnswer = fixtureOf(DEFAULT_FIXTURE_BY_BLOCK_TYPE.transformador_forca!).structuring;
+  /** Three plate values, two whose digits are not their cited tokens' digits: two `verify` of three. */
+  const poorAnswer = {
+    values: [
+      { key: 'identificacao', value: 'TR-02', ocr_token_ids: ['t4'], confidence: 0.6 },
+      { key: 'n_serie', value: '240815-08', ocr_token_ids: ['t9'], confidence: 0.6 },
+      { key: 'tipo', value: 'TSE-500/15', ocr_token_ids: ['t11'], confidence: 0.9 },
+    ],
+  };
+  const TOKENS: Record<string, { inputTokens: number; outputTokens: number }> = { [HAIKU]: { inputTokens: 2000, outputTokens: 300 }, [NOVA_PRO]: { inputTokens: 2100, outputTokens: 500 } };
+
+  /** A client answering each model with its own tool input, recording the models it was asked. */
+  function converse(byModel: Record<string, unknown>): BedrockLike & { models: string[]; images: Uint8Array[] } {
+    const models: string[] = [];
+    const images: Uint8Array[] = [];
+    return {
+      models,
+      images,
+      async send(command): Promise<BedrockConverseOutput> {
+        const modelId = command.input.modelId!;
+        models.push(modelId);
+        images.push(command.input.messages![0]!.content![0]!.image!.source!.bytes!);
+        const tokens = TOKENS[modelId]!;
+        return {
+          output: { message: { role: 'assistant', content: [{ toolUse: { toolUseId: 'u1', name: 'record_values', input: byModel[modelId] as never } }] } },
+          stopReason: 'tool_use',
+          usage: { ...tokens, totalTokens: tokens.inputTokens + tokens.outputTokens },
+        };
+      },
+    };
+  }
+
+  const bedrockDeps = (client: BedrockLike, escalation?: string): ReadingJobDeps => ({
+    ...deps,
+    providers: createReadingProviders(
+      { OCR_PROVIDER: 'fake', LLM_PROVIDER: 'bedrock', OCR_SERVICE_URL: 'http://127.0.0.1:9', ...(escalation === undefined ? {} : { BEDROCK_ESCALATION_MODEL_ID: escalation }) },
+      { fixturesDir, bedrock: { client, createClient: () => { throw new Error('a real BedrockRuntimeClient was built'); } } },
+    ),
+  });
+  /** The synthetic plate as a device sends it: re-encoded, so the fake OCR replays the plate fixture scaled. */
+  const platePhoto = async (relatorioId: string, block: BlockRow) => {
+    const bytes = new Uint8Array(await sharp(readFileSync(join(repoRoot, 'services/ocr/tests/fixtures/plate-transformador.jpg'))).resize({ width: 1200 }).jpeg({ quality: 82 }).toBuffer());
+    return photo(relatorioId, block, bytes, 'image/jpeg');
+  };
+  const read = (jobDeps: ReadingJobDeps, id: string, reading_kind: 'plate' | 'panel' = 'plate') =>
+    runReadingJob(jobDeps, { company_id: companyId, photo_id: id, reading_kind }, { jobId: 'direct', attempt: 1, lastAttempt: false });
+  const usd = (model: string) => (model === HAIKU ? (2000 * 1.0 + 300 * 5.0) / 1e6 : (2100 * 0.8 + 500 * 3.2) / 1e6);
+
+  it('a plate reads to done through Converse: suggestions from the tool input, the run row with the model, prompt_version, tokens and USD', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
+    const id = await platePhoto(relatorioId, block);
+    const client = converse({ [HAIKU]: plateAnswer });
+    await read(bedrockDeps(client), id);
+    expect(await status(id)).toBe('done');
+    // One verify of eleven: no escalation, one call, on the job's own image bytes.
+    expect(client.models).toEqual([HAIKU]);
+    expect((await sharp(client.images[0]!).metadata()).width).toBe(1200);
+    const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+    expect(mine).toHaveLength(11);
+    expect(mine.every((s) => s.status === 'pending' && s.prompt_version === 'bedrock-structuring-1')).toBe(true);
+    expect(mine.find((s) => s.target_path.endsWith('/identificacao'))).toMatchObject({ value: 'TR-01', trust: 'suggested', source: { ocr_token_ids: ['t4'] } });
+    const [run] = await runs(id);
+    expect(run).toMatchObject({
+      attempt: 1,
+      outcome: 'ok',
+      ocr_provider: 'fake',
+      model: HAIKU,
+      prompt_version: 'bedrock-structuring-1',
+      llm_usage: { input_tokens: 2000, output_tokens: 300, usd: usd(HAIKU) },
+    });
+  }, 60_000);
+
+  it('a plate more than half verify is read once more on the escalation model; the reading with more suggested values is kept, usage summed', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
+    const id = await platePhoto(relatorioId, block);
+    const client = converse({ [HAIKU]: poorAnswer, [NOVA_PRO]: plateAnswer });
+    await read(bedrockDeps(client), id);
+    expect(await status(id)).toBe('done');
+    expect(client.models).toEqual([HAIKU, NOVA_PRO]);
+    const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+    expect(mine).toHaveLength(11);
+    expect(mine.filter((s) => s.trust === 'verify')).toHaveLength(1);
+    const [run] = await runs(id);
+    expect(run).toMatchObject({
+      outcome: 'ok',
+      model: NOVA_PRO,
+      prompt_version: 'bedrock-structuring-1',
+      llm_usage: { input_tokens: 4100, output_tokens: 800, usd: Math.round((usd(HAIKU) + usd(NOVA_PRO)) * 1e6) / 1e6 },
+    });
+  }, 60_000);
+
+  it('the escalation keeps the first reading when it is not better', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
+    const id = await platePhoto(relatorioId, block);
+    const client = converse({ [HAIKU]: poorAnswer, [NOVA_PRO]: poorAnswer });
+    await read(bedrockDeps(client), id);
+    expect(client.models).toEqual([HAIKU, NOVA_PRO]);
+    const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+    expect(mine.map((s) => s.trust).sort()).toEqual(['suggested', 'verify', 'verify']);
+    expect((await runs(id))[0]).toMatchObject({ model: HAIKU, llm_usage: { input_tokens: 4100, output_tokens: 800 } });
+  }, 60_000);
+
+  it('an OCR read with no word never escalates, even with no suggestion: only the first model is called', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
+    const bytes = await solidPng(3, 141, 59);
+    fixture(bytes, { ocr: { image: { width: 200, height: 100 }, tokens: [], preprocessing_applied: false } });
+    const id = await photo(relatorioId, block, bytes, 'image/png');
+    const client = converse({ [HAIKU]: { values: [] }, [NOVA_PRO]: plateAnswer });
+    await read(bedrockDeps(client), id);
+    expect(await status(id)).toBe('done');
+    expect(client.models).toEqual([HAIKU]);
+    expect((await suggestions(relatorioId)).filter((s) => s.source.photo_id === id)).toEqual([]);
+    expect((await runs(id))[0]).toMatchObject({ outcome: 'ok', model: HAIKU, llm_usage: { input_tokens: 2000, output_tokens: 300, usd: usd(HAIKU) } });
+  }, 60_000);
+
+  it('with BEDROCK_ESCALATION_MODEL_ID empty no second call is made', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
+    const id = await platePhoto(relatorioId, block);
+    const client = converse({ [HAIKU]: poorAnswer, [NOVA_PRO]: plateAnswer });
+    await read(bedrockDeps(client, ''), id);
+    expect(await status(id)).toBe('done');
+    expect(client.models).toEqual([HAIKU]);
+    expect((await runs(id))[0]).toMatchObject({ model: HAIKU, llm_usage: { input_tokens: 2000, output_tokens: 300, usd: usd(HAIKU) } });
+  }, 60_000);
+
+  for (const [name, thrown] of [
+    ['AccessDeniedException (permanent)', new BedrockAccessDeniedException({ $metadata: {}, message: 'explicit deny' })],
+    ['ThrottlingException (transient)', new BedrockThrottlingException({ $metadata: {}, message: 'Too many tokens' })],
+  ] as const) {
+    it(`an escalation that fails with ${name} keeps the first reading: done, its suggestions, the Haiku model and usage`, async () => {
+      const { relatorioId, blocks } = await relatorio();
+      const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
+      const id = await platePhoto(relatorioId, block);
+      const first = converse({ [HAIKU]: poorAnswer });
+      const client: BedrockLike = {
+        async send(command, options) {
+          if (command.input.modelId === NOVA_PRO) throw thrown;
+          return first.send(command, options);
+        },
+      };
+      await read(bedrockDeps(client), id);
+      expect(await status(id)).toBe('done');
+      const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+      expect(mine.map((s) => s.trust).sort()).toEqual(['suggested', 'verify', 'verify']);
+      const rows = await runs(id);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ attempt: 1, outcome: 'ok', model: HAIKU, prompt_version: 'bedrock-structuring-1', llm_usage: { input_tokens: 2000, output_tokens: 300, usd: usd(HAIKU) } });
+    }, 60_000);
+  }
+
+  it('a panel front reads to done through Converse, never escalating: one suggestion on the photo block_id, usage on the run row', async () => {
+    copyFileSync(join(DEFAULT_FIXTURES_DIR, `${PANEL}.json`), join(fixturesDir, `${PANEL}.json`));
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'chave_seccionadora')!;
+    const id = await photo(relatorioId, block, await solidPng(11, 22, 33, 400, 300), 'image/png', { panel: true });
+    const client = converse({ [HAIKU]: fixtureOf(PANEL).structuring });
+    await read(bedrockDeps(client), id, 'panel');
+    expect(await status(id)).toBe('done');
+    expect(client.models).toEqual([HAIKU]);
+    const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+    expect(mine).toHaveLength(1);
+    expect(mine[0]).toMatchObject({ target_path: `file/${id}/block_id`, prompt_version: 'bedrock-structuring-1' });
+    expect((await runs(id))[0]).toMatchObject({ outcome: 'ok', reading_kind: 'panel', model: HAIKU, prompt_version: 'bedrock-structuring-1', llm_usage: { input_tokens: 2000, output_tokens: 300, usd: usd(HAIKU) } });
+  }, 60_000);
+
+  it('AccessDeniedException ends failed in one attempt, permanent, naming the AWS error; no suggestion', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
+    const id = await platePhoto(relatorioId, block);
+    const client: BedrockLike = {
+      async send() {
+        throw new BedrockAccessDeniedException({ $metadata: {}, message: 'explicit deny' });
+      },
+    };
+    await read(bedrockDeps(client), id);
+    expect(await status(id)).toBe('failed');
+    const rows = await runs(id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ attempt: 1, outcome: 'error', ocr_provider: 'fake', model: null });
+    expect(rows[0]!.error).toContain('PermanentReadingError');
+    expect(rows[0]!.error).toContain('AccessDeniedException');
+    expect((await suggestions(relatorioId)).filter((s) => s.source.photo_id === id)).toEqual([]);
   }, 60_000);
 });

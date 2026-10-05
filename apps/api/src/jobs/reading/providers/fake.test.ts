@@ -3,7 +3,7 @@ import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join, relative, resolve } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { isPermanentReadingError, PermanentReadingError, ProviderError, ProviderNotImplementedError, ProviderTimeoutError } from './errors.ts';
+import { isPermanentReadingError, PermanentReadingError, ProviderError, ProviderTimeoutError } from './errors.ts';
 import sharp from 'sharp';
 import {
   DEFAULT_FIXTURE_BY_BLOCK_TYPE,
@@ -211,13 +211,19 @@ describe('9.3/9.5-API the prose fixtures and their fallback', () => {
     expect(timeout).toBeInstanceOf(ProviderTimeoutError);
   });
 
-  it('anthropic and bedrock prose slots fail permanently', async () => {
-    for (const llm of ['anthropic', 'bedrock'] as const) {
-      const providers = createReadingProviders({ OCR_SERVICE_URL: 'http://ocr:8000', OCR_PROVIDER: 'fake', LLM_PROVIDER: llm })({ photo_sha256: SHA.caption, reading_kind: 'caption', block_type: null, table_key: null });
-      const refused = await failure(providers.prose.describe(input('caption')));
-      expect(refused).toBeInstanceOf(ProviderNotImplementedError);
-      expect(isPermanentReadingError(refused)).toBe(true);
-    }
+  it('11.6-ROUTING: bedrock prose goes through Converse on BEDROCK_PROSE_MODEL_ID, through the injected client', async () => {
+    const models: (string | undefined)[] = [];
+    const client = {
+      async send(command: { input: { modelId?: string } }) {
+        models.push(command.input.modelId);
+        return { output: { message: { role: 'assistant' as const, content: [{ toolUse: { toolUseId: 'u1', name: 'record_text', input: { text: 'Vista geral' } } }] } }, stopReason: 'tool_use' as const, usage: { inputTokens: 10, outputTokens: 2, totalTokens: 12 } };
+      },
+    };
+    const config = { OCR_SERVICE_URL: 'http://ocr:8000', OCR_PROVIDER: 'fake' as const, LLM_PROVIDER: 'bedrock' as const, BEDROCK_MODEL_ID: 'global.anthropic.claude-haiku-4-5-20251001-v1:0', BEDROCK_PROSE_MODEL_ID: 'us.amazon.nova-2-lite-v1:0' };
+    const providers = createReadingProviders(config, { bedrock: { client } })({ photo_sha256: SHA.caption, reading_kind: 'caption', block_type: null, table_key: null });
+    const result = await providers.prose.describe(input('caption'));
+    expect(result).toMatchObject({ output: { text: 'Vista geral' }, model: 'us.amazon.nova-2-lite-v1:0', prompt_version: 'bedrock-prose-1' });
+    expect(models).toEqual(['us.amazon.nova-2-lite-v1:0']);
   });
 });
 
@@ -302,14 +308,55 @@ describe('8.4-API provider switch', () => {
     }
   });
 
-  it('anthropic and bedrock fail permanently with ProviderNotImplementedError', async () => {
-    for (const llm of ['anthropic', 'bedrock'] as const) {
-      const providers = createReadingProviders({ ...base, OCR_PROVIDER: 'fake', LLM_PROVIDER: llm })(ctx);
-      const ocr = await providers.ocr.read(image);
-      const refused = await failure(providers.structuring.structure({ image, ocr, fields: [] }));
-      expect(refused).toBeInstanceOf(ProviderNotImplementedError);
-      expect(isPermanentReadingError(refused)).toBe(true);
-    }
+  it('11.6-ROUTING: bedrock structures on BEDROCK_MODEL_ID and escalates on BEDROCK_ESCALATION_MODEL_ID, one lazily built client in BEDROCK_REGION', async () => {
+    const sent: { modelId?: string }[] = [];
+    const client = {
+      async send(command: { input: { modelId?: string } }) {
+        sent.push(command.input);
+        return { output: { message: { role: 'assistant' as const, content: [{ toolUse: { toolUseId: 'u1', name: 'record_values', input: { values: [] } } }] } }, stopReason: 'tool_use' as const, usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 } };
+      },
+    };
+    const regions: string[] = [];
+    const createClient = (region: string) => {
+      regions.push(region);
+      return client;
+    };
+    const bedrock = { ...base, OCR_PROVIDER: 'fake' as const, LLM_PROVIDER: 'bedrock' as const, BEDROCK_REGION: 'us-west-2' };
+    const factory = createReadingProviders(bedrock, { bedrock: { createClient } });
+    const providers = factory(ctx);
+    expect(regions).toEqual([]);
+    const ocr = await providers.ocr.read(image);
+    const first = await providers.structuring.structure({ image, ocr, fields: [] });
+    expect(first.model).toBe('global.anthropic.claude-haiku-4-5-20251001-v1:0');
+    const second = await providers.escalation!.structure({ image, ocr, fields: [] });
+    expect(second.model).toBe('us.amazon.nova-pro-v1:0');
+    expect(sent.map((input) => input.modelId)).toEqual(['global.anthropic.claude-haiku-4-5-20251001-v1:0', 'us.amazon.nova-pro-v1:0']);
+    // One client per factory, for every model and every kind.
+    await factory({ ...ctx, reading_kind: 'panel' }).structuring.structure({ image, ocr, fields: [] });
+    expect(regions).toEqual(['us-west-2']);
+    // An empty escalation model disables it; fake and AI_FEATURES=off never escalate.
+    expect(createReadingProviders({ ...bedrock, BEDROCK_ESCALATION_MODEL_ID: '' }, { bedrock: { client } })(ctx).escalation).toBeUndefined();
+    expect(createReadingProviders({ ...base, OCR_PROVIDER: 'fake', LLM_PROVIDER: 'fake' })(ctx).escalation).toBeUndefined();
+    const off = createReadingProviders({ ...bedrock, AI_FEATURES: 'off' }, { bedrock: { client } })(ctx);
+    expect(off.escalation).toBeUndefined();
+    expect(await failure(off.structuring.structure({ image, ocr, fields: [] }))).toBeInstanceOf(PermanentReadingError);
+    // An escalation model equal to the structuring model would make the same call twice: none.
+    expect(
+      createReadingProviders({ ...bedrock, BEDROCK_MODEL_ID: 'us.amazon.nova-pro-v1:0', BEDROCK_ESCALATION_MODEL_ID: 'us.amazon.nova-pro-v1:0' }, { bedrock: { client } })(ctx).escalation,
+    ).toBeUndefined();
+    // A model with no list price fails when the factory is built (at boot), not per reading...
+    expect(() => createReadingProviders({ ...bedrock, BEDROCK_MODEL_ID: 'anthropic.claude-unknown' }, { bedrock: { client } })).toThrow(/no list price/);
+    expect(() => createReadingProviders({ ...bedrock, BEDROCK_ESCALATION_MODEL_ID: 'anthropic.claude-unknown' }, { bedrock: { client } })).toThrow(/no list price/);
+    // ...unless AI features are off: then no Bedrock provider is built, no model checked, no client made.
+    const offBuilt: string[] = [];
+    const offUnknown = createReadingProviders(
+      { ...bedrock, AI_FEATURES: 'off', BEDROCK_MODEL_ID: 'anthropic.claude-unknown', BEDROCK_ESCALATION_MODEL_ID: 'anthropic.claude-unknown' },
+      { bedrock: { createClient: (region) => (offBuilt.push(region), client) } },
+    )(ctx);
+    expect(offUnknown.escalation).toBeUndefined();
+    expect(await failure(offUnknown.structuring.structure({ image, ocr, fields: [] }))).toBeInstanceOf(PermanentReadingError);
+    expect(await failure(offUnknown.prose.describe({ image, kind: 'caption', context: { block_type: null, item_label: null } }))).toBeInstanceOf(PermanentReadingError);
+    expect(offBuilt).toEqual([]);
   });
 
   it('no api source reads a cloud credential or names the personal Claude app', () => {

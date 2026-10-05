@@ -42,6 +42,30 @@ describe('config', () => {
     expect(() => loadConfig({ ...valid, TEXTRACT_REGION: '' })).toThrow(/TEXTRACT_REGION/);
   });
 
+  it('reads LLM_PROVIDER fake or bedrock only (Story 11.6: no anthropic provider)', () => {
+    expect(loadConfig({ ...valid, LLM_PROVIDER: 'bedrock' }).LLM_PROVIDER).toBe('bedrock');
+    expect(() => loadConfig({ ...valid, LLM_PROVIDER: 'anthropic' })).toThrow(/LLM_PROVIDER/);
+  });
+
+  it('defaults the Bedrock settings: Haiku 4.5, prose on the same model, Nova Pro escalation (Story 11.6)', () => {
+    const config = loadConfig(valid);
+    expect(config.BEDROCK_REGION).toBe('us-east-1');
+    expect(config.BEDROCK_MODEL_ID).toBe('global.anthropic.claude-haiku-4-5-20251001-v1:0');
+    expect(config.BEDROCK_PROSE_MODEL_ID).toBe('global.anthropic.claude-haiku-4-5-20251001-v1:0');
+    expect(config.BEDROCK_ESCALATION_MODEL_ID).toBe('us.amazon.nova-pro-v1:0');
+    // Compose passes an unset variable as '': the region and models fall back to their defaults.
+    const empty = loadConfig({ ...valid, BEDROCK_REGION: '', BEDROCK_MODEL_ID: '', BEDROCK_PROSE_MODEL_ID: '' });
+    expect(empty.BEDROCK_REGION).toBe('us-east-1');
+    expect(empty.BEDROCK_MODEL_ID).toBe('global.anthropic.claude-haiku-4-5-20251001-v1:0');
+    expect(empty.BEDROCK_PROSE_MODEL_ID).toBe('global.anthropic.claude-haiku-4-5-20251001-v1:0');
+    const set = loadConfig({ ...valid, BEDROCK_REGION: 'us-west-2', BEDROCK_MODEL_ID: 'us.amazon.nova-2-lite-v1:0' });
+    expect(set.BEDROCK_REGION).toBe('us-west-2');
+    expect(set.BEDROCK_PROSE_MODEL_ID).toBe('us.amazon.nova-2-lite-v1:0');
+    expect(loadConfig({ ...valid, BEDROCK_PROSE_MODEL_ID: 'qwen.qwen3-vl-235b-a22b' }).BEDROCK_PROSE_MODEL_ID).toBe('qwen.qwen3-vl-235b-a22b');
+    // An empty escalation model disables the escalation (it is not unset).
+    expect(loadConfig({ ...valid, BEDROCK_ESCALATION_MODEL_ID: '' }).BEDROCK_ESCALATION_MODEL_ID).toBe('');
+  });
+
   it('defaults the worker on and reads the generate fault only when set (Story 4.8)', () => {
     const config = loadConfig(valid);
     expect(config.WORKER).toBe('1');

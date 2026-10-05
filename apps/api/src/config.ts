@@ -10,6 +10,12 @@ export const KNOWN_DEV_SESSION_SECRETS: ReadonlySet<string> = new Set(['change-m
 /** Compose passes an unset variable as `''` (`${VAR:-}`); an empty value is unset. */
 const unsetWhenEmpty = (value: unknown) => (value === '' ? undefined : value);
 
+/** Story 11.6 (Matheus, 2026-10-05): the reference model, Claude Haiku 4.5 through its global inference profile. */
+export const DEFAULT_BEDROCK_MODEL_ID = 'global.anthropic.claude-haiku-4-5-20251001-v1:0';
+
+/** Story 11.6 (Matheus, 2026-10-05): the larger model a low-confidence plate reading is retried on. */
+export const DEFAULT_BEDROCK_ESCALATION_MODEL_ID = 'us.amazon.nova-pro-v1:0';
+
 export const configSchema = z
   .object({
     DATABASE_URL: z.string().url(),
@@ -40,7 +46,8 @@ export const configSchema = z
      * cannot widen the allowlist.
      */
     AUTH_BASE_URL: z.string().url().optional(),
-    LLM_PROVIDER: z.enum(['fake', 'anthropic', 'bedrock']).default('fake'),
+    /** Story 11.6: `bedrock` structures readings and writes prose through Bedrock Converse; `fake` replays fixtures. */
+    LLM_PROVIDER: z.enum(['fake', 'bedrock']).default('fake'),
     OCR_PROVIDER: z.enum(['fake', 'textract', 'ocr-svc']).default('fake'),
     /**
      * Story 11.8 follow-up: `off` refuses every reading whose pipeline needs the LLM step
@@ -52,6 +59,17 @@ export const configSchema = z
     OCR_SERVICE_URL: z.string().url().default('http://ocr:8000'),
     /** Story 11.7: the region of the `textract` provider; Textract has no `sa-east-1` endpoint. */
     TEXTRACT_REGION: z.string().min(1).default('us-east-1'),
+    /** Story 11.6: the region of the `bedrock` provider's Converse calls. */
+    BEDROCK_REGION: z.preprocess(unsetWhenEmpty, z.string().min(1).default('us-east-1')),
+    /** Story 11.6: the structuring model (plate and panel), a model or inference-profile id; Claude Haiku 4.5 is the reference. */
+    BEDROCK_MODEL_ID: z.preprocess(unsetWhenEmpty, z.string().min(1).default(DEFAULT_BEDROCK_MODEL_ID)),
+    /** Story 11.6: the prose model (vision caption, NC draft); unset or empty, `BEDROCK_MODEL_ID`. */
+    BEDROCK_PROSE_MODEL_ID: z.preprocess(unsetWhenEmpty, z.string().min(1).optional()),
+    /**
+     * Story 11.6: the model a plate reading that is more than half `verify` is read again on
+     * (`shouldEscalate`). Unset, Amazon Nova Pro; an empty value disables the escalation.
+     */
+    BEDROCK_ESCALATION_MODEL_ID: z.string().default(DEFAULT_BEDROCK_ESCALATION_MODEL_ID),
     /** Story 4.8: `1` registers the pg-boss generate worker in this process (the compose default). */
     WORKER: z.enum(['0', '1']).default('1'),
     NODE_ENV: z.string().optional(),
@@ -102,7 +120,9 @@ export const configSchema = z
       path: [missing],
       message: `required when ${present} is set (static S3 keys are both or neither)`,
     });
-  });
+  })
+  // Story 11.6: the prose model defaults to the structuring model.
+  .transform((config) => ({ ...config, BEDROCK_PROSE_MODEL_ID: config.BEDROCK_PROSE_MODEL_ID ?? config.BEDROCK_MODEL_ID }));
 
 export type Config = z.infer<typeof configSchema>;
 

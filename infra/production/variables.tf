@@ -39,18 +39,41 @@ variable "ocr_provider" {
 }
 
 variable "llm_provider" {
-  description = "LLM_PROVIDER of the api. Stays fake until Story 11.6 passes its Definition of Ready."
+  description = "LLM_PROVIDER of the api: bedrock (Story 11.6, Bedrock Converse) or fake, unreachable while ai_features is off."
   type        = string
   default     = "fake"
 
   validation {
     condition     = contains(["fake", "bedrock"], var.llm_provider)
-    error_message = "llm_provider must be fake or bedrock (the anthropic value is dropped by Story 11.6)."
+    error_message = "llm_provider must be fake or bedrock."
   }
 }
 
+variable "bedrock_model_id" {
+  description = "BEDROCK_MODEL_ID of the api: the structuring model (plate, panel), a model or inference-profile id the task role may invoke (infra/bootstrap/iam.tf). Claude Haiku 4.5 is the Story 11.6 reference."
+  type        = string
+  default     = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+
+  validation {
+    condition     = length(var.bedrock_model_id) > 0
+    error_message = "bedrock_model_id is a model or inference-profile id."
+  }
+}
+
+variable "bedrock_prose_model_id" {
+  description = "BEDROCK_PROSE_MODEL_ID of the api: the caption and NC draft model. Empty uses bedrock_model_id."
+  type        = string
+  default     = ""
+}
+
+variable "bedrock_escalation_model_id" {
+  description = "BEDROCK_ESCALATION_MODEL_ID of the api: the model a plate reading more than half Verificar is read again on (Story 11.6). Empty turns the escalation off."
+  type        = string
+  default     = "us.amazon.nova-pro-v1:0"
+}
+
 variable "ai_features" {
-  description = "AI_FEATURES of the api. off refuses the readings that need the LLM step (plate, panel, caption, NC draft) and hides their entry points; on waits for Story 11.6 (Bedrock quota)."
+  description = "AI_FEATURES of the api. off refuses the readings that need the LLM step (plate, panel, caption, NC draft) and hides their entry points; ~~on waits for Story 11.6 (Bedrock quota).~~ on needs llm_provider = bedrock, applied after the Story 11.6 merge and deploy (2026-10-05)."
   type        = string
   default     = "off"
 

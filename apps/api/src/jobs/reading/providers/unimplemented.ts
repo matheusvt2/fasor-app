@@ -1,29 +1,11 @@
 import type { ProseProvider, StructuringProvider } from '@app/domain';
-import { AiFeaturesOffError, ProviderNotImplementedError } from './errors.ts';
+import { AiFeaturesOffError } from './errors.ts';
 
 /*
- * Story 8.4: the provider slots Epic 11 fills (the Claude structuring call through the
- * Anthropic API or Bedrock; Story 11.7 built Textract, `textract.ts`). They exist behind the
- * env switch so choosing one is a configuration change, and each fails every reading
- * permanently until it is built. None reads a credential.
+ * Story 11.8 follow-up: the LLM slots while `AI_FEATURES=off`. Story 11.6 removed the Epic 11
+ * stubs that stood here for the `anthropic` and `bedrock` providers: `bedrock` is built
+ * (`bedrock.ts`) and `anthropic` is dropped.
  */
-
-export function unimplementedStructuringProvider(name: 'anthropic' | 'bedrock'): StructuringProvider {
-  return {
-    async structure() {
-      throw new ProviderNotImplementedError(name);
-    },
-  };
-}
-
-/** Stories 9.3 and 9.5: the prose slot of the same Epic 11 providers. */
-export function unimplementedProseProvider(name: 'anthropic' | 'bedrock'): ProseProvider {
-  return {
-    async describe() {
-      throw new ProviderNotImplementedError(name);
-    },
-  };
-}
 
 /** Story 11.8 follow-up: the structuring slot while `AI_FEATURES=off`; every call fails permanently. */
 export function aiFeaturesOffStructuringProvider(): StructuringProvider {
