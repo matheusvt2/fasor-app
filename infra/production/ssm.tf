@@ -10,7 +10,8 @@ resource "aws_ssm_parameter" "database_url" {
   name        = "${local.ssm_prefix}/database-url"
   description = "DATABASE_URL of the api: RDS over TLS, verify-full"
   type        = "SecureString"
-  value       = "postgres://${aws_db_instance.this.username}:${random_password.database.result}@${aws_db_instance.this.address}:${aws_db_instance.this.port}/${aws_db_instance.this.db_name}?sslmode=verify-full"
+  # 2026-10-05: the restored database in the instance's zone (rds.tf); user and database name as on the source.
+  value = "postgres://app:${random_password.database.result}@${aws_db_instance.main.address}:${aws_db_instance.main.port}/app?sslmode=verify-full"
 }
 
 resource "aws_ssm_parameter" "session_secret" {

@@ -1,25 +1,16 @@
 # Night schedule (source-deltas 2026-09-30 cost measures): nobody tests a cabine between
 # midnight and five in the morning. The instance stops (not terminates, so its root
-# volume and Elastic IP stay) at 00:00, the database at 00:05; the database starts at
-# 04:40 and the instance at 05:00, America/Sao_Paulo. ECS places the tasks again once
-# the agent reconnects, a few minutes after 05:00. RDS itself restarts a database that
-# stays stopped for seven days, which this daily start makes moot.
+# volume and Elastic IP stay) at 00:00 and starts at 05:00, America/Sao_Paulo. ECS places
+# the tasks again once the agent reconnects, a few minutes after 05:00.
+# 2026-10-05 (Matheus): the database is no longer stopped at night. Its 04:40 start failed
+# three mornings out of five with InsufficientDBInstanceCapacity, leaving production down
+# all day, for a saving of about USD 2 per month.
 locals {
   night_actions = {
     stop-instance = {
       cron   = "cron(0 0 * * ? *)"
       target = "arn:aws:scheduler:::aws-sdk:ec2:stopInstances"
       input  = { InstanceIds = [aws_instance.this.id] }
-    }
-    stop-database = {
-      cron   = "cron(5 0 * * ? *)"
-      target = "arn:aws:scheduler:::aws-sdk:rds:stopDBInstance"
-      input  = { DbInstanceIdentifier = aws_db_instance.this.identifier }
-    }
-    start-database = {
-      cron   = "cron(40 4 * * ? *)"
-      target = "arn:aws:scheduler:::aws-sdk:rds:startDBInstance"
-      input  = { DbInstanceIdentifier = aws_db_instance.this.identifier }
     }
     start-instance = {
       cron   = "cron(0 5 * * ? *)"
@@ -33,7 +24,7 @@ locals {
 resource "aws_iam_role" "scheduler" {
   count       = var.enable_night_schedule ? 1 : 0
   name        = "${local.name}-night-schedule"
-  description = "EventBridge Scheduler: stop and start the production instance and database"
+  description = "EventBridge Scheduler: stop and start the production instance"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -69,12 +60,6 @@ resource "aws_iam_role_policy" "scheduler" {
           StringEquals = { "kms:ViaService" = "ec2.${local.region}.amazonaws.com" }
           Bool         = { "kms:GrantIsForAWSResource" = "true" }
         }
-      },
-      {
-        Sid      = "StopStartDatabase"
-        Effect   = "Allow"
-        Action   = ["rds:StopDBInstance", "rds:StartDBInstance"]
-        Resource = aws_db_instance.this.arn
       },
     ]
   })

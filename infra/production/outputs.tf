@@ -79,5 +79,5 @@ output "files_bucket" {
 }
 
 output "database_identifier" {
-  value = aws_db_instance.this.identifier
+  value = aws_db_instance.main.identifier
 }

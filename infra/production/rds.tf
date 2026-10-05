@@ -49,3 +49,47 @@ resource "aws_db_instance" "this" {
     prevent_destroy = true
   }
 }
+
+# 2026-10-05 (Matheus): the database above, in the second private subnet's zone, could not
+# be started after the night stop three mornings out of five (InsufficientDBInstanceCapacity
+# for db.t4g.micro in that zone), and RDS cannot move a stopped instance. This one is a
+# point-in-time restore of it, at its latest restorable time, in the first private subnet's
+# zone, the instance's own. The api uses this one (`ssm.tf`); the old one stays stopped and
+# untouched until a later change removes it (it has deletion protection and prevent_destroy).
+# The night schedule no longer stops any database (`schedule.tf`).
+resource "aws_db_instance" "main" {
+  identifier        = "${local.name}-a"
+  instance_class    = "db.t4g.micro"
+  availability_zone = aws_subnet.private[0].availability_zone
+
+  restore_to_point_in_time {
+    source_db_instance_identifier = aws_db_instance.this.identifier
+    use_latest_restorable_time    = true
+  }
+
+  storage_type      = "gp3"
+  storage_encrypted = true
+  password          = random_password.database.result
+  port              = 5432
+
+  multi_az               = false
+  publicly_accessible    = false
+  db_subnet_group_name   = aws_db_subnet_group.this.name
+  vpc_security_group_ids = [aws_security_group.database.id]
+
+  backup_retention_period      = 7
+  backup_window                = "08:00-08:30"
+  maintenance_window           = "sun:08:40-sun:09:10"
+  copy_tags_to_snapshot        = true
+  deletion_protection          = true
+  skip_final_snapshot          = false
+  final_snapshot_identifier    = "${local.name}-a-final"
+  performance_insights_enabled = false
+  auto_minor_version_upgrade   = true
+
+  lifecycle {
+    prevent_destroy = true
+    # The restore block only matters at creation.
+    ignore_changes = [restore_to_point_in_time]
+  }
+}
