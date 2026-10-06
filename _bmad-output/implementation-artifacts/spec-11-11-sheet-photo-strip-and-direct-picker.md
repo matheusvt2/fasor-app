@@ -2,10 +2,11 @@
 title: 'Story 11.11: See a sheet''s photos on the sheet, and pick files in one tap'
 type: 'feature'
 created: '2026-10-06'
-status: 'in-progress'
+status: 'done'
 route: 'dispatch'
-review_loop_iteration: 0
+review_loop_iteration: 1
 baseline_revision: '21e217deb09fb45ed24d6d7a52b66e4cf4331c67'
+baseline_commit: 'e604cbdbcd348ea522fc791fd13772574061c81d'
 dev_model: opus
 dev_effort: high
 warnings: ['oversized']
@@ -60,14 +61,14 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `packages/domain/src/photos/order.ts` + `order.test.ts` -- `photosOfBlock(snapshot, blockId): PhotoFileRow[]` (live, this block, `comparePhotos` order); `photos/text.ts` + test -- `sheetPhotosHeading(n)` -> "Fotos da ficha (n)"; exports.
-- [ ] `apps/web/src/surfaces/ficha/sheet-photos-section.tsx` (new) + `ficha-surface.tsx` -- `<section aria-labelledby>` with the heading, the mock's `section-note`, `.photo-list` of `PhotoRow` (thumb via `useObjectUrl`, number, pill, caption, stamp); `onOpen` opens the sheet's `PhotoViewer` on that id; nothing rendered when the list is empty.
-- [ ] `apps/web/src/surfaces/photos/capture-sheet.tsx` -- `preselectBlockId?` on sheet mode; sheet mode runs `EquipmentStep` (preselected, "Adicionar" enabled at once) instead of saving immediately; `initialFiles` skips the chooser; chooser body = `btn btn-secondary` 56 px "Escolher arquivos" + disabled "Tirar foto" with `capture-reason` = denied copy.
-- [ ] `apps/web/src/surfaces/ficha/photo-openers.tsx`, `gallery-surface.tsx`, `ficha-dialogs.tsx` -- `AddPhotosButton` opens a hidden `<input type=file multiple accept="image/*">` when `denied` is false and hands the files to the capture sheet as `initialFiles`; opens the capture sheet when denied.
-- [ ] `apps/web/src/copy/pt-br.ts` -- section note (verbatim), denied reason reuse; `app.css`/`ficha.css` -- the 56 px rule with the mock reference comment.
-- [ ] `DESIGN.md:856` -- strike-through with "(2026-10-06, Story 11.11: …)" and the new sentence; `docs/kbs/log.md` one line.
-- [ ] `e2e/sheet-photos.spec.ts` (new) -- the ACs below; `e2e/gallery.spec.ts` `pickFiles` and the six specs listed -- pick through the direct picker (`waitForEvent('filechooser')` on the opener click).
-- [ ] `apps/web/src/surfaces/ficha/sheet-photos-section.test.tsx` -- renders the rows from kernel ids in order, hides when empty.
+- [x] `packages/domain/src/photos/order.ts` + `order.test.ts` -- `photosOfBlock(snapshot, blockId): PhotoFileRow[]` (live, this block, `comparePhotos` order); `photos/text.ts` + test -- `sheetPhotosHeading(n)` -> "Fotos da ficha (n)"; exports.
+- [x] `apps/web/src/surfaces/ficha/sheet-photos-section.tsx` (new) + `ficha-surface.tsx` -- `<section aria-labelledby>` with the heading, the mock's `section-note`, `.photo-list` of `PhotoRow` (thumb via `useObjectUrl`, number, pill, caption, stamp); `onOpen` opens the sheet's `PhotoViewer` on that id; nothing rendered when the list is empty.
+- [x] `apps/web/src/surfaces/photos/capture-sheet.tsx` -- `preselectBlockId?` on sheet mode; sheet mode keeps saving the picked files at once with the sheet target (6.3/6.4, EXPERIENCE.md "saved locally at once"), then runs `EquipmentStep` preselected with the context caption, "as today" in the gallery: "Adicionar N fotos" re-points the batch through the existing batch put ops (another block, "Geral", caption, "Pessoas na foto"), and "Cancelar"/Escape keep the photos on the sheet and say so in a toast (authored, the gallery's "ficaram como Geral" pattern); no `File` is ever held in memory past the pick. `initialFiles` skips the chooser and the first render never flashes it (initialise from the prop, not in an effect). Chooser body = `btn btn-secondary` 56 px "Escolher arquivos" + disabled "Tirar foto" with `capture-reason` = denied copy.
+- [x] `apps/web/src/surfaces/ficha/photo-openers.tsx`, `gallery-surface.tsx`, `ficha-dialogs.tsx` -- `AddPhotosButton` opens a hidden `<input type=file multiple accept="image/*">` when `denied` is false and hands the files to the capture sheet as `initialFiles`; opens the capture sheet when denied.
+- [x] `apps/web/src/copy/pt-br.ts` -- section note (verbatim), denied reason reuse; `app.css`/`ficha.css` -- the 56 px rule with the mock reference comment.
+- [x] `DESIGN.md:856` -- strike-through with "(2026-10-06, Story 11.11: …)" and the new sentence, and a dated note that a sheet batch also goes through the step, preselected; `EXPERIENCE.md:325` -- the same dated note beside "Into the gallery the sheet asks once" and beside the denied-camera sentence ("Tirar foto" disabled under "Escolher arquivos"); `docs/kbs/log.md` one line naming both.
+- [x] `e2e/sheet-photos.spec.ts` (new) -- the ACs below, plus: Cancelar/Escape on the sheet step keeps the photos on the sheet (device rows and toast); re-pointing to "Geral" and to another block (`block_id`, `item_key: null`); "Pessoas na foto" from a sheet (`people_in_photo: true` on the row); a PDF plus a JPEG from a sheet (skipped toast, "Adicionar 1 foto"); the gallery's denied chooser (`@p1`); the "cancelled picker" case named for what Playwright can drive (an empty `change`), with the no-toast check given a settle wait. `e2e/gallery.spec.ts` 6.4-E2E-006 also asserts the NC row's create carries `reading_kind: 'nc_obs'` (the `nc-draft.spec.ts` assertion). `pickFiles` and the six specs listed -- pick through the direct picker (`waitForEvent('filechooser')` on the opener click).
+- [x] `apps/web/src/surfaces/ficha/sheet-photos-section.test.tsx` -- renders the rows from kernel ids in order, hides when empty.
 
 **Acceptance Criteria:**
 - Given a sheet with a plate photo and two imported photos, when it opens, then "Fotos da ficha (3)" lists them in capture order with number badges equal to the gallery's provisional numbers, and tapping the second opens the viewer on it (11.11 AC 1).
@@ -78,15 +79,74 @@ context:
 
 ## Implementation Notes
 
+- 2026-10-06, loop 0 (bmad-dev-opus-high): `photosOfBlock` and `sheetPhotosHeading` in the kernel; `SheetPhotosSection`/`SheetPhotos` after Conclusão on `useCropViewer` (the viewer the nameplate crops already mount); `useDirectPicker` and `AddPhotosButton {denied, onFiles, onOpenSheet}`; `useSheetCamera.denied`; sheet mode of the capture sheet with `preselectBlockId` and `initialFiles`; the denied chooser as two 56 px secondary Buttons; DESIGN.md strike-throughs; `sheet-photos.spec.ts` and seven specs moved to the direct picker. The orchestrator added the 64 px `thumb-inline` rule (`ficha.css`) and released the Porto Seguro fixture that the review company held.
+- 2026-10-06, loop 1 (bad_spec): sheet picks save at once with the sheet target and the step re-points through `assignPhotoBatch` with the saved values (`block_id`, `item_key: null`, caption, `reading_kind` cleared on a move); Cancelar/Escape keep the photos on the sheet with `photosKeptOnSheetText`; no chooser flash; EXPERIENCE.md:325 struck through; E2E-007 to E2E-011 and the NC-row `nc_obs` assertion.
+- Hands-on pass (orchestrator, Playwright MCP, real Chrome, dev server): the strip on SEC-ENEL-2 of the review relatório at 1280 (64 px tiles, numbers 1-3, no pills once uploaded), the direct picker with no dialog before it and the step preselected with the context caption, the photo landing as nº 3; the denied chooser reached by keyboard (Tab to "Escolher arquivos" 56 px, Tab to the disabled "Tirar foto" 56 px with the reason) at 1280 and 390 (no overflow), the strip at 390 and 768, and both in dark mode. Screenshots `reviews/mvp-review-2026-10-06/shots/90-97-11-11-*.png`. The Vite container had to be restarted once (its watcher missed the host edits through the podman bind mount).
+- Environment facts: `docker` is absent on this host (podman, `podman compose`), the `tools` bind mount is not writable by uid 1000 under podman (e2e runs with `--user root`, node_modules chowned back afterwards), `flock` does not exist on macOS, and `pnpm verify`'s first phase is OOM-killed on the 4 GB podman VM, so the gate ran stage by stage (`test-results/gate/`). `src/db/seed-cli.integration.test.ts` (3 tests) fails on podman because `assertInCompose` requires `/.dockerenv`; pre-existing, not this story's.
+
 ## Spec Change Log
 
+### 2026-10-06 — loop 1 (bad_spec)
+
+- Trigger: review findings BH2/EC6/VG-other "Cancelar or Escape on the sheet's 'De qual equipamento?' discards the picked files silently", VG1 (untested branches), EC4 (one-frame chooser flash), BH1/BH14 (EXPERIENCE.md and the rest of the DESIGN.md row not amended).
+- Amended: Tasks 3, 6 and 7 (save at once then the step, as the gallery does; the extra tests; the EXPERIENCE.md note) and the Design Notes decisions.
+- Known-bad state avoided: `File` objects held in React state until "Adicionar N fotos", lost on Cancelar, Escape, a scrim tap or a tab kill; the first render of a sheet-mode sheet with `initialFiles` drawing the denied chooser for one frame.
+- KEEP: everything else of loop 0 stands as built and reviewed: `photosOfBlock`/`sheetPhotosHeading` and their tests; `SheetPhotosSection`/`SheetPhotos` on `useCropViewer` (with the 64 px `thumb-inline` rule in `ficha.css`); `useDirectPicker`/`AddPhotosButton {denied, onFiles, onOpenSheet}`; `useSheetCamera.denied`; the `importing {target, files}` state; `preselect` on `EquipmentStep` with the lead row; the denied chooser as two 56 px secondary Buttons; `peopleInPhoto` on `ImportTarget`; the DESIGN.md strike-throughs; the seven updated specs and `sheet-photos.spec.ts` E2E-001 to E2E-006 (adjusted to the saved-at-once rule where they assert the step).
+
 ## Review Triage Log
+
+### 2026-10-06 — loop 0 review (blind hunter BH1-15, edge cases EC1-8, verification gap VG1-5 + 2 other)
+
+| Finding | Verdict | Evidence and route |
+|---|---|---|
+| BH2, EC6, VG-other-1: sheet step holds `File`s; Cancelar/Escape discard them silently | high | `capture-sheet.tsx` `held` state, `onCancel={onClose}`; the story says the step runs "as today", and today the gallery saves first and Cancelar keeps the batch with a toast. Route: bad_spec (Task 3). |
+| VG1: peopleInPhoto, re-pointing and Cancelar from a sheet untested | medium | every sheet e2e presses "Adicionar N" on the preselected row. Route: bad_spec (Task 7, folded into loop 1). |
+| VG2: NC row import no longer asserts `reading_kind: 'nc_obs'` | medium | 6.4-E2E-006 asserts block, item and caption only. Route: bad_spec (Task 7). |
+| VG3: `holdForSheet` skipped-files branch untested | low | real, cheap: Task 7. |
+| VG4, BH12: gallery denied chooser untested | low | `gallery-surface.tsx` ternary unexercised: Task 7 (`@p1`). |
+| EC4: one-frame chooser flash with `initialFiles` | low | `held` set in a mount effect, first render draws the chooser: Task 3. |
+| BH1, BH14: EXPERIENCE.md:325 and the rest of the DESIGN.md row not amended | medium | E:325 still says only the gallery asks; D:856 still says "A gallery batch is followed by one step": Task 6. |
+| BH10, VG-other-2: the "cancelled picker" test drives an empty `change`, and `toHaveCount(0)` settles at once | low | true of Playwright; Task 7 (rename, settle wait). |
+| BH6, EC1, EC8: strip row with no device tile cannot open the viewer | low | tiles and the snapshot are read from the same Dexie entity rows (`photo-store.ts:60`), so a row without a tile exists only for the live-query lag of one render. Rejected: unlikely in use, the fix adds a fallback. |
+| BH7, EC2: strip and viewer number photos differently | false | both call `numberPhotos` over the same live rows (`removed_at === null` on both sides); they differ only during the same lag. |
+| EC3: `void importFiles(...)` after the sheet closed, rejection unhandled | false as a new defect | the pre-11.11 sheet path was `void importFiles(list, target)` too, and `usePhotoImport` reports failures itself. Pre-existing; not this story's. |
+| BH5, EC5: a drop on a sheet saves at once without the step | low | true; the story names only "Adicionar fotos"; with Task 3 the pick saves at once too, so the two paths agree on the saved rows. Rejected; recorded in Design Notes. |
+| BH11, EC7: `denied` is sticky until reload; untried camera opens the picker | low | pre-existing `useCamera` per-mount state; the story defines denied by `getUserMedia` rejecting. Rejected; recorded in Design Notes. |
+| BH8: extra relatório tile query and viewer instance on the sheet | low | real cost, same pattern as the nameplate and readings. Deferred to deferred-work.md. |
+| VG5: strip retry pill wiring untested | low | one line on the shared `PhotoRow`; the pill is proven on the checklist row. Deferred. |
+| BH9: `numbers.get(id) ?? 0` | false | `numberPhotos(snapshot.files)` numbers every live photo and the strip lists only live photos. |
+| BH13: strip outside the section stepper | low | the mock draws it as a plain section after Conclusão; the stepper has four steps by design. Rejected. |
+| BH15: spec not in the diff | false | the diff excludes the spec on purpose; the ACs are checked by the orchestrator. |
+| (self) strip tile at 96 px, not `thumb-inline` | low | patched in loop 0 by the orchestrator (`ficha.css`, 64 px). |
+
+### 2026-10-06 — loop 1 review (blind hunter BH1-12, edge cases EC1-7, verification gap VG1 + 2 other)
+
+| Finding | Verdict | Evidence and route |
+|---|---|---|
+| VG-other-1, BH2, EC1: a batch saved from an NC row keeps its queued `nc_obs` reading after the step moves it to another block or "Geral" | medium | `assignPhotoBatch` puts `block_id`/`item_key` and leaves `reading_kind`; the draft would land on a row the photo left (or the server refuses the target). Route: patch (clear the reading on a move, through the saved values). |
+| VG1: an item-level batch moved off its row is not driven end to end | medium | E2E-008 picks from the sticky bar (`itemKey` null already). Route: patch (NC-row move e2e asserting `block_id`, `item_key: null`, `reading_kind`). |
+| BH3, EC6, VG-other-2: `ImportTarget.peopleInPhoto` has no producer | low | the people mark goes through `assignPhotoBatch`; dead field. Route: patch (delete; the loop-1 KEEP line about it is withdrawn). |
+| BH4: EXPERIENCE.md:325 amended mid-sentence, two superseded sentences not struck through | low | AGENTS.md strike-through rule. Route: patch. |
+| BH8, EC7: dead `openedWith` state, `mode.target()` read twice, the "no File kept past the save" comment and the `CaptureSheetMode` sheet-mode doc overstate | low | `importing.files` lives in React state until the dialog closes. Route: patch (remove the state, fix both comments). |
+| BH11: `ficha.css` declares the strip tile selector twice | low | Route: patch (one rule). |
+| BH12: no blank line between the two new deferred-work entries | low | fixed by the orchestrator. |
+| BH-e2e: redundant `setViewportSize` in E2E-005 | low | Route: patch. |
+| EC2: sheet mode with no session drops a re-point answer silently | low | the sheet mounts under `RequireSession`; `db`/`user` null is unreachable there. Rejected. |
+| BH1, EC5: a drop on a sheet saves at once with no step | low | carried: decided in Design Notes (the story names only "Adicionar fotos"); EXPERIENCE.md "dragging onto a sheet" stays true. |
+| BH5: the strip omits the mock's item line ("Item 8 · Contatos · NC") and "Enviada" | low | the story's AC names badge, pill and caption; the mock adds the row line. Deferred (deferred-work.md). |
+| BH6: no e2e of the strip on a read-only (not tested) sheet | low | the strip has no write of its own; the viewer's actions are the gallery's. Deferred. |
+| BH7: the step adds a tap to every sheet pick | false as a defect | the story AC says "after the pick the existing 'De qual equipamento?' step runs"; recorded in Design Notes. |
+| BH9: `photosKeptOnSheetText` repeats `photosKeptGeneralText` | low | cosmetic; rejected. |
+| BH10: `assignPhotoBatch` positional parameters | low | a refactor, not a defect; rejected. |
+| BH-e2e: fixed 1 s settle, caption-only change and Escape-during-save not driven | low | a no-toast check needs a settle; the other two are covered by the unit tests. Rejected. |
+| BH-e2e: `RowPhotoAction` never reaches the direct picker | false | the NC row's "Adicionar fotos" exists only after its camera was refused (Story 6.4). |
+| EC3, EC4 (strip row without a tile, numbering): | low / false | carried from loop 0 (same evidence). |
 
 ## Design Notes
 
 Strike-through target, DESIGN.md "Photo capture sheet" (D:856), verbatim: "The import path (from the "Adicionar fotos" button, a drop on a computer, or when the camera is denied)." and "One 56px option "Escolher arquivos" (and "Tirar foto" only when reached from a denied camera, with the reason in `label` beneath it)." Replacement: "Adicionar fotos" opens the system file picker directly; the sheet remains for the denied camera only, with "Escolher arquivos" as a 56 px secondary Button and "Tirar foto" under it with the reason. EXPERIENCE.md E:325 already says the picker opens directly; no change there.
 
-Decisions: the mock's "Legendar" and the section-head "Adicionar fotos" are left out (viewer and sticky bar own them); the sheet import now runs the equipment step, as the story text says, which changes the 6.3/6.4 "saves at once" behaviour; the e2e `@p1` viewport tests set `page.setViewportSize` inside the `desktop-chrome` project.
+Decisions: the mock's "Legendar" and the section-head "Adicionar fotos" are left out (viewer and sticky bar own them); the sheet import keeps saving at once (6.3/6.4) and the equipment step runs on top of it "as today", so no cancel path loses a photo; a drop on a sheet keeps saving at once with no step (the story names only "Adicionar fotos"); the strip's tile takes the 64 px `thumb-inline` width (DESIGN.md Photo tile wins over the mock's 96 px); `denied` is the existing per-mount `useCamera` state, known after a refused camera tap (no Permissions API probing); the e2e `@p1` viewport tests set `page.setViewportSize` inside the `desktop-chrome` project.
 
 ## Verification
 
@@ -95,3 +155,21 @@ Decisions: the mock's "Legendar" and the section-head "Adicionar fotos" are left
 - `podman compose --profile tools run --rm tools pnpm test:e2e -- e2e/sheet-photos.spec.ts e2e/gallery.spec.ts e2e/photos.spec.ts e2e/photo-numbers.spec.ts e2e/captions.spec.ts e2e/suggestions.spec.ts e2e/dictation.spec.ts e2e/review-field-defects.spec.ts` -- green.
 - `flock /tmp/fasor-verify.lock podman compose --profile tools run --rm tools pnpm verify` -- green; output pasted in the PR.
 - Hands-on pass in the Playwright MCP browser at 390, 768 and 1280, light and dark, keyboard only on the denied sheet.
+
+## Auto Run Result
+
+Status: done (review loop 1, bad_spec once, then one patch pass).
+
+**Summary:** the kernel lists a sheet's photos (`photosOfBlock`) and the sheet draws them as "Fotos da ficha (n)" after Conclusão, 64 px inline tiles with the relatório's numbers, pill and caption, a tap opening the viewer. "Adicionar fotos" opens the system picker directly on the sheet and in the gallery; a sheet's pick saves at once on the sheet and "De qual equipamento?" runs preselected to re-point the batch (Cancelar keeps the photos on the sheet with a toast). The denied camera keeps the capture sheet with two 56 px secondary Buttons. DESIGN.md and EXPERIENCE.md carry dated strike-throughs.
+
+**Review findings:** loop 0: 30 findings, 1 high (held files lost on Cancelar) routed bad_spec with 6 folded into the amended tasks, 11 rejected, 2 deferred. Loop 1: 24 findings, 1 medium (the moved NC-row batch kept its `nc_obs` reading) and 6 low patched, 2 deferred, the rest rejected or carried. Triage rows above.
+
+**Verification (gate stage by stage, `test-results/gate/`, 2026-10-06):**
+- `lint`: green. `static`: green.
+- `test:api`: 509 passed, 3 failed, all `src/db/seed-cli.integration.test.ts` (the CLI's `assertInCompose` wants `/.dockerenv`, which podman does not create; pre-existing on this host).
+- `test:unit`: full run 2861 passed, 10 failed under load (five at the 880 s timeout); the eight failing files re-run with one worker: 158 passed, 2 failed, both pre-existing on this host (`scripts/tooling.test.ts` seed-users CLI, same `/.dockerenv` cause; `apps/web/src/state/theme.test.tsx` "sets the attribute at once", the baseline failure recorded in deferred-work.md on 2026-10-06).
+- `test:e2e` (`@p0`, desktop-chrome and durability-desktop-chrome): 198 passed, 0 failed (parallel 163/163, serial 35/35, 751 s). A first run failed whole because the `api` container had stalled on a pg-boss error during the earlier stages; it was restarted and the stage re-run.
+- Touched specs, all tags: `sheet-photos.spec.ts` 13/13 and `gallery.spec.ts` 16/16 (implementer's run after the patches); `photo-numbers` 7.3-E2E-001 (`@p1`) fails identically on the baseline.
+- Hands-on pass: see Implementation Notes.
+
+**Residual risks:** the `denied` state is known only after a refused camera tap (per-mount `useCamera` state); a drop on a sheet saves at once with no step; the strip omits the mock's checklist row line (deferred).

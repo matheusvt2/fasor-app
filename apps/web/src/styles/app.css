@@ -741,3 +741,11 @@ input.count { width: 40px; padding: 0; border: 0; background: transparent; color
    (`flex-wrap: wrap`) must not shrink, or at 390 px the wrapped second row ("Numeração",
    "Variável") is cut off. */
 .rich-text .rt-toolbar { flex: none; }
+
+/* Story 11.11 (DESIGN.md › Photo capture sheet, 2026-10-06): the denied camera's chooser, two
+   secondary Buttons. Each takes the 56 px of the mock's `.photo-capture-sheet .capture-option`
+   (`components.css`: `min-height: var(--touch-field)`) and its `--sp-5` side inset; the denied
+   reason under "Tirar foto" lines up with them. */
+.photo-capture-sheet .capture-choices { display: flex; flex-direction: column; gap: var(--sp-2); padding: 0 var(--sp-5); }
+.photo-capture-sheet .capture-choices .btn { min-height: var(--touch-field); }
+.photo-capture-sheet .capture-choices .capture-reason { padding: 0; }

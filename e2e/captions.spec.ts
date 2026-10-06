@@ -52,12 +52,10 @@ async function openGallery(page: Page, relatorioId: string): Promise<void> {
   await expect(page.getByRole('heading', { level: 2, name: /^Registro fotográfico \(\d+\)$/ })).toBeVisible({ timeout: 30_000 });
 }
 
+/** Story 11.11: "Adicionar fotos" opens the system picker directly. */
 async function pickFiles(page: Page, files: FilePayload[]): Promise<Locator> {
-  await page.locator('.sticky-action-bar').getByRole('button', { name: 'Adicionar fotos' }).click();
-  const sheet = page.getByRole('dialog', { name: 'Adicionar fotos' });
-  await expect(sheet).toBeVisible();
   const chooser = page.waitForEvent('filechooser');
-  await sheet.getByRole('button', { name: 'Escolher arquivos' }).click();
+  await page.locator('.sticky-action-bar').getByRole('button', { name: 'Adicionar fotos' }).click();
   await (await chooser).setFiles(files);
   const which = page.getByRole('dialog', { name: /^De qual equipamento\?/ });
   await expect(which).toBeVisible();

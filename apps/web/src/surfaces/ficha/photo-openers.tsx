@@ -1,4 +1,5 @@
 import { PLATE_CAPTION, photoUploadState } from '@app/domain';
+import { PHOTO_ACCEPT } from '../../files/photo-import.ts';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { PhotoRow } from '../../components/index.ts';
@@ -16,7 +17,7 @@ import type { CaptureTarget } from './use-photo-capture.ts';
  */
 
 /** The Sticky action bar's Camera capture button, and the denied reason under the row. */
-export function useSheetCamera(relatorioId: string, target: () => CaptureTarget): { button: ReactNode; note: ReactNode } {
+export function useSheetCamera(relatorioId: string, target: () => CaptureTarget): { button: ReactNode; note: ReactNode; denied: boolean } {
   const t = copy.photos;
   const opener = useRef<HTMLButtonElement>(null);
   const camera = useCamera(relatorioId, target, opener);
@@ -47,6 +48,8 @@ export function useSheetCamera(relatorioId: string, target: () => CaptureTarget)
         {t.denied}
       </p>
     ) : null,
+    // Story 11.11: "Adicionar fotos" opens the Photo capture sheet only once this camera was refused.
+    denied: camera.denied,
   };
 }
 
@@ -124,18 +127,55 @@ export function PlateCaptureTile({ relatorioId, target }: { relatorioId: string;
 const PLATE_SHOT_GRACE_MS = 15_000;
 
 /**
+ * Story 11.11 (EXPERIENCE.md › Photo capture sheet): the system file picker, opened straight
+ * from a press. `open` clicks a hidden `<input type=file multiple>` inside the press, so the
+ * browser still counts the user's gesture; picked files go to `onFiles`, a cancelled picker
+ * does nothing at all. `input` is rendered beside the opener.
+ */
+export function useDirectPicker(onFiles: (files: File[]) => void): { open: () => void; input: ReactNode } {
+  const ref = useRef<HTMLInputElement>(null);
+  return {
+    open: () => ref.current?.click(),
+    input: (
+      <input
+        ref={ref}
+        type="file"
+        accept={PHOTO_ACCEPT}
+        multiple
+        hidden
+        tabIndex={-1}
+        aria-hidden="true"
+        data-testid="photo-direct-input"
+        onChange={(event) => {
+          const list = [...(event.target.files ?? [])];
+          event.target.value = '';
+          if (list.length > 0) onFiles(list);
+        }}
+      />
+    ),
+  };
+}
+
+/**
  * Story 6.4: "Adicionar fotos" (`70-fotos.html` Sticky action bar, `btn btn-secondary` with
  * `i-image`), the import path beside the camera. Below 480 px its word is visually hidden so
- * the bar never runs wider than the phone (the button keeps its name).
+ * the bar never runs wider than the phone (the button keeps its name). Story 11.11: with the
+ * camera not refused it opens the system picker directly and hands the files on (`onFiles`);
+ * with the camera denied it opens the Photo capture sheet (`onOpenSheet`).
  */
-export function AddPhotosButton({ onPress }: { onPress: () => void }) {
+export function AddPhotosButton({ denied, onFiles, onOpenSheet }: { denied: boolean; onFiles?: (files: File[]) => void; onOpenSheet: () => void }) {
+  const picker = useDirectPicker((files) => onFiles?.(files));
+  const direct = !denied && onFiles !== undefined;
   return (
-    <AriaButton className="btn btn-secondary add-photos-btn" onPress={onPress}>
-      <svg className="ico" aria-hidden="true">
-        <use href="/sprite.svg#i-image" />
-      </svg>
-      <span className="add-photos-word">{copy.photos.addPhotos}</span>
-    </AriaButton>
+    <>
+      <AriaButton className="btn btn-secondary add-photos-btn" onPress={direct ? picker.open : onOpenSheet}>
+        <svg className="ico" aria-hidden="true">
+          <use href="/sprite.svg#i-image" />
+        </svg>
+        <span className="add-photos-word">{copy.photos.addPhotos}</span>
+      </AriaButton>
+      {onFiles === undefined ? null : picker.input}
+    </>
   );
 }
 
@@ -181,7 +221,8 @@ export function RowPhotoAction({
           <p className="camera-denied" id={deniedId} role="status">
             {t.denied}
           </p>
-          {onAddPhotos === undefined ? null : <AddPhotosButton onPress={onAddPhotos} />}
+          {/* Story 11.11: reached only from this denied camera, so it opens the Photo capture sheet. */}
+          {onAddPhotos === undefined ? null : <AddPhotosButton denied onOpenSheet={onAddPhotos} />}
         </>
       ) : null}
       {camera.element}

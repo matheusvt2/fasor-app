@@ -87,14 +87,31 @@ async function burst(page: Page, opener: Locator, n: number): Promise<void> {
   await expect(page.getByRole('dialog', { name: 'Câmera' })).toHaveCount(0);
 }
 
-/** "Adicionar fotos" > "Escolher arquivos" > the system picker, as a person picks. */
+/** Story 11.11: "Adicionar fotos" opens the system picker directly, as a person picks. */
 async function pickFiles(page: Page, opener: Locator, files: FilePayload[]): Promise<void> {
+  const chooser = page.waitForEvent('filechooser');
+  await opener.click();
+  await (await chooser).setFiles(files);
+}
+
+/** With the camera denied, "Adicionar fotos" opens the Photo capture sheet: "Escolher arquivos" > the system picker. */
+async function pickFilesDenied(page: Page, opener: Locator, files: FilePayload[]): Promise<void> {
   await opener.click();
   const sheet = page.getByRole('dialog', { name: 'Adicionar fotos' });
   await expect(sheet).toBeVisible();
   const chooser = page.waitForEvent('filechooser');
   await sheet.getByRole('button', { name: 'Escolher arquivos' }).click();
   await (await chooser).setFiles(files);
+}
+
+/** Story 11.11: files picked from a sheet open "De qual equipamento?" with that sheet chosen and `caption` in the field; "Adicionar N" saves them. */
+async function addOnSheet(page: Page, n: number, caption: string): Promise<void> {
+  const which = page.getByRole('dialog', { name: /^De qual equipamento\?/ });
+  await expect(which).toBeVisible();
+  await expect(which.getByRole('radio', { name: SEC_ENEL_OPTION })).toHaveAttribute('aria-checked', 'true');
+  await expect(which.getByRole('textbox', { name: n === 1 ? 'Legenda da foto' : `Legenda das ${n} fotos` })).toHaveValue(caption);
+  await which.getByRole('button', { name: n === 1 ? 'Adicionar 1 foto' : `Adicionar ${n} fotos` }).click();
+  await expect(which).toHaveCount(0);
 }
 
 const byCapture = (photos: PhotoRowRecord[]) =>
@@ -215,11 +232,47 @@ test('@p1 6.4-E2E-006 with the camera denied, the NC row\'s "Adicionar fotos" sa
   await row.getByRole('radio', { name: 'Não conforme', exact: true }).click();
   await row.getByRole('button', { name: 'Adicionar foto' }).click();
   await expect(row.locator('.camera-denied')).toBeVisible();
-  await pickFiles(page, row.getByRole('button', { name: 'Adicionar fotos' }), [await plainJpeg(page, 'nc.jpg')]);
+  await pickFilesDenied(page, row.getByRole('button', { name: 'Adicionar fotos' }), [await plainJpeg(page, 'nc.jpg')]);
+  // Story 11.11: "De qual equipamento?" with this sheet chosen and the row's caption.
+  await addOnSheet(page, 1, NC_CAPTION);
   await expect(toast(page)).toContainText('1 foto adicionada — legenda aplicada');
   await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(1);
-  expect((await devicePhotos(page, database))[0]).toMatchObject({ block_id: blockId, item_key: 'contatos', caption: NC_CAPTION });
+  const [photo] = await devicePhotos(page, database);
+  expect(photo).toMatchObject({ block_id: blockId, item_key: 'contatos', caption: NC_CAPTION });
+  // The import from the NC row asks for that row's draft, as its camera shot does (`nc-draft.spec.ts`).
+  const create = (await readStore<OutboxOp>(page, database, 'outbox')).find((op) => op.kind === 'create' && op.path === `file/${photo!.id}`)!;
+  expect(create.value).toMatchObject({ block_id: blockId, item_key: 'contatos', reading_kind: 'nc_obs', reading_status: 'queued' });
   await expect(row.locator('.photo-list .photo-row')).toHaveCount(1);
+});
+
+test('@p1 11.11-E2E-011 with the camera denied, a file added from the NC row and moved to another sheet on "De qual equipamento?" leaves the row: that block, no item, no nc_obs reading', async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.addInitScript(() => {
+    const denied = () => Promise.reject(new DOMException('Permission denied', 'NotAllowedError'));
+    Object.defineProperty(navigator.mediaDevices, 'getUserMedia', { value: denied, configurable: true });
+  });
+  const { blockId } = await openChaveSheet(page, account, database);
+  const row = contatos(page);
+  await row.getByRole('radio', { name: 'Não conforme', exact: true }).click();
+  await row.getByRole('button', { name: 'Adicionar foto' }).click();
+  await expect(row.locator('.camera-denied')).toBeVisible();
+  await pickFilesDenied(page, row.getByRole('button', { name: 'Adicionar fotos' }), [await plainJpeg(page, 'nc.jpg')]);
+  const which = page.getByRole('dialog', { name: /^De qual equipamento\?/ });
+  await expect(which).toBeVisible();
+  await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(1);
+  const other = which.getByRole('radio').nth(1);
+  await expect(other).not.toHaveAccessibleName(SEC_ENEL_OPTION);
+  await expect(other).not.toHaveAccessibleName('Geral (sem equipamento)');
+  await other.click();
+  await which.getByRole('button', { name: 'Adicionar 1 foto' }).click();
+  await expect(which).toHaveCount(0);
+  type Row = PhotoRowRecord & { reading_kind?: string | null };
+  const moved = async () => (await devicePhotos(page, database))[0] as Row;
+  await expect.poll(async () => (await moved()).block_id, { timeout: 15_000 }).not.toBe(blockId);
+  const photo = await moved();
+  expect(photo.block_id).not.toBeNull();
+  expect(photo).toMatchObject({ item_key: null, reading_kind: null });
+  await expect(row.locator('.photo-list .photo-row')).toHaveCount(0);
 });
 
 test('@p1 6.4-E2E-005 a JPEG dropped on the gallery opens straight on "De qual equipamento?" and saves on the chosen sheet', async ({ page }) => {
@@ -252,14 +305,16 @@ test('@p1 6.4-E2E-005 a JPEG dropped on the gallery opens straight on "De qual e
   expect((await devicePhotos(page, database))[0]).toMatchObject({ block_id: blockId, caption: SHEET_CAPTION });
 });
 
-test('@p0 6.3/6.4-E2E-002 files added from a sheet save at once with its caption; "Remover" redraws the numbers and "Desfazer" brings the photo back, across a reload', async ({ page }) => {
+test('@p0 6.3/6.4-E2E-002 files added from a sheet save with its caption once "Adicionar 3 fotos" is pressed; "Remover" redraws the numbers and "Desfazer" brings the photo back, across a reload', async ({ page }) => {
   test.setTimeout(150_000);
   const { relatorioId, blockId } = await openChaveSheet(page, account, database);
 
-  // "Adicionar fotos" beside the camera: three files, saved at once with the sheet's caption.
+  // "Adicionar fotos" beside the camera: the picker at once, three files, then "De qual
+  // equipamento?" with this sheet chosen (Story 11.11); saved with the sheet's caption.
   const add = page.locator('.sticky-action-bar').getByRole('button', { name: 'Adicionar fotos' });
   await pickFiles(page, add, [await plainJpeg(page, 'a.jpg'), await plainJpeg(page, 'b.jpg'), await png(page, 'c.png')]);
   await expect(page.getByRole('dialog', { name: 'Adicionar fotos' })).toHaveCount(0);
+  await addOnSheet(page, 3, SHEET_CAPTION);
   // The toast follows the last save, and the PNG is converted first: a loaded machine takes
   // longer than the default 5 s (it failed identically on the unchanged base, 2026-09-30).
   await expect(toast(page)).toContainText('3 fotos adicionadas — legenda aplicada', { timeout: 20_000 });
@@ -637,7 +692,8 @@ test('@p1 6.3-E2E-008 the viewer shows the original this device holds, and the s
   await expect(row.locator('.camera-denied')).toBeVisible();
   // Larger than the print copy's 2000 px bound and under the device's 2560 px original bound.
   const big = async (name: string): Promise<FilePayload> => ({ name, mimeType: 'image/jpeg', buffer: await jpegFromPage(page, 2400, 1600) });
-  await pickFiles(page, row.getByRole('button', { name: 'Adicionar fotos' }), [await big('local.jpg'), await big('servidor.jpg')]);
+  await pickFilesDenied(page, row.getByRole('button', { name: 'Adicionar fotos' }), [await big('local.jpg'), await big('servidor.jpg')]);
+  await addOnSheet(page, 2, NC_CAPTION);
   await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(2);
 
   // Both uploaded and rendered by the server, as this device learns on a sync.

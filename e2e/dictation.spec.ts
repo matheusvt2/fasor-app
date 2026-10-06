@@ -41,12 +41,10 @@ async function storedBlock(page: Page, blockId: string): Promise<BlockRow> {
 
 const cellValue = (block: BlockRow, testKey: string, row: number, col: number) => block.sheet.test[testKey]?.cells[String(row)]?.[String(col)]?.value ?? null;
 
+/** Story 11.11: "Adicionar fotos" opens the system picker directly. */
 async function pickFiles(page: Page, opener: Locator, files: FilePayload[]): Promise<void> {
-  await opener.click();
-  const sheet = page.getByRole('dialog', { name: 'Adicionar fotos' });
-  await expect(sheet).toBeVisible();
   const chooser = page.waitForEvent('filechooser');
-  await sheet.getByRole('button', { name: 'Escolher arquivos' }).click();
+  await opener.click();
   await (await chooser).setFiles(files);
 }
 

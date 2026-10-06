@@ -1325,3 +1325,21 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: split from the 2026-10-06 review batch, same source; third PR after the field-defects one.
   class: debt
   state: open (owner: third bmad-build run of the batch)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-11-sheet-photo-strip-and-direct-picker.md`
+  summary: The sheet mounts one more relatório-wide photo tile live query and PhotoViewer instance (`SheetPhotos` on `useCropViewer`, beside the nameplate and readings ones); one shared tile source and viewer per sheet would cut the queries.
+  evidence: review BH8, 2026-10-06; same pattern as the existing mounts, so no user-visible defect today.
+  class: debt
+  state: open (owner: next sheet performance batch)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-11-sheet-photo-strip-and-direct-picker.md`
+  summary: The "Fotos da ficha" strip retry pill (`onRetry` -> `retryUpload`) has no e2e of its own; the pill is proven on the checklist row only.
+  evidence: review VG5, 2026-10-06; one-line wiring on the shared PhotoRow.
+  class: test
+  state: open (owner: epic QA)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-11-sheet-photo-strip-and-direct-picker.md`
+  summary: The "Fotos da ficha" strip draws caption, stamp and pill only; the mock (`60-ficha.html` 781) also prints the checklist row line ("Item 8 · Contatos · NC") and "Enviada" on an uploaded photo, and no test opens the strip on a not-tested (read-only) sheet.
+  evidence: review BH5/BH6, 2026-10-06; the story's AC names badge, pill and caption.
+  class: debt
+  state: open (owner: epic QA)

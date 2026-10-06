@@ -28,7 +28,7 @@ export function FichaDialogs({
   photos: FichaPhotos;
   actions: FichaActions;
 }) {
-  const { importTarget, setImportTarget, photoTarget, captioning, setCaptioning, saveCaption } = photos;
+  const { importing, setImporting, photoTarget, captioning, setCaptioning, saveCaption } = photos;
   const { renaming, setRenaming, rename, notTestedDialogOpen, setNotTestedDialogOpen, markNotTested, moveDialogOpen, setMoveDialogOpen, moveTo } = actions;
   return (
     <>
@@ -46,11 +46,13 @@ export function FichaDialogs({
         />
       ) : null}
 
+      {/* Story 11.11: "De qual equipamento?" with this sheet preselected, after the direct picker or the denied chooser. */}
       <PhotoCaptureSheet
         relatorioId={relatorioId}
-        isOpen={importTarget !== null}
-        onClose={() => setImportTarget(null)}
-        mode={{ kind: 'sheet', target: () => importTarget ?? photoTarget(null) }}
+        isOpen={importing !== null}
+        onClose={() => setImporting(null)}
+        mode={{ kind: 'sheet', target: () => importing?.target ?? photoTarget(null), snapshot, preselectBlockId: block.id }}
+        initialFiles={importing?.files ?? null}
       />
       {captioning === null ? null : (
         <PhotoCaptionDialog

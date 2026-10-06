@@ -29,7 +29,13 @@ import { writeErrorText } from '../../state/use-undoable-edits.ts';
  * (`captionDiscardOps`), so the suggestion never outlives what the engineer wrote.
  */
 
-function put(author: Author, relatorioId: string, fileId: string, field: 'caption' | 'removed_at' | 'block_id' | 'people_in_photo' | 'reading_kind', value: JsonValue): OpDraft {
+function put(
+  author: Author,
+  relatorioId: string,
+  fileId: string,
+  field: 'caption' | 'removed_at' | 'block_id' | 'item_key' | 'people_in_photo' | 'reading_kind',
+  value: JsonValue,
+): OpDraft {
   return { ...relatorioOpEnvelope(author, relatorioId), kind: 'put', path: fileFieldPath(fileId, field), value };
 }
 
@@ -85,6 +91,12 @@ export async function setPeopleInPhoto(
  * answer leaves with no sheet, no caption and no mark (`captionReadingOf`) asks for its
  * caption reading here, with a `file/{id}/reading_kind = 'caption'` put after its other puts.
  * "Cancelar" (kept as "Geral") calls this with nothing chosen, so it writes only those puts.
+ *
+ * Story 11.11: a sheet's batch is saved on the sheet (`saved`: its block, item and context
+ * caption), and the same answer re-points it: a part equal to its saved value writes nothing,
+ * another block or "Geral" puts `block_id` (and `item_key: null` when it was on an item), a
+ * changed caption is put, a cleared one as null, and a reading the batch was saved with (an NC
+ * row's `nc_obs`) is put to null when the batch leaves, unless the caption reading replaces it.
  */
 export async function assignPhotoBatch(
   db: AppDatabase,
@@ -94,16 +106,20 @@ export async function assignPhotoBatch(
   blockId: string | null,
   caption: string | null,
   peopleInPhoto = false,
+  saved: { blockId: string | null; itemKey: string | null; caption: string | null; readingKind?: string | null } = { blockId: null, itemKey: null, caption: null },
 ): Promise<void> {
   const value = captionValue(caption);
+  const moved = blockId !== saved.blockId;
+  // Story 11.8 follow-up: no caption reading while the server's AI features are off.
+  const asksCaption = captionReadingOf({ block_id: blockId, caption: value, people_in_photo: peopleInPhoto }) !== null && aiFeaturesOn();
+  const dropsReading = moved && (saved.readingKind ?? null) !== null && !asksCaption;
   const drafts = fileIds.flatMap((id) => [
-    ...(blockId === null ? [] : [put(author, relatorioId, id, 'block_id', blockId)]),
-    ...(value === null ? [] : [put(author, relatorioId, id, 'caption', value)]),
+    ...(moved ? [put(author, relatorioId, id, 'block_id', blockId)] : []),
+    ...(moved && saved.itemKey !== null ? [put(author, relatorioId, id, 'item_key', null)] : []),
+    ...(value === captionValue(saved.caption) ? [] : [put(author, relatorioId, id, 'caption', value)]),
     ...(peopleInPhoto ? [put(author, relatorioId, id, 'people_in_photo', true)] : []),
-    // Story 11.8 follow-up: no caption reading while the server's AI features are off.
-    ...(captionReadingOf({ block_id: blockId, caption: value, people_in_photo: peopleInPhoto }) === null || !aiFeaturesOn()
-      ? []
-      : [put(author, relatorioId, id, 'reading_kind', 'caption')]),
+    ...(asksCaption ? [put(author, relatorioId, id, 'reading_kind', 'caption')] : []),
+    ...(dropsReading ? [put(author, relatorioId, id, 'reading_kind', null)] : []),
   ]);
   if (drafts.length > 0) await commitBatch(db, drafts, deps);
 }

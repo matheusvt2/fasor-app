@@ -94,6 +94,73 @@ describe('ledger 1131 assignPhotoBatch', () => {
   });
 });
 
+describe('11.11 assignPhotoBatch re-points a batch saved on a sheet', () => {
+  const SHEET = '019966b0-0000-7000-8000-0000000007c3';
+  const saved = { blockId: SHEET, itemKey: 'contatos', caption: 'Detalhe da chave seccionadora' };
+
+  it('the sheet kept with its caption writes nothing', async () => {
+    const db = await batchDb();
+    await assignPhotoBatch(db, author, RELATORIO_ID, [PHOTO_A, PHOTO_B], SHEET, ' Detalhe da chave seccionadora ', false, saved);
+    expect(await puts(db)).toEqual([]);
+    db.close();
+  });
+
+  it('another block puts block_id, item_key null and the new caption, in one batch', async () => {
+    const db = await batchDb();
+    await assignPhotoBatch(db, author, RELATORIO_ID, [PHOTO_A], BLOCK_1_ID, 'Outra legenda', false, saved);
+    const written = await puts(db);
+    expect(written.map(({ path, value }) => ({ path, value }))).toEqual([
+      { path: `file/${PHOTO_A}/block_id`, value: BLOCK_1_ID },
+      { path: `file/${PHOTO_A}/item_key`, value: null },
+      { path: `file/${PHOTO_A}/caption`, value: 'Outra legenda' },
+    ]);
+    expect(new Set(written.map((op) => op.batch_id)).size).toBe(1);
+    db.close();
+  });
+
+  it('"Geral" with the caption cleared puts block_id, item_key and caption null, then asks for the caption reading', async () => {
+    const db = await batchDb();
+    await assignPhotoBatch(db, author, RELATORIO_ID, [PHOTO_A], null, '', false, saved);
+    expect((await puts(db)).map(({ path, value }) => ({ path, value }))).toEqual([
+      { path: `file/${PHOTO_A}/block_id`, value: null },
+      { path: `file/${PHOTO_A}/item_key`, value: null },
+      { path: `file/${PHOTO_A}/caption`, value: null },
+      { path: `file/${PHOTO_A}/reading_kind`, value: 'caption' },
+    ]);
+    db.close();
+  });
+
+  it('a batch saved from an NC row with its nc_obs reading drops that reading when it leaves the row, and keeps it on the row', async () => {
+    const fromRow = { ...saved, readingKind: 'nc_obs' };
+    let db = await batchDb();
+    await assignPhotoBatch(db, author, RELATORIO_ID, [PHOTO_A], BLOCK_1_ID, 'Outra legenda', false, fromRow);
+    expect((await puts(db)).map(({ path, value }) => ({ path, value }))).toEqual([
+      { path: `file/${PHOTO_A}/block_id`, value: BLOCK_1_ID },
+      { path: `file/${PHOTO_A}/item_key`, value: null },
+      { path: `file/${PHOTO_A}/caption`, value: 'Outra legenda' },
+      { path: `file/${PHOTO_A}/reading_kind`, value: null },
+    ]);
+    db.close();
+    // "Geral" with no caption: the caption reading replaces it (one reading_kind put).
+    db = await batchDb();
+    await assignPhotoBatch(db, author, RELATORIO_ID, [PHOTO_A], null, null, false, fromRow);
+    expect((await puts(db)).filter((op) => op.path.endsWith('/reading_kind')).map((op) => op.value)).toEqual(['caption']);
+    db.close();
+    // Kept on the row: nothing.
+    db = await batchDb();
+    await assignPhotoBatch(db, author, RELATORIO_ID, [PHOTO_A], SHEET, saved.caption, false, fromRow);
+    expect(await puts(db)).toEqual([]);
+    db.close();
+  });
+
+  it('"Pessoas na foto" on the kept sheet puts the mark only', async () => {
+    const db = await batchDb();
+    await assignPhotoBatch(db, author, RELATORIO_ID, [PHOTO_A], SHEET, saved.caption, true, saved);
+    expect((await puts(db)).map(({ path, value }) => ({ path, value }))).toEqual([{ path: `file/${PHOTO_A}/people_in_photo`, value: true }]);
+    db.close();
+  });
+});
+
 describe('W-9 a photo edit the device refuses', () => {
   it('raises the refused-write toast: the quota words for a full device, the general ones otherwise', () => {
     const shown: string[] = [];

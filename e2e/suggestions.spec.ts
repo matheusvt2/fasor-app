@@ -341,12 +341,12 @@ test('@p1 8.1-E2E-007 the nameplate with suggestions fits 390 px without a sidew
 test('@p0 8.1-E2E-008 the crop of a photo on this device draws the picture and opens the Photo viewer zoomed on its region, before and after Confirmar', async ({ page }) => {
   test.setTimeout(180_000);
   const ids = await openChaveSheet(page, account, database);
+  // Story 11.11: the picker at once, then "Adicionar 1 foto" on this sheet.
   const add = page.locator('.sticky-action-bar').getByRole('button', { name: 'Adicionar fotos' });
-  await add.click();
-  const sheet = page.getByRole('dialog', { name: 'Adicionar fotos' });
   const chooser = page.waitForEvent('filechooser');
-  await sheet.getByRole('button', { name: 'Escolher arquivos' }).click();
+  await add.click();
   await (await chooser).setFiles([await plainJpeg(page, 'placa.jpg')]);
+  await page.getByRole('dialog', { name: /^De qual equipamento\?/ }).getByRole('button', { name: 'Adicionar 1 foto' }).click();
   await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(1);
   const photoId = (await devicePhotos(page, database))[0]!.id;
 

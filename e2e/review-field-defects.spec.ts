@@ -456,12 +456,12 @@ test('@p1 F-13 a plate shot shows its reading state at once, and photos added fr
   await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 20_000 }).toBe(1);
   await expect(section.locator('.ficha-np-photo .photo-tile[data-photo-id]')).toBeVisible({ timeout: 20_000 });
 
-  // "Adicionar fotos" on the sheet: the toast is said where the engineer can see it.
-  await page.locator('.sticky-action-bar').getByRole('button', { name: 'Adicionar fotos' }).click();
-  const sheet = page.getByRole('dialog', { name: 'Adicionar fotos' });
+  // "Adicionar fotos" on the sheet (the picker at once, then "Adicionar 1 foto", Story 11.11):
+  // the toast is said where the engineer can see it.
   const files = page.waitForEvent('filechooser');
-  await sheet.getByRole('button', { name: 'Escolher arquivos' }).click();
+  await page.locator('.sticky-action-bar').getByRole('button', { name: 'Adicionar fotos' }).click();
   await (await files).setFiles([await plainJpeg(page, 'a.jpg')]);
+  await page.getByRole('dialog', { name: /^De qual equipamento\?/ }).getByRole('button', { name: 'Adicionar 1 foto' }).click();
   await expect(toast(page)).toContainText('1 foto adicionada', { timeout: 20_000 });
   const box = (await toast(page).boundingBox())!;
   expect(box.y).toBeGreaterThanOrEqual(0);

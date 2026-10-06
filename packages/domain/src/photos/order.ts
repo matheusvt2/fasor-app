@@ -35,3 +35,13 @@ export function comparePhotos(a: OrderablePhoto, b: OrderablePhoto): number {
 export function livePhotos(snapshot: Pick<RelatorioSnapshot, 'files'>): SnapshotPhoto[] {
   return snapshot.files.filter((file): file is SnapshotPhoto => file.kind === 'photo' && file.removed_at === null).sort(comparePhotos);
 }
+
+/**
+ * Story 11.11 (AD-1): the live photos of one sheet, in capture order: the nameplate photo,
+ * the bursts and the imports whose `block_id` is this block, every checklist item's included.
+ * The "Fotos da ficha" strip draws exactly this list; its numbers are `numberPhotos` over
+ * the whole relatório.
+ */
+export function photosOfBlock(snapshot: Pick<RelatorioSnapshot, 'files'>, blockId: string): SnapshotPhoto[] {
+  return livePhotos(snapshot).filter((photo) => photo.block_id === blockId);
+}

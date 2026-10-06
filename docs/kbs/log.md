@@ -16,3 +16,4 @@ timestamp: 2026-09-30T00:00:00Z
 - 2026-10-05: suggestions-and-reading.md takes the Story 11.6 review-pass escalation rule (more `suggested` wins, an empty reading escalates, a failed escalation keeps the first) and when no Bedrock or escalation provider is built.
 - 2026-10-05: epics-map.md lists Story 11.11 (sheet photo strip and direct file picker, Matheus field feedback).
 - 2026-10-06: suggestions-and-reading.md records `BEDROCK_PANEL_MODEL_ID` (panel fronts on Qwen3 VL 235B).
+- 2026-10-06: Story 11.11 added dated notes to DESIGN.md › Photo capture sheet (two sentences struck through: "Adicionar fotos" opens the system file picker directly, the sheet remains for the denied camera with "Escolher arquivos" a 56 px secondary Button; a sheet batch also goes through "De qual equipamento?", preselected) and to EXPERIENCE.md › Photo capture sheet (the same step from a sheet, and the denied chooser); no KB concept summarized them, so none changed.
