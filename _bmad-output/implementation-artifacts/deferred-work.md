@@ -1304,3 +1304,11 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: the same single file run alone fails on the main checkout at `3ab9a92` and on the story worktree; Story 11.6 changes no file under `apps/web` or `e2e`.
   class: bug
   state: open (owner: whoever merges `fix/arm64-local-dev`; check whether it is podman-specific)
+
+## Deferred from: code review of spec-11-6-structure-readings-on-bedrock (2026-10-06)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-11-6-structure-readings-on-bedrock.md`
+  summary: An escalated reading's run row names one model but sums two calls' usage, so the model and its price no longer reproduce the stored USD; keep per-call usage on `reading_runs.llm_usage` together with the failed-call usage entry above.
+  evidence: `apps/api/src/jobs/reading/kinds/plate.ts` returns `{ ...kept.structuring, usage: summed }`.
+  class: debt
+  state: open (owner: coordinator, with the failed-call usage entry)

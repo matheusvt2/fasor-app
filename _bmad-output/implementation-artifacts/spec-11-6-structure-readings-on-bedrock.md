@@ -167,3 +167,38 @@ Pass 2 (2026-10-05, after the pass-1 patches and Matheus's escalation decision).
 | LIVE-2 | Live eval: Nova 2 Lite omits the required `confidence` and fails both readings | low | `eval-live` plate: `invalid_type` on `confidence` | rejected (the model ignores the required field; the evaluation records it as failed) |
 | GATE-1 | `theme.test.tsx` fails in `test:unit` | false (for this story) | It fails alone on the baseline `3ab9a92` too, and the story touches no web file. | defer (pre-existing) |
 | GATE-2 | e2e `E5-A2-E2E-002` (a timed tap, serial group) failed once in the full run | false | It passed alone right after. The full run overlapped with a subagent test run on the same 4 GiB VM. | rejected (load) |
+
+### Review Findings
+
+Independent review of the merged PR #88 (commit 78214cc), 2026-10-06: four layers (blind-hunter, edge-case-hunter, verification-gap, acceptance-auditor) over `10fe436..78214cc`, code and infra only. Decisions and patches below are open; Matheus chooses.
+
+- [ ] [Review][Decision] Panel reading is weak on the default model: Haiku 4.5 returns the panel's block type uncited (the live run showed it), the adapter drops it, and the panel never escalates, so the reading ends with fewer suggestions or none. Options: panel-specific prompt, a stronger panel model, or accept an uncited value as `verify` with no box. [`providers/bedrock.ts` `withoutUncitedValues`, `kinds/panel.ts`]
+- [ ] [Review][Decision] Cross-Region inference for client photos: the default `global.` Haiku profile can route inference to any Region. Options: keep `global.` (cheapest), use the `us.` profile (US only, about 10 % dearer, already priced in `BEDROCK_PRICES`), or record an LGPD decision first. "Pessoas na foto" photos are already kept from every model by `captionSkipReason`. [`config.ts` `DEFAULT_BEDROCK_MODEL_ID`]
+- [ ] [Review][Decision] `betterReading` ties on `suggested` count and keeps the first reading, so an empty first reading is kept over an escalation that returned only `verify` rows, and the paid call is discarded. Options: leave the rule, or break ties by total rows. [`packages/domain/src/reading/escalate.ts`]
+- [ ] [Review][Decision] The escalation is skipped when the OCR found no word (`ocr.tokens.length === 0`), which the frozen "zero suggestions escalates" decision does not say, and the rule lives in `apps/api`, not in the kernel. Options: record the exception in the decisions of record, or move it into `escalate.ts`. [`kinds/plate.ts`]
+- [ ] [Review][Patch] `CredentialsProviderError` and `ExpiredTokenException` are classed permanent; on ECS a task-role credential hiccup should retry like a throttle. Move both to transient. [`providers/bedrock.ts` `PERMANENT_ERRORS`]
+- [ ] [Review][Patch] A value with `ocr_token_ids: null` is not dropped as uncited and fails the whole reading permanently. Treat `null` like missing or empty. [`providers/bedrock.ts` `withoutUncitedValues`]
+- [ ] [Review][Patch] `.gitignore` ignores `tfplan` only; `infra/production/*.plan` files (which embed generated secrets) show as untracked in a public repo. Ignore `*.plan` and `*.tfplan`. [`.gitignore`]
+- [ ] [Review][Patch] No test shows the panel kind never escalates: the only test answers with a confident reading, which never triggers an escalation. Add a panel case with `confidence: 0.3` on both values and the escalation model answering, expecting `client.models` equal to `[HAIKU]`. [`job.integration.test.ts` `11.6-INT`]
+- [ ] [Review][Patch] No job-level test for an empty first reading with OCR words present (Haiku `{values: []}`, Nova Pro answering the plate): expect `[HAIKU, NOVA_PRO]`, 11 suggestions, run-row model Nova Pro with summed usage. [`job.integration.test.ts` `11.6-INT`]
+- [ ] [Review][Patch] The USD 100 ceiling policy asks for a cost estimate before an infra choice lands, and the PR has none. Add to `infra/README.md` the measured cost (about USD 0.005 a plate on Haiku, up to USD 0.009 with an escalation) and the monthly figure for an assumed volume. [`infra/README.md`]
+- [x] [Review][Defer] Usage of a billed call that fails (no tool call, schema refusal), including a failed escalation, is not counted on `reading_runs.llm_usage`. [`kinds/plate.ts`, `providers/bedrock.ts`] -- deferred: carried from passes 1 and 2, already in `deferred-work.md`.
+- [x] [Review][Defer] An escalated run row names one model but sums two calls' usage, so model plus price no longer reproduces the stored USD; per-call usage is missing. [`kinds/plate.ts`] -- deferred: same accounting change as the entry above (error carries usage, the run row keeps per-call usage).
+- [x] [Review][Defer] The production task role also holds the evaluation candidates (Nova 2 Lite, Qwen3 VL, Mistral Large 3) through the shared policy. [`infra/bootstrap/iam.tf`] -- deferred: carried; it narrows after the evaluation on real photos.
+- [x] [Review][Defer] Terraform does not validate the three `bedrock_*` model ids against the priced and allowed list; a typo crash-loops the api at boot. [`infra/production/variables.tf`] -- deferred: carried, already in `deferred-work.md`.
+
+#### Rejected
+
+- false: "Escalation latency doubles in one attempt": the reading job expires at 300 s (`READING_QUEUE_OPTIONS.expireInSeconds`) and two calls plus OCR take about 130 s at most.
+- false: "The image mime is silently coerced to jpeg": `OcrImage.mime` is typed `image/jpeg | image/png` in the contract, so nothing else reaches `imageBlock`.
+- false: "MIN_CONTRACT_VERSION 14 is premature": carried from pass 1; the bump is required before a cloud LLM is wired, and production is now wired.
+- false: "The KB, source-deltas row and deferred-work entries are missing": they are in the commit; the review diff excluded `_bmad-output` and `docs/kbs` on purpose.
+- false: "The live-evaluation AC has no evidence": the table is in the PR #88 body, as the AC says.
+- false: "`build(second)` outside the try can lose the first reading": `buildReadingSuggestions` is pure and fails only on a bug, the same as the first `build`; no reachable input was shown.
+- low, rejected: "IAM uses a Region wildcard, not an exact ARN": the wildcard is needed for cross-Region profiles and is explained in `iam.tf`.
+- low, rejected: "The tool schema is hand-built, not derived with `structuringValueSchemaFor`": the keys come from the fields and the result is checked by `structuringResultSchema` after the call.
+- low, rejected: "Uncited drops leave no log": the fix needs a logger in the adapter; it folds into the panel decision above.
+- low, rejected: "Defaults copied in five places; empty means off only for the escalation model": carried from pass 1.
+- low, rejected: "OCR words go into the prompt unescaped": the tool choice is forced and the answer is validated; there is no action surface.
+- low, rejected: "Empty `fields` gives `enum: []`", "missing `usage` or `max_tokens` is not flagged": carried from pass 2, no reachable case.
+- rejected: "Infra wiring (`ecs.tf`, `docker-compose.yml`) has no test", "`bedrock-eval.ts` has no test": infrastructure as code and a manual script, by design.
