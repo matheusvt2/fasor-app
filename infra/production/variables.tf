@@ -60,6 +60,12 @@ variable "bedrock_model_id" {
   }
 }
 
+variable "bedrock_panel_model_id" {
+  description = "BEDROCK_PANEL_MODEL_ID of the api: the model that reads panel fronts (Matheus, 2026-10-06). Qwen3 VL 235B by default; Haiku 4.5 returned the panel's block type uncited."
+  type        = string
+  default     = "qwen.qwen3-vl-235b-a22b"
+}
+
 variable "bedrock_prose_model_id" {
   description = "BEDROCK_PROSE_MODEL_ID of the api: the caption and NC draft model. Empty uses bedrock_model_id."
   type        = string

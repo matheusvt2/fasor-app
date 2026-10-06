@@ -29,11 +29,12 @@ x-app-env: &app-env
   LLM_PROVIDER: ${LLM_PROVIDER:-fake}
   OCR_PROVIDER: ${OCR_PROVIDER:-fake}
   # Story 11.6: the `bedrock` LLM provider's region and models (read only with LLM_PROVIDER=bedrock).
-  # Unset or empty, config.ts defaults them (Claude Haiku 4.5; prose on the same model). The
+  # Unset or empty, config.ts defaults them (Claude Haiku 4.5; panel fronts on Qwen3 VL 235B; prose on the same model as plates). The
   # escalation model is passed only when set, so its default (Amazon Nova Pro) holds; set it
   # empty (BEDROCK_ESCALATION_MODEL_ID=) to turn the plate escalation off.
   BEDROCK_REGION: ${BEDROCK_REGION:-}
   BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:-}
+  BEDROCK_PANEL_MODEL_ID: ${BEDROCK_PANEL_MODEL_ID:-}
   BEDROCK_PROSE_MODEL_ID: ${BEDROCK_PROSE_MODEL_ID:-}
   BEDROCK_ESCALATION_MODEL_ID: ${BEDROCK_ESCALATION_MODEL_ID-us.amazon.nova-pro-v1:0}
   # Story 8.3: the OCR sidecar below (profile `ocr`); only the `ocr-svc` provider calls it.

@@ -893,6 +893,7 @@ describe('9.2-INT the panel reading', () => {
 describe('11.6-INT the bedrock provider through an injected client (nothing reaches AWS)', () => {
   const HAIKU = 'global.anthropic.claude-haiku-4-5-20251001-v1:0';
   const NOVA_PRO = 'us.amazon.nova-pro-v1:0';
+  const QWEN = 'qwen.qwen3-vl-235b-a22b';
   const PANEL = '36f3fca92f329117f736195e6bcdcae60ba683a82a7d3dcd0aff154b158d3d51';
   const fixtureOf = (sha: string) => JSON.parse(readFileSync(join(DEFAULT_FIXTURES_DIR, `${sha}.json`), 'utf8')) as { structuring: unknown };
   /** The synthetic plate's eleven values (one `verify`: the TAP the fixture misreads). */
@@ -905,7 +906,7 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
       { key: 'tipo', value: 'TSE-500/15', ocr_token_ids: ['t11'], confidence: 0.9 },
     ],
   };
-  const TOKENS: Record<string, { inputTokens: number; outputTokens: number }> = { [HAIKU]: { inputTokens: 2000, outputTokens: 300 }, [NOVA_PRO]: { inputTokens: 2100, outputTokens: 500 } };
+  const TOKENS: Record<string, { inputTokens: number; outputTokens: number }> = { [HAIKU]: { inputTokens: 2000, outputTokens: 300 }, [NOVA_PRO]: { inputTokens: 2100, outputTokens: 500 }, [QWEN]: { inputTokens: 1700, outputTokens: 120 } };
 
   /** A client answering each model with its own tool input, recording the models it was asked. */
   function converse(byModel: Record<string, unknown>): BedrockLike & { models: string[]; images: Uint8Array[] } {
@@ -942,7 +943,7 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
   };
   const read = (jobDeps: ReadingJobDeps, id: string, reading_kind: 'plate' | 'panel' = 'plate') =>
     runReadingJob(jobDeps, { company_id: companyId, photo_id: id, reading_kind }, { jobId: 'direct', attempt: 1, lastAttempt: false });
-  const usd = (model: string) => (model === HAIKU ? (2000 * 1.0 + 300 * 5.0) / 1e6 : (2100 * 0.8 + 500 * 3.2) / 1e6);
+  const usd = (model: string) => (model === HAIKU ? (2000 * 1.0 + 300 * 5.0) / 1e6 : model === QWEN ? Math.round(1700 * 0.53 + 120 * 2.66) / 1e6 : (2100 * 0.8 + 500 * 3.2) / 1e6);
 
   it('a plate reads to done through Converse: suggestions from the tool input, the run row with the model, prompt_version, tokens and USD', async () => {
     const { relatorioId, blocks } = await relatorio();
@@ -1078,36 +1079,37 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
     }, 60_000);
   }
 
-  it('a panel front reads to done through Converse, never escalating: one suggestion on the photo block_id, usage on the run row', async () => {
+  it('a panel front reads to done through Converse on the panel model, never escalating: one suggestion on the photo block_id, usage on the run row', async () => {
     copyFileSync(join(DEFAULT_FIXTURES_DIR, `${PANEL}.json`), join(fixturesDir, `${PANEL}.json`));
     const { relatorioId, blocks } = await relatorio();
     const block = blocks.find((b) => b.block_type === 'chave_seccionadora')!;
     const id = await photo(relatorioId, block, await solidPng(11, 22, 33, 400, 300), 'image/png', { panel: true });
-    const client = converse({ [HAIKU]: fixtureOf(PANEL).structuring });
+    const client = converse({ [QWEN]: fixtureOf(PANEL).structuring });
     await read(bedrockDeps(client), id, 'panel');
     expect(await status(id)).toBe('done');
-    expect(client.models).toEqual([HAIKU]);
+    // Panel fronts read on their own model (Qwen3 VL by default), never on Haiku, and never escalate.
+    expect(client.models).toEqual([QWEN]);
     const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
     expect(mine).toHaveLength(1);
     expect(mine[0]).toMatchObject({ target_path: `file/${id}/block_id`, prompt_version: 'bedrock-structuring-1' });
-    expect((await runs(id))[0]).toMatchObject({ outcome: 'ok', reading_kind: 'panel', model: HAIKU, prompt_version: 'bedrock-structuring-1', llm_usage: { input_tokens: 2000, output_tokens: 300, usd: usd(HAIKU) } });
+    expect((await runs(id))[0]).toMatchObject({ outcome: 'ok', reading_kind: 'panel', model: QWEN, prompt_version: 'bedrock-structuring-1', llm_usage: { input_tokens: 1700, output_tokens: 120, usd: usd(QWEN) } });
   }, 60_000);
 
-  it('a panel front whose reading is all low-confidence (verify) still never escalates: only the first model is called', async () => {
+  it('a panel front whose reading is all low-confidence (verify) still never escalates: only the panel model is called', async () => {
     copyFileSync(join(DEFAULT_FIXTURES_DIR, `${PANEL}.json`), join(fixturesDir, `${PANEL}.json`));
     const { relatorioId, blocks } = await relatorio();
     const block = blocks.find((b) => b.block_type === 'chave_seccionadora')!;
     const id = await photo(relatorioId, block, await solidPng(11, 22, 33, 400, 300), 'image/png', { panel: true });
     const unsure = { values: (fixtureOf(PANEL).structuring as { values: Record<string, unknown>[] }).values.map((value) => ({ ...value, confidence: 0.3 })) };
     // Nova Pro answers too, so a second call would show in `client.models`.
-    const client = converse({ [HAIKU]: unsure, [NOVA_PRO]: fixtureOf(PANEL).structuring });
+    const client = converse({ [QWEN]: unsure, [NOVA_PRO]: fixtureOf(PANEL).structuring });
     await read(bedrockDeps(client), id, 'panel');
     expect(await status(id)).toBe('done');
-    expect(client.models).toEqual([HAIKU]);
+    expect(client.models).toEqual([QWEN]);
     const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
     expect(mine).toHaveLength(1);
     expect(mine[0]).toMatchObject({ trust: 'verify' });
-    expect((await runs(id))[0]).toMatchObject({ model: HAIKU });
+    expect((await runs(id))[0]).toMatchObject({ model: QWEN });
   }, 60_000);
 
   it('AccessDeniedException ends failed in one attempt, permanent, naming the AWS error; no suggestion', async () => {

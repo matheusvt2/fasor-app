@@ -11,5 +11,6 @@ acme_email = "operator@example.com"
 # ai_features  = "on"
 # The Bedrock models; the defaults are Claude Haiku 4.5 (structuring and prose) and Amazon Nova Pro (escalation).
 # bedrock_model_id            = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+# bedrock_panel_model_id      = "qwen.qwen3-vl-235b-a22b"
 # bedrock_prose_model_id      = ""
 # bedrock_escalation_model_id = "us.amazon.nova-pro-v1:0"

@@ -53,6 +53,7 @@ describe('config', () => {
     expect(config.BEDROCK_MODEL_ID).toBe('global.anthropic.claude-haiku-4-5-20251001-v1:0');
     expect(config.BEDROCK_PROSE_MODEL_ID).toBe('global.anthropic.claude-haiku-4-5-20251001-v1:0');
     expect(config.BEDROCK_ESCALATION_MODEL_ID).toBe('us.amazon.nova-pro-v1:0');
+    expect(config.BEDROCK_PANEL_MODEL_ID).toBe('qwen.qwen3-vl-235b-a22b');
     // Compose passes an unset variable as '': the region and models fall back to their defaults.
     const empty = loadConfig({ ...valid, BEDROCK_REGION: '', BEDROCK_MODEL_ID: '', BEDROCK_PROSE_MODEL_ID: '' });
     expect(empty.BEDROCK_REGION).toBe('us-east-1');
@@ -64,6 +65,9 @@ describe('config', () => {
     expect(loadConfig({ ...valid, BEDROCK_PROSE_MODEL_ID: 'qwen.qwen3-vl-235b-a22b' }).BEDROCK_PROSE_MODEL_ID).toBe('qwen.qwen3-vl-235b-a22b');
     // An empty escalation model disables the escalation (it is not unset).
     expect(loadConfig({ ...valid, BEDROCK_ESCALATION_MODEL_ID: '' }).BEDROCK_ESCALATION_MODEL_ID).toBe('');
+    // The panel model: empty is the default (Qwen3 VL), a name overrides it.
+    expect(loadConfig({ ...valid, BEDROCK_PANEL_MODEL_ID: '' }).BEDROCK_PANEL_MODEL_ID).toBe('qwen.qwen3-vl-235b-a22b');
+    expect(loadConfig({ ...valid, BEDROCK_PANEL_MODEL_ID: 'global.anthropic.claude-haiku-4-5-20251001-v1:0' }).BEDROCK_PANEL_MODEL_ID).toBe('global.anthropic.claude-haiku-4-5-20251001-v1:0');
   });
 
   it('defaults the worker on and reads the generate fault only when set (Story 4.8)', () => {
