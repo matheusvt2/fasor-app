@@ -15,7 +15,7 @@ resource "aws_iam_user_policy_attachment" "admin" {
 # at most one hour, so no long-lived key exists. On AWS the app gets the same
 # policy through its instance role (Story 11.8).
 resource "aws_iam_policy" "app" {
-  name        = "fasor-app-bedrock-textract"
+  name = "fasor-app-bedrock-textract"
   # The description is kept from 2026-09-29: changing it forces IAM to replace the policy,
   # which the production task role also has attached (DeleteConflict mid-apply).
   description = "Invoke Claude on Bedrock and detect text with Textract in us-east-1"
