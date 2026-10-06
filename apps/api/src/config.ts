@@ -13,6 +13,13 @@ const unsetWhenEmpty = (value: unknown) => (value === '' ? undefined : value);
 /** Story 11.6 (Matheus, 2026-10-05): the reference model, Claude Haiku 4.5 through its global inference profile. */
 export const DEFAULT_BEDROCK_MODEL_ID = 'global.anthropic.claude-haiku-4-5-20251001-v1:0';
 
+/**
+ * Matheus, 2026-10-06: the model that reads panel fronts. Haiku 4.5 returned the block type of a panel
+ * with no OCR word cited, so the adapter dropped it; Qwen3 VL 235B read both panel fields with valid
+ * citations in the live evaluation, at about half Haiku's price, on a 100M TPM quota.
+ */
+export const DEFAULT_BEDROCK_PANEL_MODEL_ID = 'qwen.qwen3-vl-235b-a22b';
+
 /** Story 11.6 (Matheus, 2026-10-05): the larger model a low-confidence plate reading is retried on. */
 export const DEFAULT_BEDROCK_ESCALATION_MODEL_ID = 'us.amazon.nova-pro-v1:0';
 
@@ -63,6 +70,8 @@ export const configSchema = z
     BEDROCK_REGION: z.preprocess(unsetWhenEmpty, z.string().min(1).default('us-east-1')),
     /** Story 11.6: the structuring model (plate and panel), a model or inference-profile id; Claude Haiku 4.5 is the reference. */
     BEDROCK_MODEL_ID: z.preprocess(unsetWhenEmpty, z.string().min(1).default(DEFAULT_BEDROCK_MODEL_ID)),
+    /** The panel-front model (`panel` readings); unset or empty, Qwen3 VL 235B. Name `BEDROCK_MODEL_ID` to use the plate model. */
+    BEDROCK_PANEL_MODEL_ID: z.preprocess(unsetWhenEmpty, z.string().min(1).default(DEFAULT_BEDROCK_PANEL_MODEL_ID)),
     /** Story 11.6: the prose model (vision caption, NC draft); unset or empty, `BEDROCK_MODEL_ID`. */
     BEDROCK_PROSE_MODEL_ID: z.preprocess(unsetWhenEmpty, z.string().min(1).optional()),
     /**

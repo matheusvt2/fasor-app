@@ -1,5 +1,5 @@
 import type { OcrProvider, ProseProvider, StructuringProvider } from '@app/domain';
-import { DEFAULT_BEDROCK_ESCALATION_MODEL_ID, DEFAULT_BEDROCK_MODEL_ID, type Config } from '../../../config.ts';
+import { DEFAULT_BEDROCK_ESCALATION_MODEL_ID, DEFAULT_BEDROCK_MODEL_ID, DEFAULT_BEDROCK_PANEL_MODEL_ID, type Config } from '../../../config.ts';
 import type { ReadingKind } from '../payload.ts';
 import { DEFAULT_FIXTURES_DIR, fakeOcrProvider, fakeProseProvider, fakeStructuringProvider } from './fake.ts';
 import { BEDROCK_DEFAULT_REGION, bedrockClientSource, bedrockProseProvider, bedrockStructuringProvider, type BedrockLike } from './bedrock.ts';
@@ -78,7 +78,7 @@ export interface ReadingProviderOptions {
 
 export function createReadingProviders(
   config: Pick<Config, 'OCR_PROVIDER' | 'LLM_PROVIDER' | 'OCR_SERVICE_URL'> &
-    Partial<Pick<Config, 'TEXTRACT_REGION' | 'AI_FEATURES' | 'BEDROCK_REGION' | 'BEDROCK_MODEL_ID' | 'BEDROCK_PROSE_MODEL_ID' | 'BEDROCK_ESCALATION_MODEL_ID'>>,
+    Partial<Pick<Config, 'TEXTRACT_REGION' | 'AI_FEATURES' | 'BEDROCK_REGION' | 'BEDROCK_MODEL_ID' | 'BEDROCK_PANEL_MODEL_ID' | 'BEDROCK_PROSE_MODEL_ID' | 'BEDROCK_ESCALATION_MODEL_ID'>>,
   options: ReadingProviderOptions = {},
 ): ReadingProvidersFactory {
   const fixturesDir = options.fixturesDir ?? DEFAULT_FIXTURES_DIR;
@@ -106,8 +106,12 @@ export function createReadingProviders(
     const timeout = options.bedrock?.timeoutMs === undefined ? {} : { timeoutMs: options.bedrock.timeoutMs };
     const modelId = config.BEDROCK_MODEL_ID ?? DEFAULT_BEDROCK_MODEL_ID;
     const escalationModel = config.BEDROCK_ESCALATION_MODEL_ID ?? DEFAULT_BEDROCK_ESCALATION_MODEL_ID;
+    const panelModel = config.BEDROCK_PANEL_MODEL_ID ?? DEFAULT_BEDROCK_PANEL_MODEL_ID;
+    const structuring = bedrockStructuringProvider({ source, modelId, ...timeout });
     return {
-      structuring: bedrockStructuringProvider({ source, modelId, ...timeout }),
+      structuring,
+      // Panel fronts read on their own model (Matheus, 2026-10-06); the same one as plates when named so.
+      panel: panelModel === modelId ? structuring : bedrockStructuringProvider({ source, modelId: panelModel, ...timeout }),
       prose: bedrockProseProvider({ source, modelId: config.BEDROCK_PROSE_MODEL_ID ?? modelId, ...timeout }),
       // No escalation when it is off (empty) or names the structuring model (the same call twice).
       escalation: escalationModel === '' || escalationModel === modelId ? null : bedrockStructuringProvider({ source, modelId: escalationModel, ...timeout }),
@@ -134,7 +138,7 @@ export function createReadingProviders(
         case 'fake':
           return fakeStructuringProvider(fixturesDir, photo_sha256, fixtureKey);
         case 'bedrock':
-          return bedrock!.structuring;
+          return reading_kind === 'panel' ? bedrock!.panel : bedrock!.structuring;
       }
     })();
     const prose = (() => {

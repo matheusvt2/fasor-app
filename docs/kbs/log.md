@@ -15,3 +15,4 @@ timestamp: 2026-09-30T00:00:00Z
 - 2026-10-05: suggestions-and-reading.md and infra-aws.md describe the Story 11.6 Bedrock provider (Converse tool use, the `BEDROCK_*` settings, prices and error classes), the plate escalation (`shouldEscalate`, `betterReading`), the evaluation script and the narrowed IAM; `LLM_PROVIDER` no longer lists `anthropic`.
 - 2026-10-05: suggestions-and-reading.md takes the Story 11.6 review-pass escalation rule (more `suggested` wins, an empty reading escalates, a failed escalation keeps the first) and when no Bedrock or escalation provider is built.
 - 2026-10-05: epics-map.md lists Story 11.11 (sheet photo strip and direct file picker, Matheus field feedback).
+- 2026-10-06: suggestions-and-reading.md records `BEDROCK_PANEL_MODEL_ID` (panel fronts on Qwen3 VL 235B).

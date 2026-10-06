@@ -332,8 +332,13 @@ describe('8.4-API provider switch', () => {
     expect(second.model).toBe('us.amazon.nova-pro-v1:0');
     expect(sent.map((input) => input.modelId)).toEqual(['global.anthropic.claude-haiku-4-5-20251001-v1:0', 'us.amazon.nova-pro-v1:0']);
     // One client per factory, for every model and every kind.
-    await factory({ ...ctx, reading_kind: 'panel' }).structuring.structure({ image, ocr, fields: [] });
+    const panel = await factory({ ...ctx, reading_kind: 'panel' }).structuring.structure({ image, ocr, fields: [] });
     expect(regions).toEqual(['us-west-2']);
+    // Panel fronts read on BEDROCK_PANEL_MODEL_ID (Qwen3 VL by default), never on the plate model or the escalation.
+    expect(panel.model).toBe('qwen.qwen3-vl-235b-a22b');
+    expect(sent.at(-1)?.modelId).toBe('qwen.qwen3-vl-235b-a22b');
+    const sameModel = createReadingProviders({ ...bedrock, BEDROCK_PANEL_MODEL_ID: 'global.anthropic.claude-haiku-4-5-20251001-v1:0' }, { bedrock: { client } })({ ...ctx, reading_kind: 'panel' });
+    expect((await sameModel.structuring.structure({ image, ocr, fields: [] })).model).toBe('global.anthropic.claude-haiku-4-5-20251001-v1:0');
     // An empty escalation model disables it; fake and AI_FEATURES=off never escalate.
     expect(createReadingProviders({ ...bedrock, BEDROCK_ESCALATION_MODEL_ID: '' }, { bedrock: { client } })(ctx).escalation).toBeUndefined();
     expect(createReadingProviders({ ...base, OCR_PROVIDER: 'fake', LLM_PROVIDER: 'fake' })(ctx).escalation).toBeUndefined();
@@ -347,6 +352,7 @@ describe('8.4-API provider switch', () => {
     // A model with no list price fails when the factory is built (at boot), not per reading...
     expect(() => createReadingProviders({ ...bedrock, BEDROCK_MODEL_ID: 'anthropic.claude-unknown' }, { bedrock: { client } })).toThrow(/no list price/);
     expect(() => createReadingProviders({ ...bedrock, BEDROCK_ESCALATION_MODEL_ID: 'anthropic.claude-unknown' }, { bedrock: { client } })).toThrow(/no list price/);
+    expect(() => createReadingProviders({ ...bedrock, BEDROCK_PANEL_MODEL_ID: 'anthropic.claude-unknown' }, { bedrock: { client } })).toThrow(/no list price/);
     // ...unless AI features are off: then no Bedrock provider is built, no model checked, no client made.
     const offBuilt: string[] = [];
     const offUnknown = createReadingProviders(

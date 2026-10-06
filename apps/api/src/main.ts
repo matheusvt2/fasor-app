@@ -73,6 +73,7 @@ if (config.WORKER === '1') {
       ? {
           bedrock_region: config.BEDROCK_REGION,
           bedrock_model_id: config.BEDROCK_MODEL_ID,
+          bedrock_panel_model_id: config.BEDROCK_PANEL_MODEL_ID,
           bedrock_prose_model_id: config.BEDROCK_PROSE_MODEL_ID,
           bedrock_escalation_model_id: config.BEDROCK_ESCALATION_MODEL_ID || null,
         }
