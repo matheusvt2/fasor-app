@@ -16,7 +16,9 @@ resource "aws_iam_user_policy_attachment" "admin" {
 # policy through its instance role (Story 11.8).
 resource "aws_iam_policy" "app" {
   name        = "fasor-app-bedrock-textract"
-  description = "Invoke the Story 11.6 Bedrock models and detect text with Textract in us-east-1"
+  # The description is kept from 2026-09-29: changing it forces IAM to replace the policy,
+  # which the production task role also has attached (DeleteConflict mid-apply).
+  description = "Invoke Claude on Bedrock and detect text with Textract in us-east-1"
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
