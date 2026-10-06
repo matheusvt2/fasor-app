@@ -2,7 +2,8 @@
 # Runs Terraform in a container (AD-27: nothing on the host) against the AWS login
 # session of one profile. Usage: infra/bin/tf <dir under infra/> <terraform args...>
 # AWS_PROFILE picks the profile (default: fasor-admin). The session is read by the
-# pinned aws-cli image as the calling user, so ~/.aws never gets root-owned files.
+# pinned aws-cli image as the calling user, so ~/.aws never gets root-owned files. The
+# container CLI is docker, else podman (`lib.sh`).
 # TF_OFFLINE=1 skips the session export, for the commands that never reach AWS
 # (`init -backend=false`, `validate`, `fmt`, `providers lock`); infra/bin/check uses it.
 set -euo pipefail
@@ -18,6 +19,6 @@ fi
 # A terminal only when both ends are one, so `$(infra/bin/tf ... output -raw x)` in the
 # deploy script never gets carriage returns.
 tty=(); [ -t 0 ] && [ -t 1 ] && tty=(-it)
-exec docker run --rm ${tty[@]+"${tty[@]}"} --user "$(id -u):$(id -g)" -e HOME=/tmp \
+exec "$CTR" run --rm ${tty[@]+"${tty[@]}"} --user "$(id -u):$(id -g)" -e HOME=/tmp \
   --env-file <(printf '%s\nAWS_REGION=%s\n' "$creds" "$AWS_REGION_DEFAULT") \
   -v "$root:/infra" -w "/infra/$dir" hashicorp/terraform:1.16.4 "$@"

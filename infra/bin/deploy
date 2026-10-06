@@ -3,7 +3,8 @@
 # caddy images for the instance's platform, pushes them to ECR tagged with the commit SHA,
 # runs the migrations as a one-shot ECS task, rolls the services and waits for
 # GET /api/health over HTTPS to report every component up. Everything runs in containers
-# (infra/bin/tf, infra/bin/aws, docker buildx); the AWS login session of AWS_PROFILE
+# (infra/bin/tf, infra/bin/aws, docker buildx, or podman build where there is no docker);
+# the AWS login session of AWS_PROFILE
 # (default fasor-admin) must be active for a real run.
 #
 #   infra/bin/deploy [--dry-run] [--skip-build] [--tag <sha>]
@@ -16,6 +17,8 @@ set -euo pipefail
 
 root="$(cd "$(dirname "$0")/../.." && pwd)"
 bin="$root/infra/bin"
+# shellcheck source=lib.sh
+. "$bin/lib.sh"
 stack=production
 
 dry_run=0
@@ -85,7 +88,7 @@ fi
 if [ "$skip_build" = 0 ] && [ "$tag" != "$head_sha" ]; then
   fail "--tag $tag is not HEAD ($head_sha); building tags HEAD only (use --skip-build to deploy an already pushed tag)"
 fi
-command -v docker >/dev/null || fail "docker is required"
+command -v "$CTR" >/dev/null || fail "docker or podman is required"
 command -v curl >/dev/null || fail "curl is required"
 echo "tag: $tag"
 run "${tf[@]}" init -input=false
@@ -119,13 +122,23 @@ images_in_ecr() {
     image_in_ecr "$repository" || return 1
   done
 }
+# image_build <image> <context> [build args...]: docker builds with buildx and loads the
+# image into the local store; podman has no buildx, and its `build` already stores it.
+image_build() {
+  local image="$1" context="$2"; shift 2
+  if [ "$CTR" = podman ]; then
+    run podman build --platform "$platform" "$@" -t "$image" "$context"
+  else
+    run "$CTR" buildx build --platform "$platform" "$@" -t "$image" --load "$context"
+  fi
+}
 # Pushes one image unless its tag is already in ECR (an earlier run that failed half way).
 push_missing() {
   local repository="$1" image="$2"
   if image_in_ecr "$repository"; then
     echo "$repository:$tag is already in ECR (immutable tags): not pushed again"
   else
-    run docker push "$image"
+    run "$CTR" push "$image"
   fi
 }
 if [ "$skip_build" = 0 ] && images_in_ecr; then
@@ -134,15 +147,15 @@ if [ "$skip_build" = 0 ] && images_in_ecr; then
 fi
 if [ "$skip_build" = 0 ]; then
   step "build the images for $platform"
-  run docker buildx build --platform "$platform" -f "$root/apps/api/Dockerfile.prod" -t "$ecr_api:$tag" --load "$root"
-  run docker buildx build --platform "$platform" --target runtime -t "$ecr_ocr:$tag" --load "$root/services/ocr"
-  run docker buildx build --platform "$platform" -t "$ecr_caddy:$tag" --load "$root/infra/caddy"
+  image_build "$ecr_api:$tag" "$root" -f "$root/apps/api/Dockerfile.prod"
+  image_build "$ecr_ocr:$tag" "$root/services/ocr" --target runtime
+  image_build "$ecr_caddy:$tag" "$root/infra/caddy"
 
   step "push the images to ECR"
   if [ "$dry_run" = 1 ]; then
-    printf 'DRY-RUN: %q ecr get-login-password | docker login --username AWS --password-stdin %q\n' "$bin/aws" "$registry"
+    printf 'DRY-RUN: %q ecr get-login-password | %s login --username AWS --password-stdin %q\n' "$bin/aws" "$CTR" "$registry"
   else
-    "${aws[@]}" ecr get-login-password | docker login --username AWS --password-stdin "$registry"
+    "${aws[@]}" ecr get-login-password | "$CTR" login --username AWS --password-stdin "$registry"
   fi
   push_missing fasor/api "$ecr_api:$tag"
   push_missing fasor/ocr "$ecr_ocr:$tag"

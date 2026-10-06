@@ -65,6 +65,30 @@ describe('Story 11.8 infra/bin/deploy --dry-run', () => {
     expect(out).not.toContain('stub must not run');
   });
 
+  it('builds with podman, which has no buildx, when docker is not installed', () => {
+    // A PATH with a podman stub and no docker: lib.sh picks podman (CONTAINER_CLI unset).
+    const podmanStubs = mkdtempSync(join(tmpdir(), 'deploy-test-podman-'));
+    try {
+      for (const name of ['git', 'curl', 'podman']) {
+        const file = join(podmanStubs, name);
+        const body = name === 'git' ? `case "$*" in *status*) printf '' ;; *) echo ${HEAD} ;; esac` : 'echo "stub must not run in a dry run" >&2; exit 97';
+        writeFileSync(file, `#!/usr/bin/env bash\n${body}\n`);
+        chmodSync(file, 0o755);
+      }
+      const result = spawnSync('bash', [deploy, '--dry-run'], { encoding: 'utf8', env: { PATH: `${podmanStubs}:/usr/bin:/bin`, HOME: tmpdir() } });
+      const out = `${result.stdout}${result.stderr}`;
+      expect(result.status, out).toBe(0);
+      expect(out).toMatch(/^DRY-RUN: podman build --platform linux\/amd64 -f \S*Dockerfile\.prod -t \S*fasor\/api:0123456789abcdef/m);
+      expect(out).toMatch(/^DRY-RUN: podman build --platform linux\/amd64 --target runtime -t \S*fasor\/ocr:/m);
+      expect(out).toMatch(/^DRY-RUN: podman push .*fasor\/api:0123456789abcdef/m);
+      expect(out).toMatch(/\| podman login --username AWS --password-stdin/);
+      expect(out).not.toMatch(/buildx|--load|docker/);
+      expect(out).not.toContain('stub must not run');
+    } finally {
+      rmSync(podmanStubs, { recursive: true, force: true });
+    }
+  });
+
   it('stops before the roll when the migration task exits non-zero', () => {
     const { status, out } = run(['--dry-run'], { DEPLOY_DRY_RUN_MIGRATION_EXIT: '1' });
     expect(status).toBe(1);

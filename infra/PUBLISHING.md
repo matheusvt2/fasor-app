@@ -15,7 +15,7 @@ Production is the only environment. There is no staging and no CI: you publish f
    ```
 
    Put the real addresses in them: `budget_alert_emails` (a list; the operator and the client can both receive the budget alerts) and, in production, `acme_email` (the Let's Encrypt contact). Neither has a default, so a plan without them stops.
-3. **Docker buildx** must be available (`docker buildx version`). The deploy builds for the instance's platform, `linux/amd64` by default.
+3. **Docker buildx** must be available (`docker buildx version`), or **Podman** where there is no `docker` (an Apple silicon Mac with Podman): `infra/bin/lib.sh` picks `docker`, else `podman`, and `CONTAINER_CLI=<name>` overrides it; with Podman the deploy uses `podman build --platform` in place of buildx. The deploy builds for the instance's platform, `linux/amd64` by default.
 
 ## Every publish
 

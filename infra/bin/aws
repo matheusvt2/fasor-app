@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Runs the AWS CLI in a container (AD-27: nothing on the host) with the AWS login session
 # of one profile, exported the same way infra/bin/tf does. Usage: infra/bin/aws <args...>
-# AWS_PROFILE picks the profile (default: fasor-admin). Region us-east-1.
+# AWS_PROFILE picks the profile (default: fasor-admin). Region us-east-1. The container CLI
+# is docker, else podman (`lib.sh`).
 set -euo pipefail
 # shellcheck source=lib.sh
 . "$(dirname "$0")/lib.sh"
@@ -10,6 +11,6 @@ creds="$(aws_session_env "$profile")"
 # stdin is passed through (-i) so a caller can pipe into it; a terminal only when both
 # ends are one, so captured output never gets carriage returns.
 tty=(-i); [ -t 0 ] && [ -t 1 ] && tty=(-it)
-exec docker run --rm ${tty[@]+"${tty[@]}"} --user "$(id -u):$(id -g)" -e HOME=/tmp \
+exec "$CTR" run --rm ${tty[@]+"${tty[@]}"} --user "$(id -u):$(id -g)" -e HOME=/tmp \
   --env-file <(printf '%s\nAWS_REGION=%s\nAWS_PAGER=\n' "$creds" "$AWS_REGION_DEFAULT") \
   "$AWS_CLI_IMAGE" "$@"
