@@ -140,6 +140,7 @@ development_status:
   11-8-deploy-the-same-images-to-aws: done  # PRs #74, #76, #77, #78; deployed a207641 to https://3.230.46.205; evidence in E11-A2
   11-9-let-the-priority-suggest-the-deadline-on-a-point-of-attentio: done  # PR #71
   11-10-print-the-action-plan-table-in-section-8-post-mvp-before-202: done  # PR #71
+  11-11-see-a-sheets-photos-on-the-sheet-and-pick-files-in-one-tap: backlog  # Matheus field feedback 2026-10-05
   epic-11-retrospective: done  # epic-11-retro-2026-09-30.md; machine verdict rejected (11-6 blocked); override to accepted-with-open-items is Matheus's call
 
   epic-12: done  # stories PRs #35-#38; fixes PR #39; journey review 2026-09-24; runs before Epic 6, confirmed by Matheus (sprint-change-proposal-2026-09-24.md)
