@@ -26,7 +26,7 @@ import type { ReadingKindHandler } from './types.ts';
  *
  * Story 11.6: when the providers carry an escalation model and the first reading is more than
  * half `verify` or empty (`shouldEscalate`), the same image, OCR and fields are structured once more on
- * it and the better reading is kept (`betterReading`: more `suggested`, the first on a tie). The
+ * it and the better reading is kept (`betterReading`: more `suggested`, then more rows, then the escalation). The
  * run row then names the model of the kept reading with the usage of both calls summed. A first
  * reading with no suggestion escalates too, unless the OCR found no word; an escalation call
  * that fails keeps the first.
@@ -85,8 +85,7 @@ export const plateHandler: ReadingKindHandler = {
           });
         const first = await providers.structuring.structure(input);
         const built = build(first);
-        // An OCR read with no word leaves nothing a second model could cite: no paid second call.
-        if (providers.escalation === undefined || ocr.tokens.length === 0 || !shouldEscalate(built.rows)) {
+        if (providers.escalation === undefined || !shouldEscalate(built.rows, ocr.tokens.length)) {
           return { ocr, structuring: first, rows: built.rows, dropped: built.dropped };
         }
 

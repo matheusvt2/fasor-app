@@ -208,6 +208,12 @@ describe('11.6 Bedrock structuring: uncited values are dropped (Matheus, 2026-10
     expect(result.output).toEqual({ values: [cited] });
   });
 
+  it('a value whose ocr_token_ids is null is dropped the same way (independent review, 2026-10-06)', async () => {
+    const cited = { key: 'tipo', value: 'TSE-500/15', ocr_token_ids: ['t11'], confidence: 0.9 };
+    const result = await structurer(replying([toolUse('record_values', { values: [{ key: 'identificacao', value: 'TR-01', ocr_token_ids: null, confidence: 0.9 }, cited] })])).structure(plateInput);
+    expect(result.output).toEqual({ values: [cited] });
+  });
+
   it('a reading whose only value is uncited is values: [], not an error', async () => {
     const result = await structurer(replying([toolUse('record_values', { values: [{ key: 'block_type', value: 'chave_seccionadora', ocr_token_ids: [], confidence: 0.8 }] })])).structure({
       image,
@@ -251,6 +257,9 @@ describe('11.6 Bedrock: throttling, 5xx and timeout are transient', () => {
     ['InternalServerException', new InternalServerException({ $metadata: {}, message: 'boom' })],
     ['ModelNotReadyException', new ModelNotReadyException({ $metadata: {}, message: 'warming up' })],
     ['a network error', Object.assign(new Error('socket hang up'), { name: 'Error', code: 'ECONNRESET' })],
+    // Independent review 2026-10-06: a credential hiccup (the task role's endpoint, a token the SDK renews) passes on a later attempt.
+    ['CredentialsProviderError', Object.assign(new Error('Could not load credentials from any providers'), { name: 'CredentialsProviderError' })],
+    ['ExpiredTokenException', Object.assign(new Error('The security token included in the request is expired'), { name: 'ExpiredTokenException', $fault: 'client' })],
   ];
   for (const [name, thrown] of transient) {
     it(`${name} is transient`, async () => {

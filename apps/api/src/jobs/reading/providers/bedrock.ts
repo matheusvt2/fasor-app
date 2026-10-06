@@ -255,14 +255,13 @@ const PERMANENT_ERRORS = new Set([
   'AccessDeniedException',
   'ValidationException',
   'ResourceNotFoundException',
-  'CredentialsProviderError',
   'UnrecognizedClientException',
-  'ExpiredTokenException',
   'InvalidSignatureException',
 ]);
 
 /** Client faults that are throttles, quotas or a model not ready yet: a later attempt may pass. */
-const TRANSIENT_CLIENT_ERRORS = new Set(['ThrottlingException', 'ServiceQuotaExceededException', 'ModelNotReadyException', 'ModelErrorException', 'ModelTimeoutException']);
+// A credential fetch or refresh that fails (the ECS task role's endpoint, an expiring token the SDK renews) passes on a later attempt.
+const TRANSIENT_CLIENT_ERRORS = new Set(['ExpiredTokenException', 'ThrottlingException', 'ServiceQuotaExceededException', 'ModelNotReadyException', 'ModelErrorException', 'ModelTimeoutException']);
 
 /** How a failed `send` is classified (the matrix of Story 11.6). */
 export function classifyBedrockError(error: unknown): Error {
@@ -334,7 +333,7 @@ async function converseTool(options: BedrockProviderOptions, call: ConverseCall)
 }
 
 /**
- * The tool input without the values that cite no OCR token (`ocr_token_ids` missing or `[]`);
+ * The tool input without the values that cite no OCR token (`ocr_token_ids` missing, `null` or `[]`);
  * anything else, a malformed input included, is left for the schema to judge.
  */
 export function withoutUncitedValues(input: unknown): unknown {
@@ -344,7 +343,7 @@ export function withoutUncitedValues(input: unknown): unknown {
   const cited = values.filter((value: unknown) => {
     if (typeof value !== 'object' || value === null) return true;
     const ids = (value as { ocr_token_ids?: unknown }).ocr_token_ids;
-    return !(ids === undefined || (Array.isArray(ids) && ids.length === 0));
+    return !(ids === undefined || ids === null || (Array.isArray(ids) && ids.length === 0));
   });
   return { ...input, values: cited };
 }
