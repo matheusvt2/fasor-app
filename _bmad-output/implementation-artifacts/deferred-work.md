@@ -1312,3 +1312,16 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: `apps/api/src/jobs/reading/kinds/plate.ts` returns `{ ...kept.structuring, usage: summed }`.
   class: debt
   state: open (owner: coordinator, with the failed-call usage entry)
+
+## Deferred from: MVP hands-on review fix batch (2026-10-06), split into three PRs
+
+- source_spec: none
+  summary: Review fixes, field defects: F-02 setup numeric field lost without its own Confirmar, F-03/F-04 issue with empty sheets and printed placeholders, F-05 section 8 token and action run-on, F-08 "Empresa executora" hint in setup, F-09 registry seed of voltage classes and manufacturers, F-12 "Concluir ficha" jump, F-13 queued wording while online, F-14 Sync status contradictions, F-20 Cadastros default tab, F-21 account photo count wording, F-27 instrument picker order, F-28 two "Novo relatório" dialogs.
+  evidence: split from the 2026-10-06 review batch so Story 11.11 ships on its own PR first (`_bmad-output/implementation-artifacts/reviews/mvp-review-2026-10-06/README.md`); Matheus chose three PRs on 2026-10-06.
+  class: bug
+  state: open (owner: next bmad-build run after the 11.11 PR)
+- source_spec: none
+  summary: Review fixes, layout and copy: F-06 sticky App bar, F-07 rail mid-word breaks, F-10 unlabeled photo button at 390, F-11 scroll-padding under the sticky bar, F-15 certificates row wording, F-16 duplicated Sumário title, F-17 export dialog header at 390, F-18 header counts wrap at 390, F-19 clipped options popover, F-22 display-read comparison wrap, F-23 stale live region, F-24 composer numbering, F-25 priority toast over Prazo, F-26 camera-opening state, F-29 "OK" badge at 390.
+  evidence: split from the 2026-10-06 review batch, same source; third PR after the field-defects one.
+  class: debt
+  state: open (owner: third bmad-build run of the batch)
