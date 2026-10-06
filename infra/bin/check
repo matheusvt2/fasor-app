@@ -8,6 +8,8 @@
 set -uo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 bin="$root/bin"
+# shellcheck source=lib.sh
+. "$bin/lib.sh"
 stacks=(bootstrap production)
 failed=()
 
@@ -22,7 +24,7 @@ check "terraform fmt" "$bin/tf" . fmt -check -recursive -diff
 for stack in "${stacks[@]}"; do
   check "terraform init $stack" "$bin/tf" "$stack" init -backend=false -input=false -no-color
   check "terraform validate $stack" "$bin/tf" "$stack" validate -no-color
-  check "tflint $stack" docker run --rm --user "$(id -u):$(id -g)" -v "$root:/infra" -w "/infra/$stack" \
+  check "tflint $stack" "$CTR" run --rm --user "$(id -u):$(id -g)" -v "$root:/infra" -w "/infra/$stack" \
     ghcr.io/terraform-linters/tflint:v0.59.1 --config=/infra/.tflint.hcl --no-color
 done
 # Review fixes 2026-09-30 (I-8): the production Caddyfile parses, and its CloudFront fallback
@@ -30,22 +32,22 @@ done
 # upstream runs in the check). The container has no network, so it never reaches ACME.
 caddy_image=caddy:2.11.4-alpine
 caddy_env=(-e PUBLIC_IP=203.0.113.10 -e ACME_EMAIL=ops@example.com -e FALLBACK_HOST=fallback.example -e FALLBACK_ORIGIN_SECRET=check-secret)
-check "caddy validate" docker run --rm "${caddy_env[@]}" -v "$root/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" \
+check "caddy validate" "$CTR" run --rm "${caddy_env[@]}" -v "$root/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" \
   "$caddy_image" caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 caddy_fallback() {
   local name="infra-check-caddy-$$" ok=0
-  docker run -d --rm --name "$name" --network none "${caddy_env[@]}" \
+  "$CTR" run -d --rm --name "$name" --network none "${caddy_env[@]}" \
     -v "$root/caddy/Caddyfile:/etc/caddy/Caddyfile:ro" "$caddy_image" >/dev/null || return 1
   sleep 2
-  status() { docker exec "$name" wget -S -q -O /dev/null --header 'Host: fallback.example' "$@" http://127.0.0.1/ 2>&1 | awk '/HTTP\//{print $2; exit}'; }
+  status() { "$CTR" exec "$name" wget -S -q -O /dev/null --header 'Host: fallback.example' "$@" http://127.0.0.1/ 2>&1 | awk '/HTTP\//{print $2; exit}'; }
   [ "$(status)" = 403 ] || { echo "no header: expected 403"; ok=1; }
   [ "$(status --header 'X-Origin-Verify: wrong')" = 403 ] || { echo "wrong secret: expected 403"; ok=1; }
   [ "$(status --header 'X-Origin-Verify: check-secret')" = 502 ] || { echo "right secret: expected 502 (proxied)"; ok=1; }
-  docker stop "$name" >/dev/null
+  "$CTR" stop "$name" >/dev/null
   return "$ok"
 }
 check "caddy fallback origin secret" caddy_fallback
-check "shellcheck infra/bin" docker run --rm -v "$root/bin:/bin-under-check:ro" -w /bin-under-check \
+check "shellcheck infra/bin" "$CTR" run --rm -v "$root/bin:/bin-under-check:ro" -w /bin-under-check \
   koalaman/shellcheck:v0.11.0 --shell=bash --severity=style --external-sources tf aws deploy check lib.sh
 
 printf '\n'
