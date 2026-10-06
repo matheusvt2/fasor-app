@@ -57,9 +57,13 @@ resource "aws_db_instance" "this" {
 # zone, the instance's own. The api uses this one (`ssm.tf`); the old one stays stopped and
 # untouched until a later change removes it (it has deletion protection and prevent_destroy).
 # The night schedule no longer stops any database (`schedule.tf`).
+# db.t3.micro (Matheus, 2026-10-05): RDS no longer offers db.t4g.micro for PostgreSQL in
+# us-east-1 (describe-orderable-db-instance-options lists none in any zone or version, while
+# us-east-2 and sa-east-1 still do), which is why the old instance could not be placed again
+# after a stop. db.t3.micro is offered in every zone here, about USD 13 a month always on.
 resource "aws_db_instance" "main" {
   identifier        = "${local.name}-a"
-  instance_class    = "db.t4g.micro"
+  instance_class    = "db.t3.micro"
   availability_zone = aws_subnet.private[0].availability_zone
 
   restore_to_point_in_time {
