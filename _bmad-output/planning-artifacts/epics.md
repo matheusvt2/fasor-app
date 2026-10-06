@@ -2524,6 +2524,36 @@ So that the client receives the schedule the new NR-10 names.
 
 *(2026-09-30, coordinator, PR #71 narrowing for Story 11.10: "pontos sem prazo" counts live points with no deadline (the story says prazo, `EXPERIENCE.md` says priority; open question); the table prints whenever section 8 prints, even with no action-plan value; the Points surface "Como imprime na seção 8" preview (`72-pontos.html:290-318`) is not built, since neither story names it. 11.10-PDF waited for Story 11.1 and was closed by PR #79, which also rebalanced the column weights to `[5,22,13,11,10,16,13,10]` so no header word breaks in the PDF (E11-Q4).)*
 
+### Story 11.11: See a sheet's photos on the sheet, and pick files in one tap
+
+**Dev model:** opus · **Effort:** medium · photo strip on the Equipment sheet and a direct file picker, web only
+
+*(2026-10-05, Matheus, field feedback in production: a photo added with "Adicionar fotos" from the Disjuntor MT sheet went to section 7 and showed nowhere on the sheet, and the "Escolher arquivos" option of the Photo capture sheet did not read as a button, so the picker seemed missing.)*
+
+As an engineer filling a sheet,
+I want the sheet's own photos on the sheet, and "Adicionar fotos" to open the file picker at once,
+So that I see what I attached without leaving the sheet and need no extra tap to find the picker.
+
+**Acceptance Criteria:**
+
+**Given** an Equipment sheet whose block has photos (camera burst, an import answered with that block, the nameplate photo)
+**When** the sheet opens
+**Then** a "Fotos da ficha" strip shows them as Photo tiles in `thumb-inline` (`DESIGN.md` Photo tile) in capture order, each with its section 7 number badge, its upload pill and its caption, and a tap opens the Photo viewer on that photo; the list and its order come from `packages/domain` (AD-1), not from the web app; a sheet with no photo shows no strip
+
+**Given** the camera is available on the device
+**When** the user taps "Adicionar fotos" on a sheet or in the gallery
+**Then** the system file picker opens directly (several images at once), with no intermediate sheet; after the pick the existing "De qual equipamento?" step runs as today, preselecting the sheet's block when started from a sheet
+
+**Given** the camera is denied (the one path that still opens the Photo capture sheet)
+**When** the sheet opens
+**Then** "Escolher arquivos" is drawn as a 56px secondary Button and "Tirar foto" sits under it with the denied reason, both keyboard and screen-reader reachable
+
+**Given** the Playwright suite
+**When** it runs as a human would at 390, 768 and 1280 px
+**Then** a test adds a photo from a sheet with "Adicionar fotos", answers "De qual equipamento?" and sees the tile in that sheet's strip and in section 7, and a test checks the denied-camera sheet's Button
+
+*(2026-10-05, story author: `DESIGN.md` "Photo capture sheet" says "Adicionar fotos" opens the sheet with one "Escolher arquivos" option; this story changes that. The builder strikes the sentence through with the date and adds the new one, and draws the strip from the existing Photo tile spec, as no mock shows it; a mock may be added under `mockups/` first.)*
+
 ## Epic 12: Field journey and visual refresh (journey review 2026-09-24)
 
 Added 2026-09-24 from `review-journey-2026-09-24.md` and `sprint-change-proposal-2026-09-24.md`. Six stories, ordered; 12.1 ships alone before any other. The Definition of Ready and Definition of Done of this document apply; each story below adds its own clauses. Every story with a front end re-measures the journeys it touches (J0 to J6 of the review, tablet 768 px) and records the new tap and keystroke counts in its PR.
