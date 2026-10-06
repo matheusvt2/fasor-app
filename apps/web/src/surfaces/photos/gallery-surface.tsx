@@ -43,7 +43,7 @@ import { splitImportable } from '../../files/photo-import.ts';
 import { useSession } from '../../state/session.tsx';
 import { useSyncActions } from '../../state/sync-actions.ts';
 import { useToast } from '../../state/toast.tsx';
-import { useSheetCamera } from '../ficha/photo-openers.tsx';
+import { useDirectPicker, useSheetCamera } from '../ficha/photo-openers.tsx';
 import { RelatorioGate } from '../relatorio/relatorio-gate.tsx';
 import { CaptionComposer } from './caption-composer.tsx';
 import { DropHint, PhotoCaptureSheet, useDropZone } from './capture-sheet.tsx';
@@ -177,6 +177,9 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const [captioning, setCaptioning] = useState<PhotoTile | null>(null);
   const [importing, setImporting] = useState<{ files: readonly File[] | null } | null>(null);
   const camera = useSheetCamera(relatorioId, () => GERAL_TARGET);
+  // Story 11.11: "Adicionar fotos" opens the system picker directly; the picked files open
+  // "De qual equipamento?". Only a denied camera opens the Photo capture sheet's chooser.
+  const picker = useDirectPicker(useCallback((files: File[]) => setImporting({ files }), []));
   // A drop of pictures opens straight on "De qual equipamento?"; a drop with none only says so.
   const dragging = useDropZone(
     surface,
@@ -325,12 +328,13 @@ function Gallery({ relatorioId, state }: { relatorioId: string; state: EntitySta
         <div className="bar-buttons has-camera">
           {camera.button}
           <span className="cam-reason">{t.camReason}</span>
-          <Button variant="secondary" onPress={() => setImporting({ files: null })}>
+          <Button variant="secondary" onPress={camera.denied ? () => setImporting({ files: null }) : picker.open}>
             <svg className="ico" aria-hidden="true">
               <use href="/sprite.svg#i-image" />
             </svg>
             {copy.photos.addPhotos}
           </Button>
+          {picker.input}
           <span className="btn-reason drag-reason">{copy.photos.dragReason}</span>
         </div>
         {camera.note}

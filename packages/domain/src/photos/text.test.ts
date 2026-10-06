@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { burstCountText, photosPendingText, photoUploadState, storageLowBannerText, uploadPillText } from './text.ts';
+import { burstCountText, photosPendingText, photoUploadState, sheetPhotosHeading, storageLowBannerText, uploadPillText } from './text.ts';
 
 const MB = 1024 * 1024;
 
@@ -37,5 +37,12 @@ describe('6.2-UNIT-005 storageLowBannerText', () => {
       'Pouco espaço neste aparelho (180 MB). Sincronize para liberar.',
     );
     expect(storageLowBannerText({ usage: 2_000 * MB, quota: 1_000 * MB })).toBe('Pouco espaço neste aparelho (0 MB). Sincronize para liberar.');
+  });
+});
+
+describe('11.11-UNIT-002 sheetPhotosHeading', () => {
+  it('reads "Fotos da ficha (n)" (`60-ficha.html` `#ficha-h-fotos-dj`)', () => {
+    expect(sheetPhotosHeading(1)).toBe('Fotos da ficha (1)');
+    expect(sheetPhotosHeading(3)).toBe('Fotos da ficha (3)');
   });
 });

@@ -8,6 +8,7 @@ import {
   photoEquipmentGroups,
   photosImportedText,
   photosKeptGeneralText,
+  photosKeptOnSheetText,
   skippedFilesText,
   type RelatorioSnapshot,
 } from '@app/domain';
@@ -37,14 +38,23 @@ import './photos.css';
 
 /*
  * Story 6.4 (FR-45; `70-fotos.html` "Photo capture sheet" and "De qual equipamento?",
- * EXPERIENCE.md › Photo capture sheet): the import path. "Adicionar fotos" opens this bottom
- * sheet; "Escolher arquivos" opens the system picker (several at once). From a sheet the
- * files save at once with the sheet's context caption and `block_id`. Into the gallery the
- * batch is saved at once as "Geral" (E6-Q8) and asks once "De qual equipamento?": the
- * likely sheets, the tree grouped by location, "Geral"; the chosen row prefills a caption
- * field for the whole batch (kept, typed over, or composed in "Legendar"), and "Adicionar N
- * fotos" puts the sheet and the caption on the saved photos; "Cancelar" leaves them as
- * "Geral". A drop of files on a sheet or the gallery takes the same two paths (`useDropZone`).
+ * EXPERIENCE.md › Photo capture sheet): the import path. Into the gallery the batch is saved
+ * at once as "Geral" (E6-Q8) and asks once "De qual equipamento?": the likely sheets, the
+ * tree grouped by location, "Geral"; the chosen row prefills a caption field for the whole
+ * batch (kept, typed over, or composed in "Legendar"), and "Adicionar N fotos" puts the sheet
+ * and the caption on the saved photos; "Cancelar" leaves them as "Geral". A drop of files on
+ * the gallery takes the same path (`useDropZone`).
+ *
+ * Story 11.11: "Adicionar fotos" opens the system picker directly (`AddPhotosButton`) and the
+ * picked files arrive here as `initialFiles`, straight on "De qual equipamento?" (never a
+ * frame of the chooser first). From a sheet the files are saved at once with the sheet's
+ * target, as before (6.3/6.4: its caption, item and reading), and the same step runs on top,
+ * that sheet preselected with its context caption: "Adicionar N fotos" re-points the saved
+ * batch with the gallery's puts (`assignPhotoBatch` from the sheet's saved values), and
+ * "Cancelar" or Escape leave the photos on the sheet and say so. The picked files are saved
+ * when the step opens, never held for its answer (the caller's `initialFiles` stay in its
+ * state until the sheet closes). The chooser below ("Escolher arquivos", and "Tirar foto" disabled with the
+ * reason) is left for a denied camera.
  */
 
 export interface PhotoImportOptions {
@@ -162,8 +172,12 @@ export function DropHint({ dragging }: { dragging: boolean }) {
 }
 
 export type CaptureSheetMode =
-  /** From a sheet: the files save at once with this target. */
-  | { kind: 'sheet'; target: () => ImportTarget }
+  /**
+   * From a sheet: the files save at once with this target, then "De qual equipamento?"
+   * opens with `preselectBlockId` chosen and the target's caption in the field; "Adicionar N
+   * fotos" re-points the saved batch, "Cancelar" leaves it on the sheet.
+   */
+  | { kind: 'sheet'; target: () => ImportTarget; snapshot: RelatorioSnapshot; preselectBlockId?: string }
   /** Into the gallery: "De qual equipamento?" first. */
   | { kind: 'gallery'; snapshot: RelatorioSnapshot };
 
@@ -172,7 +186,7 @@ export interface PhotoCaptureSheetProps {
   isOpen: boolean;
   onClose: () => void;
   mode: CaptureSheetMode;
-  /** Files dropped on the gallery: the sheet opens on "De qual equipamento?" with them. */
+  /** Files picked or dropped before the sheet opened: it opens on "De qual equipamento?" with them, no chooser. */
   initialFiles?: readonly File[] | null;
 }
 
@@ -239,25 +253,41 @@ function SheetBody({
   const db = session.database;
   const user = session.user;
   const input = useRef<HTMLInputElement>(null);
+  const deniedId = useId();
   const importFiles = usePhotoImport(relatorioId);
   const { showToast } = useToast();
-  const [batch, setBatch] = useState<Batch | null>(null);
+  // Story 11.11: files picked before the sheet opened start the batch on the first render, so
+  // the chooser never shows for a frame; a pick with no picture renders nothing while it closes.
+  const [initial] = useState(() => (initialFiles === null ? null : splitImportable(initialFiles)));
+  const [batch, setBatch] = useState<Batch | null>(() =>
+    initial === null || initial.images.length === 0 ? null : { count: initial.images.length, skipped: initial.skipped, ids: null },
+  );
+  /**
+   * Where the batch is saved: "Geral" in the gallery, the sheet's target (read when the files
+   * were picked) from a sheet. The step's preselected caption and "Adicionar" compare against it.
+   */
+  const saved = useRef<ImportTarget | null>(null);
+  /** The saved target, read once (from a sheet, `mode.target()` at the first pick or the first render with `initialFiles`). */
+  const savedTarget = (): ImportTarget => {
+    saved.current ??= mode.kind === 'sheet' ? mode.target() : GERAL_BATCH;
+    return saved.current;
+  };
   /** What happens once the batch is saved: "Adicionar N fotos" pressed early, or the sheet closed. */
   const settled = useRef<((ids: string[], skipped: number) => void) | null>(null);
   const answered = useRef(false);
 
   // E6-Q8 (6.4 AC1, "each file is saved locally at once"): the pictures are committed the
-  // moment they are picked, as "Geral" with no caption; "De qual equipamento?" then only
-  // puts the sheet and the caption on them.
-  const startBatch = (list: readonly File[]) => {
-    const { images, skipped } = splitImportable(list);
+  // moment they are picked, as "Geral" with no caption ("De qual equipamento?" then only puts
+  // the sheet and the caption on them); Story 11.11: from a sheet, with the sheet's target.
+  const startBatch = ({ images, skipped }: { images: File[]; skipped: number }) => {
     if (images.length === 0) {
       showToast(skippedFilesText(skipped));
       onClose();
       return;
     }
     setBatch({ count: images.length, skipped, ids: null });
-    void importFiles(images, GERAL_BATCH, { quiet: true }).then(
+    const target = savedTarget();
+    void importFiles(images, target, { quiet: true }).then(
       (result) => {
         const ids = result?.saved ?? [];
         const left = skipped + (result?.skipped ?? images.length);
@@ -284,17 +314,23 @@ function SheetBody({
     );
   };
 
-  // Files dropped on the gallery open straight on "De qual equipamento?", saved at once.
+  // Files picked or dropped before the sheet opened go straight to "De qual equipamento?".
   const started = useRef(false);
   useEffect(() => {
-    if (started.current || initialFiles === null || mode.kind !== 'gallery') return;
+    if (started.current || initial === null) return;
     started.current = true;
-    startBatch(initialFiles);
+    startBatch(initial);
     // Once, on open: `startBatch` reads the latest props through its own closure.
   }, []);
 
   const finish = (ids: string[], skipped: number, target: BatchAnswer | null) => {
     answered.current = true;
+    // Story 11.11: "Cancelar" from a sheet writes nothing: the photos stay on the sheet as saved.
+    if (target === null && mode.kind === 'sheet') {
+      const text = photosKeptOnSheetText(ids.length, skipped);
+      if (text !== null) showToast(text);
+      return;
+    }
     if (db === null || user === null) {
       // No session to write with: "Cancelar" still says what became of the saved batch.
       const text = target === null ? photosKeptGeneralText(ids.length, skipped) : null;
@@ -303,7 +339,13 @@ function SheetBody({
     }
     // "Cancelar" keeps the batch as "Geral": only the caption reading puts (ledger 1131).
     const answer = target ?? { blockId: null, caption: null, peopleInPhoto: false };
-    void assignPhotoBatch(db, { id: user.id, companyId: user.companyId }, relatorioId, ids, answer.blockId, answer.caption, answer.peopleInPhoto).then(
+    const from = savedTarget();
+    void assignPhotoBatch(db, { id: user.id, companyId: user.companyId }, relatorioId, ids, answer.blockId, answer.caption, answer.peopleInPhoto, {
+      blockId: from.blockId,
+      itemKey: from.itemKey,
+      caption: from.caption,
+      readingKind: from.reading?.kind ?? null,
+    }).then(
       () => {
         const text = target === null ? photosKeptGeneralText(ids.length, skipped) : photosImportedText(ids.length, skipped);
         if (text !== null) showToast(text);
@@ -328,35 +370,51 @@ function SheetBody({
     }
     onClose();
   };
-  closeRef.current = mode.kind === 'gallery' && batch !== null ? cancel : null;
+  closeRef.current = batch !== null ? cancel : null;
 
   const picked = (list: File[]) => {
     if (list.length === 0) return;
-    if (mode.kind === 'sheet') {
-      const target = mode.target();
-      onClose();
-      void importFiles(list, target);
-      return;
-    }
-    startBatch(list);
+    startBatch(splitImportable(list));
   };
 
-  if (mode.kind === 'gallery' && batch !== null) {
-    return <EquipmentStep relatorioId={relatorioId} snapshot={mode.snapshot} count={batch.count} titleId={titleId} onCancel={cancel} onAdd={add} />;
+  if (batch !== null) {
+    // Story 11.11: from a sheet, that sheet chosen with the caption its photos were saved with.
+    const from = savedTarget();
+    const preselect =
+      mode.kind === 'sheet' && mode.preselectBlockId !== undefined
+        ? { blockId: mode.preselectBlockId, caption: mode.preselectBlockId === from.blockId ? from.caption : null }
+        : null;
+    return <EquipmentStep relatorioId={relatorioId} snapshot={mode.snapshot} count={batch.count} titleId={titleId} preselect={preselect} onCancel={cancel} onAdd={add} />;
   }
 
+  // A pick with no picture before the sheet opened: nothing to draw while it closes.
+  if (initial !== null) return null;
+
+  // DESIGN.md › Photo capture sheet (2026-10-06, Story 11.11): reached only from a denied
+  // camera; "Escolher arquivos" is a 56 px secondary Button and "Tirar foto" sits under it,
+  // disabled and still focusable, with the denied reason beneath.
   return (
     <>
       <h2 className="visually-hidden" id={titleId}>
         {t.title}
       </h2>
-      <AriaButton className="capture-option" onPress={() => input.current?.click()}>
-        <svg className="ico" aria-hidden="true">
-          <use href="/sprite.svg#i-image" />
-        </svg>
-        {t.choose}
-      </AriaButton>
-      <p className="capture-reason">{t.reason}</p>
+      <div className="capture-choices">
+        <Button variant="secondary" block onPress={() => input.current?.click()}>
+          <svg className="ico" aria-hidden="true">
+            <use href="/sprite.svg#i-image" />
+          </svg>
+          {t.choose}
+        </Button>
+        <Button variant="secondary" block isDisabled disabledReasonId={deniedId}>
+          <svg className="ico" aria-hidden="true">
+            <use href="/sprite.svg#i-camera" />
+          </svg>
+          {copy.photos.takePhoto}
+        </Button>
+        <p className="capture-reason" id={deniedId}>
+          {copy.photos.denied}
+        </p>
+      </div>
       <input
         ref={input}
         type="file"
@@ -391,6 +449,7 @@ function EquipmentStep({
   snapshot,
   count,
   titleId,
+  preselect = null,
   onCancel,
   onAdd,
 }: {
@@ -398,6 +457,8 @@ function EquipmentStep({
   snapshot: RelatorioSnapshot;
   count: number;
   titleId: string;
+  /** Story 11.11: from a sheet, that sheet chosen at once with its context caption ("Adicionar N fotos" ready). */
+  preselect?: { blockId: string; caption: string | null } | null;
   onCancel: () => void;
   onAdd: (target: BatchAnswer) => void;
 }) {
@@ -406,7 +467,9 @@ function EquipmentStep({
   const sources = useCaptionSources(relatorioId, snapshot);
   // The `last_sheet:{relatorio_id}` pref; undefined while it is read.
   const current = useLiveQuery(() => (db === null ? Promise.resolve(null) : readLastSheet(db, relatorioId).catch(() => null)), [db, relatorioId], undefined);
-  const { nearby, groups } = useMemo(() => photoEquipmentGroups(snapshot, current ?? null), [snapshot, current]);
+  // A preselected sheet leads the short list, whatever sheet this device opened last.
+  const lead = preselect?.blockId ?? current ?? null;
+  const { nearby, groups } = useMemo(() => photoEquipmentGroups(snapshot, lead), [snapshot, lead]);
   const [expanded, setExpanded] = useState(false);
   // "Outro equipamento" goes away on press: the focus moves to the first row of the grouped list.
   const groupsRef = useRef<HTMLDivElement>(null);
@@ -414,8 +477,8 @@ function EquipmentStep({
     if (expanded) groupsRef.current?.querySelector<HTMLElement>('[role="radio"]')?.focus();
   }, [expanded]);
   // `undefined`: nothing chosen yet; `null`: "Geral".
-  const [chosen, setChosen] = useState<string | null | undefined>(undefined);
-  const [caption, setCaption] = useState('');
+  const [chosen, setChosen] = useState<string | null | undefined>(preselect?.blockId);
+  const [caption, setCaption] = useState(preselect?.caption ?? '');
   // Story 9.4: a dictated caption waits under the field until "Usar"; it replaces the caption ("fale para trocar").
   const dictation = useProseDictation();
   const [composing, setComposing] = useState(false);
@@ -431,7 +494,8 @@ function EquipmentStep({
   const choose = (blockId: string | null) => {
     dictation.discard();
     setChosen(blockId);
-    setCaption(blockId === null ? '' : (contextCaption({ block_id: blockId, item_key: null }, snapshot, meta) ?? ''));
+    if (preselect !== null && blockId === preselect.blockId) setCaption(preselect.caption ?? '');
+    else setCaption(blockId === null ? '' : (contextCaption({ block_id: blockId, item_key: null }, snapshot, meta) ?? ''));
   };
 
   const add = () => {

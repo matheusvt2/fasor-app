@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 09-21-2026 18:00
-last_updated: 10-05-2026 16:11
+last_updated: 10-06-2026 18:05
 project: fasor
 project_key: NOKEY
 tracking_system: file-system
@@ -129,18 +129,18 @@ development_status:
   10-4-see-everything-the-sync-did-or-is-waiting-to-do: done  # PR #65
   epic-10-retrospective: done  # epic-10-retro-2026-09-29.md, accepted-with-open-items
 
-  epic-11: in-progress
+  epic-11: done  # every story merged; 11.6 PR #88 and 11.11 PR #92 closed it on 2026-10-05
   11-1-download-the-pdf-beside-the-docx: done  # PR #70
   11-2-move-a-block-to-another-location: done  # PR #73
   11-3-save-a-relatório-as-a-template: done  # PR #73
   11-4-edit-section-boilerplate-in-a-rich-text-editor: done  # PR #75
   11-5-turn-the-photo-location-stamp-on-or-off: done  # PR #75
-  11-6-structure-readings-with-claude-through-a-paid-api-key: review  # spec-11-6-structure-readings-on-bedrock.md; unblocked 2026-10-05, Matheus: Haiku 4.5 replaces Sonnet 5.5 as reference; Definition of Ready met (Converse through fasor-app on Haiku 4.5 and Nova 2 Lite); was blocked on Bedrock quotas
+  11-6-structure-readings-with-claude-through-a-paid-api-key: done  # PR #88; spec-11-6-structure-readings-on-bedrock.md; unblocked 2026-10-05, Matheus: Haiku 4.5 replaces Sonnet 5.5 as reference; Definition of Ready met (Converse through fasor-app on Haiku 4.5 and Nova 2 Lite); was blocked on Bedrock quotas
   11-7-use-amazon-textract-as-the-cloud-ocr: done  # PR #69 (live Textract call waits for the deploy)
   11-8-deploy-the-same-images-to-aws: done  # PRs #74, #76, #77, #78; deployed a207641 to https://3.230.46.205; evidence in E11-A2
   11-9-let-the-priority-suggest-the-deadline-on-a-point-of-attentio: done  # PR #71
   11-10-print-the-action-plan-table-in-section-8-post-mvp-before-202: done  # PR #71
-  11-11-see-a-sheets-photos-on-the-sheet-and-pick-files-in-one-tap: backlog  # Matheus field feedback 2026-10-05
+  11-11-see-a-sheets-photos-on-the-sheet-and-pick-files-in-one-tap: review  # spec-11-11-sheet-photo-strip-and-direct-picker.md; Matheus field feedback 2026-10-05; PR #92 carried no code (MVP review 2026-10-06, F-01)
   epic-11-retrospective: done  # epic-11-retro-2026-09-30.md; machine verdict rejected (11-6 blocked); override to accepted-with-open-items is Matheus's call
 
   epic-12: done  # stories PRs #35-#38; fixes PR #39; journey review 2026-09-24; runs before Epic 6, confirmed by Matheus (sprint-change-proposal-2026-09-24.md)
@@ -248,7 +248,7 @@ action_items:
       headers, Vite bound to 127.0.0.1, push body limit, refuse the default SESSION_SECRET
       outside dev"
     owner: "Architecture (Epic 11 checklist)"
-    status: open
+    status: done  # PR #83 (security headers, body and rate limits, SESSION_SECRET refused in production, Vite on loopback); duplicate of E11-A5
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-1-retro-2026-09-22.md"
   - id: "epic-2-retro-item-13-e2-a1-fix-d-1-server-merge-of-manufactur"
     epic: 2
@@ -396,7 +396,7 @@ action_items:
       28, 30, 31; decide whether Rascunho may generate (25); schedule 29 and 14 with
       Epic 7"
     owner: "Matheus with the coordinator"
-    status: in-progress  # Epic 7 narrowings dated in epics.md; items 14 and 29 in #51; item 25 open
+    status: done  # 2026-10-05 audit-2026-09-30: only item 25 was left, carried by E7-A5
     ref: "_bmad-output/implementation-artifacts/epic-4-retro-2026-09-24.md"
   - id: "epic-4-retro-item-33-e4-a6-bruno-reads-the-skeleton-docx-revi"
     epic: 4
@@ -443,7 +443,7 @@ action_items:
       chip row, sticky bar with the keyboard, Nao ensaiado) and to the E1-A1 manual
       device script"
     owner: "dev, then Matheus"
-    status: in-progress  # PR #40; sheet specs in test:e2e:matrix (@p1), device run by Matheus open
+    status: done  # PR #40 dev part; the device run is carried by E1-A1 (audit-2026-09-30)
     ref: "_bmad-output/implementation-artifacts/epic-5-retro-2026-09-24.md"
   - id: "epic-5-retro-item-39-e5-a3-decide-oq-1-oq-6-of-reviews-epic-5"
     epic: 5
@@ -560,7 +560,7 @@ action_items:
       at most two); a batch touching the sheet, overlays or shared layout also runs
       test:e2e:full before merge, and the epic's last story PR always does"
     owner: "coordinator; Matheus decides the e2e:full rule"
-    status: in-progress  # one gate at a time via the host lock in epic-batch-orchestrator.md; the e2e:full rule applied conservatively, Matheus decides
+    status: done  # superseded by the split merge gate (AGENTS.md 2026-09-30, E10-A1) and E11-A3 (audit-2026-09-30)
     ref: "_bmad-output/implementation-artifacts/epic-6-retro-2026-09-26.md"
   - id: "epic-6-retro-item-53-e6-a3-document-the-new-e2e-runner-in-agents-md"
     epic: 6
@@ -610,13 +610,13 @@ action_items:
     epic: 7
     action: "E7-A1 Gate time back under budget: stop the device rebuilding the whole relatório snapshot per commit (measure per-commit cost before/after), then re-validate 3 workers; target verify <= 900 s median of 3, e2e @p0 <= 600 s, test:e2e:full <= 1200 s, 0 timing failures in 3 consecutive --workers=3 full runs; otherwise a dated DoD budget line with the measured number"
     owner: "Epic 9 carry-over batch (dev); coordinator accepts on the numbers"
-    status: in-progress  # PR #57: incremental snapshot (commit-to-render 721->283 ms); verify still 1407-1667 s under load, 3 workers not green; stop rule is Matheus's
+    status: done  # superseded by the split merge gate (AGENTS.md 2026-09-30) and E11-A1 (audit-2026-09-30); PR #57 incremental snapshot
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
   - id: "epic-7-retro-item-67-e7-a2-gate-throughput-queue-and-load-flakes"
     epic: 7
     action: "E7-A2 Gate throughput: targeted specs, unit and api before queueing for the full gate; record lock wait and gate time per batch; load-independent waits in template-composer-undo, setup-surface, relatorio-tree-edits; target lock wait <= 10 min per batch and 0 unit-file timeouts in the next epic's gates"
     owner: "coordinator (playbook); dev (unit files)"
-    status: in-progress  # dev part in PR #57 (load-independent waits); playbook rule added a2cd053; lock waits up to 4750 s this epic
+    status: done  # superseded by the split merge gate and E11-A3 (audit-2026-09-30); dev part in PR #57
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-7-retro-2026-09-28.md"
   - id: "epic-7-retro-item-68-e7-a3-track-e78-q10-q12-q15"
     epic: 7
@@ -652,7 +652,7 @@ action_items:
     epic: 8
     action: "E8-A1 Make the device relatório snapshot incremental (the whole-snapshot rebuild per commit is the next lever); target under the host lock: verify <= 900 s in two consecutive runs, e2e @p0 <= 600 s, commit-to-render before/after, workers raised only after three green `test:e2e:full --workers=3`; if 900 s is missed, Matheus decides a dated DoD clause 3 amendment or a split gate"
     owner: "Epic 9 carry-over batch (dev); Matheus for the stop rule"
-    status: in-progress  # same as E7-A1
+    status: done  # superseded with E7-A1 (audit-2026-09-30)
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-8-retro-2026-09-28.md"
   - id: "epic-8-retro-item-59-e8-a2-bake-pnpm-into-the-tools-image"
     epic: 8
@@ -820,13 +820,13 @@ action_items:
     epic: 11
     action: "E11-A4 Rotate the production admin password exposed in the chat and in the ECS task description; seed through a task definition reading the password from SSM (secrets, not an env override) or a seed entry point in the prod image; playbook: agents never open or print a secrets file"
     owner: "Matheus (rotation); coordinator (task definition, playbook)"
-    status: open
+    status: in-progress  # PR #83: seed-users reads SEED_USER_PASSWORD; rotating the exposed production password is still Matheus's
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
   - id: "epic-11-retro-item-94-e11-a5-a12-hardening-story"
     epic: 11
     action: "E11-A5 Make A12 a story via bmad-correct-course before the production URL goes to the design partner: rate limiting on /api/auth/* and the push route, Caddy security headers, a push body limit, better-auth production rate-limit defaults checked; target headers present, 429 after N failed sign-ins, 413 on an oversized push, A12 closed"
     owner: "Matheus (priority); architect"
-    status: open
+    status: done  # PR #83 (api headers and CSP, body limits, rate limits, production SESSION_SECRET check, HSTS at the edge)
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
   - id: "epic-11-retro-item-95-e11-a6-epic-11-product-questions"
     epic: 11
@@ -850,7 +850,7 @@ action_items:
     epic: 11
     action: "E11-A9 Track the Bedrock quota support case; when a quota is above 0 run the 11.6 Definition of Ready (Converse through fasor-app on Sonnet 5.5 and one cheaper candidate), then build 11.6 with MIN raised to 14 or later (PR #72) and ai_features on"
     owner: "Matheus (support case); coordinator (batch L)"
-    status: open
+    status: done  # Bedrock unblocked 2026-10-05 on Haiku 4.5; Story 11.6 merged in PR #88
     ref: "/home/matheus/Documentos/fasor/_bmad-output/implementation-artifacts/epic-11-retro-2026-09-30.md"
   - id: "epic-11-retro-item-99-e11-a10-infra-offline-checks"
     epic: 11

@@ -33,6 +33,7 @@ import { NotTestedBand } from './not-tested-band.tsx';
 import { AddPhotosButton } from './photo-openers.tsx';
 import { DropHint } from '../photos/capture-sheet.tsx';
 import { SectionStepper } from './section-stepper.tsx';
+import { SheetPhotos } from './sheet-photos-section.tsx';
 import { SheetObservationDictationProvider } from './sheet-observation-dictation.tsx';
 import { SheetReadOnlyProvider } from './sheet-read-only.tsx';
 import { StickyActionBar } from './sticky-action-bar.tsx';
@@ -107,7 +108,7 @@ function FichaBody({
   const bulk = useChecklistBulk(api, snapshot, block, equipment);
   const { current, focusIn, stepClass, goTo } = useFichaSteps(progress, shownSteps);
   const photos = useFichaPhotos({ relatorioId, snapshot, block, current, db, api, showToast });
-  const { photoTarget, sheetCamera, checklistPhotos, setImportTarget, fichaMain, dragging } = photos;
+  const { photoTarget, sheetCamera, checklistPhotos, setImporting, fichaMain, dragging } = photos;
   const { checklistEl, showMirror } = useChecklistMirror(block, definition, bulk);
   const actions = useFichaActions({
     relatorioId,
@@ -216,6 +217,8 @@ function FichaBody({
                 onCaptionPhoto={photos.setCaptioning}
               />
               <ConclusaoSection api={api} block={block} definition={definition} tag={tag} className={stepClass('conclusao')} onFocus={() => focusIn('conclusao')} />
+              {/* Story 11.11: the sheet's photos, last (`60-ficha.html` 779-795). */}
+              <SheetPhotos api={api} snapshot={snapshot} blockId={blockId} onCaptionPhoto={photos.setCaptioning} />
             </div>
             </SheetObservationDictationProvider>
           </SheetReadOnlyProvider>
@@ -226,7 +229,13 @@ function FichaBody({
             // the list head keeps its disabled action with the reason.
             secondary={showMirror ? <BulkActionBar bulk={bulk} compact /> : null}
             camera={sheetCamera.button}
-            importButton={<AddPhotosButton onPress={() => setImportTarget(photoTarget(null))} />}
+            importButton={
+              <AddPhotosButton
+                denied={sheetCamera.denied}
+                onFiles={(files) => setImporting({ target: photoTarget(null), files })}
+                onOpenSheet={() => setImporting({ target: photoTarget(null), files: null })}
+              />
+            }
             cameraNote={sheetCamera.note}
             primaryLabel={primaryLabel}
             onPrimary={primary}

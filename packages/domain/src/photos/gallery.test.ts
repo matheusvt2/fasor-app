@@ -28,6 +28,7 @@ import {
   photoEquipmentOptions,
   photosImportedText,
   photosKeptGeneralText,
+  photosKeptOnSheetText,
   photoItemLine,
   photoRemovedText,
   photosAddedText,
@@ -243,6 +244,14 @@ describe('6.3-UNIT-005 gallery texts', () => {
     expect(photosKeptGeneralText(2, 1)).toBe('2 fotos ficaram como Geral, sem legenda. 1 arquivo não pôde ser lido como foto e ficou de fora');
     expect(photosKeptGeneralText(0, 1)).toBe(skippedFilesText(1));
     expect(photosKeptGeneralText(0, 0)).toBeNull();
+  });
+
+  it('11.11 photosKeptOnSheetText: a cancelled sheet batch stays on the sheet with its context caption', () => {
+    expect(photosKeptOnSheetText(2, 0)).toBe('2 fotos ficaram nesta ficha, com a legenda do contexto');
+    expect(photosKeptOnSheetText(1, 0)).toBe('1 foto ficou nesta ficha, com a legenda do contexto');
+    expect(photosKeptOnSheetText(1, 1)).toBe('1 foto ficou nesta ficha, com a legenda do contexto. 1 arquivo não pôde ser lido como foto e ficou de fora');
+    expect(photosKeptOnSheetText(0, 2)).toBe(skippedFilesText(2));
+    expect(photosKeptOnSheetText(0, 0)).toBeNull();
   });
 });
 

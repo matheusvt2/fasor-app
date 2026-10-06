@@ -328,3 +328,16 @@ export function photosKeptGeneralText(kept: number, skipped: number): string | n
   if (keptText !== null && skipped > 0) return `${keptText}. ${skippedFilesText(skipped)}`;
   return keptText ?? (skipped > 0 ? skippedFilesText(skipped) : null);
 }
+
+/**
+ * Story 11.11: "Cancelar" (or Escape) on a sheet's "De qual equipamento?": the batch was saved
+ * on the sheet when it was picked and stays there with the sheet's caption. "2 fotos ficaram
+ * nesta ficha, com a legenda do contexto", the files left out after it.
+ */
+export function photosKeptOnSheetText(kept: number, skipped: number): string | null {
+  // authored: no mock draws this toast; the pattern of `photosKeptGeneralText`.
+  const keptText =
+    kept === 0 ? null : kept === 1 ? '1 foto ficou nesta ficha, com a legenda do contexto' : `${kept} fotos ficaram nesta ficha, com a legenda do contexto`;
+  if (keptText !== null && skipped > 0) return `${keptText}. ${skippedFilesText(skipped)}`;
+  return keptText ?? (skipped > 0 ? skippedFilesText(skipped) : null);
+}

@@ -808,7 +808,6 @@ export const copy = {
   captureSheet: {
     title: 'Adicionar fotos',
     choose: 'Escolher arquivos',
-    reason: 'Várias de uma vez, durante a visita ou depois — inclusive fotos que outra pessoa mandou. No computador, dá para arrastar os arquivos direto para a galeria ou para uma ficha. A câmera não passa por aqui: o botão Foto abre o visor direto.',
     cancel: 'Cancelar',
     whichEquipment: 'De qual equipamento?',
     general: 'Geral (sem equipamento)',
@@ -937,6 +936,9 @@ export const copy = {
   ficha: {
     // authored: an address naming no equipment sheet of this relatório on this device.
     notFound: 'Ficha não encontrada neste relatório.',
+    // Story 11.11: the "Fotos da ficha" strip (`60-ficha.html` 779-781); the heading with its
+    // count is the kernel's `sheetPhotosHeading`. The note is verbatim from the mock.
+    photosNote: 'A câmera está na barra (botão Foto). A legenda é escrita do contexto — equipamento, local e a seção na tela; “Legendar” só para mudar.',
     // `60-ficha.html` "Mais opções da ficha CB-ENT".
     headerMenu: (tag: string) => `Mais opções da ficha ${tag}`,
     // authored: the TAG button renames (the mock's prototype opens the relatório instead).

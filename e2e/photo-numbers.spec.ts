@@ -52,14 +52,11 @@ async function openGallery(page: Page): Promise<void> {
   await expect(page.getByRole('heading', { level: 2, name: /^Registro fotográfico \(\d+\)$/ })).toBeVisible({ timeout: 30_000 });
 }
 
-/** "Adicionar fotos" > "Escolher arquivos" > one JPEG, then "Cancelar" on "De qual equipamento?": a "Geral" photo. */
+/** "Adicionar fotos" > the system picker (Story 11.11) > one JPEG, then "Cancelar" on "De qual equipamento?": a "Geral" photo. */
 async function addGeneralPhoto(page: Page, name: string): Promise<void> {
   const before = (await devicePhotos(page, database)).length;
-  await page.locator('.sticky-action-bar').getByRole('button', { name: 'Adicionar fotos' }).click();
-  const picker = page.getByRole('dialog', { name: 'Adicionar fotos' });
-  await expect(picker).toBeVisible();
   const chooser = page.waitForEvent('filechooser');
-  await picker.getByRole('button', { name: 'Escolher arquivos' }).click();
+  await page.locator('.sticky-action-bar').getByRole('button', { name: 'Adicionar fotos' }).click();
   await (await chooser).setFiles([await plainJpeg(page, name)]);
   const which = page.getByRole('dialog', { name: /^De qual equipamento\?/ });
   await expect(which).toBeVisible();

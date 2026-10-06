@@ -337,12 +337,11 @@ test('@p1 6.2-E2E-005 E6-Q14: online, a shot and a file added from the sheet go 
   await expect(page.getByRole('dialog', { name: 'Câmera' })).toHaveCount(0);
   await expect.poll(uploaded, { timeout: 10_000 }).toBe(1);
 
-  // One file through "Adicionar fotos": the same.
-  await page.locator('.sticky-action-bar').getByRole('button', { name: 'Adicionar fotos' }).click();
-  const sheet = page.getByRole('dialog', { name: 'Adicionar fotos' });
+  // One file through "Adicionar fotos" (the picker at once, then "Adicionar 1 foto" on this sheet, Story 11.11): the same.
   const chooser = page.waitForEvent('filechooser');
-  await sheet.getByRole('button', { name: 'Escolher arquivos' }).click();
+  await page.locator('.sticky-action-bar').getByRole('button', { name: 'Adicionar fotos' }).click();
   await (await chooser).setFiles(await plainJpeg(page, 'depois.jpg'));
+  await page.getByRole('dialog', { name: /^De qual equipamento\?/ }).getByRole('button', { name: 'Adicionar 1 foto' }).click();
   await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(2);
   await expect.poll(uploaded, { timeout: 10_000 }).toBe(2);
 });

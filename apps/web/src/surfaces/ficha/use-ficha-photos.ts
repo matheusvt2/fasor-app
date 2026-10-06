@@ -35,13 +35,22 @@ export interface FichaPhotos {
   targetFor: (step: SheetStep, testKey: string | null) => CaptureTarget;
   sheetCamera: ReturnType<typeof useSheetCamera>;
   checklistPhotos: ChecklistPhotos;
-  importTarget: CaptureTarget | null;
-  setImportTarget: Dispatch<SetStateAction<CaptureTarget | null>>;
+  /**
+   * The Photo capture sheet's run: the target it saves with, and (Story 11.11) the files the
+   * direct picker already picked (null: the denied camera's chooser first).
+   */
+  importing: FichaImport | null;
+  setImporting: Dispatch<SetStateAction<FichaImport | null>>;
   captioning: PhotoTile | null;
   setCaptioning: Dispatch<SetStateAction<PhotoTile | null>>;
   saveCaption: (tile: PhotoTile, text: string | null) => void;
   fichaMain: RefObject<HTMLDivElement | null>;
   dragging: boolean;
+}
+
+export interface FichaImport {
+  target: CaptureTarget;
+  files: readonly File[] | null;
 }
 
 export function useFichaPhotos({
@@ -95,7 +104,7 @@ export function useFichaPhotos({
   const photoTiles = useBlockPhotoTiles(db, relatorioId, blockId);
   const { retryUpload } = sync;
   // --- Stories 6.4/6.5: "Adicionar fotos" (and a drop on a computer) and "Legendar" -------
-  const [importTarget, setImportTarget] = useState<CaptureTarget | null>(null);
+  const [importing, setImporting] = useState<FichaImport | null>(null);
   const [captioning, setCaptioning] = useState<PhotoTile | null>(null);
   const importFiles = usePhotoImport(relatorioId);
   const fichaMain = useRef<HTMLDivElement>(null);
@@ -104,7 +113,7 @@ export function useFichaPhotos({
     tiles: photoTiles,
     target: (itemKey) => photoTarget(itemKey),
     retry: (fileId) => void retryUpload?.(fileId),
-    addPhotos: (itemKey) => setImportTarget(photoTarget(itemKey)),
+    addPhotos: (itemKey) => setImporting({ target: photoTarget(itemKey), files: null }),
     caption: (tile) => setCaptioning(tile),
   };
   const saveCaption = (tile: PhotoTile, text: string | null) => {
@@ -114,5 +123,5 @@ export function useFichaPhotos({
       .then(() => showToast(captionSavedText(numberPhotos(snapshot.files).get(tile.id) ?? null)))
       .catch(toastPhotoWriteFailure(showToast));
   };
-  return { photoTarget, targetFor, sheetCamera, checklistPhotos, importTarget, setImportTarget, captioning, setCaptioning, saveCaption, fichaMain, dragging };
+  return { photoTarget, targetFor, sheetCamera, checklistPhotos, importing, setImporting, captioning, setCaptioning, saveCaption, fichaMain, dragging };
 }

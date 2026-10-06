@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { numberPhotos } from './numbering.ts';
-import { comparePhotos, livePhotos } from './order.ts';
+import { comparePhotos, livePhotos, photosOfBlock } from './order.ts';
 
 /*
  * 6.3-UNIT: capture order and the provisional numbers (spec I/O matrix rows "Numbering"
@@ -47,5 +47,38 @@ describe('6.3-UNIT-001 comparePhotos / numberPhotos', () => {
     const files = [photo(1, T2, 1), { id: id(9), kind: 'logo', removed_at: null }, photo(2, T0, 1)];
     const live = livePhotos({ files } as unknown as RelatorioSnapshot);
     expect(live.map((row) => row.id)).toEqual([id(2), id(1)]);
+  });
+});
+
+describe('11.11-UNIT-001 photosOfBlock', () => {
+  const BLOCK = '019966b0-0000-7000-8000-000000000301';
+  const OTHER = '019966b0-0000-7000-8000-000000000302';
+  const onBlock = (n: number, capturedAt: string, localSeq: number, blockId: string | null, extra: Record<string, unknown> = {}) => ({
+    ...photo(n, capturedAt, localSeq),
+    block_id: blockId,
+    item_key: null,
+    ...extra,
+  });
+
+  it('keeps the live photos of this block only (plate, item and sheet photos), in capture order, with the relatório numbers', () => {
+    const files = [
+      onBlock(1, T2, 4, BLOCK),
+      onBlock(2, T0, 1, BLOCK, { reading_kind: 'plate' }),
+      onBlock(3, T1, 2, OTHER),
+      onBlock(4, T1, 3, BLOCK, { item_key: 'contatos' }),
+      onBlock(5, T1, 5, null),
+      { ...onBlock(6, T0, 0, BLOCK), removed_at: '2026-09-07T00:00:00.000Z' },
+      { id: id(9), kind: 'logo', removed_at: null, block_id: BLOCK },
+    ];
+    const snapshot = { files } as unknown as RelatorioSnapshot;
+    const strip = photosOfBlock(snapshot, BLOCK);
+    expect(strip.map((row) => row.id)).toEqual([id(2), id(4), id(1)]);
+    const numbers = numberPhotos(snapshot.files);
+    expect(strip.map((row) => numbers.get(row.id))).toEqual([1, 3, 5]);
+  });
+
+  it('is empty for a block with no live photo', () => {
+    const files = [onBlock(1, T0, 1, OTHER), { ...onBlock(2, T0, 2, BLOCK), removed_at: '2026-09-07T00:00:00.000Z' }];
+    expect(photosOfBlock({ files } as unknown as RelatorioSnapshot, BLOCK)).toEqual([]);
   });
 });

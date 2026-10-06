@@ -23,6 +23,11 @@ export function photoCountText(n: number): string {
   return n === 0 ? 'Nenhuma foto' : plural(n, 'foto', 'fotos');
 }
 
+/** Story 11.11 (`60-ficha.html` `#ficha-h-fotos-dj`): the sheet's photo strip heading, "Fotos da ficha (3)". */
+export function sheetPhotosHeading(n: number): string {
+  return `Fotos da ficha (${n})`;
+}
+
 /** Section 7's pre-issue row: "1 sem legenda", "3 sem legenda". */
 export function photosUncaptionedText(n: number): string {
   return `${n} sem legenda`;
