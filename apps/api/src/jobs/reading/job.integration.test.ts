@@ -989,11 +989,12 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
     });
   }, 60_000);
 
-  it('the escalation keeps the first reading when it is not better', async () => {
+  it('the escalation keeps the first reading when it has fewer suggested values', async () => {
     const { relatorioId, blocks } = await relatorio();
     const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
     const id = await platePhoto(relatorioId, block);
-    const client = converse({ [HAIKU]: poorAnswer, [NOVA_PRO]: poorAnswer });
+    const fewer = { values: poorAnswer.values.slice(0, 2) };
+    const client = converse({ [HAIKU]: poorAnswer, [NOVA_PRO]: fewer });
     await read(bedrockDeps(client), id);
     expect(client.models).toEqual([HAIKU, NOVA_PRO]);
     const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
@@ -1013,6 +1014,32 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
     expect(client.models).toEqual([HAIKU]);
     expect((await suggestions(relatorioId)).filter((s) => s.source.photo_id === id)).toEqual([]);
     expect((await runs(id))[0]).toMatchObject({ outcome: 'ok', model: HAIKU, llm_usage: { input_tokens: 2000, output_tokens: 300, usd: usd(HAIKU) } });
+  }, 60_000);
+
+  it('an empty first reading with OCR words present is read again on the escalation model, which is kept', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
+    const id = await platePhoto(relatorioId, block);
+    const client = converse({ [HAIKU]: { values: [] }, [NOVA_PRO]: plateAnswer });
+    await read(bedrockDeps(client), id);
+    expect(await status(id)).toBe('done');
+    expect(client.models).toEqual([HAIKU, NOVA_PRO]);
+    const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+    expect(mine).toHaveLength(11);
+    expect((await runs(id))[0]).toMatchObject({ outcome: 'ok', model: NOVA_PRO, llm_usage: { input_tokens: 4100, output_tokens: 800, usd: Math.round((usd(HAIKU) + usd(NOVA_PRO)) * 1e6) / 1e6 } });
+  }, 60_000);
+
+  it('an escalation that returns only verify rows replaces an empty first reading (a tie on suggested goes to the one with more rows)', async () => {
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'transformador_forca')!;
+    const id = await platePhoto(relatorioId, block);
+    const verifyOnly = { values: poorAnswer.values.filter((value) => value.key !== 'tipo') };
+    const client = converse({ [HAIKU]: { values: [] }, [NOVA_PRO]: verifyOnly });
+    await read(bedrockDeps(client), id);
+    expect(client.models).toEqual([HAIKU, NOVA_PRO]);
+    const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+    expect(mine.map((s) => s.trust)).toEqual(['verify', 'verify']);
+    expect((await runs(id))[0]).toMatchObject({ model: NOVA_PRO });
   }, 60_000);
 
   it('with BEDROCK_ESCALATION_MODEL_ID empty no second call is made', async () => {
@@ -1064,6 +1091,23 @@ describe('11.6-INT the bedrock provider through an injected client (nothing reac
     expect(mine).toHaveLength(1);
     expect(mine[0]).toMatchObject({ target_path: `file/${id}/block_id`, prompt_version: 'bedrock-structuring-1' });
     expect((await runs(id))[0]).toMatchObject({ outcome: 'ok', reading_kind: 'panel', model: HAIKU, prompt_version: 'bedrock-structuring-1', llm_usage: { input_tokens: 2000, output_tokens: 300, usd: usd(HAIKU) } });
+  }, 60_000);
+
+  it('a panel front whose reading is all low-confidence (verify) still never escalates: only the first model is called', async () => {
+    copyFileSync(join(DEFAULT_FIXTURES_DIR, `${PANEL}.json`), join(fixturesDir, `${PANEL}.json`));
+    const { relatorioId, blocks } = await relatorio();
+    const block = blocks.find((b) => b.block_type === 'chave_seccionadora')!;
+    const id = await photo(relatorioId, block, await solidPng(11, 22, 33, 400, 300), 'image/png', { panel: true });
+    const unsure = { values: (fixtureOf(PANEL).structuring as { values: Record<string, unknown>[] }).values.map((value) => ({ ...value, confidence: 0.3 })) };
+    // Nova Pro answers too, so a second call would show in `client.models`.
+    const client = converse({ [HAIKU]: unsure, [NOVA_PRO]: fixtureOf(PANEL).structuring });
+    await read(bedrockDeps(client), id, 'panel');
+    expect(await status(id)).toBe('done');
+    expect(client.models).toEqual([HAIKU]);
+    const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+    expect(mine).toHaveLength(1);
+    expect(mine[0]).toMatchObject({ trust: 'verify' });
+    expect((await runs(id))[0]).toMatchObject({ model: HAIKU });
   }, 60_000);
 
   it('AccessDeniedException ends failed in one attempt, permanent, naming the AWS error; no suggestion', async () => {

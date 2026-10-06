@@ -126,7 +126,7 @@ List prices for `us-east-1` as the builder knows them on 2026-09-30 (not re-read
 | EC2 `t3a.medium` on demand | 577.9 h x 0.0376 | 21.73 |
 | EBS gp3 root, 30 GB | 30 x 0.08 | 2.40 |
 | Public IPv4 (the Elastic IP, billed also while stopped) | 730 h x 0.005 | 3.65 |
-| RDS `db.t4g.micro` PostgreSQL, single-AZ | 590.6 h x 0.016 | 9.45 |
+| ~~RDS `db.t4g.micro` PostgreSQL, single-AZ~~ RDS `db.t3.micro` PostgreSQL, single-AZ, always on (2026-10-06: `db.t4g.micro` is no longer offered in us-east-1 and the night stop is gone) | ~~590.6 h x 0.016~~ 730 h x 0.018 | ~~9.45~~ 13.14 |
 | RDS gp3 storage, 20 GB | 20 x 0.115 | 2.30 |
 | RDS backups (7 days, within the free 100 % of storage) | 0 | 0.00 |
 | S3 Standard, about 20 GB plus requests | 20 x 0.023 + 0.14 | 0.60 |
@@ -136,7 +136,9 @@ List prices for `us-east-1` as the builder knows them on 2026-09-30 (not re-read
 | CloudFront fallback (off by default; within 1 TB and 10 M requests if on) | free tier | 0.00 |
 | Textract `DetectDocumentText`, allowance of 5 000 pages | 5 000 / 1 000 x 1.50 | 7.50 |
 | Bedrock allowance (Story 11.6 picks the model) | allowance | 30.00 |
-| **Total** | | **78.83** |
+| **Total** | | ~~78.83~~ **82.52** |
+
+Bedrock, measured on 2026-10-05 with Claude Haiku 4.5 on the synthetic nameplate (about 3 300 input and 750 output tokens): about USD 0.007 a plate reading, and up to USD 0.0115 when the Nova Pro escalation runs too; a panel or a caption costs less than half of that. 1 000 plate readings a month cost USD 7 to 12 on Bedrock plus USD 1.50 of Textract, so the USD 30 allowance above covers about 2 600 plate readings with every one escalated. Re-reads are not capped, and the budget action is what stops them.
 
 The total stays below USD 100 with Textract and a Bedrock allowance included; the 90 % budget action stops Bedrock and Textract before the ceiling is crossed. Without the night schedule the instance costs 730 h x 0.0376 = USD 27.45 and the database 730 h x 0.016 = USD 11.68 (total USD 86.78). With `arm64` (`t4g.medium`, 577.9 h x 0.0336) the instance costs USD 19.42. With `t3a.large` (577.9 h x 0.0752 = USD 43.46) the total becomes USD 100.56, so that switch also needs the Bedrock allowance cut to about USD 29 or less.
 

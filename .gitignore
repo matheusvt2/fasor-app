@@ -53,6 +53,9 @@ secrets/
 *.tfstate
 *.tfstate.*
 tfplan
+# Saved plans (`-out=...`) embed generated secrets such as the database password.
+*.plan
+*.tfplan
 # Variable values (e-mail recipients and the like) stay local; the *.tfvars.example files are committed.
 *.tfvars
 !*.tfvars.example
