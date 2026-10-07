@@ -116,3 +116,15 @@ Console: zero page errors across the session apart from the two `401` on `/api/a
 ## 5. Screenshot index
 
 `01` login · `02-05` Home and "Novo relatório" · `06` Obra page with the second dialog · `07-08` setup · `09-10` Sumário · `11-21` sheet SEC-ENEL and SEC-ENEL-2 · `22-24` photos from the sheet · `25-27` gallery and caption · `28-32` points of attention · `33-34` section text · `35-37` export · `38-39` nameplate read · `40-41` display read · `42` not-tested dialog · `43` setup altitude after return · `44-46` templates and composer · `47-51` Cadastros · `52` account · `53` sync · `54` offline · `55-56` Sumário menus · `60-*` 768 px · `70-*` 390 px · `80-*` dark.
+
+`90-97` Story 11.11 hands-on after batch 1 (photo strip, direct picker, denied sheet) · `98-104` batch 2 hands-on (altitude kept, the issue confirmation at 1280/390/dark, Sync headline, storage line, the retitled dialog) · `105-115` batch 3 hands-on (sticky App bar and options menu at 1280, rail without split words, Sumário and Export at 390, the sheet bar's three squares, "Abrindo câmera…", a priority pick without a toast, 768 px and dark).
+
+## 6. Status (2026-10-07)
+
+All 29 findings are closed on `main`, in three pull requests decided by Matheus on 2026-10-06:
+
+- **PR #98** (`b5b35c5`): F-01, Story 11.11 (the sheet's photo strip and the direct picker), `spec-11-11-sheet-photo-strip-and-direct-picker.md`.
+- **PR #99** (`ba6a80c`): the field defects F-02, F-03/F-04, F-05, F-08, F-09, F-12, F-13, F-14, F-20, F-21, F-27, F-28, with decisions D1 to D4 (Matheus), `spec-review-fixes-field-defects-2.md`.
+- **PR #100** (`4ae032b`): the layout and copy findings F-06, F-07, F-10, F-11, F-15 to F-19, F-22 to F-26, F-29, with decisions D5 to D12 (orchestrator under the standing authorization, listed in the PR for review), `spec-review-fixes-layout-copy-3.md`.
+
+What stays open is in `deferred-work.md` under the three specs: the row 11 wording beside the setup row, the WebKit keyboard inset of the F-11 padding, the composer's section order ignored at instantiation, the camera openers still without the "Abrindo câmera…" state, and the 390 px `ficha.durability` focus cases that fail on this host regardless of the change.
