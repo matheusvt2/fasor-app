@@ -75,6 +75,11 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'panel-capture-pipeline.spec.ts',
     why: 'uploads a panel photo the api reads on its one reading queue and worker, then waits for the plate reading its re-target queued',
   },
+  // Story 13.7: "Fotografar placa" on every block type through the real reading job.
+  {
+    file: 'plate-every-type.spec.ts',
+    why: 'uploads one plate photo per block type that the api reads on its one reading queue and worker, waiting for each job to land on the device',
+  },
   {
     file: 'tap-budget-signal.spec.ts',
     why: 'times every tap of the SM-3 walk against a render and waits on nine readings of the one reading queue and worker',

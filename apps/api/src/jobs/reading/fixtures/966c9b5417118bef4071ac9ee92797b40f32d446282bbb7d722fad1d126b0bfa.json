@@ -1,0 +1,238 @@
+{
+  "outcome": "ok",
+  "ocr": {
+    "image": {
+      "width": 1200,
+      "height": 900
+    },
+    "tokens": [
+      {
+        "id": "t0",
+        "text": "PARA-RAIO",
+        "bbox": [
+          73,
+          70,
+          314,
+          101
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t1",
+        "text": "FABRICAÇÃO",
+        "bbox": [
+          72,
+          152,
+          234,
+          181
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t2",
+        "text": "Quelvar",
+        "bbox": [
+          641,
+          156,
+          755,
+          180
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t3",
+        "text": "Nº",
+        "bbox": [
+          72,
+          294,
+          101,
+          314
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t4",
+        "text": "SÉRIE",
+        "bbox": [
+          112,
+          289,
+          185,
+          315
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t5",
+        "text": "PR-2207-114",
+        "bbox": [
+          642,
+          294,
+          827,
+          315
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t6",
+        "text": "TIPO",
+        "bbox": [
+          69,
+          432,
+          129,
+          453
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t7",
+        "text": "ZNO-15/10",
+        "bbox": [
+          641,
+          432,
+          795,
+          455
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t8",
+        "text": "TENSÃO",
+        "bbox": [
+          69,
+          566,
+          175,
+          591
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t9",
+        "text": "NOMINAL",
+        "bbox": [
+          187,
+          570,
+          307,
+          591
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t10",
+        "text": "15",
+        "bbox": [
+          642,
+          571,
+          675,
+          591
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t11",
+        "text": "kV",
+        "bbox": [
+          687,
+          570,
+          722,
+          590
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t12",
+        "text": "CORRENTE",
+        "bbox": [
+          71,
+          708,
+          212,
+          729
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t13",
+        "text": "NOMINAL",
+        "bbox": [
+          224,
+          708,
+          344,
+          729
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t14",
+        "text": "10",
+        "bbox": [
+          642,
+          708,
+          675,
+          729
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t15",
+        "text": "kA",
+        "bbox": [
+          687,
+          708,
+          722,
+          728
+        ],
+        "confidence": 0.99
+      }
+    ],
+    "preprocessing_applied": false
+  },
+  "structuring": {
+    "values": [
+      {
+        "key": "fabricacao",
+        "value": "Quelvar",
+        "ocr_token_ids": [
+          "t2"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "n_serie",
+        "value": "PR-2207-114",
+        "ocr_token_ids": [
+          "t5"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tipo",
+        "value": "ZNO-15/10",
+        "ocr_token_ids": [
+          "t7"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tensao_nominal",
+        "value": "15 kV",
+        "ocr_token_ids": [
+          "t10",
+          "t11"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "corrente_nominal",
+        "value": {
+          "raw": "10",
+          "unit": "kA",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t14",
+          "t15"
+        ],
+        "confidence": 0.97
+      }
+    ]
+  }
+}
