@@ -1,6 +1,7 @@
-import { SHEET_STEPS, sheetProgressState, sheetProgressText, sheetSummaryParts, type SheetProgress, type SheetStep } from '@app/domain';
+import { SHEET_STEPS, savedStateText, sheetProgressState, sheetProgressText, sheetSummaryParts, type SheetProgress, type SheetStep } from '@app/domain';
 import { OverflowMenu, type OverflowMenuAction } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
+import { useServerReachable } from '../../state/sync.tsx';
 
 /**
  * The Sheet header (UX-DR33, `key-equipment-sheet-v09.html` `.sheet-header`): type + TAG,
@@ -21,7 +22,7 @@ export function FichaHeader({
   menu,
   notTested = false,
   onRename,
-  savedText = '',
+  savedAt = null,
 }: {
   typeName: string;
   tag: string;
@@ -35,8 +36,8 @@ export function FichaHeader({
   /** `key-sheet-states.html` frame (a): the chip beside the TAG once the sheet is not tested. */
   notTested?: boolean;
   onRename: (() => void) | null;
-  /** Story 13.4 (INP-4): the kernel's "Salvo às 14:32", '' before the first save of this session. */
-  savedText?: string;
+  /** Story 13.4 (INP-4): the instant the last save landed, null before the first save of this session. */
+  savedAt?: string | null;
 }) {
   const t = copy.ficha;
   return (
@@ -73,9 +74,7 @@ export function FichaHeader({
         {/* Story 13.4 (INP-4): the saved line, visible and quiet, a status region; like the
             attribution line it holds its height (a non-breaking space) before the first save,
             so the header never grows when that save lands. */}
-        <p className="sheet-meta" role="status" data-testid="ficha-saved">
-          {savedText === '' ? '\u00a0' : savedText}
-        </p>
+        <FichaSavedLine at={savedAt} />
         {notTested ? null : (
           <p className="sheet-summary" data-testid="ficha-progress">
             {/* E12-Q8: the missing counts in `.n-missing`, as `key-equipment-sheet-v09.html` draws them. */}
@@ -101,5 +100,18 @@ export function FichaHeader({
         <OverflowMenu name="" label={t.headerMenu(tag)} items={menu} />
       </div>
     </div>
+  );
+}
+
+/**
+ * Story 13.4 (INP-4): the saved line, the one sheet element that reads the sync state
+ * (`useServerReachable`), so an outbox count change re-renders this line only.
+ */
+export function FichaSavedLine({ at }: { at: string | null }) {
+  const text = savedStateText(at, useServerReachable());
+  return (
+    <p className="sheet-meta" role="status" data-testid="ficha-saved">
+      {text === '' ? '\u00a0' : text}
+    </p>
   );
 }

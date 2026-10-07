@@ -5,7 +5,6 @@ import {
   filledByText,
   formatTimeOfDay,
   moveTargets,
-  savedStateText,
   sheetProgress,
   suggestedInstruments,
   tagRenamedText,
@@ -27,7 +26,6 @@ import { type OverflowMenuAction } from '../../components/index.ts';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import type { SessionState } from '../../state/session.tsx';
-import { useServerReachable } from '../../state/sync.tsx';
 import type { ToastState } from '../../state/toast.tsx';
 import type { RelatorioEditor } from '../relatorio/relatorio-editor.ts';
 import { putEquipmentTagOp } from '../relatorio/relatorio-ops.ts';
@@ -36,21 +34,20 @@ import type { FichaApi } from './ficha-api.ts';
 import { concludedByOp, conclusionOp, notTestedOp, testInstrumentOp } from './ficha-ops.ts';
 
 /**
- * Story 13.4 (INP-4): the sheet header's visible saved line. It keeps the instant the last
- * commit landed in the outbox (no clearing timer) and reads it through the kernel
- * (`savedStateText`), so the line changes at most once a minute or when the server's
- * reachability changes, never per commit (EXPERIENCE.md › Autosave: "at most every few
- * seconds, never per keystroke"). Offline (F-13's meaning) it says "neste aparelho".
+ * Story 13.4 (INP-4): the instant the last commit landed in the outbox, for the header's
+ * saved line (`FichaSavedLine`), kept to the minute so a burst of commits re-renders the
+ * sheet once a minute at most. The server's reachability is read by the line itself, never
+ * here: this hook runs in the sheet's body, and a body subscribed to the sync state would
+ * re-render the whole sheet on every outbox count change, slowing the readings' Enter run.
  */
-export function useSavedStatus(): { text: string; saved: () => void } {
+export function useSavedStatus(): { at: string | null; saved: () => void } {
   const [at, setAt] = useState<string | null>(null);
-  const reachable = useServerReachable();
   const saved = useCallback(() => {
     const landed = now().toISOString();
     // Within the same minute the line would read the same: keep the state, render nothing.
     setAt((previous) => (previous !== null && formatTimeOfDay(previous) === formatTimeOfDay(landed) ? previous : landed));
   }, []);
-  return { text: savedStateText(at, reachable), saved };
+  return { at, saved };
 }
 
 export interface FichaActions {

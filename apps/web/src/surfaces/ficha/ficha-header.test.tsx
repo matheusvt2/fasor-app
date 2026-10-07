@@ -11,7 +11,7 @@ import { FichaHeader } from './ficha-header.tsx';
 
 const progress = { complete: false, firstIncompleteStep: 'placa', steps: {} } as unknown as SheetProgress;
 
-function header(filledBy: string | null, savedText?: string) {
+function header(filledBy: string | null, savedAt?: string) {
   return render(
     <FichaHeader
       typeName="Chave seccionadora"
@@ -23,7 +23,7 @@ function header(filledBy: string | null, savedText?: string) {
       shown={[]}
       menu={[]}
       onRename={null}
-      {...(savedText === undefined ? {} : { savedText })}
+      {...(savedAt === undefined ? {} : { savedAt })}
     />,
   );
 }
@@ -57,8 +57,9 @@ describe('13.4 INP-4 FichaHeader saved line', () => {
     expect([...container.querySelectorAll('.sheet-meta')].at(-1)).toBe(saved);
   });
 
-  it('shows the kernel text once a save landed, in the same element', () => {
-    const { getByTestId } = header('Preenchido por Bento Braga · 25/09 18:54', 'Salvo neste aparelho às 14:32');
+  it('shows the kernel text once a save landed, in the same element (outside a SyncProvider: not reachable)', () => {
+    // 17:32 UTC is 14:32 in America/Sao_Paulo.
+    const { getByTestId } = header('Preenchido por Bento Braga · 25/09 18:54', '2026-10-07T17:32:10.000Z');
     expect(getByTestId('ficha-saved')).toHaveTextContent('Salvo neste aparelho às 14:32');
   });
 });

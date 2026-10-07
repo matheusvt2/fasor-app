@@ -101,7 +101,7 @@ function FichaBody({
   definition: BlockDefinition;
 }) {
   const blockId = block.id;
-  const { session, db, navigate, showToast, projectId, equipment, users, instruments, registries, editor, savedText, saved, own, tag, typeName, progress, next, cabine, cabineFirst, enabled, api } =
+  const { session, db, navigate, showToast, projectId, equipment, users, instruments, registries, editor, savedAt, saved, own, tag, typeName, progress, next, cabine, cabineFirst, enabled, api } =
     useFichaData({ relatorioId, snapshot, state, block });
   // E12-A7: only the steps whose sub-block is on; the header sentence names only these.
   const shownSteps = useMemo(() => shownSheetSteps(block, { cabineFirst }), [block, cabineFirst]);
@@ -165,7 +165,7 @@ function FichaBody({
             menu={menu}
             notTested={block.not_tested !== null}
             onRename={block.equipment_id === null ? null : () => setRenaming(true)}
-            savedText={savedText}
+            savedAt={savedAt}
           />
           <SheetReadOnlyProvider value={block.not_tested !== null}>
             {/* Story 9.4: the sheet observation's dictated text, offered by its own mic and by the tables. */}
