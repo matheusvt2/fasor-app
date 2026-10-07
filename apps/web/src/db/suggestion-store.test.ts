@@ -5,7 +5,8 @@ import { BLOCK_1_ID, CABINE_ID, COMPANY_ID, READING_RUN_ID, PHOTO_ID, RELATORIO_
 import { describe, expect, it, vi } from 'vitest';
 import { commitBatch, commitBatchIf } from './commit.ts';
 import { openDatabase, type AppDatabase } from './schema.ts';
-import { autoConfirmPending, discardStaleProse, readingCountRows } from './suggestion-store.ts';
+import { writeReadingCancelled } from './prefs.ts';
+import { autoConfirmPending, discardCancelledReadings, discardStaleProse, readingCountRows } from './suggestion-store.ts';
 import { applyPulled } from './sync-store.ts';
 
 /*
@@ -415,6 +416,84 @@ describe('E9-Q13 the sweep and a confirm tapped while it runs', () => {
         await commitBatchIf(db, pendingNow, rows.flatMap((row) => confirmSuggestionOps(AUTHOR, row)), deps());
       })();
       await Promise.all([discardStaleProse(db, AUTHOR, deps()), confirm]);
+      const outbox = await db.outbox.toArray();
+      for (const row of rows) expect(outbox.filter((op) => op.path === `suggestion/${row.id}/status`), `delay ${delay}`).toHaveLength(1);
+      db.close();
+    }
+  });
+});
+
+describe('13.5-UNIT the sweep of a cancelled reading', () => {
+  const OTHER_PHOTO = '019966b0-0087-7000-8000-0000000000aa';
+
+  it('discards every pending suggestion read from a cancelled photo, through discardSuggestionOp, and leaves the others', async () => {
+    const db = await freshDb();
+    await seed(db);
+    const fromCancelled = [serverSuggestion('fabricacao', 'Schneider'), serverSuggestion('n_serie', 'SU1240998')];
+    const fromOther = serverSuggestion('tipo', 'Manual', { source: { photo_id: OTHER_PHOTO, bbox: [0.1, 0.1, 0.2, 0.2], ocr_token_ids: ['t0'], reading_run_id: READING_RUN_ID } });
+    await applyPulled(db, [...fromCancelled, fromOther]);
+    // Nothing recorded: nothing discarded.
+    expect(await discardCancelledReadings(db, AUTHOR, deps())).toEqual([]);
+
+    await writeReadingCancelled(db, PHOTO_ID, '2026-09-26T16:00:00.000Z');
+    const ids = (op: Op) => (op.value as SuggestionRow).id;
+    expect((await discardCancelledReadings(db, AUTHOR, deps())).sort()).toEqual(fromCancelled.map(ids).sort());
+    const discards = (await db.outbox.toArray()).filter((row) => row.path.startsWith('suggestion/'));
+    expect(discards.map((row) => [row.path, row.value]).sort()).toEqual(fromCancelled.map((op) => [`suggestion/${ids(op)}/status`, 'discarded']).sort());
+    expect(discards.every((row) => row.actor_id === USER_ID)).toBe(true);
+    expect(((await db.entities.get(['suggestion', ids(fromOther)]))!.row as SuggestionRow).status).toBe('pending');
+    // The photo itself is untouched (no op on it).
+    expect((await db.outbox.toArray()).some((row) => row.path.startsWith(`file/${PHOTO_ID}`))).toBe(false);
+
+    // A reading that lands later is discarded by the next sweep too; the earlier rows are not written twice.
+    const late = serverSuggestion('tipo', 'Motorizado');
+    await applyPulled(db, [late]);
+    expect(await discardCancelledReadings(db, AUTHOR, deps())).toEqual([ids(late)]);
+    expect(await discardCancelledReadings(db, AUTHOR, deps())).toEqual([]);
+    db.close();
+  });
+
+  it('`only` discards that one photo at once, whatever else is recorded', async () => {
+    const db = await freshDb();
+    await seed(db);
+    const mine = serverSuggestion('fabricacao', 'Schneider');
+    const other = serverSuggestion('tipo', 'Manual', { source: { photo_id: OTHER_PHOTO, bbox: [0.1, 0.1, 0.2, 0.2], ocr_token_ids: ['t0'], reading_run_id: READING_RUN_ID } });
+    await applyPulled(db, [mine, other]);
+    await writeReadingCancelled(db, OTHER_PHOTO, '2026-09-26T16:00:00.000Z');
+    expect(await discardCancelledReadings(db, AUTHOR, deps(), PHOTO_ID)).toEqual([(mine.value as SuggestionRow).id]);
+    expect(((await db.entities.get(['suggestion', (other.value as SuggestionRow).id]))!.row as SuggestionRow).status).toBe('pending');
+    db.close();
+  });
+
+  it('never discards on an issued relatório', async () => {
+    const db = await freshDb();
+    await seed(db);
+    await applyPulled(db, [serverSuggestion('fabricacao', 'Schneider')]);
+    await writeReadingCancelled(db, PHOTO_ID, '2026-09-26T16:00:00.000Z');
+    const record = (await db.entities.get(['relatorio', RELATORIO_ID]))!;
+    await db.entities.put({ ...record, row: { ...record.row, status: 'emitido' } as never });
+    expect(await discardCancelledReadings(db, AUTHOR, deps())).toEqual([]);
+    expect((await db.outbox.toArray()).filter((row) => row.path.startsWith('suggestion/'))).toEqual([]);
+    db.close();
+  });
+
+  it('leaves a row the engineer confirmed while the sweep ran: one status op per suggestion, whichever lands first', async () => {
+    for (let delay = 0; delay < 8; delay++) {
+      const db = await freshDb();
+      await seed(db);
+      const pulled = [serverSuggestion('fabricacao', 'Schneider'), serverSuggestion('n_serie', 'SU1240998')];
+      await applyPulled(db, pulled);
+      await writeReadingCancelled(db, PHOTO_ID, '2026-09-26T16:00:00.000Z');
+      const rows = pulled.map((op) => op.value as SuggestionRow);
+      const pendingNow = async () => {
+        for (const row of rows) if (((await db.entities.get(['suggestion', row.id]))!.row as SuggestionRow).status !== 'pending') return false;
+        return true;
+      };
+      const confirm = (async () => {
+        for (let i = 0; i < delay; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+        await commitBatchIf(db, pendingNow, rows.flatMap((row) => confirmSuggestionOps(AUTHOR, row)), deps());
+      })();
+      await Promise.all([discardCancelledReadings(db, AUTHOR, deps()), confirm]);
       const outbox = await db.outbox.toArray();
       for (const row of rows) expect(outbox.filter((op) => op.path === `suggestion/${row.id}/status`), `delay ${delay}`).toHaveLength(1);
       db.close();

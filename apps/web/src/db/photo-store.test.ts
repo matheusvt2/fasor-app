@@ -304,9 +304,12 @@ describe('E78-Q5 photoTilesOfBlock reading_status_op_id', () => {
     await commitPhotoCapture(db, shot(PHOTO_B, '2026-09-25T11:05:00.000Z'), { newId, now });
     const tileOf = async (id: string) => (await photoTilesOfBlock(db, RELATORIO_ID, BLOCK_1_ID)).find((tile) => tile.id === id)!;
     expect((await tileOf(PHOTO_A)).reading_status_op_id).toBeNull();
+    // Story 13.5: the stamp of that op is where the wait line counts from; null before any pull.
+    expect((await tileOf(PHOTO_A)).reading_status_at).toBeNull();
 
+    const stamp = (seq: number) => `2026-09-25T11:${String(seq).padStart(2, '0')}:00.000Z`;
     const pulled = (opId: string, seq: number, path: string) =>
-      ({ op_id: opId, seq, path, kind: 'put', value: 'failed', targets: [`file:${PHOTO_A}`], relatorio_id: RELATORIO_ID, project_id: null }) as never;
+      ({ op_id: opId, seq, path, kind: 'put', value: 'failed', targets: [`file:${PHOTO_A}`], relatorio_id: RELATORIO_ID, project_id: null, client_ts: stamp(seq) }) as never;
     const older = '019966b0-0067-7000-8000-000000000001';
     const newer = '019966b0-0067-7000-8000-000000000002';
     // Written newest first, beside another path of the same file with a higher seq: only the status path's order counts.
@@ -316,6 +319,7 @@ describe('E78-Q5 photoTilesOfBlock reading_status_op_id', () => {
       pulled('019966b0-0067-7000-8000-000000000003', 11, `file/${PHOTO_A}/caption`),
     ]);
     expect((await tileOf(PHOTO_A)).reading_status_op_id).toBe(newer);
+    expect((await tileOf(PHOTO_A)).reading_status_at).toBe(stamp(9));
     expect((await tileOf(PHOTO_B)).reading_status_op_id).toBeNull();
     db.close();
   });

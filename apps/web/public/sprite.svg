@@ -125,4 +125,15 @@
   <symbol id="i-share" viewBox="0 0 24 24">
     <path d="M12 15V4M8 8l4-4 4 4M5 12v7h14v-7" />
   </symbol>
+  <symbol id="i-zoom-in" viewBox="0 0 24 24">
+    <circle cx="10.5" cy="10.5" r="6" />
+    <path d="M15 15l5 5M10.5 8v5M8 10.5h5" />
+  </symbol>
+  <symbol id="i-zoom-out" viewBox="0 0 24 24">
+    <circle cx="10.5" cy="10.5" r="6" />
+    <path d="M15 15l5 5M8 10.5h5" />
+  </symbol>
+  <symbol id="i-zoom-fit" viewBox="0 0 24 24">
+    <path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" />
+  </symbol>
 </svg>

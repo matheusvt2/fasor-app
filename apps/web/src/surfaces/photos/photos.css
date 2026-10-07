@@ -202,3 +202,18 @@
 /* authored: Story 9.4, `70-fotos.html` 419 puts the batch caption and its Dictation button on one
    `.row-wrap`; the caption takes what the button leaves. */
 .photo-capture-sheet .capture-caption .row-wrap > .observation-field { flex: 1 1 0; min-width: 0; }
+
+/* ---------- Story 13.3 (CAP-3): the Photo viewer as a magnifier ----------
+   authored: no mock draws the zoom. The photo area is the stage the pointers land on: it
+   clips the scaled picture and refuses the browser's own pan and zoom there (`touch-action:
+   none`), so pinch and one-finger pan move the picture, not the page. The picture fills the
+   stage and is scaled from its top-left corner (`usePinchZoom`'s transform). */
+.photo-viewer .viewer-photo { overflow: hidden; touch-action: none; user-select: none; -webkit-user-select: none; }
+.photo-viewer .viewer-photo .viewer-img { will-change: transform; }
+/* authored: the three 48 px zoom buttons sit at the right of the top bar ("Fechar", the number
+   and the count on the left); on a narrow phone they wrap under them, never past the edge. */
+.photo-viewer .viewer-top { flex-wrap: wrap; }
+.photo-viewer .viewer-zoom-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--sp-1); margin-left: auto; }
+/* authored: a disabled zoom button: 40% opacity on the whole control, its reason beside it (DESIGN.md › Button). */
+.photo-viewer .viewer-zoom-controls .icon-btn[aria-disabled="true"] { opacity: .4; }
+.photo-viewer .viewer-zoom-reason { font-size: var(--t-label-size); font-weight: var(--t-label-weight); color: #B6BCC6; }

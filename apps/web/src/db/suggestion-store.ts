@@ -1,4 +1,5 @@
 import {
+  cancelledReadingSuggestions,
   captionSuggestions,
   confirmSuggestionOps,
   discardSuggestionOp,
@@ -21,6 +22,7 @@ import {
   type SuggestionRow,
 } from '@app/domain';
 import { commitBatchIf, type CommitDeps } from './commit.ts';
+import { readAllReadingCancelled } from './prefs.ts';
 import type { AppDatabase } from './schema.ts';
 
 /*
@@ -165,6 +167,32 @@ export async function discardStaleProse(db: AppDatabase, author: Author, deps: C
       discarded.push(suggestion.id);
     } catch (error) {
       console.error('stale suggestion discard failed', { id: suggestion.id, error });
+    }
+  }
+  return discarded;
+}
+
+/**
+ * Story 13.5 (WAIT-1): discards each local pending suggestion read from a photo whose reading
+ * this device cancelled (`reading_cancelled:{photo_id}`, `cancelledReadingSuggestions`), one
+ * batch per row through `discardSuggestionOp`; the photo is kept. Skipped on an issued
+ * relatório and for a row confirmed or discarded meanwhile (E9-Q13's re-read). A row whose
+ * commit throws is logged and left pending (the next sweep takes it again). Runs after every
+ * pull, so a reading that lands long after the tap is discarded before anyone is told of it.
+ * With `only`, that one photo's rows (the tap itself discards what is already here, at once).
+ * Returns the ids it discarded.
+ */
+export async function discardCancelledReadings(db: AppDatabase, author: Author, deps: CommitDeps, only?: string): Promise<string[]> {
+  const cancelled = only === undefined ? await readAllReadingCancelled(db) : [only];
+  if (cancelled.length === 0) return [];
+  const discarded: string[] = [];
+  for (const suggestion of cancelledReadingSuggestions(await pendingRows(db), cancelled)) {
+    try {
+      if (await issued(db, suggestion)) continue;
+      if ((await commitBatchIf(db, () => stillPending(db, suggestion.id), [discardSuggestionOp(author, suggestion)], deps)) === null) continue;
+      discarded.push(suggestion.id);
+    } catch (error) {
+      console.error('cancelled reading discard failed', { id: suggestion.id, error });
     }
   }
   return discarded;

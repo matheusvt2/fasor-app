@@ -174,3 +174,33 @@ export async function writeRereadAsked(db: AppDatabase, photoId: string, statusO
 export async function clearRereadAsked(db: AppDatabase, photoId: string): Promise<void> {
   await db.local_prefs.delete(rereadAskedKey(photoId));
 }
+
+/**
+ * Story 13.5 (WAIT-1): "Cancelar" on a pending plate or display reading, recorded per photo
+ * (`reading_cancelled:{photo_id}`) with the moment it was tapped. The photo stays; the
+ * post-pull sweep discards every pending suggestion that reading produces, now or later
+ * (`discardCancelledReadings`). "Tentar novamente" clears the record before asking again.
+ * Device-local by design: the discard ops it produces are what other devices see.
+ */
+const readingCancelledKey = (photoId: string) => `reading_cancelled:${photoId}`;
+
+/** When this device cancelled the photo's reading, or `undefined` when it did not. */
+export async function readReadingCancelled(db: AppDatabase, photoId: string): Promise<string | undefined> {
+  const value = (await db.local_prefs.get(readingCancelledKey(photoId)))?.value as { at?: unknown } | undefined;
+  return value !== undefined && value !== null && typeof value === 'object' && typeof value.at === 'string' ? value.at : undefined;
+}
+
+export async function writeReadingCancelled(db: AppDatabase, photoId: string, at: string): Promise<void> {
+  await db.local_prefs.put({ key: readingCancelledKey(photoId), value: { at } });
+}
+
+export async function clearReadingCancelled(db: AppDatabase, photoId: string): Promise<void> {
+  await db.local_prefs.delete(readingCancelledKey(photoId));
+}
+
+/** Every photo whose reading this device cancelled (the sweep's input). */
+export async function readAllReadingCancelled(db: AppDatabase): Promise<string[]> {
+  const prefix = readingCancelledKey('');
+  const rows = await db.local_prefs.where('key').startsWith(prefix).toArray();
+  return rows.map((row) => row.key.slice(prefix.length)).filter((id) => id !== '');
+}

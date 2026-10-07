@@ -96,6 +96,8 @@ export {
   displayBurstStop,
   displayBurstHintText,
   type DisplayQueuedState,
+  type DisplayQueuedEntry,
+  displayLineShown,
   displayQueuedCells,
   displayQueuedEnv,
 } from './measurement-suggestions.ts';
