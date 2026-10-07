@@ -46,6 +46,14 @@ describe('RegistryPickerField', () => {
     expect(input).toHaveValue('We');
   });
 
+  it('F-09: with nothing registered, the empty-list hint says how to add one; gone once an entry exists', () => {
+    const props = { label: 'Tensão de placa', recentIds: [], value: null, onChange: vi.fn(), onCreate: vi.fn(), emptyHint: 'Nenhuma classe de tensão cadastrada ainda — digite o valor em kV para criar' };
+    const { rerender } = render(<RegistryPickerField {...props} options={[]} />);
+    expect(screen.getByText(props.emptyHint)).toHaveClass('helper');
+    rerender(<RegistryPickerField {...props} options={[{ id: 'kv15', label: '15 kV' }]} />);
+    expect(screen.queryByText(props.emptyHint)).toBeNull();
+  });
+
   it('tapping a recent chip calls onChange with its id', async () => {
     const onChange = vi.fn();
     render(

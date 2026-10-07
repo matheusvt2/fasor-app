@@ -31,6 +31,8 @@ export interface RegistryPickerFieldProps {
    * typed before the picker existed). Defaults to the selected option's label.
    */
   initialText?: string;
+  /** F-09: the line under the field while `options` is empty ("Nenhuma classe … — digite … para criar"). */
+  emptyHint?: string;
 }
 
 /**
@@ -48,7 +50,9 @@ export function RegistryPickerField({
   onCreate,
   initialText,
   matchKey = normalizeRegistryName,
+  emptyHint,
 }: RegistryPickerFieldProps) {
+  const showEmptyHint = emptyHint !== undefined && options.length === 0;
   const byId = new Map(options.map((option) => [option.id, option] as const));
   const [showCombobox, setShowCombobox] = useState(false);
   // Story 12.4 (J-09), E12-Q7: "Outro…" lands the focus inside the Combobox it reveals, in
@@ -129,6 +133,9 @@ export function RegistryPickerField({
               })}
         />
       </div>
+      {showEmptyHint ? (
+        <span className="helper">{emptyHint}</span>
+      ) : null}
     </div>
   );
 }

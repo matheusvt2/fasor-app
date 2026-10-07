@@ -6,7 +6,7 @@ import { extractStructure } from '../apps/api/src/jobs/generate/docx-structure.t
 import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-fixture.ts';
 import { deviceDatabaseName, expect, horizontalOverflow, signIn, test, type SeedAccount } from './support/merged-fixtures.ts';
 import { readStore } from './support/outbox.ts';
-import { createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
+import { confirmIssue, createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
 import { pushDrafts } from './support/relatorio-seed.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
 
@@ -343,6 +343,8 @@ test('@p1 7.5-E2E-004 Epic 4 item 29: "Restaurar" lists only the block removed a
   await setParecer(page, relatorioId);
   await footButton(page).click();
   await generateButton(page).click();
+  // F-03 (D1): the new relatório's sheets are empty, so the issue is confirmed first.
+  await confirmIssue(dialog(page), /^Emitir com 94 fichas vazias/);
   await expect(page.getByTestId('toast')).toHaveText('Revisão 1 pronta — DOCX e PDF', { timeout: JOB_TIMEOUT });
   await page.keyboard.press('Escape');
   // Removed after it: "Requisitos básicos".

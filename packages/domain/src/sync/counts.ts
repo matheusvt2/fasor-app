@@ -212,6 +212,20 @@ export function syncBadgeLabel(state: SyncBadgeState, counts: SyncCounts): strin
   }
 }
 
+/** F-14 (review 2026-10-06): the word for a cycle running now. */
+export const SYNCING_WORD = 'Sincronizando…';
+
+/**
+ * F-14: the Sync status headline's word, `syncBadgeLabel`'s, except while a cycle runs over a
+ * state with nothing for the user to act on (`ok`, `pending`, `offline`): then "Sincronizando…",
+ * the reason the disabled "Sincronizar agora" gives too, so the headline and the button always
+ * read one state. A conflict or an error keeps its word: it needs the user whatever runs.
+ */
+export function syncStatusWord(state: SyncBadgeState, counts: SyncCounts, running: boolean): string {
+  if (running && (state === 'ok' || state === 'pending' || state === 'offline')) return SYNCING_WORD;
+  return syncBadgeLabel(state, counts);
+}
+
 /**
  * The narrow-viewport word of the same badge (`.sync-short`, `MOCK-GUIDE.md`):
  * "OK" · "Off" · ⟨n⟩ · "Erro" · "Confl.". Both words are always in the DOM; the

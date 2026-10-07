@@ -141,15 +141,16 @@ test('@p0 2.1-E2E-001 Cadastros: tabs render with Instrumentos default and remem
   const tablist = page.getByRole('tablist', { name: 'Cadastros' });
   await expect(tablist).toBeVisible();
   await expect(tablist.getByRole('tab')).toHaveCount(6);
-  await expect(page.getByRole('tab', { name: 'Instrumentos' })).toHaveAttribute('aria-selected', 'true');
-
-  // Switch to Empresa, leave and come back: the same tab-session remembers it (AC1).
-  await page.getByRole('tab', { name: 'Empresa' }).click();
+  // F-20 (review 2026-10-06): the company has no razão social yet and nothing is remembered,
+  // so Cadastros opens on Empresa; Instrumentos is the default once the company is registered.
   await expect(page.getByRole('tab', { name: 'Empresa' })).toHaveAttribute('aria-selected', 'true');
+
+  // Switch to Instrumentos, leave and come back: the same tab-session remembers it (AC1).
+  await page.getByRole('tab', { name: 'Instrumentos' }).click();
+  await expect(page.getByRole('tab', { name: 'Instrumentos' })).toHaveAttribute('aria-selected', 'true');
   await page.goto('/');
   await page.getByRole('link', { name: /Cadastros/ }).click();
-  await expect(page.getByRole('tab', { name: 'Empresa' })).toHaveAttribute('aria-selected', 'true');
-  await page.getByRole('tab', { name: 'Instrumentos' }).click();
+  await expect(page.getByRole('tab', { name: 'Instrumentos' })).toHaveAttribute('aria-selected', 'true');
 
   // Create an instrument: every field commits its own op, no Save button anywhere in the panel.
   await page.getByRole('button', { name: /^(Novo|Cadastrar) instrumento$/ }).click();
@@ -180,13 +181,14 @@ test('@p2 tabs-phone-selector-001 Cadastros: a one-row selector replaces the tab
   await page.getByRole('link', { name: /Cadastros/ }).click();
 
   await expect(page.getByRole('tablist')).toHaveCount(0);
-  const trigger = page.getByRole('button', { name: 'Instrumentos' });
+  // F-20: the company not registered and nothing remembered, the selector opens on Empresa.
+  const trigger = page.getByRole('button', { name: 'Empresa', exact: true });
   await expect(trigger).toBeVisible();
 
   await trigger.click();
   // React Aria labels the menu by its trigger (the current tab's name), not by a
   // separate `aria-label` -- same as `tabs.test.tsx`.
-  const menu = page.getByRole('menu', { name: 'Instrumentos' });
+  const menu = page.getByRole('menu', { name: 'Empresa' });
   await expect(menu).toBeVisible();
   await expect(menu.getByRole('menuitemradio')).toHaveCount(6);
   // The popover's hidden dismiss buttons say "Fechar", never React Aria's "Descartar" (Epic 2 retro D-8).
@@ -228,7 +230,8 @@ test('@p2 tabs-phone-selector-003 Cadastros: Critérios de aceitação keeps its
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('link', { name: /Cadastros/ }).click();
-  await page.getByRole('button', { name: 'Instrumentos' }).click();
+  // F-20: the selector opens on Empresa while the company is not registered.
+  await page.getByRole('button', { name: 'Empresa', exact: true }).click();
   await page.getByRole('menuitemradio', { name: 'Critérios de aceitação' }).click();
 
   const noteBox = await page.locator('.section-note').first().boundingBox();
@@ -265,6 +268,8 @@ test('@p1 2.1-E2E-002 an expired instrument sorts first and reads amber, never d
   ]);
   await page.reload();
   await page.getByRole('link', { name: /Cadastros/ }).click();
+  // F-20 (review 2026-10-06): Cadastros opens on Empresa while the company is not registered.
+  await page.getByRole('tab', { name: 'Instrumentos' }).click();
 
   const rows = page.locator('.registry-list .registry-row');
   await expect(rows.first()).toContainText('Z9');
@@ -282,6 +287,8 @@ test('@p1 2.1-E2E-003 an unreferenced instrument is removed behind a Confirm dia
   await seedOutbox(page, database, [instrumentOp(user, { code: 'R1' }, id)]);
   await page.reload();
   await page.getByRole('link', { name: /Cadastros/ }).click();
+  // F-20 (review 2026-10-06): Cadastros opens on Empresa while the company is not registered.
+  await page.getByRole('tab', { name: 'Instrumentos' }).click();
 
   await page.getByRole('button', { name: /R1/ }).click();
   const panel = page.locator('.registry-panel');
@@ -307,6 +314,8 @@ test('@p2 2.1-E2E-004 an instrument created offline lands in the outbox at once 
   const database = deviceDatabaseName(account.userId);
   await signIn(page, account.email);
   await page.getByRole('link', { name: /Cadastros/ }).click();
+  // F-20 (review 2026-10-06): Cadastros opens on Empresa while the company is not registered.
+  await page.getByRole('tab', { name: 'Instrumentos' }).click();
 
   await context.setOffline(true);
   await page.getByRole('button', { name: /^(Novo|Cadastrar) instrumento$/ }).click();
@@ -335,6 +344,8 @@ test('@p2 2.1-E2E-005 paired fields in the same field-grid row keep the same con
   const account = seed.companies[0];
   await signIn(page, account.email);
   await page.getByRole('link', { name: /Cadastros/ }).click();
+  // F-20 (review 2026-10-06): Cadastros opens on Empresa while the company is not registered.
+  await page.getByRole('tab', { name: 'Instrumentos' }).click();
   await page.getByRole('button', { name: /^(Novo|Cadastrar) instrumento$/ }).click();
   const panel = page.locator('.registry-panel');
   await expect(panel).toBeVisible();
@@ -844,6 +855,11 @@ test('@p1 2.1-E2E-006 on a phone the instrument form takes the whole screen, and
   ]);
   await page.reload();
   await page.getByRole('link', { name: /Cadastros/ }).click();
+  // F-20 (review 2026-10-06): below 768 px the tabs are the one-row selector, named after the
+  // tab Cadastros opened on (Empresa while the company is not registered, else the remembered
+  // one or Instrumentos); whichever it is, Instrumentos is picked from it.
+  await page.getByRole('button', { name: /^(Empresa|Clientes|Instrumentos|Fabricantes|Classes de tensão|Critérios de aceitação)$/ }).click();
+  await page.getByRole('menuitemradio', { name: 'Instrumentos' }).click();
 
   const row = page.getByRole('button', { name: new RegExp(`^${code} `) });
   const primary = await row.locator('.rr-primary').boundingBox();

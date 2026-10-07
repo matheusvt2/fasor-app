@@ -2,7 +2,7 @@ import type { Page, Route } from '@playwright/test';
 import { PRODUTO } from '@app/domain';
 import { deviceDatabaseName, expect, signIn, test, SEED_PASSWORD, type SeedAccount } from './support/merged-fixtures.ts';
 import { resetEmpresaB } from './support/reset-empresa-b.ts';
-import { createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
+import { confirmIssue, createProjectFromHome, createRelatorio, setParecer } from './support/relatorio-flow.ts';
 
 /*
  * Matheus, 2026-09-30: a loading screen never looks frozen (EXPERIENCE.md forbids a "Blank
@@ -130,6 +130,8 @@ test('@p0 a waiting button says so: "Entrar" reads "Entrando…" while the sign-
   const primary = dialog.locator('.generate-row .btn-primary');
   await expect(primary).toHaveText('Gerar relatório');
   await primary.click();
+  // F-03 (D1): the new relatório's sheets are empty, so the issue is confirmed first.
+  await confirmIssue(dialog);
   await expect(primary).toHaveText('Gerando…', { timeout: 30_000 });
   await expect(primary).toHaveAttribute('aria-disabled', 'true');
   generating.release();

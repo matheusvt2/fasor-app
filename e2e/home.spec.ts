@@ -191,7 +191,7 @@ test('@p1 1.6-E2E-002 a device with nothing on it says so and offers "Novo relat
   await expect(page.locator('.relatorio-card')).toHaveCount(0);
   // "Novo relatório" asks for the client and the obra (Story 4.1).
   await page.getByRole('button', { name: 'Novo relatório' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Novo relatório' });
+  const dialog = page.getByRole('dialog', { name: 'Novo relatório', exact: true });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('combobox', { name: 'Cliente' })).toBeVisible();
   await page.keyboard.press('Escape');

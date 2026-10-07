@@ -32,21 +32,29 @@ describe('formatBytes', () => {
 });
 
 describe('storageLine', () => {
-  it('writes the size and the two counts', () => {
-    expect(storageLine({ usage_bytes: 1_288_490_188, relatorios: 2, photos: 0 })).toEqual({
-      value: '1,2 GB',
-      detail: '· 2 relatórios · 0 fotos',
+  it('F-21: writes the size, the relatórios and the photos kept on this device, said so; no second line when none awaits', () => {
+    expect(storageLine({ usage_bytes: 5 * 1024 ** 2, relatorios: 2, photos: 4 })).toEqual({
+      value: '5,0 MB',
+      detail: '· 2 relatórios · 4 fotos neste aparelho',
+      awaiting: '',
     });
+    expect(storageLine({ usage_bytes: 5 * 1024 ** 2, relatorios: 2, photos: 4, photos_awaiting: 0 }).awaiting).toBe('');
+  });
+
+  it('F-21: a second line counts the photos still waiting to be sent', () => {
+    expect(storageLine({ usage_bytes: 1_288_490_188, relatorios: 2, photos: 4, photos_awaiting: 3 }).awaiting).toBe('3 fotos aguardando envio');
+    expect(storageLine({ usage_bytes: 1024, relatorios: 1, photos: 1, photos_awaiting: 1 }).awaiting).toBe('1 foto aguardando envio');
   });
 
   it('uses the singular forms', () => {
-    expect(storageLine({ usage_bytes: 1024, relatorios: 1, photos: 1 }).detail).toBe('· 1 relatório · 1 foto');
+    expect(storageLine({ usage_bytes: 1024, relatorios: 1, photos: 1 }).detail).toBe('· 1 relatório · 1 foto neste aparelho');
   });
 
   it('says so when the browser has no estimate', () => {
     expect(storageLine({ usage_bytes: null, relatorios: 2, photos: 3 })).toEqual({
       value: 'Indisponível neste navegador',
       detail: '',
+      awaiting: '',
     });
   });
 });

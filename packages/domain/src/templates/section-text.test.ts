@@ -8,6 +8,8 @@ import {
   SECTION_VARIABLE_LABELS,
   sectionTextTokens,
   sectionVariableChipLabel,
+  isOptionalSectionVariable,
+  OPTIONAL_SECTION_VARIABLES,
 } from './section-text.ts';
 
 const TODAY = new Date('2026-09-23T15:00:00.000Z');
@@ -103,6 +105,12 @@ describe('3.6-UNIT resolveSectionText', () => {
     expect(resolved).toBe('De {clente} e {Cliente} para Cliente S.A.; {foo}, {clente} e {Cliente} de novo; [Obra].');
     expect(unresolved).toEqual(['obra']);
     expect(unknown).toEqual(['clente', 'Cliente', 'foo']);
+  });
+
+  it('F-04: only the cover\'s "Informações adicionais" (escopo) is optional; every other variable is required', () => {
+    expect(OPTIONAL_SECTION_VARIABLES).toEqual(['escopo']);
+    expect(isOptionalSectionVariable('escopo')).toBe(true);
+    expect(INSERTABLE_SECTION_VARIABLES.some(isOptionalSectionVariable)).toBe(false);
   });
 
   it('labels every variable and offers the five of the story for insertion, in order', () => {

@@ -82,7 +82,7 @@ function renderDialog(templates: TemplateRow[] = [template()]) {
   return onClose;
 }
 
-const dialog = () => screen.getByRole('dialog', { name: 'Novo relatório' });
+const dialog = () => screen.getByRole('dialog', { name: 'Novo relatório — tipo e datas' });
 const create = () => within(dialog()).getByRole('button', { name: 'Criar relatório' });
 const segments = (label: string) => within(within(dialog()).getByRole('group', { name: label })).getAllByRole('spinbutton');
 

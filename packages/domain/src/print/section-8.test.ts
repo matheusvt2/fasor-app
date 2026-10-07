@@ -13,7 +13,16 @@ import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { standardTemplate } from '../seed/template.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-support.ts';
 import { EMPTY_SECTION_NOTE, layoutSpec } from './layout.ts';
-import { ACTION_PLAN_COLUMNS, derivedGroupText, REMOVED_PHOTO_REF_TEXT, resolveActionPlan, resolvePhotoTokens, resolveSection8, section8Layout } from './section-8.ts';
+import {
+  ACTION_PLAN_COLUMNS,
+  derivedGroupText,
+  REMOVED_PHOTO_REF_TEXT,
+  resolveActionPlan,
+  resolveBulletPhotoTokens,
+  resolvePhotoTokens,
+  resolveSection8,
+  section8Layout,
+} from './section-8.ts';
 
 /*
  * 7.3-UNIT: section 8's bullets (the I/O rows S8 manual, token of a removed photo, derived,
@@ -65,6 +74,44 @@ describe('7.3-UNIT-001 photo tokens', () => {
     expect(resolvePhotoTokens(`Conforme ${photoToken(A)} e ${photoToken(B)}; ver ${photoToken(GONE)}.`, numbering)).toBe('Conforme Imagem 5 e Imagem 12; ver imagem removida.');
     expect(REMOVED_PHOTO_REF_TEXT).toBe('imagem removida');
     expect(resolvePhotoTokens('Sem foto [[foto:12]].', numbering)).toBe('Sem foto [[foto:12]].');
+  });
+});
+
+describe('F-05 (review 2026-10-06) a bullet cites its photo as a clause', () => {
+  const one = new Map([[A, 1]]);
+
+  it('"… etc. [[foto]]" and an action read "…, conforme Imagem 1. <ação>"; the table keeps the text as it is', () => {
+    const snapshot = addPoint(fresh(), {
+      text: `Ausência de identificação da função dos transformadores etc. ${photoToken(A)}`,
+      action: 'Instalar placas de sinalização NR-10 nas portas das cabines',
+    });
+    const [bullet] = resolveSection8(snapshot, one);
+    expect(bullet!.text).toBe('Ausência de identificação da função dos transformadores etc., conforme Imagem 1. Instalar placas de sinalização NR-10 nas portas das cabines');
+    expect(resolveActionPlan(snapshot, one)[0]!.point).toBe('Ausência de identificação da função dos transformadores etc. Imagem 1');
+  });
+
+  it('never doubles "conforme", and leaves a reference the words already lead into', () => {
+    expect(resolveBulletPhotoTokens(`Trocar a chave, conforme ${photoToken(A)}.`, numbering)).toBe('Trocar a chave, conforme Imagem 5.');
+    expect(resolveBulletPhotoTokens(`Ver ${photoToken(B)} e ${photoToken(A)}.`, numbering)).toBe('Ver Imagem 12 e Imagem 5.');
+    expect(resolveBulletPhotoTokens(`Substituir até a próxima visita (${photoToken(B)}).`, numbering)).toBe('Substituir até a próxima visita (Imagem 12).');
+    expect(resolveBulletPhotoTokens(`Aquecimento visto em ${photoToken(A)}`, numbering)).toBe('Aquecimento visto em Imagem 5');
+  });
+
+  it('adds the clause to a text that does not introduce it, moving a full stop after it', () => {
+    expect(resolveBulletPhotoTokens(`Porta danificada ${photoToken(A)}`, numbering)).toBe('Porta danificada, conforme Imagem 5');
+    expect(resolveBulletPhotoTokens(`Porta danificada. ${photoToken(A)}`, numbering)).toBe('Porta danificada, conforme Imagem 5.');
+    expect(resolveBulletPhotoTokens(`Porta danificada. ${photoToken(A)}.`, numbering)).toBe('Porta danificada, conforme Imagem 5.');
+    expect(resolveBulletPhotoTokens(`Porta danificada ${photoToken(A)} ${photoToken(B)}`, numbering)).toBe('Porta danificada, conforme Imagem 5 e Imagem 12');
+    expect(resolveBulletPhotoTokens(`Porta danificada. ${photoToken(A)} ${photoToken(B)}`, numbering)).toBe('Porta danificada, conforme Imagem 5 e Imagem 12.');
+  });
+
+  it('a period and a space part the text from the action only when the text has no final punctuation', () => {
+    const snapshot = addPoint(addPoint(fresh(), { text: 'Sem placa', action: 'Instalar' }), { text: 'Sem placa!', action: 'Instalar' });
+    expect(resolveSection8(snapshot, numbering).map((bullet) => bullet.text)).toEqual(['Sem placa. Instalar', 'Sem placa! Instalar']);
+  });
+
+  it('a removed photo\'s token prints as it does today, with no clause', () => {
+    expect(resolveBulletPhotoTokens(`Porta danificada ${photoToken(GONE)}`, numbering)).toBe(`Porta danificada ${REMOVED_PHOTO_REF_TEXT}`);
   });
 });
 

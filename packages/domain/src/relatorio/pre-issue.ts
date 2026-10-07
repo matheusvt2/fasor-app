@@ -9,10 +9,10 @@ import { artLabel } from '../print/document-control.ts';
 import { missingCertificates, section11Instruments } from '../print/section-11.ts';
 import type { SuggestionRow } from '../schemas/entities.ts';
 import type { RelatorioSnapshot } from '../schemas/snapshot.ts';
-import { findSeed, sectionText, type SectionVariable } from '../seed/definitions.ts';
+import { findSeed, getSeed, sectionText, type SectionVariable } from '../seed/definitions.ts';
 import type { TextBlock } from '../seed/schema.ts';
 import { rejectedText } from '../sync/counts.ts';
-import { resolveSectionText, SECTION_VARIABLE_LABELS } from '../templates/section-text.ts';
+import { isOptionalSectionVariable, resolveSectionText, SECTION_VARIABLE_LABELS } from '../templates/section-text.ts';
 import { normalizeRegistryName } from '../text/normalize-name.ts';
 import { listPtBr, plural } from '../text/plural.ts';
 import { pointPhotoRemovedText, pointsSemAcaoText, pointsWithoutAction, pointsWithRemovedPhotos } from '../points/checks.ts';
@@ -23,7 +23,7 @@ import { conclusionTextForPrint } from './conclusion.ts';
 import { relatorioSectionNumber, type RelatorioSectionType } from './instantiate.ts';
 import { integrityFindings } from './integrity.ts';
 import { parecerOf } from './parecer.ts';
-import { cabineLocationIds, naoEnsaiadasText, progress, progressCounterText, type Progress } from './progress.ts';
+import { cabineLocationIds, emptySheetCount, fichasVaziasText, naoEnsaiadasText, progress, progressCounterText, type Progress } from './progress.ts';
 import { section3Blocks, sectionVariables } from './section-variables.ts';
 import { setupGaps, type SetupGap } from './setup-complete.ts';
 import { enabledSubBlocksOf, isEquipmentBlock, sheetState } from './sheet-state.ts';
@@ -49,6 +49,7 @@ export type PreIssueSeverity = 'blocking' | 'pending' | 'info';
 export type PreIssueKind =
   | 'setup_missing'
   | 'sheets'
+  | 'sheets_empty'
   | 'not_tested'
   | 'cabine_sem_equipamento'
   | 'cabine_incompleta'
@@ -220,6 +221,27 @@ export function lastSendText(name: string, at: string): string {
 /** The one blocking row's text (`73-exportar.html` `#exportar-pc-parecer`). */
 export const PARECER_MISSING_TEXT = 'Parecer não preenchido';
 
+/**
+ * The live section blocks whose text prints a variable with no value as `[Label]`, each with
+ * those variables once, in order of first appearance (Story 7.5's `section_variables` rows
+ * and F-03's count of blank fields read the same list).
+ */
+function sectionVariableGaps(snapshot: RelatorioSnapshot, now: Date | null): { block: RelatorioSnapshot['blocks'][number]; unresolved: SectionVariable[] }[] {
+  const variables = sectionVariables(snapshot, snapshot.responsible?.name ?? null);
+  const date = now === null ? LATEST_TEXT_DATE : calendarDateOfInstant(now);
+  const gaps: { block: RelatorioSnapshot['blocks'][number]; unresolved: SectionVariable[] }[] = [];
+  for (const block of sectionBlocks(snapshot.blocks)) {
+    const section = relatorioSectionNumber(block.block_type);
+    if (section === null) continue;
+    const unresolved: SectionVariable[] = [];
+    for (const text of sectionTextBlocks(snapshot, block, section, date)) {
+      for (const name of resolveSectionText(text.text, variables).unresolved) if (!unresolved.includes(name)) unresolved.push(name);
+    }
+    if (unresolved.length > 0) gaps.push({ block, unresolved });
+  }
+  return gaps;
+}
+
 /** Every pre-issue row of a relatório, in reading order: the cover, the control, the sections in FO.SERV-03 order, then the sync lines. */
 export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progress(snapshot), context: PreIssueContext = {}): PreIssueRow[] {
   const photoErrors = context.photoErrors ?? NO_PHOTO_ERRORS;
@@ -244,16 +266,7 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
   }
 
   // Story 7.5: a section text with a variable that has no value prints `[Label]`; its row says which.
-  const variables = sectionVariables(snapshot, snapshot.responsible?.name ?? null);
-  const date = now === null ? LATEST_TEXT_DATE : calendarDateOfInstant(now);
-  for (const block of sectionBlocks(snapshot.blocks)) {
-    const section = relatorioSectionNumber(block.block_type);
-    if (section === null) continue;
-    const unresolved: SectionVariable[] = [];
-    for (const text of sectionTextBlocks(snapshot, block, section, date)) {
-      for (const name of resolveSectionText(text.text, variables).unresolved) if (!unresolved.includes(name)) unresolved.push(name);
-    }
-    if (unresolved.length === 0) continue;
+  for (const { block, unresolved } of sectionVariableGaps(snapshot, now)) {
     rows.push({
       id: `section_variables:${block.id}`,
       row: block.block_type as RelatorioSectionType,
@@ -305,6 +318,12 @@ export function preIssue(snapshot: RelatorioSnapshot, computed: Progress = progr
 
   if (computed.sheets_concluded < computed.sheets_total) {
     rows.push({ id: 'sheets', row: 'section_9', severity: 'pending', text: progressCounterText(computed), kind: 'sheets' });
+  }
+  // F-03 (review 2026-10-06, D1): the sheets nothing was typed on print as dashes; a warning
+  // that never blocks, but issuing with any asks for a confirmation (`issueConfirmation`).
+  const empty = emptySheetCount(snapshot.blocks);
+  if (empty > 0) {
+    rows.push({ id: 'sheets_empty', row: 'section_9', severity: 'info', text: fichasVaziasText(empty), kind: 'sheets_empty' });
   }
   if (computed.not_tested > 0) {
     rows.push({ id: 'not_tested', row: 'section_9', severity: 'info', text: naoEnsaiadasText(computed.not_tested), kind: 'not_tested' });
@@ -437,11 +456,11 @@ export function blockingRows(rows: readonly PreIssueRow[]): PreIssueRow[] {
 }
 
 /**
- * The kinds the Export dialog lists one by one: the photos the server does not hold, the
- * sync lines and (E7-A4, 2026-09-28) a sheet certificate number that differs from the
+ * The kinds the Export dialog lists one by one: the empty sheets (F-03), the photos the
+ * server does not hold, the sync lines and (E7-A4, 2026-09-28) a sheet certificate number that differs from the
  * registry's, since the document then prints a certificate the sheet did not name.
  */
-const EXPLICIT_KINDS: ReadonlySet<PreIssueKind> = new Set(['photos_pending_upload', 'photos_upload_error', 'cert_number_mismatch', 'rejected', 'last_send']);
+const EXPLICIT_KINDS: ReadonlySet<PreIssueKind> = new Set(['sheets_empty', 'photos_pending_upload', 'photos_upload_error', 'cert_number_mismatch', 'rejected', 'last_send']);
 
 export interface ExportPrecheck {
   /** The rows that stop "Gerar relatório" (only "Parecer não preenchido"). */
@@ -476,4 +495,53 @@ export function exportPrecheck(rows: readonly PreIssueRow[]): ExportPrecheck {
 export function parecerMissingReason(number: number, line: number | null): string {
   const where = line === null ? '' : ` (linha ${line} do sumário)`;
   return `Preencha o parecer${where} para emitir a revisão ${number}. O rascunho pode ser visto antes.`;
+}
+
+/**
+ * F-03 (review 2026-10-06, D1): what issuing a revision prints blank, counted for the
+ * confirmation "Gerar relatório" asks for before it issues. `emptySheets` are the live sheets
+ * nothing was typed on; `blankFields` the distinct relatório data a section text or a cover row
+ * prints as a `[Label]` placeholder ("[Empresa executora]", "[Responsável]"). Only the parecer blocks issuing; these ask.
+ */
+export interface IssueConfirmation {
+  emptySheets: number;
+  blankFields: number;
+}
+
+export function issueConfirmation(snapshot: RelatorioSnapshot, context: Pick<PreIssueContext, 'now'> = {}): IssueConfirmation {
+  const blank = new Set<SectionVariable>();
+  for (const { unresolved } of sectionVariableGaps(snapshot, context.now ?? null)) for (const name of unresolved) blank.add(name);
+  // The cover rows print a required field's `[Label]` too ("[Responsável]"); an empty optional
+  // one is left out of the cover (F-04), so it is not blank.
+  if (findSeed(snapshot.relatorio.seed_version) !== null) {
+    const variables = sectionVariables(snapshot, snapshot.responsible?.name ?? null);
+    for (const row of getSeed(snapshot.relatorio.seed_version, 'cabine_primaria').cover.rows) {
+      for (const name of resolveSectionText(row.value, variables).unresolved) if (!isOptionalSectionVariable(name)) blank.add(name);
+    }
+  }
+  return { emptySheets: emptySheetCount(snapshot.blocks), blankFields: blank.size };
+}
+
+/** "93 fichas vazias e 2 campos em branco", "1 campo em branco"; null when nothing is blank. */
+function issueBlanksText({ emptySheets, blankFields }: IssueConfirmation): string | null {
+  const parts = [
+    ...(emptySheets > 0 ? [fichasVaziasText(emptySheets)] : []),
+    // authored: F-03, the placeholders a section text prints.
+    ...(blankFields > 0 ? [plural(blankFields, 'campo em branco', 'campos em branco')] : []),
+  ];
+  return parts.length === 0 ? null : listPtBr(parts);
+}
+
+/** "Emitir com 93 fichas vazias e 2 campos em branco?"; null when both counts are zero (no confirmation). */
+export function issueConfirmText(counts: IssueConfirmation): string | null {
+  const blanks = issueBlanksText(counts);
+  // authored: F-03 (D1), the question "Gerar relatório" asks before issuing.
+  return blanks === null ? null : `Emitir com ${blanks}?`;
+}
+
+/** The foot's line when nothing blocks but issuing asks first: "Nada impede gerar. Emitir pede confirmação: 93 fichas vazias." */
+export function issueConfirmReason(counts: IssueConfirmation): string | null {
+  const blanks = issueBlanksText(counts);
+  // authored: F-03 (D1).
+  return blanks === null ? null : `Emitir pede confirmação: ${blanks}.`;
 }

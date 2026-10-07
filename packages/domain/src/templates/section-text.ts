@@ -25,6 +25,17 @@ export const SECTION_VARIABLE_LABELS: Readonly<Record<SectionVariable, string>> 
 };
 
 /**
+ * F-04 (review 2026-10-06, D1): the variables of an optional field. The cover row that
+ * carries one is left out when it is empty (no "[Informações adicionais]"); a required
+ * field's `[Label]` still prints and counts in the issue confirmation.
+ */
+export const OPTIONAL_SECTION_VARIABLES: readonly SectionVariable[] = ['escopo'];
+
+export function isOptionalSectionVariable(name: SectionVariable): boolean {
+  return OPTIONAL_SECTION_VARIABLES.includes(name);
+}
+
+/**
  * The variables the editor's "Inserir dado do relatório" row offers, in the story's order.
  * `escopo` is not offered for insertion: in seed v1 it is the cover's "Informações
  * adicionais" row, resolved from `setup.additional_info` (Epic 4 QA Q3), and no section

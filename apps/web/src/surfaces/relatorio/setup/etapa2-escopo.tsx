@@ -1,6 +1,7 @@
-import { defaultExclusions, withoutExclusion, type RelatorioSnapshot } from '@app/domain';
+import { defaultExclusions, empresaRegistered, withoutExclusion, type RelatorioSnapshot } from '@app/domain';
 import { useId, useMemo, useRef, useState } from 'react';
-import { Button, OverflowMenu } from '../../../components/index.ts';
+import { useNavigate } from 'react-router';
+import { Button, OverflowMenu, TextButton } from '../../../components/index.ts';
 import { copy } from '../../../copy/pt-br.ts';
 import { now } from '../../../clock.ts';
 import { restoreFocus } from '../../../input/focus-restore.ts';
@@ -25,6 +26,7 @@ export function Etapa2Escopo({
   bandRef: BandRef;
 }) {
   const t = copy.setup;
+  const navigate = useNavigate();
   const setup = snapshot.relatorio.setup;
   const today = useMemo(() => now().toISOString().slice(0, 10), []);
   const seedExclusions = useMemo(() => defaultExclusions(snapshot.relatorio.seed_version, today), [snapshot.relatorio.seed_version, today]);
@@ -118,6 +120,15 @@ export function Etapa2Escopo({
           <div className="field">
             <span className="field-label">{t.empresaExecutoraLabel}</span>
             <div className="input">{snapshot.empresa?.name ?? ''}</div>
+            {/* F-08 (review 2026-10-06): an unregistered company says where it is filled in,
+                with the Export dialog's own sentence, as the way there. */}
+            {empresaRegistered(snapshot.empresa) ? null : (
+              <TextButton
+                onPress={() => void navigate('/cadastros', { state: { tab: 'empresa', returnTo: `/relatorio/${snapshot.relatorio.id}/setup?etapa=2` } })}
+              >
+                {copy.export.empresaMissing}
+              </TextButton>
+            )}
           </div>
           <div className="field">
             <label className="field-label" htmlFor={localId}>

@@ -185,11 +185,18 @@ describe('4.8-UNIT-002 layoutSpec edge cases', () => {
     expect(third.paragraphs.map((p) => p.kind)).toEqual(['paragraph', 'paragraph', 'item', 'item']);
     expect(third.paragraphs.slice(2).map((p) => p.text)).toEqual(['Exclusão A', 'Exclusão B']);
 
-    // setup.escopo alone never reaches the cover: the row prints the missing-variable placeholder.
+    // setup.escopo alone never reaches the cover.
     const escopoOnly: RelatorioSnapshot = { ...small, relatorio: { ...small.relatorio, setup: { ...small.relatorio.setup, additional_info: null, escopo: 'Somente escopo' } } };
-    const row = layoutSpec(escopoOnly, { revisionNumber: 1, issuedAt: ISSUED_AT }).cover.table.rows.find((r) => r.label === 'Informações adicionais');
-    // A blank additional_info prints the missing-variable placeholder, named after the field.
-    expect(row?.value).toBe('[Informações adicionais]');
+    const rows = layoutSpec(escopoOnly, { revisionNumber: 1, issuedAt: ISSUED_AT }).cover.table.rows;
+    // F-04 (review 2026-10-06, D1): a blank additional_info leaves its optional row out, never
+    // "[Informações adicionais]"; the other rows keep their order.
+    expect(rows.find((r) => r.label === 'Informações adicionais')).toBeUndefined();
+    expect(rows.map((r) => r.label)).toEqual(['Cliente', 'Cidade/local', 'Data da execução do serviço', 'Responsável']);
+    expect(rows.some((r) => r.value.includes('[Informações adicionais]'))).toBe(false);
+    // A blank required field still prints its placeholder (it counts in the issue confirmation).
+    const bare = layoutSpec({ ...small, empresa: null }, { revisionNumber: 1, issuedAt: ISSUED_AT }).sections[0]!;
+    if (bare.kind !== 'text') throw new Error('section 1 is text');
+    expect(bare.paragraphs[0]!.text).toContain('[Empresa executora]');
   });
 
   it('chooses the seed text in force on sectionTextAt when given', () => {

@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { empresaRegistered } from '@app/domain';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { Tabs, type TabItem } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
+import { empresaRow } from '../../db/home-store.ts';
 import { readRegistryTab, writeRegistryTab } from '../../db/prefs.ts';
 import { useForgetArrivalState } from '../../state/arrival-state.ts';
 import { useBackTarget } from '../../state/back-target.tsx';
@@ -64,6 +66,7 @@ export function RegistriesSurface() {
   const [arrivalTab] = useState(entry.tab);
   const [selectedId, setSelectedId] = useState<TabId>(arrivalTab ?? DEFAULT_TAB);
   useBackTarget(entry.returnTo ?? null);
+  const picked = useRef(false);
   // History keeps no arrival state: a browser back or a reload onto Cadastros opens it plain.
   useForgetArrivalState();
 
@@ -76,13 +79,18 @@ export function RegistriesSurface() {
   }
 
   useEffect(() => {
-    // An arrival that names its tab keeps it over the remembered one.
+    // An arrival that names its tab keeps it over the remembered one, and the remembered one
+    // is the user's own choice. F-20 (review 2026-10-06): with neither, a company not
+    // registered yet opens on Empresa, the tab the Sumário and the Export dialog send the user
+    // to; a registered one on Instrumentos, as before.
     if (db === null || arrivalTab !== undefined) return;
     let cancelled = false;
-    void readRegistryTab(db).then((stored) => {
-      if (cancelled) return;
+    void Promise.all([readRegistryTab(db), empresaRow(db)]).then(([stored, empresa]) => {
+      // A tab the user picked before the read finished stays.
+      if (cancelled || picked.current) return;
       if (isTabId(stored)) setSelectedId(stored);
-    });
+      else if (!empresaRegistered(empresa)) setSelectedId('empresa');
+    }).catch(() => undefined);
     return () => {
       cancelled = true;
     };
@@ -90,6 +98,7 @@ export function RegistriesSurface() {
 
   function selectTab(id: string): void {
     if (!isTabId(id)) return;
+    picked.current = true;
     if (id !== selectedId) setEntry({});
     setSelectedId(id);
     if (db !== null) void writeRegistryTab(db, id);

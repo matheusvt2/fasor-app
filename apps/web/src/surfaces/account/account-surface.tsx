@@ -138,7 +138,7 @@ export function AccountSurface() {
   }
 
   const storage =
-    usageBytes === undefined ? null : storageLine({ usage_bytes: usageBytes, relatorios: relatorios.length, photos });
+    usageBytes === undefined ? null : storageLine({ usage_bytes: usageBytes, relatorios: relatorios.length, photos, photos_awaiting: sync.counts.photos_pending });
   const pending = sync.pendingText;
   const signOutNote = pending === '' ? copy.account.signOutNote : copy.account.signOutNotePending(pending);
 
@@ -315,6 +315,15 @@ export function AccountSurface() {
                     </>
                   )}
                 </span>
+                {/* F-21: the photos still waiting to go out, on a line of their own. */}
+                {storage === null || storage.awaiting === '' ? null : (
+                  <>
+                    <br />
+                    <span className="sr-value" data-testid="storage-awaiting">
+                      {storage.awaiting}
+                    </span>
+                  </>
+                )}
               </span>
             </li>
             <li className="settings-row">

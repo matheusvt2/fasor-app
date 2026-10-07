@@ -31,6 +31,7 @@ export * from './seed/criteria.ts';
 export * from './seed/schema.ts';
 export * from './seed/definitions.ts';
 export * from './seed/template.ts';
+export * from './seed/voltage-classes.ts';
 export * from './templates/list.ts';
 export * from './templates/compose.ts';
 export * from './templates/text.ts';

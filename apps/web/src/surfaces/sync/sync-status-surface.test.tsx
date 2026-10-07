@@ -98,11 +98,35 @@ describe('Sync status surface', () => {
     const button = screen.getByRole('button', { name: 'Sincronizar agora' });
     expect(button).toHaveAttribute('aria-disabled', 'true');
     expect(button).toHaveAccessibleDescription('Sincronizando…');
-    expect(screen.getByText('Sincronizando…')).toHaveClass('btn-reason');
+    expect(container.querySelector('.sync-actions .btn-reason')).toHaveTextContent('Sincronizando…');
     await userEvent.click(button);
     expect(value.syncNow).not.toHaveBeenCalled();
     expect(container.querySelector('.sh-counts')).toHaveTextContent('3 fichas aguardando');
     expect(container.querySelector('.sync-headline')).toHaveAttribute('data-tone', 'pending');
+    // F-14: the headline reads the same state as the button.
+    expect(container.querySelector('.sh-state')).toHaveTextContent('Sincronizando…');
+  });
+
+  it('F-14: a background cycle with nothing pending never reads "Sincronizado" beside a disabled button; idle it does, with the button enabled', () => {
+    const { container, unmount } = renderWith(state({ running: true }));
+    expect(container.querySelector('.sh-state')).toHaveTextContent('Sincronizando…');
+    expect(container.querySelector('.sh-state')).not.toHaveTextContent('Sincronizado');
+    expect(screen.getByRole('button', { name: 'Sincronizar agora' })).toHaveAttribute('aria-disabled', 'true');
+    unmount();
+    const idle = renderWith(state());
+    expect(idle.container.querySelector('.sh-state')).toHaveTextContent('Sincronizado');
+    expect(screen.getByRole('button', { name: 'Sincronizar agora' })).not.toHaveAttribute('aria-disabled');
+  });
+
+  it('F-14: no device word is drawn while this device\'s id is still unknown; once known, its own row says "Este aparelho"', () => {
+    const { container, unmount } = renderWith(state({ deviceId: null }));
+    const rows = container.querySelectorAll('[data-testid="sync-last-send-row"]');
+    expect(rows).toHaveLength(2);
+    expect(container.querySelector('[data-testid="sync-last-send-row"] .sr-secondary')).toBeNull();
+    expect(container).not.toHaveTextContent('Outro aparelho');
+    unmount();
+    const known = renderWith(state({ deviceId: 'tablet-1' }));
+    expect(known.container.querySelectorAll('[data-testid="sync-last-send-row"]')[0]).toHaveTextContent('Este aparelho');
   });
 
   it('offline the button is aria-disabled with "Sem conexão" beside it', () => {

@@ -206,7 +206,9 @@ test('@p0 9.1-E2E-005 SM-3 with signal: a conforme seccionadora with a copied pl
     expect(page.getByRole('radiogroup', { name: 'Restrições' }).getByRole('radio', { name: 'Sem restrições' })).toHaveAttribute('aria-checked', 'true', { timeout: EFFECT_MS }),
   );
   await expect(page.getByTestId('ficha-progress')).toHaveText('Ficha completa');
-  await c.tap('Concluir ficha', page.locator('#ficha-primary'), async () => {
+  // F-12 (D2, 2026-10-06): the complete sheet's primary reads "Concluir e avançar".
+  await expect(page.locator('#ficha-primary')).toHaveText(/Concluir e avançar/);
+  await c.tap('Concluir e avançar', page.locator('#ficha-primary'), async () => {
     await expect(toast(page)).toContainText('Ficha concluída', { timeout: EFFECT_MS });
     await expect(page).toHaveURL(new RegExp(`/ficha/${secEnel2.blockId}$`), { timeout: EFFECT_MS });
   });

@@ -116,7 +116,10 @@ test('@p0 8.2-E2E-002 the reading line follows the server: "Lendo…", then "Nã
   const photoId = await shootPlate(page);
   // The create goes out (the bytes stay here, see `holdPhotoBytes`).
   await syncNowAndReturn(page);
-  await expect(plateRow(page).locator('.queued-banner')).toBeVisible();
+  // F-13 (review 2026-10-06): queued with the server reachable already reads "Lendo…"; the
+  // waiting words are for a device without signal (8.2-E2E-001, offline).
+  await expect(plateRow(page).locator('.reading-line')).toHaveText('Lendo…');
+  await expect(plateRow(page).locator('.queued-banner')).toHaveCount(0);
 
   await pushReadingStatus(account.companyId, ids.relatorioId, photoId, 'running');
   await syncNowAndReturn(page);

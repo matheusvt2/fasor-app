@@ -184,6 +184,10 @@ function SetupContent({ relatorioId, snapshot, users, instruments, blocks }: Set
 
   async function onComplete(): Promise<void> {
     if (gapReason !== null || db === null || author === null) return;
+    // F-02: a field still holding typed text writes it first (its blur commit joins the page's
+    // write queue ahead of the status put), so nothing typed is lost to the navigation.
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && active !== document.body) active.blur();
     const batchId = await edits
       .write(async () => {
         // The status as the store holds it at the moment of the write, never the render's.

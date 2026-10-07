@@ -1,5 +1,5 @@
-import { instantiateTemplate, SEED_VERSION, STANDARD_TEMPLATE_NAME, standardTemplate, templateRowSchema, templateTotals } from '@app/domain';
-import { and, eq, like } from 'drizzle-orm';
+import { instantiateTemplate, SEED_VERSION, SEEDED_VOLTAGE_CLASSES, STANDARD_TEMPLATE_NAME, standardTemplate, templateRowSchema, templateTotals } from '@app/domain';
+import { and, eq, like, or, sql as raw } from 'drizzle-orm';
 import { afterAll, describe, expect, it } from 'vitest';
 import { createAuth } from '../auth/auth.ts';
 import { parseTrustedOrigins } from '../auth/trusted-origins.ts';
@@ -236,6 +236,94 @@ describe('seedStandardTemplate', () => {
       expect(ids.filter((id) => id !== null)).toHaveLength(1);
       expect((await templates(companyId)).filter((t) => t.removed_at === null)).toHaveLength(1);
       expect((await templateCreates(companyId)).filter((op) => op.kind === 'create')).toHaveLength(1);
+    } finally {
+      await dropCompany(db, companyId);
+    }
+  }, 30_000);
+});
+
+async function voltageClassRows(companyId: string) {
+  return db
+    .select({ row: entities.row })
+    .from(entities)
+    .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'registry'), raw`${entities.row}->>'kind' = 'voltage_class'`));
+}
+
+async function seededCompany(label: string) {
+  const companyId = newId();
+  await seedUser(db, auth, {
+    companyId,
+    companyName: `Empresa ${label}`,
+    email: `classes-${label}-${companyId}@teste.local`,
+    password: TEST_SEED.password,
+    name: `Clara ${label}`,
+    council: 'crea',
+    registrationNumber: 'SP 12',
+  });
+  return companyId;
+}
+
+describe('F-09 (review 2026-10-06, D4): the voltage classes come with the standard template', () => {
+  it('seeds 13,8 · 15 · 24,2 · 36,2 kV as registry/voltage_class rows in the template\'s own batch; no manufacturer; a second run adds none', async () => {
+    const companyId = await seededCompany('Classes');
+    try {
+      const id = await seedStandardTemplate(db, asCompanyId(companyId));
+      expect(id).not.toBeNull();
+      expect((await voltageClassRows(companyId)).map(({ row }) => row)).toEqual(
+        expect.arrayContaining(SEEDED_VOLTAGE_CLASSES.map((name) => expect.objectContaining({ kind: 'voltage_class', name, removed_at: null }))),
+      );
+      expect(await voltageClassRows(companyId)).toHaveLength(4);
+      // One server batch: the template create and the four class creates are consecutive in the log.
+      const log = await db
+        .select({ seq: ops.seq, path: ops.path, kind: ops.kind, actor_id: ops.actor_id })
+        .from(ops)
+        .where(and(eq(ops.company_id, companyId), or(like(ops.path, 'template/%'), like(ops.path, 'registry/%'))))
+        .orderBy(ops.seq);
+      expect(log.map((op) => op.path.split('/').slice(0, 2).join('/'))).toEqual(['template/' + id, ...SEEDED_VOLTAGE_CLASSES.map(() => 'registry/voltage_class')]);
+      expect(log.every((op, i) => i === 0 || op.seq === log[i - 1]!.seq + 1)).toBe(true);
+      expect(log.every((op) => op.kind === 'create' && op.actor_id === 'system:identity')).toBe(true);
+      expect(log.some((op) => op.path.startsWith('registry/manufacturer/'))).toBe(false);
+
+      await seedStandardTemplate(db, asCompanyId(companyId));
+      expect(await voltageClassRows(companyId)).toHaveLength(4);
+      // The device pulls them with the company stream.
+      const page = await pullCompany(db, asCompanyId(companyId), 0);
+      expect(page.ops.filter((op) => op.path.startsWith('registry/voltage_class/'))).toHaveLength(4);
+    } finally {
+      await dropCompany(db, companyId);
+    }
+  }, 30_000);
+
+  it('gives none to a company that already holds a voltage class', async () => {
+    const companyId = await seededCompany('Com-Classe');
+    try {
+      const classId = newId();
+      await applyServer(companyId, [{ kind: 'create', path: `registry/voltage_class/${classId}`, value: { id: classId, kind: 'voltage_class', name: '17,5', gender: null, number: null, removed_at: null } }]);
+      expect(await seedStandardTemplate(db, asCompanyId(companyId))).not.toBeNull();
+      expect((await voltageClassRows(companyId)).map(({ row }) => (row as { name: string }).name)).toEqual(['17,5']);
+    } finally {
+      await dropCompany(db, companyId);
+    }
+  }, 30_000);
+
+  it('a company already holding the standard template and no class gets the four on the next run, once, whatever runs race', async () => {
+    const { companyId } = await companyWithV1Template('classes-tardias');
+    try {
+      expect(await voltageClassRows(companyId)).toHaveLength(0);
+      await Promise.all([1, 2, 3].map(() => seedStandardTemplate(db, asCompanyId(companyId))));
+      expect((await voltageClassRows(companyId)).map(({ row }) => (row as { name: string }).name).sort()).toEqual([...SEEDED_VOLTAGE_CLASSES].sort());
+      await seedStandardTemplate(db, asCompanyId(companyId));
+      expect(await voltageClassRows(companyId)).toHaveLength(4);
+    } finally {
+      await dropCompany(db, companyId);
+    }
+  }, 30_000);
+
+  it('three runs racing on one company seed the four classes once', async () => {
+    const companyId = await seededCompany('Corrida-Classes');
+    try {
+      await Promise.all([1, 2, 3].map(() => seedStandardTemplate(db, asCompanyId(companyId))));
+      expect(await voltageClassRows(companyId)).toHaveLength(4);
     } finally {
       await dropCompany(db, companyId);
     }

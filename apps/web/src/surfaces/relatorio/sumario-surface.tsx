@@ -52,7 +52,7 @@ import { pickBanner, type Banner } from '../../state/banner-slot.tsx';
 import { useExtraBanner } from '../../state/extra-banner.tsx';
 import { usePageTitle } from '../../state/page-title.tsx';
 import { useSession } from '../../state/session.tsx';
-import { usePreIssue } from '../export/use-pre-issue.ts';
+import { useIssueConfirmation, usePreIssue } from '../export/use-pre-issue.ts';
 import { usePreview } from '../export/use-preview.ts';
 import { AddSectionDialog } from './add-section-dialog.tsx';
 import { GenerateAction } from './generate-action.tsx';
@@ -126,6 +126,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
   const computed = useMemo(() => progress(snapshot, pending), [snapshot, pending]);
   // The one pre-issue call the Export dialog makes too (photo upload errors, the clock reading).
   const issues = usePreIssue(db, snapshot, computed, pending);
+  const confirmCounts = useIssueConfirmation(snapshot);
   const rows = useMemo(() => sumarioRows(snapshot, issues, computed), [snapshot, issues, computed]);
   // Epic 4 retro item 29: "Restaurar" offers only what was removed after the last revision.
   const lastIssuedAt = latestRevision(revisions)?.created_at ?? null;
@@ -388,7 +389,7 @@ function Sumario({ relatorioId, state }: { relatorioId: string; state: EntitySta
 
       <div className="sticky-action-bar">
         <span className="btn-reason" id={reasonId}>
-          {generateReason(rows, issues)}
+          {generateReason(rows, issues, confirmCounts ?? undefined)}
         </span>
         {preview.phase.kind === 'failed' ? (
           <span className="btn-reason" role="alert">

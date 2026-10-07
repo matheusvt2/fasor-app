@@ -115,7 +115,9 @@ async function confirmPair(page: Page, c: TapCounter): Promise<void> {
 
 async function conclude(page: Page, c: TapCounter, nextBlockId: string): Promise<void> {
   await expect(page.getByTestId('ficha-progress')).toHaveText('Ficha completa');
-  await c.tap('Concluir ficha', page.locator('#ficha-primary'), async () => {
+  // F-12 (D2, 2026-10-06): the complete sheet's primary reads "Concluir e avançar".
+  await expect(page.locator('#ficha-primary')).toHaveText(/Concluir e avançar/);
+  await c.tap('Concluir e avançar', page.locator('#ficha-primary'), async () => {
     await expect(toast(page)).toContainText('Ficha concluída', { timeout: EFFECT_MS });
     await expect(page).toHaveURL(new RegExp(`/ficha/${nextBlockId}$`), { timeout: EFFECT_MS });
   });

@@ -520,6 +520,10 @@ export const copy = {
     fileFailed: 'Não foi possível baixar o arquivo. Verifique a conexão e tente de novo.',
     // authored (Matheus, 2026-09-30: a waiting button says so): "Gerar relatório" while it sends and the job runs.
     generating: 'Gerando…',
+    // authored (F-03, D1, review 2026-10-06): the confirmation "Gerar relatório" asks while
+    // sheets are empty or fields print blank; the question is the kernel's (`issueConfirmText`).
+    issueConfirmBack: 'Voltar',
+    issueConfirmIssue: 'Emitir mesmo assim',
   },
   // Project (`30-project.html`, Story 4.1). The heading's count, the row lines, the
   // dates and the counter are the kernel's (`projectRelatoriosHeading`, `relatorioTitle`,
@@ -543,7 +547,9 @@ export const copy = {
   // beside "Criar relatório" and the template helper are the kernel's (`newRelatorioReason`,
   // `templateHelperText`, `templateBlocksText`).
   newRelatorio: {
-    title: 'Novo relatório',
+    // authored (F-28, D3, Matheus 2026-10-06): the second step after Home's "Novo relatório"
+    // (client and obra) is named apart, never the same title twice in a row.
+    title: 'Novo relatório — tipo e datas',
     descriptionLead: 'Para ',
     descriptionTail: '. Os dados da capa, os instrumentos e as exclusões vêm em seguida, em Dados do relatório.',
     typeLabel: 'Tipo de relatório',
@@ -755,6 +761,10 @@ export const copy = {
     doneToast: 'Fotos salvas neste aparelho — entram na fila de envio',
     // authored: Story 8.2, the single shot of "Fotografar placa" (the burst's toast, in the singular).
     doneOneToast: 'Foto salva neste aparelho — entra na fila de envio',
+    // authored (F-13, review 2026-10-06): the same toasts with the server reachable, where no
+    // queue is waited on.
+    doneToastOnline: 'Fotos salvas — enviando',
+    doneOneToastOnline: 'Foto salva — enviando',
     // authored: EXPERIENCE.md › camera permission denied: the reason and the OS path under the button.
     denied: 'A câmera está bloqueada para este site. Para liberar: Configurações do navegador › Permissões do site › Câmera.',
     // authored: FR-57, the browser refused to store a shot while offline; it is kept in memory.
@@ -954,8 +964,10 @@ export const copy = {
     tagLabel: (tag: string) => `TAG ${tag} — renomear`,
     // `60-ficha.html` sheet header: "Cabos de entrada — CB-ENT".
     titleSeparator: ' — ',
-    // The Sticky action bar's primary, verbatim from `60-ficha.html` and EXPERIENCE.md.
-    concluir: 'Concluir ficha',
+    // The Sticky action bar's primary, verbatim from `60-ficha.html` and EXPERIENCE.md, except
+    // `concluir` -- authored (F-12, D2, Matheus 2026-10-06): the primary concludes and opens the
+    // next sheet, and says so; the Overflow keeps "Concluir ficha" (`menuConcluir`).
+    concluir: 'Concluir e avançar',
     proximaFicha: 'Próxima ficha',
     proximaColuna: 'Próxima coluna',
     voltarRelatorio: 'Voltar ao relatório',
@@ -996,6 +1008,11 @@ export const copy = {
     incomplete: 'Faltam obrigatórios — indo para o primeiro campo faltando',
     // authored: the TAG rename toast.
     renamed: 'TAG renomeada',
+    // authored (F-09, review 2026-10-06): a registry picker with nothing registered yet says so.
+    wordEmpty: {
+      manufacturer: 'Nenhum fabricante cadastrado ainda — digite o nome para criar',
+      voltage_class: 'Nenhuma classe de tensão cadastrada ainda — digite o valor em kV para criar',
+    },
     // The rail beside the sheet (`shell-head.html`): the Sumário's `rail` words are reused.
     cabine: {
       // `key-equipment-sheet-v09.html` `.cabine-line` (Story 12.3): the group's name and its action.

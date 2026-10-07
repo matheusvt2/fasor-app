@@ -280,8 +280,9 @@ test('@p0 4.3-E2E-001 the Sumário: order, rows that open, the Position box, Ove
   await expect(rows.nth(1).locator('.sum-ro')).toHaveText('montado sozinho');
   // Q2: the creation batch named the account as responsável, so the cover row does not ask for one.
   await expect(rows.nth(0).locator('.sum-status')).not.toContainText('Responsável técnico em branco');
-  // Story 12.3: the cabines' empty data is pending on section 9 too (never blocking).
-  await expect(rows.nth(10).locator('.sum-status')).toHaveText(/^0 de 94 · Cubículo Enel: faltam 6 campos · /);
+  // Story 12.3: the cabines' empty data is pending on section 9 too (never blocking); F-03
+  // (review 2026-10-06): the empty sheets are named there as information.
+  await expect(rows.nth(10).locator('.sum-status')).toHaveText(/^0 de 94 · 94 fichas vazias · Cubículo Enel: faltam 6 campos · /);
   await expect(rows.nth(3).locator('.sum-status')).toHaveText('texto padrão');
   // Story 7.4: the parecer is the one row that stops "Gerar relatório" (row 10, in red); the
   // foot says so, and the preview (Story 7.5) is live.

@@ -6,6 +6,7 @@ import {
   generatingReason,
   generatingText,
   idleReason,
+  issueConfirmText,
   missingFilesText,
   nextEditNote,
   parecerMissingReason,
@@ -34,7 +35,7 @@ import { useSession } from '../../state/session.tsx';
 import { useSyncActions } from '../../state/sync-actions.ts';
 import { downloadRevisionFile, fetchRevisionFile, hasShareSheet, shareFile, shareRevisionFile, type RevisionFileRef } from './revision-file.ts';
 import { DEFAULT_TIMING, useGenerate, type GenerateTiming } from './use-generate.ts';
-import { usePreIssue } from './use-pre-issue.ts';
+import { useIssueConfirmation, usePreIssue } from './use-pre-issue.ts';
 import { usePreview } from './use-preview.ts';
 import { isSessionExpired, isUnauthorized, SessionExpiredNote } from './session-expired.tsx';
 import { publishReAuth } from '../../api/auth-client.ts';
@@ -174,6 +175,36 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
   const computed = useMemo(() => (snapshot === null ? null : progress(snapshot, pending)), [snapshot, pending]);
   const issues = usePreIssue(db, snapshot, computed, pending);
   const precheck = useMemo(() => exportPrecheck(issues), [issues]);
+  // F-03 (D1): with empty sheets or blank fields, "Gerar relatório" first asks, naming the counts.
+  const confirmCounts = useIssueConfirmation(snapshot);
+  const confirmText = confirmCounts === null ? null : issueConfirmText(confirmCounts);
+  const [confirming, setConfirming] = useState(false);
+  const confirmId = useId();
+  const generateRowRef = useRef<HTMLDivElement | null>(null);
+  const wasConfirming = useRef(false);
+  // A press before the relatório is read waits for the counts, so it never skips the question.
+  const [pendingPress, setPendingPress] = useState(false);
+  useEffect(() => {
+    if (isOpen) return;
+    setConfirming(false);
+    setPendingPress(false);
+  }, [isOpen]);
+  useEffect(() => {
+    // "Voltar" (or the issue itself) hands the focus back to the row's own primary.
+    if (wasConfirming.current && !confirming) generateRowRef.current?.querySelector<HTMLElement>('.btn-primary')?.focus();
+    wasConfirming.current = confirming;
+  }, [confirming]);
+  const onGenerate = () => {
+    if (confirmCounts === null) setPendingPress(true);
+    else if (confirmText === null) state.start();
+    else setConfirming(true);
+  };
+  useEffect(() => {
+    if (!pendingPress || confirmCounts === null) return;
+    setPendingPress(false);
+    if (confirmText === null) state.start();
+    else setConfirming(true);
+  }, [pendingPress, confirmCounts, confirmText, state]);
   const blocked = precheck.blocking.length > 0;
   const control = useMemo(
     () => (snapshot === null ? [] : documentControlRows(snapshot, { revisionNumber: idleNumber, issuedAt: toIso(now()), art: snapshot.relatorio.setup.art_trt_number })),
@@ -201,13 +232,13 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
   );
 
   const generateRow = (options: { disabledReason?: string; reason?: string; withPreview: boolean }) => (
-    <div className="generate-row">
+    <div className="generate-row" ref={generateRowRef}>
       {options.withPreview ? previewButton : null}
       <Button
         variant="primary"
         isDisabled={options.disabledReason !== undefined}
         disabledReasonId={options.disabledReason === undefined ? undefined : generateReasonId}
-        onPress={state.start}
+        onPress={onGenerate}
       >
         {phase.kind === 'flushing' || phase.kind === 'requesting' || phase.kind === 'working' ? copy.export.generating : copy.export.generate}
       </Button>
@@ -315,6 +346,10 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
         : phase.kind === 'flushing' || phase.kind === 'requesting'
           ? copy.export.flushing
           : undefined;
+    // The question stands only while it can still be answered: a reason (offline, a blocker,
+    // a flush) or counts that dropped to zero put it away, never to come back without a press.
+    const asking = confirming && disabledReason === undefined && confirmText !== null;
+    if (confirming && !asking) setConfirming(false);
     const reason =
       phase.kind === 'blocked' ? copy.export.deadOpsReason : phase.kind === 'failed' ? failedReason(idleNumber) : idleReason(idleNumber);
     body = (
@@ -324,10 +359,35 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
           <div className="gen-error" role="alert">
             <span>{copy.export.failed}</span>
             {phase.missingFiles === undefined ? null : <span>{missingFilesText(phase.missingFiles)}</span>}
-            {blocked ? null : <TextButton onPress={state.start}>{copy.export.retry}</TextButton>}
+            {blocked ? null : <TextButton onPress={onGenerate}>{copy.export.retry}</TextButton>}
           </div>
         ) : null}
-        {generateRow({ disabledReason, reason, withPreview: true })}
+        {asking ? (
+          // F-03 (D1): the question names what prints blank; "Pré-visualizar" is offered first,
+          // "Voltar" issues nothing, and only "Emitir mesmo assim" issues.
+          <div className="issue-confirm" role="group" aria-labelledby={confirmId}>
+            <p className="t-body" id={confirmId}>
+              {confirmText}
+            </p>
+            <div className="generate-row">
+              {previewButton}
+              <Button variant="secondary" autoFocus onPress={() => setConfirming(false)}>
+                {copy.export.issueConfirmBack}
+              </Button>
+              <Button
+                variant="primary"
+                onPress={() => {
+                  setConfirming(false);
+                  state.start();
+                }}
+              >
+                {copy.export.issueConfirmIssue}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          generateRow({ disabledReason, reason, withPreview: true })
+        )}
       </>
     );
   }

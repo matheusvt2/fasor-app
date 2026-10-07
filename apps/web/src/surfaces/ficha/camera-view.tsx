@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObjec
 import { Button as AriaButton, Dialog, Modal, ModalOverlay } from 'react-aria-components';
 import { LIST_FOCUS_WATCH_FRAMES, restoreFocus } from '../../input/focus-restore.ts';
 import { copy } from '../../copy/pt-br.ts';
+import { useServerReachable } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { usePhotoCapture, type CaptureTarget } from './use-photo-capture.ts';
 
@@ -63,6 +64,8 @@ export function useCamera(
   const { shotTarget, shotHint } = options;
   const capture = usePhotoCapture(relatorioId);
   const { showToast } = useToast();
+  // F-13: with the server reachable the toast does not speak of a queue.
+  const reachable = useServerReachable();
   const [session, setSession] = useState<CameraSession | null>(null);
   const [denied, setDenied] = useState(false);
   const [burst, setBurst] = useState(0);
@@ -242,8 +245,8 @@ export function useCamera(
         setBurst(0);
         // A single shot whose frame could not be read already said so ("failedToast").
         if (!allSaved) return;
-        if (!single) showToast(copy.photos.doneToast);
-        else if (shotGrabbed.current) showToast(copy.photos.doneOneToast);
+        if (!single) showToast(reachable ? copy.photos.doneToastOnline : copy.photos.doneToast);
+        else if (shotGrabbed.current) showToast(reachable ? copy.photos.doneOneToastOnline : copy.photos.doneOneToast);
       });
   };
 
@@ -255,7 +258,7 @@ export function useCamera(
     capture.shoot(file, context);
     void capture.settle().then((allSaved) => {
       setBurst(0);
-      if (allSaved) showToast(single ? copy.photos.doneOneToast : copy.photos.doneToast);
+      if (allSaved) showToast(single ? (reachable ? copy.photos.doneOneToastOnline : copy.photos.doneOneToast) : reachable ? copy.photos.doneToastOnline : copy.photos.doneToast);
       returnFocus();
     });
   };

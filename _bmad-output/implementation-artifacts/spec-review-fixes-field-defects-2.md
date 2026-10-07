@@ -2,10 +2,11 @@
 title: 'Review fixes 2026-10-06, batch 2: field defects'
 type: 'bugfix'
 created: '2026-10-06'
-status: 'in-progress'
+status: 'done'
 route: 'dispatch'
 review_loop_iteration: 0
 baseline_revision: 'b5b35c547d992bf1f9d0815fe3fedbceb37092cc'
+baseline_commit: '8b69202a363c7aac867871fce78aaa9aeb82409a'
 dev_model: opus
 dev_effort: high
 warnings: ['batched', 'multiple-goals', 'oversized']
@@ -71,20 +72,20 @@ context:
 ## Tasks & Acceptance
 
 **Execution:**
-- [ ] `apps/web/src/surfaces/relatorio/setup/etapa5-local.tsx` + `setup-surface.test.tsx` -- the altitude through `useNumberInput` + `useFlushOnUnmount` (blur, Enter, idle and unmount commit the typed value; "Confirmar" keeps writing `site_altitude_confirmed` in one batch; no double write); a test per matrix row.
-- [ ] `packages/domain/src/relatorio/pre-issue.ts` (+ `progress.ts`, `sumario.ts`, tests, `pre-issue.golden.json`) and `apps/web/src/surfaces/export/export-dialog.tsx` (+ test, pt-br) -- per D1.
-- [ ] `packages/domain/src/print/layout.ts`, `templates/section-text.ts` (+ tests, api skeleton golden) -- per D1's cover rule.
-- [ ] `packages/domain/src/print/section-8.ts` + `section-8.test.ts` + `apps/api/.../docx.test.ts` -- the token as "conforme Imagem N" (not doubled) and the sentence boundary before the action.
-- [ ] `apps/web/src/surfaces/relatorio/setup/etapa2-escopo.tsx` + test -- the hint and link under the empty box.
-- [ ] `packages/domain/src/seed/voltage-classes.ts` (new, exported) + `apps/api/src/db/seed.ts` (+ integration test) -- per D4, seeded with the standard template in the same batch, idempotent; `components/registry-picker-field.tsx` -- the authored empty-list hint; update `cadastros.spec.ts:500` and the three "Criar 15" specs.
-- [ ] `apps/web/src/surfaces/ficha/use-ficha-actions.ts` + pt-br + EXPERIENCE.md (dated note) + the listed e2e -- per D2.
-- [ ] `apps/web/src/surfaces/ficha/plate-photo.tsx`, `camera-view.tsx`, pt-br (+ tests) -- online wording ("Lendo…", toast without the queue) when `online && unreachable === null`.
-- [ ] `apps/web/src/surfaces/sync/sync-status-surface.tsx`, `sync-sections.tsx` (+ tests, kernel `sync/status.ts` if a word is needed) -- one state for headline and button; no device word until the id resolves.
-- [ ] `apps/web/src/surfaces/registries/registries-surface.tsx` (+ test, `cadastros.spec.ts`) -- Empresa first until registered.
-- [ ] `packages/domain/src/device/storage.ts` (+ test) and `account-surface.tsx` -- "N fotos neste aparelho" and the awaiting line.
-- [ ] `packages/domain/src/relatorio/instrument-pick.ts` (+ test), `ficha/instrument-picker.tsx`, `ensaios-section.tsx` -- order by fit and setup, then last used, then code; pass `setup.instrument_ids`.
-- [ ] `apps/web/src/surfaces/home/new-project-dialog.tsx`, `project/*` (+ tests, `relatorio-flow.ts`, listed specs) -- per D3.
-- [ ] `e2e/review-field-defects-2.spec.ts` (new, `SERIAL_SPECS` if it issues) -- one `@p0` per high/medium finding (F-02, F-03, F-05, F-09, F-12, F-14) asserting store or document, `@p1` for the rest; `docs/kbs/log.md` one line.
+- [x] `apps/web/src/surfaces/relatorio/setup/etapa5-local.tsx` + `setup-surface.test.tsx` -- the altitude through `useNumberInput` + `useFlushOnUnmount` (blur, Enter, idle and unmount commit the typed value; "Confirmar" keeps writing `site_altitude_confirmed` in one batch; no double write); a test per matrix row.
+- [x] `packages/domain/src/relatorio/pre-issue.ts` (+ `progress.ts`, `sumario.ts`, tests, `pre-issue.golden.json`) and `apps/web/src/surfaces/export/export-dialog.tsx` (+ test, pt-br) -- per D1.
+- [x] `packages/domain/src/print/layout.ts`, `templates/section-text.ts` (+ tests, api skeleton golden) -- per D1's cover rule.
+- [x] `packages/domain/src/print/section-8.ts` + `section-8.test.ts` + `apps/api/.../docx.test.ts` -- the token as "conforme Imagem N" (not doubled) and the sentence boundary before the action.
+- [x] `apps/web/src/surfaces/relatorio/setup/etapa2-escopo.tsx` + test -- the hint and link under the empty box.
+- [x] `packages/domain/src/seed/voltage-classes.ts` (new, exported) + `apps/api/src/db/seed.ts` (+ integration test) -- per D4, seeded with the standard template in the same batch, idempotent; `components/registry-picker-field.tsx` -- the authored empty-list hint; update `cadastros.spec.ts:500` and the three "Criar 15" specs.
+- [x] `apps/web/src/surfaces/ficha/use-ficha-actions.ts` + pt-br + EXPERIENCE.md (dated note) + the listed e2e -- per D2.
+- [x] `apps/web/src/surfaces/ficha/plate-photo.tsx`, `camera-view.tsx`, pt-br (+ tests) -- online wording ("Lendo…", toast without the queue) when `online && unreachable === null`.
+- [x] `apps/web/src/surfaces/sync/sync-status-surface.tsx`, `sync-sections.tsx` (+ tests, kernel `sync/status.ts` if a word is needed) -- one state for headline and button; no device word until the id resolves.
+- [x] `apps/web/src/surfaces/registries/registries-surface.tsx` (+ test, `cadastros.spec.ts`) -- Empresa first until registered.
+- [x] `packages/domain/src/device/storage.ts` (+ test) and `account-surface.tsx` -- "N fotos neste aparelho" and the awaiting line.
+- [x] `packages/domain/src/relatorio/instrument-pick.ts` (+ test), `ficha/instrument-picker.tsx`, `ensaios-section.tsx` -- order by fit and setup, then last used, then code; pass `setup.instrument_ids`.
+- [x] `apps/web/src/surfaces/home/new-project-dialog.tsx`, `project/*` (+ tests, `relatorio-flow.ts`, listed specs) -- per D3.
+- [x] `e2e/review-field-defects-2.spec.ts` (new, `SERIAL_SPECS` if it issues) -- one `@p0` per high/medium finding (F-02, F-03, F-05, F-09, F-12, F-14) asserting store or document, `@p1` for the rest; `docs/kbs/log.md` one line.
 
 **Acceptance Criteria:**
 - Given setup Etapa 5, when 760 is typed and the user taps another field or "Concluir dados do relatório", then the altitude is in the outbox and the sheet shows it (F-02).
@@ -98,9 +99,40 @@ context:
 
 ## Implementation Notes
 
+- 2026-10-06, loop 0 (bmad-dev-opus-high): the twelve findings as the tasks say; the altitude on `useNumberInput` with blur/Enter/idle/unmount commits and "Confirmar" writing the confirmation alone when the value already landed; `sheets_empty` info row, `issueConfirmation`/`issueConfirmText`/`issueConfirmReason` and the in-dialog confirmation group (Pré-visualizar · Voltar · Emitir mesmo assim); the optional cover row left out; `resolveBulletPhotoTokens`; the Etapa 2 hint; `SEEDED_VOLTAGE_CLASSES` seeded with the template; "Concluir e avançar"; `useServerReachable` for the plate row and the camera toasts; `syncStatusWord` and the device word held until the id resolves; Cadastros on Empresa until registered; the storage line with "neste aparelho" and the awaiting line; `instrumentPickerOrder` by fit and setup; the retitled second dialog. New `e2e/review-field-defects-2.spec.ts` (serial), `confirmIssue` helper, 20 specs updated. Goldens unchanged (the Porto Seguro fixture has no empty sheet).
+- 2026-10-06, review patches: badInput guard and no reformat while typing on the altitude; the confirmation reset and the retry through it; cover rows counted; classes for companies that already hold the template, checked under the lock; `QueuedBanner` on reachability; queued words kept on a dead upload; " e " between adjacent references; the catch, the `raw` check, the doc comments; EXPERIENCE.md dated notes (:205, :339, Export dialog, photo queued).
+- Hands-on pass (orchestrator, Playwright MCP, dev server, review relatório): altitude 812 typed and left by a tap on Justificativa survives a reload and reads "812 m" on the sheet (F-02); the Sumário foot reads "Nada impede gerar. Emitir pede confirmação: 92 fichas vazias." and "Gerar relatório" opens the question with Pré-visualizar · Voltar · Emitir mesmo assim, Voltar issuing nothing (F-03, 1280, 390 and dark); the Sync page reads "Sincronizado" with the button enabled and the own row "Este aparelho" on the first load (F-14); Account reads "2,7 MB · 2 relatórios · 2 fotos neste aparelho" (F-21); Home › Novo relatório › existing obra opens "Novo relatório — tipo e datas" at once (F-28); Cadastros opens on the remembered tab for the registered company (F-20). Screenshots `shots/98-104-b2-*.png`.
+- Interferences: another session committed `a8dbe20`, `07dc858`, `fc522e9` on this branch (Epic 13 planning and the Pré-visualizar waiting tab) and seeded "Empresa Dev" with the sample relatório; Matheus chose (2026-10-06) to carry the commits in this PR and to release the fixture, which the orchestrator did. The dev web container needed a restart to serve the batch (podman bind-mount watcher).
+
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-10-06 — loop 0 review (blind hunter BH1-15, edge cases EC1-16 + 5 claims, verification gap VG1-4 + 2 other)
+
+| Finding | Verdict | Evidence and route |
+|---|---|---|
+| BH3, EC1, EC-claim: the altitude `type=number` reports `''` for a transient invalid entry ("-", "1e"); `parseAltitude('')` is null and the idle commit writes `site_altitude_m = null` over the stored value | medium | real in Chrome; the `'invalid'` branch is unreachable with `type=number`. Patch: skip the commit while `input.validity.badInput`. |
+| EC2: the idle commit reformats the text under the cursor ("812.5" becomes "813" while typing) | medium | `parse` rounds into `raw` and `format` prints it. Patch: keep the typed raw, round at commit. |
+| BH5, EC3: `confirming` survives a disabled reason or a zero count, so the question reappears without a press | low | render condition only. Patch: reset `confirming` when the reason appears or the text is null. |
+| EC4, VG-other-1: "Tentar de novo" calls `state.start` and skips the confirmation | low | the failed attempt was confirmed already, but the counts may have changed. Patch: route through `onGenerate`. |
+| BH6, EC9, EC10: blank required cover rows ([Responsável], [Cliente]) are not counted in the confirmation | low | `sectionVariableGaps` reads section blocks only. Patch: add the cover rows' unresolved required variables to the set. |
+| BH2, EC13, EC14, VG-other-2: companies that already hold the template never get the classes; `hasVoltageClass` runs outside the lock | medium | Matheus's production company holds the template. Patch: seed the classes in the existing-template branch too when none exists, the check under the lock. |
+| VG1: `QueuedBanner` (read-display) still branches on `useSession().online` | medium | the plate row and the display cell disagree with the server unreachable. Patch: `useServerReachable` + test. |
+| BH8, EC11: "Lendo…" while the photo's upload is dead or held | low | `shown` ignores `tile.upload_error`. Patch: keep the queued words when the upload failed. |
+| VG2: the single-shot online toast is untested | low | Patch: single-mode Harness case. |
+| VG3: the sheet's empty-registry hint has no sheet-level test | low | Patch: one assertion in the F-09 e2e on the manufacturer field. |
+| VG4: a reading-only (Sugerido) altitude blurred or left is not asserted to write nothing | low | Patch: the test. |
+| BH7, EC6: two adjacent tokens print "Imagem 5 Imagem 12" | low | Patch: " e " between adjacent labels. |
+| EC15: `Promise.all` in the registries surface has no catch | low | Patch: `.catch(() => undefined)`. |
+| EC16: `fitsTest` ranks `{raw: null}` as fitting | low | Patch: require a non-null `raw`. |
+| BH11: `useServerReachable` sits under `useSync`'s doc comment | low | Patch: move the comment. |
+| BH1: EXPERIENCE.md :205 (Instrumentos default), :339 (dialog title), the confirmation and the online wording lack dated notes | low | Patch: the notes (strike-through where superseded) and the KB log line. |
+| EC7, EC8: abbreviations other than "etc." and a quote/parenthesis before a token | low | rare in point texts; rejected. |
+| EC12: the camera toast reads `reachable` from the finishing render | low | the connection rarely changes inside one settle; rejected. |
+| BH9: the dialog title on the Obra page's own button | false | the title names the content (tipo e datas), not a step. |
+| BH10: no device word on any row while the id is unknown | false | the matrix asks exactly that; a few hundred ms on first load. |
+| BH12, BH13, BH14, BH15, EC5, EC-claims 1-5: observer timing, hard-coded 93/94, "one tap" on the strip, borrowed copy, blur to body, batches, Sugerido group order, reference words, removed-photo text, cover placeholders | low / false | design choices recorded in the spec (two batches on blur then Confirmar are two writes by design; the last-used leads its group; "imagem removida" is today's text); rejected. |
 
 ## Design Notes
 
@@ -113,3 +145,19 @@ Decided here (user-invisible or minor): F-20 opens on Empresa only while `empres
 - `podman compose --profile tools run --rm tools pnpm test:api -- generate docx seed` -- green (the seed CLI test needs `/.dockerenv`, absent under podman: pre-existing).
 - `podman compose --profile tools run --rm tools pnpm test:e2e -- e2e/review-field-defects-2.spec.ts` plus every spec a task lists -- green, all tags.
 - The gate stage by stage in the `tools` container (the orchestrator), output pasted in the PR; hands-on pass in the Playwright MCP browser at 390, 768 and 1280.
+
+## Auto Run Result
+
+Status: done (one review pass, patch route; two follow-up patch passes on the Export dialog tests and the pre-load press).
+
+**Summary:** the twelve findings of the batch are fixed as the matrix says, with the four decisions of Matheus (D1 confirmation before issuing, D2 "Concluir e avançar", D3 the retitled second dialog, D4 the four seeded classes). Review: 46 findings over three layers; 16 patched (the altitude badInput and reformat, the confirmation reset and the retry, the cover rows in the count, classes for companies that already hold the template, `QueuedBanner` on reachability, the dead-upload words, " e " between references, the catch, the `raw` check, the doc comments, the EXPERIENCE.md notes, five tests), the rest rejected or recorded; then the pre-load press race closed with `pendingPress`.
+
+**Verification (gate stage by stage in the `tools` container, `test-results/gate2/`, 2026-10-06/07):**
+- `lint`: green. `static`: green.
+- `test:api`: 514 passed, 3 failed (`seed-cli.integration.test.ts`, `/.dockerenv` under podman; pre-existing).
+- `test:unit`: 2913 passed, 6 failed in the full run: `scripts/tooling.test.ts` and `theme.test.tsx` (pre-existing on this host) and four in `export-dialog.test.tsx`, fixed afterwards (the fixture prints "[Responsável]" once cover rows count; the retry asks the question): the file passes 45/45 alone with one worker.
+- `test:e2e` (`@p0`): 203 passed, 1 failed, `ficha.durability` E5-A2-E2E-002 (390 px focus "inactive"), which fails identically on the baseline with the batch stashed.
+- Touched specs, all tags (`review-field-defects-2`, `relatorio`, `parecer-export`, `export`, `cadastros`, `sync-status`, `points`, `ficha.durability`): 87/91; `cadastros` 2.1-E2E-006 fixed (the phone selector trigger carries the opened tab's name) and green alone; `points` 6.6-E2E-011 green alone (load-sensitive, passes on the baseline too); the two `ficha.durability` cases fail on the baseline.
+- Hands-on pass: see Implementation Notes.
+
+**Residual risks:** the `denied`/reachable states are per-mount; the empty-sheet count follows `sheetState`; the e2e hard-codes the template's 93/94 sheets; `ficha.durability` at 390 px needs a look of its own (focus "inactive" in the podman browser).

@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto';
-import { registryRowSchema, type RegistryRow } from '@app/domain';
+import { defaultEmpresaRow, registryRowSchema, type RegistryRow } from '@app/domain';
 import { cleanup, configure, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
@@ -87,6 +87,12 @@ const ROWS: RegistryRow[] = [
   { id: id(4), kind: 'voltage_class', name: '15', gender: null, number: null, removed_at: null },
 ].map((row) => registryRowSchema.parse(row));
 
+/** F-20: a company registered (its razão social typed), so Cadastros opens on the remembered tab or Instrumentos. */
+async function registerEmpresa(db: AppDatabase): Promise<void> {
+  const empresaId = id(9);
+  await db.entities.put(toRecord(`registry:${empresaId}`, { ...defaultEmpresaRow(empresaId), name: 'Empresa B de Teste' }));
+}
+
 async function seed(db: AppDatabase): Promise<void> {
   await db.entities.bulkPut(ROWS.map((row) => toRecord(`registry:${row.id}`, row)));
 }
@@ -115,9 +121,32 @@ afterEach(() => {
 describe('Cadastros tabs (B5)', () => {
   const r = copy.registries;
 
-  it('opens on Instrumentos, lists six tabs and switches the panel with the tab', async () => {
+  it('F-20: with the company not registered and no remembered tab it opens on Empresa', async () => {
+    database = await freshDb();
+    renderSurface();
+    await waitFor(() => expect(tab(r.tabEmpresa)).toHaveAttribute('aria-selected', 'true'));
+    await waitFor(() => expect(within(panel()).getByText(r.empresa.note)).toBeInTheDocument());
+  });
+
+  it('F-20: a tab the user chose earlier on this device still wins while the company is not registered', async () => {
+    database = await freshDb();
+    await database.local_prefs.put({ key: REGISTRY_TAB_PREF, value: 'fabricantes' });
+    renderSurface();
+    await waitFor(() => expect(tab(r.tabFabricantes)).toHaveAttribute('aria-selected', 'true'));
+  });
+
+  it('F-20: an arrival that names its tab still wins while the company is not registered', async () => {
+    database = await freshDb();
+    renderSurface({ tab: 'instrumentos' });
+    expect(tab(r.tabInstrumentos)).toHaveAttribute('aria-selected', 'true');
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(tab(r.tabInstrumentos)).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('opens on Instrumentos once the company is registered, lists six tabs and switches the panel with the tab', async () => {
     const user = userEvent.setup();
     database = await freshDb();
+    await registerEmpresa(database);
     renderSurface();
 
     const tabs = within(screen.getByRole('tablist', { name: r.tabsLabel })).getAllByRole('tab');
@@ -148,9 +177,10 @@ describe('Cadastros tabs (B5)', () => {
     expect(await within(panel()).findByText(r.classesTensao.emptyText)).toBeInTheDocument();
   });
 
-  it('remembers the last tab on this device and opens on it next time', async () => {
+  it('remembers the last tab on this device and opens on it next time (the company registered)', async () => {
     const user = userEvent.setup();
     database = await freshDb();
+    await registerEmpresa(database);
     const first = renderSurface();
     await user.click(tab(r.tabFabricantes));
     await waitFor(async () => expect(await readRegistryTab(database!)).toBe('fabricantes'));

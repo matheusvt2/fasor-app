@@ -138,8 +138,9 @@ test('@p0 5.1-E2E-005 a tree row opens the sheet: App bar TAG, header, stepper w
   await expect(page.getByTestId('ficha-saved')).toHaveText('Salvo');
   await page.getByLabel('Nº série', { exact: true }).fill('PR-0001');
   await page.getByLabel('Tipo', { exact: true }).fill('Polimérico');
-  await field(page, 'tensao_nominal').getByRole('combobox').fill('36,2');
-  await page.getByRole('option', { name: 'Criar “36,2”' }).click();
+  // F-09 (D4, 2026-10-06): 36,2 kV comes seeded with the standard template; 34,5 is created here.
+  await field(page, 'tensao_nominal').getByRole('combobox').fill('34,5');
+  await page.getByRole('option', { name: 'Criar “34,5”' }).click();
   const corrente = page.getByLabel('Corrente nominal', { exact: true });
   await expect(corrente).toHaveAttribute('inputmode', 'decimal');
   await expect(field(page, 'corrente_nominal').locator('.mf-unit')).toHaveText('kA');
@@ -158,8 +159,8 @@ test('@p0 5.1-E2E-005 a tree row opens the sheet: App bar TAG, header, stepper w
   await expect(page.getByLabel('Tipo', { exact: true })).toHaveValue('Polimérico');
   await expect(page.getByLabel('Corrente nominal', { exact: true })).toHaveValue('10');
   await expect(field(page, 'fabricacao').getByRole('combobox')).toHaveValue('Fabricante Ficha');
-  // A voltage class reads with its unit (E12-Q1); the stored value stays "36,2" (the outbox check above).
-  await expect(field(page, 'tensao_nominal').getByRole('combobox')).toHaveValue('36,2 kV');
+  // A voltage class reads with its unit (E12-Q1); the stored value stays "34,5" (the outbox check above).
+  await expect(field(page, 'tensao_nominal').getByRole('combobox')).toHaveValue('34,5 kV');
   await expect(page.locator('.sheet-header .sheet-meta').nth(1)).toHaveText(/^Preenchido por .+ · \d{2}\/\d{2} \d{2}:\d{2}$/);
   expect(relatorioId).not.toBe('');
 });
@@ -389,7 +390,8 @@ test('@p0 5.1-E2E-003 "Concluir ficha" on a complete sheet emits concluded_by an
   await expect(page.getByTestId('ficha-progress')).toHaveText('Ficha completa');
   await expect(stepper(page).getByRole('button', { name: 'Conclusão, 0 faltando' })).toBeVisible();
   const primary = page.locator('.sticky-action-bar .btn-primary');
-  await expect(primary).toHaveText(/Concluir ficha/);
+  // F-12 (D2, 2026-10-06): the primary says it concludes and moves on.
+  await expect(primary).toHaveText(/Concluir e avançar/);
   await primary.click();
   await expect(page).toHaveURL(new RegExp(`/ficha/${next}$`));
   await expect(toast(page)).toContainText('Ficha concluída');

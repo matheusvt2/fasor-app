@@ -2,6 +2,8 @@ import {
   councilSchema,
   defaultTitleForCouncil,
   SEED_VERSION,
+  SEEDED_VOLTAGE_CLASSES,
+  seededVoltageClassRow,
   STANDARD_TEMPLATE_NAME,
   standardTemplate,
   SYSTEM_IDENTITY_ACTOR,
@@ -274,31 +276,84 @@ export async function seedStandardTemplate(db: Db, companyId: CompanyId): Promis
     if (existing.named) {
       await upgradeStandardTemplate(db, companyId, existing.id, existing.row as { seed_version?: unknown; version?: unknown });
     }
+    // F-09 (review 2026-10-06, D4): a company seeded before the classes existed gets them now.
+    await seedVoltageClasses(db, companyId);
     return null;
   }
   const id = newId();
   const op = provisioningOp(companyId, { kind: 'create', path: `template/${id}`, value: standardTemplate({ id }) });
-  try {
-    // The existence check again under the company lock: two runs racing on one company
-    // would otherwise both see none and both create one.
-    await applyServerBatch(db, companyId, [op], {
-      now,
-      before: async (tx: Tx) => {
-        if ((await seededTemplate(tx, companyId)) !== undefined) throw new AlreadySeeded();
-      },
-    });
-  } catch (error) {
-    if (error instanceof AlreadySeeded) return null;
-    if (error instanceof ServerBatchRejectedError) {
-      throw new Error(`could not seed the standard template: ${error.rejected[0]?.code ?? 'op_invalid'}`, { cause: error });
+  // F-09 (review 2026-10-06, D4): the common voltage classes come with the template, in the
+  // same server batch, unless the company already holds one (checked under the company lock;
+  // a company that does gets the template alone).
+  for (const withClasses of [true, false]) {
+    try {
+      // The existence checks again under the company lock: two runs racing on one company
+      // would otherwise both see none and both create one.
+      await applyServerBatch(db, companyId, withClasses ? [op, ...voltageClassOps(companyId)] : [op], {
+        now,
+        before: async (tx: Tx) => {
+          if ((await seededTemplate(tx, companyId)) !== undefined) throw new AlreadySeeded();
+          if (withClasses && (await hasVoltageClass(tx, companyId))) throw new HasVoltageClasses();
+        },
+      });
+      return id;
+    } catch (error) {
+      if (error instanceof HasVoltageClasses) continue;
+      if (error instanceof AlreadySeeded) return null;
+      if (error instanceof ServerBatchRejectedError) {
+        throw new Error(`could not seed the standard template: ${error.rejected[0]?.code ?? 'op_invalid'}`, { cause: error });
+      }
+      throw error;
     }
-    throw error;
   }
   return id;
 }
 
 /** Thrown under the company lock when another run seeded the template first. */
 class AlreadySeeded extends Error {}
+
+/** Thrown under the company lock when the company already holds a voltage class (F-09). */
+class HasVoltageClasses extends Error {}
+
+/** F-09: one `registry/voltage_class/{id}` create per seeded class. */
+function voltageClassOps(companyId: CompanyId): Op[] {
+  return SEEDED_VOLTAGE_CLASSES.map((name) => {
+    const classId = newId();
+    return provisioningOp(companyId, { kind: 'create', path: `registry/voltage_class/${classId}`, value: seededVoltageClassRow(classId, name) });
+  });
+}
+
+/**
+ * F-09: the seeded voltage classes alone, for a company that already holds the standard
+ * template and no voltage class; idempotent (the check runs under the company lock).
+ */
+async function seedVoltageClasses(db: Db, companyId: CompanyId): Promise<void> {
+  if (await hasVoltageClass(db, companyId)) return;
+  try {
+    await applyServerBatch(db, companyId, voltageClassOps(companyId), {
+      now,
+      before: async (tx: Tx) => {
+        if (await hasVoltageClass(tx, companyId)) throw new HasVoltageClasses();
+      },
+    });
+  } catch (error) {
+    if (error instanceof HasVoltageClasses) return;
+    if (error instanceof ServerBatchRejectedError) {
+      throw new Error(`could not seed the voltage classes: ${error.rejected[0]?.code ?? 'op_invalid'}`, { cause: error });
+    }
+    throw error;
+  }
+}
+
+/** F-09: whether the company holds any voltage class row, removed or not (it then gets no seeded one). */
+async function hasVoltageClass(reader: Db | Tx, companyId: CompanyId): Promise<boolean> {
+  const [row] = await reader
+    .select({ id: entities.id })
+    .from(entities)
+    .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'registry'), sql`${entities.row}->>'kind' = 'voltage_class'`))
+    .limit(1);
+  return row !== undefined;
+}
 
 /**
  * The company's live seeded template: one named as the standard template, or any live

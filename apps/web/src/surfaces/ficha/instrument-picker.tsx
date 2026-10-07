@@ -39,6 +39,7 @@ export function InstrumentPicker({
   testKey,
   instruments,
   serviceEnd,
+  setupInstrumentIds = [],
   readOnly = false,
 }: {
   api: FichaApi;
@@ -48,6 +49,8 @@ export function InstrumentPicker({
   testKey: TestKey;
   instruments: readonly InstrumentRow[];
   serviceEnd: string | null;
+  /** F-27: the instruments ticked in setup Etapa 4 (`setup.instrument_ids`), listed first when they fit. */
+  setupInstrumentIds?: readonly string[];
   /** The sheet is marked not tested: the stored instrument as text, the list never opens. */
   readOnly?: boolean;
 }) {
@@ -71,7 +74,8 @@ export function InstrumentPicker({
   const at = now();
   const registryRow = shown === null ? undefined : instruments.find((row) => row.id === shown.instrument_id);
   const expired = shown === null ? null : instrumentExpiredText(shown, serviceEnd, at);
-  const ordered = instrumentPickerOrder(instruments, lastInstrumentIdFor(blocks, testKey));
+  // F-27: the ones that fit this test and were ticked in setup first (the kernel's order).
+  const ordered = instrumentPickerOrder(instruments, lastInstrumentIdFor(blocks, testKey), { testKey, setupIds: setupInstrumentIds });
   const list = ordered.map((row) => instrumentOptionOf(row, serviceEnd, at));
   const selectedIndex = header === null ? -1 : list.findIndex((option) => option.id === header.instrument_id);
   const tabbable = selectedIndex === -1 ? 0 : selectedIndex;

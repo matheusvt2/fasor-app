@@ -7,10 +7,10 @@ import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { standardTemplate } from '../seed/template.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-support.ts';
 import { instantiateTemplate } from './instantiate.ts';
-import { blockingRows, exportPrecheck, parecerMissingReason, preIssue, preIssueRowsFor, type PreIssueRow } from './pre-issue.ts';
+import { blockingRows, exportPrecheck, issueConfirmation, issueConfirmReason, issueConfirmText, parecerMissingReason, preIssue, preIssueRowsFor, type PreIssueRow } from './pre-issue.ts';
 import { isEquipmentBlock } from './sheet-state.ts';
 import { restorableBlocks, sumarioRows } from './sumario.ts';
-import { progress } from './progress.ts';
+import { emptySheetCount, fichasVaziasText, progress } from './progress.ts';
 
 /*
  * Story 7.5 AC1 (and the carry-over rows): the rows `preIssue` closes the list with, the one
@@ -251,9 +251,10 @@ describe('7.5-UNIT exportPrecheck and the blocked reason', () => {
     const rows = preIssue(snapshot, undefined, { now: NOW, rejected: 1 });
     const precheck = exportPrecheck(rows);
     expect(precheck.blocking.map((r) => r.kind)).toEqual(['parecer_missing']);
-    expect(precheck.explicit.map((r) => r.kind)).toEqual(['rejected']);
-    expect(precheck.summarizedCount).toBe(rows.length - 2);
-    expect(precheck.countText).toBe(`${rows.length - 2} avisos`);
+    // F-03: the empty sheets are one of the dialog's own lines.
+    expect(precheck.explicit.map((r) => r.kind)).toEqual(['sheets_empty', 'rejected']);
+    expect(precheck.summarizedCount).toBe(rows.length - 3);
+    expect(precheck.countText).toBe(`${rows.length - 3} avisos`);
     expect(exportPrecheck([rows.find((r) => r.kind === 'sheets')!]).countText).toBe('1 aviso');
     expect(exportPrecheck([]).countText).toBe('');
   });
@@ -286,3 +287,61 @@ describe('K-9 (full review 2026-09-30) the pre-issue check on a seed version thi
   });
 });
 
+
+describe('F-03 (review 2026-10-06, D1): empty sheets and blank fields ask before issuing', () => {
+  const equipment = (snapshot: RelatorioSnapshot) => snapshot.blocks.filter((b) => b.removed_at === null && isEquipmentBlock(b));
+
+  it('counts the live sheets nothing was typed on; a concluded, a not-tested, a typed-on or a removed sheet is not one', () => {
+    const snapshot = fresh();
+    const [a, b, c, d] = equipment(snapshot);
+    expect(emptySheetCount(snapshot.blocks)).toBe(94);
+    const blocks = snapshot.blocks.map((block) => {
+      if (block.id === a!.id) return { ...block, concluded_by: { actor_id: TEST_USER, at: AT } };
+      if (block.id === b!.id) return { ...block, not_tested: { reason: 'desligado', note: null } } as unknown as BlockRow;
+      if (block.id === c!.id) return { ...block, removed_at: AT };
+      if (block.id === d!.id) return { ...block, sheet: { ...block.sheet, observations: cell('Pintura descascada') } };
+      return block;
+    });
+    expect(emptySheetCount(blocks)).toBe(90);
+    expect(fichasVaziasText(1)).toBe('1 ficha vazia');
+    expect(fichasVaziasText(93)).toBe('93 fichas vazias');
+  });
+
+  it('names the empty sheets on section 9 as information, one of the Export dialog\'s own lines, never blocking', () => {
+    const rows = preIssue(withSetup(fresh(), { parecer: PARECER }), undefined, { now: NOW });
+    const row = rows.find((r) => r.kind === 'sheets_empty');
+    expect(row).toEqual({ id: 'sheets_empty', row: 'section_9', severity: 'info', text: '94 fichas vazias', kind: 'sheets_empty' });
+    expect(exportPrecheck(rows).explicit).toContainEqual(row);
+    expect(blockingRows(rows)).toEqual([]);
+  });
+
+  it('counts the distinct blank fields a section text prints as [Label], and words the question', () => {
+    const snapshot = fresh();
+    const counts = issueConfirmation(snapshot, { now: NOW });
+    const labels = new Set(
+      preIssue(snapshot, undefined, { now: NOW })
+        .filter((r) => r.kind === 'section_variables')
+        .flatMap((r) => r.text.replace(/^Dados? do relatório em branco: /, '').split(/, | e /)),
+    );
+    // The section texts' placeholders, plus the cover's "[Responsável]" (no responsible yet).
+    expect(labels.has('Responsável')).toBe(false);
+    expect(counts).toEqual({ emptySheets: 94, blankFields: labels.size + 1 });
+    expect(labels.size).toBeGreaterThan(1);
+    expect(issueConfirmText({ emptySheets: 93, blankFields: 2 })).toBe('Emitir com 93 fichas vazias e 2 campos em branco?');
+    expect(issueConfirmText({ emptySheets: 1, blankFields: 0 })).toBe('Emitir com 1 ficha vazia?');
+    expect(issueConfirmText({ emptySheets: 0, blankFields: 1 })).toBe('Emitir com 1 campo em branco?');
+    expect(issueConfirmReason({ emptySheets: 93, blankFields: 0 })).toBe('Emitir pede confirmação: 93 fichas vazias.');
+  });
+
+  it('counts a blank required cover row ("[Responsável]") and stops once the responsible is set', () => {
+    const snapshot = fresh();
+    const without = issueConfirmation(snapshot, { now: NOW }).blankFields;
+    const responsible = { id: TEST_USER, name: 'Bento Braga', email: 'b@teste.local', council: 'crea', registration_number: 'SP 1', title: null, photo_location_enabled: false } as UserRow;
+    expect(issueConfirmation({ ...snapshot, responsible }, { now: NOW }).blankFields).toBe(without - 1);
+  });
+
+  it('asks nothing when both counts are zero', () => {
+    expect(issueConfirmText({ emptySheets: 0, blankFields: 0 })).toBeNull();
+    expect(issueConfirmReason({ emptySheets: 0, blankFields: 0 })).toBeNull();
+  });
+});

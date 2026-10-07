@@ -37,7 +37,7 @@ export interface NewProjectDialogProps {
  * `50-relatorio-setup.html` draws, with "Criar “⟨texto⟩”" last on each list. A new
  * client is the same `registry/client/{id}` create the Cadastros tab emits; a new obra is
  * one `project/{id}` create. Both work offline. "Continuar" opens the Project surface,
- * which opens its own "Novo relatório" dialog at once for a project born here.
+ * which opens its own "Novo relatório — tipo e datas" dialog at once (F-28, D3).
  */
 export function NewProjectDialog({ clients, projects, onClose }: NewProjectDialogProps) {
   const session = useSession();
@@ -50,7 +50,6 @@ export function NewProjectDialog({ clients, projects, onClose }: NewProjectDialo
   const [clientText, setClientText] = useState('');
   const [projectId, setProjectId] = useState<string | null>(null);
   const [projectText, setProjectText] = useState('');
-  const [created, setCreated] = useState<string | null>(null);
 
   const clientOptions = useMemo(() => sortClientRegistryRows(clients).map((row) => ({ id: row.id, label: row.name })), [clients]);
   const clientProjects = useMemo(() => projectsOfClient(projects, clientId), [projects, clientId]);
@@ -139,7 +138,6 @@ export function NewProjectDialog({ clients, projects, onClose }: NewProjectDialo
     createdLabels.current.set(id, site);
     setProjectId(id);
     setProjectText(site);
-    setCreated(id);
   }
 
   const reason = clientId === null ? t.needsClient : projectId === null ? t.needsSite : undefined;
@@ -150,8 +148,10 @@ export function NewProjectDialog({ clients, projects, onClose }: NewProjectDialo
   function proceed(): void {
     if (projectId === null) return;
     onClose();
-    // Only a project born here opens its "Novo relatório" dialog at once.
-    void navigate(`/project/${projectId}`, created === projectId ? { state: { openNew: true } } : undefined);
+    // F-28 (D3): the second step, "Novo relatório — tipo e datas", opens at once on the Obra
+    // page, for an obra born here or one picked from the list; the page behind it keeps
+    // listing the obra's relatórios.
+    void navigate(`/project/${projectId}`, { state: { openNew: true } });
   }
 
   return (

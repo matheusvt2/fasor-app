@@ -3,6 +3,7 @@ import {
   pendingSummaryCount,
   pendingSummaryText,
   syncBadgeLabel,
+  syncStatusWord,
   syncBadgeShortLabel,
   syncBadgeState,
   syncCounts,
@@ -157,5 +158,17 @@ describe('pendingSummaryText and syncBadgeLabel', () => {
     expect(syncBadgeLabel('pending', counts)).toBe('5 pendentes');
     expect(syncBadgeShortLabel('pending', counts)).toBe('5');
     expect(pendingSummaryCount(counts)).toBe(1);
+  });
+});
+
+describe('F-14 (review 2026-10-06) syncStatusWord', () => {
+  const counts = syncCounts([]);
+  it('reads "Sincronizando…" while a cycle runs over ok, pending or offline, the badge word otherwise', () => {
+    expect(syncStatusWord('ok', counts, true)).toBe('Sincronizando…');
+    expect(syncStatusWord('pending', counts, true)).toBe('Sincronizando…');
+    expect(syncStatusWord('offline', counts, true)).toBe('Sincronizando…');
+    expect(syncStatusWord('ok', counts, false)).toBe('Sincronizado');
+    expect(syncStatusWord('conflict', counts, true)).toBe('Conflito');
+    expect(syncStatusWord('error', counts, true)).toBe('Erro');
   });
 });

@@ -228,7 +228,7 @@ describe('4.1 NewProjectDialog', () => {
     expect(await screen.findByTestId('project-route')).toHaveTextContent(`/project/${projectId} {"openNew":true}`);
   });
 
-  it('an existing client and obra continue to the Project with no openNew state and no op', async () => {
+  it('F-28 (D3): an existing client and obra continue to the Project, which opens "Novo relatório — tipo e datas" at once; no op', async () => {
     database = await freshDb();
     await seed(database);
     const onClose = renderDialog();
@@ -238,7 +238,7 @@ describe('4.1 NewProjectDialog', () => {
     await waitFor(() => expect(proceed()).not.toHaveAttribute('aria-disabled'));
     await userEvent.click(proceed());
     expect(onClose).toHaveBeenCalled();
-    expect(await screen.findByTestId('project-route')).toHaveTextContent(`/project/${PROJECT_A1} null`);
+    expect(await screen.findByTestId('project-route')).toHaveTextContent(`/project/${PROJECT_A1} {"openNew":true}`);
     expect(await database.outbox.count()).toBe(0);
   });
 
