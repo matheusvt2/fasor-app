@@ -78,18 +78,35 @@ async function importThrough(page: Page, opener: Locator, bytes: Buffer, name: s
   return (await devicePhotos(page, database)).find((photo) => !before.has(photo.id))!.id;
 }
 
-/** Records every toast text the page shows from now on (`window.__toasts`), so a toast that came and went is still seen. */
+/**
+ * Records every toast text the page shows from now on, across the navigations to come
+ * (`sessionStorage` `e2e-toasts`), so a toast that came and went is still seen.
+ */
 async function watchToasts(page: Page): Promise<void> {
-  await page.evaluate(() => {
-    const seen: string[] = [];
-    (window as unknown as { __toasts: string[] }).__toasts = seen;
-    new MutationObserver(() => {
-      for (const toast of document.querySelectorAll('[data-testid="toast"]')) {
-        const text = toast.textContent ?? '';
-        if (!seen.includes(text)) seen.push(text);
-      }
-    }).observe(document.body, { childList: true, subtree: true, characterData: true });
-  });
+  const install = () => {
+    const key = 'e2e-toasts';
+    const start = () =>
+      new MutationObserver(() => {
+        const seen = JSON.parse(sessionStorage.getItem(key) ?? '[]') as string[];
+        let changed = false;
+        for (const toast of document.querySelectorAll('[data-testid="toast"]')) {
+          const text = toast.textContent ?? '';
+          if (!seen.includes(text)) {
+            seen.push(text);
+            changed = true;
+          }
+        }
+        if (changed) sessionStorage.setItem(key, JSON.stringify(seen));
+      }).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+    if (document.documentElement === null) document.addEventListener('DOMContentLoaded', start);
+    else start();
+  };
+  await page.addInitScript(install);
+  await page.evaluate(install);
+}
+
+async function seenToasts(page: Page): Promise<string[]> {
+  return page.evaluate(() => JSON.parse(sessionStorage.getItem('e2e-toasts') ?? '[]') as string[]);
 }
 
 test('@p0 13.5-E2E-001 a plate and a thermo-hygrometer reading pending past 10 s show their age and "Cancelar"; cancelled, the photos stay and every suggestion the real job then writes is discarded, with no arrival toast', async ({ page }) => {
@@ -140,7 +157,7 @@ test('@p0 13.5-E2E-001 a plate and a thermo-hygrometer reading pending past 10 s
   await expect(nameplate(page).locator('.suggestion-field')).toHaveCount(0);
   await expect(nameplate(page).locator('.plate-crop')).toHaveCount(0);
   await expect(env(page).locator('.suggestion-field')).toHaveCount(0);
-  const toasts = await page.evaluate(() => (window as unknown as { __toasts: string[] }).__toasts);
+  const toasts = await seenToasts(page);
   expect(toasts.filter((text) => /prontas? para confirmar/.test(text))).toEqual([]);
   expect((await outbox(page)).some((op) => op.path.startsWith(`sheet/${ids.blockId}/nameplate/`))).toBe(false);
 });
@@ -298,7 +315,7 @@ test('@p1 13.5-E2E-004 a reading still running past 120 s keeps its age and adds
 
   const pulls: number[] = [];
   page.on('request', (request) => {
-    if (new URL(request.url()).pathname.startsWith('/api/sync/pull')) pulls.push(Date.now());
+    if (new URL(request.url()).pathname === '/api/sync/company') pulls.push(Date.now());
   });
   await expect(line.locator('.reading-line')).toHaveText(/^Lendo… 2 min \d\d s$/, { timeout: 150_000 });
   await expect(line.locator('.reading-note')).toHaveText('A leitura está demorando. O app continua conferindo a cada minuto; a foto está guardada.');
@@ -313,6 +330,8 @@ test('@p1 13.5-E2E-005 the arrival toast\'s "Ver" on a panel suggestion reopens 
   const { relatorioId, photoId } = await panelShot(page);
   await page.goto('/');
   await expect(page.getByRole('group', { name: 'Relatórios por status' })).toBeVisible();
+  // The launch cycle of the reload settles first: what it pulls is the device's baseline.
+  await syncNow(page);
   await pushPanelSuggestion(relatorioId, photoId);
   await syncNow(page);
   const toast = page.getByTestId('toast');

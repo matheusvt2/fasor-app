@@ -21,6 +21,13 @@ import { syncNowAndReturn } from './support/sync.ts';
 
 test.use({ hasTouch: true });
 
+// Playwright's WebKit build cannot store a Blob in IndexedDB ("UnknownError: Error preparing
+// Blob/File data to be stored in object store", seen 2026-10-07 on the plate import), so no
+// photo can be saved on the device there and no viewer can open on one. The gestures are
+// pointer events on every engine; the WebKit pass is the manual iPad script's until that
+// limit goes. Desktop Chrome and Android Chrome emulation run every test.
+test.skip(({ browserName }) => browserName === 'webkit', 'Playwright WebKit cannot store a photo Blob in IndexedDB');
+
 let account: SeedAccount;
 let database: string;
 test.beforeEach(({ seed }) => {
