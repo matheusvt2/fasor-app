@@ -7,7 +7,7 @@ import {
   numberEchoText,
   normalizeDateValue,
   numberFieldValue,
-  parseFieldInput,
+  parsePlateDateText,
   parseVoltageClassKv,
   plateDateAccepted,
   screenLabel,
@@ -176,6 +176,12 @@ export function SheetField(props: FieldProps) {
   }
 }
 
+/**
+ * Story 13.4 (INP-1): serials, TAGs and types are codes, not prose: the mobile keyboard must
+ * not capitalize, correct or underline them (the TAG dialogs' own attributes).
+ */
+const PLAIN_TEXT = { autoCapitalize: 'off', autoCorrect: 'off', spellCheck: false } as const;
+
 function TextField({ field, value, commit, draft, missing, label, helper, after, flushOnUnmount }: FieldProps) {
   const id = useId();
   const helperId = useId();
@@ -189,6 +195,7 @@ function TextField({ field, value, commit, draft, missing, label, helper, after,
         id={id}
         className="input"
         value={typed.text}
+        {...PLAIN_TEXT}
         data-missing-field={missing ? '' : undefined}
         aria-describedby={helper === undefined ? undefined : helperId}
         onChange={(event) => typed.change(event.target.value)}
@@ -263,46 +270,72 @@ function NumberField({ field, value, commit, draft, missing, label, invalidText,
 const FULL_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
- * A date field: the date picker for an empty value or a full date (a `dd/mm/aaaa` one read
- * in the canonical shape), else (E78-Q3: a month-only date, a year, text the kernel cannot
- * read) a text input showing the stored value, so a value that prints is never blank here.
+ * A date field by what it holds. Story 13.4 (INP-3): an empty date is the mock's text
+ * `.input` ("Ex: 03/2012", `60-ficha.html`), since plates say "08/2024" or "2012" and React
+ * Aria's `DateField` has no month or year granularity; a stored full date (a `dd/mm/aaaa`
+ * one read in the canonical shape) is the date picker; anything else (E78-Q3: a month-only
+ * date, a year, text the kernel cannot read) is the same text input showing the stored
+ * value, so a value that prints is never blank here. The text input stays mounted while it
+ * holds the focus, so the date its Enter commits never swaps the focused input away; the
+ * picker takes over once the focus leaves.
  */
 function DateValueField(props: FieldProps) {
+  const [typing, setTyping] = useState(false);
   const canonical = normalizeDateValue(props.value);
-  if (canonical === null || canonical === undefined || (typeof canonical === 'string' && (canonical.trim() === '' || FULL_DATE.test(canonical)))) {
-    return <DatePickerField {...props} value={canonical} />;
-  }
-  return <DateTextField {...props} />;
+  if (typeof canonical === 'string' && FULL_DATE.test(canonical) && !typing) return <DatePickerField {...props} value={canonical} />;
+  return <DateTextField {...props} onFocusChange={setTyping} />;
 }
 
 /**
- * E78-Q3: a stored date the picker cannot hold, as the kernel's text ("08/2024", "2012").
- * Typing commits on blur or Enter what `parseFieldInput` reads (`dd/mm/aaaa`, `mm/aaaa`); a
- * text it cannot read keeps the stored value and shows the invalid helper.
+ * The text form of a sheet date: typing commits on blur or Enter what `parsePlateDateText`
+ * reads (`dd/mm/aaaa`, `mm/aaaa`, `aaaa`, or their digits alone: `01012020`, `082024`,
+ * `2024`); a text it cannot read, or a year outside 1900 .. next year (F-22), keeps the
+ * stored value and shows the invalid helper. Empty text clears the field.
  */
-function DateTextField({ field, value, commit, missing, label, after }: FieldProps) {
+function DateTextField({ field, value, commit, missing, label, after, flushOnUnmount, onFocusChange }: FieldProps & { onFocusChange: (focused: boolean) => void }) {
   const id = useId();
   const helperId = useId();
   const storedText = fieldValueText(field, value);
   const [text, setText] = useState(storedText);
   const [invalid, setInvalid] = useState(false);
   const shown = useRef(storedText);
+  /** Typed text not yet handed to `commit` (F-01: flushed if the field leaves the page). */
+  const pending = useRef(false);
   if (storedText !== shown.current) {
     shown.current = storedText;
     setText(storedText);
     setInvalid(false);
+    pending.current = false;
   }
+  /** The value `typed` writes, `undefined` when nothing is to be written, `false` when it is refused. */
+  const reading = (typed: string): unknown => {
+    if (typed === shown.current) return undefined;
+    if (typed.trim() === '') return null;
+    const parsed = parsePlateDateText(typed);
+    return parsed === null || !plateDateAccepted(parsed, now()) ? false : parsed;
+  };
   const submit = () => {
-    if (text === storedText) return;
-    const parsed = parseFieldInput(field, text);
-    // F-22: a date outside 1900 .. next year is refused like one the kernel cannot read.
-    if (!parsed.ok || (typeof parsed.value === 'string' && !plateDateAccepted(parsed.value, now()))) {
+    const next = reading(text);
+    pending.current = false;
+    if (next === undefined) return;
+    if (next === false) {
       setInvalid(true);
       return;
     }
     setInvalid(false);
-    void commit(parsed.value);
+    void commit(next);
   };
+  const latest = useRef({ text, on: flushOnUnmount === true, commit, reading });
+  latest.current = { text, on: flushOnUnmount === true, commit, reading };
+  useLayoutEffect(
+    () => () => {
+      const { text: typed, on, commit: write, reading: read } = latest.current;
+      if (!on || !pending.current) return;
+      const next = read(typed);
+      if (next !== undefined && next !== false) void write(next);
+    },
+    [],
+  );
   return (
     <div className="field" data-field-key={field.key}>
       <label className="field-label" htmlFor={id}>
@@ -312,14 +345,23 @@ function DateTextField({ field, value, commit, missing, label, after }: FieldPro
         id={id}
         className="input"
         value={text}
+        placeholder={copy.ficha.nameplate.datePlaceholder}
+        inputMode="numeric"
+        autoComplete="off"
+        {...PLAIN_TEXT}
         aria-invalid={invalid || undefined}
         aria-describedby={invalid ? helperId : undefined}
         data-missing-field={missing ? '' : undefined}
         onChange={(event) => {
           setText(event.target.value);
           setInvalid(false);
+          pending.current = true;
         }}
-        onBlur={submit}
+        onFocus={() => onFocusChange(true)}
+        onBlur={() => {
+          submit();
+          onFocusChange(false);
+        }}
         onKeyDown={(event) => {
           if (event.key === 'Enter') submit();
         }}

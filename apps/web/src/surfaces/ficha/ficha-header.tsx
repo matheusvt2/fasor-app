@@ -5,7 +5,7 @@ import { copy } from '../../copy/pt-br.ts';
 /**
  * The Sheet header (UX-DR33, `key-equipment-sheet-v09.html` `.sheet-header`): type + TAG,
  * the TAG a 48 px text button that renames the equipment (its id kept); Cabine › Coluna;
- * the attribution lines once saved; the kernel's one sentence of progress
+ * the attribution lines once saved; the saved line ("Salvo às 14:32", Story 13.4); the kernel's one sentence of progress
  * (`sheetSummaryParts`, "Placa e verificações prontas · faltam 9 leituras e a conclusão",
  * Story 12.5, J-14), which never blocks anything; and the sheet's Overflow. A sheet marked
  * not tested keeps its v0.8 Progress counter ("Completa"): nothing in it is counted.
@@ -21,6 +21,7 @@ export function FichaHeader({
   menu,
   notTested = false,
   onRename,
+  savedText = '',
 }: {
   typeName: string;
   tag: string;
@@ -34,6 +35,8 @@ export function FichaHeader({
   /** `key-sheet-states.html` frame (a): the chip beside the TAG once the sheet is not tested. */
   notTested?: boolean;
   onRename: (() => void) | null;
+  /** Story 13.4 (INP-4): the kernel's "Salvo às 14:32", '' before the first save of this session. */
+  savedText?: string;
 }) {
   const t = copy.ficha;
   return (
@@ -67,6 +70,12 @@ export function FichaHeader({
           <p className="sheet-meta">{filledBy}</p>
         )}
         {concludedBy === null ? null : <p className="sheet-meta">{concludedBy}</p>}
+        {/* Story 13.4 (INP-4): the saved line, visible and quiet, a status region; like the
+            attribution line it holds its height (a non-breaking space) before the first save,
+            so the header never grows when that save lands. */}
+        <p className="sheet-meta" role="status" data-testid="ficha-saved">
+          {savedText === '' ? '\u00a0' : savedText}
+        </p>
         {notTested ? null : (
           <p className="sheet-summary" data-testid="ficha-progress">
             {/* E12-Q8: the missing counts in `.n-missing`, as `key-equipment-sheet-v09.html` draws them. */}

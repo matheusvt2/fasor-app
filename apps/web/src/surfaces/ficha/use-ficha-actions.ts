@@ -3,7 +3,9 @@ import {
   conclusionRestrictionOf,
   conclusionResultOf,
   filledByText,
+  formatTimeOfDay,
   moveTargets,
+  savedStateText,
   sheetProgress,
   suggestedInstruments,
   tagRenamedText,
@@ -19,12 +21,13 @@ import {
   type SheetStep,
   type UserRow,
 } from '@app/domain';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { NavigateFunction } from 'react-router';
 import { type OverflowMenuAction } from '../../components/index.ts';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import type { SessionState } from '../../state/session.tsx';
+import { useServerReachable } from '../../state/sync.tsx';
 import type { ToastState } from '../../state/toast.tsx';
 import type { RelatorioEditor } from '../relatorio/relatorio-editor.ts';
 import { putEquipmentTagOp } from '../relatorio/relatorio-ops.ts';
@@ -32,30 +35,22 @@ import { commitMove } from '../relatorio/tree-actions.ts';
 import type { FichaApi } from './ficha-api.ts';
 import { concludedByOp, conclusionOp, notTestedOp, testInstrumentOp } from './ficha-ops.ts';
 
-/** EXPERIENCE.md › Autosave: "Salvo" is announced at most every few seconds, never per keystroke. */
-export const SAVED_THROTTLE_MS = 3000;
-const SAVED_SHOWN_MS = 1500;
-
-/** The "Salvo" live region's text, set at most once per `SAVED_THROTTLE_MS`. */
+/**
+ * Story 13.4 (INP-4): the sheet header's visible saved line. It keeps the instant the last
+ * commit landed in the outbox (no clearing timer) and reads it through the kernel
+ * (`savedStateText`), so the line changes at most once a minute or when the server's
+ * reachability changes, never per commit (EXPERIENCE.md › Autosave: "at most every few
+ * seconds, never per keystroke"). Offline (F-13's meaning) it says "neste aparelho".
+ */
 export function useSavedStatus(): { text: string; saved: () => void } {
-  const [text, setText] = useState('');
-  const last = useRef(0);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(
-    () => () => {
-      if (timer.current !== null) clearTimeout(timer.current);
-    },
-    [],
-  );
+  const [at, setAt] = useState<string | null>(null);
+  const reachable = useServerReachable();
   const saved = useCallback(() => {
-    const at = Date.now();
-    if (at - last.current < SAVED_THROTTLE_MS) return;
-    last.current = at;
-    setText(copy.ficha.saved);
-    if (timer.current !== null) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setText(''), SAVED_SHOWN_MS);
+    const landed = now().toISOString();
+    // Within the same minute the line would read the same: keep the state, render nothing.
+    setAt((previous) => (previous !== null && formatTimeOfDay(previous) === formatTimeOfDay(landed) ? previous : landed));
   }, []);
-  return { text, saved };
+  return { text: savedStateText(at, reachable), saved };
 }
 
 export interface FichaActions {

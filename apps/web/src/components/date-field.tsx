@@ -1,6 +1,8 @@
 import { CalendarDate, parseDate } from '@internationalized/date';
 import { useId, type ReactNode } from 'react';
 import { DateField as AriaDateField, DateInput, DateSegment, Label } from 'react-aria-components';
+import { ui } from '../copy/ui.ts';
+import { Chip } from './chip.tsx';
 
 export interface DateFieldProps {
   label: string;
@@ -19,6 +21,11 @@ export interface DateFieldProps {
   state?: 'suggested' | 'confirmed';
   /** Story 11.9: siblings after the `.input` (the "Sugerido" pill, a helper). */
   after?: ReactNode;
+  /**
+   * Story 13.4 (INP-3): today's date (`YYYY-MM-DD`, America/Sao_Paulo). While the field is
+   * empty a "Hoje" chip under the `.input` fills it and settles it like a typed date.
+   */
+  today?: () => string;
 }
 
 function toCalendarDate(value: string | null): CalendarDate | null {
@@ -36,8 +43,9 @@ function toCalendarDate(value: string | null): CalendarDate | null {
  * and typed digits) and the `#i-calendar` sprite glyph. ISO strings in and out; the app
  * root's `I18nProvider locale="pt-BR"` orders the segments.
  */
-export function DateField({ label, value, onChange, isInvalid, describedBy, autoFocus, onBlur, className, state, after }: DateFieldProps) {
+export function DateField({ label, value, onChange, isInvalid, describedBy, autoFocus, onBlur, className, state, after, today }: DateFieldProps) {
   const labelId = useId();
+  const showToday = today !== undefined && toCalendarDate(value) === null;
   return (
     <AriaDateField
       className={className === undefined ? 'field' : `field ${className}`}
@@ -59,6 +67,18 @@ export function DateField({ label, value, onChange, isInvalid, describedBy, auto
       <svg className="ico date-ico" aria-hidden="true">
         <use href="/sprite.svg#i-calendar" />
       </svg>
+      {showToday ? (
+        <div className="chip-row">
+          <Chip
+            onPress={() => {
+              onChange(today());
+              onBlur?.();
+            }}
+          >
+            {ui.dateField.today}
+          </Chip>
+        </div>
+      ) : null}
       {after}
     </AriaDateField>
   );

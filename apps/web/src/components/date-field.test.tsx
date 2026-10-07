@@ -50,3 +50,48 @@ describe('DateField', () => {
     expect(segments.map((s) => s.textContent)).toEqual(['08', '09', '2026']);
   });
 });
+
+describe('13.4 INP-3 DateField "Hoje"', () => {
+  function TodayHarness({ onChange, onBlur, initial = null }: { onChange: (v: string | null) => void; onBlur?: () => void; initial?: string | null }) {
+    const [value, setValue] = useState<string | null>(initial);
+    return (
+      <I18nProvider locale="pt-BR">
+        <DateField
+          label="Início da execução"
+          value={value}
+          today={() => '2026-10-07'}
+          {...(onBlur === undefined ? {} : { onBlur })}
+          onChange={(next) => {
+            setValue(next);
+            onChange(next);
+          }}
+        />
+      </I18nProvider>
+    );
+  }
+
+  it('an empty field offers "Hoje" in a `.chip-row`; pressing it fills today and settles the commit', async () => {
+    const onChange = vi.fn();
+    const onBlur = vi.fn();
+    const { container } = render(<TodayHarness onChange={onChange} onBlur={onBlur} />);
+    const chip = screen.getByRole('button', { name: 'Hoje' });
+    expect(chip).toHaveClass('chip');
+    expect(chip.parentElement).toHaveClass('chip-row');
+    await userEvent.click(chip);
+    expect(onChange).toHaveBeenLastCalledWith('2026-10-07');
+    expect(onBlur).toHaveBeenCalled();
+    expect(screen.getAllByRole('spinbutton').map((s) => s.textContent)).toEqual(['07', '10', '2026']);
+    expect(screen.queryByRole('button', { name: 'Hoje' })).toBeNull();
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('is absent once a value exists', () => {
+    render(<TodayHarness onChange={vi.fn()} initial="2026-09-08" />);
+    expect(screen.queryByRole('button', { name: 'Hoje' })).toBeNull();
+  });
+
+  it('is absent on a field without `today`', () => {
+    render(<Harness onChange={vi.fn()} />);
+    expect(screen.queryByRole('button', { name: 'Hoje' })).toBeNull();
+  });
+});
