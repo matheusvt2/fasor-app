@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { formatDateTime, formatIssueDate, formatServiceDates, formatShortDateTime, formatTimeOfDay } from './datetime.ts';
-import { dateFieldText, dateRangeText, formatDateOfInstant, formatDateRange, normalizeDateValue, parseCalendarDate, uuidV7Instant } from './datetime.ts';
+import { dateFieldText, dateRangeText, formatDateOfInstant, formatDateRange, normalizeDateValue, parseCalendarDate, parsePlateDateText, savedStateText, uuidV7Instant } from './datetime.ts';
 
 describe('formatDateTime and formatIssueDate (Story 4.8)', () => {
   it('render dd/mm/aaaa HH:mm and dd/mm/aaaa in America/Sao_Paulo', () => {
@@ -134,5 +134,51 @@ describe('E78-Q3 normalizeDateValue and dateFieldText (every stored date shape)'
     expect(dateFieldText('2012')).toBe('2012');
     expect(dateFieldText('15/03/2019')).toBe('15/03/2019');
     expect(dateFieldText(null)).toBe('');
+  });
+});
+
+describe('13.4 INP-3 parsePlateDateText (the sheet date typed as plates write it)', () => {
+  it('reads a full day, a month-year and a bare year, with or without the slashes', () => {
+    expect(parsePlateDateText('15/03/2019')).toBe('2019-03-15');
+    expect(parsePlateDateText('15032019')).toBe('2019-03-15');
+    expect(parsePlateDateText('01012020')).toBe('2020-01-01');
+    expect(parsePlateDateText('08/2024')).toBe('2024-08');
+    expect(parsePlateDateText('8/2024')).toBe('2024-08');
+    expect(parsePlateDateText('082024')).toBe('2024-08');
+    expect(parsePlateDateText('2024')).toBe('2024');
+    expect(parsePlateDateText(' 2012 ')).toBe('2012');
+    expect(parsePlateDateText('2024-08')).toBe('2024-08');
+    expect(parsePlateDateText('2019-03-15')).toBe('2019-03-15');
+  });
+
+  it('refuses what is no calendar day, month or year; the range is left to plateDateAccepted', () => {
+    expect(parsePlateDateText('13/2024')).toBeNull();
+    expect(parsePlateDateText('132024')).toBeNull();
+    expect(parsePlateDateText('31022019')).toBeNull();
+    expect(parsePlateDateText('abc')).toBeNull();
+    expect(parsePlateDateText('')).toBeNull();
+    expect(parsePlateDateText('12345')).toBeNull();
+    expect(parsePlateDateText('202')).toBeNull();
+    // A year out of range still parses, four digits kept: plateDateAccepted refuses it.
+    expect(parsePlateDateText('1899')).toBe('1899');
+    expect(parsePlateDateText('20/02/0001')).toBe('0001-02-20');
+    expect(parsePlateDateText('20020001')).toBe('0001-02-20');
+  });
+});
+
+describe('13.4 INP-4 savedStateText', () => {
+  it('says when the last op landed, in America/Sao_Paulo, online and offline', () => {
+    expect(savedStateText('2026-10-07T17:32:10.000Z', true)).toBe('Salvo às 14:32');
+    expect(savedStateText('2026-10-07T17:32:10.000Z', false)).toBe('Salvo neste aparelho às 14:32');
+  });
+
+  it('crosses midnight in Sao Paulo, not in UTC', () => {
+    expect(savedStateText('2026-10-08T02:59:00.000Z', true)).toBe('Salvo às 23:59');
+    expect(savedStateText('2026-10-08T03:00:00.000Z', true)).toBe('Salvo às 00:00');
+  });
+
+  it('is empty for no or an unparseable instant', () => {
+    expect(savedStateText(null, true)).toBe('');
+    expect(savedStateText('soon', false)).toBe('');
   });
 });

@@ -98,7 +98,7 @@ test('@p0 E78-Q3 E78-Q4 8.1-E2E-005 "Copiar da última visita" of "07/2025" stor
   const before = (await put('data_fabricacao')).length;
   await date.fill('13/2024');
   await date.press('Enter');
-  await expect(field(page, 'data_fabricacao').locator('.helper[data-tone="red"]')).toHaveText('Data não reconhecida — use dd/mm/aaaa ou mm/aaaa');
+  await expect(field(page, 'data_fabricacao').locator('.helper[data-tone="red"]')).toHaveText('Data não reconhecida — use dd/mm/aaaa, mm/aaaa ou aaaa');
   expect((await put('data_fabricacao')).length).toBe(before);
   // A month typed in the plate's order is stored canonical.
   await date.fill('08/2024');

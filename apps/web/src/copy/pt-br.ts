@@ -1009,8 +1009,6 @@ export const copy = {
       ensaios: { long: 'Ensaios', short: 'Ensaios' },
       conclusao: { long: 'Conclusão', short: 'Concl.' },
     },
-    // EXPERIENCE.md › Autosave: the visually hidden status.
-    saved: 'Salvo',
     // authored: the toast after "Concluir ficha" at Progress = Completa.
     concluded: 'Ficha concluída',
     // `60-ficha.html` "Concluir ficha: faltam obrigatórios — vai para o primeiro campo faltando" (announced).
@@ -1065,6 +1063,10 @@ export const copy = {
       selectEmpty: 'Selecione',
       // authored (Story 8.1): the typed guess of a suggested field that is not its kind.
       invalidDate: 'Data não reconhecida — use dd/mm/aaaa ou mm/aaaa',
+      // authored: Story 13.4 INP-3, the sheet date's text form, which also reads a year alone.
+      invalidPlateDate: 'Data não reconhecida — use dd/mm/aaaa, mm/aaaa ou aaaa',
+      // `60-ficha.html` empty "Data de fabricação" `.placeholder` (Story 13.4 INP-3).
+      datePlaceholder: 'Ex: 03/2012',
       invalidOption: 'Opção não reconhecida',
       invalidVoltage: 'Tensão não reconhecida — use kV, ex.: 15',
       // Stories 8.2 and 8.6: the plate photo above the fields (`60-ficha.html` nameplate

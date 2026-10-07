@@ -563,6 +563,10 @@ body {
 .date-segment[data-placeholder] { color: var(--ink-secondary); }
 .date-segment:focus { outline: none; background: var(--primary); color: var(--primary-foreground); }
 .field .date-ico { position: absolute; right: var(--sp-3); bottom: calc((var(--touch-field) - 24px) / 2); color: var(--ink-secondary); pointer-events: none; }
+/* authored (Story 13.4 INP-3): an empty service date carries the "Hoje" `.chip-row` under its
+   `.input`; the glyph keeps its place in the box, measured from the top as `points.css` does
+   for the "Prazo" field. */
+.field:has(> .chip-row) > .date-ico { bottom: auto; top: calc(var(--t-label-size) * var(--t-label-lh) + var(--field-gap) + (var(--touch-field) - 24px) / 2); }
 
 /* ---------- Quantity stepper: the typeable count ----------
    authored: the mock draws `.count` as a `<span>`; the stepper's count is typeable

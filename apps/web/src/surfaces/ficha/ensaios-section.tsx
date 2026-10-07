@@ -1,6 +1,7 @@
 import {
   evaluateSheetReadings,
   evaluatedCells,
+  runEnterKeyHint,
   runTarget,
   screenLabel,
   tableDictationLabel,
@@ -15,7 +16,7 @@ import {
   type RelatorioSnapshot,
   type TestEvaluation,
 } from '@app/domain';
-import { useId, useMemo, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, type ReactNode } from 'react';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
 import type { FichaApi } from './ficha-api.ts';
@@ -79,6 +80,8 @@ export function EnsaiosSection({
   const host = useRef<HTMLDivElement | null>(null);
   const firstMissing = useMemo(() => evaluatedCells(evaluations).find((cell) => cell.missing)?.address ?? null, [evaluations]);
 
+  useRunEnterKeyHints(host, evaluations);
+
   /** Focuses the visible input of a cell (the table or, for a TTR on phone, its card). */
   const focusCell = (address: CellAddress): boolean => {
     const inputs = host.current?.querySelectorAll<HTMLInputElement>(`[data-cell-input="${cellKey(address)}"]`) ?? [];
@@ -121,6 +124,41 @@ export function EnsaiosSection({
       {display.viewer}
     </div>
   );
+}
+
+/**
+ * Story 13.4 (INP-2): every input of the continuous Enter run labels the mobile keyboard's
+ * Enter key with the kernel's `runEnterKeyHint` ("next", or "done" where Enter hands the focus
+ * to the primary). The hint is set on the DOM here, over every `[data-cell-input]` under the
+ * section, rather than as a prop of each cell component: the run's inputs are drawn by three
+ * components (`MeasurementField`, `DictatedMeasurementField` and the suggested cell of
+ * `read-display.tsx`, owned by another batch), and this section is the one place that knows
+ * the whole run. A layout effect sets it after every render of the section (cells filling
+ * move the "done"), and a MutationObserver covers an input a child mounts on its own (a cell
+ * swapping to its suggested or dictated form). Only the attribute changes, so the observer,
+ * watching the child list, never feeds itself.
+ */
+function useRunEnterKeyHints(host: { current: HTMLDivElement | null }, evaluations: readonly TestEvaluation[]): void {
+  const hints = useMemo(() => new Map(evaluatedCells(evaluations).map((cell) => [cellKey(cell.address), runEnterKeyHint(evaluations, cell.address)])), [evaluations]);
+  const latest = useRef(hints);
+  latest.current = hints;
+  useLayoutEffect(() => {
+    if (host.current !== null) applyRunEnterKeyHints(host.current, hints);
+  });
+  useEffect(() => {
+    const root = host.current;
+    if (root === null) return;
+    const observer = new MutationObserver(() => applyRunEnterKeyHints(root, latest.current));
+    observer.observe(root, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [host]);
+}
+
+function applyRunEnterKeyHints(root: HTMLElement, hints: ReadonlyMap<string, 'next' | 'done'>): void {
+  for (const input of root.querySelectorAll<HTMLInputElement>('input[data-cell-input]')) {
+    const hint = hints.get(input.dataset.cellInput ?? '') ?? 'done';
+    if (input.getAttribute('enterkeyhint') !== hint) input.setAttribute('enterkeyhint', hint);
+  }
 }
 
 function sameAddress(a: CellAddress | null, b: CellAddress): boolean {

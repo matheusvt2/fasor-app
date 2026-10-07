@@ -135,7 +135,9 @@ test('@p0 5.1-E2E-005 a tree row opens the sheet: App bar TAG, header, stepper w
   // once (the chip row with "Outro…" is the tablet and phone presentation), with "Criar".
   await field(page, 'fabricacao').getByRole('combobox').fill('Fabricante Ficha');
   await page.getByRole('option', { name: 'Criar “Fabricante Ficha”' }).click();
-  await expect(page.getByTestId('ficha-saved')).toHaveText('Salvo');
+  // Story 13.4 (INP-4): the saved line is visible in the header.
+  await expect(page.getByTestId('ficha-saved')).toHaveText(/^Salvo às \d{2}:\d{2}$/);
+  await expect(page.getByTestId('ficha-saved')).toBeVisible();
   await page.getByLabel('Nº série', { exact: true }).fill('PR-0001');
   await page.getByLabel('Tipo', { exact: true }).fill('Polimérico');
   // F-09 (D4, 2026-10-06): 36,2 kV comes seeded with the standard template; 34,5 is created here.
@@ -1406,39 +1408,40 @@ test('@p1 E5-Q18e the Sumário counts a sheet marked not tested: "0 não ensaiad
   await expect(chevron).toHaveAttribute('aria-expanded', 'true');
 });
 
-test('@p1 E5-Q18f "Salvo" is announced at most once per throttle window, never per commit', async ({ page }) => {
+test('@p1 E5-Q18f the saved line changes at most once for a burst of commits, never per commit (Story 13.4)', async ({ page }) => {
   test.setTimeout(120_000);
   await openRelatorio(page, 1280);
   await openEnel(page);
   const { blockId } = await openSheet(page, rowOfType(page, 'Para-raio'));
   const items = PARA_RAIO.checklist!;
-  // Every time the live region starts saying "Salvo", with the page's own clock.
-  await page.getByTestId('ficha-saved').evaluate((region) => {
-    const said: number[] = [];
-    (window as unknown as { salvo: number[] }).salvo = said;
-    let last = region.textContent;
+  expect(items.length).toBeGreaterThan(4);
+  const region = page.getByTestId('ficha-saved');
+  // Before the first save the line holds its height with a non-breaking space.
+  expect(await region.evaluate((element) => element.textContent)).toBe('\u00a0');
+  // The line reads the minute of the last save: the burst runs well inside one minute.
+  await page.waitForFunction(() => new Date().getSeconds() < 40, undefined, { timeout: 30_000 });
+  // Every text the live region takes, as it takes it.
+  await region.evaluate((element) => {
+    const said: string[] = [];
+    (window as unknown as { salvo: string[] }).salvo = said;
+    let last = element.textContent;
     new MutationObserver(() => {
-      if (region.textContent === 'Salvo' && last !== 'Salvo') said.push(performance.now());
-      last = region.textContent;
-    }).observe(region, { childList: true, characterData: true, subtree: true });
+      if (element.textContent !== last) said.push(element.textContent ?? '');
+      last = element.textContent;
+    }).observe(element, { childList: true, characterData: true, subtree: true });
   });
-  const said = () => page.evaluate(() => (window as unknown as { salvo: number[] }).salvo);
+  const said = () => page.evaluate(() => (window as unknown as { salvo: string[] }).salvo);
   const resultsWritten = async () => (await outbox(page)).filter((row) => row.path.startsWith(`sheet/${blockId}/checklist/`)).length;
 
-  // A burst of four commits well inside one window: one "Salvo".
-  for (const n of [1, 2, 3, 4]) await checklistRow(page, n).getByRole('radio', { name: 'Conforme', exact: true }).click();
-  await expect.poll(resultsWritten).toBe(4);
-  await expect.poll(async () => (await said()).length).toBe(1);
-  const [first] = await said();
-  expect(items.length).toBeGreaterThan(4);
-
-  // Once the window has passed, the next commit says it again, and only once.
-  await page.waitForFunction((at) => performance.now() - at > 3_100, first!);
-  await checklistRow(page, 5).getByRole('radio', { name: 'Conforme', exact: true }).click();
+  // A burst of five commits: the line changes once, to "Salvo às HH:MM", and stays.
+  for (const n of [1, 2, 3, 4, 5]) await checklistRow(page, n).getByRole('radio', { name: 'Conforme', exact: true }).click();
   await expect.poll(resultsWritten).toBe(5);
-  await expect.poll(async () => (await said()).length).toBe(2);
-  const [a, b] = await said();
-  expect(b! - a!).toBeGreaterThanOrEqual(3_000);
+  await expect.poll(async () => (await said()).length).toBe(1);
+  await page.waitForTimeout(1_000);
+  const texts = await said();
+  expect(texts).toHaveLength(1);
+  expect(texts[0]).toMatch(/^Salvo às \d{2}:\d{2}$/);
+  await expect(region).toBeVisible();
 });
 
 test('@p1 E5-Q9 the expired calibration line under a picked instrument is drawn in fora-do-limite', async ({ page }) => {

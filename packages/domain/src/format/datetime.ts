@@ -70,6 +70,17 @@ export function formatTimeOfDay(iso: string | null): string {
   return timeOfDay.format(new Date(time));
 }
 
+/**
+ * Story 13.4 (INP-4): the sheet header's quiet saved line, "Salvo às 14:32" once the last
+ * field op landed in the outbox, "Salvo neste aparelho às 14:32" while the server is not
+ * reachable (F-13's meaning of online); '' for no or an unparseable instant.
+ */
+export function savedStateText(atIso: string | null, reachable: boolean): string {
+  const time = formatTimeOfDay(atIso);
+  if (time === '') return '';
+  return reachable ? `Salvo às ${time}` : `Salvo neste aparelho às ${time}`;
+}
+
 /*
  * Service dates (AD-11 `date` values: `YYYY-MM-DD` or `YYYY-MM`) are calendar dates,
  * not instants: they are split by hand rather than through `Date`, so no time zone
@@ -125,6 +136,33 @@ export function parseCalendarDate(text: string): string | null {
   match = DATE_ISO.exec(trimmed);
   if (match !== null) return isoDate(Number(match[1]), Number(match[2]), match[3] === undefined ? null : Number(match[3]));
   return null;
+}
+
+const DIGITS = /^\d+$/;
+const YEAR = /^\d{4}$/;
+
+/**
+ * Story 13.4 (INP-3): a plate's "Data de fabricação" as typed on the sheet, where plates say
+ * "15/03/2019", "08/2024" or "2012": `dd/mm/aaaa`, `mm/aaaa`, `aaaa`, ISO, or a run of digits
+ * typed on a numeric pad with no "/" (8 digits `ddmmaaaa`, 6 `mmaaaa`, 4 `aaaa`). Returns
+ * `YYYY-MM-DD`, `YYYY-MM` or `YYYY` (a bare year is stored as is, E78-Q3: no month is
+ * invented); null for anything else. The range (1900 .. next year) is `plateDateAccepted`'s.
+ */
+export function parsePlateDateText(text: string): string | null {
+  const trimmed = text.trim();
+  if (YEAR.test(trimmed)) return trimmed;
+  let slashed = trimmed;
+  if (DIGITS.test(trimmed)) {
+    if (trimmed.length === 8) slashed = `${trimmed.slice(0, 2)}/${trimmed.slice(2, 4)}/${trimmed.slice(4)}`;
+    else if (trimmed.length === 6) slashed = `${trimmed.slice(0, 2)}/${trimmed.slice(2)}`;
+    else return null;
+  }
+  const iso = parseCalendarDate(slashed);
+  if (iso === null) return null;
+  // `parseCalendarDate` writes a year below 1000 unpadded ("0001" as "1"); the plate keeps four
+  // digits, so `plateDateAccepted` sees the year and refuses it (F-22).
+  const dash = iso.indexOf('-');
+  return `${iso.slice(0, dash).padStart(4, '0')}${iso.slice(dash)}`;
 }
 
 /**

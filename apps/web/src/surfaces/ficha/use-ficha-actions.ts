@@ -3,6 +3,7 @@ import {
   conclusionRestrictionOf,
   conclusionResultOf,
   filledByText,
+  formatTimeOfDay,
   moveTargets,
   sheetProgress,
   suggestedInstruments,
@@ -19,7 +20,7 @@ import {
   type SheetStep,
   type UserRow,
 } from '@app/domain';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { NavigateFunction } from 'react-router';
 import { type OverflowMenuAction } from '../../components/index.ts';
 import { now } from '../../clock.ts';
@@ -32,30 +33,21 @@ import { commitMove } from '../relatorio/tree-actions.ts';
 import type { FichaApi } from './ficha-api.ts';
 import { concludedByOp, conclusionOp, notTestedOp, testInstrumentOp } from './ficha-ops.ts';
 
-/** EXPERIENCE.md › Autosave: "Salvo" is announced at most every few seconds, never per keystroke. */
-export const SAVED_THROTTLE_MS = 3000;
-const SAVED_SHOWN_MS = 1500;
-
-/** The "Salvo" live region's text, set at most once per `SAVED_THROTTLE_MS`. */
-export function useSavedStatus(): { text: string; saved: () => void } {
-  const [text, setText] = useState('');
-  const last = useRef(0);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(
-    () => () => {
-      if (timer.current !== null) clearTimeout(timer.current);
-    },
-    [],
-  );
+/**
+ * Story 13.4 (INP-4): the instant the last commit landed in the outbox, for the header's
+ * saved line (`FichaSavedLine`), kept to the minute so a burst of commits re-renders the
+ * sheet once a minute at most. The server's reachability is read by the line itself, never
+ * here: this hook runs in the sheet's body, and a body subscribed to the sync state would
+ * re-render the whole sheet on every outbox count change, slowing the readings' Enter run.
+ */
+export function useSavedStatus(): { at: string | null; saved: () => void } {
+  const [at, setAt] = useState<string | null>(null);
   const saved = useCallback(() => {
-    const at = Date.now();
-    if (at - last.current < SAVED_THROTTLE_MS) return;
-    last.current = at;
-    setText(copy.ficha.saved);
-    if (timer.current !== null) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setText(''), SAVED_SHOWN_MS);
+    const landed = now().toISOString();
+    // Within the same minute the line would read the same: keep the state, render nothing.
+    setAt((previous) => (previous !== null && formatTimeOfDay(previous) === formatTimeOfDay(landed) ? previous : landed));
   }, []);
-  return { text, saved };
+  return { at, saved };
 }
 
 export interface FichaActions {
