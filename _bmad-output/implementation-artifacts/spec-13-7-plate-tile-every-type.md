@@ -2,7 +2,7 @@
 title: 'Story 13.7: the plate tile on every block type'
 type: 'feature'
 created: '2026-10-07'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '2bce0c0122f99463b282dd72c63da10195459cde'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -13,7 +13,14 @@ context:
   - '{project-root}/apps/api/src/jobs/reading/fixtures/README.md'
 warnings: ['batched', 'oversized']
 # batched: Epic 13 batch D (tag e13d) carries Story 13.7 alone; the `batched` warning marks the playbook run (one batch, one PR).
-deferred: []
+deferred:
+  - summary: >-
+      sheet-photos 11.11-E2E-001 shoots a plate on a chave_seccionadora sheet without holding its bytes; that plate now reads to nine suggestions whose arrival toast could race the toast the test expects next.
+    evidence: |-
+      Edge Case Hunter, medium confidence. The spec passed 19/19 with the change (dev run) and runs again in the batch's targeted e2e list; a flake on its toast assertion under load would settle it (fix: holdPhotoBytes before shootPlate, or wait for the arrival toast).
+    location: >-
+      e2e/sheet-photos.spec.ts:112
+    severity: medium (unverified)
 ---
 
 <intent-contract>
@@ -102,3 +109,14 @@ The web needs no change: the tile has no type gate (`nameplate-section.tsx:206`)
 - `podman compose --profile tools run --rm --user root tools pnpm exec tsx apps/api/src/scripts/make-plate-fixtures.ts` -- expected: five PNGs and five JSONs written, shas printed.
 - `podman compose --profile tools run --rm --user root tools pnpm --filter @app/api exec vitest run src/jobs/reading` -- expected: green (fake.test.ts and job.integration.test.ts run in the api project, against the compose Postgres and MinIO; `podman compose up -d` first).
 - `podman compose --profile tools run --rm --user root tools pnpm exec tsx scripts/e2e.ts e2e/plate-every-type.spec.ts e2e/plate-reading.spec.ts --project desktop-chrome` -- expected: all pass.
+
+## Auto Run Result
+
+Status: done
+
+- Summary: five synthetic 1200 x 900 plates (para_raio, chave_seccionadora, disjuntor_mt, tp, tc) generated from the seed field definitions by `apps/api/src/scripts/make-plate-fixtures.ts`, with their replay fixtures, registered in `kinds/plate.ts` `fakeDefaults`; every nameplate type now reads a plate under the `fake` providers; cables keep the permanent failure. No web change (the tile was already type-agnostic).
+- Files: `kinds/plate.ts` (defaults), `providers/fake.ts` (comment), `fixtures/README.md`, `fixtures/images/plate-*.png` + five JSONs, `providers/fake.test.ts` (13.7-API block), `job.integration.test.ts` (per-type job test, cable permanent failure), `e2e/plate-every-type.spec.ts` (eight `@p1` tests), `e2e/support/reading-ops.ts` (`openSheetOfType`), `e2e/support/groups.ts` (serial), `deferred-work.md` (E78-Q2 closed).
+- Review: 2 patches (low), 1 deferred (maybe-false, medium unverified), 6 rejected (low; reasons in the triage log).
+- Follow-up review recommended: false (patched: 0 high, 0 medium, 2 low).
+- Verification: dev ran `vitest run src/jobs/reading` (green after one stale assertion fix), `plate-every-type` + `plate-reading` 11/11, `sheet-photos` + `plate` 19/19, eslint and `pnpm static` clean; the orchestrator's staged gate follows.
+- Residual risks: PNG bytes depend on the tools image's fonts (a re-run with another font set changes the shas); the compose api's `tsx watch` needs a restart to pick up `kinds/plate.ts`.

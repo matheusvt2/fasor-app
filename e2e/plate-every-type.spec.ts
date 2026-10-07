@@ -14,7 +14,7 @@ import { openSheetOfType } from './support/reading-ops.ts';
  * "Fotografar placa" on its sheet imports that type's synthetic plate through the system
  * picker (no camera: the device re-encodes the file, so only the type's default fixture can
  * read it), and the type's suggestions arrive without a "Sincronizar agora". The two cable
- * types have no nameplate and no Placa step in FO.SERV-03 (addendum §9): their sheets show
+ * types have no nameplate in FO.SERV-03 (addendum §9): their sheets show
  * neither the nameplate nor the tile (spec OQ-1).
  */
 
@@ -70,7 +70,7 @@ for (const type of EQUIPMENT_BLOCK_TYPES) {
   const plate = PLATES[type];
 
   if (plate === undefined) {
-    test(`@p1 13.7-E2E-001 ${type}: the sheet has no Placa step and no "Fotografar placa"`, async ({ page }) => {
+    test(`@p1 13.7-E2E-001 ${type}: the sheet has no "Dados de placa" and no "Fotografar placa" (a cabine's first sheet keeps its Placa step for the cabine fields only)`, async ({ page }) => {
       test.setTimeout(120_000);
       await openSheetOfType(page, account, database, { cabine: CABLES[type]!, typeLabel: label });
       await expect(page.locator('#ficha-step-verificacoes')).toBeVisible();
