@@ -47,8 +47,6 @@ export interface ReadingWaitLineProps {
   startedAt: string;
   /** `plate`: the `.reading-line` under the photo; `display`: the `.queued-banner` under a cell or field. */
   variant: 'plate' | 'display';
-  /** False while nothing actually runs (no signal, an upload that failed): no "Cancelar" then. */
-  canCancel?: boolean;
 }
 
 /**
@@ -56,7 +54,7 @@ export interface ReadingWaitLineProps {
  * ticking seconds from being announced every second; the line is a live region still, so
  * screen readers read it when asked and once it settles.
  */
-export function ReadingWaitLine({ photoId, startedAt, variant, canCancel = true }: ReadingWaitLineProps) {
+export function ReadingWaitLine({ photoId, startedAt, variant }: ReadingWaitLineProps) {
   const t = copy.readingWait;
   const session = useSession();
   const db = session.database;
@@ -95,7 +93,7 @@ export function ReadingWaitLine({ photoId, startedAt, variant, canCancel = true 
   return (
     <div className="reading-wait" data-photo-id={photoId}>
       {text}
-      {wait.cancellable && canCancel ? <TextButton onPress={cancel}>{t.cancel}</TextButton> : null}
+      {wait.cancellable ? <TextButton onPress={cancel}>{t.cancel}</TextButton> : null}
       {wait.stillReading ? <p className="reading-note">{t.stillReading}</p> : null}
     </div>
   );

@@ -6,7 +6,7 @@ import type { PhotoTile } from '../../db/photo-store.ts';
 import { SyncContext } from '../../state/sync.tsx';
 import { ToastProvider } from '../../state/toast.tsx';
 import { makeSyncState, type SyncStateOverrides } from '../../test/sync-state.ts';
-import { MismatchLine, QueuedBanner } from './read-display.tsx';
+import { envAfter, MismatchLine, QueuedBanner, type EnvDisplayModel } from './read-display.tsx';
 
 const session = { database: null, user: null, online: true };
 vi.mock('../../state/session.tsx', () => ({ useSession: () => session }));
@@ -154,5 +154,42 @@ describe('F-22 MismatchLine (review 2026-10-06)', () => {
     expect(onVisor).toHaveBeenCalledTimes(1);
     await userEvent.click(within(group).getByRole('button', { name: '1.000 GΩ' }));
     expect(onTyped).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('13.5-UNIT a failed thermo-hygrometer reading under its environment field', () => {
+  const model = (): EnvDisplayModel => ({
+    entries: new Map(),
+    queued: { state: 'failed', photoId: PHOTO },
+    tiles: [tileAged(0, { reading_status: 'failed' })],
+    confirm: vi.fn(),
+    type: vi.fn(),
+    keepTyped: vi.fn(),
+    openCrop: vi.fn(),
+    viewer: null,
+  });
+  const field = { key: 'temperature_c', label: 'Temperatura', kind: 'number' } as unknown as Parameters<typeof envAfter>[1];
+  const draw = (value: unknown) =>
+    render(
+      <SyncContext value={makeSyncState()}>
+        <ToastProvider>
+          <div className="field" data-field-key="temperature_c">
+            <input aria-label="Temperatura" />
+            {envAfter(model(), field, value)}
+          </div>
+        </ToastProvider>
+      </SyncContext>,
+    );
+
+  it('shows under an empty field, "Digitar" focuses that field\'s input; a value hides it', async () => {
+    const empty = draw(null);
+    expect(screen.getByText('Não foi possível ler')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Digitar' }));
+    expect(screen.getByRole('textbox', { name: 'Temperatura' })).toHaveFocus();
+    empty.unmount();
+
+    draw({ raw: '23.4', unit: '°C', state: 'measured' });
+    expect(screen.queryByText('Não foi possível ler')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Digitar' })).toBeNull();
   });
 });

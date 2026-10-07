@@ -1413,7 +1413,7 @@ describe('6.2 photo uploads', () => {
         await h.clock.advance(1);
         expect(cycles(h)).toBe(atWindowEnd + minute);
       }
-      // The failure lands: the next cycle sees none running, and the cadence stays the interval.
+      // The reading ends (done): the next cycle sees none running, and the cadence stays the interval.
       await readingStatus(h, PHOTO_1, 'done');
       await h.clock.advance(SYNC_INTERVAL_MS);
       const settled = cycles(h);

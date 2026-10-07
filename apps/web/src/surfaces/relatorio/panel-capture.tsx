@@ -88,7 +88,10 @@ export function panelAwaitingRows(input: {
     const suggestion = panelSuggestionOf(input.pending, photo.id);
     const proposal = panelProposal({ seedVersion: input.seedVersion, locations: input.locations, equipment: input.equipment, paletteLocationId: input.locationId, suggestion, pickedType: null });
     const line = panelReadingLine({ online: input.online, photo, suggestion });
-    return { photoId: photo.id, text: proposal?.text ?? line?.text ?? '' };
+    // A suggestion that names no type gives no proposal and no line: the row then says where
+    // the reading stands as if none had come ("A foto não mostrou o tipo do equipamento.").
+    const reason = proposal === null && line === null ? panelReadingLine({ online: input.online, photo, suggestion: null }) : null;
+    return { photoId: photo.id, text: proposal?.text ?? line?.text ?? reason?.text ?? '' };
   });
 }
 

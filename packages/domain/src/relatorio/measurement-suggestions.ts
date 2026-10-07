@@ -227,21 +227,32 @@ export interface DisplayQueuedEntry {
   photoId: string;
 }
 
-type DisplayReadingPhoto = DisplayPhotoLike & Pick<PhotoFileRow, 'id' | 'reading_status'>;
+type DisplayReadingPhoto = DisplayPhotoLike & Pick<PhotoFileRow, 'id' | 'reading_status'> & Partial<Pick<PhotoFileRow, 'local_seq' | 'captured_at'>>;
 
-/** The entry of one display photo, or null while its reading neither waits nor failed. */
-function displayEntryOf(photo: DisplayReadingPhoto): DisplayQueuedEntry | null {
-  if ((photo.removed_at ?? null) !== null || photo.reading_kind !== 'display') return null;
-  const status = photo.reading_status;
-  if (status !== 'queued' && status !== 'running' && status !== 'failed') return null;
-  return { state: status, photoId: photo.id };
+/** Capture order (`local_seq`, then `captured_at`, then the order given): negative when `a` came first. */
+function captureOrder(a: { photo: DisplayReadingPhoto; at: number }, b: { photo: DisplayReadingPhoto; at: number }): number {
+  const seq = (a.photo.local_seq ?? 0) - (b.photo.local_seq ?? 0);
+  if (seq !== 0) return seq;
+  const ca = a.photo.captured_at ?? '';
+  const cb = b.photo.captured_at ?? '';
+  if (ca !== cb) return ca < cb ? -1 : 1;
+  return a.at - b.at;
 }
 
-/** A waiting reading wins over a failed one on the same target (a later shot of the same row). */
-function preferred(held: DisplayQueuedEntry | undefined, next: DisplayQueuedEntry): DisplayQueuedEntry {
-  if (held === undefined) return next;
-  return held.state !== 'failed' && next.state === 'failed' ? held : next;
+/**
+ * The line of one target from the live display photos aimed at it: the newest one still
+ * waiting (queued or running) wins; else the newest photo decides, and only a failed one has a
+ * line (a later shot of the same target, whatever its state, supersedes an earlier failure).
+ */
+function targetLine(shots: readonly { photo: DisplayReadingPhoto; at: number }[]): DisplayQueuedEntry | null {
+  const ordered = [...shots].sort(captureOrder);
+  const waiting = ordered.filter(({ photo }) => photo.reading_status === 'queued' || photo.reading_status === 'running').at(-1);
+  if (waiting !== undefined) return { state: waiting.photo.reading_status as 'queued' | 'running', photoId: waiting.photo.id };
+  const newest = ordered.at(-1);
+  return newest !== undefined && newest.photo.reading_status === 'failed' ? { state: 'failed', photoId: newest.photo.id } : null;
 }
+
+const liveDisplay = (photo: DisplayReadingPhoto) => (photo.removed_at ?? null) === null && photo.reading_kind === 'display';
 
 /**
  * Story 13.5 (WAIT-2): whether a display photo's line shows on a target holding `value`. A
@@ -264,18 +275,25 @@ export function displayQueuedCells(
   blockId: string,
   block?: Pick<BlockRow, 'sheet'>,
 ): (DisplayQueuedEntry & { address: CellAddress })[] {
-  const out = new Map<string, DisplayQueuedEntry & { address: CellAddress }>();
-  for (const photo of photos) {
-    const entry = displayEntryOf(photo);
-    if (entry === null) continue;
+  const byTarget = new Map<string, { address: CellAddress; shots: { photo: DisplayReadingPhoto; at: number }[] }>();
+  photos.forEach((photo, at) => {
+    if (!liveDisplay(photo)) return;
     const target = displayCellTargetSchema.safeParse(photo.reading_target);
-    if (!target.success || target.data.block_id !== blockId) continue;
+    if (!target.success || target.data.block_id !== blockId) return;
     const address: CellAddress = { testKey: target.data.table_key as TestKey, row: target.data.start_cell.row, col: target.data.start_cell.col };
-    if (entry.state === 'failed' && (block === undefined || !displayLineShown(entry, storedTestCell(block, address)?.value ?? null))) continue;
     const key = `${address.testKey}:${address.row}:${address.col}`;
-    out.set(key, { ...preferred(out.get(key), entry), address });
+    const group = byTarget.get(key) ?? { address, shots: [] };
+    group.shots.push({ photo, at });
+    byTarget.set(key, group);
+  });
+  const out: (DisplayQueuedEntry & { address: CellAddress })[] = [];
+  for (const { address, shots } of byTarget.values()) {
+    const entry = targetLine(shots);
+    if (entry === null) continue;
+    if (entry.state === 'failed' && (block === undefined || !displayLineShown(entry, storedTestCell(block, address)?.value ?? null))) continue;
+    out.push({ ...entry, address });
   }
-  return [...out.values()];
+  return out;
 }
 
 /**
@@ -283,12 +301,11 @@ export function displayQueuedCells(
  * one shows only under an empty environment field (`displayLineShown` with the field's value).
  */
 export function displayQueuedEnv(photos: readonly DisplayReadingPhoto[], locationId: string): DisplayQueuedEntry | null {
-  let held: DisplayQueuedEntry | undefined;
-  for (const photo of photos) {
-    const entry = displayEntryOf(photo);
-    if (entry === null) continue;
+  const shots: { photo: DisplayReadingPhoto; at: number }[] = [];
+  photos.forEach((photo, at) => {
+    if (!liveDisplay(photo)) return;
     const target = photo.reading_target as { location_id?: unknown } | null;
-    if (target !== null && typeof target === 'object' && target.location_id === locationId) held = preferred(held, entry);
-  }
-  return held ?? null;
+    if (target !== null && typeof target === 'object' && target.location_id === locationId) shots.push({ photo, at });
+  });
+  return targetLine(shots);
 }

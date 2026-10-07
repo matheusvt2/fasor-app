@@ -268,7 +268,7 @@ function ZoomControls({ pinch }: { pinch: PinchZoom }) {
     </AriaButton>
   );
   return (
-    <div className="viewer-zoom" role="group" aria-label={z.group}>
+    <div className="viewer-zoom-controls" role="group" aria-label={z.group}>
       {button(z.zoomIn, 'i-zoom-in', pinch.canZoomIn, maxReasonId, pinch.zoomIn)}
       {button(z.zoomOut, 'i-zoom-out', pinch.canZoomOut, fitReasonId, pinch.zoomOut)}
       {button(z.zoomFit, 'i-zoom-fit', pinch.canZoomOut, fitReasonId, pinch.reset)}

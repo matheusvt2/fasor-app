@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { PhotoTile } from '../../db/photo-store.ts';
-import { readRereadAsked } from '../../db/prefs.ts';
+import { readReadingCancelled, readRereadAsked, writeReadingCancelled } from '../../db/prefs.ts';
 import { openDatabase, type AppDatabase } from '../../db/schema.ts';
 import { SyncContext, type SyncState } from '../../state/sync.tsx';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
@@ -112,5 +112,19 @@ describe('E9 sweep B16: "Tentar novamente" survives a reload', () => {
     render(row(null, makeSyncState()));
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(retry()).not.toHaveAttribute('aria-disabled');
+  });
+});
+
+describe('13.5: "Tentar novamente" after a cancel', () => {
+  it('clears the cancel record before asking, so the new run\'s suggestions show', async () => {
+    session.database = await freshDb();
+    await writeReadingCancelled(session.database, PHOTO, '2026-10-07T12:00:00.000Z');
+    expect(await readReadingCancelled(session.database, PHOTO)).toBe('2026-10-07T12:00:00.000Z');
+    const sync = makeSyncState();
+    render(row(OP_A, sync));
+    await waitFor(() => expect(retry()).not.toHaveAttribute('aria-disabled'), { timeout: 5000 });
+    await userEvent.click(retry());
+    await waitFor(() => expect(sync.rereadPhoto).toHaveBeenCalledWith(PHOTO));
+    expect(await readReadingCancelled(session.database, PHOTO)).toBeUndefined();
   });
 });

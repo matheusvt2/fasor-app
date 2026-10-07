@@ -40,6 +40,10 @@ describe('13.5-UNIT the reading wait line', () => {
     expect(readingStartedAt({ captured_at: T0, reading_status_at: null, reread_at: null })).toBe(T0);
     expect(readingStartedAt({ captured_at: T0, reading_status_at: at(5_000), reread_at: null })).toBe(at(5_000));
     expect(readingStartedAt({ captured_at: T0, reading_status_at: at(5_000), reread_at: at(9_000) })).toBe(at(9_000));
+    // A photo shot offline long ago counts from when the server took its bytes, before any status op.
+    expect(readingStartedAt({ captured_at: T0, bytes_acked_at: at(3 * 3_600_000) })).toBe(at(3 * 3_600_000));
+    expect(readingStartedAt({ captured_at: T0, bytes_acked_at: at(60_000), reading_status_at: at(65_000) })).toBe(at(65_000));
+    expect(readingStartedAt({ captured_at: T0, bytes_acked_at: null })).toBe(T0);
     // A status op stamped before the capture (a skewed clock) does not move the start back.
     expect(readingStartedAt({ captured_at: T0, reading_status_at: at(-5_000) })).toBe(T0);
   });

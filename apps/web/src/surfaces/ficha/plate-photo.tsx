@@ -90,7 +90,7 @@ export function PlatePhotoRow({
         {shown === 'running' ? (
           <ReadingWaitLine
             photoId={tile.id}
-            startedAt={readingStartedAt({ captured_at: tile.captured_at, reading_status_at: tile.reading_status_at ?? null })}
+            startedAt={readingStartedAt({ captured_at: tile.captured_at, bytes_acked_at: tile.bytes_acked_at ?? null, reading_status_at: tile.reading_status_at ?? null })}
             variant="plate"
           />
         ) : null}
@@ -152,9 +152,10 @@ export function PlateCrop({ photoId, region, focused, onOpen }: { photoId: strin
     <button
       type="button"
       className="plate-crop-open"
-      onClick={() => {
-        // The click that ends a pinch or a pan is not a tap.
-        if (!pinch.takeGesture()) onOpen();
+      onClick={(event) => {
+        // The click that ends a pinch or a pan is not a tap; a keyboard press (no pointer, `detail` 0) always opens.
+        const gesture = pinch.takeGesture();
+        if (event.detail === 0 || !gesture) onOpen();
       }}
       data-photo-id={photoId}
     >

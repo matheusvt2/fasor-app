@@ -286,6 +286,14 @@ describe('9.1-UNIT the queued display photos', () => {
     // A second shot of the row, still waiting, beats the failed one, whatever the order.
     expect(displayQueuedCells([photo(0, 'running', 9), photo(0, 'failed')], BLOCK, chave()).map((entry) => [entry.state, entry.photoId])).toEqual([['running', id(0x69)]]);
     expect(displayQueuedCells([photo(0, 'failed'), photo(0, 'queued', 9)], BLOCK, chave()).map((entry) => entry.state)).toEqual(['queued']);
+    // A later shot of the row supersedes an earlier failure whatever its state (done: its suggestion speaks); an earlier done one does not.
+    const shot = (status: string, n: number, seq: number) => ({ ...photo(0, status, n), local_seq: seq, captured_at: '2026-10-07T12:00:00.000Z' });
+    expect(displayQueuedCells([shot('done', 9, 2), shot('failed', 0, 1)], BLOCK, chave())).toEqual([]);
+    expect(displayQueuedCells([shot('failed', 0, 1), shot('done', 9, 2)], BLOCK, chave())).toEqual([]);
+    expect(displayQueuedCells([shot('done', 9, 1), shot('failed', 0, 2)], BLOCK, chave()).map((entry) => [entry.state, entry.photoId])).toEqual([['failed', id(0x60)]]);
+    const envShot = (status: string, n: number, seq: number) => ({ id: id(0x80 + n), reading_kind: 'display' as const, reading_target: displayEnvTarget(CABINE) as JsonValue, reading_status: status as 'failed', removed_at: null, local_seq: seq, captured_at: '2026-10-07T12:00:00.000Z' });
+    expect(displayQueuedEnv([envShot('failed', 0, 1), envShot('done', 1, 2)], CABINE)).toBeNull();
+    expect(displayQueuedEnv([envShot('done', 1, 1), envShot('failed', 0, 2)], CABINE)).toEqual({ state: 'failed', photoId: id(0x80) });
     // The environment: failed is reported; each field decides with its own value.
     const env = { id: id(0x70), reading_kind: 'display' as const, reading_target: displayEnvTarget(CABINE) as JsonValue, reading_status: 'failed' as const, removed_at: null };
     const entry = displayQueuedEnv([env], CABINE)!;

@@ -43,6 +43,8 @@ export interface PhotoTile {
    * capture time counts then). Absent reads null.
    */
   reading_status_at?: string | null;
+  /** Story 13.5: when the server took this device's bytes of the photo (`markBlobAcked`); absent or null while not sent. */
+  bytes_acked_at?: string | null;
   /** Story 9.3: the "Pessoas na foto" mark (absent reads false). */
   people_in_photo?: boolean;
 }
@@ -89,6 +91,7 @@ async function photoTiles(db: AppDatabase, relatorioId: string, keep: (row: Phot
     reading_status: row.reading_status,
     reading_status_op_id: statusOps[i]?.op_id ?? null,
     reading_status_at: statusOps[i]?.client_ts ?? null,
+    bytes_acked_at: blobs[i]?.acked_at ?? null,
     people_in_photo: row.people_in_photo,
   }));
   return tiles.sort(comparePhotos);

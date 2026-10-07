@@ -89,7 +89,7 @@ import type { CaptureTarget } from './use-photo-capture.ts';
  */
 
 type Cabine = Extract<LocationRow, { kind: 'cabine' }>;
-type DisplayPhoto = Pick<PhotoFileRow, 'id' | 'reading_kind' | 'reading_target' | 'reading_status'> & { removed_at?: string | null };
+type DisplayPhoto = Pick<PhotoFileRow, 'id' | 'reading_kind' | 'reading_target' | 'reading_status' | 'local_seq' | 'captured_at'> & { removed_at?: string | null };
 
 /** The live display photos of the relatório on this device (the snapshot's photo rows). */
 function photosOf(snapshot: RelatorioSnapshot): DisplayPhoto[] {
@@ -263,7 +263,7 @@ export function QueuedBanner({ entry, tile }: { entry: DisplayQueuedEntry; tile:
       </span>
     );
   }
-  const startedAt = tile === null ? null : readingStartedAt({ captured_at: tile.captured_at, reading_status_at: tile.reading_status_at ?? null });
+  const startedAt = tile === null ? null : readingStartedAt({ captured_at: tile.captured_at, bytes_acked_at: tile.bytes_acked_at ?? null, reading_status_at: tile.reading_status_at ?? null });
   if (startedAt === null) {
     // The photo's tile is not read yet: the plain line, nothing to count from.
     return (

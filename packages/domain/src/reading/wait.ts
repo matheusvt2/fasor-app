@@ -16,10 +16,14 @@ export const READING_FAST_POLL_WINDOW_MS = 120_000;
 /** From this age a pending reading offers "Cancelar". */
 export const READING_CANCEL_AFTER_MS = 10_000;
 
-/** The reading's start, as the device knows it: the newest of its capture, its newest pulled status op and a reread asked here. */
-export function readingStartedAt(input: { captured_at: string; reading_status_at?: string | null; reread_at?: string | null }): string {
+/**
+ * The reading's start, as the device knows it: the newest of its capture, the moment the
+ * server took its bytes (`bytes_acked_at`: a photo shot offline long ago starts there, not
+ * at its capture), its newest pulled status op and a reread asked here.
+ */
+export function readingStartedAt(input: { captured_at: string; bytes_acked_at?: string | null; reading_status_at?: string | null; reread_at?: string | null }): string {
   let latest = input.captured_at;
-  for (const at of [input.reading_status_at ?? null, input.reread_at ?? null]) {
+  for (const at of [input.bytes_acked_at ?? null, input.reading_status_at ?? null, input.reread_at ?? null]) {
     if (at === null) continue;
     if (Date.parse(at) > Date.parse(latest)) latest = at;
   }

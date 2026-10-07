@@ -5,7 +5,9 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { openDatabase, type AppDatabase } from '../db/schema.ts';
-import { arrivalStep, ReadingArrivals } from './reading-arrivals.tsx';
+import { CABINE_ID, COMPANY_ID, RELATORIO_ID as SMALL_RELATORIO, replaySmall } from '@app/domain/fixtures/replay-small';
+import { applyPulled } from '../db/sync-store.ts';
+import { arrivalStep, arrivalTarget, ReadingArrivals } from './reading-arrivals.tsx';
 import { makeSyncState } from '../test/sync-state.ts';
 import { SyncContext } from './sync.tsx';
 import { ToastOutlet, ToastProvider } from './toast.tsx';
@@ -129,5 +131,65 @@ describe('8.2-UNIT ReadingArrivals', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Ver' }));
     // No relatório row on this device: "Ver" falls back to its Sumário.
     await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent(`/relatorio/${RELATORIO}`));
+  });
+});
+
+describe('13.5-UNIT arrivalTarget and a panel suggestion', () => {
+  const PANEL_PHOTO = '019966b0-0089-7000-8000-0000000000f1';
+
+  async function deviceWithPanelPhoto(name: string, photo: Record<string, unknown> = {}): Promise<{ db: AppDatabase; suggestion: SuggestionRow }> {
+    const db = openDatabase(name);
+    await db.delete();
+    const fresh = openDatabase(name);
+    await applyPulled(
+      fresh,
+      replaySmall.log.map((op, i) => ({ ...op, seq: i + 1 })),
+    );
+    const photoRow = {
+      id: PANEL_PHOTO,
+      company_id: COMPANY_ID,
+      relatorio_id: SMALL_RELATORIO,
+      sha256: 'ab'.repeat(32),
+      mime: 'image/jpeg',
+      size: 10,
+      uploaded_at: null,
+      variants: null,
+      removed_at: null,
+      kind: 'photo',
+      captured_at: '2026-10-07T12:00:00.000Z',
+      tz_offset: -180,
+      coords: null,
+      local_seq: 1,
+      block_id: null,
+      item_key: null,
+      caption: null,
+      reading_kind: 'panel',
+      reading_target: { location_id: CABINE_ID },
+      reading_status: 'done',
+      people_in_photo: false,
+      ...photo,
+    };
+    await fresh.entities.put({ entity: 'file', id: PANEL_PHOTO, relatorio_id: SMALL_RELATORIO, project_id: null, removed_at: (photoRow.removed_at as string | null) ?? null, row: photoRow as never });
+    const suggestion = row(nextId(), {
+      relatorio_id: SMALL_RELATORIO,
+      target_path: `file/${PANEL_PHOTO}/block_id`,
+      value: { block_type: 'chave_seccionadora', column: 9, column_text: 'C09' },
+      source: { photo_id: PANEL_PHOTO, bbox: [0.1, 0.1, 0.2, 0.2], ocr_token_ids: [], reading_run_id: nextId() },
+    });
+    return { db: fresh, suggestion };
+  }
+
+  it('opens the Sumário with ?panel= for a waiting panel photo; the plain route once it is removed or re-kinded to a plate', async () => {
+    const waiting = await deviceWithPanelPhoto('arrivals-panel-1');
+    expect(await arrivalTarget(waiting.db, SMALL_RELATORIO, waiting.suggestion)).toBe(`/relatorio/${SMALL_RELATORIO}?panel=${PANEL_PHOTO}`);
+    waiting.db.close();
+
+    const removed = await deviceWithPanelPhoto('arrivals-panel-2', { removed_at: '2026-10-07T12:05:00.000Z' });
+    expect(await arrivalTarget(removed.db, SMALL_RELATORIO, removed.suggestion)).not.toContain('?panel=');
+    removed.db.close();
+
+    const plate = await deviceWithPanelPhoto('arrivals-panel-3', { reading_kind: 'plate', reading_target: { block_id: CABINE_ID, block_type: 'chave_seccionadora' } });
+    expect(await arrivalTarget(plate.db, SMALL_RELATORIO, plate.suggestion)).not.toContain('?panel=');
+    plate.db.close();
   });
 });

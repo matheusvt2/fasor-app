@@ -63,11 +63,11 @@ async function plateSheet(page: Page, context: Parameters<typeof signInForDurabi
 }
 
 /** The gallery's viewer on photo 1, with its original drawn (its natural size known). */
-async function openGalleryViewer(page: Page, relatorioId: string): Promise<Locator> {
+async function openGalleryViewer(page: Page, relatorioId: string, total = 1): Promise<Locator> {
   await page.goto(`/relatorio/${relatorioId}/fotos`);
   const tile = page.getByRole('button', { name: 'Foto 1, abrir', exact: true });
   await tile.click();
-  const dialog = page.getByRole('dialog', { name: 'Foto 1 de 1' });
+  const dialog = page.getByRole('dialog', { name: `Foto 1 de ${total}` });
   await expect(dialog).toBeVisible();
   await expect.poll(() => dialog.locator('img.viewer-img').evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth >= 1000), { timeout: 15_000 }).toBe(true);
   return dialog;
@@ -130,7 +130,15 @@ async function doubleTap(target: Locator): Promise<void> {
 test('@p0 13.3-E2E-001 the gallery viewer: pinch zooms up to native resolution, one finger pans, double-tap toggles, the buttons step and stop at the bounds with their reason, Escape closes back to the tile', async ({ page, context }) => {
   test.setTimeout(180_000);
   const { relatorioId } = await plateSheet(page, context, 1280);
-  const dialog = await openGalleryViewer(page, relatorioId);
+  // A second photo on the sheet ("Adicionar fotos", then "De qual equipamento?" with this sheet chosen).
+  const chooser = page.waitForEvent('filechooser');
+  await page.locator('.sticky-action-bar').getByRole('button', { name: 'Adicionar fotos' }).click();
+  await (await chooser).setFiles({ name: 'segunda.jpg', mimeType: 'image/jpeg', buffer: PLATE });
+  const which = page.getByRole('dialog', { name: /^De qual equipamento\?/ });
+  await which.getByRole('button', { name: 'Adicionar 1 foto' }).click();
+  await expect(which).toHaveCount(0);
+  await expect.poll(async () => (await devicePhotos(page, database)).length, { timeout: 15_000 }).toBe(2);
+  const dialog = await openGalleryViewer(page, relatorioId, 2);
   const stage = dialog.locator('.viewer-photo');
   const picture = dialog.locator('img.viewer-img');
   const zoomIn = dialog.getByRole('button', { name: 'Ampliar' });
@@ -191,6 +199,14 @@ test('@p0 13.3-E2E-001 the gallery viewer: pinch zooms up to native resolution, 
   await expect(dialog.getByRole('button', { name: 'Anterior' })).toHaveAttribute('aria-disabled', 'true');
   await expect(dialog.getByRole('button', { name: 'Editar legenda' })).toBeVisible();
   await expect(dialog.getByRole('button', { name: 'Remover', exact: true })).toBeVisible();
+  // "Próxima" walks to photo 2 at fit; "Anterior" back to photo 1, at fit too.
+  await dialog.getByRole('button', { name: 'Próxima' }).click();
+  const second = page.getByRole('dialog', { name: 'Foto 2 de 2' });
+  await expect(second).toBeVisible();
+  await expect.poll(() => scaleOf(second.locator('.viewer-photo'))).toBe(1);
+  await second.getByRole('button', { name: 'Anterior' }).click();
+  await expect(page.getByRole('dialog', { name: 'Foto 1 de 2' })).toBeVisible();
+  await expect.poll(() => scaleOf(stage)).toBe(1);
   await page.keyboard.press('Escape');
   await expect(viewer(page)).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Foto 1, abrir', exact: true })).toBeFocused();
@@ -217,6 +233,14 @@ test('@p0 13.3-E2E-002 the inline plate crop pinches and pans in its box, a tap 
   await expect.poll(() => layer.evaluate((element: HTMLElement) => element.style.transform)).not.toBe(before);
   expect((await crop.boundingBox())!.height).toBeCloseTo(box.height, 0);
   // The viewer did not open on a gesture.
+  await expect(viewer(page)).toHaveCount(0);
+  // Nor on a mouse drag across the zoomed crop (it pans; the click that ends it is not a tap).
+  const cropBox = (await crop.boundingBox())!;
+  await page.mouse.move(cropBox.x + cropBox.width / 2, cropBox.y + cropBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(cropBox.x + cropBox.width / 2 - 80, cropBox.y + cropBox.height / 2 - 20, { steps: 6 });
+  await page.mouse.up();
+  await page.waitForTimeout(300);
   await expect(viewer(page)).toHaveCount(0);
 
   // Focusing a field returns the crop to that field's view.
