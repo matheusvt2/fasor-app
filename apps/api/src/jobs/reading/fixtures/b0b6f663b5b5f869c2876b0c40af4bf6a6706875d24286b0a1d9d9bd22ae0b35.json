@@ -1,0 +1,557 @@
+{
+  "outcome": "ok",
+  "ocr": {
+    "image": {
+      "width": 1200,
+      "height": 900
+    },
+    "tokens": [
+      {
+        "id": "t0",
+        "text": "DISJUNTOR",
+        "bbox": [
+          73,
+          70,
+          319,
+          108
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t1",
+        "text": "MT",
+        "bbox": [
+          332,
+          70,
+          396,
+          100
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t2",
+        "text": "IDENTIFICAÇÃO",
+        "bbox": [
+          72,
+          152,
+          270,
+          181
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t3",
+        "text": "DJ-01",
+        "bbox": [
+          642,
+          156,
+          717,
+          182
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t4",
+        "text": "FABRICAÇÃO",
+        "bbox": [
+          72,
+          214,
+          234,
+          243
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t5",
+        "text": "Tensilda",
+        "bbox": [
+          640,
+          218,
+          758,
+          239
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t6",
+        "text": "Nº",
+        "bbox": [
+          72,
+          280,
+          101,
+          300
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t7",
+        "text": "SÉRIE",
+        "bbox": [
+          112,
+          275,
+          185,
+          301
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t8",
+        "text": "DJ-210587",
+        "bbox": [
+          642,
+          280,
+          789,
+          306
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t9",
+        "text": "TIPO",
+        "bbox": [
+          69,
+          342,
+          129,
+          363
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t10",
+        "text": "VBX-17",
+        "bbox": [
+          640,
+          343,
+          743,
+          362
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t11",
+        "text": "MEIO",
+        "bbox": [
+          72,
+          404,
+          136,
+          425
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t12",
+        "text": "DE",
+        "bbox": [
+          148,
+          405,
+          181,
+          424
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t13",
+        "text": "EXTINÇÃO",
+        "bbox": [
+          193,
+          400,
+          323,
+          429
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t14",
+        "text": "SF6",
+        "bbox": [
+          641,
+          404,
+          694,
+          425
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t15",
+        "text": "CORRENTE",
+        "bbox": [
+          71,
+          466,
+          212,
+          487
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t16",
+        "text": "NOMINAL",
+        "bbox": [
+          224,
+          466,
+          344,
+          487
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t17",
+        "text": "630",
+        "bbox": [
+          641,
+          466,
+          693,
+          487
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t18",
+        "text": "A",
+        "bbox": [
+          703,
+          467,
+          723,
+          486
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t19",
+        "text": "CAPACIDADE",
+        "bbox": [
+          71,
+          528,
+          236,
+          549
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t20",
+        "text": "INTERRUPTOR",
+        "bbox": [
+          248,
+          528,
+          430,
+          549
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t21",
+        "text": "25",
+        "bbox": [
+          642,
+          528,
+          675,
+          549
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t22",
+        "text": "kA",
+        "bbox": [
+          687,
+          528,
+          722,
+          548
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t23",
+        "text": "DATA",
+        "bbox": [
+          72,
+          591,
+          137,
+          610
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t24",
+        "text": "DE",
+        "bbox": [
+          149,
+          591,
+          182,
+          610
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t25",
+        "text": "FABRICAÇÃO",
+        "bbox": [
+          194,
+          586,
+          356,
+          615
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t26",
+        "text": "06/2021",
+        "bbox": [
+          641,
+          590,
+          757,
+          613
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t27",
+        "text": "TENSÃO",
+        "bbox": [
+          69,
+          648,
+          175,
+          673
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t28",
+        "text": "NOMINAL",
+        "bbox": [
+          187,
+          652,
+          307,
+          673
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t29",
+        "text": "15",
+        "bbox": [
+          642,
+          653,
+          675,
+          673
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t30",
+        "text": "kV",
+        "bbox": [
+          687,
+          652,
+          722,
+          672
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t31",
+        "text": "AJ.",
+        "bbox": [
+          70,
+          715,
+          101,
+          740
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t32",
+        "text": "BOBINA",
+        "bbox": [
+          113,
+          714,
+          211,
+          735
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t33",
+        "text": "220",
+        "bbox": [
+          642,
+          714,
+          693,
+          735
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t34",
+        "text": "Vcc",
+        "bbox": [
+          703,
+          715,
+          753,
+          735
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t35",
+        "text": "AJ.",
+        "bbox": [
+          70,
+          777,
+          101,
+          802
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t36",
+        "text": "RELÉ",
+        "bbox": [
+          113,
+          771,
+          175,
+          796
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t37",
+        "text": "50/51",
+        "bbox": [
+          187,
+          776,
+          258,
+          799
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t38",
+        "text": "120",
+        "bbox": [
+          642,
+          776,
+          693,
+          797
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t39",
+        "text": "A",
+        "bbox": [
+          703,
+          777,
+          723,
+          796
+        ],
+        "confidence": 0.99
+      }
+    ],
+    "preprocessing_applied": false
+  },
+  "structuring": {
+    "values": [
+      {
+        "key": "identificacao",
+        "value": "DJ-01",
+        "ocr_token_ids": [
+          "t3"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "fabricacao",
+        "value": "Tensilda",
+        "ocr_token_ids": [
+          "t5"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "n_serie",
+        "value": "DJ-210587",
+        "ocr_token_ids": [
+          "t8"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tipo",
+        "value": "VBX-17",
+        "ocr_token_ids": [
+          "t10"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "meio_de_extincao",
+        "value": "SF6",
+        "ocr_token_ids": [
+          "t14"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "corrente_nominal",
+        "value": {
+          "raw": "630",
+          "unit": "A",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t17",
+          "t18"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "capacidade_interruptor",
+        "value": {
+          "raw": "25",
+          "unit": "kA",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t21",
+          "t22"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "data_de_fabricacao",
+        "value": "2021-06",
+        "ocr_token_ids": [
+          "t26"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tensao_nominal",
+        "value": "15 kV",
+        "ocr_token_ids": [
+          "t29",
+          "t30"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "aj_bobina",
+        "value": "220 Vcc",
+        "ocr_token_ids": [
+          "t33",
+          "t34"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "aj_rele_50_51",
+        "value": "120 A",
+        "ocr_token_ids": [
+          "t38",
+          "t39"
+        ],
+        "confidence": 0.97
+      }
+    ]
+  }
+}

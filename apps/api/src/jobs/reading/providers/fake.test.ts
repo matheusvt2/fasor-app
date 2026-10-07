@@ -5,6 +5,7 @@ import { join, relative, resolve } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { isPermanentReadingError, PermanentReadingError, ProviderError, ProviderTimeoutError } from './errors.ts';
 import sharp from 'sharp';
+import { digitCoverage, EQUIPMENT_BLOCK_TYPES, getDefinition, inTokenOrder, normalizeReadingValue, readingValueText, SEED_VERSION } from '@app/domain';
 import {
   DEFAULT_FIXTURE_BY_BLOCK_TYPE,
   DEFAULT_FIXTURES_DIR,
@@ -143,6 +144,63 @@ describe('E78-Q2 the fake falls back to the block type\'s default fixture', () =
   });
 });
 
+describe('13.7-API every block type with a nameplate has its plate default', () => {
+  const NO_FIXTURE = 'e'.repeat(64);
+  const nameplateTypes = EQUIPMENT_BLOCK_TYPES.filter((type) => getDefinition(SEED_VERSION, 'cabine_primaria', type).nameplate.length > 0);
+  const IMAGE_OF: Record<string, string> = {
+    para_raio: 'plate-para-raio.png',
+    chave_seccionadora: 'plate-chave-seccionadora.png',
+    disjuntor_mt: 'plate-disjuntor-mt.png',
+    tp: 'plate-tp.png',
+    tc: 'plate-tc.png',
+  };
+
+  it('the plate defaults are exactly the six nameplate types, and no cable type', () => {
+    expect(nameplateTypes).toHaveLength(6);
+    expect(Object.keys(DEFAULT_FIXTURE_BY_BLOCK_TYPE).sort()).toEqual([...nameplateTypes].sort());
+    for (const cable of ['cabos_entrada', 'cabos_saida']) {
+      expect(DEFAULT_FIXTURE_BY_BLOCK_TYPE[cable]).toBeUndefined();
+      expect(defaultFixtureFor(plate(cable))).toBeUndefined();
+    }
+    for (const [type, file] of Object.entries(IMAGE_OF)) {
+      expect(DEFAULT_FIXTURE_BY_BLOCK_TYPE[type], type).toBe(sha256(join(IMAGES, file)));
+      expect(defaultFixtureFor(plate(type))).toBe(DEFAULT_FIXTURE_BY_BLOCK_TYPE[type]);
+    }
+  });
+
+  for (const type of ['para_raio', 'chave_seccionadora', 'disjuntor_mt', 'tp', 'tc', 'transformador_forca']) {
+    it(`${type}: the scaled replay keeps the tokens inside the image, and every value is a ${type} nameplate key whose digits its cited tokens print`, async () => {
+      const sha = DEFAULT_FIXTURE_BY_BLOCK_TYPE[type]!;
+      const own = await fakeOcrProvider(DEFAULT_FIXTURES_DIR, sha).read(image);
+      if (type !== 'transformador_forca') expect(own.image).toEqual({ width: 1200, height: 900 });
+      const jpeg = { bytes: new Uint8Array(await sharp({ create: { width: 1000, height: 700, channels: 3, background: { r: 200, g: 200, b: 200 } } }).jpeg().toBuffer()), mime: 'image/jpeg' as const };
+      const scaled = await fakeOcrProvider(DEFAULT_FIXTURES_DIR, NO_FIXTURE, plate(type)).read(jpeg);
+      expect(scaled.image).toEqual({ width: 1000, height: 700 });
+      expect(scaled.tokens.map((t) => t.text)).toEqual(own.tokens.map((t) => t.text));
+      expect(scaled.tokens.every(({ bbox: [x0, y0, x1, y1] }) => x0 >= 0 && y0 >= 0 && x0 < x1 && y0 < y1 && x1 <= 1000 && y1 <= 700)).toBe(true);
+      expect(own.tokens.every(({ bbox: [x0, y0, x1, y1] }) => x0 >= 0 && y0 >= 0 && x1 <= own.image.width && y1 <= own.image.height)).toBe(true);
+
+      const fields = new Map(getDefinition(SEED_VERSION, 'cabine_primaria', type).nameplate.map((field) => [field.key, field]));
+      const { output } = await fakeStructuringProvider(DEFAULT_FIXTURES_DIR, NO_FIXTURE, plate(type)).structure({ image: jpeg, ocr: scaled, fields: [] });
+      expect(output.values.length).toBeGreaterThan(0);
+      // Every nameplate key but the tag (never printed on a plate) and the oil volume (the model leaves it out).
+      expect(output.values.map((value) => value.key)).toEqual([...fields.keys()].filter((key) => key !== 'tag' && key !== 'vol_oleo'));
+      const tokens = new Map(own.tokens.map((token) => [token.id, token]));
+      for (const value of output.values) {
+        const field = fields.get(value.key);
+        expect(field, `${type} ${value.key}`).toBeDefined();
+        const normalized = normalizeReadingValue(field!, value.value);
+        expect(normalized.ok && !normalized.verify, `${type} ${value.key} is valid for its kind`).toBe(true);
+        const cited = inTokenOrder(value.ocr_token_ids.map((id) => tokens.get(id)!));
+        expect(cited.every((token) => token !== undefined)).toBe(true);
+        // The transformer's `tap_atual` is the wrong-digit case of Story 8.5 (README).
+        if (type === 'transformador_forca' && value.key === 'tap_atual') continue;
+        expect(digitCoverage(readingValueText(field!, normalized.ok ? normalized.value : null), cited), `${type} ${value.key} digits`).toBe(true);
+      }
+    });
+  }
+});
+
 describe('9.1-API the default fixture is chosen by kind, block type and table, most specific first', () => {
   const SHA = {
     plate: 'a1eac9106f186a29ca82e896741922794eda7f86a231c4dcf942031d14dc26ac',
@@ -163,7 +221,7 @@ describe('9.1-API the default fixture is chosen by kind, block type and table, m
     expect(defaultFixtureFor(display(null, 'env'))).toBe(SHA.termo);
     expect(defaultFixtureFor(display('tp', 'nothing'))).toBe(SHA.megohmetro);
     expect(defaultFixtureFor(plate('transformador_forca'))).toBe(SHA.plate);
-    expect(defaultFixtureFor(plate('chave_seccionadora'))).toBeUndefined();
+    expect(defaultFixtureFor(plate('cabos_entrada'))).toBeUndefined();
     // A display default never serves a plate, nor a plate default a display.
     for (const sha of Object.values(SHA)) expect(readdirSync(DEFAULT_FIXTURES_DIR)).toContain(`${sha}.json`);
   });

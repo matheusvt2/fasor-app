@@ -1,0 +1,424 @@
+{
+  "outcome": "ok",
+  "ocr": {
+    "image": {
+      "width": 1200,
+      "height": 900
+    },
+    "tokens": [
+      {
+        "id": "t0",
+        "text": "CHAVE",
+        "bbox": [
+          72,
+          70,
+          217,
+          101
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t1",
+        "text": "SECCIONADORA",
+        "bbox": [
+          229,
+          70,
+          584,
+          101
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t2",
+        "text": "IDENTIFICAÇÃO",
+        "bbox": [
+          72,
+          152,
+          270,
+          181
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t3",
+        "text": "SEC-02",
+        "bbox": [
+          641,
+          156,
+          741,
+          177
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t4",
+        "text": "FABRICAÇÃO",
+        "bbox": [
+          72,
+          228,
+          234,
+          257
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t5",
+        "text": "Morvatec",
+        "bbox": [
+          642,
+          233,
+          775,
+          253
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t6",
+        "text": "Nº",
+        "bbox": [
+          72,
+          308,
+          101,
+          328
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t7",
+        "text": "SÉRIE",
+        "bbox": [
+          112,
+          303,
+          185,
+          329
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t8",
+        "text": "SC-190344",
+        "bbox": [
+          641,
+          308,
+          797,
+          329
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t9",
+        "text": "TIPO",
+        "bbox": [
+          69,
+          384,
+          129,
+          405
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t10",
+        "text": "SFU-17/630",
+        "bbox": [
+          641,
+          384,
+          807,
+          407
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t11",
+        "text": "MEIO",
+        "bbox": [
+          72,
+          460,
+          136,
+          481
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t12",
+        "text": "DE",
+        "bbox": [
+          148,
+          461,
+          181,
+          480
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t13",
+        "text": "EXTINÇÃO",
+        "bbox": [
+          193,
+          456,
+          323,
+          485
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t14",
+        "text": "AR",
+        "bbox": [
+          640,
+          461,
+          679,
+          480
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t15",
+        "text": "TENSÃO",
+        "bbox": [
+          69,
+          532,
+          175,
+          557
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t16",
+        "text": "DE",
+        "bbox": [
+          187,
+          537,
+          220,
+          556
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t17",
+        "text": "PLACA",
+        "bbox": [
+          232,
+          536,
+          314,
+          557
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t18",
+        "text": "17,5",
+        "bbox": [
+          642,
+          537,
+          703,
+          560
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t19",
+        "text": "kV",
+        "bbox": [
+          715,
+          536,
+          750,
+          556
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t20",
+        "text": "CORRENTE",
+        "bbox": [
+          71,
+          612,
+          212,
+          633
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t21",
+        "text": "NOMINAL",
+        "bbox": [
+          224,
+          612,
+          344,
+          633
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t22",
+        "text": "630",
+        "bbox": [
+          641,
+          612,
+          693,
+          633
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t23",
+        "text": "A",
+        "bbox": [
+          703,
+          613,
+          723,
+          632
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t24",
+        "text": "ACIONAMENTO",
+        "bbox": [
+          70,
+          688,
+          264,
+          709
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t25",
+        "text": "MANUAL/PUNHO",
+        "bbox": [
+          642,
+          688,
+          879,
+          711
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t26",
+        "text": "DATA",
+        "bbox": [
+          72,
+          765,
+          137,
+          784
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t27",
+        "text": "DE",
+        "bbox": [
+          149,
+          765,
+          182,
+          784
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t28",
+        "text": "FABRICAÇÃO",
+        "bbox": [
+          194,
+          760,
+          356,
+          789
+        ],
+        "confidence": 0.99
+      },
+      {
+        "id": "t29",
+        "text": "03/2019",
+        "bbox": [
+          641,
+          764,
+          757,
+          787
+        ],
+        "confidence": 0.99
+      }
+    ],
+    "preprocessing_applied": false
+  },
+  "structuring": {
+    "values": [
+      {
+        "key": "identificacao",
+        "value": "SEC-02",
+        "ocr_token_ids": [
+          "t3"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "fabricacao",
+        "value": "Morvatec",
+        "ocr_token_ids": [
+          "t5"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "n_serie",
+        "value": "SC-190344",
+        "ocr_token_ids": [
+          "t8"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tipo",
+        "value": "SFU-17/630",
+        "ocr_token_ids": [
+          "t10"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "meio_de_extincao",
+        "value": "AR",
+        "ocr_token_ids": [
+          "t14"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "tensao_de_placa",
+        "value": "17,5 kV",
+        "ocr_token_ids": [
+          "t18",
+          "t19"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "corrente_nominal",
+        "value": {
+          "raw": "630",
+          "unit": "A",
+          "state": "measured"
+        },
+        "ocr_token_ids": [
+          "t22",
+          "t23"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "acionamento",
+        "value": "MANUAL/PUNHO",
+        "ocr_token_ids": [
+          "t25"
+        ],
+        "confidence": 0.97
+      },
+      {
+        "key": "data_de_fabricacao",
+        "value": "2019-03",
+        "ocr_token_ids": [
+          "t29"
+        ],
+        "confidence": 0.97
+      }
+    ]
+  }
+}

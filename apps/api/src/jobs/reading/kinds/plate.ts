@@ -50,8 +50,22 @@ async function liveRegistry(db: Db, companyId: CompanyId): Promise<{ manufacture
 
 export const plateHandler: ReadingKindHandler = {
   kind: 'plate',
-  // E78-Q2: the synthetic transformer plate (`services/ocr/tests/fixtures/plate-transformador.jpg`).
-  fakeDefaults: [{ block_type: 'transformador_forca', sha256: 'a1eac9106f186a29ca82e896741922794eda7f86a231c4dcf942031d14dc26ac' }],
+  // E78-Q2 and Story 13.7: one synthetic plate per block type with a nameplate (the cables
+  // have none). The transformer's is `services/ocr/tests/fixtures/plate-transformador.jpg`; the
+  // five others are `fixtures/images/plate-<type>.png`, made by `scripts/make-plate-fixtures.ts`.
+  fakeDefaults: [
+    { block_type: 'transformador_forca', sha256: 'a1eac9106f186a29ca82e896741922794eda7f86a231c4dcf942031d14dc26ac' },
+    // images/plate-para-raio.png
+    { block_type: 'para_raio', sha256: '966c9b5417118bef4071ac9ee92797b40f32d446282bbb7d722fad1d126b0bfa' },
+    // images/plate-chave-seccionadora.png
+    { block_type: 'chave_seccionadora', sha256: 'deaede23509986653767bb328c5b43f4d77542ebbb37ebb97696678e1f69f065' },
+    // images/plate-disjuntor-mt.png
+    { block_type: 'disjuntor_mt', sha256: 'b0b6f663b5b5f869c2876b0c40af4bf6a6706875d24286b0a1d9d9bd22ae0b35' },
+    // images/plate-tp.png
+    { block_type: 'tp', sha256: '92b72ab7e46fe04e7e0d6c06565e8ed9e86541a68ef170e55726edc37eff54d6' },
+    // images/plate-tc.png
+    { block_type: 'tc', sha256: '0b5dce48ef09a2a08b164d75a69208fb645ba112302a1631cd299ef3d94618a5' },
+  ],
 
   async prepare({ db, companyId, relatorioId, photo }) {
     const target = plateReadingTargetSchema.safeParse(photo.reading_target);

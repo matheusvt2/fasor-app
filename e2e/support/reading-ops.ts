@@ -225,15 +225,15 @@ export async function holdPhotoBytes(page: Page): Promise<string[]> {
 }
 
 /**
- * Resets Empresa B, signs in, pushes a relatório of the standard template and opens its
- * Oxigênio "Transformador de força" sheet (the Flow 2b plate is a transformer's) through the
- * tree, by the row's type.
+ * Resets Empresa B, signs in, pushes a relatório of the standard template and opens the first
+ * sheet of `typeLabel` (the tree row's type label, e.g. "Transformador de força") in the
+ * cabine named `cabine`, through the tree.
  */
-export async function openTransformerSheet(
+export async function openSheetOfType(
   page: Page,
   account: SeedAccount,
   database: string,
-  options: { width?: number; signIn?: () => Promise<void> } = {},
+  options: { cabine: string; typeLabel: string; width?: number; signIn?: () => Promise<void> },
 ): Promise<{ relatorioId: string; blockId: string }> {
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: options.width ?? 1280, height: 900 });
@@ -247,12 +247,13 @@ export async function openTransformerSheet(
   if ((await chevron.getAttribute('aria-expanded')) !== 'true') await chevron.click();
   const tree = page.getByRole('list', { name: 'Locais do relatório' });
   await expect(tree).toBeVisible();
-  const expand = page.getByRole('button', { name: 'Expandir Oxigênio' });
+  const expand = page.getByRole('button', { name: `Expandir ${options.cabine}`, exact: true });
   if ((await expand.count()) > 0) await expand.click();
-  const cabine = tree.locator(':scope > li.s9-cabine').filter({ has: page.locator(':scope > .s9-cab-row .s9-cab-name', { hasText: 'Oxigênio' }) });
+  const cabine = tree.locator(':scope > li.s9-cabine').filter({ has: page.locator(':scope > .s9-cab-row .s9-cab-name', { hasText: options.cabine }) });
+  const name = new RegExp(`^${options.typeLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
   const row = cabine
     .locator(':scope > .s9-eqs > li.s9-eq')
-    .filter({ has: page.locator('.s9-eq-name', { hasText: /^Transformador de força$/ }) })
+    .filter({ has: page.locator('.s9-eq-name', { hasText: name }) })
     .first();
   await expect(row).toBeVisible();
   const blockId = (await row.getAttribute('data-block-id'))!;
@@ -260,4 +261,17 @@ export async function openTransformerSheet(
   await expect(page).toHaveURL(new RegExp(`/ficha/${blockId}$`));
   await expect(page.locator('.sheet-header .sheet-title')).toBeVisible();
   return { relatorioId, blockId };
+}
+
+/**
+ * Opens the Oxigênio "Transformador de força" sheet (the Flow 2b plate is a transformer's)
+ * of a fresh standard-template relatório of Empresa B (`openSheetOfType`).
+ */
+export async function openTransformerSheet(
+  page: Page,
+  account: SeedAccount,
+  database: string,
+  options: { width?: number; signIn?: () => Promise<void> } = {},
+): Promise<{ relatorioId: string; blockId: string }> {
+  return openSheetOfType(page, account, database, { ...options, cabine: 'Oxigênio', typeLabel: 'Transformador de força' });
 }

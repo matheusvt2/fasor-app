@@ -232,9 +232,8 @@ beforeAll(async () => {
     const sha = sha256(readFileSync(join(IMAGES, name)));
     copyFileSync(join(DEFAULT_FIXTURES_DIR, `${sha}.json`), join(fixturesDir, `${sha}.json`));
   }
-  // E78-Q2: the transformer's default fixture, which a photo with none of its own replays.
-  const plate = DEFAULT_FIXTURE_BY_BLOCK_TYPE.transformador_forca!;
-  copyFileSync(join(DEFAULT_FIXTURES_DIR, `${plate}.json`), join(fixturesDir, `${plate}.json`));
+  // E78-Q2 and Story 13.7: every plate default fixture, which a photo with none of its own replays.
+  for (const plate of Object.values(DEFAULT_FIXTURE_BY_BLOCK_TYPE)) copyFileSync(join(DEFAULT_FIXTURES_DIR, `${plate!}.json`), join(fixturesDir, `${plate!}.json`));
   boss = new PgBoss(config.DATABASE_URL);
   boss.on('error', (error) => console.error('pg-boss error', error));
   await boss.start();
@@ -274,8 +273,8 @@ describe('8.4-INT reading job attempts', () => {
 
   it('a photo without a fixture, on a type with no default fixture, fails permanently after one attempt', async () => {
     const { relatorioId, blocks } = await relatorio();
-    // E78-Q2: a transformer falls back to the synthetic plate; any other type has no fallback.
-    const block = blocks.find((b) => b.block_type === 'chave_seccionadora')!;
+    // E78-Q2 and Story 13.7: a type with a nameplate falls back to its synthetic plate; a cable has none.
+    const block = blocks.find((b) => b.block_type === 'cabos_entrada')!;
     const id = await photo(relatorioId, block, await solidPng(7, 77, 177), 'image/png');
     await send(id);
     await waitFor('the permanent failure', async () => (await status(id)) === 'failed');
@@ -284,8 +283,34 @@ describe('8.4-INT reading job attempts', () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ attempt: 1, outcome: 'error' });
     expect(rows[0]!.error).toContain('PermanentReadingError');
-    expect(rows[0]!.error).toContain('no fixture for block type chave_seccionadora');
+    expect(rows[0]!.error).toContain('no fixture for block type cabos_entrada');
   }, 60_000);
+
+  for (const [type, file] of [
+    ['para_raio', 'plate-para-raio.png'],
+    ['chave_seccionadora', 'plate-chave-seccionadora.png'],
+    ['disjuntor_mt', 'plate-disjuntor-mt.png'],
+    ['tp', 'plate-tp.png'],
+    ['tc', 'plate-tc.png'],
+  ] as const) {
+    it(`13.7: a ${type} plate the device re-encoded (no fixture of its own) reads its synthetic plate: done, one pending suggestion per value`, async () => {
+      const { relatorioId, blocks } = await relatorio();
+      const block = blocks.find((b) => b.block_type === type)!;
+      const committed = readFileSync(join(IMAGES, file));
+      const values = (JSON.parse(readFileSync(join(DEFAULT_FIXTURES_DIR, `${DEFAULT_FIXTURE_BY_BLOCK_TYPE[type]!}.json`), 'utf8')) as { structuring: { values: { key: string }[] } }).structuring.values;
+      // What a device does to a shot: decoded, resized and re-encoded, so no committed sha matches.
+      const bytes = new Uint8Array(await sharp(committed).resize({ width: 1000 }).jpeg({ quality: 82 }).toBuffer());
+      const id = await photo(relatorioId, block, bytes, 'image/jpeg');
+      await send(id);
+      await waitFor(`the ${type} fallback reading`, async () => (await status(id)) === 'done');
+      const mine = (await suggestions(relatorioId)).filter((s) => s.source.photo_id === id);
+      expect(mine).toHaveLength(values.length);
+      expect(mine.every((s) => s.status === 'pending')).toBe(true);
+      expect(mine.map((s) => s.target_path).sort()).toEqual(values.map((v) => `sheet/${block.id}/nameplate/${v.key}`).sort());
+      const [run] = await runs(id);
+      expect(run).toMatchObject({ attempt: 1, outcome: 'ok', ocr_provider: 'fake', model: 'fake', prompt_version: 'fake-1' });
+    }, 60_000);
+  }
 
   it('E78-Q2: a transformer plate the device re-encoded (no fixture of its own) reads the synthetic plate: done, eleven pending suggestions', async () => {
     const { relatorioId, blocks } = await relatorio();
