@@ -1055,6 +1055,8 @@ export const copy = {
       selectEmpty: 'Selecione',
       // authored (Story 8.1): the typed guess of a suggested field that is not its kind.
       invalidDate: 'Data não reconhecida — use dd/mm/aaaa ou mm/aaaa',
+      // authored: Story 13.4 INP-3, the sheet date's text form, which also reads a year alone.
+      invalidPlateDate: 'Data não reconhecida — use dd/mm/aaaa, mm/aaaa ou aaaa',
       // `60-ficha.html` empty "Data de fabricação" `.placeholder` (Story 13.4 INP-3).
       datePlaceholder: 'Ex: 03/2012',
       invalidOption: 'Opção não reconhecida',

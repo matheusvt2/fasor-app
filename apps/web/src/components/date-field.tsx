@@ -1,5 +1,5 @@
 import { CalendarDate, parseDate } from '@internationalized/date';
-import { useId, type ReactNode } from 'react';
+import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { DateField as AriaDateField, DateInput, DateSegment, Label } from 'react-aria-components';
 import { ui } from '../copy/ui.ts';
 import { Chip } from './chip.tsx';
@@ -45,7 +45,14 @@ function toCalendarDate(value: string | null): CalendarDate | null {
  */
 export function DateField({ label, value, onChange, isInvalid, describedBy, autoFocus, onBlur, className, state, after, today }: DateFieldProps) {
   const labelId = useId();
-  const showToday = today !== undefined && toCalendarDate(value) === null;
+  // Only an empty field: a stored month-only value (`YYYY-MM`) is a value, not a blank.
+  const showToday = today !== undefined && (value === null || value === '');
+  const input = useRef<HTMLDivElement>(null);
+  // "Hoje" unmounts the chip that held the focus: the focus goes to the date's first segment.
+  const [refocus, setRefocus] = useState(0);
+  useLayoutEffect(() => {
+    if (refocus > 0) input.current?.querySelector<HTMLElement>('[role="spinbutton"]')?.focus();
+  }, [refocus]);
   return (
     <AriaDateField
       className={className === undefined ? 'field' : `field ${className}`}
@@ -61,7 +68,7 @@ export function DateField({ label, value, onChange, isInvalid, describedBy, auto
       <Label className="field-label" id={labelId}>
         {label}
       </Label>
-      <DateInput className="input date-input">
+      <DateInput ref={input} className="input date-input">
         {(segment) => <DateSegment segment={segment} className="date-segment" />}
       </DateInput>
       <svg className="ico date-ico" aria-hidden="true">
@@ -73,6 +80,7 @@ export function DateField({ label, value, onChange, isInvalid, describedBy, auto
             onPress={() => {
               onChange(today());
               onBlur?.();
+              setRefocus((n) => n + 1);
             }}
           >
             {ui.dateField.today}

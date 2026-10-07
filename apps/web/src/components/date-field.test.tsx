@@ -82,11 +82,16 @@ describe('13.4 INP-3 DateField "Hoje"', () => {
     expect(onBlur).toHaveBeenCalled();
     expect(screen.getAllByRole('spinbutton').map((s) => s.textContent)).toEqual(['07', '10', '2026']);
     expect(screen.queryByRole('button', { name: 'Hoje' })).toBeNull();
+    // The chip that held the focus is gone: the focus is on the date's first segment, not the body.
+    expect(screen.getAllByRole('spinbutton')[0]).toHaveFocus();
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('is absent once a value exists', () => {
-    render(<TodayHarness onChange={vi.fn()} initial="2026-09-08" />);
+  it('is absent once a value exists, a stored month-only value included', () => {
+    const { unmount } = render(<TodayHarness onChange={vi.fn()} initial="2026-09-08" />);
+    expect(screen.queryByRole('button', { name: 'Hoje' })).toBeNull();
+    unmount();
+    render(<TodayHarness onChange={vi.fn()} initial="2024-08" />);
     expect(screen.queryByRole('button', { name: 'Hoje' })).toBeNull();
   });
 

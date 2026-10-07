@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { I18nProvider } from 'react-aria-components';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { ToastProvider } from '../../state/toast.tsx';
+import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
 import { SheetField } from './ficha-fields.tsx';
 
 /*
@@ -80,14 +80,14 @@ describe('F-22 a plate date outside 1900 .. next year', () => {
     const input = screen.getByRole('textbox', { name: /fabrica/i });
     await userEvent.type(input, '20/02/0001');
     await userEvent.click(screen.getByRole('button', { name: 'fora' }));
-    await waitFor(() => expect(screen.getByText('Data não reconhecida — use dd/mm/aaaa ou mm/aaaa')).toBeVisible());
+    await waitFor(() => expect(screen.getByText('Data não reconhecida — use dd/mm/aaaa, mm/aaaa ou aaaa')).toBeVisible());
     expect(commit).not.toHaveBeenCalled();
 
     await userEvent.clear(input);
     await userEvent.type(input, '20/02/2012');
     await userEvent.click(screen.getByRole('button', { name: 'fora' }));
     await waitFor(() => expect(commit).toHaveBeenCalledWith('2012-02-20'));
-    expect(screen.queryByText('Data não reconhecida — use dd/mm/aaaa ou mm/aaaa')).toBeNull();
+    expect(screen.queryByText('Data não reconhecida — use dd/mm/aaaa, mm/aaaa ou aaaa')).toBeNull();
   });
 });
 
@@ -133,7 +133,7 @@ describe('13.4 the sheet\'s keyboard attributes and the empty date as text', () 
     render(field(DATE, commit));
     await userEvent.type(screen.getByRole('textbox', { name: /fabrica/i }), `${typed}{Enter}`);
     expect(commit).not.toHaveBeenCalled();
-    expect(screen.getByText('Data não reconhecida — use dd/mm/aaaa ou mm/aaaa')).toBeVisible();
+    expect(screen.getByText('Data não reconhecida — use dd/mm/aaaa, mm/aaaa ou aaaa')).toBeVisible();
   });
 
   it('INP-3: the text input keeps the focus while it holds a full date; the picker takes over once the focus leaves', async () => {
@@ -156,6 +156,58 @@ describe('13.4 the sheet\'s keyboard attributes and the empty date as text', () 
     await userEvent.click(screen.getByRole('button', { name: 'fora' }));
     const group = await screen.findByRole('group', { name: /fabrica/i });
     expect(within(group).getAllByRole('spinbutton').map((s) => s.textContent)).toEqual(['01', '01', '2020']);
+  });
+
+  it('INP-3: a stored full date cleared in the picker keeps the picker and its focus past the idle commit', async () => {
+    const written = vi.fn();
+    function Stored() {
+      const [value, setValue] = useState<unknown>('2020-01-01');
+      return (
+        <I18nProvider locale="pt-BR">
+          <ToastProvider>
+            <SheetField
+              field={DATE}
+              value={value}
+              commit={(next) => {
+                written(next);
+                setValue(next);
+              }}
+              draft={{ entityId: 'b', field: DATE.key }}
+              invalidText="x"
+              selectEmpty="Selecione"
+            />
+          </ToastProvider>
+        </I18nProvider>
+      );
+    }
+    render(<Stored />);
+    const group = screen.getByRole('group', { name: /fabrica/i });
+    for (const index of [0, 1, 2]) {
+      await userEvent.click(within(group).getAllByRole('spinbutton')[index]!);
+      await userEvent.keyboard('{Backspace}{Backspace}{Backspace}{Backspace}');
+    }
+    // Past the 500 ms idle: null is written, and the focused picker is not swapped for the text form.
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    expect(written).toHaveBeenLastCalledWith(null);
+    const still = screen.getByRole('group', { name: /fabrica/i });
+    expect(within(still).getAllByRole('spinbutton')).toHaveLength(3);
+    expect(still.contains(document.activeElement)).toBe(true);
+    expect(screen.queryByRole('textbox', { name: /fabrica/i })).toBeNull();
+  });
+
+  it('INP-3: a refused write of the text form raises the AD-8 toast', async () => {
+    const commit = vi.fn(() => Promise.reject(Object.assign(new Error('refused'), { name: 'UnknownError' })));
+    render(
+      <I18nProvider locale="pt-BR">
+        <ToastProvider>
+          <SheetField field={DATE} value={null} commit={commit} draft={{ entityId: 'b', field: DATE.key }} invalidText="x" selectEmpty="Selecione" />
+          <ToastOutlet />
+        </ToastProvider>
+      </I18nProvider>,
+    );
+    await userEvent.type(screen.getByRole('textbox', { name: /fabrica/i }), '2024{Enter}');
+    expect(commit).toHaveBeenCalledWith('2024');
+    expect(await screen.findByText('Não foi possível salvar. Tente de novo.')).toBeVisible();
   });
 
   it('INP-3 with F-01: typed date text is committed when the field leaves the page', async () => {

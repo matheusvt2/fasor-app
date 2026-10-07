@@ -87,7 +87,7 @@ test('@p0 13.4-E2E-001 INP-1 and INP-3: plain keyboard on the code fields; an em
   // A text the kernel cannot read writes nothing and says why.
   await date.fill('13/2024');
   await date.press('Enter');
-  await expect(field(page, 'data_de_fabricacao').locator('.helper[data-tone="red"]')).toHaveText('Data não reconhecida — use dd/mm/aaaa ou mm/aaaa');
+  await expect(field(page, 'data_de_fabricacao').locator('.helper[data-tone="red"]')).toHaveText('Data não reconhecida — use dd/mm/aaaa, mm/aaaa ou aaaa');
   expect(await written(page, secDate)).toEqual(['2024-08']);
 
   await page.reload();
@@ -123,6 +123,9 @@ test('@p0 13.4-E2E-002 INP-3 "Hoje": an empty service start on Etapa 1 is filled
   const start = setupRoot.locator('.field').filter({ has: page.getByRole('group', { name: 'Início da execução' }) });
   const hoje = start.locator('.chip-row').getByRole('button', { name: 'Hoje', exact: true });
   await expect(hoje).toBeVisible({ timeout: 30_000 });
+  // The empty end offers its own "Hoje" too, until the start's fills it (the end follows an empty end).
+  const end = setupRoot.locator('.field').filter({ has: page.getByRole('group', { name: 'Fim da execução' }) });
+  await expect(end.locator('.chip-row').getByRole('button', { name: 'Hoje', exact: true })).toBeVisible();
 
   // The glyph stays inside the `.input` box with the chip row under it.
   const box = (await start.locator('.input').boundingBox())!;
@@ -135,6 +138,9 @@ test('@p0 13.4-E2E-002 INP-3 "Hoje": an empty service start on Etapa 1 is filled
   const [y, m, d] = today.split('-');
   await expect(start.getByRole('spinbutton')).toHaveText([d!, m!, y!]);
   await expect(hoje).toHaveCount(0);
+  await expect(end.getByRole('button', { name: 'Hoje', exact: true })).toHaveCount(0);
+  // The chip that held the focus is gone: the focus is on the start's first segment.
+  await expect(start.getByRole('spinbutton').first()).toBeFocused();
   const setupValue = async (key: string) => (await outbox(page)).filter((row) => row.path.endsWith(`/${key}`) && row.path.includes('setup')).map((row) => row.value);
   await expect.poll(() => setupValue('service_start')).toEqual([today]);
   // The end follows an empty end, so it is today too and its chip goes.

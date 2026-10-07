@@ -2,17 +2,24 @@
 title: 'Story 13.4: the keyboard stops fighting the field, and the sheet says Salvo'
 type: 'feature'
 created: '2026-10-07'
-status: 'in-progress'
+status: 'done'
 baseline_revision: 'b1c2c6b1a411a41d783bfa7ef50834cb94c68380'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: high
 context:
   - '{project-root}/_bmad-output/implementation-artifacts/epic-13-context.md'
 warnings: ['batched', 'multiple-goals', 'oversized']
 batched_why: 'Batch B of Epic 13 is one story (13.4) whose four findings INP-1 to INP-4 all live in the sheet field components and header that this batch owns.'
-deferred: []
+deferred:
+  - summary: >-
+      A typed guess over a suggested Data de fabricação still uses parseFieldInput: no bare year, no digit runs, no F-22 range.
+    evidence: |-
+      nameplate-suggestions.tsx useNameplateSuggestions().type calls parseFieldInput (suggestion-group.ts:155-158); the spec left the OCR path's parse unchanged. Typing 2012 over a pending guess shows the invalid helper while the plain field stores it.
+    location: >-
+      apps/web/src/surfaces/ficha/nameplate-suggestions.tsx:237-241
+    severity: medium
 ---
 
 <intent-contract>
@@ -108,6 +115,23 @@ deferred: []
 
 ## Review Triage Log
 
+### 2026-10-07 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer; Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 13 findings — high 0, medium 5, low 6, false 0, maybe-false 0 (2 duplicates grouped)
+- findings:
+  - `[medium]` `[patch]` VG: "Hoje" verified only on the Etapa 1 start; dialog start/end and Etapa 1 end untested — dialog unit test and an end-chip assertion in 13.4-E2E-002 added.
+  - `[medium]` `[patch]` VG: SuggestionFill's text input (same nameplate field, suggested state) lacked the INP-1 attributes — shared constant spread there, asserted.
+  - `[medium]` `[defer]` VG: a typed guess over a suggested fabrication date still parses with `parseFieldInput` (no bare year, no F-22) — the spec keeps the OCR path's parse unchanged; recorded in `deferred`.
+  - `[medium]` `[patch]` VG-other + EC1 (grouped): clearing a stored full date in the picker commits null after the idle and swaps the focused picker away — the focused form stays mounted until the focus leaves; unit test.
+  - `[low]` `[patch]` VG-other: the text form's invalid helper did not mention `aaaa` — own authored helper for the sheet text form.
+  - `[low]` `[reject]` EC2: Enter then an immediate blur before the store echo can send the same value twice — a duplicate identical op is harmless and the guard adds state; unlikely in use.
+  - `[low]` `[patch]` EC3: pressing "Hoje" unmounted the focused chip, focus fell to body — focus moves to the first date segment.
+  - `[low]` `[patch]` EC4: "Hoje" showed beside a stored month-only service date — shown only for null or ''.
+  - `[low]` `[reject]` EC5: a later refused write leaves the earlier "Salvo às" line — the line still states the last save truly; the refusal raises its own AD-8 toast.
+  - `[low]` `[reject]` EC6: 5- and 7-digit runs ("82024") refused — ambiguous without a leading zero ("1032019"); the slashed form `8/2024` is accepted.
+  - `[low]` `[reject]` EC7: E5-Q18f could cross a minute boundary — the test waits for seconds < 40, leaving 20 s for a five-click burst.
+  - `[medium]` `[patch]` EC8: the date text form wrote through `void commit(next)`, losing useFieldCommit's AD-8 refused-write toast the empty date had — routed through `useFieldCommit`.
+
 ## Design Notes
 
 - Why the text form for an empty date: React Aria's `DateField` has no month or year granularity, and the mock draws the empty fabrication date as a plain `.input` ("Ex: 03/2012"). Digit-only parsing (`01012020`, `082024`, `2024`) keeps the journeys' 8 keystrokes and works on a numeric pad without "/".
@@ -127,3 +151,12 @@ deferred: []
 - `podman compose --profile tools run --rm --user root tools pnpm exec tsx scripts/e2e.ts e2e/keyboard-salvo.spec.ts e2e/ficha.spec.ts --project desktop-chrome` -- green
 - `podman compose --profile tools run --rm --user root tools pnpm exec tsx scripts/e2e.ts e2e/keyboard-salvo.durability.spec.ts --project durability-android-chrome --project durability-webkit` -- green
 - `podman compose --profile tools run --rm --user root tools pnpm exec tsx scripts/e2e.ts e2e/tap-budget.spec.ts e2e/tap-budget-signal.spec.ts e2e/journey-taps.spec.ts e2e/journeys-12-3-12-4.spec.ts --project desktop-chrome` -- green, counts unchanged
+
+## Auto Run Result
+
+- Summary: INP-1 to INP-4 implemented. The sheet text inputs, the date text form and the suggested nameplate input turn off autocapitalize, autocorrect and spellcheck. Every readings run cell gets `enterkeyhint` from the kernel's `runEnterKeyHint`. An empty fabrication date is the mock's text `.input` and accepts `dd/mm/aaaa`, `mm/aaaa`, `aaaa` and digit runs (`parsePlateDateText`). An authored "Hoje" chip appears on empty service start and end dates (Etapa 1 and "Novo relatório"). The sheet header shows a visible saved line from `savedStateText` ("Salvo às HH:MM", or "Salvo neste aparelho às HH:MM" while offline), which keeps its height before the first save.
+- Files: kernel (`format/datetime.ts`, `checks/plate-date.ts`, `relatorio/reading-run.ts`, `readings.ts`); web (`ficha-fields.tsx`, `nameplate-suggestions.tsx`, `ensaios-section.tsx`, `ficha-header.tsx`, `ficha-surface.tsx`, `use-ficha-actions.ts`, `components/date-field.tsx`, `etapa1-capa.tsx`, `new-relatorio-dialog.tsx`, `app.css`, copy); e2e (`keyboard-salvo.spec.ts`, `keyboard-salvo.durability.spec.ts`, and edits to `ficha.spec.ts`, `journey-taps.spec.ts`, `journeys-12-3-12-4.spec.ts`, `suggestions.spec.ts` and `nameplate-values.spec.ts`); unit tests beside each.
+- Review: 13 findings. Patched: 4 medium and 3 low. Deferred: 1 medium, the suggested date's typed parse (also in `deferred-work.md`). Rejected: 4 low (EC2, EC5, EC6, EC7), each with its reason in the triage log.
+- Follow-up review recommended: true. Four medium findings were patched and none had a second review; the riskiest is the date form that stays mounted while focused, combined with the `useFieldCommit` routing (focus and AD-8 toast paths).
+- Verification: the implementer ran unit tests, lint, static and the touched e2e specs on desktop-chrome, and the durability spec on all three durability projects. The mutation run removed the focus hold in `DateValueField`, and both INP-3 focus unit tests went red. The full staged gate's result is in the PR.
+- Residual risks: the run hints are set on the DOM from a section layout effect and a MutationObserver, not as React props. EXPERIENCE.md:404 still says "Salvo" is visually hidden; that is deferred to the coordinator.

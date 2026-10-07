@@ -1362,3 +1362,15 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
 - source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-layout-copy-3.md`
   summary: F-11's `scroll-padding-bottom` measures the sticky bar against `window.innerHeight`, so on WebKit/iOS the on-screen keyboard inset (`visualViewport`) is left out of the padding EXPERIENCE.md:369 asks for; the WebKit leg of `test:e2e:matrix` was not run for this batch (review 2026-10-07, BH8).
   evidence: `apps/web/src/components/toast.tsx` `stickyBarCovered`; unverified on WebKit. A `durability-webkit` run of the F-11 case, or a `visualViewport.height` fallback with a test, would settle it.
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-13-4-keyboard-and-salvo.md`
+  summary: Story 13.4 narrowing: a typed guess over a suggested "Data de fabricação" (OCR suggestion pending) still parses with `parseFieldInput`, so it refuses a bare year ("2012") and digit runs and applies no F-22 range, while the plain empty field accepts them through `parsePlateDateText`.
+  evidence: `apps/web/src/surfaces/ficha/nameplate-suggestions.tsx` `useNameplateSuggestions().type` (~:237-241) and `packages/domain/src/relatorio/suggestion-group.ts:155-158`; review VG3, 2026-10-07. The spec kept the OCR path's parse unchanged; whether a bare year may be written over a suggestion is a product call.
+  class: debt
+  state: open (owner: coordinator decision, then the next sheet batch)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-13-4-keyboard-and-salvo.md`
+  summary: EXPERIENCE.md › Autosave still describes "Salvo" as a visually hidden status; Story 13.4 made it a visible header line ("Salvo às HH:MM", offline "Salvo neste aparelho às HH:MM").
+  evidence: `ux-fasor-2026-09-18/EXPERIENCE.md:404`; planning documents are amended by strike-through with a date, which this batch leaves to the coordinator.
+  class: docs
+  state: open (owner: coordinator)

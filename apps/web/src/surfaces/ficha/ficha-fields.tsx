@@ -180,7 +180,7 @@ export function SheetField(props: FieldProps) {
  * Story 13.4 (INP-1): serials, TAGs and types are codes, not prose: the mobile keyboard must
  * not capitalize, correct or underline them (the TAG dialogs' own attributes).
  */
-const PLAIN_TEXT = { autoCapitalize: 'off', autoCorrect: 'off', spellCheck: false } as const;
+export const PLAIN_TEXT = { autoCapitalize: 'off', autoCorrect: 'off', spellCheck: false } as const;
 
 function TextField({ field, value, commit, draft, missing, label, helper, after, flushOnUnmount }: FieldProps) {
   const id = useId();
@@ -275,22 +275,27 @@ const FULL_DATE = /^\d{4}-\d{2}-\d{2}$/;
  * Aria's `DateField` has no month or year granularity; a stored full date (a `dd/mm/aaaa`
  * one read in the canonical shape) is the date picker; anything else (E78-Q3: a month-only
  * date, a year, text the kernel cannot read) is the same text input showing the stored
- * value, so a value that prints is never blank here. The text input stays mounted while it
- * holds the focus, so the date its Enter commits never swaps the focused input away; the
- * picker takes over once the focus leaves.
+ * value, so a value that prints is never blank here. Whichever form holds the focus stays
+ * mounted until the focus leaves it: the date the text form's Enter commits never swaps it
+ * for the picker, and a picker cleared mid-edit (its idle commit writes null) never swaps
+ * itself for the text form under the user's fingers.
  */
 function DateValueField(props: FieldProps) {
-  const [typing, setTyping] = useState(false);
+  const [held, setHeld] = useState<'picker' | 'text' | null>(null);
   const canonical = normalizeDateValue(props.value);
-  if (typeof canonical === 'string' && FULL_DATE.test(canonical) && !typing) return <DatePickerField {...props} value={canonical} />;
-  return <DateTextField {...props} onFocusChange={setTyping} />;
+  const full = typeof canonical === 'string' && FULL_DATE.test(canonical);
+  if (held === 'picker' || (held === null && full)) {
+    return <DatePickerField {...props} value={full ? canonical : null} onFocusChange={(focused) => setHeld(focused ? 'picker' : null)} />;
+  }
+  return <DateTextField {...props} onFocusChange={(focused) => setHeld(focused ? 'text' : null)} />;
 }
 
 /**
  * The text form of a sheet date: typing commits on blur or Enter what `parsePlateDateText`
  * reads (`dd/mm/aaaa`, `mm/aaaa`, `aaaa`, or their digits alone: `01012020`, `082024`,
  * `2024`); a text it cannot read, or a year outside 1900 .. next year (F-22), keeps the
- * stored value and shows the invalid helper. Empty text clears the field.
+ * stored value and shows the invalid helper. Empty text clears the field. The write goes
+ * through `useFieldCommit`, so a refused one raises the AD-8 toast.
  */
 function DateTextField({ field, value, commit, missing, label, after, flushOnUnmount, onFocusChange }: FieldProps & { onFocusChange: (focused: boolean) => void }) {
   const id = useId();
@@ -299,7 +304,8 @@ function DateTextField({ field, value, commit, missing, label, after, flushOnUnm
   const [text, setText] = useState(storedText);
   const [invalid, setInvalid] = useState(false);
   const shown = useRef(storedText);
-  /** Typed text not yet handed to `commit` (F-01: flushed if the field leaves the page). */
+  const committer = useFieldCommit<unknown>({ commit: (next) => commit(next) });
+  /** Typed text not yet handed to the committer (F-01: flushed if the field leaves the page). */
   const pending = useRef(false);
   if (storedText !== shown.current) {
     shown.current = storedText;
@@ -323,16 +329,17 @@ function DateTextField({ field, value, commit, missing, label, after, flushOnUnm
       return;
     }
     setInvalid(false);
-    void commit(next);
+    committer.immediate(next);
   };
-  const latest = useRef({ text, on: flushOnUnmount === true, commit, reading });
-  latest.current = { text, on: flushOnUnmount === true, commit, reading };
+  const latest = useRef({ text, on: flushOnUnmount === true, committer, reading });
+  latest.current = { text, on: flushOnUnmount === true, committer, reading };
+  // A layout cleanup, so it runs before `useFieldCommit`'s passive dispose (as `useFlushOnUnmount`).
   useLayoutEffect(
     () => () => {
-      const { text: typed, on, commit: write, reading: read } = latest.current;
+      const { text: typed, on, committer: current, reading: read } = latest.current;
       if (!on || !pending.current) return;
       const next = read(typed);
-      if (next !== undefined && next !== false) void write(next);
+      if (next !== undefined && next !== false) current.immediate(next);
     },
     [],
   );
@@ -360,6 +367,8 @@ function DateTextField({ field, value, commit, missing, label, after, flushOnUnm
         onFocus={() => onFocusChange(true)}
         onBlur={() => {
           submit();
+          // Retries a write the store refused before (AD-8: the next blur commits it again).
+          committer.blur();
           onFocusChange(false);
         }}
         onKeyDown={(event) => {
@@ -368,7 +377,7 @@ function DateTextField({ field, value, commit, missing, label, after, flushOnUnm
       />
       {invalid ? (
         <span className="helper" data-tone="red" id={helperId}>
-          {copy.ficha.nameplate.invalidDate}
+          {copy.ficha.nameplate.invalidPlateDate}
         </span>
       ) : null}
       {after}
@@ -376,7 +385,7 @@ function DateTextField({ field, value, commit, missing, label, after, flushOnUnm
   );
 }
 
-function DatePickerField({ field, value, commit, missing, label, after, flushOnUnmount }: FieldProps) {
+function DatePickerField({ field, value, commit, missing, label, after, flushOnUnmount, onFocusChange }: FieldProps & { onFocusChange: (focused: boolean) => void }) {
   const stored = typeof value === 'string' && FULL_DATE.test(value) ? value : null;
   const [date, setDate] = useState(stored);
   const committed = useRef(stored);
@@ -394,7 +403,15 @@ function DatePickerField({ field, value, commit, missing, label, after, flushOnU
     setOutOfRange(false);
   }
   return (
-    <div data-field-key={field.key} data-missing-field={missing ? '' : undefined}>
+    <div
+      data-field-key={field.key}
+      data-missing-field={missing ? '' : undefined}
+      // Story 13.4: focus within the picker keeps it mounted (`DateValueField`).
+      onFocus={() => onFocusChange(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) onFocusChange(false);
+      }}
+    >
       <DateField
         label={screenLabel(label ?? field.label)}
         value={date}

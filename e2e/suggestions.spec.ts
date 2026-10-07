@@ -196,6 +196,10 @@ test('@p0 8.1-E2E-003 typing over a suggested guess writes the typed value and d
   expect((await outbox(page)).some((row) => row.path.includes('corrente_nominal'))).toBe(false);
 
   const serie = suggestionOf(page, 'n_serie').locator('input.sv');
+  // Story 13.4 (INP-1): the suggested serial keeps the plain keyboard of its field.
+  await expect(serie).toHaveAttribute('autocapitalize', 'off');
+  await expect(serie).toHaveAttribute('autocorrect', 'off');
+  await expect(serie).toHaveAttribute('spellcheck', 'false');
   await serie.fill('SU1240999');
   await serie.press('Enter');
 
