@@ -9,6 +9,7 @@ import { useSync } from '../../state/sync.tsx';
 import { previewPdfUrl, SyncRequestError } from '../../sync/client.ts';
 import { publishReAuth } from '../../api/auth-client.ts';
 import { isSessionExpired, isUnauthorized, SessionExpiredError } from './session-expired.tsx';
+import { setPreviewTabStep, writePreviewTab } from './preview-tab.ts';
 import { DEFAULT_TIMING, type GenerateTiming } from './use-generate.ts';
 
 /*
@@ -16,7 +17,8 @@ import { DEFAULT_TIMING, type GenerateTiming } from './use-generate.ts';
  * later, after the network, is a pop-up the browser blocks), drains the outbox like the
  * issue, asks for the preview job behind the same barrier, pulls the relatório stream until
  * the job is done, then points the tab at `preview.pdf` (RASCUNHO on every page, no revision
- * number). Nothing is written by the device: no status op, no revision. A failure closes the
+ * number). Meanwhile the tab shows a waiting page with the step and a bar (`preview-tab.ts`).
+ * Nothing is written by the device: no status op, no revision. A failure closes the
  * tab and says so beside the button.
  */
 
@@ -32,7 +34,7 @@ export interface PreviewState {
 const MAX_ROUNDS = 10;
 
 /** A tab the press opened; null when the browser refused it (the PDF then opens in a fresh one at the end). */
-type Tab = Pick<Window, 'close' | 'location'> | null;
+type Tab = Window | null;
 
 function openBlankTab(): Tab {
   const tab = window.open('', '_blank');
@@ -42,6 +44,8 @@ function openBlankTab(): Tab {
   } catch {
     // A tab whose opener cannot be reset stays as it is.
   }
+  // Review 2026-10-06: a blank tab for the whole job read as broken; it says what is happening.
+  writePreviewTab(tab);
   return tab;
 }
 
@@ -85,6 +89,7 @@ export function usePreview(relatorioId: string, timing: GenerateTiming = DEFAULT
         if (round >= MAX_ROUNDS) throw new Error('outbox did not drain');
         await wait(timing.retryMs);
       }
+      if (tab !== null) setPreviewTabStep(tab, 'generating');
       // Ask, answering a 409 with a sync and a retry, as the issue does.
       let jobId: string | null = null;
       for (let attempt = 0; jobId === null; attempt++) {

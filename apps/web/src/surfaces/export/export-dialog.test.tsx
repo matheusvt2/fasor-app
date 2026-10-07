@@ -913,6 +913,25 @@ describe('Export dialog (Story 7.5)', () => {
     open.mockRestore();
   });
 
+  it('review 2026-10-06: the tab "Pré-visualizar" opens shows a waiting page (step, bar, note) until the PDF is in it', async () => {
+    database = await freshDb();
+    const PREVIEW_JOB = '019966c1-0000-7000-8000-0000000000e4';
+    const sync = syncState({ preview: vi.fn(async () => ({ outcome: 'queued' as const, job_id: PREVIEW_JOB })) });
+    const tabDocument = document.implementation.createHTMLDocument('');
+    const tab = { location: { href: '' }, close: vi.fn(), opener: {}, document: tabDocument };
+    const open = vi.spyOn(window, 'open').mockImplementation(() => tab as unknown as Window);
+    render(<Harness sync={sync} />);
+    await userEvent.click(within(dialog()).getByRole('button', { name: 'Pré-visualizar' }));
+    expect(tabDocument.title).toBe('Gerando rascunho…');
+    expect(tabDocument.querySelector('[role="progressbar"]')).toHaveAttribute('aria-label', 'Gerando rascunho…');
+    expect(tabDocument.body).toHaveTextContent('O PDF abre nesta aba quando ficar pronto. Pode levar até um minuto.');
+    // Once the outbox is drained and the job asked for, the page moves to the second step.
+    await waitFor(() => expect(sync.preview).toHaveBeenCalled());
+    expect(tabDocument.querySelector('h1')).toHaveTextContent('Gerando rascunho…');
+    expect(tabDocument.body).toHaveTextContent('Etapa 2 de 2');
+    open.mockRestore();
+  });
+
   it('F-12: a preview refused with 401 closes its tab and says the session expired, with "Entrar de novo"', async () => {
     database = await freshDb();
     const sync = syncState({ preview: vi.fn(async () => Promise.reject(new SyncRequestError({ kind: 'http', status: 401 }))) });

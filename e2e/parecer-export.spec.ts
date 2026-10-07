@@ -218,6 +218,9 @@ test('@p0 7.5-E2E-001 "Pré-visualizar" opens preview.pdf in a new tab, reading 
   const tab = await tabPromise;
   // Headless Chrome has no PDF viewer: the tab's navigation to the PDF is what is observed.
   const requested = tab.waitForRequest(/\/api\/relatorios\/[0-9a-f-]{36}\/preview\.pdf\?v=[0-9a-f-]{36}$/, { timeout: JOB_TIMEOUT });
+  // Review 2026-10-06: while the job runs the tab is not blank: it names the step and shows a bar.
+  await expect(tab.getByRole('progressbar', { name: 'Gerando rascunho…' })).toBeVisible();
+  await expect(tab.getByText('O PDF abre nesta aba quando ficar pronto. Pode levar até um minuto.')).toBeVisible();
   await expect(previewButton(page)).toHaveText('Gerando rascunho…');
   const url = (await requested).url();
   await expect(previewButton(page)).toHaveText('Pré-visualizar');

@@ -501,6 +501,15 @@ export const copy = {
     previewing: 'Gerando rascunho…',
     // authored: the preview job failed or the tab could not be filled; nothing changed.
     previewFailed: 'Não foi possível gerar o rascunho. Os dados não foram alterados.',
+    // authored (review 2026-10-06): the waiting page written into the tab "Pré-visualizar" opens.
+    previewTab: {
+      title: 'Gerando rascunho…',
+      step1: 'Etapa 1 de 2',
+      sending: 'Enviando as alterações deste aparelho…',
+      step2: 'Etapa 2 de 2',
+      generating: 'Gerando rascunho…',
+      note: 'O PDF abre nesta aba quando ficar pronto. Pode levar até um minuto.',
+    },
     shareDocx: 'Compartilhar DOCX',
     sharePdf: 'Compartilhar PDF',
     // authored (E11-Q1, 2026-09-30): a file row while its bytes come from the server.
