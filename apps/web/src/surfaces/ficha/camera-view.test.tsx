@@ -298,7 +298,7 @@ describe('13.1 the full-resolution capture', () => {
 
     expect(getUserMedia).toHaveBeenCalledTimes(1);
     expect(getUserMedia).toHaveBeenCalledWith(CAMERA_CONSTRAINTS);
-    expect(CAMERA_CONSTRAINTS).toMatchObject({ video: { facingMode: 'environment', width: { ideal: 3840 }, height: { ideal: 2160 } }, audio: false });
+    expect(CAMERA_CONSTRAINTS).toEqual({ video: { facingMode: 'environment', width: { ideal: 3840 }, height: { ideal: 2160 }, zoom: true }, audio: false });
     expect(info.mock.calls.filter((call) => call[0] === 'camera track settings')).toEqual([['camera track settings', { width: 3840, height: 2160, frameRate: 30 }]]);
 
     await userEvent.click(screen.getByRole('button', { name: 'Disparar' }));
@@ -417,6 +417,13 @@ describe('13.2 torch, zoom and tap-to-focus from the track\'s capabilities', () 
     await userEvent.click(torch);
     await waitFor(() => expect(torch).toHaveAttribute('aria-pressed', 'true'));
     expect(advanced(first.track)).toContainEqual({ torch: true });
+    // The session's basic constraints go with the change, so the camera keeps its resolution.
+    expect(first.track.applyConstraints).toHaveBeenCalledWith({
+      facingMode: 'environment',
+      width: { ideal: 3840 },
+      height: { ideal: 2160 },
+      advanced: [{ torch: true }],
+    });
 
     await userEvent.click(screen.getByRole('button', { name: 'Fechar a câmera sem concluir' }));
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Câmera' })).toBeNull());
@@ -583,6 +590,19 @@ describe('13.6 a refused shot blocks the camera until it is stored', () => {
     expect(await screen.findByRole('dialog', { name: 'Câmera' })).toBeInTheDocument();
     expect(getUserMedia).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('button', { name: 'Disparar' })).toBeEnabled();
+  });
+
+  it('after the retry cleared the refusal, a device with no camera says the shot failed instead of a picker the browser would block', async () => {
+    await holdOne();
+    const getUserMedia = vi.fn(async () => Promise.reject(new DOMException('Requested device not found', 'NotFoundError')));
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia } });
+    const picker = vi.spyOn(HTMLInputElement.prototype, 'click');
+    capture.retry.mockImplementationOnce(async () => clearHeld());
+    renderCamera();
+    await userEvent.click(screen.getByRole('button', { name: 'Abrir câmera' }));
+    expect(await screen.findByText('Não foi possível salvar a foto. Tente de novo.')).toBeVisible();
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+    expect(picker).not.toHaveBeenCalled();
   });
 
   it('the system-camera fallback opens no picker while refused: the toast, and the retry behind it', async () => {

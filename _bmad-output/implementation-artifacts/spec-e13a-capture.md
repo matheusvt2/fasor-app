@@ -2,7 +2,7 @@
 title: 'Epic 13 batch A: capture at full resolution, torch and zoom, and a quota-refused shot that survives'
 type: 'feature'
 created: '2026-10-07'
-status: 'in-progress'
+status: 'in-review'
 baseline_revision: 'b1c2c6b1a411a41d783bfa7ef50834cb94c68380'
 review_loop_iteration: 0
 followup_review_recommended: false
@@ -173,6 +173,20 @@ message and force the storage banner.
   once through `end()`. 13.1-E2E-001 asserts the viewfinder plays the stream's own size before it shoots.
 
 ## Review Triage Log
+
+### 2026-10-07 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer; Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 9 findings — high 0, medium 3, low 4, false 1, maybe-false 1
+- findings:
+  - `[medium]` `[patch]` VG: no test runs the refusal path with the real `freeSpace` wiring; a 'once' refusal is stored on the retry even if nothing was evicted — fix: a real-Dexie unit test seeds an acked original, refuses one `files` put and asserts the shot stored and the original evicted.
+  - `[low]` `[patch]` VG: `zoom: true` in `CAMERA_CONSTRAINTS` is not pinned by any test — fix: the 13.1 unit expectation includes it.
+  - `[low]` `[patch]` VG other: `plate-photo.test.tsx` mock lacks `retry` — fix: mock member added.
+  - `[medium]` `[patch]` ECH: after the held-branch async retry, startStream's fallback clicks the file input outside the user gesture, so the picker is blocked — fix: out-of-gesture fallback shows `failedToast` instead.
+  - `[medium]` `[patch]` ECH: a pointer released outside the finder leaves a stale entry (later drags pinch, taps never focus) — fix: pointer capture on pointerdown.
+  - `[low]` `[patch]` ECH: `applyConstraints({ advanced })` drops the basic width/height/facingMode, so a browser may fall back to its default resolution — fix: basic constraints passed beside `advanced`.
+  - `[low]` `[reject]` ECH: a track that lists zoom but refuses every zoom constraint leaves +/- enabled and silent — Chrome lists zoom only after the PTZ grant; adding a refused state is extra surface for an unlikely case.
+  - `[maybe-false]` `[reject]` ECH: burst taps made before a refusal arrives are queued and also held — the spec's Never forbids making the shutter wait for a save (tap budget); the refusal blocks the shots after it arrives. Listed in the PR as open question Q4; settling it needs a product decision on blocking the shutter while a save is pending.
+  - `[false]` `[reject]` ECH: `retry()` with no db shows a refusal without trying — `open()` returns early when `capture.ready` is false (db null), so that branch is unreachable from the opener.
 
 ## Design Notes
 

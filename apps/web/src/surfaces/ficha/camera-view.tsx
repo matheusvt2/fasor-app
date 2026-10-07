@@ -45,6 +45,9 @@ export const CAMERA_CONSTRAINTS: MediaStreamConstraints = {
   audio: false,
 };
 
+/** The basic constraints of `CAMERA_CONSTRAINTS` (without the PTZ request), repeated by every `applyConstraints`. */
+const BASIC_CONSTRAINTS: MediaTrackConstraints = { facingMode: 'environment', width: { ideal: 3840 }, height: { ideal: 2160 } };
+
 /** Story 13.1: how long a single shot waits for `takePhoto()` before it grabs a frame instead. */
 export const TAKE_PHOTO_TIMEOUT_MS = 2000;
 
@@ -176,8 +179,20 @@ export function useCamera(
     );
   }, [opener]);
 
-  /** Asks for the stream (the opening state is already on) and opens the view on it. */
-  const startStream = (media: MediaDevices, context: CaptureTarget) => {
+  /**
+   * Asks for the stream (the opening state is already on) and opens the view on it. Without a
+   * camera the system picker takes the shot, but only inside the press (`inGesture`): after an
+   * async step the browser would block the picker, so the press says it failed instead.
+   */
+  const startStream = (media: MediaDevices, context: CaptureTarget, inGesture: boolean) => {
+    const noCamera = () => {
+      if (inGesture) {
+        fallbackTarget.current = context;
+        fileInput.current?.click();
+      } else if (mounted.current) {
+        showToast(copy.photos.failedToast);
+      }
+    };
     let request: Promise<MediaStream>;
     try {
       request = media.getUserMedia(CAMERA_CONSTRAINTS);
@@ -185,8 +200,7 @@ export function useCamera(
       // F-26: a camera API that throws at once (an old or broken one) is no camera: the
       // opening state ends and the system camera takes the shot, as with no API.
       setOpening(false);
-      fallbackTarget.current = context;
-      fileInput.current?.click();
+      noCamera();
       return;
     }
     request.then(
@@ -209,8 +223,7 @@ export function useCamera(
           return;
         }
         // No camera on this device (NotFoundError and the like): the system picker.
-        fallbackTarget.current = context;
-        fileInput.current?.click();
+        noCamera();
       },
     );
   };
@@ -243,7 +256,7 @@ export function useCamera(
             setOpening(false);
             return;
           }
-          startStream(media, context);
+          startStream(media, context, false);
         },
         () => {
           setOpening(false);
@@ -260,7 +273,7 @@ export function useCamera(
       return;
     }
     setOpening(true);
-    startStream(media, context);
+    startStream(media, context, true);
   };
 
   /** One grab of the shutter: tracked until it resolves, then saved (or reported). */
@@ -727,7 +740,8 @@ function useCameraControls(track: MediaStreamTrack | null, capabilities: CameraC
     (constraints: Record<string, unknown>): Promise<void> => {
       if (track === null || typeof track.applyConstraints !== 'function') return Promise.reject(new Error('no track'));
       try {
-        return track.applyConstraints({ advanced: [constraints as MediaTrackConstraintSet] });
+        // The session's basic constraints go with every change, so the camera keeps its resolution.
+        return track.applyConstraints({ ...BASIC_CONSTRAINTS, advanced: [constraints as MediaTrackConstraintSet] });
       } catch (error) {
         return Promise.reject(error instanceof Error ? error : new Error('applyConstraints threw'));
       }
@@ -822,6 +836,12 @@ function useCameraControls(track: MediaStreamTrack | null, capabilities: CameraC
   const pinch = useRef<{ spread: number; zoom: number } | null>(null);
   const tap = useRef<{ id: number; x: number; y: number } | null>(null);
   const onPointerDown = (event: ReactPointerEvent<HTMLElement>) => {
+    // Captured, so a finger lifted outside the finder still ends here and leaves no stale pointer.
+    try {
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+    } catch {
+      // A pointer that cannot be captured still works while it stays on the finder.
+    }
     pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
     if (pointers.current.size === 1) {
       tap.current = { id: event.pointerId, x: event.clientX, y: event.clientY };

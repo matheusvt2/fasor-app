@@ -121,11 +121,18 @@ function fitWithin(width: number, height: number, max: number): { width: number;
 }
 
 /** What the probe recorded so far. */
-function probe(page: Page): Promise<{ constraints: unknown[]; settings: { width?: number; height?: number }[]; applied: Record<string, unknown>[] }> {
-  return page.evaluate(() => {
+async function probe(page: Page): Promise<{
+  constraints: unknown[];
+  settings: { width?: number; height?: number }[];
+  applied: Record<string, unknown>[];
+  /** The `advanced` member of each applied set. */
+  advanced: Record<string, unknown>[];
+}> {
+  const recorded = await page.evaluate(() => {
     const w = window as unknown as CameraProbe;
     return { constraints: w.__gumConstraints ?? [], settings: w.__trackSettings ?? [], applied: w.__applied ?? [] };
   });
+  return { ...recorded, advanced: recorded.applied.map((set) => (set as { advanced?: Record<string, unknown>[] }).advanced?.[0] ?? {}) };
 }
 
 test('@p0 13.1-E2E-001 the camera asks for ideal 3840x2160 and the stored original is the stream\'s frame fitted to 2560 px', async ({ page }) => {
@@ -168,11 +175,11 @@ test('@p0 13.2-E2E-001 offered torch, zoom and focus: the controls act through a
   const box = (await torch.boundingBox())!;
   expect(box.width).toBeGreaterThanOrEqual(48);
   expect(box.height).toBeGreaterThanOrEqual(48);
-  await expect.poll(async () => (await probe(page)).applied).toContainEqual({ advanced: [{ torch: false }] });
+  await expect.poll(async () => (await probe(page)).advanced).toContainEqual({ torch: false });
 
   await torch.click();
   await expect(torch).toHaveAttribute('aria-pressed', 'true');
-  expect((await probe(page)).applied).toContainEqual({ advanced: [{ torch: true }] });
+  expect((await probe(page)).advanced).toContainEqual({ torch: true });
 
   // Zoom: the visible "+" (the stylus path for the pinch), clamped to the offered range.
   const zoom = camera.getByRole('group', { name: 'Zoom' });
@@ -184,7 +191,7 @@ test('@p0 13.2-E2E-001 offered torch, zoom and focus: the controls act through a
   }
   await zoomIn.click();
   await expect(zoom).toContainText('1,2×');
-  expect((await probe(page)).applied).toContainEqual({ advanced: [{ zoom: 1.2 }] });
+  expect((await probe(page)).advanced).toContainEqual({ zoom: 1.2 });
   while (await zoomIn.isEnabled()) await zoomIn.click();
   await expect(zoom).toContainText('3,0×');
   const zooms = (await probe(page)).applied.flatMap((set) => {
@@ -207,6 +214,10 @@ test('@p0 13.2-E2E-001 offered torch, zoom and focus: the controls act through a
   expect(point.x).toBeLessThan(0.5);
   expect(point.y).toBeGreaterThanOrEqual(0);
   expect(point.y).toBeLessThan(0.5);
+  // Every change keeps the session's basic constraints, so the camera keeps its resolution.
+  for (const set of (await probe(page)).applied) {
+    expect(set).toMatchObject({ facingMode: 'environment', width: { ideal: 3840 }, height: { ideal: 2160 } });
+  }
 
   // Close and reopen: a new session, the torch off again.
   await camera.getByRole('button', { name: 'Fechar a câmera sem concluir' }).click();

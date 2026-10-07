@@ -4,6 +4,7 @@ import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { commitPhotoCapture, type PhotoCaptureInput } from '../../db/file-commit.ts';
 import { runEviction } from '../../db/file-store.ts';
+import type { AppDatabase } from '../../db/schema.ts';
 import { clearGeolocationDenied, photoLocationEnabled, readPhotoSeq, writeGeolocationDenied, writePhotoSeqAtLeast } from '../../db/photo-store.ts';
 import { deviceId } from '../../db/sync-store.ts';
 import { storageHeadroom } from '../../device/storage-estimate.ts';
@@ -62,6 +63,23 @@ export interface PhotoCapture {
   ready: boolean;
 }
 
+/** The capture rescue's dependencies on this device's store: commit, direct send and (CAP-4) the eviction sized to a shot. */
+export function captureRescueDeps(db: AppDatabase, isOnline: () => boolean): RescueDeps {
+  return {
+    isOnline,
+    commit: (input) => commitPhotoCapture(db, input, { newId, now }),
+    sendDirect: async (input) => {
+      const device = await deviceId(db, newId);
+      const localSeq = reserveDirectSeq(input.fileId, await readPhotoSeq(db));
+      // Best effort (the device may be refusing writes): the next stored shot continues after it.
+      await writePhotoSeqAtLeast(db, localSeq).catch(() => undefined);
+      await sendPhotoDirect(input, { client: createBrowserSyncClient(), deviceId: device, localSeq, newId, now: now() });
+    },
+    // CAP-4: the acknowledged originals the kernel allows, at least the refused shot's bytes.
+    freeSpace: async (neededBytes) => runEviction(db, await storageHeadroom(), neededBytes),
+  };
+}
+
 export function usePhotoCapture(relatorioId: string): PhotoCapture {
   const session = useSession();
   const db = session.database;
@@ -91,22 +109,7 @@ export function usePhotoCapture(relatorioId: string): PhotoCapture {
     return tracker.current;
   }, [db]);
 
-  const rescueDeps = useCallback((): RescueDeps | null => {
-    if (db === null) return null;
-    return {
-      isOnline: () => onlineRef.current,
-      commit: (input) => commitPhotoCapture(db, input, { newId, now }),
-      sendDirect: async (input) => {
-        const device = await deviceId(db, newId);
-        const localSeq = reserveDirectSeq(input.fileId, await readPhotoSeq(db));
-        // Best effort (the device may be refusing writes): the next stored shot continues after it.
-        await writePhotoSeqAtLeast(db, localSeq).catch(() => undefined);
-        await sendPhotoDirect(input, { client: createBrowserSyncClient(), deviceId: device, localSeq, newId, now: now() });
-      },
-      // CAP-4: the acknowledged originals the kernel allows, at least the refused shot's bytes.
-      freeSpace: async (neededBytes) => runEviction(db, await storageHeadroom(), neededBytes),
-    };
-  }, [db]);
+  const rescueDeps = useCallback((): RescueDeps | null => (db === null ? null : captureRescueDeps(db, () => onlineRef.current)), [db]);
 
   const prepare = useCallback(async () => {
     if (db === null || user === null) return;

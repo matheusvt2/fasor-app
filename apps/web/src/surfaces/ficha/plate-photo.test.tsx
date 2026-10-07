@@ -30,7 +30,7 @@ vi.mock('../../components/crop-thumb.tsx', async (importOriginal) => ({
 
 /** F-26: a capture that is ready, so the tile asks for the camera (the session above has no database). */
 vi.mock('./use-photo-capture.ts', () => ({
-  usePhotoCapture: () => ({ prepare: async () => {}, shoot: () => undefined, settle: async () => true, ready: true }),
+  usePhotoCapture: () => ({ prepare: async () => {}, shoot: () => undefined, settle: async () => true, retry: async () => 0, ready: true }),
 }));
 
 const PHOTO = '019966b0-0088-7000-8000-000000000001';
