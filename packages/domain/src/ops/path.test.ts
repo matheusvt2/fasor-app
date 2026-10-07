@@ -32,6 +32,9 @@ const EXTRA_PATHS = [
   `generation_job/${ID}/error`,
   `generation_job/${ID}/result`,
   `template/${ID}/seed_version`,
+  // Story 13.8 (contract 15): the emission audit's run.
+  `audit_run/${ID}`,
+  `audit_run/${ID}/findings`,
 ];
 
 describe('1.4-UNIT-001 path round trip', () => {
@@ -47,7 +50,7 @@ describe('1.4-UNIT-001 path round trip', () => {
     const seen = new Set(paths.map((p) => parsePath(p).family));
     const missing = FAMILIES.map((f) => f.family).filter((f) => !seen.has(f));
     expect(missing).toEqual([]);
-    expect(FAMILIES.length).toBe(40);
+    expect(FAMILIES.length).toBe(42);
   });
 
   it('returns typed segments', () => {

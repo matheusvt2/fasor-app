@@ -283,7 +283,8 @@ function imageBlock(image: OcrImage): ContentBlock {
   return { image: { format: image.mime === 'image/png' ? 'png' : 'jpeg', source: { bytes: image.bytes } } };
 }
 
-interface ConverseCall {
+/** Story 13.8: exported so the emission audit (`jobs/audit/provider.ts`) makes its one call through the same adapter. */
+export interface ConverseCall {
   modelId: string;
   system: string;
   content: ContentBlock[];
@@ -296,7 +297,7 @@ interface ToolAnswer {
   usage: { input_tokens: number; output_tokens: number; usd: number };
 }
 
-async function converseTool(options: BedrockProviderOptions, call: ConverseCall): Promise<ToolAnswer> {
+export async function converseTool(options: BedrockProviderOptions, call: ConverseCall): Promise<ToolAnswer> {
   const timeoutMs = options.timeoutMs ?? BEDROCK_TIMEOUT_MS;
   const client = options.source.client();
   const command = new ConverseCommand({

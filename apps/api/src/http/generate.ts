@@ -2,7 +2,6 @@ import { Readable } from 'node:stream';
 import {
   blockingRows,
   blockRowSchema,
-  fileRowSchema,
   generateRequestSchema,
   generationJobRowSchema,
   isJobActive,
@@ -14,7 +13,6 @@ import {
   previewFileName,
   referencedEquipmentIds,
   relatorioEditedSince,
-  relatorioRowSchema,
   revisionFileMime,
   revisionFileName,
   revisionRowSchema,
@@ -26,7 +24,6 @@ import {
   type GenerateResponse,
   type GenerationJobRow,
   type NewId,
-  type NotCaughtUpDetails,
   type Op,
   type PreIssueBlockedDetails,
   type PreviewResponse,
@@ -34,11 +31,12 @@ import {
   type RevisionRow,
 } from '@app/domain';
 import type { S3Client } from '@aws-sdk/client-s3';
-import { and, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm';
+import { and, eq, gt, isNull, or, sql } from 'drizzle-orm';
 import { Hono, type Context } from 'hono';
 import type { Db } from '../db/client.ts';
 import type { CompanyId } from '../db/repositories/company-id.ts';
 import { liveRevisions } from '../db/repositories/revisions.ts';
+import { barrierMissing, readLiveRelatorio } from './barrier.ts';
 import { entities, ops } from '../db/schema.ts';
 import { GENERATE_ACTOR, type GenerateKind, type GeneratePayload } from '../jobs/generate/job.ts';
 import { logError } from '../log.ts';
@@ -101,17 +99,8 @@ type CreateOutcome =
 export function createGenerateRoutes(db: Db, s3: S3Client, bucket: string, deps: GenerateRouteDeps): Hono<AppEnv> {
   const routes = new Hono<AppEnv>();
 
-  async function readRelatorio(companyId: CompanyId, id: string): Promise<{ project_id: string; preview_file_id: string | null } | null> {
-    if (!uuidV7Schema.safeParse(id).success) return null;
-    const [record] = await db
-      .select({ row: entities.row, removed_at: entities.removed_at })
-      .from(entities)
-      .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'relatorio'), eq(entities.id, id)))
-      .limit(1);
-    if (record === undefined || record.removed_at !== null) return null;
-    const parsed = relatorioRowSchema.safeParse(record.row);
-    return parsed.success ? { project_id: parsed.data.project_id, preview_file_id: parsed.data.preview_file_id } : null;
-  }
+  // A-28, Story 13.8: the relatório lookup and the barrier are `barrier.ts`'s, shared with the audit route.
+  const readRelatorio = (companyId: CompanyId, id: string) => readLiveRelatorio(db, companyId, id);
 
   /**
    * The relatório's job of `kind` that still counts as running (`isJobActive`), or null. A
@@ -140,30 +129,7 @@ export function createGenerateRoutes(db: Db, s3: S3Client, bucket: string, deps:
     return null;
   }
 
-  /** The barrier: is the named op in the log, and is every named file stored? */
-  async function missing(companyId: CompanyId, lastOpId: string | null, fileIds: readonly string[]): Promise<NotCaughtUpDetails> {
-    let missingOp = false;
-    if (lastOpId !== null) {
-      const [found] = await db
-        .select({ op_id: ops.op_id })
-        .from(ops)
-        .where(and(eq(ops.company_id, companyId), eq(ops.op_id, lastOpId)))
-        .limit(1);
-      missingOp = found === undefined;
-    }
-    const stored = new Set<string>();
-    if (fileIds.length > 0) {
-      const rows = await db
-        .select({ id: entities.id, row: entities.row })
-        .from(entities)
-        .where(and(eq(entities.company_id, companyId), eq(entities.entity, 'file'), inArray(entities.id, [...fileIds])));
-      for (const record of rows) {
-        const parsed = fileRowSchema.safeParse(record.row);
-        if (parsed.success && parsed.data.uploaded_at !== null) stored.add(record.id);
-      }
-    }
-    return { missing_op: missingOp, missing_files: fileIds.filter((id) => !stored.has(id)) };
-  }
+  const missing = (companyId: CompanyId, lastOpId: string | null, fileIds: readonly string[]) => barrierMissing(db, companyId, lastOpId, fileIds);
 
   /**
    * AD-15: exists an op of the relatório's stream after the snapshot that counts as an edit.

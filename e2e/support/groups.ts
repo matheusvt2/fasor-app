@@ -75,6 +75,11 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'panel-capture-pipeline.spec.ts',
     why: 'uploads a panel photo the api reads on its one reading queue and worker, then waits for the plate reading its re-target queued',
   },
+  // Story 13.8: the emission audit; 13.8-E2E-002 issues a revision with findings present.
+  {
+    file: 'emission-audit.spec.ts',
+    why: 'issues a revision through the shared queue and LibreOffice (13.8-E2E-002) and waits on the audit job of the one api worker',
+  },
   {
     file: 'tap-budget-signal.spec.ts',
     why: 'times every tap of the SM-3 walk against a render and waits on nine readings of the one reading queue and worker',

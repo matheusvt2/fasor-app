@@ -2,8 +2,8 @@
 title: 'Story 13.8: the emission audit, one AI pass before Emitir that points and never writes'
 type: 'feature'
 created: '2026-10-07'
-status: 'ready-for-dev'
-baseline_revision: 'a0a02d7'
+status: 'in-progress'
+baseline_revision: '24196afec8da12e90ba3cb57155f5f28688bba4f'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: opus

@@ -21,6 +21,8 @@ import {
   type QueuedReadingRow,
   type SyncDecisionRow,
   type SyncSummaryBadge,
+  type AuditRequest,
+  type AuditResponse,
   type GenerateRequest,
   type GenerateResponse,
   type PreviewResponse,
@@ -180,6 +182,12 @@ export interface SyncState {
    * type only so the test doubles built before it existed still type-check.
    */
   rereadPhoto?: (photoId: string) => Promise<void>;
+  /**
+   * Story 13.8: "Conferir antes de emitir" (`POST /api/relatorios/{id}/audit`), asked for by
+   * the Export dialog once the outbox is drained. The engine's own client again (AD-1).
+   * Optional in the type only so the test doubles built before it existed still type-check.
+   */
+  audit?: (relatorioId: string, body: AuditRequest) => Promise<AuditResponse>;
 }
 
 export const SyncContext = createContext<SyncState | null>(null);
@@ -412,10 +420,16 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     await client.rereadPhoto(photoId);
   }, []);
 
+  const audit = useCallback(async (relatorioId: string, body: AuditRequest): Promise<AuditResponse> => {
+    const client = clientRef.current;
+    if (client === null || client.audit === undefined) throw new Error('sync client is not running');
+    return client.audit(relatorioId, body);
+  }, []);
+
   // W-8: the callbacks alone, stable for the session, for the components that only act.
   const actions = useMemo<SyncActions>(
-    () => ({ syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto }),
-    [syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto],
+    () => ({ syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit }),
+    [syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit],
   );
 
   const value = useMemo<SyncState>(
@@ -455,8 +469,9 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       generate,
       preview,
       rereadPhoto,
+      audit,
     }),
-    [counts, outboxRead, session.online, unreachable, status, merges, pendingSheets, uploads, readingsQueued, downloads, held, decisions, decisionCount, split, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto],
+    [counts, outboxRead, session.online, unreachable, status, merges, pendingSheets, uploads, readingsQueued, downloads, held, decisions, decisionCount, split, company, device, userNames, syncNow, syncRelatorio, syncProject, resendDead, retryUpload, fetchFile, generate, preview, rereadPhoto, audit],
   );
 
   return (

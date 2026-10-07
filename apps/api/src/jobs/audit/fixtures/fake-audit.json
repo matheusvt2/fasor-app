@@ -1,0 +1,25 @@
+{
+  "$comment": "Story 13.8: the fake audit's canned findings, one per kind. Each ref is a selector the fake resolves against the refs the run sent: first-sheet, first-row, first-photo, or a ref id as written (section:10). A selector with no match is skipped.",
+  "findings": [
+    {
+      "kind": "conclusion_vs_nc",
+      "ref": "first-sheet",
+      "text": "A conclusão está como aprovada sem restrições, mas a ficha tem um item marcado NC."
+    },
+    {
+      "kind": "reading_out_of_family",
+      "ref": "first-row",
+      "text": "Esta leitura está muito acima das outras fases do mesmo equipamento, sem observação."
+    },
+    {
+      "kind": "parecer_vs_restricoes",
+      "ref": "section:10",
+      "text": "O parecer não menciona as restrições registradas nas fichas."
+    },
+    {
+      "kind": "caption_equipment",
+      "ref": "first-photo",
+      "text": "A legenda cita um equipamento que não consta no relatório."
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import type { SumarioRowKey } from '@app/domain';
+import type { AuditTarget, SumarioRowKey } from '@app/domain';
 import { useNavigate, useSearchParams } from 'react-router';
 import { Button } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -11,6 +11,8 @@ export interface GenerateActionProps {
   reasonId: string;
   /** "Ver no sumário": the dialog closed, the Sumário marks the rows its warnings stand on. */
   onSeeInSumario: (rows: SumarioRowKey[]) => void;
+  /** Story 13.8: an audit finding's "Ver", the Sumário's own (`seeAuditTarget`). */
+  onSeeAuditTarget?: (target: AuditTarget) => void;
 }
 
 /** The Sumário's search parameter that holds the Export dialog open (Story 7.5). */
@@ -24,7 +26,7 @@ export const EXPORT_PARAM = 'exportar';
  * inside the dialog, where its reason and its way to Dados do relatório are; the foot's
  * `generateReason` says it here. The dialog returns the focus here when it closes.
  */
-export function GenerateAction({ relatorioId, reasonId, onSeeInSumario }: GenerateActionProps) {
+export function GenerateAction({ relatorioId, reasonId, onSeeInSumario, onSeeAuditTarget }: GenerateActionProps) {
   const [search, setSearch] = useSearchParams();
   const navigate = useNavigate();
   const open = search.get(EXPORT_PARAM) === '1';
@@ -58,6 +60,16 @@ export function GenerateAction({ relatorioId, reasonId, onSeeInSumario }: Genera
           setOpen(false);
           onSeeInSumario(rows);
         }}
+        {...(onSeeAuditTarget === undefined
+          ? {}
+          : {
+              onSeeAuditTarget: (target: AuditTarget) => {
+                // A section is marked on the Sumário behind the dialog, which closes first; a
+                // sheet or the gallery is a navigation, and "Voltar" reopens the dialog (`?exportar=1`).
+                if (target.kind === 'section') setOpen(false);
+                onSeeAuditTarget(target);
+              },
+            })}
       />
     </>
   );

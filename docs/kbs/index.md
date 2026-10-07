@@ -21,7 +21,7 @@ Releng is a tablet-first, offline-first web app that captures medium-voltage sub
 | --- | --- | --- |
 | `_bmad-output/planning-artifacts/epics.md` | 308 KB | `grep -n '### Story 5.3' ` then Read with offset and limit. Never whole. |
 | `.../architecture-fasor-2026-09-21/ARCHITECTURE-SPINE.md` | 69 KB | Read the AD you need via `/architecture/decisions.md`, then grep `### AD-n`. |
-| `_bmad-output/specs/spec-fasor/SPEC.md` | 33 KB | Capabilities CAP-1 to CAP-25 at lines 28-130; grep `CAP-n` or `FR-n`. |
+| `_bmad-output/specs/spec-fasor/SPEC.md` | 33 KB | Capabilities CAP-1 to CAP-26 at lines 28-134; grep `CAP-n` or `FR-n`. |
 | `_bmad-output/specs/spec-fasor/source-deltas.md` | 23 KB | Overrides older documents; grep the topic. |
 | `_bmad-output/implementation-artifacts/sprint-status.yaml` | small | Status of every epic and story; the only place statuses live. |
 | `_bmad-output/implementation-artifacts/spec-*.md` | per story | The built record of one story; open by story number. |

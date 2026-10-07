@@ -1,4 +1,6 @@
 import {
+  auditResponseSchema,
+  auditRoute,
   CONTRACT_VERSION,
   CONTRACT_VERSION_HEADER,
   errorResponseSchema,
@@ -21,6 +23,8 @@ import {
   type SyncPushResponse,
   type SyncRoute,
   readingRereadPath,
+  type AuditRequest,
+  type AuditResponse,
 } from '@app/domain';
 
 /** The part of a zod schema the client uses; apps/web does not depend on zod itself. */
@@ -91,6 +95,13 @@ export interface SyncClient {
    * any other answer is a `SyncRequestError`.
    */
   rereadPhoto(photoId: string): Promise<void>;
+  /**
+   * Story 13.8: "Conferir antes de emitir", `POST /api/relatorios/{id}/audit`, behind the
+   * preview's barrier (`409 not_caught_up` the same way; `409 audit_running` with the active
+   * run's id in `details`). Optional in the type only so the test doubles built before it
+   * existed still type-check.
+   */
+  audit?(relatorioId: string, body: AuditRequest): Promise<AuditResponse>;
 }
 
 /** Story 7.5: where the preview tab opens the relatório's latest RASCUNHO PDF; the file id only busts a cached earlier one. */
@@ -243,5 +254,6 @@ export function createSyncClient(deps: { fetch: FetchLike }): SyncClient {
     async rereadPhoto(photoId) {
       await send(readingRereadPath(photoId), 'POST', { headers: { accept: 'application/json' } });
     },
+    audit: (relatorioId, body) => request(auditRoute(relatorioId), auditResponseSchema, undefined, body),
   };
 }
