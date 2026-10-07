@@ -21,7 +21,16 @@ describe('F-22 plateDateAccepted', () => {
     expect(plateDateAccepted('2028-01-01', new Date('2027-01-01T01:00:00.000Z'))).toBe(false);
   });
 
-  it('leaves a value with no leading year to other checks', () => {
+  it('13.4 INP-3: range-checks a bare year too', () => {
     expect(plateDateAccepted('2012', now)).toBe(true);
+    expect(plateDateAccepted('1900', now)).toBe(true);
+    expect(plateDateAccepted('2027', now)).toBe(true);
+    expect(plateDateAccepted('1899', now)).toBe(false);
+    expect(plateDateAccepted('2028', now)).toBe(false);
+  });
+
+  it('leaves a value with no leading year to other checks', () => {
+    expect(plateDateAccepted('março de 2012', now)).toBe(true);
+    expect(plateDateAccepted('20125', now)).toBe(true);
   });
 });

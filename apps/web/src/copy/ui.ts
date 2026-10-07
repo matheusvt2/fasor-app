@@ -183,6 +183,10 @@ export const ui = {
     // authored: the same with the sheet's Observações sub-block off (spec open question Q3).
     unparsedNoObservations: 'Leitura não reconhecida. Digite o valor na tabela.',
   },
+  dateField: {
+    // authored: Story 13.4 INP-3, the chip under an empty service date that fills today.
+    today: 'Hoje',
+  },
   photoRow: {
     // `70-fotos.html` tile row `.photo-text .btn-text`, verbatim.
     caption: 'Legendar',

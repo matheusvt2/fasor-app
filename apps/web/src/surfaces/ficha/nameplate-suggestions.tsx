@@ -43,7 +43,7 @@ import { useToast } from '../../state/toast.tsx';
 import { removePhoto, restorePhoto } from '../photos/photo-ops.ts';
 import { PhotoViewer } from '../photos/photo-viewer.tsx';
 import type { FichaApi } from './ficha-api.ts';
-import { firstFocusable } from './ficha-fields.tsx';
+import { firstFocusable, PLAIN_TEXT } from './ficha-fields.tsx';
 import { createWordOp, nameplateOp } from './ficha-ops.ts';
 import { newId } from '../../ids.ts';
 
@@ -334,6 +334,8 @@ export function SuggestionFill({ model, field, suggestion }: { model: NameplateS
       aria-invalid={invalid || undefined}
       aria-describedby={invalid ? helperId : undefined}
       inputMode={isNumber ? 'decimal' : undefined}
+      // Story 13.4 (INP-1): the suggested text, date or option keeps the plain keyboard of its field.
+      {...(isNumber ? {} : PLAIN_TEXT)}
       value={text}
       onChange={(event) => {
         setText(event.target.value);

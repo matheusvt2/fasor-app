@@ -11,12 +11,12 @@ import { calendarDateOfInstant } from '../format/datetime.ts';
 export const PLATE_DATE_MIN_YEAR = 1900;
 
 /**
- * True when a date value (`YYYY-MM-DD` or `YYYY-MM`) falls in 1900 .. the current year + 1
- * in America/Sao_Paulo. Anything else (no leading four-digit year) is not this check's to
- * refuse, so it passes.
+ * True when a date value (`YYYY-MM-DD`, `YYYY-MM` or, Story 13.4, a bare `YYYY`) falls in
+ * 1900 .. the current year + 1 in America/Sao_Paulo. Anything else (no leading four-digit
+ * year) is not this check's to refuse, so it passes.
  */
 export function plateDateAccepted(value: string, now: Date): boolean {
-  const match = /^(\d{4})-\d{2}/.exec(value);
+  const match = /^(\d{4})(?:-\d{2}|$)/.exec(value);
   if (match === null) return true;
   const year = Number(match[1]);
   const current = Number(calendarDateOfInstant(now).slice(0, 4));

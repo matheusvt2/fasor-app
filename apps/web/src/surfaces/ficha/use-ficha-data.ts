@@ -48,7 +48,7 @@ export function useFichaData({ relatorioId, snapshot, state, block }: { relatori
   const instruments = useLiveQuery(() => (db === null ? Promise.resolve(NO_INSTRUMENTS) : instrumentRows(db)), [db], NO_INSTRUMENTS);
   const registries = useMemo(() => ({ manufacturer: manufacturers, voltage_class: voltageClasses }), [manufacturers, voltageClasses]);
   const editor = useRelatorioEditor(relatorioId, projectId);
-  const { text: savedText, saved } = useSavedStatus();
+  const { at: savedAt, saved } = useSavedStatus();
 
   const own = block.equipment_id === null ? undefined : equipment.find((row) => row.id === block.equipment_id);
   const tag = own?.tag ?? '';
@@ -88,5 +88,5 @@ export function useFichaData({ relatorioId, snapshot, state, block }: { relatori
     [relatorioId, projectId, blockId, editor, saved],
   );
 
-  return { session, db, navigate, showToast, projectId, equipment, users, instruments, registries, editor, savedText, saved, own, tag, typeName, progress, next, cabine, cabineFirst, enabled, api };
+  return { session, db, navigate, showToast, projectId, equipment, users, instruments, registries, editor, savedAt, saved, own, tag, typeName, progress, next, cabine, cabineFirst, enabled, api };
 }

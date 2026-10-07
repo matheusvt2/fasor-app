@@ -1,4 +1,4 @@
-import { dateRangeText, projectLabel, relatorioOpEnvelope, relatorioSetupPath, type RelatorioSnapshot } from '@app/domain';
+import { calendarDateOfInstant, dateRangeText, projectLabel, relatorioOpEnvelope, relatorioSetupPath, type RelatorioSnapshot } from '@app/domain';
 import { useId } from 'react';
 import { DateField, UploadTile } from '../../../components/index.ts';
 import { copy } from '../../../copy/pt-br.ts';
@@ -9,6 +9,9 @@ import { useSession } from '../../../state/session.tsx';
 import { useServicePeriod, useTextField, type BandRef, type CommitField, type CommitFields } from './setup-fields.ts';
 
 // --- Etapa 1 — Capa ----------------------------------------------------------------------
+
+/** Story 13.4 (INP-3): the "Hoje" chip of an empty service date, today in America/Sao_Paulo. */
+const today = () => calendarDateOfInstant(now());
 
 export function Etapa1Capa({
   relatorioId,
@@ -85,10 +88,10 @@ export function Etapa1Capa({
                 field would stretch to match under the grid's default `align-items:
                 stretch`, drifting its absolutely-positioned calendar glyph low. */}
             <div>
-              <DateField label={t.startLabel} value={period.start} onChange={period.onStartChange} onBlur={period.blur} />
+              <DateField label={t.startLabel} value={period.start} onChange={period.onStartChange} onBlur={period.blur} today={today} />
             </div>
             <div>
-              <DateField label={t.endLabel} value={period.end} onChange={period.onEndChange} onBlur={period.blur} />
+              <DateField label={t.endLabel} value={period.end} onChange={period.onEndChange} onBlur={period.blur} today={today} />
               {datesEcho === '' ? null : <span className="echo">{t.datesEcho(datesEcho)}</span>}
             </div>
           </div>
