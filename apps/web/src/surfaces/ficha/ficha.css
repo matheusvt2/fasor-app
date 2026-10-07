@@ -208,3 +208,27 @@
    label, in the meta style (`components.css` `.photo-row .photo-meta`), and the progress cursor. */
 .camera-capture-tile .camera-opening { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); font-weight: 400; color: var(--ink-secondary); }
 .camera-capture-tile[data-state="opening"], .camera-capture-btn[data-state="opening"] { cursor: progress; }
+
+/* ---------- Epic 13 batch C (Stories 13.3 and 13.5) ---------- */
+/* authored (Story 13.5, WAIT-1): no mock draws the wait line's age. "Lendo… 12 s" keeps the
+   reading line's or the queued banner's own style; "Cancelar" (a Text button, 48 px tall) sits
+   beside it and wraps under it on a narrow cell; the still-reading note under both, in the
+   meta style. The elapsed seconds keep their width while they tick (`tabular-nums`). */
+[data-route="/relatorio/:id/ficha/:blockId"] .reading-wait { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--sp-2); min-width: 0; font-variant-numeric: tabular-nums; }
+[data-route="/relatorio/:id/ficha/:blockId"] .reading-wait > .reading-line { margin: 0; }
+[data-route="/relatorio/:id/ficha/:blockId"] .reading-wait > .btn-text { margin-left: calc(-1 * var(--sp-1)); }
+[data-route="/relatorio/:id/ficha/:blockId"] .reading-wait .reading-note { flex-basis: 100%; margin: 0; font-size: var(--t-meta-size); line-height: var(--t-meta-lh); color: var(--ink-secondary); }
+/* authored (Story 13.5, WAIT-2): a failed display reading under its cell or field: the plate's
+   failed line ("Não foi possível ler", then "Tentar novamente" and "Digitar"), wrapping. */
+[data-route="/relatorio/:id/ficha/:blockId"] .reading-failed { display: flex; flex-direction: column; gap: 0; min-width: 0; }
+[data-route="/relatorio/:id/ficha/:blockId"] .reading-failed .row-wrap { gap: 0 var(--sp-2); }
+[data-route="/relatorio/:id/ficha/:blockId"] .reading-failed .row-wrap .btn-text:first-child { margin-left: calc(-1 * var(--sp-3)); }
+/* authored (Story 13.3, CAP-3): the inline plate crop pinches and pans inside its box; the
+   layer the transform moves fills the box (`components.css` `.plate-crop`), so the fitted view
+   (`app.css` `.plate-crop .plate-crop-view`) keeps its own centring inside it. */
+.plate-crop .plate-crop-zoom { position: absolute; inset: 0; display: block; will-change: transform; }
+/* authored: the focused field's outline is drawn over the picture, never a target: a tap that
+   lands on it while the field loses its focus (the outline goes with it) still ends in a click
+   on the crop, which opens the viewer. */
+.plate-crop .region { pointer-events: none; }
+.plate-crop[data-zoom-scale]:not([data-zoom-scale="1"]) { cursor: grab; }

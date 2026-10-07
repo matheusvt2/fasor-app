@@ -5,6 +5,7 @@ import {
   panelCancelOps,
   panelCreateText,
   panelLocation,
+  panelPhotosAwaiting,
   panelProposal,
   panelProvenance,
   panelReadingLine,
@@ -172,5 +173,33 @@ describe('E9-Q10 the result dialog line while no panel suggestion is there', () 
     const read = suggestion({ block_type: 'chave_seccionadora', column: 9, column_text: 'C09' });
     expect(line(true, 'done', read)).toBeNull();
     expect(line(false, 'queued', read)).toBeNull();
+  });
+});
+
+describe('13.5-UNIT the panel photos whose dialog was left', () => {
+  const photo = (id: string, extra: object = {}) => ({
+    id,
+    reading_kind: 'panel' as const,
+    reading_target: { location_id: COL1 },
+    local_seq: 1,
+    captured_at: '2026-10-07T12:00:00.000Z',
+    removed_at: null,
+    ...extra,
+  });
+
+  it('lists the live panel photos taken from the palette of that location, in capture order', () => {
+    const photos = [
+      photo('p3', { local_seq: 3 }),
+      photo('p1', { local_seq: 1 }),
+      photo('p2', { local_seq: 1, captured_at: '2026-10-07T12:05:00.000Z' }),
+      // Removed (cancelled), confirmed (now a plate), another location, a plain photo.
+      photo('gone', { removed_at: '2026-10-07T12:10:00.000Z' }),
+      photo('plate', { reading_kind: 'plate', reading_target: { block_id: BLOCK, block_type: 'chave_seccionadora' } }),
+      photo('col9', { reading_target: { location_id: COL9 } }),
+      photo('plain', { reading_kind: null, reading_target: null }),
+    ];
+    expect(panelPhotosAwaiting(photos, COL1).map((row) => row.id)).toEqual(['p1', 'p2', 'p3']);
+    expect(panelPhotosAwaiting(photos, COL9).map((row) => row.id)).toEqual(['col9']);
+    expect(panelPhotosAwaiting(photos, CABINE)).toEqual([]);
   });
 });

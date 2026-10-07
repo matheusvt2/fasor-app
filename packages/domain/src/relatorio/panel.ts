@@ -1,6 +1,6 @@
 import { fileFieldPath, suggestionStatusPath } from '../ops/path.ts';
 import type { OpDraft } from '../ops/op.ts';
-import { panelSuggestionValueSchema, type PanelSuggestionValue } from '../reading/panel.ts';
+import { panelReadingTarget, panelSuggestionValueSchema, type PanelSuggestionValue } from '../reading/panel.ts';
 import { plateReadingTarget } from '../reading/target.ts';
 import { EQUIPMENT_BLOCK_TYPES, type EquipmentBlockType } from '../schemas/block-config.ts';
 import type { BlockRow, JsonValue, LocationRow, PhotoFileRow, SuggestionRow } from '../schemas/entities.ts';
@@ -81,6 +81,29 @@ export function panelReadingLine(input: { online: boolean; photo: Pick<PhotoFile
     default:
       return null;
   }
+}
+
+/** What `panelPhotosAwaiting` reads of a photo row. */
+export type PanelPhotoLike = Pick<PhotoFileRow, 'id' | 'reading_kind' | 'reading_target' | 'local_seq' | 'captured_at'> & { removed_at?: string | null };
+
+/**
+ * Story 13.5 (WAIT-3): the panel photos taken from the palette opened on `locationId` that
+ * still wait for their result dialog: live, `reading_kind: 'panel'` (a confirm re-targets the
+ * photo to a plate, a cancel removes it) and `reading_target` naming that location, in
+ * capture order (`local_seq`, then `captured_at`). A dialog left by navigation is reopened
+ * from them.
+ */
+export function panelPhotosAwaiting<T extends PanelPhotoLike>(photos: readonly T[], locationId: string): T[] {
+  const target = JSON.stringify(panelReadingTarget(locationId));
+  return photos
+    .filter((photo) => (photo.removed_at ?? null) === null && photo.reading_kind === 'panel' && sameTarget(photo.reading_target, target))
+    .sort((a, b) => a.local_seq - b.local_seq || (a.captured_at < b.captured_at ? -1 : a.captured_at > b.captured_at ? 1 : 0));
+}
+
+/** The `reading_target` names exactly the palette's location (extra keys are kept by the schema; only `location_id` decides). */
+function sameTarget(value: unknown, expected: string): boolean {
+  if (value === null || typeof value !== 'object') return false;
+  return JSON.stringify({ location_id: (value as { location_id?: unknown }).location_id }) === expected;
 }
 
 /** Where the proposal puts the block, and whether it is the coluna the label named. */

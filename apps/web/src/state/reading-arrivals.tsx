@@ -2,7 +2,10 @@ import {
   arrivedReadingsCount,
   firstSheetWithPendingSuggestions,
   leiturasProntasText,
+  panelPhotosAwaiting,
+  panelSuggestionOf,
   pendingSuggestions,
+  photoFileRowSchema,
   suggestionRowSchema,
   suggestionRowsOf,
   type EquipmentRow,
@@ -72,10 +75,23 @@ export function arrivalStep(
   return { state: { seen, waiting: new Set() }, arrived: rows.filter((row) => waiting.has(row.id)) };
 }
 
-/** Where "Ver" goes: the first sheet with a pending suggestion of the relatório, else its Sumário. */
-export async function arrivalTarget(db: AppDatabase, relatorioId: string): Promise<string> {
+/**
+ * Where "Ver" goes: the first sheet with a pending suggestion of the relatório, else its
+ * Sumário. Story 13.5 (WAIT-3): when the newest arrival is the panel suggestion of a photo whose
+ * result dialog still waits (live, `reading_kind: 'panel'`), the Sumário with `?panel={photo}`,
+ * which reopens that dialog on the proposal.
+ */
+export async function arrivalTarget(db: AppDatabase, relatorioId: string, newest?: SuggestionRow): Promise<string> {
   const state = await relatorioState(db, relatorioId);
   if (state === null) return `/relatorio/${relatorioId}`;
+  if (newest !== undefined) {
+    const photo = photoFileRowSchema.safeParse(state.get(`file:${newest.source.photo_id}`));
+    if (photo.success && panelSuggestionOf([newest], photo.data.id) !== null) {
+      const target = photo.data.reading_target as { location_id?: unknown } | null;
+      const locationId = target !== null && typeof target === 'object' && typeof target.location_id === 'string' ? target.location_id : null;
+      if (locationId !== null && panelPhotosAwaiting([photo.data], locationId).length > 0) return `/relatorio/${relatorioId}?panel=${photo.data.id}`;
+    }
+  }
   const snapshot = relatorioSnapshotOf(state, relatorioId);
   const equipment = [...state.entries()].filter(([key]) => key.startsWith('equipment:')).map(([, row]) => row as EquipmentRow);
   const blockId = firstSheetWithPendingSuggestions({ ...snapshot, equipment }, pendingSuggestions(suggestionRowsOf(state, relatorioId)));
@@ -112,7 +128,7 @@ export function ReadingArrivals() {
       action: {
         label: ui.readingArrival.open,
         onPress: () => {
-          void arrivalTarget(db, newest.relatorio_id)
+          void arrivalTarget(db, newest.relatorio_id, newest)
             .then((to) => navigate(to))
             .catch(() => undefined);
         },

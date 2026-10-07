@@ -1545,4 +1545,34 @@ export const copy = {
       columnUsedBy: 'Aplica-se a',
     },
   },
+  // ---------- Epic 13 batch C (Stories 13.3 and 13.5) ----------
+  // Story 13.3 (CAP-3): the Photo viewer's zoom buttons, beside "Fechar".
+  viewerZoom: {
+    // authored: the group of the three buttons.
+    group: 'Ampliação da foto',
+    // authored: the three visible zoom controls (pinch and double-tap have this path too).
+    zoomIn: 'Ampliar',
+    zoomOut: 'Reduzir',
+    zoomFit: 'Ajustar à tela',
+    // authored: why "Ampliar" is disabled (the picture is at its own resolution).
+    atMax: 'Ampliação máxima',
+    // authored: why "Reduzir" and "Ajustar à tela" are disabled (the whole picture is shown).
+    atFit: 'Foto inteira na tela',
+  },
+  // Story 13.5 (WAIT-1, WAIT-2): the reading wait line and the failed display reading.
+  readingWait: {
+    // authored: leaves the reading; the photo stays.
+    cancel: 'Cancelar',
+    // authored: past the 120 s fast-poll window the device checks every minute.
+    stillReading: 'A leitura está demorando. O app continua conferindo a cada minuto; a foto está guardada.',
+    // authored: a failed display reading's way to type the value instead.
+    typeInstead: 'Digitar',
+  },
+  // Story 13.5 (WAIT-3): the field palette's panel photos whose result dialog was left.
+  panelAwaiting: {
+    // authored: the group heading above them, under "Fotografar equipamento".
+    group: 'Fotos de equipamento à espera',
+    // authored: each row's name; its second line is the kernel's state or proposal.
+    row: 'Foto do equipamento',
+  },
 } as const;
