@@ -3,6 +3,7 @@ title: 'Story 13.7: the plate tile on every block type'
 type: 'feature'
 created: '2026-10-07'
 status: 'in-progress'
+baseline_revision: '2bce0c0122f99463b282dd72c63da10195459cde'
 review_loop_iteration: 0
 followup_review_recommended: false
 dev_model: 'opus'

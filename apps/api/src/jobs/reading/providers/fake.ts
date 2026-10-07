@@ -30,8 +30,9 @@ import { PermanentReadingError, ProviderError, ProviderTimeoutError } from './er
  * defaults are each reading kind's (`fakeDefaults` of `kinds/*.ts`, `FAKE_FIXTURE_DEFAULTS`),
  * chosen by `(reading_kind, block_type?, table_key?)`, most specific first: a default naming
  * both the block type and the table beats one naming either, the block type beats the table,
- * and one naming neither is the kind's catch-all. A photo no default fits (a plate of any
- * type but `transformador_forca`) fails permanently, at its first attempt.
+ * and one naming neither is the kind's catch-all. Story 13.7: every block type with a
+ * nameplate has its plate default. A photo no default fits (a plate of a type with no
+ * nameplate, i.e. the cables) fails permanently, at its first attempt.
  */
 
 export const DEFAULT_FIXTURES_DIR = join(import.meta.dirname, '..', 'fixtures');
