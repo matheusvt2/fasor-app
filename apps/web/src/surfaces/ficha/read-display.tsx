@@ -13,6 +13,7 @@ import {
   displayEnvTarget,
   displayMismatchText,
   MISMATCH_LINE_SEP,
+  displayLineShown,
   displayQueuedCells,
   displayQueuedEnv,
   envSuggestions,
@@ -23,6 +24,8 @@ import {
   parseFieldInput,
   parseReadingPtBr,
   pendingSuggestions,
+  readingNeedsAi,
+  readingStartedAt,
   screenLabel,
   showsConfirmedGlyph,
   storedTestCell,
@@ -33,7 +36,7 @@ import {
   type BlockRow,
   type CellAddress,
   type DisplayBurstStop,
-  type DisplayQueuedState,
+  type DisplayQueuedEntry,
   type EntityState,
   type EnvSuggestion,
   type EvaluatedCell,
@@ -51,6 +54,8 @@ import { CropThumb } from '../../components/crop-thumb.tsx';
 import { SuggestionField } from '../../components/suggestion-field.tsx';
 import { copy } from '../../copy/pt-br.ts';
 import { ui } from '../../copy/ui.ts';
+import type { PhotoTile } from '../../db/photo-store.ts';
+import { useAiFeatures } from '../../state/ai-features.tsx';
 import { useServerReachable } from '../../state/sync.tsx';
 import { useToast } from '../../state/toast.tsx';
 import { useCamera } from './camera-view.tsx';
@@ -58,6 +63,7 @@ import type { FichaApi } from './ficha-api.ts';
 import { cabineEnvOp, testCellOp } from './ficha-ops.ts';
 import { cellKey, MeasurementField, type RunDirection } from './measurement-field.tsx';
 import { useCropViewer } from './nameplate-suggestions.tsx';
+import { DisplayFailedLine, ReadingWaitLine, useReadingCancelled } from './reading-line.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
 
 /*
@@ -83,7 +89,7 @@ import type { CaptureTarget } from './use-photo-capture.ts';
  */
 
 type Cabine = Extract<LocationRow, { kind: 'cabine' }>;
-type DisplayPhoto = Pick<PhotoFileRow, 'reading_kind' | 'reading_target' | 'reading_status'> & { removed_at?: string | null };
+type DisplayPhoto = Pick<PhotoFileRow, 'id' | 'reading_kind' | 'reading_target' | 'reading_status' | 'local_seq' | 'captured_at'> & { removed_at?: string | null };
 
 /** The live display photos of the relatório on this device (the snapshot's photo rows). */
 function photosOf(snapshot: RelatorioSnapshot): DisplayPhoto[] {
@@ -118,8 +124,10 @@ export interface DisplayModel {
   block: BlockRow;
   /** The pending display suggestion of each cell (`cellKey`), with its view. */
   entries: ReadonlyMap<string, MeasurementSuggestion>;
-  /** The start cells whose display photo still waits for its reading (`cellKey`). */
-  queued: ReadonlyMap<string, DisplayQueuedState>;
+  /** The start cells whose display photo still waits for its reading, or failed on an empty cell (`cellKey`). */
+  queued: ReadonlyMap<string, DisplayQueuedEntry>;
+  /** Story 13.5: the photo tiles (status op, capture time) the wait and failed lines read. */
+  tiles: readonly PhotoTile[];
   /** The suggestion a confirmed cell was filled from (its crop), when the device holds it. */
   sourceOf: (id: string) => SuggestionRow | null;
   relatorioStatus: RelatorioSnapshot['relatorio']['status'];
@@ -154,8 +162,8 @@ export function useDisplaySuggestions({
   const list = useMemo(() => measurementSuggestions(block, pending), [block, pending]);
   const entries = useMemo(() => new Map(list.map((entry) => [cellKey(entry.address), entry])), [list]);
   const photos = useMemo(() => photosOf(snapshot), [snapshot]);
-  const queued = useMemo(() => new Map(displayQueuedCells(photos, block.id).map((entry) => [cellKey(entry.address), entry.state])), [photos, block.id]);
-  const { openCrop, viewer } = useCropViewer({ api, snapshot, onCaptionPhoto });
+  const queued = useMemo(() => new Map(displayQueuedCells(photos, block.id, block).map((entry) => [cellKey(entry.address), entry])), [photos, block]);
+  const { openCrop, viewer, tiles } = useCropViewer({ api, snapshot, onCaptionPhoto });
 
   const said = (text: string) => {
     showToast(text);
@@ -223,27 +231,56 @@ export function useDisplaySuggestions({
   const confirmable = (testKey: string, tableKey: string, exclude: readonly CellAddress[]) => measurementConfirmAllCandidates(block, pending, testKey, tableKey, exclude).length;
   const sourceOf = (id: string) => rows.find((row) => row.id === id) ?? snapshot.suggestions.find((row) => row.id === id) ?? null;
 
-  return { block, entries, queued, sourceOf, relatorioStatus: snapshot.relatorio.status, confirm, type, keepTyped, confirmAll, confirmable, openCrop, viewer, photos };
+  return { block, entries, queued, tiles, sourceOf, relatorioStatus: snapshot.relatorio.status, confirm, type, keepTyped, confirmAll, confirmable, openCrop, viewer, photos };
 }
 
 /**
  * "Foto guardada — leitura quando houver sinal" (queued, offline) or "Lendo…" (running) under
  * a cell or a field. F-17: a queued reading on a device with signal reads "Lendo…" (State
  * Patterns › Reading in progress); the waiting words are for a device without one, or whose
- * server did not answer (F-13, `useServerReachable`).
+ * server did not answer (F-13, `useServerReachable`). Story 13.5: the running line is the
+ * shared wait line (its age from 10 s, "Cancelar", the still-reading note past 120 s), and a
+ * failed reading on an empty target is the failed line with "Tentar novamente" and "Digitar".
+ * Nothing shows once the reading was cancelled on this device.
  */
-export function QueuedBanner({ state }: { state: DisplayQueuedState }) {
+export function QueuedBanner({ entry, tile }: { entry: DisplayQueuedEntry; tile: PhotoTile | null }) {
   const t = copy.ficha.ensaios;
   // F-13 (review 2026-10-06): the plate row's rule, so both read alike on one sheet.
   const online = useServerReachable();
-  return (
-    <span className="queued-banner">
-      <svg className="ico" aria-hidden="true">
-        <use href="/sprite.svg#i-image" />
-      </svg>
-      {state === 'queued' && !online ? t.displayQueued : t.displayRunning}
-    </span>
-  );
+  const aiFeatures = useAiFeatures();
+  const cancelled = useReadingCancelled(entry.photoId);
+  if (entry.state === 'failed') {
+    return <DisplayFailedLine photoId={entry.photoId} statusOpId={tile?.reading_status_op_id ?? null} canRetry={aiFeatures || !readingNeedsAi('display')} />;
+  }
+  if (cancelled === true) return null;
+  if (entry.state === 'queued' && (!online || tile?.upload_error)) {
+    return (
+      <span className="queued-banner">
+        <svg className="ico" aria-hidden="true">
+          <use href="/sprite.svg#i-image" />
+        </svg>
+        {online ? t.displayRunning : t.displayQueued}
+      </span>
+    );
+  }
+  const startedAt = tile === null ? null : readingStartedAt({ captured_at: tile.captured_at, bytes_acked_at: tile.bytes_acked_at ?? null, reading_status_at: tile.reading_status_at ?? null });
+  if (startedAt === null) {
+    // The photo's tile is not read yet: the plain line, nothing to count from.
+    return (
+      <span className="queued-banner">
+        <svg className="ico" aria-hidden="true">
+          <use href="/sprite.svg#i-image" />
+        </svg>
+        {t.displayRunning}
+      </span>
+    );
+  }
+  return <ReadingWaitLine photoId={entry.photoId} startedAt={startedAt} variant="display" />;
+}
+
+/** The photo tile of a display line, when the device holds it. */
+function tileOf(tiles: readonly PhotoTile[], photoId: string): PhotoTile | null {
+  return tiles.find((tile) => tile.id === photoId) ?? null;
 }
 
 /**
@@ -299,7 +336,7 @@ export function ReadingCell({
   const key = cellKey(cell.address);
   const entry = model.entries.get(key);
   const queued = model.queued.get(key);
-  const banner = queued === undefined ? null : <QueuedBanner state={queued} />;
+  const banner = queued === undefined ? null : <QueuedBanner entry={queued} tile={tileOf(model.tiles, queued.photoId)} />;
   if (entry !== undefined && entry.view === 'fill') {
     return <SuggestedCell key={entry.suggestion.id} model={model} cell={cell} suggestion={entry.suggestion} label={label} missing={missing} onRun={onRun} after={banner} />;
   }
@@ -534,7 +571,8 @@ export function ConfirmTableButton({ model, testKey, tableKey, exclude }: { mode
 
 export interface EnvDisplayModel {
   entries: ReadonlyMap<string, EnvSuggestion>;
-  queued: DisplayQueuedState | null;
+  queued: DisplayQueuedEntry | null;
+  tiles: readonly PhotoTile[];
   confirm: (s: SuggestionRow, label: string) => void;
   type: (s: SuggestionRow, field: FieldDef, text: string) => Promise<boolean> | 'invalid' | 'unchanged';
   keepTyped: (s: SuggestionRow) => void;
@@ -548,7 +586,7 @@ export function useEnvDisplay({ api, state, snapshot, cabine }: { api: FichaApi;
   const pending = useMemo(() => pendingSuggestions(rows), [rows]);
   const entries = useMemo(() => new Map(envSuggestions(cabine, pending).map((entry) => [entry.field as string, entry])), [cabine, pending]);
   const queued = useMemo(() => displayQueuedEnv(photosOf(snapshot), cabine.id), [snapshot, cabine.id]);
-  const { openCrop, viewer } = useCropViewer({ api, snapshot });
+  const { openCrop, viewer, tiles } = useCropViewer({ api, snapshot });
   const said = (text: string) => {
     showToast(text);
     api.announce(text);
@@ -583,7 +621,7 @@ export function useEnvDisplay({ api, state, snapshot, cabine }: { api: FichaApi;
         }),
     );
   };
-  return { entries, queued, confirm, type, keepTyped, openCrop, viewer };
+  return { entries, queued, tiles, confirm, type, keepTyped, openCrop, viewer };
 }
 
 /** The thermo-hygrometer's "Ler visor" and its reason ("Termo-higrômetro"): one shot of the cabine's environment. */
@@ -621,7 +659,7 @@ export function EnvReadDisplayButton({ relatorioId, cabineId, target }: { relato
   );
 }
 
-/** What an environment field adds under itself: the mismatch line beside a different value and the queued line. */
+/** What an environment field adds under itself: the mismatch line beside a different value and the queued (or, while it is empty, failed) line. */
 export function envAfter(model: EnvDisplayModel, field: FieldDef, value: unknown): ReactNode {
   const entry = model.entries.get(field.key);
   const label = screenLabel(field.label);
@@ -629,7 +667,7 @@ export function envAfter(model: EnvDisplayModel, field: FieldDef, value: unknown
     entry !== undefined && entry.view === 'replace' ? (
       <MismatchLine value={value} suggestion={entry.suggestion} onVisor={() => model.confirm(entry.suggestion, label)} onTyped={() => model.keepTyped(entry.suggestion)} />
     ) : null;
-  const banner = model.queued === null ? null : <QueuedBanner state={model.queued} />;
+  const banner = model.queued === null || !displayLineShown(model.queued, value) ? null : <QueuedBanner entry={model.queued} tile={tileOf(model.tiles, model.queued.photoId)} />;
   if (mismatch === null && banner === null) return undefined;
   return (
     <>

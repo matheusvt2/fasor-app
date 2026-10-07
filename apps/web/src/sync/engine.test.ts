@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import {
   makeOp,
+  READING_FAST_POLL_WINDOW_MS,
   type FilePutResponse,
   type FileVariantName,
   type GenerateResponse,
@@ -1389,6 +1390,37 @@ describe('6.2 photo uploads', () => {
       expect(cycles(h)).toBe(28);
       await h.clock.advance(5_000);
       expect(cycles(h)).toBe(29);
+      h.engine.stop();
+      h.db.close();
+    });
+
+    it('13.5-UNIT past the window with the reading still running, a cycle every 60 s for as long as it runs (never a stop), until it clears', async () => {
+      expect(READING_POLL_WINDOW_MS).toBe(READING_FAST_POLL_WINDOW_MS);
+      const h = await harness({}, { clockNow: true });
+      await shoot(h, PHOTO_1, '2026-09-21T16:10:00.000Z', 'queued');
+      await readingStatus(h, PHOTO_1, 'running');
+      h.engine.start();
+      await waitFor(() => cycles(h) === 1 && !h.engine.status().running, 'the launch cycle');
+      // The fast window: 24 cycles (the launch one included) over 120 s.
+      await h.clock.advance(READING_POLL_WINDOW_MS - 5_000);
+      expect(cycles(h)).toBe(24);
+      await h.clock.advance(5_000);
+      const atWindowEnd = cycles(h);
+      // Twenty more minutes still running: one cycle every 60 s, each one of them.
+      for (let minute = 1; minute <= 20; minute++) {
+        await h.clock.advance(SYNC_INTERVAL_MS - 1);
+        expect(cycles(h)).toBe(atWindowEnd + minute - 1);
+        await h.clock.advance(1);
+        expect(cycles(h)).toBe(atWindowEnd + minute);
+      }
+      // The reading ends (done): the next cycle sees none running, and the cadence stays the interval.
+      await readingStatus(h, PHOTO_1, 'done');
+      await h.clock.advance(SYNC_INTERVAL_MS);
+      const settled = cycles(h);
+      await h.clock.advance(5_000);
+      expect(cycles(h)).toBe(settled);
+      await h.clock.advance(SYNC_INTERVAL_MS - 5_000);
+      expect(cycles(h)).toBe(settled + 1);
       h.engine.stop();
       h.db.close();
     });

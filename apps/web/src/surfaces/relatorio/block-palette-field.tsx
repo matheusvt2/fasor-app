@@ -32,6 +32,10 @@ import { tagReason, tagRefusalText, TagField } from './tag-dialogs.tsx';
  *
  * Story 9.2: above the types, at every width, the "Fotografar equipamento" camera row
  * (`.pal-camera`, `panel-capture.tsx`).
+ *
+ * Story 13.5 (WAIT-3): under it, one row per panel photo taken from this palette whose result
+ * dialog was left by navigation, with what the dialog would say now ("Lendo a foto…" or the
+ * proposal); a tap closes the palette and reopens that dialog.
  */
 
 /** Where the palette puts the block: a location, and the block it goes right after ("Adicionar abaixo"). */
@@ -74,9 +78,13 @@ export interface FieldPaletteProps {
    * block placed where this palette places it; absent, the row is not drawn.
    */
   onPhotograph?: (target: PaletteTarget) => void;
+  /** Story 13.5 (WAIT-3): the panel photos of this location still waiting for their dialog (`panelAwaitingRows`). */
+  awaiting?: readonly { photoId: string; text: string }[];
+  /** Story 13.5: reopens the dialog of one of them; absent, the rows are not drawn. */
+  onResume?: (photoId: string, target: PaletteTarget) => void;
 }
 
-export function FieldPalette({ target, seedVersion, locations, blocks, equipment, onCreate, onClose, onPhotograph }: FieldPaletteProps) {
+export function FieldPalette({ target, seedVersion, locations, blocks, equipment, onCreate, onClose, onPhotograph, awaiting = [], onResume }: FieldPaletteProps) {
   const t = copy.sumario.palette;
   const headingId = useId();
   const cameraSubId = useId();
@@ -137,6 +145,28 @@ export function FieldPalette({ target, seedVersion, locations, blocks, equipment
               {t.photographSub}
             </p>
           </div>
+        )}
+        {onResume === undefined || awaiting.length === 0 ? null : (
+          <>
+            <p className="palette-group palette-awaiting">{copy.panelAwaiting.group}</p>
+            {awaiting.map((row) => (
+              <button
+                key={row.photoId}
+                type="button"
+                className="palette-item pal-awaiting"
+                data-photo-id={row.photoId}
+                onClick={() => onResume(row.photoId, { locationId: location.id, anchorBlockId: target.anchorBlockId })}
+              >
+                <svg className="ico" aria-hidden="true">
+                  <use href="/sprite.svg#i-image" />
+                </svg>
+                <span className="pi-text">
+                  <span>{copy.panelAwaiting.row}</span>
+                  <span className="pi-meta">{row.text}</span>
+                </span>
+              </button>
+            ))}
+          </>
         )}
         {/* E11-Q6: the "Ou" answers the camera row above; without it the heading stands alone. */}
         <p className="palette-group">{onPhotograph === undefined ? t.chooseTypeOnly : t.chooseType}</p>

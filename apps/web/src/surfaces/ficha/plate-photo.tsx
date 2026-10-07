@@ -1,18 +1,15 @@
-import { captionPhotoMetaText, plateCropView, PLATE_CAPTION, readingNeedsAi, regionWithin, type NormalizedBox, type PlateReadingView } from '@app/domain';
-import { useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { captionPhotoMetaText, plateCropView, PLATE_CAPTION, readingNeedsAi, readingStartedAt, regionWithin, type NormalizedBox, type PlateReadingView } from '@app/domain';
+import { useState, type CSSProperties, type ReactNode, type RefObject } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
-import { TextButton } from '../../components/index.ts';
 import { useCropSource } from '../../components/crop-thumb.tsx';
 import { useObjectUrl } from '../../components/photo-row.tsx';
 import { copy } from '../../copy/pt-br.ts';
-import { useLiveQuery } from '../../db/live.ts';
 import type { PhotoTile } from '../../db/photo-store.ts';
-import { clearRereadAsked, readRereadAsked, writeRereadAsked } from '../../db/prefs.ts';
+import { usePinchZoom } from '../../input/use-pinch-zoom.ts';
 import { useAiFeatures } from '../../state/ai-features.tsx';
-import { useSession } from '../../state/session.tsx';
-import { requestSyncCycle, useServerReachable, useSync } from '../../state/sync.tsx';
-import { useToast } from '../../state/toast.tsx';
+import { useServerReachable } from '../../state/sync.tsx';
 import { PlateCaptureTile } from './photo-openers.tsx';
+import { FailedReading, ReadingWaitLine, useReadingCancelled } from './reading-line.tsx';
 import type { CaptureTarget } from './use-photo-capture.ts';
 
 /*
@@ -64,6 +61,8 @@ export function PlatePhotoRow({
   // (its reading cannot start until the bytes are on the server).
   const reachable = useServerReachable();
   const shown = view === 'queued' && reachable && !tile.upload_error ? 'running' : view;
+  // Story 13.5: a reading cancelled on this device shows no waiting line (the photo stays).
+  const cancelled = useReadingCancelled(tile.id);
   return (
     <div className="photo-row ficha-np-photo" data-reading={shown}>
       <AriaButton className="photo-tile" aria-label={t.plateTileLabel(number)} onPress={onOpen} data-photo-id={tile.id}>
@@ -79,7 +78,7 @@ export function PlatePhotoRow({
       <div className="photo-text">
         <p className="photo-caption">{tile.caption ?? PLATE_CAPTION}</p>
         <p className="photo-meta">{captionPhotoMetaText(number, tile.captured_at)}</p>
-        {shown === 'queued' ? (
+        {shown === 'queued' && cancelled !== true ? (
           <span className="queued-banner">
             <svg className="ico" aria-hidden="true">
               <use href="/sprite.svg#i-image" />
@@ -87,10 +86,13 @@ export function PlatePhotoRow({
             {t.queued}
           </span>
         ) : null}
+        {/* Story 13.5: the age from 10 s, "Cancelar" and, past 120 s, the still-reading note. */}
         {shown === 'running' ? (
-          <p className="reading-line" role="status">
-            {t.reading}
-          </p>
+          <ReadingWaitLine
+            photoId={tile.id}
+            startedAt={readingStartedAt({ captured_at: tile.captured_at, bytes_acked_at: tile.bytes_acked_at ?? null, reading_status_at: tile.reading_status_at ?? null })}
+            variant="plate"
+          />
         ) : null}
         {view === 'failed' && onFillManually === null ? (
           <p className="reading-line" role="status">
@@ -104,85 +106,12 @@ export function PlatePhotoRow({
             photoId={tile.id}
             statusOpId={tile.reading_status_op_id}
             canRetry={aiFeatures || tile.reading_kind === null || !readingNeedsAi(tile.reading_kind)}
-            onFillManually={onFillManually}
+            onFallback={onFillManually}
+            fallbackLabel={t.fillManually}
           />
         ) : null}
       </div>
     </div>
-  );
-}
-
-/**
- * "Não foi possível ler": the photo stays and nothing was written. "Tentar novamente" asks the
- * server for a new reading (offline it is disabled with its reason); "Preencher manualmente"
- * takes the engineer to the first empty field. E78-Q5: from the tap the button stays disabled
- * until the photo's reading status moves (the caller remounts this on every status op) or the
- * request fails, so a second tap never starts a second run. E9 sweep B16: the press is also
- * recorded in `local_prefs` with the status op it answered (`statusOpId`), so a reload
- * before the next status op arrives keeps the button disabled with its asked reason.
- */
-/** `FailedReading`'s record of a reread press: not read yet, or read and none recorded (never an op id). */
-const NOT_READ = 'not-read';
-const NOT_ASKED = 'not-asked';
-
-function FailedReading({
-  photoId,
-  statusOpId,
-  canRetry,
-  onFillManually,
-}: {
-  photoId: string;
-  statusOpId: string | null;
-  /** Story 11.8 follow-up: false while the server's AI features are off (a reread would be refused); only "Preencher manualmente" stays. */
-  canRetry: boolean;
-  onFillManually: () => void;
-}) {
-  const t = copy.ficha.nameplate;
-  const sync = useSync();
-  const session = useSession();
-  const online = session.online;
-  const db = session.database;
-  const { showToast } = useToast();
-  const [asking, setAsking] = useState(false);
-  // `null` until the recorded press has been read: right after a reload a fast tap must not
-  // start a second reread before the record says whether one was already asked.
-  const recorded = useLiveQuery(
-    () => (db === null ? Promise.resolve(NOT_ASKED) : readRereadAsked(db, photoId).then((opId) => (opId === undefined ? NOT_ASKED : opId))),
-    [db, photoId],
-    NOT_READ,
-  );
-  // With no database there is no record to wait for.
-  const loading = db !== null && recorded === NOT_READ;
-  const asked = asking || (recorded !== NOT_READ && recorded !== NOT_ASKED && recorded === statusOpId);
-  const retry = () => {
-    if (asked || loading || sync.rereadPhoto === undefined) return;
-    const rereadPhoto = sync.rereadPhoto;
-    setAsking(true);
-    void (db === null ? Promise.resolve() : writeRereadAsked(db, photoId, statusOpId))
-      .then(() => rereadPhoto(photoId))
-      // The server moves the reading on (`running`, then suggestions or `failed` again); the
-      // next pull brings it, now.
-      .then(() => requestSyncCycle())
-      .catch(() => {
-        setAsking(false);
-        if (db !== null) void clearRereadAsked(db, photoId).catch(() => undefined);
-        showToast(t.retryFailed);
-      });
-  };
-  return (
-    <>
-      <p className="reading-line" role="status">
-        {t.readFailed}
-      </p>
-      <div className="row-wrap">
-        {canRetry ? (
-          <TextButton isDisabled={!online || asked || loading} disabledReason={!online ? t.retryOffline : asked ? t.retryAsked : loading ? copy.common.loading : undefined} onPress={retry}>
-            {t.retryRead}
-          </TextButton>
-        ) : null}
-        <TextButton onPress={onFillManually}>{t.fillManually}</TextButton>
-      </div>
-    </>
   );
 }
 
@@ -195,10 +124,14 @@ const pct = (n: number): string => `${Math.round(n * 1000) / 1000}%`;
  * field's own region while one is focused (E78-R1), which is outlined as one `.region`. The picture is this device's original, else the
  * server's original kept as a `crop` blob; `.thumb-fake` meanwhile. A tap opens the Photo
  * viewer zoomed on the read region.
+ *
+ * Story 13.3 (CAP-3): two fingers pinch the crop and one pans it while zoomed, inside its box
+ * (`usePinchZoom`, the focus view above as fit); a tap still opens the viewer, which carries
+ * the zoom buttons. At fit a one-finger vertical drag scrolls the sheet (`touch-action: pan-y`);
+ * another focused field returns to its own view.
  */
 export function PlateCrop({ photoId, region, focused, onOpen }: { photoId: string; region: NormalizedBox; focused: NormalizedBox | null; onOpen: () => void }) {
   const src = useObjectUrl(useCropSource(photoId));
-  const box = useRef<HTMLSpanElement>(null);
   const [size, setSize] = useState<{ src: string; width: number; height: number; boxRatio: number } | null>(null);
   const loaded = size !== null && size.src === src;
   // E78-R1: while a field is focused the crop zooms to that field's region (with a margin);
@@ -212,9 +145,30 @@ export function PlateCrop({ photoId, region, focused, onOpen }: { photoId: strin
   const ratio = loaded ? (w * size.width) / Math.max(h * size.height, 1) : null;
   const outline = focused === null ? null : regionWithin(shown, focused);
   const viewStyle = ratio === null ? undefined : ({ '--plate-crop-ratio': String(ratio) } as CSSProperties);
+  // What is drawn at fit, in pixels of the picture: the zoom's maximum is its native resolution.
+  const pinch = usePinchZoom({ content: loaded ? { width: w * size.width, height: h * size.height } : null, resetKey: `${photoId}|${focused?.join(',') ?? ''}` });
+  const box = pinch.stageRef as RefObject<HTMLSpanElement | null>;
   return (
-    <button type="button" className="plate-crop-open" onClick={onOpen} data-photo-id={photoId}>
-      <span className="plate-crop" role="img" aria-label={copy.ficha.nameplate.cropLabel} ref={box}>
+    <button
+      type="button"
+      className="plate-crop-open"
+      onClick={(event) => {
+        // The click that ends a pinch or a pan is not a tap; a keyboard press (no pointer, `detail` 0) always opens.
+        const gesture = pinch.takeGesture();
+        if (event.detail === 0 || !gesture) onOpen();
+      }}
+      data-photo-id={photoId}
+    >
+      <span
+        className="plate-crop"
+        role="img"
+        aria-label={copy.ficha.nameplate.cropLabel}
+        ref={box}
+        {...pinch.handlers}
+        data-zoom-scale={String(Math.round(pinch.scale * 1000) / 1000)}
+        style={{ touchAction: pinch.scale > 1 ? 'none' : 'pan-y' }}
+      >
+        <span className="plate-crop-zoom" style={pinch.pictureStyle}>
         {/* Until the picture is drawn the view fills the box over the placeholder, outline included. */}
         <span className="plate-crop-view" style={viewStyle} data-fitted={ratio === null ? undefined : ''}>
           {loaded ? null : <i className="thumb-fake" />}
@@ -234,6 +188,7 @@ export function PlateCrop({ photoId, region, focused, onOpen }: { photoId: strin
           {outline === null ? null : (
             <span className="region" data-testid="plate-crop-region" style={{ left: pct(outline.left), top: pct(outline.top), width: pct(outline.width), height: pct(outline.height) }} />
           )}
+        </span>
         </span>
       </span>
     </button>

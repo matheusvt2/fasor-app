@@ -108,6 +108,16 @@ describe('8.2-UNIT the plate photo row', () => {
     expect(container.querySelector('.queued-banner')).toBeNull();
   });
 
+  it('13.5: from 10 s the line counts ("Lendo… 12 s") and offers "Cancelar", which takes it away at once', async () => {
+    const started = new Date(Date.now() - 12_400).toISOString();
+    const { container } = wrap(<PlatePhotoRow tile={tile({ reading_status: 'running', captured_at: '2026-09-06T13:20:00.000Z', reading_status_at: started })} number={3} view="running" onOpen={vi.fn()} onFillManually={vi.fn()} />);
+    expect(screen.getByRole('status')).toHaveTextContent(/^Lendo… 12 s$/);
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(container.querySelector('.reading-line, .queued-banner')).toBeNull();
+    // The photo stays.
+    expect(screen.getByRole('button', { name: 'Foto 3, placa — abrir' })).toBeInTheDocument();
+  });
+
   it('done: the row and its meta, no reading line', () => {
     const { container } = wrap(<PlatePhotoRow tile={tile({ reading_status: 'done' })} number={null} view="done" onOpen={vi.fn()} onFillManually={vi.fn()} />);
     expect(container.querySelector('.photo-row')).not.toBeNull();

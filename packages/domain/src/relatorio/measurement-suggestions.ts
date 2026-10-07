@@ -6,6 +6,7 @@ import { getDefinition } from '../seed/definitions.ts';
 import type { BlockDefinition, FieldDef } from '../seed/schema.ts';
 import { evaluateSheetReadings, type CellAddress, type TestKey } from './readings.ts';
 import { screenLabel } from './screen-label.ts';
+import { isCellFilled } from './sheet-state.ts';
 import { numberShape, suggestionView } from './suggestion-rows.ts';
 
 /*
@@ -214,36 +215,97 @@ export function displayBurstHintText(stop: DisplayBurstStop | null): string {
   return `Próxima leitura: ${screenLabel(stop.tableTitle)} · ${screenLabel(stop.rowLabel)}`;
 }
 
-/** Where a display photo's reading stands on the cell it starts at: queued (no signal yet) or running. */
-export type DisplayQueuedState = 'queued' | 'running';
+/**
+ * Where a display photo's reading stands on the cell it starts at: queued (no signal yet),
+ * running, or (Story 13.5, WAIT-2) failed while the cell it targets is still empty.
+ */
+export type DisplayQueuedState = 'queued' | 'running' | 'failed';
 
-type DisplayReadingPhoto = DisplayPhotoLike & Pick<PhotoFileRow, 'reading_status'>;
+/** One display photo's line on its target: its state and the photo (the line's "Cancelar" and "Tentar novamente" act on it). */
+export interface DisplayQueuedEntry {
+  state: DisplayQueuedState;
+  photoId: string;
+}
+
+type DisplayReadingPhoto = DisplayPhotoLike & Pick<PhotoFileRow, 'id' | 'reading_status'> & Partial<Pick<PhotoFileRow, 'local_seq' | 'captured_at'>>;
+
+/** Capture order (`local_seq`, then `captured_at`, then the order given): negative when `a` came first. */
+function captureOrder(a: { photo: DisplayReadingPhoto; at: number }, b: { photo: DisplayReadingPhoto; at: number }): number {
+  const seq = (a.photo.local_seq ?? 0) - (b.photo.local_seq ?? 0);
+  if (seq !== 0) return seq;
+  const ca = a.photo.captured_at ?? '';
+  const cb = b.photo.captured_at ?? '';
+  if (ca !== cb) return ca < cb ? -1 : 1;
+  return a.at - b.at;
+}
+
+/**
+ * The line of one target from the live display photos aimed at it: the newest one still
+ * waiting (queued or running) wins; else the newest photo decides, and only a failed one has a
+ * line (a later shot of the same target, whatever its state, supersedes an earlier failure).
+ */
+function targetLine(shots: readonly { photo: DisplayReadingPhoto; at: number }[]): DisplayQueuedEntry | null {
+  const ordered = [...shots].sort(captureOrder);
+  const waiting = ordered.filter(({ photo }) => photo.reading_status === 'queued' || photo.reading_status === 'running').at(-1);
+  if (waiting !== undefined) return { state: waiting.photo.reading_status as 'queued' | 'running', photoId: waiting.photo.id };
+  const newest = ordered.at(-1);
+  return newest !== undefined && newest.photo.reading_status === 'failed' ? { state: 'failed', photoId: newest.photo.id } : null;
+}
+
+const liveDisplay = (photo: DisplayReadingPhoto) => (photo.removed_at ?? null) === null && photo.reading_kind === 'display';
+
+/**
+ * Story 13.5 (WAIT-2): whether a display photo's line shows on a target holding `value`. A
+ * waiting reading always shows; a failed one only while the target is empty (a typed value
+ * hides it: the engineer already did what the failure asks).
+ */
+export function displayLineShown(entry: DisplayQueuedEntry, value: unknown): boolean {
+  if (entry.state !== 'failed') return true;
+  return !isCellFilled(value === null || value === undefined ? null : ({ value } as Cell));
+}
 
 /**
  * The start cells of `blockId` whose display photo is still waiting for its reading: each
- * shows "Foto guardada — leitura quando houver sinal" and stays typeable.
+ * shows "Foto guardada — leitura quando houver sinal" (or "Lendo…") and stays typeable. With
+ * the block's sheet (`block`), a failed reading is listed too while its start cell is empty
+ * (Story 13.5); without it, never.
  */
-export function displayQueuedCells(photos: readonly DisplayReadingPhoto[], blockId: string): { address: CellAddress; state: DisplayQueuedState }[] {
-  const out = new Map<string, { address: CellAddress; state: DisplayQueuedState }>();
-  for (const photo of photos) {
-    if ((photo.removed_at ?? null) !== null || photo.reading_kind !== 'display') continue;
-    if (photo.reading_status !== 'queued' && photo.reading_status !== 'running') continue;
+export function displayQueuedCells(
+  photos: readonly DisplayReadingPhoto[],
+  blockId: string,
+  block?: Pick<BlockRow, 'sheet'>,
+): (DisplayQueuedEntry & { address: CellAddress })[] {
+  const byTarget = new Map<string, { address: CellAddress; shots: { photo: DisplayReadingPhoto; at: number }[] }>();
+  photos.forEach((photo, at) => {
+    if (!liveDisplay(photo)) return;
     const target = displayCellTargetSchema.safeParse(photo.reading_target);
-    if (!target.success || target.data.block_id !== blockId) continue;
+    if (!target.success || target.data.block_id !== blockId) return;
     const address: CellAddress = { testKey: target.data.table_key as TestKey, row: target.data.start_cell.row, col: target.data.start_cell.col };
-    out.set(`${address.testKey}:${address.row}:${address.col}`, { address, state: photo.reading_status });
+    const key = `${address.testKey}:${address.row}:${address.col}`;
+    const group = byTarget.get(key) ?? { address, shots: [] };
+    group.shots.push({ photo, at });
+    byTarget.set(key, group);
+  });
+  const out: (DisplayQueuedEntry & { address: CellAddress })[] = [];
+  for (const { address, shots } of byTarget.values()) {
+    const entry = targetLine(shots);
+    if (entry === null) continue;
+    if (entry.state === 'failed' && (block === undefined || !displayLineShown(entry, storedTestCell(block, address)?.value ?? null))) continue;
+    out.push({ ...entry, address });
   }
-  return [...out.values()];
+  return out;
 }
 
-/** The reading state of a cabine's thermo-hygrometer photo still waiting, or null. */
-export function displayQueuedEnv(photos: readonly DisplayReadingPhoto[], locationId: string): DisplayQueuedState | null {
-  let state: DisplayQueuedState | null = null;
-  for (const photo of photos) {
-    if ((photo.removed_at ?? null) !== null || photo.reading_kind !== 'display') continue;
-    if (photo.reading_status !== 'queued' && photo.reading_status !== 'running') continue;
+/**
+ * The line of a cabine's thermo-hygrometer photo still waiting, or failed, or null. A failed
+ * one shows only under an empty environment field (`displayLineShown` with the field's value).
+ */
+export function displayQueuedEnv(photos: readonly DisplayReadingPhoto[], locationId: string): DisplayQueuedEntry | null {
+  const shots: { photo: DisplayReadingPhoto; at: number }[] = [];
+  photos.forEach((photo, at) => {
+    if (!liveDisplay(photo)) return;
     const target = photo.reading_target as { location_id?: unknown } | null;
-    if (target !== null && typeof target === 'object' && target.location_id === locationId) state = photo.reading_status;
-  }
-  return state;
+    if (target !== null && typeof target === 'object' && target.location_id === locationId) shots.push({ photo, at });
+  });
+  return targetLine(shots);
 }

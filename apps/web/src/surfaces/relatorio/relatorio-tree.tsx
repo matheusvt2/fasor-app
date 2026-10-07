@@ -12,9 +12,11 @@ import {
   type RelatorioSnapshot,
   type TreeEquipmentNode,
   type TreeLocationNode,
+  type PhotoFileRow,
   type SuggestionRow,
 } from '@app/domain';
 import { Button as AriaButton } from 'react-aria-components';
+import { useSearchParams } from 'react-router';
 import { memo, useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode, type Ref } from 'react';
 import { ConfirmDialog, OverflowMenu, TextButton, type OverflowMenuAction } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -23,7 +25,8 @@ import { DragHandle, PositionBox } from '../templates/reorder-controls.tsx';
 import { LIST_FOCUS_WATCH_FRAMES } from '../../input/focus-restore.ts';
 import { useReorder, type Reorder } from '../templates/use-reorder.ts';
 import { FieldPalette, type PaletteTarget } from './block-palette-field.tsx';
-import { PanelCapture, type PanelCaptureHandle } from './panel-capture.tsx';
+import { PanelCapture, panelAwaitingRows, type PanelCaptureHandle } from './panel-capture.tsx';
+import { useSession } from '../../state/session.tsx';
 import { useAiFeatures } from '../../state/ai-features.tsx';
 import { blockOpen, blockRow, blockTrigger, locationChevron, useTreeActions, type TreeActions, type TreeContext } from './tree-actions.ts';
 import { NameDialog, TagDialog } from './tag-dialogs.tsx';
@@ -55,6 +58,9 @@ import { MoveBlockDialog } from './move-block-dialog.tsx';
  * while the expand state, the last sheet and the actions hold, so a move redraws only the
  * rows whose data changed (the moved row's siblings and their parents), not all 94.
  */
+
+/** Story 13.5 (WAIT-3): the Sumário parameter that reopens a panel photo's result dialog (`reading-arrivals.tsx`). */
+export const PANEL_PARAM = 'panel';
 
 export interface RelatorioTreeHandle {
   /** Expands the locations down to `locationId` (a restore makes its row visible again). */
@@ -182,6 +188,28 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
   const panelRef = useRef<PanelCaptureHandle>(null);
   // Story 11.8 follow-up: "Fotografar equipamento" (the panel reading) is hidden while the server's AI features are off.
   const aiFeatures = useAiFeatures();
+  const online = useSession().online;
+  // Story 13.5 (WAIT-3): a panel photo whose result dialog was left (the Sumário opened with
+  // `?panel={photoId}` by the arrival toast's "Ver") reopens it once; the parameter is then
+  // dropped from the address, so a reload or a step back opens the Sumário alone.
+  const [search, setSearch] = useSearchParams();
+  const panelParam = presentation === 'sumario' ? search.get(PANEL_PARAM) : null;
+  useEffect(() => {
+    if (panelParam === null) return;
+    const photo = snapshot.files.find((file) => file.id === panelParam);
+    const target = photo === undefined || photo.kind !== 'photo' ? null : (photo.reading_target as { location_id?: unknown } | null);
+    if (photo !== undefined && photo.kind === 'photo' && photo.reading_kind === 'panel' && target !== null && typeof target === 'object' && typeof target.location_id === 'string') {
+      panelRef.current?.resume(photo.id, { locationId: target.location_id, anchorBlockId: null });
+    }
+    setSearch(
+      (current) => {
+        const params = new URLSearchParams(current);
+        params.delete(PANEL_PARAM);
+        return params;
+      },
+      { replace: true },
+    );
+  }, [panelParam, snapshot.files, setSearch]);
   const [dialog, setDialog] = useState<Dialog | null>(null);
 
   // The parents of every location, so a reveal works for a location the tree does not draw yet.
@@ -355,6 +383,23 @@ export function RelatorioTree({ presentation, snapshot, equipment, lastSheetId, 
                 onPhotograph: (target: PaletteTarget) => {
                   panelRef.current?.open(target);
                   setPalette(null);
+                },
+              }
+            : {})}
+          {...(presentation === 'sumario'
+            ? {
+                awaiting: panelAwaitingRows({
+                  photos: snapshot.files.filter((file): file is PhotoFileRow => file.kind === 'photo') as PhotoFileRow[],
+                  pending: pending ?? [],
+                  locationId: palette.locationId,
+                  seedVersion: context.seedVersion,
+                  locations: snapshot.locations,
+                  equipment,
+                  online,
+                }),
+                onResume: (photoId: string, target: PaletteTarget) => {
+                  setPalette(null);
+                  panelRef.current?.resume(photoId, target);
                 },
               }
             : {})}

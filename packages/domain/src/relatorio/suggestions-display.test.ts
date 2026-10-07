@@ -11,6 +11,7 @@ import {
   displayBurstStops,
   displayMismatchText,
   MISMATCH_LINE_SEP,
+  displayLineShown,
   displayQueuedCells,
   displayQueuedEnv,
   envSuggestions,
@@ -245,8 +246,9 @@ describe('9.1-UNIT the burst', () => {
 });
 
 describe('9.1-UNIT the queued display photos', () => {
-  it('lists the start cell of each display photo still queued or running; the cabine environment apart', () => {
+  it('lists the start cell of each display photo still queued or running, with its photo; the cabine environment apart', () => {
     const photo = (row: number, status: string, extra: object = {}) => ({
+      id: id(0x40 + row),
       reading_kind: 'display' as const,
       reading_target: displayCellTarget(BLOCK, 'chave_seccionadora', 'isolacao', { row, col: 0 }) as JsonValue,
       reading_status: status as 'queued',
@@ -254,14 +256,50 @@ describe('9.1-UNIT the queued display photos', () => {
       ...extra,
     });
     const photos = [photo(0, 'queued'), photo(1, 'running'), photo(2, 'done'), photo(3, 'failed'), photo(4, 'queued', { removed_at: '2026-09-28T10:00:00.000Z' })];
+    // Without the sheet a failed reading is never listed (nothing says its cell is empty).
     expect(displayQueuedCells(photos, BLOCK)).toEqual([
-      { address: { testKey: 'isolacao', row: 0, col: 0 }, state: 'queued' },
-      { address: { testKey: 'isolacao', row: 1, col: 0 }, state: 'running' },
+      { address: { testKey: 'isolacao', row: 0, col: 0 }, state: 'queued', photoId: id(0x40) },
+      { address: { testKey: 'isolacao', row: 1, col: 0 }, state: 'running', photoId: id(0x41) },
     ]);
     expect(displayQueuedCells(photos, OTHER)).toEqual([]);
-    const env = { reading_kind: 'display' as const, reading_target: displayEnvTarget(CABINE) as JsonValue, reading_status: 'queued' as const, removed_at: null };
-    expect(displayQueuedEnv([env], CABINE)).toBe('queued');
+    const env = { id: id(0x50), reading_kind: 'display' as const, reading_target: displayEnvTarget(CABINE) as JsonValue, reading_status: 'queued' as const, removed_at: null };
+    expect(displayQueuedEnv([env], CABINE)).toEqual({ state: 'queued', photoId: id(0x50) });
     expect(displayQueuedEnv([{ ...env, reading_status: 'done' as const }], CABINE)).toBeNull();
     expect(displayQueuedEnv([env], OTHER)).toBeNull();
+  });
+
+  it('13.5-UNIT a failed display reading is listed on its empty start cell only; a typed value hides it; a waiting shot of the same row wins', () => {
+    const photo = (row: number, status: string, n = row) => ({
+      id: id(0x60 + n),
+      reading_kind: 'display' as const,
+      reading_target: displayCellTarget(BLOCK, 'chave_seccionadora', 'isolacao', { row, col: 0 }) as JsonValue,
+      reading_status: status as 'failed',
+      removed_at: null,
+    });
+    const typed = chave({ isolacao: { '1': { '0': cell(n('147')) } } });
+    expect(displayQueuedCells([photo(0, 'failed'), photo(1, 'failed')], BLOCK, typed)).toEqual([
+      { address: { testKey: 'isolacao', row: 0, col: 0 }, state: 'failed', photoId: id(0x60) },
+    ]);
+    // An emptied cell (`state: 'empty'`) is empty again: the failure shows.
+    const emptied = chave({ isolacao: { '1': { '0': cell({ raw: '', unit: null, state: 'empty' }) } } });
+    expect(displayQueuedCells([photo(1, 'failed')], BLOCK, emptied).map((entry) => entry.state)).toEqual(['failed']);
+    // A second shot of the row, still waiting, beats the failed one, whatever the order.
+    expect(displayQueuedCells([photo(0, 'running', 9), photo(0, 'failed')], BLOCK, chave()).map((entry) => [entry.state, entry.photoId])).toEqual([['running', id(0x69)]]);
+    expect(displayQueuedCells([photo(0, 'failed'), photo(0, 'queued', 9)], BLOCK, chave()).map((entry) => entry.state)).toEqual(['queued']);
+    // A later shot of the row supersedes an earlier failure whatever its state (done: its suggestion speaks); an earlier done one does not.
+    const shot = (status: string, n: number, seq: number) => ({ ...photo(0, status, n), local_seq: seq, captured_at: '2026-10-07T12:00:00.000Z' });
+    expect(displayQueuedCells([shot('done', 9, 2), shot('failed', 0, 1)], BLOCK, chave())).toEqual([]);
+    expect(displayQueuedCells([shot('failed', 0, 1), shot('done', 9, 2)], BLOCK, chave())).toEqual([]);
+    expect(displayQueuedCells([shot('done', 9, 1), shot('failed', 0, 2)], BLOCK, chave()).map((entry) => [entry.state, entry.photoId])).toEqual([['failed', id(0x60)]]);
+    const envShot = (status: string, n: number, seq: number) => ({ id: id(0x80 + n), reading_kind: 'display' as const, reading_target: displayEnvTarget(CABINE) as JsonValue, reading_status: status as 'failed', removed_at: null, local_seq: seq, captured_at: '2026-10-07T12:00:00.000Z' });
+    expect(displayQueuedEnv([envShot('failed', 0, 1), envShot('done', 1, 2)], CABINE)).toBeNull();
+    expect(displayQueuedEnv([envShot('done', 1, 1), envShot('failed', 0, 2)], CABINE)).toEqual({ state: 'failed', photoId: id(0x80) });
+    // The environment: failed is reported; each field decides with its own value.
+    const env = { id: id(0x70), reading_kind: 'display' as const, reading_target: displayEnvTarget(CABINE) as JsonValue, reading_status: 'failed' as const, removed_at: null };
+    const entry = displayQueuedEnv([env], CABINE)!;
+    expect(entry).toEqual({ state: 'failed', photoId: id(0x70) });
+    expect(displayLineShown(entry, null)).toBe(true);
+    expect(displayLineShown(entry, n('23.4', '°C'))).toBe(false);
+    expect(displayLineShown({ state: 'running', photoId: id(0x70) }, n('23.4', '°C'))).toBe(true);
   });
 });
