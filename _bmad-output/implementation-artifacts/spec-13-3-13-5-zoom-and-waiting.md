@@ -207,4 +207,6 @@ Status: done (gate pending at the orchestrator, recorded in the PR body)
 
 **Verification.** Implementer: lint and static clean; touched unit files green; e2e `reading-wait`, `read-display`, `plate`, `panel-capture` 19/19 on desktop-chrome; `photo-zoom` 6/6 on durability desktop and Android. Full staged gate: see the PR body.
 
+**Gate follow-up (2026-10-07).** The first staged gate failed 13.3-E2E-001 once under load (the second double-tap read 1.895, not 1). It passed 18 of 18 alone (`--repeat-each=6`). The most likely cause is a new object URL for the same photo, which nulled the viewer's known picture size. That made the maximum 1 for a frame and snapped the zoom to fit, so the second double-tap zoomed in again. The fix in `photo-viewer.tsx` keeps the size per photo (commit 07991bb). The cause was reasoned from the code, not reproduced.
+
 **Residual risks.** WebKit gestures unexercised in automation; cancel is device-local (Sync status "Leituras" counts a cancelled photo until the server ends it); the `?panel=` first-render race (unverified).
