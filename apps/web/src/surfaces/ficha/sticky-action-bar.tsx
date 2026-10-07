@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Button } from '../../components/index.ts';
+import { useStickyBarScrollPadding } from '../../components/toast.tsx';
 
 /**
  * The sheet's Sticky action bar (UX-DR16, `60-ficha.html`): the Section stepper row above
@@ -33,6 +34,8 @@ export function StickyActionBar({
   primaryId?: string;
 }) {
   const hasCamera = camera !== undefined && camera !== null;
+  // F-11: a field scrolled into view stops above this bar (`--sticky-bar-covered`, `app.css`).
+  useStickyBarScrollPadding();
   return (
     <div className="sticky-action-bar">
       {stepper}

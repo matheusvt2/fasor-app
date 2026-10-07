@@ -136,19 +136,21 @@ function numberText(value: unknown): string {
   return number.unit === null ? shown : `${shown} ${number.unit}`;
 }
 
+/** The separator `text` holds between the two lines of a mismatch ("… GΩ · digitado …"). */
+export const MISMATCH_LINE_SEP = ' · ';
+
 /**
  * EXPERIENCE.md › Measurement readings: a display reading that disagrees with what was typed,
  * "Visor: 147 GΩ · digitado 14,7 GΩ — Conferir", the two values being the parts a tap picks.
+ * Review fixes 2026-10-06 (F-22): `lines` draws it as two lines on purpose, "Visor: 147 GΩ"
+ * then "digitado 14,7 GΩ — Conferir" (`MISMATCH_LINE_SEP` between them), where one line
+ * wrapped inside the cell; `text` stays the one-line reading.
  */
-export function displayMismatchText(cellValue: unknown, s: Pick<SuggestionRow, 'value'>): { text: string; parts: MismatchPart[] } {
-  const parts: MismatchPart[] = [
-    { text: 'Visor: ' },
-    { text: numberText(s.value), pick: 'visor' },
-    { text: ' · digitado ' },
-    { text: numberText(cellValue), pick: 'typed' },
-    { text: ' — Conferir' },
-  ];
-  return { text: parts.map((part) => part.text).join(''), parts };
+export function displayMismatchText(cellValue: unknown, s: Pick<SuggestionRow, 'value'>): { text: string; parts: MismatchPart[]; lines: MismatchPart[][] } {
+  const visor: MismatchPart[] = [{ text: 'Visor: ' }, { text: numberText(s.value), pick: 'visor' }];
+  const typed: MismatchPart[] = [{ text: 'digitado ' }, { text: numberText(cellValue), pick: 'typed' }, { text: ' — Conferir' }];
+  const parts: MismatchPart[] = [visor[0]!, visor[1]!, { text: `${MISMATCH_LINE_SEP}${typed[0]!.text}` }, typed[1]!, typed[2]!];
+  return { text: parts.map((part) => part.text).join(''), parts, lines: [visor, typed] };
 }
 
 // --- the burst ---------------------------------------------------------------------------

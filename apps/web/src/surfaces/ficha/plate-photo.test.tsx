@@ -8,6 +8,7 @@ import { AiFeaturesContext } from '../../state/ai-features.tsx';
 import { SyncContext, type SyncState } from '../../state/sync.tsx';
 import { ToastOutlet, ToastProvider } from '../../state/toast.tsx';
 import { makeSyncState } from '../../test/sync-state.ts';
+import { useSheetCamera } from './photo-openers.tsx';
 import { PlateCameraGroup, PlateCrop, PlatePhotoRow } from './plate-photo.tsx';
 
 /*
@@ -25,6 +26,11 @@ const cropSource: { blob: Blob | null } = { blob: null };
 vi.mock('../../components/crop-thumb.tsx', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../components/crop-thumb.tsx')>()),
   useCropSource: () => cropSource.blob,
+}));
+
+/** F-26: a capture that is ready, so the tile asks for the camera (the session above has no database). */
+vi.mock('./use-photo-capture.ts', () => ({
+  usePhotoCapture: () => ({ prepare: async () => {}, shoot: () => undefined, settle: async () => true, ready: true }),
 }));
 
 const PHOTO = '019966b0-0088-7000-8000-000000000001';
@@ -204,9 +210,72 @@ describe('8.2-UNIT the empty plate', () => {
     );
     const group = container.querySelector('.camera-group')!;
     // (The camera's hidden system-camera input sits after them.)
-    expect([...group.children].filter((child) => !(child instanceof HTMLInputElement)).map((child) => child.className)).toEqual(['chip-row', 'camera-capture-tile']);
+    expect([...group.children].filter((child) => !(child instanceof HTMLInputElement)).map((child) => child.className)).toEqual([
+      'chip-row',
+      'camera-capture-tile',
+      // F-26: the opening status line, always mounted, empty until the camera is asked for.
+      'visually-hidden camera-opening-status',
+    ]);
+    expect(group.querySelector('.camera-opening-status')).toHaveTextContent('');
     expect(screen.getByRole('button', { name: 'Fotografar placa' })).toHaveClass('camera-capture-tile');
     expect(screen.queryByText('Digitar')).toBeNull();
+  });
+});
+
+describe('F-26 (review 2026-10-06) "Fotografar placa" while the permission prompt is open', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, 'mediaDevices');
+  });
+
+  it('reads "Abrindo câmera…", is busy, keeps its name and a second press asks nothing more', async () => {
+    // The prompt never answers in this test.
+    const getUserMedia = vi.fn(() => new Promise<MediaStream>(() => undefined));
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia } });
+    wrap(<PlateCameraGroup relatorioId={PHOTO} target={() => ({ blockId: null, itemKey: null, caption: null })} chips={null} />);
+    const tileButton = screen.getByRole('button', { name: 'Fotografar placa' });
+    expect(tileButton).not.toHaveAttribute('aria-busy');
+    // The live region is there before it speaks, empty.
+    const status = screen.getByRole('status');
+    expect(status).toHaveTextContent('');
+    await userEvent.click(tileButton);
+    expect(screen.getByRole('button', { name: 'Fotografar placa' })).toBe(tileButton);
+    expect(tileButton).toHaveAttribute('aria-busy', 'true');
+    expect(tileButton).toHaveAttribute('data-state', 'opening');
+    expect(tileButton.querySelector('.camera-opening')).toHaveTextContent('Abrindo câmera…');
+    expect(screen.getByRole('status')).toBe(status);
+    expect(status).toHaveTextContent('Abrindo câmera…');
+    expect(tileButton).not.toHaveAttribute('aria-disabled');
+    await userEvent.click(tileButton);
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('F-26 (review 2026-10-06) the Sticky action bar\'s "Tirar foto" while the permission prompt is open', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, 'mediaDevices');
+  });
+
+  function SheetCamera() {
+    const camera = useSheetCamera(PHOTO, () => ({ blockId: null, itemKey: null, caption: null }));
+    return <div className="bar-buttons has-camera">{camera.button}</div>;
+  }
+
+  it('is busy with "Abrindo câmera…" in its live region, keeps its name, and a second press asks nothing more', async () => {
+    const getUserMedia = vi.fn(() => new Promise<MediaStream>(() => undefined));
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia } });
+    wrap(<SheetCamera />);
+    const button = screen.getByRole('button', { name: 'Tirar foto' });
+    const status = screen.getByRole('status');
+    expect(status).toHaveTextContent('');
+    expect(button).not.toHaveAttribute('aria-busy');
+    await userEvent.click(button);
+    expect(button).toHaveAttribute('aria-busy', 'true');
+    expect(button).toHaveAttribute('data-state', 'opening');
+    expect(status).toHaveTextContent('Abrindo câmera…');
+    expect(screen.getByRole('button', { name: 'Tirar foto' })).toBe(button);
+    expect(button).not.toHaveAttribute('aria-disabled');
+    await userEvent.click(button);
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
   });
 });
 

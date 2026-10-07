@@ -401,7 +401,11 @@ test('@p1 F-09 a photo picked into a point lands after the text with a space, ne
   expect(text).toMatch(new RegExp(`^\\S.*\\S \\[\\[foto:${photoId}\\]\\]$`, 's'));
 });
 
-/** Every rail row's label ends before its state begins. */
+/**
+ * Every rail row's label and state never overlap: the state sits right of the text or, when the
+ * two do not fit side by side, under it (review fixes 2026-10-06, F-07). And no word of the
+ * label is split across two lines ("Chave secciona / dora", "SEC- / ENEL-2").
+ */
 async function expectRailRowsApart(page: Page): Promise<void> {
   const rows = await page.locator('.rail .relatorio-tree .tree-row').evaluateAll((elements) =>
     elements
@@ -412,11 +416,25 @@ async function expectRailRowsApart(page: Page): Promise<void> {
         range.selectNodeContents(body);
         const text = range.getBoundingClientRect();
         const state = row.querySelector('.tree-state')!.getBoundingClientRect();
-        return { name: body.textContent ?? '', textRight: text.right, stateLeft: state.left };
+        const split: string[] = [];
+        const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+        for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+          for (const match of (node.textContent ?? '').matchAll(/\S+/g)) {
+            const word = document.createRange();
+            word.setStart(node, match.index);
+            word.setEnd(node, match.index + match[0].length);
+            const lines = new Set([...word.getClientRects()].filter((rect) => rect.width > 0).map((rect) => Math.round(rect.top)));
+            if (lines.size > 1) split.push(match[0]);
+          }
+        }
+        return { name: body.textContent ?? '', textRight: text.right, textBottom: text.bottom, stateLeft: state.left, stateTop: state.top, split };
       }),
   );
   expect(rows.length).toBeGreaterThan(0);
-  for (const row of rows) expect(row.textRight, row.name).toBeLessThanOrEqual(row.stateLeft + 0.5);
+  for (const row of rows) {
+    expect(row.textRight <= row.stateLeft + 0.5 || row.textBottom <= row.stateTop + 0.5, `${row.name}: the state overlaps the label`).toBe(true);
+    expect(row.split, `${row.name}: words split across lines`).toEqual([]);
+  }
 }
 
 test('@p1 F-10 the rail rows never draw their label under their state, at 1280 and at 1024 by 768 px', async ({ page }) => {

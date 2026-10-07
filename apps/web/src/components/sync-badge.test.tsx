@@ -28,7 +28,7 @@ describe('SyncBadge', () => {
     expect(badge.querySelector('.pill .dot')).toHaveAttribute('aria-hidden', 'true');
     // Both words are always in the DOM; `components.css` decides which one shows.
     expect(badge.querySelector('.sync-long')).toHaveTextContent('Sincronizado');
-    expect(badge.querySelector('.sync-short')).toHaveTextContent('OK');
+    expect(badge.querySelector('.sync-short')).toHaveTextContent('Sinc.');
     expect(badge.querySelector('.sync-short')).toHaveAttribute('aria-hidden', 'true');
 
     rerender(<SyncBadge state="pending" counts={counts({ pending: 4, sent: 1, sheets_pending: 5 })} />);

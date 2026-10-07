@@ -231,7 +231,16 @@ describe('4.3-UNIT sumarioRows', () => {
       '3 de 94 · 3 não ensaiadas · Cubículo Enel: falta a tensão secundária · 1° Subsolo: faltam 6 campos · Geradores: faltam 6 campos',
     );
     // Story 7.3: row 11 counts the instruments section 11 prints, then its pre-issue rows (Story 7.5: no instrument checked at setup; the fixture attaches no certificate file) (the three the sheets copied).
-    expect(rowsOf(withSections).find((r) => r.rowKey === 'section_11')!.meta).toBe('3 certificados · Nenhum instrumento em Dados do relatório · 2E sem certificado · 3M sem certificado · 1T sem certificado');
+    // Review fixes 2026-10-06 (F-15): the count is of instruments, and with no certificate attached one line stands for the three "sem certificado" rows.
+    expect(rowsOf(withSections).find((r) => r.rowKey === 'section_11')!.meta).toBe('3 instrumentos · nenhum certificado anexado · Nenhum instrumento em Dados do relatório');
+    // Some attached: how many, and the codes still missing one.
+    const attach = (codes: readonly string[]) => ({
+      ...withSections,
+      instruments: withSections.instruments.map((row) => (codes.includes(row.code) ? { ...row, certificate_file_id: `file-${row.code}` } : row)),
+    });
+    expect(rowsOf(attach(['2E', '1T'])).find((r) => r.rowKey === 'section_11')!.meta).toBe('3 instrumentos · 2 certificados · Nenhum instrumento em Dados do relatório · 3M sem certificado');
+    // All attached: the instrument count and the row's other own rows.
+    expect(rowsOf(attach(['2E', '3M', '1T'])).find((r) => r.rowKey === 'section_11')!.meta).toBe('3 instrumentos · Nenhum instrumento em Dados do relatório');
   });
 });
 

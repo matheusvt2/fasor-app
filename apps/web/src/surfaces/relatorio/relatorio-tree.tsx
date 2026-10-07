@@ -724,7 +724,11 @@ const RailEquipment = memo(function RailEquipment({ node, shared }: { node: Tree
         <span className="tree-chevron" aria-hidden="true" />
         <button type="button" className="tree-body" data-tree-open onClick={() => shared.actions.openSheet(node.blockId)}>
           <span>{node.typeLabel}</span>
-          <span className="tree-meta">{node.railMetaText}</span>
+          {/* F-07: the TAG never breaks inside itself; the reason after it wraps as words do. */}
+          <span className="tree-meta">
+            {node.tag === '' ? null : <span className="tree-tag">{node.tag}</span>}
+            {node.railMetaRest}
+          </span>
         </button>
         {/* The 320 px rail keeps the state to its word; a not-tested sheet's reason is on the meta line (review F-1). */}
         <span className="tree-state" data-state={node.stateAttr}>

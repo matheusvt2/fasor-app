@@ -163,7 +163,7 @@ export function AppShell() {
           </Link>
         </span>
       </header>
-      <SyncAnnouncer state={sync.badgeState} counts={sync.counts} />
+      <SyncAnnouncer state={sync.badgeState} />
       <BannerSlot banners={banners} onOpenSync={() => void navigate('/sync')} />
       <Outlet />
       <ToastOutlet />

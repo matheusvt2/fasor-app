@@ -11,7 +11,7 @@ import { getDefinition } from '../seed/definitions.ts';
 import { standardTemplate } from '../seed/template.ts';
 import { idSequence, T0, TEST_COMPANY, TEST_PROJECT, TEST_USER } from '../test-support.ts';
 import { EMPTY_SECTION_NOTE, layoutSpec } from './layout.ts';
-import { certificatePlaceholderText, certificatesCountText, missingCertificates, section11Instruments, section11Layout } from './section-11.ts';
+import { certificatePlaceholderText, certificatesAttachedText, instrumentsCountText, missingCertificates, section11Instruments, section11Layout } from './section-11.ts';
 
 /*
  * 7.3-UNIT: section 11's instruments (the I/O rows S11 union, missing, mismatch, none) on a
@@ -171,9 +171,15 @@ describe('7.3-UNIT-006 section 11 instruments', () => {
     expect(section11Layout(base, heading)).toBeNull();
     const layout = layoutSpec(base, { revisionNumber: 1, issuedAt: '2026-09-23T12:00:00.000Z' });
     expect(layout.sections.find((s) => s.number === 11)).toEqual({ number: 11, title: heading.title, kind: 'empty', note: EMPTY_SECTION_NOTE });
-    expect(certificatesCountText(0)).toBe('Nenhum instrumento');
-    expect(certificatesCountText(1)).toBe('1 certificado');
-    expect(certificatesCountText(3)).toBe('3 certificados');
+    // Review fixes 2026-10-06 (F-15): the count is of instruments; the attached certificates are their own part.
+    expect(instrumentsCountText(0)).toBe('Nenhum instrumento');
+    expect(instrumentsCountText(1)).toBe('1 instrumento');
+    expect(instrumentsCountText(3)).toBe('3 instrumentos');
+    expect(certificatesAttachedText(0, 3)).toBe('nenhum certificado anexado');
+    expect(certificatesAttachedText(1, 3)).toBe('1 certificado');
+    expect(certificatesAttachedText(2, 3)).toBe('2 certificados');
+    expect(certificatesAttachedText(3, 3)).toBeNull();
+    expect(certificatesAttachedText(0, 0)).toBeNull();
     const withSetup = snapshotWith({ setup: [I3], instruments: [three] });
     expect(section11Layout(withSetup, heading)).toEqual({
       number: 11,

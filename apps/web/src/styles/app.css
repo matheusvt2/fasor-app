@@ -733,9 +733,8 @@ input.count { width: 40px; padding: 0; border: 0; background: transparent; color
 
 /* F-10: `components.css` `.tree-body` (`flex: 1; min-width: 0`) and `.tree-state` (`white-space: nowrap`):
    in the 320 px rail the label wraps inside its own column and the state keeps its width, so
-   "Chave seccionadora" never runs under "Em preenchimento". */
-.relatorio-tree .tree-body { overflow-wrap: anywhere; }
-.relatorio-tree .tree-state { flex: none; }
+   "Chave seccionadora" never runs under "Em preenchimento". Replaced 2026-10-07 by the batch 3
+   F-07 rule below: `overflow-wrap: anywhere` broke the words themselves ("Chave secciona / dora"). */
 
 /* F-14: `components.css` `.rich-text` is a column flex box with `overflow: hidden`; its `.rt-toolbar`
    (`flex-wrap: wrap`) must not shrink, or at 390 px the wrapped second row ("Numeração",
@@ -749,3 +748,72 @@ input.count { width: 40px; padding: 0; border: 0; background: transparent; color
 .photo-capture-sheet .capture-choices { display: flex; flex-direction: column; gap: var(--sp-2); padding: 0 var(--sp-5); }
 .photo-capture-sheet .capture-choices .btn { min-height: var(--touch-field); }
 .photo-capture-sheet .capture-choices .capture-reason { padding: 0; }
+
+/* ---------- Review fixes 2026-10-06 (batch 3) ---------- */
+
+/* F-06 (D5): the App bar stays at the top of a long page. `components.css` `.app-bar` is
+   `position: static` ("sticky only inside .frame--crop") and `.frame--crop .app-bar { position:
+   sticky; top: 0 }` is the mock's own sticky bar; the prototype (`proto.css`) fixes the bar and
+   scrolls the screen. The app scrolls the document, so the bar is sticky (never fixed) at the
+   same z-index 20, under the phone registry panel (25), the toast (30), the dialogs (40) and
+   React Aria's popovers; the banner slot after it scrolls with the page. A jump to an anchor
+   (setup's Etapa band, a sheet step) lands below it through the page's `scroll-padding-top`.
+   Below a 480 px viewport height the bar unsticks, as the Sticky action bar does (`ficha.css`). */
+.app-bar { position: sticky; top: 0; }
+html { scroll-padding-top: var(--touch-field); }
+@media (max-height: 479.98px) {
+  .app-bar { position: static; }
+  html { scroll-padding-top: 0; }
+}
+
+/* F-11: a field focused by Tab or by the Enter "next" run stops above the sheet's Sticky action
+   bar (EXPERIENCE.md: scroll padding = the bar's height). `toast.tsx` measures the height the
+   sticky bar covers into `--sticky-bar-covered` on the root (0 when the bar is static). */
+html { scroll-padding-bottom: var(--sticky-bar-covered, 0px); }
+
+/* F-07: `components.css` `.relatorio-tree .tree-row` (flex, 56 px), `.tree-body` (`flex: 1;
+   min-width: 0`) and `.tree-state` (`white-space: nowrap`). In the 320 px rail no word breaks
+   inside itself and the TAG stays whole (`.tree-tag`); when the label and the state do not fit
+   side by side the state, glyph and word (DESIGN.md), drops under the label, right-aligned.
+   Only an equipment row (it has a state) wraps; a cabine or coluna row keeps its "…" beside it.
+   A name with no break opportunity at all still breaks rather than run past the rail
+   (`break-word`, not `anywhere`, which would shrink the min-content and defeat the wrap), and a
+   TAG wider than its column ends in an ellipsis. */
+.relatorio-tree .tree-body { overflow-wrap: break-word; hyphens: manual; }
+.relatorio-tree .tree-row:has(> .tree-state) { flex-wrap: wrap; }
+.relatorio-tree .tree-row:has(> .tree-state) > .tree-body { flex: 1 1 10rem; }
+.relatorio-tree .tree-state { flex: none; margin-inline-start: auto; }
+.relatorio-tree .tree-tag { display: inline-block; vertical-align: bottom; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* F-16 (D7, amended 2026-10-07 by the orchestrator): from 1280 px the App bar's h1 names the
+   relatório in full (Story 12.5, J-17), so the Sumário header's h2 with the same text is visually
+   hidden (`components.css` `.visually-hidden`'s declarations): still in the accessibility tree,
+   where heading navigation finds it. Below 1280 px `.app-bar-title` ellipsizes a long name, so
+   the h2 shows, as the mocks draw the pair (`40-relatorio-overview.html`). */
+@media (min-width: 1280px) {
+  [data-route="/relatorio/:id"] .sheet-header .sheet-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+
+/* Phone (below 768 px), authored rules with their own selectors (the verbatim `.frame-phone`
+   copies above stay as they are). */
+@media (max-width: 767.98px) {
+  /* F-17: the Export dialog's warning sentence takes the full row and "Ver no sumário" drops
+     under it; `export.css` `.pc-text { flex: 1 }` (basis 0) never let the mock's wrap
+     (`.frame-phone ... .precheck li { flex-wrap: wrap }`, the negative `margin-left` of
+     `.pc-actions`) trigger. The pattern of `.revision-row .rev-text` (`73-exportar.html`); the
+     `:has()` outranks `export.css`, which loads after this file. */
+  .export-dialog .precheck li:has(> .pc-actions) > .pc-text { flex-basis: 100%; }
+  /* F-18 (D8): the Sumário's and the sheet's "…" trigger stays on the title's line, top right,
+     where `.frame-phone .sheet-header { flex-direction: column }` put it alone on a line of its
+     own; the title column takes the rest of the row. */
+  .sheet-header:has(> .header-side), .sheet-header:has(> .ficha-head-side) { flex-direction: row; align-items: flex-start; }
+  .sheet-header:has(> .header-side) > :first-child, .sheet-header:has(> .ficha-head-side) > :first-child { min-width: 0; flex: 1; }
+  /* F-18 (D8): the counts wrap freely with the v0.8 page's tighter column gap
+     (`40-relatorio-overview.html` `.sum-summary { gap: 0 var(--sp-3) }`); their 48 px targets stay. */
+  .sheet-header .sum-summary { column-gap: var(--sp-3); }
+}
+
+/* F-19 (D9): `overflow-menu.tsx` opens every Overflow menu "bottom end", the mock's right-aligned
+   `.overflow-menu.is-open`; the menu's own focus ring (`.frame :focus-visible`, offset 2 px) is
+   drawn inside its box, so the popover's edge never clips it. */
+.overflow-menu:focus-visible { outline-offset: -3px; }

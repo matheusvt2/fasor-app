@@ -12,7 +12,7 @@ import { locationPathText } from './location-path.ts';
 import { isEquipmentBlock } from './sheet-state.ts';
 import { pointsSummary, pointsSummaryText } from '../points/summary.ts';
 import { parecerOf, parecerVerdictLabel } from './parecer.ts';
-import { certificatesCountText, section11Instruments } from '../print/section-11.ts';
+import { certificatesAttachedText, instrumentsCountText, section11Instruments } from '../print/section-11.ts';
 import { getSeed } from '../seed/definitions.ts';
 
 /*
@@ -199,11 +199,17 @@ function metaOfSection(block: Pick<BlockRow, 'block_type' | 'config'>, issues: r
     const parecer = parecerOf(snapshot);
     if (parecer !== null) return parecerVerdictLabel(parecer.verdict);
   }
-  // Story 7.3: "3 certificados", then its own pre-issue rows, like section 7.
+  // Story 7.3: "3 instrumentos", then its own pre-issue rows, like section 7.
   // With no instrument at all, the pre-issue row already says so; the count would repeat it.
+  // Review fixes 2026-10-06 (F-15): then how many certificates are attached; with none, that
+  // one line stands for every "MEG-01 sem certificado" row (the Export dialog keeps them).
   if (block.block_type === 'section_11') {
-    const count = section11Instruments(snapshot).length;
-    return join(count === 0 && own.length > 0 ? own : [certificatesCountText(count), ...own]);
+    const instruments = section11Instruments(snapshot);
+    const count = instruments.length;
+    if (count === 0) return join(own.length > 0 ? own : [instrumentsCountText(0)]);
+    const attached = instruments.filter((entry) => entry.certificate_file_id !== null).length;
+    const rest = attached === 0 ? issues.filter((row) => row.kind !== 'certificate_missing').map((row) => row.text) : own;
+    return join([instrumentsCountText(count), certificatesAttachedText(attached, count), ...rest]);
   }
   if (own.length > 0) return join(own);
   if (kind === 'setup') return META.setup;

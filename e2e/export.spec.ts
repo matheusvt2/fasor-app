@@ -1,5 +1,5 @@
 import { DOCX_MIME, instantiateTemplate, PDF_MIME, standardTemplate, type OpDraft } from '@app/domain';
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { newId } from '../apps/api/src/ids.ts';
 import { downloadBytes, downloadFrom } from './support/download.ts';
 import { EXPORT_RELATORIO_ID, resetEmpresaBWithFixture } from './support/export-fixture.ts';
@@ -50,6 +50,14 @@ async function openFixtureSumario(page: Page): Promise<void> {
   // Story 12.5 (J-17): the App bar names the relatório; the Sumário list says where we are.
   await expect(page.getByRole('list', { name: 'Sumário do relatório' })).toBeVisible({ timeout: 30_000 });
   await expect(headerPill(page)).toHaveText('Em campo', { timeout: 30_000 });
+}
+
+
+/** Review fixes 2026-10-06 (F-06): the sticky App bar stays at the top and the arrival's heading lands below it, never under it. */
+async function expectBelowAppBar(page: Page, heading: Locator): Promise<void> {
+  const bar = (await page.locator('.app-bar').boundingBox())!;
+  expect(bar.y).toBeCloseTo(0, 0);
+  expect((await heading.boundingBox())!.y).toBeGreaterThanOrEqual(bar.y + bar.height - 0.5);
 }
 
 test('@p0 4.8-E2E-001 11.1-E2E-001 a relatório born on Home: the Sumário\'s "Gerar relatório" generates revision 1, the DOCX and the PDF download and share, the row lists it, and a second press answers the same revision', async ({
@@ -332,6 +340,7 @@ test('@p0 E4-E2E-001 generate, edit, Em revisão, generate revision 2: listed an
   // the Sumário's banner promises revision 2.
   await sumarioList(page).getByRole('button', { name: /^Capa e dados do relatório/ }).click();
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 1 — Capa' })).toBeFocused();
+  await expectBelowAppBar(page, page.getByRole('heading', { level: 2, name: 'Etapa 1 — Capa' }));
   const info = page.getByLabel('Informações adicionais');
   await info.click();
   await info.pressSequentially('Parada de 12 horas');
@@ -471,6 +480,7 @@ test('@p1 E4-E2E-004 Etapa 2: an exclusion removed from its menu comes back with
   await setParecer(page, EXPORT_RELATORIO_ID);
   await sumarioList(page).getByRole('button', { name: /^Capa e dados do relatório/ }).click();
   await expect(page.getByRole('heading', { level: 2, name: 'Etapa 1 — Capa' })).toBeFocused();
+  await expectBelowAppBar(page, page.getByRole('heading', { level: 2, name: 'Etapa 1 — Capa' }));
 
   // The three seeded exclusions and a blank row, added and never typed.
   const exclusions = page.getByRole('list', { name: 'Exclusões' });

@@ -212,6 +212,26 @@ export function syncBadgeLabel(state: SyncBadgeState, counts: SyncCounts): strin
   }
 }
 
+/**
+ * Review fixes 2026-10-06 (F-23, D10): what the Sync live region announces on a state
+ * transition, never a count (EXPERIENCE.md: "announces transitions only, never counts";
+ * UX-DR8). authored: the pending word drops the badge's count.
+ */
+export function syncAnnouncementText(state: SyncBadgeState): string {
+  switch (state) {
+    case 'ok':
+      return 'Sincronizado';
+    case 'pending':
+      return 'Alterações pendentes';
+    case 'offline':
+      return 'Sem conexão';
+    case 'error':
+      return 'Erro de sincronização';
+    case 'conflict':
+      return 'Conflito';
+  }
+}
+
 /** F-14 (review 2026-10-06): the word for a cycle running now. */
 export const SYNCING_WORD = 'Sincronizando…';
 
@@ -228,7 +248,8 @@ export function syncStatusWord(state: SyncBadgeState, counts: SyncCounts, runnin
 
 /**
  * The narrow-viewport word of the same badge (`.sync-short`, `MOCK-GUIDE.md`):
- * "OK" · "Off" · ⟨n⟩ · "Erro" · "Confl.". Both words are always in the DOM; the
+ * "Sinc." · "Off" · ⟨n⟩ · "Erro" · "Confl.". Review fixes 2026-10-06 (F-29): authored "Sinc."
+ * where the mock says "OK", a word that means nothing on its own. Both words are always in the DOM; the
  * stylesheet decides which one shows, and the badge's accessible name says the
  * state either way.
  *
@@ -239,7 +260,7 @@ export function syncStatusWord(state: SyncBadgeState, counts: SyncCounts, runnin
 export function syncBadgeShortLabel(state: SyncBadgeState, counts: SyncCounts): string {
   switch (state) {
     case 'ok':
-      return 'OK';
+      return 'Sinc.';
     case 'pending':
       return String(counts.pending + counts.sent);
     case 'offline':

@@ -12,6 +12,7 @@ import {
   displayCellTarget,
   displayEnvTarget,
   displayMismatchText,
+  MISMATCH_LINE_SEP,
   displayQueuedCells,
   displayQueuedEnv,
   envSuggestions,
@@ -245,20 +246,30 @@ export function QueuedBanner({ state }: { state: DisplayQueuedState }) {
   );
 }
 
-/** "Visor: 147 GΩ · digitado 14,7 GΩ — Conferir": a tap on a value keeps it. */
-function MismatchLine({ value, suggestion, onVisor, onTyped }: { value: unknown; suggestion: SuggestionRow; onVisor: () => void; onTyped: () => void }) {
-  const { parts } = displayMismatchText(value, suggestion);
+/**
+ * "Visor: 147 GΩ · digitado 14,7 GΩ — Conferir": a tap on a value keeps it. Review fixes
+ * 2026-10-06 (F-22): two lines on purpose, "Visor: 147 GΩ" then "digitado 14,7 GΩ — Conferir";
+ * the " · " closing the first is visually hidden, so the read-out and `textContent` stay the
+ * one-line text.
+ */
+export function MismatchLine({ value, suggestion, onVisor, onTyped }: { value: unknown; suggestion: SuggestionRow; onVisor: () => void; onTyped: () => void }) {
+  const { lines } = displayMismatchText(value, suggestion);
   return (
     <span className="suggestion-alt" role="group" aria-label={copy.ficha.ensaios.mismatchLabel} data-suggestion-id={suggestion.id}>
-      {parts.map((part, i) =>
-        part.pick === undefined ? (
-          <span key={i}>{part.text}</span>
-        ) : (
-          <button key={i} type="button" className="btn btn-text" onClick={part.pick === 'visor' ? onVisor : onTyped}>
-            {part.text}
-          </button>
-        ),
-      )}
+      {lines.map((line, l) => (
+        <span key={l} className="mismatch-line">
+          {line.map((part, i) =>
+            part.pick === undefined ? (
+              <span key={i}>{part.text}</span>
+            ) : (
+              <button key={i} type="button" className="btn btn-text" onClick={part.pick === 'visor' ? onVisor : onTyped}>
+                {part.text}
+              </button>
+            ),
+          )}
+          {l < lines.length - 1 ? <span className="visually-hidden">{MISMATCH_LINE_SEP}</span> : null}
+        </span>
+      ))}
     </span>
   );
 }

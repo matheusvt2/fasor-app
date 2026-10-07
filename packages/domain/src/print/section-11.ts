@@ -134,9 +134,23 @@ export function missingCertificates(snapshot: Section11Snapshot): Section11Instr
   return section11Instruments(snapshot).filter((entry) => entry.certificate_file_id === null);
 }
 
-/** authored: Sumário row 11: "3 certificados", "1 certificado", "Nenhum instrumento" (open for Bruno). */
-export function certificatesCountText(n: number): string {
-  return n === 0 ? 'Nenhum instrumento' : plural(n, 'certificado', 'certificados');
+/**
+ * authored: Sumário row 11 counts the instruments section 11 prints: "3 instrumentos",
+ * "1 instrumento", "Nenhum instrumento". Review fixes 2026-10-06 (F-15): it counted them as
+ * certificates ("3 certificados") with none attached.
+ */
+export function instrumentsCountText(n: number): string {
+  return n === 0 ? 'Nenhum instrumento' : plural(n, 'instrumento', 'instrumentos');
+}
+
+/**
+ * authored (F-15): how many of the `total` printed instruments have a certificate file attached:
+ * "nenhum certificado anexado" with none, "2 certificados" with some, null with all (or none to
+ * attach), where the instrument count alone says it.
+ */
+export function certificatesAttachedText(attached: number, total: number): string | null {
+  if (total === 0 || attached >= total) return null;
+  return attached === 0 ? 'nenhum certificado anexado' : plural(attached, 'certificado', 'certificados');
 }
 
 /** Section 11's layout under its heading; null when no instrument prints (the section prints the empty note). */

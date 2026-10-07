@@ -10,6 +10,7 @@ import {
   displayBurstStop,
   displayBurstStops,
   displayMismatchText,
+  MISMATCH_LINE_SEP,
   displayQueuedCells,
   displayQueuedEnv,
   envSuggestions,
@@ -194,6 +195,14 @@ describe('9.1-UNIT the mismatch line', () => {
       { text: `14,7 ${GOHM}`, pick: 'typed' },
     ]);
     expect(displayMismatchText({ raw: '', unit: GOHM, state: 'not_measured' }, { value: n('3.3', null) }).text).toBe('Visor: 3,3 · digitado - — Conferir');
+  });
+
+  it('F-22: draws two lines on purpose, "Visor: …" then "digitado … — Conferir", the one-line text unchanged', () => {
+    const { text, lines } = displayMismatchText(n('1000'), { value: n('1.45') });
+    expect(lines.map((line) => line.map((part) => part.text).join(''))).toEqual([`Visor: 1,45 ${GOHM}`, `digitado 1.000 ${GOHM} — Conferir`]);
+    expect(lines[0]!.find((part) => part.pick === 'visor')!.text).toBe(`1,45 ${GOHM}`);
+    expect(lines[1]!.find((part) => part.pick === 'typed')!.text).toBe(`1.000 ${GOHM}`);
+    expect(lines.map((line) => line.map((part) => part.text).join('')).join(MISMATCH_LINE_SEP)).toBe(text);
   });
 });
 

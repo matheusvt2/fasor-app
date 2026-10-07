@@ -1,8 +1,10 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import type { SuggestionRow } from '@app/domain';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
 import { SyncContext } from '../../state/sync.tsx';
 import { makeSyncState, type SyncStateOverrides } from '../../test/sync-state.ts';
-import { QueuedBanner } from './read-display.tsx';
+import { MismatchLine, QueuedBanner } from './read-display.tsx';
 
 /*
  * F-17 (review 2026-09-30; State Patterns › Reading in progress): a "Ler visor" cell whose
@@ -39,5 +41,27 @@ describe('F-17 QueuedBanner', () => {
   it('a running reading reads "Lendo…" either way', () => {
     renderBanner('running', { online: false });
     expect(screen.getByText('Lendo…')).toBeInTheDocument();
+  });
+});
+
+describe('F-22 MismatchLine (review 2026-10-06)', () => {
+  const number = (raw: string) => ({ raw, unit: 'GΩ', state: 'measured' as const });
+
+  it('draws two lines, "Visor: 1,45 GΩ" then "digitado 1.000 GΩ — Conferir", the values still buttons and the text one line', async () => {
+    const onVisor = vi.fn();
+    const onTyped = vi.fn();
+    const suggestion = { id: 'sug-1', value: number('1.45') } as unknown as SuggestionRow;
+    render(<MismatchLine value={number('1000')} suggestion={suggestion} onVisor={onVisor} onTyped={onTyped} />);
+    const group = screen.getByRole('group', { name: 'Leitura do visor diferente do valor digitado' });
+    const lines = group.querySelectorAll('.mismatch-line');
+    expect(lines).toHaveLength(2);
+    expect(lines[0]!.textContent).toBe('Visor: 1,45 GΩ · ');
+    expect(lines[1]!.textContent).toBe('digitado 1.000 GΩ — Conferir');
+    expect(group.textContent).toBe('Visor: 1,45 GΩ · digitado 1.000 GΩ — Conferir');
+    expect(lines[0]!.querySelector('.visually-hidden')).toHaveTextContent('·');
+    await userEvent.click(within(group).getByRole('button', { name: '1,45 GΩ' }));
+    expect(onVisor).toHaveBeenCalledTimes(1);
+    await userEvent.click(within(group).getByRole('button', { name: '1.000 GΩ' }));
+    expect(onTyped).toHaveBeenCalledTimes(1);
   });
 });

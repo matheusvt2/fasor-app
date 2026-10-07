@@ -375,4 +375,14 @@ test('@p1 7.5-E2E-005 the Export dialog at 390 px: the precheck, the document co
   // Phone: each document control value stacks under its key.
   const [dt, dd] = [dialog(page).locator('dl.doc-control dt').first(), dialog(page).locator('dl.doc-control dd').first()];
   expect((await dd.boundingBox())!.y).toBeGreaterThan((await dt.boundingBox())!.y);
+  // Review fixes 2026-10-06 (F-17): a row's sentence takes the full row and its action drops under it.
+  const rowsWithActions = dialog(page).locator('.precheck li').filter({ has: page.locator('.pc-actions') });
+  expect(await rowsWithActions.count()).toBeGreaterThan(0);
+  for (let i = 0; i < (await rowsWithActions.count()); i++) {
+    const row = rowsWithActions.nth(i);
+    const pcText = (await row.locator('.pc-text').boundingBox())!;
+    const pcActions = (await row.locator('.pc-actions').boundingBox())!;
+    expect(pcActions.y, `row ${i + 1}`).toBeGreaterThan(pcText.y);
+    expect(pcActions.y, `row ${i + 1}`).toBeGreaterThanOrEqual(pcText.y + pcText.height - 1);
+  }
 });

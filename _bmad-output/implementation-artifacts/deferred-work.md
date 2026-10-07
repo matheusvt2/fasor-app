@@ -1212,7 +1212,7 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Stories 11.9/11.10 open questions (2026-09-30): the P4 hint word "próxima intervenção" (authored; the mock's "365 dias" is overridden by source-deltas row 29); the undo toast texts "Prioridade gravada", "Prioridade removida", "Prazo substituído" (authored); whether "pontos sem prazo" should count points without priority instead (EXPERIENCE says priority, the story says prazo; built as prazo); whether the table prints when no row carries an action-plan value (built: always); the Points surface "Como imprime na seção 8" preview (`72-pontos.html` 290-318, named by neither story, not built); a P4 deadline stored as a month only (`YYYY-MM`) shows as read-only `mm/aaaa` in Prazo, since the Date field holds whole days.
   evidence: `packages/domain/src/points/priority.ts`, `apps/web/src/copy/pt-br.ts` (`points.priorityWritten` and neighbours), `apps/web/src/surfaces/points/point-editor.tsx` `PrazoField`.
   class: question
-  state: open (owner: Matheus and Bruno)
+  state: ~~open (owner: Matheus and Bruno)~~ the undo toast texts closed 2026-10-07 by the review fixes batch 3 (F-25, decision D12, `spec-review-fixes-layout-copy-3.md`): a pick and a clear show no toast (`points.priorityWritten` and `points.priorityCleared` removed), "Prazo substituído" stays as the undo toast of "Substituir"; the other questions of this entry stay open (owner: Matheus and Bruno)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-epic-11-qa-fixes.md`
   summary: Flake ledger (E11-Q7, 2026-09-30): in the Epic 11 QA's `test:e2e:matrix`, `durability-desktop-chrome` `e2e/durability.spec.ts:61` (1.8-E2E-001) failed after 31.6 s, the first test after the bundle build: `signInForDurability` (`e2e/support/durability.ts:74`) hit "Protocol error (Runtime.callFunctionOn): Internal server error, session closed". The re-run passed on all three projects (3/3, 94 s); no app defect reproduced.
@@ -1324,7 +1324,19 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   summary: Review fixes, layout and copy: F-06 sticky App bar, F-07 rail mid-word breaks, F-10 unlabeled photo button at 390, F-11 scroll-padding under the sticky bar, F-15 certificates row wording, F-16 duplicated Sumário title, F-17 export dialog header at 390, F-18 header counts wrap at 390, F-19 clipped options popover, F-22 display-read comparison wrap, F-23 stale live region, F-24 composer numbering, F-25 priority toast over Prazo, F-26 camera-opening state, F-29 "OK" badge at 390.
   evidence: split from the 2026-10-06 review batch, same source; third PR after the field-defects one.
   class: debt
-  state: open (owner: third bmad-build run of the batch)
+  state: ~~open (owner: third bmad-build run of the batch)~~ closed 2026-10-07 by the review fixes batch 3 (`spec-review-fixes-layout-copy-3.md`, decisions D5 to D12)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-layout-copy-3.md`
+  summary: F-24 follow-up: the Template composer lets the office reorder its section blocks (each with a Position box), but `instantiate` (`packages/domain/src/relatorio/instantiate.ts`, "Section blocks, in FO.SERV-03 number order") sorts the sections of a new relatório by their FO.SERV-03 number, so a section reordered in the composer comes out in number order in the relatório.
+  evidence: `instantiate.ts` `sections.sort((a, b) => a.number - b.number)`; EXPERIENCE.md keeps the composer's Position box. Found while fixing F-24 (2026-10-07); out of that finding's scope (copy only).
+  class: bug
+  state: open (owner: Matheus: keep the composer's order or drop section reordering from the composer)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-layout-copy-3.md`
+  summary: F-26 follow-up: the "Abrindo câmera…" state covers the "Fotografar placa" tile and the Sticky action bar's camera button; the other openers of the camera through their own `useCamera` still show nothing while the browser's permission prompt is open: "Ler visor" (the burst in `read-display.tsx`, `ReadDisplayButton` and the cabine's `EnvReadDisplayButton`), the NC row's "Adicionar foto" (`photo-openers.tsx` `RowPhotoAction`) and the palette's "Fotografar equipamento" (`relatorio/panel-capture.tsx`).
+  evidence: `apps/web/src/surfaces/ficha/read-display.tsx` (`useCamera` in `ReadDisplayButton`, ~:483), `apps/web/src/surfaces/ficha/photo-openers.tsx` `RowPhotoAction`, `apps/web/src/surfaces/relatorio/panel-capture.tsx` (`useCamera`, ~:121); `CameraControl.opening` is there to read.
+  class: debt
+  state: open (owner: next sheet batch)
 
 - source_spec: `_bmad-output/implementation-artifacts/spec-11-11-sheet-photo-strip-and-direct-picker.md`
   summary: The sheet mounts one more relatório-wide photo tile live query and PhotoViewer instance (`SheetPhotos` on `useCropViewer`, beside the nameplate and readings ones); one shared tile source and viewer per sheet would cut the queries.
@@ -1343,3 +1355,10 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: review BH5/BH6, 2026-10-06; the story's AC names badge, pill and caption.
   class: debt
   state: open (owner: epic QA)
+
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-layout-copy-3.md`
+  summary: Sumário row 11 reads "3 instrumentos · nenhum certificado anexado · Nenhum instrumento em Dados do relatório" when the sheets copied instruments but setup ticked none; the two parts are both true (sheets vs setup) but read as a contradiction (review 2026-10-07, BH2).
+  evidence: `packages/domain/src/relatorio/sumario.test.ts` Porto Seguro case; the setup row wording comes from Story 7.5 and predates batch 3. A reword such as "nenhum marcado em Dados do relatório" would settle it; copy decision for Bruno.
+- source_spec: `_bmad-output/implementation-artifacts/spec-review-fixes-layout-copy-3.md`
+  summary: F-11's `scroll-padding-bottom` measures the sticky bar against `window.innerHeight`, so on WebKit/iOS the on-screen keyboard inset (`visualViewport`) is left out of the padding EXPERIENCE.md:369 asks for; the WebKit leg of `test:e2e:matrix` was not run for this batch (review 2026-10-07, BH8).
+  evidence: `apps/web/src/components/toast.tsx` `stickyBarCovered`; unverified on WebKit. A `durability-webkit` run of the F-11 case, or a `visualViewport.height` fallback with a test, would settle it.

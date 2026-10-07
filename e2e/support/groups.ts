@@ -40,6 +40,11 @@ export const SERIAL_SPECS: readonly { file: string; why: string }[] = [
     file: 'review-field-defects-2.spec.ts',
     why: 'issues revisions through the shared queue and LibreOffice (F-03, F-05) and loads the fixed-id Porto Seguro fixture (F-05)',
   },
+  // Review fixes 2026-10-06, batch 3: layout measured against the renders at 390, 768 and 1280 px.
+  {
+    file: 'review-layout-copy-3.spec.ts',
+    why: 'measures the layout of what the page renders (sticky bars, focused fields, line boxes, popover edges) at fixed viewports, so it must not share the CPU with other workers',
+  },
   // Stories 11.9/11.10: 11.10-E2E-001 generates the DOCX its action-plan table is read from.
   {
     file: 'action-plan.spec.ts',

@@ -342,7 +342,9 @@ export const copy = {
     // authored: the reasons beside "Adicionar coluna" when it has no cabine to add to.
     addColunaNoCabine: 'Adicione uma cabine primeiro.',
     selectNode: 'Selecione uma cabine ou coluna.',
-    sectionsNote: 'Ordem inicial da árvore; o engenheiro reordena no relatório.',
+    // Review fixes 2026-10-06 (F-24, D11): the list shows each section's number beside its Position box
+    // (EXPERIENCE.md keeps both); authored: the second sentence says why 7 and 9 are not in it.
+    sectionsNote: 'Ordem inicial da árvore; o engenheiro reordena no relatório. 7 Registro fotográfico e 9 Relatórios dos ensaios entram sozinhos no relatório.',
     sectionsListLabel: 'Blocos do template',
     // The palette (`aside.block-palette.composer-palette`).
     paletteLabel: 'Paleta de blocos',
@@ -911,9 +913,8 @@ export const copy = {
     // authored: P4 picked on a relatório without a next intervention date (Epic 11 conflict 2).
     deadlineNoNextIntervention: 'O relatório não tem data da próxima intervenção: informe-a em Dados do relatório ou digite o prazo.',
     ownerLabel: 'Responsável',
-    // authored: the undo toasts of a pick, a clear and "Substituir" (open for Bruno).
-    priorityWritten: 'Prioridade gravada',
-    priorityCleared: 'Prioridade removida',
+    // authored: the undo toast of "Substituir" (open for Bruno). Review fixes 2026-10-06 (F-25, D12):
+    // a pick and a clear show no toast ("Prioridade gravada" covered the Prazo it filled).
     deadlineReplaced: 'Prazo substituído',
     none: '—',
     removePoint: 'Remover ponto',
@@ -1061,6 +1062,8 @@ export const copy = {
       // Stories 8.2 and 8.6: the plate photo above the fields (`60-ficha.html` nameplate
       // states "empty", "queued" and "ready", lines ~313-328), verbatim unless marked.
       takePlate: 'Fotografar placa',
+      // authored (review fixes 2026-10-06, F-26): the camera was asked for and the permission prompt may be open.
+      opening: 'Abrindo câmera…',
       queued: 'Foto guardada — leitura quando houver sinal',
       fieldsNote: 'Os campos continuam digitáveis; o que você digitar não é sobrescrito pela leitura.',
       // EXPERIENCE.md › Nameplate states: running and failed.

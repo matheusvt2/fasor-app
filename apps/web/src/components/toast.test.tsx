@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { Toast, type ToastMessage } from './toast.tsx';
+import { STICKY_BAR_COVERED, Toast, useStickyBarScrollPadding, type ToastMessage } from './toast.tsx';
 
 const message: ToastMessage = { id: 1, text: 'Rascunho encontrado', action: { label: 'Recuperar', onPress: () => undefined } };
 
@@ -76,5 +76,70 @@ describe('F-02 the toast keeps above the Sticky action bar', () => {
     }
     render(<Toast toast={message} onClose={() => undefined} onDismiss={() => undefined} />);
     expect(screen.getByTestId('toast').style.getPropertyValue('--toast-bar')).toBe('0px');
+  });
+});
+
+describe('F-11 a focused field stops above the Sticky action bar', () => {
+  function Padded() {
+    useStickyBarScrollPadding();
+    return null;
+  }
+
+  function stub(bar: HTMLElement, height: number) {
+    const top = window.innerHeight - height;
+    vi.spyOn(bar, 'getBoundingClientRect').mockReturnValue({ top, bottom: window.innerHeight, height, left: 0, right: 390, width: 390, x: 0, y: top, toJSON: () => ({}) } as DOMRect);
+  }
+
+  it('writes the height a sticky bar covers as --sticky-bar-covered on the root, and removes it with the bar', () => {
+    const bar = document.createElement('div');
+    bar.className = 'sticky-action-bar';
+    bar.style.position = 'sticky';
+    document.body.append(bar);
+    stub(bar, 200);
+    try {
+      const { unmount } = render(<Padded />);
+      expect(document.documentElement.style.getPropertyValue(STICKY_BAR_COVERED)).toBe('200px');
+      // The bar grows (the Bulk mirror): a scroll or a resize measures it again.
+      stub(bar, 264);
+      window.dispatchEvent(new Event('scroll'));
+      expect(document.documentElement.style.getPropertyValue(STICKY_BAR_COVERED)).toBe('264px');
+      unmount();
+      expect(document.documentElement.style.getPropertyValue(STICKY_BAR_COVERED)).toBe('');
+    } finally {
+      bar.remove();
+    }
+  });
+
+  it('leaves out a sticky bar inside a dialog (the caption composer\'s own bar)', () => {
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    const bar = document.createElement('div');
+    bar.className = 'sticky-action-bar';
+    bar.style.position = 'sticky';
+    dialog.append(bar);
+    document.body.append(dialog);
+    stub(bar, 300);
+    try {
+      const { unmount } = render(<Padded />);
+      expect(document.documentElement.style.getPropertyValue(STICKY_BAR_COVERED)).toBe('0px');
+      unmount();
+    } finally {
+      dialog.remove();
+    }
+  });
+
+  it('is 0 px while the bar is static (under a 480 px viewport height it flows after the content)', () => {
+    const bar = document.createElement('div');
+    bar.className = 'sticky-action-bar';
+    bar.style.position = 'static';
+    document.body.append(bar);
+    stub(bar, 124);
+    try {
+      const { unmount } = render(<Padded />);
+      expect(document.documentElement.style.getPropertyValue(STICKY_BAR_COVERED)).toBe('0px');
+      unmount();
+    } finally {
+      bar.remove();
+    }
   });
 });

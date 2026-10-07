@@ -438,6 +438,13 @@ test('@p1 6.4-E2E-004 files dropped on a sheet show "Solte para adicionar" while
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   const barBox = (await bar.boundingBox())!;
   expect(barBox.x + barBox.width).toBeLessThanOrEqual(390);
+  // Review fixes 2026-10-06 (F-10, D6): below 480 px "Adicionar fotos" is the square of its glyph, and the
+  // camera, it and the primary share one row.
+  const add = (await bar.getByRole('button', { name: 'Adicionar fotos' }).boundingBox())!;
+  expect(add.width).toBeLessThanOrEqual(64);
+  const cameraBox = (await bar.getByRole('button', { name: 'Tirar foto' }).boundingBox())!;
+  const primaryBox = (await bar.locator('#ficha-primary').boundingBox())!;
+  for (const box of [cameraBox, primaryBox]) expect(Math.abs(box.y + box.height / 2 - (add.y + add.height / 2))).toBeLessThanOrEqual(2);
 });
 
 test('@p0 6.5-E2E-001 "Legendar" on a sheet tile: prefilled chips, agreement on a chip change, "Outro…", "Editar texto" stops regenerating, one caption op; the gallery shows it after a reload, and back', async ({ page }) => {
