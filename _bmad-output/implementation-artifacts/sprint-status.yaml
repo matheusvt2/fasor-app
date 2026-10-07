@@ -152,16 +152,16 @@ development_status:
   12-6-the-tap-budget-is-a-test: done  # PR #38
   epic-12-retrospective: done  # no PR; commit e9e863c, epic-12-retro-2026-09-25.md
 
-  epic-13: backlog  # field UX analysis 2026-10-06 (review-field-ux-2026-10-06.md); excludes everything the 2026-10-06 MVP review batches own (F-01 to F-29)
+  epic-13: in-progress  # batches A-E per epic-13-context.md (2026-10-07); field UX analysis 2026-10-06 (review-field-ux-2026-10-06.md); excludes everything the 2026-10-06 MVP review batches own (F-01 to F-29)
   13-1-capture-at-the-resolution-the-reading-needs: backlog
   13-2-torch-zoom-and-tap-to-focus-in-the-viewfinder: backlog
   13-3-pinch-zoom-to-read-the-photo: backlog
   13-4-the-keyboard-stops-fighting-the-field-and-the-sheet-says-sal: backlog
   13-5-a-reading-shows-its-age-can-be-cancelled-and-never-dead-ends: backlog
   13-6-a-shot-refused-by-quota-survives-the-tab: backlog
-  13-7-the-plate-tile-on-every-block-type: backlog  # DoR: E8-A3 answered by Matheus
+  13-7-the-plate-tile-on-every-block-type: backlog  # DoR met 2026-10-07: E8-A3 answered, all eight types
   13-8-the-emission-audit-one-ai-pass-before-emitir-that-points-nev: backlog  # DoR: field-defects batch 2 merged (F-03 dialog)
-  13-9-dictation-on-behind-one-line-of-consent: backlog  # DoR: consent wording decided by Matheus
+  13-9-dictation-on-behind-one-line-of-consent: backlog  # deferred 2026-10-07 by Matheus; DoR: consent wording decided by Matheus
   epic-13-retrospective: optional
 
 action_items:

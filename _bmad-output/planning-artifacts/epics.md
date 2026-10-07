@@ -2894,6 +2894,8 @@ So that "no photo is ever lost" has no footnote.
 
 *(Definition of Ready: Matheus answers E8-A3 — which block types carry the "Fotografar placa" tile; the default proposal is all eight. The story builds the recorded answer.)*
 
+*(2026-10-07, Matheus: E8-A3 answered — all eight block types carry the tile. Definition of Ready met.)*
+
 As a field engineer,
 I want "Fotografar placa" on every block type that has a plate,
 So that the photo-first path is not a transformer privilege.
@@ -2947,6 +2949,8 @@ So that the client never receives a report that disagrees with itself.
 **Dev model:** opus · **Effort:** medium · consent gate over the existing engine and suggestion flow
 
 *(Definition of Ready: Matheus decides the consent wording and confirms `webspeech` as the shipped default engine — the Epic 9 open question on audio going to the browser vendor. Online-only stands, `source-deltas.md` row 37.)*
+
+*(2026-10-07, Matheus: deferred out of the Epic 13 delivery cycle; the consent wording is still open.)*
 
 As a field engineer with dirty gloves,
 I want to dictate after accepting one clear line about where the audio goes,
