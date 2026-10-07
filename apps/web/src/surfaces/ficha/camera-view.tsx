@@ -46,6 +46,11 @@ export interface CameraControl {
   denied: boolean;
   /** Shots of the burst in progress (the opener's `data-count` badge); 0 when none. */
   burst: number;
+  /**
+   * Review fixes 2026-10-06 (F-26): the camera was asked for and has not answered (the browser's
+   * permission prompt may be open): the opener reads "Abrindo câmera…" and a press does nothing.
+   */
+  opening: boolean;
   /** The camera view and the fallback input; render it beside the opener. */
   element: ReactNode;
 }
@@ -73,8 +78,14 @@ export function useCamera(
   const fallbackTarget = useRef<CaptureTarget | null>(null);
   // The session as the async callbacks see it (a state value in a closure can be stale).
   const sessionRef = useRef<CameraSession | null>(null);
-  // A `getUserMedia` in flight: a second press waits for it instead of asking twice.
+  // A `getUserMedia` in flight: a second press waits for it instead of asking twice. F-26:
+  // mirrored into state (`isOpening`) so the opener shows it; the ref stays the guard.
   const opening = useRef(false);
+  const [isOpening, setIsOpening] = useState(false);
+  const setOpening = (value: boolean) => {
+    opening.current = value;
+    if (mounted.current) setIsOpening(value);
+  };
   const mounted = useRef(true);
   // Frame grabs not yet resolved: "Concluir fotos" waits for them before stopping the stream.
   const grabs = useRef(new Set<Promise<void>>());
@@ -151,10 +162,21 @@ export function useCamera(
       fileInput.current?.click();
       return;
     }
-    opening.current = true;
-    media.getUserMedia({ video: { facingMode: 'environment' }, audio: false }).then(
+    setOpening(true);
+    let request: Promise<MediaStream>;
+    try {
+      request = media.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+    } catch {
+      // F-26: a camera API that throws at once (an old or broken one) is no camera: the
+      // opening state ends and the system camera takes the shot, as with no API.
+      setOpening(false);
+      fallbackTarget.current = context;
+      fileInput.current?.click();
+      return;
+    }
+    request.then(
       (stream) => {
-        opening.current = false;
+        setOpening(false);
         // Resolved after the sheet went, or over a session already open: never left live.
         if (!mounted.current || sessionRef.current !== null) {
           stream.getTracks().forEach((track) => track.stop());
@@ -163,7 +185,7 @@ export function useCamera(
         startSession({ stream, target: context });
       },
       (error: unknown) => {
-        opening.current = false;
+        setOpening(false);
         if (!mounted.current) return;
         const name = (error as { name?: unknown } | null)?.name;
         if (typeof name === 'string' && DENIED_ERRORS.has(name)) {
@@ -296,7 +318,7 @@ export function useCamera(
     </>
   );
 
-  return { open, denied, burst, element };
+  return { open, denied, burst, opening: isOpening, element };
 }
 
 /** One frame of the live stream, decoded; waits for the first frame when the stream has none yet. */

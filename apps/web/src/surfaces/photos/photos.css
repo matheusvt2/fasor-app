@@ -159,6 +159,12 @@
    primary share one row at 390 px without the bar running wider than the phone. */
 @media (max-width: 479.98px) {
   .sticky-action-bar .bar-buttons .add-photos-btn { flex: none; }
+  /* Review fixes 2026-10-06 (F-10, D6): beside the camera the button is the 56 px square of its
+     glyph. The mirrored `.frame-phone .sticky-action-bar .bar-buttons.has-camera .btn { flex: 1 1
+     160px }` (`app.css`, 4 classes) outranked the rule above and stretched it to 240 px with no
+     word; this selector outranks it. The 12 px inset keeps the 24 px glyph, its inset and the 2 px
+     border inside the 56 px square. */
+  .sticky-action-bar .bar-buttons.has-camera .btn.add-photos-btn { flex: none; min-width: var(--touch-field); padding-inline: var(--sp-3); }
   .add-photos-btn .add-photos-word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 }
 /* authored (Story 8.1): the viewer opened from a suggestion's crop, zoomed on its region; the outline is the crop's (`components.css` `.plate-crop .region`). */

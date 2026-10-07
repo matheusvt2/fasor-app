@@ -158,6 +158,53 @@ export async function pushPlateSuggestions(
 }
 
 /**
+ * Review fixes 2026-10-06 (F-22): one display reading of a Measurement cell, as the reading job
+ * writes it (a pending `suggestion` create citing `photoId`), for a sheet that already holds a
+ * typed value there. Returns the suggestion's id.
+ */
+export async function pushCellSuggestion(
+  companyId: string,
+  relatorioId: string,
+  cell: { targetPath: string; value: JsonValue; photoId: string },
+  actorId: string = READING_ACTOR,
+): Promise<string> {
+  const row: SuggestionRow = {
+    id: newId(),
+    relatorio_id: relatorioId,
+    target_path: cell.targetPath,
+    value: cell.value,
+    trust: 'suggested',
+    // The cell was typed before the reading: the job writes it so.
+    mode: 'replace',
+    source: { photo_id: cell.photoId, bbox: [0.1, 0.1, 0.5, 0.2], ocr_token_ids: ['t0'], reading_run_id: newId() },
+    status: 'pending',
+    prompt_version: 'e2e-1',
+    hint: null,
+  };
+  await applyAsServer(
+    companyId,
+    [
+      {
+        kind: 'create',
+        scope: 'relatorio',
+        company_id: companyId,
+        project_id: null,
+        relatorio_id: relatorioId,
+        path: suggestionPath(row.id),
+        value: row as never,
+        prev_op_id: null,
+        batch_id: null,
+        meta: null,
+        actor_id: actorId,
+        device_id: SERVER_DEVICE_ID,
+      },
+    ],
+    'cell suggestion op',
+  );
+  return row.id;
+}
+
+/**
  * Keeps the photo bytes on the device: every `PUT /api/files/{id}` is answered the retryable
  * `409 file_row_missing` (the uploader defers quietly: no error pill, no failed cycle), so
  * the server holds the photo row (its create op is pushed) but never receives the file, and

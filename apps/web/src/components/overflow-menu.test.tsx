@@ -1,7 +1,19 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ComponentProps } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { OverflowMenu } from './overflow-menu.tsx';
+import { OVERFLOW_MENU_PLACEMENT, OverflowMenu } from './overflow-menu.tsx';
+
+/** F-19: the props each rendered Popover received (the real Popover still renders). */
+const popoverProps = vi.hoisted(() => [] as Record<string, unknown>[]);
+vi.mock('react-aria-components', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-aria-components')>();
+  function Popover(props: ComponentProps<typeof actual.Popover>) {
+    popoverProps.push(props as Record<string, unknown>);
+    return <actual.Popover {...props} />;
+  }
+  return { ...actual, Popover };
+});
 
 describe('OverflowMenu', () => {
   it('has an accessible trigger name from the template and opens the menu on tap', async () => {
@@ -97,5 +109,15 @@ describe('OverflowMenu', () => {
     );
     await userEvent.click(screen.getByRole('button', { name: 'Mais opções de 1° Subsolo' }));
     expect(screen.getByRole('menuitemcheckbox', { name: 'Agrupar por tipo na seção 9' })).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('F-19 (D9): opens under the trigger aligned to its right edge, as the mock draws `.overflow-menu.is-open`', async () => {
+    expect(OVERFLOW_MENU_PLACEMENT).toBe('bottom end');
+    popoverProps.length = 0;
+    render(<OverflowMenu name="" label="Mais opções do relatório" items={[{ id: 'restore', label: 'Restaurar', onAction: () => undefined }]} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Mais opções do relatório' }));
+    expect(screen.getByRole('menu')).toBeVisible();
+    expect(popoverProps.length).toBeGreaterThan(0);
+    expect(popoverProps.every((props) => props.placement === 'bottom end')).toBe(true);
   });
 });

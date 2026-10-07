@@ -128,3 +128,98 @@ describe('F-13 (review 2026-10-06) the single shot\'s toast (a plate, "Ler visor
     expect(await screen.findByText('Foto salva neste aparelho — entra na fila de envio')).toBeVisible();
   });
 });
+
+describe('F-26 (review 2026-10-06) the camera while the permission prompt is open', () => {
+  function OpeningHarness() {
+    const opener = useRef<HTMLButtonElement>(null);
+    const camera = useCamera('019966b0-0000-7000-8000-000000000001', () => ({ blockId: null, itemKey: null, caption: null }), opener, { singleShot: true });
+    return (
+      <>
+        <button type="button" ref={opener} onClick={camera.open} data-state={camera.opening ? 'opening' : undefined}>
+          Abrir câmera
+        </button>
+        {camera.element}
+      </>
+    );
+  }
+
+  /** A `getUserMedia` the test answers later, as a permission prompt does. */
+  function deferredCamera() {
+    let resolve: (value: MediaStream) => void = () => undefined;
+    let reject: (reason: unknown) => void = () => undefined;
+    const getUserMedia = vi.fn(
+      () =>
+        new Promise<MediaStream>((res, rej) => {
+          resolve = res;
+          reject = rej;
+        }),
+    );
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia } });
+    return { getUserMedia, resolve: (s: MediaStream) => resolve(s), reject: (e: unknown) => reject(e) };
+  }
+
+  it('is opening until the prompt answers, and a second press does not ask again', async () => {
+    const camera = deferredCamera();
+    render(
+      <ToastProvider>
+        <OpeningHarness />
+      </ToastProvider>,
+    );
+    const button = screen.getByRole('button', { name: 'Abrir câmera' });
+    await userEvent.click(button);
+    expect(button).toHaveAttribute('data-state', 'opening');
+    await userEvent.click(button);
+    expect(camera.getUserMedia).toHaveBeenCalledTimes(1);
+    camera.resolve(stream);
+    await waitFor(() => expect(button).not.toHaveAttribute('data-state'));
+    expect(await screen.findByRole('dialog', { name: 'Câmera' })).toBeInTheDocument();
+  });
+
+  it('clears on a denial, and on the no-camera path before the picker opens', async () => {
+    const denied = deferredCamera();
+    const { unmount } = render(
+      <ToastProvider>
+        <OpeningHarness />
+      </ToastProvider>,
+    );
+    const button = screen.getByRole('button', { name: 'Abrir câmera' });
+    await userEvent.click(button);
+    expect(button).toHaveAttribute('data-state', 'opening');
+    denied.reject(new DOMException('Permission denied', 'NotAllowedError'));
+    await waitFor(() => expect(button).not.toHaveAttribute('data-state'));
+    unmount();
+
+    const missing = deferredCamera();
+    render(
+      <ToastProvider>
+        <OpeningHarness />
+      </ToastProvider>,
+    );
+    const again = screen.getByRole('button', { name: 'Abrir câmera' });
+    const picker = vi.spyOn(HTMLInputElement.prototype, 'click');
+    await userEvent.click(again);
+    expect(again).toHaveAttribute('data-state', 'opening');
+    missing.reject(new DOMException('Requested device not found', 'NotFoundError'));
+    await waitFor(() => expect(again).not.toHaveAttribute('data-state'));
+    expect(picker).toHaveBeenCalled();
+  });
+
+  it('clears when getUserMedia throws at once, and takes the system camera instead', async () => {
+    const getUserMedia = vi.fn(() => {
+      throw new TypeError('getUserMedia is broken');
+    });
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia } });
+    const picker = vi.spyOn(HTMLInputElement.prototype, 'click');
+    render(
+      <ToastProvider>
+        <OpeningHarness />
+      </ToastProvider>,
+    );
+    const button = screen.getByRole('button', { name: 'Abrir câmera' });
+    await userEvent.click(button);
+    expect(button).not.toHaveAttribute('data-state');
+    expect(picker).toHaveBeenCalled();
+    await userEvent.click(button);
+    expect(getUserMedia).toHaveBeenCalledTimes(2);
+  });
+});

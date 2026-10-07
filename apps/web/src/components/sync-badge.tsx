@@ -13,7 +13,7 @@ export interface SyncBadgeProps {
 
 /**
  * `.sync-badge[data-state]` from `shell-head.html`: one dot and always a word, both
- * words from the kernel — `.sync-long` ("Sincronizado") and `.sync-short` ("OK"), which
+ * words from the kernel — `.sync-long` ("Sincronizado") and `.sync-short` ("Sinc."), which
  * `components.css` swaps at narrow widths. The visible word therefore depends on the
  * viewport, so the accessible name is written out instead of inferred from the text:
  * it names the state, and the action when the badge is pressable.

@@ -299,10 +299,15 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
   };
   const deadlineCommit = useFieldCommit<string | null>({ commit: (next) => persistDeadline(next) });
 
-  /** A pick, a clear or "Substituir": one batch, offered for undo with `toast`. */
+  /**
+   * A pick, a clear or "Substituir": one batch. Only "Substituir" is offered for undo with
+   * `toast`. Review fixes 2026-10-06 (F-25, D12): a pick or a clear passes null and shows no
+   * toast, so nothing covers the Prazo it just filled; the checked level and the amber
+   * "Sugerido" Prazo show the result (`72-pontos.html` draws no toast on a pick).
+   */
   const writeFields = (
     run: (database: NonNullable<typeof db>, author: { id: string; companyId: string }, taken: PointValues, held: PointPriorityWrites) => Promise<PointFieldsWrite>,
-    toast: string,
+    toast: string | null,
   ) => {
     if (db === null || user === null) return;
     const author = { id: user.id, companyId: user.companyId };
@@ -315,14 +320,14 @@ export function PointEditor({ relatorioId, snapshot, point, newPointId, seed = E
         return noteFieldsWrite(await run(db, author, taken, held), taken, held);
       })
       .then(
-      (batchId) => edits.undoable(toast, batchId, { label: t.undo }),
+      (batchId) => (toast === null ? undefined : edits.undoable(toast, batchId, { label: t.undo })),
       () => undefined,
     );
   };
   const pickPriority = (next: PointPriority) =>
-    writeFields((database, author, taken, held) => writePriorityPick(database, author, relatorioId, pointId, next, link, taken, held), t.priorityWritten);
+    writeFields((database, author, taken, held) => writePriorityPick(database, author, relatorioId, pointId, next, link, taken, held), null);
   const clearPriority = () =>
-    writeFields((database, author, taken, held) => writePriorityPick(database, author, relatorioId, pointId, null, link, taken, held), t.priorityCleared);
+    writeFields((database, author, taken, held) => writePriorityPick(database, author, relatorioId, pointId, null, link, taken, held), null);
   const replaceDeadline = () =>
     writeFields((database, author, taken, held) => writeReplaceDeadline(database, author, relatorioId, pointId, link, taken, held), t.deadlineReplaced);
   const changeDeadline = (next: string | null) => {

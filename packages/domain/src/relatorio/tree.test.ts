@@ -158,6 +158,10 @@ describe('4.4-UNIT locationTree', () => {
     // The rail keeps the word alone in its state and puts the reason on the meta line (review F-1).
     expect(byTag.get('SEC-C05')!.railMetaText).toBe('SEC-C05 · Solicitação do cliente');
     expect(byTag.get('DJ-C05')!.railMetaText).toBe('DJ-C05');
+    // Review fixes 2026-10-06 (F-07): the rest after the TAG, so the rail keeps the TAG whole.
+    expect(byTag.get('SEC-C05')!.railMetaRest).toBe(' · Solicitação do cliente');
+    expect(byTag.get('DJ-C05')!.railMetaRest).toBe('');
+    for (const row of rows) expect(row.tag + row.railMetaRest).toBe(row.railMetaText);
     expect(SHEET_STATE_GLYPH).toEqual({ concluida: '✓', em_preenchimento: '●', vazia: '○', nao_ensaiada: '⊘' });
   });
 

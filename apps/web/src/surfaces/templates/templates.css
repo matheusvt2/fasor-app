@@ -84,7 +84,11 @@
 [data-route="/templates/:id"] .drag-handle { cursor: grab; }
 
 /* The palette beside the composition stays in view while the long skeleton scrolls. */
-[data-route="/templates/:id"] .composer-layout > .composer-palette { align-self: flex-start; position: sticky; top: 0; max-height: 100dvh; overflow-y: auto; }
+[data-route="/templates/:id"] .composer-layout > .composer-palette { align-self: flex-start; position: sticky; top: var(--touch-field); max-height: calc(100dvh - var(--touch-field)); overflow-y: auto; }
+/* Review fixes 2026-10-06 (F-06): under the sticky App bar (`app.css`); below a 480 px viewport height the bar unsticks. */
+@media (max-height: 479.98px) {
+  [data-route="/templates/:id"] .composer-layout > .composer-palette { top: 0; max-height: 100dvh; }
+}
 /* The palette's equipment rows hold a stepper, not a "+": the row is not itself a button. */
 .composer-palette .palette-item.is-stepper { cursor: default; }
 .composer-palette .palette-note { padding: var(--sp-2) var(--sp-4); margin: 0; font-size: var(--t-meta-size); color: var(--ink-secondary); }

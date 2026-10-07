@@ -99,6 +99,9 @@ test('@p1 9.1-E2E-003 typed first, the display reading checks the typed values: 
   const t3Cell = cellOf(page, 'T3, Valor');
   const line = t3Cell.getByRole('group', { name: 'Leitura do visor diferente do valor digitado' });
   await expect(line).toHaveText(`Visor: 147 ${GOHM} · digitado 14,7 ${GOHM} — Conferir`, { timeout: 60_000 });
+  // Review fixes 2026-10-06 (F-22): two lines on purpose, "Visor: …" then "digitado … — Conferir".
+  await expect(line.locator('.mismatch-line')).toHaveCount(2);
+  await expect(line.locator('.mismatch-line').nth(1)).toHaveText(`digitado 14,7 ${GOHM} — Conferir`);
   await expect(t3).toHaveValue('14,7');
   expect((await outbox(page)).filter((op) => op.path === cellPath(1)).map((op) => op.value)).toEqual([{ raw: '14.7', unit: GOHM, state: 'measured' }]);
 

@@ -350,6 +350,9 @@ describe('4.4 rail presentation (/relatorio/:id/arvore)', () => {
     });
     expect(current).toHaveAttribute('aria-current', 'true');
     expect(current).toHaveTextContent('DJ-TEST');
+    // F-07: the TAG sits in its own unbreakable span, the reason after it; the line reads as before.
+    expect(current.querySelector('.tree-meta .tree-tag')).toHaveTextContent(/^DJ-TEST$/);
+    expect(current.querySelector('.tree-meta')!.textContent).toMatch(/^DJ-TEST · /);
     expect(current.querySelector('.tree-state')).toHaveAttribute('data-state', 'nao-ensaiada');
     expect(current.querySelector('.tree-state [aria-hidden="true"]')).toHaveTextContent('⊘');
     // No sections, no Position box, no drag handle, no equipment Overflow.

@@ -165,8 +165,11 @@ async function layoutOf(page: Page, field: Locator) {
     const f = input.getBoundingClientRect();
     const b = bar.getBoundingClientRect();
     const hit = document.elementFromPoint(f.left + f.width / 2, f.top + f.height / 2);
+    // Review fixes 2026-10-06 (F-06): where the page starts below the sticky App bar (0 once it scrolled away).
+    const appBar = Math.max(0, document.querySelector('.app-bar')!.getBoundingClientRect().bottom);
     return {
       viewport: window.innerHeight,
+      appBar,
       field: { top: f.top, bottom: f.bottom },
       bar: { top: b.top, bottom: b.bottom, position: getComputedStyle(bar).position },
       fieldHit: hit === input || input.contains(hit),
@@ -201,8 +204,8 @@ test('@p1 E5-A2-E2E-003 the Sticky action bar with the on-screen keyboard: above
   expect(above.bar.position).toBe('sticky');
   // The bar sits at the bottom of what is left, right over the keyboard...
   expect(Math.abs(above.bar.bottom - above.viewport)).toBeLessThanOrEqual(1);
-  // ...and the focused reading stays in view, above it, not under it.
-  expect(above.field.top).toBeGreaterThanOrEqual(0);
+  // ...and the focused reading stays in view, above it, not under it (nor under the App bar).
+  expect(above.field.top).toBeGreaterThanOrEqual(above.appBar);
   expect(above.field.bottom).toBeLessThanOrEqual(above.bar.top);
   expect(above.fieldHit).toBe(true);
   await expect(stickyBar(page).locator('#ficha-primary')).toBeInViewport();
@@ -213,7 +216,9 @@ test('@p1 E5-A2-E2E-003 the Sticky action bar with the on-screen keyboard: above
   const below = await layoutOf(page, reading);
   expect(below.focused).toBe(true);
   expect(below.bar.position).toBe('static');
-  expect(below.field.top).toBeGreaterThanOrEqual(0);
+  // Review fixes 2026-10-06 (F-06): the App bar unsticks too.
+  expect(await page.evaluate(() => getComputedStyle(document.querySelector('.app-bar')!).position)).toBe('static');
+  expect(below.field.top).toBeGreaterThanOrEqual(below.appBar);
   expect(below.field.bottom).toBeLessThanOrEqual(below.viewport);
   expect(below.fieldHit).toBe(true);
   expect(below.bar.top).toBeGreaterThan(below.viewport);
@@ -222,6 +227,53 @@ test('@p1 E5-A2-E2E-003 the Sticky action bar with the on-screen keyboard: above
   await page.setViewportSize({ width: 390, height: 844 });
   expect((await layoutOf(page, reading)).bar.position).toBe('sticky');
   await expect(stickyBar(page).locator('#ficha-primary')).toBeInViewport();
+});
+
+/**
+ * Review fixes 2026-10-06 (F-11): moves the focus through the Ensaios step `steps` times with
+ * `key` and, after each move that lands on a reading, checks that the browser scrolled it
+ * clear of the Sticky action bar and of the App bar. Returns how many readings it checked.
+ */
+async function walkReadings(page: Page, key: 'Tab' | 'Enter', steps: number): Promise<number> {
+  let checked = 0;
+  for (let i = 0; i < steps; i++) {
+    await page.keyboard.press(key);
+    const box = await page.evaluate(() => {
+      const active = document.activeElement;
+      if (!(active instanceof HTMLInputElement) || active.closest('#ficha-step-ensaios .measurement-field') === null) return null;
+      const f = active.getBoundingClientRect();
+      const bar = document.querySelector<HTMLElement>('[data-route="/relatorio/:id/ficha/:blockId"] .sticky-action-bar')!.getBoundingClientRect();
+      const appBar = Math.max(0, document.querySelector('.app-bar')!.getBoundingClientRect().bottom);
+      return { name: active.getAttribute('aria-label') ?? '', top: f.top, bottom: f.bottom, barTop: bar.top, appBar };
+    });
+    if (box === null) continue;
+    checked += 1;
+    expect(box.bottom, `${box.name}: under the Sticky action bar`).toBeLessThanOrEqual(box.barTop + 1);
+    expect(box.top, `${box.name}: under the App bar`).toBeGreaterThanOrEqual(box.appBar - 1);
+  }
+  return checked;
+}
+
+test('@p1 F-11 a reading focused by Tab (1280 x 800) or by the Enter run (390 x 844) lands above the Sticky action bar, never under it', async ({ page, context }, info) => {
+  test.setTimeout(150_000);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await openSeccionadora(page, context);
+  await tap(page, stepper(page).getByRole('button', { name: /^Ensaios,/ }), info);
+  const first = page.getByRole('textbox', { name: 'T1, Valor', exact: true });
+  await first.focus();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  expect(await walkReadings(page, 'Tab', 30)).toBeGreaterThan(3);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await first.focus();
+  await page.evaluate(() => window.scrollTo(0, 0));
+  // The Enter run: each reading typed and Enter, down the column and on into the next table.
+  let checked = 0;
+  for (let i = 0; i < 8; i++) {
+    await page.keyboard.type('150G');
+    checked += await walkReadings(page, 'Enter', 1);
+  }
+  expect(checked).toBeGreaterThan(3);
 });
 
 test('@p1 E5-A2-E2E-004 "Marcar não ensaiado" by taps; after a reload the sheet is read-only and a tap on the checklist changes nothing', async ({ page, context }, info) => {

@@ -1,6 +1,6 @@
 import { PLATE_CAPTION, photoUploadState } from '@app/domain';
 import { PHOTO_ACCEPT } from '../../files/photo-import.ts';
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Button as AriaButton } from 'react-aria-components';
 import { PhotoRow } from '../../components/index.ts';
 import { copy } from '../../copy/pt-br.ts';
@@ -22,6 +22,7 @@ export function useSheetCamera(relatorioId: string, target: () => CaptureTarget)
   const opener = useRef<HTMLButtonElement>(null);
   const camera = useCamera(relatorioId, target, opener);
   const deniedId = useId();
+  useAriaBusy(opener, camera.opening);
   return {
     button: (
       <>
@@ -31,6 +32,7 @@ export function useSheetCamera(relatorioId: string, target: () => CaptureTarget)
           aria-label={t.takePhoto}
           data-count={camera.burst > 0 ? String(camera.burst) : ''}
           aria-describedby={camera.denied ? deniedId : undefined}
+          data-state={camera.opening ? 'opening' : undefined}
           onPress={camera.open}
         >
           <svg className="ico" aria-hidden="true">
@@ -40,6 +42,7 @@ export function useSheetCamera(relatorioId: string, target: () => CaptureTarget)
             {t.camWord}
           </span>
         </AriaButton>
+        <CameraOpeningStatus opening={camera.opening} />
         {camera.element}
       </>
     ),
@@ -64,6 +67,7 @@ export function PlateCaptureTile({ relatorioId, target }: { relatorioId: string;
   const opener = useRef<HTMLButtonElement>(null);
   const camera = useCamera(relatorioId, target, opener, { singleShot: true });
   const deniedId = useId();
+  useAriaBusy(opener, camera.opening);
   const online = useSession().online;
   // F-13: from the shutter on, the plate's row shows its reading state at once ("Lendo…", or
   // the queued words offline), before the photo's committed row replaces this group. A shot
@@ -107,12 +111,22 @@ export function PlateCaptureTile({ relatorioId, target }: { relatorioId: string;
   }
   return (
     <>
-      <AriaButton ref={opener} className="camera-capture-tile" aria-describedby={camera.denied ? deniedId : undefined} onPress={camera.open}>
+      {/* F-26: while the camera is asked for, the tile says so and keeps its name ("never a silent no-op"). */}
+      <AriaButton
+        ref={opener}
+        className="camera-capture-tile"
+        aria-label={copy.ficha.nameplate.takePlate}
+        aria-describedby={camera.denied ? deniedId : undefined}
+        data-state={camera.opening ? 'opening' : undefined}
+        onPress={camera.open}
+      >
         <svg className="ico" aria-hidden="true">
           <use href="/sprite.svg#i-camera" />
         </svg>
         {copy.ficha.nameplate.takePlate}
+        {camera.opening ? <span className="camera-opening">{copy.ficha.nameplate.opening}</span> : null}
       </AriaButton>
+      <CameraOpeningStatus opening={camera.opening} />
       {camera.denied ? (
         <p className="camera-denied" id={deniedId} role="status">
           {copy.photos.denied}
@@ -120,6 +134,33 @@ export function PlateCaptureTile({ relatorioId, target }: { relatorioId: string;
       ) : null}
       {camera.element}
     </>
+  );
+}
+
+/**
+ * F-26: `aria-busy` on an opener while its camera is being opened. React Aria's Button does not
+ * forward `aria-busy` (its DOM prop filter), and its `isPending` would also disable the button,
+ * which this state must not do; so the attribute is set on the element itself.
+ */
+function useAriaBusy(ref: RefObject<HTMLElement | null>, busy: boolean): void {
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (element === null) return;
+    if (busy) element.setAttribute('aria-busy', 'true');
+    else element.removeAttribute('aria-busy');
+  }, [ref, busy]);
+}
+
+/**
+ * F-26: the visually hidden status line that says the camera is being opened (the permission
+ * prompt may be up). Always mounted, empty when not opening, so a screen reader hears the text
+ * when it appears in a live region it already knows.
+ */
+function CameraOpeningStatus({ opening }: { opening: boolean }) {
+  return (
+    <p className="visually-hidden camera-opening-status" role="status">
+      {opening ? copy.ficha.nameplate.opening : ''}
+    </p>
   );
 }
 

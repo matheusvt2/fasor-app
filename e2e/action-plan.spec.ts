@@ -178,7 +178,8 @@ test('@p0 11.9-E2E-003 a typed Prazo survives a later pick, the differing sugges
   await expect(alt).toHaveCount(0);
 });
 
-test('@p0 11.9-E2E-004 "Desfazer" after a pick restores both the priority and the deadline', async ({ page }) => {
+// Review fixes 2026-10-06 (F-25, D12): a pick shows no toast, so "Desfazer" is offered by "Substituir" only.
+test('@p0 11.9-E2E-004 a pick shows no toast; "Desfazer" after "Substituir" restores the typed date', async ({ page }) => {
   test.setTimeout(150_000);
   const { points } = await setUp(page);
   const point = points[0]!;
@@ -187,19 +188,22 @@ test('@p0 11.9-E2E-004 "Desfazer" after a pick restores both the priority and th
   await expect.poll(async () => (await storedPoint(page, point.id))?.priority).toBe('P1');
   await radio(editor, 'P2, Médio prazo, 90 dias').click();
   await expect.poll(async () => await storedPoint(page, point.id)).toMatchObject({ priority: 'P2', deadline: suggestionOf(point, 'P2') });
+  await expect(toast(page)).toHaveCount(0);
 
-  await expect(toast(page)).toContainText('Prioridade gravada');
+  // A typed date, then a pick that differs, then "Substituir": the one undo toast.
+  await typeDate(editor, 'Prazo', '30112030');
+  await editor.getByRole('textbox', { name: 'Responsável' }).click();
+  await expect.poll(async () => (await storedPoint(page, point.id))?.deadline).toBe('2030-11-30');
+  await radio(editor, 'P3, Longo prazo, 180 dias').click();
+  await expect.poll(async () => (await storedPoint(page, point.id))?.priority).toBe('P3');
+  await expect(toast(page)).toHaveCount(0);
+  await prazo(editor).locator('.suggestion-alt').getByRole('button', { name: 'Substituir' }).click();
+  await expect.poll(async () => (await storedPoint(page, point.id))?.deadline).toBe(suggestionOf(point, 'P3'));
+  await expect(toast(page)).toContainText('Prazo substituído');
   await toast(page).getByRole('button', { name: 'Desfazer' }).click();
-  await expect.poll(async () => await storedPoint(page, point.id)).toMatchObject({ priority: 'P1', deadline: suggestionOf(point, 'P1') });
-  await expect(radio(editor, 'P1, Curto prazo, 30 dias')).toHaveAttribute('aria-checked', 'true');
-  // The inverse ops are in the outbox, to be pushed.
-  const tail = (await pointOps(page)).slice(-2).map((op) => [op.path, op.value]);
-  expect(tail).toEqual(
-    expect.arrayContaining([
-      [`point/${point.id}/priority`, 'P1'],
-      [`point/${point.id}/deadline`, suggestionOf(point, 'P1')],
-    ]),
-  );
+  await expect.poll(async () => await storedPoint(page, point.id)).toMatchObject({ priority: 'P3', deadline: '2030-11-30' });
+  // The inverse op is in the outbox, to be pushed.
+  expect((await pointOps(page)).at(-1)).toMatchObject({ path: `point/${point.id}/deadline`, value: '2030-11-30' });
 });
 
 test('@p0 11.9-E2E-005 the picker by keyboard: arrows move, Space selects and writes, Delete clears; the rows read "P1, Curto prazo, 30 dias"', async ({ page }) => {
@@ -229,13 +233,19 @@ test('@p0 11.9-E2E-005 the picker by keyboard: arrows move, Space selects and wr
   await page.keyboard.press('Space');
   await expect(radio(editor, 'P2, Médio prazo, 90 dias')).toHaveAttribute('aria-checked', 'true');
   await expect.poll(async () => await storedPoint(page, point.id)).toMatchObject({ priority: 'P2', deadline: suggestionOf(point, 'P2') });
+  // Review fixes 2026-10-06 (F-25, D12): no toast after the pick; the Prazo it filled is in view, "Sugerido".
+  await expect(toast(page)).toHaveCount(0);
+  await expect(prazo(editor)).toBeInViewport();
+  await expect(prazo(editor).locator('.suggested-pill')).toHaveText('Sugerido');
 
   await page.keyboard.press('ArrowUp');
   await expect(radio(editor, 'P1, Curto prazo, 30 dias')).toBeFocused();
   await page.keyboard.press('Delete');
   await expect.poll(async () => await storedPoint(page, point.id)).toMatchObject({ priority: null, deadline: null });
   await expect(picker(editor).getByRole('radio', { checked: true })).toHaveCount(0);
-  await expect(toast(page)).toContainText('Prioridade removida');
+  // Review fixes 2026-10-06 (F-25, D12): a clear, like a pick, shows no toast over the Prazo.
+  await expect(toast(page)).toHaveCount(0);
+  await expect(prazo(editor)).toBeInViewport();
 });
 
 test('@p0 11.9-E2E-006 Responsável typed is in the outbox when the field blurs, and the card shows it after a reload', async ({ page }) => {

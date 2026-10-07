@@ -23,6 +23,9 @@ export interface OverflowMenuProps {
   label?: string;
 }
 
+/** F-19 (D9): every Overflow menu's popover placement. */
+export const OVERFLOW_MENU_PLACEMENT = 'bottom end' as const;
+
 /**
  * Opens on tap or Enter; arrow keys move, Esc closes and returns focus to the trigger
  * (Component Patterns › Overflow menu) — all built into `MenuTrigger`/`Menu`. A toggle
@@ -41,7 +44,10 @@ export function OverflowMenu({ name, items, destructiveItems = [], label }: Over
           <circle cx="19" cy="12" r="2" fill="currentColor" stroke="none" />
         </svg>
       </Button>
-      <Popover ref={relabelDismissButtons}>
+      {/* Review fixes 2026-10-06 (F-19, D9): the menu opens under the trigger, aligned to its right
+          edge, as the mock's `.overflow-menu.is-open { position: absolute; right: var(--sp-2) }`
+          draws it, so a trigger near the right edge never pushes it past the viewport. */}
+      <Popover ref={relabelDismissButtons} placement={OVERFLOW_MENU_PLACEMENT}>
         <Menu
           className="overflow-menu"
           onAction={(key) => {

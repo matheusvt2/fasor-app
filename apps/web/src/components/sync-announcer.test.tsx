@@ -1,44 +1,56 @@
-import type { SyncCounts } from '@app/domain';
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
-import { SyncAnnouncer } from './sync-announcer.tsx';
-
-const counts = (over: Partial<SyncCounts> = {}): SyncCounts => ({
-  pending: 0,
-  sent: 0,
-  dead: 0,
-  sheets_pending: 0,
-  photos_pending: 0,
-  suggestions_pending: 0,
-  readings_queued: 0,
-  merged: 0,
-  upload_errors: 0,
-  ...over,
-});
+import { act, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { SYNC_ANNOUNCEMENT_CLEAR_MS, SyncAnnouncer } from './sync-announcer.tsx';
 
 describe('SyncAnnouncer', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('is a hidden status region that says nothing on the first render', () => {
-    render(<SyncAnnouncer state="pending" counts={counts({ pending: 3 })} />);
+    render(<SyncAnnouncer state="pending" />);
     const region = screen.getByTestId('sync-announcer');
     expect(region).toHaveAttribute('role', 'status');
     expect(region).toHaveClass('visually-hidden');
     expect(region).toHaveTextContent('');
   });
 
-  it('announces the new state word on a transition', () => {
-    const { rerender } = render(<SyncAnnouncer state="pending" counts={counts({ pending: 3 })} />);
-    rerender(<SyncAnnouncer state="ok" counts={counts()} />);
+  it('announces the transition word of the new state (D10)', () => {
+    const { rerender } = render(<SyncAnnouncer state="pending" />);
+    rerender(<SyncAnnouncer state="ok" />);
     expect(screen.getByTestId('sync-announcer')).toHaveTextContent('Sincronizado');
-    rerender(<SyncAnnouncer state="offline" counts={counts()} />);
+    rerender(<SyncAnnouncer state="offline" />);
     expect(screen.getByTestId('sync-announcer')).toHaveTextContent('Sem conexão');
+    rerender(<SyncAnnouncer state="error" />);
+    expect(screen.getByTestId('sync-announcer')).toHaveTextContent('Erro de sincronização');
+    rerender(<SyncAnnouncer state="conflict" />);
+    expect(screen.getByTestId('sync-announcer')).toHaveTextContent('Conflito');
   });
 
-  it('stays silent when only the counts change', () => {
-    const { rerender } = render(<SyncAnnouncer state="ok" counts={counts()} />);
-    rerender(<SyncAnnouncer state="pending" counts={counts({ pending: 3 })} />);
-    expect(screen.getByTestId('sync-announcer')).toHaveTextContent('3 pendentes');
-    rerender(<SyncAnnouncer state="pending" counts={counts({ pending: 5 })} />);
-    // A count is not a transition: the region keeps the word it already announced.
-    expect(screen.getByTestId('sync-announcer')).toHaveTextContent('3 pendentes');
+  it('F-23: announces pending without a count, so the region never holds a stale number', () => {
+    const { rerender } = render(<SyncAnnouncer state="ok" />);
+    rerender(<SyncAnnouncer state="pending" />);
+    const region = screen.getByTestId('sync-announcer');
+    expect(region).toHaveTextContent('Alterações pendentes');
+    expect(region.textContent).not.toMatch(/\d/);
+    // A count change is not a transition: the props carry no count, and a rerender says nothing new.
+    rerender(<SyncAnnouncer state="pending" />);
+    expect(region).toHaveTextContent('Alterações pendentes');
+  });
+
+  it('F-23: clears the region a few seconds after writing it', () => {
+    vi.useFakeTimers();
+    const { rerender } = render(<SyncAnnouncer state="ok" />);
+    rerender(<SyncAnnouncer state="offline" />);
+    const region = screen.getByTestId('sync-announcer');
+    expect(region).toHaveTextContent('Sem conexão');
+    act(() => {
+      vi.advanceTimersByTime(SYNC_ANNOUNCEMENT_CLEAR_MS - 1);
+    });
+    expect(region).toHaveTextContent('Sem conexão');
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(region).toHaveTextContent('');
   });
 });

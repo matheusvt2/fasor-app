@@ -89,6 +89,7 @@ export {
   measurementTableVerifyCount,
   type MismatchPart,
   displayMismatchText,
+  MISMATCH_LINE_SEP,
   type DisplayBurstStop,
   displayBurstStops,
   displayBurstStart,

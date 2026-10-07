@@ -83,6 +83,12 @@ export interface TreeEquipmentNode {
   stateText: string;
   /** The rail row's `.tree-meta`: the TAG, and for a sheet not tested its reason ("SEC-C05 · Solicitação do cliente"); the rail's state keeps the word alone. */
   railMetaText: string;
+  /**
+   * Review fixes 2026-10-06 (F-07): what `railMetaText` holds after the TAG (`'' `, or
+   * `' · Solicitação do cliente'`; the reason alone when there is no TAG), so the rail can keep
+   * the TAG on one line: `railMetaText === tag + railMetaRest`.
+   */
+  railMetaRest: string;
   /** 1-based position among the live blocks of the same location, and how many there are. */
   position: number;
   siblings: number;
@@ -304,6 +310,7 @@ function buildLocationTree(
       stateWord: word,
       stateText: reason === null ? word : `${word}${SEP}${reason}`,
       railMetaText: [tag, reason].filter((part): part is string => part !== null && part !== '').join(SEP),
+      railMetaRest: reason === null || reason === '' ? '' : tag === '' ? reason : `${SEP}${reason}`,
       position,
       siblings,
       duplicate: block.equipment_id !== null && duplicated.has(block.equipment_id),

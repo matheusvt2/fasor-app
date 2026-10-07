@@ -52,7 +52,14 @@
    own route (the App bar's back); from 768 px the 320 px rail, collapsed to the 48 px strip by
    default in portrait (768-1023 px). The rail stays in view while the sheet scrolls. */
 [data-route="/relatorio/:id/ficha/:blockId"] .ficha-body { flex: 1; display: flex; min-height: 0; align-items: flex-start; }
-[data-route="/relatorio/:id/ficha/:blockId"] .rail, [data-route="/relatorio/:id/ficha/:blockId"] .rail-collapsed { position: sticky; top: 0; align-self: flex-start; max-height: 100dvh; }
+[data-route="/relatorio/:id/ficha/:blockId"] .rail, [data-route="/relatorio/:id/ficha/:blockId"] .rail-collapsed { position: sticky; top: var(--touch-field); align-self: flex-start; max-height: calc(100dvh - var(--touch-field)); }
+/* Review fixes 2026-10-06 (F-06): the rail sticks under the sticky App bar (`app.css`), its
+   height inside the viewport; below a 480 px viewport height the bar unsticks and so does the offset,
+   and the collapsed strip takes the whole height again (`app.css` sizes it below the bar). */
+@media (max-height: 479.98px) {
+  [data-route="/relatorio/:id/ficha/:blockId"] .rail, [data-route="/relatorio/:id/ficha/:blockId"] .rail-collapsed { top: 0; max-height: 100dvh; }
+  [data-route="/relatorio/:id/ficha/:blockId"] .rail-collapsed { height: 100dvh; }
+}
 [data-route="/relatorio/:id/ficha/:blockId"] .rail { overflow-y: auto; }
 [data-route="/relatorio/:id/ficha/:blockId"] .relatorio-tree button.tree-body { text-align: left; }
 [data-route="/relatorio/:id/ficha/:blockId"] .relatorio-tree .tree-chevron .ico { transition: transform .15s; }
@@ -190,3 +197,14 @@
 /* DESIGN.md › Photo tile: "`thumb-inline` 64px (inline beside a sheet)"; the strip's tile takes
    the `.photo-tile.is-inline` width (`components.css` 610, declaration verbatim). */
 [data-route="/relatorio/:id/ficha/:blockId"] .sheet-photos .photo-tile { flex: none; padding: 0; border: 0; background: none; width: var(--thumb-inline); }
+
+/* Review fixes 2026-10-06 (F-22): authored, the display-read comparison as two lines on purpose
+   inside the mock's `.suggestion-alt` (`components.css`: flex, wrapping): "Visor: 1,45 GΩ", then
+   "digitado 1.000 GΩ — Conferir", each line wrapping as the mock's line does. */
+[data-route="/relatorio/:id/ficha/:blockId"] .suggestion-alt .mismatch-line { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); }
+
+/* Review fixes 2026-10-06 (F-26): authored, a camera opener whose camera was asked for and has not
+   answered (the permission prompt may be open): the tile's meta line "Abrindo câmera…" under its
+   label, in the meta style (`components.css` `.photo-row .photo-meta`), and the progress cursor. */
+.camera-capture-tile .camera-opening { font-size: var(--t-meta-size); line-height: var(--t-meta-lh); font-weight: 400; color: var(--ink-secondary); }
+.camera-capture-tile[data-state="opening"], .camera-capture-btn[data-state="opening"] { cursor: progress; }

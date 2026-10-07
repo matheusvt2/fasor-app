@@ -4,6 +4,7 @@ import {
   pendingSummaryText,
   syncBadgeLabel,
   syncStatusWord,
+  syncAnnouncementText,
   syncBadgeShortLabel,
   syncBadgeState,
   syncCounts,
@@ -144,8 +145,18 @@ describe('pendingSummaryText and syncBadgeLabel', () => {
     expect(syncBadgeLabel('conflict', base)).toBe('Conflito');
   });
 
+  it('F-23 (D10): announces each transition with a word and never a count', () => {
+    expect(syncAnnouncementText('ok')).toBe('Sincronizado');
+    expect(syncAnnouncementText('pending')).toBe('Alterações pendentes');
+    expect(syncAnnouncementText('offline')).toBe('Sem conexão');
+    expect(syncAnnouncementText('error')).toBe('Erro de sincronização');
+    expect(syncAnnouncementText('conflict')).toBe('Conflito');
+    for (const state of ['ok', 'pending', 'offline', 'error', 'conflict'] as const) expect(syncAnnouncementText(state)).not.toMatch(/\d/);
+  });
+
   it('gives the narrow-viewport words of MOCK-GUIDE.md', () => {
-    expect(syncBadgeShortLabel('ok', base)).toBe('OK');
+    // Review fixes 2026-10-06 (F-29): "Sinc." where the mock's "OK" meant nothing on its own.
+    expect(syncBadgeShortLabel('ok', base)).toBe('Sinc.');
     expect(syncBadgeShortLabel('pending', { ...base, pending: 3, sheets_pending: 3 })).toBe('3');
     expect(syncBadgeShortLabel('offline', base)).toBe('Off');
     expect(syncBadgeShortLabel('error', base)).toBe('Erro');
