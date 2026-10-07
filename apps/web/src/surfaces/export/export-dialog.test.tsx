@@ -923,12 +923,12 @@ describe('Export dialog (Story 7.5)', () => {
     render(<Harness sync={sync} />);
     await userEvent.click(within(dialog()).getByRole('button', { name: 'Pré-visualizar' }));
     expect(tabDocument.title).toBe('Gerando rascunho…');
-    expect(tabDocument.querySelector('[role="progressbar"]')).toHaveAttribute('aria-label', 'Gerando rascunho…');
-    expect(tabDocument.body).toHaveTextContent('O PDF abre nesta aba quando ficar pronto. Pode levar até um minuto.');
+    expect(tabDocument.querySelector('[role="progressbar"]')?.getAttribute('aria-label')).toBe('Gerando rascunho…');
+    expect(tabDocument.body.textContent).toContain('O PDF abre nesta aba quando ficar pronto. Pode levar até um minuto.');
     // Once the outbox is drained and the job asked for, the page moves to the second step.
     await waitFor(() => expect(sync.preview).toHaveBeenCalled());
-    expect(tabDocument.querySelector('h1')).toHaveTextContent('Gerando rascunho…');
-    expect(tabDocument.body).toHaveTextContent('Etapa 2 de 2');
+    await waitFor(() => expect(tabDocument.querySelector('h1')?.textContent).toBe('Gerando rascunho…'));
+    expect(tabDocument.body.textContent).toContain('Etapa 2 de 2');
     open.mockRestore();
   });
 
