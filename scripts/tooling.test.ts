@@ -65,6 +65,12 @@ describe('test-reset guard', () => {
     expect(() => assertInCompose({ RUNNING_IN_COMPOSE: '1' }, () => true)).not.toThrow();
   });
 
+  it('accepts a podman container, marked by /run/.containerenv instead of /.dockerenv', () => {
+    const podman = (path: string) => path === '/run/.containerenv';
+    expect(() => assertInCompose({ RUNNING_IN_COMPOSE: '1' }, podman)).not.toThrow();
+    expect(() => assertInCompose({}, podman)).toThrow(/docker-compose/);
+  });
+
   it('exits non-zero when run without the compose marker', () => {
     const result = spawnSync('pnpm', ['exec', 'tsx', 'scripts/test-reset.ts', 'c1'], {
       cwd: root,

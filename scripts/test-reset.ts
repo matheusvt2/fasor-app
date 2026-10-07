@@ -10,7 +10,10 @@ export function assertInCompose(
   exists: (path: string) => boolean = existsSync,
   command = 'pnpm test:reset <company-id>',
 ): void {
-  if (env.RUNNING_IN_COMPOSE !== '1' || !exists('/.dockerenv')) {
+  // Docker marks its containers with `/.dockerenv`, podman with `/run/.containerenv`;
+  // this machine runs the compose file under either.
+  const inContainer = exists('/.dockerenv') || exists('/run/.containerenv');
+  if (env.RUNNING_IN_COMPOSE !== '1' || !inContainer) {
     throw new Error(
       `this script must run inside docker-compose (RUNNING_IN_COMPOSE=1 in a container): use "docker compose run --rm tools ${command}".`,
     );
