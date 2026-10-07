@@ -80,3 +80,6 @@
 .audit-findings .audit-summary { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); margin-bottom: var(--sp-2); }
 /* authored: the Sumário block sits under the rows with the list's own top spacing. */
 .sumario-audit { margin-top: var(--sp-5); }
+/* authored: the audit's button row, the `.generate-row` declarations under a class of its own so
+   the "Gerar relatório" row (and its reason) stays the dialog's only `.generate-row`. */
+.export-dialog .audit-actions { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-3) var(--sp-4); }

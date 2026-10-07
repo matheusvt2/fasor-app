@@ -470,7 +470,7 @@ export function ExportDialog({ relatorioId, isOpen, onOpenChange, onEditInSetup,
                 <span>{copy.audit.failed}</span>
               </div>
             ) : null}
-            <div className="generate-row">
+            <div className="audit-actions">
               <Button
                 variant="secondary"
                 isDisabled={!audit.online || audit.running}
