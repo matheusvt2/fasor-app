@@ -1,4 +1,5 @@
 import {
+  READING_FAST_POLL_WINDOW_MS,
   isAutoPulled,
   pulledAdditions,
   pulledMergePairs,
@@ -29,7 +30,7 @@ import {
   writeSyncState,
 } from '../db/sync-store.ts';
 import { opOf } from '../db/commit.ts';
-import { autoConfirmPending, discardStaleProse, hasRunningReading } from '../db/suggestion-store.ts';
+import { autoConfirmPending, discardCancelledReadings, discardStaleProse, hasRunningReading } from '../db/suggestion-store.ts';
 import {
   clearUploadError,
   markBlobAcked,
@@ -157,9 +158,12 @@ export const SYNC_INTERVAL_MS = 60_000;
  * E78-Q8: while this device holds a photo whose reading is `running`, the next cycle comes
  * after 5 s instead of 60 s, so "Lendo…" clears about when the server finishes; for at most
  * 120 s from the first cycle that saw one (the window restarts only once a cycle sees none).
+ * Story 13.5 (WAIT-1): past the window the cycles keep coming every `SYNC_INTERVAL_MS` until
+ * the result or the failure lands, and the wait line says so; the window is the kernel's
+ * (`READING_FAST_POLL_WINDOW_MS`), this name its alias.
  */
 export const READING_POLL_INTERVAL_MS = 5_000;
-export const READING_POLL_WINDOW_MS = 120_000;
+export const READING_POLL_WINDOW_MS = READING_FAST_POLL_WINDOW_MS;
 
 const defaultSubscribeOnline = (listener: () => void): (() => void) => {
   if (typeof window === 'undefined') return () => {};
@@ -489,9 +493,12 @@ export function createSyncEngine(deps: SyncEngineDeps): SyncEngine {
     try {
       const author = deps.author();
       if (author === null) return;
-      // Stories 9.3/9.5: prose suggestions the engineer already overtook are discarded first.
-      const discarded = await discardStaleProse(deps.db, author, { newId: deps.newId, now: deps.now });
-      const confirmed = await autoConfirmPending(deps.db, author, { newId: deps.newId, now: deps.now });
+      // Stories 9.3/9.5: prose suggestions the engineer already overtook are discarded first;
+      // Story 13.5: then every suggestion of a reading cancelled on this device, before anything
+      // could auto-confirm it (and before the arrival toast, which waits for the cycle's end).
+      const commitDeps = { newId: deps.newId, now: deps.now };
+      const discarded = [...(await discardStaleProse(deps.db, author, commitDeps)), ...(await discardCancelledReadings(deps.db, author, commitDeps))];
+      const confirmed = await autoConfirmPending(deps.db, author, commitDeps);
       // The confirm and discard ops were committed after this cycle's push: one more cycle sends them now.
       if (confirmed.length > 0 || discarded.length > 0) onlineWhileRunning = true;
     } catch (error) {

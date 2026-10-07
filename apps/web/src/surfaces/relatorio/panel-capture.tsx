@@ -1,9 +1,12 @@
 import {
   panelCancelOps,
   panelProposal,
+  panelPhotosAwaiting,
   panelProvenance,
   panelReadingLine,
   panelReadingTarget,
+  readingStartedAt,
+  readingWait,
   panelSuggestionOf,
   panelTypeChips,
   suggestionRowSchema,
@@ -15,7 +18,7 @@ import {
   type PhotoFileRow,
   type SuggestionRow,
 } from '@app/domain';
-import { useCallback, useId, useImperativeHandle, useMemo, useRef, useState, type Ref, type RefObject } from 'react';
+import { useCallback, useEffect, useId, useImperativeHandle, useMemo, useRef, useState, type Ref, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { Button as AriaButton } from 'react-aria-components';
 import { Button, Chip, TextButton } from '../../components/index.ts';
@@ -52,6 +55,41 @@ import type { PaletteTarget, PanelPhotoInput } from './block-palette-field.tsx';
 export interface PanelCaptureHandle {
   /** Opens the camera for a block placed as the palette would place it; call it inside the tap. */
   open: (target: PaletteTarget) => void;
+  /**
+   * Story 13.5 (WAIT-3): reopens the result dialog of a panel photo taken earlier whose dialog
+   * was left by navigation, without the camera; nothing opens once the photo is gone or
+   * confirmed (the dialog's own rule).
+   */
+  resume: (photoId: string, target: PaletteTarget) => void;
+}
+
+/** One row of the palette's panel photos still waiting (Story 13.5, WAIT-3). */
+export interface PanelAwaitingRow {
+  photoId: string;
+  /** "Lendo a foto…", the offline or failed reason, or the proposal ("Criar SEC-C09-2 · Chave seccionadora · Coluna 9?"). */
+  text: string;
+}
+
+/**
+ * Story 13.5 (WAIT-3): the panel photos taken from the palette of `locationId` whose result
+ * dialog was left (`panelPhotosAwaiting`), each with what the dialog would say now: the
+ * proposal when one is there, else the reading line (`panelProposal`, `panelReadingLine`).
+ */
+export function panelAwaitingRows(input: {
+  photos: readonly PhotoFileRow[];
+  pending: readonly SuggestionRow[];
+  locationId: string;
+  seedVersion: string;
+  locations: readonly LocationRow[];
+  equipment: readonly EquipmentRow[];
+  online: boolean;
+}): PanelAwaitingRow[] {
+  return panelPhotosAwaiting(input.photos, input.locationId).map((photo) => {
+    const suggestion = panelSuggestionOf(input.pending, photo.id);
+    const proposal = panelProposal({ seedVersion: input.seedVersion, locations: input.locations, equipment: input.equipment, paletteLocationId: input.locationId, suggestion, pickedType: null });
+    const line = panelReadingLine({ online: input.online, photo, suggestion });
+    return { photoId: photo.id, text: proposal?.text ?? line?.text ?? '' };
+  });
 }
 
 /** What "Confirmar" asks the tree to create. */
@@ -89,6 +127,24 @@ function captureTarget(shot: Shot): CaptureTarget {
     fileId: shot.photoId,
     reading: { kind: 'panel', target: panelReadingTarget(shot.target.locationId) as JsonValue },
   };
+}
+
+/** The dialog's waiting line: the kernel's "Lendo a foto…" under 10 s, then the elapsed text ("Lendo… 12 s"). */
+function panelWaitText(waiting: string, startedAt: string, nowIso: string): string {
+  const wait = readingWait(startedAt, nowIso);
+  return wait.cancellable ? wait.text : waiting;
+}
+
+/** The device clock as an ISO string, read again every second while `active`. */
+function useTickingNow(active: boolean): string {
+  const [iso, setIso] = useState(() => toIso(now()));
+  useEffect(() => {
+    if (!active) return;
+    setIso(toIso(now()));
+    const timer = setInterval(() => setIso(toIso(now())), 1000);
+    return () => clearInterval(timer);
+  }, [active]);
+  return iso;
 }
 
 export function PanelCapture({ relatorioId, seedVersion, locations, equipment, onConfirm, focusAfter, ref }: PanelCaptureProps) {
@@ -138,7 +194,15 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, o
     },
     [cameraOpen],
   );
-  useImperativeHandle(ref, () => ({ open }), [open]);
+  const resume = useCallback((photoId: string, target: PaletteTarget) => {
+    const next = { target, photoId };
+    lastTarget.current = target;
+    shotRef.current = next;
+    setShot(next);
+    setPicked(null);
+    setExpanded(false);
+  }, []);
+  useImperativeHandle(ref, () => ({ open, resume }), [open, resume]);
 
   const photoId = shot?.photoId ?? null;
   const data = useLiveQuery(async () => {
@@ -153,6 +217,7 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, o
   }, [db, photoId]);
 
   const photo = data?.photo ?? null;
+  const nowIso = useTickingNow(photo !== null && (photo.reading_status === 'queued' || photo.reading_status === 'running'));
   const suggestion = shot === null || data == null ? null : panelSuggestionOf(data.pending, shot.photoId);
 
   /** "Cancelar", Esc, the scrim and "Fotografar de novo": the unconfirmed photo removed and its suggestion discarded. */
@@ -187,6 +252,9 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, o
   const current = picked ?? first;
   // E9-Q10: the kernel says why no proposal is there yet (reading, offline, failed, nothing read).
   const readingLine = panelReadingLine({ online: session.online, photo, suggestion });
+  // Story 13.5: from 10 s the waiting line says how long ("Lendo… 12 s"); no cancel here (the
+  // dialog's "Cancelar" keeps its Story 9.2 meaning, removing the unconfirmed photo).
+  const waitText = readingLine?.kind === 'waiting' ? panelWaitText(readingLine.text, readingStartedAt({ captured_at: photo.captured_at }), nowIso) : null;
 
   const confirm = () => {
     if (proposal === null) return;
@@ -230,7 +298,7 @@ export function PanelCapture({ relatorioId, seedVersion, locations, equipment, o
               into the failed or empty reason, so the change is announced (E9-Q10). */}
           {readingLine === null ? null : (
             <div className="detect-line" role="status">
-              {readingLine.kind === 'waiting' ? <p className="detect-waiting">{readingLine.text}</p> : <span className="btn-reason">{readingLine.text}</span>}
+              {readingLine.kind === 'waiting' ? <p className="detect-waiting">{waitText ?? readingLine.text}</p> : <span className="btn-reason">{readingLine.text}</span>}
             </div>
           )}
           {proposal === null ? null : (

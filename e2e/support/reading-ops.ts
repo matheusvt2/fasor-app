@@ -229,10 +229,17 @@ export async function holdPhotoBytes(page: Page): Promise<string[]> {
  * Oxigênio "Transformador de força" sheet (the Flow 2b plate is a transformer's) through the
  * tree, by the row's type.
  */
-export async function openTransformerSheet(page: Page, account: SeedAccount, database: string, options: { width?: number } = {}): Promise<{ relatorioId: string; blockId: string }> {
+export async function openTransformerSheet(
+  page: Page,
+  account: SeedAccount,
+  database: string,
+  options: { width?: number; signIn?: () => Promise<void> } = {},
+): Promise<{ relatorioId: string; blockId: string }> {
   await resetEmpresaB(account, { standard: true });
   await page.setViewportSize({ width: options.width ?? 1280, height: 900 });
-  await signIn(page, account.email);
+  // The durability projects pass their own sign-in (`signInForDurability`), which works on WebKit.
+  if (options.signIn === undefined) await signIn(page, account.email);
+  else await options.signIn();
   const { relatorioId } = await pushNewRelatorio(page, account, database);
   await page.goto(`/relatorio/${relatorioId}`);
   await expect(page.getByRole('list', { name: 'Sumário do relatório' }).locator('.sum-title').first()).toHaveText('Capa e dados do relatório', { timeout: 30_000 });

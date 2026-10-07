@@ -37,15 +37,21 @@ export interface PhotoTile {
    * `failed` written over `failed` included, so a control can wait for the next one.
    */
   reading_status_op_id: string | null;
+  /**
+   * Story 13.5: the `client_ts` the server stamped on that newest status op (server clock),
+   * where the reading's wait line counts from; null while only its create set one (the
+   * capture time counts then). Absent reads null.
+   */
+  reading_status_at?: string | null;
   /** Story 9.3: the "Pessoas na foto" mark (absent reads false). */
   people_in_photo?: boolean;
 }
 
-/** The newest pulled `file/{id}/reading_status` op of a photo, by server `seq`; null when none. Read from the top of `[path+seq]`. */
-async function readingStatusOpId(db: AppDatabase, photoId: string): Promise<string | null> {
+/** The newest pulled `file/{id}/reading_status` op of a photo, by server `seq` (its id and its stamp); null when none. Read from the top of `[path+seq]`. */
+async function readingStatusOp(db: AppDatabase, photoId: string): Promise<{ op_id: string; client_ts: string } | null> {
   const path = `file/${photoId}/reading_status`;
   const latest = await db.remote_ops.where('[path+seq]').between([path, Dexie.minKey], [path, Dexie.maxKey]).last();
-  return latest?.op_id ?? null;
+  return latest === undefined ? null : { op_id: latest.op_id, client_ts: latest.client_ts };
 }
 
 /** The live photos of one relatório matching `keep`, with their thumbs, in the kernel's capture order. */
@@ -63,10 +69,10 @@ async function photoTiles(db: AppDatabase, relatorioId: string, keep: (row: Phot
     rows.push(row);
   }
   const ids = rows.map((row) => row.id);
-  const [thumbs, blobs, statusOpIds] = await Promise.all([
+  const [thumbs, blobs, statusOps] = await Promise.all([
     db.thumbs.bulkGet(ids),
     db.files.bulkGet(ids),
-    Promise.all(rows.map((row) => (row.reading_kind === null ? Promise.resolve(null) : readingStatusOpId(db, row.id)))),
+    Promise.all(rows.map((row) => (row.reading_kind === null ? Promise.resolve(null) : readingStatusOp(db, row.id)))),
   ]);
   const tiles: PhotoTile[] = rows.map((row, i) => ({
     id: row.id,
@@ -81,7 +87,8 @@ async function photoTiles(db: AppDatabase, relatorioId: string, keep: (row: Phot
     upload_error: blobs[i]?.upload_error ?? null,
     reading_kind: row.reading_kind,
     reading_status: row.reading_status,
-    reading_status_op_id: statusOpIds[i] ?? null,
+    reading_status_op_id: statusOps[i]?.op_id ?? null,
+    reading_status_at: statusOps[i]?.client_ts ?? null,
     people_in_photo: row.people_in_photo,
   }));
   return tiles.sort(comparePhotos);
