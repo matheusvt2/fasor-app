@@ -101,7 +101,14 @@ test('@p0 13.8-E2E-001 one tap brings the findings to the dialog and the Sumári
   expect(await outboxIds(page)).toEqual(before);
   expect((await readStore<OutboxRecord>(page, database, 'outbox')).some((row) => row.path.startsWith('audit_run'))).toBe(false);
 
-  // A sheet's "Ver" lands on its ficha.
+  // A section's "Ver" closes the dialog and marks its Sumário row.
+  await rows.nth(2).getByRole('button', { name: 'Ver Seção 10 · Conclusão e parecer' }).click();
+  await expect(modal).toBeHidden();
+  await expect(page.locator('.sumario .sum-row[data-row="section_10"]')).toHaveClass(/is-highlighted/);
+
+  // A sheet's "Ver" (from the dialog, reopened) lands on its ficha.
+  await footButton(page).click();
+  await expect(modal).toBeVisible();
   const sheetRow = rows.nth(0);
   const label = (await sheetRow.getByRole('button', { name: /^Ver / }).getAttribute('aria-label'))!;
   await sheetRow.getByRole('button', { name: label }).click();

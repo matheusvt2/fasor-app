@@ -360,6 +360,36 @@ describe('13.8-API-001 one tap, one run, one job', () => {
   });
 });
 
+describe('13.8-API-004 the queue refuses the job', () => {
+  it('answers 500, records the run failed/enqueue_failed, and a later tap with a working queue is queued (not 409)', async () => {
+    const broken = createApp({
+      probes,
+      auth,
+      db,
+      s3,
+      bucket: config.S3_BUCKET,
+      staticDir,
+      enqueueAudit: async () => {
+        throw new Error('boom');
+      },
+    });
+    const { relatorioId, lastOpId } = await relatorio(broken);
+    const failed = await postAudit(broken, relatorioId, lastOpId);
+    expect(failed.status).toBe(500);
+    expect(errorResponseSchema.parse(await failed.json()).code).toBe('internal_error');
+    const afterFailure = await runsOf(relatorioId);
+    expect(afterFailure).toHaveLength(1);
+    expect(afterFailure[0]).toMatchObject({ status: 'failed', error: 'enqueue_failed' });
+
+    const sent: AuditPayload[] = [];
+    const working = appWith(sent);
+    const queued = await postAudit(working, relatorioId, lastOpId);
+    expect(queued.status, await queued.clone().text()).toBe(202);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]!.run_id).toBe(auditResponseSchema.parse(await queued.json()).audit_run_id);
+  });
+});
+
 describe('13.8-API-002 refusals', () => {
   it('AI features off: 409 ai_features_off, no run, no job', async () => {
     const sent: AuditPayload[] = [];

@@ -4,11 +4,14 @@ import { BLOCK_CHAVE_ID, portoSeguroSmall } from '../../fixtures/porto-seguro/sm
 import { SERVER_DEVICE_ID } from '../ids.ts';
 import type { Op } from '../ops/op.ts';
 import { replay } from '../ops/replay.ts';
+import { entityKey } from '../ops/apply.ts';
+import { instantiateTemplate } from '../relatorio/instantiate.ts';
+import { standardTemplate } from '../seed/template.ts';
 import { layoutSpec } from '../print/layout.ts';
 import { preIssue } from '../relatorio/pre-issue.ts';
 import { progress } from '../relatorio/progress.ts';
 import { sumarioRows } from '../relatorio/sumario.ts';
-import type { AuditRunRow } from '../schemas/entities.ts';
+import type { AuditRunRow, BlockRow } from '../schemas/entities.ts';
 import { buildSnapshot, type RelatorioSnapshot } from '../schemas/snapshot.ts';
 import { AUDIT_INPUT_MAX_CHARS, AUDIT_TRUNCATED_MARKER, auditInput, type AuditRef } from './input.ts';
 import { AUDIT_FINDING_KINDS } from './schema.ts';
@@ -100,6 +103,35 @@ describe('13.8-UNIT-001 auditInput over the small fixture', () => {
     expect(auditInput(draft(snapshot), snapshot)).toEqual(input);
     expect(input.truncated).toBe(false);
     expect(input.text.length).toBeLessThanOrEqual(AUDIT_INPUT_MAX_CHARS);
+  });
+});
+
+describe('13.8-UNIT-006 section refs when the printed numbering differs from FO.SERV-03', () => {
+  it('names a printed section by its own Sumário row: with section 2 removed, the printed section 9 is the parecer', () => {
+    const state = new Map(replay(portoSeguroSmall.log, { deadOpIds: portoSeguroSmall.deadOpIds }));
+    let n = 0;
+    const { drafts } = instantiateTemplate(
+      standardTemplate({ id: '019966c1-000d-7000-8000-000000000001' }),
+      { id: portoSeguroSmall.projectId },
+      { service_start: null, service_end: null, existingEquipment: [], responsible_user_id: null },
+      { newId: () => `019966c1-000c-7000-8000-${(++n).toString(16).padStart(12, '0')}`, actorId: portoSeguroSmall.userId, companyId: portoSeguroSmall.companyId },
+    );
+    const sections = drafts
+      .filter((draft) => draft.path.startsWith('block/'))
+      .map((draft) => draft.value as unknown as BlockRow)
+      .filter((block) => block.location_id === null && block.block_type !== 'section_2')
+      .map((block) => ({ ...block, relatorio_id: portoSeguroSmall.relatorioId }));
+    expect(sections).toHaveLength(10);
+    for (const block of sections) state.set(entityKey('block', block.id), block);
+    const snapshot = buildSnapshot(state, portoSeguroSmall.relatorioId);
+    const input = auditInput(draft(snapshot), snapshot);
+    const byId = new Map(input.refs.map((ref) => [ref.id, ref]));
+    expect(byId.get('section:9')).toEqual({ id: 'section:9', label: 'Seção 9 · Conclusão e parecer', target: { kind: 'section', rowKey: 'section_10' } });
+    expect(byId.get('section:8')?.target).toEqual({ kind: 'section', rowKey: 'section_9' });
+    expect(byId.has('section:11')).toBe(false);
+    // The parecer is sent first, under its printed number.
+    expect(input.text.startsWith('[section:9] 9 ')).toBe(true);
+    expect(input.text.split('\n')[1]).toMatch(/^PARECER: /);
   });
 });
 

@@ -2,10 +2,10 @@
 title: 'Story 13.8: the emission audit, one AI pass before Emitir that points and never writes'
 type: 'feature'
 created: '2026-10-07'
-status: 'in-progress'
+status: 'done'
 baseline_revision: '24196afec8da12e90ba3cb57155f5f28688bba4f'
 review_loop_iteration: 0
-followup_review_recommended: false
+followup_review_recommended: true
 dev_model: opus
 dev_effort: high
 context:
@@ -13,7 +13,14 @@ context:
   - '{project-root}/AGENTS.md'
 warnings: ['batched', 'oversized']
 batched_reason: 'Epic 13 batch E: one story (13.8) in its own batch, run beside batches A to D under the batched playbook; it owns the Export dialog, the Sumario findings rows and the new audit job.'
-deferred: []
+deferred:
+  - summary: >-
+      The audit worker's invalid-payload path (handleAuditJobs, recordInvalidPayload) has no test.
+    evidence: |-
+      Only the definitions in apps/api/src/jobs/audit/worker.ts reference them; the integration test calls runAuditJob directly. Reaching it needs a code drift, since the route builds the payload from the same schema. Mirror jobs/generate/worker.integration.test.ts when the file is next touched.
+    location: >-
+      apps/api/src/jobs/audit/worker.ts:38-77
+    severity: medium
 ---
 
 <intent-contract>
@@ -130,6 +137,26 @@ as information rows with "Ver" in the dialog and on the Sumário. Nothing else r
 ## Spec Change Log
 
 ## Review Triage Log
+
+### 2026-10-07 — Review pass
+- layers: Edge Case Hunter and Verification Gap Reviewer; Blind Hunter and Intent Alignment skipped (token economy; the integrated epic review covers them).
+- verdicts: 15 findings — high 0, medium 5, low 8, false 2, maybe-false 0
+- findings:
+  - `[low]` `[patch]` (ECH) `http/audit.ts` enqueue-failure applyOps result unchecked — real but rare; grouped with VG-other; try/catch plus logError on throw or rejected ops, original error rethrown.
+  - `[low]` `[reject]` (ECH) `use-audit.ts` polls `syncRelatorio` while the dialog is closed — polling runs only while a run is active (bounded by the queue ages) and it also brings the findings to the Sumário block, which wants them.
+  - `[low]` `[reject]` (ECH) device clock ahead of the server reads a fresh run as stale — the same `isJobActive` rule the generate flow has always used; a skew of more than 5 to 15 minutes is rarely met, and the fix (server-relative ages) is new machinery.
+  - `[low]` `[reject]` (ECH) the failure line stays beside fresh findings from another device's run — rarely met; the fix adds an effect; the next tap clears it.
+  - `[low]` `[reject]` (ECH) "Ver" on a sheet or section removed after the run — rarely met; the ficha route already handles a missing block; a guard adds branches.
+  - `[low]` `[reject]` (ECH) one line longer than the remaining budget drops the rest — a single line of more than about 48k characters is not a real relatório; section 10 goes first.
+  - `[low]` `[reject]` (ECH) `maxChars` smaller than the marker breaks the cap — the parameter is the 48k constant outside tests.
+  - `[false]` `[reject]` (ECH claim) `emission-audit.spec.ts` in `SERIAL_SPECS` without timing a tap — the spec's condition is not the only one: `scripts/e2e.test.ts` requires every spec that generates a document to be serial, and 13.8-E2E-002 issues a revision.
+  - `[false]` `[reject]` (ECH claim) the fake returns fewer than four findings on a relatório with no photo — the spec says a selector with no match is skipped; the AC's "one per kind" holds on a relatório that has each target.
+  - `[medium]` `[patch]` (VG) the route's enqueue-failure path has no test — integration test added: 500, run `failed`/`enqueue_failed`, a later POST answers 202.
+  - `[medium]` `[defer]` (VG) the worker's invalid-payload path (`handleAuditJobs`, `recordInvalidPayload`) has no test — needs a code drift to reach (the route builds the payload from the same schema); deferred as filed.
+  - `[medium]` `[patch]` (VG) `useAudit`'s `audit_running` and `not_caught_up` branches have no test — two cases added to `audit.test.tsx`.
+  - `[medium]` `[patch]` (VG) section refs on a relatório with a removed section are untested — kernel case added (printed `section:9` maps to `section_10`, parecer first).
+  - `[medium]` `[patch]` (VG) a section "Ver" from the dialog and a photo "Ver" are untested — the @p0 e2e clicks a section finding's "Ver" in the dialog; a component test covers the `photos` target.
+  - `[low]` `[patch]` (VG other) the enqueue-failure record's own failure replaces the error and is not logged — same root cause as the first row; same fix.
 
 ## Design Notes
 

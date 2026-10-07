@@ -231,6 +231,54 @@ describe('13.8 the audit in the Export dialog', () => {
     expect(auditButton()).toHaveTextContent('Conferir antes de emitir');
   });
 
+  it('a 409 audit_running waits on the run the server names: one request, its findings render, no failure line', async () => {
+    database = await freshDb();
+    const db = database;
+    const audit = vi.fn(async () => {
+      throw new SyncRequestError({ kind: 'http', status: 409, code: 'audit_running', details: { audit_run_id: RUN } });
+    });
+    let pulls = 0;
+    const syncRelatorio = vi.fn(async () => {
+      // The other run arrives with the first pull, finished with the second.
+      pulls += 1;
+      if (pulls === 1) await applyPulled(db, runOps('running'));
+      else if (pulls === 2) await applyPulled(db, runOps('done').slice(1));
+      return 'ran' as const;
+    });
+    render(<Harness sync={syncState({ audit, syncRelatorio })} />);
+    await userEvent.click(await within(dialog()).findByRole('button', { name: 'Conferir antes de emitir' }));
+    const list = await within(dialog()).findByRole('list', { name: 'Pontos apontados pela conferência por IA' });
+    expect(within(list).getAllByRole('listitem')).toHaveLength(2);
+    await waitFor(() => expect(auditButton()).toHaveTextContent('Conferir antes de emitir'));
+    expect(audit).toHaveBeenCalledTimes(1);
+    expect(within(dialog()).queryByText('Não foi possível conferir agora.')).toBeNull();
+  });
+
+  it('a 409 not_caught_up is answered with a sync and a second request', async () => {
+    database = await freshDb();
+    const db = database;
+    const order: string[] = [];
+    let calls = 0;
+    const audit = vi.fn(async () => {
+      calls += 1;
+      order.push('audit');
+      if (calls === 1) throw new SyncRequestError({ kind: 'http', status: 409, code: 'not_caught_up', details: { missing_op: true, missing_files: [] } });
+      await applyPulled(db, runOps('done'));
+      return { audit_run_id: RUN };
+    });
+    const syncNow = vi.fn(async () => {
+      order.push('sync');
+      return 'ran' as const;
+    });
+    render(<Harness sync={syncState({ audit, syncNow })} />);
+    await userEvent.click(await within(dialog()).findByRole('button', { name: 'Conferir antes de emitir' }));
+    await within(dialog()).findByRole('list', { name: 'Pontos apontados pela conferência por IA' });
+    expect(audit).toHaveBeenCalledTimes(2);
+    const first = order.indexOf('audit');
+    expect(order.slice(first + 1, order.lastIndexOf('audit'))).toContain('sync');
+    expect(within(dialog()).queryByText('Não foi possível conferir agora.')).toBeNull();
+  });
+
   it('a refused request says it could not check', async () => {
     database = await freshDb();
     const audit = vi.fn(async () => {

@@ -133,14 +133,22 @@ export function createAuditRoutes(db: Db, deps: AuditRouteDeps): Hono<AppEnv> {
       if (deps.enqueue === undefined) throw new Error('no queue is configured for audit jobs');
       await deps.enqueue(payload);
     } catch (error) {
-      logError('audit enqueue failed', { company_id: session.companyId, relatorio_id: relatorioId, job_id: runId, error: String(error) });
-      const at = toIso(deps.now());
-      await applyOps(
-        db,
-        session.companyId,
-        [auditRunPut(payload, at, deps.newId, 'status', 'failed'), auditRunPut(payload, at, deps.newId, 'error', 'enqueue_failed'), auditRunPut(payload, at, deps.newId, 'finished_at', at)],
-        { now: deps.now, origin: 'server' },
-      );
+      const fields = { company_id: session.companyId, relatorio_id: relatorioId, job_id: runId };
+      logError('audit enqueue failed', { ...fields, error: String(error) });
+      // The run must not stay `queued` (it would hold every tap for the queue's retention); a
+      // failure to record that is logged, and the enqueue error is the one the route answers.
+      try {
+        const at = toIso(deps.now());
+        const result = await applyOps(
+          db,
+          session.companyId,
+          [auditRunPut(payload, at, deps.newId, 'status', 'failed'), auditRunPut(payload, at, deps.newId, 'error', 'enqueue_failed'), auditRunPut(payload, at, deps.newId, 'finished_at', at)],
+          { now: deps.now, origin: 'server' },
+        );
+        if (result.rejected.length > 0) logError('audit enqueue failure could not fail its run row', { ...fields, rejected: result.rejected });
+      } catch (recordError) {
+        logError('audit enqueue failure could not fail its run row', { ...fields, error: String(recordError) });
+      }
       throw error;
     }
     return c.json({ audit_run_id: runId } satisfies AuditResponse, 202);

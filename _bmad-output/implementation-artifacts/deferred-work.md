@@ -1383,3 +1383,8 @@ Fields: `source_spec` (one or two spec files), `summary`, `evidence`, `class` (`
   evidence: `panel-capture.tsx` `panelWaitText`; `apps/web/src/sync/engine.ts` post-pull sweep; neither is referenced by a test.
   class: debt
   state: open (owner: Epic 13 fix batch)
+- source_spec: `_bmad-output/implementation-artifacts/spec-13-8-emission-audit.md`
+  summary: Story 13.8 review (known open): the audit worker's invalid-payload path (`handleAuditJobs`, `recordInvalidPayload` in `apps/api/src/jobs/audit/worker.ts`) has no test; a malformed job would leave its run reading as running until its age expires.
+  evidence: only the definitions reference them; the integration test calls `runAuditJob` directly. Mirror `apps/api/src/jobs/generate/worker.integration.test.ts`.
+  class: debt
+  state: open (owner: Epic 13 fix batch)
