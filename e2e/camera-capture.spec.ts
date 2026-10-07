@@ -265,8 +265,13 @@ test('@p0 13.6-E2E-002 offline, a shot the device refuses blocks the next one wi
 
     // Still refused: the opener tries the held shot again and does not open the camera.
     await cameraButton(page).click();
+    // The press retries the held shot behind the opener's busy state (set within the press). The
+    // earlier refusal toast may still be on screen, so the retry's end is waited for before the
+    // refusal is lifted; otherwise a slow retry would succeed afterwards and open the camera.
+    await expect(cameraButton(page)).not.toHaveAttribute('aria-busy', 'true', { timeout: 15_000 });
     await expect(page.getByTestId('toast').filter({ hasText: 'Este aparelho recusou guardar a foto.' }).first()).toBeVisible();
     await expect(page.getByRole('dialog', { name: 'Câmera' })).toHaveCount(0);
+    expect(await devicePhotos(page, database)).toHaveLength(0);
 
     // Once the device takes it, the next press stores the held shot and opens the camera.
     await setFilesRefusal(page, null);
