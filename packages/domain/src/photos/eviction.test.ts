@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { STORAGE_LOW_FREE_BYTES } from '../checks/storage.ts';
-import { evictionPlan, storagePressureBytes, type EvictionBlob } from './eviction.ts';
+import { evictionPlan, refusalPressureBytes, storagePressureBytes, type EvictionBlob } from './eviction.ts';
 
 const MB = 1024 * 1024;
 const R_FIELD = 'r-field';
@@ -56,5 +56,24 @@ describe('6.2-UNIT-003 storagePressureBytes', () => {
     expect(storagePressureBytes({ usage: 0, quota: 10_000 * MB })).toBe(0);
     expect(storagePressureBytes({ usage: 900 * MB, quota: 1_000 * MB })).toBe(STORAGE_LOW_FREE_BYTES - 100 * MB);
     expect(storagePressureBytes(null)).toBe(0);
+  });
+});
+
+describe('13.6-UNIT-002 refusalPressureBytes', () => {
+  it('is the larger of the reading\'s pressure and the refused shot\'s bytes', () => {
+    expect(refusalPressureBytes(null, 3 * MB)).toBe(3 * MB);
+    expect(refusalPressureBytes({ usage: 0, quota: 10_000 * MB }, 3 * MB)).toBe(3 * MB);
+    expect(refusalPressureBytes({ usage: 900 * MB, quota: 1_000 * MB }, 3 * MB)).toBe(STORAGE_LOW_FREE_BYTES - 100 * MB);
+    expect(refusalPressureBytes(null, -5)).toBe(0);
+    expect(refusalPressureBytes(null, Number.NaN)).toBe(0);
+  });
+
+  it('sizes the plan to the shot when the reading shows no pressure', () => {
+    const plan = evictionPlan({
+      blobs,
+      relatorioStatus: { [R_FIELD]: 'em_campo', [R_DONE]: 'em_campo' },
+      pressure: refusalPressureBytes({ usage: 0, quota: 10_000 * MB }, 3 * MB),
+    });
+    expect(plan).toEqual(['old', 'mid']);
   });
 });

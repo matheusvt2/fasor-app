@@ -769,8 +769,9 @@ export const copy = {
     doneOneToastOnline: 'Foto salva — enviando',
     // authored: EXPERIENCE.md › camera permission denied: the reason and the OS path under the button.
     denied: 'A câmera está bloqueada para este site. Para liberar: Configurações do navegador › Permissões do site › Câmera.',
-    // authored: FR-57, the browser refused to store a shot while offline; it is kept in memory.
-    refusalToast: 'Este aparelho recusou guardar a foto. Ela fica na memória e será tentada de novo no próximo disparo.',
+    // authored: FR-57 and Story 13.6 (CAP-4), the browser refused to store a shot while offline even after
+    // freeing space; it is kept in memory and the camera takes no other shot until it is stored.
+    refusalToast: 'Este aparelho recusou guardar a foto. Ela fica na memória desta aba: sincronize para liberar espaço antes de fotografar de novo.',
     // authored: a shot that could not be read or saved at all.
     failedToast: 'Não foi possível salvar a foto. Tente de novo.',
     // `60-ficha.html` NC row, verbatim.
@@ -785,6 +786,13 @@ export const copy = {
     dragReason: 'ou arraste para cá',
     // EXPERIENCE.md › Photo capture sheet: the drop zone's word while files are dragged over it.
     dropHint: 'Solte para adicionar',
+    // authored (Story 13.6, CAP-4; no mock): `.cam-hint` while a refused shot is held, the shutter disabled.
+    refusedHint: 'Sem espaço para guardar outra foto neste aparelho. Feche a câmera e sincronize para liberar espaço.',
+    // authored (Story 13.2, CAP-2; no mock draws torch, zoom or focus): the camera's controls.
+    torch: 'Lanterna',
+    zoomGroup: 'Zoom',
+    zoomOut: 'Diminuir zoom',
+    zoomIn: 'Aumentar zoom',
   },
   // Story 6.3: the gallery (`70-fotos.html`, `key-photos.html`). Counts, stamps, numbers and
   // the filter status are the kernel's (`galleryHeadingText`, `galleryCounterText`, ...).

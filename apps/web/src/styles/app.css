@@ -636,6 +636,20 @@ input.count { width: 40px; padding: 0; border: 0; background: transparent; color
 /* authored: the live stream fills the finder where the mock draws `.thumb-fake`, under the
    corner marks. */
 .cam-finder .cam-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/* authored (Stories 13.2 and 13.6, CAP-2 and CAP-4; no mock draws torch, zoom, focus or the refused
+   shot): the torch toggle at the end of `.cam-top`, pressed in the camera's inverse colors; the zoom
+   row between the finder and the hint, never in the shutter row; the finder keeps two-finger
+   gestures for the zoom; the tapped focus point is a ring; disabled controls read as the
+   disabled shutter does. */
+.cam-top .cam-torch { margin-left: auto; min-width: var(--touch-min); min-height: var(--touch-min); }
+.cam-top .cam-torch[aria-pressed="true"] { background: #FFFFFF; color: #15181D; }
+.cam-finder { touch-action: none; overflow: hidden; }
+.cam-finder .cam-focus-ring { position: absolute; width: 64px; height: 64px; margin: -32px 0 0 -32px; border: 2px solid #FFFFFF; border-radius: 50%; pointer-events: none; }
+.cam-zoom { display: flex; align-items: center; justify-content: center; gap: var(--sp-3); padding: var(--sp-2) var(--sp-4) 0; }
+.cam-zoom .icon-btn { min-width: var(--touch-min); min-height: var(--touch-min); border: 1px solid rgba(255,255,255,.4); border-radius: var(--r-full); }
+.cam-zoom .icon-btn[data-disabled] { opacity: .4; }
+.cam-zoom .cam-zoom-value { min-width: 5ch; text-align: center; font-size: var(--t-label-size); font-weight: var(--t-label-weight); font-variant-numeric: tabular-nums; }
+.cam-hint[data-state="refused"] { color: #FFFFFF; font-weight: var(--t-label-weight); }
 /* authored: a stored thumb fills the tile's `.thumb` box the way the mock's `.thumb-fake` does. */
 .photo-tile .thumb .thumb-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 /* authored: the denied-camera reason under the Sticky action bar's button row. */

@@ -100,6 +100,96 @@ describe('6.2-UNIT-009 the capture rescue', () => {
   });
 });
 
+describe('13.6-UNIT-004 a refused shot frees space and is tried once more before it is held', () => {
+  it('runs freeSpace once with the shot\'s bytes, then saves when the retry is taken', async () => {
+    const rescue = createCaptureRescue();
+    const order: string[] = [];
+    let refusals = 1;
+    const freeSpace = vi.fn(async (bytes: number) => {
+      order.push(`free:${bytes}`);
+    });
+    const d = deps({
+      freeSpace,
+      commit: async (shot) => {
+        order.push(`commit:${shot.fileId}`);
+        if (refusals-- > 0) throw quota();
+      },
+    });
+    expect(await rescue.save(input('a'), d)).toBe('saved');
+    // original 'o' (1 byte) + thumb 't' (1 byte)
+    expect(order).toEqual(['commit:a', 'free:2', 'commit:a']);
+    expect(rescue.heldCount()).toBe(0);
+  });
+
+  it('online and still refused, sends it straight to the server after the retry', async () => {
+    const rescue = createCaptureRescue();
+    const freeSpace = vi.fn(async () => undefined);
+    let commits = 0;
+    const d = deps({
+      isOnline: () => true,
+      freeSpace,
+      commit: async () => {
+        commits += 1;
+        throw quota();
+      },
+    });
+    expect(await rescue.save(input('a'), d)).toBe('sent');
+    expect(freeSpace).toHaveBeenCalledTimes(1);
+    expect(commits).toBe(2);
+    expect(d.sent).toEqual(['a']);
+  });
+
+  it('offline and still refused, holds it; a freeSpace that throws is ignored', async () => {
+    const rescue = createCaptureRescue();
+    let commits = 0;
+    const d = deps({
+      freeSpace: async () => Promise.reject(new Error('eviction broke')),
+      commit: async () => {
+        commits += 1;
+        throw quota();
+      },
+    });
+    expect(await rescue.save(input('a'), d)).toBe('held');
+    expect(commits).toBe(2);
+    expect(rescue.heldCount()).toBe(1);
+  });
+
+  it('a non-quota error is never retried and reaches the caller', async () => {
+    const rescue = createCaptureRescue();
+    const freeSpace = vi.fn(async () => undefined);
+    await expect(rescue.save(input('a'), deps({ freeSpace, commit: async () => Promise.reject(new Error('bug')) }))).rejects.toThrow('bug');
+    expect(freeSpace).not.toHaveBeenCalled();
+  });
+
+  it('notifies subscribers on every change of the held count, and never runs two retries at once', async () => {
+    const rescue = createCaptureRescue();
+    const seen: number[] = [];
+    const unsubscribe = rescue.subscribe(() => seen.push(rescue.heldCount()));
+    let refuse = true;
+    const committed: string[] = [];
+    const d = deps({
+      commit: async (shot) => {
+        if (refuse) throw quota();
+        committed.push(shot.fileId);
+      },
+    });
+    await rescue.save(input('a'), d);
+    await rescue.save(input('b'), d);
+    expect(seen).toEqual([1, 2]);
+    // Still refused: the count does not move, nothing is notified.
+    expect(await rescue.retryHeld(d)).toBe(2);
+    expect(seen).toEqual([1, 2]);
+    refuse = false;
+    const [first, second] = await Promise.all([rescue.retryHeld(d), rescue.retryHeld(d)]);
+    expect([first, second]).toEqual([0, 0]);
+    expect(committed).toEqual(['a', 'b']);
+    expect(seen).toEqual([1, 2, 1, 0]);
+    unsubscribe();
+    await rescue.save(input('c'), d);
+    expect(seen).toEqual([1, 2, 1, 0]);
+  });
+});
+
 describe('6.2-UNIT-010 sendPhotoDirect', () => {
   it('pushes the photo create and PUTs the bytes, in that order', async () => {
     const calls: string[] = [];

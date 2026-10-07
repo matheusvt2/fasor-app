@@ -232,6 +232,30 @@ describe('6.2-UNIT-007 server thumbs and eviction', () => {
   });
 });
 
+describe('13.6-UNIT-003 runEviction sized to a refused shot', () => {
+  it('with no pressure in the reading, frees the oldest-acked originals until the shot\'s bytes are covered', async () => {
+    const db = await freshDb();
+    await commitPhotoCapture(db, shot(PHOTO_A, '2026-09-25T11:00:00.000Z'), { newId, now });
+    await commitPhotoCapture(db, shot(PHOTO_B, '2026-09-25T11:01:00.000Z'), { newId, now });
+    await commitPhotoCapture(db, shot(PHOTO_C, '2026-09-25T11:02:00.000Z'), { newId, now });
+    for (const id of [PHOTO_A, PHOTO_B]) {
+      const record = (await db.entities.get(['file', id]))!;
+      await db.entities.put({ ...record, row: { ...record.row, uploaded_at: '2026-09-25T12:00:00.000Z' } as never });
+    }
+    await markBlobAcked(db, PHOTO_A, '2026-09-25T12:00:00.000Z');
+    await markBlobAcked(db, PHOTO_B, '2026-09-25T12:01:00.000Z');
+    await db.entities.put({ entity: 'relatorio', id: RELATORIO_ID, relatorio_id: RELATORIO_ID, project_id: null, removed_at: null, row: { id: RELATORIO_ID, status: 'em_campo' } as never });
+    const roomy = { usage: 0, quota: 10_000 * 1024 * 1024 };
+    expect(await runEviction(db, roomy)).toEqual([]);
+    expect(await runEviction(db, roomy, 1)).toEqual([PHOTO_A]);
+    expect(await runEviction(db, null, 1)).toEqual([PHOTO_B]);
+    // Never the unacked original, whatever the shot needs.
+    expect(await runEviction(db, null, 1_000_000_000)).toEqual([]);
+    expect(await db.files.get(PHOTO_C)).toMatchObject({ acked: false });
+    db.close();
+  });
+});
+
 describe('E8-A5 crop sources under storage pressure', () => {
   it('evicts a kept crop source like an acked original, and the next view fetches it again', async () => {
     const db = await freshDb();

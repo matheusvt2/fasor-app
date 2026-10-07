@@ -4,6 +4,12 @@
  * (`imageOrientation: 'from-image'`, so the pixels are upright and no orientation tag is
  * needed); the device thumb is at most 512 px. The sha256 is of the bytes that will be
  * uploaded, which is what the server checks (`PUT /api/files/{id}`).
+ *
+ * Story 13.1 (CAP-1), re-measured 2026-10-07: the camera now streams (and a single shot
+ * takes) at up to 3840x2160, and 2560 px / 0.85 is kept as the story allows. Whether a
+ * larger cap reads plates better cannot be scored here: under the `fake` providers the OCR
+ * returns canned values whatever the pixels, so the fixture plates give no accuracy signal.
+ * The cap is revisited once a real provider can score the fixtures.
  */
 
 export const ORIGINAL_MAX_PX = 2560;

@@ -1,4 +1,4 @@
-import { storageLow, storageLowBannerText, type StorageReading } from '@app/domain';
+import { storageLow, storageRefusedBannerText, type StorageReading } from '@app/domain';
 import { useId, type ReactNode } from 'react';
 import { copy } from '../copy/pt-br.ts';
 
@@ -69,6 +69,11 @@ export interface BannerConditions {
   storage?: StorageReading | null;
   /** "Sincronizar" beside the low-storage sentence: the shell owns the sync, the candidate the wording. */
   storageAction?: ReactNode;
+  /**
+   * Story 13.6 (CAP-4): the browser refused to store a shot and it is held in memory
+   * (`useCaptureRefused`): the low-storage banner shows whatever the reading says.
+   */
+  storageRefused?: boolean;
   /** Everything a surface contributes on its own (none of them exist yet). */
   extra?: readonly Banner[];
 }
@@ -94,13 +99,14 @@ export function bannerCandidates(conditions: BannerConditions): Banner[] {
   }
   // Story 6.2 (FR-57, AD-8): under 500 MB free (provisional) the device warns before a
   // capture can fail; the capture itself is still attempted.
+  // Story 13.6: a refused shot forces it, with the free space when the browser gives a reading.
   const storage = conditions.storage ?? null;
-  if (storage !== null && storageLow(storage)) {
+  if (conditions.storageRefused === true || (storage !== null && storageLow(storage))) {
     candidates.push({
       kind: 'storage-low',
       variant: 'warning',
       role: 'region',
-      text: storageLowBannerText(storage),
+      text: storageRefusedBannerText(storage),
       actions: conditions.storageAction,
     });
   }

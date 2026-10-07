@@ -16,7 +16,7 @@ import { useForwardArrival } from '../state/forward-arrival.ts';
 import { usePageTitleValue } from '../state/page-title.tsx';
 import { ReadingArrivals } from '../state/reading-arrivals.tsx';
 import { useSession } from '../state/session.tsx';
-import { useStorageReading } from '../state/storage-reading.ts';
+import { useCaptureRefused, useStorageReading } from '../state/storage-reading.ts';
 import { useSync } from '../state/sync.tsx';
 import { ToastOutlet } from '../state/toast.tsx';
 
@@ -115,12 +115,15 @@ export function AppShell() {
 
   // Story 6.2 (FR-57): measured on mount, after each capture and after each sync cycle.
   const storage = useStorageReading(sync.running);
+  // Story 13.6 (CAP-4): a shot held in memory after a refusal forces the storage banner.
+  const storageRefused = useCaptureRefused();
 
   const banners = bannerCandidates({
     reAuthRequired: session.reAuthRequired,
     online: sync.online,
     unsyncedForDays: unsyncedForDays(oldest, now()),
     storage,
+    storageRefused,
     storageAction: <TextButton onPress={() => void sync.syncNow()}>{copy.banner.storageLowAction}</TextButton>,
     extra: extraBanner === null ? undefined : [extraBanner],
     reAuthAction: (

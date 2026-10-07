@@ -3,8 +3,10 @@ import { useCallback, useEffect, useRef } from 'react';
 import { now } from '../../clock.ts';
 import { copy } from '../../copy/pt-br.ts';
 import { commitPhotoCapture, type PhotoCaptureInput } from '../../db/file-commit.ts';
+import { runEviction } from '../../db/file-store.ts';
 import { clearGeolocationDenied, photoLocationEnabled, readPhotoSeq, writeGeolocationDenied, writePhotoSeqAtLeast } from '../../db/photo-store.ts';
 import { deviceId } from '../../db/sync-store.ts';
+import { storageHeadroom } from '../../device/storage-estimate.ts';
 import { reserveDirectSeq, sendPhotoDirect, sessionCaptureRescue, type RescueDeps } from '../../files/capture-rescue.ts';
 import { browserPositionTracker, type PositionTracker } from '../../files/geolocation.ts';
 import { encodePhoto, type EncodedPhoto } from '../../files/photo-encode.ts';
@@ -22,6 +24,9 @@ import { createBrowserSyncClient } from '../../sync/client.ts';
  * its position, then committed as one transaction (`commitPhotoCapture`). Shots commit one
  * after another, in the order they were taken. A browser that refuses to store a shot hands
  * it to the capture rescue (sent straight to the server online, held in memory offline).
+ * Story 13.6 (CAP-4): the rescue first evicts acknowledged originals sized to the shot
+ * (`freeSpace`) and tries the device once more; `retry` lets the camera's opener try a held
+ * shot again before it opens.
  */
 
 export interface CaptureTarget {
@@ -52,6 +57,8 @@ export interface PhotoCapture {
   shoot: (source: Blob | ImageBitmap, target: CaptureTarget) => void;
   /** Waits for every pending commit and retries a held shot once; false when a shot is still held. */
   settle: () => Promise<boolean>;
+  /** Story 13.6: tries every held shot once more (eviction first); resolves to how many are still held. */
+  retry: () => Promise<number>;
   ready: boolean;
 }
 
@@ -96,6 +103,8 @@ export function usePhotoCapture(relatorioId: string): PhotoCapture {
         await writePhotoSeqAtLeast(db, localSeq).catch(() => undefined);
         await sendPhotoDirect(input, { client: createBrowserSyncClient(), deviceId: device, localSeq, newId, now: now() });
       },
+      // CAP-4: the acknowledged originals the kernel allows, at least the refused shot's bytes.
+      freeSpace: async (neededBytes) => runEviction(db, await storageHeadroom(), neededBytes),
     };
   }, [db]);
 
@@ -175,5 +184,15 @@ export function usePhotoCapture(relatorioId: string): PhotoCapture {
     return still === 0;
   }, [rescueDeps, showToast]);
 
-  return { prepare, shoot, settle, ready: db !== null && user !== null };
+  const retry = useCallback(async () => {
+    const deps = rescueDeps();
+    if (deps === null || sessionCaptureRescue.heldCount() === 0) return sessionCaptureRescue.heldCount();
+    try {
+      return await sessionCaptureRescue.retryHeld(deps);
+    } finally {
+      requestStorageCheck();
+    }
+  }, [rescueDeps]);
+
+  return { prepare, shoot, settle, retry, ready: db !== null && user !== null };
 }
