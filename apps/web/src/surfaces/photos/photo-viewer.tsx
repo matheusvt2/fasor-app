@@ -101,8 +101,11 @@ function ViewerBody({
   const total = numbers.size;
   const src = useObjectUrl(useViewerPicture(tile));
   // The picture's own size, read when it loads (the crop's view and the zoom's maximum need it).
-  const [natural, setNatural] = useState<{ src: string; width: number; height: number } | null>(null);
-  const size = natural !== null && natural.src === src ? natural : null;
+  // Kept per photo, not per object URL: a new URL of the same photo (the thumb replaced by the
+  // original, a blob read again) must not drop the size, or the zoom would snap back to fit in
+  // the middle of a pinch (13.3-E2E-001 under load). The crop view still waits for its own load.
+  const [natural, setNatural] = useState<{ id: string; src: string; width: number; height: number } | null>(null);
+  const size = natural !== null && natural.id === tile.id && (zoom === null || natural.src === src) ? natural : null;
   const zoomBox = zoom === null || size === null ? null : cropViewBox(zoom, size);
   const pinch = usePinchZoom({ content: zoomBox === null ? size : { width: zoomBox.width, height: zoomBox.height }, resetKey: `${tile.id}|${zoom?.join(',') ?? ''}`, doubleTap: true });
   const item = photoItemLine(tile, snapshot);
@@ -140,7 +143,7 @@ function ViewerBody({
             alt={tile.caption ?? viewerLabel(number, total)}
             style={pinch.pictureStyle}
             draggable={false}
-            onLoad={(event) => setNatural({ src, width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
+            onLoad={(event) => setNatural({ id: tile.id, src, width: event.currentTarget.naturalWidth, height: event.currentTarget.naturalHeight })}
           />
         ) : (
           <ZoomedPicture src={src} zoom={zoom} size={size} box={zoomBox} alt={tile.caption ?? viewerLabel(number, total)} style={pinch.pictureStyle} />
